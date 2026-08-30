@@ -16,9 +16,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "experiments"), str(REPO / "tools")]
 
-from experiments.exp022 import campaign
-from experiments.exp022.recipe import *  # noqa: F403
-from experiments.exp022.recipe import _display_path
+from experiments.exp022 import campaign, recipe
 from pingstore.contracts import PingstoreError, write_json_atomic
 from pingstore.stages import reserve_stage, source_run, stage_reservation, stage_run
 
@@ -29,7 +27,7 @@ from helpers.cli import parse_meta
 
 def cell_dir(name: str) -> Path:
     """Shared per-cell artifact directory."""
-    return TRAINING_ROOT / name
+    return recipe.TRAINING_ROOT / name
 
 
 def load_cell(name: str) -> Path:
@@ -38,7 +36,7 @@ def load_cell(name: str) -> Path:
     d = cell_dir(name)
     if not (d / "weights.pth").exists() or not (d / "weights_final.pth").exists():
         raise SystemExit(
-            f"missing trained cell '{name}' at {_display_path(d)}; "
+            f"missing trained cell '{name}' at {recipe._display_path(d)}; "
             "run exp022 (Training) first to produce the shared cells."
         )
     return d
@@ -97,10 +95,12 @@ def runpod_is_done(cell: dict, plumbing: bool) -> bool:
         return False
     if plumbing:
         os.environ["PINGLAB_NB022_PLUMBING"] = "1"
-    want_ms, want_ep = cell_samples_epochs(cell)
-    return (cfg.get("max_samples") == want_ms
-            and cfg.get("epochs") == want_ep
-            and cfg.get("dt") == cell["dt_ms"])
+    want_ms, want_ep = recipe.cell_samples_epochs(cell)
+    return (
+        cfg.get("max_samples") == want_ms
+        and cfg.get("epochs") == want_ep
+        and cfg.get("dt") == cell["dt_ms"]
+    )
 
 
 def _train_one_cell(cell: dict, plumbing: bool) -> None:
@@ -110,20 +110,20 @@ def _train_one_cell(cell: dict, plumbing: bool) -> None:
     the shared network volume (/shared/training via PINGLAB_TRAINING_ROOT), so
     the artifact is durable the moment it lands. Used by --pod-run and --train-cell.
     """
-    _writable_compute_root(TRAINING_ROOT)
-    ms, ep = cell_samples_epochs(cell)  # honours PINGLAB_NB022_PLUMBING
+    _writable_compute_root(recipe.TRAINING_ROOT)
+    ms, ep = recipe.cell_samples_epochs(cell)  # honours PINGLAB_NB022_PLUMBING
     spec = cell
     if plumbing:
         # build_train_args re-applies a canonical cell's own max_samples (60000),
         # which would defeat the tiny plumbing scale. Strip it so the plumbing
         # ms=100 takes — and so runpod_is_done agrees with what was trained.
         spec = {k: v for k, v in cell.items() if k != "max_samples"}
-    args = build_train_args(spec, cell_dir(cell["name"]), ms, ep)
+    args = recipe.build_train_args(spec, cell_dir(cell["name"]), ms, ep)
     print(
         f"[train-cell] {cell['training_run_id']} / {cell['name']} "
         f"(n={ms}, {ep} ep) → {cell_dir(cell['name'])}"
     )
-    subprocess.run([sys.executable, str(SNN_TOOL), *args], cwd=REPO, check=True)
+    subprocess.run([sys.executable, str(recipe.SNN_TOOL), *args], cwd=REPO, check=True)
     _stamp_training_run_identity(cell)
 
 
@@ -146,7 +146,7 @@ def _stamp_training_run_identity(cell: dict) -> None:
 
 
 def _cell_by_name(name: str) -> dict | None:
-    return next((c for c in CANONICAL_CELLS if c["name"] == name), None)
+    return next((c for c in recipe.CANONICAL_CELLS if c["name"] == name), None)
 
 
 def pod_run() -> None:
@@ -159,7 +159,7 @@ def pod_run() -> None:
     run are.
     """
     plumbing = os.environ.get("PINGLAB_NB022_PLUMBING") == "1"
-    print(f"[pod-run] plumbing={plumbing} root={TRAINING_ROOT}")
+    print(f"[pod-run] plumbing={plumbing} root={recipe.TRAINING_ROOT}")
 
     def is_done(name: str) -> bool:
         cell = _cell_by_name(name)
@@ -171,8 +171,9 @@ def pod_run() -> None:
         _train_one_cell(cell, plumbing)
 
     runpod.pod_run_loop(
-        job_ids=[c["name"] for c in CANONICAL_CELLS],
-        is_done=is_done, run_job=run_job,
+        job_ids=[c["name"] for c in recipe.CANONICAL_CELLS],
+        is_done=is_done,
+        run_job=run_job,
     )
 
 
@@ -183,8 +184,12 @@ def runpod_buckets(cells: list[dict], cells_per_pod: int) -> list[dict]:
     sweep = [c["name"] for c in cells if c["family"] != "canonical"]
     buckets = [{"name": f"canon-{n}", "cells": [n]} for n in canonical]
     for i in range(0, len(sweep), cells_per_pod):
-        buckets.append({"name": f"sweep-{i // cells_per_pod:02d}",
-                        "cells": sweep[i:i + cells_per_pod]})
+        buckets.append(
+            {
+                "name": f"sweep-{i // cells_per_pod:02d}",
+                "cells": sweep[i : i + cells_per_pod],
+            }
+        )
     return buckets
 
 
@@ -201,7 +206,7 @@ def run_via_runpod(argv: list[str]) -> None:
     """
     meta, reserved = _dispatch_meta(argv)
 
-    cells = CANONICAL_CELLS
+    cells = recipe.CANONICAL_CELLS
     if meta.only_cells:
         wanted = set(meta.only_cells)
         cells = [c for c in cells if c["name"] in wanted]
@@ -210,36 +215,56 @@ def run_via_runpod(argv: list[str]) -> None:
             raise SystemExit(f"unknown cell(s): {sorted(missing)}")
 
     if meta.live and not meta.collect and reserved is None:
-        reserved = reserve_stage(REPO / ".pingstore", SLUG, "compute", origin="runpod")
+        reserved = reserve_stage(
+            REPO / ".pingstore", recipe.SLUG, "compute", origin="runpod"
+        )
     if meta.collect and reserved is None:
         raise SystemExit("collection requires --run-id from the original dispatch")
-    local_root = TRAINING_ROOT
+    local_root = recipe.TRAINING_ROOT
     subdir = runpod.TRAINING_SUBDIR
     extra_env = None
     if reserved:
         temporary = REPO / ".pingstore/runs" / f".{reserved}.tmp"
         reservation = stage_reservation(temporary)
-        if (reservation["run_id"] != reserved or reservation["experiment"] != SLUG
-                or reservation["stage"] != "compute" or reservation["origin"] != "runpod"):
-            raise PingstoreError("RunPod requires its own reserved exp022 compute identity")
+        if (
+            reservation["run_id"] != reserved
+            or reservation["experiment"] != recipe.SLUG
+            or reservation["stage"] != "compute"
+            or reservation["origin"] != "runpod"
+        ):
+            raise PingstoreError(
+                "RunPod requires its own reserved exp022 compute identity"
+            )
         local_root = temporary / "export/cells"
         subdir = f"{reserved}/cells"
-        extra_env = {"PINGLAB_TRAINING_ROOT": f"{runpod.VOLUME_MOUNT}/{subdir}",
-                     "PINGSTORE_RUN_ID": reserved}
+        extra_env = {
+            "PINGLAB_TRAINING_ROOT": f"{runpod.VOLUME_MOUNT}/{subdir}",
+            "PINGSTORE_RUN_ID": reserved,
+        }
         print(f"reserved compute run: {reserved}")
     runpod.dispatch(
-        slug=SLUG, runner=SLUG,
+        slug=recipe.SLUG,
+        runner=recipe.SLUG,
         buckets=runpod_buckets(cells, meta.cells_per_pod),
-        gpu=meta.gpu, live=meta.live, plumbing=meta.plumbing, collect=meta.collect,
+        gpu=meta.gpu,
+        live=meta.live,
+        plumbing=meta.plumbing,
+        collect=meta.collect,
         collect_subdir=subdir,
         local_collect_dir=str(local_root),
         extra_env=extra_env,
         plumbing_env={"PINGLAB_NB022_PLUMBING": "1"},
     )
     if meta.collect:
-        with stage_run(REPO, SLUG, "compute", run_id=reserved, configuration=SCALE,
-                       operation="collect-runpod") as run:
-            for cell in CANONICAL_CELLS:
+        with stage_run(
+            REPO,
+            recipe.SLUG,
+            "compute",
+            run_id=reserved,
+            configuration=recipe.SCALE,
+            operation="collect-runpod",
+        ) as run:
+            for cell in recipe.CANONICAL_CELLS:
                 for role in ("best_validation", "final_epoch"):
                     resolve_checkpoint(local_root / cell["name"], role)
             generate_snapshots(local_root, run.export / "snapshots")
@@ -254,7 +279,7 @@ def _dispatch_meta(argv: list[str]):
         if index + 1 == len(arguments) or arguments[index + 1].startswith("--"):
             raise SystemExit("--run-id requires a reserved identity")
         reserved = arguments[index + 1]
-        del arguments[index:index + 2]
+        del arguments[index : index + 2]
     return parse_meta(arguments, allow_dispatch=True), reserved
 
 
@@ -267,15 +292,16 @@ def _campaign_parser() -> argparse.ArgumentParser:
     group.add_argument("--campaign-train-cell", metavar="NAME")
     group.add_argument("--campaign-validate", type=Path, metavar="MANIFEST")
     group.add_argument("--campaign-aggregate", type=Path, metavar="MANIFEST")
-    group.add_argument(
-        "--campaign-import-compatible", type=Path, metavar="MANIFEST"
-    )
+    group.add_argument("--campaign-import-compatible", type=Path, metavar="MANIFEST")
     parser.add_argument("--campaign", type=Path, metavar="MANIFEST")
     parser.add_argument("--from-campaign", type=Path, metavar="MANIFEST")
     parser.add_argument("--campaign-id")
-    parser.add_argument("--execution-origin", default="campaign",
-                        choices=("campaign", "local", "slurm-wilkes"),
-                        help="planned producer; campaign permits mixed local/HPC workers")
+    parser.add_argument(
+        "--execution-origin",
+        default="campaign",
+        choices=("campaign", "local", "slurm-wilkes"),
+        help="planned producer; campaign permits mixed local/HPC workers",
+    )
     parser.add_argument("--tier", default="all")
     parser.add_argument("--json", action="store_true")
     parser.add_argument("--retry-only", action="store_true")
@@ -309,10 +335,9 @@ def _import_compatible_cells(destination: dict, source_path: Path) -> dict:
     incompatible: list[str] = []
     for row in destination["cells"]:
         source_row = source_rows.get(row["name"])
-        if (
-            source_row is None
-            or _portable_cell_contract(source_row) != _portable_cell_contract(row)
-        ):
+        if source_row is None or _portable_cell_contract(
+            source_row
+        ) != _portable_cell_contract(row):
             incompatible.append(row["name"])
             continue
         validation = campaign.validate_cell(source_row)
@@ -384,7 +409,7 @@ def _checked_manifest(path: Path, *, allow_generated_dirty: bool = False) -> dic
         raise SystemExit("campaign lockfile identity does not match the checkout")
     tier = manifest.get("selection", {}).get("tier")
     try:
-        selected_cells = cells_in_resource_tier(tier)
+        selected_cells = recipe.cells_in_resource_tier(tier)
     except ValueError as exc:
         raise SystemExit(str(exc)) from exc
     manifest_names_list = [row.get("name") for row in manifest.get("cells", [])]
@@ -392,7 +417,9 @@ def _checked_manifest(path: Path, *, allow_generated_dirty: bool = False) -> dic
         raise SystemExit("campaign contains duplicate cell names")
     expected_names_list = [cell["name"] for cell in selected_cells]
     if manifest_names_list != expected_names_list:
-        raise SystemExit("campaign cell list does not exactly match its declared selection")
+        raise SystemExit(
+            "campaign cell list does not exactly match its declared selection"
+        )
     previous_plumbing = os.environ.get("PINGLAB_NB022_PLUMBING")
     runtime_commands = {}
     try:
@@ -403,21 +430,29 @@ def _checked_manifest(path: Path, *, allow_generated_dirty: bool = False) -> dic
         for row in manifest["cells"]:
             spec = _cell_by_name(row["name"])
             assert spec is not None
-            samples, epochs = cell_samples_epochs(spec)
-            command_spec = ({k: v for k, v in spec.items() if k != "max_samples"}
-                            if manifest.get("plumbing") else spec)
-            train_args = build_train_args(command_spec, root / "cells" / spec["name"], samples, epochs)
-            resolved = campaign.resolved_parameters(
-                spec, train_args, samples, epochs,
-                scientific_contract=scientific_contract(spec, samples, epochs),
+            samples, epochs = recipe.cell_samples_epochs(spec)
+            command_spec = (
+                {k: v for k, v in spec.items() if k != "max_samples"}
+                if manifest.get("plumbing")
+                else spec
             )
-            command = [campaign.python_executable(), str(SNN_TOOL), *train_args]
+            train_args = recipe.build_train_args(
+                command_spec, root / "cells" / spec["name"], samples, epochs
+            )
+            resolved = campaign.resolved_parameters(
+                spec,
+                train_args,
+                samples,
+                epochs,
+                scientific_contract=recipe.scientific_contract(spec, samples, epochs),
+            )
+            command = [campaign.python_executable(), str(recipe.SNN_TOOL), *train_args]
             output_directory = (root / "cells" / spec["name"]).resolve()
             expected = {
                 "name": spec["name"],
                 "training_run_id": spec["training_run_id"],
                 "family": spec["family"],
-                "resource_tier": cell_resource_tier(spec),
+                "resource_tier": recipe.cell_resource_tier(spec),
                 "parameters": resolved,
                 "command": command,
                 "command_shell": shlex.join(command),
@@ -427,7 +462,9 @@ def _checked_manifest(path: Path, *, allow_generated_dirty: bool = False) -> dic
             if row != expected:
                 raise SystemExit(f"campaign manifest registry drift for {row['name']}")
             if output_directory.parent != (root / "cells").resolve():
-                raise SystemExit(f"campaign output path escapes the cells root: {row['name']}")
+                raise SystemExit(
+                    f"campaign output path escapes the cells root: {row['name']}"
+                )
             runtime_commands[row["name"]] = command
     finally:
         if previous_plumbing is None:
@@ -443,39 +480,53 @@ def _stamp_campaign_identity(directory: Path, manifest: dict, row: dict) -> None
     for filename in ("config.json", "metrics.json"):
         path = directory / filename
         payload = json.loads(path.read_text())
-        payload.update({
-            "campaign_id": manifest["campaign_id"],
-            "campaign_manifest_sha256": manifest["manifest_sha256"],
-            "resource_tier": row["resource_tier"],
-            "campaign_repository_commit": manifest["repository"]["commit"],
-            "campaign_resolved_parameters": row["parameters"],
-        })
-        nested = payload.get("config")
-        if isinstance(nested, dict):
-            nested.update({
+        payload.update(
+            {
                 "campaign_id": manifest["campaign_id"],
                 "campaign_manifest_sha256": manifest["manifest_sha256"],
                 "resource_tier": row["resource_tier"],
                 "campaign_repository_commit": manifest["repository"]["commit"],
                 "campaign_resolved_parameters": row["parameters"],
-            })
+            }
+        )
+        nested = payload.get("config")
+        if isinstance(nested, dict):
+            nested.update(
+                {
+                    "campaign_id": manifest["campaign_id"],
+                    "campaign_manifest_sha256": manifest["manifest_sha256"],
+                    "resource_tier": row["resource_tier"],
+                    "campaign_repository_commit": manifest["repository"]["commit"],
+                    "campaign_resolved_parameters": row["parameters"],
+                }
+            )
         campaign.atomic_json(path, payload)
 
 
 def _gpu_metadata() -> dict:
     try:
         query = subprocess.run(
-            ["nvidia-smi", "--query-gpu=name,memory.total,memory.used", "--format=csv,noheader,nounits"],
-            capture_output=True, text=True,
+            [
+                "nvidia-smi",
+                "--query-gpu=name,memory.total,memory.used",
+                "--format=csv,noheader,nounits",
+            ],
+            capture_output=True,
+            text=True,
         )
     except FileNotFoundError:
         return {"available": False}
     if query.returncode != 0:
         return {"available": False}
-    return {"available": True, "devices": [line.strip() for line in query.stdout.splitlines()]}
+    return {
+        "available": True,
+        "devices": [line.strip() for line in query.stdout.splitlines()],
+    }
 
 
-def _campaign_train(manifest_path: Path, name: str, *, recover_stale: bool = False) -> int:
+def _campaign_train(
+    manifest_path: Path, name: str, *, recover_stale: bool = False
+) -> int:
     manifest = _checked_manifest(manifest_path)
     row = campaign.manifest_cell(manifest, name)
     directory = Path(row["output_directory"])
@@ -485,7 +536,9 @@ def _campaign_train(manifest_path: Path, name: str, *, recover_stale: bool = Fal
         print(f"[skip-valid] {name} is complete and will not be touched")
         return 0
     record, attempt_lock = campaign.acquire_attempt(
-        manifest, row, recover_stale=recover_stale,
+        manifest,
+        row,
+        recover_stale=recover_stale,
     )
     status_path = campaign.status_path(manifest, name)
     exit_code = 1
@@ -493,12 +546,16 @@ def _campaign_train(manifest_path: Path, name: str, *, recover_stale: bool = Fal
     try:
         existing = campaign.validate_cell(row)
         if existing["valid"]:
-            record.update({
-                "ended_at_utc": campaign.utc_now(), "exit_code": 0,
-                "elapsed_seconds": round(time.monotonic() - attempt_started, 3),
-                "state": "complete", "validation": existing,
-                "note": "became valid before training ownership was acquired",
-            })
+            record.update(
+                {
+                    "ended_at_utc": campaign.utc_now(),
+                    "exit_code": 0,
+                    "elapsed_seconds": round(time.monotonic() - attempt_started, 3),
+                    "state": "complete",
+                    "validation": existing,
+                    "note": "became valid before training ownership was acquired",
+                }
+            )
             campaign.atomic_json(status_path, record)
             print(f"[skip-valid] {name} became complete and will not be touched")
             return 0
@@ -514,37 +571,50 @@ def _campaign_train(manifest_path: Path, name: str, *, recover_stale: bool = Fal
         if exit_code == 0:
             spec = _cell_by_name(name)
             assert spec is not None
-            old_root = globals()["TRAINING_ROOT"]
+            old_root = recipe.TRAINING_ROOT
             try:
-                globals()["TRAINING_ROOT"] = Path(manifest["campaign_root"]) / "cells"
+                recipe.TRAINING_ROOT = Path(manifest["campaign_root"]) / "cells"
                 _stamp_training_run_identity(spec)
             finally:
-                globals()["TRAINING_ROOT"] = old_root
+                recipe.TRAINING_ROOT = old_root
             _stamp_campaign_identity(directory, manifest, row)
         validation = campaign.validate_cell(row)
         try:
-            metrics_payload = load_metrics(directory)
+            metrics_payload = recipe.load_metrics(directory)
         except (OSError, ValueError, json.JSONDecodeError):
             metrics_payload = {}
-        record.update({
-            "ended_at_utc": campaign.utc_now(), "exit_code": exit_code,
-            "elapsed_seconds": round(time.monotonic() - attempt_started, 3),
-            "state": "complete" if exit_code == 0 and validation["valid"] else "failed",
-            "validation": validation,
-            "gpu_after": _gpu_metadata(),
-            "training_performance": metrics_payload.get("perf"),
-            "output_bytes": sum(path.stat().st_size for path in directory.rglob("*") if path.is_file()),
-        })
+        record.update(
+            {
+                "ended_at_utc": campaign.utc_now(),
+                "exit_code": exit_code,
+                "elapsed_seconds": round(time.monotonic() - attempt_started, 3),
+                "state": "complete"
+                if exit_code == 0 and validation["valid"]
+                else "failed",
+                "validation": validation,
+                "gpu_after": _gpu_metadata(),
+                "training_performance": metrics_payload.get("perf"),
+                "output_bytes": sum(
+                    path.stat().st_size
+                    for path in directory.rglob("*")
+                    if path.is_file()
+                ),
+            }
+        )
         directory.mkdir(parents=True, exist_ok=True)
         campaign.atomic_json(directory / "attempt.json", record)
         campaign.atomic_json(status_path, record)
         return 0 if record["state"] == "complete" else 1
     except BaseException as exc:
-        record.update({
-            "ended_at_utc": campaign.utc_now(), "exit_code": exit_code,
-            "elapsed_seconds": round(time.monotonic() - attempt_started, 3),
-            "state": "failed", "error": f"{type(exc).__name__}: {exc}",
-        })
+        record.update(
+            {
+                "ended_at_utc": campaign.utc_now(),
+                "exit_code": exit_code,
+                "elapsed_seconds": round(time.monotonic() - attempt_started, 3),
+                "state": "failed",
+                "error": f"{type(exc).__name__}: {exc}",
+            }
+        )
         directory.mkdir(parents=True, exist_ok=True)
         campaign.atomic_json(directory / "attempt.json", record)
         campaign.atomic_json(status_path, record)
@@ -554,28 +624,37 @@ def _campaign_train(manifest_path: Path, name: str, *, recover_stale: bool = Fal
 
 
 def _handle_campaign_cli(argv: list[str]) -> bool:
-    if not any(flag in argv for flag in (
-        "--campaign-manifest", "--campaign-status", "--campaign-list",
-        "--campaign-train-cell", "--campaign-validate", "--campaign-aggregate",
-        "--campaign-import-compatible",
-    )):
+    if not any(
+        flag in argv
+        for flag in (
+            "--campaign-manifest",
+            "--campaign-status",
+            "--campaign-list",
+            "--campaign-train-cell",
+            "--campaign-validate",
+            "--campaign-aggregate",
+            "--campaign-import-compatible",
+        )
+    ):
         return False
     args = _campaign_parser().parse_args(argv[1:])
     if args.campaign_import_compatible:
         if args.from_campaign is None:
             raise SystemExit("--from-campaign is required")
         destination = _checked_manifest(args.campaign_import_compatible)
-        print(json.dumps(
-            _import_compatible_cells(destination, args.from_campaign),
-            indent=2,
-            sort_keys=True,
-        ))
+        print(
+            json.dumps(
+                _import_compatible_cells(destination, args.from_campaign),
+                indent=2,
+                sort_keys=True,
+            )
+        )
         return True
     if args.campaign_manifest:
         if not args.campaign_id:
             raise SystemExit("--campaign-id is required")
         try:
-            selected = cells_in_resource_tier(args.tier)
+            selected = recipe.cells_in_resource_tier(args.tier)
         except ValueError as exc:
             raise SystemExit(str(exc)) from exc
         if args.plumbing:
@@ -583,10 +662,14 @@ def _handle_campaign_cli(argv: list[str]) -> bool:
         root = args.campaign_manifest.resolve()
         _writable_compute_root(root)
         manifest = campaign.create_manifest(
-            repo=REPO, campaign_root=root, campaign_id=args.campaign_id,
-            cells=selected, tier_for=cell_resource_tier,
-            samples_epochs=cell_samples_epochs, build_args=build_train_args,
-            scientific_contract_for=scientific_contract,
+            repo=REPO,
+            campaign_root=root,
+            campaign_id=args.campaign_id,
+            cells=selected,
+            tier_for=recipe.cell_resource_tier,
+            samples_epochs=recipe.cell_samples_epochs,
+            build_args=recipe.build_train_args,
+            scientific_contract_for=recipe.scientific_contract,
             plumbing=args.plumbing,
             selection_tier=args.tier,
         )
@@ -599,27 +682,38 @@ def _handle_campaign_cli(argv: list[str]) -> bool:
         for child in ("cells", "logs", "status", "submissions"):
             (root / child).mkdir()
         manifest["pingstore_run_id"] = reserve_stage(
-            REPO / ".pingstore", SLUG, "compute", origin=args.execution_origin
+            REPO / ".pingstore",
+            recipe.SLUG,
+            "compute",
+            origin=args.execution_origin,
         )
         campaign.write_manifest(root / "campaign.json", manifest)
         print(root / "campaign.json")
         return True
-    manifest_path = (args.campaign or args.campaign_status or args.campaign_list
-                     or args.campaign_validate or args.campaign_aggregate)
+    manifest_path = (
+        args.campaign
+        or args.campaign_status
+        or args.campaign_list
+        or args.campaign_validate
+        or args.campaign_aggregate
+    )
     if manifest_path is None:
         raise SystemExit("--campaign MANIFEST is required")
     manifest = _checked_manifest(manifest_path)
     if args.campaign_train_cell:
-        raise SystemExit(_campaign_train(
-            manifest_path, args.campaign_train_cell,
-            recover_stale=args.recover_stale,
-        ))
+        raise SystemExit(
+            _campaign_train(
+                manifest_path,
+                args.campaign_train_cell,
+                recover_stale=args.recover_stale,
+            )
+        )
     if args.campaign_validate:
         print(f"valid manifest {manifest['campaign_id']} {manifest['manifest_sha256']}")
         return True
     status = campaign.summarize_status(manifest)
     if args.campaign_aggregate:
-        if len(manifest["cells"]) != len(CANONICAL_CELLS):
+        if len(manifest["cells"]) != len(recipe.CANONICAL_CELLS):
             raise SystemExit("aggregation requires the complete 102-cell registry")
         incomplete = [row["name"] for row in status["cells"] if not row["valid"]]
         if incomplete:
@@ -629,7 +723,11 @@ def _handle_campaign_cli(argv: list[str]) -> bool:
         capture_campaign(manifest_path, manifest)
         return True
     if args.campaign_list:
-        cells = [cell for cell in manifest["cells"] if args.tier == "all" or cell["resource_tier"] == args.tier]
+        cells = [
+            cell
+            for cell in manifest["cells"]
+            if args.tier == "all" or cell["resource_tier"] == args.tier
+        ]
         if args.retry_only:
             retry = set(status["retry_cells"])
             cells = [cell for cell in cells if cell["name"] in retry]
@@ -639,7 +737,6 @@ def _handle_campaign_cli(argv: list[str]) -> bool:
     else:
         campaign.print_status(status)
     return True
-
 
 
 def _writable_compute_root(directory: Path) -> None:
@@ -655,28 +752,43 @@ def _writable_compute_root(directory: Path) -> None:
 
 def generate_snapshots(bank: Path, output: Path) -> None:
     """Retain fixed digit-0/sample-0 probes; no plotting or discarded recordings."""
-    for cell in CANONICAL_CELLS:
+    for cell in recipe.CANONICAL_CELLS:
         if cell["seed"] != 42:
             continue
         trained = bank / cell["name"]
-        checkpoint = resolve_checkpoint(trained, RESULT_CHECKPOINT_ROLE)
+        checkpoint = resolve_checkpoint(trained, recipe.RESULT_CHECKPOINT_ROLE)
         destination = output / cell["name"]
         if destination.exists():
             raise PingstoreError(f"probe output already exists: {destination}")
         args = [
-            sys.executable, str(SNN_TOOL), "sim", "--infer",
-            "--load-config", str(trained / "config.json"),
-            "--load-weights", str(checkpoint["path"]),
-            "--digit", "0", "--sample", "0", "--out-dir", str(destination),
+            sys.executable,
+            str(recipe.SNN_TOOL),
+            "sim",
+            "--infer",
+            "--load-config",
+            str(trained / "config.json"),
+            "--load-weights",
+            str(checkpoint["path"]),
+            "--digit",
+            "0",
+            "--sample",
+            "0",
+            "--out-dir",
+            str(destination),
         ]
         if cell["family"] == "variable_rate":
             args += ["--input-rate", "5"]
         print(f"[compute probe] {cell['name']}", flush=True)
         subprocess.run(args, cwd=REPO, check=True)
-        write_json_atomic(destination / "probe-command.json", {
-            "command": args,
-            "checkpoint": {key: value for key, value in checkpoint.items() if key != "path"},
-        })
+        write_json_atomic(
+            destination / "probe-command.json",
+            {
+                "command": args,
+                "checkpoint": {
+                    key: value for key, value in checkpoint.items() if key != "path"
+                },
+            },
+        )
 
 
 def promote_cells(export: Path) -> None:
@@ -694,17 +806,22 @@ def copy_bank(bank: Path, destination: Path) -> list[dict]:
     """Copy scientific evidence without restamping configs or checkpoint roles."""
     from pingstore.contracts import file_sha256
 
-    expected = {cell["name"] for cell in CANONICAL_CELLS}
+    expected = {cell["name"] for cell in recipe.CANONICAL_CELLS}
     actual = {path.name for path in bank.iterdir() if path.is_dir()}
     if actual != expected:
         raise PingstoreError(
-            f"bank must contain the 102 registered cells; missing={sorted(expected-actual)}, "
-            f"extra={sorted(actual-expected)}"
+            f"bank must contain the 102 registered cells; missing={sorted(expected - actual)}, "
+            f"extra={sorted(actual - expected)}"
         )
     inventory = []
     for name in sorted(expected):
         cell = bank / name
-        for required in ("config.json", "metrics.json", "weights.pth", "weights_final.pth"):
+        for required in (
+            "config.json",
+            "metrics.json",
+            "weights.pth",
+            "weights_final.pth",
+        ):
             if not (cell / required).is_file():
                 raise PingstoreError(f"missing scientific payload: {cell / required}")
         for role in ("best_validation", "final_epoch"):
@@ -721,17 +838,33 @@ def copy_bank(bank: Path, destination: Path) -> list[dict]:
             shutil.copy2(path, target)
             if file_sha256(target) != digest:
                 raise PingstoreError(f"import checksum mismatch: {relative}")
-            inventory.append({"path": relative.as_posix(), "sha256": digest,
-                              "size_bytes": target.stat().st_size})
+            inventory.append(
+                {
+                    "path": relative.as_posix(),
+                    "sha256": digest,
+                    "size_bytes": target.stat().st_size,
+                }
+            )
     return inventory
 
 
 def import_bank(identity: str, *, run_id: str | None = None) -> str:
-    """Copy an explicit v3 compute bank without training; legacy import is separate."""
-    source = source_run(REPO / ".pingstore", identity, stage="compute", experiment=SLUG)
-    with stage_run(REPO, SLUG, "compute", inputs={"import": source}, run_id=run_id,
-                   configuration=source.record["execution"].get("configuration"),
-                   operation="import") as run:
+    """Copy an explicit v4 compute bank without training."""
+    source = source_run(
+        REPO / ".pingstore",
+        identity,
+        stage="compute",
+        experiment=recipe.SLUG,
+    )
+    with stage_run(
+        REPO,
+        recipe.SLUG,
+        "compute",
+        inputs={"import": source},
+        run_id=run_id,
+        configuration=source.record["execution"].get("configuration"),
+        operation="import",
+    ) as run:
         inventory = copy_bank(source.export, run.export / "cells")
         promote_cells(run.export)
         run.record["execution"]["imported_files"] = len(inventory)
@@ -741,7 +874,7 @@ def import_bank(identity: str, *, run_id: str | None = None) -> str:
         run.record["historical_evidence"] = {
             "source": source.reference,
             "note": "Historical cell attempts and inherited/repaired lineage are preserved; "
-                    "this execution copied evidence and did not train or simulate.",
+            "this execution copied evidence and did not train or simulate.",
         }
         (run.directory / "README.md").write_text(
             "# Exp022 compute — imported model bank\n\n"
@@ -767,8 +900,14 @@ def capture_campaign(manifest_path: Path, manifest: dict) -> str:
             "Pingstore bank with compute.py --import-source RUN instead"
         )
     bank = Path(manifest["campaign_root"]) / "cells"
-    with stage_run(REPO, SLUG, "compute", run_id=reserved, configuration=SCALE,
-                   operation="capture-campaign") as run:
+    with stage_run(
+        REPO,
+        recipe.SLUG,
+        "compute",
+        run_id=reserved,
+        configuration=recipe.SCALE,
+        operation="capture-campaign",
+    ) as run:
         copy_bank(bank, run.export / "cells")
         shutil.copy2(manifest_path, run.scratch / "campaign.json")
         run.record["execution"]["campaign"] = {
@@ -793,13 +932,20 @@ def main() -> None:
         )
     if _handle_campaign_cli(sys.argv):
         return
-    if any(flag in sys.argv for flag in ("--runpod", "--reap", "--pod-run", "--train-cell",
-                                         "--list-cells")):
+    if any(
+        flag in sys.argv
+        for flag in ("--runpod", "--reap", "--pod-run", "--train-cell", "--list-cells")
+    ):
         meta, _reserved = _dispatch_meta(sys.argv)
         if meta.list_cells:
-            print("\n".join(cell["name"] for cell in cells_in_resource_tier(meta.list_cells)))
+            print(
+                "\n".join(
+                    cell["name"]
+                    for cell in recipe.cells_in_resource_tier(meta.list_cells)
+                )
+            )
             return
-        _writable_compute_root(TRAINING_ROOT)
+        _writable_compute_root(recipe.TRAINING_ROOT)
         if meta.train_cell:
             cell = _cell_by_name(meta.train_cell)
             if cell is None:
@@ -814,10 +960,17 @@ def main() -> None:
         return
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--run-id", help="identity already reserved before dispatch")
-    parser.add_argument("--import-source", help="copy an explicit v3 compute bank without computation")
-    parser.add_argument("--source", help="compute bank for new retained diagnostic probes")
-    parser.add_argument("--diagnostics", action="store_true",
-                        help="simulate fixed probes only; requires --source")
+    parser.add_argument(
+        "--import-source", help="copy an explicit v4 compute bank without computation"
+    )
+    parser.add_argument(
+        "--source", help="compute bank for new retained diagnostic probes"
+    )
+    parser.add_argument(
+        "--diagnostics",
+        action="store_true",
+        help="simulate fixed probes only; requires --source",
+    )
     args = parser.parse_args()
     if args.import_source:
         if args.source or args.diagnostics:
@@ -828,23 +981,32 @@ def main() -> None:
         parser.error("--source and --diagnostics must be used together")
     inputs = {}
     if args.source:
-        inputs["bank"] = source_run(REPO / ".pingstore", args.source,
-                                   stage="compute", experiment=SLUG)
-        if not (inputs["bank"].export / CANONICAL_CELLS[0]["name"]).is_dir():
+        inputs["bank"] = source_run(
+            REPO / ".pingstore", args.source, stage="compute", experiment=recipe.SLUG
+        )
+        if not (inputs["bank"].export / recipe.CANONICAL_CELLS[0]["name"]).is_dir():
             parser.error("--source must be a compute run exporting a model bank")
-    with stage_run(REPO, SLUG, "compute", inputs=inputs, run_id=args.run_id,
-                   configuration=SCALE) as run:
+    with stage_run(
+        REPO,
+        recipe.SLUG,
+        "compute",
+        inputs=inputs,
+        run_id=args.run_id,
+        configuration=recipe.SCALE,
+    ) as run:
         if inputs:
             bank = inputs["bank"].export
         else:
             bank = run.export / "cells"
-            previous = globals()["TRAINING_ROOT"]
+            previous = recipe.TRAINING_ROOT
             try:
-                globals()["TRAINING_ROOT"] = bank
-                for cell in CANONICAL_CELLS:
-                    _train_one_cell(cell, os.environ.get("PINGLAB_NB022_PLUMBING") == "1")
+                recipe.TRAINING_ROOT = bank
+                for cell in recipe.CANONICAL_CELLS:
+                    _train_one_cell(
+                        cell, os.environ.get("PINGLAB_NB022_PLUMBING") == "1"
+                    )
             finally:
-                globals()["TRAINING_ROOT"] = previous
+                recipe.TRAINING_ROOT = previous
         generate_snapshots(bank, run.export / "snapshots")
         if not inputs:
             promote_cells(run.export)

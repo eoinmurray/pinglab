@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 import torch
 from experiments import exp022 as exp022_package
-from experiments.exp022 import campaign, fr_strength_pilot, tr06_diagnostic
+from experiments.exp022 import campaign, recipe, tr06_diagnostic
 from experiments.exp022 import compute as exp022
 from experiments.helpers import archive
 
@@ -23,19 +23,19 @@ CONCRETE_TIERS = (
 
 
 def test_registry_has_102_unique_cells_partitioned_once() -> None:
-    names = [cell["name"] for cell in exp022.CANONICAL_CELLS]
+    names = [cell["name"] for cell in recipe.CANONICAL_CELLS]
     assert len(names) == len(set(names)) == 102
     tiered = [
         cell["name"]
         for tier in CONCRETE_TIERS
-        for cell in exp022.cells_in_resource_tier(tier)
+        for cell in recipe.cells_in_resource_tier(tier)
     ]
     assert sorted(tiered) == sorted(names)
 
 
 def test_tr02_registry_uses_explicit_hz_targets() -> None:
     cells = [
-        cell for cell in exp022.CANONICAL_CELLS if cell["training_run_id"] == "TR-02"
+        cell for cell in recipe.CANONICAL_CELLS if cell["training_run_id"] == "TR-02"
     ]
     assert {cell["rate_target_hz"] for cell in cells} == {
         None,
@@ -57,17 +57,17 @@ def test_tr02_registry_uses_explicit_hz_targets() -> None:
 
 
 def test_downstream_contract_interface_is_isolated_and_fail_closed() -> None:
-    cells = exp022.training_run_cells("TR-06")
+    cells = recipe.training_run_cells("TR-06")
     assert len(cells) == 3
     cells[0]["input_rates_hz"].append(999.0)
-    assert 999.0 not in exp022.training_run_cell("TR-06", seed=42)["input_rates_hz"]
-    assert exp022.training_run_values("TR-06", "seed") == (42, 43, 44)
+    assert 999.0 not in recipe.training_run_cell("TR-06", seed=42)["input_rates_hz"]
+    assert recipe.training_run_values("TR-06", "seed") == (42, 43, 44)
     with pytest.raises(ValueError, match="unknown exp022 training-run ID"):
-        exp022.training_run_cells("TR-99")
+        recipe.training_run_cells("TR-99")
     with pytest.raises(ValueError, match="expected one TR-02 cell"):
-        exp022.training_run_cell("TR-02", seed=42)
+        recipe.training_run_cell("TR-02", seed=42)
     with pytest.raises(ValueError, match="cell contract mismatch"):
-        exp022.require_training_run_cells("TR-06", {"invented-cell"})
+        recipe.require_training_run_cells("TR-06", {"invented-cell"})
 
 
 def test_campaign_python_identity_stays_inside_environment(
@@ -98,22 +98,24 @@ def test_campaign_python_identity_normalizes_parent_alias(
 
 def test_exp022_display_path_accepts_external_campaign_root(tmp_path: Path) -> None:
     external = tmp_path / "campaign" / "derived"
-    assert exp022._display_path(external) == external
+    assert recipe._display_path(external) == external
 
 
-@pytest.mark.parametrize("family,run_id", exp022.TRAINING_RUN_IDS.items())
+@pytest.mark.parametrize("family,run_id", recipe.TRAINING_RUN_IDS.items())
 def test_registry_training_run_identity(family: str, run_id: str) -> None:
-    cells = [cell for cell in exp022.CANONICAL_CELLS if cell["family"] == family]
+    cells = [cell for cell in recipe.CANONICAL_CELLS if cell["family"] == family]
     assert cells
     assert {cell["training_run_id"] for cell in cells} == {run_id}
 
 
 def test_every_registered_training_run_has_guide_and_results_sections() -> None:
     writing = (exp022.REPO / "writings" / "exp022.typ").read_text()
-    run_ids = tuple(exp022.TRAINING_RUN_IDS.values())
+    run_ids = tuple(recipe.TRAINING_RUN_IDS.values())
     assert len(run_ids) == len(set(run_ids))
-    results = re.findall(r"^\s*=== \d+\. (TR-\d+) —", writing, re.MULTILINE)
-    specifications = re.findall(r"^\s*=== A\.\d+\. (TR-\d+) —", writing, re.MULTILINE)
+    results = re.findall(r"^\s*=== (TR-\d+) —", writing, re.MULTILINE)
+    specifications = re.findall(
+        r"^\s*=== Specification: (TR-\d+) —", writing, re.MULTILINE
+    )
     for run_id in run_ids:
         assert results.count(run_id) == 1
         assert specifications.count(run_id) == 1
@@ -121,17 +123,17 @@ def test_every_registered_training_run_has_guide_and_results_sections() -> None:
 
 def test_tr07_low_input_controls_use_production_contract(tmp_path: Path) -> None:
     cells = [
-        cell for cell in exp022.CANONICAL_CELLS if cell["training_run_id"] == "TR-07"
+        cell for cell in recipe.CANONICAL_CELLS if cell["training_run_id"] == "TR-07"
     ]
     assert len(cells) == 12
     assert {cell["seed"] for cell in cells} == {42, 43, 44}
     assert {cell["w_in"] for cell in cells} == {0.05, 0.1, 0.3, 0.9}
     for cell in cells:
-        args = exp022.build_train_args(
+        args = recipe.build_train_args(
             cell,
             tmp_path / cell["name"],
-            exp022.SUBSET_MAX_SAMPLES,
-            exp022.EPOCHS_STANDARD,
+            recipe.SUBSET_MAX_SAMPLES,
+            recipe.EPOCHS_STANDARD,
         )
         assert args[args.index("--max-samples") + 1] == "7000"
         assert args[args.index("--epochs") + 1] == "50"
@@ -142,9 +144,9 @@ def test_tr07_low_input_controls_use_production_contract(tmp_path: Path) -> None
 
 
 def test_all_resolved_commands_keep_family_contract(tmp_path: Path) -> None:
-    for cell in exp022.CANONICAL_CELLS:
-        samples, epochs = exp022.cell_samples_epochs(cell)
-        args = exp022.build_train_args(cell, tmp_path / cell["name"], samples, epochs)
+    for cell in recipe.CANONICAL_CELLS:
+        samples, epochs = recipe.cell_samples_epochs(cell)
+        args = recipe.build_train_args(cell, tmp_path / cell["name"], samples, epochs)
         assert args[args.index("--epochs") + 1] == "50"
         assert args[args.index("--seed") + 1] == str(cell["seed"])
         assert args[args.index("--dt") + 1] == str(cell["dt_ms"])
@@ -156,14 +158,14 @@ def test_all_resolved_commands_keep_family_contract(tmp_path: Path) -> None:
         expected_w_in = str(cell["w_in"]) if cell["family"] == "low_w_in" else "0.9"
         assert args[args.index("--w-in") + 1] == expected_w_in
         expected_readout_mean = (
-            exp022.TR06_READOUT_W_INIT_MEAN
+            recipe.TR06_READOUT_W_INIT_MEAN
             if cell["family"] == "variable_rate"
-            else exp022.SHARED_READOUT_W_INIT_MEAN
+            else recipe.SHARED_READOUT_W_INIT_MEAN
         )
         expected_readout_std = (
-            exp022.TR06_READOUT_W_INIT_STD
+            recipe.TR06_READOUT_W_INIT_STD
             if cell["family"] == "variable_rate"
-            else exp022.SHARED_READOUT_W_INIT_STD
+            else recipe.SHARED_READOUT_W_INIT_STD
         )
         assert args[args.index("--readout-w-init-mean") + 1] == expected_readout_mean
         assert args[args.index("--readout-w-init-std") + 1] == expected_readout_std
@@ -182,21 +184,21 @@ def test_all_resolved_commands_keep_family_contract(tmp_path: Path) -> None:
         if cell["family"] == "variable_rate":
             assert args[args.index("--readout") + 1] == "spike-count"
             assert tuple(map(float, args[args.index("--input-rates") + 1 :])) == (
-                exp022.VARIABLE_RATE_TRAINING_RATES_HZ
+                recipe.VARIABLE_RATE_TRAINING_RATES_HZ
             )
 
 
 def test_all_resolved_cells_have_complete_scientific_contract(tmp_path: Path) -> None:
     contracts = []
-    for cell in exp022.CANONICAL_CELLS:
-        samples, epochs = exp022.cell_samples_epochs(cell)
-        args = exp022.build_train_args(cell, tmp_path / cell["name"], samples, epochs)
+    for cell in recipe.CANONICAL_CELLS:
+        samples, epochs = recipe.cell_samples_epochs(cell)
+        args = recipe.build_train_args(cell, tmp_path / cell["name"], samples, epochs)
         resolved = campaign.resolved_parameters(
             cell,
             args,
             samples,
             epochs,
-            scientific_contract=exp022.scientific_contract(cell, samples, epochs),
+            scientific_contract=recipe.scientific_contract(cell, samples, epochs),
         )
         contract = resolved["scientific_contract"]
         contracts.append(contract)
@@ -221,7 +223,7 @@ def test_all_resolved_cells_have_complete_scientific_contract(tmp_path: Path) ->
         if cell["family"] == "variable_rate":
             assert contract["input"]["rate_hz"] is None
             assert contract["input"]["rate_distribution_hz"] == list(
-                exp022.VARIABLE_RATE_TRAINING_RATES_HZ
+                recipe.VARIABLE_RATE_TRAINING_RATES_HZ
             )
         else:
             assert contract["input"]["rate_hz"] == 25.0
@@ -231,15 +233,15 @@ def test_all_resolved_cells_have_complete_scientific_contract(tmp_path: Path) ->
 
 
 def test_every_production_argument_is_mapped_or_operational(tmp_path: Path) -> None:
-    for cell in exp022.CANONICAL_CELLS:
-        samples, epochs = exp022.cell_samples_epochs(cell)
-        args = exp022.build_train_args(cell, tmp_path / cell["name"], samples, epochs)
+    for cell in recipe.CANONICAL_CELLS:
+        samples, epochs = recipe.cell_samples_epochs(cell)
+        args = recipe.build_train_args(cell, tmp_path / cell["name"], samples, epochs)
         parameters = campaign.resolved_parameters(
             cell,
             args,
             samples,
             epochs,
-            scientific_contract=exp022.scientific_contract(cell, samples, epochs),
+            scientific_contract=recipe.scientific_contract(cell, samples, epochs),
         )
         row = {"parameters": parameters}
         expected = campaign._expected_config(row)
@@ -280,9 +282,9 @@ def test_scientific_argument_saved_config_transform(
 def test_validator_rejects_each_resolved_scientific_config_mismatch(
     tmp_path: Path,
 ) -> None:
-    cell = exp022.PLANNED_VARIABLE_RATE_CELLS[0]
+    cell = recipe.PLANNED_VARIABLE_RATE_CELLS[0]
     samples, epochs = 100, 2
-    args = exp022.build_train_args(
+    args = recipe.build_train_args(
         cell, tmp_path / "cells" / cell["name"], samples, epochs
     )
     row = {
@@ -295,7 +297,7 @@ def test_validator_rejects_each_resolved_scientific_config_mismatch(
             args,
             samples,
             epochs,
-            scientific_contract=exp022.scientific_contract(cell, samples, epochs),
+            scientific_contract=recipe.scientific_contract(cell, samples, epochs),
         ),
     }
     directory = _write_valid_cell(row)
@@ -632,16 +634,16 @@ def _write_checked_manifest(
     monkeypatch.setattr(
         campaign, "lock_identity", lambda _repo: {"path": "uv.lock", "sha256": "lock"}
     )
-    cells = exp022.cells_in_resource_tier(tier)
+    cells = recipe.cells_in_resource_tier(tier)
     payload = campaign.create_manifest(
         repo=exp022.REPO,
         campaign_root=tmp_path,
         campaign_id="checked",
         cells=cells,
-        tier_for=exp022.cell_resource_tier,
-        samples_epochs=exp022.cell_samples_epochs,
-        build_args=exp022.build_train_args,
-        scientific_contract_for=exp022.scientific_contract,
+        tier_for=recipe.cell_resource_tier,
+        samples_epochs=recipe.cell_samples_epochs,
+        build_args=recipe.build_train_args,
+        scientific_contract_for=recipe.scientific_contract,
         selection_tier=tier,
     )
     path = tmp_path / "campaign.json"
@@ -691,7 +693,7 @@ def test_external_aggregation_completes_compute_without_downstream_dispatch(
     manifest = {
         "campaign_id": "external",
         "campaign_root": str(tmp_path),
-        "cells": [{} for _ in exp022.CANONICAL_CELLS],
+        "cells": [{} for _ in recipe.CANONICAL_CELLS],
     }
     monkeypatch.setattr(exp022, "_checked_manifest", lambda *_args, **_kwargs: manifest)
     monkeypatch.setattr(
@@ -721,7 +723,7 @@ def test_external_aggregation_completes_compute_without_downstream_dispatch(
         ]
     )
     assert observed == [(tmp_path / "campaign.json", manifest)]
-    assert exp022.training_root_provenance(tmp_path)["location"] == "external"
+    assert recipe.training_root_provenance(tmp_path)["location"] == "external"
 
 
 def test_post_aggregation_check_allows_only_generated_exp022_artifacts(
@@ -808,7 +810,7 @@ def test_verified_archive_source_is_manifest_cells_not_legacy(
 ) -> None:
     row = _manifest_cell(tmp_path)
     manifest = _attempt_manifest(tmp_path, row)
-    manifest["cells"] = [{} for _ in exp022.CANONICAL_CELLS]
+    manifest["cells"] = [{} for _ in recipe.CANONICAL_CELLS]
     checked = {}
 
     def fake_checked_manifest(_path, *, allow_generated_dirty=False):
@@ -822,7 +824,7 @@ def test_verified_archive_source_is_manifest_cells_not_legacy(
         lambda _manifest: {
             "retry_cells": [],
             "recoverable_cells": [],
-            "cells": [{"state": "complete"} for _ in exp022.CANONICAL_CELLS],
+            "cells": [{"state": "complete"} for _ in recipe.CANONICAL_CELLS],
         },
     )
     selected, source = archive.verified_campaign_source(tmp_path / "campaign.json")
@@ -879,42 +881,6 @@ def test_submission_selection_is_frozen_read_only() -> None:
     assert 'chmod 0444 "$selection"' in submit
     assert 'mapfile -t cells < "$EXP022_SELECTION"' in array
     assert "--campaign-list" not in array
-
-
-def test_fr_strength_pilot_is_isolated_from_registered_tr02() -> None:
-    pilot = fr_strength_pilot.pilot_spec("coba", 1.6e-2)
-    registered = exp022.training_run_cell(
-        "TR-02", model="coba", rate_target_hz=1.0, seed=42
-    )
-
-    flag = pilot["extra"].index("--fr-reg-upper-strength")
-    registered_flag = registered["extra"].index("--fr-reg-upper-strength")
-    assert pilot["extra"][flag + 1] == "0.016"
-    assert registered["extra"][registered_flag + 1] == "0.041"
-
-
-def test_fr_strength_pilot_array_is_fixed_and_collision_free() -> None:
-    script = (
-        exp022.REPO / "experiments" / "exp022" / "slurm" / "fr-strength-pilot.sbatch"
-    ).read_text()
-    assert "models=(coba coba coba coba ping ping ping ping)" in script
-    assert "strengths=(0.004 0.016 0.041 0.1 0.004 0.016 0.041 0.1)" in script
-    assert "--campaign-train-cell" not in script
-    assert "EXP022_PILOT_ROOT" in script
-
-
-def test_fr_strength_pilot_eval_uses_figure_one_contract() -> None:
-    script = (
-        exp022.REPO
-        / "experiments"
-        / "exp022"
-        / "slurm"
-        / "fr-strength-pilot-eval.sbatch"
-    ).read_text()
-    assert script.count("__lambda") == 8
-    assert "weights_final.pth" in script
-    assert "--max-samples 1000" in script
-    assert 'test ! -e "$cell_root/official-test"' in script
 
 
 def test_portable_cell_contract_ignores_only_output_path() -> None:
@@ -1001,7 +967,7 @@ SLURM = EXPERIMENT / "slurm"
     [
         "from experiments.exp022 import campaign, compute",
         "from experiments.exp022 import compute, campaign",
-        "from experiments.exp022 import tr06_diagnostic, fr_strength_pilot; "
+        "from experiments.exp022 import tr06_diagnostic; "
         "from experiments.exp022 import campaign, compute",
         "import sys; sys.path.insert(0, 'experiments'); import exp022; "
         "from experiments.exp022 import campaign, compute; "
@@ -1038,17 +1004,6 @@ def test_file_entrypoints_resolve_from_an_external_directory(entrypoint, tmp_pat
         text=True,
     )
     assert "usage:" in completed.stdout
-
-
-def test_pilot_module_entrypoint():
-    completed = subprocess.run(
-        [sys.executable, "-m", "experiments.exp022.fr_strength_pilot", "--help"],
-        cwd=REPO,
-        check=True,
-        capture_output=True,
-        text=True,
-    )
-    assert "--strength" in completed.stdout
 
 
 def test_slurm_scripts_and_collection_references_resolve():
