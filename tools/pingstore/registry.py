@@ -61,18 +61,31 @@ def memberships(repo: Path) -> dict[str, str]:
 def coverage(repo: Path) -> dict[str, Any]:
     registry = load_registry(repo)
     registered = set(registry["experiments"])
-    runnable = {
+    experiments = repo / "experiments"
+    legacy_runnable = {
         path.stem for path in (repo / "experiments").glob("exp[0-9][0-9][0-9].py")
     }
+    staged_runnable = {
+        path.name
+        for path in experiments.glob("exp[0-9][0-9][0-9]")
+        if path.is_dir()
+        and any(
+            (path / f"{stage}.py").is_file()
+            for stage in ("compute", "analyse", "present")
+        )
+    }
+    runnable = legacy_runnable | staged_runnable
     capture_routes: dict[str, str] = {}
     for experiment in sorted(runnable):
-        stage_dir = repo / "experiments" / experiment
+        stage_dir = experiments / experiment
         # An audit may reuse another experiment's compute run without owning
         # a compute stage of its own.
-        if all((stage_dir / f"{stage}.py").is_file() for stage in ("analyse", "present")):
+        if all(
+            (stage_dir / f"{stage}.py").is_file() for stage in ("analyse", "present")
+        ):
             capture_routes[experiment] = "independent-stages"
             continue
-        text = (repo / "experiments" / f"{experiment}.py").read_text()
+        text = (experiments / f"{experiment}.py").read_text()
         if "published_run(" in text:
             capture_routes[experiment] = "atomic-published-run"
         elif "finalize_prepared_run(" in text:

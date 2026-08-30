@@ -19,7 +19,7 @@ artifacts, launches upstream work or publishes. The collection explicitly
 orchestrates all three stages with reserved IDs and pinned references.
 Legacy flat entrypoints and monolithic campaign completion are rejected.
 
-The bank input is an explicitly selected v3 exp022 compute run. All 36 TR-02
+The bank input is an explicitly selected v4 exp022 compute run. All 36 TR-02
 cells and 12 TR-07 cells are validated against their final-epoch checkpoint
 hashes and training histories. Recursive lineage is validated before use and
 checked again before completion.

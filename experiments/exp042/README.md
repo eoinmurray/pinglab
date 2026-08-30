@@ -1,6 +1,6 @@
 # Exp042: independent timing-intervention stages
 
-Conformance targets: Experiment Runner Guide 2.0.0, Storage Guide 2.0.0 and
+Conformance targets: Experiment Runner Guide 4.3.0, Storage Guide 4.3.0 and
 Writing Guide 8.0.0. This is a code/writing migration, not a new scientific run.
 The initial code migration imported no Gold-2 data. A separately authorized
 selective import is recorded below; no existing archive or completed run changed.
@@ -13,8 +13,8 @@ uv run python experiments/exp042/analyse.py --source <exp042-compute-id>
 uv run python experiments/exp042/present.py --source <exp042-analyse-id>
 ```
 
-Each command completes one v3 run and prints its ID. All inputs and their complete
-ancestry must be validated v3 runs with exact manifest and payload pins. There is
+Each command completes one v4 run and prints its ID. All inputs and their complete
+ancestry must be validated v4 runs with exact payload pins. There is
 no latest-run, historical-directory or missing-cache fallback. The bank is an
 explicit human choice; the migration does not choose between historical banks.
 The three TR-02 PING baseline cells use final-epoch checkpoints, never deployment
@@ -81,12 +81,12 @@ identity or separately reviewed recovery, not automatic reuse.
 Legacy monolithic commands, `--skip-training`, `--plot-only` and the old RunPod
 dispatcher are not operational interfaces. The simulator can execute on the
 current host, including an explicitly provisioned GPU host; automated RunPod
-dispatch has not been ported to the v3 reservation protocol. Historical campaigns
+dispatch has not been ported to the v4 reservation protocol. Historical campaigns
 require their original checkout and are not accepted by the new adapter.
 
 ## Review and publication
 
-The writing consumes an explicitly selected v3 presentation. Without one, it
+The writing consumes an explicitly selected v4 presentation. Without one, it
 shows the shared unavailable-data notice. Fixture-based tests are not scientific
 evidence or published results. Preview selection, production execution and
 publication remain separate human decisions. Keep all pinned input runs when

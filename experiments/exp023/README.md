@@ -1,7 +1,7 @@
 # Exp023 — PING fundamentals
 
-The implementation is maintained against Experiment Runner Guide 2.0.0,
-Storage Guide 2.0.0 and Writing Guide 8.0.0. Current operational requirements
+The implementation is maintained against Experiment Runner Guide 4.3.0,
+Storage Guide 4.3.0 and Writing Guide 8.0.0. Current operational requirements
 are defined by the [Runner Guide](../README.md), [Storage Guide](../../tools/pingstore/README.md)
 and [Writing Guide](../../writings/README.md). These commands are independent and
 never materialize or publish. This implementation change does not establish a scientific rerun.
@@ -44,8 +44,8 @@ materialization/publication requires separate authorization.
 
 ## Storage and dispatch boundary
 
-Every new stage uses v3, stage-labelled IDs, atomic completion and both payload
-and authoritative-manifest input pins. Simulation commands, configurations and
+Every new stage uses v4, stage-labelled IDs, atomic completion and payload-digest
+input pins. Simulation commands, configurations and
 supporting logs use discarded `.scratch/`. Failed executions remain hidden. --run-id
 accepts only an unused reservation; reruns use fresh identities.
 
@@ -55,8 +55,8 @@ all three stage IDs before scheduler dispatch and retain stage references;
 old monolithic exp023 plans are rejected, never rewritten or recaptured as v2.
 
 Historical runs and reservations are untouched. No v2 import or migration is
-provided. Exp023 enforces Storage 2.0.0 locally. Repository-wide guides also
-require v3; remaining shared v2 readers and unrelated legacy runners are
+provided. Exp023 enforces Storage 4.3.0 locally. Repository-wide guides also
+require v4; remaining shared legacy readers and unrelated legacy runners are
 nonconforming implementations, not permitted compatibility exceptions.
 
 ## Verification

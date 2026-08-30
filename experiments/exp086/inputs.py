@@ -1,4 +1,4 @@
-"""Strict v3 sources and complete pinned ancestry, rechecked before completion."""
+"""Strict v4 sources and complete pinned ancestry, rechecked before completion."""
 
 from contextlib import contextmanager
 

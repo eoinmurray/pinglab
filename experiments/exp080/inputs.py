@@ -1,4 +1,4 @@
-"""Validated v3 inputs and complete ancestry, without implicit source selection."""
+"""Validated v4 inputs and complete ancestry, without implicit source selection."""
 
 from contextlib import contextmanager
 

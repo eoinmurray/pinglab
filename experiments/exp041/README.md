@@ -1,6 +1,6 @@
 # exp041 — inhibitory decay, gamma frequency and firing rate
 
-Execution target: **Experiment Runner Guide 3.0.0 / Storage Guide 3.0.0**, using
+Execution target: **Experiment Runner Guide 4.3.0 / Storage Guide 4.3.0**, using
 `pingstore.run/v4` and source-neutral stage IDs. The article follows **Writing
 Guide 9.0.0**, with the approved scientific-account correction described below.
 

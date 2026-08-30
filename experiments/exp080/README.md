@@ -2,7 +2,7 @@
 
 ## Independent execution contract
 
-Runner Guide 3.0.0 and Storage Guide 3.0.0. The diagnostic decoder study remains
+Experiment Runner Guide 4.3.0 and Storage Guide 4.3.0. The diagnostic decoder study remains
 standalone: it uses MNIST, not an exp022 checkpoint bank. The retired combined
 entrypoint rejects execution. Importing the package performs no training,
 simulation, plotting, source selection or filesystem writes.
@@ -14,7 +14,7 @@ uv run python -m experiments.exp080.present --source <exp080-analyse-run-id>
 ```
 
 The equivalent `experiments/exp080/<stage>.py` paths are supported. Each command
-creates one completed v3 run and prints its ID. `--run-id` accepts only a fresh,
+creates one completed v4 run and prints its ID. `--run-id` accepts only a fresh,
 source-neutral reservation allocated by the shared Pingstore helpers. Execution
 origin and scheduler identity belong in the manifest, not the ID.
 
@@ -224,7 +224,7 @@ was performed by this task, and no missing run was recreated.
 
 ## Future-run data retention — 2026-08-28
 
-Native compute keeps each validation-selected decoder state in memory through held-out evaluation and does not write decoder.pt. Training histories and held-out correctness remain retained; memory_only is explicit in the training record. The low-level helper still supports checkpoint files for explicit callers. Readers continue to validate checkpoint hashes when consuming older v3 evidence.
+Native compute keeps each validation-selected decoder state in memory through held-out evaluation and does not write decoder.pt. Training histories and held-out correctness remain retained; memory_only is explicit in the training record. The low-level helper still supports checkpoint files for explicit callers. Older v3 evidence remains non-operational historical evidence.
 
 These changes affect future execution only. Existing immutable runs and R2
 archives are unchanged. Required arrays keep their original numerical values;

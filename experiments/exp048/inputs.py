@@ -1,4 +1,4 @@
-"""Explicit v3 stage inputs, with full ancestry validation before and after work."""
+"""Explicit v4 stage inputs, with full ancestry validation before and after work."""
 
 from contextlib import contextmanager
 

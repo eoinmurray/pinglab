@@ -1,4 +1,4 @@
-"""Validate exp044 lineage up to its explicitly selected v3 training bank."""
+"""Validate exp044 lineage up to its explicitly selected v4 training bank."""
 
 from contextlib import contextmanager
 from pathlib import Path

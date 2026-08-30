@@ -1,4 +1,4 @@
-"""Compute exp082 streaming inference from a pinned v3 bank, with six shards."""
+"""Compute exp082 streaming inference from a pinned v4 bank, with six shards."""
 
 import argparse
 import contextlib
@@ -74,7 +74,7 @@ def _shard_paths(repo, run_id, index, count):
         or destination.exists()
         or (directory / "run.json").exists()
     ):
-        raise PingstoreError("shards require an unused exp082 v3 compute reservation")
+        raise PingstoreError("shards require an unused exp082 v4 compute reservation")
     return directory
 
 
@@ -255,7 +255,7 @@ def main():
     parser.add_argument(
         "--source", required=True, help="explicit completed exp022 compute ID"
     )
-    parser.add_argument("--run-id", help="unused v3 reservation")
+    parser.add_argument("--run-id", help="unused v4 reservation")
     parser.add_argument(
         "--shard-index", type=int, help="compute worker index (six shards)"
     )

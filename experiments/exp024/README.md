@@ -19,13 +19,13 @@ use discarded `.scratch/`. Checkpoints remain in the source compute run.
 
 Presentation reads saved analysis, not cell histories. It writes the existing
 three SVGs and `numbers.json` into its flat `export/`, with figure lineage in
-`run.json`. Both stages validate and pin their inputs, write v3 through shared
+`run.json`. Both stages validate and pin their inputs, write v4 through shared
 helpers, and print a new stage ID. `--run-id` accepts an unused reservation only.
-Sources must declare their stage and use v3. Shared operational source validation
+Sources must declare their stage and use v4. Shared operational source validation
 now rejects typed and untyped v2 before reserving a downstream run. The
 [verified exp022 ancestor repair](../exp022/ANCESTRY.md) resolved the historical
 source prerequisite and re-pinned all five retained exp024 runs without changing
-their scientific values. Operational inputs and pins resolve to validated v3 runs.
+their scientific values. Operational inputs and pins resolve to validated v4 runs.
 For a diagnostic compute run with a pinned `bank` input, analysis resolves and
 records that exact bank as an additional input.
 
@@ -60,7 +60,7 @@ runs. Finalization excludes exp024 from legacy v2 recapture. Keep the referenced
 repository Pingstore runs when transferring a campaign: its reference document
 does not contain the scientific evidence. Preserve legacy campaign checkouts,
 plans, reservations and completed runs as historical evidence; this does not
-permit v2 execution or reservation completion. New executions require v3.
+permit legacy execution or reservation completion. New executions require v4.
 
 ## Preview and publication
 

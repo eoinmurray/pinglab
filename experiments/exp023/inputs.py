@@ -1,4 +1,4 @@
-"""Validated v3 inputs only, with exact upstream pins and no active-run fallback."""
+"""Validated v4 inputs only, with exact upstream pins and no active-run fallback."""
 
 from pathlib import Path
 

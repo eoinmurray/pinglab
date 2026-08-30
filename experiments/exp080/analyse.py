@@ -55,7 +55,7 @@ def analyse(identity: str, *, run_id: str | None = None) -> str:
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "--source", required=True, help="completed exp080 v3 compute run ID"
+        "--source", required=True, help="completed exp080 v4 compute run ID"
     )
     parser.add_argument(
         "--run-id", help="source-neutral identity reserved before dispatch"

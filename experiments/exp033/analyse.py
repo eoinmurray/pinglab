@@ -42,12 +42,12 @@ def analyse(identity, frequency_source, *, run_id=None):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "--source", required=True, help="completed exp033 v3 compute run"
+        "--source", required=True, help="completed exp033 v4 compute run"
     )
     parser.add_argument(
-        "--frequency-source", required=True, help="completed exp041 v3 analysis run"
+        "--frequency-source", required=True, help="completed exp041 v4 analysis run"
     )
-    parser.add_argument("--run-id", help="unused v3 identity reserved before dispatch")
+    parser.add_argument("--run-id", help="unused v4 identity reserved before dispatch")
     args = parser.parse_args()
     analyse(args.source, args.frequency_source, run_id=args.run_id)
 

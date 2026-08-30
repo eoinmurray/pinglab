@@ -2,7 +2,7 @@
 
 ## Contract migration
 
-Runner Guide 3.0.0, Storage Guide 3.0.0 and Writing Guide 17.0.0. Independent
+Experiment Runner Guide 4.3.0, Storage Guide 4.3.0 and Writing Guide 17.0.0. Independent
 contracts, approved selective import, analysis, presentation and scientific
 corrections are complete. Shared collection registration was authorized and
 coordinated with exp080. The author approved committing exp054-owned files
@@ -16,7 +16,7 @@ uv run python -m experiments.exp054.analyse --source <exp054-compute-id> \
 uv run python -m experiments.exp054.present --source <exp054-analysis-id>
 ```
 
-Each command independently completes one source-neutral v3 run. `--run-id` is
+Each command independently completes one source-neutral v4 run. `--run-id` is
 only for an unused identity allocated by the shared reservation helper; HPC
 execution requires reservation before submission. All sources and their complete
 ancestry are validated and rechecked before completion. Failures remain hidden

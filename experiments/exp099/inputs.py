@@ -1,4 +1,4 @@
-"""Resolve explicit v3 runs and verify their retained scientific configuration."""
+"""Resolve explicit v4 runs and verify their retained scientific configuration."""
 
 from pathlib import Path
 

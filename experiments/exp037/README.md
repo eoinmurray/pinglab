@@ -2,12 +2,12 @@
 
 ## Contract migration
 
-Runner Guide 3.0.0 and Storage Guide 3.0.0. The scientific recipe remains the
+Experiment Runner Guide 4.3.0 and Storage Guide 4.3.0. The scientific recipe remains the
 existing TR-02 perturbation study; training belongs to exp022. The flat runner,
 implicit scratch/cache paths and legacy RunPod dispatch entrypoint are retired.
 Importing the package exposes pure recipe and measurement helpers, not execution.
 
-Each stage requires an explicit completed v3 source and completes independently:
+Each stage requires an explicit completed v4 source and completes independently:
 
 ```sh
 uv run python -m experiments.exp037.compute --source <exp022-compute-run-id>

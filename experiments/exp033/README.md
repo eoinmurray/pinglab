@@ -2,7 +2,7 @@
 
 ## Contract migration
 
-Execution follows Runner Guide 3.0.0 and Storage Guide 3.0.0. Contract migration
+Execution follows Experiment Runner Guide 4.3.0 and Storage Guide 4.3.0. Contract migration
 and the approved selective historical import are complete. Independent analysis
 and presentation were executed without production simulation or training.
 The initial migration was committed and pushed as `c8f65b1c`. The subsequent
@@ -18,7 +18,7 @@ uv run python -m experiments.exp033.analyse --source <exp033-compute-id> \
 uv run python -m experiments.exp033.present --source <exp033-analysis-id>
 ```
 
-Each command independently completes one source-neutral v3 run. Compute needs no
+Each command independently completes one source-neutral v4 run. Compute needs no
 upstream data: it solves the committed theoretical model. Analysis explicitly
 pins both that computation and an exp041 analysis. Presentation pins the analysis
 and consumes only its saved summaries and coordinates. There are no implicit
@@ -39,7 +39,7 @@ Pingstore helper. Failures remain hidden; completed runs are immutable.
   `numbers.json` structure. Waveform plotting functions cannot integrate the model.
 
 Numerical arrays use compressed NPZ with `allow_pickle=False` and a JSON structure
-index; all retained values and array dtypes are preserved. Complete v3 ancestry,
+index; all retained values and array dtypes are preserved. Complete v4 ancestry,
 manifest pins and payload checksums are checked before use and again before
 completion. Source records, commands and execution environment go in provenance.
 

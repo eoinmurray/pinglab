@@ -2,11 +2,11 @@
 
 ## Contract migration
 
-Runner Guide 3.0.0 and Storage Guide 3.0.0. The four TR-05 conditions and
+Experiment Runner Guide 4.3.0 and Storage Guide 4.3.0. The four TR-05 conditions and
 seeds 42–44 remain unchanged. Training belongs to exp022; exp049 never trains.
 The legacy flat runner and bare package entrypoint now reject execution.
 
-Each command is independent and requires an explicit completed v3 source:
+Each command is independent and requires an explicit completed v4 source:
 
 ```sh
 uv run python -m experiments.exp049.compute --source <exp022-compute-run-id>

@@ -14,6 +14,7 @@ def test_every_runnable_experiment_has_membership_and_capture_route() -> None:
     assert result["missing_capture"] == []
     assert result["writing_mismatches"] == {}
     assert result["passed"] is True
+    assert set(result["capture_routes"]) == set(result["registered"])
     assert result["capture_routes"]["exp024"] == "independent-stages"
 
 

@@ -82,7 +82,7 @@ def present(identity, *, run_id=None):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source", required=True, help="completed exp054 analysis run")
-    parser.add_argument("--run-id", help="fresh v3 identity reserved before dispatch")
+    parser.add_argument("--run-id", help="fresh v4 identity reserved before dispatch")
     args = parser.parse_args()
     present(args.source, run_id=args.run_id)
 

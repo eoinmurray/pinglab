@@ -1,6 +1,6 @@
 # Exp081: filtered-response theory
 
-Independent stages follow Storage Guide 2.0.0 and Experiment Runner Guide 2.0.0.
+Independent stages follow Storage Guide 4.3.0 and Experiment Runner Guide 4.3.0.
 The article follows Writing Guide 8.0.0.
 The physical equations, rate/probe grids, random-seed derivation, integration
 scheme and default sample counts are preserved from the combined runner.
@@ -11,7 +11,7 @@ uv run python experiments/exp081/analyse.py --source <compute-run-id>
 uv run python experiments/exp081/present.py --source <analyse-run-id>
 ```
 
-Each command prints one completed v3 run ID. `--run-id` accepts an unused v3
+Each command prints one completed v4 run ID. `--run-id` accepts an unused v4
 identity reserved through the shared stage library before dispatch. No stage
 selects a latest run, launches another stage or materializes publication output.
 Both downstream stages reject v2, wrong-stage, wrong-experiment and changed inputs.

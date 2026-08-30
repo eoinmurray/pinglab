@@ -2,7 +2,7 @@
 
 ## Scope and status
 
-Contract migration follows Runner Guide 3.0.0 and Storage Guide 3.0.0.
+Contract migration follows Experiment Runner Guide 4.3.0 and Storage Guide 4.3.0.
 This is a **demo** experiment, not a gamma-gated-sparsity collection member.
 The migration does not add it to that collection. The author separately
 authorized fresh local execution and omission of two unavailable theory
@@ -32,7 +32,7 @@ uv run python -m experiments.exp086.present --source <exp086-analysis-id>
 ```
 
 The stage files also support direct Python invocation. Each command completes
-one immutable v3 run and prints its source-neutral ID. `--run-id` accepts only
+one immutable v4 run and prints its source-neutral ID. `--run-id` accepts only
 an unused identity reserved through the existing stage allocator. There are no
 science overrides, automatic input selection, upstream dispatch or publication.
 Scientific execution remains local as in the original recipe; no HPC adapter

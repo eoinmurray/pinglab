@@ -3,7 +3,7 @@
 ## Contract migration
 
 This is a `demo` experiment, not a member of the gamma-gated-sparsity execution
-collection. The migration follows Experiment Runner Guide 3.0.0 and Storage
+collection. The migration follows Experiment Runner Guide 4.3.0 and Storage
 Guide 3.0.0; exp037 was an implementation example. No shared collection,
 simulator, registry or shared-test edits are required.
 

@@ -1,6 +1,6 @@
 # exp075: independent integration stages
 
-Conforms to Experiment Runner Guide 3.0.0 and Storage Guide 3.0.0.
+Conforms to Experiment Runner Guide 4.3.0 and Storage Guide 4.3.0.
 The article follows Writing Guide 18.0.0. Original scientific constants,
 network definitions, workloads and selection rules were preserved; the live
 simulator's actual evaluation protocol is reported, not the old article's assumptions.
@@ -13,7 +13,7 @@ uv run python experiments/exp075/analyse.py --source <compute-run-id>
 uv run python experiments/exp075/present.py --source <analysis-run-id>
 ```
 
-Each command completes one fresh immutable v3 run. The flat runner and bare
+Each command completes one fresh immutable v4 run. The flat runner and bare
 package entrypoint reject combined execution. Recipe imports perform no work.
 No stage starts another stage, discovers a latest input, seeds from an active
 artifact view, materializes output, or publishes. `--run-id` accepts only an
@@ -22,7 +22,7 @@ unused source-neutral reservation allocated before dispatch.
 Compute retains bundles, recordings/checkpoints and acquisition evidence.
 Analyse measures explicit pinned compute evidence. Present renders the analysis
 and its exact compute ancestry into flat exports. The scoped shared helper
-`experiments/helpers/snnlang_stages.py` validates v3 layout, payload and manifest
+`experiments/helpers/snnlang_stages.py` validates v4 layout, payload and run record
 pins throughout the ancestry before use and again before completion. Simulator
 supporting execution records belong in `run.json`; transient logs use discarded `.scratch/`.
 

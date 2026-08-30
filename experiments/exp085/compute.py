@@ -121,7 +121,7 @@ def compute(*, run_id=None):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--run-id", help="unused source-neutral v3 reservation")
+    parser.add_argument("--run-id", help="unused source-neutral v4 reservation")
     args = parser.parse_args()
     try:
         compute(run_id=args.run_id)

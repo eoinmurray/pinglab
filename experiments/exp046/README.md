@@ -1,6 +1,6 @@
 # exp046 — spikes per excitatory cell per gamma cycle
 
-Execution target: **Experiment Runner Guide 3.0.0 / Storage Guide 3.0.0**,
+Execution target: **Experiment Runner Guide 4.3.0 / Storage Guide 4.3.0**,
 using `pingstore.run/v4` and source-neutral stage IDs. This migration preserves
 the numerical definitions. The author deferred scientific and article review
 until after migration and historical-data handling; the article is unchanged

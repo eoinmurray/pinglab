@@ -219,11 +219,9 @@ def test_analyse_rejects_corrupt_even_resigned_payload(lab, mutation):
     cfg = recipe.configuration(smoke=True)
     jobs = recipe.jobs(cfg)
     if mutation == "snapshot":
-        p = (
-            c.file(
-                next(j["path"] for j in jobs if j["kind"] == "raster"),
-                "recording.npz",
-            )
+        p = c.file(
+            next(j["path"] for j in jobs if j["kind"] == "raster"),
+            "recording.npz",
         )
         with np.load(p) as raw:
             data = {k: raw[k] for k in raw.files}
@@ -553,8 +551,7 @@ def test_shard_resume_rejects_changed_evidence(lab, monkeypatch, fault):
     else:
         path = next(
             (
-                directory
-                / ("export" if fault == "payload" else ".scratch/simulations")
+                directory / ("export" if fault == "payload" else ".scratch/simulations")
             ).rglob("*.json")
         )
         path.write_text("{}")
@@ -660,7 +657,7 @@ def test_reviewed_figures_keep_coordinates_show_full_range_and_omit_run_ids(
 def test_reviewed_article_structure_and_scientific_caveats():
     text = (Path(__file__).resolve().parents[2] / "writings/exp037.typ").read_text()
     assert 'date: "2026-05-30"' in text
-    assert 'updated_at: "2026-08-28"' in text
+    assert 'updated_at: "2026-08-29"' in text
     assert (
         text.index("== Abstract") < text.index("== Results") < text.index("== Methods")
     )

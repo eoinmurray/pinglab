@@ -17,7 +17,7 @@ training; analyse reads retained recordings and bank histories; present renders
 saved arrays and summaries. No stage starts upstream work, chooses a latest run,
 reads a legacy cache, materializes `.artifacts`, or publishes.
 
-All operational inputs require validated v3 layout and checksums. Exact
+All operational inputs require validated v4 layout and checksums. Exact
 upstream manifest and payload pins are checked recursively before use and again
 before completion. A stage becomes visible only through atomic completion.
 Failures leave hidden incomplete runs; they are not reusable evidence.
@@ -161,9 +161,10 @@ Corrections grounded in the retained evidence and implementation:
 Presentation `exp038-r004-present` first corrected labels and raster layout.
 `exp038-r005-present` additionally shortens the sum legend to avoid covering the
 uniform-input curve. Both pin the unchanged `exp038-r002-analyse`; all previous
-runs remain immutable. The article accepts older v3 presentations without an
-image-label projection by describing the same test image without guessing its
-class. No automatic selection, materialization or publication was performed.
+runs remain immutable. When a historical presentation is explicitly migrated to
+v4 without an image-label projection, the article describes the same test image
+without guessing its class. No automatic selection, materialization or
+publication was performed.
 
 ## Migration verification
 

@@ -1,4 +1,4 @@
-"""Compute the reduced interventions from an explicit v3 bank; never analyse or present."""
+"""Compute the reduced interventions from an explicit v4 bank; never analyse or present."""
 
 import argparse
 import contextlib
@@ -52,7 +52,7 @@ def _shard_paths(repo, run_id, index, count):
         or destination.exists()
         or (directory / "run.json").exists()
     ):
-        raise PingstoreError("shards require an unused exp042 v3 compute reservation")
+        raise PingstoreError("shards require an unused exp042 v4 compute reservation")
     return directory
 
 
@@ -252,7 +252,7 @@ def main():
     parser.add_argument(
         "--source", required=True, help="explicit completed exp022 compute ID"
     )
-    parser.add_argument("--run-id", help="unused v3 reservation")
+    parser.add_argument("--run-id", help="unused v4 reservation")
     parser.add_argument(
         "--shard-index", type=int, help="compute worker index (eight shards)"
     )

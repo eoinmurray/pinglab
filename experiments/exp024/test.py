@@ -195,7 +195,9 @@ def test_missing_cell_and_tampered_sources_are_rejected(repo):
     identity, bank = make_compute(repo)
     target = bank / "export/coba__off__seed42/metrics.json"
     target.unlink()
-    with pytest.raises(PingstoreError, match="checksum"):
+    with pytest.raises(
+        PingstoreError, match="checksum|scientific unit directories require"
+    ):
         analyse.analyse(identity)
     resign(bank)
     with pytest.raises((PingstoreError, FileNotFoundError)):

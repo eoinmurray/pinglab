@@ -330,7 +330,9 @@ def test_invalid_sources_fail_closed(repo, change):
     assert not list((root / ".pingstore/runs").glob("exp080-*-analyse"))
 
 
-def test_presentation_allows_transitive_metadata_amendment_during_execution(repo, monkeypatch):
+def test_presentation_allows_transitive_metadata_amendment_during_execution(
+    repo, monkeypatch
+):
     root, _ = repo
     compute_id = compute.compute()
     analysis_id = analyse.analyse(compute_id)
@@ -512,7 +514,10 @@ def retain_historical_checkpoints(data, document):
             checkpoint=str(checkpoint.relative_to(data)),
             checkpoint_sha256=file_sha256(checkpoint),
         )
-        write_json_atomic(checkpoint.parent / "training.json", record)
+        training = canonical_export_file(
+            data, "models", f"seed-{record['seed']}", "training.json"
+        )
+        write_json_atomic(training, record)
 
 
 def test_historical_illustration_is_carried_without_simulation(repo, monkeypatch):

@@ -74,7 +74,7 @@ def present(identity: str, *, run_id: str | None = None) -> str:
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "--source", required=True, help="completed exp080 v3 analyse run ID"
+        "--source", required=True, help="completed exp080 v4 analyse run ID"
     )
     parser.add_argument(
         "--run-id", help="source-neutral identity reserved before dispatch"

@@ -2,7 +2,7 @@
 
 ## Contract migration
 
-Runner Guide 3.0.0 and Storage Guide 3.0.0. The scientific recipe remains the
+Experiment Runner Guide 4.3.0 and Storage Guide 4.3.0. The scientific recipe remains the
 untrained PING comparison of fixed summed I→E coupling and fixed expected individual
 synaptic strength. No training bank, dataset or upstream compute input is needed.
 The old combined runner is retired and fails before creating output. Importing
@@ -29,7 +29,7 @@ uv run python -m experiments.exp047.present --source <exp047-analysis-run-id>
   compute remains reachable through the validated ancestry.
 
 Stages use the shared allocator, source-neutral identities and hidden temporary
-directories. Inputs require v3 layout, checksums and exact manifest/payload pins.
+directories. Inputs require v4 layout, checksums and exact payload pins.
 Complete ancestry is checked before consumption and again before completion.
 Failed executions remain hidden and require a new identity or separately
 authorized recovery. No stage launches another or materializes/publishes output.
@@ -207,7 +207,7 @@ Typst's standard experimental-export warning; no publication was attempted.
 ## Verification and remaining gates
 
 The dedicated suite uses synthetic metrics in isolated temporary stores. It
-covers stage isolation, exact grid/reuse and sample SD, v3 and scientific-input
+covers stage isolation, exact grid/reuse and sample SD, v4 and scientific-input
 validation, payload/manifest/ancestry changes, hidden failures, explicit
 reservations, campaign profile/reuse, import-plan checks, byte-preserving imports,
 source mutation during import and retired launchers. Rendering regressions cover

@@ -1,4 +1,4 @@
-"""Strict v3 inputs and complete pinned lineage, without historical fallbacks."""
+"""Strict v4 inputs and complete pinned lineage, without historical fallbacks."""
 
 from contextlib import contextmanager
 

@@ -241,9 +241,7 @@ def test_independent_stages_and_lossless_arrays(lab, monkeypatch):
     assert not list((root / ".pingstore/runs").glob(".*.tmp"))
 
 
-@pytest.mark.parametrize(
-    "damage", ["payload", "v2", "root_file", "symlink"]
-)
+@pytest.mark.parametrize("damage", ["payload", "v2", "root_file", "symlink"])
 def test_source_corruption_rejected_before_reservation(lab, damage):
     root, frequency, bank, _ = lab
     identity = compute.compute()
@@ -703,7 +701,7 @@ def test_article_selected_inputs_equations_and_absent_data(lab):
     assert gains
     # A missing space after Phi_E puts the entire gain argument in its subscript.
     assert all(g[1].tag == "mi" and g[1].text in ("𝐸", "𝐼") for g in gains)
-    assert html.index("Results") < html.index("Methods") < html.index("Appendix A")
+    assert html.index("Results") < html.index("Methods") < html.index("Appendix:")
     assert "Figure 8" not in (root / "writings/exp033.typ").read_text()
     assert "exp033-fixture" not in html
     assert "[(!) This supplies a candidate mechanism" in html

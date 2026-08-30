@@ -430,7 +430,7 @@ def compute(*, run_id: str | None = None) -> str:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "--run-id", help="source-neutral v3 identity reserved before dispatch"
+        "--run-id", help="source-neutral v4 identity reserved before dispatch"
     )
     args = parser.parse_args()
     compute(run_id=args.run_id)

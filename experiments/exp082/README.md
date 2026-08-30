@@ -2,7 +2,7 @@
 
 ## Contract migration
 
-Runner Guide 3.0.0 and Storage Guide 3.0.0. The former flat runner has been
+Experiment Runner Guide 4.3.0 and Storage Guide 4.3.0. The former flat runner has been
 split into independent compute, analyse and present stages. The separately
 approved historical import and derived rebuild are complete; no production
 simulation, training or publication was performed. The article was revised under
@@ -16,7 +16,7 @@ uv run python -m experiments.exp082.analyse --source <exp082-compute-run-id>
 uv run python -m experiments.exp082.present --source <exp082-analyse-run-id>
 ```
 
-Each stage requires an explicit, completed v3 source. Exact payloads, authoritative
+Each stage requires an explicit, completed v4 source. Exact payloads, authoritative
 manifests and all ancestral pins are validated before use and again before atomic
 completion. Stage outputs remain under a hidden reservation until completion.
 Failures retain hidden evidence and never mutate a completed run. There is no

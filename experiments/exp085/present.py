@@ -123,9 +123,9 @@ def present(identity, *, run_id=None):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "--source", required=True, help="completed exp085 v3 analyse ID"
+        "--source", required=True, help="completed exp085 v4 analyse ID"
     )
-    parser.add_argument("--run-id", help="unused source-neutral v3 reservation")
+    parser.add_argument("--run-id", help="unused source-neutral v4 reservation")
     args = parser.parse_args()
     try:
         present(args.source, run_id=args.run_id)

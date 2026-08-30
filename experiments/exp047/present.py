@@ -64,7 +64,7 @@ def main():
     parser.add_argument(
         "--source", required=True, help="explicit completed exp047 analysis ID"
     )
-    parser.add_argument("--run-id", help="unused v3 identity reserved before dispatch")
+    parser.add_argument("--run-id", help="unused v4 identity reserved before dispatch")
     args = parser.parse_args()
     try:
         present(args.source, run_id=args.run_id)

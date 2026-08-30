@@ -1,6 +1,6 @@
 # Exp044: integration-timestep audit
 
-Conformance target: Experiment Runner Guide 2.0.0, Storage Guide 2.0.0 and
+Conformance target: Experiment Runner Guide 4.3.0, Storage Guide 4.3.0 and
 Writing Guide 8.0.0. Training remains owned by exp022. Exp044 never launches it.
 
 ```sh
@@ -9,7 +9,7 @@ uv run python experiments/exp044/analyse.py --source <exp044-compute-run>
 uv run python experiments/exp044/present.py --source <exp044-analyse-run>
 ```
 
-Each command prints one new completed run ID. All stages require explicit v3
+Each command prints one new completed run ID. All stages require explicit v4
 sources and validate their pinned dependencies up to and including the explicitly
 selected exp022 bank before consuming evidence and again before completion.
 Missing stage inputs or banks, v2, changed manifests/payloads,
@@ -42,7 +42,7 @@ stage directions, including for `--plot-only` and `--skip-training`.
 
 ## Execution and storage boundary
 
-Use `--run-id` only for an unused v3 reservation. Local and scheduler executions
+Use `--run-id` only for an unused v4 reservation. Local and scheduler executions
 reserve fresh stage identities; failures leave hidden incomplete runs. Source
 checkpoints remain in the bank. Commands, logs and training configurations are
 written to discarded `.scratch/`, while scientific data live in compute `export/`.
@@ -63,7 +63,7 @@ record the circumstances of the original execution.
 
 The user explicitly selected `.pingstore/runs/exp022-r001-compute` as the
 new source data for exp044. This is a scoped source-boundary instruction: exp044
-validates and pins the selected v3 bank's complete payload and authoritative
+validates and pins the selected v4 bank's complete payload and authoritative
 manifest, but does not recursively require its older import sources. Its 15
 timestep cells contain the configurations, final checkpoints and histories used
 here. Neither the bank nor its historical references are changed or migrated.
@@ -79,7 +79,7 @@ inputs, and it is not a repository-wide change to the guides.
 
 The unit tests use synthetic temporary banks and mocked inference, not scientific
 runs. They exercise stage separation, checkpoint policy, measurements, failure
-handling, v3 lineage, collection dispatch and selected-input Typst rendering.
+handling, v4 lineage, collection dispatch and selected-input Typst rendering.
 
 ```sh
 uv run pytest experiments/exp044/test.py

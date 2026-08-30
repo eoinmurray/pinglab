@@ -149,7 +149,7 @@ def analyse(identity: str, *, run_id: str | None = None) -> str:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source", required=True, help="completed exp044 compute ID")
-    parser.add_argument("--run-id", help="unused v3 reservation")
+    parser.add_argument("--run-id", help="unused v4 reservation")
     args = parser.parse_args()
     try:
         analyse(args.source, run_id=args.run_id)

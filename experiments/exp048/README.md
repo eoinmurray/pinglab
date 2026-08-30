@@ -2,11 +2,11 @@
 
 ## Contract migration — 2026-08-28
 
-This migration follows Experiment Runner Guide 3.0.0 and Storage Guide 3.0.0.
+This migration follows Experiment Runner Guide 4.3.0 and Storage Guide 4.3.0.
 It changes execution contracts, not the scientific recipe. The retired flat
 runner now exits with guidance; importing the package performs no experiment.
 
-Each stage requires an explicitly selected completed v3 run:
+Each stage requires an explicitly selected completed v4 run:
 
 ```sh
 uv run python -m experiments.exp048.compute --source <exp022-compute-run-id>

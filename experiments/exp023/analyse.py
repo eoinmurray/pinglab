@@ -266,7 +266,7 @@ def main() -> None:
     parser.add_argument(
         "--source", required=True, help="completed exp023 compute run ID"
     )
-    parser.add_argument("--run-id", help="unused v3 identity reserved before dispatch")
+    parser.add_argument("--run-id", help="unused v4 identity reserved before dispatch")
     args = parser.parse_args()
     analyse(args.source, run_id=args.run_id)
 

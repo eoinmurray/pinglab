@@ -1,4 +1,4 @@
-"""Explicit v3 sources and complete ancestry, rechecked before completion."""
+"""Explicit v4 sources and complete ancestry, rechecked before completion."""
 
 import os
 from contextlib import contextmanager

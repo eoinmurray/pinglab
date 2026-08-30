@@ -81,7 +81,7 @@ def main():
     parser.add_argument(
         "--frequency-source", required=True, help="completed exp041 analysis run"
     )
-    parser.add_argument("--run-id", help="fresh v3 identity reserved before dispatch")
+    parser.add_argument("--run-id", help="fresh v4 identity reserved before dispatch")
     args = parser.parse_args()
     analyse(args.source, args.frequency_source, run_id=args.run_id)
 
