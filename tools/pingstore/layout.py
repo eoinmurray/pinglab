@@ -26,6 +26,21 @@ RECORD_NAMES = {
     "_dirty.patch",
     "reproducer.json",
 }
+ROLE_ALIASES = {
+    "snapshot.npz": "recording.npz",
+    "recordings.npz": "recording.npz",
+}
+
+
+def canonical_role_name(name: str) -> str:
+    """Return the standard scientific role filename, preserving extensions."""
+    if name in ROLE_ALIASES:
+        return ROLE_ALIASES[name]
+    if name.endswith("--snapshot.npz"):
+        return name.removesuffix("--snapshot.npz") + "--recording.npz"
+    if name.endswith("-recordings.npz"):
+        return name.removesuffix("-recordings.npz") + "-recording.npz"
+    return name
 
 
 def initialize_layout(root: Path, experiment: str, *, schema: str = RUN_SCHEMA) -> None:
@@ -54,24 +69,49 @@ def export_directory(root: Path, run: dict) -> Path:
 
 
 def canonical_export_relative(relative: Path, *, export_root: str = "export") -> Path:
-    """Map a scientific file to export/<unit-id>/<role-file> at maximum."""
+    """Map a scientific file to a root file or candidate unit/role path."""
     parts = relative.parts
     prefix = Path(export_root).parts
     if prefix and prefix[0] == "export" and tuple(parts[: len(prefix) - 1]) == prefix[1:]:
         parts = parts[len(prefix) - 1 :]
-    if len(parts) <= 2:
-        return Path(*parts)
+    if len(parts) <= 1:
+        return Path(canonical_role_name(parts[0]))
+    if len(parts) == 2:
+        return Path(parts[0]) / canonical_role_name(parts[1])
     directories, filename = list(parts[:-1]), parts[-1]
     bundle = next(
         (index for index, name in enumerate(directories) if name.endswith(".bundle")),
         None,
     )
     if bundle is None:
-        return Path("--".join(directories)) / filename
+        return Path("--".join(directories)) / canonical_role_name(filename)
     unit = "--".join(directories[: bundle + 1])
     remainder = directories[bundle + 1 :]
     role = "--".join([*remainder, filename]) if remainder else filename
+    role = canonical_role_name(role)
     return Path(unit) / role
+
+
+def canonical_export_mapping(
+    relatives: list[Path], *, export_root: str = "export"
+) -> dict[str, str]:
+    """Map files, flattening units that contain only one scientific role."""
+    candidates = {
+        relative.as_posix(): canonical_export_relative(
+            relative, export_root=export_root
+        )
+        for relative in relatives
+    }
+    counts: dict[Path, int] = {}
+    for target in candidates.values():
+        if target.parent != Path("."):
+            counts[target.parent] = counts.get(target.parent, 0) + 1
+    mapping = {}
+    for source, target in candidates.items():
+        if target.parent != Path(".") and counts[target.parent] == 1:
+            target = Path(f"{target.parent.name}--{target.name}")
+        mapping[source] = target.as_posix()
+    return mapping
 
 
 def canonical_export_unit(root: Path, *parts: str | Path) -> Path:
@@ -87,7 +127,13 @@ def canonical_export_file(root: Path, *parts: str | Path) -> Path:
     for part in parts:
         relative /= Path(part)
     direct = root / relative
-    return direct if direct.exists() else root / canonical_export_relative(relative)
+    if direct.exists():
+        return direct
+    bundled = canonical_export_relative(relative)
+    candidate = root / bundled
+    if candidate.exists() or bundled.parent == Path("."):
+        return candidate
+    return root / f"{bundled.parent.name}--{bundled.name}"
 
 
 def _rewrite_paths(value, mapping: dict[str, str]):
@@ -108,12 +154,9 @@ def normalize_export_layout(directory: Path, record: dict) -> dict[str, str]:
     export = directory / "export"
     export_root = record.get("export_root", "export")
     files = [path for path in sorted(export.rglob("*")) if path.is_file()]
-    mapping = {
-        path.relative_to(export).as_posix(): canonical_export_relative(
-            path.relative_to(export), export_root=export_root
-        ).as_posix()
-        for path in files
-    }
+    mapping = canonical_export_mapping(
+        [path.relative_to(export) for path in files], export_root=export_root
+    )
     if len(set(mapping.values())) != len(mapping):
         raise PingstoreError(f"{directory.name}: canonical export paths collide")
     temporary = directory / ".normalized-export.tmp"

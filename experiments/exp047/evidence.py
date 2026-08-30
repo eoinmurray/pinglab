@@ -96,7 +96,7 @@ def compute_contract(run):
         raise PingstoreError("exp047 compute evidence differs from the recipe")
     expected_files = {
         "evidence.json",
-        *(f"probe--{j['id']}/metrics.json" for j in recipe.jobs(cfg)),
+        *(f"probe--{j['id']}--metrics.json" for j in recipe.jobs(cfg)),
     }
     actual_files = {
         str(p.relative_to(run.export))

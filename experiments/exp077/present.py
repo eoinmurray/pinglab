@@ -25,7 +25,7 @@ def present(identity, *, run_id=None):
         recorded = {}
         for name, _ in recipe.VARIANTS:
             with np.load(
-                compute.export / "variants" / f"{name}-recordings.npz"
+                compute.export / "variants" / f"{name}-recording.npz"
             ) as arrays:
                 recorded[name] = {
                     key: arrays[key] for key in ("population_0", "population_2")

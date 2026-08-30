@@ -65,12 +65,12 @@ SNAPSHOT_ARRAYS = ("dt", "n_e", "n_i", "label", "spk_e", "spk_i")
 PAYLOADS = {
     "infer": ("metrics.json", "pop_traces.npz"),
     "weights_dump": ("weights_dump.npz",),
-    "snapshot": ("snapshot.npz",),
+    "snapshot": ("recording.npz",),
 }
 ARRAYS = {
     "pop_traces.npz": ("dt", "pop_e"),
     "weights_dump.npz": WEIGHT_ARRAYS,
-    "snapshot.npz": SNAPSHOT_ARRAYS,
+    "recording.npz": SNAPSHOT_ARRAYS,
 }
 FIGURES = tuple(
     name + "." + ext

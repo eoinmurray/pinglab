@@ -464,7 +464,7 @@ class TestDispatchRuns:
             cli.main(["sim"])
 
     def test_run_sim_metrics_snapshot(self, tmp_path):
-        # Metrics-only synthetic-spikes sim → snapshot.npz (the _run_sim tail).
+        # Metrics-only synthetic-spikes sim → recording.npz (the _run_sim tail).
         out = tmp_path / "sim"
         rc = cli.main(
             [
@@ -478,7 +478,7 @@ class TestDispatchRuns:
             ]
         )
         assert rc == 0
-        assert (out / "snapshot.npz").exists()
+        assert (out / "recording.npz").exists()
 
     def test_run_sim_cell_drive_tonic_path(self, tmp_path):
         # A per-cell drive flag (--quenched-drive) routes _run_sim through the
@@ -496,7 +496,7 @@ class TestDispatchRuns:
             ]
         )
         assert rc == 0
-        assert (out / "snapshot.npz").exists()
+        assert (out / "recording.npz").exists()
 
     def test_run_train_probe_epoch0(self, tmp_path):
         # epochs=0 probe path through _run_train (no weights.pth, but config +
@@ -534,7 +534,7 @@ class TestDispatchRuns:
             ]
         )
         assert rc == 0
-        assert (out / "snapshot.npz").exists()
+        assert (out / "recording.npz").exists()
 
     def test_emit_infer_test_accuracy(self, tmp_path, trained):
         # sim --infer test-set eval path through _emit_infer (non-snapshot).
@@ -573,8 +573,8 @@ class TestDispatchRuns:
         monkeypatch.setattr("sys.argv", ["pinglab-cli", *argv])
         rc = cli.main(argv)
         assert rc == 0
-        # snapshot mode records a single-sample spike trajectory to snapshot.npz.
-        assert (out / "snapshot.npz").exists()
+        # snapshot mode records a single-sample spike trajectory to recording.npz.
+        assert (out / "recording.npz").exists()
 
     def test_dump_weights(self, tmp_path, trained):
         out = tmp_path / "dump"

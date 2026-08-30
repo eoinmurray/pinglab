@@ -1,6 +1,6 @@
 # Storage Guide
 
-Version: **4.2.0**
+Version: **4.3.0**
 
 This guide defines Pingstore's filesystem convention. Pingstore is not a
 service, database, catalogue, lifecycle manager, or general management CLI.
@@ -18,8 +18,8 @@ Every completed operational run uses `pingstore.run/v4` and has exactly:
 
 - `run.json` is the authoritative machine-readable record.
 - `README.md` is the mandatory human-readable history.
-- `export/` contains only scientific data. Run-wide files live directly under
-  `export/`; repeated scientific units use `export/<unit-id>/<role-file>`.
+- `export/` contains only scientific data. Run-wide and single-file unit outputs
+  are flat; only genuine multi-file scientific units use a directory.
 
 There is no operational `provenance/` directory. Do not duplicate the command,
 configuration, environment, source revision, or timing in sidecar manifests or
@@ -32,9 +32,17 @@ timing, import mappings, and copied source records are metadata: keep them in
 file when it is data needed to interpret that unit; it must not duplicate the
 run's execution metadata. Writers may use `.scratch/` inside a hidden incomplete
 run, but completion discards it. Compute and analyse exports permit exactly one
-unit-directory level. Unit IDs are canonical scientific identities, not generic
+unit-directory level. A unit directory must contain at least two scientifically
+related files. A single-file unit is named `<unit-id>--<role-file>` directly
+under `export/`. Unit IDs are canonical scientific identities, not generic
 containers such as `data`, `jobs`, `cells`, or `misc`; role filenames are short
-and repeatable, such as `metrics.json`, `snapshot.npz`, or `weights-best.pth`.
+and repeatable.
+
+Use `recording.npz` for raw multimodal simulation time series, `spikes.npz` for
+raw spike-only output, and `rasters.npz` only for transformed raster/event data.
+The ambiguous aliases `snapshot.npz` and `recordings.npz` are forbidden. Common
+roles use their standard names; genuinely domain-specific descriptive filenames
+remain permitted. Present exports retain descriptive flat filenames.
 Present exports contain only flat regular files. No other root entries or
 symlinks are allowed in a completed run.
 
@@ -135,6 +143,8 @@ store changes, or deletion of the recovery archive.
 
 ## 7. Version history
 
+- **4.3.0** — Flatten singleton scientific units, require at least two files for
+  unit directories, and standardize simulation recording role names.
 - **4.2.0** — Standardize compute/analyse exports as run-wide root files plus
   `export/<scientific-unit-id>/<artifact-role>`, with no deeper nesting.
 - **4.1.0** — Make exports scientific-data-only, prefer flat descriptive files,

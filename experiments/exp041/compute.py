@@ -88,7 +88,7 @@ def compute(identity: str, *, run_id: str | None = None) -> str:
                     )
                 else:
                     evidence.snapshot(
-                        destination / "snapshot.npz",
+                        destination / "recording.npz",
                         contract["common"]["dt"],
                         contract["common"],
                     )

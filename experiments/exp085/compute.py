@@ -55,7 +55,7 @@ def acquire(run):
         )
         if result.recordings:
             np.savez_compressed(
-                directory / "recordings.npz", **numpy_tensors(result.recordings)
+                directory / "recording.npz", **numpy_tensors(result.recordings)
             )
         np.savez_compressed(
             directory / "parameters.npz", **numpy_tensors(result.parameters)

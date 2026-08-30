@@ -178,7 +178,7 @@ def lab(tmp_path, monkeypatch):
             e[::20, ::2] = True
             i[::30] = True
             save(
-                out / "snapshot.npz",
+                out / "recording.npz",
                 dt=0.1,
                 n_e=200,
                 n_i=64,
@@ -419,21 +419,23 @@ def test_invalid_resigned_compute_is_rejected(lab, fault):
     job = next(
         j for j in recipe.jobs(recipe.configuration(smoke=True)) if j["kind"] == kind
     )
-    directory = c.unit(job["path"])
+    directory = c.unit(job["path"]) if kind == "infer" else None
     if fault == "samples":
+        assert directory is not None
         path = directory / "metrics.json"
         m = load_json(path)
         m["n_total"] -= 1
         write_json_atomic(path, m)
     elif fault == "missing":
+        assert directory is not None
         (directory / "pop_traces.npz").unlink()
     else:
         filename, key = {
             "weights": ("weights_dump.npz", "W_ei_1_trained"),
-            "snapshot": ("snapshot.npz", "spk_e"),
+            "snapshot": ("recording.npz", "spk_e"),
             "trace": ("pop_traces.npz", "pop_e"),
         }[fault]
-        path = directory / filename
+        path = c.file(job["path"], filename)
         with np.load(path) as data:
             arrays = {k: data[k] for k in data.files}
         arrays[key] = np.full_like(arrays[key], -1, dtype=np.float32)
@@ -537,7 +539,7 @@ def test_production_recipe_and_raster_selection(tmp_path):
     e = np.arange(20 * 256).reshape(20, 256) % 3 == 0
     i = np.arange(20 * 128).reshape(20, 128) % 5 == 0
     np.savez(
-        tmp_path / "snapshot.npz", spk_e=e[:, None, :], spk_i=i[:, None, :], label=7
+        tmp_path / "recording.npz", spk_e=e[:, None, :], spk_i=i[:, None, :], label=7
     )
     data = measurements.raster(tmp_path, {"dt": 0.1, "t_ms": 2.0})
     rng = np.random.default_rng(42)

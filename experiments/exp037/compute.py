@@ -53,11 +53,11 @@ def _run_jobs(bank, directory, jobs, contract):
             evidence.recordings(scratch, cfg, job)
             output.mkdir(parents=True)
             if job["kind"] == "raster":
-                (scratch / "snapshot.npz").rename(output / "snapshot.npz")
+                (scratch / "recording.npz").rename(output / "recording.npz")
             else:
                 (scratch / "metrics.json").rename(output / "metrics.json")
             for p in scratch.iterdir():
-                if p.name not in ("snapshot.npz", "metrics.json"):
+                if p.name not in ("recording.npz", "metrics.json"):
                     p.rename(attachments / p.name)
                 elif job["kind"] == "raster" and p.name == "metrics.json":
                     p.rename(attachments / p.name)

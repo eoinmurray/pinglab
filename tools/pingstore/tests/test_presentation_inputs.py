@@ -289,6 +289,7 @@ def test_nonpresent_rows_are_display_only_with_recursive_export_sizes(source, st
     nested = other / "export/cells--seed1"
     nested.mkdir(parents=True)
     (nested / "weights.bin").write_bytes(b"nested scientific data")
+    (nested / "metrics.json").write_text("{}")
     metadata = json.loads((other / "run.json").read_text())
     metadata["payload_digest"] = payload_digest(other)
     (other / "run.json").write_text(json.dumps(metadata))

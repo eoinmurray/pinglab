@@ -135,7 +135,7 @@ def lab(tmp_path, monkeypatch):
             out = np.zeros((bounds[-1], 10), dtype=np.int8)
             out[bounds[:-1], 0] = 1
             np.savez_compressed(
-                folder / "recordings.npz",
+                folder / "recording.npz",
                 pixels=np.zeros((5, 784), dtype=np.float32),
                 spikes_e=np.zeros((bounds[-1], 1024), dtype=np.int8),
                 spikes_i=np.zeros((bounds[-1], 256), dtype=np.int8),
@@ -392,7 +392,7 @@ def test_missing_pixels_is_an_error_not_dataset_fallback(lab):
     repo, bank, _ = lab
     cid = compute.compute(bank)
     root = repo / ".pingstore/runs" / cid
-    path = root / "export/streams--matched/recordings.npz"
+    path = root / "export/streams--matched/recording.npz"
     data = evidence.arrays(path)
     del data["pixels"]
     np.savez_compressed(path, **data)

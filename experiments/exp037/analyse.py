@@ -37,12 +37,13 @@ def analyse(identity, *, run_id=None):
     ) as run:
         for job in recipe.jobs(cfg):
             train = contract["configs"][job["cell_name"]]
-            directory = source.unit(job["path"])
-            m = evidence.recordings(directory, train, job)
+            role = "recording.npz" if job["kind"] == "raster" else "metrics.json"
+            artifact = source.file(job["path"], role)
+            m = evidence.recordings(artifact, train, job)
             if job["kind"] == "sweep":
                 perturb.append(measurements.perturbation_row(m, job))
             else:
-                data = measurements.raster(directory, train, job)
+                data = measurements.raster(artifact, train, job)
                 filename = f"raster-{len(rasters):03d}.npz"
                 np.savez_compressed(run.export / filename, **data)
                 rasters.append({"job": job, "file": filename})

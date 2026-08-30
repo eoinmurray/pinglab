@@ -250,7 +250,8 @@ def recordings(directory, train, job):
                 raise PingstoreError("invalid population traces")
         return m
     if job["kind"] == "weights_dump":
-        with np.load(directory / "weights_dump.npz", allow_pickle=False) as data:
+        path = directory if directory.is_file() else directory / "weights_dump.npz"
+        with np.load(path, allow_pickle=False) as data:
             for key in recipe.WEIGHT_ARRAYS:
                 shape = (train["n_hidden"], train["n_inh"])
                 if key.startswith("W_ie_"):
@@ -259,7 +260,8 @@ def recordings(directory, train, job):
                 if a.shape != shape or not np.isfinite(a).all() or (a < 0).any():
                     raise PingstoreError("invalid recurrent weights")
         return None
-    with np.load(directory / "snapshot.npz", allow_pickle=False) as data:
+    path = directory if directory.is_file() else directory / "recording.npz"
+    with np.load(path, allow_pickle=False) as data:
         if not np.isclose(float(data["dt"]), train["dt"]):
             raise PingstoreError("snapshot timestep differs")
         for key, population in (("spk_e", "n_hidden"), ("spk_i", "n_inh")):

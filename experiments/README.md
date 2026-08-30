@@ -1,6 +1,6 @@
 # Experiment Runner Guide
 
-Version: **4.2.0**
+Version: **4.3.0**
 
 This guide defines Pinglab's independent compute, analyse, and present commands.
 The [Storage Guide](../tools/pingstore/README.md) owns run layout and validation.
@@ -50,8 +50,9 @@ Every completed run contains exactly `run.json`, `README.md`, and `export/`.
 - Put machine-readable execution history in `run.json` once.
 - Put human-readable history in README.
 - Put scientific outputs required by downstream stages in `export/`.
-- Keep exports to scientific data. Run-wide files live directly under `export/`;
-  repeated units use `export/<unit-id>/<role-file>` with no deeper nesting.
+- Keep exports to scientific data. Run-wide files and single-file units live
+  directly under `export/`; use `<unit-id>--<role-file>` for a singleton. A unit
+  directory is allowed only for at least two related files, with no deeper nesting.
 
 Do not create `provenance/`, copied command manifests, replay scripts, source
 patches, or parallel provenance envelopes. The shared stage helper already
@@ -69,6 +70,10 @@ Completed unit directories are canonicalized from tool-native working paths.
 Readers use `SourceRun.unit(...)` for a unit directory and `SourceRun.file(...)`
 for a file addressed through a formerly nested path. Do not introduce generic
 container directories such as `data`, `jobs`, `cells`, or `misc`.
+
+Use `recording.npz` for raw multimodal time series, `spikes.npz` for spike-only
+output, and `rasters.npz` for transformed raster/event data. Do not write the
+legacy aliases `snapshot.npz` or `recordings.npz`.
 
 Present exports remain flat publication inputs and therefore do not use
 `StageRun.evidence`. Presentation lineage belongs in `run.json` or the exported
@@ -118,6 +123,8 @@ before changing the guide outside the requested scope.
 
 ## 8. Version history
 
+- **4.3.0** — Flatten single-file units and standardize simulation recording
+  role filenames while retaining multi-file scientific bundles.
 - **4.2.0** — Limit compute/analyse exports to one scientific-unit directory
   level and standardize shared unit/file resolution.
 - **4.0.0** — Adopt the v4 three-entry run root, mandatory README history,

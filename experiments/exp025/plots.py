@@ -16,7 +16,7 @@ MODEL_MARKERS = {"coba": "s", "ping": "D"}
 
 
 def render_raster(npz_path: Path, out_path: Path, title: str) -> None:
-    """Population spike raster from snapshot.npz."""
+    """Population spike raster from recording.npz."""
     theme.apply()
     data = np.load(npz_path)
     dt = float(data["dt"])

@@ -22,7 +22,8 @@ def summarize_ei_points(points: list[dict]) -> list[dict]:
 
 
 def raster(directory, train, job):
-    with np.load(directory / "snapshot.npz", allow_pickle=False) as d:
+    path = directory if directory.is_file() else directory / "recording.npz"
+    with np.load(path, allow_pickle=False) as d:
         e, i = d["spk_e"], d["spk_i"]
         if e.ndim == 3:
             e = e[:, 0, :]

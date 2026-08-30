@@ -37,9 +37,9 @@ def compute(*, run_id: str | None = None) -> str:
                 run.scratch / "simulations.json", {"commands": commands}
             )
             run_cli(args, no_sync=True)
-            if not (destination / "snapshot.npz").is_file():
+            if not (destination / "recording.npz").is_file():
                 raise PingstoreError(
-                    f"simulation did not produce {relative}/snapshot.npz"
+                    f"simulation did not produce {relative}/recording.npz"
                 )
             # Retain execution attachments outside the scientific export.
             for name in ("config.json", "run.sh", "output.log", "run.jsonl"):

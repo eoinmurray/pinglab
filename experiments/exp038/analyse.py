@@ -53,11 +53,16 @@ def analyse(identity, *, run_id=None):
                 }
             )
         for job in recipe.jobs(cfg):
-            directory = source.unit(job["path"])
             train = contract["configs"][job["cell_name"]]
-            m = evidence.recordings(directory, train, job)
+            role = (
+                "recording.npz"
+                if job["kind"] in ("rate_raster", "ei_raster")
+                else "metrics.json"
+            )
+            artifact = source.file(job["path"], role)
+            m = evidence.recordings(artifact, train, job)
             if "sample_index" in job:
-                data = measurements.raster(directory, train, job)
+                data = measurements.raster(artifact, train, job)
                 filename = f"raster-{len(rasters):03d}.npz"
                 np.savez_compressed(run.export / filename, **data)
                 rasters.append({"job": job, "file": filename})

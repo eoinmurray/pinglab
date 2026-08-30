@@ -80,10 +80,17 @@ def analyse(identity, *, run_id=None):
             name = job["cell_name"]
             cell = by_name[name]
             train = contract["configs"][name]
-            directory = source.unit(job["path"])
-            evidence.recordings(directory, train, job)
             if job["kind"] == "snapshot":
-                with np.load(directory / "snapshot.npz", allow_pickle=False) as raw:
+                artifact = source.file(job["path"], "recording.npz")
+            elif job["kind"] == "frontier":
+                artifact = source.file(job["path"], "metrics.json")
+            else:
+                artifact = source.unit(job["path"])
+                if not artifact.is_dir():
+                    artifact = source.file(job["path"], "metrics.json")
+            evidence.recordings(artifact, train, job)
+            if job["kind"] == "snapshot":
+                with np.load(artifact, allow_pickle=False) as raw:
                     et, ec = np.where(raw["spk_e"])
                     it, ic = np.where(raw["spk_i"])
                     np.savez_compressed(
@@ -98,7 +105,7 @@ def analyse(identity, *, run_id=None):
                         i_cell=ic,
                     )
             elif job["kind"] == "frontier":
-                m = evidence.metric(directory / "metrics.json", train, job)
+                m = evidence.metric(artifact, train, job)
                 frontier.append(
                     {
                         "cell_name": name,
@@ -119,7 +126,7 @@ def analyse(identity, *, run_id=None):
                 )
             elif job["kind"] == "pfg":
                 m = measurements.measure_p_fgamma(
-                    directory, train["dt"], job["is_ping"]
+                    artifact, train["dt"], job["is_ping"]
                 )
                 pfg.append(
                     {
@@ -135,7 +142,7 @@ def analyse(identity, *, run_id=None):
                 )
             else:
                 acc, loss, penalty, er, ir = measurements.scaled_metrics(
-                    directory, 1.0, recipe.FR_STRENGTH_UPPER
+                    artifact, 1.0, recipe.FR_STRENGTH_UPPER
                 )
                 scales.append(
                     {

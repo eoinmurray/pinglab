@@ -109,7 +109,7 @@ def lab(tmp_path, monkeypatch):
             e, i = np.zeros((steps, 4), dtype=bool), np.zeros((steps, 2), dtype=bool)
             e[::20, :] = True
             i[::40, :] = True
-            np.savez_compressed(out / "snapshot.npz", spk_e=e, spk_i=i, dt=cfg["dt"])
+            np.savez_compressed(out / "recording.npz", spk_e=e, spk_i=i, dt=cfg["dt"])
         else:
             samples = int(arg("--max-samples"))
             write_json_atomic(
@@ -151,7 +151,7 @@ def test_independent_stages_preserve_science_and_never_publish(lab, monkeypatch)
     assert sum("--sample-index" in args for args in calls) == 5
     output = inputs.source(root, compute_id, "compute")
     assert output.record["inputs"] == {"bank": before}
-    assert len(list(output.export.glob("snapshot--*/snapshot.npz"))) == 5
+    assert len(list(output.export.glob("snapshot--*--recording.npz"))) == 5
     assert not list(output.export.rglob("run.sh"))
     monkeypatch.setenv("PINGLAB_SMOKE", "0")
     monkeypatch.setattr(
@@ -169,7 +169,7 @@ def test_independent_stages_preserve_science_and_never_publish(lab, monkeypatch)
     assert results["measurement"]["history_partition"] == "validation"
     assert results["rasters"][0]["e_rate_hz"] == 1000
     raw = evidence.snapshot(
-        output.file("snapshot", recipe.cell_name(0.05, 42), "snapshot.npz"),
+        output.file("snapshot", recipe.cell_name(0.05, 42), "recording.npz"),
         0.05,
         results["config"]["training_contract"]["common"],
     )
@@ -259,7 +259,7 @@ def test_corrupt_payload_and_snapshot_geometry_are_rejected(lab):
     root, bank_id, calls = lab
     identity = compute.compute(bank_id)
     output = inputs.source(root, identity, "compute")
-    path = output.file("snapshot", recipe.cell_name(0.05, 42), "snapshot.npz")
+    path = output.file("snapshot", recipe.cell_name(0.05, 42), "recording.npz")
     np.savez_compressed(path, spk_e=np.zeros((2, 4)), spk_i=np.zeros((2, 2)), dt=0.05)
     with pytest.raises(PingstoreError, match="checksum"):
         analyse.analyse(identity)

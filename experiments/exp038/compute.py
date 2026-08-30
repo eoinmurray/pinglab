@@ -56,7 +56,7 @@ def compute(identity, *, run_id=None):
                 load_json(output / "config.json"), contract["configs"][name], job
             )
             evidence.recordings(output, contract["configs"][name], job)
-            keep = "snapshot.npz" if "sample_index" in job else "metrics.json"
+            keep = "recording.npz" if "sample_index" in job else "metrics.json"
             for path in output.iterdir():
                 if path.name != keep:
                     path.rename(attachments / path.name)

@@ -1857,7 +1857,7 @@ def test_inference_artifact_manifest_authenticates_cache_identity(tmp_path):
     assert manifest["schema"] == "tools/snnsim.inference-artifacts/v1"
     assert manifest["request_seed"] == 23
     assert {row["path"] for row in manifest["files"]} == {
-        "recordings.npz",
+        "recording.npz",
         "outputs.npz",
         "parameters.npz",
         "metrics.json",

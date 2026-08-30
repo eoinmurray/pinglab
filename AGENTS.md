@@ -14,9 +14,11 @@ management CLI.
   require `pingstore.run/v4`, with exactly required `run.json`, `README.md`, and
   `export/`, and no other root entries or symlinks.
 - `run.json` is authoritative provenance and must declare compute, analyse or
-  present. `export/` holds run-wide files and at most one level of canonical
-  scientific-unit directories for compute/analyse; deeper nesting and generic
-  container directories are forbidden. Present exports contain only flat regular
+  present. `export/` holds run-wide files and singleton units as flat files;
+  only scientific units containing at least two related files use one directory
+  level. Deeper nesting and generic container directories are forbidden. Use
+  `recording.npz`, `spikes.npz`, and `rasters.npz` for their distinct standard
+  roles; `snapshot.npz` and `recordings.npz` are forbidden. Present exports contain only flat regular
   files. Execution metadata and temporary
   records belong in `run.json` or discarded writer scratch space. README holds
   the human-readable dated history. Do not create provenance sidecars.

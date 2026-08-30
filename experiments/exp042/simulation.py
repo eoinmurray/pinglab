@@ -188,9 +188,9 @@ class Simulator:
         self, train_dir: Path, sample_idx: int, name: str, i_override=None, reuse=False
     ):
         """Single-trial snapshot via `sim --infer --sample-index N` (optional
-        --i-override-file); return the loaded snapshot.npz dict.
+        --i-override-file); return the loaded recording.npz dict.
 
-        reuse=True: read the already-collected snapshot.npz from the same out_dir the
+        reuse=True: read the already-collected recording.npz from the same out_dir the
         compute path writes to, WITHOUT running the sim. Returns None on a cache miss
         so callers can fall through to compute."""
         checkpoint = resolve_checkpoint(train_dir, CHECKPOINT_ROLE)
@@ -203,7 +203,7 @@ class Simulator:
         if reuse:
             try:
                 return self.read_snapshot(
-                    out_dir / "snapshot.npz", inhibitory_only=i_override is None
+                    out_dir / "recording.npz", inhibitory_only=i_override is None
                 )
             except (OSError, ValueError):
                 return None
@@ -226,7 +226,7 @@ class Simulator:
             cmd += ["--i-override-file", str(i_override)]
         self.run(cmd)
         return self.read_snapshot(
-            out_dir / "snapshot.npz", inhibitory_only=i_override is None
+            out_dir / "recording.npz", inhibitory_only=i_override is None
         )
 
     @staticmethod

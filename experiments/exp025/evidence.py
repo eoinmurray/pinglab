@@ -152,11 +152,13 @@ def metric(path, cfg, job):
 
 def recordings(directory, cfg, job):
     if job["kind"] == "snapshot":
+        path = directory if directory.is_file() else directory / "recording.npz"
         data = validate_snapshot(
-            directory / "snapshot.npz", cfg["dt"], {**cfg, "t_ms": 400.0}
+            path, cfg["dt"], {**cfg, "t_ms": 400.0}
         )
         return data
-    metric(directory / "metrics.json", cfg, job)
+    metrics = directory if directory.is_file() else directory / "metrics.json"
+    metric(metrics, cfg, job)
     if job["kind"] == "scale":
         with np.load(directory / "per_cell_rates.npz", allow_pickle=False) as data:
             rates = data["rate_e_per_sample"]

@@ -59,7 +59,7 @@ def lab(tmp_path, monkeypatch):
             for channel in ("excitatory", "inhibitory"):
                 for kind in ("private", "shared", "executed"):
                     data[f"input_{channel}_{population}_{kind}"] = spikes * 0.01
-        np.savez_compressed(root / "snapshot.npz", **data)
+        np.savez_compressed(root / "recording.npz", **data)
         write_json_atomic(
             root / "config.json", {"_simulation_recipe": cfg["simulation"]}
         )
@@ -100,7 +100,7 @@ def test_stages_pin_v3_keep_raw_evidence_and_render_without_analysis(lab, monkey
     analysis_root = directory(lab, analysis_id)
     with np.load(analysis_root / "export/measurements.npz") as metrics:
         assert metrics["rhythm_centres"][[0, -1]].tolist() == [200, 1800]
-        with np.load(upstream / "export/simulation/snapshot.npz") as raw:
+        with np.load(upstream / "export/simulation/recording.npz") as raw:
             np.testing.assert_array_equal(metrics["mean_g_e"], raw["ge_e_1"].mean(1))
         # The scalar summary intentionally excludes the renderer's last window.
         summary = load_json(analysis_root / "export/results.json")["results"][
@@ -180,7 +180,7 @@ def test_wrong_stage_payload_and_manifest_tampering_are_rejected(lab):
     write_json_atomic(root / "run.json", record)
     with pytest.raises(PingstoreError, match="recipe or compute lineage"):
         present.present(analysis_id)
-    with (root / "export/simulation/snapshot.npz").open("ab") as handle:
+    with (root / "export/simulation/recording.npz").open("ab") as handle:
         handle.write(b"tampered")
     with pytest.raises(PingstoreError, match="checksum"):
         analyse.analyse(identity)
@@ -213,7 +213,7 @@ def test_reserved_identity_and_missing_recorded_inputs(lab):
     assert record["origin"] == "slurm-test"
     # A correctly checksummed but scientifically incomplete fixture must fail,
     # rather than reconstructing inputs in the presentation stage.
-    snapshot = root / "export/simulation/snapshot.npz"
+    snapshot = root / "export/simulation/recording.npz"
     with np.load(snapshot) as data:
         arrays = dict(data)
     del arrays["input_afferent_shared"]

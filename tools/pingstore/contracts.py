@@ -227,6 +227,8 @@ def validate_layout(directory: Path) -> None:
                 raise PingstoreError(f"presentation must be flat regular files: {path}")
     elif run["schema"] == RUN_SCHEMA:
         export = directory / "export"
+        from .layout import canonical_role_name
+
         for path in export.rglob("*"):
             relative = path.relative_to(export)
             if len(relative.parts) > 2:
@@ -235,6 +237,14 @@ def validate_layout(directory: Path) -> None:
                 )
             if path.is_dir() and len(relative.parts) != 1:
                 raise PingstoreError(f"invalid scientific unit directory: {path}")
+            if path.is_file() and canonical_role_name(path.name) != path.name:
+                raise PingstoreError(f"noncanonical scientific role filename: {path}")
+        for unit in (path for path in export.iterdir() if path.is_dir()):
+            files = [path for path in unit.iterdir() if path.is_file()]
+            if len(files) < 2:
+                raise PingstoreError(
+                    f"scientific unit directories require at least two files: {unit}"
+                )
     for name in directories & names:
         for path in (directory / name).rglob("*"):
             if path.is_symlink() or not (path.is_file() or path.is_dir()):

@@ -82,7 +82,7 @@ def compute(identity: str, *, run_id: str | None = None) -> str:
                     )
                 else:
                     evidence.snapshot(
-                        destination / "snapshot.npz", cell["dt_ms"], contract["common"]
+                        destination / "recording.npz", cell["dt_ms"], contract["common"]
                     )
                 for name in ("config.json", "run.sh", "output.log", "run.jsonl"):
                     attachment = destination / name

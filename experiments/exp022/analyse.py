@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import argparse
-import json
 import sys
 import time
 from pathlib import Path
@@ -14,10 +13,12 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "experiments"), str(REPO / "tools")]
 
 from experiments.exp022 import recipe
-from helpers.checkpoints import checkpoint_provenance, epoch_metrics
-from helpers.fmt import format_duration
 from pingstore.contracts import PingstoreError, load_json, write_json_atomic
 from pingstore.stages import source_run, stage_run
+
+from helpers.checkpoints import checkpoint_provenance, epoch_metrics
+from helpers.fmt import format_duration
+
 
 def _gamma_psd(spk_i, dt):
     """I-population power spectrum + gamma peak from a single-trial raster.
@@ -123,7 +124,7 @@ def analyse(identity: str, *, run_id: str | None = None) -> str:
             })
             configurations[cell["name"]] = config
             if cell["seed"] == 42:
-                snapshot = compute.outputs / "snapshots" / cell["name"] / "snapshot.npz"
+                snapshot = compute.file("snapshots", cell["name"], "recording.npz")
                 if snapshot.is_file():
                     measure_snapshot(snapshot, run.export / "rasters" / f"{cell['name']}.npz")
                     snapshots.append(cell["name"])

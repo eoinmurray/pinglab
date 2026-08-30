@@ -52,7 +52,7 @@ def test_timeline_composes_slow_motion_repeats_and_holds():
 
 def test_snnsim_loader_separates_retained_static_arrays(tmp_path):
     np.savez(
-        tmp_path / "snapshot.npz",
+        tmp_path / "recording.npz",
         dt=np.asarray(0.25),
         spk_e=np.zeros((8, 3)),
         input_excitatory_e_executed=np.zeros((8, 3)),

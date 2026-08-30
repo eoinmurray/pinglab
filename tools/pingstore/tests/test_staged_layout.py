@@ -17,6 +17,7 @@ from pingstore.contracts import (
 )
 from pingstore.discovery import discover_runs
 from pingstore.layout import (
+    canonical_export_mapping,
     canonical_export_relative,
     export_directory,
     initialize_layout,
@@ -67,6 +68,9 @@ def test_v4_minimal_root_and_default_export(tmp_path, stage):
 def test_only_present_exports_must_be_flat(tmp_path, stage):
     directory = make_run(tmp_path, stage)
     (directory / "export/nested").mkdir()
+    if stage != "present":
+        (directory / "export/nested/metrics.json").write_text("{}")
+        (directory / "export/nested/recording.npz").write_bytes(b"fixture")
     resign(directory)
     if stage == "present":
         with pytest.raises(PingstoreError, match="flat regular files"):
@@ -100,9 +104,9 @@ def test_stage_completion_normalizes_tool_native_paths_and_references(
         write_json_atomic(artifact, {"path": "jobs/condition-a/result.json"})
         run.record["artifact"] = "export/jobs/condition-a/result.json"
     record = validate_run_directory(run.directory)
-    target = run.export / "jobs--condition-a/result.json"
-    assert load_json(target) == {"path": "jobs--condition-a/result.json"}
-    assert record["artifact"] == "export/jobs--condition-a/result.json"
+    target = run.export / "jobs--condition-a--result.json"
+    assert load_json(target) == {"path": "jobs--condition-a--result.json"}
+    assert record["artifact"] == "export/jobs--condition-a--result.json"
     assert "export_root" not in record
 
 
@@ -130,6 +134,38 @@ def test_bundle_internal_paths_become_role_names():
     ) == Path("branches--k--network.bundle/reports--summary.md")
 
 
+def test_singleton_units_flatten_and_standardize_recording_name():
+    mapping = canonical_export_mapping(
+        [Path("fi/ping-r2/recording.npz"), Path("bundle/metrics.json"), Path("bundle/config.json")]
+    )
+    assert mapping == {
+        "fi/ping-r2/recording.npz": "fi--ping-r2--recording.npz",
+        "bundle/metrics.json": "bundle/metrics.json",
+        "bundle/config.json": "bundle/config.json",
+    }
+
+
+@pytest.mark.parametrize(
+    "name", ["snapshot.npz", "recordings.npz", "unit--snapshot.npz"]
+)
+def test_v4_rejects_legacy_recording_aliases(tmp_path, name):
+    directory = make_run(tmp_path, "compute")
+    (directory / "export" / name).write_bytes(b"fixture")
+    resign(directory)
+    with pytest.raises(PingstoreError, match="noncanonical scientific role filename"):
+        validate_run_directory(directory)
+
+
+def test_v4_rejects_singleton_unit_directory(tmp_path):
+    directory = make_run(tmp_path, "compute")
+    unit = directory / "export/unit"
+    unit.mkdir()
+    (unit / "metrics.json").write_text("{}")
+    resign(directory)
+    with pytest.raises(PingstoreError, match="at least two files"):
+        validate_run_directory(directory)
+
+
 @pytest.mark.parametrize("entry", ["presentation", "unexpected.json"])
 def test_v4_rejects_extra_root_entries(tmp_path, entry):
     directory = make_run(tmp_path)
@@ -152,7 +188,7 @@ def test_v4_requires_stage_and_counter_first_id(tmp_path):
         validate_run_directory(directory)
 
 
-@pytest.mark.parametrize("relative", ["export/data--nested/value.json", "export/value.bin"])
+@pytest.mark.parametrize("relative", ["export/data--nested--value.json", "export/value.bin"])
 def test_export_data_is_checksummed(tmp_path, relative):
     directory = make_run(tmp_path, "compute")
     evidence = directory / relative

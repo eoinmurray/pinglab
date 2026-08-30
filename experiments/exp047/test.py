@@ -233,7 +233,7 @@ def test_sources_and_ancestry_reject_corruption(repo, corruption):
     analysis_id = analyse.analyse(compute_id)
     source = inputs.source(root, compute_id, "compute")
     if corruption == "payload":
-        next(source.export.glob("probe--*/metrics.json")).write_text("{}")
+        next(source.export.glob("probe--*--metrics.json")).write_text("{}")
     elif corruption == "symlink":
         (source.export / "link").symlink_to(source.export / "evidence.json")
     elif corruption == "root":
@@ -253,7 +253,7 @@ def test_resigned_wrong_scientific_config_is_rejected(repo):
     root, _ = repo
     identity = compute.compute()
     source = inputs.source(root, identity, "compute")
-    path = next(source.export.glob("probe--*/metrics.json"))
+    path = next(source.export.glob("probe--*--metrics.json"))
     doc = load_json(path)
     doc["config"]["n_inh"] = 99
     write_json_atomic(path, doc)
@@ -272,7 +272,7 @@ def test_missing_metric_cannot_be_replaced_with_implicit_recomputation(repo):
     root, calls = repo
     identity = compute.compute()
     source = inputs.source(root, identity, "compute")
-    next(source.export.glob("probe--*/metrics.json")).unlink()
+    next(source.export.glob("probe--*--metrics.json")).unlink()
     resign(source.directory)
     with pytest.raises(PingstoreError, match="metric grid"):
         analyse.analyse(identity)

@@ -718,7 +718,7 @@ def test_exact_k_gives_uniform_fan_in():
 @pytest.mark.xfail(reason="--lyapunov-eps feature was tied to removed --image flag")
 def test_lyapunov_eps_writes_divergence_to_npz(tmp_path):
     """--lyapunov-eps reruns the perturbed copy and saves a spike-train
-    divergence curve (lyap_dist) to snapshot.npz."""
+    divergence curve (lyap_dist) to recording.npz."""
     import numpy as np
 
     out = tmp_path / "lyap"
@@ -731,9 +731,9 @@ def test_lyapunov_eps_writes_divergence_to_npz(tmp_path):
         "--lyapunov-eps", "2.0",
         "--out-dir", str(out),
     )
-    npz = out / "snapshot.npz"
+    npz = out / "recording.npz"
     data = np.load(npz)
-    assert "lyap_dist" in data, "lyap_dist missing from snapshot.npz"
+    assert "lyap_dist" in data, "lyap_dist missing from recording.npz"
     assert "lyap_t_ms" in data
     assert data["lyap_dist"].shape == data["lyap_t_ms"].shape
     assert data["lyap_dist"].max() >= 0

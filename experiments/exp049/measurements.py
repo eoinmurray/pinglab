@@ -277,7 +277,8 @@ def weight_distributions(arrays):
 
 
 def raster(directory, config):
-    with np.load(directory / "snapshot.npz", allow_pickle=False) as raw:
+    path = directory if directory.is_file() else directory / "recording.npz"
+    with np.load(path, allow_pickle=False) as raw:
         e, i = (raw[k] for k in ("spk_e", "spk_i"))
         if e.ndim == 3:
             e = e[:, 0, :]

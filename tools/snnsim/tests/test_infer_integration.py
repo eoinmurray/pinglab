@@ -259,7 +259,7 @@ class TestInferAndSnapshot:
     """Test infer_and_snapshot() function."""
 
     def test_infer_and_snapshot_creates_npz(self, trained_weights, tmp_output_dir):
-        """infer_and_snapshot should create snapshot.npz."""
+        """infer_and_snapshot should create recording.npz."""
         infer_and_snapshot(
             model_name="ping",
             dt=0.1,
@@ -269,11 +269,11 @@ class TestInferAndSnapshot:
             hidden_sizes=[32],
             out_dir=tmp_output_dir,
         )
-        snapshot_path = tmp_output_dir / "snapshot.npz"
-        assert snapshot_path.exists(), "snapshot.npz should be created"
+        snapshot_path = tmp_output_dir / "recording.npz"
+        assert snapshot_path.exists(), "recording.npz should be created"
 
     def test_snapshot_npz_has_required_fields(self, trained_weights, tmp_output_dir):
-        """snapshot.npz should contain spk_e, spk_i, dt, n_e, n_i."""
+        """recording.npz should contain spk_e, spk_i, dt, n_e, n_i."""
         infer_and_snapshot(
             model_name="ping",
             dt=0.1,
@@ -283,13 +283,13 @@ class TestInferAndSnapshot:
             hidden_sizes=[32],
             out_dir=tmp_output_dir,
         )
-        snapshot_path = tmp_output_dir / "snapshot.npz"
+        snapshot_path = tmp_output_dir / "recording.npz"
         data = np.load(snapshot_path)
 
         # Check required fields
         required_fields = {"spk_e", "spk_i", "dt", "n_e", "n_i"}
         assert required_fields.issubset(set(data.files)), (
-            f"snapshot.npz missing required fields. Got: {set(data.files)}"
+            f"recording.npz missing required fields. Got: {set(data.files)}"
         )
 
     def test_snapshot_npz_spk_e_shape(self, trained_weights, tmp_output_dir):
@@ -303,7 +303,7 @@ class TestInferAndSnapshot:
             hidden_sizes=[32],
             out_dir=tmp_output_dir,
         )
-        snapshot_path = tmp_output_dir / "snapshot.npz"
+        snapshot_path = tmp_output_dir / "recording.npz"
         data = np.load(snapshot_path)
 
         spk_e = data["spk_e"]
@@ -330,7 +330,7 @@ class TestInferAndSnapshot:
             hidden_sizes=[32],
             out_dir=tmp_output_dir,
         )
-        snapshot_path = tmp_output_dir / "snapshot.npz"
+        snapshot_path = tmp_output_dir / "recording.npz"
         data = np.load(snapshot_path)
 
         spk_i = data["spk_i"]
@@ -354,7 +354,7 @@ class TestInferAndSnapshot:
             hidden_sizes=[32],
             out_dir=tmp_output_dir,
         )
-        snapshot_path = tmp_output_dir / "snapshot.npz"
+        snapshot_path = tmp_output_dir / "recording.npz"
         data = np.load(snapshot_path)
 
         # dt is stored as float32 in the npz, so 0.15 does not round-trip exactly.

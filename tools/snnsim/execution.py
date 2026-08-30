@@ -1612,7 +1612,7 @@ def write_inference_artifacts(
     root = Path(path)
     root.mkdir(parents=True, exist_ok=True)
     payloads = {
-        "recordings.npz": result.recordings,
+        "recording.npz": result.recordings,
         "outputs.npz": result.outputs,
         "parameters.npz": result.parameters,
     }
@@ -1703,7 +1703,7 @@ def validate_inference_artifacts(
             f"inference artifact request seed expected {int(seed)}, got {manifest.get('request_seed')}"
         )
     expected_files = {
-        "recordings.npz",
+        "recording.npz",
         "outputs.npz",
         "parameters.npz",
         "metrics.json",
@@ -1771,7 +1771,7 @@ def derive_inference_products(
     source_root = Path(source)
     source_manifest = validate_inference_artifacts(source_root)
     output_file = np.load(source_root / "outputs.npz", allow_pickle=False)
-    recording_file = np.load(source_root / "recordings.npz", allow_pickle=False)
+    recording_file = np.load(source_root / "recording.npz", allow_pickle=False)
     try:
         if logits_id not in output_file.files:
             raise ValueError(f"inference outputs do not contain logits {logits_id!r}")

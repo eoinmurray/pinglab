@@ -77,7 +77,7 @@ def analyse(identity: str, *, run_id: str | None = None) -> str:
         for dt in cfg["dt_sweep_ms"]:
             name = recipe.cell_name(dt, raster["seed"])
             snap = evidence.snapshot(
-                compute.file("snapshot", name, "snapshot.npz"),
+                compute.file("snapshot", name, "recording.npz"),
                 dt,
                 contract["common"],
             )

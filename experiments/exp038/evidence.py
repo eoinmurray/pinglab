@@ -223,8 +223,10 @@ def metric(path, train, job):
 
 def recordings(directory, train, job):
     if job["kind"] not in ("rate_raster", "ei_raster"):
-        return metric(directory / "metrics.json", train, job)
-    with np.load(directory / "snapshot.npz", allow_pickle=False) as data:
+        path = directory if directory.is_file() else directory / "metrics.json"
+        return metric(path, train, job)
+    path = directory if directory.is_file() else directory / "recording.npz"
+    with np.load(path, allow_pickle=False) as data:
         if not np.isclose(float(data["dt"]), train["dt"]):
             raise PingstoreError("snapshot timestep differs")
         for key, population in (("spk_e", "n_hidden"), ("spk_i", "n_inh")):

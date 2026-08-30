@@ -16,7 +16,7 @@ from pingstore.contracts import PingstoreError, load_json, write_json_atomic
 
 def payload_arrays(job):
     if job["kind"] == "snapshot":
-        return {"snapshot.npz": ("dt", "spk_e", "spk_i")}
+        return {"recording.npz": ("dt", "spk_e", "spk_i")}
     if job["kind"] == "scale":
         return {"per_cell_rates.npz": ("rate_e_per_sample",)}
     if job["kind"] == "pfg" and job["is_ping"]:

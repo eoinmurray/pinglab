@@ -171,7 +171,7 @@ def compute(*, run_id=None):
                 )
             )
             np.savez_compressed(
-                variants_dir / f"{name}-recordings.npz",
+                variants_dir / f"{name}-recording.npz",
                 **{
                     key: value.detach().cpu().numpy()
                     for key, value in result.recordings.items()

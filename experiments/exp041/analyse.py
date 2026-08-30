@@ -66,7 +66,7 @@ def analyse(identity, *, run_id=None):
             if cell["seed"] != cfg["raster"]["seed"]:
                 continue
             raw = evidence.snapshot(
-                compute.file("snapshot", cell["cell_name"], "snapshot.npz"),
+                compute.file("snapshot", cell["cell_name"], "recording.npz"),
                 common["dt"],
                 common,
             )

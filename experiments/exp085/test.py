@@ -522,7 +522,7 @@ def test_reject_scientifically_incomplete_even_with_valid_checksum(retained, bro
         write_json_atomic(path, record)
     else:
         name, filename = {
-            "recording": ("prc-I-05", "recordings.npz"),
+            "recording": ("prc-I-05", "recording.npz"),
             "pulse": ("prc-I-05", "inputs.npz"),
             "weights": ("uncoupled", "parameters.npz"),
             "branch-input": ("pathway-both", "inputs.npz"),
@@ -692,7 +692,7 @@ def test_real_executor_retention_interface_in_three_timesteps(tmp_path, kind):
     }
     folder = tmp_path / "jobs" / job["id"]
     folder.mkdir(parents=True)
-    np.savez_compressed(folder / "recordings.npz", **raw)
+    np.savez_compressed(folder / "recording.npz", **raw)
     assert set(evidence.recording(tmp_path, job)) == set(raw)
     assert result.runtime_state is not None
     save_runtime_state(tmp_path / "state", result.runtime_state)

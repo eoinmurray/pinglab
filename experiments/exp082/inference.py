@@ -254,7 +254,7 @@ class Inference:
             arrays[key] = dense
         output = self.directory / "export/streams" / name
         output.mkdir(parents=True)
-        np.savez_compressed(output / "recordings.npz", **arrays)
+        np.savez_compressed(output / "recording.npz", **arrays)
         write_json_atomic(
             output / "stream.json",
             {

@@ -554,7 +554,7 @@ def _build_parent_parser():
         default=0.0,
         help="If > 0 (synthetic-spikes image mode), rerun the forward pass "
         "on identical input with all membrane voltages ε-perturbed at t=0 "
-        "and save the membrane-divergence curve ‖ΔV(t)‖ to snapshot.npz. "
+        "and save the membrane-divergence curve ‖ΔV(t)‖ to recording.npz. "
         "Its exponential growth rate is the max Lyapunov exponent: positive "
         "for the chaotic V&S balanced state, ≈ 0 for cycle-locked PING.",
     )
@@ -1687,7 +1687,7 @@ def _run_sim(args, C, out_dir, log):
     M.N_INH = C.N_I
 
     # Drive: synthetic-spikes → one trial of uniform Poisson at --input-rate fed
-    # through W_in (records voltages → snapshot.npz drives both the raster/PSD and
+    # through W_in (records voltages → recording.npz drives both the raster/PSD and
     # the per-neuron trace panels). Otherwise the Börgers tonic conductance step.
     _drive_flags = (
         "independent_drive",
@@ -1874,7 +1874,7 @@ def _run_sim(args, C, out_dir, log):
             )
 
     # Save full integration window snapshot for notebooks
-    out_path = Path(out_dir) / "snapshot.npz"
+    out_path = Path(out_dir) / "recording.npz"
     save_snapshot_npz(
         out_path,
         rec,

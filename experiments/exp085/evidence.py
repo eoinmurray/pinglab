@@ -74,7 +74,7 @@ def recording_sizes(job):
 def recording(root, job):
     if job["id"] == "prefix":
         return {}
-    data = arrays(canonical_export_file(root, "jobs", job["id"], "recordings.npz"))
+    data = arrays(canonical_export_file(root, "jobs", job["id"], "recording.npz"))
     for name, size in recording_sizes(job).items():
         value = data.get(name)
         if value is None or value.shape != (job["steps"], 1, size):

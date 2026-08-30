@@ -10,6 +10,7 @@ def make_run(repo, run_id, stage, *, inputs=None):
     (directory / "export/result.json").write_text("{}\n")
     (directory / "export/evidence/obsolete.log").write_text("unused\n")
     (directory / "export/evidence/used.json").write_text("{}\n")
+    (directory / "export/evidence/used-too.json").write_text("{}\n")
     (directory / "README.md").write_text(f"# {run_id}\n")
     record = {
         "schema": RUN_SCHEMA,

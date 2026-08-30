@@ -183,7 +183,7 @@ def counts(path, cfg):
 def stream(root, name):
     folder = _unit(root, "streams", name)
     meta = load_json(folder / "stream.json")
-    raw = arrays(folder / "recordings.npz")
+    raw = arrays(folder / "recording.npz")
     conditions = (
         [[200.0, 5.0]] * 5
         if name == "matched"
@@ -234,15 +234,16 @@ def condition(root, job, cfg):
 def validate_compute(root, cfg, *, historical=False):
     expected = {j["id"] for j in recipe.jobs(cfg)}
     base = _root(root)
-    units = (
-        {path.name for path in (base / "jobs").iterdir() if path.is_dir()}
-        if (base / "jobs").is_dir()
-        else {
-            path.name.removeprefix("jobs--")
-            for path in base.glob("jobs--*")
-            if path.is_dir()
+    role = "condition.json" if historical else "counts.npz"
+    suffix = f"--{role}"
+    if (base / "jobs").is_dir():
+        units = {path.name for path in (base / "jobs").iterdir() if path.is_dir()}
+    else:
+        units = {
+            path.name.removeprefix("jobs--").removesuffix(suffix)
+            for path in base.glob(f"jobs--*{suffix}")
+            if path.is_file()
         }
-    )
     if units != expected:
         raise PingstoreError("incomplete or extra condition jobs")
     for job in recipe.jobs(cfg):

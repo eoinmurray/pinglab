@@ -616,7 +616,7 @@ def infer_and_snapshot(
     recording_mode="full",
     output_fields=None,
 ):
-    """Run inference on a single sample and save full spike trajectory to snapshot.npz.
+    """Run inference on a single sample and save full spike trajectory to recording.npz.
 
     Sample selection: by default the trial is chosen by (digit class, index within
     class) for MNIST, or raw index for other datasets. Pass sample_index to force a
@@ -740,7 +740,7 @@ def infer_and_snapshot(
     # plus optional traces (voltages, conductances, etc.) if the network recorded them.
     rec = net.spike_record
     assert out_dir is not None, "infer_and_snapshot requires out_dir"
-    out_path = Path(out_dir) / "snapshot.npz"
+    out_path = Path(out_dir) / "recording.npz"
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
     # Save snapshot with canonical field names and metadata (including the sample's

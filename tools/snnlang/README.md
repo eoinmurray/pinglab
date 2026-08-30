@@ -91,7 +91,7 @@ seeds. No download or dataset registry is consulted.
 uv run python tools/snnsim/tool.py train \
   --executor graph \
   --bundle deep_network.bundle \
-  --dataset-file shd-train-snapshot.npz \
+  --dataset-file shd-train-recording.npz \
   --dataset-encoder event-bin \
   --dataset-target-id gesture \
   --input-dataset-id shd-train-sha256-... \

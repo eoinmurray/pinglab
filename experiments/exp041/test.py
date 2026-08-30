@@ -105,7 +105,7 @@ def lab(tmp_path, monkeypatch):
             e[::20, :] = True
             i[::40, :] = True
             np.savez_compressed(
-                out / "snapshot.npz", spk_e=e, spk_i=i, dt=cfg["dt"], label=3
+                out / "recording.npz", spk_e=e, spk_i=i, dt=cfg["dt"], label=3
             )
         else:
             samples = int(arg("--max-samples"))
@@ -305,7 +305,7 @@ def test_independent_stages_retain_science_and_never_publish(lab, monkeypatch):
     assert len(results["aggregate"]) == 6
     assert results["measurement"]["history_partition"] == "validation"
     raw = evidence.snapshot(
-        output.file("snapshot", recipe.cell_name(4.5, 42), "snapshot.npz"),
+        output.file("snapshot", recipe.cell_name(4.5, 42), "recording.npz"),
         recipe.DT_TRAIN,
         results["config"]["training_contract"]["common"],
     )
@@ -413,7 +413,7 @@ def test_corrupt_scientific_evidence_fails_closed(lab, damage):
         data["config"]["tau_gaba_ms"] = 99
         write_json_atomic(path, data)
     elif damage == "snapshot_shape":
-        path = run.file("snapshot", recipe.cell_name(4.5, 42), "snapshot.npz")
+        path = run.file("snapshot", recipe.cell_name(4.5, 42), "recording.npz")
         np.savez_compressed(
             path, spk_e=np.zeros((1, 4)), spk_i=np.zeros((1, 2)), dt=0.1, label=3
         )

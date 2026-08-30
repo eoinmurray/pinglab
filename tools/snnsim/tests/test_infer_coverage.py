@@ -234,7 +234,7 @@ class TestInferAndSnapshotExtras:
             tau_gaba=5.0,
             skip_load=["W_ei"],
         )
-        assert (tmp_out / "snapshot.npz").exists()
+        assert (tmp_out / "recording.npz").exists()
 
     def test_snapshot_with_perturb_and_sample_index(self, trained_ckpt, tmp_out):
         # sample_index path + perturb hook in snapshot.
@@ -250,7 +250,7 @@ class TestInferAndSnapshotExtras:
             perturb_mode="drop",
             perturb_level=0.1,
         )
-        assert (tmp_out / "snapshot.npz").exists()
+        assert (tmp_out / "recording.npz").exists()
 
     def test_snapshot_sample_out_of_range_warns(self, trained_ckpt, tmp_out):
         # sample far out of range for digit 0 → warns and falls back to sample 0.
@@ -265,7 +265,7 @@ class TestInferAndSnapshotExtras:
             digit=0,
             sample=10_000_000,
         )
-        assert (tmp_out / "snapshot.npz").exists()
+        assert (tmp_out / "recording.npz").exists()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -541,7 +541,7 @@ def test_selected_snapshots_preserve_spikes_without_trace_buffers(synthetic_infe
     infer_and_snapshot(**kwargs, sample_index=3, out_dir=full_dir)
     infer_and_snapshot(**kwargs, sample_index=3, out_dir=lean_dir, recording_mode=mode)
     assert set(nets[-1].spike_record) == ({"hid", "inh"} if mode == "spikes" else {"inh"})
-    with np.load(full_dir / "snapshot.npz") as full, np.load(lean_dir / "snapshot.npz") as lean:
+    with np.load(full_dir / "recording.npz") as full, np.load(lean_dir / "recording.npz") as lean:
         expected = {"dt", "n_e", "n_i", "label", "spk_i"}
         if mode == "spikes":
             expected.add("spk_e")
@@ -581,7 +581,7 @@ class TestIOverride:
             out_dir=tmp_out,
             i_override_file=str(ov_path),
         )
-        assert (tmp_out / "snapshot.npz").exists()
+        assert (tmp_out / "recording.npz").exists()
 
 
 # ─────────────────────────────────────────────────────────────────────────────

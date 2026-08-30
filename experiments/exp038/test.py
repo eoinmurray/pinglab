@@ -149,7 +149,7 @@ def lab(tmp_path, monkeypatch):
             e[::20, ::2] = True
             i[::30] = True
             save(
-                out / "snapshot.npz",
+                out / "recording.npz",
                 dt=0.1,
                 n_e=200,
                 n_i=64,
@@ -210,7 +210,7 @@ def test_independent_stages_preserve_roles_and_never_publish(lab, monkeypatch):
     cid = compute.compute(bank_id)
     assert len(calls) == 20
     c = inputs.source(root, cid, "compute")
-    for p in c.export.rglob("snapshot.npz"):
+    for p in c.export.rglob("recording.npz"):
         with np.load(p) as d:
             assert set(d.files) == {"dt", "n_e", "n_i", "label", "spk_e", "spk_i"}
     monkeypatch.setattr(
@@ -266,7 +266,7 @@ def test_snapshots_preserve_full_population_rate_and_rng_selection(tmp_path):
     e[::2, :] = True
     i[::4, :] = True
     np.savez(
-        tmp_path / "snapshot.npz", spk_e=e[:, None, :], spk_i=i[:, None, :], label=7
+        tmp_path / "recording.npz", spk_e=e[:, None, :], spk_i=i[:, None, :], label=7
     )
     result = measurements.raster(
         tmp_path, {"dt": 0.1, "t_ms": 2.0}, {"kind": "rate_raster", "input_rate": 10.0}
@@ -288,7 +288,7 @@ def test_analyse_rejects_corrupt_even_resigned_payload(lab, mutation):
     cfg = recipe.configuration(smoke=True)
     jobs = recipe.jobs(cfg)
     if mutation == "snapshot":
-        p = c.file(jobs[0]["path"], "snapshot.npz")
+        p = c.file(jobs[0]["path"], "recording.npz")
         with np.load(p) as raw:
             data = {k: raw[k] for k in raw.files}
         data["spk_e"] = np.full_like(data["spk_e"], 2, dtype=np.int8)

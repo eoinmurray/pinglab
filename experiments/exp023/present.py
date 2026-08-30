@@ -51,7 +51,7 @@ def present(identity: str, *, run_id: str | None = None) -> str:
     snaps = {}
     for cell in cfg["cells"]:
         with np.load(
-            compute.file("scope", cell, "snapshot.npz"), allow_pickle=False
+            compute.file("scope", cell, "recording.npz"), allow_pickle=False
         ) as data:
             snaps[cell] = {key: np.array(data[key]) for key in ("spk_e", "spk_i", "dt")}
     started = time.monotonic()

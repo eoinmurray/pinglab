@@ -100,7 +100,7 @@ def lab(tmp_path, monkeypatch):
             arrays = {"spk_i": i, "label": np.int64(0)}
             if mode == "spikes":
                 arrays["spk_e"] = e
-            np.savez(out / "snapshot.npz", **arrays)
+            np.savez(out / "recording.npz", **arrays)
         else:
             samples = int(get("--max-samples"))
             write_json_atomic(

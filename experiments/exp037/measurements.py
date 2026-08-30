@@ -130,7 +130,8 @@ def plot_data(rows, points):
 
 
 def raster(directory, train, job):
-    with np.load(directory / "snapshot.npz", allow_pickle=False) as d:
+    path = directory if directory.is_file() else directory / "recording.npz"
+    with np.load(path, allow_pickle=False) as d:
         e_full, i_full = d["spk_e"], d["spk_i"]
         if e_full.ndim == 3:
             e_full = e_full[:, 0, :]

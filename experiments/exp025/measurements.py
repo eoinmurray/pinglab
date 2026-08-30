@@ -176,7 +176,8 @@ def _count_e_spikes_per_cycle(
 
 def measure_p_fgamma(out_dir: Path, dt_ms: float, is_ping: bool) -> dict:
     fs_hz = 1000.0 / dt_ms
-    m = json.loads((out_dir / "metrics.json").read_text())
+    metrics = out_dir if out_dir.is_file() else out_dir / "metrics.json"
+    m = json.loads(metrics.read_text())
     rates = m.get("rates_hz", {})
     acc = float(m["best_acc"])
     e_rate = float(rates.get("hid", 0.0))
@@ -189,6 +190,9 @@ def measure_p_fgamma(out_dir: Path, dt_ms: float, is_ping: bool) -> dict:
             "f_gamma": None,
             "p": None,
         }
+
+    if not out_dir.is_dir():
+        raise ValueError("PING frequency evidence requires a multi-file unit")
 
     pt = np.load(out_dir / "pop_traces.npz")
     pop_e_traces = list(pt["pop_e"])

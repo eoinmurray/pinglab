@@ -122,7 +122,7 @@ def lab(tmp_path, monkeypatch):
             e, i = np.zeros((4000, 4), bool), np.zeros((4000, 2), bool)
             e[::200] = True
             i[::200] = True
-            save(out / "snapshot.npz", dt=0.1, spk_e=e, spk_i=i, unused=np.zeros(20))
+            save(out / "recording.npz", dt=0.1, spk_e=e, spk_i=i, unused=np.zeros(20))
         else:
             n = int(arg("--max-samples"))
             write_json_atomic(
@@ -208,7 +208,7 @@ def test_independent_stages_preserve_bank_and_do_not_publish(lab, monkeypatch):
         corrected["config"]["seed"] == 42 and corrected["config"]["tau_gaba_ms"] == 6.0
     )
     assert not (run.directory / ".scratch").exists()
-    with np.load(run.file("snapshot", "coba", "snapshot.npz")) as raw:
+    with np.load(run.file("snapshot", "coba", "recording.npz")) as raw:
         assert set(raw.files) == {"dt", "spk_e", "spk_i"}
     monkeypatch.setattr(
         compute, "run_cli", lambda *a, **k: pytest.fail("implicit simulation")
@@ -266,7 +266,7 @@ def test_raw_payload_corruption_blocks_analysis(lab):
     root, bank_id, _ = lab
     identity = compute.compute(bank_id)
     run = inputs.source(root, identity, "compute")
-    run.file("snapshot", "ping", "snapshot.npz").write_bytes(b"corrupt")
+    run.file("snapshot", "ping", "recording.npz").write_bytes(b"corrupt")
     with pytest.raises(PingstoreError, match="checksum"):
         analyse.analyse(identity)
 

@@ -14,7 +14,7 @@ def load_snnsim_recording(run_dir: str | Path) -> Recording:
     """Load a canonical snnsim snapshot and preserve unknown signal fields."""
 
     root = Path(run_dir)
-    snapshot = root / "snapshot.npz"
+    snapshot = root / "recording.npz"
     if not snapshot.is_file():
         raise RecordingError(f"missing snnsim snapshot: {snapshot}")
     with np.load(snapshot) as payload:

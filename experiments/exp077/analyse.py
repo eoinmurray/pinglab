@@ -98,7 +98,7 @@ def analyse(identity, *, run_id=None):
                 if p["id"].startswith(("a_I_to_b", "b_I_to_a"))
             ]
             with np.load(
-                source.export / "variants" / f"{name}-recordings.npz"
+                source.export / "variants" / f"{name}-recording.npz"
             ) as arrays:
                 variants[name] = {
                     "graph_digest": bundle.manifest["graph_digest"],

@@ -150,7 +150,7 @@ def lab(tmp_path, monkeypatch):
             e[::20, ::2] = True
             i[::30] = True
             save(
-                out / "snapshot.npz",
+                out / "recording.npz",
                 dt=0.1,
                 n_e=200,
                 n_i=64,
@@ -222,7 +222,7 @@ def test_analyse_rejects_corrupt_even_resigned_payload(lab, mutation):
         p = (
             c.file(
                 next(j["path"] for j in jobs if j["kind"] == "raster"),
-                "snapshot.npz",
+                "recording.npz",
             )
         )
         with np.load(p) as raw:
@@ -450,7 +450,7 @@ def test_independent_stages_preserve_measurements_and_never_publish(lab, monkeyp
     cid = compute.compute(bank)
     assert len(calls) == 54
     source = inputs.source(root, cid, "compute")
-    for path in source.export.rglob("snapshot.npz"):
+    for path in source.export.rglob("recording.npz"):
         with np.load(path) as data:
             assert set(data.files) == set(recipe.SNAPSHOT_ARRAYS)
     monkeypatch.setattr(
@@ -501,7 +501,7 @@ def test_raster_selection_preserves_dtype_sum_and_rng(tmp_path):
     e = (np.arange(20 * 256).reshape(20, 256) % 3 == 0).astype(np.float32)
     i = (np.arange(20 * 128).reshape(20, 128) % 5 == 0).astype(np.float32)
     np.savez(
-        tmp_path / "snapshot.npz", spk_e=e[:, None, :], spk_i=i[:, None, :], label=7
+        tmp_path / "recording.npz", spk_e=e[:, None, :], spk_i=i[:, None, :], label=7
     )
     job = {"model": "ping", "seed": 42, "mode": "drop", "level": 0.5}
     result = measurements.raster(tmp_path, {"dt": 0.1, "t_ms": 2.0}, job)
