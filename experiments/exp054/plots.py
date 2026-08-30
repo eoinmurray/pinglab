@@ -82,12 +82,6 @@ def _contrast_heatmap(vals, title, cbar_label, out_path):
     plt.close(fig)
 
 
-def fig_grid_heatmap(grid, out_path):
-    """lobe–trough contrast over the W_EI × W_IE plane."""
-    ct = np.array([[c["contrast"] for c in row] for row in grid])  # [wie, wei]
-    _contrast_heatmap(ct, "Contrast over W_EI × W_IE", "lobe–trough contrast", out_path)
-
-
 def _rate_heatmap(vals, title, cbar_label, out_path):
     """One firing-rate heatmap over the W_EI × W_IE grid (Hz, viridis)."""
     fig, ax = plt.subplots(figsize=(8, 4.5), dpi=150)
@@ -118,18 +112,6 @@ def _rate_heatmap(vals, title, cbar_label, out_path):
     fig.tight_layout()
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
-
-
-def fig_grid_rate_e(grid, out_path):
-    """E firing-rate heatmap — the gamma-gated sparsity behind the contrast map."""
-    e = np.array([[c["rate_hz"] for c in row] for row in grid])
-    _rate_heatmap(e, "E firing rate over W_EI × W_IE", "E rate (Hz)", out_path)
-
-
-def fig_grid_rate_i(grid, out_path):
-    """I firing-rate heatmap."""
-    i = np.array([[c["rate_i_hz"] for c in row] for row in grid])
-    _rate_heatmap(i, "I firing rate over W_EI × W_IE", "I rate (Hz)", out_path)
 
 
 def fig_grid_rasters(grid, out_path):

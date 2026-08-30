@@ -14,31 +14,6 @@ from experiments.helpers.run_cli import run_cli
 from pingstore.contracts import PingstoreError, load_json, write_json_atomic
 
 
-def payload_arrays(job):
-    if job["kind"] == "snapshot":
-        return {"recording.npz": ("dt", "spk_e", "spk_i")}
-    if job["kind"] == "scale":
-        return {"per_cell_rates.npz": ("rate_e_per_sample",)}
-    if job["kind"] == "pfg" and job["is_ping"]:
-        return {
-            "pop_traces.npz": ("dt", "pop_e"),
-            "rasters.npz": (
-                "dt",
-                "T",
-                "n_trials",
-                "n_e",
-                "n_i",
-                "e_trial",
-                "e_t",
-                "e_cell",
-                "i_trial",
-                "i_t",
-                "i_cell",
-            ),
-        }
-    return {}
-
-
 def compute(identity, *, run_id=None):
     bank = inputs.source(REPO, identity, "compute", experiment="exp022")
     cfg = recipe.configuration(smoke=os.environ.get("PINGLAB_SMOKE") == "1")

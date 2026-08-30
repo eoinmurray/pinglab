@@ -157,17 +157,3 @@ def active_run_state(slug: str) -> Path:
     if len(matches) != 1:
         raise RuntimeError(f"cannot resolve active Pingstore state for {slug}")
     return matches[0]
-
-
-def log_runner_event(slug: str, event: str, **fields: object) -> None:
-    """Append a compact lifecycle event beneath the runner's explicit log root."""
-    paths = runner_paths(slug)
-    identity = fields.get("run_id")
-    if not paths.isolated and identity:
-        completed = RUNS_ROOT / make_run_id(slug, str(identity), execution_origin())
-        if completed.exists():
-            raise RuntimeError("record completion events before finalizing the immutable run")
-    paths.logs.mkdir(parents=True, exist_ok=True)
-    record = {"event": event, "experiment": slug, **fields}
-    with (paths.logs / f"{slug}.jsonl").open("a") as handle:
-        handle.write(json.dumps(record, sort_keys=True) + "\n")

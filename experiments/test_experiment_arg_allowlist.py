@@ -64,10 +64,6 @@ STAGE_META = {
 }
 
 
-def _is_meta(flag: str) -> bool:
-    return flag in ALLOWED_EXACT
-
-
 def _accepted_flags(src: str) -> set[str]:
     argparse_flags = set(re.findall(r'add_argument\(\s*"(--[a-z0-9-]+)"', src))
     argv_flags = set(re.findall(r'"(--[a-z0-9-]+)"\s+(?:not\s+)?in\s+sys\.argv', src))

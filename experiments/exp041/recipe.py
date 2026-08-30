@@ -92,10 +92,6 @@ TRAINING_COMMON_FIELDS = (
 )
 
 
-def tau_label(tau_ms: float) -> str:
-    return "tg" + f"{tau_ms:g}".replace(".", "p")
-
-
 def cell_name(tau_ms: float, seed: int) -> str:
     return training_run_cell(TRAINING_RUN, tau_gaba=tau_ms, seed=seed)["name"]
 

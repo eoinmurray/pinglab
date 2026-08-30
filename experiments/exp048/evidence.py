@@ -308,14 +308,6 @@ def analysis_figure(data, job, summary):
         raise PingstoreError("figure predictions disagree")
 
 
-SOURCE = (
-    "r2:pinglab/datasets/gamma-gated-sparsity/baseline-20260826/"
-    "experiment-runs/exp048/exp048--r003"
-)
-SOURCE_HASHES = {
-    "run.json": "2e1c30d9466d455328e4941471001c9dda316b53dc39559379de68443638ca4d",
-    "inventory.json": "0488f5f7e156479ee04f0488650095cdf3bdd95cf88428daaa97bacd87cc11b4",
-}
 IMPORT = {"schema": "exp048.historical-import/v1", "evidence": "per-seed summaries"}
 ANALYSIS = {
     "schema": "exp048.historical-analysis/v1",
@@ -323,19 +315,6 @@ ANALYSIS = {
 }
 PRESENTATION = {"schema": "exp048.historical-presentation/v1"}
 CARRIED = recipe.FIGURES[:4]
-PAYLOAD_NAMES = {
-    *recipe.FIGURES,
-    "numbers.json",
-    "_manifest.json",
-    "_dirty.patch",
-    "_run.txt",
-}
-REMOVED_REPLAY_SCRIPT = {
-    "path": "run.sh",
-    "role": "state",
-    "sha256": "8689ec49b3d1a382a76e392db184fbe042535180891984e0df4cb689df7b798f",
-    "size_bytes": 247,
-}
 LEGACY_CONFIG_KEYS = (
     "n_e",
     "n_i",
@@ -397,81 +376,6 @@ def validate_numbers(numbers):
                 or [int(a == b) for a, b in zip(labels, preds)] != correct
             ):
                 raise PingstoreError("historical varying headline differs")
-
-
-def archive_files(directory):
-    expected = {*SOURCE_HASHES, *(f"payload/{name}" for name in PAYLOAD_NAMES)}
-    paths = list(directory.rglob("*"))
-    if directory.is_symlink() or any(p.is_symlink() for p in paths):
-        raise PingstoreError("historical archive contains symlinks")
-    if {p.relative_to(directory).as_posix() for p in paths if p.is_file()} != expected:
-        raise PingstoreError("historical archive file set differs")
-    for name, digest in SOURCE_HASHES.items():
-        if file_sha256(directory / name) != digest:
-            raise PingstoreError(f"approved source metadata changed: {name}")
-    inventory = load_json(directory / "inventory.json")
-    original_rows = inventory["files"]
-    if [row for row in original_rows if row.get("path") == "run.sh"] != [
-        REMOVED_REPLAY_SCRIPT
-    ]:
-        raise PingstoreError("historical replay-script inventory differs")
-    rows = [row for row in original_rows if row.get("path") != "run.sh"]
-    if len(rows) != len(PAYLOAD_NAMES) or {r["path"] for r in rows} != PAYLOAD_NAMES:
-        raise PingstoreError("historical payload inventory differs")
-    for row in rows:
-        path = directory / "payload" / row["path"]
-        if (
-            path.stat().st_size != row["size_bytes"]
-            or file_sha256(path) != row["sha256"]
-        ):
-            raise PingstoreError(f"historical payload checksum differs: {row['path']}")
-    if inventory["file_count"] != len(original_rows) or inventory[
-        "total_size_bytes"
-    ] != sum(r["size_bytes"] for r in original_rows):
-        raise PingstoreError("historical inventory totals differ")
-    original = load_json(directory / "run.json")
-    manifest = load_json(directory / "payload/_manifest.json")
-    numbers = load_json(directory / "payload/numbers.json")
-    if (
-        original["experiment"] != recipe.SLUG
-        or original["run_id"] != "exp048/r003"
-        or original["execution"]["host"] != "local"
-        or manifest["run_id"] != "r003"
-        or numbers["notebook_run_id"] != "r001"
-    ):
-        raise PingstoreError("historical producer identity differs")
-    validate_numbers(numbers)
-    return {
-        name: {
-            "sha256": file_sha256(directory / name),
-            "size_bytes": (directory / name).stat().st_size,
-        }
-        for name in sorted(expected)
-    }
-
-
-def provenance(directory, files):
-    original = load_json(directory / "run.json")
-    numbers = load_json(directory / "payload/numbers.json")
-    return {
-        "schema": "exp048.historical-provenance/v1",
-        "gold_2": False,
-        "source_uri": SOURCE,
-        "source_files": files,
-        "source_bytes": sum(row["size_bytes"] for row in files.values()),
-        "original_producer": original["execution"],
-        "original_code": original["source"],
-        "archive_identity": original["run_id"],
-        "numbers_identity": numbers["notebook_run_id"],
-        "recorded_duration_s": numbers["duration_s"],
-        "low_rate_attribution": numbers["encoding_rate_psychometric"][
-            "migration_source"
-        ],
-        "checkpoint_lineage": "unresolved; no operational bank reference asserted",
-        "raw_streams_available": False,
-        "compute_reproduced": False,
-        "identity_discrepancy": "archive r003 versus numerical record r001; unresolved",
-    }
 
 
 def imported(repo, source):

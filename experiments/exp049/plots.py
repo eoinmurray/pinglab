@@ -110,7 +110,7 @@ def plot_weight_matrices(
 
         # Reference vertical at the canonical biophysical mean.
         ax.axvline(canon_mean, color=theme.GREY_MID, lw=0.9, ls=":")
-        y_lo, y_hi = ax.get_ylim()
+        y_hi = ax.get_ylim()[1]
         ax.text(
             canon_mean,
             y_hi * 0.5,
@@ -272,9 +272,7 @@ def plot_condition_card(
             xs, curve["mean"], color=color, lw=lw_mean, ls=ls, solid_capstyle="round"
         )
 
-    def _style_panel(
-        ax, *, ylabel, last_xlabel=False, last_val=None, last_val_fmt="{:.4f}"
-    ):
+    def _style_panel(ax, *, ylabel, last_val=None, last_val_fmt="{:.4f}"):
         ax.set_ylabel(ylabel, fontsize=theme.SIZE_LABEL)
         ax.set_xlabel("Epoch", fontsize=theme.SIZE_LABEL)
         ax.spines["top"].set_visible(False)

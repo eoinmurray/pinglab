@@ -13,7 +13,6 @@ SEEDS = list(training_run_values("TR-02", "seed"))
 RATE_TARGET_GRID_HZ = list(training_run_values("TR-02", "rate_target_hz"))
 LOW_W_IN_VALUES = training_run_values("TR-07", "w_in")
 LOW_W_IN_SEEDS = list(SEEDS)
-REPRESENTATIVE_SEED = 42
 EVAL_MAX_SAMPLES = MNIST_REDUCED_EVAL_SAMPLES
 F_GAMMA_BAND_HZ = (5.0, 150.0)
 W_IN_SCALE_VALUES = [

@@ -16,7 +16,7 @@ TRAINING_RATES_HZ = tuple(training_run_values("TR-06", "input_rates_hz")[0])
 PSYCHOMETRIC_RATES_HZ = TRAINING_RATES_HZ
 DURATIONS_MS = (25.0, 50.0, 100.0, 200.0)
 MATCHED_DURATION_MS, MATCHED_RATE_HZ = 200.0, 5.0
-N_CLASSES, N_INPUT, N_HEADLINE_DIGITS = 10, 784, 5
+N_CLASSES, N_INPUT = 10, 784
 DT_MS = 0.1
 STREAMS_PER_CELL, DIGITS_PER_STREAM, STREAM_BATCH_SIZE = 40, 5, 5
 EVALUATION_PROFILE = "production"
@@ -32,9 +32,6 @@ FIGURES = (
     "duration_rate_summary.png",
     "shared_design_schematic.svg",
 )
-MEASUREMENTS_FILE = "measurements.npz"
-
-
 def training_cell_name(seed):
     return training_run_cell("TR-06", seed=seed)["name"]
 

@@ -6,7 +6,6 @@ from pathlib import Path
 
 import numpy as np
 from experiments import exp022, exp037, exp038
-from experiments.helpers.checkpoints import sha256_file
 
 REPO = Path(__file__).resolve().parents[1]
 
@@ -51,22 +50,6 @@ def test_frontier_summary_reports_mean_and_sem_across_seeds() -> None:
     assert point["uncertainty"] == "sem_across_independent_seeds"
     assert point["final_acc"] == 82.0
     np.testing.assert_allclose(point["final_acc_sem"], 2 / np.sqrt(3))
-
-
-def _write_selected_checkpoint(train_dir: Path) -> None:
-    path = train_dir / "weights.pth"
-    path.write_bytes(b"checkpoint")
-    (train_dir / "metrics.json").write_text(json.dumps({
-        "best_epoch": 7,
-        "config": {"epochs": 50},
-        "checkpoints": {
-            "best_validation": {
-                "filename": "weights.pth",
-                "epoch": 7,
-                "sha256": sha256_file(path),
-            }
-        },
-    }))
 
 
 def test_exp037_jobs_cover_every_quantitative_seed() -> None:
