@@ -8,8 +8,8 @@
 #let meta = (
   status: "[▦ DATA | v28.0.0]",
   title: "Firing Rate Across the Timestep Sweep",
-  date: "2026-06-02",
-  updated_at: "2026-08-31",
+  created_at: "2026-06-02T00:00:00Z",
+  updated_at: "2026-08-31T00:00:00Z",
   description: "Compares final-epoch firing rate, classification accuracy and illustrative rasters across a twentyfold integration-timestep sweep.",
   collection: "gamma-gated-sparsity",
 )

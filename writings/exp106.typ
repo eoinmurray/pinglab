@@ -3,7 +3,7 @@
 #let meta = (
   status: "[≡ TXT | v28.0.0]",
   title: "Components, projections, and delays",
-  date: "2026-08-14",
+  created_at: "2026-08-14T00:00:00Z",
   description: "Compose reusable circuit motifs and connect them with explicit synapses, weights, polarity, topology, and causal delays.",
   collection: "snnlang-docs",
   order: 3,

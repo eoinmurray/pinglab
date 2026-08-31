@@ -10,8 +10,8 @@
 #let meta = (
   status: "[▦ DATA | v28.0.0]",
   title: "[DEPRECATED] Manuscript",
-  date: "2026-06-21",
-  updated_at: "2026-08-31",
+  created_at: "2026-06-21T00:00:00Z",
+  updated_at: "2026-08-31T00:00:00Z",
   description: "A task-trained spiking network with a fixed PING loop: gamma as a structural constraint on excitatory firing rates.",
   collection: "gamma-gated-sparsity",
 )

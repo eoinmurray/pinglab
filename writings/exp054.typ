@@ -8,8 +8,8 @@
 #let meta = (
   status: "[▦ DATA | v28.0.0]",
   title: "Gamma Turns On Across the Coupling Map",
-  date: "2026-06-15",
-  updated_at: "2026-08-31",
+  created_at: "2026-06-15T00:00:00Z",
+  updated_at: "2026-08-31T00:00:00Z",
   description: "Lobe–trough contrast across untrained PING coupling strengths, with private- and shared-input null controls and a separate mean-field onset comparison.",
   collection: "gamma-gated-sparsity",
 )

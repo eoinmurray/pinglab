@@ -8,8 +8,8 @@
 #let meta = (
   status: "[▦ DATA | v28.0.0]",
   title: "Arbitrary coupled graphs execute natively",
-  updated_at: "2026-08-31",
-  date: "2026-08-05",
+  updated_at: "2026-08-31T00:00:00Z",
+  created_at: "2026-08-05T00:00:00Z",
   description: "Four graph-defined coupling variants with separate numerical compatibility and runtime checks.",
   collection: "snnlang-docs",
   order: 4,

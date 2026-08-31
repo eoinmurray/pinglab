@@ -8,8 +8,8 @@
 #let meta = (
   status: "[▦ DATA | v28.0.0]",
   title: "Switching On the Inhibitory Loop",
-  date: "2026-05-30",
-  updated_at: "2026-08-31",
+  created_at: "2026-05-30T00:00:00Z",
+  updated_at: "2026-08-31T00:00:00Z",
   description: "Enabling an inhibitory loop after feedforward training reduced excitatory firing but lowered classification accuracy; the experiment does not isolate a benefit of gamma timing.",
   collection: "gamma-gated-sparsity",
 )

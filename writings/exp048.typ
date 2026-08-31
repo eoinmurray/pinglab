@@ -8,8 +8,8 @@
 #let meta = (
   status: "[▦ DATA | v28.0.0]",
   title: "[DEPRECATED] Accuracy Across Duration and Input Rate",
-  date: "2026-06-08",
-  updated_at: "2026-08-31",
+  created_at: "2026-06-08T00:00:00Z",
+  updated_at: "2026-08-31T00:00:00Z",
   description: "Streaming psychometric curves identify the presentation durations and encoding rates that support classification in a frozen trained PING network.",
   collection: "gamma-gated-sparsity",
 )

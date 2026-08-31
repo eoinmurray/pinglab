@@ -8,8 +8,8 @@
 #let meta = (
   status: "[▦ DATA | v28.0.0]",
   title: "Training Recurrent Weights Weakens PING Rhythmicity",
-  date: "2026-06-09",
-  updated_at: "2026-08-31",
+  created_at: "2026-06-09T00:00:00Z",
+  updated_at: "2026-08-31T00:00:00Z",
   description: "Trainable recurrent conductances produced lower reference-image rhythmicity and higher excitatory firing than the frozen PING control; outcomes depended on initialization.",
   collection: "gamma-gated-sparsity",
 )

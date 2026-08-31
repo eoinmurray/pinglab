@@ -8,8 +8,8 @@
 #let meta = (
   status: "[▦ DATA | v28.0.0]",
   title: "Accuracy and Firing Rate With and Without Inhibition",
-  date: "2026-05-30",
-  updated_at: "2026-08-31",
+  created_at: "2026-05-30T00:00:00Z",
+  updated_at: "2026-08-31T00:00:00Z",
   description: "Reused MNIST networks compare accuracy and excitatory firing rates with and without an inhibitory loop. Different gradient damping limits causal attribution to gamma timing.",
   collection: "gamma-gated-sparsity",
 )

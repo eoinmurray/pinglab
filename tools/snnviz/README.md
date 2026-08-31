@@ -111,6 +111,13 @@ legend text 6 pt.
   and reversed endpoints play backward.
 - The current production animation uses 600 frames at the default 25 FPS and
   3800 kbps. It displays a PNG poster alongside its MP4 presentation file.
+- Reserve at least the bottom 15% of every video frame as a control-safe area.
+  Native browser and operating-system players commonly overlay their controls on
+  the frame. Keep plots, captions, legends, labels, annotations, and all other
+  evidence out of this band in both the animation and its poster; a blank
+  background may extend through it. If a different safe area is used for a known
+  player, validate that player at the intended embed size and document the local
+  exception.
 
 1. **Render retained evidence truthfully.** Build every visual from an explicit
    recording, analysed measurement, or declared theoretical construction. Treat
@@ -176,7 +183,8 @@ legend text 6 pt.
     holds, or reverse playback; disclose nonuniform pacing. Pacing may clarify an
     event but must not imply altered simulated dynamics. The encoding defaults
     are 25 frames per second and 3800 kbps unless a composition documents another
-    choice.
+    choice. Preserve the bottom control-safe area described above so playback
+    chrome cannot hide the evidence.
 
 11. **Make every published figure independently readable.** Provide meaningful
     alternative text. Captions should identify variables, conditions, units,

@@ -3,7 +3,7 @@
 #let meta = (
   status: "[≡ TXT | v28.0.0]",
   title: "Compatibility, status, and extension",
-  date: "2026-08-14",
+  created_at: "2026-08-14T00:00:00Z",
   description: "Understand the legacy compatibility contract, current capability boundary, and rules for extending snnlang safely.",
   collection: "snnlang-docs",
   order: 8,

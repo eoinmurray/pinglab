@@ -3,7 +3,7 @@
 #let meta = (
   status: "[≡ TXT | v28.0.0]",
   title: "Inputs, outputs, and readouts",
-  date: "2026-08-14",
+  created_at: "2026-08-14T00:00:00Z",
   description: "Bind data to graph inputs, expose internal activity, and turn network signals into stable output values.",
   collection: "snnlang-docs",
   order: 5,

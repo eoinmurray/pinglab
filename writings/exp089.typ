@@ -3,7 +3,7 @@
 #let meta = (
   status: "[≡ TXT | v28.0.0]",
   title: "Runtime state, checkpoints, and provenance",
-  date: "2026-08-14",
+  created_at: "2026-08-14T00:00:00Z",
   description: "Continue simulations safely, distinguish dynamic state from learned parameters, and record enough identity to replay a run.",
   collection: "snnlang-docs",
   order: 7,

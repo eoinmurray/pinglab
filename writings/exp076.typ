@@ -8,8 +8,8 @@
 #let meta = (
   status: "[▦ DATA | v28.0.0]",
   title: "A bundle checkpoint replays",
-  updated_at: "2026-08-31",
-  date: "2026-08-02",
+  updated_at: "2026-08-31T00:00:00Z",
+  created_at: "2026-08-02T00:00:00Z",
   description: "Checkpoint interchange and deterministic one-step equivalence in a spiking classifier.",
   collection: "snnlang-docs",
   order: 3,

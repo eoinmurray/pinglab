@@ -8,8 +8,8 @@
 #let meta = (
   status: "[▦ DATA | v28.0.0]",
   title: "Training Runs",
-  date: "2026-08-11",
-  updated_at: "2026-08-31",
+  created_at: "2026-08-11T00:00:00Z",
+  updated_at: "2026-08-31T00:00:00Z",
   description: "Seven controlled training families, their retained checkpoint bank, validation learning curves, and raster diagnostics.",
   collection: "gamma-gated-sparsity",
 )

@@ -8,8 +8,8 @@
 #let meta = (
   status: "[▦ DATA | v28.0.0]",
   title: "Turning the PING Loop On",
-  date: "2026-05-13",
-  updated_at: "2026-08-31",
+  created_at: "2026-05-13T00:00:00Z",
+  updated_at: "2026-08-31T00:00:00Z",
   description: "PING stripped to its biophysical fundamentals: free-running activity, population spectra and rate responses with the excitatory–inhibitory loop off and on.",
   collection: "gamma-gated-sparsity",
 )

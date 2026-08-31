@@ -8,8 +8,8 @@
 #let meta = (
   status: "[▦ DATA | v28.0.0]",
   title: "From Python graph to spikes",
-  updated_at: "2026-08-31",
-  date: "2026-07-31",
+  updated_at: "2026-08-31T00:00:00Z",
+  created_at: "2026-07-31T00:00:00Z",
   description: "A compiled excitatory–inhibitory network responds to a controlled spike input.",
   collection: "snnlang-docs",
   order: 1,

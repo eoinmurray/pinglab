@@ -6,11 +6,11 @@
 #let data-file = data-file.with(article: "exp042")
 
 #let meta = (
-  status: "[▦ DATA | v28.0.0]",
+  status: "[▦ DATA | v29.0.0]",
   title: "Breaking Gamma Releases the Rate Gate",
-  date: "2026-06-02",
-  updated_at: "2026-08-31",
-  description: "Overriding the I-stream of trained PING at inference shows what gates the E rate is the timing of inhibition, the rhythm, not its average level.",
+  created_at: "2026-06-02T00:00:00Z",
+  updated_at: "2026-08-31T00:00:00Z",
+  description: "Inference-time overrides of the inhibitory stream test whether inhibitory timing, rather than average level alone, gates excitatory firing in trained PING classifiers.",
   collection: "gamma-gated-sparsity",
 )
 
@@ -20,6 +20,23 @@
   (path: "exp042/cell_jitter_sweep.svg", label: "cell jitter sweep"),
   (path: "exp042/jitter_sweep.svg", label: "jitter sweep"),
 )
+
+#let result-card-style = context {
+  if target() == "html" {
+    html.elem("style",
+      ".pinglab-result-card { margin: 1.25rem 0; padding: 1.2rem 1.35rem 1.3rem; border: 1px solid var(--rule-strong); border-radius: 3px; background: var(--paper); } "
+      + ".pinglab-result-card > h4:first-child { margin-top: 0; } "
+      + ".pinglab-result-card > :last-child { margin-bottom: 0; } "
+      + "@media (max-width: 520px) { .pinglab-result-card { margin: 1rem 0; padding: .95rem 1rem 1.05rem; } }",
+    )
+  }
+}
+
+#let result-card(body) = context {
+  if target() == "html" {
+    html.elem("article", attrs: (class: "pinglab-result-card"), body)
+  } else { body }
+}
 
 // Keep calculations lazy: absent inputs never become fabricated results.
 #let render-report(data-file) = [
@@ -45,7 +62,7 @@
   run.jitter_sweep.filter(r => calc.abs(r.sigma_ms - s) < 0.001).map(r => r.at(key)),
 )
 
-// Per-I-neuron jitter: E rate + accuracy along the collapse.
+// Independent inhibitory-spike jitter: E rate + accuracy along the collapse.
 #let cell_e_half = calc.round(cell_at(0.5, "e_rate_hz"), digits: 1)
 #let cell_e1 = calc.round(cell_at(1.0, "e_rate_hz"), digits: 1)
 #let cell_acc5 = calc.round(cell_at(5.0, "acc"), digits: 1)
@@ -53,7 +70,7 @@
 // Cycle-coherent jitter: baseline → high-σ E rise, accuracy plateau.
 #let cyc_e_hi = calc.round(cyc_at(100.0, "e_rate_hz"), digits: 1)
 
-// Rate-matched anchor for the compound figure and the strict same-mean claim.
+// Timing-matched anchor for the compound figure and the controlled comparison.
 #let anchor_sigma = 14
 #let cyc_e_anchor = calc.round(cyc_at(14.0, "e_rate_hz"), digits: 1)
 #let cyc_acc_anchor = calc.round(cyc_at(14.0, "acc"), digits: 1)
@@ -64,7 +81,6 @@
 #let cell_i_anchor = calc.round(cell_at(14.0, "i_rate_hz"), digits: 1)
 #let cyc_i_hi = calc.round(cyc_at(100.0, "i_rate_hz"), digits: 1)
 #let cyc_i_drop_pct = calc.round(100 * (base_i - cyc_i_hi) / base_i)
-#let cyc_i_anchor_drop_pct = calc.round(100 * (base_i - cyc_i_anchor) / base_i)
 
 // Gamma period 1/f_γ: the predicted transition timescale.
 #let period_ms = calc.round(1000 / cfg.f_gamma_reference_hz, digits: 1)
@@ -73,26 +89,29 @@
   == Abstract
 
 
-  Asked whether excitatory-rate suppression depends on the timing structure of
-  inhibition rather than only its average amount. Replayed frozen PING
+  We asked whether excitatory-rate suppression depends on the timing structure
+  of inhibition rather than only its average amount. We replayed frozen PING
   classifiers while either jittering inhibitory spikes independently or shifting
   intact inhibitory bursts.
 
   Smearing individual spikes collapsed excitatory activity, whereas moving
-  coherent bursts preserved synchrony and released excitatory firing. Shows that
-  inhibitory temporal structure gates excitatory rate within the tested
-  intervention regime.
+  coherent bursts preserved synchrony and released excitatory firing. The
+  comparison shows that inhibitory temporal structure gates excitatory rate
+  within the tested intervention regime.
 
   == Results
 
   #with-result-sections[
 
-  === Equal mean inhibition produces opposite excitatory rates
+  #result-card-style
+
+  #result-card[
+  === Similar mean inhibitory rates produce opposite excitatory rates
 
   #figure(
     data-image(data-file("exp042/rhythm_compound.png"),
       width: 100%,
-      alt: "Matched per-neuron and cycle-coherent inhibitory jitter. Per-neuron jitter smears inhibitory bursts and silences excitatory neurons; cycle-coherent jitter keeps bursts sharp, opens gaps, and raises excitatory firing at nearly the same realised inhibitory rate.",
+      alt: "Matched independent-spike and cycle-coherent inhibitory jitter. Independent-spike jitter smears inhibitory bursts and silences excitatory neurons; cycle-coherent jitter keeps bursts sharp, opens gaps, and raises excitatory firing at nearly the same realised inhibitory rate.",
     ),
     caption: [
       Matched inference-time perturbations at $sigma = #anchor_sigma$ ms. The
@@ -109,7 +128,9 @@
   Mean inhibitory rates were similar: #cell_i_anchor and #cyc_i_anchor Hz,
   compared with #base_i Hz at baseline. Similar amounts of inhibition produced
   opposite outcomes: its timing matters.
+  ]
 
+  #result-card[
   === Millisecond-scale smearing collapses firing and accuracy
 
   #figure(
@@ -118,7 +139,8 @@
       alt: "Excitatory rate and accuracy fall steeply as independent inhibitory-spike jitter increases, while realised inhibitory rate remains nearly flat.",
     ),
     caption: [
-      Per-I-neuron jitter sweep across three frozen networks. Points show
+      Independent inhibitory-spike jitter sweep across three frozen networks.
+      Points show
       across-seed means; error bars are ±1 standard error of the mean. The grey
       trace is the realised mean inhibitory rate.
     ],
@@ -129,7 +151,9 @@
   and accuracy was #cell_acc5%, despite little change in mean inhibition.
   This supports the idea that gaps between inhibitory bursts let excitatory
   neurons recover and fire.
+  ]
 
+  #result-card[
   === Moving intact bursts releases excitatory firing
 
   #figure(
@@ -150,22 +174,21 @@
   #cyc_i_hi Hz, #cyc_i_drop_pct% below baseline, so that extreme is no longer
   a clean test of timing alone. The clearest comparison is at #anchor_sigma ms, where mean
   inhibition remains close to baseline.
+  ]
 
   ]
 
   == Methods
 
-  The experiment isolated inhibitory timing by replaying frozen networks,
-  changing only when recorded inhibitory spikes arrive, and measuring the
-  resulting excitatory activity and classification performance.
+  === Compute
 
-  + *Select the frozen networks.* We used the three baseline PING classifiers
+  + *Frozen networks.* We used the three baseline PING classifiers
     from the #link("/exp022/")[shared training study], with seeds 42–44, at their
     final training epoch because the experiment tests final-epoch dynamics
     rather than validation-selected deployment performance. The reference gamma
     frequency is the shared canonical operating-point constant.
 
-  + *Fix the evaluation data.* Every intervention used the same fixed subset of
+  + *Evaluation data.* Every intervention used the same fixed subset of
     #cfg.evaluation_samples_per_condition images from the official MNIST test
     partition for each of the three
     trained seeds. No weights were retrained or selected during evaluation.
@@ -192,8 +215,8 @@
 
     Here $Delta$ is a temporal offset in milliseconds and $sigma$ is its standard
     deviation. Cycle-coherent jitter drew one $Delta$ for every trial and cycle
-    and applied it to all inhibitory spikes in that cycle. Per-neuron jitter drew
-    an independent $Delta$ for every inhibitory spike. Offsets were rounded to
+    and applied it to all inhibitory spikes in that cycle. Independent-spike
+    jitter drew a separate $Delta$ for every inhibitory spike. Offsets were rounded to
     simulation timesteps and shifted times were clamped to the finite trial
     window; spikes that coincided at the same neuron and timestep merged.
 
@@ -209,19 +232,38 @@
     matrix from inhibitory to excitatory neurons, and the frozen readout consumed
     the resulting excitatory spikes.
 
-    For every condition we recorded excitatory and inhibitory firing rates and
-    test accuracy, then averaged each
-    quantity over the three independently trained seeds. Sweep error bars are
-    ±1 standard error of the mean across seeds.
+    For every condition we recorded per-neuron excitatory and inhibitory firing
+    rates over the full presentation and test accuracy on the fixed test subset.
 
-    The compound raster is illustrative; all quantitative claims use the
-    complete registered condition grids. Jitter
-    moves spikes without intentionally changing their counts, but large
-    offsets can produce coincident spikes after shifting and boundary clamping,
-    reducing the realised inhibitory rate.
-    Strict same-mean claims therefore use the shared $sigma = #anchor_sigma$ ms
-    anchor, where realised inhibitory rates remain within
-    #cyc_i_anchor_drop_pct% of baseline.
+  === Analyse
+
+  #set enum(start: 7)
+
+  + *Aggregate the measurements.* We averaged each rate and accuracy over the
+    three independently trained networks. Sweep uncertainty is ±1 standard
+    error of the mean across those three training replicates.
+
+  + *Identify the timing-matched comparison.* Jitter moves spikes without
+    intentionally changing their counts, but boundary clamping and collisions
+    at the same neuron and timestep can reduce the realised inhibitory rate.
+    We therefore restricted the timing-matched comparison to the shared
+    $sigma = #anchor_sigma$ ms anchor, where the realised inhibitory rate in
+    both interventions remained close to baseline.
+
+  === Present
+
+  #set enum(start: 9)
+
+  + *Expose the matched intervention.* We displayed the fixed seed-42 trial at
+    $sigma = #anchor_sigma$ ms beside the complete recorded sweep summaries for
+    both interventions. The raster is illustrative; the quantitative comparison
+    uses all three independently trained networks and the full evaluation set.
+
+  + *Expose the separate sweeps.* We displayed recorded condition means for
+    excitatory rate, inhibitory rate and test accuracy across independent-spike
+    and cycle-coherent jitter. The standalone sweeps show ±1 standard error
+    across training replicates; presentation did not rerun the interventions or
+    recompute the measurements.
 ]
 #body
   #run-view("exp042", inputs)
@@ -233,7 +275,7 @@
 } else {
   pending-report(
     data-file, inputs,
-    [Does the timing of inhibition matter independently of its mean strength? Compare neuron-wise jitter with shifts of intact inhibitory volleys.],
+    [Does the timing of inhibition matter independently of its mean strength? Compare independent inhibitory-spike jitter with shifts of intact inhibitory volleys.],
     preview-figures, json-inputs: ("exp042",),
   )
 }

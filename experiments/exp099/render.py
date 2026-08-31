@@ -26,6 +26,13 @@ from tools.snnviz import (  # noqa: TID251
 
 from . import recipe
 
+# Native browser video controls overlay the frame rather than extending the
+# player. Keep this band free of plots, labels, and other evidence.
+VIDEO_CONTROL_SAFE_BOTTOM = 0.15
+DIAGNOSTIC_PANEL_BOTTOM = 0.19
+DIAGNOSTIC_PANEL_HEIGHT = 0.20
+NETWORK_FOOTER_Y = 0.415
+
 
 def render(
     retained_recording,
@@ -98,17 +105,17 @@ def render(
     g_max = max(float(mean_g_e.max()), float(mean_g_i.max()))
 
     drive_e_xy = grid_layout(
-        n_e, columns=20, x_range=(0.06, 0.24), y_range=(0.40, 0.70)
+        n_e, columns=20, x_range=(0.06, 0.24), y_range=(0.45, 0.72)
     )
     shared_xy = grid_layout(n_e, columns=40, x_range=(0.38, 0.72), y_range=(0.76, 0.84))
     afferent_e_xy = grid_layout(
-        n_e, columns=20, x_range=(0.06, 0.24), y_range=(0.40, 0.70)
+        n_e, columns=20, x_range=(0.06, 0.24), y_range=(0.45, 0.72)
     )
     afferent_i_xy = grid_layout(
-        n_e, columns=20, x_range=(0.82, 0.98), y_range=(0.40, 0.70)
+        n_e, columns=20, x_range=(0.82, 0.98), y_range=(0.45, 0.72)
     )
-    e_xy = grid_layout(n_e, columns=20, x_range=(0.29, 0.60), y_range=(0.37, 0.73))
-    i_xy = grid_layout(n_i, columns=10, x_range=(0.66, 0.80), y_range=(0.44, 0.67))
+    e_xy = grid_layout(n_e, columns=20, x_range=(0.29, 0.60), y_range=(0.43, 0.74))
+    i_xy = grid_layout(n_i, columns=10, x_range=(0.66, 0.80), y_range=(0.47, 0.69))
 
     # Each recurrent conductance factorises into the presynaptic spike trace and
     # the fixed synaptic matrix. This retains exact source→target identity without
@@ -203,9 +210,25 @@ def render(
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1)
     ax.axis("off")
+    # Mask at figure level so artists from any axes cannot leak into the area
+    # reserved for native playback controls.
+    fig.add_artist(
+        plt.Rectangle(
+            (0.0, 0.0),
+            1.0,
+            VIDEO_CONTROL_SAFE_BOTTOM,
+            transform=fig.transFigure,
+            facecolor=BG,
+            edgecolor="none",
+            zorder=10_000,
+            clip_on=False,
+        )
+    )
     # Additive ridgeline: activity remains in the network view; one shared
     # absolute log axis makes projection-scale differences spatially explicit.
-    ridge_ax = fig.add_axes([0.845, 0.025, 0.135, 0.240])
+    ridge_ax = fig.add_axes(
+        [0.845, DIAGNOSTIC_PANEL_BOTTOM, 0.135, DIAGNOSTIC_PANEL_HEIGHT]
+    )
     ridge_ax.set_facecolor(BG)
     ridge_ax.text(
         0.0,
@@ -379,7 +402,7 @@ def render(
     if weather_inputs:
         ax.text(
             0.535,
-            0.348,
+            NETWORK_FOOTER_Y,
             "sampled active paths · + private AMPA · × private GABA · translucent wash = locally shared",
             ha="center",
             color=GREY,
@@ -494,7 +517,9 @@ def render(
         [], [], s=46, facecolors=RED, edgecolors="none", alpha=0.16, zorder=1
     )
 
-    input_g_ax = fig.add_axes([0.347, 0.025, 0.135, 0.240])
+    input_g_ax = fig.add_axes(
+        [0.347, DIAGNOSTIC_PANEL_BOTTOM, 0.135, DIAGNOSTIC_PANEL_HEIGHT]
+    )
     for label, values, color, linestyle in (
         ("E AMPA", external_conductance["E AMPA"], BLACK, "-"),
         ("E GABA", external_conductance["E GABA"], RED, "-"),
@@ -562,7 +587,9 @@ def render(
     )
     input_g_cursor = input_g_ax.axvline(0, color=RED, linewidth=0.7, alpha=0.75)
 
-    means_ax = fig.add_axes([0.015, 0.025, 0.135, 0.240])
+    means_ax = fig.add_axes(
+        [0.015, DIAGNOSTIC_PANEL_BOTTOM, 0.135, DIAGNOSTIC_PANEL_HEIGHT]
+    )
     means_ax.set_xlim(0, 1)
     means_ax.set_ylim(0, 1)
     means_ax.axis("off")
@@ -662,7 +689,9 @@ def render(
         head.set_y(y1)
         value.set_text(text)
 
-    phase = fig.add_axes([0.181, 0.025, 0.135, 0.240])
+    phase = fig.add_axes(
+        [0.181, DIAGNOSTIC_PANEL_BOTTOM, 0.135, DIAGNOSTIC_PANEL_HEIGHT]
+    )
     phase.set_facecolor(BG)
     phase.spines["top"].set_visible(False)
     phase.spines["right"].set_visible(False)
@@ -697,7 +726,9 @@ def render(
 
     # Complete raster retains every afferent and network spike even though the
     # network view samples visually excessive active edges.
-    raster = fig.add_axes([0.679, 0.025, 0.135, 0.240])
+    raster = fig.add_axes(
+        [0.679, DIAGNOSTIC_PANEL_BOTTOM, 0.135, DIAGNOSTIC_PANEL_HEIGHT]
+    )
     raster.set_facecolor(BG)
     for side in ("top", "right", "left"):
         raster.spines[side].set_visible(False)
@@ -748,7 +779,9 @@ def render(
 
     rhythm_centres = measurements["rhythm_centres"]
     rhythm_contrast = measurements["rhythm_contrast"]
-    rhythm_ax = fig.add_axes([0.513, 0.025, 0.135, 0.240])
+    rhythm_ax = fig.add_axes(
+        [0.513, DIAGNOSTIC_PANEL_BOTTOM, 0.135, DIAGNOSTIC_PANEL_HEIGHT]
+    )
     rhythm_ax.set_facecolor(BG)
     rhythm_ax.axvspan(input_onset_ms, input_offset_ms, color=GREY, alpha=0.08, zorder=0)
     rhythm_ax.plot(

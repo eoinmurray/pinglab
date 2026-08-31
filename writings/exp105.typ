@@ -3,7 +3,7 @@
 #let meta = (
   status: "[≡ TXT | v28.0.0]",
   title: "Networks, signals, and parameters",
-  date: "2026-08-14",
+  created_at: "2026-08-14T00:00:00Z",
   description: "The core snnlang authoring objects, their names, shapes, units, neuron populations, and parameter declarations.",
   collection: "snnlang-docs",
   order: 2,

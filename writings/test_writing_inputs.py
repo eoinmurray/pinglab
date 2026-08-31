@@ -112,16 +112,31 @@ def test_exp081_selected_report_renders_all_sections(lab):
     selected.mkdir()
     (selected / "numbers.json").write_text(json.dumps({
         "schema": "exp081.analysis/v1", "parameters": recipe.configuration(),
-        "comparison": {"mean": {"median_predicted_empirical_ratio": 1.5}},
+        "comparison": {
+            "mean": {
+                "pearson_r": 0.9,
+                "median_predicted_empirical_ratio": 1.5,
+            },
+            "standard_deviation": {"pearson_r": 0.3},
+        },
     }))
     for name in ("empirical_moments", "response_distributions", "frequency_response", "analytical_empirical"):
         (selected / f"{name}.svg").write_text(SVG)
     rendered = evaluate(lab, report_expression("exp081"), preview={"exp081": {"exp081": "/selected"}})
     assert NOTICE not in rendered
-    headings = ["Abstract", "Results", "Methods", "Discussion"]
+    headings = ["Abstract", "Results", "Methods"]
     positions = [rendered.index(heading) for heading in headings]
     assert positions == sorted(positions)
-    for removed in ("Inputs and outputs", "Design Scope", "Prior art", "Conclusion", "Limitations"):
+    assert "stationary approximation" in rendered
+    assert "spike-count and spike-time mixture" in rendered
+    for removed in (
+        "Discussion",
+        "Inputs and outputs",
+        "Design Scope",
+        "Prior art",
+        "Conclusion",
+        "Limitations",
+    ):
         assert removed not in rendered
     assert "derivation of the analytical filter" in rendered
     assert "uv run" not in rendered

@@ -8,8 +8,8 @@
 #let meta = (
   status: "[▦ DATA | v28.0.0]",
   title: "One Spike per Gamma Cycle",
-  date: "2026-06-04",
-  updated_at: "2026-08-31",
+  created_at: "2026-06-04T00:00:00Z",
+  updated_at: "2026-08-31T00:00:00Z",
   description: "Counting E spikes per gamma cycle across exp041's 18 checkpoints shows the architecture is overwhelmingly one-spike-per-cycle.",
   collection: "gamma-gated-sparsity",
 )

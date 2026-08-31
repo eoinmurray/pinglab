@@ -19,6 +19,10 @@ STATUSES = {
     f"[≡ TXT | v{GUIDE_VERSION.group(1)}]",
     f"[▦ DATA | v{GUIDE_VERSION.group(1)}]",
 }
+KNOWN_GUIDE_VERSIONS = set(
+    re.findall(r"^- \*\*(\d+\.\d+\.\d+)\*\*", GUIDE, re.MULTILINE)
+)
+STATUS_PATTERN = re.compile(r"^\[(?:≡ TXT|▦ DATA) \| v(\d+\.\d+\.\d+)\]$")
 
 
 def test_status_vocabulary_matches_writing_guide():
@@ -46,4 +50,7 @@ def test_article_declares_supported_status(article):
     # Some Typst eval versions report errors on stderr with a zero exit status.
     assert result.returncode == 0 and result.stdout.strip(), result.stderr
     metadata = json.loads(result.stdout)
-    assert metadata.get("status") in STATUSES, article
+    status = metadata.get("status", "")
+    match = STATUS_PATTERN.fullmatch(status)
+    assert match is not None, article
+    assert match.group(1) in KNOWN_GUIDE_VERSIONS, article

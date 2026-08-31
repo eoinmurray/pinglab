@@ -7,10 +7,10 @@
 #let data-file = data-file.with(article: "exp082")
 
 #let meta = (
-  status: "[▦ DATA | v28.0.0]",
+  status: "[▦ DATA | v28.1.0]",
   title: "Spike-Count Classification in a Continuous Stream",
-  date: "2026-08-10",
-  updated_at: "2026-08-31",
+  created_at: "2026-08-10T00:00:00Z",
+  updated_at: "2026-08-31T15:50:25Z",
   description: "A multi-seed study of spike-count classification across input rates and presentation durations.",
   collection: "gamma-gated-sparsity",
 )
@@ -24,6 +24,37 @@
   (path: "exp082/alternative_stream.png", label: "nominal-regime counterexample"),
   (path: "exp082/variable_stream.png", label: "variable stream"),
 )
+
+#let result-card-style = context {
+  if target() == "html" {
+    html.elem("style",
+      ".pinglab-result-card { margin: 1.25rem 0; padding: 1.2rem 1.35rem 1.3rem; border: 1px solid var(--rule-strong); border-radius: 3px; background: var(--paper); } "
+      + ".pinglab-result-card > h4:first-child { margin-top: 0; } "
+      + ".pinglab-result-card > :last-child { margin-bottom: 0; } "
+      + ".pinglab-result-card-notes { margin-top: 1rem; padding-top: .75rem; border-top: 1px solid var(--rule); font-size: var(--fs-small); line-height: 1.5; color: var(--muted); } "
+      + ".pinglab-result-card-notes > p:first-child { margin: 0 0 .25rem; } "
+      + ".pinglab-result-card-notes ul { margin: 0; padding-left: 1.2rem; } "
+      + ".pinglab-result-card-notes li { margin: .2rem 0; } "
+      + "@media (max-width: 520px) { .pinglab-result-card { margin: 1rem 0; padding: .95rem 1rem 1.05rem; } }",
+    )
+  }
+}
+
+#let result-card(body, notes: none) = context {
+  let notes-body = if notes == none { none } else if target() == "html" {
+    html.elem("aside", attrs: (class: "pinglab-result-card-notes", "aria-label": "Notes"), [
+      *Notes.*
+      #notes
+    ])
+  } else { [
+    *Notes.*
+    #notes
+  ] }
+  let card-body = [#body #notes-body]
+  if target() == "html" {
+    html.elem("article", attrs: (class: "pinglab-result-card"), card-body)
+  } else { card-body }
+}
 
 // Keep calculations lazy: absent inputs never become fabricated results.
 #let render-report(data-file) = [
@@ -68,139 +99,172 @@
 
   #with-result-sections[
 
-  === Five-digit capability stream across 5–25 Hz
+  #result-card-style
 
-  The predeclared selection produced a 5/5 stream on its first candidate. This
-  selected success demonstrates capability, not expected accuracy; the aggregate
-  duration–rate results provide the population estimate.
+  #result-card(notes: [
+    - Before inference, we fixed candidate order and selected the first stream
+      classified 5/5 correctly. The first candidate qualified, so no failed
+      candidate was skipped to obtain this image.
+  ])[
+    === Five-digit capability stream across 5–25 Hz
 
-  #figure(
-    report-image(
-      "exp082/hero_stream.png",
-      "Five correctly classified digits presented for 200 ms at input rates from 5 to 25 Hz, with excitatory and inhibitory rasters and spike-count evidence.",
-    ),
-    caption: [Illustrative seed-42 capability showcase across 5, 7.5, 10, 15
-      and 25 Hz, with every digit presented for 200 ms. Before inference, we fixed
-      candidate order and selected the first stream classified 5/5 correctly.
-      The first candidate qualified immediately, so no
-      failed candidate was skipped to obtain this image. Red traces show the true
-      classes.],
-  )
+    One variable-rate-trained PING network classified a five-digit
+    MNIST stream using output-LIF spike counts. Hidden neuronal state continued
+    between presentations, while output state and counts reset at each known
+    boundary.
 
-  === Accuracy across presentation duration and input rate
+    If the classifier tolerated both carried state and changing
+    input rate, at least some complete streams should remain correctly classified.
 
-  Averaged across rates and seeds, accuracy was
-  #pct(mean(at-duration(25.0).map(row => row.accuracy))),
-  #pct(mean(at-duration(50.0).map(row => row.accuracy))),
-  #pct(mean(at-duration(100.0).map(row => row.accuracy))) and
-  #pct(mean(at-duration(200.0).map(row => row.accuracy))) at 25, 50, 100 and
-  200 ms. Mean silence fell from
-  #pct(mean(at-duration(25.0).map(row => row.silent_fraction))) to
-  #pct(mean(at-duration(200.0).map(row => row.silent_fraction))). Longer viewing
-  and integration time remain confounded.
+    The first candidate in the predeclared deterministic sequence was
+    classified correctly throughout, despite the changing input rate.
 
-  #figure(
-    report-image(
-      "exp082/duration_rate_summary.png",
-      "Seed-mean accuracy across 25 to 200 ms and 0.5 to 25 Hz, with the 200 ms psychometric alongside.",
-      ratio: 0.49,
-    ),
-    caption: [Means across three trained seeds, #r.config.digits_per_seed_cell
-      test presentations per seed and condition; curve bars are ± sample SD/√3,
-      not population confidence intervals.],
-  )
+    #figure(
+      report-image(
+        "exp082/hero_stream.png",
+        "Five correctly classified digits presented for 200 ms at input rates from 5 to 25 Hz, with excitatory and inhibitory rasters and spike-count evidence.",
+      ),
+      caption: [Illustrative seed-42 capability showcase across 5, 7.5, 10, 15
+        and 25 Hz, with every digit presented for 200 ms. Red traces show the
+        true classes.],
+    )
 
-  In the 200 ms slice shown at right, accuracy rose from #pct(rate-mean(0.5))
-  at 0.5 Hz to #pct(rate-mean(3.0)) at 3 Hz and #pct(rate-mean(7.5)) at
-  7.5 Hz. The 10, 15 and 25 Hz means spanned
-  #pct(minimum(dense-means))–#pct(maximum(dense-means)), so the dense end did
-  not collapse. At 15 Hz, seed accuracies spanned
-  #pct(minimum(at-rate(15.0).map(row => row.accuracy)))–#pct(maximum(at-rate(15.0).map(row => row.accuracy))).
-  At 0.5 Hz, they spanned
-  #pct(minimum(at-rate(0.5).map(row => row.accuracy)))–#pct(maximum(at-rate(0.5).map(row => row.accuracy))),
-  with #pct(mean(at-rate(0.5).map(row => row.silent_fraction))) silent windows.
-  No fixed-rate-training control or independent stream-bank repeat establishes
-  why this transfer works. Comparison with #link("/exp048/")[the mean-voltage
-  streaming study] changes both training distribution and readout, so it cannot
-  establish decoder superiority.
+  ]
 
-  === Spike-count decision during one 200 ms trial
+  #result-card[
+    === Accuracy across presentation duration and input rate
 
-  Selecting a successful presentation cannot estimate accuracy or show that
-  each rhythmic burst improves the decision.
+    Three independently trained PING networks classified continuous
+    MNIST streams while presentation duration and maximum-pixel input rate varied.
+    Hidden state persisted between digits, but each output decision reset at the
+    boundary.
 
-  #figure(
-    report-image(
-      "exp082/single_trial.png",
-      "Digit 4 with rasters of 200 excitatory and 64 inhibitory neurons, and ten softmax count-share trajectories.",
-    ),
-    caption: [Seed-42 digit #r.single_trial.labels.first() shown here, the first correct
-      presentation in the 200 ms, 5 Hz matched stream. Red marks the true and
-      winning class. Rasters display the first 200 E and 64 I neurons, not the full
-      populations. Softmax count shares explain the readout; they are not calibrated
-      probabilities.],
-  )
+    Longer and stronger presentations should provide more output
+    evidence, reducing silent decisions and improving classification.
 
-  === Output-count transition between 91.5 and 94.5 ms
+    Classification improved with longer and stronger inputs. Brief,
+    weak presentations frequently produced no output spikes, while performance
+    remained strong across the denser input conditions.
 
-  #figure(
-    report-image(
-      "exp082/single_trial_transition.png",
-      "Output spikes, cumulative class counts and softmax count shares from 91.5 to 94.5 ms in the same digit-4 presentation.",
-      ratio: 0.70,
-    ),
-    caption: [Post-hoc enlargement of 91.5–94.5 ms in the same displayed trial.
-      Each output spike increments one class count; the softmax transformation can
-      therefore produce an abrupt change in every displayed count share. Red marks
-      the true and winning class 4.],
-  )
+    #figure(
+      report-image(
+        "exp082/duration_rate_summary.png",
+        "Seed-mean accuracy across 25 to 200 ms and 0.5 to 25 Hz, with the 200 ms psychometric alongside.",
+        ratio: 0.49,
+      ),
+      caption: [Means across three training replicates,
+        #r.config.digits_per_seed_cell test presentations per replicate and
+        condition; curve bars are ± sample SD/√3, not population confidence
+        intervals.],
+    )
 
-  From the readout definition, the second row should consist of non-decreasing
-  integer staircases: each output spike increments exactly one cumulative class
-  count $z_c[k]$ by one, while every count remains flat between spikes. The third
-  row should also be piecewise constant, but its softmax shares
-  $p_"class"(c,k)$ may jump either upward or downward. A spike multiplies the
-  corresponding class's unnormalised weight by $e$, the base of natural
-  logarithms, while normalization changes every displayed share.
-  The enlargement therefore explains the apparent jump, but does not estimate
-  performance or establish a causal role for rhythmic bursts.
+  ]
 
-  === Three-of-five counterexample under showcase conditions
+  #result-card[
+    === Spike-count decision during one 200 ms trial
 
-  Under the nominal showcase conditions, the first stream scoring exactly 3/5
-  was the #(r.showcase_selection.selected.alternative + 1)th candidate, after
-  #r.showcase_selection.candidates.len() candidates were evaluated. Digits 9 and
-  2 were misclassified as 4 and 9. Together with the sparse-input example below,
-  this prevents the selected 5/5 showcase from implying perfect reliability.
+    One correctly classified digit from the continuous stream was
+    examined to show how excitatory and inhibitory spiking became an output
+    spike-count decision.
 
-  #figure(
-    report-image(
-      "exp082/alternative_stream.png",
-      "A three-of-five counterexample under the same 200 ms and 5 to 25 Hz conditions as the capability showcase.",
-    ),
-    caption: [Nominal-regime counterexample under the same seed-42 network,
-      durations, rates and deterministic candidate order as the showcase. Badges
-      show true→predicted labels.],
-  )
+    A correct decision should end with the true class holding the
+    largest cumulative output spike count.
 
-  === Mixed-duration stream with silent and non-silent failures
+    Class-specific output spikes accumulated until class 4 held the
+    largest count at the presentation boundary.
 
-  In the variable stream, #r.variable_stream.correct.sum() of
-  #r.variable_stream.labels.len() decisions were correct. The 200 ms, 0.5 Hz
-  window emitted no output spikes; the 100 ms, 2 Hz window also failed. The
-  25 Hz/50 ms, 10 Hz/25 ms and 5 Hz/200 ms presentations succeeded. Five
-  outcomes do not estimate reliability.
+    #figure(
+      report-image(
+        "exp082/single_trial.png",
+        "Digit 4 with rasters of 200 excitatory and 64 inhibitory neurons, and ten softmax count-share trajectories.",
+      ),
+      caption: [Seed-42 digit #r.single_trial.labels.first() shown here, the first correct
+        presentation in the 200 ms, 5 Hz matched stream. Red marks the true and
+        winning class. Rasters display the first 200 E and 64 I neurons, not the full
+        populations. Softmax count shares explain the readout; they are not calibrated
+        probabilities.],
+    )
 
-  #figure(
-    report-image(
-      "exp082/variable_stream.png",
-      "Five digits with changing rates and durations: three correct predictions, a silent 0.5 Hz failure and a non-silent 2 Hz failure.",
-    ),
-    caption: [Seed-42 illustration shown here. Counts reset at boundaries while
-      hidden state continues. Badges show
-      true→predicted labels; thumbnail opacity increases with rate.
-      Display sampling matches the preceding raster.],
-  )
+  ]
+
+  #result-card[
+    === Output-count transition between 91.5 and 94.5 ms
+
+    A short interval from the same digit-4 presentation was enlarged
+    to explain an abrupt change in the displayed class shares.
+
+    From the readout definition, counts should remain flat between
+    output spikes and step upward only when the corresponding class neuron spikes.
+
+    The displayed counts formed non-decreasing integer staircases.
+    Softmax normalization then changed every class share at each count increment.
+
+    #figure(
+      report-image(
+        "exp082/single_trial_transition.png",
+        "Output spikes, cumulative class counts and softmax count shares from 91.5 to 94.5 ms in the same digit-4 presentation.",
+        ratio: 0.70,
+      ),
+      caption: [Post-hoc enlargement of 91.5–94.5 ms in the same displayed trial.
+        Rows show output spikes, cumulative class counts and softmax count shares;
+        red marks the true and winning class 4.],
+    )
+
+  ]
+
+  #result-card[
+    === Three-of-five counterexample under showcase conditions
+
+    The same network, durations, rates and deterministic candidate
+    order used for the successful showcase were searched for a stream containing
+    exactly three correct decisions.
+
+    If the showcase represented capability rather than perfect
+    reliability, comparable streams should also contain classification errors.
+
+    The first stream scoring exactly 3/5 was candidate
+    #(r.showcase_selection.selected.alternative + 1), after
+    #r.showcase_selection.candidates.len() candidates were evaluated. Digits 9
+    and 2 were misclassified as 4 and 9.
+
+    #figure(
+      report-image(
+        "exp082/alternative_stream.png",
+        "A three-of-five counterexample under the same 200 ms and 5 to 25 Hz conditions as the capability showcase.",
+      ),
+      caption: [Nominal-regime counterexample under the same seed-42 network,
+        durations, rates and deterministic candidate order as the showcase. Badges
+        show true→predicted labels.],
+    )
+
+  ]
+
+  #result-card[
+    === Mixed-duration stream with silent and non-silent failures
+
+    A five-digit stream varied both presentation duration and input
+    rate to expose the classifier to easy and difficult conditions within one
+    continuous trajectory.
+
+    Brief or weak presentations should be most vulnerable because
+    they provide less time or input for output evidence to accumulate.
+
+    #r.variable_stream.correct.sum() of
+    #r.variable_stream.labels.len() decisions were correct. The 200 ms, 0.5 Hz
+    presentation was silent, while the 100 ms, 2 Hz presentation failed despite
+    producing output spikes.
+
+    #figure(
+      report-image(
+        "exp082/variable_stream.png",
+        "Five digits with changing rates and durations: three correct predictions, a silent 0.5 Hz failure and a non-silent 2 Hz failure.",
+      ),
+      caption: [Seed-42 illustration shown here. Counts reset at boundaries while
+        hidden state continues. Badges show true→predicted labels; thumbnail
+        opacity increases with rate. Display sampling matches the preceding raster.],
+    )
+
+  ]
 
   #context if target() != "html" { pagebreak(weak: true) }
   #block(sticky: true)[
@@ -208,11 +272,9 @@
 
     == Methods
 
-    We reused trained networks and recorded grid measurements to evaluate
-    matched-window spike-count classification. We additionally simulated a bounded,
-    predeclared sequence of illustrative streams; we did not retrain any network.
   ]
   #set math.equation(numbering: "(1)")
+  #counter(math.equation).update(0)
   #show math.equation.where(block: true): equation => context {
     if target() == "html" {
       html.elem("div", attrs: (class: "exp082-equation", style: "display:flex;align-items:center;gap:1em"), {
@@ -222,60 +284,98 @@
     } else { equation }
   }
 
-  + *Select frozen classifiers.* Three PING networks (seeds 42–44) came from
-    #link("/exp022/")[the variable-rate training bank], with 1,024 excitatory,
-    256 inhibitory and ten output-LIF units. Training used 6,300 optimization
-    and 700 validation images from MNIST for 50 epochs, sampling eleven
-    maximum-pixel rates between 0.5 and 25 Hz.
-    Minimum validation cross-entropy averaged over three encoder draws selected
-    each checkpoint, with validation accuracy breaking ties; neither final-epoch
-    weights nor the official test partition determined selection.
+  === Compute
 
-  + *Present continuous test streams.* Each duration–rate–seed condition used
-    40 independent five-digit streams sampled from the official 10,000-image
-    test partition, giving 200 decisions; five streams ran per batch with
-    separate neuronal states. Pixels generated independent Bernoulli spikes at
-    0.1 ms resolution. Within a stream, hidden state persisted, but output-LIF
-    state and counts reset at each boundary. The grid crossed 25, 50, 100 and
-    200 ms with all eleven training rates; presentation and readout windows
-    were always equal. The corrected execution concatenated streams
-    along the batch axis, without changing the recipe.
+  + *Classifiers.* We reused three frozen PING networks, seeds 42–44, from
+    #link("/exp022/")[the variable-rate training bank]. We did not retrain them.
 
-  + *Read output spike counts.* The learned projection from excitatory spikes
-    drove the output-LIF units. For a presentation covering timesteps $k_a$ through
-    $k_b-1$, the count-based class score at timestep $k$ was
-    $ z_c[k] = sum_(j=k_a)^k s_c^"out"[j], quad k_a <= k < k_b. $ <eq-count>
-    Here $j$ indexes timesteps and $s_c^"out"[j]$ is the dimensionless binary output spike.
-    Prediction was $arg max_c z_c[k_b-1]$; ties selected the lowest class index,
-    including class 0 for silent windows. The displayed count share was
-    $ p_"class"(c,k) = frac(exp(z_c[k]), sum_(j=0)^9 exp(z_j[k])). $ <eq-share>
-    Here $j$ indexes the ten digit classes; $p_"class"$ is a softmax transformation,
-    not a calibrated posterior. Seed-42 illustrations reused a five-digit
-    matched stream and a fixed changing-duration/rate stream. For the additional
-    nominal-regime illustrations, every digit lasted 200 ms and rates were 5,
-    7.5, 10, 15 and 25 Hz. We fixed an ascending candidate index, with deterministic
-    digit and encoding seeds derived from it, before inference; we selected the
-    first 5/5 stream as the capability showcase and the first 3/5 stream as its
-    counterexample. The search stopped after
-    #r.showcase_selection.candidates.len() candidates. The single-digit
-    explanation selected the first correct matched presentation, and its
-    91.5–94.5 ms enlargement was selected post hoc around the displayed transition.
+  + *Architecture.* Each network contained 1,024 excitatory neurons, 256
+    inhibitory neurons and ten output-LIF units. A learned projection carried
+    excitatory spikes to the output units.
 
-  + *Measure condition-level performance.* Accuracy for presentation duration $T_"present"$ (ms),
-    maximum-pixel input rate $r_"input,max"$ (Hz) and trained seed $xi$ was
-    $
-      "Acc"(T_"present",r_"input,max",xi) = 1/N_"eval" sum_(i=1)^(N_"eval") bb(1)[hat(y)_(i,T_"present",r_"input,max",xi) = y_i].
-    $ <eq-accuracy>
-    Here $N_"eval"=200$, $i$ indexes digit presentations, $hat(y)$ and $y$ are predicted
-    and true labels, and $bb(1)$ is an indicator. We recorded the original
-    per-seed aggregates of accuracy, class spike totals, output spikes per
-    presentation, silence and E/I rates; individual grid decisions were not
-    archived. E/I rates used all 1,024/256 neurons and the complete presentation
-    duration. Seed means and SEM summarize three training replicates, not 600
-    independent network replicates; no additional stream-bank repeats, adjusted
-    comparisons or population-level intervals support broader generalization.
-    No causal gamma manipulation, fixed-rate-training control or separation of
-    viewing from integration time was performed.
+  + *Training provenance.* Training used 6,300 optimization and 700 validation
+    MNIST images for 50 epochs, sampling eleven maximum-pixel rates from 0.5 to
+    25 Hz.
+
+  + *Checkpoint selection.* Minimum validation cross-entropy, averaged over
+    three encoder draws, selected each checkpoint; validation accuracy broke
+    ties. Neither final-epoch weights nor the official test partition selected
+    the models.
+
+  + *Test data.* Evaluation sampled the official 10,000-image MNIST test
+    partition. Each duration–rate–seed condition contained 40 independent
+    five-digit streams, giving 200 digit decisions.
+
+  + *Batching.* Five streams ran per batch with separate neuronal states. The
+    corrected execution concatenated streams along the batch axis without
+    changing the experimental recipe.
+
+  + *Input encoding.* Pixels generated independent Bernoulli spikes at 0.1 ms
+    resolution, scaled by the condition's maximum-pixel input rate.
+
+  + *State handling.* Hidden neuronal state persisted between digits within a
+    stream. Output-LIF state and spike counts reset at every known boundary.
+
+  + *Condition grid.* Presentations lasted 25, 50, 100 or 200 ms at each of the
+    eleven training rates. Presentation and readout windows were always equal.
+
+  + *Count class spikes.* During each presentation, the score for class $c$ was
+    its total output-spike count:
+    $ z_c = sum_(k in "presentation") s_c[k]. $ <eq-count>
+    Here $k$ is a simulation timestep and $s_c[k]$ is 1 when output unit $c$
+    spikes and 0 otherwise.
+
+  + *Predict the digit.* Prediction selected the largest entry in the ten-class
+    score vector $z$: $hat(y) = arg max(z)$. Ties selected the lowest class
+    index, including class 0 when every output count was zero.
+
+  + *Illustrative streams.* Seed-42 figures reused one five-digit matched stream
+    and one fixed changing-duration/rate stream. The nominal-regime figures used
+    200 ms digits at 5, 7.5, 10, 15 and 25 Hz.
+
+  + *Candidate selection.* Before inference, we fixed ascending candidate order
+    and derived deterministic digit and encoding seeds from each index. We selected
+    the first 5/5 stream as the capability showcase and the first 3/5 stream as
+    its counterexample; the search stopped after
+    #r.showcase_selection.candidates.len() candidates.
+
+  === Analysis
+
+  #set enum(start: 14)
+
+  + *Explanatory close-up.* The single-digit figure used the first correct
+    matched presentation. Its 91.5–94.5 ms enlargement was selected post hoc
+    around the displayed transition.
+
+  + *Display count shares.* Figures transformed the score vector with
+    $ q = "softmax"(z). $ <eq-share>
+    Here $q$ is the displayed vector of class shares. It is not a calibrated
+    posterior probability.
+
+  + *Measure accuracy.* We calculated accuracy separately for each
+    duration–rate–network condition as the proportion of correct decisions.
+    Each condition contained 200 decisions.
+
+  + *Retained measurements.* We recorded the original per-seed aggregates of
+    accuracy, class spike totals, output spikes per presentation, silence and
+    E/I rates. Individual grid decisions were not archived; E/I rates used all
+    1,024/256 neurons across the complete presentation.
+
+  + *Summaries and limits.* Seed means and SEM summarize three training
+    replicates, not 600 independent network replicates. No additional
+    stream-bank repeats, adjusted comparisons, population-level intervals,
+    causal gamma manipulation, fixed-rate-training control or separation of
+    viewing from integration time support broader claims.
+
+  === Presentation
+
+  #set enum(start: 19)
+
+  + *Render figures.* The presentation stage rendered the article figures from
+    saved analysis and its explicitly linked compute recordings. It did not
+    rerun inference, reselect an illustration or recompute condition statistics.
+
+  #set enum(start: 1)
   #run-view("exp082", inputs)
 
 ]

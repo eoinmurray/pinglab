@@ -9,31 +9,31 @@ pdfs: false
 # retained, inactive, until the retirement step is approved.
 prepare: [uv, run, python, -m, writings.prepare]
 url_inputs:
-  source.exp022: {type: path, root: .pingstore/runs}
-  source.exp023: {type: path, root: .pingstore/runs}
-  source.exp024: {type: path, root: .pingstore/runs}
-  source.exp025: {type: path, root: .pingstore/runs}
-  source.exp033: {type: path, root: .pingstore/runs}
-  source.exp037: {type: path, root: .pingstore/runs}
-  source.exp038: {type: path, root: .pingstore/runs}
-  source.exp041: {type: path, root: .pingstore/runs}
-  source.exp042: {type: path, root: .pingstore/runs}
-  source.exp044: {type: path, root: .pingstore/runs}
-  source.exp046: {type: path, root: .pingstore/runs}
-  source.exp047: {type: path, root: .pingstore/runs}
-  source.exp048: {type: path, root: .pingstore/runs}
-  source.exp049: {type: path, root: .pingstore/runs}
-  source.exp054: {type: path, root: .pingstore/runs}
-  source.exp074: {type: path, root: .pingstore/runs}
-  source.exp075: {type: path, root: .pingstore/runs}
-  source.exp076: {type: path, root: .pingstore/runs}
-  source.exp077: {type: path, root: .pingstore/runs}
-  source.exp080: {type: path, root: .pingstore/runs}
-  source.exp081: {type: path, root: .pingstore/runs}
-  source.exp082: {type: path, root: .pingstore/runs}
-  source.exp085: {type: path, root: .pingstore/runs}
-  source.exp086: {type: path, root: .pingstore/runs}
-  source.exp099: {type: path, root: .pingstore/runs}
+  source.exp022: { type: path, root: .pingstore/runs }
+  source.exp023: { type: path, root: .pingstore/runs }
+  source.exp024: { type: path, root: .pingstore/runs }
+  source.exp025: { type: path, root: .pingstore/runs }
+  source.exp033: { type: path, root: .pingstore/runs }
+  source.exp037: { type: path, root: .pingstore/runs }
+  source.exp038: { type: path, root: .pingstore/runs }
+  source.exp041: { type: path, root: .pingstore/runs }
+  source.exp042: { type: path, root: .pingstore/runs }
+  source.exp044: { type: path, root: .pingstore/runs }
+  source.exp046: { type: path, root: .pingstore/runs }
+  source.exp047: { type: path, root: .pingstore/runs }
+  source.exp048: { type: path, root: .pingstore/runs }
+  source.exp049: { type: path, root: .pingstore/runs }
+  source.exp054: { type: path, root: .pingstore/runs }
+  source.exp074: { type: path, root: .pingstore/runs }
+  source.exp075: { type: path, root: .pingstore/runs }
+  source.exp076: { type: path, root: .pingstore/runs }
+  source.exp077: { type: path, root: .pingstore/runs }
+  source.exp080: { type: path, root: .pingstore/runs }
+  source.exp081: { type: path, root: .pingstore/runs }
+  source.exp082: { type: path, root: .pingstore/runs }
+  source.exp085: { type: path, root: .pingstore/runs }
+  source.exp086: { type: path, root: .pingstore/runs }
+  source.exp099: { type: path, root: .pingstore/runs }
 
 legacy_preview:
   source: .pingstore/runs

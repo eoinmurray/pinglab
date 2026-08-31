@@ -3,7 +3,7 @@
 #let meta = (
   status: "[≡ TXT | v28.0.0]",
   title: "Compiling and executing bundles",
-  date: "2026-08-14",
+  created_at: "2026-08-14T00:00:00Z",
   description: "Validate a graph, write its portable bundle, select an executor, supply inputs, and retrieve named outputs and recordings.",
   collection: "snnlang-docs",
   order: 4,

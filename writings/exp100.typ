@@ -3,8 +3,8 @@
 #let meta = (
   status: "[≡ TXT | v28.0.0]",
   title: "COBANet",
-  updated_at: "2026-08-29",
-  date: "2026-05-14",
+  updated_at: "2026-08-29T00:00:00Z",
+  created_at: "2026-05-14T00:00:00Z",
   description: "How COBANet updates conductances, membrane voltages, spikes, and resets, with the equations and implementation limits needed to work on the simulator.",
   collection: "snnsim-docs",
   order: 3,

@@ -8,8 +8,8 @@
 #let meta = (
   status: "[▦ DATA | v28.0.0]",
   title: "Gamma Emerges at a Hopf Bifurcation",
-  date: "2026-05-28",
-  updated_at: "2026-08-31",
+  created_at: "2026-05-28T00:00:00Z",
+  updated_at: "2026-08-31T00:00:00Z",
   description: "A four-variable population-rate model links oscillatory onset to synaptic timescales, with explicit limits on its connection to spiking recruitment.",
   collection: "gamma-gated-sparsity",
 )

@@ -7,10 +7,10 @@
 #let data-file = data-file.with(article: "exp081")
 
 #let meta = (
-  status: "[▦ DATA | v28.0.0]",
+  status: "[▦ DATA | v29.0.0]",
   title: "How Pixel Features Respond to Input Rate",
-  date: "2026-08-10",
-  updated_at: "2026-08-31",
+  created_at: "2026-08-10T00:00:00Z",
+  updated_at: "2026-08-31T15:55:29Z",
   description: "Standalone empirical and analytical study of synaptic, membrane, and finite-window filtering under sparse Poisson drive.",
   collection: "gamma-gated-sparsity",
 )
@@ -23,6 +23,24 @@
   (path: "exp081/analytical_empirical.svg", label: "analytical empirical"),
 )
 
+#let result-card-style = context {
+  if target() == "html" {
+    html.elem("style",
+      ".pinglab-result-card { margin: 1.25rem 0; padding: 1.2rem 1.35rem 1.3rem; border: 1px solid var(--rule-strong); border-radius: 3px; background: var(--paper); } "
+      + ".pinglab-result-card > h4:first-child { margin-top: 0; } "
+      + ".pinglab-result-card > :last-child { margin-bottom: 0; } "
+      + "math[display='block'] { display: block; max-width: 100%; overflow-x: auto; overflow-y: hidden; } "
+      + "@media (max-width: 520px) { .pinglab-result-card { margin: 1rem 0; padding: .95rem 1rem 1.05rem; } }",
+    )
+  }
+}
+
+#let result-card(body) = context {
+  if target() == "html" {
+    html.elem("article", attrs: (class: "pinglab-result-card"), body)
+  } else { body }
+}
+
 // Keep calculations lazy: absent inputs never become fabricated results.
 #let render-report(data-file) = [
 #let r = data-json(data-file("exp081/numbers.json"))
@@ -31,21 +49,36 @@
 #let body = [
   == Abstract
 
-  Asked how input spike rate becomes a finite-window pixel feature used by
-  classifiers, and whether stationary filter theory predicts it. Compared
-  simulations of synaptic, membrane and temporal filtering with a stationary
-  linearization of the conductance-driven feature.
+  We asked how a fully active pixel's input spike rate becomes the finite-window
+  voltage feature used by downstream classifiers, and whether stationary filter
+  theory predicts that transformation. We compared direct conductance-driven
+  membrane simulations with a local stationary linearization of the same system.
 
-  The theory explained the filtering structure but misestimated magnitude and
-  failed to reproduce variability. Sparse responses remain governed by discrete
-  spike counts and event timing, so direct simulation is still needed for
-  quantitative predictions.
+  The analytical model captured the filtering structure and broad mean-response
+  shape, but overestimated response magnitude and did not reproduce the empirical
+  variability. Sparse finite-window features remained governed by discrete event
+  counts and timing, so quantitative predictions still require direct simulation.
 
   == Results
 
   #with-result-sections[
 
+  #result-card-style
+
+  #result-card[
   === Finite-window feature mean and variability across input rates
+
+  Each presentation began from rest and converted one fully active pixel into a
+  finite-window mean depolarization while input rate and event strength varied.
+
+  Higher rate should increase mean depolarization, while discrete event counts,
+  event timing and nonlinear conductance can make the sample SD non-monotonic.
+
+  Mean response rose overall with input rate and event strength. The sample SD
+  rose rapidly at sparse rates, then flattened or declined for the two smaller
+  event increments while remaining high for the largest. Post hoc, this pattern
+  is consistent with reduced relative count fluctuations, shunting and voltage
+  saturation; those mechanisms were not manipulated separately.
 
   #figure(
     data-image(data-file("exp081/empirical_moments.svg"), width: 100%,
@@ -56,8 +89,21 @@
       #p.probes_uS.map(str).join(", ") μS event increments; curves are summaries,
       not individual trials or confidence intervals.],
   )
+  ]
 
+  #result-card[
   === Feature distributions across sparse and dense input rates
+
+  These probes held presentation duration and event strength fixed while input
+  rate changed from sparse to dense drive.
+
+  Input rate fixes only the expected event count. Individual presentations can
+  contain no events, one event or several events, and equal counts can produce
+  different finite-window averages when their event times differ.
+
+  The empirical distribution was dominated by near-zero responses at the
+  sparsest rate, became a mixed sparse distribution at the intermediate rate,
+  and formed a broad, nearly continuous distribution at the densest rate.
 
   #figure(
     data-image(data-file("exp081/response_distributions.svg"), width: 100%,
@@ -67,8 +113,18 @@
       presentations per condition. Bars show probability per common fixed-width
       bin on a logarithmic scale; feature values are in mV.],
   )
+  ]
 
-  === Analytical filtering before and after finite-window averaging
+  #result-card[
+  === Predicted filtering before and after finite-window averaging
+
+  This local linearization describes a theoretical response around three
+  stationary operating rates; it is not a measured modulation experiment.
+
+  The model predicts a flat low-frequency response followed by attenuation when
+  modulation outpaces the synaptic and membrane timescales. Greater drive lowers
+  the low-frequency plateau through shunting and reduced excitatory driving
+  force, while finite-window averaging adds regularly spaced zeros and lobes.
 
   #figure(
     data-image(data-file("exp081/frequency_response.svg"), width: 100%,
@@ -79,8 +135,25 @@
       synapse-plus-membrane gain; B adds #p.presentation_ms ms averaging. Gain is
       in dB relative to the lowest-drive DC response; frequency is in Hz.],
   )
+  ]
 
+  #result-card[
   === Analytical and empirical feature moments across input rates
+
+  The stationary calculation replaces random conductance paths with one mean
+  operating point and treats the remaining input as a small linear fluctuation.
+
+  If that approximation were quantitatively adequate, analytical and empirical
+  moments should retain both their rate dependence and magnitude.
+
+  The mean prediction retained the broad curvature and conductance ordering
+  (Pearson correlation #rounded(r.comparison.mean.pearson_r)) but exceeded
+  empirical magnitude by a median factor of
+  #rounded(r.comparison.mean.median_predicted_empirical_ratio). SD correspondence
+  was weak overall (Pearson correlation
+  #rounded(r.comparison.standard_deviation.pearson_r)), especially for the largest
+  event increment. The approximation therefore describes qualitative filtering
+  structure, not finite-window variability.
 
   #figure(
     data-image(data-file("exp081/analytical_empirical.svg"), width: 100%,
@@ -90,140 +163,96 @@
       #p.moment_draws presentations per rate. Black, red and cyan denote
       #p.probes_uS.map(str).join(", ") μS event increments.],
   )
+  ]
 
   ]
 
   == Methods
 
-  We compared independent finite-window simulations with a stationary local
-  linearization of the same conductance-driven passive membrane.
+  === Compute
 
-  #enum(
-    [*Generate independent events.* At each timestep, a fully active pixel
-    generated a Bernoulli event with probability $p_"event"=r_"input" Delta t_"sim"/1000$, where $r_"input"$ is
-    input rate in spikes/s and $Delta t_"sim"=#p.dt_ms$ ms. Separate deterministic random
-    streams, derived from seed #p.seed, supplied moment and distribution probes;
-    each presentation started with zero conductance and resting voltage.],
+  + *Conditions and repetitions.* We fixed pixel intensity at one and varied
+    input rate from #p.input_rate_grid_hz.first() to
+    #p.input_rate_grid_hz.last() spikes/s across
+    #p.input_rate_grid_hz.len() conditions and event strength across
+    #p.probes_uS.map(str).join(", ") μS. Each condition used
+    #p.moment_draws independent encoding draws of a #p.presentation_ms ms
+    presentation; separate distribution probes used #p.distribution_draws draws
+    at #p.distribution_rates_hz.map(str).join(", ") spikes/s and
+    #p.nominal_probe_uS μS.
 
-    [*Update synapse and membrane.* Conductance decayed exponentially with a
-    #p.membrane.tau_ampa_ms ms AMPA time constant before adding the event increment.
-    Voltage followed
+  + *Generate independent events.* At simulation step $k$, a fully active pixel
+    generated a Bernoulli event with probability
+    $p_"event"=r_"input" Delta t_"sim"/1000$, where $r_"input"$ is input rate in
+    spikes/s and $Delta t_"sim"=#p.dt_ms$ ms. Physical time was
+    $t_k=k Delta t_"sim"$ and $N_t=T_"present"/Delta t_"sim"$ steps formed one
+    presentation. Separate deterministic random streams supplied the moment and
+    distribution draws; every draw began with zero conductance and resting
+    voltage.
+
+  + *Integrate conductance and voltage.* AMPA conductance decayed with time
+    constant $tau_"AMPA"=#p.membrane.tau_ampa_ms$ ms before each event added its
+    conductance increment. Membrane voltage obeyed
     $ C_m (d V_m)/(d t)=g_L (E_L-V_m)+g(t)(E_e-V_m). quad "(1)" $
-    Here $t$ is time in ms, $V_m$ is membrane voltage in mV, $g$ is excitatory conductance in μS,
-    $C_m=#p.membrane.C_m_nF$ nF is capacitance, $g_L=#p.membrane.g_L_uS$ μS is leak
-    conductance, and $E_L=#p.membrane.E_L_mV$ mV and $E_e=#p.membrane.E_e_mV$ mV
-    are reversal potentials. Each voltage step used the exact exponential solution
-    with the updated conductance held fixed; arithmetic used single precision.],
+    Here $t$ is physical time in ms, $V_m$ is membrane voltage in mV, $g$ is
+    excitatory conductance in μS, $C_m=#p.membrane.C_m_nF$ nF is capacitance,
+    $g_L=#p.membrane.g_L_uS$ μS is leak conductance, and
+    $E_L=#p.membrane.E_L_mV$ mV and $E_e=#p.membrane.E_e_mV$ mV are reversal
+    potentials. Each single-precision voltage step used the exact exponential
+    solution with updated conductance held fixed for that step.
 
-    [*Measure the finite-window feature.* We approximated
-    $ z_"feature"=1/T_"present" integral_0^(T_"present") (V_m(t)-E_L) dif t. quad "(2)" $
-    Here $z_"feature"$ is mean depolarization in mV and $T_"present"=#p.presentation_ms$ ms is the
-    presentation duration. The discrete estimate averaged every post-update voltage
-    after subtracting rest; individual estimates were recorded for reuse.
+  + *Record the finite-window feature.* For each encoding draw we approximated
+    $ z_"feature"=1/T_"present" integral_0^(T_"present") (V_m(t)-E_L) dif t.
+      quad "(2)" $
+    Here $z_"feature"$ is baseline-subtracted mean voltage in mV and
+    $T_"present"=#p.presentation_ms$ ms is presentation duration. The recorded
+    discrete estimate averaged all $N_t$ post-update voltages after subtracting
+    rest.
 
-    At each rate and conductance I
-    calculated the arithmetic mean and sample SD, using the number of presentations
-    minus one as the variance denominator. Distribution probes used
-    #p.histogram_bins common linear bins, from zero to the maximum response rounded
-    upward to a multiple of 5 mV; counts were divided by presentation count.],
+  === Analyse
 
-    [*Calculate the stationary prediction.* Mean conductance was rate times event
-    increment times synaptic decay time, with rates converted to events/ms. I
-    evaluated equilibrium voltage at that mean and linearized the synaptic and
-    membrane responses about it. Multiplication by the rectangular averaging
-    response gave $H_r (omega)$, the input-to-feature transfer function at angular
-    frequency $omega$ in rad/ms. Its predicted variance was
-    $ "Var"(z_"feature")=1/(2 pi) integral_(-oo)^oo abs(H_r (omega))^2 (r_"input"/1000) dif omega.
-      quad "(3)" $
-    #link(<sec-appendix-model-specification-and-calculations>)[Appendix: model specification and calculations] specifies the transfer and #link(<sec-appendix-derivation-of-the-analytical-filter>)[Appendix: derivation of the analytical filter] derives it.],
+  #set enum(start: 5)
 
-    [*Integrate and compare.* We used trapezoidal integration over a logarithmic
-    frequency grid, added the low-frequency DC tail, and checked a coarser grid.
-    Mean and SD comparisons used Pearson correlation, mean absolute error and
-    median predicted-to-empirical ratio, excluding joint zeros and requiring
-    positive empirical values for ratios. Frequency-response magnitudes were
-    expressed relative to the lowest-drive DC gain.],
-  )
+  + *Estimate empirical moments and distributions.* We calculated the arithmetic
+    mean and sample SD across encoding draws for every rate–strength condition,
+    using one fewer than the number of draws as the variance denominator. For
+    the distribution probes, #p.histogram_bins common linear bins spanned zero
+    to the maximum response rounded upward to 5 mV, and counts were divided by
+    the number of draws.
 
-  == Discussion
+  + *Calculate the stationary prediction.* We evaluated mean conductance and
+    equilibrium voltage at each condition, then linearized the synaptic and
+    membrane responses around that operating point. Rectangular-window averaging
+    gave $H_r(omega)$, the input-to-feature transfer function at angular
+    frequency $omega$ in rad/ms, with predicted variance
+    $ "Var"(z_"feature")=1/(2 pi) integral_(-oo)^oo abs(H_r(omega))^2
+      (r_"input"/1000) dif omega. quad "(3)" $
+    #link(<sec-appendix-model-specification-and-calculations>)[Appendix: model specification and calculations] specifies this approximation, and
+    #link(<sec-appendix-derivation-of-the-analytical-filter>)[Appendix: derivation of the analytical filter] derives it.
 
-  === Interpreting the empirical finite-window response
+  + *Integrate and compare.* We integrated Equation 3 by the trapezoidal rule on
+    a logarithmic frequency grid, added the low-frequency DC tail and checked a
+    coarser grid. Mean and SD comparisons used Pearson correlation, mean absolute
+    error and median predicted-to-empirical ratio; joint zeros were excluded,
+    ratios required positive empirical values, and an undefined correlation was
+    retained as undefined. Analytical frequency-response magnitudes were
+    normalized to the lowest-drive DC gain.
 
-  Mean response increased with input rate and event strength. Variability first
-  increased as spike count and timing diversified, then flattened or declined
-  as relative count fluctuations, shunting, and voltage saturation became more
-  important.
+  === Present
 
+  #set enum(start: 8)
 
+  + *Expose direct-simulation evidence.* We displayed the recorded empirical
+    means and sample SDs across all rate–strength conditions, plus probability
+    per common bin for the three distribution probes. These figures reused the
+    retained analysis without generating new encoding draws or confidence
+    intervals.
 
-  Input rate fixes only the average number of events. Individual presentations
-  can still contain no events, one event, or several events. Even when two
-  presentations contain the same number, different event times change the
-  finite-window average.
-
-  === Analytical Bode-magnitude response
-
-  The synapse and membrane passed slow modulation but attenuated fast
-  modulation. Finite-window averaging superimposed regularly spaced zeros and
-  lobes on that falling response.
-
-
-  In Panel A, each curve is flat at low frequency because the AMPA conductance
-  and membrane voltage can follow a slowly varying input quasi-statically.
-  Greater drive lowers that plateau by shunting the membrane and reducing the
-  excitatory driving force. The curves bend downward once modulation becomes
-  too fast for the synaptic and membrane timescales to follow.
-
-  Panel B is the same synapse-plus-membrane response multiplied by the
-  rectangular-window response. With $T_s=T/1000$ s,
-
-  $
-    abs(A_T (2 pi f/1000)) =
-    abs(sin(pi f T_s)/(pi f T_s)). quad "(D1)"
-  $
-
-  Its zeros at $f=n/T_s$ cancel modulation containing an integer number of
-  cycles within the presentation. Here $n$ is any nonzero integer. The absolute
-  sinc response creates the lobes, while the Panel A low-pass response supplies
-  their falling envelope. #link(<sec-finite-window-average>)[Finite-window average] derives Equation D1 from the
-  finite-window averaging kernel.
-
-  === Interpreting analytical and empirical moments
-
-  The stationary model reproduced the mean curve's broad shape but not its
-  magnitude, and it failed to reproduce the shape of the empirical standard
-  deviation.
-
-
-  The analytical mean preserved the broad curvature and conductance ordering but
-  exceeded the empirical magnitude. Its median predicted-to-empirical ratio was
-  #rounded(r.comparison.mean.median_predicted_empirical_ratio). The stationary
-  calculation evaluates the response at mean conductance, $z(E[g])$, whereas
-  simulation estimates the response over random conductance paths, $E[z(g)]$.
-  Saturation makes these unequal, approximately
-
-  $ E[z(g)] < z(E[g]). $
-
-  The stationary input also acts throughout the window; a real late event
-  contributes only briefly to Equation A5.
-
-  The SD mismatch is more fundamental. The empirical distribution is a
-  spike-count and spike-time mixture,
-
-  $
-    p_Z (z) = sum_(n=0)^oo P(N=n) p_(Z|N) (z|n). quad "(D2)"
-  $
-
-  Here $Z$ is the random feature value, $N$ is the event count, $P(N=n)$ is the
-  probability of observing $n$ events, and $p_(Z|N) (z|n)$ is the feature
-  distribution conditional on that count.
-
-  Equation A15 instead treats input as a small stationary fluctuation around one
-  operating point. At low rates, zero-event trials remain exactly at rest, one
-  large event produces a timing-dependent response, and multiple events interact
-  through shunting and saturation. That non-Gaussian mixture explains why the
-  analytical SD rises too sharply and peaks too early, especially for the
-  largest conductance increment.
+  + *Expose analytical evidence.* We displayed the calculated local frequency
+    responses before and after window averaging and overlaid analytical and
+    empirical moments for the same conditions. The frequency-response figure is
+    a theoretical mechanism, not a measured modulation response; presentation
+    did not recompute the estimators or rerun simulation.
 
   #run-view("exp081", inputs)
 
@@ -281,10 +310,10 @@
 
   === Calculate the stationary operating point
 
-  For stationary Poisson rate $r$, filtered-shot-noise theory#cite(2) gives the
+  For stationary Poisson rate $r=r_"input"$, filtered-shot-noise theory#cite(2) gives the
   mean AMPA conductance
 
-  $ macron(g)_r = r w tau_"AMPA" / 1000. quad "(A6)" $
+  $ macron(g)_r = r w_"event" tau_"AMPA" / 1000. quad "(A6)" $
 
   Replacing the fluctuating conductance by this mean gives the operating-point
   voltage
@@ -314,9 +343,9 @@
 
   $
     G_r (omega) =
-    w/(i omega + 1/tau_"AMPA") dot
+    w_"event"/(i omega + 1/tau_"AMPA") dot
     (E_e-macron(v)_r)/
-    (i omega C + g_L + macron(g)_r). quad "(A9)"
+    (i omega C_m + g_L + macron(g)_r). quad "(A9)"
   $
 
   Here $omega$ is angular frequency in rad/ms and $i$ is the imaginary unit.
@@ -326,14 +355,16 @@
 
   Averaging voltage over the finite presentation contributes
 
-  $ A_T (omega) = (1-exp(-i omega T))/(i omega T), quad "(A10)" $
+  $ A_(T_"present") (omega) =
+    (1-exp(-i omega T_"present"))/(i omega T_"present"). quad "(A10)" $
 
   so the complete input-to-feature response is
 
-  $ H_r (omega) = A_T (omega) G_r (omega). quad "(A11)" $
+  $ H_r (omega) = A_(T_"present") (omega) G_r (omega). quad "(A11)" $
 
-  Here $A_T (omega)$ is the transfer function of averaging over duration $T$, and
-  $H_r (omega)$ is the complete input-to-feature transfer function. #link(<sec-finite-window-average>)[Finite-window average]
+  Here $A_(T_"present") (omega)$ is the transfer function of averaging over
+  presentation duration $T_"present"$, and $H_r (omega)$ is the complete
+  input-to-feature transfer function. #link(<sec-finite-window-average>)[Finite-window average]
   derives Equations A10 and A11.
 
   To generate Figure 3, we evaluated Equations A9 and A11 from
@@ -358,7 +389,7 @@
   The centred ideal Poisson input has a white two-sided spectrum on the
   millisecond time base,
 
-  $ S_"in" (omega) = r/1000. quad "(A13)" $
+  $ S_"in" (omega) = r_"input"/1000. quad "(A13)" $
 
   The feature spectrum and variance are therefore
 
@@ -378,24 +409,55 @@
   second calculation with half as many points measured quadrature refinement.
 
 
+  === Explain the stationary approximation's failure <sec-stationary-approximation-failure>
+
+  The stationary calculation evaluates the response at mean conductance,
+  $z(E[g])$, whereas simulation estimates the response over random conductance
+  paths, $E[z(g)]$. Saturation makes these unequal, approximately
+
+  $ E[z(g)] < z(E[g]). $
+
+  The stationary input also acts throughout the window; a real late event
+  contributes only briefly to Equation A5.
+
+  The empirical distribution is a spike-count and spike-time mixture,
+
+  $
+    p_Z (z) = sum_(n=0)^oo P(N=n) p_(Z|N) (z|n). quad "(D2)"
+  $
+
+  Here $Z$ is the random feature value, $N$ is the event count, $P(N=n)$ is the
+  probability of observing $n$ events, and $p_(Z|N) (z|n)$ is the feature
+  distribution conditional on that count.
+
+  Equation A15 instead treats input as a small stationary fluctuation around one
+  operating point. At low rates, zero-event trials remain exactly at rest, one
+  large event produces a timing-dependent response, and multiple events interact
+  through shunting and saturation. That non-Gaussian mixture explains why the
+  analytical SD rises too sharply and peaks too early, especially for the
+  largest conductance increment.
+
+
   == Appendix: derivation of the analytical filter <sec-appendix-derivation-of-the-analytical-filter>
 
   === Stationary conductance and voltage <sec-stationary-conductance-and-voltage>
 
-  Write the continuous AMPA equation driven by an event train
-  $s(t)=sum_k delta(t-t_k)$ as
+  The discrete indicator $s[k]$ records whether a simulation step contains an
+  event. Its continuous-time counterpart is the impulse train
+  $s(t)=sum_j delta(t-t_j)$, where $j$ identifies events rather than simulation
+  steps. The continuous AMPA equation is
 
-  $ (d g)/(d t) = -g/tau_"AMPA" + w s(t). quad "(B1)" $
+  $ (d g)/(d t) = -g/tau_"AMPA" + w_"event" s(t). quad "(B1)" $
 
-  Here $s(t)$ is the impulse train, $t_k$ is the time of event $k$, and
-  $delta(t-t_k)$ is a Dirac impulse at that time.
+  Here $t_j$ is the time of event $j$, and $delta(t-t_j)$ is a Dirac impulse at
+  that time.
 
   For stationary input rate $r$ spikes/s, the rate on the millisecond time base
   is $r/1000$. Taking expectations of Equation B1 and setting the stationary
   derivative to zero gives
 
   $
-    0=-macron(g)_r/tau_"AMPA"+w r/1000,
+    0=-macron(g)_r/tau_"AMPA"+w_"event" r/1000,
   $
 
   hence Equation A6. The stationary membrane equation is
@@ -419,19 +481,19 @@
 
   Substitution into Equation B1 and cancellation of the stationary terms gives
 
-  $ (d delta g)/(d t) = -delta g/tau_"AMPA" + w delta s. quad "(B3)" $
+  $ (d delta g)/(d t) = -delta g/tau_"AMPA" + w_"event" delta s. quad "(B3)" $
 
   With Fourier convention $(d)/(d t) -> i omega$,
 
   $
-    delta g(omega)=w/(i omega+1/tau_"AMPA") delta s(omega). quad "(B4)"
+    delta g(omega)=w_"event"/(i omega+1/tau_"AMPA") delta s(omega). quad "(B4)"
   $
 
   Substitute the decompositions into Equation A4. After cancelling Equation B2
   and discarding the second-order product $delta g delta v$,
 
   $
-    C (d delta v)/(d t)
+    C_m (d delta v)/(d t)
     =-(g_L+macron(g)_r)delta v
       +(E_e-macron(v)_r)delta g. quad "(B5)"
   $
@@ -445,14 +507,15 @@
 
   Linearizing Equation A5 leaves the average of the voltage fluctuation,
 
-  $ delta z = 1/T integral_0^T delta v(t) dif t. quad "(B6)" $
+  $ delta z_"feature" = 1/T_"present" integral_0^(T_"present") delta v(t) dif t.
+    quad "(B6)" $
 
-  The averaging kernel is $a_T (t)=1/T$ for $0 <= t <= T$ and zero otherwise.
-  Its Fourier transform is
+  The averaging kernel is $a_(T_"present") (t)=1/T_"present"$ for
+  $0 <= t <= T_"present"$ and zero otherwise. Its Fourier transform is
 
   $
-    A_T (omega)=1/T integral_0^T exp(-i omega t) dif t
-    =(1-exp(-i omega T))/(i omega T),
+    A_(T_"present") (omega)=1/T_"present" integral_0^(T_"present") exp(-i omega t) dif t
+    =(1-exp(-i omega T_"present"))/(i omega T_"present"),
   $
 
   proving Equation A10. Because averaging follows the membrane response, the
@@ -460,15 +523,25 @@
   $1-exp(-i x)=2i exp(-i x/2)sin(x/2)$ gives
 
   $
-    abs(A_T (omega))=abs(sin(omega T/2)/(omega T/2)),
+    abs(A_(T_"present") (omega))=
+    abs(sin(omega T_"present"/2)/(omega T_"present"/2)),
   $
 
-  which becomes Equation D1 after substituting $omega=2 pi f/1000$ and
-  $T_s=T/1000$.
+  With $T_s=T_"present"/1000$ s and $omega=2 pi f/1000$,
+
+  $
+    abs(A_(T_"present") (2 pi f/1000)) =
+    abs(sin(pi f T_s)/(pi f T_s)). quad "(D1)"
+  $
+
+  Its zeros at $f=n/T_s$ cancel modulation containing an integer number of
+  cycles within the presentation. Here $n$ is any nonzero integer. The absolute
+  sinc response creates the lobes, while the synapse-plus-membrane low-pass
+  response supplies their falling envelope.
 
   === Poisson spectrum and feature variance <sec-poisson-spectrum-and-feature-variance>
 
-  For ideal Poisson events with rate $r/1000$ per ms, disjoint intervals have
+  For ideal Poisson events with rate $r_"input"/1000$ per ms, disjoint intervals have
   independent counts and count variance equals count mean. The centred impulse
   train therefore has autocovariance
 

@@ -9,8 +9,8 @@
 #let meta = (
   status: "[▦ DATA | v28.0.0]",
   title: "Lowet 2015",
-  date: "2026-08-19",
-  updated_at: "2026-08-31",
+  created_at: "2026-08-19T00:00:00Z",
+  updated_at: "2026-08-31T00:00:00Z",
   description: "Distinguish the pathways that phase-lock two cortical PING rhythms.",
   collection: "demo",
   order: 1,

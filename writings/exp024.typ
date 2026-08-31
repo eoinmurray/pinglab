@@ -8,8 +8,8 @@
 #let meta = (
   status: "[▦ DATA | v28.0.0]",
   title: "Accuracy Plateaus While Firing Rate Rises",
-  date: "2026-06-02",
-  updated_at: "2026-08-31",
+  created_at: "2026-06-02T00:00:00Z",
+  updated_at: "2026-08-31T00:00:00Z",
   description: "Audits validation accuracy and firing-rate stability in unregularised PING and COBA training histories.",
   collection: "gamma-gated-sparsity",
 )

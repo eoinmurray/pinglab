@@ -3,7 +3,7 @@
 #let meta = (
   status: "[≡ TXT | v28.0.0]",
   title: "Training recipes and graph-native learning",
-  date: "2026-08-14",
+  created_at: "2026-08-14T00:00:00Z",
   description: "Declare standard objectives, parameter groups, optimization, regularization, and the boundary of current training support.",
   collection: "snnlang-docs",
   order: 6,

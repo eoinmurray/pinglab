@@ -1,6 +1,6 @@
 # Writing Guide
 
-Version: **28.0.0**
+Version: **29.0.0**
 
 The Writing Guide defines the conventions for Pinglab's published experiment
 entries in `writings/expXXX.typ`. This file is the canonical guide.
@@ -14,6 +14,17 @@ corrections or clarifications that do not change requirements. Update the versio
 above and add a short entry to the version history when changing the guide.
 
 ### 1.1. Version history
+
+- **29.0.0** — Require every Results subsection to use a context-free visual
+  card, and require every Methods section to organize continuously numbered
+  scientific operations beneath the exact `Compute`, `Analyse` and `Present`
+  groups. Presentation remains an evidence-mapping account rather than
+  repository or rendering narration.
+
+- **28.1.0** — Allow context-free Results cards with concise local context and
+  optional notes, and allow longer Methods to use continuously numbered groups
+  of short, single-purpose items while preserving substantive-procedure,
+  equation and numbering safeguards.
 
 - **28.0.0** — Require Writing Guide migrations to preserve authored update
   dates, including when conformance changes scientific meaning. Only a separate,
@@ -302,8 +313,8 @@ do not add a second status field, version field or icon field.
 
 | Label | Local-data availability |
 | --- | --- |
-| `[≡ TXT \| v28.0.0]` | Article only: no usable, validated local presentation data is available for any declared article input, or the article declares no data inputs. |
-| `[▦ DATA \| v28.0.0]` | Local data: usable, validated local presentation data is available for at least one declared article input, including reused upstream results. |
+| `[≡ TXT \| v29.0.0]` | Article only: no usable, validated local presentation data is available for any declared article input, or the article declares no data inputs. |
+| `[▦ DATA \| v29.0.0]` | Local data: usable, validated local presentation data is available for at least one declared article input, including reused upstream results. |
 
 The badge reports availability in the working checkout at the last agent check,
 not a live web-UI measurement. `[≡ TXT | vX.Y.Z]` does not mean literally text
@@ -811,18 +822,23 @@ records their source lineage, and captions must not imply a new simulation.
 
 ## 7. Results
 
-Build Results from numbered subsections, key figures, concise captions and
+Build Results from numbered visual cards, key figures, concise captions and
 optional explanatory prose. Give captions and prose distinct roles: captions
 explain how to read a figure; prose states what the figure establishes. Results
 remain evidence-led; prose is not required when a figure has no supported finding
-beyond the display itself.
+beyond the display itself. Every direct Results subsection must be a visual card
+that readers can enter and scan independently. A card changes presentation, not
+the scientific hierarchy or content rules.
 
 1. Name the section exactly `Results` and place it before `Methods`.
    Do not append a tagline, description or other suffix, or add a
    section-number prefix (section 4.2).
-2. Put the Results body inside the shared Results wrapper. Write each direct
+2. Put the Results body inside the shared Results wrapper. Wrap every direct
+   subsection's complete heading, prose, figure and optional notes in a shared
+   or article-local helper named `result-card`. Write each direct
    subsection as an unprefixed level-3 source heading; the wrapper generates its
-   sequential number and the Table of Contents repeats that number.
+   sequential number and the Table of Contents repeats that number. The card
+   must preserve that heading and remain one Results subsection.
 3. Each Results subsection must contain exactly one figure. A compound image or
    a table wrapped in `figure(...)` counts as one figure; separate `figure(...)`
    calls require separate subsections.
@@ -842,17 +858,32 @@ beyond the display itself.
    title and caption must identify it as an expectation or mechanism, not
    experimental evidence.
 7. Explanatory prose may appear immediately before or after the subsection's
-   figure. Use it for
-   observed relationships, scientific consequences and clearly labelled
-   interpretations. Keep it local to that figure and concise. Distinguish
-   mathematical or theoretical expectations from observations, and label
-   post-hoc interpretations. Do not repeat the caption or Methods, introduce
-   unsupported causal claims, or add generic introductory or concluding prose.
-   Do not add prose placeholders asking a later pass to fill these in.
-8. Never state the same finding in both prose and the caption. Apply a deletion
+   figure. Within each context-free card, use no more than three short, unlabelled
+   paragraphs in this order when each role is needed: essential local context,
+   an evidence-grounded expectation, and the observed result. Omit roles that do
+   not help the reader; do not print `Context`, `Expectation`, `Result` or
+   `Interpretation` merely to impose a template. Minimal repetition of Methods
+   is permitted when it is necessary to understand the isolated result, but do
+   not reproduce the full procedure. Keep observations distinct from theoretical
+   expectations, and include an interpretation only when it adds a scientific
+   consequence beyond the observed result. Label post-hoc interpretations.
+   Do not repeat the caption, introduce unsupported causal claims, add generic
+   introductory or concluding prose, or add placeholders for a later pass.
+8. A card may end with an optional `Notes` bullet list. Restrict notes to
+   selection provenance, caveats or secondary details that help readers audit
+   the displayed example. Notes must not carry the primary result, replace the
+   caption, accumulate exhaustive numerical detail or become a second Methods
+   section. A concise selection note may echo the corresponding Methods step
+   when the isolated figure would otherwise conceal how it was chosen.
+9. Never state the same finding in both prose and the caption. Apply a deletion
    test: without the prose, the figure and caption must still be readable;
    without the caption, the prose must not substitute for the missing variables,
    conditions, encodings, aggregation or uncertainty.
+10. Keep the mandatory card wrapper semantically transparent. The shared Results
+    wrapper remains solely responsible for subsection numbering and TOC
+    numbering; do not recreate either counter in article-local Typst or CSS.
+    The subsection must remain readable in targets that omit borders or other
+    card chrome.
 
 When migrating existing headings, remove their taglines and repair any authored
 links to former anchors. The shared TOC picks up the plain heading automatically.
@@ -866,7 +897,13 @@ outputs and their measurement details):
 
 #with-result-sections[
 
+#result-card[
 === Gamma frequency and accuracy across inhibitory decay times
+
+Eight trained networks were evaluated across the same inhibitory-decay sweep.
+
+If slower inhibition controlled the rhythm without determining task quality,
+frequency and accuracy need not peak together.
 
 The oscillation slowed as inhibitory decay increased, but accuracy peaked at
 the intermediate decay time. Slower rhythms therefore did not consistently
@@ -879,17 +916,23 @@ improve classification.
   standard deviation.],
 )
 ]
+]
 ```
+
+Wrap every subsection's complete heading, prose and figure with a
+presentation-only helper that obeys rules 2 and 10. Add `Notes` only when rule 8
+applies; an unwrapped Results subsection is nonconforming.
 
 ## 8. Methods
 
 Explain how the experiment was actually performed and how its reported
 measurements and reusable outputs were obtained. Write for a
 computational-neuroscience colleague who understands the field but does not know
-this experiment. Aim for 300–450 words, excluding displayed equations but
+this experiment. Aim for 350–600 words, excluding displayed equations but
 including symbol definitions. This is a guide, not a quota: use fewer words for
-simple experiments and do not pad the account. Exceed this only when scientific
-completeness requires it.
+simple experiments and do not pad the account. Prefer short, single-purpose
+items over compressing several consequential choices into one long paragraph.
+Exceed the range only when scientific completeness requires it.
 
 ### Ground the account before writing
 
@@ -904,22 +947,31 @@ completeness requires it.
 ### Write the procedure
 
 1. Name the section `Methods` and place it after `Results`.
-2. Begin with a short orientation explaining the experimental approach.
-3. Use one flat numbered list containing only the substantive scientific
-   operations needed to explain the experiment, with at most ten items. There is
-   no minimum item count. Do not add steps to reach a target length. Do not use
-   nested lists or subsection headings. Derive the operations from the experiment
-   rather than imposing a fixed template.
-4. Follow the actual dependencies: starting data and models, controlled changes,
-   execution, selection and measurement, including substantive analysis where
-   applicable. Do not stop at training when the report also contains evaluation
-   or analysis. Cover the essential scientific procedure without creating a
-   separate step for every output or routine operation.
-5. Give each item a short action-led label and two to four concise sentences.
-   Begin with what was done, then give the essential settings and what the
-   operation produced. Equation-bearing items may include a compact definition
-   paragraph. Explain consequential choices without inventing retrospective
-   justifications.
+2. A short orientation may precede the list when it adds information that the
+   first items do not already provide. Omit it when it merely announces the
+   procedure or repeats the opening items.
+3. Divide the procedure beneath exactly three unnumbered level-3 group headings,
+   in this order and with this spelling: `Compute`, `Analyse`, `Present`. Keep
+   method-step numbering continuous across all three groups. Use at most twenty
+   items, with at least one substantive item per group, and do not use nested
+   lists. Do not substitute experiment-specific group names or collapse groups
+   merely because a stage is short.
+4. Map the scientific procedure to those roles. `Compute` covers starting data,
+   models, controlled changes, simulation, training and primary measurements.
+   `Analyse` covers selection, estimators, aggregation, comparisons and
+   inferential decisions. `Present` explains which recorded or reused evidence
+   each reported figure or table exposes, including consequential selection,
+   transformation and uncertainty choices. Follow actual dependencies and give
+   each item one scientific purpose; combine inseparable parts of one operation,
+   but do not bury several independently useful choices in a single long item.
+   Never invent work to populate a group: when a role is minimal, state its
+   scientifically consequential operation concisely.
+5. Give each item a short scan label and normally one or two concise sentences.
+   Use noun labels for fixed setup, data and provenance, and action-led labels
+   for operations. Begin the prose with what was done, then give the essential
+   settings and what the operation produced. Equation-bearing items may include
+   one compact definition paragraph. Explain consequential choices without
+   inventing retrospective justifications.
 6. Make the main account explain the complete procedure and its consequential
    choices. Put exhaustive parameter grids, initialization distributions and
    derivations in appendices. Do not defer essential model differences,
@@ -928,19 +980,28 @@ completeness requires it.
    central model, intervention or measurement, usually one to three, not a quota.
    Number each equation and place it beside the operation it explains. Describe
    routine operations in words unless their mathematical form matters to the
-   comparison. Define every symbol once, give units where applicable, and reuse
-   notation consistently. Cite established methods where appropriate.
+   comparison or is needed to interpret a displayed diagnostic. Prefer
+   reader-level vectors, windows and named quantities over implementation-shaped
+   indices when the simpler form preserves scientific meaning and follows
+   section 3.7. Define every symbol once, give units where applicable, and reuse
+   notation consistently. Do not display trivial arithmetic such as accuracy as
+   correct divided by evaluated decisions merely to make the account look formal.
+   Cite established methods where appropriate.
 8. Explain how reported measurements were obtained, including relevant data
    partitions, model-selection criteria, measurement timing, repetitions and
    aggregation. Distinguish illustrative probes from population estimates and
-   reused observations from new measurements. Do not create standalone Methods
-   items for illustrative raster inspection, plotting, routine averaging across
-   seeds, error-bar construction, or displaying retained training trajectories.
-   Put necessary figure-reading details in concise captions; integrate
-   consequential sampling or measurement choices into the relevant scientific
-   step. A dedicated analysis step is appropriate when it defines a substantive
-   estimator, statistical test, or analysis central to the experiment's question.
-   Routine presentation and summarization alone do not qualify.
+   reused observations from new measurements. The mandatory `Present` group
+   must connect displayed outputs to their recorded or reused evidence, but must
+   not narrate filenames, plotting libraries, storage, build mechanics or purely
+   cosmetic rendering. An
+   illustrative-stream or figure-selection item is appropriate when the
+   selection rule, candidate order, stopping rule or post-hoc choice materially
+   affects bias or interpretation. Put ordinary figure-reading details in
+   concise captions; integrate consequential sampling or measurement choices
+   into the relevant scientific step. A dedicated analysis step is appropriate
+   when it defines a substantive estimator, statistical test or analysis central
+   to the experiment's question. Routine presentation and summarization alone
+   do not qualify.
 9. Use direct, concrete prose. Exclude repository bookkeeping, implementation
    narration and result interpretation. Finish with a compression pass: remove
    repeated definitions, textbook exposition, procedural signposting and details
@@ -949,14 +1010,42 @@ completeness requires it.
 
 ### Completion check
 
-Can the reader recover the substantive procedure from the numbered labels and
-understand each key equation locally? Together, Methods and concise figure
-captions must make the source and meaning of reported measurements and reusable
-outputs clear, without a separate Methods item for every output or routine
-operation. The main account must explain the scientific procedure without
-requiring code or reconstruction from appendices. Remove items that merely
-narrate presentation or repeat captions. Flag missing evidence rather than
-inventing a step.
+Can the reader recover the substantive procedure by scanning `Compute`,
+`Analyse`, `Present`,
+numbered labels and equations before reading every sentence? Can each key
+equation be understood locally? Together, Methods, Results subsections or cards,
+and concise figure captions must make the source and meaning of reported
+measurements and
+reusable outputs clear, without a separate Methods item for every output or
+routine operation. The main account must explain the scientific procedure
+without requiring code or reconstruction from appendices. Remove items that
+merely narrate presentation or repeat captions. Flag missing evidence rather
+than inventing a step.
+
+Illustrative grouped structure; retain these exact groups and continue the
+numbering rather than restarting it:
+
+```typst
+=== Compute
+
++ *Classifiers.* We reused three validation-selected networks without retraining.
+
++ *Test data.* We evaluated held-out presentations excluded from selection.
+
+=== Analyse
+
+#set enum(start: 3)
+
++ *Estimate accuracy.* We aggregated held-out decisions across training
+  replicates and conditions.
+
+=== Present
+
+#set enum(start: 4)
+
++ *Expose retained evidence.* We presented the recorded condition means and
+  uncertainty without recomputing the underlying measurements.
+```
 
 For exp022, the applicable sequence is: data and splits; networks and controlled
 conditions; encoding and simulation; class scores; training and optimization;

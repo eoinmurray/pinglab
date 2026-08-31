@@ -41,6 +41,13 @@ with the poster rendered at 240 DPI. The entrypoint is import-safe, uses explici
 validated source data, and receives measurements computed by analyse. Missing
 authenticated inputs are errors rather than triggers reconstructing random input
 or substituting zeros.
+
+The video and poster reserve the bottom 15% of the frame as a control-safe area.
+No plot, label, annotation, or other scientific evidence may enter that band:
+native browser controls overlay the video frame and otherwise obscure the bottom
+diagnostic row. The six diagnostic panels begin above the reserved band, with a
+separate gutter for their tick labels and axis titles.
+
 Labels no longer assert an established AI-to-PING transition: they name the
 baseline, afferent bout and recovery phases instead.
 

@@ -3,8 +3,8 @@
 #let meta = (
   status: "[≡ TXT | v28.0.0]",
   title: "Cloudflare R2 archive",
-  date: "2026-08-11",
-  updated_at: "2026-08-28",
+  created_at: "2026-08-11T00:00:00Z",
+  updated_at: "2026-08-28T00:00:00Z",
   description: "Configure R2 access, inspect backups, and distinguish campaign payload recovery from restoring a complete validated Pingstore run.",
   collection: "pinglab-docs",
   order: 2,

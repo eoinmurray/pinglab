@@ -123,9 +123,23 @@ def test_stages_pin_v3_keep_raw_evidence_and_render_without_analysis(lab, monkey
         np.testing.assert_allclose(fig.get_facecolor(), (1.0, 1.0, 1.0, 1.0))
         for axis in fig.axes:
             np.testing.assert_allclose(axis.get_facecolor(), (1.0, 1.0, 1.0, 1.0))
+        assert all(
+            axis.get_position().y0 >= renderer.DIAGNOSTIC_PANEL_BOTTOM
+            for axis in fig.axes[1:]
+        )
+        assert renderer.DIAGNOSTIC_PANEL_BOTTOM > renderer.VIDEO_CONTROL_SAFE_BOTTOM
+        assert (
+            renderer.DIAGNOSTIC_PANEL_BOTTOM + renderer.DIAGNOSTIC_PANEL_HEIGHT
+            < renderer.NETWORK_FOOTER_Y
+        )
         for frame in (0, 139, 140, 309, 310, 479, 480, 599):
             update(frame)
             fig.canvas.draw()
+            pixels = np.asarray(fig.canvas.buffer_rgba())
+            safe_rows = int(
+                np.ceil(pixels.shape[0] * renderer.VIDEO_CONTROL_SAFE_BOTTOM)
+            )
+            assert np.all(pixels[-safe_rows:, :, :3] == 255)
         assert len(fig.axes) == 7
         # Encoding is outside this fixture test; the real poster is rendered.
         output.write_bytes(b"fixture-video")

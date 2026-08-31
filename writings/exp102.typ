@@ -3,7 +3,7 @@
 #let meta = (
   status: "[≡ TXT | v28.0.0]",
   title: "SNNLANG developer documentation",
-  date: "2026-07-30",
+  created_at: "2026-07-30T00:00:00Z",
   description: "Start with the collection contents, learn the high-level development model, then use the concrete SNNLANG and graph-execution API reference.",
   collection: "snnlang-docs",
   order: 1,

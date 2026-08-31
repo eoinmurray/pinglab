@@ -8,8 +8,8 @@
 #let meta = (
   status: "[▦ DATA | v28.0.0]",
   title: "Dropped Spikes vs Added Noise",
-  date: "2026-05-30",
-  updated_at: "2026-08-31",
+  created_at: "2026-05-30T00:00:00Z",
+  updated_at: "2026-08-31T00:00:00Z",
   description: "Both trained networks tolerated substantial spike deletion, but PING accuracy fell more sharply under added spikes. The perturbations changed both recurrent feedback and readout input, so they do not isolate gamma gating.",
   collection: "gamma-gated-sparsity",
 )

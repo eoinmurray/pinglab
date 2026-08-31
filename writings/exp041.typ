@@ -8,8 +8,8 @@
 #let meta = (
   status: "[▦ DATA | v28.0.0]",
   title: "Firing Rate Tracks Gamma Frequency",
-  date: "2026-06-02",
-  updated_at: "2026-08-31",
+  created_at: "2026-06-02T00:00:00Z",
+  updated_at: "2026-08-31T00:00:00Z",
   description: "Across PING networks trained at different inhibitory decay times, compare excitatory firing rate with gamma frequency and test accuracy.",
   collection: "gamma-gated-sparsity",
 )

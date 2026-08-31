@@ -3,8 +3,8 @@
 #let meta = (
   status: "[≡ TXT | v28.0.0]",
   title: "Compute options",
-  updated_at: "2026-08-28",
-  date: "2026-08-11",
+  updated_at: "2026-08-28T00:00:00Z",
+  created_at: "2026-08-11T00:00:00Z",
   description: "A practical inventory of pinglab compute: when each machine or provider is appropriate, how access works, and the commands used to launch and monitor work.",
   collection: "pinglab-docs",
   order: 1,

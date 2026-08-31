@@ -15,8 +15,8 @@
 #let meta = (
   status: "[▦ DATA | v28.0.0]",
   title: "Lowet 2017",
-  date: "2026-08-19",
-  updated_at: "2026-08-31",
+  created_at: "2026-08-19T00:00:00Z",
+  updated_at: "2026-08-31T00:00:00Z",
   description: "Reduce coupling at fixed detuning and test whether two PING networks develop cortical-like intermittent phase attraction.",
   collection: "demo",
   order: 2,

@@ -3,8 +3,8 @@
 #let meta = (
   status: "[≡ TXT | v28.0.0]",
   title: "SNNSIM command-line guide",
-  updated_at: "2026-08-28",
-  date: "2026-07-06",
+  updated_at: "2026-08-28T00:00:00Z",
+  created_at: "2026-07-06T00:00:00Z",
   description: "Run a small simulation, choose the legacy or graph executor, and interpret the CLI options and output files.",
   collection: "snnsim-docs",
   order: 1,

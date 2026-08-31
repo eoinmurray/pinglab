@@ -640,8 +640,8 @@ def test_article_renders_explicit_evidence_without_false_branches(repo, view):
         return
     headings = re.findall(r"<h3\b[^>]*>(.*?)</h3>", html, re.S)
     assert sum(heading.startswith("References") for heading in headings) == 1
-    assert html.count('class="exp080-equation"') == 5
-    for number in range(1, 6):
+    assert html.count('class="exp080-equation"') == 3
+    for number in range(1, 4):
         assert f"<span>({number})</span>" in html
     assert len(re.findall(r"<img\b", html)) == 3
     for math in re.findall(r"<math\b.*?</math>", html, re.S):
@@ -650,7 +650,7 @@ def test_article_renders_explicit_evidence_without_false_branches(repo, view):
             assert "(" not in "".join(subscript[1].itertext())
     assert "over 50 decoder-training epochs" not in html
     if view == "crossed":
-        assert "The selected floor is 0.5 Hz" in html
+        assert "The selected floor was 0.5 Hz" in html
         assert "No rate met the criterion" not in html
     else:
         assert "No rate met the criterion" in html

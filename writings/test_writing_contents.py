@@ -14,6 +14,10 @@ from demolab_cli import _paths
 
 ROOT = Path(__file__).resolve().parents[1]
 ARTICLES = sorted((ROOT / "writings").glob("exp[0-9][0-9][0-9].typ"))
+GUIDE = (ROOT / "writings/README.md").read_text()
+CURRENT_GUIDE_VERSION = re.search(
+    r"^Version: \*\*(\d+\.\d+\.\d+)\*\*$", GUIDE, re.MULTILINE
+).group(1)
 SECTION_ORDINAL = re.compile(
     r"^(?:\d+(?:\.\d+)*\.?|[A-Z](?:\.\d+)+\.?)\s|^Appendix [A-Z][.:]\s"
 )
@@ -97,6 +101,35 @@ def test_results_heading_is_plain(article):
     for title in re.findall(r'^[ \t]*== (Results\b[^\n]*)', source, re.M):
         title = re.sub(r' <[^>]+>$', '', title)
         assert title == "Results", (article, title)
+
+
+@pytest.mark.parametrize("article", ARTICLES, ids=lambda path: path.stem)
+def test_current_articles_use_required_results_cards_and_method_groups(article):
+    source = article.read_text()
+    if f"| v{CURRENT_GUIDE_VERSION}]" not in source:
+        pytest.skip("article records an earlier applied Writing Guide version")
+
+    if re.search(r"^[ \t]*== Results[ \t]*$", source, re.MULTILINE):
+        result_body = re.split(
+            r"^[ \t]*== Results[ \t]*$", source, maxsplit=1, flags=re.MULTILINE
+        )[1]
+        result_body = re.split(
+            r"^[ \t]*== ", result_body, maxsplit=1, flags=re.MULTILINE
+        )[0]
+        subsections = re.findall(r"^[ \t]*=== ", result_body, re.MULTILINE)
+        cards = re.findall(r"^[ \t]*#result-card(?:\[|\()", result_body,
+                           re.MULTILINE)
+        assert len(cards) == len(subsections), article
+
+    if re.search(r"^[ \t]*== Methods[ \t]*$", source, re.MULTILINE):
+        method_body = re.split(
+            r"^[ \t]*== Methods[ \t]*$", source, maxsplit=1, flags=re.MULTILINE
+        )[1]
+        method_body = re.split(
+            r"^[ \t]*== ", method_body, maxsplit=1, flags=re.MULTILINE
+        )[0]
+        groups = re.findall(r"^[ \t]*=== ([^\n]+)$", method_body, re.MULTILINE)
+        assert groups == ["Compute", "Analyse", "Present"], article
 
 
 @pytest.mark.parametrize("article", ARTICLES, ids=lambda path: path.stem)

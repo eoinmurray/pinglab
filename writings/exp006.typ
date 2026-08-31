@@ -3,8 +3,8 @@
 #let meta = (
   status: "[≡ TXT | v28.0.0]",
   title: "Training",
-  updated_at: "2026-08-29",
-  date: "2026-05-14",
+  updated_at: "2026-08-29T00:00:00Z",
+  created_at: "2026-05-14T00:00:00Z",
   description: "How to configure legacy SNNSIM training, interpret checkpoints and readouts, and understand the gradients, regularisation, and initialization used by the implementation.",
   collection: "snnsim-docs",
   order: 4,

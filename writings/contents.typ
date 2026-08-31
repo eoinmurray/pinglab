@@ -17,8 +17,8 @@
   if target() == "html" {
     html.elem("style",
       ".pinglab-result-sections { counter-reset: pinglab-result; } "
-      + ".pinglab-result-sections > h4 { counter-increment: pinglab-result; } "
-      + ".pinglab-result-sections > h4::before { content: counter(pinglab-result) \". \"; }",
+      + ".pinglab-result-sections > h4, .pinglab-result-sections > article > h4:first-child { counter-increment: pinglab-result; } "
+      + ".pinglab-result-sections > h4::before, .pinglab-result-sections > article > h4:first-child::before { content: counter(pinglab-result) \". \"; }",
     )
     html.elem("section", attrs: (class: "pinglab-result-sections"), body)
   } else {

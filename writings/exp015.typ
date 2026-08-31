@@ -3,8 +3,8 @@
 #let meta = (
   status: "[≡ TXT | v28.0.0]",
   title: "Gradient Stabilisation",
-  date: "2026-06-12",
-  updated_at: "2026-08-29",
+  created_at: "2026-06-12T00:00:00Z",
+  updated_at: "2026-08-29T00:00:00Z",
   description: "What voltage-gradient damping changes in SNNSIM, how to check it, and how to diagnose unstable training without confusing local derivatives with a global stability guarantee.",
   collection: "snnsim-docs",
   order: 5,

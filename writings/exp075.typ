@@ -8,8 +8,8 @@
 #let meta = (
   status: "[▦ DATA | v28.0.0]",
   title: "A compiled graph learns",
-  updated_at: "2026-08-31",
-  date: "2026-07-31",
+  updated_at: "2026-08-31T00:00:00Z",
+  created_at: "2026-07-31T00:00:00Z",
   description: "A small compiled spiking classifier trains on MNIST with frozen recurrent weights.",
   collection: "snnlang-docs",
   order: 2,
