@@ -91,6 +91,7 @@ def plot_stream_headline(
     run_id: str,
     *,
     annotate_final_counts: bool = False,
+    segment_band_thumbnails: bool = False,
 ) -> None:
     """Exp048-Figure-1-style streaming headline for one or more trials."""
     theme.apply()
@@ -121,36 +122,34 @@ def plot_stream_headline(
         spine.set_visible(False)
     rates = np.asarray([condition[1] for condition in conditions], dtype=float)
     log_rates = np.log(rates)
-    centers = (starts_ms + stops_ms) / 2
-    spacing = np.diff(centers).min() if len(centers) > 1 else total_ms
-    width = min(0.085, spacing / total_ms * thumbnail_axis.get_position().width * 0.8)
-    width = min(
-        width,
-        (thumbnail_axis.get_position().height - 0.045)
-        * fig.get_figheight()
-        / fig.get_figwidth(),
-    )
-    height = width * fig.get_figwidth() / fig.get_figheight()
     for index, ((duration_ms, rate_hz), start_ms, stop_ms) in enumerate(
         zip(conditions, starts_ms, stops_ms, strict=True)
     ):
-        left = (
-            thumbnail_axis.get_position().x0
-            + (
-                (start_ms + stop_ms)
-                / 2
-                / total_ms
-                * (thumbnail_axis.get_position().x1 - thumbnail_axis.get_position().x0)
-            )
-            - width / 2
-        )
-        inset = fig.add_axes(  # ty: ignore[no-matching-overload]
-            [
-                left,
-                thumbnail_axis.get_position().y0 + 0.035,
+        axis_box = thumbnail_axis.get_position()
+        if segment_band_thumbnails:
+            width = (stop_ms - start_ms) / total_ms * axis_box.width * 0.88
+            left = axis_box.x0 + start_ms / total_ms * axis_box.width
+            bottom = axis_box.y0 + 0.005
+            height = axis_box.height - 0.02
+            aspect = "auto"
+            badge_y = 0.95
+        else:
+            centers = (starts_ms + stops_ms) / 2
+            spacing = np.diff(centers).min() if len(centers) > 1 else total_ms
+            width = min(0.085, spacing / total_ms * axis_box.width * 0.8)
+            width = min(
                 width,
-                height,
-            ]
+                (axis_box.height - 0.045)
+                * fig.get_figheight()
+                / fig.get_figwidth(),
+            )
+            height = width * fig.get_figwidth() / fig.get_figheight()
+            left = axis_box.x0 + (start_ms + stop_ms) / 2 / total_ms * axis_box.width - width / 2
+            bottom = axis_box.y0 + 0.035
+            aspect = "equal"
+            badge_y = -0.05
+        inset = fig.add_axes(  # ty: ignore[no-matching-overload]
+            [left, bottom, width, height]
         )
         alpha = 1.0
         if log_rates.max() > log_rates.min():
@@ -161,7 +160,7 @@ def plot_stream_headline(
             np.asarray(result["pixels"])[index].reshape(28, 28),
             cmap="Greys",
             interpolation="nearest",
-            aspect="equal",
+            aspect=aspect,
             alpha=alpha,
         )
         inset.set_xticks([])
@@ -171,7 +170,7 @@ def plot_stream_headline(
         )
         inset.text(
             0.05,
-            -0.05,
+            badge_y,
             f"{labels[index]}→{predictions[index]}",
             transform=inset.transAxes,
             ha="left",
@@ -300,7 +299,7 @@ def plot_stream_headline(
 
 def plot_variable_headline(result: dict[str, Any], path: Path, run_id: str) -> None:
     """Plot the variable-condition stream used as the exp048 successor."""
-    plot_stream_headline(result, path, run_id)
+    plot_stream_headline(result, path, run_id, segment_band_thumbnails=True)
 
 
 def plot_single_trial(result: dict[str, Any], path: Path, run_id: str) -> None:

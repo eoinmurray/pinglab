@@ -9,7 +9,7 @@
   status: "[▦ DATA]",
   title: "Spike-Count Classification in a Continuous Stream",
   date: "2026-08-10",
-  updated_at: "2026-08-30",
+  updated_at: "2026-08-31",
   description: "A multi-seed study of spike-count classification across input rates and presentation durations.",
   collection: "gamma-gated-sparsity",
 )

@@ -202,6 +202,39 @@ def test_compact_rate_ticks_do_not_overlap(tmp_path, monkeypatch):
     assert all(a.x1 < b.x0 for a, b in zip(boxes, boxes[1:]))
 
 
+def test_variable_stream_uses_exp048_segment_band_thumbnails(tmp_path, monkeypatch):
+    import matplotlib.pyplot as plt
+
+    conditions = recipe.VARIABLE_STREAM
+    lengths = [round(duration / recipe.DT_MS) for duration, _ in conditions]
+    boundaries = np.cumsum([0, *lengths]).tolist()
+    n = boundaries[-1]
+    result = {
+        "conditions": conditions,
+        "boundaries": boundaries,
+        "labels": [9, 1, 6, 7, 0],
+        "predictions": [0, 1, 5, 7, 0],
+        "pixels": np.zeros((len(conditions), recipe.N_INPUT), dtype=np.float32),
+        "spikes_e": np.zeros((n, 1024), dtype=np.int8),
+        "spikes_i": np.zeros((n, 256), dtype=np.int8),
+        "probabilities": np.full((n, recipe.N_CLASSES), 0.1, dtype=np.float32),
+        "final_counts": np.zeros(recipe.N_CLASSES, dtype=np.int64),
+        "winner": 0,
+    }
+    saved = []
+    monkeypatch.setattr(plt, "close", lambda fig: saved.append(fig))
+    present.plots.plot_variable_headline(result, tmp_path / "stream.png", "review")
+    figure = saved[-1]
+    image_axes = [axis for axis in figure.axes if axis.images]
+    widths = np.array([axis.get_position().width for axis in image_axes])
+    durations = np.array([condition[0] for condition in conditions])
+
+    assert len(image_axes) == len(conditions)
+    assert np.allclose(widths / widths[0], durations / durations[0])
+    assert all(axis.get_aspect() == "auto" for axis in image_axes)
+    assert all(axis.texts[0].get_position()[1] == 0.95 for axis in image_axes)
+
+
 def fake_plots(monkeypatch):
     for name in (
         "plot_single_trial",

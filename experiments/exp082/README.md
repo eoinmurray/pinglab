@@ -63,8 +63,9 @@ The package's bare entry point rejects monolithic execution.
   Review corrected the labels to the actual displayed first 200 E and 64 I
   cells; full-population measurements and retained recordings are unchanged.
   Count-share labels no longer imply calibrated probabilities. Rate ticks and
-  square image thumbnails were adjusted for legibility, and figure run stamps
-  were removed; provenance remains in the authoritative run records.
+  figure run stamps remain corrected. The variable-stream thumbnails now use
+  exp048 Figure 1's duration-proportional segment bands, while the single-trial
+  thumbnail remains square; provenance remains in the authoritative run records.
 
 `PINGLAB_SMOKE=1` preserves the smaller 18-condition grid, one three-digit stream
 per cell, and both full illustrative streams. Existing direct-compute pilot
@@ -118,9 +119,10 @@ full E/I/output raster equivalence are required before atomic completion.
 The one-off importer was retired; its executed code remains in run provenance.
 
 The completed chain is `exp022-r001-compute` → `exp082-r001-compute`
-(historical import) → `exp082-r002-analyse` → `exp082-r005-present`.
-Earlier presentations r003/r004 remain immutable; r005 includes all visual
-corrections. These are local, unmaterialized runs, not published selections.
+(historical import) → `exp082-r002-analyse` → `exp082-r006-present`.
+Earlier presentations r003–r005 remain immutable; r006 aligns the variable-stream
+thumbnail panel with exp048 Figure 1 without changing retained scientific data.
+These are local, unmaterialized runs, not published selections.
 
 ## Verification and outstanding work
 
@@ -140,8 +142,8 @@ The final combined regression passed **461 tests**: dedicated exp082,
 checkpoint-role, collection, multiseed, Pingstore, writing inputs/status/contents,
 and simulator model tests. Historical-import tests cover explicit provenance,
 aggregate consistency, live-metadata rejection, independent analysis and atomic
-failure. Visual regressions check raster labels, equal undistorted thumbnails,
-non-overlapping rate ticks, actual simulator entry-point existence, and both
+failure. Visual regressions check raster labels, duration-proportional segment-band
+thumbnails, non-overlapping rate ticks, actual simulator entry-point existence, and both
 HTML and paged article rendering with correct equation indices. An unavailable
 input renders the shared notice without invented results.
 Ruff for the exp082 package/dedicated tests, the exp082 type check and diff
