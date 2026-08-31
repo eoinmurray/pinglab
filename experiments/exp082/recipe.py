@@ -21,17 +21,28 @@ DT_MS = 0.1
 STREAMS_PER_CELL, DIGITS_PER_STREAM, STREAM_BATCH_SIZE = 40, 5, 5
 EVALUATION_PROFILE = "production"
 VARIABLE_STREAM = ((200.0, 0.5), (50.0, 25.0), (100.0, 2.0), (25.0, 10.0), (200.0, 5.0))
+# Illustration candidates use the dense, 200-ms operating regime quantified by
+# the psychometric analysis. Candidate identity is fixed before inference; the
+# first 5/5 stream and first 3/5 stream are retained.
+SHOWCASE_CONDITIONS = tuple((200.0, rate) for rate in (5.0, 7.5, 10.0, 15.0, 25.0))
+SHOWCASE_DIGIT_SEED_BASE = 820_000
+SHOWCASE_ENCODING_SEED_BASE = 830_000
+SHOWCASE_CANDIDATE_LIMIT = 100
+SHOWCASE_TARGETS = {"hero": 5, "alternative": 3}
 SINGLE_TRIAL_TRANSITION_WINDOW_MS = (91.5, 94.5)
 CLASS_PROBABILITY_TICKS = (0.0, 0.25, 0.5, 0.75, 1.0)
 FIGURES = (
+    "hero_stream.png",
+    "alternative_stream.png",
     "single_trial.png",
     "single_trial_transition.png",
     "matched_stream.png",
     "variable_stream.png",
     "psychometric_200ms.svg",
     "duration_rate_summary.png",
-    "shared_design_schematic.svg",
 )
+
+
 def training_cell_name(seed):
     return training_run_cell("TR-06", seed=seed)["name"]
 

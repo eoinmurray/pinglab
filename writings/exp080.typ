@@ -1,4 +1,4 @@
-#import "contents.typ": with-contents
+#import "contents.typ": with-contents, with-result-sections
 #import "/.demolab/lib.typ": data-json, data-image
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
 #import "run-view.typ": with-datasets, run-view
@@ -10,7 +10,7 @@
   status: "[▦ DATA]",
   title: "Calibrating Accuracy Across Input Rates",
   date: "2026-08-10",
-  updated_at: "2026-08-29",
+  updated_at: "2026-08-31",
   description: "Direct-simulation decoder calibration of the input-rate range for later variable-rate PING training.",
   collection: "gamma-gated-sparsity",
 )
@@ -42,26 +42,20 @@
 #let body = [
   == Abstract
 
-  #if criterion-crossed [All three nonlinear decoders reached the
-  #pct(p.useful_accuracy) accuracy criterion at #d.r_train_hz Hz, selecting
-  #d.recommendation.floor_hz–#d.recommendation.ceiling_hz Hz as the tested
-  calibration interval.] else [No tested rate reached the
-  #pct(p.useful_accuracy) accuracy criterion for every decoder, so the
-  calibration did not establish a lower bound.]
-  I trained #p.seeds.len() decoders on freshly simulated MNIST features at
-  #p.rates_hz.len() input rates, using synaptic and membrane filtering over
-  #p.presentation_ms ms. Frozen validation-selected decoders were evaluated on
-  #p.test_count held-out images per rate. #if criterion-crossed [Mean accuracy
-  at the selected floor was
-  #pct(d.rows.filter(row => row.rate_hz == d.r_train_hz).first().accuracy).]
-  This interval calibrates the feature representation and decoder; it does not
-  measure PING-network accuracy or establish performance between tested rates.
-
-  #run-view("exp080", inputs)
+  - Asked which input-rate regime makes filtered pixel features sufficiently
+    informative for a downstream MNIST decoder.
+  - Simulated the synaptic and membrane feature pipeline, trained nonlinear
+    decoders across input rates and evaluated frozen checkpoints on held-out digits.
+  - The decoders established a tested interval where the feature representation
+    supported useful classification, with weak-drive conditions remaining inadequate.
+  - Calibrates the feature and decoder pipeline, not PING-network accuracy or
+    performance between the explicitly tested rates.
 
   == Results
 
-  === Decoder training
+  #with-result-sections[
+
+  === Mixed-rate decoder validation accuracy across training
 
   The first validation maximum selected each decoder; selected epochs were
   #r.training.map(record => str(record.selected_epoch)).join(", ").
@@ -73,7 +67,7 @@
       trained decoders, using fresh feature simulations each epoch.],
   )
 
-  === What the decoder saw
+  === Filtered digit features at 0.5, 5 and 25 Hz
 
   Sparse input left fragments of the digit rather than a uniformly attenuated
   image.
@@ -90,7 +84,7 @@
       simulation.]],
   )
 
-  === Empirical rate selection
+  === Held-out decoder accuracy across tested input rates
 
   #if criterion-crossed [The selected floor was #d.r_train_hz Hz, with mean
   accuracy
@@ -107,6 +101,8 @@
       accuracy, not a confidence interval. Rules mark 10% chance and the
       #pct(p.useful_accuracy) criterion.],
   )
+
+  ]
 
   == Methods
 
@@ -175,6 +171,8 @@
       was used. An empty qualifying set was reported as right-censored.],
   )
 
+  #run-view("exp080", inputs)
+
   == Appendix: Finite-window filtering and interpretation
 
   The random spikes form _shot noise_: each produces a discrete conductance
@@ -216,7 +214,7 @@
 } else {
   pending-report(
     data-file, inputs,
-    [How does input rate affect classification accuracy? Calibrate the rate-response curve using controlled visual features and a retained training history.],
+    [How does input rate affect classification accuracy? Calibrate the rate-response curve using controlled visual features and a recorded training history.],
     preview-figures, json-inputs: ("exp080",),
   )
 }

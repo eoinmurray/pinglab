@@ -46,9 +46,9 @@
 #let run-view(article, inputs) = context {
   if target() == "html" {
     let interactive = sys.inputs.at("demolab-dev", default: "false") == "true"
-    heading(level: 2)[Datasets]
+    heading(level: 2)[Dataset]
     html.elem("style", ".run-view {margin:1rem 0 2rem;border:1px solid var(--rule-strong,#ddd);border-radius:.35rem;font-size:.85rem;overflow-x:auto;} .run-view .run-dependencies {display:grid;grid-template-columns:max-content minmax(0,1fr);gap:.35rem 1rem;margin:0;padding:.7rem .8rem;border-bottom:1px solid var(--rule-strong,#ddd);} .run-view .run-dependencies dt {font-weight:600;color:var(--muted,#666);} .run-view .run-dependencies dd {margin:0;} .run-view .run-dependencies a {white-space:nowrap;} .run-view table {width:100%;margin:0;border:0;border-collapse:collapse;font-size:inherit;} .run-view th,.run-view td {padding:.6rem .8rem;text-align:left;vertical-align:baseline;border:0;border-bottom:1px solid var(--rule-strong,#ddd);} .run-view th {font-weight:600;color:var(--muted,#666);} .run-view tbody tr:last-child td {border-bottom:0;} .run-view .run-name {white-space:nowrap;} .run-view .run-date,.run-view .run-origin {color:var(--muted,#666);} .run-view .run-date {min-width:7.5em;white-space:nowrap;} .run-view .run-duration {white-space:nowrap;font-variant-numeric:tabular-nums;} .run-view .run-size {text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums;} .run-view [aria-current=true] {font-weight:600;}")
-    html.elem("aside", attrs: (class: "run-view", "aria-label": "Datasets"), {
+    html.elem("aside", attrs: (class: "run-view", "aria-label": "Dataset"), {
       let dependencies = catalogue.at("experiment_dependencies", default: (:)).at(article, default: (:))
       html.elem("dl", attrs: (class: "run-dependencies"), {
         for (direction, label) in (("upstream", "Upstream"), ("downstream", "Downstream")) {
@@ -65,7 +65,7 @@
           })
         }
       })
-      html.elem("table", attrs: ("aria-label": "Datasets"), {
+      html.elem("table", attrs: ("aria-label": "Dataset"), {
         html.elem("thead", html.elem("tr", {
           for (label, class) in (("Run", "run-name"), ("Date", "run-date"), ("Duration", "run-duration"), ("Size", "run-size"), ("Origin", "run-origin")) {
             html.elem("th", attrs: (scope: "col", class: class), label)
@@ -115,7 +115,7 @@
                 class: "run-duration",
                 title: if scientific != none {
                   let total = if scientific.job_seconds != none {
-                    " Sum of " + str(scientific.jobs) + " retained completed attempts: " + str(calc.round(scientific.job_seconds / 3600, digits: 2)) + " job-hours; excludes unretained attempts."
+                    " Sum of " + str(scientific.jobs) + " recorded completed attempts: " + str(calc.round(scientific.job_seconds / 3600, digits: 2)) + " job-hours; excludes unrecorded attempts."
                   } else { "" }
                   let operation = if imported and elapsed != none {
                     " Import operation: " + str(elapsed) + " seconds (excluded)."
@@ -163,17 +163,12 @@
   if placed { return body }
   let parts = dataset-parts(body)
   let headings = parts.enumerate().filter(((index, item)) => item.func() == heading)
-  let abstracts = headings.filter(((index, item)) => {
-    lower(dataset-heading-text(item.body)).trim().match(regex("^([0-9]+[.]?\\s+)?abstract$")) != none
+  let end-matter = headings.filter(((index, item)) => {
+    let title = lower(dataset-heading-text(item.body)).trim()
+    dataset-heading-level(item) == 2 and (
+      title == "references" or title.match(regex("^appendix(?:[.:]|\\s|$)")) != none
+    )
   })
-  let position = parts.len()
-  if abstracts.len() > 0 {
-    let (index, abstract) = abstracts.first()
-    let following = headings.filter(((next, item)) => next > index and dataset-heading-level(item) <= dataset-heading-level(abstract))
-    if following.len() > 0 { position = following.first().first() }
-  } else if headings.len() > 0 {
-    // Reference pages keep their introduction, if any, before the datasets section.
-    position = headings.first().first()
-  }
+  let position = if end-matter.len() > 0 { end-matter.first().first() } else { parts.len() }
   parts.slice(0, position).join() + run-view(article, inputs) + parts.slice(position).join()
 }

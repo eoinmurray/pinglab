@@ -1,4 +1,4 @@
-#import "contents.typ": with-contents
+#import "contents.typ": with-contents, with-result-sections
 #import "/.demolab/lib.typ": data-json, data-image, cite, reference-list
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
 #import "run-view.typ": with-datasets, run-view
@@ -9,7 +9,7 @@
   status: "[▦ DATA]",
   title: "Dropped Spikes vs Added Noise",
   date: "2026-05-30",
-  updated_at: "2026-08-29",
+  updated_at: "2026-08-31",
   description: "Both trained networks tolerated substantial spike deletion, but PING accuracy fell more sharply under added spikes. The perturbations changed both recurrent feedback and readout input, so they do not isolate gamma gating.",
   collection: "gamma-gated-sparsity",
 )
@@ -57,22 +57,20 @@
 
   == Abstract
 
-  Both trained networks tolerated substantial spike deletion, whereas added
-  spikes reduced PING accuracy much more sharply than COBA accuracy. I
-  reanalysed retained MNIST evaluations from three independently trained seeds
-  per model on #eval_n test images. At 80% deletion probability, PING scored
-  #acc("ping", "drop", 0.8)% and COBA #acc("coba", "drop", 0.8)%; deleting all
-  spikes reduced both to #acc("ping", "drop", 1.0)%. At the largest nominal
-  added rate (#add_max Hz per neuron), PING scored #acc("ping", "add", add_max)%
-  and COBA #acc("coba", "add", add_max)%. This asymmetry constrains robustness
-  of these trained networks, but does not separate recurrent timing from
-  firing-rate or readout effects.
-
-  #run-view("exp037", inputs)
+  - Asked whether trained COBA and PING classifiers fail differently when hidden
+    spikes are removed or spurious spikes are inserted during inference.
+  - Replayed validation-selected networks under matched deletion and insertion
+    perturbations without retraining them.
+  - Both architectures tolerated substantial deletion, while added spikes
+    damaged PING accuracy much more sharply than COBA accuracy.
+  - Reveals an asymmetric robustness profile, but does not separate recurrent
+    timing from firing-rate and readout effects.
 
   == Results
 
-  === Deletion and insertion have different effects
+  #with-result-sections[
+
+  === Test accuracy under spike deletion and insertion
 
   Unperturbed PING/COBA accuracies were #acc("ping", "drop", 0)%/
   #acc("coba", "drop", 0)%.
@@ -93,7 +91,7 @@
     ],
   )
 
-  === PING rasters retain bands under partial deletion
+  === PING rasters across spike-deletion probabilities
 
   Banding remained visible at partial deletion, although these illustrative
   rasters provide no quantitative phase-coherence or gamma-frequency estimate.
@@ -102,11 +100,17 @@
     report-image("exp037/perturb_rasters__drop__ping.png",
       "Three PING rasters at deletion probabilities 0, 0.5 and 1: visible bands remain at partial deletion; full deletion leaves no recorded spikes."),
     caption: [
-      Retained seed-42 trials of #trial-description at deletion probabilities
+      Seed-42 trials of #trial-description shown at deletion probabilities
       0, 0.5 and 1. E spikes (black) are below I spikes (red). The display samples
       200 E and 64 I neurons; annotated E rates use the full population.
     ],
   )
+
+  === PING rasters across inserted-spike rates
+
+  Inserted spikes increasingly obscured the bands, but this alone does not
+  establish that an underlying oscillator disappeared.
+
   #figure(
     report-image("exp037/perturb_rasters__add__ping.png",
       "Three PING rasters at nominal added rates 0, 20 and 40 Hz: dense inserted spikes increasingly obscure the unperturbed banding."),
@@ -118,25 +122,27 @@
     ],
   )
 
-  Inserted spikes increasingly obscured the bands, but this alone does not
-  establish that an underlying oscillator disappeared.
-
-  === COBA activity thins or increases with the intervention
+  === COBA rasters across spike-deletion probabilities
 
   E activity thinned as deletion increased and vanished at full deletion. This
   qualitative pattern does not imply accuracy was unchanged across the deletion
-  sweep. Under insertion, E activity increased and imposed I spikes appeared
-  despite disabled recurrent coupling. The denser unperturbed COBA population
-  means equal nominal rates are not equal fractional perturbations across models.
+  sweep.
 
   #figure(
     report-image("exp037/perturb_rasters__drop__coba.png",
       "Three COBA rasters at deletion probabilities 0, 0.5 and 1: E activity thins and becomes silent at full deletion."),
     caption: [
-      Retained seed-42 COBA trials of #trial-description, with the same
+      Seed-42 COBA trials of #trial-description shown with the same
       display sampling. Panels show deletion probabilities 0, 0.5 and 1.
     ],
   )
+
+  === COBA rasters across inserted-spike rates
+
+  Under insertion, E activity increased and imposed I spikes appeared despite
+  disabled recurrent coupling. The denser unperturbed COBA population means
+  equal nominal rates are not equal fractional perturbations across models.
+
   #figure(
     report-image("exp037/perturb_rasters__add__coba.png",
       "Three COBA rasters at nominal added rates 0, 20 and 40 Hz: E activity grows and imposed I spikes appear despite disabled recurrent coupling."),
@@ -148,9 +154,11 @@
   )
 
   #block(sticky: true)[
+  ]
+
     == Methods
 
-    I reused trained networks and retained inference trials to compare deletion
+    I reused trained networks and recorded inference trials to compare deletion
     and insertion of hidden spikes, without retraining.
   ]
   #set math.equation(numbering: "(1)")
@@ -164,7 +172,7 @@
     selecting the minimum-validation-loss epoch, not the maximum-accuracy epoch.
     During training, voltage-increment gradients were divided by 1,000 for PING
     and 1 for COBA; these are different trained recipes, not an isolated loop control.
-    The wider retained activity-penalty comparison is described in
+    The wider activity-penalty comparison is described in
     #link("/exp025/")[the training activity-frontier study].
 
   + *Perturb emitted spikes.* Each trial lasted #cfg.t_ms ms at timestep
@@ -192,7 +200,7 @@
     Illustrative trials used seed 42 and test-image index 0, independently of
     digit-class selection.
 
-  + *Normalize the nominal added rate.* I retained the original normalization:
+  + *Normalize the nominal added rate.* I preserved the original normalization:
     $ x_"add" = frac(100 r_"add", overline(r)_(E,"ref")) $ <eq-normalize>
     Here $x_"add"$ is the displayed percentage and $overline(r)_(E,"ref")$ is the
     model's three-seed mean E rate in Hz from final-epoch reference-image
@@ -200,6 +208,8 @@
     classifiers' test evaluations; it is not a test-set firing-rate baseline.
     The full sampled range is displayed, without treating normalization as a
     matched-dose experiment.
+
+  #run-view("exp037", inputs)
 
   == Appendix. Within-step dynamics
 
@@ -234,7 +244,7 @@
   render-report(data-file)
 } else {
   pending-report(data-file, inputs,
-    [How do trained COBA and PING networks respond to deletion and insertion of hidden spikes? Compare retained inference trials from validation-selected classifiers.],
+    [How do trained COBA and PING networks respond to deletion and insertion of hidden spikes? Compare recorded inference trials from validation-selected classifiers.],
     preview-figures, json-inputs: ("exp037",))
 }
 

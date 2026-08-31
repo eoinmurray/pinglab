@@ -91,7 +91,7 @@
   + *Inspect the optimizer diagnostics.* The legacy trainer records gradient norms and skipped updates. It clips the assembled gradient to norm 1 and skips an update if that norm is non-finite. Clipping cannot make an already invalid gradient informative.
   + *Change one control at a time.* Compare positive damping values while keeping the seed, input, duration, timestep, initialization, and optimizer settings fixed. Lower learning rate and stronger damping are different interventions.
   + *Check learning as well as finiteness.* Stronger damping also reduces useful conductance-input sensitivities. A finite loss with negligible learning is not sufficient evidence of a good setting.
-  + *Keep the scope of the check explicit.* The helper assertion verifies its local derivative. Establishing training stability or accuracy requires a separately authorized experiment, with retained diagnostics and validation results.
+  + *Keep the scope of the check explicit.* The helper assertion verifies its local derivative. Establishing training stability or accuracy requires a separately authorized experiment, with recorded diagnostics and validation results.
 
   #link("/exp006/")[Previous: Training] · #link("/exp011/")[Back to SNNSIM command-line guide]
 ]

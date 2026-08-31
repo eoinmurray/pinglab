@@ -1,4 +1,4 @@
-#import "contents.typ": with-contents
+#import "contents.typ": with-contents, with-result-sections
 #import "/.demolab/lib.typ": data-json, data-image, cite, reference-list
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
 #import "run-view.typ": with-datasets, run-view
@@ -9,7 +9,7 @@
   status: "[▦ DATA]",
   title: "Switching On the Inhibitory Loop",
   date: "2026-05-30",
-  updated_at: "2026-08-29",
+  updated_at: "2026-08-31",
   description: "Enabling an inhibitory loop after feedforward training reduced excitatory firing but lowered classification accuracy; the experiment does not isolate a benefit of gamma timing.",
   collection: "gamma-gated-sparsity",
 )
@@ -43,21 +43,20 @@
 #let body = [
   == Abstract
 
-  Enabling an inhibitory loop after feedforward training reduced mean excitatory
-  firing from approximately #rate_off to #rate_on Hz, a #rate_ratio\-fold decrease,
-  while MNIST test accuracy fell from approximately #acc_off% to #acc_on%.
-  I reanalysed retained observations from three independently trained networks,
-  keeping learned input and readout weights fixed while varying bidirectional
-  loop coupling. Illustrative rasters showed increasingly grouped E/I bursts
-  without retraining. The intervention demonstrates suppression after training,
-  but does not isolate a benefit of gamma timing or establish that retraining
-  would recover accuracy.
-
-  #run-view("exp038", inputs)
+  - Asked what happens when reciprocal inhibition is added after a feedforward
+    classifier has already been trained.
+  - Kept the learned input and readout weights fixed while progressively enabling
+    bidirectional excitatory–inhibitory coupling during inference.
+  - Stronger coupling grouped activity into bursts and sharply suppressed
+    excitatory firing, but also reduced classification accuracy.
+  - Demonstrates post-training rate suppression, not a benefit of gamma timing
+    or evidence that retraining would recover the lost accuracy.
 
   == Results
 
-  === Lower firing with an accuracy cost
+  #with-result-sections[
+
+  === Population rates and accuracy across reciprocal loop strength
 
   At full loop strength, E rate fell from approximately #rate_off to #rate_on Hz,
   I rate reached #inhibition_on Hz, and accuracy fell by #acc_cost percentage
@@ -75,7 +74,7 @@
     ],
   )
 
-  === Burst structure across loop strength
+  === PING rasters across reciprocal loop strength
 
   Burst grouping increased across the sampled loop strengths. These illustrative
   panels do not estimate gamma frequency or establish a continuous transition.
@@ -91,10 +90,12 @@
     ],
   )
 
+  ]
+
   == Methods
 
   I reused networks from the #link("/exp022/")[shared training study] and
-  reanalysed retained inference observations. No new training or simulation
+  reanalysed recorded inference observations. No new training or simulation
   was performed for this account.
 
   + *Reuse trained classifiers.* MNIST handwritten digits #cite(1) supplied
@@ -132,11 +133,13 @@
     with and without the loop. Uniform independent Poisson inputs covered
     26 rates between 0 and 100 Hz, with 32 trials per rate; a separate trained-loop
     probe used one test image at ten maximum pixel rates from 0 to approximately
-    23.08 Hz. These retained firing curves complement the
+    23.08 Hz. These recorded firing curves complement the
     #link("/exp023/")[architectural response-to-drive study]; they are not
     additional loop-transfer accuracy evaluations.
 
-  == Appendix: Retained training and probe settings
+  #run-view("exp038", inputs)
+
+  == Appendix: Training and probe settings
 
   #table(
     columns: 2,
@@ -151,7 +154,7 @@
     [Excitatory / inhibitory synaptic decay], [2 / 6 ms],
   )
 
-  The broader retained activity frontier contains 36 classifiers: two network
+  The broader activity frontier contains 36 classifiers: two network
   configurations, three seeds, and six activity conditions (penalty off or
   ceilings of 25, 10, 5, 2.5 and 1 Hz). Its summaries preserve selected and
   final-epoch validation accuracy, final-epoch training E rate, and across-seed

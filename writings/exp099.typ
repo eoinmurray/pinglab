@@ -1,4 +1,4 @@
-#import "contents.typ": with-contents
+#import "contents.typ": with-contents, with-result-sections
 #import "/.demolab/lib.typ": data-image, cite, reference-list
 #import "run-inputs.typ": video
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
@@ -10,7 +10,7 @@
   status: "[▦ DATA]",
   title: "From simplified to brainlike input in a PING network",
   created_at: "2026-08-26",
-  updated_at: "2026-08-29",
+  updated_at: "2026-08-31",
   description: "A planned simulation scout comparing a Börgers–Kopell-like input regime with a richer conductance-based background.",
   collection: "demo",
   order: 13,
@@ -21,22 +21,20 @@
 #let render-report(data-file) = [
   == Abstract
 
-  I plan to compare simplified and richer input in the same sparse
-  excitatory–inhibitory spiking network. First, I will seek stable
-  pyramidal–interneuron network gamma (PING) under stationary drive with independent
-  noise. I will then add private and shared conductance fluctuations, cellular
-  heterogeneity, correlated afferent spikes, and slow stationary modulation to
-  test whether the rhythm persists or becomes intermittent. The current probe
-  implements only the richer-input condition: 400 excitatory and 100 inhibitory
-  neurons received a transient afferent bout during a two-second simulation.
-  Its working media illustrate the probe; they do not establish the planned
-  controlled comparison or identify which input features preserve PING.
-
-  #run-view("exp099", inputs)
+  - Plans to test whether PING survives when simplified stationary drive is
+    replaced by more brainlike, heterogeneous and correlated input.
+  - The intended comparison will add input complexity in stages while keeping the
+    same sparse excitatory–inhibitory network.
+  - The current implementation contains only a richer-input activity probe and
+    therefore cannot yet show how the rhythm changes relative to a simple baseline.
+  - Its working media demonstrate the probe, not the planned controlled comparison
+    or the input features responsible for preserving PING.
 
   == Results
 
-  === Network structure
+  #with-result-sections[
+
+  === Excitatory–inhibitory network and afferent-input schematic
 
   #figure(
     data-image(data-file("exp099/network.svg"), width: 100%),
@@ -45,7 +43,7 @@
     kind: image, supplement: [Figure],
   )
 
-  === Richer-input probe
+  === Single-seed richer-input activity probe
 
   #let clip = data-file("exp099/richer-input-ai-to-intermittent-ping.mp4")
   // Missing files in a selected run remain errors, not empty-run placeholders.
@@ -60,6 +58,8 @@
       this probe, not a probability of PING.],
     kind: image, supplement: [Figure],
   )
+
+  ]
 
   == Methods
 
@@ -110,7 +110,7 @@
     1,800 ms. These single-seed descriptors do not establish a causal input
     effect or classify a rhythm as PING by themselves.
 
-  == References
+  #run-view("exp099", inputs)
 
   #reference-list((
     (text: [Börgers, C. & Kopell, N. — _Synchronization in Networks of Excitatory

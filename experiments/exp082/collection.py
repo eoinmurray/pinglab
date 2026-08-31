@@ -10,7 +10,15 @@ from pingstore.stages import reserve_stage, stage_reservation
 
 from . import inputs, recipe
 
-STAGES = ("compute", "analyse", "present")
+STAGES = ("compute", "showcase", "analyse", "present")
+
+
+def _stage(name):
+    return "compute" if name == "showcase" else name
+
+
+def _module(name):
+    return "illustrate" if name == "showcase" else name
 
 
 def environment(plan):
@@ -48,10 +56,12 @@ def references(repo: Path, row: dict) -> dict:
                 raise PingstoreError("exp082 campaign has incomplete stage lineage")
             break
         ref = document[stage]
-        source = inputs.source(repo, ref["run_id"], stage, reference=ref)
+        source = inputs.source(repo, ref["run_id"], _stage(stage), reference=ref)
         expected = {"bank": document["bank"]}
         if stage == "analyse":
-            expected["compute"] = document["compute"]
+            expected.update(
+                compute=document["compute"], showcase=document["showcase"]
+            )
         elif stage == "present":
             expected = {"analysis": document["analyse"]}
         if source.record["inputs"] != expected:
@@ -83,12 +93,12 @@ def reserve(repo: Path, row: dict, *, origin: str | None = None) -> dict:
             if (
                 record["run_id"] == identity
                 and record["experiment"] == recipe.SLUG
-                and record["stage"] == stage
+                and record["stage"] == _stage(stage)
                 and not (temporary / ".writer.lock").exists()
             ):
                 continue
         identities[stage] = reserve_stage(
-            repo / ".pingstore", recipe.SLUG, stage, origin=origin
+            repo / ".pingstore", recipe.SLUG, _stage(stage), origin=origin
         )
     write_json_atomic(path, identities)
     return identities
@@ -150,14 +160,19 @@ def execute(repo: Path, plan: dict, row: dict) -> dict:
         command = [
             sys.executable,
             "-m",
-            f"experiments.exp082.{stage}",
+            f"experiments.exp082.{_module(stage)}",
             "--run-id",
             identities[stage],
         ]
-        upstream = {"compute": "bank", "analyse": "compute", "present": "analyse"}[
-            stage
-        ]
+        upstream = {
+            "compute": "bank",
+            "showcase": "bank",
+            "analyse": "compute",
+            "present": "analyse",
+        }[stage]
         command += ["--source", refs[upstream]["run_id"]]
+        if stage == "analyse":
+            command += ["--showcase-source", refs["showcase"]["run_id"]]
         if stage == "compute":
             temporary = repo / ".pingstore/runs" / f".{identities[stage]}.tmp"
             if (temporary / ".scratch/shards").exists():
@@ -171,7 +186,7 @@ def execute(repo: Path, plan: dict, row: dict) -> dict:
             text=True,
         )
         print(result.stdout, end="")
-        output = inputs.source(repo, identities[stage], stage)
+        output = inputs.source(repo, identities[stage], _stage(stage))
         refs[stage] = output.reference
         write_json_atomic(Path(row["required_outputs"][0]), refs)
         references(repo, row)

@@ -338,9 +338,9 @@ def test_selected_article_renders_results_before_methods(lab):
     assert headings == [
         "Table of Contents",
         "Abstract",
-        "Datasets",
         "Results",
         "Methods",
+        "Dataset",
         "References",
     ]
     assert "A required run is unavailable" not in html

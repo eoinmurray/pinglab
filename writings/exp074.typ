@@ -1,4 +1,4 @@
-#import "contents.typ": with-contents
+#import "contents.typ": with-contents, with-result-sections
 #import "/.demolab/lib.typ": data-json, data-image, cite, reference-list
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
 #import "run-view.typ": with-datasets, run-view
@@ -8,7 +8,7 @@
 #let meta = (
   status: "[▦ DATA]",
   title: "From Python graph to spikes",
-  updated_at: "2026-08-28",
+  updated_at: "2026-08-31",
   date: "2026-07-31",
   description: "A compiled excitatory–inhibitory network responds to a controlled spike input.",
   collection: "snnlang-docs",
@@ -28,21 +28,19 @@
 #let body = [
   == Abstract
 
-  I executed a compiled excitatory–inhibitory network from a Python-authored
-  graph using an explicit spike input. Across #r.config.n_batch trials of
-  #r.config.t_ms ms, the realised input rate was
-  #calc.round(r.input.realised_rate_hz, digits: 2) Hz; mean excitatory and
-  inhibitory rates were #calc.round(r.output.rate_e_hz, digits: 2) and
-  #calc.round(r.output.rate_i_hz, digits: 2) Hz. The retained topology and aligned
-  input/output rasters demonstrate that the compiled description can drive a
-  spiking simulation. This is an integration demonstration, not a test of a
-  neuroscientific mechanism.
-
-  #run-view("exp074", inputs)
+  - Asked whether a Python-authored graph can be compiled into an executable
+    excitatory–inhibitory spiking network.
+  - Supplied explicit input spikes to the compiled graph and retained aligned
+    topology, input and population-activity evidence.
+  - The compiled description produced the expected excitatory and inhibitory
+    simulation outputs from the supplied input.
+  - Demonstrates the graph-to-simulation integration path, not a neuroscientific mechanism.
 
   == Results
 
-  === Compiled network
+  #with-result-sections[
+
+  === Compiled PING classifier topology
 
   #figure(data-image(data-file("exp074/network.svg"), width: 100%),
     caption: [Compiled topology with #r.config.n_e excitatory neurons,
@@ -50,7 +48,7 @@
       The complete graph contains #r.graph.populations populations and
       #r.graph.projections projections.])
 
-  === Aligned input and response
+  === Aligned input, excitatory and inhibitory spike rasters
 
   #figure(data-image(data-file("exp074/rasters.png"), width: 100%),
     caption: [Input, excitatory and inhibitory spikes in trial
@@ -59,6 +57,8 @@
       #r.output.display_trial_spikes.e excitatory and
       #r.output.display_trial_spikes.i inhibitory events. Rates in the abstract
       aggregate all #r.config.n_batch trials, not only this illustrative raster.])
+
+  ]
 
   == Methods
 
@@ -78,9 +78,11 @@
   + *Measure the response.* I counted input events and divided by channel
     count, trial count and duration to obtain the realised input rate.
     Excitatory and inhibitory rates used their respective population sizes;
-    I retained aligned event times and cell indices for the specified
+    I recorded aligned event times and cell indices for the specified
     illustrative trial. These measurements establish execution and activity,
     not oscillatory synchronisation or classification performance.
+
+  #run-view("exp074", inputs)
 
   #reference-list(((text: [Adam Paszke et al.: _PyTorch: An Imperative Style, High-Performance Deep Learning Library_. NeurIPS, 2019.], doi: "10.48550/arXiv.1912.01703"),))
 ]

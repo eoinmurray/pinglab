@@ -1,4 +1,4 @@
-#import "contents.typ": with-contents
+#import "contents.typ": with-contents, with-result-sections
 #import "/.demolab/lib.typ": data-json, data-image, cite, reference-list
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
 #import "run-view.typ": with-datasets, run-view
@@ -9,7 +9,7 @@
   status: "[▦ DATA]",
   title: "Gamma Emerges at a Hopf Bifurcation",
   date: "2026-05-28",
-  updated_at: "2026-08-29",
+  updated_at: "2026-08-31",
   description: "A four-variable population-rate model links oscillatory onset to synaptic timescales, with explicit limits on its connection to spiking recruitment.",
   collection: "gamma-gated-sparsity",
 )
@@ -63,22 +63,20 @@
   #set math.equation(numbering: "(1)")
   == Abstract
 
-  A four-variable population-rate model lost stability through an oscillatory
-  crossing at #istar nA and approximately #fstar Hz. Reusing numerical sweeps
-  with fixed cellular and coupling parameters, I compared inhibitory decay,
-  effective voltage noise and quasi-steady reductions. Up/down amplitude ramps
-  were consistent with a supercritical onset at the sampled resolution. Slower
-  inhibition reduced frequency in both the model and separately trained spiking
-  networks, without quantitative agreement. Eliminating fast excitation preserved
-  a three-variable oscillation; all six tested two-variable reductions lost it.
-  \[(!) This supplies a candidate mechanism for recruitment, not a demonstrated
-  identification of the spiking transition.\]
-
-  #run-view("exp033", inputs)
+  - Asked how gamma oscillations begin in a reduced population description of
+    the PING circuit and which dynamical variables are essential.
+  - Swept external drive, inhibitory timescale and effective noise, then compared
+    the full rate model with progressively simpler quasi-steady reductions.
+  - Gamma emerged through an oscillatory loss of stability; a reduced feedback
+    system retained the oscillation, whereas the simplest reductions lost it.
+  - Supplies a candidate mechanism for rhythmic recruitment, not proof that the
+    trained spiking networks undergo the same bifurcation.
 
   == Results
 
-  === Oscillatory onset
+  #with-result-sections[
+
+  === Mean-field eigenvalue crossing, amplitude ramps and onset frequency
 
   At the reference noise scale of 4 mV, one conjugate pair crossed at #istar nA
   with onset frequency #fstar Hz. Up/down amplitudes nearly coincided, and the
@@ -98,9 +96,9 @@
     ],
   ) <fig-overview>
 
-  === Sensitivity to the effective noise scale
+  === Onset sensitivity across effective noise scales
 
-  Across 3, 4, 5 and 6 mV, the retained tests supported a reversible onset. The
+  Across 3, 4, 5 and 6 mV, the sensitivity tests supported a reversible onset. The
   threshold spanned #sens-i-lo–#sens-i-hi nA while frequency remained near
   #fstar Hz, and E amplitude at onset plus 0.4 nA fell from #sens-a-hi to
   #sens-a-lo Hz. At the 4 mV reference, equilibrium E/I rates were #estar and
@@ -116,10 +114,10 @@
     ],
   ) <fig-sigma>
 
-  === Linear stability
+  === Mean-field eigenvalues across external drive
 
   One conjugate pair crossed the imaginary axis while the remaining pair was
-  damped. The matching retained onset and amplitude summaries come from a
+  damped. The matching recorded onset and amplitude summaries come from a
   separate execution of the same mean-field model used in the
   #link("/exp054/")[coupling-map comparison], not independent spiking confirmation.
 
@@ -134,7 +132,7 @@
     ],
   ) <fig-eigenvalues>
 
-  === Inhibitory decay and rhythm frequency
+  === Mean-field and spiking frequency across inhibitory decay
 
   Mean-field onset frequency and the median measured frequency of three
   separately trained spiking networks per decay time both decreased. At #tg ms
@@ -155,7 +153,7 @@
     ],
   ) <fig-frequency>
 
-  === Reversibility at the sampled resolution
+  === Upward and downward onset-amplitude ramps
 
   The 25-point ramps gave a maximum branch gap of
   $#gapmant times 10^(-6)$ $"ms"^(-1)$ and measured hysteresis width #hystwidth nA
@@ -175,7 +173,7 @@
     ],
   ) <fig-hysteresis>
 
-  === Above-onset waveform
+  === Excitatory and inhibitory rate waveform above onset
 
   The absolute cross-correlation peak lag was #elag ms. This magnitude is not a
   signed causal delay or a synaptic round-trip time.
@@ -186,12 +184,12 @@
     caption: [
       Reused E (black) and I (red) trajectories at onset plus 0.4 nA,
       over a window of three onset periods. Rates are in inverse milliseconds
-      on separate axes. Raw samples are unavailable for remeasurement; the retained waveform and
+      on separate axes. Raw samples are unavailable for remeasurement; the recorded waveform and
       scalar are historical observations, not a new simulation.
     ],
   ) <fig-cycle>
 
-  === Timing through the feedback loop
+  === Four-state feedback-loop trajectories
 
   AMPA closely tracked E while the other variables showed larger phase offsets.
   These traces illustrate feedback timing; the ordering does not measure four
@@ -207,7 +205,7 @@
     ],
   ) <fig-timeseries>
 
-  === Pairwise projections
+  === Six pairwise projections of the four-state trajectory
 
   The E–AMPA projection was narrow while other pairs enclosed larger areas. A
   periodic orbit is a curve and need not be planar; these projections do not
@@ -224,7 +222,7 @@
     ],
   ) <fig-phase>
 
-  === Quasi-steady reductions
+  === Four-, three- and two-variable reduction responses
 
   The full model and AMPA-slaved three-variable reduction oscillated, whereas
   the rate-slaved two-variable probe decayed. Their onset frequencies were
@@ -242,6 +240,8 @@
       frequencies are not measured frequencies of the displayed 1 nA traces.
     ],
   ) <fig-ladder>
+
+  ]
 
   == Methods
 
@@ -271,7 +271,7 @@
     $ f_"Hopf" = 1000 omega_"Hopf" / (2 pi), $ <eq-frequency>
 
     with angular frequency $omega_"Hopf"$ in rad/ms and $f_"Hopf"$ in Hz; reduced-model
-    crossings retained 0.01 nA grid resolution.
+    crossings used 0.01 nA grid resolution.
 
   + *Test onset reversibility.* LSODA integrated 25 drives from onset minus
     0.1 to onset plus 0.55 nA in each direction, carrying endpoint states forward.
@@ -293,6 +293,8 @@
     with three-seed medians of reused final-epoch spiking measurements.
     Each network frequency came from the interpolated peak of trial-averaged
     population spectra; these were not medians of individual-trial peaks.
+
+  #run-view("exp033", inputs)
 
   == Appendix: From spiking membranes to a population-rate closure
 
@@ -363,7 +365,7 @@
   \[(!) This scaling assumes independent or sufficiently weakly correlated
   contributions; recurrent synchrony can violate it. The earlier interpretation
   was that residual fluctuations at these finite population sizes smear onset
-  and sustain weak noisy gamma below threshold. That is retained as a proposed
+  and sustain weak noisy gamma below threshold. That remains a proposed
   explanation, not an effect isolated by this deterministic calculation.\]
 
   With no neuron index left, every E neuron sees the same $g_i^E$ and every I neuron the
@@ -453,7 +455,7 @@
 
   \[(!) Define current-valued coordinates $h_e^I = g_e^I Delta V_"exc,mag"$ and
   $h_i^E = g_i^E Delta V_"inh,mag"$ (nA). This invertible rescaling loses no dynamics.
-  The figures retain the original conductances $g$ in µS; the equations below
+  The figures show the original conductances $g$ in µS; the equations below
   use $h$ and current-valued couplings $J$ (nA per spike).\]
 
   === The 4D system
@@ -485,7 +487,7 @@
   angular frequency while the other modes remain damped; criticality requires
   nonlinear information. Simultaneous crossings need a different analysis.
 
-  At the retained crossing,
+  At the recorded crossing,
 
   $ I_("ext,Hopf") = #istar "nA", quad omega_"Hopf" = #omegastar "rad/ms", $
   $ f_"Hopf" = 1000 omega_"Hopf" / (2 pi) approx #fstar "Hz". $
@@ -502,7 +504,7 @@
   interactions can produce invariant tori with two angular phases #cite(3).
   \[(!) This is general context, not an observed outcome here. The earlier
   assertion that a second pair crosses at higher drive is not supported by
-  the retained 0–4 nA sweep. Moreover, this model has
+  the recorded 0–4 nA sweep. Moreover, this model has
 
   $ "tr" J_"flow" = -1/tau_E - 1/tau_I - 1/tau_"AMPA" - 1/tau_"GABA" < 0, $
 
@@ -548,7 +550,7 @@
 
   Quadrature used at most 200 subdivisions and capped the exponent $u^2$ at 700.
   \[(!) The original execution reported subdivision, roundoff and convergence warnings.
-  Their quantitative impact remains unresolved; agreement of retained summaries
+  Their quantitative impact remains unresolved; agreement of recorded summaries
   does not validate the underlying quadrature.\] The noise scale 3–6 mV was varied
   without calibration to spiking voltage statistics.
 
@@ -579,7 +581,7 @@
     any drive or coupling on a simply connected region where the field is smooth.
     It has removed the two synaptic response lags; decay constants are filter
     response times, not fixed transmission delays. A controlled QSS approximation
-    requires synapses fast relative to the retained dynamics,
+    requires synapses fast relative to the full-model dynamics,
     not established here: $tau_"GABA" approx #tg$ ms is not negligible relative
     to the approximately $1000 / #fstar$ ms onset period.
 
@@ -618,7 +620,7 @@
     so each variable's only diagonal Jacobian term is its own decay and every gain
     $Phi'$ sits off-diagonal. Eliminate _any_ two variables and the 2D trace is
     $-1 \/ tau_a - 1 \/ tau_b < 0$, where $tau_a$ and $tau_b$ are the two
-    retained time constants; Bendixson–Dulac then rules out a cycle. Routes A–C
+    remaining time constants; Bendixson–Dulac then rules out a cycle. Routes A–C
     are three of the $binom(4, 2) = 6$ ways to pick the kept pair; the numerical study swept
     all six and none crossed. The negative-divergence argument applies to these
     original-variable QSS reductions. It does not exclude a nonlinear change of
@@ -646,7 +648,7 @@
 
     This still Hopfs. Located like the 4D bifurcation (sweep $I_"ext"$, diagonalise the
     $3 times 3$ Jacobian, find the complex-pair crossing), it gave
-    $I_("ext,Hopf") = #istar3$ nA and $f_"Hopf" = #fstar3$ Hz, both above the 4D values, in the retained comparison. The six 2D reductions had no crossing in the sampled grid.
+    $I_("ext,Hopf") = #istar3$ nA and $f_"Hopf" = #fstar3$ Hz, both above the 4D values, in the numerical comparison. The six 2D reductions had no crossing in the sampled grid.
     The displayed probe compares 4D, 3D and the rate-slaved 2D model only
     (@fig-ladder); it is not a time-series panel of all six reductions.
 
@@ -722,7 +724,7 @@
   root into peak-to-peak rate; its units are $"ms"^(-1)$/$sqrt("nA")$.
   The square-root law explains the formally unbounded onset slope in the
   ideal asymptotic description #cite(3).
-  \[(!) The retained finite-range fit, with slope
+  \[(!) The recorded finite-range fit, with slope
   $#a2mant times 10^(-4)$ $"ms"^(-2)$/nA and $R_"fit"^2 = #a2r2$, is consistent
   with this law. It does not measure an infinite derivative or establish
   that most amplitude is acquired within a particular narrow drive band.
@@ -749,7 +751,7 @@
   The waveforms illustrate E recruitment of I followed by inhibition of E,
   with near-sinusoidal rates. The earlier account identified the measured
   #elag ms lag with E leading I and with a synaptic round trip.
-  \[(!) The retained scalar is the absolute cross-correlation peak lag.
+  \[(!) The recorded scalar is the absolute cross-correlation peak lag.
   It loses the sign and cannot by itself establish a causal or round-trip
   delay. AMPA and GABA decay times are filter response times, not fixed
   transmission delays. The loop interpretation remains a mechanism to test,

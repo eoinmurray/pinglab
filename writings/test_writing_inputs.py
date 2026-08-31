@@ -84,7 +84,7 @@ def test_input_keys_match_url_allowlist_and_legacy_attachments():
     attachments = settings["legacy_preview"]["articles"]
     for article in REPORTS:
         text = (WRITINGS / f"{article}.typ").read_text()
-        declaration = re.search(r"^#let inputs = \((.*?)\)", text, re.M)
+        declaration = re.search(r"^#let inputs = \((.*?)\)\n", text, re.M | re.S)
         assert declaration is not None, article
         assert set(re.findall(r'"([^"]+)"', declaration[1])) == set(attachments[article]), article
         for key in attachments[article]:
@@ -123,7 +123,6 @@ def test_exp081_selected_report_renders_all_sections(lab):
     assert positions == sorted(positions)
     for removed in ("Inputs and outputs", "Design Scope", "Prior art", "Conclusion", "Limitations"):
         assert removed not in rendered
-    assert "Empirical finite-window response" in rendered
     assert "derivation of the analytical filter" in rendered
     assert "uv run" not in rendered
     (selected / "numbers.json").write_text("broken")

@@ -15,50 +15,6 @@ from .recipe import (
 )
 
 
-def plot_design(path):
-    """Prospective protocol diagram, not measured evidence."""
-    theme.apply()
-    fig, axis = plt.subplots(figsize=(6.9, 1.8), constrained_layout=True)
-    axis.set(xlim=(0, 1), ylim=(0, 1))
-    axis.axis("off")
-    labels = (
-        "Changing digit input",
-        "Continuous PING state",
-        "Output spikes → counts",
-        "Prediction",
-    )
-    for x, label in zip((0.1, 0.37, 0.66, 0.91), labels, strict=True):
-        axis.text(
-            x,
-            0.65,
-            label,
-            ha="center",
-            va="center",
-            fontsize=8,
-            bbox={
-                "boxstyle": "round,pad=0.5",
-                "facecolor": "#eef4f8",
-                "edgecolor": "#7b909f",
-            },
-        )
-    for a, b in ((0.2, 0.25), (0.49, 0.54), (0.79, 0.86)):
-        axis.annotate(
-            "",
-            (b, 0.65),
-            (a, 0.65),
-            arrowprops={"arrowstyle": "->", "color": "#7b909f"},
-        )
-    axis.text(
-        0.5,
-        0.2,
-        "At digit boundaries: hidden state continues; output state and counts reset.",
-        ha="center",
-        fontsize=8,
-    )
-    fig.savefig(path, metadata={"Date": None})
-    plt.close(fig)
-
-
 def plot_stream(result: dict[str, Any], path: Path, run_id: str) -> None:
     theme.apply()
     spikes_e = result["spikes_e"]
@@ -139,12 +95,14 @@ def plot_stream_headline(
             width = min(0.085, spacing / total_ms * axis_box.width * 0.8)
             width = min(
                 width,
-                (axis_box.height - 0.045)
-                * fig.get_figheight()
-                / fig.get_figwidth(),
+                (axis_box.height - 0.045) * fig.get_figheight() / fig.get_figwidth(),
             )
             height = width * fig.get_figwidth() / fig.get_figheight()
-            left = axis_box.x0 + (start_ms + stop_ms) / 2 / total_ms * axis_box.width - width / 2
+            left = (
+                axis_box.x0
+                + (start_ms + stop_ms) / 2 / total_ms * axis_box.width
+                - width / 2
+            )
             bottom = axis_box.y0 + 0.035
             aspect = "equal"
             badge_y = -0.05
@@ -422,20 +380,42 @@ def plot_duration_rate_summary(
     theme.apply()
     durations, rates = rows["durations"], rows["rates"]
     grid, sem = np.asarray(rows["grid"]), np.asarray(rows["grid_sem"])
+    grid_percent = 100 * grid
     fig, (map_axis, curve_axis) = plt.subplots(
         1,
         2,
-        figsize=(6.5, 3.25),
+        figsize=(8.0, 3.5),
         constrained_layout=True,
         gridspec_kw={"width_ratios": (1.15, 1)},
     )
     image = map_axis.imshow(
-        grid, origin="lower", aspect="auto", vmin=0, vmax=1, cmap="viridis"
+        grid_percent,
+        origin="lower",
+        aspect="auto",
+        vmin=0,
+        vmax=100,
+        cmap="magma",
     )
     map_axis.set_xticks(range(len(durations)), [f"{value:g}" for value in durations])
     map_axis.set_yticks(range(len(rates)), [f"{value:g}" for value in rates])
-    map_axis.set(xlabel="presentation = readout (ms)", ylabel="input rate (Hz)")
-    fig.colorbar(image, ax=map_axis, label="accuracy")
+    map_axis.set(
+        xlabel="presentation = readout duration (ms)",
+        ylabel="maximum-pixel input rate (Hz)",
+    )
+    for rate_index in range(len(rates)):
+        for duration_index in range(len(durations)):
+            value = grid_percent[rate_index, duration_index]
+            map_axis.text(
+                duration_index,
+                rate_index,
+                f"{value:.0f}",
+                ha="center",
+                va="center",
+                fontsize=theme.SIZE_LABEL - 1,
+                color="white" if value < 55 else theme.INK_BLACK,
+            )
+    fig.colorbar(image, ax=map_axis, label="accuracy (%)", shrink=0.85)
+    map_axis.text(-0.1, 1.03, "A", transform=map_axis.transAxes, weight="bold")
     curve_axis.errorbar(
         rates, grid[:, -1], yerr=sem, color=theme.INK_BLACK, marker="o", capsize=3
     )
@@ -446,5 +426,6 @@ def plot_duration_rate_summary(
         label.set_horizontalalignment("right")
     curve_axis.set(xlabel="input rate (Hz)", ylabel="accuracy at 200 ms", ylim=(0, 1))
     curve_axis.spines[["top", "right"]].set_visible(False)
+    curve_axis.text(-0.12, 1.03, "B", transform=curve_axis.transAxes, weight="bold")
     fig.savefig(path, dpi=240, facecolor="white")
     plt.close(fig)

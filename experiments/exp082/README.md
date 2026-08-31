@@ -12,7 +12,9 @@ it has not been marked Reviewed. See
 
 ```sh
 uv run python -m experiments.exp082.compute --source <exp022-compute-run-id>
-uv run python -m experiments.exp082.analyse --source <exp082-compute-run-id>
+uv run python -m experiments.exp082.illustrate --source <exp022-compute-run-id>
+uv run python -m experiments.exp082.analyse --source <exp082-compute-run-id> \
+  --showcase-source <exp082-showcase-compute-run-id>
 uv run python -m experiments.exp082.present --source <exp082-analyse-run-id>
 ```
 
@@ -30,12 +32,13 @@ The package's bare entry point rejects monolithic execution.
   Inference remains a compute operation, including the two illustrative streams.
 - Analyse calculates accuracy, silence, output totals, population firing rates,
   cumulative count shares and seed aggregation. It selects the first correct
-  presentation in the matched stream. Only derived display arrays and numerical
+  presentation in the matched stream and validates the separately pinned showcase
+  selection. Only derived display arrays and numerical
   results are copied; large raw recordings and the bank remain referenced.
   A wholly silent quantitative readout fails analysis.
   Historical probabilities are softmax count shares, not calibrated posteriors.
 - Present reads saved analysis and its explicitly pinned compute ancestry. It
-  draws six result figures plus the prospective protocol schematic and emits
+  draws eight result figures plus the prospective protocol schematic and emits
   numbers in a flat export. It does not select an illustrative success, recompute
   condition statistics, fetch MNIST, or invoke inference. Missing pixels fail
   validation; historical reconstruction must be a documented import operation.
@@ -56,6 +59,11 @@ The package's bare entry point rejects monolithic execution.
 - The two illustrative five-digit streams retain their exact condition order,
   sampling RNG seeds 82/83 and encoding seeds 83/84. The matched stream is 200 ms,
   5 Hz throughout. Selection is the first success, not the first presentation.
+- The additional showcase compute enumerates deterministic seed-42 candidates
+  at 200 ms and 5, 7.5, 10, 15 and 25 Hz. It retains the first 5/5 stream as an
+  explicitly selected capability illustration and the first 3/5 stream as a
+  counterexample, recording every examined candidate and stopping when both
+  criteria have been satisfied.
 - The psychometric is the 200-ms slice. Accuracy is averaged over three trained
   seeds; error bars are sample SD divided by sqrt(3). The heatmap retains the
   original float32 rounding, separate from the full-precision psychometric.
@@ -77,7 +85,8 @@ Collection profiles are fixed smoke/production and do not inherit pilot knobs.
 
 The exp082-specific collection hooks now dispatch a dedicated staged adapter.
 The adapter reserves source-neutral IDs through the shared allocator, pins the
-bank and dispatches each stage separately. Six ordered round-robin workers retain
+bank and dispatches the evaluation compute, bounded showcase compute, analysis
+and presentation separately. Six ordered round-robin workers retain
 the existing 132-job production / 18-job smoke partition. The compute collector
 checks all worker records, source code, bank/recipe identities, dataset bytes and
 payloads before generating the two illustrative streams and completing compute.
@@ -118,8 +127,12 @@ reconstructs only the ten illustrative pixel arrays. Exact input re-encoding and
 full E/I/output raster equivalence are required before atomic completion.
 The one-off importer was retired; its executed code remains in run provenance.
 
-The completed chain is `exp022-r001-compute` → `exp082-r001-compute`
-(historical import) → `exp082-r002-analyse` → `exp082-r006-present`.
+The current local chain combines `exp082-r001-compute` (retained evaluation) and
+`exp082-r007-compute` (bounded showcase selection) in `exp082-r008-analyse`, then
+renders `exp082-r011-present`. This presentation-only rerender restyles the
+duration-rate heatmap to use exp048 Figure 2A's percentage scale, magma palette,
+cell values and panel lettering, and removes the prospective design schematic,
+without changing the analysed measurements.
 Earlier presentations r003–r005 remain immutable; r006 aligns the variable-stream
 thumbnail panel with exp048 Figure 1 without changing retained scientific data.
 These are local, unmaterialized runs, not published selections.
@@ -130,7 +143,7 @@ Dedicated synthetic tests cover stage isolation, raw count shapes, corrected
 batching and partial batches, explicit checkpoint roles, missing/invalid inputs,
 v2 and symlink rejection, ancestry changes, atomic failures, six-shard reuse,
 dirty-code rejection, collector locking, staged collection dispatch, preserved
-SEM and all seven figure outputs. They run in temporary stores. A pre-existing
+SEM, objective showcase selection and all eight figure outputs. They run in temporary stores. A pre-existing
 exp022 scaffold test now patches the function's actual module globals, keeping
 that check inside its temporary fixture after exp022's earlier package split.
 

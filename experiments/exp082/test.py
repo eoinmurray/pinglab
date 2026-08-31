@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import shutil
 from pathlib import Path
 
 import numpy as np
@@ -148,7 +149,63 @@ def lab(tmp_path, monkeypatch):
             )
 
     monkeypatch.setattr(compute, "Inference", Worker)
-    return tmp_path, run.run_id, calls
+    bank_identity = run.run_id
+    bank_source = inputs.source(tmp_path, bank_identity, "compute", experiment="exp022")
+    candidates = []
+    conditions = [list(value) for value in recipe.SHOWCASE_CONDITIONS]
+    bounds = np.cumsum([0, *[int(d / 0.1) for d, _ in conditions]]).tolist()
+    with stages.stage_run(
+        tmp_path,
+        "exp082",
+        "compute",
+        inputs={"bank": bank_source},
+        configuration=evidence.showcase_configuration(),
+        operation="showcase-selection",
+    ) as showcase:
+        for index, (name, predictions) in enumerate(
+            (("hero", [0, 1, 2, 3, 4]), ("alternative", [0, 1, 2, 9, 9]))
+        ):
+            labels = [0, 1, 2, 3, 4]
+            correct = [int(a == b) for a, b in zip(labels, predictions, strict=True)]
+            candidates.append(
+                {
+                    "candidate_index": index,
+                    "digit_seed": recipe.SHOWCASE_DIGIT_SEED_BASE + index,
+                    "encoding_seed": recipe.SHOWCASE_ENCODING_SEED_BASE + index,
+                    "labels": labels,
+                    "predictions": predictions,
+                    "correct": correct,
+                    "n_correct": sum(correct),
+                }
+            )
+            out = np.zeros((bounds[-1], 10), dtype=np.int8)
+            for start, prediction in zip(bounds[:-1], predictions, strict=True):
+                out[start, prediction] = 1
+            folder = showcase.export / "streams" / name
+            folder.mkdir(parents=True)
+            np.savez_compressed(
+                folder / "recording.npz",
+                pixels=np.zeros((5, 784), dtype=np.float32),
+                spikes_e=np.zeros((bounds[-1], 1024), dtype=np.int8),
+                spikes_i=np.zeros((bounds[-1], 256), dtype=np.int8),
+                spikes_out=out,
+            )
+            write_json_atomic(
+                folder / "stream.json",
+                {"labels": labels, "boundaries": bounds, "conditions": conditions},
+            )
+        write_json_atomic(
+            showcase.export / "evidence.json",
+            {
+                "schema": "exp082.showcase-selection/v1",
+                "configuration": evidence.showcase_configuration(),
+                "training_contract": evidence.training_contract(bank_source.export),
+                "candidates": candidates,
+                "selected": {"hero": 0, "alternative": 1},
+            },
+        )
+        evidence.validate_showcase(showcase.export)
+    return tmp_path, bank_identity, calls, showcase.run_id
 
 
 def resign(folder):
@@ -202,6 +259,32 @@ def test_compact_rate_ticks_do_not_overlap(tmp_path, monkeypatch):
     assert all(a.x1 < b.x0 for a, b in zip(boxes, boxes[1:]))
 
 
+def test_duration_rate_map_matches_exp048_figure_2a_style(tmp_path, monkeypatch):
+    import matplotlib.pyplot as plt
+
+    cfg = recipe.configuration()
+    rows = [{**j, "accuracy": 0.5} for j in recipe.jobs(cfg)]
+    saved = []
+    monkeypatch.setattr(plt, "close", lambda fig: saved.append(fig))
+    present.plots.plot_duration_rate_summary(
+        measurements.plot_data(rows, cfg), tmp_path / "grid.png", "review"
+    )
+    fig = saved[-1]
+    map_axis = next(axis for axis in fig.axes if axis.images)
+    image = map_axis.images[0]
+    assert image.get_cmap().name == "magma"
+    assert image.get_clim() == (0, 100)
+    assert map_axis.get_xlabel() == "presentation = readout duration (ms)"
+    assert map_axis.get_ylabel() == "maximum-pixel input rate (Hz)"
+    assert (
+        len(map_axis.texts)
+        == len(cfg["durations_ms"]) * len(cfg["psychometric_rates_hz"]) + 1
+    )
+    assert {text.get_text() for text in map_axis.texts} == {"50", "A"}
+    assert any(axis.get_ylabel() == "accuracy (%)" for axis in fig.axes)
+    assert any(text.get_text() == "B" for axis in fig.axes for text in axis.texts)
+
+
 def test_variable_stream_uses_exp048_segment_band_thumbnails(tmp_path, monkeypatch):
     import matplotlib.pyplot as plt
 
@@ -247,26 +330,23 @@ def fake_plots(monkeypatch):
         monkeypatch.setattr(
             present.plots, name, lambda data, path, rid: path.write_text("figure")
         )
-    monkeypatch.setattr(
-        present.plots, "plot_design", lambda path: path.write_text("diagram")
-    )
 
 
 def test_independent_stages_and_flat_export(lab, monkeypatch):
-    repo, bank, calls = lab
+    repo, bank, calls, showcase = lab
     cid = compute.compute(bank)
     assert len(calls) == 20
     assert not (repo / ".artifacts").exists()
     monkeypatch.setattr(
         compute, "Inference", lambda *a: pytest.fail("downstream launched inference")
     )
-    aid = analyse.analyse(cid)
+    aid = analyse.analyse(cid, showcase)
     fake_plots(monkeypatch)
     pid = present.present(aid)
     source = inputs.source(repo, pid, "present")
     assert all((source.export / f).is_file() for f in recipe.FIGURES)
     assert all(p.is_file() for p in source.export.iterdir())
-    assert set(inputs.lineage(repo, pid)) == {bank, cid, aid, pid}
+    assert set(inputs.lineage(repo, pid)) == {bank, showcase, cid, aid, pid}
     assert (
         load_json(source.export / "numbers.json")["grid_per_seed"][0]["accuracy"] == 1.0
     )
@@ -278,18 +358,22 @@ def test_independent_stages_and_flat_export(lab, monkeypatch):
 
 @pytest.mark.parametrize("stage", ["compute", "analyse", "present"])
 def test_missing_source_never_allocates(lab, stage):
-    repo, _, _ = lab
+    repo, _, _, showcase = lab
     before = set((repo / ".pingstore/runs").iterdir())
     with pytest.raises((PingstoreError, OSError)):
-        getattr(
+        target = getattr(
             {"compute": compute, "analyse": analyse, "present": present}[stage], stage
-        )("exp082-r999-compute")
+        )
+        if stage == "analyse":
+            target("exp082-r999-compute", showcase)
+        else:
+            target("exp082-r999-compute")
     assert set((repo / ".pingstore/runs").iterdir()) == before
 
 
 @pytest.mark.parametrize("target", ["payload", "v2", "root", "symlink"])
 def test_source_corruption_rejected(lab, target):
-    repo, bank, _ = lab
+    repo, bank, _, showcase = lab
     cid = compute.compute(bank)
     folder = repo / ".pingstore/runs" / bank
     if target == "payload":
@@ -308,11 +392,11 @@ def test_source_corruption_rejected(lab, target):
     else:
         (folder / "export/link").symlink_to(folder / "export/cells")
     with pytest.raises(PingstoreError):
-        analyse.analyse(cid)
+        analyse.analyse(cid, showcase)
 
 
 def test_compute_failure_stays_hidden(lab, monkeypatch):
-    repo, bank, _ = lab
+    repo, bank, _, showcase = lab
     monkeypatch.setattr(
         compute.Inference,
         "condition",
@@ -320,12 +404,14 @@ def test_compute_failure_stays_hidden(lab, monkeypatch):
     )
     with pytest.raises(RuntimeError, match="failed simulator"):
         compute.compute(bank)
-    assert not list((repo / ".pingstore/runs").glob("exp082-*"))
+    assert {path.name for path in (repo / ".pingstore/runs").glob("exp082-*")} == {
+        showcase
+    }
     assert len(list((repo / ".pingstore/runs").glob(".exp082-*.tmp"))) == 1
 
 
 def test_input_change_during_compute_stays_hidden(lab, monkeypatch):
-    repo, bank, _ = lab
+    repo, bank, _, showcase = lab
     original = compute.Inference.stream
 
     def mutate(self, name):
@@ -335,11 +421,13 @@ def test_input_change_during_compute_stays_hidden(lab, monkeypatch):
     monkeypatch.setattr(compute.Inference, "stream", mutate)
     with pytest.raises(PingstoreError):
         compute.compute(bank)
-    assert not list((repo / ".pingstore/runs").glob("exp082-*"))
+    assert {path.name for path in (repo / ".pingstore/runs").glob("exp082-*")} == {
+        showcase
+    }
 
 
 def test_six_shards_reuse_collect_and_no_reexecution(lab):
-    repo, bank, calls = lab
+    repo, bank, calls, _ = lab
     identity = stages.reserve_stage(repo / ".pingstore", "exp082", "compute")
     with pytest.raises((OSError, PingstoreError)):
         compute.compute(bank, run_id=identity, collect=True)
@@ -353,7 +441,7 @@ def test_six_shards_reuse_collect_and_no_reexecution(lab):
 
 
 def test_shard_rejects_changed_payload(lab):
-    repo, bank, _ = lab
+    repo, bank, _, _ = lab
     identity = stages.reserve_stage(repo / ".pingstore", "exp082", "compute")
     compute.shard(bank, run_id=identity, index=0)
     folder = repo / ".pingstore/runs" / f".{identity}.tmp"
@@ -423,7 +511,7 @@ def test_analysis_sem_preserves_three_seed_estimator():
 
 
 def test_missing_pixels_is_an_error_not_dataset_fallback(lab):
-    repo, bank, _ = lab
+    repo, bank, _, showcase = lab
     cid = compute.compute(bank)
     root = repo / ".pingstore/runs" / cid
     path = root / "export/streams--matched/recording.npz"
@@ -432,13 +520,13 @@ def test_missing_pixels_is_an_error_not_dataset_fallback(lab):
     np.savez_compressed(path, **data)
     resign(root)
     with pytest.raises(PingstoreError, match="explicit pixels"):
-        analyse.analyse(cid)
+        analyse.analyse(cid, showcase)
 
 
 def test_plot_failure_preserves_sources_and_stays_hidden(lab, monkeypatch):
-    repo, bank, _ = lab
+    repo, bank, _, showcase = lab
     cid = compute.compute(bank)
-    aid = analyse.analyse(cid)
+    aid = analyse.analyse(cid, showcase)
     before = {
         p.name: file_sha256(p / "run.json")
         for p in (repo / ".pingstore/runs").iterdir()
@@ -459,9 +547,9 @@ def test_plot_failure_preserves_sources_and_stays_hidden(lab, monkeypatch):
 
 
 def test_all_saved_figures_render_without_inference(lab, monkeypatch):
-    repo, bank, _ = lab
+    repo, bank, _, showcase = lab
     cid = compute.compute(bank)
-    aid = analyse.analyse(cid)
+    aid = analyse.analyse(cid, showcase)
     monkeypatch.setattr(
         inference,
         "load_mnist_split",
@@ -473,7 +561,7 @@ def test_all_saved_figures_render_without_inference(lab, monkeypatch):
 
 
 def test_compute_lock_excludes_collector(lab):
-    repo, bank, _ = lab
+    repo, bank, _, _ = lab
     identity = stages.reserve_stage(repo / ".pingstore", "exp082", "compute")
     directory = repo / ".pingstore/runs" / f".{identity}.tmp"
     with compute._compute_lock(directory, exclusive=False):
@@ -482,7 +570,7 @@ def test_compute_lock_excludes_collector(lab):
 
 
 def test_dirty_shards_fail_without_scientific_work(lab, monkeypatch):
-    repo, bank, calls = lab
+    repo, bank, calls, _ = lab
     identity = stages.reserve_stage(repo / ".pingstore", "exp082", "compute")
     monkeypatch.setattr(compute, "_capture_code", lambda *a: {"code_dirty": True})
     with pytest.raises(PingstoreError, match="committed"):
@@ -491,7 +579,7 @@ def test_dirty_shards_fail_without_scientific_work(lab, monkeypatch):
 
 
 def test_collection_dispatches_explicit_stage_sources(lab, monkeypatch):
-    repo, bank, calls = lab
+    repo, bank, calls, fixture_showcase = lab
     fake_plots(monkeypatch)
     campaign = plan.build_plan(repo / "campaign", "fixture", smoke=True)
     campaign["profile"] = "smoke"
@@ -504,23 +592,54 @@ def test_collection_dispatches_explicit_stage_sources(lab, monkeypatch):
 
     def dispatch(command, **kwargs):
         commands.append(command)
-        stage = command[2].rsplit(".", 1)[1]
+        module = command[2].rsplit(".", 1)[1]
         source = command[command.index("--source") + 1]
         identity = command[command.index("--run-id") + 1]
-        getattr(
-            {"compute": compute, "analyse": analyse, "present": present}[stage], stage
-        )(source, run_id=identity)
+        if module == "illustrate":
+            bank_source = inputs.source(repo, source, "compute", experiment="exp022")
+            fixture = inputs.source(repo, fixture_showcase, "compute")
+            with stages.stage_run(
+                repo,
+                "exp082",
+                "compute",
+                inputs={"bank": bank_source},
+                run_id=identity,
+                configuration=evidence.showcase_configuration(),
+                operation="showcase-selection",
+            ) as run:
+                for path in fixture.export.iterdir():
+                    destination = run.export / path.name
+                    if path.is_dir():
+                        shutil.copytree(path, destination)
+                    else:
+                        shutil.copy2(path, destination)
+        elif module == "analyse":
+            showcase = command[command.index("--showcase-source") + 1]
+            analyse.analyse(source, showcase, run_id=identity)
+        else:
+            getattr({"compute": compute, "present": present}[module], module)(
+                source, run_id=identity
+            )
         return SimpleNamespace(stdout="")
 
     monkeypatch.setattr(collection.subprocess, "run", dispatch)
     references = collection.execute(repo, campaign, row)
     assert [c[2] for c in commands] == [
-        "experiments.exp082." + s for s in collection.STAGES
+        "experiments.exp082.compute",
+        "experiments.exp082.illustrate",
+        "experiments.exp082.analyse",
+        "experiments.exp082.present",
     ]
     assert references["bank"]["run_id"] == bank
-    assert set(references) == {"bank", "compute", "analyse", "present"}
+    assert set(references) == {
+        "bank",
+        "compute",
+        "showcase",
+        "analyse",
+        "present",
+    }
     collection.execute(repo, campaign, row)
-    assert len(commands) == 3
+    assert len(commands) == 4
     assert len(calls) == 20
 
 

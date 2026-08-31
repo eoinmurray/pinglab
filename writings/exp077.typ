@@ -1,4 +1,4 @@
-#import "contents.typ": with-contents
+#import "contents.typ": with-contents, with-result-sections
 #import "/.demolab/lib.typ": data-json, data-image, cite, reference-list
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
 #import "run-view.typ": with-datasets, run-view
@@ -8,7 +8,7 @@
 #let meta = (
   status: "[▦ DATA]",
   title: "Arbitrary coupled graphs execute natively",
-  updated_at: "2026-08-28",
+  updated_at: "2026-08-31",
   date: "2026-08-05",
   description: "Four graph-defined coupling variants with separate numerical compatibility and runtime checks.",
   collection: "snnlang-docs",
@@ -29,24 +29,20 @@
 #let body = [
   == Abstract
 
-  I executed two independently driven excitatory–inhibitory circuits in four
-  graph-defined coupling configurations: uncoupled, unidirectional, reciprocal
-  and delayed reciprocal. A separate single-circuit comparison recorded
-  #r.parity_performance.spike_mismatch_count excitatory/inhibitory spike
-  mismatches and maximum output discrepancy
-  #r.parity_performance.output_max_abs between explicit and graph execution.
-  Graph execution's median runtime overhead was
-  #calc.round(r.parity_performance.graph_overhead_percent, digits: 1)%; the
-  #r.parity_performance.performance_gate_percent% overhead gate
-  #if r.parity_performance.performance_gate_pass [passed] else [failed].
-  These are bounded architecture and timing checks, not evidence for a
-  scientific coupling mechanism or performance on other workloads.
-
-  #run-view("exp077", inputs)
+  - Asked whether the graph runtime can execute arbitrary coupling between
+    independently driven excitatory–inhibitory circuits.
+  - Compared uncoupled, directional, reciprocal and delayed-reciprocal graphs,
+    alongside a separate circuit-parity and runtime check.
+  - Graph execution matched the explicit circuit and reproduced the expected
+    causal effects of coupling direction and delay within the tested workload.
+  - These are bounded architecture and timing checks, not evidence for a
+    biological coupling mechanism or performance on unrelated workloads.
 
   == Results
 
-  === Single-circuit compatibility and timing
+  #with-result-sections[
+
+  === Single-circuit compatibility, timing and memory measurements
 
   #figure(table(columns: (1.8fr, 1fr),
     [Measurement], [Result],
@@ -71,13 +67,15 @@
       compiled versus eager execution. Traced Python memory excludes native
       tensor storage; no uncertainty across independent timing sessions is estimated.])
 
-  === Coupled circuits
+  === Reciprocal delayed circuit graph
 
   #figure(data-image(data-file("exp077/reciprocal_delayed.svg"), width: 100%),
     caption: [Reciprocal delayed graph. Circuit A contains 16 excitatory and
       four inhibitory neurons; circuit B contains 12 excitatory and three
       inhibitory neurons. Each cross-circuit inhibitory projection targets the
       other circuit's excitatory population.])
+
+  === Coupling variants and causal delay steps
 
   Separate pulse and causal-planning tests passed.
 
@@ -92,6 +90,8 @@
       connection with no additional delay receives spikes on the next causal
       step; the explicit delay was #r.delay_timing.explicit_delay_steps steps.])
 
+  === Matched-input rasters across coupling variants
+
   #figure(data-image(data-file("exp077/matched_rasters.png"), width: 100%),
     caption: [Excitatory spikes in the first sample of each variant, with
       circuit A on the left and circuit B on the right. The time axis is in
@@ -100,6 +100,8 @@
 
   Sparse or silent responses in these illustrative samples do not establish a
   phase-coupling mechanism.
+
+  ]
 
   == Methods
 
@@ -116,14 +118,14 @@
     from A to B, reciprocal inhibition with one-step causal delay and
     reciprocal inhibition with five-step delay. Cross-projection weights were
     fixed at three and inhibitory conductance decay at nine milliseconds.
-    I retained all exposed populations and computed zero-lag correlation and
+    I recorded all exposed populations and computed zero-lag correlation and
     peak cross-correlation lag; silent traces received the existing zero-valued
     diagnostic convention and were not interpreted as phase estimates.
   + *Compare explicit and graph execution.* I initialised a separate
     256-excitatory/64-inhibitory classifier identically in both implementations,
     using seed 17 and the same 100-step, eight-sample spike tensor. I compared
     parameters, spikes and outputs, and reloaded the graph state into an
-    independently initialised model. All comparisons used retained tensors.
+    independently initialised model. All comparisons used recorded tensors.
   + *Measure timing and causal boundaries.* I timed five eager calls after
     two warmups and calculated graph overhead relative to the explicit
     implementation's median, using the unchanged ten-percent threshold.
@@ -131,6 +133,8 @@
     on a 20-step, two-sample input. Separate numerical tests checked delayed
     pulse arrival and causal planning; no coupling sweep or accelerator
     performance study was performed.
+
+  #run-view("exp077", inputs)
 
   #reference-list(((text: [Adam Paszke et al.: _PyTorch: An Imperative Style, High-Performance Deep Learning Library_. NeurIPS, 2019.], doi: "10.48550/arXiv.1912.01703"),))
 ]

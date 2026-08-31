@@ -183,12 +183,12 @@ def test_pdf_omits_html_panel(tmp_path):
     render(tmp_path, [run("new")], pdf=True)
 
 
-def test_datasets_heading_precedes_bordered_panel(tmp_path):
+def test_dataset_heading_precedes_bordered_panel(tmp_path):
     panel = render(tmp_path, [run("present")])
     html = (tmp_path / "view.html").read_text()
-    assert re.search(r"<h3\b[^>]*>Datasets</h3>", html)
-    assert html.index("Datasets</h3>") < html.index("<aside")
-    assert panel.attrib["aria-label"] == "Datasets"
+    assert re.search(r"<h3\b[^>]*>Dataset</h3>", html)
+    assert html.index("Dataset</h3>") < html.index("<aside")
+    assert panel.attrib["aria-label"] == "Dataset"
 
 
 @pytest.mark.parametrize("interactive", [True, False])
@@ -275,39 +275,41 @@ def test_scientific_duration_prefers_hpc_span_and_explains_job_total(tmp_path, i
     cell = panel.find("table/tbody/tr/td[@class='run-duration']")
     assert cell.text == "2d 7h 4m 16s"
     assert "includes gaps between jobs" in cell.attrib["title"]
-    assert "102 retained completed attempts: 174.26 job-hours" in cell.attrib["title"]
-    assert "excludes unretained attempts" in cell.attrib["title"]
+    assert "102 recorded completed attempts: 174.26 job-hours" in cell.attrib["title"]
+    assert "excludes unrecorded attempts" in cell.attrib["title"]
     assert "Import operation: 3 seconds (excluded)" in cell.attrib["title"]
     assert panel.find("table/tbody/tr/td[@class='run-origin']").text == "local"
 
 
 @pytest.mark.parametrize("abstract", ["Abstract", "1. Abstract", "*Abstract*"])
-def test_datasets_follow_complete_abstract_before_next_section(tmp_path, abstract):
+def test_dataset_follows_main_text_before_end_matter(tmp_path, abstract):
     render(tmp_path, [], article_body=(
         f"== Contents\n\nOpening navigation.\n\n== {abstract}\n\n"
         "First abstract paragraph.\n\nSecond abstract paragraph.\n\n"
-        "== Results\n\nResults content.\n\n== Methods\n\nMethods content."
+        "== Results\n\nResults content.\n\n== Methods\n\nMethods content.\n\n"
+        "== Appendix: Detail\n\nAppendix content.\n\n== References\n\nReferences content."
     ))
     html = (tmp_path / "view.html").read_text()
-    assert html.count('aria-label="Datasets"') == 2  # aside and table
+    assert html.count('aria-label="Dataset"') == 2  # aside and table
     positions = [html.index(text) for text in (
         "Contents", "First abstract paragraph", "Second abstract paragraph",
-        "Datasets</h3>", "Results</h3>", "Methods</h3>",
+        "Results</h3>", "Methods</h3>", "Dataset</h3>",
+        "Appendix: Detail</h3>", "References</h3>",
     )]
     assert positions == sorted(positions)
 
 
 @pytest.mark.parametrize("body,before,after", [
     ("== Abstract\n\nSummary only.", "Summary only.", None),
-    ("Introduction.\n\n== Reference\n\nDetails.", "Introduction.", "Reference</h3>"),
+    ("Introduction.\n\n== Reference\n\nDetails.", "Details.", None),
     ("A required run is unavailable.", "A required run is unavailable.", None),
 ])
-def test_datasets_placement_without_following_section_or_abstract(tmp_path, body, before, after):
+def test_dataset_placement_without_end_matter(tmp_path, body, before, after):
     render(tmp_path, [], inputs=(), article_body=body)
     html = (tmp_path / "view.html").read_text()
-    assert html.index(before) < html.index("Datasets</h3>")
+    assert html.index(before) < html.index("Dataset</h3>")
     if after is not None:
-        assert html.index("Datasets</h3>") < html.index(after)
+        assert html.index("Dataset</h3>") < html.index(after)
 
 
 def test_every_experiment_uses_shared_dataset_placement():
@@ -315,14 +317,23 @@ def test_every_experiment_uses_shared_dataset_placement():
     assert articles
     for article in articles:
         source = article.read_text()
-        assert '#import "run-view.typ": with-datasets' in source, article
+        assert re.search(
+            r'^#import "run-view\.typ": [^\n]*\bwith-datasets\b', source, re.M
+        ), article
         assert source.count(f'with-datasets("{article.stem}",') == 1, article
         abstract = re.search(r"^\s*== (?:\d+\. )?Abstract\s*$", source, re.M)
         if abstract:
-            rest = source[abstract.end():]
-            next_heading = re.search(r"^\s*== [^\n]+", rest, re.M)
-            assert next_heading is not None, article
-            assert f'#run-view("{article.stem}", inputs)' in rest[:next_heading.start()], article
+            placement = source.index(f'#run-view("{article.stem}", inputs)')
+            end_matter = re.search(
+                r"^\s*(?:== Appendix(?:[.:]|\s)|== References\s*$|#reference-list\()",
+                source, re.M,
+            )
+            if end_matter:
+                assert placement < end_matter.start(), article
+            main_headings = [match.start() for match in re.finditer(
+                r"^\s*== (?!Appendix(?:[.:]|\s)|References\s*$)[^\n]+", source, re.M,
+            )]
+            assert main_headings and placement > max(main_headings), article
             assert source.count("#run-view(") == 1, article
             assert "placed: inputs-ready(data-file, inputs)" in source, article
         else:
@@ -332,9 +343,9 @@ def test_every_experiment_uses_shared_dataset_placement():
 def test_explicit_placement_preserves_styled_report_without_duplicate(tmp_path):
     render(tmp_path, [], placed=True, article_body=(
         '#show strong: it => html.elem("em", it.body)\n== Abstract\n\n*Summary.*\n\n'
-        '#run-view("report", ("exp047",))\n\n== Results\n\nDetails.'
+        '== Results\n\nDetails.\n\n#run-view("report", ("exp047",))'
     ))
     html = (tmp_path / "view.html").read_text()
-    assert html.count('aria-label="Datasets"') == 2
-    assert html.index("Summary.") < html.index("Datasets</h3>") < html.index("Results</h3>")
+    assert html.count('aria-label="Dataset"') == 2
+    assert html.index("Results</h3>") < html.index("Dataset</h3>")
     assert "<em>Summary.</em>" in html

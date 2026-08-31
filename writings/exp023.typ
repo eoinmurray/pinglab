@@ -1,4 +1,4 @@
-#import "contents.typ": with-contents
+#import "contents.typ": with-contents, with-result-sections
 #import "/.demolab/lib.typ": data-json, data-image, cite, reference-list
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
 #import "run-view.typ": with-datasets, run-view
@@ -9,7 +9,7 @@
   status: "[▦ DATA]",
   title: "Turning the PING Loop On",
   date: "2026-05-13",
-  updated_at: "2026-08-29",
+  updated_at: "2026-08-31",
   description: "PING stripped to its biophysical fundamentals: free-running activity, population spectra and rate responses with the excitatory–inhibitory loop off and on.",
   collection: "gamma-gated-sparsity",
 )
@@ -44,24 +44,20 @@
 
   == Abstract
 
-  I characterised PING _in isolation from any task_: no training, readout
-  evaluation or loss, just a free-running network driven by Poisson input.
-  #if peak == none [
-    No PING spectral peak met the stated reporting rule.
-  ] else [
-    The selected PING population-spectrum peak was #fmt(peak) Hz.
-  ]
-  At #sweep.input_rates_hz.last() Hz input, mean excitatory firing rates were
-  #fmt(e-coba) Hz with the loop off and #fmt(e-ping) Hz with it on.
-  These single-seed measurements characterise the architecture's rate response;
-  representative rasters use different operating points and do not isolate a
-  matched-input effect of the loop.
-
-  #run-view("exp023", inputs)
+  - Asked what the recurrent PING loop does before introducing training,
+    classification or a learned readout.
+  - Compared the same Poisson-driven excitatory–inhibitory architecture with
+    reciprocal feedback disabled and enabled.
+  - Enabling the loop produced rhythmic population activity and strongly
+    suppressed excitatory firing across the matched-drive sweep.
+  - Establishes the circuit's basic operating behaviour, but the limited
+    simulations do not show that gamma timing itself caused the suppression.
 
   == Results
 
-  === Architecture, population activity and rate response
+  #with-result-sections[
+
+  === COBA and PING architecture, activity spectra and rate response
 
   #figure(
     data-image(data-file("exp023/overview_compound.png"), width: 100%,
@@ -77,7 +73,7 @@
     ],
   )
 
-  === COBA excitatory-neuron traces
+  === COBA excitatory-neuron membrane voltage
 
   #figure(
     data-image(data-file("exp023/traces__coba__v_e.svg"), width: 100%),
@@ -86,12 +82,18 @@
       The dashed line marks the #b.threshold_mV mV threshold; spikes reset
       voltage to #b.reset_mV mV. This is an illustrative neuron, not a population mean.],
   )
+
+  === COBA excitatory-neuron conductances
+
   #figure(
     data-image(data-file("exp023/traces__coba__g_e.svg"), width: 100%),
     caption: [Excitatory conductance (black) and fixed leak (dotted) for the same
       COBA neuron. Input spikes increase excitation, which decays between events;
       the disconnected inhibitory feedback contributes no conductance.],
   )
+
+  === COBA excitatory-neuron currents
+
   #figure(
     data-image(data-file("exp023/traces__coba__i_e.svg"), width: 100%),
     caption: [Signed excitatory and leak currents for the same COBA neuron.
@@ -99,7 +101,7 @@
       and conductance using the driving-force relation in Methods.],
   )
 
-  === PING excitatory-neuron traces
+  === PING excitatory-neuron membrane voltage
 
   #figure(
     data-image(data-file("exp023/traces__ping__v_e.svg"), width: 100%),
@@ -107,12 +109,18 @@
       #points.ping.input_rate_hz Hz input for #points.ping.t_ms ms.
       This is a different input rate from COBA, not a matched-input trace comparison.],
   )
+
+  === PING excitatory-neuron conductances
+
   #figure(
     data-image(data-file("exp023/traces__ping__g_e.svg"), width: 100%),
     caption: [Excitatory (black), inhibitory (red when nonzero) and leak (dotted)
       conductances on the same PING E neuron. All conductances are non-negative;
       inhibition enters through its reversal potential, not a negative conductance.],
   )
+
+  === PING excitatory-neuron currents
+
   #figure(
     data-image(data-file("exp023/traces__ping__i_e.svg"), width: 100%),
     caption: [Signed currents on the same PING E neuron. Inhibitory current is
@@ -121,7 +129,7 @@
   )
 
   #if r.raster.ping.i_index != none [
-    === PING inhibitory-neuron traces
+    === PING inhibitory-neuron membrane voltage
 
     These cellular traces illustrate reciprocal E→I→E feedback; they do not
     measure population-wide phase locking or spikes per cycle.
@@ -131,16 +139,24 @@
       caption: [Membrane voltage of the highest-spike-count PING I neuron,
         from the same trial as the PING E traces. The dashed line marks threshold.],
     )
+
+    === PING inhibitory-neuron conductances
+
     #figure(
       data-image(data-file("exp023/traces__ping__g_i.svg"), width: 100%),
       caption: [Excitatory conductance arriving from the E population (black)
         and fixed leak (dotted) on the selected I neuron. The model has no I→I synapse.],
     )
+
+    === PING inhibitory-neuron currents
+
     #figure(
       data-image(data-file("exp023/traces__ping__i_i.svg"), width: 100%),
       caption: [Signed excitatory and leak currents on the same I neuron.
         Positive current is depolarising.],
     )
+  ]
+
   ]
 
   == Methods
@@ -201,6 +217,8 @@
     $I_X^"in"$ inward current in nA. Reversals were #b.E_E_mV,
     #b.E_I_mV and #b.E_L_mV mV, respectively; positive current is depolarising.
     The sign lives in the driving force, never in the conductance.]
+
+  #run-view("exp023", inputs)
 
   #reference-list((
     (text: [P. D. Welch. “The Use of Fast Fourier Transform for the Estimation of

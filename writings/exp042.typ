@@ -1,4 +1,4 @@
-#import "contents.typ": with-contents
+#import "contents.typ": with-contents, with-result-sections
 #import "/.demolab/lib.typ": data-json, data-image
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
 #import "run-view.typ": with-datasets, run-view
@@ -9,7 +9,7 @@
   status: "[▦ DATA]",
   title: "Breaking Gamma Releases the Rate Gate",
   date: "2026-06-02",
-  updated_at: "2026-08-29",
+  updated_at: "2026-08-31",
   description: "Overriding the I-stream of trained PING at inference shows what gates the E rate is the timing of inhibition, the rhythm, not its average level.",
   collection: "gamma-gated-sparsity",
 )
@@ -72,18 +72,18 @@
 #let body = [
   == Abstract
 
-  Precisely timed inhibitory bursts, rather than mean inhibition alone, suppressed
-  excitatory firing in trained pyramidal–interneuron network gamma (PING)
-  classifiers. I replayed three frozen networks while either independently
-  jittering inhibitory spikes or shifting whole inhibitory bursts. At the
-  rate-matched comparison, per-neuron jitter smeared the bursts and reduced the
-  excitatory rate from #base_e Hz to approximately zero, whereas cycle-coherent
-  jitter preserved burst synchrony and raised it to #cyc_e_anchor Hz. Within the
-  tested regime, inhibitory temporal structure therefore gates excitatory rate.
-
-  #run-view("exp042", inputs)
+  - Asked whether excitatory-rate suppression depends on the timing structure of
+    inhibition rather than only its average amount.
+  - Replayed frozen PING classifiers while either jittering inhibitory spikes
+    independently or shifting intact inhibitory bursts.
+  - Smearing individual spikes collapsed excitatory activity, whereas moving
+    coherent bursts preserved synchrony and released excitatory firing.
+  - Shows that inhibitory temporal structure gates excitatory rate within the
+    tested intervention regime.
 
   == Results
+
+  #with-result-sections[
 
   === Equal mean inhibition produces opposite excitatory rates
 
@@ -149,6 +149,8 @@
   a clean test of timing alone. The clearest comparison is at #anchor_sigma ms, where mean
   inhibition remains close to baseline.
 
+  ]
+
   == Methods
 
   The experiment isolated inhibitory timing by replaying frozen networks,
@@ -205,7 +207,7 @@
     matrix from inhibitory to excitatory neurons, and the frozen readout consumed
     the resulting excitatory spikes.
 
-    For every condition I retained excitatory and inhibitory firing rates and
+    For every condition I recorded excitatory and inhibitory firing rates and
     test accuracy, then averaged each
     quantity over the three independently trained seeds. Sweep error bars are
     ±1 standard error of the mean across seeds.
@@ -220,6 +222,8 @@
     #cyc_i_anchor_drop_pct% of baseline.
 ]
 #body
+  #run-view("exp042", inputs)
+
 ]
 
 #let report-body = if inputs-ready(data-file, inputs) {

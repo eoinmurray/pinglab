@@ -1,4 +1,4 @@
-#import "contents.typ": with-contents
+#import "contents.typ": with-contents, with-result-sections
 #import "/.demolab/lib.typ": data-json, data-image
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
 #import "run-view.typ": with-datasets, run-view
@@ -10,7 +10,7 @@
   status: "[▦ DATA]",
   title: "How Pixel Features Respond to Input Rate",
   date: "2026-08-10",
-  updated_at: "2026-08-29",
+  updated_at: "2026-08-31",
   description: "Standalone empirical and analytical study of synaptic, membrane, and finite-window filtering under sparse Poisson drive.",
   collection: "gamma-gated-sparsity",
 )
@@ -31,25 +31,20 @@
 #let body = [
   == Abstract
 
-  Stationary linear-filter theory explains the filtering of a sparse
-  conductance-driven pixel feature, but does not accurately predict its
-  finite-window magnitude. I simulated an AMPA synapse, a conductance-based
-  membrane and #p.presentation_ms ms averaging at
-  #p.input_rate_grid_hz.len() rates from #p.input_rate_grid_hz.first() to
-  #p.input_rate_grid_hz.last() Hz, with #p.probes_uS.len() event strengths and
-  #p.moment_draws presentations per condition. The median predicted-to-empirical
-  mean ratio was #rounded(r.comparison.mean.median_predicted_empirical_ratio).
-  The theory explains slow-response plateaus, high-frequency attenuation and
-  averaging lobes, but its standard deviation peaks too early. Sparse responses
-  depend on discrete spike counts and timing, outside the small stationary
-  fluctuation approximation; direct simulation remains necessary for quantitative
-  predictions in this regime.
-
-  #run-view("exp081", inputs)
+  - Asked how input spike rate becomes the finite-window pixel feature used by
+    downstream classifiers, and whether stationary filter theory predicts it.
+  - Compared direct simulations of synaptic, membrane and temporal filtering
+    with a local stationary linearization of the same conductance-driven feature.
+  - The theory explained the broad filtering structure but misestimated response
+    magnitude and failed to reproduce the observed variability.
+  - Sparse responses remain governed by discrete spike counts and event timing,
+    so direct simulation is still needed for quantitative predictions.
 
   == Results
 
-  === Empirical finite-window response
+  #with-result-sections[
+
+  === Finite-window feature mean and variability across input rates
 
   #figure(
     data-image(data-file("exp081/empirical_moments.svg"), width: 100%,
@@ -61,6 +56,8 @@
       not individual trials or confidence intervals.],
   )
 
+  === Feature distributions across sparse and dense input rates
+
   #figure(
     data-image(data-file("exp081/response_distributions.svg"), width: 100%,
       alt: "Three logarithmic histograms show feature distributions becoming smoother as input rate increases."),
@@ -70,7 +67,7 @@
       bin on a logarithmic scale; feature values are in mV.],
   )
 
-  === Analytical frequency response
+  === Analytical filtering before and after finite-window averaging
 
   #figure(
     data-image(data-file("exp081/frequency_response.svg"), width: 100%,
@@ -82,7 +79,7 @@
       in dB relative to the lowest-drive DC response; frequency is in Hz.],
   )
 
-  === Analytical and empirical moments
+  === Analytical and empirical feature moments across input rates
 
   #figure(
     data-image(data-file("exp081/analytical_empirical.svg"), width: 100%,
@@ -92,6 +89,8 @@
       #p.moment_draws presentations per rate. Black, red and cyan denote
       #p.probes_uS.map(str).join(", ") μS event increments.],
   )
+
+  ]
 
   == Methods
 
@@ -119,7 +118,7 @@
     $ z_"feature"=1/T_"present" integral_0^(T_"present") (V_m(t)-E_L) dif t. quad "(2)" $
     Here $z_"feature"$ is mean depolarization in mV and $T_"present"=#p.presentation_ms$ ms is the
     presentation duration. The discrete estimate averaged every post-update voltage
-    after subtracting rest; individual estimates were retained for reuse.
+    after subtracting rest; individual estimates were recorded for reuse.
 
     At each rate and conductance I
     calculated the arithmetic mean and sample SD, using the number of presentations
@@ -224,6 +223,8 @@
   through shunting and saturation. That non-Gaussian mixture explains why the
   analytical SD rises too sharply and peaks too early, especially for the
   largest conductance increment.
+
+  #run-view("exp081", inputs)
 
   == Appendix: model specification and calculations <sec-appendix-model-specification-and-calculations>
 

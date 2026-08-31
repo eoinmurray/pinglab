@@ -26,7 +26,7 @@ While the Demolab change is unreleased, run from the Pinglab checkout:
 PYTHONPATH=../demolab uv run --no-sync demolab dev 3010
 ```
 
-Open an article to see a bordered Datasets table: run name, readable creation date and
+Open an article to see a bordered Dataset table: run name, readable creation date and
 time (timezone label omitted), duration, export size (decimal bytes/KB/MB/GB/TB) and execution origin (`slurm`,
 `modal`, `runpod`, `local`, `mixed` or `unknown`). A single Upstream/Downstream
 block above the run table links the current page's experiment dependencies;

@@ -1,4 +1,4 @@
-#import "contents.typ": with-contents
+#import "contents.typ": with-contents, with-result-sections
 #import "/.demolab/lib.typ": data-json, data-image, cite, reference-list
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
 #import "run-view.typ": with-datasets, run-view
@@ -9,7 +9,7 @@
   status: "[▦ DATA]",
   title: "Accuracy and Firing Rate With and Without Inhibition",
   date: "2026-05-30",
-  updated_at: "2026-08-29",
+  updated_at: "2026-08-31",
   description: "Reused MNIST networks compare accuracy and excitatory firing rates with and without an inhibitory loop. Different gradient damping limits causal attribution to gamma timing.",
   collection: "gamma-gated-sparsity",
 )
@@ -83,22 +83,20 @@
 #let body = [
   == Abstract
 
-  Without an activity penalty, PING networks had a #baseline_ratio\-fold lower
-  mean excitatory firing rate than COBA networks on MNIST
-  (#ping_off_rate versus #coba_off_rate Hz), with test accuracy of
-  #ping_off_acc% versus #coba_off_acc%. I reused trained networks and
-  measurements to compare activity ceilings, cycle participation, and input
-  coupling. Across three seeds, tightening the ceiling preserved more accuracy
-  in PING at the lowest targets, but did not establish a structural rate floor.
-  Both participation and oscillation frequency varied. The configurations also
-  used different voltage-gradient damping, so this comparison does not isolate
-  a causal benefit of gamma timing or measure energy savings.
-
-  #run-view("exp025", inputs)
+  - Asked how recurrent inhibition and explicit activity constraints shape the
+    trade-off between MNIST accuracy and excitatory firing.
+  - Reused trained COBA and PING families while comparing activity ceilings,
+    cycle participation, oscillation frequency and input coupling.
+  - PING operated at lower excitatory rates and retained more accuracy under the
+    strictest ceilings, but no fixed structural rate floor appeared.
+  - The comparison is confounded by different gradient damping and therefore
+    neither isolates a benefit of gamma timing nor measures energy use.
 
   == Results
 
-  === Accuracy–rate frontier
+  #with-result-sections[
+
+  === Test accuracy against excitatory rate across activity ceilings
 
   At the unpenalised operating points, PING reached #ping_off_acc% at
   #ping_off_rate Hz and COBA reached #coba_off_acc% at #coba_off_rate Hz. The
@@ -120,7 +118,7 @@
     ],
   )
 
-  === Participation and frequency
+  === PING participation and frequency across activity ceilings
 
   PING participation varied from #p_lo to #p_hi and oscillation frequency from
   approximately #fg_hi to #fg_lo Hz. The $p_"part" f_gamma$ approximation
@@ -141,7 +139,7 @@
     ],
   )
 
-  === Initial input coupling
+  === PING learning curves across initial input coupling
 
   Final validation accuracies were #low_accs.at(0)% / #low_accs.at(1)% /
   #low_accs.at(2)% / #low_accs.at(3)%, while final I rates were
@@ -162,7 +160,7 @@
     ],
   )
 
-  === Input scaling at inference
+  === Accuracy and population rates across inference input scaling
 
   COBA's penalty reached approximately #coba_pen_s3 at $s = 3$. The empirical
   inhibitory-rate crossing marks a sampled transition, not a fitted bifurcation.
@@ -184,7 +182,7 @@
     ],
   )
 
-  === Scaling versus excitatory rate
+  === Accuracy against excitatory rate across inference input scaling
 
   PING's highest sampled accuracy was approximately #ping_plateau%. At input
   scale $s = 3$, COBA reached approximately #coba_acc_s3% at #coba_e_s3 Hz.
@@ -201,10 +199,12 @@
     ],
   )
 
+  ]
+
   == Methods
 
   I reused networks and learning histories from the
-  #link("/exp022/")[shared training study] and reanalysed retained inference
+  #link("/exp022/")[shared training study] and reanalysed recorded inference
   measurements; no new training or simulation was performed.
 
   + *Prepare digit inputs.* Training used 6,300 MNIST images and 700 validation
@@ -254,6 +254,8 @@
     networks trained at 1 Hz were evaluated after multiplying all input weights
     by dimensionless $s in [0.05, 3]$, holding other weights fixed, on the same
     1,000 test images at 24 scales.
+
+  #run-view("exp025", inputs)
 
   == Appendix: Training settings <sec-training-settings>
 

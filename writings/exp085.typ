@@ -1,4 +1,4 @@
-#import "contents.typ": with-contents
+#import "contents.typ": with-contents, with-result-sections
 #import "/.demolab/lib.typ": data-json, data-image
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
 #import "run-view.typ": with-datasets, run-view
@@ -10,7 +10,7 @@
   status: "[▦ DATA]",
   title: "Lowet 2015",
   date: "2026-08-19",
-  updated_at: "2026-08-29",
+  updated_at: "2026-08-31",
   description: "Distinguish the pathways that phase-lock two cortical PING rhythms.",
   collection: "demo",
   order: 1,
@@ -43,18 +43,27 @@
 #let body = [
   == Abstract
 
-  Coupling between excitatory populations locked two detuned gamma rhythms; coupling onto inhibitory populations alone did not. I compared four coupling conditions in two networks, each containing #r.network.populations_per_network.E excitatory and #r.network.populations_per_network.I inhibitory neurons, and measured their responses to isolated probe volleys. Final phase drift was #calc.round(e-to-e.final_drift_rate_cycles_per_s, digits: 2) cycles/s with excitatory-to-excitatory coupling versus #calc.round(e-to-i.final_drift_rate_cycles_per_s, digits: 2) cycles/s with excitatory-to-inhibitory coupling. Combined coupling also locked. In the illustrated correction, excitation advanced the next excitatory volley by #calc.round(mechanism.next_target_volley_advance_ms, digits: 1) ms, followed by feedback inhibition. These observations distinguish the pathways at one seeded operating point; they do not establish dominance across delays, detuning, noise, network realizations, or broader coupling regimes.
-
-  #run-view("exp085", inputs)
+  - Asked which inter-network pathway can lock detuned PING circuits whose gamma
+    rhythms naturally drift apart.
+  - Compared excitation targeting the other circuit's excitatory population,
+    inhibitory population, both populations or neither, and probed each phase response.
+  - Excitatory-to-excitatory coupling corrected phase drift and produced locking;
+    inhibitory-targeted coupling alone did not in the selected regime.
+  - Distinguishes candidate pathways in the selected regime, not their dominance
+    across delays, detuning, noise or network realizations.
 
   == Results
 
-  === The uncoupled rhythms drift
+  #with-result-sections[
+
+  === Two-circuit PING coupling schematic
 
   #figure(
     data-image(data-file("exp085/network.svg"), width: 78%, alt: "Two matched PING networks with local E-to-I-to-E loops and reciprocal E-to-E and E-to-I coupling."),
     caption: [Model schematic: two matched PING circuits. Long-range excitation targets either E or I with exact fan-in 8.],
   )
+
+  === Uncoupled population rhythms and relative-phase drift
 
   Network A oscillated at #calc.round(a.frequency_hz, digits: 1) Hz and Network
   B at #calc.round(b.frequency_hz, digits: 1) Hz. Their low interval variability
@@ -68,7 +77,7 @@
       trajectory, not an across-seed estimate.],
   )
 
-  === The pathways make different corrections
+  === Example corrections from E- and I-targeted probe volleys
 
   The illustrative probes produced an E-targeted advance, no correction at the
   earlier I-targeted phase, and an I-targeted doublet and delay at the later
@@ -81,6 +90,8 @@
       input realization; these examples are reused in the phase-response curve.
       Each rate trace is normalized to its window maximum.],
   )
+
+  === Phase-response curves for E- and I-targeted probes
 
   E input advanced the rhythm over a broad late-cycle range. I doublets occurred
   only from phase #calc.round(doublets.first().pulse_phase_fraction, digits: 2)
@@ -95,7 +106,7 @@
       I neurons; lower traces are means across I neurons.],
   )
 
-  === Only E-to-E coupling stops the drift
+  === Relative-phase change across four coupling conditions
 
   Final phase drift was
   #calc.round(no-coupling.final_drift_rate_cycles_per_s, digits: 2) cycles/s
@@ -112,7 +123,7 @@
       sharing the same initial dynamical state and subsequent drive.],
   )
 
-  === The first correction begins in E
+  === Event-aligned excitation and feedback inhibition
 
   Arriving cross-network conductance advanced Network B's next E volley by
   #calc.round(mechanism.next_target_volley_advance_ms, digits: 1) ms. Feedback
@@ -124,6 +135,8 @@
     caption: [Illustrative event from the same no-coupling and E-to-E conditions.
       Conductances are means across target E neurons.],
   )
+
+  ]
 
   == Methods
 
@@ -151,6 +164,8 @@
     Here $R_"phase"$ is circular phase concentration, $N_"phase"$ the number of valid timesteps, $n$ their index, $delta phi_n$ the A-minus-B phase in radians, and $i$ the imaginary unit.
 
   + *Resolve the first correction.* I compared the no-coupling and E-to-E conditions around the first A-to-B arrival with a complete −5 to +17 ms window. I measured the next target E volley, target E/I rates and mean incoming and feedback conductances; the event and probe examples reuse the same trajectories, not independent repetitions.
+
+  #run-view("exp085", inputs)
 
   #reference-list((
     (

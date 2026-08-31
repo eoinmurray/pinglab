@@ -1,4 +1,4 @@
-#import "contents.typ": with-contents
+#import "contents.typ": with-contents, with-result-sections
 #import "/.demolab/lib.typ": data-json, data-image, cite, reference-list
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
 #import "run-view.typ": with-datasets, run-view
@@ -8,7 +8,7 @@
 #let meta = (
   status: "[▦ DATA]",
   title: "A bundle checkpoint replays",
-  updated_at: "2026-08-28",
+  updated_at: "2026-08-31",
   date: "2026-08-02",
   description: "Checkpoint interchange and deterministic one-step equivalence in a spiking classifier.",
   collection: "snnlang-docs",
@@ -32,28 +32,27 @@
 #let body = [
   == Abstract
 
-  I trained a compiled #(r.config.n_e)-excitatory/#(r.config.n_i)-inhibitory
-  classifier and exercised checkpoint loading through compiled and explicit
-  network descriptions. The selected checkpoint achieved
-  #pct(r.replay.selected_checkpoint_accuracy_pct) on
-  #r.replay.evaluation_samples official-test images, compared with
-  #pct(r.replay.trainer_best_accuracy_pct) during validation. These evaluations
-  used different partitions and encoding aggregation, so their difference is
-  not a numerical replay error. A separate deterministic one-step gate passed
-  exact comparisons of initial parameters, logits, loss, gradients and an
-  AdamW update. The result supports checkpoint compatibility for this network
-  family, not arbitrary graph equivalence.
-
-  #run-view("exp076", inputs)
+  - Asked whether a trained graph bundle can be checkpointed and replayed through
+    compiled and explicit descriptions of the same network.
+  - Compared loaded parameters, forward outputs, loss, gradients and an optimizer
+    update under a deterministic equivalence gate.
+  - The replay routes agreed exactly; differing classification scores came from
+    different datasets and encoding aggregation rather than checkpoint corruption.
+  - Supports checkpoint compatibility for this network family, not equivalence
+    between arbitrary graph implementations.
 
   == Results
 
-  === Training and replay protocol
+  #with-result-sections[
+
+  === Compilation, training, checkpoint and equivalence protocol
 
   #figure(data-image(data-file("exp076/lifecycle.svg"), width: 100%),
     caption: [Protocol schematic for compilation, training, checkpoint reload
       and a separate one-step equivalence test; the arrows describe operations,
       not measurements.])
+
+  === Training and validation trajectories across epochs
 
   The validation-selected checkpoint came from epoch
   #r.trajectory.selected_epoch.
@@ -63,7 +62,7 @@
       epochs. Validation averages #r.config.validation_encoder_draws.count
       encoder draws on #r.config.held_out_count images.])
 
-  === Checkpoint evaluations
+  === Validation and official-test checkpoint evaluations
 
   The selected bundle checkpoint loaded through the explicit route achieved
   #pct(r.compatibility.legacy_route_accuracy_on_bundle_checkpoint_pct). A
@@ -80,7 +79,7 @@
       encoder draws; replay used #r.replay.evaluation_samples official-test
       images and one fixed encoding.])
 
-  === Deterministic one-step equivalence
+  === Exact one-step comparisons across compiled and explicit routes
 
   #figure(table(columns: (1.6fr, 1fr),
     [Comparison], [Result],
@@ -94,6 +93,8 @@
       spikes, labels and seeded initialisation. Relative and absolute
       tolerances were both zero. This gate does not compare accuracies obtained
       on different datasets.])
+
+  ]
 
   == Methods
 
@@ -122,6 +123,8 @@
     labels. I compared initial parameters, forward outputs, cross-entropy,
     gradients and one AdamW update with zero numerical tolerance. This bounded
     test isolates implementation equivalence from stochastic evaluation.
+
+  #run-view("exp076", inputs)
 
   #reference-list(((text: [Ilya Loshchilov and Frank Hutter: _Decoupled Weight Decay Regularization_. ICLR, 2019.], doi: "10.48550/arXiv.1711.05101"),))
 ]

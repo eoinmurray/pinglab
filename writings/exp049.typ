@@ -1,4 +1,4 @@
-#import "contents.typ": with-contents
+#import "contents.typ": with-contents, with-result-sections
 #import "/.demolab/lib.typ": data-json, data-image
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
 #import "run-view.typ": with-datasets, run-view
@@ -9,7 +9,7 @@
   status: "[▦ DATA]",
   title: "Training Recurrent Weights Weakens PING Rhythmicity",
   date: "2026-06-09",
-  updated_at: "2026-08-29",
+  updated_at: "2026-08-31",
   description: "Trainable recurrent conductances produced lower reference-image rhythmicity and higher excitatory firing than the frozen PING control; outcomes depended on initialization.",
   collection: "gamma-gated-sparsity",
 )
@@ -49,20 +49,18 @@
 
   == Abstract
 
-  Training the recurrent E→I and I→E conductances weakened reference-image
-  rhythmicity relative to a frozen PING control. I reanalysed retained results
-  from four conditions and three seeds per condition after 50 epochs of MNIST
-  training. Final contrast was #contrast_low–#contrast_high across trainable
-  networks, versus a frozen-control mean of #contrast_frozen. Excitatory firing
-  increased, while inhibitory firing depended on initialization. Trainable
-  networks scored #acc_low–#acc_high% on #eval_n test images, compared with a
-  #frozen_acc% control mean. These conditions did not recover the control's
-  strongly rhythmic regime; they do not establish a universal failure of
-  learning or an accuracy-equivalence result.
-
-  #run-view("exp049", inputs)
+  - Asked whether surrogate-gradient training preserves PING rhythmicity when
+    the recurrent excitatory–inhibitory conductances are allowed to change.
+  - Compared trainable recurrent loops from different initializations with a
+    control whose recurrent PING weights remained frozen.
+  - Recurrent training weakened rhythmicity early and did not recover the
+    strongly rhythmic control regime, while activity and accuracy changed by condition.
+  - Constrains these learning recipes, but does not show that recurrent learning
+    must always destroy gamma or that the compared conditions are accuracy-equivalent.
 
   == Results
+
+  #with-result-sections[
 
   === Recurrent training changes population activity
 
@@ -95,7 +93,7 @@
     data-image(data-file("exp049/training_curves.svg"), width: 100%,
       alt: "Validation accuracy and E/I rates over 50 epochs, alongside reference-image rhythmicity; frozen recurrence retains high contrast while trainable recurrence has low contrast."),
     caption: [
-      Retained histories: validation accuracy and population rates, plus
+      Recorded histories: validation accuracy and population rates, plus
       contrast from a fixed reference-image diagnostic. Lines show three-seed
       means; shading spans seed minima and maxima. Each series is smoothed
       with a five-epoch edge-padded moving average, not a confidence interval.
@@ -159,10 +157,12 @@
     ],
   )
 
+  ]
+
   == Methods
 
   I reused networks from the #link("/exp022/")[shared training study] and
-  reanalysed retained observations. No new training or simulation was performed.
+  reanalysed recorded observations. No new training or simulation was performed.
 
   + *Compare recurrent trainability.* Twelve conductance-based leaky-integrate-and-fire
     classifiers had 784 Poisson input channels, 1,024 excitatory (E), 256
@@ -193,7 +193,7 @@
     per-epoch validation metrics averaged three fixed Poisson encoding draws.
     For endpoint spectra, demeaned nonconstant E-population traces received
     full-trial Welch density estimation; the mean spectrum's largest bin
-    within 5–150 Hz defined the retained peak, without interpolation.
+    within 5–150 Hz defined the selected peak, without interpolation.
 
   + *Measure temporal contrast.* After each epoch, the same fixed reference
     digit's Poisson spike realization elicited a diagnostic response.
@@ -203,13 +203,15 @@
     #math.equation(block: true, numbering: "(1)", $R_"contrast" = (A_"lobe" - A_"trough") / (A_"lobe" + A_"trough")$)
     Here $R_"contrast"$ is dimensionless contrast, $A_"trough"$ the first local trough from lag
     2 ms onward, and $A_"lobe"$ the preceding positive-lag maximum of the smoothed
-    autocorrelogram. I reused the retained scalar; it is neither a
+    autocorrelogram. I reused the recorded scalar; it is neither a
     test-population rhythm estimate nor a calibrated probability of PING.
 
-  == Appendix: retained parameters and interpretation limits
+  #run-view("exp049", inputs)
+
+  == Appendix: Recorded parameters and interpretation limits
 
   Input weights used lower-clamped normal draws with parent mean 0.9 and
-  standard deviation 0.09, followed by 95% initial zeros; retained values were
+  standard deviation 0.09, followed by 95% initial zeros; recorded values were
   divided by $0.05 times 784$ to preserve expected summed input coupling.
   Readout initialization
   used parent mean 1.12060546875 and standard deviation 0.8349609375.

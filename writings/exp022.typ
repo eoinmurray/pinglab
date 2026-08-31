@@ -1,4 +1,4 @@
-#import "contents.typ": with-contents
+#import "contents.typ": with-contents, with-result-sections
 #import "/.demolab/lib.typ": data-json, data-image, cite, reference-list
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
 #import "run-view.typ": with-datasets, run-view
@@ -9,7 +9,7 @@
   status: "[▦ DATA]",
   title: "Training Runs",
   date: "2026-08-11",
-  updated_at: "2026-08-29",
+  updated_at: "2026-08-31",
   description: "Seven controlled training families, their retained checkpoint bank, validation learning curves, and raster diagnostics.",
   collection: "gamma-gated-sparsity",
 )
@@ -32,7 +32,7 @@
 }
 #let family-coverage(family) = {
   let status = r.family_status.at(family)
-  [#status.trained of #status.cells registered training replicates have retained results.]
+  [#status.trained of #status.cells registered training replicates have recorded results.]
 }
 #let study-names = (
   exp024: "the convergence audit", exp025: "the accuracy–rate frontier",
@@ -51,7 +51,7 @@
   } else if records.first().operation.starts-with("carry") {
     [Previously recorded diagnostic, reused without a new simulation.]
   } else {
-    [Based on retained measurements.]
+    [Based on recorded measurements.]
   }
 }
 #let result-figure(path, alt, caption) = figure(
@@ -71,111 +71,162 @@
 #let body = [
   == Abstract
 
-  #let abstract-condition-count = r.cells.map(cell => (cell.family, cell.model, cell.tag)).dedup().len()
-  #let abstract-seed-count = r.cells.map(cell => cell.seed).dedup().len()
-
-  I assembled a reusable bank of #r.n_cells spiking networks for MNIST handwritten-digit classification, covering #abstract-condition-count conditions with #abstract-seed-count random seeds each. Training lasted #r.standard.epochs epochs per network. Conditions compared feedforward controls with excitatory–inhibitory recurrent networks and varied activity penalties, inhibitory decay, numerical timestep, recurrent initialization and trainability, and input drive. In the baseline comparison, mean validation accuracy at selected checkpoints was #mean-field("canonical", "acc", model: "coba")% for feedforward networks and #mean-field("canonical", "acc", model: "ping")% for recurrent networks. Their final-epoch excitatory firing rates were #mean-field("canonical", "rate_e", model: "coba") and #mean-field("canonical", "rate_e", model: "ping") Hz, respectively. Retained models and learning histories support subsequent experiments; these training-recipe comparisons do not isolate a causal benefit of gamma timing.
-
-  #run-view("exp022", inputs)
+  - Built the reusable MNIST model bank that supplies trained networks and
+    learning histories to the downstream gamma-gated-sparsity experiments.
+  - Compared feedforward COBA controls with recurrent PING networks while varying
+    activity penalties, inhibitory timescale, integration, recurrent weights and
+    input drive.
+  - PING combined lower excitatory activity with somewhat lower validation
+    performance than the feedforward baseline, while the wider sweeps exposed
+    distinct accuracy–activity trade-offs.
+  - Provides controlled training families for reuse; the bank itself does not
+    establish that gamma timing causes any downstream benefit.
 
   == Results
 
-  === TR-01 — Canonical full-data reference
+  #with-result-sections[
+
+  === Canonical COBA and PING validation learning curves
 
   #result-figure(
     "exp022/curves__canonical.svg",
     "Validation-accuracy learning curves for the canonical COBA and PING training replicates.",
     [Individual learning histories for both architectures and all three seeds in the full-data family; no across-seed averaging or uncertainty bands.],
   )
+
+  === Canonical PING raster and population-rate diagnostic
+
   #result-figure(
     "exp022/rasters__ping__canonical__seed42.png",
     "Seed-42 excitatory/inhibitory raster and population-rate diagnostic for canonical PING.",
     [Canonical PING, seed 42: one digit-0 diagnostic from the final-epoch checkpoint, with E/I population rates and the accompanying inhibitory spectrum; not a population estimate.],
   )
 
-  === TR-02 — Activity-ceiling sweep
+  === Validation learning curves across activity ceilings
 
   #result-figure(
     "exp022/curves__theta_u.svg",
     "Validation learning curves across the activity-ceiling conditions for COBA and PING.",
     [Individual histories for two architectures, six ceiling settings, and three seeds on the reduced training pool; line colours distinguish settings and line styles distinguish architectures. No uncertainty bands are shown.],
   )
+
+  === Unconstrained PING endpoint raster in the activity-ceiling sweep
+
   #result-figure(
     "exp022/rasters__ping__off__seed42.png",
     "Seed-42 raster for the unconstrained PING endpoint of the activity-ceiling sweep.",
     [PING with the activity penalty off, seed 42, final-epoch digit-0 probe. This is the reference endpoint, not a raster of the strictest ceiling.],
   )
 
-  === TR-03 — Inhibitory-timescale sweep
+  === Validation learning curves across inhibitory decay times
 
   #result-figure(
     "exp022/curves__tau_gaba.svg",
     "Validation learning histories across six inhibitory-decay settings.",
     [Individual PING histories for six GABA decay constants and three seeds per setting; the training pool and other recipe settings are fixed. No confidence bands are shown.],
   )
+
+  === PING raster at the six-millisecond inhibitory-decay reference
+
   #result-figure(
     "exp022/rasters__ping__tg6__seed42.png",
     "Seed-42 PING raster at the six-millisecond inhibitory-decay reference.",
     [Reference inhibitory decay of 6 ms, seed 42, final-epoch digit-0 probe; the plotted spectrum describes this example only.],
   )
 
-  === TR-04 — Integration-timestep sweep
+  === Validation learning curves across integration timesteps
 
   #result-figure(
     "exp022/curves__dt.svg",
     "Validation learning curves across five integration timesteps.",
     [Individual histories for five timesteps and three seeds per setting. Training and evaluation use each training replicate's own timestep at a fixed presentation duration; no across-seed bands are shown.],
   )
+
+  === PING raster at the 0.1-millisecond reference timestep
+
   #result-figure(
     "exp022/rasters__ping__dt0p1__seed42.png",
     "Seed-42 PING raster at the reference 0.1-millisecond timestep.",
     [Reference timestep of 0.1 ms, seed 42, final-epoch digit-0 probe. One reference raster cannot establish timestep convergence.],
   )
 
-  === TR-05 — Recurrent-initialization sweep
+  === Learning curves across recurrent-loop training conditions
 
   #result-figure(
     "exp022/curves__init.svg",
     "Validation learning histories across frozen and trainable recurrent-loop conditions.",
     [Individual histories for four recurrent conditions and three seeds each. The frozen PING control and three trainable initializations share the feedforward recipe; no confidence bands are shown.],
   )
+
+  === Frozen recurrent PING control raster
+
   #result-figure(
     "exp022/rasters__frozen_ping__seed42.png",
     "Seed-42 raster for the frozen recurrent PING control.",
     [Frozen recurrent PING control, seed 42, final-epoch digit-0 probe; this example does not describe the trainable conditions.],
   )
 
-  === TR-06 — Variable-rate streaming bank
+  === Variable-rate spike-count training histories
 
   #result-figure(
     "exp022/curves__variable_rate.svg",
     "Validation learning histories for all three variable-rate spike-count training replicates.",
     [Three individual seed histories for the variable-rate spike-count recipe. Each validation presentation draws from the specified rate set; these curves do not separate accuracy by input rate and have no uncertainty bands.],
   )
+
+  === Variable-rate PING raster at five-hertz input
+
   #result-figure(
     "exp022/rasters__ping__variable_rate__seed42.png",
     "Seed-42 excitatory/inhibitory raster for the variable-rate bank at a five-hertz input rate.",
-    [Variable-rate PING, seed 42, final-epoch digit-0 probe at 5 Hz maximum-pixel input rate. This retained E/I diagnostic does not include output-neuron spikes or continuous-stream resets.],
+    [Variable-rate PING, seed 42, final-epoch digit-0 probe at 5 Hz maximum-pixel input rate. This displayed E/I diagnostic does not include output-neuron spikes or continuous-stream resets.],
   )
 
-  === TR-07 — Low-input recruitment sweep
+  === Learning curves across initial input-coupling settings
 
   #result-figure(
     "exp022/curves__low_w_in.svg",
     "Validation learning curves for four initial input-coupling settings and three seeds each.",
     [Twelve individual histories under the fixed 1 Hz soft ceiling. Colours distinguish the four input-initialization means; no across-seed means or confidence bands are shown.],
   )
-  #for (tag, coupling) in (("0p05", "0.05"), ("0p1", "0.1"), ("0p3", "0.3"), ("0p9", "0.9")) {
-    result-figure(
-      "exp022/rasters__ping__low_w_in__win" + tag + "__seed42.png",
-      "Seed-42 E/I diagnostic for initial input-coupling parent mean " + coupling + ".",
-      [Initial input-coupling parent mean #coupling, seed 42, final-epoch digit-0 probe at the same 1 Hz activity-ceiling target. This is one example per setting, not an across-seed statistic.],
-    )
-  }
+
+  === PING raster at 0.05 initial input coupling
+
+  #result-figure(
+    "exp022/rasters__ping__low_w_in__win0p05__seed42.png",
+    "Seed-42 E/I diagnostic for initial input-coupling parent mean 0.05.",
+    [Initial input-coupling parent mean 0.05, seed 42, final-epoch digit-0 probe at the same 1 Hz activity-ceiling target. This is one example, not an across-seed statistic.],
+  )
+
+  === PING raster at 0.1 initial input coupling
+
+  #result-figure(
+    "exp022/rasters__ping__low_w_in__win0p1__seed42.png",
+    "Seed-42 E/I diagnostic for initial input-coupling parent mean 0.1.",
+    [Initial input-coupling parent mean 0.1, seed 42, final-epoch digit-0 probe at the same 1 Hz activity-ceiling target. This is one example, not an across-seed statistic.],
+  )
+
+  === PING raster at 0.3 initial input coupling
+
+  #result-figure(
+    "exp022/rasters__ping__low_w_in__win0p3__seed42.png",
+    "Seed-42 E/I diagnostic for initial input-coupling parent mean 0.3.",
+    [Initial input-coupling parent mean 0.3, seed 42, final-epoch digit-0 probe at the same 1 Hz activity-ceiling target. This is one example, not an across-seed statistic.],
+  )
+
+  === PING raster at 0.9 initial input coupling
+
+  #result-figure(
+    "exp022/rasters__ping__low_w_in__win0p9__seed42.png",
+    "Seed-42 E/I diagnostic for initial input-coupling parent mean 0.9.",
+    [Initial input-coupling parent mean 0.9, seed 42, final-epoch digit-0 probe at the same 1 Hz activity-ceiling target. This is one example, not an across-seed statistic.],
+  )
+
+  ]
 
   == Methods
 
-  I trained spiking classifiers under controlled conditions, then analysed retained learning histories and reused diagnostic simulations.
+  I trained spiking classifiers under controlled conditions, then analysed recorded learning histories and reused diagnostic simulations.
 
   + *Prepare the data.* Stratified MNIST splits provided 54,000 training and 6,000 validation images for the baseline, and 6,300 and 700 for sweeps. The split seed was 42; the official test set was excluded from training and model selection.
 
@@ -206,6 +257,8 @@
   + *Select models.* Validation averaged three fixed Poisson encoding draws. Selection minimized mean cross-entropy, breaking ties by higher accuracy and then earlier epoch. Selected and final-epoch models were retained.
 
   + *Measure activity and retain models.* Accuracy used selected models, whereas firing rates averaged final-epoch validation measurements across images and encoding draws. Retained models and histories support subsequent experiments. Learning curves show individual validation histories; baseline summaries average three seeds. Reused seed-42 digit-zero rasters are individual probes, not across-seed estimates; no new diagnostic simulations were performed.
+
+  #run-view("exp022", inputs)
 
   == Appendix: Training-run specification sheets <sec-training-run-specification-sheets>
 

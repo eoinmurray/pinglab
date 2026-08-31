@@ -1,4 +1,4 @@
-#import "contents.typ": with-contents
+#import "contents.typ": with-contents, with-result-sections
 #import "/.demolab/lib.typ": data-json, data-image
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
 #import "run-view.typ": with-datasets, run-view
@@ -9,7 +9,7 @@
   status: "[▦ DATA]",
   title: "Gamma Turns On Across the Coupling Map",
   date: "2026-06-15",
-  updated_at: "2026-08-29",
+  updated_at: "2026-08-31",
   description: "Lobe–trough contrast across untrained PING coupling strengths, with private- and shared-input null controls and a separate mean-field onset comparison.",
   collection: "gamma-gated-sparsity",
 )
@@ -29,11 +29,18 @@
 #let body = [
   == Abstract
 
-  Across 121 untrained PING coupling conditions, the *lobe–trough contrast* of the excitatory spike-time autocorrelation was near zero on the uncoupled edges and generally larger in the coupled interior. Excitatory firing spanned 2.77–94.31 Hz; contrast reached 0.984 at the strong-coupling corner and 0.997 elsewhere. Private-input nulls remained below 0.068 over the tested firing range, whereas shared-input coincidence can produce substantial contrast without an inhibitory loop. These single-seed controls support private input for this comparison, not universal rate invariance. A separate conductance mean-field comparison suggests a possible onset mechanism without establishing the spiking transition's bifurcation type.
-
-  #run-view("exp054", inputs)
+  - Asked where rhythmic population activity appears as reciprocal PING coupling
+    is turned on across the excitatory–inhibitory coupling map.
+  - Swept both coupling directions in an untrained network and compared the
+    resulting autocorrelation structure with private- and shared-input controls.
+  - Rhythmic contrast was weak on uncoupled edges and generally stronger inside
+    the coupled map; shared input could imitate contrast without a recurrent loop.
+  - Supports the selected private-input control and a possible onset mechanism,
+    but does not establish rate invariance or the spiking transition's bifurcation type.
 
   == Results
+
+  #with-result-sections[
 
   On either zero-coupling edge the loop was broken: E fired at 94.31 Hz and
   contrast was 0.00169, while I was silent when E-to-I coupling was zero. The
@@ -105,7 +112,7 @@
       examples (bottom) at 0.97/1.88/4.90 Hz.],
   )
 
-  === Comparison with a mean-field onset
+  === Mean-field and spiking onset comparison
 
   A complex eigenvalue pair crossed the imaginary axis near external drive
   $I^* = 0.596$ nA, and the finite up/down branches of peak-to-peak E-rate
@@ -127,6 +134,8 @@
   )
 
   #context if target() != "html" { pagebreak(weak: true) }
+  ]
+
   == Methods
 
   Untrained PING populations tested coupling-dependent temporal structure; uncoupled controls tested the influence of input sharing. The mean-field comparison reused numerical observations from a separate conductance model.
@@ -154,8 +163,10 @@
     $ R_"contrast" = (A_"lobe" - A_"trough") / (A_"lobe" + A_"trough"). $ <exp054-contrast>
 
     For $0 <= "trough" <= "lobe"$ and a positive denominator, this lies in $[0,1]$. A missing trough or invalid denominator leaves the score undefined; no trough floor is imposed on contrast.
-  + *Compare mean-field onset.* I used the #link("/exp033/")[four-variable conductance model] at 4 mV effective noise. I continued fixed points over 401 drives from 0–4 nA and refined the leading-eigenvalue crossing with Brent's method. I swept 25 drives from 0.1 nA below to 0.55 nA above the crossing in both directions, carrying endpoint states. I integrated 2 s per drive with LSODA and measured peak-to-peak E-rate amplitude ($"ms"^(-1)$) over the final 500 ms. Retained amplitudes were reused; missing trajectories were not reconstructed.
+  + *Compare mean-field onset.* I used the #link("/exp033/")[four-variable conductance model] at 4 mV effective noise. I continued fixed points over 401 drives from 0–4 nA and refined the leading-eigenvalue crossing with Brent's method. I swept 25 drives from 0.1 nA below to 0.55 nA above the crossing in both directions, carrying endpoint states. I integrated 2 s per drive with LSODA and measured peak-to-peak E-rate amplitude ($"ms"^(-1)$) over the final 500 ms. Recorded amplitudes were reused; missing trajectories were not reconstructed.
   + *Compare frequencies.* I repeated the theoretical crossing search at inhibitory decays 4.5/6/9/12/18/27 ms. I overlaid the median frequency across three seeded #link("/exp041/")[spiking-network measurements] at each decay; I did not refit the mean-field noise scale.
+
+  #run-view("exp054", inputs)
 
   == Appendix: reading the autocorrelogram
 

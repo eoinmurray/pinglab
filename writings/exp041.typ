@@ -1,4 +1,4 @@
-#import "contents.typ": with-contents
+#import "contents.typ": with-contents, with-result-sections
 #import "/.demolab/lib.typ": data-json, data-image, cite, reference-list
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
 #import "run-view.typ": with-datasets, run-view
@@ -9,7 +9,7 @@
   status: "[▦ DATA]",
   title: "Firing Rate Tracks Gamma Frequency",
   date: "2026-06-02",
-  updated_at: "2026-08-29",
+  updated_at: "2026-08-31",
   description: "Across PING networks trained at different inhibitory decay times, compare excitatory firing rate with gamma frequency and test accuracy.",
   collection: "gamma-gated-sparsity",
 )
@@ -46,21 +46,20 @@
 #let body = [
   == Abstract
 
-  Excitatory firing rate tracked gamma frequency across PING networks trained
-  separately at six inhibitory decay times, with three seeds per condition.
-  Reusing their final-epoch weights, I measured population rhythms and MNIST
-  test performance on the same #cfg.evaluation_samples images per network.
-  The six seed-averaged conditions gave an affine rate–frequency fit with
-  intercept #fa Hz, slope #fp and $R_"fit"^2 = #fr$; test accuracy ranged from
-  #acc_lo% to #acc_hi%. This association is consistent with a cycle-participation
-  model, but does not establish constant participation or identify a physical
-  non-rhythmic baseline.
-
-  #run-view("exp041", inputs)
+  - Asked whether the excitatory firing rate of trained PING classifiers changes
+    systematically with their gamma frequency.
+  - Reused networks trained with different inhibitory decay times and measured
+    their final population rhythms, activity and MNIST performance.
+  - Slower rhythms accompanied lower excitatory firing while useful classification
+    persisted across the sweep.
+  - The association supports a cycle-participation account, but does not prove
+    constant participation or identify a physical non-rhythmic baseline.
 
   == Results
 
-  === Training trajectories
+  #with-result-sections[
+
+  === Validation accuracy and excitatory rate across inhibitory decay times
 
   #figure(
     data-image(data-file("exp041/training_curves.svg"),
@@ -74,7 +73,7 @@
     ],
   )
 
-  === Population rhythm frequency
+  === Population spectra across inhibitory decay times
 
   Per-network interpolated frequencies spanned approximately #fg_lo–#fg_hi Hz
   across the inhibitory-decay sweep.
@@ -91,7 +90,7 @@
     ],
   )
 
-  === Illustrative spike timing
+  === Spike rasters across inhibitory decay times
 
   #figure(
     data-image(data-file("exp041/raster_strip.png"),
@@ -106,7 +105,7 @@
     ],
   )
 
-  === Rate–frequency relationship
+  === Post-training rate and accuracy against gamma frequency
 
   Individual network rates spanned #er_lo–#er_hi Hz and accuracies
   #acc_lo–#acc_hi% across the six inhibitory-decay conditions.
@@ -123,6 +122,8 @@
     ],
   )
 
+  === Affine and origin-constrained rate–frequency fits
+
   #figure(
     table(
       columns: 4,
@@ -134,6 +135,8 @@
       centred total sum of squares. The origin-constrained fit tests how much
       the association depends on a free intercept.],
   )
+
+  ]
 
   == Methods
 
@@ -182,6 +185,8 @@
     intercept in hertz, and $beta_(r f)$ and $beta_(r f,0)$ are dimensionless fitted slopes. Both fits
     report $R_"fit"^2$, the coefficient of determination using centred total sum of
     squares; error bars are sample standard deviations divided by $sqrt(3)$.
+
+  #run-view("exp041", inputs)
 
   == Appendix: Cycle-participation model
 

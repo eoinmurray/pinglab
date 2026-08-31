@@ -1,6 +1,6 @@
 # Writing Guide
 
-Version: **20.0.0**
+Version: **24.0.0**
 
 The Writing Guide defines the conventions for Pinglab's published experiment
 entries in `writings/expXXX.typ`. This file is the canonical guide.
@@ -14,6 +14,20 @@ corrections or clarifications that do not change requirements. Update the versio
 above and add a short entry to the version history when changing the guide.
 
 ### 1.1. Version history
+
+- **24.0.0** — Replace prose abstracts with three- or four-bullet experiment
+  stories and move numerical results, scales and parameter values to Results.
+
+- **23.0.0** — Number direct Results subsections, include them beneath Results
+  in the article Table of Contents, and require each subsection to describe and
+  contain exactly one figure.
+
+- **22.0.0** — Distinguish evidence preserved from an earlier execution from
+  measurements recorded for reuse and contents shown in the current figure.
+
+- **21.0.0** — Require the `Dataset` section to appear after all main-text
+  sections and before any appendices and References, while remaining in the
+  Table of Contents.
 
 - **20.0.0** — Give captions and figure-local Results prose distinct roles.
   Captions explain how to read a figure; prose states what the figure establishes.
@@ -597,7 +611,7 @@ must render exactly one `Table of Contents` at the beginning of its body, after
 the title/metadata and before `Abstract`. Use the shared `contents.typ` helper:
 
 ```typst
-#import "contents.typ": with-contents
+#import "contents.typ": with-contents, with-result-sections
 // Define the article body and apply any dataset/report wrappers first.
 #let body = with-contents(body)
 ```
@@ -605,9 +619,11 @@ the title/metadata and before `Abstract`. Use the shared `contents.typ` helper:
 - Apply this as the final body wrapper, outside data-readiness branches, so
   navigation is present in both populated and unavailable-data views.
 - Generate linked entries from the current article's rendered level-2 (`==`)
-  section headings, in document order, including Abstract, Datasets, appendices
-  and References when present. Keep the list compact: omit deeper subsections,
-  the title, the TOC itself, and headings belonging to other articles in a book.
+  section headings, in document order, including Abstract, Dataset, appendices
+  and References when present. Beneath `Results`, include every direct level-3
+  (`===`) Results subsection as a nested linked entry with its generated number.
+  Omit every other deeper heading, the title, the TOC itself, and headings
+  belonging to other articles in a book.
   Links must work in HTML and PDF; do not maintain a manual link list or use an
   unscoped, document-wide outline.
 - If an existing reference page or gallery has no Abstract, place the TOC before
@@ -624,12 +640,14 @@ the title/metadata and before `Abstract`. Use the shared `contents.typ` helper:
 
 ### 4.2. Unnumbered headings and section order
 
-- Never number article section or subsection headings, whether manually or
-  through Typst's `heading.numbering`. This applies at every depth, including
-  Abstract, Results, Methods, appendices and References. Use `Rhythm frequency`,
-  not `1. Rhythm frequency` or `2.1 Rhythm frequency`; use `Appendix: Training
-  settings`, not `Appendix A: Training settings`. The Writing Guide's own
-  numbered policy sections are not article headings.
+- Never number article headings except direct Results subsections. Number those
+  subsections automatically and sequentially as `1.`, `2.`, and so forth through
+  the shared Results wrapper; authors must not type ordinal prefixes into source
+  headings. All level-2 sections, other subsections, appendices and References
+  remain unnumbered. Use `=== Accuracy across input rates` in source, which
+  renders as `1. Accuracy across input rates`; use `Appendix: Training settings`,
+  not `Appendix A: Training settings`. The Writing Guide's own numbered policy
+  sections are not article headings.
 - Preserve numbers that identify scientific content rather than section order,
   such as a `4D model` or a training condition's name. Figure, equation, citation,
   reference-list and method-step numbering are unaffected.
@@ -637,20 +655,25 @@ the title/metadata and before `Abstract`. Use the shared `contents.typ` helper:
   including its subsections, before the entire Methods section. Do not move
   only the heading or leave results figures beneath Methods. Existing reference
   pages without these sections do not need invented sections.
+- Name the section exactly `Dataset`. Place it after all main-text sections,
+  including Methods when present, and before any appendices and References.
+  If an entry has neither appendices nor References, place Dataset at the end.
+  Keep it as a level-2 heading so it remains in the Table of Contents.
 - Use descriptive section names with links for internal cross-references, not
   section numbers. When migrating, remove ordinal prefixes, repair links and
   textual references, and move complete sections as needed. Preserve scientific
   content, equation labels, citations, metadata and unrelated edits. Formatting
   and ordering changes alone do not advance authored dates (section 3.4).
-- The shared article wrapper disables automatic heading numbering. Regression
-  tests must check source headings and Results-before-Methods order in every
-  article, including data-dependent bodies, plus rendered headings and links.
+- The shared article wrapper disables general heading numbering, while the
+  shared Results wrapper numbers direct Results subsections only. Regression
+  tests must check source headings, Results-before-Methods order, one figure per
+  Results subsection, sequential rendered subsection numbers, nested TOC entries,
+  and links in every article, including data-dependent bodies.
 
 ## 5. Abstracts
 
-Write a standalone summary of roughly 60–120 words that lets a reader browsing
-experiments quickly understand what was done, what happened, and why the result
-is useful.
+Write a standalone list of three or four bullet points that quickly restores
+the story of the experiment for a reader already familiar with the project.
 
 ### Ground the abstract before writing
 
@@ -668,41 +691,36 @@ is useful.
 
 ### Write for rapid understanding
 
-- Lead with the principal finding or concrete output, according to the
-  experiment’s purpose. A training-bank experiment should foreground the bank;
-  a hypothesis test should foreground its result.
-- State what was done, including the comparison and the scale needed to
-  interpret it.
-- Report the decisive result with useful quantities, units and measurement
-  context. Say how outcomes differed, not merely that differences existed.
-- End with the supported conclusion or reuse value. Include limitations that
-  materially change interpretation, without adding a generic disclaimer.
-- Use plain, direct language, consistent terminology and one main idea per
-  sentence. Write researcher-to-colleague prose. Retain necessary scientific
-  terms and define unfamiliar terms or notation.
-- Follow section 3.6 for tense and person: past for completed work, present for
-  definitions and current conclusions, and explicit planning language for
-  unperformed work. Never substitute an expected outcome for an observation.
-- Omit general background, citations, repository bookkeeping and unnecessary
-  implementation details.
-- Interpolate reported values from retained evidence where possible; do not
-  hardcode them into article prose.
+- State the question or purpose of the experiment.
+- Describe the experimental move: what was reused, changed, compared or tested.
+- State the main qualitative finding.
+- State what the finding establishes, its reuse value, or the limitation that
+  most constrains its interpretation.
 
-### Example: exp022
+Use three bullets when two adjacent roles can be combined clearly; otherwise use
+four. Each bullet must express one distinct part of the story.
 
-The values below illustrate the verified result; the article should interpolate
-them from its selected evidence.
+Omit numerical results, sample sizes, parameter grids and units. Those belong in
+Results. Use qualitative comparisons sufficient to distinguish the outcome.
 
-> I assembled a reusable bank of 102 spiking networks for MNIST handwritten-digit
-> classification, covering 34 conditions with three random seeds each. Training
-> lasted 50 epochs per network. Conditions compared feedforward controls with
-> excitatory–inhibitory recurrent networks and varied activity penalties,
-> inhibitory decay, numerical timestep, recurrent initialization and trainability,
-> and input drive. In the baseline comparison, mean validation accuracy was 96.0%
-> for feedforward networks and 91.5% for recurrent networks. Their final-epoch
-> excitatory firing rates were 247.5 and 24.4 Hz, respectively. Retained models and
-> learning histories support subsequent experiments; these training-recipe
-> comparisons do not isolate a causal benefit of gamma timing.
+Use plain, direct language and assume familiarity with the wider project, but
+do not assume the reader remembers this experiment's particular setup. Retain
+necessary scientific terms, while omitting general background, citations,
+repository bookkeeping and implementation details.
+
+Follow section 3.6 for tense and person. Never substitute an expected outcome
+for an observation.
+
+### Example: exp082
+
+> - Asked whether networks trained on separate MNIST digits could classify digits
+>   presented continuously.
+> - Preserved recurrent state between digits while resetting the output decision
+>   at each boundary.
+> - Classification improved with longer, stronger inputs; weak inputs often
+>   produced no output spikes.
+> - Demonstrates continuous-stream classification, but does not separate viewing
+>   time from decision time or establish a causal role for gamma.
 
 ## 6. Data access in Typst source
 
@@ -749,7 +767,7 @@ records their source lineage, and captions must not imply a new simulation.
 
 ## 7. Results
 
-Build Results from unnumbered headings, key figures, concise captions and
+Build Results from numbered subsections, key figures, concise captions and
 optional explanatory prose. Give captions and prose distinct roles: captions
 explain how to read a figure; prose states what the figure establishes. Results
 remain evidence-led; prose is not required when a figure has no supported finding
@@ -758,25 +776,36 @@ beyond the display itself.
 1. Name the section exactly `Results` and place it before `Methods`.
    Do not append a tagline, description or other suffix, or add a
    section-number prefix (section 4.2).
-2. Use unnumbered subsection headings such as `Rhythm frequency`, not
-   `Plot 1`. Name the comparison or supported finding plainly.
-3. Select only the key plots needed to show the experiment's results. There is
-   no fixed plot count; a subsection may contain more than one related figure.
-4. Use figures from retained experimental outputs. Keep captions concise and
+2. Put the Results body inside the shared Results wrapper. Write each direct
+   subsection as an unprefixed level-3 source heading; the wrapper generates its
+   sequential number and the Table of Contents repeats that number.
+3. Each Results subsection must contain exactly one figure. A compound image or
+   a table wrapped in `figure(...)` counts as one figure; separate `figure(...)`
+   calls require separate subsections.
+4. Give each subsection a concise, self-contained title describing what its
+   figure presents. Name the subject, comparison, measurement or distinctive
+   displayed condition. Avoid generic titles such as `Training trajectories`,
+   `Overview` or `Results plot`. Do not type the generated number into the title.
+5. Use figures from retained experimental outputs. Keep captions concise and
    identify the variables, conditions, visual encodings, aggregation and
    uncertainty needed to read each figure correctly. Distinguish illustrative
    probes and reused observations from new measurements. Do not state the
-   figure's scientific finding or interpretation in its caption.
-5. An optional theory diagram may precede a data plot when useful. Its caption
-   must identify it as an expectation or mechanism, not experimental evidence.
-6. Explanatory prose may appear immediately before or after a figure. Use it for
+   figure's scientific finding or interpretation in its caption. Reserve
+   *retained* for evidence deliberately preserved from an earlier execution;
+   use *shown* or *displayed* for the contents of the current figure, *recorded*
+   for stored measurements, and *reused* for prior outputs analysed again.
+6. A theory diagram may occupy its own Results subsection when useful. Its
+   title and caption must identify it as an expectation or mechanism, not
+   experimental evidence.
+7. Explanatory prose may appear immediately before or after the subsection's
+   figure. Use it for
    observed relationships, scientific consequences and clearly labelled
    interpretations. Keep it local to that figure and concise. Distinguish
    mathematical or theoretical expectations from observations, and label
    post-hoc interpretations. Do not repeat the caption or Methods, introduce
    unsupported causal claims, or add generic introductory or concluding prose.
    Do not add prose placeholders asking a later pass to fill these in.
-7. Never state the same finding in both prose and the caption. Apply a deletion
+8. Never state the same finding in both prose and the caption. Apply a deletion
    test: without the prose, the figure and caption must still be readable;
    without the caption, the prose must not substitute for the missing variables,
    conditions, encodings, aggregation or uncertainty.
@@ -791,7 +820,9 @@ outputs and their measurement details):
 ```typst
 == Results
 
-=== Rhythm frequency
+#with-result-sections[
+
+=== Gamma frequency and accuracy across inhibitory decay times
 
 The oscillation slowed as inhibitory decay increased, but accuracy peaked at
 the intermediate decay time. Slower rhythms therefore did not consistently
@@ -803,6 +834,7 @@ improve classification.
   Points show means across eight training replicates; error bars show ±1
   standard deviation.],
 )
+]
 ```
 
 ## 8. Methods

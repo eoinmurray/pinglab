@@ -1,4 +1,4 @@
-#import "contents.typ": with-contents
+#import "contents.typ": with-contents, with-result-sections
 #import "/.demolab/lib.typ": data-json, data-image, cite, reference-list
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
 #import "run-view.typ": with-datasets, run-view
@@ -9,7 +9,7 @@
   status: "[▦ DATA]",
   title: "Firing Rate Across the Timestep Sweep",
   date: "2026-06-02",
-  updated_at: "2026-08-29",
+  updated_at: "2026-08-31",
   description: "Compares final-epoch firing rate, classification accuracy and illustrative rasters across a twentyfold integration-timestep sweep.",
   collection: "gamma-gated-sparsity",
 )
@@ -33,21 +33,20 @@
 #let body = [
   == Abstract
 
-  Final-epoch mean excitatory rates ranged from #number(summary.e_rate_min_hz) to
-  #number(summary.e_rate_max_hz) Hz across a twentyfold integration-timestep sweep;
-  mean test accuracy ranged from #number(summary.acc_min_pct) to
-  #number(summary.acc_max_pct)%. I reused fifteen trained PING networks, with
-  three seeds at each timestep and 200 ms presentations, then evaluated
-  #cfg.evaluation_samples held-out MNIST images per network. Training and inference
-  used matched timesteps. The comparison therefore tests the complete trained
-  pipeline, not one network evaluated at different timesteps. Single-trial rasters
-  permit qualitative inspection of burst cadence; they do not establish gamma-period invariance.
-
-  #run-view("exp044", inputs)
+  - Asked how numerical integration timestep affects the activity and accuracy
+    of trained PING classifiers.
+  - Compared separately trained network families whose training and inference
+    used the same timestep, then evaluated their held-out MNIST performance.
+  - Excitatory firing and accuracy both varied across the sweep, showing that the
+    timestep is part of the learned operating regime rather than a neutral solver setting.
+  - Tests complete matched pipelines rather than holding network weights fixed;
+    the rasters do not establish invariance relative to the gamma period.
 
   == Results
 
-  === Firing rate and classification accuracy
+  #with-result-sections[
+
+  === Excitatory rate and test accuracy across integration timesteps
 
   #figure(
     data-image(data-file("exp044/dt_sweep.svg"), width: 100%,
@@ -58,7 +57,7 @@
       official-test images at its training timestep.],
   )
 
-  === Single-trial burst cadence
+  === Single-trial spike rasters across integration timesteps
 
   #figure(
     data-image(data-file("exp044/raster_strip.png"), width: 100%,
@@ -70,17 +69,19 @@
       inspection, not a population estimate of gamma-period invariance.],
   )
 
-  === Training trajectories
+  === Validation accuracy and excitatory rate across training timesteps
 
   #figure(
     data-image(data-file("exp044/training_curves.svg"), width: 100%,
       alt: "Per-network validation accuracy and excitatory firing rate versus epoch, coloured by integration timestep."),
-    caption: [Retained training histories: validation accuracy (top) and E rate
+    caption: [Recorded training histories: validation accuracy (top) and E rate
       (bottom), one line per timestep and seed. Each epoch averaged
       #c.validation_encoder_draws.count encoder draws per validation image.
       The final-epoch comparison is a finite-training snapshot, not an established
       fixed-point ceiling.],
   )
+
+  ]
 
   == Methods
 
@@ -102,7 +103,7 @@
     from 4,000 to 200. Image intensities drove Poisson input with peak rate
     #c.input_rate Hz.
 
-  + *Retain the training endpoint.* Networks underwent #c.epochs epochs of
+  + *Use the training endpoint.* Networks underwent #c.epochs epochs of
     surrogate-gradient training #cite(1), with batch size #c.batch_size and
     learning rate #c.lr. Class scores used the mean-membrane readout, and
     validation histories averaged #c.validation_encoder_draws.count encoder draws
@@ -114,7 +115,7 @@
     without retraining. Accuracy was the percentage of correctly classified
     images; population firing rate was total spikes divided by the number of
     evaluated images, population size and trial duration in seconds.
-    Excitatory and inhibitory rates were retained separately.
+    Excitatory and inhibitory rates were recorded separately.
 
   == Parameter summary
 
@@ -127,6 +128,8 @@
     [Official-test evaluation], [#cfg.evaluation_samples images per network],
     [Epochs], [#c.epochs],
   )
+
+  #run-view("exp044", inputs)
 
   #reference-list((
     (text: [E. O. Neftci, H. Mostafa, and F. Zenke.

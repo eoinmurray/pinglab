@@ -1,6 +1,7 @@
 """Fail-closed validation of current and retained scientific evidence."""
 
 import math
+from typing import Any, cast
 
 import numpy as np
 from experiments.helpers.checkpoints import public_provenance, resolve_checkpoint
@@ -180,15 +181,18 @@ def counts(path, cfg):
     return data
 
 
-def stream(root, name):
+def stream(root, name, *, conditions=None):
     folder = _unit(root, "streams", name)
     meta = load_json(folder / "stream.json")
     raw = arrays(folder / "recording.npz")
-    conditions = (
-        [[200.0, 5.0]] * 5
-        if name == "matched"
-        else [list(c) for c in recipe.VARIABLE_STREAM]
-    )
+    if conditions is None:
+        conditions = (
+            [[200.0, 5.0]] * 5
+            if name == "matched"
+            else [list(c) for c in recipe.VARIABLE_STREAM]
+        )
+    else:
+        conditions = [list(value) for value in conditions]
     bounds = np.cumsum(
         [0, *[int(round(d / recipe.DT_MS)) for d, _ in conditions]]
     ).tolist()
@@ -218,6 +222,100 @@ def stream(root, name):
     ):
         raise PingstoreError("invalid illustrative pixels")
     return raw, meta
+
+
+def showcase_configuration():
+    return {
+        "schema": "exp082.showcase-selection/v1",
+        "conditions": [list(value) for value in recipe.SHOWCASE_CONDITIONS],
+        "candidate_order": "ascending integer index",
+        "digit_seed_base": recipe.SHOWCASE_DIGIT_SEED_BASE,
+        "encoding_seed_base": recipe.SHOWCASE_ENCODING_SEED_BASE,
+        "candidate_limit": recipe.SHOWCASE_CANDIDATE_LIMIT,
+        "targets": recipe.SHOWCASE_TARGETS,
+        "training_seed": recipe.SEEDS[0],
+    }
+
+
+def validate_showcase(root):
+    saved = load_json(_root(root) / "evidence.json")
+    selected = saved.get("selected")
+    if (
+        saved.get("schema") != "exp082.showcase-selection/v1"
+        or saved.get("configuration") != showcase_configuration()
+        or not isinstance(selected, dict)
+        or selected.keys() != recipe.SHOWCASE_TARGETS.keys()
+    ):
+        raise PingstoreError("showcase selection contract differs")
+    candidate_values = saved.get("candidates")
+    if not isinstance(candidate_values, list) or not candidate_values:
+        raise PingstoreError("showcase candidate history is missing")
+    candidates: list[dict[str, Any]] = []
+    for index, row in enumerate(candidate_values):
+        if not isinstance(row, dict):
+            raise PingstoreError("invalid showcase candidate record")
+        expected = {
+            "candidate_index": index,
+            "digit_seed": recipe.SHOWCASE_DIGIT_SEED_BASE + index,
+            "encoding_seed": recipe.SHOWCASE_ENCODING_SEED_BASE + index,
+        }
+        if any(row.get(key) != value for key, value in expected.items()):
+            raise PingstoreError("showcase candidate order differs")
+        labels, predictions, correct = (
+            row.get("labels"), row.get("predictions"), row.get("correct")
+        )
+        if (
+            not isinstance(labels, list)
+            or not isinstance(predictions, list)
+            or not isinstance(correct, list)
+            or not all(len(value) == 5 for value in (labels, predictions, correct))
+            or any(type(value) is not int or not 0 <= value < 10 for value in labels + predictions)
+            or any(type(value) is not int or value not in (0, 1) for value in correct)
+            or correct != [int(a == b) for a, b in zip(labels, predictions, strict=True)]
+            or row.get("n_correct") != sum(correct)
+        ):
+            raise PingstoreError("invalid showcase candidate outcome")
+        candidates.append(cast(dict[str, Any], row))
+    for name, target in recipe.SHOWCASE_TARGETS.items():
+        first = None
+        for candidate in candidates:
+            if candidate["n_correct"] == target:
+                first = candidate["candidate_index"]
+                break
+        if type(first) is not int:
+            raise PingstoreError("showcase target has no qualifying candidate")
+        if selected.get(name) != first or first is None:
+            raise PingstoreError("showcase did not retain the first qualifying candidate")
+        raw, meta = stream(root, name, conditions=recipe.SHOWCASE_CONDITIONS)
+        row = candidates[first]
+        predictions = [
+            int(raw["spikes_out"][start:stop].sum(axis=0).argmax())
+            for start, stop in zip(meta["boundaries"][:-1], meta["boundaries"][1:], strict=True)
+        ]
+        if meta["labels"] != row["labels"] or predictions != row["predictions"]:
+            raise PingstoreError("selected showcase recording differs from its outcome")
+    return saved
+
+
+def showcase_evidence(repo, run):
+    if (
+        run.record["stage"] != "compute"
+        or run.record["experiment"] != recipe.SLUG
+        or run.record["execution"].get("operation") != "showcase-selection"
+        or run.record["execution"].get("configuration") != showcase_configuration()
+        or set(run.record["inputs"]) != {"bank"}
+    ):
+        raise PingstoreError("invalid exp082 showcase compute run")
+    pin = run.record["inputs"]["bank"]
+    from . import inputs
+
+    bank = inputs.source(
+        repo, pin["run_id"], "compute", experiment="exp022", reference=pin
+    )
+    saved = validate_showcase(run.export)
+    if saved.get("training_contract") != training_contract(bank.export):
+        raise PingstoreError("showcase training contract differs")
+    return bank, saved
 
 
 def condition(root, job, cfg):

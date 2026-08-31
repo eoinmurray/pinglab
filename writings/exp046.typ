@@ -1,4 +1,4 @@
-#import "contents.typ": with-contents
+#import "contents.typ": with-contents, with-result-sections
 #import "/.demolab/lib.typ": data-json, data-image
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
 #import "run-view.typ": with-datasets, run-view
@@ -9,7 +9,7 @@
   status: "[▦ DATA]",
   title: "One Spike per Gamma Cycle",
   date: "2026-06-04",
-  updated_at: "2026-08-29",
+  updated_at: "2026-08-31",
   description: "Counting E spikes per gamma cycle across exp041's 18 checkpoints shows the architecture is overwhelmingly one-spike-per-cycle.",
   collection: "gamma-gated-sparsity",
 )
@@ -25,11 +25,20 @@
 #let body = [
   == Abstract
 
-  #link("/exp041/")[exp041]'s fitted rate–frequency slope $beta_(r f) approx 0.20$ was interpreted as _"each E neuron joins a cycle with ≈ 20% probability"_. That reading assumes the per-cycle spike count is bounded by 1 (an E neuron either participates in this cycle or not). I measured that directly by walking through every gamma cycle in the shared 1,000-image held-out evaluation subset and counting how many spikes each E neuron actually emitted, on all 18 training replicates in exp041's $tau_"GABA"$ sweep.
-
-  #run-view("exp046", inputs)
+  - Asked whether exp041's rate–frequency relationship can be interpreted as
+    excitatory neurons participating in gamma cycles without repeatedly firing.
+  - Reused the inhibitory-timescale sweep and counted each excitatory neuron's
+    spikes between successive inhibitory population bursts.
+  - Excitatory neurons were usually silent within a cycle and, when active,
+    overwhelmingly emitted a single spike; the busiest cells tracked that ceiling.
+  - Supports the one-spike-per-cycle approximation for this sweep, but does not
+    turn the population relationship into a universal participation law.
 
   == Results
+
+  #with-result-sections[
+
+  === Spike-count distribution per neuron and gamma cycle
 
   Across 179 million neuron–cycle pairs, E neurons emitted zero spikes in
   approximately 79% of cycles and one spike in approximately 20%. Two-or-more
@@ -42,6 +51,8 @@
     caption: [Distribution of E spike count per gamma cycle per neuron, by
       $tau_"GABA"$, aggregating three seeds and 179 million neuron–cycle pairs.],
   )
+
+  === Per-neuron firing rate against gamma frequency
 
   The busiest neuron in each network tracked the one-spike-per-cycle ceiling
   $r = f_gamma$ (fit $r = 0.97 f_gamma$, $R_"fit"^2 = 0.88$), whereas the
@@ -58,9 +69,11 @@
       participation slope.],
   )
 
+  ]
+
   == Methods
 
-  Cycle statistics were evaluated from the final-epoch checkpoints used by exp041, so this experiment audits the same endpoint gamma dynamics. The source training horizon was read from those checkpoint configurations and retained in the generated provenance.
+  Cycle statistics were evaluated from the final-epoch checkpoints used by exp041, so this experiment audits the same endpoint gamma dynamics. The source training horizon was read from those checkpoint configurations and recorded in the generated provenance.
 
   For each of exp041's 18 trained networks (6 $tau_"GABA"$ × 3 seeds):
 
@@ -74,6 +87,8 @@
 
 ]
 #body
+  #run-view("exp046", inputs)
+
 ]
 
 #let report-body = if inputs-ready(data-file, inputs) {

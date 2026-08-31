@@ -1,4 +1,4 @@
-#import "contents.typ": with-contents
+#import "contents.typ": with-contents, with-result-sections
 #import "/.demolab/lib.typ": data-json, data-image, cite, reference-list
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
 #import "run-view.typ": with-datasets, run-view
@@ -9,7 +9,7 @@
   status: "[▦ DATA]",
   title: "Pool-Size Effects Depend on Synaptic Scaling",
   date: "2026-07-14",
-  updated_at: "2026-08-29",
+  updated_at: "2026-08-31",
   description: "Paired controls separate fixed summed I→E coupling from fixed expected synaptic strength as the inhibitory pool grows.",
   collection: "gamma-gated-sparsity",
 )
@@ -52,19 +52,18 @@
 #let body = [
   == Abstract
 
-  Inhibitory-pool size had little effect on firing rates when expected summed
-  inhibition was held fixed, but rates fell strongly when expected individual
-  synaptic strength was fixed. I reanalysed untrained pyramidal–interneuron
-  network gamma (PING) simulations with #cfg.n_e excitatory neurons and
-  #n-lo–#n-hi inhibitory neurons. At nominal summed coupling #g-mid μS,
-  excitatory rates stayed near #re-ft-hi-fmt Hz; at mean synaptic strength
-  #j-mid-ns nS, they fell from #re-fs-lo-fmt to #re-fs-hi-fmt Hz.
-  The tested inverse-scaling path preserved rates; this does not establish
-  that it is the only possible compensation, or demonstrate gamma rhythmicity.
-
-  #run-view("exp047", inputs)
+  - Asked whether changing inhibitory population size alters PING activity by
+    adding inhibition or merely redistributing a fixed inhibitory budget.
+  - Compared pool-size sweeps that held either expected summed inhibition or
+    expected individual synaptic strength fixed.
+  - Firing rates stayed broadly stable under fixed total inhibition but fell as
+    the pool grew when individual synaptic strength was preserved.
+  - Supports inverse scaling as a compensation rule for this regime; it does
+    not establish uniqueness or demonstrate gamma rhythmicity.
 
   == Results
+
+  #with-result-sections[
 
   === Pool-size dependence changes with synaptic scaling
 
@@ -87,9 +86,11 @@
       Shared conditions reused the same simulations.],
   )
 
+  ]
+
   == Methods
 
-  I compared two scaling controls using retained simulations of untrained,
+  I compared two scaling controls using recorded outputs from simulations of untrained,
   dense recurrent excitatory–inhibitory networks, without additional simulation.
   #set math.equation(numbering: "(1)")
 
@@ -129,12 +130,14 @@
     #cfg.n_in independent #cfg.input_rate_hz Hz input channels, implemented
     as Bernoulli spikes per #cfg.dt_ms ms timestep, for #cfg.t_ms ms and
     #cfg.n_batch trials, with seeds #cfg.seeds.map(str).join(", ").
-    I retained all conditions and averaged spike counts over the full duration,
+    I included all conditions and averaged spike counts over the full duration,
     trials and neurons within each population; overlapping controls reused
     measurements, giving #n-seeds seeds at each of 18 conditions from
     #(14 * n-seeds) distinct simulations. The reanalysis used these rates,
     not raw spike trains; population rates alone do not establish gamma
     oscillations #cite(1).
+
+  #run-view("exp047", inputs)
 
   #reference-list((
     (text: [G. Buzsáki and X.-J. Wang. “Mechanisms of Gamma Oscillations.”

@@ -1,4 +1,4 @@
-#import "contents.typ": with-contents
+#import "contents.typ": with-contents, with-result-sections
 #import "/.demolab/lib.typ": data-json, data-image, cite, reference-list
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
 #import "run-view.typ": with-datasets, run-view
@@ -9,7 +9,7 @@
   status: "[▦ DATA]",
   title: "Accuracy Plateaus While Firing Rate Rises",
   date: "2026-06-02",
-  updated_at: "2026-08-27",
+  updated_at: "2026-08-31",
   description: "Audits validation accuracy and firing-rate stability in unregularised PING and COBA training histories.",
   collection: "gamma-gated-sparsity",
 )
@@ -30,18 +30,14 @@
 #let body = [
   == Abstract
 
-  I audited whether firing rate settled once classification accuracy plateaued,
-  using unregularised PING and COBA networks from the shared training study.
-  The comparison reused #n seeds per architecture and #c.epochs epochs of MNIST
-  training. Final mean validation accuracy was #value("coba", "final_acc")% for
-  COBA and #value("ping", "final_acc")% for PING; excitatory rates were
-  #value("coba", "final_e_rate_hz") and #value("ping", "final_e_rate_hz") Hz.
-  Under the stated final-window criterion, #count("coba", "e_rate_converged_count")/#n
-  COBA seeds and #count("ping", "e_rate_converged_count")/#n PING seeds met the
-  rate-stability threshold. Accuracy and firing rate therefore require separate
-  convergence checks; a low rate alone does not establish a fixed-rate attractor.
-
-  #run-view("exp024", inputs)
+  - Asked whether classification accuracy and neuronal firing rate converge
+    together during training.
+  - Audited the retained learning histories of unregularised COBA and PING
+    classifiers, applying separate plateau criteria to performance and activity.
+  - Accuracy could settle while excitatory firing continued to change, and rate
+    stability differed across architectures and training replicates.
+  - Training convergence therefore needs separate accuracy and activity checks;
+    a low firing rate alone does not demonstrate a fixed-rate attractor.
 
   == Inputs
 
@@ -52,7 +48,9 @@
 
   == Results
 
-  === COBA training trajectories
+  #with-result-sections[
+
+  === COBA loss, accuracy and excitatory rate across training
 
   Final mean validation accuracy was #value("coba", "final_acc")% and E rate
   #value("coba", "final_e_rate_hz") Hz. The mean final-window E-rate slope was
@@ -67,7 +65,7 @@
       loss dashed.],
   )
 
-  === PING training trajectories
+  === PING loss, accuracy and population rates across training
 
   Final mean E and I rates were #value("ping", "final_e_rate_hz") and
   #value("ping", "final_i_rate_hz") Hz. The mean final-window E-rate slope was
@@ -82,7 +80,7 @@
       Curves show individual seeds without uncertainty bands.],
   )
 
-  === Accuracy, cross-entropy and activity
+  === COBA and PING accuracy, cross-entropy and excitatory rate
 
   The 99%-of-final-accuracy markers do not establish sustained convergence.
   These reused training observations are not a direct measurement of confidence
@@ -96,9 +94,11 @@
       mean first epoch reaching 99% of its final accuracy.],
   )
 
+  ]
+
   == Methods
 
-  I assessed finite changes in accuracy, activity and weights using retained
+  I assessed finite changes in accuracy, activity and weights using recorded
   learning histories from unregularised classifiers.
 
   + *Select the baseline histories.* I reused all #n seeds per architecture from
@@ -125,7 +125,7 @@
     #c.voltage_gradient_damping.coba for COBA and #c.voltage_gradient_damping.ping
     for PING; no activity regulariser was applied.
 
-  + *Measure final-window drift.* For each seed, I retained validation accuracy,
+  + *Measure final-window drift.* For each seed, I recorded validation accuracy,
     training and validation cross-entropy, and population-mean E and I rates.
     The final #c.window_epochs epochs define the endpoint slope
     #math.equation(block: true,
@@ -137,7 +137,7 @@
     meet the audit's operational stability criterion. This endpoint diagnostic
     does not exclude fluctuations within the window or prove asymptotic convergence.
 
-    I retained per-seed slopes, first-to-final-epoch
+    I recorded per-seed slopes, first-to-final-epoch
     weight-norm ratios, and final-window weight-norm slopes, and computed means
     and sample standard deviations across seeds. Curves show individual seeds.
     The first epoch reaching 99% of final accuracy supplies a separate descriptive
@@ -161,8 +161,10 @@
   these curves do not establish that confidence growth causes the rate increase.
   The mean-membrane readout depends on synaptic drive and membrane dynamics;
   it is not simply a linear function of the mean E rate. PING's lower activity
-  and slower drift in the retained comparison do not demonstrate a fixed-rate
+  and slower drift in this comparison do not demonstrate a fixed-rate
   attractor or isolate a causal benefit of gamma timing.
+
+  #run-view("exp024", inputs)
 
   #reference-list((
     (text: [E. O. Neftci, H. Mostafa, and F. Zenke.
@@ -179,7 +181,7 @@
 } else {
   pending-report(data-file, inputs,
     [Does firing rate settle when classification accuracy plateaus? Compare the
-      retained validation trajectories of COBA and PING.], preview-figures)
+      recorded validation trajectories of COBA and PING.], preview-figures)
 }
 
 #let meta = meta + (assets: input-assets("exp024", inputs))

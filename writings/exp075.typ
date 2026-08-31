@@ -1,4 +1,4 @@
-#import "contents.typ": with-contents
+#import "contents.typ": with-contents, with-result-sections
 #import "/.demolab/lib.typ": data-json, data-image, cite, reference-list
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
 #import "run-view.typ": with-datasets, run-view
@@ -8,7 +8,7 @@
 #let meta = (
   status: "[▦ DATA]",
   title: "A compiled graph learns",
-  updated_at: "2026-08-28",
+  updated_at: "2026-08-31",
   date: "2026-07-31",
   description: "A small compiled spiking classifier trains on MNIST with frozen recurrent weights.",
   collection: "snnlang-docs",
@@ -28,29 +28,27 @@
 #let body = [
   == Abstract
 
-  I trained a compiled excitatory–inhibitory classifier on
-  #r.config.train_count MNIST images and evaluated it on a separate
-  #(r.config.held_out_count)-image validation set. Across #r.config.epochs epochs,
-  training cross-entropy changed by
-  #calc.round(r.trajectory.train_loss_change, digits: 4), and validation
-  accuracy changed by
-  #calc.round(r.trajectory.accuracy_change_pct_points, digits: 2) percentage
-  points. The checkpoint selected by validation loss achieved
-  #calc.round(r.trajectory.selected_accuracy_pct, digits: 2)% validation
-  accuracy. This demonstrates optimisation through the compiled graph's
-  training interface; the small sample and single seed do not establish
-  competitive classification or generalisation.
-
-  #run-view("exp075", inputs)
+  - Asked whether a compiled graph can participate in gradient-based classifier
+    training rather than only forward simulation.
+  - Trained an excitatory–inhibitory MNIST classifier through the compiled graph
+    interface and selected a checkpoint using held-out validation loss.
+  - Training produced coherent loss and validation trajectories, showing that
+    optimization traversed the compiled representation.
+  - Demonstrates the learning interface on a bounded example, not competitive
+    classification performance or broad generalization.
 
   == Results
 
-  === Network and training trajectory
+  #with-result-sections[
+
+  === Compiled classifier topology
 
   #figure(data-image(data-file("exp075/network_graph.svg"), width: 100%),
     caption: [Classifier with #r.config.n_e excitatory and #r.config.n_i
       inhibitory neurons. Input and readout projections were trainable;
       excitatory–inhibitory recurrence remained fixed.])
+
+  === Training loss and validation accuracy across epochs
 
   The loss-selected checkpoint came from epoch
   #(r.trajectory.selected_epoch); it need not be the epoch with maximum
@@ -61,6 +59,8 @@
       over #r.config.epochs epochs. Validation values average
       #r.config.validation_encoder_draws.count fixed stochastic encodings.
       The dashed line marks ten-class chance accuracy.])
+
+  ]
 
   == Methods
 
@@ -85,6 +85,8 @@
     accuracy and then the earliest epoch. The official test partition did not
     participate in selection; both selected and final states were retained.
 
+  #run-view("exp075", inputs)
+
   #reference-list(((text: [Ilya Loshchilov and Frank Hutter: _Decoupled Weight Decay Regularization_. ICLR, 2019.], doi: "10.48550/arXiv.1711.05101"),))
 ]
 #body
@@ -95,7 +97,7 @@
 } else {
   pending-report(
     data-file, inputs,
-    [Can a compiled network graph learn through the graph-native training path? Inspect its topology and retained learning curves.],
+    [Can a compiled network graph learn through the graph-native training path? Inspect its topology and recorded learning curves.],
     preview-figures, json-inputs: ("exp075",),
   )
 }

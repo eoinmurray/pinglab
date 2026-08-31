@@ -1,4 +1,4 @@
-#import "contents.typ": with-contents
+#import "contents.typ": with-contents, with-result-sections
 #import "/.demolab/lib.typ": data-json, data-image
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
 #import "run-view.typ": with-datasets, run-view
@@ -16,7 +16,7 @@
   status: "[▦ DATA]",
   title: "Lowet 2017",
   date: "2026-08-19",
-  updated_at: "2026-08-29",
+  updated_at: "2026-08-31",
   description: "Reduce coupling at fixed detuning and test whether two PING networks develop cortical-like intermittent phase attraction.",
   collection: "demo",
   order: 2,
@@ -68,9 +68,15 @@
 #let body = [
   == Abstract
 
-  In macaque V1, nearby gamma rhythms did not hold one fixed relative-phase position. Their relative phase continued to move, but its velocity slowed near positions where coupling made the two instantaneous frequencies more similar. This phase-dependent slowing concentrated the observed phase differences around those positions despite continuing phase slips#cite(1). The effect could create recurring windows for communication without permanent synchronization. I reproduced that qualitative regime in one fixed-input PING trajectory by reducing equal reciprocal coupling from 0.08 to #selected-k µS. The networks accumulated #selected.phase_slips whole net phase windings, but their relative phase remained concentrated around a preferred position. Removing coupling produced #uncoupled.phase_slips whole net windings and an almost uniform phase distribution. This is a controlled demonstration, not a claim about reliability across inputs or seeds.
-
-  #run-view("exp086", inputs)
+  - Asked whether coupled PING circuits can prefer a relative phase without
+    becoming permanently synchronized, as reported for nearby cortical gamma rhythms.
+  - Swept reciprocal coupling between detuned circuits and tracked relative phase,
+    phase slips and phase-conditioned velocity under fixed input.
+  - Intermediate coupling concentrated relative phase by slowing its motion near
+    a preferred position while still allowing repeated slips; removing coupling
+    made the phase distribution nearly uniform.
+  - Reproduces the qualitative intermittent-attraction regime in a controlled
+    trajectory, not its reliability across inputs or network realizations.
 
   == Prior work
 
@@ -91,7 +97,9 @@
 
   == Results
 
-  === Uncoupled rhythms <result-1-uncoupled-rhythms>
+  #with-result-sections[
+
+  === Uncoupled population rhythms and circulating relative phase <result-1-uncoupled-rhythms>
 
     Both networks maintained regular PING rhythms, but Network A ran at
     #uncoupled-frequency-a Hz and Network B at #uncoupled-frequency-b Hz. Their
@@ -104,7 +112,7 @@
         trajectory.],
     )
 
-  === Coupling boundary <result-2-coupling-boundary>
+  === Relative phase under strong, intermediate and absent coupling <result-2-coupling-boundary>
 
     At 0.08 µS, relative phase concentrated near one position with concentration
     #strong-concentration. At #selected-k µS, it accumulated
@@ -121,7 +129,7 @@
         reciprocal coupling.],
     )
 
-  === Intermittent phase attraction <result-3-intermittent-attraction>
+  === Relative-phase trajectory, distribution and conditioned velocity <result-3-intermittent-attraction>
 
     At equal reciprocal coupling $K = #selected-k$ µS, relative phase continued
     to slip but had concentration #selected-concentration. Its distribution
@@ -141,6 +149,8 @@
         velocity trace uses 8 ms Gaussian smoothing.],
     )
 
+  ]
+
   == Methods
 
   #block(inset: 10pt, fill: rgb("f3f0e8"), radius: 3pt)[
@@ -157,10 +167,12 @@
       caption: [Implemented topology. Networks A and B each contain a local E-to-I-to-E PING loop. Reciprocal projections target E and I populations with independently controlled strengths.],
     )
 
-  + *Reduce coupling while everything else stays the same.* I saved the network immediately before coupling began. I replayed from that point several times with the same neuron states and the same pre-generated input spike trains after that point. I changed only the coupling strength $K$: I began at #start.k-ee-us µS, then used progressively weaker values down to zero. E-to-E and E-to-I coupling always used the same value. I used nine values from 0.08 to 0.00 µS in 0.01 µS steps, each with a 500 ms uncoupled prefix and a 4,500 ms coupled suffix. I excluded the first 300 ms after coupling from phase measurements. I ran one trajectory at each value of $K$; repeated seeds and trials are outside this experiment. For each coupling strength, I tracked the phase gap between the two rhythms. Strong coupling may keep that gap fixed. Weaker coupling may allow one rhythm to repeatedly gain a full cycle on the other, producing phase slips. I looked for the intermediate behaviour reported by Lowet et al. (2017): phase slips continue, but the phase gap repeatedly slows near one preferred value, making that value more common#cite(1). Among nonzero, nonmaximal coupling conditions with at least two whole net windings, I selected the largest product of phase concentration, peak-to-mean density, nonnegative slowing fraction and the exponential of negative angular alignment error. I counted whole net windings by taking the floor of the absolute unwrapped phase change divided by $2 pi$; this does not count every reversing slip event. This demonstrates the behaviour once; it does not establish reliability across seeds. See #link(<result-2-coupling-boundary>)[Coupling boundary].
+  + *Reduce coupling while everything else stays the same.* I saved the network immediately before coupling began. I replayed from that point several times with the same neuron states and the same pre-generated input spike trains after that point. I changed only the coupling strength $K$: I began at #start.k-ee-us µS, then used progressively weaker values down to zero. E-to-E and E-to-I coupling always used the same value. I used nine values from 0.08 to 0.00 µS in 0.01 µS steps, each with a 500 ms uncoupled prefix and a 4,500 ms coupled suffix. I excluded the first 300 ms after coupling from phase measurements. I ran one trajectory at each value of $K$; repeated seeds and trials are outside this experiment. For each coupling strength, I tracked the phase gap between the two rhythms. Strong coupling may keep that gap fixed. Weaker coupling may allow one rhythm to repeatedly gain a full cycle on the other, producing phase slips. I looked for the intermediate behaviour reported by Lowet et al. (2017): phase slips continue, but the phase gap repeatedly slows near one preferred value, making that value more common#cite(1). Among nonzero, nonmaximal coupling conditions with at least two whole net windings, I selected the largest product of phase concentration, peak-to-mean density, nonnegative slowing fraction and the exponential of negative angular alignment error. I counted whole net windings by taking the floor of the absolute unwrapped phase change divided by $2 pi$; this does not count every reversing slip event. This demonstrates the behaviour once; it does not establish reliability across seeds. See #link(<result-2-coupling-boundary>)[Relative phase under strong, intermediate and absent coupling].
 
 
   + *Relate phase velocity to phase position.* For the selected condition, I estimated each network's instantaneous frequency from consecutive excitatory volleys. Relative-phase velocity is $v_phi = 2 pi (f_A - f_B)$, where $f_A$ and $f_B$ are the instantaneous frequencies of Networks A and B in Hz, and $v_phi$ is in rad/s. I grouped $v_phi$ by wrapped relative phase $phi$ in radians, and compared the resulting velocity curve with the distribution of $phi$. Intermittent attraction requires continued phase slips, a non-uniform phase distribution, and lower absolute velocity near the distribution's preferred position. See #link(<result-3-intermittent-attraction>)[Intermittent phase attraction].
+
+  #run-view("exp086", inputs)
 
   #reference-list((
     (
