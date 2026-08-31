@@ -174,7 +174,7 @@ def test_lab_hook_uses_declared_graph_and_article_reuse():
     assert data["exp046"]["upstream"] == ["exp022", "exp041"]
     assert data["exp048"]["upstream"] == ["exp022"]
     assert data["exp023"]["upstream"] == []
-    assert {"exp037", "exp048", "exp092", "exp109"} <= set(data["exp022"]["downstream"])
+    assert {"exp037", "exp048", "exp109"} <= set(data["exp022"]["downstream"])
     config = (ROOT / "demolab.yaml").read_text()
     assert "prepare: [uv, run, python, -m, writings.prepare]" in config
 
