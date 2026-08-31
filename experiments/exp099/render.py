@@ -11,6 +11,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
+from experiments.helpers import theme
 from matplotlib.collections import LineCollection
 from matplotlib.colors import to_rgba
 from tools.snnviz import (  # noqa: TID251
@@ -33,6 +34,7 @@ def render(
     settings: dict,
     output: Path,
 ) -> None:
+    theme.apply()
     STATE, PACING, CONDITION = "input", "story", "inside-band"
     OUT, POSTER = output / recipe.VIDEO, output / recipe.POSTER
     recording = retained_recording
@@ -141,7 +143,10 @@ def render(
             "peak": max(peak, 1e-12),
         }
 
-    BG, BLACK, RED, GREY = "#f3efe6", "#20201e", "#a62a24", "#77726a"
+    BG = theme.PAPER
+    BLACK = theme.INK_BLACK
+    RED = theme.DEEP_RED
+    GREY = theme.GREY_MID
     projections = (
         projection("w_ee", weights["w_ee"], e_xy, e_xy, trace_e, BLACK),
         projection("w_ei", weights["w_ei"], e_xy, i_xy, trace_e, BLACK),
@@ -201,7 +206,7 @@ def render(
     # Additive ridgeline: activity remains in the network view; one shared
     # absolute log axis makes projection-scale differences spatially explicit.
     ridge_ax = fig.add_axes([0.845, 0.025, 0.135, 0.240])
-    ridge_ax.set_facecolor("#ebe7df")
+    ridge_ax.set_facecolor(BG)
     ridge_ax.text(
         0.0,
         1.04,
@@ -215,32 +220,32 @@ def render(
     )
     ridge_ax.text(
         0.0,
-        0.975,
+        0.925,
         "current nonzero weights",
         transform=ridge_ax.transAxes,
-        color="#69655e",
+        color=theme.MUTED,
         fontsize=6.5,
         ha="left",
         va="bottom",
     )
     ridge_ax.set_xscale("log")
     ridge_ax.set_xlim(0.005, 2.2)
-    ridge_ax.set_ylim(-0.48, 3.58)
+    ridge_ax.set_ylim(-0.48, 3.90)
     ridge_ax.set_xticks([0.01, 0.1, 1.0, 2.0], labels=["0.01", "0.1", "1", "2"])
-    ridge_ax.tick_params(axis="x", colors="#69655e", labelsize=7.0, length=2, pad=3)
+    ridge_ax.tick_params(axis="x", colors=theme.MUTED, labelsize=7.0, length=2, pad=3)
     ridge_ax.set_xlabel(
-        "synaptic weight (µS)", color="#4f4c47", fontsize=7.5, labelpad=3
+        "synaptic weight (µS)", color=theme.DIM, fontsize=7.5, labelpad=3
     )
     ridge_ax.set_yticks(
         [3, 2, 1, 0], labels=[r"$W_{EE}$", r"$W_{EI}$", r"$W_{II}$", r"$W_{IE}$"]
     )
-    ridge_ax.tick_params(axis="y", colors="#4f4c47", labelsize=8.0, length=0, pad=5)
+    ridge_ax.tick_params(axis="y", colors=theme.DIM, labelsize=8.0, length=0, pad=5)
     for spine in ridge_ax.spines.values():
-        spine.set_color("#aaa59c")
+        spine.set_color(theme.GREY_LIGHT)
         spine.set_linewidth(0.55)
     for tick in [0.01, 0.1, 1.0]:
         ridge_ax.axvline(
-            tick, color="#c9c3b9", linewidth=0.55, linestyle=(0, (2, 3)), zorder=0
+            tick, color=theme.RULE_WARM, linewidth=0.55, linestyle=(0, (2, 3)), zorder=0
         )
 
     log_edges = np.logspace(np.log10(0.005), np.log10(2.2), 45)
@@ -283,7 +288,7 @@ def render(
         )
         label = ridge_ax.annotate(
             f"{median * initial_scale:.2g} µS",
-            (median * initial_scale, base + 0.50),
+            (median * initial_scale, base + 0.30),
             xytext=(0, 0),
             textcoords="offset points",
             ha="center",
@@ -353,7 +358,7 @@ def render(
         state_subtitle,
         ha="left",
         va="top",
-        color="#69655e",
+        color=theme.MUTED,
         fontsize=8.8,
         weight="medium",
     )
@@ -368,7 +373,7 @@ def render(
         family="monospace",
     )
     count_text = ax.text(
-        0.95, 0.890, "", ha="right", va="top", color="#4f4c47", fontsize=8.4
+        0.95, 0.890, "", ha="right", va="top", color=theme.DIM, fontsize=8.4
     )
 
     if weather_inputs:
@@ -392,7 +397,7 @@ def render(
         0.850,
         "A · " + input_heading + " → E–I core",
         ha="left",
-        color="#625f59",
+        color=theme.MUTED,
         fontsize=10.8,
         weight="medium",
     )
@@ -537,13 +542,14 @@ def render(
     )
     for side in ("top", "right"):
         input_g_ax.spines[side].set_visible(False)
-    input_g_ax.set_facecolor("none")
+    input_g_ax.set_facecolor(BG)
     input_g_ax.set_title(
-        "D · external input conductance",
+        "D · external conductance",
         color=GREY,
-        fontsize=8.8,
+        fontsize=8.0,
         weight="medium",
         pad=4,
+        loc="left",
     )
     input_g_ax.legend(
         loc="upper center",
@@ -562,10 +568,11 @@ def render(
     means_ax.axis("off")
     means_ax.set_title(
         "B · population means",
-        color="#4f4c47",
-        fontsize=8.8,
+        color=theme.DIM,
+        fontsize=8.0,
         weight="medium",
         pad=4,
+        loc="left",
     )
 
     def piston(x, label, color, scale_min, scale_max, digits):
@@ -575,8 +582,8 @@ def render(
                 (x - w / 2, y),
                 w,
                 h,
-                facecolor="#ebe7df",
-                edgecolor="#aaa59c",
+                facecolor=BG,
+                edgecolor=theme.GREY_LIGHT,
                 linewidth=0.75,
             )
         )
@@ -616,7 +623,7 @@ def render(
             f"{scale_max:.{digits}f}",
             ha="center",
             va="bottom",
-            color="#77726a",
+            color=theme.MUTED_SOFT,
             fontsize=6.8,
             family="monospace",
         )
@@ -626,7 +633,7 @@ def render(
             f"{scale_min:.{digits}f}",
             ha="center",
             va="top",
-            color="#77726a",
+            color=theme.MUTED_SOFT,
             fontsize=6.8,
             family="monospace",
         )
@@ -656,7 +663,7 @@ def render(
         value.set_text(text)
 
     phase = fig.add_axes([0.181, 0.025, 0.135, 0.240])
-    phase.set_facecolor("none")
+    phase.set_facecolor(BG)
     phase.spines["top"].set_visible(False)
     phase.spines["right"].set_visible(False)
     pad_e, pad_i = np.ptp(mean_g_e) * 0.08, np.ptp(mean_g_i) * 0.08
@@ -670,16 +677,17 @@ def render(
     phase.set_yticklabels(
         [f"{value:.2f}" for value in np.linspace(mean_g_i.min(), mean_g_i.max(), 3)]
     )
-    phase.tick_params(colors="#69655e", labelsize=7.5, length=2, pad=3)
-    phase.grid(color="#c9c3b9", linewidth=0.45, linestyle=(0, (2, 3)), alpha=0.65)
-    phase.set_xlabel(r"mean $g_E$ (µS)", color="#625f59", fontsize=8.5, labelpad=3)
+    phase.tick_params(colors=theme.MUTED, labelsize=7.5, length=2, pad=3)
+    phase.grid(color=theme.RULE_WARM, linewidth=0.45, linestyle=(0, (2, 3)), alpha=0.65)
+    phase.set_xlabel(r"mean $g_E$ (µS)", color=theme.MUTED, fontsize=8.5, labelpad=3)
     phase.set_ylabel(r"mean $g_I$ (µS)", color=RED, fontsize=8.5, labelpad=3)
     phase.set_title(
-        "C · recent conductance trajectory",
-        color="#4f4c47",
-        fontsize=8.8,
+        "C · conductance phase",
+        color=theme.DIM,
+        fontsize=8.0,
         weight="medium",
         pad=4,
+        loc="left",
     )
     (phase_point,) = phase.plot(
         [], [], "o", ms=4.5, color=RED, mec=BG, mew=0.7, zorder=5
@@ -690,7 +698,7 @@ def render(
     # Complete raster retains every afferent and network spike even though the
     # network view samples visually excessive active edges.
     raster = fig.add_axes([0.679, 0.025, 0.135, 0.240])
-    raster.set_facecolor("none")
+    raster.set_facecolor(BG)
     for side in ("top", "right", "left"):
         raster.spines[side].set_visible(False)
     raster.set_xlim(view_start_ms, view_end_ms or n_steps * dt)
@@ -716,19 +724,20 @@ def render(
         height = spikes.shape[1]
         raster.axhspan(offset, offset + height, color=color, alpha=0.035, zorder=0)
         if offset:
-            raster.axhline(offset, color="#c9c3b9", linewidth=0.45)
+            raster.axhline(offset, color=theme.RULE_WARM, linewidth=0.45)
         ticks.append(offset + height / 2)
         labels.append(label)
     raster.set_yticks(ticks, labels)
     raster.tick_params(axis="x", colors=GREY, labelsize=7.5, length=2, pad=3)
-    raster.tick_params(axis="y", colors="#625f59", labelsize=8.0, length=0, pad=5)
+    raster.tick_params(axis="y", colors=theme.MUTED, labelsize=8.0, length=0, pad=5)
     raster.set_xlabel("simulation time (ms)", color=GREY, fontsize=7.5, labelpad=3)
     raster.set_title(
-        "F · complete spike raster",
-        color="#4f4c47",
-        fontsize=8.8,
+        "F · spike raster",
+        color=theme.DIM,
+        fontsize=8.0,
         weight="medium",
         pad=4,
+        loc="left",
     )
     for spikes, offset, color, size, _label in raster_series:
         t, c = np.nonzero(spikes)
@@ -740,7 +749,7 @@ def render(
     rhythm_centres = measurements["rhythm_centres"]
     rhythm_contrast = measurements["rhythm_contrast"]
     rhythm_ax = fig.add_axes([0.513, 0.025, 0.135, 0.240])
-    rhythm_ax.set_facecolor("none")
+    rhythm_ax.set_facecolor(BG)
     rhythm_ax.axvspan(input_onset_ms, input_offset_ms, color=GREY, alpha=0.08, zorder=0)
     rhythm_ax.plot(
         rhythm_centres,
@@ -770,14 +779,15 @@ def render(
     rhythm_ax.set_ylabel("normalized score", color=GREY, fontsize=7.5, labelpad=3)
     rhythm_ax.set_title(
         "E · PING metrics",
-        color="#4f4c47",
-        fontsize=8.8,
+        color=theme.DIM,
+        fontsize=8.0,
         weight="medium",
         pad=4,
+        loc="left",
     )
     rhythm_ax.legend(
         loc="upper left",
-        bbox_to_anchor=(0.0, 1.0),
+        bbox_to_anchor=(0.0, 0.96),
         ncol=1,
         frameon=False,
         fontsize=5.6,
@@ -796,7 +806,7 @@ def render(
             label,
             ha="center",
             va="top",
-            color="#625f59",
+            color=theme.MUTED,
             fontsize=6.4,
             weight="medium",
         )
@@ -1068,7 +1078,7 @@ def render(
                 [base - 0.10, base - 0.10],
             )
             artists["dot"].set_offsets([[artists["median"] * scale, base - 0.10]])
-            artists["label"].xy = (artists["median"] * scale, base + 0.50)
+            artists["label"].xy = (artists["median"] * scale, base + 0.30)
             artists["label"].set_text(f"{artists['median'] * scale:.2g} µS")
 
     def update(frame):
@@ -1233,6 +1243,6 @@ def render(
             e_spikes[frame_steps], i_spikes[frame_steps]
         )
     update(representative_frame)
-    fig.savefig(POSTER, dpi=160, facecolor=BG)
+    fig.savefig(POSTER, dpi=240, facecolor=BG, bbox_inches=fig.bbox_inches)
     save_animation(fig, update, OUT, frames=frame_count, fps=25, bitrate=3800)
     plt.close(fig)

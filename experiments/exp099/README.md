@@ -33,11 +33,14 @@ from the parent of Git commit `27e9ba5d7e681859c28f9ec589cd6bd1cb37fd95`, which
 deleted it. It is now `render.py`; this is not the old `render_approximation`.
 Recovery inspected versioned source only, not historical run evidence.
 
-The input/story/inside-band configuration, seven-panel layout, colours, transmission
+The input/story/inside-band configuration, seven-panel layout, transmission
 sampling, ridgelines, frame pacing, poster selection and encoding settings are
-retained. The entrypoint is import-safe, uses explicit validated source data,
-and receives measurements computed by analyse. Missing authenticated inputs
-are errors rather than triggers reconstructing random input or substituting zeros.
+retained. The visual styling now follows the `snnviz` guide: an opaque white
+background, the shared black/red scientific palette and monospace typography,
+with the poster rendered at 240 DPI. The entrypoint is import-safe, uses explicit
+validated source data, and receives measurements computed by analyse. Missing
+authenticated inputs are errors rather than triggers reconstructing random input
+or substituting zeros.
 Labels no longer assert an established AI-to-PING transition: they name the
 baseline, afferent bout and recovery phases instead.
 

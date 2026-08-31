@@ -8,6 +8,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 from experiments.exp099 import analyse, compute, present, recipe
+from matplotlib import image as mpimg
 from pingstore import stages
 from pingstore.contracts import (
     LEGACY_RUN_SCHEMA,
@@ -119,6 +120,9 @@ def test_stages_pin_v3_keep_raw_evidence_and_render_without_analysis(lab, monkey
 
     def sample_frames(fig, update, output, **kwargs):
         assert kwargs == {"frames": 600, "fps": 25, "bitrate": 3800}
+        np.testing.assert_allclose(fig.get_facecolor(), (1.0, 1.0, 1.0, 1.0))
+        for axis in fig.axes:
+            np.testing.assert_allclose(axis.get_facecolor(), (1.0, 1.0, 1.0, 1.0))
         for frame in (0, 139, 140, 309, 310, 479, 480, 599):
             update(frame)
             fig.canvas.draw()
@@ -135,6 +139,8 @@ def test_stages_pin_v3_keep_raw_evidence_and_render_without_analysis(lab, monkey
     assert record["inputs"]["analysis"]["run_id"] == analysis_id
     assert all(path.is_file() for path in (output / "export").iterdir())
     assert (output / "export" / recipe.POSTER).stat().st_size > 1000
+    poster = mpimg.imread(output / "export" / recipe.POSTER)
+    assert poster.shape[:2] == (1944, 3456)
     assert load_json(output / "export/numbers.json") == load_json(
         analysis_root / "export/results.json"
     )
