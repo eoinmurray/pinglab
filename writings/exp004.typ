@@ -1,7 +1,7 @@
 #import "contents.typ": with-contents
 #import "run-view.typ": with-datasets
 #let meta = (
-  status: "[≡ TXT | v27.0.0]",
+  status: "[≡ TXT | v28.0.0]",
   title: "Parameters & Units",
   updated_at: "2026-08-29",
   date: "2026-05-14",

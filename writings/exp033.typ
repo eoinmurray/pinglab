@@ -6,7 +6,7 @@
 #let data-file = data-file.with(article: "exp033")
 
 #let meta = (
-  status: "[▦ DATA | v27.0.0]",
+  status: "[▦ DATA | v28.0.0]",
   title: "Gamma Emerges at a Hopf Bifurcation",
   date: "2026-05-28",
   updated_at: "2026-08-31",

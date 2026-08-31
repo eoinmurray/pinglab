@@ -6,7 +6,7 @@
 #let data-file = data-file.with(article: "exp076")
 
 #let meta = (
-  status: "[▦ DATA | v27.0.0]",
+  status: "[▦ DATA | v28.0.0]",
   title: "A bundle checkpoint replays",
   updated_at: "2026-08-31",
   date: "2026-08-02",

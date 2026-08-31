@@ -1,7 +1,7 @@
 #import "contents.typ": with-contents
 #import "run-view.typ": with-datasets
 #let meta = (
-  status: "[≡ TXT | v27.0.0]",
+  status: "[≡ TXT | v28.0.0]",
   title: "SNNLANG developer documentation",
   date: "2026-07-30",
   description: "Start with the collection contents, learn the high-level development model, then use the concrete SNNLANG and graph-execution API reference.",

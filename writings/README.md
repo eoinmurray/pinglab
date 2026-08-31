@@ -1,6 +1,6 @@
 # Writing Guide
 
-Version: **27.0.0**
+Version: **28.0.0**
 
 The Writing Guide defines the conventions for Pinglab's published experiment
 entries in `writings/expXXX.typ`. This file is the canonical guide.
@@ -14,6 +14,10 @@ corrections or clarifications that do not change requirements. Update the versio
 above and add a short entry to the version history when changing the guide.
 
 ### 1.1. Version history
+
+- **28.0.0** — Require Writing Guide migrations to preserve authored update
+  dates, including when conformance changes scientific meaning. Only a separate,
+  independently requested substantive revision may advance `meta.updated_at`.
 
 - **27.0.0** — Add the applied Writing Guide version to every article status
   badge and require agents to keep that version synchronized with this guide.
@@ -266,6 +270,12 @@ change merely to adopt this guide.
 - Leave `updated_at` unchanged for spelling, punctuation, formatting, link
   repairs, or source plumbing that do not change scientific meaning, and for
   rebuilds or deployments alone.
+- Leave `updated_at` unchanged throughout a Writing Guide migration, including
+  when conformance requires changes to claims, methods, results, figures,
+  interpretations, corrections, explanations, or displayed evidence. A migration
+  records conformance, not a new authored update. If the same editing pass also
+  contains a separate, independently requested substantive revision, only that
+  revision may qualify under this section.
 - Completing a compute, analyse, or present run does not by itself advance the
   article's date. When a present run is incorporated into the article, set
   `meta.updated_at` to the date of incorporation if it substantively changes the
@@ -279,8 +289,8 @@ change merely to adopt this guide.
 - Dates are explicitly authored metadata. Never infer them from Git,
   filesystem timestamps, run dates, builds, or deployment dates. Do not backfill
   unknown historical updates. Updating this field is a necessary dependent
-  edit under section 3.1 when the requested revision qualifies, unless the
-  author explicitly instructs otherwise.
+  edit under section 3.1 when a requested revision qualifies, except during a
+  Writing Guide migration or when the author explicitly instructs otherwise.
 
 ### 3.5. Local-data availability
 
@@ -292,8 +302,8 @@ do not add a second status field, version field or icon field.
 
 | Label | Local-data availability |
 | --- | --- |
-| `[≡ TXT \| v27.0.0]` | Article only: no usable, validated local presentation data is available for any declared article input, or the article declares no data inputs. |
-| `[▦ DATA \| v27.0.0]` | Local data: usable, validated local presentation data is available for at least one declared article input, including reused upstream results. |
+| `[≡ TXT \| v28.0.0]` | Article only: no usable, validated local presentation data is available for any declared article input, or the article declares no data inputs. |
+| `[▦ DATA \| v28.0.0]` | Local data: usable, validated local presentation data is available for at least one declared article input, including reused upstream results. |
 
 The badge reports availability in the working checkout at the last agent check,
 not a live web-UI measurement. `[≡ TXT | vX.Y.Z]` does not mean literally text

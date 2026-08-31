@@ -1,7 +1,7 @@
 #import "contents.typ": with-contents
 #import "run-view.typ": with-datasets
 #let meta = (
-  status: "[≡ TXT | v27.0.0]",
+  status: "[≡ TXT | v28.0.0]",
   title: "Training recipes and graph-native learning",
   date: "2026-08-14",
   description: "Declare standard objectives, parameter groups, optimization, regularization, and the boundary of current training support.",

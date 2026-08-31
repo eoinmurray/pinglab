@@ -1,7 +1,7 @@
 #import "contents.typ": with-contents
 #import "run-view.typ": with-datasets
 #let meta = (
-  status: "[≡ TXT | v27.0.0]",
+  status: "[≡ TXT | v28.0.0]",
   title: "Compatibility, status, and extension",
   date: "2026-08-14",
   description: "Understand the legacy compatibility contract, current capability boundary, and rules for extending snnlang safely.",
