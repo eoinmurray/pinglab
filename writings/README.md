@@ -1,6 +1,6 @@
 # Writing Guide
 
-Version: **19.0.0**
+Version: **19.1.0**
 
 The Writing Guide defines the conventions for Pinglab's published experiment
 entries in `writings/expXXX.typ`. This file is the canonical guide.
@@ -14,6 +14,11 @@ corrections or clarifications that do not change requirements. Update the versio
 above and add a short entry to the version history when changing the guide.
 
 ### 1.1. Version history
+
+- **19.1.0** — Allow optional figure-local explanatory prose in Results when it
+  states an evidence-grounded expectation, explains an observed pattern, or
+  distinguishes observation from interpretation. Keep Results concise and
+  evidence-led without requiring prose for every figure.
 
 - **19.0.0** — Establish shared terminology and mathematical notation for
   recurrent entities across the experiment collection, including identities,
@@ -739,8 +744,11 @@ records their source lineage, and captions must not imply a new simulation.
 
 ## 7. Results
 
-Stub the Results section with unnumbered headings, figures and concise captions
-only. Do not fill it with narrative prose.
+Build Results from unnumbered headings, key figures, concise captions and
+optional explanatory prose. Prose may state an evidence-grounded expectation,
+explain an observed pattern, or distinguish observation from interpretation when
+the figure and caption alone are insufficient. Results remain evidence-led;
+prose is not required for every figure.
 
 1. Name the section exactly `Results` and place it before `Methods`.
    Do not append a tagline, description or other suffix, or add a
@@ -755,9 +763,12 @@ only. Do not fill it with narrative prose.
    observations from new measurements.
 5. An optional theory diagram may precede a data plot when useful. Its caption
    must identify it as an expectation or mechanism, not experimental evidence.
-6. Do not add an introductory paragraph, prose before or after figures,
-   expectation-versus-result commentary, or a concluding summary. Do not add
-   prose placeholders asking a later pass to fill these in.
+6. Explanatory prose may appear immediately before or after a figure. Keep it
+   local to that figure and concise. Distinguish mathematical or theoretical
+   expectations from observations, and label post-hoc interpretations. Do not
+   repeat the caption or Methods, introduce unsupported causal claims, or add
+   generic introductory or concluding prose. Do not add prose placeholders
+   asking a later pass to fill these in.
 
 When migrating existing headings, remove their taglines and repair any authored
 links to former anchors. The shared TOC picks up the plain heading automatically.

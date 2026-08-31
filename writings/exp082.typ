@@ -1,7 +1,7 @@
 #import "contents.typ": with-contents
-#import "/.demolab/lib.typ": data-json, data-image
+#import "/.demolab/lib.typ": data-image, data-json
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
-#import "run-view.typ": with-datasets, run-view
+#import "run-view.typ": run-view, with-datasets
 #import "run-inputs.typ": input-assets
 #let data-file = data-file.with(article: "exp082")
 
@@ -9,7 +9,7 @@
   status: "[▦ DATA]",
   title: "Spike-Count Classification in a Continuous Stream",
   date: "2026-08-10",
-  updated_at: "2026-08-29",
+  updated_at: "2026-08-30",
   description: "A multi-seed study of spike-count classification across input rates and presentation durations.",
   collection: "gamma-gated-sparsity",
 )
@@ -18,33 +18,38 @@
 #let preview-figures = (
   (path: "exp082/shared_design_schematic.svg", label: "shared design schematic"),
   (path: "exp082/single_trial.png", label: "single trial"),
+  (path: "exp082/single_trial_transition.png", label: "single-trial transition"),
   (path: "exp082/variable_stream.png", label: "variable stream"),
   (path: "exp082/duration_rate_summary.png", label: "duration rate summary"),
-  (path: "exp082/psychometric_200ms.svg", label: "psychometric 200ms"),
 )
 
 // Keep calculations lazy: absent inputs never become fabricated results.
 #let render-report(data-file) = [
-#let r = data-json(data-file("exp082/numbers.json"))
-#let pct(x) = str(calc.round(100 * x, digits: 1)) + "%"
-#let mean(xs) = xs.sum() / xs.len()
-#let minimum(xs) = calc.min(..xs)
-#let maximum(xs) = calc.max(..xs)
-#let at-duration(duration) = r.grid_per_seed.filter(row => row.duration_ms == duration)
-#let at-rate(rate) = r.duration_200ms_psychometric.filter(row => row.rate_hz == rate)
-#let report-image(path, alt, ratio: 0.77) = context {
-  if target() == "html" {
-    data-image(data-file(path), width: 100%, alt: alt)
-  } else {
-    layout(size => {
-      let width = size.width
-      box(width: width, height: width * ratio,
-        data-image(data-file(path), width: width, height: width * ratio, fit: "contain", alt: alt))
-    })
+  #let r = data-json(data-file("exp082/numbers.json"))
+  #let pct(x) = str(calc.round(100 * x, digits: 1)) + "%"
+  #let mean(xs) = xs.sum() / xs.len()
+  #let minimum(xs) = calc.min(..xs)
+  #let maximum(xs) = calc.max(..xs)
+  #let at-duration(duration) = r.grid_per_seed.filter(row => row.duration_ms == duration)
+  #let at-rate(rate) = r.duration_200ms_psychometric.filter(row => row.rate_hz == rate)
+  #let report-image(path, alt, ratio: 0.77) = context {
+    if target() == "html" {
+      data-image(data-file(path), width: 100%, alt: alt)
+    } else {
+      layout(size => {
+        let width = size.width
+        box(width: width, height: width * ratio, data-image(
+          data-file(path),
+          width: width,
+          height: width * ratio,
+          fit: "contain",
+          alt: alt,
+        ))
+      })
+    }
   }
-}
-#let rate-mean(rate) = mean(at-rate(rate).map(row => row.accuracy))
-#let dense-means = (10.0, 15.0, 25.0).map(rate-mean)
+  #let rate-mean(rate) = mean(at-rate(rate).map(row => row.accuracy))
+  #let dense-means = (10.0, 15.0, 25.0).map(rate-mean)
 
   == Abstract
 
@@ -67,8 +72,11 @@
   === Continuous hidden state, separate decisions
 
   #figure(
-    report-image("exp082/shared_design_schematic.svg",
-      "Protocol diagram: digit inputs drive continuous hidden activity, while output state and class counts reset at each digit boundary.", ratio: 0.27),
+    report-image(
+      "exp082/shared_design_schematic.svg",
+      "Protocol diagram: digit inputs drive continuous hidden activity, while output state and class counts reset at each digit boundary.",
+      ratio: 0.27,
+    ),
     caption: [Prospective mechanism, not measured evidence. Hidden state continues
       within each stream; output-LIF state and counts reset at digit boundaries.
       The design tests broad rate tolerance against a narrow preferred rate, with
@@ -78,8 +86,10 @@
   === A successful spike-count decision
 
   #figure(
-    report-image("exp082/single_trial.png",
-      "Digit 4 with rasters of 200 excitatory and 64 inhibitory neurons, and ten softmax count-share trajectories."),
+    report-image(
+      "exp082/single_trial.png",
+      "Digit 4 with rasters of 200 excitatory and 64 inhibitory neurons, and ten softmax count-share trajectories.",
+    ),
     caption: [Retained seed-42 digit #r.single_trial.labels.first(), the first correct
       presentation in the 200 ms, 5 Hz matched stream. Red marks the true and
       winning class. Rasters display the first 200 E and 64 I neurons, not the full
@@ -88,11 +98,34 @@
       each rhythmic burst improves the decision.],
   )
 
+  #figure(
+    report-image(
+      "exp082/single_trial_transition.png",
+      "Output spikes, cumulative class counts and softmax count shares from 91.5 to 94.5 ms in the same digit-4 presentation.",
+      ratio: 0.70,
+    ),
+    caption: [Post-hoc enlargement of 91.5–94.5 ms in the same retained trial.
+      Each output spike increments one class count; the softmax transformation can
+      therefore produce an abrupt change in every displayed count share. Red marks
+      the true and winning class 4. The enlargement explains the apparent jump; it
+      does not estimate performance or establish a causal role for rhythmic bursts.],
+  )
+
+  From the readout definition, the second row should consist of non-decreasing
+  integer staircases: each output spike increments exactly one cumulative class
+  count $z_c[k]$ by one, while every count remains flat between spikes. The third
+  row should also be piecewise constant, but its softmax shares
+  $p_"class"(c,k)$ may jump either upward or downward. A spike multiplies the
+  corresponding class's unnormalised weight by $e$, the base of natural
+  logarithms, while normalization changes every displayed share.
+
   === A changing stream exposes sparse-input failures
 
   #figure(
-    report-image("exp082/variable_stream.png",
-      "Five digits with changing rates and durations: three correct predictions, a silent 0.5 Hz failure and a non-silent 2 Hz failure."),
+    report-image(
+      "exp082/variable_stream.png",
+      "Five digits with changing rates and durations: three correct predictions, a silent 0.5 Hz failure and a non-silent 2 Hz failure.",
+    ),
     caption: [Retained seed-42 illustration: #r.variable_stream.correct.sum()
       of #r.variable_stream.labels.len() decisions were correct. The 200 ms,
       0.5 Hz window emitted no output spikes; the 100 ms, 2 Hz window also failed.
@@ -105,8 +138,11 @@
   === Duration and input rate constrain accuracy
 
   #figure(
-    report-image("exp082/duration_rate_summary.png",
-      "Seed-mean accuracy across 25 to 200 ms and 0.5 to 25 Hz, with the 200 ms psychometric alongside.", ratio: 0.49),
+    report-image(
+      "exp082/duration_rate_summary.png",
+      "Seed-mean accuracy across 25 to 200 ms and 0.5 to 25 Hz, with the 200 ms psychometric alongside.",
+      ratio: 0.49,
+    ),
     caption: [Means across three trained seeds, #r.config.digits_per_seed_cell
       test presentations per seed and condition; curve bars are ± sample SD/√3,
       not population confidence intervals. Averaged across rates and seeds,
@@ -120,22 +156,19 @@
       Longer viewing and integration time remain confounded.],
   )
 
-  #figure(
-    report-image("exp082/psychometric_200ms.svg",
-      "At 200 ms, accuracy rises from the sparse edge and remains high at 10, 15 and 25 Hz.", ratio: 0.58),
-    caption: [The same 200 ms slice, mean ± sample SD/√3 across seeds 42–44.
-      Accuracy rose from #pct(rate-mean(0.5)) at 0.5 Hz to
-      #pct(rate-mean(3.0)) at 3 Hz and #pct(rate-mean(7.5)) at 7.5 Hz.
-      The 10, 15 and 25 Hz means spanned #pct(minimum(dense-means))–#pct(maximum(dense-means)).
-      The dense end did not collapse. At 15 Hz, seed accuracies spanned
-      #pct(minimum(at-rate(15.0).map(row => row.accuracy)))–#pct(maximum(at-rate(15.0).map(row => row.accuracy))).
-      At 0.5 Hz, the range was #pct(minimum(at-rate(0.5).map(row => row.accuracy)))–#pct(maximum(at-rate(0.5).map(row => row.accuracy))),
-      with #pct(mean(at-rate(0.5).map(row => row.silent_fraction))) silent windows.
-      No fixed-rate-training control or independent stream-bank repeat establishes
-      why this transfer works. Comparison with
-      #link("/exp048/")[the mean-voltage streaming study] changes both training
-      distribution and readout, so it cannot establish decoder superiority.],
-  )
+  In the 200 ms slice shown at right, accuracy rose from #pct(rate-mean(0.5))
+  at 0.5 Hz to #pct(rate-mean(3.0)) at 3 Hz and #pct(rate-mean(7.5)) at
+  7.5 Hz. The 10, 15 and 25 Hz means spanned
+  #pct(minimum(dense-means))–#pct(maximum(dense-means)), so the dense end did
+  not collapse. At 15 Hz, seed accuracies spanned
+  #pct(minimum(at-rate(15.0).map(row => row.accuracy)))–#pct(maximum(at-rate(15.0).map(row => row.accuracy))).
+  At 0.5 Hz, they spanned
+  #pct(minimum(at-rate(0.5).map(row => row.accuracy)))–#pct(maximum(at-rate(0.5).map(row => row.accuracy))),
+  with #pct(mean(at-rate(0.5).map(row => row.silent_fraction))) silent windows.
+  No fixed-rate-training control or independent stream-bank repeat establishes
+  why this transfer works. Comparison with #link("/exp048/")[the mean-voltage
+  streaming study] changes both training distribution and readout, so it cannot
+  establish decoder superiority.
 
   #context if target() != "html" { pagebreak(weak: true) }
   #block(sticky: true)[
@@ -184,11 +217,14 @@
     Here $j$ indexes the ten digit classes; $p_"class"$ is a softmax transformation,
     not a calibrated posterior. Seed-42 illustrations reused a five-digit
     matched stream and a fixed changing-duration/rate stream; the single-digit
-    explanation selected the first correct matched presentation.
+    explanation selected the first correct matched presentation, and its
+    91.5–94.5 ms enlargement was selected post hoc around the displayed transition.
 
   + *Measure condition-level performance.* Accuracy for presentation duration $T_"present"$ (ms),
     maximum-pixel input rate $r_"input,max"$ (Hz) and trained seed $xi$ was
-    $ "Acc"(T_"present",r_"input,max",xi) = 1/N_"eval" sum_(i=1)^(N_"eval") bb(1)[hat(y)_(i,T_"present",r_"input,max",xi) = y_i]. $ <eq-accuracy>
+    $
+      "Acc"(T_"present",r_"input,max",xi) = 1/N_"eval" sum_(i=1)^(N_"eval") bb(1)[hat(y)_(i,T_"present",r_"input,max",xi) = y_i].
+    $ <eq-accuracy>
     Here $N_"eval"=200$, $i$ indexes digit presentations, $hat(y)$ and $y$ are predicted
     and true labels, and $bb(1)$ is an indicator. I retained original
     per-seed aggregates of accuracy, class spike totals, output spikes per
@@ -205,9 +241,11 @@
   render-report(data-file)
 } else {
   pending-report(
-    data-file, inputs,
+    data-file,
+    inputs,
     [Can spike-count outputs classify a continuous stream? Compare held-out examples across changing input rate and digit duration while hidden state continues.],
-    preview-figures, json-inputs: ("exp082",),
+    preview-figures,
+    json-inputs: ("exp082",),
   )
 }
 
