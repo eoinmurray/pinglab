@@ -33,6 +33,10 @@
   list(tight: true, spacing: spacing, ..items)
 }
 
+#let toc-enum(items, spacing: 0.25em) = {
+  enum(tight: true, spacing: spacing, numbering: "1.", ..items)
+}
+
 #let with-contents(body) = [
   #set heading(numbering: none)
   #context {
@@ -48,10 +52,8 @@
             query(heading.where(level: 3).after(section.location()).before(ends.first().location()))
           }
           if children.len() > 0 {
-            let nested = children.enumerate().map(((child-index, child)) =>
-              link(child.location())[#(child-index + 1). #child.body]
-            )
-            [#entry #toc-list(nested, spacing: 0.15em)]
+            let nested = children.map(child => link(child.location(), child.body))
+            [#entry #toc-enum(nested, spacing: 0.15em)]
           } else { entry }
         } else { entry }
       })
@@ -59,8 +61,8 @@
         html.elem("style",
           "nav[aria-label=\"Table of Contents\"] ul { margin: .35rem 0; } "
           + "nav[aria-label=\"Table of Contents\"] li > p { margin: 0; } "
-          + "nav[aria-label=\"Table of Contents\"] ul ul { margin: 0; } "
-          + "nav[aria-label=\"Table of Contents\"] ul ul > li:first-child { margin-top: 0; }",
+          + "nav[aria-label=\"Table of Contents\"] ul ol { margin: 0; } "
+          + "nav[aria-label=\"Table of Contents\"] ul ol > li:first-child { margin-top: 0; }",
         )
         html.elem("nav", attrs: ("aria-label": "Table of Contents"), toc-list(entries))
       } else {

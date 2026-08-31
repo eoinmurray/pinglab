@@ -188,14 +188,14 @@ def test_rendered_headings_are_scoped_and_include_generated_sections(lab, pdf):
         return
     first, second = navigation(html)
     assert [a.text for a in first.findall('.//a')] == [
-        'Abstract', 'Results', '1. Accuracy across two conditions',
-        '2. Error falls after correction', 'Methods', 'Dataset', 'References']
+        'Abstract', 'Results', 'Accuracy across two conditions',
+        'Error falls after correction', 'Methods', 'Dataset', 'References']
     results = first.findall('.//a')[1]
     assert results.attrib['href'] == '#results'
     assert 'id="' + results.attrib['href'][1:] + '"' in html
     result_item = first.findall('./ul/li')[1]
-    assert result_item.find('./ul/li/a').text == '1. Accuracy across two conditions'
-    assert result_item.findall('./ul/li/a')[1].text == '2. Error falls after correction'
+    assert result_item.find('./ol/li/a').text == 'Accuracy across two conditions'
+    assert result_item.findall('./ol/li/a')[1].text == 'Error falls after correction'
     assert 'class="pinglab-result-sections"' in html
     subsection_titles = [re.sub(r'<[^>]+>', '', title).removesuffix("#") for title
                          in re.findall(r'<h4\b[^>]*>(.*?)</h4>', html, re.S)]
