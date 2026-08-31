@@ -6,7 +6,7 @@
 #let data-file = data-file.with(article: "exp077")
 
 #let meta = (
-  status: "[▦ DATA]",
+  status: "[▦ DATA | v27.0.0]",
   title: "Arbitrary coupled graphs execute natively",
   updated_at: "2026-08-31",
   date: "2026-08-05",

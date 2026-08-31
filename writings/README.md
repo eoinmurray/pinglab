@@ -1,6 +1,6 @@
 # Writing Guide
 
-Version: **26.0.0**
+Version: **27.0.0**
 
 The Writing Guide defines the conventions for Pinglab's published experiment
 entries in `writings/expXXX.typ`. This file is the canonical guide.
@@ -14,6 +14,13 @@ corrections or clarifications that do not change requirements. Update the versio
 above and add a short entry to the version history when changing the guide.
 
 ### 1.1. Version history
+
+- **27.0.0** — Add the applied Writing Guide version to every article status
+  badge and require agents to keep that version synchronized with this guide.
+
+- **26.0.1** — Clarify that saved article text is canonical authored source
+  regardless of how it originated, and prohibit guide migrations from
+  regenerating existing sections.
 
 - **26.0.0** — Adopt the conventional authorial first-person plural for the
   article's actions, decisions, interpretations and plans.
@@ -196,6 +203,17 @@ not disposable output to regenerate from this guide.
 6. Review the diff against the live starting text: every change must serve the
    requested conformance, with unrelated manual edits preserved. Report any
    unresolved conformance gaps rather than hiding them with new content.
+7. Treat saved text as authored source regardless of origin. Once content has
+   been saved in an existing `.typ` file, treat the live text as canonical
+   authored content whether it was initially written by the author, drafted by
+   an agent, or generated from experiment materials. A Writing Guide migration
+   must transform this live source; it must not regenerate or replace the target
+   section from experiment code, a template, or a fresh model draft. Derive the
+   required changes from the difference between the requested guide versions,
+   apply only those changes and their necessary dependencies, and preserve all
+   compatible wording and scientific content. If compliance requires wholesale
+   replacement or an uncertain substantive change, stop and present the conflict
+   for explicit authorization.
 
 For example, “update the Methods in exp022 to conform with Writing Guide
 1.0.0” means adapt the existing Methods to that version's applicable rules.
@@ -267,21 +285,22 @@ change merely to adopt this guide.
 ### 3.5. Local-data availability
 
 Every `writings/expXXX.typ` must declare one `meta.status` using an exact label
-from the table below. The entire value must be `[≡ TXT]` or `[▦ DATA]`, including
-brackets, with no descriptive suffix or surrounding whitespace. Demolab displays
-this authored string; do not add a second status field or a separate icon field.
+from the table below. The entire value must be `[≡ TXT | vX.Y.Z]` or
+`[▦ DATA | vX.Y.Z]`, including brackets, where `X.Y.Z` is the latest Writing
+Guide version applied to that article. Demolab displays this authored string;
+do not add a second status field, version field or icon field.
 
 | Label | Local-data availability |
 | --- | --- |
-| `[≡ TXT]` | Article only: no usable, validated local presentation data is available for any declared article input, or the article declares no data inputs. |
-| `[▦ DATA]` | Local data: usable, validated local presentation data is available for at least one declared article input, including reused upstream results. |
+| `[≡ TXT \| v27.0.0]` | Article only: no usable, validated local presentation data is available for any declared article input, or the article declares no data inputs. |
+| `[▦ DATA \| v27.0.0]` | Local data: usable, validated local presentation data is available for at least one declared article input, including reused upstream results. |
 
 The badge reports availability in the working checkout at the last agent check,
-not a live web-UI measurement. `[≡ TXT]` does not mean literally text without
-diagrams. `[▦ DATA]` does not certify complete input coverage, successful rendering,
+not a live web-UI measurement. `[≡ TXT | vX.Y.Z]` does not mean literally text
+without diagrams. `[▦ DATA | vX.Y.Z]` does not certify complete input coverage, successful rendering,
 scientific quality, review or completion. Null and negative findings qualify
-equally. For comparisons with only some inputs available, use `[▦ DATA]` and report
-the missing inputs in the task summary, not new article prose.
+equally. For comparisons with only some inputs available, use the `[▦ DATA | ...]`
+form and report the missing inputs in the task summary, not new article prose.
 
 - Agents own freshness. At the end of an authorized article revision, relevant
   implementation or execution task, or change to local data availability,
@@ -290,23 +309,32 @@ the missing inputs in the task summary, not new article prose.
   badge in either direction when the evidence changes. This is a necessary
   dependent metadata edit under section 3.1; explicit author scope restrictions
   still take precedence.
+- Agents also own Writing Guide version freshness. Whenever this guide is
+  applied to an article, set the badge version to the exact version applied.
+  Whenever the guide version changes, update every article brought into
+  conformance in the same migration; never advance an article's badge version
+  without applying all requirements introduced through that version. Normal
+  tests must reject badge versions that differ from the current guide version
+  once a repository-wide migration declares all articles current. A badge-only
+  version synchronization does not advance `meta.updated_at`.
 - Read the current article's `inputs` and article-scoped bindings, and check
   their agreement with the publishing configuration. Run read-only
   `uv run pingstore discover` against the configured local source. Match the
   declared keys to discovery's authoritative `experiment` fields, not run-name
-  substrings or the article ID alone. No inputs means `[≡ TXT]`; otherwise at
-  least one qualifying input means `[▦ DATA]`. Availability need not mean that
+  substrings or the article ID alone. No inputs means the `[≡ TXT | ...]` form;
+  otherwise at least one qualifying input means `[▦ DATA | ...]`. Availability need not mean that
   this run is currently selected for publication.
 - Qualifying data comes from a completed, nonempty v3 present run validated
   under the Storage Guide, including layout, payload checksums and applicable
   input-provenance checks. Numbers, tables, figures and videos can qualify;
   image-only presentations need not have `numbers.json`. Code, remote jobs,
   compute/analyse-only runs, hidden incomplete runs, bookkeeping-only exports,
-  prose claims or standalone illustrative diagrams do not establish `[▦ DATA]`.
+  prose claims or standalone illustrative diagrams do not establish the
+  `[▦ DATA | ...]` classification.
 - A failed discovery, inaccessible source or invalid provenance is an unresolved
   check, not an empty result. Do not guess or silently downgrade on that basis;
   preserve the existing badge and report the blocker. A successful check showing
-  no matching local data does warrant `[≡ TXT]`, even if remote results exist.
+  no matching local data does warrant `[≡ TXT | ...]`, even if remote results exist.
 - Maintain the literal string in source, not through a build-time calculation,
   scheduler callback or background monitor. Normal tests enforce the vocabulary
   without requiring another checkout or CI to contain the author's local data.

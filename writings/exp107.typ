@@ -1,7 +1,7 @@
 #import "contents.typ": with-contents
 #import "run-view.typ": with-datasets
 #let meta = (
-  status: "[≡ TXT]",
+  status: "[≡ TXT | v27.0.0]",
   title: "Compiling and executing bundles",
   date: "2026-08-14",
   description: "Validate a graph, write its portable bundle, select an executor, supply inputs, and retrieve named outputs and recordings.",

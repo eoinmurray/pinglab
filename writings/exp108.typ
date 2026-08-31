@@ -1,7 +1,7 @@
 #import "contents.typ": with-contents
 #import "run-view.typ": with-datasets
 #let meta = (
-  status: "[≡ TXT]",
+  status: "[≡ TXT | v27.0.0]",
   title: "Inputs, outputs, and readouts",
   date: "2026-08-14",
   description: "Bind data to graph inputs, expose internal activity, and turn network signals into stable output values.",

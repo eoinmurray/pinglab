@@ -13,7 +13,7 @@
 }
 
 #let meta = (
-  status: "[▦ DATA]",
+  status: "[▦ DATA | v27.0.0]",
   title: "Lowet 2017",
   date: "2026-08-19",
   updated_at: "2026-08-31",

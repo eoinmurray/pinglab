@@ -7,7 +7,7 @@
 #let data-file = data-file.with(article: "exp082")
 
 #let meta = (
-  status: "[▦ DATA]",
+  status: "[▦ DATA | v27.0.0]",
   title: "Spike-Count Classification in a Continuous Stream",
   date: "2026-08-10",
   updated_at: "2026-08-31",

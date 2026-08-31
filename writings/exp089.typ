@@ -1,7 +1,7 @@
 #import "contents.typ": with-contents
 #import "run-view.typ": with-datasets
 #let meta = (
-  status: "[≡ TXT]",
+  status: "[≡ TXT | v27.0.0]",
   title: "Runtime state, checkpoints, and provenance",
   date: "2026-08-14",
   description: "Continue simulations safely, distinguish dynamic state from learned parameters, and record enough identity to replay a run.",

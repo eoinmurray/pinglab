@@ -1,7 +1,7 @@
 #import "contents.typ": with-contents
 #import "run-view.typ": with-datasets
 #let meta = (
-  status: "[≡ TXT]",
+  status: "[≡ TXT | v27.0.0]",
   title: "Networks, signals, and parameters",
   date: "2026-08-14",
   description: "The core snnlang authoring objects, their names, shapes, units, neuron populations, and parameter declarations.",

@@ -6,7 +6,7 @@
 #let data-file = data-file.with(article: "exp049")
 
 #let meta = (
-  status: "[▦ DATA]",
+  status: "[▦ DATA | v27.0.0]",
   title: "Training Recurrent Weights Weakens PING Rhythmicity",
   date: "2026-06-09",
   updated_at: "2026-08-31",
