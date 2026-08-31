@@ -54,40 +54,46 @@
 
   === COBA training trajectories
 
+  Final mean validation accuracy was #value("coba", "final_acc")% and E rate
+  #value("coba", "final_e_rate_hz") Hz. The mean final-window E-rate slope was
+  #value("coba", "e_rate_slope_last10_hz_per_ep", digits: 3) Hz/epoch;
+  #count("coba", "accuracy_converged_count")/#n seeds met the accuracy criterion
+  and #count("coba", "e_rate_converged_count")/#n met the rate criterion.
+
   #figure(
     data-image(data-file("exp024/coba_curves.svg"), width: 100%,
       alt: "COBA training and validation loss, validation accuracy, and excitatory firing rate over epochs."),
     caption: [COBA, #n seeds shown separately. Training loss is solid and validation
-      loss dashed. Final mean validation accuracy was #value("coba", "final_acc")%
-      and E rate #value("coba", "final_e_rate_hz") Hz. The mean final-window E-rate
-      slope was #value("coba", "e_rate_slope_last10_hz_per_ep", digits: 3) Hz/epoch;
-      #count("coba", "accuracy_converged_count")/#n seeds met the accuracy criterion
-      and #count("coba", "e_rate_converged_count")/#n met the rate criterion.],
+      loss dashed.],
   )
 
   === PING training trajectories
+
+  Final mean E and I rates were #value("ping", "final_e_rate_hz") and
+  #value("ping", "final_i_rate_hz") Hz. The mean final-window E-rate slope was
+  #value("ping", "e_rate_slope_last10_hz_per_ep", digits: 3) Hz/epoch;
+  #count("ping", "accuracy_converged_count")/#n seeds met the accuracy criterion
+  and #count("ping", "e_rate_converged_count")/#n met the rate criterion.
 
   #figure(
     data-image(data-file("exp024/ping_curves.svg"), width: 100%,
       alt: "PING training and validation loss, validation accuracy, and excitatory and inhibitory firing rates over epochs."),
     caption: [PING, #n seeds shown separately; E rate solid, I rate dashed.
-      Final mean E and I rates were #value("ping", "final_e_rate_hz") and
-      #value("ping", "final_i_rate_hz") Hz. The mean final-window E-rate slope was
-      #value("ping", "e_rate_slope_last10_hz_per_ep", digits: 3) Hz/epoch;
-      #count("ping", "accuracy_converged_count")/#n seeds met the accuracy criterion
-      and #count("ping", "e_rate_converged_count")/#n met the rate criterion.],
+      Curves show individual seeds without uncertainty bands.],
   )
 
   === Accuracy, cross-entropy and activity
+
+  The 99%-of-final-accuracy markers do not establish sustained convergence.
+  These reused training observations are not a direct measurement of confidence
+  or a causal rate–margin relation.
 
   #figure(
     data-image(data-file("exp024/confidence_inflation.svg"), width: 100%,
       alt: "Validation accuracy, validation cross-entropy, and excitatory firing rate for COBA and PING."),
     caption: [Validation accuracy, cross-entropy on a log axis, and E rate;
       COBA red, PING black, #n seeds each. Dotted lines show each architecture's
-      mean first epoch reaching 99% of its final accuracy. These markers do not
-      establish sustained convergence. Curves show reused training observations,
-      not a direct measurement of confidence or a causal rate–margin relation.],
+      mean first epoch reaching 99% of its final accuracy.],
   )
 
   == Methods

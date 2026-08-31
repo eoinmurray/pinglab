@@ -79,6 +79,8 @@
       inhibitory neurons. Each cross-circuit inhibitory projection targets the
       other circuit's excitatory population.])
 
+  Separate pulse and causal-planning tests passed.
+
   #figure(table(columns: (1.8fr, 1fr, 1fr),
     [Variant], [Cross projections], [Delay steps],
     [Uncoupled], [#r.variants.uncoupled.coupling_projection_count], [none],
@@ -88,14 +90,16 @@
   ), kind: table,
     caption: [Coupling changed graph data only. A recurrent or feedback
       connection with no additional delay receives spikes on the next causal
-      step; the explicit delay was #r.delay_timing.explicit_delay_steps steps.
-      Separate pulse and causal-planning tests passed.])
+      step; the explicit delay was #r.delay_timing.explicit_delay_steps steps.])
 
   #figure(data-image(data-file("exp077/matched_rasters.png"), width: 100%),
     caption: [Excitatory spikes in the first sample of each variant, with
       circuit A on the left and circuit B on the right. The time axis is in
       milliseconds. Identical input tensors were reused across variants;
-      sparse or silent responses do not establish a phase-coupling mechanism.])
+      panels show the first sample only.])
+
+  Sparse or silent responses in these illustrative samples do not establish a
+  phase-coupling mechanism.
 
   == Methods
 

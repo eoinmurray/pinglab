@@ -74,23 +74,29 @@
 
   === Deletion and insertion have different effects
 
+  Unperturbed PING/COBA accuracies were #acc("ping", "drop", 0)%/
+  #acc("coba", "drop", 0)%.
+  Because the added-rate axis uses different reference-image rates for PING and
+  COBA, the common 0–#add_max Hz sweep does not match relative perturbation doses.
+  #if knee != none [PING's first sampled mean below 80% occurred at #knee Hz.
+  This is a grid crossing, not an estimated critical threshold.]
+
   #figure(
     report-image("exp037/perturbation_curves.svg",
       "Mean test accuracy with sample standard deviation: both models tolerate substantial deletion; PING declines more steeply under added spikes.", ratio: 0.55),
     caption: [
       Means ± sample SD across seeds 42–44, #eval_n test images per seed.
-      Unperturbed PING/COBA accuracies were #acc("ping", "drop", 0)%/
-      #acc("coba", "drop", 0)%. The dashed line is nominal 10% chance.
+      The dashed line is nominal 10% chance.
       The added-rate axis divides by final-epoch reference-image E rates
       (#rounded(reference-rate("ping"))/#rounded(reference-rate("coba")) Hz),
-      not test-set baseline rates. The same 0–#add_max Hz sweep therefore covers
-      different normalized ranges; it does not match relative perturbation doses.
-      #if knee != none [PING's first sampled mean below 80% occurred at #knee Hz;
-        this is a grid crossing, not an estimated critical threshold.]
+      not test-set baseline rates.
     ],
   )
 
   === PING rasters retain bands under partial deletion
+
+  Banding remained visible at partial deletion, although these illustrative
+  rasters provide no quantitative phase-coherence or gamma-frequency estimate.
 
   #figure(
     report-image("exp037/perturb_rasters__drop__ping.png",
@@ -99,8 +105,6 @@
       Retained seed-42 trials of #trial-description at deletion probabilities
       0, 0.5 and 1. E spikes (black) are below I spikes (red). The display samples
       200 E and 64 I neurons; annotated E rates use the full population.
-      Banding is visible at partial deletion, but these illustrative rasters
-      provide no quantitative phase-coherence or gamma-frequency estimate.
     ],
   )
   #figure(
@@ -109,22 +113,28 @@
     caption: [
       The same seed and test image at nominal added rates 0, 20 and #add_max Hz
       per neuron, applied independently to E and I. The displayed stream
-      includes inserted spikes, which increasingly obscure its bands; this
-      alone does not establish that an underlying oscillator disappeared.
-      Display sampling and E-rate annotation follow the preceding figure.
+      includes inserted spikes. Display sampling and E-rate annotation follow
+      the preceding figure.
     ],
   )
 
+  Inserted spikes increasingly obscured the bands, but this alone does not
+  establish that an underlying oscillator disappeared.
+
   === COBA activity thins or increases with the intervention
+
+  E activity thinned as deletion increased and vanished at full deletion. This
+  qualitative pattern does not imply accuracy was unchanged across the deletion
+  sweep. Under insertion, E activity increased and imposed I spikes appeared
+  despite disabled recurrent coupling. The denser unperturbed COBA population
+  means equal nominal rates are not equal fractional perturbations across models.
 
   #figure(
     report-image("exp037/perturb_rasters__drop__coba.png",
       "Three COBA rasters at deletion probabilities 0, 0.5 and 1: E activity thins and becomes silent at full deletion."),
     caption: [
       Retained seed-42 COBA trials of #trial-description, with the same
-      display sampling. E activity thins as deletion increases and vanishes at
-      full deletion. This qualitative pattern does not imply accuracy is
-      unchanged across the deletion sweep.
+      display sampling. Panels show deletion probabilities 0, 0.5 and 1.
     ],
   )
   #figure(
@@ -132,10 +142,8 @@
       "Three COBA rasters at nominal added rates 0, 20 and 40 Hz: E activity grows and imposed I spikes appear despite disabled recurrent coupling."),
     caption: [
       The same COBA trial at nominal added rates 0, 20 and #add_max Hz per neuron.
-      Inserted E spikes increase recorded activity; imposed I spikes are also
-      visible even though COBA's E→I→E coupling is disabled. The unperturbed
-      population is denser than PING's, so equal nominal rates are not equal
-      fractional perturbations.
+      Insertions were applied independently to E and I; the recurrent E→I→E
+      coupling remained disabled.
     ],
   )
 

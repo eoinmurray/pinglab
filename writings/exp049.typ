@@ -66,24 +66,30 @@
 
   === Recurrent training changes population activity
 
+  Frozen E/I means were #frozen_e/#frozen_i Hz. Canonical, zero and small
+  trainable initializations gave E means of
+  #average("trainable_ping_init", "e_rate_hz"),
+  #average("trainable_zero_init", "e_rate_hz") and
+  #average("trainable_small_init", "e_rate_hz") Hz; corresponding I means were
+  #average("trainable_ping_init", "i_rate_hz"),
+  #average("trainable_zero_init", "i_rate_hz") and
+  #average("trainable_small_init", "i_rate_hz") Hz. Only zero initialization
+  left I completely silent. Firing rates alone do not identify PING.
+
   #figure(
     data-image(data-file("exp049/attractor_ei.svg"), width: 100%,
       alt: "Final test-set E/I firing rates: the frozen control has low E and high I activity; trainable conditions have higher E rates and differing residual I activity."),
     caption: [
       Each point is one final-epoch network, evaluated on #eval_n official-test
-      images; legend accuracies are condition means over three seeds. Frozen
-      E/I means were #frozen_e/#frozen_i Hz. Canonical, zero and small trainable
-      initializations gave E means of #average("trainable_ping_init", "e_rate_hz"),
-      #average("trainable_zero_init", "e_rate_hz") and
-      #average("trainable_small_init", "e_rate_hz") Hz; corresponding I means
-      were #average("trainable_ping_init", "i_rate_hz"),
-      #average("trainable_zero_init", "i_rate_hz") and
-      #average("trainable_small_init", "i_rate_hz") Hz. Only zero initialization
-      left I completely silent. Firing rates alone do not identify PING.
+      images; legend accuracies are condition means over three seeds.
     ],
   )
 
   === Rhythmicity is already low at the first logged epoch
+
+  The unsmoothed trainable contrast averaged #contrast_first after epoch 1 and
+  ended at #contrast_low–#contrast_high. Because there is no epoch-0 observation,
+  these histories cannot resolve the intervening transition.
 
   #figure(
     data-image(data-file("exp049/training_curves.svg"), width: 100%,
@@ -93,13 +99,15 @@
       contrast from a fixed reference-image diagnostic. Lines show three-seed
       means; shading spans seed minima and maxima. Each series is smoothed
       with a five-epoch edge-padded moving average, not a confidence interval.
-      The unsmoothed trainable contrast averaged #contrast_first after epoch 1;
-      final values were #contrast_low–#contrast_high. This figure contains no
-      epoch-0 observation and cannot resolve the intervening transition.
     ],
   )
 
   === The two recurrent matrices change differently
+
+  For seed 42, #wei_zero42% of E→I entries and #wie_zero42% of I→E entries were
+  zero; final means were #wei_mean42 and #wie_mean42 in model conductance units.
+  Lower E→I recruitment is consistent with reduced I activity, but sparsification
+  was not symmetric and these observations do not isolate its causal contribution.
 
   #figure(
     data-image(data-file("exp049/weights__trainable_ping_init.svg"), width: 100%,
@@ -108,15 +116,16 @@
       Initial and final conductance distributions, pooled across three seeds
       with canonical trainable initialization. Histograms contain positive
       entries; mean and zero-fraction annotations include all entries. For
-      seed 42, #wei_zero42% of E→I entries and #wie_zero42% of I→E entries were
-      zero; final means were #wei_mean42 and #wie_mean42 in model conductance
-      units. Lower E→I recruitment is consistent with reduced I activity, but
-      sparsification is not symmetric and these observations do not isolate
-      its causal contribution.
+      each seed, annotations report zero fractions and means in model conductance
+      units.
     ],
   )
 
   === Rate–rhythmicity trajectories do not establish attractors
+
+  The contrast gap describes these observations, but identifies neither a
+  separatrix nor a basin boundary and is not evidence that only one attractor
+  exists.
 
   #figure(
     data-image(data-file("exp049/phase_portrait.svg"), width: 100%,
@@ -125,13 +134,19 @@
       Trainable curves are unsmoothed three-seed means; fading indicates epoch
       order, open markers epoch 1 and filled markers epoch 50. Frozen points
       show the three final endpoints and their mean, not a full trajectory.
-      Rates and contrast come from different evaluation samples. The contrast
-      gap describes these observations; it identifies neither a separatrix
-      nor a basin boundary, and is not evidence that only one attractor exists.
+      Rates and contrast come from different evaluation samples.
     ],
   )
 
   === Similar validation accuracy can accompany different firing rates
+
+  Final official-test means were
+  #average("trainable_ping_init", "acc")%,
+  #average("trainable_zero_init", "acc")% and
+  #average("trainable_small_init", "acc")% for canonical, zero and small
+  trainable initializations, versus #frozen_acc% for the frozen control.
+  Initialization therefore mattered within the tested conditions. These
+  trajectories do not establish equal accuracy or measured energy savings.
 
   #figure(
     data-image(data-file("exp049/acc_rate_trajectory.svg"), width: 100%,
@@ -140,13 +155,7 @@
       Unsmoothed three-seed mean validation trajectories; each segment's colour
       averages the reference-image contrast at its endpoints. Open and filled
       markers denote epochs 1 and 50. This complements the
-      #link("/exp025/")[accuracy–rate comparison], without establishing equal
-      accuracy or measured energy savings. Final official-test means were
-      #average("trainable_ping_init", "acc")%,
-      #average("trainable_zero_init", "acc")% and
-      #average("trainable_small_init", "acc")% for canonical, zero and small
-      trainable initializations, versus #frozen_acc% for the frozen control.
-      Initialization therefore matters within the tested conditions.
+      #link("/exp025/")[accuracy–rate comparison].
     ],
   )
 

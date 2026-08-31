@@ -56,35 +56,73 @@
     caption: [Model schematic: two matched PING circuits. Long-range excitation targets either E or I with exact fan-in 8.],
   )
 
+  Network A oscillated at #calc.round(a.frequency_hz, digits: 1) Hz and Network
+  B at #calc.round(b.frequency_hz, digits: 1) Hz. Their low interval variability
+  indicated regular rhythms, but relative phase wrapped #r.uncoupled.phase_wraps
+  times.
+
   #figure(
     data-image(data-file("exp085/uncoupled.png"), width: 88%, alt: "Two clean PING rhythms above their continually wrapping relative phase."),
-    caption: [Uncoupled population rhythms after the 300 ms burn-in: Network A oscillated at #calc.round(a.frequency_hz, digits: 1) Hz and Network B at #calc.round(b.frequency_hz, digits: 1) Hz. Low interval variability indicates regular rhythms, but relative phase wrapped #r.uncoupled.phase_wraps times. Rate excerpts are normalized to each trace's maximum. This is one seeded trajectory, not an across-seed estimate.],
+    caption: [Uncoupled population rhythms after the 300 ms burn-in. Rate
+      excerpts are normalized to each trace's maximum. This is one seeded
+      trajectory, not an across-seed estimate.],
   )
 
   === The pathways make different corrections
 
+  The illustrative probes produced an E-targeted advance, no correction at the
+  earlier I-targeted phase, and an I-targeted doublet and delay at the later
+  phase.
+
   #figure(
     data-image(data-file("exp085/phase_response_examples.png"), width: 88%, alt: "Examples of an E-targeted advance, an ineffective I-targeted probe, and an I-targeted doublet and delay."),
-    caption: [Three illustrative probes at nominal phases E/0.70, I/0.08 and I/0.12: an advance, no correction, and a doublet and delay. Each trial added one coupling-matched volley to the same baseline input realization; these examples are reused in the phase-response curve. Each rate trace is normalized to its window maximum.],
+    caption: [Three illustrative probes at nominal phases E/0.70, I/0.08 and
+      I/0.12. Each trial added one coupling-matched volley to the same baseline
+      input realization; these examples are reused in the phase-response curve.
+      Each rate trace is normalized to its window maximum.],
   )
+
+  E input advanced the rhythm over a broad late-cycle range. I doublets occurred
+  only from phase #calc.round(doublets.first().pulse_phase_fraction, digits: 2)
+  to #calc.round(doublets.last().pulse_phase_fraction, digits: 2). Earlier probes
+  met refractory neurons; later probes arrived after local excitation faded. The
+  inhibitory correction was strong but confined to a narrow window.
 
   #figure(
     data-image(data-file("exp085/phase_response.png"), width: 92%, alt: "Phase responses to E-targeted and I-targeted probe volleys, including the conductance and voltage mechanism of an inhibitory doublet."),
-    caption: [One probe per sampled phase and target population. E input advanced over a broad late-cycle range; I doublets occurred from phase #calc.round(doublets.first().pulse_phase_fraction, digits: 2) to #calc.round(doublets.last().pulse_phase_fraction, digits: 2)#text(";") the lower panels show residual local excitation and the probe jointly recruiting recovered I neurons. Earlier probes met refractory neurons; later probes arrived after local excitation faded. Lower traces are means across I neurons. The inhibitory correction was strong but confined to a narrow window.],
+    caption: [One probe per sampled phase and target population. Lower panels
+      show residual local excitation and the probe jointly recruiting recovered
+      I neurons; lower traces are means across I neurons.],
   )
 
   === Only E-to-E coupling stops the drift
 
+  Final phase drift was
+  #calc.round(no-coupling.final_drift_rate_cycles_per_s, digits: 2) cycles/s
+  without coupling and #calc.round(e-to-i.final_drift_rate_cycles_per_s, digits: 2)
+  cycles/s with E-to-I alone. E-to-E alone
+  (#calc.round(e-to-e.final_drift_rate_cycles_per_s, digits: 2) cycles/s) and
+  both pathways (#calc.round(both.final_drift_rate_cycles_per_s, digits: 2)
+  cycles/s) met the locking criteria. The narrow doublet window did not stop
+  drift at this operating point.
+
   #figure(
     data-image(data-file("exp085/pathway_comparison.png"), width: 88%, alt: "Relative-phase change after coupling onset for no coupling, E-to-E only, E-to-I only, and both pathways."),
-    caption: [Four conditions shared the same initial dynamical state and subsequent drive. Final phase drift was #calc.round(no-coupling.final_drift_rate_cycles_per_s, digits: 2) cycles/s without coupling and #calc.round(e-to-i.final_drift_rate_cycles_per_s, digits: 2) cycles/s with E-to-I alone. E-to-E alone (#calc.round(e-to-e.final_drift_rate_cycles_per_s, digits: 2) cycles/s) and both pathways (#calc.round(both.final_drift_rate_cycles_per_s, digits: 2) cycles/s) met the locking criteria. The narrow doublet window did not stop drift at this operating point.],
+    caption: [Relative-phase change after coupling onset for four conditions
+      sharing the same initial dynamical state and subsequent drive.],
   )
 
   === The first correction begins in E
 
+  Arriving cross-network conductance advanced Network B's next E volley by
+  #calc.round(mechanism.next_target_volley_advance_ms, digits: 1) ms. Feedback
+  inhibition advanced with that volley, so this correction began in E, with
+  inhibition following rather than initiating it.
+
   #figure(
     data-image(data-file("exp085/event_aligned_mechanism.png"), width: 92%, alt: "Cross-network excitation followed by an advanced excitatory volley and advanced feedback inhibition."),
-    caption: [Illustrative event from the same no-coupling and E-to-E conditions. Arriving cross-network conductance advanced Network B's next E volley by #calc.round(mechanism.next_target_volley_advance_ms, digits: 1) ms. Conductances are means across target E neurons. Feedback inhibition advanced with the E volley: this correction began in E, with inhibition following rather than initiating it.],
+    caption: [Illustrative event from the same no-coupling and E-to-E conditions.
+      Conductances are means across target E neurons.],
   )
 
   == Methods

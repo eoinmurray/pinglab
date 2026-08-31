@@ -100,6 +100,11 @@
 
   === Accuracy–rate frontier
 
+  At the unpenalised operating points, PING reached #ping_off_acc% at
+  #ping_off_rate Hz and COBA reached #coba_off_acc% at #coba_off_rate Hz. The
+  comparison includes different gradient damping, so it does not establish a
+  structural lower firing-rate limit.
+
   #figure(
     data-image(data-file("exp025/results_compound.png"),
       width: 100%,
@@ -110,14 +115,18 @@
       E spikes black, I spikes red. *Bottom left:* baseline validation accuracy
       over training. *Bottom right:* test accuracy versus mean E firing rate
       across activity ceilings; means ± SEM over three seeds, unpenalised points
-      starred (PING #ping_off_acc% at #ping_off_rate Hz; COBA #coba_off_acc% at
-      #coba_off_rate Hz). These rates are test-set averages, not raster estimates.
-      PING black, COBA red in the lower panels. The comparison includes different
-      gradient damping; it does not establish a structural lower rate limit.
+      starred. These rates are test-set averages, not raster estimates. PING
+      black, COBA red in the lower panels.
     ],
   )
 
   === Participation and frequency
+
+  PING participation varied from #p_lo to #p_hi and oscillation frequency from
+  approximately #fg_hi to #fg_lo Hz. The $p_"part" f_gamma$ approximation
+  differed from measured E rate by up to #pfg_err_max%, so participation was not
+  constant. PING accuracy spanned #ping_acc_lo–#ping_acc_hi%; COBA fell from
+  #coba_acc_loose% to #coba_acc_tight% as the ceiling tightened.
 
   #figure(
     data-image(data-file("exp025/theta_p_fgamma.svg"),
@@ -126,17 +135,18 @@
     ),
     caption: [
       Five penalised conditions per model, seed 42, #run.recipe.pfg_samples
-      test images each. PING participation varied from #p_lo to #p_hi and
-      oscillation frequency from approximately #fg_hi to #fg_lo Hz. The dashed
-      $p_"part" f_gamma$ approximation differs from measured E rate by up to
-      #pfg_err_max%; participation is not constant. PING accuracy spanned
-      #ping_acc_lo–#ping_acc_hi%; COBA fell from #coba_acc_loose% to
-      #coba_acc_tight% as the ceiling tightened. These are individual-seed
-      measurements, not across-seed estimates.
+      test images each. The dashed curve is the $p_"part" f_gamma$
+      approximation. These are individual-seed measurements, not across-seed
+      estimates.
     ],
   )
 
   === Initial input coupling
+
+  Final validation accuracies were #low_accs.at(0)% / #low_accs.at(1)% /
+  #low_accs.at(2)% / #low_accs.at(3)%, while final I rates were
+  #low_is.at(0) / #low_is.at(1) / #low_is.at(2) / #low_is.at(3) Hz. The similar
+  endpoints across these initializations do not prove basin attractivity.
 
   #figure(
     data-image(data-file("exp025/low_w_in_sweep.svg"),
@@ -148,14 +158,14 @@
       and 0.9 (columns); rate ceiling 1 Hz throughout. Lines and shading show
       means ± SEM across seeds 42–44. *Top:* validation accuracy, despite the
       panel label “Test accuracy”. *Bottom:* validation E (black) and I (red)
-      rates. Final accuracies: #low_accs.at(0)% / #low_accs.at(1)% /
-      #low_accs.at(2)% / #low_accs.at(3)%; final I rates:
-      #low_is.at(0) / #low_is.at(1) / #low_is.at(2) / #low_is.at(3) Hz.
-      Similar endpoints across these initializations do not prove basin attractivity.
+      rates.
     ],
   )
 
   === Input scaling at inference
+
+  COBA's penalty reached approximately #coba_pen_s3 at $s = 3$. The empirical
+  inhibitory-rate crossing marks a sampled transition, not a fitted bifurcation.
 
   #figure(
     data-image(data-file("exp025/w_in_scale_sweep.svg"),
@@ -170,12 +180,15 @@
       images per condition. PING black, COBA red. Dashed $s = 1$ marks training;
       the dotted marker labelled $f^*$ denotes the empirical input scale
       #run.plot_data.scale_crossing where I rate crosses 0.05 Hz, not a fitted
-      bifurcation. Penalty and total-objective axes stop at 4; COBA's penalty reached approximately
-      #coba_pen_s3 at $s = 3$.
+      bifurcation. Penalty and total-objective axes stop at 4.
     ],
   )
 
   === Scaling versus excitatory rate
+
+  PING's highest sampled accuracy was approximately #ping_plateau%. At input
+  scale $s = 3$, COBA reached approximately #coba_acc_s3% at #coba_e_s3 Hz.
+  This single direction of weight scaling does not map the full loss landscape.
 
   #figure(
     data-image(data-file("exp025/w_in_scale_sweep_vs_rate.svg"),
@@ -184,10 +197,7 @@
     ),
     caption: [
       Figure 4 replotted against mean E rate. Stars mark the trained
-      points: PING #ping_star_e Hz and COBA #coba_star_e Hz. PING's highest
-      sampled accuracy was approximately #ping_plateau%; at input scale $s = 3$,
-      COBA reached approximately #coba_acc_s3% at #coba_e_s3 Hz. This single
-      direction of weight scaling does not map the full loss landscape.
+      points: PING #ping_star_e Hz and COBA #coba_star_e Hz.
     ],
   )
 

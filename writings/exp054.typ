@@ -35,42 +35,95 @@
 
   == Results
 
+  On either zero-coupling edge the loop was broken: E fired at 94.31 Hz and
+  contrast was 0.00169, while I was silent when E-to-I coupling was zero. The
+  diagonal examples A/B/C had contrasts 0.00169/0.270/0.984. Coupled conditions
+  generally showed stronger temporal structure, although the map was not
+  strictly monotonic.
+
   #figure(
     data-image(data-file("exp054/turnon_maps_compound.png"), width: 100%,
       alt: "Maps of E rate, I rate and lobe–trough contrast over the coupling grid, above three example E/I rasters showing asynchronous firing and increasingly separated volleys."),
-    caption: [*Top*: per-neuron E and I rates and lobe–trough contrast across the 11×11 coupling grid; $W_(E I)$ and $W_(I E)$ denote E-to-I and I-to-E coupling strengths. On either zero edge the loop is broken: E fired at 94.31 Hz and contrast was 0.00169; I was silent when E-to-I coupling is zero and its high rate on the other edge is colour-clipped. *Bottom*: diagonal examples A/B/C had contrasts 0.00169/0.270/0.984. E spikes are black, I spikes red; each raster shows 200 ms from the first 160 E and 48 I neurons. Coupled conditions generally show stronger temporal structure, but the map is not strictly monotonic. One seed per condition; no uncertainty estimate.],
+    caption: [*Top*: per-neuron E and I rates and lobe–trough contrast across the
+      11×11 coupling grid; $W_(E I)$ and $W_(I E)$ denote E-to-I and I-to-E
+      coupling strengths. The high I rate on one zero edge is colour-clipped.
+      *Bottom*: diagonal examples A/B/C; E spikes are black and I spikes red.
+      Each raster shows 200 ms from the first 160 E and 48 I neurons. One seed
+      per condition; no uncertainty estimate.],
   )
+
+  Many coupled-interior conditions showed separated volleys, whereas the
+  zero-E-to-I column had silent I neurons and the zero-I-to-E row lacked
+  inhibitory feedback to E.
 
   #figure(
     data-image(data-file("exp054/grid_rasters.png"), width: 100%,
       alt: "E/I rasters at every other coupling-grid coordinate: dense edge activity and separated volleys in much of the coupled interior."),
-    caption: [E/I rasters at a 6×6 subset of coupling coordinates; the maps above use all 121 conditions. The left column has no E-to-I coupling and silent I neurons; the bottom row has no inhibitory feedback to E. Many interior conditions show separated volleys. Display windows and neuron subsets match Figure 1; measurements use all neurons over the full post-burn recording.],
+    caption: [E/I rasters at a 6×6 subset of coupling coordinates; the maps above
+      use all 121 conditions. Display windows and neuron subsets match Figure 1;
+      measurements use all neurons over the full post-burn recording.],
   )
+
+  Edge autocorrelograms remained near chance. In the coupled interior,
+  short-lag clustering, suppression between volleys and later recurrence peaks
+  supplied complementary temporal evidence.
 
   #figure(
     data-image(data-file("exp054/grid_autocorr.png"), width: 100%,
       alt: "E-population autocorrelograms at a 6×6 subset of coupling coordinates, with lobe and trough markers and a chance reference."),
-    caption: [E-population autocorrelograms at the same 6×6 coordinates, shown over 0–50 ms; dotted lines mark the chance reference $A_"corr" = 1$. Markers locate the selected lobe (▲) and trough (▼) of the smoothed curve. Edge curves are near chance. In the coupled interior, short-lag clustering, suppression between volleys and later recurrence peaks provide complementary evidence. $R_"contrast"$ scores the first lobe and trough, not the later peak's frequency.],
+    caption: [E-population autocorrelograms at the same 6×6 coordinates, shown
+      over 0–50 ms. Dotted lines mark the chance reference $A_"corr" = 1$;
+      markers locate the selected lobe (▲) and trough (▼) of the smoothed curve.
+      $R_"contrast"$ scores the first lobe and trough, not the later peak's
+      frequency.],
   )
+
+  Without an inhibitory loop, the private-input null stayed at or below 0.0671
+  over 0.97–94.31 Hz, while the shared-input null reached 0.50 at its sparsest
+  firing. Shared afferents can therefore create short-lag coincidence detected
+  by this score. These finite, single-seed controls do not prove rate invariance
+  or establish rhythmicity from contrast alone.
 
   #figure(
     data-image(data-file("exp054/rate_invariance.png"), width: 100%,
       alt: "Contrast versus measured E firing rate: private-input null values remain small, while the sparsest shared-input nulls show elevated contrast."),
-    caption: [Contrast against measured E firing rate. Without an inhibitory loop, the private-input null (black) stayed at or below 0.0671 over 0.97–94.31 Hz; the shared-input null (grey) reached 0.50 at its sparsest firing. Shared afferents can create short-lag coincidence that this score detects. Red points show the PING coupling grid, including its near-zero edges. These finite, single-seed controls do not prove rate invariance or establish rhythmicity from contrast alone.],
+    caption: [Contrast against measured E firing rate. Black and grey points are
+      the private- and shared-input nulls; red points are the PING coupling grid,
+      including its near-zero edges.],
   )
+
+  Shared-input examples showed central coincidence without inhibitory feedback;
+  private-input examples showed smaller contrast and finite-sample fluctuations
+  around chance. Their approximate rate matching did not make rates or spike
+  counts equal.
 
   #figure(
     data-image(data-file("exp054/null_autocorr.png"), width: 100%,
       alt: "Low-rate shared- and private-input null autocorrelograms selected by approximate rate matching, with each actual rate labelled."),
-    caption: [Null autocorrelograms nearest to target E rates of 1, 2.5 and 5 Hz. Shared-input examples (top) actually fired at 0.40/1.72/4.20 Hz; private-input examples (bottom) at 0.97/1.88/4.90 Hz. The rates and spike counts are not equal. Shared-input examples illustrate central coincidence without inhibitory feedback; private-input examples show smaller contrast and finite-sample fluctuations around chance.],
+    caption: [Null autocorrelograms nearest to target E rates of 1, 2.5 and 5 Hz.
+      Shared-input examples (top) fired at 0.40/1.72/4.20 Hz; private-input
+      examples (bottom) at 0.97/1.88/4.90 Hz.],
   )
 
   === Comparison with a mean-field onset
 
+  A complex eigenvalue pair crossed the imaginary axis near external drive
+  $I^* = 0.596$ nA, and the finite up/down branches of peak-to-peak E-rate
+  amplitude nearly coincided. This is compatible with a soft onset, but does
+  not establish supercriticality of the spiking map: theory varies drive,
+  whereas that map varies coupling. Mean-field onset frequency and the
+  three-seed median #link("/exp041/")[spiking frequency] both decreased with
+  inhibitory decay $tau_"GABA"$, with substantial quantitative differences.
+  The phenomenological comparison is a possible mechanism, not a fitted
+  explanation of the same transition.
+
   #figure(
     data-image(data-file("exp054/onset_super_compound.png"), width: 100%,
       alt: "Nine panels compare coupling maps and example rasters with a separate mean-field eigenvalue crossing, amplitude sweep and frequency-versus-inhibitory-decay comparison."),
-    caption: [*A–F*: the same coupling maps and diagonal rasters as Figure 1. *G–I*: the #link("/exp033/")[conductance mean-field reference] with a 4 mV effective-noise scale. A complex eigenvalue pair crossed the imaginary axis near external drive $I^* = 0.596$ nA (G); the finite up/down branches of peak-to-peak E-rate amplitude nearly coincided (H). This is compatible with a soft onset, but does not establish supercriticality of the spiking map: theory varies drive, whereas that map varies coupling. Mean-field onset frequency and the three-seed median #link("/exp041/")[spiking frequency] both decreased with inhibitory decay $tau_"GABA"$ (I), with substantial quantitative differences. The phenomenological comparison is a possible mechanism, not a fitted explanation of the same transition.],
+    caption: [*A–F*: the coupling maps and diagonal rasters from Figure 1.
+      *G–I*: the #link("/exp033/")[conductance mean-field reference] at a 4 mV
+      effective-noise scale, showing its eigenvalue crossing, amplitude branches
+      and frequency comparison.],
   )
 
   #context if target() != "html" { pagebreak(weak: true) }

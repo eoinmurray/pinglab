@@ -76,6 +76,9 @@
 
   === Population rhythm frequency
 
+  Per-network interpolated frequencies spanned approximately #fg_lo–#fg_hi Hz
+  across the inhibitory-decay sweep.
+
   #figure(
     data-image(data-file("exp041/psds.svg"),
       width: 100%,
@@ -84,8 +87,7 @@
     caption: [
       Population-E power spectral densities (PSDs), averaged across trials and
       then seeds at each inhibitory decay time. Dots mark binned peaks of these
-      displayed means. The per-network interpolated frequencies used in the
-      fit spanned approximately #fg_lo–#fg_hi Hz.
+      displayed means.
     ],
   )
 
@@ -106,6 +108,9 @@
 
   === Rate–frequency relationship
 
+  Individual network rates spanned #er_lo–#er_hi Hz and accuracies
+  #acc_lo–#acc_hi% across the six inhibitory-decay conditions.
+
   #figure(
     data-image(data-file("exp041/rate_vs_fgamma.svg"),
       width: 100%,
@@ -114,8 +119,7 @@
     caption: [
       Final-epoch excitatory rate (top) and test accuracy (bottom) against gamma
       frequency. Each point is a mean over three seeds; error bars show ±1
-      standard error. The affine line fits six condition means. Individual
-      network rates spanned #er_lo–#er_hi Hz and accuracies #acc_lo–#acc_hi%.
+      standard error. The affine line fits six condition means.
     ],
   )
 

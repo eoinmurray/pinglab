@@ -88,6 +88,13 @@
 
   === Streaming classification
 
+  The label-to-prediction pairs were #varying-predictions, giving
+  #varying-correct of #r.varying_headline.labels.len() correct segments. The
+  #r.varying_headline.segments.at(0).at(0) ms, #p10.input_rate_hz Hz error
+  occurred at a condition with #calc.round(100 * p10.accuracy, digits: 1)% mean
+  accuracy, so this single error does not establish an encoding-rate failure
+  floor.
+
   #figure(
     report-image(data-file("exp048/varying_headline_stream.png"),
       trim-bottom: 3%,
@@ -97,18 +104,16 @@
       between segments. The segment conditions are #varying-conditions. Thumbnail
       opacity increases with encoding rate. The middle panels plot E- and I-neuron
       spike rasters against time (ms); the lower panel plots class probability
-      against time (ms), with the true class emphasized in red. The
-      label-to-prediction pairs are #varying-predictions, giving
-      #varying-correct of #r.varying_headline.labels.len() correct segments.
+      against time (ms), with the true class emphasized in red.
       The raster panels show sampled neurons in rank order; their endpoint labels
-      denote population sizes, not the number of displayed neurons. The
-      #r.varying_headline.segments.at(0).at(0) ms, #p10.input_rate_hz Hz error
-      occurred at a condition with #calc.round(100 * p10.accuracy, digits: 1)%
-      mean accuracy, so this single error does not establish an encoding-rate
-      failure floor.],
+      denote population sizes, not the number of displayed neurons.],
   )
 
   === Duration and encoding-rate limits
+
+  Accuracy remained at the empty-input floor through #p05.input_rate_hz Hz,
+  became informative by #p2.input_rate_hz Hz, and reached
+  #calc.round(100 * p5.accuracy, digits: 1)% at #p5.input_rate_hz Hz.
 
   #figure(
     report-image(data-file("exp048/acc_grid_tau_rate.png"),
@@ -127,11 +132,8 @@
       0–#p10.input_rate_hz
       Hz interval without changing the axis scale. The
       dashed line marks #(cfg.n_classes)-class chance and the dotted line the
-      #r.encoding_rate_psychometric.trained_rate_hz Hz training rate. Accuracy
-      stayed at its empty-input floor, the accuracy obtained when almost no input
-      spikes arrive, through #p05.input_rate_hz Hz, became
-      informative by #p2.input_rate_hz Hz, and reached
-      #calc.round(100 * p5.accuracy, digits: 1)% at #p5.input_rate_hz Hz.],
+      #r.encoding_rate_psychometric.trained_rate_hz Hz training rate. The
+      empty-input floor is the accuracy obtained when almost no input spikes arrive.],
   )
 
 

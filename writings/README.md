@@ -1,6 +1,6 @@
 # Writing Guide
 
-Version: **19.1.0**
+Version: **20.0.0**
 
 The Writing Guide defines the conventions for Pinglab's published experiment
 entries in `writings/expXXX.typ`. This file is the canonical guide.
@@ -14,6 +14,11 @@ corrections or clarifications that do not change requirements. Update the versio
 above and add a short entry to the version history when changing the guide.
 
 ### 1.1. Version history
+
+- **20.0.0** — Give captions and figure-local Results prose distinct roles.
+  Captions explain how to read a figure; prose states what the figure establishes.
+  Prohibit repeating the same finding in both places and add a deletion test and
+  worked example.
 
 - **19.1.0** — Allow optional figure-local explanatory prose in Results when it
   states an evidence-grounded expectation, explains an observed pattern, or
@@ -319,9 +324,9 @@ appendices; choose tense by the sentence's function, not by section alone.
 - Use present tense for model and algorithm definitions, mathematical
   relationships, established knowledge, the article's scope, and what a figure
   or table displays: “The model contains two populations”; “Figure 2 shows
-  mean accuracy”. A caption may therefore mix present display descriptions
-  with past observations: “Points show seed means; accuracy fell at high jitter”.
-  Concise finding headings may use present tense.
+  mean accuracy”. A caption may mix present display descriptions with past
+  measurement context, but observed findings belong in Results prose. Concise
+  finding headings may use present tense.
 - Use present tense for current interpretations and supported conclusions,
   keeping their evidential limits explicit: “This result suggests…”; “These
   measurements do not establish…”. An observed outcome remains past tense
@@ -745,10 +750,10 @@ records their source lineage, and captions must not imply a new simulation.
 ## 7. Results
 
 Build Results from unnumbered headings, key figures, concise captions and
-optional explanatory prose. Prose may state an evidence-grounded expectation,
-explain an observed pattern, or distinguish observation from interpretation when
-the figure and caption alone are insufficient. Results remain evidence-led;
-prose is not required for every figure.
+optional explanatory prose. Give captions and prose distinct roles: captions
+explain how to read a figure; prose states what the figure establishes. Results
+remain evidence-led; prose is not required when a figure has no supported finding
+beyond the display itself.
 
 1. Name the section exactly `Results` and place it before `Methods`.
    Do not append a tagline, description or other suffix, or add a
@@ -758,17 +763,23 @@ prose is not required for every figure.
 3. Select only the key plots needed to show the experiment's results. There is
    no fixed plot count; a subsection may contain more than one related figure.
 4. Use figures from retained experimental outputs. Keep captions concise and
-   identify the measurement, conditions, aggregation and uncertainty needed to
-   read each figure correctly. Distinguish illustrative probes and reused
-   observations from new measurements.
+   identify the variables, conditions, visual encodings, aggregation and
+   uncertainty needed to read each figure correctly. Distinguish illustrative
+   probes and reused observations from new measurements. Do not state the
+   figure's scientific finding or interpretation in its caption.
 5. An optional theory diagram may precede a data plot when useful. Its caption
    must identify it as an expectation or mechanism, not experimental evidence.
-6. Explanatory prose may appear immediately before or after a figure. Keep it
-   local to that figure and concise. Distinguish mathematical or theoretical
-   expectations from observations, and label post-hoc interpretations. Do not
-   repeat the caption or Methods, introduce unsupported causal claims, or add
-   generic introductory or concluding prose. Do not add prose placeholders
-   asking a later pass to fill these in.
+6. Explanatory prose may appear immediately before or after a figure. Use it for
+   observed relationships, scientific consequences and clearly labelled
+   interpretations. Keep it local to that figure and concise. Distinguish
+   mathematical or theoretical expectations from observations, and label
+   post-hoc interpretations. Do not repeat the caption or Methods, introduce
+   unsupported causal claims, or add generic introductory or concluding prose.
+   Do not add prose placeholders asking a later pass to fill these in.
+7. Never state the same finding in both prose and the caption. Apply a deletion
+   test: without the prose, the figure and caption must still be readable;
+   without the caption, the prose must not substitute for the missing variables,
+   conditions, encodings, aggregation or uncertainty.
 
 When migrating existing headings, remove their taglines and repair any authored
 links to former anchors. The shared TOC picks up the plain heading automatically.
@@ -782,26 +793,15 @@ outputs and their measurement details):
 
 === Rhythm frequency
 
-#figure(
-  data-image(data-file("expXXX/frequency-vs-decay.svg"), width: 100%),
-  caption: [Gamma frequency across inhibitory decay times. Points show means
-  across seeds; error bars show ±1 standard deviation.],
-)
-
-=== Population firing rates
+The oscillation slowed as inhibitory decay increased, but accuracy peaked at
+the intermediate decay time. Slower rhythms therefore did not consistently
+improve classification.
 
 #figure(
-  data-image(data-file("expXXX/rate-vs-decay.svg"), width: 100%),
-  caption: [Excitatory and inhibitory firing rates across conditions. Points
-  show means across seeds; error bars show ±1 standard deviation.],
-)
-
-=== Classification accuracy
-
-#figure(
-  data-image(data-file("expXXX/accuracy-vs-decay.svg"), width: 100%),
-  caption: [Test accuracy across inhibitory decay times. Points show means
-  across seeds; error bars show ±1 standard deviation.],
+  data-image(data-file("expXXX/frequency-and-accuracy.svg"), width: 100%),
+  caption: [Gamma frequency and test accuracy across inhibitory decay times.
+  Points show means across eight training replicates; error bars show ±1
+  standard deviation.],
 )
 ```
 

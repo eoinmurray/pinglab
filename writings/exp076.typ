@@ -55,13 +55,21 @@
       and a separate one-step equivalence test; the arrows describe operations,
       not measurements.])
 
+  The validation-selected checkpoint came from epoch
+  #r.trajectory.selected_epoch.
+
   #figure(data-image(data-file("exp076/training_curves.png"), width: 100%),
     caption: [Training and validation trajectories across #r.config.epochs
       epochs. Validation averages #r.config.validation_encoder_draws.count
-      encoder draws on #r.config.held_out_count images. The selected checkpoint
-      came from epoch #r.trajectory.selected_epoch.])
+      encoder draws on #r.config.held_out_count images.])
 
   === Checkpoint evaluations
+
+  The selected bundle checkpoint loaded through the explicit route achieved
+  #pct(r.compatibility.legacy_route_accuracy_on_bundle_checkpoint_pct). A
+  separately trained explicit-network checkpoint loaded through the bundle
+  route achieved
+  #pct(r.compatibility.bundle_route_accuracy_on_legacy_checkpoint_pct).
 
   #figure(table(columns: (1.6fr, 1fr, 1fr),
     [Checkpoint], [Validation], [Official-test replay],
@@ -70,12 +78,7 @@
   ), kind: table,
     caption: [Validation used #r.config.held_out_count images and multiple
       encoder draws; replay used #r.replay.evaluation_samples official-test
-      images and one fixed encoding. The selected bundle checkpoint loaded
-      through the explicit route achieved
-      #pct(r.compatibility.legacy_route_accuracy_on_bundle_checkpoint_pct).
-      A separately trained explicit-network checkpoint loaded through the
-      bundle route achieved
-      #pct(r.compatibility.bundle_route_accuracy_on_legacy_checkpoint_pct).])
+      images and one fixed encoding.])
 
   === Deterministic one-step equivalence
 

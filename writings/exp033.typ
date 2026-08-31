@@ -80,37 +80,48 @@
 
   === Oscillatory onset
 
+  At the reference noise scale of 4 mV, one conjugate pair crossed at #istar nA
+  with onset frequency #fstar Hz. Up/down amplitudes nearly coincided, and the
+  inhibitory-decay trend agreed qualitatively with separately measured spiking
+  rhythms. I treat this as a candidate explanation of the
+  #link("/exp025/")[input-coupling recruitment transition], whose empirical
+  marker is an inhibitory-rate crossing under input-weight scaling, not a fitted
+  Hopf current. The model alone identifies neither that transition nor a minimum
+  sustainable firing rate.
+
   #figure(
     data-image(data-file("exp033/bifurcation_compound.svg"), width: 100%,
       alt: "Three panels showing eigenvalue crossing, amplitude ramps and frequency versus inhibitory decay."),
     caption: [
-      At the reference noise scale of 4 mV, one conjugate pair crossed at
-      #istar nA with onset frequency #fstar Hz. Up/down amplitudes nearly coincided;
-      inhibitory-decay trends agree qualitatively with separately measured spiking
-      rhythms. \[(!) This is a candidate explanation of the
-      #link("/exp025/")[input-coupling recruitment transition], whose empirical
-      marker is an inhibitory-rate crossing under input-weight scaling, not a
-      fitted Hopf current. The model alone identifies neither that transition nor
-      a minimum sustainable firing rate.\]
+      Eigenvalue crossing, upward and downward amplitude ramps, and onset
+      frequency against inhibitory decay at the 4 mV reference noise scale.
     ],
   ) <fig-overview>
 
   === Sensitivity to the effective noise scale
 
+  Across 3, 4, 5 and 6 mV, the retained tests supported a reversible onset. The
+  threshold spanned #sens-i-lo–#sens-i-hi nA while frequency remained near
+  #fstar Hz, and E amplitude at onset plus 0.4 nA fell from #sens-a-hi to
+  #sens-a-lo Hz. At the 4 mV reference, equilibrium E/I rates were #estar and
+  #irate Hz: the unstable equilibrium was low-rate, not silent. The noise
+  parameter is free, so this sweep is not a calibration to spiking activity.
+
   #figure(
     data-image(data-file("exp033/sigma_sensitivity.svg"), width: 100%,
       alt: "Noise-scale sensitivity of onset drive, absolute frequency, equilibrium rates and relative-onset amplitude."),
     caption: [
-      Across 3, 4, 5 and 6 mV, the retained tests support a reversible onset;
-      the threshold spanned #sens-i-lo–#sens-i-hi nA while frequency remained near
-      #fstar Hz. E amplitude at onset plus 0.4 nA fell from #sens-a-hi to
-      #sens-a-lo Hz. At the 4 mV reference, equilibrium E/I rates were #estar and
-      #irate Hz: \[(!) the unstable equilibrium is low-rate, not silent.\] The noise
-      parameter is free; this sweep is not a calibration to spiking activity.
+      Onset drive, absolute frequency, equilibrium rates and relative-onset
+      amplitude across effective noise scales of 3, 4, 5 and 6 mV.
     ],
   ) <fig-sigma>
 
   === Linear stability
+
+  One conjugate pair crossed the imaginary axis while the remaining pair was
+  damped. The matching retained onset and amplitude summaries come from a
+  separate execution of the same mean-field model used in the
+  #link("/exp054/")[coupling-map comparison], not independent spiking confirmation.
 
   #figure(
     data-image(data-file("exp033/eigenvalues_complex.svg"), width: 100%,
@@ -119,48 +130,55 @@
       Each drive contributes four eigenvalues. Horizontal position is growth
       rate and vertical position angular frequency, both in inverse milliseconds;
       colour denotes drive. Cyan circles mark the first oscillatory crossing;
-      the remaining pair is damped there. The 401-point continuation comes from
-      a separate execution of the same mean-field model used in the
-      #link("/exp054/")[coupling-map comparison], with matching retained onset
-      and amplitude summaries; it is not independent spiking confirmation.
+      the continuation contains 401 drive points.
     ],
   ) <fig-eigenvalues>
 
   === Inhibitory decay and rhythm frequency
 
+  Mean-field onset frequency and the median measured frequency of three
+  separately trained spiking networks per decay time both decreased. At #tg ms
+  they were #fstar and #fspk Hz; the mean-field curve was below the spiking curve
+  through 18 ms and above it at 27 ms. Retraining changed weights as well as
+  inhibitory decay, whereas this model held couplings fixed. Omitted spike
+  synchrony is one possible explanation of the mismatch, not a tested cause.
+
   #figure(
     data-image(data-file("exp033/freq_vs_tau_gaba.svg"), width: 100%,
       alt: "Both frequencies decrease with inhibitory decay; the mean-field curve crosses above the spiking curve at 27 ms."),
     caption: [
-      Mean-field onset frequency and the median measured frequency of three
-      separately trained spiking networks per decay time both decreased. At #tg ms
-      they were #fstar and #fspk Hz; \[(!) the mean-field curve is below the spiking curve
-      through 18 ms and above it at 27 ms.\] The
-      #link("/exp041/")[trained-network frequency study] supplies the measurements,
-      not fitted gain parameters. Retraining changes weights as well as inhibitory
-      decay, whereas this model holds couplings fixed. \[(!) Omitted spike synchrony is
-      one possible explanation of the mismatch, not a tested cause.\] No uncertainty
+      Mean-field onset frequency and median measured frequency from the
+      #link("/exp041/")[trained-network frequency study] against inhibitory decay.
+      The spiking values aggregate three independently trained networks per decay
+      time and are measurements rather than fitted gain parameters. No uncertainty
       interval is shown.
     ],
   ) <fig-frequency>
 
   === Reversibility at the sampled resolution
 
+  The 25-point ramps gave a maximum branch gap of
+  $#gapmant times 10^(-6)$ $"ms"^(-1)$ and measured hysteresis width #hystwidth nA
+  at the 0.1 Hz amplitude threshold. The rising-branch squared-amplitude fit had
+  slope $#a2mant times 10^(-4)$ $"ms"^(-2)$/nA and $R_"fit"^2 = #a2r2$. These
+  diagnostics support a supercritical interpretation, but do not rule out a
+  narrow bistable interval or an unstable cycle. No first Lyapunov coefficient
+  was computed #cite(1).
+
   #figure(
     data-image(data-file("exp033/hysteresis.svg"), width: 100%,
       alt: "Upward and downward drive ramps have nearly matching peak-to-peak excitatory amplitudes."),
     caption: [
-      The 25-point ramps gave a maximum branch gap of
-      $#gapmant times 10^(-6)$ $"ms"^(-1)$ and measured hysteresis width #hystwidth nA
-      at the 0.1 Hz amplitude threshold. The rising-branch squared-amplitude fit
-      had slope $#a2mant times 10^(-4)$ $"ms"^(-2)$/nA and $R_"fit"^2 = #a2r2$.
-      \[(!) These diagnostics support a supercritical interpretation; they do not rule
-      out a narrow bistable interval or an unstable cycle. No first Lyapunov
-      coefficient was computed #cite(1).\]
+      Upward and downward peak-to-peak E-rate amplitude ramps across 25 drive
+      points. The dotted threshold is 0.1 Hz; the inset shows the rising-branch
+      squared-amplitude fit.
     ],
   ) <fig-hysteresis>
 
   === Above-onset waveform
+
+  The absolute cross-correlation peak lag was #elag ms. This magnitude is not a
+  signed causal delay or a synaptic round-trip time.
 
   #figure(
     data-image(data-file("exp033/limit_cycle.svg"), width: 100%,
@@ -168,14 +186,16 @@
     caption: [
       Reused E (black) and I (red) trajectories at onset plus 0.4 nA,
       over a window of three onset periods. Rates are in inverse milliseconds
-      on separate axes. The absolute cross-correlation peak lag was #elag ms;
-      \[(!) this magnitude is not a signed causal delay or a synaptic round-trip time.\]
-      Raw samples are unavailable for remeasurement; the retained waveform and
+      on separate axes. Raw samples are unavailable for remeasurement; the retained waveform and
       scalar are historical observations, not a new simulation.
     ],
   ) <fig-cycle>
 
   === Timing through the feedback loop
+
+  AMPA closely tracked E while the other variables showed larger phase offsets.
+  These traces illustrate feedback timing; the ordering does not measure four
+  independent transmission delays.
 
   #figure(
     data-image(data-file("exp033/timeseries.svg"), width: 100%,
@@ -183,39 +203,43 @@
     caption: [
       Reused trajectories at onset plus 0.4 nA, in loop order
       $E -> g_e^I -> I -> g_i^E$. Rates are in inverse milliseconds and
-      conductances in µS. AMPA closely tracks E while the other variables show
-      larger phase offsets. \[(!) These traces illustrate the feedback timing; the ordering does not measure four independent transmission delays.\]
+      conductances in µS.
     ],
   ) <fig-timeseries>
 
   === Pairwise projections
+
+  The E–AMPA projection was narrow while other pairs enclosed larger areas. A
+  periodic orbit is a curve and need not be planar; these projections do not
+  demonstrate a centre manifold or prove that a particular pair closes the
+  dynamics.
 
   #figure(
     data-image(data-file("exp033/phase_planes.svg"), width: 100%,
       alt: "The same four-variable trajectory projected onto each of the six coordinate pairs."),
     caption: [
       Reused projections at onset plus 0.4 nA; rate coordinates are in
-      inverse milliseconds and conductances in µS. The E–AMPA projection is narrow;
-      other pairs enclose larger areas. \[(!) A periodic orbit is a curve and need not
-      be planar. These projections do not demonstrate a centre manifold or prove
-      that a particular pair closes the dynamics.\]
+      inverse milliseconds and conductances in µS. The six panels show every
+      pairwise projection of the same four-variable trajectory.
     ],
   ) <fig-phase>
 
   === Quasi-steady reductions
+
+  The full model and AMPA-slaved three-variable reduction oscillated, whereas
+  the rate-slaved two-variable probe decayed. Their onset frequencies were
+  approximately #fstar0 and #fstar3 Hz, respectively. All six original-variable
+  two-dimensional reductions had negative divergence. The three-variable
+  minimum applies to this quasi-steady-state family, not to all possible models
+  #cite(1).
 
   #figure(
     data-image(data-file("exp033/reduction_ladder.svg"), width: 100%,
       alt: "At common drive, four- and three-variable probes oscillate while the rate-slaved two-variable probe decays."),
     caption: [
       Reused inhibitory-conductance deviations (µS) after small kicks at
-      1 nA. The full model and AMPA-slaved three-variable reduction oscillate;
-      the rate-slaved two-variable probe decays. Their onset frequencies were
-      approximately #fstar0 and #fstar3 Hz, respectively; these are not measured
-      frequencies of the displayed 1 nA traces. All six original-variable
-      two-dimensional reductions have negative divergence. \[(!) The three-variable
-      minimum applies to this QSS family, not to all possible models #cite(1).\]
-
+      1 nA for the four-, three- and two-variable probes. The listed onset
+      frequencies are not measured frequencies of the displayed 1 nA traces.
     ],
   ) <fig-ladder>
 

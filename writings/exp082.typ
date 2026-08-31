@@ -1,7 +1,8 @@
 #import "contents.typ": with-contents
 #import "/.demolab/lib.typ": data-image, data-json
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
-#import "run-view.typ": run-view, with-datasets
+#import "run-view.typ": with-datasets
+#import "run-view.typ": run-view
 #import "run-inputs.typ": input-assets
 #let data-file = data-file.with(article: "exp082")
 
@@ -85,6 +86,9 @@
 
   === A successful spike-count decision
 
+  Selecting a successful presentation cannot estimate accuracy or show that
+  each rhythmic burst improves the decision.
+
   #figure(
     report-image(
       "exp082/single_trial.png",
@@ -94,8 +98,7 @@
       presentation in the 200 ms, 5 Hz matched stream. Red marks the true and
       winning class. Rasters display the first 200 E and 64 I neurons, not the full
       populations. Softmax count shares explain the readout; they are not calibrated
-      probabilities. Selecting a success cannot estimate accuracy or show that
-      each rhythmic burst improves the decision.],
+      probabilities.],
   )
 
   #figure(
@@ -107,8 +110,7 @@
     caption: [Post-hoc enlargement of 91.5–94.5 ms in the same retained trial.
       Each output spike increments one class count; the softmax transformation can
       therefore produce an abrupt change in every displayed count share. Red marks
-      the true and winning class 4. The enlargement explains the apparent jump; it
-      does not estimate performance or establish a causal role for rhythmic bursts.],
+      the true and winning class 4.],
   )
 
   From the readout definition, the second row should consist of non-decreasing
@@ -118,24 +120,38 @@
   $p_"class"(c,k)$ may jump either upward or downward. A spike multiplies the
   corresponding class's unnormalised weight by $e$, the base of natural
   logarithms, while normalization changes every displayed share.
+  The enlargement therefore explains the apparent jump, but does not estimate
+  performance or establish a causal role for rhythmic bursts.
 
   === A changing stream exposes sparse-input failures
+
+  In the retained stream, #r.variable_stream.correct.sum() of
+  #r.variable_stream.labels.len() decisions were correct. The 200 ms, 0.5 Hz
+  window emitted no output spikes; the 100 ms, 2 Hz window also failed. The
+  25 Hz/50 ms, 10 Hz/25 ms and 5 Hz/200 ms presentations succeeded. Five
+  outcomes do not estimate reliability.
 
   #figure(
     report-image(
       "exp082/variable_stream.png",
       "Five digits with changing rates and durations: three correct predictions, a silent 0.5 Hz failure and a non-silent 2 Hz failure.",
     ),
-    caption: [Retained seed-42 illustration: #r.variable_stream.correct.sum()
-      of #r.variable_stream.labels.len() decisions were correct. The 200 ms,
-      0.5 Hz window emitted no output spikes; the 100 ms, 2 Hz window also failed.
-      The 25 Hz/50 ms, 10 Hz/25 ms and 5 Hz/200 ms presentations succeeded.
-      Counts reset at boundaries while hidden state continues. Badges show
-      true→predicted labels; thumbnail opacity increases with rate.
-      Display sampling matches the preceding raster. Five outcomes do not estimate reliability.],
+    caption: [Retained seed-42 illustration. Counts reset at boundaries while
+      hidden state continues. Badges show true→predicted labels; thumbnail opacity
+      increases with rate. Display sampling matches the preceding raster.],
   )
 
   === Duration and input rate constrain accuracy
+
+  Averaged across rates and seeds, accuracy was
+  #pct(mean(at-duration(25.0).map(row => row.accuracy))),
+  #pct(mean(at-duration(50.0).map(row => row.accuracy))),
+  #pct(mean(at-duration(100.0).map(row => row.accuracy))) and
+  #pct(mean(at-duration(200.0).map(row => row.accuracy))) at 25, 50, 100 and
+  200 ms. Mean silence fell from
+  #pct(mean(at-duration(25.0).map(row => row.silent_fraction))) to
+  #pct(mean(at-duration(200.0).map(row => row.silent_fraction))). Longer viewing
+  and integration time remain confounded.
 
   #figure(
     report-image(
@@ -145,15 +161,7 @@
     ),
     caption: [Means across three trained seeds, #r.config.digits_per_seed_cell
       test presentations per seed and condition; curve bars are ± sample SD/√3,
-      not population confidence intervals. Averaged across rates and seeds,
-      accuracy was #pct(mean(at-duration(25.0).map(row => row.accuracy))),
-      #pct(mean(at-duration(50.0).map(row => row.accuracy))),
-      #pct(mean(at-duration(100.0).map(row => row.accuracy))) and
-      #pct(mean(at-duration(200.0).map(row => row.accuracy))) at 25, 50, 100 and
-      200 ms. Mean silence fell from
-      #pct(mean(at-duration(25.0).map(row => row.silent_fraction))) to
-      #pct(mean(at-duration(200.0).map(row => row.silent_fraction))).
-      Longer viewing and integration time remain confounded.],
+      not population confidence intervals.],
   )
 
   In the 200 ms slice shown at right, accuracy rose from #pct(rate-mean(0.5))

@@ -68,6 +68,13 @@
 
   === Pool-size dependence changes with synaptic scaling
 
+  At nominal $G_(I arrow E) = #g-mid$ μS, E rates changed from #re-ft-lo-fmt
+  to #re-ft-hi-fmt Hz across #n-lo–#n-hi I neurons. At
+  $macron(w)_(I arrow E) approx #j-mid-ns$ nS, E rates fell from #re-fs-lo-fmt
+  to #re-fs-hi-fmt Hz and I rates from #ri-fs-lo-fmt to #ri-fs-hi-fmt Hz. All
+  tested fixed-mean levels showed this decrease, consistent with stronger summed
+  inhibition and reduced E–I feedback.
+
   #figure(
     data-image(data-file("exp047/pool_size_controls.svg"),
       width: 100%,
@@ -77,12 +84,7 @@
       inhibitory (I). Left: fixed expected summed coupling $G_(I arrow E)$; right:
       fixed expected synaptic strength $macron(w)_(I arrow E)$. Markers are means ±1 sample
       standard deviation across #n-seeds seeds, with #cfg.n_batch trials per seed.
-      At nominal $G_(I arrow E) = #g-mid$ μS, E rates changed from #re-ft-lo-fmt to
-      #re-ft-hi-fmt Hz across #n-lo–#n-hi I neurons. At $macron(w)_(I arrow E) approx #j-mid-ns$
-      nS, E rates fell from #re-fs-lo-fmt to #re-fs-hi-fmt Hz and I rates from
-      #ri-fs-lo-fmt to #ri-fs-hi-fmt Hz. All tested fixed-mean levels showed this
-      decrease, consistent with stronger summed inhibition and reduced E–I
-      feedback. Shared conditions reused the same simulations.],
+      Shared conditions reused the same simulations.],
   )
 
   == Methods

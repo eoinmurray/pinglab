@@ -93,29 +93,52 @@
 
   === Uncoupled rhythms <result-1-uncoupled-rhythms>
 
+    Both networks maintained regular PING rhythms, but Network A ran at
+    #uncoupled-frequency-a Hz and Network B at #uncoupled-frequency-b Hz. Their
+    relative phase therefore circulated, accumulating #uncoupled.phase_slips
+    whole net windings with phase concentration #uncoupled-concentration.
+
     #figure(
       report-image("exp086/uncoupled.png", width: 100%, alt: "Uncoupled population rhythms and circulating relative phase."),
-      caption: [Both uncoupled networks maintained regular PING rhythms, but Network A ran at #uncoupled-frequency-a Hz and Network B at #uncoupled-frequency-b Hz. Their relative phase therefore circulated, accumulating #uncoupled.phase_slips whole net windings with phase concentration #uncoupled-concentration.],
+      caption: [Uncoupled population rates and relative phase for one fixed-input
+        trajectory.],
     )
 
   === Coupling boundary <result-2-coupling-boundary>
+
+    At 0.08 µS, relative phase concentrated near one position with concentration
+    #strong-concentration. At #selected-k µS, it accumulated
+    #selected.phase_slips whole net phase windings but repeatedly slowed near one
+    phase region. With no coupling, it accumulated #uncoupled.phase_slips whole
+    net windings and approached uniform drift.
 
     #figure(
       report-image("exp086/coupling_regimes_measured.png",
         width: 100%,
         alt: "Measured comparison of strong, intermediate, and absent coupling.",
       ),
-      caption: [One fixed-input trajectory per condition. At 0.08 µS, relative phase concentrated near one position with concentration #strong-concentration. At #selected-k µS, it accumulated #selected.phase_slips whole net phase windings but repeatedly slowed near one phase region. With no coupling, it accumulated #uncoupled.phase_slips whole net windings and approached uniform drift.],
+      caption: [One fixed-input trajectory at strong, intermediate and absent
+        reciprocal coupling.],
     )
 
   === Intermittent phase attraction <result-3-intermittent-attraction>
+
+    At equal reciprocal coupling $K = #selected-k$ µS, relative phase continued
+    to slip but had concentration #selected-concentration. Its distribution
+    peaked at #selected-preferred rad and reached #selected-density-ratio times
+    the mean density. Across 24 phase bins, the smallest absolute mean velocity
+    occurred at #selected-slow rad, #selected-alignment rad from the density
+    peak. This single trajectory shows the Lowet-style signature, but does not
+    establish its reliability across trials.
 
     #figure(
       report-image("exp086/intermittent_attraction_measured.png",
         width: 100%,
         alt: "Measured four-panel signature of intermittent phase attraction.",
       ),
-      caption: [At equal reciprocal coupling $K = #selected-k$ µS, relative phase continued to slip but had concentration #selected-concentration. Its distribution peaked at #selected-preferred rad and reached #selected-density-ratio times the mean density. Across 24 phase bins, the smallest absolute mean velocity occurred at #selected-slow rad, #selected-alignment rad away from the density peak. The displayed velocity trace uses 8 ms Gaussian smoothing. This single trajectory shows the Lowet-style signature, but does not establish its reliability across trials.],
+      caption: [Relative-phase trajectory, distribution and phase-conditioned
+        velocity at equal reciprocal coupling $K = #selected-k$ µS. The displayed
+        velocity trace uses 8 ms Gaussian smoothing.],
     )
 
   == Methods

@@ -52,13 +52,15 @@
       inhibitory neurons. Input and readout projections were trainable;
       excitatory–inhibitory recurrence remained fixed.])
 
+  The loss-selected checkpoint came from epoch
+  #(r.trajectory.selected_epoch); it need not be the epoch with maximum
+  accuracy.
+
   #figure(data-image(data-file("exp075/training_curves.png"), width: 100%),
     caption: [Training and validation cross-entropy and validation accuracy
       over #r.config.epochs epochs. Validation values average
       #r.config.validation_encoder_draws.count fixed stochastic encodings.
-      The loss-selected checkpoint came from epoch
-      #(r.trajectory.selected_epoch); it need not be the epoch with maximum
-      accuracy. The dashed line marks ten-class chance accuracy.])
+      The dashed line marks ten-class chance accuracy.])
 
   == Methods
 

@@ -63,16 +63,20 @@
 
   === Decoder training
 
+  The first validation maximum selected each decoder; selected epochs were
+  #r.training.map(record => str(record.selected_epoch)).join(", ").
+
   #figure(
     data-image(data-file("exp080/training_history.svg"), width: 85%,
       alt: "Mixed-rate validation accuracy over training epochs, with one curve per decoder."),
     caption: [Mixed-rate validation accuracy for #p.seeds.len() independently
-      trained decoders, using fresh feature simulations each epoch. The first
-      maximum selected each decoder; selected epochs were
-      #r.training.map(record => str(record.selected_epoch)).join(", ").],
+      trained decoders, using fresh feature simulations each epoch.],
   )
 
   === What the decoder saw
+
+  Sparse input left fragments of the digit rather than a uniformly attenuated
+  image.
 
   #figure(
     data-image(data-file("exp080/feature_images.png"), width: 100%,
@@ -81,13 +85,19 @@
       #p.rates_hz.at(2), #p.rates_hz.at(5) and #p.rates_hz.last() Hz, using
       #p.probe_uS μS conductance increments and #p.presentation_ms ms
       presentations. Feature panels share a 0–65 mV scale and independent
-      spike realizations. Sparse input leaves fragments of the digit rather
-      than a uniformly attenuated image. #if r.illustration.kind == "historical-image" [This
+      spike realizations. #if r.illustration.kind == "historical-image" [This
       illustration is reused from the original calibration; it is not a new
       simulation.]],
   )
 
   === Empirical rate selection
+
+  #if criterion-crossed [The selected floor was #d.r_train_hz Hz, with mean
+  accuracy
+  #pct(d.rows.filter(row => row.rate_hz == d.r_train_hz).first().accuracy).] else [No
+  rate met the criterion for every decoder; the floor was right-censored at
+  #d.recommendation.ceiling_hz Hz.] This interval is a decoder-relative
+  calibration, not evidence of PING-network performance.
 
   #figure(
     data-image(data-file("exp080/psychometric.svg"), width: 85%,
@@ -95,11 +105,7 @@
     caption: [Mean held-out accuracy across #p.test_count images and
       #p.seeds.len() decoders; shading spans the lowest and highest decoder
       accuracy, not a confidence interval. Rules mark 10% chance and the
-      #pct(p.useful_accuracy) criterion. #if criterion-crossed [The selected
-      floor is #d.r_train_hz Hz, with mean accuracy
-      #pct(d.rows.filter(row => row.rate_hz == d.r_train_hz).first().accuracy).] else [No rate met the criterion for every decoder; the floor is
-      right-censored at #d.recommendation.ceiling_hz Hz.] The interval is a
-      decoder-relative calibration, not evidence of PING-network performance.],
+      #pct(p.useful_accuracy) criterion.],
   )
 
   == Methods

@@ -59,6 +59,11 @@
 
   === Lower firing with an accuracy cost
 
+  At full loop strength, E rate fell from approximately #rate_off to #rate_on Hz,
+  I rate reached #inhibition_on Hz, and accuracy fell by #acc_cost percentage
+  points. Because both coupling directions varied, lower activity alone does not
+  identify a causal benefit of rhythm.
+
   #figure(
     data-image(data-file("exp038/loop_transfer_compound.png"), width: 100%,
       alt: "Rasters with the loop off and enabled after training, followed by population firing rates and test accuracy across bidirectional loop strengths."),
@@ -66,14 +71,14 @@
       Reanalysed inference observations; no retraining. *Top:* seed-42 rasters
       for #image-description, showing 200 E neurons (black) and 64 I neurons (red).
       *Bottom:* population rates and accuracy on #eval_n test images per seed;
-      means ± sample SD across seeds 42–44. At full loop strength, E rate fell
-      from approximately #rate_off to #rate_on Hz, I rate reached #inhibition_on Hz,
-      and accuracy fell by #acc_cost percentage points. Both coupling directions
-      varied; lower activity alone does not identify a causal benefit of rhythm.
+      means ± sample SD across seeds 42–44.
     ],
   )
 
   === Burst structure across loop strength
+
+  Burst grouping increased across the sampled loop strengths. These illustrative
+  panels do not estimate gamma frequency or establish a continuous transition.
 
   #figure(
     data-image(data-file("exp038/ei_rasters.png"), width: 100%,
@@ -82,9 +87,7 @@
       Seed 42, #image-description, at six bidirectional loop strengths
       $s = 0, 0.2, 0.4, 0.6, 0.8, 1$. Learned input and readout weights were fixed;
       recurrent E↔I weights were initialized at each strength without training.
-      Rows show the same sampled 200 E and 64 I neurons over 200 ms. Burst grouping
-      is illustrative: these panels do not estimate gamma frequency or establish
-      a continuous transition between the sampled strengths.
+      Rows show the same sampled 200 E and 64 I neurons over 200 ms.
     ],
   )
 

@@ -123,6 +123,9 @@
   #if r.raster.ping.i_index != none [
     === PING inhibitory-neuron traces
 
+    These cellular traces illustrate reciprocal E→I→E feedback; they do not
+    measure population-wide phase locking or spikes per cycle.
+
     #figure(
       data-image(data-file("exp023/traces__ping__v_i.svg"), width: 100%),
       caption: [Membrane voltage of the highest-spike-count PING I neuron,
@@ -136,8 +139,7 @@
     #figure(
       data-image(data-file("exp023/traces__ping__i_i.svg"), width: 100%),
       caption: [Signed excitatory and leak currents on the same I neuron.
-        These cellular traces illustrate reciprocal E→I→E feedback; they do not
-        measure population-wide phase locking or spikes per cycle.],
+        Positive current is depolarising.],
     )
   ]
 
