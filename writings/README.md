@@ -1,6 +1,6 @@
 # Writing Guide
 
-Version: **29.0.0**
+Version: **30.0.0**
 
 The Writing Guide defines the conventions for Pinglab's published experiment
 entries in `writings/expXXX.typ`. This file is the canonical guide.
@@ -14,6 +14,17 @@ corrections or clarifications that do not change requirements. Update the versio
 above and add a short entry to the version history when changing the guide.
 
 ### 1.1. Version history
+
+- **30.0.0** — Require agents to classify article work before editing, build a
+  version-delta compliance record for migrations, distinguish targeted from
+  complete grounded regeneration, apply provenance vocabulary throughout the
+  article, complete a semantic claim audit and report the evidence of
+  compliance. Align current article inputs with validated v4 present runs.
+
+- **29.1.0** — Define a six-step grounded article-regeneration workflow that
+  preserves important authored content while rebuilding the complete article
+  from code, retained evidence and the current Writing Guide, and requires an
+  enumerated report of potentially important cuts.
 
 - **29.0.0** — Require every Results subsection to use a context-free visual
   card, and require every Methods section to organize continuously numbered
@@ -195,6 +206,15 @@ these rules.
 Existing `.typ` files are authored documents that may contain manual revisions,
 not disposable output to regenerate from this guide.
 
+Before editing, classify the request as a **Writing Guide migration**,
+**substantive revision**, **targeted grounded regeneration**, or **complete
+grounded regeneration**. State the classification, target and permitted
+dependent edits before drafting. *Full* and *deep* describe the thoroughness of
+the requested operation; they do not convert a migration into regeneration or
+authorize a broader target. Read the current Writing Guide in full before
+applying it; excerpts, searches, prior familiarity and successful tests are not
+substitutes for that read.
+
 1. Read the current file immediately before editing and use it as the baseline,
    including uncommitted manual edits. Do not reconstruct it from an older
    revision, generated output, or a remembered draft.
@@ -230,6 +250,29 @@ not disposable output to regenerate from this guide.
    replacement or an uncertain substantive change, stop and present the conflict
    for explicit authorization.
 
+For every migration, create a version-delta compliance record before drafting.
+Record the source and target Writing Guide versions, enumerate every requirement
+introduced or changed between them, and mark each requirement as **changed**,
+**already compliant**, **not applicable**, or **blocked**, with the relevant
+article location or evidence. Do not claim completion while an applicable
+requirement is unaudited or blocked. The record is an agent work product and
+does not belong in the rendered article.
+
+#### Completion gate for article edits
+
+Tests, compilation and rendering are necessary checks, but they do not establish
+scientific or semantic compliance. Before completing any article edit, audit
+every changed claim for evidential support, causal strength, execution status,
+provenance vocabulary, numerical accuracy and agreement with displayed
+evidence. For a migration, also audit every article use governed by terminology
+or provenance requirements introduced by the target version.
+
+The final task report must state the operation classification, target Writing
+Guide version, edited scope, compliance-record outcome, validation performed,
+potentially important cuts, and unresolved gaps. Never report *fully compliant*
+without this record. A blocked requirement remains explicit; it must not be
+hidden by passing tests or fluent prose.
+
 For example, “update the Methods in exp022 to conform with Writing Guide
 1.0.0” means adapt the existing Methods to that version's applicable rules.
 Keep its scientific account and distinctive wording wherever possible; do not
@@ -253,15 +296,52 @@ the resulting writing, and the author's corrections as evidence.
 - Do not modify the guide or broaden article edits without explicit approval.
   Approved guide changes follow its versioning rules.
 
-### 3.3. Resampling existing writing
+### 3.3. Grounded regeneration
 
-Before resampling existing writing, read the current target and identify the
-scientific content, author decisions, and explicit constraints that must survive.
-Treat edits made directly or through an agent equally. Regenerate only the
-requested target; do not restore superseded wording or undo settled decisions.
-Present the candidate for review unless saving or replacement is explicitly
-authorized. If a material choice cannot be recovered confidently, ask rather
-than silently discarding it.
+A grounded-regeneration request authorizes a new synthesis grounded in the
+experiment's primary evidence; it is not a Writing Guide migration or a minimal
+conformance edit under section 3.1. Regeneration may target a complete article
+or a named section. Apply all six steps proportionately to the authorized target
+and its necessary dependencies; do not regenerate adjacent sections merely for
+consistency.
+
+1. **Inventory the existing target.** Read the live article and record the
+   target's important claims, findings, caveats, figures, equations, citations,
+   terminology and deliberate authorial choices. Identify what must survive
+   without treating every sentence or the existing structure as fixed. Treat
+   edits made directly or through an agent equally, and do not restore
+   superseded wording or undo settled decisions.
+2. **Reconstruct the experiment from primary evidence.** Trace the experiment
+   code through its compute, analysis and presentation stages and relevant
+   helpers. Inspect validated run provenance, retained configurations,
+   measurements and displayed outputs. Distinguish executed, reused, inferred
+   and planned work explicitly.
+3. **Build an evidence-to-specification map.** Map every applicable Writing
+   Guide requirement and proposed article section to supporting code, data or
+   retained evidence. Reconcile contradictions with the existing article and
+   flag claims that cannot be supported rather than inventing connective
+   material or silently choosing one account.
+4. **Regenerate the requested target.** Write the target from that map using the
+   requested Writing Guide version. Deliberately reincorporate the important
+   content identified in step 1, while prioritizing scientific accuracy, plain
+   language and a coherent reading order over preservation of the old wording
+   or structure.
+5. **Validate before replacement.** Check every claim, number, equation, figure
+   and citation against the retained evidence; confirm that important prior
+   content survived; run the relevant writing tests; render and inspect the
+   article; and review the complete diff. Update status and authored dates under
+   sections 3.4 and 3.5 only when saving the validated replacement. Present the
+   candidate for review unless saving or replacement was explicitly authorized.
+   If a material choice cannot be recovered confidently, ask rather than
+   silently discarding it.
+6. **Report potentially important cuts.** Give the author an enumerated list of
+   every removed or materially compressed claim, caveat, method, result,
+   equation, citation, figure, interpretation or authorial choice that might
+   matter. For each item, state what changed, why it was cut and whether
+   restoring it would conflict with retained evidence or the Writing Guide.
+   Explicitly state when no potentially important cuts were made. For targeted
+   regeneration, inventory and report cuts within the target and any necessary
+   dependent edits; unchanged adjacent sections remain outside the report.
 
 ### 3.4. Authored update dates
 
@@ -313,8 +393,8 @@ do not add a second status field, version field or icon field.
 
 | Label | Local-data availability |
 | --- | --- |
-| `[≡ TXT \| v29.0.0]` | Article only: no usable, validated local presentation data is available for any declared article input, or the article declares no data inputs. |
-| `[▦ DATA \| v29.0.0]` | Local data: usable, validated local presentation data is available for at least one declared article input, including reused upstream results. |
+| `[≡ TXT \| v30.0.0]` | Article only: no usable, validated local presentation data is available for any declared article input, or the article declares no data inputs. |
+| `[▦ DATA \| v30.0.0]` | Local data: usable, validated local presentation data is available for at least one declared article input, including reused upstream results. |
 
 The badge reports availability in the working checkout at the last agent check,
 not a live web-UI measurement. `[≡ TXT | vX.Y.Z]` does not mean literally text
@@ -345,7 +425,7 @@ form and report the missing inputs in the task summary, not new article prose.
   substrings or the article ID alone. No inputs means the `[≡ TXT | ...]` form;
   otherwise at least one qualifying input means `[▦ DATA | ...]`. Availability need not mean that
   this run is currently selected for publication.
-- Qualifying data comes from a completed, nonempty v3 present run validated
+- Qualifying data comes from a completed, nonempty v4 present run validated
   under the Storage Guide, including layout, payload checksums and applicable
   input-provenance checks. Numbers, tables, figures and videos can qualify;
   image-only presentations need not have `numbers.json`. Code, remote jobs,
@@ -424,6 +504,23 @@ its native notation when changing it would obscure the literature, but state its
 mapping to the shared notation explicitly. Do not apply these rules as blind
 textual replacements; preserve scientific meaning, units, executed provenance
 and exact public interfaces.
+
+#### Evidence provenance and display
+
+These terms apply throughout the article, including metadata, abstracts,
+Results, Methods, captions, alternative text, tables and appendices:
+
+- Use **retained** only for evidence deliberately preserved from an earlier
+  execution.
+- Use **recorded** for data or measurements produced during the execution being
+  described.
+- Use **reused** for prior models, data, measurements or figures used again.
+- Use **shown** or **displayed** for content visible in the current figure or
+  table.
+
+Choose the term from the relationship being described, not from the fact that a
+file currently exists. Audit every occurrence during the completion gate;
+grammatical plausibility is not sufficient.
 
 #### Scientific entities and identities
 
@@ -781,8 +878,8 @@ for an observation.
 
 For staged experiments, the writing consumes a selected presentation run, not
 compute checkpoints or live analysis. Pingstore resolves that input to the flat
-`export/` of a validated v3 present run. V2 presentations are not permitted for
-preview or publication. Existing readers that accept them are nonconforming,
+`export/` of a validated v4 present run. V2 and v3 presentations are not
+permitted for preview or publication. Existing readers that accept them are nonconforming,
 not a compatibility exception; this guide does not authorize their migration. Keep
 storage-version paths out of the writing: discovery supplies the resolved
 directory, while `run.json` remains authoritative. Import `data-file` from the
@@ -847,13 +944,12 @@ the scientific hierarchy or content rules.
    displayed condition. Avoid generic titles such as `Training trajectories`,
    `Overview` or `Results plot`. Do not type the generated number into the title.
 5. Use figures from retained experimental outputs. Keep captions concise and
-   identify the variables, conditions, visual encodings, aggregation and
-   uncertainty needed to read each figure correctly. Distinguish illustrative
-   probes and reused observations from new measurements. Do not state the
-   figure's scientific finding or interpretation in its caption. Reserve
-   *retained* for evidence deliberately preserved from an earlier execution;
-   use *shown* or *displayed* for the contents of the current figure, *recorded*
-   for stored measurements, and *reused* for prior outputs analysed again.
+  identify the variables, conditions, visual encodings, aggregation and
+  uncertainty needed to read each figure correctly. Distinguish illustrative
+  probes and reused observations from new measurements. Do not state the
+  figure's scientific finding or interpretation in its caption. Apply the
+  evidence-provenance and display vocabulary in section 3.7 throughout the
+  complete card.
 6. A theory diagram may occupy its own Results subsection when useful. Its
    title and caption must identify it as an expectation or mechanism, not
    experimental evidence.

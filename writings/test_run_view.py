@@ -110,7 +110,10 @@ def test_static_table_shows_only_selected_run_without_links(tmp_path):
     panel = render(tmp_path, [run("new"), run("old")], interactive=False)
     assert panel.findall(".//a") == []
     assert len(panel.findall("table/tbody/tr")) == 1
-    assert panel.find("table/tbody/tr/td/span").text == "new"
+    selected = panel.find("table/tbody/tr/td/span")
+    assert selected.text == "new"
+    assert selected.attrib["class"] == "run-name run-stage-present"
+    assert selected.attrib["aria-current"] == "true"
 
 
 def test_empty_input_is_explicit(tmp_path):
@@ -199,9 +202,19 @@ def test_compute_and_analyse_are_visible_but_not_clickable(tmp_path, interactive
     assert len(items) == 3
     for item, identity in zip(items[:2], ("compute", "analyse")):
         assert item.find("td/a") is None
-        assert item.find("td/span").text == identity
-        assert ("text-decoration:underline" in item.find("td/span").attrib["style"]) == (identity == "compute")
+        label = item.find("td/span")
+        assert label.text == identity
+        assert label.attrib["class"] == f"run-name run-stage-{identity}"
+        assert "style" not in label.attrib
     assert [a.text for a in panel.findall(".//a")] == (["present"] if interactive else [])
+    present = items[2].find("td/a" if interactive else "td/span")
+    assert present.attrib["class"] == "run-name run-stage-present"
+    assert present.attrib["aria-current"] == "true"
+    html = (tmp_path / "view.html").read_text()
+    css = "\n".join(re.findall(r"<style\b[^>]*>(.*?)</style>", html, re.S))
+    present_rule = re.search(r"\.run-view \.run-stage-present\s*\{([^}]*)\}", css)
+    assert present_rule is not None
+    assert "text-decoration:underline" in present_rule.group(1)
 
 
 def test_compute_only_does_not_become_selected_input(tmp_path):

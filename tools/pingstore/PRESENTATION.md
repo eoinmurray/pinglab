@@ -31,8 +31,9 @@ time (timezone label omitted), duration, export size (decimal bytes/KB/MB/GB/TB)
 `modal`, `runpod`, `local`, `mixed` or `unknown`). A single Upstream/Downstream
 block above the run table links the current page's experiment dependencies;
 it does not repeat the experiment title or add columns to each run.
-Compute and analyse run names are
-non-clickable; compute names are underlined. Only eligible present runs have selection links.
+Compute and analyse run names are non-clickable and not underlined. Present run
+names are underlined, and the currently selected present run is also bold. Only
+eligible present runs have selection links.
 Each run link opens a new tab with explicit URL parameters. The selected paths
 apply to the entire article, including figures and numerical prose outside the panel.
 Every parameterized request gets independent output; it does not change another

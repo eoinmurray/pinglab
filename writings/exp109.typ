@@ -171,7 +171,7 @@
   // both arms), whereas at sigma = 100 ms the finite trial window truncates the displaced
   // bursts and realised I drops ~24%. Means over seeds 42-44.
   #let r042 = data-json(data-file("exp042/numbers.json"))
-  #let jit_e_base = calc.round(mean(r042.results.filter(r => r.condition == "baseline").map(r => r.e_rate_hz)))
+  #let jit_e_base = calc.round(mean(r042.jitter_sweep.filter(r => r.sigma_ms == 0.0).map(r => r.e_rate_hz)))
   #let jit_e_cyc = calc.round(mean(r042.jitter_sweep.filter(r => r.sigma_ms == 14.0).map(r => r.e_rate_hz)))
   #let jit_i_cyc = calc.round(mean(r042.jitter_sweep.filter(r => r.sigma_ms == 14.0).map(r => r.i_rate_hz)))
   #let jit_i_neuron = calc.round(mean(r042.cell_jitter_sweep.filter(r => r.sigma_ms == 14.0).map(r => r.i_rate_hz)))

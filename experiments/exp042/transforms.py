@@ -1,10 +1,14 @@
-"""Retained spike-time transforms, including rounding, boundary clamping and collisions."""
+"""Count-preserving spike-time transforms for the two retained jitter arms."""
 
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from .recipe import F_GAMMA_REFERENCE_HZ
+from .recipe import (
+    F_GAMMA_REFERENCE_HZ,
+    JITTER_BOUNDARY_POLICY,
+    JITTER_COLLISION_POLICY,
+)
 
 if TYPE_CHECKING:
     import torch
@@ -15,36 +19,23 @@ def _build_override(
     condition: str,
     generator,
     dt_ms: float = 0.1,
-) -> "torch.Tensor":
+    *,
+    return_diagnostics: bool = False,
+) -> "torch.Tensor | tuple[torch.Tensor, dict]":
     """Construct the I-spike override tensor for one batch.
 
     s_i_base: (T, B, N_I) baseline recorded I-spikes.
-    Returns (T, B, N_I) override tensor preserving per-(trial, cell)
-    spike counts in expectation.
+    Returns an override tensor with shape (T, B, N_I).
 
     Conditions:
-      - phase_shuffled_i: permute time axis per trial (all I cells share permutation)
-      - poisson_matched_i: per-(trial, cell) Bernoulli at matched mean rate
-      - jitter_sigma_{X}: cycle-coherent Gaussian jitter with σ = X ms.
-        Uses F_GAMMA_REFERENCE_HZ as the cycle period.
+      - jitter_sigma_{X}: fixed-window group jitter with σ = X ms.
+        Uses F_GAMMA_REFERENCE_HZ to define the window duration.
       - cell_jitter_sigma_{X}: per-spike Gaussian jitter with σ = X ms
-        (destroys within-burst synchrony; preserves burst placement on average).
+        (events receive independent offsets).
     """
-    import torch
-
     if s_i_base.ndim == 2:  # (T, N_I) when batch size is 1
         s_i_base = s_i_base.unsqueeze(1)
-    T, B, N_I = s_i_base.shape
-    if condition == "phase_shuffled_i":
-        out = torch.empty_like(s_i_base)
-        for b in range(B):
-            perm = torch.randperm(T, generator=generator)
-            out[:, b, :] = s_i_base[perm, b, :]
-    elif condition == "poisson_matched_i":
-        counts = s_i_base.sum(dim=0)
-        p = (counts / float(T)).clamp(0.0, 1.0).unsqueeze(0).expand(T, B, N_I)
-        out = (torch.rand(T, B, N_I, generator=generator) < p).to(s_i_base.dtype)
-    elif condition.startswith("jitter_sigma_"):
+    if condition.startswith("jitter_sigma_"):
         sigma_ms = float(condition.split("_")[-1])
         out = _jitter_i_stream(s_i_base, sigma_ms, dt_ms, generator)
     elif condition.startswith("cell_jitter_sigma_"):
@@ -52,7 +43,90 @@ def _build_override(
         out = _cell_jitter_i_stream(s_i_base, sigma_ms, dt_ms, generator)
     else:
         raise ValueError(f"unknown condition {condition!r}")
-    return out
+    if return_diagnostics:
+        return out
+    return out[0]
+
+
+def _resolve_collisions(candidate_t, b_idx, n_idx, T: int, N_I: int):
+    """Move duplicate destinations to nearest free circular timesteps.
+
+    Candidate order is stable. Later events at an occupied destination try
+    +1, -1, +2, -2, ... around their original candidate. Because every input
+    cell stream is binary, it contains at most T events and a complete unique
+    assignment always exists.
+    """
+    import torch
+
+    current = candidate_t.clone()
+    original = candidate_t.clone()
+    attempts = torch.zeros_like(candidate_t)
+    moved = torch.zeros(candidate_t.shape, dtype=torch.bool, device=candidate_t.device)
+    while current.numel():
+        keys = ((b_idx * N_I + n_idx) * T) + current
+        order = torch.argsort(keys, stable=True)
+        sorted_keys = keys[order]
+        duplicate_sorted = sorted_keys[1:] == sorted_keys[:-1]
+        if not bool(duplicate_sorted.any()):
+            break
+        duplicate = torch.zeros_like(moved)
+        duplicate[order[1:][duplicate_sorted]] = True
+        attempts[duplicate] += 1
+        if int(attempts.max()) > 2 * T:
+            raise RuntimeError("could not resolve inhibitory spike collisions")
+        attempt = attempts[duplicate]
+        distance = (attempt + 1) // 2
+        displacement = torch.where(attempt % 2 == 1, distance, -distance)
+        current[duplicate] = (original[duplicate] + displacement).remainder(T)
+        moved |= duplicate
+    max_steps = int(((attempts + 1) // 2).max()) if attempts.numel() else 0
+    return current, moved, max_steps
+
+
+def _finish_override(s_i_base, spike_positions, candidate_t, wrapped):
+    import torch
+
+    T, _B, N_I = s_i_base.shape
+    b_idx = spike_positions[:, 1]
+    n_idx = spike_positions[:, 2]
+    new_t, moved, max_steps = _resolve_collisions(candidate_t, b_idx, n_idx, T, N_I)
+    out = torch.zeros_like(s_i_base)
+    out.index_put_(
+        (new_t, b_idx, n_idx),
+        torch.ones(
+            spike_positions.shape[0],
+            dtype=s_i_base.dtype,
+            device=s_i_base.device,
+        ),
+        accumulate=False,
+    )
+    if not torch.equal(out.sum(dim=0), s_i_base.sum(dim=0)):
+        raise RuntimeError("jitter changed a trial/cell inhibitory spike count")
+    diagnostics = {
+        "boundary_policy": JITTER_BOUNDARY_POLICY,
+        "collision_policy": JITTER_COLLISION_POLICY,
+        "input_spikes": int(spike_positions.shape[0]),
+        "output_spikes": int(out.count_nonzero()),
+        "boundary_wrapped_spikes": int(wrapped.count_nonzero()),
+        "collision_resolved_spikes": int(moved.count_nonzero()),
+        "max_collision_resolution_steps": max_steps,
+        "per_trial_cell_count_invariant": True,
+    }
+    return out, diagnostics
+
+
+def _unchanged(s_i_base):
+    spikes = int(s_i_base.count_nonzero())
+    return s_i_base.clone(), {
+        "boundary_policy": JITTER_BOUNDARY_POLICY,
+        "collision_policy": JITTER_COLLISION_POLICY,
+        "input_spikes": spikes,
+        "output_spikes": spikes,
+        "boundary_wrapped_spikes": 0,
+        "collision_resolved_spikes": 0,
+        "max_collision_resolution_steps": 0,
+        "per_trial_cell_count_invariant": True,
+    }
 
 
 def _jitter_i_stream(
@@ -60,56 +134,48 @@ def _jitter_i_stream(
     sigma_ms: float,
     dt_ms: float,
     generator,
-) -> "torch.Tensor":
-    """Cycle-coherent jitter on the I-spike stream.
+) -> tuple["torch.Tensor", dict]:
+    """Fixed-window group jitter on the I-spike stream.
 
-    Bins time into blocks of one gamma cycle (1 / F_GAMMA_REFERENCE_HZ
-    ≈ 28 ms at the trained operating point), draws one Gaussian offset
-    Δ ~ 𝒩(0, σ²) per
-    (trial, cycle), and shifts every I-spike in that block by Δ.
-    Within-burst cross-cell synchrony is preserved exactly; what's
-    perturbed is the *placement* of each burst relative to where the
-    baseline cycle put it.
+    Bins the original timeline into fixed windows of duration
+    1 / F_GAMMA_REFERENCE_HZ, draws one Gaussian offset Δ ~ 𝒩(0, σ²)
+    per (trial, window), and shifts every inhibitory event originating in
+    that window by Δ. The windows are a fixed clock, not detected cycles.
 
-    The diagnostic prediction: rate release should be small when
-    σ ≪ 1/f_γ (bursts barely move from their phase-locked slots) and
-    large when σ ≳ 1/f_γ (bursts can land anywhere within the cycle,
-    losing phase relation to E).
-
-    σ in milliseconds; the conversion to timesteps uses dt_ms.
+    σ is in milliseconds; the conversion to timesteps uses dt_ms. Proposed
+    times wrap around the presentation. Same-cell/time collisions move to the
+    nearest free circular timestep, preserving every trial/cell spike count.
     """
     import torch
 
-    T, B, N_I = s_i_base.shape
+    T, B, _N_I = s_i_base.shape
     if sigma_ms <= 0.0:
-        return s_i_base.clone()
+        return _unchanged(s_i_base)
 
     cycle_period_ms = 1000.0 / F_GAMMA_REFERENCE_HZ
     cycle_period_steps = max(1, int(round(cycle_period_ms / dt_ms)))
     n_cycles = (T + cycle_period_steps - 1) // cycle_period_steps
     sigma_steps = sigma_ms / dt_ms
 
-    # Per-(trial, cycle) Gaussian offset, in timestep units, rounded.
+    # Per-(trial, fixed window) Gaussian offset, in timestep units, rounded.
     offsets = torch.randn(B, n_cycles, generator=generator) * sigma_steps
     offsets_int = offsets.round().long()
 
     spike_positions = s_i_base.nonzero(as_tuple=False)  # (n_spikes, 3): (t, b, n)
     if spike_positions.numel() == 0:
-        return s_i_base.clone()
+        return _unchanged(s_i_base)
     t_orig = spike_positions[:, 0]
     b_idx = spike_positions[:, 1]
-    n_idx = spike_positions[:, 2]
     cycle_idx = (t_orig // cycle_period_steps).clamp(0, n_cycles - 1)
-    # Look up the per-(b, cycle) offset for each spike, add, clamp.
+    # Look up the per-(b, window) offset for each spike, then wrap.
     jitter = offsets_int[b_idx, cycle_idx]
-    new_t = (t_orig + jitter).clamp(0, T - 1)
-    out = torch.zeros_like(s_i_base)
-    out.index_put_(
-        (new_t, b_idx, n_idx),
-        torch.ones(spike_positions.shape[0], dtype=s_i_base.dtype),
-        accumulate=False,
+    proposed = t_orig + jitter
+    return _finish_override(
+        s_i_base,
+        spike_positions,
+        proposed.remainder(T),
+        (proposed < 0) | (proposed >= T),
     )
-    return out
 
 
 def _cell_jitter_i_stream(
@@ -117,45 +183,35 @@ def _cell_jitter_i_stream(
     sigma_ms: float,
     dt_ms: float,
     generator,
-) -> "torch.Tensor":
-    """Per-spike (per-I-cell) Gaussian jitter on the I-spike stream.
+) -> tuple["torch.Tensor", dict]:
+    """Independent-spike Gaussian jitter on the I-spike stream.
 
     Each spike gets its own independent Gaussian offset Δ ~ 𝒩(0, σ²).
-    Within-burst cross-cell synchrony is destroyed — different I-cells
-    that fired at the same timestep in baseline land at different times
-    in the override. Burst placement is preserved on average (each
-    spike's offset has zero mean), but the burst itself smears across
-    a window of width ≈ σ.
+    Events that shared a baseline timestep can land at different replay
+    times because each event receives its own zero-mean offset.
 
-    Complements `_jitter_i_stream` (cycle-coherent): the cycle-coherent
-    sweep tests whether the *placement* of each burst relative to the
-    gamma cycle matters; per-cell jitter tests whether the *sharpness*
-    of each burst matters.
-
-    Spike times are clamped to the valid range. Collisions at the same
-    cell and timestep merge, so realised rates must still be measured.
+    Proposed times wrap around the presentation. Same-cell/time collisions
+    move to the nearest free circular timestep, preserving every trial/cell
+    spike count.
     """
     import torch
 
-    T, B, N_I = s_i_base.shape
+    T, _B, _N_I = s_i_base.shape
     if sigma_ms <= 0.0:
-        return s_i_base.clone()
+        return _unchanged(s_i_base)
 
     sigma_steps = sigma_ms / dt_ms
     spike_positions = s_i_base.nonzero(as_tuple=False)  # (n_spikes, 3): (t, b, n)
     if spike_positions.numel() == 0:
-        return s_i_base.clone()
+        return _unchanged(s_i_base)
     t_orig = spike_positions[:, 0]
-    b_idx = spike_positions[:, 1]
-    n_idx = spike_positions[:, 2]
     # Independent Gaussian offset per spike, rounded to timestep grid.
     n_spikes = spike_positions.shape[0]
     offsets = (torch.randn(n_spikes, generator=generator) * sigma_steps).round().long()
-    new_t = (t_orig + offsets).clamp(0, T - 1)
-    out = torch.zeros_like(s_i_base)
-    out.index_put_(
-        (new_t, b_idx, n_idx),
-        torch.ones(n_spikes, dtype=s_i_base.dtype),
-        accumulate=False,
+    proposed = t_orig + offsets
+    return _finish_override(
+        s_i_base,
+        spike_positions,
+        proposed.remainder(T),
+        (proposed < 0) | (proposed >= T),
     )
-    return out

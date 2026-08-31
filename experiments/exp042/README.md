@@ -5,6 +5,47 @@ Writing Guide 8.0.0. This is a code/writing migration, not a new scientific run.
 The initial code migration imported no Gold-2 data. A separately authorized
 selective import is recorded below; no existing archive or completed run changed.
 
+## Count-preserving jitter repair: 2026-08-31
+
+Issue #167 identified that the retained independent-spike transform clamped
+displaced events to the finite presentation boundaries and wrote them into a
+binary tensor. Boundary pile-ups and same-cell/time collisions therefore merged
+events. The fixed-window group transform used the same mechanism and had the same
+defect. Existing retained results honestly measure the delivered inhibitory rate,
+but they are not results from a fixed-count timing intervention.
+
+Recipe v3 replaces clamping with circular wrapping for both jitter arms. If two
+events from the same trial and inhibitory cell propose the same timestep, the
+later event searches `+1, -1, +2, -2, ...` around its proposed circular time and
+uses the nearest free timestep. Output remains binary. The transform asserts that
+the complete per-trial, per-cell count matrix exactly equals the baseline matrix;
+override serialization repeats the total-count check. Every condition records
+the number of wrapped events, collision-resolved events and maximum resolution
+distance, and analysis rejects missing, false or inconsistent invariants.
+
+This repair does not reinterpret fixed clock windows as detected gamma cycles or
+intact biological volleys. The arm remains a **fixed-window group jitter**
+intervention; events on opposite sides of a window boundary may receive different
+proposed offsets. Detecting and shifting empirical volleys would be a new protocol.
+
+The transform change alters injected activity and therefore invalidates existing
+exp042 compute outputs as evidence for recipe v3. A fresh production compute run,
+followed by new analyse and present runs, is required before updating scientific
+claims or publication inputs. The pinned exp022 checkpoint bank does not require
+retraining. No HPC run was launched as part of this implementation.
+
+### Local pre-HPC verification
+
+The 2026-08-31 preflight passed all 25 focused exp042 tests. These cover both
+complete production sigma grids, exact per-trial/per-cell counts, deterministic
+binary output, zero jitter, temporal wrapping, a fully collided cell, shared
+fixed-window population shifts, sparse serialization, malformed baseline
+rejection, analysis fail-closed behavior, stage lineage, sharding and rendering.
+The 27 collection integration tests, four exp042 downstream-cap tests and six
+simulator override/snapshot tests also passed. Ruff and `git diff --check` passed.
+A production simulation was deliberately not run; these checks establish code
+and contract readiness, not scientific results.
+
 ## Explicit commands
 
 ```sh
@@ -20,15 +61,16 @@ explicit human choice; the migration does not choose between historical banks.
 The three TR-02 PING baseline cells use final-epoch checkpoints, never deployment
 checkpoints. No stage trains upstream models or publishes its output.
 
-The reduced scientific scope is unchanged: 66 production condition jobs (nine
-controls, 30 cycle-jitter, 27 per-cell-jitter), or 39 smoke jobs with
-`PINGLAB_SMOKE=1`. Evaluation uses 1,000 or 100 test images respectively. Two
+The reduced scientific scope contains 57 production condition jobs (30
+fixed-window group-jitter and 27 independent-spike-jitter), or 30 smoke jobs
+with `PINGLAB_SMOKE=1`. Evaluation uses 1,000 or 100 test images respectively. Two
 illustrative perturbation recordings at 14 ms are additional compute work, not
 part of the condition-job count. Shared baseline caching avoids duplicate baseline
 simulations across shards. The two zero-zero arms share one canonical replay per
 seed, retaining separate logical rows and explicit `replay_of` provenance. The
-successful fresh-run launch budgets are 66 production and 39 smoke (three fewer
-distinct evaluations than condition rows, plus three illustrative launches).
+successful fresh-run launch budgets are 60 production and 33 smoke (three fewer
+distinct sweep evaluations than condition rows, plus three baseline recordings
+and three illustrative launches).
 Retries can add work.
 No production runtime or retained-size measurement exists for this staged version.
 
@@ -46,16 +88,15 @@ No production runtime or retained-size measurement exists for this staged versio
 - Analyse selects the same display cells, measures full-population illustrative
   rates, and computes the same per-seed rows, means and standard errors. Its
   compact raster selections let presentation run without simulation.
-- Present reads only retained analysis and renders `rhythm_compound.png`,
-  `cell_jitter_sweep.svg` and `jitter_sweep.svg`, plus report numbers. Exports are flat;
-  future presentations omit the unused PDF alternatives. Existing runs stay intact.
-  Obsolete figures are never created; existing outputs are never cleaned in place.
+- Present reads only retained analysis and renders `rhythm_compound.png` plus
+  report numbers. Exports are flat. Existing runs stay intact; obsolete figures
+  are never created, and existing outputs are never cleaned in place.
 
-The original spike-time transforms are preserved, including rounded offsets,
-boundary clamping and merging coincident spikes. Realised rates remain measured;
-exact count preservation is not claimed. Results prose is retained in Discussion.
-The compound-panel caption now reflects its actual mean curves without error bars;
-the standalone sweep figures retain standard errors.
+The two figure-producing spike-time transforms retain rounded Gaussian offsets,
+then apply the recipe-v3 wrapping and collision policy documented above. Realised
+rates remain measured in addition to the exact count invariant.
+The compound-panel caption reflects its mean curves without error bars. Standard
+errors remain retained in the analysis for the scientific uncertainty account.
 
 ## HPC and recovery
 
@@ -99,7 +140,8 @@ tests excluded). The focused experiment, collection, checkpoint and writing-inpu
 suite passed 121 tests. New checks compare metrics-only overrides with full
 recording on a real tiny simulator, compare I-only raster events and selected
 snapshot arrays exactly, verify test-only loading, exercise concurrent zero
-replay reuse, and retain all 66 production rows with 66 mocked CLI launches.
+replay reuse, and retained all 66 rows in the then-current recipe with 66 mocked
+CLI launches.
 The existing writing fixture compiles with only PNG/SVG presentation files.
 Ruff and whitespace checks passed. The three existing exp042 runs and their
 exp022 bank still validate against their pre-edit manifest and payload pins.
@@ -133,7 +175,7 @@ the origin correction and naming migration; retained migration evidence adds byt
 Original import plans remain historical evidence; any future import must create
 a fresh plan against the current bank ID and checksums.
 
-The separately authorized import retained the 66 conditions in the current recipe
+The separately authorized import retained the 66 conditions in the then-current recipe
 and the seed-42, sample-0, sigma-14 ms cycle/per-cell snapshots. This is a subset of
 the historical Wilkes campaign, not a rerun of the current compute implementation.
 All three original final-epoch checkpoint SHA-256 values match the explicitly

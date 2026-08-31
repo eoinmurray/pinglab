@@ -13,11 +13,12 @@ from experiments.exp042 import inputs, recipe
 from pingstore.contracts import PingstoreError, load_json, write_json_atomic
 
 MEASUREMENT = {
-    "schema": "exp042.measurement/v1",
+    "schema": "exp042.measurement/v2",
     "aggregation": "mean_across_training_seeds",
     "uncertainty": "sample_standard_deviation_divided_by_sqrt_n",
     "rate_population": "last_hidden_and_inhibitory_layers",
     "raster_rate_population": "all_cells_before_display_subsampling",
+    "override_invariant": "exact_per_trial_per_cell_spike_count",
 }
 
 
@@ -51,6 +52,33 @@ def measurement(metrics, job, cfg):
         "i_rate_hz": finite(rates[inh], "I rate"),
         "n_total": metrics["n_total"],
     }
+    transform = metrics.get("override_transform")
+    if (
+        not isinstance(transform, dict)
+        or transform.get("schema") != "exp042.override/v1"
+        or transform.get("boundary_policy") != cfg["jitter_policy"]["boundary"]
+        or transform.get("collision_policy") != cfg["jitter_policy"]["collision"]
+        or transform.get("per_trial_cell_count_invariant") is not True
+        or transform.get("input_spikes") != transform.get("output_spikes")
+        or transform.get("trials_checked") != cfg["evaluation_samples"]
+        or not isinstance(transform.get("cells_checked_per_trial"), int)
+        or transform["cells_checked_per_trial"] <= 0
+    ):
+        raise PingstoreError("missing or invalid override spike-count invariant")
+    for key in (
+        "input_spikes",
+        "output_spikes",
+        "boundary_wrapped_spikes",
+        "collision_resolved_spikes",
+        "max_collision_resolution_steps",
+    ):
+        if (
+            isinstance(transform.get(key), bool)
+            or not isinstance(transform.get(key), int)
+            or transform[key] < 0
+        ):
+            raise PingstoreError("invalid override transform diagnostics")
+    result["override_transform"] = transform
     if (
         not 0 <= result["acc"] <= 100
         or min(result["e_rate_hz"], result["i_rate_hz"]) < 0
@@ -127,7 +155,7 @@ def analyse(identity, *, run_id=None):
     bank_evidence = inputs.bank_evidence(bank)
     retained = load_json(compute.export / "evidence.json")
     if retained != {
-        "schema": "exp042.compute/v1",
+        "schema": "exp042.compute/v3",
         "recipe": cfg,
         "bank_evidence": bank_evidence,
         "jobs": recipe.jobs(cfg),
@@ -141,7 +169,7 @@ def analyse(identity, *, run_id=None):
         run_id=run_id,
         configuration=MEASUREMENT,
     ) as run:
-        groups = {key: [] for key in ("results", "jitter_sweep", "cell_jitter_sweep")}
+        groups = {key: [] for key in ("jitter_sweep", "cell_jitter_sweep")}
         for job in recipe.jobs(cfg):
             data = load_json(compute.export / "jobs" / (job["id"] + ".json"))
             if data.get("job") != job:
@@ -159,7 +187,7 @@ def analyse(identity, *, run_id=None):
         write_json_atomic(
             run.export / "results.json",
             {
-                "schema": "exp042.analysis/v1",
+                "schema": "exp042.analysis/v3",
                 "recipe": cfg,
                 "measurement": MEASUREMENT,
                 "checkpoint_policy": cfg["checkpoint_policy"],
@@ -167,7 +195,6 @@ def analyse(identity, *, run_id=None):
                 "config": {
                     "evaluation_samples_per_condition": cfg["evaluation_samples"],
                     "seeds": cfg["seeds"],
-                    "conditions": cfg["conditions"],
                     "jitter_sigmas_ms": cfg["jitter_sigmas_ms"],
                     "cell_jitter_sigmas_ms": cfg["cell_jitter_sigmas_ms"],
                     "f_gamma_reference_hz": cfg["f_gamma_reference_hz"],

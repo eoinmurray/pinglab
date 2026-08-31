@@ -47,7 +47,7 @@
   if target() == "html" {
     let interactive = sys.inputs.at("demolab-dev", default: "false") == "true"
     heading(level: 2)[Dataset]
-    html.elem("style", ".run-view {margin:1rem 0 2rem;border:1px solid var(--rule-strong,#ddd);border-radius:.35rem;font-size:.85rem;overflow-x:auto;} .run-view .run-dependencies {display:grid;grid-template-columns:max-content minmax(0,1fr);gap:.35rem 1rem;margin:0;padding:.7rem .8rem;border-bottom:1px solid var(--rule-strong,#ddd);} .run-view .run-dependencies dt {font-weight:600;color:var(--muted,#666);} .run-view .run-dependencies dd {margin:0;} .run-view .run-dependencies a {white-space:nowrap;} .run-view table {width:100%;margin:0;border:0;border-collapse:collapse;font-size:inherit;} .run-view th,.run-view td {padding:.6rem .8rem;text-align:left;vertical-align:baseline;border:0;border-bottom:1px solid var(--rule-strong,#ddd);} .run-view th {font-weight:600;color:var(--muted,#666);} .run-view tbody tr:last-child td {border-bottom:0;} .run-view .run-name {white-space:nowrap;} .run-view .run-date,.run-view .run-origin {color:var(--muted,#666);} .run-view .run-date {min-width:7.5em;white-space:nowrap;} .run-view .run-duration {white-space:nowrap;font-variant-numeric:tabular-nums;} .run-view .run-size {text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums;} .run-view [aria-current=true] {font-weight:600;}")
+    html.elem("style", ".run-view {margin:1rem 0 2rem;border:1px solid var(--rule-strong,#ddd);border-radius:.35rem;font-size:.85rem;overflow-x:auto;} .run-view .run-dependencies {display:grid;grid-template-columns:max-content minmax(0,1fr);gap:.35rem 1rem;margin:0;padding:.7rem .8rem;border-bottom:1px solid var(--rule-strong,#ddd);} .run-view .run-dependencies dt {font-weight:600;color:var(--muted,#666);} .run-view .run-dependencies dd {margin:0;} .run-view .run-dependencies a {white-space:nowrap;} .run-view table {width:100%;margin:0;border:0;border-collapse:collapse;font-size:inherit;} .run-view th,.run-view td {padding:.6rem .8rem;text-align:left;vertical-align:baseline;border:0;border-bottom:1px solid var(--rule-strong,#ddd);} .run-view th {font-weight:600;color:var(--muted,#666);} .run-view tbody tr:last-child td {border-bottom:0;} .run-view .run-name {white-space:nowrap;} .run-view .run-stage-present {text-decoration:underline;text-underline-offset:.15em;} .run-view .run-date,.run-view .run-origin {color:var(--muted,#666);} .run-view .run-date {min-width:7.5em;white-space:nowrap;} .run-view .run-duration {white-space:nowrap;font-variant-numeric:tabular-nums;} .run-view .run-size {text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums;} .run-view [aria-current=true] {font-weight:600;}")
     html.elem("aside", attrs: (class: "run-view", "aria-label": "Dataset"), {
       let dependencies = catalogue.at("experiment_dependencies", default: (:)).at(article, default: (:))
       html.elem("dl", attrs: (class: "run-dependencies"), {
@@ -89,18 +89,17 @@
           for run in available {
             html.elem("tr", {
               let current = if selected != none and selected.id == run.id { "true" } else { "false" }
+              let stage = run.at("stage", default: "present")
+              let run-class = "run-name run-stage-" + stage
               html.elem("td", attrs: (class: "run-name"), {
-              if interactive and run.at("stage", default: "present") == "present" {
+              if interactive and stage == "present" {
                 html.elem("a", attrs: (
-                  class: "run-name", href: run-url(article, inputs, key, run),
+                  class: run-class, href: run-url(article, inputs, key, run),
                   target: "_blank", rel: "noopener", "aria-current": current,
                 ), run.id)
               } else {
                 html.elem("span", attrs: (
-                  class: "run-name",
-                  style: if run.at("stage", default: "present") == "compute" {
-                    "text-decoration:underline;text-underline-offset:.15em;"
-                  } else { "text-decoration:none;" },
+                  class: run-class, "aria-current": current,
                 ), run.id)
               }
               })

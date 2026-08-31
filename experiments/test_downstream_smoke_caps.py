@@ -119,7 +119,7 @@ def test_exp042_override_file_is_deleted_after_inference(
 
     monkeypatch.setattr(simulator, "_build_override_file", fake_build)
     monkeypatch.setattr(simulator, "_run_with_override", fake_run)
-    simulator.evaluate(train_dir, {"id": "fixture", "condition": "phase_shuffled_i", "seed_offset": 42})
+    simulator.evaluate(train_dir, {"id": "fixture", "condition": "jitter_sigma_14", "seed_offset": 42})
 
     assert len(seen) == 1
     assert not seen[0].exists()

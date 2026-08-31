@@ -121,7 +121,7 @@ def lab(tmp_path, monkeypatch):
                 out / "rasters.npz",
                 T=np.int32(20),
                 n_i=np.int32(2),
-                n_trials=np.int32(1),
+                n_trials=np.int32(samples),
                 i_trial=np.array([0, 0]),
                 i_t=np.array([2, 12]),
                 i_cell=np.array([0, 1]),
@@ -140,8 +140,8 @@ def test_stages_preserve_small_evidence_and_never_run_upstream(lab, monkeypatch)
     old.write_text("unrelated historical view")
     identity = compute.compute(bank_id)
     raw = inputs.source(root, identity, "compute")
-    assert len(list(raw.export.glob("jobs/*.json"))) == 39
-    assert len(calls) == 39  # 36 distinct evaluations plus three illustrative launches
+    assert len(list(raw.export.glob("jobs/*.json"))) == 30
+    assert len(calls) == 33  # 30 sweep evaluations plus three illustrative launches
     for job in recipe.jobs(recipe.configuration(smoke=True)):
         if job["condition"] == "cell_jitter_sigma_0":
             row = load_json(raw.export / "jobs" / (job["id"] + ".json"))
@@ -171,6 +171,8 @@ def test_stages_preserve_small_evidence_and_never_run_upstream(lab, monkeypatch)
     analysis = inputs.source(root, analysis_id, "analyse")
     results = load_json(analysis.export / "results.json")
     assert results["recipe"]["profile"] == "smoke"
+    assert "results" not in results
+    assert "conditions" not in results["config"]
     assert results["aggregate"]["jitter_sweep"][0]["e_rate_hz"]["mean"] == 11
     assert results["aggregate"]["jitter_sweep"][0]["e_rate_hz"]["sem"] == pytest.approx(
         1 / np.sqrt(3)
@@ -258,7 +260,7 @@ def test_shards_are_pinned_resumable_and_collect_without_repeating_sweeps(lab):
     for index in range(8):
         compute.shard(bank_id, run_id=identity, index=index)
     before = len(calls)
-    assert before == 36  # shared baselines and zero replays run once, not per shard
+    assert before == 30  # shared baselines and zero replays run once, not per shard
     compute.shard(bank_id, run_id=identity, index=0)
     assert len(calls) == before
     compute.compute(bank_id, run_id=identity, collect=True)
@@ -266,20 +268,20 @@ def test_shards_are_pinned_resumable_and_collect_without_repeating_sweeps(lab):
         len(calls) == before + 3
     )  # only two illustrative arms and their shared baseline
     output = inputs.source(root, identity, "compute")
-    assert len(list(output.export.glob("jobs/*.json"))) == 39
+    assert len(list(output.export.glob("jobs/*.json"))) == 30
     assert output.record["origin"] == "slurm-wilkes"
     assert not (output.directory / ".baseline-scratch").exists()
     with pytest.raises((PingstoreError, OSError)):
         compute.shard(bank_id, run_id=identity, index=0)
 
 
-def test_production_retains_all_rows_with_66_launches(lab, monkeypatch):
+def test_production_retains_all_figure_rows(lab, monkeypatch):
     root, bank_id, calls = lab
     monkeypatch.setenv("PINGLAB_SMOKE", "0")
     identity = compute.compute(bank_id)
     raw = inputs.source(root, identity, "compute")
-    assert len(list(raw.export.glob("jobs/*.json"))) == 66
-    assert len(calls) == 66
+    assert len(list(raw.export.glob("jobs/*.json"))) == 57
+    assert len(calls) == 60
     assert sum("--sample-index" in args for args in calls) == 3
 
 
@@ -376,30 +378,177 @@ def test_collection_dispatches_explicit_sources_and_reservations(lab, monkeypatc
     assert len(commands) == 3
 
 
-def test_transforms_match_retained_algorithm():
-    # Compare against deterministic expected properties, not archived scientific data.
+def test_transforms_are_deterministic_binary_and_count_preserving_over_full_grid():
     import torch
 
-    baseline = torch.zeros(30, 2, 3)
-    baseline[::5] = 1
+    generator = torch.Generator().manual_seed(7)
+    baseline = (torch.rand(61, 3, 5, generator=generator) < 0.16).float()
+    baseline[0, :, :] = 1
+    baseline[-1, :, :] = 1
     for name in ("jitter_sigma_0", "cell_jitter_sigma_0"):
-        actual = transforms._build_override(
-            baseline, name, torch.Generator().manual_seed(42)
+        actual, diagnostics = transforms._build_override(
+            baseline,
+            name,
+            torch.Generator().manual_seed(42),
+            return_diagnostics=True,
         )
         assert torch.equal(actual, baseline)
-    phase = transforms._build_override(
-        baseline, "phase_shuffled_i", torch.Generator().manual_seed(42)
-    )
-    assert torch.equal(phase.sum(0), baseline.sum(0))
-    for name in ("jitter_sigma_14", "cell_jitter_sigma_14", "poisson_matched_i"):
-        a = transforms._build_override(
-            baseline, name, torch.Generator().manual_seed(42)
+        assert diagnostics["input_spikes"] == diagnostics["output_spikes"]
+        assert diagnostics["per_trial_cell_count_invariant"] is True
+    conditions = [f"jitter_sigma_{sigma:g}" for sigma in recipe.JITTER_SIGMAS_MS]
+    conditions += [
+        f"cell_jitter_sigma_{sigma:g}" for sigma in recipe.CELL_JITTER_SIGMAS_MS
+    ]
+    for name in conditions:
+        a, diagnostics = transforms._build_override(
+            baseline,
+            name,
+            torch.Generator().manual_seed(42),
+            return_diagnostics=True,
         )
         b = transforms._build_override(
             baseline, name, torch.Generator().manual_seed(42)
         )
         assert torch.equal(a, b)
         assert set(a.unique().tolist()) <= {0.0, 1.0}
+        assert torch.equal(a.sum(dim=0), baseline.sum(dim=0))
+        assert diagnostics["input_spikes"] == diagnostics["output_spikes"]
+        assert diagnostics["per_trial_cell_count_invariant"] is True
+
+
+@pytest.mark.parametrize(
+    ("condition", "seed"),
+    [("jitter_sigma_100", 0), ("cell_jitter_sigma_100", 1)],
+)
+def test_temporal_boundaries_wrap_without_losing_spikes(condition, seed):
+    import torch
+
+    baseline = torch.zeros(20, 1, 1)
+    baseline[0:2, 0, 0] = 1
+    actual, diagnostics = transforms._build_override(
+        baseline,
+        condition,
+        torch.Generator().manual_seed(seed),
+        dt_ms=1.0,
+        return_diagnostics=True,
+    )
+    assert int(actual.sum()) == 2
+    assert torch.equal(actual.sum(dim=0), baseline.sum(dim=0))
+    assert diagnostics["boundary_wrapped_spikes"] > 0
+    assert diagnostics["input_spikes"] == diagnostics["output_spikes"] == 2
+
+
+def test_collision_resolution_is_binary_nearest_free_and_count_preserving():
+    import torch
+
+    candidates = torch.zeros(7, dtype=torch.long)
+    batch = torch.zeros(7, dtype=torch.long)
+    cells = torch.zeros(7, dtype=torch.long)
+    resolved, moved, max_steps = transforms._resolve_collisions(
+        candidates, batch, cells, T=7, N_I=1
+    )
+    assert resolved.tolist() == [0, 1, 6, 2, 5, 3, 4]
+    assert int(moved.sum()) == 6
+    assert max_steps == 3
+
+
+def test_fixed_window_arm_moves_same_window_population_events_together():
+    import torch
+
+    baseline = torch.zeros(600, 1, 2)
+    baseline[10:12, 0, :] = 1
+    actual = transforms._build_override(
+        baseline, "jitter_sigma_1", torch.Generator().manual_seed(3)
+    )
+    assert torch.equal(actual[:, 0, 0], actual[:, 0, 1])
+    assert int(actual[:, 0, 0].sum()) == 2
+
+
+@pytest.mark.parametrize("condition", ["jitter_sigma_100", "cell_jitter_sigma_50"])
+def test_sparse_override_serialization_retains_every_trial_cell_count(
+    tmp_path, condition
+):
+    import torch
+
+    R = {
+        "T": np.int32(20),
+        "n_i": np.int32(2),
+        "n_trials": np.int32(2),
+        "i_trial": np.array([0, 0, 0, 1, 1, 1], dtype="int32"),
+        "i_t": np.array([0, 1, 19, 0, 18, 19], dtype="int32"),
+        "i_cell": np.array([0, 0, 1, 1, 1, 0], dtype="int32"),
+    }
+    cfg = recipe.configuration()
+    simulator = simulation.Simulator(tmp_path, tmp_path / "commands", cfg)
+    path = tmp_path / "override.npz"
+    diagnostics = simulator._build_override_file(
+        R,
+        condition,
+        torch.Generator().manual_seed(0),
+        1.0,
+        path,
+    )
+    source_counts = np.zeros((2, 2), dtype=int)
+    np.add.at(source_counts, (R["i_trial"], R["i_cell"]), 1)
+    with np.load(path) as data:
+        output_counts = np.zeros((2, 2), dtype=int)
+        np.add.at(output_counts, (data["i_trial"], data["i_cell"]), 1)
+    assert np.array_equal(output_counts, source_counts)
+    assert diagnostics["input_spikes"] == diagnostics["output_spikes"] == 6
+    assert diagnostics["trials_checked"] == 2
+    assert diagnostics["cells_checked_per_trial"] == 2
+    assert diagnostics["per_trial_cell_count_invariant"] is True
+
+
+def test_sparse_override_rejects_duplicate_baseline_events(tmp_path):
+    import torch
+
+    R = {
+        "T": np.int32(20),
+        "n_i": np.int32(2),
+        "n_trials": np.int32(1),
+        "i_trial": np.array([0, 0], dtype="int32"),
+        "i_t": np.array([3, 3], dtype="int32"),
+        "i_cell": np.array([1, 1], dtype="int32"),
+    }
+    simulator = simulation.Simulator(
+        tmp_path, tmp_path / "commands", recipe.configuration()
+    )
+    with pytest.raises(ValueError, match="duplicate events"):
+        simulator._build_override_file(
+            R,
+            "cell_jitter_sigma_50",
+            torch.Generator().manual_seed(0),
+            1.0,
+            tmp_path / "override.npz",
+        )
+
+
+def test_analysis_rejects_missing_or_false_count_invariant():
+    cfg = recipe.configuration(smoke=True)
+    job = recipe.jobs(cfg)[0]
+    metrics = {
+        "best_acc": 90.0,
+        "n_total": cfg["evaluation_samples"],
+        "rates_hz": {"hid": 10.0, "inh": 20.0},
+    }
+    with pytest.raises(PingstoreError, match="spike-count invariant"):
+        analyse.measurement(metrics, job, cfg)
+    metrics["override_transform"] = {
+        "schema": "exp042.override/v1",
+        "boundary_policy": cfg["jitter_policy"]["boundary"],
+        "collision_policy": cfg["jitter_policy"]["collision"],
+        "input_spikes": 2,
+        "output_spikes": 1,
+        "boundary_wrapped_spikes": 1,
+        "collision_resolved_spikes": 0,
+        "max_collision_resolution_steps": 0,
+        "trials_checked": cfg["evaluation_samples"],
+        "cells_checked_per_trial": 2,
+        "per_trial_cell_count_invariant": False,
+    }
+    with pytest.raises(PingstoreError, match="spike-count invariant"):
+        analyse.measurement(metrics, job, cfg)
 
 
 def test_article_renders_fixture_and_unavailable_data_states(lab):

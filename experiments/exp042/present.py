@@ -1,4 +1,4 @@
-"""Render the three retained figures from analysis only; never launch upstream work."""
+"""Render the retained compound figure from analysis only; never launch upstream work."""
 
 import argparse
 import sys
@@ -23,7 +23,7 @@ def present(identity, *, run_id=None):
     data = load_json(analysis.export / "results.json")
     if (
         compute.record["inputs"]["bank"] != analysis.record["inputs"]["bank"]
-        or data.get("schema") != "exp042.analysis/v1"
+        or data.get("schema") != "exp042.analysis/v3"
         or data.get("recipe") != cfg
         or data.get("measurement") != analysis.record["execution"]["configuration"]
     ):
@@ -41,15 +41,13 @@ def present(identity, *, run_id=None):
         "present",
         sources={"analysis": analysis},
         run_id=run_id,
-        configuration={"schema": "exp042.presentation/v1", "paper_mode": True},
+        configuration={"schema": "exp042.presentation/v2", "paper_mode": True},
     ) as run:
         theme.set_paper_mode(True)
         cyc, cell = (
             data["aggregate"]["jitter_sweep"],
             data["aggregate"]["cell_jitter_sweep"],
         )
-        plots.plot_jitter_sweep(cyc, run.export / "jitter_sweep")
-        plots.plot_cell_jitter_sweep(cell, run.export / "cell_jitter_sweep")
         plots.fig_rhythm_compound(
             cyc, cell, samples["cycle"], samples["cell"], run.export / "rhythm_compound"
         )

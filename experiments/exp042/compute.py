@@ -237,7 +237,7 @@ def compute(identity, *, run_id=None, collect=False):
             write_json_atomic(
                 run.export / "evidence.json",
                 {
-                    "schema": "exp042.compute/v1",
+                    "schema": "exp042.compute/v3",
                     "recipe": cfg,
                     "bank_evidence": evidence,
                     "jobs": recipe.jobs(cfg),

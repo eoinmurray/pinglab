@@ -14,10 +14,11 @@ CHECKPOINT_POLICY = checkpoint_policy(ANALYSIS_PURPOSE)
 CHECKPOINT_ROLE = CHECKPOINT_POLICY["role"]
 EVAL_SEED = 20260415
 SEEDS = training_run_values(TRAINING_RUN, "seed")
-CONDITIONS = ("baseline", "phase_shuffled_i", "poisson_matched_i")
 JITTER_SIGMAS_MS = (0.0, 1.0, 3.0, 7.0, 14.0, 21.0, 28.0, 42.0, 60.0, 100.0)
 CELL_JITTER_SIGMAS_MS = (0.0, 0.5, 1.0, 2.0, 5.0, 9.0, 14.0, 21.0, 50.0)
 F_GAMMA_REFERENCE_HZ = F_GAMMA_HZ
+JITTER_BOUNDARY_POLICY = "circular_wrap"
+JITTER_COLLISION_POLICY = "nearest_free_circular_alternating/v1"
 EVAL_MAX_SAMPLES = MNIST_REDUCED_EVAL_SAMPLES
 SMOKE_MAX_SAMPLES = 100
 RASTER_SAMPLE_IDX = 0
@@ -25,11 +26,7 @@ RASTER_N_E_PLOT = 200
 RASTER_N_I_PLOT = 64
 COMPOUND_SIGMA_MS = 14.0
 SHARDS = 8
-FIGURES = (
-    "rhythm_compound.png",
-    "cell_jitter_sweep.svg",
-    "jitter_sweep.svg",
-)
+FIGURES = ("rhythm_compound.png",)
 
 
 def cell_name(seed):
@@ -40,10 +37,9 @@ def cell_name(seed):
 
 def configuration(*, smoke=False):
     return {
-        "schema": "exp042.recipe/v1",
+        "schema": "exp042.recipe/v3",
         "profile": "smoke" if smoke else "production",
         "seeds": list(SEEDS),
-        "conditions": list(CONDITIONS),
         "jitter_sigmas_ms": list((0.0, 14.0, 100.0) if smoke else JITTER_SIGMAS_MS),
         "cell_jitter_sigmas_ms": list(
             (0.0, 0.5, 1.0, 2.0, 5.0, 9.0, 14.0) if smoke else CELL_JITTER_SIGMAS_MS
@@ -53,6 +49,11 @@ def configuration(*, smoke=False):
         "evaluation_seed": EVAL_SEED,
         "checkpoint_policy": CHECKPOINT_POLICY,
         "f_gamma_reference_hz": F_GAMMA_REFERENCE_HZ,
+        "jitter_policy": {
+            "boundary": JITTER_BOUNDARY_POLICY,
+            "collision": JITTER_COLLISION_POLICY,
+            "invariant": "exact_per_trial_per_cell_spike_count",
+        },
         "raster": {
             "seed": SEEDS[0],
             "sample_index": RASTER_SAMPLE_IDX,
@@ -67,8 +68,7 @@ def configuration(*, smoke=False):
 def jobs(cfg):
     result = []
     for seed in cfg["seeds"]:
-        groups = [("results", c, seed, None) for c in cfg["conditions"]]
-        groups += [
+        groups = [
             ("jitter_sweep", f"jitter_sigma_{s:g}", seed + int(s), s)
             for s in cfg["jitter_sigmas_ms"]
         ]

@@ -131,28 +131,89 @@ class Simulator:
         tr = R["i_trial"]
         order = np.argsort(tr, kind="stable")
         tr, tt, tc = tr[order], R["i_t"][order], R["i_cell"][order]
+        if (
+            min(T, n_i, n_tr) <= 0
+            or any(value.ndim != 1 for value in (tr, tt, tc))
+            or not (tr.size == tt.size == tc.size)
+            or (
+                tr.size
+                and (
+                    tr.min() < 0
+                    or tr.max() >= n_tr
+                    or tt.min() < 0
+                    or tt.max() >= T
+                    or tc.min() < 0
+                    or tc.max() >= n_i
+                )
+            )
+        ):
+            raise ValueError("invalid baseline inhibitory raster")
+        source_keys = (tr.astype("int64") * T + tt) * n_i + tc
+        if np.unique(source_keys).size != source_keys.size:
+            raise ValueError("duplicate events in baseline inhibitory raster")
         bounds = np.searchsorted(tr, np.arange(n_tr + 1))
         out_tr, out_t, out_c = [], [], []
+        diagnostics = {
+            "schema": "exp042.override/v1",
+            "boundary_policy": self.configuration["jitter_policy"]["boundary"],
+            "collision_policy": self.configuration["jitter_policy"]["collision"],
+            "input_spikes": 0,
+            "output_spikes": 0,
+            "boundary_wrapped_spikes": 0,
+            "collision_resolved_spikes": 0,
+            "max_collision_resolution_steps": 0,
+            "trials_checked": n_tr,
+            "cells_checked_per_trial": n_i,
+            "per_trial_cell_count_invariant": True,
+        }
         for b in range(n_tr):
             lo, hi = bounds[b], bounds[b + 1]
             s_i = np.zeros((T, 1, n_i), dtype=np.float32)
             s_i[tt[lo:hi], 0, tc[lo:hi]] = 1.0
-            ov = _build_override(torch.from_numpy(s_i), condition, gen, dt_ms=dt_ms)
+            ov, trial_diagnostics = _build_override(
+                torch.from_numpy(s_i),
+                condition,
+                gen,
+                dt_ms=dt_ms,
+                return_diagnostics=True,
+            )
+            for key in (
+                "input_spikes",
+                "output_spikes",
+                "boundary_wrapped_spikes",
+                "collision_resolved_spikes",
+            ):
+                diagnostics[key] += trial_diagnostics[key]
+            diagnostics["max_collision_resolution_steps"] = max(
+                diagnostics["max_collision_resolution_steps"],
+                trial_diagnostics["max_collision_resolution_steps"],
+            )
             ov = ov.detach().cpu().numpy()[:, 0, :]  # (T, n_i)
             ti, ci = ov.nonzero()
             out_t.append(ti.astype("int32"))
             out_c.append(ci.astype("int32"))
             out_tr.append(np.full(ti.size, b, dtype="int32"))
         cat = lambda xs: np.concatenate(xs) if xs else np.zeros(0, "int32")  # noqa: E731
+        serialized = {
+            "i_trial": cat(out_tr),
+            "i_t": cat(out_t),
+            "i_cell": cat(out_c),
+        }
+        if not (
+            diagnostics["input_spikes"]
+            == diagnostics["output_spikes"]
+            == serialized["i_t"].size
+            == tr.size
+        ):
+            raise RuntimeError("override serialization changed inhibitory spike count")
         np.savez(
             out_path,
             n_trials=np.int32(n_tr),
             T=np.int32(T),
             n_i=np.int32(n_i),
-            i_trial=cat(out_tr),
-            i_t=cat(out_t),
-            i_cell=cat(out_c),
+            **serialized,
         )
+        return diagnostics
 
     def _run_with_override(
         self, train_dir: Path, override_path: Path, tau_gaba=None
@@ -280,10 +341,12 @@ class Simulator:
             prefix=".override-", dir=self.scratch
         ) as directory:
             path = Path(directory) / (job["id"] + ".npz")
-            self._build_override_file(
+            diagnostics = self._build_override_file(
                 rasters, job["condition"], gen, float(cfg["dt"]), path
             )
-            return self._run_with_override(train_dir, path)
+            metrics = dict(self._run_with_override(train_dir, path))
+            metrics["override_transform"] = diagnostics
+            return metrics
 
     def recording(self, train_dir, condition, offset):
         import torch

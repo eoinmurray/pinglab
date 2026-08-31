@@ -13,7 +13,7 @@ SHARD_COUNTS: dict[str, int] = {
 
 PRODUCTION_CONTRACTS: dict[str, dict[str, int]] = {
     "exp037": {"condition_jobs": 204, "simulator_launches_max": 204},
-    "exp042": {"condition_jobs": 66, "simulator_launches_max": 66},
+    "exp042": {"condition_jobs": 57, "simulator_launches_max": 60},
     "exp082": {
         "condition_jobs": 132,
         "simulator_launches_max": 1_058,
@@ -23,7 +23,7 @@ PRODUCTION_CONTRACTS: dict[str, dict[str, int]] = {
 
 SMOKE_CONTRACTS: dict[str, dict[str, int]] = {
     "exp037": {"condition_jobs": 54, "simulator_launches_max": 54},
-    "exp042": {"condition_jobs": 39, "simulator_launches_max": 39},
+    "exp042": {"condition_jobs": 30, "simulator_launches_max": 33},
     "exp082": {
         "condition_jobs": 18,
         "simulator_launches_max": 20,
