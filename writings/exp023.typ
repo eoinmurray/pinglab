@@ -162,7 +162,7 @@
 
   == Methods
 
-  I compared untrained loop-off and loop-on networks using the following
+  We compared untrained loop-off and loop-on networks using the following
   simulation and measurement procedure.
 
   + *Construct the two loop conditions.* Both networks contained #c.n_e

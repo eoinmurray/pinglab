@@ -108,7 +108,7 @@
 
   == Methods
 
-  I calibrated which input rates preserved usable digit information after
+  We calibrated which input rates preserved usable digit information after
   independent synaptic and membrane filtering of each pixel.
 
   #enum(

@@ -107,31 +107,31 @@
 
   == Methods
 
-  I separated graph-defined coupling checks from a bounded implementation
+  We separated graph-defined coupling checks from a bounded implementation
   comparison using PyTorch#cite(1).
 
-  + *Define and drive the coupled circuits.* I authored two circuits with
+  + *Define and drive the coupled circuits.* We authored two circuits with
     16/four and 12/three excitatory/inhibitory neurons and eight/six input
     channels respectively. Deterministic input pulses arrived every ten and
     thirteen timesteps, with different offsets for the second sample. All
     variants used seed #r.config.seed, #r.config.steps timesteps,
     #r.config.batch samples and #r.config.dt_ms ms integration steps.
-  + *Vary cross-circuit inhibition.* I compared no cross projections, inhibition
+  + *Vary cross-circuit inhibition.* We compared no cross projections, inhibition
     from A to B, reciprocal inhibition with one-step causal delay and
     reciprocal inhibition with five-step delay. Cross-projection weights were
     fixed at three and inhibitory conductance decay at nine milliseconds.
-    I recorded all exposed populations and computed zero-lag correlation and
+    We recorded all exposed populations and computed zero-lag correlation and
     peak cross-correlation lag; silent traces received the existing zero-valued
     diagnostic convention and were not interpreted as phase estimates.
-  + *Compare explicit and graph execution.* I initialised a separate
+  + *Compare explicit and graph execution.* We initialised a separate
     256-excitatory/64-inhibitory classifier identically in both implementations,
-    using seed 17 and the same 100-step, eight-sample spike tensor. I compared
+    using seed 17 and the same 100-step, eight-sample spike tensor. We compared
     parameters, spikes and outputs, and reloaded the graph state into an
     independently initialised model. All comparisons used recorded tensors.
-  + *Measure timing and causal boundaries.* I timed five eager calls after
+  + *Measure timing and causal boundaries.* We timed five eager calls after
     two warmups and calculated graph overhead relative to the explicit
     implementation's median, using the unchanged ten-percent threshold.
-    I measured CPU Inductor's first invocation and three warm calls separately
+    We measured CPU Inductor's first invocation and three warm calls separately
     on a 20-step, two-sample input. Separate numerical tests checked delayed
     pulse arrival and causal planning; no coupling sweep or accelerator
     performance study was performed.

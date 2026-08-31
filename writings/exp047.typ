@@ -91,7 +91,7 @@
 
   == Methods
 
-  I compared two scaling controls using recorded outputs from simulations of untrained,
+  We compared two scaling controls using recorded outputs from simulations of untrained,
   dense recurrent excitatory–inhibitory networks, without additional simulation.
   #set math.equation(numbering: "(1)")
 
@@ -115,7 +115,7 @@
     inhibitory conductance increment at E neuron $j$, in μS; both weights and participation
     therefore enter the increment.
 
-  + *Apply paired pool-size controls.* I swept
+  + *Apply paired pool-size controls.* We swept
     $N_I in {#n-lo, #n-mid, #n-hi}$. Fixed-summed controls used parent means
     $mu_"init" in {#g-lo, #g-mid, #g-hi}$ μS, so $macron(w)_(I arrow E) prop 1 / N_I$;
     fixed-mean-synapse controls scaled $mu_"init"$ with $N_I$, giving nominal
@@ -131,7 +131,7 @@
     #cfg.n_in independent #cfg.input_rate_hz Hz input channels, implemented
     as Bernoulli spikes per #cfg.dt_ms ms timestep, for #cfg.t_ms ms and
     #cfg.n_batch trials, with seeds #cfg.seeds.map(str).join(", ").
-    I included all conditions and averaged spike counts over the full duration,
+    We included all conditions and averaged spike counts over the full duration,
     trials and neurons within each population; overlapping controls reused
     measurements, giving #n-seeds seeds at each of 18 conditions from
     #(14 * n-seeds) distinct simulations. The reanalysis used these rates,

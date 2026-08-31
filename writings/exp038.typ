@@ -96,7 +96,7 @@
 
   == Methods
 
-  I reused networks from the #link("/exp022/")[shared training study] and
+  We reused networks from the #link("/exp022/")[shared training study] and
   reanalysed recorded inference observations. No new training or simulation
   was performed for this account.
 
@@ -105,7 +105,7 @@
     Conductance-based leaky-integrate-and-fire networks had 784 Poisson input
     channels, 1,024 excitatory (E), 256 inhibitory (I), and 10 output neurons;
     pixels set rates up to 25 Hz. Input and readout weights trained for 50 epochs;
-    class scores were mean pre-reset output voltages. I selected the minimum
+    class scores were mean pre-reset output voltages. We selected the minimum
     mean validation cross-entropy over three fixed encoding draws, breaking
     ties by accuracy and then earliest epoch, rather than using final-epoch weights.
 

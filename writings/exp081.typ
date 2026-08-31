@@ -95,7 +95,7 @@
 
   == Methods
 
-  I compared independent finite-window simulations with a stationary local
+  We compared independent finite-window simulations with a stationary local
   linearization of the same conductance-driven passive membrane.
 
   #enum(
@@ -115,7 +115,7 @@
     are reversal potentials. Each voltage step used the exact exponential solution
     with the updated conductance held fixed; arithmetic used single precision.],
 
-    [*Measure the finite-window feature.* I approximated
+    [*Measure the finite-window feature.* We approximated
     $ z_"feature"=1/T_"present" integral_0^(T_"present") (V_m(t)-E_L) dif t. quad "(2)" $
     Here $z_"feature"$ is mean depolarization in mV and $T_"present"=#p.presentation_ms$ ms is the
     presentation duration. The discrete estimate averaged every post-update voltage
@@ -137,7 +137,7 @@
       quad "(3)" $
     #link(<sec-appendix-model-specification-and-calculations>)[Appendix: model specification and calculations] specifies the transfer and #link(<sec-appendix-derivation-of-the-analytical-filter>)[Appendix: derivation of the analytical filter] derives it.],
 
-    [*Integrate and compare.* I used trapezoidal integration over a logarithmic
+    [*Integrate and compare.* We used trapezoidal integration over a logarithmic
     frequency grid, added the low-frequency DC tail, and checked a coarser grid.
     Mean and SD comparisons used Pearson correlation, mean absolute error and
     median predicted-to-empirical ratio, excluding joint zeros and requiring
@@ -231,7 +231,7 @@
 
   === Simulate the finite-window feature
 
-  I fixed the normalized pixel intensity at $x=1$ and varied only its input
+  We fixed the normalized pixel intensity at $x=1$ and varied only its input
   rate $r_"input"$ from #p.input_rate_grid_hz.first() to
   #p.input_rate_grid_hz.last() spikes/s. At each timestep, the pixel generated
   an event with probability
@@ -260,7 +260,7 @@
   conductance, $E_L$ is the leak reversal potential, and $E_e$ is the
   excitatory reversal potential.
 
-  I used $C_m=1$ nF, $g_L=0.05$ μS, $E_L=-65$ mV, $E_e=0$ mV,
+  We used $C_m=1$ nF, $g_L=0.05$ μS, $E_L=-65$ mV, $E_e=0$ mV,
   $tau_"AMPA"=2$ ms, and independent probe conductances
   $w_"event" in {#p.probes_uS.map(str).join(", ")}$ μS. Every presentation began from
   $g(0)=0$ and $V_m(0)=E_L$. Its continuous-time scalar feature was
@@ -271,9 +271,9 @@
   duration. Simulation used the arithmetic mean of post-update voltages as the
   discrete approximation to this integral.
 
-  For the mean and SD estimates in Figure 1, I generated #p.moment_draws new
+  For the mean and SD estimates in Figure 1, we generated #p.moment_draws new
   presentations at each of #p.input_rate_grid_hz.len() input rates and each
-  conductance. For the full response distributions in Figure 2, I generated
+  conductance. For the full response distributions in Figure 2, we generated
   #p.distribution_draws new presentations at each selected rate. Direct
   simulation retains the nonstationary finite-window behaviour of filtered
   conductance shot noise#cite(1).
@@ -336,7 +336,7 @@
   $H_r (omega)$ is the complete input-to-feature transfer function. #link(<sec-finite-window-average>)[Finite-window average]
   derives Equations A10 and A11.
 
-  To generate Figure 3, I evaluated Equations A9 and A11 from
+  To generate Figure 3, we evaluated Equations A9 and A11 from
   #p.frequency_plot_bounds_hz.first() to #p.frequency_plot_bounds_hz.last() Hz at
   #p.frequency_response_rates_hz.map(str).join(", ") spikes/s for the nominal
   #p.nominal_probe_uS μS probe. Frequency in Hz was converted using
@@ -374,7 +374,7 @@
   variance. #link(<sec-poisson-spectrum-and-feature-variance>)[Poisson spectrum and feature variance] derives Equations A13–A15 from the Poisson spectrum and
   the linear-filter variance identity.
 
-  I integrated Equation A15 numerically on a logarithmic frequency grid. A
+  We integrated Equation A15 numerically on a logarithmic frequency grid. A
   second calculation with half as many points measured quadrature refinement.
 
 

@@ -70,42 +70,42 @@
   richer-input probe; selecting a stable simplified reference and conducting
   the controlled comparison remain planned.
 
-  + *Construct the recurrent circuit.* I used 400 excitatory and 100 inhibitory
+  + *Construct the recurrent circuit.* We used 400 excitatory and 100 inhibitory
     conductance-based leaky integrate-and-fire neurons with fixed excitatory–excitatory, excitatory–inhibitory,
-    inhibitory–excitatory and inhibitory–inhibitory projections. I set 97.5% of
-    each recurrent matrix to zero using an exact-count mask; I sampled the
+    inhibitory–excitatory and inhibitory–inhibitory projections. We set 97.5% of
+    each recurrent matrix to zero using an exact-count mask; we sampled the
     remaining weights from lower-clamped normal distributions with respective
     means 0.85, 0.6, 3.0 and 0.4 μS and standard deviations 0.255, 0.18, 0.9 and
     0.12 μS. Excitatory and inhibitory conductance decay times are 2 and 9 ms;
     no training or parameter selection was performed in this probe.
 
-  + *Specify the background and afferents.* I provided shared Poisson afferents
+  + *Specify the background and afferents.* We provided shared Poisson afferents
     at 10 Hz and population-private afferents at 15 Hz, with afferent weight
     means 0.08 μS onto excitatory neurons and 0.02 μS onto inhibitory neurons.
-    I added four excitatory/inhibitory background channels with private events at
+    We added four excitatory/inhibitory background channels with private events at
     500 Hz and grouped shared events at 80 Hz, grouping 25 excitatory or 10
     inhibitory neurons. Private/shared event amplitudes are 0.06/0.02 μS for
     excitation onto excitatory neurons and 0.03/0.01 μS for the other channels.
-    I applied rate and amplitude heterogeneity with mean-one,
+    We applied rate and amplitude heterogeneity with mean-one,
     lower-clamped normal multipliers of standard deviation 0.1, plus stationary
     rate modulation with a 250 ms timescale and fractional spread 0.12.
 
-  + *Apply the transient and record activity.* I simulated 2,000 ms at a 0.25 ms
-    timestep with random seed 7. I raised the afferent multiplier smoothly from
+  + *Apply the transient and record activity.* We simulated 2,000 ms at a 0.25 ms
+    timestep with random seed 7. We raised the afferent multiplier smoothly from
     baseline at 600 ms to its peak at 850 ms and back by 1,100 ms; peak
-    multipliers are 1.2 for private and 6.5 for shared afferents. I retained spikes,
+    multipliers are 1.2 for private and 6.5 for shared afferents. We retained spikes,
     neuron voltages, conductances and executed input events, keeping recurrent
     weights fixed throughout.
 
-  + *Measure temporal organization.* I evaluated excitatory spike-autocorrelation
+  + *Measure temporal organization.* We evaluated excitatory spike-autocorrelation
     lobe–trough contrast in 400 ms windows every 10 ms, using 1 ms lag bins out
     to 100 ms; undefined contrasts were recorded as zero.
     #math.equation(block: true, numbering: "(1)", $R_"contrast" = (A_"lobe" - A_"trough") / (A_"lobe" + A_"trough")$)
     Here $R_"contrast"$ is dimensionless contrast, $A_"lobe"$ is the smoothed autocorrelogram's
     lobe height before its first trough, and $A_"trough"$ is that trough's height.
-    I measured conductance-loop compactness and directional coherence in 40 ms
+    We measured conductance-loop compactness and directional coherence in 40 ms
     windows every 5 ms over 300–1,800 ms, smoothed over 75 ms, and clipped the
-    10th–95th-percentile normalization to zero–one. I counted excitatory and
+    10th–95th-percentile normalization to zero–one. We counted excitatory and
     inhibitory spikes over the whole probe; the peak-contrast summary uses
     window centres from 200 through 1,790 ms, while the plot also includes
     1,800 ms. These single-seed descriptors do not establish a causal input

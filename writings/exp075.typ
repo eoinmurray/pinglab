@@ -66,22 +66,22 @@
 
   == Methods
 
-  I tested optimisation of a compiled network using a small, fixed
+  We tested optimisation of a compiled network using a small, fixed
   handwritten-digit classification task.
 
-  + *Prepare data and network.* I selected #r.config.max_samples images from
+  + *Prepare data and network.* We selected #r.config.max_samples images from
     the official MNIST training partition with a fixed subset seed, then made
     a stratified #r.config.train_count/#r.config.held_out_count training/validation
     split. The classifier contained #r.config.n_e excitatory and #r.config.n_i
     inhibitory neurons and a ten-class mean-voltage readout.
   + *Encode and train.* Pixel intensities controlled spike probability, with
-    a maximum input rate of #r.config.input_rate_hz Hz. I simulated
+    a maximum input rate of #r.config.input_rate_hz Hz. We simulated
     #r.config.t_ms ms per image at #r.config.dt_ms ms resolution and trained
     for #r.config.epochs epochs in batches of #r.config.batch_size, using
     seed #r.config.seed. AdamW#cite(1) minimised unit-weight cross-entropy with
     learning rate #r.config.learning_rate, weight decay #r.config.weight_decay
     and gradient-norm clipping at one; only input and readout weights changed.
-  + *Select the checkpoint.* After each epoch I evaluated the validation set
+  + *Select the checkpoint.* After each epoch we evaluated the validation set
     using #r.config.validation_encoder_draws.count fixed encoder draws.
     Selection minimised mean validation cross-entropy, breaking ties by mean
     accuracy and then the earliest epoch. The official test partition did not

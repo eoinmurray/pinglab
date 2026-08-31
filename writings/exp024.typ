@@ -100,10 +100,10 @@
 
   == Methods
 
-  I assessed finite changes in accuracy, activity and weights using recorded
+  We assessed finite changes in accuracy, activity and weights using recorded
   learning histories from unregularised classifiers.
 
-  + *Select the baseline histories.* I reused all #n seeds per architecture from
+  + *Select the baseline histories.* We reused all #n seeds per architecture from
     the unregularised activity comparison. Each history contains #c.epochs
     consecutive completed epochs; final values refer to the last epoch, not the
     checkpoint selected by minimum validation loss. The audit involved no new
@@ -127,7 +127,7 @@
     #c.voltage_gradient_damping.coba for COBA and #c.voltage_gradient_damping.ping
     for PING; no activity regulariser was applied.
 
-  + *Measure final-window drift.* For each seed, I recorded validation accuracy,
+  + *Measure final-window drift.* For each seed, we recorded validation accuracy,
     training and validation cross-entropy, and population-mean E and I rates.
     The final #c.window_epochs epochs define the endpoint slope
     #math.equation(block: true,
@@ -139,7 +139,7 @@
     meet the audit's operational stability criterion. This endpoint diagnostic
     does not exclude fluctuations within the window or prove asymptotic convergence.
 
-    I recorded per-seed slopes, first-to-final-epoch
+    We recorded per-seed slopes, first-to-final-epoch
     weight-norm ratios, and final-window weight-norm slopes, and computed means
     and sample standard deviations across seeds. Curves show individual seeds.
     The first epoch reaching 99% of final accuracy supplies a separate descriptive

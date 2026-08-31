@@ -80,7 +80,7 @@
       "Five correctly classified digits presented for 200 ms at input rates from 5 to 25 Hz, with excitatory and inhibitory rasters and spike-count evidence.",
     ),
     caption: [Illustrative seed-42 capability showcase across 5, 7.5, 10, 15
-      and 25 Hz, with every digit presented for 200 ms. Before inference, I fixed
+      and 25 Hz, with every digit presented for 200 ms. Before inference, we fixed
       candidate order and selected the first stream classified 5/5 correctly.
       The first candidate qualified immediately, so no
       failed candidate was skipped to obtain this image. Red traces show the true
@@ -208,9 +208,9 @@
 
     == Methods
 
-    I reused trained networks and recorded grid measurements to evaluate
-    matched-window spike-count classification. I additionally simulated a bounded,
-    predeclared sequence of illustrative streams; I did not retrain any network.
+    We reused trained networks and recorded grid measurements to evaluate
+    matched-window spike-count classification. We additionally simulated a bounded,
+    predeclared sequence of illustrative streams; we did not retrain any network.
   ]
   #set math.equation(numbering: "(1)")
   #show math.equation.where(block: true): equation => context {
@@ -253,8 +253,8 @@
     not a calibrated posterior. Seed-42 illustrations reused a five-digit
     matched stream and a fixed changing-duration/rate stream. For the additional
     nominal-regime illustrations, every digit lasted 200 ms and rates were 5,
-    7.5, 10, 15 and 25 Hz. I fixed an ascending candidate index, with deterministic
-    digit and encoding seeds derived from it, before inference; I selected the
+    7.5, 10, 15 and 25 Hz. We fixed an ascending candidate index, with deterministic
+    digit and encoding seeds derived from it, before inference; we selected the
     first 5/5 stream as the capability showcase and the first 3/5 stream as its
     counterexample. The search stopped after
     #r.showcase_selection.candidates.len() candidates. The single-digit
@@ -267,7 +267,7 @@
       "Acc"(T_"present",r_"input,max",xi) = 1/N_"eval" sum_(i=1)^(N_"eval") bb(1)[hat(y)_(i,T_"present",r_"input,max",xi) = y_i].
     $ <eq-accuracy>
     Here $N_"eval"=200$, $i$ indexes digit presentations, $hat(y)$ and $y$ are predicted
-    and true labels, and $bb(1)$ is an indicator. I recorded the original
+    and true labels, and $bb(1)$ is an indicator. We recorded the original
     per-seed aggregates of accuracy, class spike totals, output spikes per
     presentation, silence and E/I rates; individual grid decisions were not
     archived. E/I rates used all 1,024/256 neurons and the complete presentation

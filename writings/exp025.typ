@@ -204,7 +204,7 @@
 
   == Methods
 
-  I reused networks and learning histories from the
+  We reused networks and learning histories from the
   #link("/exp022/")[shared training study] and reanalysed recorded inference
   measurements; no new training or simulation was performed.
 

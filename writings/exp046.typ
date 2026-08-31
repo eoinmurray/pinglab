@@ -78,11 +78,11 @@
 
   For each of exp041's 18 trained networks (6 $tau_"GABA"$ × 3 seeds):
 
-  + I ran inference on the fixed 1,000-image subset of the official MNIST test partition; I captured per-trial $(T, B, N_E)$ and $(T, B, N_I)$ spike tensors.
-  + I detected I-burst times per trial: I smoothed the population I rate with a 1-ms Gaussian, and used scipy peak detection with min-distance set to half the network's own $1 \/ f_gamma$.
+  + We ran inference on the fixed 1,000-image subset of the official MNIST test partition; we captured per-trial $(T, B, N_E)$ and $(T, B, N_I)$ spike tensors.
+  + We detected I-burst times per trial: we smoothed the population I rate with a 1-ms Gaussian, and used scipy peak detection with min-distance set to half the network's own $1 \/ f_gamma$.
   + Cycle boundaries were the midpoints between consecutive I-burst peaks (the first cycle started at $t = 0$ and the last ended at trial end).
-  + For each (neuron, cycle, trial), I counted the number of E spikes within the cycle window.
-  + I bucketed counts globally into ${0, 1, 2, >= 3}$ and aggregated by $tau_"GABA"$.
+  + For each (neuron, cycle, trial), we counted the number of E spikes within the cycle window.
+  + We bucketed counts globally into ${0, 1, 2, >= 3}$ and aggregated by $tau_"GABA"$.
 
   The cycle anchor is the I-burst: this is the right anchor because the cycle is operationally defined as _"the time between one inhibitory blanket and the next"_, not as the time between E bursts (which can be silent on a given cycle).
 

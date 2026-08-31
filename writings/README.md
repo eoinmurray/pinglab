@@ -1,6 +1,6 @@
 # Writing Guide
 
-Version: **25.0.0**
+Version: **26.0.0**
 
 The Writing Guide defines the conventions for Pinglab's published experiment
 entries in `writings/expXXX.typ`. This file is the canonical guide.
@@ -14,6 +14,9 @@ corrections or clarifications that do not change requirements. Update the versio
 above and add a short entry to the version history when changing the guide.
 
 ### 1.1. Version history
+
+- **26.0.0** — Adopt the conventional authorial first-person plural for the
+  article's actions, decisions, interpretations and plans.
 
 - **25.0.0** — Replace bullet-point abstracts with paragraph-form abstracts of
   around 65 words.
@@ -325,18 +328,17 @@ These are polished scientific articles, not diary entries. Apply the following
 rules throughout rendered content, including abstracts, Methods, captions and
 appendices; choose tense by the sentence's function, not by section alone.
 
-- Use first-person singular (`I`, `my`) for the sole author's actions, decisions
-  and interpretations: “I trained the networks”; “I interpret this as…”. Do not
-  use `we`, `our` or `us` to imply a research team or as an authorial substitute
-  for `I`. Use plural person only for explicitly identified human collaborators
-  who performed the stated work. Attribute reused work to its actual source;
-  changing person must not turn reuse into a claim of new execution.
+- Use first-person plural (`we`, `our`, `us`) for the article's actions,
+  decisions and interpretations: “We trained the networks”; “We interpret this
+  as…”. This conventional authorial `we` does not by itself imply multiple human
+  researchers. Attribute collaborators and reused work explicitly; changing
+  person must not turn reuse into a claim of new execution.
 - Do not force a pronoun into every sentence. Prefer the scientific subject
   when natural (“Accuracy increased”) and allow passive voice when the actor
   is unimportant (“Weights were held fixed”). In mathematical exposition,
   prefer “Substituting gives…” or “Consider…” to an ambiguous authorial `we`.
 - Use past tense for completed procedures, choices and observations, including
-  reused experiments: “I evaluated three seeds”; “Mean accuracy was 92%”.
+  reused experiments: “We evaluated three seeds”; “Mean accuracy was 92%”.
   Do not narrate completed Methods as instructions or as work happening now.
 - Use present tense for model and algorithm definitions, mathematical
   relationships, established knowledge, the article's scope, and what a figure
@@ -349,7 +351,7 @@ appendices; choose tense by the sentence's function, not by section alone.
   measurements do not establish…”. An observed outcome remains past tense
   even when the interpretation is present tense.
 - Mark unperformed work explicitly as a plan, possibility or prediction:
-  “I plan to test…”; “The planned comparison will…”; “This could…”. Never
+  “We plan to test…”; “The planned comparison will…”; “This could…”. Never
   change planned or uncertain work into a completed observation for stylistic
   consistency. Use present progressive only for work actually in progress.
 - Short action-led Methods labels, mathematical instructions and reference-page

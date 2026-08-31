@@ -159,7 +159,7 @@
   changing only when recorded inhibitory spikes arrive, and measuring the
   resulting excitatory activity and classification performance.
 
-  + *Select the frozen networks.* I used the three baseline PING classifiers
+  + *Select the frozen networks.* We used the three baseline PING classifiers
     from the #link("/exp022/")[shared training study], with seeds 42–44, at their
     final training epoch because the experiment tests final-epoch dynamics
     rather than validation-selected deployment performance. The reference gamma
@@ -209,7 +209,7 @@
     matrix from inhibitory to excitatory neurons, and the frozen readout consumed
     the resulting excitatory spikes.
 
-    For every condition I recorded excitatory and inhibitory firing rates and
+    For every condition we recorded excitatory and inhibitory firing rates and
     test accuracy, then averaged each
     quantity over the three independently trained seeds. Sweep error bars are
     ±1 standard error of the mean across seeds.

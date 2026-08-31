@@ -100,29 +100,29 @@
 
   == Methods
 
-  I tested checkpoint interchange and numerical equivalence as separate
+  We tested checkpoint interchange and numerical equivalence as separate
   properties of the same supported classifier family.
 
-  + *Train and select states.* I split #r.config.max_samples MNIST training
+  + *Train and select states.* We split #r.config.max_samples MNIST training
     images into #r.config.train_count optimisation and
     #r.config.held_out_count validation examples. The network used a
     mean-voltage readout, #r.config.dt_ms ms timestep and #r.config.t_ms ms
-    duration. I trained input and readout weights for #r.config.epochs epochs
+    duration. We trained input and readout weights for #r.config.epochs epochs
     with AdamW#cite(1), learning rate #r.config.learning_rate, weight decay
     #r.config.weight_decay and gradient-norm clipping at one, while recurrent
     weights remained fixed. Selection minimised cross-entropy averaged over
     #r.config.validation_encoder_draws.count validation encodings, with accuracy
     and earliest epoch as tie-breakers.
-  + *Reload and evaluate.* I evaluated selected and final states on
+  + *Reload and evaluate.* We evaluated selected and final states on
     #r.replay.evaluation_samples sampled official-test images using one fixed
-    spike encoding. I also loaded the selected compiled-network state through
+    spike encoding. We also loaded the selected compiled-network state through
     the explicit network route, then trained an explicit network for one epoch
     with a separate seed and loaded that state through the compiled route.
     Checkpoint inspection compared parameter names and shapes; accuracy
     comparisons retained their dataset and encoding context.
-  + *Test one-step equality.* In a separate deterministic fixture I seeded
+  + *Test one-step equality.* In a separate deterministic fixture we seeded
     both descriptions identically and supplied the same encoded spikes and
-    labels. I compared initial parameters, forward outputs, cross-entropy,
+    labels. We compared initial parameters, forward outputs, cross-entropy,
     gradients and one AdamW update with zero numerical tolerance. This bounded
     test isolates implementation equivalence from stochastic evaluation.
 

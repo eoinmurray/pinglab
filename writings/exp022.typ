@@ -225,7 +225,7 @@
 
   == Methods
 
-  I trained spiking classifiers under controlled conditions, then analysed recorded learning histories and reused diagnostic simulations.
+  We trained spiking classifiers under controlled conditions, then analysed recorded learning histories and reused diagnostic simulations.
 
   + *Prepare the data.* Stratified MNIST splits provided 54,000 training and 6,000 validation images for the baseline, and 6,300 and 700 for sweeps. The split seed was 42; the official test set was excluded from training and model selection.
 

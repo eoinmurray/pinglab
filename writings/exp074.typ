@@ -64,23 +64,23 @@
 
   == Methods
 
-  I tested whether a compiled network description reproduced the requested
+  We tested whether a compiled network description reproduced the requested
   spiking computation in a PyTorch-based simulator#cite(1).
 
-  + *Define the network.* I authored a pyramidal–interneuron gamma circuit with
+  + *Define the network.* We authored a pyramidal–interneuron gamma circuit with
     #r.config.n_e excitatory and #r.config.n_i inhibitory neurons, driven by
     #r.config.n_input input channels. A ten-class mean-voltage readout received
     excitatory spikes; no weights were trained in this experiment.
-  + *Generate and simulate input.* I generated independent Bernoulli spike
+  + *Generate and simulate input.* We generated independent Bernoulli spike
     events with probability equal to input rate times timestep in seconds,
-    approximating a #r.config.input_rate_hz Hz Poisson drive. I used seed
+    approximating a #r.config.input_rate_hz Hz Poisson drive. We used seed
     #r.config.seed, #r.config.n_batch trials, a #r.config.dt_ms ms integration
     step and a #r.config.t_ms ms duration, and supplied the exact generated
     tensor to the simulator.
-  + *Measure the response.* I counted input events and divided by channel
+  + *Measure the response.* We counted input events and divided by channel
     count, trial count and duration to obtain the realised input rate.
     Excitatory and inhibitory rates used their respective population sizes;
-    I recorded aligned event times and cell indices for the specified
+    we recorded aligned event times and cell indices for the specified
     illustrative trial. These measurements establish execution and activity,
     not oscillatory synchronisation or classification performance.
 

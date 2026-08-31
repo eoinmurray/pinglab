@@ -162,7 +162,7 @@
 
   == Methods
 
-  I reused networks from the #link("/exp022/")[shared training study] and
+  We reused networks from the #link("/exp022/")[shared training study] and
   reanalysed recorded observations. No new training or simulation was performed.
 
   + *Compare recurrent trainability.* Twelve conductance-based leaky-integrate-and-fire
@@ -204,7 +204,7 @@
     #math.equation(block: true, numbering: "(1)", $R_"contrast" = (A_"lobe" - A_"trough") / (A_"lobe" + A_"trough")$)
     Here $R_"contrast"$ is dimensionless contrast, $A_"trough"$ the first local trough from lag
     2 ms onward, and $A_"lobe"$ the preceding positive-lag maximum of the smoothed
-    autocorrelogram. I reused the recorded scalar; it is neither a
+    autocorrelogram. We reused the recorded scalar; it is neither a
     test-population rhythm estimate nor a calibrated probability of PING.
 
   #run-view("exp049", inputs)

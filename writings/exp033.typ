@@ -81,7 +81,7 @@
   At the reference noise scale of 4 mV, one conjugate pair crossed at #istar nA
   with onset frequency #fstar Hz. Up/down amplitudes nearly coincided, and the
   inhibitory-decay trend agreed qualitatively with separately measured spiking
-  rhythms. I treat this as a candidate explanation of the
+  rhythms. We treat this as a candidate explanation of the
   #link("/exp025/")[input-coupling recruitment transition], whose empirical
   marker is an inhibitory-rate crossing under input-weight scaling, not a fitted
   Hopf current. The model alone identifies neither that transition nor a minimum
@@ -245,7 +245,7 @@
 
   == Methods
 
-  I reused a deterministic population-rate analysis and compared its onset
+  We reused a deterministic population-rate analysis and compared its onset
   frequencies with independent measurements from trained spiking networks.
 
   + *Define the population model.* E/I rates relaxed toward noisy LIF gains
@@ -285,7 +285,7 @@
     demeaned I–E cross-correlation lag, and 2,000 over four periods for projections.
     A separate 300 ms comparison measured amplitudes after 150 ms at onset plus
     1 nA; the illustrated reduction ladder used 400 ms at a common 1 nA.
-    I tested AMPA elimination and all six two-variable QSS reductions.
+    We tested AMPA elimination and all six two-variable QSS reductions.
 
   + *Vary noise and inhibitory decay.* Noise scales 3–6 mV used 121- and
     241-point drive grids over 0–1.2 nA, with refined crossings and repeated

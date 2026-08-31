@@ -142,7 +142,7 @@
 
   == Methods
 
-  I compared final-epoch dynamics across matched networks trained at different
+  We compared final-epoch dynamics across matched networks trained at different
   inhibitory decay times, keeping the evaluation data fixed.
 
   + *Reuse matched trained networks.* Six inhibitory GABA decay constants,
@@ -151,18 +151,18 @@
     validation images, 50 epochs of AdamW with zero weight decay, learning rate
     $4 times 10^(-4)$, batches of 256, a time-averaged membrane-potential readout
     and no spike budget. Only inhibitory decay varied between conditions;
-    simulation used 0.1 ms timesteps and 200 ms trials. I reused final-epoch
+    simulation used 0.1 ms timesteps and 200 ms trials. We reused final-epoch
     weights to measure endpoint dynamics, without retraining or selecting
     weights by test performance.
 
   + *Measure fixed-trial responses.* Each network received the same fixed
     subset of #cfg.evaluation_samples images from the official MNIST test partition.
-    I measured classification accuracy, mean excitatory spikes per neuron per
+    We measured classification accuracy, mean excitatory spikes per neuron per
     second, and each trial's population-E trace over the full 200 ms. The
     illustrative raster used image index 0 and seed 42; a fixed random seed of
     0 selected displayed neurons without replacement.
 
-  + *Estimate rhythm frequency.* I demeaned each trial's trace and used a
+  + *Estimate rhythm frequency.* We demeaned each trial's trace and used a
     Welch density estimate with one full-trial Hann window #cite(1), then
     averaged PSDs across trials. The largest peak between 5 and 150 Hz defined
     the candidate gamma frequency; its neighbouring linear-power values gave
@@ -171,13 +171,13 @@
 
     Here $f_"peak"$ is the interpolated spectral-peak frequency, $f_"peak,bin"$ the peak-bin frequency,
     and $Delta f_"bin" = 5$ Hz the bin spacing; $y_0$, $y_1$ and $y_2$ are PSD values
-    immediately below, at and above that bin. Because the peak search is restricted to the defined gamma band, the reported estimator is $f_gamma eq.triple f_"peak"$. I clamped the correction to
+    immediately below, at and above that bin. Because the peak search is restricted to the defined gamma band, the reported estimator is $f_gamma eq.triple f_"peak"$. We clamped the correction to
     half a bin, using zero offset for zero curvature or a spectrum endpoint.
     Interpolation reduces bin quantisation but can remain biased #cite(2).
     Per-trial peak distributions were diagnostics; their medians did not enter
     the fit.
 
-  + *Fit the rate–frequency relation.* I averaged each network's frequency
+  + *Fit the rate–frequency relation.* We averaged each network's frequency
     and excitatory rate over the three seeds, then fitted the six condition
     points with equal weight by least squares:
 

@@ -151,20 +151,20 @@
     } else { equation }
   }
 
-  + *Sweep coupling.* I simulated 256 E and 256 I neurons at all 11×11 combinations of $W_(E I) = 0$–3 µS and $W_(I E) = 0$–6 µS. Each E neuron received a private 100 Hz Poisson channel with identity weight 0.5. I used seed 42, one trial, 0.25 ms steps and 1,000 ms recordings; I discarded the first 100 ms.
-  + *Construct uncoupled controls.* I set both coupling strengths to zero. I scanned private input at 1/2/5/10/20/40/70/100 Hz and shared input at 8/12/16/20/28/40/60/100 Hz. Shared input used 200 channels, weight 0.2 and 95% initial zero connections. The 100 Hz private origin was shared with the coupling grid, giving 136 unique probes.
-  + *Measure rates and autocorrelation.* I divided each population's post-burn spike count by neuron count and 0.9 s. I binned E spikes at $Delta t_"bin" = 1$ ms, obtaining counts $n_E[k]$ in $N_"bin" = 900$ bins. For integer lag $ell = 1, dots, 100$, I calculated
+  + *Sweep coupling.* We simulated 256 E and 256 I neurons at all 11×11 combinations of $W_(E I) = 0$–3 µS and $W_(I E) = 0$–6 µS. Each E neuron received a private 100 Hz Poisson channel with identity weight 0.5. We used seed 42, one trial, 0.25 ms steps and 1,000 ms recordings; we discarded the first 100 ms.
+  + *Construct uncoupled controls.* We set both coupling strengths to zero. We scanned private input at 1/2/5/10/20/40/70/100 Hz and shared input at 8/12/16/20/28/40/60/100 Hz. Shared input used 200 channels, weight 0.2 and 95% initial zero connections. The 100 Hz private origin was shared with the coupling grid, giving 136 unique probes.
+  + *Measure rates and autocorrelation.* We divided each population's post-burn spike count by neuron count and 0.9 s. We binned E spikes at $Delta t_"bin" = 1$ ms, obtaining counts $n_E[k]$ in $N_"bin" = 900$ bins. For integer lag $ell = 1, dots, 100$, we calculated
 
     $ A_"corr"(ell) = 1 / (⟨ n_E ⟩^2 (N_"bin" - ell)) sum_(k=0)^(N_"bin"-ell-1) n_E[k] n_E[k+ell]. $ <exp054-autocorrelation>
 
-    Here $k$ indexes bins and $⟨ n_E ⟩$ is their mean count; physical lag is $ell Delta t_"bin"$. Zero-padded FFT correlation, divided by available overlap and mean count squared, gives chance reference 1. I excluded zero lag.
-  + *Locate the lobe and trough.* I smoothed with weights $(0.25, 0.5, 0.25)$, filling the excluded zero-lag entry from the first lag. I found the first local minimum from lag 2, and the preceding maximum from lag 1. Their smoothed heights define
+    Here $k$ indexes bins and $⟨ n_E ⟩$ is their mean count; physical lag is $ell Delta t_"bin"$. Zero-padded FFT correlation, divided by available overlap and mean count squared, gives chance reference 1. We excluded zero lag.
+  + *Locate the lobe and trough.* We smoothed with weights $(0.25, 0.5, 0.25)$, filling the excluded zero-lag entry from the first lag. We found the first local minimum from lag 2, and the preceding maximum from lag 1. Their smoothed heights define
 
     $ R_"contrast" = (A_"lobe" - A_"trough") / (A_"lobe" + A_"trough"). $ <exp054-contrast>
 
     For $0 <= "trough" <= "lobe"$ and a positive denominator, this lies in $[0,1]$. A missing trough or invalid denominator leaves the score undefined; no trough floor is imposed on contrast.
-  + *Compare mean-field onset.* I used the #link("/exp033/")[four-variable conductance model] at 4 mV effective noise. I continued fixed points over 401 drives from 0–4 nA and refined the leading-eigenvalue crossing with Brent's method. I swept 25 drives from 0.1 nA below to 0.55 nA above the crossing in both directions, carrying endpoint states. I integrated 2 s per drive with LSODA and measured peak-to-peak E-rate amplitude ($"ms"^(-1)$) over the final 500 ms. Recorded amplitudes were reused; missing trajectories were not reconstructed.
-  + *Compare frequencies.* I repeated the theoretical crossing search at inhibitory decays 4.5/6/9/12/18/27 ms. I overlaid the median frequency across three seeded #link("/exp041/")[spiking-network measurements] at each decay; I did not refit the mean-field noise scale.
+  + *Compare mean-field onset.* We used the #link("/exp033/")[four-variable conductance model] at 4 mV effective noise. We continued fixed points over 401 drives from 0–4 nA and refined the leading-eigenvalue crossing with Brent's method. We swept 25 drives from 0.1 nA below to 0.55 nA above the crossing in both directions, carrying endpoint states. We integrated 2 s per drive with LSODA and measured peak-to-peak E-rate amplitude ($"ms"^(-1)$) over the final 500 ms. Recorded amplitudes were reused; missing trajectories were not reconstructed.
+  + *Compare frequencies.* We repeated the theoretical crossing search at inhibitory decays 4.5/6/9/12/18/27 ms. We overlaid the median frequency across three seeded #link("/exp041/")[spiking-network measurements] at each decay; we did not refit the mean-field noise scale.
 
   #run-view("exp054", inputs)
 
