@@ -1,6 +1,6 @@
 # Writing Guide
 
-Version: **24.0.0**
+Version: **25.0.0**
 
 The Writing Guide defines the conventions for Pinglab's published experiment
 entries in `writings/expXXX.typ`. This file is the canonical guide.
@@ -14,6 +14,9 @@ corrections or clarifications that do not change requirements. Update the versio
 above and add a short entry to the version history when changing the guide.
 
 ### 1.1. Version history
+
+- **25.0.0** — Replace bullet-point abstracts with paragraph-form abstracts of
+  around 65 words.
 
 - **24.0.0** — Replace prose abstracts with three- or four-bullet experiment
   stories and move numerical results, scales and parameter values to Results.
@@ -672,8 +675,9 @@ the title/metadata and before `Abstract`. Use the shared `contents.typ` helper:
 
 ## 5. Abstracts
 
-Write a standalone list of three or four bullet points that quickly restores
-the story of the experiment for a reader already familiar with the project.
+Write a standalone prose abstract, split across paragraphs, that quickly restores
+the story of the experiment for a reader already familiar with the project. Aim
+for around 65 words and do not use bullet points.
 
 ### Ground the abstract before writing
 
@@ -697,8 +701,8 @@ the story of the experiment for a reader already familiar with the project.
 - State what the finding establishes, its reuse value, or the limitation that
   most constrains its interpretation.
 
-Use three bullets when two adjacent roles can be combined clearly; otherwise use
-four. Each bullet must express one distinct part of the story.
+Distribute these roles clearly across the paragraphs, combining adjacent roles
+where that improves the flow.
 
 Omit numerical results, sample sizes, parameter grids and units. Those belong in
 Results. Use qualitative comparisons sufficient to distinguish the outcome.
@@ -713,14 +717,14 @@ for an observation.
 
 ### Example: exp082
 
-> - Asked whether networks trained on separate MNIST digits could classify digits
->   presented continuously.
-> - Preserved recurrent state between digits while resetting the output decision
->   at each boundary.
-> - Classification improved with longer, stronger inputs; weak inputs often
->   produced no output spikes.
-> - Demonstrates continuous-stream classification, but does not separate viewing
->   time from decision time or establish a causal role for gamma.
+> This experiment asked whether networks trained on separate MNIST digits could
+> classify digits presented continuously. Recurrent state was preserved between
+> digits, while the output decision was reset at each boundary.
+>
+> Classification improved with longer, stronger inputs, whereas weak inputs often
+> produced no output spikes. The results demonstrate continuous-stream
+> classification, but do not separate viewing time from decision time or establish
+> a causal role for gamma.
 
 ## 6. Data access in Typst source
 

@@ -55,14 +55,14 @@
 
   == Abstract
 
-  - Asked whether networks trained on separate MNIST digits could classify digits
-    presented continuously.
-  - Preserved recurrent state between digits while resetting the output decision
-    at each boundary.
-  - Classification improved with longer, stronger inputs; weak inputs often
-    produced no output spikes.
-  - Demonstrates continuous-stream classification, but does not separate viewing
-    time from decision time or establish a causal role for gamma.
+  This experiment asked whether networks trained on separate MNIST digits could
+  classify digits presented continuously. Recurrent state was preserved between
+  digits, while the output decision was reset at each boundary.
+
+  Classification improved with longer, stronger inputs, whereas weak inputs
+  often produced no output spikes. The results demonstrate continuous-stream
+  classification, but do not separate viewing time from decision time or
+  establish a causal role for gamma.
 
   == Results
 

@@ -42,14 +42,16 @@
 #let body = [
   == Abstract
 
-  - Asked which input-rate regime makes filtered pixel features sufficiently
-    informative for a downstream MNIST decoder.
-  - Simulated the synaptic and membrane feature pipeline, trained nonlinear
-    decoders across input rates and evaluated frozen checkpoints on held-out digits.
-  - The decoders established a tested interval where the feature representation
-    supported useful classification, with weak-drive conditions remaining inadequate.
-  - Calibrates the feature and decoder pipeline, not PING-network accuracy or
-    performance between the explicitly tested rates.
+
+  Asked which input-rate regime makes filtered pixel features sufficiently
+  informative for a downstream MNIST decoder. Simulated the synaptic and
+  membrane feature pipeline, trained nonlinear decoders across input rates and
+  evaluated frozen checkpoints on held-out digits.
+
+  The decoders established a tested interval where the feature representation
+  supported useful classification, with weak-drive conditions remaining
+  inadequate. Calibrates the feature and decoder pipeline, not PING-network
+  accuracy or performance between the explicitly tested rates.
 
   == Results
 

@@ -71,16 +71,15 @@
 #let body = [
   == Abstract
 
-  - Built the reusable MNIST model bank that supplies trained networks and
-    learning histories to the downstream gamma-gated-sparsity experiments.
-  - Compared feedforward COBA controls with recurrent PING networks while varying
-    activity penalties, inhibitory timescale, integration, recurrent weights and
-    input drive.
-  - PING combined lower excitatory activity with somewhat lower validation
-    performance than the feedforward baseline, while the wider sweeps exposed
-    distinct accuracy–activity trade-offs.
-  - Provides controlled training families for reuse; the bank itself does not
-    establish that gamma timing causes any downstream benefit.
+  Built the MNIST model bank supplying trained networks and histories to
+  downstream gamma-gated-sparsity experiments. Compared feedforward COBA
+  controls with recurrent PING networks across activity penalties, inhibitory
+  timescale, integration, recurrent weights and input drive.
+
+  PING combined lower excitatory activity with lower validation performance than
+  the feedforward baseline, while wider sweeps exposed distinct
+  accuracy–activity trade-offs. Provides training families; the bank itself does
+  not establish that gamma timing causes any downstream benefit.
 
   == Results
 

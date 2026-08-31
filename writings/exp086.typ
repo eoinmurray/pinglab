@@ -68,15 +68,15 @@
 #let body = [
   == Abstract
 
-  - Asked whether coupled PING circuits can prefer a relative phase without
-    becoming permanently synchronized, as reported for nearby cortical gamma rhythms.
-  - Swept reciprocal coupling between detuned circuits and tracked relative phase,
-    phase slips and phase-conditioned velocity under fixed input.
-  - Intermediate coupling concentrated relative phase by slowing its motion near
-    a preferred position while still allowing repeated slips; removing coupling
-    made the phase distribution nearly uniform.
-  - Reproduces the qualitative intermittent-attraction regime in a controlled
-    trajectory, not its reliability across inputs or network realizations.
+  Asked whether PING circuits can prefer a relative phase without permanent
+  synchronization, as reported for cortical gamma rhythms. Coupled detuned
+  circuits and tracked phase, phase slips and phase-conditioned velocity.
+
+  Intermediate coupling concentrated relative phase by slowing its motion near a
+  preferred position while allowing repeated slips; removing coupling made the
+  phase distribution uniform. Reproduces the qualitative intermittent-attraction
+  regime in a controlled trajectory, not its reliability across inputs or
+  network realizations.
 
   == Prior work
 

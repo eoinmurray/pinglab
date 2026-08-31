@@ -43,14 +43,16 @@
 #let body = [
   == Abstract
 
-  - Asked which inter-network pathway can lock detuned PING circuits whose gamma
-    rhythms naturally drift apart.
-  - Compared excitation targeting the other circuit's excitatory population,
-    inhibitory population, both populations or neither, and probed each phase response.
-  - Excitatory-to-excitatory coupling corrected phase drift and produced locking;
-    inhibitory-targeted coupling alone did not in the selected regime.
-  - Distinguishes candidate pathways in the selected regime, not their dominance
-    across delays, detuning, noise or network realizations.
+
+  Asked which inter-network pathway can lock detuned PING circuits whose gamma
+  rhythms naturally drift apart. Compared excitation targeting the other
+  circuit's excitatory population, inhibitory population, both populations or
+  neither, and probed each phase response.
+
+  Excitatory-to-excitatory coupling corrected phase drift and produced locking;
+  inhibitory-targeted coupling alone did not in the selected regime.
+  Distinguishes candidate pathways in the selected regime, not their dominance
+  across delays, detuning, noise or network realizations.
 
   == Results
 

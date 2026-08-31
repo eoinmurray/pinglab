@@ -33,14 +33,14 @@
 #let body = [
   == Abstract
 
-  - Asked how numerical integration timestep affects the activity and accuracy
-    of trained PING classifiers.
-  - Compared separately trained network families whose training and inference
-    used the same timestep, then evaluated their held-out MNIST performance.
-  - Excitatory firing and accuracy both varied across the sweep, showing that the
-    timestep is part of the learned operating regime rather than a neutral solver setting.
-  - Tests complete matched pipelines rather than holding network weights fixed;
-    the rasters do not establish invariance relative to the gamma period.
+  Asked how integration timestep affects the activity and accuracy of PING
+  classifiers. Compared trained network families using the same timestep,
+  evaluated their MNIST performance.
+
+  Excitatory firing and accuracy varied across the sweep, showing that the
+  timestep is part of the learned operating regime rather than a neutral solver
+  setting. Tests pipelines rather than holding weights fixed; the rasters do not
+  establish invariance relative to the gamma period.
 
   == Results
 

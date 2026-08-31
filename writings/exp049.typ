@@ -49,14 +49,15 @@
 
   == Abstract
 
-  - Asked whether surrogate-gradient training preserves PING rhythmicity when
-    the recurrent excitatory–inhibitory conductances are allowed to change.
-  - Compared trainable recurrent loops from different initializations with a
-    control whose recurrent PING weights remained frozen.
-  - Recurrent training weakened rhythmicity early and did not recover the
-    strongly rhythmic control regime, while activity and accuracy changed by condition.
-  - Constrains these learning recipes, but does not show that recurrent learning
-    must always destroy gamma or that the compared conditions are accuracy-equivalent.
+  Asked whether surrogate-gradient training preserves PING rhythmicity when
+  recurrent excitatory–inhibitory conductances can change. Compared trainable
+  recurrent loops across initializations with a control whose recurrent PING
+  weights remained frozen.
+
+  Recurrent training weakened rhythmicity early and did not recover the rhythmic
+  control, while activity and accuracy changed by condition. Constrains these
+  learning recipes, but does not show that recurrent learning must always
+  destroy gamma or that the compared conditions are accuracy-equivalent.
 
   == Results
 

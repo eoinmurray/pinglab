@@ -21,14 +21,15 @@
 #let render-report(data-file) = [
   == Abstract
 
-  - Plans to test whether PING survives when simplified stationary drive is
-    replaced by more brainlike, heterogeneous and correlated input.
-  - The intended comparison will add input complexity in stages while keeping the
-    same sparse excitatory–inhibitory network.
-  - The current implementation contains only a richer-input activity probe and
-    therefore cannot yet show how the rhythm changes relative to a simple baseline.
-  - Its working media demonstrate the probe, not the planned controlled comparison
-    or the input features responsible for preserving PING.
+  Will test whether PING survives when stationary drive is replaced by more
+  brainlike, heterogeneous and correlated input. The comparison will add input
+  complexity in stages while keeping the same sparse excitatory–inhibitory
+  network.
+
+  Current implementation has only a richer-input activity probe and cannot show
+  how the rhythm changes relative to a simple baseline. Its media demonstrate
+  the probe, not the planned controlled comparison or the input features
+  responsible for preserving PING.
 
   == Results
 

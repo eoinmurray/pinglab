@@ -25,14 +25,15 @@
 #let body = [
   == Abstract
 
-  - Asked whether exp041's rate–frequency relationship can be interpreted as
-    excitatory neurons participating in gamma cycles without repeatedly firing.
-  - Reused the inhibitory-timescale sweep and counted each excitatory neuron's
-    spikes between successive inhibitory population bursts.
-  - Excitatory neurons were usually silent within a cycle and, when active,
-    overwhelmingly emitted a single spike; the busiest cells tracked that ceiling.
-  - Supports the one-spike-per-cycle approximation for this sweep, but does not
-    turn the population relationship into a universal participation law.
+  Asked whether exp041's rate–frequency relationship reflects excitatory neurons
+  participating in gamma cycles without repeatedly firing. Reused the
+  inhibitory-timescale sweep and counted each excitatory neuron's spikes between
+  inhibitory population bursts.
+
+  Excitatory neurons were usually silent within a cycle and, when active,
+  overwhelmingly emitted a single spike; the busiest cells tracked that ceiling.
+  Supports the one-spike-per-cycle approximation for this sweep, but does not
+  turn the population relationship into a universal participation law.
 
   == Results
 

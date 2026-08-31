@@ -32,14 +32,16 @@
 #let body = [
   == Abstract
 
-  - Asked whether a trained graph bundle can be checkpointed and replayed through
-    compiled and explicit descriptions of the same network.
-  - Compared loaded parameters, forward outputs, loss, gradients and an optimizer
-    update under a deterministic equivalence gate.
-  - The replay routes agreed exactly; differing classification scores came from
-    different datasets and encoding aggregation rather than checkpoint corruption.
-  - Supports checkpoint compatibility for this network family, not equivalence
-    between arbitrary graph implementations.
+
+  Asked whether a trained graph bundle can be checkpointed and replayed through
+  compiled and explicit descriptions of the same network. Compared loaded
+  parameters, forward outputs, loss, gradients and an optimizer update under a
+  deterministic equivalence gate.
+
+  The replay routes agreed exactly; differing classification scores came from
+  different datasets and encoding aggregation rather than checkpoint corruption.
+  Supports checkpoint compatibility for this network family, not equivalence
+  between arbitrary graph implementations.
 
   == Results
 

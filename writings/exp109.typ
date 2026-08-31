@@ -200,15 +200,16 @@
   #let body = [
     == Abstract
 
-    - Asked whether a fixed biophysical PING loop can constrain activity while a
-      spiking network learns MNIST and later processes continuous digit streams.
-    - Synthesized the training bank with coupling, timescale, robustness,
-      recurrent-learning and streaming experiments.
-    - Fixed recurrent loops preserved rhythmic low-activity operation, whereas
-      training those recurrent weights weakened rhythmicity; the frozen networks
-      could still classify a segmented continuous stream.
-    - This deprecated manuscript supports gamma as a structural activity constraint,
-      but the constituent experiment writings now define the evidence and limitations.
+    Asked whether a biophysical PING loop can constrain activity while a network
+    learns MNIST and processes continuous digit streams. Synthesized
+    training-bank, coupling, timescale, robustness, recurrent-learning and
+    streaming experiments.
+
+    Fixed recurrent loops preserved rhythmic low-activity operation, whereas
+    training those recurrent weights weakened rhythmicity; frozen networks could
+    still classify a segmented continuous stream. This deprecated manuscript
+    supports gamma as a structural activity constraint, but the experiment
+    writings define the evidence and limitations.
 
     == Introduction
 

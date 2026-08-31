@@ -57,14 +57,15 @@
 
   == Abstract
 
-  - Asked whether trained COBA and PING classifiers fail differently when hidden
-    spikes are removed or spurious spikes are inserted during inference.
-  - Replayed validation-selected networks under matched deletion and insertion
-    perturbations without retraining them.
-  - Both architectures tolerated substantial deletion, while added spikes
-    damaged PING accuracy much more sharply than COBA accuracy.
-  - Reveals an asymmetric robustness profile, but does not separate recurrent
-    timing from firing-rate and readout effects.
+  Asked whether trained COBA and PING classifiers fail differently when hidden
+  spikes are removed or spurious spikes are inserted during inference. Replayed
+  validation-selected networks under matched deletion and insertion
+  perturbations without retraining them.
+
+  Both architectures tolerated substantial deletion, while added spikes damaged
+  PING accuracy much more sharply than COBA accuracy. Reveals an asymmetric
+  robustness profile, but does not separate recurrent timing from firing-rate
+  and readout effects.
 
   == Results
 

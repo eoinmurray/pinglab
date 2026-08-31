@@ -29,14 +29,16 @@
 #let body = [
   == Abstract
 
-  - Asked whether the graph runtime can execute arbitrary coupling between
-    independently driven excitatory–inhibitory circuits.
-  - Compared uncoupled, directional, reciprocal and delayed-reciprocal graphs,
-    alongside a separate circuit-parity and runtime check.
-  - Graph execution matched the explicit circuit and reproduced the expected
-    causal effects of coupling direction and delay within the tested workload.
-  - These are bounded architecture and timing checks, not evidence for a
-    biological coupling mechanism or performance on unrelated workloads.
+
+  Asked whether the graph runtime can execute arbitrary coupling between
+  independently driven excitatory–inhibitory circuits. Compared uncoupled,
+  directional, reciprocal and delayed-reciprocal graphs, alongside a separate
+  circuit-parity and runtime check.
+
+  Graph execution matched the explicit circuit and reproduced the expected
+  causal effects of coupling direction and delay within the tested workload.
+  These are bounded architecture and timing checks, not evidence for a
+  biological coupling mechanism or performance on unrelated workloads.
 
   == Results
 

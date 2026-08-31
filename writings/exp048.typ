@@ -74,14 +74,15 @@
   #let body = [
     == Abstract
 
-    - Asked whether a frozen PING classifier trained on separate digits could
-      operate on a continuous MNIST stream without retraining.
-    - Preserved hidden state across digit boundaries while varying presentation
-      duration and input rate, using a decoder matched to each known segment.
-    - Classification became informative only when the stream supplied sufficient
-      input over time, with the largest losses under brief or weak presentations.
-    - This deprecated study motivated exp082's variable-rate training and
-      spike-count readout; it did not test blind boundary detection.
+    Asked whether a PING classifier trained on separate digits could operate on
+    a continuous MNIST stream without retraining. Preserved hidden state across
+    digit boundaries while varying duration and input rate, with a
+    segment-matched decoder.
+
+    Classification became informative when the stream supplied sufficient input
+    over time, with losses under brief or weak presentations. This deprecated
+    study motivated exp082's variable-rate training and spike-count readout; it
+    did not test blind boundary detection.
 
     == Results
 

@@ -63,14 +63,14 @@
   #set math.equation(numbering: "(1)")
   == Abstract
 
-  - Asked how gamma oscillations begin in a reduced population description of
-    the PING circuit and which dynamical variables are essential.
-  - Swept external drive, inhibitory timescale and effective noise, then compared
-    the full rate model with progressively simpler quasi-steady reductions.
-  - Gamma emerged through an oscillatory loss of stability; a reduced feedback
-    system retained the oscillation, whereas the simplest reductions lost it.
-  - Supplies a candidate mechanism for rhythmic recruitment, not proof that the
-    trained spiking networks undergo the same bifurcation.
+  Asked how gamma oscillations begin in a population description of the PING
+  circuit and which variables are essential. Swept drive, inhibitory timescale
+  and noise, compared the full rate model with simpler quasi-steady reductions.
+
+  Gamma emerged through oscillatory loss of stability; a reduced feedback system
+  retained the oscillation, whereas the simplest reductions lost it. Supplies a
+  mechanism for rhythmic recruitment, not proof that the trained spiking
+  networks undergo the same bifurcation.
 
   == Results
 

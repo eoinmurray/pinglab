@@ -72,14 +72,16 @@
 #let body = [
   == Abstract
 
-  - Asked whether excitatory-rate suppression depends on the timing structure of
-    inhibition rather than only its average amount.
-  - Replayed frozen PING classifiers while either jittering inhibitory spikes
-    independently or shifting intact inhibitory bursts.
-  - Smearing individual spikes collapsed excitatory activity, whereas moving
-    coherent bursts preserved synchrony and released excitatory firing.
-  - Shows that inhibitory temporal structure gates excitatory rate within the
-    tested intervention regime.
+
+  Asked whether excitatory-rate suppression depends on the timing structure of
+  inhibition rather than only its average amount. Replayed frozen PING
+  classifiers while either jittering inhibitory spikes independently or shifting
+  intact inhibitory bursts.
+
+  Smearing individual spikes collapsed excitatory activity, whereas moving
+  coherent bursts preserved synchrony and released excitatory firing. Shows that
+  inhibitory temporal structure gates excitatory rate within the tested
+  intervention regime.
 
   == Results
 

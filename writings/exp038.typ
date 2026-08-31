@@ -43,14 +43,16 @@
 #let body = [
   == Abstract
 
-  - Asked what happens when reciprocal inhibition is added after a feedforward
-    classifier has already been trained.
-  - Kept the learned input and readout weights fixed while progressively enabling
-    bidirectional excitatory–inhibitory coupling during inference.
-  - Stronger coupling grouped activity into bursts and sharply suppressed
-    excitatory firing, but also reduced classification accuracy.
-  - Demonstrates post-training rate suppression, not a benefit of gamma timing
-    or evidence that retraining would recover the lost accuracy.
+
+  Asked what happens when reciprocal inhibition is added after a feedforward
+  classifier has already been trained. Kept the learned input and readout
+  weights fixed while progressively enabling bidirectional excitatory–inhibitory
+  coupling during inference.
+
+  Stronger coupling grouped activity into bursts and sharply suppressed
+  excitatory firing, but also reduced classification accuracy. Demonstrates
+  post-training rate suppression, not a benefit of gamma timing or evidence that
+  retraining would recover the lost accuracy.
 
   == Results
 

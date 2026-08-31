@@ -29,14 +29,14 @@
 #let body = [
   == Abstract
 
-  - Asked where rhythmic population activity appears as reciprocal PING coupling
-    is turned on across the excitatory–inhibitory coupling map.
-  - Swept both coupling directions in an untrained network and compared the
-    resulting autocorrelation structure with private- and shared-input controls.
-  - Rhythmic contrast was weak on uncoupled edges and generally stronger inside
-    the coupled map; shared input could imitate contrast without a recurrent loop.
-  - Supports the selected private-input control and a possible onset mechanism,
-    but does not establish rate invariance or the spiking transition's bifurcation type.
+  Asked where rhythmic activity appears as reciprocal PING coupling activates
+  across the coupling map. Swept coupling directions in a network and compared
+  autocorrelation structure with private- and shared-input controls.
+
+  Rhythmic contrast was weak on uncoupled edges and stronger inside the coupled
+  map; shared input imitated contrast without a recurrent loop. Supports the
+  private-input control and an onset mechanism, but does not establish rate
+  invariance or the spiking transition's bifurcation type.
 
   == Results
 

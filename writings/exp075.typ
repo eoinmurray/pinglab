@@ -28,14 +28,16 @@
 #let body = [
   == Abstract
 
-  - Asked whether a compiled graph can participate in gradient-based classifier
-    training rather than only forward simulation.
-  - Trained an excitatory–inhibitory MNIST classifier through the compiled graph
-    interface and selected a checkpoint using held-out validation loss.
-  - Training produced coherent loss and validation trajectories, showing that
-    optimization traversed the compiled representation.
-  - Demonstrates the learning interface on a bounded example, not competitive
-    classification performance or broad generalization.
+
+  Asked whether a compiled graph can participate in gradient-based classifier
+  training rather than only forward simulation. Trained an excitatory–inhibitory
+  MNIST classifier through the compiled graph interface and selected a
+  checkpoint using held-out validation loss.
+
+  Training produced coherent loss and validation trajectories, showing that
+  optimization traversed the compiled representation. Demonstrates the learning
+  interface on a bounded example, not competitive classification performance or
+  broad generalization.
 
   == Results
 

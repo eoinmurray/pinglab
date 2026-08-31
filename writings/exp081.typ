@@ -31,14 +31,15 @@
 #let body = [
   == Abstract
 
-  - Asked how input spike rate becomes the finite-window pixel feature used by
-    downstream classifiers, and whether stationary filter theory predicts it.
-  - Compared direct simulations of synaptic, membrane and temporal filtering
-    with a local stationary linearization of the same conductance-driven feature.
-  - The theory explained the broad filtering structure but misestimated response
-    magnitude and failed to reproduce the observed variability.
-  - Sparse responses remain governed by discrete spike counts and event timing,
-    so direct simulation is still needed for quantitative predictions.
+  Asked how input spike rate becomes a finite-window pixel feature used by
+  classifiers, and whether stationary filter theory predicts it. Compared
+  simulations of synaptic, membrane and temporal filtering with a stationary
+  linearization of the conductance-driven feature.
+
+  The theory explained the filtering structure but misestimated magnitude and
+  failed to reproduce variability. Sparse responses remain governed by discrete
+  spike counts and event timing, so direct simulation is still needed for
+  quantitative predictions.
 
   == Results
 

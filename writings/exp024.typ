@@ -30,14 +30,16 @@
 #let body = [
   == Abstract
 
-  - Asked whether classification accuracy and neuronal firing rate converge
-    together during training.
-  - Audited the retained learning histories of unregularised COBA and PING
-    classifiers, applying separate plateau criteria to performance and activity.
-  - Accuracy could settle while excitatory firing continued to change, and rate
-    stability differed across architectures and training replicates.
-  - Training convergence therefore needs separate accuracy and activity checks;
-    a low firing rate alone does not demonstrate a fixed-rate attractor.
+
+  Asked whether classification accuracy and neuronal firing rate converge
+  together during training. Audited the retained learning histories of
+  unregularised COBA and PING classifiers, applying separate plateau criteria to
+  performance and activity.
+
+  Accuracy could settle while excitatory firing continued to change, and rate
+  stability differed across architectures and training replicates. Training
+  convergence therefore needs separate accuracy and activity checks; a low
+  firing rate alone does not demonstrate a fixed-rate attractor.
 
   == Inputs
 

@@ -52,14 +52,15 @@
 #let body = [
   == Abstract
 
-  - Asked whether changing inhibitory population size alters PING activity by
-    adding inhibition or merely redistributing a fixed inhibitory budget.
-  - Compared pool-size sweeps that held either expected summed inhibition or
-    expected individual synaptic strength fixed.
-  - Firing rates stayed broadly stable under fixed total inhibition but fell as
-    the pool grew when individual synaptic strength was preserved.
-  - Supports inverse scaling as a compensation rule for this regime; it does
-    not establish uniqueness or demonstrate gamma rhythmicity.
+  Asked whether inhibitory population size alters PING activity by adding
+  inhibition or merely redistributing a fixed inhibitory budget. Compared
+  pool-size sweeps that held either summed inhibition or individual synaptic
+  strength fixed.
+
+  Firing rates stayed stable under fixed total inhibition but fell as the pool
+  grew when individual synaptic strength was preserved. Supports inverse scaling
+  as a compensation rule for this regime; it does not establish uniqueness or
+  demonstrate gamma rhythmicity.
 
   == Results
 

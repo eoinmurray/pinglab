@@ -28,13 +28,15 @@
 #let body = [
   == Abstract
 
-  - Asked whether a Python-authored graph can be compiled into an executable
-    excitatory–inhibitory spiking network.
-  - Supplied explicit input spikes to the compiled graph and retained aligned
-    topology, input and population-activity evidence.
-  - The compiled description produced the expected excitatory and inhibitory
-    simulation outputs from the supplied input.
-  - Demonstrates the graph-to-simulation integration path, not a neuroscientific mechanism.
+  Asked whether a Python-authored graph can be compiled into an executable
+  excitatory–inhibitory spiking network. Supplied explicit input spikes to the
+  compiled graph and retained aligned topology, input and population-activity
+  evidence.
+
+  The compiled description produced the expected excitatory and inhibitory
+  simulation outputs from the supplied input. Demonstrates the
+  graph-to-simulation integration path on a bounded example, not a
+  neuroscientific mechanism.
 
   == Results
 

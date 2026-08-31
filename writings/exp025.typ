@@ -83,14 +83,15 @@
 #let body = [
   == Abstract
 
-  - Asked how recurrent inhibition and explicit activity constraints shape the
-    trade-off between MNIST accuracy and excitatory firing.
-  - Reused trained COBA and PING families while comparing activity ceilings,
-    cycle participation, oscillation frequency and input coupling.
-  - PING operated at lower excitatory rates and retained more accuracy under the
-    strictest ceilings, but no fixed structural rate floor appeared.
-  - The comparison is confounded by different gradient damping and therefore
-    neither isolates a benefit of gamma timing nor measures energy use.
+  Asked how recurrent inhibition and activity constraints shape the trade-off
+  between MNIST accuracy and excitatory firing. Compared trained COBA and PING
+  families across activity ceilings, cycle participation, oscillation frequency
+  and input coupling.
+
+  PING had lower excitatory rates and retained more accuracy under strict
+  ceilings, but no structural rate floor appeared. The comparison is confounded
+  by gradient damping and therefore neither isolates a benefit of gamma timing
+  nor measures energy use.
 
   == Results
 

@@ -46,14 +46,16 @@
 #let body = [
   == Abstract
 
-  - Asked whether the excitatory firing rate of trained PING classifiers changes
-    systematically with their gamma frequency.
-  - Reused networks trained with different inhibitory decay times and measured
-    their final population rhythms, activity and MNIST performance.
-  - Slower rhythms accompanied lower excitatory firing while useful classification
-    persisted across the sweep.
-  - The association supports a cycle-participation account, but does not prove
-    constant participation or identify a physical non-rhythmic baseline.
+
+  Asked whether the excitatory firing rate of trained PING classifiers changes
+  systematically with their gamma frequency. Reused networks trained with
+  different inhibitory decay times and measured their final population rhythms,
+  activity and MNIST performance.
+
+  Slower rhythms accompanied lower excitatory firing while useful classification
+  persisted across the sweep. The association supports a cycle-participation
+  account, but does not prove constant participation or identify a physical
+  non-rhythmic baseline.
 
   == Results
 

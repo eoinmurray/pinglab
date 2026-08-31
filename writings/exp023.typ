@@ -44,14 +44,15 @@
 
   == Abstract
 
-  - Asked what the recurrent PING loop does before introducing training,
-    classification or a learned readout.
-  - Compared the same Poisson-driven excitatory–inhibitory architecture with
-    reciprocal feedback disabled and enabled.
-  - Enabling the loop produced rhythmic population activity and strongly
-    suppressed excitatory firing across the matched-drive sweep.
-  - Establishes the circuit's basic operating behaviour, but the limited
-    simulations do not show that gamma timing itself caused the suppression.
+  Asked what the recurrent PING loop does before introducing training,
+  classification or a learned readout. Compared the same Poisson-driven
+  excitatory–inhibitory architecture with reciprocal feedback disabled and
+  enabled.
+
+  Enabling the loop produced rhythmic population activity and strongly
+  suppressed excitatory firing across the matched-drive sweep. Establishes the
+  circuit's basic operating behaviour, but the limited simulations do not show
+  that gamma timing itself caused the suppression.
 
   == Results
 
