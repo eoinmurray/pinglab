@@ -61,7 +61,6 @@ def _compound_sweep_panel(
     title: str,
     xlim: tuple[float, float],
     legend_loc: str,
-    e_rate_inset: bool = False,
 ) -> None:
     """One sweep panel — E rate (black) and accuracy (red, twin axis) vs σ."""
     sig = [r["sigma_ms"] for r in rows]
@@ -111,31 +110,6 @@ def _compound_sweep_panel(
         frameon=False,
         fontsize=theme.SIZE_ANNOTATION,
     )
-    if e_rate_inset:
-        zoom_rows = [row for row in rows if 5.0 <= row["sigma_ms"] <= xlim[1]]
-        inset = ax.inset_axes((0.56, 0.72, 0.39, 0.21), zorder=6)
-        inset.plot(
-            [row["sigma_ms"] for row in zoom_rows],
-            [row["e_rate_hz"]["mean"] for row in zoom_rows],
-            marker="D",
-            ms=2.5,
-            lw=1.0,
-            color=theme.INK_BLACK,
-        )
-        inset.set_xlim(5.0, xlim[1])
-        inset.set_ylim(0.0, 0.1)
-        inset.set_xticks((5, 10, 14))
-        inset.set_yticks((0.0, 0.05, 0.1), labels=("0", ".05", ".10"))
-        inset.tick_params(labelsize=theme.SIZE_ANNOTATION, pad=1)
-        inset.set_title(
-            "E-rate detail (Hz)",
-            loc="left",
-            fontsize=theme.SIZE_ANNOTATION,
-            pad=2,
-        )
-        inset.set_facecolor(theme.PAPER)
-
-
 def fig_rhythm_compound(
     cyc_rows: list[dict],
     cell_rows: list[dict],
@@ -174,7 +148,6 @@ def fig_rhythm_compound(
         title="Independent offsets: E rate falls",
         xlim=shared_sweep_xlim,
         legend_loc="center right",
-        e_rate_inset=True,
     )
     _compound_sweep_panel(
         axes[1, 1],

@@ -41,7 +41,7 @@ def present(identity, *, run_id=None):
         "present",
         sources={"analysis": analysis},
         run_id=run_id,
-        configuration={"schema": "exp042.presentation/v4", "paper_mode": True},
+        configuration={"schema": "exp042.presentation/v5", "paper_mode": True},
     ) as run:
         theme.set_paper_mode(True)
         cyc, cell = (
