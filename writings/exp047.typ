@@ -1,4 +1,4 @@
-#import "contents.typ": with-contents, with-result-sections
+#import "contents.typ": with-contents, result-card, with-numbered-equations, with-result-sections
 #import "/.demolab/lib.typ": data-json, data-image, cite, reference-list
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
 #import "run-view.typ": with-datasets, run-view
@@ -6,7 +6,7 @@
 #let data-file = data-file.with(article: "exp047")
 
 #let meta = (
-  status: "[▦ DATA | v28.0.0]",
+  status: "[▦ DATA | v31.1.0]",
   title: "Pool-Size Effects Depend on Synaptic Scaling",
   created_at: "2026-07-14T00:00:00Z",
   updated_at: "2026-08-31T00:00:00Z",
@@ -66,6 +66,7 @@
 
   #with-result-sections[
 
+  #result-card[
   === Pool-size dependence changes with synaptic scaling
 
   At nominal $G_(I arrow E) = #g-mid$ μS, E rates changed from #re-ft-lo-fmt
@@ -88,12 +89,14 @@
   )
 
   ]
+  ]
 
   == Methods
 
   We compared two scaling controls using recorded outputs from simulations of untrained,
   dense recurrent excitatory–inhibitory networks, without additional simulation.
-  #set math.equation(numbering: "(1)")
+
+  === Compute
 
   + *Initialize fan-in-normalized weights.* For an I→E matrix with
     #cfg.n_e excitatory columns and $N_I$ inhibitory rows, each weight was
@@ -124,6 +127,10 @@
     at #cfg.n_i_reference I neurons, with one additional shared condition at
     #n-mid I neurons and nominal 1 μS summed coupling.
 
+  === Analyse
+
+  #set enum(start: 3)
+
   + *Drive and measure the networks.* Nominal E→I summed coupling stayed at
     #cfg.g_ei_total μS; input weights used parent mean #r.recipe.w_in_mean μS,
     #calc.round(r.recipe.w_in_initial_zero_fraction * 100)% initial zeros,
@@ -137,6 +144,14 @@
     #(14 * n-seeds) distinct simulations. The reanalysis used these rates,
     not raw spike trains; population rates alone do not establish gamma
     oscillations #cite(1).
+
+  === Present
+
+  #set enum(start: 4)
+
+  + *Display pool-size comparisons.* We displayed the recorded population-rate
+    responses for fixed total and fixed per-synapse coupling with their shared
+    controls and seed aggregation.
 
   #run-view("exp047", inputs)
 
@@ -162,4 +177,5 @@
 
 #let meta = meta + (assets: input-assets("exp047", inputs))
 #let body = with-datasets("exp047", inputs, report-body, placed: inputs-ready(data-file, inputs))
+#let body = with-numbered-equations(body)
 #let body = with-contents(body)

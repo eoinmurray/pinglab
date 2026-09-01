@@ -1,7 +1,7 @@
-#import "contents.typ": with-contents
+#import "contents.typ": with-contents, with-numbered-equations
 #import "run-view.typ": with-datasets
 #let meta = (
-  status: "[≡ TXT | v28.0.0]",
+  status: "[≡ TXT | v31.1.0]",
   title: "Gradient Stabilisation",
   created_at: "2026-06-12T00:00:00Z",
   updated_at: "2026-08-29T00:00:00Z",
@@ -38,7 +38,7 @@
 
   The helper computes
 
-  $ F_c(x) = c x + (1-c) "detach"(x). quad (1) $
+  $ F_c(x) = c x + (1-c) "detach"(x). $
 
   Here $x$ is the input tensor, $c$ is a dimensionless gradient scale, and `detach` retains the value while removing its autograd dependency. In exact arithmetic $F_c(x)=x$, but autograd returns derivative $c$. Floating-point multiplication and addition can introduce rounding: this expression does not establish bitwise identity of full trajectories. PyTorch documents the dependency boundary in #link("https://docs.pytorch.org/docs/stable/generated/torch.Tensor.detach.html")[Tensor.detach].
 
@@ -48,7 +48,7 @@
 
   The synapse helper decays the previous conductance and then adds the spike kick:
 
-  $ g^(k+1) = beta_"syn" g^k + s[k] W, quad beta_"syn" = e^(-Delta t_"sim" / tau_"syn"). quad (2) $
+  $ g^(k+1) = beta_"syn" g^k + s[k] W, quad beta_"syn" = e^(-Delta t_"sim" / tau_"syn"). $
 
   Here $g^k$ is a row of conductances in μS at step $k$, $s[k]$ the supplied dimensionless presynaptic spike row, $W$ the stored weight matrix in μS, $Delta t_"sim"$ the integration timestep in ms, and $tau_"syn"$ the pathway's synaptic decay time in ms. In particular, the new kick is not multiplied by $beta_"syn"$. Network scheduling determines which spike row reaches each pathway.
 
@@ -56,13 +56,13 @@
 
   $ g_"tot" = g_L + g_e + g_i, quad
     V_oo = (g_L E_L + g_e E_e + g_i E_i) / g_"tot", quad
-    alpha_"mem" = e^(-Delta t_"sim" g_"tot" / C_m). quad (3) $
+    alpha_"mem" = e^(-Delta t_"sim" g_"tot" / C_m). $
 
   Here $g_L$ is leak conductance, $C_m$ capacitance in nF, and $E_L$, $E_e$, $E_i$ the leak, excitatory, and inhibitory reversal potentials in mV. $g_"tot"$ is total conductance, $V_oo$ the frozen-conductance equilibrium voltage, and $alpha_"mem"$ the dimensionless membrane decay.
 
   For current voltage $V_m$, the increment and candidate voltage are
 
-  $ dif V_m = (V_oo - V_m)(1-alpha_"mem"), quad V_"candidate" = V_m + F_(1/d_"grad")(dif V_m). quad (4) $
+  $ dif V_m = (V_oo - V_m)(1-alpha_"mem"), quad V_"candidate" = V_m + F_(1/d_"grad")(dif V_m). $
 
   Here $d_"grad"$ is the dimensionless damping divisor configured by `v_grad_dampen`, and $V_"candidate"$ is the candidate voltage before noise, clamps, thresholding, and reset. The implementation advances the voltage before testing its spike threshold. On a spiking or refractory neuron, `torch.where` replaces the retained voltage with the reset value; the emitted spike remains a separate output with its surrogate derivative.
 
@@ -70,14 +70,14 @@
 
   Holding conductances fixed, the backward derivative of the candidate voltage is
 
-  $ (partial V_"candidate") / (partial V_m) = 1 - (1-alpha_"mem")/d_"grad". quad (5) $
+  $ (partial V_"candidate") / (partial V_m) = 1 - (1-alpha_"mem")/d_"grad". $
 
   Thus damping the increment preserves the direct $V_m$ pathway; it does not replace the full derivative by $alpha_"mem"/d_"grad"$. For $d_"grad" >= 1$ and positive conductances this local derivative lies between $alpha_"mem"$ and 1.
 
   Define the undamped conductance sensitivity for channel $q in {e,i}$ as
 
   $ kappa_q = (1-alpha_"mem")(E_q - V_oo)/g_"tot"
-    - (Delta t_"sim" / C_m) alpha_"mem" (V_m - V_oo). quad (6) $
+    - (Delta t_"sim" / C_m) alpha_"mem" (V_m - V_oo). $
 
   $E_q$ is that channel's reversal potential. The damped candidate-voltage derivative is $partial V_"candidate" / partial g_q = kappa_q / d_"grad"$. At small timesteps, $kappa_q approx (Delta t_"sim" / C_m)(E_q-V_m)$. This is where the control reduces sensitivity to both recurrent and feedforward conductance inputs.
 
@@ -97,4 +97,5 @@
 ]
 
 #let body = with-datasets("exp015", (), body)
+#let body = with-numbered-equations(body)
 #let body = with-contents(body)

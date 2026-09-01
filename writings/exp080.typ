@@ -1,4 +1,4 @@
-#import "contents.typ": with-contents, with-result-sections
+#import "contents.typ": with-contents, with-numbered-equations, with-result-sections
 #import "/.demolab/lib.typ": data-json, data-image
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
 #import "run-view.typ": with-datasets, run-view
@@ -7,7 +7,7 @@
 #let data-file = data-file.with(article: "exp080")
 
 #let meta = (
-  status: "[▦ DATA | v29.0.0]",
+  status: "[▦ DATA | v31.1.0]",
   title: "Decoder Accuracy Improves with Input Rate",
   created_at: "2026-08-10T00:00:00Z",
   updated_at: "2026-08-31T00:00:00Z",
@@ -60,16 +60,6 @@
 #let d = r.decision
 #let criterion-crossed = d.criterion_crossed
 #let pct(x) = str(calc.round(100 * x, digits: 1)) + "%"
-#set math.equation(numbering: "(1)")
-#counter(math.equation).update(0)
-#show math.equation.where(block: true): equation => context {
-  if target() == "html" {
-    html.elem("div", attrs: (class: "exp080-equation", style: "display:flex;align-items:center;gap:1em"), {
-      html.elem("div", attrs: (style: "flex:1;min-width:0"), equation)
-      html.elem("span", numbering("(1)", ..counter(math.equation).at(equation.location())))
-    })
-  } else { equation }
-}
 #let body = [
   == Abstract
 
@@ -334,4 +324,5 @@
 
 #let meta = meta + (assets: input-assets("exp080", inputs))
 #let body = with-datasets("exp080", inputs, report-body, placed: inputs-ready(data-file, inputs))
+#let body = with-numbered-equations(body)
 #let body = with-contents(body)

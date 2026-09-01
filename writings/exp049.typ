@@ -1,4 +1,4 @@
-#import "contents.typ": with-contents, with-result-sections
+#import "contents.typ": with-contents, result-card, with-numbered-equations, with-result-sections
 #import "/.demolab/lib.typ": data-json, data-image
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
 #import "run-view.typ": with-datasets, run-view
@@ -6,7 +6,7 @@
 #let data-file = data-file.with(article: "exp049")
 
 #let meta = (
-  status: "[▦ DATA | v28.0.0]",
+  status: "[▦ DATA | v31.1.0]",
   title: "Training Recurrent Weights Weakens PING Rhythmicity",
   created_at: "2026-06-09T00:00:00Z",
   updated_at: "2026-08-31T00:00:00Z",
@@ -63,6 +63,7 @@
 
   #with-result-sections[
 
+  #result-card[
   === Recurrent training changes population activity
 
   Frozen E/I means were #frozen_e/#frozen_i Hz. Canonical, zero and small
@@ -84,6 +85,9 @@
     ],
   )
 
+  ]
+
+  #result-card[
   === Rhythmicity is already low at the first logged epoch
 
   The unsmoothed trainable contrast averaged #contrast_first after epoch 1 and
@@ -101,6 +105,9 @@
     ],
   )
 
+  ]
+
+  #result-card[
   === The two recurrent matrices change differently
 
   For seed 42, #wei_zero42% of E→I entries and #wie_zero42% of I→E entries were
@@ -120,6 +127,9 @@
     ],
   )
 
+  ]
+
+  #result-card[
   === Rate–rhythmicity trajectories do not establish attractors
 
   The contrast gap describes these observations, but identifies neither a
@@ -137,6 +147,9 @@
     ],
   )
 
+  ]
+
+  #result-card[
   === Similar validation accuracy can accompany different firing rates
 
   Final official-test means were
@@ -159,11 +172,14 @@
   )
 
   ]
+  ]
 
   == Methods
 
   We reused networks from the #link("/exp022/")[shared training study] and
   reanalysed recorded observations. No new training or simulation was performed.
+
+  === Compute
 
   + *Compare recurrent trainability.* Twelve conductance-based leaky-integrate-and-fire
     classifiers had 784 Poisson input channels, 1,024 excitatory (E), 256
@@ -188,6 +204,10 @@
     need not become negative to inhibit. Input zeros remained trainable and
     could regrow; initialization details are listed below.
 
+  === Analyse
+
+  #set enum(start: 4)
+
   + *Evaluate final networks.* All endpoint tests and weight comparisons used
     epoch 50, not validation-selected weights. Accuracy and whole-population
     mean E/I rates used the same #eval_n official-test images per network;
@@ -201,11 +221,19 @@
     E-population counts were binned at 1 ms; their autocorrelation was normalized
     by lag overlap and squared mean count, over 0–100 ms, then smoothed with
     weights $(1/4, 1/2, 1/4)$ after replacing the zero-lag entry by its neighbour:
-    #math.equation(block: true, numbering: "(1)", $R_"contrast" = (A_"lobe" - A_"trough") / (A_"lobe" + A_"trough")$)
+    #math.equation(block: true, $R_"contrast" = (A_"lobe" - A_"trough") / (A_"lobe" + A_"trough")$)
     Here $R_"contrast"$ is dimensionless contrast, $A_"trough"$ the first local trough from lag
     2 ms onward, and $A_"lobe"$ the preceding positive-lag maximum of the smoothed
     autocorrelogram. We reused the recorded scalar; it is neither a
     test-population rhythm estimate nor a calibrated probability of PING.
+
+  === Present
+
+  #set enum(start: 6)
+
+  + *Expose retained training evidence.* We displayed retained validation,
+    activity, recurrent-weight and temporal-contrast measurements with their
+    distinct seed and illustrative-probe roles.
 
   #run-view("exp049", inputs)
 
@@ -253,4 +281,5 @@
 
 #let meta = meta + (assets: input-assets("exp049", inputs))
 #let body = with-datasets("exp049", inputs, report-body, placed: inputs-ready(data-file, inputs))
+#let body = with-numbered-equations(body)
 #let body = with-contents(body)

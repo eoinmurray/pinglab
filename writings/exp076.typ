@@ -1,4 +1,4 @@
-#import "contents.typ": with-contents, with-result-sections
+#import "contents.typ": with-contents, result-card, with-numbered-equations, with-result-sections
 #import "/.demolab/lib.typ": data-json, data-image, cite, reference-list
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
 #import "run-view.typ": with-datasets, run-view
@@ -6,7 +6,7 @@
 #let data-file = data-file.with(article: "exp076")
 
 #let meta = (
-  status: "[▦ DATA | v28.0.0]",
+  status: "[▦ DATA | v31.1.0]",
   title: "A bundle checkpoint replays",
   updated_at: "2026-08-31T00:00:00Z",
   created_at: "2026-08-02T00:00:00Z",
@@ -47,6 +47,7 @@
 
   #with-result-sections[
 
+  #result-card[
   === Compilation, training, checkpoint and equivalence protocol
 
   #figure(data-image(data-file("exp076/lifecycle.svg"), width: 100%),
@@ -54,6 +55,9 @@
       and a separate one-step equivalence test; the arrows describe operations,
       not measurements.])
 
+  ]
+
+  #result-card[
   === Training and validation trajectories across epochs
 
   The validation-selected checkpoint came from epoch
@@ -64,6 +68,9 @@
       epochs. Validation averages #r.config.validation_encoder_draws.count
       encoder draws on #r.config.held_out_count images.])
 
+  ]
+
+  #result-card[
   === Validation and official-test checkpoint evaluations
 
   The selected bundle checkpoint loaded through the explicit route achieved
@@ -81,6 +88,9 @@
       encoder draws; replay used #r.replay.evaluation_samples official-test
       images and one fixed encoding.])
 
+  ]
+
+  #result-card[
   === Exact one-step comparisons across compiled and explicit routes
 
   #figure(table(columns: (1.6fr, 1fr),
@@ -97,11 +107,14 @@
       on different datasets.])
 
   ]
+  ]
 
   == Methods
 
   We tested checkpoint interchange and numerical equivalence as separate
   properties of the same supported classifier family.
+
+  === Compute
 
   + *Train and select states.* We split #r.config.max_samples MNIST training
     images into #r.config.train_count optimisation and
@@ -113,6 +126,10 @@
     weights remained fixed. Selection minimised cross-entropy averaged over
     #r.config.validation_encoder_draws.count validation encodings, with accuracy
     and earliest epoch as tie-breakers.
+  === Analyse
+
+  #set enum(start: 2)
+
   + *Reload and evaluate.* We evaluated selected and final states on
     #r.replay.evaluation_samples sampled official-test images using one fixed
     spike encoding. We also loaded the selected compiled-network state through
@@ -120,6 +137,10 @@
     with a separate seed and loaded that state through the compiled route.
     Checkpoint inspection compared parameter names and shapes; accuracy
     comparisons retained their dataset and encoding context.
+  === Present
+
+  #set enum(start: 3)
+
   + *Test one-step equality.* In a separate deterministic fixture we seeded
     both descriptions identically and supplied the same encoded spikes and
     labels. We compared initial parameters, forward outputs, cross-entropy,
@@ -145,4 +166,5 @@
 
 #let meta = meta + (assets: input-assets("exp076", inputs))
 #let body = with-datasets("exp076", inputs, report-body, placed: inputs-ready(data-file, inputs))
+#let body = with-numbered-equations(body)
 #let body = with-contents(body)

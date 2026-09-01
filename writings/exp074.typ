@@ -1,4 +1,4 @@
-#import "contents.typ": with-contents, with-result-sections
+#import "contents.typ": with-contents, result-card, with-numbered-equations, with-result-sections
 #import "/.demolab/lib.typ": data-json, data-image, cite, reference-list
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
 #import "run-view.typ": with-datasets, run-view
@@ -6,7 +6,7 @@
 #let data-file = data-file.with(article: "exp074")
 
 #let meta = (
-  status: "[▦ DATA | v28.0.0]",
+  status: "[▦ DATA | v31.1.0]",
   title: "From Python graph to spikes",
   updated_at: "2026-08-31T00:00:00Z",
   created_at: "2026-07-31T00:00:00Z",
@@ -42,6 +42,7 @@
 
   #with-result-sections[
 
+  #result-card[
   === Compiled PING classifier topology
 
   #figure(data-image(data-file("exp074/network.svg"), width: 100%),
@@ -50,6 +51,9 @@
       The complete graph contains #r.graph.populations populations and
       #r.graph.projections projections.])
 
+  ]
+
+  #result-card[
   === Aligned input, excitatory and inhibitory spike rasters
 
   #figure(data-image(data-file("exp074/rasters.png"), width: 100%),
@@ -61,11 +65,14 @@
       aggregate all #r.config.n_batch trials, not only this illustrative raster.])
 
   ]
+  ]
 
   == Methods
 
   We tested whether a compiled network description reproduced the requested
   spiking computation in a PyTorch-based simulator#cite(1).
+
+  === Compute
 
   + *Define the network.* We authored a pyramidal–interneuron gamma circuit with
     #r.config.n_e excitatory and #r.config.n_i inhibitory neurons, driven by
@@ -77,12 +84,24 @@
     #r.config.seed, #r.config.n_batch trials, a #r.config.dt_ms ms integration
     step and a #r.config.t_ms ms duration, and supplied the exact generated
     tensor to the simulator.
+  === Analyse
+
+  #set enum(start: 3)
+
   + *Measure the response.* We counted input events and divided by channel
     count, trial count and duration to obtain the realised input rate.
     Excitatory and inhibitory rates used their respective population sizes;
     we recorded aligned event times and cell indices for the specified
     illustrative trial. These measurements establish execution and activity,
     not oscillatory synchronisation or classification performance.
+
+  === Present
+
+  #set enum(start: 4)
+
+  + *Display graph and activity evidence.* We displayed the compiled topology,
+    realised input rate and recorded population response, keeping the
+    illustrative event selection distinct from population measurements.
 
   #run-view("exp074", inputs)
 
@@ -103,4 +122,5 @@
 
 #let meta = meta + (assets: input-assets("exp074", inputs))
 #let body = with-datasets("exp074", inputs, report-body, placed: inputs-ready(data-file, inputs))
+#let body = with-numbered-equations(body)
 #let body = with-contents(body)

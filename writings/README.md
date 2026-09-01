@@ -1,6 +1,6 @@
 # Writing Guide
 
-Version: **30.0.0**
+Version: **31.1.0**
 
 The Writing Guide defines the conventions for Pinglab's published experiment
 entries in `writings/expXXX.typ`. This file is the canonical guide.
@@ -14,6 +14,14 @@ corrections or clarifications that do not change requirements. Update the versio
 above and add a short entry to the version history when changing the guide.
 
 ### 1.1. Version history
+
+- **31.1.0** — Remove the Writing Guide migration and grounded-regeneration
+  procedure categories. Retain source-preserving editing, evidence checks and
+  validation as direct requirements for ordinary article work.
+
+- **31.0.0** — Require every displayed equation in every article section to
+  carry a continuous article-wide number in every published target, and add a
+  shared wrapper plus regression checks that enforce the requirement.
 
 - **30.0.0** — Require agents to classify article work before editing, build a
   version-delta compliance record for migrations, distinguish targeted from
@@ -206,14 +214,9 @@ these rules.
 Existing `.typ` files are authored documents that may contain manual revisions,
 not disposable output to regenerate from this guide.
 
-Before editing, classify the request as a **Writing Guide migration**,
-**substantive revision**, **targeted grounded regeneration**, or **complete
-grounded regeneration**. State the classification, target and permitted
-dependent edits before drafting. *Full* and *deep* describe the thoroughness of
-the requested operation; they do not convert a migration into regeneration or
-authorize a broader target. Read the current Writing Guide in full before
-applying it; excerpts, searches, prior familiarity and successful tests are not
-substitutes for that read.
+Before editing, state the requested target and any permitted dependent edits.
+Read the current Writing Guide in full before applying it; excerpts, searches,
+prior familiarity and successful tests are not substitutes for that read.
 
 1. Read the current file immediately before editing and use it as the baseline,
    including uncommitted manual edits. Do not reconstruct it from an older
@@ -241,22 +244,13 @@ substitutes for that read.
 7. Treat saved text as authored source regardless of origin. Once content has
    been saved in an existing `.typ` file, treat the live text as canonical
    authored content whether it was initially written by the author, drafted by
-   an agent, or generated from experiment materials. A Writing Guide migration
-   must transform this live source; it must not regenerate or replace the target
-   section from experiment code, a template, or a fresh model draft. Derive the
-   required changes from the difference between the requested guide versions,
-   apply only those changes and their necessary dependencies, and preserve all
+   an agent, or generated from experiment materials. A conformance edit must
+   transform this live source; it must not regenerate or replace the target
+   section from experiment code, a template, or a fresh model draft. Apply only
+   the requested changes and their necessary dependencies, and preserve all
    compatible wording and scientific content. If compliance requires wholesale
-   replacement or an uncertain substantive change, stop and present the conflict
-   for explicit authorization.
-
-For every migration, create a version-delta compliance record before drafting.
-Record the source and target Writing Guide versions, enumerate every requirement
-introduced or changed between them, and mark each requirement as **changed**,
-**already compliant**, **not applicable**, or **blocked**, with the relevant
-article location or evidence. Do not claim completion while an applicable
-requirement is unaudited or blocked. The record is an agent work product and
-does not belong in the rendered article.
+   replacement or an uncertain substantive change, stop and present the
+   conflict for explicit authorization.
 
 #### Completion gate for article edits
 
@@ -264,14 +258,11 @@ Tests, compilation and rendering are necessary checks, but they do not establish
 scientific or semantic compliance. Before completing any article edit, audit
 every changed claim for evidential support, causal strength, execution status,
 provenance vocabulary, numerical accuracy and agreement with displayed
-evidence. For a migration, also audit every article use governed by terminology
-or provenance requirements introduced by the target version.
+evidence.
 
-The final task report must state the operation classification, target Writing
-Guide version, edited scope, compliance-record outcome, validation performed,
-potentially important cuts, and unresolved gaps. Never report *fully compliant*
-without this record. A blocked requirement remains explicit; it must not be
-hidden by passing tests or fluent prose.
+The final task report must state the target Writing Guide version, edited scope,
+validation performed and unresolved gaps. A blocked requirement remains
+explicit; it must not be hidden by passing tests or fluent prose.
 
 For example, “update the Methods in exp022 to conform with Writing Guide
 1.0.0” means adapt the existing Methods to that version's applicable rules.
@@ -296,54 +287,7 @@ the resulting writing, and the author's corrections as evidence.
 - Do not modify the guide or broaden article edits without explicit approval.
   Approved guide changes follow its versioning rules.
 
-### 3.3. Grounded regeneration
-
-A grounded-regeneration request authorizes a new synthesis grounded in the
-experiment's primary evidence; it is not a Writing Guide migration or a minimal
-conformance edit under section 3.1. Regeneration may target a complete article
-or a named section. Apply all six steps proportionately to the authorized target
-and its necessary dependencies; do not regenerate adjacent sections merely for
-consistency.
-
-1. **Inventory the existing target.** Read the live article and record the
-   target's important claims, findings, caveats, figures, equations, citations,
-   terminology and deliberate authorial choices. Identify what must survive
-   without treating every sentence or the existing structure as fixed. Treat
-   edits made directly or through an agent equally, and do not restore
-   superseded wording or undo settled decisions.
-2. **Reconstruct the experiment from primary evidence.** Trace the experiment
-   code through its compute, analysis and presentation stages and relevant
-   helpers. Inspect validated run provenance, retained configurations,
-   measurements and displayed outputs. Distinguish executed, reused, inferred
-   and planned work explicitly.
-3. **Build an evidence-to-specification map.** Map every applicable Writing
-   Guide requirement and proposed article section to supporting code, data or
-   retained evidence. Reconcile contradictions with the existing article and
-   flag claims that cannot be supported rather than inventing connective
-   material or silently choosing one account.
-4. **Regenerate the requested target.** Write the target from that map using the
-   requested Writing Guide version. Deliberately reincorporate the important
-   content identified in step 1, while prioritizing scientific accuracy, plain
-   language and a coherent reading order over preservation of the old wording
-   or structure.
-5. **Validate before replacement.** Check every claim, number, equation, figure
-   and citation against the retained evidence; confirm that important prior
-   content survived; run the relevant writing tests; render and inspect the
-   article; and review the complete diff. Update status and authored dates under
-   sections 3.4 and 3.5 only when saving the validated replacement. Present the
-   candidate for review unless saving or replacement was explicitly authorized.
-   If a material choice cannot be recovered confidently, ask rather than
-   silently discarding it.
-6. **Report potentially important cuts.** Give the author an enumerated list of
-   every removed or materially compressed claim, caveat, method, result,
-   equation, citation, figure, interpretation or authorial choice that might
-   matter. For each item, state what changed, why it was cut and whether
-   restoring it would conflict with retained evidence or the Writing Guide.
-   Explicitly state when no potentially important cuts were made. For targeted
-   regeneration, inventory and report cuts within the target and any necessary
-   dependent edits; unchanged adjacent sections remain outside the report.
-
-### 3.4. Authored update dates
+### 3.3. Authored update dates
 
 Apply this rule to future article edits; existing articles do not need a date
 change merely to adopt this guide.
@@ -361,12 +305,6 @@ change merely to adopt this guide.
 - Leave `updated_at` unchanged for spelling, punctuation, formatting, link
   repairs, or source plumbing that do not change scientific meaning, and for
   rebuilds or deployments alone.
-- Leave `updated_at` unchanged throughout a Writing Guide migration, including
-  when conformance requires changes to claims, methods, results, figures,
-  interpretations, corrections, explanations, or displayed evidence. A migration
-  records conformance, not a new authored update. If the same editing pass also
-  contains a separate, independently requested substantive revision, only that
-  revision may qualify under this section.
 - Completing a compute, analyse, or present run does not by itself advance the
   article's date. When a present run is incorporated into the article, set
   `meta.updated_at` to the date of incorporation if it substantively changes the
@@ -380,10 +318,10 @@ change merely to adopt this guide.
 - Dates are explicitly authored metadata. Never infer them from Git,
   filesystem timestamps, run dates, builds, or deployment dates. Do not backfill
   unknown historical updates. Updating this field is a necessary dependent
-  edit under section 3.1 when a requested revision qualifies, except during a
-  Writing Guide migration or when the author explicitly instructs otherwise.
+  edit under section 3.1 when a requested revision qualifies, unless the author
+  explicitly instructs otherwise.
 
-### 3.5. Local-data availability
+### 3.4. Local-data availability
 
 Every `writings/expXXX.typ` must declare one `meta.status` using an exact label
 from the table below. The entire value must be `[≡ TXT | vX.Y.Z]` or
@@ -393,8 +331,8 @@ do not add a second status field, version field or icon field.
 
 | Label | Local-data availability |
 | --- | --- |
-| `[≡ TXT \| v30.0.0]` | Article only: no usable, validated local presentation data is available for any declared article input, or the article declares no data inputs. |
-| `[▦ DATA \| v30.0.0]` | Local data: usable, validated local presentation data is available for at least one declared article input, including reused upstream results. |
+| `[≡ TXT \| v31.1.0]` | Article only: no usable, validated local presentation data is available for any declared article input, or the article declares no data inputs. |
+| `[▦ DATA \| v31.1.0]` | Local data: usable, validated local presentation data is available for at least one declared article input, including reused upstream results. |
 
 The badge reports availability in the working checkout at the last agent check,
 not a live web-UI measurement. `[≡ TXT | vX.Y.Z]` does not mean literally text
@@ -413,10 +351,10 @@ form and report the missing inputs in the task summary, not new article prose.
 - Agents also own Writing Guide version freshness. Whenever this guide is
   applied to an article, set the badge version to the exact version applied.
   Whenever the guide version changes, update every article brought into
-  conformance in the same migration; never advance an article's badge version
+  conformance in the same editing pass; never advance an article's badge version
   without applying all requirements introduced through that version. Normal
   tests must reject badge versions that differ from the current guide version
-  once a repository-wide migration declares all articles current. A badge-only
+  once the repository declares all articles current. A badge-only
   version synchronization does not advance `meta.updated_at`.
 - Read the current article's `inputs` and article-scoped bindings, and check
   their agreement with the publishing configuration. Run read-only
@@ -439,19 +377,19 @@ form and report the missing inputs in the task summary, not new article prose.
 - Maintain the literal string in source, not through a build-time calculation,
   scheduler callback or background monitor. Normal tests enforce the vocabulary
   without requiring another checkout or CI to contain the author's local data.
-- For migration from the retired milestone labels, classify from current
+- For articles using the retired milestone labels, classify from current
   declared inputs and validated local data, not from the previous label. Change
   only status lines and necessary policy/tests; preserve scientific prose,
   dates and unrelated edits. Status-only changes do not advance `updated_at`;
-  apply section 3.4 only when the underlying change qualifies independently.
-- To migrate version 10.0.0 or 11.0.0 badges, remove any descriptive suffix
+  apply section 3.3 only when the underlying change qualifies independently.
+- For version 10.0.0 or 11.0.0 badges, remove any descriptive suffix
   and add the corresponding icon inside the brackets, preserving the recorded
   classification. Any separate availability reassessment follows the validation
   rules above; changing badge formatting alone is not reclassification.
 - A status check authorizes no execution, input selection, materialization,
   publication, historical inspection, migration or mutation of stored runs.
 
-### 3.6. Tense and grammatical person
+### 3.5. Tense and grammatical person
 
 These are polished scientific articles, not diary entries. Apply the following
 rules throughout rendered content, including abstracts, Methods, captions and
@@ -490,12 +428,12 @@ appendices; choose tense by the sentence's function, not by section alone.
 
 For a tense/person conformance pass, preserve scientific meaning, execution
 status, qualifications and authored dates. A grammatical change alone does not
-advance `meta.updated_at`; a substantive correction follows section 3.4. Check
+advance `meta.updated_at`; a substantive correction follows section 3.3. Check
 tense and attribution in context rather than replacing every present-tense verb
 or every occurrence of a pronoun mechanically. Flag uncertain execution or
 authorship rather than guessing.
 
-### 3.7. Shared terminology and notation
+### 3.6. Shared terminology and notation
 
 The conventions below apply to recurring terms and symbols across the experiment
 collection. They do not eliminate local definitions: define every nontrivial
@@ -746,6 +684,31 @@ grammatical plausibility is not sufficient.
 120. Preserve exact public API, schema, command-line and citation spellings
      rather than silently translating them into prose conventions.
 
+### 3.7. Equation numbering
+
+Number every displayed equation in every part of an article, including Results,
+Methods, captions, tables and appendices. Use continuous Arabic numbering in
+parentheses, `(1)`, `(2)`, and so forth, from the first displayed equation to the
+last; never restart the counter by section. Inline mathematics remains
+unnumbered. A displayed equation does not need to be cited in prose merely to
+justify its number, and this rule does not justify displaying trivial arithmetic.
+
+Import and apply the shared `with-numbered-equations` wrapper to the complete
+article body before applying the final `with-contents` wrapper:
+
+```typst
+#import "contents.typ": with-contents, with-numbered-equations
+// Build the complete article body first.
+#let body = with-numbered-equations(body)
+#let body = with-contents(body)
+```
+
+The shared wrapper is responsible for resetting and displaying the equation
+counter consistently in HTML and PDF. Do not replace it with article-local
+counter resets, target-specific equation rendering or individually assigned
+numbers. Regression tests must require the wrapper for every article carrying
+the current Writing Guide version and verify visible, sequential HTML numbers.
+
 ## 4. Titles
 
 For the experiment's overall title (`meta.title`), use a short, plain-English
@@ -781,10 +744,10 @@ the title/metadata and before `Abstract`. Use the shared `contents.typ` helper:
   its first content instead. This navigation requirement does not authorize
   inventing an abstract or changing scientific prose. Unavailable-data views
   list only the sections they actually render, never unavailable results.
-- Migrate existing entries by removing their old contents heading/list and
+- Update existing entries by removing their old contents heading/list and
   adding the shared import and final wrapper. Preserve all other authored
   content, metadata and unrelated edits. TOC-only changes do not advance
-  `meta.updated_at` (section 3.4); reassess availability under section 3.5.
+  `meta.updated_at` (section 3.3); reassess availability under section 3.4.
 - Validate every entry's wrapper and check rendered ordering, article scope,
   and link targets. Include an unavailable-data view and a reference page in
   the checks.
@@ -811,10 +774,11 @@ the title/metadata and before `Abstract`. Use the shared `contents.typ` helper:
   If an entry has neither appendices nor References, place Dataset at the end.
   Keep it as a level-2 heading so it remains in the Table of Contents.
 - Use descriptive section names with links for internal cross-references, not
-  section numbers. When migrating, remove ordinal prefixes, repair links and
-  textual references, and move complete sections as needed. Preserve scientific
+  section numbers. When updating existing headings, remove ordinal prefixes,
+  repair links and textual references, and move complete sections as needed.
+  Preserve scientific
   content, equation labels, citations, metadata and unrelated edits. Formatting
-  and ordering changes alone do not advance authored dates (section 3.4).
+  and ordering changes alone do not advance authored dates (section 3.3).
 - The shared article wrapper disables general heading numbering, while the
   shared Results wrapper numbers direct Results subsections only. Regression
   tests must check source headings, Results-before-Methods order, one figure per
@@ -860,7 +824,7 @@ do not assume the reader remembers this experiment's particular setup. Retain
 necessary scientific terms, while omitting general background, citations,
 repository bookkeeping and implementation details.
 
-Follow section 3.6 for tense and person. Never substitute an expected outcome
+Follow section 3.5 for tense and person. Never substitute an expected outcome
 for an observation.
 
 ### Example: exp082
@@ -948,7 +912,7 @@ the scientific hierarchy or content rules.
   uncertainty needed to read each figure correctly. Distinguish illustrative
   probes and reused observations from new measurements. Do not state the
   figure's scientific finding or interpretation in its caption. Apply the
-  evidence-provenance and display vocabulary in section 3.7 throughout the
+  evidence-provenance and display vocabulary in section 3.6 throughout the
   complete card.
 6. A theory diagram may occupy its own Results subsection when useful. Its
    title and caption must identify it as an expectation or mechanism, not
@@ -981,9 +945,9 @@ the scientific hierarchy or content rules.
     The subsection must remain readable in targets that omit borders or other
     card chrome.
 
-When migrating existing headings, remove their taglines and repair any authored
+When updating existing headings, remove their taglines and repair any authored
 links to former anchors. The shared TOC picks up the plain heading automatically.
-Preserve scientific content and authored dates; apply section 3.5 to availability.
+Preserve scientific content and authored dates; apply section 3.4 to availability.
 
 Illustrative scaffold (replace the figure paths and captions with retained
 outputs and their measurement details):
@@ -1074,12 +1038,13 @@ Exceed the range only when scientific completeness requires it.
    selection criteria or measurement definitions.
 7. Select the key equations before drafting: those defining the experiment's
    central model, intervention or measurement, usually one to three, not a quota.
-   Number each equation and place it beside the operation it explains. Describe
+   Place each equation beside the operation it explains; every displayed
+   equation is numbered under section 3.7. Describe
    routine operations in words unless their mathematical form matters to the
    comparison or is needed to interpret a displayed diagnostic. Prefer
    reader-level vectors, windows and named quantities over implementation-shaped
    indices when the simpler form preserves scientific meaning and follows
-   section 3.7. Define every symbol once, give units where applicable, and reuse
+   section 3.6. Define every symbol once, give units where applicable, and reuse
    notation consistently. Do not display trivial arithmetic such as accuracy as
    correct divided by evaluated decisions merely to make the account look formal.
    Cite established methods where appropriate.

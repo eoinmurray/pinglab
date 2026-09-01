@@ -292,7 +292,12 @@ def check_article_render(lab, output):
     assert "; the lower panels" in re.sub("<[^>]+>", "", html)
     assert len(re.findall(r"<img\b", html)) == 6
     assert len(re.findall(r'<math display="block">', html)) == 1
-    assert re.search(r'class="numbered-equation".*?<span>\(1\)</span>', html, re.S)
+    assert re.search(
+        r'class="pinglab-numbered-equation".*?'
+        r'<span class="pinglab-equation-number">\(1\)</span>',
+        html,
+        re.S,
+    )
     abstract = re.search(
         r"<h[1-6][^>]*>Abstract</h[1-6]>(.*?)<h[1-6]", html, re.S
     ).group(1)

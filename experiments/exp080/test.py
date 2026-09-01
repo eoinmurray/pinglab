@@ -634,15 +634,15 @@ def test_article_renders_explicit_evidence_without_false_branches(repo, view):
     assert html.count('<nav aria-label="Table of Contents">') == 1
     assert "else [" not in html
     if view == "absent":
-        assert 'class="exp080-equation"' not in html
+        assert 'class="pinglab-numbered-equation"' not in html
         assert "All three nonlinear decoders reached" not in html
         assert "A required run is unavailable" in html
         return
     headings = re.findall(r"<h3\b[^>]*>(.*?)</h3>", html, re.S)
     assert sum(heading.startswith("References") for heading in headings) == 1
-    assert html.count('class="exp080-equation"') == 3
+    assert html.count('class="pinglab-numbered-equation"') == 3
     for number in range(1, 4):
-        assert f"<span>({number})</span>" in html
+        assert f'<span class="pinglab-equation-number">({number})</span>' in html
     assert len(re.findall(r"<img\b", html)) == 3
     for math in re.findall(r"<math\b.*?</math>", html, re.S):
         tree = ElementTree.fromstring(math)

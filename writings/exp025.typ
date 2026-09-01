@@ -1,4 +1,4 @@
-#import "contents.typ": with-contents, with-result-sections
+#import "contents.typ": with-contents, result-card, with-numbered-equations, with-result-sections
 #import "/.demolab/lib.typ": data-json, data-image, cite, reference-list
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
 #import "run-view.typ": with-datasets, run-view
@@ -6,7 +6,7 @@
 #let data-file = data-file.with(article: "exp025")
 
 #let meta = (
-  status: "[▦ DATA | v28.0.0]",
+  status: "[▦ DATA | v31.1.0]",
   title: "Accuracy and Firing Rate With and Without Inhibition",
   created_at: "2026-05-30T00:00:00Z",
   updated_at: "2026-08-31T00:00:00Z",
@@ -97,6 +97,7 @@
 
   #with-result-sections[
 
+  #result-card[
   === Test accuracy against excitatory rate across activity ceilings
 
   At the unpenalised operating points, PING reached #ping_off_acc% at
@@ -119,6 +120,9 @@
     ],
   )
 
+  ]
+
+  #result-card[
   === PING participation and frequency across activity ceilings
 
   PING participation varied from #p_lo to #p_hi and oscillation frequency from
@@ -140,6 +144,9 @@
     ],
   )
 
+  ]
+
+  #result-card[
   === PING learning curves across initial input coupling
 
   Final validation accuracies were #low_accs.at(0)% / #low_accs.at(1)% /
@@ -161,6 +168,9 @@
     ],
   )
 
+  ]
+
+  #result-card[
   === Accuracy and population rates across inference input scaling
 
   COBA's penalty reached approximately #coba_pen_s3 at $s = 3$. The empirical
@@ -183,6 +193,9 @@
     ],
   )
 
+  ]
+
+  #result-card[
   === Accuracy against excitatory rate across inference input scaling
 
   PING's highest sampled accuracy was approximately #ping_plateau%. At input
@@ -201,12 +214,15 @@
   )
 
   ]
+  ]
 
   == Methods
 
   We reused networks and learning histories from the
   #link("/exp022/")[shared training study] and reanalysed recorded inference
   measurements; no new training or simulation was performed.
+
+  === Compute
 
   + *Prepare digit inputs.* Training used 6,300 MNIST images and 700 validation
     images from the official training partition. Pixels drove 784 Poisson channels
@@ -224,7 +240,7 @@
     (zero weight decay), learning rate $4 times 10^(-4)$, batch size 256, and
     gradient-norm clipping at 1. Cross-entropy was supplemented by:
 
-    #math.equation(block: true, numbering: "(1)", $ r_b = 1 / (N_E T_"present") sum_(n in E) n_"spike"(b,n), quad
+    #math.equation(block: true, $ r_b = 1 / (N_E T_"present") sum_(n in E) n_"spike"(b,n), quad
       L_"rate" = lambda_"rate" / B sum_b max(r_b - r_(E,"ceil"), 0)^2. $)
 
     Here $n_"spike"(b,n)$ counts excitatory neuron $n$'s spikes in presentation $b$, $E$ is the
@@ -232,6 +248,10 @@
     size. Rates $r_b$ and ceilings $r_(E,"ceil")$ are in hertz; $lambda_"rate" = 0.041$
     $"Hz"^(-2)$ weights the dimensionless penalty $L_"rate"$. Six ceiling conditions
     (#link(<sec-training-settings>)[Training settings]) and three seeds yielded 36 networks.
+
+  === Analyse
+
+  #set enum(start: 4)
 
   + *Evaluate training endpoints.* Final-epoch weights, rather than
     validation-selected weights, supplied the endpoint comparisons. Each network
@@ -243,7 +263,7 @@
     Participation $p_"part"$ was the fraction of E-neuron/cycle pairs containing at least
     one spike, with cycles delimited by I-burst midpoints (#link(<sec-measurement-details>)[Measurement details]).
 
-    #math.equation(block: true, numbering: "(1)", $ r_E approx p_"part" f_gamma. $)
+    #math.equation(block: true, $ r_E approx p_"part" f_gamma. $)
 
     This diagnostic approximation relates mean E rate $r_E$ (Hz), dimensionless
     $p_"part"$, and $f_gamma$ (Hz); repeated spikes and differing cycle/frequency
@@ -255,6 +275,14 @@
     networks trained at 1 Hz were evaluated after multiplying all input weights
     by dimensionless $s in [0.05, 3]$, holding other weights fixed, on the same
     1,000 test images at 24 scales.
+
+  === Present
+
+  #set enum(start: 7)
+
+  + *Expose retained comparisons.* We displayed endpoint comparisons,
+    cycle-participation probes and input-coupling sensitivity with their
+    recorded seed roles and aggregation.
 
   #run-view("exp025", inputs)
 
@@ -342,4 +370,5 @@
 
 #let meta = meta + (assets: input-assets("exp025", inputs))
 #let body = with-datasets("exp025", inputs, report-body, placed: inputs-ready(data-file, inputs))
+#let body = with-numbered-equations(body)
 #let body = with-contents(body)

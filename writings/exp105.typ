@@ -1,7 +1,7 @@
-#import "contents.typ": with-contents
+#import "contents.typ": with-contents, with-numbered-equations
 #import "run-view.typ": with-datasets
 #let meta = (
-  status: "[≡ TXT | v28.0.0]",
+  status: "[≡ TXT | v31.1.0]",
   title: "Networks, signals, and parameters",
   created_at: "2026-08-14T00:00:00Z",
   description: "The core snnlang authoring objects, their names, shapes, units, neuron populations, and parameter declarations.",
@@ -107,4 +107,5 @@
 ]
 
 #let body = with-datasets("exp105", (), body)
+#let body = with-numbered-equations(body)
 #let body = with-contents(body)

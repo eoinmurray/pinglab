@@ -1,4 +1,4 @@
-#import "contents.typ": with-contents, with-result-sections
+#import "contents.typ": with-contents, result-card, with-numbered-equations, with-result-sections
 #import "/.demolab/lib.typ": data-json, data-image, cite, reference-list
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
 #import "run-view.typ": with-datasets, run-view
@@ -6,7 +6,7 @@
 #let data-file = data-file.with(article: "exp041")
 
 #let meta = (
-  status: "[▦ DATA | v28.0.0]",
+  status: "[▦ DATA | v31.1.0]",
   title: "Firing Rate Tracks Gamma Frequency",
   created_at: "2026-06-02T00:00:00Z",
   updated_at: "2026-08-31T00:00:00Z",
@@ -24,7 +24,6 @@
 
 // Keep calculations lazy: absent inputs never become fabricated results.
 #let render-report(data-file) = [
-#set math.equation(numbering: "(1)")
 #let run = data-json(data-file("exp041/numbers.json"))
 #let cfg = run.config
 #let fit = run.fit
@@ -61,6 +60,7 @@
 
   #with-result-sections[
 
+  #result-card[
   === Validation accuracy and excitatory rate across inhibitory decay times
 
   #figure(
@@ -75,6 +75,9 @@
     ],
   )
 
+  ]
+
+  #result-card[
   === Population spectra across inhibitory decay times
 
   Per-network interpolated frequencies spanned approximately #fg_lo–#fg_hi Hz
@@ -92,6 +95,9 @@
     ],
   )
 
+  ]
+
+  #result-card[
   === Spike rasters across inhibitory decay times
 
   #figure(
@@ -107,6 +113,9 @@
     ],
   )
 
+  ]
+
+  #result-card[
   === Post-training rate and accuracy against gamma frequency
 
   Individual network rates spanned #er_lo–#er_hi Hz and accuracies
@@ -124,6 +133,9 @@
     ],
   )
 
+  ]
+
+  #result-card[
   === Affine and origin-constrained rate–frequency fits
 
   #figure(
@@ -139,11 +151,14 @@
   )
 
   ]
+  ]
 
   == Methods
 
   We compared final-epoch dynamics across matched networks trained at different
   inhibitory decay times, keeping the evaluation data fixed.
+
+  === Compute
 
   + *Reuse matched trained networks.* Six inhibitory GABA decay constants,
     $tau_"GABA" in {4.5, 6, 9, 12, 18, 27}$ ms, and seeds 42–44 defined 18 PING
@@ -154,6 +169,10 @@
     simulation used 0.1 ms timesteps and 200 ms trials. We reused final-epoch
     weights to measure endpoint dynamics, without retraining or selecting
     weights by test performance.
+
+  === Analyse
+
+  #set enum(start: 2)
 
   + *Measure fixed-trial responses.* Each network received the same fixed
     subset of #cfg.evaluation_samples images from the official MNIST test partition.
@@ -187,6 +206,14 @@
     intercept in hertz, and $beta_(r f)$ and $beta_(r f,0)$ are dimensionless fitted slopes. Both fits
     report $R_"fit"^2$, the coefficient of determination using centred total sum of
     squares; error bars are sample standard deviations divided by $sqrt(3)$.
+
+  === Present
+
+  #set enum(start: 5)
+
+  + *Display matched endpoint evidence.* We displayed the retained frequency,
+    rate and accuracy comparisons across inhibitory decay times, preserving
+    seed-level values and across-seed summaries.
 
   #run-view("exp041", inputs)
 
@@ -232,4 +259,5 @@
 
 #let meta = meta + (assets: input-assets("exp041", inputs))
 #let body = with-datasets("exp041", inputs, report-body, placed: inputs-ready(data-file, inputs))
+#let body = with-numbered-equations(body)
 #let body = with-contents(body)

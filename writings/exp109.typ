@@ -1,4 +1,4 @@
-#import "contents.typ": with-contents, with-result-sections
+#import "contents.typ": with-contents, result-card, with-numbered-equations, with-result-sections
 #import "/.demolab/lib.typ": data-image, data-json
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
 #import "run-view.typ": run-view, with-datasets
@@ -8,7 +8,7 @@
 #let data-file = data-file.with(article: "exp109")
 
 #let meta = (
-  status: "[▦ DATA | v28.0.0]",
+  status: "[▦ DATA | v31.1.0]",
   title: "[DEPRECATED] Manuscript",
   created_at: "2026-06-21T00:00:00Z",
   updated_at: "2026-08-31T00:00:00Z",
@@ -225,9 +225,10 @@
 
     #with-result-sections[
 
+      #result-card[
       === The model: COBA baseline and the PING loop <sec-model-comparison>
 
-      The network is a two-population conductance-based spiking model with a single hidden layer of $N_E$ excitatory (E) and $N_I$ inhibitory (I) leaky integrate-and-fire (LIF) neurons, driven by feedforward input weights $W_"in"$ and read out by ten spiking output LIF neurons over the excitatory population (#link(<sec-network-architecture>)[Network architecture]). Recurrence is confined to one excitatory–inhibitory (E↔I) loop: E projects to I through the weight $W^(E I)$ and I back to E through $W^(I E)$, with no E→E or I→I connection. Throughout the paper we compare two configurations of this single architecture: with the loop disabled ($W^(E I) = W^(I E) = 0$) it is a conductance-based (COBA) control in which input drives the excitatory population alone, and with the loop engaged it is the pyramidal–interneuron gamma (PING) configuration. The same network was trained on MNIST by surrogate-gradient descent from #link(<sec-accuracy-rate-frontier>)[Accuracy–rate frontier] onward (#link(<sec-training-methods>)[Training methods]); in this section we characterise its free-running dynamics.
+      The network is a two-population conductance-based spiking model with a single hidden layer of $N_E$ excitatory (E) and $N_I$ inhibitory (I) leaky integrate-and-fire (LIF) neurons, driven by feedforward input weights $W_"in"$ and read out by ten spiking output LIF neurons over the excitatory population (#link(<method-network-architecture>)[Network architecture]). Recurrence is confined to one excitatory–inhibitory (E↔I) loop: E projects to I through the weight $W^(E I)$ and I back to E through $W^(I E)$, with no E→E or I→I connection. Throughout the paper we compare two configurations of this single architecture: with the loop disabled ($W^(E I) = W^(I E) = 0$) it is a conductance-based (COBA) control in which input drives the excitatory population alone, and with the loop engaged it is the pyramidal–interneuron gamma (PING) configuration. The same network was trained on MNIST by surrogate-gradient descent from #link(<sec-accuracy-rate-frontier>)[Accuracy–rate frontier] onward (#link(<method-training-methods>)[Training methods]); in this section we characterise its free-running dynamics.
 
       Free-running, the COBA configuration fired asynchronously: its power spectral density (PSD) had no peak in the gamma band, and the excitatory firing-rate–current ($f$–$I$) curve rises to $approx #coba_fi_max$ Hz under the strongest drive tested. Engaging the E→I→E loop instead produced synchronous inhibitory bursts and gamma-banded excitatory rasters with a PSD peak at $f_gamma approx #fgamma023$ Hz, and held the excitatory firing rate approximately an order of magnitude below the COBA baseline across two decades of input drive (Figure 1).
 
@@ -242,9 +243,12 @@
         caption: [Free-running COBA and PING under matched Poisson drive. Each column shows a wiring schematic, single-trial raster, excitatory PSD and excitatory $f$–$I$ curve. COBA has the recurrent loop disabled; PING has E→I and I→E recurrence, with no E→E or I→I synapse. Source: #link("/exp023/")[exp023].],
       )
 
+      ]
+
+      #result-card[
       === Gamma onset across the $W^(E I) times W^(I E)$ plane <sec-gamma-onset>
 
-      Across the $W^(E I) times W^(I E)$ coupling plane the excitatory firing rate decreased, the inhibitory firing rate increased, and the lobe–trough rhythmicity contrast $R_"contrast"$ (a normalised, dimensionless measure of periodicity in the population autocorrelation, bounded in $[0, 1]$; #link(<sec-measurement-and-analysis>)[Measurement and analysis]) increased monotonically with coupling strength: $R_"contrast" approx 0$ along the COBA edges and $R_"contrast" approx 0.98$ at strong coupling. The four-dimensional mean-field reduction (#link(<sec-mean-field-reduction>)[Mean-field reduction]) predicts a supercritical Hopf bifurcation at external drive $I_"ext"^star = #hopf_iext$ nA with crossing frequency $f_"Hopf" approx #hopf_fstar$ Hz. The classification as supercritical is supported by quasi-static up/down ramps with peak hysteresis below $10^(-5)$ in rate units and by the linear scaling of the squared peak-to-peak steady-state oscillation amplitude $A_"pp"$, $A_"pp"^2 prop (I_"ext" - I_"ext"^star)$ ($R_"fit"^2 = #crit_r2$). The predicted gamma frequency is in qualitative agreement with the spiking measurement across the GABA synaptic decay time constant $tau_"GABA" in [4.5, 27]$ ms (Figure 2).
+      Across the $W^(E I) times W^(I E)$ coupling plane the excitatory firing rate decreased, the inhibitory firing rate increased, and the lobe–trough rhythmicity contrast $R_"contrast"$ (a normalised, dimensionless measure of periodicity in the population autocorrelation, bounded in $[0, 1]$; #link(<method-measurement-and-analysis>)[Measurement and analysis]) increased monotonically with coupling strength: $R_"contrast" approx 0$ along the COBA edges and $R_"contrast" approx 0.98$ at strong coupling. The four-dimensional mean-field reduction (#link(<method-mean-field-reduction>)[Mean-field reduction]) predicts a supercritical Hopf bifurcation at external drive $I_"ext"^star = #hopf_iext$ nA with crossing frequency $f_"Hopf" approx #hopf_fstar$ Hz. The classification as supercritical is supported by quasi-static up/down ramps with peak hysteresis below $10^(-5)$ in rate units and by the linear scaling of the squared peak-to-peak steady-state oscillation amplitude $A_"pp"$, $A_"pp"^2 prop (I_"ext" - I_"ext"^star)$ ($R_"fit"^2 = #crit_r2$). The predicted gamma frequency is in qualitative agreement with the spiking measurement across the GABA synaptic decay time constant $tau_"GABA" in [4.5, 27]$ ms (Figure 2).
 
       #figure(
         data-image(
@@ -255,9 +259,12 @@
         caption: [Nine panels. *(A–C)* Mean E rate, mean I rate and lobe–trough contrast across the $11 times 11$ coupling plane. *(D–F)* Single-trial E/I rasters at three diagonal points. *(G–I)* Mean-field eigenvalues, peak-to-peak E-rate amplitude branches and frequency against $tau_"GABA"$. Source: #link("/exp054/")[exp054], incorporating #link("/exp033/")[exp033]; spiking frequencies from #link("/exp041/")[exp041].],
       )
 
+      ]
+
+      #result-card[
       === Trained PING attains COBA accuracy at $approx 10 times$ fewer spikes <sec-accuracy-rate-frontier>
 
-      Both architectures, trained on MNIST under surrogate-gradient descent (#link(<sec-training-methods>)[Training methods]), converged to approximately $#ping25_acc%$ test accuracy. Sweeping the sample-wise hidden-E rate ceiling generated an accuracy–rate frontier; at every ceiling tested, PING attained higher accuracy at lower mean hidden-E firing rate than COBA. At the unpenalised operating point, PING reached $approx #ping25_acc%$ accuracy at $approx #ping25_rate$ Hz mean hidden-E rate, against $approx #coba25_acc%$ at $approx #coba25_rate$ Hz for COBA (Figure 3). Every frontier point is reported as the mean over three independent seeds (42, 43, 44), with standard errors across seeds. The PING rate did not decrease further as the ceiling was lowered, an empirical plateau consistent with, but not establishing, a structural lower bound on the rate.
+      Both architectures, trained on MNIST under surrogate-gradient descent (#link(<method-training-methods>)[Training methods]), converged to approximately $#ping25_acc%$ test accuracy. Sweeping the sample-wise hidden-E rate ceiling generated an accuracy–rate frontier; at every ceiling tested, PING attained higher accuracy at lower mean hidden-E firing rate than COBA. At the unpenalised operating point, PING reached $approx #ping25_acc%$ accuracy at $approx #ping25_rate$ Hz mean hidden-E rate, against $approx #coba25_acc%$ at $approx #coba25_rate$ Hz for COBA (Figure 3). Every frontier point is reported as the mean over three independent seeds (42, 43, 44), with standard errors across seeds. The PING rate did not decrease further as the ceiling was lowered, an empirical plateau consistent with, but not establishing, a structural lower bound on the rate.
 
       #figure(
         data-image(
@@ -268,6 +275,9 @@
         caption: [Top: representative 400 ms single-trial COBA and PING rasters, twice the presentation used for training and quantitative evaluation. Bottom left: validation accuracy by epoch. Bottom right: mean hidden-E firing rate and test accuracy across three independent seeds at each activity ceiling; bars show standard errors and stars mark unpenalised points. Source: #link("/exp025/")[exp025]; rate-attractor analysis in #link("/exp024/")[exp024].],
       )
 
+      ]
+
+      #result-card[
       === Inference-time loop activation across reciprocal coupling strength <sec-loop-weight-interventions>
 
       Whether the firing-rate reduction in #link(<sec-accuracy-rate-frontier>)[Accuracy–rate frontier] is acquired during training or follows from the canonical loop weights was tested by two complementary experiments. We distinguish the two senses of "architectural": (a) the reduction occurs without gradient-based tuning of the loop weights (which #link(<sec-loop-weight-interventions>)[Loop-weight interventions] establishes), as opposed to (b) the reduction emerges from generic E↔I structure without any hand-set values (which is not tested; the loop weights are held at the canonical biophysical values of#cite(7)). The claim in this work is (a): the inductive bias is paid for at design time, not during training.
@@ -283,9 +293,12 @@
         caption: [COBA networks from seeds 42–44 evaluated while reciprocal E↔I loop strength varied from zero to full strength, without retraining. Top: illustrative seed-42 rasters. Bottom: across-seed mean E/I rates and accuracy; shading shows sample SD. Source: #link("/exp038/")[exp038].],
       )
 
+      ]
+
+      #result-card[
       === Training metrics with frozen and trainable recurrent weights
 
-      In the second, the loop weights $W^(E I), W^(I E)$ were released for training under the Dale's-law clamp. Both matrices represent non-negative conductance magnitudes; pathway identity fixes their reversal potentials, and the negative GABA reversal potential makes the I→E pathway inhibitory (#link(<sec-training-methods>)[Training methods]). After each optimiser step, the trained magnitudes were projected onto the non-negative cone. In all conditions tested, the rhythmicity score collapsed within a single training epoch: the first logged metric, after epoch 1, shows $R_"contrast" approx #r49_ep1$, compared with the canonical initial value $R_"contrast" approx #r49_can$ (Figure 5). The collapse was faster than the per-epoch logging interval, so no intermediate state was recorded. From every initial condition tested (canonical PING values, zero, and $0.1 times$ canonical), the inhibitory firing rate remained near zero, $R_"contrast"$ stayed in $#r49_fin_lo$–$#r49_fin_hi$, and final test accuracy was approximately $#r49_fz_acc%$ at $approx #r49_fz_e$ Hz mean E rate for the frozen-PING control (Figure 5). These numbers differ from the #link(<sec-accuracy-rate-frontier>)[Accuracy–rate frontier] frontier endpoint (≈#ping25_acc% at ≈#ping25_rate Hz) because the #link(<sec-loop-weight-interventions>)[Loop-weight interventions] setup omits the activity regulariser and isolates the within-experiment contrast between frozen and trainable conditions rather than tracing the accuracy–rate frontier. Within this setup, gradient descent does not preserve or recover effective E→I recruitment from any tested initial condition.
+      In the second, the loop weights $W^(E I), W^(I E)$ were released for training under the Dale's-law clamp. Both matrices represent non-negative conductance magnitudes; pathway identity fixes their reversal potentials, and the negative GABA reversal potential makes the I→E pathway inhibitory (#link(<method-training-methods>)[Training methods]). After each optimiser step, the trained magnitudes were projected onto the non-negative cone. In all conditions tested, the rhythmicity score collapsed within a single training epoch: the first logged metric, after epoch 1, shows $R_"contrast" approx #r49_ep1$, compared with the canonical initial value $R_"contrast" approx #r49_can$ (Figure 5). The collapse was faster than the per-epoch logging interval, so no intermediate state was recorded. From every initial condition tested (canonical PING values, zero, and $0.1 times$ canonical), the inhibitory firing rate remained near zero, $R_"contrast"$ stayed in $#r49_fin_lo$–$#r49_fin_hi$, and final test accuracy was approximately $#r49_fz_acc%$ at $approx #r49_fz_e$ Hz mean E rate for the frozen-PING control (Figure 5). These numbers differ from the #link(<sec-accuracy-rate-frontier>)[Accuracy–rate frontier] frontier endpoint (≈#ping25_acc% at ≈#ping25_rate Hz) because the #link(<sec-loop-weight-interventions>)[Loop-weight interventions] setup omits the activity regulariser and isolates the within-experiment contrast between frozen and trainable conditions rather than tracing the accuracy–rate frontier. Within this setup, gradient descent does not preserve or recover effective E→I recruitment from any tested initial condition.
 
       #figure(
         data-image(
@@ -296,8 +309,11 @@
         caption: [Per-epoch test accuracy, E rate, I rate and lobe–trough contrast over #ep049 epochs. Lines show three-seed means and shading the across-seed range for canonical, zero and $0.1 times$ canonical trainable initialisations and a frozen-PING control. Source: #link("/exp049/")[exp049].],
       )
 
-      The second result is conditional on the gradient-damping scheme that stabilises PING training (the gradient flowing through the loop is attenuated by a factor $1\/d_"grad"$ on the backward pass, with $d_"grad" = 1000$; #link(<sec-training-methods>)[Training methods]); a constrained-training scheme (#link(<sec-conclusion-and-future-directions>)[Conclusion and Future Directions]) would test whether the loop's pruning depends on the damping regime. The first experiment (inference-time activation) used no gradients and is unaffected by this caveat, and carries most of the weight of the #link(<sec-loop-weight-interventions>)[Loop-weight interventions] conclusion.
+      The second result is conditional on the gradient-damping scheme that stabilises PING training (the gradient flowing through the loop is attenuated by a factor $1\/d_"grad"$ on the backward pass, with $d_"grad" = 1000$; #link(<method-training-methods>)[Training methods]); a constrained-training scheme (#link(<sec-conclusion-and-future-directions>)[Conclusion and Future Directions]) would test whether the loop's pruning depends on the damping regime. The first experiment (inference-time activation) used no gradients and is unaffected by this caveat, and carries most of the weight of the #link(<sec-loop-weight-interventions>)[Loop-weight interventions] conclusion.
 
+      ]
+
+      #result-card[
       === Post-training E rate and accuracy against gamma frequency <sec-rate-frequency-relationship>
 
       The post-training excitatory firing rate covaried approximately affinely with the measured gamma frequency. Across a sweep of $tau_"GABA"$, which jointly changes the inhibitory decay kinetics, integrated inhibitory influence, and realised $f_gamma$, the trained $r_E$ was well fit by $r_E = #fit_a + #fit_p f_gamma$ ($R_"fit"^2 = #fit_r2$, three seeds per point; Figure 6). Mean test accuracy declined from $#acc41_fast%$ at $tau_"GABA" = 4.5$ ms to $#acc41_slow%$ at $27$ ms, a $#acc41_drop$ percentage-point tradeoff across the sweep. Because $tau_"GABA"$ changes more than frequency alone, this experiment does not identify $f_gamma$ as the sole causal variable.
@@ -311,6 +327,9 @@
         caption: [Top: mean post-training E rate against measured $f_gamma$ across six $tau_"GABA"$ values; markers are three-seed condition means with SEM on both axes and the line is the affine fit. Bottom: mean test accuracy across the same conditions. Source: #link("/exp041/")[exp041].],
       )
 
+      ]
+
+      #result-card[
       === Spikes per neuron–cycle pair across inhibitory decay times
 
       The association has a cycle-resolved counterpart. Resolving spikes by
@@ -327,6 +346,9 @@
         caption: [E spikes assigned to gamma cycles inferred from population inhibitory-burst peaks. Each panel shows the distribution of spikes per neuron–cycle pair (0, 1, 2 or $>= 3$) at one $tau_"GABA"$ value. Source: #link("/exp046/")[exp046].],
       )
 
+      ]
+
+      #result-card[
       === Test accuracy under spike deletion and addition <sec-dynamics-and-robustness>
 
       Perturbations of the trained PING network at inference revealed a deletion-versus-addition asymmetry. From an unperturbed baseline of approximately $#ping_base37%$ accuracy, PING retained approximately $#ping_drop80%$ accuracy under deletion of $80%$ of emitted spikes (little degradation); addition of off-phase Poisson noise instead drove accuracy down to chance as the injected rate grew, because those spikes recruit the inhibitory pool at arbitrary phase and disrupt the rhythm#cite(31). COBA exhibited the opposite asymmetry (Figure 8).
@@ -340,6 +362,9 @@
         caption: [Mean test accuracy under inference-time random spike deletion (left) and Poisson spike addition relative to baseline population rates (right). Lines show means across seeds 42–44; shading shows standard errors. Source: #link("/exp037/")[exp037].],
       )
 
+      ]
+
+      #result-card[
       === Excitatory response to matched-rate inhibitory jitter
 
       The gating depends on the timing of inhibition, not its mean level. Two
@@ -363,6 +388,9 @@
         caption: [Matched inference-time inhibitory-jitter manipulations at $sigma = 14$ ms. Top: single-trial E/I rasters. Bottom: mean E rate, accuracy and realised I rate across three-seed per-neuron and cycle-coherent jitter sweeps. The strict comparison uses the range where realised I rates remain matched. Source: #link("/exp042/")[exp042].],
       )
 
+      ]
+
+      #result-card[
       === Post-training rate and accuracy across integration timesteps
 
       The post-training firing rate is also approximately invariant under change of integration timestep: across $Delta t_"sim" in [0.05, 1.0]$ ms (a $20 times$ range), the trained excitatory rate stayed in $#er044_lo$–$#er044_hi$ Hz and accuracy varied by less than $#acc044_pp$ pp (Figure 10). The rate is therefore a property of the continuous dynamics, not an artefact of the discretisation.
@@ -376,11 +404,14 @@
         caption: [Post-training mean E rate (black diamonds, left ordinate) and test accuracy (red squares, right ordinate) against matched training-and-inference timestep on a logarithmic 0.05–1.0 ms abscissa. Source: #link("/exp044/")[exp044].],
       )
 
+      ]
+
+      #result-card[
       === Five-digit stream with varying durations and input rates <sec-streaming-classification>
 
       The preceding subsections evaluate the network on isolated single-digit presentations. The streaming protocol tests whether the firing-rate reduction is preserved under continuous input.
 
-      A PING network trained on single-digit MNIST classified a continuously concatenated input stream without retraining or an external segmentation signal; the decoder used the known segment boundaries. The streaming protocol (#link(<sec-datasets-and-evaluation>)[Datasets and evaluation]) uses a non-spiking leaky-integrator readout with a trailing-mean window whose duration is matched exactly to each segment's presentation duration. On a representative stream of five digits, each with its own duration ($25$–$200$ ms) and input rate ($10$–$200$ Hz), #stream48-correct of #stream48-total were classified correctly (Figure 11). The failed $200$ ms, #rate48-p10.input_rate_hz Hz segment occurred at a population-level accuracy of #calc.round(100 * rate48-p10.accuracy, digits: 1)%, so it is a natural weak-evidence classification error rather than evidence that the encoding rate is intrinsically nonviable.
+      A PING network trained on single-digit MNIST classified a continuously concatenated input stream without retraining or an external segmentation signal; the decoder used the known segment boundaries. The streaming protocol (#link(<method-datasets-and-evaluation>)[Datasets and evaluation]) uses a non-spiking leaky-integrator readout with a trailing-mean window whose duration is matched exactly to each segment's presentation duration. On a representative stream of five digits, each with its own duration ($25$–$200$ ms) and input rate ($10$–$200$ Hz), #stream48-correct of #stream48-total were classified correctly (Figure 11). The failed $200$ ms, #rate48-p10.input_rate_hz Hz segment occurred at a population-level accuracy of #calc.round(100 * rate48-p10.accuracy, digits: 1)%, so it is a natural weak-evidence classification error rather than evidence that the encoding rate is intrinsically nonviable.
 
       #figure(
         data-image(
@@ -391,6 +422,9 @@
         caption: [One five-digit stream with per-segment presentation durations of 25–200 ms and Poisson input rates of 10–200 Hz. Top: thumbnails, conditions and predictions; opacity denotes input rate. Below: sampled E/I rasters and sliding leaky-integrator readout traces. Source: #link("/exp048/")[exp048].],
       )
 
+      ]
+
+      #result-card[
       === Accuracy across the duration and input-rate grid
 
       Across the ($T_"present"$, input-rate) grid, accuracy was approximately a
@@ -419,23 +453,24 @@
         caption: [*(A)* Per-segment accuracy across presentation duration and input rate, averaged over three seeds and 1,200 segments per grid cell. *(B)* Accuracy against input rate with presentation and readout windows fixed at 200 ms; the dotted line marks the 25 Hz training rate. Source: #link("/exp048/")[exp048].],
       )
 
+      ]
     ]
 
     == Discussion <sec-discussion>
 
-    A recurrent E↔I loop, held fixed during training, generates a gamma rhythm and reduces the post-training excitatory firing rate by approximately an order of magnitude relative to the COBA baseline at matched accuracy (#link(<sec-accuracy-rate-frontier>)[Accuracy–rate frontier]). The reduction does not require gradient-based learning of the loop weights: activating the loop at inference on a trained COBA network reduces the firing rate without retraining (#link(<sec-loop-weight-interventions>)[Loop-weight interventions]), and gradient descent does not preserve the loop within a single epoch when its weights are released (#link(<sec-loop-weight-interventions>)[Loop-weight interventions], conditional on the #link(<sec-training-methods>)[Training methods] damping scheme). The inductive bias is paid for at design time, via the canonical biophysical loop weights#cite(7), not during training. Within the mean-field reduction, the gamma onset is a supercritical Hopf bifurcation (#link(<sec-gamma-onset>)[Gamma onset]), and the empirical data support this classification. Its continuous, reversible character fits the inference-time loop activation of #link(<sec-loop-weight-interventions>)[Loop-weight interventions], which produces a graded change in firing rate without hysteresis; a direct test would require an inference-time hysteresis sweep on the E→I gain (#link(<sec-conclusion-and-future-directions>)[Conclusion and Future Directions]).
+    A recurrent E↔I loop, held fixed during training, generates a gamma rhythm and reduces the post-training excitatory firing rate by approximately an order of magnitude relative to the COBA baseline at matched accuracy (#link(<sec-accuracy-rate-frontier>)[Accuracy–rate frontier]). The reduction does not require gradient-based learning of the loop weights: activating the loop at inference on a trained COBA network reduces the firing rate without retraining (#link(<sec-loop-weight-interventions>)[Loop-weight interventions]), and gradient descent does not preserve the loop within a single epoch when its weights are released (#link(<sec-loop-weight-interventions>)[Loop-weight interventions], conditional on the #link(<method-training-methods>)[Training methods] damping scheme). The inductive bias is paid for at design time, via the canonical biophysical loop weights#cite(7), not during training. Within the mean-field reduction, the gamma onset is a supercritical Hopf bifurcation (#link(<sec-gamma-onset>)[Gamma onset]), and the empirical data support this classification. Its continuous, reversible character fits the inference-time loop activation of #link(<sec-loop-weight-interventions>)[Loop-weight interventions], which produces a graded change in firing rate without hysteresis; a direct test would require an inference-time hysteresis sweep on the E→I gain (#link(<sec-conclusion-and-future-directions>)[Conclusion and Future Directions]).
 
     The mechanism of the gate is the temporal structure of inhibition, not its mean level. The jitter perturbation experiment (Figure 9) is a direct test: holding the mean per-neuron inhibitory rate fixed and varying its temporal structure produces opposite effects on the excitatory rate depending on whether within-burst synchrony is preserved, consistent with prior characterisations of temporal-synchrony patterns within PING circuits#cite(32). The robustness asymmetry under spike addition versus deletion (Figure 8) follows from this dependence on phase: removal of spikes does not alter the phase structure of the population output, while addition of off-phase spikes does. The asymmetry constitutes a testable prediction for biological gamma circuits and would speak to long-standing rate-vs-timing debates#cite(33, 34). It echoes prior reports that oscillations sharpen spike-timing precision#cite(31).
 
     Across the $tau_"GABA"$ sweep, post-training rate covaried with the realised gamma frequency, and the majority of (neuron, cycle) pairs contained at most one spike (Figures 6–7). This is consistent with cycle-structured rate control, but $tau_"GABA"$ simultaneously changes inhibitory decay, integrated conductance, and burst duty cycle; the experiment does not isolate frequency as the sole cause of the rate change. An independent manipulation of oscillation frequency at matched inhibitory influence would be needed for that attribution. The streaming experiment (Figure 12) instead separates two evidence bounds: panel A shows low accuracy at short presentation durations and an approximate dependence on $T_"present" r_"input,max"$, whereas panel B locates the $200$ ms encoder floor below #rate48-p05.input_rate_hz Hz. Errors above that floor are ordinary trial-level failures under weak evidence, not evidence that the rate is categorically unusable. The numerical proximity of the short-duration floor to the canonical gamma period is descriptive, not mechanistic, because gamma frequency is not independently varied. A gamma-frequency sweep or a cycle-aligned analysis showing discontinuities at integer multiples of $T_gamma$ would be required to test whether gamma defines a temporal unit for classification.
 
-    PING is a structured alternative to the asynchronous balanced state#cite(36, 37). The architectural treatment of the loop adopted here differs from the inhibitory-plasticity literature, in which the inhibitory connectivity is plastic and learns E/I balance#cite(38, 39, 40, 41). The #link(<sec-loop-weight-interventions>)[Loop-weight interventions] result, that gradient descent does not preserve the loop from any tested initial condition (under the #link(<sec-training-methods>)[Training methods] damping regime), provides empirical support for the architectural treatment in this setting. We propose a functional interpretation: gamma may act as a structural constraint on excitatory firing rates without requiring learned tuning of the inhibitory connectivity.
+    PING is a structured alternative to the asynchronous balanced state#cite(36, 37). The architectural treatment of the loop adopted here differs from the inhibitory-plasticity literature, in which the inhibitory connectivity is plastic and learns E/I balance#cite(38, 39, 40, 41). The #link(<sec-loop-weight-interventions>)[Loop-weight interventions] result, that gradient descent does not preserve the loop from any tested initial condition (under the #link(<method-training-methods>)[Training methods] damping regime), provides empirical support for the architectural treatment in this setting. We propose a functional interpretation: gamma may act as a structural constraint on excitatory firing rates without requiring learned tuning of the inhibitory connectivity.
 
-    Relative to the two closest recent trainable-SNN precedents in the bibliography, the present work differs in how the rhythm is obtained rather than in claiming better performance.#cite(25) imposes the oscillation as an external input to spiking neurons;#cite(26) trains an adaptive-LIF network on speech, all parameters free, and reports that oscillatory synchronisation and cross-frequency coupling _emerge_ from end-to-end optimisation, correlating with task performance. The #link(<sec-loop-weight-interventions>)[Loop-weight interventions] result that gradient descent does not preserve the loop is therefore not a claim that surrogate-gradient training cannot discover rhythm in general (#cite(26) shows it can) but a narrower one: it does not maintain a _fixed, biophysically-calibrated PING loop_ whose weights are released under the Dale's-law clamp and the damping regime of #link(<sec-training-methods>)[Training methods]. The two findings are complementary poles of the same question: rhythm acquired by training versus rhythm supplied by architecture. Neither#cite(25) nor#cite(26) uses a conductance-based E↔I loop, and neither attributes a firing-rate reduction to the rhythm via inference-time activation, frequency tuning, or jitter perturbation as #link(<sec-loop-weight-interventions>)[Loop-weight interventions], #link(<sec-rate-frequency-relationship>)[Rate–frequency relationship] and #link(<sec-dynamics-and-robustness>)[Dynamics and robustness] do; their firing rates are roughly an order of magnitude higher than the rates reported here, and neither frames a per-spike economy. We do not provide a head-to-head numerical comparison:#cite(25) and#cite(26) evaluate on temporally structured tasks (SHD; speech perception) where the present static-MNIST protocol is not directly comparable. The contribution is mechanistic, not benchmark-driven.
+    Relative to the two closest recent trainable-SNN precedents in the bibliography, the present work differs in how the rhythm is obtained rather than in claiming better performance.#cite(25) imposes the oscillation as an external input to spiking neurons;#cite(26) trains an adaptive-LIF network on speech, all parameters free, and reports that oscillatory synchronisation and cross-frequency coupling _emerge_ from end-to-end optimisation, correlating with task performance. The #link(<sec-loop-weight-interventions>)[Loop-weight interventions] result that gradient descent does not preserve the loop is therefore not a claim that surrogate-gradient training cannot discover rhythm in general (#cite(26) shows it can) but a narrower one: it does not maintain a _fixed, biophysically-calibrated PING loop_ whose weights are released under the Dale's-law clamp and the damping regime of #link(<method-training-methods>)[Training methods]. The two findings are complementary poles of the same question: rhythm acquired by training versus rhythm supplied by architecture. Neither#cite(25) nor#cite(26) uses a conductance-based E↔I loop, and neither attributes a firing-rate reduction to the rhythm via inference-time activation, frequency tuning, or jitter perturbation as #link(<sec-loop-weight-interventions>)[Loop-weight interventions], #link(<sec-rate-frequency-relationship>)[Rate–frequency relationship] and #link(<sec-dynamics-and-robustness>)[Dynamics and robustness] do; their firing rates are roughly an order of magnitude higher than the rates reported here, and neither frames a per-spike economy. We do not provide a head-to-head numerical comparison:#cite(25) and#cite(26) evaluate on temporally structured tasks (SHD; speech perception) where the present static-MNIST protocol is not directly comparable. The contribution is mechanistic, not benchmark-driven.
 
     The reduction reported in #link(<sec-accuracy-rate-frontier>)[Accuracy–rate frontier] should be considered net of the inhibitory contribution. PING uses a smaller, higher-rate inhibitory population, so the reduction in population-total spike rate ($N_E chevron.l r_E chevron.r + N_I chevron.l r_I chevron.r$) is approximately a factor of $#spike_ratio$ rather than a factor of $#rate_ratio25$. Excitatory glutamatergic signalling accounts for a larger share of the cortical energy budget than inhibitory transmission#cite(28, 29); weighting spikes by metabolic cost recovers the order-of-magnitude figure. The argument is complicated by the substantial per-neuron metabolic demands of fast-spiking interneurons, which sustain high firing rates and dense synaptic activity#cite(42); for this reason we treat the uniform-spike-rate reduction (approximately $#spike_ratio$-fold) as the more conservative claim. We do not attempt a quantitative metabolic comparison with cortex, given the architectural differences (no $W_(e e)$ or $W_(i i)$, idealised synapse counts).
 
-    Several limitations apply. The evaluation used a single dataset (MNIST), a single readout, and a fixed loop topology. MNIST is a simple, near-saturated benchmark on which many architectures reach comparable accuracy, so the classification results here should be read as evidence that the firing-rate reduction survives training to competence, not as a claim about task difficulty or about generalisation to harder problems; whether the mechanism holds on datasets with intrinsic temporal structure is left to future work (SHD, #link(<sec-conclusion-and-future-directions>)[Conclusion and Future Directions]). The rhythmicity metric $R_"contrast"$ is one of several available options. The mean-field reduction inherits biophysical cellular and synaptic parameters but contains a free effective-noise scale and remains a reduction of the full network. The architecture excludes $W_(e e)$ and $W_(i i)$, conduction delays, and cell-type heterogeneity; the implications for cortical microcircuits with richer connectivity are open#cite(15). The streaming evaluation does not include temporally structured inputs in which classification depends on input timing. The capacity of a single gamma cycle and its scaling with assembly size are not characterised here#cite(43). Classification accuracy on MNIST was approximately $83$–$90%$; the contribution of the present work concerns the mechanism by which the firing rate is reduced rather than the absolute accuracy. The #link(<sec-loop-weight-interventions>)[Loop-weight interventions] released-loop result depends on the gradient-damping scheme ($d_"grad" = 1000$, #link(<sec-training-methods>)[Training methods]) and the Dale clamp; whether the loop's collapse persists under weaker damping is not addressed here. The paper does not benchmark against rhythmic-SNN baselines#cite(25, 26); the PING-specific attribution rests on the within-architecture experiments of #link(<sec-loop-weight-interventions>)[Loop-weight interventions], #link(<sec-rate-frequency-relationship>)[Rate–frequency relationship] and #link(<sec-dynamics-and-robustness>)[Dynamics and robustness] rather than on an external rhythmic-SNN comparison.
+    Several limitations apply. The evaluation used a single dataset (MNIST), a single readout, and a fixed loop topology. MNIST is a simple, near-saturated benchmark on which many architectures reach comparable accuracy, so the classification results here should be read as evidence that the firing-rate reduction survives training to competence, not as a claim about task difficulty or about generalisation to harder problems; whether the mechanism holds on datasets with intrinsic temporal structure is left to future work (SHD, #link(<sec-conclusion-and-future-directions>)[Conclusion and Future Directions]). The rhythmicity metric $R_"contrast"$ is one of several available options. The mean-field reduction inherits biophysical cellular and synaptic parameters but contains a free effective-noise scale and remains a reduction of the full network. The architecture excludes $W_(e e)$ and $W_(i i)$, conduction delays, and cell-type heterogeneity; the implications for cortical microcircuits with richer connectivity are open#cite(15). The streaming evaluation does not include temporally structured inputs in which classification depends on input timing. The capacity of a single gamma cycle and its scaling with assembly size are not characterised here#cite(43). Classification accuracy on MNIST was approximately $83$–$90%$; the contribution of the present work concerns the mechanism by which the firing rate is reduced rather than the absolute accuracy. The #link(<sec-loop-weight-interventions>)[Loop-weight interventions] released-loop result depends on the gradient-damping scheme ($d_"grad" = 1000$, #link(<method-training-methods>)[Training methods]) and the Dale clamp; whether the loop's collapse persists under weaker damping is not addressed here. The paper does not benchmark against rhythmic-SNN baselines#cite(25, 26); the PING-specific attribution rests on the within-architecture experiments of #link(<sec-loop-weight-interventions>)[Loop-weight interventions], #link(<sec-rate-frequency-relationship>)[Rate–frequency relationship] and #link(<sec-dynamics-and-robustness>)[Dynamics and robustness] rather than on an external rhythmic-SNN comparison.
 
     == Conclusion and Future Directions <sec-conclusion-and-future-directions>
 
@@ -449,7 +484,9 @@
 
     == Methods
 
-    === Single-neuron and synapse dynamics <sec-neuron-and-synapse-dynamics>
+    === Compute
+
+    + *Single-neuron and synapse dynamics.* <method-neuron-and-synapse-dynamics>
 
     The model uses a conductance-based leaky integrate-and-fire (LIF) representation with two populations, excitatory (E) and inhibitory (I). The sub-threshold membrane potential of each population evolves as
 
@@ -458,7 +495,7 @@
       C_m^I (dif V_m^I) / (dif t) & = -g_L^I (V_m^I - E_L) - g_e^I (V_m^I - E_e)
     $
 
-    where $C_m$ is the membrane capacitance, $g_L$ the leak conductance, $E_L$ the leak reversal potential, and $E_e$, $E_i$ the excitatory and inhibitory synaptic reversal potentials. The I population has no inhibitory term because there is no I→I connection in this architecture (#link(<sec-network-architecture>)[Network architecture]).
+    where $C_m$ is the membrane capacitance, $g_L$ the leak conductance, $E_L$ the leak reversal potential, and $E_e$, $E_i$ the excitatory and inhibitory synaptic reversal potentials. The I population has no inhibitory term because there is no I→I connection in this architecture (#link(<method-network-architecture>)[Network architecture]).
 
     A neuron emits a spike when $V_m$ crosses threshold $V_"th"$ from below; the membrane potential is then reset to $V_"reset"$ for a refractory period $tau_"ref"$:
 
@@ -495,21 +532,21 @@
       [$N_I$], [Inhibitory pool size], [256],
     )
 
-    === Network architecture <sec-network-architecture>
+    + *Network architecture.* <method-network-architecture>
 
-    The network has one hidden layer with $N_E$ excitatory and $N_I$ inhibitory neurons, and ten spiking output LIF neurons with weights $W_"out"$ over the excitatory population. For the standard classifier, the class score $z_c$ is output neuron $c$'s pre-reset membrane voltage averaged over the presentation window. The streaming study instead uses a non-spiking leaky-integrator readout and a trailing-mean evidence window matched to each presentation (#link(<sec-datasets-and-evaluation>)[Datasets and evaluation]). Input spikes drive the excitatory population via feedforward weights $W_"in"$. Recurrence is restricted to the E↔I loop: E projects to I via $W^(E I)$, and I projects back to E via $W^(I E)$. There is no $W_(e e)$ and no $W_(i i)$. In every realized connection matrix $W^(A B)$, rows index source population $A$ and columns index target population $B$; pathway direction is $A arrow B$.
+    The network has one hidden layer with $N_E$ excitatory and $N_I$ inhibitory neurons, and ten spiking output LIF neurons with weights $W_"out"$ over the excitatory population. For the standard classifier, the class score $z_c$ is output neuron $c$'s pre-reset membrane voltage averaged over the presentation window. The streaming study instead uses a non-spiking leaky-integrator readout and a trailing-mean evidence window matched to each presentation (#link(<method-datasets-and-evaluation>)[Datasets and evaluation]). Input spikes drive the excitatory population via feedforward weights $W_"in"$. Recurrence is restricted to the E↔I loop: E projects to I via $W^(E I)$, and I projects back to E via $W^(I E)$. There is no $W_(e e)$ and no $W_(i i)$. In every realized connection matrix $W^(A B)$, rows index source population $A$ and columns index target population $B$; pathway direction is $A arrow B$.
 
     The restriction to the E↔I loop is intended to make the rhythm unambiguously PING: excluding $W_(i i)$ rules out ING, and excluding $W_(e e)$ rules out recurrent-E driven oscillation#cite(7, 45). The conductance-based (COBA) baseline used as a non-PING control is the loop-off limit of the same architecture, obtained by setting $W^(E I) = W^(I E) = 0$.
 
-    The loop weights $W^(E I)$ and $W^(I E)$ were held fixed (untrained) in the experiments reported in #link(<sec-accuracy-rate-frontier>)[Accuracy–rate frontier] and #link(<sec-rate-frequency-relationship>)[Rate–frequency relationship], #link(<sec-dynamics-and-robustness>)[Dynamics and robustness] and #link(<sec-streaming-classification>)[Streaming classification]. The loop is treated as a structural prior, consistent with the inhibitory-plasticity literature, in which inhibitory synapses serve an experience-dependent E/I balance role rather than carrying the feedforward computational features that the excitatory pathway acquires#cite(38, 39). The choice is also supported empirically by the result in #link(<sec-loop-weight-interventions>)[Loop-weight interventions] (Figures 4–5) that gradient descent does not preserve effective E→I recruitment when the recurrent conductances are released. A Dale's-law clamp constrains all trained conductance magnitudes to remain non-negative throughout training (#link(<sec-training-methods>)[Training methods]).
+    The loop weights $W^(E I)$ and $W^(I E)$ were held fixed (untrained) in the experiments reported in #link(<sec-accuracy-rate-frontier>)[Accuracy–rate frontier] and #link(<sec-rate-frequency-relationship>)[Rate–frequency relationship], #link(<sec-dynamics-and-robustness>)[Dynamics and robustness] and #link(<sec-streaming-classification>)[Streaming classification]. The loop is treated as a structural prior, consistent with the inhibitory-plasticity literature, in which inhibitory synapses serve an experience-dependent E/I balance role rather than carrying the feedforward computational features that the excitatory pathway acquires#cite(38, 39). The choice is also supported empirically by the result in #link(<sec-loop-weight-interventions>)[Loop-weight interventions] (Figures 4–5) that gradient descent does not preserve effective E→I recruitment when the recurrent conductances are released. A Dale's-law clamp constrains all trained conductance magnitudes to remain non-negative throughout training (#link(<method-training-methods>)[Training methods]).
 
-    === Mean-field reduction <sec-mean-field-reduction>
+    + *Mean-field reduction.* <method-mean-field-reduction>
 
     To locate the gamma-onset bifurcation analytically (#link(<sec-gamma-onset>)[Gamma onset]), the spiking network is reduced to a four-dimensional rate model in the state
 
     $ bold(x)(t) = (macron(E), macron(I), macron(g)_e^I, macron(g)_i^E), $
 
-    where $macron(E)$ and $macron(I)$ are the population-mean firing rates of the E and I neurons (in spikes per millisecond), and $macron(g)_e^I$, $macron(g)_i^E$ are the population-mean cross-population synaptic conductances onto the I and E populations. The two cross-population conductances are sufficient because the architecture has no $W_(e e)$ and no $W_(i i)$ (#link(<sec-network-architecture>)[Network architecture]); the within-population conductances vanish identically.
+    where $macron(E)$ and $macron(I)$ are the population-mean firing rates of the E and I neurons (in spikes per millisecond), and $macron(g)_e^I$, $macron(g)_i^E$ are the population-mean cross-population synaptic conductances onto the I and E populations. The two cross-population conductances are sufficient because the architecture has no $W_(e e)$ and no $W_(i i)$ (#link(<method-network-architecture>)[Network architecture]); the within-population conductances vanish identically.
 
     The reduction replaces the spike-driven conductance dynamics with rate-driven first-order filters, and replaces each neuron's stochastic spike output with the population-averaged firing rate of a noise-driven LIF neuron at a given mean input current. The closed 4D system is
 
@@ -520,7 +557,7 @@
       tau_"GABA" dot(macron(g))_i^E & = -macron(g)_i^E + tau_"GABA" G_(I arrow E) macron(I)
     $
 
-    where $I_"ext"$ is an external tonic drive to E (the bifurcation control parameter, below), and the driving-force magnitudes are $Delta V_"exc,mag" = E_e - E_L = 65$ mV and $Delta V_"inh,mag" = E_L - E_i = 15$ mV evaluated at rest. The membrane time constants are the passive ratios $tau_E = C_m^E \/ g_L^E = 20$ ms and $tau_I = C_m^I \/ g_L^I = 5$ ms, computed from the capacitances and leak conductances in the #link(<sec-neuron-and-synapse-dynamics>)[Neuron and synapse dynamics] parameters table; the synaptic time constants $tau_"AMPA"$, $tau_"GABA"$ are taken directly from that table. The fan-in-normalised summed-conductance couplings are $G_(E arrow I) = 1.0$ μS and $G_(I arrow E) = 2.0$ μS, inherited from the spiking network.
+    where $I_"ext"$ is an external tonic drive to E (the bifurcation control parameter, below), and the driving-force magnitudes are $Delta V_"exc,mag" = E_e - E_L = 65$ mV and $Delta V_"inh,mag" = E_L - E_i = 15$ mV evaluated at rest. The membrane time constants are the passive ratios $tau_E = C_m^E \/ g_L^E = 20$ ms and $tau_I = C_m^I \/ g_L^I = 5$ ms, computed from the capacitances and leak conductances in the #link(<method-neuron-and-synapse-dynamics>)[Neuron and synapse dynamics] parameters table; the synaptic time constants $tau_"AMPA"$, $tau_"GABA"$ are taken directly from that table. The fan-in-normalised summed-conductance couplings are $G_(E arrow I) = 1.0$ μS and $G_(I arrow E) = 2.0$ μS, inherited from the spiking network.
 
     The population gain functions $Phi_E$ and $Phi_I$ are the noise-driven LIF rate functions in Ricciardi–Siegert form#cite(46). For mean input current $mu$ delivered to a neuron with leak conductance $g_L$, leak reversal $E_L$, threshold $V_"th"$, reset $V_"reset"$, membrane time constant $tau_m$, and refractory period $tau_"ref"$,
 
@@ -528,7 +565,7 @@
       Phi(mu) = [ tau_"ref" + tau_m sqrt(pi) integral_((V_"reset" - mu_V) \/ sigma_V)^((V_"th" - mu_V) \/ sigma_V) e^(u^2) (1 + "erf" u) dif u ]^(-1),
     $
 
-    with mean membrane potential $mu_V = E_L + mu \/ g_L$ and effective membrane-noise scale $sigma_V$. The integral was evaluated by numerical quadrature. Cellular and synaptic parameters are inherited from the #link(<sec-neuron-and-synapse-dynamics>)[Neuron and synapse dynamics] model (with $tau_m = C_m \/ g_L$) separately for the E and I populations. The effective noise scale is not derived from the spiking model and is treated as a free sensitivity parameter; $4$ mV is the reference value. Across $sigma_V in {3, 4, 5, 6}$ mV, the Hopf and its supercritical classification persisted and the crossing frequency remained stable, while the threshold, fixed point, and relative-onset amplitude varied quantitatively.
+    with mean membrane potential $mu_V = E_L + mu \/ g_L$ and effective membrane-noise scale $sigma_V$. The integral was evaluated by numerical quadrature. Cellular and synaptic parameters are inherited from the #link(<method-neuron-and-synapse-dynamics>)[Neuron and synapse dynamics] model (with $tau_m = C_m \/ g_L$) separately for the E and I populations. The effective noise scale is not derived from the spiking model and is treated as a free sensitivity parameter; $4$ mV is the reference value. Across $sigma_V in {3, 4, 5, 6}$ mV, the Hopf and its supercritical classification persisted and the crossing frequency remained stable, while the threshold, fixed point, and relative-onset amplitude varied quantitatively.
 
     The non-oscillating low-rate fixed point was tracked as $I_"ext"$ was swept from $0$ to $4$ nA in $0.01$ nA ($10$ pA) steps. At each $I_"ext"$, the fixed point was obtained by solving the algebraic system in $(macron(E), macron(I))$ (at steady state the two conductances are determined by the rates, $macron(g)_e^I = tau_"AMPA" G_(E arrow I) macron(E)$ and $macron(g)_i^E = tau_"GABA" G_(I arrow E) macron(I)$) using _scipy.optimize.fsolve_. The numerical Jacobian $J_"flow"$ of the full 4D vector field at each fixed point was computed by central finite differences. The Hopf threshold $I_"ext"^star$ is the smallest $I_"ext"$ at which the eigenvalue $lambda_J^star$ with largest real part crosses zero with non-zero imaginary part. Because time is measured in milliseconds, the crossing frequency is $f_"Hopf" = 1000 |"Im" lambda_J^star| \/ (2 pi)$ Hz.
 
@@ -538,9 +575,9 @@
 
     with $R_"fit"^2 > 0.9$. For the canonical parameter set the criterion was met with hysteresis below $10^(-5)$ and $R_"fit"^2 = 0.999$.
 
-    The mean-field prediction was compared with the gamma frequency measured in the spiking network, extracted as in #link(<sec-measurement-and-analysis>)[Measurement and analysis], across a sweep of $tau_"GABA" in {4.5, 6, 9, 12, 18, 27}$ ms (Figure 2). Both curves decrease monotonically with $tau_"GABA"$; the spiking measurement is consistently higher than the rate-equation prediction across the sweep. The reduction captures the qualitative dependence on the GABA decay time, which is the use to which it is put. The treatment follows the Wilson–Cowan tradition for cortical-rhythm modelling#cite(18) and the broader population-dynamics and next-generation neural-mass literature#cite(19, 47, 48).
+    The mean-field prediction was compared with the gamma frequency measured in the spiking network, extracted as in #link(<method-measurement-and-analysis>)[Measurement and analysis], across a sweep of $tau_"GABA" in {4.5, 6, 9, 12, 18, 27}$ ms (Figure 2). Both curves decrease monotonically with $tau_"GABA"$; the spiking measurement is consistently higher than the rate-equation prediction across the sweep. The reduction captures the qualitative dependence on the GABA decay time, which is the use to which it is put. The treatment follows the Wilson–Cowan tradition for cortical-rhythm modelling#cite(18) and the broader population-dynamics and next-generation neural-mass literature#cite(19, 47, 48).
 
-    === Training <sec-training-methods>
+    + *Training.* <method-training-methods>
 
     The network was trained on MNIST by surrogate-gradient descent through backpropagation in time#cite(22, 23). Each digit was rate-encoded as a Poisson spike train over a 200 ms presentation window at a peak rate $r_"input,max" = 25$ Hz per active pixel. With $Delta t_"sim"$ measured in milliseconds, the Bernoulli event probability per timestep was $p_"event" = r_"input,max" Delta t_"sim" / 1000$. The standard classifier used cross-entropy on the time-averaged pre-reset membrane potentials of its spiking output LIF neurons, with a sample-wise population-rate penalty active when hidden-E activity exceeds a soft ceiling $r_(E,"ceil")$:
 
@@ -569,7 +606,11 @@
 
     *Dale's-law clamp.* The synaptic matrices store conductance magnitudes, not signed currents. After each optimiser step, $W_"in"$, $W^(E I)$, and $W^(I E)$ are therefore projected onto the non-negative cone#cite(52, 53). Excitatory or inhibitory action is set by the pathway-specific reversal potential in the membrane current: the I→E term $g_I (E_I - V_m)$ is hyperpolarising for the GABA reversal potential $E_I = -80$ mV. The projection permits either recurrent conductance to grow while preventing an unphysical negative conductance. The #link(<sec-loop-weight-interventions>)[Loop-weight interventions] collapse primarily reflects weakened or absent E→I recruitment and loss of inhibitory firing, not $W^(I E)$ crossing into a negative sign.
 
-    === Measurement and analysis <sec-measurement-and-analysis>
+    === Analyse
+
+    #set enum(start: 5)
+
+    + *Measurement and analysis.* <method-measurement-and-analysis>
 
     Mean firing rates $chevron.l r_E chevron.r$ and $chevron.l r_I chevron.r$ were computed as time-averaged spike counts per neuron over the presentation window. The spectral-peak frequency $f_"peak"$ was extracted from the Welch power spectral density#cite(54) of the summed population E spike train at sampling rate $f_s = 1 \/ Delta t_"sim" = 4000$ Hz, using a single segment of length equal to the trial, a mean-centred (not z-scored) signal, no detrending, and a peak search restricted to the defined gamma band $[5, 150]$ Hz; the raw-bin maximum was refined by parabolic sub-bin interpolation. For the reported analysis, $f_gamma eq.triple f_"peak"$.
 
@@ -583,7 +624,7 @@
 
     Spike-economy claims report both the mean E rate and the population-total spike rate $N_E chevron.l r_E chevron.r + N_I chevron.l r_I chevron.r$ in spikes per second, so the reduction is stated net of the inhibitory contribution. This becomes a spike-count ratio only when the compared observations have the same duration. The metabolic argument that excitatory spikes incur larger costs than inhibitory spikes#cite(28, 29) is invoked where relevant but is not modelled quantitatively.
 
-    === Integration and parameters
+    + *Integration and parameters.*
 
     The membrane and synaptic-conductance ODEs were integrated by an exponential-Euler scheme#cite(57) with zero-order hold on the synaptic conductances over each step. With $g_"tot" = g_L + g_e + g_i$ the total instantaneous conductance, effective time constant $tau_"eff" = C_m \/ g_"tot"$, and instantaneous steady state $V_oo = (g_L E_L + g_e E_e + g_i E_i) \/ g_"tot"$, the closed-form update is
 
@@ -593,23 +634,31 @@
 
     Default parameters used by all experiments are listed in the parameters table. Per-experiment values of the loop weights $W^(E I)$, $W^(I E)$ and the input rate, and ranges swept by experiment (e.g. $tau_"GABA"$, $W^(I E)$), are stated in the corresponding figure captions.
 
-    === Datasets and evaluation <sec-datasets-and-evaluation>
+    + *Datasets and evaluation.* <method-datasets-and-evaluation>
 
-    The classification task is MNIST#cite(58), rate-encoded as in #link(<sec-training-methods>)[Training methods] (200 ms presentation, 25 Hz peak Poisson rate per active pixel). The official 60,000-image training partition supplied optimizer-training and fixed stratified validation subsets; the official 10,000-image test partition remained sealed until evaluation of the selected checkpoint. For the streaming protocol used in #link(<sec-streaming-classification>)[Streaming classification], the trained network was presented with a continuously concatenated input stream whose hidden state did not reset between digits. Excitatory spikes drove a non-spiking leaky-integrator readout with state $u_"out"[k]$; a trailing mean over the current presentation produced class scores $z_c[k]$, and $hat(y) = "argmax"_c z_c[k]$ gave the label. For every segment, the decoder used the known segment boundary and matched the readout window exactly to the presentation duration, $T_"readout" = T_"present"$; the readout window was not varied independently. The duration–rate grid used $T_"present" in {10, 15, 25, 40, 50, 75, 100, 200}$ ms and $r_"input,max" in {5, 10, 25, 50, 100, 200}$ Hz. Additional evaluations held both durations fixed at $200$ ms while sweeping below $5$ Hz to locate the encoder's chance floor, using the same three trained seeds. Reported metrics are official-test accuracy, mean E and I firing rates, and $f_gamma$.
+    The classification task is MNIST#cite(58), rate-encoded as in #link(<method-training-methods>)[Training methods] (200 ms presentation, 25 Hz peak Poisson rate per active pixel). The official 60,000-image training partition supplied optimizer-training and fixed stratified validation subsets; the official 10,000-image test partition remained sealed until evaluation of the selected checkpoint. For the streaming protocol used in #link(<sec-streaming-classification>)[Streaming classification], the trained network was presented with a continuously concatenated input stream whose hidden state did not reset between digits. Excitatory spikes drove a non-spiking leaky-integrator readout with state $u_"out"[k]$; a trailing mean over the current presentation produced class scores $z_c[k]$, and $hat(y) = "argmax"_c z_c[k]$ gave the label. For every segment, the decoder used the known segment boundary and matched the readout window exactly to the presentation duration, $T_"readout" = T_"present"$; the readout window was not varied independently. The duration–rate grid used $T_"present" in {10, 15, 25, 40, 50, 75, 100, 200}$ ms and $r_"input,max" in {5, 10, 25, 50, 100, 200}$ Hz. Additional evaluations held both durations fixed at $200$ ms while sweeping below $5$ Hz to locate the encoder's chance floor, using the same three trained seeds. Reported metrics are official-test accuracy, mean E and I firing rates, and $f_gamma$.
 
     Training emitted both a validation-selected checkpoint and a final-epoch checkpoint. *Deployment-performance* analyses, including classifier robustness and streaming evaluation, used the validation-selected checkpoint. *Endpoint-dynamics* analyses of firing rates, gamma dynamics, integration timestep, recurrent weights, and training destinations used the final-epoch checkpoint. Every derived result records the analysis purpose, checkpoint role, resolved epoch, filename, and SHA-256 digest.
+
+    === Present
+
+    #set enum(start: 8)
+
+    + *Map retained evidence to figures.* We displayed the retained training,
+    endpoint-dynamics, robustness and streaming measurements with the checkpoint
+    roles, aggregation and illustrative selections defined above.
+
+    == Code and data availability <sec-code-and-data-availability>
+
+    Source code, per-notebook reproduction scripts, trained-weight artefacts, and the figure-render pipeline are available at #link("https://github.com/eoinmurray/pinglab")[https://github.com/eoinmurray/pinglab]. MNIST is obtained from its standard public distributor. Library versions are listed in #link(<method-software-and-implementation>)[Software and implementation].
 
     === Reproducibility
 
     Each reported result was produced by a standalone experiment script in the project repository (linked under #link(<sec-code-and-data-availability>)[Code and data availability]). Each experiment hardcodes its own run scale (the sample count, seed set, and any parameter sweeps) and records those settings, together with the git commit and a run identifier, in the run's provenance file; every run number quoted in this manuscript and its captions is interpolated from those files rather than typed by hand, so a figure and the text that describes it cannot drift apart. The figure-render pipeline regenerates every print-quality figure from the experiments, so a clean re-run of the repository reproduces the figures and numbers reported here.
 
-    === Software and implementation <sec-software-and-implementation>
+    === Software and implementation <method-software-and-implementation>
 
     The model, training, and analysis are implemented in Python ($>= 3.10$). Spiking dynamics and surrogate-gradient training use PyTorch (2.11; with snnTorch 0.9 for baseline spiking primitives). Numerical analysis uses NumPy (2.2) and SciPy (1.15). All figures are produced with Matplotlib (3.10).
-
-    == Code and data availability <sec-code-and-data-availability>
-
-    Source code, per-notebook reproduction scripts, trained-weight artefacts, and the figure-render pipeline are available at #link("https://github.com/eoinmurray/pinglab")[https://github.com/eoinmurray/pinglab]. MNIST is obtained from its standard public distributor. Library versions are listed in #link(<sec-software-and-implementation>)[Software and implementation].
 
     == Declaration of generative-AI use
 
@@ -872,4 +921,5 @@
 
 #let meta = meta + (assets: input-assets("exp109", inputs))
 #let body = with-datasets("exp109", inputs, report-body, placed: inputs-ready(data-file, inputs))
+#let body = with-numbered-equations(body)
 #let body = with-contents(body)

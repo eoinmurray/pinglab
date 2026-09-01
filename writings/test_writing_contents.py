@@ -109,6 +109,19 @@ def test_current_articles_use_required_results_cards_and_method_groups(article):
     if f"| v{CURRENT_GUIDE_VERSION}]" not in source:
         pytest.skip("article records an earlier applied Writing Guide version")
 
+    imports = re.findall(r'^#import "contents\.typ": ([^\n]+)$', source, re.M)
+    assert len(imports) == 1 and "with-numbered-equations" in imports[0], article
+    assert re.search(
+        r"#let body = with-numbered-equations\(body\)\s*\n"
+        r"#let body = with-contents\(body\)\s*$",
+        source,
+    ), article
+    assert not re.search(
+        r"#(?:set|show) math\.equation|#counter\(math\.equation\)"
+        r"|numbering:\s*\"\(\d+\)\"|quad\s+\"?\(\d+\)\"?",
+        source,
+    ), article
+
     if re.search(r"^[ \t]*== Results[ \t]*$", source, re.MULTILINE):
         result_body = re.split(
             r"^[ \t]*== Results[ \t]*$", source, maxsplit=1, flags=re.MULTILINE
@@ -238,3 +251,32 @@ def test_rendered_headings_are_scoped_and_include_generated_sections(lab, pdf):
     ]
     assert [a.text for a in second.findall('.//a')] == ['Reference']
     assert html.index('</nav>') < html.index('id="abstract"')
+
+
+@pytest.mark.parametrize("pdf", [False, True])
+def test_numbered_equation_wrapper_numbers_every_displayed_equation(lab, pdf):
+    rendered = compile_document(lab, '''
+#import "/writings/contents.typ": with-numbered-equations
+#set page(width: 12cm, height: auto)
+#with-numbered-equations[
+  Inline math $x = 1$ is not numbered.
+
+  $ y = 2 $
+
+  $ z = y + 1 $
+]
+''', pdf=pdf)
+    if pdf:
+        evaluated = subprocess.run(
+            [_paths.find_typst(ROOT), "eval", "--root", str(lab),
+             "--in", str(lab / "check.typ"),
+             "query(math.equation).filter(e => e.block).map(e => e.numbering)"],
+            capture_output=True, text=True, timeout=30,
+        )
+        assert evaluated.returncode == 0 and evaluated.stdout.strip(), evaluated.stderr
+        assert json.loads(evaluated.stdout) == ["(1)", "(1)"]
+        return
+    assert rendered.count('<math display="block">') == 2
+    assert re.findall(
+        r'<span class="pinglab-equation-number">(\(\d+\))</span>', rendered
+    ) == ["(1)", "(2)"]

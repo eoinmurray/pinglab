@@ -1,4 +1,4 @@
-#import "contents.typ": with-contents, with-result-sections
+#import "contents.typ": with-contents, result-card, with-numbered-equations, with-result-sections
 #import "/.demolab/lib.typ": data-json, data-image, cite, reference-list
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
 #import "run-view.typ": with-datasets, run-view
@@ -6,7 +6,7 @@
 #let data-file = data-file.with(article: "exp075")
 
 #let meta = (
-  status: "[▦ DATA | v28.0.0]",
+  status: "[▦ DATA | v31.1.0]",
   title: "A compiled graph learns",
   updated_at: "2026-08-31T00:00:00Z",
   created_at: "2026-07-31T00:00:00Z",
@@ -43,6 +43,7 @@
 
   #with-result-sections[
 
+  #result-card[
   === Compiled classifier topology
 
   #figure(data-image(data-file("exp075/network_graph.svg"), width: 100%),
@@ -50,6 +51,9 @@
       inhibitory neurons. Input and readout projections were trainable;
       excitatory–inhibitory recurrence remained fixed.])
 
+  ]
+
+  #result-card[
   === Training loss and validation accuracy across epochs
 
   The loss-selected checkpoint came from epoch
@@ -63,11 +67,14 @@
       The dashed line marks ten-class chance accuracy.])
 
   ]
+  ]
 
   == Methods
 
   We tested optimisation of a compiled network using a small, fixed
   handwritten-digit classification task.
+
+  === Compute
 
   + *Prepare data and network.* We selected #r.config.max_samples images from
     the official MNIST training partition with a fixed subset seed, then made
@@ -81,11 +88,23 @@
     seed #r.config.seed. AdamW#cite(1) minimised unit-weight cross-entropy with
     learning rate #r.config.learning_rate, weight decay #r.config.weight_decay
     and gradient-norm clipping at one; only input and readout weights changed.
+  === Analyse
+
+  #set enum(start: 3)
+
   + *Select the checkpoint.* After each epoch we evaluated the validation set
     using #r.config.validation_encoder_draws.count fixed encoder draws.
     Selection minimised mean validation cross-entropy, breaking ties by mean
     accuracy and then the earliest epoch. The official test partition did not
     participate in selection; both selected and final states were retained.
+
+  === Present
+
+  #set enum(start: 4)
+
+  + *Display retained learning evidence.* We displayed the recorded learning
+    curves and selected-versus-final checkpoint outputs with the validation
+    selection rule stated above.
 
   #run-view("exp075", inputs)
 
@@ -106,4 +125,5 @@
 
 #let meta = meta + (assets: input-assets("exp075", inputs))
 #let body = with-datasets("exp075", inputs, report-body, placed: inputs-ready(data-file, inputs))
+#let body = with-numbered-equations(body)
 #let body = with-contents(body)

@@ -1,7 +1,7 @@
-#import "contents.typ": with-contents
+#import "contents.typ": with-contents, with-numbered-equations
 #import "run-view.typ": with-datasets
 #let meta = (
-  status: "[≡ TXT | v28.0.0]",
+  status: "[≡ TXT | v31.1.0]",
   title: "Compatibility, status, and extension",
   created_at: "2026-08-14T00:00:00Z",
   description: "Understand the legacy compatibility contract, current capability boundary, and rules for extending snnlang safely.",
@@ -230,4 +230,5 @@
 ]
 
 #let body = with-datasets("exp090", (), body)
+#let body = with-numbered-equations(body)
 #let body = with-contents(body)

@@ -1,7 +1,7 @@
-#import "contents.typ": with-contents
+#import "contents.typ": with-contents, with-numbered-equations
 #import "run-view.typ": with-datasets
 #let meta = (
-  status: "[≡ TXT | v28.0.0]",
+  status: "[≡ TXT | v31.1.0]",
   title: "Cloudflare R2 archive",
   created_at: "2026-08-11T00:00:00Z",
   updated_at: "2026-08-28T00:00:00Z",
@@ -115,4 +115,5 @@
 ]
 
 #let body = with-datasets("exp104", (), body)
+#let body = with-numbered-equations(body)
 #let body = with-contents(body)

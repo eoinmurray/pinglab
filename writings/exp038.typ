@@ -1,4 +1,4 @@
-#import "contents.typ": with-contents, with-result-sections
+#import "contents.typ": with-contents, result-card, with-numbered-equations, with-result-sections
 #import "/.demolab/lib.typ": data-json, data-image, cite, reference-list
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
 #import "run-view.typ": with-datasets, run-view
@@ -6,7 +6,7 @@
 #let data-file = data-file.with(article: "exp038")
 
 #let meta = (
-  status: "[▦ DATA | v28.0.0]",
+  status: "[▦ DATA | v31.1.0]",
   title: "Switching On the Inhibitory Loop",
   created_at: "2026-05-30T00:00:00Z",
   updated_at: "2026-08-31T00:00:00Z",
@@ -58,6 +58,7 @@
 
   #with-result-sections[
 
+  #result-card[
   === Population rates and accuracy across reciprocal loop strength
 
   At full loop strength, E rate fell from approximately #rate_off to #rate_on Hz,
@@ -76,6 +77,9 @@
     ],
   )
 
+  ]
+
+  #result-card[
   === PING rasters across reciprocal loop strength
 
   Burst grouping increased across the sampled loop strengths. These illustrative
@@ -93,12 +97,15 @@
   )
 
   ]
+  ]
 
   == Methods
 
   We reused networks from the #link("/exp022/")[shared training study] and
   reanalysed recorded inference observations. No new training or simulation
   was performed for this account.
+
+  === Compute
 
   + *Reuse trained classifiers.* MNIST handwritten digits #cite(1) supplied
     6,300 training and 700 validation images from the official training partition.
@@ -119,17 +126,25 @@
     E→E and I→I coupling stayed zero. The same network seed was reused across
     strengths; no optimization followed the intervention.
 
+  === Analyse
+
+  #set enum(start: 3)
+
   + *Evaluate responses.* Each strength used the same #eval_n images from the
     official #eval_pool\-image test partition, with 200 ms presentations and
     0.1 ms steps. Accuracy counted correct classifications; rates included all
     neurons and all evaluated presentations:
 
-    #math.equation(block: true, numbering: "(1)", $ r_P = 1 / (N_"eval" N_P T_"present") sum_(b=1)^(N_"eval") sum_(n in P) n_"spike"(b,n). $)
+    #math.equation(block: true, $ r_P = 1 / (N_"eval" N_P T_"present") sum_(b=1)^(N_"eval") sum_(n in P) n_"spike"(b,n). $)
 
     Here $P$ denotes E or I, $N_P$ its neuron count, $N_"eval"$ the number of presentations,
     $T_"present"$ their duration in seconds, and $n_"spike"(b,n)$ neuron $n$'s spike count during
     presentation $b$; $r_P$ is in hertz. Curves show means and sample standard
     deviations across the three networks; single-image rasters are illustrative.
+
+  === Present
+
+  #set enum(start: 4)
 
   + *Probe input drive.* Auxiliary probes reused seed-42 classifiers trained
     with and without the loop. Uniform independent Poisson inputs covered
@@ -202,4 +217,5 @@
 
 #let meta = meta + (assets: input-assets("exp038", inputs))
 #let body = with-datasets("exp038", inputs, report-body, placed: inputs-ready(data-file, inputs))
+#let body = with-numbered-equations(body)
 #let body = with-contents(body)

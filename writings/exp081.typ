@@ -1,4 +1,4 @@
-#import "contents.typ": with-contents, with-result-sections
+#import "contents.typ": with-contents, with-numbered-equations, with-result-sections
 #import "/.demolab/lib.typ": data-json, data-image
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
 #import "run-view.typ": with-datasets, run-view
@@ -7,7 +7,7 @@
 #let data-file = data-file.with(article: "exp081")
 
 #let meta = (
-  status: "[▦ DATA | v29.0.0]",
+  status: "[▦ DATA | v31.1.0]",
   title: "How Pixel Features Respond to Input Rate",
   created_at: "2026-08-10T00:00:00Z",
   updated_at: "2026-08-31T15:55:29Z",
@@ -193,7 +193,7 @@
   + *Integrate conductance and voltage.* AMPA conductance decayed with time
     constant $tau_"AMPA"=#p.membrane.tau_ampa_ms$ ms before each event added its
     conductance increment. Membrane voltage obeyed
-    $ C_m (d V_m)/(d t)=g_L (E_L-V_m)+g(t)(E_e-V_m). quad "(1)" $
+    $ C_m (d V_m)/(d t)=g_L (E_L-V_m)+g(t)(E_e-V_m). $
     Here $t$ is physical time in ms, $V_m$ is membrane voltage in mV, $g$ is
     excitatory conductance in μS, $C_m=#p.membrane.C_m_nF$ nF is capacitance,
     $g_L=#p.membrane.g_L_uS$ μS is leak conductance, and
@@ -203,7 +203,7 @@
 
   + *Record the finite-window feature.* For each encoding draw we approximated
     $ z_"feature"=1/T_"present" integral_0^(T_"present") (V_m(t)-E_L) dif t.
-      quad "(2)" $
+ $
     Here $z_"feature"$ is baseline-subtracted mean voltage in mV and
     $T_"present"=#p.presentation_ms$ ms is presentation duration. The recorded
     discrete estimate averaged all $N_t$ post-update voltages after subtracting
@@ -226,7 +226,7 @@
     gave $H_r(omega)$, the input-to-feature transfer function at angular
     frequency $omega$ in rad/ms, with predicted variance
     $ "Var"(z_"feature")=1/(2 pi) integral_(-oo)^oo abs(H_r(omega))^2
-      (r_"input"/1000) dif omega. quad "(3)" $
+      (r_"input"/1000) dif omega. $
     #link(<sec-appendix-model-specification-and-calculations>)[Appendix: model specification and calculations] specifies this approximation, and
     #link(<sec-appendix-derivation-of-the-analytical-filter>)[Appendix: derivation of the analytical filter] derives it.
 
@@ -589,4 +589,5 @@
 
 #let meta = meta + (assets: input-assets("exp081", inputs))
 #let body = with-datasets("exp081", inputs, report-body, placed: inputs-ready(data-file, inputs))
+#let body = with-numbered-equations(body)
 #let body = with-contents(body)

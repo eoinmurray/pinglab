@@ -18,7 +18,11 @@
     html.elem("style",
       ".pinglab-result-sections { counter-reset: pinglab-result; } "
       + ".pinglab-result-sections > h4, .pinglab-result-sections > article > h4:first-child { counter-increment: pinglab-result; } "
-      + ".pinglab-result-sections > h4::before, .pinglab-result-sections > article > h4:first-child::before { content: counter(pinglab-result) \". \"; }",
+      + ".pinglab-result-sections > h4::before, .pinglab-result-sections > article > h4:first-child::before { content: counter(pinglab-result) \". \"; } "
+      + ".pinglab-result-card { margin: 1.25rem 0; padding: 1.2rem 1.35rem 1.3rem; border: 1px solid var(--rule-strong); border-radius: 3px; background: var(--paper); } "
+      + ".pinglab-result-card > h4:first-child { margin-top: 0; } "
+      + ".pinglab-result-card > :last-child { margin-bottom: 0; } "
+      + "@media (max-width: 520px) { .pinglab-result-card { margin: 1rem 0; padding: .95rem 1rem 1.05rem; } }",
     )
     html.elem("section", attrs: (class: "pinglab-result-sections"), body)
   } else {
@@ -28,6 +32,37 @@
     ]
   }
 }
+
+#let result-card(body) = context {
+  if target() == "html" {
+    html.elem("article", attrs: (class: "pinglab-result-card"), body)
+  } else {
+    body
+  }
+}
+
+#let with-numbered-equations(body) = [
+  #set math.equation(numbering: "(1)")
+  #counter(math.equation).update(0)
+  #show math.equation.where(block: true): equation => context {
+    if target() == "html" {
+      html.elem("div", attrs: (
+        class: "pinglab-numbered-equation",
+        style: "display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:1em",
+      ), {
+        html.elem("div", attrs: (style: "min-width:0;overflow-x:auto"), equation)
+        html.elem(
+          "span",
+          attrs: (class: "pinglab-equation-number"),
+          numbering(equation.numbering, ..counter(math.equation).at(equation.location())),
+        )
+      })
+    } else {
+      equation
+    }
+  }
+  #body
+]
 
 #let toc-list(items, spacing: 0.25em) = {
   list(tight: true, spacing: spacing, ..items)

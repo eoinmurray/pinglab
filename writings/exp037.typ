@@ -1,4 +1,4 @@
-#import "contents.typ": with-contents, with-result-sections
+#import "contents.typ": with-contents, result-card, with-numbered-equations, with-result-sections
 #import "/.demolab/lib.typ": data-json, data-image, cite, reference-list
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
 #import "run-view.typ": with-datasets, run-view
@@ -6,7 +6,7 @@
 #let data-file = data-file.with(article: "exp037")
 
 #let meta = (
-  status: "[▦ DATA | v28.0.0]",
+  status: "[▦ DATA | v31.1.0]",
   title: "Dropped Spikes vs Added Noise",
   created_at: "2026-05-30T00:00:00Z",
   updated_at: "2026-08-31T00:00:00Z",
@@ -71,6 +71,7 @@
 
   #with-result-sections[
 
+  #result-card[
   === Test accuracy under spike deletion and insertion
 
   Unperturbed PING/COBA accuracies were #acc("ping", "drop", 0)%/
@@ -92,6 +93,9 @@
     ],
   )
 
+  ]
+
+  #result-card[
   === PING rasters across spike-deletion probabilities
 
   Banding remained visible at partial deletion, although these illustrative
@@ -107,6 +111,9 @@
     ],
   )
 
+  ]
+
+  #result-card[
   === PING rasters across inserted-spike rates
 
   Inserted spikes increasingly obscured the bands, but this alone does not
@@ -123,6 +130,9 @@
     ],
   )
 
+  ]
+
+  #result-card[
   === COBA rasters across spike-deletion probabilities
 
   E activity thinned as deletion increased and vanished at full deletion. This
@@ -138,6 +148,9 @@
     ],
   )
 
+  ]
+
+  #result-card[
   === COBA rasters across inserted-spike rates
 
   Under insertion, E activity increased and imposed I spikes appeared despite
@@ -162,7 +175,9 @@
     We reused trained networks and recorded inference trials to compare deletion
     and insertion of hidden spikes, without retraining.
   ]
-  #set math.equation(numbering: "(1)")
+  ]
+
+  === Compute
 
   + *Select trained classifiers.* MNIST handwritten digits #cite(1) supplied
     a 7,000-image training pool, split into 6,300 optimization and 700 validation
@@ -191,6 +206,10 @@
     Insertion is a Bernoulli approximation to Poisson arrivals, capped at one
     spike per slot; collisions with existing spikes add nothing.
 
+  === Analyse
+
+  #set enum(start: 3)
+
   + *Evaluate the selected networks.* Pixel intensity controlled Poisson input
     encoding, with a maximum rate of 25 Hz. An independent perturbation generator
     preserved the input-encoding stream across conditions. Each of 192
@@ -200,6 +219,10 @@
     over three seeds; curve envelopes show sample SD, not confidence intervals.
     Illustrative trials used seed 42 and test-image index 0, independently of
     digit-class selection.
+
+  === Present
+
+  #set enum(start: 4)
 
   + *Normalize the nominal added rate.* We preserved the original normalization:
     $ x_"add" = frac(100 r_"add", overline(r)_(E,"ref")) $ <eq-normalize>
@@ -251,4 +274,5 @@
 
 #let meta = meta + (assets: input-assets("exp037", inputs))
 #let body = with-datasets("exp037", inputs, report-body, placed: inputs-ready(data-file, inputs))
+#let body = with-numbered-equations(body)
 #let body = with-contents(body)

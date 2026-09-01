@@ -1,4 +1,4 @@
-#import "contents.typ": with-contents, with-result-sections
+#import "contents.typ": with-contents, with-numbered-equations, with-result-sections
 #import "/.demolab/lib.typ": data-image, data-json
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
 #import "run-view.typ": with-datasets
@@ -7,7 +7,7 @@
 #let data-file = data-file.with(article: "exp082")
 
 #let meta = (
-  status: "[▦ DATA | v28.1.0]",
+  status: "[▦ DATA | v31.1.0]",
   title: "Spike-Count Classification in a Continuous Stream",
   created_at: "2026-08-10T00:00:00Z",
   updated_at: "2026-08-31T15:50:25Z",
@@ -273,17 +273,6 @@
     == Methods
 
   ]
-  #set math.equation(numbering: "(1)")
-  #counter(math.equation).update(0)
-  #show math.equation.where(block: true): equation => context {
-    if target() == "html" {
-      html.elem("div", attrs: (class: "exp082-equation", style: "display:flex;align-items:center;gap:1em"), {
-        html.elem("div", attrs: (style: "flex:1;min-width:0"), equation)
-        html.elem("span", numbering("(1)", ..counter(math.equation).at(equation.location())))
-      })
-    } else { equation }
-  }
-
   === Compute
 
   + *Classifiers.* We reused three frozen PING networks, seeds 42–44, from
@@ -339,7 +328,7 @@
     its counterexample; the search stopped after
     #r.showcase_selection.candidates.len() candidates.
 
-  === Analysis
+  === Analyse
 
   #set enum(start: 14)
 
@@ -367,7 +356,7 @@
     causal gamma manipulation, fixed-rate-training control or separation of
     viewing from integration time support broader claims.
 
-  === Presentation
+  === Present
 
   #set enum(start: 19)
 
@@ -394,4 +383,5 @@
 
 #let meta = meta + (assets: input-assets("exp082", inputs))
 #let body = with-datasets("exp082", inputs, report-body, placed: inputs-ready(data-file, inputs))
+#let body = with-numbered-equations(body)
 #let body = with-contents(body)

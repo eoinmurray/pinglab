@@ -336,7 +336,6 @@ def test_selected_article_renders_results_before_methods(lab):
         for text in re.findall(r"<h3\b[^>]*>(.*?)</h3>", html, re.S)
     ]
     assert headings == [
-        "Table of Contents",
         "Abstract",
         "Results",
         "Methods",

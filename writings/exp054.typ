@@ -1,4 +1,4 @@
-#import "contents.typ": with-contents, with-result-sections
+#import "contents.typ": with-contents, result-card, with-numbered-equations, with-result-sections
 #import "/.demolab/lib.typ": data-json, data-image
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
 #import "run-view.typ": with-datasets, run-view
@@ -6,7 +6,7 @@
 #let data-file = data-file.with(article: "exp054")
 
 #let meta = (
-  status: "[▦ DATA | v28.0.0]",
+  status: "[▦ DATA | v31.1.0]",
   title: "Gamma Turns On Across the Coupling Map",
   created_at: "2026-06-15T00:00:00Z",
   updated_at: "2026-08-31T00:00:00Z",
@@ -112,6 +112,7 @@
       examples (bottom) at 0.97/1.88/4.90 Hz.],
   )
 
+  #result-card[
   === Mean-field and spiking onset comparison
 
   A complex eigenvalue pair crossed the imaginary axis near external drive
@@ -135,24 +136,20 @@
 
   #context if target() != "html" { pagebreak(weak: true) }
   ]
+  ]
 
   == Methods
 
   Untrained PING populations tested coupling-dependent temporal structure; uncoupled controls tested the influence of input sharing. The mean-field comparison reused numerical observations from a separate conductance model.
 
-  #set math.equation(numbering: "(1)")
-  #counter(math.equation).update(0)
-  #show math.equation.where(block: true): equation => context {
-    if target() == "html" {
-      html.elem("div", attrs: (class: "exp054-equation", style: "display:flex;align-items:center;gap:1em"), {
-        html.elem("div", attrs: (style: "flex:1;min-width:0;overflow-x:auto"), equation)
-        html.elem("span", numbering("(1)", ..counter(math.equation).at(equation.location())))
-      })
-    } else { equation }
-  }
+  === Compute
 
   + *Sweep coupling.* We simulated 256 E and 256 I neurons at all 11×11 combinations of $W_(E I) = 0$–3 µS and $W_(I E) = 0$–6 µS. Each E neuron received a private 100 Hz Poisson channel with identity weight 0.5. We used seed 42, one trial, 0.25 ms steps and 1,000 ms recordings; we discarded the first 100 ms.
   + *Construct uncoupled controls.* We set both coupling strengths to zero. We scanned private input at 1/2/5/10/20/40/70/100 Hz and shared input at 8/12/16/20/28/40/60/100 Hz. Shared input used 200 channels, weight 0.2 and 95% initial zero connections. The 100 Hz private origin was shared with the coupling grid, giving 136 unique probes.
+  === Analyse
+
+  #set enum(start: 3)
+
   + *Measure rates and autocorrelation.* We divided each population's post-burn spike count by neuron count and 0.9 s. We binned E spikes at $Delta t_"bin" = 1$ ms, obtaining counts $n_E[k]$ in $N_"bin" = 900$ bins. For integer lag $ell = 1, dots, 100$, we calculated
 
     $ A_"corr"(ell) = 1 / (⟨ n_E ⟩^2 (N_"bin" - ell)) sum_(k=0)^(N_"bin"-ell-1) n_E[k] n_E[k+ell]. $ <exp054-autocorrelation>
@@ -164,6 +161,10 @@
 
     For $0 <= "trough" <= "lobe"$ and a positive denominator, this lies in $[0,1]$. A missing trough or invalid denominator leaves the score undefined; no trough floor is imposed on contrast.
   + *Compare mean-field onset.* We used the #link("/exp033/")[four-variable conductance model] at 4 mV effective noise. We continued fixed points over 401 drives from 0–4 nA and refined the leading-eigenvalue crossing with Brent's method. We swept 25 drives from 0.1 nA below to 0.55 nA above the crossing in both directions, carrying endpoint states. We integrated 2 s per drive with LSODA and measured peak-to-peak E-rate amplitude ($"ms"^(-1)$) over the final 500 ms. Recorded amplitudes were reused; missing trajectories were not reconstructed.
+  === Present
+
+  #set enum(start: 6)
+
   + *Compare frequencies.* We repeated the theoretical crossing search at inhibitory decays 4.5/6/9/12/18/27 ms. We overlaid the median frequency across three seeded #link("/exp041/")[spiking-network measurements] at each decay; we did not refit the mean-field noise scale.
 
   #run-view("exp054", inputs)
@@ -192,4 +193,5 @@
 
 #let meta = meta + (assets: input-assets("exp054", inputs))
 #let body = with-datasets("exp054", inputs, report-body, placed: inputs-ready(data-file, inputs))
+#let body = with-numbered-equations(body)
 #let body = with-contents(body)

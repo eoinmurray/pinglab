@@ -19,14 +19,11 @@ STATUSES = {
     f"[≡ TXT | v{GUIDE_VERSION.group(1)}]",
     f"[▦ DATA | v{GUIDE_VERSION.group(1)}]",
 }
-KNOWN_GUIDE_VERSIONS = set(
-    re.findall(r"^- \*\*(\d+\.\d+\.\d+)\*\*", GUIDE, re.MULTILINE)
-)
 STATUS_PATTERN = re.compile(r"^\[(?:≡ TXT|▦ DATA) \| v(\d+\.\d+\.\d+)\]$")
 
 
 def test_status_vocabulary_matches_writing_guide():
-    section = GUIDE.split("### 3.5. Local-data availability\n", 1)[1].split(
+    section = GUIDE.split("### 3.4. Local-data availability\n", 1)[1].split(
         "\n## 4.", 1
     )[0]
     labels = {
@@ -53,4 +50,4 @@ def test_article_declares_supported_status(article):
     status = metadata.get("status", "")
     match = STATUS_PATTERN.fullmatch(status)
     assert match is not None, article
-    assert match.group(1) in KNOWN_GUIDE_VERSIONS, article
+    assert status in STATUSES, article

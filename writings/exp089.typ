@@ -1,7 +1,7 @@
-#import "contents.typ": with-contents
+#import "contents.typ": with-contents, with-numbered-equations
 #import "run-view.typ": with-datasets
 #let meta = (
-  status: "[≡ TXT | v28.0.0]",
+  status: "[≡ TXT | v31.1.0]",
   title: "Runtime state, checkpoints, and provenance",
   created_at: "2026-08-14T00:00:00Z",
   description: "Continue simulations safely, distinguish dynamic state from learned parameters, and record enough identity to replay a run.",
@@ -102,4 +102,5 @@
 ]
 
 #let body = with-datasets("exp089", (), body)
+#let body = with-numbered-equations(body)
 #let body = with-contents(body)

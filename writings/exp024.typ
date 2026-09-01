@@ -1,4 +1,4 @@
-#import "contents.typ": with-contents, with-result-sections
+#import "contents.typ": with-contents, result-card, with-numbered-equations, with-result-sections
 #import "/.demolab/lib.typ": data-json, data-image, cite, reference-list
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
 #import "run-view.typ": with-datasets, run-view
@@ -6,7 +6,7 @@
 #let data-file = data-file.with(article: "exp024")
 
 #let meta = (
-  status: "[▦ DATA | v28.0.0]",
+  status: "[▦ DATA | v31.1.0]",
   title: "Accuracy Plateaus While Firing Rate Rises",
   created_at: "2026-06-02T00:00:00Z",
   updated_at: "2026-08-31T00:00:00Z",
@@ -52,6 +52,7 @@
 
   #with-result-sections[
 
+  #result-card[
   === COBA loss, accuracy and excitatory rate across training
 
   Final mean validation accuracy was #value("coba", "final_acc")% and E rate
@@ -67,6 +68,9 @@
       loss dashed.],
   )
 
+  ]
+
+  #result-card[
   === PING loss, accuracy and population rates across training
 
   Final mean E and I rates were #value("ping", "final_e_rate_hz") and
@@ -82,6 +86,9 @@
       Curves show individual seeds without uncertainty bands.],
   )
 
+  ]
+
+  #result-card[
   === COBA and PING accuracy, cross-entropy and excitatory rate
 
   The 99%-of-final-accuracy markers do not establish sustained convergence.
@@ -97,11 +104,14 @@
   )
 
   ]
+  ]
 
   == Methods
 
   We assessed finite changes in accuracy, activity and weights using recorded
   learning histories from unregularised classifiers.
+
+  === Compute
 
   + *Select the baseline histories.* We reused all #n seeds per architecture from
     the unregularised activity comparison. Each history contains #c.epochs
@@ -127,11 +137,15 @@
     #c.voltage_gradient_damping.coba for COBA and #c.voltage_gradient_damping.ping
     for PING; no activity regulariser was applied.
 
+  === Analyse
+
+  #set enum(start: 4)
+
   + *Measure final-window drift.* For each seed, we recorded validation accuracy,
     training and validation cross-entropy, and population-mean E and I rates.
     The final #c.window_epochs epochs define the endpoint slope
     #math.equation(block: true,
-      $s_x = (x_E - x_(E - w + 1)) / (w - 1) quad "(1)"$)
+      $s_x = (x_E - x_(E - w + 1)) / (w - 1)$)
     Here $x_e$ is a measurement at epoch $e$, $E$ is the final epoch, $w$ is the
     window length, and $s_x$ is change per epoch. Absolute slopes below
     #r.measurement.accuracy_threshold_pp_per_epoch percentage points/epoch for
@@ -146,12 +160,20 @@
     marker, averaged across seeds; it does not require subsequent accuracy to
     stay above the threshold.
 
+  === Present
+
+  #set enum(start: 5)
+
+  + *Display recorded trajectories.* We displayed individual-seed learning
+    curves and across-seed endpoint summaries with the recorded stability
+    thresholds and aggregation.
+
   == Discussion
 
   Cross-entropy can keep rewarding larger decision gaps after the predicted class
   becomes correct:
   #math.equation(block: true,
-    $"CE" = -log p_y = log(1 + sum_(k != y) e^(z_k - z_y)) quad "(2)"$)
+    $"CE" = -log p_y = log(1 + sum_(k != y) e^(z_k - z_y))$)
   Here $"CE"$ is cross-entropy for one example, $y$ its true class,
   $k$ an alternative class, $z_y$ and $z_k$ their logits, and $p_y$ the
   softmax probability of the true class. The decision margin
@@ -188,4 +210,5 @@
 
 #let meta = meta + (assets: input-assets("exp024", inputs))
 #let body = with-datasets("exp024", inputs, report-body, placed: inputs-ready(data-file, inputs))
+#let body = with-numbered-equations(body)
 #let body = with-contents(body)

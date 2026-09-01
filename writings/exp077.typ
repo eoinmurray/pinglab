@@ -1,4 +1,4 @@
-#import "contents.typ": with-contents, with-result-sections
+#import "contents.typ": with-contents, result-card, with-numbered-equations, with-result-sections
 #import "/.demolab/lib.typ": data-json, data-image, cite, reference-list
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
 #import "run-view.typ": with-datasets, run-view
@@ -6,7 +6,7 @@
 #let data-file = data-file.with(article: "exp077")
 
 #let meta = (
-  status: "[▦ DATA | v28.0.0]",
+  status: "[▦ DATA | v31.1.0]",
   title: "Arbitrary coupled graphs execute natively",
   updated_at: "2026-08-31T00:00:00Z",
   created_at: "2026-08-05T00:00:00Z",
@@ -44,6 +44,7 @@
 
   #with-result-sections[
 
+  #result-card[
   === Single-circuit compatibility, timing and memory measurements
 
   #figure(table(columns: (1.8fr, 1fr),
@@ -69,6 +70,9 @@
       compiled versus eager execution. Traced Python memory excludes native
       tensor storage; no uncertainty across independent timing sessions is estimated.])
 
+  ]
+
+  #result-card[
   === Reciprocal delayed circuit graph
 
   #figure(data-image(data-file("exp077/reciprocal_delayed.svg"), width: 100%),
@@ -77,6 +81,9 @@
       inhibitory neurons. Each cross-circuit inhibitory projection targets the
       other circuit's excitatory population.])
 
+  ]
+
+  #result-card[
   === Coupling variants and causal delay steps
 
   Separate pulse and causal-planning tests passed.
@@ -92,6 +99,9 @@
       connection with no additional delay receives spikes on the next causal
       step; the explicit delay was #r.delay_timing.explicit_delay_steps steps.])
 
+  ]
+
+  #result-card[
   === Matched-input rasters across coupling variants
 
   #figure(data-image(data-file("exp077/matched_rasters.png"), width: 100%),
@@ -104,11 +114,14 @@
   phase-coupling mechanism.
 
   ]
+  ]
 
   == Methods
 
   We separated graph-defined coupling checks from a bounded implementation
   comparison using PyTorch#cite(1).
+
+  === Compute
 
   + *Define and drive the coupled circuits.* We authored two circuits with
     16/four and 12/three excitatory/inhibitory neurons and eight/six input
@@ -123,11 +136,19 @@
     We recorded all exposed populations and computed zero-lag correlation and
     peak cross-correlation lag; silent traces received the existing zero-valued
     diagnostic convention and were not interpreted as phase estimates.
+  === Analyse
+
+  #set enum(start: 3)
+
   + *Compare explicit and graph execution.* We initialised a separate
     256-excitatory/64-inhibitory classifier identically in both implementations,
     using seed 17 and the same 100-step, eight-sample spike tensor. We compared
     parameters, spikes and outputs, and reloaded the graph state into an
     independently initialised model. All comparisons used recorded tensors.
+  === Present
+
+  #set enum(start: 4)
+
   + *Measure timing and causal boundaries.* We timed five eager calls after
     two warmups and calculated graph overhead relative to the explicit
     implementation's median, using the unchanged ten-percent threshold.
@@ -155,4 +176,5 @@
 
 #let meta = meta + (assets: input-assets("exp077", inputs))
 #let body = with-datasets("exp077", inputs, report-body, placed: inputs-ready(data-file, inputs))
+#let body = with-numbered-equations(body)
 #let body = with-contents(body)

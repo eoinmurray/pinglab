@@ -1,4 +1,4 @@
-#import "contents.typ": with-contents, with-result-sections
+#import "contents.typ": with-contents, result-card, with-numbered-equations, with-result-sections
 #import "/.demolab/lib.typ": cite, data-image, data-json, reference-list
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
 #import "run-view.typ": with-datasets, run-view
@@ -6,7 +6,7 @@
 #let data-file = data-file.with(article: "exp048")
 
 #let meta = (
-  status: "[▦ DATA | v28.0.0]",
+  status: "[▦ DATA | v31.1.0]",
   title: "[DEPRECATED] Accuracy Across Duration and Input Rate",
   created_at: "2026-06-08T00:00:00Z",
   updated_at: "2026-08-31T00:00:00Z",
@@ -88,6 +88,7 @@
 
     #with-result-sections[
 
+      #result-card[
       === Five-digit stream with varying durations and input rates
 
       The label-to-prediction pairs were #varying-predictions, giving
@@ -112,6 +113,9 @@
           denote population sizes, not the number of displayed neurons.],
       )
 
+      ]
+
+      #result-card[
       === Accuracy across duration and encoding-rate conditions
 
       Accuracy remained at the empty-input floor through #p05.input_rate_hz Hz,
@@ -141,6 +145,7 @@
       )
 
 
+      ]
     ]
 
     == Methods
@@ -150,7 +155,9 @@
     specifies the evaluation and decoder; missing raw recordings prevent prediction
     replay and independent confirmation of historical model identities.
 
-    1. *Select classifiers and digits.* MNIST handwritten digits #cite(1) were
+    === Compute
+
+    + *Select classifiers and digits.* MNIST handwritten digits #cite(1) were
       sampled from the official test partition, separately from training and
       validation. The protocol selected the best validation epoch from each of
       #cfg.train_seeds.len() independently trained networks (seeds
@@ -159,7 +166,7 @@
       at #cfg.input_rate_hz Hz. Illustrative streams used seed #cfg.seed and
       distinct digit classes; population estimates used all seeds.
 
-    2. *Encode and concatenate.* Independent Bernoulli draws at each
+    + *Encode and concatenate.* Independent Bernoulli draws at each
       $Delta t_"sim" = #cfg.dt$ ms timestep approximated Poisson input across #cfg.n_in pixel
       channels; firing probability was pixel intensity times encoding rate times
       $Delta t_"sim"/1000$. Encoding rates referred to full-intensity pixels, with lower
@@ -167,7 +174,7 @@
       gaps; rate and duration changed at known boundaries while hidden state
       continued without resetting within the stream.
 
-    3. *Vary evidence.* Crossed presentation durations and encoding rates defined
+    + *Vary evidence.* Crossed presentation durations and encoding rates defined
       #grid-cells conditions, each evaluated using #cfg.n_grid_streams streams of
       #cfg.n_per_stream digits per seed. Lower-rate evaluations used
       #r.encoding_rate_psychometric.new_streams_per_seed streams of
@@ -176,10 +183,14 @@
       that duration's grid measurements. #link(<sec-conditions-and-decoder-identities>)[Conditions and decoder identities] gives the complete grids and
       the separate constant-rate versus rate-compensated duration comparison.
 
-    4. *Integrate output evidence.* E-neuron spikes drove a non-spiking leaky
+    === Analyse
+
+    #set enum(start: 4)
+
+    + *Integrate output evidence.* E-neuron spikes drove a non-spiking leaky
       integrator with a one-timestep delay and zero initial state:
 
-      $ u_"out"[k] = beta_"out" u_"out"[k-1] + (1 - beta_"out") / (Delta t_"sim") bold(s)^E[k-1] W_"out". quad "(1)" $
+      $ u_"out"[k] = beta_"out" u_"out"[k-1] + (1 - beta_"out") / (Delta t_"sim") bold(s)^E[k-1] W_"out". $
 
       Here $k$ indexes timesteps from zero, u#sub[out] is the dimensionless class-state vector,
       s#super[E] the dimensionless E-spike vector, W#sub[out] the trained output weights, and
@@ -187,15 +198,19 @@
       τ#sub[out], defaulting to 2 ms when unspecified; its historical value was
       not independently confirmed.
 
-    5. *Read and score segments.* A trailing mean used the current presentation
+    === Present
+
+    #set enum(start: 5)
+
+    + *Read and score segments.* A trailing mean used the current presentation
       duration T#sub[present], with w timesteps and w#sub[k] available during startup:
 
-      $ z[k] = 1 / w_k sum_(j=k-w_k+1)^(k) u_"out"[j], quad w_k = min(w, k+1). quad "(2)" $
+      $ z[k] = 1 / w_k sum_(j=k-w_k+1)^(k) u_"out"[j], quad w_k = min(w, k+1). $
 
       Here $j$ indexes the window and $z[k]$ is the class-score vector. At each
       known segment endpoint the predicted class $hat(y)$ was
 
-      $ hat(y)[k] = arg max_c p_"class"(c,k). quad "(3)" $
+      $ hat(y)[k] = arg max_c p_"class"(c,k). $
 
       Here $c$ indexes classes and $p_"class"$ is softmax-normalized evidence, not calibrated
       confidence; quantitative sweeps selected scores directly. Readout duration
@@ -226,30 +241,30 @@
 
     For a constant-duration stream, the boundary time t#sub[k] of segment k was
 
-    $ t_j = j T_"present". quad "(4)" $
+    $ t_j = j T_"present". $
 
     Here $j$ indexes segments from zero and $t_j$ is physical boundary time; varying-duration boundaries instead summed
     preceding durations. The output probabilities were
 
-    $ p_"class"(c,k) = "softmax"(z[k])_c. quad "(5)" $
+    $ p_"class"(c,k) = "softmax"(z[k])_c. $
 
     Softmax converted the evidence vector into non-negative values summing to one.
     The fixed illustrative stream selected its softmax maximum; the varying stream
     and sweeps selected the maximum logit. Matched readout and presentation obeyed
 
-    $ T_"readout" = T_"present". quad "(6)" $
+    $ T_"readout" = T_"present". $
 
     Here T#sub[readout] and T#sub[present] are the respective durations in ms.
     The window length was
 
-    $ w = T_"present" / (Delta t_"sim"). quad "(7)" $
+    $ w = T_"present" / (Delta t_"sim"). $
 
     At intermediate times the trailing window could include preceding-segment
     activity; at the scored endpoint it covered the current segment. This
     duration-matched decoder used known boundaries, not inferred boundary detection.
     The output leak was
 
-    $ beta_"out" = exp(-Delta t_"sim" \/ tau_"out"). quad "(8)" $
+    $ beta_"out" = exp(-Delta t_"sim" \/ tau_"out"). $
 
     The exponential factor retained part of the previous state at each timestep;
     τ#sub[out] set the evidence-decay timescale. Equation (1) applied from timestep
@@ -283,4 +298,5 @@
 
 #let meta = meta + (assets: input-assets("exp048", inputs))
 #let body = with-datasets("exp048", inputs, report-body, placed: inputs-ready(data-file, inputs))
+#let body = with-numbered-equations(body)
 #let body = with-contents(body)

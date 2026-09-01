@@ -1,4 +1,4 @@
-#import "contents.typ": with-contents, with-result-sections
+#import "contents.typ": with-contents, result-card, with-numbered-equations, with-result-sections
 #import "/.demolab/lib.typ": data-json, data-image, cite, reference-list
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
 #import "run-view.typ": with-datasets, run-view
@@ -6,7 +6,7 @@
 #let data-file = data-file.with(article: "exp022")
 
 #let meta = (
-  status: "[▦ DATA | v28.0.0]",
+  status: "[▦ DATA | v31.1.0]",
   title: "Training Runs",
   created_at: "2026-08-11T00:00:00Z",
   updated_at: "2026-08-31T00:00:00Z",
@@ -85,6 +85,7 @@
 
   #with-result-sections[
 
+  #result-card[
   === Canonical COBA and PING validation learning curves
 
   #result-figure(
@@ -93,6 +94,9 @@
     [Individual learning histories for both architectures and all three seeds in the full-data family; no across-seed averaging or uncertainty bands.],
   )
 
+  ]
+
+  #result-card[
   === Canonical PING raster and population-rate diagnostic
 
   #result-figure(
@@ -101,6 +105,9 @@
     [Canonical PING, seed 42: one digit-0 diagnostic from the final-epoch checkpoint, with E/I population rates and the accompanying inhibitory spectrum; not a population estimate.],
   )
 
+  ]
+
+  #result-card[
   === Validation learning curves across activity ceilings
 
   #result-figure(
@@ -109,6 +116,9 @@
     [Individual histories for two architectures, six ceiling settings, and three seeds on the reduced training pool; line colours distinguish settings and line styles distinguish architectures. No uncertainty bands are shown.],
   )
 
+  ]
+
+  #result-card[
   === Unconstrained PING endpoint raster in the activity-ceiling sweep
 
   #result-figure(
@@ -117,6 +127,9 @@
     [PING with the activity penalty off, seed 42, final-epoch digit-0 probe. This is the reference endpoint, not a raster of the strictest ceiling.],
   )
 
+  ]
+
+  #result-card[
   === Validation learning curves across inhibitory decay times
 
   #result-figure(
@@ -125,6 +138,9 @@
     [Individual PING histories for six GABA decay constants and three seeds per setting; the training pool and other recipe settings are fixed. No confidence bands are shown.],
   )
 
+  ]
+
+  #result-card[
   === PING raster at the six-millisecond inhibitory-decay reference
 
   #result-figure(
@@ -133,6 +149,9 @@
     [Reference inhibitory decay of 6 ms, seed 42, final-epoch digit-0 probe; the plotted spectrum describes this example only.],
   )
 
+  ]
+
+  #result-card[
   === Validation learning curves across integration timesteps
 
   #result-figure(
@@ -141,6 +160,9 @@
     [Individual histories for five timesteps and three seeds per setting. Training and evaluation use each training replicate's own timestep at a fixed presentation duration; no across-seed bands are shown.],
   )
 
+  ]
+
+  #result-card[
   === PING raster at the 0.1-millisecond reference timestep
 
   #result-figure(
@@ -149,6 +171,9 @@
     [Reference timestep of 0.1 ms, seed 42, final-epoch digit-0 probe. One reference raster cannot establish timestep convergence.],
   )
 
+  ]
+
+  #result-card[
   === Learning curves across recurrent-loop training conditions
 
   #result-figure(
@@ -157,6 +182,9 @@
     [Individual histories for four recurrent conditions and three seeds each. The frozen PING control and three trainable initializations share the feedforward recipe; no confidence bands are shown.],
   )
 
+  ]
+
+  #result-card[
   === Frozen recurrent PING control raster
 
   #result-figure(
@@ -165,6 +193,9 @@
     [Frozen recurrent PING control, seed 42, final-epoch digit-0 probe; this example does not describe the trainable conditions.],
   )
 
+  ]
+
+  #result-card[
   === Variable-rate spike-count training histories
 
   #result-figure(
@@ -173,6 +204,9 @@
     [Three individual seed histories for the variable-rate spike-count recipe. Each validation presentation draws from the specified rate set; these curves do not separate accuracy by input rate and have no uncertainty bands.],
   )
 
+  ]
+
+  #result-card[
   === Variable-rate PING raster at five-hertz input
 
   #result-figure(
@@ -181,6 +215,9 @@
     [Variable-rate PING, seed 42, final-epoch digit-0 probe at 5 Hz maximum-pixel input rate. This displayed E/I diagnostic does not include output-neuron spikes or continuous-stream resets.],
   )
 
+  ]
+
+  #result-card[
   === Learning curves across initial input-coupling settings
 
   #result-figure(
@@ -189,6 +226,9 @@
     [Twelve individual histories under the fixed 1 Hz soft ceiling. Colours distinguish the four input-initialization means; no across-seed means or confidence bands are shown.],
   )
 
+  ]
+
+  #result-card[
   === PING raster at 0.05 initial input coupling
 
   #result-figure(
@@ -197,6 +237,9 @@
     [Initial input-coupling parent mean 0.05, seed 42, final-epoch digit-0 probe at the same 1 Hz activity-ceiling target. This is one example, not an across-seed statistic.],
   )
 
+  ]
+
+  #result-card[
   === PING raster at 0.1 initial input coupling
 
   #result-figure(
@@ -205,6 +248,9 @@
     [Initial input-coupling parent mean 0.1, seed 42, final-epoch digit-0 probe at the same 1 Hz activity-ceiling target. This is one example, not an across-seed statistic.],
   )
 
+  ]
+
+  #result-card[
   === PING raster at 0.3 initial input coupling
 
   #result-figure(
@@ -213,6 +259,9 @@
     [Initial input-coupling parent mean 0.3, seed 42, final-epoch digit-0 probe at the same 1 Hz activity-ceiling target. This is one example, not an across-seed statistic.],
   )
 
+  ]
+
+  #result-card[
   === PING raster at 0.9 initial input coupling
 
   #result-figure(
@@ -222,10 +271,13 @@
   )
 
   ]
+  ]
 
   == Methods
 
   We trained spiking classifiers under controlled conditions, then analysed recorded learning histories and reused diagnostic simulations.
+
+  === Compute
 
   + *Prepare the data.* Stratified MNIST splits provided 54,000 training and 6,000 validation images for the baseline, and 6,300 and 700 for sweeps. The split seed was 42; the official test set was excluded from training and model selection.
 
@@ -239,7 +291,7 @@
 
     #block(breakable: false)[
     $ z_"voltage" = 1 / N_t sum_(k=1)^(N_t) u_"out"[k], quad
-      z_"count" = sum_(k=1)^(N_t) s_"out"[k]. quad "(1)" $
+      z_"count" = sum_(k=1)^(N_t) s_"out"[k]. $
 
     Each score applies to one output neuron and presentation. Here $k$ indexes
     the $N_t$ timesteps, $u_"out"[k]$ is dimensionless pre-reset output state,
@@ -249,11 +301,19 @@
 
   + *Train the networks.* Training used #r.standard.epochs epochs of AdamW, learning rate 0.0004, batches of #r.standard.batch_size, zero weight decay, and gradient clipping at 1. Surrogate gradients approximated spike derivatives#cite(1); voltage-gradient damping was 1,000 for recurrent networks and 1 for controls. Activity-constrained conditions minimized
 
-    $ L_"total" = L_"CE" + lambda_"rate" lr(⟨max(0, r_E - r_(E,"ceil"))^2⟩)_"batch". quad "(2)" $
+    $ L_"total" = L_"CE" + lambda_"rate" lr(⟨max(0, r_E - r_(E,"ceil"))^2⟩)_"batch". $
 
     $L_"total"$ is total loss and $L_"CE"$ is mean cross-entropy. Each presentation's mean excitatory firing rate $r_E$ and ceiling $r_(E,"ceil")$ are in hertz. Brackets average the individual penalties across the minibatch; $lambda_"rate" = 0.041$ with rates in hertz, or zero when disabled.
 
+  === Analyse
+
+  #set enum(start: 7)
+
   + *Select models.* Validation averaged three fixed Poisson encoding draws. Selection minimized mean cross-entropy, breaking ties by higher accuracy and then earlier epoch. Selected and final-epoch models were retained.
+
+  === Present
+
+  #set enum(start: 8)
 
   + *Measure activity and retain models.* Accuracy used selected models, whereas firing rates averaged final-epoch validation measurements across images and encoding draws. Retained models and histories support subsequent experiments. Learning curves show individual validation histories; baseline summaries average three seeds. Reused seed-42 digit-zero rasters are individual probes, not across-seed estimates; no new diagnostic simulations were performed.
 
@@ -442,4 +502,5 @@
 
 #let meta = meta + (assets: input-assets("exp022", inputs))
 #let body = with-datasets("exp022", inputs, report-body, placed: inputs-ready(data-file, inputs))
+#let body = with-numbered-equations(body)
 #let body = with-contents(body)

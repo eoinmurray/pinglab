@@ -1,7 +1,7 @@
-#import "contents.typ": with-contents
+#import "contents.typ": with-contents, with-numbered-equations
 #import "run-view.typ": with-datasets
 #let meta = (
-  status: "[≡ TXT | v28.0.0]",
+  status: "[≡ TXT | v31.1.0]",
   title: "Training",
   updated_at: "2026-08-29T00:00:00Z",
   created_at: "2026-05-14T00:00:00Z",
@@ -153,4 +153,5 @@
 ]
 
 #let body = with-datasets("exp006", (), body)
+#let body = with-numbered-equations(body)
 #let body = with-contents(body)

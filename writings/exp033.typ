@@ -1,4 +1,4 @@
-#import "contents.typ": with-contents, with-result-sections
+#import "contents.typ": with-contents, result-card, with-numbered-equations, with-result-sections
 #import "/.demolab/lib.typ": data-json, data-image, cite, reference-list
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
 #import "run-view.typ": with-datasets, run-view
@@ -6,7 +6,7 @@
 #let data-file = data-file.with(article: "exp033")
 
 #let meta = (
-  status: "[▦ DATA | v28.0.0]",
+  status: "[▦ DATA | v31.1.0]",
   title: "Gamma Emerges at a Hopf Bifurcation",
   created_at: "2026-05-28T00:00:00Z",
   updated_at: "2026-08-31T00:00:00Z",
@@ -60,7 +60,6 @@
 
 
 #let body = [
-  #set math.equation(numbering: "(1)")
   == Abstract
 
   Asked how gamma oscillations begin in a population description of the PING
@@ -76,6 +75,7 @@
 
   #with-result-sections[
 
+  #result-card[
   === Mean-field eigenvalue crossing, amplitude ramps and onset frequency
 
   At the reference noise scale of 4 mV, one conjugate pair crossed at #istar nA
@@ -96,6 +96,9 @@
     ],
   ) <fig-overview>
 
+  ]
+
+  #result-card[
   === Onset sensitivity across effective noise scales
 
   Across 3, 4, 5 and 6 mV, the sensitivity tests supported a reversible onset. The
@@ -114,6 +117,9 @@
     ],
   ) <fig-sigma>
 
+  ]
+
+  #result-card[
   === Mean-field eigenvalues across external drive
 
   One conjugate pair crossed the imaginary axis while the remaining pair was
@@ -132,6 +138,9 @@
     ],
   ) <fig-eigenvalues>
 
+  ]
+
+  #result-card[
   === Mean-field and spiking frequency across inhibitory decay
 
   Mean-field onset frequency and the median measured frequency of three
@@ -153,6 +162,9 @@
     ],
   ) <fig-frequency>
 
+  ]
+
+  #result-card[
   === Upward and downward onset-amplitude ramps
 
   The 25-point ramps gave a maximum branch gap of
@@ -173,6 +185,9 @@
     ],
   ) <fig-hysteresis>
 
+  ]
+
+  #result-card[
   === Excitatory and inhibitory rate waveform above onset
 
   The absolute cross-correlation peak lag was #elag ms. This magnitude is not a
@@ -189,6 +204,9 @@
     ],
   ) <fig-cycle>
 
+  ]
+
+  #result-card[
   === Four-state feedback-loop trajectories
 
   AMPA closely tracked E while the other variables showed larger phase offsets.
@@ -205,6 +223,9 @@
     ],
   ) <fig-timeseries>
 
+  ]
+
+  #result-card[
   === Six pairwise projections of the four-state trajectory
 
   The E–AMPA projection was narrow while other pairs enclosed larger areas. A
@@ -222,6 +243,9 @@
     ],
   ) <fig-phase>
 
+  ]
+
+  #result-card[
   === Four-, three- and two-variable reduction responses
 
   The full model and AMPA-slaved three-variable reduction oscillated, whereas
@@ -242,11 +266,14 @@
   ) <fig-ladder>
 
   ]
+  ]
 
   == Methods
 
   We reused a deterministic population-rate analysis and compared its onset
   frequencies with independent measurements from trained spiking networks.
+
+  === Compute
 
   + *Define the population model.* E/I rates relaxed toward noisy LIF gains
     #cite(2), with membrane times 20/5 ms and AMPA/GABA times 2/#tg ms.
@@ -262,6 +289,10 @@
     $Phi$ steady-state gains, $G$ summed conductances, and the pathway-specific time constants; dots denote derivatives in milliseconds. Fixed driving forces
     omit shunting; rate relaxation and the free noise scale define a
     phenomenological closure, not a self-consistent noise theory.
+
+  === Analyse
+
+  #set enum(start: 2)
 
   + *Locate oscillatory instability.* Fixed points were continued over 401 drives
     from 0–4 nA using nonlinear root finding. Centred differences of size
@@ -293,6 +324,14 @@
     with three-seed medians of reused final-epoch spiking measurements.
     Each network frequency came from the interpolated peak of trial-averaged
     population spectra; these were not medians of individual-trial peaks.
+
+  === Present
+
+  #set enum(start: 6)
+
+  + *Expose numerical evidence.* We displayed the retained fixed-point,
+    stability, waveform and sensitivity comparisons with their continuation
+    directions and fitted uncertainty limits.
 
   #run-view("exp033", inputs)
 
@@ -786,4 +825,5 @@
 
 #let meta = meta + (assets: input-assets("exp033", inputs))
 #let body = with-datasets("exp033", inputs, report-body, placed: inputs-ready(data-file, inputs))
+#let body = with-numbered-equations(body)
 #let body = with-contents(body)

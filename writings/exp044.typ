@@ -1,4 +1,4 @@
-#import "contents.typ": with-contents, with-result-sections
+#import "contents.typ": with-contents, result-card, with-numbered-equations, with-result-sections
 #import "/.demolab/lib.typ": data-json, data-image, cite, reference-list
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
 #import "run-view.typ": with-datasets, run-view
@@ -6,7 +6,7 @@
 #let data-file = data-file.with(article: "exp044")
 
 #let meta = (
-  status: "[▦ DATA | v28.0.0]",
+  status: "[▦ DATA | v31.1.0]",
   title: "Firing Rate Across the Timestep Sweep",
   created_at: "2026-06-02T00:00:00Z",
   updated_at: "2026-08-31T00:00:00Z",
@@ -46,6 +46,7 @@
 
   #with-result-sections[
 
+  #result-card[
   === Excitatory rate and test accuracy across integration timesteps
 
   #figure(
@@ -57,6 +58,9 @@
       official-test images at its training timestep.],
   )
 
+  ]
+
+  #result-card[
   === Single-trial spike rasters across integration timesteps
 
   #figure(
@@ -69,6 +73,9 @@
       inspection, not a population estimate of gamma-period invariance.],
   )
 
+  ]
+
+  #result-card[
   === Validation accuracy and excitatory rate across training timesteps
 
   #figure(
@@ -82,11 +89,14 @@
   )
 
   ]
+  ]
 
   == Methods
 
   The audit reused separately trained networks and their learning histories,
   then measured endpoint dynamics at matched training and inference timesteps.
+
+  === Compute
 
   + *Reuse the trained population.* One PING network was trained per
     $Delta t_"sim" in {0.05, 0.1, 0.25, 0.5, 1.0}$ ms and seed $in {42, 43, 44}$,
@@ -103,12 +113,20 @@
     from 4,000 to 200. Image intensities drove Poisson input with peak rate
     #c.input_rate Hz.
 
+  === Analyse
+
+  #set enum(start: 3)
+
   + *Use the training endpoint.* Networks underwent #c.epochs epochs of
     surrogate-gradient training #cite(1), with batch size #c.batch_size and
     learning rate #c.lr. Class scores used the mean-membrane readout, and
     validation histories averaged #c.validation_encoder_draws.count encoder draws
     per image. The audit used the final epoch for rates, accuracy and rasters,
     rather than selecting the best validation epoch.
+
+  === Present
+
+  #set enum(start: 4)
 
   + *Measure held-out performance.* Each network was evaluated on the fixed
     #(cfg.evaluation_samples)-image subset of the official MNIST test partition,
@@ -153,4 +171,5 @@
 
 #let meta = meta + (assets: input-assets("exp044", inputs))
 #let body = with-datasets("exp044", inputs, report-body, placed: inputs-ready(data-file, inputs))
+#let body = with-numbered-equations(body)
 #let body = with-contents(body)

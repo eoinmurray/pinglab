@@ -1,4 +1,4 @@
-#import "contents.typ": with-contents, with-result-sections
+#import "contents.typ": with-contents, result-card, with-numbered-equations, with-result-sections
 #import "/.demolab/lib.typ": data-image, cite, reference-list
 #import "run-inputs.typ": video
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
@@ -7,7 +7,7 @@
 #let data-file = data-file.with(article: "exp099")
 
 #let meta = (
-  status: "[▦ DATA | v28.0.0]",
+  status: "[▦ DATA | v31.1.0]",
   title: "From simplified to brainlike input in a PING network",
   created_at: "2026-08-26T00:00:00Z",
   updated_at: "2026-08-31T15:50:26Z",
@@ -35,6 +35,7 @@
 
   #with-result-sections[
 
+  #result-card[
   === Excitatory–inhibitory network and afferent-input schematic
 
   #figure(
@@ -44,6 +45,9 @@
     kind: image, supplement: [Figure],
   )
 
+  ]
+
+  #result-card[
   === Single-seed richer-input activity probe
 
   #let clip = data-file("exp099/richer-input-ai-to-intermittent-ping.mp4")
@@ -61,6 +65,7 @@
   )
 
   ]
+  ]
 
   == Methods
 
@@ -69,6 +74,8 @@
   synchronization.#cite(1) The procedure below describes the implemented
   richer-input probe; selecting a stable simplified reference and conducting
   the controlled comparison remain planned.
+
+  === Compute
 
   + *Construct the recurrent circuit.* We used 400 excitatory and 100 inhibitory
     conductance-based leaky integrate-and-fire neurons with fixed excitatory–excitatory, excitatory–inhibitory,
@@ -97,10 +104,14 @@
     neuron voltages, conductances and executed input events, keeping recurrent
     weights fixed throughout.
 
+  === Analyse
+
+  #set enum(start: 4)
+
   + *Measure temporal organization.* We evaluated excitatory spike-autocorrelation
     lobe–trough contrast in 400 ms windows every 10 ms, using 1 ms lag bins out
     to 100 ms; undefined contrasts were recorded as zero.
-    #math.equation(block: true, numbering: "(1)", $R_"contrast" = (A_"lobe" - A_"trough") / (A_"lobe" + A_"trough")$)
+    #math.equation(block: true, $R_"contrast" = (A_"lobe" - A_"trough") / (A_"lobe" + A_"trough")$)
     Here $R_"contrast"$ is dimensionless contrast, $A_"lobe"$ is the smoothed autocorrelogram's
     lobe height before its first trough, and $A_"trough"$ is that trough's height.
     We measured conductance-loop compactness and directional coherence in 40 ms
@@ -110,6 +121,14 @@
     window centres from 200 through 1,790 ms, while the plot also includes
     1,800 ms. These single-seed descriptors do not establish a causal input
     effect or classify a rhythm as PING by themselves.
+
+  === Present
+
+  #set enum(start: 5)
+
+  + *Display the implemented probe.* We displayed the recorded spikes,
+    conductances and temporal-organization summaries for the single-seed
+    richer-input probe without presenting the planned control as executed.
 
   #run-view("exp099", inputs)
 
@@ -128,4 +147,5 @@
 
 #let meta = meta + (assets: input-assets("exp099", inputs))
 #let body = with-datasets("exp099", inputs, report-body, placed: inputs-ready(data-file, inputs))
+#let body = with-numbered-equations(body)
 #let body = with-contents(body)

@@ -1,4 +1,4 @@
-#import "contents.typ": with-contents, with-result-sections
+#import "contents.typ": with-contents, with-numbered-equations, with-result-sections
 #import "/.demolab/lib.typ": data-json, data-image
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
 #import "run-view.typ": with-datasets, run-view
@@ -6,7 +6,7 @@
 #let data-file = data-file.with(article: "exp042")
 
 #let meta = (
-  status: "[▦ DATA | v30.0.0]",
+  status: "[▦ DATA | v31.1.0]",
   title: "Inhibitory Replay Perturbations Change Excitatory Firing",
   created_at: "2026-06-02T00:00:00Z",
   updated_at: "2026-08-31T18:23:16Z",
@@ -40,7 +40,6 @@
 
 // Calculations remain lazy so missing inputs cannot become fabricated results.
 #let render-report(data-file) = [
-#set math.equation(numbering: "(1)")
 #let run = data-json(data-file("exp042/numbers.json"))
 #let cfg = run.config
 #let anchor-sigma = 14
@@ -95,87 +94,36 @@
 
   === Compute
 
-  + *Starting classifiers.* We reused three PING training replicates from
-    #link("/exp022/")[experiment 022], initialized with seeds 42–44. We selected
-    their final checkpoints because this experiment measures endpoint dynamics,
-    and we kept every weight fixed. Each classifier contained 1,024 E neurons,
-    256 I neurons and ten output LIF neurons. Class scores were the output
-    neurons' mean pre-reset voltages across each 200 ms presentation; neuronal
-    and readout states were initialized anew for every presentation.
+  + We reused three frozen PING classifiers from experiment 022.
 
-  + *Test data.* The retained campaign tested every condition on the same
-    #cfg.evaluation_samples_per_condition images from the official MNIST test
-    set. Each image was presented for 200 ms using a simulation timestep of
-    $Delta t_"sim" = 0.1$ ms.
+  + We tested every condition on the same 1,000 MNIST images.
 
-  + *Record inhibition.* The retained campaign first ran each image normally and
-    recorded when every inhibitory neuron fired. It then ran the network again,
-    replacing its natural inhibitory spikes with altered versions of this
-    recording.
+  + We recorded each network’s inhibitory spikes and replayed altered versions.
 
-  + *Move groups of spikes together.* We divided each recording into fixed time
-    windows based on the reference frequency. Their length in simulation steps
-    was
+  + Spikes from the same fixed time window received one shared random shift.
 
-    $ L = max(1, op("round")(1000 / (f_"ref" Delta t_"sim"))), $
+  + Alternatively, every inhibitory spike received its own random shift.
 
-    where $L$ is the window length, $f_"ref" = #cfg.f_gamma_reference_hz$ Hz is
-    the reused three-training-replicate mean gamma estimate at the shared
-    operating point and $Delta t_"sim"$ is the simulation timestep in
-    milliseconds. For each replicate, the frequency estimate was the
-    parabolically interpolated 5–150 Hz peak of its trial-mean Welch spectrum.
-    Every inhibitory spike originating in the same window received the same
-    Gaussian random time shift, with standard deviation $sigma_"jitter"$. These
-    were fixed clock windows, not gamma cycles detected from the recorded spikes.
+  + Shifted spikes were kept within the presentation. Colliding spikes merged,
+    sometimes reducing inhibitory delivery.
 
-  + *Move spikes independently.* In the comparison intervention, every recorded
-    inhibitory spike received its own random shift
-
-    $ Delta_j tilde cal(N)(0, sigma_"jitter"^2), $
-
-    where $Delta_j$ is the shift applied to spike $j$ and $sigma_"jitter"$
-    controls the amount of timing disruption, both in milliseconds.
-
-  + *Keep spikes inside the presentation.* We rounded every shift to the 0.1 ms
-    simulation grid and assigned a spike at step $k_j$ to
-
-    $ k'_j = op("clamp")(k_j + op("round")(Delta_j / Delta t_"sim"), 0, N_t - 1), $
-
-    where $k_j$ and $k'_j$ are the original and shifted simulation steps,
-    $Delta_j$ is the shift assigned under either intervention and $N_t$ is the
-    total number of steps. This prevented spikes from moving outside the 200 ms
-    presentation. Two spikes from the same neuron that landed on the same step
-    became one spike, so realised inhibitory delivery could change.
-
-  + *Jitter sweeps.* We tested group shifts at
-    $sigma_"jitter" = 0, 1, 3, 7, 14, 21, 28, 42, 60,$ and $100$ ms, and
-    independent-spike jitter at $0, 0.5, 1, 2, 5, 9, 14, 21,$ and $50$ ms.
-    The zero-jitter arms were identical; all other shifts were reproducible.
+  + We tested progressively larger shifts, including an unchanged condition.
 
   === Analyse
 
   #set enum(start: 8)
 
-  + *Responses.* For each training replicate and jitter level, we measured test
-    accuracy and final-population mean per-neuron E and I firing rates across all
-    1,000 test presentations of 200 ms each. Realised I rate counts delivered
-    spikes, not inhibitory conductance.
+  + We measured accuracy and population firing rates.
 
-  + *Aggregation and raster.* At each jitter level, we calculated the mean and
-    SEM across three training replicates, where $"SEM" = s / sqrt(3)$ and $s$ is
-    the sample standard deviation. The raster uses the first test presentation
-    from the seed-42 replicate at $sigma_"jitter" = #anchor-sigma$ ms. We used
-    full-population rates before reproducibly selecting 200 E and 64 I neurons.
+  + We averaged results across the three classifiers and reproducibly selected
+    one example raster.
 
   === Present
 
   #set enum(start: 10)
 
-  + *Expose retained evidence.* The upper panels show the illustrative rasters;
-    the lower panels show complete condition means on symmetric-logarithmic
-    jitter axes. SEM values remain in the retained analysis table but are not
-    plotted. This presentation re-rendered retained campaign measurements
-    without recomputing them.
+  + We displayed the example rasters and complete condition means without
+    rerunning the experiment.
 ]
 #body
   #run-view("exp042", inputs)
@@ -195,4 +143,5 @@
 
 #let meta = meta + (assets: input-assets("exp042", inputs))
 #let body = with-datasets("exp042", inputs, report-body, placed: inputs-ready(data-file, inputs))
+#let body = with-numbered-equations(body)
 #let body = with-contents(body)

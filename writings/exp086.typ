@@ -1,4 +1,4 @@
-#import "contents.typ": with-contents, with-result-sections
+#import "contents.typ": with-contents, result-card, with-numbered-equations, with-result-sections
 #import "/.demolab/lib.typ": data-json, data-image
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
 #import "run-view.typ": with-datasets, run-view
@@ -13,7 +13,7 @@
 }
 
 #let meta = (
-  status: "[▦ DATA | v28.0.0]",
+  status: "[▦ DATA | v31.1.0]",
   title: "Lowet 2017",
   created_at: "2026-08-19T00:00:00Z",
   updated_at: "2026-08-31T00:00:00Z",
@@ -99,6 +99,7 @@
 
   #with-result-sections[
 
+  #result-card[
   === Uncoupled population rhythms and circulating relative phase <result-1-uncoupled-rhythms>
 
     Both networks maintained regular PING rhythms, but Network A ran at
@@ -112,6 +113,9 @@
         trajectory.],
     )
 
+  ]
+
+  #result-card[
   === Relative phase under strong, intermediate and absent coupling <result-2-coupling-boundary>
 
     At 0.08 µS, relative phase concentrated near one position with concentration
@@ -129,6 +133,9 @@
         reciprocal coupling.],
     )
 
+  ]
+
+  #result-card[
   === Relative-phase trajectory, distribution and conditioned velocity <result-3-intermittent-attraction>
 
     At equal reciprocal coupling $K = #selected-k$ µS, relative phase continued
@@ -150,12 +157,15 @@
     )
 
   ]
+  ]
 
   == Methods
 
   #block(inset: 10pt, fill: rgb("f3f0e8"), radius: 3pt)[
     *One fixed-input trajectory was simulated per coupling condition. Every condition reused the same saved network state and pre-generated input spike trains.*
   ]
+
+  === Compute
 
   + *Define the starting rhythms.* Each network contains an excitatory population, an inhibitory population, and a local E-to-I-to-E feedback loop. Reciprocal excitation targets both E and I populations with $K_(E E) = #start.k-ee-us$ µS, $K_(E I) = #start.k-ei-us$ µS, and delay $d = #start.delay-ms$ ms. We drove Networks A and B at #start.input-a-hz and #start.input-b-hz Hz. We ran them without cross-network coupling and confirmed regular rhythms near mean frequency #start.mean-frequency-hz Hz and detuning #start.detuning-hz Hz. We interpolated phase between consecutive excitatory volleys and calculated their wrapped and unwrapped relative phase. See #link(<result-1-uncoupled-rhythms>)[Uncoupled rhythms].
 
@@ -167,8 +177,16 @@
       caption: [Implemented topology. Networks A and B each contain a local E-to-I-to-E PING loop. Reciprocal projections target E and I populations with independently controlled strengths.],
     )
 
+  === Analyse
+
+  #set enum(start: 2)
+
   + *Reduce coupling while everything else stays the same.* We saved the network immediately before coupling began. We replayed from that point several times with the same neuron states and the same pre-generated input spike trains after that point. We changed only the coupling strength $K$: we began at #start.k-ee-us µS, then used progressively weaker values down to zero. E-to-E and E-to-I coupling always used the same value. We used nine values from 0.08 to 0.00 µS in 0.01 µS steps, each with a 500 ms uncoupled prefix and a 4,500 ms coupled suffix. We excluded the first 300 ms after coupling from phase measurements. We ran one trajectory at each value of $K$; repeated seeds and trials are outside this experiment. For each coupling strength, we tracked the phase gap between the two rhythms. Strong coupling may keep that gap fixed. Weaker coupling may allow one rhythm to repeatedly gain a full cycle on the other, producing phase slips. We looked for the intermediate behaviour reported by Lowet et al. (2017): phase slips continue, but the phase gap repeatedly slows near one preferred value, making that value more common#cite(1). Among nonzero, nonmaximal coupling conditions with at least two whole net windings, we selected the largest product of phase concentration, peak-to-mean density, nonnegative slowing fraction and the exponential of negative angular alignment error. We counted whole net windings by taking the floor of the absolute unwrapped phase change divided by $2 pi$; this does not count every reversing slip event. This demonstrates the behaviour once; it does not establish reliability across seeds. See #link(<result-2-coupling-boundary>)[Relative phase under strong, intermediate and absent coupling].
 
+
+  === Present
+
+  #set enum(start: 3)
 
   + *Relate phase velocity to phase position.* For the selected condition, we estimated each network's instantaneous frequency from consecutive excitatory volleys. Relative-phase velocity is $v_phi = 2 pi (f_A - f_B)$, where $f_A$ and $f_B$ are the instantaneous frequencies of Networks A and B in Hz, and $v_phi$ is in rad/s. We grouped $v_phi$ by wrapped relative phase $phi$ in radians, and compared the resulting velocity curve with the distribution of $phi$. Intermittent attraction requires continued phase slips, a non-uniform phase distribution, and lower absolute velocity near the distribution's preferred position. See #link(<result-3-intermittent-attraction>)[Intermittent phase attraction].
 
@@ -200,4 +218,5 @@
 
 #let meta = meta + (assets: input-assets("exp086", inputs))
 #let body = with-datasets("exp086", inputs, report-body, placed: inputs-ready(data-file, inputs))
+#let body = with-numbered-equations(body)
 #let body = with-contents(body)

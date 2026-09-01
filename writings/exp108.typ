@@ -1,7 +1,7 @@
-#import "contents.typ": with-contents
+#import "contents.typ": with-contents, with-numbered-equations
 #import "run-view.typ": with-datasets
 #let meta = (
-  status: "[≡ TXT | v28.0.0]",
+  status: "[≡ TXT | v31.1.0]",
   title: "Inputs, outputs, and readouts",
   created_at: "2026-08-14T00:00:00Z",
   description: "Bind data to graph inputs, expose internal activity, and turn network signals into stable output values.",
@@ -139,4 +139,5 @@
 ]
 
 #let body = with-datasets("exp108", (), body)
+#let body = with-numbered-equations(body)
 #let body = with-contents(body)

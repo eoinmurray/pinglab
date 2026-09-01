@@ -1,4 +1,4 @@
-#import "contents.typ": with-contents, with-result-sections
+#import "contents.typ": with-contents, result-card, with-numbered-equations, with-result-sections
 #import "/.demolab/lib.typ": data-json, data-image
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
 #import "run-view.typ": with-datasets, run-view
@@ -7,7 +7,7 @@
 #let data-file = data-file.with(article: "exp085")
 
 #let meta = (
-  status: "[▦ DATA | v28.0.0]",
+  status: "[▦ DATA | v31.1.0]",
   title: "Lowet 2015",
   created_at: "2026-08-19T00:00:00Z",
   updated_at: "2026-08-31T00:00:00Z",
@@ -58,6 +58,7 @@
 
   #with-result-sections[
 
+  #result-card[
   === Two-circuit PING coupling schematic
 
   #figure(
@@ -65,6 +66,9 @@
     caption: [Model schematic: two matched PING circuits. Long-range excitation targets either E or I with exact fan-in 8.],
   )
 
+  ]
+
+  #result-card[
   === Uncoupled population rhythms and relative-phase drift
 
   Network A oscillated at #calc.round(a.frequency_hz, digits: 1) Hz and Network
@@ -79,6 +83,9 @@
       trajectory, not an across-seed estimate.],
   )
 
+  ]
+
+  #result-card[
   === Example corrections from E- and I-targeted probe volleys
 
   The illustrative probes produced an E-targeted advance, no correction at the
@@ -93,6 +100,9 @@
       Each rate trace is normalized to its window maximum.],
   )
 
+  ]
+
+  #result-card[
   === Phase-response curves for E- and I-targeted probes
 
   E input advanced the rhythm over a broad late-cycle range. I doublets occurred
@@ -108,6 +118,9 @@
       I neurons; lower traces are means across I neurons.],
   )
 
+  ]
+
+  #result-card[
   === Relative-phase change across four coupling conditions
 
   Final phase drift was
@@ -125,6 +138,9 @@
       sharing the same initial dynamical state and subsequent drive.],
   )
 
+  ]
+
+  #result-card[
   === Event-aligned excitation and feedback inhibition
 
   Arriving cross-network conductance advanced Network B's next E volley by
@@ -139,12 +155,19 @@
   )
 
   ]
+  ]
 
   == Methods
 
   Lowet et al. varied reciprocal excitatory-to-excitatory (E-to-E) and excitatory-to-inhibitory (E-to-I) coupling jointly between two pyramidal-interneuron gamma (PING) networks#cite(1). We separated these pathways in an adapted model, comparing isolated phase perturbations with sustained coupling under one initialization and fixed input realizations. No parameters were trained or selected across repetitions.
 
+  === Compute
+
   + *Set the network and drive.* We constructed two local PING loops, each with #r.network.populations_per_network.E excitatory (E) and #r.network.populations_per_network.I inhibitory (I) conductance-based leaky integrate-and-fire neurons, and evolved them at 0.1 ms resolution. We drove their E populations through 128 independent spike channels at #r.network.detuning_input_rates_hz.PING_A and #r.network.detuning_input_rates_hz.PING_B Hz, using Bernoulli approximations to Poisson input. Local E-to-I excitation decayed in #r.network.local_e_to_i.ampa_tau_ms ms and I-to-E inhibition in 9 ms; external and cross-network excitation decayed in 2 ms. Reciprocal E-to-E and E-to-I projections had nominal weights $K_(E E) = #r.network.weights.K_EE$ and $K_(E I) = #r.network.weights.K_EI$, delay $d = #r.network.delay_ms$ ms, and eight afferents per target; each nominal strength was divided across them.
+
+  === Analyse
+
+  #set enum(start: 2)
 
   + *Measure the uncoupled rhythms.* We simulated 2 s and discarded the first 300 ms for rhythm measurements. Per-neuron population rates were smoothed with a 1 ms Gaussian standard deviation; E volleys required 15 ms separation and prominence of 10% of the maximum rate. Frequency was the reciprocal mean inter-volley interval, variability its standard deviation divided by its mean, and phase advanced linearly between successive E volleys. We checked regular gamma activity, repeated phase wrapping and one I spike per neuron per cycle.
 
@@ -152,18 +175,13 @@
 
   + *Compare coupling and classify locking.* At 500 ms we continued the same voltages, conductances, refractory timers and delayed spike histories under no coupling, E-to-E only, E-to-I only, or both, using identical subsequent input for 1.5 s. Over the final #r.pathway_comparison.classification.final_window_ms ms with valid phase, we fitted unwrapped A-minus-B phase in cycles against time and required absolute drift below #r.pathway_comparison.classification.maximum_absolute_drift_cycles_per_s cycles/s and concentration above #r.pathway_comparison.classification.minimum_phase_concentration:
 
-    #set math.equation(numbering: "(1)")
-    #show math.equation.where(block: true): it => context {
-      if target() == "html" {
-        html.elem("div", attrs: (class: "numbered-equation", style: "display:grid;grid-template-columns:1fr auto;align-items:center;gap:1em"))[
-          #it
-          #html.elem("span", counter(math.equation).display(it.numbering))
-        ]
-      } else { it }
-    }
     $ R_"phase" = abs(1 / N_"phase" sum_(n=1)^(N_"phase") exp(i delta phi_n)) $ <phase-concentration>
 
     Here $R_"phase"$ is circular phase concentration, $N_"phase"$ the number of valid timesteps, $n$ their index, $delta phi_n$ the A-minus-B phase in radians, and $i$ the imaginary unit.
+
+  === Present
+
+  #set enum(start: 5)
 
   + *Resolve the first correction.* We compared the no-coupling and E-to-E conditions around the first A-to-B arrival with a complete −5 to +17 ms window. We measured the next target E volley, target E/I rates and mean incoming and feedback conductances; the event and probe examples reuse the same trajectories, not independent repetitions.
 
@@ -191,4 +209,5 @@
 
 #let meta = meta + (assets: input-assets("exp085", inputs))
 #let body = with-datasets("exp085", inputs, report-body, placed: inputs-ready(data-file, inputs))
+#let body = with-numbered-equations(body)
 #let body = with-contents(body)

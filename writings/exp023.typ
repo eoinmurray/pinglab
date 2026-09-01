@@ -1,4 +1,4 @@
-#import "contents.typ": with-contents, with-result-sections
+#import "contents.typ": with-contents, result-card, with-numbered-equations, with-result-sections
 #import "/.demolab/lib.typ": data-json, data-image, cite, reference-list
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
 #import "run-view.typ": with-datasets, run-view
@@ -6,7 +6,7 @@
 #let data-file = data-file.with(article: "exp023")
 
 #let meta = (
-  status: "[▦ DATA | v28.0.0]",
+  status: "[▦ DATA | v31.1.0]",
   title: "Turning the PING Loop On",
   created_at: "2026-05-13T00:00:00Z",
   updated_at: "2026-08-31T00:00:00Z",
@@ -40,7 +40,6 @@
   #let peak = r.f_gamma_hz.ping
   #let e-coba = r.fi_curves.coba.e.last()
   #let e-ping = r.fi_curves.ping.e.last()
-  #set math.equation(numbering: "(1)")
 
   == Abstract
 
@@ -58,6 +57,7 @@
 
   #with-result-sections[
 
+  #result-card[
   === COBA and PING architecture, activity spectra and rate response
 
   #figure(
@@ -74,6 +74,9 @@
     ],
   )
 
+  ]
+
+  #result-card[
   === COBA excitatory-neuron membrane voltage
 
   #figure(
@@ -84,6 +87,9 @@
       voltage to #b.reset_mV mV. This is an illustrative neuron, not a population mean.],
   )
 
+  ]
+
+  #result-card[
   === COBA excitatory-neuron conductances
 
   #figure(
@@ -93,6 +99,9 @@
       the disconnected inhibitory feedback contributes no conductance.],
   )
 
+  ]
+
+  #result-card[
   === COBA excitatory-neuron currents
 
   #figure(
@@ -102,6 +111,9 @@
       and conductance using the driving-force relation in Methods.],
   )
 
+  ]
+
+  #result-card[
   === PING excitatory-neuron membrane voltage
 
   #figure(
@@ -111,6 +123,9 @@
       This is a different input rate from COBA, not a matched-input trace comparison.],
   )
 
+  ]
+
+  #result-card[
   === PING excitatory-neuron conductances
 
   #figure(
@@ -120,6 +135,9 @@
       inhibition enters through its reversal potential, not a negative conductance.],
   )
 
+  ]
+
+  #result-card[
   === PING excitatory-neuron currents
 
   #figure(
@@ -130,6 +148,9 @@
   )
 
   #if r.raster.ping.i_index != none [
+    ]
+
+    #result-card[
     === PING inhibitory-neuron membrane voltage
 
     These cellular traces illustrate reciprocal E→I→E feedback; they do not
@@ -141,6 +162,9 @@
         from the same trial as the PING E traces. The dashed line marks threshold.],
     )
 
+    ]
+
+    #result-card[
     === PING inhibitory-neuron conductances
 
     #figure(
@@ -149,6 +173,9 @@
         and fixed leak (dotted) on the selected I neuron. The model has no I→I synapse.],
     )
 
+    ]
+
+    #result-card[
     === PING inhibitory-neuron currents
 
     #figure(
@@ -159,11 +186,14 @@
   ]
 
   ]
+  ]
 
   == Methods
 
   We compared untrained loop-off and loop-on networks using the following
   simulation and measurement procedure.
+
+  === Compute
 
   + *Construct the two loop conditions.* Both networks contained #c.n_e
     excitatory (E) and #c.n_i inhibitory (I) neurons. An input layer drove E neurons through
@@ -185,6 +215,10 @@
     #b.refractory_E_ms/#b.refractory_I_ms ms.
     Full trial recordings included spikes, voltages and conductances.
 
+  === Analyse
+
+  #set enum(start: 3)
+
   + *Measure the drive response.* Both loop conditions used
     #c.trials_per_condition trial at each of #sweep.input_rates_hz.map(str).join([, ]) Hz
     through #sweep.n_in input channels for #sweep.t_ms ms, without a discarded transient.
@@ -202,6 +236,10 @@
     #r.measurement.frequency_band_hz.last() Hz was refined by three-bin parabolic
     interpolation, clamped to half a bin; it was reported only when I spikes
     were present. This reporting rule is not a test of significant rhythmicity.
+
+  === Present
+
+  #set enum(start: 5)
 
   + *Reconstruct signed currents.* Each displayed neuron was the first neuron
     attaining the highest total spike count in its population during that
@@ -243,4 +281,5 @@
 
 #let meta = meta + (assets: input-assets("exp023", inputs))
 #let body = with-datasets("exp023", inputs, report-body, placed: inputs-ready(data-file, inputs))
+#let body = with-numbered-equations(body)
 #let body = with-contents(body)
