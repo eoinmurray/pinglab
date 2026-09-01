@@ -9,7 +9,7 @@
   status: "[▦ DATA | v31.1.0]",
   title: "Inhibitory Replay Perturbations Change Excitatory Firing",
   created_at: "2026-06-02T00:00:00Z",
-  updated_at: "2026-08-31T18:23:16Z",
+  updated_at: "2026-09-01",
   description: "Recorded inhibitory spike streams produced contrasting excitatory responses under independent-spike and fixed-window replay perturbations, but the experiment does not isolate synchrony.",
   collection: "gamma-gated-sparsity",
 )
@@ -94,36 +94,44 @@
 
   === Compute
 
-  + We reused three frozen PING classifiers from experiment 022.
+  + *Models.* We reused three independently trained PING networks, initialized
+    with training seeds 42–44.
 
-  + We tested every condition on the same 1,000 MNIST images.
+  + *Trials.* We tested each network-condition combination on the same 1,000
+    MNIST test images. The main figure represents 36,000 condition-level trials,
+    or 33,000 distinct simulations because both arms shared the zero-jitter
+    control.
 
-  + We recorded each network’s inhibitory spikes and replayed altered versions.
+  + *Simulation.* We presented each image for 200 ms using a 0.1 ms timestep.
 
-  + Spikes from the same fixed time window received one shared random shift.
+  + *Independent jitter.* We gave every inhibitory spike an independent Gaussian
+    time shift, using $sigma = 0, 0.5, 1, 2, 5, 9,$ and $14$ ms.
 
-  + Alternatively, every inhibitory spike received its own random shift.
+  + *Group jitter.* We divided the timeline into fixed 25 ms windows and gave
+    every inhibitory spike within a window the same shift, using
+    $sigma = 0, 1, 3, 7,$ and $14$ ms.
 
-  + Shifted spikes were kept within the presentation. Colliding spikes merged,
-    sometimes reducing inhibitory delivery.
+  + *Boundaries.* We reflected independent spikes that left the 200 ms interval
+    back into it individually. For group jitter, we reflected the shared
+    displacement once so that the group remained intact.
 
-  + We tested progressively larger shifts, including an unchanged condition.
+  + *Collisions.* We moved same-neuron spikes landing on the same timestep to the
+    nearest unused in-range timestep. No spikes were removed.
 
   === Analyse
 
   #set enum(start: 8)
 
-  + We measured accuracy and population firing rates.
-
-  + We averaged results across the three classifiers and reproducibly selected
-    one example raster.
+  + *Measurements.* We recorded accuracy and mean excitatory and inhibitory
+    firing rates. Curves show the mean across the three training seeds.
 
   === Present
 
-  #set enum(start: 10)
+  #set enum(start: 9)
 
-  + We displayed the example rasters and complete condition means without
-    rerunning the experiment.
+  + *Range restriction.* We retained larger jitter values as boundary-sensitivity
+    results but excluded them from the main figure because reflection became a
+    substantial part of the intervention.
 ]
 #body
   #run-view("exp042", inputs)
