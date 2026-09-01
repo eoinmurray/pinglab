@@ -124,7 +124,7 @@ def _compound_sweep_panel(
         )
         inset.set_xlim(5.0, xlim[1])
         inset.set_ylim(0.0, 0.1)
-        inset.set_xticks((5, 25, 50))
+        inset.set_xticks((5, 10, 14))
         inset.set_yticks((0.0, 0.05, 0.1), labels=("0", ".05", ".10"))
         inset.tick_params(labelsize=theme.SIZE_ANNOTATION, pad=1)
         inset.set_title(
@@ -153,7 +153,7 @@ def fig_rhythm_compound(
     prev_bbox = plt.rcParams["savefig.bbox"]
     plt.rcParams["savefig.bbox"] = "standard"
     fig, axes = plt.subplots(2, 2, figsize=(6.9, 3.88))
-    shared_sweep_xlim = (0.0, 50.0)
+    shared_sweep_xlim = (0.0, 14.0)
 
     _compound_raster_panel(
         axes[0, 0],
