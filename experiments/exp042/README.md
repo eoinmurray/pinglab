@@ -5,6 +5,33 @@ Writing Guide 8.0.0. This is a code/writing migration, not a new scientific run.
 The initial code migration imported no Gold-2 data. A separately authorized
 selective import is recorded below; no existing archive or completed run changed.
 
+## Reflecting-boundary sensitivity: 2026-09-01
+
+Recipe v4 removes the circular connection between the start and end of the
+finite presentation. In the independent-spike arm, each proposed event time is
+reflected individually into the recorded interval. In the fixed-window arm, the
+single shared displacement is reflected against the range allowed by the first
+and last actual spike in that source window, then the same corrected displacement
+is applied to every event in the group. The latter deliberately avoids splitting
+or reversing a group at an edge.
+
+Same-cell/time collisions are still count-preserving, but their nearest-free
+search is now bounded: `+1, -1, +2, -2, ...` candidates outside the presentation
+are skipped rather than wrapped to the opposite edge. Diagnostics record
+reflected events and collision repairs, and the exact per-trial/per-cell count
+invariant remains mandatory. Recipe v3 circular results remain immutable
+historical evidence but cannot be used as recipe v4 results. A fresh production
+compute, analyse and present chain is therefore required.
+
+### Recipe-v4 local verification
+
+All 28 focused exp042 tests pass, including multiple-bounce reflection, both
+finite edges, exact count preservation, bounded collision repair and rigid
+fixed-window displacement at a boundary. The 27 collection integration tests
+and four exp042 downstream-cap tests also pass. Ruff and `git diff --check`
+pass. The broader downstream-cap module currently has one unrelated pre-existing
+exp049 argument-order failure; exp042 is not implicated.
+
 ## Count-preserving jitter repair: 2026-08-31
 
 Issue #167 identified that the retained independent-spike transform clamped
@@ -93,8 +120,8 @@ No production runtime or retained-size measurement exists for this staged versio
   are never created, and existing outputs are never cleaned in place.
 
 The two figure-producing spike-time transforms retain rounded Gaussian offsets,
-then apply the recipe-v3 wrapping and collision policy documented above. Realised
-rates remain measured in addition to the exact count invariant.
+then apply the recipe-v4 reflection and bounded collision policy documented
+above. Realised rates remain measured in addition to the exact count invariant.
 The compound-panel caption reflects its mean curves without error bars. Standard
 errors remain retained in the analysis for the scientific uncertainty account.
 

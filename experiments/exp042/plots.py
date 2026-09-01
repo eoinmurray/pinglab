@@ -59,8 +59,9 @@ def _compound_sweep_panel(
     *,
     xlabel: str,
     title: str,
-    symlog: bool,
+    xlim: tuple[float, float],
     legend_loc: str,
+    e_rate_inset: bool = False,
 ) -> None:
     """One sweep panel — E rate (black) and accuracy (red, twin axis) vs σ."""
     sig = [r["sigma_ms"] for r in rows]
@@ -71,9 +72,8 @@ def _compound_sweep_panel(
     ax.plot(
         sig, e_means, marker="D", ms=5, lw=1.4, color=theme.INK_BLACK, label="E rate"
     )
-    # Realised mean I-spike rate is shown on the same Hz axis. This records spike
-    # delivery, not postsynaptic inhibitory conductance; at large offsets it
-    # falls because clamping and collisions remove events.
+    # Realised mean I-spike rate is shown on the same Hz axis. Count-preserving
+    # replay keeps this rate fixed; it does not measure inhibitory conductance.
     ax.plot(
         sig,
         i_means,
@@ -85,8 +85,7 @@ def _compound_sweep_panel(
         alpha=0.75,
         label="realised I",
     )
-    if symlog:
-        ax.set_xscale("symlog", linthresh=1.0)
+    ax.set_xlim(*xlim)
     ax.set_xlabel(xlabel, fontsize=theme.SIZE_LABEL)
     ax.set_ylabel("firing rate (Hz)", color=theme.INK_BLACK, fontsize=theme.SIZE_LABEL)
     ax.tick_params(axis="y", labelcolor=theme.INK_BLACK)
@@ -112,6 +111,29 @@ def _compound_sweep_panel(
         frameon=False,
         fontsize=theme.SIZE_ANNOTATION,
     )
+    if e_rate_inset:
+        zoom_rows = [row for row in rows if 5.0 <= row["sigma_ms"] <= xlim[1]]
+        inset = ax.inset_axes((0.56, 0.72, 0.39, 0.21), zorder=6)
+        inset.plot(
+            [row["sigma_ms"] for row in zoom_rows],
+            [row["e_rate_hz"]["mean"] for row in zoom_rows],
+            marker="D",
+            ms=2.5,
+            lw=1.0,
+            color=theme.INK_BLACK,
+        )
+        inset.set_xlim(5.0, xlim[1])
+        inset.set_ylim(0.0, 0.1)
+        inset.set_xticks((5, 25, 50))
+        inset.set_yticks((0.0, 0.05, 0.1), labels=("0", ".05", ".10"))
+        inset.tick_params(labelsize=theme.SIZE_ANNOTATION, pad=1)
+        inset.set_title(
+            "E-rate detail (Hz)",
+            loc="left",
+            fontsize=theme.SIZE_ANNOTATION,
+            pad=2,
+        )
+        inset.set_facecolor(theme.PAPER)
 
 
 def fig_rhythm_compound(
@@ -131,6 +153,7 @@ def fig_rhythm_compound(
     prev_bbox = plt.rcParams["savefig.bbox"]
     plt.rcParams["savefig.bbox"] = "standard"
     fig, axes = plt.subplots(2, 2, figsize=(6.9, 3.88))
+    shared_sweep_xlim = (0.0, 50.0)
 
     _compound_raster_panel(
         axes[0, 0],
@@ -147,21 +170,18 @@ def fig_rhythm_compound(
     _compound_sweep_panel(
         axes[1, 0],
         cell_rows,
-        xlabel="independent-spike jitter σ (ms, symlog)",
+        xlabel="independent-spike jitter σ (ms)",
         title="Independent offsets: E rate falls",
-        # Symlog spreads the low-offset response across the plot instead of
-        # compressing it into the left margin.
-        # The collapse all happens below σ ≈ 9 ms and would otherwise
-        # pile into the left margin, breaking the side-by-side read.
-        symlog=True,
+        xlim=shared_sweep_xlim,
         legend_loc="center right",
+        e_rate_inset=True,
     )
     _compound_sweep_panel(
         axes[1, 1],
         cyc_rows,
-        xlabel="fixed-window group jitter σ (ms, symlog)",
+        xlabel="fixed-window group jitter σ (ms)",
         title="Shared window offsets: E rate rises",
-        symlog=True,
+        xlim=shared_sweep_xlim,
         legend_loc="center left",
     )
     # H17: caption carries the takeaway

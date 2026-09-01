@@ -55,7 +55,7 @@ def measurement(metrics, job, cfg):
     transform = metrics.get("override_transform")
     if (
         not isinstance(transform, dict)
-        or transform.get("schema") != "exp042.override/v1"
+        or transform.get("schema") != "exp042.override/v2"
         or transform.get("boundary_policy") != cfg["jitter_policy"]["boundary"]
         or transform.get("collision_policy") != cfg["jitter_policy"]["collision"]
         or transform.get("per_trial_cell_count_invariant") is not True
@@ -68,7 +68,7 @@ def measurement(metrics, job, cfg):
     for key in (
         "input_spikes",
         "output_spikes",
-        "boundary_wrapped_spikes",
+        "boundary_reflected_spikes",
         "collision_resolved_spikes",
         "max_collision_resolution_steps",
     ):
@@ -155,7 +155,7 @@ def analyse(identity, *, run_id=None):
     bank_evidence = inputs.bank_evidence(bank)
     retained = load_json(compute.export / "evidence.json")
     if retained != {
-        "schema": "exp042.compute/v3",
+        "schema": "exp042.compute/v4",
         "recipe": cfg,
         "bank_evidence": bank_evidence,
         "jobs": recipe.jobs(cfg),
@@ -187,7 +187,7 @@ def analyse(identity, *, run_id=None):
         write_json_atomic(
             run.export / "results.json",
             {
-                "schema": "exp042.analysis/v3",
+                "schema": "exp042.analysis/v4",
                 "recipe": cfg,
                 "measurement": MEASUREMENT,
                 "checkpoint_policy": cfg["checkpoint_policy"],

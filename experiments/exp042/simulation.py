@@ -154,12 +154,12 @@ class Simulator:
         bounds = np.searchsorted(tr, np.arange(n_tr + 1))
         out_tr, out_t, out_c = [], [], []
         diagnostics = {
-            "schema": "exp042.override/v1",
+            "schema": "exp042.override/v2",
             "boundary_policy": self.configuration["jitter_policy"]["boundary"],
             "collision_policy": self.configuration["jitter_policy"]["collision"],
             "input_spikes": 0,
             "output_spikes": 0,
-            "boundary_wrapped_spikes": 0,
+            "boundary_reflected_spikes": 0,
             "collision_resolved_spikes": 0,
             "max_collision_resolution_steps": 0,
             "trials_checked": n_tr,
@@ -180,7 +180,7 @@ class Simulator:
             for key in (
                 "input_spikes",
                 "output_spikes",
-                "boundary_wrapped_spikes",
+                "boundary_reflected_spikes",
                 "collision_resolved_spikes",
             ):
                 diagnostics[key] += trial_diagnostics[key]

@@ -420,7 +420,7 @@ def test_transforms_are_deterministic_binary_and_count_preserving_over_full_grid
     ("condition", "seed"),
     [("jitter_sigma_100", 0), ("cell_jitter_sigma_100", 1)],
 )
-def test_temporal_boundaries_wrap_without_losing_spikes(condition, seed):
+def test_temporal_boundaries_reflect_without_losing_spikes(condition, seed):
     import torch
 
     baseline = torch.zeros(20, 1, 1)
@@ -434,7 +434,7 @@ def test_temporal_boundaries_wrap_without_losing_spikes(condition, seed):
     )
     assert int(actual.sum()) == 2
     assert torch.equal(actual.sum(dim=0), baseline.sum(dim=0))
-    assert diagnostics["boundary_wrapped_spikes"] > 0
+    assert diagnostics["boundary_reflected_spikes"] > 0
     assert diagnostics["input_spikes"] == diagnostics["output_spikes"] == 2
 
 
@@ -447,9 +447,31 @@ def test_collision_resolution_is_binary_nearest_free_and_count_preserving():
     resolved, moved, max_steps = transforms._resolve_collisions(
         candidates, batch, cells, T=7, N_I=1
     )
-    assert resolved.tolist() == [0, 1, 6, 2, 5, 3, 4]
+    assert resolved.tolist() == [0, 1, 2, 3, 4, 5, 6]
     assert int(moved.sum()) == 6
-    assert max_steps == 3
+    assert max_steps == 6
+
+
+def test_integer_reflection_handles_both_edges_and_multiple_bounces():
+    import torch
+
+    proposed = torch.tensor([-9, -1, 0, 4, 5, 9, 13])
+    reflected = transforms._reflect_into_interval(
+        proposed, torch.tensor(0), torch.tensor(4)
+    )
+    assert reflected.tolist() == [1, 1, 0, 4, 3, 1, 3]
+
+
+def test_collision_resolution_near_upper_edge_does_not_wrap():
+    import torch
+
+    candidates = torch.full((7,), 6, dtype=torch.long)
+    batch = torch.zeros(7, dtype=torch.long)
+    cells = torch.zeros(7, dtype=torch.long)
+    resolved, _moved, _max_steps = transforms._resolve_collisions(
+        candidates, batch, cells, T=7, N_I=1
+    )
+    assert resolved.tolist() == [6, 5, 4, 3, 2, 1, 0]
 
 
 def test_fixed_window_arm_moves_same_window_population_events_together():
@@ -462,6 +484,25 @@ def test_fixed_window_arm_moves_same_window_population_events_together():
     )
     assert torch.equal(actual[:, 0, 0], actual[:, 0, 1])
     assert int(actual[:, 0, 0].sum()) == 2
+
+
+def test_fixed_window_boundary_reflects_one_shared_displacement():
+    import torch
+
+    baseline = torch.zeros(20, 1, 2)
+    baseline[0, 0, 0] = 1
+    baseline[2, 0, 1] = 1
+    actual, diagnostics = transforms._build_override(
+        baseline,
+        "jitter_sigma_100",
+        torch.Generator().manual_seed(0),
+        dt_ms=1.0,
+        return_diagnostics=True,
+    )
+    new_t_0 = int(actual[:, 0, 0].nonzero()[0])
+    new_t_1 = int(actual[:, 0, 1].nonzero()[0])
+    assert new_t_0 - 0 == new_t_1 - 2
+    assert diagnostics["boundary_reflected_spikes"] == 2
 
 
 @pytest.mark.parametrize("condition", ["jitter_sigma_100", "cell_jitter_sigma_50"])
@@ -535,12 +576,12 @@ def test_analysis_rejects_missing_or_false_count_invariant():
     with pytest.raises(PingstoreError, match="spike-count invariant"):
         analyse.measurement(metrics, job, cfg)
     metrics["override_transform"] = {
-        "schema": "exp042.override/v1",
+        "schema": "exp042.override/v2",
         "boundary_policy": cfg["jitter_policy"]["boundary"],
         "collision_policy": cfg["jitter_policy"]["collision"],
         "input_spikes": 2,
         "output_spikes": 1,
-        "boundary_wrapped_spikes": 1,
+        "boundary_reflected_spikes": 1,
         "collision_resolved_spikes": 0,
         "max_collision_resolution_steps": 0,
         "trials_checked": cfg["evaluation_samples"],

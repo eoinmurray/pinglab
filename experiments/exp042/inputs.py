@@ -59,7 +59,7 @@ def configuration(run):
     cfg = run.record["execution"].get("configuration")
     if (
         not isinstance(cfg, dict)
-        or cfg.get("schema") != "exp042.recipe/v3"
+        or cfg.get("schema") != "exp042.recipe/v4"
         or cfg.get("profile") not in ("smoke", "production")
         or cfg != recipe.configuration(smoke=cfg["profile"] == "smoke")
         or set(run.record["inputs"]) != {"bank"}

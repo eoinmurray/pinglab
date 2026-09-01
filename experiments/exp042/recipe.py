@@ -17,8 +17,8 @@ SEEDS = training_run_values(TRAINING_RUN, "seed")
 JITTER_SIGMAS_MS = (0.0, 1.0, 3.0, 7.0, 14.0, 21.0, 28.0, 42.0, 60.0, 100.0)
 CELL_JITTER_SIGMAS_MS = (0.0, 0.5, 1.0, 2.0, 5.0, 9.0, 14.0, 21.0, 50.0)
 F_GAMMA_REFERENCE_HZ = F_GAMMA_HZ
-JITTER_BOUNDARY_POLICY = "circular_wrap"
-JITTER_COLLISION_POLICY = "nearest_free_circular_alternating/v1"
+JITTER_BOUNDARY_POLICY = "reflect_in_range/v1"
+JITTER_COLLISION_POLICY = "nearest_free_bounded_alternating/v1"
 EVAL_MAX_SAMPLES = MNIST_REDUCED_EVAL_SAMPLES
 SMOKE_MAX_SAMPLES = 100
 RASTER_SAMPLE_IDX = 0
@@ -37,7 +37,7 @@ def cell_name(seed):
 
 def configuration(*, smoke=False):
     return {
-        "schema": "exp042.recipe/v3",
+        "schema": "exp042.recipe/v4",
         "profile": "smoke" if smoke else "production",
         "seeds": list(SEEDS),
         "jitter_sigmas_ms": list((0.0, 14.0, 100.0) if smoke else JITTER_SIGMAS_MS),
