@@ -10,7 +10,7 @@
   status: "[▦ DATA | v31.2.0]",
   title: "Spike-Count Classification in a Continuous Stream",
   created_at: "2026-08-10T00:00:00Z",
-  updated_at: "2026-08-31T15:50:25Z",
+  updated_at: "2026-09-01",
   description: "A multi-seed study of spike-count classification across input rates and presentation durations.",
   collection: "gamma-gated-sparsity",
 )
@@ -91,9 +91,7 @@
   digits, while the output decision was reset at each boundary.
 
   Classification improved with longer, stronger inputs, whereas weak inputs
-  often produced no output spikes. The results demonstrate continuous-stream
-  classification, but do not separate viewing time from decision time or
-  establish a causal role for gamma.
+  often produced no output spikes.
 
   == Results
 
