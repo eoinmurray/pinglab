@@ -1,7 +1,7 @@
 #import "contents.typ": with-contents, with-numbered-equations
 #import "run-view.typ": with-datasets
 #let meta = (
-  status: "[≡ TXT | v31.1.0]",
+  status: "[≡ TXT | v31.2.0]",
   title: "Gradient Stabilisation",
   created_at: "2026-06-12T00:00:00Z",
   updated_at: "2026-08-29T00:00:00Z",

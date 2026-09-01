@@ -1,7 +1,7 @@
 #import "contents.typ": with-contents, with-numbered-equations
 #import "run-view.typ": with-datasets
 #let meta = (
-  status: "[≡ TXT | v31.1.0]",
+  status: "[≡ TXT | v31.2.0]",
   title: "SNNLANG developer documentation",
   created_at: "2026-07-30T00:00:00Z",
   description: "Start with the collection contents, learn the high-level development model, then use the concrete SNNLANG and graph-execution API reference.",

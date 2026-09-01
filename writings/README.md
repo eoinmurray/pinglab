@@ -1,6 +1,6 @@
 # Writing Guide
 
-Version: **31.1.0**
+Version: **31.2.0**
 
 The Writing Guide defines the conventions for Pinglab's published experiment
 entries in `writings/expXXX.typ`. This file is the canonical guide.
@@ -14,6 +14,10 @@ corrections or clarifications that do not change requirements. Update the versio
 above and add a short entry to the version history when changing the guide.
 
 ### 1.1. Version history
+
+- **31.2.0** — Add the explicit author-assigned `◉ REVIEWED` article status.
+  Keep review distinct from inferred local-data availability and record the
+  applied Writing Guide version separately for reviewed articles.
 
 - **31.1.0** — Remove the Writing Guide migration and grounded-regeneration
   procedure categories. Retain source-preserving editing, evidence checks and
@@ -321,41 +325,54 @@ change merely to adopt this guide.
   edit under section 3.1 when a requested revision qualifies, unless the author
   explicitly instructs otherwise.
 
-### 3.4. Local-data availability
+### 3.4. Article status and local-data availability
 
 Every `writings/expXXX.typ` must declare one `meta.status` using an exact label
-from the table below. The entire value must be `[≡ TXT | vX.Y.Z]` or
-`[▦ DATA | vX.Y.Z]`, including brackets, where `X.Y.Z` is the latest Writing
-Guide version applied to that article. Demolab displays this authored string;
-do not add a second status field, version field or icon field.
+from the table below. Availability labels include the latest Writing Guide
+version applied to the article. The author-assigned `◉ REVIEWED` label is
+versionless and requires a separate `meta.writing_guide` value containing that
+version as `X.Y.Z`. Demolab displays the authored status string.
 
-| Label | Local-data availability |
+| Label | Meaning |
 | --- | --- |
-| `[≡ TXT \| v31.1.0]` | Article only: no usable, validated local presentation data is available for any declared article input, or the article declares no data inputs. |
-| `[▦ DATA \| v31.1.0]` | Local data: usable, validated local presentation data is available for at least one declared article input, including reused upstream results. |
+| `[≡ TXT \| v31.2.0]` | Article only: no usable, validated local presentation data is available for any declared article input, or the article declares no data inputs. |
+| `[▦ DATA \| v31.2.0]` | Local data: usable, validated local presentation data is available for at least one declared article input, including reused upstream results. |
+| `◉ REVIEWED` | The author explicitly reviewed and accepted the article in its current scientific and written form. Agents must never infer this status from tests, data, rendering or their own review. |
 
-The badge reports availability in the working checkout at the last agent check,
+The availability badges report the working checkout at the last agent check,
 not a live web-UI measurement. `[≡ TXT | vX.Y.Z]` does not mean literally text
 without diagrams. `[▦ DATA | vX.Y.Z]` does not certify complete input coverage, successful rendering,
 scientific quality, review or completion. Null and negative findings qualify
 equally. For comparisons with only some inputs available, use the `[▦ DATA | ...]`
 form and report the missing inputs in the task summary, not new article prose.
 
-- Agents own freshness. At the end of an authorized article revision, relevant
+`◉ REVIEWED` supersedes the displayed availability label but does not erase the
+underlying availability distinction. Reassess local data normally and report a
+change that would otherwise alter the badge, but preserve `◉ REVIEWED` unless
+the author explicitly requests another status. Only an explicit author request
+may add or remove this marker. A reviewed article must declare exactly one
+`writing_guide` field matching the current applied guide version; non-reviewed
+articles must not declare that separate field.
+
+- Agents own availability freshness. At the end of an authorized article
+  revision, relevant
   implementation or execution task, or change to local data availability,
   reassess the affected article and all articles whose declared inputs depend
   on the affected data keys, including comparisons and syntheses. Update the
-  badge in either direction when the evidence changes. This is a necessary
-  dependent metadata edit under section 3.1; explicit author scope restrictions
-  still take precedence.
+  availability badge in either direction when the evidence changes, except that
+  an author-assigned `◉ REVIEWED` marker is preserved and the change is
+  reported. This is a necessary dependent metadata edit under section 3.1;
+  explicit author scope restrictions still take precedence.
 - Agents also own Writing Guide version freshness. Whenever this guide is
-  applied to an article, set the badge version to the exact version applied.
+  applied to an article, set the availability-badge version, or the reviewed
+  article's `writing_guide` field, to the exact version applied.
   Whenever the guide version changes, update every article brought into
-  conformance in the same editing pass; never advance an article's badge version
-  without applying all requirements introduced through that version. Normal
-  tests must reject badge versions that differ from the current guide version
-  once the repository declares all articles current. A badge-only
-  version synchronization does not advance `meta.updated_at`.
+  conformance in the same editing pass; never advance an article's recorded
+  version without applying all requirements introduced through that version.
+  Normal tests must reject availability-badge versions or reviewed
+  `writing_guide` values that differ from the current guide version once the
+  repository declares all articles current. A version-only synchronization does
+  not advance `meta.updated_at`.
 - Read the current article's `inputs` and article-scoped bindings, and check
   their agreement with the publishing configuration. Run read-only
   `uv run pingstore discover` against the configured local source. Match the
