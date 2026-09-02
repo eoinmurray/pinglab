@@ -5,9 +5,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from experiments.exp025 import collection as exp025_collection
 from experiments.exp037 import collection as exp037_collection
-from experiments.exp038 import collection as exp038_collection
 from experiments.exp041 import collection as exp041_collection
 from experiments.exp044 import collection as exp044_collection
 from experiments.exp046 import collection as exp046_collection
@@ -28,8 +26,6 @@ def references(repo: Path, row: dict) -> dict:
     document = load_json(path) if path.is_file() else {}
     source_specs = {
         "exp054_analysis": ("analyse", "exp054"),
-        "exp025_presentation": ("present", "exp025"),
-        "exp038_presentation": ("present", "exp038"),
         "exp041_presentation": ("present", "exp041"),
         "exp046_presentation": ("present", "exp046"),
         "exp037_presentation": ("present", "exp037"),
@@ -40,7 +36,7 @@ def references(repo: Path, row: dict) -> dict:
     if not document:
         return {}
     if not set(source_specs) <= set(document):
-        raise PingstoreError("exp110 must pin all seven source experiments")
+        raise PingstoreError("exp110 must pin all five source experiments")
     source_refs = {role: document[role] for role in source_specs}
     for role, (stage, experiment) in source_specs.items():
         reference = source_refs[role]
@@ -100,22 +96,18 @@ def upstream_sources(repo: Path, plan: dict) -> dict:
         for stage in plan["stages"]
         for row in stage["experiments"]
         if row["slug"]
-        in {"exp025", "exp037", "exp038", "exp041", "exp044", "exp046", "exp054"}
+        in {"exp037", "exp041", "exp044", "exp046", "exp054"}
     }
     if set(rows) != {
-        "exp025",
         "exp037",
-        "exp038",
         "exp041",
         "exp044",
         "exp046",
         "exp054",
     }:
-        raise PingstoreError("exp110 requires all seven manuscript dependencies")
+        raise PingstoreError("exp110 requires all five presentation dependencies")
     requirements = {
         "exp054_analysis": (exp054_collection, "exp054", "analyse"),
-        "exp025_presentation": (exp025_collection, "exp025", "present"),
-        "exp038_presentation": (exp038_collection, "exp038", "present"),
         "exp041_presentation": (exp041_collection, "exp041", "present"),
         "exp046_presentation": (exp046_collection, "exp046", "present"),
         "exp037_presentation": (exp037_collection, "exp037", "present"),
@@ -169,10 +161,6 @@ def execute(repo: Path, plan: dict, row: dict) -> dict:
             "experiments.exp110.present",
             "--source",
             sources["exp054_analysis"].record["run_id"],
-            "--exp025-source",
-            sources["exp025_presentation"].record["run_id"],
-            "--exp038-source",
-            sources["exp038_presentation"].record["run_id"],
             "--exp041-source",
             sources["exp041_presentation"].record["run_id"],
             "--exp046-source",

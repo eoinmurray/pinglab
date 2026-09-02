@@ -1,6 +1,6 @@
 # Writing Guide
 
-Version: **33.0.0**
+Version: **34.0.1**
 
 The Writing Guide defines the conventions for Pinglab's published experiment
 entries in `writings/expXXX.typ`. This file is the canonical guide.
@@ -14,6 +14,14 @@ corrections or clarifications that do not change requirements. Update the versio
 above and add a short entry to the version history when changing the guide.
 
 ### 1.1. Version history
+
+- **34.0.1** — Correct the publication-geometry rule: constrain final physical
+  size and legibility, not the overall aspect ratio of compound figures, and
+  require balanced scientific grouping without stretching plots.
+
+- **34.0.0** — Standardize publication plot aspect ratios, physical figure
+  widths and final-size legibility checks while preserving scientifically
+  meaningful axis geometry.
 
 - **33.0.0** — Place an article's Abstract before its Table of Contents so
   readers encounter the experiment summary before its navigation. Keep the
@@ -343,8 +351,8 @@ version as `X.Y.Z`. Demolab displays the authored status string.
 
 | Label | Meaning |
 | --- | --- |
-| `[≡ TXT \| v33.0.0]` | Article only: no usable, validated local presentation data is available for any declared article input, or the article declares no data inputs. |
-| `[▦ DATA \| v33.0.0]` | Local data: usable, validated local presentation data is available for at least one declared article input, including reused upstream results. |
+| `[≡ TXT \| v34.0.1]` | Article only: no usable, validated local presentation data is available for any declared article input, or the article declares no data inputs. |
+| `[▦ DATA \| v34.0.1]` | Local data: usable, validated local presentation data is available for at least one declared article input, including reused upstream results. |
 | `◉ REVIEWED` | The author explicitly reviewed and accepted the article in its current scientific and written form. Agents must never infer this status from tests, data, rendering or their own review. |
 
 The availability badges report the working checkout at the last agent check,
@@ -992,6 +1000,25 @@ the scientific hierarchy or content rules.
     “left” or “right”. Colour bars, legends, shared titles and purely dependent
     insets are not separate panels. An inset that presents independently
     interpretable evidence is a panel and requires its own label.
+12. Design every figure at its intended final publication size. Unless a target
+    journal specifies otherwise, use approximately **90 mm** for a single-column
+    figure or **180 mm** for a double-column figure, with a maximum height of
+    approximately **170 mm**. Target-journal requirements supersede these
+    defaults. Express aspect ratios as width:height and use **4:3** as the
+    default for an ordinary plot panel. Use **1:1** where equal axis scaling or
+    matrix geometry matters, **3:2** for dense time series, and wider panels for
+    rasters or long temporal axes when scientifically justified. Do not
+    prescribe an overall aspect ratio for compound figures. Arrange panels in
+    balanced rows or grids according to their scientific relationships; avoid
+    empty cells, misleading visual hierarchy and layouts that make equivalent
+    panels appear unequal. Never stretch or squash a rendered plot: change the
+    canvas, subplot arrangement or source layout instead. If a compound figure
+    cannot fit within publication dimensions while preserving legibility,
+    recompose it or divide it into scientifically coherent figures. Verify the
+    final-sized output, not merely the source canvas. Labels, legends,
+    annotations, uncertainty marks and raster detail must remain readable; use
+    approximately **5–7 pt** as the minimum final text range unless the target
+    journal requires otherwise.
 
 When updating existing headings, remove their taglines and repair any authored
 links to former anchors. The shared TOC picks up the plain heading automatically.

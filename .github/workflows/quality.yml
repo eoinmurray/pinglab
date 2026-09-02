@@ -1,16 +1,19 @@
-name: Fast quality checks
+name: Quality checks
 
 on:
   push:
     branches: [main]
-  pull_request:
+  schedule:
+    # Nightly full suite. GitHub Actions cron is always UTC.
+    - cron: "17 2 * * *"
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: quality-${{ github.ref }}
+  # Coalesce rapid pushes without allowing one to cancel the nightly full run.
+  group: quality-${{ github.ref }}-${{ github.event_name }}
   cancel-in-progress: true
 
 jobs:
@@ -76,11 +79,14 @@ jobs:
       - name: Experiment tool-import boundary
         run: uv run ruff check experiments --select TID --output-format=github
 
-      - name: Short-running tests
+      - name: Fast test suite
+        if: github.event_name == 'push'
         run: >-
           uv run pytest -q -m "not slow"
-          tools/runstore/tests
-          tools/snnlang/tests
-          tools/snnsim/tests/test_artifacts_schema.py
-          tools/snnsim/tests/test_bundle.py
-          tools/snnsim/tests/test_config.py
+          tools/snnsim/tests
+
+      - name: Full test suite
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        run: >-
+          uv run pytest -q
+          tools/snnsim/tests

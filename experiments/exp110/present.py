@@ -41,58 +41,6 @@ def _panel_font(height: int, fraction: float = 0.035) -> ImageFont.FreeTypeFont:
     return ImageFont.truetype(str(path), max(12, round(height * fraction)))
 
 
-def _relabel_four_panel(image: Image.Image, labels: str) -> Image.Image:
-    """Replace the source figure's A-D labels while preserving its plot pixels."""
-    image = image.convert("RGB")
-    width, height = image.size
-    draw = ImageDraw.Draw(image)
-    font = _panel_font(height)
-    positions = (
-        (0.026, 0.016),
-        (0.508, 0.016),
-        (0.026, 0.535),
-        (0.508, 0.535),
-    )
-    for label, (x_fraction, y_fraction) in zip(labels, positions):
-        x, y = round(width * x_fraction), round(height * y_fraction)
-        draw.rectangle(
-            (x - 8, y - 7, x + round(width * 0.035), y + round(height * 0.052)),
-            fill="white",
-        )
-        draw.text((x, y), label, font=font, fill="black")
-    return image
-
-
-def build_performance_transfer_compound(
-    exp025_path: Path, exp038_path: Path, output_stem: Path
-) -> None:
-    """Stack the two retained four-panel figures as manuscript panels A-H."""
-    with (
-        Image.open(exp025_path) as first_source,
-        Image.open(exp038_path) as second_source,
-    ):
-        first = _relabel_four_panel(first_source.copy(), "ABCD")
-        second = _relabel_four_panel(second_source.copy(), "EFGH")
-    if first.width != second.width:
-        target_width = max(first.width, second.width)
-        first = first.resize(
-            (target_width, round(first.height * target_width / first.width)),
-            Image.Resampling.LANCZOS,
-        )
-        second = second.resize(
-            (target_width, round(second.height * target_width / second.width)),
-            Image.Resampling.LANCZOS,
-        )
-    gap = round(first.width * 0.012)
-    composite = Image.new(
-        "RGB", (first.width, first.height + gap + second.height), "white"
-    )
-    composite.paste(first, (0, 0))
-    composite.paste(second, (0, first.height + gap))
-    composite.save(output_stem.with_suffix(".png"), dpi=(300, 300))
-    composite.save(output_stem.with_suffix(".pdf"), "PDF", resolution=300)
-
-
 def _rasterize_svg(source: Path, destination: Path, *, width: int = 2070) -> None:
     renderer = shutil.which("rsvg-convert")
     if renderer is None:
@@ -249,8 +197,6 @@ def build_robustness_compound(
 
 def present(
     identity: str,
-    exp025_identity: str,
-    exp038_identity: str,
     exp041_identity: str,
     exp046_identity: str,
     exp037_identity: str,
@@ -259,12 +205,6 @@ def present(
     run_id: str | None = None,
 ) -> str:
     analysis, source_recipe, coordinates, _ = analysis_source(REPO, identity)
-    exp025, exp025_figure = _source_figure(
-        exp025_identity, "exp025", recipe.PERFORMANCE_SOURCE
-    )
-    exp038, exp038_figure = _source_figure(
-        exp038_identity, "exp038", recipe.TRANSFER_SOURCE
-    )
     exp041, exp041_figure = _source_figure(
         exp041_identity, "exp041", recipe.RATE_FREQUENCY_SOURCE
     )
@@ -284,8 +224,6 @@ def present(
             "present",
             inputs={
                 "exp054_analysis": analysis,
-                "exp025_presentation": exp025,
-                "exp038_presentation": exp038,
                 "exp041_presentation": exp041,
                 "exp046_presentation": exp046,
                 "exp037_presentation": exp037,
@@ -306,11 +244,6 @@ def present(
             {float(key): value for key, value in mean_field["spiking_exp041"].items()},
             run.export / "onset_super_compound",
         )
-        build_performance_transfer_compound(
-            exp025_figure,
-            exp038_figure,
-            run.export / "performance_transfer_compound",
-        )
         build_cycle_participation_compound(
             exp041_figure,
             exp046_figure,
@@ -329,12 +262,6 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source", required=True, help="completed exp054 analysis run")
     parser.add_argument(
-        "--exp025-source", required=True, help="completed exp025 presentation run"
-    )
-    parser.add_argument(
-        "--exp038-source", required=True, help="completed exp038 presentation run"
-    )
-    parser.add_argument(
         "--exp041-source", required=True, help="completed exp041 presentation run"
     )
     parser.add_argument(
@@ -350,8 +277,6 @@ def main() -> None:
     arguments = parser.parse_args()
     present(
         arguments.source,
-        arguments.exp025_source,
-        arguments.exp038_source,
         arguments.exp041_source,
         arguments.exp046_source,
         arguments.exp037_source,

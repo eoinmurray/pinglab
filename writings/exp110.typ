@@ -18,6 +18,8 @@
 
 #let inputs = (
   "exp023",
+  "exp025",
+  "exp038",
   "exp042",
   "exp049",
   "exp110",
@@ -27,7 +29,8 @@
 #let preview-figures = (
   (path: "exp023/overview_compound.png", label: "COBA and PING overview"),
   (path: "exp110/onset_super_compound.png", label: "gamma onset"),
-  (path: "exp110/performance_transfer_compound.png", label: "accuracy, firing rate and loop transfer"),
+  (path: "exp025/results_compound.png", label: "accuracy and firing rate"),
+  (path: "exp038/loop_transfer_compound.png", label: "loop transfer"),
   (path: "exp049/training_curves.svg", label: "frozen and trainable loop weights"),
   (path: "exp110/cycle_participation_compound.png", label: "rate, gamma frequency and cycle participation"),
   (path: "exp110/robustness_compound.png", label: "spike perturbation and timestep robustness"),
@@ -84,20 +87,30 @@
 
     #figure(
       data-image(
-        data-file("exp110/performance_transfer_compound.png"),
+        data-file("exp025/results_compound.png"),
         width: 92%,
-        alt: "COBA and PING activity, validation and accuracy-rate results followed by inference-time activation of reciprocal excitation and inhibition in trained loop-disabled networks.",
+        alt: "COBA and PING single-trial activity, validation accuracy and test accuracy against excitatory firing rate.",
       ),
       caption: [*(A–B)* Representative COBA and PING activity, *(C)* validation
         accuracy and *(D)* the test-accuracy–E-rate frontier across activity
         ceilings; frontier points show three-training-replicate means and SEM.
-        Reciprocal loop strength was then varied during inference in three trained
-        COBA networks: *(E)* loop-off and *(F)* loop-on rasters, *(G)* population
-        rates and *(H)* accuracy; bands show sample SD across training replicates.
-        Source writings: #link("/exp025/")[_Accuracy and Firing Rate With and
-        Without Inhibition_] and #link("/exp038/")[_Switching On the Inhibitory
-        Loop_]; related convergence analysis: #link("/exp024/")[_Accuracy
+        Source writing: #link("/exp025/")[_Accuracy and Firing Rate With and
+        Without Inhibition_]; related convergence analysis:
+        #link("/exp024/")[_Accuracy
         Plateaus While Firing Rate Rises_].],
+    )
+
+    #figure(
+      data-image(
+        data-file("exp038/loop_transfer_compound.png"),
+        width: 92%,
+        alt: "Loop-off and loop-on rasters followed by population firing rates and test accuracy across reciprocal loop strength.",
+      ),
+      caption: [Reciprocal loop strength varied during inference in three trained
+        COBA networks without retraining: *(A)* loop-off and *(B)* loop-on
+        rasters, *(C)* population rates and *(D)* accuracy; curves show means and
+        bands show sample SD across training replicates. Source writing:
+        #link("/exp038/")[_Switching On the Inhibitory Loop_].],
     )
 
     #figure(

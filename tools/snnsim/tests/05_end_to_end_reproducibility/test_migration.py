@@ -9,7 +9,7 @@ from tools.pingstore.campaign_runtime import initialize_run
 from tools.pingstore.payload import ContractError, inventory_payload, write_json_atomic
 from tools.snnsim.migration import load_equivalence_policy, migration_preflight
 
-POLICY = Path(__file__).parents[1] / "equivalence-policy-v1.json"
+POLICY = Path(__file__).parents[2] / "equivalence-policy-v1.json"
 GRAPH = "sha256:" + "a" * 64
 TRAINING = "sha256:" + "b" * 64
 

@@ -18,4 +18,3 @@ class TestConfigDefaults:
         c = Config(n_e=128, n_i=32, sim_ms=200.0, seed=7)
         assert (c.n_e, c.n_i, c.sim_ms, c.seed) == (128, 32, 200.0, 7)
 
-

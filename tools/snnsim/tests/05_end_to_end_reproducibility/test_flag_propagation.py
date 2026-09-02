@@ -617,71 +617,6 @@ def test_w_ii_changes_i_cell_membrane():
         M.T_steps = int(M.T_ms / M.dt)
 
 
-@pytest.mark.xfail(reason="--independent-drive feature not fully implemented")
-def test_independent_drive_raises_e_rate():
-    """--independent-drive on the synthetic-spikes image mode raises the
-    E rate above the no-extra-drive baseline (sanity check that the
-    per-cell Poisson stream actually reaches state['ge_e'])."""
-    import subprocess
-
-    def _e_rate(*extra):
-        # Run with a tiny config and parse "E= NN" from CLI stdout.
-        cmd = [
-            "uv", "run", "python", "tools/snnsim/tool.py", "sim",
-            "--model", "ping", "--input", "synthetic-spikes",
-            "--input-rate", "5", "--t-ms", "300",
-            "--w-in", "0.5", "0.1",
-            "--ei-strength", "0.5",
-            *extra,
-        ]
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
-        # The CLI prints a line like "  E=  5 I=  3 CV=..."; pull E.
-        for line in result.stdout.splitlines():
-            stripped = line.strip()
-            if stripped.startswith("E=") or "  E=" in line:
-                # First numeric after E=
-                idx = line.find("E=")
-                tok = line[idx + 2:].split()[0]
-                return float(tok)
-        raise AssertionError(f"no E= line in CLI output:\n{result.stdout}")
-
-    e_off = _e_rate()
-    e_on = _e_rate("--independent-drive", "500", "0.03")
-    assert e_on > e_off, (
-        f"--independent-drive did not raise E rate: off={e_off}, on={e_on}"
-    )
-
-
-@pytest.mark.xfail(reason="--independent-drive-i feature not fully implemented")
-def test_independent_drive_i_raises_i_rate():
-    """--independent-drive-i raises I rate above the no-extra-drive baseline.
-    The new ext_g_i pathway must reach state['ge_i']."""
-    import subprocess
-
-    def _i_rate(*extra):
-        cmd = [
-            "uv", "run", "python", "tools/snnsim/tool.py", "sim",
-            "--model", "ping", "--input", "synthetic-spikes",
-            "--input-rate", "5", "--t-ms", "300",
-            "--w-in", "0.5", "0.1",
-            "--ei-strength", "0.5",
-            *extra,
-        ]
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
-        for line in result.stdout.splitlines():
-            idx = line.find("I=")
-            if idx >= 0 and "CV=" in line:
-                tok = line[idx + 2:].split()[0]
-                return float(tok)
-        raise AssertionError(f"no I= line in CLI output:\n{result.stdout}")
-
-    i_off = _i_rate()
-    i_on = _i_rate("--independent-drive-i", "500", "0.03")
-    assert i_on > i_off, (
-        f"--independent-drive-i did not raise I rate: off={i_off}, on={i_on}"
-    )
-
-
 def test_exact_k_gives_uniform_fan_in():
     """--exact-k-initialization connectivity makes every post cell draw exactly K
     presynaptic inputs (zero fan-in variance), vs the binomial spread of
@@ -712,28 +647,3 @@ def test_exact_k_gives_uniform_fan_in():
     # Exact-K: every column has identical fan-in.
     assert fan_k.std() == 0.0, "exact-K fan-in must be uniform"
     assert int(fan_k[0]) == round((1 - sparsity) * shape[0])
-
-
-@pytest.mark.slow
-@pytest.mark.xfail(reason="--lyapunov-eps feature was tied to removed --image flag")
-def test_lyapunov_eps_writes_divergence_to_npz(tmp_path):
-    """--lyapunov-eps reruns the perturbed copy and saves a spike-train
-    divergence curve (lyap_dist) to recording.npz."""
-    import numpy as np
-
-    out = tmp_path / "lyap"
-    out.mkdir()
-    _run_cli(
-        "sim",
-        "--model", "ping", "--input", "synthetic-spikes",
-        "--t-ms", "300", "--input-rate", "20",
-        "--w-in", "1.5", "0.3", "--ei-strength", "1.5",
-        "--lyapunov-eps", "2.0",
-        "--out-dir", str(out),
-    )
-    npz = out / "recording.npz"
-    data = np.load(npz)
-    assert "lyap_dist" in data, "lyap_dist missing from recording.npz"
-    assert "lyap_t_ms" in data
-    assert data["lyap_dist"].shape == data["lyap_t_ms"].shape
-    assert data["lyap_dist"].max() >= 0

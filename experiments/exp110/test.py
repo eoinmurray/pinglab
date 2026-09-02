@@ -15,8 +15,6 @@ def test_figure_ownership_has_moved_from_exp054() -> None:
     assert recipe.FIGURES == (
         "onset_super_compound.png",
         "onset_super_compound.pdf",
-        "performance_transfer_compound.png",
-        "performance_transfer_compound.pdf",
         "cycle_participation_compound.png",
         "cycle_participation_compound.pdf",
         "robustness_compound.png",
@@ -51,8 +49,6 @@ def test_present_records_exp054_analysis_and_exports_only_the_bundle(
     )
     presentations = {}
     for experiment, name in (
-        ("exp025", recipe.PERFORMANCE_SOURCE),
-        ("exp038", recipe.TRANSFER_SOURCE),
         ("exp041", recipe.RATE_FREQUENCY_SOURCE),
         ("exp046", recipe.CYCLE_COUNT_SOURCE),
         ("exp037", recipe.PERTURBATION_SOURCE),
@@ -108,8 +104,6 @@ def test_present_records_exp054_analysis_and_exports_only_the_bundle(
     )
     identity = present.present(
         analysis.record["run_id"],
-        presentations["exp025"].record["run_id"],
-        presentations["exp038"].record["run_id"],
         presentations["exp041"].record["run_id"],
         presentations["exp046"].record["run_id"],
         presentations["exp037"].record["run_id"],
@@ -120,8 +114,6 @@ def test_present_records_exp054_analysis_and_exports_only_the_bundle(
     )
     assert output.record["inputs"] == {
         "exp054_analysis": analysis.reference,
-        "exp025_presentation": presentations["exp025"].reference,
-        "exp038_presentation": presentations["exp038"].reference,
         "exp041_presentation": presentations["exp041"].reference,
         "exp046_presentation": presentations["exp046"].reference,
         "exp037_presentation": presentations["exp037"].reference,
@@ -130,18 +122,6 @@ def test_present_records_exp054_analysis_and_exports_only_the_bundle(
     assert sorted(path.name for path in output.export.iterdir()) == sorted(
         recipe.FIGURES
     )
-
-
-def test_performance_transfer_composite_stacks_and_relabels(tmp_path: Path) -> None:
-    first = tmp_path / "first.png"
-    second = tmp_path / "second.png"
-    Image.new("RGB", (200, 100), "white").save(first)
-    Image.new("RGB", (200, 100), "white").save(second)
-    present.build_performance_transfer_compound(first, second, tmp_path / "combined")
-    with Image.open(tmp_path / "combined.png") as combined:
-        assert combined.size == (200, 202)
-    assert (tmp_path / "combined.pdf").is_file()
-
 
 def test_cycle_participation_composite_stacks_and_relabels(
     tmp_path: Path, monkeypatch
