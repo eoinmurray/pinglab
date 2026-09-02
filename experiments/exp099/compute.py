@@ -109,6 +109,8 @@ def compute(
     background_rate_scale: float = 1.0,
     w_ee_scale: float = 1.0,
     w_ei_scale: float = 1.0,
+    w_in_e_scale: float = 1.0,
+    w_in_i_scale: float = 1.0,
     duration_ms: float = recipe.DURATION_MS,
     seed: int = recipe.SEED,
     onset_ms: float = recipe.ONSET_MS,
@@ -125,6 +127,8 @@ def compute(
         background_rate_scale=background_rate_scale,
         w_ee_scale=w_ee_scale,
         w_ei_scale=w_ei_scale,
+        w_in_e_scale=w_in_e_scale,
+        w_in_i_scale=w_in_i_scale,
         onset_ms=onset_ms,
         peak_ms=peak_ms,
         plateau_end_ms=plateau_end_ms,
@@ -143,6 +147,8 @@ def compute(
             background_rate_scale=background_rate_scale,
             w_ee_scale=w_ee_scale,
             w_ei_scale=w_ei_scale,
+            w_in_e_scale=w_in_e_scale,
+            w_in_i_scale=w_in_i_scale,
             duration_ms=duration_ms,
             seed=seed,
             onset_ms=onset_ms,
@@ -172,6 +178,8 @@ def main() -> None:
     parser.add_argument("--background-rate-scale", type=float, default=1.0)
     parser.add_argument("--w-ee-scale", type=float, default=1.0)
     parser.add_argument("--w-ei-scale", type=float, default=1.0)
+    parser.add_argument("--w-in-e-scale", type=float, default=1.0)
+    parser.add_argument("--w-in-i-scale", type=float, default=1.0)
     parser.add_argument("--duration-ms", type=float, default=recipe.DURATION_MS)
     parser.add_argument("--seed", type=int, default=recipe.SEED)
     parser.add_argument("--onset-ms", type=float, default=recipe.ONSET_MS)
@@ -189,6 +197,8 @@ def main() -> None:
         background_rate_scale=args.background_rate_scale,
         w_ee_scale=args.w_ee_scale,
         w_ei_scale=args.w_ei_scale,
+        w_in_e_scale=args.w_in_e_scale,
+        w_in_i_scale=args.w_in_i_scale,
         duration_ms=args.duration_ms,
         seed=args.seed,
         onset_ms=args.onset_ms,

@@ -44,6 +44,8 @@ def author_network(
     background_rate_scale: float = 1.0,
     w_ee_scale: float = 1.0,
     w_ei_scale: float = 1.0,
+    w_in_e_scale: float = 1.0,
+    w_in_i_scale: float = 1.0,
     onset_ms: float = ONSET_MS,
     peak_ms: float = PEAK_MS,
     plateau_end_ms: float = PEAK_MS,
@@ -56,8 +58,8 @@ def author_network(
         0 < private_afferent_scale <= 1 and 0 < background_rate_scale <= 1
     ):
         raise ValueError("input scales require shared >= 1 and 0 < fixed scales <= 1")
-    if w_ee_scale <= 0 or w_ei_scale <= 0:
-        raise ValueError("recurrent scales must be positive")
+    if min(w_ee_scale, w_ei_scale, w_in_e_scale, w_in_i_scale) <= 0:
+        raise ValueError("synaptic scales must be positive")
     if not 0 <= onset_ms < peak_ms <= plateau_end_ms < offset_ms:
         raise ValueError("input timing requires onset < peak <= plateau end < offset")
     isolated = condition == "shared-drive-isolation"
@@ -82,8 +84,8 @@ def author_network(
         source_e=source_e,
         source_i=source_i,
         tau_gaba=9 * snn.ms,
-        w_in_e=snn.Normal(0.08, 0.008),
-        w_in_i=snn.Normal(0.02, 0.002),
+        w_in_e=snn.Normal(0.08 * w_in_e_scale, 0.008 * w_in_e_scale),
+        w_in_i=snn.Normal(0.02 * w_in_i_scale, 0.002 * w_in_i_scale),
         w_ee=recurrent(0.85 * w_ee_scale, 0.255 * w_ee_scale),
         w_ei=recurrent(0.6 * w_ei_scale, 0.18 * w_ei_scale),
         w_ie=recurrent(3.0, 0.9),
@@ -138,6 +140,8 @@ def configuration(
     background_rate_scale: float = 1.0,
     w_ee_scale: float = 1.0,
     w_ei_scale: float = 1.0,
+    w_in_e_scale: float = 1.0,
+    w_in_i_scale: float = 1.0,
     duration_ms: float = DURATION_MS,
     seed: int = SEED,
     onset_ms: float = ONSET_MS,
@@ -157,6 +161,8 @@ def configuration(
             background_rate_scale=background_rate_scale,
             w_ee_scale=w_ee_scale,
             w_ei_scale=w_ei_scale,
+            w_in_e_scale=w_in_e_scale,
+            w_in_i_scale=w_in_i_scale,
             onset_ms=onset_ms,
             peak_ms=peak_ms,
             plateau_end_ms=plateau_end_ms,
@@ -174,6 +180,8 @@ def configuration(
             "background_rate_scale": float(background_rate_scale),
             "w_ee_scale": float(w_ee_scale),
             "w_ei_scale": float(w_ei_scale),
+            "w_in_e_scale": float(w_in_e_scale),
+            "w_in_i_scale": float(w_in_i_scale),
             "onset_ms": float(onset_ms),
             "peak_ms": float(peak_ms),
             "plateau_end_ms": float(plateau_end_ms),

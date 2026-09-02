@@ -44,6 +44,8 @@ def lab(tmp_path, monkeypatch):
             "background_rate_scale": kwargs.get("background_rate_scale", 1.0),
             "w_ee_scale": kwargs.get("w_ee_scale", 1.0),
             "w_ei_scale": kwargs.get("w_ei_scale", 1.0),
+            "w_in_e_scale": kwargs.get("w_in_e_scale", 1.0),
+            "w_in_i_scale": kwargs.get("w_in_i_scale", 1.0),
         }
         return value
 
@@ -202,6 +204,8 @@ def test_shared_drive_condition_varies_only_shared_wave():
         "background_rate_scale": 0.9,
         "w_ee_scale": 1.0,
         "w_ei_scale": 1.0,
+        "w_in_e_scale": 1.0,
+        "w_in_i_scale": 1.0,
         "onset_ms": recipe.ONSET_MS,
         "peak_ms": recipe.PEAK_MS,
         "plateau_end_ms": recipe.PEAK_MS,
