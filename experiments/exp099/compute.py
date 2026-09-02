@@ -88,28 +88,53 @@ def export_initialized_weights(bundle: Path, run: Path) -> None:
     )
 
 
-def compute(*, run_id: str | None = None) -> str:
-    bundle = recipe.author_network()
+def compute(
+    *,
+    run_id: str | None = None,
+    condition: str = "richer-input",
+    shared_peak_scale: float = 6.5,
+    fixed_input_scale: float = 1.0,
+) -> str:
+    bundle = recipe.author_network(
+        condition=condition,
+        shared_peak_scale=shared_peak_scale,
+        fixed_input_scale=fixed_input_scale,
+    )
     with stage_run(
         REPO,
         recipe.SLUG,
         "compute",
         run_id=run_id,
-        configuration=recipe.configuration(bundle),
+        configuration=recipe.configuration(
+            bundle,
+            condition=condition,
+            shared_peak_scale=shared_peak_scale,
+            fixed_input_scale=fixed_input_scale,
+        ),
     ) as run:
         command = simulate(run.export, bundle)
         run.record["execution"]["simulation_command"] = command
-        write_json_atomic(
-            run.scratch / "simulation-command.json", {"command": command}
-        )
+        write_json_atomic(run.scratch / "simulation-command.json", {"command": command})
     return run.run_id
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--run-id", help="unused v4 identity reserved before dispatch")
+    parser.add_argument(
+        "--condition",
+        choices=("richer-input", "shared-drive-isolation"),
+        default="richer-input",
+    )
+    parser.add_argument("--shared-peak-scale", type=float, default=6.5)
+    parser.add_argument("--fixed-input-scale", type=float, default=1.0)
     args = parser.parse_args()
-    compute(run_id=args.run_id)
+    compute(
+        run_id=args.run_id,
+        condition=args.condition,
+        shared_peak_scale=args.shared_peak_scale,
+        fixed_input_scale=args.fixed_input_scale,
+    )
 
 
 if __name__ == "__main__":

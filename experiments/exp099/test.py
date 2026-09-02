@@ -32,7 +32,7 @@ def lab(tmp_path, monkeypatch):
     )
     cfg = recipe.configuration()
     cfg.update(dt_ms=1.0, n_e=20, n_i=5)
-    monkeypatch.setattr(recipe, "configuration", lambda *a: cfg)
+    monkeypatch.setattr(recipe, "configuration", lambda *a, **kw: cfg)
 
     def synthetic_recording(output, bundle):
         root = output / "simulation"
@@ -166,6 +166,29 @@ def test_stages_pin_v3_keep_raw_evidence_and_render_without_analysis(lab, monkey
     assert not (lab / ".artifacts").exists() and not (lab / "assets").exists()
 
 
+def test_shared_drive_condition_varies_only_shared_wave():
+    cfg = recipe.configuration(
+        condition="shared-drive-isolation",
+        shared_peak_scale=5.0,
+        fixed_input_scale=0.8,
+    )
+    simulation = cfg["simulation"]
+    source = simulation["spike_sources"][0]
+    assert simulation["weather"] is None
+    assert simulation["afferent_wave"]["peak_scale"] == 1.0
+    assert simulation["afferent_wave"]["shared_peak_scale"] == 5.0
+    assert source["shared_rate_hz"] == 10.0
+    assert source["e_private_rate_hz"] == source["i_private_rate_hz"] == 12.0
+    assert cfg["controls"] == {
+        "shared_peak_scale": 5.0,
+        "fixed_input_scale": 0.8,
+    }
+    assert recipe.media_names(cfg["condition"]) == (
+        recipe.SHARED_DRIVE_VIDEO,
+        recipe.SHARED_DRIVE_POSTER,
+    )
+
+
 @pytest.mark.parametrize("stage", ["compute", "analyse"])
 def test_v2_inputs_are_rejected_before_reservation(lab, stage):
     identity = f"exp099-r001-{stage}-local"
@@ -215,7 +238,7 @@ def test_failed_presentation_stays_hidden_and_source_unchanged(lab, monkeypatch)
     root = directory(lab, identity)
     before = payload_digest(root)
 
-    def fail_render(*args):
+    def fail_render(*args, **kwargs):
         raise RuntimeError("render failed")
 
     monkeypatch.setattr(present, "render", fail_render)

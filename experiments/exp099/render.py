@@ -40,10 +40,15 @@ def render(
     measurements: dict,
     settings: dict,
     output: Path,
+    *,
+    configuration: dict | None = None,
 ) -> None:
     theme.apply()
-    STATE, PACING, CONDITION = "input", "story", "inside-band"
-    OUT, POSTER = output / recipe.VIDEO, output / recipe.POSTER
+    STATE, PACING = "input", "story"
+    configuration = configuration or {}
+    CONDITION = configuration.get("condition", "richer-input")
+    video_name, poster_name = recipe.media_names(CONDITION)
+    OUT, POSTER = output / video_name, output / poster_name
     recording = retained_recording
     data = recording.signals
     weights = retained_weights
@@ -333,12 +338,14 @@ def render(
             hi=hi,
         )
     state_heading = (
-        "Balanced E–I network · asynchronous-irregular state"
+        "Balanced E–I network · shared input drives AI → PING → AI"
+        if CONDITION == "shared-drive-isolation"
+        else "Balanced E–I network · asynchronous-irregular state"
         if STATE == "ai"
         else "Balanced E–I network · PING state"
         if STATE == "ping"
         else "Balanced E–I network · transient afferent input"
-        if STATE == "input" and CONDITION == "inside-band"
+        if STATE == "input" and CONDITION == "richer-input"
         else "Balanced E–I network · AI → transient PING → AI"
         if STATE == "input"
         else "Balanced E–I network · AI → PING transition"
@@ -355,7 +362,11 @@ def render(
         w_ee_typical = float(np.median(w_ee_nonzero))
         state_subtitle = (
             f"fixed recurrent weights · median W_EE={w_ee_typical:.2f} µS · "
-            "smooth coherent afferent bout over stationary weather"
+            + (
+                "private + background inputs fixed"
+                if CONDITION == "shared-drive-isolation"
+                else "smooth coherent afferent bout over stationary weather"
+            )
         )
     elif STATE == "ai":
         state_subtitle = (
@@ -409,7 +420,9 @@ def render(
             fontsize=7.2,
         )
     input_heading = (
-        "input weather · excitatory afferents"
+        "shared afferent drive · controlled input"
+        if CONDITION == "shared-drive-isolation"
+        else "input weather · excitatory afferents"
         if weather_inputs
         else "authenticated afferent spikes · E + I"
         if combined_inputs
@@ -548,7 +561,11 @@ def render(
         linestyle=(0, (2, 2)),
         linewidth=0.55,
         alpha=0.55,
-        label="weather (scaled)",
+        label=(
+            "fixed input scale"
+            if CONDITION == "shared-drive-isolation"
+            else "weather (scaled)"
+        ),
     )
     if STATE == "input":
         input_g_ax.plot(
@@ -1202,11 +1219,18 @@ def render(
                 if time_ms < input_offset_ms
                 else "recovery"
             )
-            count_text.set_text(
-                f"{phase_name} · shared input ×{shared_afferent_scale[step]:.2f} · "
-                f"weather ×{weather_scale[step]:.2f} · {n_afferent} afferent · "
-                f"{n_es} E · {n_is} I spikes"
-            )
+            if CONDITION == "shared-drive-isolation":
+                status = (
+                    f"{phase_name} · shared ×{shared_afferent_scale[step]:.2f} · "
+                    f"{n_es} E · {n_is} I spikes"
+                )
+            else:
+                status = (
+                    f"{phase_name} · shared input ×{shared_afferent_scale[step]:.2f} · "
+                    f"weather ×{weather_scale[step]:.2f} · {n_afferent} afferent · "
+                    f"{n_es} E · {n_is} I spikes"
+                )
+            count_text.set_text(status)
         elif STATE == "transition":
             time_ms = step * dt
             if PACING == "story" and frame >= 450:

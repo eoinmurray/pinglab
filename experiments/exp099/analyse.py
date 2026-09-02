@@ -20,7 +20,9 @@ from tools.snnsim.metrics import (  # noqa: TID251
 from tools.snnviz import exponential_trace  # noqa: TID251
 
 
-def measure(record, settings: dict) -> tuple[dict, dict]:
+def measure(
+    record, settings: dict, *, condition: str = "richer-input"
+) -> tuple[dict, dict]:
     data, dt = record.signals, record.dt_ms
     e, i = data["spk_e"].astype(bool), data["spk_i"].astype(bool)
     half_ms = settings["rhythm_window_ms"] / 2
@@ -79,7 +81,7 @@ def measure(record, settings: dict) -> tuple[dict, dict]:
     summary_mask = centres < record.duration_ms - half_ms
     summary_rhythm, summary_times = contrast[summary_mask], centres[summary_mask]
     summary = {
-        "condition": "richer-input",
+        "condition": condition,
         "e_spikes": int(e.sum()),
         "i_spikes": int(i.sum()),
         "peak_rhythmicity": float(summary_rhythm.max()),
@@ -105,7 +107,10 @@ def analyse(identity: str, *, run_id: str | None = None) -> str:
         configuration=cfg,
     ) as run:
         run.record["execution"]["measurements"] = settings
-        arrays, summary = measure(inputs.recording(compute), settings)
+        condition = cfg.get("condition", "richer-input")
+        arrays, summary = measure(
+            inputs.recording(compute), settings, condition=condition
+        )
         np.savez_compressed(run.export / "measurements.npz", **arrays)
         write_json_atomic(
             run.export / "results.json",
@@ -113,8 +118,12 @@ def analyse(identity: str, *, run_id: str | None = None) -> str:
                 "schema": "exp099.analysis/v1",
                 "parameters": cfg,
                 "measurements": settings,
-                "question": "Does richer input preserve or destabilize a reference PING state?",
-                "results": {"richer-input": summary},
+                "question": (
+                    "Can shared afferent drive alone induce a reversible AI-to-PING transition?"
+                    if condition == "shared-drive-isolation"
+                    else "Does richer input preserve or destabilize a reference PING state?"
+                ),
+                "results": {condition: summary},
                 "disposition": "draft",
             },
         )

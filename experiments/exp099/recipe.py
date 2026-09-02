@@ -11,6 +11,8 @@ VIEW_START_MS, VIEW_END_MS = 300.0, 1_800.0
 ONSET_MS, PEAK_MS, OFFSET_MS = 600.0, 850.0, 1_100.0
 VIDEO = "richer-input-ai-to-intermittent-ping.mp4"
 POSTER = "richer-input-ai-to-intermittent-ping.png"
+SHARED_DRIVE_VIDEO = "shared-drive-ai-to-ping.mp4"
+SHARED_DRIVE_POSTER = "shared-drive-ai-to-ping.png"
 INPUT_MAP = "input-map-option-3.svg"
 SCALE = {"dt_ms": DT_MS, "t_ms": DURATION_MS, "n_e": N_E, "n_i": N_I, "seed": SEED}
 
@@ -21,10 +23,12 @@ def recurrent(mean: float, std: float) -> snn.LowerClampedNormal:
     )
 
 
-def background(tau: float, group: int, private: float, shared: float):
+def background(
+    tau: float, group: int, private: float, shared: float, *, rate_scale: float = 1.0
+):
     return snn.BackgroundChannel(
-        private=snn.ShotNoise(500, private, tau),
-        shared=snn.GroupedShotNoise(80, shared, tau, group),
+        private=snn.ShotNoise(500 * rate_scale, private, tau),
+        shared=snn.GroupedShotNoise(80 * rate_scale, shared, tau, group),
         heterogeneity=snn.CellDistribution(
             rate=snn.LowerClampedNormal(1.0, 0.1),
             amplitude=snn.LowerClampedNormal(1.0, 0.1),
@@ -32,9 +36,24 @@ def background(tau: float, group: int, private: float, shared: float):
     )
 
 
-def author_network() -> snn.Bundle:
+def author_network(
+    *,
+    condition: str = "richer-input",
+    shared_peak_scale: float = 6.5,
+    fixed_input_scale: float = 1.0,
+) -> snn.Bundle:
     """Author the latest canvas condition without depending on canvas files."""
-    net = snn.Network("exp099_richer_input_ping", dt=DT_MS * snn.ms)
+    if condition not in {"richer-input", "shared-drive-isolation"}:
+        raise ValueError(f"unsupported exp099 condition: {condition}")
+    if shared_peak_scale < 1 or not 0 < fixed_input_scale <= 1:
+        raise ValueError("input scales require shared >= 1 and 0 < fixed <= 1")
+    isolated = condition == "shared-drive-isolation"
+    fixed_scale = fixed_input_scale if isolated else 1.0
+    private_peak_scale = 1.0 if isolated else 1.2
+    weather = (
+        None if isolated else snn.StationaryRateWeather(tau_ms=250, std_fraction=0.12)
+    )
+    net = snn.Network(f"exp099_{condition.replace('-', '_')}", dt=DT_MS * snn.ms)
     source_e = net.input(
         "afferent_e", shape=("time", "batch", N_E), signal_type="spikes", unit="spike"
     )
@@ -66,31 +85,69 @@ def author_network() -> snn.Bundle:
     net.output("state_logits", readout)
     net.expose(cell.E.spikes, cell.I.spikes, name="populations")
     simulation = snn.SimulationSpec(
-        spike_sources=[snn.CorrelatedPoissonAfferents(source_e, source_i, 10, 15, 15)],
+        spike_sources=[
+            snn.CorrelatedPoissonAfferents(
+                source_e, source_i, 10, 15 * fixed_scale, 15 * fixed_scale
+            )
+        ],
         backgrounds=[
             snn.ConductanceBackground(
-                cell.E, background(2, 25, 0.06, 0.02), background(9, 25, 0.03, 0.01)
+                cell.E,
+                background(2, 25, 0.06, 0.02, rate_scale=fixed_scale),
+                background(9, 25, 0.03, 0.01, rate_scale=fixed_scale),
             ),
             snn.ConductanceBackground(
-                cell.I, background(2, 10, 0.03, 0.01), background(9, 10, 0.03, 0.01)
+                cell.I,
+                background(2, 10, 0.03, 0.01, rate_scale=fixed_scale),
+                background(9, 10, 0.03, 0.01, rate_scale=fixed_scale),
             ),
         ],
-        weather=snn.StationaryRateWeather(tau_ms=250, std_fraction=0.12),
+        weather=weather,
         afferent_wave=snn.TransientAfferentWave(
-            ONSET_MS, PEAK_MS, OFFSET_MS, 1.2, 6.5, plateau_end_ms=PEAK_MS
+            ONSET_MS,
+            PEAK_MS,
+            OFFSET_MS,
+            private_peak_scale,
+            shared_peak_scale,
+            plateau_end_ms=PEAK_MS,
         ),
     )
     return snn.compile(net, simulation=simulation, target="tools/snnsim")
 
 
-def configuration(bundle=None) -> dict:
-    bundle = bundle if bundle is not None else author_network()
+def configuration(
+    bundle=None,
+    *,
+    condition: str = "richer-input",
+    shared_peak_scale: float = 6.5,
+    fixed_input_scale: float = 1.0,
+) -> dict:
+    bundle = (
+        bundle
+        if bundle is not None
+        else author_network(
+            condition=condition,
+            shared_peak_scale=shared_peak_scale,
+            fixed_input_scale=fixed_input_scale,
+        )
+    )
     return {
         "schema": "exp099.recipe/v1",
+        "condition": condition,
+        "controls": {
+            "shared_peak_scale": float(shared_peak_scale),
+            "fixed_input_scale": float(fixed_input_scale),
+        },
         **SCALE,
         "graph": bundle.graph,
         "simulation": bundle.simulation,
     }
+
+
+def media_names(condition: str) -> tuple[str, str]:
+    if condition == "shared-drive-isolation":
+        return SHARED_DRIVE_VIDEO, SHARED_DRIVE_POSTER
+    return VIDEO, POSTER
 
 
 def analysis_configuration() -> dict:

@@ -125,6 +125,18 @@
 
     #emph[Figure reference: @fig:coupling-plane (A–C).]
 
+    We next tested how the low-rate rhythmic state depended on reciprocal
+    coupling strength. We varied the E→I and I→E initialization means across an
+    11 × 11 coupling plane under fixed 100-Hz Poisson drive (Fig. 2A–C). When
+    either pathway was absent, excitatory firing remained near 94 Hz and
+    lobe–trough contrast was zero. With both pathways present, stronger reciprocal
+    coupling progressively reduced excitatory firing into the single-digit range,
+    recruited sustained inhibitory firing and increased lobe–trough contrast
+    towards one across a broad region of the plane. Thus, low-rate, strongly
+    structured activity emerged over an extended range of reciprocal coupling
+    values rather than at an isolated operating point. Each grid condition
+    contained one network from one stochastic seed.
+
     #figure(
       data-image(
         data-file("exp110/onset_super_compound.png"),
@@ -153,16 +165,33 @@
         denotes drive and cyan circles mark the leading conjugate pair at
         $I_"ext"^* = 0.596$ nA. *(H)* Peak-to-peak E-rate amplitude measured
         over the final 500 ms of 2-s upward and downward drive integrations; the
-        dotted line marks $I_"ext"^*$. *(I)* Mean-field onset frequency and the
-        median spectral-peak frequency from three separately trained spiking
-        classifiers at each inhibitory decay time. These are distinct frequency
-        estimators, and the mean-field model was not calibrated to the spiking
-        networks.],
+        dotted line marks $I_"ext"^*$. *(I)* Black circles and the solid line
+        show the mean-field prediction: the onset frequency calculated from the
+        leading eigenvalue at the Hopf crossing for each inhibitory decay time.
+        Red squares and the dashed line show the simulator result: the median
+        E-population spectral-peak frequency across three separately trained
+        spiking classifiers at each decay time. No uncertainty interval is
+        shown. The predicted onset frequencies and simulated finite-drive
+        spectral peaks are distinct estimators; the mean-field model was not
+        calibrated to the spiking networks.],
     ) <fig:coupling-plane>
 
     ==== Representative networks confirm the mapped transition
 
     #emph[Figure reference: @fig:coupling-plane (D–F).]
+
+    Representative rasters linked the coupling-plane summaries to the underlying
+    population spike patterns. Without reciprocal coupling, excitatory neurons
+    fired densely while the inhibitory population remained silent, and
+    E-population lobe–trough contrast was near zero (0.0017; displayed as 0.00;
+    Fig. 2D). At intermediate coupling ($W_(E I)=0.6$, $W_(I E)=1.2$ µS),
+    recurring inhibitory volleys appeared alongside sparser excitatory firing,
+    with contrast increasing to 0.27 (Fig. 2E). Under strong coupling
+    ($W_(E I)=3$, $W_(I E)=6$ µS), inhibitory volleys were highly regular and
+    excitatory firing was sparse, while contrast reached 0.98 (Fig. 2F).
+    Together, the rasters and summary metric show a transition from dense, weakly
+    structured activity to sparse, temporally clustered population firing. These
+    are selected conditions from the same single-seed sweep.
 
     ==== Oscillations emerge through a Hopf-like transition
 

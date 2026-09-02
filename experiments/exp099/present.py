@@ -58,6 +58,7 @@ def present(identity: str, *, run_id: str | None = None) -> str:
             measurements,
             results["measurements"],
             run.export,
+            configuration=cfg,
         )
         shutil.copy2(compute.export / "network.svg", run.export / "network.svg")
         shutil.copy2(
