@@ -410,107 +410,107 @@
   + *Passive conductance LIF.* We sampled eight passive excitatory-like
     and inhibitory-like conductance settings and compared complete membrane-voltage
     traces. This checks the subthreshold update underlying
-    #link("/exp110/")[\#exp110 Manuscript].
+    #link("/exp110/")[_Manuscript (exp110)_].
 
   + *Threshold, reset and refractory.* We drove one neuron through repeated
     spikes and compared voltage, spike count and spike times. This checks the event
     mechanism shared by the trained-network experiments synthesised in
-    #link("/exp110/")[\#exp110 Manuscript].
+    #link("/exp110/")[_Manuscript (exp110)_].
 
   + *AMPA and GABA impulse responses.* We applied the same six-event train
     across seven conductance-decay times and compared complete conductance traces.
     This checks the synaptic dynamics producing excitation, inhibition and PING
-    rhythms throughout #link("/exp110/")[\#exp110 Manuscript].
+    rhythms throughout #link("/exp110/")[_Manuscript (exp110)_].
 
   + *E–I event scheduling.* We compared population rates and the first
     excitatory-to-inhibitory event lag in a reduced reciprocal circuit. This checks
     the causal E→I→E sequence interpreted in
-    #link("/exp023/")[\#exp023 Turning the PING Loop On],
-    #link("/exp033/")[\#exp033 Gamma Emerges at a Hopf Bifurcation] and
-    #link("/exp054/")[\#exp054 Pinglab Rythmicity Metric].
+    #link("/exp023/")[_Turning the PING Loop On (exp023)_],
+    #link("/exp033/")[_Gamma Emerges at a Hopf Bifurcation (exp033)_] and
+    #link("/exp054/")[_Pinglab Rythmicity Metric (exp054)_].
 
   + *Projection and weight scaling.* We scaled both reciprocal projections
     from zero to full strength and compared excitatory rates. This checks matrix
     orientation and loop scaling used in
-    #link("/exp023/")[\#exp023 Turning the PING Loop On],
-    #link("/exp033/")[\#exp033 Gamma Emerges at a Hopf Bifurcation],
-    #link("/exp038/")[\#exp038 Switching On the Inhibitory Loop] and
-    #link("/exp054/")[\#exp054 Pinglab Rythmicity Metric].
+    #link("/exp023/")[_Turning the PING Loop On (exp023)_],
+    #link("/exp033/")[_Gamma Emerges at a Hopf Bifurcation (exp033)_],
+    #link("/exp038/")[_Switching On the Inhibitory Loop (exp038)_] and
+    #link("/exp054/")[_Pinglab Rythmicity Metric (exp054)_].
 
   + *Matched-drive loop comparison.* We reproduced reduced loop-off and
     loop-on conditions under matched tonic drive and measured autocorrelation
     lobe–trough contrast. This targets the recurrent-organisation comparison in
-    #link("/exp023/")[\#exp023 Turning the PING Loop On].
+    #link("/exp023/")[_Turning the PING Loop On (exp023)_].
 
   + *Input-response curve.* We varied relative tonic drive across four
     levels and measured excitatory population rates. This targets the input-sweep
     evidence used to distinguish COBA and PING operating regimes in
-    #link("/exp023/")[\#exp023 Turning the PING Loop On].
+    #link("/exp023/")[_Turning the PING Loop On (exp023)_].
 
   + *Coupling-onset proxy.* We varied reciprocal coupling over
     five points and measured autocorrelation contrast. This samples the oscillatory
-    onset described in #link("/exp033/")[\#exp033 Gamma Emerges at a Hopf Bifurcation]
+    onset described in #link("/exp033/")[_Gamma Emerges at a Hopf Bifurcation (exp033)_]
     and the empirical rhythmicity map defined in
-    #link("/exp054/")[\#exp054 Pinglab Rythmicity Metric].
+    #link("/exp054/")[_Pinglab Rythmicity Metric (exp054)_].
 
   + *Uncoupled nulls.* We disabled reciprocal coupling and compared
     private-like and shared-like drive controls using autocorrelation contrast.
     This checks the null behaviour of the measure used by
-    #link("/exp054/")[\#exp054 Pinglab Rythmicity Metric].
+    #link("/exp054/")[_Pinglab Rythmicity Metric (exp054)_].
 
   + *GABA timescale and frequency.* We varied inhibitory conductance
     decay across six values and selected the largest raw spectral-power bin from
     5–150 Hz. This targets the rate–gamma-frequency relationship in
-    #link("/exp041/")[\#exp041 Firing Rate Tracks Gamma Frequency].
+    #link("/exp041/")[_Firing Rate Tracks Gamma Frequency (exp041)_].
 
   + *Cycle participation.* We inferred inhibitory cycles from peaks in
     a 1 ms Gaussian-smoothed inhibitory trace and counted excitatory spikes per
     active neuron–cycle pair. This targets the account in
-    #link("/exp046/")[\#exp046 One Spike per Gamma Cycle].
+    #link("/exp046/")[_One Spike per Gamma Cycle (exp046)_].
 
   + *Checkpoint replay.* We replayed the selected and final canonical-PING
     checkpoints under one fixed held-out input and compared excitatory rate,
     normalised readout evidence and class. This targets the convergence claim in
-    #link("/exp024/")[\#exp024 Accuracy Plateaus While Firing Rate Rises].
+    #link("/exp024/")[_Accuracy Plateaus While Firing Rate Rises (exp024)_].
 
   + *COBA and PING endpoints.* We replayed retained COBA and PING
     checkpoints under the same held-out input and compared rate, evidence and class.
     This targets the accuracy–firing-rate comparison in
-    #link("/exp025/")[\#exp025 Accuracy and Firing Rate With and Without Inhibition].
+    #link("/exp025/")[_Accuracy and Firing Rate With and Without Inhibition (exp025)_].
 
   + *Loop-strength transfer.* We combined a retained COBA feedforward
     checkpoint with canonical-PING recurrent matrices at three inference-time scales.
     This targets post-training activation of inhibition in
-    #link("/exp038/")[\#exp038 Switching On the Inhibitory Loop].
+    #link("/exp038/")[_Switching On the Inhibitory Loop (exp038)_].
 
   + *Hidden-spike perturbation inputs.* We froze realised half-deletion,
     full-deletion and two Poisson-addition event sets before backend dispatch. This
-    checks intervention parity for #link("/exp037/")[\#exp037 Dropped Spikes vs Added Noise]
+    checks intervention parity for #link("/exp037/")[_Dropped Spikes vs Added Noise (exp037)_]
     without replaying its downstream responses.
 
   + *Inhibitory-jitter inputs.* We supplied fixed-window and cellwise
     jitter constructions with preserved inhibitory-event counts. This checks input
-    parity for #link("/exp042/")[\#exp042 Inhibitory Replay Perturbations Change Excitatory Firing]
+    parity for #link("/exp042/")[_Inhibitory Replay Perturbations Change Excitatory Firing (exp042)_]
     without reproducing its downstream excitatory response.
 
   + *Integration timestep.* We replayed networks matched to 0.05, 0.1
     and 1 ms training-and-inference timesteps and compared rate, evidence and class.
     This targets the operating range reported in
-    #link("/exp044/")[\#exp044 Firing Rate Across the Timestep Sweep].
+    #link("/exp044/")[_Firing Rate Across the Timestep Sweep (exp044)_].
 
   + *Recurrent-weight training.* We replayed frozen-loop and trainable-loop
     checkpoints and compared excitatory rate, evidence and class. This targets
-    #link("/exp049/")[\#exp049 Training Recurrent Weights Weakens PING Rhythmicity].
+    #link("/exp049/")[_Training Recurrent Weights Weakens PING Rhythmicity (exp049)_].
 
   + *Continuous hidden state.* We ran three consecutive 50 ms inputs
     without resetting hidden neuronal state and measured each segment's excitatory
     rate. This targets the state protocol in
-    #link("/exp082/")[\#exp082 Spike-Count Classification in a Continuous Stream].
+    #link("/exp082/")[_Spike-Count Classification in a Continuous Stream (exp082)_].
 
   + *Duration and input-rate corners.* We sampled four paired presentation-
     duration and maximum-pixel-rate conditions and compared excitatory rates. This
     targets the operating range mapped in
-    #link("/exp082/")[\#exp082 Spike-Count Classification in a Continuous Stream].
+    #link("/exp082/")[_Spike-Count Classification in a Continuous Stream (exp082)_].
 
   For reduced-circuit rates, we excluded the first 50 ms and averaged across
   neurons and remaining time; full-network rates used the complete presentation.
