@@ -10,7 +10,7 @@ import subprocess
 
 import pytest
 
-pytestmark = pytest.mark.slow
+pytestmark = [pytest.mark.integration, pytest.mark.slow]
 
 OSC = "uv run python tools/snnsim/tool.py"
 

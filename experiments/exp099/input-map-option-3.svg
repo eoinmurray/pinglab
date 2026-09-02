@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="3024" height="1964" viewBox="0 0 924 600" role="img" aria-labelledby="title desc">
+  <title id="title">Inputs to the exp099 excitatory-inhibitory network</title>
+  <desc id="desc">E-private spikes combine with shared spikes and drive E neurons through AMPA. I-private spikes combine with the same shared spikes and drive I neurons through AMPA. AMPA and GABA background input drive both populations. Weather modulates every input rate; the transient modulates afferent rates only.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0 8 4 0 8Z" fill="#1a1a1a"/></marker>
+    <marker id="arrow-red" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0 8 4 0 8Z" fill="#c8102e"/></marker>
+    <style>
+      text { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; fill: #1a1a1a; }
+      .title { font-size: 25px; font-weight: 700; letter-spacing: 1px; }
+      .label { font-size: 15px; font-weight: 700; letter-spacing: .5px; }
+      .small { font-size: 12px; font-weight: 700; letter-spacing: .5px; }
+      .box { fill: #ffffff; stroke: #1a1a1a; stroke-width: 1.5; }
+      .box-red { fill: #ffffff; stroke: #c8102e; stroke-width: 1.5; }
+      .route { fill: none; stroke: #1a1a1a; stroke-width: 2; marker-end: url(#arrow); }
+      .route-red { fill: none; stroke: #c8102e; stroke-width: 2; marker-end: url(#arrow-red); }
+      .bus { fill: none; stroke: #1a1a1a; stroke-width: 1.8; }
+      .bus-red { fill: none; stroke: #c8102e; stroke-width: 1.8; }
+      .red { fill: #c8102e; }
+      .amber { fill: #e89400; }
+      .white { fill: #ffffff; }
+    </style>
+  </defs>
+
+  <rect width="924" height="600" fill="#ffffff"/>
+  <text x="36" y="44" class="title">INPUTS TO E–I NETWORK</text>
+  <text x="565" y="38" class="small amber">WEATHER × ALL RATES</text>
+  <text x="565" y="58" class="small">TRANSIENT × AFFERENTS</text>
+  <line x1="36" y1="78" x2="888" y2="78" stroke="#e7e5df"/>
+
+  <!-- Three afferent components -->
+  <rect x="36" y="112" width="222" height="70" class="box"/>
+  <g fill="#1a1a1a"><rect x="54" y="135" width="2" height="23"/><rect x="67" y="135" width="2" height="23"/><rect x="86" y="135" width="2" height="23"/><rect x="96" y="135" width="2" height="23"/></g>
+  <text x="122" y="153" class="label">E-PRIVATE</text>
+
+  <rect x="36" y="222" width="222" height="70" class="box"/>
+  <g fill="#1a1a1a"><rect x="54" y="245" width="2" height="23"/><rect x="72" y="245" width="2" height="23"/><rect x="80" y="245" width="2" height="23"/><rect x="98" y="245" width="2" height="23"/></g>
+  <path d="M108 257 H122 M115 257 V246 M115 257 V268" fill="none" stroke="#1a1a1a" stroke-width="1.5"/>
+  <text x="136" y="263" class="label">SHARED</text>
+
+  <rect x="36" y="332" width="222" height="70" class="box"/>
+  <g fill="#1a1a1a"><rect x="54" y="355" width="2" height="23"/><rect x="63" y="355" width="2" height="23"/><rect x="84" y="355" width="2" height="23"/><rect x="98" y="355" width="2" height="23"/></g>
+  <text x="122" y="373" class="label">I-PRIVATE</text>
+
+  <!-- Shared events enter both destination streams -->
+  <circle cx="352" cy="147" r="27" class="box"/>
+  <text x="352" y="152" text-anchor="middle" class="label">OR</text>
+  <circle cx="352" cy="367" r="27" class="box"/>
+  <text x="352" y="372" text-anchor="middle" class="label">OR</text>
+
+  <path d="M258 147 H325" class="route"/>
+  <path d="M258 257 H292 V170 H325" class="route"/>
+  <path d="M258 257 H292 V344 H325" class="route"/>
+  <path d="M258 367 H325" class="route"/>
+
+  <path d="M379 147 H700" class="route"/>
+  <text x="516" y="136" text-anchor="middle" class="small">AMPA</text>
+  <path d="M379 367 H700" class="route"/>
+  <text x="516" y="356" text-anchor="middle" class="small">AMPA</text>
+
+  <!-- Target populations -->
+  <rect x="700" y="107" width="188" height="80" class="box"/>
+  <circle cx="742" cy="147" r="23" fill="#1a1a1a"/>
+  <text x="742" y="154" text-anchor="middle" font-size="19" font-weight="700" class="white">E</text>
+  <text x="781" y="153" class="label">400</text>
+
+  <rect x="700" y="327" width="188" height="80" class="box-red"/>
+  <circle cx="742" cy="367" r="23" fill="#c8102e"/>
+  <text x="742" y="374" text-anchor="middle" font-size="19" font-weight="700" class="white">I</text>
+  <text x="781" y="373" class="label red">100</text>
+
+  <!-- Background families feed both targets -->
+  <rect x="36" y="486" width="222" height="70" class="box"/>
+  <path d="M54 533 H72 L78 507 L85 533 H103 L109 512 L116 533" fill="none" stroke="#1a1a1a" stroke-width="2"/>
+  <text x="132" y="527" class="label">AMPA</text>
+  <text x="132" y="545" class="small">BACKGROUND</text>
+
+  <rect x="286" y="486" width="222" height="70" class="box-red"/>
+  <path d="M304 533 H322 L328 507 C339 522 355 531 375 533" fill="none" stroke="#c8102e" stroke-width="2"/>
+  <text x="391" y="527" class="label red">GABA</text>
+  <text x="391" y="545" class="small red">BACKGROUND</text>
+
+  <path d="M258 521 V570 H626 V163" class="bus"/>
+  <path d="M626 163 H700" class="route"/>
+  <path d="M626 383 H700" class="route"/>
+
+  <path d="M508 537 H654 V399" class="bus-red"/>
+  <path d="M654 179 H700" class="route-red"/>
+  <path d="M654 399 H700" class="route-red"/>
+  <path d="M654 383 V163" class="bus-red"/>
+</svg>

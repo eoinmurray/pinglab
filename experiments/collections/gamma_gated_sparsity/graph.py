@@ -51,6 +51,12 @@ EXPERIMENTS: tuple[Experiment, ...] = (
         integrated=True,
         note="manuscript-specific presentation synthesis",
     ),
+    Experiment(
+        "exp111",
+        ("exp022",),
+        integrated=True,
+        note="independent Brian2 comparison of mechanisms used by exp110",
+    ),
 )
 
 # All collection roots have an explicit rerun decision and are represented in

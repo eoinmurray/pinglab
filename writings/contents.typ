@@ -8,17 +8,26 @@
   else { "" }
 }
 
-#let result-numbering(..numbers) = {
+#let result-numbering(number-subsections: false, ..numbers) = {
   let values = numbers.pos()
   if values.len() == 3 { numbering("1.", values.last()) }
+  else if number-subsections and values.len() == 4 {
+    numbering("1.1", values.at(2), values.at(3))
+  }
 }
 
-#let with-result-sections(body) = context {
+#let with-result-sections(body, number-subsections: false) = context {
   if target() == "html" {
     html.elem("style",
       ".pinglab-result-sections { counter-reset: pinglab-result; } "
-      + ".pinglab-result-sections > h4, .pinglab-result-sections > article > h4:first-child { counter-increment: pinglab-result; } "
+      + ".pinglab-result-sections > h4, .pinglab-result-sections > article > h4:first-child { counter-increment: pinglab-result; counter-reset: pinglab-result-subsection; } "
       + ".pinglab-result-sections > h4::before, .pinglab-result-sections > article > h4:first-child::before { content: counter(pinglab-result) \". \"; } "
+      + if number-subsections {
+        (
+          ".pinglab-result-sections > h5 { counter-increment: pinglab-result-subsection; } "
+          + ".pinglab-result-sections > h5::before { content: counter(pinglab-result) \".\" counter(pinglab-result-subsection) \" \"; } "
+        )
+      } else { "" }
       + ".pinglab-result-card { margin: 1.25rem 0; padding: 1.2rem 1.35rem 1.3rem; border: 1px solid var(--rule-strong); border-radius: 3px; background: var(--paper); } "
       + ".pinglab-result-card > h4:first-child { margin-top: 0; } "
       + ".pinglab-result-card > :last-child { margin-bottom: 0; } "
@@ -27,7 +36,7 @@
     html.elem("section", attrs: (class: "pinglab-result-sections"), body)
   } else {
     [
-      #set heading(numbering: result-numbering)
+      #set heading(numbering: result-numbering.with(number-subsections: number-subsections))
       #body
     ]
   }

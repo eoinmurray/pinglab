@@ -18,7 +18,7 @@ from train import train
 
 # Whole file trains real (tiny) torch models via fixtures and runs inference —
 # minutes of wall-clock. Marked slow so `pytest -m "not slow"` is a true fast lane.
-pytestmark = pytest.mark.slow
+pytestmark = [pytest.mark.integration, pytest.mark.slow]
 
 _TRAINING_KWARGS = dict(
     model_name="ping",

@@ -82,9 +82,7 @@ def load_resources(path: Path) -> dict[str, Any]:
     return config
 
 
-def _run(
-    command: list[str], *, submit: bool, test_only: bool, dry_id: str
-) -> str:
+def _run(command: list[str], *, submit: bool, test_only: bool, dry_id: str) -> str:
     if not submit and not test_only:
         return dry_id
     actual = [*command]
@@ -246,9 +244,7 @@ def submit_canaries(
         "resources": resources,
         "jobs": jobs,
     }
-    record_path = (
-        root / "submissions" / f"{CANARY_SUBMISSION_PREFIX}-{attempt}.json"
-    )
+    record_path = root / "submissions" / f"{CANARY_SUBMISSION_PREFIX}-{attempt}.json"
     for tier in TIERS:
         missing = _exp022_cells(manifest, tier, resources["uv"])
         if not missing:
@@ -396,7 +392,9 @@ def submit_campaign(
     if submit and test_only:
         raise CollectionError("live submission and test-only are mutually exclusive")
     if plan.get("profile") not in {"smoke", "production"}:
-        raise CollectionError("Slurm submission requires a smoke or production campaign")
+        raise CollectionError(
+            "Slurm submission requires a smoke or production campaign"
+        )
     existing_path = root / "submissions" / SUBMISSION_NAME
     if submit and existing_path.exists():
         raise CollectionError("a Slurm submission record already exists; use resume")
@@ -459,8 +457,27 @@ def submit_campaign(
         slug = row["slug"]
         if slug == "exp022" or _outputs_valid_for_plan(plan, row):
             continue
-        if slug in {"exp023", "exp024", "exp025", "exp037", "exp082", "exp038", "exp041", "exp042", "exp044", "exp046", "exp047", "exp049", "exp054", "exp080", "exp081", "exp110"}:
+        if slug in {
+            "exp023",
+            "exp024",
+            "exp025",
+            "exp037",
+            "exp082",
+            "exp038",
+            "exp041",
+            "exp042",
+            "exp044",
+            "exp046",
+            "exp047",
+            "exp049",
+            "exp054",
+            "exp080",
+            "exp081",
+            "exp110",
+            "exp111",
+        }:
             from .execution import _stage_adapter
+
             adapter = _stage_adapter(slug)
             require_staged, reserve = adapter.require_staged, adapter.reserve
             require_staged(row)
@@ -534,9 +551,7 @@ def resume_campaign(
     if submit:
         previous.replace(archived)
     try:
-        return submit_campaign(
-            root, resources_path, submit=submit, test_only=test_only
-        )
+        return submit_campaign(root, resources_path, submit=submit, test_only=test_only)
     except BaseException:
         if submit and archived.exists() and not previous.exists():
             archived.replace(previous)

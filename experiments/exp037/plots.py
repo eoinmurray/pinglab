@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 from experiments.helpers import theme
 from experiments.helpers.figsave import save_figure
+from matplotlib.patches import Patch
 
 from .recipe import EI_RASTER_N_E_PLOT, EI_RASTER_N_I_PLOT, MODELS
 
@@ -195,7 +196,19 @@ def plot_perturbation_curves(
         ax.yaxis.set_major_locator(mticker.MultipleLocator(20))
         ax.grid(True, axis="y", alpha=0.15, linewidth=0.5)
     ax_drop.set_ylabel("Test accuracy (%)", fontsize=theme.SIZE_LABEL)
+    legend_handles, legend_labels = ax_add.get_legend_handles_labels()
+    legend_handles.append(
+        Patch(
+            facecolor=theme.INK_BLACK,
+            edgecolor="none",
+            alpha=0.15,
+            label="±1 SD band",
+        )
+    )
+    legend_labels.append("±1 SD band")
     ax_add.legend(
+        legend_handles,
+        legend_labels,
         loc="upper right",
         fontsize=theme.SIZE_LEGEND,
         frameon=False,

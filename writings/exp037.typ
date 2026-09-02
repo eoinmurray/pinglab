@@ -6,10 +6,10 @@
 #let data-file = data-file.with(article: "exp037")
 
 #let meta = (
-  status: "[▦ DATA | v33.0.0]",
+  status: "[▦ DATA | v34.0.1]",
   title: "Dropped Spikes vs Added Noise",
   created_at: "2026-05-30T00:00:00Z",
-  updated_at: "2026-08-31T00:00:00Z",
+  updated_at: "2026-09-02T00:00:00Z",
   description: "Both trained networks tolerated substantial spike deletion, but PING accuracy fell more sharply under added spikes. The perturbations changed both recurrent feedback and readout input, so they do not isolate gamma gating.",
   collection: "gamma-gated-sparsity",
 )
@@ -85,11 +85,12 @@
 
   #figure(
     report-image("exp037/perturbation_curves.svg",
-      "Mean test accuracy with sample standard deviation: both models tolerate substantial deletion; PING declines more steeply under added spikes.", ratio: 0.55),
+      "Mean test-accuracy lines with translucent sample-standard-deviation bands: both models tolerate substantial deletion; PING declines more steeply under added spikes.", ratio: 0.55),
     caption: [
       *(A)* Random hidden-spike deletion. *(B)* Independent Poisson spike
-      insertion. Curves show means ± sample SD across seeds 42–44,
-      #eval_n test images per seed.
+      insertion. Lines and markers show means across seeds 42–44,
+      #eval_n test images per seed; translucent bands show ±1 sample SD.
+      The PING uncertainty band is grey and is most visible in *(B)*.
       The dashed line is nominal 10% chance.
       The added-rate axis divides by final-epoch reference-image E rates
       (#rounded(reference-rate("ping"))/#rounded(reference-rate("coba")) Hz),

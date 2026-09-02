@@ -429,6 +429,8 @@ def _stage_adapter(slug: str):
         from experiments.exp054 import collection
     elif slug == "exp110":
         from experiments.exp110 import collection
+    elif slug == "exp111":
+        from experiments.exp111 import collection
     elif slug == "exp080":
         from experiments.exp080 import collection
     elif slug == "exp081":
@@ -441,11 +443,52 @@ def _stage_adapter(slug: str):
 
 
 def _outputs_valid_for_plan(plan: dict[str, Any], row: dict[str, Any]) -> bool:
-    if row.get("slug") in {"exp023", "exp025", "exp033", "exp037", "exp082", "exp038", "exp041", "exp042", "exp044", "exp046", "exp047", "exp049", "exp054", "exp080", "exp081"} and row.get("execution", {}).get("mode") != f"{row['slug']}-staged":
+    if (
+        row.get("slug")
+        in {
+            "exp023",
+            "exp025",
+            "exp033",
+            "exp037",
+            "exp082",
+            "exp038",
+            "exp041",
+            "exp042",
+            "exp044",
+            "exp046",
+            "exp047",
+            "exp049",
+            "exp054",
+            "exp080",
+            "exp081",
+            "exp111",
+        }
+        and row.get("execution", {}).get("mode") != f"{row['slug']}-staged"
+    ):
         return False
-    if row.get("execution", {}).get("mode") in {"exp023-staged", "exp024-staged", "exp025-staged", "exp033-staged", "exp037-staged", "exp082-staged", "exp038-staged", "exp041-staged", "exp042-staged", "exp044-staged", "exp046-staged", "exp047-staged", "exp049-staged", "exp054-staged", "exp080-staged", "exp081-staged", "exp110-present-only"}:
+    if row.get("execution", {}).get("mode") in {
+        "exp023-staged",
+        "exp024-staged",
+        "exp025-staged",
+        "exp033-staged",
+        "exp037-staged",
+        "exp082-staged",
+        "exp038-staged",
+        "exp041-staged",
+        "exp042-staged",
+        "exp044-staged",
+        "exp046-staged",
+        "exp047-staged",
+        "exp049-staged",
+        "exp054-staged",
+        "exp080-staged",
+        "exp081-staged",
+        "exp110-present-only",
+        "exp111-staged",
+    }:
         completed = _stage_adapter(row["slug"]).completed
         from pingstore.contracts import PingstoreError
+
         try:
             completed(REPO, plan, row)
             return True
@@ -514,7 +557,9 @@ def integrate_repair(root: Path, repair_root: Path, slug: str) -> dict[str, Any]
     if slug not in rows or slug == "exp022":
         raise CollectionError(f"unknown repairable downstream experiment: {slug}")
     if slug == "exp082":
-        raise CollectionError("exp082 repair integration is historical; use a separately authorized v3 import")
+        raise CollectionError(
+            "exp082 repair integration is historical; use a separately authorized v3 import"
+        )
     if slug in (plan.get("repairs") or {}):
         raise CollectionError(f"campaign already registers a repair for {slug}")
 
@@ -717,47 +762,99 @@ def _aggregate_exp022(
     _write_status(root, "exp022", state="aggregating", started_at_utc=utc_now())
     compute_id = load_json(manifest).get("pingstore_run_id")
     if not compute_id:
-        raise CollectionError("legacy campaign needs its original checkout or an explicit completed-bank import")
+        raise CollectionError(
+            "legacy campaign needs its original checkout or an explicit completed-bank import"
+        )
     from pingstore.stages import source_run
+
     if not (REPO / ".pingstore/runs" / compute_id).exists():
         subprocess.run(
-            [sys.executable, "-m", "experiments.exp022.compute",
-             "--campaign-aggregate", str(manifest)],
-            cwd=REPO, env=environment, check=True,
+            [
+                sys.executable,
+                "-m",
+                "experiments.exp022.compute",
+                "--campaign-aggregate",
+                str(manifest),
+            ],
+            cwd=REPO,
+            env=environment,
+            check=True,
         )
     source_run(REPO / ".pingstore", compute_id, stage="compute", experiment="exp022")
+
     # This collection operation explicitly composes stages. Individual stage
     # entrypoints never run each other or refresh publication artifacts.
     def execute_stage(stage: str, source_id: str) -> str:
         completed = subprocess.run(
-            [sys.executable, "-m", f"experiments.exp022.{stage}", "--source", source_id],
-            cwd=REPO, env=environment, check=True, capture_output=True, text=True,
+            [
+                sys.executable,
+                "-m",
+                f"experiments.exp022.{stage}",
+                "--source",
+                source_id,
+            ],
+            cwd=REPO,
+            env=environment,
+            check=True,
+            capture_output=True,
+            text=True,
         )
         print(completed.stdout, end="")
         return completed.stdout.strip().splitlines()[-1]
+
     analysis_id = execute_stage("analyse", compute_id)
     presentation_id = execute_stage("present", analysis_id)
-    presentation = source_run(REPO / ".pingstore", presentation_id,
-                              stage="present", experiment="exp022")
+    presentation = source_run(
+        REPO / ".pingstore", presentation_id, stage="present", experiment="exp022"
+    )
     derived = Path(row["paths"]["derived"])
-    if derived.resolve() == (REPO / ".artifacts").resolve() or (REPO / ".artifacts").resolve() in derived.resolve().parents:
+    if (
+        derived.resolve() == (REPO / ".artifacts").resolve()
+        or (REPO / ".artifacts").resolve() in derived.resolve().parents
+    ):
         raise CollectionError("collection staging must not replace published artifacts")
     if derived.name != "exp022":
         raise CollectionError("exp022 collection view must end in exp022")
     from pingstore.materialize import materialize_run
+
     materialize_run(REPO / ".pingstore", presentation.record["run_id"], derived.parent)
     if not _outputs_valid(row):
         raise CollectionError("exp022 aggregation did not produce numbers.json")
     _stamp_collection_provenance(plan, row)
-    _write_status(root, "exp022", state="complete", ended_at_utc=utc_now(),
-                  compute_run_id=compute_id, analysis_run_id=analysis_id,
-                  presentation_run_id=presentation_id)
+    _write_status(
+        root,
+        "exp022",
+        state="complete",
+        ended_at_utc=utc_now(),
+        compute_run_id=compute_id,
+        analysis_run_id=analysis_id,
+        presentation_run_id=presentation_id,
+    )
 
 
 def _run_downstream(plan: dict[str, Any], row: dict[str, Any]) -> None:
     root = Path(plan["campaign_root"])
     slug = row["slug"]
-    if slug in {"exp023", "exp024", "exp025", "exp033", "exp037", "exp082", "exp038", "exp041", "exp042", "exp044", "exp046", "exp047", "exp049", "exp054", "exp080", "exp081", "exp110"}:
+    if slug in {
+        "exp023",
+        "exp024",
+        "exp025",
+        "exp033",
+        "exp037",
+        "exp082",
+        "exp038",
+        "exp041",
+        "exp042",
+        "exp044",
+        "exp046",
+        "exp047",
+        "exp049",
+        "exp054",
+        "exp080",
+        "exp081",
+        "exp110",
+        "exp111",
+    }:
         adapter = _stage_adapter(slug)
         execute, require_staged = adapter.execute, adapter.require_staged
         require_staged(row)
@@ -770,7 +867,9 @@ def _run_downstream(plan: dict[str, Any], row: dict[str, Any]) -> None:
         except BaseException:
             _write_status(root, slug, state="failed", ended_at_utc=utc_now())
             raise
-        _write_status(root, slug, state="complete", ended_at_utc=utc_now(), stage_runs=refs)
+        _write_status(
+            root, slug, state="complete", ended_at_utc=utc_now(), stage_runs=refs
+        )
         return
     if _outputs_valid_for_plan(plan, row):
         _write_status(root, slug, state="complete", resumed=True)
@@ -861,7 +960,9 @@ def run_experiment_shard(root: Path, slug: str, index: int, count: int) -> None:
         if slug in {"exp037", "exp082", "exp042"}:
             result = _stage_adapter(slug).execute_shard(REPO, plan, row, index, count)
         else:
-            result = execute_shard(slug, index, count, smoke=plan.get("profile") == "smoke")
+            result = execute_shard(
+                slug, index, count, smoke=plan.get("profile") == "smoke"
+            )
     except BaseException:
         write_json_atomic(
             status_path,
@@ -923,11 +1024,40 @@ def finalize_campaign(root: Path) -> dict[str, Any]:
     if run.get("status") != "complete" or not inventory_path.is_file():
         plan = load_plan(root)
         # Staged experiments already own immutable runs; never recapture them as v2.
-        legacy_plan = {**plan, "stages": [
-            {**stage, "experiments": [row for row in stage["experiments"]
-                                     if row.get("execution", {}).get("mode") not in {"exp023-staged", "exp024-staged", "exp025-staged", "exp033-staged", "exp037-staged", "exp082-staged", "exp038-staged", "exp041-staged", "exp042-staged", "exp044-staged", "exp046-staged", "exp047-staged", "exp049-staged", "exp054-staged", "exp080-staged", "exp081-staged", "exp110-present-only"}]}
-            for stage in plan["stages"]
-        ]}
+        legacy_plan = {
+            **plan,
+            "stages": [
+                {
+                    **stage,
+                    "experiments": [
+                        row
+                        for row in stage["experiments"]
+                        if row.get("execution", {}).get("mode")
+                        not in {
+                            "exp023-staged",
+                            "exp024-staged",
+                            "exp025-staged",
+                            "exp033-staged",
+                            "exp037-staged",
+                            "exp082-staged",
+                            "exp038-staged",
+                            "exp041-staged",
+                            "exp042-staged",
+                            "exp044-staged",
+                            "exp046-staged",
+                            "exp047-staged",
+                            "exp049-staged",
+                            "exp054-staged",
+                            "exp080-staged",
+                            "exp081-staged",
+                            "exp110-present-only",
+                            "exp111-staged",
+                        }
+                    ],
+                }
+                for stage in plan["stages"]
+            ],
+        }
         capture_campaign_metadata(root, legacy_plan)
         inventory = inventory_payload(root, run_id=run["run_id"])
         write_json_atomic(inventory_path, inventory)
@@ -1007,12 +1137,36 @@ def build_publication(root: Path, checkout: Path) -> dict[str, Any]:
         raise CollectionError("uv is required for publication build")
     promoted = []
     for row in rows_in_order(plan):
-        if row.get("execution", {}).get("mode") in {"exp023-staged", "exp024-staged", "exp025-staged", "exp033-staged", "exp037-staged", "exp082-staged", "exp038-staged", "exp041-staged", "exp042-staged", "exp044-staged", "exp046-staged", "exp047-staged", "exp049-staged", "exp054-staged", "exp080-staged", "exp081-staged", "exp110-present-only"}:
+        if row.get("execution", {}).get("mode") in {
+            "exp023-staged",
+            "exp024-staged",
+            "exp025-staged",
+            "exp033-staged",
+            "exp037-staged",
+            "exp082-staged",
+            "exp038-staged",
+            "exp041-staged",
+            "exp042-staged",
+            "exp044-staged",
+            "exp046-staged",
+            "exp047-staged",
+            "exp049-staged",
+            "exp054-staged",
+            "exp080-staged",
+            "exp081-staged",
+            "exp110-present-only",
+            "exp111-staged",
+        }:
             completed = _stage_adapter(row["slug"]).completed
             from pingstore.materialize import materialize_run
+
             presentation = completed(REPO, plan, row)
             # This is the explicitly requested publication command, not a stage.
-            materialize_run(REPO / ".pingstore", presentation.record["run_id"], checkout / ".artifacts")
+            materialize_run(
+                REPO / ".pingstore",
+                presentation.record["run_id"],
+                checkout / ".artifacts",
+            )
             promoted.append(row["slug"])
             continue
         promote_experiment(

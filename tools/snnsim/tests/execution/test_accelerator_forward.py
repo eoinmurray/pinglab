@@ -4,6 +4,8 @@ import pytest
 import torch
 from accelerator_forward import run_forward_accelerator_check
 
+pytestmark = pytest.mark.accelerator
+
 
 def test_forward_accelerator_check_rejects_cpu():
     with pytest.raises(ValueError, match="expected mps or cuda"):

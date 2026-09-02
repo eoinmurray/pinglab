@@ -21,7 +21,7 @@ def _sha256(path: Path) -> str:
 
 # Whole file trains real (tiny) torch models — minutes of wall-clock. Marked slow
 # so `pytest -m "not slow"` is a true fast lane.
-pytestmark = pytest.mark.slow
+pytestmark = [pytest.mark.integration, pytest.mark.slow]
 
 
 @pytest.fixture

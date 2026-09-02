@@ -64,6 +64,9 @@ testpaths = ["tools/snnsim/tests", "tools/snnlang/tests", "tools/snnviz/tests", 
 python_files = ["test.py", "test_*.py", "*_test.py"]
 pythonpath = ["tools/snnsim", "."]
 markers = [
+    "integration: crosses module or process boundaries rather than testing one unit in isolation",
+    "brian2: compares snnsim behaviour with the independent Brian2 simulator",
+    "accelerator: requires or validates a hardware accelerator such as MPS or CUDA",
     "slow: minutes of wall-clock — subprocess/GPU end-to-end tests OR heavy in-process torch training; `pytest -m 'not slow'` is the fast iteration lane",
     "regression: checks against calibrated artifacts; skipped if absent",
 ]
@@ -73,6 +76,10 @@ filterwarnings = [
     # nothing to fix here — matched narrowly by message so our own warnings still
     # show. Revisit if a torch upgrade removes the API.
     "ignore:`torch.jit.script_method` is deprecated:DeprecationWarning",
+    # Brian2 2.9 still calls deprecated pyparsing spellings internally. Keep
+    # this category-specific so deprecations from snnsim and other libraries
+    # remain visible.
+    "ignore::pyparsing.exceptions.PyparsingDeprecationWarning",
 ]
 
 [dependency-groups]
@@ -85,6 +92,9 @@ dev = [
     # on the collecting machine, never on a pod, so it lives in dev — the pod
     # image builds with `uv sync --no-dev` and stays lean (no boto3 baked in).
     "boto3>=1.34",
+    # 2.9 is the latest Brian2 line supporting the project's Python >=3.10;
+    # Brian2 2.10 requires Python >=3.12.
+    "brian2>=2.9,<2.10",
 ]
 
 [tool.coverage.run]

@@ -30,6 +30,7 @@ RUNNER_ARGUMENTS: dict[str, tuple[str, ...]] = {
     "exp081": (),
     "exp082": (),
     "exp110": (),
+    "exp111": (),
 }
 
 EXTRA_REQUIRED_OUTPUTS: dict[str, tuple[str, ...]] = {
@@ -46,7 +47,26 @@ EXTRA_REQUIRED_OUTPUTS: dict[str, tuple[str, ...]] = {
 
 
 def runner_command(slug: str) -> list[str]:
-    if slug in {"exp023", "exp024", "exp025", "exp033", "exp037", "exp082", "exp038", "exp041", "exp042", "exp044", "exp046", "exp047", "exp049", "exp054", "exp080", "exp081", "exp110"}:
+    if slug in {
+        "exp023",
+        "exp024",
+        "exp025",
+        "exp033",
+        "exp037",
+        "exp082",
+        "exp038",
+        "exp041",
+        "exp042",
+        "exp044",
+        "exp046",
+        "exp047",
+        "exp049",
+        "exp054",
+        "exp080",
+        "exp081",
+        "exp110",
+        "exp111",
+    }:
         # The adapter dispatches explicit source/run IDs, never this legacy command.
         return []
     return [
@@ -76,7 +96,9 @@ def build_plan(root: Path, campaign_id: str, *, smoke: bool = False) -> dict[str
     for experiment in ordered_experiments():
         depth = 0
         if experiment.dependencies:
-            depth = max(depths[dependency] for dependency in experiment.dependencies) + 1
+            depth = (
+                max(depths[dependency] for dependency in experiment.dependencies) + 1
+            )
         depths[experiment.slug] = depth
         state = (
             resolved / "exp022"
@@ -88,13 +110,39 @@ def build_plan(root: Path, campaign_id: str, *, smoke: bool = False) -> dict[str
             execution = {"mode": "exp024-staged", "stages": ["analyse", "present"]}
         elif experiment.slug == "exp110":
             execution = {"mode": "exp110-present-only", "stages": ["present"]}
-        elif experiment.slug in {"exp023", "exp025", "exp033", "exp037", "exp082", "exp038", "exp041", "exp042", "exp044", "exp046", "exp047", "exp049", "exp054", "exp080", "exp081"}:
-            execution = {"mode": f"{experiment.slug}-staged", "stages": ["compute", "analyse", "present"]}
+        elif experiment.slug in {
+            "exp023",
+            "exp025",
+            "exp033",
+            "exp037",
+            "exp082",
+            "exp038",
+            "exp041",
+            "exp042",
+            "exp044",
+            "exp046",
+            "exp047",
+            "exp049",
+            "exp054",
+            "exp080",
+            "exp081",
+            "exp111",
+        }:
+            execution = {
+                "mode": f"{experiment.slug}-staged",
+                "stages": ["compute", "analyse", "present"],
+            }
         contract = workload_contract(experiment.slug, smoke=smoke)
         if shard_count(experiment.slug) > 1:
             execution = {
-                "mode": f"{experiment.slug}-staged" if experiment.slug in {"exp037", "exp082", "exp042"} else "sharded-inference",
-                **({"stages": ["compute", "analyse", "present"]} if experiment.slug in {"exp037", "exp082", "exp042"} else {}),
+                "mode": f"{experiment.slug}-staged"
+                if experiment.slug in {"exp037", "exp082", "exp042"}
+                else "sharded-inference",
+                **(
+                    {"stages": ["compute", "analyse", "present"]}
+                    if experiment.slug in {"exp037", "exp082", "exp042"}
+                    else {}
+                ),
                 "shards": shard_count(experiment.slug),
                 "partition": "ordered-round-robin",
                 "workload_contract": contract,
@@ -104,18 +152,35 @@ def build_plan(root: Path, campaign_id: str, *, smoke: bool = False) -> dict[str
                 **experiment.as_dict(),
                 "paths": {
                     "state": str(state),
-                    "derived": str(
-                        resolved / "derived/.artifacts" / experiment.slug
-                    ),
+                    "derived": str(resolved / "derived/.artifacts" / experiment.slug),
                     "logs": str(resolved / "logs" / experiment.slug),
                 },
                 "command": runner_command(experiment.slug),
                 "execution": execution,
-                "required_outputs": [str(state / "stage-refs.json")] if experiment.slug in {"exp023", "exp024", "exp025", "exp033", "exp037", "exp082", "exp038", "exp041", "exp042", "exp044", "exp046", "exp047", "exp049", "exp054", "exp080", "exp081", "exp110"} else [
-                    str(
-                        resolved / "derived/.artifacts" / experiment.slug
-                        / filename
-                    )
+                "required_outputs": [str(state / "stage-refs.json")]
+                if experiment.slug
+                in {
+                    "exp023",
+                    "exp024",
+                    "exp025",
+                    "exp033",
+                    "exp037",
+                    "exp082",
+                    "exp038",
+                    "exp041",
+                    "exp042",
+                    "exp044",
+                    "exp046",
+                    "exp047",
+                    "exp049",
+                    "exp054",
+                    "exp080",
+                    "exp081",
+                    "exp110",
+                    "exp111",
+                }
+                else [
+                    str(resolved / "derived/.artifacts" / experiment.slug / filename)
                     for filename in (
                         "numbers.json",
                         *EXTRA_REQUIRED_OUTPUTS.get(experiment.slug, ()),

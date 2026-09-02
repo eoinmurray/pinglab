@@ -11,7 +11,7 @@ VIEW_START_MS, VIEW_END_MS = 300.0, 1_800.0
 ONSET_MS, PEAK_MS, OFFSET_MS = 600.0, 850.0, 1_100.0
 VIDEO = "richer-input-ai-to-intermittent-ping.mp4"
 POSTER = "richer-input-ai-to-intermittent-ping.png"
-INPUT_MAP = "input-map.svg"
+INPUT_MAP = "input-map-option-3.svg"
 SCALE = {"dt_ms": DT_MS, "t_ms": DURATION_MS, "n_e": N_E, "n_i": N_I, "seed": SEED}
 
 
