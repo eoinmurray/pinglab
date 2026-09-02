@@ -17,8 +17,8 @@ def plot_controls(summary: dict, cfg: dict, out_path: Path) -> None:
     markers = ["s", "^", "o"]
 
     controls = [
-        ("fixed_total", "(a) Fixed summed coupling $G_{IE}$", cfg["reference_g_ie"]),
-        ("fixed_synapse", "(b) Fixed mean synapse $j_{IE}$", cfg["reference_j_ie"]),
+        ("fixed_total", "Fixed summed coupling $G_{IE}$", cfg["reference_g_ie"]),
+        ("fixed_synapse", "Fixed mean synapse $j_{IE}$", cfg["reference_j_ie"]),
     ]
     for col, (control, title, levels) in enumerate(controls):
         axes[0, col].set_title(title, fontsize=theme.SIZE_TITLE)
@@ -58,6 +58,7 @@ def plot_controls(summary: dict, cfg: dict, out_path: Path) -> None:
     axes[0, 0].legend(frameon=False, fontsize=theme.SIZE_LEGEND - 1)
     axes[0, 1].legend(frameon=False, fontsize=theme.SIZE_LEGEND - 1)
 
+    theme.label_panels(axes.flat)
     fig.tight_layout()
     out_path.parent.mkdir(parents=True, exist_ok=True)
     save_figure(fig, out_path, formats=("svg", "pdf"))

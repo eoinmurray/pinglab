@@ -37,6 +37,7 @@ def plot_stream(result: dict[str, Any], path: Path, run_id: str) -> None:
     axes[1].set_ylabel("I neuron")
     axes[2].set(xlabel="time (ms)", ylabel="softmax count share", ylim=(0, 1))
     axes[2].legend(ncol=5, frameon=False, fontsize=7)
+    theme.label_panels(axes)
     fig.savefig(path, dpi=240, facecolor="white")
     plt.close(fig)
 
@@ -155,6 +156,7 @@ def plot_stream_headline(
             clip_on=False,
         )
 
+    panel_axes = [thumbnail_axis]
     raster_specs = (
         (result["spikes_e"][:, :200], "E cell", theme.INK_BLACK, 2.0, 200),
         (result["spikes_i"][:, :64], "I cell", theme.DEEP_RED, 2.0, 64),
@@ -163,6 +165,7 @@ def plot_stream_headline(
         raster_specs, start=1
     ):
         axis = fig.add_subplot(grid[row])
+        panel_axes.append(axis)
         spike_times, neurons = np.nonzero(spikes)
         axis.scatter(
             spike_times * DT_MS,
@@ -251,6 +254,8 @@ def plot_stream_headline(
             bbox=dict(facecolor="white", edgecolor="none", alpha=0.82),
         )
 
+    panel_axes.append(evidence_axis)
+    theme.label_panels(panel_axes)
     fig.savefig(path, dpi=240, facecolor="white")
     plt.close(fig)
 
@@ -352,6 +357,7 @@ def plot_single_trial_transition(
         else f"true class {true_class} (red) · eventual winner {winner} (black)"
     )
     axes[0].set_title(title, loc="left", fontsize=theme.SIZE_LABEL)
+    theme.label_panels(axes)
     fig.savefig(path, dpi=240, facecolor="white")
     plt.close(fig)
 
@@ -415,7 +421,6 @@ def plot_duration_rate_summary(
                 color="white" if value < 55 else theme.INK_BLACK,
             )
     fig.colorbar(image, ax=map_axis, label="accuracy (%)", shrink=0.85)
-    map_axis.text(-0.1, 1.03, "A", transform=map_axis.transAxes, weight="bold")
     curve_axis.errorbar(
         rates, grid[:, -1], yerr=sem, color=theme.INK_BLACK, marker="o", capsize=3
     )
@@ -426,6 +431,6 @@ def plot_duration_rate_summary(
         label.set_horizontalalignment("right")
     curve_axis.set(xlabel="input rate (Hz)", ylabel="accuracy at 200 ms", ylim=(0, 1))
     curve_axis.spines[["top", "right"]].set_visible(False)
-    curve_axis.text(-0.12, 1.03, "B", transform=curve_axis.transAxes, weight="bold")
+    theme.label_panels((map_axis, curve_axis))
     fig.savefig(path, dpi=240, facecolor="white")
     plt.close(fig)

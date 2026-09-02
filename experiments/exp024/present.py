@@ -106,6 +106,7 @@ def plot_model_curves(cells: dict, model: str, out_path: Path) -> None:
         ax.set_xlabel("epoch")
         for sp in ("top", "right"):
             ax.spines[sp].set_visible(False)
+    theme.label_panels((axL, axA, axR))
     fig.tight_layout()
     out_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out_path, dpi=150)
@@ -167,6 +168,7 @@ def plot_confidence_inflation(cells: dict, conv_ep: dict, out_path: Path) -> Non
         ax.set_xlabel("epoch")
         for sp in ("top", "right"):
             ax.spines[sp].set_visible(False)
+    theme.label_panels((axA, axL, axR))
     fig.tight_layout()
     out_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out_path, dpi=150)

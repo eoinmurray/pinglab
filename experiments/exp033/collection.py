@@ -112,7 +112,7 @@ def completed(repo: Path, plan: dict, row: dict):
     required = (
         recipe.FIGURES
         if result["hopf"]
-        else ("freq_vs_tau_gaba.svg", "sigma_sensitivity.svg")
+        else ("sigma_sensitivity.svg",)
     )
     for name in ("numbers.json", *required):
         if not (presentation.presentation / name).is_file():

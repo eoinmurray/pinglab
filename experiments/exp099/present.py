@@ -60,6 +60,9 @@ def present(identity: str, *, run_id: str | None = None) -> str:
             run.export,
         )
         shutil.copy2(compute.export / "network.svg", run.export / "network.svg")
+        shutil.copy2(
+            Path(__file__).with_name(recipe.INPUT_MAP), run.export / recipe.INPUT_MAP
+        )
         write_json_atomic(run.export / "numbers.json", results)
     return run.run_id
 

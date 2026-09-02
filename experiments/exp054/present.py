@@ -61,16 +61,6 @@ def present(identity, *, run_id=None):
             grid, private, shared, run.export / "rate_invariance.png"
         )
         plots.fig_null_autocorr(shared, private, run.export / "null_autocorr.png")
-        mf = coords["mean_field"]
-        plots.build_super_compound(
-            grid,
-            mf["sweep"],
-            mf["hopf"],
-            mf["criticality"],
-            mf["frequency_vs_tau_gaba"],
-            {float(k): v for k, v in mf["spiking_exp041"].items()},
-            run.export / "onset_super_compound",
-        )
         if not all((run.export / name).is_file() for name in recipe.FIGURES):
             raise PingstoreError("incomplete exp054 presentation")
         write_json_atomic(

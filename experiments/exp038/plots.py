@@ -73,6 +73,7 @@ def plot_rate_rasters(samples: list[dict], out_path: Path, run_id: str) -> None:
         if i < n - 1:
             ax.tick_params(axis="x", labelbottom=False)
     axes[-1].set_xlabel("time (ms)")
+    theme.label_panels(axes)
     fig.subplots_adjust(left=0.07, right=0.76, top=0.9, bottom=0.08)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     save_figure(fig, out_path, formats=("png", "pdf"))  # dense raster: PNG, not SVG
@@ -175,6 +176,7 @@ def plot_fi_curve_uniform(
         "Population f-I curves: trained PING and COBA, uniform Poisson input",
         fontsize=theme.SIZE_TITLE,
     )
+    theme.label_panels(axes.flat if zoom_rows is not None else axes)
     fig.tight_layout()
     save_figure(fig, out_path)  # line/curve plot: SVG + PDF
     plt.close(fig)
@@ -258,6 +260,7 @@ def plot_ei_rasters(samples: list[dict], out_path: Path, run_id: str) -> None:
         if i < n - 1:
             ax.tick_params(axis="x", labelbottom=False)
     axes[-1].set_xlabel("time (ms)")
+    theme.label_panels(axes)
     fig.subplots_adjust(left=0.07, right=0.88, top=0.98, bottom=0.12)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     save_figure(fig, out_path, formats=("png", "pdf"))  # dense raster: PNG, not SVG
@@ -290,8 +293,10 @@ def fig_loop_transfer_compound(points, raster_lo, raster_hi, out_path, run_id):
     )
 
     n_e, n_i, gap = EI_RASTER_N_E_PLOT, EI_RASTER_N_I_PLOT, 6
+    raster_axes = []
     for col, s in enumerate((raster_lo, raster_hi)):
         ax = fig.add_subplot(gs[0, col])
+        raster_axes.append(ax)
         T = s["e"].shape[0]
         t_axis = np.arange(T) * s["dt"]
         e_t, e_n = np.where(s["e"])
@@ -367,5 +372,6 @@ def fig_loop_transfer_compound(points, raster_lo, raster_hi, out_path, run_id):
     _despine(ax_a)
 
     # Compound contains dense single-trial raster panels: rasterise as PNG, not SVG.
+    theme.label_panels((*raster_axes, ax_r, ax_a))
     save_figure(fig, out_path, formats=("png", "pdf"))
     plt.close(fig)

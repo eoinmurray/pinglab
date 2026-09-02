@@ -26,6 +26,7 @@ from experiments.exp082 import (
     present,
     recipe,
 )
+from PIL import Image, ImageDraw
 from pingstore import stages
 from pingstore.contracts import (
     PingstoreError,
@@ -330,6 +331,34 @@ def fake_plots(monkeypatch):
         monkeypatch.setattr(
             present.plots, name, lambda data, path, rid: path.write_text("figure")
         )
+    monkeypatch.setattr(
+        present,
+        "build_continuous_stream_compound",
+        lambda hero, summary, output: (
+            output.with_suffix(".png").write_text("figure"),
+            output.with_suffix(".pdf").write_text("figure"),
+        ),
+    )
+
+
+def test_continuous_stream_compound_stacks_summary_on_right(tmp_path):
+    hero = Image.new("RGB", (1000, 800), "black")
+    summary = Image.new("RGB", (1200, 500), "red")
+    ImageDraw.Draw(summary).rectangle((672, 0, 1200, 500), fill="blue")
+    hero_path = tmp_path / "hero.png"
+    summary_path = tmp_path / "summary.png"
+    hero.save(hero_path)
+    summary.save(summary_path)
+
+    output = tmp_path / "compound"
+    present.build_continuous_stream_compound(hero_path, summary_path, output)
+
+    with Image.open(output.with_suffix(".png")) as compound:
+        assert compound.size == (1540, 800)
+        assert compound.getpixel((500, 400)) == (0, 0, 0)
+        assert compound.getpixel((1270, 200))[0] > 200
+        assert compound.getpixel((1270, 600))[2] > 200
+    assert output.with_suffix(".pdf").stat().st_size > 100
 
 
 def test_independent_stages_and_flat_export(lab, monkeypatch):

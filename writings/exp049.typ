@@ -1,4 +1,4 @@
-#import "contents.typ": with-contents, result-card, with-numbered-equations, with-result-sections
+#import "contents.typ": contents-here, with-contents, result-card, with-numbered-equations, with-result-sections
 #import "/.demolab/lib.typ": data-json, data-image
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
 #import "run-view.typ": with-datasets, run-view
@@ -6,7 +6,7 @@
 #let data-file = data-file.with(article: "exp049")
 
 #let meta = (
-  status: "[▦ DATA | v31.2.0]",
+  status: "[▦ DATA | v33.0.0]",
   title: "Training Recurrent Weights Weakens PING Rhythmicity",
   created_at: "2026-06-09T00:00:00Z",
   updated_at: "2026-08-31T00:00:00Z",
@@ -59,6 +59,8 @@
   learning recipes, but does not show that recurrent learning must always
   destroy gamma or that the compared conditions are accuracy-equivalent.
 
+  #contents-here()
+
   == Results
 
   #with-result-sections[
@@ -98,8 +100,8 @@
     data-image(data-file("exp049/training_curves.svg"), width: 100%,
       alt: "Validation accuracy and E/I rates over 50 epochs, alongside reference-image rhythmicity; frozen recurrence retains high contrast while trainable recurrence has low contrast."),
     caption: [
-      Recorded histories: validation accuracy and population rates, plus
-      contrast from a fixed reference-image diagnostic. Lines show three-seed
+      Recorded histories: *(A)* validation accuracy, *(B)* E rate, *(C)* I rate
+      and *(D)* contrast from a fixed reference-image diagnostic. Lines show three-seed
       means; shading spans seed minima and maxima. Each series is smoothed
       with a five-epoch edge-padded moving average, not a confidence interval.
     ],
@@ -119,8 +121,9 @@
     data-image(data-file("exp049/weights__trainable_ping_init.svg"), width: 100%,
       alt: "Positive initial and final recurrent conductances for canonical trainable initialization, with separate E-to-I and I-to-E means and zero fractions."),
     caption: [
-      Initial and final conductance distributions, pooled across three seeds
-      with canonical trainable initialization. Histograms contain positive
+      Initial and final conductance distributions for *(A)* E→I and *(B)* I→E,
+      pooled across three seeds with canonical trainable initialization.
+      Histograms contain positive
       entries; mean and zero-fraction annotations include all entries. For
       each seed, annotations report zero fractions and means in model conductance
       units.

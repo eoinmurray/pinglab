@@ -1,4 +1,4 @@
-#import "contents.typ": with-contents, result-card, with-numbered-equations, with-result-sections
+#import "contents.typ": contents-here, with-contents, result-card, with-numbered-equations, with-result-sections
 #import "/.demolab/lib.typ": data-json, data-image, cite, reference-list
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
 #import "run-view.typ": with-datasets, run-view
@@ -6,7 +6,7 @@
 #let data-file = data-file.with(article: "exp037")
 
 #let meta = (
-  status: "[▦ DATA | v31.2.0]",
+  status: "[▦ DATA | v33.0.0]",
   title: "Dropped Spikes vs Added Noise",
   created_at: "2026-05-30T00:00:00Z",
   updated_at: "2026-08-31T00:00:00Z",
@@ -67,6 +67,8 @@
   robustness profile, but does not separate recurrent timing from firing-rate
   and readout effects.
 
+  #contents-here()
+
   == Results
 
   #with-result-sections[
@@ -85,7 +87,9 @@
     report-image("exp037/perturbation_curves.svg",
       "Mean test accuracy with sample standard deviation: both models tolerate substantial deletion; PING declines more steeply under added spikes.", ratio: 0.55),
     caption: [
-      Means ± sample SD across seeds 42–44, #eval_n test images per seed.
+      *(A)* Random hidden-spike deletion. *(B)* Independent Poisson spike
+      insertion. Curves show means ± sample SD across seeds 42–44,
+      #eval_n test images per seed.
       The dashed line is nominal 10% chance.
       The added-rate axis divides by final-epoch reference-image E rates
       (#rounded(reference-rate("ping"))/#rounded(reference-rate("coba")) Hz),
@@ -105,8 +109,8 @@
     report-image("exp037/perturb_rasters__drop__ping.png",
       "Three PING rasters at deletion probabilities 0, 0.5 and 1: visible bands remain at partial deletion; full deletion leaves no recorded spikes."),
     caption: [
-      Seed-42 trials of #trial-description shown at deletion probabilities
-      0, 0.5 and 1. E spikes (black) are below I spikes (red). The display samples
+      Seed-42 trials of #trial-description: *(A)* deletion probability 0,
+      *(B)* 0.5 and *(C)* 1. E spikes (black) are below I spikes (red). The display samples
       200 E and 64 I neurons; annotated E rates use the full population.
     ],
   )
@@ -123,8 +127,8 @@
     report-image("exp037/perturb_rasters__add__ping.png",
       "Three PING rasters at nominal added rates 0, 20 and 40 Hz: dense inserted spikes increasingly obscure the unperturbed banding."),
     caption: [
-      The same seed and test image at nominal added rates 0, 20 and #add_max Hz
-      per neuron, applied independently to E and I. The displayed stream
+      The same seed and test image at nominal added rates *(A)* 0, *(B)* 20
+      and *(C)* #add_max Hz per neuron, applied independently to E and I. The displayed stream
       includes inserted spikes. Display sampling and E-rate annotation follow
       the preceding figure.
     ],
@@ -143,8 +147,8 @@
     report-image("exp037/perturb_rasters__drop__coba.png",
       "Three COBA rasters at deletion probabilities 0, 0.5 and 1: E activity thins and becomes silent at full deletion."),
     caption: [
-      Seed-42 COBA trials of #trial-description shown with the same
-      display sampling. Panels show deletion probabilities 0, 0.5 and 1.
+      Seed-42 COBA trials of #trial-description shown with the same display
+      sampling at deletion probabilities *(A)* 0, *(B)* 0.5 and *(C)* 1.
     ],
   )
 
@@ -161,7 +165,8 @@
     report-image("exp037/perturb_rasters__add__coba.png",
       "Three COBA rasters at nominal added rates 0, 20 and 40 Hz: E activity grows and imposed I spikes appear despite disabled recurrent coupling."),
     caption: [
-      The same COBA trial at nominal added rates 0, 20 and #add_max Hz per neuron.
+      The same COBA trial at nominal added rates *(A)* 0, *(B)* 20 and
+      *(C)* #add_max Hz per neuron.
       Insertions were applied independently to E and I; the recurrent E→I→E
       coupling remained disabled.
     ],

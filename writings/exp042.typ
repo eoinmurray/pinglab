@@ -1,4 +1,4 @@
-#import "contents.typ": with-contents, with-numbered-equations, with-result-sections
+#import "contents.typ": contents-here, with-contents, with-numbered-equations, with-result-sections
 #import "/.demolab/lib.typ": data-json, data-image
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
 #import "run-view.typ": with-datasets, run-view
@@ -7,7 +7,7 @@
 
 #let meta = (
   status: "◉ REVIEWED",
-  writing_guide: "31.2.0",
+  writing_guide: "33.0.0",
   title: "Inhibitory Replay Perturbations Change Excitatory Firing",
   created_at: "2026-06-02T00:00:00Z",
   updated_at: "2026-09-01",
@@ -61,6 +61,8 @@
   clamping and event collisions also changed realised inhibitory delivery,
   these measurements do not isolate synchrony or a gamma-specific mechanism.
 
+  #contents-here()
+
   == Results
 
   #with-result-sections[
@@ -77,13 +79,14 @@
       alt: "Independent-spike jitter suppresses excitatory firing, whereas fixed-window group shifts increase it. Realised inhibitory spike rate changes across both sweeps.",
     ),
     caption: [
-      Independent-spike and fixed-window group jitter. Top: the illustrative
-      first test presentation from the training replicate initialized with seed
-      42 at $sigma = #anchor-sigma$ ms; 200 of 1,024 E neurons and 64 of 256 I
-      neurons are displayed, while annotations report full-population rates over
-      the 200 ms presentation. Bottom: per-neuron E-rate, realised I-spike-rate
-      and test-accuracy means across three training replicates over the complete
-      sweeps. Retained SEM across training replicates is not displayed.
+      *(A)* Independent-spike and *(B)* fixed-window group jitter for the
+      illustrative first test presentation from the training replicate
+      initialized with seed 42 at $sigma = #anchor-sigma$ ms; 200 of 1,024 E
+      neurons and 64 of 256 I neurons are displayed, while annotations report
+      full-population rates over the 200 ms presentation. *(C)* Independent-spike
+      and *(D)* fixed-window sweep summaries show per-neuron E rate, realised
+      I-spike rate and test-accuracy means across three training replicates.
+      Retained SEM across training replicates is not displayed.
     ],
   )
 

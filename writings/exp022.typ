@@ -1,4 +1,4 @@
-#import "contents.typ": with-contents, result-card, with-numbered-equations, with-result-sections
+#import "contents.typ": contents-here, with-contents, result-card, with-numbered-equations, with-result-sections
 #import "/.demolab/lib.typ": data-json, data-image, cite, reference-list
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
 #import "run-view.typ": with-datasets, run-view
@@ -6,7 +6,7 @@
 #let data-file = data-file.with(article: "exp022")
 
 #let meta = (
-  status: "[▦ DATA | v31.2.0]",
+  status: "[▦ DATA | v33.0.0]",
   title: "Training Runs",
   created_at: "2026-08-11T00:00:00Z",
   updated_at: "2026-08-31T00:00:00Z",
@@ -81,6 +81,8 @@
   accuracy–activity trade-offs. Provides training families; the bank itself does
   not establish that gamma timing causes any downstream benefit.
 
+  #contents-here()
+
   == Results
 
   #with-result-sections[
@@ -102,7 +104,7 @@
   #result-figure(
     "exp022/rasters__ping__canonical__seed42.png",
     "Seed-42 excitatory/inhibitory raster and population-rate diagnostic for canonical PING.",
-    [Canonical PING, seed 42: one digit-0 diagnostic from the final-epoch checkpoint, with E/I population rates and the accompanying inhibitory spectrum; not a population estimate.],
+    [(A) E/I spike raster, (B) E/I population rates and (C) inhibitory spectrum for canonical PING, seed 42, in one final-epoch digit-0 diagnostic; not a population estimate.],
   )
 
   ]
@@ -124,7 +126,7 @@
   #result-figure(
     "exp022/rasters__ping__off__seed42.png",
     "Seed-42 raster for the unconstrained PING endpoint of the activity-ceiling sweep.",
-    [PING with the activity penalty off, seed 42, final-epoch digit-0 probe. This is the reference endpoint, not a raster of the strictest ceiling.],
+    [(A) E/I spike raster, (B) E/I population rates and (C) inhibitory spectrum for PING with the activity penalty off, seed 42, in one final-epoch digit-0 probe. This is the reference endpoint, not a raster of the strictest ceiling.],
   )
 
   ]
@@ -146,7 +148,7 @@
   #result-figure(
     "exp022/rasters__ping__tg6__seed42.png",
     "Seed-42 PING raster at the six-millisecond inhibitory-decay reference.",
-    [Reference inhibitory decay of 6 ms, seed 42, final-epoch digit-0 probe; the plotted spectrum describes this example only.],
+    [(A) E/I spike raster, (B) E/I population rates and (C) inhibitory spectrum at the 6 ms reference decay, seed 42, in one final-epoch digit-0 probe; the spectrum describes this example only.],
   )
 
   ]
@@ -168,7 +170,7 @@
   #result-figure(
     "exp022/rasters__ping__dt0p1__seed42.png",
     "Seed-42 PING raster at the reference 0.1-millisecond timestep.",
-    [Reference timestep of 0.1 ms, seed 42, final-epoch digit-0 probe. One reference raster cannot establish timestep convergence.],
+    [(A) E/I spike raster, (B) E/I population rates and (C) inhibitory spectrum at the 0.1 ms reference timestep, seed 42, in one final-epoch digit-0 probe. One reference diagnostic cannot establish timestep convergence.],
   )
 
   ]
@@ -190,7 +192,7 @@
   #result-figure(
     "exp022/rasters__frozen_ping__seed42.png",
     "Seed-42 raster for the frozen recurrent PING control.",
-    [Frozen recurrent PING control, seed 42, final-epoch digit-0 probe; this example does not describe the trainable conditions.],
+    [(A) E/I spike raster, (B) E/I population rates and (C) inhibitory spectrum for the frozen recurrent PING control, seed 42, in one final-epoch digit-0 probe; this example does not describe the trainable conditions.],
   )
 
   ]
@@ -212,7 +214,7 @@
   #result-figure(
     "exp022/rasters__ping__variable_rate__seed42.png",
     "Seed-42 excitatory/inhibitory raster for the variable-rate bank at a five-hertz input rate.",
-    [Variable-rate PING, seed 42, final-epoch digit-0 probe at 5 Hz maximum-pixel input rate. This displayed E/I diagnostic does not include output-neuron spikes or continuous-stream resets.],
+    [(A) E/I spike raster, (B) E/I population rates and (C) inhibitory spectrum for variable-rate PING, seed 42, in one final-epoch digit-0 probe at 5 Hz maximum-pixel input rate. This diagnostic does not include output-neuron spikes or continuous-stream resets.],
   )
 
   ]
@@ -234,7 +236,7 @@
   #result-figure(
     "exp022/rasters__ping__low_w_in__win0p05__seed42.png",
     "Seed-42 E/I diagnostic for initial input-coupling parent mean 0.05.",
-    [Initial input-coupling parent mean 0.05, seed 42, final-epoch digit-0 probe at the same 1 Hz activity-ceiling target. This is one example, not an across-seed statistic.],
+    [(A) E/I spike raster, (B) E/I population rates and (C) inhibitory spectrum for input-coupling parent mean 0.05, seed 42, in one final-epoch digit-0 probe at the 1 Hz activity-ceiling target. This is one example, not an across-seed statistic.],
   )
 
   ]
@@ -245,7 +247,7 @@
   #result-figure(
     "exp022/rasters__ping__low_w_in__win0p1__seed42.png",
     "Seed-42 E/I diagnostic for initial input-coupling parent mean 0.1.",
-    [Initial input-coupling parent mean 0.1, seed 42, final-epoch digit-0 probe at the same 1 Hz activity-ceiling target. This is one example, not an across-seed statistic.],
+    [(A) E/I spike raster, (B) E/I population rates and (C) inhibitory spectrum for input-coupling parent mean 0.1, seed 42, in one final-epoch digit-0 probe at the 1 Hz activity-ceiling target. This is one example, not an across-seed statistic.],
   )
 
   ]
@@ -256,7 +258,7 @@
   #result-figure(
     "exp022/rasters__ping__low_w_in__win0p3__seed42.png",
     "Seed-42 E/I diagnostic for initial input-coupling parent mean 0.3.",
-    [Initial input-coupling parent mean 0.3, seed 42, final-epoch digit-0 probe at the same 1 Hz activity-ceiling target. This is one example, not an across-seed statistic.],
+    [(A) E/I spike raster, (B) E/I population rates and (C) inhibitory spectrum for input-coupling parent mean 0.3, seed 42, in one final-epoch digit-0 probe at the 1 Hz activity-ceiling target. This is one example, not an across-seed statistic.],
   )
 
   ]
@@ -267,7 +269,7 @@
   #result-figure(
     "exp022/rasters__ping__low_w_in__win0p9__seed42.png",
     "Seed-42 E/I diagnostic for initial input-coupling parent mean 0.9.",
-    [Initial input-coupling parent mean 0.9, seed 42, final-epoch digit-0 probe at the same 1 Hz activity-ceiling target. This is one example, not an across-seed statistic.],
+    [(A) E/I spike raster, (B) E/I population rates and (C) inhibitory spectrum for input-coupling parent mean 0.9, seed 42, in one final-epoch digit-0 probe at the 1 Hz activity-ceiling target. This is one example, not an across-seed statistic.],
   )
 
   ]

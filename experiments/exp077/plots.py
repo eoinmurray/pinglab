@@ -32,6 +32,7 @@ def render_rasters(results: dict[str, dict[str, np.ndarray]], out: Path) -> None
                 )
     for ax in axes[-1]:
         ax.set_xlabel("time (ms)")
+    theme.label_panels(axes.flat)
     fig.tight_layout()
     fig.savefig(out, dpi=220, bbox_inches="tight")
     plt.close(fig)

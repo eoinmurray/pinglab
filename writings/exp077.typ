@@ -1,4 +1,4 @@
-#import "contents.typ": with-contents, result-card, with-numbered-equations, with-result-sections
+#import "contents.typ": contents-here, with-contents, result-card, with-numbered-equations, with-result-sections
 #import "/.demolab/lib.typ": data-json, data-image, cite, reference-list
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
 #import "run-view.typ": with-datasets, run-view
@@ -6,7 +6,7 @@
 #let data-file = data-file.with(article: "exp077")
 
 #let meta = (
-  status: "[▦ DATA | v31.2.0]",
+  status: "[▦ DATA | v33.0.0]",
   title: "Arbitrary coupled graphs execute natively",
   updated_at: "2026-08-31T00:00:00Z",
   created_at: "2026-08-05T00:00:00Z",
@@ -39,6 +39,8 @@
   causal effects of coupling direction and delay within the tested workload.
   These are bounded architecture and timing checks, not evidence for a
   biological coupling mechanism or performance on unrelated workloads.
+
+  #contents-here()
 
   == Results
 
@@ -105,10 +107,11 @@
   === Matched-input rasters across coupling variants
 
   #figure(data-image(data-file("exp077/matched_rasters.png"), width: 100%),
-    caption: [Excitatory spikes in the first sample of each variant, with
-      circuit A on the left and circuit B on the right. The time axis is in
-      milliseconds. Identical input tensors were reused across variants;
-      panels show the first sample only.])
+    caption: [Excitatory spikes in the first sample of *(A–B)* uncoupled,
+      *(C–D)* unidirectional, *(E–F)* reciprocal and *(G–H)* delayed reciprocal
+      variants; the first panel in each pair is circuit A and the second is
+      circuit B. The time axis is in milliseconds. Identical input tensors were
+      reused across variants.])
 
   Sparse or silent responses in these illustrative samples do not establish a
   phase-coupling mechanism.

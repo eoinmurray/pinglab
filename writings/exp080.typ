@@ -1,4 +1,4 @@
-#import "contents.typ": with-contents, with-numbered-equations, with-result-sections
+#import "contents.typ": contents-here, with-contents, with-numbered-equations, with-result-sections
 #import "/.demolab/lib.typ": data-json, data-image
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
 #import "run-view.typ": with-datasets, run-view
@@ -7,7 +7,7 @@
 #let data-file = data-file.with(article: "exp080")
 
 #let meta = (
-  status: "[▦ DATA | v31.2.0]",
+  status: "[▦ DATA | v33.0.0]",
   title: "Decoder Accuracy Improves with Input Rate",
   created_at: "2026-08-10T00:00:00Z",
   updated_at: "2026-08-31T00:00:00Z",
@@ -74,6 +74,8 @@
   and decoding pipeline; it does not measure PING-network accuracy or predict
   performance between tested rates.
 
+  #contents-here()
+
   == Results
 
   #with-result-sections[
@@ -126,9 +128,9 @@
   #figure(
     data-image(data-file("exp080/feature_images.png"), width: 100%,
       alt: "One MNIST input digit and filtered feature images at 0.5, 5 and 25 Hz."),
-    caption: [Reused illustrative input digit and its originally simulated
-      features at #p.rates_hz.at(2), #p.rates_hz.at(5) and
-      #p.rates_hz.last() Hz. Simulations used #p.probe_uS μS conductance
+    caption: [*(A)* Reused illustrative input digit and its originally simulated
+      features at *(B–D)* #p.rates_hz.at(2), #p.rates_hz.at(5) and
+      #p.rates_hz.last() Hz, respectively. Simulations used #p.probe_uS μS conductance
       increments, #p.presentation_ms ms presentations and independent encoding
       draws; feature panels share a 0–65 mV scale.
       #if r.illustration.kind == "historical-image" [The illustration was carried forward unchanged, not

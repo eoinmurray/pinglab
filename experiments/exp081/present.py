@@ -38,13 +38,14 @@ def plot_moments(
             label=f"{probe:g} μS",
         )
         axes[1].plot(cfg["input_rate_grid_hz"], empirical_sd[index], color=color)
-    axes[0].set(title="A  Mean feature", ylabel="Mean feature z (mV)")
-    axes[1].set(title="B  Feature SD", ylabel="Feature SD (mV)")
+    axes[0].set(title="Mean feature", ylabel="Mean feature z (mV)")
+    axes[1].set(title="Feature SD", ylabel="Feature SD (mV)")
     for axis in axes:
         axis.set(xlabel="Input rate (Hz)", xlim=(0, 25))
         axis.spines[["top", "right"]].set_visible(False)
         axis.grid(alpha=0.14)
     axes[0].legend(frameon=False)
+    theme.label_panels(axes)
     fig.savefig(output / "empirical_moments.svg", metadata={"Date": None})
     plt.close(fig)
 
@@ -72,6 +73,7 @@ def plot_distributions(histograms: dict, cfg: dict, output: Path) -> None:
         axis.set_ylim(0.5 / cfg["distribution_draws"], 1.0)
         axis.spines[["top", "right"]].set_visible(False)
     axes[0].set_ylabel("Probability per bin (log scale)")
+    theme.label_panels(axes)
     fig.savefig(output / "response_distributions.svg", metadata={"Date": None})
     plt.close(fig)
 
@@ -95,13 +97,14 @@ def plot_frequency_response(responses: dict, cfg: dict, output: Path) -> None:
             responses["frequency_hz"], responses["averaged_db"][index], color=color
         )
     axes[0].set(
-        title="A  Synapse + membrane", ylabel="Magnitude relative to low-drive DC (dB)"
+        title="Synapse + membrane", ylabel="Magnitude relative to low-drive DC (dB)"
     )
-    axes[1].set(title=f"B  After {cfg['presentation_ms']:g} ms averaging")
+    axes[1].set(title=f"After {cfg['presentation_ms']:g} ms averaging")
     for axis in axes:
         axis.set(xlabel="Frequency (Hz)", ylim=(-90, 4))
         axis.spines[["top", "right"]].set_visible(False)
     axes[0].legend(frameon=False, fontsize=7)
+    theme.label_panels(axes)
     fig.savefig(output / "frequency_response.svg", metadata={"Date": None})
     plt.close(fig)
 
@@ -141,13 +144,14 @@ def plot_comparison(
             alpha=0.28,
             edgecolors="none",
         )
-    axes[0].set(title="A  Mean feature", ylabel="Mean feature z (mV)")
-    axes[1].set(title="B  Feature SD", ylabel="Feature SD (mV)")
+    axes[0].set(title="Mean feature", ylabel="Mean feature z (mV)")
+    axes[1].set(title="Feature SD", ylabel="Feature SD (mV)")
     for axis in axes:
         axis.set(xlabel="Input rate (Hz)", xlim=(0, 25))
         axis.spines[["top", "right"]].set_visible(False)
         axis.grid(alpha=0.14)
     axes[0].legend(frameon=False)
+    theme.label_panels(axes)
     fig.savefig(output / "analytical_empirical.svg", metadata={"Date": None})
     plt.close(fig)
 

@@ -78,6 +78,9 @@ def plot_raster_compound(
             right=0.955,
         )
 
+    arch_axes = []
+    raster_axes = []
+    lower_axes = []
     for col, cell in enumerate(("coba", "ping")):
         c0 = 2 * col
         s = snaps[cell]
@@ -90,12 +93,15 @@ def plot_raster_compound(
             # arch_gs is only built (non-None) in the include_arch branch above.
             assert arch_gs is not None
             ax_arch = fig.add_subplot(arch_gs[0, col])
+            arch_axes.append(ax_arch)
             _draw_schematic(ax_arch, cell)
             ax_arch.set_title(titles[cell], loc="left", fontweight="semibold")
 
         ax_r = fig.add_subplot(plot_gs[0, c0 : c0 + 2])  # one raster, I above E
         ax_psd = fig.add_subplot(plot_gs[1, c0])  # PSD next to f–I
         ax_fi = fig.add_subplot(plot_gs[1, c0 + 1])
+        raster_axes.append(ax_r)
+        lower_axes.extend((ax_psd, ax_fi))
 
         # Combined raster: E (black) at the bottom, I (red) stacked directly
         # above it in the same axes — no vertical gap between the populations.
@@ -208,6 +214,7 @@ def plot_raster_compound(
         if col == 1:
             ax_fi.legend(frameon=False, fontsize=theme.SIZE_LABEL - 2, loc="upper left")
 
+    theme.label_panels((*arch_axes, *raster_axes, *lower_axes))
     save_figure(fig, out_path, formats=("png", "pdf"))  # dense raster: PNG, not SVG
     plt.close(fig)
 

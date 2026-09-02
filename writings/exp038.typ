@@ -1,4 +1,4 @@
-#import "contents.typ": with-contents, result-card, with-numbered-equations, with-result-sections
+#import "contents.typ": contents-here, with-contents, result-card, with-numbered-equations, with-result-sections
 #import "/.demolab/lib.typ": data-json, data-image, cite, reference-list
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
 #import "run-view.typ": with-datasets, run-view
@@ -6,7 +6,7 @@
 #let data-file = data-file.with(article: "exp038")
 
 #let meta = (
-  status: "[▦ DATA | v31.2.0]",
+  status: "[▦ DATA | v33.0.0]",
   title: "Switching On the Inhibitory Loop",
   created_at: "2026-05-30T00:00:00Z",
   updated_at: "2026-08-31T00:00:00Z",
@@ -54,6 +54,8 @@
   post-training rate suppression, not a benefit of gamma timing or evidence that
   retraining would recover the lost accuracy.
 
+  #contents-here()
+
   == Results
 
   #with-result-sections[
@@ -70,10 +72,11 @@
     data-image(data-file("exp038/loop_transfer_compound.png"), width: 100%,
       alt: "Rasters with the loop off and enabled after training, followed by population firing rates and test accuracy across bidirectional loop strengths."),
     caption: [
-      Reanalysed inference observations; no retraining. *Top:* seed-42 rasters
-      for #image-description, showing 200 E neurons (black) and 64 I neurons (red).
-      *Bottom:* population rates and accuracy on #eval_n test images per seed;
-      means ± sample SD across seeds 42–44.
+      Reanalysed inference observations; no retraining. *(A)* Seed-42 raster
+      with the loop off and *(B)* with the loop fully enabled, for
+      #image-description; each shows 200 E neurons (black) and 64 I neurons
+      (red). *(C)* Population rates and *(D)* accuracy on #eval_n test images
+      per seed; curves show means ± sample SD across seeds 42–44.
     ],
   )
 
@@ -89,8 +92,8 @@
     data-image(data-file("exp038/ei_rasters.png"), width: 100%,
       alt: "Six E/I spike rasters from the same test image, at loop strengths zero through one, showing increasingly grouped bursts."),
     caption: [
-      Seed 42, #image-description, at six bidirectional loop strengths
-      $s = 0, 0.2, 0.4, 0.6, 0.8, 1$. Learned input and readout weights were fixed;
+      Seed 42, #image-description, at bidirectional loop strengths
+      *(A–F)* $s = 0, 0.2, 0.4, 0.6, 0.8, 1$, respectively. Learned input and readout weights were fixed;
       recurrent E↔I weights were initialized at each strength without training.
       Rows show the same sampled 200 E and 64 I neurons over 200 ms.
     ],

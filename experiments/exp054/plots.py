@@ -5,7 +5,6 @@ from contextlib import contextmanager
 import matplotlib.pyplot as plt
 import numpy as np
 from experiments.helpers import theme
-from experiments.helpers.figsave import save_figure
 
 from . import recipe
 
@@ -167,6 +166,7 @@ def fig_grid_rasters(grid, out_path):
                 ax.set_xlabel(f"{WEI_MEAN_GRID[wei_idx]:.1f}", fontsize=theme.SIZE_TICK)
     fig.supxlabel("W_EI mean (μS)", fontsize=theme.SIZE_LABEL)
     fig.supylabel("W_IE mean (μS)", fontsize=theme.SIZE_LABEL)
+    theme.label_panels(axes.flat)
     fig.tight_layout(rect=(0.02, 0.02, 1, 0.97))
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
@@ -230,6 +230,7 @@ def fig_grid_autocorr(grid, out_path):
                 ax.set_xlabel(f"{WEI_MEAN_GRID[wei_idx]:.1f}", fontsize=theme.SIZE_TICK)
     fig.supxlabel("W_EI mean (μS)", fontsize=theme.SIZE_LABEL)
     fig.supylabel("W_IE mean (μS)", fontsize=theme.SIZE_LABEL)
+    theme.label_panels(axes.flat)
     fig.tight_layout(rect=(0.02, 0.02, 1, 0.97))
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
@@ -238,24 +239,6 @@ def fig_grid_autocorr(grid, out_path):
 def _despine(ax):
     for sp in ("top", "right"):
         ax.spines[sp].set_visible(False)
-
-
-def _panel_letter(ax, letter):
-    """Stamp a prominent bold panel identifier (A, B, …) in the top-left corner of
-    ax, on a small white plate so it stays legible over dense rasters/heatmaps."""
-    ax.text(
-        0.035,
-        0.965,
-        letter,
-        transform=ax.transAxes,
-        ha="left",
-        va="top",
-        fontsize=theme.SIZE_TITLE + 4,
-        fontweight="bold",
-        color=theme.INK_BLACK,
-        zorder=20,
-        bbox=dict(boxstyle="square,pad=0.18", fc="white", ec="none", alpha=0.85),
-    )
 
 
 def fig_turnon_compound(grid, out_path):
@@ -329,8 +312,10 @@ def fig_turnon_compound(grid, out_path):
         )
 
     # Three representative rasters (right), E black below / I red above.
+    raster_axes = []
     for k, (label, wei_i, wie_i) in enumerate(TURNON_POINTS):
         ax = fig.add_subplot(gs[k, 1])
+        raster_axes.append(ax)
         cell = grid[wie_i][wei_i]
         e = cell["e"]
         n_e = e.shape[1]
@@ -370,6 +355,7 @@ def fig_turnon_compound(grid, out_path):
             ax.tick_params(labelbottom=False)
         _despine(ax)
 
+    theme.label_panels((ax_hm, *raster_axes))
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
 
@@ -435,6 +421,7 @@ def fig_grid_maps_compound(grid, out_path):
                         fontsize=4.5,
                         color="white" if frac > 0.55 else theme.INK_BLACK,
                     )
+    theme.label_panels(axes)
     fig.subplots_adjust(left=0.05, right=0.99, top=0.95, bottom=0.05, wspace=0.12)
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
@@ -593,28 +580,38 @@ def fig_turnon_maps_compound(grid, out_path):
         right=0.99,
     )
 
-    # Top row — the three scalar maps; A/B/C marked on the contrast panel.
+    map_axes = []
+    # Top row — the three scalar maps; sample conditions use roman markers so
+    # they cannot be confused with the figure's A–F panel labels.
     for k, (vals, title, vmax_color, fmt, mark) in enumerate(turnon_map_panels(grid)):
+        ax = fig.add_subplot(gs[0, k])
+        map_axes.append(ax)
         draw_turnon_map(
-            fig.add_subplot(gs[0, k]),
+            ax,
             vals,
             title=title,
             vmax_color=vmax_color,
             fmt=fmt,
             mark=mark,
             show_y=(k == 0),
+            mark_labels=("i", "ii", "iii"),
         )
 
     # Bottom row — the three representative rasters, E black below / I red above.
+    raster_axes = []
     for k, (label, wei_i, wie_i) in enumerate(TURNON_POINTS):
+        ax = fig.add_subplot(gs[1, k])
+        raster_axes.append(ax)
         draw_turnon_raster(
-            fig.add_subplot(gs[1, k]),
+            ax,
             grid[wie_i][wei_i],
             label=label,
             wei_i=wei_i,
             wie_i=wie_i,
+            show_label=False,
         )
 
+    theme.label_panels((*map_axes, *raster_axes))
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
 
@@ -723,182 +720,7 @@ def fig_null_autocorr(shared_null, priv_null, out_path):
                 ax.set_ylabel(f"{lbl}\n$A(\\ell)$", fontsize=theme.SIZE_LABEL)
             if ri == 1:
                 ax.set_xlabel("lag (ms)", fontsize=theme.SIZE_LABEL)
+    theme.label_panels(axes.flat)
     fig.tight_layout(rect=(0, 0, 1, 0.95))
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
-
-
-def build_super_compound(grid, results, hopf, sweep, mf, meas, out_path):
-    """3×3 super-compound: the turn-on maps (row 0) + A/B/C rasters (row 1) over
-    the exp033 mean-field bifurcation panels (row 2)."""
-    from matplotlib.gridspec import GridSpec
-
-    # Manuscript figure: render in paper mode (smaller print-size typography +
-    # 300 dpi) so the dense titles fit the tight 3×3 grid, independent of the
-    # notebook's screen-mode default used for its other figures. Restore after.
-    prev_paper = theme.PAPER_MODE
-    theme.set_paper_mode(True)
-    theme.apply()
-    plt.rcParams["savefig.bbox"] = "standard"
-    PTS = TURNON_POINTS
-
-    # Tall super-compound — three panel rows; a deliberate exception to the
-    # 16:9 house ratio (same reasoning as exp033's wide bifurcation strip).
-    fig = plt.figure(figsize=(6.9, 6.13), dpi=150)
-    gs = GridSpec(
-        3,
-        3,
-        figure=fig,
-        height_ratios=[1.25, 0.92, 1.05],
-        hspace=0.5,
-        wspace=0.32,
-        top=0.95,
-        bottom=0.06,
-        left=0.07,
-        right=0.95,
-    )
-
-    # All nine panels carry a prominent A–I identifier (reading order). The three
-    # raster panels are D/E/F, so the contrast-map callout circles are relabelled
-    # D/E/F to point at them (and the redundant per-raster leading letter dropped).
-    RASTER_LETTERS = ["D", "E", "F"]
-
-    # ── Row 0 — turn-on maps (panels A/B/C); contrast map marks the D/E/F points ──
-    for k, (vals, title, vmax_color, fmt, mark) in enumerate(turnon_map_panels(grid)):
-        ax = fig.add_subplot(gs[0, k])
-        draw_turnon_map(
-            ax,
-            vals,
-            title=title,
-            vmax_color=vmax_color,
-            fmt=fmt,
-            mark=mark,
-            show_y=(k == 0),
-            mark_labels=RASTER_LETTERS if mark else None,
-            cell_fontsize=3.0,
-        )
-        _panel_letter(ax, "ABC"[k])
-
-    # ── Row 1 — the D/E/F rasters (identified by their panel letters) ──
-    for k, (label, wei_i, wie_i) in enumerate(PTS):
-        ax = fig.add_subplot(gs[1, k])
-        draw_turnon_raster(
-            ax,
-            grid[wie_i][wei_i],
-            label=label,
-            wei_i=wei_i,
-            wie_i=wie_i,
-            show_label=False,
-        )
-        _panel_letter(ax, RASTER_LETTERS[k])
-
-    # ── Row 2 — the exp033 bifurcation panels (Hopf / hysteresis / frequency) ──
-    axA = fig.add_subplot(gs[2, 0])
-    xs = np.array([r["I_ext"] for r in results])
-    eig_re = np.array([[ev[0] for ev in r["eigs"]] for r in results])
-    eig_im = np.array([[ev[1] for ev in r["eigs"]] for r in results])
-    sc = None
-    for k in range(eig_re.shape[1]):
-        sc = axA.scatter(
-            eig_re[:, k], eig_im[:, k], c=xs, cmap="magma", s=4, linewidths=0
-        )
-    axA.axvline(0, color=theme.GREY_MID, lw=0.6, ls=":")
-    if hopf:
-        w = hopf["omega_star"]
-        axA.scatter(
-            [0, 0],
-            [w, -w],
-            facecolors="none",
-            edgecolors=theme.ELECTRIC_CYAN,
-            s=60,
-            lw=1.4,
-            zorder=5,
-        )
-    # sc is assigned inside the eigenvalue loop (always ≥1 eigenvalue); narrow
-    # the None branch. PathCollection from scatter is a valid ScalarMappable.
-    assert sc is not None
-    # Colour-bar as an inset INSIDE panel G. `fig.colorbar(ax=axA)` steals space
-    # from axA's right edge and drops the bar (plus its "I_ext (nA)" label) into the
-    # G|H gutter, where it collides with panel H's y-axis label and ticks. An inset
-    # keeps it within G's own footprint, in the sparse upper-left of the eigenvalue
-    # scatter, so the mean-field row stays legible.
-    cax = axA.inset_axes((0.06, 0.56, 0.035, 0.38))
-    cbar = fig.colorbar(sc, cax=cax)
-    cbar.set_label("$I_\\text{ext}$ (nA)", fontsize=theme.SIZE_TICK - 2, labelpad=2)
-    cbar.ax.tick_params(labelsize=theme.SIZE_TICK - 2)
-    cbar.ax.yaxis.set_ticks_position("right")
-    cbar.ax.yaxis.set_label_position("right")
-    axA.set_xlabel("Re$(\\lambda)$ (ms$^{-1}$)", fontsize=theme.SIZE_LABEL)
-    axA.set_ylabel("Im$(\\lambda)$ (ms$^{-1}$)", fontsize=theme.SIZE_LABEL)
-    axA.set_title(
-        f"Hopf crossing at $I^\\star$ = {hopf['I_ext_star']:.2f} nA",
-        loc="left",
-        fontsize=theme.SIZE_LABEL,
-        fontweight="semibold",
-    )
-    _panel_letter(axA, "G")
-    _despine(axA)
-
-    axB = fig.add_subplot(gs[2, 1])
-    axB.plot(
-        [d["I_ext"] for d in sweep["up"]],
-        [d["amp"] for d in sweep["up"]],
-        "o-",
-        color=theme.INK_BLACK,
-        lw=1.2,
-        ms=4,
-        label="drive ↑",
-    )
-    axB.plot(
-        [d["I_ext"] for d in sweep["down"]],
-        [d["amp"] for d in sweep["down"]],
-        "s--",
-        color=theme.DEEP_RED,
-        lw=1.0,
-        ms=4,
-        markerfacecolor="none",
-        label="drive ↓",
-    )
-    axB.axvline(hopf["I_ext_star"], color=theme.AMBER, lw=0.6, ls=":")
-    axB.set_xlabel("$I_\\text{ext}$ (nA)", fontsize=theme.SIZE_LABEL)
-    axB.set_ylabel("E amplitude (ms$^{-1}$)", fontsize=theme.SIZE_LABEL)
-    axB.set_title(
-        "Mean-field amplitude",
-        loc="left",
-        fontsize=theme.SIZE_LABEL,
-        fontweight="semibold",
-    )
-    axB.legend(fontsize=theme.SIZE_LEGEND, frameon=False, loc="lower right")
-    _panel_letter(axB, "H")
-    _despine(axB)
-
-    axC = fig.add_subplot(gs[2, 2])
-    tg = [d["tau_gaba_ms"] for d in mf if d["f_star_Hz"] is not None]
-    fs = [d["f_star_Hz"] for d in mf if d["f_star_Hz"] is not None]
-    axC.plot(tg, fs, "o-", color=theme.INK_BLACK, lw=1.4, label="mean-field $f^\\star$")
-    if meas:
-        mt = sorted(meas)
-        axC.plot(
-            mt,
-            [meas[t] for t in mt],
-            "s--",
-            color=theme.DEEP_RED,
-            lw=1.3,
-            label="spiking median $f_\\gamma$",
-        )
-    axC.set_xlabel("$\\tau_\\text{GABA}$ (ms)", fontsize=theme.SIZE_LABEL)
-    axC.set_ylabel("gamma frequency (Hz)", fontsize=theme.SIZE_LABEL)
-    axC.set_title(
-        "Frequency comparison",
-        loc="left",
-        fontsize=theme.SIZE_LABEL,
-        fontweight="semibold",
-    )
-    axC.legend(fontsize=theme.SIZE_LEGEND, frameon=False, loc="upper right")
-    _panel_letter(axC, "I")
-    _despine(axC)
-
-    save_figure(fig, out_path, formats=("png", "pdf"))
-    plt.close(fig)
-    theme.set_paper_mode(prev_paper)  # restore the notebook's screen-mode default
-    theme.apply()

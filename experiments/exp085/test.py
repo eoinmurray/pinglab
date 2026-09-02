@@ -289,7 +289,9 @@ def check_article_render(lab, output):
     ]
     assert headings.count("References") == 1
     assert headings.index("Results") < headings.index("Methods")
-    assert "; the lower panels" in re.sub("<[^>]+>", "", html)
+    assert "(B) Local and probe excitatory conductance" in re.sub(
+        "<[^>]+>", "", html
+    )
     assert len(re.findall(r"<img\b", html)) == 6
     assert len(re.findall(r'<math display="block">', html)) == 1
     assert re.search(
@@ -299,7 +301,9 @@ def check_article_render(lab, output):
         re.S,
     )
     abstract = re.search(
-        r"<h[1-6][^>]*>Abstract</h[1-6]>(.*?)<h[1-6]", html, re.S
+        r'<h[1-6][^>]*>Abstract</h[1-6]>(.*?)<nav aria-label="Table of Contents">',
+        html,
+        re.S,
     ).group(1)
     assert 'href="#ref-' not in abstract
     assert 60 <= len(re.sub("<[^>]+>", " ", abstract).split()) <= 120

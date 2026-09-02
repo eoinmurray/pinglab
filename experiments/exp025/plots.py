@@ -169,6 +169,7 @@ def plot_rate_target_p_fgamma(
     ax_a.legend(fontsize=theme.SIZE_LABEL, frameon=False, loc="lower left")
 
     # No baked-in suptitle: the caption carries the takeaway (HOUSESTYLE H17).
+    theme.label_panels(axes.flat)
     fig.tight_layout()
     save_figure(fig, out_path)
     plt.close(fig)
@@ -244,6 +245,7 @@ def plot_low_w_in(rows: list[dict], curves: dict, out_path: Path, run_id: str) -
 
     # No baked-in suptitle: the caption carries the takeaway (HOUSESTYLE H17). The
     # per-column $W_"in"$ headers identify the panels.
+    theme.label_panels(axes.flat)
     fig.tight_layout()
     save_figure(fig, out_path)
     plt.close(fig)
@@ -355,6 +357,7 @@ def plot_w_in_scale_sweep(
     axes[0].legend(fontsize=theme.SIZE_LABEL, frameon=False, loc="upper right")
     # No baked-in suptitle: the caption carries the takeaway (HOUSESTYLE H17). The
     # s = 1 dashed line and ≈ f* dotted line are already annotated in-panel.
+    theme.label_panels(axes_2d.flat)
     fig.tight_layout()
     save_figure(fig, out_path)
     plt.close(fig)
@@ -477,6 +480,7 @@ def plot_w_in_scale_sweep_vs_rate(
     axes[0].legend(fontsize=theme.SIZE_LABEL, frameon=False, loc="upper right")
     # No baked-in suptitle: the caption carries the takeaway (HOUSESTYLE H17). The
     # trained-point stars are already annotated in-panel.
+    theme.label_panels(axes_2d.flat)
     fig.tight_layout()
     save_figure(fig, out_path)
     plt.close(fig)
@@ -511,6 +515,7 @@ def fig_results_compound(frontier_stats, curves, npz_coba, npz_ping, out_path, r
     )
 
     # --- top row: two rasters side by side (E black, I red above) ---
+    raster_axes = []
     for col, (npz_path, title) in enumerate(
         [
             (npz_coba, "COBA — loop off"),
@@ -518,6 +523,7 @@ def fig_results_compound(frontier_stats, curves, npz_coba, npz_ping, out_path, r
         ]
     ):
         ax = fig.add_subplot(gs[0, col])
+        raster_axes.append(ax)
         data = np.load(npz_path)
         dt = float(data["dt"])
         T, N_E, N_I = int(data["T"]), int(data["n_e"]), int(data["n_i"])
@@ -670,6 +676,7 @@ def fig_results_compound(frontier_stats, curves, npz_coba, npz_ping, out_path, r
     )
     _despine(ax_fr)
 
+    theme.label_panels((*raster_axes, ax_acc, ax_fr))
     out_path.parent.mkdir(parents=True, exist_ok=True)
     save_figure(fig, out_path, formats=("png", "pdf"))  # dense rasters: PNG, not SVG
     plt.close(fig)

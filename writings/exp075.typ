@@ -1,4 +1,4 @@
-#import "contents.typ": with-contents, result-card, with-numbered-equations, with-result-sections
+#import "contents.typ": contents-here, with-contents, result-card, with-numbered-equations, with-result-sections
 #import "/.demolab/lib.typ": data-json, data-image, cite, reference-list
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
 #import "run-view.typ": with-datasets, run-view
@@ -6,7 +6,7 @@
 #let data-file = data-file.with(article: "exp075")
 
 #let meta = (
-  status: "[▦ DATA | v31.2.0]",
+  status: "[▦ DATA | v33.0.0]",
   title: "A compiled graph learns",
   updated_at: "2026-08-31T00:00:00Z",
   created_at: "2026-07-31T00:00:00Z",
@@ -39,6 +39,8 @@
   interface on a bounded example, not competitive classification performance or
   broad generalization.
 
+  #contents-here()
+
   == Results
 
   #with-result-sections[
@@ -61,8 +63,8 @@
   accuracy.
 
   #figure(data-image(data-file("exp075/training_curves.png"), width: 100%),
-    caption: [Training and validation cross-entropy and validation accuracy
-      over #r.config.epochs epochs. Validation values average
+    caption: [*(A)* Training and validation cross-entropy and *(B)* validation
+      accuracy over #r.config.epochs epochs. Validation values average
       #r.config.validation_encoder_draws.count fixed stochastic encodings.
       The dashed line marks ten-class chance accuracy.])
 

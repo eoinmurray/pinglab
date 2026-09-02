@@ -74,8 +74,8 @@ def present(identity: str, *, run_id: str | None = None) -> str:
                 cell.upper(),
             )
         titles = {
-            "coba": "A   COBA — recurrent loop off",
-            "ping": "B   PING — recurrent loop active",
+            "coba": "COBA — recurrent loop off",
+            "ping": "PING — recurrent loop active",
         }
         for name, include_arch in (
             ("raster_compound", False),

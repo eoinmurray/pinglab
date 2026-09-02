@@ -1,6 +1,6 @@
 # Writing Guide
 
-Version: **31.2.0**
+Version: **33.0.0**
 
 The Writing Guide defines the conventions for Pinglab's published experiment
 entries in `writings/expXXX.typ`. This file is the canonical guide.
@@ -14,6 +14,14 @@ corrections or clarifications that do not change requirements. Update the versio
 above and add a short entry to the version history when changing the guide.
 
 ### 1.1. Version history
+
+- **33.0.0** — Place an article's Abstract before its Table of Contents so
+  readers encounter the experiment summary before its navigation. Keep the
+  Table of Contents before the first section on entries without an Abstract.
+
+- **32.0.0** — Require every distinct panel in a multi-panel scientific figure
+  to carry a consistent uppercase letter and require captions and prose to use
+  those labels instead of positional references.
 
 - **31.2.0** — Add the explicit author-assigned `◉ REVIEWED` article status.
   Keep review distinct from inferred local-data availability and record the
@@ -335,8 +343,8 @@ version as `X.Y.Z`. Demolab displays the authored status string.
 
 | Label | Meaning |
 | --- | --- |
-| `[≡ TXT \| v31.2.0]` | Article only: no usable, validated local presentation data is available for any declared article input, or the article declares no data inputs. |
-| `[▦ DATA \| v31.2.0]` | Local data: usable, validated local presentation data is available for at least one declared article input, including reused upstream results. |
+| `[≡ TXT \| v33.0.0]` | Article only: no usable, validated local presentation data is available for any declared article input, or the article declares no data inputs. |
+| `[▦ DATA \| v33.0.0]` | Local data: usable, validated local presentation data is available for at least one declared article input, including reused upstream results. |
 | `◉ REVIEWED` | The author explicitly reviewed and accepted the article in its current scientific and written form. Agents must never infer this status from tests, data, rendering or their own review. |
 
 The availability badges report the working checkout at the last agent check,
@@ -738,17 +746,25 @@ for precision.
 ### 4.1. Table of Contents
 
 Every `writings/expXXX.typ`, including reference pages and figure galleries,
-must render exactly one `Table of Contents` at the beginning of its body, after
-the title/metadata and before `Abstract`. Use the shared `contents.typ` helper:
+must render exactly one `Table of Contents`. When an Abstract is present, render
+the complete Abstract immediately after the title/metadata and place the Table
+of Contents between the Abstract and the next section. Use the shared
+`contents.typ` helper:
 
 ```typst
-#import "contents.typ": with-contents, with-result-sections
-// Define the article body and apply any dataset/report wrappers first.
+#import "contents.typ": contents-here, with-contents, with-result-sections
+// Place this marker after the complete Abstract and before the next section.
+#contents-here()
+// Define the complete article body and apply any dataset/report wrappers first.
 #let body = with-contents(body)
 ```
 
 - Apply this as the final body wrapper, outside data-readiness branches, so
   navigation is present in both populated and unavailable-data views.
+- In entries with an Abstract, place exactly one `#contents-here()` marker after
+  its complete prose and before the next level-2 section. The marker fixes the
+  TOC position without changing section anchors. Do not place it inside the
+  Abstract prose or after the following heading.
 - Generate linked entries from the current article's rendered level-2 (`==`)
   section headings, in document order, including Abstract, Dataset, appendices
   and References when present. Beneath `Results`, include every direct level-3
@@ -758,7 +774,10 @@ the title/metadata and before `Abstract`. Use the shared `contents.typ` helper:
   Links must work in HTML and PDF; do not maintain a manual link list or use an
   unscoped, document-wide outline.
 - If an existing reference page or gallery has no Abstract, place the TOC before
-  its first content instead. This navigation requirement does not authorize
+  its first content instead. If Abstract is the only section, place the TOC after
+  it by putting the marker at the end of the body. Omit the marker from entries
+  without an Abstract; the shared wrapper then keeps the TOC first. This
+  navigation requirement does not authorize
   inventing an abstract or changing scientific prose. Unavailable-data views
   list only the sections they actually render, never unavailable results.
 - Update existing entries by removing their old contents heading/list and
@@ -806,7 +825,9 @@ the title/metadata and before `Abstract`. Use the shared `contents.typ` helper:
 
 Write a standalone prose abstract, split across paragraphs, that quickly restores
 the story of the experiment for a reader already familiar with the project. Aim
-for around 65 words and do not use bullet points.
+for around 65 words and do not use bullet points. Abstract must be the first
+rendered section after the title/metadata; place `#contents-here()` after its
+complete prose so the Table of Contents follows it.
 
 ### Ground the abstract before writing
 
@@ -961,6 +982,16 @@ the scientific hierarchy or content rules.
     numbering; do not recreate either counter in article-local Typst or CSS.
     The subsection must remain readable in targets that omit borders or other
     card chrome.
+11. Label every distinct scientific panel in a multi-panel figure `A`, `B`, `C`
+    and so forth, continuing `AA`, `AB` and so forth after `Z` when necessary.
+    Place each label consistently at the panel's upper-left in
+    high-contrast text that remains legible at final display size. Assign labels
+    in reading order, left-to-right and then top-to-bottom. Refer to panels in
+    captions and prose as `(A)`, `(B)`, and so forth; describe every panel in the
+    caption and do not substitute positional references such as “top”, “bottom”,
+    “left” or “right”. Colour bars, legends, shared titles and purely dependent
+    insets are not separate panels. An inset that presents independently
+    interpretable evidence is a panel and requires its own label.
 
 When updating existing headings, remove their taglines and repair any authored
 links to former anchors. The shared TOC picks up the plain heading automatically.

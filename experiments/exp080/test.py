@@ -631,13 +631,22 @@ def test_article_renders_explicit_evidence_without_false_branches(repo, view):
         return
     assert result.returncode == 0, result.stderr
     html = (root / "article.html").read_text()
-    assert html.count('<nav aria-label="Table of Contents">') == 1
+    contents = '<nav aria-label="Table of Contents">'
+    assert html.count(contents) == 1
     assert "else [" not in html
     if view == "absent":
+        assert html.index(contents) < html.index("A required run is unavailable")
         assert 'class="pinglab-numbered-equation"' not in html
         assert "All three nonlinear decoders reached" not in html
         assert "A required run is unavailable" in html
         return
+    rendered_headings = tuple(
+        (re.sub("<[^>]+>", "", match.group(1)).removesuffix("#").strip(), match)
+        for match in re.finditer(r"<h[1-6]\b[^>]*>(.*?)</h[1-6]>", html, re.S)
+    )
+    abstract = next(match for title, match in rendered_headings if title == "Abstract")
+    results = next(match for title, match in rendered_headings if title == "Results")
+    assert abstract.end() < html.index(contents) < results.start()
     headings = re.findall(r"<h3\b[^>]*>(.*?)</h3>", html, re.S)
     assert sum(heading.startswith("References") for heading in headings) == 1
     assert html.count('class="pinglab-numbered-equation"') == 3

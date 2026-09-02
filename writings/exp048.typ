@@ -1,4 +1,4 @@
-#import "contents.typ": with-contents, result-card, with-numbered-equations, with-result-sections
+#import "contents.typ": contents-here, with-contents, result-card, with-numbered-equations, with-result-sections
 #import "/.demolab/lib.typ": cite, data-image, data-json, reference-list
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
 #import "run-view.typ": with-datasets, run-view
@@ -6,7 +6,7 @@
 #let data-file = data-file.with(article: "exp048")
 
 #let meta = (
-  status: "[▦ DATA | v31.2.0]",
+  status: "[▦ DATA | v33.0.0]",
   title: "[DEPRECATED] Accuracy Across Duration and Input Rate",
   created_at: "2026-06-08T00:00:00Z",
   updated_at: "2026-08-31T00:00:00Z",
@@ -84,6 +84,8 @@
     study motivated exp082's variable-rate training and spike-count readout; it
     did not test blind boundary detection.
 
+    #contents-here()
+
     == Results
 
     #with-result-sections[
@@ -105,10 +107,10 @@
           alt: "A digit stream where each segment has its own duration and input rate, with errors marked in red.",
         ),
         caption: [Historical illustrative classification when presentation duration and encoding rate vary
-          between segments. The segment conditions are #varying-conditions. Thumbnail
-          opacity increases with encoding rate. The middle panels plot E- and I-neuron
-          spike rasters against time (ms); the lower panel plots class probability
-          against time (ms), with the true class emphasized in red.
+          between segments. The segment conditions are #varying-conditions.
+          *(A)* Input thumbnails, whose opacity increases with encoding rate;
+          *(B)* E-neuron spikes; *(C)* I-neuron spikes; and *(D)* class
+          probability against time, with the true class emphasized in red.
           The raster panels show sampled neurons in rank order; their endpoint labels
           denote population sizes, not the number of displayed neurons.],
       )

@@ -1,0 +1,104 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="3024" height="1964" viewBox="0 0 924 600" role="img" aria-labelledby="title description">
+  <title id="title">EXP099 external-input map</title>
+  <desc id="description">Three horizontal input lanes show excitatory afferent spikes, fast AMPA background and slow GABA background. Each lane branches to both the excitatory and inhibitory populations. Slow weather modulates every external input rate, while a transient wave applies to afferents only.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#1a1a1a"/></marker>
+    <marker id="amber-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#e89400"/></marker>
+    <marker id="inhibitory-bar" markerWidth="8" markerHeight="11" refX="7" refY="5.5" orient="auto"><path d="M7 0V11" stroke="#c8102e" stroke-width="2.4"/></marker>
+    <style>
+      text { fill: #1a1a1a; font-family: "JetBrains Mono", "IBM Plex Mono", Menlo, Consolas, "Courier New", "DejaVu Sans Mono", monospace; }
+      .title { font-size: 22px; font-weight: 700; }
+      .section { font-size: 14px; font-weight: 700; letter-spacing: 1.1px; fill: #6a6a6a; }
+      .label { font-size: 17px; font-weight: 700; }
+      .body { font-size: 15px; }
+      .small { font-size: 15px; fill: #6a6a6a; }
+      .source { fill: #ffffff; stroke: #1a1a1a; stroke-width: 1.5; }
+      .source-i { fill: #ffffff; stroke: #c8102e; stroke-width: 1.5; }
+      .weather { fill: #ffffff; stroke: #e89400; stroke-width: 1.5; }
+      .target { fill: #ffffff; stroke: #1a1a1a; stroke-width: 1.8; }
+      .rule { stroke: #e7e5df; stroke-width: 1; }
+      .ink { fill: none; stroke: #1a1a1a; stroke-width: 2; stroke-linecap: butt; stroke-linejoin: miter; }
+      .red { fill: none; stroke: #c8102e; stroke-width: 2; stroke-linecap: butt; stroke-linejoin: miter; }
+      .amber { fill: none; stroke: #e89400; stroke-width: 1.6; stroke-dasharray: 5 4; }
+      .route-e { fill: none; stroke: #1a1a1a; stroke-width: 1.7; marker-end: url(#arrow); }
+      .route-i { fill: none; stroke: #c8102e; stroke-width: 1.7; marker-end: url(#inhibitory-bar); }
+      .weather-route { fill: none; stroke: #e89400; stroke-width: 1.4; stroke-dasharray: 5 4; marker-end: url(#amber-arrow); }
+    </style>
+  </defs>
+  <rect width="924" height="600" fill="#ffffff"/>
+
+  <text x="34" y="38" class="title">EXP099 · INPUT MAP</text>
+  <text x="34" y="64" class="small">External input</text>
+  <text x="744" y="64" class="small">Network target</text>
+  <line x1="34" y1="76" x2="890" y2="76" class="rule"/>
+
+  <rect x="338" y="24" width="300" height="43" class="weather"/>
+  <path d="M354 52 C365 33 378 62 390 44 S415 58 429 40" class="amber"/>
+  <text x="447" y="43" class="body" font-weight="700">SLOW WEATHER</text>
+  <text x="447" y="58" class="small">all rates up/down</text>
+  <path d="M488 67 V106 H308" class="weather-route"/>
+  <path d="M488 67 V260 H308" class="weather-route"/>
+  <path d="M488 67 V414 H308" class="weather-route"/>
+
+  <rect x="34" y="99" width="274" height="126" class="source"/>
+  <text x="52" y="124" class="section">1 · AFFERENT SPIKES</text>
+  <g fill="#1a1a1a">
+    <rect x="54" y="153" width="2" height="17"/><rect x="78" y="153" width="2" height="17"/>
+    <rect x="118" y="153" width="2" height="17"/><rect x="131" y="153" width="2" height="17"/>
+    <rect x="143" y="153" width="2" height="17"/><rect x="155" y="153" width="2" height="17"/>
+    <rect x="167" y="153" width="2" height="17"/><rect x="179" y="153" width="2" height="17"/>
+    <rect x="229" y="153" width="2" height="17"/><rect x="272" y="153" width="2" height="17"/>
+  </g>
+  <line x1="52" y1="171" x2="289" y2="171" class="rule"/>
+  <text x="52" y="194" class="body">quiet → burst → quiet</text>
+  <text x="52" y="213" class="small">10 Hz shared · 15 Hz private</text>
+
+  <rect x="338" y="119" width="170" height="86" class="weather"/>
+  <text x="353" y="141" class="section" fill="#e89400">AFFERENTS ONLY</text>
+  <text x="353" y="162" class="body" font-weight="700">transient wave</text>
+  <text x="353" y="181" class="small">private 1.2×</text>
+  <text x="353" y="198" class="small">shared 6.5×</text>
+  <path d="M308 162 H338" class="weather-route"/>
+
+  <rect x="34" y="253" width="274" height="126" class="source"/>
+  <text x="52" y="278" class="section">2 · AMPA BACKGROUND</text>
+  <path d="M53 326 H75 L81 296 L88 326 H122 L128 300 L135 326 H170 L176 296 L183 326 H288" class="ink"/>
+  <text x="52" y="350" class="body">fast excitatory taps</text>
+  <text x="52" y="369" class="small">500 private · 80 shared · τ 2 ms</text>
+
+  <rect x="34" y="407" width="274" height="126" class="source-i"/>
+  <text x="52" y="432" class="section" fill="#c8102e">3 · GABA BACKGROUND</text>
+  <path d="M53 480 H75 L82 450 C91 463 105 476 126 480 H151 L158 450 C170 469 190 480 288 480" class="red"/>
+  <text x="52" y="504" class="body">slow inhibitory brakes</text>
+  <text x="52" y="523" class="small">500 private · 80 shared · τ 9 ms</text>
+
+  <text x="548" y="103" class="small">each input branches to both populations</text>
+  <path d="M508 162 H550 V159 H736" class="route-e"/>
+  <path d="M550 162 V403 H736" class="route-e"/>
+  <path d="M308 316 H592 V183 H736" class="route-e"/>
+  <path d="M592 316 V427 H736" class="route-e"/>
+  <path d="M308 470 H634 V207 H736" class="route-i"/>
+  <path d="M634 470 V451 H736" class="route-i"/>
+
+  <rect x="744" y="120" width="146" height="126" class="target"/>
+  <circle cx="774" cy="151" r="18" fill="#1a1a1a"/>
+  <text x="774" y="156" text-anchor="middle" class="body" style="fill:#ffffff;font-weight:700">E</text>
+  <text x="802" y="148" class="label">400</text>
+  <text x="802" y="166" class="small">neurons</text>
+  <line x1="762" y1="181" x2="872" y2="181" class="rule"/>
+  <text x="762" y="202" class="small">afferent AMPA</text>
+  <text x="762" y="219" class="small">+ AMPA/GABA bg</text>
+
+  <rect x="744" y="364" width="146" height="126" class="target"/>
+  <circle cx="774" cy="395" r="18" fill="#c8102e"/>
+  <text x="774" y="400" text-anchor="middle" class="body" style="fill:#ffffff;font-weight:700">I</text>
+  <text x="802" y="392" class="label">100</text>
+  <text x="802" y="410" class="small">neurons</text>
+  <line x1="762" y1="425" x2="872" y2="425" class="rule"/>
+  <text x="762" y="446" class="small">afferent AMPA</text>
+  <text x="762" y="463" class="small">+ AMPA/GABA bg</text>
+
+  <line x1="34" y1="560" x2="890" y2="560" class="rule"/>
+  <text x="34" y="582" class="body" font-weight="700">E-target / I-target = destination</text>
+  <text x="365" y="582" class="small">Both afferents excite · weather changes rate, not strength</text>
+</svg>

@@ -1,4 +1,4 @@
-#import "contents.typ": with-contents, result-card, with-numbered-equations, with-result-sections
+#import "contents.typ": contents-here, with-contents, result-card, with-numbered-equations, with-result-sections
 #import "/.demolab/lib.typ": data-json, data-image
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
 #import "run-view.typ": with-datasets, run-view
@@ -7,7 +7,7 @@
 #let data-file = data-file.with(article: "exp085")
 
 #let meta = (
-  status: "[▦ DATA | v31.2.0]",
+  status: "[▦ DATA | v33.0.0]",
   title: "Lowet 2015",
   created_at: "2026-08-19T00:00:00Z",
   updated_at: "2026-08-31T00:00:00Z",
@@ -54,6 +54,8 @@
   Distinguishes candidate pathways in the selected regime, not their dominance
   across delays, detuning, noise or network realizations.
 
+  #contents-here()
+
   == Results
 
   #with-result-sections[
@@ -78,7 +80,8 @@
 
   #figure(
     data-image(data-file("exp085/uncoupled.png"), width: 88%, alt: "Two clean PING rhythms above their continually wrapping relative phase."),
-    caption: [Uncoupled population rhythms after the 300 ms burn-in. Rate
+    caption: [Uncoupled population rhythms after the 300 ms burn-in: *(A)*
+      Network A rates, *(B)* Network B rates and *(C)* wrapped relative phase. Rate
       excerpts are normalized to each trace's maximum. This is one seeded
       trajectory, not an across-seed estimate.],
   )
@@ -94,8 +97,8 @@
 
   #figure(
     data-image(data-file("exp085/phase_response_examples.png"), width: 88%, alt: "Examples of an E-targeted advance, an ineffective I-targeted probe, and an I-targeted doublet and delay."),
-    caption: [Three illustrative probes at nominal phases E/0.70, I/0.08 and
-      I/0.12. Each trial added one coupling-matched volley to the same baseline
+    caption: [Three illustrative probes: *(A)* E/0.70, *(B)* I/0.08 and
+      *(C)* I/0.12. Each trial added one coupling-matched volley to the same baseline
       input realization; these examples are reused in the phase-response curve.
       Each rate trace is normalized to its window maximum.],
   )
@@ -113,9 +116,11 @@
 
   #figure(
     data-image(data-file("exp085/phase_response.png"), width: 92%, alt: "Phase responses to E-targeted and I-targeted probe volleys, including the conductance and voltage mechanism of an inhibitory doublet."),
-    caption: [One probe per sampled phase and target population. Lower panels
-      show residual local excitation and the probe jointly recruiting recovered
-      I neurons; lower traces are means across I neurons.],
+    caption: [*(A)* Phase-response curves for E- and I-targeted probes. *(B)*
+      Local and probe excitatory conductance onto I neurons and *(C)* their mean
+      membrane voltage during an inhibitory doublet. The mechanism panels show
+      residual local excitation and the probe jointly recruiting recovered I
+      neurons; traces are means across I neurons.],
   )
 
   ]
@@ -134,8 +139,9 @@
 
   #figure(
     data-image(data-file("exp085/pathway_comparison.png"), width: 88%, alt: "Relative-phase change after coupling onset for no coupling, E-to-E only, E-to-I only, and both pathways."),
-    caption: [Relative-phase change after coupling onset for four conditions
-      sharing the same initial dynamical state and subsequent drive.],
+    caption: [Relative-phase change after coupling onset for *(A)* no coupling,
+      *(B)* E-to-E only, *(C)* E-to-I only and *(D)* both pathways, sharing the
+      same initial dynamical state and subsequent drive.],
   )
 
   ]
@@ -150,8 +156,10 @@
 
   #figure(
     data-image(data-file("exp085/event_aligned_mechanism.png"), width: 92%, alt: "Cross-network excitation followed by an advanced excitatory volley and advanced feedback inhibition."),
-    caption: [Illustrative event from the same no-coupling and E-to-E conditions.
-      Conductances are means across target E neurons.],
+    caption: [Illustrative event from the same no-coupling and E-to-E conditions:
+      *(A)* cross-network excitation onto target E neurons, *(B)* the advanced
+      target-E volley and *(C)* the following feedback inhibition. Conductances
+      are means across target E neurons.],
   )
 
   ]

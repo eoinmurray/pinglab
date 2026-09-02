@@ -61,6 +61,7 @@ CYCLE = [INK_BLACK, DEEP_RED, ELECTRIC_CYAN, AMBER, GREY_DARK, GREY_MID]
 # disciplined: prefer reusing one of these over inventing a new size.
 SIZE_BASE = 10.5      # default text
 SIZE_TITLE = 11       # plot title (bold)
+SIZE_PANEL = 13       # panel letters (bold; must survive final figure scaling)
 SIZE_LABEL = 10       # axis labels
 SIZE_TICK = 9         # tick labels
 SIZE_LEGEND = 9       # legend body
@@ -74,9 +75,9 @@ SIZE_CAPTION = 8      # figure captions / footers
 # plotting code runs — it reassigns the SIZE_* ladder above (which the
 # notebook plot functions read directly) and flips apply() into print rc.
 PAPER_MODE = False
-_SCREEN_SIZES = dict(BASE=10.5, TITLE=11, LABEL=10, TICK=9,
+_SCREEN_SIZES = dict(BASE=10.5, TITLE=11, PANEL=13, LABEL=10, TICK=9,
                      LEGEND=9, ANNOTATION=8, CAPTION=8)
-_PAPER_SIZES = dict(BASE=8.0, TITLE=8.5, LABEL=8.0, TICK=7.0,
+_PAPER_SIZES = dict(BASE=8.0, TITLE=8.5, PANEL=10.0, LABEL=8.0, TICK=7.0,
                     LEGEND=7.0, ANNOTATION=6.5, CAPTION=6.5)
 
 
@@ -84,11 +85,13 @@ def set_paper_mode(on: bool = True) -> None:
     """Switch the typography ladder between screen and print. Reassigns the
     module-level SIZE_* tokens so notebook plot code (which reads them at call
     time) picks up the print sizes, and records the mode for apply()."""
-    global PAPER_MODE, SIZE_BASE, SIZE_TITLE, SIZE_LABEL
+    global PAPER_MODE, SIZE_BASE, SIZE_TITLE, SIZE_PANEL, SIZE_LABEL
     global SIZE_TICK, SIZE_LEGEND, SIZE_ANNOTATION, SIZE_CAPTION
     PAPER_MODE = on
     s = _PAPER_SIZES if on else _SCREEN_SIZES
-    SIZE_BASE, SIZE_TITLE, SIZE_LABEL = s["BASE"], s["TITLE"], s["LABEL"]
+    SIZE_BASE, SIZE_TITLE, SIZE_PANEL, SIZE_LABEL = (
+        s["BASE"], s["TITLE"], s["PANEL"], s["LABEL"]
+    )
     SIZE_TICK, SIZE_LEGEND = s["TICK"], s["LEGEND"]
     SIZE_ANNOTATION, SIZE_CAPTION = s["ANNOTATION"], s["CAPTION"]
 
@@ -214,3 +217,62 @@ def apply() -> None:
             "pdf.fonttype": 42,
             "ps.fonttype": 42,
         })
+
+
+def label_panel(ax, label: str, *, x: float = -0.08, y: float = 1.04):
+    """Add one canonical uppercase panel label to a Matplotlib axes."""
+    if not isinstance(label, str) or len(label) != 1 or not label.isalpha():
+        raise ValueError("panel label must be one alphabetic character")
+    return ax.text(
+        x,
+        y,
+        label.upper(),
+        transform=ax.transAxes,
+        ha="right",
+        va="bottom",
+        fontsize=SIZE_PANEL,
+        fontweight="bold",
+        color=INK_BLACK,
+        clip_on=False,
+        zorder=100,
+    )
+
+
+def label_panels(axes, labels=None) -> list:
+    """Label a flat, row-major sequence of scientific panel axes."""
+    axes = list(axes)
+    if labels is None:
+        def automatic_label(index: int) -> str:
+            label = ""
+            index += 1
+            while index:
+                index, remainder = divmod(index - 1, 26)
+                label = chr(ord("A") + remainder) + label
+            return label
+
+        labels = [automatic_label(index) for index in range(len(axes))]
+    else:
+        labels = list(labels)
+    if len(axes) != len(labels):
+        raise ValueError("panel axes and labels must have the same length")
+    artists = []
+    for ax, label in zip(axes, labels):
+        if len(label) == 1:
+            artists.append(label_panel(ax, label))
+        else:
+            artists.append(
+                ax.text(
+                    -0.08,
+                    1.04,
+                    label,
+                    transform=ax.transAxes,
+                    ha="right",
+                    va="bottom",
+                    fontsize=SIZE_PANEL,
+                    fontweight="bold",
+                    color=INK_BLACK,
+                    clip_on=False,
+                    zorder=100,
+                )
+            )
+    return artists

@@ -1,7 +1,7 @@
 #import "contents.typ": with-contents, with-numbered-equations
 #import "run-view.typ": with-datasets
 #let meta = (
-  status: "[≡ TXT | v31.2.0]",
+  status: "[≡ TXT | v33.0.0]",
   title: "Training",
   updated_at: "2026-08-29T00:00:00Z",
   created_at: "2026-05-14T00:00:00Z",
@@ -120,7 +120,7 @@
 
   Here $n_"spike"(b,n)$ is the spike count of hidden excitatory neuron $n$ in presentation $b$, $N_E$ is the number of those neurons, $T_"present"$ is presentation duration in seconds, $B$ is minibatch size, $r_b$ and $r_(E,"ceil")$ are rates in Hz, and $lambda_"rate"$ is the configured rate-penalty coefficient.
 
-  The ceiling is applied separately to each presentation's population-mean hidden-E rate before averaging across the minibatch. The loss is normalised over neurons, presentation duration, samples, and hidden layers. This is the mechanism behind the activity sweep in #link("/exp025/")[exp025] and the rate-floor framing in #link("/exp109/")[exp109].
+  The ceiling is applied separately to each presentation's population-mean hidden-E rate before averaging across the minibatch. The loss is normalised over neurons, presentation duration, samples, and hidden layers. This is the mechanism behind #link("/exp025/")[the activity-ceiling comparison]; #link("/exp024/")[the training-convergence study] tests the associated rate-plateau interpretation.
 
   == Weight init
 

@@ -158,6 +158,7 @@ def fig_rhythm_compound(
         legend_loc="center left",
     )
     # H17: caption carries the takeaway
+    theme.label_panels(axes.flat)
     fig.tight_layout(rect=(0, 0, 1, 0.96))
     out_path.parent.mkdir(parents=True, exist_ok=True)
     save_figure(fig, out_path, formats=("png",))  # dense rasters: PNG, not SVG

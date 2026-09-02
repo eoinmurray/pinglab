@@ -5,11 +5,75 @@ import sys
 from pathlib import Path
 
 import numpy as np
+from PIL import Image, ImageDraw, ImageFont
 
 REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
 from experiments.exp082 import evidence, inputs, plots, recipe
 from pingstore.contracts import PingstoreError, load_json, write_json_atomic
+
+
+def _panel_font(height: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
+    size = max(18, round(height * 0.052))
+    try:
+        return ImageFont.truetype("DejaVuSansMono-Bold.ttf", size)
+    except OSError:
+        return ImageFont.load_default(size=size)
+
+
+def _relabel_summary_panel(image: Image.Image, label: str) -> Image.Image:
+    image = image.convert("RGB")
+    width, height = image.size
+    draw = ImageDraw.Draw(image)
+    draw.rectangle((0, 0, round(width * 0.14), round(height * 0.10)), fill="white")
+    draw.text(
+        (round(width * 0.035), round(height * 0.014)),
+        label,
+        font=_panel_font(height),
+        fill="black",
+    )
+    return image
+
+
+def _fit_panel(image: Image.Image, width: int, height: int) -> Image.Image:
+    fitted = image.copy()
+    fitted.thumbnail((width, height), Image.Resampling.LANCZOS)
+    panel = Image.new("RGB", (width, height), "white")
+    panel.paste(fitted, ((width - fitted.width) // 2, (height - fitted.height) // 2))
+    return panel
+
+
+def build_continuous_stream_compound(
+    hero_path: Path, summary_path: Path, output_stem: Path
+) -> None:
+    """Place the duration and rate panels vertically to the right of the stream."""
+    with (
+        Image.open(hero_path) as hero_source,
+        Image.open(summary_path) as summary_source,
+    ):
+        hero = hero_source.convert("RGB")
+        summary = summary_source.convert("RGB")
+    left_end = round(summary.width * 0.575)
+    right_start = round(summary.width * 0.56)
+    summary_top = _relabel_summary_panel(
+        summary.crop((0, 0, left_end, summary.height)), "E"
+    )
+    summary_bottom = _relabel_summary_panel(
+        summary.crop((right_start, 0, summary.width, summary.height)), "F"
+    )
+    gap = round(hero.width * 0.02)
+    column_width = round(hero.width * 0.52)
+    cell_height = (hero.height - gap) // 2
+    top = _fit_panel(summary_top, column_width, cell_height)
+    bottom = _fit_panel(summary_bottom, column_width, cell_height)
+    composite = Image.new(
+        "RGB", (hero.width + gap + column_width, hero.height), "white"
+    )
+    composite.paste(hero, (0, 0))
+    composite.paste(top, (hero.width + gap, 0))
+    composite.paste(bottom, (hero.width + gap, cell_height + gap))
+    composite.save(output_stem.with_suffix(".png"), dpi=(300, 300))
+    composite.save(output_stem.with_suffix(".pdf"), "PDF", resolution=300)
 
 
 def present(identity, *, run_id=None):
@@ -85,7 +149,7 @@ def present(identity, *, run_id=None):
         "present",
         sources={"analysis": source},
         run_id=run_id,
-        configuration={"schema": "exp082.presentation/v2"},
+        configuration={"schema": "exp082.presentation/v3"},
     ) as run:
         out, rid = run.export, run.run_id
         plots.plot_variable_headline(streams["hero"], out / "hero_stream.png", rid)
@@ -105,6 +169,11 @@ def present(identity, *, run_id=None):
         )
         plots.plot_duration_rate_summary(
             result["plot_data"], out / "duration_rate_summary.png", rid
+        )
+        build_continuous_stream_compound(
+            out / "hero_stream.png",
+            out / "duration_rate_summary.png",
+            out / "continuous_stream_compound",
         )
         write_json_atomic(out / "numbers.json", {**result, "run_id": rid})
     return run.run_id

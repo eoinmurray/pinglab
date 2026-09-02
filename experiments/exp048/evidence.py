@@ -3,7 +3,6 @@
 import copy
 import hashlib
 import math
-import shutil
 import time
 
 import numpy as np
@@ -532,7 +531,7 @@ def present_retained(repo, source, *, run_id=None):
         run.record["historical"] = history
         run.record["figure_provenance"] = {
             name: {
-                "operation": "carried-unchanged",
+                "operation": "display-edited-panel-labels",
                 "source": original.reference,
                 "path": f"export/{name}",
                 "sha256": history["source_files"][f"payload/{name}"]["sha256"],
@@ -544,10 +543,11 @@ def present_retained(repo, source, *, run_id=None):
                 "operation": "rendered-from-saved-analysis",
                 "source": source.reference,
             }
-        for name in CARRIED:
-            shutil.copyfile(
-                original.export / name,
-                run.export / name,
+        for stem in ("headline_stream", "varying_headline_stream"):
+            plots.label_retained_stream(
+                original.export / f"{stem}.png",
+                run.export / f"{stem}.png",
+                run.export / f"{stem}.pdf",
             )
         theme.set_paper_mode(True)
         plots.plot_acc_vs_tau(

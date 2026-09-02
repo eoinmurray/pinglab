@@ -1,4 +1,4 @@
-#import "contents.typ": with-contents, result-card, with-numbered-equations, with-result-sections
+#import "contents.typ": contents-here, with-contents, result-card, with-numbered-equations, with-result-sections
 #import "/.demolab/lib.typ": data-json, data-image, cite, reference-list
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
 #import "run-view.typ": with-datasets, run-view
@@ -6,7 +6,7 @@
 #let data-file = data-file.with(article: "exp025")
 
 #let meta = (
-  status: "[▦ DATA | v31.2.0]",
+  status: "[▦ DATA | v33.0.0]",
   title: "Accuracy and Firing Rate With and Without Inhibition",
   created_at: "2026-05-30T00:00:00Z",
   updated_at: "2026-08-31T00:00:00Z",
@@ -93,6 +93,8 @@
   by gradient damping and therefore neither isolates a benefit of gamma timing
   nor measures energy use.
 
+  #contents-here()
+
   == Results
 
   #with-result-sections[
@@ -111,12 +113,12 @@
       alt: "Two-by-two panel: COBA and PING single-trial rasters, per-epoch learning curves, and the accuracy–rate frontier across hidden-E rate ceilings.",
     ),
     caption: [
-      *Top:* illustrative 400 ms rasters for the same digit-0 example, seed 42;
-      E spikes black, I spikes red. *Bottom left:* baseline validation accuracy
-      over training. *Bottom right:* test accuracy versus mean E firing rate
+      (A–B) Illustrative 400 ms COBA and PING rasters for the same digit-0
+      example, seed 42; E spikes are black and I spikes red. (C) Baseline
+      validation accuracy over training. (D) Test accuracy versus mean E firing rate
       across activity ceilings; means ± SEM over three seeds, unpenalised points
       starred. These rates are test-set averages, not raster estimates. PING
-      black, COBA red in the lower panels.
+      black and COBA red in panels C–D.
     ],
   )
 
@@ -137,8 +139,10 @@
       alt: "PING participation fraction p and oscillation frequency f_gamma across the activity-ceiling sweep, with the p·f_gamma product overlaid on the measured E rate.",
     ),
     caption: [
+      (A) PING participation, (B) PING gamma frequency, (C) E rate with the
+      $p_"part" f_gamma$ approximation and (D) accuracy across activity ceilings.
       Five penalised conditions per model, seed 42, #run.recipe.pfg_samples
-      test images each. The dashed curve is the $p_"part" f_gamma$
+      test images each. The dashed curve in C is the $p_"part" f_gamma$
       approximation. These are individual-seed measurements, not across-seed
       estimates.
     ],
@@ -160,11 +164,10 @@
       alt: "Across-seed mean per-epoch validation accuracy and E/I firing rates for four PING input summed-coupling parent means, one column per condition.",
     ),
     caption: [
-      PING learning curves for initial input-coupling means 0.05, 0.1, 0.3,
-      and 0.9 (columns); rate ceiling 1 Hz throughout. Lines and shading show
-      means ± SEM across seeds 42–44. *Top:* validation accuracy, despite the
-      panel label “Test accuracy”. *Bottom:* validation E (black) and I (red)
-      rates.
+      PING learning curves for initial input-coupling means 0.05, 0.1, 0.3 and
+      0.9. Panels A–D show validation accuracy in that order; E–H show validation
+      E (black) and I (red) rates in the same order. The rate ceiling is 1 Hz
+      throughout; lines and shading show means ± SEM across seeds 42–44.
     ],
   )
 
@@ -184,8 +187,9 @@
     caption: [
       Seed-42 networks trained with a 1 Hz ceiling; input weights scaled
       at inference over #run.recipe.scales.len() values, all other weights fixed.
-      *Top:* cross-entropy, rate penalty, and their sum. *Bottom:* test accuracy
-      (dotted chance line), E rate, and I rate; #run.recipe.evaluation_samples
+      (A) Cross-entropy, (B) rate penalty, (C) their sum, (D) test accuracy
+      with a dotted chance line, (E) E rate and (F) I rate;
+      #run.recipe.evaluation_samples
       images per condition. PING black, COBA red. Dashed $s = 1$ marks training;
       the dotted marker labelled $f^*$ denotes the empirical input scale
       #run.plot_data.scale_crossing where I rate crosses 0.05 Hz, not a fitted
@@ -208,8 +212,10 @@
       alt: "The W_in scale sweep re-projected with hidden E rate on the x-axis, trained operating points starred for PING and COBA.",
     ),
     caption: [
-      Figure 4 replotted against mean E rate. Stars mark the trained
-      points: PING #ping_star_e Hz and COBA #coba_star_e Hz.
+      Figure 4 replotted against mean E rate: (A) cross-entropy, (B) rate
+      penalty, (C) their sum, (D) test accuracy, (E) I rate and (F) input-weight
+      scale. Stars mark the trained points: PING #ping_star_e Hz and COBA
+      #coba_star_e Hz.
     ],
   )
 

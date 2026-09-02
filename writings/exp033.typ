@@ -1,4 +1,4 @@
-#import "contents.typ": with-contents, result-card, with-numbered-equations, with-result-sections
+#import "contents.typ": contents-here, with-contents, result-card, with-numbered-equations, with-result-sections
 #import "/.demolab/lib.typ": data-json, data-image, cite, reference-list
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
 #import "run-view.typ": with-datasets, run-view
@@ -6,10 +6,10 @@
 #let data-file = data-file.with(article: "exp033")
 
 #let meta = (
-  status: "[▦ DATA | v31.2.0]",
+  status: "[▦ DATA | v33.0.0]",
   title: "Gamma Emerges at a Hopf Bifurcation",
   created_at: "2026-05-28T00:00:00Z",
-  updated_at: "2026-08-31T00:00:00Z",
+  updated_at: "2026-09-02",
   description: "A four-variable population-rate model links oscillatory onset to synaptic timescales, with explicit limits on its connection to spiking recruitment.",
   collection: "gamma-gated-sparsity",
 )
@@ -18,9 +18,6 @@
 #let preview-figures = (
   (path: "exp033/bifurcation_compound.svg", label: "bifurcation compound"),
   (path: "exp033/sigma_sensitivity.svg", label: "sigma sensitivity"),
-  (path: "exp033/eigenvalues_complex.svg", label: "eigenvalues complex"),
-  (path: "exp033/freq_vs_tau_gaba.svg", label: "freq vs tau gaba"),
-  (path: "exp033/hysteresis.svg", label: "hysteresis"),
   (path: "exp033/limit_cycle.svg", label: "limit cycle"),
   (path: "exp033/timeseries.svg", label: "timeseries"),
   (path: "exp033/phase_planes.svg", label: "phase planes"),
@@ -49,7 +46,6 @@
 #let istar3 = calc.round(d3.I_ext_star, digits: 2)
 #let fstar3 = calc.round(d3.freq_star_Hz, digits: 0)
 #let tg = calc.round(cfg.tau_GABA_ms, digits: 0)
-#let fspk = calc.round(run.results.frequency_vs_tau_gaba.spiking_exp041.at("6.0"), digits: 1)
 #let sens = run.results.sigma_sensitivity
 #let sens-first = sens.rows.first()
 #let sens-last = sens.rows.last()
@@ -71,6 +67,8 @@
   mechanism for rhythmic recruitment, not proof that the trained spiking
   networks undergo the same bifurcation.
 
+  #contents-here()
+
   == Results
 
   #with-result-sections[
@@ -91,8 +89,8 @@
     data-image(data-file("exp033/bifurcation_compound.svg"), width: 100%,
       alt: "Three panels showing eigenvalue crossing, amplitude ramps and frequency versus inhibitory decay."),
     caption: [
-      Eigenvalue crossing, upward and downward amplitude ramps, and onset
-      frequency against inhibitory decay at the 4 mV reference noise scale.
+      (A) Eigenvalue crossing, (B) upward and downward amplitude ramps and (C)
+      onset frequency against inhibitory decay at the 4 mV reference noise scale.
     ],
   ) <fig-overview>
 
@@ -112,78 +110,10 @@
     data-image(data-file("exp033/sigma_sensitivity.svg"), width: 100%,
       alt: "Noise-scale sensitivity of onset drive, absolute frequency, equilibrium rates and relative-onset amplitude."),
     caption: [
-      Onset drive, absolute frequency, equilibrium rates and relative-onset
-      amplitude across effective noise scales of 3, 4, 5 and 6 mV.
+      (A) Onset drive, (B) absolute frequency, (C) equilibrium E/I rates and
+      (D) relative-onset amplitude across effective noise scales of 3, 4, 5 and 6 mV.
     ],
   ) <fig-sigma>
-
-  ]
-
-  #result-card[
-  === Mean-field eigenvalues across external drive
-
-  One conjugate pair crossed the imaginary axis while the remaining pair was
-  damped. The matching recorded onset and amplitude summaries come from a
-  separate execution of the same mean-field model used in the
-  #link("/exp054/")[coupling-map comparison], not independent spiking confirmation.
-
-  #figure(
-    data-image(data-file("exp033/eigenvalues_complex.svg"), width: 100%,
-      alt: "Four eigenvalues per drive, with one conjugate pair crossing the imaginary axis."),
-    caption: [
-      Each drive contributes four eigenvalues. Horizontal position is growth
-      rate and vertical position angular frequency, both in inverse milliseconds;
-      colour denotes drive. Cyan circles mark the first oscillatory crossing;
-      the continuation contains 401 drive points.
-    ],
-  ) <fig-eigenvalues>
-
-  ]
-
-  #result-card[
-  === Mean-field and spiking frequency across inhibitory decay
-
-  Mean-field onset frequency and the median measured frequency of three
-  separately trained spiking networks per decay time both decreased. At #tg ms
-  they were #fstar and #fspk Hz; the mean-field curve was below the spiking curve
-  through 18 ms and above it at 27 ms. Retraining changed weights as well as
-  inhibitory decay, whereas this model held couplings fixed. Omitted spike
-  synchrony is one possible explanation of the mismatch, not a tested cause.
-
-  #figure(
-    data-image(data-file("exp033/freq_vs_tau_gaba.svg"), width: 100%,
-      alt: "Both frequencies decrease with inhibitory decay; the mean-field curve crosses above the spiking curve at 27 ms."),
-    caption: [
-      Mean-field onset frequency and median measured frequency from the
-      #link("/exp041/")[trained-network frequency study] against inhibitory decay.
-      The spiking values aggregate three independently trained networks per decay
-      time and are measurements rather than fitted gain parameters. No uncertainty
-      interval is shown.
-    ],
-  ) <fig-frequency>
-
-  ]
-
-  #result-card[
-  === Upward and downward onset-amplitude ramps
-
-  The 25-point ramps gave a maximum branch gap of
-  $#gapmant times 10^(-6)$ $"ms"^(-1)$ and measured hysteresis width #hystwidth nA
-  at the 0.1 Hz amplitude threshold. The rising-branch squared-amplitude fit had
-  slope $#a2mant times 10^(-4)$ $"ms"^(-2)$/nA and $R_"fit"^2 = #a2r2$. These
-  diagnostics support a supercritical interpretation, but do not rule out a
-  narrow bistable interval or an unstable cycle. No first Lyapunov coefficient
-  was computed #cite(1).
-
-  #figure(
-    data-image(data-file("exp033/hysteresis.svg"), width: 100%,
-      alt: "Upward and downward drive ramps have nearly matching peak-to-peak excitatory amplitudes."),
-    caption: [
-      Upward and downward peak-to-peak E-rate amplitude ramps across 25 drive
-      points. The dotted threshold is 0.1 Hz; the inset shows the rising-branch
-      squared-amplitude fit.
-    ],
-  ) <fig-hysteresis>
 
   ]
 
@@ -217,8 +147,9 @@
     data-image(data-file("exp033/timeseries.svg"), width: 100%,
       alt: "The four state variables share a time axis and show the lagged excitatory-inhibitory feedback sequence."),
     caption: [
-      Reused trajectories at onset plus 0.4 nA, in loop order
-      $E -> g_e^I -> I -> g_i^E$. Rates are in inverse milliseconds and
+      Reused trajectories at onset plus 0.4 nA: (A) $E$, (B) $g_e^I$, (C) $I$
+      and (D) $g_i^E$, following loop order $E -> g_e^I -> I -> g_i^E$.
+      Rates are in inverse milliseconds and
       conductances in µS.
     ],
   ) <fig-timeseries>
@@ -237,9 +168,10 @@
     data-image(data-file("exp033/phase_planes.svg"), width: 100%,
       alt: "The same four-variable trajectory projected onto each of the six coordinate pairs."),
     caption: [
-      Reused projections at onset plus 0.4 nA; rate coordinates are in
-      inverse milliseconds and conductances in µS. The six panels show every
-      pairwise projection of the same four-variable trajectory.
+      Reused projections at onset plus 0.4 nA: (A) $E$–$I$, (B) $g_e^I$–$g_i^E$,
+      (C) $E$–$g_i^E$, (D) $I$–$g_e^I$, (E) $E$–$g_e^I$ and (F)
+      $I$–$g_i^E$. Rate coordinates are in inverse milliseconds and
+      conductances in µS.
     ],
   ) <fig-phase>
 

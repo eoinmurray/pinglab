@@ -1,4 +1,4 @@
-#import "contents.typ": with-contents, result-card, with-numbered-equations, with-result-sections
+#import "contents.typ": contents-here, with-contents, result-card, with-numbered-equations, with-result-sections
 #import "/.demolab/lib.typ": data-json, data-image, cite, reference-list
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
 #import "run-view.typ": with-datasets, run-view
@@ -6,7 +6,7 @@
 #let data-file = data-file.with(article: "exp044")
 
 #let meta = (
-  status: "[▦ DATA | v31.2.0]",
+  status: "[▦ DATA | v33.0.0]",
   title: "Firing Rate Across the Timestep Sweep",
   created_at: "2026-06-02T00:00:00Z",
   updated_at: "2026-08-31T00:00:00Z",
@@ -42,6 +42,8 @@
   setting. Tests pipelines rather than holding weights fixed; the rasters do not
   establish invariance relative to the gamma period.
 
+  #contents-here()
+
   == Results
 
   #with-result-sections[
@@ -67,7 +69,8 @@
     data-image(data-file("exp044/raster_strip.png"), width: 100%,
       alt: "Single-trial excitatory and inhibitory spike rasters at five integration timesteps, plotted against physical time."),
     caption: [E (black) and I (red) rasters for the same official-test image,
-      seed #cfg.raster.seed, at each timestep. Panels display
+      seed #cfg.raster.seed, at timesteps *(A–E)* 0.05, 0.1, 0.2, 0.5 and
+      1.0 ms, respectively. Panels display
       #cfg.raster.n_e_plot E and #cfg.raster.n_i_plot I neurons over the first
       #cfg.raster.window_ms ms. These illustrative probes support visual cadence
       inspection, not a population estimate of gamma-period invariance.],
@@ -81,8 +84,8 @@
   #figure(
     data-image(data-file("exp044/training_curves.svg"), width: 100%,
       alt: "Per-network validation accuracy and excitatory firing rate versus epoch, coloured by integration timestep."),
-    caption: [Recorded training histories: validation accuracy (top) and E rate
-      (bottom), one line per timestep and seed. Each epoch averaged
+    caption: [Recorded training histories: *(A)* validation accuracy and *(B)* E
+      rate, one line per timestep and seed. Each epoch averaged
       #c.validation_encoder_draws.count encoder draws per validation image.
       The final-epoch comparison is a finite-training snapshot, not an established
       fixed-point ceiling.],

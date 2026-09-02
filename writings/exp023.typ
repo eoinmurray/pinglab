@@ -1,4 +1,4 @@
-#import "contents.typ": with-contents, result-card, with-numbered-equations, with-result-sections
+#import "contents.typ": contents-here, with-contents, result-card, with-numbered-equations, with-result-sections
 #import "/.demolab/lib.typ": data-json, data-image, cite, reference-list
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
 #import "run-view.typ": with-datasets, run-view
@@ -6,7 +6,7 @@
 #let data-file = data-file.with(article: "exp023")
 
 #let meta = (
-  status: "[▦ DATA | v31.2.0]",
+  status: "[▦ DATA | v33.0.0]",
   title: "Turning the PING Loop On",
   created_at: "2026-05-13T00:00:00Z",
   updated_at: "2026-08-31T00:00:00Z",
@@ -53,6 +53,8 @@
   circuit's basic operating behaviour, but the limited simulations do not show
   that gamma timing itself caused the suppression.
 
+  #contents-here()
+
   == Results
 
   #with-result-sections[
@@ -64,7 +66,9 @@
     data-image(data-file("exp023/overview_compound.png"), width: 100%,
       alt: "Loop-off and loop-on schematics above population rasters, spectra and firing-rate curves."),
     caption: [
-      COBA (A) and PING (B): E spikes black, I spikes red.
+      (A–B) COBA and PING schematics; (C–D) E/I rasters; (E–F)
+      E-population spectra; (G–H) firing-rate–input curves. COBA occupies
+      A, C, E and G; PING occupies B, D, F and H. E spikes are black and I spikes red.
       Rasters and spectra show #points.coba.t_ms ms at
       #points.coba.input_rate_hz and #points.ping.input_rate_hz Hz input,
       respectively. Rate curves show one-trial population means over the

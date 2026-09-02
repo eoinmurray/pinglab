@@ -1,4 +1,4 @@
-# exp054 — rhythmicity across the coupling plane
+# exp054 — Pinglab Rythmicity Metric
 
 ## Contract migration
 
@@ -34,8 +34,9 @@ package invocation now fail explicitly.
   rates and rhythmicity, measure retained mean-field ramps, and calculate the
   exp041 three-seed median overlay. Save the complete numerical summary and all
   plotting coordinates. Inputs are explicit compute and exp041 analysis runs.
-- **Present:** draw the existing eight PNGs and compound PDF from saved analysis,
-  with `numbers.json` in a flat export. No estimator or solver runs here.
+- **Present:** draw the seven exp054-owned PNGs from saved analysis, with
+  `numbers.json` in a flat export. No estimator or solver runs here. The former
+  Figure 6 manuscript compound is now rendered by exp110 from this analysis.
 
 ## Preserved scientific recipe
 

@@ -1,4 +1,4 @@
-#import "contents.typ": with-contents, result-card, with-numbered-equations, with-result-sections
+#import "contents.typ": contents-here, with-contents, result-card, with-numbered-equations, with-result-sections
 #import "/.demolab/lib.typ": data-json, data-image, cite, reference-list
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
 #import "run-view.typ": with-datasets, run-view
@@ -6,7 +6,7 @@
 #let data-file = data-file.with(article: "exp047")
 
 #let meta = (
-  status: "[▦ DATA | v31.2.0]",
+  status: "[▦ DATA | v33.0.0]",
   title: "Pool-Size Effects Depend on Synaptic Scaling",
   created_at: "2026-07-14T00:00:00Z",
   updated_at: "2026-08-31T00:00:00Z",
@@ -62,6 +62,8 @@
   as a compensation rule for this regime; it does not establish uniqueness or
   demonstrate gamma rhythmicity.
 
+  #contents-here()
+
   == Results
 
   #with-result-sections[
@@ -81,9 +83,11 @@
       width: 100%,
       alt: "Four panels of E and I firing rates for inhibitory pools of 16, 64 and 256 neurons. Fixed summed coupling gives nearly flat rates; fixed expected synaptic strength gives falling rates.",
     ),
-    caption: [*Reanalysed population firing rates.* Top: excitatory (E); bottom:
-      inhibitory (I). Left: fixed expected summed coupling $G_(I arrow E)$; right:
-      fixed expected synaptic strength $macron(w)_(I arrow E)$. Markers are means ±1 sample
+    caption: [*Reanalysed population firing rates.* *(A)* Excitatory (E) rate
+      with fixed expected summed coupling $G_(I arrow E)$; *(B)* E rate with
+      fixed expected synaptic strength $macron(w)_(I arrow E)$; *(C)* inhibitory
+      (I) rate with fixed summed coupling; *(D)* I rate with fixed synaptic
+      strength. Markers are means ±1 sample
       standard deviation across #n-seeds seeds, with #cfg.n_batch trials per seed.
       Shared conditions reused the same simulations.],
   )

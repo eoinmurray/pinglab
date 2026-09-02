@@ -1,4 +1,4 @@
-#import "contents.typ": with-contents, result-card, with-numbered-equations, with-result-sections
+#import "contents.typ": contents-here, with-contents, result-card, with-numbered-equations, with-result-sections
 #import "/.demolab/lib.typ": data-json, data-image, cite, reference-list
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
 #import "run-view.typ": with-datasets, run-view
@@ -6,7 +6,7 @@
 #let data-file = data-file.with(article: "exp024")
 
 #let meta = (
-  status: "[▦ DATA | v31.2.0]",
+  status: "[▦ DATA | v33.0.0]",
   title: "Accuracy Plateaus While Firing Rate Rises",
   created_at: "2026-06-02T00:00:00Z",
   updated_at: "2026-08-31T00:00:00Z",
@@ -41,6 +41,8 @@
   convergence therefore needs separate accuracy and activity checks; a low
   firing rate alone does not demonstrate a fixed-rate attractor.
 
+  #contents-here()
+
   == Inputs
 
   Uses the unregularised baseline learning histories from
@@ -64,8 +66,9 @@
   #figure(
     data-image(data-file("exp024/coba_curves.svg"), width: 100%,
       alt: "COBA training and validation loss, validation accuracy, and excitatory firing rate over epochs."),
-    caption: [COBA, #n seeds shown separately. Training loss is solid and validation
-      loss dashed.],
+    caption: [(A) Training and validation loss, (B) validation accuracy and (C)
+      E firing rate for COBA, with #n seeds shown separately. Training loss is
+      solid and validation loss dashed.],
   )
 
   ]
@@ -82,8 +85,9 @@
   #figure(
     data-image(data-file("exp024/ping_curves.svg"), width: 100%,
       alt: "PING training and validation loss, validation accuracy, and excitatory and inhibitory firing rates over epochs."),
-    caption: [PING, #n seeds shown separately; E rate solid, I rate dashed.
-      Curves show individual seeds without uncertainty bands.],
+    caption: [(A) Training and validation loss, (B) validation accuracy and (C)
+      E/I firing rates for PING, with #n seeds shown separately. E rate is solid
+      and I rate dashed; curves show individual seeds without uncertainty bands.],
   )
 
   ]
@@ -98,7 +102,7 @@
   #figure(
     data-image(data-file("exp024/confidence_inflation.svg"), width: 100%,
       alt: "Validation accuracy, validation cross-entropy, and excitatory firing rate for COBA and PING."),
-    caption: [Validation accuracy, cross-entropy on a log axis, and E rate;
+    caption: [(A) Validation accuracy, (B) cross-entropy on a log axis and (C) E rate;
       COBA red, PING black, #n seeds each. Dotted lines show each architecture's
       mean first epoch reaching 99% of its final accuracy.],
   )

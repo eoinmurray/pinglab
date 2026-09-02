@@ -66,6 +66,7 @@ def plot_perturbation_rasters(
         if i < n - 1:
             ax.tick_params(axis="x", labelbottom=False)
     axes[-1].set_xlabel("time (ms)")
+    theme.label_panels(axes)
     fig.subplots_adjust(left=0.07, right=0.78, bottom=0.12, top=0.98)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     save_figure(fig, out_path, formats=("png", "pdf"))  # dense raster: PNG + PDF
@@ -200,6 +201,7 @@ def plot_perturbation_curves(
         frameon=False,
     )
     # The writeup caption carries the takeaway rather than a figure title.
+    theme.label_panels(axes)
     fig.tight_layout()
     out_path.parent.mkdir(parents=True, exist_ok=True)
     save_figure(fig, out_path)  # line/curve plot: SVG + PDF

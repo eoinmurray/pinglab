@@ -1,7 +1,7 @@
 #import "contents.typ": with-contents, with-numbered-equations
 #import "run-view.typ": with-datasets
 #let meta = (
-  status: "[≡ TXT | v31.2.0]",
+  status: "[≡ TXT | v33.0.0]",
   title: "Components, projections, and delays",
   created_at: "2026-08-14T00:00:00Z",
   description: "Compose reusable circuit motifs and connect them with explicit synapses, weights, polarity, topology, and causal delays.",

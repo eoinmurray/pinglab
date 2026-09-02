@@ -122,6 +122,7 @@ def plot_raster_strip(
         if i < n - 1:
             ax.tick_params(axis="x", labelbottom=False)
     axes[-1].set_xlabel("time (ms)")
+    theme.label_panels(axes)
     fig.tight_layout()
     out_path.parent.mkdir(parents=True, exist_ok=True)
     save_figure(fig, out_path, formats=("png", "pdf"))  # dense raster: PNG, not SVG
@@ -166,6 +167,7 @@ def plot_training_curves(
         ax.spines["top"].set_visible(False)
         ax.spines["right"].set_visible(False)
         ax.grid(True, alpha=0.15, lw=0.4)
+    theme.label_panels((ax_acc, ax_rate))
     fig.tight_layout()
     out_path.parent.mkdir(parents=True, exist_ok=True)
     save_figure(fig, out_path)

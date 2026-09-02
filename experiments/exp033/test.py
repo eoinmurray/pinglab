@@ -311,7 +311,7 @@ def test_presentation_failure_never_completes(lab, monkeypatch):
     def broken(*a, **k):
         raise RuntimeError("renderer failure")
 
-    monkeypatch.setattr(plots, "plot_hysteresis", broken)
+    monkeypatch.setattr(plots, "fig_bifurcation_compound", broken)
     with pytest.raises(RuntimeError, match="renderer failure"):
         present.present(aid)
     assert not list((root / ".pingstore/runs").glob("exp033-*-present"))
@@ -690,8 +690,8 @@ def test_article_selected_inputs_equations_and_absent_data(lab):
         assert result.returncode == 0, result.stderr
         assert "does not exist" not in result.stderr
     html = (root / "article.html").read_text()
-    assert len(re.findall(r"<img\b", html)) == 9
-    assert len(re.findall(r"<figcaption\b", html)) == 9
+    assert len(re.findall(r"<img\b", html)) == 6
+    assert len(re.findall(r"<figcaption\b", html)) == 6
     assert len(re.findall(r"<math\b", html)) > 100
     gains = []
     for expression in re.findall(r"<math\b.*?</math>", html, re.S):
@@ -704,7 +704,7 @@ def test_article_selected_inputs_equations_and_absent_data(lab):
     assert html.index("Results") < html.index("Methods") < html.index("Appendix:")
     assert "Figure 8" not in (root / "writings/exp033.typ").read_text()
     assert "exp033-fixture" not in html
-    assert "[(!) This supplies a candidate mechanism" in html
+    assert "[(!) The present model supplies that candidate mechanism" in html
     assert 'href="https://www.ma.ic.ac.uk/~dturaev/kuznetsov.pdf"' in html
     result = subprocess.run(
         [
@@ -783,7 +783,7 @@ def test_publication_text_does_not_claim_fully_fitted_scale() -> None:
         for path in (
             "writings/exp033.typ",
             "writings/exp054.typ",
-            "writings/exp109.typ",
+            "writings/exp110.typ",
         )
     ).lower()
     assert "no fitted scale" not in corpus

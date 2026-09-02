@@ -59,6 +59,7 @@ def plot_uncoupled(trajectory: dict[str, object], out: Path) -> None:
     )
     axes[2].set_yticks((-np.pi, 0, np.pi), labels=(r"$-\pi$", "0", r"$\pi$"))
     axes[2].spines[["top", "right"]].set_visible(False)
+    theme.label_panels(axes)
     fig.tight_layout()
     fig.savefig(out, dpi=220, bbox_inches="tight")
     plt.close(fig)
@@ -111,6 +112,7 @@ def plot_coupling_regimes(
     axes[0, 0].set_ylabel("relative-phase\nposition (rad)")
     axes[1, 0].set_ylabel("mean relative-phase\nvelocity (rad/s)")
     fig.suptitle("Measured transition as reciprocal coupling weakens", y=1.01)
+    theme.label_panels(axes.flat)
     fig.tight_layout()
     fig.savefig(out, dpi=220, bbox_inches="tight")
     plt.close(fig)
@@ -134,7 +136,7 @@ def plot_intermittent_attraction(
         lw=1.0,
     )
     axes[0, 0].set(
-        title="A  Relative-phase position through time",
+        title="Relative-phase position through time",
         xlabel="time in displayed window (ms)",
         ylabel="position (rad)",
         ylim=(-np.pi, np.pi),
@@ -148,14 +150,14 @@ def plot_intermittent_attraction(
         lw=1.0,
     )
     axes[0, 1].set(
-        title="B  Relative-phase velocity through time",
+        title="Relative-phase velocity through time",
         xlabel="time in displayed window (ms)",
         ylabel="velocity (rad/s)",
     )
 
     _plot_velocity_position(axes[1, 0], trajectory, theme.DEEP_RED)
     axes[1, 0].set(
-        title="C  Velocity depends on phase position",
+        title="Velocity depends on phase position",
         xlabel="relative-phase position (rad)",
         ylabel="mean velocity (rad/s)",
     )
@@ -170,7 +172,7 @@ def plot_intermittent_attraction(
     )
     axes[1, 1].plot(centres, density, color=theme.ELECTRIC_CYAN, lw=1.5)
     axes[1, 1].set(
-        title="D  Phase-position distribution",
+        title="Phase-position distribution",
         xlabel="relative-phase position (rad)",
         ylabel="density",
         xlim=(-np.pi, np.pi),
@@ -182,6 +184,7 @@ def plot_intermittent_attraction(
         f"Intermediate condition: K = {float(trajectory['k']):.3f} µS",
         y=1.01,
     )
+    theme.label_panels(axes.flat)
     fig.tight_layout()
     fig.savefig(out, dpi=220, bbox_inches="tight")
     plt.close(fig)

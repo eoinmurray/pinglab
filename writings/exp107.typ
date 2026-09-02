@@ -1,7 +1,7 @@
 #import "contents.typ": with-contents, with-numbered-equations
 #import "run-view.typ": with-datasets
 #let meta = (
-  status: "[≡ TXT | v31.2.0]",
+  status: "[≡ TXT | v33.0.0]",
   title: "Compiling and executing bundles",
   created_at: "2026-08-14T00:00:00Z",
   description: "Validate a graph, write its portable bundle, select an executor, supply inputs, and retrieve named outputs and recordings.",

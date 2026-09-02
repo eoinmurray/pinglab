@@ -1,4 +1,4 @@
-#import "contents.typ": with-contents, with-numbered-equations, with-result-sections
+#import "contents.typ": contents-here, with-contents, with-numbered-equations, with-result-sections
 #import "/.demolab/lib.typ": data-image, data-json
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
 #import "run-view.typ": with-datasets
@@ -7,7 +7,7 @@
 #let data-file = data-file.with(article: "exp082")
 
 #let meta = (
-  status: "[▦ DATA | v31.2.0]",
+  status: "[▦ DATA | v33.0.0]",
   title: "Spike-Count Classification in a Continuous Stream",
   created_at: "2026-08-10T00:00:00Z",
   updated_at: "2026-09-01",
@@ -93,6 +93,8 @@
   Classification improved with longer, stronger inputs, whereas weak inputs
   often produced no output spikes.
 
+  #contents-here()
+
   == Results
 
   #with-result-sections[
@@ -123,8 +125,9 @@
         "Five correctly classified digits presented for 200 ms at input rates from 5 to 25 Hz, with excitatory and inhibitory rasters and spike-count evidence.",
       ),
       caption: [Illustrative seed-42 capability showcase across 5, 7.5, 10, 15
-        and 25 Hz, with every digit presented for 200 ms. Red traces show the
-        true classes.],
+        and 25 Hz, with every digit presented for 200 ms. *(A)* Input thumbnails,
+        *(B)* E-neuron spikes, *(C)* I-neuron spikes and *(D)* accumulated
+        output-count evidence. Red traces show the true classes.],
     )
 
   ]
@@ -150,7 +153,8 @@
         "Seed-mean accuracy across 25 to 200 ms and 0.5 to 25 Hz, with the 200 ms psychometric alongside.",
         ratio: 0.49,
       ),
-      caption: [Means across three training replicates,
+      caption: [*(A)* Accuracy across presentation duration and input rate;
+        *(B)* the 200 ms accuracy curve against input rate. Means across three training replicates,
         #r.config.digits_per_seed_cell test presentations per replicate and
         condition; curve bars are ± sample SD/√3, not population confidence
         intervals.],
@@ -177,8 +181,9 @@
         "Digit 4 with rasters of 200 excitatory and 64 inhibitory neurons, and ten softmax count-share trajectories.",
       ),
       caption: [Seed-42 digit #r.single_trial.labels.first() shown here, the first correct
-        presentation in the 200 ms, 5 Hz matched stream. Red marks the true and
-        winning class. Rasters display the first 200 E and 64 I neurons, not the full
+        presentation in the 200 ms, 5 Hz matched stream. *(A)* E-neuron spikes,
+        *(B)* I-neuron spikes and *(C)* softmax count shares. Red marks the true
+        and winning class. Rasters display the first 200 E and 64 I neurons, not the full
         populations. Softmax count shares explain the readout; they are not calibrated
         probabilities.],
     )
@@ -204,7 +209,7 @@
         ratio: 0.70,
       ),
       caption: [Post-hoc enlargement of 91.5–94.5 ms in the same displayed trial.
-        Rows show output spikes, cumulative class counts and softmax count shares;
+        *(A)* Output spikes, *(B)* cumulative class counts and *(C)* softmax count shares;
         red marks the true and winning class 4.],
     )
 
@@ -231,8 +236,9 @@
         "A three-of-five counterexample under the same 200 ms and 5 to 25 Hz conditions as the capability showcase.",
       ),
       caption: [Nominal-regime counterexample under the same seed-42 network,
-        durations, rates and deterministic candidate order as the showcase. Badges
-        show true→predicted labels.],
+        durations, rates and deterministic candidate order as the showcase.
+        *(A)* Input thumbnails, *(B)* E-neuron spikes, *(C)* I-neuron spikes and
+        *(D)* output-count evidence. Badges show true→predicted labels.],
     )
 
   ]
@@ -257,8 +263,9 @@
         "exp082/variable_stream.png",
         "Five digits with changing rates and durations: three correct predictions, a silent 0.5 Hz failure and a non-silent 2 Hz failure.",
       ),
-      caption: [Seed-42 illustration shown here. Counts reset at boundaries while
-        hidden state continues. Badges show true→predicted labels; thumbnail
+      caption: [Seed-42 illustration shown here. *(A)* Input thumbnails, *(B)*
+        E-neuron spikes, *(C)* I-neuron spikes and *(D)* output-count evidence.
+        Counts reset at boundaries while hidden state continues. Badges show true→predicted labels; thumbnail
         opacity increases with rate. Display sampling matches the preceding raster.],
     )
 

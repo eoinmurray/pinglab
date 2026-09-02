@@ -459,7 +459,7 @@ def submit_campaign(
         slug = row["slug"]
         if slug == "exp022" or _outputs_valid_for_plan(plan, row):
             continue
-        if slug in {"exp023", "exp024", "exp025", "exp037", "exp082", "exp038", "exp041", "exp042", "exp044", "exp046", "exp047", "exp049", "exp054", "exp080", "exp081"}:
+        if slug in {"exp023", "exp024", "exp025", "exp037", "exp082", "exp038", "exp041", "exp042", "exp044", "exp046", "exp047", "exp049", "exp054", "exp080", "exp081", "exp110"}:
             from .execution import _stage_adapter
             adapter = _stage_adapter(slug)
             require_staged, reserve = adapter.require_staged, adapter.reserve

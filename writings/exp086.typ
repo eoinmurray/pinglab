@@ -1,4 +1,4 @@
-#import "contents.typ": with-contents, result-card, with-numbered-equations, with-result-sections
+#import "contents.typ": contents-here, with-contents, result-card, with-numbered-equations, with-result-sections
 #import "/.demolab/lib.typ": data-json, data-image
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
 #import "run-view.typ": with-datasets, run-view
@@ -13,7 +13,7 @@
 }
 
 #let meta = (
-  status: "[▦ DATA | v31.2.0]",
+  status: "[▦ DATA | v33.0.0]",
   title: "Lowet 2017",
   created_at: "2026-08-19T00:00:00Z",
   updated_at: "2026-08-31T00:00:00Z",
@@ -78,6 +78,8 @@
   regime in a controlled trajectory, not its reliability across inputs or
   network realizations.
 
+  #contents-here()
+
   == Prior work
 
   Lowet et al. (2015) mapped synchronization across detuning and coupling in two 80-E, 20-I PING networks with reciprocal E-to-E and E-to-I fan-in eight#cite(2). Lowet et al. (2017) found the corresponding signature in macaque V1: coupling reduced instantaneous frequency differences near preferred phases, producing imperfect rather than permanent synchronization#cite(1).
@@ -109,8 +111,8 @@
 
     #figure(
       report-image("exp086/uncoupled.png", width: 100%, alt: "Uncoupled population rhythms and circulating relative phase."),
-      caption: [Uncoupled population rates and relative phase for one fixed-input
-        trajectory.],
+      caption: [*(A)* Network A rates, *(B)* Network B rates and *(C)* wrapped
+        relative phase for one fixed-input uncoupled trajectory.],
     )
 
   ]
@@ -129,8 +131,9 @@
         width: 100%,
         alt: "Measured comparison of strong, intermediate, and absent coupling.",
       ),
-      caption: [One fixed-input trajectory at strong, intermediate and absent
-        reciprocal coupling.],
+      caption: [Relative-phase position at *(A)* strong, *(B)* intermediate and
+        *(C)* absent reciprocal coupling; *(D–F)* show mean phase-conditioned
+        velocity for the same three conditions. Each is one fixed-input trajectory.],
     )
 
   ]
@@ -151,9 +154,10 @@
         width: 100%,
         alt: "Measured four-panel signature of intermittent phase attraction.",
       ),
-      caption: [Relative-phase trajectory, distribution and phase-conditioned
-        velocity at equal reciprocal coupling $K = #selected-k$ µS. The displayed
-        velocity trace uses 8 ms Gaussian smoothing.],
+      caption: [At equal reciprocal coupling $K = #selected-k$ µS: *(A)* wrapped
+        relative-phase position, *(B)* smoothed relative-phase velocity through
+        time, *(C)* mean velocity conditioned on phase and *(D)* phase-position
+        density. The displayed velocity trace uses 8 ms Gaussian smoothing.],
     )
 
   ]

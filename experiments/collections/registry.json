@@ -25,7 +25,8 @@
     "exp082": "gamma-gated-sparsity",
     "exp085": "demo",
     "exp086": "demo",
-    "exp099": "demo"
+    "exp099": "demo",
+    "exp110": "gamma-gated-sparsity"
   },
   "historical": {
     "exp083": {

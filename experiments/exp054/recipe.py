@@ -12,8 +12,6 @@ FIGURES = (
     "grid_autocorr.png",
     "rate_invariance.png",
     "null_autocorr.png",
-    "onset_super_compound.png",
-    "onset_super_compound.pdf",
 )
 
 

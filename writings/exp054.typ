@@ -1,4 +1,4 @@
-#import "contents.typ": with-contents, result-card, with-numbered-equations, with-result-sections
+#import "contents.typ": contents-here, with-contents, result-card, with-numbered-equations, with-result-sections
 #import "/.demolab/lib.typ": data-json, data-image
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
 #import "run-view.typ": with-datasets, run-view
@@ -6,8 +6,8 @@
 #let data-file = data-file.with(article: "exp054")
 
 #let meta = (
-  status: "[▦ DATA | v31.2.0]",
-  title: "Gamma Turns On Across the Coupling Map",
+  status: "[▦ DATA | v33.0.0]",
+  title: "Pinglab Rythmicity Metric",
   created_at: "2026-06-15T00:00:00Z",
   updated_at: "2026-08-31T00:00:00Z",
   description: "Lobe–trough contrast across untrained PING coupling strengths, with private- and shared-input null controls and a separate mean-field onset comparison.",
@@ -21,7 +21,6 @@
   (path: "exp054/grid_autocorr.png", label: "grid autocorr"),
   (path: "exp054/rate_invariance.png", label: "rate invariance"),
   (path: "exp054/null_autocorr.png", label: "null autocorr"),
-  (path: "exp054/onset_super_compound.png", label: "onset super compound"),
 )
 
 // Keep calculations lazy: absent inputs never become fabricated results.
@@ -38,23 +37,26 @@
   private-input control and an onset mechanism, but does not establish rate
   invariance or the spiking transition's bifurcation type.
 
+  #contents-here()
+
   == Results
 
   #with-result-sections[
 
   On either zero-coupling edge the loop was broken: E fired at 94.31 Hz and
   contrast was 0.00169, while I was silent when E-to-I coupling was zero. The
-  diagonal examples A/B/C had contrasts 0.00169/0.270/0.984. Coupled conditions
+  diagonal examples i/ii/iii had contrasts 0.00169/0.270/0.984. Coupled conditions
   generally showed stronger temporal structure, although the map was not
   strictly monotonic.
 
   #figure(
     data-image(data-file("exp054/turnon_maps_compound.png"), width: 100%,
       alt: "Maps of E rate, I rate and lobe–trough contrast over the coupling grid, above three example E/I rasters showing asynchronous firing and increasingly separated volleys."),
-    caption: [*Top*: per-neuron E and I rates and lobe–trough contrast across the
-      11×11 coupling grid; $W_(E I)$ and $W_(I E)$ denote E-to-I and I-to-E
-      coupling strengths. The high I rate on one zero edge is colour-clipped.
-      *Bottom*: diagonal examples A/B/C; E spikes are black and I spikes red.
+    caption: [*(A–C)* Per-neuron E rate, I rate and lobe–trough contrast,
+      respectively, across the 11×11 coupling grid; $W_(E I)$ and $W_(I E)$
+      denote E-to-I and I-to-E coupling strengths. The high I rate on one zero
+      edge is colour-clipped. *(D–F)* Rasters at diagonal conditions i–iii,
+      respectively; E spikes are black and I spikes red.
       Each raster shows 200 ms from the first 160 E and 48 I neurons. One seed
       per condition; no uncertainty estimate.],
   )
@@ -66,8 +68,9 @@
   #figure(
     data-image(data-file("exp054/grid_rasters.png"), width: 100%,
       alt: "E/I rasters at every other coupling-grid coordinate: dense edge activity and separated volleys in much of the coupled interior."),
-    caption: [E/I rasters at a 6×6 subset of coupling coordinates; the maps above
-      use all 121 conditions. Display windows and neuron subsets match Figure 1;
+    caption: [*(A–AJ)* E/I rasters at a 6×6 subset of coupling coordinates,
+      ordered row-major from high to low $W_(I E)$ and low to high $W_(E I)$;
+      the maps above use all 121 conditions. Display windows and neuron subsets match Figure 1;
       measurements use all neurons over the full post-burn recording.],
   )
 
@@ -78,8 +81,9 @@
   #figure(
     data-image(data-file("exp054/grid_autocorr.png"), width: 100%,
       alt: "E-population autocorrelograms at a 6×6 subset of coupling coordinates, with lobe and trough markers and a chance reference."),
-    caption: [E-population autocorrelograms at the same 6×6 coordinates, shown
-      over 0–50 ms. Dotted lines mark the chance reference $A_"corr" = 1$;
+    caption: [*(A–AJ)* E-population autocorrelograms at the same 6×6 coordinates
+      and in the same row-major coupling order, shown over 0–50 ms. Dotted lines
+      mark the chance reference $A_"corr" = 1$;
       markers locate the selected lobe (▲) and trough (▼) of the smoothed curve.
       $R_"contrast"$ scores the first lobe and trough, not the later peak's
       frequency.],
@@ -108,34 +112,10 @@
     data-image(data-file("exp054/null_autocorr.png"), width: 100%,
       alt: "Low-rate shared- and private-input null autocorrelograms selected by approximate rate matching, with each actual rate labelled."),
     caption: [Null autocorrelograms nearest to target E rates of 1, 2.5 and 5 Hz.
-      Shared-input examples (top) fired at 0.40/1.72/4.20 Hz; private-input
-      examples (bottom) at 0.97/1.88/4.90 Hz.],
+      Shared-input examples *(A–C)* fired at 0.40/1.72/4.20 Hz; private-input
+      examples *(D–F)* at 0.97/1.88/4.90 Hz.],
   )
 
-  #result-card[
-  === Mean-field and spiking onset comparison
-
-  A complex eigenvalue pair crossed the imaginary axis near external drive
-  $I^* = 0.596$ nA, and the finite up/down branches of peak-to-peak E-rate
-  amplitude nearly coincided. This is compatible with a soft onset, but does
-  not establish supercriticality of the spiking map: theory varies drive,
-  whereas that map varies coupling. Mean-field onset frequency and the
-  three-seed median #link("/exp041/")[spiking frequency] both decreased with
-  inhibitory decay $tau_"GABA"$, with substantial quantitative differences.
-  The phenomenological comparison is a possible mechanism, not a fitted
-  explanation of the same transition.
-
-  #figure(
-    data-image(data-file("exp054/onset_super_compound.png"), width: 100%,
-      alt: "Nine panels compare coupling maps and example rasters with a separate mean-field eigenvalue crossing, amplitude sweep and frequency-versus-inhibitory-decay comparison."),
-    caption: [*A–F*: the coupling maps and diagonal rasters from Figure 1.
-      *G–I*: the #link("/exp033/")[conductance mean-field reference] at a 4 mV
-      effective-noise scale, showing its eigenvalue crossing, amplitude branches
-      and frequency comparison.],
-  )
-
-  #context if target() != "html" { pagebreak(weak: true) }
-  ]
   ]
 
   == Methods

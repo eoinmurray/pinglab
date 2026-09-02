@@ -61,6 +61,7 @@ def plot_training(metrics: dict, out_path: Path) -> None:
         ax.set_xticks(epochs)
         ax.spines["top"].set_visible(False)
         ax.spines["right"].set_visible(False)
+    theme.label_panels(axes)
     fig.tight_layout()
     fig.savefig(out_path, dpi=220, bbox_inches="tight")
     plt.close(fig)

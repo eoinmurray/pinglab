@@ -29,9 +29,6 @@ LIMIT_CYCLE_OFFSET_NA = 0.4
 FIGURES = (
     "bifurcation_compound.svg",
     "sigma_sensitivity.svg",
-    "eigenvalues_complex.svg",
-    "freq_vs_tau_gaba.svg",
-    "hysteresis.svg",
     "limit_cycle.svg",
     "timeseries.svg",
     "phase_planes.svg",

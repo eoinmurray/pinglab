@@ -1,3 +1,7 @@
+# Repo rules
+
+- Do not use the in app browser skill for checking renderings on .typ files on localhost:3000. Just present the link to me and I'll check myself.
+
 # Pingstore filesystem convention
 
 Before creating or editing storage code, read and follow
@@ -68,6 +72,8 @@ the versioned [Writing Guide](writings/README.md).
 
 The `writings/expXXX.typ` files are collectively know as "writings", or
 "the writings".
+
+Do not create automated tests for the writings.
 
 Agents must maintain each article's exact `[≡ TXT | vX.Y.Z]`,
 `[▦ DATA | vX.Y.Z]` or author-assigned `◉ REVIEWED` status after relevant

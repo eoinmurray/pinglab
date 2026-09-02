@@ -180,6 +180,7 @@ def plot_weight_matrices(
         canon_ie,
     )
 
+    theme.label_panels((ax_ei, ax_ie))
     out_path.parent.mkdir(parents=True, exist_ok=True)
     save_figure(fig, out_path, formats=("svg", "pdf"))
     plt.close(fig)
@@ -451,6 +452,7 @@ def plot_condition_card(
         "Single-trial raster (seed 42)", fontsize=theme.SIZE_LABEL, loc="left", pad=4
     )
 
+    theme.label_panels((ax_wei, ax_wie, ax_rate, ax_acc, ax_psd, ax_rast))
     out_path.parent.mkdir(parents=True, exist_ok=True)
     save_figure(fig, out_path, formats=("png", "pdf"))
     plt.close(fig)
@@ -531,15 +533,6 @@ def fig_training_curves(data, out_path: Path, run_id: str) -> None:
         ax.tick_params(labelsize=theme.SIZE_TICK)
         if k >= 2:
             ax.set_xlabel("training epoch", fontsize=theme.SIZE_LABEL)
-        ax.text(
-            0.012,
-            0.97,
-            letter,
-            transform=ax.transAxes,
-            fontsize=theme.SIZE_TITLE + 1,
-            fontweight="bold",
-            va="top",
-        )
         ax.spines["top"].set_visible(False)
         ax.spines["right"].set_visible(False)
     # One legend entry per condition, mean-line style, in the accuracy panel.
@@ -554,6 +547,7 @@ def fig_training_curves(data, out_path: Path, run_id: str) -> None:
                 label=CONDITIONS[cond]["label"],
             )
     axes[0].legend(frameon=False, fontsize=theme.SIZE_LEGEND - 1, loc="lower right")
+    theme.label_panels(axes)
     fig.subplots_adjust(left=0.09, right=0.98, bottom=0.14, top=0.97)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     # Crop surrounding whitespace — this is a standalone publication figure, so

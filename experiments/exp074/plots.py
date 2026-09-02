@@ -61,5 +61,6 @@ def plot_rasters(raster_path: Path, out_path: Path) -> dict[str, int]:
     axes[-1].set_xlim(0, T_MS)
     axes[-1].set_xlabel("time (ms)")
     fig.align_ylabels(axes)
+    theme.label_panels(axes)
     fig.savefig(out_path, dpi=220, bbox_inches="tight")
     plt.close(fig)

@@ -187,17 +187,7 @@ def test_independent_stages_and_all_figures(lab, monkeypatch):
         "mean_field",
         lambda *a: pytest.fail("presentation measured theory"),
     )
-    saved_titles = []
-    save_figure = plots.save_figure
-
-    def inspect_labels(figure, *args, **kwargs):
-        saved_titles.extend(ax.get_title(loc="left") for ax in figure.axes)
-        return save_figure(figure, *args, **kwargs)
-
-    monkeypatch.setattr(plots, "save_figure", inspect_labels)
     output = inputs.source(root, present.present(analysis_id), "present")
-    assert "Mean-field amplitude" in saved_titles
-    assert not any("Supercritical" in title for title in saved_titles)
     assert output.record["inputs"] == {"analysis": analysis.reference}
     assert all((output.export / name).stat().st_size > 1000 for name in recipe.FIGURES)
     assert all(p.is_file() for p in output.export.iterdir())
@@ -267,7 +257,7 @@ def assert_article_renders(root, presentation):
 
     parsed = Images()
     parsed.feed((root / "article.html").read_text())
-    assert len(parsed.images) == 6
+    assert len(parsed.images) == 5
     first = parsed.images[0]
     assert "above three example" in first["alt"]
     assert (
@@ -275,7 +265,8 @@ def assert_article_renders(root, presentation):
         == (presentation.export / "turnon_maps_compound.png").read_bytes()
     )
     text = " ".join(parsed.text)
-    assert "not equal" in text and "not universal rate invariance" in text
+    assert "did not make rates or spike counts equal" in text
+    assert "do not prove rate invariance" in text
     assert "(1)" in text and "(2)" in text
     write_json_atomic(root / "preview.json", {"exp054": {"exp054": None}})
     result = subprocess.run(

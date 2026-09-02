@@ -1,4 +1,4 @@
-#import "contents.typ": with-contents, result-card, with-numbered-equations, with-result-sections
+#import "contents.typ": contents-here, with-contents, result-card, with-numbered-equations, with-result-sections
 #import "/.demolab/lib.typ": data-json, data-image, cite, reference-list
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
 #import "run-view.typ": with-datasets, run-view
@@ -6,7 +6,7 @@
 #let data-file = data-file.with(article: "exp076")
 
 #let meta = (
-  status: "[▦ DATA | v31.2.0]",
+  status: "[▦ DATA | v33.0.0]",
   title: "A bundle checkpoint replays",
   updated_at: "2026-08-31T00:00:00Z",
   created_at: "2026-08-02T00:00:00Z",
@@ -43,6 +43,8 @@
   Supports checkpoint compatibility for this network family, not equivalence
   between arbitrary graph implementations.
 
+  #contents-here()
+
   == Results
 
   #with-result-sections[
@@ -64,8 +66,9 @@
   #r.trajectory.selected_epoch.
 
   #figure(data-image(data-file("exp076/training_curves.png"), width: 100%),
-    caption: [Training and validation trajectories across #r.config.epochs
-      epochs. Validation averages #r.config.validation_encoder_draws.count
+    caption: [*(A)* Training and validation cross-entropy and *(B)* validation
+      accuracy across #r.config.epochs epochs. Validation averages
+      #r.config.validation_encoder_draws.count
       encoder draws on #r.config.held_out_count images.])
 
   ]

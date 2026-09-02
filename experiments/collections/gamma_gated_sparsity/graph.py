@@ -29,7 +29,10 @@ EXPERIMENTS: tuple[Experiment, ...] = (
     Experiment("exp081", integrated=True, note="filtered-response theory"),
     Experiment("exp024", ("exp022",), "TR-02", integrated=True),
     Experiment(
-        "exp025", ("exp022",), "TR-02", integrated=True,
+        "exp025",
+        ("exp022",),
+        "TR-02",
+        integrated=True,
         note="also consumes TR-07 low-input recruitment controls",
     ),
     Experiment("exp037", ("exp022",), "TR-02", integrated=True),
@@ -42,6 +45,12 @@ EXPERIMENTS: tuple[Experiment, ...] = (
     Experiment("exp042", ("exp022",), "TR-02", integrated=True),
     Experiment("exp046", ("exp041",), integrated=True),
     Experiment("exp054", ("exp041",), integrated=True),
+    Experiment(
+        "exp110",
+        ("exp025", "exp037", "exp038", "exp041", "exp044", "exp046", "exp054"),
+        integrated=True,
+        note="manuscript-specific presentation synthesis",
+    ),
 )
 
 # All collection roots have an explicit rerun decision and are represented in
@@ -71,7 +80,10 @@ def ordered_experiments(
         ready = [
             experiment
             for experiment in remaining
-            if all(dep in {item.slug for item in ordered} for dep in experiment.dependencies)
+            if all(
+                dep in {item.slug for item in ordered}
+                for dep in experiment.dependencies
+            )
         ]
         if not ready:
             raise ValueError("collection dependency graph contains a cycle")

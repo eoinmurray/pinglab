@@ -8,7 +8,7 @@ from pingstore.contracts import PingstoreError
 SVG = "http://www.w3.org/2000/svg"
 
 
-def historical_svg(source, destination, *, move_legend=False):
+def historical_svg(source, destination, *, move_legend=False, panel_labels=()):
     """Remove the known producer stamp and optionally separate the legend.
 
     Paths, axes and glyph coordinates are preserved; only the legend receives
@@ -43,6 +43,23 @@ def historical_svg(source, destination, *, move_legend=False):
         root.set("height", f"{height + 60:g}pt")
         legends[0].set("transform", "translate(0 -60)")
         operations.append("translate legend upward 60 SVG units into added margin")
+    if panel_labels:
+        group = ET.SubElement(root, f"{{{SVG}}}g", {"id": "panel_labels"})
+        for label, x, y in panel_labels:
+            node = ET.SubElement(
+                group,
+                f"{{{SVG}}}text",
+                {
+                    "x": str(x),
+                    "y": str(y),
+                    "style": (
+                        "fill:#1a1a1a;font-family:DejaVu Sans,sans-serif;"
+                        "font-size:14px;font-weight:bold"
+                    ),
+                },
+            )
+            node.text = label
+        operations.append("add uppercase panel labels in figure whitespace")
     ET.register_namespace("", SVG)
     ET.register_namespace("xlink", "http://www.w3.org/1999/xlink")
     ET.ElementTree(root).write(destination, encoding="utf-8", xml_declaration=True)

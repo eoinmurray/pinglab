@@ -2,11 +2,13 @@
 
 from pathlib import Path
 
+import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 from experiments.helpers import theme
 from experiments.helpers.figsave import save_figure
 from experiments.helpers.stamp import stamp_figure
+from PIL import Image, ImageDraw, ImageFont
 
 from .recipe import (
     DT,
@@ -19,6 +21,25 @@ from .recipe import (
     SEED,
     TAU_SWEEP_MS,
 )
+
+
+def label_retained_stream(source: Path, png_out: Path, pdf_out: Path) -> None:
+    """Add canonical panel letters to a retained four-row stream rendering."""
+    image = Image.open(source).convert("RGB")
+    width, height = image.size
+    font_path = Path(matplotlib.get_data_path()) / "fonts/ttf/DejaVuSans-Bold.ttf"
+    font = ImageFont.truetype(str(font_path), max(14, round(width * 0.018)))
+    draw = ImageDraw.Draw(image)
+    for label, y_fraction in zip("ABCD", (0.055, 0.270, 0.600, 0.800), strict=True):
+        x, y = round(width * 0.068), round(height * y_fraction)
+        bounds = draw.textbbox((x, y), label, font=font)
+        draw.rectangle(
+            (bounds[0] - 4, bounds[1] - 2, bounds[2] + 4, bounds[3] + 2),
+            fill="white",
+        )
+        draw.text((x, y), label, fill=theme.INK_BLACK, font=font)
+    image.save(png_out, dpi=(150, 150))
+    image.save(pdf_out, "PDF", resolution=150)
 
 
 def plot_headline_stream(s: dict, out_path: Path, run_id: str) -> None:
@@ -170,6 +191,7 @@ def plot_headline_stream(s: dict, out_path: Path, run_id: str) -> None:
     ax_d.spines["top"].set_visible(False)
     ax_d.spines["right"].set_visible(False)
 
+    theme.label_panels((ax_a, ax_b, ax_c, ax_d))
     stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     save_figure(fig, out_path, formats=("png", "pdf"))  # dense raster: PNG, not SVG
@@ -433,6 +455,7 @@ def plot_varying_headline_stream(s: dict, out_path: Path, run_id: str) -> None:
     ax_d.spines["top"].set_visible(False)
     ax_d.spines["right"].set_visible(False)
 
+    theme.label_panels((ax_a, ax_b, ax_c, ax_d))
     stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     save_figure(fig, out_path, formats=("png", "pdf"))  # dense raster: PNG, not SVG
@@ -549,24 +572,7 @@ def plot_grid_and_rate(
     zoom.set(xlim=(0, 10), ylim=(0, 101))
     zoom.set_xlabel("0–10 Hz detail", fontsize=7)
     zoom.tick_params(labelsize=6)
-    ax.text(
-        -0.08,
-        1.02,
-        "A",
-        transform=ax.transAxes,
-        fontweight="bold",
-        ha="left",
-        va="bottom",
-    )
-    curve_ax.text(
-        -0.08,
-        1.02,
-        "B",
-        transform=curve_ax.transAxes,
-        fontweight="bold",
-        ha="left",
-        va="bottom",
-    )
+    theme.label_panels((ax, curve_ax))
     fig.tight_layout()
     stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)

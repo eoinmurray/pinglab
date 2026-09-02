@@ -40,6 +40,8 @@ FIGURES = (
     "variable_stream.png",
     "psychometric_200ms.svg",
     "duration_rate_summary.png",
+    "continuous_stream_compound.png",
+    "continuous_stream_compound.pdf",
 )
 
 

@@ -1,4 +1,4 @@
-#import "contents.typ": with-contents, result-card, with-numbered-equations, with-result-sections
+#import "contents.typ": contents-here, with-contents, result-card, with-numbered-equations, with-result-sections
 #import "/.demolab/lib.typ": data-json, data-image, cite, reference-list
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
 #import "run-view.typ": with-datasets, run-view
@@ -6,7 +6,7 @@
 #let data-file = data-file.with(article: "exp074")
 
 #let meta = (
-  status: "[▦ DATA | v31.2.0]",
+  status: "[▦ DATA | v33.0.0]",
   title: "From Python graph to spikes",
   updated_at: "2026-08-31T00:00:00Z",
   created_at: "2026-07-31T00:00:00Z",
@@ -38,6 +38,8 @@
   graph-to-simulation integration path on a bounded example, not a
   neuroscientific mechanism.
 
+  #contents-here()
+
   == Results
 
   #with-result-sections[
@@ -57,7 +59,7 @@
   === Aligned input, excitatory and inhibitory spike rasters
 
   #figure(data-image(data-file("exp074/rasters.png"), width: 100%),
-    caption: [Input, excitatory and inhibitory spikes in trial
+    caption: [*(A)* Input, *(B)* excitatory and *(C)* inhibitory spikes in trial
       #r.output.display_trial, with zero-based trial numbering. The displayed
       trial contained #r.output.display_trial_spikes.input input,
       #r.output.display_trial_spikes.e excitatory and

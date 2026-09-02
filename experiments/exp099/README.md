@@ -23,8 +23,9 @@ selects a published run, or migrates historical data.
   under provenance and in the authoritative execution record.
 - Analyse retains numerical measurements and results, referencing compute.
 - Present references both analysis and its pinned compute source. Its flat
-  export contains the network diagram, poster, video, numbers and the shared
-  publication-metadata projection. Publication is a separate authorized step.
+  export contains the network diagram, explanatory input map, poster, video,
+  numbers and the shared publication-metadata projection. Publication is a
+  separate authorized step.
 
 ## Production renderer recovery
 

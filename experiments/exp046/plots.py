@@ -44,6 +44,7 @@ def plot_distribution(per_tau: dict, out_path: Path) -> None:
         ax.set_ylim(0, 1.05)
         ax.grid(True, axis="y", alpha=0.15, lw=0.4)
     fig.supxlabel("spikes / (cell · cycle)", fontsize=theme.SIZE_LABEL)
+    theme.label_panels(axes)
     fig.tight_layout()
     out_path.parent.mkdir(parents=True, exist_ok=True)
     save_figure(fig, out_path)  # bar chart: SVG + PDF

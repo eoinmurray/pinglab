@@ -50,7 +50,7 @@
         class: "pinglab-numbered-equation",
         style: "display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:1em",
       ), {
-        html.elem("div", attrs: (style: "min-width:0;overflow-x:auto"), equation)
+        html.elem("div", attrs: (style: "min-width:0;overflow-x:auto;overflow-y:hidden"), equation)
         html.elem(
           "span",
           attrs: (class: "pinglab-equation-number"),
@@ -72,39 +72,55 @@
   enum(tight: true, spacing: spacing, numbering: "1.", ..items)
 }
 
+#let contents-here() = metadata("pinglab-contents-here")
+
+#let render-contents(sections, end-location) = {
+  let entries = sections.enumerate().map(((index, section)) => {
+    let entry = link(section.location(), section.body)
+    if lower(heading-text(section.body)).trim() == "results" {
+      let children = if index + 1 < sections.len() {
+        query(heading.where(level: 3).after(section.location()).before(sections.at(index + 1).location()))
+      } else {
+        query(heading.where(level: 3).after(section.location()).before(end-location))
+      }
+      if children.len() > 0 {
+        let nested = children.map(child => link(child.location(), child.body))
+        [#entry #toc-enum(nested, spacing: 0.15em)]
+      } else { entry }
+    } else { entry }
+  })
+  if target() == "html" {
+    html.elem("style",
+      "nav[aria-label=\"Table of Contents\"] ul { margin: .35rem 0; } "
+      + "nav[aria-label=\"Table of Contents\"] li > p { margin: 0; } "
+      + "nav[aria-label=\"Table of Contents\"] ul ol { margin: 0; } "
+      + "nav[aria-label=\"Table of Contents\"] ul ol > li:first-child { margin-top: 0; }",
+    )
+    html.elem("nav", attrs: ("aria-label": "Table of Contents"), toc-list(entries))
+  } else {
+    toc-list(entries)
+  }
+}
+
 #let with-contents(body) = [
   #set heading(numbering: none)
   #context {
     let ends = query(metadata.where(value: "pinglab-contents-end").after(here()))
     if ends.len() > 0 {
-      let sections = query(heading.where(level: 2).after(here()).before(ends.first().location()))
-      let entries = sections.enumerate().map(((index, section)) => {
-        let entry = link(section.location(), section.body)
-        if lower(heading-text(section.body)).trim() == "results" {
-          let children = if index + 1 < sections.len() {
-            query(heading.where(level: 3).after(section.location()).before(sections.at(index + 1).location()))
-          } else {
-            query(heading.where(level: 3).after(section.location()).before(ends.first().location()))
-          }
-          if children.len() > 0 {
-            let nested = children.map(child => link(child.location(), child.body))
-            [#entry #toc-enum(nested, spacing: 0.15em)]
-          } else { entry }
-        } else { entry }
-      })
-      if target() == "html" {
-        html.elem("style",
-          "nav[aria-label=\"Table of Contents\"] ul { margin: .35rem 0; } "
-          + "nav[aria-label=\"Table of Contents\"] li > p { margin: 0; } "
-          + "nav[aria-label=\"Table of Contents\"] ul ol { margin: 0; } "
-          + "nav[aria-label=\"Table of Contents\"] ul ol > li:first-child { margin-top: 0; }",
-        )
-        html.elem("nav", attrs: ("aria-label": "Table of Contents"), toc-list(entries))
+      let end-location = ends.first().location()
+      let sections = query(heading.where(level: 2).after(here()).before(end-location))
+      let markers = query(metadata.where(value: "pinglab-contents-here").after(here()).before(end-location))
+      assert(markers.len() <= 1, message: "article must contain at most one contents marker")
+      if markers.len() == 1 {
+        show metadata.where(value: "pinglab-contents-here"): _ => render-contents(sections, end-location)
+        body
       } else {
-        toc-list(entries)
+        render-contents(sections, end-location)
+        body
       }
+    } else {
+      body
     }
   }
-  #body
   #metadata("pinglab-contents-end")
 ]

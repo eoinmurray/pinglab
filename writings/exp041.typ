@@ -1,4 +1,4 @@
-#import "contents.typ": with-contents, result-card, with-numbered-equations, with-result-sections
+#import "contents.typ": contents-here, with-contents, result-card, with-numbered-equations, with-result-sections
 #import "/.demolab/lib.typ": data-json, data-image, cite, reference-list
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
 #import "run-view.typ": with-datasets, run-view
@@ -6,7 +6,7 @@
 #let data-file = data-file.with(article: "exp041")
 
 #let meta = (
-  status: "[▦ DATA | v31.2.0]",
+  status: "[▦ DATA | v33.0.0]",
   title: "Firing Rate Tracks Gamma Frequency",
   created_at: "2026-06-02T00:00:00Z",
   updated_at: "2026-08-31T00:00:00Z",
@@ -56,6 +56,8 @@
   account, but does not prove constant participation or identify a physical
   non-rhythmic baseline.
 
+  #contents-here()
+
   == Results
 
   #with-result-sections[
@@ -69,7 +71,7 @@
       alt: "Validation accuracy and excitatory firing rate over training across the inhibitory-decay sweep.",
     ),
     caption: [
-      Reused validation accuracy (top) and excitatory rate (bottom), one line per
+      *(A)* Reused validation accuracy and *(B)* excitatory rate, one line per
       trained network across #cfg.epochs epochs. Subsequent test measurements
       used final-epoch weights; accuracy convergence did not select the epoch.
     ],
@@ -106,8 +108,9 @@
       alt: "One MNIST trial through each τ_GABA network; the gamma cycle period lengthens with τ_GABA.",
     ),
     caption: [
-      The same illustrative MNIST image at each decay time, using seed 42.
-      Each panel shows 200 excitatory and 64 inhibitory neurons during the first
+      The same illustrative MNIST image at inhibitory decay times *(A–F)*
+      4.5, 6, 9, 12, 18 and 27 ms, respectively, using seed 42. Each panel shows
+      200 excitatory and 64 inhibitory neurons during the first
       100 ms; displayed rates use the full populations and 200 ms trial.
       These probes illustrate timing, not the population frequency estimate.
     ],
@@ -127,7 +130,7 @@
       alt: "Post-training E rate against gamma frequency; points lie on the affine fit line.",
     ),
     caption: [
-      Final-epoch excitatory rate (top) and test accuracy (bottom) against gamma
+      *(A)* Final-epoch excitatory rate and *(B)* test accuracy against gamma
       frequency. Each point is a mean over three seeds; error bars show ±1
       standard error. The affine line fits six condition means.
     ],

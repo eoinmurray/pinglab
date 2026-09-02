@@ -43,10 +43,6 @@ def present(identity, *, run_id=None):
             {float(k): v for k, v in freq["spiking_exp041"].items()},
         )
         if h:
-            plots.plot_hysteresis(crit, h, run.export / "hysteresis.svg", run.run_id)
-            plots.plot_eigenvalues_complex(
-                coords["sweep"], h, run.export / "eigenvalues_complex.svg", run.run_id
-            )
             if "retained_figures" in coords:
                 retained = coords["retained_figures"]
                 if set(retained) != set(evidence.CARRY):
@@ -65,10 +61,21 @@ def present(identity, *, run_id=None):
                     path = source.export / item["path"]
                     if file_sha256(path) != item["sha256"]:
                         raise PingstoreError("historical figure checksum differs")
+                    labels = {
+                        "timeseries.svg": (
+                            ("A", 39, 18), ("B", 39, 127),
+                            ("C", 39, 236), ("D", 39, 345),
+                        ),
+                        "phase_planes.svg": (
+                            ("A", 39, 18), ("B", 304, 18), ("C", 569, 18),
+                            ("D", 39, 249), ("E", 304, 249), ("F", 569, 249),
+                        ),
+                    }.get(name, ())
                     operations = appearance.historical_svg(
                         path,
                         run.export / name,
                         move_legend=name == "reduction_ladder.svg",
+                        panel_labels=labels,
                     )
                     run.record.setdefault("figure_edits", {})[name] = {
                         "source_sha256": item["sha256"],
@@ -102,9 +109,6 @@ def present(identity, *, run_id=None):
                 run.export / "bifurcation_compound.svg",
                 run.run_id,
             )
-        plots.plot_frequency_vs_tau_gaba(
-            mf, meas, run.export / "freq_vs_tau_gaba.svg", run.run_id
-        )
         plots.plot_sigma_sensitivity(
             result["sigma_sensitivity"],
             run.export / "sigma_sensitivity.svg",

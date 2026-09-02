@@ -1,4 +1,4 @@
-#import "contents.typ": with-contents, with-numbered-equations, with-result-sections
+#import "contents.typ": contents-here, with-contents, with-numbered-equations, with-result-sections
 #import "/.demolab/lib.typ": data-json, data-image
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
 #import "run-view.typ": with-datasets, run-view
@@ -8,7 +8,7 @@
 
 #let meta = (
   status: "◉ REVIEWED",
-  writing_guide: "31.2.0",
+  writing_guide: "33.0.0",
   title: "How Pixel Features Respond to Input Rate",
   created_at: "2026-08-10T00:00:00Z",
   updated_at: "2026-09-01",
@@ -61,6 +61,8 @@
   presentation therefore still requires direct simulation of individual event
   counts and timings in this system.
 
+  #contents-here()
+
   == Results
 
   #with-result-sections[
@@ -73,7 +75,7 @@
   #figure(
     data-image(data-file("exp081/empirical_moments.svg"), width: 100%,
       alt: "Two panels show how the simulated mean voltage and its standard deviation change with input rate for three event strengths."),
-    caption: [Simulated mean voltage feature (A) and sample SD (B), in mV, across
+    caption: [*(A)* Simulated mean voltage feature and *(B)* sample SD, in mV, across
       #p.input_rate_grid_hz.len() input rates. Each condition summarizes
       #p.moment_draws independent presentations. Black, red and cyan denote
       #p.probes_uS.map(str).join(", ") μS added per event; curves summarize the
@@ -102,8 +104,8 @@
   #figure(
     data-image(data-file("exp081/response_distributions.svg"), width: 100%,
       alt: "Three histograms show voltage responses changing from mostly near zero to a broad continuous spread as input rate increases."),
-    caption: [Distributions of the voltage feature at
-      #p.distribution_rates_hz.map(str).join(", ") spikes/s and
+    caption: [Distributions of the voltage feature at *(A–C)*
+      #p.distribution_rates_hz.map(str).join(", ") spikes/s, respectively, and
       #p.nominal_probe_uS μS, using #p.distribution_draws independent
       presentations per condition. Each bar gives the probability within one
       shared fixed-width bin. The vertical axis is logarithmic and voltage is in
@@ -132,8 +134,8 @@
     caption: [Theoretical responses at #p.nominal_probe_uS μS. The simulated
       input rate was not deliberately varied over time to measure these curves.
       Black, red and cyan denote steady input rates of
-      #p.frequency_response_rates_hz.map(str).join(", ") spikes/s. Panel A shows
-      the synapse and membrane response. Panel B also includes
+      #p.frequency_response_rates_hz.map(str).join(", ") spikes/s. *(A)* shows
+      the synapse and membrane response. *(B)* also includes
       #p.presentation_ms ms time averaging. Magnitude is in dB relative to the
       steady response at the lowest input rate; frequency is in Hz.],
   )
@@ -156,7 +158,7 @@
     data-image(data-file("exp081/analytical_empirical.svg"), width: 100%,
       alt: "Two panels compare theoretical curves with simulated points for mean voltage and standard deviation across input rates."),
     caption: [Steady-state predictions (solid curves) and simulated estimates
-      (points) of mean feature (A) and sample SD (B), in mV. Each estimate uses
+      (points) of *(A)* mean feature and *(B)* sample SD, in mV. Each estimate uses
       #p.moment_draws presentations per rate. Black, red and cyan denote
       #p.probes_uS.map(str).join(", ") μS added per event.],
   )

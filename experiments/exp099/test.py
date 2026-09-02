@@ -152,6 +152,9 @@ def test_stages_pin_v3_keep_raw_evidence_and_render_without_analysis(lab, monkey
     assert record["inputs"]["compute"]["payload_digest"] == before
     assert record["inputs"]["analysis"]["run_id"] == analysis_id
     assert all(path.is_file() for path in (output / "export").iterdir())
+    assert (output / "export" / recipe.INPUT_MAP).read_bytes() == (
+        Path(recipe.__file__).with_name(recipe.INPUT_MAP).read_bytes()
+    )
     assert (output / "export" / recipe.POSTER).stat().st_size > 1000
     poster = mpimg.imread(output / "export" / recipe.POSTER)
     assert poster.shape[:2] == (1944, 3456)

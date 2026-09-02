@@ -186,6 +186,7 @@ def _plot_snapshot_raster(snap_path: Path, out_png: Path) -> None:
     for a in (ax, ax2, ax3):
         for sp in ("top", "right"):
             a.spines[sp].set_visible(False)
+    theme.label_panels((ax, ax2, ax3))
     out_png.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out_png)  # PNG (dense raster, H10); dpi 240 from theme (H11)
     plt.close(fig)
@@ -243,6 +244,7 @@ def comparison_rasters(rasters: Path, destination: Path) -> None:
             if row == 1:
                 ax.set_xlabel("time (ms)")
             ax.spines[["top", "right"]].set_visible(False)
+    theme.label_panels(axes.flat)
     fig.savefig(destination)
     plt.close(fig)
 

@@ -89,6 +89,7 @@ def plot_quantitative_law(rows: list[dict], fit: dict, out_path: Path) -> None:
         ax.spines["right"].set_visible(False)
         ax.tick_params(labelsize=theme.SIZE_TICK)
     ax_rate.legend(fontsize=theme.SIZE_LEGEND, frameon=False, loc="upper left")
+    theme.label_panels((ax_rate, ax_acc))
     fig.tight_layout()
     out_path.parent.mkdir(parents=True, exist_ok=True)
     save_figure(fig, out_path)
@@ -133,6 +134,7 @@ def plot_training_curves(
         ax.spines["top"].set_visible(False)
         ax.spines["right"].set_visible(False)
         ax.grid(True, alpha=0.15, lw=0.4)
+    theme.label_panels((ax_acc, ax_rate))
     fig.tight_layout()
     out_path.parent.mkdir(parents=True, exist_ok=True)
     save_figure(fig, out_path)
@@ -244,6 +246,7 @@ def plot_per_trial_peaks(
         ax.spines["right"].set_visible(False)
 
     axes[-1].set_xlabel("Per-trial PSD peak frequency (Hz)", fontsize=theme.SIZE_LABEL)
+    theme.label_panels(axes)
     fig.tight_layout()
     out_path.parent.mkdir(parents=True, exist_ok=True)
     save_figure(fig, out_path)
@@ -309,6 +312,7 @@ def plot_raster_strip(
         if i < n - 1:
             ax.tick_params(axis="x", labelbottom=False)
     axes[-1].set_xlabel("time (ms)")
+    theme.label_panels(axes)
     fig.tight_layout()
     out_path.parent.mkdir(parents=True, exist_ok=True)
     save_figure(fig, out_path, formats=("png", "pdf"))  # dense raster: PNG, not SVG

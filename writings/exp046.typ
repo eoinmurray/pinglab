@@ -1,4 +1,4 @@
-#import "contents.typ": with-contents, result-card, with-numbered-equations, with-result-sections
+#import "contents.typ": contents-here, with-contents, result-card, with-numbered-equations, with-result-sections
 #import "/.demolab/lib.typ": data-json, data-image
 #import "run-inputs.typ": data-file, inputs-ready, pending-report
 #import "run-view.typ": with-datasets, run-view
@@ -6,7 +6,7 @@
 #let data-file = data-file.with(article: "exp046")
 
 #let meta = (
-  status: "[▦ DATA | v31.2.0]",
+  status: "[▦ DATA | v33.0.0]",
   title: "One Spike per Gamma Cycle",
   created_at: "2026-06-04T00:00:00Z",
   updated_at: "2026-08-31T00:00:00Z",
@@ -35,6 +35,8 @@
   Supports the one-spike-per-cycle approximation for this sweep, but does not
   turn the population relationship into a universal participation law.
 
+  #contents-here()
+
   == Results
 
   #with-result-sections[
@@ -50,8 +52,9 @@
   #figure(
     data-image(data-file("exp046/spikes_per_cycle_distribution.svg"), width: 100%,
       alt: "Six bar charts, one per τ_GABA, of the probability an E neuron emits 0, 1, 2, or ≥3 spikes in a gamma cycle; every panel is dominated by the 0 and 1 bars."),
-    caption: [Distribution of E spike count per gamma cycle per neuron, by
-      $tau_"GABA"$, aggregating three seeds and 179 million neuron–cycle pairs.],
+    caption: [Distribution of E spike count per gamma cycle per neuron at
+      $tau_"GABA"$ values *(A–F)* 4.5, 6, 9, 12, 18 and 27 ms, respectively,
+      aggregating three seeds and 179 million neuron–cycle pairs.],
   )
 
   ]

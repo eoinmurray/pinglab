@@ -7,88 +7,6 @@ from experiments.helpers import theme
 from .recipe import SIGMA_V_MV
 
 
-def plot_hysteresis(sweep, hopf, out_path, run_id):
-    theme.apply()
-    fig, ax = plt.subplots(figsize=(8.0, 4.5), dpi=150)
-    i_star = hopf["I_ext_star"]
-    xu = [d["I_ext"] for d in sweep["up"]]
-    yu = [d["amp"] for d in sweep["up"]]
-    xd = [d["I_ext"] for d in sweep["down"]]
-    yd = [d["amp"] for d in sweep["down"]]
-    ax.plot(xu, yu, "o-", color=theme.INK_BLACK, lw=1.2, ms=5, label="drive increasing")
-    ax.plot(
-        xd,
-        yd,
-        "s--",
-        color=theme.DEEP_RED,
-        lw=1.0,
-        ms=5,
-        markerfacecolor="none",
-        label="drive decreasing",
-    )
-    ax.axvline(i_star, color=theme.AMBER, lw=0.6, ls=":")
-    ax.annotate(
-        "no resolved hysteresis",
-        xy=(i_star, 0.0),
-        xytext=(i_star - 0.085, max(yu) * 0.55),
-        fontsize=theme.SIZE_ANNOTATION,
-        color=theme.GREY_DARK,
-        ha="left",
-        va="center",
-    )
-    ax.set_xlabel("$I_\\text{ext}$ (nA)", fontsize=theme.SIZE_LABEL)
-    ax.set_ylabel("E amplitude (pk-pk, ms$^{-1}$)", fontsize=theme.SIZE_LABEL)
-    ax.legend(fontsize=theme.SIZE_LEGEND, frameon=False, loc="upper left")
-    fig.tight_layout()
-    fig.savefig(out_path, dpi=150)
-    plt.close(fig)
-
-
-def plot_eigenvalues_complex(results, hopf, out_path, run_id):
-    """The four 4D eigenvalues in the complex plane, coloured by drive."""
-    theme.apply()
-    fig, ax = plt.subplots(figsize=(8.0, 4.5), dpi=150)
-    xs = np.array([r["I_ext"] for r in results])
-    eig_re = np.array([[e[0] for e in r["eigs"]] for r in results])
-    eig_im = np.array([[e[1] for e in r["eigs"]] for r in results])
-    sc = None
-    for k in range(eig_re.shape[1]):
-        sc = ax.scatter(
-            eig_re[:, k], eig_im[:, k], c=xs, cmap="magma", s=5, linewidths=0
-        )
-    assert sc is not None  # eig_re has 4 columns, so the loop always assigns sc
-    ax.axvline(0, color=theme.GREY_MID, lw=0.6, ls=":")
-    if hopf:
-        w = hopf["omega_star"]
-        ax.scatter(
-            [0, 0],
-            [w, -w],
-            facecolors="none",
-            edgecolors=theme.ELECTRIC_CYAN,
-            s=70,
-            lw=1.4,
-            zorder=5,
-        )
-        ax.annotate(
-            f"crossing at $\\pm i\\omega^\\star$\n"
-            f"$f^\\star = {hopf['freq_star_Hz']:.1f}$ Hz",
-            xy=(0, w),
-            xytext=(0.10 * eig_re.max(), w + 0.12 * w),
-            fontsize=theme.SIZE_ANNOTATION,
-            color=theme.GREY_DARK,
-            ha="left",
-            va="bottom",
-            arrowprops=dict(arrowstyle="-", color=theme.ELECTRIC_CYAN, lw=0.8),
-        )
-    cbar = fig.colorbar(sc, ax=ax)
-    cbar.set_label("$I_\\text{ext}$ (nA)", fontsize=theme.SIZE_LABEL)
-    ax.set_xlabel("Re$(\\lambda)$ (ms$^{-1}$)", fontsize=theme.SIZE_LABEL)
-    ax.set_ylabel("Im$(\\lambda)$ (rad/ms)", fontsize=theme.SIZE_LABEL)
-    fig.tight_layout()
-    fig.savefig(out_path, dpi=150)
-    plt.close(fig)
-
-
 def plot_limit_cycle(metrics, out_path, run_id):
     """4D limit cycle just above onset: E and I waveforms and the E→I lag."""
     theme.apply()
@@ -110,37 +28,6 @@ def plot_limit_cycle(metrics, out_path, run_id):
     return {k: metrics[k] for k in ("I_ext", "e_leads_i_ms", "e_peak_to_peak")}
 
 
-def plot_frequency_vs_tau_gaba(mf, meas, out_path, run_id):
-    theme.apply()
-    fig, ax = plt.subplots(figsize=(8.0, 4.5), dpi=150)
-    tg = [d["tau_gaba_ms"] for d in mf if d["f_star_Hz"] is not None]
-    fs = [d["f_star_Hz"] for d in mf if d["f_star_Hz"] is not None]
-    ax.plot(
-        tg,
-        fs,
-        "o-",
-        color=theme.INK_BLACK,
-        lw=1.4,
-        label="reference mean-field $f^\\star$",
-    )
-    if meas:
-        mt = sorted(meas)
-        ax.plot(
-            mt,
-            [meas[t] for t in mt],
-            "s--",
-            color=theme.DEEP_RED,
-            lw=1.3,
-            label="spiking $f_\\gamma$",
-        )
-    ax.set_xlabel("$\\tau_\\text{GABA}$ (ms)", fontsize=theme.SIZE_LABEL)
-    ax.set_ylabel("gamma frequency (Hz)", fontsize=theme.SIZE_LABEL)
-    ax.legend(fontsize=theme.SIZE_LEGEND, frameon=False, loc="upper right")
-    fig.tight_layout()
-    fig.savefig(out_path, dpi=150)
-    plt.close(fig)
-
-
 def plot_phase_planes(coordinates, out_path, run_id):
     """Project the trajectory; projections alone do not establish a centre manifold."""
     theme.apply()
@@ -154,6 +41,7 @@ def plot_phase_planes(coordinates, out_path, run_id):
         ax.set_ylabel(labels[b], fontsize=theme.SIZE_LABEL)
         ax.spines["top"].set_visible(False)
         ax.spines["right"].set_visible(False)
+    theme.label_panels(axes.flat)
     fig.tight_layout()
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
@@ -180,6 +68,7 @@ def plot_timeseries(coordinates, out_path, run_id):
         ax.spines["top"].set_visible(False)
         ax.spines["right"].set_visible(False)
     axes[-1].set_xlabel("time (ms)", fontsize=theme.SIZE_LABEL)
+    theme.label_panels(axes)
     fig.tight_layout()
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
@@ -278,7 +167,7 @@ def fig_bifurcation_compound(results, hopf, sweep, mf, meas, out_path, run_id):
     axA.set_xlabel("Re$(\\lambda)$ (ms$^{-1}$)", fontsize=theme.SIZE_LABEL)
     axA.set_ylabel("Im$(\\lambda)$ (rad/ms)", fontsize=theme.SIZE_LABEL)
     axA.set_title(
-        f"A  Hopf crossing at $I^\\star$ = {hopf['I_ext_star']:.2f} nA",
+        f"Hopf crossing at $I^\\star$ = {hopf['I_ext_star']:.2f} nA",
         loc="left",
         fontsize=theme.SIZE_LABEL,
         fontweight="semibold",
@@ -306,7 +195,7 @@ def fig_bifurcation_compound(results, hopf, sweep, mf, meas, out_path, run_id):
     axB.set_xlabel("$I_\\text{ext}$ (nA)", fontsize=theme.SIZE_LABEL)
     axB.set_ylabel("E amplitude (pk-pk, ms$^{-1}$)", fontsize=theme.SIZE_LABEL)
     axB.set_title(
-        "B  Reversible sampled onset",
+        "Reversible sampled onset",
         loc="left",
         fontsize=theme.SIZE_LABEL,
         fontweight="semibold",
@@ -332,7 +221,7 @@ def fig_bifurcation_compound(results, hopf, sweep, mf, meas, out_path, run_id):
     axC.set_xlabel("$\\tau_\\text{GABA}$ (ms)", fontsize=theme.SIZE_LABEL)
     axC.set_ylabel("gamma frequency (Hz)", fontsize=theme.SIZE_LABEL)
     axC.set_title(
-        "C  Frequency from biophysics",
+        "Frequency from biophysics",
         loc="left",
         fontsize=theme.SIZE_LABEL,
         fontweight="semibold",
@@ -340,6 +229,7 @@ def fig_bifurcation_compound(results, hopf, sweep, mf, meas, out_path, run_id):
     axC.legend(fontsize=theme.SIZE_LEGEND, frameon=False, loc="upper right")
     _despine(axC)
 
+    theme.label_panels((axA, axB, axC))
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
 
@@ -405,6 +295,7 @@ def plot_sigma_sensitivity(sensitivity, out_path, run_id):
         ax.set_xlabel("$\\sigma_V$ (mV)")
         ax.axvline(SIGMA_V_MV, color=theme.GREY_MID, lw=0.7, ls=":")
         _despine(ax)
+    theme.label_panels(axes.flat)
     fig.tight_layout()
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
