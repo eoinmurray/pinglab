@@ -6,7 +6,7 @@
 
 #let meta = (
   status: "[▦ DATA | v34.0.1]",
-  title: "Brian2 comparison",
+  title: "Brian2 Comparison",
   created_at: "2026-09-02T00:00:00Z",
   updated_at: "2026-09-02",
   description: "Twenty fast comparisons test where snnsim and Brian2 agree across the mechanisms and trained networks used by the gamma-gated-sparsity manuscript.",
