@@ -18,7 +18,13 @@ from pingstore.contracts import write_json_atomic
 from pingstore.stages import stage_run
 
 
-def simulate(root: Path, bundle_spec) -> list[str]:
+def simulate(
+    root: Path,
+    bundle_spec,
+    *,
+    duration_ms: float = recipe.DURATION_MS,
+    seed: int = recipe.SEED,
+) -> list[str]:
     bundle = root / "network.bundle"
     run = root / "simulation"
     bundle_spec.write(bundle, visualise=True)
@@ -29,20 +35,26 @@ def simulate(root: Path, bundle_spec) -> list[str]:
         "--bundle",
         str(bundle),
         "--t-ms",
-        str(recipe.DURATION_MS),
+        str(duration_ms),
         "--seed",
-        str(recipe.SEED),
+        str(seed),
         "--out-dir",
         str(run),
         "--wipe-dir",
     ]
     subprocess.run(command, cwd=REPO, check=True)
-    export_initialized_weights(bundle, run)
+    export_initialized_weights(bundle, run, duration_ms=duration_ms, seed=seed)
     shutil.copy2(bundle / "reports/expanded.svg", root / "network.svg")
     return command
 
 
-def export_initialized_weights(bundle: Path, run: Path) -> None:
+def export_initialized_weights(
+    bundle: Path,
+    run: Path,
+    *,
+    duration_ms: float = recipe.DURATION_MS,
+    seed: int = recipe.SEED,
+) -> None:
     """Recreate and retain the exact seeded matrices used by SNNSIM."""
     # The simulator uses flat module imports; match those only during compute.
     sys.path.insert(0, str(REPO / "tools/snnsim"))
@@ -52,7 +64,7 @@ def export_initialized_weights(bundle: Path, run: Path) -> None:
 
     _, graph = load_graph_bundle(bundle)
     spec = translate_cobanet_v1(graph)
-    infer._pin_run(spec.dt, recipe.DURATION_MS, seed=recipe.SEED)
+    infer._pin_run(spec.dt, duration_ms, seed=seed)
     snnsim_models.N_IN = spec.input_size
     snnsim_models.N_INH = spec.hidden_size // 4
     snnsim_models.EXACT_K_INITIALIZATION = spec.exact_k_initialization
@@ -93,12 +105,30 @@ def compute(
     run_id: str | None = None,
     condition: str = "richer-input",
     shared_peak_scale: float = 6.5,
-    fixed_input_scale: float = 1.0,
+    private_afferent_scale: float = 1.0,
+    background_rate_scale: float = 1.0,
+    w_ee_scale: float = 1.0,
+    w_ei_scale: float = 1.0,
+    duration_ms: float = recipe.DURATION_MS,
+    seed: int = recipe.SEED,
+    onset_ms: float = recipe.ONSET_MS,
+    peak_ms: float = recipe.PEAK_MS,
+    plateau_end_ms: float = recipe.PEAK_MS,
+    offset_ms: float = recipe.OFFSET_MS,
+    view_start_ms: float = recipe.VIEW_START_MS,
+    view_end_ms: float = recipe.VIEW_END_MS,
 ) -> str:
     bundle = recipe.author_network(
         condition=condition,
         shared_peak_scale=shared_peak_scale,
-        fixed_input_scale=fixed_input_scale,
+        private_afferent_scale=private_afferent_scale,
+        background_rate_scale=background_rate_scale,
+        w_ee_scale=w_ee_scale,
+        w_ei_scale=w_ei_scale,
+        onset_ms=onset_ms,
+        peak_ms=peak_ms,
+        plateau_end_ms=plateau_end_ms,
+        offset_ms=offset_ms,
     )
     with stage_run(
         REPO,
@@ -109,10 +139,21 @@ def compute(
             bundle,
             condition=condition,
             shared_peak_scale=shared_peak_scale,
-            fixed_input_scale=fixed_input_scale,
+            private_afferent_scale=private_afferent_scale,
+            background_rate_scale=background_rate_scale,
+            w_ee_scale=w_ee_scale,
+            w_ei_scale=w_ei_scale,
+            duration_ms=duration_ms,
+            seed=seed,
+            onset_ms=onset_ms,
+            peak_ms=peak_ms,
+            plateau_end_ms=plateau_end_ms,
+            offset_ms=offset_ms,
+            view_start_ms=view_start_ms,
+            view_end_ms=view_end_ms,
         ),
     ) as run:
-        command = simulate(run.export, bundle)
+        command = simulate(run.export, bundle, duration_ms=duration_ms, seed=seed)
         run.record["execution"]["simulation_command"] = command
         write_json_atomic(run.scratch / "simulation-command.json", {"command": command})
     return run.run_id
@@ -127,13 +168,35 @@ def main() -> None:
         default="richer-input",
     )
     parser.add_argument("--shared-peak-scale", type=float, default=6.5)
-    parser.add_argument("--fixed-input-scale", type=float, default=1.0)
+    parser.add_argument("--private-afferent-scale", type=float, default=1.0)
+    parser.add_argument("--background-rate-scale", type=float, default=1.0)
+    parser.add_argument("--w-ee-scale", type=float, default=1.0)
+    parser.add_argument("--w-ei-scale", type=float, default=1.0)
+    parser.add_argument("--duration-ms", type=float, default=recipe.DURATION_MS)
+    parser.add_argument("--seed", type=int, default=recipe.SEED)
+    parser.add_argument("--onset-ms", type=float, default=recipe.ONSET_MS)
+    parser.add_argument("--peak-ms", type=float, default=recipe.PEAK_MS)
+    parser.add_argument("--plateau-end-ms", type=float, default=recipe.PEAK_MS)
+    parser.add_argument("--offset-ms", type=float, default=recipe.OFFSET_MS)
+    parser.add_argument("--view-start-ms", type=float, default=recipe.VIEW_START_MS)
+    parser.add_argument("--view-end-ms", type=float, default=recipe.VIEW_END_MS)
     args = parser.parse_args()
     compute(
         run_id=args.run_id,
         condition=args.condition,
         shared_peak_scale=args.shared_peak_scale,
-        fixed_input_scale=args.fixed_input_scale,
+        private_afferent_scale=args.private_afferent_scale,
+        background_rate_scale=args.background_rate_scale,
+        w_ee_scale=args.w_ee_scale,
+        w_ei_scale=args.w_ei_scale,
+        duration_ms=args.duration_ms,
+        seed=args.seed,
+        onset_ms=args.onset_ms,
+        peak_ms=args.peak_ms,
+        plateau_end_ms=args.plateau_end_ms,
+        offset_ms=args.offset_ms,
+        view_start_ms=args.view_start_ms,
+        view_end_ms=args.view_end_ms,
     )
 
 

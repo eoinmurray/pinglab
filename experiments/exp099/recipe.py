@@ -40,15 +40,29 @@ def author_network(
     *,
     condition: str = "richer-input",
     shared_peak_scale: float = 6.5,
-    fixed_input_scale: float = 1.0,
+    private_afferent_scale: float = 1.0,
+    background_rate_scale: float = 1.0,
+    w_ee_scale: float = 1.0,
+    w_ei_scale: float = 1.0,
+    onset_ms: float = ONSET_MS,
+    peak_ms: float = PEAK_MS,
+    plateau_end_ms: float = PEAK_MS,
+    offset_ms: float = OFFSET_MS,
 ) -> snn.Bundle:
     """Author the latest canvas condition without depending on canvas files."""
     if condition not in {"richer-input", "shared-drive-isolation"}:
         raise ValueError(f"unsupported exp099 condition: {condition}")
-    if shared_peak_scale < 1 or not 0 < fixed_input_scale <= 1:
-        raise ValueError("input scales require shared >= 1 and 0 < fixed <= 1")
+    if shared_peak_scale < 1 or not (
+        0 < private_afferent_scale <= 1 and 0 < background_rate_scale <= 1
+    ):
+        raise ValueError("input scales require shared >= 1 and 0 < fixed scales <= 1")
+    if w_ee_scale <= 0 or w_ei_scale <= 0:
+        raise ValueError("recurrent scales must be positive")
+    if not 0 <= onset_ms < peak_ms <= plateau_end_ms < offset_ms:
+        raise ValueError("input timing requires onset < peak <= plateau end < offset")
     isolated = condition == "shared-drive-isolation"
-    fixed_scale = fixed_input_scale if isolated else 1.0
+    private_scale = private_afferent_scale if isolated else 1.0
+    background_scale = background_rate_scale if isolated else 1.0
     private_peak_scale = 1.0 if isolated else 1.2
     weather = (
         None if isolated else snn.StationaryRateWeather(tau_ms=250, std_fraction=0.12)
@@ -70,8 +84,8 @@ def author_network(
         tau_gaba=9 * snn.ms,
         w_in_e=snn.Normal(0.08, 0.008),
         w_in_i=snn.Normal(0.02, 0.002),
-        w_ee=recurrent(0.85, 0.255),
-        w_ei=recurrent(0.6, 0.18),
+        w_ee=recurrent(0.85 * w_ee_scale, 0.255 * w_ee_scale),
+        w_ei=recurrent(0.6 * w_ei_scale, 0.18 * w_ei_scale),
         w_ie=recurrent(3.0, 0.9),
         w_ii=recurrent(0.4, 0.12),
     )
@@ -87,29 +101,29 @@ def author_network(
     simulation = snn.SimulationSpec(
         spike_sources=[
             snn.CorrelatedPoissonAfferents(
-                source_e, source_i, 10, 15 * fixed_scale, 15 * fixed_scale
+                source_e, source_i, 10, 15 * private_scale, 15 * private_scale
             )
         ],
         backgrounds=[
             snn.ConductanceBackground(
                 cell.E,
-                background(2, 25, 0.06, 0.02, rate_scale=fixed_scale),
-                background(9, 25, 0.03, 0.01, rate_scale=fixed_scale),
+                background(2, 25, 0.06, 0.02, rate_scale=background_scale),
+                background(9, 25, 0.03, 0.01, rate_scale=background_scale),
             ),
             snn.ConductanceBackground(
                 cell.I,
-                background(2, 10, 0.03, 0.01, rate_scale=fixed_scale),
-                background(9, 10, 0.03, 0.01, rate_scale=fixed_scale),
+                background(2, 10, 0.03, 0.01, rate_scale=background_scale),
+                background(9, 10, 0.03, 0.01, rate_scale=background_scale),
             ),
         ],
         weather=weather,
         afferent_wave=snn.TransientAfferentWave(
-            ONSET_MS,
-            PEAK_MS,
-            OFFSET_MS,
+            onset_ms,
+            peak_ms,
+            offset_ms,
             private_peak_scale,
             shared_peak_scale,
-            plateau_end_ms=PEAK_MS,
+            plateau_end_ms=plateau_end_ms,
         ),
     )
     return snn.compile(net, simulation=simulation, target="tools/snnsim")
@@ -120,7 +134,18 @@ def configuration(
     *,
     condition: str = "richer-input",
     shared_peak_scale: float = 6.5,
-    fixed_input_scale: float = 1.0,
+    private_afferent_scale: float = 1.0,
+    background_rate_scale: float = 1.0,
+    w_ee_scale: float = 1.0,
+    w_ei_scale: float = 1.0,
+    duration_ms: float = DURATION_MS,
+    seed: int = SEED,
+    onset_ms: float = ONSET_MS,
+    peak_ms: float = PEAK_MS,
+    plateau_end_ms: float = PEAK_MS,
+    offset_ms: float = OFFSET_MS,
+    view_start_ms: float = VIEW_START_MS,
+    view_end_ms: float = VIEW_END_MS,
 ) -> dict:
     bundle = (
         bundle
@@ -128,17 +153,37 @@ def configuration(
         else author_network(
             condition=condition,
             shared_peak_scale=shared_peak_scale,
-            fixed_input_scale=fixed_input_scale,
+            private_afferent_scale=private_afferent_scale,
+            background_rate_scale=background_rate_scale,
+            w_ee_scale=w_ee_scale,
+            w_ei_scale=w_ei_scale,
+            onset_ms=onset_ms,
+            peak_ms=peak_ms,
+            plateau_end_ms=plateau_end_ms,
+            offset_ms=offset_ms,
         )
     )
+    if not 0 <= view_start_ms < view_end_ms <= duration_ms:
+        raise ValueError("view window must lie inside the simulation")
     return {
         "schema": "exp099.recipe/v1",
         "condition": condition,
         "controls": {
             "shared_peak_scale": float(shared_peak_scale),
-            "fixed_input_scale": float(fixed_input_scale),
+            "private_afferent_scale": float(private_afferent_scale),
+            "background_rate_scale": float(background_rate_scale),
+            "w_ee_scale": float(w_ee_scale),
+            "w_ei_scale": float(w_ei_scale),
+            "onset_ms": float(onset_ms),
+            "peak_ms": float(peak_ms),
+            "plateau_end_ms": float(plateau_end_ms),
+            "offset_ms": float(offset_ms),
+            "view_start_ms": float(view_start_ms),
+            "view_end_ms": float(view_end_ms),
         },
         **SCALE,
+        "t_ms": float(duration_ms),
+        "seed": int(seed),
         "graph": bundle.graph,
         "simulation": bundle.simulation,
     }
@@ -150,15 +195,18 @@ def media_names(condition: str) -> tuple[str, str]:
     return VIDEO, POSTER
 
 
-def analysis_configuration() -> dict:
+def analysis_configuration(configuration: dict | None = None) -> dict:
+    configuration = configuration or {}
+    controls = configuration.get("controls", {})
+    short_protocol = float(configuration.get("t_ms", DURATION_MS)) <= 1_200
     return {
         "schema": "exp099.measurements/v1",
-        "rhythm_window_ms": 400.0,
-        "rhythm_stride_ms": 10.0,
-        "rhythm_max_lag_ms": 100.0,
+        "rhythm_window_ms": 160.0 if short_protocol else 400.0,
+        "rhythm_stride_ms": 5.0 if short_protocol else 10.0,
+        "rhythm_max_lag_ms": 60.0 if short_protocol else 100.0,
         "rhythm_bin_ms": 1.0,
-        "view_start_ms": VIEW_START_MS,
-        "view_end_ms": VIEW_END_MS,
+        "view_start_ms": controls.get("view_start_ms", VIEW_START_MS),
+        "view_end_ms": controls.get("view_end_ms", VIEW_END_MS),
         "loop_window_ms": 40.0,
         "loop_stride_ms": 5.0,
         "loop_smoothing_ms": 75.0,

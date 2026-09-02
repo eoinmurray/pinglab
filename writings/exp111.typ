@@ -6,7 +6,7 @@
 
 #let meta = (
   status: "[▦ DATA | v34.0.1]",
-  title: "Backend Distance Across Gamma-Gated-Sparsity Mechanisms",
+  title: "Brian2 comparison",
   created_at: "2026-09-02T00:00:00Z",
   updated_at: "2026-09-02",
   description: "Twenty fast comparisons test where snnsim and Brian2 agree across the mechanisms and trained networks used by the gamma-gated-sparsity manuscript.",
@@ -49,11 +49,16 @@
   === Passive conductance-based LIF dynamics
 
   #let t = test("lif-passive")
+  The passive LIF update determines how leak and synaptic conductances move a
+  neuron's membrane voltage before any spike threshold is applied. We compared
+  eight excitatory-like and inhibitory-like conductance settings to test this
+  numerical foundation independently of network activity.
+
   Across eight sampled cases, snnsim and Brian2 produced the same final voltages
   to displayed precision, spanning approximately −55.36 to −66.65 mV; their
   maximum difference was #rounded(t.maximum_absolute_difference, digits: 14) mV.
-  This is adequate evidence for the tested passive update because the residual
-  is at floating-point scale, but it does not validate unsampled parameters.
+  The tested passive update therefore agrees at floating-point scale, although
+  the comparison does not cover unsampled parameter settings.
 
   #figure(
     data-image(data-file("exp111/lif-passive.svg"), width: 92%, alt: "Passive excitatory and inhibitory LIF samples compared between snnsim and Brian2, with backend residuals."),
@@ -67,11 +72,16 @@
   === Threshold, reset and refractory dynamics
 
   #let t = test("lif-spiking")
+  A spiking LIF neuron must cross threshold, emit an event, reset its voltage and
+  remain refractory on the same simulation steps in both backends. We repeatedly
+  drove one neuron through this complete event sequence and compared its voltage
+  trajectory and spike times.
+
   snnsim and Brian2 each produced six spikes at 0.5, 4.0, 7.5, 11.0, 14.5 and
   18.0 ms, while their voltage traces differed by at most
-  #rounded(t.maximum_absolute_difference, digits: 14) mV. This is adequate for
-  the tested threshold, reset and refractory sequence because both continuous
-  state and discrete event times coincide; it does not cover other drive regimes.
+  #rounded(t.maximum_absolute_difference, digits: 14) mV. Continuous voltage and
+  discrete event timing therefore coincide for this drive regime; other regimes
+  remain untested.
 
   #figure(
     data-image(data-file("exp111/lif-spiking.svg"), width: 92%, alt: "Repeated threshold crossings, resets and refractory intervals in snnsim and Brian2, with voltage residuals."),
@@ -85,11 +95,16 @@
   === AMPA and GABA impulse decay
 
   #let t = test("synapse-impulses")
+  AMPA and GABA conductances are incremented by presynaptic events and then decay
+  between events, shaping excitation and inhibition throughout the network. We
+  applied one six-event train across seven decay times to isolate this synaptic
+  rule from neuronal and recurrent dynamics.
+
   Across the seven decay times, snnsim endpoints ranged from 0.0985 to 1.3682 µS
   and Brian2 produced the same values to displayed precision; the largest trace
-  difference was #rounded(t.maximum_absolute_difference, digits: 15) µS. This is
-  adequate for the isolated exponential-decay rule because the residual is
-  negligible, making that rule an unlikely source of later network discrepancies.
+  difference was #rounded(t.maximum_absolute_difference, digits: 15) µS. The
+  isolated decay rule therefore agrees numerically and is unlikely to explain
+  the larger discrepancies seen in full-network replays.
 
   #figure(
     data-image(data-file("exp111/synapse-impulses.svg"), width: 92%, alt: "Exponential synaptic impulse responses across decay times in snnsim and Brian2, with residuals."),
@@ -102,10 +117,15 @@
   === Event scheduling through the E–I loop
 
   #let t = test("event-causality")
+  In the reduced excitatory–inhibitory loop, excitatory spikes must reach the
+  inhibitory population before inhibition feeds back to excitation. We compared
+  population rates and the first excitatory-to-inhibitory lag to test whether
+  both simulators preserve this short-timescale causal order.
+
   snnsim and Brian2 both produced an 18.00 Hz excitatory rate, an 86.67 Hz
-  inhibitory rate and a 0.5 ms first E-to-I event lag. This exact comparison is
-  adequate for the intended causal ordering in the reduced circuit, but not for
-  claiming that event schedules remain equivalent after long recurrent trajectories.
+  inhibitory rate and a 0.5 ms first E-to-I event lag. The intended event order
+  is therefore reproduced in this reduced circuit, but the test does not show
+  that long recurrent trajectories remain identical.
 
   #figure(
     data-image(data-file("exp111/event-causality.svg"), width: 92%, alt: "Excitatory and inhibitory rates from a reduced E-I loop in snnsim and Brian2, with residuals."),
@@ -119,10 +139,15 @@
   === Projection and weight scaling
 
   #let t = test("projection-scaling")
+  Reciprocal E-to-I and I-to-E projections depend on the same matrix orientation,
+  fan-in normalization and weight scaling in both implementations. We varied the
+  two projection strengths together from a disabled loop to full coupling and
+  used excitatory firing rate as the circuit-level check.
+
   At reciprocal scales 0, 0.5 and 1, snnsim measured 209.33, 40.00 and 18.00 Hz,
-  and Brian2 measured the same three rates. This is adequate evidence for the
-  tested projection orientation and scaling because the exact match spans a
-  191.33 Hz intervention effect rather than only a near-static operating point.
+  and Brian2 measured the same three rates. The exact match spans a 191.33 Hz
+  intervention effect, supporting the tested projection orientation and scaling
+  across substantially different operating points.
 
   #figure(
     data-image(data-file("exp111/projection-scaling.svg"), width: 92%, alt: "Excitatory firing rate across reciprocal loop scales in snnsim and Brian2, with residuals."),
@@ -136,10 +161,15 @@
   === Matched-drive loop-off and loop-on activity
 
   #let t = test("matched-loop")
+  This comparison asks whether enabling reciprocal inhibition changes temporal
+  organization when the external drive is held fixed. We disabled and enabled
+  the reduced E–I loop and measured excitatory autocorrelation lobe–trough
+  contrast, a summary of oscillatory structure rather than mean firing rate.
+
   snnsim measured loop-off and loop-on contrasts of 1.0678 and 0.8831, and Brian2
-  measured the same values. This is adequate for the reduced matched-drive
-  comparison because the 0.1847 loop effect is reproduced with zero observed
-  backend distance; it does not establish agreement in the trained networks.
+  measured the same values. Both backends therefore reproduce the 0.1847 change
+  caused by enabling the reduced loop, but this result does not establish
+  agreement in trained full networks.
 
   #figure(
     data-image(data-file("exp111/matched-loop.svg"), width: 92%, alt: "Autocorrelation contrast with the reduced reciprocal loop disabled and enabled in both simulators."),
@@ -153,10 +183,14 @@
   === Input-response curves
 
   #let t = test("input-response")
+  A backend comparison should preserve the circuit's response to changing input,
+  not merely one operating point. We scaled the reduced circuit's tonic drive
+  across four levels and compared its excitatory population-mean firing rate.
+
   At relative drives 0.75, 1.0, 1.25 and 1.5, snnsim measured 18.00, 18.00,
-  21.50 and 23.75 Hz, and Brian2 measured the same rates. This is adequate for
-  the sampled input-response curve because both its plateau and 5.75 Hz rise
-  coincide; four points remain insufficient to validate arbitrary drive levels.
+  21.50 and 23.75 Hz, and Brian2 measured the same rates. Both the initial
+  plateau and subsequent 5.75 Hz rise coincide, establishing agreement at these
+  sampled drive levels but not across the unsampled response curve.
 
   #figure(
     data-image(data-file("exp111/input-response.svg"), width: 92%, alt: "Reduced-circuit excitatory rates across four drive levels in snnsim and Brian2, with residuals."),
@@ -169,10 +203,15 @@
   === Coupling-plane onset proxy
 
   #let t = test("coupling-onset")
+  Increasing reciprocal coupling can move the reduced circuit toward or away
+  from an oscillatory regime. As a one-dimensional proxy for that transition, we
+  scaled both recurrent pathways together and tracked excitatory autocorrelation
+  lobe–trough contrast.
+
   At coupling scales 0, 0.25, 0.5, 0.75 and 1, both snnsim and Brian2 measured
-  contrasts of 1.076, 1.110, 0.982, 0.954 and 0.765. This is adequate for the
-  displayed one-dimensional onset proxy because every sampled value coincides,
-  but not for the full two-dimensional coupling plane omitted by this probe.
+  contrasts of 1.076, 1.110, 0.982, 0.954 and 0.765. Every sampled value
+  coincides, so the backends reproduce this coupling trajectory; independently
+  varying the two pathways across a full coupling plane remains untested.
 
   #figure(
     data-image(data-file("exp111/coupling-onset.svg"), width: 92%, alt: "Reduced-circuit autocorrelation contrast across reciprocal coupling scales in snnsim and Brian2."),
@@ -186,10 +225,15 @@
   === Uncoupled private-like and shared-like controls
 
   #let t = test("uncoupled-nulls")
+  These null controls ask what the autocorrelation measure reports when no
+  reciprocal E–I loop can organize the activity. We removed recurrent coupling
+  and compared lower private-like with higher shared-like tonic drive, isolating
+  drive structure from loop-generated dynamics.
+
   Without reciprocal coupling, snnsim measured contrasts of 0.9861 and 1.0439
   for the private-like and shared-like drives, and Brian2 measured the same two
-  values. This is adequate for these null controls because their 0.0578 contrast
-  difference is preserved with zero backend distance; it does not test coupled nulls.
+  values. The 0.0578 difference is preserved with zero observed backend distance,
+  establishing agreement for these uncoupled controls only.
 
   #figure(
     data-image(data-file("exp111/uncoupled-nulls.svg"), width: 92%, alt: "Two uncoupled-drive controls compared between snnsim and Brian2 using autocorrelation contrast."),
@@ -203,10 +247,15 @@
   === GABA timescale and spectral-peak frequency
 
   #let t = test("gaba-frequency")
+  The inhibitory decay time changes how long GABA conductance persists and can
+  alter the circuit's dominant rhythm. We swept six GABA decay times in the
+  reduced circuit and compared the raw spectral-bin frequency selected from the
+  excitatory population trace.
+
   At GABA decay times 4.5, 6, 9, 12, 18 and 27 ms, snnsim selected 53.33, 42.22,
   60.00, 68.89, 20.00 and 68.89 Hz, and Brian2 selected the same frequencies.
-  This is adequate for comparing the raw spectral-bin estimator, but not for
-  claiming identical spectra or sub-bin frequencies because the readout is coarse.
+  The raw frequency estimate therefore agrees at every sampled decay time, but
+  the coarse bin selection does not establish identical spectra or sub-bin peaks.
 
   #figure(
     data-image(data-file("exp111/gaba-frequency.svg"), width: 92%, alt: "Raw excitatory spectral-peak frequency across GABA decay times in snnsim and Brian2."),
@@ -220,10 +269,15 @@
   === Excitatory spikes per inhibitory cycle
 
   #let t = test("cycle-participation")
+  The cycle-participation measure asks whether an active excitatory neuron fires
+  once, rather than repeatedly, within each inferred inhibitory cycle. We
+  evaluated this conditional fraction across the GABA-decay sweep to test whether
+  both backends preserve the same within-cycle spike organization.
+
   At every tested decay time, snnsim and Brian2 both measured a one-spike
   conditional fraction of 1.0 and a total-variation distance of zero. The values
-  agree exactly, but this is not adequate for a sensitive backend validation:
-  saturation at 1.0 leaves no variation with which to expose subtler differences.
+  agree exactly, but saturation at 1.0 makes this an insensitive backend test:
+  there is no variation with which to expose subtler differences.
 
   #figure(
     data-image(data-file("exp111/cycle-participation.svg"), width: 92%, alt: "Conditional one-spike fraction per active excitatory neuron and inferred inhibitory cycle in both simulators."),
@@ -237,12 +291,18 @@
   === Selected and final checkpoint replay - NOTABLE
 
   #let t = test("checkpoint-replay")
+  The selected checkpoint was retained by validation, whereas the final
+  checkpoint records the end of training. We replayed both canonical-PING
+  checkpoints on one fixed held-out image to ask whether firing rate, readout
+  evidence and the resulting class survive a change of simulator.
+
   At the selected checkpoint, snnsim measured 24.46 Hz and Brian2 27.08 Hz; at
   the final checkpoint they measured 24.30 and 27.36 Hz. The 2.62–3.07 Hz rate
-  gaps are not adequate for claiming backend-independent absolute rates, but
+  gaps show that absolute rates differ across backends for this replay, but
   evidence MAE remained #rounded(point(t, "selected").evidence_mae, digits: 5)
   and #rounded(point(t, "final").evidence_mae, digits: 5), and both predicted
-  class 4, making this sample's decision adequately reproduced.
+  class 4. The decision was therefore reproduced for this sample despite the
+  rate differences.
 
   #figure(
     data-image(data-file("exp111/checkpoint-replay.svg"), width: 92%, alt: "Excitatory firing rates for selected and final checkpoints replayed in snnsim and Brian2."),
@@ -256,11 +316,16 @@
   === COBA and PING endpoint replay - NOTABLE
 
   #let t = test("coba-ping-endpoints")
+  The retained endpoints contrast a feedforward COBA network with a PING network
+  containing reciprocal excitatory–inhibitory coupling. We replayed both on the
+  same held-out image to test whether Brian2 preserves the change in firing
+  regime, readout evidence and predicted class.
+
   For COBA, snnsim measured 237.27 Hz and Brian2 148.24 Hz; for PING they measured
   22.34 and 25.51 Hz. The large 89.02 Hz COBA gap and moderate 3.16 Hz PING gap
-  are not adequate for backend-independent absolute-rate claims. Both nevertheless
-  predict class 5 and a large COBA-to-PING reduction, so the qualitative inhibitory
-  contrast is adequately reproduced for this input, despite evidence MAEs of
+  show substantial backend dependence for this input. Both nevertheless
+  predicted class 5 and showed a large COBA-to-PING reduction, so the qualitative
+  endpoint contrast survived for this input despite evidence MAEs of
   #rounded(point(t, "COBA").evidence_mae, digits: 3) and
   #rounded(point(t, "PING").evidence_mae, digits: 3).
 
@@ -276,11 +341,16 @@
   === Post-training loop-strength transfer - NOTABLE
 
   #let t = test("loop-transfer")
+  This intervention combines a retained COBA feedforward checkpoint with the
+  retained recurrent matrices of a canonical-PING network. Scaling those matrices
+  from zero to full strength tests whether both backends preserve the inhibitory
+  loop's post-training effect on firing and classification.
+
   At loop scales 0, 0.5 and 1, snnsim measured 207.33, 28.98 and 13.57 Hz, while
-  Brian2 measured 132.82, 26.61 and 14.46 Hz. The shared downward trend is adequate
-  for the qualitative inhibitory effect, but the 74.51 Hz open-loop gap is not
-  adequate for its quantitative magnitude. Predictions also differ at scales
-  0.5 and 1, so downstream classification is not reproduced for those samples.
+  Brian2 measured 132.82, 26.61 and 14.46 Hz. Both show strong rate suppression,
+  but the 74.51 Hz open-loop gap prevents a backend-independent quantitative
+  effect estimate. Predictions also differ at scales 0.5 and 1, so classification
+  was not reproduced there.
 
   #figure(
     data-image(data-file("exp111/loop-transfer.svg"), width: 92%, alt: "Excitatory firing rate as retained PING recurrent weights are applied to a COBA feedforward checkpoint at three loop scales."),
@@ -294,10 +364,16 @@
   === Shared hidden-spike perturbation inputs
 
   #let t = test("spike-perturbations")
+  Spike deletion and Poisson addition are stochastic interventions, so unequal
+  random draws could masquerade as simulator differences. We constructed each
+  perturbed hidden-event set once and supplied that same realized input to both
+  backends before comparing event counts.
+
   For half deletion, full deletion, 20 Hz addition and 40 Hz addition, the
   snnsim inputs contained 102, 0, 416 and 593 events, and the Brian2 inputs
-  contained the same counts. This is adequate for random-intervention parity,
-  but not for simulator validation because no downstream responses are compared.
+  contained the same counts. This confirms count parity for the four supplied
+  interventions, but does not validate simulator dynamics because their
+  downstream responses were not compared.
 
   #figure(
     data-image(data-file("exp111/spike-perturbations.svg"), width: 92%, alt: "Realised hidden-event counts for shared spike deletion and addition inputs supplied to both backend protocols."),
@@ -311,10 +387,15 @@
   === Shared inhibitory-jitter inputs
 
   #let t = test("inhibitory-jitter")
+  Inhibitory jitter perturbs when recorded inhibitory events are replayed while
+  intending to preserve how many events enter each backend. We tested fixed-window
+  and neuron-specific jitter constructions to separate input construction from
+  any later dynamical response.
+
   Under both fixed-window and cellwise jitter, the snnsim input contained 220
-  inhibitory events and the Brian2 input also contained 220. This is adequate
-  for count preservation, but not for dynamical equivalence because equal counts
-  do not establish equal event times or downstream trajectories.
+  inhibitory events and the Brian2 input also contained 220. Event counts were
+  therefore preserved, but equal counts alone do not establish identical event
+  times or downstream trajectories.
 
   #figure(
     data-image(data-file("exp111/inhibitory-jitter.svg"), width: 92%, alt: "Retained inhibitory-event counts for two shared jitter-input constructions."),
@@ -328,11 +409,16 @@
   === Integration-timestep robustness - NOTABLE
 
   #let t = test("timestep-robustness")
+  The integration timestep controls how finely neuronal and synaptic dynamics are
+  discretized. We replayed networks trained and evaluated at 0.05, 0.1 and 1 ms
+  to test whether backend agreement is confined to the nominal timestep or
+  persists across the project's tested range.
+
   At 0.05, 0.1 and 1 ms, snnsim measured 9.98, 14.84 and 10.83 Hz, while Brian2
   measured 12.25, 14.28 and 9.32 Hz. The 0.57 Hz nominal-timestep gap is adequate
-  for a close quantitative comparison, but the 1.51–2.27 Hz extreme-timestep gaps
-  are not adequate for timestep-invariant rate claims. Every condition predicted
-  class 1, so the tested decisions remain adequately reproduced.
+  for a close comparison, while the 1.51–2.27 Hz extreme-timestep gaps rule out
+  identical rates across the sweep. Every condition predicted class 1, so the
+  tested decisions were reproduced.
 
   #figure(
     data-image(data-file("exp111/timestep-robustness.svg"), width: 92%, alt: "Excitatory firing rates from retained networks trained and replayed at three integration timesteps in snnsim and Brian2."),
@@ -346,11 +432,16 @@
   === Frozen and trained recurrent weights - NOTABLE
 
   #let t = test("recurrent-training")
+  Training recurrent weights can move the network into a different firing regime
+  from keeping the inhibitory loop fixed. We replayed one frozen-loop and one
+  trainable-loop checkpoint to ask whether the direction and size of that change,
+  as well as the predicted class, survive reimplementation.
+
   With frozen recurrence, snnsim measured 18.32 Hz and Brian2 20.08 Hz; with
   trained recurrence they measured 57.70 and 56.21 Hz. These 1.48–1.76 Hz gaps
-  are adequate for the broad training comparison because both backends show an
-  approximately 36–39 Hz increase and predict class 8, but not for asserting
-  identical pointwise rates.
+  prevent an exact pointwise match, but both backends show an approximately
+  36–39 Hz increase and predict class 8. The broad effect of recurrent training
+  was therefore reproduced for these checkpoints.
 
   #figure(
     data-image(data-file("exp111/recurrent-training.svg"), width: 92%, alt: "Excitatory firing rates for frozen and trainable recurrent-weight checkpoints in snnsim and Brian2."),
@@ -364,11 +455,15 @@
   === Continuous hidden-state stream
 
   #let t = test("stream-resets")
+  Continuous-stream inference carries hidden neuronal state from one input into
+  the next instead of resetting at presentation boundaries. We ran three
+  consecutive 50 ms inputs without hidden-state resets and compared the
+  excitatory rate within each segment.
+
   Across segments 1–3, snnsim measured 7.79, 8.54 and 13.75 Hz, while Brian2
-  measured 7.50, 8.22 and 12.73 Hz. The 0.29–1.02 Hz gaps are adequate for a
-  broadly similar stream-rate profile, but not for claiming exact state continuity;
-  the growing separation could reflect accumulated trajectory divergence, and
-  one stream cannot establish whether that growth is systematic.
+  measured 7.50, 8.22 and 12.73 Hz. Both reproduce the rising segment-wise
+  profile, but the gap grows from 0.29 to 1.02 Hz. One stream cannot determine
+  whether that separation reflects systematic accumulated trajectory divergence.
 
   #figure(
     data-image(data-file("exp111/stream-resets.svg"), width: 92%, alt: "Segment-wise excitatory firing rates during one uninterrupted three-input stream in snnsim and Brian2."),
@@ -382,11 +477,16 @@
   === Continuous-stream duration and input rate
 
   #let t = test("duration-rate")
+  Presentation duration and maximum input rate jointly determine how much spike
+  drive reaches a continuous-stream network. We replayed four paired corners of
+  those settings to test whether both simulators preserve the resulting range of
+  excitatory firing rates.
+
   Across the four duration–rate corners, snnsim measured 0.00, 16.37, 5.41 and
   6.16 Hz, while Brian2 measured 0.00, 16.70, 5.41 and 6.04 Hz. The maximum gap
-  of #rounded(t.maximum_absolute_difference) Hz is adequate for reproducing these
-  sampled corner rates, but the paired design is not adequate for separating
-  duration effects from input-rate effects between conditions.
+  was #rounded(t.maximum_absolute_difference) Hz, so the sampled corner rates
+  were closely reproduced. Because duration and input rate changed together,
+  this design cannot attribute differences to either factor alone.
 
   #figure(
     data-image(data-file("exp111/duration-rate.svg"), width: 92%, alt: "Excitatory firing rates for four presentation-duration and input-rate combinations in snnsim and Brian2."),

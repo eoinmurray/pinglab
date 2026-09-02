@@ -58,6 +58,7 @@ def render(
     wave_config = run_config["_simulation_recipe"]["afferent_wave"]
     input_onset_ms = float(wave_config["onset_ms"])
     input_peak_ms = float(wave_config["peak_ms"])
+    input_plateau_end_ms = float(wave_config.get("plateau_end_ms", input_peak_ms))
     input_offset_ms = float(wave_config["offset_ms"])
     view_start_ms = settings["view_start_ms"]
     view_end_ms = settings["view_end_ms"]
@@ -1215,6 +1216,8 @@ def render(
                 if time_ms < input_onset_ms
                 else "input rising"
                 if time_ms < input_peak_ms
+                else "peak plateau"
+                if time_ms < input_plateau_end_ms
                 else "input falling"
                 if time_ms < input_offset_ms
                 else "recovery"
@@ -1293,7 +1296,16 @@ def render(
     # This gives design iteration a representative view of both active neurons and
     # source→target transmissions instead of an arbitrary final frame.
     if STATE == "input":
-        rhythm_peak_step = int(round(rhythm_centres[np.argmax(rhythm_contrast)] / dt))
+        driven = (rhythm_centres >= input_onset_ms) & (
+            rhythm_centres <= input_offset_ms
+        )
+        driven_indices = np.flatnonzero(driven)
+        peak_index = (
+            driven_indices[np.argmax(rhythm_contrast[driven])]
+            if driven_indices.size
+            else int(np.argmax(rhythm_contrast))
+        )
+        rhythm_peak_step = int(round(rhythm_centres[peak_index] / dt))
         representative_frame = int(np.argmin(np.abs(frame_steps - rhythm_peak_step)))
     else:
         representative_frame = select_representative_frame(

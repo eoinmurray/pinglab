@@ -56,10 +56,6 @@
 
     === Reciprocal coupling creates a gamma-rhythmic low-rate regime
 
-    ==== Circuit architecture and illustrative activity
-
-    #emph[Figure reference: @fig:matched-drive (A–D).]
-
     We first compared two conductance-based spiking circuits that differed only
     in their reciprocal population coupling (Fig. 1A,B). Both contained 1,024
     excitatory and 256 inhibitory neurons, with 1,024 Poisson input channels
@@ -93,10 +89,6 @@
         Vertical rate scales differ between *(F)* and *(H)*.],
     ) <fig:matched-drive>
 
-    ==== Recurrent coupling organises activity into gamma cycles
-
-    #emph[Figure reference: @fig:matched-drive (C–E, G).]
-
     These architectural differences were accompanied by distinct temporal
     patterns. With recurrent coupling disabled, excitatory spikes were dispersed
     across the 400-ms trial and the inhibitory population remained silent (Fig.
@@ -107,10 +99,6 @@
     These single-trial examples show that the recurrent circuit supported
     gamma-periodic organisation.
 
-    ==== PING maintains lower excitatory rates across input drive
-
-    #emph[Figure reference: @fig:matched-drive (F, H).]
-
     The temporal reorganisation was accompanied by a marked change in the
     circuit’s input–output response. In the loop-off control, mean excitatory
     firing increased from 2.9 to 481.5 Hz as the per-channel input rate rose
@@ -120,10 +108,6 @@
     firing increased to 72.1 Hz (Fig. 1H). Thus, above the lowest drive
     condition, reciprocal coupling strongly constrained excitatory recruitment.
     Each condition comprised one 400-ms trial from one stochastic seed.
-
-    ==== The rhythmic low-rate regime spans the coupling plane
-
-    #emph[Figure reference: @fig:coupling-plane (A–C).]
 
     We next tested how the low-rate rhythmic state depended on reciprocal
     coupling strength. We varied the E→I and I→E initialization means across an
@@ -176,10 +160,6 @@
         calibrated to the spiking networks.],
     ) <fig:coupling-plane>
 
-    ==== Representative networks confirm the mapped transition
-
-    #emph[Figure reference: @fig:coupling-plane (D–F).]
-
     Representative rasters linked the coupling-plane summaries to the underlying
     population spike patterns. Without reciprocal coupling, excitatory neurons
     fired densely while the inhibitory population remained silent, and
@@ -193,19 +173,16 @@
     structured activity to sparse, temporally clustered population firing. These
     are selected conditions from the same single-seed sweep.
 
-    ==== Oscillations emerge through a Hopf-like transition
+    + Oscillations emerge through a Hopf-like transition
+      (@fig:coupling-plane, panels G–H).
 
-    #emph[Figure reference: @fig:coupling-plane (G–H).]
-
-    ==== Inhibitory timescale controls oscillation frequency
-
-    #emph[Figure reference: @fig:coupling-plane (I).]
+    + Inhibitory timescale controls oscillation frequency
+      (@fig:coupling-plane, panel I).
 
     === The fixed PING loop preserves accuracy at lower excitatory rates
 
-    ==== PING shifts the accuracy–firing-rate relationship
-
-    #emph[Figure reference: @fig:accuracy-rate (A–D).]
+    + PING shifts the accuracy–firing-rate relationship
+      (@fig:accuracy-rate, panels A–D).
 
     #figure(
       data-image(
@@ -222,9 +199,8 @@
         Plateaus While Firing Rate Rises_].],
     ) <fig:accuracy-rate>
 
-    ==== Activating inhibition after training reproduces the regime
-
-    #emph[Figure reference: @fig:loop-transfer (A–D).]
+    + Activating inhibition after training reproduces the regime
+      (@fig:loop-transfer, panels A–D).
 
     #figure(
       data-image(
@@ -239,9 +215,8 @@
         #link("/exp038/")[_Switching On the Inhibitory Loop_].],
     ) <fig:loop-transfer>
 
-    ==== Training recurrent weights weakens rhythmic organisation
-
-    #emph[Figure reference: @fig:trainable-loop (A–D).]
+    + Training recurrent weights weakens rhythmic organisation
+      (@fig:trainable-loop, panels A–D).
 
     #figure(
       data-image(
@@ -258,9 +233,8 @@
 
     === Excitatory firing is organised by gamma-cycle participation
 
-    ==== Excitatory rate scales with gamma frequency
-
-    #emph[Figure reference: @fig:cycle-participation (A–B).]
+    + Excitatory rate scales with gamma frequency
+      (@fig:cycle-participation, panels A–B).
 
     #figure(
       data-image(
@@ -278,15 +252,13 @@
         #link("/exp046/")[_One Spike per Gamma Cycle_].],
     ) <fig:cycle-participation>
 
-    ==== Active excitatory neurons usually fire once per cycle
-
-    #emph[Figure reference: @fig:cycle-participation (C–H).]
+    + Active excitatory neurons usually fire once per cycle
+      (@fig:cycle-participation, panels C–H).
 
     === The operating regime has asymmetric perturbation sensitivity
 
-    ==== Added and deleted spikes affect accuracy differently
-
-    #emph[Figure reference: @fig:robustness (A–B).]
+    + Added and deleted spikes affect accuracy differently
+      (@fig:robustness, panels A–B).
 
     #figure(
       data-image(
@@ -302,13 +274,11 @@
         #link("/exp044/")[_Firing Rate Across the Timestep Sweep_].],
     ) <fig:robustness>
 
-    ==== Performance persists across integration timesteps
+    + Performance persists across integration timesteps
+      (@fig:robustness, panel C).
 
-    #emph[Figure reference: @fig:robustness (C).]
-
-    ==== Inhibitory replay perturbations alter recruitment
-
-    #emph[Figure reference: @fig:replay-perturbations (A–D).]
+    + Inhibitory replay perturbations alter recruitment
+      (@fig:replay-perturbations, panels A–D).
 
     #figure(
       data-image(
@@ -325,9 +295,8 @@
 
     === PING networks classify continuously presented inputs
 
-    ==== Classification survives without resetting hidden state
-
-    #emph[Figure reference: @fig:continuous-stream (A–D).]
+    + Classification survives without resetting hidden state
+      (@fig:continuous-stream, panels A–D).
 
     #figure(
       data-image(
@@ -346,9 +315,8 @@
         #link("/exp082/")[_Spike-Count Classification in a Continuous Stream_].],
     ) <fig:continuous-stream>
 
-    ==== Duration and input rate define the operating range
-
-    #emph[Figure reference: @fig:continuous-stream (E–F).]
+    + Duration and input rate define the operating range
+      (@fig:continuous-stream, panels E–F).
 
   ]
 ]

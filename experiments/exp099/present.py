@@ -18,7 +18,7 @@ from pingstore.contracts import PingstoreError, load_json, write_json_atomic
 from pingstore.stages import stage_run
 
 
-def present(identity: str, *, run_id: str | None = None) -> str:
+def _resolved(identity: str):
     analysis = inputs.source(REPO, identity, "analyse")
     cfg = inputs.configuration(analysis)
     refs = analysis.record["inputs"]
@@ -38,6 +38,28 @@ def present(identity: str, *, run_id: str | None = None) -> str:
         != analysis.record["execution"].get("measurements")
     ):
         raise PingstoreError("unsupported or inconsistent exp099 analysis payload")
+    return analysis, compute, cfg, results
+
+
+def _render_condition(analysis, compute, cfg, results, output: Path) -> None:
+    with np.load(analysis.export / "measurements.npz", allow_pickle=False) as data:
+        measurements = dict(data)
+    with np.load(
+        compute.export / "simulation/recurrent-weights.npz", allow_pickle=False
+    ) as data:
+        weights = dict(data)
+    render(
+        inputs.recording(compute),
+        weights,
+        measurements,
+        results["measurements"],
+        output,
+        configuration=cfg,
+    )
+
+
+def present(identity: str, *, run_id: str | None = None) -> str:
+    analysis, compute, cfg, results = _resolved(identity)
     with stage_run(
         REPO,
         recipe.SLUG,
@@ -46,20 +68,7 @@ def present(identity: str, *, run_id: str | None = None) -> str:
         run_id=run_id,
         configuration=cfg,
     ) as run:
-        with np.load(analysis.export / "measurements.npz", allow_pickle=False) as data:
-            measurements = dict(data)
-        with np.load(
-            compute.export / "simulation/recurrent-weights.npz", allow_pickle=False
-        ) as data:
-            weights = dict(data)
-        render(
-            inputs.recording(compute),
-            weights,
-            measurements,
-            results["measurements"],
-            run.export,
-            configuration=cfg,
-        )
+        _render_condition(analysis, compute, cfg, results, run.export)
         shutil.copy2(compute.export / "network.svg", run.export / "network.svg")
         shutil.copy2(
             Path(__file__).with_name(recipe.INPUT_MAP), run.export / recipe.INPUT_MAP
@@ -68,14 +77,76 @@ def present(identity: str, *, run_id: str | None = None) -> str:
     return run.run_id
 
 
+def present_pair(
+    identity: str, comparison_identity: str, *, run_id: str | None = None
+) -> str:
+    """Render the richer-input and isolated shared-drive media together."""
+    primary = _resolved(identity)
+    comparison = _resolved(comparison_identity)
+    by_condition = {
+        row[2].get("condition", "richer-input"): row for row in (primary, comparison)
+    }
+    if set(by_condition) != {"richer-input", "shared-drive-isolation"}:
+        raise PingstoreError(
+            "paired exp099 presentation requires richer-input and shared-drive-isolation"
+        )
+    richer = by_condition["richer-input"]
+    shared = by_condition["shared-drive-isolation"]
+    presentation_cfg = {
+        "schema": "exp099.presentation/v1",
+        "conditions": {
+            "richer-input": richer[2],
+            "shared-drive-isolation": shared[2],
+        },
+    }
+    stage_inputs = {
+        "richer_analysis": richer[0],
+        "richer_compute": richer[1],
+        "shared_analysis": shared[0],
+        "shared_compute": shared[1],
+    }
+    with stage_run(
+        REPO,
+        recipe.SLUG,
+        "present",
+        inputs=stage_inputs,
+        run_id=run_id,
+        configuration=presentation_cfg,
+    ) as run:
+        for analysis, compute, cfg, results in (richer, shared):
+            _render_condition(analysis, compute, cfg, results, run.export)
+        shutil.copy2(shared[1].export / "network.svg", run.export / "network.svg")
+        shutil.copy2(
+            Path(__file__).with_name(recipe.INPUT_MAP), run.export / recipe.INPUT_MAP
+        )
+        write_json_atomic(
+            run.export / "numbers.json",
+            {
+                "schema": "exp099.presentation-results/v1",
+                "conditions": {
+                    "richer-input": richer[3],
+                    "shared-drive-isolation": shared[3],
+                },
+            },
+        )
+    return run.run_id
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--source", required=True, help="completed exp099 v4 analyse run ID"
     )
+    parser.add_argument(
+        "--comparison-source",
+        help="second completed analysis to package both EXP099 videos",
+    )
     parser.add_argument("--run-id", help="unused v4 identity reserved before dispatch")
     args = parser.parse_args()
-    present(args.source, run_id=args.run_id)
+    if args.comparison_source:
+        present_pair(args.source, args.comparison_source, run_id=args.run_id)
+    else:
+        present(args.source, run_id=args.run_id)
 
 
 if __name__ == "__main__":

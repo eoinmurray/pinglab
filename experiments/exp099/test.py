@@ -3,6 +3,7 @@
 import importlib
 import subprocess
 import sys
+from copy import deepcopy
 from pathlib import Path
 
 import numpy as np
@@ -32,9 +33,23 @@ def lab(tmp_path, monkeypatch):
     )
     cfg = recipe.configuration()
     cfg.update(dt_ms=1.0, n_e=20, n_i=5)
-    monkeypatch.setattr(recipe, "configuration", lambda *a, **kw: cfg)
 
-    def synthetic_recording(output, bundle):
+    def fixture_configuration(*args, **kwargs):
+        value = deepcopy(cfg)
+        condition = kwargs.get("condition", "richer-input")
+        value["condition"] = condition
+        value["controls"] = {
+            "shared_peak_scale": kwargs.get("shared_peak_scale", 6.5),
+            "private_afferent_scale": kwargs.get("private_afferent_scale", 1.0),
+            "background_rate_scale": kwargs.get("background_rate_scale", 1.0),
+            "w_ee_scale": kwargs.get("w_ee_scale", 1.0),
+            "w_ei_scale": kwargs.get("w_ei_scale", 1.0),
+        }
+        return value
+
+    monkeypatch.setattr(recipe, "configuration", fixture_configuration)
+
+    def synthetic_recording(output, bundle, **kwargs):
         root = output / "simulation"
         root.mkdir()
         t = np.arange(2000)[:, None]
@@ -170,7 +185,8 @@ def test_shared_drive_condition_varies_only_shared_wave():
     cfg = recipe.configuration(
         condition="shared-drive-isolation",
         shared_peak_scale=5.0,
-        fixed_input_scale=0.8,
+        private_afferent_scale=0.8,
+        background_rate_scale=0.9,
     )
     simulation = cfg["simulation"]
     source = simulation["spike_sources"][0]
@@ -179,14 +195,70 @@ def test_shared_drive_condition_varies_only_shared_wave():
     assert simulation["afferent_wave"]["shared_peak_scale"] == 5.0
     assert source["shared_rate_hz"] == 10.0
     assert source["e_private_rate_hz"] == source["i_private_rate_hz"] == 12.0
+    assert simulation["backgrounds"][0]["excitatory"]["private"]["rate_hz"] == 450.0
     assert cfg["controls"] == {
         "shared_peak_scale": 5.0,
-        "fixed_input_scale": 0.8,
+        "private_afferent_scale": 0.8,
+        "background_rate_scale": 0.9,
+        "w_ee_scale": 1.0,
+        "w_ei_scale": 1.0,
+        "onset_ms": recipe.ONSET_MS,
+        "peak_ms": recipe.PEAK_MS,
+        "plateau_end_ms": recipe.PEAK_MS,
+        "offset_ms": recipe.OFFSET_MS,
+        "view_start_ms": recipe.VIEW_START_MS,
+        "view_end_ms": recipe.VIEW_END_MS,
     }
     assert recipe.media_names(cfg["condition"]) == (
         recipe.SHARED_DRIVE_VIDEO,
         recipe.SHARED_DRIVE_POSTER,
     )
+
+
+def test_one_second_protocol_uses_resolving_analysis_window():
+    cfg = recipe.configuration(
+        condition="shared-drive-isolation",
+        duration_ms=1_000,
+        onset_ms=200,
+        peak_ms=400,
+        plateau_end_ms=550,
+        offset_ms=750,
+        view_start_ms=0,
+        view_end_ms=1_000,
+    )
+    settings = recipe.analysis_configuration(cfg)
+    assert settings["rhythm_window_ms"] == 160.0
+    assert settings["rhythm_stride_ms"] == 5.0
+    assert settings["rhythm_max_lag_ms"] == 60.0
+
+
+def test_paired_presentation_retains_both_videos(lab, monkeypatch):
+    renderer = importlib.import_module("experiments.exp099.render")
+    richer_compute = compute.compute()
+    richer_analysis = analyse.analyse(richer_compute)
+    shared_compute = compute.compute(
+        condition="shared-drive-isolation",
+        shared_peak_scale=3.0,
+        private_afferent_scale=0.95,
+        background_rate_scale=0.95,
+    )
+    shared_analysis = analyse.analyse(shared_compute)
+
+    def fixture_animation(fig, update, output, **kwargs):
+        output.write_bytes(b"fixture-video")
+
+    monkeypatch.setattr(renderer, "save_animation", fixture_animation)
+    identity = present.present_pair(shared_analysis, richer_analysis)
+    output = directory(lab, identity) / "export"
+    assert (output / recipe.VIDEO).read_bytes() == b"fixture-video"
+    assert (output / recipe.SHARED_DRIVE_VIDEO).read_bytes() == b"fixture-video"
+    record = validate_operational_run_directory(output.parent)
+    assert set(record["inputs"]) == {
+        "richer_analysis",
+        "richer_compute",
+        "shared_analysis",
+        "shared_compute",
+    }
 
 
 @pytest.mark.parametrize("stage", ["compute", "analyse"])

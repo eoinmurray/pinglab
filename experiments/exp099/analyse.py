@@ -97,7 +97,7 @@ def analyse(identity: str, *, run_id: str | None = None) -> str:
     cfg = inputs.configuration(compute)
     if compute.record["inputs"]:
         raise PingstoreError("standalone exp099 compute must have no upstream inputs")
-    settings = recipe.analysis_configuration()
+    settings = recipe.analysis_configuration(cfg)
     with stage_run(
         REPO,
         recipe.SLUG,
