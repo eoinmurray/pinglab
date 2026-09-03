@@ -69,6 +69,7 @@ def render(
     v_e, v_i = data["v_e_1"], data["v_i_1"]
     n_steps, n_e = e_spikes.shape
     n_i = i_spikes.shape[1]
+    sustained_input = input_offset_ms >= n_steps * dt - dt
     weight_scales = {
         name: data[f"weight_scale_{name}"]
         if f"weight_scale_{name}" in data
@@ -339,7 +340,11 @@ def render(
             hi=hi,
         )
     state_heading = (
-        "Balanced E–I network · shared input drives AI → PING → AI"
+        (
+            "Balanced E–I network · shared input drives AI → PING"
+            if sustained_input
+            else "Balanced E–I network · shared input drives AI → PING → AI"
+        )
         if CONDITION == "shared-drive-isolation"
         else "Balanced E–I network · asynchronous-irregular state"
         if STATE == "ai"
@@ -846,11 +851,19 @@ def render(
         borderaxespad=0.2,
     )
     rhythm_top = rhythm_ax.get_ylim()[1]
-    for x, label in (
+    rhythm_labels = [
         ((view_start_ms + input_onset_ms) / 2, "baseline"),
-        (input_peak_ms, "afferent bout"),
-        (((view_end_ms or n_steps * dt) + input_offset_ms) / 2, "recovery"),
-    ):
+        (input_peak_ms, "afferent rise"),
+    ]
+    if sustained_input:
+        rhythm_labels.append(
+            (((view_end_ms or n_steps * dt) + input_peak_ms) / 2, "PING plateau")
+        )
+    else:
+        rhythm_labels.append(
+            (((view_end_ms or n_steps * dt) + input_offset_ms) / 2, "recovery")
+        )
+    for x, label in rhythm_labels:
         rhythm_ax.text(
             x,
             rhythm_top * 0.82,
@@ -865,8 +878,28 @@ def render(
 
     trail_steps = int(round(40 / dt))
     if PACING == "story" and STATE == "input":
-        timeline = FrameTimeline.compose(
-            [
+        if sustained_input:
+            segments = [
+                (
+                    int(round(view_start_ms / dt)),
+                    int(round(input_onset_ms / dt)) - 1,
+                    140,
+                ),
+                (
+                    int(round(input_onset_ms / dt)),
+                    int(round(input_peak_ms / dt)) - 1,
+                    170,
+                ),
+                (
+                    int(round(input_peak_ms / dt)),
+                    min(
+                        n_steps - 1, int(round((view_end_ms or n_steps * dt) / dt)) - 1
+                    ),
+                    290,
+                ),
+            ]
+        else:
+            segments = [
                 (
                     int(round(view_start_ms / dt)),
                     int(round(input_onset_ms / dt)) - 1,
@@ -887,9 +920,8 @@ def render(
                     int(round((view_end_ms or n_steps * dt) / dt)) - 1,
                     120,
                 ),
-            ],
-            dt_ms=dt,
-        )
+            ]
+        timeline = FrameTimeline.compose(segments, dt_ms=dt)
     elif PACING == "story":
         cycle_start = int(round(1380 / dt))
         cycle_end = min(n_steps - 1, int(round(1418 / dt)))

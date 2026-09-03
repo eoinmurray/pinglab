@@ -75,7 +75,8 @@ def test_writing_has_one_card_and_figure_per_comparison() -> None:
     assert source.count("#result-card[") == 20
     assert source.count("#figure(") == 20
     assert 'status: "[▦ DATA | v34.0.1]"' in source
-    assert source.index("== Results") < source.index("== Methods")
-    assert source.count("=== Compute") == 1
+    assert "== Results" in source
+    assert "== Methods" not in source
+    assert "=== Compute" not in source
     assert "=== Analyse" not in source
     assert "=== Present" not in source

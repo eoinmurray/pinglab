@@ -7,10 +7,10 @@
 #let data-file = data-file.with(article: "exp085")
 
 #let meta = (
-  status: "[▦ DATA | v33.0.0]",
-  title: "Lowet 2015",
+  status: "[▦ DATA | v34.0.1]",
+  title: "E-to-E Coupling Locks Detuned PING Rhythms",
   created_at: "2026-08-19T00:00:00Z",
-  updated_at: "2026-08-31T00:00:00Z",
+  updated_at: "2026-09-02",
   description: "Distinguish the pathways that phase-lock two cortical PING rhythms.",
   collection: "demo",
   order: 1,
@@ -44,15 +44,15 @@
   == Abstract
 
 
-  Asked which inter-network pathway can lock detuned PING circuits whose gamma
-  rhythms naturally drift apart. Compared excitation targeting the other
-  circuit's excitatory population, inhibitory population, both populations or
-  neither, and probed each phase response.
+  We asked which inter-network pathway could lock detuned PING circuits whose
+  gamma rhythms naturally drifted apart. We compared excitation targeting the
+  other circuit's excitatory population, inhibitory population, both populations
+  or neither, and probed each target population's phase response.
 
-  Excitatory-to-excitatory coupling corrected phase drift and produced locking;
-  inhibitory-targeted coupling alone did not in the selected regime.
-  Distinguishes candidate pathways in the selected regime, not their dominance
-  across delays, detuning, noise or network realizations.
+  Excitatory-to-excitatory coupling corrected phase drift and produced locking,
+  whereas inhibitory-targeted coupling alone did not in the selected regime.
+  This result distinguishes candidate pathways in that regime, but not their
+  dominance across delays, detuning, noise or network realizations.
 
   #contents-here()
 

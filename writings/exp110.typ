@@ -12,7 +12,7 @@
   status: "[▦ DATA | v34.0.1]",
   title: "Manuscript",
   created_at: "2026-09-02T00:00:00Z",
-  updated_at: "2026-09-02",
+  updated_at: "2026-09-03",
   description: "A manuscript scaffold connecting PING circuit dynamics, low-rate task performance, cycle participation, perturbation sensitivity and continuous-stream classification.",
   collection: "gamma-gated-sparsity",
 )
@@ -56,13 +56,13 @@
 
     === Reciprocal coupling creates a gamma-rhythmic low-rate regime
 
-    We first compared two conductance-based spiking circuits that differed only
-    in their reciprocal population coupling (Fig. 1A,B). Both contained 1,024
+    We compared two conductance-based spiking circuits differing only in their
+    reciprocal population coupling (Fig. 1A,B). Both contained 1,024
     excitatory and 256 inhibitory neurons, with 1,024 Poisson input channels
     projecting to the excitatory population. The COBA control had recurrent
     coupling disabled, whereas the PING circuit included E→I excitation and I→E
-    inhibition, without E→E or I→I connections. Representative 400-ms rasters
-    introduce the resulting loop-off and loop-on activity regimes (Fig. 1C,D).
+    inhibition, without E→E or I→I connections. The 400-ms rasters illustrate
+    the resulting loop-off and loop-on activity regimes (Fig. 1C,D).
     These examples were generated at separately chosen input rates—5 and 45 Hz
     per channel, respectively.
 
@@ -86,11 +86,12 @@
         *(F, H)* Mean per-neuron E and I firing rates across matched 2–100-Hz
         Poisson-drive sweeps using 784 input channels. Each point represents one
         trial from one stochastic seed; no uncertainty estimate is shown.
-        Vertical rate scales differ between *(F)* and *(H)*.],
+        Vertical rate scales differ between *(F)* and *(H)*. Source experiment:
+        #link("/exp023/")[exp023 — _Turning the PING Loop On_].],
     ) <fig:matched-drive>
 
-    These architectural differences were accompanied by distinct temporal
-    patterns. With recurrent coupling disabled, excitatory spikes were dispersed
+    Reciprocal coupling substantially reorganised the temporal pattern of
+    spiking. With recurrent coupling disabled, excitatory spikes were dispersed
     across the 400-ms trial and the inhibitory population remained silent (Fig.
     1C). In the PING circuit, excitatory and inhibitory spikes instead formed
     recurring population volleys (Fig. 1D), and the excitatory-population
@@ -99,21 +100,21 @@
     These single-trial examples show that the recurrent circuit supported
     gamma-periodic organisation.
 
-    The temporal reorganisation was accompanied by a marked change in the
-    circuit’s input–output response. In the loop-off control, mean excitatory
-    firing increased from 2.9 to 481.5 Hz as the per-channel input rate rose
-    from 2 to 100 Hz, while the disconnected inhibitory population remained
-    silent (Fig. 1F). With the PING loop active, excitatory firing remained
+    The same circuit change also reshaped the input–output response. In the
+    loop-off control, mean excitatory firing increased from 2.9 to 481.5 Hz as
+    the per-channel input rate rose from 2 to 100 Hz, while the disconnected
+    inhibitory population remained silent (Fig. 1F). With the PING loop active,
+    excitatory firing remained
     between 2.6 and 8.7 Hz across the same drive sweep, whereas inhibitory
     firing increased to 72.1 Hz (Fig. 1H). Thus, above the lowest drive
     condition, reciprocal coupling strongly constrained excitatory recruitment.
     Each condition comprised one 400-ms trial from one stochastic seed.
 
-    We next tested how the low-rate rhythmic state depended on reciprocal
-    coupling strength. We varied the E→I and I→E initialization means across an
-    11 × 11 coupling plane under fixed 100-Hz Poisson drive (Fig. 2A–C). When
-    either pathway was absent, excitatory firing remained near 94 Hz and
-    lobe–trough contrast was zero. With both pathways present, stronger reciprocal
+    To determine whether this regime required a narrow parameter choice, we
+    mapped the E→I and I→E initialization means across an 11 × 11 coupling plane
+    under fixed 100-Hz Poisson drive (Fig. 2A–C). When either pathway was absent,
+    excitatory firing remained near 94 Hz and lobe–trough contrast was zero. With
+    both pathways present, stronger reciprocal
     coupling progressively reduced excitatory firing into the single-digit range,
     recruited sustained inhibitory firing and increased lobe–trough contrast
     towards one across a broad region of the plane. Thus, low-rate, strongly
@@ -157,27 +158,51 @@
         spiking classifiers at each decay time. No uncertainty interval is
         shown. The predicted onset frequencies and simulated finite-drive
         spectral peaks are distinct estimators; the mean-field model was not
-        calibrated to the spiking networks.],
+        calibrated to the spiking networks. Source experiments:
+        #link("/exp054/")[exp054 — _Pinglab Rythmicity Metric_],
+        #link("/exp033/")[exp033 — _Gamma Emerges at a Hopf Bifurcation_], and
+        #link("/exp041/")[exp041 — _Firing Rate Tracks Gamma Frequency_].],
     ) <fig:coupling-plane>
 
-    Representative rasters linked the coupling-plane summaries to the underlying
-    population spike patterns. Without reciprocal coupling, excitatory neurons
-    fired densely while the inhibitory population remained silent, and
-    E-population lobe–trough contrast was near zero (0.0017; displayed as 0.00;
+    The selected rasters make this progression concrete. Without reciprocal
+    coupling, excitatory neurons fired densely while the inhibitory population
+    remained silent, and E-population lobe–trough contrast was near zero (0.0017;
+    displayed as 0.00;
     Fig. 2D). At intermediate coupling ($W_(E I)=0.6$, $W_(I E)=1.2$ µS),
     recurring inhibitory volleys appeared alongside sparser excitatory firing,
     with contrast increasing to 0.27 (Fig. 2E). Under strong coupling
     ($W_(E I)=3$, $W_(I E)=6$ µS), inhibitory volleys were highly regular and
     excitatory firing was sparse, while contrast reached 0.98 (Fig. 2F).
-    Together, the rasters and summary metric show a transition from dense, weakly
-    structured activity to sparse, temporally clustered population firing. These
-    are selected conditions from the same single-seed sweep.
+    Across these conditions, dense, weakly structured activity gave way to sparse
+    excitatory firing clustered around increasingly regular inhibitory volleys.
+    These are selected conditions from the same single-seed sweep.
 
-    + Oscillations emerge through a Hopf-like transition
-      (@fig:coupling-plane, panels G–H).
+    To examine a possible dynamical basis for this oscillatory onset, we analysed
+    a separate four-variable mean-field conductance model. As external drive
+    $I_"ext"$ increased, the leading complex-conjugate eigenvalues crossed from
+    negative to positive real parts at $I_"ext"^* = 0.596$ nA, with an imaginary
+    component corresponding to 27.6 Hz
+    (Fig. 2G). Above this crossing, peak-to-peak excitatory-rate amplitude
+    increased continuously from near zero, while upward and downward drive
+    sweeps nearly coincided with no resolved hysteresis (Fig. 2H). The positive
+    amplitude-squared slope and its $R^2 = 0.999$ fit therefore met the predefined
+    numerical criteria for a supercritical Hopf onset. This classifies the
+    sampled mean-field transition numerically; criticality was not established
+    analytically.
 
-    + Inhibitory timescale controls oscillation frequency
-      (@fig:coupling-plane, panel I).
+    Finally, we asked whether the mean-field and spiking models shared a
+    dependence on the inhibitory timescale. In the four-variable mean-field
+    formulation, increasing the inhibitory decay time $tau_"GABA"$ from 4.5 to
+    27 ms reduced the numerically calculated Hopf-onset frequency from 30.2 to
+    17.9 Hz (Fig. 2I). In simulations of three
+    trained spiking classifiers, the median E-population spectral-peak frequency
+    likewise decreased, from 67.3 to 12.2 Hz. Thus, slower inhibition reduced
+    oscillation frequency in both the analytical and simulated descriptions.
+    Their numerical values did not coincide because the mean-field calculation
+    measures an onset eigenfrequency, whereas the simulations measure
+    finite-drive spectral peaks in an uncalibrated spiking model; the comparison
+    therefore supports a shared timescale dependence rather than pointwise
+    quantitative agreement.
 
     === The fixed PING loop preserves accuracy at lower excitatory rates
 
@@ -193,10 +218,8 @@
       caption: [*(A–B)* Representative COBA and PING activity, *(C)* validation
         accuracy and *(D)* the test-accuracy–E-rate frontier across activity
         ceilings; frontier points show three-training-replicate means and SEM.
-        Source writing: #link("/exp025/")[_Accuracy and Firing Rate With and
-        Without Inhibition_]; related convergence analysis:
-        #link("/exp024/")[_Accuracy
-        Plateaus While Firing Rate Rises_].],
+        Source experiment: #link("/exp025/")[exp025 — _Accuracy and Firing Rate
+        With and Without Inhibition_].],
     ) <fig:accuracy-rate>
 
     + Activating inhibition after training reproduces the regime
@@ -211,8 +234,8 @@
       caption: [Reciprocal loop strength varied during inference in three trained
         COBA networks without retraining: *(A)* loop-off and *(B)* loop-on
         rasters, *(C)* population rates and *(D)* accuracy; curves show means and
-        bands show sample SD across training replicates. Source writing:
-        #link("/exp038/")[_Switching On the Inhibitory Loop_].],
+        bands show sample SD across training replicates. Source experiment:
+        #link("/exp038/")[exp038 — _Switching On the Inhibitory Loop_].],
     ) <fig:loop-transfer>
 
     + Training recurrent weights weakens rhythmic organisation
@@ -227,8 +250,8 @@
       caption: [Per-epoch *(A)* accuracy, *(B)* E rate, *(C)* I rate and *(D)*
         lobe–trough contrast for three trainable recurrent initialisations and a frozen-loop control; lines show
         three-training-replicate means and shading shows their range. Source
-        writing: #link("/exp049/")[_Training Recurrent Weights Weakens PING
-        Rhythmicity_].],
+        experiment: #link("/exp049/")[exp049 — _Training Recurrent Weights
+        Weakens PING Rhythmicity_].],
     ) <fig:trainable-loop>
 
     === Excitatory firing is organised by gamma-cycle participation
@@ -247,9 +270,9 @@
         error bars show SEM and the line is an affine rate–frequency fit.
         *(C–H)* Distributions of E spikes per neuron–cycle pair, with cycles
         inferred from inhibitory population-burst peaks, at inhibitory decay
-        times 4.5, 6, 9, 12, 18 and 27 ms, respectively. Source writings:
-        #link("/exp041/")[_Firing Rate Tracks Gamma Frequency_] and
-        #link("/exp046/")[_One Spike per Gamma Cycle_].],
+        times 4.5, 6, 9, 12, 18 and 27 ms, respectively. Source experiments:
+        #link("/exp041/")[exp041 — _Firing Rate Tracks Gamma Frequency_] and
+        #link("/exp046/")[exp046 — _One Spike per Gamma Cycle_].],
     ) <fig:cycle-participation>
 
     + Active excitatory neurons usually fire once per cycle
@@ -270,8 +293,9 @@
         *(B)* Poisson spike addition; lines show means across three training replicates
         and shading shows SEM. *(C)* Post-training E rate and test accuracy across
         matched training-and-inference integration timesteps from 0.05 to 1.0 ms.
-        Source writings: #link("/exp037/")[_Dropped Spikes vs Added Noise_] and
-        #link("/exp044/")[_Firing Rate Across the Timestep Sweep_].],
+        Source experiments: #link("/exp037/")[exp037 — _Dropped Spikes vs Added
+        Noise_] and #link("/exp044/")[exp044 — _Firing Rate Across the Timestep
+        Sweep_].],
     ) <fig:robustness>
 
     + Performance persists across integration timesteps
@@ -288,9 +312,9 @@
       ),
       caption: [Representative E/I rasters under *(A)* independent-spike and
         *(B)* fixed-window inhibitory replay jitter; *(C–D)* show the corresponding
-        E-rate, accuracy and realised-I-rate sweeps. Source writing:
-        #link("/exp042/")[_Inhibitory Replay Perturbations Change Excitatory
-        Firing_].],
+        E-rate, accuracy and realised-I-rate sweeps. Source experiment:
+        #link("/exp042/")[exp042 — _Inhibitory Replay Perturbations Change
+        Excitatory Firing_].],
     ) <fig:replay-perturbations>
 
     === PING networks classify continuously presented inputs
@@ -311,8 +335,8 @@
         and input rate; *(F)* the 200 ms input-rate curve. Summary values are
         means across three training replicates and curve error bars are SEM.
         Hidden neuronal state continued while output counts reset at known
-        boundaries. Source writing:
-        #link("/exp082/")[_Spike-Count Classification in a Continuous Stream_].],
+        boundaries. Source experiment: #link("/exp082/")[exp082 — _Spike-Count
+        Classification in a Continuous Stream_].],
     ) <fig:continuous-stream>
 
     + Duration and input rate define the operating range

@@ -107,6 +107,80 @@ def scientific_timing(directory: Path, record: dict) -> dict | None:
     return result
 
 
+def historical_producer(record: dict) -> tuple[dict, dict]:
+    historical = record.get("historical_import")
+    if not isinstance(historical, dict):
+        return {}, {}
+    producer = historical.get("producer")
+    return historical, producer if isinstance(producer, dict) else {}
+
+
+def display_origin(record: dict) -> dict[str, str]:
+    """Choose the origin of the displayed scientific work, not a local import."""
+    scientific = record.get("scientific_execution")
+    if isinstance(scientific, dict):
+        origin = scientific.get("origin")
+        if isinstance(origin, str) and origin:
+            return {"value": origin, "basis": "scientific-execution"}
+
+    historical, producer = historical_producer(record)
+    origin = producer.get("origin", historical.get("producer_origin"))
+    if isinstance(origin, str) and origin:
+        return {"value": origin, "basis": "historical-producer"}
+    if "slurm_job_id" in producer or "slurm_array" in historical:
+        return {"value": "slurm", "basis": "historical-producer"}
+
+    operation = record["execution"].get("operation")
+    if operation in ("import", "historical-import"):
+        return {"value": "unknown", "basis": "unrecorded-import-source"}
+    return {"value": record["origin"], "basis": "recorded-operation"}
+
+
+def display_timing(record: dict, scientific: dict | None) -> dict:
+    """Choose wall-clock timing for the displayed execution provenance."""
+    imported = record["execution"].get("operation") in ("import", "historical-import")
+    operation_seconds = execution_duration(record)
+    if scientific is not None:
+        return {
+            **scientific,
+            "basis": "scientific-execution",
+            "import_seconds": operation_seconds if imported else None,
+        }
+
+    if imported:
+        _, producer = historical_producer(record)
+        for key in ("status", "study_status", "execution_window"):
+            window = producer.get(key)
+            if not isinstance(window, dict):
+                continue
+            started = window.get("started_at_utc")
+            completed = window.get("ended_at_utc")
+            if started is None and completed is None:
+                continue
+            seconds = execution_duration({
+                "run_id": record["run_id"],
+                "execution": {"started_at": started, "completed_at": completed},
+            })
+            return {
+                "duration_seconds": seconds,
+                "started_at": started,
+                "completed_at": completed,
+                "basis": "historical-producer",
+                "import_seconds": operation_seconds,
+            }
+        return {
+            "duration_seconds": None,
+            "basis": "unrecorded-import-source",
+            "import_seconds": operation_seconds,
+        }
+
+    return {
+        "duration_seconds": operation_seconds,
+        "basis": "recorded-operation",
+        "import_seconds": None,
+    }
+
+
 def projection(
     root: Path, *, overrides: dict | None = None, article: str = "",
     declared_dependencies: dict | None = None,
@@ -166,6 +240,7 @@ def projection(
     runs = []
     for entry in discovered:
         record = records[entry["id"]]
+        timing = scientific_timing(source / entry["id"], record)
         directory = presentation_directory(source / entry["id"], record)
         files = sorted(directory.iterdir())
         parents = ancestors(entry["id"])
@@ -178,9 +253,11 @@ def projection(
                 "collection": record["collection"],
                 "views": memberships.get(entry["id"], []),
                 "origin": record["origin"],
+                "display_origin": display_origin(record),
                 "duration_seconds": execution_duration(record),
+                "display_timing": display_timing(record, timing),
                 "execution_operation": record["execution"].get("operation"),
-                "scientific_timing": scientific_timing(source / entry["id"], record),
+                "scientific_timing": timing,
                 "basepath": "/" + directory.relative_to(root).as_posix(),
                 "export_bytes": sum(p.stat().st_size for p in files),
                 "export_files": len(files),
@@ -197,6 +274,7 @@ def projection(
         if record["stage"] == "present":
             continue
         directory = export_directory(source / key, record)
+        timing = scientific_timing(source / key, record)
         display_runs.append({
             "id": record["run_id"],
             "experiment": record["experiment"],
@@ -205,9 +283,11 @@ def projection(
                 record["created_at"].replace("Z", "+00:00")
             ).astimezone(timezone.utc).isoformat(),
             "origin": record["origin"],
+            "display_origin": display_origin(record),
             "duration_seconds": execution_duration(record),
+            "display_timing": display_timing(record, timing),
             "execution_operation": record["execution"].get("operation"),
-            "scientific_timing": scientific_timing(source / key, record),
+            "scientific_timing": timing,
             "export_bytes": sum(
                 path.stat().st_size for path in directory.rglob("*") if path.is_file()
             ),

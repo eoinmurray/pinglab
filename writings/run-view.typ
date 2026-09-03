@@ -67,7 +67,7 @@
       })
       html.elem("table", attrs: ("aria-label": "Dataset"), {
         html.elem("thead", html.elem("tr", {
-          for (label, class) in (("Run", "run-name"), ("Date", "run-date"), ("Duration", "run-duration"), ("Size", "run-size"), ("Origin", "run-origin")) {
+          for (label, class) in (("Run", "run-name"), ("Date", "run-date"), ("Duration", "run-duration"), ("Size", "run-size"), ("Ran on", "run-origin")) {
             html.elem("th", attrs: (scope: "col", class: class), label)
           }
         }))
@@ -106,30 +106,56 @@
               html.elem("td", attrs: (class: "run-date"), {
                 html.elem("time", attrs: (datetime: run.created_at, title: run.created_at), date-label(run.created_at))
               })
-              let elapsed = run.at("duration_seconds", default: none)
-              let imported = run.at("execution_operation", default: none) in ("import", "historical-import")
-              let scientific = run.at("scientific_timing", default: none)
-              let duration = if scientific != none { scientific.duration_seconds } else { elapsed }
+              let timing = run.at("display_timing", default: (
+                duration_seconds: run.at("duration_seconds", default: none),
+                basis: "recorded-operation",
+                import_seconds: none,
+              ))
+              let duration = timing.duration_seconds
               html.elem("td", attrs: (
                 class: "run-duration",
-                title: if scientific != none {
-                  let total = if scientific.job_seconds != none {
-                    " Sum of " + str(scientific.jobs) + " recorded completed attempts: " + str(calc.round(scientific.job_seconds / 3600, digits: 2)) + " job-hours; excludes unrecorded attempts."
+                title: if timing.basis == "scientific-execution" {
+                  let total = if timing.at("job_seconds", default: none) != none {
+                    " Sum of " + str(timing.jobs) + " recorded completed attempts: " + str(calc.round(timing.job_seconds / 3600, digits: 2)) + " job-hours; excludes unrecorded attempts."
                   } else { "" }
-                  let operation = if imported and elapsed != none {
-                    " Import operation: " + str(elapsed) + " seconds (excluded)."
+                  let operation = if timing.import_seconds != none {
+                    " Import operation: " + str(timing.import_seconds) + " seconds (excluded)."
                   } else { "" }
-                  "Scientific execution span: " + scientific.started_at + " to " + scientific.completed_at + "; includes gaps between jobs, not summed compute time." + total + operation
-                } else if elapsed == none { "Execution timing not recorded" } else {
-                  let scope = if imported { "Import only; excludes original training or simulation." }
-                    else { "This stage only; excludes upstream runs." }
-                  "Recorded elapsed time: " + str(elapsed) + " seconds (completed_at − started_at). " + scope
+                  "HPC wall-clock span: " + timing.started_at + " to " + timing.completed_at + "; includes gaps between jobs, not summed compute time." + total + operation
+                } else if timing.basis == "historical-producer" {
+                  let operation = if timing.import_seconds != none {
+                    " Import operation: " + str(timing.import_seconds) + " seconds (excluded)."
+                  } else { "" }
+                  "Recorded HPC wall-clock: " + timing.started_at + " to " + timing.completed_at + "." + operation
+                } else if timing.basis == "unrecorded-import-source" {
+                  let operation = if timing.import_seconds != none {
+                    " The local import took " + str(timing.import_seconds) + " seconds; that is excluded."
+                  } else { "" }
+                  "Original execution duration was not recorded." + operation
+                } else if duration == none { "Execution timing not recorded" } else {
+                  "Recorded elapsed time: " + str(duration) + " seconds (completed_at − started_at). This stage only; excludes upstream runs."
                 },
               ), duration-label(duration))
               html.elem("td", attrs: (class: "run-size", title: "Export size: " + str(run.export_bytes) + " bytes"), bytes-label(run.export_bytes))
               html.elem("td", attrs: (class: "run-origin"), {
-                let origin = run.at("origin", default: "unknown")
-                if origin in ("slurm", "modal", "runpod", "local", "mixed", "unknown") { origin } else { "unknown" }
+                let display = run.at("display_origin", default: (value: run.at("origin", default: "unknown"), basis: "recorded-operation"))
+                let origin = display.value
+                let label = if origin == "hpc" or origin.starts-with("slurm") { "HPC" }
+                  else if origin == "local" { "Local" }
+                  else if origin == "mixed" { "Mixed" }
+                  else if origin == "modal" { "Modal" }
+                  else if origin == "runpod" { "RunPod" }
+                  else { "Unknown" }
+                let title = if display.basis == "scientific-execution" {
+                  "Recorded scientific execution origin: " + origin + ". The run record itself was created on " + run.origin + "."
+                } else if display.basis == "historical-producer" {
+                  "Recorded historical producer origin: " + origin + ". The import was performed on " + run.origin + "."
+                } else if display.basis == "unrecorded-import-source" {
+                  "Original execution origin was not recorded. The import was performed on " + run.origin + "."
+                } else {
+                  "Recorded stage execution origin: " + origin + "."
+                }
+                html.elem("span", attrs: (title: title), label)
               })
             })
           }

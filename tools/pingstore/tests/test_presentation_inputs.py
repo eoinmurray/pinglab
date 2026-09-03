@@ -10,7 +10,7 @@ import sys
 import pytest
 from pingstore.cli import main
 from pingstore.contracts import PingstoreError, payload_digest
-from pingstore.presentation_inputs import projection
+from pingstore.presentation_inputs import display_origin, display_timing, projection
 from pingstore.tests.test_discovery import make_run
 
 
@@ -129,12 +129,99 @@ def test_scientific_span_and_job_total_are_separate_from_import(source):
     row = projection(source)["display_runs"][0]
     assert row["duration_seconds"] == 3
     assert row["origin"] == "local"
+    assert row["display_origin"] == {
+        "value": "slurm", "basis": "scientific-execution",
+    }
+    assert row["display_timing"]["duration_seconds"] == 198256
+    assert row["display_timing"]["basis"] == "scientific-execution"
+    assert row["display_timing"]["import_seconds"] == 3
     assert row["scientific_timing"] == {
         "duration_seconds": 198256, "started_at": "2026-08-18T15:42:06Z",
         "completed_at": "2026-08-20T22:46:22Z", "origin": "slurm",
         "jobs": 2, "job_seconds": 10800.75,
     }
     assert before == {p: p.read_bytes() for p in directory.rglob("*") if p.is_file()}
+
+
+@pytest.mark.parametrize(
+    "record, expected",
+    [
+        (
+            {
+                "origin": "local",
+                "execution": {"operation": "historical-import"},
+                "historical_import": {"producer": {"origin": "slurm"}},
+            },
+            {"value": "slurm", "basis": "historical-producer"},
+        ),
+        (
+            {"origin": "local", "execution": {"operation": "historical-import"}},
+            {"value": "unknown", "basis": "unrecorded-import-source"},
+        ),
+        (
+            {"origin": "slurm-wilkes", "execution": {"operation": "execute"}},
+            {"value": "slurm-wilkes", "basis": "recorded-operation"},
+        ),
+        (
+            {
+                "origin": "local",
+                "execution": {"operation": "historical-import"},
+                "historical_import": {"producer_origin": "hpc"},
+            },
+            {"value": "hpc", "basis": "historical-producer"},
+        ),
+        (
+            {
+                "origin": "local",
+                "execution": {"operation": "historical-import"},
+                "historical_import": {"producer": {"slurm_job_id": "123"}},
+            },
+            {"value": "slurm", "basis": "historical-producer"},
+        ),
+    ],
+)
+def test_display_origin_distinguishes_scientific_work_from_import(record, expected):
+    assert display_origin(record) == expected
+
+
+def test_display_timing_uses_historical_hpc_wall_clock_instead_of_import():
+    record = {
+        "run_id": "exp001-r001-compute",
+        "origin": "local",
+        "execution": {
+            "operation": "historical-import",
+            "started_at": "2026-08-28T10:00:00Z",
+            "completed_at": "2026-08-28T10:00:03Z",
+        },
+        "historical_import": {"producer": {"status": {
+            "started_at_utc": "2026-08-20T02:42:34Z",
+            "ended_at_utc": "2026-08-20T03:38:41Z",
+        }}},
+    }
+    assert display_timing(record, None) == {
+        "duration_seconds": 3367,
+        "started_at": "2026-08-20T02:42:34Z",
+        "completed_at": "2026-08-20T03:38:41Z",
+        "basis": "historical-producer",
+        "import_seconds": 3,
+    }
+
+
+def test_display_timing_omits_import_duration_when_hpc_wall_clock_is_unknown():
+    record = {
+        "run_id": "exp001-r001-compute",
+        "origin": "local",
+        "execution": {
+            "operation": "historical-import",
+            "started_at": "2026-08-28T10:00:00Z",
+            "completed_at": "2026-08-28T10:00:03Z",
+        },
+    }
+    assert display_timing(record, None) == {
+        "duration_seconds": None,
+        "basis": "unrecorded-import-source",
+        "import_seconds": 3,
+    }
 
 
 @pytest.mark.parametrize("value", [-1, None, True, float("nan")])

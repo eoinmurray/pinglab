@@ -42,10 +42,14 @@ def lab(tmp_path, monkeypatch):
             "shared_peak_scale": kwargs.get("shared_peak_scale", 6.5),
             "private_afferent_scale": kwargs.get("private_afferent_scale", 1.0),
             "background_rate_scale": kwargs.get("background_rate_scale", 1.0),
+            "ampa_background_scale": kwargs.get("ampa_background_scale", 1.0),
+            "gaba_background_scale": kwargs.get("gaba_background_scale", 1.0),
             "w_ee_scale": kwargs.get("w_ee_scale", 1.0),
             "w_ei_scale": kwargs.get("w_ei_scale", 1.0),
+            "w_ie_scale": kwargs.get("w_ie_scale", 1.0),
             "w_in_e_scale": kwargs.get("w_in_e_scale", 1.0),
             "w_in_i_scale": kwargs.get("w_in_i_scale", 1.0),
+            "tau_gaba_ms": kwargs.get("tau_gaba_ms", 9.0),
         }
         return value
 
@@ -202,10 +206,14 @@ def test_shared_drive_condition_varies_only_shared_wave():
         "shared_peak_scale": 5.0,
         "private_afferent_scale": 0.8,
         "background_rate_scale": 0.9,
+        "ampa_background_scale": 1.0,
+        "gaba_background_scale": 1.0,
         "w_ee_scale": 1.0,
         "w_ei_scale": 1.0,
+        "w_ie_scale": 1.0,
         "w_in_e_scale": 1.0,
         "w_in_i_scale": 1.0,
+        "tau_gaba_ms": 9.0,
         "onset_ms": recipe.ONSET_MS,
         "peak_ms": recipe.PEAK_MS,
         "plateau_end_ms": recipe.PEAK_MS,
@@ -219,16 +227,16 @@ def test_shared_drive_condition_varies_only_shared_wave():
     )
 
 
-def test_one_second_protocol_uses_resolving_analysis_window():
+def test_one_second_visible_protocol_uses_resolving_analysis_window_after_burn_in():
     cfg = recipe.configuration(
         condition="shared-drive-isolation",
-        duration_ms=1_000,
-        onset_ms=200,
-        peak_ms=400,
-        plateau_end_ms=550,
-        offset_ms=750,
-        view_start_ms=0,
-        view_end_ms=1_000,
+        duration_ms=1_500,
+        onset_ms=950,
+        peak_ms=1_000,
+        plateau_end_ms=1_499.75,
+        offset_ms=1_500,
+        view_start_ms=500,
+        view_end_ms=1_500,
     )
     settings = recipe.analysis_configuration(cfg)
     assert settings["rhythm_window_ms"] == 160.0

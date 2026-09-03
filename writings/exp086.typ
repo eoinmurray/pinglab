@@ -13,10 +13,10 @@
 }
 
 #let meta = (
-  status: "[▦ DATA | v33.0.0]",
-  title: "Lowet 2017",
+  status: "[▦ DATA | v34.0.1]",
+  title: "Intermittent Phase Attraction at Intermediate Coupling",
   created_at: "2026-08-19T00:00:00Z",
-  updated_at: "2026-08-31T00:00:00Z",
+  updated_at: "2026-09-02",
   description: "Reduce coupling at fixed detuning and test whether two PING networks develop cortical-like intermittent phase attraction.",
   collection: "demo",
   order: 2,
@@ -68,15 +68,16 @@
 #let body = [
   == Abstract
 
-  Asked whether PING circuits can prefer a relative phase without permanent
-  synchronization, as reported for cortical gamma rhythms. Coupled detuned
-  circuits and tracked phase, phase slips and phase-conditioned velocity.
+  We asked whether detuned PING circuits could prefer a relative phase without
+  remaining synchronized, as reported for cortical gamma rhythms. We varied
+  reciprocal coupling and measured relative phase, phase slips and
+  phase-conditioned velocity.
 
-  Intermediate coupling concentrated relative phase by slowing its motion near a
-  preferred position while allowing repeated slips; removing coupling made the
-  phase distribution uniform. Reproduces the qualitative intermittent-attraction
-  regime in a controlled trajectory, not its reliability across inputs or
-  network realizations.
+  At intermediate coupling, relative phase slowed near a preferred position and
+  concentrated there while slips continued; without coupling, its distribution
+  became nearly uniform. This result reproduces the qualitative
+  intermittent-attraction regime in one controlled trajectory, but does not
+  establish its reliability across inputs or network realizations.
 
   #contents-here()
 

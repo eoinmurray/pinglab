@@ -85,6 +85,28 @@
   )
 
   ]
+
+  #result-card[
+  === Shared afferent drive produces an AI-to-PING transition <result-4-shared-drive-transition>
+
+  #let clip = data-file("exp099/shared-drive-ai-to-ping.mp4")
+  // Missing files in a selected run remain errors, not empty-run placeholders.
+  #if clip != none { let _ = read(clip, encoding: none) }
+  #figure(
+    video(clip),
+    caption: [Single-seed simulation with fixed recurrent weights and fixed
+      private and background inputs. The video displays 500--1,500 ms; the
+      preceding 500 ms burn-in is omitted. Shared afferent drive begins at the
+      displayed midpoint, rises from its baseline to 40 times baseline over
+      50 ms, and then remains at that plateau. Transmission paths are sampled
+      for readability, whereas the raster retains all recorded spikes.
+      $R_"contrast"$ is autocorrelation lobe--trough contrast measured in a
+      160 ms window; $L$ is the conductance-loop score smoothed over 75 ms and
+      normalized within this simulation.],
+    kind: image, supplement: [Figure],
+  )
+
+  ]
   ]
 
   == Methods

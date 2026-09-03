@@ -107,10 +107,14 @@ def compute(
     shared_peak_scale: float = 6.5,
     private_afferent_scale: float = 1.0,
     background_rate_scale: float = 1.0,
+    ampa_background_scale: float = 1.0,
+    gaba_background_scale: float = 1.0,
     w_ee_scale: float = 1.0,
     w_ei_scale: float = 1.0,
+    w_ie_scale: float = 1.0,
     w_in_e_scale: float = 1.0,
     w_in_i_scale: float = 1.0,
+    tau_gaba_ms: float = 9.0,
     duration_ms: float = recipe.DURATION_MS,
     seed: int = recipe.SEED,
     onset_ms: float = recipe.ONSET_MS,
@@ -125,10 +129,14 @@ def compute(
         shared_peak_scale=shared_peak_scale,
         private_afferent_scale=private_afferent_scale,
         background_rate_scale=background_rate_scale,
+        ampa_background_scale=ampa_background_scale,
+        gaba_background_scale=gaba_background_scale,
         w_ee_scale=w_ee_scale,
         w_ei_scale=w_ei_scale,
+        w_ie_scale=w_ie_scale,
         w_in_e_scale=w_in_e_scale,
         w_in_i_scale=w_in_i_scale,
+        tau_gaba_ms=tau_gaba_ms,
         onset_ms=onset_ms,
         peak_ms=peak_ms,
         plateau_end_ms=plateau_end_ms,
@@ -145,10 +153,14 @@ def compute(
             shared_peak_scale=shared_peak_scale,
             private_afferent_scale=private_afferent_scale,
             background_rate_scale=background_rate_scale,
+            ampa_background_scale=ampa_background_scale,
+            gaba_background_scale=gaba_background_scale,
             w_ee_scale=w_ee_scale,
             w_ei_scale=w_ei_scale,
+            w_ie_scale=w_ie_scale,
             w_in_e_scale=w_in_e_scale,
             w_in_i_scale=w_in_i_scale,
+            tau_gaba_ms=tau_gaba_ms,
             duration_ms=duration_ms,
             seed=seed,
             onset_ms=onset_ms,
@@ -176,10 +188,14 @@ def main() -> None:
     parser.add_argument("--shared-peak-scale", type=float, default=6.5)
     parser.add_argument("--private-afferent-scale", type=float, default=1.0)
     parser.add_argument("--background-rate-scale", type=float, default=1.0)
+    parser.add_argument("--ampa-background-scale", type=float, default=1.0)
+    parser.add_argument("--gaba-background-scale", type=float, default=1.0)
     parser.add_argument("--w-ee-scale", type=float, default=1.0)
     parser.add_argument("--w-ei-scale", type=float, default=1.0)
+    parser.add_argument("--w-ie-scale", type=float, default=1.0)
     parser.add_argument("--w-in-e-scale", type=float, default=1.0)
     parser.add_argument("--w-in-i-scale", type=float, default=1.0)
+    parser.add_argument("--tau-gaba-ms", type=float, default=9.0)
     parser.add_argument("--duration-ms", type=float, default=recipe.DURATION_MS)
     parser.add_argument("--seed", type=int, default=recipe.SEED)
     parser.add_argument("--onset-ms", type=float, default=recipe.ONSET_MS)
@@ -195,10 +211,14 @@ def main() -> None:
         shared_peak_scale=args.shared_peak_scale,
         private_afferent_scale=args.private_afferent_scale,
         background_rate_scale=args.background_rate_scale,
+        ampa_background_scale=args.ampa_background_scale,
+        gaba_background_scale=args.gaba_background_scale,
         w_ee_scale=args.w_ee_scale,
         w_ei_scale=args.w_ei_scale,
+        w_ie_scale=args.w_ie_scale,
         w_in_e_scale=args.w_in_e_scale,
         w_in_i_scale=args.w_in_i_scale,
+        tau_gaba_ms=args.tau_gaba_ms,
         duration_ms=args.duration_ms,
         seed=args.seed,
         onset_ms=args.onset_ms,

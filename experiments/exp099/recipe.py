@@ -42,10 +42,14 @@ def author_network(
     shared_peak_scale: float = 6.5,
     private_afferent_scale: float = 1.0,
     background_rate_scale: float = 1.0,
+    ampa_background_scale: float = 1.0,
+    gaba_background_scale: float = 1.0,
     w_ee_scale: float = 1.0,
     w_ei_scale: float = 1.0,
+    w_ie_scale: float = 1.0,
     w_in_e_scale: float = 1.0,
     w_in_i_scale: float = 1.0,
+    tau_gaba_ms: float = 9.0,
     onset_ms: float = ONSET_MS,
     peak_ms: float = PEAK_MS,
     plateau_end_ms: float = PEAK_MS,
@@ -58,7 +62,19 @@ def author_network(
         0 < private_afferent_scale <= 1 and 0 < background_rate_scale <= 1
     ):
         raise ValueError("input scales require shared >= 1 and 0 < fixed scales <= 1")
-    if min(w_ee_scale, w_ei_scale, w_in_e_scale, w_in_i_scale) <= 0:
+    if (
+        min(
+            w_ee_scale,
+            w_ei_scale,
+            w_ie_scale,
+            w_in_e_scale,
+            w_in_i_scale,
+            ampa_background_scale,
+            gaba_background_scale,
+            tau_gaba_ms,
+        )
+        <= 0
+    ):
         raise ValueError("synaptic scales must be positive")
     if not 0 <= onset_ms < peak_ms <= plateau_end_ms < offset_ms:
         raise ValueError("input timing requires onset < peak <= plateau end < offset")
@@ -83,12 +99,12 @@ def author_network(
         n_i=N_I,
         source_e=source_e,
         source_i=source_i,
-        tau_gaba=9 * snn.ms,
+        tau_gaba=tau_gaba_ms * snn.ms,
         w_in_e=snn.Normal(0.08 * w_in_e_scale, 0.008 * w_in_e_scale),
         w_in_i=snn.Normal(0.02 * w_in_i_scale, 0.002 * w_in_i_scale),
         w_ee=recurrent(0.85 * w_ee_scale, 0.255 * w_ee_scale),
         w_ei=recurrent(0.6 * w_ei_scale, 0.18 * w_ei_scale),
-        w_ie=recurrent(3.0, 0.9),
+        w_ie=recurrent(3.0 * w_ie_scale, 0.9 * w_ie_scale),
         w_ii=recurrent(0.4, 0.12),
     )
     readout = snn.readouts.MeanVoltage(
@@ -109,13 +125,37 @@ def author_network(
         backgrounds=[
             snn.ConductanceBackground(
                 cell.E,
-                background(2, 25, 0.06, 0.02, rate_scale=background_scale),
-                background(9, 25, 0.03, 0.01, rate_scale=background_scale),
+                background(
+                    2,
+                    25,
+                    0.06,
+                    0.02,
+                    rate_scale=background_scale * ampa_background_scale,
+                ),
+                background(
+                    tau_gaba_ms,
+                    25,
+                    0.03,
+                    0.01,
+                    rate_scale=background_scale * gaba_background_scale,
+                ),
             ),
             snn.ConductanceBackground(
                 cell.I,
-                background(2, 10, 0.03, 0.01, rate_scale=background_scale),
-                background(9, 10, 0.03, 0.01, rate_scale=background_scale),
+                background(
+                    2,
+                    10,
+                    0.03,
+                    0.01,
+                    rate_scale=background_scale * ampa_background_scale,
+                ),
+                background(
+                    tau_gaba_ms,
+                    10,
+                    0.03,
+                    0.01,
+                    rate_scale=background_scale * gaba_background_scale,
+                ),
             ),
         ],
         weather=weather,
@@ -138,10 +178,14 @@ def configuration(
     shared_peak_scale: float = 6.5,
     private_afferent_scale: float = 1.0,
     background_rate_scale: float = 1.0,
+    ampa_background_scale: float = 1.0,
+    gaba_background_scale: float = 1.0,
     w_ee_scale: float = 1.0,
     w_ei_scale: float = 1.0,
+    w_ie_scale: float = 1.0,
     w_in_e_scale: float = 1.0,
     w_in_i_scale: float = 1.0,
+    tau_gaba_ms: float = 9.0,
     duration_ms: float = DURATION_MS,
     seed: int = SEED,
     onset_ms: float = ONSET_MS,
@@ -159,10 +203,14 @@ def configuration(
             shared_peak_scale=shared_peak_scale,
             private_afferent_scale=private_afferent_scale,
             background_rate_scale=background_rate_scale,
+            ampa_background_scale=ampa_background_scale,
+            gaba_background_scale=gaba_background_scale,
             w_ee_scale=w_ee_scale,
             w_ei_scale=w_ei_scale,
+            w_ie_scale=w_ie_scale,
             w_in_e_scale=w_in_e_scale,
             w_in_i_scale=w_in_i_scale,
+            tau_gaba_ms=tau_gaba_ms,
             onset_ms=onset_ms,
             peak_ms=peak_ms,
             plateau_end_ms=plateau_end_ms,
@@ -178,10 +226,14 @@ def configuration(
             "shared_peak_scale": float(shared_peak_scale),
             "private_afferent_scale": float(private_afferent_scale),
             "background_rate_scale": float(background_rate_scale),
+            "ampa_background_scale": float(ampa_background_scale),
+            "gaba_background_scale": float(gaba_background_scale),
             "w_ee_scale": float(w_ee_scale),
             "w_ei_scale": float(w_ei_scale),
+            "w_ie_scale": float(w_ie_scale),
             "w_in_e_scale": float(w_in_e_scale),
             "w_in_i_scale": float(w_in_i_scale),
+            "tau_gaba_ms": float(tau_gaba_ms),
             "onset_ms": float(onset_ms),
             "peak_ms": float(peak_ms),
             "plateau_end_ms": float(plateau_end_ms),
@@ -206,15 +258,17 @@ def media_names(condition: str) -> tuple[str, str]:
 def analysis_configuration(configuration: dict | None = None) -> dict:
     configuration = configuration or {}
     controls = configuration.get("controls", {})
-    short_protocol = float(configuration.get("t_ms", DURATION_MS)) <= 1_200
+    view_start_ms = float(controls.get("view_start_ms", VIEW_START_MS))
+    view_end_ms = float(controls.get("view_end_ms", VIEW_END_MS))
+    short_protocol = view_end_ms - view_start_ms <= 1_200
     return {
         "schema": "exp099.measurements/v1",
         "rhythm_window_ms": 160.0 if short_protocol else 400.0,
         "rhythm_stride_ms": 5.0 if short_protocol else 10.0,
         "rhythm_max_lag_ms": 60.0 if short_protocol else 100.0,
         "rhythm_bin_ms": 1.0,
-        "view_start_ms": controls.get("view_start_ms", VIEW_START_MS),
-        "view_end_ms": controls.get("view_end_ms", VIEW_END_MS),
+        "view_start_ms": view_start_ms,
+        "view_end_ms": view_end_ms,
         "loop_window_ms": 40.0,
         "loop_stride_ms": 5.0,
         "loop_smoothing_ms": 75.0,
