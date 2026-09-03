@@ -6,8 +6,7 @@
 #let data-file = data-file.with(article: "exp042")
 
 #let meta = (
-  status: "◉ REVIEWED",
-  writing_guide: "33.0.0",
+  tags: ("data", "reviewed", "v35.0.0"),
   title: "Inhibitory Replay Perturbations Change Excitatory Firing",
   created_at: "2026-06-02T00:00:00Z",
   updated_at: "2026-09-01",

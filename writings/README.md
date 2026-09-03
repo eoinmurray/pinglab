@@ -1,6 +1,6 @@
 # Writing Guide
 
-Version: **34.0.1**
+Version: **35.0.0**
 
 The Writing Guide defines the conventions for Pinglab's published experiment
 entries in `writings/expXXX.typ`. This file is the canonical guide.
@@ -14,6 +14,11 @@ corrections or clarifications that do not change requirements. Update the versio
 above and add a short entry to the version history when changing the guide.
 
 ### 1.1. Version history
+
+- **35.0.0** — Replace the combined article status string with separate
+  Demolab tags for local-data availability, author review and the latest
+  Writing Guide version applied. Use the concise dotted `vX.Y.Z` tag and
+  preserve recorded availability classifications and review decisions.
 
 - **34.0.1** — Correct the publication-geometry rule: constrain final physical
   size and legibility, not the overall aspect ratio of compound figures, and
@@ -341,60 +346,60 @@ change merely to adopt this guide.
   edit under section 3.1 when a requested revision qualifies, unless the author
   explicitly instructs otherwise.
 
-### 3.4. Article status and local-data availability
+### 3.4. Article tags and local-data availability
 
-Every `writings/expXXX.typ` must declare one `meta.status` using an exact label
-from the table below. Availability labels include the latest Writing Guide
-version applied to the article. The author-assigned `◉ REVIEWED` label is
-versionless and requires a separate `meta.writing_guide` value containing that
-version as `X.Y.Z`. Demolab displays the authored status string.
+Every `writings/expXXX.typ` must declare one `meta.tags` list containing the
+following separate Demolab tag slugs:
 
-| Label | Meaning |
-| --- | --- |
-| `[≡ TXT \| v34.0.1]` | Article only: no usable, validated local presentation data is available for any declared article input, or the article declares no data inputs. |
-| `[▦ DATA \| v34.0.1]` | Local data: usable, validated local presentation data is available for at least one declared article input, including reused upstream results. |
-| `◉ REVIEWED` | The author explicitly reviewed and accepted the article in its current scientific and written form. Agents must never infer this status from tests, data, rendering or their own review. |
+| Tag | Cardinality | Meaning |
+| --- | --- | --- |
+| `txt` or `data` | Exactly one | Local presentation-data availability. |
+| `vX.Y.Z` | Exactly one | Latest Writing Guide version applied to the article. |
+| `reviewed` | Zero or one | The author explicitly reviewed and accepted the article in its current scientific and written form. |
 
-The availability badges report the working checkout at the last agent check,
-not a live web-UI measurement. `[≡ TXT | vX.Y.Z]` does not mean literally text
-without diagrams. `[▦ DATA | vX.Y.Z]` does not certify complete input coverage, successful rendering,
-scientific quality, review or completion. Null and negative findings qualify
-equally. For comparisons with only some inputs available, use the `[▦ DATA | ...]`
-form and report the missing inputs in the task summary, not new article prose.
+Articles may add other Demolab subject or method tags. Do not use `meta.status`
+or `meta.writing_guide`; availability, review and guide version are independent
+tags. Keep tags unique and valid under Demolab's lowercase-slug syntax.
 
-`◉ REVIEWED` supersedes the displayed availability label but does not erase the
-underlying availability distinction. Reassess local data normally and report a
-change that would otherwise alter the badge, but preserve `◉ REVIEWED` unless
-the author explicitly requests another status. Only an explicit author request
-may add or remove this marker. A reviewed article must declare exactly one
-`writing_guide` field matching the current applied guide version; non-reviewed
-articles must not declare that separate field.
+The `txt` tag means no usable, validated local presentation data is available
+for any declared article input, or the article declares no data inputs. It does
+not mean literally text without diagrams. The `data` tag means usable,
+validated local presentation data is available for at least one declared
+article input, including reused upstream results. It does not certify complete
+input coverage, successful rendering, scientific quality, review or completion.
+Null and negative findings qualify equally. For comparisons with only some
+inputs available, use `data` and report the missing inputs in the task summary,
+not new article prose.
+
+The `reviewed` tag is author-assigned. Agents must never infer it from tests,
+data, rendering or their own review, and only an explicit author request may add
+or remove it. It coexists with `txt` or `data`, so review never hides the
+underlying availability distinction. Reassess local data normally while
+preserving `reviewed` unless the author explicitly requests its removal.
 
 - Agents own availability freshness. At the end of an authorized article
   revision, relevant
   implementation or execution task, or change to local data availability,
   reassess the affected article and all articles whose declared inputs depend
   on the affected data keys, including comparisons and syntheses. Update the
-  availability badge in either direction when the evidence changes, except that
-  an author-assigned `◉ REVIEWED` marker is preserved and the change is
+  availability tag in either direction when the evidence changes, except that
+  an author-assigned `reviewed` tag is preserved and the change is
   reported. This is a necessary dependent metadata edit under section 3.1;
   explicit author scope restrictions still take precedence.
 - Agents also own Writing Guide version freshness. Whenever this guide is
-  applied to an article, set the availability-badge version, or the reviewed
-  article's `writing_guide` field, to the exact version applied.
+  applied to an article, set its `vX.Y.Z` tag to the exact version applied.
   Whenever the guide version changes, update every article brought into
   conformance in the same editing pass; never advance an article's recorded
   version without applying all requirements introduced through that version.
-  Normal tests must reject availability-badge versions or reviewed
-  `writing_guide` values that differ from the current guide version once the
-  repository declares all articles current. A version-only synchronization does
-  not advance `meta.updated_at`.
+  Normal tests must reject guide-version tags that differ from the current guide
+  version once the repository declares all articles current. A version-only
+  synchronization does not advance `meta.updated_at`.
 - Read the current article's `inputs` and article-scoped bindings, and check
   their agreement with the publishing configuration. Run read-only
   `uv run pingstore discover` against the configured local source. Match the
   declared keys to discovery's authoritative `experiment` fields, not run-name
-  substrings or the article ID alone. No inputs means the `[≡ TXT | ...]` form;
-  otherwise at least one qualifying input means `[▦ DATA | ...]`. Availability need not mean that
+  substrings or the article ID alone. No inputs means `txt`; otherwise at least
+  one qualifying input means `data`. Availability need not mean that
   this run is currently selected for publication.
 - Qualifying data comes from a completed, nonempty v4 present run validated
   under the Storage Guide, including layout, payload checksums and applicable
@@ -402,24 +407,25 @@ articles must not declare that separate field.
   image-only presentations need not have `numbers.json`. Code, remote jobs,
   compute/analyse-only runs, hidden incomplete runs, bookkeeping-only exports,
   prose claims or standalone illustrative diagrams do not establish the
-  `[▦ DATA | ...]` classification.
+  `data` classification.
 - A failed discovery, inaccessible source or invalid provenance is an unresolved
   check, not an empty result. Do not guess or silently downgrade on that basis;
-  preserve the existing badge and report the blocker. A successful check showing
-  no matching local data does warrant `[≡ TXT | ...]`, even if remote results exist.
-- Maintain the literal string in source, not through a build-time calculation,
+  preserve the existing availability tag and report the blocker. A successful
+  check showing no matching local data does warrant `txt`, even if remote
+  results exist.
+- Maintain the literal tags in source, not through a build-time calculation,
   scheduler callback or background monitor. Normal tests enforce the vocabulary
   without requiring another checkout or CI to contain the author's local data.
-- For articles using the retired milestone labels, classify from current
-  declared inputs and validated local data, not from the previous label. Change
-  only status lines and necessary policy/tests; preserve scientific prose,
-  dates and unrelated edits. Status-only changes do not advance `updated_at`;
-  apply section 3.3 only when the underlying change qualifies independently.
-- For version 10.0.0 or 11.0.0 badges, remove any descriptive suffix
-  and add the corresponding icon inside the brackets, preserving the recorded
-  classification. Any separate availability reassessment follows the validation
-  rules above; changing badge formatting alone is not reclassification.
-- A status check authorizes no execution, input selection, materialization,
+- Migrate the former combined labels by carrying forward their availability
+  and review classifications into separate tags. `[≡ TXT | vX.Y.Z]` becomes
+  `txt` plus the current guide-version tag; `[▦ DATA | vX.Y.Z]` becomes `data`
+  plus that tag; and `◉ REVIEWED` plus `writing_guide: "X.Y.Z"` becomes
+  `reviewed`, the current guide-version tag and the separately reassessed
+  availability tag. Change only metadata and necessary policy/tests; preserve
+  scientific prose, dates and unrelated edits. Metadata-only changes do not
+  advance `updated_at`; apply section 3.3 only when the underlying change
+  qualifies independently.
+- An availability check authorizes no execution, input selection, materialization,
   publication, historical inspection, migration or mutation of stored runs.
 
 ### 3.5. Tense and grammatical person

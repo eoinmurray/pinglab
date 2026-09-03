@@ -1,7 +1,7 @@
 #import "contents.typ": with-contents, with-numbered-equations
 #import "run-view.typ": with-datasets
 #let meta = (
-  status: "[≡ TXT | v33.0.0]",
+  tags: ("txt", "v35.0.0"),
   title: "Cloudflare R2 archive",
   created_at: "2026-08-11T00:00:00Z",
   updated_at: "2026-08-28T00:00:00Z",

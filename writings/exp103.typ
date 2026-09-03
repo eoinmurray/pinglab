@@ -1,7 +1,7 @@
 #import "contents.typ": with-contents, with-numbered-equations
 #import "run-view.typ": with-datasets
 #let meta = (
-  status: "[≡ TXT | v33.0.0]",
+  tags: ("txt", "v35.0.0"),
   title: "Compute options",
   updated_at: "2026-08-28T00:00:00Z",
   created_at: "2026-08-11T00:00:00Z",

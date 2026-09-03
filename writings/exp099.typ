@@ -7,7 +7,7 @@
 #let data-file = data-file.with(article: "exp099")
 
 #let meta = (
-  status: "[▦ DATA | v34.0.1]",
+  tags: ("data", "v35.0.0"),
   title: "Video of the AI-to-PING transition",
   created_at: "2026-08-26T00:00:00Z",
   updated_at: "2026-09-02",

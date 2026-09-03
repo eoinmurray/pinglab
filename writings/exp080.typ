@@ -7,7 +7,7 @@
 #let data-file = data-file.with(article: "exp080")
 
 #let meta = (
-  status: "[▦ DATA | v33.0.0]",
+  tags: ("data", "v35.0.0"),
   title: "Decoder Accuracy Improves with Input Rate",
   created_at: "2026-08-10T00:00:00Z",
   updated_at: "2026-08-31T00:00:00Z",

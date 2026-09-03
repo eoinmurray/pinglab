@@ -1,7 +1,7 @@
 #import "contents.typ": with-contents, with-numbered-equations
 #import "run-view.typ": with-datasets
 #let meta = (
-  status: "[≡ TXT | v33.0.0]",
+  tags: ("txt", "v35.0.0"),
   title: "Inputs, outputs, and readouts",
   created_at: "2026-08-14T00:00:00Z",
   description: "Bind data to graph inputs, expose internal activity, and turn network signals into stable output values.",

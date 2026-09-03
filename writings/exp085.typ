@@ -7,7 +7,7 @@
 #let data-file = data-file.with(article: "exp085")
 
 #let meta = (
-  status: "[▦ DATA | v34.0.1]",
+  tags: ("data", "v35.0.0"),
   // Author-locked title: do not change.
   title: "Lowet 2015",
   created_at: "2026-08-19T00:00:00Z",

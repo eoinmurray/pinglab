@@ -80,11 +80,11 @@ The `writings/expXXX.typ` files are collectively know as "writings", or
 
 Do not create automated tests for the writings.
 
-Agents must maintain each article's exact `[≡ TXT | vX.Y.Z]`,
-`[▦ DATA | vX.Y.Z]` or author-assigned `◉ REVIEWED` status after relevant
-article, implementation, execution, Writing Guide or local-data changes,
-including dependent comparisons and syntheses. `X.Y.Z`, or the separate
-`writing_guide` field required for a reviewed article, records the latest Writing
-Guide version applied and must remain current under Writing Guide section 3.4.
-Only the author may add or remove `◉ REVIEWED`. Follow that section for
-validation and uncertainty handling; status-only edits do not change dates.
+Agents must maintain each article's separate `txt` or `data`,
+`vX.Y.Z`, and optional author-assigned `reviewed` tags after
+relevant article, implementation, execution, Writing Guide or local-data
+changes, including dependent comparisons and syntheses. `X.Y.Z` records the
+latest Writing Guide version applied and must remain current under Writing Guide
+section 3.4. Only the author may add or remove `reviewed`. Follow that section
+for validation and uncertainty handling; metadata-only edits do not change
+dates.

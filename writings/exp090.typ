@@ -1,7 +1,7 @@
 #import "contents.typ": with-contents, with-numbered-equations
 #import "run-view.typ": with-datasets
 #let meta = (
-  status: "[≡ TXT | v33.0.0]",
+  tags: ("txt", "v35.0.0"),
   title: "Compatibility, status, and extension",
   created_at: "2026-08-14T00:00:00Z",
   description: "Understand the legacy compatibility contract, current capability boundary, and rules for extending snnlang safely.",
