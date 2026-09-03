@@ -32,6 +32,7 @@ from .layout import (
     normalize_export_layout,
     presentation_directory,
 )
+from .locking import operation_lock
 from .native import execution_origin
 from .registry import memberships
 
@@ -98,8 +99,8 @@ def source_run(root: Path, run_id: str, *, stage: str | None = None,
     return source
 
 
-def reserve_stage(root: Path, experiment: str, stage: str,
-                  *, origin: str | None = None) -> str:
+def _reserve_stage(root: Path, experiment: str, stage: str,
+                   *, origin: str | None = None) -> str:
     """Atomically reserve an identity, including before scheduler submission."""
     if stage not in STAGES or not EXPERIMENT_RE.fullmatch(experiment):
         raise PingstoreError("invalid experiment or stage")
@@ -128,6 +129,12 @@ def reserve_stage(root: Path, experiment: str, stage: str,
             "origin": origin, "reserved_at": utc_now(),
         })
         return identity
+
+
+def reserve_stage(root: Path, experiment: str, stage: str,
+                  *, origin: str | None = None) -> str:
+    with operation_lock(root, exclusive=False):
+        return _reserve_stage(root, experiment, stage, origin=origin)
 
 
 def stage_reservation(directory: Path) -> dict:
@@ -195,9 +202,9 @@ class StageRun:
 
 
 @contextlib.contextmanager
-def stage_run(repo: Path, experiment: str, stage: str, *,
-              inputs: dict[str, SourceRun] | None = None, run_id: str | None = None,
-              configuration: dict | None = None, operation: str = "execute"):
+def _stage_run(repo: Path, experiment: str, stage: str, *,
+               inputs: dict[str, SourceRun] | None = None, run_id: str | None = None,
+               configuration: dict | None = None, operation: str = "execute"):
     """Complete one execution atomically; never materialize or dispatch a stage."""
     root = repo / ".pingstore"
     inputs = inputs or {}
@@ -266,3 +273,13 @@ def stage_run(repo: Path, experiment: str, stage: str, *,
         print(f"[incomplete] {directory}", file=sys.stderr)
         raise
     print(identity)
+
+
+@contextlib.contextmanager
+def stage_run(repo: Path, experiment: str, stage: str, *,
+              inputs: dict[str, SourceRun] | None = None, run_id: str | None = None,
+              configuration: dict | None = None, operation: str = "execute"):
+    with operation_lock(repo / ".pingstore", exclusive=False):
+        with _stage_run(repo, experiment, stage, inputs=inputs, run_id=run_id,
+                        configuration=configuration, operation=operation) as run:
+            yield run

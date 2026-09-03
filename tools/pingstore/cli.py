@@ -1,4 +1,4 @@
-"""Narrow, read-only Pingstore integration commands."""
+"""Narrow Pingstore discovery, presentation and pruning commands."""
 
 from __future__ import annotations
 
@@ -35,11 +35,44 @@ def main(argv: list[str] | None = None) -> int:
         default=Path("."),
         help="lab directory (default: current working directory)",
     )
+    prune = commands.add_parser(
+        "prune",
+        help="remove superseded runs while retaining HPC and latest visible lineages",
+    )
+    prune.add_argument(
+        "--root",
+        type=Path,
+        default=Path("."),
+        help="lab directory (default: current directory)",
+    )
+    action = prune.add_mutually_exclusive_group(required=True)
+    action.add_argument(
+        "--dry-run", action="store_true", help="print the exact immutable prune plan"
+    )
+    action.add_argument(
+        "--confirm", metavar="PLAN_HASH", help="apply an unchanged dry-run plan"
+    )
     args = parser.parse_args(argv)
     if args.command == "presentation-inputs":
         from .presentation_inputs import prepare
 
         return prepare(args.root)
+    if args.command == "prune":
+        from .prune import apply_plan, build_plan, render_plan
+
+        try:
+            if args.dry_run:
+                print(render_plan(build_plan(args.root)))
+            else:
+                plan = apply_plan(args.root, args.confirm)
+                reclaimed = sum(row["bytes"] for row in plan["prune"])
+                print(
+                    f"Pruned {len(plan['prune'])} runs ({reclaimed / 2**30:.2f} GiB)."
+                )
+            return 0
+        except (OSError, ValueError) as exc:
+            print(f"pingstore prune: {exc}", file=sys.stderr)
+            return 1
     source = args.source or Path(
         os.environ.get("DEMOLAB_PREVIEW_SOURCE") or ".pingstore/runs"
     )

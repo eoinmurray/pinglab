@@ -1,4 +1,4 @@
-"""Allow python -m pingstore to use the same read-only command interface."""
+"""Allow python -m pingstore to use the same narrow command interface."""
 
 from .cli import main
 

@@ -1,6 +1,6 @@
 # Experiment Runner Guide
 
-Version: **4.3.0**
+Version: **4.4.0**
 
 This guide defines Pinglab's independent compute, analyse, and present commands.
 The [Storage Guide](../tools/pingstore/README.md) owns run layout and validation.
@@ -42,6 +42,10 @@ same shape. Execution location and scheduler details belong in `run.json`.
 Failed work remains in its hidden temporary run. Downstream stages do not consume
 it. Rerun with a new identity unless an experiment-specific compute recovery
 procedure explicitly resumes the incomplete working directory.
+
+Run reservation and execution refuse to start while the Storage Guide's
+exclusive pruning operation is active. Pruning likewise refuses an active
+writer, so it cannot race stage completion.
 
 ## 3. Run records
 
@@ -123,6 +127,8 @@ before changing the guide outside the requested scope.
 
 ## 8. Version history
 
+- **4.4.0** — Coordinate reservation and execution with hash-bound Pingstore
+  pruning so completed or in-progress lineages cannot race deletion.
 - **4.3.0** — Flatten single-file units and standardize simulation recording
   role filenames while retaining multi-file scientific bundles.
 - **4.2.0** — Limit compute/analyse exports to one scientific-unit directory

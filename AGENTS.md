@@ -13,6 +13,11 @@ management CLI.
 - `pingstore discover` is a narrow read-only integration command: validate
   completed runs and emit Demolab discovery JSON. It must not select, mutate,
   materialize, upload, or prune runs, or persist a catalogue.
+- `pingstore prune` is the sole mutating maintenance command. It must use a
+  no-write dry run followed by the exact complete SHA-256 plan hash, retain HPC
+  runs, newest visible presentations, explicit pins, incomplete inputs, full
+  ancestry and allocation high-watermarks, and abort on drift or active writers.
+  It must not edit visible run contents or create catalogues or lifecycle states.
 
 - Store every completed run at `.pingstore/runs/<run-id>/`. All operational runs
   require `pingstore.run/v4`, with exactly required `run.json`, `README.md`, and
@@ -54,8 +59,8 @@ management CLI.
   IDs before submission so concurrent jobs cannot claim the same identity.
 - Do not reintroduce collection/experiment directory nesting, catalogues,
   lifecycle states, automatic official selections, preview overrides, archive
-  bundles, or a general Pingstore management CLI. The read-only discovery
-  command above is the sole operational CLI exception. The historical v2 migration
+  bundles, or a general Pingstore management CLI. The narrow discovery and
+  hash-bound prune commands above are the only operational CLI exceptions. The historical v2 migration
   utility is not a conforming upgrade path and does not authorize v2 use.
 
 # Experiment execution

@@ -1,6 +1,6 @@
 # Storage Guide
 
-Version: **4.3.0**
+Version: **4.4.0**
 
 This guide defines Pingstore's filesystem convention. Pingstore is not a
 service, database, catalogue, lifecycle manager, or general management CLI.
@@ -102,7 +102,7 @@ shared completion helper canonicalizes them before validation and visibility.
 
 ## 5. Discovery and publication
 
-`pingstore discover` is the sole operational CLI exception. It validates visible
+`pingstore discover` is the read-only integration command. It validates visible
 completed v4 runs and emits Demolab discovery JSON for populated present runs.
 It does not select, mutate, materialize, upload, prune, or persist a catalogue.
 
@@ -119,7 +119,43 @@ compatibility manifests.
 `collections.json`, when present, maps named views to explicit run-ID arrays.
 No official or latest selection is inferred.
 
-## 6. Historical schemas and migration
+## 6. Explicit pruning
+
+`pingstore prune` is the sole mutating maintenance command. It is a narrow
+garbage-collection operation, not a lifecycle manager or general storage CLI.
+It retains every run whose authoritative execution provenance identifies HPC,
+the newest populated present run for each experiment currently exposed by
+discovery, explicit collection and article-default pins, inputs of incomplete
+runs, and the complete transitive ancestry of those roots. It also retains each
+experiment's highest allocated counter so a removed identity cannot be reused.
+
+Pruning requires two separate invocations:
+
+```sh
+uv run pingstore prune --dry-run
+uv run pingstore prune --confirm <complete-sha256-plan-hash>
+```
+
+Dry-run validates every visible v4 run and the complete dependency graph, prints
+every retained and proposed run with its reason and byte count, and makes no
+filesystem changes. The plan hash binds the exact run records, payload digests,
+sizes, incomplete-run input state, and candidate set. Confirmation recomputes
+the plan under an exclusive pruning lock and aborts on any difference or active
+writer. A bare confirmation is forbidden.
+
+Run reservation and execution hold a shared lock at `.pingstore/.operation.lock`;
+confirmation requires the corresponding exclusive lock. The lock coordinates
+processes but does not record lifecycle state or select runs.
+
+Confirmation builds and validates a hard-linked retained tree beside `runs/`,
+atomically exchanges it with the original tree, validates it again, and only
+then removes the old tree. Visible run contents are never edited. A separately
+authorized external backup may precede confirmation; pruning itself does not
+create archives, catalogues, tombstones, lifecycle states, or publication
+selections. Historical v2/v3 evidence and migration archives are outside this
+operation.
+
+## 7. Historical schemas and migration
 
 V2 and v3 runs are historical evidence, not operational inputs. They may be
 inspected by explicit migration/recovery tooling but not consumed, discovered,
@@ -141,8 +177,11 @@ A migration to v4 must:
 Migration does not authorize experiment execution, publication, pruning, remote
 store changes, or deletion of the recovery archive.
 
-## 7. Version history
+## 8. Version history
 
+- **4.4.0** — Add hash-bound pruning that retains HPC work, each experiment's
+  newest visible presentation, explicit pins, incomplete inputs, ancestry and
+  allocation high-watermarks.
 - **4.3.0** — Flatten singleton scientific units, require at least two files for
   unit directories, and standardize simulation recording role names.
 - **4.2.0** — Standardize compute/analyse exports as run-wide root files plus

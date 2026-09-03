@@ -227,7 +227,7 @@ def test_module_entry_point_and_environment_protocol(tmp_path):
     assert result.stderr == ""
 
 
-def test_no_mutating_subcommands(capsys):
+def test_unknown_subcommands_are_rejected(capsys):
     with pytest.raises(SystemExit) as exc:
         main(["delete", "exp001-r001-present-local"])
     assert exc.value.code == 2
