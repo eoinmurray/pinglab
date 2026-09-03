@@ -28,6 +28,7 @@ from .core import (
     mV,
     nS,
 )
+from .diagram import diagram
 from .simulation import (
     BackgroundChannel,
     CellDistribution,
@@ -80,6 +81,7 @@ __all__ = [
     "Bundle",
     "Diagnostic",
     "compile",
+    "diagram",
     "load_bundle",
     "validate_graph",
     "components",

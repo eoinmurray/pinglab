@@ -1,3 +1,5 @@
+import shutil
+
 import matplotlib
 import numpy as np
 import pytest
@@ -5,26 +7,28 @@ import pytest
 matplotlib.use("Agg")
 
 from tools.snnviz import (  # noqa: E402
+    Diagram,
+    DiagramEdge,
+    DiagramGroup,
+    DiagramNode,
     FrameTimeline,
     Recording,
     RecordingError,
+    diagram_to_dot,
     exponential_trace,
     grid_layout,
+    render_diagram,
     representative_frame,
 )
 from tools.snnviz.loaders import load_snnsim_recording
 
 
 def test_recording_validates_shared_timeline():
-    recording = Recording(
-        0.25, {"spk_e": np.zeros((8, 3)), "v_e": np.zeros((8, 3))}
-    )
+    recording = Recording(0.25, {"spk_e": np.zeros((8, 3)), "v_e": np.zeros((8, 3))})
     assert recording.steps == 8
     assert recording.duration_ms == 2.0
     with pytest.raises(RecordingError):
-        Recording(
-            0.25, {"a": np.zeros((8, 1)), "b": np.zeros((7, 1))}
-        )
+        Recording(0.25, {"a": np.zeros((8, 1)), "b": np.zeros((7, 1))})
 
 
 def test_grid_and_trace_are_backend_independent():
@@ -44,9 +48,7 @@ def test_timeline_and_representative_frame():
 
 
 def test_timeline_composes_slow_motion_repeats_and_holds():
-    timeline = FrameTimeline.compose(
-        [(0, 9, 3), (5, 5, 2), (9, 0, 3)], dt_ms=0.25
-    )
+    timeline = FrameTimeline.compose([(0, 9, 3), (5, 5, 2), (9, 0, 3)], dt_ms=0.25)
     assert timeline.steps.tolist() == [0, 4, 9, 5, 5, 9, 4, 0]
 
 
@@ -68,3 +70,44 @@ def test_snnsim_loader_separates_retained_static_arrays(tmp_path):
         recording.metadata["retained_static"]["input_excitatory_e_rate_scale"],
         np.ones(3),
     )
+
+
+def test_diagram_contract_compiles_deterministically():
+    diagram = Diagram(
+        name="small",
+        nodes=(
+            DiagramNode("input", "Input", "8 channels", "spikes", kind="input"),
+            DiagramNode("cell", "Cell", "E 8 · I 2", "component", kind="component"),
+        ),
+        edges=(DiagramEdge("input", "cell", role="excitatory"),),
+        groups=(DiagramGroup("network", "Network", ("cell",)),),
+    )
+
+    assert diagram_to_dot(diagram) == diagram_to_dot(diagram)
+    assert '"input" -> "cell"' in diagram_to_dot(diagram)
+    assert 'subgraph "cluster_n_network"' in diagram_to_dot(diagram)
+    assert 'style="filled"' in diagram_to_dot(diagram)
+    assert 'fontname="Courier New"' in diagram_to_dot(diagram)
+
+
+def test_diagram_contract_rejects_unknown_references():
+    with pytest.raises(ValueError, match="unknown node"):
+        Diagram(
+            name="broken",
+            nodes=(DiagramNode("known", "Known", "", "node"),),
+            edges=(DiagramEdge("known", "missing"),),
+        )
+
+
+def test_diagram_renderer_exports_svg_and_dot(tmp_path):
+    diagram = Diagram(
+        name="small",
+        nodes=(DiagramNode("node", "Node", "one", "neutral"),),
+        edges=(),
+    )
+    dot = render_diagram(diagram, tmp_path / "small.dot")
+    assert dot.read_text() == diagram_to_dot(diagram)
+    if shutil.which("dot") is None:
+        pytest.skip("Graphviz 'dot' is required for diagram rendering")
+    svg = render_diagram(diagram, tmp_path / "small.svg")
+    assert "n_node" in svg.read_text()

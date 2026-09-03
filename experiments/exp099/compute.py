@@ -9,7 +9,6 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "experiments"), str(REPO / "tools")]
 
-import shutil
 import subprocess
 
 import numpy as np
@@ -20,14 +19,12 @@ from pingstore.stages import stage_run
 
 def simulate(
     root: Path,
-    bundle_spec,
+    bundle: Path,
     *,
     duration_ms: float = recipe.DURATION_MS,
     seed: int = recipe.SEED,
 ) -> list[str]:
-    bundle = root / "network.bundle"
     run = root / "simulation"
-    bundle_spec.write(bundle, visualise=True)
     command = [
         sys.executable,
         str(REPO / "tools/snnsim/tool.py"),
@@ -44,7 +41,6 @@ def simulate(
     ]
     subprocess.run(command, cwd=REPO, check=True)
     export_initialized_weights(bundle, run, duration_ms=duration_ms, seed=seed)
-    shutil.copy2(bundle / "reports/expanded.svg", root / "network.svg")
     return command
 
 
@@ -171,7 +167,8 @@ def compute(
             view_end_ms=view_end_ms,
         ),
     ) as run:
-        command = simulate(run.export, bundle, duration_ms=duration_ms, seed=seed)
+        bundle_path = bundle.write(run.export / "network.bundle")
+        command = simulate(run.export, bundle_path, duration_ms=duration_ms, seed=seed)
         run.record["execution"]["simulation_command"] = command
         write_json_atomic(run.scratch / "simulation-command.json", {"command": command})
     return run.run_id

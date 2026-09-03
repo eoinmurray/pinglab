@@ -1,13 +1,37 @@
 # snnviz
 
-`snnviz` provides renderer-neutral recording contracts, numerical transforms,
-deterministic layout helpers, and a thin Matplotlib composition layer for still
-images and animations of spiking-neural-network activity. It does not run a
-simulation or perform scientific analysis.
+`snnviz` owns visual rendering for Pinglab's spiking-network tools. It provides
+renderer-neutral recording and structural-diagram contracts, numerical
+transforms, deterministic layout helpers, a thin Matplotlib composition layer
+for activity stills and animations, and Graphviz export for diagrams. It does
+not run a simulation or perform scientific analysis.
 
 The public API is intentionally small: compositions retain direct access to
 Matplotlib, while `Recording` and the reusable transforms keep visual rendering
 grounded in explicit source data.
+
+Structural producers lower their own semantics into `Diagram`, `DiagramNode`,
+`DiagramEdge`, and `DiagramGroup`; `snnviz.render_diagram` owns deterministic
+DOT generation and SVG, PNG, PDF, or DOT export. This keeps source-specific
+schema interpretation outside the renderer. For example:
+
+```python
+from tools import snnlang as snn
+from tools import snnviz
+
+bundle = snn.compile(network)
+visual = snn.diagram(bundle, view="circuit", expand_groups={"cell"})
+snnviz.render_diagram(visual, "circuit.svg")
+```
+
+The default diagram house style follows the lab's EXP099 input-map precedent:
+opaque white canvas, hard rectangular geometry, bold uppercase monospace text,
+generous spacing, black excitatory or ordinary flow, deep-red inhibitory flow,
+and amber or cyan only for distinct output or training roles. Diagram labels
+name the scientific mechanism rather than internal renderer details. Authored
+component membership becomes visible clustering; related populations share a
+rank and use short local names, while mixed computational groups retain their
+internal signal-flow order.
 
 ## Scientific visual style guide
 

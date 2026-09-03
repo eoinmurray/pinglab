@@ -26,6 +26,11 @@ digest-bearing `manifest.json`, copied logical assets, a text summary, and
 optional circuit/training/expanded SVG and PNG reports. Physical dataset and
 checkpoint paths deliberately do not belong in the graph.
 
+`snnlang` owns the semantic projection of a bundle through `snn.diagram(...)`;
+the resulting renderer-neutral diagram is rendered by `tools.snnviz`. The
+existing `Bundle.visualise(...)` convenience method delegates through this same
+boundary.
+
 Inputs are graph contracts, not stimulus recipes. A time-varying spike input
 uses the canonical `(time, batch, channels)` axis order and declares its signal
 type and unit. Dataset selection, Poisson rates, encoders, seeds, durations, and

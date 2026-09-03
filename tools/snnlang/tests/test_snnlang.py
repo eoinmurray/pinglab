@@ -609,6 +609,29 @@ def test_visualisation_is_deterministic_and_has_stable_ids(tmp_path):
     assert png_a.read_bytes() == png_b.read_bytes()
 
 
+def test_bundle_lowers_to_snnviz_diagram_before_rendering():
+    net, cell = small_network()
+    net.output("spikes", cell.E.spikes)
+
+    visual = snn.diagram(snn.compile(net), view="circuit")
+
+    assert visual.metadata == {"view": "circuit", "source": "snnlang"}
+    assert {node.id for node in visual.nodes} >= {"x", "cell", "out:spikes"}
+
+
+def test_expanded_diagram_groups_component_populations_on_one_rank():
+    net, cell = small_network()
+    net.output("spikes", cell.E.spikes)
+
+    visual = snn.diagram(snn.compile(net), view="expanded")
+    group = next(group for group in visual.groups if group.id == "cell")
+    titles = {node.id: node.title for node in visual.nodes}
+
+    assert group.members == ("cell_E", "cell_I")
+    assert group.same_rank
+    assert (titles["cell_E"], titles["cell_I"]) == ("E", "I")
+
+
 def test_all_visual_views_render(tmp_path):
     if shutil.which("dot") is None:
         pytest.skip("Graphviz 'dot' is required for snnlang visualisation")

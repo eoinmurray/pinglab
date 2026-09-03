@@ -1128,11 +1128,14 @@ class Bundle:
             text_report(self.graph, self.training, self.diagnostics)
         )
         if visualise:
-            from .visualize import visualise_bundle
+            from tools.snnviz import render_diagram
+
+            from .diagram import diagram
 
             for view in ("circuit", "training", "expanded"):
-                visualise_bundle(self, reports / f"{view}.svg", view=view)
-                visualise_bundle(self, reports / f"{view}.png", view=view, scale=2)
+                visual = diagram(self, view=view)
+                render_diagram(visual, reports / f"{view}.svg")
+                render_diagram(visual, reports / f"{view}.png", scale=2)
         return root
 
     def visualise(
@@ -1143,14 +1146,14 @@ class Bundle:
         scale: int = 1,
         expand_groups: Collection[str] = (),
     ) -> Path:
-        from .visualize import visualise_bundle
+        from tools.snnviz import render_diagram
 
-        return visualise_bundle(
-            self,
+        from .diagram import diagram
+
+        return render_diagram(
+            diagram(self, view=view, expand_groups=expand_groups),
             Path(path),
-            view=view,
             scale=scale,
-            expand_groups=expand_groups,
         )
 
 

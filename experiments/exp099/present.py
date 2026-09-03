@@ -16,6 +16,8 @@ from experiments.exp099 import inputs, recipe
 from experiments.exp099.render import render
 from pingstore.contracts import PingstoreError, load_json, write_json_atomic
 from pingstore.stages import stage_run
+from tools import snnlang as snn  # noqa: TID251
+from tools import snnviz  # noqa: TID251
 
 
 def _resolved(identity: str):
@@ -58,6 +60,14 @@ def _render_condition(analysis, compute, cfg, results, output: Path) -> None:
     )
 
 
+def _render_network_diagram(compute, output: Path) -> None:
+    """Render the authenticated authored graph through the shared visual layer."""
+
+    bundle = snn.load_bundle(compute.export / "network.bundle")
+    visual = snn.diagram(bundle, view="expanded")
+    snnviz.render_diagram(visual, output / "network.svg")
+
+
 def present(identity: str, *, run_id: str | None = None) -> str:
     analysis, compute, cfg, results = _resolved(identity)
     with stage_run(
@@ -69,7 +79,7 @@ def present(identity: str, *, run_id: str | None = None) -> str:
         configuration=cfg,
     ) as run:
         _render_condition(analysis, compute, cfg, results, run.export)
-        shutil.copy2(compute.export / "network.svg", run.export / "network.svg")
+        _render_network_diagram(compute, run.export)
         shutil.copy2(
             Path(__file__).with_name(recipe.INPUT_MAP), run.export / recipe.INPUT_MAP
         )
@@ -115,7 +125,7 @@ def present_pair(
     ) as run:
         for analysis, compute, cfg, results in (richer, shared):
             _render_condition(analysis, compute, cfg, results, run.export)
-        shutil.copy2(shared[1].export / "network.svg", run.export / "network.svg")
+        _render_network_diagram(shared[1], run.export)
         shutil.copy2(
             Path(__file__).with_name(recipe.INPUT_MAP), run.export / recipe.INPUT_MAP
         )

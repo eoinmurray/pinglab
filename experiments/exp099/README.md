@@ -18,14 +18,15 @@ and presentation validate explicit inputs, including payload and manifest pins;
 they never launch upstream work. No command materializes, copies web assets,
 selects a published run, or migrates historical data.
 
-- Compute retains the authored bundle, simulation snapshot/configuration and
-  seeded initialized weights in its export. The simulator command is recorded
+- Compute retains the data-only authored bundle, simulation snapshot/configuration
+  and seeded initialized weights in its export. The simulator command is recorded
   under provenance and in the authoritative execution record.
 - Analyse retains numerical measurements and results, referencing compute.
-- Present references both analysis and its pinned compute source. Its flat
-  export contains the network diagram, explanatory input map, poster, video,
-  numbers and the shared publication-metadata projection. Publication is a
-  separate authorized step.
+- Present references both analysis and its pinned compute source. It lowers the
+  authenticated `snnlang` bundle into a structural diagram and renders it through
+  `snnviz`; its flat export contains that network diagram, explanatory input map,
+  poster, video, numbers and the shared publication-metadata projection.
+  Publication is a separate authorized step.
 
 ## Production renderer recovery
 

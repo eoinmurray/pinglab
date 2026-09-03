@@ -94,9 +94,6 @@ def lab(tmp_path, monkeypatch):
             w_in_e=np.eye(20) * 0.08,
             w_in_i=np.full((20, 5), 0.02),
         )
-        (output / "network.svg").write_text(
-            '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"/>'
-        )
         return ["synthetic-fixture"]
 
     monkeypatch.setattr(compute, "simulate", synthetic_recording)
@@ -177,6 +174,8 @@ def test_stages_pin_v3_keep_raw_evidence_and_render_without_analysis(lab, monkey
         Path(recipe.__file__).with_name(recipe.INPUT_MAP).read_bytes()
     )
     assert (output / "export" / recipe.POSTER).stat().st_size > 1000
+    assert "n_balanced_circuit_E" in (output / "export/network.svg").read_text()
+    assert not (upstream / "export/network.svg").exists()
     poster = mpimg.imread(output / "export" / recipe.POSTER)
     assert poster.shape[:2] == (1944, 3456)
     assert load_json(output / "export/numbers.json") == load_json(
