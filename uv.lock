@@ -943,11 +943,11 @@ wheels = [
 
 [[package]]
 name = "demolab-cli"
-version = "5.4.2"
+version = "5.4.3"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/5d/ab/b560fe0647024af8481372cda174c53acb369fc3746ba3877f315c9c18d0/demolab_cli-5.4.2.tar.gz", hash = "sha256:1f62bce6b29d1c448514ff3f109f81f7e28d5fa239c9208183cbfe941c1cc20a", size = 154974, upload-time = "2026-09-03T12:16:59.627Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/5f/cf/1b24fe1fe99d06330558de72570b967dcfc16ade952b21fee8922ae95672/demolab_cli-5.4.3.tar.gz", hash = "sha256:fc12721cce33a858cb889e867a7b55f652e6830fd7058daac2919f7c41c2481e", size = 155188, upload-time = "2026-09-03T12:31:58.883Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/f5/95/4dda3ed1b75641c7d45e256774a8881fb6f643f61085bd1d1e8eb63ecf67/demolab_cli-5.4.2-py3-none-any.whl", hash = "sha256:63323d08da1dce3e569bf57793654267c74ec64636c041a7b1bfebd6bbd92616", size = 125132, upload-time = "2026-09-03T12:16:58.404Z" },
+    { url = "https://files.pythonhosted.org/packages/ef/0a/5c3bca52c892464852b38d5ce69da14d60dd6b358c37e9104bd71716d1f4/demolab_cli-5.4.3-py3-none-any.whl", hash = "sha256:4dce720a8de6cb26d75bdf37994fb8d094d23696a989a73ad38b3f9e3d1b1e0d", size = 125316, upload-time = "2026-09-03T12:31:57.7Z" },
 ]
 
 [[package]]
@@ -2586,7 +2586,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "demolab-cli", specifier = ">=5.4.1" },
+    { name = "demolab-cli", specifier = ">=5.4.3" },
     { name = "h5py", specifier = ">=3.16.0" },
     { name = "manim", specifier = ">=0.19.1" },
     { name = "matplotlib", specifier = ">=3.10.8" },
