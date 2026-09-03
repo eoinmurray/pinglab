@@ -8,9 +8,10 @@
 
 #let meta = (
   status: "[▦ DATA | v34.0.1]",
-  title: "E-to-E Coupling Locks Detuned PING Rhythms",
+  // Author-locked title: do not change.
+  title: "Lowet 2015",
   created_at: "2026-08-19T00:00:00Z",
-  updated_at: "2026-09-02",
+  updated_at: "2026-09-03",
   description: "Distinguish the pathways that phase-lock two cortical PING rhythms.",
   collection: "demo",
   order: 1,
