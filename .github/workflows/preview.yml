@@ -1,8 +1,7 @@
 # Opt-in Pages workflow — per-PR previews. Copied alongside deploy.yml by `demolab deploy-setup`.
 # Every pull request gets its own built copy of the site under pr-preview/pr-<N>/ on the
 # gh-pages branch, a sticky comment on the PR linking to it, and an automatic teardown when the
-# PR closes or merges. This is what makes an autoresearch PR readable — the night document,
-# experiment writeups, and PDFs render at a URL instead of a raw diff. See AUTORESEARCH-RULES §5.
+# PR closes or merges, so writings and PDFs render at a URL instead of a raw diff.
 #
 # Requires deploy.yml's branch-based flow (both write gh-pages) and the same one-time settings
 # change: Settings → Pages → Source: "Deploy from a branch" → `gh-pages` / `(root)`.
@@ -39,12 +38,6 @@ jobs:
 
       - uses: astral-sh/setup-uv@v5
         if: github.event.action != 'closed'
-
-      - name: Install rendering system dependencies
-        if: github.event.action != 'closed'
-        run: |
-          sudo apt-get update
-          sudo apt-get install --yes libcairo2-dev libpango1.0-dev pkg-config
 
       - name: Build the site bundle
         if: github.event.action != 'closed'
