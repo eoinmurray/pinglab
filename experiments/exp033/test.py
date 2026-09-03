@@ -663,7 +663,7 @@ def test_article_selected_inputs_equations_and_absent_data(lab):
     output = inputs.source(root, present.present(aid), "present")
     repo = Path(__file__).resolve().parents[2]
     (root / "writings").mkdir()
-    for name in ("exp033.typ", "run-inputs.typ", "run-view.typ", "contents.typ"):
+    for name in ("exp033.typ", "dataset-template.typ", "contents.typ"):
         shutil.copyfile(repo / "writings" / name, root / "writings" / name)
     (root / ".demolab").mkdir()
     shutil.copyfile(_paths.TYP / "lib.typ", root / ".demolab/lib.typ")

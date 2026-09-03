@@ -196,12 +196,12 @@ results, missing inputs and corrupt selected data. They protect against a litera
 conditional branch, duplicated References, function arguments inside subscripts
 and absent HTML equation numbers, all found during render review.
 
-After separate approval, `writings/run-view.typ` recognises both `import` and
+After separate approval, `writings/dataset-template.typ` recognises both `import` and
 `historical-import`. The exp080 compute row now shows `1 s (import)`, with a tooltip
 excluding original training or simulation. Both operation values are covered by
 the existing duration tests, including retained HPC timing. Earlier shared
 duration/projection work was preserved. Anomancer explicitly approved committing
-the migration without `run-view.typ` and `test_run_view.py`: their import-label
+the migration without the shared dataset component and `test_run_view.py`: their import-label
 fix remains uncommitted because it depends on the other task's uncommitted
 duration feature. The browser label and tooltip were checked in the shared
 working checkout, not established by this migration commit alone.

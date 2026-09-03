@@ -1,5 +1,5 @@
 #import "contents.typ": with-contents, with-numbered-equations
-#import "run-view.typ": with-datasets
+#import "dataset-template.typ": with-datasets
 #let meta = (
   tags: ("txt", "v35.0.0"),
   title: "SNNSIM command-line guide",
@@ -265,7 +265,7 @@
 
   Each command adds its own outputs: `train` writes `weights.pth` when a selected epoch exists, `weights_final.pth`, `metrics.json`, `metrics.jsonl`, and the legacy-named `test_predictions.json` containing validation predictions; `sim --infer` writes `metrics.json` (and `results.json`) plus whatever `--outputs` requested; `dump-weights` writes `weights_dump.npz`.
 
-  These files are scratch. By default they land under `temp/pinglab-cli/`, which is gitignored; a new invocation can overwrite metadata without removing old payloads. The retained record is produced by the experiment stages: analysis derives numerical results, and presentation exports report-ready `numbers.json` and figures into an immutable Pingstore run. The writing reads the selected presentation input through `run-inputs.typ`, never the ephemeral tool output. Without a selected input, the report shows an unavailable-data notice.
+  These files are scratch. By default they land under `temp/pinglab-cli/`, which is gitignored; a new invocation can overwrite metadata without removing old payloads. The retained record is produced by the experiment stages: analysis derives numerical results, and presentation exports report-ready `numbers.json` and figures into an immutable Pingstore run. The writing reads the selected presentation input through `dataset-template.typ`, never the ephemeral tool output. Without a selected input, the report shows an unavailable-data notice.
 
   == Recipes
 

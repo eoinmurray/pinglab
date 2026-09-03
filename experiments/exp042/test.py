@@ -600,7 +600,7 @@ def test_article_renders_fixture_and_unavailable_data_states(lab):
     output = inputs.source(root, identity, "present")
     source_root = Path(__file__).resolve().parents[2]
     (root / "writings").mkdir()
-    for name in ("exp042.typ", "run-inputs.typ", "run-view.typ", "contents.typ"):
+    for name in ("exp042.typ", "dataset-template.typ", "contents.typ"):
         shutil.copy2(source_root / "writings" / name, root / "writings" / name)
     (root / ".demolab").mkdir()
     shutil.copy2(_paths.TYP / "lib.typ", root / ".demolab/lib.typ")

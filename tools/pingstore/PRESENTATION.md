@@ -55,9 +55,10 @@ restarted with the source override; a page reload cannot upgrade its Python code
 
 ## What to edit
 
-- `writings/run-view.typ`: the complete web-only panel, labels, layout, links,
-  run links and displayed metadata. The technical panel is separate from the
-  scientific article; PDFs do not include it.
+- `writings/dataset-template.typ`: input selection, directory resolution,
+  defaults and media attachments, plus the complete web-only panel, labels,
+  layout, links and displayed metadata. The technical panel is separate from
+  the scientific article; PDFs do not include it.
 - `writings/prepare.py`: the lab-owned hook that supplies the collection graph,
   plus direct inputs not represented by that scheduling graph (exp048's bank
   and exp046's direct bank input). It imports declarations only, never runners.
@@ -66,8 +67,6 @@ restarted with the source override; a page reload cannot upgrade its Python code
   article input declarations and validates v3
   payloads and upstream identity pins, then atomically writes
   `.demolab/pinglab-inputs.json`. It never modifies Pingstore.
-- `writings/run-inputs.typ`: directory resolution, defaults and media attachments.
-  Existing figures still call the same article-scoped `data-file()` helper.
 - `writings/run-defaults.json`: optional explicit article/input defaults. An empty
   object retains Pinglab's prior Latest behavior, now implemented in user code.
 - `demolab.yaml`: allowed URL inputs and the preparation command. The inactive

@@ -502,7 +502,7 @@ def test_article_renders_explicit_presentation_with_equations_and_seed_list(repo
     output = inputs.source(root, pid, "present")
     source_root = Path(__file__).resolve().parents[2]
     (root / "writings").mkdir()
-    for name in ("exp047.typ", "run-inputs.typ", "run-view.typ", "contents.typ"):
+    for name in ("exp047.typ", "dataset-template.typ", "contents.typ"):
         shutil.copy2(source_root / "writings" / name, root / "writings" / name)
     (root / ".demolab").mkdir()
     shutil.copy2(_paths.TYP / "lib.typ", root / ".demolab/lib.typ")

@@ -386,7 +386,7 @@ def test_article_renders_selected_run_and_handles_missing_data(repo):
     output = inputs.source(root, pid, "present")
     source_root = Path(__file__).resolve().parents[2]
     (root / "writings").mkdir()
-    for name in ("exp086.typ", "contents.typ", "run-inputs.typ", "run-view.typ"):
+    for name in ("exp086.typ", "contents.typ", "dataset-template.typ"):
         shutil.copy2(source_root / "writings" / name, root / "writings" / name)
     (root / ".demolab").mkdir()
     shutil.copy2(_paths.TYP / "lib.typ", root / ".demolab/lib.typ")

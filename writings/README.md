@@ -899,15 +899,16 @@ permitted for preview or publication. Existing readers that accept them are nonc
 not a compatibility exception; this guide does not authorize their migration. Keep
 storage-version paths out of the writing: discovery supplies the resolved
 directory, while `run.json` remains authoritative. Import `data-file` from the
-local `run-inputs.typ` helper and bind it to the article. It reads only explicit
-Demolab inputs, with no implicit filesystem fallback. Preview supplies selected
-runs; publication can supply a fixed `demolab-data-inputs` inventory with an
+local `dataset-template.typ` component and bind it to the article. The same
+component renders the article's Dataset section. It reads only explicit Demolab
+inputs, with no implicit filesystem fallback. Preview supplies selected runs;
+publication can supply a fixed `demolab-data-inputs` inventory with an
 engine that supports `build.sources`. Without an input for the article, show the
 shared unavailable-data notice rather than evaluating report calculations:
 
 ```typst
 #import "/.demolab/lib.typ": data-json, data-image
-#import "run-inputs.typ": data-file, inputs-ready, pending-report
+#import "dataset-template.typ": data-file, inputs-ready, pending-report
 #let data-file = data-file.with(article: "exp022")
 #let inputs = ("exp022",)
 #let render-report(data-file) = [

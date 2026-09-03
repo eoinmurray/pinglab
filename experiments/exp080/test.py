@@ -595,7 +595,7 @@ def test_article_renders_explicit_evidence_without_false_branches(repo, view):
     elif view == "broken":
         numbers.write_text("not json")
     (root / "writings").mkdir()
-    for name in ("exp080.typ", "contents.typ", "run-inputs.typ", "run-view.typ"):
+    for name in ("exp080.typ", "contents.typ", "dataset-template.typ"):
         shutil.copyfile(project / "writings" / name, root / "writings" / name)
     (root / ".demolab").mkdir()
     for name in ("lib.typ", "style.css"):

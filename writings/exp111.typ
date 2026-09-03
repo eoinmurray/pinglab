@@ -1,7 +1,6 @@
 #import "contents.typ": contents-here, with-contents, result-card, with-numbered-equations, with-result-sections
 #import "/.demolab/lib.typ": data-image, data-json, cite, reference-list
-#import "run-inputs.typ": data-file, input-assets, inputs-ready, pending-report
-#import "run-view.typ": run-view, with-datasets
+#import "dataset-template.typ": data-file, input-assets, inputs-ready, pending-report, run-view, with-datasets
 #let data-file = data-file.with(article: "exp111")
 
 #let meta = (

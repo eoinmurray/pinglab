@@ -4,8 +4,7 @@
 // with its nested thematic headings numbered within each subsection.
 #import "contents.typ": contents-here, with-contents, with-numbered-equations, with-result-sections
 #import "/.demolab/lib.typ": data-image
-#import "run-inputs.typ": data-file, input-assets, inputs-ready, pending-report
-#import "run-view.typ": with-datasets
+#import "dataset-template.typ": data-file, input-assets, inputs-ready, pending-report, with-datasets
 #let data-file = data-file.with(article: "exp110")
 
 #let meta = (

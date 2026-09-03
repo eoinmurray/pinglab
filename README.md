@@ -33,7 +33,7 @@ uv run demolab build    # → .demolab/site/ (PDFs are disabled in demolab.yaml)
 uv run demolab dev      # live preview with article-scoped run selectors
 ```
 
-Experiment reports read explicit Demolab inputs through `writings/run-inputs.typ`.
+Experiment reports read explicit Demolab inputs through `writings/dataset-template.typ`.
 Without a selected input, they show an unavailable-data notice. A production
 build does not inherit preview selections or run experiments; the current
 configuration supplies no fixed publication inputs.

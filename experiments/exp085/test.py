@@ -256,7 +256,7 @@ def check_article_render(lab, output):
     root = lab / "article-preview"
     (root / "writings").mkdir(parents=True)
     (root / ".demolab").mkdir()
-    for name in ("exp085.typ", "contents.typ", "run-inputs.typ", "run-view.typ"):
+    for name in ("exp085.typ", "contents.typ", "dataset-template.typ"):
         shutil.copy2(repo / "writings" / name, root / "writings" / name)
     shutil.copy2(_paths.TYP / "lib.typ", root / ".demolab/lib.typ")
     shutil.copytree(output / "export", root / "selected")
