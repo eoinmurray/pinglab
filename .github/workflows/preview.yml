@@ -39,6 +39,13 @@ jobs:
       - uses: astral-sh/setup-uv@v5
         if: github.event.action != 'closed'
 
+      # Pinglab depends on Manim, whose Linux wheels require Cairo/Pango headers at sync time.
+      - name: Install Pinglab rendering dependencies
+        if: github.event.action != 'closed'
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes libcairo2-dev libpango1.0-dev pkg-config
+
       - name: Build the site bundle
         if: github.event.action != 'closed'
         run: |

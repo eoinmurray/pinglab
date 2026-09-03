@@ -40,6 +40,12 @@ jobs:
       # needs the venv. The engine itself is pure stdlib — uv sync is what installs it.
       - uses: astral-sh/setup-uv@v5
 
+      # Pinglab depends on Manim, whose Linux wheels require Cairo/Pango headers at sync time.
+      - name: Install Pinglab rendering dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes libcairo2-dev libpango1.0-dev pkg-config
+
       - name: Build the site bundle
         run: |
           uv sync
