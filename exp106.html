@@ -1,0 +1,757 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Components, projections, and delays</title><style>/* Alignment */
+mtable.right-align mtd,
+mtable mtd.right-align,
+mtable.left-align mtd.right-align,
+mtable.aligned mtd:nth-child(odd) {
+  justify-items: end;
+  text-align: right;
+}
+mtable.cases mtd,
+mtable.left-align mtd,
+mtable mtd.left-align,
+mtable.aligned mtd:nth-child(even),
+math:is(:not([display])) > mtable.multiline-equation mtd {
+  justify-items: start;
+  text-align: left;
+}
+mtable.cases mtd,
+mtable.aligned mtd,
+mtable mtd.flushed,
+mtable mtd.left-flush {
+  padding-left: 0;
+}
+mtable.cases mtd,
+mtable.aligned mtd,
+mtable mtd.flushed,
+mtable mtd.right-flush {
+  padding-right: 0;
+}
+
+/* Tables */
+mtable {
+  math-style: inherit;
+}
+mtd {
+  math-depth: auto-add;
+  math-style: compact;
+  math-shift: compact;
+}
+
+/* Equations */
+mtable.multiline-equation mtd {
+  math-depth: inherit;
+  math-style: inherit;
+  math-shift: inherit;
+  padding: 0;
+}
+math > mtable.multiline-equation mtr:not(:last-child) mtd {
+  padding-bottom: 0.5em;
+}
+
+/* Fractions */
+mfrac {
+  padding-inline: 0;
+  margin-inline: 0.1em;
+}
+
+/* Accents */
+mover[accent="true" i] > :first-child {
+  font-feature-settings: "dtls";
+}
+mover.dotted[accent="true" i] > :first-child {
+  font-feature-settings: "dtls" 0;
+}
+
+/* Other rules for scriptlevel, displaystyle and math-shift */
+munder > :nth-child(2),
+munderover > :nth-child(2) {
+  math-shift: compact
+}
+munder[accentunder="true" i] > :not(:first-child),
+mover[accent="true" i] > :not(:first-child) {
+  math-depth: inherit;
+  math-style: inherit;
+  math-shift: inherit;
+}</style></head><body><link rel="icon" type="image/svg+xml" href="favicon.svg"><style>/* demolab web styles — injected into each HTML page by publish/lib.typ.
+   Typst HTML export ships no CSS (paged #set rules don't apply to HTML), so the
+   web look lives here. Avoid `>` / `<` in selectors: they'd be escaped inside <style>.
+   Body face is CMU Serif, the web-available Computer Modern branch closest to the PDFs'
+   New Computer Modern. The pinned web fonts keep that shared lineage without vendoring a
+   second full font family into every site; Charter/Georgia fall back when offline. */
+@font-face {
+  font-family: "Computer Modern Serif";
+  src: url("https://cdn.jsdelivr.net/gh/aaaakshat/cm-web-fonts@333f55ec19733c28cdc43567ecf72eafd6b0af61/font/Serif/cmunrm.woff") format("woff");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Computer Modern Serif";
+  src: url("https://cdn.jsdelivr.net/gh/aaaakshat/cm-web-fonts@333f55ec19733c28cdc43567ecf72eafd6b0af61/font/Serif/cmunbx.woff") format("woff");
+  font-weight: bold;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Computer Modern Serif";
+  src: url("https://cdn.jsdelivr.net/gh/aaaakshat/cm-web-fonts@333f55ec19733c28cdc43567ecf72eafd6b0af61/font/Serif/cmunti.woff") format("woff");
+  font-weight: normal;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Computer Modern Serif";
+  src: url("https://cdn.jsdelivr.net/gh/aaaakshat/cm-web-fonts@333f55ec19733c28cdc43567ecf72eafd6b0af61/font/Serif/cmunbi.woff") format("woff");
+  font-weight: bold;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Computer Modern Typewriter";
+  src: url("https://cdn.jsdelivr.net/gh/aaaakshat/cm-web-fonts@333f55ec19733c28cdc43567ecf72eafd6b0af61/font/Typewriter/cmuntt.woff") format("woff");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+/* A genuine mid-weight for the CM family: CMU ships only Roman + Bold, so there is no semibold to
+   step down to. Latin Modern Roman Demi (the CM-lineage demibold) fills weight 600 — used only by
+   inline citations, which want emphasis without the full punch of bold. */
+@font-face {
+  font-family: "Computer Modern Serif";
+  src: url("https://cdn.jsdelivr.net/gh/sugina-dev/latin-modern-web@1.0.1/font/lmromandemi-regular-webfont.woff") format("woff");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+/* One deliberate scale drives the whole site:
+     - two inks:  --ink (headings, body, titles, links) and --muted (all secondary text)
+     - one body size (--fs-body) + a three-step heading scale (--fs-h1..h3)
+     - one secondary size (--fs-small) shared by every id, date, count, caption, meta line
+   Everything below composes those tokens — no one-off px or ad-hoc greys. */
+:root {
+  --ink: #1a1a1a;
+  --muted: #666;          /* every piece of secondary text, one grey */
+  --rule: #e7e5df;
+  --rule-strong: #d8d5cd;
+  --paper: #fff;
+  --paper-tint: #fafaf7;
+  --selection: #ebe9e2;
+
+  --fs-h1: 1.6rem;        /* page/entry title  (Typst level 1 → <h2>) — 28.8px */
+  --fs-h2: 1.3rem;        /* section heading   (Typst level 2 → <h3>) — 23.4px */
+  --fs-h3: 1.1rem;        /* subsection        (Typst level 3 → <h4>) — 19.8px */
+  --fs-small: 0.85rem;    /* every piece of secondary text, one size  — 15.3px */
+  --fs-label: 0.72rem;    /* uppercase mono labels — 13px */
+
+  --mono: "Computer Modern Typewriter", ui-monospace, "SF Mono", Menlo, monospace;
+}
+* { box-sizing: border-box; }
+/* rem is anchored to the 18px body so the heading scale steps cleanly off body size. */
+html { font-size: 18px; }
+body {
+  max-width: 42em;
+  margin: clamp(2rem, 7vw, 3.5rem) auto;
+  padding: 0 clamp(1rem, 4vw, 1.5rem);
+  font: 1rem/1.6 "Computer Modern Serif", Charter, Georgia, "Times New Roman", serif;
+  font-kerning: normal;
+  font-synthesis: none;
+  color: var(--ink);
+  background: var(--paper);
+  -webkit-text-size-adjust: 100%;
+}
+::selection { color: var(--ink); background: var(--selection); }
+/* Typst's HTML export reserves <h1> and renders heading level N as <h(N+1)>: an entry/
+   page title (level 1) is <h2>, a section (level 2) is <h3>, a subsection is <h4>. Style
+   the emitted tags, not the Typst levels. */
+h1, h2 {
+  margin: 0 0 .35rem;
+  font-size: var(--fs-h1);
+  line-height: 1.15;
+  font-weight: 700;
+  letter-spacing: -.012em;
+  text-wrap: balance;
+}
+h3 { font-size: var(--fs-h2); line-height: 1.25; font-weight: 700; margin: 2.4rem 0 .5rem; text-wrap: balance; }
+h4 { font-size: var(--fs-h3); line-height: 1.3; font-weight: 700; margin: 1.8rem 0 .35rem; text-wrap: balance; }
+/* Print-style links: ink with a hairline underline, not web blue. */
+a {
+  color: var(--ink);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+a:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 3px;
+  border-radius: 1px;
+}
+/* Listing pages (home, collection, all-entries) follow pinglab: nav/index links are
+   unadorned and only underline on hover. Entry-body prose keeps the default underline. */
+.listing a { text-decoration: none; }
+.listing a:hover { text-decoration: underline; }
+/* ...except concrete destination links: the per-row pdf badge and the foot-line links
+   ("Browse all entries", "single pdf", the back arrows) stay underlined so they read as
+   links rather than nav chrome. Title/id links keep the clean hover-only treatment. */
+.listing .page-foot a,
+.entry-row .row-pdf { text-decoration: underline; }
+
+/* --- secondary text: one size (--fs-small), one colour (--muted) everywhere --- */
+.entry-meta,           /* id · date · status · collection under an entry/collection title */
+.coll-desc,            /* collection blurb on the homepage directory */
+.row-id, .row-meta, .row-pdf,  /* compact index-row metadata and PDF link */
+figcaption,
+.page-foot {           /* the "Browse all / back" line at the foot of a listing */
+  font-size: var(--fs-small);
+  color: var(--muted);
+}
+.entry-meta { margin: .2rem 0 1.75rem; }
+/* Authored dates are deliberately quiet metadata, never headline emphasis. */
+.entry-meta time, .row-meta time { font-weight: 400; color: inherit; }
+/* Byline under the homepage title: the lab's owner, quiet, links to contact if set. Its
+   default spacing also works when there is no description; the adjacent rule closes the
+   larger description margin only when that line actually exists. */
+.byline { font-size: var(--fs-small); color: var(--muted); margin: .2rem 0 1.5rem; }
+.entry-meta + .byline { margin-top: -.9rem; }
+.byline a { color: var(--muted); }
+.byline a:hover { color: var(--ink); }
+
+/* Citations: inline numbers stay in the text (underline on hover); the reference list is
+   secondary text, each entry's DOI a quiet link out. */
+/* A hair of space before the bracket, owned here so authors attach `#cite` directly to the
+   preceding word (`runs#cite(2)`); nowrap + no source whitespace keeps the bracket from
+   orphaning onto the next line. */
+.cite { white-space: nowrap; margin-left: 0.15em; font-weight: 600; }
+.cite a { color: inherit; text-decoration: none; }
+.cite a:hover { text-decoration: underline; }
+ol.refs { font-size: var(--fs-small); line-height: 1.55; padding-left: 1.5rem; margin: 1rem 0; }
+ol.refs li { margin: .45rem 0; }
+ol.refs li::marker { color: var(--muted); }
+ol.refs .doi { color: var(--muted); }
+ol.refs .doi:hover { color: var(--ink); }
+/* Hover popover for an inline citation (Wikipedia-style): a small card echoing the reference. */
+.cite-popover {
+  position: absolute; z-index: 50; display: none;
+  width: min(24rem, calc(100vw - 1rem)); padding: .6rem .8rem;
+  background: var(--paper); border: 1px solid var(--rule-strong); border-radius: 2px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, .1);
+  font-size: var(--fs-small); line-height: 1.5; color: var(--ink);
+}
+.cite-popover .doi { color: var(--muted); }
+.cite-popover .doi:hover { color: var(--ink); }
+
+/* Experiment artifact stage (`.status`): inherits the metadata line's quiet treatment. */
+
+/* Tags are linked discovery metadata, not lifecycle badges. Keep them visibly navigable and
+   quieter than titles; spacing survives wrapping when an entry has several tags. */
+.row-tags, .entry-tags { display: inline-flex; flex-wrap: wrap; gap: .15rem .45rem; }
+.row-tags .tag, .entry-tags .tag {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: #bcc0c4;
+}
+.row-tags .tag:hover, .entry-tags .tag:hover {
+  color: var(--ink);
+  text-decoration-color: currentColor;
+}
+
+/* Build-error stub: an entry that failed to compile (a missing figure, a Typst error) is served as
+   a stub page with the error in this block, so the failure is visible on its own page while the
+   rest of the site is fine. */
+.build-error { border-left: 3px solid #c0392b; background: #fcf3f2; color: #7a1f16; }
+
+/* Heading anchors: every heading carries a slug id (link to page#slug); a quiet # permalink
+   fades in on hover to grab that URL. */
+.hx .permalink { opacity: 0; margin-left: .3em; color: var(--muted); text-decoration: none; font-weight: 400; font-size: .85em; }
+.hx:hover .permalink, .hx:focus-within .permalink { opacity: 1; }
+.hx .permalink:hover { color: var(--ink); }
+
+/* Figure placeholder (`#pending` / `#pending-figure`): a figure whose asset isn't ready yet.
+   A tinted, dashed panel that reserves the figure's footprint so the page doesn't reflow when the
+   real plot lands — a small framed-image mark over the muted reason. aspect-ratio is set inline
+   from the helper's `ratio` arg. */
+.fig-pending {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .7rem;
+  width: 100%; padding: 1.5rem; text-align: center;
+  background: var(--paper-tint);
+  border: 1px dashed #d6d3ca;
+  border-radius: 2px;
+}
+.fig-pending-mark { width: 1.7em; height: 1.2em; border: 1px solid #b9b6ad; border-radius: 2px; }
+.fig-pending-note { font-size: var(--fs-small); font-style: italic; color: var(--muted); }
+
+/* Entry meta strip: id · date · status · pdf, all inline. The pdf is a concrete destination, so it
+   keeps its underline (muted, darkening on hover) rather than the bare listing-nav treatment. */
+.entry-pdf { color: var(--muted); text-decoration: underline; }
+.entry-pdf:hover { color: var(--ink); }
+.entry-collection { color: var(--muted); text-decoration: underline; }
+.entry-collection:hover { color: var(--ink); }
+/* On listing pages the description sits closer to the list it heads (entry pages keep the
+   airier 1.75rem before the body). */
+.listing .entry-meta { margin-bottom: 1.25rem; }
+/* Homepage brand lockup: quieter and tighter than an article title. The tagline is more
+   important than generic metadata, but still secondary to the name. Scoping this to the
+   header keeps entry and collection hierarchy unchanged. */
+.site-head {
+  margin-bottom: 1rem;
+}
+.site-head-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1.5rem 2.5rem;
+}
+.site-head-copy { min-width: 0; }
+.site-links { flex: 0 0 auto; padding-top: .2rem; }
+.site-links ul {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: .35rem 1.15rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.site-links a {
+  color: var(--muted);
+  font-size: var(--fs-small);
+  white-space: nowrap;
+  text-decoration: none;
+}
+.site-links a:hover { color: var(--ink); text-decoration: underline; }
+.site-head h1, .site-head h2 {
+  font-size: 1.5rem;
+  line-height: 1.15;
+  letter-spacing: -.008em;
+}
+.site-head .entry-meta {
+  max-width: 38rem;
+  margin: .3rem 0 0;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.site-head .byline { margin-bottom: 0; }
+.site-head .entry-meta + .byline { margin-top: .3rem; }
+/* Breathing room at the foot of an entry page so the last line isn't flush to the edge. */
+.entry-tail { height: 6rem; }
+
+/* Empty state: a freshly-scaffolded repo (no writings) — the homepage's only content. Warm and
+   jargon-free (the first thing a non-technical user sees), led by a confident line. */
+.empty-state { margin: 1.75rem 0; line-height: 1.65; max-width: 34rem; }
+.empty-lead { font-size: 1.2rem; color: var(--ink); margin: 0 0 .6rem; }
+.empty-state p:not(.empty-lead) { color: var(--muted); }
+
+/* Reusable building blocks for a presentation's optional custom landing.typ. */
+.welcome { margin: 0 0 2.75rem; max-width: 36rem; }
+.welcome-body { margin: 0 0 1rem; }
+.welcome-links {
+  margin: 0 0 1.15rem;
+  font-size: 1rem;
+  line-height: 1.6;
+  color: var(--muted);
+}
+/* The homepage is a .listing page (links unadorned by default), so re-add the underline for
+   links in the landing hero — both the nav row and inline links in the body prose. */
+.welcome-links a, .welcome-body a { text-decoration: underline; }
+.welcome-links a { color: #444; }
+.welcome-links a:hover { color: var(--ink); }
+.welcome-kicker {
+  font-family: var(--mono); font-size: var(--fs-label); color: var(--muted);
+  text-transform: uppercase; letter-spacing: .08em; margin: 3rem 0 .65rem;
+}
+.welcome-cmd { margin: 0 0 .75rem; }
+.welcome-os {
+  font-family: var(--mono); font-size: var(--fs-label); color: var(--muted);
+  text-transform: uppercase; letter-spacing: .08em; margin-bottom: .35rem;
+}
+.welcome pre {
+  margin: 0; padding: .9rem 1rem; overflow-x: auto;
+  font-family: var(--mono); font-size: .82rem; line-height: 1.5;
+  background: var(--paper-tint); border: 1px solid var(--rule-strong); border-radius: 2px;
+}
+/* A quiet aside under a section (the "prefer to do it by hand?" line) — smaller and muted,
+   so it reads as a footnote to the block above, not the next paragraph. */
+.welcome-note { margin: 0 0 1rem; font-size: var(--fs-small); color: var(--muted); }
+.welcome-note a { color: var(--muted); text-decoration: underline; }
+.welcome-note a:hover { color: var(--ink); }
+/* The paste-into-your-agent command is a sentence, not shell — let it wrap rather than
+   clip/scroll at the .welcome column width. */
+.welcome-cmd pre { white-space: pre-wrap; }
+/* Runbook menu: NAME → what saying it does. A dl of hairline-separated rows; the name column
+   is mono (runbook names are commands) and fixed-width so descriptions align. */
+.welcome-runbooks { margin: 0 0 .75rem; }
+.welcome-runbook {
+  display: flex; gap: .75rem; padding: .45rem 0;
+  border-bottom: 1px solid var(--rule);
+}
+.welcome-runbook:last-child { border-bottom: none; }
+.welcome-runbook dt {
+  flex: 0 0 8.5rem; font-family: var(--mono); font-size: .78rem;
+  padding-top: .1rem;
+}
+.welcome-runbook dd { margin: 0; font-size: var(--fs-small); color: var(--muted); }
+/* Documentation tiers: four deliberately equal columns on wide screens, then a balanced
+   two-column grid — never an orphaned 3 + 1 arrangement at intermediate widths. */
+.welcome-docs {
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1.25rem 1rem; margin: .15rem 0 1rem;
+}
+.welcome-docs-tier { border-top: 1px solid var(--rule-strong); padding-top: .55rem; }
+.welcome-docs-label {
+  margin: 0 0 .4rem;
+  font-family: var(--mono);
+  font-size: var(--fs-label);
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+.welcome-docs-tier ul { list-style: none; padding-left: 0; margin: 0; }
+.welcome-docs-tier li { padding: .125rem 0; font-size: var(--fs-small); line-height: 1.4; }
+.welcome-docs-tier a { text-decoration: underline; color: var(--ink); }
+.welcome-docs-tier a:hover { color: var(--ink); }
+.welcome-foot {
+  margin: 1.75rem 0 0;
+  padding-top: .85rem;
+  border-top: 1px solid var(--rule);
+  font-size: var(--fs-small);
+  color: var(--muted);
+}
+.welcome-foot a { color: var(--muted); }
+.welcome-foot a:hover { color: var(--ink); }
+
+/* Homepage collection directory: collection-name links, description beneath. These are the
+   page's hero items, so they sit one step above body — the middle of the home hierarchy
+   (title 28.8 → collection 20.7 → description 15.3). */
+.coll-list { list-style: none; padding-left: 0; margin: 1.25rem 0; }
+.coll-row { padding: .55rem 0; }
+.coll-title { font-size: 1.15rem; }
+.child-coll-row { padding: .8rem 0; border-bottom: 1px solid var(--rule); }
+.child-coll-row:first-child { border-top: 1px solid var(--rule); }
+.child-coll-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; }
+.coll-count { flex: 0 0 auto; font-size: var(--fs-small); color: var(--muted); }
+.coll-desc { margin: .2rem 0 0; line-height: 1.45; }
+
+/* Compact index rows: serif title + quiet status, recency on the right, metadata below.
+   Long values wrap naturally; IDs and statuses are never clipped or hidden. */
+.entry-list, .entry-list-heading, .article-header {
+  --row-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  --row-muted: #60656b;
+  --row-secondary: #80858a;
+}
+.entry-list { list-style: none; padding-left: 0; margin: .75rem 0; }
+.entry-list-heading {
+  margin-top: .75rem; text-align: right;
+  font: 500 .6667rem/1.4 var(--row-sans); color: var(--row-muted);
+}
+.entry-list-heading + .entry-list { margin-top: .15rem; }
+.entry-list .entry-row { margin: 0; padding: .45rem 0; line-height: 1.3; }
+.row-heading { display: flex; align-items: baseline; justify-content: space-between; gap: .2rem 1rem; }
+.row-title-group { display: flex; align-items: baseline; flex-wrap: wrap; gap: .2rem .5rem; min-width: 0; }
+.row-title { font-size: 1.0556rem; color: #202124; min-width: 0; overflow-wrap: anywhere; }
+.row-heading .row-date {
+  flex: 0 0 auto; max-width: 100%; margin-left: auto; text-align: right;
+  font: .6667rem/1.4 var(--row-sans); font-variant-numeric: tabular-nums; color: var(--row-secondary);
+}
+.row-heading .status, .article-header .status {
+  font: .6111rem/1.4 var(--row-sans);
+  color: var(--row-muted);
+  background: #f3f4f5;
+  border-radius: 3px;
+  padding: .1em .4em;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+.row-heading .entry-error {
+  font: .6111rem/1.4 var(--row-sans);
+  color: #7a3412;
+  background: #fff1e8;
+  border-radius: 3px;
+  padding: .1em .4em;
+  white-space: nowrap;
+}
+.entry-row .row-id, .article-header .row-id {
+  font: inherit; color: inherit;
+}
+.entry-row .row-meta, .article-header .row-meta {
+  margin-top: .2222rem; font: .6667rem/1.4 var(--row-sans);
+  color: var(--row-secondary); overflow-wrap: anywhere;
+}
+.row-meta .row-pdf { font-size: .6667rem; }
+.row-meta .row-collection, .row-meta .row-pdf,
+.article-header .entry-collection, .article-header .entry-pdf {
+  color: inherit; text-decoration: underline; text-decoration-color: #bcc0c4;
+}
+.row-meta a:hover { color: var(--ink); text-decoration-color: currentColor; }
+
+.article-header { margin-bottom: 1.75rem; }
+.article-header .entry-meta {
+  display: flex; flex-wrap: wrap; align-items: baseline;
+  gap: .25rem 1rem; margin: .2222rem 0 0;
+}
+/* Give the article title the full measure; status belongs in the metadata below. */
+.article-header .row-heading, .article-header .row-title-group { display: block; }
+.article-header .row-title-group { position: relative; }
+/* Keep the title permalink accessible in the left margin. */
+.article-header .row-title-group .permalink {
+  position: absolute; right: calc(100% + .25rem); top: .15em; margin-left: 0;
+}
+.article-header .row-title-group h2 {
+  display: inline; margin: 0; font-size: 1.25rem; font-weight: 400; line-height: 1.3;
+  letter-spacing: normal; text-wrap: wrap; color: #202124; overflow-wrap: anywhere;
+}
+.article-header .row-heading { line-height: 1.3; }
+.article-header .article-dates {
+  display: flex; flex-wrap: wrap; align-items: baseline;
+  gap: .25rem 1rem; margin-left: auto;
+  font: .7222rem/1.4 var(--row-sans); font-variant-numeric: tabular-nums;
+  color: var(--row-secondary);
+}
+.article-date { white-space: nowrap; }
+.article-header .row-meta { margin: 0; font-size: .7222rem; }
+.article-header .status { display: inline-block; font-size: .6667rem; }
+
+@media (max-width: 32rem) {
+  .row-heading { flex-wrap: wrap; }
+  .row-title-group { flex-basis: 100%; }
+  .article-header .article-dates { flex-basis: 100%; margin-left: 0; }
+}
+
+/* Foot-of-listing nav line: quiet by default, links darken + underline on hover. */
+.page-foot { margin-top: 2rem; }
+.page-foot a { color: var(--muted); }
+.page-foot a:hover { color: var(--ink); }
+
+p { margin: 1rem 0; text-wrap: pretty; }
+img, video { max-width: 100%; height: auto; display: block; margin: 1.5rem auto; }
+figure { margin: 1.75rem 0; text-align: center; }
+figcaption { margin-top: .5rem; text-align: left; }
+.demolab-lightbox-trigger { cursor: zoom-in; }
+.demolab-lightbox-trigger:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 4px;
+}
+body.demolab-lightbox-open { overflow: hidden; }
+dialog.demolab-lightbox {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  max-width: none;
+  height: 100vh;
+  height: 100dvh;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  color: #fff;
+  background: rgba(10, 10, 10, .96);
+}
+dialog.demolab-lightbox::backdrop { background: rgba(10, 10, 10, .96); }
+.demolab-lightbox-shell {
+  position: relative;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  width: 100%;
+  height: 100%;
+}
+.demolab-lightbox-stage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  padding: 4rem clamp(3.5rem, 8vw, 7rem) 1rem;
+  touch-action: pinch-zoom;
+}
+.demolab-lightbox-image {
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  margin: 0;
+  object-fit: contain;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+.demolab-lightbox-footer {
+  min-height: 4.25rem;
+  padding: .8rem clamp(1rem, 5vw, 4rem) 1rem;
+  text-align: center;
+  font: .9rem/1.35 "Computer Modern Serif", Charter, Georgia, "Times New Roman", serif;
+}
+.demolab-lightbox-caption { margin: 0; text-wrap: balance; }
+.demolab-lightbox-count { margin: .2rem 0 0; color: #bbb; font-size: .8rem; }
+.demolab-lightbox-control {
+  position: absolute;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, .35);
+  border-radius: 50%;
+  color: #fff;
+  background: rgba(20, 20, 20, .7);
+  font: 1.5rem/1 system-ui, sans-serif;
+  cursor: pointer;
+}
+.demolab-lightbox-control:hover { background: rgba(70, 70, 70, .85); }
+.demolab-lightbox-control:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 3px;
+}
+.demolab-lightbox-close { top: 1rem; right: 1rem; }
+.demolab-lightbox-prev { top: 50%; left: 1rem; transform: translateY(-50%); }
+.demolab-lightbox-next { top: 50%; right: 1rem; transform: translateY(-50%); }
+.demolab-lightbox-single .demolab-lightbox-prev,
+.demolab-lightbox-single .demolab-lightbox-next { display: none; }
+
+@media (max-width: 36rem) {
+  .demolab-lightbox-stage { padding: 4rem .75rem 1rem; }
+  .demolab-lightbox-prev { left: .5rem; }
+  .demolab-lightbox-next { right: .5rem; }
+  .demolab-lightbox-prev, .demolab-lightbox-next { top: auto; bottom: 1rem; }
+  .demolab-lightbox-footer { padding-right: 4.25rem; padding-left: 4.25rem; }
+}
+table { border-collapse: collapse; margin: 1.25rem 0; font-size: var(--fs-small); }
+th, td { border: 1px solid var(--rule); padding: .35rem .75rem; text-align: left; }
+th { background: var(--paper-tint); font-weight: 600; }
+td:last-child, th:last-child { text-align: right; font-variant-numeric: tabular-nums; }
+math { font-size: 1.05em; }
+ul { padding-left: 1.25rem; }
+li { margin: .3rem 0; }
+hr { border: none; border-top: 1px solid var(--rule); margin: 2rem 0; }
+code, pre { font-family: var(--mono); }
+code { font-size: .9em; }
+pre {
+  font-size: .85em;
+  background: var(--paper-tint);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  padding: .9rem 1.1rem;
+  line-height: 1.5;
+  overflow-x: auto;
+}
+pre code { font-size: 1em; }
+
+/* Built-in developer-documentation skin. A collection opts in with `theme: docs`; its collection
+   page and writings keep the default components, measurements, ordering, and metadata exactly.
+   Only visual tokens and surfaces change: neutral sans/mono type, cool slate ink, and blue links. */
+body:has(.theme-docs) {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Helvetica, Arial, sans-serif;
+  color: #172033;
+  --ink: #172033;
+  --muted: #64748b;
+  --rule: #e2e8f0;
+  --rule-strong: #cbd5e1;
+  --paper-tint: #f8fafc;
+  --selection: #dbeafe;
+  --docs-accent: #315faa;
+  --mono: ui-monospace, "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+}
+body:has(.theme-docs) h1,
+body:has(.theme-docs) h2,
+body:has(.theme-docs) h3,
+body:has(.theme-docs) h4,
+body:has(.theme-docs) h5,
+body:has(.theme-docs) h6 {
+  color: #111827;
+  font-family: inherit;
+  letter-spacing: -.018em;
+}
+body:has(.theme-docs) a { color: var(--docs-accent); text-decoration-color: #9db4da; }
+body:has(.theme-docs) .entry-meta,
+body:has(.theme-docs) .page-foot { color: var(--muted); }
+body:has(.theme-docs) code {
+  padding: .08em .28em;
+  border-radius: 3px;
+  color: #334155;
+  background: #f1f5f9;
+  font-family: var(--mono);
+  font-size: .86em;
+}
+body:has(.theme-docs) pre {
+  border-color: #d0d7de;
+  border-radius: 6px;
+  color: #e2e8f0;
+  background: #172033;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, .06);
+}
+body:has(.theme-docs) pre code { padding: 0; color: inherit; background: transparent; font-size: 1em; }
+body:has(.theme-docs) th,
+body:has(.theme-docs) td { border-color: var(--rule); }
+body:has(.theme-docs) th { color: #334155; background: #f1f5f9; }
+body:has(.theme-docs) td { color: #334155; }
+.docs-toc {
+  margin: 1.5rem 0 2rem;
+  padding: .85rem 1rem;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  background: var(--paper-tint);
+}
+.docs-toc-title { margin: 0 0 .35rem; color: #334155; font-size: .88rem; font-weight: 650; }
+.docs-toc ul { columns: 2; margin: 0; padding-left: 1.15rem; }
+.docs-toc li { margin: .15rem 0; color: var(--muted); font-size: .9rem; }
+.docs-note {
+  margin: 1.25rem 0;
+  padding: .75rem 1rem;
+  border-left: 3px solid var(--docs-accent);
+  color: #334155;
+  background: #eff6ff;
+}
+.api-signature {
+  margin: .8rem 0 1rem;
+  padding: .75rem .9rem;
+  overflow-x: auto;
+  border: 1px solid #dbe3ee;
+  border-left: 3px solid #93add3;
+  border-radius: 4px;
+  color: #1e3a5f;
+  background: #f8fafc;
+  font-family: var(--mono);
+  font-size: .82rem;
+  line-height: 1.5;
+}
+.api-signature code { padding: 0; color: inherit; background: transparent; font-size: 1em; }
+
+@media (max-width: 42rem) {
+  body { margin-top: 2rem; margin-bottom: 2.5rem; }
+  .site-head-row { display: block; }
+  .site-links { padding-top: .8rem; }
+  .site-links ul { justify-content: flex-start; }
+  .welcome { margin-bottom: 2rem; }
+  .welcome-kicker { margin-top: 2.5rem; }
+  .welcome-docs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .welcome-runbook { display: block; padding: .6rem 0; }
+  .welcome-runbook dt { margin-bottom: .2rem; }
+  .docs-toc ul { columns: 1; }
+}
+
+@media (max-width: 22rem) {
+  .welcome-docs { grid-template-columns: 1fr; }
+}
+</style><meta name="generator" content="demolab 5.4.5"><script src="cite-popover.js" defer></script><script src="image-lightbox.js" defer></script><script src="https://hypothes.is/embed.js" async></script><div class="theme-docs" aria-hidden="true"></div><header class="article-header"><div class="row-heading"><div class="row-title-group"><h2 id="components-projections-and-delays" class="hx">Components, projections, and delays<a class="permalink" href="#components-projections-and-delays" aria-label="Link to this section">#</a></h2></div></div><div class="entry-meta"><div class="row-meta"><span class="row-id">#exp106</span> · <a class="entry-collection" href="snnlang-docs">SNNLANG</a> · <span class="entry-tags"><a class="tag" href="tags/txt">txt</a> <a class="tag" href="tags/v35.4.0">v35.4.0</a></span></div><div class="article-dates"><div class="article-date">Created <time datetime="2026-08-14T00:00:00Z" title="Created 14 August 2026 at 12:00 am">14 Aug 26, 12:00 am</time></div></div></div></header><style>nav[aria-label="Table of Contents"] ul { margin: .35rem 0; } nav[aria-label="Table of Contents"] li > p { margin: 0; } nav[aria-label="Table of Contents"] ul ol { margin: 0; } nav[aria-label="Table of Contents"] ul ol > li:first-child { margin-top: 0; }</style><nav aria-label="Table of Contents"><ul><li><a href="#developer-guide">Developer guide</a></li><li><a href="#api-reference">API reference</a></li><li><a href="#dataset">Dataset</a></li></ul></nav><h3 id="developer-guide" class="hx">Developer guide<a class="permalink" href="#developer-guide" aria-label="Link to this section">#</a></h3><h4 id="components" class="hx">Components<a class="permalink" href="#components" aria-label="Link to this section">#</a></h4><p>Components are Python functions that add a reusable motif to a network. They disappear during compilation, leaving ordinary populations, projections, parameters, and groups.</p><p><code>snn.components.ping</code> creates excitatory and inhibitory COBA-LIF populations with reciprocal E-to-I and I-to-E projections. Its defaults preserve established <em>tools/snnsim</em> numerical conventions. They are compatibility defaults, not a universal biological model.</p><pre><code data-lang="python">cell <span style="color: #d73948">=</span> snn.components.<span style="color: #4b69c6">ping</span>(
+    net,
+    name<span style="color: #d73948">=</span><span style="color: #198810">"</span><span style="color: #198810">sensory</span><span style="color: #198810">"</span>,
+    n_e<span style="color: #d73948">=</span><span style="color: #b60157">256</span>,
+    n_i<span style="color: #d73948">=</span><span style="color: #b60157">64</span>,
+    source<span style="color: #d73948">=</span>events,
+)</code></pre><p>A component may be instantiated several times. Larger circuits should be constructed by connecting named components rather than creating a new simulator class.</p><h4 id="projections" class="hx">Projections<a class="permalink" href="#projections" aria-label="Link to this section">#</a></h4><p>A projection declares its source, target port, synapse, weights, constraint, connection role, and optional delay.</p><pre><code data-lang="python">net.<span style="color: #4b69c6">connect</span>(
+    source.spikes,
+    target.excitatory,
+    name<span style="color: #d73948">=</span><span style="color: #198810">"</span><span style="color: #198810">source_to_target</span><span style="color: #198810">"</span>,
+    synapse<span style="color: #d73948">=</span>snn.<span style="color: #4b69c6">AMPA</span>(tau<span style="color: #d73948">=</span><span style="color: #b60157">2</span> <span style="color: #d73948">*</span> snn.ms),
+    weight<span style="color: #d73948">=</span>snn.<span style="color: #4b69c6">Normal</span>(<span style="color: #b60157">0</span><span style="color: #b60157">.</span><span style="color: #b60157">2</span>, <span style="color: #b60157">0</span><span style="color: #b60157">.</span><span style="color: #b60157">03</span>),
+    constraint<span style="color: #d73948">=</span>snn.<span style="color: #4b69c6">NonNegative</span>(),
+    connection<span style="color: #d73948">=</span><span style="color: #198810">"</span><span style="color: #198810">feedforward</span><span style="color: #198810">"</span>,
+    delay<span style="color: #d73948">=</span><span style="color: #b60157">0</span><span style="color: #b60157">.</span><span style="color: #b60157">2</span> <span style="color: #d73948">*</span> snn.ms,
+)</code></pre><p>The graph backend supports dense AMPA and GABA feedforward, recurrent, and feedback projections. Sparse matrices, structured connectivity, fractional-step delays, and modulatory synapses are not implemented.</p><p>A projection may set <code>enabled: false</code>. Disabled projections remain structural: their parameter names, shapes, initializers, and construction positions are unchanged, while execution contributes exactly zero conductance. This is the appropriate representation for controlled recurrent-loop ablations because later tensors retain the same identities and random draws.</p><h4 id="scheduling-and-causality" class="hx">Scheduling and causality<a class="permalink" href="#scheduling-and-causality" aria-label="Link to this section">#</a></h4><p>Feedforward edges with no delay follow a deterministic topological order. Recurrent and feedback spikes are causal: zero additional delay still means that a spike affects another population no earlier than the next simulation step. Positive delays must be exact multiples of the network timestep.</p><p>Zero-delay cycles, projection dimension errors, polarity mismatches, and invalid delays fail during planning rather than during simulation.</p><h3 id="api-reference" class="hx">API reference<a class="permalink" href="#api-reference" aria-label="Link to this section">#</a></h3><h4 id="components-ping" class="hx"><code>components.ping</code><a class="permalink" href="#components-ping" aria-label="Link to this section">#</a></h4><pre><code data-lang="python">snn.components.<span style="color: #4b69c6">ping</span>(
+    net, <span style="color: #d73948">*</span>, name, n_e, n_i, source<span style="color: #d73948">=</span><span style="color: #d73948">None</span>,
+    tau_gaba<span style="color: #d73948">=</span><span style="color: #b60157">9</span> <span style="color: #d73948">*</span> snn.ms,
+    include_silent_recurrence<span style="color: #d73948">=</span><span style="color: #d73948">False</span>,
+) <span style="color: #d73948">-</span><span style="color: #d73948">></span> PING</code></pre><p>Returns a <code>PING</code> object with <code>.E</code> and <code>.I</code> populations. When <code>source</code> is supplied, the component adds a feedforward AMPA projection to E. The optional silent recurrent paths retain zero-valued E→E and I→I parameter shapes.</p><h4 id="network-connect" class="hx"><code>Network.connect</code><a class="permalink" href="#network-connect" aria-label="Link to this section">#</a></h4><pre><code data-lang="python">net.<span style="color: #4b69c6">connect</span>(
+    source, target, <span style="color: #d73948">*</span>, name, synapse,
+    weight<span style="color: #d73948">=</span><span style="color: #4b69c6">Constant</span>(<span style="color: #b60157">1</span><span style="color: #b60157">.</span><span style="color: #b60157">0</span>), constraint<span style="color: #d73948">=</span><span style="color: #d73948">None</span>,
+    connection<span style="color: #d73948">=</span><span style="color: #198810">"</span><span style="color: #198810">feedforward</span><span style="color: #198810">"</span>, delay<span style="color: #d73948">=</span><span style="color: #d73948">None</span>,
+    enabled<span style="color: #d73948">=</span><span style="color: #d73948">True</span>,
+) <span style="color: #d73948">-</span><span style="color: #d73948">></span> Projection</code></pre><p><code>source</code> is a <code>Signal</code>; <code>target</code> is a population target-port string. Implemented connection values are <code>"feedforward"</code>, <code>"recurrent"</code>, and <code>"feedback"</code>. The authoring vocabulary also accepts <code>"modulatory"</code>, which the graph executor does not support. Synapse constructors are <code>AMPA(**values)</code>, <code>GABA(**values)</code>, <code>LeakyIntegrator(**values)</code>, and <code>Modulatory(**values)</code>.</p><p><code>weight</code> accepts an initializer <code>Spec</code> or an existing <code>ParameterRef</code>. A new dense projection parameter has graph shape <code>[target, source]</code> and unit <code>uS</code>, matching the graph executor’s conductance scale. Compilation and execution reject projection parameters with another unit rather than silently rescaling them. <code>delay</code> is a time <code>Quantity</code> and must resolve to an integral number of graph timesteps for execution.</p><h4 id="network-group" class="hx"><code>Network.group</code><a class="permalink" href="#network-group" aria-label="Link to this section">#</a></h4><pre><code data-lang="python"><span style="color: #d73948">with</span> net.<span style="color: #4b69c6">group</span>(name, parent<span style="color: #d73948">=</span><span style="color: #d73948">None</span>) <span style="color: #d73948">as</span> component:
+    <span style="color: #d73948">...</span></code></pre><p>The context records subsequently claimed members under one component. <code>parent</code> must name an existing group. Groups organize reports and diagrams; they do not change execution.</p><h4 id="projection" class="hx"><code>Projection</code><a class="permalink" href="#projection" aria-label="Link to this section">#</a></h4><p>A <code>Projection</code> exposes <code>id</code>, <code>source</code>, <code>target</code>, <code>synapse</code>, <code>connection</code>, <code>delay</code>, <code>parameter_ids</code>, <code>group</code>, and <code>.weight</code>, which returns the first projection parameter as a <code>ParameterRef</code>.</p><p><a href="/exp107/">exp107</a> — <a href="/exp107/"><em>Compiling and executing bundles</em></a></p><h3 id="dataset" class="hx">Dataset<a class="permalink" href="#dataset" aria-label="Link to this section">#</a></h3><style>.run-view {margin:1rem 0 2rem;border:1px solid var(--rule-strong,#ddd);border-radius:.35rem;font-size:.85rem;overflow-x:auto;} .run-view .run-dependencies {display:grid;grid-template-columns:max-content minmax(0,1fr);gap:.35rem 1rem;margin:0;padding:.7rem .8rem;border-bottom:1px solid var(--rule-strong,#ddd);} .run-view .run-dependencies dt {font-weight:600;color:var(--muted,#666);} .run-view .run-dependencies dd {margin:0;} .run-view .run-dependencies a {white-space:nowrap;} .run-view table {width:100%;margin:0;border:0;border-collapse:collapse;font-size:inherit;} .run-view th,.run-view td {padding:.6rem .8rem;text-align:left;vertical-align:baseline;border:0;border-bottom:1px solid var(--rule-strong,#ddd);} .run-view th {font-weight:600;color:var(--muted,#666);} .run-view tbody tr:last-child td {border-bottom:0;} .run-view .run-name {white-space:nowrap;} .run-view .run-stage-present {text-decoration:underline;text-underline-offset:.15em;} .run-view .run-date,.run-view .run-origin {color:var(--muted,#666);} .run-view .run-date {min-width:7.5em;white-space:nowrap;} .run-view .run-duration {white-space:nowrap;font-variant-numeric:tabular-nums;} .run-view .run-size {text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums;} .run-view [aria-current=true] {font-weight:600;}</style><aside class="run-view" aria-label="Dataset"><dl class="run-dependencies"><dt>Upstream</dt><dd class="experiment-upstream">—</dd><dt>Downstream</dt><dd class="experiment-downstream">—</dd></dl><table aria-label="Dataset"><thead><tr><th scope="col" class="run-name">Run</th><th scope="col" class="run-date">Date</th><th scope="col" class="run-duration">Duration</th><th scope="col" class="run-size">Size</th><th scope="col" class="run-origin">Ran on</th></tr></thead><tbody><tr><td colspan="5">No datasets declared.</td></tr></tbody></table></aside><div class="entry-tail"></div></body></html>

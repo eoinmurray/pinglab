@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- lab notebook: black outline + red binding spine and spike-train waveform,
+       transparent background, spanning the full icon area. -->
+  <rect x="3" y="2" width="26" height="28" rx="2.5" fill="none" stroke="#000" stroke-width="2.6"/>
+  <line x1="9" y1="3.3" x2="9" y2="28.7" stroke="#e00d1c" stroke-width="2.6"/>
+  <path d="M12.5 23 l3 -9.5 l2.6 12.5 l3 -15.5 l2.1 8" fill="none"
+        stroke="#e00d1c" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round"/>
+</svg>
