@@ -1,10 +1,14 @@
-#import "contents.typ": contents-here, with-contents, result-card, with-numbered-equations, with-result-sections
-#import "/.demolab/lib.typ": cite, data-image, data-json, reference-list
-#import "dataset-template.typ": data-file, inputs-ready, pending-report, with-datasets, run-view, input-assets
+#import "templates/article-layout.typ": journal-article
+#import "templates/result-card.typ": result-figure-ref, result-card, with-result-sections
+#import "templates/references.typ": journal-references
+#import "/.demolab/lib.typ": cite, data-image, data-json
+#import "templates/dataset.typ": data-file, inputs-ready, pending-report, run-view, input-assets
+#import "templates/abstract.typ": journal-abstract
+#import "templates/methods.typ": journal-methods
 #let data-file = data-file.with(article: "exp048")
 
 #let meta = (
-  tags: ("data", "v35.0.0"),
+  tags: ("data", "v35.4.0"),
   title: "[DEPRECATED] Accuracy Across Duration and Input Rate",
   created_at: "2026-06-08T00:00:00Z",
   updated_at: "2026-08-31T00:00:00Z",
@@ -70,35 +74,33 @@
   #let segments-per-cell = cfg.n_grid_streams * cfg.n_per_stream * cfg.train_seeds.len()
 
   #let body = [
-    == Abstract
-
-    Asked whether a PING classifier trained on separate digits could operate on
-    a continuous MNIST stream without retraining. Preserved hidden state across
+    #journal-abstract(body: [
+    We asked whether a PING classifier trained on separate digits could operate on
+    a continuous MNIST stream without retraining. We preserved hidden state across
     digit boundaries while varying duration and input rate, with a
     segment-matched decoder.
 
     Classification became informative when the stream supplied sufficient input
     over time, with losses under brief or weak presentations. This deprecated
-    study motivated exp082's variable-rate training and spike-count readout; it
+    study motivated later variable-rate training and spike-count readout; it
     did not test blind boundary detection.
-
-    #contents-here()
+    ])
 
     == Results
 
     #with-result-sections[
 
       #result-card[
-      === Five-digit stream with varying durations and input rates
+      === Variable-duration digit stream
 
       The label-to-prediction pairs were #varying-predictions, giving
       #varying-correct of #r.varying_headline.labels.len() correct segments. The
       #r.varying_headline.segments.at(0).at(0) ms, #p10.input_rate_hz Hz error
       occurred at a condition with #calc.round(100 * p10.accuracy, digits: 1)% mean
       accuracy, so this single error does not establish an encoding-rate failure
-      floor.
+      floor (#result-figure-ref(<fig:exp048-result-1>)).
 
-      #figure(
+  #figure(
         report-image(
           data-file("exp048/varying_headline_stream.png"),
           trim-bottom: 3%,
@@ -111,18 +113,18 @@
           probability against time, with the true class emphasized in red.
           The raster panels show sampled neurons in rank order; their endpoint labels
           denote population sizes, not the number of displayed neurons.],
-      )
+      ) <fig:exp048-result-1>
 
       ]
 
       #result-card[
-      === Accuracy across duration and encoding-rate conditions
+      === Duration-rate accuracy
 
       Accuracy remained at the empty-input floor through #p05.input_rate_hz Hz,
       became informative by #p2.input_rate_hz Hz, and reached
-      #calc.round(100 * p5.accuracy, digits: 1)% at #p5.input_rate_hz Hz.
+      #calc.round(100 * p5.accuracy, digits: 1)% at #p5.input_rate_hz Hz (#result-figure-ref(<fig:exp048-result-2>)).
 
-      #figure(
+  #figure(
         report-image(
           data-file("exp048/acc_grid_tau_rate.png"),
           trim-bottom: 6.7%,
@@ -142,21 +144,20 @@
           dashed line marks #(cfg.n_classes)-class chance and the dotted line the
           #r.encoding_rate_psychometric.trained_rate_hz Hz training rate. The
           empty-input floor is the accuracy obtained when almost no input spikes arrive.],
-      )
+      ) <fig:exp048-result-2>
 
 
       ]
     ]
 
-    == Methods
-
+    #journal-methods(
+      orientation: [
     Reused seed-level measurements and illustrative figures described continuous
     digit classification with frozen PING weights. The documented protocol below
     specifies the evaluation and decoder; missing raw recordings prevent prediction
     replay and independent confirmation of historical model identities.
-
-    === Compute
-
+      ],
+      compute: [
     + *Select classifiers and digits.* MNIST handwritten digits #cite(1) were
       sampled from the official test partition, separately from training and
       validation. The protocol selected the best validation epoch from each of
@@ -182,9 +183,8 @@
       #r.encoding_rate_psychometric.presentation_ms ms; higher-rate points reused
       that duration's grid measurements. #link(<sec-conditions-and-decoder-identities>)[Conditions and decoder identities] gives the complete grids and
       the separate constant-rate versus rate-compensated duration comparison.
-
-    === Analyse
-
+      ],
+      analyse: [
     #set enum(start: 4)
 
     + *Integrate output evidence.* E-neuron spikes drove a non-spiking leaky
@@ -197,9 +197,8 @@
       β#sub[out] the leak factor. The decoder used the trained output time constant
       τ#sub[out], defaulting to 2 ms when unspecified; its historical value was
       not independently confirmed.
-
-    === Present
-
+      ],
+      present: [
     #set enum(start: 5)
 
     + *Read and score segments.* A trailing mean used the current presentation
@@ -217,7 +216,8 @@
       matched presentation duration rather than varying independently, unlike the
       whole-trial average used in training. Correct predictions were counted per
       seed; captions report across-seed means and sample standard errors.
-
+      ],
+    )
     #run-view("exp048", inputs)
 
     == Appendix: Conditions and decoder identities <sec-conditions-and-decoder-identities>
@@ -271,7 +271,7 @@
     one onward, with u#sub[out] [0] = 0. The window average divided by its available
     length during startup, as stated in Equation (2).
 
-    #reference-list((
+    #journal-references((
       (
         text: [Y. LeCun, L. Bottou, Y. Bengio, and P. Haffner.
           “Gradient-based learning applied to document recognition.”
@@ -297,6 +297,4 @@
 }
 
 #let meta = meta + (assets: input-assets("exp048", inputs))
-#let body = with-datasets("exp048", inputs, report-body, placed: inputs-ready(data-file, inputs))
-#let body = with-numbered-equations(body)
-#let body = with-contents(body)
+#let body = journal-article("exp048", inputs, report-body, dataset-placed: inputs-ready(data-file, inputs))

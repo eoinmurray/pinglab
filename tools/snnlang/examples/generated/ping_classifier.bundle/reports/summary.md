@@ -25,9 +25,9 @@ Diagnostics: 0 errors, 0 warnings
 - sensory_ping_input: image.value → sensory_ping_E.excitatory [feedforward, excitatory]
 
 ## Parameters
-- classifier_projection.weight: [10, 256] nS (selected)
-- sensory_ping_E_to_E.weight: [256, 256] nS (frozen/unselected)
-- sensory_ping_E_to_I.weight: [64, 256] nS (frozen/unselected)
-- sensory_ping_I_to_E.weight: [256, 64] nS (frozen/unselected)
-- sensory_ping_I_to_I.weight: [64, 64] nS (frozen/unselected)
-- sensory_ping_input.weight: [256, 784] nS (selected)
+- classifier_projection.weight: [10, 256] uS (selected)
+- sensory_ping_E_to_E.weight: [256, 256] uS (frozen/unselected)
+- sensory_ping_E_to_I.weight: [64, 256] uS (frozen/unselected)
+- sensory_ping_I_to_E.weight: [256, 64] uS (frozen/unselected)
+- sensory_ping_I_to_I.weight: [64, 64] uS (frozen/unselected)
+- sensory_ping_input.weight: [256, 784] uS (selected)

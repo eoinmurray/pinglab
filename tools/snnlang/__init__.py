@@ -27,6 +27,7 @@ from .core import (
     ms,
     mV,
     nS,
+    uS,
 )
 from .diagram import diagram
 from .simulation import (
@@ -93,5 +94,6 @@ __all__ = [
     "mV",
     "ms",
     "nS",
+    "uS",
     "__version__",
 ]

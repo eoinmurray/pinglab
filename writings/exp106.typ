@@ -1,7 +1,6 @@
-#import "contents.typ": with-contents, with-numbered-equations
-#import "dataset-template.typ": with-datasets
+#import "templates/article-layout.typ": journal-article
 #let meta = (
-  tags: ("txt", "v35.0.0"),
+  tags: ("txt", "v35.4.0"),
   title: "Components, projections, and delays",
   created_at: "2026-08-14T00:00:00Z",
   description: "Compose reusable circuit motifs and connect them with explicit synapses, weights, polarity, topology, and causal delays.",
@@ -84,7 +83,7 @@
 
   `source` is a `Signal`; `target` is a population target-port string. Implemented connection values are `"feedforward"`, `"recurrent"`, and `"feedback"`. The authoring vocabulary also accepts `"modulatory"`, which the graph executor does not support. Synapse constructors are `AMPA(**values)`, `GABA(**values)`, `LeakyIntegrator(**values)`, and `Modulatory(**values)`.
 
-  `weight` accepts an initializer `Spec` or an existing `ParameterRef`. A new dense projection parameter has graph shape `[target, source]` and unit `nS`. `delay` is a time `Quantity` and must resolve to an integral number of graph timesteps for execution.
+  `weight` accepts an initializer `Spec` or an existing `ParameterRef`. A new dense projection parameter has graph shape `[target, source]` and unit `uS`, matching the graph executor's conductance scale. Compilation and execution reject projection parameters with another unit rather than silently rescaling them. `delay` is a time `Quantity` and must resolve to an integral number of graph timesteps for execution.
 
   === `Network.group`
 
@@ -99,9 +98,7 @@
 
   A `Projection` exposes `id`, `source`, `target`, `synapse`, `connection`, `delay`, `parameter_ids`, `group`, and `.weight`, which returns the first projection parameter as a `ParameterRef`.
 
-  #link("/exp107/")[Next: Compiling and executing bundles]
+  #link("/exp107/")[exp107] — #link("/exp107/")[_Compiling and executing bundles_]
 ]
 
-#let body = with-datasets("exp106", (), body)
-#let body = with-numbered-equations(body)
-#let body = with-contents(body)
+#let body = journal-article("exp106", (), body)

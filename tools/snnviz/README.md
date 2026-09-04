@@ -8,7 +8,35 @@ not run a simulation or perform scientific analysis.
 
 The public API is intentionally small: compositions retain direct access to
 Matplotlib, while `Recording` and the reusable transforms keep visual rendering
-grounded in explicit source data.
+grounded in explicit source data. `FigureGrid` is the default composition
+system for new multi-panel figures and animation frames. It uses explicit named
+placement rather than a textual area map:
+
+```python
+grid = snnviz.FigureGrid(
+    rows=(0.3, 1.0, 1.4),
+    columns=4,
+    row_gap=(0.02, 0.05),
+)
+grid.place("header", row=0, column=0, colspan=4)
+grid.place("weights", row=1, column=0)
+grid.place("rates", row=1, column=1)
+grid.place("spectrum", row=2, column=0, colspan=2)
+grid.place("raster", row=2, column=2, colspan=2)
+
+figure = grid.figure(figsize=(6.9, 5.1), dpi=150)
+axes = {
+    name: grid.add_axes(figure, name)
+    for name in ("weights", "rates", "spectrum", "raster")
+}
+```
+
+Rows run top-to-bottom and columns left-to-right. Tracks use relative weights;
+regions can span tracks, nest another `FigureGrid`, or be reserved so no axis
+can enter them. Gaps may be one shared value or one value per boundary. Geometry
+is resolved once in normalized figure coordinates, so the same layout is stable
+across SVG, PDF, PNG posters and every video frame. New grids use the opaque
+white, hard-edged, monospace `snnviz` house style by default.
 
 Structural producers lower their own semantics into `Diagram`, `DiagramNode`,
 `DiagramEdge`, and `DiagramGroup`; `snnviz.render_diagram` owns deterministic
@@ -29,9 +57,14 @@ opaque white canvas, hard rectangular geometry, bold uppercase monospace text,
 generous spacing, black excitatory or ordinary flow, deep-red inhibitory flow,
 and amber or cyan only for distinct output or training roles. Diagram labels
 name the scientific mechanism rather than internal renderer details. Authored
-component membership becomes visible clustering; related populations share a
-rank and use short local names, while mixed computational groups retain their
-internal signal-flow order.
+component membership becomes visible clustering; related populations occupy a
+left-to-right row and use short local names, while mixed computational groups
+retain their internal signal-flow order. `DiagramGroup.same_row` lays members
+out in their declared order, keeping recurrent arrows from reversing that order;
+`same_rank` remains available for deliberately vertical groups. The two options
+are mutually exclusive. Compact card spacing and a modest title keep small
+network diagrams readable at laptop article widths without stretching the image
+or forcing every graph into a fixed aspect ratio.
 
 ## Scientific visual style guide
 
@@ -61,9 +94,9 @@ The Matplotlib categorical cycle is black, red, cyan, amber, dark grey, then
 mid grey. The default scalar image map runs from white through red to black.
 Every plot, figure, schematic, poster, and video frame must use an opaque pure
 white `#ffffff` background. Do not use warm paper, tinted, grey, transparent, or
-theme-dependent backgrounds in final visual outputs. The warm background still
-present in `snnviz.styles.Theme` and EXP099 is a legacy implementation to be
-corrected when those renderers are next changed; it is not an allowed precedent.
+theme-dependent backgrounds in final visual outputs. The former warm
+`snnviz.styles.Theme` background has been removed; its defaults now implement
+the shared scientific palette directly.
 
 #### Typography
 
@@ -81,8 +114,8 @@ ladder:
 | Annotation | 8 pt | 6.5 pt |
 | Caption/footer | 8 pt | 6.5 pt |
 
-The EXP099 canvas animation is an observed exception designed for a 16:9 video:
-its main heading is 17 pt, time readout 12.5 pt, panel headings approximately
+The EXP099 canvas animation is an observed large-format exception: its main
+heading is 17 pt, time readout 12.5 pt, panel headings approximately
 8.8–10.8 pt, ordinary annotations approximately 7.2–8.4 pt, and its smallest
 legend text 6 pt.
 
@@ -112,9 +145,9 @@ legend text 6 pt.
 - Existing larger 16:9 analysis canvases include 8 × 4.5 in and 12 × 6.75 in.
   Multi-panel height varies with the number and information density of panels;
   it is not fixed merely to preserve 16:9.
-- The EXP099 animation uses 14.4 × 8.1 in at 120 DPI during composition, with a
-  160-DPI PNG poster. Its axes occupy the full canvas and its story panels are
-  positioned explicitly.
+- The EXP099 animation uses a compact 14.4 × 7.2 in canvas at 120 DPI during
+  composition, with a 240-DPI PNG poster. Its shape follows its wide network and
+  six-panel diagnostic composition rather than a global output ratio.
 - `experiments.helpers.figsave.save_figure` emits SVG and PDF by default. Dense
   rasters commonly request PNG and PDF instead; schematic line art, sparse
   plots, and ordinary curves remain SVG and PDF.
@@ -135,13 +168,10 @@ legend text 6 pt.
   and reversed endpoints play backward.
 - The current production animation uses 600 frames at the default 25 FPS and
   3800 kbps. It displays a PNG poster alongside its MP4 presentation file.
-- Reserve at least the bottom 15% of every video frame as a control-safe area.
-  Native browser and operating-system players commonly overlay their controls on
-  the frame. Keep plots, captions, legends, labels, annotations, and all other
-  evidence out of this band in both the animation and its poster; a blank
-  background may extend through it. If a different safe area is used for a known
-  player, validate that player at the intended embed size and document the local
-  exception.
+- Snnviz does not mandate an aspect ratio, physical canvas size or player-control
+  band. Choose the canvas around the figure's composition and intended display.
+  Animation frames must retain one stable geometry throughout the encoded video;
+  validate control overlays for the intended player when they matter.
 
 1. **Render retained evidence truthfully.** Build every visual from an explicit
    recording, analysed measurement, or declared theoretical construction. Treat

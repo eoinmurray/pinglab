@@ -349,10 +349,10 @@ def test_article_renders_selected_fixture_numbers_and_all_sections(repo):
     assert list(root.glob("article-*.png"))
     text = (root / "writings/exp023.typ").read_text()
     headings = [
-        "== Abstract",
+        "#journal-abstract",
         "== Results",
-        "== Methods",
-        "#reference-list",
+        "#journal-methods",
+        "#journal-references",
     ]
     positions = [text.index(heading) for heading in headings]
     assert positions == sorted(positions)

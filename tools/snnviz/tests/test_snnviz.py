@@ -1,19 +1,25 @@
+import shlex
 import shutil
+import subprocess
 
 import matplotlib
 import numpy as np
 import pytest
 
 matplotlib.use("Agg")
+import matplotlib.pyplot as plt  # noqa: E402
 
 from tools.snnviz import (  # noqa: E402
     Diagram,
     DiagramEdge,
     DiagramGroup,
     DiagramNode,
+    FigureGrid,
+    FigureRect,
     FrameTimeline,
     Recording,
     RecordingError,
+    Theme,
     diagram_to_dot,
     exponential_trace,
     grid_layout,
@@ -38,6 +44,53 @@ def test_grid_and_trace_are_backend_independent():
     trace = exponential_trace(events, dt_ms=1, tau_ms=2)
     assert trace[1, 0] == pytest.approx(1)
     assert trace[2, 0] == pytest.approx(np.exp(-0.5))
+
+
+def test_figure_grid_resolves_spans_from_top_left():
+    grid = FigureGrid(
+        rows=(1, 1),
+        columns=(1, 2),
+        bounds=FigureRect(0.0, 0.0, 1.0, 1.0),
+        row_gap=0.1,
+        column_gap=0.1,
+    )
+    grid.place("header", row=0, column=0, colspan=2)
+    grid.place("left", row=1, column=0)
+    grid.place("right", row=1, column=1)
+
+    assert grid.rect("header").mpl == pytest.approx((0.0, 0.55, 1.0, 0.45))
+    assert grid.rect("left").mpl == pytest.approx((0.0, 0.0, 0.3, 0.45))
+    assert grid.rect("right").mpl == pytest.approx((0.4, 0.0, 0.6, 0.45))
+
+
+def test_figure_grid_nests_and_reserves_regions():
+    outer = FigureGrid(2, 1, bounds=(0.1, 0.1, 0.8, 0.8), row_gap=0.04)
+    outer.place("content", row=0, column=0)
+    outer.reserve("controls", row=1, column=0)
+    nested = outer.subgrid("content", rows=1, columns=2, padding=0.1)
+    nested.place("a", row=0, column=0)
+    nested.place("b", row=0, column=1)
+
+    assert nested.rect("a").x > outer.rect("content").x
+    figure = outer.figure(figsize=(4, 3))
+    with pytest.raises(ValueError, match="reserved region"):
+        outer.add_axes(figure, "controls")
+    plt.close(figure)
+
+
+def test_figure_grid_rejects_overlapping_regions():
+    grid = FigureGrid(2, 2)
+    grid.place("wide", row=0, column=0, colspan=2)
+    with pytest.raises(ValueError, match="overlaps"):
+        grid.place("collision", row=0, column=1)
+
+
+def test_figure_grid_uses_house_style_by_default():
+    theme = Theme()
+    assert theme.background == "#ffffff"
+    assert theme.ink == "#1a1a1a"
+    assert theme.accent == "#c8102e"
+    assert theme.amber == "#e89400"
 
 
 def test_timeline_and_representative_frame():
@@ -97,6 +150,49 @@ def test_diagram_contract_rejects_unknown_references():
             nodes=(DiagramNode("known", "Known", "", "node"),),
             edges=(DiagramEdge("known", "missing"),),
         )
+
+
+def test_diagram_group_rejects_conflicting_layout():
+    with pytest.raises(ValueError, match="both same_rank and same_row"):
+        Diagram(
+            name="conflict",
+            nodes=(DiagramNode("cell", "Cell", "", "population"),),
+            edges=(),
+            groups=(DiagramGroup("group", "Group", ("cell",), same_rank=True, same_row=True),),
+        )
+
+
+def test_recurrent_population_rows_render_left_to_right(tmp_path):
+    if shutil.which("dot") is None:
+        pytest.skip("Graphviz 'dot' is required for diagram rendering")
+    nodes, edges, groups = [], [], []
+    for name in ("a", "b"):
+        nodes.extend((
+            DiagramNode(f"{name}_drive", "Drive", "128 channels", "spikes", kind="input"),
+            DiagramNode(f"{name}_e", "E", "80 neurons", "population", kind="population"),
+            DiagramNode(f"{name}_i", "I", "20 neurons", "population", kind="population"),
+        ))
+        edges.extend((
+            DiagramEdge(f"{name}_drive", f"{name}_e", role="excitatory"),
+            DiagramEdge(f"{name}_e", f"{name}_i", role="excitatory", connection="recurrent"),
+            DiagramEdge(f"{name}_i", f"{name}_e", role="inhibitory", connection="recurrent"),
+        ))
+        groups.append(DiagramGroup(name, name, (f"{name}_e", f"{name}_i"), same_row=True))
+    edges.extend((
+        DiagramEdge("a_e", "b_e", role="excitatory", connection="feedback", constraint=False),
+        DiagramEdge("b_e", "a_e", role="excitatory", connection="feedback", constraint=False),
+    ))
+    diagram = Diagram("coupled", tuple(nodes), tuple(edges), tuple(groups))
+    dot = render_diagram(diagram, tmp_path / "rows.dot")
+    result = subprocess.run(["dot", "-Tplain", str(dot)], capture_output=True, text=True, check=True)
+    rows = [shlex.split(line) for line in result.stdout.splitlines()]
+    graph = next(row for row in rows if row[0] == "graph")
+    assert float(graph[2]) > float(graph[3])
+    positions = {row[1]: (float(row[2]), float(row[3])) for row in rows if row[0] == "node"}
+    for name in ("a", "b"):
+        drive, e, i = (positions[f"{name}_{kind}"] for kind in ("drive", "e", "i"))
+        assert drive[0] < e[0] < i[0]
+        assert e[1] == pytest.approx(i[1], abs=0.01)
 
 
 def test_diagram_renderer_exports_svg_and_dot(tmp_path):

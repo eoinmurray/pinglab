@@ -152,7 +152,7 @@ def diagram(
                     id=group_id,
                     label=group_id.replace("_", " "),
                     members=members,
-                    same_rank=len(members) > 1
+                    same_row=len(members) > 1
                     and all(member in population_ids for member in members),
                 )
             )

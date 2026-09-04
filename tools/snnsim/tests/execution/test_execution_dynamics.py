@@ -107,7 +107,7 @@ def test_explicit_initializers_constraints_units_and_realized_statistics():
     }
     model = GraphExecutor(plan_graph(graph), seed=37)
     metadata = model.initialization_metadata[first_id]
-    assert metadata["unit"] == "nS"
+    assert metadata["unit"] == "uS"
     assert metadata["constraint"] == {"kind": "non_negative"}
     assert metadata["scaling"] == "fan_in_normalized"
     assert metadata["statistics"]["count"] == 4
@@ -116,6 +116,16 @@ def test_explicit_initializers_constraints_units_and_realized_statistics():
         metadata
         == GraphExecutor(plan_graph(graph), seed=37).initialization_metadata[first_id]
     )
+
+
+def test_graph_planning_rejects_non_microsiemens_projection_weights():
+    graph = _coupled_graph(direction="uncoupled")
+    parameter_id = graph["projections"][0]["parameters"][0]
+    parameter = next(row for row in graph["parameters"] if row["id"] == parameter_id)
+    parameter["unit"] = "nS"
+
+    with pytest.raises(ValueError, match="requires unit uS, got nS"):
+        plan_graph(graph)
 
 
 def test_signed_normal_and_uniform_initializers_have_distinct_semantics():

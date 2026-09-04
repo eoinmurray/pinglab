@@ -1,7 +1,6 @@
-#import "contents.typ": with-contents, with-numbered-equations
-#import "dataset-template.typ": with-datasets
+#import "templates/article-layout.typ": journal-article
 #let meta = (
-  tags: ("txt", "v35.0.0"),
+  tags: ("txt", "v35.4.0"),
   title: "SNNLANG developer documentation",
   created_at: "2026-07-30T00:00:00Z",
   description: "Start with the collection contents, learn the high-level development model, then use the concrete SNNLANG and graph-execution API reference.",
@@ -106,19 +105,17 @@
   Read the collection in this order:
 
   + *SNNLANG developer documentation.* This page establishes the architecture, first graph, execution boundary, and package lifecycle.
-  + #link("/exp105/")[*Networks, signals, and parameters.*] Core authoring objects, shapes, units, populations, and parameters.
-  + #link("/exp106/")[*Components, projections, and delays.*] Reusable motifs, connectivity, scheduling, and causality.
-  + #link("/exp107/")[*Compiling and executing bundles.*] Validation, bundle I/O, typed requests, and result objects.
-  + #link("/exp108/")[*Inputs, outputs, and readouts.*] Public outputs, recordings, standard readouts, and dense bindings.
-  + #link("/exp088/")[*Training recipes and graph-native learning.*] Declarative learning vocabulary and current execution limits.
-  + #link("/exp089/")[*Runtime state, checkpoints, and provenance.*] Continuation, compatibility, save/load, and replay identity.
-  + #link("/exp090/")[*Compatibility, status, and extension.*] Current support, remaining gates, diagnostics, and extension points.
+  + #link("/exp105/")[exp105] — #link("/exp105/")[_Networks, signals, and parameters._] Core authoring objects, shapes, units, populations, and parameters.
+  + #link("/exp106/")[exp106] — #link("/exp106/")[_Components, projections, and delays._] Reusable motifs, connectivity, scheduling, and causality.
+  + #link("/exp107/")[exp107] — #link("/exp107/")[_Compiling and executing bundles._] Validation, bundle I/O, typed requests, and result objects.
+  + #link("/exp108/")[exp108] — #link("/exp108/")[_Inputs, outputs, and readouts._] Public outputs, recordings, standard readouts, and dense bindings.
+  + #link("/exp088/")[exp088] — #link("/exp088/")[_Training recipes and graph-native learning._] Declarative learning vocabulary and current execution limits.
+  + #link("/exp089/")[exp089] — #link("/exp089/")[_Runtime state, checkpoints, and provenance._] Continuation, compatibility, save/load, and replay identity.
+  + #link("/exp090/")[exp090] — #link("/exp090/")[_Compatibility, status, and extension._] Current support, remaining gates, diagnostics, and extension points.
 
   Each page begins with its own linked contents, presents the high-level developer guide, and ends with the API reference.
 
-  #link("/exp105/")[Next: Networks, signals, and parameters]
+  #link("/exp105/")[exp105] — #link("/exp105/")[_Networks, signals, and parameters_]
 ]
 
-#let body = with-datasets("exp102", (), body)
-#let body = with-numbered-equations(body)
-#let body = with-contents(body)
+#let body = journal-article("exp102", (), body)

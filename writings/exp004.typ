@@ -1,7 +1,6 @@
-#import "contents.typ": with-contents, with-numbered-equations
-#import "dataset-template.typ": with-datasets
+#import "templates/article-layout.typ": journal-article
 #let meta = (
-  tags: ("txt", "v35.0.0"),
+  tags: ("txt", "v35.4.0"),
   title: "Parameters & Units",
   updated_at: "2026-08-29T00:00:00Z",
   created_at: "2026-05-14T00:00:00Z",
@@ -15,7 +14,7 @@
 
   Use this page when setting a CLI flag, reading a saved configuration, or checking a neuron update. The legacy SNNSIM biophysical model uses *ms for time, mV for voltage, nF for capacitance, μS for conductance, nA for current, and Hz for rates*. A `--dt 1` means 1 ms, not 1 s. Names are not uniformly suffixed: `sim_ms`, `ref_ms_E`, `tau_gaba`, and `dt` all represent milliseconds.
 
-  The values below describe library defaults or explicitly labelled examples, not a universal experiment recipe. CLI defaults, loaded configurations, and committed experiment recipes can differ. Graph bundles declare their own units and parameters; see #link("/exp105/")[Networks, signals, and parameters].
+  The values below describe library defaults or explicitly labelled examples, not a universal experiment recipe. CLI defaults, loaded configurations, and committed experiment recipes can differ. Graph bundles declare their own units and parameters; see #link("/exp105/")[exp105] — #link("/exp105/")[_Networks, signals, and parameters._]
 
   == Quantities
 
@@ -44,7 +43,7 @@
 
   == COBA / PING biophysical constants
 
-  These are the default constants in `tools/snnsim/models.py` used by #link("/exp100/")[COBANet]. They are model choices, not universal biological constants. Capacitance and leak satisfy $tau_m = C_m / g_L$. Here $tau_m$ is the passive membrane time constant, $C_m$ the capacitance, and $g_L$ the leak conductance.
+  These are the default constants in `tools/snnsim/models.py` used by #link("/exp100/")[exp100] — #link("/exp100/")[_COBANet._] They are model choices, not universal biological constants. Capacitance and leak satisfy $tau_m = C_m / g_L$. Here $tau_m$ is the passive membrane time constant, $C_m$ the capacitance, and $g_L$ the leak conductance.
 
   #table(
     columns: (auto, auto, auto),
@@ -90,11 +89,9 @@
   + *Separate defaults from overrides.* Read the saved `config.json` and the recipe that supplied it. For CLI inference, explicit flags override inherited values; omitted fields fall back to defaults.
   + *Convert rates once.* With integration timestep $Delta t_"sim"$ in ms and input rate $r_"input"$ in Hz, a Bernoulli spike encoder uses event probability $p_"event" = r_"input" Delta t_"sim" / 1000$ per step. Here $p_"event"$ is dimensionless. Check that the probability is meaningful for the chosen rate and timestep.
   + *Check duration and counters.* The legacy path uses `int(t_ms / dt)` simulation steps. Avoid assuming a non-integral duration is preserved exactly. Refractory times are also discretised to steps.
-  + *Check the stored weights.* Initialization means are on a summed-coupling scale; individual stored edges are fan-in normalised. Readout weights can use direct initialization instead. See #link("/exp006/#weight-init")[Weight init].
+  + *Check the stored weights.* Initialization means are on a summed-coupling scale; individual stored edges are fan-in normalised. Readout weights can use direct initialization instead. See #link("/exp006/")[exp006] — #link("/exp006/")[_Training._]
 
-  #link("/exp011/")[Previous: SNNSIM command-line guide] · #link("/exp100/")[Next: COBANet]
+  #link("/exp011/")[exp011] — #link("/exp011/")[_SNNSIM command-line guide_] · #link("/exp100/")[exp100] — #link("/exp100/")[_COBANet_]
 ]
 
-#let body = with-datasets("exp004", (), body)
-#let body = with-numbered-equations(body)
-#let body = with-contents(body)
+#let body = journal-article("exp004", (), body)

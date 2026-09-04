@@ -209,9 +209,13 @@ def assert_article_renders(root, presentation):
     if not typst:
         pytest.skip("Typst is not installed")
     repo = Path(__file__).resolve().parents[2]
-    for name in ("exp054.typ", "contents.typ", "dataset-template.typ"):
+    for name in (
+        "exp054.typ", "templates/article-layout.typ", "templates/dataset.typ",
+        "templates/abstract.typ", "templates/methods.typ", "templates/result-card.typ",
+        "templates/contents.typ", "templates/equations.typ", "templates/status.typ",
+    ):
         target = root / "writings" / name
-        target.parent.mkdir(exist_ok=True)
+        target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(repo / "writings" / name, target)
     (root / ".demolab").mkdir()
     shutil.copyfile(_paths.TYP / "lib.typ", root / ".demolab/lib.typ")

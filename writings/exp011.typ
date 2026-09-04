@@ -1,7 +1,6 @@
-#import "contents.typ": with-contents, with-numbered-equations
-#import "dataset-template.typ": with-datasets
+#import "templates/article-layout.typ": journal-article
 #let meta = (
-  tags: ("txt", "v35.0.0"),
+  tags: ("txt", "v35.4.0"),
   title: "SNNSIM command-line guide",
   updated_at: "2026-08-28T00:00:00Z",
   created_at: "2026-07-06T00:00:00Z",
@@ -18,10 +17,10 @@
   Read the SNNSIM documentation in this order:
 
   + *This guide:* commands, outputs, and execution boundaries.
-  + #link("/exp004/")[Parameters & Units]: defaults, overrides, and dimensional checks.
-  + #link("/exp100/")[COBANet]: the implemented neuron and synapse updates.
-  + #link("/exp006/")[Training]: readouts, checkpoints, initialization, and regularisation.
-  + #link("/exp015/")[Gradient Stabilisation]: backward-pass controls and diagnostics.
+  + #link("/exp004/")[exp004] — #link("/exp004/")[_Parameters & Units_]: defaults, overrides, and dimensional checks.
+  + #link("/exp100/")[exp100] — #link("/exp100/")[_COBANet_]: the implemented neuron and synapse updates.
+  + #link("/exp006/")[exp006] — #link("/exp006/")[_Training_]: readouts, checkpoints, initialization, and regularisation.
+  + #link("/exp015/")[exp015] — #link("/exp015/")[_Gradient Stabilisation_]: backward-pass controls and diagnostics.
 
   === Choose an executor
 
@@ -29,8 +28,8 @@
     columns: (auto, 1fr),
     [*Interface*], [*Use it for*],
     [`--executor legacy`], [The built-in COBANet model and existing CLI recipes. This remains the default.],
-    [`--executor graph --bundle PATH`], [An authored SNNLANG bundle with named inputs, outputs, and graph execution contracts. See #link("/exp107/")[Compiling and executing bundles].],
-    [`tools.snnsim.execution`], [Python callers using `ExecutionSpec`, `build`, `simulate`, `train`, or `infer`. See #link("/exp102/")[SNNLANG developer documentation].],
+    [`--executor graph --bundle PATH`], [An authored SNNLANG bundle with named inputs, outputs, and graph execution contracts. See #link("/exp107/")[exp107] — #link("/exp107/")[_Compiling and executing bundles._]],
+    [`tools.snnsim.execution`], [Python callers using `ExecutionSpec`, `build`, `simulate`, `train`, or `infer`. See #link("/exp102/")[exp102] — #link("/exp102/")[_SNNLANG developer documentation._]],
   )
 
   A bundle argument alone does not select the graph executor. Do not assume legacy flags, weight files, or artifact names apply unchanged to graph execution.
@@ -54,7 +53,7 @@
     --out-dir temp/docs-simulation
   ```
 
-  This needs no image dataset. Inspect the emitted `metrics.json` and provenance files in the output directory; success means the command completed with finite measurements, not that this tiny example established gamma dynamics. Use #link("/exp006/#start-a-small-training-run")[the training example] for a short train-and-evaluate workflow.
+  This needs no image dataset. Inspect the emitted `metrics.json` and provenance files in the output directory; success means the command completed with finite measurements, not that this tiny example established gamma dynamics. Use #link("/exp006/")[exp006] — #link("/exp006/")[_Training_] for a short train-and-evaluate workflow.
 
   Per-subcommand help defines accepted flags, but prose descriptions of defaults can lag the parser or model. For reproducibility, set important parameters explicitly and inspect the resolved configuration. Use a fresh `--out-dir` for every invocation: reused directories can mix old payloads with new metadata.
 
@@ -64,7 +63,7 @@
 
   Compute performs training or simulation. Analyse reads explicit completed evidence and calculates measurements. Present reads analysis outputs and renders figures. These stages complete independently: downstream work does not launch upstream computation, and no stage automatically publishes. The canonical runner contract is #link("https://github.com/eoinmurray/pinglab/blob/main/experiments/README.md")[the Experiment Runner Guide].
 
-  A tool scratch directory is not a completed Pingstore run. A stage retains its outputs under a validated v3 run's `export/`, with authoritative provenance in `run.json`; a writing consumes an explicitly selected present run. See #link("/exp103/")[Compute options] for the operational workflow.
+  A tool scratch directory is not a completed Pingstore run. A stage retains its outputs under a validated v3 run's `export/`, with authoritative provenance in `run.json`; a writing consumes an explicitly selected present run. See #link("/exp103/")[exp103] — #link("/exp103/")[_Compute options_] for the operational workflow.
 
   == Commands
 
@@ -89,12 +88,12 @@
     [`--max-samples INT`], [all], [[`--infer`] Cap the evaluation set to N samples.],
     [`--outputs OUTPUT [...]`], [—], [[`--infer`] Extra artifacts from the single forward pass (`metrics.json` always written): `per_cell_rates` (per-cell E/I Hz to `per_cell_rates.npz`), `pop_traces` (per-trial population activity to `pop_traces.npz`, base signal for PSD / f_γ), `rasters` (sparse spike indices to `rasters.npz`, for cycle-level analysis).],
     [`--tau-gaba FLOAT`], [inherited / 9.0], [[`--infer`] Override τ_GABA (ms) to replay a trained cell under specified inhibitory dynamics. Normally unset: `--load-config` inherits the trained value.],
-    [`--skip-load PREFIX [...]`], [—], [[`--infer`] Drop `state_dict` keys with these prefixes before loading (e.g. `W_ei. W_ie.`) so a fresh sub-block survives. Transfer-load probes (#link("/exp038/")[exp038]).],
-    [`--perturb-mode {drop, add}`], [—], [[`--infer`] Hidden-spike perturbation inside the forward loop: `drop` (Bernoulli mask), `add` (Poisson Hz). The #link("/exp037/")[exp037] drop/add asymmetry.],
+    [`--skip-load PREFIX [...]`], [—], [[`--infer`] Drop `state_dict` keys with these prefixes before loading (e.g. `W_ei. W_ie.`) so a fresh sub-block survives. Transfer-load probes (#link("/exp038/")[exp038] — #link("/exp038/")[_Switching On the Inhibitory Loop_]).],
+    [`--perturb-mode {drop, add}`], [—], [[`--infer`] Hidden-spike perturbation inside the forward loop: `drop` (Bernoulli mask), `add` (Poisson Hz). The #link("/exp037/")[exp037] — #link("/exp037/")[_Dropped Spikes vs Added Noise_] drop/add asymmetry.],
     [`--perturb-level LEVEL [...]`], [—], [[`--perturb-mode`] One value: probability for `drop`, Hz for `add`.],
-    [`--i-override-file PATH`], [—], [[`--infer`] NPZ with a sparse per-trial I-spike stream to substitute for the inhibitory spikes each timestep. Injection dual of `--outputs rasters` (#link("/exp042/")[exp042]).],
-    [`--input-file PATH`], [—], [NPZ with `input_spikes` (T, B, N_IN) to forward instead of Poisson input. Arbitrary stimulus (#link("/exp048/")[exp048] digit streams).],
-    [`--scale-w-in / --scale-w-ei / --scale-w-ie FLOAT`], [1.0], [[`--infer`] Multiply loaded input / E→I / I→E weights before the forward pass. Inference-time coupling sweeps without retraining (#link("/exp038/")[exp038]).],
+    [`--i-override-file PATH`], [—], [[`--infer`] NPZ with a sparse per-trial I-spike stream to substitute for the inhibitory spikes each timestep. Injection dual of `--outputs rasters` (#link("/exp042/")[exp042] — #link("/exp042/")[_Inhibitory Replay Perturbations Change Excitatory Firing_]).],
+    [`--input-file PATH`], [—], [NPZ with `input_spikes` (T, B, N_IN) to forward instead of Poisson input. Arbitrary stimulus (#link("/exp048/")[exp048] — #link("/exp048/")[_[DEPRECATED] Accuracy Across Duration and Input Rate_] digit streams).],
+    [`--scale-w-in / --scale-w-ei / --scale-w-ie FLOAT`], [1.0], [[`--infer`] Multiply loaded input / E→I / I→E weights before the forward pass. Inference-time coupling sweeps without retraining (#link("/exp038/")[exp038] — #link("/exp038/")[_Switching On the Inhibitory Loop_]).],
     [`--sample-index INT`], [—], [Raw test-set index for a snapshot, overriding `--digit` / `--sample`.],
     [`--n-in / --n-inh / --n-batch INT`], [path-dependent / — / 64], [[synthetic-spikes] Input channels, inhibitory pool size, Poisson trials averaged.],
     [`--w-ei-mean / --w-ie-mean FLOAT`], [from `--ei-strength`], [[synthetic-spikes] Explicit W_EI / W_IE mean (std = 0.1·mean).],
@@ -105,7 +104,7 @@
 
   === train
 
-  Surrogate-gradient BPTT training loop. Writes selected and final parameter files, training metrics, and validation predictions. See #link("/exp006/#checkpoints-and-evaluation")[checkpoint roles] before choosing a weight file.
+  Surrogate-gradient BPTT training loop. Writes selected and final parameter files, training metrics, and validation predictions. See #link("/exp006/")[exp006] — #link("/exp006/")[_Training_] before choosing a weight file.
 
   ```
   uv run python tools/snnsim/tool.py train --model ping --dataset mnist \
@@ -123,7 +122,7 @@
     [`--epochs INT`], [0], [Number of epochs. 0 = init-snapshot probe only.],
     [`--batch-size INT`], [64], [DataLoader batch size.],
     [`--max-samples INT`], [all], [Cap dataset to N samples for smoke tests.],
-    [`--v-grad-dampen FLOAT`], [80.0], [Divisor on the backward derivative through the biophysical membrane increment. The training example uses 1000; stability and learning must be checked for the chosen recipe. Mechanism and limitations in #link("/exp015/")[Gradient Stabilisation].],
+    [`--v-grad-dampen FLOAT`], [80.0], [Divisor on the backward derivative through the biophysical membrane increment. The training example uses 1000; stability and learning must be checked for the chosen recipe. Mechanism and limitations in #link("/exp015/")[exp015] — #link("/exp015/")[_Gradient Stabilisation._]],
     [`--fr-reg-upper-target-hz FLOAT`], [0], [Population-mean hidden-E firing-rate ceiling per presentation, in Hz. The one-sided squared overshoot is averaged over presentations and hidden layers; active only when the strength is positive.],
     [`--fr-reg-upper-strength FLOAT`], [0], [Coefficient on the upper regulariser; choose it with the target and rate units.],
     [`--tau-gaba FLOAT`], [9.0 ms], [Override the inhibitory conductance decay time. Recipe values can differ from the model default; retain the value used for training when replaying a checkpoint.],
@@ -140,7 +139,7 @@
     --out-dir temp/example-source/dump
   ```
 
-  Keys follow `W_ff_N_init` / `W_ff_N_trained` (feedforward, per layer N) plus the E-I blocks `W_ei` / `W_ie`. This is how a runner recovers the trained readout matrix (W_out = the last `W_ff`) or compares init-vs-trained loop weights (the #link("/exp049/")[exp049] pruning analysis) without loading the model in-process. It takes the shared option groups plus `--load-config` / `--load-weights`.
+  Keys follow `W_ff_N_init` / `W_ff_N_trained` (feedforward, per layer N) plus the E-I blocks `W_ei` / `W_ie`. This is how a runner recovers the trained readout matrix (W_out = the last `W_ff`) or compares init-vs-trained loop weights (the #link("/exp049/")[exp049] — #link("/exp049/")[_Training Recurrent Weights Weakens PING Rhythmicity_] pruning analysis) without loading the model in-process. It takes the shared option groups plus `--load-config` / `--load-weights`.
 
   == Shared options
 
@@ -154,7 +153,7 @@
     [*flag*], [*default*], [*description*],
     [`--model {ping}`], [`ping`], [Architecture. `ping` is the COBANet with E↔I coupling; with `--ei-strength 0` the inhibitory loop is silenced to remove that feedback loop (other enabled pathways still matter).],
     [`--n-hidden INT [INT ...]`], [dataset-dependent], [Hidden layer sizes. One integer = single layer; multiple stacks layers. Default for mnist: 1024.],
-    [`--readout MODE`], [`rate`], [Modes: `rate`, `mem-mean`, `spike-count`, `spike-rate`, `cumulative-potential`. See #link("/exp006/#readout")[the readout table] for their different score definitions.],
+    [`--readout MODE`], [`rate`], [Modes: `rate`, `mem-mean`, `spike-count`, `spike-rate`, `cumulative-potential`. See #link("/exp006/")[exp006] — #link("/exp006/")[_Training_] for their different score definitions.],
     [`--dales-law` / `--no-dales-law`], [on], [Enforce Dale's law (non-negative weights) or allow signed weights. `--no-dales-law` is used for balanced-network experiments.],
     [`--ei-strength FLOAT`], [0.5], [E-I coupling strength s. Sets the parent initialization means to s and s·ratio; stored edges are fan-in normalised.],
     [`--ei-ratio FLOAT`], [2.0], [W_IE / W_EI.],
@@ -164,7 +163,7 @@
     [`--dt FLOAT`], [0.25], [Integration timestep (ms).],
     [`--t-ms FLOAT`], [200], [Total trial duration (ms). Metrics are measured over the full trace; runners strip any startup transient in post.],
     [`--readout-w-out-scale FLOAT`], [1.0], [Scalar applied to the readout matrix after `build_net`, compensating for low hidden firing rate under `mem-mean`. Train-mode only.],
-    [`--surrogate-slope FLOAT`], [5.0 (model)], [If omitted, inherits the configured model value. Larger values narrow the window and increase its peak in Pinglab's normalization. See #link("/exp006/#surrogate-gradients")[Surrogate gradients].],
+    [`--surrogate-slope FLOAT`], [5.0 (model)], [If omitted, inherits the configured model value. Larger values narrow the window and increase its peak in Pinglab's normalization. See #link("/exp006/")[exp006] — #link("/exp006/")[_Training._]],
   )
 
   The drive family below also lives in the Network group. It exists for the balanced-network (Brunel / van Vreeswijk-Sompolinsky) experiments and the Lyapunov chaos probe; canonical PING runs leave all of it off.
@@ -206,7 +205,7 @@
     [`--w-ii MEAN STD`], [`0 0`], [W_II (I→I) init. Off by default (canonical PING has no I→I). Enable for balanced-network experiments.],
     [`--w-ee MEAN STD`], [`0 0`], [W_EE (E→E) init. Off by default. Enable for the full four-coupling balanced network, where recurrent excitation pins the E rate.],
     [`--trainable-w-ei`], [frozen], [Promote E→I to gradient-carrying. Asks whether the optimiser will discover the PING-loop weights from scratch.],
-    [`--trainable-w-ie`], [frozen], [Promote I→E. The #link("/exp049/")[exp049] result _gradient descent dismantles PING_ comes from flipping `--trainable-w-ei` and `--trainable-w-ie` on simultaneously.],
+    [`--trainable-w-ie`], [frozen], [Promote I→E. The #link("/exp049/")[exp049] — #link("/exp049/")[_Training Recurrent Weights Weakens PING Rhythmicity_] result _gradient descent dismantles PING_ comes from flipping `--trainable-w-ei` and `--trainable-w-ie` on simultaneously.],
   )
 
   === Output
@@ -265,7 +264,7 @@
 
   Each command adds its own outputs: `train` writes `weights.pth` when a selected epoch exists, `weights_final.pth`, `metrics.json`, `metrics.jsonl`, and the legacy-named `test_predictions.json` containing validation predictions; `sim --infer` writes `metrics.json` (and `results.json`) plus whatever `--outputs` requested; `dump-weights` writes `weights_dump.npz`.
 
-  These files are scratch. By default they land under `temp/pinglab-cli/`, which is gitignored; a new invocation can overwrite metadata without removing old payloads. The retained record is produced by the experiment stages: analysis derives numerical results, and presentation exports report-ready `numbers.json` and figures into an immutable Pingstore run. The writing reads the selected presentation input through `dataset-template.typ`, never the ephemeral tool output. Without a selected input, the report shows an unavailable-data notice.
+  These files are scratch. By default they land under `temp/pinglab-cli/`, which is gitignored; a new invocation can overwrite metadata without removing old payloads. The retained record is produced by the experiment stages: analysis derives numerical results, and presentation exports report-ready `numbers.json` and figures into an immutable Pingstore run. The writing reads the selected presentation input through `templates/dataset.typ`, never the ephemeral tool output. Without a selected input, the report shows an unavailable-data notice.
 
   == Recipes
 
@@ -292,7 +291,7 @@
     --out-dir temp/example-scaled-inference
   ```
 
-  *Perturbation sweep (#link("/exp037/")[exp037]).* Drop a fraction of emitted spikes, or add off-phase Poisson noise, inside the forward loop:
+  *Perturbation sweep (#link("/exp037/")[exp037] — #link("/exp037/")[_Dropped Spikes vs Added Noise_]).* Drop a fraction of emitted spikes, or add off-phase Poisson noise, inside the forward loop:
 
   ```
   uv run python tools/snnsim/tool.py sim --infer \
@@ -312,14 +311,12 @@
   + *Unexpected input.* Set `--input dataset` or `--input synthetic-spikes` explicitly. The parser can infer dataset mode from explicit dataset/digit/sample flags or a loaded MNIST configuration when `--input` is omitted.
   + *Unexpected inherited value.* Explicit CLI flags take precedence over `--load-config`. Check the resolved output config, not just the source file.
   + *Unexpected files.* Do not reuse scratch directories or infer completion from file presence alone. Failed runs can leave partial output.
-  + *Graph request rejected.* Check `--executor graph`, the bundle, named input bindings, and supported options in #link("/exp090/")[Compatibility, status, and extension].
-  + *Training is finite but ineffective.* Inspect skipped steps, readout choice, and gradient diagnostics; see #link("/exp015/")[Gradient Stabilisation].
+  + *Graph request rejected.* Check `--executor graph`, the bundle, named input bindings, and supported options in #link("/exp090/")[exp090] — #link("/exp090/")[_Compatibility, status, and extension._]
+  + *Training is finite but ineffective.* Inspect skipped steps, readout choice, and gradient diagnostics; see #link("/exp015/")[exp015] — #link("/exp015/")[_Gradient Stabilisation._]
 
   The option tables cover common controls, not every parser option. For implementation details, follow `parse_args` and `configure_models` in `tools/snnsim/tool.py`, then the selected executor. Tool-level Modal execution and experiment-runner dispatch are different interfaces: do not assume the tool's `--modal` waits for a separate `--live` flag.
 
-  #link("/exp004/")[Next: Parameters & Units]
+  #link("/exp004/")[exp004] — #link("/exp004/")[_Parameters & Units_]
 ]
 
-#let body = with-datasets("exp011", (), body)
-#let body = with-numbered-equations(body)
-#let body = with-contents(body)
+#let body = journal-article("exp011", (), body)

@@ -1,10 +1,14 @@
-#import "contents.typ": contents-here, with-contents, result-card, with-numbered-equations, with-result-sections
-#import "/.demolab/lib.typ": data-json, data-image, cite, reference-list
-#import "dataset-template.typ": data-file, inputs-ready, pending-report, with-datasets, run-view, input-assets
+#import "templates/article-layout.typ": journal-article
+#import "templates/result-card.typ": result-figure-ref, result-card, with-result-sections
+#import "templates/references.typ": journal-references
+#import "/.demolab/lib.typ": data-json, data-image, cite
+#import "templates/dataset.typ": data-file, inputs-ready, pending-report, run-view, input-assets
+#import "templates/abstract.typ": journal-abstract
+#import "templates/methods.typ": journal-methods
 #let data-file = data-file.with(article: "exp038")
 
 #let meta = (
-  tags: ("data", "v35.0.0"),
+  tags: ("data", "v35.4.0"),
   title: "Switching On the Inhibitory Loop",
   created_at: "2026-05-30T00:00:00Z",
   updated_at: "2026-08-31T00:00:00Z",
@@ -39,32 +43,28 @@
 #let image-description = if labels == none { [the same test image] } else { [the same digit-#labels.ei_rasters.first() test image] }
 
 #let body = [
-  == Abstract
-
-
-  Asked what happens when reciprocal inhibition is added after a feedforward
-  classifier has already been trained. Kept the learned input and readout
+  #journal-abstract(body: [
+  We asked what happens when reciprocal inhibition is added after a feedforward
+  classifier has already been trained. We kept the learned input and readout
   weights fixed while progressively enabling bidirectional excitatory–inhibitory
   coupling during inference.
 
   Stronger coupling grouped activity into bursts and sharply suppressed
-  excitatory firing, but also reduced classification accuracy. Demonstrates
-  post-training rate suppression, not a benefit of gamma timing or evidence that
+  excitatory firing, but also reduced classification accuracy. This demonstrates post-training rate suppression, not a benefit of gamma timing or evidence that
   retraining would recover the lost accuracy.
-
-  #contents-here()
+  ])
 
   == Results
 
   #with-result-sections[
 
   #result-card[
-  === Population rates and accuracy across reciprocal loop strength
+  === Loop-strength rates and accuracy
 
   At full loop strength, E rate fell from approximately #rate_off to #rate_on Hz,
   I rate reached #inhibition_on Hz, and accuracy fell by #acc_cost percentage
   points. Because both coupling directions varied, lower activity alone does not
-  identify a causal benefit of rhythm.
+  identify a causal benefit of rhythm (#result-figure-ref(<fig:exp038-result-1>)).
 
   #figure(
     data-image(data-file("exp038/loop_transfer_compound.png"), width: 100%,
@@ -76,15 +76,15 @@
       (red). *(C)* Population rates and *(D)* accuracy on #eval_n test images
       per seed; curves show means ± sample SD across seeds 42–44.
     ],
-  )
+  ) <fig:exp038-result-1>
 
   ]
 
   #result-card[
-  === PING rasters across reciprocal loop strength
+  === Loop-strength PING rasters
 
   Burst grouping increased across the sampled loop strengths. These illustrative
-  panels do not estimate gamma frequency or establish a continuous transition.
+  panels do not estimate gamma frequency or establish a continuous transition (#result-figure-ref(<fig:exp038-result-2>)).
 
   #figure(
     data-image(data-file("exp038/ei_rasters.png"), width: 100%,
@@ -95,19 +95,18 @@
       recurrent E↔I weights were initialized at each strength without training.
       Rows show the same sampled 200 E and 64 I neurons over 200 ms.
     ],
-  )
+  ) <fig:exp038-result-2>
 
   ]
   ]
 
-  == Methods
-
-  We reused networks from the #link("/exp022/")[shared training study] and
+  #journal-methods(
+    orientation: [
+  We reused networks from the #link("/exp022/")[exp022] — #link("/exp022/")[_Training Runs_] and
   reanalysed recorded inference observations. No new training or simulation
   was performed for this account.
-
-  === Compute
-
+    ],
+    compute: [
   + *Reuse trained classifiers.* MNIST handwritten digits #cite(1) supplied
     6,300 training and 700 validation images from the official training partition.
     Conductance-based leaky-integrate-and-fire networks had 784 Poisson input
@@ -126,9 +125,8 @@
     recurrent matrices; learned input and readout weights stayed fixed, and
     E→E and I→I coupling stayed zero. The same network seed was reused across
     strengths; no optimization followed the intervention.
-
-  === Analyse
-
+    ],
+    analyse: [
   #set enum(start: 3)
 
   + *Evaluate responses.* Each strength used the same #eval_n images from the
@@ -142,9 +140,8 @@
     $T_"present"$ their duration in seconds, and $n_"spike"(b,n)$ neuron $n$'s spike count during
     presentation $b$; $r_P$ is in hertz. Curves show means and sample standard
     deviations across the three networks; single-image rasters are illustrative.
-
-  === Present
-
+    ],
+    present: [
   #set enum(start: 4)
 
   + *Probe input drive.* Auxiliary probes reused seed-42 classifiers trained
@@ -152,9 +149,10 @@
     26 rates between 0 and 100 Hz, with 32 trials per rate; a separate trained-loop
     probe used one test image at ten maximum pixel rates from 0 to approximately
     23.08 Hz. These recorded firing curves complement the
-    #link("/exp023/")[architectural response-to-drive study]; they are not
+    #link("/exp023/")[exp023] — #link("/exp023/")[_Turning the PING Loop On_]; they are not
     additional loop-transfer accuracy evaluations.
-
+    ],
+  )
   #run-view("exp038", inputs)
 
   == Appendix: Training and probe settings
@@ -178,7 +176,7 @@
   final-epoch validation accuracy, final-epoch training E rate, and across-seed
   means and SEM; these are distinct from the inference measurements above.
   The loop-transfer comparison used only the three unpenalised feedforward
-  classifiers. The #link("/exp025/")[accuracy–rate comparison] describes the
+  classifiers. The #link("/exp025/")[exp025] — #link("/exp025/")[_Accuracy and Firing Rate With and Without Inhibition_] describes the
   broader training design.
 
   Feedforward and loop-enabled training used voltage-gradient damping of 1 and
@@ -196,7 +194,7 @@
   consistent with changing the trained network's dynamics, but does not
   identify the readout as its sole cause or test recovery by retraining.
 
-  #reference-list((
+  #journal-references((
     (text: [Y. LeCun, L. Bottou, Y. Bengio, and P. Haffner.
       “Gradient-based learning applied to document recognition.”
       _Proceedings of the IEEE_ 86(11), 2278–2324 (1998).],
@@ -217,6 +215,4 @@
 }
 
 #let meta = meta + (assets: input-assets("exp038", inputs))
-#let body = with-datasets("exp038", inputs, report-body, placed: inputs-ready(data-file, inputs))
-#let body = with-numbered-equations(body)
-#let body = with-contents(body)
+#let body = journal-article("exp038", inputs, report-body, dataset-placed: inputs-ready(data-file, inputs))

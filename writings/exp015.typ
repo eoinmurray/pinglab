@@ -1,7 +1,6 @@
-#import "contents.typ": with-contents, with-numbered-equations
-#import "dataset-template.typ": with-datasets
+#import "templates/article-layout.typ": journal-article
 #let meta = (
-  tags: ("txt", "v35.0.0"),
+  tags: ("txt", "v35.4.0"),
   title: "Gradient Stabilisation",
   created_at: "2026-06-12T00:00:00Z",
   updated_at: "2026-08-29T00:00:00Z",
@@ -15,9 +14,9 @@
 
   `--v-grad-dampen` changes the backward pass through the legacy biophysical neuron's membrane increment. It is intended to reduce gradient amplification without intentionally changing the forward model. It does not divide the entire voltage gradient by a constant, repair a non-finite forward pass, or guarantee convergence.
 
-  In `tools/snnsim/models.py`, both `lif_step` and `lif_step_expeuler` apply `_scale_grad(dv, 1.0 / v_grad_dampen)` to the voltage increment `dv`. The legacy training CLI defaults to 80; the #link("/exp006/#start-a-small-training-run")[small training example] explicitly uses 1000. Treat either value as a configuration choice, not a universal threshold. A value of 1 disables the scaling. Use positive values, and values at least 1 when the intention is damping rather than amplification.
+  In `tools/snnsim/models.py`, both `lif_step` and `lif_step_expeuler` apply `_scale_grad(dv, 1.0 / v_grad_dampen)` to the voltage increment `dv`. The legacy training CLI defaults to 80; the #link("/exp006/")[exp006] — #link("/exp006/")[_Training_] explicitly uses 1000. Treat either value as a configuration choice, not a universal threshold. A value of 1 disables the scaling. Use positive values, and values at least 1 when the intention is damping rather than amplification.
 
-  Damping changes the optimization problem's supplied gradients. Keep it fixed when reproducing a recipe; record it when comparing training runs. Graph-native training has its own recipe contract: see #link("/exp088/")[Training recipes and graph-native learning].
+  Damping changes the optimization problem's supplied gradients. Keep it fixed when reproducing a recipe; record it when comparing training runs. Graph-native training has its own recipe contract: see #link("/exp088/")[exp088] — #link("/exp088/")[_Training recipes and graph-native learning._]
 
   == Check the primitive
 
@@ -44,7 +43,7 @@
 
   == The implemented update
 
-  The following equations describe the local exponential-Euler membrane update with noise and active voltage clamps excluded. They are an implementation derivation, not a proof of global network stability. The #link("/exp100/")[COBANet] page covers the surrounding dynamics.
+  The following equations describe the local exponential-Euler membrane update with noise and active voltage clamps excluded. They are an implementation derivation, not a proof of global network stability. The #link("/exp100/")[exp100] — #link("/exp100/")[_COBANet_] page covers the surrounding dynamics.
 
   The synapse helper decays the previous conductance and then adds the spike kick:
 
@@ -93,9 +92,7 @@
   + *Check learning as well as finiteness.* Stronger damping also reduces useful conductance-input sensitivities. A finite loss with negligible learning is not sufficient evidence of a good setting.
   + *Keep the scope of the check explicit.* The helper assertion verifies its local derivative. Establishing training stability or accuracy requires a separately authorized experiment, with recorded diagnostics and validation results.
 
-  #link("/exp006/")[Previous: Training] · #link("/exp011/")[Back to SNNSIM command-line guide]
+  #link("/exp006/")[exp006] — #link("/exp006/")[_Training_] · #link("/exp011/")[exp011] — #link("/exp011/")[_SNNSIM command-line guide_]
 ]
 
-#let body = with-datasets("exp015", (), body)
-#let body = with-numbered-equations(body)
-#let body = with-contents(body)
+#let body = journal-article("exp015", (), body)

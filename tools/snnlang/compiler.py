@@ -334,6 +334,15 @@ def validate_graph(graph: Mapping[str, Any]) -> ValidationResult:
                         "error", "E106", f"unresolved parameter {pid}", row["id"]
                     )
                 )
+            elif parameter_rows[pid].get("unit") != "uS":
+                out.diagnostics.append(
+                    Diagnostic(
+                        "error",
+                        "E113",
+                        f"projection parameter requires unit uS, got {parameter_rows[pid].get('unit')}",
+                        row["id"],
+                    )
+                )
             elif source in signals and target_pop in population_ids:
                 expected_shape = [
                     next(

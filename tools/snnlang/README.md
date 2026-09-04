@@ -26,6 +26,12 @@ digest-bearing `manifest.json`, copied logical assets, a text summary, and
 optional circuit/training/expanded SVG and PNG reports. Physical dataset and
 checkpoint paths deliberately do not belong in the graph.
 
+Projection weights use `uS` (microsiemens), matching the conductance convention
+of the graph executor and its `leak_us` neuron parameters. SNNLang and the graph
+executor both reject projection parameters labelled with another unit; values
+are never silently rescaled. Bundles produced before SNNLang 0.2.0 may carry an
+incorrect legacy `nS` label even though their values were executed as `uS`.
+
 `snnlang` owns the semantic projection of a bundle through `snn.diagram(...)`;
 the resulting renderer-neutral diagram is rendered by `tools.snnviz`. The
 existing `Bundle.visualise(...)` convenience method delegates through this same

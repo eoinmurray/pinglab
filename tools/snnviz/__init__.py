@@ -12,9 +12,11 @@ from .diagrams import (
     diagram_to_dot,
     render_diagram,
 )
+from .figure_grid import FigureGrid, FigureRect, FigureRegion
 from .layouts import grid_layout
 from .loaders import load_snnsim_recording
 from .scene import Panel, Scene
+from .styles import Theme
 from .transforms import exponential_trace, projection_activity, representative_frame
 
 __all__ = [
@@ -24,10 +26,14 @@ __all__ = [
     "DiagramNode",
     "DiagramTheme",
     "FrameTimeline",
+    "FigureGrid",
+    "FigureRect",
+    "FigureRegion",
     "Panel",
     "Recording",
     "RecordingError",
     "Scene",
+    "Theme",
     "diagram_to_dot",
     "render_diagram",
     "exponential_trace",

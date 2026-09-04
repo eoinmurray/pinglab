@@ -44,14 +44,41 @@ validated source data, and receives measurements computed by analyse. Missing
 authenticated inputs are errors rather than triggers reconstructing random input
 or substituting zeros.
 
-The video and poster reserve the bottom 15% of the frame as a control-safe area.
-No plot, label, annotation, or other scientific evidence may enter that band:
-native browser controls overlay the video frame and otherwise obscure the bottom
-diagnostic row. The six diagnostic panels begin above the reserved band, with a
-separate gutter for their tick labels and axis titles.
+The video and poster use a compact 2:1 canvas shaped around the scientific
+content. There is no globally reserved player-control band; the diagnostic
+panels occupy the right half of the frame.
 
-Labels no longer assert an established AI-to-PING transition: they name the
-baseline, afferent bout and recovery phases instead.
+The complete frame is now declared through `snnviz.FigureGrid`: a bounded
+header and half-width animated network. On the right, panels B and C form the
+top row, equal-height panels D and E share the lower-left cell, and panel F
+occupies the lower-right cell. The named and nested grids replace duplicated
+normalized axis coordinates and are resolved once for the poster and all 600
+animation frames.
+
+Panel A stacks E-targeting spikes, shared spikes, AMPA conductance, GABA
+conductance and I-targeting spikes down the left. Spike sources are compact
+neuron grids; conductance sources are running traces. The E and I populations
+share one aligned width on the right, with the E box four times the area of the
+I box. Neuron grids fill their frames with only marker-safe edge insets.
+Every grid uses the same five-point physical inset on all four sides, independent
+of its frame dimensions. The two internal stacks share a 0.25-inch physical
+inset from every outer edge of panel A, and their rows are distributed evenly
+between those aligned bounds.
+Authenticated afferent and
+recurrent spikes continue to illuminate their actual source-to-target paths;
+aggregate conductance arrows vary with the retained conductance signals.
+
+The frame retains concise A–F panel titles and labels the five inputs and two
+populations inside panel A. Equal-height panels D and E respectively show E/I
+population firing-rate traces computed over a fixed 20 ms display window and
+the retained shared, E-private and I-private afferent multipliers. The multiplier
+colours match their source grids in panel A; the two private traces coincide
+because this condition gives them the same envelope, so the I-private trace is
+dashed. Panel E carries the common time axis, while synchronized animated
+cursors connect both panels. It
+preserves panel boundaries, data marks, network structure and animation state
+while suppressing legends, axis labels, tick labels, values and dynamic textual
+readouts.
 
 The former summary excludes the final 1,800 ms rhythmicity-window centre; the
 production plot includes it. Both conventions are retained explicitly. The

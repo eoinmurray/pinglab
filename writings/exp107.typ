@@ -1,7 +1,6 @@
-#import "contents.typ": with-contents, with-numbered-equations
-#import "dataset-template.typ": with-datasets
+#import "templates/article-layout.typ": journal-article
 #let meta = (
-  tags: ("txt", "v35.0.0"),
+  tags: ("txt", "v35.4.0"),
   title: "Compiling and executing bundles",
   created_at: "2026-08-14T00:00:00Z",
   description: "Validate a graph, write its portable bundle, select an executor, supply inputs, and retrieve named outputs and recordings.",
@@ -98,9 +97,7 @@
 
   `ExecutionResult` exposes `executor`, `outputs`, `recordings`, `parameters`, `final_state`, `runtime_state`, `metrics`, and `model`. Graph-native `train` is not implemented; it fails with the missing training capability instead of using the legacy trainer silently.
 
-  #link("/exp108/")[Next: Inputs, outputs, and readouts]
+  #link("/exp108/")[exp108] — #link("/exp108/")[_Inputs, outputs, and readouts_]
 ]
 
-#let body = with-datasets("exp107", (), body)
-#let body = with-numbered-equations(body)
-#let body = with-contents(body)
+#let body = journal-article("exp107", (), body)

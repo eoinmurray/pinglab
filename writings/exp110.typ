@@ -1,14 +1,16 @@
+#import "templates/abstract.typ": journal-abstract
 // Author-approved exception to Writing Guide 34.0.1 section 7: this manuscript
 // intentionally omits Results card wrappers and allows each thematic Results
 // subsection to contain multiple ordinary figures while its narrative is written,
 // with its nested thematic headings numbered within each subsection.
-#import "contents.typ": contents-here, with-contents, with-numbered-equations, with-result-sections
+#import "templates/article-layout.typ": journal-article
+#import "templates/result-card.typ": with-result-sections
 #import "/.demolab/lib.typ": data-image
-#import "dataset-template.typ": data-file, input-assets, inputs-ready, pending-report, with-datasets
+#import "templates/dataset.typ": data-file, input-assets, inputs-ready, pending-report
 #let data-file = data-file.with(article: "exp110")
 
 #let meta = (
-  tags: ("data", "v35.0.0"),
+  tags: ("data", "v35.4.0"),
   title: "Manuscript",
   created_at: "2026-09-02T00:00:00Z",
   updated_at: "2026-09-03",
@@ -39,15 +41,13 @@
 )
 
 #let render-report(data-file) = [
-  == Abstract
-
+  #journal-abstract(body: [
   A fixed excitatory–inhibitory PING loop produced a low-rate rhythmic regime
   compatible with MNIST classification, linked excitatory firing to gamma-cycle
   participation, showed distinct sensitivity to spike and timing perturbations,
   and continued to support classification when inputs were presented as a
   continuous stream.
-
-  #contents-here()
+  ])
 
   == Results
 
@@ -356,6 +356,4 @@
 }
 
 #let meta = meta + (assets: input-assets("exp110", inputs))
-#let body = with-datasets("exp110", inputs, report-body, placed: inputs-ready(data-file, inputs))
-#let body = with-numbered-equations(body)
-#let body = with-contents(body)
+#let body = journal-article("exp110", inputs, report-body, dataset-placed: inputs-ready(data-file, inputs))

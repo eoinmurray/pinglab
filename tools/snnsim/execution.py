@@ -2367,8 +2367,15 @@ def plan_graph(graph: Mapping[str, Any]) -> GraphPlan:
     dt = float(graph["timebase"]["dt"]["value"])
     if dt <= 0:
         raise ValueError("graph timebase dt must be positive")
+    parameter_rows = {row["id"]: row for row in graph.get("parameters", [])}
     planned = []
     for row in graph.get("projections", []):
+        for parameter_id in row.get("parameters", []):
+            unit = parameter_rows.get(parameter_id, {}).get("unit")
+            if unit != "uS":
+                raise ValueError(
+                    f"{row['id']}: projection parameter {parameter_id} requires unit uS, got {unit}"
+                )
         delay = row.get("delay")
         delay_ms = 0.0 if delay is None else float(delay["value"])
         raw_steps = delay_ms / dt

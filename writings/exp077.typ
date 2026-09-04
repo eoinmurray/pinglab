@@ -1,10 +1,14 @@
-#import "contents.typ": contents-here, with-contents, result-card, with-numbered-equations, with-result-sections
-#import "/.demolab/lib.typ": data-json, data-image, cite, reference-list
-#import "dataset-template.typ": data-file, inputs-ready, pending-report, with-datasets, run-view, input-assets
+#import "templates/article-layout.typ": journal-article
+#import "templates/result-card.typ": result-figure-ref, result-card, with-result-sections
+#import "templates/references.typ": journal-references
+#import "/.demolab/lib.typ": data-json, data-image, cite
+#import "templates/dataset.typ": data-file, inputs-ready, pending-report, run-view, input-assets
+#import "templates/abstract.typ": journal-abstract
+#import "templates/methods.typ": journal-methods
 #let data-file = data-file.with(article: "exp077")
 
 #let meta = (
-  tags: ("data", "v35.0.0"),
+  tags: ("data", "v35.4.0"),
   title: "Arbitrary coupled graphs execute natively",
   updated_at: "2026-08-31T00:00:00Z",
   created_at: "2026-08-05T00:00:00Z",
@@ -25,11 +29,9 @@
 #let short-digest(x) = x.slice(0, 19) + "..."
 
 #let body = [
-  == Abstract
-
-
-  Asked whether the graph runtime can execute arbitrary coupling between
-  independently driven excitatory–inhibitory circuits. Compared uncoupled,
+  #journal-abstract(body: [
+  We asked whether the graph runtime can execute arbitrary coupling between
+  independently driven excitatory–inhibitory circuits. We compared uncoupled,
   directional, reciprocal and delayed-reciprocal graphs, alongside a separate
   circuit-parity and runtime check.
 
@@ -37,15 +39,14 @@
   causal effects of coupling direction and delay within the tested workload.
   These are bounded architecture and timing checks, not evidence for a
   biological coupling mechanism or performance on unrelated workloads.
-
-  #contents-here()
+  ])
 
   == Results
 
   #with-result-sections[
 
   #result-card[
-  === Single-circuit compatibility, timing and memory measurements
+  === Circuit parity and runtime costs
 
   #figure(table(columns: (1.8fr, 1fr),
     [Measurement], [Result],
@@ -68,7 +69,7 @@
       #(r.parity_performance.compile_workload_batch)-sample input and three warm
       calls. Compiled repeat discrepancy compares two compiled calls, not
       compiled versus eager execution. Traced Python memory excludes native
-      tensor storage; no uncertainty across independent timing sessions is estimated.])
+      tensor storage; no uncertainty across independent timing sessions is estimated.]) <fig:exp077-result-1>
 
   ]
 
@@ -79,14 +80,14 @@
     caption: [Reciprocal delayed graph. Circuit A contains 16 excitatory and
       four inhibitory neurons; circuit B contains 12 excitatory and three
       inhibitory neurons. Each cross-circuit inhibitory projection targets the
-      other circuit's excitatory population.])
+      other circuit's excitatory population.]) <fig:exp077-result-2>
 
   ]
 
   #result-card[
-  === Coupling variants and causal delay steps
+  === Coupling and delay variants
 
-  Separate pulse and causal-planning tests passed.
+  Separate pulse and causal-planning tests passed (#result-figure-ref(<fig:exp077-result-3>)).
 
   #figure(table(columns: (1.8fr, 1fr, 1fr),
     [Variant], [Cross projections], [Delay steps],
@@ -97,33 +98,32 @@
   ), kind: table,
     caption: [Coupling changed graph data only. A recurrent or feedback
       connection with no additional delay receives spikes on the next causal
-      step; the explicit delay was #r.delay_timing.explicit_delay_steps steps.])
+      step; the explicit delay was #r.delay_timing.explicit_delay_steps steps.]) <fig:exp077-result-3>
 
   ]
 
   #result-card[
-  === Matched-input rasters across coupling variants
+  === Coupling-variant rasters
+
+  Sparse or silent responses in these illustrative samples do not establish a
+  phase-coupling mechanism (#result-figure-ref(<fig:exp077-result-4>)).
 
   #figure(data-image(data-file("exp077/matched_rasters.png"), width: 100%),
     caption: [Excitatory spikes in the first sample of *(A–B)* uncoupled,
       *(C–D)* unidirectional, *(E–F)* reciprocal and *(G–H)* delayed reciprocal
       variants; the first panel in each pair is circuit A and the second is
       circuit B. The time axis is in milliseconds. Identical input tensors were
-      reused across variants.])
-
-  Sparse or silent responses in these illustrative samples do not establish a
-  phase-coupling mechanism.
+      reused across variants.]) <fig:exp077-result-4>
 
   ]
   ]
 
-  == Methods
-
+  #journal-methods(
+    orientation: [
   We separated graph-defined coupling checks from a bounded implementation
   comparison using PyTorch#cite(1).
-
-  === Compute
-
+    ],
+    compute: [
   + *Define and drive the coupled circuits.* We authored two circuits with
     16/four and 12/three excitatory/inhibitory neurons and eight/six input
     channels respectively. Deterministic input pulses arrived every ten and
@@ -137,8 +137,8 @@
     We recorded all exposed populations and computed zero-lag correlation and
     peak cross-correlation lag; silent traces received the existing zero-valued
     diagnostic convention and were not interpreted as phase estimates.
-  === Analyse
-
+    ],
+    analyse: [
   #set enum(start: 3)
 
   + *Compare explicit and graph execution.* We initialised a separate
@@ -146,8 +146,8 @@
     using seed 17 and the same 100-step, eight-sample spike tensor. We compared
     parameters, spikes and outputs, and reloaded the graph state into an
     independently initialised model. All comparisons used recorded tensors.
-  === Present
-
+    ],
+    present: [
   #set enum(start: 4)
 
   + *Measure timing and causal boundaries.* We timed five eager calls after
@@ -157,10 +157,11 @@
     on a 20-step, two-sample input. Separate numerical tests checked delayed
     pulse arrival and causal planning; no coupling sweep or accelerator
     performance study was performed.
-
+    ],
+  )
   #run-view("exp077", inputs)
 
-  #reference-list(((text: [Adam Paszke et al.: _PyTorch: An Imperative Style, High-Performance Deep Learning Library_. NeurIPS, 2019.], doi: "10.48550/arXiv.1912.01703"),))
+  #journal-references(((text: [Adam Paszke et al.: _PyTorch: An Imperative Style, High-Performance Deep Learning Library_. NeurIPS, 2019.], doi: "10.48550/arXiv.1912.01703"),))
 ]
 #body
 ]
@@ -176,6 +177,4 @@
 }
 
 #let meta = meta + (assets: input-assets("exp077", inputs))
-#let body = with-datasets("exp077", inputs, report-body, placed: inputs-ready(data-file, inputs))
-#let body = with-numbered-equations(body)
-#let body = with-contents(body)
+#let body = journal-article("exp077", inputs, report-body, dataset-placed: inputs-ready(data-file, inputs))

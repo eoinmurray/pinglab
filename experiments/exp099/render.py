@@ -14,7 +14,10 @@ import numpy as np
 from experiments.helpers import theme
 from matplotlib.collections import LineCollection
 from matplotlib.colors import to_rgba
+from matplotlib.patches import FancyArrowPatch
+from matplotlib.text import Text
 from tools.snnviz import (  # noqa: TID251
+    FigureGrid,
     FrameTimeline,
     exponential_trace,
     grid_layout,
@@ -26,12 +29,39 @@ from tools.snnviz import (  # noqa: TID251
 
 from . import recipe
 
-# Native browser video controls overlay the frame rather than extending the
-# player. Keep this band free of plots, labels, and other evidence.
-VIDEO_CONTROL_SAFE_BOTTOM = 0.15
-DIAGNOSTIC_PANEL_BOTTOM = 0.19
-DIAGNOSTIC_PANEL_HEIGHT = 0.20
-NETWORK_FOOTER_Y = 0.415
+PANEL_TITLES = {
+    "network": "A · NETWORK FLOW",
+    "means": "B · POPULATION MEANS",
+    "phase": "C · CONDUCTANCE PHASE",
+    "weights": "F · RECURRENT WEIGHTS",
+}
+
+RESPONSE_PANEL_TITLES = {
+    "population_rates": "D · E/I FIRING RATE",
+    "input_controls": "E · INPUT MULTIPLIERS",
+}
+
+
+def frame_grid() -> FigureGrid:
+    """Return the content-shaped composition shared by poster and video frames."""
+
+    grid = FigureGrid(
+        rows=(0.04, 0.415, 0.415),
+        columns=8,
+        bounds=(0.015, 0.055, 0.965, 0.915),
+        row_gap=(0.02, 0.02),
+        column_gap=0.02,
+    )
+    grid.place("header", row=0, column=0, colspan=8)
+    grid.place("network", row=1, column=0, rowspan=2, colspan=4)
+    for name, row, column in (
+        ("means", 1, 4),
+        ("phase", 1, 6),
+        ("response", 2, 4),
+        ("weights", 2, 6),
+    ):
+        grid.place(name, row=row, column=column, colspan=2)
+    return grid
 
 
 def render(
@@ -77,6 +107,7 @@ def render(
         for name in ("w_ee", "w_ei", "w_ie", "w_ii")
     }
     shared_afferent_scale = data["input_afferent_shared_scale"]
+    private_afferent_scale = data["input_afferent_scale"]
 
     weather_inputs = combined_inputs = True
     afferent_shared = data["input_afferent_shared"].astype(bool)
@@ -85,22 +116,7 @@ def render(
     drive_e = data["input_structured_spikes_e"].astype(bool)
     drive_i = data["input_structured_spikes_i"].astype(bool)
     weather_scale = data["input_weather_scale"]
-    drive_e_rate = float(np.count_nonzero(drive_e) / drive_e.size * 1000 / dt)
     drive_e_conductance = 1.0
-
-    def retained_events(name: str, size: int) -> np.ndarray:
-        return data[name] > 0
-
-    background = {
-        "e_exc_private": retained_events("input_excitatory_e_private", n_e),
-        "e_inh_private": retained_events("input_inhibitory_e_private", n_e),
-        "i_exc_private": retained_events("input_excitatory_i_private", n_i),
-        "i_inh_private": retained_events("input_inhibitory_i_private", n_i),
-        "e_exc_shared": retained_events("input_excitatory_e_shared", n_e),
-        "e_inh_shared": retained_events("input_inhibitory_e_shared", n_e),
-        "i_exc_shared": retained_events("input_excitatory_i_shared", n_i),
-        "i_inh_shared": retained_events("input_inhibitory_i_shared", n_i),
-    }
 
     external_conductance = {
         name: measurements[name] for name in ("E AMPA", "E GABA", "I AMPA", "I GABA")
@@ -111,18 +127,80 @@ def render(
     v_max = max(float(mean_v_e.max()), float(mean_v_i.max()))
     g_max = max(float(mean_g_e.max()), float(mean_g_i.max()))
 
-    drive_e_xy = grid_layout(
-        n_e, columns=20, x_range=(0.06, 0.24), y_range=(0.45, 0.72)
+    layout = frame_grid()
+    response_layout = layout.subgrid(
+        "response",
+        rows=2,
+        columns=1,
+        row_gap=0.012,
     )
-    shared_xy = grid_layout(n_e, columns=40, x_range=(0.38, 0.72), y_range=(0.76, 0.84))
-    afferent_e_xy = grid_layout(
-        n_e, columns=20, x_range=(0.06, 0.24), y_range=(0.45, 0.72)
-    )
-    afferent_i_xy = grid_layout(
-        n_e, columns=20, x_range=(0.82, 0.98), y_range=(0.45, 0.72)
-    )
-    e_xy = grid_layout(n_e, columns=20, x_range=(0.29, 0.60), y_range=(0.43, 0.74))
-    i_xy = grid_layout(n_i, columns=10, x_range=(0.66, 0.80), y_range=(0.47, 0.69))
+    response_layout.place("population_rates", row=0, column=0)
+    response_layout.place("input_controls", row=1, column=0)
+    network_rect = layout.rect("network")
+    frame_size = (14.4, 7.2)
+    node_inset_inches = 5.0 / 72.0
+    node_inset_x = node_inset_inches / frame_size[0]
+    node_inset_y = node_inset_inches / frame_size[1]
+    panel_edge_inset_inches = 0.25
+    panel_edge_x = panel_edge_inset_inches / (network_rect.width * frame_size[0])
+    panel_edge_y = panel_edge_inset_inches / (network_rect.height * frame_size[1])
+
+    def panel_box(x, y, width, height):
+        return (
+            network_rect.x + x * network_rect.width,
+            network_rect.y + y * network_rect.height,
+            width * network_rect.width,
+            height * network_rect.height,
+        )
+
+    def panel_point(x, y):
+        return (
+            network_rect.x + x * network_rect.width,
+            network_rect.y + y * network_rect.height,
+        )
+
+    input_width = 0.32
+    input_height = 0.12
+    input_gap = (1 - 2 * panel_edge_y - 5 * input_height) / 4
+    input_y = {
+        name: panel_edge_y + index * (input_height + input_gap)
+        for index, name in enumerate(
+            ("i_spikes", "gaba", "ampa", "shared_spikes", "e_spikes")
+        )
+    }
+    input_boxes = {
+        name: panel_box(
+            panel_edge_x,
+            input_y[name],
+            input_width,
+            input_height,
+        )
+        for name in input_y
+    }
+    population_width = 0.34
+    population_left = 1 - panel_edge_x - population_width
+    i_height = (1 - 2 * panel_edge_y - input_gap) / 5
+    e_height = 4 * i_height
+    i_y = panel_edge_y
+    e_y = i_y + i_height + input_gap
+    e_box = panel_box(population_left, e_y, population_width, e_height)
+    i_box = panel_box(population_left, i_y, population_width, i_height)
+
+    def nodes_in(box, count, *, columns):
+        x, y, width, height = box
+        return grid_layout(
+            count,
+            columns=columns,
+            x_range=(x + node_inset_x, x + width - node_inset_x),
+            y_range=(y + node_inset_y, y + height - node_inset_y),
+        )
+
+    drive_e_xy = nodes_in(input_boxes["e_spikes"], n_e, columns=40)
+    afferent_e_xy = nodes_in(input_boxes["e_spikes"], n_e, columns=40)
+    shared_xy = nodes_in(input_boxes["shared_spikes"], n_e, columns=40)
+    afferent_i_xy = nodes_in(input_boxes["i_spikes"], n_e, columns=40)
+    e_xy = nodes_in(e_box, n_e, columns=20)
+    i_xy = nodes_in(i_box, n_i, columns=10)
 
     # Each recurrent conductance factorises into the presynaptic spike trace and
     # the fixed synaptic matrix. This retains exact source→target identity without
@@ -210,32 +288,170 @@ def render(
         if weather_inputs and {"w_in_e", "w_in_i"} <= set(weights)
         else {}
     )
-    fig, ax = plt.subplots(figsize=(14.4, 8.1), dpi=120)
-    fig.subplots_adjust(left=0.0, right=1.0, bottom=0.0, top=1.0)
+    fig = layout.figure(figsize=frame_size, dpi=120)
+    ax = fig.add_axes((0.0, 0.0, 1.0, 1.0))
     fig.patch.set_facecolor(BG)
     ax.set_facecolor(BG)
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1)
     ax.axis("off")
-    # Mask at figure level so artists from any axes cannot leak into the area
-    # reserved for native playback controls.
-    fig.add_artist(
-        plt.Rectangle(
-            (0.0, 0.0),
-            1.0,
-            VIDEO_CONTROL_SAFE_BOTTOM,
-            transform=fig.transFigure,
-            facecolor=BG,
-            edgecolor="none",
-            zorder=10_000,
-            clip_on=False,
+    for name, colour, width in (
+        ("header", theme.AMBER, 1.4),
+        ("network", theme.INK_BLACK, 1.2),
+    ):
+        region = layout.rect(name)
+        ax.add_patch(
+            plt.Rectangle(
+                (region.x, region.y),
+                region.width,
+                region.height,
+                transform=ax.transAxes,
+                facecolor=BG,
+                edgecolor=colour,
+                linewidth=width,
+                zorder=0,
+                clip_on=False,
+            )
         )
+
+    for box, colour in (
+        (input_boxes["e_spikes"], BLACK),
+        (input_boxes["shared_spikes"], GREY),
+        (input_boxes["i_spikes"], BLACK),
+        (e_box, BLACK),
+        (i_box, RED),
+    ):
+        ax.add_patch(
+            plt.Rectangle(
+                box[:2],
+                box[2],
+                box[3],
+                transform=ax.transAxes,
+                facecolor=BG,
+                edgecolor=colour,
+                linewidth=0.9,
+                zorder=0.5,
+            )
+        )
+
+    signal_time = np.arange(n_steps) * dt
+
+    def conductance_axis(box, series):
+        signal_axis = fig.add_axes(box)
+        layout.style_axis(signal_axis)
+        signal_axis.set_xlim(view_start_ms, view_end_ms or n_steps * dt)
+        signal_axis.set_ylim(
+            0,
+            max(float(np.max(values)) for values, *_ in series) * 1.05,
+        )
+        signal_axis.set_xticks([])
+        signal_axis.set_yticks([])
+        lines = []
+        for values, colour, linestyle in series:
+            (line,) = signal_axis.plot(
+                [],
+                [],
+                color=colour,
+                linestyle=linestyle,
+                linewidth=0.8,
+                alpha=0.88,
+            )
+            lines.append((line, values))
+        return signal_axis, lines
+
+    ampa_input_ax, ampa_input_lines = conductance_axis(
+        input_boxes["ampa"],
+        (
+            (external_conductance["E AMPA"], BLACK, "-"),
+            (external_conductance["I AMPA"], GREY, "--"),
+        ),
     )
+    gaba_input_ax, gaba_input_lines = conductance_axis(
+        input_boxes["gaba"],
+        (
+            (external_conductance["E GABA"], RED, "-"),
+            (external_conductance["I GABA"], RED, "--"),
+        ),
+    )
+
+    conductance_arrows = []
+    input_right = panel_edge_x + input_width
+    for start, end, colour, values in (
+        (
+            panel_point(input_right, input_y["ampa"] + 0.68 * input_height),
+            panel_point(population_left, e_y + 0.45 * e_height),
+            BLACK,
+            external_conductance["E AMPA"],
+        ),
+        (
+            panel_point(input_right, input_y["ampa"] + 0.32 * input_height),
+            panel_point(population_left, i_y + 0.30 * i_height),
+            GREY,
+            external_conductance["I AMPA"],
+        ),
+        (
+            panel_point(input_right, input_y["gaba"] + 0.68 * input_height),
+            panel_point(population_left, e_y + 0.70 * e_height),
+            RED,
+            external_conductance["E GABA"],
+        ),
+        (
+            panel_point(input_right, input_y["gaba"] + 0.32 * input_height),
+            panel_point(population_left, i_y + 0.70 * i_height),
+            RED,
+            external_conductance["I GABA"],
+        ),
+    ):
+        arrow = FancyArrowPatch(
+            start,
+            end,
+            transform=ax.transAxes,
+            arrowstyle="-|>",
+            mutation_scale=8,
+            linewidth=0.75,
+            color=colour,
+            alpha=0.12,
+            zorder=2,
+        )
+        ax.add_patch(arrow)
+        conductance_arrows.append(
+            (arrow, values, max(float(np.max(values)), 1e-12))
+        )
+
+    population_arrows = []
+    for start, end, colour, spikes in (
+        (
+            panel_point(population_left + 0.13, e_y),
+            panel_point(population_left + 0.13, i_y + i_height),
+            BLACK,
+            e_spikes,
+        ),
+        (
+            panel_point(population_left + 0.23, i_y + i_height),
+            panel_point(population_left + 0.23, e_y),
+            RED,
+            i_spikes,
+        ),
+    ):
+        arrow = FancyArrowPatch(
+            start,
+            end,
+            transform=ax.transAxes,
+            arrowstyle="-|>",
+            mutation_scale=9,
+            linewidth=1.2,
+            color=colour,
+            alpha=0.18,
+            zorder=7,
+        )
+        ax.add_patch(arrow)
+        population_arrows.append(
+            (arrow, spikes, max(int(np.max(spikes.sum(axis=1))), 1))
+        )
+
     # Additive ridgeline: activity remains in the network view; one shared
     # absolute log axis makes projection-scale differences spatially explicit.
-    ridge_ax = fig.add_axes(
-        [0.845, DIAGNOSTIC_PANEL_BOTTOM, 0.135, DIAGNOSTIC_PANEL_HEIGHT]
-    )
+    ridge_ax = layout.add_axes(fig, "weights")
     ridge_ax.set_facecolor(BG)
     ridge_ax.text(
         0.0,
@@ -356,32 +572,18 @@ def render(
         if STATE == "input"
         else "Balanced E–I network · AI → PING transition"
     )
-    input_description = (
-        "stationary weather · shared/private afferents · local AMPA/GABA"
-        if weather_inputs
-        else "authenticated afferent spikes + private/shared AMPA/GABA"
-        if combined_inputs
-        else f"{drive_e_rate:g} Hz independent drive"
-    )
     if STATE == "input":
         w_ee_nonzero = weights["w_ee"][weights["w_ee"] > 0]
         w_ee_typical = float(np.median(w_ee_nonzero))
         state_subtitle = (
-            f"fixed recurrent weights · median W_EE={w_ee_typical:.2f} µS · "
-            + (
-                "private + background inputs fixed"
-                if CONDITION == "shared-drive-isolation"
-                else "smooth coherent afferent bout over stationary weather"
-            )
+            "fixed recurrent weights · private/background inputs fixed"
+            if CONDITION == "shared-drive-isolation"
+            else f"fixed recurrent weights · median W_EE={w_ee_typical:.2f} µS"
         )
     elif STATE == "ai":
-        state_subtitle = (
-            f"synthetic four-coupling circuit · fixed fan-in K≈10 · {input_description}"
-        )
+        state_subtitle = "synthetic four-coupling circuit · fixed fan-in K≈10"
     else:
-        state_subtitle = (
-            rf"{input_description} · weight-only transition · $W_{{EE}}$ ×10.85"
-        )
+        state_subtitle = r"weight-only transition · $W_{EE}$ ×10.85"
     ax.text(
         0.05,
         0.945,
@@ -394,7 +596,7 @@ def render(
     )
     ax.text(
         0.05,
-        0.898,
+        0.907,
         state_subtitle,
         ha="left",
         va="top",
@@ -413,13 +615,14 @@ def render(
         family="monospace",
     )
     count_text = ax.text(
-        0.95, 0.890, "", ha="right", va="top", color=theme.DIM, fontsize=8.4
+        0.95, 0.907, "", ha="right", va="top", color=theme.DIM, fontsize=8.4
     )
 
     if weather_inputs:
+        network_footer_y = layout.rect("network").y + 0.025
         ax.text(
             0.535,
-            NETWORK_FOOTER_Y,
+            network_footer_y,
             "sampled active paths · + private AMPA · × private GABA · translucent wash = locally shared",
             ha="center",
             color=GREY,
@@ -510,112 +713,88 @@ def render(
         [], [], s=58, facecolors="none", edgecolors=RED, linewidths=1.4, zorder=5
     )
 
-    # Background conductance is shown at its target, not as fictitious source edges.
-    private_e_exc = ax.scatter(
-        [], [], s=18, marker="+", color=GREY, linewidths=0.7, zorder=6
-    )
-    private_e_inh = ax.scatter(
-        [], [], s=18, marker="x", color=RED, linewidths=0.7, zorder=6
-    )
-    private_i_exc = ax.scatter(
-        [], [], s=18, marker="+", color=GREY, linewidths=0.7, zorder=6
-    )
-    private_i_inh = ax.scatter(
-        [], [], s=18, marker="x", color=RED, linewidths=0.7, zorder=6
-    )
-    shared_e_exc = ax.scatter(
-        [], [], s=38, facecolors=GREY, edgecolors="none", alpha=0.18, zorder=1
-    )
-    shared_e_inh = ax.scatter(
-        [], [], s=38, facecolors=RED, edgecolors="none", alpha=0.16, zorder=1
-    )
-    shared_i_exc = ax.scatter(
-        [], [], s=46, facecolors=GREY, edgecolors="none", alpha=0.18, zorder=1
-    )
-    shared_i_inh = ax.scatter(
-        [], [], s=46, facecolors=RED, edgecolors="none", alpha=0.16, zorder=1
-    )
+    rate_window_ms = 20.0
+    rate_window_steps = max(1, round(rate_window_ms / dt))
 
-    input_g_ax = fig.add_axes(
-        [0.347, DIAGNOSTIC_PANEL_BOTTOM, 0.135, DIAGNOSTIC_PANEL_HEIGHT]
-    )
-    for label, values, color, linestyle in (
-        ("E AMPA", external_conductance["E AMPA"], BLACK, "-"),
-        ("E GABA", external_conductance["E GABA"], RED, "-"),
-        ("I AMPA", external_conductance["I AMPA"], GREY, "--"),
-        ("I GABA", external_conductance["I GABA"], RED, "--"),
-    ):
-        input_g_ax.plot(
-            np.arange(n_steps) * dt,
-            values,
-            color=color,
-            linestyle=linestyle,
-            linewidth=0.65,
-            alpha=0.82,
-            label=label,
-        )
-    input_g_ax.set_xlim(view_start_ms, view_end_ms or n_steps * dt)
-    input_g_ax.set_ylim(bottom=0)
-    input_g_top = input_g_ax.get_ylim()[1]
-    weather_display = (
-        weather_scale / max(float(weather_scale.max()), 1e-9) * input_g_top
-    )
-    input_g_ax.plot(
-        np.arange(n_steps) * dt,
-        weather_display,
-        color=GREY,
-        linestyle=(0, (2, 2)),
-        linewidth=0.55,
-        alpha=0.55,
-        label=(
-            "fixed input scale"
-            if CONDITION == "shared-drive-isolation"
-            else "weather (scaled)"
-        ),
-    )
-    if STATE == "input":
-        input_g_ax.plot(
-            np.arange(n_steps) * dt,
-            shared_afferent_scale / shared_afferent_scale.max() * input_g_top,
-            color=BLACK,
-            linestyle=(0, (4, 2)),
-            linewidth=1.0,
-            alpha=0.72,
-            label="shared afferent wave (scaled)",
-        )
-    input_g_ax.tick_params(colors=GREY, labelsize=7.0, length=2, pad=3)
-    input_g_ax.set_xlabel("simulation time (ms)", color=GREY, fontsize=7.5, labelpad=3)
-    input_g_ax.set_ylabel(
-        "mean conductance (a.u.)", color=GREY, fontsize=7.5, labelpad=3
-    )
-    for side in ("top", "right"):
-        input_g_ax.spines[side].set_visible(False)
-    input_g_ax.set_facecolor(BG)
-    input_g_ax.set_title(
-        "D · external conductance",
+    def population_rate(spikes):
+        counts = spikes.sum(axis=1).astype(float)
+        return np.convolve(
+            counts,
+            np.ones(rate_window_steps),
+            mode="same",
+        ) * (1000.0 / (rate_window_steps * dt * spikes.shape[1]))
+
+    rate_e = population_rate(e_spikes)
+    rate_i = population_rate(i_spikes)
+    rate_ax = response_layout.add_axes(fig, "population_rates")
+    rate_ax.plot(signal_time, rate_e, color=BLACK, linewidth=1.0, alpha=0.88)
+    rate_ax.plot(signal_time, rate_i, color=RED, linewidth=1.0, alpha=0.88)
+    rate_ax.set_xlim(view_start_ms, view_end_ms or n_steps * dt)
+    rate_ax.set_ylim(bottom=0)
+    rate_ax.tick_params(colors=GREY, labelsize=7.0, length=2, pad=3)
+    rate_ax.set_xlabel("simulation time (ms)", color=GREY, fontsize=7.5, labelpad=3)
+    rate_ax.set_ylabel("population rate (Hz)", color=GREY, fontsize=7.5, labelpad=3)
+    rate_ax.set_facecolor(BG)
+    rate_ax.set_title(
+        "D · E/I firing rate",
         color=GREY,
         fontsize=8.0,
         weight="medium",
         pad=4,
         loc="left",
     )
-    input_g_ax.legend(
-        loc="upper center",
-        bbox_to_anchor=(0.5, 1.0),
-        ncol=2,
-        frameon=False,
-        fontsize=6.0,
-        handlelength=1.6,
-        columnspacing=1.2,
-    )
-    input_g_cursor = input_g_ax.axvline(0, color=RED, linewidth=0.7, alpha=0.75)
+    rate_cursor = rate_ax.axvline(0, color=GREY, linewidth=0.7, alpha=0.75)
 
-    means_ax = fig.add_axes(
-        [0.015, DIAGNOSTIC_PANEL_BOTTOM, 0.135, DIAGNOSTIC_PANEL_HEIGHT]
+    control_ax = response_layout.add_axes(fig, "input_controls")
+    control_ax.plot(
+        signal_time,
+        shared_afferent_scale,
+        color=GREY,
+        linewidth=1.0,
+        alpha=0.88,
     )
+    control_ax.plot(
+        signal_time,
+        private_afferent_scale,
+        color=BLACK,
+        linewidth=1.5,
+        alpha=0.88,
+    )
+    control_ax.plot(
+        signal_time,
+        private_afferent_scale,
+        color=RED,
+        linestyle=(0, (3, 2)),
+        linewidth=1.0,
+        alpha=0.92,
+    )
+    control_ax.set_xlim(view_start_ms, view_end_ms or n_steps * dt)
+    control_ax.set_ylim(bottom=0)
+    control_ax.set_facecolor(BG)
+    control_cursor = control_ax.axvline(
+        0,
+        color=GREY,
+        linewidth=0.7,
+        alpha=0.75,
+    )
+
+    means_ax = layout.add_axes(fig, "means")
     means_ax.set_xlim(0, 1)
     means_ax.set_ylim(0, 1)
     means_ax.axis("off")
+    means_ax.add_patch(
+        plt.Rectangle(
+            (0, 0),
+            1,
+            1,
+            transform=means_ax.transAxes,
+            facecolor=BG,
+            edgecolor=BLACK,
+            linewidth=1.4,
+            zorder=-1,
+            clip_on=False,
+        )
+    )
     means_ax.set_title(
         "B · population means",
         color=theme.DIM,
@@ -626,7 +805,7 @@ def render(
     )
 
     def piston(x, label, color, scale_min, scale_max, digits):
-        y, w, h = 0.18, 0.10, 0.52
+        y, w, h = 0.10, 0.14, 0.74
         means_ax.add_patch(
             plt.Rectangle(
                 (x - w / 2, y),
@@ -712,12 +891,8 @@ def render(
         head.set_y(y1)
         value.set_text(text)
 
-    phase = fig.add_axes(
-        [0.181, DIAGNOSTIC_PANEL_BOTTOM, 0.135, DIAGNOSTIC_PANEL_HEIGHT]
-    )
+    phase = layout.add_axes(fig, "phase")
     phase.set_facecolor(BG)
-    phase.spines["top"].set_visible(False)
-    phase.spines["right"].set_visible(False)
     pad_e, pad_i = np.ptp(mean_g_e) * 0.08, np.ptp(mean_g_i) * 0.08
     phase.set_xlim(mean_g_e.min() - pad_e, mean_g_e.max() + pad_e)
     phase.set_ylim(mean_g_i.min() - pad_i, mean_g_i.max() + pad_i)
@@ -747,134 +922,8 @@ def render(
     phase_segments = []
     phase_direction = []
 
-    # Complete raster retains every afferent and network spike even though the
-    # network view samples visually excessive active edges.
-    raster = fig.add_axes(
-        [0.679, DIAGNOSTIC_PANEL_BOTTOM, 0.135, DIAGNOSTIC_PANEL_HEIGHT]
-    )
-    raster.set_facecolor(BG)
-    for side in ("top", "right", "left"):
-        raster.spines[side].set_visible(False)
-    raster.set_xlim(view_start_ms, view_end_ms or n_steps * dt)
-    if weather_inputs:
-        raster_series = (
-            (afferent_shared, 0, GREY, 0.45, "shared"),
-            (afferent_e_private, n_e, BLACK, 0.45, "E aff."),
-            (afferent_i_private, 2 * n_e, RED, 0.45, "I aff."),
-            (e_spikes, 3 * n_e, BLACK, 0.65, "E"),
-            (i_spikes, 4 * n_e, RED, 0.75, "I"),
-        )
-    else:
-        raster_series = (
-            (drive_e, 0, GREY, 0.6, "Afferent" if combined_inputs else "Drive"),
-            (e_spikes, n_e, BLACK, 0.7, "E"),
-            (i_spikes, 2 * n_e, RED, 0.8, "I"),
-        )
-    raster_height = sum(spikes.shape[1] for spikes, *_ in raster_series)
-    raster.set_ylim(raster_height + 5, -5)
-    ticks = []
-    labels = []
-    for spikes, offset, color, size, label in raster_series:
-        height = spikes.shape[1]
-        raster.axhspan(offset, offset + height, color=color, alpha=0.035, zorder=0)
-        if offset:
-            raster.axhline(offset, color=theme.RULE_WARM, linewidth=0.45)
-        ticks.append(offset + height / 2)
-        labels.append(label)
-    raster.set_yticks(ticks, labels)
-    raster.tick_params(axis="x", colors=GREY, labelsize=7.5, length=2, pad=3)
-    raster.tick_params(axis="y", colors=theme.MUTED, labelsize=8.0, length=0, pad=5)
-    raster.set_xlabel("simulation time (ms)", color=GREY, fontsize=7.5, labelpad=3)
-    raster.set_title(
-        "F · spike raster",
-        color=theme.DIM,
-        fontsize=8.0,
-        weight="medium",
-        pad=4,
-        loc="left",
-    )
-    for spikes, offset, color, size, _label in raster_series:
-        t, c = np.nonzero(spikes)
-        raster.scatter(
-            t * dt, c + offset, s=size, color=color, marker="s", linewidths=0
-        )
-    raster_cursor = raster.axvline(0, color=RED, lw=0.9, alpha=0.72)
-
     rhythm_centres = measurements["rhythm_centres"]
     rhythm_contrast = measurements["rhythm_contrast"]
-    rhythm_ax = fig.add_axes(
-        [0.513, DIAGNOSTIC_PANEL_BOTTOM, 0.135, DIAGNOSTIC_PANEL_HEIGHT]
-    )
-    rhythm_ax.set_facecolor(BG)
-    rhythm_ax.axvspan(input_onset_ms, input_offset_ms, color=GREY, alpha=0.08, zorder=0)
-    rhythm_ax.plot(
-        rhythm_centres,
-        rhythm_contrast,
-        color=BLACK,
-        linewidth=1.15,
-        label="R · rhythmicity",
-        zorder=2,
-    )
-    loop_times = measurements["loop_times"]
-    loop_display = measurements["loop_display"]
-    rhythm_ax.plot(
-        loop_times,
-        loop_display,
-        color=RED,
-        linewidth=1.0,
-        alpha=0.88,
-        label="L · loop (normalized, 75 ms smooth)",
-        zorder=3,
-    )
-    rhythm_ax.set_xlim(view_start_ms, view_end_ms or n_steps * dt)
-    rhythm_ax.set_ylim(0, 1)
-    for side in ("top", "right"):
-        rhythm_ax.spines[side].set_visible(False)
-    rhythm_ax.tick_params(colors=GREY, labelsize=7.0, length=2, pad=3)
-    rhythm_ax.set_xlabel("simulation time (ms)", color=GREY, fontsize=7.5, labelpad=3)
-    rhythm_ax.set_ylabel("normalized score", color=GREY, fontsize=7.5, labelpad=3)
-    rhythm_ax.set_title(
-        "E · PING metrics",
-        color=theme.DIM,
-        fontsize=8.0,
-        weight="medium",
-        pad=4,
-        loc="left",
-    )
-    rhythm_ax.legend(
-        loc="upper left",
-        bbox_to_anchor=(0.0, 0.96),
-        ncol=1,
-        frameon=False,
-        fontsize=5.6,
-        handlelength=1.5,
-        borderaxespad=0.2,
-    )
-    rhythm_top = rhythm_ax.get_ylim()[1]
-    rhythm_labels = [
-        ((view_start_ms + input_onset_ms) / 2, "baseline"),
-        (input_peak_ms, "afferent rise"),
-    ]
-    if sustained_input:
-        rhythm_labels.append(
-            (((view_end_ms or n_steps * dt) + input_peak_ms) / 2, "PING plateau")
-        )
-    else:
-        rhythm_labels.append(
-            (((view_end_ms or n_steps * dt) + input_offset_ms) / 2, "recovery")
-        )
-    for x, label in rhythm_labels:
-        rhythm_ax.text(
-            x,
-            rhythm_top * 0.82,
-            label,
-            ha="center",
-            va="top",
-            color=theme.MUTED,
-            fontsize=6.4,
-            weight="medium",
-        )
-    rhythm_cursor = rhythm_ax.axvline(0, color=RED, linewidth=0.8, alpha=0.72)
 
     trail_steps = int(round(40 / dt))
     if PACING == "story" and STATE == "input":
@@ -997,7 +1046,7 @@ def render(
             transmission_artists.pop().remove()
 
         # Authenticated structured spikes use the authored afferent projection.
-        # Background conductance remains edge-free because it is not a projection.
+        # Conductance inputs use the separate aggregate arrows and running traces.
         drive_values = trace_drive_e[step] * drive_e_conductance
         drive_active = np.flatnonzero(drive_values > 1e-8)
         if drive_active.size and not combined_inputs:
@@ -1164,9 +1213,24 @@ def render(
             artists["label"].xy = (artists["median"] * scale, base + 0.30)
             artists["label"].set_text(f"{artists['median'] * scale:.2g} µS")
 
+    def update_panel_a_inputs(step):
+        start = max(0, int(round(view_start_ms / dt)))
+        stop = max(start, step + 1)
+        for line, values in (*ampa_input_lines, *gaba_input_lines):
+            line.set_data(signal_time[start:stop], values[start:stop])
+        for arrow, values, peak in conductance_arrows:
+            strength = np.clip(float(values[step]) / peak, 0, 1)
+            arrow.set_alpha(0.08 + 0.70 * np.sqrt(strength))
+            arrow.set_linewidth(0.55 + 1.65 * strength)
+        for arrow, spikes, peak_count in population_arrows:
+            strength = np.clip(float(spikes[step].sum()) / peak_count, 0, 1)
+            arrow.set_alpha(0.12 + 0.78 * np.sqrt(strength))
+            arrow.set_linewidth(0.8 + 1.8 * strength)
+
     def update(frame):
         step = frame_steps[frame]
         draw_transmissions(step)
+        update_panel_a_inputs(step)
         update_weight_ridges(step)
         if weather_inputs:
             active_drive.set_offsets(np.empty((0, 2)))
@@ -1182,16 +1246,8 @@ def render(
         active_i.set_offsets(i_xy[i_spikes[step]])
         e_nodes.set_sizes(voltage_sizes(v_e[step]))
         i_nodes.set_sizes(voltage_sizes(v_i[step]))
-        private_e_exc.set_offsets(e_xy[background["e_exc_private"][step]])
-        private_e_inh.set_offsets(e_xy[background["e_inh_private"][step]])
-        private_i_exc.set_offsets(i_xy[background["i_exc_private"][step]])
-        private_i_inh.set_offsets(i_xy[background["i_inh_private"][step]])
-        shared_e_exc.set_offsets(e_xy[background["e_exc_shared"][step]])
-        shared_e_inh.set_offsets(e_xy[background["e_inh_shared"][step]])
-        shared_i_exc.set_offsets(i_xy[background["i_exc_shared"][step]])
-        shared_i_inh.set_offsets(i_xy[background["i_inh_shared"][step]])
-        input_g_cursor.set_xdata([step * dt, step * dt])
-        rhythm_cursor.set_xdata([step * dt, step * dt])
+        rate_cursor.set_xdata([step * dt, step * dt])
+        control_cursor.set_xdata([step * dt, step * dt])
 
         set_piston(
             p_ve, (mean_v_e[step] - v_min) / (v_max - v_min), f"{mean_v_e[step]:.1f}"
@@ -1227,7 +1283,6 @@ def render(
                 )
                 phase_direction.append(arrow)
         phase_point.set_data([mean_g_e[step]], [mean_g_i[step]])
-        raster_cursor.set_xdata([step * dt, step * dt])
 
         n_de = int(drive_e[step].sum())
         n_di = int(drive_i[step].sum())
@@ -1307,21 +1362,130 @@ def render(
             active_i,
             e_nodes,
             i_nodes,
-            raster_cursor,
-            input_g_cursor,
-            rhythm_cursor,
-            private_e_exc,
-            private_e_inh,
-            private_i_exc,
-            private_i_inh,
-            shared_e_exc,
-            shared_e_inh,
-            shared_i_exc,
-            shared_i_inh,
+            rate_cursor,
+            control_cursor,
+            *(line for line, _ in ampa_input_lines),
+            *(line for line, _ in gaba_input_lines),
+            *(arrow for arrow, *_ in conductance_arrows),
+            *(arrow for arrow, *_ in population_arrows),
             phase_point,
             time_text,
             count_text,
             *transmission_artists,
+        )
+
+    # Suppress plotting-library text, then restore only the authored panel and
+    # network-component labels below.
+    for plot_axis in fig.axes:
+        plot_axis.tick_params(
+            axis="both",
+            labelbottom=False,
+            labelleft=False,
+            labelright=False,
+            labeltop=False,
+        )
+    for text_artist in fig.findobj(match=Text):
+        text_artist.set_visible(False)
+    panel_title_inset_x = 7.0 / 72.0 / frame_size[0]
+    panel_title_inset_y = 7.0 / 72.0 / frame_size[1]
+    for title_layout, titles in (
+        (layout, PANEL_TITLES),
+        (response_layout, RESPONSE_PANEL_TITLES),
+    ):
+        for region_name, panel_title in titles.items():
+            region = title_layout.rect(region_name)
+            fig.text(
+                region.x + panel_title_inset_x,
+                region.y + region.height - panel_title_inset_y,
+                panel_title,
+                color=BLACK,
+                fontsize=8.5,
+                weight="bold",
+                family="monospace",
+                ha="left",
+                va="top",
+                bbox={"facecolor": BG, "edgecolor": "none", "pad": 1.5},
+                zorder=20_000,
+            )
+    for x, label, colour in (
+        (0.56, "SHARED", GREY),
+        (0.72, "E PRIVATE", BLACK),
+        (0.90, "I PRIVATE", RED),
+    ):
+        control_ax.text(
+            x,
+            0.88,
+            label,
+            transform=control_ax.transAxes,
+            color=colour,
+            fontsize=6.4,
+            weight="bold",
+            family="monospace",
+            ha="center",
+            va="top",
+            bbox={"facecolor": BG, "edgecolor": "none", "pad": 0.8},
+            zorder=20_000,
+        )
+    time_end_ms = view_end_ms or n_steps * dt
+    time_ticks = (view_start_ms, (view_start_ms + time_end_ms) / 2, time_end_ms)
+    control_ax.set_xticks(time_ticks)
+    control_ax.set_xticklabels([f"{value:.0f}" for value in time_ticks])
+    control_ax.tick_params(
+        axis="x",
+        colors=GREY,
+        labelsize=6.6,
+        length=2,
+        pad=2,
+        labelbottom=True,
+    )
+    for tick_label in control_ax.get_xticklabels():
+        tick_label.set_visible(True)
+        tick_label.set_family("monospace")
+    control_ax.set_xlabel("TIME (ms)", color=GREY, fontsize=6.8, labelpad=2)
+    control_ax.xaxis.label.set_visible(True)
+
+    for x, variable, colour in (
+        (0.14, r"$g_E$", BLACK),
+        (0.38, r"$g_I$", RED),
+        (0.64, r"$V_E$", BLACK),
+        (0.88, r"$V_I$", RED),
+    ):
+        means_ax.text(
+            x,
+            0.89,
+            variable,
+            color=colour,
+            fontsize=9.0,
+            weight="bold",
+            ha="center",
+            va="center",
+            bbox={"facecolor": BG, "edgecolor": "none", "pad": 1.2},
+            zorder=20_000,
+        )
+
+    component_inset_x = 5.0 / 72.0 / frame_size[0]
+    component_inset_y = 5.0 / 72.0 / frame_size[1]
+    for component_label, box, colour in (
+        ("E-TARGETING SPIKES", input_boxes["e_spikes"], BLACK),
+        ("SHARED SPIKES", input_boxes["shared_spikes"], GREY),
+        ("AMPA CONDUCTANCE", input_boxes["ampa"], BLACK),
+        ("GABA CONDUCTANCE", input_boxes["gaba"], RED),
+        ("I-TARGETING SPIKES", input_boxes["i_spikes"], RED),
+        ("E POPULATION", e_box, BLACK),
+        ("I POPULATION", i_box, RED),
+    ):
+        fig.text(
+            box[0] + component_inset_x,
+            box[1] + box[3] - component_inset_y,
+            component_label,
+            color=colour,
+            fontsize=6.8,
+            weight="bold",
+            family="monospace",
+            ha="left",
+            va="top",
+            bbox={"facecolor": BG, "edgecolor": "none", "pad": 1.0},
+            zorder=20_000,
         )
 
     # Export the sampled frame with the greatest simultaneous recurrent activity.

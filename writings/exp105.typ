@@ -1,7 +1,6 @@
-#import "contents.typ": with-contents, with-numbered-equations
-#import "dataset-template.typ": with-datasets
+#import "templates/article-layout.typ": journal-article
 #let meta = (
-  tags: ("txt", "v35.0.0"),
+  tags: ("txt", "v35.4.0"),
   title: "Networks, signals, and parameters",
   created_at: "2026-08-14T00:00:00Z",
   description: "The core snnlang authoring objects, their names, shapes, units, neuron populations, and parameter declarations.",
@@ -97,15 +96,13 @@
   net.constant(name, value, *, unit="1") -> str
   ```
 
-  Parameter constructors are `LowerClampedNormal(mean, std, initial_zero_fraction=0, zeroing="bernoulli")`, its compatibility spelling `Normal(mean, std)`, `SignedNormal(mean, std)`, `Uniform(low, high)`, `Constant(value)`, and `Zeros()`. Exact fan-in zeroing uses `zeroing="exact_k"`. `NonNegative()` is the implemented constraint. Neuron constructors are `COBA_LIF(**values)`, `LIF(**values)`, and `LeakyIntegrator(**values)`. Unit helpers are `ms`, `mV`, `nS`, and `Hz`.
+  Parameter constructors are `LowerClampedNormal(mean, std, initial_zero_fraction=0, zeroing="bernoulli")`, its compatibility spelling `Normal(mean, std)`, `SignedNormal(mean, std)`, `Uniform(low, high)`, `Constant(value)`, and `Zeros()`. Exact fan-in zeroing uses `zeroing="exact_k"`. `NonNegative()` is the implemented constraint. Neuron constructors are `COBA_LIF(**values)`, `LIF(**values)`, and `LeakyIntegrator(**values)`. Unit helpers are `ms`, `mV`, `nS`, `uS`, and `Hz`.
 
   === Core return types
 
   `Signal` exposes `id`, `shape`, `unit`, `signal_type`, `owner`, and `port`. `Population` exposes `id`, `size`, `neuron`, `spiking`, `group`, and its signal or target-port properties. `ParameterRef` contains the stable parameter `id`.
 
-  #link("/exp106/")[Next: Components, projections, and delays]
+  #link("/exp106/")[exp106] — #link("/exp106/")[_Components, projections, and delays_]
 ]
 
-#let body = with-datasets("exp105", (), body)
-#let body = with-numbered-equations(body)
-#let body = with-contents(body)
+#let body = journal-article("exp105", (), body)

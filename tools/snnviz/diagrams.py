@@ -66,6 +66,7 @@ class DiagramGroup:
     label: str
     members: tuple[str, ...]
     same_rank: bool = False
+    same_row: bool = False
 
 
 @dataclass(frozen=True)
@@ -90,6 +91,8 @@ class Diagram:
                     f"diagram edge references unknown node: {edge.source} -> {edge.target}"
                 )
         for group in self.groups:
+            if group.same_rank and group.same_row:
+                raise ValueError("diagram groups cannot request both same_rank and same_row")
             unknown = set(group.members) - known
             if unknown:
                 raise ValueError(
@@ -130,10 +133,10 @@ def _card(node: DiagramNode, theme: DiagramTheme) -> str:
     accent = _colour(theme, node.accent_role)
     return (
         '<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0">'
-        f'<TR><TD ALIGN="LEFT"><FONT COLOR="{accent}" POINT-SIZE="15"><B>{html.escape(node.title.upper())}</B></FONT></TD></TR>'
-        '<TR><TD HEIGHT="6"></TD></TR>'
+        f'<TR><TD ALIGN="LEFT"><FONT COLOR="{accent}" POINT-SIZE="13"><B>{html.escape(node.title.upper())}</B></FONT></TD></TR>'
+        '<TR><TD HEIGHT="4"></TD></TR>'
         f'<TR><TD ALIGN="LEFT"><FONT COLOR="{theme.muted}" POINT-SIZE="10">{html.escape(node.detail.upper())}</FONT></TD></TR>'
-        '<TR><TD HEIGHT="8"></TD></TR>'
+        '<TR><TD HEIGHT="5"></TD></TR>'
         f'<TR><TD ALIGN="LEFT"><FONT COLOR="{accent}" POINT-SIZE="9"><B>{html.escape(node.badge.upper())}</B></FONT></TD></TR>'
         "</TABLE>>"
     )
@@ -145,9 +148,9 @@ def diagram_to_dot(diagram: Diagram, *, theme: DiagramTheme = DiagramTheme()) ->
     title = (diagram.title or diagram.name.replace("_", " ")).upper()
     lines = [
         f"digraph {_q(diagram.name)} {{",
-        f'graph [rankdir=LR, bgcolor="{theme.background}", pad="0.35", nodesep="0.62", ranksep="1.05",',
+        f'graph [rankdir=LR, bgcolor="{theme.background}", pad="0.22", nodesep="0.40", ranksep="0.65",',
         f'  splines=spline, outputorder=edgesfirst, fontname="Courier New Bold", fontcolor="{theme.ink}",',
-        f"  label={_q(title)}, labelloc=t, labeljust=l, fontsize=24, compound=true, newrank=true];",
+        f"  label={_q(title)}, labelloc=t, labeljust=l, fontsize=18, compound=true, newrank=true];",
         f'node [shape=plain, fontname="Courier New", fontcolor="{theme.ink}"];',
         f'edge [fontname="Courier New Bold", fontsize=10, fontcolor="{theme.ink}", color="{theme.ink}", penwidth=2.0, arrowsize=0.8];',
     ]
@@ -172,15 +175,24 @@ def diagram_to_dot(diagram: Diagram, *, theme: DiagramTheme = DiagramTheme()) ->
             f'label={_card(node, theme)}, shape=box, style="filled", '
             f'fillcolor="{theme.background}", color="{border}", penwidth={node.pen_width:g}, margin="{margin}"];'
         )
+    row_membership = {}
     for group in diagram.groups:
         lines.append(
             f"subgraph {_q('cluster_' + _svg_id(group.id))} {{ label={_q(group.label.upper())}; "
             f'color="{theme.line}"; fontcolor="{theme.ink}"; fontname="Courier New Bold"; '
-            'fontsize=15; penwidth=1.2; style="solid"; margin=22; labeljust="l";'
+            'fontsize=13; penwidth=1.2; style="solid"; margin=16; labeljust="l";'
         )
         if group.same_rank:
             lines.append("rank=same;")
         lines.extend(f"{_q(member)};" for member in group.members)
+        if group.same_row:
+            # Invisible ordering edges arrange the row without adding scientific links.
+            row_membership.update((member, group.id) for member in group.members)
+            for source, target in zip(group.members, group.members[1:]):
+                lines.append(
+                    f"{_q(source)} -> {_q(target)} "
+                    '[style=invis, weight=100, constraint=true];'
+                )
         lines.append("}")
     for edge in diagram.edges:
         colour = theme.ink
@@ -210,13 +222,17 @@ def diagram_to_dot(diagram: Diagram, *, theme: DiagramTheme = DiagramTheme()) ->
         classes = " ".join(("edge", *edge.classes))
         if edge.classes:
             attributes.append(f"class={_q(classes)}")
+        internal_row = (
+            edge.source in row_membership
+            and row_membership.get(edge.target) == row_membership[edge.source]
+        )
         attributes.extend(
             [
                 f'color="{colour}"',
                 f"arrowhead={arrow}",
                 f"style={style}",
                 f"label={_q(edge.label.upper())}",
-                f"constraint={'true' if edge.constraint else 'false'}",
+                f"constraint={'true' if edge.constraint and not internal_row else 'false'}",
                 f"penwidth={edge.pen_width:g}",
             ]
         )

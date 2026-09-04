@@ -1,7 +1,6 @@
-#import "contents.typ": with-contents, with-numbered-equations
-#import "dataset-template.typ": with-datasets
+#import "templates/article-layout.typ": journal-article
 #let meta = (
-  tags: ("txt", "v35.0.0"),
+  tags: ("txt", "v35.4.0"),
   title: "Training recipes and graph-native learning",
   created_at: "2026-08-14T00:00:00Z",
   description: "Declare standard objectives, parameter groups, optimization, regularization, and the boundary of current training support.",
@@ -66,7 +65,7 @@
 
   The collection's supported surrogate is `training.FastSigmoid(slope=1.0)`. Its slope must be positive and finite. Voltage-gradient dampening is declared per spiking population as `voltage_grad_dampen`; it is also resolved into `training.json` so training provenance contains the complete backward contract. Dampening factors must be positive and finite. The narrow legacy adapter accepts fast-sigmoid slopes and a single shared dampening factor, and rejects richer unsupported combinations explicitly.
 
-  Presentation duration is a positive millisecond quantity independent of graph timestep, but it must resolve to an integer number of steps. `SpikeBudgetPenalty` implements the exp022 one-sided quadratic firing-rate ceiling. It converts each population's spike count to a per-presentation population-mean rate in Hz, applies the squared hinge above the ceiling, then averages presentations and layers. This makes the term invariant to batch size, population width, hidden-layer count, and equivalent changes in presentation duration.
+  Presentation duration is a positive millisecond quantity independent of graph timestep, but it must resolve to an integer number of steps. `SpikeBudgetPenalty` implements the one-sided quadratic firing-rate ceiling from #link("/exp022/")[exp022] — #link("/exp022/")[_Training Runs_]. It converts each population's spike count to a per-presentation population-mean rate in Hz, applies the squared hinge above the ceiling, then averages presentations and layers. This makes the term invariant to batch size, population width, hidden-layer count, and equivalent changes in presentation duration.
 
   Compilation proves a gradient route for every objective and regularizer by walking backward through operations and enabled projections. It intersects the reachable named parameters with the resolved trainable set and respects `StopGradient` boundaries. Frozen-only paths, disabled trainable projections, and barriers with no downstream trainable parameter fail with the exact reachable and trainable sets. Recurrent parameters are treated structurally, so frozen, trainable initialized, trainable zero-initialized, and trainable small-initialized loop variants use the same vocabulary without name-based exceptions.
 
@@ -95,9 +94,7 @@
 
   `snn.compile(net, training=recipe)` validates and serializes the recipe. `tools.snnsim.execution.train(ExecutionSpec(executor="graph", training=..., inputs=..., targets=...))` performs one update by default; `options={"updates": n}` repeats the same resolved batch for focused trajectory checks. Setting `options={"epochs": n, "batch_size": b, "shuffle": true}` iterates the sample axis with a deterministic permutation per epoch. `TargetArrayBinding` and `load_target_array_bindings` provide named NPY/NPZ targets with source digests. A training bundle authenticates and supplies its own recipe. The result exposes named gradients, optimizer state, selected/final checkpoints, and exact next-batch state without tensor-position mapping.
 
-  #link("/exp089/")[Next: Runtime state, checkpoints, and provenance]
+  #link("/exp089/")[exp089] — #link("/exp089/")[_Runtime state, checkpoints, and provenance_]
 ]
 
-#let body = with-datasets("exp088", (), body)
-#let body = with-numbered-equations(body)
-#let body = with-contents(body)
+#let body = journal-article("exp088", (), body)

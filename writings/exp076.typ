@@ -1,10 +1,14 @@
-#import "contents.typ": contents-here, with-contents, result-card, with-numbered-equations, with-result-sections
-#import "/.demolab/lib.typ": data-json, data-image, cite, reference-list
-#import "dataset-template.typ": data-file, inputs-ready, pending-report, with-datasets, run-view, input-assets
+#import "templates/article-layout.typ": journal-article
+#import "templates/result-card.typ": result-figure-ref, result-card, with-result-sections
+#import "templates/references.typ": journal-references
+#import "/.demolab/lib.typ": data-json, data-image, cite
+#import "templates/dataset.typ": data-file, inputs-ready, pending-report, run-view, input-assets
+#import "templates/abstract.typ": journal-abstract
+#import "templates/methods.typ": journal-methods
 #let data-file = data-file.with(article: "exp076")
 
 #let meta = (
-  tags: ("data", "v35.0.0"),
+  tags: ("data", "v35.4.0"),
   title: "A bundle checkpoint replays",
   updated_at: "2026-08-31T00:00:00Z",
   created_at: "2026-08-02T00:00:00Z",
@@ -28,57 +32,54 @@
 #let sec(x) = str(calc.round(x, digits: 2)) + " s"
 
 #let body = [
-  == Abstract
-
-
-  Asked whether a trained graph bundle can be checkpointed and replayed through
-  compiled and explicit descriptions of the same network. Compared loaded
+  #journal-abstract(body: [
+  We asked whether a trained graph bundle can be checkpointed and replayed through
+  compiled and explicit descriptions of the same network. We compared loaded
   parameters, forward outputs, loss, gradients and an optimizer update under a
   deterministic equivalence gate.
 
   The replay routes agreed exactly; differing classification scores came from
   different datasets and encoding aggregation rather than checkpoint corruption.
-  Supports checkpoint compatibility for this network family, not equivalence
+  This supports checkpoint compatibility for this network family, not equivalence
   between arbitrary graph implementations.
-
-  #contents-here()
+  ])
 
   == Results
 
   #with-result-sections[
 
   #result-card[
-  === Compilation, training, checkpoint and equivalence protocol
+  === Compiled replay protocol
 
   #figure(data-image(data-file("exp076/lifecycle.svg"), width: 100%),
     caption: [Protocol schematic for compilation, training, checkpoint reload
       and a separate one-step equivalence test; the arrows describe operations,
-      not measurements.])
+      not measurements.]) <fig:exp076-result-1>
 
   ]
 
   #result-card[
-  === Training and validation trajectories across epochs
+  === Training-validation trajectories
 
   The validation-selected checkpoint came from epoch
-  #r.trajectory.selected_epoch.
+  #r.trajectory.selected_epoch (#result-figure-ref(<fig:exp076-result-2>)).
 
   #figure(data-image(data-file("exp076/training_curves.png"), width: 100%),
     caption: [*(A)* Training and validation cross-entropy and *(B)* validation
       accuracy across #r.config.epochs epochs. Validation averages
       #r.config.validation_encoder_draws.count
-      encoder draws on #r.config.held_out_count images.])
+      encoder draws on #r.config.held_out_count images.]) <fig:exp076-result-2>
 
   ]
 
   #result-card[
-  === Validation and official-test checkpoint evaluations
+  === Checkpoint evaluations
 
   The selected bundle checkpoint loaded through the explicit route achieved
   #pct(r.compatibility.legacy_route_accuracy_on_bundle_checkpoint_pct). A
   separately trained explicit-network checkpoint loaded through the bundle
   route achieved
-  #pct(r.compatibility.bundle_route_accuracy_on_legacy_checkpoint_pct).
+  #pct(r.compatibility.bundle_route_accuracy_on_legacy_checkpoint_pct) (#result-figure-ref(<fig:exp076-result-3>)).
 
   #figure(table(columns: (1.6fr, 1fr, 1fr),
     [Checkpoint], [Validation], [Official-test replay],
@@ -87,12 +88,12 @@
   ), kind: table,
     caption: [Validation used #r.config.held_out_count images and multiple
       encoder draws; replay used #r.replay.evaluation_samples official-test
-      images and one fixed encoding.])
+      images and one fixed encoding.]) <fig:exp076-result-3>
 
   ]
 
   #result-card[
-  === Exact one-step comparisons across compiled and explicit routes
+  === One-step route equivalence
 
   #figure(table(columns: (1.6fr, 1fr),
     [Comparison], [Result],
@@ -105,18 +106,17 @@
     caption: [Separately executed deterministic test with identical encoded
       spikes, labels and seeded initialisation. Relative and absolute
       tolerances were both zero. This gate does not compare accuracies obtained
-      on different datasets.])
+      on different datasets.]) <fig:exp076-result-4>
 
   ]
   ]
 
-  == Methods
-
+  #journal-methods(
+    orientation: [
   We tested checkpoint interchange and numerical equivalence as separate
   properties of the same supported classifier family.
-
-  === Compute
-
+    ],
+    compute: [
   + *Train and select states.* We split #r.config.max_samples MNIST training
     images into #r.config.train_count optimisation and
     #r.config.held_out_count validation examples. The network used a
@@ -127,8 +127,8 @@
     weights remained fixed. Selection minimised cross-entropy averaged over
     #r.config.validation_encoder_draws.count validation encodings, with accuracy
     and earliest epoch as tie-breakers.
-  === Analyse
-
+    ],
+    analyse: [
   #set enum(start: 2)
 
   + *Reload and evaluate.* We evaluated selected and final states on
@@ -138,8 +138,8 @@
     with a separate seed and loaded that state through the compiled route.
     Checkpoint inspection compared parameter names and shapes; accuracy
     comparisons retained their dataset and encoding context.
-  === Present
-
+    ],
+    present: [
   #set enum(start: 3)
 
   + *Test one-step equality.* In a separate deterministic fixture we seeded
@@ -147,10 +147,11 @@
     labels. We compared initial parameters, forward outputs, cross-entropy,
     gradients and one AdamW update with zero numerical tolerance. This bounded
     test isolates implementation equivalence from stochastic evaluation.
-
+    ],
+  )
   #run-view("exp076", inputs)
 
-  #reference-list(((text: [Ilya Loshchilov and Frank Hutter: _Decoupled Weight Decay Regularization_. ICLR, 2019.], doi: "10.48550/arXiv.1711.05101"),))
+  #journal-references(((text: [Ilya Loshchilov and Frank Hutter: _Decoupled Weight Decay Regularization_. ICLR, 2019.], doi: "10.48550/arXiv.1711.05101"),))
 ]
 #body
 ]
@@ -166,6 +167,4 @@
 }
 
 #let meta = meta + (assets: input-assets("exp076", inputs))
-#let body = with-datasets("exp076", inputs, report-body, placed: inputs-ready(data-file, inputs))
-#let body = with-numbered-equations(body)
-#let body = with-contents(body)
+#let body = journal-article("exp076", inputs, report-body, dataset-placed: inputs-ready(data-file, inputs))

@@ -1,4 +1,4 @@
-"""Lab-owned presentation hook: declared experiment dependencies and validated runs."""
+"""Demolab-Pingstore connector: declared dependencies and validated presentation runs."""
 
 from pathlib import Path
 

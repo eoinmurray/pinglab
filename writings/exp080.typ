@@ -1,11 +1,15 @@
-#import "contents.typ": contents-here, with-contents, with-numbered-equations, with-result-sections
+#import "templates/article-layout.typ": journal-article
+#import "templates/result-card.typ": result-figure-ref, result-card, with-result-sections
+#import "templates/references.typ": journal-references
 #import "/.demolab/lib.typ": data-json, data-image
-#import "dataset-template.typ": data-file, inputs-ready, pending-report, with-datasets, run-view, input-assets
-#import "/.demolab/lib.typ": cite, reference-list
+#import "templates/dataset.typ": data-file, inputs-ready, pending-report, run-view, input-assets
+#import "/.demolab/lib.typ": cite
+#import "templates/abstract.typ": journal-abstract
+#import "templates/methods.typ": journal-methods
 #let data-file = data-file.with(article: "exp080")
 
 #let meta = (
-  tags: ("data", "v35.0.0"),
+  tags: ("data", "v35.4.0"),
   title: "Decoder Accuracy Improves with Input Rate",
   created_at: "2026-08-10T00:00:00Z",
   updated_at: "2026-08-31T00:00:00Z",
@@ -20,37 +24,6 @@
   (path: "exp080/psychometric.svg", label: "psychometric"),
 )
 
-#let result-card-style = context {
-  if target() == "html" {
-    html.elem("style",
-      ".pinglab-result-card { margin: 1.25rem 0; padding: 1.2rem 1.35rem 1.3rem; border: 1px solid var(--rule-strong); border-radius: 3px; background: var(--paper); } "
-      + ".pinglab-result-card > h4:first-child { margin-top: 0; } "
-      + ".pinglab-result-card > :last-child { margin-bottom: 0; } "
-      + ".pinglab-result-card-notes { margin-top: 1rem; padding-top: .75rem; border-top: 1px solid var(--rule); font-size: var(--fs-small); line-height: 1.5; color: var(--muted); } "
-      + ".pinglab-result-card-notes > p:first-child { margin: 0 0 .25rem; } "
-      + ".pinglab-result-card-notes ul { margin: 0; padding-left: 1.2rem; } "
-      + ".pinglab-result-card-notes li { margin: .2rem 0; } "
-      + "@media (max-width: 520px) { .pinglab-result-card { margin: 1rem 0; padding: .95rem 1rem 1.05rem; } }",
-    )
-  }
-}
-
-#let result-card(body, notes: none) = context {
-  let notes-body = if notes == none { none } else if target() == "html" {
-    html.elem("aside", attrs: (class: "pinglab-result-card-notes", "aria-label": "Notes"), [
-      *Notes.*
-      #notes
-    ])
-  } else { [
-    *Notes.*
-    #notes
-  ] }
-  let card-body = [#body #notes-body]
-  if target() == "html" {
-    html.elem("article", attrs: (class: "pinglab-result-card"), card-body)
-  } else { card-body }
-}
-
 // Keep calculations lazy: absent inputs never become fabricated results.
 #let render-report(data-file) = [
 #let r = data-json(data-file("exp080/numbers.json"))
@@ -59,9 +32,7 @@
 #let criterion-crossed = d.criterion_crossed
 #let pct(x) = str(calc.round(100 * x, digits: 1)) + "%"
 #let body = [
-  == Abstract
-
-
+  #journal-abstract(body: [
   This experiment asked which input rates preserve enough information in
   synaptically and membrane-filtered MNIST images for classification. In the
   retained calibration, nonlinear decoders were trained across the tested rates
@@ -71,24 +42,27 @@
   for later variable-rate PING experiments. The result calibrates the filtering
   and decoding pipeline; it does not measure PING-network accuracy or predict
   performance between tested rates.
-
-  #contents-here()
+  ])
 
   == Results
 
   #with-result-sections[
 
-  #result-card-style
-
-  #result-card(notes: [
-    - The first occurrence of the maximum validation accuracy selected the
-      checkpoint for each training replicate; later ties did not replace it.
-  ])[
-  === Mixed-rate decoder validation accuracy across training
+  #result-card[
+  === Mixed-rate validation trajectories
 
   The retained calibration contains three independently initialized nonlinear
   decoders trained on fresh encoding draws sampled across the complete
-  input-rate grid.
+  input-rate grid (#result-figure-ref(<fig:exp080-result-1>)).
+
+  #figure(
+    data-image(data-file("exp080/training_history.svg"), width: 85%,
+      alt: "Mixed-rate validation accuracy over training epochs, with one curve per decoder."),
+    caption: [Each curve shows validation accuracy by epoch for one of
+      #p.seeds.len() training replicates. Accuracy is the fraction correct across
+      #p.validation_count validation presentations, with input rate sampled
+      uniformly and a fresh encoding draw used for every presentation and epoch.],
+  ) <fig:exp080-result-1>
 
   If mixed-rate training learned digit structure that survived stochastic
   filtering, validation accuracy should improve across all three training
@@ -99,29 +73,17 @@
   validation accuracies
   #r.training.map(record => pct(record.selected_validation_accuracy)).join(", ").
 
-  #figure(
-    data-image(data-file("exp080/training_history.svg"), width: 85%,
-      alt: "Mixed-rate validation accuracy over training epochs, with one curve per decoder."),
-    caption: [Each curve shows validation accuracy by epoch for one of
-      #p.seeds.len() training replicates. Accuracy is the fraction correct across
-      #p.validation_count validation presentations, with input rate sampled
-      uniformly and a fresh encoding draw used for every presentation and epoch.],
-  )
+  *Notes.*
+
+  - The first occurrence of the maximum validation accuracy selected the
+    checkpoint for each training replicate; later ties did not replace it.
   ]
 
   #result-card[
-  === Filtered digit features at 0.5, 5 and 25 Hz
+  === Filtered digit features
 
   A reused illustration shows one MNIST digit after the same finite-window
-  synaptic and membrane filtering at three input rates.
-
-  Because sparse Bernoulli input produces a small, random number of events,
-  reducing the rate should remove responses from different pixels rather than
-  attenuate the whole digit uniformly.
-
-  At 0.5 Hz only isolated fragments remained. The digit became progressively
-  more complete at 5 and 25 Hz, consistent with stochastic event loss rather
-  than uniform contrast scaling.
+  synaptic and membrane filtering at three input rates (#result-figure-ref(<fig:exp080-result-2>)).
 
   #figure(
     data-image(data-file("exp080/feature_images.png"), width: 100%,
@@ -133,20 +95,36 @@
       draws; feature panels share a 0–65 mV scale.
       #if r.illustration.kind == "historical-image" [The illustration was carried forward unchanged, not
       regenerated.]],
-  )
+  ) <fig:exp080-result-2>
+
+  Because sparse Bernoulli input produces a small, random number of events,
+  reducing the rate should remove responses from different pixels rather than
+  attenuate the whole digit uniformly.
+
+  At 0.5 Hz only isolated fragments remained. The digit became progressively
+  more complete at 5 and 25 Hz, consistent with stochastic event loss rather
+  than uniform contrast scaling.
   ]
 
   #result-card[
-  === Held-out decoder accuracy across tested input rates
+  === Held-out rate-accuracy curve
 
-  The three selected decoders received the same held-out feature vector and
-  encoding draw for each image and rate. The practical floor required every
-  decoder to reach
-  #pct(p.useful_accuracy) accuracy at a tested rate.
+  The three selected decoders received identical held-out feature vectors and
+  encoding draws. The practical floor required every decoder to reach
+  #pct(p.useful_accuracy) accuracy at a tested rate (#result-figure-ref(<fig:exp080-result-3>)).
 
-  If increasing input rate preserved more digit structure through the filter,
-  held-out accuracy should rise from the sparse-drive conditions before
-  approaching a high-rate plateau.
+  #figure(
+    data-image(data-file("exp080/psychometric.svg"), width: 85%,
+      alt: "Held-out accuracy across tested input rates, showing the decoder mean and minimum-to-maximum range."),
+    caption: [Points show mean accuracy across #p.seeds.len() training
+      replicates at each maximum-pixel encoding rate; every replicate received
+      the same #p.test_count held-out images and encoding draws. Shading spans
+      the minimum–maximum replicate accuracy, not a confidence interval. Rules
+      mark 10% chance and the #pct(p.useful_accuracy) criterion.],
+  ) <fig:exp080-result-3>
+
+  If higher input rates preserved more digit structure, held-out accuracy
+  should rise before approaching a plateau.
 
   Mean accuracy across training replicates increased monotonically from
   #pct(d.rows.first().accuracy) at #d.rows.first().rate_hz Hz to
@@ -158,24 +136,12 @@
   right-censored at #d.recommendation.ceiling_hz Hz.] The resulting interval is
   a decoder-relative calibration without interpolation; it does not establish
   PING-network performance.
-
-  #figure(
-    data-image(data-file("exp080/psychometric.svg"), width: 85%,
-      alt: "Held-out accuracy across tested input rates, showing the decoder mean and minimum-to-maximum range."),
-    caption: [Points show mean accuracy across #p.seeds.len() training
-      replicates at each maximum-pixel encoding rate; every replicate received
-      the same #p.test_count held-out images and encoding draws. Shading spans
-      the minimum–maximum replicate accuracy, not a confidence interval. Rules
-      mark 10% chance and the #pct(p.useful_accuracy) criterion.],
-  )
   ]
 
   ]
 
-  == Methods
-
-  === Compute
-
+  #journal-methods(
+    compute: [
   + *Retained computation.* We reused a completed calibration containing three
     trained decoders, their validation histories and their held-out correctness
     records. We did not rerun feature simulation or decoder training for this
@@ -250,9 +216,8 @@
     presentations. The predicted class $hat(y)$ was the class $c$ with the
     largest output logit $z_c$, and accuracy was measured per training replicate
     and rate.
-
-  === Analyse
-
+    ],
+    analyse: [
   #set enum(start: 11)
 
   + *Aggregate held-out accuracy.* For each rate and training replicate, we
@@ -264,16 +229,16 @@
     rate where every decoder reached #pct(p.useful_accuracy) accuracy, and the
     ceiling was the highest tested rate. No interpolation was used; an empty
     qualifying set was reported as right-censored.
-
-  === Present
-
+    ],
+    present: [
   #set enum(start: 13)
 
   + *Present retained evidence.* We redrew the validation trajectories and
     rate-accuracy summary from recorded measurements, using the aggregation
     defined above without interpolation. We reused the original finite-window
     feature illustration unchanged rather than implying a new simulation.
-
+    ],
+  )
   #run-view("exp080", inputs)
 
   == Appendix: Finite-window filtering and interpretation
@@ -298,7 +263,7 @@
   requires a separate evaluation; decoding accuracy here does not establish
   gamma timing benefits.
 
-  #reference-list((
+  #journal-references((
     (
       text: [Brigham & Destexhe: _Nonstationary Filtered Shot-Noise Processes and Applications to Neuronal Membranes_. Physical Review E, 2015.],
       doi: "10.1103/PhysRevE.91.062102",
@@ -323,6 +288,4 @@
 }
 
 #let meta = meta + (assets: input-assets("exp080", inputs))
-#let body = with-datasets("exp080", inputs, report-body, placed: inputs-ready(data-file, inputs))
-#let body = with-numbered-equations(body)
-#let body = with-contents(body)
+#let body = journal-article("exp080", inputs, report-body, dataset-placed: inputs-ready(data-file, inputs))

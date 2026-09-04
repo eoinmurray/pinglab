@@ -1,7 +1,6 @@
-#import "contents.typ": with-contents, with-numbered-equations
-#import "dataset-template.typ": with-datasets
+#import "templates/article-layout.typ": journal-article
 #let meta = (
-  tags: ("txt", "v35.0.0"),
+  tags: ("txt", "v35.4.0"),
   title: "Compatibility, status, and extension",
   created_at: "2026-08-14T00:00:00Z",
   description: "Understand the legacy compatibility contract, current capability boundary, and rules for extending snnlang safely.",
@@ -18,7 +17,7 @@
 
   Migration requires layered comparisons of structure, parameters, initialization, forward state, gradients, optimizer updates, checkpoints, resumed trajectories, learning curves, downstream measurements, and publication outputs. A successful smoke test does not establish equivalence.
 
-  #link("https://github.com/eoinmurray/pinglab/issues/73")[Issue 73] is the active implementation and migration checklist. The independent exp022 gold-star campaign remains outside this documentation work.
+  #link("https://github.com/eoinmurray/pinglab/issues/73")[Issue 73] is the active implementation and migration checklist. The independent gold-star campaign from #link("/exp022/")[exp022] — #link("/exp022/")[_Training Runs_] remains outside this documentation work.
 
   === Current support
 
@@ -229,6 +228,4 @@
   - `tools/snnlang/tests` and `tools/snnsim/tests/test_execution.py`: focused conformance fixtures.
 ]
 
-#let body = with-datasets("exp090", (), body)
-#let body = with-numbered-equations(body)
-#let body = with-contents(body)
+#let body = journal-article("exp090", (), body)

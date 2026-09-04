@@ -1,10 +1,13 @@
-#import "contents.typ": contents-here, with-contents, result-card, with-numbered-equations, with-result-sections
+#import "templates/article-layout.typ": journal-article
+#import "templates/result-card.typ": result-figure-ref, result-card, with-result-sections
 #import "/.demolab/lib.typ": data-json, data-image
-#import "dataset-template.typ": data-file, inputs-ready, pending-report, with-datasets, run-view, input-assets
+#import "templates/dataset.typ": data-file, inputs-ready, pending-report, run-view, input-assets
+#import "templates/abstract.typ": journal-abstract
+#import "templates/methods.typ": journal-methods
 #let data-file = data-file.with(article: "exp049")
 
 #let meta = (
-  tags: ("data", "v35.0.0"),
+  tags: ("data", "v35.4.0"),
   title: "Training Recurrent Weights Weakens PING Rhythmicity",
   created_at: "2026-06-09T00:00:00Z",
   updated_at: "2026-08-31T00:00:00Z",
@@ -45,26 +48,24 @@
 #let contrast_first = rounded(r049.rhythmicity.epoch1_contrast_trainable, digits: 3)
 #let eval_n = r049.config.evaluation_samples
 
-  == Abstract
-
-  Asked whether surrogate-gradient training preserves PING rhythmicity when
-  recurrent excitatory–inhibitory conductances can change. Compared trainable
+  #journal-abstract(body: [
+  We asked whether surrogate-gradient training preserves PING rhythmicity when
+  recurrent excitatory–inhibitory conductances can change. We compared trainable
   recurrent loops across initializations with a control whose recurrent PING
   weights remained frozen.
 
   Recurrent training weakened rhythmicity early and did not recover the rhythmic
-  control, while activity and accuracy changed by condition. Constrains these
+  control, while activity and accuracy changed by condition. This constrains these
   learning recipes, but does not show that recurrent learning must always
   destroy gamma or that the compared conditions are accuracy-equivalent.
-
-  #contents-here()
+  ])
 
   == Results
 
   #with-result-sections[
 
   #result-card[
-  === Recurrent training changes population activity
+  === Recurrent training changes activity
 
   Frozen E/I means were #frozen_e/#frozen_i Hz. Canonical, zero and small
   trainable initializations gave E means of
@@ -74,7 +75,7 @@
   #average("trainable_ping_init", "i_rate_hz"),
   #average("trainable_zero_init", "i_rate_hz") and
   #average("trainable_small_init", "i_rate_hz") Hz. Only zero initialization
-  left I completely silent. Firing rates alone do not identify PING.
+  left I completely silent. Firing rates alone do not identify PING (#result-figure-ref(<fig:exp049-result-1>)).
 
   #figure(
     data-image(data-file("exp049/attractor_ei.svg"), width: 100%,
@@ -83,16 +84,16 @@
       Each point is one final-epoch network, evaluated on #eval_n official-test
       images; legend accuracies are condition means over three seeds.
     ],
-  )
+  ) <fig:exp049-result-1>
 
   ]
 
   #result-card[
-  === Rhythmicity is already low at the first logged epoch
+  === Rhythmicity starts low
 
   The unsmoothed trainable contrast averaged #contrast_first after epoch 1 and
   ended at #contrast_low–#contrast_high. Because there is no epoch-0 observation,
-  these histories cannot resolve the intervening transition.
+  these histories cannot resolve the intervening transition (#result-figure-ref(<fig:exp049-result-2>)).
 
   #figure(
     data-image(data-file("exp049/training_curves.svg"), width: 100%,
@@ -103,17 +104,17 @@
       means; shading spans seed minima and maxima. Each series is smoothed
       with a five-epoch edge-padded moving average, not a confidence interval.
     ],
-  )
+  ) <fig:exp049-result-2>
 
   ]
 
   #result-card[
-  === The two recurrent matrices change differently
+  === Recurrent matrices diverge
 
   For seed 42, #wei_zero42% of E→I entries and #wie_zero42% of I→E entries were
   zero; final means were #wei_mean42 and #wie_mean42 in model conductance units.
   Lower E→I recruitment is consistent with reduced I activity, but sparsification
-  was not symmetric and these observations do not isolate its causal contribution.
+  was not symmetric and these observations do not isolate its causal contribution (#result-figure-ref(<fig:exp049-result-3>)).
 
   #figure(
     data-image(data-file("exp049/weights__trainable_ping_init.svg"), width: 100%,
@@ -126,16 +127,16 @@
       each seed, annotations report zero fractions and means in model conductance
       units.
     ],
-  )
+  ) <fig:exp049-result-3>
 
   ]
 
   #result-card[
-  === Rate–rhythmicity trajectories do not establish attractors
+  === Rate-rhythmicity trajectories
 
   The contrast gap describes these observations, but identifies neither a
   separatrix nor a basin boundary and is not evidence that only one attractor
-  exists.
+  exists (#result-figure-ref(<fig:exp049-result-4>)).
 
   #figure(
     data-image(data-file("exp049/phase_portrait.svg"), width: 100%,
@@ -146,12 +147,12 @@
       show the three final endpoints and their mean, not a full trajectory.
       Rates and contrast come from different evaluation samples.
     ],
-  )
+  ) <fig:exp049-result-4>
 
   ]
 
   #result-card[
-  === Similar validation accuracy can accompany different firing rates
+  === Accuracy can mask rate differences
 
   Final official-test means were
   #average("trainable_ping_init", "acc")%,
@@ -159,7 +160,7 @@
   #average("trainable_small_init", "acc")% for canonical, zero and small
   trainable initializations, versus #frozen_acc% for the frozen control.
   Initialization therefore mattered within the tested conditions. These
-  trajectories do not establish equal accuracy or measured energy savings.
+  trajectories do not establish equal accuracy or measured energy savings (#result-figure-ref(<fig:exp049-result-5>)).
 
   #figure(
     data-image(data-file("exp049/acc_rate_trajectory.svg"), width: 100%,
@@ -168,20 +169,19 @@
       Unsmoothed three-seed mean validation trajectories; each segment's colour
       averages the reference-image contrast at its endpoints. Open and filled
       markers denote epochs 1 and 50. This complements the
-      #link("/exp025/")[accuracy–rate comparison].
+      #link("/exp025/")[exp025] — #link("/exp025/")[_Accuracy and Firing Rate With and Without Inhibition._]
     ],
-  )
+  ) <fig:exp049-result-5>
 
   ]
   ]
 
-  == Methods
-
-  We reused networks from the #link("/exp022/")[shared training study] and
+  #journal-methods(
+    orientation: [
+  We reused networks from the #link("/exp022/")[exp022] — #link("/exp022/")[_Training Runs_] and
   reanalysed recorded observations. No new training or simulation was performed.
-
-  === Compute
-
+    ],
+    compute: [
   + *Compare recurrent trainability.* Twelve conductance-based leaky-integrate-and-fire
     classifiers had 784 Poisson input channels, 1,024 excitatory (E), 256
     inhibitory (I) and 10 output neurons. Three seeds per condition compared
@@ -204,9 +204,8 @@
     mV its reversal potential, and $V_m$ membrane voltage: a positive I→E weight
     need not become negative to inhibit. Input zeros remained trainable and
     could regrow; initialization details are listed below.
-
-  === Analyse
-
+    ],
+    analyse: [
   #set enum(start: 4)
 
   + *Evaluate final networks.* All endpoint tests and weight comparisons used
@@ -227,15 +226,15 @@
     2 ms onward, and $A_"lobe"$ the preceding positive-lag maximum of the smoothed
     autocorrelogram. We reused the recorded scalar; it is neither a
     test-population rhythm estimate nor a calibrated probability of PING.
-
-  === Present
-
+    ],
+    present: [
   #set enum(start: 6)
 
   + *Expose retained training evidence.* We displayed retained validation,
     activity, recurrent-weight and temporal-contrast measurements with their
     distinct seed and illustrative-probe roles.
-
+    ],
+  )
   #run-view("exp049", inputs)
 
   == Appendix: Recorded parameters and interpretation limits
@@ -248,7 +247,7 @@
   Excitatory and inhibitory synaptic decays were 2 and 6 ms. Membrane time
   constants were not trained; adaptive thresholds were disabled. The frozen
   control used the same canonical recurrence as the
-  #link("/exp025/")[fixed-loop training comparison].
+  #link("/exp025/")[exp025] — #link("/exp025/")[_Accuracy and Firing Rate With and Without Inhibition._]
 
   Recurrent-weight summaries distinguished the two directions: zeros counted
   non-positive entries, positive means excluded zeros, and distribution plots
@@ -263,7 +262,7 @@
   contrast, higher E firing and weaker I activity support loss or weakening of
   the frozen control's regime in these conditions. Residual contrast and a
   spectral maximum do not establish a surviving gamma rhythm: the
-  #link("/exp054/")[rhythmicity diagnostic study] addresses metric specificity.
+  #link("/exp054/")[exp054] — #link("/exp054/")[_Pinglab Rythmicity Metric_] addresses metric specificity.
   In particular, a low contrast value alone does not identify its source as
   low-rate inflation or shared input. The three initializations and three seeds
   do not establish impossibility of learning PING, accuracy equivalence,
@@ -281,6 +280,4 @@
 }
 
 #let meta = meta + (assets: input-assets("exp049", inputs))
-#let body = with-datasets("exp049", inputs, report-body, placed: inputs-ready(data-file, inputs))
-#let body = with-numbered-equations(body)
-#let body = with-contents(body)
+#let body = journal-article("exp049", inputs, report-body, dataset-placed: inputs-ready(data-file, inputs))

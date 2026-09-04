@@ -28,11 +28,11 @@ Diagnostics: 0 errors, 0 warnings
 - object_b_input: stimulus.value → object_b_E.excitatory [feedforward, excitatory]
 
 ## Parameters
-- a_to_b.weight: [192, 192] nS (frozen/unselected)
-- b_feedback_a.weight: [192, 192] nS (frozen/unselected)
-- object_a_E_to_I.weight: [48, 192] nS (frozen/unselected)
-- object_a_I_to_E.weight: [192, 48] nS (frozen/unselected)
-- object_a_input.weight: [192, 128] nS (frozen/unselected)
-- object_b_E_to_I.weight: [48, 192] nS (frozen/unselected)
-- object_b_I_to_E.weight: [192, 48] nS (frozen/unselected)
-- object_b_input.weight: [192, 128] nS (frozen/unselected)
+- a_to_b.weight: [192, 192] uS (frozen/unselected)
+- b_feedback_a.weight: [192, 192] uS (frozen/unselected)
+- object_a_E_to_I.weight: [48, 192] uS (frozen/unselected)
+- object_a_I_to_E.weight: [192, 48] uS (frozen/unselected)
+- object_a_input.weight: [192, 128] uS (frozen/unselected)
+- object_b_E_to_I.weight: [48, 192] uS (frozen/unselected)
+- object_b_I_to_E.weight: [192, 48] uS (frozen/unselected)
+- object_b_input.weight: [192, 128] uS (frozen/unselected)

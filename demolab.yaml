@@ -7,7 +7,7 @@ pdfs: false
 
 # User-owned data preparation and URL inputs. The old configuration below is
 # retained, inactive, until the retirement step is approved.
-prepare: [uv, run, python, -m, writings.prepare]
+prepare: [uv, run, python, -m, writings.demolab_pingstore]
 url_inputs:
   source.exp022: { type: path, root: .pingstore/runs }
   source.exp023: { type: path, root: .pingstore/runs }
@@ -31,8 +31,6 @@ url_inputs:
   source.exp080: { type: path, root: .pingstore/runs }
   source.exp081: { type: path, root: .pingstore/runs }
   source.exp082: { type: path, root: .pingstore/runs }
-  source.exp085: { type: path, root: .pingstore/runs }
-  source.exp086: { type: path, root: .pingstore/runs }
   source.exp099: { type: path, root: .pingstore/runs }
   source.exp110: { type: path, root: .pingstore/runs }
   source.exp111: { type: path, root: .pingstore/runs }
@@ -68,8 +66,6 @@ legacy_preview:
     exp080: [exp080]
     exp081: [exp081]
     exp082: [exp082]
-    exp085: [exp085]
-    exp086: [exp086]
     exp088: []
     exp089: []
     exp090: []

@@ -1,7 +1,6 @@
-#import "contents.typ": with-contents, with-numbered-equations
-#import "dataset-template.typ": with-datasets
+#import "templates/article-layout.typ": journal-article
 #let meta = (
-  tags: ("txt", "v35.0.0"),
+  tags: ("txt", "v35.4.0"),
   title: "Training",
   updated_at: "2026-08-29T00:00:00Z",
   created_at: "2026-05-14T00:00:00Z",
@@ -11,7 +10,7 @@
 )
 
 #let body = [
-  This page describes the legacy `--executor legacy` training path in `tools/snnsim/train.py`. It connects the training controls to their implementation. For declarative graph training, use #link("/exp088/")[Training recipes and graph-native learning]; graph checkpoints and input bindings have a different contract.
+  This page describes the legacy `--executor legacy` training path in `tools/snnsim/train.py`. It connects the training controls to their implementation. For declarative graph training, use #link("/exp088/")[exp088] — #link("/exp088/")[_Training recipes and graph-native learning_]; graph checkpoints and input bindings have a different contract.
 
   == Start a small training run
 
@@ -71,7 +70,7 @@
 
   The backward pass contains products of per-step Jacobians $partial h^(k+1)\/partial h^k$, the matrices of state derivatives. Repeated contraction can suppress gradients and amplification can enlarge them; individual norms above 1 do not by themselves prove that the product grows.
 
-  One simulation step is one step of the recurrence: the state includes membrane voltages, synaptic conductances, and refractory counters. A 200 ms trial at $Delta t_"sim" = 0.1$ ms unrolls to $N_t = 2000$ steps. Gradient behaviour depends on the trajectory, surrogate, weights, and reset gates; recurrent coupling alone does not prove divergence. See #link("/exp015/")[Gradient Stabilisation] for the implemented intervention.
+  One simulation step is one step of the recurrence: the state includes membrane voltages, synaptic conductances, and refractory counters. A 200 ms trial at $Delta t_"sim" = 0.1$ ms unrolls to $N_t = 2000$ steps. Gradient behaviour depends on the trajectory, surrogate, weights, and reset gates; recurrent coupling alone does not prove divergence. See #link("/exp015/")[exp015] — #link("/exp015/")[_Gradient Stabilisation_] for the implemented intervention.
 
   == Surrogate gradients
 
@@ -85,7 +84,7 @@
 
   == Gradient stabilisation
 
-  `--v-grad-dampen` scales the backward derivative through the biophysical membrane increment. It does not rescale every gradient or guarantee stable training. Start from the chosen recipe and inspect the diagnostics before changing it; #link("/exp015/")[Gradient Stabilisation] explains the local derivatives and trade-offs.
+  `--v-grad-dampen` scales the backward derivative through the biophysical membrane increment. It does not rescale every gradient or guarantee stable training. Start from the chosen recipe and inspect the diagnostics before changing it; #link("/exp015/")[exp015] — #link("/exp015/")[_Gradient Stabilisation_] explains the local derivatives and trade-offs.
 
   == The training loop
 
@@ -120,7 +119,7 @@
 
   Here $n_"spike"(b,n)$ is the spike count of hidden excitatory neuron $n$ in presentation $b$, $N_E$ is the number of those neurons, $T_"present"$ is presentation duration in seconds, $B$ is minibatch size, $r_b$ and $r_(E,"ceil")$ are rates in Hz, and $lambda_"rate"$ is the configured rate-penalty coefficient.
 
-  The ceiling is applied separately to each presentation's population-mean hidden-E rate before averaging across the minibatch. The loss is normalised over neurons, presentation duration, samples, and hidden layers. This is the mechanism behind #link("/exp025/")[the activity-ceiling comparison]; #link("/exp024/")[the training-convergence study] tests the associated rate-plateau interpretation.
+  The ceiling is applied separately to each presentation's population-mean hidden-E rate before averaging across the minibatch. The loss is normalised over neurons, presentation duration, samples, and hidden layers. This is the mechanism behind #link("/exp025/")[exp025] — #link("/exp025/")[_Accuracy and Firing Rate With and Without Inhibition_]; #link("/exp024/")[exp024] — #link("/exp024/")[_Accuracy Plateaus While Firing Rate Rises_] tests the associated rate-plateau interpretation.
 
   == Weight init
 
@@ -149,9 +148,7 @@
 
   Implementation reference: `tools/snnsim/train.py`, `tools/snnsim/models.py`, and `tools/snnsim/tool.py`.
 
-  #link("/exp100/")[Previous: COBANet] · #link("/exp015/")[Next: Gradient Stabilisation]
+  #link("/exp100/")[exp100] — #link("/exp100/")[_COBANet_] · #link("/exp015/")[exp015] — #link("/exp015/")[_Gradient Stabilisation_]
 ]
 
-#let body = with-datasets("exp006", (), body)
-#let body = with-numbered-equations(body)
-#let body = with-contents(body)
+#let body = journal-article("exp006", (), body)

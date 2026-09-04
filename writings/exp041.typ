@@ -1,10 +1,14 @@
-#import "contents.typ": contents-here, with-contents, result-card, with-numbered-equations, with-result-sections
-#import "/.demolab/lib.typ": data-json, data-image, cite, reference-list
-#import "dataset-template.typ": data-file, inputs-ready, pending-report, with-datasets, run-view, input-assets
+#import "templates/article-layout.typ": journal-article
+#import "templates/result-card.typ": result-figure-ref, result-card, with-result-sections
+#import "templates/references.typ": journal-references
+#import "/.demolab/lib.typ": data-json, data-image, cite
+#import "templates/dataset.typ": data-file, inputs-ready, pending-report, run-view, input-assets
+#import "templates/abstract.typ": journal-abstract
+#import "templates/methods.typ": journal-methods
 #let data-file = data-file.with(article: "exp041")
 
 #let meta = (
-  tags: ("data", "v35.0.0"),
+  tags: ("data", "v35.4.0"),
   title: "Firing Rate Tracks Gamma Frequency",
   created_at: "2026-06-02T00:00:00Z",
   updated_at: "2026-08-31T00:00:00Z",
@@ -41,11 +45,9 @@
 #let acc_hi = calc.round(calc.max(..accs))
 
 #let body = [
-  == Abstract
-
-
-  Asked whether the excitatory firing rate of trained PING classifiers changes
-  systematically with their gamma frequency. Reused networks trained with
+  #journal-abstract(body: [
+  We asked whether the excitatory firing rate of trained PING classifiers changes
+  systematically with their gamma frequency. We reused networks trained with
   different inhibitory decay times and measured their final population rhythms,
   activity and MNIST performance.
 
@@ -53,15 +55,14 @@
   persisted across the sweep. The association supports a cycle-participation
   account, but does not prove constant participation or identify a physical
   non-rhythmic baseline.
-
-  #contents-here()
+  ])
 
   == Results
 
   #with-result-sections[
 
   #result-card[
-  === Validation accuracy and excitatory rate across inhibitory decay times
+  === Inhibitory-timescale training response
 
   #figure(
     data-image(data-file("exp041/training_curves.svg"),
@@ -73,15 +74,15 @@
       trained network across #cfg.epochs epochs. Subsequent test measurements
       used final-epoch weights; accuracy convergence did not select the epoch.
     ],
-  )
+  ) <fig:exp041-result-1>
 
   ]
 
   #result-card[
-  === Population spectra across inhibitory decay times
+  === Inhibitory-timescale spectra
 
   Per-network interpolated frequencies spanned approximately #fg_lo–#fg_hi Hz
-  across the inhibitory-decay sweep.
+  across the inhibitory-decay sweep (#result-figure-ref(<fig:exp041-result-2>)).
 
   #figure(
     data-image(data-file("exp041/psds.svg"),
@@ -93,12 +94,12 @@
       then seeds at each inhibitory decay time. Dots mark binned peaks of these
       displayed means.
     ],
-  )
+  ) <fig:exp041-result-2>
 
   ]
 
   #result-card[
-  === Spike rasters across inhibitory decay times
+  === Inhibitory-timescale rasters
 
   #figure(
     data-image(data-file("exp041/raster_strip.png"),
@@ -112,15 +113,15 @@
       100 ms; displayed rates use the full populations and 200 ms trial.
       These probes illustrate timing, not the population frequency estimate.
     ],
-  )
+  ) <fig:exp041-result-3>
 
   ]
 
   #result-card[
-  === Post-training rate and accuracy against gamma frequency
+  === Rate and accuracy versus frequency
 
   Individual network rates spanned #er_lo–#er_hi Hz and accuracies
-  #acc_lo–#acc_hi% across the six inhibitory-decay conditions.
+  #acc_lo–#acc_hi% across the six inhibitory-decay conditions (#result-figure-ref(<fig:exp041-result-4>)).
 
   #figure(
     data-image(data-file("exp041/rate_vs_fgamma.svg"),
@@ -132,12 +133,12 @@
       frequency. Each point is a mean over three seeds; error bars show ±1
       standard error. The affine line fits six condition means.
     ],
-  )
+  ) <fig:exp041-result-4>
 
   ]
 
   #result-card[
-  === Affine and origin-constrained rate–frequency fits
+  === Alternative rate-frequency fits
 
   #figure(
     table(
@@ -149,18 +150,17 @@
     caption: [Both least-squares fits used the same six condition means and
       centred total sum of squares. The origin-constrained fit tests how much
       the association depends on a free intercept.],
-  )
+  ) <fig:exp041-result-5>
 
   ]
   ]
 
-  == Methods
-
+  #journal-methods(
+    orientation: [
   We compared final-epoch dynamics across matched networks trained at different
   inhibitory decay times, keeping the evaluation data fixed.
-
-  === Compute
-
+    ],
+    compute: [
   + *Reuse matched trained networks.* Six inhibitory GABA decay constants,
     $tau_"GABA" in {4.5, 6, 9, 12, 18, 27}$ ms, and seeds 42–44 defined 18 PING
     networks. Training used 6,300 MNIST training images and 700 held-out
@@ -170,9 +170,8 @@
     simulation used 0.1 ms timesteps and 200 ms trials. We reused final-epoch
     weights to measure endpoint dynamics, without retraining or selecting
     weights by test performance.
-
-  === Analyse
-
+    ],
+    analyse: [
   #set enum(start: 2)
 
   + *Measure fixed-trial responses.* Each network received the same fixed
@@ -207,15 +206,15 @@
     intercept in hertz, and $beta_(r f)$ and $beta_(r f,0)$ are dimensionless fitted slopes. Both fits
     report $R_"fit"^2$, the coefficient of determination using centred total sum of
     squares; error bars are sample standard deviations divided by $sqrt(3)$.
-
-  === Present
-
+    ],
+    present: [
   #set enum(start: 5)
 
   + *Display matched endpoint evidence.* We displayed the retained frequency,
     rate and accuracy comparisons across inhibitory decay times, preserving
     seed-level values and across-seed summaries.
-
+    ],
+  )
   #run-view("exp041", inputs)
 
   == Appendix: Cycle-participation model
@@ -235,7 +234,7 @@
   not be a physical baseline, and a negative intercept cannot represent a
   nonnegative background firing rate.
 
-  #reference-list((
+  #journal-references((
     (text: [P. D. Welch. “The use of the fast Fourier transform for the estimation
       of power spectra: A method based on time averaging over short, modified
       periodograms.” _IEEE Transactions on Audio and Electroacoustics_ 15(2),
@@ -259,6 +258,4 @@
 }
 
 #let meta = meta + (assets: input-assets("exp041", inputs))
-#let body = with-datasets("exp041", inputs, report-body, placed: inputs-ready(data-file, inputs))
-#let body = with-numbered-equations(body)
-#let body = with-contents(body)
+#let body = journal-article("exp041", inputs, report-body, dataset-placed: inputs-ready(data-file, inputs))

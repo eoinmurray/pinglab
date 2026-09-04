@@ -1,10 +1,14 @@
-#import "contents.typ": contents-here, with-contents, result-card, with-numbered-equations, with-result-sections
-#import "/.demolab/lib.typ": data-json, data-image, cite, reference-list
-#import "dataset-template.typ": data-file, inputs-ready, pending-report, with-datasets, run-view, input-assets
+#import "templates/article-layout.typ": journal-article
+#import "templates/result-card.typ": result-figure-ref, result-card, with-result-sections
+#import "templates/references.typ": journal-references
+#import "/.demolab/lib.typ": data-json, data-image, cite
+#import "templates/dataset.typ": data-file, inputs-ready, pending-report, run-view, input-assets
+#import "templates/abstract.typ": journal-abstract
+#import "templates/methods.typ": methods-heading, methods-stage
 #let data-file = data-file.with(article: "exp037")
 
 #let meta = (
-  tags: ("data", "v35.0.0"),
+  tags: ("data", "v35.4.0"),
   title: "Dropped Spikes vs Added Noise",
   created_at: "2026-05-30T00:00:00Z",
   updated_at: "2026-09-02T00:00:00Z",
@@ -53,35 +57,30 @@
   }
 }
 
-  == Abstract
-
-  Asked whether trained COBA and PING classifiers fail differently when hidden
-  spikes are removed or spurious spikes are inserted during inference. Replayed
-  validation-selected networks under matched deletion and insertion
+  #journal-abstract(body: [
+  We asked whether trained COBA and PING classifiers fail differently when hidden
+  spikes are removed or spurious spikes are inserted during inference. We replayed validation-selected networks under matched deletion and insertion
   perturbations without retraining them.
 
   Both architectures tolerated substantial deletion, while added spikes damaged
-  PING accuracy much more sharply than COBA accuracy. Reveals an asymmetric
+  PING accuracy much more sharply than COBA accuracy. This reveals an asymmetric
   robustness profile, but does not separate recurrent timing from firing-rate
   and readout effects.
-
-  #contents-here()
+  ])
 
   == Results
 
   #with-result-sections[
 
   #result-card[
-  === Test accuracy under spike deletion and insertion
+  === Accuracy under spike perturbations
 
   Unperturbed PING/COBA accuracies were #acc("ping", "drop", 0)%/
   #acc("coba", "drop", 0)%.
   Because the added-rate axis uses different reference-image rates for PING and
   COBA, the common 0–#add_max Hz sweep does not match relative perturbation doses.
   #if knee != none [PING's first sampled mean below 80% occurred at #knee Hz.
-  This is a grid crossing, not an estimated critical threshold.]
-
-  #figure(
+  This is a grid crossing, not an estimated critical threshold (#result-figure-ref(<fig:exp037-result-1>)).]#figure(
     report-image("exp037/perturbation_curves.svg",
       "Mean test-accuracy lines with translucent sample-standard-deviation bands: both models tolerate substantial deletion; PING declines more steeply under added spikes.", ratio: 0.55),
     caption: [
@@ -94,15 +93,15 @@
       (#rounded(reference-rate("ping"))/#rounded(reference-rate("coba")) Hz),
       not test-set baseline rates.
     ],
-  )
+  ) <fig:exp037-result-1>
 
   ]
 
   #result-card[
-  === PING rasters across spike-deletion probabilities
+  === PING spike-deletion rasters
 
   Banding remained visible at partial deletion, although these illustrative
-  rasters provide no quantitative phase-coherence or gamma-frequency estimate.
+  rasters provide no quantitative phase-coherence or gamma-frequency estimate (#result-figure-ref(<fig:exp037-result-2>)).
 
   #figure(
     report-image("exp037/perturb_rasters__drop__ping.png",
@@ -112,15 +111,15 @@
       *(B)* 0.5 and *(C)* 1. E spikes (black) are below I spikes (red). The display samples
       200 E and 64 I neurons; annotated E rates use the full population.
     ],
-  )
+  ) <fig:exp037-result-2>
 
   ]
 
   #result-card[
-  === PING rasters across inserted-spike rates
+  === PING inserted-spike rasters
 
   Inserted spikes increasingly obscured the bands, but this alone does not
-  establish that an underlying oscillator disappeared.
+  establish that an underlying oscillator disappeared (#result-figure-ref(<fig:exp037-result-3>)).
 
   #figure(
     report-image("exp037/perturb_rasters__add__ping.png",
@@ -131,16 +130,16 @@
       includes inserted spikes. Display sampling and E-rate annotation follow
       the preceding figure.
     ],
-  )
+  ) <fig:exp037-result-3>
 
   ]
 
   #result-card[
-  === COBA rasters across spike-deletion probabilities
+  === COBA spike-deletion rasters
 
   E activity thinned as deletion increased and vanished at full deletion. This
   qualitative pattern does not imply accuracy was unchanged across the deletion
-  sweep.
+  sweep (#result-figure-ref(<fig:exp037-result-4>)).
 
   #figure(
     report-image("exp037/perturb_rasters__drop__coba.png",
@@ -149,16 +148,16 @@
       Seed-42 COBA trials of #trial-description shown with the same display
       sampling at deletion probabilities *(A)* 0, *(B)* 0.5 and *(C)* 1.
     ],
-  )
+  ) <fig:exp037-result-4>
 
   ]
 
   #result-card[
-  === COBA rasters across inserted-spike rates
+  === COBA inserted-spike rasters
 
   Under insertion, E activity increased and imposed I spikes appeared despite
   disabled recurrent coupling. The denser unperturbed COBA population means
-  equal nominal rates are not equal fractional perturbations across models.
+  equal nominal rates are not equal fractional perturbations across models (#result-figure-ref(<fig:exp037-result-5>)).
 
   #figure(
     report-image("exp037/perturb_rasters__add__coba.png",
@@ -169,19 +168,19 @@
       Insertions were applied independently to E and I; the recurrent E→I→E
       coupling remained disabled.
     ],
-  )
+  ) <fig:exp037-result-5>
 
   #block(sticky: true)[
   ]
 
-    == Methods
+    #methods-heading()
 
     We reused trained networks and recorded inference trials to compare deletion
     and insertion of hidden spikes, without retraining.
   ]
   ]
 
-  === Compute
+  #methods-stage([Compute])
 
   + *Select trained classifiers.* MNIST handwritten digits #cite(1) supplied
     a 7,000-image training pool, split into 6,300 optimization and 700 validation
@@ -193,7 +192,7 @@
     During training, voltage-increment gradients were divided by 1,000 for PING
     and 1 for COBA; these are different trained recipes, not an isolated loop control.
     The wider activity-penalty comparison is described in
-    #link("/exp025/")[the training activity-frontier study].
+    #link("/exp025/")[exp025] — #link("/exp025/")[_Accuracy and Firing Rate With and Without Inhibition._]
 
   + *Perturb emitted spikes.* Each trial lasted #cfg.t_ms ms at timestep
     #cfg.dt ms, with no warm-up or excluded interval. After membrane integration
@@ -210,7 +209,7 @@
     Insertion is a Bernoulli approximation to Poisson arrivals, capped at one
     spike per slot; collisions with existing spikes add nothing.
 
-  === Analyse
+  #methods-stage([Analysis])
 
   #set enum(start: 3)
 
@@ -224,7 +223,7 @@
     Illustrative trials used seed 42 and test-image index 0, independently of
     digit-class selection.
 
-  === Present
+  #methods-stage([Presentation])
 
   #set enum(start: 4)
 
@@ -260,7 +259,7 @@
   asymmetry cannot by itself distinguish a dynamical activity floor from an
   informational requirement of the classifier.
 
-  #reference-list((
+  #journal-references((
     (text: [Y. LeCun, L. Bottou, Y. Bengio, and P. Haffner.
       “Gradient-based learning applied to document recognition.”
       _Proceedings of the IEEE_ 86(11), 2278–2324 (1998).],
@@ -277,6 +276,4 @@
 }
 
 #let meta = meta + (assets: input-assets("exp037", inputs))
-#let body = with-datasets("exp037", inputs, report-body, placed: inputs-ready(data-file, inputs))
-#let body = with-numbered-equations(body)
-#let body = with-contents(body)
+#let body = journal-article("exp037", inputs, report-body, dataset-placed: inputs-ready(data-file, inputs))

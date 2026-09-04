@@ -196,7 +196,7 @@ results, missing inputs and corrupt selected data. They protect against a litera
 conditional branch, duplicated References, function arguments inside subscripts
 and absent HTML equation numbers, all found during render review.
 
-After separate approval, `writings/dataset-template.typ` recognises both `import` and
+After separate approval, `writings/templates/dataset.typ` recognises both `import` and
 `historical-import`. The exp080 compute row now shows `1 s (import)`, with a tooltip
 excluding original training or simulation. Both operation values are covered by
 the existing duration tests, including retained HPC timing. Earlier shared

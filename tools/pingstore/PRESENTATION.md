@@ -6,7 +6,7 @@ Stored runs remain immutable. No experiment is executed or materialized.
 Generate its JSON with the lab-owned presentation hook:
 
 ```sh
-uv run python -m writings.prepare
+uv run python -m writings.demolab_pingstore
 ```
 
 The hook uses this checkout's declared experiment graph and writes only the
@@ -14,7 +14,7 @@ generated `.demolab/pinglab-inputs.json`, reporting validation results on stderr
 Demolab invokes it using:
 
 ```yaml
-prepare: [uv, run, python, -m, writings.prepare]
+prepare: [uv, run, python, -m, writings.demolab_pingstore]
 ```
 
 `DEMOLAB_INPUTS` supplies the JSON object of URL input values; `DEMOLAB_ARTICLE`
@@ -55,11 +55,11 @@ restarted with the source override; a page reload cannot upgrade its Python code
 
 ## What to edit
 
-- `writings/dataset-template.typ`: input selection, directory resolution,
+- `writings/templates/dataset.typ`: input selection, directory resolution,
   defaults and media attachments, plus the complete web-only panel, labels,
   layout, links and displayed metadata. The technical panel is separate from
   the scientific article; PDFs do not include it.
-- `writings/prepare.py`: the lab-owned hook that supplies the collection graph,
+- `writings/demolab_pingstore.py`: the lab-owned connector that supplies the collection graph,
   plus direct inputs not represented by that scheduling graph (exp048's bank
   and exp046's direct bank input). It imports declarations only, never runners.
 - `tools/pingstore/presentation_inputs.py`: the JSON projection called by the hook

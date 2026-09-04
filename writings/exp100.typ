@@ -1,7 +1,6 @@
-#import "contents.typ": with-contents, with-numbered-equations
-#import "dataset-template.typ": with-datasets
+#import "templates/article-layout.typ": journal-article
 #let meta = (
-  tags: ("txt", "v35.0.0"),
+  tags: ("txt", "v35.4.0"),
   title: "COBANet",
   updated_at: "2026-08-29T00:00:00Z",
   created_at: "2026-05-14T00:00:00Z",
@@ -13,7 +12,7 @@
 #let body = [
   == Implementation map
 
-  `COBANet` in `tools/snnsim/models.py` implements the built-in `--model ping` network. This page explains the minimal input→E→I→E motif; optional E→E, I→I, direct drives, adaptation, and trainable leak extend it. Read #link("/exp004/")[Parameters & Units] alongside these equations.
+  `COBANet` in `tools/snnsim/models.py` implements the built-in `--model ping` network. This page explains the minimal input→E→I→E motif; optional E→E, I→I, direct drives, adaptation, and trainable leak extend it. Read #link("/exp004/")[exp004] — #link("/exp004/")[_Parameters & Units_] alongside these equations.
 
   #table(
     columns: (auto, 1fr),
@@ -24,7 +23,7 @@
     [`set_sim_dt` in `config.py`], [Set timestep, duration, and derived step count for legacy execution.],
   )
 
-  Reuse the execution interface rather than changing model globals around a live network. A small forward command is given in #link("/exp011/#quick-start")[Quick start].
+  Reuse the execution interface rather than changing model globals around a live network. A small forward command is given in #link("/exp011/")[exp011] — #link("/exp011/")[_SNNSIM command-line guide._]
 
   == A conductance based neuron equation
 
@@ -96,14 +95,12 @@
 
   + *Preserve the kick convention.* `exp_synapse` computes `g * decay + spikes @ W`; `(g + spikes @ W) * decay` attenuates every new kick and changes the model.
   + *Preserve spike timing.* Keep integration, refractory-counter update, thresholding, and reset in the implemented order. The returned voltage may already be reset while the emitted spike is still available.
-  + *Separate forward and backward changes.* `--v-grad-dampen` modifies autograd through the increment; its local effect is described in #link("/exp015/")[Gradient Stabilisation].
+  + *Separate forward and backward changes.* `--v-grad-dampen` modifies autograd through the increment; its local effect is described in #link("/exp015/")[exp015] — #link("/exp015/")[_Gradient Stabilisation._]
   + *Test the intended extension.* A minimal PING equation does not describe enabled I→I recurrence, adaptation, noise, or state clamps. Inspect the corresponding branch in the model and extend the existing tests when changing it.
 
   Source reference: `tools/snnsim/models.py`, `tools/snnsim/config.py`, and `tools/snnsim/tests/test_models.py`.
 
-  #link("/exp004/")[Previous: Parameters & Units] · #link("/exp006/")[Next: Training]
+  #link("/exp004/")[exp004] — #link("/exp004/")[_Parameters & Units_] · #link("/exp006/")[exp006] — #link("/exp006/")[_Training_]
 ]
 
-#let body = with-datasets("exp100", (), body)
-#let body = with-numbered-equations(body)
-#let body = with-contents(body)
+#let body = journal-article("exp100", (), body)

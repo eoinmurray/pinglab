@@ -258,6 +258,24 @@ def test_validation_rejects_linear_readout_parameter_shape_drift():
         snn.compile(net)
 
 
+def test_projection_weights_use_microsiemens_and_reject_unit_drift():
+    net, _ = small_network()
+    graph = graph_dict(net)
+    projection_parameter_ids = {
+        parameter
+        for projection in graph["projections"]
+        for parameter in projection["parameters"]
+    }
+    rows = {row["id"]: row for row in graph["parameters"]}
+    assert {rows[parameter]["unit"] for parameter in projection_parameter_ids} == {
+        "uS"
+    }
+
+    rows[next(iter(projection_parameter_ids))]["unit"] = "nS"
+    result = validate_graph(graph)
+    assert any(d.code == "E113" for d in result.errors)
+
+
 def test_validation_rejects_operation_unit_drift():
     net, cell = small_network()
     bad = net.operation(
@@ -619,7 +637,7 @@ def test_bundle_lowers_to_snnviz_diagram_before_rendering():
     assert {node.id for node in visual.nodes} >= {"x", "cell", "out:spikes"}
 
 
-def test_expanded_diagram_groups_component_populations_on_one_rank():
+def test_expanded_diagram_groups_component_populations_in_horizontal_rows():
     net, cell = small_network()
     net.output("spikes", cell.E.spikes)
 
@@ -628,7 +646,7 @@ def test_expanded_diagram_groups_component_populations_on_one_rank():
     titles = {node.id: node.title for node in visual.nodes}
 
     assert group.members == ("cell_E", "cell_I")
-    assert group.same_rank
+    assert group.same_row
     assert (titles["cell_E"], titles["cell_I"]) == ("E", "I")
 
 

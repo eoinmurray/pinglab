@@ -1,7 +1,6 @@
-#import "contents.typ": with-contents, with-numbered-equations
-#import "dataset-template.typ": with-datasets
+#import "templates/article-layout.typ": journal-article
 #let meta = (
-  tags: ("txt", "v35.0.0"),
+  tags: ("txt", "v35.4.0"),
   title: "Inputs, outputs, and readouts",
   created_at: "2026-08-14T00:00:00Z",
   description: "Bind data to graph inputs, expose internal activity, and turn network signals into stable output values.",
@@ -135,9 +134,7 @@
 
   The CLI selects this route with `--dataset-file`, `--dataset-encoder`, `--input-dataset-id`, and `--input-split`. Training also supplies `--dataset-target-id`; `--max-samples`, `--input-shuffle`, `--seed`, `--t-ms`, and `--input-rate` define selection and encoding where applicable. Dataset snapshots cannot be combined with replay or generated-input bindings.
 
-  #link("/exp088/")[Next: Training recipes and graph-native learning]
+  #link("/exp088/")[exp088] — #link("/exp088/")[_Training recipes and graph-native learning_]
 ]
 
-#let body = with-datasets("exp108", (), body)
-#let body = with-numbered-equations(body)
-#let body = with-contents(body)
+#let body = journal-article("exp108", (), body)

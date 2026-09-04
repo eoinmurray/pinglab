@@ -600,8 +600,15 @@ def test_article_renders_fixture_and_unavailable_data_states(lab):
     output = inputs.source(root, identity, "present")
     source_root = Path(__file__).resolve().parents[2]
     (root / "writings").mkdir()
-    for name in ("exp042.typ", "dataset-template.typ", "contents.typ"):
-        shutil.copy2(source_root / "writings" / name, root / "writings" / name)
+    for name in (
+        "exp042.typ", "templates/dataset.typ", "templates/abstract.typ",
+        "templates/methods.typ", "templates/article-layout.typ",
+        "templates/result-card.typ", "templates/contents.typ",
+        "templates/equations.typ", "templates/status.typ",
+    ):
+        target = root / "writings" / name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source_root / "writings" / name, target)
     (root / ".demolab").mkdir()
     shutil.copy2(_paths.TYP / "lib.typ", root / ".demolab/lib.typ")
     mapping = {"exp042": {"exp042": "/" + str(output.export.relative_to(root))}}

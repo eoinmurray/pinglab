@@ -1,10 +1,13 @@
-#import "contents.typ": contents-here, with-contents, with-numbered-equations, with-result-sections
+#import "templates/article-layout.typ": journal-article
+#import "templates/result-card.typ": result-figure-ref, result-card, with-result-sections
 #import "/.demolab/lib.typ": data-image, data-json
-#import "dataset-template.typ": data-file, inputs-ready, pending-report, with-datasets, run-view, input-assets
+#import "templates/dataset.typ": data-file, inputs-ready, pending-report, run-view, input-assets
+#import "templates/abstract.typ": journal-abstract
+#import "templates/methods.typ": methods-heading, methods-stage
 #let data-file = data-file.with(article: "exp082")
 
 #let meta = (
-  tags: ("data", "v35.0.0"),
+  tags: ("data", "v35.4.0"),
   title: "Spike-Count Classification in a Continuous Stream",
   created_at: "2026-08-10T00:00:00Z",
   updated_at: "2026-09-01",
@@ -21,37 +24,6 @@
   (path: "exp082/alternative_stream.png", label: "nominal-regime counterexample"),
   (path: "exp082/variable_stream.png", label: "variable stream"),
 )
-
-#let result-card-style = context {
-  if target() == "html" {
-    html.elem("style",
-      ".pinglab-result-card { margin: 1.25rem 0; padding: 1.2rem 1.35rem 1.3rem; border: 1px solid var(--rule-strong); border-radius: 3px; background: var(--paper); } "
-      + ".pinglab-result-card > h4:first-child { margin-top: 0; } "
-      + ".pinglab-result-card > :last-child { margin-bottom: 0; } "
-      + ".pinglab-result-card-notes { margin-top: 1rem; padding-top: .75rem; border-top: 1px solid var(--rule); font-size: var(--fs-small); line-height: 1.5; color: var(--muted); } "
-      + ".pinglab-result-card-notes > p:first-child { margin: 0 0 .25rem; } "
-      + ".pinglab-result-card-notes ul { margin: 0; padding-left: 1.2rem; } "
-      + ".pinglab-result-card-notes li { margin: .2rem 0; } "
-      + "@media (max-width: 520px) { .pinglab-result-card { margin: 1rem 0; padding: .95rem 1rem 1.05rem; } }",
-    )
-  }
-}
-
-#let result-card(body, notes: none) = context {
-  let notes-body = if notes == none { none } else if target() == "html" {
-    html.elem("aside", attrs: (class: "pinglab-result-card-notes", "aria-label": "Notes"), [
-      *Notes.*
-      #notes
-    ])
-  } else { [
-    *Notes.*
-    #notes
-  ] }
-  let card-body = [#body #notes-body]
-  if target() == "html" {
-    html.elem("article", attrs: (class: "pinglab-result-card"), card-body)
-  } else { card-body }
-}
 
 // Keep calculations lazy: absent inputs never become fabricated results.
 #let render-report(data-file) = [
@@ -81,42 +53,28 @@
   #let rate-mean(rate) = mean(at-rate(rate).map(row => row.accuracy))
   #let dense-means = (10.0, 15.0, 25.0).map(rate-mean)
 
-  == Abstract
-
+  #journal-abstract(body: [
   This experiment asked whether networks trained on separate MNIST digits could
   classify digits presented continuously. Recurrent state was preserved between
   digits, while the output decision was reset at each boundary.
 
   Classification improved with longer, stronger inputs, whereas weak inputs
   often produced no output spikes.
-
-  #contents-here()
+  ])
 
   == Results
 
   #with-result-sections[
 
-  #result-card-style
-
-  #result-card(notes: [
-    - Before inference, we fixed candidate order and selected the first stream
-      classified 5/5 correctly. The first candidate qualified, so no failed
-      candidate was skipped to obtain this image.
-  ])[
-    === Five-digit capability stream across 5–25 Hz
+  #result-card[
+    === Five-digit capability stream
 
     One variable-rate-trained PING network classified a five-digit
     MNIST stream using output-LIF spike counts. Hidden neuronal state continued
     between presentations, while output state and counts reset at each known
-    boundary.
+    boundary (#result-figure-ref(<fig:exp082-result-1>)).
 
-    If the classifier tolerated both carried state and changing
-    input rate, at least some complete streams should remain correctly classified.
-
-    The first candidate in the predeclared deterministic sequence was
-    classified correctly throughout, despite the changing input rate.
-
-    #figure(
+  #figure(
       report-image(
         "exp082/hero_stream.png",
         "Five correctly classified digits presented for 200 ms at input rates from 5 to 25 Hz, with excitatory and inhibitory rasters and spike-count evidence.",
@@ -125,26 +83,31 @@
         and 25 Hz, with every digit presented for 200 ms. *(A)* Input thumbnails,
         *(B)* E-neuron spikes, *(C)* I-neuron spikes and *(D)* accumulated
         output-count evidence. Red traces show the true classes.],
-    )
+    ) <fig:exp082-result-1>
+
+    If the classifier tolerated both carried state and changing
+    input rate, at least some complete streams should remain correctly classified.
+
+    The first candidate in the predeclared deterministic sequence was
+    classified correctly throughout, despite the changing input rate.
+
+    *Notes.*
+
+    - Before inference, we fixed candidate order and selected the first stream
+      classified 5/5 correctly. The first candidate qualified, so no failed
+      candidate was skipped to obtain this image.
 
   ]
 
   #result-card[
-    === Accuracy across presentation duration and input rate
+    === Duration-rate classification accuracy
 
     Three independently trained PING networks classified continuous
     MNIST streams while presentation duration and maximum-pixel input rate varied.
     Hidden state persisted between digits, but each output decision reset at the
-    boundary.
+    boundary (#result-figure-ref(<fig:exp082-result-2>)).
 
-    Longer and stronger presentations should provide more output
-    evidence, reducing silent decisions and improving classification.
-
-    Classification improved with longer and stronger inputs. Brief,
-    weak presentations frequently produced no output spikes, while performance
-    remained strong across the denser input conditions.
-
-    #figure(
+  #figure(
       report-image(
         "exp082/duration_rate_summary.png",
         "Seed-mean accuracy across 25 to 200 ms and 0.5 to 25 Hz, with the 200 ms psychometric alongside.",
@@ -155,24 +118,25 @@
         #r.config.digits_per_seed_cell test presentations per replicate and
         condition; curve bars are ± sample SD/√3, not population confidence
         intervals.],
-    )
+    ) <fig:exp082-result-2>
+
+    Longer and stronger presentations should provide more output
+    evidence, reducing silent decisions and improving classification.
+
+    Classification improved with longer and stronger inputs. Brief,
+    weak presentations frequently produced no output spikes, while performance
+    remained strong across the denser input conditions.
 
   ]
 
   #result-card[
-    === Spike-count decision during one 200 ms trial
+    === Single-trial spike-count decision
 
     One correctly classified digit from the continuous stream was
     examined to show how excitatory and inhibitory spiking became an output
-    spike-count decision.
+    spike-count decision (#result-figure-ref(<fig:exp082-result-3>)).
 
-    A correct decision should end with the true class holding the
-    largest cumulative output spike count.
-
-    Class-specific output spikes accumulated until class 4 held the
-    largest count at the presentation boundary.
-
-    #figure(
+  #figure(
       report-image(
         "exp082/single_trial.png",
         "Digit 4 with rasters of 200 excitatory and 64 inhibitory neurons, and ten softmax count-share trajectories.",
@@ -183,23 +147,23 @@
         and winning class. Rasters display the first 200 E and 64 I neurons, not the full
         populations. Softmax count shares explain the readout; they are not calibrated
         probabilities.],
-    )
+    ) <fig:exp082-result-3>
+
+    A correct decision should end with the true class holding the
+    largest cumulative output spike count.
+
+    Class-specific output spikes accumulated until class 4 held the
+    largest count at the presentation boundary.
 
   ]
 
   #result-card[
-    === Output-count transition between 91.5 and 94.5 ms
+    === Output-count transition
 
     A short interval from the same digit-4 presentation was enlarged
-    to explain an abrupt change in the displayed class shares.
+    to explain an abrupt change in the displayed class shares (#result-figure-ref(<fig:exp082-result-4>)).
 
-    From the readout definition, counts should remain flat between
-    output spikes and step upward only when the corresponding class neuron spikes.
-
-    The displayed counts formed non-decreasing integer staircases.
-    Softmax normalization then changed every class share at each count increment.
-
-    #figure(
+  #figure(
       report-image(
         "exp082/single_trial_transition.png",
         "Output spikes, cumulative class counts and softmax count shares from 91.5 to 94.5 ms in the same digit-4 presentation.",
@@ -208,16 +172,33 @@
       caption: [Post-hoc enlargement of 91.5–94.5 ms in the same displayed trial.
         *(A)* Output spikes, *(B)* cumulative class counts and *(C)* softmax count shares;
         red marks the true and winning class 4.],
-    )
+    ) <fig:exp082-result-4>
+
+    From the readout definition, counts should remain flat between
+    output spikes and step upward only when the corresponding class neuron spikes.
+
+    The displayed counts formed non-decreasing integer staircases.
+    Softmax normalization then changed every class share at each count increment.
 
   ]
 
   #result-card[
-    === Three-of-five counterexample under showcase conditions
+    === Three-of-five counterexample
 
     The same network, durations, rates and deterministic candidate
     order used for the successful showcase were searched for a stream containing
-    exactly three correct decisions.
+    exactly three correct decisions (#result-figure-ref(<fig:exp082-result-5>)).
+
+  #figure(
+      report-image(
+        "exp082/alternative_stream.png",
+        "A three-of-five counterexample under the same 200 ms and 5 to 25 Hz conditions as the capability showcase.",
+      ),
+      caption: [Nominal-regime counterexample under the same seed-42 network,
+        durations, rates and deterministic candidate order as the showcase.
+        *(A)* Input thumbnails, *(B)* E-neuron spikes, *(C)* I-neuron spikes and
+        *(D)* output-count evidence. Badges show true→predicted labels.],
+    ) <fig:exp082-result-5>
 
     If the showcase represented capability rather than perfect
     reliability, comparable streams should also contain classification errors.
@@ -227,25 +208,25 @@
     #r.showcase_selection.candidates.len() candidates were evaluated. Digits 9
     and 2 were misclassified as 4 and 9.
 
-    #figure(
-      report-image(
-        "exp082/alternative_stream.png",
-        "A three-of-five counterexample under the same 200 ms and 5 to 25 Hz conditions as the capability showcase.",
-      ),
-      caption: [Nominal-regime counterexample under the same seed-42 network,
-        durations, rates and deterministic candidate order as the showcase.
-        *(A)* Input thumbnails, *(B)* E-neuron spikes, *(C)* I-neuron spikes and
-        *(D)* output-count evidence. Badges show true→predicted labels.],
-    )
-
   ]
 
   #result-card[
-    === Mixed-duration stream with silent and non-silent failures
+    === Mixed-duration failure modes
 
     A five-digit stream varied both presentation duration and input
     rate to expose the classifier to easy and difficult conditions within one
-    continuous trajectory.
+    continuous trajectory (#result-figure-ref(<fig:exp082-result-6>)).
+
+  #figure(
+      report-image(
+        "exp082/variable_stream.png",
+        "Five digits with changing rates and durations: three correct predictions, a silent 0.5 Hz failure and a non-silent 2 Hz failure.",
+      ),
+      caption: [Seed-42 illustration shown here. *(A)* Input thumbnails, *(B)*
+        E-neuron spikes, *(C)* I-neuron spikes and *(D)* output-count evidence.
+        Counts reset at boundaries while hidden state continues. Badges show true→predicted labels; thumbnail
+        opacity increases with rate. Display sampling matches the preceding raster.],
+    ) <fig:exp082-result-6>
 
     Brief or weak presentations should be most vulnerable because
     they provide less time or input for output evidence to accumulate.
@@ -255,30 +236,19 @@
     presentation was silent, while the 100 ms, 2 Hz presentation failed despite
     producing output spikes.
 
-    #figure(
-      report-image(
-        "exp082/variable_stream.png",
-        "Five digits with changing rates and durations: three correct predictions, a silent 0.5 Hz failure and a non-silent 2 Hz failure.",
-      ),
-      caption: [Seed-42 illustration shown here. *(A)* Input thumbnails, *(B)*
-        E-neuron spikes, *(C)* I-neuron spikes and *(D)* output-count evidence.
-        Counts reset at boundaries while hidden state continues. Badges show true→predicted labels; thumbnail
-        opacity increases with rate. Display sampling matches the preceding raster.],
-    )
-
   ]
 
   #context if target() != "html" { pagebreak(weak: true) }
   #block(sticky: true)[
   ]
 
-    == Methods
+    #methods-heading()
 
   ]
-  === Compute
+  #methods-stage([Compute])
 
   + *Classifiers.* We reused three frozen PING networks, seeds 42–44, from
-    #link("/exp022/")[the variable-rate training bank]. We did not retrain them.
+    #link("/exp022/")[exp022] — #link("/exp022/")[_Training Runs._] We did not retrain them.
 
   + *Architecture.* Each network contained 1,024 excitatory neurons, 256
     inhibitory neurons and ten output-LIF units. A learned projection carried
@@ -330,7 +300,7 @@
     its counterexample; the search stopped after
     #r.showcase_selection.candidates.len() candidates.
 
-  === Analyse
+  #methods-stage([Analysis])
 
   #set enum(start: 14)
 
@@ -358,7 +328,7 @@
     causal gamma manipulation, fixed-rate-training control or separation of
     viewing from integration time support broader claims.
 
-  === Present
+  #methods-stage([Presentation])
 
   #set enum(start: 19)
 
@@ -384,6 +354,4 @@
 }
 
 #let meta = meta + (assets: input-assets("exp082", inputs))
-#let body = with-datasets("exp082", inputs, report-body, placed: inputs-ready(data-file, inputs))
-#let body = with-numbered-equations(body)
-#let body = with-contents(body)
+#let body = journal-article("exp082", inputs, report-body, dataset-placed: inputs-ready(data-file, inputs))

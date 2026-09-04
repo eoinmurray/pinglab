@@ -595,8 +595,15 @@ def test_article_renders_explicit_evidence_without_false_branches(repo, view):
     elif view == "broken":
         numbers.write_text("not json")
     (root / "writings").mkdir()
-    for name in ("exp080.typ", "contents.typ", "dataset-template.typ"):
-        shutil.copyfile(project / "writings" / name, root / "writings" / name)
+    for name in (
+        "exp080.typ", "templates/article-layout.typ", "templates/dataset.typ",
+        "templates/abstract.typ", "templates/methods.typ", "templates/result-card.typ",
+            "templates/references.typ", "templates/contents.typ", "templates/equations.typ",
+            "templates/status.typ",
+    ):
+        target = root / "writings" / name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(project / "writings" / name, target)
     (root / ".demolab").mkdir()
     for name in ("lib.typ", "style.css"):
         shutil.copyfile(_paths.TYP / name, root / ".demolab" / name)

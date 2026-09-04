@@ -663,8 +663,15 @@ def test_article_selected_inputs_equations_and_absent_data(lab):
     output = inputs.source(root, present.present(aid), "present")
     repo = Path(__file__).resolve().parents[2]
     (root / "writings").mkdir()
-    for name in ("exp033.typ", "dataset-template.typ", "contents.typ"):
-        shutil.copyfile(repo / "writings" / name, root / "writings" / name)
+    for name in (
+        "exp033.typ", "templates/dataset.typ", "templates/abstract.typ",
+        "templates/methods.typ", "templates/article-layout.typ",
+        "templates/result-card.typ", "templates/references.typ",
+        "templates/contents.typ", "templates/equations.typ", "templates/status.typ",
+    ):
+        target = root / "writings" / name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(repo / "writings" / name, target)
     (root / ".demolab").mkdir()
     shutil.copyfile(_paths.TYP / "lib.typ", root / ".demolab/lib.typ")
     write_json_atomic(

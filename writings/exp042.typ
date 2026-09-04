@@ -1,10 +1,13 @@
-#import "contents.typ": contents-here, with-contents, with-numbered-equations, with-result-sections
+#import "templates/article-layout.typ": journal-article
+#import "templates/result-card.typ": result-card, with-result-sections
 #import "/.demolab/lib.typ": data-json, data-image
-#import "dataset-template.typ": data-file, inputs-ready, pending-report, with-datasets, run-view, input-assets
+#import "templates/dataset.typ": data-file, inputs-ready, pending-report, run-view, input-assets
+#import "templates/abstract.typ": journal-abstract
+#import "templates/methods.typ": journal-methods
 #let data-file = data-file.with(article: "exp042")
 
 #let meta = (
-  tags: ("data", "reviewed", "v35.0.0"),
+  tags: ("reviewed", "v35.4.0"),
   title: "Inhibitory Replay Perturbations Change Excitatory Firing",
   created_at: "2026-06-02T00:00:00Z",
   updated_at: "2026-09-01",
@@ -17,25 +20,6 @@
   (path: "exp042/rhythm_compound.png", label: "inhibitory replay perturbations"),
 )
 
-#let result-card-style = context {
-  if target() == "html" {
-    html.elem("style",
-      ".pinglab-result-card { margin: 1.25rem 0; padding: 1.2rem 1.35rem 1.3rem; border: 1px solid var(--rule-strong); border-radius: 3px; background: var(--paper); } "
-      + ".pinglab-result-card > h4:first-child { margin-top: 0; } "
-      + ".pinglab-result-card > :last-child { margin-bottom: 0; } "
-      + "@media (max-width: 520px) { .pinglab-result-card { margin: 1rem 0; padding: .95rem 1rem 1.05rem; } }",
-    )
-  }
-}
-
-#let result-card(body) = context {
-  if target() == "html" {
-    html.elem("article", attrs: (class: "pinglab-result-card"), body)
-  } else {
-    body
-  }
-}
-
 // Calculations remain lazy so missing inputs cannot become fabricated results.
 #let render-report(data-file) = [
 #let run = data-json(data-file("exp042/numbers.json"))
@@ -43,8 +27,7 @@
 #let anchor-sigma = 14
 
 #let body = [
-  == Abstract
-
+  #journal-abstract(body: [
   We asked how perturbing inhibitory spike timing changes trained PING
   classifiers. We reused three frozen MNIST classifiers and their retained
   inhibitory-spike recordings.
@@ -57,17 +40,14 @@
   Accuracy declined under both perturbations. Because rounding, boundary
   clamping and event collisions also changed realised inhibitory delivery,
   these measurements do not isolate synchrony or a gamma-specific mechanism.
-
-  #contents-here()
+  ])
 
   == Results
 
   #with-result-sections[
 
-  #result-card-style
-
   #result-card[
-  === Excitatory responses diverge across replay perturbations
+  === Replay perturbations diverge
 
   #figure(
     data-image(
@@ -85,16 +65,14 @@
       I-spike rate and test-accuracy means across three training replicates.
       Retained SEM across training replicates is not displayed.
     ],
-  )
+  ) <fig:exp042-result-1>
 
   ]
 
   ]
 
-  == Methods
-
-  === Compute
-
+  #journal-methods(
+    compute: [
   + *Models.* We reused three independently trained PING networks, initialized
     with training seeds 42–44.
 
@@ -118,21 +96,21 @@
 
   + *Collisions.* We moved same-neuron spikes landing on the same timestep to the
     nearest unused in-range timestep. No spikes were removed.
-
-  === Analyse
-
+    ],
+    analyse: [
   #set enum(start: 8)
 
   + *Measurements.* We recorded accuracy and mean excitatory and inhibitory
     firing rates. Curves show the mean across the three training seeds.
-
-  === Present
-
+    ],
+    present: [
   #set enum(start: 9)
 
   + *Range restriction.* We retained larger jitter values as boundary-sensitivity
     results but excluded them from the main figure because reflection became a
     substantial part of the intervention.
+    ],
+  )
 ]
 #body
   #run-view("exp042", inputs)
@@ -151,6 +129,4 @@
 }
 
 #let meta = meta + (assets: input-assets("exp042", inputs))
-#let body = with-datasets("exp042", inputs, report-body, placed: inputs-ready(data-file, inputs))
-#let body = with-numbered-equations(body)
-#let body = with-contents(body)
+#let body = journal-article("exp042", inputs, report-body, dataset-placed: inputs-ready(data-file, inputs))

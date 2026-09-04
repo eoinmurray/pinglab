@@ -1,10 +1,14 @@
-#import "contents.typ": contents-here, with-contents, result-card, with-numbered-equations, with-result-sections
-#import "/.demolab/lib.typ": data-json, data-image, cite, reference-list
-#import "dataset-template.typ": data-file, inputs-ready, pending-report, with-datasets, run-view, input-assets
+#import "templates/article-layout.typ": journal-article
+#import "templates/result-card.typ": result-figure-ref, result-card, with-result-sections
+#import "templates/references.typ": journal-references
+#import "/.demolab/lib.typ": data-json, data-image, cite
+#import "templates/dataset.typ": data-file, inputs-ready, pending-report, run-view, input-assets
+#import "templates/abstract.typ": journal-abstract
+#import "templates/methods.typ": journal-methods
 #let data-file = data-file.with(article: "exp033")
 
 #let meta = (
-  tags: ("data", "v35.0.0"),
+  tags: ("data", "v35.4.0"),
   title: "Gamma Emerges at a Hopf Bifurcation",
   created_at: "2026-05-28T00:00:00Z",
   updated_at: "2026-09-02",
@@ -54,34 +58,32 @@
 
 
 #let body = [
-  == Abstract
-
-  Asked how gamma oscillations begin in a population description of the PING
-  circuit and which variables are essential. Swept drive, inhibitory timescale
-  and noise, compared the full rate model with simpler quasi-steady reductions.
+  #journal-abstract(body: [
+  We asked how gamma oscillations begin in a population description of the PING
+  circuit and which variables are essential. We swept drive, inhibitory timescale
+  and noise, and compared the full rate model with simpler quasi-steady reductions.
 
   Gamma emerged through oscillatory loss of stability; a reduced feedback system
-  retained the oscillation, whereas the simplest reductions lost it. Supplies a
+  retained the oscillation, whereas the simplest reductions lost it. This supplies a
   mechanism for rhythmic recruitment, not proof that the trained spiking
   networks undergo the same bifurcation.
-
-  #contents-here()
+  ])
 
   == Results
 
   #with-result-sections[
 
   #result-card[
-  === Mean-field eigenvalue crossing, amplitude ramps and onset frequency
+  === Hopf onset and frequency
 
   At the reference noise scale of 4 mV, one conjugate pair crossed at #istar nA
   with onset frequency #fstar Hz. Up/down amplitudes nearly coincided, and the
   inhibitory-decay trend agreed qualitatively with separately measured spiking
   rhythms. We treat this as a candidate explanation of the
-  #link("/exp025/")[input-coupling recruitment transition], whose empirical
+  #link("/exp025/")[exp025] — #link("/exp025/")[_Accuracy and Firing Rate With and Without Inhibition_], whose empirical
   marker is an inhibitory-rate crossing under input-weight scaling, not a fitted
   Hopf current. The model alone identifies neither that transition nor a minimum
-  sustainable firing rate.
+  sustainable firing rate (#result-figure-ref(<fig-overview>)).
 
   #figure(
     data-image(data-file("exp033/bifurcation_compound.svg"), width: 100%,
@@ -95,14 +97,14 @@
   ]
 
   #result-card[
-  === Onset sensitivity across effective noise scales
+  === Noise-scale onset sensitivity
 
   Across 3, 4, 5 and 6 mV, the sensitivity tests supported a reversible onset. The
   threshold spanned #sens-i-lo–#sens-i-hi nA while frequency remained near
   #fstar Hz, and E amplitude at onset plus 0.4 nA fell from #sens-a-hi to
   #sens-a-lo Hz. At the 4 mV reference, equilibrium E/I rates were #estar and
   #irate Hz: the unstable equilibrium was low-rate, not silent. The noise
-  parameter is free, so this sweep is not a calibration to spiking activity.
+  parameter is free, so this sweep is not a calibration to spiking activity (#result-figure-ref(<fig-sigma>)).
 
   #figure(
     data-image(data-file("exp033/sigma_sensitivity.svg"), width: 100%,
@@ -116,10 +118,10 @@
   ]
 
   #result-card[
-  === Excitatory and inhibitory rate waveform above onset
+  === Rates above Hopf onset
 
   The absolute cross-correlation peak lag was #elag ms. This magnitude is not a
-  signed causal delay or a synaptic round-trip time.
+  signed causal delay or a synaptic round-trip time (#result-figure-ref(<fig-cycle>)).
 
   #figure(
     data-image(data-file("exp033/limit_cycle.svg"), width: 100%,
@@ -139,7 +141,7 @@
 
   AMPA closely tracked E while the other variables showed larger phase offsets.
   These traces illustrate feedback timing; the ordering does not measure four
-  independent transmission delays.
+  independent transmission delays (#result-figure-ref(<fig-timeseries>)).
 
   #figure(
     data-image(data-file("exp033/timeseries.svg"), width: 100%,
@@ -155,12 +157,12 @@
   ]
 
   #result-card[
-  === Six pairwise projections of the four-state trajectory
+  === Four-state trajectory projections
 
   The E–AMPA projection was narrow while other pairs enclosed larger areas. A
   periodic orbit is a curve and need not be planar; these projections do not
   demonstrate a centre manifold or prove that a particular pair closes the
-  dynamics.
+  dynamics (#result-figure-ref(<fig-phase>)).
 
   #figure(
     data-image(data-file("exp033/phase_planes.svg"), width: 100%,
@@ -176,14 +178,14 @@
   ]
 
   #result-card[
-  === Four-, three- and two-variable reduction responses
+  === Reduced-model responses
 
   The full model and AMPA-slaved three-variable reduction oscillated, whereas
   the rate-slaved two-variable probe decayed. Their onset frequencies were
   approximately #fstar0 and #fstar3 Hz, respectively. All six original-variable
   two-dimensional reductions had negative divergence. The three-variable
   minimum applies to this quasi-steady-state family, not to all possible models
-  #cite(1).
+  #cite(1) (#result-figure-ref(<fig-ladder>)).
 
   #figure(
     data-image(data-file("exp033/reduction_ladder.svg"), width: 100%,
@@ -198,13 +200,12 @@
   ]
   ]
 
-  == Methods
-
+  #journal-methods(
+    orientation: [
   We reused a deterministic population-rate analysis and compared its onset
   frequencies with independent measurements from trained spiking networks.
-
-  === Compute
-
+    ],
+    compute: [
   + *Define the population model.* E/I rates relaxed toward noisy LIF gains
     #cite(2), with membrane times 20/5 ms and AMPA/GABA times 2/#tg ms.
     Fixed excitatory/inhibitory driving forces were 65/15 mV; lumped conductance
@@ -219,9 +220,8 @@
     $Phi$ steady-state gains, $G$ summed conductances, and the pathway-specific time constants; dots denote derivatives in milliseconds. Fixed driving forces
     omit shunting; rate relaxation and the free noise scale define a
     phenomenological closure, not a self-consistent noise theory.
-
-  === Analyse
-
+    ],
+    analyse: [
   #set enum(start: 2)
 
   + *Locate oscillatory instability.* Fixed points were continued over 401 drives
@@ -254,15 +254,15 @@
     with three-seed medians of reused final-epoch spiking measurements.
     Each network frequency came from the interpolated peak of trial-averaged
     population spectra; these were not medians of individual-trial peaks.
-
-  === Present
-
+    ],
+    present: [
   #set enum(start: 6)
 
   + *Expose numerical evidence.* We displayed the retained fixed-point,
     stability, waveform and sensitivity comparisons with their continuation
     directions and fitted uncertainty limits.
-
+    ],
+  )
   #run-view("exp033", inputs)
 
   == Appendix: From spiking membranes to a population-rate closure
@@ -276,7 +276,7 @@
   time. $Delta t_"sim"$ is the timestep, $W$ a conductance increment per spike (µS),
   and superscripts identify the receiving E or I population.
 
-  The derivation starts from the COBANet model (#link("/exp100/")[conductance-based spiking model specification]): conductance-based E
+  The derivation starts from the COBANet model (#link("/exp100/")[exp100] — #link("/exp100/")[_COBANet_]): conductance-based E
   and I membranes, a threshold-reset rule, and three exponential synapses (no E→E; I
   receives no inhibition):
   $ C_m^E dot(V_m)^E = -g_L^E (V_m^E - E_L) - g_e^E (V_m^E - E_e) - g_i^E (V_m^E - E_i) $ <eq-old-1>
@@ -702,7 +702,7 @@
   === Mechanistic connections and their limits
 
   The motivating proposal was that the
-  #link("/exp025/")[input-coupling recruitment transition] is a supercritical
+  #link("/exp025/")[exp025] — #link("/exp025/")[_Accuracy and Firing Rate With and Without Inhibition_] is a supercritical
   Hopf whose timescale comes from the E–I feedback loop.
   \[(!) The present model supplies that candidate mechanism, but the empirical
   recruitment marker uses input-weight scaling and an inhibitory-rate
@@ -726,7 +726,7 @@
   transmission delays. The loop interpretation remains a mechanism to test,
   not a delay measurement recovered from that scalar.\]
 
-  #reference-list((
+  #journal-references((
     (text: [W. Zhang, V. Kirk, J. Sneyd, and M. Wechselberger.
       “Changes in the criticality of Hopf bifurcations due to certain model
       reduction techniques in systems with multiple timescales.”
@@ -754,6 +754,4 @@
 }
 
 #let meta = meta + (assets: input-assets("exp033", inputs))
-#let body = with-datasets("exp033", inputs, report-body, placed: inputs-ready(data-file, inputs))
-#let body = with-numbered-equations(body)
-#let body = with-contents(body)
+#let body = journal-article("exp033", inputs, report-body, dataset-placed: inputs-ready(data-file, inputs))

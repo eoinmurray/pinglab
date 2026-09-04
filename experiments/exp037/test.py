@@ -664,7 +664,9 @@ def test_reviewed_article_structure_and_scientific_caveats():
     assert 'created_at: "2026-05-30T00:00:00Z"' in text
     assert 'updated_at: "2026-09-02T00:00:00Z"' in text
     assert (
-        text.index("== Abstract") < text.index("== Results") < text.index("== Methods")
+        text.index("#journal-abstract")
+        < text.index("== Results")
+        < text.index("#methods-heading()")
     )
     assert "== Discussion" not in text
     assert "minimum-validation-loss epoch" in text
@@ -673,4 +675,4 @@ def test_reviewed_article_structure_and_scientific_caveats():
     assert "capped at one" in text
     assert "digit 0" not in text
     assert 'fit: "contain"' in text
-    assert "#reference-list" in text and "#cite(1)" in text
+    assert "#journal-references" in text and "#cite(1)" in text

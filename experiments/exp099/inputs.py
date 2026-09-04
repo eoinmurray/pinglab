@@ -57,6 +57,7 @@ def recording(compute):
         "input_structured_spikes_e",
         "input_structured_spikes_i",
         "input_weather_scale",
+        "input_afferent_scale",
         "input_afferent_shared_scale",
     )
     for population in ("e", "i"):

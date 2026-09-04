@@ -486,7 +486,7 @@ def test_article_renders_selected_analysis(lab):
     assert result.returncode == 0, result.stderr
     assert list(root.glob("article-*.png"))
     text = (root / "writings/exp044.typ").read_text()
-    headings = ["== Abstract", "== Results", "== Methods", "#reference-list"]
+    headings = ["#journal-abstract", "== Results", "#journal-methods", "#journal-references"]
     assert [text.index(h) for h in headings] == sorted(text.index(h) for h in headings)
     assert "default: 256" not in text
     assert "9–14 Hz" not in text

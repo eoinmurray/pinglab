@@ -33,6 +33,7 @@ class SignalLike(Protocol):
 ms = Unit("ms")
 mV = Unit("mV")
 nS = Unit("nS")
+uS = Unit("uS")
 Hz = Unit("Hz")
 
 
@@ -353,7 +354,7 @@ class Network:
                 {
                     "id": parameter_id,
                     "shape": [populations[target_pop]["size"], source.shape[-1]],
-                    "unit": "nS",
+                    "unit": "uS",
                     "initializer": weight.json(),
                     "constraint": constraint.json() if constraint else None,
                     "group": self.current_group,

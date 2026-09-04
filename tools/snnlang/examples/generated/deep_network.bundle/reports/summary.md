@@ -31,13 +31,13 @@ Diagnostics: 0 errors, 0 warnings
 - encoder_input: events.value → encoder_E.excitatory [feedforward, excitatory]
 
 ## Parameters
-- association_E_to_I.weight: [64, 256] nS (selected)
-- association_I_to_E.weight: [256, 64] nS (selected)
-- association_input.weight: [256, 384] nS (selected)
-- decision_E_to_I.weight: [32, 128] nS (selected)
-- decision_I_to_E.weight: [128, 32] nS (selected)
-- decision_input.weight: [128, 256] nS (selected)
-- encoder_E_to_I.weight: [96, 384] nS (selected)
-- encoder_I_to_E.weight: [384, 96] nS (selected)
-- encoder_input.weight: [384, 700] nS (selected)
+- association_E_to_I.weight: [64, 256] uS (selected)
+- association_I_to_E.weight: [256, 64] uS (selected)
+- association_input.weight: [256, 384] uS (selected)
+- decision_E_to_I.weight: [32, 128] uS (selected)
+- decision_I_to_E.weight: [128, 32] uS (selected)
+- decision_input.weight: [128, 256] uS (selected)
+- encoder_E_to_I.weight: [96, 384] uS (selected)
+- encoder_I_to_E.weight: [384, 96] uS (selected)
+- encoder_input.weight: [384, 700] uS (selected)
 - gesture_readout_projection.weight: [20, 128] 1 (selected)

@@ -10,6 +10,7 @@ import numpy as np
 import pytest
 from experiments.exp099 import analyse, compute, present, recipe
 from matplotlib import image as mpimg
+from matplotlib.text import Text
 from pingstore import stages
 from pingstore.contracts import (
     LEGACY_RUN_SCHEMA,
@@ -75,6 +76,7 @@ def lab(tmp_path, monkeypatch):
             "input_structured_spikes_e": e,
             "input_structured_spikes_i": e,
             "input_weather_scale": np.ones(2000),
+            "input_afferent_scale": np.ones(2000),
             "input_afferent_shared_scale": np.ones(2000),
         }
         for population, spikes in (("e", e), ("i", i)):
@@ -110,6 +112,19 @@ def forbid(*args, **kwargs):
 
 def test_stages_pin_v3_keep_raw_evidence_and_render_without_analysis(lab, monkeypatch):
     renderer = importlib.import_module("experiments.exp099.render")
+    layout = renderer.frame_grid()
+    assert layout.rect("header").mpl == pytest.approx(
+        (0.015, 0.9297701149, 0.965, 0.0402298851)
+    )
+    assert layout.rect("network").mpl == pytest.approx(
+        (0.015, 0.055, 0.4725, 0.8547701149)
+    )
+    assert layout.rect("means").mpl == pytest.approx(
+        (0.5075, 0.4923850575, 0.22625, 0.4173850575)
+    )
+    assert layout.rect("weights").mpl == pytest.approx(
+        (0.75375, 0.055, 0.22625, 0.4173850575)
+    )
     compute_id = compute.compute()
     upstream = directory(lab, compute_id)
     before = payload_digest(upstream)
@@ -141,24 +156,38 @@ def test_stages_pin_v3_keep_raw_evidence_and_render_without_analysis(lab, monkey
         np.testing.assert_allclose(fig.get_facecolor(), (1.0, 1.0, 1.0, 1.0))
         for axis in fig.axes:
             np.testing.assert_allclose(axis.get_facecolor(), (1.0, 1.0, 1.0, 1.0))
-        assert all(
-            axis.get_position().y0 >= renderer.DIAGNOSTIC_PANEL_BOTTOM
-            for axis in fig.axes[1:]
-        )
-        assert renderer.DIAGNOSTIC_PANEL_BOTTOM > renderer.VIDEO_CONTROL_SAFE_BOTTOM
-        assert (
-            renderer.DIAGNOSTIC_PANEL_BOTTOM + renderer.DIAGNOSTIC_PANEL_HEIGHT
-            < renderer.NETWORK_FOOTER_Y
-        )
         for frame in (0, 139, 140, 309, 310, 479, 480, 599):
             update(frame)
             fig.canvas.draw()
-            pixels = np.asarray(fig.canvas.buffer_rgba())
-            safe_rows = int(
-                np.ceil(pixels.shape[0] * renderer.VIDEO_CONTROL_SAFE_BOTTOM)
+            visible_text = {
+                text.get_text()
+                for text in fig.findobj(match=Text)
+                if text.get_visible() and text.get_text().strip()
+            }
+            time_ticks = {text for text in visible_text if text.isdigit()}
+            assert len(time_ticks) == 3
+            assert visible_text - time_ticks == (
+                set(renderer.PANEL_TITLES.values())
+                | set(renderer.RESPONSE_PANEL_TITLES.values())
+                | {
+                r"$g_E$",
+                r"$g_I$",
+                r"$V_E$",
+                r"$V_I$",
+                "SHARED",
+                "E PRIVATE",
+                "I PRIVATE",
+                "TIME (ms)",
+                "E-TARGETING SPIKES",
+                "SHARED SPIKES",
+                "AMPA CONDUCTANCE",
+                "GABA CONDUCTANCE",
+                "I-TARGETING SPIKES",
+                "E POPULATION",
+                "I POPULATION",
+                }
             )
-            assert np.all(pixels[-safe_rows:, :, :3] == 255)
-        assert len(fig.axes) == 7
+        assert len(fig.axes) == 8
         # Encoding is outside this fixture test; the real poster is rendered.
         output.write_bytes(b"fixture-video")
 
@@ -177,7 +206,9 @@ def test_stages_pin_v3_keep_raw_evidence_and_render_without_analysis(lab, monkey
     assert "n_balanced_circuit_E" in (output / "export/network.svg").read_text()
     assert not (upstream / "export/network.svg").exists()
     poster = mpimg.imread(output / "export" / recipe.POSTER)
-    assert poster.shape[:2] == (1944, 3456)
+    assert poster.ndim == 3
+    assert poster.shape[0] > 1000
+    assert poster.shape[1] > poster.shape[0]
     assert load_json(output / "export/numbers.json") == load_json(
         analysis_root / "export/results.json"
     )

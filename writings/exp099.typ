@@ -1,14 +1,18 @@
-#import "contents.typ": contents-here, with-contents, result-card, with-numbered-equations, with-result-sections
+#import "templates/article-layout.typ": journal-article
+#import "templates/result-card.typ": journal-result-card, result-figure-ref, with-result-sections
 #import "/.demolab/lib.typ": data-image
-#import "dataset-template.typ": video, data-file, inputs-ready, pending-report, with-datasets, run-view, input-assets
+#import "templates/dataset.typ": video, data-file, inputs-ready, pending-report, run-view, input-assets
+#import "templates/abstract.typ": journal-abstract
+#import "templates/methods.typ": journal-methods, method-card
 #let data-file = data-file.with(article: "exp099")
 
 #let meta = (
-  tags: ("data", "v35.0.0"),
-  title: "Video of the AI-to-PING transition",
+  tags: ("data", "v35.4.0"),
+  // Author-locked title: do not change.
+  title: "Video AI-PING transition",
   created_at: "2026-08-26T00:00:00Z",
-  updated_at: "2026-09-02",
-  description: "A planned simulation scout comparing a Börgers–Kopell-like input regime with a richer conductance-based background.",
+  updated_at: "2026-09-03",
+  description: "Two single-seed conductance-based network simulations show intermittent activity under richer input and sustained alternating volleys during strong shared afferent drive.",
   collection: "demo",
   order: 13,
 )
@@ -16,151 +20,181 @@
 #let inputs = ("exp099",)
 
 #let render-report(data-file) = [
-  == Abstract
-
-  Will test whether PING survives when stationary drive is replaced by more
-  brainlike, heterogeneous and correlated input. The comparison will add input
-  complexity in stages while keeping the same sparse excitatory–inhibitory
-  network.
-
-  Current implementation has only a richer-input activity probe and cannot show
-  how the rhythm changes relative to a simple baseline. Its media demonstrate
-  the probe, not the planned controlled comparison or the input features
-  responsible for preserving PING.
-
-  #contents-here()
+  #journal-abstract(
+    question: [We tested how shared and heterogeneous afferent drive organize a sparse conductance-based excitatory–inhibitory network.],
+    approach: [We visualized two retained single-seed simulations: a richer-input condition and a condition with a sustained shared-input ramp.],
+    finding: [Strong shared drive recruited regular alternating excitatory and inhibitory volleys, whereas the richer-input condition remained irregular with intermittent structure.],
+    scope: [These examples establish input-dependent behaviour in the configured simulations, not robustness across seeds or a one-factor comparison between conditions.],
+  )
 
   == Results
 
   #with-result-sections[
 
-  #result-card[
-  === Excitatory–inhibitory network and afferent-input schematic
+    #journal-result-card(
+      title: "Implemented circuit architecture",
+      visual: [
+        #figure(
+          data-image(
+            data-file("exp099/network.svg"),
+            width: 100%,
+            alt: "Structural diagram of the excitatory and inhibitory populations, their recurrent projections, afferent inputs and readout.",
+          ),
+          caption: [Structural schematic of the implemented excitatory and
+            inhibitory populations, recurrent AMPA and GABA projections,
+            destination-specific afferent projections and downstream readout.
+            The diagram specifies the model and is not experimental evidence.],
+          kind: image,
+          supplement: [Figure],
+        ) <fig:exp099-network>
+      ],
+      expectation: [The candidate PING mechanism is recurrent excitation
+        followed by inhibitory feedback; the schematic identifies the pathways
+        capable of producing that sequence
+        (#result-figure-ref(<fig:exp099-network>)).],
+    )
 
-  #figure(
-    data-image(data-file("exp099/network.svg"), width: 100%),
-    caption: [Structural schematic of the excitatory and inhibitory populations,
-      recurrent projections, and afferent inputs. This is a model diagram, not evidence.],
-    kind: image, supplement: [Figure],
-  )
+    #journal-result-card(
+      title: "External input architecture",
+      visual: [
+        #figure(
+          data-image(
+            data-file("exp099/input-map-option-3.svg"),
+            width: 100%,
+            alt: "Shared and destination-specific afferents feed the E and I populations, while AMPA and GABA backgrounds act on both populations.",
+          ),
+          caption: [Shared afferent events enter both destination streams;
+            E-private and I-private events remain destination-specific. Separate
+            private and grouped AMPA and GABA backgrounds act on both
+            populations. This is an explanatory schematic rather than measured
+            evidence.],
+          kind: image,
+          supplement: [Figure],
+        ) <fig:exp099-inputs>
+      ],
+      orientation: [The afferent streams and conductance backgrounds provide
+        distinct routes by which input rate, correlation and polarity can alter
+        excitatory–inhibitory timing
+        (#result-figure-ref(<fig:exp099-inputs>)).],
+    )
+
+    #let richer-clip = data-file("exp099/richer-input-ai-to-intermittent-ping.mp4")
+    #if richer-clip != none { let _ = read(richer-clip, encoding: none) }
+    #journal-result-card(
+      title: "Richer input remains intermittent",
+      visual: [
+        #figure(
+          video(richer-clip),
+          caption: [Single-seed richer-input simulation over 300–1,800 ms.
+            Panel A maps recorded spike and conductance inputs to the E and I
+            populations; B shows mean conductances and voltages; C traces the
+            excitatory–inhibitory conductance plane; D shows per-neuron E and I
+            firing rates in a 20 ms window; E shows shared and private afferent
+            multipliers against time; and F shows recurrent-weight
+            distributions. Black denotes excitatory or E-targeted quantities,
+            red inhibitory or I-targeted quantities, and grey the shared input.
+            Transmission paths are sampled for legibility.],
+          kind: image,
+          supplement: [Figure],
+        ) <fig:exp099-richer>
+      ],
+      observation: [Population rates fluctuated irregularly through the
+        afferent transient, with only short structured episodes
+        (#result-figure-ref(<fig:exp099-richer>, panel: "D")). This single
+        realization does not establish whether richer input generally
+        suppresses or preserves PING.],
+    )
+
+    #let shared-clip = data-file("exp099/shared-drive-ai-to-ping.mp4")
+    #if shared-clip != none { let _ = read(shared-clip, encoding: none) }
+    #journal-result-card(
+      title: "Shared drive recruits rhythmic volleys",
+      visual: [
+        #figure(
+          video(shared-clip),
+          caption: [Single-seed shared-drive simulation over 0–1,000 ms, with
+            the same panel and colour mappings as
+            #result-figure-ref(<fig:exp099-richer>). The shared afferent
+            multiplier rose smoothly from 1 to 25 between 250 and 450 ms and
+            remained at 25 thereafter; private afferent multipliers remained at
+            1. Recurrent weights and background-input settings were fixed
+            throughout this simulation.],
+          kind: image,
+          supplement: [Figure],
+        ) <fig:exp099-shared>
+      ],
+      observation: [As shared drive increased, low irregular firing gave way to
+        sustained alternating E and I volleys and a repeated conductance cycle
+        (#result-figure-ref(<fig:exp099-shared>, panel: "C–E")). Because the two
+        simulations also differ in fixed weights and background settings, their
+        contrast is illustrative rather than a one-factor between-condition
+        test.],
+    )
 
   ]
 
-  #result-card[
-  === External inputs and their target populations
-
-  #figure(
-    data-image(
-      data-file("exp099/input-map-option-3.svg"),
-      width: 100%,
-      alt: "E-private and shared afferents combine to drive E neurons through AMPA; shared and I-private afferents combine to drive I neurons. Separate AMPA and GABA backgrounds drive both populations. Weather modulates all input rates, while the transient modulates afferents only.",
+  #journal-methods(
+    compute: (
+      method-card([Construct the recurrent circuit], [We simulated 400
+        excitatory and 100 inhibitory conductance-based leaky integrate-and-fire
+        neurons with a 0.25 ms timestep. Excitatory and inhibitory membrane time
+        constants were 20 and 5 ms; both populations used a −65 mV reset and
+        −50 mV threshold. Each recurrent projection contained an exact 2.5%
+        nonzero connection fraction. AMPA and GABA conductances decayed with 2
+        and 9 ms time constants.]),
+      method-card([Generate external events], [We formed each
+        destination-specific afferent stream by combining a shared Bernoulli
+        spike component with an independent private component:
+        #math.equation(block: true,
+          $s_E[k] = s_"shared"[k] or s_"E-private"[k], quad
+          s_I[k] = s_"shared"[k] or s_"I-private"[k].$
+        )
+        Here $s_X[k] in {0, 1}$ is the event indicator for source $X$ at
+        timestep $k$. Its probability was
+        #math.equation(block: true,
+          $p_X[k] = min(1, (r_X Delta t_"sim") / 1000
+          m_"weather"[k] m_X[k]),$
+        )
+        where $r_X$ is the baseline rate in hertz, $Delta t_"sim"$ is the
+        integration timestep in milliseconds, $m_X[k]$ is the afferent
+        multiplier, and $m_"weather"[k]$ is a slow global rate multiplier when
+        present. Independent and locally grouped AMPA and GABA shot noise also
+        drove both populations.]),
+      method-card([Configure the two simulations], [Both simulations used seed
+        7. In the 2,000 ms richer-input condition, the shared multiplier rose
+        from 1 to 6.5 and the private multipliers from 1 to 1.2 between 600 and
+        850 ms, returning to 1 by 1,100 ms; a stationary lognormal rate process
+        with a 250 ms timescale modulated all external events. In the 1,000 ms
+        shared-drive condition, the shared multiplier rose from 1 to 25 between
+        250 and 450 ms and remained there, while private multipliers and all
+        other settings remained fixed through time. The two conditions used
+        different fixed feedforward, recurrent-excitatory and background-drive
+        scales and therefore were not a one-factor comparison.]),
     ),
-    caption: [Explanatory map of the implemented external-input architecture.
-      Shared afferent events enter both destination streams; E-private and
-      I-private events remain destination-specific. Both background families
-      feed both populations. This is a schematic, not experimental evidence.],
-    kind: image, supplement: [Figure],
+    analyse: (
+      method-card([Measure population state], [We averaged excitatory and
+        inhibitory membrane voltage over neurons and averaged excitatory and
+        inhibitory conductance over excitatory neurons at every timestep.
+        External AMPA and GABA event trains were transformed with their 2 and 9
+        ms exponential kernels before averaging.]),
+      method-card([Measure temporal organization], [We computed
+        $R_"contrast"$, the autocorrelation lobe–trough contrast of excitatory
+        spikes. The richer-input condition used 400 ms windows at 10 ms strides
+        with a 100 ms maximum lag; the shorter shared-drive condition used 160
+        ms windows at 5 ms strides with a 60 ms maximum lag. Spikes were binned
+        at 1 ms, and undefined contrasts were recorded as zero.]),
+    ),
+    present: (
+      method-card([Map retained evidence], [We displayed source-to-target
+        transmission from recorded spikes and fixed realized weights, sampling
+        paths only to avoid overplotting. Per-neuron E and I firing rates were
+        calculated in a centred 20 ms display window. The richer-input view
+        covered 300–1,800 ms; the shared-drive view covered 0–1,000 ms. Both
+        videos used the same panel grammar, 600 nonuniformly paced frames and a
+        representative still selected near maximal measured temporal
+        organization.]),
+    ),
   )
-
-  ]
-
-  #result-card[
-  === Single-seed richer-input activity probe <result-3-richer-input-probe>
-
-  #let clip = data-file("exp099/richer-input-ai-to-intermittent-ping.mp4")
-  // Missing files in a selected run remain errors, not empty-run placeholders.
-  #if clip != none { let _ = read(clip, encoding: none) }
-  #figure(
-    video(clip),
-    caption: [Simulated single-seed working media, not an established comparison.
-      Transmission paths are sampled for readability; the raster retains all
-      recorded spikes. The view spans
-      300–1,800 ms with nonuniform playback pacing. The figure label R denotes autocorrelation contrast $R_"contrast"$;
-      L is the conductance-loop score smoothed over 75 ms and normalized within
-      this probe, not a probability of PING.],
-    kind: image, supplement: [Figure],
-  )
-
-  ]
-
-  #result-card[
-  === Shared afferent drive produces an AI-to-PING transition <result-4-shared-drive-transition>
-
-  #let clip = data-file("exp099/shared-drive-ai-to-ping.mp4")
-  // Missing files in a selected run remain errors, not empty-run placeholders.
-  #if clip != none { let _ = read(clip, encoding: none) }
-  #figure(
-    video(clip),
-    caption: [Single-seed simulation with fixed recurrent weights and fixed
-      private and background inputs. The video displays 500--1,500 ms; the
-      preceding 500 ms burn-in is omitted. Shared afferent drive begins at the
-      displayed midpoint, rises from its baseline to 40 times baseline over
-      50 ms, and then remains at that plateau. Transmission paths are sampled
-      for readability, whereas the raster retains all recorded spikes.
-      $R_"contrast"$ is autocorrelation lobe--trough contrast measured in a
-      160 ms window; $L$ is the conductance-loop score smoothed over 75 ms and
-      normalized within this simulation.],
-    kind: image, supplement: [Figure],
-  )
-
-  ]
-  ]
-
-  == Methods
-
-  === Compute
-
-  + *Specify stochastic external drive.* We formed the two destination-specific
-    afferent streams by OR-combining one shared component with one private
-    component:
-    #math.equation(block: true,
-      $S_E[k] = S_"shared"[k] or S_"E-private"[k], quad
-      S_I[k] = S_"shared"[k] or S_"I-private"[k].$
-    )
-    Each afferent component $X$ was sampled as
-    #math.equation(block: true,
-      $S_X[k] tilde "Bernoulli"(p_X[k]), quad
-      p_X[k] = min(1, (r_X Delta t_"sim") / 1000 M[k] A_X[k]).$
-    )
-    The resulting external conductances followed
-    #math.equation(block: true,
-      $g_c^Y[k+1] = exp(-Delta t_"sim" / tau_c) g_c^Y[k]
-      + bb(1)_[c = "AMPA"] S_Y[k] W_("in",Y) + b_c^Y[k].$
-    )
-    Here $S_X[k] in {0, 1}$ is a sampled event, not its probability $p_X[k]$;
-    $r_X$ is its baseline rate in hertz; $Delta t_"sim"$ is the timestep in
-    milliseconds; $M[k]$ is the weather multiplier applied to every external
-    event rate; and $A_X[k]$ is the transient applied only to afferents.
-    $Y in {E, I}$ is the target population, $c in {"AMPA", "GABA"}$ is the
-    conductance family, $tau_c$ is its decay time, $W_("in",Y)$ is the afferent
-    AMPA-weight matrix and $b_c^Y[k]$ is AMPA or GABA background shot noise
-    delivered to population $Y$. The afferent rates were 10 Hz shared and 15 Hz
-    private; background events occurred at 500 Hz privately and 80 Hz within
-    local neuron groups.
-
-  + *Set the Figure 3 inputs.* We used the following executed input settings for
-    #link(<result-3-richer-input-probe>)[Figure 3]:
-    #table(
-      columns: (1.55fr, 0.7fr, 0.65fr, 1.15fr, 0.55fr),
-      align: (left, left, right, left, right),
-      table.header([*Input*], [*Target*], [*Rate*], [*Event size*], [*$tau$*]),
-      [Shared afferent], [E and I], [10 Hz], [target weight], [2 ms],
-      [E-private afferent], [E], [15 Hz], [$cal(N)_+(0.08, 0.008^2)$ nS], [2 ms],
-      [I-private afferent], [I], [15 Hz], [$cal(N)_+(0.02, 0.002^2)$ nS], [2 ms],
-      [AMPA private background], [E / I], [500 Hz], [0.06 / 0.03 nS], [2 ms],
-      [AMPA grouped background], [E / I], [80 Hz], [0.02 / 0.01 nS], [2 ms],
-      [GABA private background], [E / I], [500 Hz], [0.03 / 0.03 nS], [9 ms],
-      [GABA grouped background], [E / I], [80 Hz], [0.01 / 0.01 nS], [9 ms],
-    )
-    Here $cal(N)_+$ denotes a normal draw lower-clamped at zero; shared and
-    private afferent events use the same destination-specific weight matrix.
-    The 2,000 ms simulation used $Delta t_"sim" = 0.25$ ms and seed 7; Figure 3
-    displays 300--1,800 ms. Grouped background events were shared within groups
-    of 25 E or 10 I neurons. Private background rate and amplitude multipliers
-    were lower-clamped normal draws with mean 1 and standard deviation 0.1.
-    Weather had a 250 ms timescale and fractional standard deviation 0.12 and
-    modulated all input rates. The 600--1,100 ms afferent transient peaked at
-    850 ms, scaling private afferents by 1.2 and shared afferents by 6.5.
 
   #run-view("exp099", inputs)
 ]
@@ -172,6 +206,4 @@
 }
 
 #let meta = meta + (assets: input-assets("exp099", inputs))
-#let body = with-datasets("exp099", inputs, report-body, placed: inputs-ready(data-file, inputs))
-#let body = with-numbered-equations(body)
-#let body = with-contents(body)
+#let body = journal-article("exp099", inputs, report-body, dataset-placed: inputs-ready(data-file, inputs))

@@ -1,7 +1,6 @@
-#import "contents.typ": with-contents, with-numbered-equations
-#import "dataset-template.typ": with-datasets
+#import "templates/article-layout.typ": journal-article
 #let meta = (
-  tags: ("txt", "v35.0.0"),
+  tags: ("txt", "v35.4.0"),
   title: "Runtime state, checkpoints, and provenance",
   created_at: "2026-08-14T00:00:00Z",
   description: "Continue simulations safely, distinguish dynamic state from learned parameters, and record enough identity to replay a run.",
@@ -98,9 +97,7 @@
 
   Graph simulation metrics include device, recording profile, build and simulation timing, runtime-state schema and signature, completed steps, and the resolved execution protocol. Dense file bindings add source paths, SHA-256 digests, array keys, shapes, dtypes, dataset metadata, timing, masks, and execution seed.
 
-  #link("/exp090/")[Next: Compatibility, status, and extension]
+  #link("/exp090/")[exp090] — #link("/exp090/")[_Compatibility, status, and extension_]
 ]
 
-#let body = with-datasets("exp089", (), body)
-#let body = with-numbered-equations(body)
-#let body = with-contents(body)
+#let body = journal-article("exp089", (), body)

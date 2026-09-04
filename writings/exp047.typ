@@ -1,10 +1,14 @@
-#import "contents.typ": contents-here, with-contents, result-card, with-numbered-equations, with-result-sections
-#import "/.demolab/lib.typ": data-json, data-image, cite, reference-list
-#import "dataset-template.typ": data-file, inputs-ready, pending-report, with-datasets, run-view, input-assets
+#import "templates/article-layout.typ": journal-article
+#import "templates/result-card.typ": result-figure-ref, result-card, with-result-sections
+#import "templates/references.typ": journal-references
+#import "/.demolab/lib.typ": data-json, data-image, cite
+#import "templates/dataset.typ": data-file, inputs-ready, pending-report, run-view, input-assets
+#import "templates/abstract.typ": journal-abstract
+#import "templates/methods.typ": journal-methods
 #let data-file = data-file.with(article: "exp047")
 
 #let meta = (
-  tags: ("data", "v35.0.0"),
+  tags: ("data", "v35.4.0"),
   title: "Pool-Size Effects Depend on Synaptic Scaling",
   created_at: "2026-07-14T00:00:00Z",
   updated_at: "2026-08-31T00:00:00Z",
@@ -48,33 +52,30 @@
 #let ri-fs-hi-fmt = calc.round(ri-fs-hi, digits: 2)
 
 #let body = [
-  == Abstract
-
-  Asked whether inhibitory population size alters PING activity by adding
-  inhibition or merely redistributing a fixed inhibitory budget. Compared
-  pool-size sweeps that held either summed inhibition or individual synaptic
+  #journal-abstract(body: [
+  We asked whether inhibitory population size alters PING activity by adding
+  inhibition or merely redistributing a fixed inhibitory budget. We compared pool-size sweeps that held either summed inhibition or individual synaptic
   strength fixed.
 
   Firing rates stayed stable under fixed total inhibition but fell as the pool
-  grew when individual synaptic strength was preserved. Supports inverse scaling
+  grew when individual synaptic strength was preserved. This supports inverse scaling
   as a compensation rule for this regime; it does not establish uniqueness or
   demonstrate gamma rhythmicity.
-
-  #contents-here()
+  ])
 
   == Results
 
   #with-result-sections[
 
   #result-card[
-  === Pool-size dependence changes with synaptic scaling
+  === Pool-size scaling response
 
   At nominal $G_(I arrow E) = #g-mid$ μS, E rates changed from #re-ft-lo-fmt
   to #re-ft-hi-fmt Hz across #n-lo–#n-hi I neurons. At
   $macron(w)_(I arrow E) approx #j-mid-ns$ nS, E rates fell from #re-fs-lo-fmt
   to #re-fs-hi-fmt Hz and I rates from #ri-fs-lo-fmt to #ri-fs-hi-fmt Hz. All
   tested fixed-mean levels showed this decrease, consistent with stronger summed
-  inhibition and reduced E–I feedback.
+  inhibition and reduced E–I feedback (#result-figure-ref(<fig:exp047-result-1>)).
 
   #figure(
     data-image(data-file("exp047/pool_size_controls.svg"),
@@ -88,18 +89,17 @@
       strength. Markers are means ±1 sample
       standard deviation across #n-seeds seeds, with #cfg.n_batch trials per seed.
       Shared conditions reused the same simulations.],
-  )
+  ) <fig:exp047-result-1>
 
   ]
   ]
 
-  == Methods
-
+  #journal-methods(
+    orientation: [
   We compared two scaling controls using recorded outputs from simulations of untrained,
   dense recurrent excitatory–inhibitory networks, without additional simulation.
-
-  === Compute
-
+    ],
+    compute: [
   + *Initialize fan-in-normalized weights.* For an I→E matrix with
     #cfg.n_e excitatory columns and $N_I$ inhibitory rows, each weight was
     $W_(k j)^(I E) = G_"draw" / N_I$, with $G_"draw" = max(0, X)$ and
@@ -128,9 +128,8 @@
     Nominal values approximate the post-clamp expectations; the arms coincide
     at #cfg.n_i_reference I neurons, with one additional shared condition at
     #n-mid I neurons and nominal 1 μS summed coupling.
-
-  === Analyse
-
+    ],
+    analyse: [
   #set enum(start: 3)
 
   + *Drive and measure the networks.* Nominal E→I summed coupling stayed at
@@ -146,18 +145,18 @@
     #(14 * n-seeds) distinct simulations. The reanalysis used these rates,
     not raw spike trains; population rates alone do not establish gamma
     oscillations #cite(1).
-
-  === Present
-
+    ],
+    present: [
   #set enum(start: 4)
 
   + *Display pool-size comparisons.* We displayed the recorded population-rate
     responses for fixed total and fixed per-synapse coupling with their shared
     controls and seed aggregation.
-
+    ],
+  )
   #run-view("exp047", inputs)
 
-  #reference-list((
+  #journal-references((
     (text: [G. Buzsáki and X.-J. Wang. “Mechanisms of Gamma Oscillations.”
       _Annual Review of Neuroscience_ 35, 203–225 (2012).],
       doi: "10.1146/annurev-neuro-062111-150444"),
@@ -178,6 +177,4 @@
 }
 
 #let meta = meta + (assets: input-assets("exp047", inputs))
-#let body = with-datasets("exp047", inputs, report-body, placed: inputs-ready(data-file, inputs))
-#let body = with-numbered-equations(body)
-#let body = with-contents(body)
+#let body = journal-article("exp047", inputs, report-body, dataset-placed: inputs-ready(data-file, inputs))

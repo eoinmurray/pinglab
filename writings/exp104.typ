@@ -1,7 +1,6 @@
-#import "contents.typ": with-contents, with-numbered-equations
-#import "dataset-template.typ": with-datasets
+#import "templates/article-layout.typ": journal-article
 #let meta = (
-  tags: ("txt", "v35.0.0"),
+  tags: ("txt", "v35.4.0"),
   title: "Cloudflare R2 archive",
   created_at: "2026-08-11T00:00:00Z",
   updated_at: "2026-08-28T00:00:00Z",
@@ -21,7 +20,7 @@
     columns: (auto, 1fr),
     [*Command*], [*Current scope*],
     [`list`], [List an experiment's remote snapshots and summary metadata.],
-    [`archive-campaign`], [Validate the named exp022 campaign and back up its complete cell payload bank with an inventory.],
+    [`archive-campaign`], [Validate the named `exp022` campaign and back up its complete cell payload bank with an inventory.],
     [`restore-campaign`], [Copy that bank into a separate absent or empty directory and compare the copy with remote files.],
     [`archive` / `restore`], [Older active-view/scratch interfaces. These do not provide complete v3 run backup and recovery; do not use them as that workflow.],
   )
@@ -71,7 +70,7 @@
 
   == Archive a completed campaign
 
-  For an explicitly selected exp022 campaign with all cells complete and valid:
+  For an explicitly selected `exp022` campaign with all cells complete and valid:
 
   ```sh
   uv run python experiments/helpers/archive.py archive-campaign \
@@ -111,9 +110,7 @@
   + *Unexpected snapshot contents:* stop before restoration into operational storage. Distinguish a campaign cell bank, a legacy export snapshot, and a complete run.
   + *Deletion or cleanup:* keep it separate and explicitly authorized. Never run `rclone sync` against an archive prefix. The helper has no delete command.
 
-  #link("/exp103/")[Previous: Compute options]
+  #link("/exp103/")[exp103] — #link("/exp103/")[_Compute options_]
 ]
 
-#let body = with-datasets("exp104", (), body)
-#let body = with-numbered-equations(body)
-#let body = with-contents(body)
+#let body = journal-article("exp104", (), body)

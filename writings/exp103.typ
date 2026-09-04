@@ -1,7 +1,6 @@
-#import "contents.typ": with-contents, with-numbered-equations
-#import "dataset-template.typ": with-datasets
+#import "templates/article-layout.typ": journal-article
 #let meta = (
-  tags: ("txt", "v35.0.0"),
+  tags: ("txt", "v35.4.0"),
   title: "Compute options",
   updated_at: "2026-08-28T00:00:00Z",
   created_at: "2026-08-11T00:00:00Z",
@@ -17,7 +16,7 @@
 
   == Execution workflow
 
-  Choose the stage before choosing the machine. From the repository root, these commands show the independent exp022 entry points:
+  Choose the stage before choosing the machine. From the repository root, these commands show the independent training-run entry points:
 
   ```sh
   uv run python experiments/exp022/compute.py --help
@@ -216,14 +215,12 @@
   + *During execution:* retain job or pod IDs, inspect logs and progress, and distinguish retries from a new scientific condition.
   + *After execution:* require the stage's completed run and validation, not just a successful scheduler exit or a directory containing files. Keep partial outputs hidden.
   + *Before downstream work:* pass explicit validated v3 inputs. A new measurement needs analyse; a new rendering needs present. Neither should rerun compute implicitly.
-  + *Before leaving paid infrastructure:* verify collection and termination for this dispatch's resources. Backup and recovery are described in #link("/exp104/")[Cloudflare R2 archive].
+  + *Before leaving paid infrastructure:* verify collection and termination for this dispatch's resources. Backup and recovery are described in #link("/exp104/")[exp104] — #link("/exp104/")[_Cloudflare R2 archive._]
 
   == Decision order
 
   Use the smallest adequate option. Develop locally; orchestrate from Hetzner; use an available Olorin GPU when shared-machine policy permits; submit planned production to Wilkes3 SL2; use RunPod for urgent overflow; choose Modal when managed execution fits the task and current cost; and leave SL3 for work that can wait.
-  #link("/exp104/")[Next: Cloudflare R2 archive]
+  #link("/exp104/")[exp104] — #link("/exp104/")[_Cloudflare R2 archive_]
 ]
 
-#let body = with-datasets("exp103", (), body)
-#let body = with-numbered-equations(body)
-#let body = with-contents(body)
+#let body = journal-article("exp103", (), body)

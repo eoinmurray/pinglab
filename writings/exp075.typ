@@ -1,10 +1,14 @@
-#import "contents.typ": contents-here, with-contents, result-card, with-numbered-equations, with-result-sections
-#import "/.demolab/lib.typ": data-json, data-image, cite, reference-list
-#import "dataset-template.typ": data-file, inputs-ready, pending-report, with-datasets, run-view, input-assets
+#import "templates/article-layout.typ": journal-article
+#import "templates/result-card.typ": result-figure-ref, result-card, with-result-sections
+#import "templates/references.typ": journal-references
+#import "/.demolab/lib.typ": data-json, data-image, cite
+#import "templates/dataset.typ": data-file, inputs-ready, pending-report, run-view, input-assets
+#import "templates/abstract.typ": journal-abstract
+#import "templates/methods.typ": journal-methods
 #let data-file = data-file.with(article: "exp075")
 
 #let meta = (
-  tags: ("data", "v35.0.0"),
+  tags: ("data", "v35.4.0"),
   title: "A compiled graph learns",
   updated_at: "2026-08-31T00:00:00Z",
   created_at: "2026-07-31T00:00:00Z",
@@ -24,20 +28,17 @@
 #let r = data-json(data-file("exp075/numbers.json"))
 
 #let body = [
-  == Abstract
-
-
-  Asked whether a compiled graph can participate in gradient-based classifier
-  training rather than only forward simulation. Trained an excitatory–inhibitory
+  #journal-abstract(body: [
+  We asked whether a compiled graph can participate in gradient-based classifier
+  training rather than only forward simulation. We trained an excitatory–inhibitory
   MNIST classifier through the compiled graph interface and selected a
   checkpoint using held-out validation loss.
 
   Training produced coherent loss and validation trajectories, showing that
-  optimization traversed the compiled representation. Demonstrates the learning
+  optimization traversed the compiled representation. This demonstrates the learning
   interface on a bounded example, not competitive classification performance or
   broad generalization.
-
-  #contents-here()
+  ])
 
   == Results
 
@@ -49,33 +50,32 @@
   #figure(data-image(data-file("exp075/network_graph.svg"), width: 100%),
     caption: [Classifier with #r.config.n_e excitatory and #r.config.n_i
       inhibitory neurons. Input and readout projections were trainable;
-      excitatory–inhibitory recurrence remained fixed.])
+      excitatory–inhibitory recurrence remained fixed.]) <fig:exp075-result-1>
 
   ]
 
   #result-card[
-  === Training loss and validation accuracy across epochs
+  === Training and validation trajectories
 
   The loss-selected checkpoint came from epoch
   #(r.trajectory.selected_epoch); it need not be the epoch with maximum
-  accuracy.
+  accuracy (#result-figure-ref(<fig:exp075-result-2>)).
 
   #figure(data-image(data-file("exp075/training_curves.png"), width: 100%),
     caption: [*(A)* Training and validation cross-entropy and *(B)* validation
       accuracy over #r.config.epochs epochs. Validation values average
       #r.config.validation_encoder_draws.count fixed stochastic encodings.
-      The dashed line marks ten-class chance accuracy.])
+      The dashed line marks ten-class chance accuracy.]) <fig:exp075-result-2>
 
   ]
   ]
 
-  == Methods
-
+  #journal-methods(
+    orientation: [
   We tested optimisation of a compiled network using a small, fixed
   handwritten-digit classification task.
-
-  === Compute
-
+    ],
+    compute: [
   + *Prepare data and network.* We selected #r.config.max_samples images from
     the official MNIST training partition with a fixed subset seed, then made
     a stratified #r.config.train_count/#r.config.held_out_count training/validation
@@ -88,8 +88,8 @@
     seed #r.config.seed. AdamW#cite(1) minimised unit-weight cross-entropy with
     learning rate #r.config.learning_rate, weight decay #r.config.weight_decay
     and gradient-norm clipping at one; only input and readout weights changed.
-  === Analyse
-
+    ],
+    analyse: [
   #set enum(start: 3)
 
   + *Select the checkpoint.* After each epoch we evaluated the validation set
@@ -97,18 +97,18 @@
     Selection minimised mean validation cross-entropy, breaking ties by mean
     accuracy and then the earliest epoch. The official test partition did not
     participate in selection; both selected and final states were retained.
-
-  === Present
-
+    ],
+    present: [
   #set enum(start: 4)
 
   + *Display retained learning evidence.* We displayed the recorded learning
     curves and selected-versus-final checkpoint outputs with the validation
     selection rule stated above.
-
+    ],
+  )
   #run-view("exp075", inputs)
 
-  #reference-list(((text: [Ilya Loshchilov and Frank Hutter: _Decoupled Weight Decay Regularization_. ICLR, 2019.], doi: "10.48550/arXiv.1711.05101"),))
+  #journal-references(((text: [Ilya Loshchilov and Frank Hutter: _Decoupled Weight Decay Regularization_. ICLR, 2019.], doi: "10.48550/arXiv.1711.05101"),))
 ]
 #body
 ]
@@ -124,6 +124,4 @@
 }
 
 #let meta = meta + (assets: input-assets("exp075", inputs))
-#let body = with-datasets("exp075", inputs, report-body, placed: inputs-ready(data-file, inputs))
-#let body = with-numbered-equations(body)
-#let body = with-contents(body)
+#let body = journal-article("exp075", inputs, report-body, dataset-placed: inputs-ready(data-file, inputs))

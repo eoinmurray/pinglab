@@ -1,10 +1,14 @@
-#import "contents.typ": contents-here, with-contents, result-card, with-numbered-equations, with-result-sections
-#import "/.demolab/lib.typ": data-json, data-image, cite, reference-list
-#import "dataset-template.typ": data-file, inputs-ready, pending-report, with-datasets, run-view, input-assets
+#import "templates/article-layout.typ": journal-article
+#import "templates/result-card.typ": result-card, with-result-sections
+#import "templates/references.typ": journal-references
+#import "/.demolab/lib.typ": data-json, data-image, cite
+#import "templates/dataset.typ": data-file, inputs-ready, pending-report, run-view, input-assets
+#import "templates/abstract.typ": journal-abstract
+#import "templates/methods.typ": journal-methods
 #let data-file = data-file.with(article: "exp023")
 
 #let meta = (
-  tags: ("data", "v35.0.0"),
+  tags: ("data", "v35.4.0"),
   title: "Turning the PING Loop On",
   created_at: "2026-05-13T00:00:00Z",
   updated_at: "2026-08-31T00:00:00Z",
@@ -39,26 +43,24 @@
   #let e-coba = r.fi_curves.coba.e.last()
   #let e-ping = r.fi_curves.ping.e.last()
 
-  == Abstract
-
-  Asked what the recurrent PING loop does before introducing training,
-  classification or a learned readout. Compared the same Poisson-driven
+  #journal-abstract(body: [
+  We asked what the recurrent PING loop does before introducing training,
+  classification or a learned readout. We compared the same Poisson-driven
   excitatory–inhibitory architecture with reciprocal feedback disabled and
   enabled.
 
   Enabling the loop produced rhythmic population activity and strongly
-  suppressed excitatory firing across the matched-drive sweep. Establishes the
+  suppressed excitatory firing across the matched-drive sweep. This establishes the
   circuit's basic operating behaviour, but the limited simulations do not show
   that gamma timing itself caused the suppression.
-
-  #contents-here()
+  ])
 
   == Results
 
   #with-result-sections[
 
   #result-card[
-  === COBA and PING architecture, activity spectra and rate response
+  === Architecture, spectra and rates
 
   #figure(
     data-image(data-file("exp023/overview_compound.png"), width: 100%,
@@ -74,12 +76,12 @@
       The dashed marker is the analysis-selected spectral peak, not a
       rhythmicity significance test. Schematics describe the model, not a measurement.
     ],
-  )
+  ) <fig:exp023-result-1>
 
   ]
 
   #result-card[
-  === COBA excitatory-neuron membrane voltage
+  === COBA excitatory membrane voltage
 
   #figure(
     data-image(data-file("exp023/traces__coba__v_e.svg"), width: 100%),
@@ -87,7 +89,7 @@
       off, driven at #points.coba.input_rate_hz Hz for #points.coba.t_ms ms.
       The dashed line marks the #b.threshold_mV mV threshold; spikes reset
       voltage to #b.reset_mV mV. This is an illustrative neuron, not a population mean.],
-  )
+  ) <fig:exp023-result-2>
 
   ]
 
@@ -99,7 +101,7 @@
     caption: [Excitatory conductance (black) and fixed leak (dotted) for the same
       COBA neuron. Input spikes increase excitation, which decays between events;
       the disconnected inhibitory feedback contributes no conductance.],
-  )
+  ) <fig:exp023-result-3>
 
   ]
 
@@ -111,19 +113,19 @@
     caption: [Signed excitatory and leak currents for the same COBA neuron.
       Positive current is depolarising; current was reconstructed from voltage
       and conductance using the driving-force relation in Methods.],
-  )
+  ) <fig:exp023-result-4>
 
   ]
 
   #result-card[
-  === PING excitatory-neuron membrane voltage
+  === PING excitatory membrane voltage
 
   #figure(
     data-image(data-file("exp023/traces__ping__v_e.svg"), width: 100%),
     caption: [Membrane voltage of the highest-spike-count PING E neuron at
       #points.ping.input_rate_hz Hz input for #points.ping.t_ms ms.
       This is a different input rate from COBA, not a matched-input trace comparison.],
-  )
+  ) <fig:exp023-result-5>
 
   ]
 
@@ -135,7 +137,7 @@
     caption: [Excitatory (black), inhibitory (red when nonzero) and leak (dotted)
       conductances on the same PING E neuron. All conductances are non-negative;
       inhibition enters through its reversal potential, not a negative conductance.],
-  )
+  ) <fig:exp023-result-6>
 
   ]
 
@@ -147,13 +149,13 @@
     caption: [Signed currents on the same PING E neuron. Inhibitory current is
       hyperpolarising when voltage exceeds the #b.E_I_mV mV inhibitory reversal
       potential, even though inhibitory conductance is positive.],
-  )
+  ) <fig:exp023-result-7>
 
   #if r.raster.ping.i_index != none [
     ]
 
     #result-card[
-    === PING inhibitory-neuron membrane voltage
+    === PING inhibitory membrane voltage
 
     These cellular traces illustrate reciprocal E→I→E feedback; they do not
     measure population-wide phase locking or spikes per cycle.
@@ -190,13 +192,12 @@
   ]
   ]
 
-  == Methods
-
+  #journal-methods(
+    orientation: [
   We compared untrained loop-off and loop-on networks using the following
   simulation and measurement procedure.
-
-  === Compute
-
+    ],
+    compute: [
   + *Construct the two loop conditions.* Both networks contained #c.n_e
     excitatory (E) and #c.n_i inhibitory (I) neurons. An input layer drove E neurons through
     feedforward weights; reciprocal E→I and I→E weights formed the PING loop,
@@ -216,9 +217,8 @@
     #b.tau_ampa_ms and #b.tau_gaba_ms ms, with E/I refractory periods
     #b.refractory_E_ms/#b.refractory_I_ms ms.
     Full trial recordings included spikes, voltages and conductances.
-
-  === Analyse
-
+    ],
+    analyse: [
   #set enum(start: 3)
 
   + *Measure the drive response.* Both loop conditions used
@@ -238,9 +238,8 @@
     #r.measurement.frequency_band_hz.last() Hz was refined by three-bin parabolic
     interpolation, clamped to half a bin; it was reported only when I spikes
     were present. This reporting rule is not a test of significant rhythmicity.
-
-  === Present
-
+    ],
+    present: [
   #set enum(start: 5)
 
   + *Reconstruct signed currents.* Each displayed neuron was the first neuron
@@ -258,10 +257,11 @@
     $I_X^"in"$ inward current in nA. Reversals were #b.E_E_mV,
     #b.E_I_mV and #b.E_L_mV mV, respectively; positive current is depolarising.
     The sign lives in the driving force, never in the conductance.]
-
+    ],
+  )
   #run-view("exp023", inputs)
 
-  #reference-list((
+  #journal-references((
     (text: [P. D. Welch. “The Use of Fast Fourier Transform for the Estimation of
       Power Spectra: A Method Based on Time Averaging Over Short, Modified
       Periodograms.” _IEEE Transactions on Audio and Electroacoustics_ 15(2),
@@ -282,6 +282,4 @@
 }
 
 #let meta = meta + (assets: input-assets("exp023", inputs))
-#let body = with-datasets("exp023", inputs, report-body, placed: inputs-ready(data-file, inputs))
-#let body = with-numbered-equations(body)
-#let body = with-contents(body)
+#let body = journal-article("exp023", inputs, report-body, dataset-placed: inputs-ready(data-file, inputs))

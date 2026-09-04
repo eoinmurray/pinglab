@@ -1,10 +1,14 @@
-#import "contents.typ": contents-here, with-contents, result-card, with-numbered-equations, with-result-sections
-#import "/.demolab/lib.typ": data-json, data-image, cite, reference-list
-#import "dataset-template.typ": data-file, inputs-ready, pending-report, with-datasets, run-view, input-assets
+#import "templates/article-layout.typ": journal-article
+#import "templates/result-card.typ": result-figure-ref, result-card, with-result-sections
+#import "templates/references.typ": journal-references
+#import "/.demolab/lib.typ": data-json, data-image, cite
+#import "templates/dataset.typ": data-file, inputs-ready, pending-report, run-view, input-assets
+#import "templates/abstract.typ": journal-abstract
+#import "templates/methods.typ": journal-methods
 #let data-file = data-file.with(article: "exp025")
 
 #let meta = (
-  tags: ("data", "v35.0.0"),
+  tags: ("data", "v35.4.0"),
   title: "Accuracy and Firing Rate With and Without Inhibition",
   created_at: "2026-05-30T00:00:00Z",
   updated_at: "2026-08-31T00:00:00Z",
@@ -79,10 +83,9 @@
 #let ping_plateau = calc.round(calc.max(..ping_ws.map(r => r.acc)))
 
 #let body = [
-  == Abstract
-
-  Asked how recurrent inhibition and activity constraints shape the trade-off
-  between MNIST accuracy and excitatory firing. Compared trained COBA and PING
+  #journal-abstract(body: [
+  We asked how recurrent inhibition and activity constraints shape the trade-off
+  between MNIST accuracy and excitatory firing. We compared trained COBA and PING
   families across activity ceilings, cycle participation, oscillation frequency
   and input coupling.
 
@@ -90,20 +93,19 @@
   ceilings, but no structural rate floor appeared. The comparison is confounded
   by gradient damping and therefore neither isolates a benefit of gamma timing
   nor measures energy use.
-
-  #contents-here()
+  ])
 
   == Results
 
   #with-result-sections[
 
   #result-card[
-  === Test accuracy against excitatory rate across activity ceilings
+  === Accuracy-rate activity ceilings
 
   At the unpenalised operating points, PING reached #ping_off_acc% at
   #ping_off_rate Hz and COBA reached #coba_off_acc% at #coba_off_rate Hz. The
   comparison includes different gradient damping, so it does not establish a
-  structural lower firing-rate limit.
+  structural lower firing-rate limit (#result-figure-ref(<fig:exp025-result-1>)).
 
   #figure(
     data-image(data-file("exp025/results_compound.png"),
@@ -118,18 +120,18 @@
       starred. These rates are test-set averages, not raster estimates. PING
       black and COBA red in panels C–D.
     ],
-  )
+  ) <fig:exp025-result-1>
 
   ]
 
   #result-card[
-  === PING participation and frequency across activity ceilings
+  === PING participation and frequency
 
   PING participation varied from #p_lo to #p_hi and oscillation frequency from
   approximately #fg_hi to #fg_lo Hz. The $p_"part" f_gamma$ approximation
   differed from measured E rate by up to #pfg_err_max%, so participation was not
   constant. PING accuracy spanned #ping_acc_lo–#ping_acc_hi%; COBA fell from
-  #coba_acc_loose% to #coba_acc_tight% as the ceiling tightened.
+  #coba_acc_loose% to #coba_acc_tight% as the ceiling tightened (#result-figure-ref(<fig:exp025-result-2>)).
 
   #figure(
     data-image(data-file("exp025/theta_p_fgamma.svg"),
@@ -144,17 +146,17 @@
       approximation. These are individual-seed measurements, not across-seed
       estimates.
     ],
-  )
+  ) <fig:exp025-result-2>
 
   ]
 
   #result-card[
-  === PING learning curves across initial input coupling
+  === Input-coupling learning curves
 
   Final validation accuracies were #low_accs.at(0)% / #low_accs.at(1)% /
   #low_accs.at(2)% / #low_accs.at(3)%, while final I rates were
   #low_is.at(0) / #low_is.at(1) / #low_is.at(2) / #low_is.at(3) Hz. The similar
-  endpoints across these initializations do not prove basin attractivity.
+  endpoints across these initializations do not prove basin attractivity (#result-figure-ref(<fig:exp025-result-3>)).
 
   #figure(
     data-image(data-file("exp025/low_w_in_sweep.svg"),
@@ -167,15 +169,15 @@
       E (black) and I (red) rates in the same order. The rate ceiling is 1 Hz
       throughout; lines and shading show means ± SEM across seeds 42–44.
     ],
-  )
+  ) <fig:exp025-result-3>
 
   ]
 
   #result-card[
-  === Accuracy and population rates across inference input scaling
+  === Inference input-scaling response
 
   COBA's penalty reached approximately #coba_pen_s3 at $s = 3$. The empirical
-  inhibitory-rate crossing marks a sampled transition, not a fitted bifurcation.
+  inhibitory-rate crossing marks a sampled transition, not a fitted bifurcation (#result-figure-ref(<fig:exp025-result-4>)).
 
   #figure(
     data-image(data-file("exp025/w_in_scale_sweep.svg"),
@@ -193,16 +195,16 @@
       #run.plot_data.scale_crossing where I rate crosses 0.05 Hz, not a fitted
       bifurcation. Penalty and total-objective axes stop at 4.
     ],
-  )
+  ) <fig:exp025-result-4>
 
   ]
 
   #result-card[
-  === Accuracy against excitatory rate across inference input scaling
+  === Accuracy-rate input scaling
 
   PING's highest sampled accuracy was approximately #ping_plateau%. At input
   scale $s = 3$, COBA reached approximately #coba_acc_s3% at #coba_e_s3 Hz.
-  This single direction of weight scaling does not map the full loss landscape.
+  This single direction of weight scaling does not map the full loss landscape (#result-figure-ref(<fig:exp025-result-5>)).
 
   #figure(
     data-image(data-file("exp025/w_in_scale_sweep_vs_rate.svg"),
@@ -215,19 +217,18 @@
       scale. Stars mark the trained points: PING #ping_star_e Hz and COBA
       #coba_star_e Hz.
     ],
-  )
+  ) <fig:exp025-result-5>
 
   ]
   ]
 
-  == Methods
-
+  #journal-methods(
+    orientation: [
   We reused networks and learning histories from the
-  #link("/exp022/")[shared training study] and reanalysed recorded inference
+  #link("/exp022/")[exp022] — #link("/exp022/")[_Training Runs_] and reanalysed recorded inference
   measurements; no new training or simulation was performed.
-
-  === Compute
-
+    ],
+    compute: [
   + *Prepare digit inputs.* Training used 6,300 MNIST images and 700 validation
     images from the official training partition. Pixels drove 784 Poisson channels
     at a 25 Hz maximum, for 200 ms with 0.1 ms steps.
@@ -237,7 +238,7 @@
     Pyramidal-interneuron gamma (PING) enabled fixed E↔I coupling; COBA disabled it;
     E→E and I→I coupling were zero throughout. Only input and readout weights
     trained; class scores were mean pre-reset output membrane voltages
-    (#link("/exp006/")[readout specification]). Voltage-gradient damping differed:
+    (#link("/exp006/")[exp006] — #link("/exp006/")[_Training_]). Voltage-gradient damping differed:
     1 for COBA, 1,000 for PING.
 
   + *Train with activity ceilings.* Networks trained for 50 epochs with AdamW
@@ -252,9 +253,8 @@
     size. Rates $r_b$ and ceilings $r_(E,"ceil")$ are in hertz; $lambda_"rate" = 0.041$
     $"Hz"^(-2)$ weights the dimensionless penalty $L_"rate"$. Six ceiling conditions
     (#link(<sec-training-settings>)[Training settings]) and three seeds yielded 36 networks.
-
-  === Analyse
-
+    ],
+    analyse: [
   #set enum(start: 4)
 
   + *Evaluate training endpoints.* Final-epoch weights, rather than
@@ -279,15 +279,15 @@
     networks trained at 1 Hz were evaluated after multiplying all input weights
     by dimensionless $s in [0.05, 3]$, holding other weights fixed, on the same
     1,000 test images at 24 scales.
-
-  === Present
-
+    ],
+    present: [
   #set enum(start: 7)
 
   + *Expose retained comparisons.* We displayed endpoint comparisons,
     cycle-participation probes and input-coupling sensitivity with their
     recorded seed roles and aggregation.
-
+    ],
+  )
   #run-view("exp025", inputs)
 
   == Appendix: Training settings <sec-training-settings>
@@ -341,8 +341,8 @@
   peaks, with the trial endpoints closing the first and last cycles. Trials with
   no usable frequency or I peak were omitted from participation; active
   neuron/cycle pairs were pooled across accepted trials. This extends the
-  #link("/exp041/")[frequency–rate comparison] using the
-  #link("/exp046/")[cycle-participation measurement].
+  #link("/exp041/")[exp041] — #link("/exp041/")[_Firing Rate Tracks Gamma Frequency_] using the
+  #link("/exp046/")[exp046] — #link("/exp046/")[_One Spike per Gamma Cycle._]
 
   Input-scale values were 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45,
   0.5, 0.55, 0.6, 0.65, 0.7, 0.8, 0.9, 1, 1.15, 1.3, 1.5, 1.75, 2, 2.5,
@@ -351,7 +351,7 @@
   Equation 1's sample-wise penalty; its quadratic excess-rate dependence does
   not imply a quadratic dependence on input scale.
 
-  #reference-list((
+  #journal-references((
     (text: [P. D. Welch. “The use of the fast Fourier transform for the estimation
       of power spectra: A method based on time averaging over short, modified
       periodograms.” _IEEE Transactions on Audio and Electroacoustics_ 15(2),
@@ -373,6 +373,4 @@
 }
 
 #let meta = meta + (assets: input-assets("exp025", inputs))
-#let body = with-datasets("exp025", inputs, report-body, placed: inputs-ready(data-file, inputs))
-#let body = with-numbered-equations(body)
-#let body = with-contents(body)
+#let body = journal-article("exp025", inputs, report-body, dataset-placed: inputs-ready(data-file, inputs))

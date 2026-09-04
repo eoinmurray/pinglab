@@ -1,10 +1,14 @@
-#import "contents.typ": contents-here, with-contents, result-card, with-numbered-equations, with-result-sections
-#import "/.demolab/lib.typ": data-json, data-image, cite, reference-list
-#import "dataset-template.typ": data-file, inputs-ready, pending-report, with-datasets, run-view, input-assets
+#import "templates/article-layout.typ": journal-article
+#import "templates/result-card.typ": result-card, with-result-sections
+#import "templates/references.typ": journal-references
+#import "/.demolab/lib.typ": data-json, data-image, cite
+#import "templates/dataset.typ": data-file, inputs-ready, pending-report, run-view, input-assets
+#import "templates/abstract.typ": journal-abstract
+#import "templates/methods.typ": journal-methods
 #let data-file = data-file.with(article: "exp074")
 
 #let meta = (
-  tags: ("data", "v35.0.0"),
+  tags: ("data", "v35.4.0"),
   title: "From Python graph to spikes",
   updated_at: "2026-08-31T00:00:00Z",
   created_at: "2026-07-31T00:00:00Z",
@@ -24,19 +28,17 @@
 #let r = data-json(data-file("exp074/numbers.json"))
 
 #let body = [
-  == Abstract
-
-  Asked whether a Python-authored graph can be compiled into an executable
-  excitatory–inhibitory spiking network. Supplied explicit input spikes to the
+  #journal-abstract(body: [
+  We asked whether a Python-authored graph can be compiled into an executable
+  excitatory–inhibitory spiking network. We supplied explicit input spikes to the
   compiled graph and retained aligned topology, input and population-activity
   evidence.
 
   The compiled description produced the expected excitatory and inhibitory
-  simulation outputs from the supplied input. Demonstrates the
+  simulation outputs from the supplied input. This demonstrates the
   graph-to-simulation integration path on a bounded example, not a
   neuroscientific mechanism.
-
-  #contents-here()
+  ])
 
   == Results
 
@@ -49,12 +51,12 @@
     caption: [Compiled topology with #r.config.n_e excitatory neurons,
       #r.config.n_i inhibitory neurons and a ten-class mean-voltage readout.
       The complete graph contains #r.graph.populations populations and
-      #r.graph.projections projections.])
+      #r.graph.projections projections.]) <fig:exp074-result-1>
 
   ]
 
   #result-card[
-  === Aligned input, excitatory and inhibitory spike rasters
+  === Aligned input and population rasters
 
   #figure(data-image(data-file("exp074/rasters.png"), width: 100%),
     caption: [*(A)* Input, *(B)* excitatory and *(C)* inhibitory spikes in trial
@@ -62,18 +64,17 @@
       trial contained #r.output.display_trial_spikes.input input,
       #r.output.display_trial_spikes.e excitatory and
       #r.output.display_trial_spikes.i inhibitory events. Rates in the abstract
-      aggregate all #r.config.n_batch trials, not only this illustrative raster.])
+      aggregate all #r.config.n_batch trials, not only this illustrative raster.]) <fig:exp074-result-2>
 
   ]
   ]
 
-  == Methods
-
+  #journal-methods(
+    orientation: [
   We tested whether a compiled network description reproduced the requested
   spiking computation in a PyTorch-based simulator#cite(1).
-
-  === Compute
-
+    ],
+    compute: [
   + *Define the network.* We authored a pyramidal–interneuron gamma circuit with
     #r.config.n_e excitatory and #r.config.n_i inhibitory neurons, driven by
     #r.config.n_input input channels. A ten-class mean-voltage readout received
@@ -84,8 +85,8 @@
     #r.config.seed, #r.config.n_batch trials, a #r.config.dt_ms ms integration
     step and a #r.config.t_ms ms duration, and supplied the exact generated
     tensor to the simulator.
-  === Analyse
-
+    ],
+    analyse: [
   #set enum(start: 3)
 
   + *Measure the response.* We counted input events and divided by channel
@@ -94,18 +95,18 @@
     we recorded aligned event times and cell indices for the specified
     illustrative trial. These measurements establish execution and activity,
     not oscillatory synchronisation or classification performance.
-
-  === Present
-
+    ],
+    present: [
   #set enum(start: 4)
 
   + *Display graph and activity evidence.* We displayed the compiled topology,
     realised input rate and recorded population response, keeping the
     illustrative event selection distinct from population measurements.
-
+    ],
+  )
   #run-view("exp074", inputs)
 
-  #reference-list(((text: [Adam Paszke et al.: _PyTorch: An Imperative Style, High-Performance Deep Learning Library_. NeurIPS, 2019.], doi: "10.48550/arXiv.1912.01703"),))
+  #journal-references(((text: [Adam Paszke et al.: _PyTorch: An Imperative Style, High-Performance Deep Learning Library_. NeurIPS, 2019.], doi: "10.48550/arXiv.1912.01703"),))
 ]
 #body
 ]
@@ -121,6 +122,4 @@
 }
 
 #let meta = meta + (assets: input-assets("exp074", inputs))
-#let body = with-datasets("exp074", inputs, report-body, placed: inputs-ready(data-file, inputs))
-#let body = with-numbered-equations(body)
-#let body = with-contents(body)
+#let body = journal-article("exp074", inputs, report-body, dataset-placed: inputs-ready(data-file, inputs))

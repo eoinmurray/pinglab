@@ -1,9 +1,12 @@
 # Writing Guide
 
-Version: **35.0.0**
+Version: **36.0.0**
 
 The Writing Guide defines the conventions for Pinglab's published experiment
-entries in `writings/expXXX.typ`. This file is the canonical guide.
+entries in `writings/expXXX.typ`. This file is the canonical source for shared
+scientific-writing and editorial rules. It does not define the articles'
+document schema or the APIs of their Typst templates; those contracts live with
+the templates under `writings/templates/`.
 
 ## 1. Versioning
 
@@ -14,6 +17,28 @@ corrections or clarifications that do not change requirements. Update the versio
 above and add a short entry to the version history when changing the guide.
 
 ### 1.1. Version history
+
+- **36.0.0** — Standardize every cross-link between experiment articles as the
+  separately linked experiment identifier and italicized article title, divided
+  by an unlinked em dash.
+
+- **35.4.0** — Make template comments authoritative for component-specific
+  writing as well as schema, add an explicit template-routing table, and remove
+  duplicated Abstract, Results, Methods, References, Dataset and equation rules
+  from the shared guide.
+
+- **35.3.0** — Split Results cards, article-scoped contents and displayed-equation
+  numbering into their own template files, leaving `article-layout.typ` as the
+  article-shell orchestrator, and migrate every writing to the owning imports.
+
+- **35.2.0** — Add a template-owned References component and a single article
+  shell that composes Dataset insertion, equation numbering and article-scoped
+  contents without duplicating that ordering in every writing.
+
+- **35.1.0** — Devolve document-schema and Typst-template contracts to the
+  comments at the top of each file in `writings/templates/`. Keep this guide
+  focused on shared scientific-writing, evidence, provenance and editorial
+  rules, and distinguish guide-version conformance from template conformance.
 
 - **35.0.0** — Replace the combined article status string with separate
   Demolab tags for local-data availability, author review and the latest
@@ -202,6 +227,42 @@ above and add a short entry to the version history when changing the guide.
 - Use the same identifier for related experiment code and artifact paths when
   they exist.
 
+### 2.1. Template-owned components
+
+Rules specific to one article component belong in that component's top-of-file
+comment under `writings/templates/`. This includes its writing requirements,
+public entry points, arguments, structure, ordering, cardinality, rendering and
+division of responsibility with article-authored content. Prefer extending the
+owning template contract over adding component-specific rules here.
+
+Before creating or editing a component, read its complete contract:
+
+| Template | Authority |
+| --- | --- |
+| `article-layout.typ` | Mandatory final article shell and cross-component ordering. |
+| `abstract.typ` | Abstract grounding, prose roles, heading and contents marker. |
+| `contents.typ` | Article-scoped contents placement, scope and rendering. |
+| `dataset.typ` | Evidence inputs, readiness, unavailable-data behaviour and Dataset section. |
+| `equations.typ` | Displayed-equation numbering and target-specific rendering. |
+| `methods.typ` | Methods grounding, prose, stages, operations and headings. |
+| `references.typ` | Source requirements, References placement and list rendering. |
+| `result-card.typ` | Results prose, figures, cards, numbering and presentation. |
+
+Title guidance remains in section 4 because `meta.title` is article-owned
+metadata rather than output of a shared title component.
+
+This guide is authoritative only for rules that apply across components:
+repository-independent scientific explanation, general evidential strength and
+provenance, source-preserving editing, authored metadata, tense and person, and
+shared terminology and notation. Template conformance does not establish
+compliance with those global rules. An article's `vX.Y.Z` tag records only the
+Writing Guide version applied; template contracts are versioned with the
+repository rather than with separate article tags.
+
+If ownership is unclear, put a rule in the narrowest template whose complete
+output it governs. If a template contract and a global guide rule appear to
+conflict, report the conflict rather than silently choosing one.
+
 ## 3. Global writing rules
 
 These rules apply to every experiment article, including titles, prose,
@@ -351,11 +412,11 @@ change merely to adopt this guide.
 Every `writings/expXXX.typ` must declare one `meta.tags` list containing the
 following separate Demolab tag slugs:
 
-| Tag | Cardinality | Meaning |
-| --- | --- | --- |
-| `txt` or `data` | Exactly one | Local presentation-data availability. |
-| `vX.Y.Z` | Exactly one | Latest Writing Guide version applied to the article. |
-| `reviewed` | Zero or one | The author explicitly reviewed and accepted the article in its current scientific and written form. |
+| Tag             | Cardinality | Meaning                                                                                             |
+| --------------- | ----------- | --------------------------------------------------------------------------------------------------- |
+| `txt` or `data` | Exactly one | Local presentation-data availability.                                                               |
+| `vX.Y.Z`        | Exactly one | Latest Writing Guide version applied to the article.                                                |
+| `reviewed`      | Zero or one | The author explicitly reviewed and accepted the article in its current scientific and written form. |
 
 Articles may add other Demolab subject or method tags. Do not use `meta.status`
 or `meta.writing_guide`; availability, review and guide version are independent
@@ -681,26 +742,26 @@ grammatical plausibility is not sufficient.
 97. Use $W$ for a realized connection matrix.
 98. State the source and target axes of every connection matrix.
 99. State pathway direction separately from matrix-storage orientation.
-100. Document any transpose between graph-declaration and runtime matrix
-     orientations.
-101. Use $w_{\mathrm{event}}$ for the conductance increment caused by one
-     presynaptic event.
-102. Use $G_{A\rightarrow B}$ for summed conductance from population $A$ to
-     population $B$.
-103. Use $J_{A\rightarrow B}$ for current-valued or driving-force-rescaled
-     coupling.
-104. Distinguish an individual edge weight, expected edge strength, realized
-     summed conductance and current-valued coupling.
-105. State whether a reported coupling is per-edge, fan-in normalized or
-     population summed.
-106. Distinguish excitatory or inhibitory polarity from the postsynaptic
-     population receiving the conductance.
-107. Use separate notation for a signed driving force and its positive magnitude.
-108. Use $q_{\mathrm{zero}}$ for an initial zero fraction rather than $s$.
-109. Distinguish initial zeros, a permanent connectivity mask, a disabled
-     projection and a frozen parameter.
-110. Do not call a lower-clamped Gaussian a truncated Gaussian unless negative
-     values were resampled from the conditional distribution.
+100.  Document any transpose between graph-declaration and runtime matrix
+      orientations.
+101.  Use $w_{\mathrm{event}}$ for the conductance increment caused by one
+      presynaptic event.
+102.  Use $G_{A\rightarrow B}$ for summed conductance from population $A$ to
+      population $B$.
+103.  Use $J_{A\rightarrow B}$ for current-valued or driving-force-rescaled
+      coupling.
+104.  Distinguish an individual edge weight, expected edge strength, realized
+      summed conductance and current-valued coupling.
+105.  State whether a reported coupling is per-edge, fan-in normalized or
+      population summed.
+106.  Distinguish excitatory or inhibitory polarity from the postsynaptic
+      population receiving the conductance.
+107.  Use separate notation for a signed driving force and its positive magnitude.
+108.  Use $q_{\mathrm{zero}}$ for an initial zero fraction rather than $s$.
+109.  Distinguish initial zeros, a permanent connectivity mask, a disabled
+      projection and a frozen parameter.
+110.  Do not call a lower-clamped Gaussian a truncated Gaussian unless negative
+      values were resampled from the conditional distribution.
 
 #### Dynamics and technical terminology
 
@@ -723,30 +784,21 @@ grammatical plausibility is not sufficient.
 120. Preserve exact public API, schema, command-line and citation spellings
      rather than silently translating them into prose conventions.
 
-### 3.7. Equation numbering
+### 3.7. Cross-links between experiment articles
 
-Number every displayed equation in every part of an article, including Results,
-Methods, captions, tables and appendices. Use continuous Arabic numbering in
-parentheses, `(1)`, `(2)`, and so forth, from the first displayed equation to the
-last; never restart the counter by section. Inline mathematics remains
-unnumbered. A displayed equation does not need to be cited in prose merely to
-justify its number, and this rule does not justify displaying trivial arithmetic.
+Render every link from one experiment article to another in the exact form
+`expXXX — Title`, using the target's zero-padded identifier and exact current
+`meta.title`. Link the identifier and title separately to the same canonical
+article URL. Leave the em dash unlinked, set only the title in italics, and do
+not substitute descriptive labels or navigation text such as `Previous` or
+`Next`. This rule applies in prose, captions, lists, tables and navigation.
 
-Import and apply the shared `with-numbered-equations` wrapper to the complete
-article body before applying the final `with-contents` wrapper:
+When the cross-link ends a sentence, include the full stop in the italicized
+title link so its underline remains visually continuous:
 
 ```typst
-#import "contents.typ": with-contents, with-numbered-equations
-// Build the complete article body first.
-#let body = with-numbered-equations(body)
-#let body = with-contents(body)
+#link("/exp023/")[exp023] — #link("/exp023/")[_Turning the PING Loop On._]
 ```
-
-The shared wrapper is responsible for resetting and displaying the equation
-counter consistently in HTML and PDF. Do not replace it with article-local
-counter resets, target-specific equation rendering or individually assigned
-numbers. Regression tests must require the wrapper for every article carrying
-the current Writing Guide version and verify visible, sequential HTML numbers.
 
 ## 4. Titles
 
@@ -756,458 +808,3 @@ relationship ("Firing Rate Tracks Gamma Frequency") over vague topics or
 promotional claims. State a finding only when supported by results; otherwise
 name what is being tested. Aim for 5–10 words, retaining technical terms needed
 for precision.
-
-### 4.1. Table of Contents
-
-Every `writings/expXXX.typ`, including reference pages and figure galleries,
-must render exactly one `Table of Contents`. When an Abstract is present, render
-the complete Abstract immediately after the title/metadata and place the Table
-of Contents between the Abstract and the next section. Use the shared
-`contents.typ` helper:
-
-```typst
-#import "contents.typ": contents-here, with-contents, with-result-sections
-// Place this marker after the complete Abstract and before the next section.
-#contents-here()
-// Define the complete article body and apply any dataset/report wrappers first.
-#let body = with-contents(body)
-```
-
-- Apply this as the final body wrapper, outside data-readiness branches, so
-  navigation is present in both populated and unavailable-data views.
-- In entries with an Abstract, place exactly one `#contents-here()` marker after
-  its complete prose and before the next level-2 section. The marker fixes the
-  TOC position without changing section anchors. Do not place it inside the
-  Abstract prose or after the following heading.
-- Generate linked entries from the current article's rendered level-2 (`==`)
-  section headings, in document order, including Abstract, Dataset, appendices
-  and References when present. Beneath `Results`, include every direct level-3
-  (`===`) Results subsection as a nested linked entry with its generated number.
-  Omit every other deeper heading, the title, the TOC itself, and headings
-  belonging to other articles in a book.
-  Links must work in HTML and PDF; do not maintain a manual link list or use an
-  unscoped, document-wide outline.
-- If an existing reference page or gallery has no Abstract, place the TOC before
-  its first content instead. If Abstract is the only section, place the TOC after
-  it by putting the marker at the end of the body. Omit the marker from entries
-  without an Abstract; the shared wrapper then keeps the TOC first. This
-  navigation requirement does not authorize
-  inventing an abstract or changing scientific prose. Unavailable-data views
-  list only the sections they actually render, never unavailable results.
-- Update existing entries by removing their old contents heading/list and
-  adding the shared import and final wrapper. Preserve all other authored
-  content, metadata and unrelated edits. TOC-only changes do not advance
-  `meta.updated_at` (section 3.3); reassess availability under section 3.4.
-- Validate every entry's wrapper and check rendered ordering, article scope,
-  and link targets. Include an unavailable-data view and a reference page in
-  the checks.
-
-### 4.2. Unnumbered headings and section order
-
-- Never number article headings except direct Results subsections. Number those
-  subsections automatically and sequentially as `1.`, `2.`, and so forth through
-  the shared Results wrapper; authors must not type ordinal prefixes into source
-  headings. All level-2 sections, other subsections, appendices and References
-  remain unnumbered. Use `=== Accuracy across input rates` in source, which
-  renders as `1. Accuracy across input rates`; use `Appendix: Training settings`,
-  not `Appendix A: Training settings`. The Writing Guide's own numbered policy
-  sections are not article headings.
-- Preserve numbers that identify scientific content rather than section order,
-  such as a `4D model` or a training condition's name. Figure, equation, citation,
-  reference-list and method-step numbering are unaffected.
-- In every article containing both sections, place the entire Results section,
-  including its subsections, before the entire Methods section. Do not move
-  only the heading or leave results figures beneath Methods. Existing reference
-  pages without these sections do not need invented sections.
-- Name the section exactly `Dataset`. Place it after all main-text sections,
-  including Methods when present, and before any appendices and References.
-  If an entry has neither appendices nor References, place Dataset at the end.
-  Keep it as a level-2 heading so it remains in the Table of Contents.
-- Use descriptive section names with links for internal cross-references, not
-  section numbers. When updating existing headings, remove ordinal prefixes,
-  repair links and textual references, and move complete sections as needed.
-  Preserve scientific
-  content, equation labels, citations, metadata and unrelated edits. Formatting
-  and ordering changes alone do not advance authored dates (section 3.3).
-- The shared article wrapper disables general heading numbering, while the
-  shared Results wrapper numbers direct Results subsections only. Regression
-  tests must check source headings, Results-before-Methods order, one figure per
-  Results subsection, sequential rendered subsection numbers, nested TOC entries,
-  and links in every article, including data-dependent bodies.
-
-## 5. Abstracts
-
-Write a standalone prose abstract, split across paragraphs, that quickly restores
-the story of the experiment for a reader already familiar with the project. Aim
-for around 65 words and do not use bullet points. Abstract must be the first
-rendered section after the title/metadata; place `#contents-here()` after its
-complete prose so the Table of Contents follows it.
-
-### Ground the abstract before writing
-
-- Read `experiments/expXXX.py` and follow its execution into the relevant recipe,
-  compute, analysis and presentation modules and helpers. Do not draft from the
-  existing article alone.
-- Establish the experiment’s actual purpose, model, task, dataset, comparisons,
-  measurements and reusable outputs.
-- Check completed-run provenance, retained configurations and results. Code
-  describes intended behaviour; retained evidence establishes what actually
-  happened. Resolve differences between current code and historical execution
-  before making claims.
-- Distinguish newly executed work from reused training, measurements or figures.
-  Do not run experiments merely to generate an abstract.
-
-### Write for rapid understanding
-
-- State the question or purpose of the experiment.
-- Describe the experimental move: what was reused, changed, compared or tested.
-- State the main qualitative finding.
-- State what the finding establishes, its reuse value, or the limitation that
-  most constrains its interpretation.
-
-Distribute these roles clearly across the paragraphs, combining adjacent roles
-where that improves the flow.
-
-Omit numerical results, sample sizes, parameter grids and units. Those belong in
-Results. Use qualitative comparisons sufficient to distinguish the outcome.
-
-Use plain, direct language and assume familiarity with the wider project, but
-do not assume the reader remembers this experiment's particular setup. Retain
-necessary scientific terms, while omitting general background, citations,
-repository bookkeeping and implementation details.
-
-Follow section 3.5 for tense and person. Never substitute an expected outcome
-for an observation.
-
-### Example: exp082
-
-> This experiment asked whether networks trained on separate MNIST digits could
-> classify digits presented continuously. Recurrent state was preserved between
-> digits, while the output decision was reset at each boundary.
->
-> Classification improved with longer, stronger inputs, whereas weak inputs often
-> produced no output spikes. The results demonstrate continuous-stream
-> classification, but do not separate viewing time from decision time or establish
-> a causal role for gamma.
-
-## 6. Data access in Typst source
-
-For staged experiments, the writing consumes a selected presentation run, not
-compute checkpoints or live analysis. Pingstore resolves that input to the flat
-`export/` of a validated v4 present run. V2 and v3 presentations are not
-permitted for preview or publication. Existing readers that accept them are nonconforming,
-not a compatibility exception; this guide does not authorize their migration. Keep
-storage-version paths out of the writing: discovery supplies the resolved
-directory, while `run.json` remains authoritative. Import `data-file` from the
-local `dataset-template.typ` component and bind it to the article. The same
-component renders the article's Dataset section. It reads only explicit Demolab
-inputs, with no implicit filesystem fallback. Preview supplies selected runs;
-publication can supply a fixed `demolab-data-inputs` inventory with an
-engine that supports `build.sources`. Without an input for the article, show the
-shared unavailable-data notice rather than evaluating report calculations:
-
-```typst
-#import "/.demolab/lib.typ": data-json, data-image
-#import "dataset-template.typ": data-file, inputs-ready, pending-report
-#let data-file = data-file.with(article: "exp022")
-#let inputs = ("exp022",)
-#let render-report(data-file) = [
-  #let results = data-json(data-file("exp022/numbers.json"))
-  // Interpret results and render figures here, after checking input availability.
-]
-#let body = if inputs-ready(data-file, inputs) {
-  render-report(data-file)
-} else {
-  pending-report(data-file, inputs, [], ())
-}
-```
-
-Declare every required logical data key in `inputs`, including upstream keys in
-galleries and comparisons. The readiness check tests selected directories, not
-the existence of `numbers.json`, so image-only runs work too. Keep data reads,
-calculations, and result-dependent content inside `render-report`. A selected
-run with a missing or corrupt file is an error, never an empty report. Builds
-do not choose Latest, read browser selections, or execute experiment stages.
-
-Editing prose does not require a new run. Scientific or presentation changes use
-the independent stages in [the execution guide](../experiments/README.md).
-Keep imported historical figures distinct from newly generated figures; run.json
-records their source lineage, and captions must not imply a new simulation.
-
-## 7. Results
-
-Build Results from numbered visual cards, key figures, concise captions and
-optional explanatory prose. Give captions and prose distinct roles: captions
-explain how to read a figure; prose states what the figure establishes. Results
-remain evidence-led; prose is not required when a figure has no supported finding
-beyond the display itself. Every direct Results subsection must be a visual card
-that readers can enter and scan independently. A card changes presentation, not
-the scientific hierarchy or content rules.
-
-1. Name the section exactly `Results` and place it before `Methods`.
-   Do not append a tagline, description or other suffix, or add a
-   section-number prefix (section 4.2).
-2. Put the Results body inside the shared Results wrapper. Wrap every direct
-   subsection's complete heading, prose, figure and optional notes in a shared
-   or article-local helper named `result-card`. Write each direct
-   subsection as an unprefixed level-3 source heading; the wrapper generates its
-   sequential number and the Table of Contents repeats that number. The card
-   must preserve that heading and remain one Results subsection.
-3. Each Results subsection must contain exactly one figure. A compound image or
-   a table wrapped in `figure(...)` counts as one figure; separate `figure(...)`
-   calls require separate subsections.
-4. Give each subsection a concise, self-contained title describing what its
-   figure presents. Name the subject, comparison, measurement or distinctive
-   displayed condition. Avoid generic titles such as `Training trajectories`,
-   `Overview` or `Results plot`. Do not type the generated number into the title.
-5. Use figures from retained experimental outputs. Keep captions concise and
-  identify the variables, conditions, visual encodings, aggregation and
-  uncertainty needed to read each figure correctly. Distinguish illustrative
-  probes and reused observations from new measurements. Do not state the
-  figure's scientific finding or interpretation in its caption. Apply the
-  evidence-provenance and display vocabulary in section 3.6 throughout the
-  complete card.
-6. A theory diagram may occupy its own Results subsection when useful. Its
-   title and caption must identify it as an expectation or mechanism, not
-   experimental evidence.
-7. Explanatory prose may appear immediately before or after the subsection's
-   figure. Within each context-free card, use no more than three short, unlabelled
-   paragraphs in this order when each role is needed: essential local context,
-   an evidence-grounded expectation, and the observed result. Omit roles that do
-   not help the reader; do not print `Context`, `Expectation`, `Result` or
-   `Interpretation` merely to impose a template. Minimal repetition of Methods
-   is permitted when it is necessary to understand the isolated result, but do
-   not reproduce the full procedure. Keep observations distinct from theoretical
-   expectations, and include an interpretation only when it adds a scientific
-   consequence beyond the observed result. Label post-hoc interpretations.
-   Do not repeat the caption, introduce unsupported causal claims, add generic
-   introductory or concluding prose, or add placeholders for a later pass.
-8. A card may end with an optional `Notes` bullet list. Restrict notes to
-   selection provenance, caveats or secondary details that help readers audit
-   the displayed example. Notes must not carry the primary result, replace the
-   caption, accumulate exhaustive numerical detail or become a second Methods
-   section. A concise selection note may echo the corresponding Methods step
-   when the isolated figure would otherwise conceal how it was chosen.
-9. Never state the same finding in both prose and the caption. Apply a deletion
-   test: without the prose, the figure and caption must still be readable;
-   without the caption, the prose must not substitute for the missing variables,
-   conditions, encodings, aggregation or uncertainty.
-10. Keep the mandatory card wrapper semantically transparent. The shared Results
-    wrapper remains solely responsible for subsection numbering and TOC
-    numbering; do not recreate either counter in article-local Typst or CSS.
-    The subsection must remain readable in targets that omit borders or other
-    card chrome.
-11. Label every distinct scientific panel in a multi-panel figure `A`, `B`, `C`
-    and so forth, continuing `AA`, `AB` and so forth after `Z` when necessary.
-    Place each label consistently at the panel's upper-left in
-    high-contrast text that remains legible at final display size. Assign labels
-    in reading order, left-to-right and then top-to-bottom. Refer to panels in
-    captions and prose as `(A)`, `(B)`, and so forth; describe every panel in the
-    caption and do not substitute positional references such as “top”, “bottom”,
-    “left” or “right”. Colour bars, legends, shared titles and purely dependent
-    insets are not separate panels. An inset that presents independently
-    interpretable evidence is a panel and requires its own label.
-12. Design every figure at its intended final publication size. Unless a target
-    journal specifies otherwise, use approximately **90 mm** for a single-column
-    figure or **180 mm** for a double-column figure, with a maximum height of
-    approximately **170 mm**. Target-journal requirements supersede these
-    defaults. Express aspect ratios as width:height and use **4:3** as the
-    default for an ordinary plot panel. Use **1:1** where equal axis scaling or
-    matrix geometry matters, **3:2** for dense time series, and wider panels for
-    rasters or long temporal axes when scientifically justified. Do not
-    prescribe an overall aspect ratio for compound figures. Arrange panels in
-    balanced rows or grids according to their scientific relationships; avoid
-    empty cells, misleading visual hierarchy and layouts that make equivalent
-    panels appear unequal. Never stretch or squash a rendered plot: change the
-    canvas, subplot arrangement or source layout instead. If a compound figure
-    cannot fit within publication dimensions while preserving legibility,
-    recompose it or divide it into scientifically coherent figures. Verify the
-    final-sized output, not merely the source canvas. Labels, legends,
-    annotations, uncertainty marks and raster detail must remain readable; use
-    approximately **5–7 pt** as the minimum final text range unless the target
-    journal requires otherwise.
-
-When updating existing headings, remove their taglines and repair any authored
-links to former anchors. The shared TOC picks up the plain heading automatically.
-Preserve scientific content and authored dates; apply section 3.4 to availability.
-
-Illustrative scaffold (replace the figure paths and captions with retained
-outputs and their measurement details):
-
-```typst
-== Results
-
-#with-result-sections[
-
-#result-card[
-=== Gamma frequency and accuracy across inhibitory decay times
-
-Eight trained networks were evaluated across the same inhibitory-decay sweep.
-
-If slower inhibition controlled the rhythm without determining task quality,
-frequency and accuracy need not peak together.
-
-The oscillation slowed as inhibitory decay increased, but accuracy peaked at
-the intermediate decay time. Slower rhythms therefore did not consistently
-improve classification.
-
-#figure(
-  data-image(data-file("expXXX/frequency-and-accuracy.svg"), width: 100%),
-  caption: [Gamma frequency and test accuracy across inhibitory decay times.
-  Points show means across eight training replicates; error bars show ±1
-  standard deviation.],
-)
-]
-]
-```
-
-Wrap every subsection's complete heading, prose and figure with a
-presentation-only helper that obeys rules 2 and 10. Add `Notes` only when rule 8
-applies; an unwrapped Results subsection is nonconforming.
-
-## 8. Methods
-
-Explain how the experiment was actually performed and how its reported
-measurements and reusable outputs were obtained. Write for a
-computational-neuroscience colleague who understands the field but does not know
-this experiment. Aim for 350–600 words, excluding displayed equations but
-including symbol definitions. This is a guide, not a quota: use fewer words for
-simple experiments and do not pad the account. Prefer short, single-purpose
-items over compressing several consequential choices into one long paragraph.
-Exceed the range only when scientific completeness requires it.
-
-### Ground the account before writing
-
-- Read the experiment’s execution code, scientific definitions, analysis and
-  relevant helpers. Do not draft from the existing article alone.
-- Check completed-run provenance, retained configurations and outputs. Resolve
-  differences between current code and historical execution before making claims.
-- Outline the complete scientific procedure before writing prose. Distinguish
-  newly executed work, reused evidence and planned work.
-- Do not run experiments merely to write Methods.
-
-### Write the procedure
-
-1. Name the section `Methods` and place it after `Results`.
-2. A short orientation may precede the list when it adds information that the
-   first items do not already provide. Omit it when it merely announces the
-   procedure or repeats the opening items.
-3. Divide the procedure beneath exactly three unnumbered level-3 group headings,
-   in this order and with this spelling: `Compute`, `Analyse`, `Present`. Keep
-   method-step numbering continuous across all three groups. Use at most twenty
-   items, with at least one substantive item per group, and do not use nested
-   lists. Do not substitute experiment-specific group names or collapse groups
-   merely because a stage is short.
-4. Map the scientific procedure to those roles. `Compute` covers starting data,
-   models, controlled changes, simulation, training and primary measurements.
-   `Analyse` covers selection, estimators, aggregation, comparisons and
-   inferential decisions. `Present` explains which recorded or reused evidence
-   each reported figure or table exposes, including consequential selection,
-   transformation and uncertainty choices. Follow actual dependencies and give
-   each item one scientific purpose; combine inseparable parts of one operation,
-   but do not bury several independently useful choices in a single long item.
-   Never invent work to populate a group: when a role is minimal, state its
-   scientifically consequential operation concisely.
-5. Give each item a short scan label and normally one or two concise sentences.
-   Use noun labels for fixed setup, data and provenance, and action-led labels
-   for operations. Begin the prose with what was done, then give the essential
-   settings and what the operation produced. Equation-bearing items may include
-   one compact definition paragraph. Explain consequential choices without
-   inventing retrospective justifications.
-6. Make the main account explain the complete procedure and its consequential
-   choices. Put exhaustive parameter grids, initialization distributions and
-   derivations in appendices. Do not defer essential model differences,
-   selection criteria or measurement definitions.
-7. Select the key equations before drafting: those defining the experiment's
-   central model, intervention or measurement, usually one to three, not a quota.
-   Place each equation beside the operation it explains; every displayed
-   equation is numbered under section 3.7. Describe
-   routine operations in words unless their mathematical form matters to the
-   comparison or is needed to interpret a displayed diagnostic. Prefer
-   reader-level vectors, windows and named quantities over implementation-shaped
-   indices when the simpler form preserves scientific meaning and follows
-   section 3.6. Define every symbol once, give units where applicable, and reuse
-   notation consistently. Do not display trivial arithmetic such as accuracy as
-   correct divided by evaluated decisions merely to make the account look formal.
-   Cite established methods where appropriate.
-8. Explain how reported measurements were obtained, including relevant data
-   partitions, model-selection criteria, measurement timing, repetitions and
-   aggregation. Distinguish illustrative probes from population estimates and
-   reused observations from new measurements. The mandatory `Present` group
-   must connect displayed outputs to their recorded or reused evidence, but must
-   not narrate filenames, plotting libraries, storage, build mechanics or purely
-   cosmetic rendering. An
-   illustrative-stream or figure-selection item is appropriate when the
-   selection rule, candidate order, stopping rule or post-hoc choice materially
-   affects bias or interpretation. Put ordinary figure-reading details in
-   concise captions; integrate consequential sampling or measurement choices
-   into the relevant scientific step. A dedicated analysis step is appropriate
-   when it defines a substantive estimator, statistical test or analysis central
-   to the experiment's question. Routine presentation and summarization alone
-   do not qualify.
-9. Use direct, concrete prose. Exclude repository bookkeeping, implementation
-   narration and result interpretation. Finish with a compression pass: remove
-   repeated definitions, textbook exposition, procedural signposting and details
-   already supplied elsewhere. Preserve what was varied, what was held fixed,
-   what was trained, and how outputs were selected and measured.
-
-### Completion check
-
-Can the reader recover the substantive procedure by scanning `Compute`,
-`Analyse`, `Present`,
-numbered labels and equations before reading every sentence? Can each key
-equation be understood locally? Together, Methods, Results subsections or cards,
-and concise figure captions must make the source and meaning of reported
-measurements and
-reusable outputs clear, without a separate Methods item for every output or
-routine operation. The main account must explain the scientific procedure
-without requiring code or reconstruction from appendices. Remove items that
-merely narrate presentation or repeat captions. Flag missing evidence rather
-than inventing a step.
-
-Illustrative grouped structure; retain these exact groups and continue the
-numbering rather than restarting it:
-
-```typst
-=== Compute
-
-+ *Classifiers.* We reused three validation-selected networks without retraining.
-
-+ *Test data.* We evaluated held-out presentations excluded from selection.
-
-=== Analyse
-
-#set enum(start: 3)
-
-+ *Estimate accuracy.* We aggregated held-out decisions across training
-  replicates and conditions.
-
-=== Present
-
-#set enum(start: 4)
-
-+ *Expose retained evidence.* We presented the recorded condition means and
-  uncertainty without recomputing the underlying measurements.
-```
-
-For exp022, the applicable sequence is: data and splits; networks and controlled
-conditions; encoding and simulation; class scores; training and optimization;
-validation and model selection; measurements and reusable outputs. Its key
-equations define the readouts and the sample-wise activity penalty; routine
-Poisson and softmax expansions need not appear in the main account.
-
-## 9. References
-
-Apply these rules to every experiment entry:
-
-1. Place an unnumbered `References` heading at the bottom of the entry, after
-   any appendices. Number its reference-list entries, not the section heading.
-2. Use `#cite(...)` for inline citations and `#reference-list(...)` for the
-   reference list.
-3. List sources in order of first citation, with authors, title, publication
-   venue, year, and a DOI or stable URL where available.
-4. Reuse the same number for repeated citations. Keep citation numbers
-   synchronized with list positions.
-5. Include only cited sources and verify that each supports its associated
-   claim. Keep literature references distinct from upstream experiment and run
-   provenance.

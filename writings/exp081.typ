@@ -1,11 +1,15 @@
-#import "contents.typ": contents-here, with-contents, with-numbered-equations, with-result-sections
+#import "templates/article-layout.typ": journal-article
+#import "templates/result-card.typ": result-figure-ref, result-card, with-result-sections
+#import "templates/references.typ": journal-references
 #import "/.demolab/lib.typ": data-json, data-image
-#import "dataset-template.typ": data-file, inputs-ready, pending-report, with-datasets, run-view, input-assets
-#import "/.demolab/lib.typ": cite, reference-list
+#import "templates/dataset.typ": data-file, inputs-ready, pending-report, run-view, input-assets
+#import "/.demolab/lib.typ": cite
+#import "templates/abstract.typ": journal-abstract
+#import "templates/methods.typ": journal-methods
 #let data-file = data-file.with(article: "exp081")
 
 #let meta = (
-  tags: ("data", "reviewed", "v35.0.0"),
+  tags: ("reviewed", "v35.4.0"),
   title: "How Pixel Features Respond to Input Rate",
   created_at: "2026-08-10T00:00:00Z",
   updated_at: "2026-09-01",
@@ -21,32 +25,13 @@
   (path: "exp081/analytical_empirical.svg", label: "theory compared with simulation"),
 )
 
-#let result-card-style = context {
-  if target() == "html" {
-    html.elem("style",
-      ".pinglab-result-card { margin: 1.25rem 0; padding: 1.2rem 1.35rem 1.3rem; border: 1px solid var(--rule-strong); border-radius: 3px; background: var(--paper); } "
-      + ".pinglab-result-card > h4:first-child { margin-top: 0; } "
-      + ".pinglab-result-card > :last-child { margin-bottom: 0; } "
-      + "math[display='block'] { display: block; max-width: 100%; overflow-x: auto; overflow-y: hidden; } "
-      + "@media (max-width: 520px) { .pinglab-result-card { margin: 1rem 0; padding: .95rem 1rem 1.05rem; } }",
-    )
-  }
-}
-
-#let result-card(body) = context {
-  if target() == "html" {
-    html.elem("article", attrs: (class: "pinglab-result-card"), body)
-  } else { body }
-}
-
 // Keep calculations lazy: absent inputs never become fabricated results.
 #let render-report(data-file) = [
 #let r = data-json(data-file("exp081/numbers.json"))
 #let p = r.parameters
 #let rounded(x, digits: 3) = if x == none { "not defined" } else { str(calc.round(x, digits: digits)) }
 #let body = [
-  == Abstract
-
+  #journal-abstract(body: [
   We asked how the spike rate produced by a fully active pixel determines the
   average voltage feature passed to downstream classifiers. We compared direct
   membrane simulations with a simpler theory that treats the system as steady
@@ -57,17 +42,18 @@
   between presentations. Accurately predicting voltage averaged over one
   presentation therefore still requires direct simulation of individual event
   counts and timings in this system.
-
-  #contents-here()
+  ])
 
   == Results
 
   #with-result-sections[
 
-  #result-card-style
-
   #result-card[
-  === Average voltage and its variation across input rates
+  === Voltage moments across input rates
+
+  Each presentation began from rest. We varied input rate and conductance per
+  event, then averaged the voltage rise over the presentation
+  (#result-figure-ref(<fig:exp081-result-1>)).
 
   #figure(
     data-image(data-file("exp081/empirical_moments.svg"), width: 100%,
@@ -77,26 +63,24 @@
       #p.moment_draws independent presentations. Black, red and cyan denote
       #p.probes_uS.map(str).join(", ") μS added per event; curves summarize the
       presentations and are not confidence intervals.],
-  )
+  ) <fig:exp081-result-1>
 
-  Each presentation began from rest. We varied the input rate and the
-  conductance added by each event, then averaged the resulting voltage rise over
-  the presentation.
+  Higher rates should raise mean voltage. Variation could be nonmonotonic
+  because event counts and timing differ between presentations and membrane
+  responses are nonlinear.
 
-  A higher input rate should raise the average voltage. Variation need not rise
-  steadily, however, because presentations differ in both the number and timing
-  of their events, and membrane responses are nonlinear.
-
-  The mean voltage feature rose with both input rate and event strength. Its SD
-  rose quickly at low rates, then levelled off or fell for the two weaker event
-  strengths, but remained high for the strongest. One possible explanation is
-  that event counts become relatively steadier while stronger conductance limits
-  further voltage change through shunting and saturation. We did not test these
-  mechanisms separately.
+  Mean voltage rose with both input rate and event strength. Its SD rose at low
+  rates, then levelled off or fell for the two weaker event strengths, but
+  remained high for the strongest. This may reflect relatively steadier event
+  counts plus shunting and saturation; we did not test these mechanisms
+  separately.
   ]
 
   #result-card[
-  === Response distributions from sparse to dense input
+  === Input-rate response distributions
+
+  Here we kept presentation duration and event strength fixed, and changed only
+  the input rate from sparse to dense drive (#result-figure-ref(<fig:exp081-result-2>)).
 
   #figure(
     data-image(data-file("exp081/response_distributions.svg"), width: 100%,
@@ -107,10 +91,7 @@
       presentations per condition. Each bar gives the probability within one
       shared fixed-width bin. The vertical axis is logarithmic and voltage is in
       mV.],
-  )
-
-  Here we kept presentation duration and event strength fixed, and changed only
-  the input rate from sparse to dense drive.
+  ) <fig:exp081-result-2>
 
   Input rate determines the expected number of events, not the exact number in
   any one presentation. A presentation may contain no events, one event or many;
@@ -123,7 +104,11 @@
   ]
 
   #result-card[
-  === Predicted filtering before and after time averaging
+  === Filtering before and after averaging
+
+  This figure shows the theory's response around three steady input rates. It is
+  a theoretical prediction; we did not measure these curves by deliberately
+  varying the input rate over time (#result-figure-ref(<fig:exp081-result-3>)).
 
   #figure(
     data-image(data-file("exp081/frequency_response.svg"), width: 100%,
@@ -135,11 +120,7 @@
       the synapse and membrane response. *(B)* also includes
       #p.presentation_ms ms time averaging. Magnitude is in dB relative to the
       steady response at the lowest input rate; frequency is in Hz.],
-  )
-
-  This figure shows the theory's response around three steady input rates. It is
-  a theoretical prediction. We did not measure these curves by deliberately
-  varying the input rate over time.
+  ) <fig:exp081-result-3>
 
   The model responds similarly to slow changes, but increasingly suppresses
   changes that are faster than the synapse and membrane can follow. Stronger
@@ -149,7 +130,11 @@
   ]
 
   #result-card[
-  === Theory compared with simulation across input rates
+  === Theory versus simulation
+
+  The simpler theory replaces each random conductance history with its mean
+  steady state, then assumes that the remaining fluctuations are small
+  (#result-figure-ref(<fig:exp081-result-4>)).
 
   #figure(
     data-image(data-file("exp081/analytical_empirical.svg"), width: 100%,
@@ -158,16 +143,13 @@
       (points) of *(A)* mean feature and *(B)* sample SD, in mV. Each estimate uses
       #p.moment_draws presentations per rate. Black, red and cyan denote
       #p.probes_uS.map(str).join(", ") μS added per event.],
-  )
+  ) <fig:exp081-result-4>
 
-  The simpler theory replaces each random conductance history with its mean
-  steady state, then assumes that the remaining fluctuations are small.
+  If quantitatively accurate, this approximation would reproduce the simulated
+  mean and SD curves.
 
-  If this approximation were quantitatively accurate, it would reproduce both
-  the shape and size of the simulated mean and SD curves.
-
-  The predicted means had the same broad curvature and ordering by event
-  strength (Pearson correlation #rounded(r.comparison.mean.pearson_r)), but were
+  Predicted means preserved the broad curvature and event-strength ordering
+  (Pearson correlation #rounded(r.comparison.mean.pearson_r)), but were
   too large by a median factor of
   #rounded(r.comparison.mean.median_predicted_empirical_ratio). The predicted and
   simulated SDs agreed poorly (Pearson correlation
@@ -178,10 +160,8 @@
 
   ]
 
-  == Methods
-
-  === Compute
-
+  #journal-methods(
+    compute: [
   + *Set the conditions.* We used a fully active pixel and varied its input rate
     from #p.input_rate_grid_hz.first() to
     #p.input_rate_grid_hz.last() spikes/s across
@@ -221,9 +201,8 @@
     $T_"present"=#p.presentation_ms$ ms is presentation duration. The recorded
     estimate subtracted resting voltage and averaged the $N_t$ voltages measured
     after each simulation update.
-
-  === Analyse
-
+    ],
+    analyse: [
   #set enum(start: 5)
 
   + *Summarize the simulated responses.* For every rate–strength condition, we
@@ -253,9 +232,8 @@
     positive simulated values and left undefined correlations undefined. We
     expressed frequency-response magnitude relative to the zero-frequency
     response at the lowest input rate.
-
-  === Present
-
+    ],
+    present: [
   #set enum(start: 8)
 
   + *Show the simulated evidence.* We displayed the recorded means and sample
@@ -270,7 +248,8 @@
     response to an input rate deliberately varied over time. We did not
     recalculate the statistics or rerun the simulation while preparing the
     figures.
-
+    ],
+  )
   #run-view("exp081", inputs)
 
   == Appendix: simulation and theory details <sec-appendix-model-specification-and-calculations>
@@ -614,7 +593,7 @@
   an approximation to the simulated system, which is nonlinear, begins each
   presentation from rest and contains a finite random number of events.
 
-  #reference-list((
+  #journal-references((
     (
       text: [Marco Brigham and Alain Destexhe: _Nonstationary Filtered Shot-Noise Processes and Applications to Neuronal Membranes_. Physical Review E, 2015.],
       doi: "10.1103/PhysRevE.91.062102",
@@ -639,6 +618,4 @@
 }
 
 #let meta = meta + (assets: input-assets("exp081", inputs))
-#let body = with-datasets("exp081", inputs, report-body, placed: inputs-ready(data-file, inputs))
-#let body = with-numbered-equations(body)
-#let body = with-contents(body)
+#let body = journal-article("exp081", inputs, report-body, dataset-placed: inputs-ready(data-file, inputs))

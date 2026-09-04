@@ -1,6 +1,43 @@
-// Article-owned dataset template: presentation inputs and the rendered Dataset section.
+// Article-owned data-input and Dataset-section contract.
+//
+// Bind `data-file` to the article identifier, declare every required logical
+// input key (including reused upstream inputs), and keep all data reads,
+// calculations and result-dependent content behind `inputs-ready`. A selected
+// input with a missing or corrupt file is an error. With no ready input, render
+// `pending-report`; do not substitute zeros, historical values or publication
+// paths. Preview and publication consume only explicit Demolab selections of
+// validated v4 present runs and never choose a run or launch an upstream stage.
+// Editing prose does not require a new run. Declare every scientific input the
+// article depends on, including reused upstream evidence in comparisons and
+// syntheses. Distinguish imported historical figures from newly generated
+// figures, and never imply that reused evidence came from a new simulation.
+// The versioned Storage Guide at `../../tools/pingstore/README.md` remains
+// authoritative for run validity, layout and provenance.
+//
+// Apply `with-datasets(article, inputs, body)` to add exactly one level-2
+// `Dataset` section. It belongs after all main-text sections and before the
+// first appendix or References; pass `placed: true` only when a data-backed body
+// already places the same `run-view` explicitly inside its required style scope.
+// Present exports and their projected provenance are display inputs, not a
+// second authority for scientific claims.
+//
+// Public article entry points:
+//
+// - `data-file(rel, article: none)` resolves one safe logical key or file path;
+//   bind the required `article` argument before use.
+// - `inputs-ready(data-file, inputs)` checks that every declared key resolves.
+// - `pending-report(data-file, inputs, question, figures, json-inputs: ())`
+//   renders the shared unavailable-data view.
+// - `with-datasets(article, inputs, body, placed: false, status: none)` inserts the Dataset
+//   section according to the placement contract above.
+// - `run-view(article, inputs, status: none)` renders that section directly when required.
+// - `input-assets(article, inputs)` projects selected media for publication.
+// - `video(source, ..args)` renders a selected presentation video.
 // URL renders and prepared builds read Pinglab's own validated projection.
 // Legacy paths remain below until the separate retirement step is approved.
+#import "status.typ": component-title
+
+// run-view and with-datasets accept `status: none` or "locked"; see status.typ.
 #let prepared = "demolab-url-render" in sys.inputs or "demolab-bundle-root" in sys.inputs
 #let catalogue = if prepared { json("/.demolab/pinglab-inputs.json") } else {
   (articles: (:), defaults: (:), runs: ())
@@ -146,10 +183,10 @@
   "/" + article + "?" + selections.join("&")
 }
 
-#let run-view(article, inputs) = context {
+#let run-view(article, inputs, status: none) = context {
   if target() == "html" {
     let interactive = sys.inputs.at("demolab-dev", default: "false") == "true"
-    heading(level: 2)[Dataset]
+    heading(level: 2, component-title([Dataset], status: status))
     html.elem("style", ".run-view {margin:1rem 0 2rem;border:1px solid var(--rule-strong,#ddd);border-radius:.35rem;font-size:.85rem;overflow-x:auto;} .run-view .run-dependencies {display:grid;grid-template-columns:max-content minmax(0,1fr);gap:.35rem 1rem;margin:0;padding:.7rem .8rem;border-bottom:1px solid var(--rule-strong,#ddd);} .run-view .run-dependencies dt {font-weight:600;color:var(--muted,#666);} .run-view .run-dependencies dd {margin:0;} .run-view .run-dependencies a {white-space:nowrap;} .run-view table {width:100%;margin:0;border:0;border-collapse:collapse;font-size:inherit;} .run-view th,.run-view td {padding:.6rem .8rem;text-align:left;vertical-align:baseline;border:0;border-bottom:1px solid var(--rule-strong,#ddd);} .run-view th {font-weight:600;color:var(--muted,#666);} .run-view tbody tr:last-child td {border-bottom:0;} .run-view .run-name {white-space:nowrap;} .run-view .run-stage-present {text-decoration:underline;text-underline-offset:.15em;} .run-view .run-date,.run-view .run-origin {color:var(--muted,#666);} .run-view .run-date {min-width:7.5em;white-space:nowrap;} .run-view .run-duration {white-space:nowrap;font-variant-numeric:tabular-nums;} .run-view .run-size {text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums;} .run-view [aria-current=true] {font-weight:600;}")
     html.elem("aside", attrs: (class: "run-view", "aria-label": "Dataset"), {
       let dependencies = catalogue.at("experiment_dependencies", default: (:)).at(article, default: (:))
@@ -162,7 +199,10 @@
             else {
               for (index, experiment) in experiments.enumerate() {
                 if index > 0 { [, ] }
-                html.elem("a", attrs: (href: "/" + experiment), experiment)
+                // Dependency identifiers remain plain text. Article cross-links
+                // require a separately linked identifier and exact current title,
+                // which this technical projection does not carry.
+                experiment
               }
             }
           })
@@ -286,7 +326,7 @@
 
 #let dataset-heading-level(item) = item.fields().at("level", default: item.fields().at("depth", default: 1))
 
-#let with-datasets(article, inputs, body, placed: false) = {
+#let with-datasets(article, inputs, body, placed: false, status: none) = {
   // Data-backed articles place their table explicitly inside the report's style scope.
   if placed { return body }
   let parts = dataset-parts(body)
@@ -298,5 +338,5 @@
     )
   })
   let position = if end-matter.len() > 0 { end-matter.first().first() } else { parts.len() }
-  parts.slice(0, position).join() + run-view(article, inputs) + parts.slice(position).join()
+  parts.slice(0, position).join() + run-view(article, inputs, status: status) + parts.slice(position).join()
 }
