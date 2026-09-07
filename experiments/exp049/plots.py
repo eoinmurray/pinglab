@@ -796,7 +796,7 @@ def fig_training_summary(data, out_path: Path, run_id: str) -> None:
     theme.set_paper_mode(True)
     theme.apply()
     grid = snnviz.FigureGrid(
-        rows=2, columns=1, bounds=(0.09, 0.16, 0.88, 0.70), row_gap=0.19
+        rows=2, columns=1, bounds=(0.09, 0.16, 0.88, 0.70), row_gap=0.14
     )
     grid.place("top", row=0, column=0)
     grid.place("bottom", row=1, column=0)
@@ -806,7 +806,7 @@ def fig_training_summary(data, out_path: Path, run_id: str) -> None:
         top.place(str(i), row=0, column=i)
     for i in range(4):
         bottom.place(str(i), row=0, column=i)
-    fig = grid.figure(figsize=(6.9, 5.3), dpi=240)
+    fig = grid.figure(figsize=(180 / 25.4, 4.8), dpi=240)
     theme.apply()
     axes = [top.add_axes(fig, str(i)) for i in range(3)] + [
         bottom.add_axes(fig, str(i)) for i in range(4)
@@ -828,7 +828,7 @@ def fig_training_summary(data, out_path: Path, run_id: str) -> None:
         [
             "Test accuracy",
             "E/I firing rates",
-            "Rhythmicity",
+            "Lobe–trough contrast",
             "E→I non-zero",
             "I→E non-zero",
             "E→I mean",
@@ -839,10 +839,11 @@ def fig_training_summary(data, out_path: Path, run_id: str) -> None:
         ax.set_title(
             title, fontsize=theme.SIZE_LABEL, fontweight="semibold", loc="left", pad=6
         )
-        theme.label_panel(ax, letter, x=-0.15, y=1.10)
+        theme.label_panel(ax, letter)
         ax.set_xlim(-0.6, 3.6)
         ax.set_xticks(
-            x, ["Frozen", "Std.", "10%", "Zero"], fontsize=theme.SIZE_ANNOTATION
+            x, ["Frozen", "Std.", "10%", "Zero"], fontsize=theme.SIZE_ANNOTATION,
+            rotation=25, ha="right"
         )
         ax.tick_params(axis="x", length=0, pad=4)
         ax.tick_params(
@@ -939,10 +940,10 @@ def fig_training_summary(data, out_path: Path, run_id: str) -> None:
                     arrowprops=dict(
                         arrowstyle="->",
                         color=theme.INK_BLACK,
-                        lw=1.3,
+                        lw=0.7,
                         shrinkA=0,
                         shrinkB=0,
-                        mutation_scale=7,
+                        mutation_scale=5,
                     ),
                     zorder=6,
                 )
@@ -951,7 +952,7 @@ def fig_training_summary(data, out_path: Path, run_id: str) -> None:
             x,
             ["Frozen", "Std.", "10%", "Zero"],
             fontsize=theme.SIZE_ANNOTATION,
-            rotation=30,
+            rotation=25,
             ha="right",
         )
     save_figure(fig, out_path, formats=("svg", "pdf", "png"))

@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import pytest
 from experiments.exp054 import plots as exp054_plots
 from experiments.exp054 import recipe as exp054_recipe
 from experiments.exp110 import plots, present, recipe
@@ -170,8 +171,9 @@ def test_cycle_participation_equal_width_and_no_percentages(tmp_path, monkeypatc
     assert (tmp_path / "combined.pdf").is_file()
 
 
+@pytest.mark.parametrize("relative", [False, True])
 def test_robustness_composite_uses_equal_width_row_panels(
-    tmp_path: Path,
+    tmp_path: Path, monkeypatch, relative,
 ) -> None:
     perturbation = tmp_path / "perturbation.json"
     timestep = tmp_path / "timestep.json"
@@ -184,11 +186,12 @@ def test_robustness_composite_uses_equal_width_row_panels(
     write_json_atomic(
         perturbation,
         {
-            "schema": "exp037.analysis/v1",
+            "schema": "exp037.analysis/v2" if relative else "exp037.analysis/v1",
             "plot_data": {
                 "use_pct": True,
+                "relative_test_baseline": relative,
                 "panels": {
-                    mode: {model: curve for model in ("coba", "ping")}
+                    mode: {model: {**curve, "x": [0.0, 200.0] if mode == "add" else curve["x"]} for model in ("coba", "ping")}
                     for mode in ("drop", "add")
                 },
             },
@@ -208,7 +211,17 @@ def test_robustness_composite_uses_equal_width_row_panels(
             ],
         },
     )
+    save = present.save_figure
+    def inspect(fig, stem, **kwargs):
+        drop, add, rate, accuracy = fig.axes
+        assert list(add.lines[0].get_xdata()) == [0.0, 200.0]
+        assert add.get_xlim()[1] > 200
+        assert ("baseline E rate" if relative else "reference E rate") in add.get_xlabel()
+        assert "Spike insertion" in add.get_title(loc="left")
+        assert "±1 SD band" in [text.get_text() for text in fig.legends[0].get_texts()]
+        save(fig, stem, **kwargs)
+    monkeypatch.setattr(present, "save_figure", inspect)
     present.build_robustness_compound(perturbation, timestep, tmp_path / "combined")
     with Image.open(tmp_path / "combined.png") as combined:
-        assert combined.width > 2.5 * combined.height
+        assert combined.width > 2 * combined.height
     assert (tmp_path / "combined.pdf").is_file()

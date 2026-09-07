@@ -362,7 +362,7 @@ def test_continuous_stream_compound_preserves_evidence(tmp_path, monkeypatch):
     assert np.allclose(fig.get_size_inches() * 25.4, (180, 120), atol=0.2)
     assert {text.get_text() for text in fig.texts} == set("ABCDEF")
     assert np.allclose(fig.axes[4].images[0].get_array(), np.array(rows["grid"]) * 100)
-    assert np.allclose(fig.axes[5].lines[0].get_ydata(), (0.4, 0.8))
+    assert np.allclose(fig.axes[5].lines[0].get_ydata(), (40, 80))
     # Each displayed trace stops at the boundary instead of joining count resets.
     for line in fig.axes[3].lines[:-1]:
         assert np.ptp(line.get_xdata()) < 5

@@ -9,7 +9,7 @@ from matplotlib.gridspec import GridSpec
 
 
 def _label_panel(axis, label, *, y=1.04):
-    return theme.label_panel(axis, label, x=-0.12, y=y)
+    return theme.label_panel(axis, label, x=-0.08, y=y)
 
 
 def build_onset_super_compound(grid, results, hopf, sweep, mf, meas, out_path):
@@ -19,18 +19,18 @@ def build_onset_super_compound(grid, results, hopf, sweep, mf, meas, out_path):
     theme.apply()
     plt.rcParams["savefig.bbox"] = "standard"
 
-    fig = plt.figure(figsize=(6.9, 6.13), dpi=150)
+    fig = plt.figure(figsize=(180 / 25.4, 6.4), dpi=150)
     gs = GridSpec(
         3,
         3,
         figure=fig,
         height_ratios=[1.25, 0.92, 1.05],
-        hspace=0.5,
-        wspace=0.32,
+        hspace=0.65,
+        wspace=0.60,
         top=0.95,
         bottom=0.06,
         left=0.07,
-        right=0.95,
+        right=0.90,
     )
 
     raster_letters = ("D", "E", "F")
@@ -49,6 +49,19 @@ def build_onset_super_compound(grid, results, hopf, sweep, mf, meas, out_path):
             mark_labels=raster_letters if marked else None,
             cell_fontsize=3.0,
         )
+        for text in list(axis.texts):
+            if text.get_text() not in raster_letters:
+                text.remove()
+        axis.set_title("", loc="center")
+        axis.set_title(("E rate (Hz)", "I rate (Hz; clipped)", "Lobe–trough contrast")[index], fontsize=theme.SIZE_LABEL)
+        axis.set_xlabel(r"$W_{EI}$ (µS)")
+        if index == 0:
+            axis.set_ylabel(r"$W_{IE}$ (µS)")
+        color_axis = axis.inset_axes((1.04, 0, 0.045, 1))
+        colorbar = fig.colorbar(axis.images[0], cax=color_axis)
+        colorbar.ax.tick_params(labelsize=theme.SIZE_TICK)
+        colorbar.locator = plt.MaxNLocator(3)
+        colorbar.update_ticks()
         _label_panel(axis, "ABC"[index])
 
     for index, (label, wei_index, wie_index) in enumerate(exp054_plots.TURNON_POINTS):
@@ -61,6 +74,11 @@ def build_onset_super_compound(grid, results, hopf, sweep, mf, meas, out_path):
             wie_i=wie_index,
             show_label=False,
         )
+        axis.set_title(("Loop off", "Intermediate coupling", "Strong coupling")[index], fontsize=theme.SIZE_LABEL)
+        cell = grid[wie_index][wei_index]
+        n_e = cell["e"].shape[1]
+        n_i = 0 if cell["i"] is None else cell["i"].shape[1]
+        axis.set_yticks((n_e / 2, n_e + n_i / 2), ("E", "I"))
         _label_panel(axis, raster_letters[index])
 
     eigen_axis = fig.add_subplot(gs[2, 0])
@@ -90,21 +108,20 @@ def build_onset_super_compound(grid, results, hopf, sweep, mf, meas, out_path):
             zorder=5,
         )
     assert scatter is not None
-    color_axis = eigen_axis.inset_axes((0.06, 0.56, 0.035, 0.38))
-    colorbar = fig.colorbar(scatter, cax=color_axis)
-    colorbar.set_label("$I_\\text{ext}$ (nA)", fontsize=theme.SIZE_TICK - 2, labelpad=2)
-    colorbar.ax.tick_params(labelsize=theme.SIZE_TICK - 2)
-    colorbar.ax.yaxis.set_ticks_position("right")
-    colorbar.ax.yaxis.set_label_position("right")
+    color_axis = eigen_axis.inset_axes((0.27, 0.82, 0.43, 0.04))
+    colorbar = fig.colorbar(scatter, cax=color_axis, orientation="horizontal", ticks=(0, 2, 4))
+    colorbar.set_label("$I_\\text{ext}$ (nA)", fontsize=theme.SIZE_TICK, labelpad=2)
+    colorbar.ax.tick_params(labelsize=theme.SIZE_TICK)
+    colorbar.ax.xaxis.set_label_position("top")
     eigen_axis.set_xlabel("Re$(\\lambda)$ (ms$^{-1}$)", fontsize=theme.SIZE_LABEL)
     eigen_axis.set_ylabel("Im$(\\lambda)$ (ms$^{-1}$)", fontsize=theme.SIZE_LABEL)
     eigen_axis.set_title(
-        f"Hopf crossing at $I^\\star$ = {hopf['I_ext_star']:.2f} nA",
+        "Hopf crossing",
         loc="left",
         fontsize=theme.SIZE_LABEL,
         fontweight="semibold",
     )
-    _label_panel(eigen_axis, "G", y=1.12)
+    _label_panel(eigen_axis, "G")
     exp054_plots._despine(eigen_axis)
 
     amplitude_axis = fig.add_subplot(gs[2, 1])
@@ -137,7 +154,7 @@ def build_onset_super_compound(grid, results, hopf, sweep, mf, meas, out_path):
         fontweight="semibold",
     )
     amplitude_axis.legend(fontsize=theme.SIZE_LEGEND, frameon=False, loc="lower right")
-    _label_panel(amplitude_axis, "H", y=1.12)
+    _label_panel(amplitude_axis, "H")
     exp054_plots._despine(amplitude_axis)
 
     frequency_axis = fig.add_subplot(gs[2, 2])
@@ -170,7 +187,7 @@ def build_onset_super_compound(grid, results, hopf, sweep, mf, meas, out_path):
         fontweight="semibold",
     )
     frequency_axis.legend(fontsize=theme.SIZE_LEGEND, frameon=False, loc="upper right")
-    _label_panel(frequency_axis, "I", y=1.12)
+    _label_panel(frequency_axis, "I")
     exp054_plots._despine(frequency_axis)
 
     save_figure(fig, out_path, formats=("png", "pdf"))

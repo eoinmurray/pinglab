@@ -278,7 +278,7 @@ def fig_loop_transfer_compound(points, raster_lo, raster_hi, out_path, run_id):
     plt.rcParams["savefig.bbox"] = "standard"  # keep the saved 16:9 exact
     from matplotlib.gridspec import GridSpec
 
-    fig = plt.figure(figsize=(6.9, 3.88))  # 16:9, full text width
+    fig = plt.figure(figsize=(180 / 25.4, 4.2))  # 16:9, full text width
     gs = GridSpec(
         2,
         2,
@@ -318,7 +318,7 @@ def fig_loop_transfer_compound(points, raster_lo, raster_hi, out_path, run_id):
         ax.tick_params(axis="y", length=0)
         ax.set_xlim(0, s["t_ms"])
         ax.set_xlabel("time (ms)")
-        tag = "loop off" if s["ei_strength"] == 0 else "loop enabled after training"
+        tag = "loop off" if s["ei_strength"] == 0 else "loop on after training"
         ax.set_title(
             f"s = {s['ei_strength']:g}: {tag}", loc="left", fontweight="semibold"
         )
@@ -356,12 +356,12 @@ def fig_loop_transfer_compound(points, raster_lo, raster_hi, out_path, run_id):
         ls="--",
         label=f"COBA baseline {base_acc:.0f}%",
     )
-    ax_a.plot(eis, accs, marker="o", ms=3, color=theme.DEEP_RED, label="transfer")
+    ax_a.plot(eis, accs, marker="s", ms=3, color=theme.GREY_MID, label="transfer")
     ax_a.fill_between(
         eis,
         accs - acc_sds,
         accs + acc_sds,
-        color=theme.DEEP_RED,
+        color=theme.GREY_MID,
         alpha=0.15,
         linewidth=0,
     )

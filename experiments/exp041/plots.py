@@ -39,9 +39,9 @@ def plot_quantitative_law(
             xerr=fg_se,
             yerr=er_se,
             fmt="o",
-            markersize=6,
+            markersize=6 if standalone else 3,
             color=theme.INK_BLACK,
-            capsize=3,
+            capsize=3 if standalone else 2,
             label=f"τ_GABA = {tau:g} ms" if standalone and tau == TAU_GABA_GAMMA_MS else None,
         )
         ax_rate.annotate(
@@ -49,7 +49,7 @@ def plot_quantitative_law(
             (fg_mu, er_mu),
             fontsize=theme.SIZE_ANNOTATION,
             color=theme.MUTED,
-            xytext=(9, 0),
+            xytext=(9 if standalone else 4, -3),
             textcoords="offset points",
             va="center",
         )
@@ -59,9 +59,9 @@ def plot_quantitative_law(
             xerr=fg_se,
             yerr=ac_se,
             fmt="o",
-            markersize=6,
+            markersize=6 if standalone else 3,
             color=theme.INK_BLACK,
-            capsize=3,
+            capsize=3 if standalone else 2,
         )
 
     fg_arr = np.array(f_gammas)
@@ -101,6 +101,11 @@ def plot_quantitative_law(
     if not standalone:
         ax_rate.margins(x=0.15, y=0.35)
         ax_acc.set_xlim(ax_rate.get_xlim())
+    if not standalone:
+        ax_rate.set_ylim(bottom=0)
+        for line in ax_rate.lines:
+            if line.get_label().startswith("$r_E"):
+                line.set_label("Affine fit")
     ax_rate.legend(fontsize=theme.SIZE_LEGEND, frameon=False, loc="upper left")
     theme.label_panels((ax_rate, ax_acc))
     if standalone:

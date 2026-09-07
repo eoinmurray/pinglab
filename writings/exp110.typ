@@ -137,9 +137,9 @@
         The coupling values are initialization parent means on the
         fan-in-normalized summed-conductance scale. Each condition comprised one
         untrained network of 256 E and 256 I neurons receiving private 100-Hz
-        Poisson input, evaluated for 0.9 s after a 0.1-s burn-in. Cell
-        annotations give the measured values; the grayscale in *(B)* is clipped
-        at its 92nd percentile, while annotations retain the unclipped I rates.
+        Poisson input, evaluated for 0.9 s after a 0.1-s burn-in. Colour bars
+        give the measurement scales; the grayscale in *(B)* is clipped
+        at its 92nd percentile.
         Lobe–trough contrast is
         $(A_"lobe" - A_"trough") / (A_"lobe" + A_"trough")$, calculated from
         the 1-ms-binned E autocorrelogram.
@@ -174,9 +174,7 @@
 
     The selected rasters make this progression concrete. Without reciprocal
     coupling, excitatory neurons fired densely while the inhibitory population
-    remained silent, and E-population lobe–trough contrast was near zero (0.0017;
-    displayed as 0.00;
-    Fig. 2D). At intermediate coupling ($W_(E I)=0.6$, $W_(I E)=1.2$ µS),
+    remained silent, and E-population lobe–trough contrast was near zero (0.0017; Fig. 2D). At intermediate coupling ($W_(E I)=0.6$, $W_(I E)=1.2$ µS),
     recurring inhibitory volleys appeared alongside sparser excitatory firing,
     with contrast increasing to 0.27 (Fig. 2E). Under strong coupling
     ($W_(E I)=3$, $W_(I E)=6$ µS), inhibitory volleys were highly regular and
@@ -304,7 +302,7 @@
         $s = 0$ to $1$ in increments of 0.1 for three independently trained COBA
         classifiers generated with seeds 42–44. *(C)* Mean per-neuron E rate
         (black circles) and I rate (red squares), calculated over every neuron
-        and evaluated presentation. *(D)* Official-test accuracy (red circles);
+        and evaluated presentation. *(D)* Official-test accuracy (grey squares);
         the dashed line marks mean accuracy at $s = 0$. Each classifier was
         evaluated on the same 1,000 test images using 200-ms presentations;
         curves show means and bands show sample SD across training replicates.
@@ -444,8 +442,21 @@
 
     === The operating regime has asymmetric perturbation sensitivity
 
-    + Added and deleted spikes affect accuracy differently
-      (@fig:robustness, panels A–B).
+    The trained circuits tolerated substantial spike deletion, but diverged
+    sharply under spike insertion. Independently deleting each naturally
+    generated excitatory or inhibitory spike with 80% probability left mean
+    test accuracy at 89.3% for COBA and 89.2% for PING; complete deletion
+    reduced both to 10.6% (Fig. 7A). In contrast, inserting independent spikes
+    into both populations at a nominal per-neuron rate equal to each network’s
+    own unperturbed test-set excitatory firing rate reduced accuracy to 82.8%
+    for COBA and 38.5% for PING. At twice that baseline rate, accuracy was
+    72.6% and 11.4%, respectively (Fig. 7B). These values average three
+    independently trained classifiers per family, each evaluated on the same
+    1,000 test images without retraining. Thus, PING tolerated substantial
+    deletion but was more sensitive than COBA to strong spike insertion at
+    matched baseline-relative doses. Because both perturbations affected
+    recurrent feedback and readout input, this comparison does not isolate
+    disruption of rhythmic organisation as the cause of classification failure.
 
     #figure(
       data-image(
@@ -453,18 +464,78 @@
         width: 92%,
         alt: "COBA and PING accuracy under spike deletion and addition, followed by firing rate and accuracy across integration timesteps.",
       ),
-      caption: [Mean test accuracy under *(A)* random hidden-spike deletion and
-        *(B)* Poisson spike addition; lines show means across three training replicates
-        and shading shows SEM. *(C)* Post-training E rate and test accuracy across
-        matched training-and-inference integration timesteps from 0.05 to 1.0 ms.
-        Source experiments: #link("/exp037/")[exp037] — #link("/exp037/")[_Dropped Spikes vs Added Noise_] and #link("/exp044/")[exp044] — #link("/exp044/")[_Firing Rate Across the Timestep Sweep._]],
+      caption: [*Spike-perturbation and integration-timestep comparisons in
+        trained spiking classifiers.* Networks contained 1,024 excitatory (E)
+        and 256 inhibitory (I) neurons. Each network was evaluated on 1,000
+        MNIST test images presented for 200 ms through 784 independent Poisson
+        channels, with pixel-proportional rates and a 25-Hz maximum-pixel rate.
+
+        *(A–B)* Test accuracy under inference-time perturbations of unpenalised
+        COBA and PING classifiers, without retraining. Checkpoints were selected
+        by minimum validation loss over 50 training epochs. Red squares denote
+        COBA and black diamonds denote PING. Lines show means across three
+        independent training replicates per model, generated with seeds 42–44;
+        shaded bands show ±1 sample SD. Dashed horizontal lines mark 10% chance
+        accuracy. The integration timestep was 0.1 ms.
+
+        *(A)* Each naturally generated E or I spike was independently deleted
+        with the indicated probability, spanning 0–100% in 10-percentage-point
+        increments. Deletion affected transmitted spikes without undoing their
+        associated neuronal resets.
+
+        *(B)* Independent Bernoulli spike insertion at nominal rates spanning
+        0–200% of each network’s own unperturbed test-set E firing rate, in
+        10-percentage-point increments. This baseline averages all E neurons and
+        test presentations. The same nominal per-neuron insertion rate was
+        applied independently to E and I; accuracy was averaged across training
+        replicates at matched percentages, not matched rates in hertz.
+        Transmitted activity was capped at one spike per neuron per timestep,
+        so insertions coinciding with existing spikes added nothing. Inserted
+        events did not trigger neuronal resets or refractory periods. Both
+        perturbations acted before readout and subsequent recurrent transmission.
+
+        *(C)* Mean per-neuron E firing rate (black diamonds, left axis) and test
+        accuracy (grey squares, right axis) for PING networks trained separately
+        at integration timesteps of 0.05, 0.1, 0.25, 0.5 and 1 ms. Each final
+        epoch-50 checkpoint was evaluated at its training timestep. Rates
+        average all E neurons and test presentations; points and error bars show
+        means ± SEM across three independent training replicates per timestep,
+        generated with seeds 42–44.
+
+        Source experiments: #link("/exp037/")[exp037] — #link("/exp037/")[_Dropped Spikes vs Added Noise_] and
+        #link("/exp044/")[exp044] — #link("/exp044/")[_Firing Rate Across the Timestep Sweep._]],
     ) <fig:robustness>
 
-    + Performance persists across integration timesteps
-      (@fig:robustness, panel C).
+    Classification performance remained near 90% across a twentyfold range of
+    integration timesteps. We compared five timestep settings from 0.05 to 1 ms,
+    with three independently trained PING classifiers per setting. Each network
+    was evaluated at epoch 50 using its training timestep, the same 1,000 MNIST
+    test images and 200-ms presentations. Mean test accuracy ranged from 88.8%
+    to 90.1%, a span of 1.3 percentage points, whereas mean excitatory firing
+    increased from 13.8 to 20.1 Hz between the finest and coarsest timesteps
+    (Fig. 7C). Thus, classification performance persisted across the tested
+    numerical resolutions, although excitatory activity remained
+    timestep-dependent. Because networks were trained separately at each
+    timestep, this comparison establishes robustness of the matched
+    training-and-evaluation procedure rather than numerical convergence for a
+    fixed set of weights.
 
-    + Inhibitory replay perturbations alter recruitment
-      (@fig:replay-perturbations, panels A–D).
+    Rearranging inhibitory spike timing produced opposite effects on excitatory
+    recruitment despite preserving every inhibitory neuron’s spike count. We
+    replayed recorded inhibitory streams after either shifting individual spikes
+    independently or applying a shared shift to spikes within fixed 22.8-ms
+    windows. At a proposed jitter standard deviation of 14 ms, independent-spike
+    shifts reduced mean excitatory firing from 16.6 Hz in the zero-jitter replay
+    control to 0.008 Hz, while test accuracy fell from 89.8% to 11.9%
+    (Fig. 8A,C). Fixed-window group shifts instead increased excitatory firing
+    to 68.3 Hz, while accuracy declined to 82.5% (Fig. 8B,D). Mean replayed
+    inhibitory firing remained unchanged at 108.3 Hz throughout both sweeps.
+    These values average three independently trained classifiers, each evaluated
+    on the same 1,000 test images. Thus, the temporal distribution of a fixed
+    inhibitory spike count strongly influenced excitatory recruitment. This
+    result concerns inhibitory replay rather than the intact feedback circuit,
+    because delivered inhibition could no longer respond to ongoing excitatory
+    activity.
 
     #figure(
       data-image(
@@ -472,16 +543,63 @@
         width: 92%,
         alt: "Excitatory and inhibitory rasters, excitatory rate, accuracy and realised inhibitory rate under two inhibitory replay-jitter manipulations.",
       ),
-      caption: [Representative E/I rasters under *(A)* independent-spike and
-        *(B)* fixed-window inhibitory replay jitter; *(C–D)* show the corresponding
-        E-rate, accuracy and realised-I-rate sweeps. Source experiment:
+      caption: [*Excitatory responses to count-preserving inhibitory replay
+        perturbations.* Three unpenalised PING classifiers, generated with seeds
+        42–44, were evaluated at their final epoch-50 checkpoints. Networks
+        contained 1,024 excitatory (E) and 256 inhibitory (I) neurons. Each
+        condition used the same 1,000 MNIST test images, presented for 200 ms at
+        a 0.1-ms timestep through 784 independent Poisson channels with
+        pixel-proportional rates and a 25-Hz maximum-pixel rate. Recorded
+        unperturbed I spike streams were shifted and replayed in place of
+        naturally generated I outputs, while E activity and readout responses
+        were recomputed without changing weights.
+
+        *(A–B)* Illustrative responses to the same digit-7 test image, sample 0,
+        from the seed-42 training replicate at $sigma = 14$ ms, where $sigma$
+        denotes the standard deviation of the proposed Gaussian time shifts.
+        Black marks show simulated E spikes and red marks show replayed I
+        spikes. Both panels display the same sampled 200 E and 64 I neurons
+        over the complete presentation.
+
+        *(A, C)* Independent-spike jitter assigned each inhibitory event its
+        own zero-mean Gaussian offset. *(B, D)* Fixed-window group jitter
+        assigned one shared offset to all inhibitory events originating within
+        each 22.8-ms clock window of a presentation; these windows were not
+        detected gamma cycles. Offsets were rounded to the simulation grid.
+        Boundary reflection and nearest-free-timestep collision resolution
+        preserved each inhibitory neuron’s spike count within every presentation.
+
+        *(C–D)* Black circles show mean per-neuron E firing rate and red squares
+        show mean per-neuron replayed I rate on the left axes; grey squares show
+        test accuracy on the right axes. Rates average all neurons in the
+        corresponding population and all test presentations. Curves show means
+        across three training replicates; no uncertainty intervals are
+        displayed. Visible jitter values are 0, 0.5, 1, 2, 5, 9 and 14 ms in C,
+        and 0, 1, 3, 7 and 14 ms in D. Both arms share the same zero-jitter
+        replay control. Replay fixes inhibitory delivery independently of
+        ongoing E activity, interrupting effective online E→I→E feedback.
+
+        Source experiment:
         #link("/exp042/")[exp042] — #link("/exp042/")[_Inhibitory Replay Perturbations Change Excitatory Firing._]],
     ) <fig:replay-perturbations>
 
     === PING networks classify continuously presented inputs
 
-    + Classification survives without resetting hidden state
-      (@fig:continuous-stream, panels A–D).
+    A PING classifier trained across variable input rates correctly classified
+    successive MNIST digits while retaining hidden neuronal state. The
+    illustrative stream contained digits 1, 7, 9, 5 and 2, presented without
+    gaps over 650 ms, with individual durations of 50–200 ms and maximum-pixel
+    input rates of 5–25 Hz (Fig. 9A). Sparse excitatory firing and recurring
+    inhibitory volleys continued through the sequence (Fig. 9B,C), and the
+    correct class accumulated the largest output-spike count by the end of
+    every presentation (Fig. 9D). Hidden excitatory and inhibitory states
+    continued between digits, whereas output-neuron state and spike counts
+    reset at externally supplied boundaries. The displayed stream was selected
+    using a predefined five-correct criterion, which the first candidate
+    satisfied. This example therefore demonstrates successful classification
+    without hidden-state resets under changing input conditions, but does not
+    establish reliability across arbitrary streams or autonomous detection of
+    digit boundaries.
 
     #figure(
       data-image(
@@ -489,17 +607,63 @@
         width: 92%,
         alt: "A correctly classified five-digit continuous stream with per-digit durations and input rates labelled, alongside accuracy across presentation duration and input rate.",
       ),
-      caption: [One correctly classified five-digit continuous stream with
-        per-digit duration and maximum-pixel input rate labelled above each segment: *(A)* input thumbnails, *(B)* E spikes, *(C)* I spikes and *(D)*
-        output-count evidence. *(E)* Mean accuracy across presentation duration
-        and input rate; *(F)* the 200 ms input-rate curve. Summary values are
-        means across three training replicates and curve error bars are SEM.
-        Hidden neuronal state continued while output counts reset at known
-        boundaries. Source experiment: #link("/exp082/")[exp082] — #link("/exp082/")[_Spike-Count Classification in a Continuous Stream._]],
+      caption: [*Spike-count classification in continuous MNIST streams.*
+        Three independently trained PING classifiers (seeds 42–44) contained
+        1,024 excitatory (E), 256 inhibitory (I) and ten output leaky
+        integrate-and-fire neurons. Networks were trained with variable
+        maximum-pixel input rates spanning 0.5–25 Hz; checkpoints were selected
+        by minimum validation cross-entropy over 50 epochs, with validation
+        accuracy breaking ties. Inference used unchanged weights and 784
+        independent, pixel-proportional Bernoulli spike channels at 0.1-ms
+        resolution. Digits followed without gaps. Hidden E/I state continued
+        between digits within each stream, while output membrane voltage and
+        accumulated spike counts reset at externally supplied boundaries.
+
+        *(A–C)* Illustrative 650-ms stream from the seed-42 network. Digits 1,
+        7, 9, 5 and 2 were presented with duration–maximum-pixel-rate pairs of
+        (100 ms, 5 Hz), (200 ms, 7.5 Hz), (50 ms, 25 Hz), (100 ms, 15 Hz) and
+        (200 ms, 10 Hz), respectively. The stream was selected as the first
+        candidate satisfying a predefined five-correct criterion; the first
+        candidate qualified. *(A)* Input images with true→predicted labels and
+        presentation conditions. *(B)* Spikes from the first 200 E neurons,
+        shown in black. *(C)* Spikes from the first 64 I neurons, shown in red.
+        Vertical dotted lines mark supplied digit boundaries.
+
+        *(D)* Softmax-normalized cumulative output-spike counts within each
+        presentation, with the true class highlighted in red and other classes
+        in grey. These shares are not calibrated probabilities. Classification
+        used the largest final output-spike count, equivalently the largest
+        final share; ties selected the lowest class index. The dashed
+        horizontal line marks a share of 0.5, not a decision threshold.
+
+        *(E–F)* Test accuracy across presentation duration and maximum-pixel
+        input rate. Each network–condition combination comprised 40 five-digit
+        streams, giving 200 digit decisions sampled from the official MNIST
+        test partition; duration and rate remained fixed within each stream.
+        *(E)* Colours and integer annotations show mean percentage accuracy
+        across three training replicates at durations of 25, 50, 100 and
+        200 ms and the eleven indicated input rates. No uncertainty intervals
+        are displayed in the map. *(F)* The same 200-ms measurements plotted
+        against input rate on a logarithmic axis; black circles and error bars
+        show means ± SEM across training replicates.
+
+        Source experiment:
+        #link("/exp082/")[exp082] — #link("/exp082/")[_Spike-Count Classification in a Continuous Stream._]],
     ) <fig:continuous-stream>
 
-    + Duration and input rate define the operating range
-      (@fig:continuous-stream, panels E–F).
+    Beyond the illustrative stream, classification accuracy depended on both
+    presentation duration and input strength. We evaluated four durations from
+    25 to 200 ms and eleven maximum-pixel input rates from 0.5 to 25 Hz using
+    three frozen PING classifiers. Each network–condition combination comprised
+    40 five-digit streams, yielding 200 decisions, with duration and input rate
+    held constant within each stream. At a maximum-pixel rate of 25 Hz,
+    increasing presentation duration from 25 to 200 ms raised mean accuracy
+    from 72.3% to 88.5% (Fig. 9E). At 200 ms, increasing the input rate from
+    0.5 to 5 Hz raised accuracy from 26.0% to 82.7%; accuracy ranged from
+    82.7% to 88.7% over 5–25 Hz, without a strictly monotonic increase
+    (Fig. 9F). Thus, longer presentations and stronger inputs generally
+    supported more accurate continuous classification, whereas brief
+    presentations and weak drive constrained performance.
 
   ]
 ]

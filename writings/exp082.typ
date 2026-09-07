@@ -93,7 +93,7 @@
         caption: [Seed-42 network presented with digits
           #r.hero_stream.labels.map(str).join(", ", last: " and "). Each segment is
           labelled with its duration and maximum-pixel input rate. *(A)* Input
-          thumbnails with true→predicted labels; opacity indicates relative input rate.
+          thumbnails with true→predicted labels.
           *(B)* Spikes from the first 200 excitatory neurons; *(C)* spikes from
           the first 64 inhibitory neurons; *(D)*
           softmax-normalized output-count shares. Red traces identify the true classes.

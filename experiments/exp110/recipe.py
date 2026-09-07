@@ -19,7 +19,7 @@ FIGURES = (
 
 def configuration(source_recipe: dict) -> dict:
     return {
-        "schema": "exp110.presentation/v8",
+        "schema": "exp110.presentation/v10",
         "figures": (
             "gamma-onset",
             "rate-frequency-and-cycle-participation",

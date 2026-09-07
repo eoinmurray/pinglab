@@ -78,10 +78,15 @@ def plot_perturbation_curves(
     data: dict,
     out_path: Path,
     run_id: str,
+    *,
+    axes=None,
 ) -> None:
     """Plot saved across-seed means and sample-SD envelopes."""
     theme.apply()
-    fig, axes = plt.subplots(1, 2, figsize=(6.4, 3.3), sharey=True)
+    standalone = axes is None
+    if standalone:
+        fig, axes = plt.subplots(1, 2, figsize=(6.4, 3.3), sharey=True)
+    fig = axes[0].figure
     use_pct = data["use_pct"]
 
     # Left panel: drop (as % of spikes dropped)
@@ -219,11 +224,12 @@ def plot_perturbation_curves(
         frameon=False,
     )
     # The writeup caption carries the takeaway rather than a figure title.
-    theme.label_panels(axes)
-    fig.tight_layout()
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    save_figure(fig, out_path)  # line/curve plot: SVG + PDF
-    plt.close(fig)
+    if standalone:
+        theme.label_panels(axes)
+        fig.tight_layout()
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        save_figure(fig, out_path)  # line/curve plot: SVG + PDF
+        plt.close(fig)
 
 
 def plot_combined_rasters(

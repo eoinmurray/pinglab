@@ -500,13 +500,13 @@ def fig_results_compound(frontier_stats, curves, npz_coba, npz_ping, out_path, r
     plt.rcParams["savefig.bbox"] = "standard"  # keep the saved 16:9 exact
     from matplotlib.gridspec import GridSpec
 
-    fig = plt.figure(figsize=(6.9, 3.881), dpi=150)  # 16:9
+    fig = plt.figure(figsize=(180 / 25.4, 4.2), dpi=150)  # 16:9
     gs = GridSpec(
         2,
         2,
         figure=fig,
         height_ratios=[3.0, 2.6],
-        hspace=0.45,
+        hspace=0.60,
         wspace=0.2,
         top=0.93,
         bottom=0.1,
@@ -550,24 +550,7 @@ def fig_results_compound(frontier_stats, curves, npz_coba, npz_ping, out_path, r
             ax.set_ylim(-2, N_E + 2)
             ax.set_yticks([N_E / 2])
             ax.set_yticklabels(["E"])
-            ax.text(
-                T * dt * 0.985,
-                N_E - 30,
-                "I silent (loop off)",
-                ha="right",
-                va="top",
-                fontsize=theme.SIZE_LABEL - 1,
-                color=theme.MUTED,
-                fontstyle="italic",
-                # Opaque backing so the note reads over the dense raster
-                # instead of smearing into it like a ghost watermark.
-                bbox=dict(
-                    boxstyle="round,pad=0.2",
-                    facecolor="white",
-                    edgecolor="none",
-                    alpha=0.75,
-                ),
-            )
+            ax.set_title("I silent", loc="right", fontsize=theme.SIZE_ANNOTATION, color=theme.MUTED)
         ax.set_xlim(0, T * dt)
         ax.set_xlabel("time (ms)")
         ax.tick_params(axis="y", length=0)
@@ -590,6 +573,7 @@ def fig_results_compound(frontier_stats, curves, npz_coba, npz_ping, out_path, r
         )
     ax_acc.set_xlabel("epoch")
     ax_acc.set_ylabel("validation accuracy (%)")
+    ax_acc.yaxis.set_label_coords(-0.12, 0.42)
     ax_acc.set_ylim(0, 100)
     # No baked-in title: the caption carries the takeaway (HOUSESTYLE H17).
     ax_acc.legend(fontsize=theme.SIZE_LEGEND, frameon=False, loc="lower right")
@@ -639,7 +623,7 @@ def fig_results_compound(frontier_stats, curves, npz_coba, npz_ping, out_path, r
         ax_fr.scatter(
             [base[0]],
             [base[1]],
-            s=130,
+            s=60,
             marker="*",
             color=MODEL_COLORS[m],
             edgecolor=theme.INK_BLACK,
@@ -664,14 +648,14 @@ def fig_results_compound(frontier_stats, curves, npz_coba, npz_ping, out_path, r
             fontsize=theme.SIZE_ANNOTATION,
             color=MODEL_COLORS[m],
         )
-    ax_fr.set_xlabel("hidden-E firing rate (Hz)")
+    ax_fr.set_xlabel("hidden E firing rate (Hz)")
     ax_fr.set_ylabel("test accuracy (%)")
     # No baked-in title: the caption carries the takeaway (HOUSESTYLE H17).
     ax_fr.legend(
         fontsize=theme.SIZE_LEGEND,
         frameon=False,
         loc="lower right",
-        title="★ = spike budget off",
+        title="★ unpenalised",
         title_fontsize=theme.SIZE_ANNOTATION,
     )
     _despine(ax_fr)

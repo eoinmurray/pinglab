@@ -40,7 +40,7 @@ def plot_raster_compound(
     plt.rcParams["savefig.bbox"] = "standard"  # preserve the planned canvas
     from matplotlib.gridspec import GridSpec
 
-    fig = plt.figure(figsize=(6.9, 4.5 if include_arch else 3.88))
+    fig = plt.figure(figsize=(180 / 25.4, 4.7 if include_arch else 3.88))
     if include_arch:
         # Nested gridspecs so the (small) schematic→plots gap is independent of
         # the (larger) raster→PSD gap that has to clear the time-axis label.
@@ -55,7 +55,7 @@ def plot_raster_compound(
             left=0.08,
             right=0.955,
         )
-        arch_gs = outer[0].subgridspec(1, 2, wspace=0.5)
+        arch_gs = outer[0].subgridspec(1, 4, wspace=0.5)
         plot_gs = outer[1].subgridspec(
             2,
             4,
@@ -92,7 +92,7 @@ def plot_raster_compound(
         if include_arch:
             # arch_gs is only built (non-None) in the include_arch branch above.
             assert arch_gs is not None
-            ax_arch = fig.add_subplot(arch_gs[0, col])
+            ax_arch = fig.add_subplot(arch_gs[0, c0 : c0 + 2])
             arch_axes.append(ax_arch)
             _draw_schematic(ax_arch, cell)
             ax_arch.set_title(titles[cell], loc="left", fontweight="semibold")
@@ -129,25 +129,7 @@ def plot_raster_compound(
             total = n_e
             ax_r.set_yticks([n_e / 2])
             ax_r.set_yticklabels(["E"])
-            ax_r.text(
-                0.99,
-                0.97,
-                "no I activity",
-                transform=ax_r.transAxes,
-                ha="right",
-                va="top",
-                color=theme.GREY_MID,
-                fontstyle="italic",
-                fontsize=theme.SIZE_LABEL - 1,
-                # Opaque backing so the note reads over the dense raster instead of
-                # smearing into it like a ghost watermark.
-                bbox=dict(
-                    boxstyle="round,pad=0.2",
-                    facecolor="white",
-                    edgecolor="none",
-                    alpha=0.75,
-                ),
-            )
+            ax_r.set_title("I silent", loc="right", fontsize=theme.SIZE_ANNOTATION, color=theme.MUTED)
         ax_r.set_ylim(0, total)
         ax_r.set_xlim(0, T * dt)
         ax_r.set_xlabel("time (ms)")
@@ -214,9 +196,9 @@ def plot_raster_compound(
         if col == 1:
             ax_fi.legend(frameon=False, fontsize=theme.SIZE_LABEL - 2, loc="upper left")
 
-    # Match the caption's paired spectra (E–F) and rate curves (G–H).
+    # Label every row from left to right.
     theme.label_panels(
-        (*arch_axes, *raster_axes, *lower_axes[::2], *lower_axes[1::2])
+        (*arch_axes, *raster_axes, *lower_axes)
     )
     save_figure(fig, out_path, formats=("png", "pdf"))  # dense raster: PNG, not SVG
     plt.close(fig)
@@ -325,7 +307,7 @@ def _arch_box(ax, cx, cy, w, h, label, fontsize=15):
             h,
             fill=False,
             edgecolor=theme.INK_BLACK,
-            lw=1.8,
+            lw=0.9,
             zorder=3,
         )
     )
@@ -353,8 +335,8 @@ def _arch_arrow(ax, x0, y0, x1, y1):
             (x0, y0),
             (x1, y1),
             arrowstyle="-|>",
-            mutation_scale=14,
-            lw=1.6,
+            mutation_scale=9,
+            lw=0.9,
             color=theme.INK_BLACK,
             shrinkA=0,
             shrinkB=0,
@@ -387,24 +369,24 @@ def _draw_schematic(ax, kind: str) -> None:
     ax.set_ylim(0, 9)
     ax.axis("off")
     bw, bh = 3.0, 2.6  # shared box size (taller: give E/I room off the top edge)
-    bf, lf = 13, 10  # box-label / weight-label font sizes
+    bf, lf = 10, 8  # box-label / weight-label font sizes
     if kind == "coba":
         _arch_box(ax, 8.0, 4.5, bw, bh, "E", fontsize=bf)
         _arch_arrow(ax, 2.4, 4.5, 6.4, 4.5)  # input → E
-        _arch_label(ax, 4.2, 5.7, "W_in", fontsize=lf)
+        _arch_label(ax, 4.2, 5.7, "$W_\\mathrm{in}$", fontsize=lf)
         _arch_arrow(ax, 9.6, 4.5, 13.6, 4.5)  # E → output
-        _arch_label(ax, 11.6, 5.7, "W_out", fontsize=lf)
+        _arch_label(ax, 11.6, 5.7, "$W_\\mathrm{out}$", fontsize=lf)
     else:  # ping
         _arch_box(ax, 8.0, 6.4, bw, bh, "E", fontsize=bf)
         _arch_box(ax, 8.0, 2.0, bw, bh, "I", fontsize=bf)
         _arch_arrow(ax, 2.4, 6.4, 6.4, 6.4)  # input → E
-        _arch_label(ax, 4.2, 7.6, "W_in", fontsize=lf)
+        _arch_label(ax, 4.2, 7.6, "$W_\\mathrm{in}$", fontsize=lf)
         _arch_arrow(ax, 9.6, 6.4, 13.6, 6.4)  # E → output
-        _arch_label(ax, 11.6, 7.6, "W_out", fontsize=lf)
+        _arch_label(ax, 11.6, 7.6, "$W_\\mathrm{out}$", fontsize=lf)
         _arch_arrow(ax, 6.9, 5.1, 6.9, 3.3)  # E → I (down, left)
-        _arch_label(ax, 5.0, 4.2, "W_ei", fontsize=lf)
+        _arch_label(ax, 5.0, 4.2, "$W_{EI}$", fontsize=lf)
         _arch_arrow(ax, 9.1, 3.3, 9.1, 5.1)  # I → E (up, right)
-        _arch_label(ax, 11.0, 4.2, "W_ie", fontsize=lf)
+        _arch_label(ax, 11.0, 4.2, "$W_{IE}$", fontsize=lf)
 
 
 def plot_architecture(out_path: Path) -> None:
@@ -424,9 +406,9 @@ def plot_architecture(out_path: Path) -> None:
     )
     _arch_box(ax, 4.0, 5.0, 2.4, 1.7, "E")
     _arch_arrow(ax, 0.7, 5.0, 2.75, 5.0)  # input → E
-    _arch_label(ax, 1.7, 5.5, "W_in")
+    _arch_label(ax, 1.7, 5.5, "$W_\\mathrm{in}$")
     _arch_arrow(ax, 5.25, 5.0, 7.3, 5.0)  # E → output
-    _arch_label(ax, 6.25, 5.5, "W_out")
+    _arch_label(ax, 6.25, 5.5, "$W_\\mathrm{out}$")
 
     # ── PING (right), centred on x = 12 ────────────────────────────
     ax.text(
@@ -435,13 +417,13 @@ def plot_architecture(out_path: Path) -> None:
     _arch_box(ax, 12.0, 5.5, 2.6, 1.7, "E")
     _arch_box(ax, 12.0, 2.5, 2.6, 1.7, "I")
     _arch_arrow(ax, 8.5, 5.5, 10.65, 5.5)  # input → E
-    _arch_label(ax, 9.55, 6.0, "W_in")
+    _arch_label(ax, 9.55, 6.0, "$W_\\mathrm{in}$")
     _arch_arrow(ax, 13.3, 5.5, 15.4, 5.5)  # E → output
-    _arch_label(ax, 14.35, 6.0, "W_out")
+    _arch_label(ax, 14.35, 6.0, "$W_\\mathrm{out}$")
     _arch_arrow(ax, 11.3, 4.65, 11.3, 3.35)  # E → I (down, left side)
-    _arch_label(ax, 10.25, 4.0, "W_ei")
+    _arch_label(ax, 10.25, 4.0, "$W_{EI}$")
     _arch_arrow(ax, 12.7, 3.35, 12.7, 4.65)  # I → E (up, right side)
-    _arch_label(ax, 13.75, 4.0, "W_ie")
+    _arch_label(ax, 13.75, 4.0, "$W_{IE}$")
 
     save_figure(fig, out_path)  # schematic line art: SVG + PDF
     plt.close(fig)

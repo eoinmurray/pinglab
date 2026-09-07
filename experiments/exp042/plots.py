@@ -54,15 +54,15 @@ def _compound_sweep_panel(
     a_means = [r["acc"]["mean"] for r in rows]
 
     ax.plot(
-        sig, e_means, marker="D", ms=5, lw=1.4, color=theme.INK_BLACK, label="E rate"
+        sig, e_means, marker="o", ms=3, lw=1.4, color=theme.INK_BLACK, label="E rate"
     )
     # Realised mean I-spike rate is shown on the same Hz axis. Count-preserving
     # replay keeps this rate fixed; it does not measure inhibitory conductance.
     ax.plot(
         sig,
         i_means,
-        marker="o",
-        ms=5,
+        marker="s",
+        ms=3,
         lw=1.4,
         color=theme.DEEP_RED,
         ls="-",
@@ -76,7 +76,7 @@ def _compound_sweep_panel(
 
     ax_acc = ax.twinx()
     ax_acc.plot(
-        sig, a_means, marker="s", ms=5, lw=1.4, color=theme.GREY_MID, label="accuracy"
+        sig, a_means, marker="s", ms=3, lw=1.4, color=theme.GREY_MID, label="accuracy"
     )
     ax_acc.set_ylabel("accuracy (%)", color=theme.GREY_MID, fontsize=theme.SIZE_LABEL)
     ax_acc.tick_params(axis="y", labelcolor=theme.GREY_MID)
@@ -110,7 +110,7 @@ def fig_rhythm_compound(
     theme.apply()
     prev_bbox = plt.rcParams["savefig.bbox"]
     plt.rcParams["savefig.bbox"] = "standard"
-    fig, axes = plt.subplots(2, 2, figsize=(6.9, 3.88))
+    fig, axes = plt.subplots(2, 2, figsize=(180 / 25.4, 4.5))
     shared_sweep_xlim = (0.0, 14.0)
 
     _compound_raster_panel(
@@ -126,22 +126,31 @@ def fig_rhythm_compound(
     _compound_sweep_panel(
         axes[1, 0],
         cell_rows,
-        xlabel="independent-spike jitter σ (ms)",
-        title="Independent offsets: E rate falls",
+        xlabel="jitter σ (ms)",
+        title="Independent-spike jitter",
         xlim=shared_sweep_xlim,
         legend_loc="center right",
     )
     _compound_sweep_panel(
         axes[1, 1],
         cyc_rows,
-        xlabel="fixed-window group jitter σ (ms)",
-        title="Shared window offsets: E rate rises",
+        xlabel="jitter σ (ms)",
+        title="Fixed-window group jitter",
         xlim=shared_sweep_xlim,
         legend_loc="center left",
     )
-    # H17: caption carries the takeaway
+    handles, labels = axes[1, 0].get_legend_handles_labels()
+    legend = axes[1, 0].get_legend()
+    handles = legend.legend_handles
+    labels = [text.get_text() for text in legend.get_texts()]
+    for ax in axes[1]:
+        ax.get_legend().remove()
+    fig.legend(handles, labels, loc="lower center", ncol=3, frameon=False, fontsize=theme.SIZE_LEGEND)
+    for ax in axes[0]:
+        ax.set_xlabel("time (ms)")
+    # The caption carries the findings.
     theme.label_panels(axes.flat)
-    fig.tight_layout(rect=(0, 0, 1, 0.96))
+    fig.tight_layout(rect=(0, 0.07, 1, 0.98), h_pad=1.5, w_pad=1.8)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     save_figure(fig, out_path, formats=("png",))  # dense rasters: PNG, not SVG
     plt.close(fig)

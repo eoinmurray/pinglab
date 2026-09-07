@@ -8,7 +8,7 @@
 #let data-file = data-file.with(article: "exp023")
 
 #let meta = (
-  tags: ("data", "v35.4.0"),
+  tags: ("data", "v36.0.0"),
   title: "Turning the PING Loop On",
   created_at: "2026-05-13T00:00:00Z",
   updated_at: "2026-08-31T00:00:00Z",
@@ -66,9 +66,9 @@
     data-image(data-file("exp023/overview_compound.png"), width: 100%,
       alt: "Loop-off and loop-on schematics above population rasters, spectra and firing-rate curves."),
     caption: [
-      (A–B) COBA and PING schematics; (C–D) E/I rasters; (E–F)
-      E-population spectra; (G–H) firing-rate–input curves. COBA occupies
-      A, C, E and G; PING occupies B, D, F and H. E spikes are black and I spikes red.
+      (A–B) COBA and PING schematics; (C–D) E/I rasters; (E, G)
+      E-population spectra; (F, H) firing-rate–input curves. COBA occupies
+      A, C, E and F; PING occupies B, D, G and H. E spikes are black and I spikes red.
       Rasters and spectra show #points.coba.t_ms ms at
       #points.coba.input_rate_hz and #points.ping.input_rate_hz Hz input,
       respectively. Rate curves show one-trial population means over the

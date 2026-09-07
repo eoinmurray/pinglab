@@ -7,11 +7,11 @@ import sys
 from pathlib import Path
 
 import matplotlib.pyplot as plt
-import matplotlib.ticker as mticker
 
 REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
 
+from experiments.exp037 import plots as exp037_plots
 from experiments.exp041 import plots as exp041_plots
 from experiments.exp046 import plots as exp046_plots
 from experiments.exp054 import plots as exp054_plots
@@ -54,7 +54,7 @@ def build_cycle_participation_compound(
     previous_paper_mode = theme.PAPER_MODE
     theme.set_paper_mode(True)
     theme.apply()
-    fig = plt.figure(figsize=(6.9, 4.0))
+    fig = plt.figure(figsize=(180 / 25.4, 3.8))
     try:
         rows = fig.add_gridspec(2, 1, height_ratios=(1.5, 1), hspace=0.68)
         top = rows[0].subgridspec(1, 2, wspace=0.36)
@@ -78,8 +78,8 @@ def build_cycle_participation_compound(
             ax.set_title(f"{tau:g} ms", fontsize=theme.SIZE_LABEL)
             ax.tick_params(axis="y", labelleft=ax is bottom_axes[0])
         bottom_axes[0].set_ylabel("Neuron–cycle fraction", fontsize=theme.SIZE_LABEL)
-        fig.text(0.54, 0.025, "Spikes per neuron per cycle", ha="center", fontsize=theme.SIZE_LABEL)
-        fig.subplots_adjust(left=0.09, right=0.98, bottom=0.15, top=0.94)
+        fig.text(0.54, 0.045, "Spikes per neuron per cycle", ha="center", fontsize=theme.SIZE_LABEL)
+        fig.subplots_adjust(left=0.09, right=0.98, bottom=0.14, top=0.94)
         save_figure(fig, output_stem, formats=("png", "pdf"))
     finally:
         plt.close(fig)
@@ -96,7 +96,7 @@ def build_robustness_compound(
     perturbation = perturbation_document.get("plot_data")
     timestep = timestep_document.get("aggregate")
     if (
-        perturbation_document.get("schema") != "exp037.analysis/v1"
+        perturbation_document.get("schema") not in ("exp037.analysis/v1", "exp037.analysis/v2")
         or not isinstance(perturbation, dict)
         or perturbation.get("use_pct") is not True
         or timestep_document.get("schema") != "exp044.analysis/v1"
@@ -108,46 +108,24 @@ def build_robustness_compound(
     previous_paper_mode = theme.PAPER_MODE
     theme.set_paper_mode(True)
     theme.apply()
-    fig, axes = plt.subplots(1, 3, figsize=(10.2, 3.3))
-    model_styles = {
-        "coba": (theme.DEEP_RED, "s"),
-        "ping": (theme.INK_BLACK, "D"),
-    }
-    for axis, mode, title in zip(
-        axes[:2],
-        ("drop", "add"),
-        ("Spike deletion", "Spike addition"),
-        strict=True,
-    ):
-        for model, (color, marker) in model_styles.items():
-            row = perturbation["panels"][mode][model]
-            axis.plot(
-                row["x"],
-                row["mean"],
-                marker=marker,
-                markersize=4,
-                linewidth=1.2,
-                color=color,
-                label=model.upper(),
-            )
-            axis.fill_between(
-                row["x"], row["lo"], row["hi"], color=color, alpha=0.15, linewidth=0
-            )
-        axis.axhline(10.0, ls="--", color=theme.MUTED, lw=0.7, alpha=0.6)
-        axis.set_ylim(0, 100)
-        axis.yaxis.set_major_locator(mticker.MultipleLocator(20))
-        axis.grid(True, axis="y", alpha=0.15, linewidth=0.5)
-        axis.spines[["top", "right"]].set_visible(False)
-        axis.set_title(title, loc="left", fontsize=theme.SIZE_LABEL)
-    axes[0].set(xlim=(-2, 102), xlabel="spike-deletion probability (%)")
-    axes[0].set_ylabel("test accuracy (%)")
-    maximum = max(max(row["x"]) for row in perturbation["panels"]["add"].values())
-    axes[1].set(
-        xlim=(-0.03 * maximum, 1.03 * maximum),
-        xlabel="added rate / reference E rate (%)",
+    fig, axes = plt.subplots(1, 3, figsize=(180 / 25.4, 3.4))
+    exp037_plots.plot_perturbation_curves(
+        perturbation, output_stem, "", axes=axes[:2]
     )
+    axes[0].set_title("Spike deletion", loc="left")
+    axes[1].set_title("Spike insertion", loc="left")
+    axes[0].set_xlabel("Deletion probability (%)")
+    for ax in axes[:2]:
+        for line in ax.lines:
+            line.set_markersize(3)
+    legend = axes[1].get_legend()
+    fig.legend(legend.legend_handles, [text.get_text() for text in legend.get_texts()],
+               loc="lower center", bbox_to_anchor=(0.5, 0), ncol=3, frameon=False)
+    legend.remove()
     axes[1].tick_params(axis="y", labelleft=False)
-    axes[1].legend(frameon=False, loc="upper right")
+    # Wrap the source label to fit one panel of the three-panel compound.
+    axes[1].set_xlabel("Added rate / baseline E rate (%)" if perturbation.get("relative_test_baseline") else "Added rate / reference E rate (%)")
+    axes[1].set_xlabel(axes[1].get_xlabel().replace(" / ", " /\n"))
 
     rate_axis = axes[2]
     dts = [row["dt_ms"] for row in timestep]
@@ -164,9 +142,9 @@ def build_robustness_compound(
     rate_axis.set_xscale("log")
     rate_axis.set_xticks(dts)
     rate_axis.set_xticklabels([f"{value:g}" for value in dts])
-    rate_axis.set(xlabel="integration timestep (ms)", ylim=(0, 50))
+    rate_axis.set(xlabel="timestep (ms)", ylim=(0, 50))
     rate_axis.set_ylabel("hidden E rate (Hz)")
-    rate_axis.set_title("Integration timestep", loc="left", fontsize=theme.SIZE_LABEL)
+    rate_axis.set_title("Timestep", loc="left", fontsize=theme.SIZE_LABEL)
     rate_axis.spines["top"].set_visible(False)
     accuracy_axis = rate_axis.twinx()
     accuracy_axis.errorbar(
@@ -174,17 +152,17 @@ def build_robustness_compound(
         [row["acc"]["mean"] for row in timestep],
         yerr=[row["acc"]["sem"] for row in timestep],
         marker="s",
-        markersize=4,
+        markersize=3,
         linewidth=1.2,
         capsize=2,
-        color=theme.DEEP_RED,
+        color=theme.GREY_MID,
     )
     accuracy_axis.set_ylim(0, 100)
-    accuracy_axis.set_ylabel("test accuracy (%)", color=theme.DEEP_RED)
-    accuracy_axis.tick_params(axis="y", labelcolor=theme.DEEP_RED)
+    accuracy_axis.set_ylabel("test accuracy (%)", color=theme.GREY_MID)
+    accuracy_axis.tick_params(axis="y", labelcolor=theme.GREY_MID)
     accuracy_axis.spines["top"].set_visible(False)
     theme.label_panels(axes)
-    fig.subplots_adjust(left=0.065, right=0.94, bottom=0.2, top=0.88, wspace=0.38)
+    fig.subplots_adjust(left=0.075, right=0.92, bottom=0.29, top=0.87, wspace=0.60)
     save_figure(fig, output_stem, formats=("png", "pdf"))
     plt.close(fig)
     theme.set_paper_mode(previous_paper_mode)
