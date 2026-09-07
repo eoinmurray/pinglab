@@ -17,10 +17,15 @@ from pathlib import Path
 from pingstore.contracts import (
     PingstoreError,
     load_json,
+    validate_operational_run_directory,
     write_json_atomic,
 )
 from pingstore.discovery import discover_runs
-from pingstore.layout import export_directory, presentation_directory
+from pingstore.layout import (
+    export_directory,
+    has_presentation_content,
+    presentation_directory,
+)
 
 
 def article_inputs(root: Path) -> dict[str, list[str]]:
@@ -183,21 +188,36 @@ def display_timing(record: dict, scientific: dict | None) -> dict:
 
 def projection(
     root: Path, *, overrides: dict | None = None, article: str = "",
-    declared_dependencies: dict | None = None,
+    declared_dependencies: dict | None = None, selected_ids: set[str] | None = None,
 ) -> dict:
     source = root / ".pingstore/runs"
-    # The authoritative discovery adapter validates ALL visible v4 payloads first.
-    discovered = discover_runs(source) if source.exists() or source.is_symlink() else []
     records = {}
-    if source.exists():
-        for directory in sorted(source.iterdir()):
-            if (
-                directory.name.startswith(".")
-                or directory.is_symlink()
-                or not directory.is_dir()
-            ):
+    if selected_ids is None:
+        # Ordinary discovery still validates every visible completed run.
+        discovered = discover_runs(source) if source.exists() or source.is_symlink() else []
+        if source.exists():
+            for directory in sorted(source.iterdir()):
+                if not directory.name.startswith(".") and not directory.is_symlink() and directory.is_dir():
+                    records[directory.name] = load_json(directory / "run.json")
+    else:
+        # Publication supplies explicit identities; validate only their complete ancestry.
+        pending = list(selected_ids)
+        while pending:
+            identity = pending.pop()
+            if identity in records:
                 continue
-            records[directory.name] = load_json(directory / "run.json")
+            if Path(identity).name != identity or identity.startswith("."):
+                raise PingstoreError("unsafe publication run identity")
+            record = validate_operational_run_directory(source / identity)
+            records[identity] = record
+            pending.extend(ref["run_id"] for ref in record["inputs"].values())
+        discovered = []
+        for identity in sorted(selected_ids):
+            record = records[identity]
+            directory = presentation_directory(source / identity, record)
+            if directory is None or not has_presentation_content(directory):
+                raise PingstoreError("publication requires a populated present run: " + identity)
+            discovered.append({"id": identity, "created_at": record["created_at"]})
     for key, record in records.items():
         for reference in record["inputs"].values():
             parent = records.get(reference["run_id"])

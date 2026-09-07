@@ -1,0 +1,15 @@
+version: '3'
+
+tasks:
+  build-publication:
+    desc: Build a validated local publication with frozen presentation selections
+    cmds:
+      - uv run python tools/publishing/publish.py build
+  preview-publication:
+    desc: Serve the exact publication build for inspection
+    cmds:
+      - python3 -m http.server 3001 --bind 127.0.0.1 --directory .demolab/publication/site
+  publish:
+    desc: Push the previously inspected publication build to gh-pages
+    cmds:
+      - uv run python tools/publishing/publish.py publish
