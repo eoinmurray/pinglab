@@ -23,6 +23,8 @@ PERTURB_RASTER_DROP_LEVELS = [0.0, 0.5, 1.0]
 PERTURB_RASTER_ADD_LEVELS = [0.0, 20.0, 40.0]
 SNAPSHOT_ARRAYS = ("dt", "n_e", "n_i", "label", "spk_e", "spk_i")
 FIGURES = (
+    "perturbation_rasters.png",
+    "perturbation_rasters.pdf",
     "perturbation_curves.svg",
     "perturbation_curves.pdf",
     *(

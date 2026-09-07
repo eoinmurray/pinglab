@@ -78,7 +78,7 @@ def present(identity, *, run_id=None):
         sources={"analysis": source},
         run_id=run_id,
         configuration={
-            "schema": "exp037.presentation/v3",
+            "schema": "exp037.presentation/v4",
             "labels": result.get("addition_axis", "reference_image_percent"),
             "range": "complete saved perturbation grid",
             "figure_run_stamps": False,
@@ -105,6 +105,9 @@ def present(identity, *, run_id=None):
                     else "r(add) = {level:g} Hz",
                     title="",
                 )
+        plots.plot_combined_rasters(
+            rasters, out / "perturbation_rasters", relative=recipe.relative(cfg)
+        )
         duration = time.monotonic() - started
         write_json_atomic(
             out / "numbers.json",

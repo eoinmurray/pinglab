@@ -1,17 +1,16 @@
 #import "templates/article-layout.typ": journal-article
-#import "templates/result-card.typ": result-figure-ref, result-card, with-result-sections
-#import "templates/references.typ": journal-references
-#import "/.demolab/lib.typ": data-json, data-image, cite
+#import "templates/result-card.typ": result-figure-ref
+#import "/.demolab/lib.typ": data-json, data-image
 #import "templates/dataset.typ": data-file, inputs-ready, pending-report, run-view, input-assets
 #import "templates/abstract.typ": journal-abstract
-#import "templates/methods.typ": methods-heading, methods-stage
+#import "templates/methods.typ": methods-heading
 #let data-file = data-file.with(article: "exp037")
 
 #let meta = (
   tags: ("data", "v36.0.0"),
   title: "Dropped Spikes vs Added Noise",
   created_at: "2026-05-30T00:00:00Z",
-  updated_at: "2026-09-02T00:00:00Z",
+  updated_at: "2026-09-07",
   description: "Both trained networks tolerated substantial spike deletion, but PING accuracy fell more sharply under added spikes. The perturbations changed both recurrent feedback and readout input, so they do not isolate gamma gating.",
   collection: "gamma-gated-sparsity",
 )
@@ -19,10 +18,7 @@
 #let inputs = ("exp037",)
 #let preview-figures = (
   (path: "exp037/perturbation_curves.svg", label: "perturbation curves"),
-  (path: "exp037/perturb_rasters__drop__ping.png", label: "perturb rasters drop ping"),
-  (path: "exp037/perturb_rasters__add__ping.png", label: "perturb rasters add ping"),
-  (path: "exp037/perturb_rasters__drop__coba.png", label: "perturb rasters drop coba"),
-  (path: "exp037/perturb_rasters__add__coba.png", label: "perturb rasters add coba"),
+  (path: "exp037/perturbation_rasters.png", label: "spike perturbation rasters"),
 )
 
 // Keep calculations lazy: absent inputs never become fabricated results.
@@ -76,20 +72,25 @@
 
   == Results
 
-  #with-result-sections[
+  + *Both networks tolerated substantial spike deletion.* At 80% deletion,
+    COBA/PING retained #acc("coba", "drop", 0.8)%/#acc("ping", "drop", 0.8)%
+    accuracy. #if pert.any(r => r.mode == "drop" and calc.abs(r.level - 0.9) < 0.001) [
+    At 90%, accuracy fell to #acc("coba", "drop", 0.9)% and
+    #acc("ping", "drop", 0.9)%, respectively.] Complete deletion reduced both
+    to #acc("ping", "drop", 1)%
+    (#result-figure-ref(<fig:exp037-result-1>, panel: "A")).
 
-  #result-card[
-  === Accuracy under spike perturbations
+  + *Added spikes exposed a marked difference in robustness.*
+    #if relative [With addition matched to each network’s baseline excitatory
+    rate, COBA declined gradually while PING fell sharply around 80–110%
+    addition. At 100%, accuracy was #acc("coba", "add", 100)% for COBA versus
+    #acc("ping", "add", 100)% for PING; at #add_max%, it was
+    #acc("coba", "add", add_max)% versus #acc("ping", "add", add_max)%.
+    ] else [PING accuracy fell more sharply than COBA accuracy, although
+    the shared nominal-Hz sweep did not match relative perturbation doses.]
+    (#result-figure-ref(<fig:exp037-result-1>, panel: "B")).
 
-  Unperturbed PING/COBA accuracies were #acc("ping", "drop", 0)%/
-  #acc("coba", "drop", 0)%.
-  #if relative [At #add_max% nominal insertion, PING/COBA accuracies were
-  #acc("ping", "add", add_max)%/#acc("coba", "add", add_max)%.
-  Both models were evaluated on the same prescribed percentage grid.
-  ] else [Because the added-rate axis uses different reference-image rates for PING and
-  COBA, the common 0–#add_max Hz sweep does not match relative perturbation doses.]
-  #if knee != none [PING's first sampled mean below 80% occurred at #knee#if relative [%] else [ Hz].
-  This is a grid crossing, not an estimated critical threshold (#result-figure-ref(<fig:exp037-result-1>)).]#figure(
+  #figure(
     report-image("exp037/perturbation_curves.svg",
       "Mean test accuracy under deletion and insertion, with sample-standard-deviation bands across three seeds.", ratio: 0.55),
     caption: [
@@ -107,192 +108,114 @@
     ],
   ) <fig:exp037-result-1>
 
-  ]
-
-  #result-card[
-  === PING spike-deletion rasters
-
-  #if relative [These single-image rasters provide no quantitative
-  phase-coherence or gamma-frequency estimate] else [Banding remained visible at partial deletion, although these illustrative
-  rasters provide no quantitative phase-coherence or gamma-frequency estimate] (#result-figure-ref(<fig:exp037-result-2>)).
+  #set enum(start: 3)
+  + *Rasters illustrate how transmitted activity changed.* Partial deletion
+    preserved visible PING banding, while addition introduced spikes throughout
+    the intervals between bands
+    (#result-figure-ref(<fig:exp037-result-2>, panel: "A, B")).
+    COBA activity thinned under deletion and became denser under addition
+    (#result-figure-ref(<fig:exp037-result-2>, panel: "C, D")).
+    These single-image examples do not quantify gamma coherence.
 
   #figure(
-    report-image("exp037/perturb_rasters__drop__ping.png",
-      "Three PING rasters at deletion probabilities 0, 0.5 and 1: visible bands remain at partial deletion; full deletion leaves no recorded spikes."),
+    report-image("exp037/perturbation_rasters.png",
+      "Four panels of transmitted spikes: PING deletion and addition, then COBA deletion and addition, each at three perturbation levels.", ratio: 0.74),
     caption: [
-      Seed-42 trials of #trial-description: *(A)* deletion probability 0,
-      *(B)* 0.5 and *(C)* 1. E spikes (black) are below I spikes (red). The display samples
-      200 E and 64 I neurons; annotated E rates use the full population.
+      Seed-42 trials of #trial-description. *(A)* PING deletion;
+      *(B)* PING addition; *(C)* COBA deletion; *(D)* COBA addition.
+      Each deletion panel shows probabilities 0, 0.5 and 1; each addition
+      panel shows nominal rates 0, #if relative [100] else [20] and
+      #add_max#if relative [% of that network’s unperturbed test-set E rate] else [ Hz per neuron].
+      Insertions were applied independently to E and I. Black marks denote
+      E spikes and red marks I spikes, including inserted events.
+      Each raster samples the same 200 E and 64 I neurons; annotated E rates
+      use the full excitatory population over the displayed trial.
     ],
   ) <fig:exp037-result-2>
 
-  ]
+  #set enum(start: 4)
+  + *Total firing concealed suppression of naturally generated spikes.*
+    #if relative {
+      let baseline = run.test_baselines.filter(r => r.model == "ping" and r.seed == 42).first()
+      let row = run.perturbation.filter(r => r.model == "ping" and r.seed == 42 and r.mode == "add" and r.level == 100).first()
+      let counts = row.perturbation.populations.e1
+      let natural = counts.raw_spikes / counts.slots * 1000 / row.perturbation.dt_ms
+      [For PING seed 42 at 100% addition, natural E firing fell from
+      #rounded(baseline.e_rate_hz) to #rounded(natural) Hz, while successful
+      insertions contributed #rounded(row.successful_insertion_hz.e1) Hz.
+      This separately measured decomposition is not distinguished in
+      #result-figure-ref(<fig:exp037-result-2>). It supports disruption of
+      recurrent dynamics, but does not establish gamma disruption as the cause
+      of classification failure.]
+    } else [The displayed transmitted spikes include injected events; these
+      rasters do not separate naturally generated activity from insertion.]
 
-  #result-card[
-  === PING inserted-spike rasters
+  #methods-heading()
+  #set enum(start: 1)
 
-  #if relative [These rasters contain both emitted and inserted spikes; their
-  appearance alone cannot establish whether an underlying oscillator persisted] else [Inserted spikes increasingly obscured the bands, but this alone does not
-  establish that an underlying oscillator disappeared] (#result-figure-ref(<fig:exp037-result-3>)).
-
-  #figure(
-    report-image("exp037/perturb_rasters__add__ping.png",
-      "Three PING rasters at increasing nominal insertion levels, including inserted spikes."),
-    caption: [
-      The same seed and test image at nominal added rates *(A)* 0,
-      *(B)* #if relative [100] else [20] and *(C)* #add_max#if relative [% of seed 42’s unperturbed test-set E rate] else [ Hz per neuron], applied independently to E and I. The displayed stream
-      includes inserted spikes. Display sampling and E-rate annotation follow
-      the preceding figure.
-    ],
-  ) <fig:exp037-result-3>
-
-  ]
-
-  #result-card[
-  === COBA spike-deletion rasters
-
-  #if relative [Full deletion removes all transmitted spikes. Partial-deletion
-  raster appearance alone does not establish classification accuracy] else [E activity thinned as deletion increased and vanished at full deletion. This
-  qualitative pattern does not imply accuracy was unchanged across the deletion
-  sweep] (#result-figure-ref(<fig:exp037-result-4>)).
-
-  #figure(
-    report-image("exp037/perturb_rasters__drop__coba.png",
-      "Three COBA rasters at deletion probabilities 0, 0.5 and 1: E activity thins and becomes silent at full deletion."),
-    caption: [
-      Seed-42 COBA trials of #trial-description shown with the same display
-      sampling at deletion probabilities *(A)* 0, *(B)* 0.5 and *(C)* 1.
-    ],
-  ) <fig:exp037-result-4>
-
-  ]
-
-  #result-card[
-  === COBA inserted-spike rasters
-
-  #if relative [The E-normalized insertion rate is also applied to I neurons,
-  even though the recurrent E→I→E coupling is disabled. Matching the requested
-  percentage does not match the realized increase in activity] else [Under insertion, E activity increased and imposed I spikes appeared despite
-  disabled recurrent coupling. The denser unperturbed COBA population means
-  equal nominal rates are not equal fractional perturbations across models] (#result-figure-ref(<fig:exp037-result-5>)).
-
-  #figure(
-    report-image("exp037/perturb_rasters__add__coba.png",
-      "Three COBA rasters at increasing nominal insertion levels with the recurrent E-I loop disabled."),
-    caption: [
-      The same COBA trial at nominal added rates *(A)* 0,
-      *(B)* #if relative [100] else [20] and *(C)* #add_max#if relative [% of seed 42’s unperturbed test-set E rate] else [ Hz per neuron].
-      Insertions were applied independently to E and I; the recurrent E→I→E
-      coupling remained disabled.
-    ],
-  ) <fig:exp037-result-5>
-
-  #block(sticky: true)[
-  ]
-
-    #methods-heading()
-
-    We reused trained networks and recorded inference trials to compare deletion
-    and insertion of hidden spikes, without retraining.
-  ]
-  ]
-
-  #methods-stage([Compute])
-
-  + *Select trained classifiers.* MNIST handwritten digits #cite(1) supplied
-    a 7,000-image training pool, split into 6,300 optimization and 700 validation
-    images. Networks had 1,024 excitatory and 256 inhibitory hidden neurons,
-    with the E→I→E loop enabled for PING and disabled for COBA; input and readout
-    weights were learned, while recurrent weights stayed fixed. We used the
-    unregularized conditions from seeds 42–44 after #cfg.epochs training epochs,
-    selecting the minimum-validation-loss epoch, not the maximum-accuracy epoch.
-    During training, voltage-increment gradients were divided by 1,000 for PING
-    and 1 for COBA; these are different trained recipes, not an isolated loop control.
+  + *Evaluate trained classifiers.* Validation-selected COBA and PING
+    checkpoints from seeds 42–44 were tested on the same #eval_n MNIST images
+    without retraining. The reused training pool contained 6,300
+    optimization and 700 validation images. We selected the minimum-validation-loss
+    epoch from #cfg.epochs epochs in the unregularized conditions. Networks had
+    1,024 E and 256 I neurons, with E→I→E coupling enabled for PING and disabled
+    for COBA; recurrent weights were fixed, while input and readout weights were
+    learned. Training voltage-increment gradients were divided by 1,000 for
+    PING and 1 for COBA, so these are different trained recipes, not an isolated
+    loop control. Trials lasted #cfg.t_ms ms at #cfg.dt ms resolution, with no
+    warm-up. Pixel intensity set Poisson input rates up to 25 Hz; an independent
+    perturbation generator preserved the input-encoding stream across conditions.
+    Prediction selected the largest time-averaged output membrane potential.
     The wider activity-penalty comparison is described in
     #link("/exp025/")[exp025] — #link("/exp025/")[_Accuracy and Firing Rate With and Without Inhibition._]
 
-  + *Perturb emitted spikes.* Each trial lasted #cfg.t_ms ms at timestep
-    #cfg.dt ms, with no warm-up or excluded interval. After membrane integration
-    and spike emission, the intervention independently modified every E and I
-    spike slot before rate recording, readout input and subsequent recurrent
-    feedback (see Appendix).
-    $ tilde(s)_j = s_j bb(1)[u_j >= p_"drop"] $ <eq-drop>
-    $ tilde(s)_j = min(s_j + bb(1) lr([u_j < frac(r_"add" dot Delta t_"sim", 1000)]), 1) $ <eq-add>
-    Here $s_j$ and $tilde(s)_j$ are the raw and modified binary spikes for a
-    neuron–image–timestep slot $j$; $u_j$ is an independent uniform draw on
-    $[0,1)$ and $bb(1)$ is an indicator. Deletion probability $p_"drop"$ ran
-    from 0 to 1 in steps of 0.1; nominal insertion rate $r_"add"$ ran from
-    #if relative [0 to #add_max% of each network’s fixed unperturbed test E rate
-    in steps of 10 percentage points] else [0 to #add_max Hz in steps of 2],
-    with $Delta t_"sim"$ in ms.
-    Insertion is a Bernoulli approximation to Poisson arrivals, capped at one
-    spike per slot; collisions with existing spikes add nothing.
+  + *Delete spikes after neuronal spike generation.* At each timestep,
+    conductances were updated using the preceding timestep’s transmitted spikes.
+    Membrane integration and threshold/reset operations then generated natural
+    spikes. Immediately afterward, before recording or readout input, each
+    emitted E/I spike was independently removed with probability 0–100%, in
+    10-percentage-point steps. Surviving spikes entered the current readout
+    update and the next timestep’s recurrent feedback. Deletion did not undo
+    the membrane reset associated with a removed spike
+    (#result-figure-ref(<fig:exp037-result-1>, panel: "A");
+    #result-figure-ref(<fig:exp037-result-2>, panel: "A, C")).
 
-  #methods-stage([Analysis])
+  + *Insert spikes at the same point in the flow.* After membrane integration
+    and natural spike generation, but before recording or readout input,
+    independent Bernoulli events were added to E/I outputs, capped at one spike
+    per neuron per timestep. Collisions with existing spikes added nothing.
+    Inserted spikes entered the current readout update and next timestep’s
+    recurrent feedback, but did not themselves trigger a membrane reset or
+    refractory period. #if relative [Nominal addition spanned 0–#add_max% of
+    each model–seed’s unperturbed test E rate in 10-percentage-point steps.
+    We calibrated this fixed baseline over the same #eval_n test images and
+    multiplied it by the requested percentage divided by 100 to obtain Hz.
+    ] else [Nominal addition spanned 0–#add_max Hz in 2 Hz steps.]
+    The same nominal per-neuron rate was applied independently to E and I
+    (#result-figure-ref(<fig:exp037-result-1>, panel: "B");
+    #result-figure-ref(<fig:exp037-result-2>, panel: "B, D")).
 
-  #set enum(start: 3)
+  + *Separate natural and transmitted activity.* We counted natural spikes
+    immediately before modification, successful insertions or deletions during
+    modification, and transmitted spikes afterward. Natural activity therefore
+    refers to neuron-generated spikes within the already perturbed network.
+    Accuracy curves show means ± sample SD across three seeds, not confidence
+    intervals. Illustrative rasters show transmitted activity from 200 E and
+    64 I neurons for seed 42 and test-image index 0; rate annotations use the
+    full E population. Insertion percentages use the test-set baseline rather
+    than the illustrative image’s rate.
 
-  + *Evaluate the selected networks.* Pixel intensity controlled Poisson input
-    encoding, with a maximum rate of 25 Hz. An independent perturbation generator
-    preserved the input-encoding stream across conditions. Each of 192
-    model–seed–condition evaluations used #eval_n of the 10,000 official-test images;
-    prediction selected the largest time-averaged output membrane potential.
-    Accuracy and full-population E rates were aggregated over images and then
-    over three seeds; curve envelopes show sample SD, not confidence intervals.
-    Illustrative trials used seed 42 and test-image index 0, independently of
-    digit-class selection.
+  == Discussion
 
-  #methods-stage([Presentation])
-
-  #set enum(start: 4)
-
-  + *Normalize the nominal added rate.* #if relative [For each model and seed,
-    we first measured its selected checkpoint’s mean E rate over the same
-    #eval_n test images without perturbation. We held this baseline fixed and
-    set nominal insertion Hz to the requested percentage times the baseline,
-    divided by 100. The same Hz was applied independently to E and I.
-    We recorded raw, transmitted, inserted and deleted spikes separately for
-    both populations. Successful insertions exclude collisions and do not equal
-    the change in total activity caused by feedback. Each network’s baseline
-    was calibrated separately; accuracy was then aggregated by prescribed percentage.
-    ] else [We preserved the original normalization:
-    $ x_"add" = frac(100 r_"add", overline(r)_(E,"ref")) $ <eq-normalize>
-    Here $x_"add"$ is the displayed percentage and $overline(r)_(E,"ref")$ is the
-    model's three-seed mean E rate in Hz from final-epoch reference-image
-    diagnostics. This differs in image and sometimes epoch from the selected
-    classifiers' test evaluations; it is not a test-set firing-rate baseline.
-    The full sampled range is displayed, without treating normalization as a
-    matched-dose experiment.]
+  Spike deletion did not undo the membrane-voltage reset, and insertion did not
+  trigger a reset or refractory period. These interventions modified transmitted
+  events, affecting both recurrent feedback and readout input. A follow-up could
+  perturb recurrent synaptic inputs while leaving the readout driven by natural
+  E spikes, alongside a readout-only control, to distinguish circuit disruption
+  from direct readout contamination.
 
   #run-view("exp037", inputs)
 
-  == Appendix. Within-step dynamics
-
-  Conductances first decay and receive the previous timestep's modified spikes.
-  For example, excitatory drive to E follows
-  $ g_E^((t)) = d_A g_E^((t-1)) + tilde(bold(s))_E^((t-1)) W_(E E) + bold(s)_"in"^((t)) W_"in". $ <eq-conductance>
-  Here $t$ indexes simulation steps, $g_E$ is the excitatory conductance vector,
-  $d_A$ is its AMPA decay factor, $bold(s)_"in"$ is the input-spike vector,
-  and $W_"in"$ and $W_(E E)$ are input and E→E conductance weights.
-  The analogous E→I and I→E terms use $W_(E I)$ and $W_(I E)$, with inhibitory
-  GABA decay for I→E. E→E weights were zero in these networks.
-
-  Membrane integration and threshold/reset operations then emit raw E/I spikes.
-  Deletion or insertion replaces those emitted spikes, which enter the recorded
-  stream and the current readout update, and affect recurrent conductances at
-  the next timestep. It does not undo a membrane reset or cause an inserted
-  spike to trigger one. Thus deletion preserves connectivity but changes
-  feedback activity; it does not leave loop dynamics intact. These interventions
-  jointly affect feedback, spike counts and readout drive, so the observed
-  asymmetry cannot by itself distinguish a dynamical activity floor from an
-  informational requirement of the classifier.
-
-  #journal-references((
-    (text: [Y. LeCun, L. Bottou, Y. Bengio, and P. Haffner.
-      “Gradient-based learning applied to document recognition.”
-      _Proceedings of the IEEE_ 86(11), 2278–2324 (1998).],
-      doi: "10.1109/5.726791"),
-  ))
 ]
 
 #let report-body = if inputs-ready(data-file, inputs) {

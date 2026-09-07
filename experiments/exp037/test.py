@@ -451,9 +451,9 @@ def test_article_renders_only_selected_presentation(lab):
     assert result.returncode == 0, result.stderr
     html = (root / "article.html").read_text()
     images = re.findall(r"<img\b[^>]*>", html)
-    assert len(images) == 5
+    assert len(images) == 2
     assert all('alt="' in tag and 'src="' in tag for tag in images)
-    assert len(re.findall(r"<figcaption\b", html)) == 5
+    assert len(re.findall(r"<figcaption\b", html)) == 2
     # Older v3 presentations lack the optional image-label projection.
     numbers = load_json(output.export / "numbers.json")
     numbers.pop("illustrative_labels")

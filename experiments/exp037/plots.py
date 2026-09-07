@@ -224,3 +224,72 @@ def plot_perturbation_curves(
     out_path.parent.mkdir(parents=True, exist_ok=True)
     save_figure(fig, out_path)  # line/curve plot: SVG + PDF
     plt.close(fig)
+
+
+def plot_combined_rasters(
+    samples: list[dict], out_path: Path, *, relative: bool
+) -> None:
+    """Four model/intervention panels, each containing three saved trials."""
+    theme.apply()
+    fig = plt.figure(figsize=(7.0, 4.8))
+    outer = fig.add_gridspec(
+        2, 2, left=0.065, right=0.98, bottom=0.065, top=0.95, wspace=0.19, hspace=0.35
+    )
+    for panel, (model, mode) in enumerate(
+        (("ping", "drop"), ("ping", "add"), ("coba", "drop"), ("coba", "add"))
+    ):
+        rows = sorted(
+            (s for s in samples if s["model"] == model and s["mode"] == mode),
+            key=lambda s: s["level"],
+        )
+        grid = outer[panel // 2, panel % 2].subgridspec(len(rows), 1, hspace=0.42)
+        for index, s in enumerate(rows):
+            ax = fig.add_subplot(grid[index])
+            for population, colour in (("e", theme.INK_BLACK), ("i", theme.DEEP_RED)):
+                ax.scatter(
+                    s[f"{population}_t"],
+                    s[f"{population}_n"],
+                    s=1.5,
+                    c=colour,
+                    marker="|",
+                    linewidths=0.35,
+                    rasterized=True,
+                )
+            ax.set_xlim(0, s["t_ms"])
+            ax.set_ylim(-2, EI_RASTER_N_E_PLOT + EI_RASTER_N_I_PLOT + 8)
+            ax.set_yticks(
+                [
+                    EI_RASTER_N_E_PLOT / 2,
+                    EI_RASTER_N_E_PLOT + 6 + EI_RASTER_N_I_PLOT / 2,
+                ],
+                ["E", "I"],
+            )
+            ax.tick_params(axis="y", length=0, labelsize=8)
+            ax.tick_params(axis="x", labelsize=8, labelbottom=index == len(rows) - 1)
+            dose = (
+                f"Delete {100 * s['level']:g}%"
+                if mode == "drop"
+                else f"Add {s['level']:g}{'%' if relative else ' Hz'}"
+            )
+            ax.set_title(
+                f"{dose}   ·   E = {s['e_rate_hz']:.1f} Hz",
+                loc="left",
+                fontsize=8,
+                pad=3,
+            )
+            if index == 0:
+                ax.text(
+                    0,
+                    1.45,
+                    f"{'ABCD'[panel]}  {model.upper()} — {'deletion' if mode == 'drop' else 'addition'}",
+                    transform=ax.transAxes,
+                    fontsize=10,
+                    fontweight="bold",
+                    va="bottom",
+                )
+            if index == len(rows) - 1 and panel >= 2:
+                ax.set_xlabel("Time (ms)", fontsize=9)
+            ax.spines[["top", "right"]].set_visible(False)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    save_figure(fig, out_path, formats=("png", "pdf"))
+    plt.close(fig)
