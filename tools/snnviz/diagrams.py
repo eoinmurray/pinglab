@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import html
+import math
 import subprocess
 import tempfile
 from dataclasses import dataclass, field
@@ -142,13 +143,27 @@ def _card(node: DiagramNode, theme: DiagramTheme) -> str:
     )
 
 
-def diagram_to_dot(diagram: Diagram, *, theme: DiagramTheme = DiagramTheme()) -> str:
+def diagram_to_dot(
+    diagram: Diagram,
+    *,
+    theme: DiagramTheme = DiagramTheme(),
+    height_to_width_ratio: float | None = None,
+) -> str:
     """Compile a structured diagram into deterministic Graphviz DOT."""
 
+    if height_to_width_ratio is not None and (
+        not math.isfinite(height_to_width_ratio) or height_to_width_ratio <= 0
+    ):
+        raise ValueError("diagram height-to-width ratio must be finite and positive")
     title = (diagram.title or diagram.name.replace("_", " ")).upper()
+    ratio = (
+        ""
+        if height_to_width_ratio is None
+        else f', ratio="{height_to_width_ratio:g}"'
+    )
     lines = [
         f"digraph {_q(diagram.name)} {{",
-        f'graph [rankdir=LR, bgcolor="{theme.background}", pad="0.22", nodesep="0.40", ranksep="0.65",',
+        f'graph [rankdir=LR{ratio}, bgcolor="{theme.background}", pad="0.22", nodesep="0.40", ranksep="0.65",',
         f'  splines=spline, outputorder=edgesfirst, fontname="Courier New Bold", fontcolor="{theme.ink}",',
         f"  label={_q(title)}, labelloc=t, labeljust=l, fontsize=18, compound=true, newrank=true];",
         f'node [shape=plain, fontname="Courier New", fontcolor="{theme.ink}"];',
@@ -249,6 +264,7 @@ def render_diagram(
     *,
     scale: int = 1,
     theme: DiagramTheme = DiagramTheme(),
+    height_to_width_ratio: float | None = None,
 ) -> Path:
     """Render a diagram as SVG, PNG, PDF, or its deterministic DOT source."""
 
@@ -256,7 +272,11 @@ def render_diagram(
         raise ValueError("diagram scale must be a positive integer")
     output = Path(path)
     output.parent.mkdir(parents=True, exist_ok=True)
-    dot = diagram_to_dot(diagram, theme=theme)
+    dot = diagram_to_dot(
+        diagram,
+        theme=theme,
+        height_to_width_ratio=height_to_width_ratio,
+    )
     suffix = output.suffix.lower()
     if suffix not in {".svg", ".png", ".pdf", ".dot"}:
         raise ValueError("diagram output must be .svg, .png, .pdf, or .dot")

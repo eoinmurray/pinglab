@@ -63,9 +63,21 @@ def _render_condition(analysis, compute, cfg, results, output: Path) -> None:
 def _render_network_diagram(compute, output: Path) -> None:
     """Render the authenticated authored graph through the shared visual layer."""
 
-    bundle = snn.load_bundle(compute.export / "network.bundle")
+    # SourceRun has already authenticated the complete immutable v4 payload.
+    # Project the retained graph directly for display because pre-0.2 bundles
+    # carry the known nS label error and are intentionally rejected for execution.
+    bundle = snn.Bundle(
+        graph=load_json(compute.unit("network.bundle") / "graph.json"),
+        training=None,
+        manifest={},
+        diagnostics=[],
+    )
     visual = snn.diagram(bundle, view="expanded")
-    snnviz.render_diagram(visual, output / "network.svg")
+    snnviz.render_diagram(
+        visual,
+        output / "network.svg",
+        height_to_width_ratio=0.6,
+    )
 
 
 def present(identity: str, *, run_id: str | None = None) -> str:

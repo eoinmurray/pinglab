@@ -224,10 +224,12 @@ def stream(root, name, *, conditions=None):
     return raw, meta
 
 
-def showcase_configuration():
+def showcase_configuration(*, conditions=None):
     return {
         "schema": "exp082.showcase-selection/v1",
-        "conditions": [list(value) for value in recipe.SHOWCASE_CONDITIONS],
+        "conditions": [list(value) for value in (
+            recipe.SHOWCASE_CONDITIONS if conditions is None else conditions
+        )],
         "candidate_order": "ascending integer index",
         "digit_seed_base": recipe.SHOWCASE_DIGIT_SEED_BASE,
         "encoding_seed_base": recipe.SHOWCASE_ENCODING_SEED_BASE,
@@ -242,7 +244,10 @@ def validate_showcase(root):
     selected = saved.get("selected")
     if (
         saved.get("schema") != "exp082.showcase-selection/v1"
-        or saved.get("configuration") != showcase_configuration()
+        or saved.get("configuration") not in (
+            showcase_configuration(),
+            showcase_configuration(conditions=recipe.FIXED_DURATION_SHOWCASE_CONDITIONS),
+        )
         or not isinstance(selected, dict)
         or selected.keys() != recipe.SHOWCASE_TARGETS.keys()
     ):
@@ -286,7 +291,7 @@ def validate_showcase(root):
             raise PingstoreError("showcase target has no qualifying candidate")
         if selected.get(name) != first or first is None:
             raise PingstoreError("showcase did not retain the first qualifying candidate")
-        raw, meta = stream(root, name, conditions=recipe.SHOWCASE_CONDITIONS)
+        raw, meta = stream(root, name, conditions=saved["configuration"]["conditions"])
         row = candidates[first]
         predictions = [
             int(raw["spikes_out"][start:stop].sum(axis=0).argmax())
@@ -302,7 +307,6 @@ def showcase_evidence(repo, run):
         run.record["stage"] != "compute"
         or run.record["experiment"] != recipe.SLUG
         or run.record["execution"].get("operation") != "showcase-selection"
-        or run.record["execution"].get("configuration") != showcase_configuration()
         or set(run.record["inputs"]) != {"bank"}
     ):
         raise PingstoreError("invalid exp082 showcase compute run")
@@ -313,6 +317,8 @@ def showcase_evidence(repo, run):
         repo, pin["run_id"], "compute", experiment="exp022", reference=pin
     )
     saved = validate_showcase(run.export)
+    if run.record["execution"].get("configuration") != saved["configuration"]:
+        raise PingstoreError("showcase execution configuration differs")
     if saved.get("training_contract") != training_contract(bank.export):
         raise PingstoreError("showcase training contract differs")
     return bank, saved

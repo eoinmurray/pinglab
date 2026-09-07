@@ -168,3 +168,17 @@ confirmed five loaded figures, the explicit selected presentation and lineage,
 working contents anchors, and three numbered equations. All five PDF pages and
 both additional exported diagnostic figures were inspected. Commit, push,
 publication, materialization and Reviewed status remain separately gated.
+
+## 2026-09-07 — variable-duration capability showcase
+
+The new predefined five-digit schedule uses (duration ms, rate Hz) pairs
+(100, 5), (200, 7.5), (50, 25), (100, 15), (200, 10). Both variables change
+within each stream. Ascending candidates retain the first 5/5 and first 3/5
+examples, with all candidate outcomes recorded. The fixed-duration v4 showcase
+remains readable using its recorded configuration.
+
+`exp082-r018-compute` used the same pinned `exp022-r001-compute` bank. Candidate
+index 0 classified digits 1, 7, 9, 5, 2 correctly; index 8 supplied the 3/5
+counterexample. `exp082-r019-analyse` combines these with the unchanged
+`exp082-r001-compute` evaluation grid. `exp082-r020-present` renders the figures
+and compound figure consumed by exp110. No training or grid inference was run.

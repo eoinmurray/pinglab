@@ -141,6 +141,10 @@ def test_diagram_contract_compiles_deterministically():
     assert 'subgraph "cluster_n_network"' in diagram_to_dot(diagram)
     assert 'style="filled"' in diagram_to_dot(diagram)
     assert 'fontname="Courier New"' in diagram_to_dot(diagram)
+    assert 'ratio="0.6"' in diagram_to_dot(diagram, height_to_width_ratio=0.6)
+
+    with pytest.raises(ValueError, match="finite and positive"):
+        diagram_to_dot(diagram, height_to_width_ratio=0)
 
 
 def test_diagram_contract_rejects_unknown_references():

@@ -33,6 +33,8 @@
 // - `run-view(article, inputs, status: none)` renders that section directly when required.
 // - `input-assets(article, inputs)` projects selected media for publication.
 // - `video(source, ..args)` renders a selected presentation video.
+// Upstream and downstream dependency identifiers link to their canonical
+// experiment-article URLs; the projection does not carry article titles.
 // URL renders and prepared builds read Pinglab's own validated projection.
 // Legacy paths remain below until the separate retirement step is approved.
 #import "status.typ": component-title
@@ -199,10 +201,7 @@
             else {
               for (index, experiment) in experiments.enumerate() {
                 if index > 0 { [, ] }
-                // Dependency identifiers remain plain text. Article cross-links
-                // require a separately linked identifier and exact current title,
-                // which this technical projection does not carry.
-                experiment
+                html.elem("a", attrs: (href: "/" + experiment + "/"), experiment)
               }
             }
           })

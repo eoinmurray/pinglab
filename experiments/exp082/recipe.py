@@ -21,10 +21,12 @@ DT_MS = 0.1
 STREAMS_PER_CELL, DIGITS_PER_STREAM, STREAM_BATCH_SIZE = 40, 5, 5
 EVALUATION_PROFILE = "production"
 VARIABLE_STREAM = ((200.0, 0.5), (50.0, 25.0), (100.0, 2.0), (25.0, 10.0), (200.0, 5.0))
-# Illustration candidates use the dense, 200-ms operating regime quantified by
-# the psychometric analysis. Candidate identity is fixed before inference; the
-# first 5/5 stream and first 3/5 stream are retained.
-SHOWCASE_CONDITIONS = tuple((200.0, rate) for rate in (5.0, 7.5, 10.0, 15.0, 25.0))
+# Both duration and rate vary within each candidate. The protocol and candidate
+# order are fixed before inference; retain the first 5/5 and first 3/5 streams.
+SHOWCASE_CONDITIONS = ((100.0, 5.0), (200.0, 7.5), (50.0, 25.0), (100.0, 15.0), (200.0, 10.0))
+FIXED_DURATION_SHOWCASE_CONDITIONS = tuple(
+    (200.0, rate) for rate in (5.0, 7.5, 10.0, 15.0, 25.0)
+)
 SHOWCASE_DIGIT_SEED_BASE = 820_000
 SHOWCASE_ENCODING_SEED_BASE = 830_000
 SHOWCASE_CANDIDATE_LIMIT = 100

@@ -111,7 +111,7 @@ def present(identity, *, run_id=None):
         raw, _ = evidence.stream(compute, name)
         streams[name] = {**raw, **result[name + "_stream"]}
     for name in recipe.SHOWCASE_TARGETS:
-        raw, _ = evidence.stream(showcase, name, conditions=recipe.SHOWCASE_CONDITIONS)
+        raw, _ = evidence.stream(showcase, name, conditions=showcase_record["configuration"]["conditions"])
         streams[name] = {**raw, **result[name + "_stream"]}
     if result.get("showcase_selection") != {
         key: showcase_record[key] for key in ("configuration", "candidates", "selected")

@@ -10,10 +10,10 @@
 #let data-file = data-file.with(article: "exp110")
 
 #let meta = (
-  tags: ("data", "v35.4.0"),
+  tags: ("data", "v36.0.0"),
   title: "Manuscript",
   created_at: "2026-09-02T00:00:00Z",
-  updated_at: "2026-09-03",
+  updated_at: "2026-09-07",
   description: "A manuscript scaffold connecting PING circuit dynamics, low-rate task performance, cycle participation, perturbation sensitivity and continuous-stream classification.",
   collection: "gamma-gated-sparsity",
 )
@@ -86,7 +86,7 @@
         Poisson-drive sweeps using 784 input channels. Each point represents one
         trial from one stochastic seed; no uncertainty estimate is shown.
         Vertical rate scales differ between *(F)* and *(H)*. Source experiment:
-        #link("/exp023/")[exp023 — _Turning the PING Loop On_].],
+        #link("/exp023/")[exp023] — #link("/exp023/")[_Turning the PING Loop On._]],
     ) <fig:matched-drive>
 
     Reciprocal coupling substantially reorganised the temporal pattern of
@@ -158,9 +158,9 @@
         shown. The predicted onset frequencies and simulated finite-drive
         spectral peaks are distinct estimators; the mean-field model was not
         calibrated to the spiking networks. Source experiments:
-        #link("/exp054/")[exp054 — _Pinglab Rythmicity Metric_],
-        #link("/exp033/")[exp033 — _Gamma Emerges at a Hopf Bifurcation_], and
-        #link("/exp041/")[exp041 — _Firing Rate Tracks Gamma Frequency_].],
+        #link("/exp054/")[exp054] — #link("/exp054/")[_Pinglab Rythmicity Metric_],
+        #link("/exp033/")[exp033] — #link("/exp033/")[_Gamma Emerges at a Hopf Bifurcation_], and
+        #link("/exp041/")[exp041] — #link("/exp041/")[_Firing Rate Tracks Gamma Frequency._]],
     ) <fig:coupling-plane>
 
     The selected rasters make this progression concrete. Without reciprocal
@@ -217,8 +217,7 @@
       caption: [*(A–B)* Representative COBA and PING activity, *(C)* validation
         accuracy and *(D)* the test-accuracy–E-rate frontier across activity
         ceilings; frontier points show three-training-replicate means and SEM.
-        Source experiment: #link("/exp025/")[exp025 — _Accuracy and Firing Rate
-        With and Without Inhibition_].],
+        Source experiment: #link("/exp025/")[exp025] — #link("/exp025/")[_Accuracy and Firing Rate With and Without Inhibition._]],
     ) <fig:accuracy-rate>
 
     + Activating inhibition after training reproduces the regime
@@ -234,7 +233,7 @@
         COBA networks without retraining: *(A)* loop-off and *(B)* loop-on
         rasters, *(C)* population rates and *(D)* accuracy; curves show means and
         bands show sample SD across training replicates. Source experiment:
-        #link("/exp038/")[exp038 — _Switching On the Inhibitory Loop_].],
+        #link("/exp038/")[exp038] — #link("/exp038/")[_Switching On the Inhibitory Loop._]],
     ) <fig:loop-transfer>
 
     + Training recurrent weights weakens rhythmic organisation
@@ -249,8 +248,7 @@
       caption: [Per-epoch *(A)* accuracy, *(B)* E rate, *(C)* I rate and *(D)*
         lobe–trough contrast for three trainable recurrent initialisations and a frozen-loop control; lines show
         three-training-replicate means and shading shows their range. Source
-        experiment: #link("/exp049/")[exp049 — _Training Recurrent Weights
-        Weakens PING Rhythmicity_].],
+        experiment: #link("/exp049/")[exp049] — #link("/exp049/")[_Training Recurrent Weights Weakens PING Rhythmicity._]],
     ) <fig:trainable-loop>
 
     === Excitatory firing is organised by gamma-cycle participation
@@ -270,8 +268,8 @@
         *(C–H)* Distributions of E spikes per neuron–cycle pair, with cycles
         inferred from inhibitory population-burst peaks, at inhibitory decay
         times 4.5, 6, 9, 12, 18 and 27 ms, respectively. Source experiments:
-        #link("/exp041/")[exp041 — _Firing Rate Tracks Gamma Frequency_] and
-        #link("/exp046/")[exp046 — _One Spike per Gamma Cycle_].],
+        #link("/exp041/")[exp041] — #link("/exp041/")[_Firing Rate Tracks Gamma Frequency_] and
+        #link("/exp046/")[exp046] — #link("/exp046/")[_One Spike per Gamma Cycle._]],
     ) <fig:cycle-participation>
 
     + Active excitatory neurons usually fire once per cycle
@@ -292,9 +290,7 @@
         *(B)* Poisson spike addition; lines show means across three training replicates
         and shading shows SEM. *(C)* Post-training E rate and test accuracy across
         matched training-and-inference integration timesteps from 0.05 to 1.0 ms.
-        Source experiments: #link("/exp037/")[exp037 — _Dropped Spikes vs Added
-        Noise_] and #link("/exp044/")[exp044 — _Firing Rate Across the Timestep
-        Sweep_].],
+        Source experiments: #link("/exp037/")[exp037] — #link("/exp037/")[_Dropped Spikes vs Added Noise_] and #link("/exp044/")[exp044] — #link("/exp044/")[_Firing Rate Across the Timestep Sweep._]],
     ) <fig:robustness>
 
     + Performance persists across integration timesteps
@@ -312,8 +308,7 @@
       caption: [Representative E/I rasters under *(A)* independent-spike and
         *(B)* fixed-window inhibitory replay jitter; *(C–D)* show the corresponding
         E-rate, accuracy and realised-I-rate sweeps. Source experiment:
-        #link("/exp042/")[exp042 — _Inhibitory Replay Perturbations Change
-        Excitatory Firing_].],
+        #link("/exp042/")[exp042] — #link("/exp042/")[_Inhibitory Replay Perturbations Change Excitatory Firing._]],
     ) <fig:replay-perturbations>
 
     === PING networks classify continuously presented inputs
@@ -325,17 +320,15 @@
       data-image(
         data-file("exp082/continuous_stream_compound.png"),
         width: 92%,
-        alt: "A correctly classified five-digit continuous stream at varying input rates, alongside accuracy across presentation duration and input rate.",
+        alt: "A correctly classified five-digit continuous stream with per-digit durations and input rates labelled, alongside accuracy across presentation duration and input rate.",
       ),
       caption: [One correctly classified five-digit continuous stream with
-        200 ms presentations at maximum-pixel input rates of 5, 7.5, 10, 15 and
-        25 Hz: *(A)* input thumbnails, *(B)* E spikes, *(C)* I spikes and *(D)*
+        per-digit duration and maximum-pixel input rate labelled above each segment: *(A)* input thumbnails, *(B)* E spikes, *(C)* I spikes and *(D)*
         output-count evidence. *(E)* Mean accuracy across presentation duration
         and input rate; *(F)* the 200 ms input-rate curve. Summary values are
         means across three training replicates and curve error bars are SEM.
         Hidden neuronal state continued while output counts reset at known
-        boundaries. Source experiment: #link("/exp082/")[exp082 — _Spike-Count
-        Classification in a Continuous Stream_].],
+        boundaries. Source experiment: #link("/exp082/")[exp082] — #link("/exp082/")[_Spike-Count Classification in a Continuous Stream._]],
     ) <fig:continuous-stream>
 
     + Duration and input rate define the operating range

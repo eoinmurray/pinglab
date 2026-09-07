@@ -923,3 +923,23 @@ def test_collection_requires_exp082_measurements_and_figures(tmp_path) -> None:
     )
     assert row["execution"]["mode"] == "exp082-staged"
     assert [Path(path).name for path in row["required_outputs"]] == ["stage-refs.json"]
+
+
+def test_showcase_varies_duration_and_rate():
+    conditions = recipe.SHOWCASE_CONDITIONS
+    assert len(conditions) == 5
+    assert len({duration for duration, _ in conditions}) > 1
+    assert len({rate for _, rate in conditions}) > 1
+    assert all(duration in recipe.DURATIONS_MS for duration, _ in conditions)
+    assert all(rate in recipe.PSYCHOMETRIC_RATES_HZ for _, rate in conditions)
+
+
+def test_showcase_rejects_changed_condition(lab):
+    repo, _, _, identity = lab
+    source = inputs.source(repo, identity, "compute")
+    path = source.export / "evidence.json"
+    saved = load_json(path)
+    saved["configuration"]["conditions"][0][0] = 75.0
+    write_json_atomic(path, saved)
+    with pytest.raises(PingstoreError, match="contract differs"):
+        evidence.validate_showcase(source.export)

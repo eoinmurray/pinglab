@@ -52,6 +52,11 @@ visual = snn.diagram(bundle, view="circuit", expand_groups={"cell"})
 snnviz.render_diagram(visual, "circuit.svg")
 ```
 
+Presentation code may pass `height_to_width_ratio` when an automatic Graphviz
+layout needs a taller article-width composition. This constrains layout rather
+than stretching the rendered SVG; omit it when the graph's natural shape is
+already readable.
+
 The default diagram house style follows the lab's EXP099 input-map precedent:
 opaque white canvas, hard rectangular geometry, bold uppercase monospace text,
 generous spacing, black excitatory or ordinary flow, deep-red inhibitory flow,

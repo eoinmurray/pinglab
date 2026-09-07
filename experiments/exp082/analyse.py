@@ -29,7 +29,7 @@ def analyse(identity, showcase_identity, *, run_id=None):
         {
             name: measurements.stream_result(
                 *evidence.stream(
-                    showcase, name, conditions=recipe.SHOWCASE_CONDITIONS
+                    showcase, name, conditions=showcase_record["configuration"]["conditions"]
                 )
             )
             for name in recipe.SHOWCASE_TARGETS

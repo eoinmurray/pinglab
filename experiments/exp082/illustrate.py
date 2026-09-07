@@ -42,16 +42,7 @@ def compute(identity, *, run_id=None):
     boundaries = np.cumsum(
         [0, *[int(round(duration / recipe.DT_MS)) for duration, _ in conditions]]
     ).tolist()
-    configuration = {
-        "schema": "exp082.showcase-selection/v1",
-        "conditions": [list(value) for value in conditions],
-        "candidate_order": "ascending integer index",
-        "digit_seed_base": recipe.SHOWCASE_DIGIT_SEED_BASE,
-        "encoding_seed_base": recipe.SHOWCASE_ENCODING_SEED_BASE,
-        "candidate_limit": recipe.SHOWCASE_CANDIDATE_LIMIT,
-        "targets": recipe.SHOWCASE_TARGETS,
-        "training_seed": recipe.SEEDS[0],
-    }
+    configuration = evidence.showcase_configuration()
     with inputs.execution(
         REPO,
         "compute",
@@ -97,6 +88,7 @@ def compute(identity, *, run_id=None):
                 "n_correct": sum(correct),
             }
             candidates.append(summary)
+            print(f"Candidate {index}: {sum(correct)}/5", flush=True)
             for name, target in recipe.SHOWCASE_TARGETS.items():
                 if name not in selected and summary["n_correct"] == target:
                     folder = run.export / "streams" / name

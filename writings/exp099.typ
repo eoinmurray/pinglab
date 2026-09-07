@@ -4,14 +4,15 @@
 #import "templates/dataset.typ": video, data-file, inputs-ready, pending-report, run-view, input-assets
 #import "templates/abstract.typ": journal-abstract
 #import "templates/methods.typ": journal-methods, method-card
+#import "templates/parameters-table.typ": parameters-table
 #let data-file = data-file.with(article: "exp099")
 
 #let meta = (
-  tags: ("data", "v35.4.0"),
+  tags: ("data", "v36.0.0"),
   // Author-locked title: do not change.
   title: "Video AI-PING transition",
   created_at: "2026-08-26T00:00:00Z",
-  updated_at: "2026-09-03",
+  updated_at: "2026-09-04",
   description: "Two single-seed conductance-based network simulations show intermittent activity under richer input and sustained alternating volleys during strong shared afferent drive.",
   collection: "demo",
   order: 13,
@@ -195,6 +196,43 @@
         organization.]),
     ),
   )
+
+  == Parameter Table
+
+  #parameters-table(
+    (
+      [Parameter],
+      [Richer input],
+      [Shared drive],
+      [Cortical reference],
+    ),
+    (
+      ([Simulation / view], [2,000 / 300–1,800 ms], [1,000 / 0–1,000 ms], [No canonical duration.]),
+      ([Timestep; seed], [0.25 ms; 7], [0.25 ms; 7], [Numerical only.]),
+      ([Population], [$N_E=400$; $N_I=100$], [$N_E=400$; $N_I=100$], [Realistic 4:1 ratio; strongly reduced circuit (#link("https://pmc.ncbi.nlm.nih.gov/articles/PMC3839692/")[Meyer et al., 2013]).]),
+      ([Shared baseline], [10 Hz], [10 Hz], [Plausible rate; shared/private separation is abstract.]),
+      ([Private E/I baseline], [15 / 15 Hz], [14.25 / 14.25 Hz], [Plausible active-input rate; cortical firing is often sparser (#link("https://pmc.ncbi.nlm.nih.gov/articles/PMC4108079/")[Zhou et al., 2014]).]),
+      ([Shared multiplier], [$1 arrow 6.5 arrow 1$], [$1 arrow 25$, then held], [No standard; 25-fold represents strong synchrony.]),
+      ([Private afferent multiplier], [$1 arrow 1.2 arrow 1$], [Constant at 1], [No direct biological standard.]),
+      ([Input timing], [600–850–1,100 ms], [250–450 ms; then held], [Plausible timescale; imposed waveform.]),
+      ([Global variation], [Lognormal; $tau=250$ ms; SD 12%], [None], [Qualitative cortical-state model.]),
+      ([$w_("in" arrow E)$], [$0.080 plus.minus 0.008$ µS], [$0.160 plus.minus 0.016$ µS], [Low end of unitary excitation (#link("https://pmc.ncbi.nlm.nih.gov/articles/PMC10016070/")[Hunt et al., 2023]).]),
+      ([$w_("in" arrow I)$], [$0.020 plus.minus 0.002$ µS], [$0.0040 plus.minus 0.0004$ µS], [Very weak.]),
+      ([$w_(E arrow E)$], [$0.85 plus.minus 0.255$ µS], [$1.02 plus.minus 0.306$ µS], [Plausible unitary scale (#link("https://pmc.ncbi.nlm.nih.gov/articles/PMC10016070/")[Hunt et al., 2023]).]),
+      ([$w_(E arrow I)$], [$0.60 plus.minus 0.18$ µS], [Same], [Plausible; PV input is often stronger than E→E (#link("https://pubmed.ncbi.nlm.nih.gov/22402650/")[Avermann et al., 2012]).]),
+      ([$w_(I arrow E)$], [$3.00 plus.minus 0.90$ µS], [Same], [Plausible strong inhibition (#link("https://pmc.ncbi.nlm.nih.gov/articles/PMC4816789/")[conductance estimates]).]),
+      ([$w_(I arrow I)$], [$0.40 plus.minus 0.12$ µS], [Same], [Broadly plausible; subtype dependent.]),
+      ([AMPA background], [500 / 80 Hz], [450 / 72 Hz], [Aggregate event stream, not neuron rate.]),
+      ([GABA background], [500 / 80 Hz], [1,000 / 160 Hz], [Aggregate stream; shared-drive rate doubled.]),
+      ([Connectivity], [2.5% nonzero], [Same], [Low and uniform; nearby L2/3 pathways span roughly 17–60% (#link("https://pmc.ncbi.nlm.nih.gov/articles/PMC4305188/")[Pala and Petersen, 2015]).]),
+      ([$tau_("AMPA")$ / $tau_("GABA")$], [2 / 9 ms], [Same], [Plausible: AMPA a few ms; GABA_A about 4–20 ms (#link("https://pubmed.ncbi.nlm.nih.gov/1384578/")[Hestrin, 1992]; #link("https://pmc.ncbi.nlm.nih.gov/articles/PMC2230760/")[Xiang et al., 1998]).]),
+      ([$tau_(m,E)$ / $tau_(m,I)$], [20 / 5 ms], [Same], [Plausible; fast-spiking interneurons about 4–9 ms (#link("https://pmc.ncbi.nlm.nih.gov/articles/PMC2730466/")[Goldberg et al., 2008]).]),
+    ),
+    columns: (1.15fr, 1.25fr, 1.25fr, 2.25fr),
+  )
+
+  Timescales are broadly cortical. The main limitation is structural: the
+  shared-drive condition changes several inputs and weights simultaneously.
 
   #run-view("exp099", inputs)
 ]
