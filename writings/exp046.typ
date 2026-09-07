@@ -7,10 +7,10 @@
 #let data-file = data-file.with(article: "exp046")
 
 #let meta = (
-  tags: ("data", "v35.4.0"),
+  tags: ("data", "v36.0.0"),
   title: "One Spike per Gamma Cycle",
   created_at: "2026-06-04T00:00:00Z",
-  updated_at: "2026-08-31T00:00:00Z",
+  updated_at: "2026-09-07",
   description: "Counting E spikes per gamma cycle across 18 inhibitory-timescale checkpoints shows the architecture is overwhelmingly one-spike-per-cycle.",
   collection: "gamma-gated-sparsity",
 )
@@ -43,9 +43,9 @@
   #result-card[
   === Spikes per neuron-cycle
 
-  Across 179 million neuron–cycle pairs, E neurons emitted zero spikes in
-  approximately 79% of cycles and one spike in approximately 20%. Two-or-more
-  events occurred in approximately 1.1% of pairs and three-or-more in 0.14%;
+  Across 167,178,240 neuron–cycle pairs, E neurons emitted zero spikes in
+  75.2% of pairs and one spike in 23.6%. Two-or-more
+  events occurred in 1.15% of pairs and three-or-more in 0.10%;
   pooled over the sweep, 98.9% contained at most one spike (#result-figure-ref(<fig:exp046-result-1>)).
 
   #figure(
@@ -53,7 +53,7 @@
       alt: "Six bar charts, one per τ_GABA, of the probability an E neuron emits 0, 1, 2, or ≥3 spikes in a gamma cycle; every panel is dominated by the 0 and 1 bars."),
     caption: [Distribution of E spike count per gamma cycle per neuron at
       $tau_"GABA"$ values *(A–F)* 4.5, 6, 9, 12, 18 and 27 ms, respectively,
-      aggregating three seeds and 179 million neuron–cycle pairs.],
+      aggregating three training replicates per condition and 167.2 million neuron–cycle pairs.],
   ) <fig:exp046-result-1>
 
   ]

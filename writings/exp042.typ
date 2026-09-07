@@ -37,9 +37,9 @@
   Independent-spike jitter nearly silenced excitatory neurons, whereas
   fixed-window shifts increased their firing.
 
-  Accuracy declined under both perturbations. Because rounding, boundary
-  clamping and event collisions also changed realised inhibitory delivery,
-  these measurements do not isolate synchrony or a gamma-specific mechanism.
+  Accuracy declined under both perturbations despite preservation of each
+  inhibitory neuron's spike count. Replay interrupted responsive feedback,
+  so these measurements do not isolate synchrony or a gamma-specific mechanism.
   ])
 
   == Results
@@ -53,7 +53,7 @@
     data-image(
       data-file("exp042/rhythm_compound.png"),
       width: 100%,
-      alt: "Independent-spike jitter suppresses excitatory firing, whereas fixed-window group shifts increase it. Realised inhibitory spike rate changes across both sweeps.",
+      alt: "Independent-spike jitter suppresses excitatory firing, whereas fixed-window group shifts increase it. Replayed inhibitory spike rates remain constant across both sweeps.",
     ),
     caption: [
       *(A)* Independent-spike and *(B)* fixed-window group jitter for the
@@ -89,9 +89,11 @@
   + *Independent jitter.* We gave every inhibitory spike an independent Gaussian
     time shift, using $sigma = 0, 0.5, 1, 2, 5, 9,$ and $14$ ms.
 
-  + *Group jitter.* We divided the timeline into fixed 25 ms windows and gave
+  + *Group jitter.* We divided the timeline into fixed 22.8 ms windows and gave
     every inhibitory spike within a window the same shift, using
-    $sigma = 0, 1, 3, 7,$ and $14$ ms.
+    $sigma = 0, 1, 3, 7,$ and $14$ ms. The window spanned 228 simulation steps,
+    obtained by rounding the period of the fixed 43.95 Hz reference to the
+    0.1 ms grid; windows were not detected gamma cycles.
 
   + *Boundaries.* We reflected independent spikes that left the 200 ms interval
     back into it individually. For group jitter, we reflected the shared
