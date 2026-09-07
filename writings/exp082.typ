@@ -171,8 +171,8 @@
       with seeds 42–44, from
       #link("/exp022/")[exp022] — #link("/exp022/")[_Training Runs._]
       Each contained 1,024 excitatory neurons, 256 inhibitory neurons and ten
-      output leaky integrate-and-fire neurons, with a learned excitatory-to-output
-      projection.
+      output leaky integrate-and-fire neurons, with learned input-to-excitatory
+      and excitatory-to-output projections.
     ]),
     method-card([Training and checkpoint selection], [
       Training used 6,300 optimization images and 700 validation images for 50
