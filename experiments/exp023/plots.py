@@ -37,10 +37,10 @@ def plot_raster_compound(
     schematic (COBA / PING) directly above its plots.
     """
     theme.apply()
-    plt.rcParams["savefig.bbox"] = "standard"  # keep the saved 16:9 exact
+    plt.rcParams["savefig.bbox"] = "standard"  # preserve the planned canvas
     from matplotlib.gridspec import GridSpec
 
-    fig = plt.figure(figsize=(6.9, 3.88))  # 16:9, full print width
+    fig = plt.figure(figsize=(6.9, 4.5 if include_arch else 3.88))
     if include_arch:
         # Nested gridspecs so the (small) schematic→plots gap is independent of
         # the (larger) raster→PSD gap that has to clear the time-axis label.
@@ -60,7 +60,7 @@ def plot_raster_compound(
             2,
             4,
             height_ratios=[4.4, 2.6],
-            hspace=0.4,
+            hspace=0.85,
             wspace=0.5,
         )
     else:
@@ -70,7 +70,7 @@ def plot_raster_compound(
             4,
             figure=fig,
             height_ratios=[4.4, 2.6],
-            hspace=0.4,
+            hspace=0.85,
             wspace=0.5,
             top=0.92,
             bottom=0.13,
@@ -214,7 +214,10 @@ def plot_raster_compound(
         if col == 1:
             ax_fi.legend(frameon=False, fontsize=theme.SIZE_LABEL - 2, loc="upper left")
 
-    theme.label_panels((*arch_axes, *raster_axes, *lower_axes))
+    # Match the caption's paired spectra (E–F) and rate curves (G–H).
+    theme.label_panels(
+        (*arch_axes, *raster_axes, *lower_axes[::2], *lower_axes[1::2])
+    )
     save_figure(fig, out_path, formats=("png", "pdf"))  # dense raster: PNG, not SVG
     plt.close(fig)
 
