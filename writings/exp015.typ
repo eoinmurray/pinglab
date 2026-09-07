@@ -92,7 +92,7 @@
   + *Check learning as well as finiteness.* Stronger damping also reduces useful conductance-input sensitivities. A finite loss with negligible learning is not sufficient evidence of a good setting.
   + *Keep the scope of the check explicit.* The helper assertion verifies its local derivative. Establishing training stability or accuracy requires a separately authorized experiment, with recorded diagnostics and validation results.
 
-  #link("/exp006/")[exp006] — #link("/exp006/")[_Training_] · #link("/exp011/")[exp011] — #link("/exp011/")[_SNNSIM command-line guide_]
+  #link("/exp006/")[exp006] — #link("/exp006/")[_Training_] · #link("/exp003/")[exp003] — #link("/exp003/")[_SNNSIM API Reference_]
 ]
 
-#let body = journal-article("exp015", (), body)
+#let body = journal-article("exp015", (), body, dataset: false)

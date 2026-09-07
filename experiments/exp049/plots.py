@@ -779,3 +779,180 @@ def fig_acc_rate_trajectory(data, out_path: Path, run_id: str) -> None:
     out_path.parent.mkdir(parents=True, exist_ok=True)
     save_figure(fig, out_path, formats=("svg", "pdf"))
     plt.close(fig)
+
+
+def fig_training_summary(data, out_path: Path, run_id: str) -> None:
+    """Seven-panel endpoint and recurrent-weight comparison from saved analysis."""
+    import snnviz
+    from matplotlib.patches import Patch
+
+    conds = [
+        "frozen_ping",
+        "trainable_ping_init",
+        "trainable_small_init",
+        "trainable_zero_init",
+    ]
+    x = np.arange(4)
+    theme.set_paper_mode(True)
+    theme.apply()
+    grid = snnviz.FigureGrid(
+        rows=2, columns=1, bounds=(0.09, 0.16, 0.88, 0.70), row_gap=0.19
+    )
+    grid.place("top", row=0, column=0)
+    grid.place("bottom", row=1, column=0)
+    top = grid.subgrid("top", rows=1, columns=3, column_gap=0.075)
+    bottom = grid.subgrid("bottom", rows=1, columns=4, column_gap=0.075)
+    for i in range(3):
+        top.place(str(i), row=0, column=i)
+    for i in range(4):
+        bottom.place(str(i), row=0, column=i)
+    fig = grid.figure(figsize=(6.9, 5.3), dpi=240)
+    theme.apply()
+    axes = [top.add_axes(fig, str(i)) for i in range(3)] + [
+        bottom.add_axes(fig, str(i)) for i in range(4)
+    ]
+    fig.legend(
+        handles=[
+            Patch(facecolor=theme.GREY_LIGHT, label="Weights before"),
+            Patch(facecolor=theme.DEEP_RED, edgecolor="none", label="Weights after"),
+        ],
+        bbox_to_anchor=(0.09, 0.525),
+        loc="upper left",
+        ncol=2,
+        frameon=False,
+        borderaxespad=0,
+        fontsize=theme.SIZE_LEGEND,
+    )
+    for ax, title, letter in zip(
+        axes,
+        [
+            "Test accuracy",
+            "E/I firing rates",
+            "Rhythmicity",
+            "E→I non-zero",
+            "I→E non-zero",
+            "E→I mean",
+            "I→E mean",
+        ],
+        "ABCDEFG",
+    ):
+        ax.set_title(
+            title, fontsize=theme.SIZE_LABEL, fontweight="semibold", loc="left", pad=6
+        )
+        theme.label_panel(ax, letter, x=-0.15, y=1.10)
+        ax.set_xlim(-0.6, 3.6)
+        ax.set_xticks(
+            x, ["Frozen", "Std.", "10%", "Zero"], fontsize=theme.SIZE_ANNOTATION
+        )
+        ax.tick_params(axis="x", length=0, pad=4)
+        ax.tick_params(
+            axis="y", labelsize=theme.SIZE_TICK, direction="in", length=3, width=0.8
+        )
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+        ax.spines["left"].set_linewidth(0.8)
+        ax.spines["bottom"].set_linewidth(0.8)
+
+    def bars(ax, key, positions, color, width=0.6, label=None):
+        m = [data["outcomes"][c][key]["mean"] for c in conds]
+        sem = [data["outcomes"][c][key]["sem"] for c in conds]
+        ax.bar(
+            positions,
+            m,
+            width=width,
+            color=color,
+            edgecolor="none",
+            label=label,
+            zorder=2,
+        )
+        ax.errorbar(
+            positions,
+            m,
+            yerr=sem,
+            fmt="none",
+            ecolor=theme.INK_BLACK,
+            elinewidth=0.8,
+            capsize=2,
+            capthick=0.8,
+            zorder=4,
+        )
+        return m, sem
+
+    m, se = bars(axes[0], "acc", x, theme.INK_BLACK)
+    axes[0].set_ylim(0, 104)
+    axes[0].set_yticks([0, 25, 50, 75, 100])
+    axes[0].set_ylabel("Accuracy (%)")
+    bars(axes[1], "e_rate_hz", x - 0.17, theme.INK_BLACK, width=0.30, label="E")
+    bars(axes[1], "i_rate_hz", x + 0.17, theme.DEEP_RED, width=0.30, label="I")
+    axes[1].set_ylim(0, 125)
+    axes[1].set_yticks([0, 40, 80, 120])
+    axes[1].set_ylabel("Rate (Hz)")
+    axes[1].legend(loc="upper right", frameon=False, ncol=2, fontsize=theme.SIZE_LEGEND)
+    m, se = bars(axes[2], "contrast", x, theme.INK_BLACK)
+    axes[2].set_ylim(0, 1.13)
+    axes[2].set_yticks([0, 0.5, 1])
+    axes[2].set_ylabel("Contrast R")
+    for ax, dr, kind in [
+        (axes[3], "ei", "fraction"),
+        (axes[4], "ie", "fraction"),
+        (axes[5], "ei", "mean"),
+        (axes[6], "ie", "mean"),
+    ]:
+        before = []
+        after = []
+        for cond in conds:
+            s = data["weights"][cond]["weights"][dr]["stats"]
+            if kind == "fraction":
+                before.append(100 * (1 - s["init_zero_fraction"]))
+                after.append(100 * (1 - s["trained_zero_fraction"]))
+            else:
+                before.append(1000 * s["init_mean"])
+                after.append(1000 * s["trained_mean"])
+        ax.bar(
+            x, before, width=0.72, color=theme.GREY_LIGHT, edgecolor="none", zorder=1
+        )
+        ax.bar(
+            x,
+            after,
+            width=0.43,
+            facecolor=theme.DEEP_RED,
+            edgecolor="none",
+            linewidth=0,
+            zorder=3,
+        )
+        if kind == "fraction":
+            ax.set_ylim(0, 116)
+            ax.set_yticks([0, 50, 100])
+            ax.set_ylabel("Non-zero (%)")
+        else:
+            ax.set_ylim(0, 1.22 if dr == "ei" else 11.4)
+            ax.set_ylabel("Mean weight (×10⁻³)")
+            ax.set_yticks([0, 0.5, 1] if dr == "ei" else [0, 5, 10])
+        for xx, v0, v1 in zip(x, before, after):
+            if abs(v1 - v0) >= 0.05 * abs(v0) and not np.isclose(
+                v0, v1, rtol=1e-7, atol=1e-12
+            ):
+                ax.annotate(
+                    "",
+                    xy=(xx, v1),
+                    xytext=(xx, v0),
+                    arrowprops=dict(
+                        arrowstyle="->",
+                        color=theme.INK_BLACK,
+                        lw=1.3,
+                        shrinkA=0,
+                        shrinkB=0,
+                        mutation_scale=7,
+                    ),
+                    zorder=6,
+                )
+    for ax in axes[3:]:
+        ax.set_xticks(
+            x,
+            ["Frozen", "Std.", "10%", "Zero"],
+            fontsize=theme.SIZE_ANNOTATION,
+            rotation=30,
+            ha="right",
+        )
+    save_figure(fig, out_path, formats=("svg", "pdf", "png"))
+    plt.close(fig)

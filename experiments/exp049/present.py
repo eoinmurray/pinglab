@@ -49,7 +49,7 @@ def present(identity, *, run_id=None):
         {"condition": c, "file": f"raster-{c}.npz"} for c in recipe.COND_ORDER
     ]:
         raise PingstoreError("analysis raster grid differs")
-    for key in ("cards", "weights", "attractor", "trajectories"):
+    for key in ("cards", "weights", "attractor", "trajectories", "outcomes"):
         if set(result.get("plot_data", {}).get(key, {})) != set(recipe.COND_ORDER):
             raise PingstoreError("analysis plot grid incomplete")
     rasters = {}
@@ -79,6 +79,7 @@ def present(identity, *, run_id=None):
             plots.plot_weight_matrices(
                 cond, data["weights"][cond], out / ("weights__" + cond), rid
             )
+        plots.fig_training_summary(data, out / "training_summary", rid)
         plots.fig_attractor(data["attractor"], out / "attractor_ei", rid)
         plots.fig_training_curves(data, out / "training_curves", rid)
         plots.fig_phase_portrait(data, out / "phase_portrait", rid)

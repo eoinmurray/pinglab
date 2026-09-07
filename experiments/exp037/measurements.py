@@ -44,6 +44,12 @@ def summarize_perturbation_rows(rows: list[dict]) -> list[dict]:
                 "n_total_per_seed": [int(row["n_total"]) for row in selected],
             }
         )
+        if "applied_level" in selected[0]:
+            summary[-1].update(
+                level_units=selected[0]["level_units"],
+                applied_hz_per_seed=[r["applied_level"] for r in selected],
+                baseline_e_hz_per_seed=[r["baseline_e_rate_hz"] for r in selected],
+            )
     return summary
 
 
@@ -74,7 +80,7 @@ def baseline_rows(histories):
 def perturbation_row(metrics, job):
     rates = metrics.get("rates_hz", {})
     hid = max((k for k in rates if k.startswith("hid")), default=None)
-    return {
+    row = {
         "mode": job["mode"],
         "level": job["level"],
         "acc": float(metrics["best_acc"]),
@@ -83,19 +89,39 @@ def perturbation_row(metrics, job):
         "model": job["model"],
         "seed": job["seed"],
     }
+    for key in ("applied_level", "level_units", "baseline_e_rate_hz"):
+        if key in job:
+            row[key] = job[key]
+    if "perturbation" in metrics:
+        row["i_rate_hz"] = float(rates["inh"])
+        row["perturbation"] = metrics["perturbation"]
+        row["successful_insertion_hz"] = {
+            population: counts["inserted_spikes"]
+            / (counts["slots"] * metrics["perturbation"]["dt_ms"] / 1000)
+            for population, counts in metrics["perturbation"]["populations"].items()
+        }
+    return row
 
 
-def plot_data(rows, points):
+def plot_data(rows, points, *, baselines=None):
     base = {}
     for model in recipe.MODELS:
-        rs = [
-            r["rate_e"]
-            for r in rows
-            if r["model"] == model and r["rate_target_hz"] is None
-        ]
+        rs = (
+            [r["e_rate_hz"] for r in baselines if r["model"] == model]
+            if baselines
+            else [
+                r["rate_e"]
+                for r in rows
+                if r["model"] == model and r["rate_target_hz"] is None
+            ]
+        )
         base[model] = sum(rs) / len(rs) if rs else 0.0
     add = [
-        {"model": r["model"], "pct": r["level"] / base[r["model"]], "acc": r["acc"]}
+        {
+            "model": r["model"],
+            "pct": r["level"] / 100 if baselines else r["level"] / base[r["model"]],
+            "acc": r["acc"],
+        }
         for r in points
         if r["mode"] == "add" and base.get(r["model"], 0.0) > 0
     ]
@@ -125,6 +151,7 @@ def plot_data(rows, points):
         "baseline_e_rate_hz": base,
         "add_pct_rows": add,
         "use_pct": use_pct,
+        "relative_test_baseline": bool(baselines),
         "panels": panels,
     }
 

@@ -48,13 +48,20 @@ def test_present_records_exp054_analysis_and_exports_only_the_bundle(
         tmp_path / ".pingstore", run.run_id, stage="analyse", experiment="exp054"
     )
     presentations = {}
+    source_analyses = {}
     for experiment, name in (
         ("exp041", recipe.RATE_FREQUENCY_SOURCE),
         ("exp046", recipe.CYCLE_COUNT_SOURCE),
         ("exp037", recipe.PERTURBATION_SOURCE),
         ("exp044", recipe.TIMESTEP_SOURCE),
     ):
-        with stages.stage_run(tmp_path, experiment, "present") as source:
+        sources = {}
+        if experiment in ("exp041", "exp046"):
+            with stages.stage_run(tmp_path, experiment, "analyse") as saved:
+                (saved.export / "results.json").write_text("{}")
+            source_analyses[experiment] = source_run(tmp_path / ".pingstore", saved.run_id)
+            sources["analysis"] = source_analyses[experiment]
+        with stages.stage_run(tmp_path, experiment, "present", inputs=sources) as source:
             path = source.export / name
             if path.suffix == ".svg":
                 path.write_text('<svg xmlns="http://www.w3.org/2000/svg"/>')
@@ -95,7 +102,7 @@ def test_present_records_exp054_analysis_and_exports_only_the_bundle(
     monkeypatch.setattr(
         present,
         "build_cycle_participation_compound",
-        lambda *args: render(*args[:-1]),
+        render,
     )
     monkeypatch.setattr(
         present,
@@ -116,6 +123,8 @@ def test_present_records_exp054_analysis_and_exports_only_the_bundle(
         "exp054_analysis": analysis.reference,
         "exp041_presentation": presentations["exp041"].reference,
         "exp046_presentation": presentations["exp046"].reference,
+        "exp041_analysis": source_analyses["exp041"].reference,
+        "exp046_analysis": source_analyses["exp046"].reference,
         "exp037_presentation": presentations["exp037"].reference,
         "exp044_presentation": presentations["exp044"].reference,
     }
@@ -123,23 +132,41 @@ def test_present_records_exp054_analysis_and_exports_only_the_bundle(
         recipe.FIGURES
     )
 
-def test_cycle_participation_composite_stacks_and_relabels(
-    tmp_path: Path, monkeypatch
-) -> None:
-    rate = tmp_path / "rate.svg"
-    cycles = tmp_path / "cycles.svg"
-    Image.new("RGB", (200, 140), "white").save(rate, format="PNG")
-    Image.new("RGB", (200, 60), "white").save(cycles, format="PNG")
+def test_cycle_participation_equal_width_and_no_percentages(tmp_path, monkeypatch):
+    import pytest
 
-    def rasterize(source: Path, destination: Path, *, width: int = 2070) -> None:
-        destination.write_bytes(source.read_bytes())
-
-    monkeypatch.setattr(present, "_rasterize_svg", rasterize)
-    present.build_cycle_participation_compound(
-        rate, cycles, tmp_path / "combined", tmp_path
-    )
-    with Image.open(tmp_path / "combined.png") as combined:
-        assert combined.size == (200, 202)
+    rate = tmp_path / "rate.json"
+    cycles = tmp_path / "cycles.json"
+    taus = (4.5, 6, 9, 12, 18, 27)
+    write_json_atomic(rate, {
+        "schema": "exp041.analysis/v1",
+        "aggregate": [
+            {"tau_gaba_ms": tau, **{
+                key: {"mean": value, "sem": 0.5}
+                for key, value in (("f_gamma_hz", 100 / tau), ("e_rate_hz", 20 / tau), ("acc", 90))
+            }} for tau in taus
+        ],
+        "fit": {"p_affine": 0.2, "a_affine": 0, "r2_affine": 1},
+    })
+    write_json_atomic(cycles, {
+        "schema": "exp046.analysis/v1",
+        "per_tau": {f"tau_{tau:g}": {
+            "frac_zero": 0.7, "frac_one": 0.28, "frac_two": 0.015, "frac_three_plus": 0.005,
+        } for tau in taus},
+    })
+    save = present.save_figure
+    def inspect(fig, stem, **kwargs):
+        a, b, *bottom = fig.axes
+        assert a.get_position().width == pytest.approx(b.get_position().width)
+        assert a.get_position().y0 == pytest.approx(b.get_position().y0)
+        assert a.get_xlim() == b.get_xlim()
+        assert [text.get_text() for ax in bottom for text in ax.texts] == list("CDEFGH")
+        for ax in bottom:
+            assert [bar.get_height() for bar in ax.patches] == pytest.approx([0.7, 0.28, 0.015, 0.005])
+        save(fig, stem, **kwargs)
+    monkeypatch.setattr(present, "save_figure", inspect)
+    present.build_cycle_participation_compound(rate, cycles, tmp_path / "combined")
+    assert (tmp_path / "combined.png").is_file()
     assert (tmp_path / "combined.pdf").is_file()
 
 

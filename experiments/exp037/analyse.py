@@ -21,6 +21,17 @@ MEASUREMENT = {
 }
 
 
+def measurement(cfg):
+    if not recipe.relative(cfg):
+        return MEASUREMENT
+    return {
+        **MEASUREMENT,
+        "schema": "exp037.measurement/v2",
+        "add_normalization": "prescribed percentage of each model-seed selected checkpoint's fixed unperturbed test E rate",
+        "perturbation_counts": "raw, transmitted, inserted and deleted spikes; separate E/I populations",
+    }
+
+
 def analyse(identity, *, run_id=None):
     source = inputs.source(REPO, identity, "compute")
     cfg, bank, contract = inputs.compute_evidence(REPO, source)
@@ -28,19 +39,25 @@ def analyse(identity, *, run_id=None):
     rows = measurements.baseline_rows(histories)
     perturb = []
     rasters = []
+    baselines = []
+    jobs = evidence.resolved_jobs(
+        cfg, contract, lambda j: source.file(j["path"], "metrics.json")
+    )
     with inputs.execution(
         REPO,
         "analyse",
         sources={"compute": source, "bank": bank},
         run_id=run_id,
-        configuration=MEASUREMENT,
+        configuration=measurement(cfg),
     ) as run:
-        for job in recipe.jobs(cfg):
+        for job in jobs:
             train = contract["configs"][job["cell_name"]]
             role = "recording.npz" if job["kind"] == "raster" else "metrics.json"
             artifact = source.file(job["path"], role)
             m = evidence.recordings(artifact, train, job)
-            if job["kind"] == "sweep":
+            if job["kind"] == "calibration":
+                baselines.append(measurements.perturbation_row(m, job))
+            elif job["kind"] == "sweep":
                 perturb.append(measurements.perturbation_row(m, job))
             else:
                 data = measurements.raster(artifact, train, job)
@@ -50,9 +67,11 @@ def analyse(identity, *, run_id=None):
         write_json_atomic(
             run.export / "results.json",
             {
-                "schema": "exp037.analysis/v1",
+                "schema": "exp037.analysis/v2"
+                if recipe.relative(cfg)
+                else "exp037.analysis/v1",
                 "recipe": cfg,
-                "measurement": MEASUREMENT,
+                "measurement": measurement(cfg),
                 "checkpoint_policy": recipe.CHECKPOINT_POLICY,
                 "checkpoint_provenance": contract["checkpoints"],
                 "git_sha_train": contract["configs"][
@@ -78,12 +97,16 @@ def analyse(identity, *, run_id=None):
                     "fr_strength_upper": recipe.FR_STRENGTH_UPPER,
                 },
                 "baseline_results": rows,
+                "test_baselines": baselines,
+                "addition_axis": "per_seed_test_baseline_percent"
+                if recipe.relative(cfg)
+                else "reference_image_percent",
                 "frontier_summary": summarize_frontier(rows),
                 "perturbation": perturb,
                 "perturbation_summary": measurements.summarize_perturbation_rows(
                     perturb
                 ),
-                "plot_data": measurements.plot_data(rows, perturb),
+                "plot_data": measurements.plot_data(rows, perturb, baselines=baselines),
                 "rasters": rasters,
             },
         )

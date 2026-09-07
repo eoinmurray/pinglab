@@ -2,7 +2,7 @@
 #import "templates/result-card.typ": result-card, with-result-sections
 #import "templates/references.typ": journal-references
 #import "/.demolab/lib.typ": data-json, data-image, cite
-#import "templates/dataset.typ": data-file, inputs-ready, pending-report, run-view, input-assets
+#import "templates/dataset.typ": data-file, inputs-ready, pending-report, input-assets
 #import "templates/abstract.typ": journal-abstract
 #import "templates/methods.typ": journal-methods
 #let data-file = data-file.with(article: "exp074")
@@ -104,7 +104,6 @@
     illustrative event selection distinct from population measurements.
     ],
   )
-  #run-view("exp074", inputs)
 
   #journal-references(((text: [Adam Paszke et al.: _PyTorch: An Imperative Style, High-Performance Deep Learning Library_. NeurIPS, 2019.], doi: "10.48550/arXiv.1912.01703"),))
 ]
@@ -122,4 +121,4 @@
 }
 
 #let meta = meta + (assets: input-assets("exp074", inputs))
-#let body = journal-article("exp074", inputs, report-body, dataset-placed: inputs-ready(data-file, inputs))
+#let body = journal-article("exp074", inputs, report-body, dataset: false)

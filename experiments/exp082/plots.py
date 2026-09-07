@@ -6,6 +6,7 @@ from typing import Any
 import matplotlib.pyplot as plt
 import numpy as np
 from experiments.helpers import theme
+from matplotlib.patches import Rectangle
 
 from .recipe import (
     CLASS_PROBABILITY_TICKS,
@@ -434,3 +435,118 @@ def plot_duration_rate_summary(
     theme.label_panels((map_axis, curve_axis))
     fig.savefig(path, dpi=240, facecolor="white")
     plt.close(fig)
+
+def plot_continuous_stream_compound(
+    stream: dict[str, Any], rows: dict[str, Any], output_stem: Path
+) -> None:
+    """Render saved evidence on one 180 × 120 mm canvas, without image crops."""
+    theme.apply()
+    with plt.rc_context({
+        "font.size": 7, "axes.labelsize": 7, "xtick.labelsize": 6.5,
+        "ytick.labelsize": 6.5, "axes.linewidth": 0.6,
+        "xtick.major.width": 0.6, "ytick.major.width": 0.6,
+        "xtick.major.size": 2.5, "ytick.major.size": 2.5,
+        "pdf.fonttype": 42, "savefig.bbox": None,
+    }):
+        fig = plt.figure(figsize=(180 / 25.4, 120 / 25.4))
+        left = fig.add_gridspec(
+            4, 1, left=0.09, right=0.63, bottom=0.105, top=0.94,
+            height_ratios=(1.15, 2.2, 1.1, 2.0), hspace=0.25,
+        )
+        axes = [fig.add_subplot(left[i]) for i in range(4)]
+        map_axis = fig.add_axes((0.745, 0.48, 0.18, 0.46))
+        curve_axis = fig.add_axes((0.745, 0.105, 0.18, 0.25))
+        color_axis = fig.add_axes((0.94, 0.48, 0.01, 0.46))
+        boundaries = np.asarray(stream["boundaries"]) * DT_MS
+        total_ms = boundaries[-1]
+        time_ms = np.arange(len(stream["probabilities"])) * DT_MS
+        rates = np.asarray([pair[1] for pair in stream["conditions"]])
+        log_rates = np.log(rates)
+        thumbnail_axis = axes[0]
+        thumbnail_axis.set(xlim=(0, total_ms), ylim=(0, 1))
+        thumbnail_axis.axis("off")
+        for index, ((duration, rate), start, stop) in enumerate(zip(
+            stream["conditions"], boundaries[:-1], boundaries[1:], strict=True
+        )):
+            # Duration bands share the raster time axis; digit pixels remain square.
+            thumbnail_axis.add_patch(Rectangle(
+                (start, 0), stop - start, 0.56, fill=False,
+                edgecolor=theme.INK_BLACK, linewidth=0.6, clip_on=False,
+            ))
+            box = thumbnail_axis.get_position()
+            side = min(
+                box.height * fig.get_figheight() * 0.50,
+                (stop - start) / total_ms * box.width * fig.get_figwidth() * 0.82,
+            )
+            width, height = side / fig.get_figwidth(), side / fig.get_figheight()
+            center = box.x0 + (start + stop) / 2 / total_ms * box.width
+            inset = fig.add_axes((center - width / 2, box.y0 + box.height * 0.03, width, height))
+            alpha = 1.0 if np.ptp(log_rates) == 0 else (
+                0.2 + 0.8 * (np.log(rate) - log_rates.min()) / np.ptp(log_rates)
+            )
+            inset.imshow(np.asarray(stream["pixels"])[index].reshape(28, 28),
+                         cmap="Greys", interpolation="nearest", alpha=alpha)
+            inset.axis("off")
+            thumbnail_axis.text((start + stop) / 2, 1.0,
+                                f"{duration:g} ms\n{rate:g} Hz",
+                                ha="center", va="top", fontsize=6.5, linespacing=1.2)
+            thumbnail_axis.text((start + stop) / 2, -0.10,
+                                f"{stream['labels'][index]}→{stream['predictions'][index]}",
+                                ha="center", va="top", fontsize=6.5)
+        for axis, key, count, color, label in (
+            (axes[1], "spikes_e", 200, theme.INK_BLACK, "E neuron"),
+            (axes[2], "spikes_i", 64, theme.DEEP_RED, "I neuron"),
+        ):
+            times, neurons = np.nonzero(stream[key][:, :count])
+            axis.scatter(times * DT_MS, neurons, marker="|", s=2.5,
+                         linewidths=0.35, color=color, rasterized=True)
+            axis.set(ylim=(0, count), ylabel=label)
+            axis.set_yticks((0, count))
+            axis.tick_params(axis="x", bottom=False, labelbottom=False)
+        evidence_axis = axes[3]
+        shares = stream["probabilities"]
+        for index, (start, stop) in enumerate(zip(
+            stream["boundaries"][:-1], stream["boundaries"][1:], strict=True
+        )):
+            # Do not connect count resets across supplied digit boundaries.
+            evidence_axis.plot(time_ms[start:stop], shares[start:stop],
+                               color=theme.GREY_LIGHT, lw=0.45)
+            evidence_axis.plot(time_ms[start:stop], shares[start:stop, stream["labels"][index]],
+                               color=theme.DEEP_RED, lw=1.2)
+        evidence_axis.set(xlabel="time (ms)", ylabel="softmax count share", ylim=(0, 1.02))
+        evidence_axis.set_yticks((0, 0.5, 1), ("0", "0.5", "1"))
+        evidence_axis.axhline(0.5, color=theme.GREY_LIGHT, lw=0.4, ls="--")
+        for axis in axes[1:]:
+            axis.set_xlim(0, total_ms)
+            axis.spines[["top", "right"]].set_visible(False)
+            for boundary in boundaries[1:-1]:
+                axis.axvline(boundary, color=theme.GREY_MID, lw=0.45, ls=":")
+
+        durations, rates = rows["durations"], rows["rates"]
+        grid_percent = 100 * np.asarray(rows["grid"])
+        image = map_axis.imshow(grid_percent, origin="lower", aspect="auto",
+                                vmin=0, vmax=100, cmap="magma")
+        map_axis.set_xticks(range(len(durations)), [f"{v:g}" for v in durations])
+        map_axis.set_yticks(range(len(rates)), [f"{v:g}" for v in rates])
+        map_axis.set(xlabel="duration (ms)", ylabel="max. input rate (Hz)")
+        for (rate_index, duration_index), value in np.ndenumerate(grid_percent):
+            map_axis.text(duration_index, rate_index, f"{value:.0f}",
+                          ha="center", va="center", fontsize=6.5,
+                          color="white" if value < 55 else theme.INK_BLACK)
+        colorbar = fig.colorbar(image, cax=color_axis, ticks=(0, 50, 100))
+        colorbar.ax.set_title("%", fontsize=7, pad=5)
+        curve_axis.errorbar(rates, np.asarray(rows["grid"])[:, -1], yerr=rows["grid_sem"],
+                            color=theme.INK_BLACK, marker="o", markersize=2.8,
+                            lw=0.8, elinewidth=0.65, capsize=2, capthick=0.65)
+        curve_axis.set_xscale("log")
+        curve_axis.set_xticks((0.5, 1, 2, 5, 10, 25), ("0.5", "1", "2", "5", "10", "25"))
+        curve_axis.set(xlabel="max. input rate (Hz)", ylabel="accuracy at 200 ms", ylim=(0, 1))
+        curve_axis.set_yticks((0, 0.5, 1), ("0", "0.5", "1"))
+        curve_axis.spines[["top", "right"]].set_visible(False)
+        for axis, label in zip((*axes, map_axis, curve_axis), "ABCDEF", strict=True):
+            box = axis.get_position()
+            fig.text(0.022 if axis in axes else 0.68, box.y1, label,
+                     fontsize=9, weight="bold", va="top")
+        fig.savefig(output_stem.with_suffix(".png"), dpi=600, facecolor="white")
+        fig.savefig(output_stem.with_suffix(".pdf"), facecolor="white")
+        plt.close(fig)

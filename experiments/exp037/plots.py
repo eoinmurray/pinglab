@@ -97,6 +97,7 @@ def plot_perturbation_curves(
             linewidth=1.4,
             color=MODEL_COLORS[model],
             label=model.upper(),
+            zorder=3 if model == "coba" else 2,
         )
         ax_drop.fill_between(
             xs,
@@ -136,6 +137,7 @@ def plot_perturbation_curves(
                 linewidth=1.4,
                 color=MODEL_COLORS[model],
                 label=model.upper(),
+                zorder=3 if model == "coba" else 2,
             )
             ax_add.fill_between(
                 xs,
@@ -146,7 +148,9 @@ def plot_perturbation_curves(
                 linewidth=0,
             )
         ax_add.set_xlabel(
-            "Nominal added rate / reference E rate (%)",
+            "Nominal added rate / baseline E rate (%)"
+            if data.get("relative_test_baseline")
+            else "Nominal added rate / reference E rate (%)",
             fontsize=theme.SIZE_LABEL,
         )
         ax_add.set_title(
@@ -170,6 +174,7 @@ def plot_perturbation_curves(
                 linewidth=1.4,
                 color=MODEL_COLORS[model],
                 label=model.upper(),
+                zorder=3 if model == "coba" else 2,
             )
             ax_add.fill_between(
                 xs,

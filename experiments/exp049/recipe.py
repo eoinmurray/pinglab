@@ -85,6 +85,7 @@ FIGURES = tuple(
             "acc_rate_trajectory",
         )
     ]
+    + [("training_summary", ("svg", "pdf", "png"))]
     for ext in exts
 )
 

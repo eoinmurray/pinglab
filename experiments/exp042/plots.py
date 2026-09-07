@@ -13,8 +13,8 @@ def _despine(ax) -> None:
     ax.spines["right"].set_visible(False)
 
 
-def _compound_raster_panel(ax, s: dict, title: str, subtitle: str) -> None:
-    """One raster panel — E (black) below, I (red) above, rates annotated."""
+def _compound_raster_panel(ax, s: dict, title: str) -> None:
+    """One raster panel — E (black) below, I (red) above."""
     n_e, n_i, gap = s["e"].shape[1], s["i"].shape[1], 6
     T = s["e"].shape[0]
     t_axis = np.arange(T) * s["dt"]
@@ -35,21 +35,6 @@ def _compound_raster_panel(ax, s: dict, title: str, subtitle: str) -> None:
     ax.tick_params(axis="y", length=0)
     ax.set_xlim(0, s["t_ms"])
     ax.set_title(title, fontsize=theme.SIZE_LABEL)
-    ax.text(
-        0.98,
-        0.94,
-        subtitle + f"\nE = {s['e_rate_hz']:.1f} Hz   I = {s['i_rate_hz']:.1f} Hz",
-        transform=ax.transAxes,
-        ha="right",
-        va="top",
-        fontsize=theme.SIZE_ANNOTATION,
-        color=theme.MUTED,
-        # Opaque backing so the annotation reads over the dense I-raster instead
-        # of crowding into the red spikes.
-        bbox=dict(
-            boxstyle="round,pad=0.25", facecolor="white", edgecolor="none", alpha=0.92
-        ),
-    )
     _despine(ax)
 
 
@@ -62,7 +47,7 @@ def _compound_sweep_panel(
     xlim: tuple[float, float],
     legend_loc: str,
 ) -> None:
-    """One sweep panel — E rate (black) and accuracy (red, twin axis) vs σ."""
+    """One sweep panel — E (black), I (red), accuracy (grey, twin axis) vs σ."""
     sig = [r["sigma_ms"] for r in rows]
     e_means = [r["e_rate_hz"]["mean"] for r in rows]
     i_means = [r["i_rate_hz"]["mean"] for r in rows]
@@ -76,12 +61,11 @@ def _compound_sweep_panel(
     ax.plot(
         sig,
         i_means,
-        marker=".",
-        ms=4,
-        lw=1.0,
-        color=theme.GREY_MID,
+        marker="o",
+        ms=5,
+        lw=1.4,
+        color=theme.DEEP_RED,
         ls="-",
-        alpha=0.75,
         label="realised I",
     )
     ax.set_xlim(*xlim)
@@ -92,10 +76,10 @@ def _compound_sweep_panel(
 
     ax_acc = ax.twinx()
     ax_acc.plot(
-        sig, a_means, marker="s", ms=5, lw=1.4, color=theme.DEEP_RED, label="accuracy"
+        sig, a_means, marker="s", ms=5, lw=1.4, color=theme.GREY_MID, label="accuracy"
     )
-    ax_acc.set_ylabel("accuracy (%)", color=theme.DEEP_RED, fontsize=theme.SIZE_LABEL)
-    ax_acc.tick_params(axis="y", labelcolor=theme.DEEP_RED)
+    ax_acc.set_ylabel("accuracy (%)", color=theme.GREY_MID, fontsize=theme.SIZE_LABEL)
+    ax_acc.tick_params(axis="y", labelcolor=theme.GREY_MID)
     ax_acc.set_ylim(0, 100)
     ax.spines["top"].set_visible(False)
     ax_acc.spines["top"].set_visible(False)
@@ -133,13 +117,11 @@ def fig_rhythm_compound(
         axes[0, 0],
         raster_cell,
         "Independent-spike jitter",
-        f"independent offsets σ = {raster_cell['sigma_ms']:g} ms",
     )
     _compound_raster_panel(
         axes[0, 1],
         raster_cyc,
         "Fixed-window group jitter",
-        f"shared window offsets σ = {raster_cyc['sigma_ms']:g} ms",
     )
     _compound_sweep_panel(
         axes[1, 0],

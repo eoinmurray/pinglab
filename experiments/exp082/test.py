@@ -26,7 +26,7 @@ from experiments.exp082 import (
     present,
     recipe,
 )
-from PIL import Image, ImageDraw
+from PIL import Image
 from pingstore import stages
 from pingstore.contracts import (
     PingstoreError,
@@ -341,23 +341,34 @@ def fake_plots(monkeypatch):
     )
 
 
-def test_continuous_stream_compound_stacks_summary_on_right(tmp_path):
-    hero = Image.new("RGB", (1000, 800), "black")
-    summary = Image.new("RGB", (1200, 500), "red")
-    ImageDraw.Draw(summary).rectangle((672, 0, 1200, 500), fill="blue")
-    hero_path = tmp_path / "hero.png"
-    summary_path = tmp_path / "summary.png"
-    hero.save(hero_path)
-    summary.save(summary_path)
+def test_continuous_stream_compound_preserves_evidence(tmp_path, monkeypatch):
+    import matplotlib.pyplot as plt
 
+    n = 100
+    shares = np.full((n, 10), 0.1)
+    stream = {
+        "conditions": ((5, 5), (5, 25)), "boundaries": (0, 50, 100),
+        "labels": (1, 2), "predictions": (1, 2), "pixels": np.zeros((2, 784)),
+        "spikes_e": np.zeros((n, 200)), "spikes_i": np.zeros((n, 64)),
+        "probabilities": shares,
+    }
+    rows = {"durations": (25, 200), "rates": (0.5, 25),
+            "grid": [[0.2, 0.4], [0.6, 0.8]], "grid_sem": [0.01, 0.02]}
+    saved = []
+    monkeypatch.setattr(plt, "close", lambda fig: saved.append(fig))
     output = tmp_path / "compound"
-    present.build_continuous_stream_compound(hero_path, summary_path, output)
-
+    present.build_continuous_stream_compound(stream, rows, output)
+    fig = saved[-1]
+    assert np.allclose(fig.get_size_inches() * 25.4, (180, 120), atol=0.2)
+    assert {text.get_text() for text in fig.texts} == set("ABCDEF")
+    assert np.allclose(fig.axes[4].images[0].get_array(), np.array(rows["grid"]) * 100)
+    assert np.allclose(fig.axes[5].lines[0].get_ydata(), (0.4, 0.8))
+    # Each displayed trace stops at the boundary instead of joining count resets.
+    for line in fig.axes[3].lines[:-1]:
+        assert np.ptp(line.get_xdata()) < 5
+    assert np.array_equal(shares, np.full((n, 10), 0.1))
     with Image.open(output.with_suffix(".png")) as compound:
-        assert compound.size == (1540, 800)
-        assert compound.getpixel((500, 400)) == (0, 0, 0)
-        assert compound.getpixel((1270, 200))[0] > 200
-        assert compound.getpixel((1270, 600))[2] > 200
+        assert np.allclose(compound.size, fig.get_size_inches() * 600, atol=1)
     assert output.with_suffix(".pdf").stat().st_size > 100
 
 

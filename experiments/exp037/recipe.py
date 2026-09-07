@@ -1,4 +1,6 @@
-"""Preserved exp037 perturbation recipe; no execution or storage on import."""
+"""Explicit absolute-rate and baseline-relative perturbation recipes."""
+
+import math
 
 from experiments.exp022 import FR_STRENGTH_UPPER as FR_STRENGTH_UPPER
 from experiments.exp022 import training_run_cell, training_run_values
@@ -79,9 +81,11 @@ def bank_cells():
     ]
 
 
-def configuration(*, smoke=False):
-    return {
-        "schema": "exp037.recipe/v1",
+def configuration(*, smoke=False, version=2):
+    if version not in (1, 2):
+        raise ValueError("unsupported exp037 recipe version")
+    cfg = {
+        "schema": f"exp037.recipe/v{version}",
         "profile": "smoke" if smoke else "production",
         "checkpoint_policy": CHECKPOINT_POLICY,
         "evaluation_samples": 100 if smoke else EVAL_MAX_SAMPLES,
@@ -93,11 +97,42 @@ def configuration(*, smoke=False):
         "raster_drop_levels": PERTURB_RASTER_DROP_LEVELS,
         "raster_add_levels": PERTURB_RASTER_ADD_LEVELS,
     }
+    if version == 2:
+        cfg.update(
+            add_levels=[0.0, 100.0, 200.0]
+            if smoke
+            else [float(i) for i in range(0, 201, 10)],
+            raster_add_levels=[0.0, 100.0, 200.0],
+            add_units="percent_of_per_seed_test_baseline_e_rate",
+            calibration="unperturbed selected checkpoint, same evaluation images and encoding stream",
+            shard_partition="one_model_seed",
+        )
+    return cfg
+
+
+def relative(cfg):
+    return cfg["schema"] == "exp037.recipe/v2"
 
 
 def jobs(cfg):
     result = []
     for model in MODELS:
+        if relative(cfg):
+            for seed in cfg["seeds"]:
+                identity = f"calibration__{model}__seed{seed}__drop__0"
+                result.append(
+                    {
+                        "id": identity,
+                        "path": f"jobs/{identity}",
+                        "kind": "calibration",
+                        "model": model,
+                        "seed": seed,
+                        "mode": "drop",
+                        "level": 0.0,
+                        "cell_name": cell_name(model, None, seed),
+                        "samples": cfg["evaluation_samples"],
+                    }
+                )
         for kind, seeds in (
             ("sweep", cfg["seeds"]),
             ("raster", [cfg["illustrative_seed"]]),
@@ -129,7 +164,33 @@ def jobs(cfg):
                                 ),
                             }
                         )
+    if relative(cfg):
+        for job in result:
+            job["count_perturbations"] = True
+            if job["mode"] == "add":
+                job["level_units"] = cfg["add_units"]
     return result
+
+
+def shard_jobs(cfg, index):
+    if not 0 <= index < SHARDS:
+        raise ValueError("invalid exp037 shard index")
+    if not relative(cfg):
+        return jobs(cfg)[index::SHARDS]
+    model, seed = [(m, s) for m in MODELS for s in cfg["seeds"]][index]
+    return [j for j in jobs(cfg) if (j["model"], j["seed"]) == (model, seed)]
+
+
+def resolve_job(job, baseline_e_rate_hz, dt_ms):
+    """Freeze an addition job's physical rate using its own calibration."""
+    if job.get("level_units") is None:
+        return job
+    if not math.isfinite(baseline_e_rate_hz) or baseline_e_rate_hz <= 0:
+        raise ValueError("relative insertion needs a finite positive baseline E rate")
+    rate = job["level"] * baseline_e_rate_hz / 100.0
+    if not 0 <= rate * dt_ms / 1000.0 <= 1:
+        raise ValueError("insertion probability exceeds the binary timestep capacity")
+    return {**job, "baseline_e_rate_hz": baseline_e_rate_hz, "applied_level": rate}
 
 
 def infer_jobs():
@@ -142,6 +203,8 @@ def infer_jobs():
 
 
 def inference_args(train, checkpoint, output, job):
+    if job.get("level_units") and "applied_level" not in job:
+        raise ValueError("relative insertion job must be calibrated before execution")
     args = [
         "sim",
         "--infer",
@@ -152,7 +215,7 @@ def inference_args(train, checkpoint, output, job):
         "--perturb-mode",
         job["mode"],
         "--perturb-level",
-        str(job["level"]),
+        str(job.get("applied_level", job["level"])),
         "--max-samples",
         str(job["samples"]),
     ]

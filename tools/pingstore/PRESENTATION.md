@@ -69,8 +69,7 @@ restarted with the source override; a page reload cannot upgrade its Python code
   `.demolab/pinglab-inputs.json`. It never modifies Pingstore.
 - `writings/run-defaults.json`: optional explicit article/input defaults. An empty
   object retains Pinglab's prior Latest behavior, now implemented in user code.
-- `demolab.yaml`: allowed URL inputs and the preparation command. The inactive
-  `legacy_preview` block is retained for the later retirement/rollback decision.
+- `demolab.yaml`: allowed URL inputs and the preparation command.
 
 For example, a committed default can be expressed as:
 

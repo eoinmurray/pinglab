@@ -5,6 +5,7 @@ import contextlib
 import fcntl
 import os
 import shutil
+import socket
 import sys
 import tempfile
 from pathlib import Path
@@ -25,6 +26,25 @@ from pingstore.stages import _capture_code, reserve_stage, stage_reservation, ut
 
 def _run_jobs(bank, directory, jobs, contract):
     for job in jobs:
+        if job.get("level_units"):
+            calibration = {
+                **job,
+                "id": f"calibration__{job['model']}__seed{job['seed']}__drop__0",
+                "kind": "calibration",
+                "mode": "drop",
+                "level": 0.0,
+            }
+            calibration.pop("level_units")
+            m = evidence.metric(
+                directory / "export/jobs" / calibration["id"] / "metrics.json",
+                contract["configs"][job["cell_name"]],
+                calibration,
+            )
+            job = recipe.resolve_job(
+                job,
+                float(m["rates_hz"]["hid"]),
+                contract["configs"][job["cell_name"]]["dt"],
+            )
         output = directory / "export" / job["path"]
         attachments = directory / ".scratch/simulations" / job["path"]
         if output.exists() or attachments.exists():
@@ -150,7 +170,7 @@ def shard(identity, *, run_id, index, count=recipe.SHARDS):
                 raise PingstoreError(
                     "distributed exp037 compute requires committed execution code"
                 )
-            job_list = recipe.jobs(cfg)[index::count]
+            job_list = recipe.shard_jobs(cfg, index)
             expected = {
                 "run_id": run_id,
                 "bank": bank.reference,
@@ -170,6 +190,18 @@ def shard(identity, *, run_id, index, count=recipe.SHARDS):
                 _verify_shard(directory, previous, job_list)
                 return previous
             started = utc_now()
+            import torch
+
+            device = (
+                {
+                    "type": "cuda",
+                    "name": torch.cuda.get_device_name(),
+                    "torch": torch.__version__,
+                    "cuda": torch.version.cuda,
+                }
+                if torch.cuda.is_available()
+                else {"type": "cpu", "torch": torch.__version__}
+            )
             _run_jobs(bank, directory, job_list, contract)
             for ancestor in inputs.lineage(REPO, identity, bank.reference).values():
                 ancestor.check_unchanged()
@@ -177,6 +209,8 @@ def shard(identity, *, run_id, index, count=recipe.SHARDS):
                 **expected,
                 "started_at": started,
                 "completed_at": utc_now(),
+                "host": socket.gethostname(),
+                "device": device,
                 "command": [sys.executable, *sys.argv],
                 "scheduler": {
                     k: os.environ[k]
@@ -220,13 +254,12 @@ def compute(identity, *, run_id=None, collect=False):
                     or record.get("count") != recipe.SHARDS
                 ):
                     raise PingstoreError("shard bank, recipe or identity mismatch")
-                _verify_shard(
-                    directory, record, recipe.jobs(cfg)[index :: recipe.SHARDS]
-                )
+                _verify_shard(directory, record, recipe.shard_jobs(cfg, index))
         with inputs.execution(
             REPO, "compute", sources={"bank": bank}, run_id=run_id, configuration=cfg
         ) as run:
             if collect:
+                workers = []
                 for index in range(recipe.SHARDS):
                     marker = load_json(
                         run.scratch / "shards" / str(index) / "completed.json"
@@ -235,11 +268,39 @@ def compute(identity, *, run_id=None, collect=False):
                         raise PingstoreError(
                             "worker and collector execution code differ"
                         )
+                    workers.append(
+                        {
+                            key: marker[key]
+                            for key in (
+                                "index",
+                                "started_at",
+                                "completed_at",
+                                "host",
+                                "device",
+                                "scheduler",
+                                "command",
+                                "jobs",
+                            )
+                        }
+                    )
+                run.record["execution"]["shards"] = workers
+                run.record["execution"]["collector_started_at"] = run.record[
+                    "execution"
+                ]["started_at"]
+                run.record["execution"]["started_at"] = min(
+                    row["started_at"] for row in workers
+                )
+                run.record["execution"]["workers_completed_at"] = max(
+                    row["completed_at"] for row in workers
+                )
             environment = {"PINGLAB_SMOKE": "1" if cfg["profile"] == "smoke" else "0"}
             run.record["execution"]["environment"] = environment
             if not collect:
                 _run_jobs(bank, run.directory, recipe.jobs(cfg), contract)
-            for job in recipe.jobs(cfg):
+            resolved = evidence.resolved_jobs(
+                cfg, contract, lambda j: run.export / j["path"] / "metrics.json"
+            )
+            for job in resolved:
                 train = contract["configs"][job["cell_name"]]
                 evidence.inference_config(
                     load_json(
@@ -252,10 +313,10 @@ def compute(identity, *, run_id=None, collect=False):
             write_json_atomic(
                 run.export / "evidence.json",
                 {
-                    "schema": "exp037.compute/v1",
+                    "schema": "exp037.compute/v2",
                     "recipe": cfg,
                     "training_contract": contract,
-                    "jobs": recipe.jobs(cfg),
+                    "jobs": resolved,
                 },
             )
     return run.run_id

@@ -378,7 +378,14 @@ def test_independent_stages_preserve_roles_and_never_publish(lab, monkeypatch):
     assert {r["epoch"] for r in result["checkpoint_provenance"]} == {50}
     assert result["plot_data"]["cards"]["frozen_ping"]["curves"]["rate_e"]["last"] == 25
     assert result["epoch_curves"]["frozen_ping__seed42"]["rate_e"][-1] == 50 / 3
-    for name in ("endpoint", "trajectories", "raster", "card", "weight_distributions"):
+    for name in (
+        "endpoint",
+        "trajectories",
+        "raster",
+        "card",
+        "weight_distributions",
+        "final_outcomes",
+    ):
         monkeypatch.setattr(
             measurements, name, lambda *a, **k: pytest.fail("presentation measurement")
         )
@@ -628,3 +635,15 @@ def test_weight_summaries_keep_e_to_i_and_i_to_e_pruning_separate():
     assert w_ei["trained_zero_fraction"] == 2 / 3
     assert w_ie["trained_zero_fraction"] == 0.0
     assert w_ei["trained_mean"] != w_ie["trained_mean"]
+
+
+def test_final_outcomes_uses_sample_sem_and_raw_final_contrast():
+    endpoints = [dict(acc=v, e_rate_hz=2 * v, i_rate_hz=0) for v in (1, 2, 3)]
+    metrics = [{"epochs": [{"contrast": 99}, {"contrast": v}]} for v in (0.1, 0.2, 0.3)]
+    result = measurements.final_outcomes(endpoints, metrics)
+    assert result["acc"]["n"] == 3
+    assert result["acc"]["mean"] == 2
+    assert result["acc"]["sem"] == pytest.approx(1 / np.sqrt(3))
+    assert result["contrast"]["mean"] == pytest.approx(0.2)
+    assert result["contrast"]["sem"] == pytest.approx(0.1 / np.sqrt(3))
+    assert result["i_rate_hz"]["sem"] == 0

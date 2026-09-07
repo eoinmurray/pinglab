@@ -228,4 +228,4 @@
   - `tools/snnlang/tests` and `tools/snnsim/tests/test_execution.py`: focused conformance fixtures.
 ]
 
-#let body = journal-article("exp090", (), body)
+#let body = journal-article("exp090", (), body, dataset: false)

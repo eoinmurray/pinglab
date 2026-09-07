@@ -8,7 +8,7 @@
 #let data-file = data-file.with(article: "exp037")
 
 #let meta = (
-  tags: ("data", "v35.4.0"),
+  tags: ("data", "v36.0.0"),
   title: "Dropped Spikes vs Added Noise",
   created_at: "2026-05-30T00:00:00Z",
   updated_at: "2026-09-02T00:00:00Z",
@@ -28,6 +28,7 @@
 // Keep calculations lazy: absent inputs never become fabricated results.
 #let render-report(data-file) = [
 #let run = data-json(data-file("exp037/numbers.json"))
+#let relative = run.at("addition_axis", default: "reference_image_percent") == "per_seed_test_baseline_percent"
 #let cfg = run.config
 #let rounded(value) = calc.round(value, digits: 1)
 #let mean(values) = values.sum() / values.len()
@@ -62,10 +63,15 @@
   spikes are removed or spurious spikes are inserted during inference. We replayed validation-selected networks under matched deletion and insertion
   perturbations without retraining them.
 
-  Both architectures tolerated substantial deletion, while added spikes damaged
+  #if relative [
+  We compared insertion at equal fractions of each network’s unperturbed
+  excitatory firing rate. The accuracy curves measure tolerance to deletion and
+  relative insertion; they do not isolate recurrent timing from firing-rate
+  and readout effects.
+  ] else [Both architectures tolerated substantial deletion, while added spikes damaged
   PING accuracy much more sharply than COBA accuracy. This reveals an asymmetric
   robustness profile, but does not separate recurrent timing from firing-rate
-  and readout effects.
+  and readout effects.]
   ])
 
   == Results
@@ -77,21 +83,27 @@
 
   Unperturbed PING/COBA accuracies were #acc("ping", "drop", 0)%/
   #acc("coba", "drop", 0)%.
-  Because the added-rate axis uses different reference-image rates for PING and
-  COBA, the common 0–#add_max Hz sweep does not match relative perturbation doses.
-  #if knee != none [PING's first sampled mean below 80% occurred at #knee Hz.
+  #if relative [At #add_max% nominal insertion, PING/COBA accuracies were
+  #acc("ping", "add", add_max)%/#acc("coba", "add", add_max)%.
+  Both models were evaluated on the same prescribed percentage grid.
+  ] else [Because the added-rate axis uses different reference-image rates for PING and
+  COBA, the common 0–#add_max Hz sweep does not match relative perturbation doses.]
+  #if knee != none [PING's first sampled mean below 80% occurred at #knee#if relative [%] else [ Hz].
   This is a grid crossing, not an estimated critical threshold (#result-figure-ref(<fig:exp037-result-1>)).]#figure(
     report-image("exp037/perturbation_curves.svg",
-      "Mean test-accuracy lines with translucent sample-standard-deviation bands: both models tolerate substantial deletion; PING declines more steeply under added spikes.", ratio: 0.55),
+      "Mean test accuracy under deletion and insertion, with sample-standard-deviation bands across three seeds.", ratio: 0.55),
     caption: [
-      *(A)* Random hidden-spike deletion. *(B)* Independent Poisson spike
+      *(A)* Random hidden-spike deletion. *(B)* Independent Bernoulli spike
       insertion. Lines and markers show means across seeds 42–44,
       #eval_n test images per seed; translucent bands show ±1 sample SD.
       The PING uncertainty band is grey and is most visible in *(B)*.
       The dashed line is nominal 10% chance.
-      The added-rate axis divides by final-epoch reference-image E rates
+      #if relative [The insertion axis is the prescribed percentage of each
+      model–seed network’s own unperturbed test-set E rate. Lines average
+      accuracy at matched percentages; nominal Hz can differ across seeds.
+      ] else [The added-rate axis divides by final-epoch reference-image E rates
       (#rounded(reference-rate("ping"))/#rounded(reference-rate("coba")) Hz),
-      not test-set baseline rates.
+      not test-set baseline rates.]
     ],
   ) <fig:exp037-result-1>
 
@@ -100,8 +112,9 @@
   #result-card[
   === PING spike-deletion rasters
 
-  Banding remained visible at partial deletion, although these illustrative
-  rasters provide no quantitative phase-coherence or gamma-frequency estimate (#result-figure-ref(<fig:exp037-result-2>)).
+  #if relative [These single-image rasters provide no quantitative
+  phase-coherence or gamma-frequency estimate] else [Banding remained visible at partial deletion, although these illustrative
+  rasters provide no quantitative phase-coherence or gamma-frequency estimate] (#result-figure-ref(<fig:exp037-result-2>)).
 
   #figure(
     report-image("exp037/perturb_rasters__drop__ping.png",
@@ -118,15 +131,16 @@
   #result-card[
   === PING inserted-spike rasters
 
-  Inserted spikes increasingly obscured the bands, but this alone does not
-  establish that an underlying oscillator disappeared (#result-figure-ref(<fig:exp037-result-3>)).
+  #if relative [These rasters contain both emitted and inserted spikes; their
+  appearance alone cannot establish whether an underlying oscillator persisted] else [Inserted spikes increasingly obscured the bands, but this alone does not
+  establish that an underlying oscillator disappeared] (#result-figure-ref(<fig:exp037-result-3>)).
 
   #figure(
     report-image("exp037/perturb_rasters__add__ping.png",
-      "Three PING rasters at nominal added rates 0, 20 and 40 Hz: dense inserted spikes increasingly obscure the unperturbed banding."),
+      "Three PING rasters at increasing nominal insertion levels, including inserted spikes."),
     caption: [
-      The same seed and test image at nominal added rates *(A)* 0, *(B)* 20
-      and *(C)* #add_max Hz per neuron, applied independently to E and I. The displayed stream
+      The same seed and test image at nominal added rates *(A)* 0,
+      *(B)* #if relative [100] else [20] and *(C)* #add_max#if relative [% of seed 42’s unperturbed test-set E rate] else [ Hz per neuron], applied independently to E and I. The displayed stream
       includes inserted spikes. Display sampling and E-rate annotation follow
       the preceding figure.
     ],
@@ -137,9 +151,10 @@
   #result-card[
   === COBA spike-deletion rasters
 
-  E activity thinned as deletion increased and vanished at full deletion. This
+  #if relative [Full deletion removes all transmitted spikes. Partial-deletion
+  raster appearance alone does not establish classification accuracy] else [E activity thinned as deletion increased and vanished at full deletion. This
   qualitative pattern does not imply accuracy was unchanged across the deletion
-  sweep (#result-figure-ref(<fig:exp037-result-4>)).
+  sweep] (#result-figure-ref(<fig:exp037-result-4>)).
 
   #figure(
     report-image("exp037/perturb_rasters__drop__coba.png",
@@ -155,16 +170,18 @@
   #result-card[
   === COBA inserted-spike rasters
 
-  Under insertion, E activity increased and imposed I spikes appeared despite
+  #if relative [The E-normalized insertion rate is also applied to I neurons,
+  even though the recurrent E→I→E coupling is disabled. Matching the requested
+  percentage does not match the realized increase in activity] else [Under insertion, E activity increased and imposed I spikes appeared despite
   disabled recurrent coupling. The denser unperturbed COBA population means
-  equal nominal rates are not equal fractional perturbations across models (#result-figure-ref(<fig:exp037-result-5>)).
+  equal nominal rates are not equal fractional perturbations across models] (#result-figure-ref(<fig:exp037-result-5>)).
 
   #figure(
     report-image("exp037/perturb_rasters__add__coba.png",
-      "Three COBA rasters at nominal added rates 0, 20 and 40 Hz: E activity grows and imposed I spikes appear despite disabled recurrent coupling."),
+      "Three COBA rasters at increasing nominal insertion levels with the recurrent E-I loop disabled."),
     caption: [
-      The same COBA trial at nominal added rates *(A)* 0, *(B)* 20 and
-      *(C)* #add_max Hz per neuron.
+      The same COBA trial at nominal added rates *(A)* 0,
+      *(B)* #if relative [100] else [20] and *(C)* #add_max#if relative [% of seed 42’s unperturbed test-set E rate] else [ Hz per neuron].
       Insertions were applied independently to E and I; the recurrent E→I→E
       coupling remained disabled.
     ],
@@ -205,7 +222,9 @@
     neuron–image–timestep slot $j$; $u_j$ is an independent uniform draw on
     $[0,1)$ and $bb(1)$ is an indicator. Deletion probability $p_"drop"$ ran
     from 0 to 1 in steps of 0.1; nominal insertion rate $r_"add"$ ran from
-    0 to #add_max Hz in steps of 2, with $Delta t_"sim"$ in ms.
+    #if relative [0 to #add_max% of each network’s fixed unperturbed test E rate
+    in steps of 10 percentage points] else [0 to #add_max Hz in steps of 2],
+    with $Delta t_"sim"$ in ms.
     Insertion is a Bernoulli approximation to Poisson arrivals, capped at one
     spike per slot; collisions with existing spikes add nothing.
 
@@ -227,14 +246,23 @@
 
   #set enum(start: 4)
 
-  + *Normalize the nominal added rate.* We preserved the original normalization:
+  + *Normalize the nominal added rate.* #if relative [For each model and seed,
+    we first measured its selected checkpoint’s mean E rate over the same
+    #eval_n test images without perturbation. We held this baseline fixed and
+    set nominal insertion Hz to the requested percentage times the baseline,
+    divided by 100. The same Hz was applied independently to E and I.
+    We recorded raw, transmitted, inserted and deleted spikes separately for
+    both populations. Successful insertions exclude collisions and do not equal
+    the change in total activity caused by feedback. Each network’s baseline
+    was calibrated separately; accuracy was then aggregated by prescribed percentage.
+    ] else [We preserved the original normalization:
     $ x_"add" = frac(100 r_"add", overline(r)_(E,"ref")) $ <eq-normalize>
     Here $x_"add"$ is the displayed percentage and $overline(r)_(E,"ref")$ is the
     model's three-seed mean E rate in Hz from final-epoch reference-image
     diagnostics. This differs in image and sometimes epoch from the selected
     classifiers' test evaluations; it is not a test-set firing-rate baseline.
     The full sampled range is displayed, without treating normalization as a
-    matched-dose experiment.
+    matched-dose experiment.]
 
   #run-view("exp037", inputs)
 

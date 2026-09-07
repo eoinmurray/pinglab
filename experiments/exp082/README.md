@@ -182,3 +182,15 @@ index 0 classified digits 1, 7, 9, 5, 2 correctly; index 8 supplied the 3/5
 counterexample. `exp082-r019-analyse` combines these with the unchanged
 `exp082-r001-compute` evaluation grid. `exp082-r020-present` renders the figures
 and compound figure consumed by exp110. No training or grid inference was run.
+
+## 2026-09-07 — publication compound layout
+
+`exp082-r023-present` redraws the continuous-stream compound directly from
+`exp082-r019-analyse` and its pinned recordings on an approximately 180 × 120 mm
+canvas. The six panels use consistent print typography, square digit thumbnails
+within duration-proportional bands, aligned stream axes, and independently spaced
+heatmap and rate-accuracy panels. Count-share traces stop at digit boundaries.
+The PNG is 600 dpi; PDF text and curves remain vector, with embedded fonts and
+rasterized spike marks. This replaces the crop-and-paste assembly and its stray
+axis-label fragments. Numerical results and source recordings are unchanged.
+The compound is used by exp082 Figure 1 and exp110 Figure 9.

@@ -11,17 +11,20 @@ from experiments.helpers.operating_point import TAU_GABA_GAMMA_MS
 from .recipe import F_GAMMA_BAND_HZ
 
 
-def plot_quantitative_law(rows: list[dict], fit: dict, out_path: Path) -> None:
+def plot_quantitative_law(
+    rows: list[dict], fit: dict, out_path: Path, *, axes=None
+) -> None:
     """Seed-mean E rate and accuracy versus gamma frequency, with the saved affine fit."""
     theme.apply()
 
-    fig, (ax_rate, ax_acc) = plt.subplots(
-        2,
-        1,
-        figsize=(6.5, 4.2),
-        sharex=True,
-        gridspec_kw={"hspace": 0.12, "height_ratios": [1.6, 1.0]},
-    )
+    standalone = axes is None
+    if standalone:
+        fig, axes = plt.subplots(
+            2, 1, figsize=(6.5, 4.2), sharex=True,
+            gridspec_kw={"hspace": 0.12, "height_ratios": [1.6, 1.0]},
+        )
+    ax_rate, ax_acc = axes
+    fig = ax_rate.figure
 
     f_gammas: list[float] = []
     for row in rows:
@@ -39,7 +42,7 @@ def plot_quantitative_law(rows: list[dict], fit: dict, out_path: Path) -> None:
             markersize=6,
             color=theme.INK_BLACK,
             capsize=3,
-            label=f"τ_GABA = {tau:g} ms" if tau == TAU_GABA_GAMMA_MS else None,
+            label=f"τ_GABA = {tau:g} ms" if standalone and tau == TAU_GABA_GAMMA_MS else None,
         )
         ax_rate.annotate(
             f" {tau:g} ms",
@@ -72,28 +75,39 @@ def plot_quantitative_law(rows: list[dict], fit: dict, out_path: Path) -> None:
             lw=1.2,
             ls="--",
             label=(
-                f"$r_E = a + p · f_γ$  (a = {a_fit:.2f} Hz, "
-                f"p = {p_fit:.3f}, R² = {r2:.3f})"
+                "$r_E = a + p · f_γ$"
+                + ("  " if standalone else "\n")
+                + f"(a = {a_fit:.2f} Hz, p = {p_fit:.3f},"
+                + (" " if standalone else "\n")
+                + f"R² = {r2:.3f})"
             ),
         )
     ax_rate.set_ylabel("Hidden E rate (Hz)", fontsize=theme.SIZE_LABEL)
     ax_acc.set_ylabel("Test accuracy (%)", fontsize=theme.SIZE_LABEL)
-    ax_acc.set_xlabel(
-        "Measured $f_γ$ (Hz) — peak of trained-network population PSD",
-        fontsize=theme.SIZE_LABEL,
-    )
+    if standalone:
+        ax_acc.set_xlabel(
+            "Measured $f_γ$ (Hz) — peak of trained-network population PSD",
+            fontsize=theme.SIZE_LABEL,
+        )
+    else:
+        for ax in axes:
+            ax.set_xlabel("Measured $f_γ$ (Hz)", fontsize=theme.SIZE_LABEL)
     ax_acc.set_ylim(0, 100)
     ax_acc.axhline(10.0, color=theme.GREY_MID, lw=0.5, ls=":", alpha=0.6)
     for ax in (ax_rate, ax_acc):
         ax.spines["top"].set_visible(False)
         ax.spines["right"].set_visible(False)
         ax.tick_params(labelsize=theme.SIZE_TICK)
+    if not standalone:
+        ax_rate.margins(x=0.15, y=0.35)
+        ax_acc.set_xlim(ax_rate.get_xlim())
     ax_rate.legend(fontsize=theme.SIZE_LEGEND, frameon=False, loc="upper left")
     theme.label_panels((ax_rate, ax_acc))
-    fig.tight_layout()
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    save_figure(fig, out_path)
-    plt.close(fig)
+    if standalone:
+        fig.tight_layout()
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        save_figure(fig, out_path)
+        plt.close(fig)
 
 
 def plot_training_curves(

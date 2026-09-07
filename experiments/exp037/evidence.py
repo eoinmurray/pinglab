@@ -158,7 +158,7 @@ def inference_config(config, train, job):
         "scale_projection": [],
         "max_samples": job["samples"],
         "perturb_mode": job["mode"],
-        "perturb_level": [job["level"]],
+        "perturb_level": [job.get("applied_level", job["level"])],
         "sample_index": job.get("sample_index"),
     }
     for k, v in expected.items():
@@ -210,7 +210,79 @@ def metric(path, train, job):
     rates = m.get("rates_hz", {})
     hid = max((k for k in rates if k.startswith("hid")), default=None)
     finite(rates.get(hid), "hidden E rate")
+    if job.get("count_perturbations"):
+        finite(rates.get("inh"), "hidden I rate")
+        p = m.get("perturbation", {})
+        if (
+            p.get("mode") != job["mode"]
+            or not _same(p.get("level"), job.get("applied_level", job["level"]))
+            or not _same(p.get("dt_ms"), train["dt"])
+        ):
+            raise PingstoreError("perturbation metric dose differs")
+        populations = p.get("populations", {})
+        if set(populations) != {"e1", "i1"}:
+            raise PingstoreError(
+                "perturbation accounting requires both hidden populations"
+            )
+        for key, size in (("e1", train["n_hidden"]), ("i1", train["n_inh"])):
+            row = populations[key]
+            expected_slots = round(train["t_ms"] / train["dt"]) * n * size
+            if set(row) != {
+                "raw_spikes",
+                "transmitted_spikes",
+                "inserted_spikes",
+                "deleted_spikes",
+                "slots",
+            } or any(
+                type(v) is not int or not 0 <= v <= expected_slots for v in row.values()
+            ):
+                raise PingstoreError("invalid perturbation counters")
+            if (
+                row["slots"] != expected_slots
+                or row["transmitted_spikes"]
+                != row["raw_spikes"] + row["inserted_spikes"] - row["deleted_spikes"]
+            ):
+                raise PingstoreError("perturbation accounting does not conserve spikes")
+            if (
+                row["inserted_spikes"] > expected_slots - row["raw_spikes"]
+                or row["deleted_spikes"] > row["raw_spikes"]
+            ):
+                raise PingstoreError("perturbation counters exceed available slots")
+            if (job["mode"] == "drop" and row["inserted_spikes"]) or (
+                job["mode"] == "add" and row["deleted_spikes"]
+            ):
+                raise PingstoreError("perturbation counters contradict intervention")
+            if job["level"] == 0 and (row["inserted_spikes"] or row["deleted_spikes"]):
+                raise PingstoreError("zero dose changed spikes")
+            recorded_rate = row["transmitted_spikes"] / (
+                n * size * train["t_ms"] / 1000
+            )
+            if not np.isclose(
+                recorded_rate,
+                rates[hid if key == "e1" else "inh"],
+                rtol=1e-5,
+                atol=1e-5,
+            ):
+                raise PingstoreError("transmitted spikes disagree with population rate")
     return m
+
+
+def resolved_jobs(cfg, contract, read_metric):
+    """Validate each baseline before resolving all requested percentage doses."""
+    jobs = recipe.jobs(cfg)
+    baselines = {}
+    for job in jobs:
+        if job["kind"] == "calibration":
+            m = metric(read_metric(job), contract["configs"][job["cell_name"]], job)
+            baselines[job["cell_name"]] = float(m["rates_hz"]["hid"])
+    return [
+        recipe.resolve_job(
+            j, baselines[j["cell_name"]], contract["configs"][j["cell_name"]]["dt"]
+        )
+        if j.get("level_units")
+        else j
+        for j in jobs
+    ]
 
 
 def recordings(directory, train, job):

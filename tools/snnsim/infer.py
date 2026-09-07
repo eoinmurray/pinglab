@@ -90,31 +90,58 @@ def _resolve_hidden_sizes(hidden_sizes, load_weights, default_sizes):
     return hidden_sizes
 
 
-def _make_perturb_fn(mode, level, dt_ms, generator):
+def _make_perturb_fn(mode, level, dt_ms, generator, counts=None):
     """Per-step hidden-spike perturbation callback (s_e, s_i, layer) -> (s_e', s_i').
 
     A closed family of dynamics-faithful perturbations installed on
     net._hidden_perturb_fn (models.py runs it right after spikes are emitted, so
     the I-loop and readout react within the trial):
       - drop: Bernoulli mask, each spike kept with prob (1 - level)
-      - add: inject Poisson noise spikes at `level` Hz per cell
+      - add: Bernoulli insertion at nominal `level` Hz per cell, capped at one spike
     """
+    import math
+
     import torch
+    probability = level if mode == "drop" else level * dt_ms / 1000.0
+    if not math.isfinite(probability) or not 0 <= probability <= 1:
+        raise ValueError("perturbation probability must be between zero and one")
+
+    def record(before, after, population, layer):
+        if counts is not None:
+            key = f"{population}{layer}"
+            values = torch.stack((
+                before.sum(dtype=torch.int64), after.sum(dtype=torch.int64),
+                ((before == 0) & (after > 0)).sum(dtype=torch.int64),
+                ((before > 0) & (after == 0)).sum(dtype=torch.int64),
+            ))
+            if key not in counts:
+                counts[key] = {"counts": values, "slots": before.numel()}
+            else:
+                counts[key]["counts"].add_(values)
+                counts[key]["slots"] += before.numel()
 
     if mode == "drop":
         def fn(s_e, s_i, _layer):
+            before_e, before_i = s_e, s_i
             s_e = s_e * (torch.rand(s_e.shape, generator=generator, device=s_e.device) >= level).float()
             if s_i is not None:
                 s_i = s_i * (torch.rand(s_i.shape, generator=generator, device=s_i.device) >= level).float()
+            record(before_e, s_e, "e", _layer)
+            if s_i is not None:
+                record(before_i, s_i, "i", _layer)
             return s_e, s_i
         return fn
 
     if mode == "add":
         p = level * dt_ms / 1000.0
         def fn(s_e, s_i, _layer):
+            before_e, before_i = s_e, s_i
             s_e = torch.clamp(s_e + (torch.rand(s_e.shape, generator=generator, device=s_e.device) < p).float(), 0.0, 1.0)
             if s_i is not None:
                 s_i = torch.clamp(s_i + (torch.rand(s_i.shape, generator=generator, device=s_i.device) < p).float(), 0.0, 1.0)
+            record(before_e, s_e, "e", _layer)
+            if s_i is not None:
+                record(before_i, s_i, "i", _layer)
             return s_e, s_i
         return fn
 
@@ -267,10 +294,11 @@ def infer(
 
     # Optional hidden-spike perturbation: install the callback so drop/add noise
     # is applied inside the forward loop (I-loop + readout react within the trial).
+    perturbation_counts = {}
     if perturb_mode is not None:
         _pgen = torch.Generator(device=device).manual_seed(EVAL_SEED + 1)
         net._hidden_perturb_fn = _make_perturb_fn(
-            perturb_mode, perturb_level, dt, _pgen
+            perturb_mode, perturb_level, dt, _pgen, perturbation_counts
         )
         log.info(f"  perturb: {perturb_mode} level={perturb_level}")
 
@@ -491,6 +519,17 @@ def infer(
         }
         metrics_blob["rates_hz"] = rates_hz
         metrics_blob["hid_rate_hz"] = hid_rate_hz
+        if perturb_mode is not None and i_override_file is None:
+            metrics_blob["perturbation"] = {
+                "mode": perturb_mode, "level": perturb_level, "dt_ms": dt,
+                "populations": {
+                    key: {
+                        **dict(zip(("raw_spikes", "transmitted_spikes", "inserted_spikes", "deleted_spikes"),
+                                   row["counts"].cpu().tolist())),
+                        "slots": row["slots"],
+                    } for key, row in perturbation_counts.items()
+                },
+            }
         with open(out_dir_path / "metrics.json", "w") as f:
             json.dump(metrics_blob, f, indent=2, default=float)
         log.info(f"  → {out_dir_path / 'metrics.json'}")

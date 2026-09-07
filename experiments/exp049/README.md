@@ -27,7 +27,7 @@ Neither the stages nor the adapter publish into `.artifacts`.
 - **Analyse:** validates recordings and their configurations; reads the pinned
   bank's 50-epoch histories; saves all numerical results, histogram counts,
   trajectory aggregates and raster display coordinates.
-- **Present:** draws only saved analysis, yielding 24 figure files and
+- **Present:** draws only saved analysis, yielding 27 figure files and
   `numbers.json` in a flat export. Existing names and the `summary`,
   `rhythmicity`, `config` and checkpoint fields remain available to writings.
 
@@ -212,3 +212,15 @@ These changes affect future execution only. Existing immutable runs and R2
 archives are unchanged. Required arrays keep their original numerical values;
 selected NPZ outputs use lossless compression. No production rerun or new
 publication was performed for this cleanup.
+
+### 2026-09-07 — endpoint and weight summary
+
+The presentation stage now emits `training_summary.svg`, `.pdf` and `.png`
+using SNNVIZ and the paper theme. It is Figure 1 in the article; the retained
+`training_curves.svg` is Figure 2. Analysis saves final official-test accuracy
+and E/I rates plus unsmoothed final reference-image contrast as means and SEM
+(sample SD divided by sqrt(n), three seeds). Weight panels reuse pooled
+before/after fractions and total means including zeros. Arrows mark relative
+changes of at least 5%; they do not represent statistical significance.
+Regenerate analyse from an explicit existing compute run before present; old
+analysis lacks the new outcome summaries. No training is required.

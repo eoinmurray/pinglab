@@ -91,7 +91,7 @@
   + *Check duration and counters.* The legacy path uses `int(t_ms / dt)` simulation steps. Avoid assuming a non-integral duration is preserved exactly. Refractory times are also discretised to steps.
   + *Check the stored weights.* Initialization means are on a summed-coupling scale; individual stored edges are fan-in normalised. Readout weights can use direct initialization instead. See #link("/exp006/")[exp006] — #link("/exp006/")[_Training._]
 
-  #link("/exp011/")[exp011] — #link("/exp011/")[_SNNSIM command-line guide_] · #link("/exp100/")[exp100] — #link("/exp100/")[_COBANet_]
+  #link("/exp003/")[exp003] — #link("/exp003/")[_SNNSIM API Reference_] · #link("/exp100/")[exp100] — #link("/exp100/")[_COBANet_]
 ]
 
-#let body = journal-article("exp004", (), body)
+#let body = journal-article("exp004", (), body, dataset: false)

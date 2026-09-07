@@ -1,7 +1,7 @@
 #import "templates/article-layout.typ": journal-article
 #let meta = (
   tags: ("txt", "v35.4.0"),
-  title: "SNNSIM command-line guide",
+  title: "SNNSIM API Reference",
   updated_at: "2026-08-28T00:00:00Z",
   created_at: "2026-07-06T00:00:00Z",
   description: "Run a small simulation, choose the legacy or graph executor, and interpret the CLI options and output files.",
@@ -29,7 +29,7 @@
     [*Interface*], [*Use it for*],
     [`--executor legacy`], [The built-in COBANet model and existing CLI recipes. This remains the default.],
     [`--executor graph --bundle PATH`], [An authored SNNLANG bundle with named inputs, outputs, and graph execution contracts. See #link("/exp107/")[exp107] — #link("/exp107/")[_Compiling and executing bundles._]],
-    [`tools.snnsim.execution`], [Python callers using `ExecutionSpec`, `build`, `simulate`, `train`, or `infer`. See #link("/exp102/")[exp102] — #link("/exp102/")[_SNNLANG developer documentation._]],
+    [`tools.snnsim.execution`], [Python callers using `ExecutionSpec`, `build`, `simulate`, `train`, or `infer`. See #link("/exp073/")[exp073] — #link("/exp073/")[_SNNLANG API Reference._]],
   )
 
   A bundle argument alone does not select the graph executor. Do not assume legacy flags, weight files, or artifact names apply unchanged to graph execution.
@@ -319,4 +319,4 @@
   #link("/exp004/")[exp004] — #link("/exp004/")[_Parameters & Units_]
 ]
 
-#let body = journal-article("exp011", (), body)
+#let body = journal-article("exp003", (), body, dataset: false)

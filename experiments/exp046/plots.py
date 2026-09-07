@@ -8,14 +8,19 @@ from experiments.helpers import theme
 from experiments.helpers.figsave import save_figure
 
 
-def plot_distribution(per_tau: dict, out_path: Path) -> None:
+def plot_distribution(
+    per_tau: dict, out_path: Path, *, axes=None, percentages=True, panel_labels=None
+) -> None:
     """Bar plot of P(spikes/cell/cycle = k) per τ_GABA, k ∈ {0, 1, 2, ≥3}."""
     theme.apply()
     taus_sorted = sorted(float(k.removeprefix("tau_")) for k in per_tau)
     n = len(taus_sorted)
-    fig, axes = plt.subplots(1, n, figsize=(6.9, 4.5 * 6.9 / (2.4 * n)), sharey=True)
-    if n == 1:
-        axes = [axes]
+    standalone = axes is None
+    if standalone:
+        fig, axes = plt.subplots(1, n, figsize=(6.9, 4.5 * 6.9 / (2.4 * n)), sharey=True)
+        if n == 1:
+            axes = [axes]
+    fig = axes[0].figure
     labels = ["0", "1", "2", "≥3"]
     cmap = plt.get_cmap("viridis")
     for i, tau in enumerate(taus_sorted):
@@ -26,16 +31,17 @@ def plot_distribution(per_tau: dict, out_path: Path) -> None:
         ax = axes[i]
         color = cmap(i / max(1, n - 1))
         ax.bar(labels, frac, color=color, edgecolor=theme.GREY_MID, lw=0.5)
-        for k, v in enumerate(frac):
-            ax.text(
-                k,
-                v + 0.01,
-                f"{v * 100:.1f}%",
-                ha="center",
-                va="bottom",
-                fontsize=theme.SIZE_ANNOTATION,
-                color=theme.INK,
-            )
+        if percentages:
+            for k, v in enumerate(frac):
+                ax.text(
+                    k,
+                    v + 0.01,
+                    f"{v * 100:.1f}%",
+                    ha="center",
+                    va="bottom",
+                    fontsize=theme.SIZE_ANNOTATION,
+                    color=theme.INK,
+                )
         ax.set_title(f"τ_GABA = {tau:g} ms", fontsize=theme.SIZE_LABEL)
         if i == 0:
             ax.set_ylabel("P(spikes per E cell per cycle)", fontsize=theme.SIZE_LABEL)
@@ -43,12 +49,13 @@ def plot_distribution(per_tau: dict, out_path: Path) -> None:
         ax.spines["right"].set_visible(False)
         ax.set_ylim(0, 1.05)
         ax.grid(True, axis="y", alpha=0.15, lw=0.4)
-    fig.supxlabel("spikes / (cell · cycle)", fontsize=theme.SIZE_LABEL)
-    theme.label_panels(axes)
-    fig.tight_layout()
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    save_figure(fig, out_path)  # bar chart: SVG + PDF
-    plt.close(fig)
+    theme.label_panels(axes, panel_labels)
+    if standalone:
+        fig.supxlabel("spikes / (cell · cycle)", fontsize=theme.SIZE_LABEL)
+        fig.tight_layout()
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        save_figure(fig, out_path)  # bar chart: SVG + PDF
+        plt.close(fig)
 
 
 def plot_ceiling_vs_fgamma(rows: list[dict], out_path: Path) -> None:

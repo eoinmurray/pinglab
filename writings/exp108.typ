@@ -137,4 +137,4 @@
   #link("/exp088/")[exp088] — #link("/exp088/")[_Training recipes and graph-native learning_]
 ]
 
-#let body = journal-article("exp108", (), body)
+#let body = journal-article("exp108", (), body, dataset: false)

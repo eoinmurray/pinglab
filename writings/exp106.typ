@@ -101,4 +101,4 @@
   #link("/exp107/")[exp107] — #link("/exp107/")[_Compiling and executing bundles_]
 ]
 
-#let body = journal-article("exp106", (), body)
+#let body = journal-article("exp106", (), body, dataset: false)

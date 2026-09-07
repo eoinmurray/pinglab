@@ -151,4 +151,4 @@
   #link("/exp100/")[exp100] — #link("/exp100/")[_COBANet_] · #link("/exp015/")[exp015] — #link("/exp015/")[_Gradient Stabilisation_]
 ]
 
-#let body = journal-article("exp006", (), body)
+#let body = journal-article("exp006", (), body, dataset: false)

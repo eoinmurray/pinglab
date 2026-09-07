@@ -5,8 +5,7 @@ contents-title: pinglab — contents
 annotations: hypothesis
 pdfs: false
 
-# User-owned data preparation and URL inputs. The old configuration below is
-# retained, inactive, until the retirement step is approved.
+# User-owned data preparation and URL inputs.
 prepare: [uv, run, python, -m, writings.demolab_pingstore]
 url_inputs:
   source.exp022: { type: path, root: .pingstore/runs }
@@ -35,59 +34,6 @@ url_inputs:
   source.exp110: { type: path, root: .pingstore/runs }
   source.exp111: { type: path, root: .pingstore/runs }
 
-legacy_preview:
-  source: .pingstore/runs
-  discover: [uv, run, pingstore, discover]
-  # Explicit attachments also render selectors before an experiment has any runs.
-  articles:
-    exp004: []
-    exp006: []
-    exp011: []
-    exp015: []
-    exp022: [exp022]
-    exp023: [exp023]
-    exp024: [exp024]
-    exp025: [exp025]
-    exp033: [exp033]
-    exp037: [exp037]
-    exp038: [exp038]
-    exp041: [exp041]
-    exp042: [exp042]
-    exp044: [exp044]
-    exp046: [exp046]
-    exp047: [exp047]
-    exp048: [exp048]
-    exp049: [exp049]
-    exp054: [exp054]
-    exp074: [exp074]
-    exp075: [exp075]
-    exp076: [exp076]
-    exp077: [exp077]
-    exp080: [exp080]
-    exp081: [exp081]
-    exp082: [exp082]
-    exp088: []
-    exp089: []
-    exp090: []
-    exp099: [exp099]
-    exp100: []
-    exp102: []
-    exp103: []
-    exp104: []
-    exp105: []
-    exp106: []
-    exp107: []
-    exp108: []
-    exp110:
-      [
-        exp023,
-        exp042,
-        exp049,
-        exp110,
-        exp082,
-      ]
-    exp111: [exp111]
-
 links:
   - label: Documentation
     url: documentation.html
@@ -105,6 +51,7 @@ collections:
   documentation:
     label: Documentation
     theme: docs
+    index: true
     homepage: false
     children: [pinglab-docs, snnlang-docs, snnsim-docs, snnviz-docs]
   pinglab-docs:

@@ -12,7 +12,7 @@ SHARD_COUNTS: dict[str, int] = {
 }
 
 PRODUCTION_CONTRACTS: dict[str, dict[str, int]] = {
-    "exp037": {"condition_jobs": 204, "simulator_launches_max": 204},
+    "exp037": {"condition_jobs": 210, "simulator_launches_max": 210},
     "exp042": {"condition_jobs": 57, "simulator_launches_max": 60},
     "exp082": {
         "condition_jobs": 132,
@@ -22,7 +22,7 @@ PRODUCTION_CONTRACTS: dict[str, dict[str, int]] = {
 }
 
 SMOKE_CONTRACTS: dict[str, dict[str, int]] = {
-    "exp037": {"condition_jobs": 54, "simulator_launches_max": 54},
+    "exp037": {"condition_jobs": 60, "simulator_launches_max": 60},
     "exp042": {"condition_jobs": 30, "simulator_launches_max": 33},
     "exp082": {
         "condition_jobs": 18,
@@ -63,6 +63,8 @@ def jobs_for_shard(slug: str, index: int, count: int) -> list[str]:
 
         recipe = importlib.import_module(f"experiments.{slug}.recipe")
         cfg = recipe.environment_configuration() if slug == "exp082" else recipe.configuration(smoke=os.environ.get("PINGLAB_SMOKE") == "1")
+        if slug == "exp037":
+            return [job["id"] for job in recipe.shard_jobs(cfg, index)]
         jobs = [job["id"] for job in recipe.jobs(cfg)]
     else:
         jobs = list(_runner(slug).infer_jobs())

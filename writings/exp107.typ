@@ -100,4 +100,4 @@
   #link("/exp108/")[exp108] — #link("/exp108/")[_Inputs, outputs, and readouts_]
 ]
 
-#let body = journal-article("exp107", (), body)
+#let body = journal-article("exp107", (), body, dataset: false)

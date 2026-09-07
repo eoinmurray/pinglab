@@ -2,7 +2,7 @@
 #import "templates/result-card.typ": result-figure-ref, result-card, with-result-sections
 #import "templates/references.typ": journal-references
 #import "/.demolab/lib.typ": data-json, data-image, cite
-#import "templates/dataset.typ": data-file, inputs-ready, pending-report, run-view, input-assets
+#import "templates/dataset.typ": data-file, inputs-ready, pending-report, input-assets
 #import "templates/abstract.typ": journal-abstract
 #import "templates/methods.typ": journal-methods
 #let data-file = data-file.with(article: "exp076")
@@ -149,7 +149,6 @@
     test isolates implementation equivalence from stochastic evaluation.
     ],
   )
-  #run-view("exp076", inputs)
 
   #journal-references(((text: [Ilya Loshchilov and Frank Hutter: _Decoupled Weight Decay Regularization_. ICLR, 2019.], doi: "10.48550/arXiv.1711.05101"),))
 ]
@@ -167,4 +166,4 @@
 }
 
 #let meta = meta + (assets: input-assets("exp076", inputs))
-#let body = journal-article("exp076", inputs, report-body, dataset-placed: inputs-ready(data-file, inputs))
+#let body = journal-article("exp076", inputs, report-body, dataset: false)

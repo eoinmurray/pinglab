@@ -58,9 +58,12 @@ def configuration(run):
     cfg = run.record["execution"].get("configuration")
     if (
         not isinstance(cfg, dict)
-        or cfg.get("schema") != "exp037.recipe/v1"
+        or cfg.get("schema") not in ("exp037.recipe/v1", "exp037.recipe/v2")
         or cfg.get("profile") not in ("smoke", "production")
-        or cfg != recipe.configuration(smoke=cfg["profile"] == "smoke")
+        or cfg
+        != recipe.configuration(
+            smoke=cfg["profile"] == "smoke", version=2 if recipe.relative(cfg) else 1
+        )
         or set(run.record["inputs"]) != {"bank"}
     ):
         raise PingstoreError("inconsistent exp037 compute recipe or bank input")
@@ -75,10 +78,12 @@ def compute_evidence(repo, run):
     bank = source(repo, pin["run_id"], "compute", experiment="exp022", reference=pin)
     contract = evidence.training_contract(bank.export)
     expected = {
-        "schema": "exp037.compute/v1",
+        "schema": "exp037.compute/v2" if recipe.relative(cfg) else "exp037.compute/v1",
         "recipe": cfg,
         "training_contract": contract,
-        "jobs": recipe.jobs(cfg),
+        "jobs": evidence.resolved_jobs(
+            cfg, contract, lambda j: run.file(j["path"], "metrics.json")
+        ),
     }
     if load_json(run.export / "evidence.json") != expected:
         raise PingstoreError("compute evidence differs from the pinned bank/recipe")

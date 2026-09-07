@@ -17,8 +17,7 @@
 
 #let inputs = ("exp082",)
 #let preview-figures = (
-  (path: "exp082/hero_stream.png", label: "capability showcase"),
-  (path: "exp082/duration_rate_summary.png", label: "duration rate summary"),
+  (path: "exp082/continuous_stream_compound.png", label: "continuous-stream capability and operating range"),
   (path: "exp082/single_trial.png", label: "single trial"),
   (path: "exp082/single_trial_transition.png", label: "single-trial transition"),
   (path: "exp082/variable_stream.png", label: "variable stream"),
@@ -29,9 +28,14 @@
   #let r = data-json(data-file("exp082/numbers.json"))
   #let pct(x) = str(calc.round(100 * x, digits: 1)) + "%"
   #let mean(xs) = xs.sum() / xs.len()
-  #let accuracy(duration, rate) = pct(mean(r.grid_per_seed.filter(
-    row => row.duration_ms == duration and row.rate_hz == rate
-  ).map(row => row.accuracy)))
+  #let accuracy(duration, rate) = pct(mean(
+    r
+      .grid_per_seed
+      .filter(
+        row => row.duration_ms == duration and row.rate_hz == rate,
+      )
+      .map(row => row.accuracy),
+  ))
   #let report-image(path, alt, ratio: 0.77) = context {
     if target() == "html" {
       data-image(data-file(path), width: 100%, alt: alt)
@@ -64,45 +68,41 @@
 
   #with-result-sections[
     #journal-result-card(
-      title: "Five digits classified continuously",
+      title: "Continuous classification and accuracy",
       observation: [
         One frozen PING network correctly classified five successive digits with
         varying presentation durations and input rates
-        (#result-figure-ref(<fig:exp082-result-1>)). Hidden neuronal state continued
+        (#result-figure-ref(<fig:exp082-result-1>, panel: "A–D")). Hidden neuronal state continued
         between digits, while output state and counts reset at supplied boundaries.
         This example demonstrates capability, not reliability across arbitrary streams.
         We selected the first stream with five correct decisions from a predefined
         candidate sequence; the first candidate qualified.
-      ],
-      visual: [#figure(
-        report-image("exp082/hero_stream.png",
-          "Five correctly classified digits with per-digit durations and input rates labelled above excitatory and inhibitory rasters and spike-count evidence."),
-        caption: [Seed-42 network presented with digits
-          #r.hero_stream.labels.map(str).join(", ", last: " and "). Each segment is
-          labelled with its duration and maximum-pixel input rate. *(A)* Input
-          thumbnails; *(B)* excitatory spikes; *(C)* inhibitory spikes; *(D)*
-          softmax-normalized output-count shares. Red traces identify the true classes.],
-      ) <fig:exp082-result-1>],
-    )
 
-    #journal-result-card(
-      title: "Longer, stronger inputs aid accuracy",
-      observation: [
         At 25 Hz, increasing presentation duration from 25 to 200 ms raised mean
         accuracy from #accuracy(25, 25) to #accuracy(200, 25)
-        (#result-figure-ref(<fig:exp082-result-2>)). At 200 ms, increasing input
+        (#result-figure-ref(<fig:exp082-result-1>, panel: "E–F")). At 200 ms, increasing input
         rate from 0.5 to 25 Hz raised accuracy from #accuracy(200, 0.5) to
         #accuracy(200, 25).
       ],
       visual: [#figure(
-        report-image("exp082/duration_rate_summary.png",
-          "Seed-mean accuracy across 25 to 200 ms and 0.5 to 25 Hz, with the 200 ms psychometric alongside.", ratio: 0.49),
-        caption: [*(A)* Accuracy across presentation duration and maximum-pixel
-          input rate; *(B)* the 200-ms rate–accuracy curve. Values are means across
+        report-image(
+          "exp082/continuous_stream_compound.png",
+          "Five correctly classified digits with varying durations and input rates, alongside mean accuracy across presentation duration and input rate and the 200-ms rate–accuracy curve.",
+          ratio: 0.667,
+        ),
+        caption: [Seed-42 network presented with digits
+          #r.hero_stream.labels.map(str).join(", ", last: " and "). Each segment is
+          labelled with its duration and maximum-pixel input rate. *(A)* Input
+          thumbnails with true→predicted labels; opacity indicates relative input rate.
+          *(B)* Spikes from the first 200 excitatory neurons; *(C)* spikes from
+          the first 64 inhibitory neurons; *(D)*
+          softmax-normalized output-count shares. Red traces identify the true classes.
+          *(E)* Accuracy across presentation duration and maximum-pixel
+          input rate; *(F)* the 200-ms rate–accuracy curve. Values are means across
           three independently trained networks, each evaluated on
           #r.config.digits_per_seed_cell digit presentations per condition.
           Error bars show SEM across networks.],
-      ) <fig:exp082-result-2>],
+      ) <fig:exp082-result-1>],
     )
 
     #journal-result-card(
@@ -114,8 +114,10 @@
         did not determine the decision.
       ],
       visual: [#figure(
-        report-image("exp082/single_trial.png",
-          "A correctly classified digit with excitatory and inhibitory rasters and ten softmax count-share trajectories."),
+        report-image(
+          "exp082/single_trial.png",
+          "A correctly classified digit with excitatory and inhibitory rasters and ten softmax count-share trajectories.",
+        ),
         caption: [First correct digit in the seed-42 network’s matched 200-ms,
           5-Hz stream. *(A)* Spikes from the first 200 excitatory neurons; *(B)*
           spikes from the first 64 inhibitory neurons; *(C)* softmax-normalized
@@ -134,8 +136,11 @@
         not reflect abrupt changes in the underlying network state.
       ],
       visual: [#figure(
-        report-image("exp082/single_trial_transition.png",
-          "Output spikes, cumulative class counts and softmax count shares from 91.5 to 94.5 ms in the same digit presentation.", ratio: 0.70),
+        report-image(
+          "exp082/single_trial_transition.png",
+          "Output spikes, cumulative class counts and softmax count shares from 91.5 to 94.5 ms in the same digit presentation.",
+          ratio: 0.70,
+        ),
         caption: [Post-hoc enlargement of 91.5–94.5 ms from the digit-4
           presentation. *(A)* Output spikes; *(B)* cumulative class counts; *(C)*
           softmax-normalized count shares. Red identifies the true class.],
@@ -152,8 +157,10 @@
         misclassified despite output activity.
       ],
       visual: [#figure(
-        report-image("exp082/variable_stream.png",
-          "Five digits with changing rates and durations: three correct predictions, a silent 0.5 Hz failure and a non-silent 2 Hz failure."),
+        report-image(
+          "exp082/variable_stream.png",
+          "Five digits with changing rates and durations: three correct predictions, a silent 0.5 Hz failure and a non-silent 2 Hz failure.",
+        ),
         caption: [Seed-42 network under the duration–rate conditions labelled
           above each segment. *(A)* Input thumbnails; *(B)* excitatory spikes;
           *(C)* inhibitory spikes; *(D)* softmax-normalized output-count shares.
@@ -190,7 +197,7 @@
     method-card([Evaluation streams], [
       We sampled images from the official 10,000-image MNIST test partition.
       We tested all eleven training rates at 25, 50, 100 and 200 ms
-      (#result-figure-ref(<fig:exp082-result-2>, panel: "A,B")). Each
+      (#result-figure-ref(<fig:exp082-result-1>, panel: "E–F")). Each
       duration–rate–network condition contained 40 five-digit streams, giving
       200 decisions. Batches contained five streams with separate neuronal states.
     ]),
@@ -219,8 +226,10 @@
       calibrated probabilities.
 
       At the final timestep $k_"end"$, we predicted
-      $ hat(y) = arg max_(c in {0, dots, 9}) z_c[k_"end"]
-        = arg max_(c in {0, dots, 9}) p_c[k_"end"], $ <eq-count-decision>
+      $
+        hat(y) = arg max_(c in {0, dots, 9}) z_c[k_"end"]
+        = arg max_(c in {0, dots, 9}) p_c[k_"end"],
+      $ <eq-count-decision>
       where $hat(y)$ is the predicted digit: the class with the greatest final
       cumulative count, equivalently the largest final displayed share
       (#result-figure-ref(<fig:exp082-result-3>, panel: "C")). Ties selected
@@ -229,15 +238,13 @@
     method-card([Performance summaries], [
       We calculated accuracy for each duration–rate–network condition and
       summarized retained measurements as means and SEM across three training
-      replicates (#result-figure-ref(<fig:exp082-result-2>)).
+      replicates (#result-figure-ref(<fig:exp082-result-1>, panel: "E–F")).
       Error bars describe variation across networks, not individual digit decisions.
     ]),
     method-card([Capability example], [
       We simulated seed-42 candidates with the predefined sequence of
       duration–rate pairs:
-      #r.showcase_selection.configuration.conditions.map(
-        pair => "(" + str(pair.at(0)) + " ms, " + str(pair.at(1)) + " Hz)"
-      ).join(", ", last: " and ").
+      #r.showcase_selection.configuration.conditions.map(pair => "(" + str(pair.at(0)) + " ms, " + str(pair.at(1)) + " Hz)").join(", ", last: " and ").
       We fixed candidate order and digit-sampling and encoding seeds before
       inference. #result-figure-ref(<fig:exp082-result-1>) uses the first candidate
       achieving five correct decisions.

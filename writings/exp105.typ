@@ -105,4 +105,4 @@
   #link("/exp106/")[exp106] — #link("/exp106/")[_Components, projections, and delays_]
 ]
 
-#let body = journal-article("exp105", (), body)
+#let body = journal-article("exp105", (), body, dataset: false)

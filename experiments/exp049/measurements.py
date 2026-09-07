@@ -306,3 +306,24 @@ def raster(directory, config):
             "t_ms": float(config["t_ms"]),
             "dt_ms": dt,
         }
+
+
+def final_outcomes(endpoints, metrics):
+    """Across-replicate SEM; contrast uses the unsmoothed final diagnostic."""
+    values = {
+        key: [row[key] for row in endpoints]
+        for key in ("acc", "e_rate_hz", "i_rate_hz")
+    }
+    values["contrast"] = [m["epochs"][-1]["contrast"] for m in metrics]
+    result = {}
+    for key, rows in values.items():
+        a = np.asarray(rows, dtype=float)
+        if a.size < 2 or not np.isfinite(a).all():
+            raise ValueError("final outcomes require at least two finite replicates")
+        result[key] = {
+            "values": a.tolist(),
+            "n": int(a.size),
+            "mean": float(a.mean()),
+            "sem": float(a.std(ddof=1) / np.sqrt(a.size)),
+        }
+    return result

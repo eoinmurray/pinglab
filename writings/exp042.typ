@@ -7,10 +7,10 @@
 #let data-file = data-file.with(article: "exp042")
 
 #let meta = (
-  tags: ("reviewed", "v35.4.0"),
+  tags: ("data", "reviewed", "v36.0.0"),
   title: "Inhibitory Replay Perturbations Change Excitatory Firing",
   created_at: "2026-06-02T00:00:00Z",
-  updated_at: "2026-09-01",
+  updated_at: "2026-09-07",
   description: "Recorded inhibitory spike streams produced contrasting excitatory responses under independent-spike and fixed-window replay perturbations, but the experiment does not isolate synchrony.",
   collection: "gamma-gated-sparsity",
 )
@@ -59,8 +59,7 @@
       *(A)* Independent-spike and *(B)* fixed-window group jitter for the
       illustrative first test presentation from the training replicate
       initialized with seed 42 at $sigma = #anchor-sigma$ ms; 200 of 1,024 E
-      neurons and 64 of 256 I neurons are displayed, while annotations report
-      full-population rates over the 200 ms presentation. *(C)* Independent-spike
+      neurons and 64 of 256 I neurons are displayed over the 200 ms presentation. *(C)* Independent-spike
       and *(D)* fixed-window sweep summaries show per-neuron E rate, realised
       I-spike rate and test-accuracy means across three training replicates.
       Retained SEM across training replicates is not displayed.
@@ -82,6 +81,10 @@
     control.
 
   + *Simulation.* We presented each image for 200 ms using a 0.1 ms timestep.
+    We encoded pixel intensities as spike trains with a maximum input rate of
+    25 Hz, fixed across all training replicates and perturbation conditions.
+    Full-intensity pixels therefore had a 25 Hz encoding rate; lower intensities
+    scaled this rate proportionally.
 
   + *Independent jitter.* We gave every inhibitory spike an independent Gaussian
     time shift, using $sigma = 0, 0.5, 1, 2, 5, 9,$ and $14$ ms.

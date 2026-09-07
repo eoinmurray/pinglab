@@ -373,7 +373,7 @@ def _submit_experiment_shards(
         ),
         "experiment": slug,
         "shard_count": count,
-        "partition": "ordered-round-robin",
+        "partition": "one-model-seed" if slug == "exp037" else "ordered-round-robin",
         "command": command,
     }
 

@@ -9,8 +9,8 @@ import numpy as np
 
 REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
-from experiments.exp037 import inputs, plots, recipe
-from experiments.exp037.analyse import MEASUREMENT
+from experiments.exp037 import evidence, inputs, plots, recipe
+from experiments.exp037.analyse import measurement
 from experiments.helpers import theme
 from experiments.helpers.fmt import format_duration
 from pingstore.contracts import PingstoreError, load_json, write_json_atomic
@@ -28,15 +28,19 @@ def present(identity, *, run_id=None):
     result = load_json(source.export / "results.json")
     if (
         refs["bank"] != bank.reference
-        or result.get("schema") != "exp037.analysis/v1"
+        or result.get("schema")
+        != ("exp037.analysis/v2" if recipe.relative(cfg) else "exp037.analysis/v1")
         or result.get("recipe") != cfg
-        or result.get("measurement") != MEASUREMENT
-        or source.record["execution"].get("configuration") != MEASUREMENT
+        or result.get("measurement") != measurement(cfg)
+        or source.record["execution"].get("configuration") != measurement(cfg)
         or result.get("checkpoint_policy") != recipe.CHECKPOINT_POLICY
         or result.get("checkpoint_provenance") != contract["checkpoints"]
     ):
         raise PingstoreError("analysis evidence or bank pin differs")
-    jobs = [j for j in recipe.jobs(cfg) if "sample_index" in j]
+    resolved = evidence.resolved_jobs(
+        cfg, contract, lambda j: compute.file(j["path"], "metrics.json")
+    )
+    jobs = [j for j in resolved if "sample_index" in j]
     if result.get("rasters") != [
         {"job": j, "file": f"raster-{i:03d}.npz"} for i, j in enumerate(jobs)
     ]:
@@ -74,8 +78,8 @@ def present(identity, *, run_id=None):
         sources={"analysis": source},
         run_id=run_id,
         configuration={
-            "schema": "exp037.presentation/v2",
-            "labels": "Bernoulli deletion/insertion; final-epoch reference E normalization",
+            "schema": "exp037.presentation/v3",
+            "labels": result.get("addition_axis", "reference_image_percent"),
             "range": "complete saved perturbation grid",
             "figure_run_stamps": False,
         },
@@ -96,6 +100,8 @@ def present(identity, *, run_id=None):
                     rid,
                     level_fmt="p(drop) = {level:.1f}"
                     if mode == "drop"
+                    else "add = {level:g}%"
+                    if recipe.relative(cfg)
                     else "r(add) = {level:g} Hz",
                     title="",
                 )

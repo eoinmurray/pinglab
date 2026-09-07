@@ -13,6 +13,7 @@ from pingstore.contracts import PingstoreError, load_json, write_json_atomic
 
 MEASUREMENT = {
     "schema": "exp049.measurement/v1",
+    "final_outcomes": "endpoint means and sample-SD/sqrt(n) SEM across seeds; unsmoothed final reference-image contrast",
     "endpoint": "final-epoch checkpoint; official MNIST test accuracy and exact hid/inh rate keys",
     "psd": "per-trial full-length Welch density; demean; detrend=False; skip constant trials; average PSD; maximum raw bin in inclusive 5-150 Hz band",
     "weights": "native-dtype means; <=0 zero fraction; positive-only mean; pool seeds before 49-bin histograms",
@@ -49,6 +50,7 @@ def analyse(identity, *, run_id=None):
             )
             evidence.recordings(artifact, train, job)
         summary, curves, cards, weights, rasters, attractor = [], {}, {}, {}, [], {}
+        outcomes = {}
         for cond in recipe.COND_ORDER:
             endpoints, matrices, metrics = [], [], []
             for seed in recipe.SEEDS:
@@ -82,6 +84,7 @@ def analyse(identity, *, run_id=None):
                 )
                 metrics.append(histories[name])
                 curves[name] = measurements.epoch_curve(histories[name]["epochs"], cond)
+            outcomes[cond] = measurements.final_outcomes(endpoints, metrics)
             cards[cond] = measurements.card(metrics, endpoints)
             weights[cond] = {
                 "seeds": recipe.SEEDS,
@@ -123,6 +126,7 @@ def analyse(identity, *, run_id=None):
                     "rhythmicity": measurements.rhythmicity(curves),
                     "epoch_curves": curves,
                     "plot_data": {
+                        "outcomes": outcomes,
                         "cards": cards,
                         "weights": weights,
                         "attractor": attractor,

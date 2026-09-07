@@ -175,7 +175,7 @@ def lab(tmp_path, monkeypatch):
                 },
             )
         else:
-            n = cfg["max_samples"]
+            n = int(cfg["max_samples"] or 0)
             acc = (
                 90 - int(cfg["perturb_level"][0])
                 if cfg["perturb_mode"] == "add"
@@ -195,6 +195,28 @@ def lab(tmp_path, monkeypatch):
                     "n_correct": n * acc // 100,
                     "n_total": n,
                     "rates_hz": {"hid": 20.0, "inh": 10.0},
+                    "perturbation": {
+                        "mode": cfg["perturb_mode"],
+                        "level": cfg["perturb_level"][0],
+                        "dt_ms": train["dt"],
+                        "populations": {
+                            key: {
+                                "raw_spikes": int(
+                                    rate * n * size * train["t_ms"] / 1000
+                                ),
+                                "transmitted_spikes": int(
+                                    rate * n * size * train["t_ms"] / 1000
+                                ),
+                                "inserted_spikes": 0,
+                                "deleted_spikes": 0,
+                                "slots": round(train["t_ms"] / train["dt"]) * n * size,
+                            }
+                            for key, size, rate in (
+                                ("e1", train["n_hidden"], 20),
+                                ("i1", train["n_inh"], 10),
+                            )
+                        },
+                    },
                 },
             )
         write_json_atomic(out / "config.json", cfg)
@@ -446,7 +468,7 @@ def test_article_renders_only_selected_presentation(lab):
 def test_independent_stages_preserve_measurements_and_never_publish(lab, monkeypatch):
     root, bank, calls = lab
     cid = compute.compute(bank)
-    assert len(calls) == 54
+    assert len(calls) == 60
     source = inputs.source(root, cid, "compute")
     for path in source.export.rglob("recording.npz"):
         with np.load(path) as data:
@@ -460,7 +482,7 @@ def test_independent_stages_preserve_measurements_and_never_publish(lab, monkeyp
     assert len(result["perturbation"]) == 42
     assert len(result["baseline_results"]) == 36
     assert {r["rate_e"] for r in result["baseline_results"]} == {25.0}
-    assert result["plot_data"]["baseline_e_rate_hz"] == {"coba": 25.0, "ping": 25.0}
+    assert result["plot_data"]["baseline_e_rate_hz"] == {"coba": 20.0, "ping": 20.0}
     assert {r["role"] for r in result["checkpoint_provenance"]} == {"best_validation"}
     for name in (
         "raster",
@@ -484,7 +506,7 @@ def test_independent_stages_preserve_measurements_and_never_publish(lab, monkeyp
 
 
 def test_recipe_preserves_production_and_smoke_grids():
-    for smoke, total, sweeps in ((False, 204, 192), (True, 54, 42)):
+    for smoke, total, sweeps in ((False, 210, 192), (True, 60, 42)):
         jobs = recipe.jobs(recipe.configuration(smoke=smoke))
         assert len(jobs) == total
         assert len({j["id"] for j in jobs}) == total
@@ -526,12 +548,24 @@ def test_shards_collect_without_reexecuting_and_resume_verified_work(lab, monkey
     rid = stages.reserve_stage(root / ".pingstore", "exp037", "compute")
     for index in range(6):
         compute.shard(bank, run_id=rid, index=index)
-    assert len(calls) == 54
+    assert len(calls) == 60
     compute.shard(bank, run_id=rid, index=0)
-    assert len(calls) == 54
+    assert len(calls) == 60
     compute.compute(bank, run_id=rid, collect=True)
-    assert len(calls) == 54
+    assert len(calls) == 60
     source = inputs.source(root, rid, "compute")
+    execution = source.record["execution"]
+    assert len(execution["shards"]) == 6
+    assert execution["started_at"] == min(w["started_at"] for w in execution["shards"])
+    assert (
+        execution["started_at"]
+        <= execution["workers_completed_at"]
+        <= execution["completed_at"]
+    )
+    assert all(
+        w["host"] and w["device"]["type"] in ("cuda", "cpu")
+        for w in execution["shards"]
+    )
     assert not (source.directory / ".scratch").exists()
     with pytest.raises(PingstoreError):
         compute.shard(bank, run_id=rid, index=0)
@@ -587,8 +621,8 @@ def test_collection_keeps_six_staged_compute_shards(tmp_path):
     assert row["execution"]["stages"] == ["compute", "analyse", "present"]
     assert row["command"] == []
     shards = [jobs_for_shard("exp037", index, 6) for index in range(6)]
-    assert sum(map(len, shards)) == 204
-    assert len(set().union(*map(set, shards))) == 204
+    assert sum(map(len, shards)) == 210
+    assert len(set().union(*map(set, shards))) == 210
 
 
 def test_collection_dispatches_shards_with_bank_and_reservation(lab, monkeypatch):
@@ -676,3 +710,129 @@ def test_reviewed_article_structure_and_scientific_caveats():
     assert "digit 0" not in text
     assert 'fit: "contain"' in text
     assert "#journal-references" in text and "#cite(1)" in text
+
+
+def test_relative_grid_uses_each_seed_calibration_and_complete_shards():
+    cfg = recipe.configuration()
+    covered = []
+    for index in range(6):
+        jobs = recipe.shard_jobs(cfg, index)
+        assert jobs[0]["kind"] == "calibration"
+        assert len({(j["model"], j["seed"]) for j in jobs}) == 1
+        baseline = 20.0 + index * 30
+        sweep = [j for j in jobs if j["kind"] == "sweep" and j["mode"] == "add"]
+        assert [j["level"] for j in sweep] == list(range(0, 201, 10))
+        for job in sweep:
+            resolved = recipe.resolve_job(job, baseline, 0.1)
+            assert resolved["applied_level"] == job["level"] * baseline / 100
+            assert resolved["baseline_e_rate_hz"] == baseline
+        covered.extend(j["id"] for j in jobs)
+    assert len(covered) == len(set(covered)) == 210
+    assert set(covered) == {j["id"] for j in recipe.jobs(cfg)}
+
+
+@pytest.mark.parametrize("baseline", [0, -1, float("nan"), float("inf"), 10000])
+def test_unusable_calibration_rejected(baseline):
+    job = next(
+        j
+        for j in recipe.jobs(recipe.configuration())
+        if j["mode"] == "add" and j["level"] == 200
+    )
+    with pytest.raises(ValueError):
+        recipe.resolve_job(job, baseline, 0.1)
+
+
+def test_analysis_groups_by_percentage_not_applied_hz():
+    points, baselines = [], []
+    for model in recipe.MODELS:
+        for seed, baseline in zip((42, 43, 44), (20.0, 100.0, 150.0)):
+            baselines.append({"model": model, "seed": seed, "e_rate_hz": baseline})
+            for mode, levels in [("drop", (0.0, 1.0)), ("add", (0.0, 100.0, 200.0))]:
+                for level in levels:
+                    points.append(
+                        {
+                            "model": model,
+                            "seed": seed,
+                            "mode": mode,
+                            "level": level,
+                            "acc": 90.0 - (seed - 42),
+                            "applied_level": baseline * level / 100,
+                        }
+                    )
+    data = measurements.plot_data([], points, baselines=baselines)
+    for model in recipe.MODELS:
+        assert data["panels"]["add"][model]["x"] == [0.0, 100.0, 200.0]
+        assert data["panels"]["add"][model]["mean"] == [89.0] * 3
+        assert data["panels"]["add"][model]["lo"] == [88.0] * 3
+
+
+def test_analysis_rejects_resigned_calibration_drift(lab):
+    root, bank, _ = lab
+    cid = compute.compute(bank)
+    source = inputs.source(root, cid, "compute")
+    job = recipe.shard_jobs(recipe.configuration(smoke=True), 0)[0]
+    path = source.file(job["path"], "metrics.json")
+    record = load_json(path)
+    record["rates_hz"]["hid"] *= 2
+    record["perturbation"]["populations"]["e1"]["raw_spikes"] *= 2
+    record["perturbation"]["populations"]["e1"]["transmitted_spikes"] *= 2
+    write_json_atomic(path, record)
+    resign(source.directory)
+    with pytest.raises(PingstoreError, match="evidence differs"):
+        analyse.analyse(cid)
+
+
+def test_hpc_review_is_read_only_and_dependencies_require_live(lab, monkeypatch):
+    from argparse import Namespace
+
+    from experiments.exp037 import hpc
+
+    root, bank, _ = lab
+    monkeypatch.setattr(hpc, "REPO", root)
+    monkeypatch.setattr(hpc, "check_plan", lambda _: None)
+    source = inputs.source(root, bank, "compute", experiment="exp022")
+    identities = {
+        stage: stages.reserve_stage(root / ".pingstore", "exp037", stage)
+        for stage in hpc.STAGES
+    }
+    for identity in identities.values():
+        path = root / ".pingstore/runs" / f".{identity}.tmp/.reservation.json"
+        record = load_json(path)
+        record["inputs"] = {"bank": source.reference}
+        write_json_atomic(path, record)
+    plan = {
+        "runs": identities,
+        "bank": source.reference,
+        "account": "test-account",
+        "cpu_account": "test-cpu-account",
+        "partition": "ampere",
+        "cpu_partition": "icelake",
+        "walltime": "02:00:00",
+        "cpus": 4,
+        "memory_gb": 32,
+    }
+    path = root / "plan.json"
+    write_json_atomic(path, plan)
+    monkeypatch.setattr(
+        hpc.subprocess,
+        "run",
+        lambda *a, **k: pytest.fail("dry run contacted scheduler"),
+    )
+    hpc.review(Namespace(plan=path, live=False, test_only=False))
+    assert not path.with_suffix(".submitted.json").exists()
+    assert not (root / "logs").exists()
+    commands = []
+
+    def submit(cmd, **kwargs):
+        commands.append(cmd)
+        return subprocess.CompletedProcess(cmd, 0, str(100 + len(commands)), "")
+
+    monkeypatch.setattr(hpc.subprocess, "run", submit)
+    hpc.review(Namespace(plan=path, live=True, test_only=False))
+    assert "--array=0-5%6" in commands[0]
+    assert "--gres=gpu:1" in commands[0]
+    for idx, cmd in enumerate(commands[1:], 101):
+        assert f"--dependency=afterok:{idx}" in cmd
+        assert "--gres=gpu:1" not in cmd
+    with pytest.raises(PingstoreError, match="already attempted"):
+        hpc.review(Namespace(plan=path, live=True, test_only=False))

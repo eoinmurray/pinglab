@@ -7,44 +7,26 @@
 #let data-file = data-file.with(article: "exp049")
 
 #let meta = (
-  tags: ("data", "v35.4.0"),
+  tags: ("data", "v36.0.0"),
   title: "Training Recurrent Weights Weakens PING Rhythmicity",
   created_at: "2026-06-09T00:00:00Z",
-  updated_at: "2026-08-31T00:00:00Z",
+  updated_at: "2026-09-07",
   description: "Trainable recurrent conductances produced lower reference-image rhythmicity and higher excitatory firing than the frozen PING control; outcomes depended on initialization.",
   collection: "gamma-gated-sparsity",
 )
 
 #let inputs = ("exp049",)
 #let preview-figures = (
-  (path: "exp049/attractor_ei.svg", label: "Final population rates"),
+  (path: "exp049/training_summary.svg", label: "Endpoints and recurrent weights"),
   (path: "exp049/training_curves.svg", label: "Learning and rhythmicity"),
-  (path: "exp049/weights__trainable_ping_init.svg", label: "Recurrent conductances"),
-  (path: "exp049/phase_portrait.svg", label: "Rate and rhythmicity trajectories"),
-  (path: "exp049/acc_rate_trajectory.svg", label: "Accuracy and firing trajectories"),
 )
 
 // Keep calculations lazy: absent inputs never become fabricated results.
 #let render-report(data-file) = [
 #let r049 = data-json(data-file("exp049/numbers.json"))
-#let mean(values) = values.sum() / values.len()
 #let rounded(value, digits: 1) = calc.round(value, digits: digits)
-#let condition(name) = r049.summary.filter(r => r.condition == name)
-#let average(name, key) = rounded(mean(condition(name).map(r => r.at(key))))
-#let trainable = r049.summary.filter(r => r.condition != "frozen_ping")
-#let canonical42 = condition("trainable_ping_init").filter(r => r.seed == 42).first()
-#let wei_zero42 = rounded(100 * canonical42.w_ei.trained_zero_fraction)
-#let wie_zero42 = rounded(100 * canonical42.w_ie.trained_zero_fraction)
-#let wei_mean42 = str(rounded(canonical42.w_ei.trained_mean, digits: 6))
-#let wie_mean42 = str(rounded(canonical42.w_ie.trained_mean, digits: 6))
-#let frozen_e = average("frozen_ping", "e_rate_hz")
-#let frozen_i = average("frozen_ping", "i_rate_hz")
-#let frozen_acc = average("frozen_ping", "acc")
-#let acc_low = rounded(calc.min(..trainable.map(r => r.acc)))
-#let acc_high = rounded(calc.max(..trainable.map(r => r.acc)))
 #let contrast_low = rounded(r049.rhythmicity.final_contrast_trainable_min, digits: 3)
 #let contrast_high = rounded(r049.rhythmicity.final_contrast_trainable_max, digits: 3)
-#let contrast_frozen = rounded(r049.rhythmicity.canonical_contrast, digits: 3)
 #let contrast_first = rounded(r049.rhythmicity.epoch1_contrast_trainable, digits: 3)
 #let eval_n = r049.config.evaluation_samples
 
@@ -65,24 +47,33 @@
   #with-result-sections[
 
   #result-card[
-  === Recurrent training changes activity
+  === E→I pruning accompanies low contrast
 
-  Frozen E/I means were #frozen_e/#frozen_i Hz. Canonical, zero and small
-  trainable initializations gave E means of
-  #average("trainable_ping_init", "e_rate_hz"),
-  #average("trainable_zero_init", "e_rate_hz") and
-  #average("trainable_small_init", "e_rate_hz") Hz; corresponding I means were
-  #average("trainable_ping_init", "i_rate_hz"),
-  #average("trainable_zero_init", "i_rate_hz") and
-  #average("trainable_small_init", "i_rate_hz") Hz. Only zero initialization
-  left I completely silent. Firing rates alone do not identify PING (#result-figure-ref(<fig:exp049-result-1>)).
+  Training from standard and 10%-standard recurrence drove most E→I weights
+  to zero, while most I→E weights remained positive and their total mean grew.
+  Both conditions ended with lower reference-image contrast and higher E rates
+  than frozen recurrence. Zero-initialized recurrence remained zero
+  (#result-figure-ref(<fig:exp049-result-1>)). These observations do not isolate
+  pruning as the cause of reduced contrast or establish equivalent accuracy.
 
   #figure(
-    data-image(data-file("exp049/attractor_ei.svg"), width: 100%,
-      alt: "Final test-set E/I firing rates: the frozen control has low E and high I activity; trainable conditions have higher E rates and differing residual I activity."),
+    data-image(data-file("exp049/training_summary.svg"), width: 100%,
+      alt: "Final accuracy, E/I rates and reference-image contrast across four conditions, with initial and final recurrent nonzero fractions and mean weights."),
     caption: [
-      Each point is one final-epoch network, evaluated on #eval_n official-test
-      images; legend accuracies are condition means over three seeds.
+      Final checkpoints: *(A)* official-test accuracy, *(B)* per-neuron E/I
+      firing rates over the same #eval_n test images and *(C)* unsmoothed
+      reference-image contrast $R = R_"contrast"$. Bars and error bars in A–C
+      show means ±1 SEM across three independently trained seeds (sample SD
+      divided by $sqrt(3)$). In B, black denotes E and red I.
+      Frozen denotes fixed standard recurrence; Std., 10% and Zero denote
+      trainable recurrence initialized at standard, 10%-standard and zero weights.
+      *(D, E)* Positive-weight fractions for E→I and I→E; *(F, G)* corresponding
+      per-edge means including zeros, in model conductance units scaled by
+      $10^(-3)$. Weight statistics pool all entries across the three seeds;
+      no weight uncertainty is shown. Wide grey bars show initialization and
+      narrow red bars show epoch 50. Black arrows connect before to after
+      when the relative change is at least 5%; this is a display threshold,
+      not a statistical-significance test.
     ],
   ) <fig:exp049-result-1>
 
@@ -108,72 +99,6 @@
 
   ]
 
-  #result-card[
-  === Recurrent matrices diverge
-
-  For seed 42, #wei_zero42% of E→I entries and #wie_zero42% of I→E entries were
-  zero; final means were #wei_mean42 and #wie_mean42 in model conductance units.
-  Lower E→I recruitment is consistent with reduced I activity, but sparsification
-  was not symmetric and these observations do not isolate its causal contribution (#result-figure-ref(<fig:exp049-result-3>)).
-
-  #figure(
-    data-image(data-file("exp049/weights__trainable_ping_init.svg"), width: 100%,
-      alt: "Positive initial and final recurrent conductances for canonical trainable initialization, with separate E-to-I and I-to-E means and zero fractions."),
-    caption: [
-      Initial and final conductance distributions for *(A)* E→I and *(B)* I→E,
-      pooled across three seeds with canonical trainable initialization.
-      Histograms contain positive
-      entries; mean and zero-fraction annotations include all entries. For
-      each seed, annotations report zero fractions and means in model conductance
-      units.
-    ],
-  ) <fig:exp049-result-3>
-
-  ]
-
-  #result-card[
-  === Rate-rhythmicity trajectories
-
-  The contrast gap describes these observations, but identifies neither a
-  separatrix nor a basin boundary and is not evidence that only one attractor
-  exists (#result-figure-ref(<fig:exp049-result-4>)).
-
-  #figure(
-    data-image(data-file("exp049/phase_portrait.svg"), width: 100%,
-      alt: "Unsmoothed mean validation E rate versus reference-image contrast: trainable trajectories remain at low contrast; frozen endpoints remain near contrast one."),
-    caption: [
-      Trainable curves are unsmoothed three-seed means; fading indicates epoch
-      order, open markers epoch 1 and filled markers epoch 50. Frozen points
-      show the three final endpoints and their mean, not a full trajectory.
-      Rates and contrast come from different evaluation samples.
-    ],
-  ) <fig:exp049-result-4>
-
-  ]
-
-  #result-card[
-  === Accuracy can mask rate differences
-
-  Final official-test means were
-  #average("trainable_ping_init", "acc")%,
-  #average("trainable_zero_init", "acc")% and
-  #average("trainable_small_init", "acc")% for canonical, zero and small
-  trainable initializations, versus #frozen_acc% for the frozen control.
-  Initialization therefore mattered within the tested conditions. These
-  trajectories do not establish equal accuracy or measured energy savings (#result-figure-ref(<fig:exp049-result-5>)).
-
-  #figure(
-    data-image(data-file("exp049/acc_rate_trajectory.svg"), width: 100%,
-      alt: "Validation accuracy versus E firing rate through training, with colour showing reference-image contrast and markers indicating the first and final epochs."),
-    caption: [
-      Unsmoothed three-seed mean validation trajectories; each segment's colour
-      averages the reference-image contrast at its endpoints. Open and filled
-      markers denote epochs 1 and 50. This complements the
-      #link("/exp025/")[exp025] — #link("/exp025/")[_Accuracy and Firing Rate With and Without Inhibition._]
-    ],
-  ) <fig:exp049-result-5>
-
-  ]
   ]
 
   #journal-methods(
@@ -203,7 +128,7 @@
     through $g_I (E_I - V_m)$, where $g_I$ is inhibitory conductance, $E_I = -80$
     mV its reversal potential, and $V_m$ membrane voltage: a positive I→E weight
     need not become negative to inhibit. Input zeros remained trainable and
-    could regrow; initialization details are listed below.
+    could regrow.
     ],
     analyse: [
   #set enum(start: 4)
@@ -231,42 +156,12 @@
   #set enum(start: 6)
 
   + *Expose retained training evidence.* We displayed retained validation,
-    activity, recurrent-weight and temporal-contrast measurements with their
+    activity and temporal-contrast measurements with their
     distinct seed and illustrative-probe roles.
     ],
   )
   #run-view("exp049", inputs)
 
-  == Appendix: Recorded parameters and interpretation limits
-
-  Input weights used lower-clamped normal draws with parent mean 0.9 and
-  standard deviation 0.09, followed by 95% initial zeros; recorded values were
-  divided by $0.05 times 784$ to preserve expected summed input coupling.
-  Readout initialization
-  used parent mean 1.12060546875 and standard deviation 0.8349609375.
-  Excitatory and inhibitory synaptic decays were 2 and 6 ms. Membrane time
-  constants were not trained; adaptive thresholds were disabled. The frozen
-  control used the same canonical recurrence as the
-  #link("/exp025/")[exp025] — #link("/exp025/")[_Accuracy and Firing Rate With and Without Inhibition._]
-
-  Recurrent-weight summaries distinguished the two directions: zeros counted
-  non-positive entries, positive means excluded zeros, and distribution plots
-  pooled seeds before binning. Illustrative diagnostic cards used a separate
-  test-image snapshot, seed 42 and image index 0, with 200 E and 50 I neurons
-  sampled for display. Their accuracy trajectories are validation measurements;
-  their E/I rate trajectories are reference-image diagnostics, while header
-  statistics and spectra describe final official-test evaluations.
-
-  The PING interpretation concerns excitatory recruitment of inhibition and
-  rhythmic feedback, not the sign of a stored conductance magnitude. Reduced
-  contrast, higher E firing and weaker I activity support loss or weakening of
-  the frozen control's regime in these conditions. Residual contrast and a
-  spectral maximum do not establish a surviving gamma rhythm: the
-  #link("/exp054/")[exp054] — #link("/exp054/")[_Pinglab Rythmicity Metric_] addresses metric specificity.
-  In particular, a low contrast value alone does not identify its source as
-  low-rate inflation or shared input. The three initializations and three seeds
-  do not establish impossibility of learning PING, accuracy equivalence,
-  attractor stability or a continuous transition between epochs.
 ]
 
 #let report-body = if inputs-ready(data-file, inputs) {

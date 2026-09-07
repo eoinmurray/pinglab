@@ -1,5 +1,80 @@
 # exp037 — dropped spikes and added noise
 
+## Relative-dose revision (2026-09-07)
+
+The default recipe is now `exp037.recipe/v2`. Each of six workers owns one
+model/seed pair. It first evaluates that selected checkpoint without noise on
+1,000 fixed official-test images, then freezes the population-mean E rate.
+Addition requests are 0, 10, ..., 200 percent of that per-seed baseline. The
+same nominal Hz is applied independently to E and I; this is E-normalized dose,
+not separate normalization to each population's own baseline. Calibration and
+all sweep conditions use the same input-encoding stream. Zero or non-finite
+baselines and rates exceeding one event per simulation slot are rejected.
+
+Production performs six calibrations, 192 sweep evaluations and 12 raster
+trials: **210 simulator launches**. Smoke uses 100 images, deletion levels
+0/0.5/0.8/1 and addition levels 0/100/200 percent: **60 launches**. Addition
+rasters use 0/100/200 percent of seed 42's test baseline, not its single-image
+rate. Deletion remains unchanged, but is rerun in the fresh compute result.
+No classifiers are trained.
+
+`metrics.json` records exact raw, transmitted, inserted and deleted spike
+counts and neuron-image-timestep slots for E and I. Counters do not change RNG
+draws. Analysis verifies count conservation and agreement with reported rates,
+retains per-seed baselines and applied Hz, and aggregates accuracy by requested
+percentage. Successful insertion rates are distinct from net changes in activity
+under feedback. Red COBA traces remain above black PING traces.
+
+The revised measurement/output schemas are `exp037.measurement/v2` and
+`exp037.analysis/v2`; readers can still explicitly consume the earlier
+absolute-rate recipe in completed v4 runs. No stored run is rewritten. The article selects normalization, captions and numerical summaries from the
+selected recipe, preserving the earlier account for old presentations and not
+assuming its qualitative findings for the new sweep. The exp110 consumer's
+existing v1 guard refuses the new semantics. Review the article's observed
+findings and authored update date once production results have been inspected;
+no new outcome is assumed here.
+
+### Standalone CSD3 preparation and launch
+
+Use a frozen checkout containing these changes, its own `.venv`, the validated
+complete `exp022-r001-compute` bank, and the persistent MNIST cache. Preserve the
+exp037 allocation high-watermark when preparing a separate checkout. Commit
+execution changes before preparation; source, lockfile, bank digest and recipe
+are checked again by each stage. Create separate plans and IDs for smoke and
+production.
+
+```sh
+uv run --frozen python -m experiments.exp037.hpc prepare \
+  --source exp022-r001-compute \
+  --plan .scratch/exp037-hpc/production.json \
+  --account OLEARY-SL2-GPU --cpu-account OLEARY-SL3-CPU \
+  --mnist-cache /rds/user/em586/hpc-work/datasets/torch
+uv run --frozen python -m experiments.exp037.hpc review .scratch/exp037-hpc/production.json
+uv run --frozen python -m experiments.exp037.hpc review .scratch/exp037-hpc/production.json --test-only
+```
+
+Preparation reserves three identities with bank input pins. Review defaults to a
+no-write dry run. `--test-only` asks Slurm to check each resource request without
+submitting jobs. Only the explicit `--live` option submits: six single-GPU workers,
+then CPU collection, analysis and presentation on `icelake` with `afterok`
+dependencies. Each
+worker requests four CPUs, 32 GiB host RAM and a provisional two-hour walltime;
+measured accounting overhead may change the earlier compute estimate. No stage
+publishes. A submission receipt is written before contacting Slurm, preventing
+blind resubmission after an uncertain response; inspect the receipt and scheduler
+before recovering a partial submission.
+
+The completed compute manifest retains each worker's command, host, device,
+Slurm IDs and start/end times. Its execution interval begins at the earliest
+worker start; collector start and final worker completion are separately
+recorded, so collection time cannot be mistaken for inference time.
+
+The full collection adapter also declares 210/60 launches and uses the same
+model/seed partition. Do not use a whole-collection submission to rerun only this
+experiment.
+
+## Earlier absolute-rate experiment
+
 ## Contract migration
 
 Experiment Runner Guide 4.3.0 and Storage Guide 4.3.0. The scientific recipe remains the

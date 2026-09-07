@@ -23,7 +23,7 @@
     [`set_sim_dt` in `config.py`], [Set timestep, duration, and derived step count for legacy execution.],
   )
 
-  Reuse the execution interface rather than changing model globals around a live network. A small forward command is given in #link("/exp011/")[exp011] — #link("/exp011/")[_SNNSIM command-line guide._]
+  Reuse the execution interface rather than changing model globals around a live network. A small forward command is given in #link("/exp003/")[exp003] — #link("/exp003/")[_SNNSIM API Reference._]
 
   == A conductance based neuron equation
 
@@ -103,4 +103,4 @@
   #link("/exp004/")[exp004] — #link("/exp004/")[_Parameters & Units_] · #link("/exp006/")[exp006] — #link("/exp006/")[_Training_]
 ]
 
-#let body = journal-article("exp100", (), body)
+#let body = journal-article("exp100", (), body, dataset: false)

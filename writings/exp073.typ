@@ -1,7 +1,7 @@
 #import "templates/article-layout.typ": journal-article
 #let meta = (
   tags: ("txt", "v35.4.0"),
-  title: "SNNLANG developer documentation",
+  title: "SNNLANG API Reference",
   created_at: "2026-07-30T00:00:00Z",
   description: "Start with the collection contents, learn the high-level development model, then use the concrete SNNLANG and graph-execution API reference.",
   collection: "snnlang-docs",
@@ -104,7 +104,7 @@
 
   Read the collection in this order:
 
-  + *SNNLANG developer documentation.* This page establishes the architecture, first graph, execution boundary, and package lifecycle.
+  + *SNNLANG API Reference.* This page establishes the architecture, first graph, execution boundary, and package lifecycle.
   + #link("/exp105/")[exp105] — #link("/exp105/")[_Networks, signals, and parameters._] Core authoring objects, shapes, units, populations, and parameters.
   + #link("/exp106/")[exp106] — #link("/exp106/")[_Components, projections, and delays._] Reusable motifs, connectivity, scheduling, and causality.
   + #link("/exp107/")[exp107] — #link("/exp107/")[_Compiling and executing bundles._] Validation, bundle I/O, typed requests, and result objects.
@@ -118,4 +118,4 @@
   #link("/exp105/")[exp105] — #link("/exp105/")[_Networks, signals, and parameters_]
 ]
 
-#let body = journal-article("exp102", (), body)
+#let body = journal-article("exp073", (), body, dataset: false)
