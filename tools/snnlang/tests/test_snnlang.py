@@ -637,7 +637,7 @@ def test_bundle_lowers_to_snnviz_diagram_before_rendering():
     assert {node.id for node in visual.nodes} >= {"x", "cell", "out:spikes"}
 
 
-def test_expanded_diagram_groups_component_populations_in_horizontal_rows():
+def test_expanded_diagram_groups_component_populations_in_target_columns():
     net, cell = small_network()
     net.output("spikes", cell.E.spikes)
 
@@ -646,7 +646,7 @@ def test_expanded_diagram_groups_component_populations_in_horizontal_rows():
     titles = {node.id: node.title for node in visual.nodes}
 
     assert group.members == ("cell_E", "cell_I")
-    assert group.same_row
+    assert group.same_rank
     assert (titles["cell_E"], titles["cell_I"]) == ("E", "I")
 
 

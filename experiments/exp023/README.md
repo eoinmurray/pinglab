@@ -78,3 +78,20 @@ These changes affect future execution only. Existing immutable runs and R2
 archives are unchanged. Required arrays keep their original numerical values;
 selected NPZ outputs use lossless compression. No production rerun or new
 publication was performed for this cleanup.
+
+## GABA decay correction — 2026-09-08
+
+Corrected the recipe's GABA decay constant from 9 ms to 6 ms. The initial
+rerun (`exp023-r008-compute`, `exp023-r009-analyse`, `exp023-r010-present`)
+recorded the requested 6 ms but still executed at 9 ms: the single-trial CLI
+path failed to apply `--tau-gaba` to the model. Its results must not be used
+as 6 ms evidence. Recorded conductance decay confirmed the mismatch.
+
+Fixed the CLI's model-global propagation and reran all 16 production trials
+at 400 ms, followed by analysis and figures. The corrected chain is
+`exp023-r011-compute`, `exp023-r012-analyse`, and `exp023-r013-present`.
+Recorded conductance decay independently confirms 6 ms. The PING raster's
+spectral peak changed from 41.386 to 55.971 Hz, E rate from 5.854 to 8.289 Hz,
+and I rate from 47.432 to 75.986 Hz. A simulator regression test checks actual
+conductance decay at both requested constants, rather than configuration alone.
+Earlier runs remain unchanged; this rerun did not materialize or publish.

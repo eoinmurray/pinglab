@@ -168,6 +168,8 @@ def simulation_config(record, cfg, item):
         "dales_law": True,
         "recurrent_initial_zero_fraction": 0.0,
     }
+    if "tau_gaba_ms" in cfg:
+        expected["tau_gaba"] = cfg["tau_gaba_ms"]
     if not item["private"]:
         expected["w_in_initial_zero_fraction"] = cfg["shared_zero_fraction"]
     if any(record.get(k) != v for k, v in expected.items()):
@@ -205,6 +207,9 @@ def raster(path, cfg):
         expected["recording_start_step"] = int(cfg["burn_ms"] / cfg["dt_ms"])
     for key, value in expected.items():
         a = data[key]
+        if key == "dt" and a.dtype.kind == "f" and a.dtype.itemsize in (4, 8):
+            # Compare at the recording's precision: 0.1 is not exact in float32.
+            value = np.asarray(value, dtype=a.dtype).item()
         if a.shape != () or a.dtype.kind not in "iuf" or a.item() != value:
             raise PingstoreError("exp054 raster dimensions differ from recipe")
     for prefix, width in (("e", cfg["n_e"]), ("i", cfg["n_i"]), ("out", None)):

@@ -260,7 +260,10 @@ def analysis_configuration(configuration: dict | None = None) -> dict:
     controls = configuration.get("controls", {})
     view_start_ms = float(controls.get("view_start_ms", VIEW_START_MS))
     view_end_ms = float(controls.get("view_end_ms", VIEW_END_MS))
-    short_protocol = view_end_ms - view_start_ms <= 1_200
+    short_protocol = (
+        configuration.get("condition") == "shared-drive-isolation"
+        or view_end_ms - view_start_ms <= 1_200
+    )
     return {
         "schema": "exp099.measurements/v1",
         "rhythm_window_ms": 160.0 if short_protocol else 400.0,

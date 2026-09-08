@@ -60,7 +60,7 @@
   tags: ("data", "v36.0.0"),
   title: "Manuscript",
   created_at: "2026-09-02T00:00:00Z",
-  updated_at: "2026-09-07",
+  updated_at: "2026-09-08",
   description: "A manuscript scaffold connecting PING circuit dynamics, low-rate task performance, cycle participation, perturbation sensitivity and continuous-stream classification.",
   collection: "gamma-gated-sparsity",
 )
@@ -673,39 +673,67 @@
 
   == Methods
 
+  === Experimental design
+
+  We combined untrained circuit simulations, trained MNIST classifiers,
+  interventions on those classifiers and a separate mean-field model
+  (Table 1). The inhibitory-timescale classifiers supplied both frequency
+  and cycle-participation measurements; unpenalised classifiers from the
+  accuracy–rate comparison were reused for loop insertion and spike
+  perturbations.
+
+  #let design-table = table(
+    columns: (auto, auto, auto),
+    table.header([Figure], [Design], [Checkpoint]),
+    [1], [Untrained; 1,024 E, 256 I], [—],
+    [2A–F], [Coupling grid; 256 E, 256 I], [—],
+    [2G–I¹], [Mean-field model], [—],
+    [3], [2 architectures × 6 activity conditions], [Final],
+    [4], [Loop insertion; reused COBA], [Best validation],
+    [5], [4 recurrent-training conditions], [Final],
+    [6; 2I²], [6 inhibitory decay times], [Final],
+    [7A–B], [Spike perturbations; reused COBA/PING], [Best validation],
+    [7C], [5 timesteps], [Final],
+    [8], [Inhibitory replay; reused PING], [Final],
+    [9], [Variable-rate, spike-count training], [Best validation],
+  )
+  #counter(figure.where(kind: table)).update(0)
+  #context figure(
+    if target() == "html" {
+      html.elem("div", attrs: (style: "display: flex; justify-content: center; overflow-x: auto;"), design-table)
+    } else {
+      align(center, design-table)
+    },
+    kind: table,
+    caption: [*Experimental design and checkpoint policy.*
+      E/I: excitatory/inhibitory neurons. Each training condition comprised
+      three replicates. Final: epoch 50. Best validation: lowest mean
+      validation cross-entropy across three encoding draws, with ties
+      resolved by higher accuracy, then earlier epoch.
+      ¹ Mean-field results. ² Spiking-model results.],
+  ) <tab:experimental-design>
+
   === Spiking networks
 
-  *P1 — Experimental organization.* Explain that the study combined untrained
-  circuit probes, independently trained MNIST classifiers, interventions on
-  those classifiers and a separate mean-field calculation. Identify reuse:
-  the inhibitory-timescale networks supplied both frequency and
-  cycle-participation measurements; the unpenalised activity-frontier networks
-  supplied subsequent perturbations. Refer to Figs. 1–9.
+  Hidden excitatory and inhibitory neurons followed conductance-based leaky
+  integrate-and-fire dynamics:
 
-  *Table 1 placement — Experimental design and checkpoint policy.*
-  Use the following rows; retain the distinction between independent training
-  replicates and subsequent measurements of the same networks.
+  #math.equation(
+    block: true,
+    numbering: "(1)",
+    $ C_m (dif V)/(dif t) = -g_L (V - E_L) - g_E (V - E_E) - g_I (V - E_I). $,
+  ) <eq:hidden-neuron-dynamics>
 
-  #table(
-    columns: (1fr, 2.5fr, 1fr),
-    table.header([Evidence], [Experimental population], [Checkpoint]),
-    [Fig. 1], [Untrained 1,024-E/256-I circuits], [None],
-    [Fig. 2A–F], [Untrained 256-E/256-I coupling grid], [None],
-    [Fig. 2G–I, theoretical curves], [Separate four-variable mean-field model], [None],
-    [Fig. 3], [Two architectures × six activity conditions × three training replicates], [Final epoch],
-    [Fig. 4], [Three unpenalised COBA classifiers], [Validation-selected],
-    [Fig. 5], [Four recurrence conditions × three training replicates], [Final epoch],
-    [Fig. 6; Fig. 2I, simulator curve], [Six inhibitory decay times × three training replicates], [Final epoch],
-    [Fig. 7A–B], [Three unpenalised classifiers per architecture], [Validation-selected],
-    [Fig. 7C], [Five timesteps × three training replicates], [Final epoch],
-    [Fig. 8], [Three unpenalised PING classifiers], [Final epoch],
-    [Fig. 9], [Three variable-rate, spike-count classifiers], [Validation-selected],
-  )
-
-  *P2 — Hidden-neuron dynamics.* Present the conductance-based LIF equation.
-  E/I capacitances were 1/0.5 nF, leak conductances 0.05/0.1 µS,
-  resting/reset potential −65 mV, threshold −50 mV, excitatory/inhibitory
-  reversal potentials 0/−80 mV, and refractory periods 3/1.5 ms. Figs. 1–8.
+  Here, $V$ is membrane voltage and $t$ is time. Membrane capacitance $C_m$
+  was 1 nF for excitatory neurons and 0.5 nF for inhibitory neurons; leak
+  conductance $g_L$ was 0.05 and 0.1 µS, respectively. The leak reversal
+  potential $E_L$ was −65 mV, while excitatory and inhibitory reversal
+  potentials $E_E$ and $E_I$ were 0 and −80 mV. Synaptic conductances $g_E$
+  and $g_I$ varied with incoming spikes, as described below. At the spike
+  threshold $V_"th" = -50$ mV, neurons emitted a spike and returned to the
+  reset potential $V_"reset" = -65$ mV. Voltage remained at reset for an
+  absolute refractory period $tau_"ref"$ of 3 ms in excitatory neurons and
+  1.5 ms in inhibitory neurons.
 
   *P3 — Synapses and numerical updates.* Describe exponentially decaying
   conductances and event-triggered increments, with exponential-Euler membrane
@@ -733,14 +761,26 @@
   784 pixels and dividing intensities by 255. A seed-42 sample of 7,000
   official-training images was split, stratified by class, into 6,300
   optimization and 700 validation images. The official test partition
-  remained separate. Figs. 3–9.
+  remained separate. For the 1,000-image endpoint evaluations in Figs. 3–8,
+  specify uniform sampling without replacement from the 10,000 official test
+  images using fixed seed 42, without class stratification. The common subset
+  and its ordering were independent of training seed. Distinguish this subset
+  from single-image probes, illustrative rasters and the separately sampled
+  streams in P27. Confirm selection against the executed revisions before
+  converting this scaffold to final prose. Figs. 3–9.
 
   *P6 — Spike encoding and independent presentations.* Describe independent
   Bernoulli events with probability equal to normalized pixel intensity ×
   maximum-pixel rate × timestep in seconds. Standard presentations lasted
   200 ms at a 25-Hz maximum-pixel rate. Independent presentations started
   with fresh network state; continuous streams used the different boundary
-  handling described below.
+  handling described below. Specify the separate, fixed evaluation-encoding
+  random stream: the shared inference procedure restarted it for each
+  evaluation and processed images in fixed order. Identical images and
+  encoding settings used matched input draws across networks; do not imply
+  identical spike trains across different timesteps, durations or input rates.
+  Distinguish encoding randomness from separate perturbation draws in P23
+  and P25. Confirm these settings against the executed revisions.
 
   *P7 — Output dynamics and ordinary classification.* Describe the output
   layer's dimensionless LIF state, 2-ms decay time, threshold 1 and
@@ -768,7 +808,7 @@
   endpoint analyses nevertheless used epoch 50, as specified in Table 1.
   Preserve this distinction when describing reused networks.
 
-  === Untrained activity and common measurements
+  === Untrained circuit experiments
 
   *P11 — Loop-off/on experiment.* Describe the 1,024-E/256-I circuits and
   400-ms trials. Illustrative rasters used 1,024 input channels at 5 Hz for
@@ -781,6 +821,8 @@
   means 0–3 and I→E means 0–6 µS. Simulations lasted 1 s at 0.25-ms
   resolution; measurements excluded the first 100 ms. There was one seeded
   network per condition. Fig. 2A–F.
+
+  === Activity measurements
 
   *P13 — Firing rates and spectral peaks.* Define rates as spike count
   divided by neuron number and observation duration. For the
@@ -823,7 +865,7 @@
   tolerances and numerical limitations. Do not imply that a first Lyapunov
   coefficient was calculated.
 
-  === Learned recurrence and cycle participation
+  === Classifier comparisons and recurrent coupling
 
   *P18 — Accuracy–rate comparison.* Describe 36 networks: two architectures,
   six activity conditions and three training replicates. Evaluate final
@@ -843,6 +885,8 @@
   used 1,000 test images; contrast used one fixed digit-0 encoding. Weight
   statistics pooled complete matrices, including zeros. Fig. 5.
 
+  === Inhibitory timescale and cycle participation
+
   *P21 — Inhibitory-timescale experiment.* Describe 18 separately trained
   networks at 4.5, 6, 9, 12, 18 and 27 ms. Evaluate final checkpoints on
   1,000 images. Fit an affine rate–frequency relationship to the six
@@ -856,7 +900,7 @@
   zero-peak trials. Pool E-neuron counts into 0, 1, 2 and ≥3 categories.
   Fig. 6C–H. Allocate edge conventions to Appendix B.
 
-  === Perturbations
+  === Spike perturbations and numerical resolution
 
   *P23 — Deletion and insertion.* Use validation-selected unpenalised
   classifiers, without retraining. Delete transmitted E/I events with
@@ -881,7 +925,7 @@
   collision-resolution rules. Retain in the
   main paragraph that replay interrupts responsive feedback.
 
-  === Continuous streams and reporting
+  === Continuous streams
 
   *P26 — Streaming-specific training.* Describe three separately trained
   classifiers using spike-count logits and uniformly sampled per-presentation
@@ -893,8 +937,13 @@
   *P27 — Stream evaluation.* Describe 40 five-digit streams per
   network–duration–rate condition, processed in batches of five streams.
   Durations were 25, 50, 100 and 200 ms. Images were sampled without
-  replacement within each stream, with sampling dependent on network seed
-  and condition. Hidden state continued; output state/counts reset at
+  replacement within each stream from the full 10,000-image official test
+  partition, without class stratification; images could recur across streams.
+  Sampling depended on network seed, duration and input rate, so conditions
+  did not share one fixed 1,000-image subset. Encoding used a separate random
+  stream indexed by network seed and stream number; its seed was reused
+  across conditions without implying identical spike trains when duration
+  or rate changed. Hidden state continued; output state/counts reset at
   supplied boundaries. Fig. 9E–F.
 
   *P28 — Decisions and illustration selection.* Classify by largest final
@@ -903,10 +952,39 @@
   pairs and the first candidate with five correct decisions; the first
   candidate qualified. Fig. 9A–D. Keep the sampling and selection account in Methods.
 
-  *P29 — Aggregation.* State explicitly: SEM for Figs. 3, 5, 6A–B, 7C
-  and 9F; sample SD for Figs. 4 and 7A–B; pooled counts without intervals
-  for Fig. 6C–H; means without displayed intervals for Fig. 8. Do not add
-  hypothetical significance tests or confidence intervals.
+  === Statistical reporting and reproducibility
+
+  *P29 — Replication, aggregation and exclusions.* Define the independent
+  unit for across-network summaries as one independently initialized and
+  trained network, with three training replicates per condition (seeds
+  42–44). Describe which stochastic processes varied with training seed:
+  initialization, minibatch ordering and training encodings, plus sampled
+  input rates for streaming training. The data split and evaluation-image
+  subset were fixed separately. Repeated interventions on one network were
+  repeated measurements, not additional training replicates; neurons,
+  presentations and neuron–cycle pairs were not independent network
+  replicates. Distinguish these designs from the single-seed untrained
+  probes and deterministic mean-field calculations in Table 1.
+
+  State explicitly: SEM for Figs. 3, 5, 6A–B, 7C and 9F; sample SD for
+  Figs. 4 and 7A–B; pooled counts without intervals for Fig. 6C–H; means
+  without displayed intervals for Fig. 8. Define sample SD using the
+  replicate-count-minus-one denominator and SEM as sample SD divided by
+  the square root of the training-replicate count. Compute each network's
+  summary before aggregating across networks; distinguish the pooled
+  neuron–cycle distributions, which weight networks by their available
+  pair counts. Describe these summaries and fitted relationships as
+  descriptive; do not add unperformed significance tests or confidence
+  intervals.
+
+  Report the basis for choosing three training replicates and the evaluation
+  sample counts if documented; the rationale remains to be established,
+  and a power calculation must not be invented. State any failed or excluded
+  training runs, evaluations or undefined measurements and their handling,
+  checking execution records before claiming that none occurred. Retain the
+  zero-detected-burst exclusion in P22 and distinguish measurement exclusions
+  from the illustrative-stream selection in P28. Report the resulting
+  denominators where exclusions affect summaries.
 
   *P30 — Reproducibility.* Identify the executed source revisions and
   environments rather than today's defaults. The inspected training

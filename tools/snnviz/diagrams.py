@@ -6,13 +6,14 @@ import html
 import math
 import subprocess
 import tempfile
+import textwrap
 from dataclasses import dataclass, field
 from pathlib import Path
 
 
 @dataclass(frozen=True)
 class DiagramTheme:
-    """Semantic colours used by the Graphviz diagram renderer."""
+    """Shared colours and article-scale typography for structural diagrams."""
 
     background: str = "#FFFFFF"
     ink: str = "#1A1A1A"
@@ -26,6 +27,11 @@ class DiagramTheme:
     signal: str = "#5F5F5F"
     output_line: str = "#E89400"
     training_line: str = "#00B4D8"
+
+    title_size: float = 26
+    label_size: float = 16
+    secondary_size: float = 13
+    wrap_columns: int = 14
 
 
 @dataclass(frozen=True)
@@ -130,16 +136,35 @@ def _colour(theme: DiagramTheme, role: str) -> str:
         raise ValueError(f"unknown diagram colour role: {role}") from error
 
 
+def _label(value: str, columns: int) -> str:
+    """Wrap display text without dropping words or shrinking its type."""
+    return "".join(
+        html.escape(line) + '<BR ALIGN="LEFT"/>'
+        for line in textwrap.wrap(value.upper().replace("_", " "), width=columns)
+    )
+
+
 def _card(node: DiagramNode, theme: DiagramTheme) -> str:
     accent = _colour(theme, node.accent_role)
+    rows = []
+    for text, size, colour in (
+        (node.title, theme.label_size, accent),
+        (node.detail, theme.secondary_size, theme.ink),
+        (node.badge, theme.secondary_size, accent),
+    ):
+        if not text:
+            continue
+        if rows:
+            rows.append('<TR><TD HEIGHT="6"></TD></TR>')
+        for line in textwrap.wrap(text.upper().replace("_", " "), width=theme.wrap_columns):
+            rows.append(
+                f'<TR><TD ALIGN="LEFT" HEIGHT="{math.ceil(size * 1.2)}">'
+                f'<FONT COLOR="{colour}" POINT-SIZE="{size:g}"><B>{html.escape(line)}</B></FONT>'
+                '</TD></TR>'
+            )
     return (
         '<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0">'
-        f'<TR><TD ALIGN="LEFT"><FONT COLOR="{accent}" POINT-SIZE="13"><B>{html.escape(node.title.upper())}</B></FONT></TD></TR>'
-        '<TR><TD HEIGHT="4"></TD></TR>'
-        f'<TR><TD ALIGN="LEFT"><FONT COLOR="{theme.muted}" POINT-SIZE="10">{html.escape(node.detail.upper())}</FONT></TD></TR>'
-        '<TR><TD HEIGHT="5"></TD></TR>'
-        f'<TR><TD ALIGN="LEFT"><FONT COLOR="{accent}" POINT-SIZE="9"><B>{html.escape(node.badge.upper())}</B></FONT></TD></TR>'
-        "</TABLE>>"
+        + "".join(rows) + "</TABLE>>"
     )
 
 
@@ -147,7 +172,7 @@ def diagram_to_dot(
     diagram: Diagram,
     *,
     theme: DiagramTheme = DiagramTheme(),
-    height_to_width_ratio: float | None = None,
+    height_to_width_ratio: float | None = 0.58,
 ) -> str:
     """Compile a structured diagram into deterministic Graphviz DOT."""
 
@@ -163,11 +188,11 @@ def diagram_to_dot(
     )
     lines = [
         f"digraph {_q(diagram.name)} {{",
-        f'graph [rankdir=LR{ratio}, bgcolor="{theme.background}", pad="0.22", nodesep="0.40", ranksep="0.65",',
-        f'  splines=spline, outputorder=edgesfirst, fontname="Courier New Bold", fontcolor="{theme.ink}",',
-        f"  label={_q(title)}, labelloc=t, labeljust=l, fontsize=18, compound=true, newrank=true];",
-        f'node [shape=plain, fontname="Courier New", fontcolor="{theme.ink}"];',
-        f'edge [fontname="Courier New Bold", fontsize=10, fontcolor="{theme.ink}", color="{theme.ink}", penwidth=2.0, arrowsize=0.8];',
+        f'graph [rankdir=LR{ratio}, bgcolor="{theme.background}", pad="0.4", nodesep="0.40", ranksep="0.40",',
+        f'  splines=spline, outputorder=edgesfirst, fontname="Menlo", fontcolor="{theme.ink}",',
+        f"  label=<<B>{html.escape(title)}</B>>, labelloc=t, labeljust=l, fontsize={theme.title_size:g}, compound=true, newrank=true];",
+        f'node [shape=plain, fontname="Menlo", fontcolor="{theme.ink}"];',
+        f'edge [fontname="Menlo", fontsize={theme.secondary_size:g}, fontcolor="{theme.ink}", color="{theme.ink}", penwidth=2.0, arrowsize=0.8];',
     ]
     known_kinds = {
         "component",
@@ -190,12 +215,21 @@ def diagram_to_dot(
             f'label={_card(node, theme)}, shape=box, style="filled", '
             f'fillcolor="{theme.background}", color="{border}", penwidth={node.pen_width:g}, margin="{margin}"];'
         )
+    # External sources share the entry column; downstream inputs retain their rank.
+    targets = {edge.target for edge in diagram.edges}
+    grouped = {member for group in diagram.groups for member in group.members}
+    sources = [
+        node.id for node in diagram.nodes
+        if node.kind == "input" and node.id not in targets and node.id not in grouped
+    ]
+    if len(sources) > 1:
+        lines.append("{ rank=same; " + " ".join(f"{_q(node)};" for node in sources) + " }")
     row_membership = {}
     for group in diagram.groups:
         lines.append(
-            f"subgraph {_q('cluster_' + _svg_id(group.id))} {{ label={_q(group.label.upper())}; "
-            f'color="{theme.line}"; fontcolor="{theme.ink}"; fontname="Courier New Bold"; '
-            'fontsize=13; penwidth=1.2; style="solid"; margin=16; labeljust="l";'
+            f"subgraph {_q('cluster_' + _svg_id(group.id))} {{ label=<<B>{html.escape(group.label.upper())}</B>>; "
+            f'color="{theme.line}"; fontcolor="{theme.ink}"; fontname="Menlo"; '
+            f'fontsize={theme.label_size:g}; penwidth=1.2; style="solid"; margin=16; labeljust="l";'
         )
         if group.same_rank:
             lines.append("rank=same;")
@@ -246,7 +280,7 @@ def diagram_to_dot(
                 f'color="{colour}"',
                 f"arrowhead={arrow}",
                 f"style={style}",
-                f"label={_q(edge.label.upper())}",
+                (f'label=<<B>{_label(edge.label, theme.wrap_columns)}</B>>' if edge.label else 'label=""'),
                 f"constraint={'true' if edge.constraint and not internal_row else 'false'}",
                 f"penwidth={edge.pen_width:g}",
             ]
@@ -264,7 +298,7 @@ def render_diagram(
     *,
     scale: int = 1,
     theme: DiagramTheme = DiagramTheme(),
-    height_to_width_ratio: float | None = None,
+    height_to_width_ratio: float | None = 0.58,
 ) -> Path:
     """Render a diagram as SVG, PNG, PDF, or its deterministic DOT source."""
 

@@ -52,10 +52,13 @@ visual = snn.diagram(bundle, view="circuit", expand_groups={"cell"})
 snnviz.render_diagram(visual, "circuit.svg")
 ```
 
-Presentation code may pass `height_to_width_ratio` when an automatic Graphviz
-layout needs a taller article-width composition. This constrains layout rather
-than stretching the rendered SVG; omit it when the graph's natural shape is
-already readable.
+Structural diagrams default to a height-to-width layout target of `0.58`,
+following EXP099 Figure 2's approximately 3:2 article composition. Graphviz
+arranges the graph before rendering; text and boxes are never stretched.
+The final bounding box also includes titles and margins, so the ratio is a
+layout target rather than an exact export size. Pass
+`height_to_width_ratio=None` for unconstrained natural layout, or another
+positive ratio for a deliberately different composition.
 
 The default diagram house style follows the lab's EXP099 input-map precedent:
 opaque white canvas, hard rectangular geometry, bold uppercase monospace text,
@@ -63,13 +66,28 @@ generous spacing, black excitatory or ordinary flow, deep-red inhibitory flow,
 and amber or cyan only for distinct output or training roles. Diagram labels
 name the scientific mechanism rather than internal renderer details. Authored
 component membership becomes visible clustering; related populations occupy a
-left-to-right row and use short local names, while mixed computational groups
+shared target column and use short local names, while mixed computational groups
 retain their internal signal-flow order. `DiagramGroup.same_row` lays members
 out in their declared order, keeping recurrent arrows from reversing that order;
 `same_rank` remains available for deliberately vertical groups. The two options
-are mutually exclusive. Compact card spacing and a modest title keep small
-network diagrams readable at laptop article widths without stretching the image
-or forcing every graph into a fixed aspect ratio.
+are mutually exclusive. Ungrouped external inputs without incoming edges align
+in one entry column.
+The shared `DiagramTheme` typography uses a 26-point title, 16-point node and
+cluster labels, and 13-point secondary and edge labels. All text is explicitly
+bold Menlo; secondary text uses full-contrast ink. Long card and edge labels
+wrap at 14 characters, with 1.2 line spacing inside cards and six-point gaps
+between text roles. Wrapping preserves the complete display text and avoids
+making the whole graph wider merely to fit one long label.
+
+These sizes are calibrated against EXP099 Figure 2 **at equal displayed
+width**, not by comparing source font-size numbers alone. At 720 pixels wide,
+EXP099's generated diagram has approximately 19.6-pixel title, 12.1-pixel labels
+and 9.8-pixel secondary text, compared with 19.5, 11.7 and 9.4 pixels in Figure 2.
+For new graph shapes, inspect exports at the intended article width: increasing
+font sizes can also increase Graphviz's bounding box and leave displayed text
+no larger. Wrap labels or simplify the declared view before accepting small
+text. Do not stretch SVGs or remove scientific content to meet a ratio. SNNLang places related populations vertically using
+`same_rank`; explicitly authored `same_row` groups retain horizontal ordering.
 
 ## Scientific visual style guide
 

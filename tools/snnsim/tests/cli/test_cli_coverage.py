@@ -459,6 +459,32 @@ def trained(tmp_path_factory):
 
 
 class TestDispatchRuns:
+    @pytest.mark.parametrize("tau_ms", [6.0, 9.0])
+    def test_single_trial_gaba_decay_matches_requested_constant(self, tmp_path, tau_ms):
+        import numpy as np
+
+        out = tmp_path / "gaba-decay"
+        assert cli.main([
+            "sim", "--model", "ping", "--input", "synthetic-spikes",
+            "--n-hidden", "64", "--n-inh", "16", "--n-in", "128",
+            "--input-rate", "45", "--ei-strength", "1.5",
+            "--w-in", "1.5", "0.3", "--seed", "42",
+            "--dt", "0.1", "--t-ms", "200",
+            "--tau-gaba", str(tau_ms), "--output-fields", "gi_e_1",
+            "--out-dir", str(out),
+        ]) == 0
+        with np.load(out / "recording.npz") as recording:
+            conductance = recording["gi_e_1"]
+        before, after = conductance[:-1], conductance[1:]
+        # Between inhibitory arrivals, recorded conductance must follow the
+        # requested exponential decay, independently of metadata or spike rates.
+        decaying = (before > 1e-6) & (after < before)
+        assert decaying.sum() > 10
+        np.testing.assert_allclose(
+            after[decaying] / before[decaying], np.exp(-0.1 / tau_ms),
+            rtol=2e-6,
+        )
+
     def test_artifact_writing_requires_explicit_out_dir(self):
         with pytest.raises(SystemExit, match="requires an explicit --out-dir"):
             cli.main(["sim"])

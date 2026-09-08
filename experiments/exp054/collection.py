@@ -197,3 +197,5 @@ def _profile(previous, plan):
             "smoke" if plan.get("profile") == "smoke" else "production"
         ):
             raise PingstoreError("exp054 campaign profile differs from computation")
+        if cfg != recipe.configuration(smoke=cfg["profile"] == "smoke"):
+            raise PingstoreError("exp054 campaign recipe differs from computation")

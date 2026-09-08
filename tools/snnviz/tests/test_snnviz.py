@@ -140,8 +140,11 @@ def test_diagram_contract_compiles_deterministically():
     assert '"input" -> "cell"' in diagram_to_dot(diagram)
     assert 'subgraph "cluster_n_network"' in diagram_to_dot(diagram)
     assert 'style="filled"' in diagram_to_dot(diagram)
-    assert 'fontname="Courier New"' in diagram_to_dot(diagram)
+    assert 'fontname="Menlo"' in diagram_to_dot(diagram)
     assert 'ratio="0.6"' in diagram_to_dot(diagram, height_to_width_ratio=0.6)
+
+    assert 'ratio="0.58"' in diagram_to_dot(diagram)
+    assert "ratio=" not in diagram_to_dot(diagram, height_to_width_ratio=None)
 
     with pytest.raises(ValueError, match="finite and positive"):
         diagram_to_dot(diagram, height_to_width_ratio=0)
@@ -211,3 +214,55 @@ def test_diagram_renderer_exports_svg_and_dot(tmp_path):
         pytest.skip("Graphviz 'dot' is required for diagram rendering")
     svg = render_diagram(diagram, tmp_path / "small.svg")
     assert "n_node" in svg.read_text()
+
+
+def test_diagram_aligns_external_inputs_and_population_targets(tmp_path):
+    if shutil.which("dot") is None:
+        pytest.skip("Graphviz 'dot' is required for diagram rendering")
+    diagram = Diagram(
+        "columns",
+        nodes=(
+            DiagramNode("drive_e", "E afferent", "400 channels", "spikes", kind="input"),
+            DiagramNode("drive_i", "I afferent", "400 channels", "spikes", kind="input"),
+            DiagramNode("e", "E", "400 neurons", "population", kind="population"),
+            DiagramNode("i", "I", "100 neurons", "population", kind="population"),
+        ),
+        edges=(
+            DiagramEdge("drive_e", "e", role="excitatory"),
+            DiagramEdge("drive_i", "i", role="excitatory"),
+            DiagramEdge("e", "i", role="excitatory", connection="recurrent"),
+            DiagramEdge("i", "e", role="inhibitory", connection="recurrent"),
+        ),
+        groups=(DiagramGroup("cell", "Circuit", ("e", "i"), same_rank=True),),
+    )
+    dot = render_diagram(diagram, tmp_path / "columns.dot")
+    result = subprocess.run(["dot", "-Tplain", str(dot)], capture_output=True, text=True, check=True)
+    rows = [shlex.split(line) for line in result.stdout.splitlines()]
+    positions = {row[1]: (float(row[2]), float(row[3])) for row in rows if row[0] == "node"}
+    assert positions["drive_e"][0] == pytest.approx(positions["drive_i"][0])
+    assert positions["e"][0] == pytest.approx(positions["i"][0])
+    assert positions["drive_e"][0] < positions["e"][0]
+    assert positions["drive_e"][1] == pytest.approx(positions["e"][1])
+    assert positions["drive_i"][1] == pytest.approx(positions["i"][1])
+
+
+def test_wrapped_diagram_text_preserves_content_and_explicit_bold(tmp_path):
+    if shutil.which("dot") is None:
+        pytest.skip("Graphviz 'dot' is required for diagram rendering")
+    import xml.etree.ElementTree as ET
+
+    diagram = Diagram(
+        "readable",
+        nodes=(DiagramNode(
+            "node", "Long population title", "400 units & conductance model", "spiking population"
+        ),),
+        edges=(),
+    )
+    root = ET.parse(render_diagram(diagram, tmp_path / "readable.svg")).getroot()
+    text = root.findall(".//{http://www.w3.org/2000/svg}text")
+    rendered = " ".join(element.text or "" for element in text)
+    assert "LONG POPULATION TITLE" in rendered
+    assert "400 UNITS & CONDUCTANCE MODEL" in rendered
+    assert "SPIKING POPULATION" in rendered
+    assert all(element.attrib.get("font-weight") == "bold" for element in text)
+    assert min(float(element.attrib["font-size"]) for element in text) >= 13

@@ -1,5 +1,38 @@
 # exp054 — Pinglab Rythmicity Metric
 
+## 1,024-E correction — 2026-09-08
+
+The author authorized the population correction and a new HPC execution.
+`exp054-r007-compute` was reserved before submission as Slurm job `35072599`
+on CSD3's `ampere` partition (one A100, four CPUs, 32 GB, four-hour limit).
+Its isolated source snapshot is commit `49cb2de56e940b71097d849a5c483c4e81221575`,
+based on `cb00575381d35c01cbca8c1d4d19396a7624cb85` plus only the exp054 correction.
+Submission evidence and the frozen source bundle are retained in
+`.r2/exp054-1024-20260908/`. Submission does not establish completion.
+
+The corrected recipe and source-version validation pass 42 exp054/exp110 tests
+and 27 collection tests; the isolated snapshot also passes all 42 dedicated
+tests. Existing 256-E compute, analysis and complete ancestry still validate.
+Analysis, presentations and scientific article revisions await completed new
+evidence. Current article results continue to describe the prior 256-E run.
+
+The author subsequently requested cancellation and a 0.1-ms timestep. Slurm
+reported that job `35072599` had already failed after seven seconds
+(2026-09-08 13:40:10–13:40:17, scheduler timestamps); it is no longer active.
+The revised default is recipe v3: 1,024 E / 256 I at 0.1 ms. The production
+recording still spans 1,000 ms, with 100 ms burn-in and 1-ms analysis bins:
+10,000 simulation steps, of which 9,000 are measured. No replacement job has
+been submitted. Earlier reservations and the frozen v2 snapshot are unchanged.
+The revised timestep passes 71 exp054/exp110/collection tests. Raster validation
+compares timestep metadata at its stored floating-point precision, accepting
+float32/float64 representations of 0.1 while rejecting adjacent values. The
+existing 256-E/0.25-ms analysis and its full ancestry still validate.
+
+The author then set the spiking GABA decay to 6 ms. Recipe v4 explicitly passes
+`--tau-gaba 6.0` for every grid and null probe and validates that setting in the
+simulation configuration. Earlier recipes inherited the simulator's 9-ms
+default. The mean-field reference and its frequency sweep are unchanged.
+
 ## Contract migration
 
 Experiment Runner Guide 4.3.0, Storage Guide 4.3.0 and Writing Guide 17.0.0. Independent
@@ -38,11 +71,18 @@ package invocation now fail explicitly.
   `numbers.json` in a flat export. No estimator or solver runs here. The former
   Figure 6 manuscript compound is now rendered by exp110 from this analysis.
 
-## Preserved scientific recipe
+## Scientific recipe
 
-- Untrained PING: 256 E and 256 I cells, seed 42, one trial, 0.25 ms timestep,
-  1,000 ms recording and 100 ms discarded burn-in. Private input is 256
+- Untrained PING: 1,024 E and 256 I cells, seed 42, one trial, 0.1 ms timestep,
+  1,000 ms recording and 100 ms discarded burn-in. Private input is 1,024
   independent channels with identity weight 0.5 at 100 Hz.
+- Recipe `exp054.recipe/v4` uses 1,024 E neurons, a 0.1-ms timestep and
+  explicit 6-ms GABA decay. Recipe v3 used the same size/timestep at 9 ms.
+  Recipe `exp054.recipe/v2` used 1,024 E neurons at 0.25 ms.
+  The previous `exp054.recipe/v1` describes the existing 256-E evidence and
+  remains readable inside validated v4 storage runs. New compute uses recipe v4;
+  campaign reuse rejects a different recipe. Storage schema requirements are
+  unchanged, and previous completed runs retain their original contents.
 - Sweep all 121 points of the 11-by-11 coupling grid: W_EI 0–3, W_IE 0–6.
   Private null rates remain 1, 2, 5, 10, 20, 40, 70, 100 Hz. Shared null rates
   remain 8, 12, 16, 20, 28, 40, 60, 100 Hz, with 200 channels, weight 0.2 and

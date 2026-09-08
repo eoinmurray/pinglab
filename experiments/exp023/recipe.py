@@ -23,7 +23,7 @@ BIOPHYSICS = {
     "threshold_mV": -50.0,
     "reset_mV": -65.0,
     "tau_ampa_ms": 2.0,
-    "tau_gaba_ms": 9.0,
+    "tau_gaba_ms": 6.0,
     "C_m_E_nF": 1.0,
     "C_m_I_nF": 0.5,
     "refractory_E_ms": 3.0,

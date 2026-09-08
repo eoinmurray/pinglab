@@ -16,6 +16,7 @@ from matplotlib.collections import LineCollection
 from matplotlib.colors import to_rgba
 from matplotlib.patches import FancyArrowPatch
 from matplotlib.text import Text
+from matplotlib.ticker import MaxNLocator, StrMethodFormatter
 from tools.snnviz import (  # noqa: TID251
     FigureGrid,
     FrameTimeline,
@@ -46,19 +47,18 @@ def frame_grid() -> FigureGrid:
     """Return the content-shaped composition shared by poster and video frames."""
 
     grid = FigureGrid(
-        rows=(0.04, 0.415, 0.415),
+        rows=(1, 1),
         columns=8,
-        bounds=(0.015, 0.055, 0.965, 0.915),
-        row_gap=(0.02, 0.02),
+        bounds=(0.025, 0.075, 0.95, 0.90),
+        row_gap=0.045,
         column_gap=0.02,
     )
-    grid.place("header", row=0, column=0, colspan=8)
-    grid.place("network", row=1, column=0, rowspan=2, colspan=4)
+    grid.place("network", row=0, column=0, rowspan=2, colspan=4)
     for name, row, column in (
-        ("means", 1, 4),
-        ("phase", 1, 6),
-        ("response", 2, 4),
-        ("weights", 2, 6),
+        ("means", 0, 4),
+        ("phase", 0, 6),
+        ("response", 1, 4),
+        ("weights", 1, 6),
     ):
         grid.place(name, row=row, column=column, colspan=2)
     return grid
@@ -132,16 +132,40 @@ def render(
         "response",
         rows=2,
         columns=1,
-        row_gap=0.012,
+        row_gap=0.045,
     )
     response_layout.place("population_rates", row=0, column=0)
     response_layout.place("input_controls", row=1, column=0)
-    network_rect = layout.rect("network")
-    frame_size = (14.4, 7.2)
+    frame_size = (14.4, 8.5)
+    title_height = 25 / 72 / frame_size[1]
+    label_height = 22 / 72 / frame_size[1]
+    panel_slots = {
+        **{name: layout.rect(name) for name in PANEL_TITLES},
+        **{name: response_layout.rect(name) for name in RESPONSE_PANEL_TITLES},
+    }
+    panel_rects = {
+        name: slot.inset(
+            (
+                0,
+                0,
+                0,
+                (title_height + (label_height if name == "input_controls" else 0))
+                / slot.height,
+            )
+        )
+        for name, slot in panel_slots.items()
+    }
+    network_rect = panel_rects["network"]
+
+    def panel_axis(figure, name):
+        axis = figure.add_axes(panel_rects[name].mpl)
+        layout.style_axis(axis)
+        return axis
+
     node_inset_inches = 5.0 / 72.0
     node_inset_x = node_inset_inches / frame_size[0]
     node_inset_y = node_inset_inches / frame_size[1]
-    panel_edge_inset_inches = 0.25
+    panel_edge_inset_inches = 0.40
     panel_edge_x = panel_edge_inset_inches / (network_rect.width * frame_size[0])
     panel_edge_y = panel_edge_inset_inches / (network_rect.height * frame_size[1])
 
@@ -160,12 +184,12 @@ def render(
         )
 
     input_width = 0.32
-    input_height = 0.12
-    input_gap = (1 - 2 * panel_edge_y - 5 * input_height) / 4
+    input_height = 0.065
+    input_gap = (1 - 2 * panel_edge_y - 7 * input_height) / 6
     input_y = {
         name: panel_edge_y + index * (input_height + input_gap)
         for index, name in enumerate(
-            ("i_spikes", "gaba", "ampa", "shared_spikes", "e_spikes")
+            ("i_spikes", "gaba_i", "ampa_i", "shared_spikes", "gaba_e", "ampa_e", "e_spikes")
         )
     }
     input_boxes = {
@@ -295,11 +319,8 @@ def render(
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1)
     ax.axis("off")
-    for name, colour, width in (
-        ("header", theme.AMBER, 1.4),
-        ("network", theme.INK_BLACK, 1.2),
-    ):
-        region = layout.rect(name)
+    for name, colour, width in (("network", theme.INK_BLACK, 1.2),):
+        region = panel_rects[name]
         ax.add_patch(
             plt.Rectangle(
                 (region.x, region.y),
@@ -359,45 +380,44 @@ def render(
             lines.append((line, values))
         return signal_axis, lines
 
-    ampa_input_ax, ampa_input_lines = conductance_axis(
-        input_boxes["ampa"],
-        (
-            (external_conductance["E AMPA"], BLACK, "-"),
-            (external_conductance["I AMPA"], GREY, "--"),
-        ),
-    )
-    gaba_input_ax, gaba_input_lines = conductance_axis(
-        input_boxes["gaba"],
-        (
-            (external_conductance["E GABA"], RED, "-"),
-            (external_conductance["I GABA"], RED, "--"),
-        ),
-    )
+    conductance_axes = []
+    conductance_lines = []
+    for name, signal, colour in (
+        ("ampa_e", "E AMPA", BLACK),
+        ("gaba_e", "E GABA", RED),
+        ("ampa_i", "I AMPA", GREY),
+        ("gaba_i", "I GABA", RED),
+    ):
+        signal_axis, lines = conductance_axis(
+            input_boxes[name], ((external_conductance[signal], colour, "-"),)
+        )
+        conductance_axes.append(signal_axis)
+        conductance_lines.extend(lines)
 
     conductance_arrows = []
     input_right = panel_edge_x + input_width
     for start, end, colour, values in (
         (
-            panel_point(input_right, input_y["ampa"] + 0.68 * input_height),
-            panel_point(population_left, e_y + 0.45 * e_height),
+            panel_point(input_right, input_y["ampa_e"] + 0.50 * input_height),
+            panel_point(population_left, e_y + 0.70 * e_height),
             BLACK,
             external_conductance["E AMPA"],
         ),
         (
-            panel_point(input_right, input_y["ampa"] + 0.32 * input_height),
-            panel_point(population_left, i_y + 0.30 * i_height),
+            panel_point(input_right, input_y["ampa_i"] + 0.50 * input_height),
+            panel_point(population_left, i_y + 0.70 * i_height),
             GREY,
             external_conductance["I AMPA"],
         ),
         (
-            panel_point(input_right, input_y["gaba"] + 0.68 * input_height),
-            panel_point(population_left, e_y + 0.70 * e_height),
+            panel_point(input_right, input_y["gaba_e"] + 0.50 * input_height),
+            panel_point(population_left, e_y + 0.45 * e_height),
             RED,
             external_conductance["E GABA"],
         ),
         (
-            panel_point(input_right, input_y["gaba"] + 0.32 * input_height),
-            panel_point(population_left, i_y + 0.70 * i_height),
+            panel_point(input_right, input_y["gaba_i"] + 0.50 * input_height),
+            panel_point(population_left, i_y + 0.30 * i_height),
             RED,
             external_conductance["I GABA"],
         ),
@@ -414,9 +434,7 @@ def render(
             zorder=2,
         )
         ax.add_patch(arrow)
-        conductance_arrows.append(
-            (arrow, values, max(float(np.max(values)), 1e-12))
-        )
+        conductance_arrows.append((arrow, values, max(float(np.max(values)), 1e-12)))
 
     population_arrows = []
     for start, end, colour, spikes in (
@@ -451,7 +469,7 @@ def render(
 
     # Additive ridgeline: activity remains in the network view; one shared
     # absolute log axis makes projection-scale differences spatially explicit.
-    ridge_ax = layout.add_axes(fig, "weights")
+    ridge_ax = panel_axis(fig, "weights")
     ridge_ax.set_facecolor(BG)
     ridge_ax.text(
         0.0,
@@ -726,7 +744,7 @@ def render(
 
     rate_e = population_rate(e_spikes)
     rate_i = population_rate(i_spikes)
-    rate_ax = response_layout.add_axes(fig, "population_rates")
+    rate_ax = panel_axis(fig, "population_rates")
     rate_ax.plot(signal_time, rate_e, color=BLACK, linewidth=1.0, alpha=0.88)
     rate_ax.plot(signal_time, rate_i, color=RED, linewidth=1.0, alpha=0.88)
     rate_ax.set_xlim(view_start_ms, view_end_ms or n_steps * dt)
@@ -745,7 +763,7 @@ def render(
     )
     rate_cursor = rate_ax.axvline(0, color=GREY, linewidth=0.7, alpha=0.75)
 
-    control_ax = response_layout.add_axes(fig, "input_controls")
+    control_ax = panel_axis(fig, "input_controls")
     control_ax.plot(
         signal_time,
         shared_afferent_scale,
@@ -778,7 +796,7 @@ def render(
         alpha=0.75,
     )
 
-    means_ax = layout.add_axes(fig, "means")
+    means_ax = panel_axis(fig, "means")
     means_ax.set_xlim(0, 1)
     means_ax.set_ylim(0, 1)
     means_ax.axis("off")
@@ -891,7 +909,7 @@ def render(
         head.set_y(y1)
         value.set_text(text)
 
-    phase = layout.add_axes(fig, "phase")
+    phase = panel_axis(fig, "phase")
     phase.set_facecolor(BG)
     pad_e, pad_i = np.ptp(mean_g_e) * 0.08, np.ptp(mean_g_i) * 0.08
     phase.set_xlim(mean_g_e.min() - pad_e, mean_g_e.max() + pad_e)
@@ -928,11 +946,14 @@ def render(
     trail_steps = int(round(40 / dt))
     if PACING == "story" and STATE == "input":
         if sustained_input:
+            baseline_frames = max(
+                1, round(140 * (input_onset_ms - view_start_ms) / 250.0)
+            )
             segments = [
                 (
                     int(round(view_start_ms / dt)),
                     int(round(input_onset_ms / dt)) - 1,
-                    140,
+                    baseline_frames,
                 ),
                 (
                     int(round(input_onset_ms / dt)),
@@ -1213,11 +1234,33 @@ def render(
             artists["label"].xy = (artists["median"] * scale, base + 0.30)
             artists["label"].set_text(f"{artists['median'] * scale:.2g} µS")
 
+    time_axes = (*conductance_axes, rate_ax, control_ax)
+    rolling_lines = tuple(conductance_lines)
+    rate_lines = tuple(zip(rate_ax.lines[:2], (rate_e, rate_i)))
+    control_lines = tuple(zip(
+            control_ax.lines[:3],
+            (
+                shared_afferent_scale,
+                private_afferent_scale,
+                private_afferent_scale,
+            ),
+        ))
+    display_window_ms = 200.0
+
     def update_panel_a_inputs(step):
-        start = max(0, int(round(view_start_ms / dt)))
-        stop = max(start, step + 1)
-        for line, values in (*ampa_input_lines, *gaba_input_lines):
+        left_ms = max(view_start_ms, step * dt - display_window_ms)
+        right_ms = left_ms + display_window_ms
+        start = int(round(left_ms / dt))
+        stop = step + 1
+        for line, values in rolling_lines:
             line.set_data(signal_time[start:stop], values[start:stop])
+        control_start = int(round(view_start_ms / dt))
+        for line, values in (*rate_lines, *control_lines):
+            line.set_data(signal_time[control_start:stop], values[control_start:stop])
+        for time_axis in conductance_axes:
+            time_axis.set_xlim(left_ms, right_ms)
+            ticks = np.linspace(np.ceil(left_ms), np.floor(right_ms), 10).round().astype(int)
+            time_axis.set_xticks(ticks, labels=[str(value) for value in ticks])
         for arrow, values, peak in conductance_arrows:
             strength = np.clip(float(values[step]) / peak, 0, 1)
             arrow.set_alpha(0.08 + 0.70 * np.sqrt(strength))
@@ -1262,7 +1305,7 @@ def render(
             phase_segments.pop().remove()
         while phase_direction:
             phase_direction.pop().remove()
-        start = max(0, step - trail_steps)
+        start = max(int(round(view_start_ms / dt)), step - trail_steps)
         points = np.c_[mean_g_e[start : step + 1], mean_g_i[start : step + 1]]
         if len(points) > 1:
             seg = np.stack([points[:-1], points[1:]], axis=1)
@@ -1364,8 +1407,7 @@ def render(
             i_nodes,
             rate_cursor,
             control_cursor,
-            *(line for line, _ in ampa_input_lines),
-            *(line for line, _ in gaba_input_lines),
+            *(line for line, _ in conductance_lines),
             *(arrow for arrow, *_ in conductance_arrows),
             *(arrow for arrow, *_ in population_arrows),
             phase_point,
@@ -1386,63 +1428,93 @@ def render(
         )
     for text_artist in fig.findobj(match=Text):
         text_artist.set_visible(False)
-    panel_title_inset_x = 7.0 / 72.0 / frame_size[0]
-    panel_title_inset_y = 7.0 / 72.0 / frame_size[1]
-    for title_layout, titles in (
-        (layout, PANEL_TITLES),
-        (response_layout, RESPONSE_PANEL_TITLES),
-    ):
-        for region_name, panel_title in titles.items():
-            region = title_layout.rect(region_name)
-            fig.text(
-                region.x + panel_title_inset_x,
-                region.y + region.height - panel_title_inset_y,
-                panel_title,
-                color=BLACK,
-                fontsize=8.5,
-                weight="bold",
-                family="monospace",
-                ha="left",
-                va="top",
-                bbox={"facecolor": BG, "edgecolor": "none", "pad": 1.5},
-                zorder=20_000,
-            )
+    for region_name, panel_title in {**PANEL_TITLES, **RESPONSE_PANEL_TITLES}.items():
+        slot = panel_slots[region_name]
+        fig.text(
+            slot.x,
+            slot.y + slot.height - 2 / 72 / frame_size[1],
+            panel_title,
+            color=BLACK,
+            fontsize=14,
+            weight="bold",
+            family="monospace",
+            ha="left",
+            va="top",
+        )
+    control_rect = panel_rects["input_controls"]
     for x, label, colour in (
-        (0.56, "SHARED", GREY),
-        (0.72, "E PRIVATE", BLACK),
-        (0.90, "I PRIVATE", RED),
+        (0.12, "SHARED", GREY),
+        (0.47, "E PRIVATE", BLACK),
+        (0.83, "I PRIVATE", RED),
     ):
-        control_ax.text(
-            x,
-            0.88,
+        fig.text(
+            control_rect.x + x * control_rect.width,
+            control_rect.y + control_rect.height + 7 / 72 / frame_size[1],
             label,
-            transform=control_ax.transAxes,
             color=colour,
-            fontsize=6.4,
+            fontsize=10.5,
             weight="bold",
             family="monospace",
             ha="center",
-            va="top",
-            bbox={"facecolor": BG, "edgecolor": "none", "pad": 0.8},
-            zorder=20_000,
+            va="bottom",
         )
-    time_end_ms = view_end_ms or n_steps * dt
-    time_ticks = (view_start_ms, (view_start_ms + time_end_ms) / 2, time_end_ms)
-    control_ax.set_xticks(time_ticks)
-    control_ax.set_xticklabels([f"{value:.0f}" for value in time_ticks])
-    control_ax.tick_params(
+    for time_axis in time_axes:
+        time_axis.set_xticks(
+            np.linspace(view_start_ms, view_start_ms + display_window_ms, 10)
+        )
+        time_axis.tick_params(
+            axis="x",
+            colors=GREY,
+            labelsize=6.5,
+            length=2,
+            pad=2,
+            labelbottom=True,
+        )
+        for tick_label in time_axis.get_xticklabels():
+            tick_label.set_visible(True)
+            tick_label.set_family("monospace")
+        time_axis.set_xlabel("ms", color=GREY, fontsize=8.5, labelpad=2)
+        time_axis.xaxis.label.set_visible(True)
+
+    control_end_ms = view_end_ms or n_steps * dt
+    control_ticks = np.linspace(np.ceil(view_start_ms), np.floor(control_end_ms), 10).round().astype(int)
+    for fixed_axis in (rate_ax, control_ax):
+        fixed_axis.set_xlim(view_start_ms, control_end_ms)
+        fixed_axis.set_xticks(control_ticks, labels=[str(value) for value in control_ticks])
+
+    for signal_axis in conductance_axes[:-1]:
+        signal_axis.tick_params(axis="x", bottom=False, labelbottom=False)
+        signal_axis.set_xlabel("")
+
+    for signal_axis in conductance_axes:
+        signal_axis.set_ylabel("µS", color=GREY, fontsize=7.5, rotation=0, ha="right")
+        signal_axis.yaxis.set_label_coords(-0.015, 1.08)
+        signal_axis.yaxis.label.set_visible(True)
+        upper = signal_axis.get_ylim()[1]
+        ticks = MaxNLocator(nbins=2).tick_values(0, upper)
+        signal_axis.set_yticks(ticks[(ticks >= 0) & (ticks <= upper)])
+        signal_axis.yaxis.set_major_formatter(StrMethodFormatter("{x:g}"))
+        signal_axis.tick_params(
+            axis="y", colors=GREY, labelsize=6.5, length=2, pad=2,
+            labelleft=True,
+        )
+        for tick_label in signal_axis.get_yticklabels():
+            tick_label.set_visible(True)
+            tick_label.set_family("monospace")
+
+    ridge_ax.tick_params(
         axis="x",
         colors=GREY,
-        labelsize=6.6,
+        labelsize=10.5,
         length=2,
         pad=2,
         labelbottom=True,
     )
-    for tick_label in control_ax.get_xticklabels():
+    for tick_label in ridge_ax.get_xticklabels():
         tick_label.set_visible(True)
         tick_label.set_family("monospace")
-    control_ax.set_xlabel("TIME (ms)", color=GREY, fontsize=6.8, labelpad=2)
-    control_ax.xaxis.label.set_visible(True)
+    ridge_ax.set_xlabel("µS", color=GREY, fontsize=11.5, labelpad=5)
+    ridge_ax.xaxis.label.set_visible(True)
 
     for x, variable, colour in (
         (0.14, r"$g_E$", BLACK),
@@ -1452,38 +1524,57 @@ def render(
     ):
         means_ax.text(
             x,
-            0.89,
+            0.88,
             variable,
+            transform=means_ax.transAxes,
             color=colour,
-            fontsize=9.0,
+            fontsize=14,
             weight="bold",
             ha="center",
-            va="center",
-            bbox={"facecolor": BG, "edgecolor": "none", "pad": 1.2},
-            zorder=20_000,
+            va="bottom",
         )
 
-    component_inset_x = 5.0 / 72.0 / frame_size[0]
+    for base, label, colour in (
+        (3, "E → E", BLACK),
+        (2, "E → I", BLACK),
+        (1, "I → I", RED),
+        (0, "I → E", RED),
+    ):
+        ridge_ax.text(
+            0.04,
+            base + 0.18,
+            label,
+            transform=ridge_ax.get_yaxis_transform(),
+            fontsize=9.5,
+            family="monospace",
+            color=colour,
+            ha="left",
+            va="center",
+            clip_on=False,
+        )
+
     component_inset_y = 5.0 / 72.0 / frame_size[1]
     for component_label, box, colour in (
-        ("E-TARGETING SPIKES", input_boxes["e_spikes"], BLACK),
+        ("E PRIVATE", input_boxes["e_spikes"], BLACK),
         ("SHARED SPIKES", input_boxes["shared_spikes"], GREY),
-        ("AMPA CONDUCTANCE", input_boxes["ampa"], BLACK),
-        ("GABA CONDUCTANCE", input_boxes["gaba"], RED),
-        ("I-TARGETING SPIKES", input_boxes["i_spikes"], RED),
+        ("AMPA ONTO E", input_boxes["ampa_e"], BLACK),
+        ("GABA ONTO E", input_boxes["gaba_e"], RED),
+        ("AMPA ONTO I", input_boxes["ampa_i"], GREY),
+        ("GABA ONTO I", input_boxes["gaba_i"], RED),
+        ("I PRIVATE", input_boxes["i_spikes"], RED),
         ("E POPULATION", e_box, BLACK),
         ("I POPULATION", i_box, RED),
     ):
         fig.text(
-            box[0] + component_inset_x,
-            box[1] + box[3] - component_inset_y,
+            box[0],
+            box[1] + box[3] + component_inset_y,
             component_label,
             color=colour,
-            fontsize=6.8,
+            fontsize=11.5,
             weight="bold",
             family="monospace",
             ha="left",
-            va="top",
+            va="bottom",
             bbox={"facecolor": BG, "edgecolor": "none", "pad": 1.0},
             zorder=20_000,
         )

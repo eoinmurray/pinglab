@@ -12,7 +12,7 @@
   // Author-locked title: do not change.
   title: "Video AI-PING transition",
   created_at: "2026-08-26T00:00:00Z",
-  updated_at: "2026-09-04",
+  updated_at: "2026-09-08",
   description: "Two single-seed conductance-based network simulations show intermittent activity under richer input and sustained alternating volleys during strong shared afferent drive.",
   collection: "demo",
   order: 13,
@@ -23,7 +23,7 @@
 #let render-report(data-file) = [
   #journal-abstract(
     question: [We tested how shared and heterogeneous afferent drive organize a sparse conductance-based excitatory–inhibitory network.],
-    approach: [We visualized two retained single-seed simulations: a richer-input condition and a condition with a sustained shared-input ramp.],
+    approach: [We visualized two single-seed simulations: a richer-input condition and a condition with a sustained shared-input ramp.],
     finding: [Strong shared drive recruited regular alternating excitatory and inhibitory volleys, whereas the richer-input condition remained irregular with intermittent structure.],
     scope: [These examples establish input-dependent behaviour in the configured simulations, not robustness across seeds or a one-factor comparison between conditions.],
   )
@@ -79,6 +79,33 @@
         (#result-figure-ref(<fig:exp099-inputs>)).],
     )
 
+    #let shared-clip = data-file("exp099/shared-drive-ai-to-ping.mp4")
+    #if shared-clip != none { let _ = read(shared-clip, encoding: none) }
+    #journal-result-card(
+      title: "Shared drive recruits rhythmic volleys",
+      visual: [
+        #figure(
+          video(shared-clip),
+          caption: [Single-seed shared-drive simulation over 50–1,250 ms,
+            omitting the initialization burst, with
+            the same panel and colour mappings as
+            #result-figure-ref(<fig:exp099-richer>). The shared afferent
+            multiplier rose smoothly from 1 to 25 between 500 and 700 ms and
+            remained at 25 thereafter; private afferent multipliers remained at
+            1. Recurrent weights and background-input settings were fixed
+            throughout this simulation.],
+          kind: image,
+          supplement: [Figure],
+        ) <fig:exp099-shared>
+      ],
+      observation: [As shared drive increased, low irregular firing gave way to
+        sustained alternating E and I volleys and a repeated conductance cycle
+        (#result-figure-ref(<fig:exp099-shared>, panel: "C–E")). Because the two
+        simulations also differ in fixed weights and background settings, their
+        contrast is illustrative rather than a one-factor between-condition
+        test.],
+    )
+
     #let richer-clip = data-file("exp099/richer-input-ai-to-intermittent-ping.mp4")
     #if richer-clip != none { let _ = read(richer-clip, encoding: none) }
     #journal-result-card(
@@ -86,7 +113,7 @@
       visual: [
         #figure(
           video(richer-clip),
-          caption: [Single-seed richer-input simulation over 300–1,800 ms.
+          caption: [Single-seed richer-input simulation over 0–1,800 ms.
             Panel A maps recorded spike and conductance inputs to the E and I
             populations; B shows mean conductances and voltages; C traces the
             excitatory–inhibitory conductance plane; D shows per-neuron E and I
@@ -104,32 +131,6 @@
         (#result-figure-ref(<fig:exp099-richer>, panel: "D")). This single
         realization does not establish whether richer input generally
         suppresses or preserves PING.],
-    )
-
-    #let shared-clip = data-file("exp099/shared-drive-ai-to-ping.mp4")
-    #if shared-clip != none { let _ = read(shared-clip, encoding: none) }
-    #journal-result-card(
-      title: "Shared drive recruits rhythmic volleys",
-      visual: [
-        #figure(
-          video(shared-clip),
-          caption: [Single-seed shared-drive simulation over 0–1,000 ms, with
-            the same panel and colour mappings as
-            #result-figure-ref(<fig:exp099-richer>). The shared afferent
-            multiplier rose smoothly from 1 to 25 between 250 and 450 ms and
-            remained at 25 thereafter; private afferent multipliers remained at
-            1. Recurrent weights and background-input settings were fixed
-            throughout this simulation.],
-          kind: image,
-          supplement: [Figure],
-        ) <fig:exp099-shared>
-      ],
-      observation: [As shared drive increased, low irregular firing gave way to
-        sustained alternating E and I volleys and a repeated conductance cycle
-        (#result-figure-ref(<fig:exp099-shared>, panel: "C–E")). Because the two
-        simulations also differ in fixed weights and background settings, their
-        contrast is illustrative rather than a one-factor between-condition
-        test.],
     )
 
   ]
@@ -162,12 +163,15 @@
         present. Independent and locally grouped AMPA and GABA shot noise also
         drove both populations.]),
       method-card([Configure the two simulations], [Both simulations used seed
-        7. In the 2,000 ms richer-input condition, the shared multiplier rose
+        7. The richer-input video began at initialization. The shared-drive video
+        omitted the first 50 ms, with neuronal and conductance states carried
+        continuously into the displayed interval.
+        In the 2,000 ms richer-input condition, the shared multiplier rose
         from 1 to 6.5 and the private multipliers from 1 to 1.2 between 600 and
         850 ms, returning to 1 by 1,100 ms; a stationary lognormal rate process
-        with a 250 ms timescale modulated all external events. In the 1,000 ms
+        with a 250 ms timescale modulated all external events. In the 1,250 ms
         shared-drive condition, the shared multiplier rose from 1 to 25 between
-        250 and 450 ms and remained there, while private multipliers and all
+        500 and 700 ms and remained there, while private multipliers and all
         other settings remained fixed through time. The two conditions used
         different fixed feedforward, recurrent-excitatory and background-drive
         scales and therefore were not a one-factor comparison.]),
@@ -186,14 +190,14 @@
         at 1 ms, and undefined contrasts were recorded as zero.]),
     ),
     present: (
-      method-card([Map retained evidence], [We displayed source-to-target
+      method-card([Map recorded activity], [We displayed source-to-target
         transmission from recorded spikes and fixed realized weights, sampling
         paths only to avoid overplotting. Per-neuron E and I firing rates were
         calculated in a centred 20 ms display window. The richer-input view
-        covered 300–1,800 ms; the shared-drive view covered 0–1,000 ms. Both
-        videos used the same panel grammar, 600 nonuniformly paced frames and a
-        representative still selected near maximal measured temporal
-        organization.]),
+        covered 0–1,800 ms; the shared-drive view covered 50–1,250 ms. The
+        videos used the same panel grammar, with 600 nonuniformly paced frames
+        for richer input and 712 for shared drive, and a representative still
+        selected near maximal measured temporal organization.]),
     ),
   )
 
@@ -207,14 +211,14 @@
       [Cortical reference],
     ),
     (
-      ([Simulation / view], [2,000 / 300–1,800 ms], [1,000 / 0–1,000 ms], [No canonical duration.]),
+      ([Simulation / view], [2,000 / 0–1,800 ms], [1,250 / 50–1,250 ms], [No canonical duration.]),
       ([Timestep; seed], [0.25 ms; 7], [0.25 ms; 7], [Numerical only.]),
       ([Population], [$N_E=400$; $N_I=100$], [$N_E=400$; $N_I=100$], [Realistic 4:1 ratio; strongly reduced circuit (#link("https://pmc.ncbi.nlm.nih.gov/articles/PMC3839692/")[Meyer et al., 2013]).]),
       ([Shared baseline], [10 Hz], [10 Hz], [Plausible rate; shared/private separation is abstract.]),
       ([Private E/I baseline], [15 / 15 Hz], [14.25 / 14.25 Hz], [Plausible active-input rate; cortical firing is often sparser (#link("https://pmc.ncbi.nlm.nih.gov/articles/PMC4108079/")[Zhou et al., 2014]).]),
       ([Shared multiplier], [$1 arrow 6.5 arrow 1$], [$1 arrow 25$, then held], [No standard; 25-fold represents strong synchrony.]),
       ([Private afferent multiplier], [$1 arrow 1.2 arrow 1$], [Constant at 1], [No direct biological standard.]),
-      ([Input timing], [600–850–1,100 ms], [250–450 ms; then held], [Plausible timescale; imposed waveform.]),
+      ([Input timing], [600–850–1,100 ms], [500–700 ms; then held], [Plausible timescale; imposed waveform.]),
       ([Global variation], [Lognormal; $tau=250$ ms; SD 12%], [None], [Qualitative cortical-state model.]),
       ([$w_("in" arrow E)$], [$0.080 plus.minus 0.008$ µS], [$0.160 plus.minus 0.016$ µS], [Low end of unitary excitation (#link("https://pmc.ncbi.nlm.nih.gov/articles/PMC10016070/")[Hunt et al., 2023]).]),
       ([$w_("in" arrow I)$], [$0.020 plus.minus 0.002$ µS], [$0.0040 plus.minus 0.0004$ µS], [Very weak.]),

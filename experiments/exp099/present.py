@@ -76,7 +76,6 @@ def _render_network_diagram(compute, output: Path) -> None:
     snnviz.render_diagram(
         visual,
         output / "network.svg",
-        height_to_width_ratio=0.6,
     )
 
 

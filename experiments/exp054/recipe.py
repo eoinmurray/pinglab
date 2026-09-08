@@ -15,15 +15,18 @@ FIGURES = (
 )
 
 
-def configuration(*, smoke=False):
+def configuration(*, smoke=False, version=4):
+    if version not in (1, 2, 3, 4):
+        raise ValueError("unsupported exp054 recipe version")
     mf = mean_field.configuration()
     return {
-        "schema": "exp054.recipe/v1",
+        "schema": f"exp054.recipe/v{version}",
         "profile": "smoke" if smoke else "production",
-        "dt_ms": 0.25,
+        "dt_ms": 0.1 if version >= 3 else 0.25,
+        **({"tau_gaba_ms": 6.0} if version >= 4 else {}),
         "sim_ms": 400.0 if smoke else 1000.0,
         "burn_ms": 100.0,
-        "n_e": 256,
+        "n_e": 256 if version == 1 else 1024,
         "n_i": 256,
         "seed": 42,
         "input_rate_hz": 100.0,
@@ -61,7 +64,13 @@ def configuration(*, smoke=False):
 
 
 def validate(cfg):
-    if cfg not in (configuration(), configuration(smoke=True)):
+    # Recipe versions describe scientific conditions within v4 storage runs.
+    # Earlier scientific recipes stay readable; new compute uses v4.
+    if cfg not in tuple(
+        configuration(smoke=smoke, version=version)
+        for version in (1, 2, 3, 4)
+        for smoke in (False, True)
+    ):
         from pingstore.contracts import PingstoreError
 
         raise PingstoreError("inconsistent exp054 recipe")
@@ -134,6 +143,8 @@ def simulation_args(cfg, item, output):
         "--out-dir",
         str(output),
     ]
+    if "tau_gaba_ms" in cfg:
+        args += ["--tau-gaba", str(cfg["tau_gaba_ms"])]
     if item["private"]:
         args += ["--private-w-in", "--w-in", str(cfg["private_w_in"])]
     else:

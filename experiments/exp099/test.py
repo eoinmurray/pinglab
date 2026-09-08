@@ -113,18 +113,9 @@ def forbid(*args, **kwargs):
 def test_stages_pin_v3_keep_raw_evidence_and_render_without_analysis(lab, monkeypatch):
     renderer = importlib.import_module("experiments.exp099.render")
     layout = renderer.frame_grid()
-    assert layout.rect("header").mpl == pytest.approx(
-        (0.015, 0.9297701149, 0.965, 0.0402298851)
-    )
-    assert layout.rect("network").mpl == pytest.approx(
-        (0.015, 0.055, 0.4725, 0.8547701149)
-    )
-    assert layout.rect("means").mpl == pytest.approx(
-        (0.5075, 0.4923850575, 0.22625, 0.4173850575)
-    )
-    assert layout.rect("weights").mpl == pytest.approx(
-        (0.75375, 0.055, 0.22625, 0.4173850575)
-    )
+    assert layout.rect("network").height > layout.rect("means").height
+    assert layout.rect("network").x < layout.rect("means").x
+    assert layout.rect("means").y > layout.rect("weights").y
     compute_id = compute.compute()
     upstream = directory(lab, compute_id)
     before = payload_digest(upstream)
@@ -158,15 +149,51 @@ def test_stages_pin_v3_keep_raw_evidence_and_render_without_analysis(lab, monkey
             np.testing.assert_allclose(axis.get_facecolor(), (1.0, 1.0, 1.0, 1.0))
         for frame in (0, 139, 140, 309, 310, 479, 480, 599):
             update(frame)
+            phase = next(
+                axis for axis in fig.axes if axis.get_ylabel() == r"mean $g_I$ (µS)"
+            )
+            if frame == 0:
+                assert not phase.collections, "opening phase trail exposes hidden burn-in"
+            else:
+                assert phase.collections, "visible activity must still form a phase trail"
             fig.canvas.draw()
             visible_text = {
                 text.get_text()
                 for text in fig.findobj(match=Text)
                 if text.get_visible() and text.get_text().strip()
             }
-            time_ticks = {text for text in visible_text if text.isdigit()}
-            assert len(time_ticks) == 3
+            time_ticks = {
+                label.get_text()
+                for axis in fig.axes if axis.get_xlabel() == "ms"
+                for label in axis.get_xticklabels() if label.get_visible()
+            }
+            assert all(len(axis.get_xticks()) == 10 for axis in fig.axes if axis.get_xlabel() == "ms")
+            labelled_time_axes = [axis for axis in fig.axes if axis.get_xlabel() == "ms"]
+            assert len(labelled_time_axes) == 3
+            conductance_axes = [axis for axis in fig.axes if axis.get_ylabel() == "µS"]
+            assert len(conductance_axes) == 4
+            time_axes = conductance_axes + [axis for axis in labelled_time_axes if axis not in conductance_axes]
+            current_time = float(time_axes[4].lines[-1].get_xdata()[0])
+            for time_axis in time_axes:
+                left, right = time_axis.get_xlim()
+                if time_axis in time_axes[-2:]:
+                    assert left == pytest.approx(recipe.VIEW_START_MS)
+                    assert right == pytest.approx(recipe.VIEW_END_MS)
+                else:
+                    assert right - left == pytest.approx(200)
+                for line in time_axis.lines:
+                    times = np.asarray(line.get_xdata())
+                    if len(times):
+                        assert times.min() >= left
+                        assert times.max() <= current_time
+            conductance_ticks = {
+                label.get_text()
+                for axis in time_axes[:4]
+                for label in axis.get_yticklabels() if label.get_visible()
+            }
+            assert conductance_ticks
             assert visible_text - time_ticks == (
+                conductance_ticks |
                 set(renderer.PANEL_TITLES.values())
                 | set(renderer.RESPONSE_PANEL_TITLES.values())
                 | {
@@ -177,17 +204,28 @@ def test_stages_pin_v3_keep_raw_evidence_and_render_without_analysis(lab, monkey
                 "SHARED",
                 "E PRIVATE",
                 "I PRIVATE",
-                "TIME (ms)",
-                "E-TARGETING SPIKES",
+                "ms",
+                "µS",
+                "0.01",
+                "0.1",
+                "1",
+                "2",
+                "E → E",
+                "E → I",
+                "I → I",
+                "I → E",
+                "E PRIVATE",
                 "SHARED SPIKES",
-                "AMPA CONDUCTANCE",
-                "GABA CONDUCTANCE",
-                "I-TARGETING SPIKES",
+                "AMPA ONTO E",
+                "GABA ONTO E",
+                "AMPA ONTO I",
+                "GABA ONTO I",
+                "I PRIVATE",
                 "E POPULATION",
                 "I POPULATION",
                 }
             )
-        assert len(fig.axes) == 8
+        assert len(fig.axes) == 10
         # Encoding is outside this fixture test; the real poster is rendered.
         output.write_bytes(b"fixture-video")
 
@@ -257,16 +295,19 @@ def test_shared_drive_condition_varies_only_shared_wave():
     )
 
 
-def test_one_second_visible_protocol_uses_resolving_analysis_window_after_burn_in():
+@pytest.mark.parametrize("duration_ms, view_start_ms", [(1_500, 500), (1_750, 500)])
+def test_shared_protocol_keeps_analysis_window_with_longer_baseline(
+    duration_ms, view_start_ms
+):
     cfg = recipe.configuration(
         condition="shared-drive-isolation",
-        duration_ms=1_500,
+        duration_ms=duration_ms,
         onset_ms=950,
         peak_ms=1_000,
         plateau_end_ms=1_499.75,
         offset_ms=1_500,
-        view_start_ms=500,
-        view_end_ms=1_500,
+        view_start_ms=view_start_ms,
+        view_end_ms=duration_ms,
     )
     settings = recipe.analysis_configuration(cfg)
     assert settings["rhythm_window_ms"] == 160.0

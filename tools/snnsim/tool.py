@@ -1330,6 +1330,7 @@ def configure_models(args):
     """
     arg_to_global = {
         "surrogate_slope": ("SURROGATE_SLOPE", float),
+        "tau_gaba": ("tau_gaba", float),
     }
     for arg, (attr, cast) in arg_to_global.items():
         val = getattr(args, arg, None)

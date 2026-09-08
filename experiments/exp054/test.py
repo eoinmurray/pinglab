@@ -76,6 +76,7 @@ def config_record(cfg, item):
         "n_in": cfg["n_e"] if item["private"] else cfg["shared_n_in"],
         "t_ms": cfg["sim_ms"],
         "dt": cfg["dt_ms"],
+        "tau_gaba": cfg.get("tau_gaba_ms"),
         "seed": cfg["seed"],
         "spike_rate": item["rate_hz"],
         "w_ei_mean": item["wei"],
@@ -152,6 +153,77 @@ def resign(path):
     manifest = load_json(path / "run.json")
     manifest["payload_digest"] = payload_digest(path)
     write_json_atomic(path / "run.json", manifest)
+
+
+@pytest.mark.parametrize("smoke", [False, True])
+def test_population_recipe_versions_and_input_channels(smoke):
+    current = recipe.configuration(smoke=smoke)
+    previous = recipe.configuration(smoke=smoke, version=1)
+    assert current["n_e"] == 1024 and current["n_i"] == 256
+    assert current["dt_ms"] == 0.1
+    assert current["tau_gaba_ms"] == 6.0
+    intermediate = recipe.configuration(smoke=smoke, version=2)
+    assert intermediate["n_e"] == 1024 and intermediate["dt_ms"] == 0.25
+    assert previous["n_e"] == 256 and previous["n_i"] == 256
+    assert recipe.validate(previous) == previous
+    assert recipe.validate(current) == current
+    timestep_only = recipe.configuration(smoke=smoke, version=3)
+    assert "tau_gaba_ms" not in timestep_only
+    for cfg in (previous, intermediate, timestep_only, current):
+        assert recipe.validate(cfg) == cfg
+        for private, channels in ((True, cfg["n_e"]), (False, 200)):
+            args = recipe.simulation_args(
+                cfg, recipe.job(cfg, 0, 0, 100, private), Path("probe")
+            )
+            assert args[args.index("--n-in") + 1] == str(channels)
+            assert args[args.index("--dt") + 1] == str(cfg["dt_ms"])
+            if "tau_gaba_ms" in cfg:
+                assert args[args.index("--tau-gaba") + 1] == "6.0"
+                item = recipe.job(cfg, 0, 0, 100, private)
+                record = config_record(cfg, item)
+                evidence.simulation_config(record, cfg, item)
+                record["tau_gaba"] = 9.0
+                with pytest.raises(PingstoreError, match="configuration"):
+                    evidence.simulation_config(record, cfg, item)
+            else:
+                assert "--tau-gaba" not in args
+            assert args[args.index("--recording-start-step") + 1] == str(
+                round(cfg["burn_ms"] / cfg["dt_ms"])
+            )
+        assert len(recipe.jobs(cfg)) == (51 if smoke else 136)
+    for invalid in (
+        {**previous, "n_e": 1024},
+        {**current, "n_e": 256},
+        {**current, "n_i": 1024},
+        {**current, "schema": "exp054.recipe/v5"},
+        {**current, "tau_gaba_ms": 9.0},
+        {**current, "dt_ms": 0.25},
+        {**intermediate, "dt_ms": 0.1},
+    ):
+        with pytest.raises(PingstoreError, match="recipe"):
+            recipe.validate(invalid)
+
+
+def test_campaign_cannot_reuse_previous_population_recipe(monkeypatch):
+    monkeypatch.setattr(
+        evidence, "compute_contract", lambda _: recipe.configuration(version=1)
+    )
+    with pytest.raises(PingstoreError, match="recipe"):
+        collection._profile({"compute": object()}, {"profile": "production"})
+
+
+@pytest.mark.parametrize("dtype", [np.float32, np.float64])
+def test_raster_timestep_matches_recording_precision(tmp_path, dtype):
+    cfg = recipe.configuration()
+    data = recording(cfg)
+    data["dt"] = dtype(0.1)
+    path = tmp_path / "rasters.npz"
+    np.savez_compressed(path, **data)
+    evidence.raster(path, cfg)
+    data["dt"] = np.nextafter(dtype(0.1), dtype(1.0))
+    np.savez_compressed(path, **data)
+    with pytest.raises(PingstoreError, match="dimensions"):
+        evidence.raster(path, cfg)
 
 
 def test_independent_stages_and_all_figures(lab, monkeypatch):
@@ -522,9 +594,9 @@ def test_measured_rates_use_post_burn_full_populations(tmp_path):
     cfg = recipe.configuration(smoke=True)
     data = recording(cfg)
     e, i = measurements.dense(data, cfg)
-    assert e.shape == (1200, 256) and i.shape == (1200, 256)
-    count = np.count_nonzero(data["e_t"] >= 400)
-    assert measurements.score(e, cfg)["rate"] == count / (256 * 0.3)
+    assert e.shape == (3000, 1024) and i.shape == (3000, 256)
+    count = np.count_nonzero(data["e_t"] >= 1000)
+    assert measurements.score(e, cfg)["rate"] == count / (1024 * 0.3)
 
 
 def test_missing_mean_field_sweep_and_wrong_sigma_fail():
@@ -664,7 +736,8 @@ def test_contrast_can_reach_one_and_silent_data_remain_undefined():
     result = rhythmicity_scalars(lags, [np.nan, 4, 4, 0, 0, 0, 1, 1], [0.5], [1])
     assert result["contrast"] == 1.0
     cfg = recipe.configuration()
-    result = measurements.score(np.zeros((3600, 256), np.int8), cfg)
+    steps = round((cfg["sim_ms"] - cfg["burn_ms"]) / cfg["dt_ms"])
+    result = measurements.score(np.zeros((steps, cfg["n_e"]), np.int8), cfg)
     assert np.isnan(result["contrast"])
 
 
