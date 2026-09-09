@@ -969,11 +969,19 @@
 
   === Untrained circuit experiments
 
-  *P11 — Loop-off/on experiment.* Describe the 1,024-E/256-I circuits and
-  400-ms trials. Illustrative rasters used 1,024 input channels at 5 Hz for
-  COBA and 45 Hz for PING. The matched sweep instead used 784 channels at
-  2, 5, 10, 20, 40, 70 and 100 Hz. Each condition used one seed-42 trial,
-  without discarded burn-in. Fig. 1.
+  We compared untrained loop-disabled COBA and PING circuits containing
+  1,024 excitatory and 256 inhibitory neurons (Fig. 1). Reciprocal E→I
+  and I→E coupling was absent in COBA and enabled in PING, using the
+  initialization parameters specified in Table 2. Each simulation lasted
+  400 ms at a 0.1-ms timestep, beginning with membrane voltages of −65 mV
+  and zero synaptic conductances; no burn-in interval was discarded.
+  Illustrative rasters used 1,024 independent Poisson input channels at
+  5 Hz per channel for COBA and 45 Hz for PING. The matched input–output
+  sweeps instead used 784 channels, testing both architectures at 2, 5,
+  10, 20, 40, 70 and 100 Hz per channel. Each architecture–input condition
+  comprised one trial with seed 42. Population firing rates were measured
+  over the full trial, and spectra were calculated from the illustrative
+  raster trials as described below.
 
   *P12 — Coupling plane.* Describe 1,024 E and 256 I neurons, private
   100-Hz input with input weight 0.5, and the 11×11 grid spanning E→I

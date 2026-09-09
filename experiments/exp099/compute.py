@@ -82,9 +82,9 @@ def compute(
     seed=recipe.SEED,
     capacitance_nf=0.15,
     leak_us=0.01,
-    baseline_hz=0.6,
-    recurrent_scale=0.1,
-    inhibitory_scale=4.0,
+    baseline_hz=0.8,
+    recurrent_scale=0.08,
+    inhibitory_scale=5.0,
     no_i_external=False,
 ):
     cfg = recipe.configuration(
@@ -121,9 +121,9 @@ def main():
     p.add_argument("--seed", type=int, default=recipe.SEED)
     p.add_argument("--capacitance-nf", type=float, default=0.15)
     p.add_argument("--leak-us", type=float, default=0.01)
-    p.add_argument("--baseline-hz", type=float, default=0.6)
-    p.add_argument("--recurrent-scale", type=float, default=0.1)
-    p.add_argument("--inhibitory-scale", type=float, default=4.0)
+    p.add_argument("--baseline-hz", type=float, default=0.8)
+    p.add_argument("--recurrent-scale", type=float, default=0.08)
+    p.add_argument("--inhibitory-scale", type=float, default=5.0)
     p.add_argument("--no-i-external", action="store_true")
     a = p.parse_args()
     compute(

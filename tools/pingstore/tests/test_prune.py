@@ -117,6 +117,56 @@ def test_plan_keeps_hpc_latest_visible_incomplete_inputs_and_ancestry(tmp_path):
     assert len(plan["plan_hash"]) == 71
 
 
+def test_scoped_plan_only_prunes_selected_experiment(tmp_path):
+    paths = fixture_store(tmp_path)
+    plan = build_plan(tmp_path, ["exp001"])
+    kept = {row["run_id"]: row["reasons"] for row in plan["keep"]}
+    pruned = {row["run_id"] for row in plan["prune"]}
+
+    assert plan["experiments"] == ["exp001"]
+    assert pruned == {paths["old_compute"].name, paths["old_present"].name}
+    assert "latest-visible" in kept[paths["latest"].name]
+    assert "out-of-scope" in kept[paths["superseded"].name]
+    assert "out-of-scope" in kept[paths["exp2_latest"].name]
+
+
+def test_scoped_plan_keeps_selected_ancestor_of_out_of_scope_run(tmp_path):
+    selected_parent = make_run(
+        tmp_path,
+        "exp001-r001-compute",
+        stage="compute",
+        created_at="2026-01-01T00:00:00Z",
+    )
+    make_run(
+        tmp_path,
+        "exp001-r002-present",
+        stage="present",
+        created_at="2026-01-02T00:00:00Z",
+    )
+    make_run(
+        tmp_path,
+        "exp002-r001-present",
+        stage="present",
+        created_at="2026-01-03T00:00:00Z",
+        inputs={"shared": reference(selected_parent)},
+    )
+
+    plan = build_plan(tmp_path, ["exp001"])
+    kept = {row["run_id"]: row["reasons"] for row in plan["keep"]}
+
+    assert "required-ancestor" in kept[selected_parent.name]
+    assert {row["run_id"] for row in plan["prune"]} == set()
+
+
+def test_scoped_plan_rejects_unknown_or_invalid_experiment(tmp_path):
+    fixture_store(tmp_path)
+
+    with pytest.raises(PingstoreError, match="invalid experiment filter"):
+        build_plan(tmp_path, ["experiment-one"])
+    with pytest.raises(PingstoreError, match="experiment filter has no runs"):
+        build_plan(tmp_path, ["exp999"])
+
+
 @pytest.mark.parametrize(
     "record",
     [
@@ -150,6 +200,20 @@ def test_confirm_applies_exact_plan_and_preserves_hidden_directory(tmp_path):
     assert paths["latest"].exists()
     assert (tmp_path / ".pingstore/runs/.exp005-r003-analyse.tmp").exists()
     assert not list((tmp_path / ".pingstore").glob(".prune-*-runs.*"))
+
+
+def test_scoped_confirm_applies_only_matching_scoped_plan(tmp_path):
+    paths = fixture_store(tmp_path)
+    plan = build_plan(tmp_path, ["exp001"])
+
+    with pytest.raises(PingstoreError, match="plan changed"):
+        apply_plan(tmp_path, plan["plan_hash"])
+    applied = apply_plan(tmp_path, plan["plan_hash"], ["exp001"])
+
+    assert applied == plan
+    assert not paths["old_compute"].exists()
+    assert not paths["old_present"].exists()
+    assert paths["superseded"].exists()
 
 
 def test_confirm_rejects_plan_drift_without_removing_runs(tmp_path):
@@ -212,6 +276,26 @@ def test_cli_requires_dry_run_or_complete_hash(tmp_path, capsys):
     assert main(["prune", "--root", str(tmp_path), "--confirm", "yes"]) == 1
     assert "complete sha256 plan hash" in capsys.readouterr().err
     assert before == {path.name for path in (tmp_path / ".pingstore/runs").iterdir()}
+
+
+def test_cli_renders_repeatable_experiment_scope_in_confirmation(tmp_path, capsys):
+    fixture_store(tmp_path)
+
+    assert main(
+        [
+            "prune",
+            "--root",
+            str(tmp_path),
+            "--experiment",
+            "exp002",
+            "--experiment",
+            "exp001",
+            "--dry-run",
+        ]
+    ) == 0
+    output = capsys.readouterr().out
+    assert "Scope: exp001, exp002" in output
+    assert "--experiment exp001 --experiment exp002 --confirm sha256:" in output
 
 
 def test_prune_lock_blocks_reservation_and_execution(tmp_path):

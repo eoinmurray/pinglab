@@ -45,7 +45,7 @@ collections:
   gamma-gated-sparsity:
     label: Gamma-gated sparsity
   demo:
-    label: Demos
+    label: Uncategorised
   documentation:
     label: Documentation
     theme: docs

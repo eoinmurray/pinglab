@@ -20,18 +20,18 @@ def test_physical_weights_and_refractory_durations():
             np.testing.assert_allclose(w, np.eye(len(w)) * 0.004)
         else:
             np.testing.assert_allclose(
-                w[w > 0], 0.00125 if p.id.startswith("E") else 0.00334
+                w[w > 0], 0.001 if p.id.startswith("E") else 0.00334
             )
     for row, duration in zip(model.plan.populations, (3.0, 1.5)):
         assert row["neuron"]["refractory_steps"] * cfg["dt_ms"] == duration
 
 
 def test_count_superposition_keeps_multiplets_and_independence():
-    cfg = small_cfg()
+    cfg = {**small_cfg(), "t_ms": 1000.0, "stimulus_e_hz": 0.8, "stimulus_i_hz": 0.8}
     counts = recipe.afferent_counts(cfg)
     for array in counts.values():
         assert array.max() >= 2
-        assert abs(array.mean() - 0.024) < 0.002
+        assert abs(array.mean() - 0.032) < 0.002
         assert abs(np.corrcoef(array[:, 0], array[:, 1])[0, 1]) < 0.04
     assert not np.array_equal(counts["private_e"][:, :10], counts["private_i"])
 
@@ -89,11 +89,11 @@ def test_pulse_schedule_and_epochs():
 
     cfg = {**small_cfg(), "t_ms": recipe.DURATION_MS}
     e, i = recipe.source_rates(np.array([0, 700, 725, 750, 850, 875, 900, 1099.9]), cfg)
-    np.testing.assert_allclose(e, [0.6, 0.6, 0.75, 0.9, 0.9, 0.75, 0.6, 0.6])
+    np.testing.assert_allclose(e, [0.8, 0.8, 1.0, 1.2, 1.2, 1.0, 0.8, 0.8])
     np.testing.assert_allclose(i, e)
     old = {k: v for k, v in cfg.items() if k != "stimulus_i_hz"}
     _, old_i = recipe.source_rates(np.array([0, 500, 1000, 1499.9]), old)
-    np.testing.assert_allclose(old_i, 0.6)
+    np.testing.assert_allclose(old_i, 0.8)
     steps = round(cfg["t_ms"] / cfg["dt_ms"])
     data = {f"spk_{p}": np.zeros((steps, cfg[f"n_{p}"]), bool) for p in ("e", "i")}
     for name in (

@@ -6,11 +6,13 @@ import hashlib
 import json
 import os
 import re
+import shlex
 import shutil
 from collections import defaultdict
 from pathlib import Path
 
 from .contracts import (
+    EXPERIMENT_RE,
     PingstoreError,
     file_sha256,
     load_json,
@@ -20,7 +22,7 @@ from .contracts import (
 from .discovery import discover_runs
 from .locking import operation_lock
 
-PLAN_SCHEMA = "pingstore.prune-plan/v1"
+PLAN_SCHEMA = "pingstore.prune-plan/v2"
 HPC_MARKER = re.compile(r"(?:^|[-_.])(?:slurm|hpc|wilkes|csd3|gpu-q)(?:$|[-_.0-9])")
 PROVENANCE_KEYS = {
     "host",
@@ -165,7 +167,29 @@ def _plan_hash(plan: dict) -> str:
     return "sha256:" + hashlib.sha256(encoded).hexdigest()
 
 
-def build_plan(repo: Path) -> dict:
+def _experiment_scope(
+    experiments: list[str] | tuple[str, ...] | set[str] | None,
+    records: dict[str, dict],
+) -> set[str] | None:
+    if experiments is None:
+        return None
+    scope = set(experiments)
+    if not scope:
+        raise PingstoreError("experiment-scoped prune requires at least one experiment")
+    invalid = sorted(value for value in scope if not EXPERIMENT_RE.fullmatch(value))
+    if invalid:
+        raise PingstoreError(f"invalid experiment filter: {', '.join(invalid)}")
+    available = {record["experiment"] for record in records.values()}
+    missing = sorted(scope - available)
+    if missing:
+        raise PingstoreError(f"experiment filter has no runs: {', '.join(missing)}")
+    return scope
+
+
+def build_plan(
+    repo: Path,
+    experiments: list[str] | tuple[str, ...] | set[str] | None = None,
+) -> dict:
     repo = repo.resolve()
     runs = repo / ".pingstore/runs"
     if not runs.is_dir() or runs.is_symlink():
@@ -176,11 +200,19 @@ def build_plan(repo: Path) -> dict:
                 f"prune does not accept unsupported runs entry: {path}"
             )
     records = _validated_graph(runs)
+    scope = _experiment_scope(experiments, records)
     discovered = discover_runs(runs)
     reasons: dict[str, set[str]] = defaultdict(set)
 
+    if scope is not None:
+        for run_id, record in records.items():
+            if record["experiment"] not in scope:
+                reasons[run_id].add("out-of-scope")
+
     latest: dict[str, dict] = {}
     for row in discovered:
+        if scope is not None and row["experiment"] not in scope:
+            continue
         current = latest.get(row["experiment"])
         if current is None or (row["created_at"], row["id"]) > (
             current["created_at"],
@@ -190,7 +222,7 @@ def build_plan(repo: Path) -> dict:
     for row in latest.values():
         reasons[row["id"]].add("latest-visible")
     for run_id, record in records.items():
-        if is_hpc_run(record):
+        if (scope is None or record["experiment"] in scope) and is_hpc_run(record):
             reasons[run_id].add("hpc")
     _add_declared_roots(repo, records, reasons)
     hidden = _hidden_inputs(runs, records, reasons)
@@ -236,6 +268,7 @@ def build_plan(repo: Path) -> dict:
     plan = {
         "schema": PLAN_SCHEMA,
         "policy": "keep-hpc-and-latest-visible-with-ancestry",
+        "experiments": sorted(scope) if scope is not None else None,
         "hidden": hidden,
         "keep": [row for row in rows if row["run_id"] in keep],
         "prune": [row for row in rows if row["run_id"] not in keep],
@@ -262,7 +295,11 @@ def _validate_survivors(runs: Path, expected: set[str]) -> None:
     discover_runs(runs)
 
 
-def apply_plan(repo: Path, expected_hash: str) -> dict:
+def apply_plan(
+    repo: Path,
+    expected_hash: str,
+    experiments: list[str] | tuple[str, ...] | set[str] | None = None,
+) -> dict:
     if not re.fullmatch(r"sha256:[0-9a-f]{64}", expected_hash):
         raise PingstoreError(
             "--confirm requires the complete sha256 plan hash from --dry-run"
@@ -274,7 +311,7 @@ def apply_plan(repo: Path, expected_hash: str) -> dict:
     previous = store / f".prune-{expected_hash[7:19]}-runs.old"
     with operation_lock(store, exclusive=True):
         try:
-            plan = build_plan(repo)
+            plan = build_plan(repo, experiments)
             if plan["plan_hash"] != expected_hash:
                 raise PingstoreError(
                     f"prune plan changed: expected {expected_hash}, now {plan['plan_hash']}"
@@ -329,6 +366,8 @@ def render_plan(plan: dict) -> str:
     prune_bytes = sum(row["bytes"] for row in plan["prune"])
     lines = [
         f"Plan: {plan['plan_hash']}",
+        "Scope: "
+        + (", ".join(plan["experiments"]) if plan["experiments"] else "all experiments"),
         f"Keep: {len(plan['keep'])} runs ({keep_bytes / 2**30:.2f} GiB)",
         f"Prune: {len(plan['prune'])} runs ({prune_bytes / 2**30:.2f} GiB)",
         "",
@@ -343,7 +382,13 @@ def render_plan(plan: dict) -> str:
         f"{row['run_id']}\t{row['bytes']}\t{','.join(row['reasons'])}"
         for row in plan["prune"]
     )
-    lines.extend(
-        ["", f"Confirm with: uv run pingstore prune --confirm {plan['plan_hash']}"]
+    scope_args = " ".join(
+        f"--experiment {shlex.quote(experiment)}"
+        for experiment in (plan["experiments"] or [])
     )
+    command = "uv run pingstore prune"
+    if scope_args:
+        command += f" {scope_args}"
+    command += f" --confirm {plan['plan_hash']}"
+    lines.extend(["", f"Confirm with: {command}"])
     return "\n".join(lines)

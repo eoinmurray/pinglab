@@ -1,14 +1,12 @@
 # EXP099: independent afferent excitation
 
-This replaces the former richer/shared-input protocols with the user's
-Susin-inspired parameter proposal. It is not a replication of the AdEx network
-in [Susin and Destexhe (2021)](https://doi.org/10.1371/journal.pcbi.1009416).
+This is a modified replication of the PING-network experiment in [Susin and Destexhe (2021)](https://doi.org/10.1371/journal.pcbi.1009416).
 
 ## Scientific configuration
 
 The network has 1,600 excitatory and 400 inhibitory conductance-based LIF cells,
 independent Bernoulli recurrent connections with probability 0.10, fixed
-excitatory edge weights of 0.00125 µS and inhibitory weights of 0.00334 µS.
+excitatory edge weights of 0.001 µS and inhibitory weights of 0.00334 µS.
 Possible self-connections are included. AMPA/GABA decay times are 1.5/7.5 ms;
 every pathway has a 1.5 ms delay. The timestep is 0.1 ms, preserving 3 ms E and
 1.5 ms I refractory durations (30 and 15 steps).
@@ -27,7 +25,7 @@ source and no separate external GABA or conductance-background process.
 Rates are per individual afferent. The current protocol runs seed 7 for 1,100 ms, with a hidden 500 ms baseline before the visible 600 ms window,
 matching the reference Figure 4 display duration and pulse shape: 200 ms baseline,
 50 ms rise, 100 ms plateau, 50 ms fall, and 200 ms recovery. Both E- and I-targeted
-rates follow 0.6 → 0.9 → 0.6 Hz. Initial voltage remains −65 mV. The video shows
+rates follow 0.8 → 1.2 → 0.8 Hz. Initial voltage remains −65 mV. The video shows
 the final 600 ms, rebased to 0–600 ms, in 625 frames (25 seconds); the raster uses the same interval and a
 250–350 ms close-up. Earlier calibration and diagnostic runs remain documented
 below as history.
@@ -91,7 +89,7 @@ and at most 100 actual recurrent edges per pathway. Input dots represent
 aggregate target-specific streams, not all individual afferents. Input
 projections are excitatory even when their target label is red. Edge flashes
 use delayed arrivals; dots use recent events for visibility. Panel C shows a
-40 ms conductance trail. The 25 s video plays at 25 fps, with approximately 2.4 ms of source time per frame.
+40 ms conductance trail. The 25 s video plays at 25 fps, with approximately 0.96 ms of source time per frame.
 
 Validation:
 
@@ -197,3 +195,29 @@ window is 500–1,100 ms and is labelled 0–600 ms in both video and raster.
 Analysis excludes burn-in from the visible baseline and stimulus measurements.
 Simulation took 6.793 s. Analysis `exp099-r054-analyse` measured visible baseline
 E/I rates 2.503125/2.575 Hz, plateau 10/10.85 Hz and recovery 6.034375/6.8125 Hz.
+
+### Selected c20 configuration (2026-09-09)
+
+The author selected c20 from the completed 27-combination exploratory search in
+`.scratch/exp099-lif-search-20260909/`. The grid combined baseline afferent rates
+{0.4, 0.6, 0.8} Hz, recurrent E weights {1.0, 1.25, 1.5} nS and recurrent I
+weights {2.7, 3.34, 4.0} nS. All cases shared seed 7 and recurrent connectivity;
+cases with equal input rates shared afferent counts. Selection considered rasters,
+firing rates, baseline correlations and 10 ms burst-window participation jointly.
+
+The new defaults are 0.8 Hz baseline (1.2 Hz pulse), 1.0 nS E and 3.34 nS I.
+For the existing scale-based CLI, these are `--baseline-hz 0.8`,
+`--recurrent-scale 0.08`, and `--inhibitory-scale 5.0`; both scale factors
+contribute to the inhibitory physical weight.
+
+Fresh compute `exp099-r059-compute` took 6.092 s. Every recorded field matches
+the retained scratch c20 recording bit for bit, including afferent counts, E/I
+spikes, mean voltages and conductances. The scratch search record and verification
+retain the selected case, payload hashes and the new v4 source reference.
+Analysis `exp099-r060-analyse` measured visible baseline E/I rates
+3.528125/3.825 Hz, plateau 11.50625/11.925 Hz and recovery 4.275/4.375 Hz.
+
+Search measurements remain in the scratch search's full results and raw records.
+The seven Methods steps describe that calibration and selection alongside the
+selected trajectory. Earlier no-I-input timing diagnostics used the preceding
+calibrated parameters and remain explicitly historical in the article.

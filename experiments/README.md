@@ -1,6 +1,6 @@
 # Experiment Runner Guide
 
-Version: **4.4.0**
+Version: **4.5.0**
 
 This guide defines Pinglab's independent compute, analyse, and present commands.
 The [Storage Guide](../tools/pingstore/README.md) owns run layout and validation.
@@ -11,6 +11,7 @@ The [Storage Guide](../tools/pingstore/README.md) owns run layout and validation
 experiments/expXXX/
     recipe.py
     compute.py
+    compute_parts/       # optional descriptive implementation modules
     analyse.py
     present.py
 writings/expXXX.typ
@@ -22,6 +23,11 @@ explicit compute evidence. Present creates flat figures, tables, videos, and
 report-ready numbers. A change of estimator belongs in analyse; a change of
 appearance belongs in present; inference that generates new activity belongs in
 compute.
+
+`compute.py` remains the public compute entry point. Long implementations may be
+split into ordinary functions or descriptively named modules under
+`compute_parts/`. Do not use numbered entry points such as `compute-1.py` merely
+to organize source code.
 
 ## 2. Commands and boundaries
 
@@ -46,6 +52,43 @@ procedure explicitly resumes the incomplete working directory.
 Run reservation and execution refuse to start while the Storage Guide's
 exclusive pruning operation is active. Pruning likewise refuses an active
 writer, so it cannot race stage completion.
+
+### Exceptional chunking and resumable compute
+
+The default is one compute invocation producing one compute run. Chunking is an
+exception for work that is expensive or failure-prone, exceeds scheduler or
+resource limits, or contains genuinely independent scientific partitions. Do
+not chunk work merely for code organization, progress reporting, speculative
+reuse, or minor runtime savings. Use the fewest chunks that materially reduce
+rerun cost or make execution feasible. Chunking must justify its additional run,
+lineage, validation, transfer, and analysis complexity.
+
+Prefer one parameterized `compute.py` entry point with explicit partition
+arguments, such as `--chunk-index` and `--chunk-count`, or a descriptively named
+scientific partition argument. Define shared partition semantics in `recipe.py`
+when they are part of the committed scientific design. Record the exact
+partition rule, chunk identity, random seeds, and other scientific configuration
+in `run.json`.
+
+Each independent chunk invocation creates exactly one compute run. Its export
+must be a complete, valid scientific output for its declared partition. Chunk
+runs do not select, launch, modify, or depend on one another. A downstream
+analyse command names every required chunk run explicitly under stable input
+roles, validates each input, and performs any combination or aggregation. It
+must not select the latest chunks, infer missing chunks, or merge them
+automatically.
+
+When intermediate pieces are sequential checkpoints of one calculation rather
+than independent scientific outputs, keep them inside one hidden incomplete
+run. An experiment-specific recovery procedure may explicitly resume that same
+working directory only after validating its run identity, recorded
+configuration, provenance, and checkpoint state. Checkpoints and recovery
+bookkeeping belong in `StageRun.scratch` and are discarded before completion.
+Partial work must never become a visible completed run or be consumed
+downstream.
+
+A completed compute run is immutable and cannot be resumed or extended. Further
+independent work receives a new run identity.
 
 ## 3. Run records
 
@@ -127,6 +170,9 @@ before changing the guide outside the requested scope.
 
 ## 8. Version history
 
+- **4.5.0** — Permit sparing, justified compute partitioning and explicit
+  hidden-run checkpoint recovery while retaining unchunked compute as the
+  default.
 - **4.4.0** — Coordinate reservation and execution with hash-bound Pingstore
   pruning so completed or in-progress lineages cannot race deletion.
 - **4.3.0** — Flatten single-file units and standardize simulation recording

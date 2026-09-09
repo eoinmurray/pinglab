@@ -51,7 +51,10 @@ def render_raster(recording, cfg, path):
     t = t - origin
     drive.plot(t, e, color=theme.ink, lw=1.6, label="E-targeted")
     drive.plot(t, i, color=theme.accent, lw=1.6, ls="--", label="I-targeted")
-    drive.set(ylabel="Hz / source", ylim=(min(e.min(), i.min()) - 0.1, 1.0))
+    drive.set(
+        ylabel="Hz / source",
+        ylim=(min(e.min(), i.min()) - 0.1, max(e.max(), i.max()) * 1.15),
+    )
     drive.set_title("A · EXTERNAL AFFERENT RATE", loc="left", pad=10)
     drive.legend(
         loc="upper left", bbox_to_anchor=(0.42, 1.52), ncol=2, frameon=False, fontsize=9

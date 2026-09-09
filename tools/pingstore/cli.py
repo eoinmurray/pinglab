@@ -45,6 +45,13 @@ def main(argv: list[str] | None = None) -> int:
         default=Path("."),
         help="lab directory (default: current directory)",
     )
+    prune.add_argument(
+        "--experiment",
+        action="append",
+        dest="experiments",
+        metavar="EXPNNN",
+        help="limit pruning to this experiment (repeatable)",
+    )
     action = prune.add_mutually_exclusive_group(required=True)
     action.add_argument(
         "--dry-run", action="store_true", help="print the exact immutable prune plan"
@@ -62,9 +69,9 @@ def main(argv: list[str] | None = None) -> int:
 
         try:
             if args.dry_run:
-                print(render_plan(build_plan(args.root)))
+                print(render_plan(build_plan(args.root, args.experiments)))
             else:
-                plan = apply_plan(args.root, args.confirm)
+                plan = apply_plan(args.root, args.confirm, args.experiments)
                 reclaimed = sum(row["bytes"] for row in plan["prune"])
                 print(
                     f"Pruned {len(plan['prune'])} runs ({reclaimed / 2**30:.2f} GiB)."

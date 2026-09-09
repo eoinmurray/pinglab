@@ -16,7 +16,7 @@ SEMVER = re.compile(
 
 def test_experiment_tool_versions_are_public_semver():
     expected = {
-        "snnlang": "0.1.0",
+        "snnlang": "0.2.0",
         "snnsim": "0.1.0",
         "snnviz": "0.1.0",
     }

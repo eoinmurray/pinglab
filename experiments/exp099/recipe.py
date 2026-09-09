@@ -19,9 +19,9 @@ def configuration(
     seed=SEED,
     capacitance_nf=0.15,
     leak_us=0.01,
-    baseline_hz=0.6,
-    recurrent_scale=0.1,
-    inhibitory_scale=4.0,
+    baseline_hz=0.8,
+    recurrent_scale=0.08,
+    inhibitory_scale=5.0,
 ) -> dict:
     return {
         "schema": "exp099.recipe/v2",

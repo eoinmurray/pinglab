@@ -1,6 +1,6 @@
 # Storage Guide
 
-Version: **4.4.0**
+Version: **4.5.0**
 
 This guide defines Pingstore's filesystem convention. Pingstore is not a
 service, database, catalogue, lifecycle manager, or general management CLI.
@@ -143,6 +143,18 @@ sizes, incomplete-run input state, and candidate set. Confirmation recomputes
 the plan under an exclusive pruning lock and aborts on any difference or active
 writer. A bare confirmation is forbidden.
 
+Pruning may be limited to one or more experiments with a repeatable filter. All
+runs outside the filter remain untouched, and any filtered run required by an
+out-of-scope descendant remains as ancestry. The same filters are required for
+dry-run and confirmation because the sorted experiment scope is bound into the
+plan hash. Unknown or malformed experiment filters are rejected.
+
+```sh
+uv run pingstore prune --experiment exp099 --dry-run
+uv run pingstore prune --experiment exp099 --confirm <complete-sha256-plan-hash>
+uv run pingstore prune --experiment exp099 --experiment exp110 --dry-run
+```
+
 Run reservation and execution hold a shared lock at `.pingstore/.operation.lock`;
 confirmation requires the corresponding exclusive lock. The lock coordinates
 processes but does not record lifecycle state or select runs.
@@ -179,6 +191,8 @@ store changes, or deletion of the recovery archive.
 
 ## 8. Version history
 
+- **4.5.0** — Add hash-bound, repeatable experiment filters to pruning while
+  retaining all out-of-scope runs and cross-scope ancestry.
 - **4.4.0** — Add hash-bound pruning that retains HPC work, each experiment's
   newest visible presentation, explicit pins, incomplete inputs, ancestry and
   allocation high-watermarks.
