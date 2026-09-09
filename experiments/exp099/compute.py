@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import sys
 from pathlib import Path
+from time import perf_counter
 
 REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools"), str(REPO / "tools/snnsim")]
@@ -84,6 +85,7 @@ def compute(
     baseline_hz=0.6,
     recurrent_scale=0.1,
     inhibitory_scale=4.0,
+    no_i_external=False,
 ):
     cfg = recipe.configuration(
         seed=seed,
@@ -93,10 +95,16 @@ def compute(
         recurrent_scale=recurrent_scale,
         inhibitory_scale=inhibitory_scale,
     )
+    if no_i_external:
+        cfg.update(condition="no-i-external", baseline_i_hz=0.0, stimulus_i_hz=0.0)
     with stage_run(
         REPO, recipe.SLUG, "compute", run_id=run_id, configuration=cfg
     ) as run:
+        simulation_start = perf_counter()
         bundle, recording, weights = simulate(cfg)
+        simulation_seconds = perf_counter() - simulation_start
+        run.record["execution"]["simulation_seconds"] = simulation_seconds
+        print(f"Simulation wall time: {simulation_seconds:.3f} s", flush=True)
         bundle.write(run.export / "network.bundle")
         np.savez_compressed(run.export / "recording.npz", **recording)
         np.savez_compressed(run.export / "weights.npz", **weights)
@@ -116,6 +124,7 @@ def main():
     p.add_argument("--baseline-hz", type=float, default=0.6)
     p.add_argument("--recurrent-scale", type=float, default=0.1)
     p.add_argument("--inhibitory-scale", type=float, default=4.0)
+    p.add_argument("--no-i-external", action="store_true")
     a = p.parse_args()
     compute(
         run_id=a.run_id,
@@ -125,6 +134,7 @@ def main():
         baseline_hz=a.baseline_hz,
         recurrent_scale=a.recurrent_scale,
         inhibitory_scale=a.inhibitory_scale,
+        no_i_external=a.no_i_external,
     )
 
 

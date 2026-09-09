@@ -7,7 +7,7 @@ from experiments.exp099.compute import build_model
 
 
 def small_cfg():
-    return {**recipe.configuration(), "n_e": 40, "n_i": 10, "t_ms": 1000.0}
+    return {**recipe.configuration(), "n_e": 40, "n_i": 10, "t_ms": 150.0}
 
 
 def test_physical_weights_and_refractory_durations():
@@ -82,3 +82,34 @@ def test_visual_grid_and_recording_contract():
     assert response.rect("D").y > response.rect("E").y
     with pytest.raises(RecordingError):
         Recording(0.1, {"e": np.zeros((10, 2)), "i": np.zeros((9, 1))})
+
+
+def test_pulse_schedule_and_epochs():
+    from experiments.exp099.analyse import measure
+
+    cfg = {**small_cfg(), "t_ms": recipe.DURATION_MS}
+    e, i = recipe.source_rates(np.array([0, 700, 725, 750, 850, 875, 900, 1099.9]), cfg)
+    np.testing.assert_allclose(e, [0.6, 0.6, 0.75, 0.9, 0.9, 0.75, 0.6, 0.6])
+    np.testing.assert_allclose(i, e)
+    old = {k: v for k, v in cfg.items() if k != "stimulus_i_hz"}
+    _, old_i = recipe.source_rates(np.array([0, 500, 1000, 1499.9]), old)
+    np.testing.assert_allclose(old_i, 0.6)
+    steps = round(cfg["t_ms"] / cfg["dt_ms"])
+    data = {f"spk_{p}": np.zeros((steps, cfg[f"n_{p}"]), bool) for p in ("e", "i")}
+    for name in (
+        "mean_E_to_E",
+        "mean_private_e_to_E",
+        "mean_I_to_E",
+        "mean_v_e",
+        "mean_v_i",
+    ):
+        data[name] = np.zeros(steps)
+    # Burn-in spikes must not enter any visible epoch.
+    for p in ("e", "i"):
+        data[f"spk_{p}"][: round(cfg["burn_in_ms"] / cfg["dt_ms"])] = True
+    _, result = measure(data, cfg)
+    assert cfg["view_end_ms"] - cfg["view_start_ms"] == 600
+    assert all(
+        epoch["e_hz"] == epoch["i_hz"] == 0 for epoch in result["epochs"].values()
+    )
+    assert set(result["epochs"]) == {"visible_baseline", "plateau", "recovery"}

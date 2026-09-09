@@ -61,7 +61,13 @@ def render_outputs(
     write_json_atomic(output / "numbers.json", results)
 
 
-def present(identity, *, run_id=None, view_start_ms=3500.0, view_end_ms=5000.0):
+def present(
+    identity,
+    *,
+    run_id=None,
+    view_start_ms=recipe.VIEW_START_MS,
+    view_end_ms=recipe.VIEW_END_MS,
+):
     analysis, compute, cfg, results = resolved(identity)
     view = {"start_ms": view_start_ms, "end_ms": view_end_ms, "frames": 625}
     if not 0 <= view_start_ms < view_end_ms <= cfg["t_ms"]:
@@ -83,8 +89,8 @@ def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--source", required=True)
     p.add_argument("--run-id")
-    p.add_argument("--view-start-ms", type=float, default=3500.0)
-    p.add_argument("--view-end-ms", type=float, default=5000.0)
+    p.add_argument("--view-start-ms", type=float, default=recipe.VIEW_START_MS)
+    p.add_argument("--view-end-ms", type=float, default=recipe.VIEW_END_MS)
     a = p.parse_args()
     present(
         a.source,

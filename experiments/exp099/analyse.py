@@ -86,6 +86,9 @@ def measure(data, cfg):
         "epochs": {},
     }
     for name, (start, stop) in epochs.items():
+        stop = min(stop, cfg["t_ms"])
+        if stop <= start:
+            continue
         sl = slice(round(start / dt), round(stop / dt))
         summary["epochs"][name] = {
             f"{p}_hz": float(

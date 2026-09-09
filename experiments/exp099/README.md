@@ -24,12 +24,13 @@ Bernoulli samples. The population streams use separate child seeds. A diagonal
 projection maps each aggregate stream to its own target; there is no shared
 source and no separate external GABA or conductance-background process.
 
-Rates are per individual afferent. Both start at 0.6 Hz. After 1 s settling and
-3 s visible baseline, E ramps linearly to 0.9 Hz over 500 ms, holds for 2 s,
-ramps back over 500 ms, then recovers for 3 s. I remains at 0.6 Hz throughout.
-The current protocol uses one simulation with seed 7, the existing compute
-default. Its presentation uses the transition window described below. These settings were
-selected after a bounded calibration search, not specified before seeing data.
+Rates are per individual afferent. The current protocol runs seed 7 for 1,100 ms, with a hidden 500 ms baseline before the visible 600 ms window,
+matching the reference Figure 4 display duration and pulse shape: 200 ms baseline,
+50 ms rise, 100 ms plateau, 50 ms fall, and 200 ms recovery. Both E- and I-targeted
+rates follow 0.6 → 0.9 → 0.6 Hz. Initial voltage remains −65 mV. The video shows
+the final 600 ms, rebased to 0–600 ms, in 625 frames (25 seconds); the raster uses the same interval and a
+250–350 ms close-up. Earlier calibration and diagnostic runs remain documented
+below as history.
 
 ## Independent stages
 
@@ -90,7 +91,7 @@ and at most 100 actual recurrent edges per pathway. Input dots represent
 aggregate target-specific streams, not all individual afferents. Input
 projections are excitatory even when their target label is red. Edge flashes
 use delayed arrivals; dots use recent events for visibility. Panel C shows a
-40 ms conductance trail. The 45 s video plays at 25 fps, with approximately 8 ms of source time per frame.
+40 ms conductance trail. The 25 s video plays at 25 fps, with approximately 2.4 ms of source time per frame.
 
 Validation:
 
@@ -154,10 +155,45 @@ biological validation, robustness across a parameter neighbourhood, or a causal
 PING-mechanism claim. No simulation was selected for its best-looking frame.
 
 
-### Transition detail presentation
+### Transition-only runtime (2026-09-09)
 
-The default presentation now shows 3,500–5,000 ms in 625 frames (25 s),
-covering 500 ms before the ramp, its 500 ms rise, and 500 ms of plateau.
-`--view-start-ms` and `--view-end-ms` change only the displayed interval.
-The complete 10 s compute and its analysis remain unchanged; presentation
-settings are recorded separately in run.json.
+The default compute now uses 15,000 steps instead of 100,000. Default presentation
+covers 0–1,500 ms in 625 frames. Analysis omits empty recovery epochs; its baseline
+includes initialization. The retained earlier 10-second runs remain unchanged.
+
+`exp099-r028-compute` completed simulation and recording assembly in 8.141 s;
+the complete compute command took 9.901 s including startup and export. Runtime
+is recorded in the run's execution metadata. The previous seed-7 compute had
+87 s between its recorded start and completion timestamps (a historical timing,
+not a controlled benchmark). Analysis `exp099-r029-analyse` measured baseline
+E/I rates of 2.54875/2.655 Hz and plateau rates of 25.345/32.55 Hz.
+
+### Both-population drive comparison (2026-09-09)
+
+The default now ramps independent excitatory afferents onto both populations
+from 0.6 to 0.9 Hz. All other settings, including seed 7 and the 1.5 s duration,
+match the preceding E-only trial. Retained configurations without an I stimulus
+rate retain their fixed I-input schedule when analysed or rendered.
+
+Compute `exp099-r032-compute` took 7.851 s for simulation; analysis
+`exp099-r033-analyse` measured plateau E/I rates of 14.01625/15.62 Hz and
+10 ms pair correlations of approximately 0.481/0.465, compared with
+25.345/32.55 Hz and 0.814/0.890 in the preceding E-only trial.
+
+### Reference-duration pulse (2026-09-09)
+
+Compute `exp099-r047-compute` used 6,000 steps and took 3.012 s for simulation.
+Analysis `exp099-r048-analyse` measured baseline E/I rates 1.60625/1.825 Hz,
+plateau 10.175/11.925 Hz, and recovery 2.3375/2.2875 Hz. The shortened window
+includes initialization; the earlier 280 ms pre-ramp burst note describes the
+previous 1.5 s protocol, not this pulse trial.
+
+### Hidden baseline (2026-09-09)
+
+Compute `exp099-r053-compute` adds 500 ms of baseline before the visible pulse
+protocol, without resetting voltages, conductances, delayed events or random streams
+at the display boundary. Absolute simulation times are 0–1,100 ms; the visible
+window is 500–1,100 ms and is labelled 0–600 ms in both video and raster.
+Analysis excludes burn-in from the visible baseline and stimulus measurements.
+Simulation took 6.793 s. Analysis `exp099-r054-analyse` measured visible baseline
+E/I rates 2.503125/2.575 Hz, plateau 10/10.85 Hz and recovery 6.034375/6.8125 Hz.

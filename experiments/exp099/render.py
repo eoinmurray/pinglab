@@ -13,7 +13,7 @@ import numpy as np
 from matplotlib.collections import LineCollection
 from matplotlib.colors import to_rgba
 from matplotlib.patches import Rectangle
-from matplotlib.ticker import MaxNLocator, StrMethodFormatter
+from matplotlib.ticker import MaxNLocator
 from tools.snnviz import (  # noqa: TID251
     DiagramGroup,
     FigureGrid,
@@ -55,7 +55,11 @@ def network_diagram(cfg, weights, path, *, bundle):
             rates = (
                 f"{cfg['baseline_e_hz']:g} → {cfg['stimulus_e_hz']:g} Hz"
                 if pop == "e"
-                else f"{cfg['baseline_i_hz']:g} Hz"
+                else (
+                    f"{cfg['baseline_i_hz']:g} → {cfg['stimulus_i_hz']:g} Hz"
+                    if "stimulus_i_hz" in cfg
+                    else f"{cfg['baseline_i_hz']:g} Hz"
+                )
             )
             nodes.append(
                 replace(
@@ -218,11 +222,26 @@ def render(
     net.text(
         0.045,
         0.465,
-        f"E: {cfg['baseline_e_hz']:g} → {cfg['stimulus_e_hz']:g} → {cfg['baseline_e_hz']:g} Hz",
+        f"E: {cfg['baseline_e_hz']:g} → {cfg['stimulus_e_hz']:g}"
+        + (f" → {cfg['baseline_e_hz']:g}" if cfg["offset_ms"] < cfg["t_ms"] else "")
+        + " Hz",
         fontsize=10,
         color=BLACK,
     )
-    net.text(0.045, 0.430, f"I: {cfg['baseline_i_hz']:g} Hz", fontsize=10, color=RED)
+    net.text(
+        0.045,
+        0.430,
+        f"I: {cfg['baseline_i_hz']:g}"
+        + (f" → {cfg['stimulus_i_hz']:g}" if "stimulus_i_hz" in cfg else "")
+        + (
+            f" → {cfg['baseline_i_hz']:g}"
+            if "stimulus_i_hz" in cfg and cfg["offset_ms"] < cfg["t_ms"]
+            else ""
+        )
+        + " Hz",
+        fontsize=10,
+        color=RED,
+    )
     net.text(0.045, 0.373, "No shared drive", fontsize=9, color=GREY)
     clock = net.text(0.045, 0.94, "", fontsize=11, color=BLACK)
     net.text(
@@ -352,7 +371,7 @@ def render(
             xlabel="ms",
             ylabel=ylabel,
         )
-        ax.xaxis.set_major_formatter(StrMethodFormatter("{x:.0f}"))
+        ax.set_xticklabels([f"{t - cfg.get('burn_in_ms', 0):.0f}" for t in ticktimes])
         ax.grid(alpha=0.12, linestyle=":")
         ax.set_ylabel(ylabel, fontsize=7, labelpad=1)
         if key == "D":
@@ -461,7 +480,7 @@ def render(
     def update(frame):
         step = int(frame_steps[frame])
         t = times[step]
-        clock.set_text(f"t = {t:.0f} ms")
+        clock.set_text(f"t = {t - cfg.get('burn_in_ms', 0):.0f} ms")
         recent = slice(max(0, step - round(1 / cfg["dt_ms"])), step + 1)
         for key, scatter in scatters.items():
             pop = key[-1]

@@ -63,6 +63,29 @@ management CLI.
   hash-bound prune commands above are the only operational CLI exceptions. The historical v2 migration
   utility is not a conforming upgrade path and does not authorize v2 use.
 
+# CSD3 / Dawn / Zenith resource etiquette
+
+- Login nodes are shared. Never run production workloads there.
+  Parallel tests must last only seconds and use no more than four
+  CPUs and 20 GB memory per run. Do not multiply concurrent tests
+  to bypass these limits.
+- Run substantial tests, analysis, model validation, diagnostic
+  generation and bulk checksum scans through Slurm, using an
+  interactive allocation when appropriate.
+- Avoid excessive process spawning and unnecessary shared-filesystem
+  IO, including repeated recursive scans or log polling.
+- Keep recurring Slurm requests at least 120 seconds apart.
+  This applies within an agent turn as well as between scheduled
+  runs. Coordinate agents and monitors so they do not independently
+  poll the same jobs.
+- Batch status queries for all relevant job IDs into one request.
+  Reuse the latest result rather than requerying for each job.
+- Submit large sets of similar jobs as job arrays, never as loops
+  of individual sbatch calls. Pace automated submission sequences
+  at least 120 seconds apart.
+- Apply these rules to scripts and automation we create or modify.
+  A monitor's schedule alone does not enforce request spacing.
+
 # Experiment execution
 
 Before creating or editing experiment execution code, read and follow

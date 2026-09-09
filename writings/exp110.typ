@@ -868,31 +868,104 @@
   was generated separately. Variable input rates and state continuity
   between successive images in the streaming experiment are described below.
 
-  *P7 — Output dynamics and ordinary classification.* Describe the output
-  layer's dimensionless LIF state, 2-ms decay time, threshold 1 and
-  subtractive reset. Ordinary classifiers used the mean pre-reset output
-  state over the presentation as class logits. These output units should not
-  be assigned the hidden neurons' millivolt parameters or refractory rules.
-  Figs. 3–8.
+  The output layer contained ten leaky integrate-and-fire units, one per
+  digit class. Each unit had a dimensionless state $u_c$, where
+  $c in {0, dots, 9}$ denotes the class, and an output decay time
+  $tau_"out" = 2$ ms. Weighted excitatory spikes drove this state. At each
+  timestep, a pre-reset state at or above the output threshold
+  $theta_"out" = 1$ produced one spike, after which the threshold was
+  subtracted from the state. Output units had no refractory period and
+  began each independent presentation at zero.
 
-  *P8 — Optimization and gradients.* State 50 epochs, AdamW, learning rate
-  0.0004, zero weight decay, batch size 256 and gradient-norm clipping at 1.
-  Training used a fast-sigmoid surrogate with slope 1. Voltage-gradient
-  damping divided the hidden membrane-increment gradient by 1,000 in PING
-  and by 1 in COBA; it did not change the forward voltage update. Describe
-  nonnegative weight projection. Allocate full backward equations to Appendix A.
+  For ordinary classification (Figs. 3–8), class logits and predictions were
 
-  *P9 — Activity regularization.* Give the one-sided quadratic penalty on
-  each presentation's population-mean E firing rate, averaged over the
-  minibatch. The coefficient was 0.041 Hz⁻²; ceilings were 1, 2.5, 5, 10
-  and 25 Hz, plus an unpenalised condition. Only input and readout weights
-  trained in this comparison. Fig. 3D.
+  #math.equation(
+    block: true,
+    numbering: "(1)",
+    $ z_c = 1 / N_t sum_(k=1)^(N_t) tilde(u)_c[k], quad
+      hat(y) = #math.op("arg max", limits: true)_c z_c, $,
+  ) <eq:output-classification>
 
-  *P10 — Validation and checkpoint choice.* Validation averaged three
-  encoding draws. Selection minimized mean validation cross-entropy, broke
-  ties by higher mean accuracy and then earliest epoch. Explain that the
-  endpoint analyses nevertheless used epoch 50, as specified in Table 1.
-  Preserve this distinction when describing reused networks.
+  where $tilde(u)_c[k]$ is the output state before subtractive reset at
+  timestep $k$, $N_t$ is the number of simulation steps in the presentation,
+  $z_c$ is the class logit, and $hat(y)$ is the predicted digit. Thus,
+  classification used the mean pre-reset state across the full presentation.
+  Exact output updates are given in Appendix A; the streaming experiment’s
+  spike-count readout is described below.
+
+  We trained classifiers for 50 epochs using AdamW with learning rate
+  $eta = 0.0004$, zero weight decay and minibatches of 256 images. The
+  objective was mean cross-entropy, supplemented by the activity penalty
+  described below where applicable. We used backpropagation through time
+  over each presentation and clipped the global Euclidean gradient norm to
+  a maximum of 1 before each optimizer update. Trainable connection weights
+  were subsequently clamped below at zero.
+
+  Spikes remained binary during forward simulation. During backpropagation,
+  the threshold derivative was replaced by the fast-sigmoid surrogate
+
+  #math.equation(
+    block: true,
+    numbering: "(1)",
+    $ (∂ s)/(∂ xi) approx beta / (1 + beta abs(xi))^2, $,
+  ) <eq:surrogate-gradient>
+
+  where $s$ is the spike indicator, $xi$ is the numerical distance from
+  threshold—expressed in millivolts for hidden neurons and normalized units
+  for output neurons—and the surrogate slope $beta = 1$. Gradients through
+  each hidden excitatory and inhibitory membrane increment were additionally
+  divided by the voltage-gradient damping factor $d_"grad" = 1,000$ in PING
+  and $d_"grad" = 1$ in COBA. This operation preserved the forward voltage
+  update and left the direct gradient path through the previous membrane
+  voltage unchanged. Output-neuron updates did not receive this damping.
+  Full backward equations are given in Appendix A.
+
+  For the accuracy–rate comparison (Fig. 3D), we added a one-sided quadratic
+  penalty to the classification loss:
+
+  #math.equation(
+    block: true,
+    numbering: "(1)",
+    $ L_"total" = L_"CE" + lambda_"rate" / B sum_(b=1)^B
+      [(max(0, r_(E,b) - r_(E,"ceil"))) / (1 thin "Hz")]^2. $,
+  ) <eq:activity-penalty>
+
+  Here, $L_"total"$ is the training objective, $L_"CE"$ is mean
+  classification cross-entropy, $B$ is the minibatch size and $b$ indexes
+  image presentations. The mean excitatory firing rate $r_(E,b)$ was
+  calculated separately for each presentation by dividing its total
+  excitatory spike count by the excitatory population size and presentation
+  duration in seconds. Division by $1 thin "Hz"$ expresses the rate excess
+  as a dimensionless numerical value. The dimensionless penalty coefficient
+  $lambda_"rate" = 0.041$ was fixed across penalised conditions, and
+  the activity ceiling $r_(E,"ceil")$ took values of 1, 2.5, 5, 10 and
+  25 Hz. An additional unpenalised condition used $lambda_"rate" = 0$.
+
+  The penalty was applied to each presentation’s population-mean rate before
+  averaging over the minibatch. Rates at or below the ceiling incurred no
+  penalty; exceeding it increased the loss quadratically, without imposing
+  a hard firing-rate limit. Only input and readout weights were trained in
+  this comparison; recurrent weights remained fixed, with reciprocal
+  coupling enabled in PING and disabled in COBA.
+
+  After each training epoch, we evaluated the 700 validation images using
+  three independently seeded spike-encoding draws. The same encoding seeds
+  were reused across epochs, keeping stochastic inputs fixed for checkpoint
+  comparisons. For variable-rate classifiers, validation input-rate draws
+  were also fixed across epochs. Cross-entropy and accuracy were averaged
+  over validation images and encoding draws; the activity penalty was
+  excluded from the validation loss.
+
+  For each training replicate, the best-validation checkpoint was the saved
+  network with the lowest mean validation cross-entropy among epochs 1–50.
+  Ties were resolved by higher mean validation accuracy and then the earliest
+  epoch. We also retained the final checkpoint from epoch 50, irrespective
+  of its validation ranking. Subsequent analyses used the checkpoint
+  specified in Table 1: best-validation checkpoints for loop insertion,
+  spike deletion/insertion and continuous-stream classification, and final
+  checkpoints for the accuracy–rate, trainable-recurrence,
+  inhibitory-timescale, timestep and inhibitory-replay analyses. Reusing a
+  trained network did not imply that every analysis used the same checkpoint.
 
   === Untrained circuit experiments
 

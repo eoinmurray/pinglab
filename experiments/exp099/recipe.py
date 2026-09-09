@@ -6,10 +6,11 @@ import numpy as np
 from tools import snnlang as snn  # noqa: TID251
 
 SLUG = "exp099"
-DT_MS, DURATION_MS, SEED = 0.1, 10000.0, 7
+DT_MS, DURATION_MS, SEED = 0.1, 1100.0, 7
+BURN_IN_MS = 500.0
 N_E, N_I = 1600, 400
-VIEW_START_MS, VIEW_END_MS = 1000.0, DURATION_MS
-ONSET_MS, PEAK_MS, PLATEAU_END_MS, OFFSET_MS = 4000.0, 4500.0, 6500.0, 7000.0
+VIEW_START_MS, VIEW_END_MS = BURN_IN_MS, DURATION_MS
+ONSET_MS, PEAK_MS, PLATEAU_END_MS, OFFSET_MS = 700.0, 750.0, 850.0, 900.0
 VIDEO, POSTER = "private-e-drive.mp4", "private-e-drive.png"
 
 
@@ -24,9 +25,10 @@ def configuration(
 ) -> dict:
     return {
         "schema": "exp099.recipe/v2",
-        "condition": "private-e-drive",
+        "condition": "private-ei-drive",
         "dt_ms": DT_MS,
         "t_ms": DURATION_MS,
+        "burn_in_ms": BURN_IN_MS,
         "seed": seed,
         "n_e": N_E,
         "n_i": N_I,
@@ -35,6 +37,7 @@ def configuration(
         "baseline_e_hz": baseline_hz,
         "baseline_i_hz": baseline_hz,
         "stimulus_e_hz": baseline_hz * 1.5,
+        "stimulus_i_hz": baseline_hz * 1.5,
         "capacitance_nf": capacitance_nf,
         "leak_us": leak_us,
         "external_weight_us": 0.004,
@@ -61,26 +64,17 @@ def configuration(
 
 
 def source_rates(times_ms, cfg):
-    e = np.interp(
-        times_ms,
-        [
-            0.0,
-            cfg["onset_ms"],
-            cfg["peak_ms"],
-            cfg["plateau_end_ms"],
-            cfg["offset_ms"],
-            cfg["t_ms"],
-        ],
-        [
-            cfg["baseline_e_hz"],
-            cfg["baseline_e_hz"],
-            cfg["stimulus_e_hz"],
-            cfg["stimulus_e_hz"],
-            cfg["baseline_e_hz"],
-            cfg["baseline_e_hz"],
-        ],
-    )
-    return e, np.full_like(e, cfg["baseline_i_hz"])
+    rates = []
+    for pop in ("e", "i"):
+        base = cfg[f"baseline_{pop}_hz"]
+        peak = cfg.get(f"stimulus_{pop}_hz", base)
+        knots = [0.0, cfg["onset_ms"], cfg["peak_ms"]]
+        values = [base, base, peak]
+        if cfg["offset_ms"] > cfg["plateau_end_ms"]:
+            knots.extend([cfg["plateau_end_ms"], cfg["offset_ms"]])
+            values.extend([peak, base])
+        rates.append(np.interp(times_ms, knots, values))
+    return tuple(rates)
 
 
 def afferent_counts(cfg):
