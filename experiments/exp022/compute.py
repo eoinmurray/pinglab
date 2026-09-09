@@ -17,6 +17,10 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "experiments"), str(REPO / "tools")]
 
 from experiments.exp022 import campaign, recipe
+from experiments.helpers.operating_point import (
+    refractory_args,
+    refractory_configuration,
+)
 from pingstore.contracts import PingstoreError, write_json_atomic
 from pingstore.stages import reserve_stage, source_run, stage_reservation, stage_run
 
@@ -65,6 +69,9 @@ def runpod_is_done(cell: dict, plumbing: bool) -> bool:
         cfg.get("max_samples") == want_ms
         and cfg.get("epochs") == want_ep
         and cfg.get("dt") == cell["dt_ms"]
+        and all(
+            cfg.get(key) == value for key, value in refractory_configuration().items()
+        )
     )
 
 
@@ -290,6 +297,8 @@ def _portable_cell_contract(row: dict) -> dict:
 
 def _import_compatible_cells(destination: dict, source_path: Path) -> dict:
     """Copy only source cells with an identical resolved scientific contract."""
+    if destination.get("selection", {}).get("tier") == "refractory-replacement":
+        raise SystemExit("the replacement bank accepts training only through --reuse-train-cell")
     source_path = source_path.resolve()
     source = campaign.load_manifest(source_path)
     source_root = Path(source["campaign_root"])
@@ -374,7 +383,12 @@ def _checked_manifest(path: Path, *, allow_generated_dirty: bool = False) -> dic
         raise SystemExit("campaign lockfile identity does not match the checkout")
     tier = manifest.get("selection", {}).get("tier")
     try:
-        selected_cells = recipe.cells_in_resource_tier(tier)
+        selected_cells = (
+            [cell for cell in recipe.CANONICAL_CELLS
+             if cell["family"] == "dt" and cell["dt_ms"] != recipe.DT_MS]
+            if tier == "refractory-replacement"
+            else recipe.cells_in_resource_tier(tier)
+        )
     except ValueError as exc:
         raise SystemExit(str(exc)) from exc
     manifest_names_list = [row.get("name") for row in manifest.get("cells", [])]
@@ -665,6 +679,8 @@ def _handle_campaign_cli(argv: list[str]) -> bool:
     if manifest_path is None:
         raise SystemExit("--campaign MANIFEST is required")
     manifest = _checked_manifest(manifest_path)
+    if manifest.get("selection", {}).get("tier") == "refractory-replacement":
+        raise SystemExit("use --reuse-status, --reuse-train-cell or --reuse-finalize for this bank")
     if args.campaign_train_cell:
         raise SystemExit(
             _campaign_train(
@@ -717,6 +733,13 @@ def _writable_compute_root(directory: Path) -> None:
 
 def generate_snapshots(bank: Path, output: Path) -> None:
     """Retain fixed digit-0/sample-0 probes; no plotting or discarded recordings."""
+    expected = {cell["name"] for cell in recipe.CANONICAL_CELLS}
+    actual = {path.name for path in bank.iterdir() if path.is_dir()}
+    if actual != expected:
+        raise PingstoreError(
+            "diagnostics require the current 102-cell bank with the exact-refractory timestep grid; "
+            "preserve historical diagnostics until the replacement bank is available"
+        )
     for cell in recipe.CANONICAL_CELLS:
         if cell["seed"] != 42:
             continue
@@ -729,6 +752,7 @@ def generate_snapshots(bank: Path, output: Path) -> None:
             sys.executable,
             str(recipe.SNN_TOOL),
             "sim",
+            *refractory_args(),
             "--infer",
             "--load-config",
             str(trained / "config.json"),
@@ -771,13 +795,12 @@ def copy_bank(bank: Path, destination: Path) -> list[dict]:
     """Copy scientific evidence without restamping configs or checkpoint roles."""
     from pingstore.contracts import file_sha256
 
-    expected = {cell["name"] for cell in recipe.CANONICAL_CELLS}
     actual = {path.name for path in bank.iterdir() if path.is_dir()}
-    if actual != expected:
-        raise PingstoreError(
-            f"bank must contain the 102 registered cells; missing={sorted(expected - actual)}, "
-            f"extra={sorted(actual - expected)}"
-        )
+    try:
+        cells = recipe.cells_for_names(actual)
+    except ValueError as exc:
+        raise PingstoreError(str(exc)) from exc
+    expected = {cell["name"] for cell in cells}
     inventory = []
     for name in sorted(expected):
         cell = bank / name
@@ -889,6 +912,10 @@ def capture_campaign(manifest_path: Path, manifest: dict) -> str:
 
 
 def main() -> None:
+    from experiments.exp022 import reuse
+
+    if reuse.handle_cli(sys.argv[1:], REPO):
+        return
     retired = {"--skip-training", "--plot-only", "--only-missing"} & set(sys.argv[1:])
     if retired:
         raise SystemExit(

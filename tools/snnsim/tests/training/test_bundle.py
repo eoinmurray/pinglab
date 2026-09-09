@@ -75,6 +75,12 @@ def _legacy_argv(mode="sim"):
         "mem-mean",
         "--dt",
         "0.1",
+        "--refractory-e-ms",
+        "1.2",
+        "--refractory-i-ms",
+        "0.6",
+        "--refractory-policy",
+        "exact",
         "--w-in",
         "0.2",
         "0.03",
@@ -106,6 +112,17 @@ def test_legacy_parse_defaults_are_unchanged():
     assert args.readout_mode == "rate"
 
 
+@pytest.mark.parametrize("executor", ["legacy", "graph"])
+@pytest.mark.parametrize("override", [
+    "--refractory-e-ms=1.2", "--refractory-i-ms=0.6", "--refractory-policy=exact",
+])
+def test_bundle_owns_refractory_settings(tmp_path, executor, override, capsys):
+    root = _write_bundle(tmp_path)
+    with pytest.raises(SystemExit):
+        parse_args(["sim", "--bundle", str(root), "--executor", executor, override])
+    assert "owns" in capsys.readouterr().err
+
+
 def test_bundle_translates_to_same_structural_arguments_as_legacy(tmp_path):
     root = _write_bundle(tmp_path)
     bundle = parse_args(["sim", "--bundle", str(root)])
@@ -115,6 +132,7 @@ def test_bundle_translates_to_same_structural_arguments_as_legacy(tmp_path):
         "n_hidden",
         "readout_mode",
         "dt",
+        "refractory_policy",
         "w_in",
         "w_in_initial_zero_fraction",
         "w_ei",
@@ -127,6 +145,8 @@ def test_bundle_translates_to_same_structural_arguments_as_legacy(tmp_path):
     assert {field: getattr(bundle, field) for field in fields} == {
         field: getattr(legacy, field) for field in fields
     }
+    assert bundle.refractory_e_ms == pytest.approx(legacy.refractory_e_ms)
+    assert bundle.refractory_i_ms == pytest.approx(legacy.refractory_i_ms)
 
 
 def test_bundle_owns_four_recurrent_blocks_and_exact_k(tmp_path):
@@ -422,6 +442,9 @@ def _build_from_args(args):
     config.set_sim_dt(args.dt, getattr(args, "t_ms", 1.2))
     return config.build_net(
         args.model,
+        refractory_e_ms=args.refractory_e_ms,
+        refractory_i_ms=args.refractory_i_ms,
+        refractory_policy=args.refractory_policy,
         w_in=args.w_in,
         w_in_initial_zero_fraction=args.w_in_initial_zero_fraction,
         w_ei=args.w_ei,

@@ -8,6 +8,47 @@ those values through `training_run_cells`, `training_run_values`, and
 own its inference interventions, evaluation grids, raster samples, plotting, and
 other analysis-only parameters.
 
+## Adopted model and retained evidence — 2026-09-09
+
+Hidden E/I neurons use **1.2/0.6-ms refractory reset holds**. These are the
+physical durations already executed by the retained 0.1-ms spiking runs.
+`experiments.helpers.operating_point` owns the explicit collection override;
+generic simulator defaults remain separate. The timestep experiment uses
+**0.05, 0.1, 0.2, 0.3 and 0.6 ms**, each representing both refractory holds
+exactly. Nominal 200-ms trials last 199.8 ms at 0.3/0.6 ms and 200 ms otherwise;
+analysis uses realised durations.
+
+The accepted replacement evidence is:
+
+| Experiment | Compute | Analyse | Present |
+| --- | --- | --- | --- |
+| exp022 | exp022-r007-compute | exp022-r010-analyse | exp022-r014-present |
+| exp023 | exp023-r011-compute (reused) | exp023-r012-analyse (reused) | exp023-r014-present (metadata correction) |
+| exp033 | exp033-r011-compute | exp033-r012-analyse | exp033-r015-present |
+| exp044 | exp044-r007-compute | exp044-r008-analyse | exp044-r009-present |
+| exp054 | exp054-r008-compute (reused spikes) | exp054-r013-analyse | exp054-r014-present |
+| exp110 | — | — | exp110-r021-present |
+
+The exp022 bank contains 90 unchanged reused models and twelve new timestep
+models. Exp054's analysis separately pins exp033's replacement theory and
+unchanged exp041 frequencies. Other spiking consumers retain their original
+source pins, including the earlier exp022 bank. Exp080/081 are passive models;
+exp048/111 and noncollection experiments are outside this reconciliation.
+Inserted transmitted spikes and inhibitory replay retain their experimental
+semantics; they do not acquire native-neuron refractory gating. In particular,
+the retained 43.95-Hz reference defines replay clock windows, not the current
+measured spectral frequency or inferred cycle boundaries.
+
+New exp033 theory uses recipe v2; new combined exp054 compute uses v6. Both use
+1.2/0.6-ms gains with cancellation-resistant evaluation. Old scientific recipe
+versions and recorded payloads remain unchanged. The explicit exp054
+`--theory-source` refresh is a separate workflow from a new campaign's combined
+compute. This table documents evidence; it does not select publication inputs
+or authorize rerunning an entire campaign. See the root PLAN.md for exact
+digests, validation and the staged repair history.
+
+## Campaign execution
+
 Initialize a production campaign from a clean, frozen checkout:
 
 ```bash

@@ -5,6 +5,7 @@ from typing import Any
 
 from experiments.exp022 import training_run_cell, training_run_values
 from experiments.helpers.checkpoints import checkpoint_policy
+from experiments.helpers.operating_point import refractory_configuration
 
 SLUG = "exp082"
 SHARDS = 6
@@ -23,7 +24,13 @@ EVALUATION_PROFILE = "production"
 VARIABLE_STREAM = ((200.0, 0.5), (50.0, 25.0), (100.0, 2.0), (25.0, 10.0), (200.0, 5.0))
 # Both duration and rate vary within each candidate. The protocol and candidate
 # order are fixed before inference; retain the first 5/5 and first 3/5 streams.
-SHOWCASE_CONDITIONS = ((100.0, 5.0), (200.0, 7.5), (50.0, 25.0), (100.0, 15.0), (200.0, 10.0))
+SHOWCASE_CONDITIONS = (
+    (100.0, 5.0),
+    (200.0, 7.5),
+    (50.0, 25.0),
+    (100.0, 15.0),
+    (200.0, 10.0),
+)
 FIXED_DURATION_SHOWCASE_CONDITIONS = tuple(
     (200.0, rate) for rate in (5.0, 7.5, 10.0, 15.0, 25.0)
 )
@@ -56,10 +63,13 @@ def training_dir(seed):
     return Path(training_cell_name(seed))
 
 
-def configuration(*, smoke=False, streams=None, digits=None, batch=None):
+def configuration(*, smoke=False, streams=None, digits=None, batch=None, version=2):
+    if version not in (1, 2):
+        raise ValueError("unsupported exp082 recipe version")
     pilot = any(v is not None for v in (streams, digits))
     cfg: dict[str, Any] = {
-        "schema": "exp082.recipe/v1",
+        "schema": f"exp082.recipe/v{version}",
+        **(refractory_configuration() if version >= 2 else {}),
         "profile": "smoke" if smoke else "pilot" if pilot else "production",
         "checkpoint_policy": CHECKPOINT_POLICY,
         "seeds": list(SEEDS),
@@ -102,7 +112,10 @@ def validate_configuration(cfg):
         "production",
     ):
         raise ValueError("invalid exp082 recipe profile")
+    if cfg.get("schema") not in ("exp082.recipe/v1", "exp082.recipe/v2"):
+        raise ValueError("invalid exp082 recipe schema")
     expected = configuration(
+        version=int(cfg["schema"].rsplit("v", 1)[1]),
         smoke=cfg["profile"] == "smoke",
         streams=cfg["streams_per_cell"] if cfg["profile"] != "production" else None,
         digits=cfg["digits_per_stream"] if cfg["profile"] != "production" else None,

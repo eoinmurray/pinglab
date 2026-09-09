@@ -15,11 +15,12 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from timing import duration_steps, refractory_metadata, refractory_steps
 
 # ── Simulation ────────────────────────────────────────────────────────────
 dt: float = 0.25  # ms — integration timestep
 T_ms: float = 1000.0  # ms — total simulation time per sample
-T_steps: int = int(T_ms / dt)
+T_steps: int = duration_steps(T_ms, dt)
 
 # ── Biophysics ────────────────────────────────────────────────────────────
 tau_m_E = 20.0  # ms — excitatory membrane time constant
@@ -120,16 +121,12 @@ SURROGATE_SLOPE = 5.0
 V_GRAD_DAMPEN = 80.0
 
 
-# Refractory-step defaults for the non-compiled utility functions (e_step_coba,
-# i_step_coba) — the ONLY dt-derived constants kept as module state, because those
-# functions read them directly. Everything else forward() needs (synaptic decays,
-# beta_snn/beta_out) is derived as a local from the time constants + dt each call
-# and passed via the per-call cfg dict; storing them here would be dead state that
-# silently goes stale when dt changes. p_scale is gone entirely — input spikes are
-# pre-encoded from max_rate_hz, so nothing consumed it.
+# Legacy constants for callers that explicitly request the default-grid counters.
+# Production updates derive counters from each model's physical durations and
+# actual timestep; the utility functions also resolve their defaults at runtime.
 _dt_default = 0.25
-ref_steps_E = max(1, int(round(ref_ms_E / _dt_default)))
-ref_steps_I = max(1, int(round(ref_ms_I / _dt_default)))
+ref_steps_E = refractory_steps(ref_ms_E, _dt_default)
+ref_steps_I = refractory_steps(ref_ms_I, _dt_default)
 
 
 def _env_no_compile() -> bool:
@@ -572,7 +569,7 @@ def e_step_coba(
 ):
     """One E-neuron LIF step with COBA driving force."""
     if ref_steps is None:
-        ref_steps = ref_steps_E
+        ref_steps = refractory_steps(ref_ms_E, dt, policy="nearest")
     C_m = C_m_E if C_m is None else C_m
     g_L = g_L_E if g_L is None else g_L
     if COBA_INTEGRATOR == "expeuler":
@@ -610,6 +607,7 @@ def i_step_coba(
     v_noise_std=0.0,
     C_m=None,
     g_L=None,
+    ref_steps=None,
 ):
     """One I-neuron LIF step with COBA driving force.
 
@@ -617,6 +615,8 @@ def i_step_coba(
     Brunel/Vreeswijk-style balanced-network experiments where I-cells have
     recurrent self-inhibition. Default ``None`` preserves the canonical PING
     architecture (no I→I)."""
+    if ref_steps is None:
+        ref_steps = refractory_steps(ref_ms_I, dt, policy="nearest")
     C_m = C_m_I if C_m is None else C_m
     g_L = g_L_I if g_L is None else g_L
     if COBA_INTEGRATOR == "expeuler":
@@ -627,7 +627,7 @@ def i_step_coba(
             g_i,
             C_m,
             g_L,
-            ref_steps_I,
+            ref_steps,
             spike_biophysical,
             v_grad_dampen=V_GRAD_DAMPEN,
             threshold_offset=threshold_offset,
@@ -639,7 +639,7 @@ def i_step_coba(
         ref,
         C_m,
         g_L,
-        ref_steps_I,
+        ref_steps,
         spike_biophysical,
         v_grad_dampen=V_GRAD_DAMPEN,
     )
@@ -654,7 +654,7 @@ class COBANet(nn.Module):
     signed_weights = False
 
     def _set_meta(self, B, n_spk, rec, sizes):
-        t_sec = T_ms / 1000.0
+        t_sec = T_steps * dt / 1000.0
         self.rates = {k: v / (B * sizes[k] * t_sec) for k, v in n_spk.items()}
         if rec is not None:
             # Accept either pre-stacked tensors or lists of per-timestep tensors
@@ -693,8 +693,23 @@ class COBANet(nn.Module):
         adapt_tau_bounds_ms=ADAPT_TAU_BOUNDS_MS,
         adapt_strength_init_mv=1.0,
         adapt_strength_max_mv=ADAPT_STRENGTH_MAX_MV,
+        refractory_e_ms=None,
+        refractory_i_ms=None,
+        refractory_policy="nearest",
     ):
         super().__init__()
+        self.refractory_e_ms = float(
+            ref_ms_E if refractory_e_ms is None else refractory_e_ms
+        )
+        self.refractory_i_ms = float(
+            ref_ms_I if refractory_i_ms is None else refractory_i_ms
+        )
+        for duration in (self.refractory_e_ms, self.refractory_i_ms):
+            if not math.isfinite(duration) or duration <= 0:
+                raise ValueError("refractory durations must be finite and positive")
+        if refractory_policy not in ("exact", "nearest"):
+            raise ValueError("refractory policy must be 'exact' or 'nearest'")
+        self.refractory_policy = refractory_policy
         if readout_mode not in (
             "rate",
             "mem-mean",
@@ -1193,8 +1208,18 @@ class COBANet(nn.Module):
         # Compute dt-dependent constants locally so torch.compile specializes on dt
         decay_ampa = np.exp(-dt / tau_ampa)
         decay_gaba = np.exp(-dt / tau_gaba)
-        ref_steps_E = max(1, int(round(ref_ms_E / dt)))
-        ref_steps_I = max(1, int(round(ref_ms_I / dt)))
+        timing = refractory_metadata(
+            self.refractory_e_ms,
+            self.refractory_i_ms,
+            dt,
+            policy=self.refractory_policy,
+        )
+        self.timing_metadata = {
+            **timing,
+            "nominal_duration_ms": float(T_ms),
+            "duration_steps": int(T_steps),
+            "realized_duration_ms": T_steps * dt,
+        }
         beta_snn = np.exp(-dt / tau_snn)
         beta_out = np.exp(-dt / tau_out_ms)
         leak_params = {
@@ -1230,8 +1255,8 @@ class COBANet(nn.Module):
             "n_spk_tensors": n_spk_tensors,
             "decay_ampa": decay_ampa,
             "decay_gaba": decay_gaba,
-            "ref_steps_E": ref_steps_E,
-            "ref_steps_I": ref_steps_I,
+            "ref_steps_E": timing["refractory_e_steps"],
+            "ref_steps_I": timing["refractory_i_steps"],
             "beta_snn": beta_snn,
             "beta_out": beta_out,
             "leak_params": leak_params,
@@ -1459,6 +1484,7 @@ class COBANet(nn.Module):
                     state["ref_e"][k],
                     g_e_for_step,
                     g_i_for_e,
+                    ref_steps=cfg["ref_steps_E"],
                     threshold_offset=threshold_e,
                     v_noise_std=v_noise,
                     C_m=c_m_e,
@@ -1469,6 +1495,7 @@ class COBANet(nn.Module):
                     state["ref_i"][k],
                     g_e_for_i,
                     g_i_for_i,
+                    ref_steps=cfg["ref_steps_I"],
                     v_noise_std=v_noise_i,
                     C_m=c_m_i,
                     g_L=g_l_i,
@@ -1478,6 +1505,7 @@ class COBANet(nn.Module):
                     state["v_e"][k],
                     state["ref_e"][k],
                     g_e_for_step,
+                    ref_steps=cfg["ref_steps_E"],
                     threshold_offset=threshold_e,
                     v_noise_std=v_noise,
                     C_m=c_m_e,

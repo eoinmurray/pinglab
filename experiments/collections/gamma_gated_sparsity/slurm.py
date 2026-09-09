@@ -474,7 +474,6 @@ def submit_campaign(
             "exp080",
             "exp081",
             "exp110",
-            "exp111",
         }:
             from .execution import _stage_adapter
 

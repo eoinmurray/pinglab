@@ -198,7 +198,7 @@ def lab(tmp_path, monkeypatch):
         write_json_atomic(
             showcase.export / "evidence.json",
             {
-                "schema": "exp082.showcase-selection/v1",
+                "schema": evidence.showcase_configuration()["schema"],
                 "configuration": evidence.showcase_configuration(),
                 "training_contract": evidence.training_contract(bank_source.export),
                 "candidates": candidates,
@@ -954,3 +954,49 @@ def test_showcase_rejects_changed_condition(lab):
     write_json_atomic(path, saved)
     with pytest.raises(PingstoreError, match="contract differs"):
         evidence.validate_showcase(source.export)
+
+
+def test_showcase_recipe_preserves_old_versions_and_requires_current_parameters(lab):
+    root, _, _, identity = lab
+    directory = root / ".pingstore/runs" / identity / "export"
+    document = evidence.validate_showcase(directory)
+    assert document["schema"] == "exp082.showcase-selection/v2"
+    assert document["configuration"]["refractory_e_ms"] == 1.2
+    assert document["configuration"]["refractory_i_ms"] == 0.6
+    assert document["configuration"]["refractory_e_steps"] == 12
+    assert document["configuration"]["refractory_i_steps"] == 6
+    document["configuration"]["refractory_i_ms"] = 1.5
+    write_json_atomic(directory / "evidence.json", document)
+    with pytest.raises(PingstoreError, match="selection contract"):
+        evidence.validate_showcase(directory)
+    document["configuration"] = evidence.showcase_configuration(version=1)
+    with pytest.raises(PingstoreError, match="selection contract"):
+        write_json_atomic(directory / "evidence.json", document)
+        evidence.validate_showcase(directory)
+    document["schema"] = "exp082.showcase-selection/v1"
+    write_json_atomic(directory / "evidence.json", document)
+    assert evidence.validate_showcase(directory) == document
+
+
+def test_historical_import_cannot_adopt_a_new_execution_recipe(tmp_path, monkeypatch):
+    cfg = recipe.configuration(version=1)
+    run = SimpleNamespace(
+        export=tmp_path,
+        file=lambda *parts: tmp_path.joinpath(*parts),
+        record={
+            "execution": {"operation": "historical-import"},
+            "historical_import": {
+                "schema": evidence.RETAINED_SCHEMA,
+                "producer_commit": evidence.RETAINED_PRODUCER,
+                "source_files": 199,
+                "source_bytes": 6079619,
+                "scientific_files": 135,
+                "archived_metadata_files": 64,
+            },
+        },
+    )
+    monkeypatch.setattr(evidence, "load_json", lambda _: {"grid_per_seed": recipe.jobs(cfg)})
+    monkeypatch.setattr(evidence, "aggregate", lambda path, job, config: job)
+    evidence.validate_import(run, cfg)
+    with pytest.raises(PingstoreError, match="retained import contract"):
+        evidence.validate_import(run, recipe.configuration())

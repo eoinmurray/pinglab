@@ -231,30 +231,57 @@ def _same(actual: Any, expected: Any) -> bool:
 
 
 ARG_TO_CONFIG = {
-    "--model": "model", "--dataset": "dataset", "--max-samples": "max_samples",
-    "--epochs": "epochs", "--t-ms": "t_ms", "--dt": "dt",
-    "--tau-gaba": "tau_gaba_ms", "--seed": "seed", "--ei-strength": "ei_strength",
-    "--v-grad-dampen": "v_grad_dampen", "--w-in-initial-zero-fraction": "w_in_initial_zero_fraction",
-    "--readout": "readout_mode", "--surrogate-slope": "surrogate_slope",
+    "--refractory-e-ms": "refractory_e_ms",
+    "--refractory-i-ms": "refractory_i_ms",
+    "--refractory-policy": "refractory_policy",
+    "--model": "model",
+    "--dataset": "dataset",
+    "--max-samples": "max_samples",
+    "--epochs": "epochs",
+    "--t-ms": "t_ms",
+    "--dt": "dt",
+    "--tau-gaba": "tau_gaba_ms",
+    "--seed": "seed",
+    "--ei-strength": "ei_strength",
+    "--v-grad-dampen": "v_grad_dampen",
+    "--w-in-initial-zero-fraction": "w_in_initial_zero_fraction",
+    "--readout": "readout_mode",
+    "--surrogate-slope": "surrogate_slope",
     "--readout-w-out-scale": "readout_w_out_scale",
     "--readout-w-init-mean": "readout_w_init_mean",
-    "--readout-w-init-std": "readout_w_init_std", "--lr": "lr",
+    "--readout-w-init-std": "readout_w_init_std",
+    "--lr": "lr",
     "--batch-size": "batch_size",
     "--fr-reg-upper-target-hz": "fr_reg_upper_target_hz",
     "--fr-reg-upper-strength": "fr_reg_upper_strength",
     "--input-rates": "input_rates",
-    "--input-rate": "input_rate", "--n-hidden": "hidden_sizes",
-    "--weight-decay": "weight_decay", "--dales-law": "dales_law",
-    "--w-in": "w_in", "--trainable-w-ei": "trainable_w_ei",
+    "--input-rate": "input_rate",
+    "--n-hidden": "hidden_sizes",
+    "--weight-decay": "weight_decay",
+    "--dales-law": "dales_law",
+    "--w-in": "w_in",
+    "--trainable-w-ei": "trainable_w_ei",
     "--trainable-w-ie": "trainable_w_ie",
 }
 OPERATIONAL_ARGUMENTS = {"--out-dir"}
 FLOAT_CONFIG = {
-    "dt", "t_ms", "tau_gaba_ms", "ei_strength", "v_grad_dampen",
-    "w_in_initial_zero_fraction", "surrogate_slope", "readout_w_out_scale",
-    "readout_w_init_mean", "readout_w_init_std", "lr",
-    "fr_reg_upper_target_hz", "fr_reg_upper_strength",
-    "input_rate", "weight_decay",
+    "refractory_e_ms",
+    "refractory_i_ms",
+    "dt",
+    "t_ms",
+    "tau_gaba_ms",
+    "ei_strength",
+    "v_grad_dampen",
+    "w_in_initial_zero_fraction",
+    "surrogate_slope",
+    "readout_w_out_scale",
+    "readout_w_init_mean",
+    "readout_w_init_std",
+    "lr",
+    "fr_reg_upper_target_hz",
+    "fr_reg_upper_strength",
+    "input_rate",
+    "weight_decay",
 }
 INT_CONFIG = {"max_samples", "epochs", "seed", "batch_size"}
 BOOL_CONFIG = {"dales_law", "trainable_w_ei", "trainable_w_ie"}
@@ -472,7 +499,7 @@ def attempt_is_active(record: dict[str, Any]) -> bool | None:
     if job_id:
         try:
             query = subprocess.run(
-                ["squeue", "--noheader", "--jobs", str(job_id), "--format", "%A"],
+                ["squeue", "--noheader", "--states=all", "--jobs", str(job_id), "--format", "%A"],
                 capture_output=True, text=True,
             )
         except FileNotFoundError:
@@ -538,6 +565,8 @@ def acquire_attempt(
                     raise RuntimeError(
                         f"prior attempt for {cell['name']} changed during stale recovery"
                     )
+                if current:
+                    record["previous_attempt"] = current
                 lock.unlink()
                 descriptor = os.open(
                     lock, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600,
@@ -552,6 +581,8 @@ def acquire_attempt(
         with os.fdopen(descriptor, "w") as handle:
             json.dump({"attempt_id": attempt_id, "cell_name": cell["name"]}, handle)
             handle.write("\n")
+        if record_file.exists():
+            record["previous_attempt"] = _json(record_file)
         atomic_json(record_file, record)
         return record, lock
     raise RuntimeError(f"could not acquire attempt lock for {cell['name']}")

@@ -1,5 +1,37 @@
 # Exp023 — PING fundamentals
 
+## Refractory reporting correction — 2026-09-09
+
+PLAN.md step 5.9 is complete. **`exp023-r014-present`** corrects the displayed
+E/I refractory periods from 3/1.5 ms to **1.2/0.6 ms**, using the unchanged
+`exp023-r011-compute`, `exp023-r012-analyse` and prior `exp023-r013-present`.
+This is the verified 6-ms-GABA chain, not the rejected `r008` execution below.
+
+The historical simulator used 12/6 timestep counters; at the recorded 0.1-ms
+timestep these give 1.2/0.6 ms. Retained selected-neuron voltages corroborate
+37 complete 12-step E holds and 32 complete 6-step I holds. The original
+3/1.5-ms declaration remains frozen in the source run; the new reported
+configuration has its own schema and explicit correction provenance. The
+recorded source was dirty, so the Git base is not asserted to be a complete
+execution snapshot. The f–I spike totals alone cannot establish per-cell ISIs.
+
+```sh
+uv run python -m experiments.exp023.present --source exp023-r012-analyse \
+  --metadata-source exp023-r013-present
+```
+
+This explicit metadata path accepts only the audited compute identity, payload,
+recipe and source base. It copies all **24 figure files byte-for-byte** and
+preserves every scientific measurement. No simulation, analysis or drawing
+runs; compute and analyse sources remain immutable. The article already reads
+the reported values dynamically from `numbers.json`. Publication selection and
+article prose were not changed.
+
+The new presentation passes v4 layout, payload and lineage checks; **40 tests**,
+lint and whitespace checks pass. Exact run digests and acceptance details are
+in PLAN.md. This correction follows Runner and Storage Guides 4.4.0; the
+sections below retain the historical migration and execution account.
+
 The implementation is maintained against Experiment Runner Guide 4.3.0,
 Storage Guide 4.3.0 and Writing Guide 8.0.0. Current operational requirements
 are defined by the [Runner Guide](../README.md), [Storage Guide](../../tools/pingstore/README.md)

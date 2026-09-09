@@ -3,6 +3,10 @@
 from experiments.exp022.recipe import training_run_cell, training_run_values
 from experiments.helpers.checkpoints import checkpoint_policy
 from experiments.helpers.datasets import MNIST_REDUCED_EVAL_SAMPLES
+from experiments.helpers.operating_point import (
+    refractory_args,
+    refractory_configuration,
+)
 
 SLUG = "exp041"
 TRAINING_RUN = "TR-03"
@@ -96,9 +100,12 @@ def cell_name(tau_ms: float, seed: int) -> str:
     return training_run_cell(TRAINING_RUN, tau_gaba=tau_ms, seed=seed)["name"]
 
 
-def configuration(*, smoke: bool = False) -> dict:
+def configuration(*, smoke: bool = False, version=2) -> dict:
+    if version not in (1, 2):
+        raise ValueError("unsupported exp041 recipe version")
     return {
-        "schema": "exp041.recipe/v1",
+        "schema": f"exp041.recipe/v{version}",
+        **(refractory_configuration() if version >= 2 else {}),
         "profile": "smoke" if smoke else "production",
         "tau_gaba_sweep_ms": list(TAU_GABA_SWEEP),
         "seeds": list(SEEDS),
@@ -127,6 +134,7 @@ def inference_args(
 ) -> list[str]:
     args = [
         "sim",
+        *refractory_args(),
         "--infer",
         "--device",
         "auto",

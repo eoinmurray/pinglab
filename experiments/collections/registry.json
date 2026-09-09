@@ -13,7 +13,6 @@
     "exp044": "gamma-gated-sparsity",
     "exp046": "gamma-gated-sparsity",
     "exp047": "gamma-gated-sparsity",
-    "exp048": "gamma-gated-sparsity",
     "exp049": "gamma-gated-sparsity",
     "exp054": "gamma-gated-sparsity",
     "exp074": "snnlang-docs",
@@ -24,10 +23,14 @@
     "exp081": "gamma-gated-sparsity",
     "exp082": "gamma-gated-sparsity",
     "exp099": "demo",
-    "exp110": "gamma-gated-sparsity",
-    "exp111": "gamma-gated-sparsity"
+    "exp110": "gamma-gated-sparsity"
   },
   "historical": {
+    "exp111": {
+      "collection": "gamma-gated-sparsity",
+      "disposition": "removed-code-retained-runs",
+      "evidence": "Code, article and active integration entries removed at the author's request on 2026-09-08. All retained Pingstore runs remain unchanged."
+    },
     "exp083": {
       "collection": "demo",
       "disposition": "removed-and-pruned",
@@ -56,6 +59,11 @@
       "collection": "demo",
       "disposition": "removed-and-pruned",
       "evidence": "The runnable code, test, writing, legacy materialized payload, publication selection, and generated site output were removed on 2026-08-26; no Pingstore run directory existed."
+    },
+    "exp048": {
+      "collection": "gamma-gated-sparsity",
+      "disposition": "removed-and-pruned",
+      "evidence": "Code, article and active integration entries removed on 2026-09-08. The author explicitly overrode retention rules and authorized deletion of exp048-r001-analyse, exp048-r006-analyse and exp048-r009-present (1,545,947 bytes) on the same date. No other run referenced these inputs at deletion; no remote backup was verified."
     }
   }
 }

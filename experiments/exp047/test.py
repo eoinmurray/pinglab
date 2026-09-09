@@ -30,7 +30,17 @@ from pingstore.discovery import discover_runs
 
 
 def fixture_documents(cfg, item):
+    from experiments.helpers.operating_point import (
+        duration_configuration,
+        refractory_execution_configuration,
+    )
+
     config = {
+        **{
+            key: cfg[key]
+            for key in ("refractory_e_ms", "refractory_i_ms", "refractory_policy")
+            if key in cfg
+        },
         "mode": "sim",
         "model": "ping",
         "input": "synthetic-spikes",
@@ -58,6 +68,16 @@ def fixture_documents(cfg, item):
         "mode": "probe",
         "model": "ping",
         "config": {
+            **(
+                duration_configuration(cfg["t_ms"], cfg["dt_ms"])
+                if "refractory_e_ms" in cfg
+                else {}
+            ),
+            **(
+                refractory_execution_configuration(cfg["dt_ms"])
+                if "refractory_e_ms" in cfg
+                else {}
+            ),
             "dt": cfg["dt_ms"],
             "t_ms": cfg["t_ms"],
             "n_in": cfg["n_in"],
@@ -224,9 +244,7 @@ def test_stage_failures_remain_hidden(repo, monkeypatch, mode):
         command(run_id=hidden[0].name[1:-4])
 
 
-@pytest.mark.parametrize(
-    "corruption", ["payload", "symlink", "root", "v2"]
-)
+@pytest.mark.parametrize("corruption", ["payload", "symlink", "root", "v2"])
 def test_sources_and_ancestry_reject_corruption(repo, corruption):
     root, _ = repo
     compute_id = compute.compute()
@@ -503,10 +521,16 @@ def test_article_renders_explicit_presentation_with_equations_and_seed_list(repo
     source_root = Path(__file__).resolve().parents[2]
     (root / "writings").mkdir()
     for name in (
-        "exp047.typ", "templates/dataset.typ", "templates/abstract.typ",
-        "templates/methods.typ", "templates/article-layout.typ",
-        "templates/result-card.typ", "templates/references.typ",
-        "templates/contents.typ", "templates/equations.typ", "templates/status.typ",
+        "exp047.typ",
+        "templates/dataset.typ",
+        "templates/abstract.typ",
+        "templates/methods.typ",
+        "templates/article-layout.typ",
+        "templates/result-card.typ",
+        "templates/references.typ",
+        "templates/contents.typ",
+        "templates/equations.typ",
+        "templates/status.typ",
     ):
         target = root / "writings" / name
         target.parent.mkdir(parents=True, exist_ok=True)

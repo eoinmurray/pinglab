@@ -11,7 +11,7 @@
   tags: ("data", "v36.0.0"),
   title: "Turning the PING Loop On",
   created_at: "2026-05-13T00:00:00Z",
-  updated_at: "2026-08-31T00:00:00Z",
+  updated_at: "2026-09-09",
   description: "PING stripped to its biophysical fundamentals: free-running activity, population spectra and rate responses with the excitatory–inhibitory loop off and on.",
   collection: "gamma-gated-sparsity",
 )
@@ -215,7 +215,9 @@
     #c.initial_conductance_uS µS. Exponential-Euler membrane integration used
     #points.coba.dt_ms ms steps; AMPA and GABA decay constants were
     #b.tau_ampa_ms and #b.tau_gaba_ms ms, with E/I refractory periods
-    #b.refractory_E_ms/#b.refractory_I_ms ms.
+    #b.refractory_E_ms/#b.refractory_I_ms ms. These describe the executed reset
+    holds; the earlier 3/1.5-ms declaration was corrected without rerunning the
+    simulations or changing their measured activity.
     Full trial recordings included spikes, voltages and conductances.
     ],
     analyse: [

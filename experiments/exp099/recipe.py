@@ -1,282 +1,172 @@
-"""Committed EXP099 scientific definitions; no execution on import."""
+"""Susin-inspired private-afferent protocol; no execution on import."""
 
 from __future__ import annotations
 
+import numpy as np
 from tools import snnlang as snn  # noqa: TID251
 
 SLUG = "exp099"
-DT_MS, DURATION_MS, SEED = 0.25, 2_000.0, 7
-N_E, N_I = 400, 100
-VIEW_START_MS, VIEW_END_MS = 300.0, 1_800.0
-ONSET_MS, PEAK_MS, OFFSET_MS = 600.0, 850.0, 1_100.0
-VIDEO = "richer-input-ai-to-intermittent-ping.mp4"
-POSTER = "richer-input-ai-to-intermittent-ping.png"
-SHARED_DRIVE_VIDEO = "shared-drive-ai-to-ping.mp4"
-SHARED_DRIVE_POSTER = "shared-drive-ai-to-ping.png"
-INPUT_MAP = "input-map-option-3.svg"
-SCALE = {"dt_ms": DT_MS, "t_ms": DURATION_MS, "n_e": N_E, "n_i": N_I, "seed": SEED}
-
-
-def recurrent(mean: float, std: float) -> snn.LowerClampedNormal:
-    return snn.LowerClampedNormal(
-        mean, std, initial_zero_fraction=0.975, zeroing="exact_k"
-    )
-
-
-def background(
-    tau: float, group: int, private: float, shared: float, *, rate_scale: float = 1.0
-):
-    return snn.BackgroundChannel(
-        private=snn.ShotNoise(500 * rate_scale, private, tau),
-        shared=snn.GroupedShotNoise(80 * rate_scale, shared, tau, group),
-        heterogeneity=snn.CellDistribution(
-            rate=snn.LowerClampedNormal(1.0, 0.1),
-            amplitude=snn.LowerClampedNormal(1.0, 0.1),
-        ),
-    )
-
-
-def author_network(
-    *,
-    condition: str = "richer-input",
-    shared_peak_scale: float = 6.5,
-    private_afferent_scale: float = 1.0,
-    background_rate_scale: float = 1.0,
-    ampa_background_scale: float = 1.0,
-    gaba_background_scale: float = 1.0,
-    w_ee_scale: float = 1.0,
-    w_ei_scale: float = 1.0,
-    w_ie_scale: float = 1.0,
-    w_in_e_scale: float = 1.0,
-    w_in_i_scale: float = 1.0,
-    tau_gaba_ms: float = 9.0,
-    onset_ms: float = ONSET_MS,
-    peak_ms: float = PEAK_MS,
-    plateau_end_ms: float = PEAK_MS,
-    offset_ms: float = OFFSET_MS,
-) -> snn.Bundle:
-    """Author the latest canvas condition without depending on canvas files."""
-    if condition not in {"richer-input", "shared-drive-isolation"}:
-        raise ValueError(f"unsupported exp099 condition: {condition}")
-    if shared_peak_scale < 1 or not (
-        0 < private_afferent_scale <= 1 and 0 < background_rate_scale <= 1
-    ):
-        raise ValueError("input scales require shared >= 1 and 0 < fixed scales <= 1")
-    if (
-        min(
-            w_ee_scale,
-            w_ei_scale,
-            w_ie_scale,
-            w_in_e_scale,
-            w_in_i_scale,
-            ampa_background_scale,
-            gaba_background_scale,
-            tau_gaba_ms,
-        )
-        <= 0
-    ):
-        raise ValueError("synaptic scales must be positive")
-    if not 0 <= onset_ms < peak_ms <= plateau_end_ms < offset_ms:
-        raise ValueError("input timing requires onset < peak <= plateau end < offset")
-    isolated = condition == "shared-drive-isolation"
-    private_scale = private_afferent_scale if isolated else 1.0
-    background_scale = background_rate_scale if isolated else 1.0
-    private_peak_scale = 1.0 if isolated else 1.2
-    weather = (
-        None if isolated else snn.StationaryRateWeather(tau_ms=250, std_fraction=0.12)
-    )
-    net = snn.Network(f"exp099_{condition.replace('-', '_')}", dt=DT_MS * snn.ms)
-    source_e = net.input(
-        "afferent_e", shape=("time", "batch", N_E), signal_type="spikes", unit="spike"
-    )
-    source_i = net.input(
-        "afferent_i", shape=("time", "batch", N_E), signal_type="spikes", unit="spike"
-    )
-    cell = snn.components.ping(
-        net,
-        name="balanced_circuit",
-        n_e=N_E,
-        n_i=N_I,
-        source_e=source_e,
-        source_i=source_i,
-        tau_gaba=tau_gaba_ms * snn.ms,
-        w_in_e=snn.Normal(0.08 * w_in_e_scale, 0.008 * w_in_e_scale),
-        w_in_i=snn.Normal(0.02 * w_in_i_scale, 0.002 * w_in_i_scale),
-        w_ee=recurrent(0.85 * w_ee_scale, 0.255 * w_ee_scale),
-        w_ei=recurrent(0.6 * w_ei_scale, 0.18 * w_ei_scale),
-        w_ie=recurrent(3.0 * w_ie_scale, 0.9 * w_ie_scale),
-        w_ii=recurrent(0.4, 0.12),
-    )
-    readout = snn.readouts.MeanVoltage(
-        source=cell.E.spikes,
-        classes=10,
-        name="state_readout",
-        tau=2 * snn.ms,
-        weight=snn.Normal(5.1, 3.8),
-    )
-    net.output("state_logits", readout)
-    net.expose(cell.E.spikes, cell.I.spikes, name="populations")
-    simulation = snn.SimulationSpec(
-        spike_sources=[
-            snn.CorrelatedPoissonAfferents(
-                source_e, source_i, 10, 15 * private_scale, 15 * private_scale
-            )
-        ],
-        backgrounds=[
-            snn.ConductanceBackground(
-                cell.E,
-                background(
-                    2,
-                    25,
-                    0.06,
-                    0.02,
-                    rate_scale=background_scale * ampa_background_scale,
-                ),
-                background(
-                    tau_gaba_ms,
-                    25,
-                    0.03,
-                    0.01,
-                    rate_scale=background_scale * gaba_background_scale,
-                ),
-            ),
-            snn.ConductanceBackground(
-                cell.I,
-                background(
-                    2,
-                    10,
-                    0.03,
-                    0.01,
-                    rate_scale=background_scale * ampa_background_scale,
-                ),
-                background(
-                    tau_gaba_ms,
-                    10,
-                    0.03,
-                    0.01,
-                    rate_scale=background_scale * gaba_background_scale,
-                ),
-            ),
-        ],
-        weather=weather,
-        afferent_wave=snn.TransientAfferentWave(
-            onset_ms,
-            peak_ms,
-            offset_ms,
-            private_peak_scale,
-            shared_peak_scale,
-            plateau_end_ms=plateau_end_ms,
-        ),
-    )
-    return snn.compile(net, simulation=simulation, target="tools/snnsim")
+DT_MS, DURATION_MS, SEED = 0.1, 10000.0, 7
+N_E, N_I = 1600, 400
+VIEW_START_MS, VIEW_END_MS = 1000.0, DURATION_MS
+ONSET_MS, PEAK_MS, PLATEAU_END_MS, OFFSET_MS = 4000.0, 4500.0, 6500.0, 7000.0
+VIDEO, POSTER = "private-e-drive.mp4", "private-e-drive.png"
 
 
 def configuration(
-    bundle=None,
     *,
-    condition: str = "richer-input",
-    shared_peak_scale: float = 6.5,
-    private_afferent_scale: float = 1.0,
-    background_rate_scale: float = 1.0,
-    ampa_background_scale: float = 1.0,
-    gaba_background_scale: float = 1.0,
-    w_ee_scale: float = 1.0,
-    w_ei_scale: float = 1.0,
-    w_ie_scale: float = 1.0,
-    w_in_e_scale: float = 1.0,
-    w_in_i_scale: float = 1.0,
-    tau_gaba_ms: float = 9.0,
-    duration_ms: float = DURATION_MS,
-    seed: int = SEED,
-    onset_ms: float = ONSET_MS,
-    peak_ms: float = PEAK_MS,
-    plateau_end_ms: float = PEAK_MS,
-    offset_ms: float = OFFSET_MS,
-    view_start_ms: float = VIEW_START_MS,
-    view_end_ms: float = VIEW_END_MS,
+    seed=SEED,
+    capacitance_nf=0.15,
+    leak_us=0.01,
+    baseline_hz=0.6,
+    recurrent_scale=0.1,
+    inhibitory_scale=4.0,
 ) -> dict:
-    bundle = (
-        bundle
-        if bundle is not None
-        else author_network(
-            condition=condition,
-            shared_peak_scale=shared_peak_scale,
-            private_afferent_scale=private_afferent_scale,
-            background_rate_scale=background_rate_scale,
-            ampa_background_scale=ampa_background_scale,
-            gaba_background_scale=gaba_background_scale,
-            w_ee_scale=w_ee_scale,
-            w_ei_scale=w_ei_scale,
-            w_ie_scale=w_ie_scale,
-            w_in_e_scale=w_in_e_scale,
-            w_in_i_scale=w_in_i_scale,
-            tau_gaba_ms=tau_gaba_ms,
-            onset_ms=onset_ms,
-            peak_ms=peak_ms,
-            plateau_end_ms=plateau_end_ms,
-            offset_ms=offset_ms,
+    return {
+        "schema": "exp099.recipe/v2",
+        "condition": "private-e-drive",
+        "dt_ms": DT_MS,
+        "t_ms": DURATION_MS,
+        "seed": seed,
+        "n_e": N_E,
+        "n_i": N_I,
+        "connection_probability": 0.1,
+        "external_afferents_per_neuron": 400,
+        "baseline_e_hz": baseline_hz,
+        "baseline_i_hz": baseline_hz,
+        "stimulus_e_hz": baseline_hz * 1.5,
+        "capacitance_nf": capacitance_nf,
+        "leak_us": leak_us,
+        "external_weight_us": 0.004,
+        "recurrent_e_weight_us": 0.0125 * recurrent_scale,
+        "recurrent_i_weight_us": 0.00835 * recurrent_scale * inhibitory_scale,
+        "tau_ampa_ms": 1.5,
+        "tau_gaba_ms": 7.5,
+        "delay_ms": 1.5,
+        "refractory_e_ms": 3.0,
+        "refractory_i_ms": 1.5,
+        "onset_ms": ONSET_MS,
+        "peak_ms": PEAK_MS,
+        "plateau_end_ms": PLATEAU_END_MS,
+        "offset_ms": OFFSET_MS,
+        "view_start_ms": VIEW_START_MS,
+        "view_end_ms": VIEW_END_MS,
+        "initial_voltage_mv": -65.0,
+        "external_representation": "independent Poisson counts per target; exact superposition of 400 sources; diagonal 4 nS projection",
+        "recurrent_topology": "independent Bernoulli edges, including possible self connections",
+        "weight_initialization": "graph fan-in/sparsity normalization compensated in initializer; external matrices replaced by diagonal physical weights",
+        "recording_policy": "all output spikes and afferent counts at dt; population mean voltages and projection conductances at dt",
+        "reference": "https://doi.org/10.1371/journal.pcbi.1009416",
+    }
+
+
+def source_rates(times_ms, cfg):
+    e = np.interp(
+        times_ms,
+        [
+            0.0,
+            cfg["onset_ms"],
+            cfg["peak_ms"],
+            cfg["plateau_end_ms"],
+            cfg["offset_ms"],
+            cfg["t_ms"],
+        ],
+        [
+            cfg["baseline_e_hz"],
+            cfg["baseline_e_hz"],
+            cfg["stimulus_e_hz"],
+            cfg["stimulus_e_hz"],
+            cfg["baseline_e_hz"],
+            cfg["baseline_e_hz"],
+        ],
+    )
+    return e, np.full_like(e, cfg["baseline_i_hz"])
+
+
+def afferent_counts(cfg):
+    """Independent across cells and populations; counts greater than one survive."""
+    times = np.arange(round(cfg["t_ms"] / cfg["dt_ms"])) * cfg["dt_ms"]
+    rngs = [
+        np.random.default_rng(s) for s in np.random.SeedSequence(cfg["seed"]).spawn(2)
+    ]
+    result = {}
+    for pop, rates, rng in zip(("e", "i"), source_rates(times, cfg), rngs):
+        lam = (
+            rates[:, None] * cfg["external_afferents_per_neuron"] * cfg["dt_ms"] / 1000
         )
-    )
-    if not 0 <= view_start_ms < view_end_ms <= duration_ms:
-        raise ValueError("view window must lie inside the simulation")
-    return {
-        "schema": "exp099.recipe/v1",
-        "condition": condition,
-        "controls": {
-            "shared_peak_scale": float(shared_peak_scale),
-            "private_afferent_scale": float(private_afferent_scale),
-            "background_rate_scale": float(background_rate_scale),
-            "ampa_background_scale": float(ampa_background_scale),
-            "gaba_background_scale": float(gaba_background_scale),
-            "w_ee_scale": float(w_ee_scale),
-            "w_ei_scale": float(w_ei_scale),
-            "w_ie_scale": float(w_ie_scale),
-            "w_in_e_scale": float(w_in_e_scale),
-            "w_in_i_scale": float(w_in_i_scale),
-            "tau_gaba_ms": float(tau_gaba_ms),
-            "onset_ms": float(onset_ms),
-            "peak_ms": float(peak_ms),
-            "plateau_end_ms": float(plateau_end_ms),
-            "offset_ms": float(offset_ms),
-            "view_start_ms": float(view_start_ms),
-            "view_end_ms": float(view_end_ms),
-        },
-        **SCALE,
-        "t_ms": float(duration_ms),
-        "seed": int(seed),
-        "graph": bundle.graph,
-        "simulation": bundle.simulation,
-    }
+        counts = rng.poisson(lam, size=(len(times), cfg[f"n_{pop}"]))
+        if counts.max() > 255:
+            raise ValueError("afferent counts exceed recording capacity")
+        result[f"private_{pop}"] = counts.astype(np.uint8)
+    return result
 
 
-def media_names(condition: str) -> tuple[str, str]:
-    if condition == "shared-drive-isolation":
-        return SHARED_DRIVE_VIDEO, SHARED_DRIVE_POSTER
-    return VIDEO, POSTER
-
-
-def analysis_configuration(configuration: dict | None = None) -> dict:
-    configuration = configuration or {}
-    controls = configuration.get("controls", {})
-    view_start_ms = float(controls.get("view_start_ms", VIEW_START_MS))
-    view_end_ms = float(controls.get("view_end_ms", VIEW_END_MS))
-    short_protocol = (
-        configuration.get("condition") == "shared-drive-isolation"
-        or view_end_ms - view_start_ms <= 1_200
-    )
-    return {
-        "schema": "exp099.measurements/v1",
-        "rhythm_window_ms": 160.0 if short_protocol else 400.0,
-        "rhythm_stride_ms": 5.0 if short_protocol else 10.0,
-        "rhythm_max_lag_ms": 60.0 if short_protocol else 100.0,
-        "rhythm_bin_ms": 1.0,
-        "view_start_ms": view_start_ms,
-        "view_end_ms": view_end_ms,
-        "loop_window_ms": 40.0,
-        "loop_stride_ms": 5.0,
-        "loop_smoothing_ms": 75.0,
-        "loop_percentiles": [10, 95],
-        "external_tau_ms": {"E AMPA": 2.0, "E GABA": 9.0, "I AMPA": 2.0, "I GABA": 9.0},
-        "summary_endpoint": "exclusive",
-        "plot_endpoint": "inclusive",
-    }
+def author_network(cfg=None):
+    cfg = configuration() if cfg is None else cfg
+    net = snn.Network("exp099_private_afferents", dt=cfg["dt_ms"] * snn.ms)
+    pops = {}
+    for name in ("E", "I"):
+        cap, leak = cfg["capacitance_nf"], cfg["leak_us"]
+        tau = cap / leak
+        pops[name] = net.population(
+            name,
+            size=cfg[f"n_{name.lower()}"],
+            neuron=snn.COBA_LIF(
+                tau_mem=tau * snn.ms,
+                capacitance_nf=cap,
+                leak_us=leak,
+                resting_mv=-65.0,
+                threshold_mv=-50.0,
+                reset_mv=-65.0,
+                refractory_steps=round(
+                    cfg[f"refractory_{name.lower()}_ms"] / cfg["dt_ms"]
+                ),
+                voltage_grad_dampen=80.0,
+                initial_voltage_mv=cfg["initial_voltage_mv"],
+            ),
+        )
+    for name, pop in pops.items():
+        size = cfg[f"n_{name.lower()}"]
+        source = net.input(
+            f"private_{name.lower()}",
+            shape=("time", "batch", size),
+            signal_type="spikes",
+            unit="spike",
+        )
+        net.connect(
+            source,
+            pop.excitatory,
+            name=f"private_{name.lower()}_to_{name}",
+            synapse=snn.AMPA(tau=cfg["tau_ampa_ms"] * snn.ms),
+            weight=snn.Constant(0.0),
+            constraint=snn.NonNegative(),
+            delay=cfg["delay_ms"] * snn.ms,
+        )
+    for src in ("E", "I"):
+        for dst in ("E", "I"):
+            excitatory = src == "E"
+            physical = cfg[f"recurrent_{src.lower()}_weight_us"]
+            # SNNSIM divides by source count and renormalizes surviving edges.
+            # Compensate both factors to retain the specified physical edge weight.
+            mean = physical * cfg[f"n_{src.lower()}"] * cfg["connection_probability"]
+            net.connect(
+                pops[src].spikes,
+                pops[dst].excitatory if excitatory else pops[dst].inhibitory,
+                name=f"{src}_to_{dst}",
+                synapse=(
+                    snn.AMPA(tau=cfg["tau_ampa_ms"] * snn.ms)
+                    if excitatory
+                    else snn.GABA(tau=cfg["tau_gaba_ms"] * snn.ms)
+                ),
+                weight=snn.LowerClampedNormal(
+                    mean,
+                    0.0,
+                    initial_zero_fraction=1 - cfg["connection_probability"],
+                    zeroing="bernoulli",
+                ),
+                constraint=snn.NonNegative(),
+                connection="recurrent",
+                delay=cfg["delay_ms"] * snn.ms,
+            )
+    net.expose(pops["E"].spikes, pops["I"].spikes, name="populations")
+    return snn.compile(net, target=None)

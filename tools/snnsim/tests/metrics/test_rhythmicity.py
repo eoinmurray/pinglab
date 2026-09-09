@@ -68,6 +68,20 @@ def test_autocorrelogram_peaks_at_period():
     assert np.nanmax(ac[band]) > 1.5
 
 
+@pytest.mark.parametrize("dt", [0.1, 0.3, 0.6])
+def test_nonintegral_bins_keep_physical_lags_and_biophysical_lookup(dt):
+    raster = _volley_raster(
+        30.0, dt, n_neurons=10, t_ms=1800.0,
+        jitter_ms=0, rng=np.random.default_rng(0),
+    )
+    result = rhythmicity_metrics(raster, dt, max_lag_ms=60, bio_lag_ms=30)
+    lags, ac = result["ac_lags"], result["ac"]
+    window = (lags >= 20) & (lags <= 40)
+    peak_lag = lags[window][np.argmax(ac[window])]
+    assert peak_lag == pytest.approx(30, abs=1.2)
+    assert result["biophysical"] > 5
+
+
 def test_flat_poisson_sits_at_baseline():
     rng = np.random.default_rng(1)
     raster = _poisson_raster(rate_hz=20.0, dt=0.25, n_neurons=400, t_ms=3000.0, rng=rng)

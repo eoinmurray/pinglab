@@ -40,7 +40,8 @@ def references(repo: Path, row: dict) -> dict:
             break
         ref = document[stage]
         source = inputs.source(repo, ref["run_id"], stage, reference=ref)
-        inputs.configuration(source)
+        if inputs.configuration(source) != recipe.configuration():
+            raise PingstoreError("exp033 campaign requires the current theory recipe")
         expected = (
             {}
             if stage == "compute"

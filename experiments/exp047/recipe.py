@@ -1,5 +1,10 @@
 """Preserved paired pool-size controls, with no execution on import."""
 
+from experiments.helpers.operating_point import (
+    refractory_args,
+    refractory_configuration,
+)
+
 SLUG = "exp047"
 FIGURES = ("pool_size_controls.svg", "pool_size_controls.pdf")
 DEFINITION = "j_ie_synapse = g_ie_total / n_i"
@@ -10,9 +15,12 @@ MEASUREMENT = {
 }
 
 
-def configuration(*, smoke=False):
+def configuration(*, smoke=False, version=2):
+    if version not in (1, 2):
+        raise ValueError("unsupported exp047 recipe version")
     return {
-        "schema": "exp047.recipe/v1",
+        "schema": f"exp047.recipe/v{version}",
+        **(refractory_configuration() if version >= 2 else {}),
         "profile": "smoke" if smoke else "production",
         "n_e": 1024,
         "n_in": 784,
@@ -74,6 +82,7 @@ def jobs(cfg):
 def simulation_args(cfg, item, output):
     return [
         "sim",
+        *refractory_args(),
         "--input",
         "synthetic-spikes",
         "--model",

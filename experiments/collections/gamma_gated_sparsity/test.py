@@ -45,7 +45,6 @@ from experiments.exp080 import collection as exp080_collection
 from experiments.exp081 import collection as exp081_collection
 from experiments.exp082 import collection as exp082_collection
 from experiments.exp110 import collection as exp110_collection
-from experiments.exp111 import collection as exp111_collection
 
 
 def test_collection_production_training_horizon_is_50_epochs() -> None:
@@ -114,10 +113,9 @@ def test_downstream_cell_banks_resolve_through_exp022_registry() -> None:
     assert {exp042.cell_name(seed) for seed in exp042.SEEDS} <= registered["TR-02"]
 
 
-def test_graph_orders_dependencies_and_replaces_exp048_with_exp082() -> None:
+def test_graph_orders_dependencies() -> None:
     ordered = ordered_experiments()
     positions = {experiment.slug: index for index, experiment in enumerate(ordered)}
-    assert "exp048" not in positions
     assert positions["exp022"] < positions["exp082"]
     assert positions["exp041"] < positions["exp033"]
     assert positions["exp041"] < positions["exp054"]
@@ -128,7 +126,6 @@ def test_graph_orders_dependencies_and_replaces_exp048_with_exp082() -> None:
     assert positions["exp044"] < positions["exp110"]
     assert positions["exp046"] < positions["exp110"]
     assert positions["exp054"] < positions["exp110"]
-    assert positions["exp022"] < positions["exp111"]
     assert positions["exp022"] < positions["exp042"]
     assert {"exp023", "exp047", "exp080", "exp081"} <= positions.keys()
     exp082 = next(
@@ -187,7 +184,7 @@ def test_plan_paths_are_isolated_and_all_runners_are_integrated(tmp_path: Path) 
     assert all(str(tmp_path.resolve()) in path for path in paths)
     assert payload["executable"]
     assert all(row["integrated"] or row["slug"] == "exp022" for row in rows)
-    assert payload["excluded"] == ["exp048"]
+    assert payload["excluded"] == []
     assert payload["blocking_issues"] == []
     assert payload["acceptance_issues"] == []
     assert all(
@@ -211,7 +208,6 @@ def test_plan_paths_are_isolated_and_all_runners_are_integrated(tmp_path: Path) 
             "exp081-staged",
             "exp082-staged",
             "exp110-present-only",
-            "exp111-staged",
         }
         for row in rows
     )
@@ -318,7 +314,6 @@ def test_local_resume_runs_in_dependency_order(tmp_path: Path, monkeypatch) -> N
         exp081_collection,
         exp082_collection,
         exp110_collection,
-        exp111_collection,
     ):
         monkeypatch.setattr(
             adapter,
@@ -694,7 +689,6 @@ def test_publication_build_runs_promotion_from_separate_checkout(
         exp081_collection,
         exp082_collection,
         exp110_collection,
-        exp111_collection,
     ):
         monkeypatch.setattr(
             adapter,
@@ -782,7 +776,6 @@ def test_publication_build_rejects_stubbed_entries(tmp_path: Path, monkeypatch) 
         exp081_collection,
         exp082_collection,
         exp110_collection,
-        exp111_collection,
     ):
         monkeypatch.setattr(
             adapter,
@@ -937,7 +930,7 @@ def test_slurm_accepts_smoke_profile(tmp_path: Path, monkeypatch) -> None:
 
     payload = slurm.submit_campaign(root, resources_path)
     assert payload["mode"] == "dry-run"
-    assert len(payload["jobs"]) == 28
+    assert len(payload["jobs"]) == 27
 
 
 def test_workload_shards_are_disjoint_complete_and_stable(monkeypatch) -> None:

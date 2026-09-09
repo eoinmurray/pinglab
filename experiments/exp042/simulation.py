@@ -9,6 +9,7 @@ from pathlib import Path
 
 import numpy as np
 from experiments.helpers.checkpoints import cache_tag, resolve_checkpoint
+from experiments.helpers.operating_point import refractory_args
 from experiments.helpers.run_cli import run_cli
 from pingstore.contracts import write_json_atomic
 
@@ -84,6 +85,7 @@ class Simulator:
                     try:
                         cmd = [
                             "sim",
+                            *refractory_args(),
                             "--infer",
                             "--load-config",
                             str((train_dir / "config.json").resolve()),
@@ -229,6 +231,7 @@ class Simulator:
         out_dir.mkdir(parents=True, exist_ok=True)
         cmd = [
             "sim",
+            *refractory_args(),
             "--infer",
             "--load-config",
             str((train_dir / "config.json").resolve()),
@@ -271,6 +274,7 @@ class Simulator:
         out_dir.mkdir(parents=True, exist_ok=True)
         cmd = [
             "sim",
+            *refractory_args(),
             "--infer",
             "--load-config",
             str((train_dir / "config.json").resolve()),

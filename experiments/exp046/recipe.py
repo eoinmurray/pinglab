@@ -10,6 +10,10 @@ from experiments.exp041.recipe import (
     TAU_GABA_SWEEP,
     cell_name,
 )
+from experiments.helpers.operating_point import (
+    refractory_args,
+    refractory_configuration,
+)
 
 SLUG = "exp046"
 __all__ = ["ANALYSIS_PURPOSE", "CHECKPOINT_ROLE", "cell_name"]
@@ -21,9 +25,12 @@ FIGURES = tuple(
 )
 
 
-def configuration(*, smoke=False):
+def configuration(*, smoke=False, version=2):
+    if version not in (1, 2):
+        raise ValueError("unsupported exp046 recipe version")
     return {
-        "schema": "exp046.recipe/v1",
+        "schema": f"exp046.recipe/v{version}",
+        **(refractory_configuration() if version >= 2 else {}),
         "profile": "smoke" if smoke else "production",
         "tau_gaba_sweep_ms": list(TAU_GABA_SWEEP_MS),
         "seeds": list(SEEDS),
@@ -35,6 +42,7 @@ def configuration(*, smoke=False):
 def inference_args(train, checkpoint, output, *, samples, tau_gaba_ms):
     return [
         "sim",
+        *refractory_args(),
         "--infer",
         "--device",
         "auto",

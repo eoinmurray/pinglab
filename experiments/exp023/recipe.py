@@ -2,6 +2,13 @@
 
 from pathlib import Path
 
+from experiments.helpers.operating_point import (
+    REFRACTORY_E_MS,
+    REFRACTORY_I_MS,
+    refractory_args,
+    refractory_configuration,
+)
+
 SLUG = "exp023"
 DT_MS = 0.1
 N_E, N_I, N_IN = 1024, 256, 1024
@@ -26,14 +33,15 @@ BIOPHYSICS = {
     "tau_gaba_ms": 6.0,
     "C_m_E_nF": 1.0,
     "C_m_I_nF": 0.5,
-    "refractory_E_ms": 3.0,
-    "refractory_I_ms": 1.5,
+    "refractory_E_ms": REFRACTORY_E_MS,
+    "refractory_I_ms": REFRACTORY_I_MS,
 }
 
 
 def _args(cell: str, rate: int, n_in: int, smoke: bool) -> list[str]:
     return [
         "sim",
+        *refractory_args(),
         "--model",
         "ping",
         "--input",
@@ -101,8 +109,11 @@ def fi_args(
     return args
 
 
-def drive_provenance(*, smoke: bool = False) -> dict:
+def drive_provenance(*, smoke: bool = False, version=2) -> dict:
     def point(args):
+        if version == 1:
+            args = args[:1] + args[1 + len(refractory_args()) :]
+
         def value(flag):
             return args[args.index(flag) + 1]
 
@@ -135,9 +146,12 @@ def drive_provenance(*, smoke: bool = False) -> dict:
     }
 
 
-def configuration(*, smoke: bool = False) -> dict:
+def configuration(*, smoke: bool = False, version=2) -> dict:
+    if version not in (1, 2):
+        raise ValueError("unsupported exp023 recipe version")
     return {
-        "schema": "exp023.recipe/v1",
+        "schema": f"exp023.recipe/v{version}",
+        **(refractory_configuration() if version >= 2 else {}),
         "profile": "smoke" if smoke else "production",
         "model": "ping",
         "cells": list(CELLS),
@@ -153,8 +167,13 @@ def configuration(*, smoke: bool = False) -> dict:
         "recurrent_initial_zero_fraction": 0.0,
         "ei_ratio": 2.0,
         "integration": "exponential_euler",
-        "drive": drive_provenance(smoke=smoke),
-        "biophysics": dict(BIOPHYSICS),
+        "drive": drive_provenance(smoke=smoke, version=version),
+        "biophysics": {
+            **BIOPHYSICS,
+            **(
+                {"refractory_E_ms": 3.0, "refractory_I_ms": 1.5} if version == 1 else {}
+            ),
+        },
     }
 
 

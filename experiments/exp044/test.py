@@ -6,6 +6,12 @@ from pathlib import Path
 import pytest
 from experiments.exp044 import evidence
 from experiments.exp044 import recipe as exp044
+from experiments.helpers.operating_point import (
+    duration_configuration,
+    duration_steps,
+    refractory_configuration,
+    refractory_execution_configuration,
+)
 
 """Temporary synthetic banks and mocked inference; never run scientific experiments."""
 
@@ -105,7 +111,7 @@ def lab(tmp_path, monkeypatch):
         assert Path(arg("--load-weights")).name == "weights_final.pth"
         if "--sample-index" in args:
             assert "--max-samples" not in args
-            steps = round(cfg["t_ms"] / cfg["dt"])
+            steps = duration_steps(cfg["t_ms"], cfg["dt"])
             e, i = np.zeros((steps, 4), dtype=bool), np.zeros((steps, 2), dtype=bool)
             e[::20, :] = True
             i[::40, :] = True
@@ -117,6 +123,8 @@ def lab(tmp_path, monkeypatch):
                 {
                     "config": {
                         **cfg,
+                        **duration_configuration(cfg["t_ms"], cfg["dt"]),
+                        **refractory_execution_configuration(cfg["dt"]),
                         "evaluation_partition": "official_mnist_test",
                         "evaluation_samples": samples,
                     },
@@ -413,10 +421,7 @@ def test_collection_reserves_and_dispatches_explicit_stages(lab, monkeypatch):
     for stage, identity in ids.items():
         assert identity.endswith("-" + stage)
         reservation = load_json(
-            root
-            / ".pingstore/runs"
-            / f".{identity}.tmp"
-            / ".reservation.json"
+            root / ".pingstore/runs" / f".{identity}.tmp" / ".reservation.json"
         )
         assert reservation["origin"] == "slurm-wilkes"
     assert collection.reserve(root, row) == ids
@@ -486,7 +491,12 @@ def test_article_renders_selected_analysis(lab):
     assert result.returncode == 0, result.stderr
     assert list(root.glob("article-*.png"))
     text = (root / "writings/exp044.typ").read_text()
-    headings = ["#journal-abstract", "== Results", "#journal-methods", "#journal-references"]
+    headings = [
+        "#journal-abstract",
+        "== Results",
+        "#journal-methods",
+        "#journal-references",
+    ]
     assert [text.index(h) for h in headings] == sorted(text.index(h) for h in headings)
     assert "default: 256" not in text
     assert "9–14 Hz" not in text
@@ -497,6 +507,7 @@ def test_article_renders_selected_analysis(lab):
 
 def _common_config() -> dict:
     return {
+        **refractory_configuration(),
         "model": "ping",
         "dataset": "mnist",
         "max_samples": 7000,
@@ -626,4 +637,44 @@ def test_training_contract_rejects_unregistered_identity(
     config[field] = value
     (target / "config.json").write_text(json.dumps(config))
     with pytest.raises(ValueError, match=f"config {field}"):
+        evidence.training_contract(tmp_path)
+
+
+def test_adopted_sweep_only_allows_undeclared_refs_for_retained_point(
+    tmp_path, monkeypatch
+):
+    directories = _write_cells(tmp_path, monkeypatch)
+    retained = directories[(0.1, 42)] / "config.json"
+    cfg = load_json(retained)
+    for key in refractory_configuration():
+        cfg.pop(key)
+    write_json_atomic(retained, cfg)
+    contract = evidence.training_contract(tmp_path)
+    point = next(c for c in contract["cells"] if c["dt_ms"] == 0.1 and c["seed"] == 42)
+    assert point["execution_dynamics"]["refractory_e_steps"] == 12
+    assert point["execution_dynamics"]["refractory_i_steps"] == 6
+
+    fine = directories[(0.05, 42)] / "config.json"
+    cfg = load_json(fine)
+    cfg.pop("refractory_e_ms")
+    write_json_atomic(fine, cfg)
+    with pytest.raises(PingstoreError, match="explicit refractory_e_ms"):
+        evidence.training_contract(tmp_path)
+
+
+def test_adopted_sweep_has_correct_duration_and_rejects_wrong_population(
+    tmp_path, monkeypatch
+):
+    directories = _write_cells(tmp_path, monkeypatch)
+    contract = evidence.training_contract(tmp_path)
+    coarse = next(c for c in contract["cells"] if c["dt_ms"] == 0.3 and c["seed"] == 42)
+    assert coarse["execution_dynamics"]["duration_steps"] == 666
+    assert coarse["execution_dynamics"]["realized_duration_ms"] == pytest.approx(199.8)
+    assert coarse["execution_dynamics"]["refractory_e_steps"] == 4
+    assert coarse["execution_dynamics"]["refractory_i_steps"] == 2
+    path = directories[(0.3, 42)] / "config.json"
+    cfg = load_json(path)
+    cfg["refractory_i_ms"] = 1.5
+    write_json_atomic(path, cfg)
+    with pytest.raises(PingstoreError, match="explicit refractory_i_ms"):
         evidence.training_contract(tmp_path)

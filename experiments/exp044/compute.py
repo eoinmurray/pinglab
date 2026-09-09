@@ -18,7 +18,7 @@ from pingstore.contracts import PingstoreError, write_json_atomic
 def compute(identity: str, *, run_id: str | None = None) -> str:
     bank = inputs.source(REPO, identity, "compute", experiment="exp022")
     cfg = recipe.configuration(smoke=os.environ.get("PINGLAB_SMOKE") == "1")
-    contract = evidence.training_contract(bank.export)
+    contract = evidence.training_contract(bank.export, cfg)
     checkpoint_rows = evidence.checkpoints(bank.export, contract)
     evidence.histories(bank.export, contract)
     with inputs.execution(

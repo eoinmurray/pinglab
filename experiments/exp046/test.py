@@ -15,6 +15,7 @@ from experiments.exp046 import (
     compute,
     inputs,
     measurements,
+    plots,
     present,
     recipe,
 )
@@ -157,6 +158,30 @@ def test_independent_stages_preserve_outputs_without_publication(
         assert numbers[key] == data[key]
     assert all((shown.export / name).is_file() for name in recipe.FIGURES)
     assert not (root / ".artifacts").exists()
+
+
+def test_ceiling_plot_keeps_above_frequency_observations_visible(tmp_path, monkeypatch):
+    rows = [
+        {
+            "tau_gaba_ms": 6.0,
+            "f_gamma_hz": 40.0,
+            "per_cell_max_rate_hz": 90.0,
+            "per_cell_median_rate_hz": 18.0,
+        }
+    ]
+    checked = []
+
+    def check_visible(fig, _path):
+        ax = fig.axes[0]
+        for scatter in ax.collections:
+            for x, y in scatter.get_offsets():
+                assert ax.get_xlim()[0] < x < ax.get_xlim()[1]
+                assert ax.get_ylim()[0] < y < ax.get_ylim()[1]
+                checked.append((float(x), float(y)))
+
+    monkeypatch.setattr(plots, "save_figure", check_visible)
+    plots.plot_ceiling_vs_fgamma(rows, tmp_path / "ceiling")
+    assert (40.0, 90.0) in checked
 
 
 def test_cycle_count_boundaries_and_zero_peak_trials():

@@ -2,6 +2,10 @@
 
 import math
 
+from experiments.helpers.operating_point import (
+    duration_configuration,
+    refractory_execution_configuration,
+)
 from pingstore.contracts import PingstoreError, load_json
 from pingstore.layout import canonical_export_file
 
@@ -12,7 +16,12 @@ def configuration(cfg):
     if (
         not isinstance(cfg, dict)
         or cfg.get("profile") not in ("smoke", "production")
-        or cfg != recipe.configuration(smoke=cfg["profile"] == "smoke")
+        or cfg.get("schema") not in ("exp047.recipe/v1", "exp047.recipe/v2")
+        or cfg
+        != recipe.configuration(
+            smoke=cfg["profile"] == "smoke",
+            version=int(cfg["schema"].rsplit("v", 1)[1]),
+        )
     ):
         raise PingstoreError("exp047 scientific recipe differs")
     return cfg
@@ -48,6 +57,13 @@ def simulation_config(document, cfg, item):
         "scale_w_ei": 1.0,
         "scale_w_ie": 1.0,
     }
+    if "refractory_e_ms" in cfg:
+        expected.update(
+            {
+                key: cfg[key]
+                for key in ("refractory_e_ms", "refractory_i_ms", "refractory_policy")
+            }
+        )
     if (
         any(document.get(k) != v for k, v in expected.items())
         or document.get("load_weights") is not None
@@ -68,6 +84,9 @@ def metric(document, cfg, item):
         "n_batch": cfg["n_batch"],
         "load_weights": None,
     }
+    if "refractory_e_ms" in cfg:
+        expected.update(duration_configuration(cfg["t_ms"], cfg["dt_ms"]))
+        expected.update(refractory_execution_configuration(cfg["dt_ms"]))
     if (
         document.get("mode") != "probe"
         or document.get("model") != "ping"
@@ -99,9 +118,7 @@ def compute_contract(run):
         *(f"probe--{j['id']}--metrics.json" for j in recipe.jobs(cfg)),
     }
     actual_files = {
-        str(p.relative_to(run.export))
-        for p in run.export.rglob("*")
-        if p.is_file()
+        str(p.relative_to(run.export)) for p in run.export.rglob("*") if p.is_file()
     }
     if actual_files != expected_files:
         raise PingstoreError("exp047 compute metric grid differs")
@@ -112,7 +129,9 @@ def rows(export, cfg):
     result = {}
     for item in recipe.jobs(cfg):
         result[item["id"]] = metric(
-            load_json(canonical_export_file(export, "probe", item["id"], "metrics.json")),
+            load_json(
+                canonical_export_file(export, "probe", item["id"], "metrics.json")
+            ),
             cfg,
             item,
         )

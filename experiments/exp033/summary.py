@@ -1,38 +1,21 @@
 """Historical scientific summary definitions; no execution."""
 
-from .recipe import (
-    CELL_E,
-    CELL_I,
-    DV_EXC_MV,
-    DV_INH_MV,
-    SIGMA_V_MV,
-    SLUG,
-    TAU_AMPA_MS,
-    TAU_E_MS,
-    TAU_GABA_MS,
-    TAU_I_MS,
-    WT_EI,
-    WT_IE,
-)
+from . import recipe
 
 
 def summary(
-    hopf, criticality, twod, limitcyc, mf_freq, meas_fgamma, hopf3, two_d, sensitivity
+    hopf, criticality, twod, limitcyc, mf_freq, meas_fgamma, hopf3, two_d, sensitivity,
+    *, configuration=None,
 ):
+    cfg = recipe.validate(configuration) if configuration is not None else recipe.configuration()
     summary = {
-        "slug": SLUG,
+        "slug": recipe.SLUG,
         "config": {
-            "tau_E_ms": TAU_E_MS,
-            "tau_I_ms": TAU_I_MS,
-            "tau_AMPA_ms": TAU_AMPA_MS,
-            "tau_GABA_ms": TAU_GABA_MS,
-            "W_tilde_EI": WT_EI,
-            "W_tilde_IE": WT_IE,
-            "dV_inh_mV": DV_INH_MV,
-            "dV_exc_mV": DV_EXC_MV,
-            "sigma_V_mV": SIGMA_V_MV,
-            "cell_E": CELL_E,
-            "cell_I": CELL_I,
+            key: cfg[key] for key in (
+                "tau_E_ms", "tau_I_ms", "tau_AMPA_ms", "tau_GABA_ms",
+                "W_tilde_EI", "W_tilde_IE", "dV_inh_mV", "dV_exc_mV",
+                "sigma_V_mV", "cell_E", "cell_I",
+            )
         },
         "results": {
             "hopf": hopf,

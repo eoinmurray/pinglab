@@ -92,7 +92,7 @@
     [`--perturb-mode {drop, add}`], [—], [[`--infer`] Hidden-spike perturbation inside the forward loop: `drop` (Bernoulli mask), `add` (Poisson Hz). The #link("/exp037/")[exp037] — #link("/exp037/")[_Dropped Spikes vs Added Noise_] drop/add asymmetry.],
     [`--perturb-level LEVEL [...]`], [—], [[`--perturb-mode`] One value: probability for `drop`, Hz for `add`.],
     [`--i-override-file PATH`], [—], [[`--infer`] NPZ with a sparse per-trial I-spike stream to substitute for the inhibitory spikes each timestep. Injection dual of `--outputs rasters` (#link("/exp042/")[exp042] — #link("/exp042/")[_Inhibitory Replay Perturbations Change Excitatory Firing_]).],
-    [`--input-file PATH`], [—], [NPZ with `input_spikes` (T, B, N_IN) to forward instead of Poisson input. Arbitrary stimulus (#link("/exp048/")[exp048] — #link("/exp048/")[_[DEPRECATED] Accuracy Across Duration and Input Rate_] digit streams).],
+    [`--input-file PATH`], [—], [NPZ with `input_spikes` (T, B, N_IN) to forward instead of Poisson input. Arbitrary stimulus, including digit streams.],
     [`--scale-w-in / --scale-w-ei / --scale-w-ie FLOAT`], [1.0], [[`--infer`] Multiply loaded input / E→I / I→E weights before the forward pass. Inference-time coupling sweeps without retraining (#link("/exp038/")[exp038] — #link("/exp038/")[_Switching On the Inhibitory Loop_]).],
     [`--sample-index INT`], [—], [Raw test-set index for a snapshot, overriding `--digit` / `--sample`.],
     [`--n-in / --n-inh / --n-batch INT`], [path-dependent / — / 64], [[synthetic-spikes] Input channels, inhibitory pool size, Poisson trials averaged.],

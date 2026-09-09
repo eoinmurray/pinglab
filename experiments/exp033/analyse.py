@@ -13,7 +13,7 @@ from pingstore.contracts import PingstoreError, load_json, write_json_atomic
 
 def analyse(identity, frequency_source, *, run_id=None):
     compute = inputs.source(REPO, identity, "compute")
-    inputs.configuration(compute)
+    cfg = inputs.configuration(compute)
     imported = compute.record["execution"]["operation"] == "historical-import"
     if compute.record["inputs"] and not imported:
         raise PingstoreError("initial exp033 computation must not have upstream inputs")
@@ -23,6 +23,7 @@ def analyse(identity, frequency_source, *, run_id=None):
         "analyse",
         sources={"compute": compute, "frequencies": frequencies},
         run_id=run_id,
+        configuration=cfg,
     ) as run:
         if imported:
             numbers, coordinates, provenance = evidence.analyse_imported(
@@ -30,8 +31,11 @@ def analyse(identity, frequency_source, *, run_id=None):
             )
             run.record["historical_analysis"] = provenance
         else:
+            raw = evidence.read(compute.export)
+            if raw.get("recipe") != cfg:
+                raise PingstoreError("compute payload and recorded recipe disagree")
             numbers, coordinates = measurements.analyse(
-                evidence.read(compute.export),
+                raw,
                 load_json(frequencies.export / "results.json"),
             )
         write_json_atomic(run.export / "results.json", numbers)

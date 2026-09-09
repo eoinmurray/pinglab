@@ -1,8 +1,35 @@
-# EXP099: richer-input probe
+# EXP099: independent afferent excitation
 
-The implemented scope is one richer-input probe, not the article's planned
-simplified-versus-richer controlled comparison. The scientific network and
-simulation specification are preserved from the former flat runner.
+This replaces the former richer/shared-input protocols with the user's
+Susin-inspired parameter proposal. It is not a replication of the AdEx network
+in [Susin and Destexhe (2021)](https://doi.org/10.1371/journal.pcbi.1009416).
+
+## Scientific configuration
+
+The network has 1,600 excitatory and 400 inhibitory conductance-based LIF cells,
+independent Bernoulli recurrent connections with probability 0.10, fixed
+excitatory edge weights of 0.00125 µS and inhibitory weights of 0.00334 µS.
+Possible self-connections are included. AMPA/GABA decay times are 1.5/7.5 ms;
+every pathway has a 1.5 ms delay. The timestep is 0.1 ms, preserving 3 ms E and
+1.5 ms I refractory durations (30 and 15 steps).
+
+Both populations use the paper's passive scale: capacitance 0.15 nF and leak
+0.01 µS, giving a 15 ms passive membrane time constant. Both populations start at -65 mV, reset to
+-65 mV and have threshold -50 mV. There is no adaptation or training.
+
+Each neuron receives 400 independent Poisson afferents with 0.004 µS AMPA
+weights. Their superposition is generated as a separate Poisson count stream
+for every target neuron. Counts above one are preserved: these are not binary
+Bernoulli samples. The population streams use separate child seeds. A diagonal
+projection maps each aggregate stream to its own target; there is no shared
+source and no separate external GABA or conductance-background process.
+
+Rates are per individual afferent. Both start at 0.6 Hz. After 1 s settling and
+3 s visible baseline, E ramps linearly to 0.9 Hz over 500 ms, holds for 2 s,
+ramps back over 500 ms, then recovers for 3 s. I remains at 0.6 Hz throughout.
+The current protocol uses one simulation with seed 7, the existing compute
+default. Its presentation uses the transition window described below. These settings were
+selected after a bounded calibration search, not specified before seeing data.
 
 ## Independent stages
 
@@ -12,90 +39,125 @@ uv run python experiments/exp099/analyse.py --source <compute-run-id>
 uv run python experiments/exp099/present.py --source <analyse-run-id>
 ```
 
-Each command completes exactly one source-neutral `pingstore.run/v4` run.
-`--run-id` accepts an unused stage identity reserved before dispatch. Analysis
-and presentation validate explicit inputs, including payload and manifest pins;
-they never launch upstream work. No command materializes, copies web assets,
-selects a published run, or migrates historical data.
+Each command completes one v4 run. An optional `--run-id` must name a previously
+reserved, unused identity. Analyse and present validate explicit input digests;
+neither launches upstream work. Publication is a separate operation.
 
-- Compute retains the data-only authored bundle, simulation snapshot/configuration
-  and seeded initialized weights in its export. The simulator command is recorded
-  under provenance and in the authoritative execution record.
-- Analyse retains numerical measurements and results, referencing compute.
-- Present references both analysis and its pinned compute source. It lowers the
-  authenticated `snnlang` bundle into a structural diagram and renders it through
-  `snnviz`; its flat export contains that network diagram, explanatory input map,
-  poster, video, numbers and the shared publication-metadata projection.
-  Publication is a separate authorized step.
+Compute uses `snnsim.GraphExecutor` in chunks, carrying voltage, conductance,
+refractory and delay history across boundaries. It records all E/I spikes and
+private input counts at every timestep, plus population mean voltages and mean
+conductances for every pathway. Individual voltage traces are not recorded.
 
-## Production renderer recovery
+The graph executor normalizes initializer values by source population size and
+compensates sparsity. The recurrent initializer explicitly compensates these
+operations to obtain the specified physical nonzero edge weights. The authored
+bundle contains zero placeholders for external projections; compute binds the
+actual diagonal matrices before execution. The full physical `[source, target]`
+matrices in `weights.npz`, together with the bundle, are the executed model.
+Do not execute the placeholder bundle alone and claim it reproduces this run.
+The diagram describes the bound physical model, not placeholder initializers.
 
-The missing source `.canvas/ping-ai-state/render_emergence_style.py` was recovered
-from the parent of Git commit `27e9ba5d7e681859c28f9ec589cd6bd1cb37fd95`, which
-deleted it. It is now `render.py`; this is not the old `render_approximation`.
-Recovery inspected versioned source only, not historical run evidence.
+Analysis retains causal 20 ms population-rate traces, mean conductances onto E,
+mean voltages, prescribed source rates, and baseline/plateau/recovery firing
+rates. Additional diagnostics measure median per-cell ISI CV (at least five
+spikes), mean pair correlation from 10 ms counts in at most 100 sampled cells,
+SNNSIM autocorrelation contrast, and the population spectrum. These are
+descriptive checks, not a PING classifier. Silence is reported explicitly.
+Presentation consumes these measurements without recomputing estimators.
 
-The input/story/inside-band configuration, seven-panel layout, transmission
-sampling, ridgelines, frame pacing, poster selection and encoding settings are
-retained. The visual styling now follows the `snnviz` guide: an opaque white
-background, the shared black/red scientific palette and monospace typography,
-with the poster rendered at 240 DPI. The entrypoint is import-safe, uses explicit
-validated source data, and receives measurements computed by analyse. Missing
-authenticated inputs are errors rather than triggers reconstructing random input
-or substituting zeros.
+## Shared tools
 
-The video and poster use a 14.4 × 8.5 inch canvas with dedicated space for
-external titles and labels. There is no globally reserved player-control band; the diagnostic
-panels occupy the right half of the frame.
+SNNLang authors and validates the graph and lowers it to its structural diagram.
+SNNSim GraphExecutor runs the network and its rhythmicity helper supplies the
+autocorrelation measurement. SNNViz owns the Recording contract, FigureGrid
+composition and nested panels, grid_layout cell positions, FrameTimeline,
+animation encoding and Graphviz diagram rendering. Matplotlib remains only
+the experiment-specific composition layer for pistons, traces and activity
+marks, as permitted by SNNViz's composition boundary. NumPy generates exact
+Poisson counts because the existing SNNSim Poisson binding is Bernoulli-based.
 
-The complete frame is declared through `snnviz.FigureGrid`, with a half-width
-animated network and no empty global header. On the right, panels B and C form the
-top row, panels D and E share the lower-left cell, and panel F
-occupies the lower-right cell. The named and nested grids replace duplicated
-normalized axis coordinates and are resolved once for the poster and all
-animation frames. Title bands reserve 25 points above the plot rectangles;
-input-series labels reserve another 22 points. Population-variable labels sit
-inside their panel above the pistons. Panel
-headings use 14-point type, component labels 11.5 points, and the input legend
-10.5 points; time ticks use 6.5-point type.
+## Visual conventions
 
-Panel A stacks E-private spikes, AMPA onto E, GABA onto E, shared spikes,
-AMPA onto I, GABA onto I and I-private spikes down the left. Spike sources are compact
-neuron grids; conductance sources are running traces. The E and I populations
-share one aligned width on the right, with the E box four times the area of the
-I box. Neuron grids fill their frames with only marker-safe edge insets.
-Every grid uses the same five-point physical inset on all four sides, independent
-of its frame dimensions. The two internal stacks share a 0.40-inch physical
-inset from every outer edge of panel A, and their rows are distributed evenly
-between those aligned bounds.
-Authenticated afferent and
-recurrent spikes continue to illuminate their actual source-to-target paths;
-aggregate conductance arrows vary with the retained conductance signals.
+The video retains the previous white background, monospace titles, black E/red I
+palette, six-panel composition and piston means. Titles sit outside panels;
+mean labels sit inside above their pistons. D and E show the entire visible
+interval with ten integer time ticks, revealing only elapsed data. F labels
+sit inside the panel and its bottom axis is µS. Constant weights are shown as
+point masses, without invented distribution widths.
 
-The frame retains concise A–F panel titles and labels the seven inputs and two
-populations above their individual boxes, outside the data areas. Panels D and
-E respectively show E/I
-population firing-rate traces computed over a fixed 20 ms display window and
-the retained shared, E-private and I-private afferent multipliers. The multiplier
-colours match their source grids in panel A; the two private traces coincide
-because this condition gives them the same envelope, so the I-private trace is
-dashed. The four destination-specific conductance plots
-share a rolling 200 ms display window with ten integer time ticks. The four
-conductance plots use one shared millisecond axis beneath the lowest plot and
-compact y ticks labelled in µS. Panels D and E retain fixed time axes spanning the
-full visible interval; their traces accumulate up to the current frame.
-Panels D and E retain their own time axes. Traces end at the current frame;
-no future samples or pre-view initialization history are drawn. The window
-fills from the visible start before scrolling. Fixed vertical scales preserve
-comparability across frames. Panel F retains its logarithmic µS axis and small
-pathway labels; dynamic numeric readouts remain suppressed.
+Panel A shows 400 of the 1,600 E cells and 100 of the 400 I cells, evenly sampled,
+and at most 100 actual recurrent edges per pathway. Input dots represent
+aggregate target-specific streams, not all individual afferents. Input
+projections are excitatory even when their target label is red. Edge flashes
+use delayed arrivals; dots use recent events for visibility. Panel C shows a
+40 ms conductance trail. The 45 s video plays at 25 fps, with approximately 8 ms of source time per frame.
 
-The former summary excludes the final 1,800 ms rhythmicity-window centre; the
-production plot includes it. Both conventions are retained explicitly. The
-conductance-loop score and its run-relative normalization are retained, not
-recomputed during presentation. Exponential traces in the renderer control
-animated transmission intensity; they do not execute the network.
+Validation:
 
-This refactor does not establish new scientific results or authorize execution,
-historical migration, selection, materialization or publication. Fixture tests
-exercise the stage contract and renderer separately from a production run.
+```sh
+uv run pytest experiments/exp099/test.py -q
+```
+
+Tests check physical edge weights, refractory durations, count multiplicity and
+independence, the exact 15-step arrival of a two-event pulse, and equality of
+continuous versus chunked execution across a delay boundary.
+
+
+## Calibration history (2026-09-08)
+
+Susin and Destexhe Table 1 specifies 150 pF and 10 nS for RS and FS cells.
+Their AdEx thresholds, adaptation and 5 ms refractory periods differ from this
+LIF approximation. The passive scale is borrowed; the calibrated network is
+not a paper replication or a validated model of cortex.
+
+The search rejected silence, refractory-ceiling firing, and strongly correlated
+baseline bursts. Source seed 7 was held fixed while parameters were changed.
+All trials retain their complete compute/analysis evidence; none was overwritten.
+Rows below are successive exploratory configurations, not independent replicates.
+
+| Analyse run | E / I weights (nS) | Baseline source Hz | Baseline E / I Hz | E pair correlation (10 ms) |
+|---|---:|---:|---:|---:|
+| exp099-r002-analyse | 12.5 / 8.35 | 2 | 0.00 / 0.00 | undefined (silent) |
+| exp099-r006-analyse | 12.5 / 8.35 | 2 | 323.10 / 624.12 | 0.125 |
+| exp099-r008-analyse | 5 / 3.34 | 2 | 319.73 / 577.99 | 0.308 |
+| exp099-r010-analyse | 5 / 8.35 | 2 | 36.45 / 59.74 | 0.849 |
+| exp099-r013-analyse | 1.25 / 3.34 | 2 | 35.22 / 44.81 | 0.762 |
+| exp099-r014-analyse | 1.25 / 2.0875 | 2 | 44.65 / 64.14 | 0.798 |
+| exp099-r017-analyse | 1.25 / 3.34 | 0.8 | 10.47 / 11.52 | 0.369 |
+| exp099-r018-analyse | 1.25 / 3.34 | 1 | 21.61 / 25.91 | 0.646 |
+| exp099-r020-analyse | 1.25 / 3.34 | 0.6 | 2.07 / 2.11 | 0.018 |
+
+The original silent trial used the previous larger membrane parameters. All
+subsequent rows use the 150 pF / 10 nS scale. Short screening protocols had one
+second of visible baseline and recovery; the final checks extend both to three
+seconds to improve irregularity estimates and expose intermittent bursts.
+
+
+### Historical longer checks of the selected configuration
+
+The current single-seed protocol (2026-09-09) reports only seed 7. The earlier
+seed-8 check remains here as calibration history and is not part of the current
+article's results. Compute already executes exactly one seed per invocation;
+the default command above uses seed 7, with no seed sweep or additional run.
+
+| Seed | Compute / analyse | Baseline E / I Hz | Plateau E / I Hz | Recovery E / I Hz | Baseline E median ISI CV |
+|---|---|---:|---:|---:|---:|
+| 7 | exp099-r021-compute / exp099-r023-analyse | 3.09 / 3.22 | 23.56 / 30.01 | 2.53 / 2.53 | 0.82 |
+| 8 | exp099-r022-compute / exp099-r024-analyse | 2.79 / 3.04 | 23.49 / 30.53 | 2.70 / 2.85 | 0.81 |
+
+The longer baseline exposes intermittent population bursts: mean E pair
+correlations are 0.178 and 0.159, not the 0.018 found in the earlier one-second
+screen. This is a low-rate, individually irregular working configuration, not
+a clean asynchronous-irregular regime. Plateau correlations rise above 0.81.
+The two-seed check supports reproducible spiking and input responsiveness, not
+biological validation, robustness across a parameter neighbourhood, or a causal
+PING-mechanism claim. No simulation was selected for its best-looking frame.
+
+
+### Transition detail presentation
+
+The default presentation now shows 3,500–5,000 ms in 625 frames (25 s),
+covering 500 ms before the ramp, its 500 ms rise, and 500 ms of plateau.
+`--view-start-ms` and `--view-end-ms` change only the displayed interval.
+The complete 10 s compute and its analysis remain unchanged; presentation
+settings are recorded separately in run.json.

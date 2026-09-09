@@ -23,6 +23,7 @@ from config import (
 from datasets import DATASET_N_HIDDEN_DEFAULTS, load_dataset
 from encoders import EVAL_SEED, encode_batch
 from scan import _auto_device, primary_hid_key, primary_inh_key
+from timing import duration_metadata, duration_steps, refractory_metadata
 from train import seed_everything
 
 log = logging.getLogger("cli")
@@ -185,6 +186,9 @@ def infer(
     adapt_strength_max_mv=None,
     recording_mode="full",
     output_fields=None,
+    refractory_e_ms=None,
+    refractory_i_ms=None,
+    refractory_policy="nearest",
 ):
     """Run inference with saved weights at a given dt.
 
@@ -240,6 +244,9 @@ def infer(
     # for all architectures. Only skip when kaiming (already heterogeneous).
     net = build_net(
         model_name,
+        refractory_e_ms=refractory_e_ms,
+        refractory_i_ms=refractory_i_ms,
+        refractory_policy=refractory_policy,
         w_in=w_in,
         w_in_initial_zero_fraction=w_in_initial_zero_fraction,
         recurrent_initial_zero_fraction=recurrent_initial_zero_fraction,
@@ -378,7 +385,7 @@ def infer(
             counts = r.sum(dim=0).mean(dim=1)
         else:  # (T, N) -> scalar batch of one
             counts = r.sum(dim=0).mean().unsqueeze(0)
-        rows.extend((counts / (float(M.T_ms) / 1000.0)).detach().cpu().tolist())
+        rows.extend((counts / ((M.T_steps * dt) / 1000.0)).detach().cpu().tolist())
 
     def _pop_rows(rec, key, rows):
         """Append per-trial population activity: mean over cells at each timestep."""
@@ -496,7 +503,12 @@ def infer(
             "run_finished_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
             "config": {
                 "dt": dt,
-                "t_ms": M.T_ms,
+                "t_ms": t_ms,
+                **duration_metadata(t_ms, dt),
+                **refractory_metadata(
+                    net.refractory_e_ms, net.refractory_i_ms, dt,
+                    policy=net.refractory_policy,
+                ),
                 "w_in": list(w_in) if w_in else None,
                 "w_in_initial_zero_fraction": w_in_initial_zero_fraction,
                 "ei_strength": ei_strength,
@@ -537,7 +549,7 @@ def infer(
     # E1: write per-cell rate arrays if requested. rate = total spikes per cell
     # over the test set / (n_trials × physical trial time in seconds) → Hz.
     if emit_per_cell_rates and out_dir_path and out_dir_path.exists():
-        t_sec = float(M.T_ms) / 1000.0
+        t_sec = (M.T_steps * dt) / 1000.0
         denom = total * t_sec if total else 1.0
         dump = {}
         if per_cell_e is not None:
@@ -654,6 +666,9 @@ def infer_and_snapshot(
     adapt_strength_max_mv=None,
     recording_mode="full",
     output_fields=None,
+    refractory_e_ms=None,
+    refractory_i_ms=None,
+    refractory_policy="nearest",
 ):
     """Run inference on a single sample and save full spike trajectory to recording.npz.
 
@@ -707,6 +722,9 @@ def infer_and_snapshot(
     # Build model
     net = build_net(
         model_name,
+        refractory_e_ms=refractory_e_ms,
+        refractory_i_ms=refractory_i_ms,
+        refractory_policy=refractory_policy,
         w_in=w_in,
         w_in_initial_zero_fraction=w_in_initial_zero_fraction,
         recurrent_initial_zero_fraction=recurrent_initial_zero_fraction,
@@ -838,6 +856,9 @@ def probe(
     output_fields=None,
     recording_mode="full",
     recording_start_step=0,
+    refractory_e_ms=None,
+    refractory_i_ms=None,
+    refractory_policy="nearest",
 ):
     """Drive a net with uniform homogeneous Poisson input; emit E/I rates.
 
@@ -871,6 +892,9 @@ def probe(
     # when given — needed for 2D (W_EI, W_IE) plane sweeps where either can be zero.
     # std held at 10% of the mean, matching the notebook convention.
     build_kwargs = dict(
+        refractory_e_ms=refractory_e_ms,
+        refractory_i_ms=refractory_i_ms,
+        refractory_policy=refractory_policy,
         w_in=w_in,
         w_in_initial_zero_fraction=w_in_initial_zero_fraction,
         recurrent_initial_zero_fraction=recurrent_initial_zero_fraction,
@@ -952,10 +976,11 @@ def probe(
         spk_in = spk_in.to(device)
         T_steps, n_batch = spk_in.shape[0], spk_in.shape[1]
         M.T_steps = T_steps
-        M.T_ms = T_steps * dt
+        # Preserve the nominal request pinned by _pin_run; the supplied input
+        # determines actual steps and the model records both durations.
         log.info(f"  input-file: {input_file}  shape={tuple(spk_in.shape)}")
     else:
-        T_steps = int(t_ms / dt)
+        T_steps = duration_steps(t_ms, dt)
         p_step = input_rate_hz * dt / 1000.0
         gen = torch.Generator().manual_seed((seed or 0) + 1)
         spk_in = (
@@ -990,6 +1015,13 @@ def probe(
             "config": {
                 "dt": dt,
                 "t_ms": t_ms,
+                **duration_metadata(t_ms, dt),
+                "duration_steps": T_steps,
+                "realized_duration_ms": T_steps * dt,
+                **refractory_metadata(
+                    net.refractory_e_ms, net.refractory_i_ms, dt,
+                    policy=net.refractory_policy,
+                ),
                 "n_in": int(n_in),
                 "n_hidden": n_e,
                 "n_inh": n_i,
@@ -1167,6 +1199,9 @@ def dump_weights(
     adapt_strength_init_mv=1.0,
     adapt_strength_max_mv=None,
     output_fields=None,
+    refractory_e_ms=None,
+    refractory_i_ms=None,
+    refractory_policy="nearest",
 ):
     """Emit initialisation and trained weight matrices to weights_dump.npz.
 
@@ -1196,6 +1231,9 @@ def dump_weights(
     device = _auto_device()
     net = build_net(
         model_name,
+        refractory_e_ms=refractory_e_ms,
+        refractory_i_ms=refractory_i_ms,
+        refractory_policy=refractory_policy,
         w_in=w_in,
         w_in_initial_zero_fraction=w_in_initial_zero_fraction,
         recurrent_initial_zero_fraction=recurrent_initial_zero_fraction,

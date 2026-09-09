@@ -59,9 +59,13 @@ def configuration(run):
     cfg = run.record["execution"].get("configuration")
     if (
         not isinstance(cfg, dict)
-        or cfg.get("schema") != "exp042.recipe/v4"
+        or cfg.get("schema") not in ("exp042.recipe/v4", "exp042.recipe/v5")
         or cfg.get("profile") not in ("smoke", "production")
-        or cfg != recipe.configuration(smoke=cfg["profile"] == "smoke")
+        or cfg
+        != recipe.configuration(
+            smoke=cfg["profile"] == "smoke",
+            version=int(cfg["schema"].rsplit("v", 1)[1]),
+        )
         or set(run.record["inputs"]) != {"bank"}
     ):
         raise PingstoreError("inconsistent exp042 compute recipe or bank input")

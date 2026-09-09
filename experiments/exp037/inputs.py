@@ -58,11 +58,13 @@ def configuration(run):
     cfg = run.record["execution"].get("configuration")
     if (
         not isinstance(cfg, dict)
-        or cfg.get("schema") not in ("exp037.recipe/v1", "exp037.recipe/v2")
+        or cfg.get("schema")
+        not in ("exp037.recipe/v1", "exp037.recipe/v2", "exp037.recipe/v3")
         or cfg.get("profile") not in ("smoke", "production")
         or cfg
         != recipe.configuration(
-            smoke=cfg["profile"] == "smoke", version=2 if recipe.relative(cfg) else 1
+            smoke=cfg["profile"] == "smoke",
+            version=int(cfg["schema"].rsplit("v", 1)[1]),
         )
         or set(run.record["inputs"]) != {"bank"}
     ):

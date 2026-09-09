@@ -6,6 +6,10 @@ from experiments.exp022 import FR_STRENGTH_UPPER as FR_STRENGTH_UPPER
 from experiments.exp022 import training_run_cell, training_run_values
 from experiments.helpers.checkpoints import checkpoint_policy
 from experiments.helpers.datasets import MNIST_REDUCED_EVAL_SAMPLES
+from experiments.helpers.operating_point import (
+    refractory_args,
+    refractory_configuration,
+)
 
 SLUG = "exp037"
 SHARDS = 6
@@ -83,11 +87,12 @@ def bank_cells():
     ]
 
 
-def configuration(*, smoke=False, version=2):
-    if version not in (1, 2):
+def configuration(*, smoke=False, version=3):
+    if version not in (1, 2, 3):
         raise ValueError("unsupported exp037 recipe version")
     cfg = {
         "schema": f"exp037.recipe/v{version}",
+        **(refractory_configuration() if version >= 3 else {}),
         "profile": "smoke" if smoke else "production",
         "checkpoint_policy": CHECKPOINT_POLICY,
         "evaluation_samples": 100 if smoke else EVAL_MAX_SAMPLES,
@@ -99,7 +104,7 @@ def configuration(*, smoke=False, version=2):
         "raster_drop_levels": PERTURB_RASTER_DROP_LEVELS,
         "raster_add_levels": PERTURB_RASTER_ADD_LEVELS,
     }
-    if version == 2:
+    if version >= 2:
         cfg.update(
             add_levels=[0.0, 100.0, 200.0]
             if smoke
@@ -113,7 +118,7 @@ def configuration(*, smoke=False, version=2):
 
 
 def relative(cfg):
-    return cfg["schema"] == "exp037.recipe/v2"
+    return cfg["schema"] in ("exp037.recipe/v2", "exp037.recipe/v3")
 
 
 def jobs(cfg):
@@ -209,6 +214,7 @@ def inference_args(train, checkpoint, output, job):
         raise ValueError("relative insertion job must be calibrated before execution")
     args = [
         "sim",
+        *refractory_args(),
         "--infer",
         "--load-config",
         str(train / "config.json"),

@@ -60,8 +60,7 @@ restarted with the source override; a page reload cannot upgrade its Python code
   layout, links and displayed metadata. The technical panel is separate from
   the scientific article; PDFs do not include it.
 - `writings/demolab_pingstore.py`: the lab-owned connector that supplies the collection graph,
-  plus direct inputs not represented by that scheduling graph (exp048's bank
-  and exp046's direct bank input). It imports declarations only, never runners.
+  plus direct inputs not represented by that scheduling graph (exp046's direct bank input). It imports declarations only, never runners.
 - `tools/pingstore/presentation_inputs.py`: the JSON projection called by the hook
   before each build/render. It merges the supplied computation dependencies with
   article input declarations and validates v3

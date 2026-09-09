@@ -19,9 +19,12 @@ stage directions, including for `--plot-only` and `--skip-training`.
 
 ## Preserved science and outputs
 
-- The five timesteps remain 0.05, 0.1, 0.25, 0.5 and 1 ms, with seeds 42–44,
-  200 ms trials, a 7,000-image training pool and 50 training epochs. Final-epoch
-  checkpoints are used for both evaluation and raster probes.
+- The current v2 recipe uses timesteps 0.05, 0.1, 0.2, 0.3 and 0.6 ms, with
+  seeds 42–44, explicit E/I refractories of 1.2/0.6 ms, a 7,000-image training
+  pool and 50 training epochs. Trials last nominally 200 ms; whole-step
+  truncation gives 666/333 steps and 199.8 ms at 0.3/0.6 ms. Final-epoch
+  checkpoints are used for both evaluation and raster probes. The historical
+  v1 recipe and its 0.05/0.1/0.25/0.5/1-ms grid remain readable unchanged.
 - Compute retains 15 official-test evaluations and five seed-42 raw snapshots.
   The default evaluation uses 1,000 images. `PINGLAB_SMOKE=1` retains the existing
   100-image diagnostic cap; it is recorded in compute provenance. Downstream
@@ -147,3 +150,23 @@ These changes affect future execution only. Existing immutable runs and R2
 archives are unchanged. Required arrays keep their original numerical values;
 selected NPZ outputs use lossless compression. No production rerun or new
 publication was performed for this cleanup.
+
+## Corrected refractory sweep — 2026-09-09
+
+PLAN.md step 5.6 completed the production v2 recipe against `exp022-r007-compute`:
+`exp044-r007-compute` → `exp044-r008-analyse` → `exp044-r009-present`.
+Compute ran locally in **2 min 25 s**, completing all fifteen 1,000-image
+official-test evaluations and five seed-42 probes. Mean test accuracy spans
+88.37–89.63%, E firing 14.27–17.02 Hz and I firing 87.29–153.90 Hz.
+
+All stages passed v4 payload and explicit-lineage validation. Eighty relevant
+tests passed; the existing article-render test was excluded. All recorded
+neurons respected the configured refractory intervals, and coarse-probe rates
+use the actual 199.8-ms duration. The unchanged 0.1-ms control reproduces all
+three old evaluation rows and both raw probe spike arrays exactly. The old
+coarse conditions remain distinct historical evidence.
+
+The three figure sets were inspected and are legible and unclipped despite the
+existing `tight_layout` warnings. Full digests, seed summaries and comparisons
+are recorded in PLAN.md. Article adoption, publication and consumer repinning
+remain separate work; no training, materialization or push occurred.

@@ -8,14 +8,18 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
 
 from experiments.exp054 import evidence, inputs, plots, recipe
+from experiments.exp054 import theory as theory_inputs
 from pingstore.contracts import PingstoreError, load_json, write_json_atomic
 
 
 def analysis_source(repo, identity, reference=None):
     analysis = inputs.source(repo, identity, "analyse", reference=reference)
     cfg = inputs.configuration(analysis)
-    if set(analysis.record["inputs"]) != {"compute", "frequencies"}:
+    refreshed = cfg["schema"] == "exp054.theory-refresh/v1"
+    expected = {"compute", "frequencies"} | ({"theory"} if refreshed else set())
+    if set(analysis.record["inputs"]) != expected:
         raise PingstoreError("exp054 analysis must pin compute and exp041 frequencies")
+    upstreams = {}
     for role, experiment, stage in (
         ("compute", "exp054", "compute"),
         ("frequencies", "exp041", "analyse"),
@@ -24,12 +28,29 @@ def analysis_source(repo, identity, reference=None):
         upstream = inputs.source(
             repo, ref["run_id"], stage, experiment=experiment, reference=ref
         )
-        if role == "compute" and evidence.compute_contract(upstream) != cfg:
+        upstreams[role] = upstream
+        if role == "compute" and evidence.compute_contract(
+            upstream
+        ) != recipe.spike_configuration(cfg):
             raise PingstoreError("exp054 analysis recipe differs from computation")
     coords = evidence.read(analysis.export)
     if coords.get("schema") != "exp054.analysis/v1" or coords.get("recipe") != cfg:
         raise PingstoreError("exp054 analysis coordinates have an inconsistent recipe")
-    return analysis, cfg, coords, load_json(analysis.export / "results.json")
+    numbers = load_json(analysis.export / "results.json")
+    if refreshed:
+        ref = analysis.record["inputs"]["theory"]
+        _, theory_cfg, mf = theory_inputs.source(
+            repo, ref["run_id"], upstreams["frequencies"], reference=ref
+        )
+        if theory_cfg != cfg[
+            "theory_recipe"
+        ] or not evidence.mean_field_evidence.exact_values(coords["mean_field"], mf):
+            raise PingstoreError(
+                "exp054 analysis differs from its explicit theory source"
+            )
+        if numbers["mean_field"] != {k: v for k, v in mf.items() if k != "sweep"}:
+            raise PingstoreError("exp054 theory numbers differ from their source")
+    return analysis, cfg, coords, numbers
 
 
 def present(identity, *, run_id=None):
@@ -42,7 +63,7 @@ def present(identity, *, run_id=None):
             run_id=run_id,
             configuration=cfg,
         ) as run,
-        plots.configured(cfg),
+        plots.configured(recipe.spike_configuration(cfg)),
     ):
         grid, private, shared = (
             coords["grid"],

@@ -1,8 +1,16 @@
 """The retained timestep audit recipe; training remains owned by exp022."""
 
-from experiments.exp022.recipe import training_run_cell, training_run_values
+from experiments.exp022.recipe import (
+    LEGACY_DT_SWEEP_MS,
+    training_run_values,
+)
 from experiments.helpers.checkpoints import checkpoint_policy
 from experiments.helpers.datasets import MNIST_REDUCED_EVAL_SAMPLES
+from experiments.helpers.operating_point import (
+    duration_steps,
+    refractory_args,
+    refractory_configuration,
+)
 
 SLUG = "exp044"
 TRAINING_RUN = "TR-04"
@@ -91,14 +99,37 @@ def dt_label(dt_ms: float) -> str:
 
 
 def cell_name(dt_ms: float, seed: int) -> str:
-    return training_run_cell(TRAINING_RUN, dt_ms=dt_ms, seed=seed)["name"]
+    if dt_ms not in (*DT_SWEEP_MS, *LEGACY_DT_SWEEP_MS) or seed not in SEEDS:
+        raise ValueError("unregistered exp044 timestep or seed")
+    return f"ping__{dt_label(dt_ms)}__seed{seed}"
 
 
-def configuration(*, smoke: bool = False) -> dict:
+def configuration(*, smoke: bool = False, version=2) -> dict:
+    if version not in (1, 2):
+        raise ValueError("unsupported exp044 recipe version")
     return {
-        "schema": "exp044.recipe/v1",
+        "schema": f"exp044.recipe/v{version}",
+        **(refractory_configuration() if version >= 2 else {}),
         "profile": "smoke" if smoke else "production",
-        "dt_sweep_ms": list(DT_SWEEP_MS),
+        "dt_sweep_ms": list(DT_SWEEP_MS if version >= 2 else LEGACY_DT_SWEEP_MS),
+        **(
+            {
+                "trial_duration": {
+                    "nominal_ms": T_MS,
+                    "policy": "whole_steps_floor_with_integer_tolerance",
+                    "conditions": [
+                        {
+                            "dt_ms": dt,
+                            "steps": duration_steps(T_MS, dt),
+                            "realized_ms": duration_steps(T_MS, dt) * dt,
+                        }
+                        for dt in DT_SWEEP_MS
+                    ],
+                }
+            }
+            if version >= 2
+            else {}
+        ),
         "seeds": list(SEEDS),
         "evaluation_samples": SMOKE_MAX_SAMPLES if smoke else EVAL_MAX_SAMPLES,
         "checkpoint_policy": CHECKPOINT_POLICY,
@@ -118,6 +149,7 @@ def inference_args(
 ) -> list[str]:
     args = [
         "sim",
+        *refractory_args(),
         "--infer",
         "--device",
         "auto",

@@ -13,11 +13,12 @@ from experiments.exp044 import evidence, inputs, recipe
 from pingstore.contracts import PingstoreError, load_json, write_json_atomic
 
 MEASUREMENT = {
-    "schema": "exp044.measurement/v1",
+    "schema": "exp044.measurement/v2",
     "aggregation": "mean_across_training_seeds",
     "uncertainty": "sample_standard_deviation_divided_by_sqrt_n",
     "history_partition": "validation",
     "gamma_period_estimator": None,
+    "raster_rate_duration": "recorded_step_count_times_dt_ms",
 }
 
 
@@ -44,7 +45,7 @@ def analyse(identity: str, *, run_id: str | None = None) -> str:
         REPO, ref["run_id"], "compute", experiment="exp022", reference=ref
     )
     retained = load_json(compute.export / "evidence.json")
-    contract = evidence.training_contract(bank.export)
+    contract = evidence.training_contract(bank.export, cfg)
     checkpoints = evidence.checkpoints(bank.export, contract)
     if (
         retained.get("schema") != "exp044.compute/v1"
@@ -82,7 +83,8 @@ def analyse(identity: str, *, run_id: str | None = None) -> str:
                 contract["common"],
             )
             e_full, i_full = snap["spk_e"], snap["spk_i"]
-            duration = contract["common"]["t_ms"] / 1000.0
+            realized_ms = e_full.shape[0] * dt
+            duration = realized_ms / 1000.0
             rng = np.random.default_rng(raster["selection_seed"])
             e_idx = np.sort(
                 rng.choice(e_full.shape[1], raster["n_e_plot"], replace=False)
@@ -97,7 +99,9 @@ def analyse(identity: str, *, run_id: str | None = None) -> str:
                     "cell_name": name,
                     "dt_ms": dt,
                     "seed": raster["seed"],
-                    "t_ms": contract["common"]["t_ms"],
+                    "t_ms": realized_ms,
+                    "nominal_t_ms": contract["common"]["t_ms"],
+                    "n_steps": e_full.shape[0],
                     "sample_index": raster["sample_index"],
                     "e_indices": e_idx.tolist(),
                     "i_indices": i_idx.tolist(),

@@ -12,6 +12,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from timing import refractory_steps
+
 
 class BundleCompatibilityError(ValueError):
     """The bundle is valid data, but outside this backend adapter's subset."""
@@ -20,6 +22,8 @@ class BundleCompatibilityError(ValueError):
 @dataclass(frozen=True)
 class LegacySettings:
     dt: float
+    refractory_e_ms: float
+    refractory_i_ms: float
     hidden_size: int
     input_size: int
     output_size: int
@@ -450,8 +454,23 @@ def translate_cobanet_v1(graph: dict[str, Any]) -> LegacySettings:
         )
     recurrent_fraction, recurrent_zeroing = sparsity.pop()
 
+    # The graph owns explicit counters. Resolve their physical durations at its
+    # declared timestep instead of substituting the legacy simulator defaults.
+    refractory = []
+    for neuron in (e_neuron, i_neuron):
+        count = neuron.get("refractory_steps", 0)
+        if isinstance(count, bool) or not isinstance(count, int) or count < 1:
+            raise BundleCompatibilityError(
+                "legacy refractory_steps must be a positive integer"
+            )
+        duration = count * float(dt["value"])
+        refractory_steps(duration, float(dt["value"]), policy="exact")
+        refractory.append(duration)
+
     return LegacySettings(
         dt=float(dt["value"]),
+        refractory_e_ms=refractory[0],
+        refractory_i_ms=refractory[1],
         hidden_size=int(e_pop["size"]),
         input_size=int(input_shape[-1]),
         output_size=int(analogue[0]["size"]),
@@ -605,6 +624,9 @@ _MODEL_SPEC_FLAGS = {
     "--n-hidden",
     "--readout",
     "--dt",
+    "--refractory-e-ms",
+    "--refractory-i-ms",
+    "--refractory-policy",
     "--w-in",
     "--w-in-initial-zero-fraction",
     "--ei-strength",
@@ -649,6 +671,15 @@ def apply_bundle_to_args(args, argv: list[str]):
     if not getattr(args, "bundle", None):
         return args
     if getattr(args, "executor", "legacy") == "graph":
+        explicit = {item.split("=", 1)[0] for item in argv if item.startswith("--")}
+        conflicts = sorted(explicit & {
+            "--refractory-e-ms", "--refractory-i-ms", "--refractory-policy",
+        })
+        if conflicts:
+            raise BundleCompatibilityError(
+                "graph owns refractory settings; remove conflicting flags: "
+                + ", ".join(conflicts)
+            )
         # Authenticate data now; graph capability checks happen in planning.
         manifest, graph = load_graph_bundle(args.bundle)
         if args.mode == "train":
@@ -697,6 +728,9 @@ def apply_bundle_to_args(args, argv: list[str]):
     args.n_in = settings.input_size
     args.dataset = "mnist"
     args.dt = settings.dt
+    args.refractory_e_ms = settings.refractory_e_ms
+    args.refractory_i_ms = settings.refractory_i_ms
+    args.refractory_policy = "exact"
     args.readout_mode = settings.readout_mode
     args.w_in = list(settings.w_in)
     args.w_in_i = list(settings.w_in_i) if settings.w_in_i else None

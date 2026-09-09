@@ -20,7 +20,6 @@ url_inputs:
   source.exp044: { type: path, root: .pingstore/runs }
   source.exp046: { type: path, root: .pingstore/runs }
   source.exp047: { type: path, root: .pingstore/runs }
-  source.exp048: { type: path, root: .pingstore/runs }
   source.exp049: { type: path, root: .pingstore/runs }
   source.exp054: { type: path, root: .pingstore/runs }
   source.exp074: { type: path, root: .pingstore/runs }
@@ -32,7 +31,6 @@ url_inputs:
   source.exp082: { type: path, root: .pingstore/runs }
   source.exp099: { type: path, root: .pingstore/runs }
   source.exp110: { type: path, root: .pingstore/runs }
-  source.exp111: { type: path, root: .pingstore/runs }
 
 links:
   - label: Documentation

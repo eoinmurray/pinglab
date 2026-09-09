@@ -15,6 +15,7 @@ from experiments.exp037 import plots as exp037_plots
 from experiments.exp041 import plots as exp041_plots
 from experiments.exp046 import plots as exp046_plots
 from experiments.exp054 import plots as exp054_plots
+from experiments.exp054 import recipe as exp054_recipe
 from experiments.exp054.present import analysis_source
 from experiments.exp110 import plots, recipe
 from experiments.helpers import theme
@@ -210,7 +211,7 @@ def present(
             run_id=run_id,
             configuration=recipe.configuration(source_recipe),
         ) as run,
-        exp054_plots.configured(source_recipe),
+        exp054_plots.configured(exp054_recipe.spike_configuration(source_recipe)),
     ):
         mean_field = coordinates["mean_field"]
         plots.build_onset_super_compound(

@@ -429,8 +429,6 @@ def _stage_adapter(slug: str):
         from experiments.exp054 import collection
     elif slug == "exp110":
         from experiments.exp110 import collection
-    elif slug == "exp111":
-        from experiments.exp111 import collection
     elif slug == "exp080":
         from experiments.exp080 import collection
     elif slug == "exp081":
@@ -461,7 +459,6 @@ def _outputs_valid_for_plan(plan: dict[str, Any], row: dict[str, Any]) -> bool:
             "exp054",
             "exp080",
             "exp081",
-            "exp111",
         }
         and row.get("execution", {}).get("mode") != f"{row['slug']}-staged"
     ):
@@ -484,7 +481,6 @@ def _outputs_valid_for_plan(plan: dict[str, Any], row: dict[str, Any]) -> bool:
         "exp080-staged",
         "exp081-staged",
         "exp110-present-only",
-        "exp111-staged",
     }:
         completed = _stage_adapter(row["slug"]).completed
         from pingstore.contracts import PingstoreError
@@ -853,7 +849,6 @@ def _run_downstream(plan: dict[str, Any], row: dict[str, Any]) -> None:
         "exp080",
         "exp081",
         "exp110",
-        "exp111",
     }:
         adapter = _stage_adapter(slug)
         execute, require_staged = adapter.execute, adapter.require_staged
@@ -1051,7 +1046,6 @@ def finalize_campaign(root: Path) -> dict[str, Any]:
                             "exp080-staged",
                             "exp081-staged",
                             "exp110-present-only",
-                            "exp111-staged",
                         }
                     ],
                 }
@@ -1155,7 +1149,6 @@ def build_publication(root: Path, checkout: Path) -> dict[str, Any]:
             "exp080-staged",
             "exp081-staged",
             "exp110-present-only",
-            "exp111-staged",
         }:
             completed = _stage_adapter(row["slug"]).completed
             from pingstore.materialize import materialize_run

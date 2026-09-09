@@ -11,6 +11,13 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "experiments"), str(REPO / "tools")]
 
+from experiments.helpers.operating_point import (
+    duration_steps,
+    refractory_args,
+    refractory_configuration,
+    refractory_execution_configuration,
+)
+
 from helpers import theme
 from helpers.checkpoints import epoch_metrics
 from helpers.operating_point import TAU_GABA_GAMMA_MS
@@ -26,6 +33,7 @@ def _display_path(path: Path) -> Path:
         return path.relative_to(REPO)
     except ValueError:
         return path
+
 
 # ── Canonical training registry (the hub the collection reuses) ──────
 # Analysis notebooks import `load_cell` / `cell_dir` from this module rather
@@ -63,7 +71,7 @@ N_OUTPUT = 10
 WEIGHT_DECAY = 0.0
 GRAD_CLIP_NORM = 1.0
 DALES_LAW = True
-# GABA decay that puts the loop in gamma (≈ 44 Hz); the standard for every
+# GABA decay at the collection reference condition; the standard for every
 # family except the τ_GABA sweep. Single source of truth in helpers so the
 # whole collection moves together (see helpers/operating_point.py).
 TAU_GABA_GAMMA = TAU_GABA_GAMMA_MS
@@ -144,7 +152,8 @@ INIT_CONDITIONS: dict[str, tuple] = {
 
 
 TAU_GABA_SWEEP = (4.5, 6.0, 9.0, 12.0, 18.0, 27.0)   # exp041
-DT_SWEEP_MS = (0.05, 0.1, 0.25, 0.5, 1.0)             # exp044 (the dt exception)
+LEGACY_DT_SWEEP_MS = (0.05, 0.1, 0.25, 0.5, 1.0)
+DT_SWEEP_MS = (0.05, 0.1, 0.2, 0.3, 0.6)  # exp044 (the dt exception)
 MNIST_TRAIN_SAMPLES = 60000                           # official training partition
 MNIST_TEST_SAMPLES = 10000                            # untouched official test partition
 CANONICAL_MAX_SAMPLES = MNIST_TRAIN_SAMPLES           # all official training data
@@ -188,6 +197,7 @@ def _label(x: float) -> str:
 # per-notebook artifacts, so folding the already-trained cells in is a move,
 # not a retrain.
 
+
 def _activity_frontier_cells() -> list[dict]:
     cells = []
     for m in MODELS:
@@ -214,13 +224,21 @@ def _tau_gaba_cells() -> list[dict]:
     ]
 
 
-def _dt_cells() -> list[dict]:
+def _dt_cells(grid=DT_SWEEP_MS) -> list[dict]:
     # The dt sweep is the documented exception that varies dt by design.
     return [
-        {"name": f"ping__dt{_label(dt)}__seed{s}", "model": "ping",
-         "family": "dt", "tag": f"dt={dt:g}", "seed": s, "dt_ms": dt,
-         "tau_gaba": TAU_GABA_GAMMA, "extra": []}
-        for dt in DT_SWEEP_MS for s in SEEDS_BASELINE
+        {
+            "name": f"ping__dt{_label(dt)}__seed{s}",
+            "model": "ping",
+            "family": "dt",
+            "tag": f"dt={dt:g}",
+            "seed": s,
+            "dt_ms": dt,
+            "tau_gaba": TAU_GABA_GAMMA,
+            "extra": [],
+        }
+        for dt in grid
+        for s in SEEDS_BASELINE
     ]
 
 
@@ -316,6 +334,25 @@ for _cell in CANONICAL_CELLS:
     _cell["training_run_id"] = TRAINING_RUN_IDS[_cell["family"]]
 
 
+# Historical scientific identities remain valid v4 inputs; they are never renamed.
+LEGACY_CANONICAL_CELLS = [
+    copy.deepcopy(cell) for cell in CANONICAL_CELLS if cell["family"] != "dt"
+] + _dt_cells(LEGACY_DT_SWEEP_MS)
+for _cell in LEGACY_CANONICAL_CELLS:
+    _cell["training_run_id"] = TRAINING_RUN_IDS[_cell["family"]]
+
+
+def cells_for_names(names) -> list[dict]:
+    """Resolve one complete registered bank without inferring new training history."""
+    actual = set(names)
+    for cells in (CANONICAL_CELLS, LEGACY_CANONICAL_CELLS):
+        if actual == {cell["name"] for cell in cells}:
+            return copy.deepcopy(cells)
+    raise ValueError(
+        "bank must contain exactly the historical or current 102-cell registry"
+    )
+
+
 def training_run_cells(training_run_id: str) -> tuple[dict, ...]:
     """Return isolated copies of the registered cells for one public TR ID."""
     if training_run_id not in set(TRAINING_RUN_IDS.values()):
@@ -403,6 +440,12 @@ def scientific_contract(cell: dict, max_samples: int, epochs: int) -> dict:
         },
         "dynamics": {
             "presentation_duration_ms": T_MS,
+            "presentation_steps": duration_steps(T_MS, float(cell["dt_ms"])),
+            "realized_presentation_duration_ms": duration_steps(
+                T_MS, float(cell["dt_ms"])
+            )
+            * float(cell["dt_ms"]),
+            **refractory_execution_configuration(float(cell["dt_ms"])),
             "dt_ms": float(cell["dt_ms"]),
             "tau_ampa_ms": TAU_AMPA_MS,
             "tau_gaba_ms": float(cell["tau_gaba"]),
@@ -417,13 +460,12 @@ def scientific_contract(cell: dict, max_samples: int, epochs: int) -> dict:
             "epochs": int(epochs),
         },
         "readout": {
-            "mode": cell.get(
-                "readout", MODEL_RECIPES[cell["model"]]["--readout"]
-            ),
+            "mode": cell.get("readout", MODEL_RECIPES[cell["model"]]["--readout"]),
             "shape": [N_EXCITATORY, N_OUTPUT],
         },
         "seed": int(cell["seed"]),
     }
+
 
 RESOURCE_TIERS = (
     "standard",
@@ -456,9 +498,14 @@ def cells_in_resource_tier(tier: str) -> list[dict]:
         return list(CANONICAL_CELLS)
     return [cell for cell in CANONICAL_CELLS if cell_resource_tier(cell) == tier]
 
+
 # Run scale — stamped into the manifest by run_dirs.prepare and rendered as
 # the Methods table via RunScale; the mdx never restates these numbers.
 SCALE = {
+    "schema": "exp022.recipe/v2",
+    **refractory_configuration(),
+    "dt_sweep_ms": list(DT_SWEEP_MS),
+    "presentation_duration_policy": "whole_steps_floor_with_integer_tolerance",
     "dataset": "mnist",
     # Reduced-pool scale; the six canonical cells override to all of MNIST.
     "max_samples": SUBSET_MAX_SAMPLES,
@@ -489,30 +536,47 @@ def load_cell(name: str) -> Path:
     return d
 
 
-def build_train_args(spec: dict, out_dir: Path,
-                     max_samples: int, epochs: int,
-                     recipes: dict[str, dict] | None = None) -> list[str]:
+def build_train_args(
+    spec: dict,
+    out_dir: Path,
+    max_samples: int,
+    epochs: int,
+    recipes: dict[str, dict] | None = None,
+) -> list[str]:
     """CLI `train` args for one registry cell, across all families."""
     recipe = dict((recipes or MODEL_RECIPES)[spec["model"]])
     recipe.update(spec.get("recipe_overrides", {}))
     if spec.get("readout") is not None:
         recipe["--readout"] = spec["readout"]
-    ms = spec.get("max_samples") or max_samples   # canonical cells override
+    ms = spec.get("max_samples") or max_samples  # canonical cells override
     args = [
         "train",
-        "--model", recipe["__build_as"],
-        "--dataset", "mnist",
-        "--n-hidden", str(N_EXCITATORY),
-        "--input-rate", str(INPUT_RATE_HZ),
-        "--max-samples", str(ms),
-        "--epochs", str(epochs),
-        "--t-ms", str(T_MS),
-        "--dt", str(spec["dt_ms"]),
-        "--tau-gaba", str(spec["tau_gaba"]),
-        "--seed", str(spec["seed"]),
-        "--weight-decay", str(WEIGHT_DECAY),
+        *refractory_args(),
+        "--model",
+        recipe["__build_as"],
+        "--dataset",
+        "mnist",
+        "--n-hidden",
+        str(N_EXCITATORY),
+        "--input-rate",
+        str(INPUT_RATE_HZ),
+        "--max-samples",
+        str(ms),
+        "--epochs",
+        str(epochs),
+        "--t-ms",
+        str(T_MS),
+        "--dt",
+        str(spec["dt_ms"]),
+        "--tau-gaba",
+        str(spec["tau_gaba"]),
+        "--seed",
+        str(spec["seed"]),
+        "--weight-decay",
+        str(WEIGHT_DECAY),
         "--dales-law",
-        "--out-dir", str(out_dir),
+        "--out-dir",
+        str(out_dir),
         "--wipe-dir",
     ]
     for k, v in recipe.items():

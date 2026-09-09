@@ -502,15 +502,6 @@ def draw_turnon_map(
             mark_labels if mark_labels is not None else [p[0] for p in TURNON_POINTS]
         )
         for (_, wei_i, wie_i), disp in zip(TURNON_POINTS, labels):
-            ax.scatter(
-                [wei_i],
-                [wie_i],
-                s=90,
-                facecolor="white",
-                edgecolor=theme.INK_BLACK,
-                linewidths=1.2,
-                zorder=5,
-            )
             ax.text(
                 wei_i,
                 wie_i,
@@ -521,6 +512,13 @@ def draw_turnon_map(
                 fontsize=theme.SIZE_TICK,
                 fontweight="bold",
                 color=theme.INK_BLACK,
+                clip_on=False,
+                bbox={
+                    "boxstyle": "circle,pad=0.3",
+                    "facecolor": "white",
+                    "edgecolor": theme.INK_BLACK,
+                    "linewidth": 1.2,
+                },
             )
 
 
@@ -581,8 +579,7 @@ def fig_turnon_maps_compound(grid, out_path):
     )
 
     map_axes = []
-    # Top row — the three scalar maps; sample conditions use roman markers so
-    # they cannot be confused with the figure's A–F panel labels.
+    # Top row — sample markers identify the corresponding raster panels.
     for k, (vals, title, vmax_color, fmt, mark) in enumerate(turnon_map_panels(grid)):
         ax = fig.add_subplot(gs[0, k])
         map_axes.append(ax)
@@ -594,7 +591,7 @@ def fig_turnon_maps_compound(grid, out_path):
             fmt=fmt,
             mark=mark,
             show_y=(k == 0),
-            mark_labels=("i", "ii", "iii"),
+            mark_labels=("D", "E", "F"),
         )
 
     # Bottom row — the three representative rasters, E black below / I red above.

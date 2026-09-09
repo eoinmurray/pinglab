@@ -3,6 +3,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 from experiments.helpers import theme
+from matplotlib.ticker import MaxNLocator
 
 from .recipe import SIGMA_V_MV
 
@@ -18,10 +19,10 @@ def plot_limit_cycle(metrics, out_path, run_id):
     fig, ax = plt.subplots(figsize=(8.0, 4.5), dpi=150)
     ax.plot(tt - tt[0], E, color=theme.INK_BLACK, lw=1.3, label="$E$")
     ax.set_xlabel("time (ms)", fontsize=theme.SIZE_LABEL)
-    ax.set_ylabel("$E$ rate", fontsize=theme.SIZE_LABEL, color=theme.INK_BLACK)
+    ax.set_ylabel("$E$ rate (ms$^{-1}$)", fontsize=theme.SIZE_LABEL, color=theme.INK_BLACK)
     ax2 = ax.twinx()
     ax2.plot(tt - tt[0], I, color=theme.DEEP_RED, lw=1.3, label="$I$")
-    ax2.set_ylabel("$I$ rate", fontsize=theme.SIZE_LABEL, color=theme.DEEP_RED)
+    ax2.set_ylabel("$I$ rate (ms$^{-1}$)", fontsize=theme.SIZE_LABEL, color=theme.DEEP_RED)
     fig.tight_layout()
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
@@ -32,13 +33,15 @@ def plot_phase_planes(coordinates, out_path, run_id):
     """Project the trajectory; projections alone do not establish a centre manifold."""
     theme.apply()
     Y = coordinates["Y"]
-    labels = ["$E$", "$I$", "$g_e^I$", "$g_i^E$"]
+    labels = ["$E$ (ms$^{-1}$)", "$I$ (ms$^{-1}$)", "$g_e^I$ (µS)", "$g_i^E$ (µS)"]
     pairs = [(0, 1), (2, 3), (0, 3), (1, 2), (0, 2), (1, 3)]
     fig, axes = plt.subplots(2, 3, figsize=(11.0, 6.5), dpi=150)
     for ax, (a, b) in zip(axes.flat, pairs):
         ax.plot(Y[a], Y[b], color=theme.INK_BLACK, lw=1.0)
         ax.set_xlabel(labels[a], fontsize=theme.SIZE_LABEL)
         ax.set_ylabel(labels[b], fontsize=theme.SIZE_LABEL)
+        ax.xaxis.set_major_locator(MaxNLocator(nbins=4))
+        ax.yaxis.set_major_locator(MaxNLocator(nbins=4))
         ax.spines["top"].set_visible(False)
         ax.spines["right"].set_visible(False)
     theme.label_panels(axes.flat)
@@ -56,10 +59,10 @@ def plot_timeseries(coordinates, out_path, run_id):
     # loop order E -> g_e^I -> I -> g_i^E; one trace per panel, so near-black ink
     # throughout (colour would separate nothing — H13).
     rows = [
-        (0, "$E$ rate", theme.INK_BLACK),
-        (2, "$g_e^I$", theme.INK_BLACK),
-        (1, "$I$ rate", theme.INK_BLACK),
-        (3, "$g_i^E$", theme.INK_BLACK),
+        (0, "$E$ rate (ms$^{-1}$)", theme.INK_BLACK),
+        (2, "$g_e^I$ (µS)", theme.INK_BLACK),
+        (1, "$I$ rate (ms$^{-1}$)", theme.INK_BLACK),
+        (3, "$g_i^E$ (µS)", theme.INK_BLACK),
     ]
     fig, axes = plt.subplots(4, 1, figsize=(8.0, 6.5), dpi=150, sharex=True)
     for ax, (idx, lab, col) in zip(axes, rows):
@@ -109,10 +112,13 @@ def plot_reduction_ladder(hopf4, hopf3, coordinates, out_path, run_id):
     )
     ax.axhline(0, color=theme.GREY_MID, lw=0.6, ls=":")
     ax.set_xlabel("time (ms)", fontsize=theme.SIZE_LABEL)
-    ax.set_ylabel("$g_i^E$ deviation from fixed point", fontsize=theme.SIZE_LABEL)
+    ax.set_ylabel("$g_i^E$ deviation from fixed point (µS)", fontsize=theme.SIZE_LABEL)
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
-    ax.legend(fontsize=theme.SIZE_LEGEND, frameon=False, loc="upper right")
+    ax.legend(
+        fontsize=theme.SIZE_LEGEND, frameon=False,
+        loc="lower left", bbox_to_anchor=(0, 1.02),
+    )
     fig.tight_layout()
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
@@ -268,7 +274,7 @@ def plot_sigma_sensitivity(sensitivity, out_path, run_id):
         color=theme.DEEP_RED,
         label="I",
     )
-    ax_fixed.set_ylabel("fixed-point rate (Hz)")
+    ax_fixed.set_ylabel("fixed-point rate\n(Hz)")
     ax_fixed.legend(frameon=False, fontsize=theme.SIZE_LEGEND)
     ax_amplitude.plot(
         sigma,
@@ -276,9 +282,9 @@ def plot_sigma_sensitivity(sensitivity, out_path, run_id):
         "o-",
         color=theme.INK_BLACK,
     )
-    ax_amplitude.set_ylabel("E amplitude (Hz, pk-pk)")
+    ax_amplitude.set_ylabel("E amplitude\n(Hz, pk-pk)")
     verdict = (
-        "onset test retained"
+        "onset criterion met"
         if sensitivity["supercritical_retained"]
         else "verdict changes"
     )

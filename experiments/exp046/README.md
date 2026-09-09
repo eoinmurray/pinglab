@@ -176,3 +176,16 @@ These changes affect future execution only. Existing immutable runs and R2
 archives are unchanged. Required arrays keep their original numerical values;
 selected NPZ outputs use lossless compression. No production rerun or new
 publication was performed for this cleanup.
+
+## Ceiling-plot axis correction — 2026-09-08
+
+The vertical range now includes the largest measured per-cell rate with 5%
+headroom. This makes the two formerly clipped maximum-rate markers visible,
+including the 80.970 Hz maximum at a measured gamma frequency of 67.209 Hz.
+
+Presentation run `exp046-r006-present` was generated from the unchanged
+`exp046-r002-analyse`. Its scientific results, cycle counts, pooled fractions
+and fits match the saved analysis exactly. The exp046 suite passed 26 tests,
+including a regression check for observations above the gamma frequency.
+The new plot was visually checked; the other scientific-review items recorded
+above remain open. Retained runs and publication selections are unchanged.

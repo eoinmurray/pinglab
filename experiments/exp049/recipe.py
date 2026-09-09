@@ -3,6 +3,10 @@
 from experiments.exp022 import training_run_cell, training_run_values
 from experiments.helpers.checkpoints import checkpoint_policy
 from experiments.helpers.datasets import MNIST_REDUCED_EVAL_SAMPLES
+from experiments.helpers.operating_point import (
+    refractory_args,
+    refractory_configuration,
+)
 
 SLUG = "exp049"
 
@@ -102,9 +106,12 @@ def bank_cells():
     ]
 
 
-def configuration(*, smoke=False):
+def configuration(*, smoke=False, version=2):
+    if version not in (1, 2):
+        raise ValueError("unsupported exp049 recipe version")
     return {
-        "schema": "exp049.recipe/v1",
+        "schema": f"exp049.recipe/v{version}",
+        **(refractory_configuration() if version >= 2 else {}),
         "profile": "smoke" if smoke else "production",
         "checkpoint_policy": CHECKPOINT_POLICY,
         "evaluation_samples": 100 if smoke else EVAL_MAX_SAMPLES,
@@ -138,6 +145,7 @@ def jobs(cfg):
 def inference_args(train, checkpoint, output, job):
     args = [
         "dump-weights" if job["kind"] == "weights_dump" else "sim",
+        *refractory_args(),
         "--load-config",
         str(train / "config.json"),
         "--load-weights",

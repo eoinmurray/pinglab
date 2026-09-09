@@ -5,6 +5,7 @@ from typing import Any, cast
 
 import numpy as np
 from experiments.helpers.checkpoints import public_provenance, resolve_checkpoint
+from experiments.helpers.operating_point import refractory_execution_configuration
 from pingstore.contracts import PingstoreError, load_json
 from pingstore.layout import canonical_export_file, canonical_export_unit
 
@@ -15,11 +16,19 @@ RETAINED_PRODUCER = "73f0883edc14aa634f5a6d55e4f4123fbfeb7508"
 
 
 def _file(root, *parts):
-    return root.file(*parts) if hasattr(root, "file") else canonical_export_file(root, *parts)
+    return (
+        root.file(*parts)
+        if hasattr(root, "file")
+        else canonical_export_file(root, *parts)
+    )
 
 
 def _unit(root, *parts):
-    return root.unit(*parts) if hasattr(root, "unit") else canonical_export_unit(root, *parts)
+    return (
+        root.unit(*parts)
+        if hasattr(root, "unit")
+        else canonical_export_unit(root, *parts)
+    )
 
 
 def _root(root):
@@ -88,12 +97,15 @@ def validate_import(run, cfg):
         run.record["execution"].get("operation") != "historical-import"
         or record.get("schema") != RETAINED_SCHEMA
         or record.get("producer_commit") != RETAINED_PRODUCER
-        or cfg != recipe.configuration()
+        or cfg != recipe.configuration(version=1)
     ):
         raise PingstoreError("aggregate evidence lacks its retained import contract")
     if record.get("source_files") != 199 or record.get("source_bytes") != 6079619:
         raise PingstoreError("retained import selection differs")
-    if record.get("scientific_files") != 135 or record.get("archived_metadata_files") != 64:
+    if (
+        record.get("scientific_files") != 135
+        or record.get("archived_metadata_files") != 64
+    ):
         raise PingstoreError("retained source mapping partition differs")
     numbers_path = run.export / "historical-summary.json"
     old = load_json(numbers_path)
@@ -224,12 +236,21 @@ def stream(root, name, *, conditions=None):
     return raw, meta
 
 
-def showcase_configuration(*, conditions=None):
+def showcase_configuration(*, conditions=None, version=2):
+    if version not in (1, 2):
+        raise ValueError("unsupported exp082 showcase recipe version")
     return {
-        "schema": "exp082.showcase-selection/v1",
-        "conditions": [list(value) for value in (
-            recipe.SHOWCASE_CONDITIONS if conditions is None else conditions
-        )],
+        "schema": f"exp082.showcase-selection/v{version}",
+        **(
+            {"dt_ms": recipe.DT_MS, **refractory_execution_configuration(recipe.DT_MS)}
+            if version >= 2 else {}
+        ),
+        "conditions": [
+            list(value)
+            for value in (
+                recipe.SHOWCASE_CONDITIONS if conditions is None else conditions
+            )
+        ],
         "candidate_order": "ascending integer index",
         "digit_seed_base": recipe.SHOWCASE_DIGIT_SEED_BASE,
         "encoding_seed_base": recipe.SHOWCASE_ENCODING_SEED_BASE,
@@ -243,11 +264,18 @@ def validate_showcase(root):
     saved = load_json(_root(root) / "evidence.json")
     selected = saved.get("selected")
     if (
-        saved.get("schema") != "exp082.showcase-selection/v1"
-        or saved.get("configuration") not in (
-            showcase_configuration(),
-            showcase_configuration(conditions=recipe.FIXED_DURATION_SHOWCASE_CONDITIONS),
+        saved.get("schema") not in (
+            "exp082.showcase-selection/v1", "exp082.showcase-selection/v2"
         )
+        or saved.get("configuration")
+        not in tuple(
+            showcase_configuration(conditions=conditions, version=version)
+            for version in (1, 2)
+            for conditions in (
+                recipe.SHOWCASE_CONDITIONS, recipe.FIXED_DURATION_SHOWCASE_CONDITIONS
+            )
+        )
+        or saved["configuration"]["schema"] != saved["schema"]
         or not isinstance(selected, dict)
         or selected.keys() != recipe.SHOWCASE_TARGETS.keys()
     ):
@@ -267,16 +295,22 @@ def validate_showcase(root):
         if any(row.get(key) != value for key, value in expected.items()):
             raise PingstoreError("showcase candidate order differs")
         labels, predictions, correct = (
-            row.get("labels"), row.get("predictions"), row.get("correct")
+            row.get("labels"),
+            row.get("predictions"),
+            row.get("correct"),
         )
         if (
             not isinstance(labels, list)
             or not isinstance(predictions, list)
             or not isinstance(correct, list)
             or not all(len(value) == 5 for value in (labels, predictions, correct))
-            or any(type(value) is not int or not 0 <= value < 10 for value in labels + predictions)
+            or any(
+                type(value) is not int or not 0 <= value < 10
+                for value in labels + predictions
+            )
             or any(type(value) is not int or value not in (0, 1) for value in correct)
-            or correct != [int(a == b) for a, b in zip(labels, predictions, strict=True)]
+            or correct
+            != [int(a == b) for a, b in zip(labels, predictions, strict=True)]
             or row.get("n_correct") != sum(correct)
         ):
             raise PingstoreError("invalid showcase candidate outcome")
@@ -290,12 +324,16 @@ def validate_showcase(root):
         if type(first) is not int:
             raise PingstoreError("showcase target has no qualifying candidate")
         if selected.get(name) != first or first is None:
-            raise PingstoreError("showcase did not retain the first qualifying candidate")
+            raise PingstoreError(
+                "showcase did not retain the first qualifying candidate"
+            )
         raw, meta = stream(root, name, conditions=saved["configuration"]["conditions"])
         row = candidates[first]
         predictions = [
             int(raw["spikes_out"][start:stop].sum(axis=0).argmax())
-            for start, stop in zip(meta["boundaries"][:-1], meta["boundaries"][1:], strict=True)
+            for start, stop in zip(
+                meta["boundaries"][:-1], meta["boundaries"][1:], strict=True
+            )
         ]
         if meta["labels"] != row["labels"] or predictions != row["predictions"]:
             raise PingstoreError("selected showcase recording differs from its outcome")

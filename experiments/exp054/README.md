@@ -1,5 +1,55 @@
 # exp054 — Pinglab Rythmicity Metric
 
+## Current recipe and article reconciliation — 2026-09-09
+
+Recipe v6 is the default for future compute: the spike protocol is unchanged
+from v5, while its embedded theory uses exp033 v2's 1.2/0.6-ms refractory periods
+and cancellation-resistant gain integral. Versions 1–5 remain frozen, including
+their original 3/1.5-ms mean-field definitions. The combined-compute campaign
+route remains distinct from the explicit separate-source refresh below; new
+combined computations now use v6. No new production compute ran for this change.
+
+The accepted refresh remains `exp054-r013-analyse` → `exp054-r014-present`.
+`exp110-r021-present` now incorporates its replacement theory, and the exp054
+article distinguishes reused spiking probes from the separate recomputed theory.
+The dated sections below retain the earlier execution history.
+
+## Separate-source theory refresh — 2026-09-09
+
+PLAN.md step 5.8 is complete. The accepted pair is **`exp054-r013-analyse` →
+`exp054-r014-present`**, using all 136 probes from **`exp054-r008-compute`**,
+the adopted theory from **`exp033-r012-analyse`**, and unchanged frequencies
+from **`exp041-r002-analyse`**. Local analysis took five seconds and presentation
+three seconds; no simulation or theory solve ran.
+
+```sh
+uv run python -m experiments.exp054.analyse --source exp054-r008-compute \
+  --frequency-source exp041-r002-analyse --theory-source exp033-r012-analyse
+uv run python -m experiments.exp054.present --source exp054-r013-analyse
+```
+
+The new analysis-only `exp054.theory-refresh/v1` recipe keeps the complete
+`spike_source_recipe` and `theory_recipe` separate. The spike source's embedded
+historical theory is unused; its old declaration is retained as source history.
+The selected theory uses 1.2/0.6-ms refractories and the stable exp033 v2 gain
+integral. Omitting `--theory-source` retains the historical combined-compute
+analysis path. At completion of step 5.8, compute recipes were unchanged. The collection dispatcher has
+not been repinned to this explicit refresh workflow.
+
+The reference theory onset changed from 0.59633710 to **0.59390477 nA** (−0.408%);
+frequency remains **27.56644477 Hz** and the sampled criticality verdict is
+unchanged. All empirical numerical results and coordinates exactly match
+`exp054-r009-analyse`; all seven regenerated PNGs are byte-identical to
+`exp054-r012-present`. All were visually inspected. The theory-comparison figure
+is owned by exp110 and remains for PLAN.md step 5.10, whose renderer must select
+`recipe.spike_configuration()` while preserving both source recipes in provenance.
+
+All source layouts, checksums, recipe identities and complete ancestry validate.
+The 70-test regression passed, including eight separate-source contract tests;
+lint and whitespace checks pass. Exact stage/source digests and scientific
+limitations are recorded in PLAN.md. Execution follows Runner and Storage Guides
+4.4.0. No historical payloads, article prose or publication selections changed.
+
 ## 1,024-E correction — 2026-09-08
 
 The author authorized the population correction and a new HPC execution.

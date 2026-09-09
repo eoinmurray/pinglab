@@ -18,7 +18,7 @@ from pingstore.contracts import (
 
 def present(identity, *, run_id=None):
     analysis = inputs.source(REPO, identity, "analyse")
-    inputs.configuration(analysis)
+    cfg = inputs.configuration(analysis)
     if set(analysis.record["inputs"]) != {"compute", "frequencies"}:
         raise PingstoreError("exp033 analysis must pin compute and exp041 frequencies")
     upstreams = {}
@@ -30,10 +30,14 @@ def present(identity, *, run_id=None):
         upstreams[role] = inputs.source(
             REPO, ref["run_id"], stage, experiment=experiment, reference=ref
         )
+    if inputs.configuration(upstreams["compute"]) != cfg:
+        raise PingstoreError("analysis and compute disagree on the theory recipe")
     with inputs.execution(
-        REPO, "present", sources={"analysis": analysis}, run_id=run_id
+        REPO, "present", sources={"analysis": analysis}, run_id=run_id, configuration=cfg
     ) as run:
         numbers = load_json(analysis.export / "results.json")
+        if numbers["config"] != {key: cfg.get(key) for key in numbers["config"]}:
+            raise PingstoreError("analysis numbers disagree with the theory recipe")
         coords = evidence.read(analysis.export)
         result = numbers["results"]
         h, crit = result["hopf"], result["criticality"]
@@ -123,6 +127,8 @@ def present(identity, *, run_id=None):
                 "qualify criticality and QSS criterion labels",
                 "absolute-Hz sensitivity axis; remove internal figure labels",
                 "historical SVG display edits with source and output hashes",
+                "native waveform units and spaced phase-plane ticks",
+                "reduction legend above traces; wrap sensitivity axis labels",
             ],
         }
     return run.run_id

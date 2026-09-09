@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import pytest
+from experiments.exp033 import recipe as mean_field_recipe
 from experiments.exp054 import plots as exp054_plots
 from experiments.exp054 import recipe as exp054_recipe
 from experiments.exp110 import plots, present, recipe
@@ -23,8 +24,9 @@ def test_figure_ownership_has_moved_from_exp054() -> None:
     )
 
 
+@pytest.mark.parametrize("refreshed_theory", [False, True])
 def test_present_records_exp054_analysis_and_exports_only_the_bundle(
-    tmp_path: Path, monkeypatch
+    tmp_path: Path, monkeypatch, refreshed_theory
 ) -> None:
     monkeypatch.setattr(
         stages,
@@ -77,6 +79,10 @@ def test_present_records_exp054_analysis_and_exports_only_the_bundle(
             experiment=experiment,
         )
     source_recipe = exp054_recipe.configuration(smoke=True)
+    if refreshed_theory:
+        source_recipe = exp054_recipe.refresh_configuration(
+            source_recipe, mean_field_recipe.configuration(version=2)
+        )
     coordinates = {
         "grid": [],
         "mean_field": {
@@ -132,6 +138,7 @@ def test_present_records_exp054_analysis_and_exports_only_the_bundle(
     assert sorted(path.name for path in output.export.iterdir()) == sorted(
         recipe.FIGURES
     )
+    assert output.record["execution"]["configuration"]["source_recipe"] == source_recipe
 
 def test_cycle_participation_equal_width_and_no_percentages(tmp_path, monkeypatch):
     import pytest
@@ -207,13 +214,15 @@ def test_robustness_composite_uses_equal_width_row_panels(
                     "e_rate_hz": {"mean": 15.0, "sem": 0.1},
                     "acc": {"mean": 90.0, "sem": 0.2},
                 }
-                for value in (0.05, 0.1, 0.25, 0.5, 1.0)
+                for value in (0.05, 0.1, 0.2, 0.3, 0.6)
             ],
         },
     )
     save = present.save_figure
     def inspect(fig, stem, **kwargs):
         drop, add, rate, accuracy = fig.axes
+        assert list(rate.lines[0].get_xdata()) == [0.05, 0.1, 0.2, 0.3, 0.6]
+        assert list(accuracy.lines[0].get_xdata()) == [0.05, 0.1, 0.2, 0.3, 0.6]
         assert list(add.lines[0].get_xdata()) == [0.0, 200.0]
         assert add.get_xlim()[1] > 200
         assert ("baseline E rate" if relative else "reference E rate") in add.get_xlabel()

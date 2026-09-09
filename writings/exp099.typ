@@ -1,19 +1,19 @@
 #import "templates/article-layout.typ": journal-article
-#import "templates/result-card.typ": journal-result-card, result-figure-ref, with-result-sections
+#import "templates/result-card.typ": journal-result-card, with-result-sections, result-figure-ref
+#import "templates/methods.typ": journal-methods, method-card
+#import "templates/parameters-table.typ": parameters-table
 #import "/.demolab/lib.typ": data-image
 #import "templates/dataset.typ": video, data-file, inputs-ready, pending-report, run-view, input-assets
 #import "templates/abstract.typ": journal-abstract
-#import "templates/methods.typ": journal-methods, method-card
-#import "templates/parameters-table.typ": parameters-table
 #let data-file = data-file.with(article: "exp099")
 
 #let meta = (
   tags: ("data", "v36.0.0"),
   // Author-locked title: do not change.
-  title: "Video AI-PING transition",
+  title: "Susin and Destexhe (2021)",
   created_at: "2026-08-26T00:00:00Z",
-  updated_at: "2026-09-08",
-  description: "Two single-seed conductance-based network simulations show intermittent activity under richer input and sustained alternating volleys during strong shared afferent drive.",
+  updated_at: "2026-09-09",
+  description: "Independent excitatory afferent drive strengthens population bursting in a calibrated conductance-based E/I network.",
   collection: "demo",
   order: 13,
 )
@@ -22,10 +22,10 @@
 
 #let render-report(data-file) = [
   #journal-abstract(
-    question: [We tested how shared and heterogeneous afferent drive organize a sparse conductance-based excitatory–inhibitory network.],
-    approach: [We visualized two single-seed simulations: a richer-input condition and a condition with a sustained shared-input ramp.],
-    finding: [Strong shared drive recruited regular alternating excitatory and inhibitory volleys, whereas the richer-input condition remained irregular with intermittent structure.],
-    scope: [These examples establish input-dependent behaviour in the configured simulations, not robustness across seeds or a one-factor comparison between conditions.],
+    question: [We conducted a modified replication of Susin and Destexhe’s (2021) PING-network experiment to test whether increased nonrhythmic afferent excitation recruits collective oscillations.],
+    approach: [Using a smaller conductance-based LIF network with independent excitatory inputs, we increased drive onto excitatory neurons alone.],
+    finding: [In a single simulation, low-rate irregular activity developed stronger population bursting.],
+    scope: [The response links increased independent excitation to stronger collective activity in this calibrated network.],
   )
 
   == Results
@@ -34,209 +34,78 @@
 
     #journal-result-card(
       title: "Implemented circuit architecture",
+      orientation: [Our circuit comprises 1,600 excitatory and 400 inhibitory neurons connected through recurrent AMPA and GABA synapses (#result-figure-ref(<fig:exp099-network>)). Each neuron receives independent excitatory Poisson input, and recurrent I neurons supply inhibition.],
       visual: [
         #figure(
           data-image(
             data-file("exp099/network.svg"),
             width: 100%,
-            alt: "Structural diagram of the excitatory and inhibitory populations, their recurrent projections, afferent inputs and readout.",
+            alt: "Structural diagram of 1,600 excitatory and 400 inhibitory neurons with independent private excitatory afferents and recurrent AMPA and GABA projections.",
           ),
-          caption: [Structural schematic of the implemented excitatory and
-            inhibitory populations, recurrent AMPA and GABA projections,
-            destination-specific afferent projections and downstream readout.
-            The diagram specifies the model and is not experimental evidence.],
+          caption: [Structural schematic of the implemented populations, recurrent AMPA and GABA projections, and private excitatory afferents. Rates are per afferent source; weights are conductance increments per event.],
           kind: image,
           supplement: [Figure],
         ) <fig:exp099-network>
       ],
-      expectation: [The candidate PING mechanism is recurrent excitation
-        followed by inhibitory feedback; the schematic identifies the pathways
-        capable of producing that sequence
-        (#result-figure-ref(<fig:exp099-network>)).],
+
     )
 
+    #let private-clip = data-file("exp099/private-e-drive.mp4")
+    #if private-clip != none { let _ = read(private-clip, encoding: none) }
     #journal-result-card(
-      title: "External input architecture",
-      visual: [
-        #figure(
-          data-image(
-            data-file("exp099/input-map-option-3.svg"),
-            width: 100%,
-            alt: "Shared and destination-specific afferents feed the E and I populations, while AMPA and GABA backgrounds act on both populations.",
-          ),
-          caption: [Shared afferent events enter both destination streams;
-            E-private and I-private events remain destination-specific. Separate
-            private and grouped AMPA and GABA backgrounds act on both
-            populations. This is an explanatory schematic rather than measured
-            evidence.],
-          kind: image,
-          supplement: [Figure],
-        ) <fig:exp099-inputs>
-      ],
-      orientation: [The afferent streams and conductance backgrounds provide
-        distinct routes by which input rate, correlation and polarity can alter
-        excitatory–inhibitory timing
-        (#result-figure-ref(<fig:exp099-inputs>)).],
-    )
+      title: "Private drive strengthens bursting",
+      observation: [A 50% increase in E-targeted afferent rate, with I-targeted input held constant, strengthened population bursting (#result-figure-ref(<fig:exp099-private>)). In the single simulation, baseline firing averaged 3.09 Hz in E and 3.22 Hz in I, rising to 23.56 Hz in E and 30.01 Hz in I during sustained stimulation. Recovery firing averaged 2.53 Hz in both populations; the video magnifies the transition onset.
 
-    #let shared-clip = data-file("exp099/shared-drive-ai-to-ping.mp4")
-    #if shared-clip != none { let _ = read(shared-clip, encoding: none) }
-    #journal-result-card(
-      title: "Shared drive recruits rhythmic volleys",
+      Baseline activity combined irregular individual spiking with intermittent population bursts. Increased drive strengthened this collective bursting.],
       visual: [
         #figure(
-          video(shared-clip),
-          caption: [Single-seed shared-drive simulation over 50–1,250 ms,
-            omitting the initialization burst, with
-            the same panel and colour mappings as
-            #result-figure-ref(<fig:exp099-richer>). The shared afferent
-            multiplier rose smoothly from 1 to 25 between 500 and 700 ms and
-            remained at 25 thereafter; private afferent multipliers remained at
-            1. Recurrent weights and background-input settings were fixed
-            throughout this simulation.],
+          video(private-clip),
+          caption: [Single-seed transition detail over 3,500–5,000 ms, shown over 25 seconds of playback. E-targeted afferent rates rose from 0.6 to 0.9 Hz during 4,000–4,500 ms, then held at 0.9 Hz throughout the remainder of the displayed interval; I-targeted rates remained at 0.6 Hz. A shows sampled neurons and connections, with private input dots representing target-specific aggregate streams. B shows population mean voltages and conductances onto E; C shows their 40 ms conductance trail. D shows per-neuron firing rates with a trailing 20 ms average; E shows prescribed per-source input rates. F shows fixed nonzero recurrent weights.],
           kind: image,
           supplement: [Figure],
-        ) <fig:exp099-shared>
+        ) <fig:exp099-private>
       ],
-      observation: [As shared drive increased, low irregular firing gave way to
-        sustained alternating E and I volleys and a repeated conductance cycle
-        (#result-figure-ref(<fig:exp099-shared>, panel: "C–E")). Because the two
-        simulations also differ in fixed weights and background settings, their
-        contrast is illustrative rather than a one-factor between-condition
-        test.],
-    )
 
-    #let richer-clip = data-file("exp099/richer-input-ai-to-intermittent-ping.mp4")
-    #if richer-clip != none { let _ = read(richer-clip, encoding: none) }
-    #journal-result-card(
-      title: "Richer input remains intermittent",
-      visual: [
-        #figure(
-          video(richer-clip),
-          caption: [Single-seed richer-input simulation over 0–1,800 ms.
-            Panel A maps recorded spike and conductance inputs to the E and I
-            populations; B shows mean conductances and voltages; C traces the
-            excitatory–inhibitory conductance plane; D shows per-neuron E and I
-            firing rates in a 20 ms window; E shows shared and private afferent
-            multipliers against time; and F shows recurrent-weight
-            distributions. Black denotes excitatory or E-targeted quantities,
-            red inhibitory or I-targeted quantities, and grey the shared input.
-            Transmission paths are sampled for legibility.],
-          kind: image,
-          supplement: [Figure],
-        ) <fig:exp099-richer>
-      ],
-      observation: [Population rates fluctuated irregularly through the
-        afferent transient, with only short structured episodes
-        (#result-figure-ref(<fig:exp099-richer>, panel: "D")). This single
-        realization does not establish whether richer input generally
-        suppresses or preserves PING.],
     )
 
   ]
 
-  #journal-methods(
-    compute: (
-      method-card([Construct the recurrent circuit], [We simulated 400
-        excitatory and 100 inhibitory conductance-based leaky integrate-and-fire
-        neurons with a 0.25 ms timestep. Excitatory and inhibitory membrane time
-        constants were 20 and 5 ms; both populations used a −65 mV reset and
-        −50 mV threshold. Each recurrent projection contained an exact 2.5%
-        nonzero connection fraction. AMPA and GABA conductances decayed with 2
-        and 9 ms time constants.]),
-      method-card([Generate external events], [We formed each
-        destination-specific afferent stream by combining a shared Bernoulli
-        spike component with an independent private component:
-        #math.equation(block: true,
-          $s_E[k] = s_"shared"[k] or s_"E-private"[k], quad
-          s_I[k] = s_"shared"[k] or s_"I-private"[k].$
-        )
-        Here $s_X[k] in {0, 1}$ is the event indicator for source $X$ at
-        timestep $k$. Its probability was
-        #math.equation(block: true,
-          $p_X[k] = min(1, (r_X Delta t_"sim") / 1000
-          m_"weather"[k] m_X[k]),$
-        )
-        where $r_X$ is the baseline rate in hertz, $Delta t_"sim"$ is the
-        integration timestep in milliseconds, $m_X[k]$ is the afferent
-        multiplier, and $m_"weather"[k]$ is a slow global rate multiplier when
-        present. Independent and locally grouped AMPA and GABA shot noise also
-        drove both populations.]),
-      method-card([Configure the two simulations], [Both simulations used seed
-        7. The richer-input video began at initialization. The shared-drive video
-        omitted the first 50 ms, with neuronal and conductance states carried
-        continuously into the displayed interval.
-        In the 2,000 ms richer-input condition, the shared multiplier rose
-        from 1 to 6.5 and the private multipliers from 1 to 1.2 between 600 and
-        850 ms, returning to 1 by 1,100 ms; a stationary lognormal rate process
-        with a 250 ms timescale modulated all external events. In the 1,250 ms
-        shared-drive condition, the shared multiplier rose from 1 to 25 between
-        500 and 700 ms and remained there, while private multipliers and all
-        other settings remained fixed through time. The two conditions used
-        different fixed feedforward, recurrent-excitatory and background-drive
-        scales and therefore were not a one-factor comparison.]),
-    ),
-    analyse: (
-      method-card([Measure population state], [We averaged excitatory and
-        inhibitory membrane voltage over neurons and averaged excitatory and
-        inhibitory conductance over excitatory neurons at every timestep.
-        External AMPA and GABA event trains were transformed with their 2 and 9
-        ms exponential kernels before averaging.]),
-      method-card([Measure temporal organization], [We computed
-        $R_"contrast"$, the autocorrelation lobe–trough contrast of excitatory
-        spikes. The richer-input condition used 400 ms windows at 10 ms strides
-        with a 100 ms maximum lag; the shorter shared-drive condition used 160
-        ms windows at 5 ms strides with a 60 ms maximum lag. Spikes were binned
-        at 1 ms, and undefined contrasts were recorded as zero.]),
-    ),
-    present: (
-      method-card([Map recorded activity], [We displayed source-to-target
-        transmission from recorded spikes and fixed realized weights, sampling
-        paths only to avoid overplotting. Per-neuron E and I firing rates were
-        calculated in a centred 20 ms display window. The richer-input view
-        covered 0–1,800 ms; the shared-drive view covered 50–1,250 ms. The
-        videos used the same panel grammar, with 600 nonuniformly paced frames
-        for richer input and 712 for shared drive, and a representative still
-        selected near maximal measured temporal organization.]),
-    ),
-  )
-
-  == Parameter Table
+  #journal-methods(body: (
+    method-card([Adapt the reference model], [We performed a modified replication of #link("https://doi.org/10.1371/journal.pcbi.1009416")[Susin and Destexhe’s (2021)] PING-network experiment. We reduced network size and replaced adapting AdEx neurons with conductance-based leaky integrate-and-fire (LIF) neurons. @tab:exp099-parameters compares the reference and implemented parameters and explains the differences.]),
+    method-card([Construct the circuit], [We connected 1,600 E and 400 I neurons independently with 10% probability, using recurrent AMPA and GABA synapses (#result-figure-ref(<fig:exp099-network>)). Synaptic weights, decay times and delays are specified in @tab:exp099-parameters.]),
+    method-card([Calibrate baseline input], [We selected low-rate spiking settings through exploratory calibration. Each neuron received 400 equivalent independent excitatory Poisson afferents (#result-figure-ref(<fig:exp099-network>); @tab:exp099-parameters).]),
+    method-card([Increase excitatory drive], [During a 10-second simulation, E-targeted afferent rates rose from 0.6 to 0.9 Hz over 4–4.5 seconds, remained elevated until 6.5 seconds and returned by 7 seconds. I-targeted rates remained fixed. #result-figure-ref(<fig:exp099-private>, panel: "E") displays the input schedule around onset.]),
+    method-card([Measure network responses], [We used one simulation with random seed 7 and measured firing rates, interspike-interval variability and pairwise spike-count correlations during baseline (1–4 seconds), stimulation plateau (4.5–6.5 seconds) and recovery (7–10 seconds). We summarized variability as the median interspike-interval coefficient of variation across cells with at least five spikes, and synchrony as mean pairwise Pearson correlation of 10 ms spike counts among at most 100 evenly sampled cells with nonzero count variance per population. #result-figure-ref(<fig:exp099-private>, panel: "B–D") displays population means, conductance trajectories and firing rates for this simulation; displayed rates use a trailing 20 ms average.]),
+    method-card([Present the transition], [We used SNNLang to specify the network, SNNSim to execute it and SNNViz to support #result-figure-ref(<fig:exp099-network>) and #result-figure-ref(<fig:exp099-private>). #result-figure-ref(<fig:exp099-private>) magnifies 3.5–5 seconds into 25 seconds of playback; #result-figure-ref(<fig:exp099-private>, panel: "F") shows the fixed recurrent weights listed in @tab:exp099-parameters.]),
+  ))
 
   #parameters-table(
+    ([Variable], [Their value], [Our value], [Difference and why]),
     (
-      [Parameter],
-      [Richer input],
-      [Shared drive],
-      [Cortical reference],
+      ([Neurons E / I], [20,000 / 5,000], [1,600 / 400], [Smaller computational budget; same ratio.]),
+      ([Recurrent connection probability], [2%], [10%], [Partly offsets fewer neurons.]),
+      ([Mean recurrent inputs E / I], [400 / 100], [160 / 40], [Lower recurrent input counts at the reduced network size.]),
+      ([Neuron model], [Adaptive exponential (AdEx); adapting E], [Conductance LIF; no adaptation], [Simpler membrane dynamics.]),
+      ([Capacitance], [150 pF], [150 pF], [Matched.]),
+      ([Leak conductance], [10 nS], [10 nS], [Matched; membrane time constant 15 ms.]),
+      ([Rest / reset voltage], [−65 mV], [−65 mV], [Matched.]),
+      ([Threshold E / I], [−40 / −47.5 mV; effective AdEx threshold], [−50 / −50 mV; hard threshold], [Retained LIF hard thresholds; the reference uses AdEx effective thresholds.]),
+      ([Refractory period E / I], [5 / 5 ms], [3 / 1.5 ms], [Retained existing LIF settings.]),
+      ([AMPA / GABA decay], [1.5 / 7.5 ms], [1.5 / 7.5 ms], [Matched.]),
+      ([Synaptic delay], [1.5 ms], [1.5 ms], [Matched and implemented.]),
+      ([Timestep], [0.1 ms], [0.1 ms], [Matched.]),
+      ([External afferents per neuron], [400 on average; some shared sources], [400 equivalent independent sources], [Independent target-specific input streams.]),
+      ([Baseline source rate E / I], [2 / 2 Hz], [0.6 / 0.6 Hz], [Lowered to avoid excessive baseline bursting in our LIF network.]),
+      ([Increased drive], [3 / 3 Hz condition], [0.9 / 0.6 Hz], [E-only increase isolates recruitment through E.]),
+      ([External excitatory weight], [4 nS], [4 nS], [Matched.]),
+      ([Recurrent excitatory weight], [5 nS], [1.25 nS], [Weakened to control excessive recurrent excitation.]),
+      ([Recurrent inhibitory weight], [3.34 nS], [3.34 nS], [Matched; stronger relative to recurrent excitation.]),
+      ([Separate external GABA], [None], [None], [Inhibition comes from recurrent I neurons.]),
     ),
-    (
-      ([Simulation / view], [2,000 / 0–1,800 ms], [1,250 / 50–1,250 ms], [No canonical duration.]),
-      ([Timestep; seed], [0.25 ms; 7], [0.25 ms; 7], [Numerical only.]),
-      ([Population], [$N_E=400$; $N_I=100$], [$N_E=400$; $N_I=100$], [Realistic 4:1 ratio; strongly reduced circuit (#link("https://pmc.ncbi.nlm.nih.gov/articles/PMC3839692/")[Meyer et al., 2013]).]),
-      ([Shared baseline], [10 Hz], [10 Hz], [Plausible rate; shared/private separation is abstract.]),
-      ([Private E/I baseline], [15 / 15 Hz], [14.25 / 14.25 Hz], [Plausible active-input rate; cortical firing is often sparser (#link("https://pmc.ncbi.nlm.nih.gov/articles/PMC4108079/")[Zhou et al., 2014]).]),
-      ([Shared multiplier], [$1 arrow 6.5 arrow 1$], [$1 arrow 25$, then held], [No standard; 25-fold represents strong synchrony.]),
-      ([Private afferent multiplier], [$1 arrow 1.2 arrow 1$], [Constant at 1], [No direct biological standard.]),
-      ([Input timing], [600–850–1,100 ms], [500–700 ms; then held], [Plausible timescale; imposed waveform.]),
-      ([Global variation], [Lognormal; $tau=250$ ms; SD 12%], [None], [Qualitative cortical-state model.]),
-      ([$w_("in" arrow E)$], [$0.080 plus.minus 0.008$ µS], [$0.160 plus.minus 0.016$ µS], [Low end of unitary excitation (#link("https://pmc.ncbi.nlm.nih.gov/articles/PMC10016070/")[Hunt et al., 2023]).]),
-      ([$w_("in" arrow I)$], [$0.020 plus.minus 0.002$ µS], [$0.0040 plus.minus 0.0004$ µS], [Very weak.]),
-      ([$w_(E arrow E)$], [$0.85 plus.minus 0.255$ µS], [$1.02 plus.minus 0.306$ µS], [Plausible unitary scale (#link("https://pmc.ncbi.nlm.nih.gov/articles/PMC10016070/")[Hunt et al., 2023]).]),
-      ([$w_(E arrow I)$], [$0.60 plus.minus 0.18$ µS], [Same], [Plausible; PV input is often stronger than E→E (#link("https://pubmed.ncbi.nlm.nih.gov/22402650/")[Avermann et al., 2012]).]),
-      ([$w_(I arrow E)$], [$3.00 plus.minus 0.90$ µS], [Same], [Plausible strong inhibition (#link("https://pmc.ncbi.nlm.nih.gov/articles/PMC4816789/")[conductance estimates]).]),
-      ([$w_(I arrow I)$], [$0.40 plus.minus 0.12$ µS], [Same], [Broadly plausible; subtype dependent.]),
-      ([AMPA background], [500 / 80 Hz], [450 / 72 Hz], [Aggregate event stream, not neuron rate.]),
-      ([GABA background], [500 / 80 Hz], [1,000 / 160 Hz], [Aggregate stream; shared-drive rate doubled.]),
-      ([Connectivity], [2.5% nonzero], [Same], [Low and uniform; nearby L2/3 pathways span roughly 17–60% (#link("https://pmc.ncbi.nlm.nih.gov/articles/PMC4305188/")[Pala and Petersen, 2015]).]),
-      ([$tau_("AMPA")$ / $tau_("GABA")$], [2 / 9 ms], [Same], [Plausible: AMPA a few ms; GABA_A about 4–20 ms (#link("https://pubmed.ncbi.nlm.nih.gov/1384578/")[Hestrin, 1992]; #link("https://pmc.ncbi.nlm.nih.gov/articles/PMC2230760/")[Xiang et al., 1998]).]),
-      ([$tau_(m,E)$ / $tau_(m,I)$], [20 / 5 ms], [Same], [Plausible; fast-spiking interneurons about 4–9 ms (#link("https://pmc.ncbi.nlm.nih.gov/articles/PMC2730466/")[Goldberg et al., 2008]).]),
-    ),
-    columns: (1.15fr, 1.25fr, 1.25fr, 2.25fr),
+    columns: (1.1fr, 1fr, 1fr, 1.5fr),
+    table-label: <tab:exp099-parameters>,
+    caption: [Reference PING-network settings from #link("https://doi.org/10.1371/journal.pcbi.1009416")[Susin and Destexhe (2021)] and our calibrated conductance-based LIF settings. Paired values are ordered E / I; mean recurrent input counts are expectations under the stated connection probabilities. Synaptic weights are conductance increments per presynaptic event; external rates are per afferent source. The comparison describes a modified replication with model-specific threshold definitions: effective thresholds for AdEx and hard thresholds for LIF.],
   )
-
-  Timescales are broadly cortical. The main limitation is structural: the
-  shared-drive condition changes several inputs and weights simultaneously.
 
   #run-view("exp099", inputs)
 ]

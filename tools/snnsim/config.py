@@ -16,6 +16,7 @@ from inputs import (
     make_step_drive,
 )
 from models import COBANet
+from timing import duration_steps
 from torch import nn
 
 # =============================================================================
@@ -29,6 +30,9 @@ class Config:
     n_i: int = 256
     seed: int = 42
     sim_ms: float = 600.0
+    refractory_e_ms: float = 3.0
+    refractory_i_ms: float = 1.5
+    refractory_policy: str = "nearest"
     step_on_ms: float = 200.0
     step_off_ms: float = 300.0
     t_e_async: float = 0.0006
@@ -110,11 +114,14 @@ def set_sim_dt(dt, t_ms):
         t_ms: Total simulation duration in ms for one trial.
 
     Side effects:
-        Mutates: M.dt (= dt), M.T_ms (= t_ms), M.T_steps (= int(t_ms / dt)).
+        Mutates: M.dt (= dt), M.T_ms (= t_ms), M.T_steps (whole trial steps).
     """
+    steps = duration_steps(t_ms, dt)
+    if steps < 1:
+        raise ValueError("simulation duration must contain at least one timestep")
     M.dt = float(dt)
     M.T_ms = float(t_ms)
-    M.T_steps = int(t_ms / dt)
+    M.T_steps = steps
 
 
 def save_selected_npz(path, arrays, fields=None):
@@ -307,6 +314,9 @@ def _build_sim_net(model_name, spike_input=False, **kwargs):
     """
     cls, base_kwargs = _MODEL_CLASSES[model_name]
     kwargs = {**base_kwargs, **kwargs}
+    kwargs.setdefault("refractory_e_ms", cfg.refractory_e_ms)
+    kwargs.setdefault("refractory_i_ms", cfg.refractory_i_ms)
+    kwargs.setdefault("refractory_policy", cfg.refractory_policy)
     if model_name == "ping":
         w_in = (
             (*cfg.w_in_spikes, "lower_clamped_normal", cfg.w_in_initial_zero_fraction)
@@ -380,6 +390,9 @@ def build_net(
     adapt_tau_bounds_ms=None,
     adapt_strength_init_mv=1.0,
     adapt_strength_max_mv=None,
+    refractory_e_ms=None,
+    refractory_i_ms=None,
+    refractory_policy="nearest",
 ):
     """Construct a network with the given config.
 
@@ -395,6 +408,9 @@ def build_net(
         )
     cls, base_kwargs = _MODEL_CLASSES[model_name]
     kwargs = {**base_kwargs}
+    kwargs["refractory_e_ms"] = refractory_e_ms
+    kwargs["refractory_i_ms"] = refractory_i_ms
+    kwargs["refractory_policy"] = refractory_policy
     kwargs["readout_mode"] = readout_mode
     kwargs["signed_readout"] = signed_readout
     kwargs["readout_bias"] = readout_bias
@@ -604,7 +620,7 @@ def run_sim(
     # module default). Below, M.T_steps may be further clamped down to the actual
     # length of a supplied input/drive tensor.
     set_sim_dt(dt, cfg.sim_ms)
-    T_steps = int(cfg.sim_ms / dt)
+    T_steps = duration_steps(cfg.sim_ms, dt)
 
     def _to_dev(t):
         if t is None:
@@ -714,6 +730,12 @@ def run_sim(
 def build_config(args):
     """Build Config from CLI args."""
     c = Config()
+    for name in ("refractory_e_ms", "refractory_i_ms"):
+        value = getattr(args, name, None)
+        if value is not None:
+            setattr(c, name, float(value))
+    if getattr(args, "refractory_policy", None) is not None:
+        c.refractory_policy = args.refractory_policy
     if getattr(args, "seed", None) is not None:
         c.seed = int(args.seed)
     if hasattr(args, "out_dir") and args.out_dir is not None:

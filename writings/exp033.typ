@@ -8,10 +8,10 @@
 #let data-file = data-file.with(article: "exp033")
 
 #let meta = (
-  tags: ("data", "v35.4.0"),
+  tags: ("data", "v36.0.0"),
   title: "Gamma Emerges at a Hopf Bifurcation",
   created_at: "2026-05-28T00:00:00Z",
-  updated_at: "2026-09-02",
+  updated_at: "2026-09-09",
   description: "A four-variable population-rate model links oscillatory onset to synaptic timescales, with explicit limits on its connection to spiking recruitment.",
   collection: "gamma-gated-sparsity",
 )
@@ -34,7 +34,7 @@
 #let crit = run.results.criticality
 #let lc = run.results.limit_cycle
 #let d3 = run.results.reductions.three_d_qss
-#let istar = calc.round(hopf.I_ext_star, digits: 2)
+#let istar = calc.round(hopf.I_ext_star, digits: 3)
 #let fstar = calc.round(hopf.freq_star_Hz, digits: 1)
 #let fstar0 = calc.round(hopf.freq_star_Hz, digits: 0)
 #let omegastar = calc.round(hopf.omega_star, digits: 3)
@@ -127,10 +127,10 @@
     data-image(data-file("exp033/limit_cycle.svg"), width: 100%,
       alt: "Excitatory and inhibitory rates over three onset periods, displayed on separate vertical axes."),
     caption: [
-      Reused E (black) and I (red) trajectories at onset plus 0.4 nA,
+      Recorded E (black) and I (red) trajectories at onset plus 0.4 nA,
       over a window of three onset periods. Rates are in inverse milliseconds
-      on separate axes. Raw samples are unavailable for remeasurement; the recorded waveform and
-      scalar are historical observations, not a new simulation.
+      on separate axes. The waveform and absolute cross-correlation lag were
+      measured from the newly computed trajectory.
     ],
   ) <fig-cycle>
 
@@ -147,7 +147,7 @@
     data-image(data-file("exp033/timeseries.svg"), width: 100%,
       alt: "The four state variables share a time axis and show the lagged excitatory-inhibitory feedback sequence."),
     caption: [
-      Reused trajectories at onset plus 0.4 nA: (A) $E$, (B) $g_e^I$, (C) $I$
+      Recorded trajectories at onset plus 0.4 nA: (A) $E$, (B) $g_e^I$, (C) $I$
       and (D) $g_i^E$, following loop order $E -> g_e^I -> I -> g_i^E$.
       Rates are in inverse milliseconds and
       conductances in µS.
@@ -168,7 +168,7 @@
     data-image(data-file("exp033/phase_planes.svg"), width: 100%,
       alt: "The same four-variable trajectory projected onto each of the six coordinate pairs."),
     caption: [
-      Reused projections at onset plus 0.4 nA: (A) $E$–$I$, (B) $g_e^I$–$g_i^E$,
+      Projections of the recorded trajectory at onset plus 0.4 nA: (A) $E$–$I$, (B) $g_e^I$–$g_i^E$,
       (C) $E$–$g_i^E$, (D) $I$–$g_e^I$, (E) $E$–$g_e^I$ and (F)
       $I$–$g_i^E$. Rate coordinates are in inverse milliseconds and
       conductances in µS.
@@ -191,7 +191,7 @@
     data-image(data-file("exp033/reduction_ladder.svg"), width: 100%,
       alt: "At common drive, four- and three-variable probes oscillate while the rate-slaved two-variable probe decays."),
     caption: [
-      Reused inhibitory-conductance deviations (µS) after small kicks at
+      Recorded inhibitory-conductance deviations (µS) after small kicks at
       1 nA for the four-, three- and two-variable probes. The listed onset
       frequencies are not measured frequencies of the displayed 1 nA traces.
     ],
@@ -202,12 +202,14 @@
 
   #journal-methods(
     orientation: [
-  We reused a deterministic population-rate analysis and compared its onset
-  frequencies with independent measurements from trained spiking networks.
+  We recomputed the deterministic population-rate model with 1.2/0.6-ms E/I
+  refractory periods and a cancellation-resistant gain integral, then compared
+  its onset frequencies with unchanged measurements from trained spiking networks.
     ],
     compute: [
   + *Define the population model.* E/I rates relaxed toward noisy LIF gains
-    #cite(2), with membrane times 20/5 ms and AMPA/GABA times 2/#tg ms.
+    #cite(2), with membrane times 20/5 ms, refractory periods
+    #cfg.cell_E.tau_ref/#cfg.cell_I.tau_ref ms and AMPA/GABA times 2/#tg ms.
     Fixed excitatory/inhibitory driving forces were 65/15 mV; lumped conductance
     increments were 1/2 µS. The four state variables followed
 
@@ -258,9 +260,9 @@
     present: [
   #set enum(start: 6)
 
-  + *Expose numerical evidence.* We displayed the retained fixed-point,
-    stability, waveform and sensitivity comparisons with their continuation
-    directions and fitted uncertainty limits.
+  + *Expose numerical evidence.* We displayed the recorded fixed-point, stability, waveform and sensitivity
+    comparisons with their continuation directions and descriptive amplitude fits;
+    no statistical uncertainty intervals were estimated.
     ],
   )
   #run-view("exp033", inputs)
@@ -498,7 +500,7 @@
   membrane standard deviation. The rate is in inverse milliseconds. The model uses
   $E_L = V_"reset" = -65$ mV, $V_"th" = -50$ mV; E/I values are
   $tau_m = (20, 5)$ ms, $g_L = (0.05, 0.10)$ µS and
-  $tau_"ref" = (3, 1.5)$ ms, respectively.
+  $tau_"ref" = (#cfg.cell_E.tau_ref, #cfg.cell_I.tau_ref)$ ms, respectively.
   The lumped conductance increments are $G_(E arrow I) = 1$ µS and
   $G_(I arrow E) = 2$ µS; fixed driving-force magnitudes are 65 and 15 mV.
   Fan-in-normalised mean weights give $G = macron(w) N$, where $w$ is the mean
@@ -517,11 +519,17 @@
   \[(!) This restores the baseline parameter mapping; it does not identify
   these fixed couplings with the final trained weights.\]
 
-  Quadrature used at most 200 subdivisions and capped the exponent $u^2$ at 700.
-  \[(!) The original execution reported subdivision, roundoff and convergence warnings.
-  Their quantitative impact remains unresolved; agreement of recorded summaries
-  does not validate the underlying quadrature.\] The noise scale 3–6 mV was varied
-  without calibration to spiking voltage statistics.
+  Quadrature used at most 200 subdivisions. For negative $u$, we evaluated
+  the integrand as $"erfcx"(-u) = exp(u^2)(1 + "erf"(u))$, where $"erfcx"$
+  is the scaled complementary error function; this avoids cancellation in
+  $1 + "erf"(u)$. For nonnegative $u$, the exponent remained capped at 700.
+  The earlier calculation used 3/1.5-ms refractory periods and the cancelling
+  expression, which produced integration warnings and percent-level gain errors
+  at strong inputs. Both the refractory parameters and numerical evaluation
+  changed in the new calculation; differences cannot be attributed solely to
+  refractoriness. Independent evaluation of the gains at the recorded fixed
+  points agreed within $9.1 times 10^(-17)$ inverse milliseconds. The noise scale
+  3–6 mV was varied without calibration to spiking voltage statistics.
 
   == Appendix: Which variables can be eliminated? <sec-appendix-which-variables-can-be-eliminated>
 

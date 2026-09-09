@@ -19,6 +19,11 @@ from pingstore.contracts import PingstoreError, load_json, write_json_atomic
 
 def mean_field(cfg):
     """Reuse numerical functions, never dispatch an exp033 stage."""
+    with numerical.model.gain_parameters(cfg["mean_field"]):
+        return _mean_field(cfg)
+
+
+def _mean_field(cfg):
     mf = cfg["mean_field"]
     grid = np.linspace(*mf["drive_grid"])
     sigma = mf["sigma_V_mV"]

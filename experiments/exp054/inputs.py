@@ -67,4 +67,8 @@ def execution(
 
 def configuration(run):
     cfg = run.record["execution"].get("configuration")
-    return recipe.validate(cfg)
+    return (
+        recipe.validate(cfg)
+        if run.record["stage"] == "compute"
+        else recipe.validate_analysis(cfg)
+    )

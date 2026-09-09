@@ -1,493 +1,84 @@
-"""EXP099 conformance using synthetic recordings, never production simulation."""
-
-import importlib
-import subprocess
-import sys
-from copy import deepcopy
-from pathlib import Path
+"""Physical weights, independent counts and delayed chunked execution."""
 
 import numpy as np
-import pytest
-from experiments.exp099 import analyse, compute, present, recipe
-from matplotlib import image as mpimg
-from matplotlib.text import Text
-from pingstore import stages
-from pingstore.contracts import (
-    LEGACY_RUN_SCHEMA,
-    PingstoreError,
-    load_json,
-    payload_digest,
-    validate_operational_run_directory,
-    write_json_atomic,
-)
-from pingstore.discovery import discover_runs
-from pingstore.layout import initialize_layout
+import torch
+from experiments.exp099 import recipe
+from experiments.exp099.compute import build_model
 
 
-@pytest.fixture
-def lab(tmp_path, monkeypatch):
-    for module in (compute, analyse, present):
-        monkeypatch.setattr(module, "REPO", tmp_path)
-    monkeypatch.setattr(stages, "memberships", lambda _: {"exp099": "demo"})
-    monkeypatch.setattr(
-        stages, "_capture_code", lambda *a: {"git_commit": "fixture", "dirty": False}
-    )
-    cfg = recipe.configuration()
-    cfg.update(dt_ms=1.0, n_e=20, n_i=5)
-
-    def fixture_configuration(*args, **kwargs):
-        value = deepcopy(cfg)
-        condition = kwargs.get("condition", "richer-input")
-        value["condition"] = condition
-        value["controls"] = {
-            "shared_peak_scale": kwargs.get("shared_peak_scale", 6.5),
-            "private_afferent_scale": kwargs.get("private_afferent_scale", 1.0),
-            "background_rate_scale": kwargs.get("background_rate_scale", 1.0),
-            "ampa_background_scale": kwargs.get("ampa_background_scale", 1.0),
-            "gaba_background_scale": kwargs.get("gaba_background_scale", 1.0),
-            "w_ee_scale": kwargs.get("w_ee_scale", 1.0),
-            "w_ei_scale": kwargs.get("w_ei_scale", 1.0),
-            "w_ie_scale": kwargs.get("w_ie_scale", 1.0),
-            "w_in_e_scale": kwargs.get("w_in_e_scale", 1.0),
-            "w_in_i_scale": kwargs.get("w_in_i_scale", 1.0),
-            "tau_gaba_ms": kwargs.get("tau_gaba_ms", 9.0),
-        }
-        return value
-
-    monkeypatch.setattr(recipe, "configuration", fixture_configuration)
-
-    def synthetic_recording(output, bundle, **kwargs):
-        root = output / "simulation"
-        root.mkdir()
-        t = np.arange(2000)[:, None]
-        e = (t + np.arange(20)) % 25 == 0
-        i = (t + np.arange(5)) % 25 == 5
-        data = {
-            "dt": 1.0,
-            "spk_e": e,
-            "spk_i": i,
-            "v_e_1": -60 + np.broadcast_to(np.sin(t / 25), e.shape),
-            "v_i_1": -60 + np.broadcast_to(np.cos(t / 25), i.shape),
-            "ge_e_1": np.broadcast_to(1 + np.sin(t / 25) / 2, e.shape),
-            "gi_e_1": np.broadcast_to(1 + np.cos(t / 25) / 2, e.shape),
-            "input_afferent_shared": e,
-            "input_afferent_e_private": e,
-            "input_afferent_i_private": e,
-            "input_structured_spikes_e": e,
-            "input_structured_spikes_i": e,
-            "input_weather_scale": np.ones(2000),
-            "input_afferent_scale": np.ones(2000),
-            "input_afferent_shared_scale": np.ones(2000),
-        }
-        for population, spikes in (("e", e), ("i", i)):
-            for channel in ("excitatory", "inhibitory"):
-                for kind in ("private", "shared", "executed"):
-                    data[f"input_{channel}_{population}_{kind}"] = spikes * 0.01
-        np.savez_compressed(root / "recording.npz", **data)
-        write_json_atomic(
-            root / "config.json", {"_simulation_recipe": cfg["simulation"]}
-        )
-        np.savez_compressed(
-            root / "recurrent-weights.npz",
-            w_ee=np.eye(20) * 0.85,
-            w_ei=np.full((20, 5), 0.6),
-            w_ie=np.full((5, 20), 3.0),
-            w_ii=np.eye(5) * 0.4,
-            w_in_e=np.eye(20) * 0.08,
-            w_in_i=np.full((20, 5), 0.02),
-        )
-        return ["synthetic-fixture"]
-
-    monkeypatch.setattr(compute, "simulate", synthetic_recording)
-    return tmp_path
+def small_cfg():
+    return {**recipe.configuration(), "n_e": 40, "n_i": 10, "t_ms": 1000.0}
 
 
-def directory(repo, identity):
-    return repo / ".pingstore/runs" / identity
-
-
-def forbid(*args, **kwargs):
-    pytest.fail("downstream stage launched upstream work")
-
-
-def test_stages_pin_v3_keep_raw_evidence_and_render_without_analysis(lab, monkeypatch):
-    renderer = importlib.import_module("experiments.exp099.render")
-    layout = renderer.frame_grid()
-    assert layout.rect("network").height > layout.rect("means").height
-    assert layout.rect("network").x < layout.rect("means").x
-    assert layout.rect("means").y > layout.rect("weights").y
-    compute_id = compute.compute()
-    upstream = directory(lab, compute_id)
-    before = payload_digest(upstream)
-    assert compute_id == "exp099-r001-compute"
-    monkeypatch.setattr(compute, "simulate", forbid)
-    analysis_id = analyse.analyse(compute_id)
-    analysis_root = directory(lab, analysis_id)
-    with np.load(analysis_root / "export/measurements.npz") as metrics:
-        assert metrics["rhythm_centres"][[0, -1]].tolist() == [200, 1800]
-        with np.load(upstream / "export/simulation/recording.npz") as raw:
-            np.testing.assert_array_equal(metrics["mean_g_e"], raw["ge_e_1"].mean(1))
-        # The scalar summary intentionally excludes the renderer's last window.
-        summary = load_json(analysis_root / "export/results.json")["results"][
-            "richer-input"
-        ]
-        contrasts = metrics["rhythm_contrast"][:-1]
-        assert summary["peak_rhythmicity"] == contrasts.max()
-        assert (
-            summary["peak_rhythmicity_time_ms"]
-            == metrics["rhythm_centres"][np.argmax(contrasts)]
-        )
-    assert discover_runs(lab / ".pingstore/runs") == []
-    monkeypatch.setattr(analyse, "measure", forbid)
-    monkeypatch.setattr(analyse, "rhythmicity_metrics", forbid)
-    monkeypatch.setattr(analyse, "rolling_conductance_loop_score", forbid)
-
-    def sample_frames(fig, update, output, **kwargs):
-        assert kwargs == {"frames": 600, "fps": 25, "bitrate": 3800}
-        np.testing.assert_allclose(fig.get_facecolor(), (1.0, 1.0, 1.0, 1.0))
-        for axis in fig.axes:
-            np.testing.assert_allclose(axis.get_facecolor(), (1.0, 1.0, 1.0, 1.0))
-        for frame in (0, 139, 140, 309, 310, 479, 480, 599):
-            update(frame)
-            phase = next(
-                axis for axis in fig.axes if axis.get_ylabel() == r"mean $g_I$ (µS)"
+def test_physical_weights_and_refractory_durations():
+    cfg = small_cfg()
+    _, model = build_model(cfg)
+    for p in model.plan.projections:
+        assert p.delay_steps == 15
+        w = model.parameter_map()[p.parameter].detach().numpy()
+        if p.id.startswith("private"):
+            np.testing.assert_allclose(w, np.eye(len(w)) * 0.004)
+        else:
+            np.testing.assert_allclose(
+                w[w > 0], 0.00125 if p.id.startswith("E") else 0.00334
             )
-            if frame == 0:
-                assert not phase.collections, "opening phase trail exposes hidden burn-in"
-            else:
-                assert phase.collections, "visible activity must still form a phase trail"
-            fig.canvas.draw()
-            visible_text = {
-                text.get_text()
-                for text in fig.findobj(match=Text)
-                if text.get_visible() and text.get_text().strip()
-            }
-            time_ticks = {
-                label.get_text()
-                for axis in fig.axes if axis.get_xlabel() == "ms"
-                for label in axis.get_xticklabels() if label.get_visible()
-            }
-            assert all(len(axis.get_xticks()) == 10 for axis in fig.axes if axis.get_xlabel() == "ms")
-            labelled_time_axes = [axis for axis in fig.axes if axis.get_xlabel() == "ms"]
-            assert len(labelled_time_axes) == 3
-            conductance_axes = [axis for axis in fig.axes if axis.get_ylabel() == "µS"]
-            assert len(conductance_axes) == 4
-            time_axes = conductance_axes + [axis for axis in labelled_time_axes if axis not in conductance_axes]
-            current_time = float(time_axes[4].lines[-1].get_xdata()[0])
-            for time_axis in time_axes:
-                left, right = time_axis.get_xlim()
-                if time_axis in time_axes[-2:]:
-                    assert left == pytest.approx(recipe.VIEW_START_MS)
-                    assert right == pytest.approx(recipe.VIEW_END_MS)
-                else:
-                    assert right - left == pytest.approx(200)
-                for line in time_axis.lines:
-                    times = np.asarray(line.get_xdata())
-                    if len(times):
-                        assert times.min() >= left
-                        assert times.max() <= current_time
-            conductance_ticks = {
-                label.get_text()
-                for axis in time_axes[:4]
-                for label in axis.get_yticklabels() if label.get_visible()
-            }
-            assert conductance_ticks
-            assert visible_text - time_ticks == (
-                conductance_ticks |
-                set(renderer.PANEL_TITLES.values())
-                | set(renderer.RESPONSE_PANEL_TITLES.values())
-                | {
-                r"$g_E$",
-                r"$g_I$",
-                r"$V_E$",
-                r"$V_I$",
-                "SHARED",
-                "E PRIVATE",
-                "I PRIVATE",
-                "ms",
-                "µS",
-                "0.01",
-                "0.1",
-                "1",
-                "2",
-                "E → E",
-                "E → I",
-                "I → I",
-                "I → E",
-                "E PRIVATE",
-                "SHARED SPIKES",
-                "AMPA ONTO E",
-                "GABA ONTO E",
-                "AMPA ONTO I",
-                "GABA ONTO I",
-                "I PRIVATE",
-                "E POPULATION",
-                "I POPULATION",
-                }
-            )
-        assert len(fig.axes) == 10
-        # Encoding is outside this fixture test; the real poster is rendered.
-        output.write_bytes(b"fixture-video")
-
-    monkeypatch.setattr(renderer, "save_animation", sample_frames)
-    present_id = present.present(analysis_id)
-    output = directory(lab, present_id)
-    record = validate_operational_run_directory(output)
-    assert record["stage"] == "present"
-    assert record["inputs"]["compute"]["payload_digest"] == before
-    assert record["inputs"]["analysis"]["run_id"] == analysis_id
-    assert all(path.is_file() for path in (output / "export").iterdir())
-    assert (output / "export" / recipe.INPUT_MAP).read_bytes() == (
-        Path(recipe.__file__).with_name(recipe.INPUT_MAP).read_bytes()
-    )
-    assert (output / "export" / recipe.POSTER).stat().st_size > 1000
-    assert "n_balanced_circuit_E" in (output / "export/network.svg").read_text()
-    assert not (upstream / "export/network.svg").exists()
-    poster = mpimg.imread(output / "export" / recipe.POSTER)
-    assert poster.ndim == 3
-    assert poster.shape[0] > 1000
-    assert poster.shape[1] > poster.shape[0]
-    assert load_json(output / "export/numbers.json") == load_json(
-        analysis_root / "export/results.json"
-    )
-    assert payload_digest(upstream) == before
-    assert [row["id"] for row in discover_runs(lab / ".pingstore/runs")] == [present_id]
-    assert not (lab / ".artifacts").exists() and not (lab / "assets").exists()
+    for row, duration in zip(model.plan.populations, (3.0, 1.5)):
+        assert row["neuron"]["refractory_steps"] * cfg["dt_ms"] == duration
 
 
-def test_shared_drive_condition_varies_only_shared_wave():
-    cfg = recipe.configuration(
-        condition="shared-drive-isolation",
-        shared_peak_scale=5.0,
-        private_afferent_scale=0.8,
-        background_rate_scale=0.9,
-    )
-    simulation = cfg["simulation"]
-    source = simulation["spike_sources"][0]
-    assert simulation["weather"] is None
-    assert simulation["afferent_wave"]["peak_scale"] == 1.0
-    assert simulation["afferent_wave"]["shared_peak_scale"] == 5.0
-    assert source["shared_rate_hz"] == 10.0
-    assert source["e_private_rate_hz"] == source["i_private_rate_hz"] == 12.0
-    assert simulation["backgrounds"][0]["excitatory"]["private"]["rate_hz"] == 450.0
-    assert cfg["controls"] == {
-        "shared_peak_scale": 5.0,
-        "private_afferent_scale": 0.8,
-        "background_rate_scale": 0.9,
-        "ampa_background_scale": 1.0,
-        "gaba_background_scale": 1.0,
-        "w_ee_scale": 1.0,
-        "w_ei_scale": 1.0,
-        "w_ie_scale": 1.0,
-        "w_in_e_scale": 1.0,
-        "w_in_i_scale": 1.0,
-        "tau_gaba_ms": 9.0,
-        "onset_ms": recipe.ONSET_MS,
-        "peak_ms": recipe.PEAK_MS,
-        "plateau_end_ms": recipe.PEAK_MS,
-        "offset_ms": recipe.OFFSET_MS,
-        "view_start_ms": recipe.VIEW_START_MS,
-        "view_end_ms": recipe.VIEW_END_MS,
-    }
-    assert recipe.media_names(cfg["condition"]) == (
-        recipe.SHARED_DRIVE_VIDEO,
-        recipe.SHARED_DRIVE_POSTER,
-    )
+def test_count_superposition_keeps_multiplets_and_independence():
+    cfg = small_cfg()
+    counts = recipe.afferent_counts(cfg)
+    for array in counts.values():
+        assert array.max() >= 2
+        assert abs(array.mean() - 0.024) < 0.002
+        assert abs(np.corrcoef(array[:, 0], array[:, 1])[0, 1]) < 0.04
+    assert not np.array_equal(counts["private_e"][:, :10], counts["private_i"])
 
 
-@pytest.mark.parametrize("duration_ms, view_start_ms", [(1_500, 500), (1_750, 500)])
-def test_shared_protocol_keeps_analysis_window_with_longer_baseline(
-    duration_ms, view_start_ms
-):
-    cfg = recipe.configuration(
-        condition="shared-drive-isolation",
-        duration_ms=duration_ms,
-        onset_ms=950,
-        peak_ms=1_000,
-        plateau_end_ms=1_499.75,
-        offset_ms=1_500,
-        view_start_ms=view_start_ms,
-        view_end_ms=duration_ms,
-    )
-    settings = recipe.analysis_configuration(cfg)
-    assert settings["rhythm_window_ms"] == 160.0
-    assert settings["rhythm_stride_ms"] == 5.0
-    assert settings["rhythm_max_lag_ms"] == 60.0
-
-
-def test_paired_presentation_retains_both_videos(lab, monkeypatch):
-    renderer = importlib.import_module("experiments.exp099.render")
-    richer_compute = compute.compute()
-    richer_analysis = analyse.analyse(richer_compute)
-    shared_compute = compute.compute(
-        condition="shared-drive-isolation",
-        shared_peak_scale=3.0,
-        private_afferent_scale=0.95,
-        background_rate_scale=0.95,
-    )
-    shared_analysis = analyse.analyse(shared_compute)
-
-    def fixture_animation(fig, update, output, **kwargs):
-        output.write_bytes(b"fixture-video")
-
-    monkeypatch.setattr(renderer, "save_animation", fixture_animation)
-    identity = present.present_pair(shared_analysis, richer_analysis)
-    output = directory(lab, identity) / "export"
-    assert (output / recipe.VIDEO).read_bytes() == b"fixture-video"
-    assert (output / recipe.SHARED_DRIVE_VIDEO).read_bytes() == b"fixture-video"
-    record = validate_operational_run_directory(output.parent)
-    assert set(record["inputs"]) == {
-        "richer_analysis",
-        "richer_compute",
-        "shared_analysis",
-        "shared_compute",
-    }
-
-
-@pytest.mark.parametrize("stage", ["compute", "analyse"])
-def test_v2_inputs_are_rejected_before_reservation(lab, stage):
-    identity = f"exp099-r001-{stage}-local"
-    root = directory(lab, identity)
-    initialize_layout(root, "exp099", schema=LEGACY_RUN_SCHEMA)
-    write_json_atomic(
-        root / "run.json",
-        {
-            "schema": LEGACY_RUN_SCHEMA,
-            "run_id": identity,
-            "experiment": "exp099",
-            "collection": "demo",
-            "origin": "local",
-            "stage": stage,
-            "inputs": {},
-            "created_at": "2026-08-28T12:00:00+00:00",
-            "provenance": {},
-            "execution": {},
-            "payload_digest": payload_digest(root),
-        },
-    )
-    with pytest.raises(PingstoreError, match="requires v4"):
-        (analyse.analyse if stage == "compute" else present.present)(identity)
-    assert list(root.parent.iterdir()) == [root]
-
-
-def test_wrong_stage_payload_and_manifest_tampering_are_rejected(lab):
-    identity = compute.compute()
-    with pytest.raises(PingstoreError, match="not a analyse"):
-        present.present(identity)
-    analysis_id = analyse.analyse(identity)
-    root = directory(lab, identity)
-    record = load_json(root / "run.json")
-    record["execution"]["configuration"]["seed"] = 999
-    write_json_atomic(root / "run.json", record)
-    with pytest.raises(PingstoreError, match="recipe or compute lineage"):
-        present.present(analysis_id)
-    with (root / "export/simulation/recording.npz").open("ab") as handle:
-        handle.write(b"tampered")
-    with pytest.raises(PingstoreError, match="checksum"):
-        analyse.analyse(identity)
-
-
-def test_failed_presentation_stays_hidden_and_source_unchanged(lab, monkeypatch):
-    identity = compute.compute()
-    analysis_id = analyse.analyse(identity)
-    root = directory(lab, identity)
-    before = payload_digest(root)
-
-    def fail_render(*args, **kwargs):
-        raise RuntimeError("render failed")
-
-    monkeypatch.setattr(present, "render", fail_render)
-    with pytest.raises(RuntimeError, match="render failed"):
-        present.present(analysis_id)
-    assert payload_digest(root) == before
-    assert not list(root.parent.glob("exp099-*-present"))
-    assert list(root.parent.glob(".exp099-*-present.tmp"))
-
-
-def test_reserved_identity_and_missing_recorded_inputs(lab):
-    reserved = stages.reserve_stage(
-        lab / ".pingstore", "exp099", "compute", origin="slurm-test"
-    )
-    assert compute.compute(run_id=reserved) == reserved
-    root = directory(lab, reserved)
-    record = validate_operational_run_directory(root)
-    assert record["origin"] == "slurm-test"
-    # A correctly checksummed but scientifically incomplete fixture must fail,
-    # rather than reconstructing inputs in the presentation stage.
-    snapshot = root / "export/simulation/recording.npz"
-    with np.load(snapshot) as data:
-        arrays = dict(data)
-    del arrays["input_afferent_shared"]
-    np.savez_compressed(snapshot, **arrays)
-    record["payload_digest"] = payload_digest(root)
-    write_json_atomic(root / "run.json", record)
-    with pytest.raises(ValueError, match="input_afferent_shared"):
-        analyse.analyse(reserved)
-    assert not list(root.parent.glob("exp099-*-analyse"))
-
-
-def test_analysis_payload_cannot_disagree_with_authoritative_settings(lab):
-    identity = compute.compute()
-    analysis_id = analyse.analyse(identity)
-    root = directory(lab, analysis_id)
-    path = root / "export/results.json"
-    result = load_json(path)
-    result["measurements"]["loop_window_ms"] = 999
-    write_json_atomic(path, result)
-    record = load_json(root / "run.json")
-    record["payload_digest"] = payload_digest(root)
-    write_json_atomic(root / "run.json", record)
-    with pytest.raises(PingstoreError, match="inconsistent exp099 analysis"):
-        present.present(analysis_id)
-    assert not list(root.parent.glob(".exp099-*-present.tmp"))
-
-
-@pytest.mark.parametrize("name", ["compute", "analyse", "present"])
-def test_cli_help_and_explicit_sources(tmp_path, name):
-    script = Path(__file__).parents[1] / "exp099" / f"{name}.py"
-    result = subprocess.run(
-        [sys.executable, str(script), "--help"],
-        cwd=tmp_path,
-        capture_output=True,
-        text=True,
-        timeout=30,
-    )
-    assert result.returncode == 0, result.stderr
-    assert "--run-id" in result.stdout
-    if name != "compute":
-        result = subprocess.run(
-            [sys.executable, str(script)],
-            cwd=tmp_path,
-            capture_output=True,
-            text=True,
-            timeout=30,
+def test_diagonal_count_pulse_and_delay_survive_chunk_boundary():
+    torch.set_num_threads(1)
+    _, model = build_model(small_cfg())
+    drive = {"private_e": torch.zeros(25, 1, 40), "private_i": torch.zeros(25, 1, 10)}
+    drive["private_e"][3, 0, 2] = 2
+    fields = ["private_e_to_E.conductance", "E.voltage", "E.spikes"]
+    with torch.inference_mode():
+        full = model(drive, recording_fields=fields)
+        first = model({k: v[:10] for k, v in drive.items()}, recording_fields=fields)
+        second = model(
+            {k: v[10:] for k, v in drive.items()},
+            recording_fields=fields,
+            runtime_state=first.runtime_state,
         )
-        assert result.returncode != 0 and "--source" in result.stderr
-    assert not (tmp_path / ".pingstore").exists()
+    g = full.recordings[fields[0]][:, 0].numpy()
+    assert not g[:18].any()
+    np.testing.assert_allclose(g[18, 2], 0.008)
+    assert np.count_nonzero(g[18]) == 1
+    for key in fields:
+        torch.testing.assert_close(
+            full.recordings[key],
+            torch.cat([first.recordings[key], second.recordings[key]]),
+            rtol=0,
+            atol=0,
+        )
 
 
-def test_import_and_retired_entrypoints_never_dispatch(tmp_path):
-    root = Path(__file__).resolve().parents[2]
-    expression = (
-        "import sys; from unittest.mock import patch; "
-        f"sys.path[:0] = [{str(root)!r}, {str(root / 'tools')!r}]; "
-        "guard = patch('subprocess.run', side_effect=AssertionError('dispatch')); "
-        "guard.start(); "
-        "from experiments.exp099 import recipe, compute, analyse, present"
-    )
-    result = subprocess.run(
-        [sys.executable, "-c", expression],
-        cwd=tmp_path,
-        capture_output=True,
-        text=True,
-        timeout=30,
-    )
-    assert result.returncode == 0, result.stderr
-    result = subprocess.run(
-        [sys.executable, "-m", "experiments.exp099"],
-        cwd=root,
-        capture_output=True,
-        text=True,
-        timeout=30,
-    )
-    assert result.returncode != 0 and "requires independent stages" in result.stderr
+def test_paper_passive_scale_is_authored_in_graph():
+    _, model = build_model(small_cfg())
+    for pop in model.plan.populations:
+        neuron = pop["neuron"]
+        assert neuron["capacitance_nf"] == 0.15
+        assert neuron["leak_us"] == 0.01
+        assert neuron["tau_mem"]["value"] == 15.0
+
+
+def test_visual_grid_and_recording_contract():
+    import pytest
+    from experiments.exp099.render import frame_grid
+    from tools.snnviz import Recording, RecordingError  # noqa: TID251
+
+    grid, response = frame_grid()
+    assert grid.rect("A").height > grid.rect("B").height
+    assert response.rect("D").y > response.rect("E").y
+    with pytest.raises(RecordingError):
+        Recording(0.1, {"e": np.zeros((10, 2)), "i": np.zeros((9, 1))})

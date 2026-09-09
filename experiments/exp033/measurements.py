@@ -81,8 +81,8 @@ def validate_continuation(record, grid):
         raise PingstoreError("invalid exp033 refined Hopf evidence")
 
 
-def hysteresis(branches, hopf):
-    cfg = recipe.configuration()["hysteresis"]
+def hysteresis(branches, hopf, configuration=None):
+    cfg = (configuration or recipe.configuration())["hysteresis"]
     grid = np.linspace(
         hopf["I_ext_star"] + cfg["span_nA"][0],
         hopf["I_ext_star"] + cfg["span_nA"][1],
@@ -164,8 +164,8 @@ def spiking_medians(document):
 
 
 def analyse(raw, frequencies):
-    cfg = recipe.configuration()
-    if raw.get("schema") != "exp033.compute/v1" or raw.get("recipe") != cfg:
+    cfg = recipe.validate(raw.get("recipe"))
+    if raw.get("schema") != "exp033.compute/v1":
         raise PingstoreError("exp033 compute evidence has an inconsistent recipe")
     grid = np.linspace(*cfg["drive_grid"])
     ref = raw["reference"]
@@ -174,7 +174,7 @@ def analyse(raw, frequencies):
     crit, twod, lc = None, None, None
     coordinates = {"sweep": ref["sweep"]}
     if hopf:
-        crit = hysteresis(ref["ramp"], hopf)
+        crit = hysteresis(ref["ramp"], hopf, cfg)
         lc = cycle(ref["cycle"])
         comp = raw["comparison"]
         twod = {"I_ext": comp["I_ext"]}
@@ -235,7 +235,7 @@ def analyse(raw, frequencies):
         h, fine = row["hopf"], row["convergence"]["hopf"]
         entry = {"sigma_V_mV": row["sigma_V_mV"], "hopf_exists": h is not None}
         if h:
-            criticality = hysteresis(row["ramp"], h)
+            criticality = hysteresis(row["ramp"], h, cfg)
             cy = cycle(row["cycle"])
             entry.update(
                 hopf=h,
@@ -281,5 +281,6 @@ def analyse(raw, frequencies):
         ),
     }
     return summary(
-        hopf, crit, twod, lc, freq, spiking_medians(frequencies), h3, two_d, sensitivity
+        hopf, crit, twod, lc, freq, spiking_medians(frequencies), h3, two_d, sensitivity,
+        configuration=cfg,
     ), coordinates

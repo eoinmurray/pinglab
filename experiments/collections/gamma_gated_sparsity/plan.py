@@ -30,7 +30,6 @@ RUNNER_ARGUMENTS: dict[str, tuple[str, ...]] = {
     "exp081": (),
     "exp082": (),
     "exp110": (),
-    "exp111": (),
 }
 
 EXTRA_REQUIRED_OUTPUTS: dict[str, tuple[str, ...]] = {
@@ -65,7 +64,6 @@ def runner_command(slug: str) -> list[str]:
         "exp080",
         "exp081",
         "exp110",
-        "exp111",
     }:
         # The adapter dispatches explicit source/run IDs, never this legacy command.
         return []
@@ -126,7 +124,6 @@ def build_plan(root: Path, campaign_id: str, *, smoke: bool = False) -> dict[str
             "exp054",
             "exp080",
             "exp081",
-            "exp111",
         }:
             execution = {
                 "mode": f"{experiment.slug}-staged",
@@ -177,7 +174,6 @@ def build_plan(root: Path, campaign_id: str, *, smoke: bool = False) -> dict[str
                     "exp080",
                     "exp081",
                     "exp110",
-                    "exp111",
                 }
                 else [
                     str(resolved / "derived/.artifacts" / experiment.slug / filename)
@@ -201,7 +197,7 @@ def build_plan(root: Path, campaign_id: str, *, smoke: bool = False) -> dict[str
             {"index": index, "experiments": stages[index]} for index in sorted(stages)
         ],
         "pending_root_decisions": list(PENDING_ROOT_DECISIONS),
-        "excluded": ["exp048"],
+        "excluded": [],
         "blocking_issues": [],
         "acceptance_issues": [],
     }

@@ -60,7 +60,7 @@
   tags: ("data", "v36.0.0"),
   title: "Manuscript",
   created_at: "2026-09-02T00:00:00Z",
-  updated_at: "2026-09-08",
+  updated_at: "2026-09-09",
   description: "A manuscript scaffold connecting PING circuit dynamics, low-rate task performance, cycle participation, perturbation sensitivity and continuous-stream classification.",
   collection: "gamma-gated-sparsity",
 )
@@ -166,12 +166,12 @@
 
   To determine whether this regime required a narrow parameter choice, we
   mapped the E→I and I→E initialization means across an 11 × 11 coupling
-  plane in untrained networks containing 256 excitatory and 256 inhibitory
+  plane in untrained networks containing 1,024 excitatory and 256 inhibitory
   neurons under fixed 100-Hz Poisson drive (Fig. 2A–C). We measured
   temporal structure using lobe–trough contrast, the normalized difference
   between the autocorrelation lobe and trough. When either pathway was
-  absent, excitatory firing remained near 94 Hz and lobe–trough contrast
-  was zero. With both pathways present, stronger reciprocal coupling
+  absent, excitatory firing remained near 169 Hz and lobe–trough contrast
+  was near zero. With both pathways present, stronger reciprocal coupling
   progressively reduced excitatory firing into the single-digit range,
   recruited sustained inhibitory firing and increased lobe–trough contrast
   towards one across a broad region of the plane. Thus, low-rate, strongly
@@ -190,8 +190,9 @@
       lobe–trough contrast across an 11×11 grid of E→I ($W_(E I)$) and I→E
       ($W_(I E)$) initialization parent means on the fan-in-normalized
       summed-conductance scale. Each condition used one untrained network
-      (256 E, 256 I; one seed) with private 100-Hz Poisson input, evaluated
-      for 0.9 s after a 0.1-s burn-in. B's grayscale is clipped at its 92nd
+      (1,024 E, 256 I; one seed) with private 100-Hz Poisson input, a
+      0.1-ms timestep and 6-ms GABA decay, evaluated for 0.9 s after a
+      0.1-s burn-in. B's grayscale is clipped at its 92nd
       percentile. Contrast is
       $(A_"lobe" - A_"trough") / (A_"lobe" + A_"trough")$ from the 1-ms-binned
       E autocorrelogram.
@@ -203,9 +204,10 @@
       A–F show no uncertainty estimates.
 
       *(G–H)* Separate four-variable mean-field conductance model with
-      4-mV effective voltage noise. *(G)* Fixed-point eigenvalues over
+      4-mV effective voltage noise, 6-ms GABA decay and 1.2/0.6-ms E/I
+      refractory periods. *(G)* Fixed-point eigenvalues over
       external drive $I_"ext" = 0$–4 nA (colour); cyan circles mark the leading
-      conjugate pair at $I_"ext"^* = 0.596$ nA. *(H)* Peak-to-peak E-rate
+      conjugate pair at $I_"ext"^* = 0.594$ nA. *(H)* Peak-to-peak E-rate
       amplitude over the final 500 ms of 2-s upward/downward drive
       integrations; the dotted line marks $I_"ext"^*$.
 
@@ -221,11 +223,11 @@
 
   The selected rasters make this progression concrete. Without reciprocal
   coupling, excitatory neurons fired densely while the inhibitory population
-  remained silent, and E-population lobe–trough contrast was near zero (0.0017; Fig. 2D). At intermediate coupling ($W_(E I)=0.6$, $W_(I E)=1.2$ µS),
+  remained silent, and E-population lobe–trough contrast was near zero (0.00030; Fig. 2D). At intermediate coupling ($W_(E I)=0.6$, $W_(I E)=1.2$ µS),
   recurring inhibitory volleys appeared alongside sparser excitatory firing,
-  with contrast increasing to 0.27 (Fig. 2E). Under strong coupling
+  with contrast increasing to 0.268 (Fig. 2E). Under strong coupling
   ($W_(E I)=3$, $W_(I E)=6$ µS), inhibitory volleys were highly regular and
-  excitatory firing was sparse, while contrast reached 0.98 (Fig. 2F).
+  excitatory firing was sparse, while contrast reached 0.989 (Fig. 2F).
   Across these conditions, dense, weakly structured activity gave way to sparse
   excitatory firing clustered around increasingly regular inhibitory volleys.
   These are selected conditions from the same single-seed sweep.
@@ -233,7 +235,7 @@
   To examine a possible dynamical basis for this oscillatory onset, we analysed
   a separate four-variable mean-field conductance model. As external drive
   $I_"ext"$ increased, the leading complex-conjugate eigenvalues crossed from
-  negative to positive real parts at $I_"ext"^* = 0.596$ nA, with an imaginary
+  negative to positive real parts at $I_"ext"^* = 0.594$ nA, with an imaginary
   component corresponding to 27.6 Hz
   (Fig. 2G). Above this crossing, peak-to-peak excitatory-rate amplitude
   increased continuously from near zero, while upward and downward drive
@@ -498,7 +500,7 @@
     ),
     caption: [*Spike perturbations and integration timesteps in trained
       classifiers.* Networks contained 1,024 excitatory (E) and 256
-      inhibitory (I) neurons. Tests used 1,000 MNIST test images, 200-ms
+      inhibitory (I) neurons. Tests used 1,000 MNIST test images, nominally 200-ms
       presentations and 784 independent, pixel-proportional Poisson channels
       (25-Hz maximum-pixel rate). All summaries use three independent
       training replicates per model/condition (seeds 42–44); E rates average
@@ -522,20 +524,23 @@
 
       *(C)* Mean E firing rate (black diamonds, left axis) and test accuracy
       (grey squares, right axis), with means ± SEM. PING networks were trained
-      separately at timesteps of 0.05, 0.1, 0.25, 0.5 and 1 ms and evaluated
+      separately at timesteps of 0.05, 0.1, 0.2, 0.3 and 0.6 ms and evaluated
       at their final epoch-50 checkpoints using their training timestep.
+      E/I refractory holds remained 1.2/0.6 ms at every timestep.
+      Presentations lasted 199.8 ms at 0.3 and 0.6 ms and 200 ms otherwise;
+      firing rates use these realised durations.
 
       Source experiments: #link("/exp037/")[exp037] — #link("/exp037/")[_Dropped Spikes vs Added Noise_] and
       #link("/exp044/")[exp044] — #link("/exp044/")[_Firing Rate Across the Timestep Sweep._]],
   ) <fig:robustness>
 
-  Classification performance remained near 90% across a twentyfold range of
-  integration timesteps. We compared five timestep settings from 0.05 to 1 ms,
+  Classification performance remained near 90% across a twelvefold range of
+  integration timesteps. We compared five timestep settings from 0.05 to 0.6 ms,
   with three independently trained PING classifiers per setting. Each network
   was evaluated at epoch 50 using its training timestep, the same 1,000 MNIST
-  test images and 200-ms presentations. Mean test accuracy ranged from 88.8%
-  to 90.1%, a span of 1.3 percentage points, whereas mean excitatory firing
-  increased from 13.8 to 20.1 Hz between the finest and coarsest timesteps
+  test images and nominally 200-ms presentations. Mean test accuracy ranged
+  from 88.4% to 89.6%, a span of 1.27 percentage points, whereas mean excitatory
+  firing increased from 14.3 to 17.0 Hz between the finest and coarsest timesteps
   (Fig. 7C). Thus, classification performance persisted across the tested
   numerical resolutions, although excitatory activity remained
   timestep-dependent. Because networks were trained separately at each
@@ -686,14 +691,14 @@
     columns: (auto, auto, auto),
     table.header([Figure], [Design], [Checkpoint]),
     [1], [Untrained; 1,024 E, 256 I], [—],
-    [2A–F], [Coupling grid; 256 E, 256 I], [—],
+    [2A–F], [Coupling grid; 1,024 E, 256 I], [—],
     [2G–I¹], [Mean-field model], [—],
     [3], [2 architectures × 6 activity conditions], [Final],
     [4], [Loop insertion; reused COBA], [Best validation],
     [5], [4 recurrent-training conditions], [Final],
     [6; 2I²], [6 inhibitory decay times], [Final],
     [7A–B], [Spike perturbations; reused COBA/PING], [Best validation],
-    [7C], [5 timesteps], [Final],
+    [7C], [5 timesteps; 0.05–0.6 ms], [Final],
     [8], [Inhibitory replay; reused PING], [Final],
     [9], [Variable-rate, spike-count training], [Best validation],
   )
@@ -732,55 +737,136 @@
   and $g_I$ varied with incoming spikes, as described below. At the spike
   threshold $V_"th" = -50$ mV, neurons emitted a spike and returned to the
   reset potential $V_"reset" = -65$ mV. Voltage remained at reset for an
-  absolute refractory period $tau_"ref"$ of 3 ms in excitatory neurons and
-  1.5 ms in inhibitory neurons.
+  absolute refractory period $tau_"ref"$ of 1.2 ms in excitatory neurons and
+  0.6 ms in inhibitory neurons.
 
-  *P3 — Synapses and numerical updates.* Describe exponentially decaying
-  conductances and event-triggered increments, with exponential-Euler membrane
-  integration under conductances held constant during each step. AMPA decay
-  was 2 ms; standard classifier GABA decay was 6 ms, while Figure 1 used
-  9 ms. State the usual 0.1-ms timestep and distinguish the coupling-grid and
-  timestep-sweep exceptions.
+  Synaptic conductances decayed exponentially and increased upon incoming
+  spikes:
 
-  *P4 — Connectivity and initialization.* Describe input→E, E→I, I→E and
-  E→output projections; E→E and I→I remained disabled. Standard classifier
-  recurrent parent means were 1 and 2 µS with 10% SD, lower-clamped at zero
-  and divided by presynaptic population size. Input parent mean/SD were
-  0.9/0.09, with 95% initial zeroing and survivor rescaling. Initial zeros
-  in trainable projections could regrow.
+  #math.equation(
+    block: true,
+    numbering: "(1)",
+    $ g_x[k+1] = g_x[k] exp(- (Delta t_"sim") / tau_x)
+      + sum_j w_(x j) s_j[k], quad x in {E, I}. $,
+  ) <eq:synaptic-conductance-update>
 
-  *Table 2 placement — Shared parameters and explicit exceptions.* Include
-  the neuronal values above, initialization distributions, synaptic times and
-  training settings. Distinguish Figure 1's input initialization of 1.5/0.3
-  and recurrent means of 1.5/3 from the classifier defaults. Allocate exact
-  discrete updates and initialization algorithms to Appendix A.
+  Here, $g_x[k]$ is the excitatory or inhibitory conductance at timestep $k$,
+  $w_(x j)$ is the conductance increment from presynaptic source $j$, and
+  $s_j[k] in {0, 1}$ indicates a spike delivered during that update. The
+  excitatory decay time $tau_E = tau_"AMPA"$ was 2 ms; the inhibitory decay
+  time $tau_I = tau_"GABA"$ was 6 ms, except in the inhibitory-timescale
+  experiment, which used 4.5, 6, 9, 12, 18 and 27 ms. Existing conductances
+  decayed before spike increments were added. Membrane voltage was then
+  integrated using exponential Euler, holding the updated conductances
+  constant over each step. The integration timestep $Delta t_"sim"$ was
+  ordinarily 0.1 ms. The timestep experiment used 0.05, 0.1, 0.2,
+  0.3 and 0.6 ms, each representing both refractory periods exactly as
+  integer numbers of steps. Exact updates and recurrent transmission timing
+  are specified in Appendix A.
+
+  We reused the fixed-0.1-ms spiking measurements, whose executed E/I
+  refractory holds were already 1.2/0.6 ms. We recomputed the timestep
+  comparison and the separate mean-field calculation with these same
+  refractory durations; the remaining spiking measurements were reused.
+
+  Classifier networks contained input→E, E→I, I→E and E→output projections,
+  with E→E and I→I connections disabled; COBA additionally disabled reciprocal
+  E–I coupling. Input and recurrent weights were drawn from Gaussian
+  distributions with the parent parameters in Table 2, clamped below at
+  zero and divided by the presynaptic population size $N_"pre"$. Before
+  this division, each input weight was independently zeroed with probability
+  $q_"zero" = 0.95$. Surviving weights were multiplied by
+  $1 / (1 - q_"zero") = 20$, preserving the expected summed connection
+  strength despite the zeroing. This imposed no permanent connectivity mask:
+  initially zero trainable weights could become positive during optimization.
+  Readout weights were initialized directly, without fan-in normalization.
+  These weights were dimensionless because they drove a normalized output
+  state with threshold 1, rather than a synaptic conductance or a membrane
+  voltage in millivolts. Exact initialization transformations are given in
+  Appendix A.
+
+  #let parameter-table = table(
+    columns: (auto, auto),
+    table.header([Parameter], [Standard value]),
+    [Population sizes $N_E, N_I$], [1,024; 256],
+    [Membrane capacitance $C_m$, E/I], [1/0.5 nF],
+    [Leak conductance $g_L$, E/I], [0.05/0.1 µS],
+    [Leak/reset potentials $E_L, V_"reset"$], [−65 mV],
+    [Spike threshold $V_"th"$], [−50 mV],
+    [Reversal potentials $E_E, E_I$], [0; −80 mV],
+    [Refractory period $tau_"ref"$, E/I], [1.2/0.6 ms],
+    [Synaptic decay $tau_"AMPA", tau_"GABA"$], [2; 6 ms],
+    [Integration timestep $Delta t_"sim"$], [0.1 ms],
+    [Input parent mean/SD $mu_"in", sigma_"in"$], [0.9/0.09 µS],
+    [Recurrent parent mean/SD, E→I], [1/0.1 µS],
+    [Recurrent parent mean/SD, I→E], [2/0.2 µS],
+    [Input-zeroing probability $q_"zero"$], [0.95],
+    [Readout initialization mean/SD (dimensionless)], [1.12/0.835],
+    [Output decay time; threshold], [2 ms; 1],
+    [Presentation duration; maximum-pixel rate], [200 ms; 25 Hz],
+    [Optimizer; learning rate], [AdamW; 0.0004],
+    [Epochs; minibatch size], [50; 256],
+    [Weight decay; gradient-norm limit], [0; 1],
+    [Surrogate slope; voltage-gradient damping], [1; 1,000 (PING), 1 (COBA)],
+  )
+  #context figure(
+    if target() == "html" {
+      html.elem("div", attrs: (style: "display: flex; justify-content: center; overflow-x: auto;"), parameter-table)
+    } else {
+      align(center, parameter-table)
+    },
+    kind: table,
+    caption: [*Standard spiking-classifier parameters and exceptions.*
+      Values describe standard classifiers, not the separate mean-field model.
+      Figure 1 used input parent mean/SD 1.5/0.3 µS and PING recurrent means
+      1.5/3 µS. Coupling strengths, inhibitory decay times and timesteps varied
+      in their respective sweeps. Figure 9 used readout mean/SD 0.05/0.04 and
+      variable input rates; stream durations varied during evaluation.
+      Readout initialization values are rounded.],
+  ) <tab:shared-parameters>
 
   === Classifier training
 
-  *P5 — Images and data partitioning.* Describe flattening MNIST images to
-  784 pixels and dividing intensities by 255. A seed-42 sample of 7,000
-  official-training images was split, stratified by class, into 6,300
-  optimization and 700 validation images. The official test partition
-  remained separate. For the 1,000-image endpoint evaluations in Figs. 3–8,
-  specify uniform sampling without replacement from the 10,000 official test
-  images using fixed seed 42, without class stratification. The common subset
-  and its ordering were independent of training seed. Distinguish this subset
-  from single-image probes, illustrative rasters and the separately sampled
-  streams in P27. Confirm selection against the executed revisions before
-  converting this scaffold to final prose. Figs. 3–9.
+  MNIST images were flattened into 784-element vectors and their pixel
+  intensities divided by 255. We sampled 7,000 images uniformly without
+  replacement from the official training partition, then divided this subset
+  into 6,300 optimization images and 700 validation images using a
+  class-stratified split. Both sampling and splitting used seed 42, giving
+  the same data partitions across training replicates. The official
+  10,000-image test partition remained separate from optimization and
+  checkpoint selection. Endpoint evaluations in Figs. 3–8 used a common
+  subset of 1,000 test images sampled uniformly without replacement using
+  seed 42, without class stratification. This subset and its presentation
+  order were fixed independently of training seed. Single-image probes and
+  illustrative rasters used separately specified examples; continuous-stream
+  evaluations sampled from the full official test partition, as described
+  below.
 
-  *P6 — Spike encoding and independent presentations.* Describe independent
-  Bernoulli events with probability equal to normalized pixel intensity ×
-  maximum-pixel rate × timestep in seconds. Standard presentations lasted
-  200 ms at a 25-Hz maximum-pixel rate. Independent presentations started
-  with fresh network state; continuous streams used the different boundary
-  handling described below. Specify the separate, fixed evaluation-encoding
-  random stream: the shared inference procedure restarted it for each
-  evaluation and processed images in fixed order. Identical images and
-  encoding settings used matched input draws across networks; do not imply
-  identical spike trains across different timesteps, durations or input rates.
-  Distinguish encoding randomness from separate perturbation draws in P23
-  and P25. Confirm these settings against the executed revisions.
+  Each normalized pixel drove an independent Bernoulli spike channel:
+
+  #math.equation(
+    block: true,
+    numbering: "(1)",
+    $ s_j[k] tilde.op "Bernoulli"(p_j), quad
+      p_j = a_j r_("input,max") Delta t_"sim". $,
+  ) <eq:input-spike-encoding>
+
+  Here, $s_j[k] in {0, 1}$ indicates an input spike from pixel $j$ at
+  timestep $k$, $a_j in [0, 1]$ is its normalized intensity, and $p_j$ is
+  its per-step spike probability. The maximum-pixel rate $r_("input,max")$
+  was ordinarily 25 Hz, and the integration timestep $Delta t_"sim"$ is
+  expressed in seconds in this equation. Draws were independent across
+  pixels, timesteps and presentations, with at most one spike per channel
+  per step.
+
+  Independent image presentations lasted nominally 200 ms and began with
+  freshly initialized hidden and output states. Training generated fresh
+  encoding draws on each presentation. Endpoint evaluation restarted a
+  separate encoding random stream with fixed seed 20260415, providing
+  matched input spike trains across networks evaluated with the same images,
+  ordering, batch grouping and encoding settings. Perturbation randomness
+  was generated separately. Variable input rates and state continuity
+  between successive images in the streaming experiment are described below.
 
   *P7 — Output dynamics and ordinary classification.* Describe the output
   layer's dimensionless LIF state, 2-ms decay time, threshold 1 and
@@ -816,10 +902,10 @@
   2, 5, 10, 20, 40, 70 and 100 Hz. Each condition used one seed-42 trial,
   without discarded burn-in. Fig. 1.
 
-  *P12 — Coupling plane.* Describe 256 E and 256 I neurons, private
+  *P12 — Coupling plane.* Describe 1,024 E and 256 I neurons, private
   100-Hz input with input weight 0.5, and the 11×11 grid spanning E→I
-  means 0–3 and I→E means 0–6 µS. Simulations lasted 1 s at 0.25-ms
-  resolution; measurements excluded the first 100 ms. There was one seeded
+  means 0–3 and I→E means 0–6 µS. Simulations lasted 1 s at 0.1-ms
+  resolution with 6-ms GABA decay; measurements excluded the first 100 ms. There was one seeded
   network per condition. Fig. 2A–F.
 
   === Activity measurements
@@ -844,7 +930,9 @@
   equations. Rates relaxed toward noisy-LIF gains with 20/5-ms timescales;
   driving-force magnitudes were fixed at 65/15 mV, summed couplings at
   1/2 µS and effective voltage noise at 4 mV. Explicitly identify this as
-  a separate, uncalibrated closure. Fig. 2G–I.
+  a separate, uncalibrated closure. The gain functions used E/I absolute
+  refractory periods of 1.2/0.6 ms, matching the spiking model's reset holds.
+  Fig. 2G–I.
 
   *P16 — Oscillatory onset.* Describe fixed-point continuation over 401
   drives from 0 to 4 nA, centered-difference Jacobians with increment
@@ -909,10 +997,17 @@
   applying that rate to both populations. Explain reset preservation,
   insertion without reset and event capping. Fig. 7A–B.
 
-  *P24 — Timestep experiment.* Describe 15 independently trained networks:
-  three at each of 0.05, 0.1, 0.25, 0.5 and 1 ms. Evaluate epoch-50
-  weights at their training timestep, keeping presentations at 200 ms.
-  Fig. 7C. No fixed-weight timestep-convergence experiment was performed.
+  *P24 — Timestep experiment.* We evaluated three training replicates at
+  each of 0.05, 0.1, 0.2, 0.3 and 0.6 ms, with E/I refractory holds fixed at
+  1.2/0.6 ms. We trained twelve replacement networks and reused the three
+  existing 0.1-ms networks after execution-equivalence checks. Epoch-50
+  weights were evaluated at their training timestep. Nominally 200-ms
+  presentations contained whole simulation steps, giving 199.8 ms at 0.3 and
+  0.6 ms and 200 ms otherwise; rates used realised durations. These new
+  evaluations replaced the earlier sweep, whose physical refractory holds
+  varied with timestep. The different grids do not provide paired comparisons
+  at the replaced conditions. Separate training at each timestep does not
+  establish fixed-weight convergence. Fig. 7C.
 
   *P25 — Inhibitory replay.* Describe replacing recorded I outputs while
   recomputing E and readout responses. Independent jitter used 0, 0.5, 1,
@@ -1059,8 +1154,13 @@
   *C2 — Numerical solution details.* Specify initialization of the fixed-point
   solver and continuation between neighboring drives, failed-solution handling,
   numerical quadrature settings and the selection of the leading complex
-  eigenvalue. Put the precise Brent and LSODA tolerances and maximum
-  integration step in Appendix Table C1, rather than repeating the drive grids
+  eigenvalue. For negative integration arguments $u$, the gain integrand was
+  evaluated as $"erfcx"(-u)$, the scaled complementary error function,
+  rather than $exp(u^2)(1 + "erf"(u))$, to avoid cancellation. This numerical
+  correction accompanied the refractory change, so differences from the
+  earlier mean-field calculation cannot be attributed to refractoriness alone.
+  Put the precise Brent and LSODA tolerances and maximum integration step in
+  Appendix Table C1, rather than repeating the drive grids
   and integration durations. Supports P16–P17.
 
   *Appendix Table C1 placement — Numerical solver settings.* Record the

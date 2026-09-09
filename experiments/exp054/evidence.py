@@ -168,6 +168,9 @@ def simulation_config(record, cfg, item):
         "dales_law": True,
         "recurrent_initial_zero_fraction": 0.0,
     }
+    for key in ("refractory_e_ms", "refractory_i_ms", "refractory_policy"):
+        if key in cfg:
+            expected[key] = cfg[key]
     if "tau_gaba_ms" in cfg:
         expected["tau_gaba"] = cfg["tau_gaba_ms"]
     if not item["private"]:

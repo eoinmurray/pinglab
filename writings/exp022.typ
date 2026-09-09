@@ -8,10 +8,10 @@
 #let data-file = data-file.with(article: "exp022")
 
 #let meta = (
-  tags: ("data", "v35.4.0"),
+  tags: ("data", "v36.0.0"),
   title: "Training Runs",
   created_at: "2026-08-11T00:00:00Z",
-  updated_at: "2026-08-31T00:00:00Z",
+  updated_at: "2026-09-09",
   description: "Seven controlled training families, their retained checkpoint bank, validation learning curves, and raster diagnostics.",
   collection: "gamma-gated-sparsity",
 )
@@ -45,7 +45,6 @@
   exp042: "Inhibitory Replay Perturbations Change Excitatory Firing",
   exp044: "Firing Rate Across the Timestep Sweep",
   exp046: "One Spike per Gamma Cycle",
-  exp048: "[DEPRECATED] Accuracy Across Duration and Input Rate",
   exp049: "Training Recurrent Weights Weakens PING Rhythmicity",
   exp082: "Spike-Count Classification in a Continuous Stream",
 )
@@ -166,7 +165,7 @@
   #result-figure(
     "exp022/curves__dt.svg",
     "Validation learning curves across five integration timesteps.",
-    [Individual histories for five timesteps and three seeds per setting. Training and evaluation use each training replicate's own timestep at a fixed presentation duration; no across-seed bands are shown.],
+    [Individual histories for five timesteps (0.05, 0.1, 0.2, 0.3 and 0.6 ms) and three seeds per setting. Training and validation use each network's own timestep and fixed 1.2/0.6-ms E/I refractory holds. Presentations last 199.8 ms at 0.3/0.6 ms and 200 ms otherwise; no across-seed bands are shown.],
   ) <fig:exp022-result-7>
 
   ]
@@ -284,16 +283,16 @@
 
   #journal-methods(
     orientation: [
-  We trained spiking classifiers under controlled conditions, then analysed recorded learning histories and reused diagnostic simulations.
+  The completed bank contains 102 models: 90 reused models with unchanged weights and histories, plus twelve newly trained timestep models. The three existing 0.1-ms timestep models were reused after execution-equivalence checks. We analysed these histories and generated 34 final-epoch seed-42 diagnostic recordings.
     ],
     compute: [
   + *Prepare the data.* Stratified MNIST splits provided 54,000 training and 6,000 validation images for the baseline, and 6,300 and 700 for sweeps. The split seed was 42; the official test set was excluded from training and model selection.
 
-  + *Build the networks.* Each network contained 1,024 excitatory neurons and ten spiking leaky integrate-and-fire outputs. Recurrent networks added feedback through 256 inhibitory neurons; feedforward controls disabled it. Input and output projections were trained, while recurrent projections were fixed except in designated conditions. Weights retained their excitatory or inhibitory sign.
+  + *Build the networks.* Each network contained 1,024 excitatory neurons and ten spiking leaky integrate-and-fire outputs. Recurrent networks added feedback through 256 inhibitory neurons; feedforward controls disabled it. Input and output projections were trained, while recurrent projections were fixed except in designated conditions. Weights retained their excitatory or inhibitory sign. Hidden E/I neurons used 1.2/0.6-ms absolute refractory holds; these were already the effective durations in the reused 0.1-ms executions.
 
   + *Vary the conditions.* Seven families covered the baseline, activity ceilings, inhibitory decay, timestep, recurrent initialization and trainability, and input drive. Each condition used initialization seeds 42–44; #link(<sec-training-run-specification-sheets>)[Training-run specification sheets] lists the grids and shared settings.
 
-  + *Present the images.* Pixels generated Poisson spikes over #r.standard.t_ms ms, normally with a maximum-pixel rate of 25 Hz and a 0.1 ms timestep. Variable-rate training sampled uniformly from eleven rates between 0.5 and 25 Hz; timestep conditions ranged from 0.05 to 1 ms.
+  + *Present the images.* Pixels generated Poisson spikes over nominally #r.standard.t_ms ms, normally with a maximum-pixel rate of 25 Hz and a 0.1 ms timestep. Variable-rate training sampled uniformly from eleven rates between 0.5 and 25 Hz. Timestep conditions ranged from 0.05 to 0.6 ms; whole-step presentations lasted 199.8 ms at 0.3/0.6 ms and 200 ms otherwise. Firing rates used realised durations.
 
   + *Calculate class scores.* Most networks used mean pre-reset output voltage. Variable-rate training used spike counts and smaller initial readout weights.
 
@@ -321,7 +320,7 @@
     present: [
   #set enum(start: 8)
 
-  + *Measure activity and retain models.* Accuracy used selected models, whereas firing rates averaged final-epoch validation measurements across images and encoding draws. Retained models and histories support subsequent experiments. Learning curves show individual validation histories; baseline summaries average three seeds. Reused seed-42 digit-zero rasters are individual probes, not across-seed estimates; no new diagnostic simulations were performed.
+  + *Measure activity and retain models.* Accuracy used selected models, whereas firing rates averaged final-epoch validation measurements across images and encoding draws. Retained models and histories support subsequent experiments. Learning curves show individual validation histories; baseline summaries average three seeds. The 34 new seed-42 digit-zero recordings covered every condition, including reused networks; their rasters are individual probes, not across-seed estimates. Spectra used the realised analysis-bin duration: grouping approximately 1 ms of simulation steps gave 0.9-ms bins at the 0.3-ms timestep and 1.2-ms bins at 0.6 ms.
     ],
   )
   #run-view("exp022", inputs)
@@ -341,7 +340,7 @@
     align: (left, left, left),
     table.header([*Parameter*], [*Default*], [*Meaning*]),
     [Dataset], [MNIST], [784 normalized pixels encoded as independent Poisson channels],
-    [Presentation duration], [200 ms], [One static digit per training presentation],
+    [Presentation duration], [200 ms nominal], [One static digit; 199.8 ms in the two coarsest timestep conditions],
     [Integration timestep], [0.1 ms], [2,000 recurrent updates per presentation],
     [Epochs], [50], [Training horizon for every production training replicate],
     [Seeds], [42, 43, 44], [Three independently initialized training replicates per configuration],
@@ -352,6 +351,7 @@
     [Inhibitory population], [256], [PING feedback population; silent when E/I coupling is disabled],
     [$tau_"AMPA"$], [2 ms], [Fixed excitatory synaptic decay],
     [$tau_"GABA"$], [6 ms], [Default inhibitory decay at the gamma operating point],
+    [Refractory hold, E/I], [1.2/0.6 ms], [Exactly represented by integer timestep counts; hidden neurons only],
     [Input initial-zero fraction], [0.95], [Fraction set to zero at initialization; every entry remains trainable and may regrow],
     [Input summed-coupling parent mean], [0.9], [Parent-Gaussian mean before lower clamping and fan-in normalization; shared by COBA and PING],
     [Readout-weight initialization], [$max(0, cal(N)(1.1206, 0.8350^2))$], [A directly stored lower-clamped Gaussian. Its zero-valued entries remain trainable; COBA and PING use the same initializer],
@@ -414,15 +414,15 @@
 
   === Specification: TR-04 — Integration-timestep sweep
 
-  This run changes the integration timestep while keeping each presentation at 200 ms. It tests whether the observed dynamics depend on numerical resolution and measures the extra compute required by finer timesteps. The finest timestep requires the longest unrolled training trajectories. The resulting checkpoints are used by #run-links(("exp044",)).
+  This run changes the integration timestep while keeping E/I refractory holds at 1.2/0.6 ms. Presentations last nominally 200 ms and contain whole simulation steps. It tests whether the learned operating regime depends on numerical resolution; separately trained networks do not establish fixed-weight numerical convergence. The finest timestep requires the longest unrolled training trajectories. The resulting checkpoints are used by #run-links(("exp044",)).
 
   #table(
     columns: (1.2fr, 1.5fr, 2fr),
     table.header([*Key parameter*], [*Value*], [*Why it differs*]),
     [Architecture], [PING], [Tests the recurrent reference model],
     [Training pool], [7,000 samples], [Sweep-scale default],
-    [$Delta t_"sim"$], [0.05, 0.1, 0.25, 0.5, 1 ms], [Changes numerical resolution while holding 200 ms physical time fixed],
-    [Steps/presentation], [4,000; 2,000; 800; 400; 200], [Compute and activation memory scale inversely with $Delta t_"sim"$],
+    [$Delta t_"sim"$], [0.05, 0.1, 0.2, 0.3, 0.6 ms], [Twelvefold resolution range at fixed physical refractory holds],
+    [Steps/presentation], [4,000; 2,000; 1,000; 666; 333], [200; 200; 200; 199.8; 199.8 ms realised durations],
     [Training replicates], [5 settings × 3 seeds = 15], [Across-seed stability check],
     [Readout shape], [$1024 arrow 10$ spiking LIF outputs], [mean-voltage: mean membrane voltage supplies the logits],
   )

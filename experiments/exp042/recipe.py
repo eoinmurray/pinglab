@@ -5,7 +5,7 @@ import re
 from experiments.exp022.recipe import training_run_cell, training_run_values
 from experiments.helpers.checkpoints import checkpoint_policy
 from experiments.helpers.datasets import MNIST_REDUCED_EVAL_SAMPLES
-from experiments.helpers.operating_point import F_GAMMA_HZ
+from experiments.helpers.operating_point import F_GAMMA_HZ, refractory_configuration
 
 SLUG = "exp042"
 TRAINING_RUN = "TR-02"
@@ -35,9 +35,12 @@ def cell_name(seed):
     )["name"]
 
 
-def configuration(*, smoke=False):
+def configuration(*, smoke=False, version=5):
+    if version not in (4, 5):
+        raise ValueError("unsupported exp042 recipe version")
     return {
-        "schema": "exp042.recipe/v4",
+        "schema": f"exp042.recipe/v{version}",
+        **(refractory_configuration() if version >= 5 else {}),
         "profile": "smoke" if smoke else "production",
         "seeds": list(SEEDS),
         "jitter_sigmas_ms": list((0.0, 14.0, 100.0) if smoke else JITTER_SIGMAS_MS),

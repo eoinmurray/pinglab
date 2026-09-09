@@ -25,11 +25,10 @@ from pingstore.contracts import (
 from pingstore.stages import SourceRun, source_run, stage_run
 
 from helpers import theme
-from helpers.stamp import stamp_figure
 
 
 def plot_family_curves(
-    family: str, cells: list[dict], out_path: Path, run_id: str
+    family: str, cells: list[dict], out_path: Path
 ) -> int:
     """One figure for one family: each cell's validation-accuracy learning curve,
     coloured by the swept value. Returns the number of cells actually drawn."""
@@ -63,7 +62,11 @@ def plot_family_curves(
                 alpha=0.85,
             )
             n += 1
-    handles = [Line2D([0], [0], color=colours[t], lw=2.4, label=t) for t in tags]
+    handles = [
+        Line2D([0], [0], color=colours[t], lw=2.4,
+               label=f"{t} ms" if family == "dt" else t)
+        for t in tags
+    ]
     leg1 = ax.legend(
         handles=handles,
         frameon=False,
@@ -99,7 +102,6 @@ def plot_family_curves(
         ax.spines[sp].set_visible(False)
     # H11: no plot title — the Typst caption carries the family + takeaway.
     fig.tight_layout()
-    stamp_figure(fig, run_id)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out_path)  # H10: line plot → SVG (caller passes .svg); dpi from theme
     plt.close(fig)
@@ -137,7 +139,7 @@ def _plot_snapshot_raster(snap_path: Path, out_png: Path) -> None:
     ax.set_ylabel("neuron  (E below · I above)")
     # H11: no plot title (config descriptor lives in the caption). The measured
     # values stay as a compact data annotation — they're read from the explicit analysis run, not recomputed by presentation.
-    gtxt = f"f_γ ≈ {fgam:.0f} Hz" if fgam else "asynchronous (no γ)"
+    gtxt = f"spectral peak ≈ {fgam:.0f} Hz" if fgam else "no resolved spectral peak"
     ax.annotate(
         f"digit 0 · E {e_hz:.0f} Hz · I {i_hz:.0f} Hz · {gtxt}",
         xy=(0, 1.02),
@@ -172,7 +174,7 @@ def _plot_snapshot_raster(snap_path: Path, out_png: Path) -> None:
         ax3.text(
             0.5,
             0.5,
-            "I silent\n(no γ loop)",
+            "I silent" if i_hz == 0 else "too few\nI spikes",
             ha="center",
             va="center",
             transform=ax3.transAxes,
@@ -193,7 +195,7 @@ def _plot_snapshot_raster(snap_path: Path, out_png: Path) -> None:
     d.close()
 
 
-def comparison_rasters(rasters: Path, destination: Path) -> None:
+def comparison_rasters(rasters: dict[str, Path], destination: Path) -> None:
     """Draw four already-measured fixed probes; no inference or rate calculation."""
     grid = [
         ("COBA", "coba__canonical__seed42", "coba__off__seed42"),
@@ -206,7 +208,7 @@ def comparison_rasters(rasters: Path, destination: Path) -> None:
     for row, (label, full, reduced) in enumerate(grid):
         for column, name in enumerate((full, reduced)):
             ax = axes[row][column]
-            with np.load(rasters / f"{name}.npz", allow_pickle=False) as data:
+            with np.load(rasters[name], allow_pickle=False) as data:
                 ne, ni = int(data["ne"]), int(data["ni"])
                 ax.scatter(
                     data["e_times"],
@@ -289,6 +291,11 @@ def present(
     analysis = source_run(root, identity, stage="analyse", experiment=recipe.SLUG)
     results = load_json(analysis.export / "results.json")
     curves = load_json(analysis.export / "curves.json")["cells"]
+    raster_paths = {
+        name: analysis.file(results["raster_files"][name])
+        if "raster_files" in results else analysis.file("rasters", f"{name}.npz")
+        for name in results["rasters"]
+    }
     analysis_path = analysis.export.relative_to(analysis.directory).as_posix()
     inputs = {"analysis": analysis}
     retained = None
@@ -342,7 +349,7 @@ def present(
         for family in recipe.FAMILY_ORDER:
             cells = [cell for cell in curves if cell["family"] == family]
             filename = f"curves__{recipe.FAMILY_ARTIFACT_SLUGS.get(family, family)}.svg"
-            plot_family_curves(family, cells, run.export / filename, run.run_id)
+            plot_family_curves(family, cells, run.export / filename)
             lineage.append(
                 {
                     "file": filename,
@@ -351,21 +358,21 @@ def present(
                     "source_path": f"{analysis_path}/curves.json",
                 }
             )
-        for cell in recipe.CANONICAL_CELLS:
+        for cell in recipe.cells_for_names(row["name"] for row in results["cells"]):
             if cell["seed"] != 42:
                 continue
             name = cell["name"]
             filename = f"rasters__{name}.png"
             if name in results["rasters"]:
                 _plot_snapshot_raster(
-                    analysis.export / "rasters" / f"{name}.npz", run.export / filename
+                    raster_paths[name], run.export / filename
                 )
                 lineage.append(
                     {
                         "file": filename,
                         "operation": "render",
                         "source_run": identity,
-                        "source_path": f"{analysis_path}/rasters/{name}.npz",
+                        "source_path": raster_paths[name].relative_to(analysis.directory).as_posix(),
                     }
                 )
             else:
@@ -382,7 +389,7 @@ def present(
         }
         filename = "comparison__data_fraction.png"
         if comparison_cells <= set(results["rasters"]):
-            comparison_rasters(analysis.export / "rasters", run.export / filename)
+            comparison_rasters(raster_paths, run.export / filename)
             lineage.append(
                 {"file": filename, "operation": "render", "source_run": identity}
             )
@@ -394,16 +401,17 @@ def present(
         numbers["presentation_lineage"] = lineage
         write_json_atomic(run.export / "numbers.json", numbers)
         run.record["presentation_lineage"] = lineage
-        (run.directory / "README.md").write_text(
-            "# Exp022 presentation\n\n"
-            f"Rendered analysis `{identity}`. Select `{run.run_id}` in Demolab preview.\n\n"
-            "Curves and numbers are produced from saved analysis. Any "
-            "`carry-historical` raster in run.json was copied unchanged from the "
-            "explicit source because its raw snapshot was not retained. "
-            "When reusing a prior presentation, source_lineage retains the earlier image record. "
-            "It is not a newly simulated or remeasured result.\n\n"
-            "No scientific execution, materialization or publication occurs here.\n"
-        )
+        with (run.directory / "README.md").open("a") as readme:
+            readme.write(
+                "\n## Presentation\n\n"
+                f"Rendered analysis `{identity}`. Select `{run.run_id}` in Demolab preview.\n\n"
+                "Curves and numbers are produced from saved analysis. Any "
+                "`carry-historical` raster in run.json was copied unchanged from the "
+                "explicit source because its raw snapshot was not retained. "
+                "When reusing a prior presentation, source_lineage retains the earlier image record. "
+                "It is not a newly simulated or remeasured result.\n\n"
+                "No scientific execution, materialization or publication occurs here.\n"
+            )
     return run.run_id
 
 

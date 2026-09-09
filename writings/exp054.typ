@@ -10,7 +10,7 @@
   tags: ("data", "v36.0.0"),
   title: "Pinglab Rythmicity Metric",
   created_at: "2026-06-15T00:00:00Z",
-  updated_at: "2026-08-31T00:00:00Z",
+  updated_at: "2026-09-09",
   description: "Lobe–trough contrast across untrained PING coupling strengths, with private- and shared-input null controls and a separate mean-field onset comparison.",
   collection: "gamma-gated-sparsity",
 )
@@ -34,7 +34,7 @@
 
   Rhythmic contrast was weak on uncoupled edges and stronger inside the coupled
   map; shared input imitated contrast without a recurrent loop. This supports the
-  private-input control and an onset mechanism, but does not establish rate
+  private-input control, but does not establish rate
   invariance or the spiking transition's bifurcation type.
   ])
 
@@ -45,9 +45,9 @@
   #result-card[
   === Coupling-map structure
 
-  On either zero-coupling edge the loop was broken: E fired at 94.31 Hz and
-  contrast was 0.00169, while I was silent when E-to-I coupling was zero. The
-  diagonal examples i/ii/iii had contrasts 0.00169/0.270/0.984. Coupled conditions
+  On either zero-coupling edge the loop was broken: E fired at 168.91 Hz and
+  contrast was 0.000301, while I was silent when E-to-I coupling was zero. The
+  diagonal examples in panels D/E/F had contrasts 0.000301/0.268/0.989. Coupled conditions
   generally showed stronger temporal structure, although the map was not
   strictly monotonic (#result-figure-ref(<fig:exp054-result-1>)).
 
@@ -57,8 +57,8 @@
     caption: [*(A–C)* Per-neuron E rate, I rate and lobe–trough contrast,
       respectively, across the 11×11 coupling grid; $W_(E I)$ and $W_(I E)$
       denote E-to-I and I-to-E coupling strengths. The high I rate on one zero
-      edge is colour-clipped. *(D–F)* Rasters at diagonal conditions i–iii,
-      respectively; E spikes are black and I spikes red.
+      edge is colour-clipped. *(D–F)* Rasters at the diagonal conditions marked
+      D, E and F in panel C, respectively; E spikes are black and I spikes red.
       Each raster shows 200 ms from the first 160 E and 48 I neurons. One seed
       per condition; no uncertainty estimate.],
   ) <fig:exp054-result-1>
@@ -106,10 +106,12 @@
   #result-card[
   === Input-sharing controls
 
-  Without an inhibitory loop, the private-input null stayed at or below 0.0671
-  over 0.97–94.31 Hz, while the shared-input null reached 0.50 at its sparsest
-  firing. Shared afferents can therefore create short-lag coincidence detected
-  by this score. These finite, single-seed controls do not prove rate invariance
+  Without an inhibitory loop, the private-input null had a maximum contrast of
+  0.0392 over 2.00–168.91 Hz. The shared-input null reached 1 at 0.0109 Hz, but that
+  estimate contained only 10 E spikes across the population. At 1.39 Hz its
+  contrast was 0.127. Shared afferents can create short-lag coincidence detected
+  by this score; the sparse extreme also illustrates its finite-sample sensitivity.
+  These single-seed controls do not prove rate invariance
   or establish rhythmicity from contrast alone (#result-figure-ref(<fig:exp054-result-4>)).
 
   #figure(
@@ -134,8 +136,10 @@
     data-image(data-file("exp054/null_autocorr.png"), width: 100%,
       alt: "Low-rate shared- and private-input null autocorrelograms selected by approximate rate matching, with each actual rate labelled."),
     caption: [Null autocorrelograms nearest to target E rates of 1, 2.5 and 5 Hz.
-      Shared-input examples *(A–C)* fired at 0.40/1.72/4.20 Hz; private-input
-      examples *(D–F)* at 0.97/1.88/4.90 Hz.],
+      Shared-input examples *(A–C)* fired at 1.39/1.39/3.94 Hz; private-input
+      examples *(D–F)* at 2.00/2.00/3.96 Hz. Within each input type, the first
+      two targets selected the same recording; these are repeated displays,
+      not independent observations.],
   ) <fig:exp054-result-5>
 
   ]
@@ -144,10 +148,10 @@
 
   #journal-methods(
     orientation: [
-  Untrained PING populations tested coupling-dependent temporal structure; uncoupled controls tested the influence of input sharing. The mean-field comparison reused numerical observations from a separate conductance model.
+  Untrained PING populations tested coupling-dependent temporal structure; uncoupled controls tested the influence of input sharing. We reused the spiking recordings and replaced the separate mean-field comparison with newly computed conductance-model results at matching refractory durations.
     ],
     compute: [
-  + *Sweep coupling.* We simulated 256 E and 256 I neurons at all 11×11 combinations of $W_(E I) = 0$–3 µS and $W_(I E) = 0$–6 µS. Each E neuron received a private 100 Hz Poisson channel with identity weight 0.5. We used seed 42, one trial, 0.25 ms steps and 1,000 ms recordings; we discarded the first 100 ms.
+  + *Sweep coupling.* We simulated 1,024 E and 256 I neurons at all 11×11 combinations of $W_(E I) = 0$–3 µS and $W_(I E) = 0$–6 µS. Each E neuron received a private 100 Hz Poisson channel with identity weight 0.5. We used a 6 ms GABA decay constant, seed 42, one trial, 0.1 ms steps and 1,000 ms recordings; we discarded the first 100 ms. E/I reset holds were 1.2/0.6 ms. These 136 recordings were reused unchanged for the refreshed theory comparison.
   + *Construct uncoupled controls.* We set both coupling strengths to zero. We scanned private input at 1/2/5/10/20/40/70/100 Hz and shared input at 8/12/16/20/28/40/60/100 Hz. Shared input used 200 channels, weight 0.2 and 95% initial zero connections. The 100 Hz private origin was shared with the coupling grid, giving 136 unique probes.
     ],
     analyse: [
@@ -163,12 +167,12 @@
     $ R_"contrast" = (A_"lobe" - A_"trough") / (A_"lobe" + A_"trough"). $ <exp054-contrast>
 
     For $0 <= "trough" <= "lobe"$ and a positive denominator, this lies in $[0,1]$. A missing trough or invalid denominator leaves the score undefined; no trough floor is imposed on contrast.
-  + *Compare mean-field onset.* We used the #link("/exp033/")[exp033] — #link("/exp033/")[_Gamma Emerges at a Hopf Bifurcation_] at 4 mV effective noise. We continued fixed points over 401 drives from 0–4 nA and refined the leading-eigenvalue crossing with Brent's method. We swept 25 drives from 0.1 nA below to 0.55 nA above the crossing in both directions, carrying endpoint states. We integrated 2 s per drive with LSODA and measured peak-to-peak E-rate amplitude ($"ms"^(-1)$) over the final 500 ms. Recorded amplitudes were reused; missing trajectories were not reconstructed.
+  + *Compare mean-field onset.* We used the conductance model described in #link("/exp033/")[exp033] — #link("/exp033/")[_Gamma Emerges at a Hopf Bifurcation_] at 4 mV effective noise, 6 ms GABA decay and 1.2/0.6-ms E/I refractory periods. The refreshed calculation used the cancellation-resistant gain integral specified there. In that separate calculation, we continued fixed points over 401 drives from 0–4 nA and refined the leading-eigenvalue crossing with Brent's method. We swept 25 drives from 0.1 nA below to 0.55 nA above the crossing in both directions, carrying endpoint states. We integrated 2 s per drive with LSODA, recorded the trajectories and measured peak-to-peak E-rate amplitude ($"ms"^(-1)$) over the final 500 ms. The resulting onset was 0.594 nA at 27.6 Hz. The drive sweep was separate from the spiking coupling sweep; we reused its completed numerical results here without another solve.
     ],
     present: [
   #set enum(start: 6)
 
-  + *Compare frequencies.* We repeated the theoretical crossing search at inhibitory decays 4.5/6/9/12/18/27 ms. We overlaid the median frequency across three seeded #link("/exp041/")[exp041] — #link("/exp041/")[_Firing Rate Tracks Gamma Frequency_] at each decay; we did not refit the mean-field noise scale.
+  + *Compare frequencies.* We repeated the theoretical crossing search at inhibitory decays 4.5/6/9/12/18/27 ms. We reused the median frequency across three seeded spiking classifiers from #link("/exp041/")[exp041] — #link("/exp041/")[_Firing Rate Tracks Gamma Frequency_] at each decay; we did not refit the mean-field noise scale.
     ],
   )
   #run-view("exp054", inputs)

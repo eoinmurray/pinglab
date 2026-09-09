@@ -40,9 +40,10 @@ def spike_autocorrelogram(spikes, dt, max_lag_ms=100.0, bin_ms=1.0):
     """
     spikes = np.asarray(spikes)
     bin_steps = max(1, int(round(bin_ms / dt)))
+    realized_bin_ms = bin_steps * dt
     n_bins = spikes.shape[0] // bin_steps
-    max_lag_bins = max(1, int(round(max_lag_ms / bin_ms)))
-    lags = np.arange(max_lag_bins + 1) * bin_ms
+    max_lag_bins = max(1, int(round(max_lag_ms / realized_bin_ms)))
+    lags = np.arange(max_lag_bins + 1) * realized_bin_ms
     if n_bins <= max_lag_bins + 1:
         return lags, np.full(max_lag_bins + 1, np.nan)
     r = (
@@ -81,11 +82,13 @@ def rhythmicity_scalars(ac_lags, ac, iei_lags, iei_counts, bin_ms=1.0, bio_lag_m
     lobe/trough lags and an optional biophysical-lag reading.
     """
     ac = np.asarray(ac, dtype=float)
+    ac_lags = np.asarray(ac_lags, dtype=float)
 
     def ac_at(lag_ms):
-        if lag_ms is None or not np.isfinite(lag_ms):
+        if lag_ms is None or not np.isfinite(lag_ms) or ac.size < 2:
             return None
-        i = int(np.clip(round(lag_ms / bin_ms), 1, ac.size - 1))
+        lag_step_ms = ac_lags[1] - ac_lags[0]
+        i = int(np.clip(round((lag_ms - ac_lags[0]) / lag_step_ms), 1, ac.size - 1))
         return float(ac[i]) if np.isfinite(ac[i]) else None
 
     iei_mode_lag = (

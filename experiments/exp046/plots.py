@@ -103,6 +103,8 @@ def plot_ceiling_vs_fgamma(rows: list[dict], out_path: Path) -> None:
 
     f_arr = np.array(f_gammas)
     fmax = float(f_arr.max()) * 1.05
+    rate_max = max(r["per_cell_max_rate_hz"] for r in rows)
+    ymax = max(fmax, 1.05 * rate_max)
     xs = np.linspace(0, fmax, 100)
     ax.plot(
         xs,
@@ -122,7 +124,7 @@ def plot_ceiling_vs_fgamma(rows: list[dict], out_path: Path) -> None:
     )
 
     ax.set_xlim(0, fmax)
-    ax.set_ylim(0, fmax)
+    ax.set_ylim(0, ymax)
     ax.set_xlabel("Measured f_γ (Hz)", fontsize=theme.SIZE_LABEL)
     ax.set_ylabel("Per-cell E rate (Hz)", fontsize=theme.SIZE_LABEL)
     ax.spines["top"].set_visible(False)

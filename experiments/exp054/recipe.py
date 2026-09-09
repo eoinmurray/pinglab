@@ -1,7 +1,13 @@
 """Committed coupling-grid and null-control recipe; no execution on import."""
 
+import copy
+
 import numpy as np
 from experiments.exp033 import recipe as mean_field
+from experiments.helpers.operating_point import (
+    refractory_args,
+    refractory_configuration,
+)
 
 SLUG = "exp054"
 FIGURES = (
@@ -15,12 +21,13 @@ FIGURES = (
 )
 
 
-def configuration(*, smoke=False, version=4):
-    if version not in (1, 2, 3, 4):
+def configuration(*, smoke=False, version=6):
+    if version not in (1, 2, 3, 4, 5, 6):
         raise ValueError("unsupported exp054 recipe version")
-    mf = mean_field.configuration()
+    mf = mean_field.configuration(version=2 if version >= 6 else 1)
     return {
         "schema": f"exp054.recipe/v{version}",
+        **(refractory_configuration() if version >= 5 else {}),
         "profile": "smoke" if smoke else "production",
         "dt_ms": 0.1 if version >= 3 else 0.25,
         **({"tau_gaba_ms": 6.0} if version >= 4 else {}),
@@ -68,13 +75,50 @@ def validate(cfg):
     # Earlier scientific recipes stay readable; new compute uses v4.
     if cfg not in tuple(
         configuration(smoke=smoke, version=version)
-        for version in (1, 2, 3, 4)
+        for version in (1, 2, 3, 4, 5, 6)
         for smoke in (False, True)
     ):
         from pingstore.contracts import PingstoreError
 
         raise PingstoreError("inconsistent exp054 recipe")
     return cfg
+
+
+def refresh_configuration(spikes, theory):
+    """An analysis recipe, keeping the two independent source recipes intact."""
+    from pingstore.contracts import PingstoreError
+
+    validate(spikes)
+    if spikes["schema"] not in {"exp054.recipe/v4", "exp054.recipe/v5", "exp054.recipe/v6"}:
+        raise PingstoreError("theory refresh requires 1024-E, 0.1-ms, 6-ms-GABA spikes")
+    if theory != mean_field.configuration(version=2):
+        raise PingstoreError("theory refresh requires the adopted exp033 recipe")
+    return {
+        "schema": "exp054.theory-refresh/v1",
+        "spike_source_recipe": copy.deepcopy(spikes),
+        "theory_recipe": copy.deepcopy(theory),
+    }
+
+
+def validate_analysis(cfg):
+    from pingstore.contracts import PingstoreError
+
+    if isinstance(cfg, dict) and cfg.get("schema") == "exp054.theory-refresh/v1":
+        if set(cfg) != {
+            "schema",
+            "spike_source_recipe",
+            "theory_recipe",
+        } or cfg != refresh_configuration(
+            cfg["spike_source_recipe"], cfg["theory_recipe"]
+        ):
+            raise PingstoreError("inconsistent exp054 theory refresh recipe")
+        return cfg
+    return validate(cfg)
+
+
+def spike_configuration(cfg):
+    validate_analysis(cfg)
+    return cfg.get("spike_source_recipe", cfg)
 
 
 def job(cfg, wei, wie, rate, private=True):
@@ -114,6 +158,7 @@ def turnon_points(cfg):
 def simulation_args(cfg, item, output):
     args = [
         "sim",
+        *refractory_args(),
         "--input",
         "synthetic-spikes",
         "--model",

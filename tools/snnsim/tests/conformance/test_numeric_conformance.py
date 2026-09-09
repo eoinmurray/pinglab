@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from fractions import Fraction
 
 import models as M
 import pytest
@@ -98,14 +99,15 @@ def test_explicit_name_remapping_rejects_partial_and_duplicate_maps():
 
 
 @pytest.mark.parametrize("active_recurrence", [False, True])
+@pytest.mark.parametrize("dt_ms", [0.05, 0.1, 0.2, 0.3, 0.6])
 def test_minimal_legacy_and_graph_ping_forward_share_parameters_and_logits(
-    active_recurrence,
+    active_recurrence, dt_ms,
 ):
     M.N_IN = 2
     M.N_OUT = 2
-    M.dt = 0.1
-    M.T_ms = 4.0
-    M.T_steps = 40
+    M.dt = dt_ms
+    M.T_ms = 200.0
+    M.T_steps = int(Fraction("200") / Fraction(str(dt_ms)))
     net = snn.Network("legacy_graph_ping", dt=0.1 * snn.ms)
     events = net.input(
         "events", shape=("time", "batch", 2), signal_type="spikes", unit="spike"
@@ -121,6 +123,21 @@ def test_minimal_legacy_and_graph_ping_forward_share_parameters_and_logits(
     scores = snn.readouts.MeanVoltage(source=cell.E.spikes, classes=2, name="scores")
     net.output("class_logits", scores)
     bundle = snn.compile(net)
+    # Authoring defaults intentionally retain historical 12/6 step counters.
+    # This explicit comparison graph instead represents the collection's
+    # physical durations and production's one-update recurrent delay.
+    bundle.graph["timebase"]["dt"]["value"] = dt_ms
+    for population in bundle.graph["populations"]:
+        if population["id"] in {"cell_E", "cell_I"}:
+            neuron = population["neuron"]
+            assert neuron["refractory_steps"] == (12 if population["id"] == "cell_E" else 6)
+            physical_ms = "1.2" if population["id"] == "cell_E" else "0.6"
+            count = Fraction(physical_ms) / Fraction(str(dt_ms))
+            assert count.denominator == 1
+            neuron["refractory_steps"] = int(count)
+    for projection in bundle.graph["projections"]:
+        if projection.get("connection") == "recurrent":
+            projection["delay"]["value"] = dt_ms
     built = build(
         ExecutionSpec(kind="build", executor="graph", graph=bundle.graph, seed=7)
     )
@@ -146,6 +163,9 @@ def test_minimal_legacy_and_graph_ping_forward_share_parameters_and_logits(
     legacy = M.COBANet(
         hidden_sizes=[4],
         n_inh_per_layer={1: 1},
+        refractory_e_ms=1.2,
+        refractory_i_ms=0.6,
+        refractory_policy="exact",
         readout_mode="mem-mean",
         w_in=(0.0, 0.0),
         w_hid=(0.0, 0.0),
@@ -166,11 +186,16 @@ def test_minimal_legacy_and_graph_ping_forward_share_parameters_and_logits(
         for legacy_name, value in exported.parameters.items():
             legacy_parameters[legacy_name].copy_(value)
 
-    inputs = torch.zeros(40, 2, 2)
+    inputs = torch.zeros(M.T_steps, 2, 2)
     inputs[:, 0, 0] = 1
     inputs[::2, 1, 1] = 1
     graph = graph_model({"events": inputs}, record="full")
     legacy_logits = legacy(input_spikes=inputs)
+    assert legacy.timing_metadata["duration_steps"] == inputs.shape[0]
+    assert legacy.timing_metadata["nominal_duration_ms"] == 200.0
+    assert legacy.timing_metadata["realized_duration_ms"] == pytest.approx(
+        199.8 if dt_ms in (0.3, 0.6) else 200.0
+    )
     if active_recurrence:
         assert torch.count_nonzero(legacy.spike_record["inh"]) > 0
         assert torch.count_nonzero(legacy.spike_record["gi_e_1"]) > 0
@@ -261,9 +286,13 @@ def test_legacy_and_graph_four_update_trajectory_and_resume_are_conformant(tmp_p
     )
     assert isinstance(initial.model, GraphExecutor)
     mapping = legacy_parameter_map_v1(bundle.graph)
+    graph_neurons = {row["id"]: row["neuron"] for row in bundle.graph["populations"]}
     legacy = M.COBANet(
         hidden_sizes=[4],
         n_inh_per_layer={1: 1},
+        refractory_e_ms=graph_neurons["cell_E"]["refractory_steps"] * M.dt,
+        refractory_i_ms=graph_neurons["cell_I"]["refractory_steps"] * M.dt,
+        refractory_policy="exact",
         readout_mode="mem-mean",
         w_in=(0.0, 0.0),
         w_hid=(0.0, 0.0),

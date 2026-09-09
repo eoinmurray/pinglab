@@ -3,13 +3,15 @@
 Stage execution lives in compute/analyse/present. These helpers never resolve runs.
 """
 
+from contextlib import contextmanager
+from contextvars import ContextVar
 from pathlib import Path
 
 import numpy as np
 from scipy import linalg
 from scipy.integrate import quad, solve_ivp
 from scipy.optimize import brentq, fsolve
-from scipy.special import erf
+from scipy.special import erf, erfcx
 
 REPO = Path(__file__).resolve().parents[2]
 from .recipe import (
@@ -32,24 +34,49 @@ from .recipe import (
     WT_IE,
 )
 
+_gain_cells = ContextVar("exp033_gain_cells", default=None)
+
+
+@contextmanager
+def gain_parameters(cfg):
+    """Bind gains to an explicit recipe for all reductions and nested solvers."""
+    token = _gain_cells.set((
+        dict(cfg["cell_E"]), dict(cfg["cell_I"]),
+        cfg.get("gain_integral") == "erfcx_for_negative_arguments",
+    ))
+    try:
+        yield
+    finally:
+        _gain_cells.reset(token)
+
 
 def lif_fi(mu_I, cell, sigma=SIGMA_V_MV):
     """Ricciardi/Siegert LIF f-I rate (1/ms) for mean input current mu_I (nA)."""
     muV = E_L_MV + mu_I / cell["g_L"]
     y_th = (V_TH_MV - muV) / sigma
     y_r = (V_RESET_MV - muV) / sigma
-    val, _ = quad(
-        lambda u: np.exp(min(u * u, 700.0)) * (1.0 + erf(u)), y_r, y_th, limit=200
-    )
+    cells = _gain_cells.get()
+    stable = cells is None or cells[2]
+
+    def integrand(u):
+        # erfcx(-u) avoids cancellation in 1 + erf(u) for strong inputs.
+        # Keep the positive-tail overflow guard and frozen v1 arithmetic.
+        if stable and u < 0:
+            return erfcx(-u)
+        return np.exp(min(u * u, 700.0)) * (1.0 + erf(u))
+
+    val, _ = quad(integrand, y_r, y_th, limit=200)
     return 1.0 / (cell["tau_ref"] + cell["tau_m"] * np.sqrt(np.pi) * val)
 
 
 def gE(mu, sigma=SIGMA_V_MV):
-    return lif_fi(mu, CELL_E, sigma)
+    cells = _gain_cells.get()
+    return lif_fi(mu, cells[0] if cells is not None else CELL_E, sigma)
 
 
 def gI(mu, sigma=SIGMA_V_MV):
-    return lif_fi(mu, CELL_I, sigma)
+    cells = _gain_cells.get()
+    return lif_fi(mu, cells[1] if cells is not None else CELL_I, sigma)
 
 
 def rhs_4d(t, y, I_ext, tau_gaba=TAU_GABA_MS, sigma=SIGMA_V_MV):

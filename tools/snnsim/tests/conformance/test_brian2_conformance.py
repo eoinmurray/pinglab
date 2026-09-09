@@ -9,13 +9,16 @@ to make both sides agree.
 from __future__ import annotations
 
 import math
+from fractions import Fraction
 
 import brian2 as b2
 import models as M
 import numpy as np
 import pytest
 import torch
+from config import build_net, set_sim_dt
 from scipy.signal import find_peaks
+from timing import duration_steps, refractory_steps
 
 pytestmark = [pytest.mark.integration, pytest.mark.brian2]
 
@@ -72,7 +75,10 @@ def _brian_lif(
     voltages = b2.StateMonitor(neurons, "v", record=True, when="end")
     spikes = b2.SpikeMonitor(neurons)
     network = b2.Network(neurons, voltages, spikes)
-    network.run(duration_ms * b2.ms, namespace={})
+    # Brian2 otherwise runs a partial final step. Match the whole-step trial
+    # contract using independent rational arithmetic, not snnsim conversion.
+    steps = int(Fraction(str(duration_ms)) / Fraction(str(dt_ms)))
+    network.run(steps * dt_ms * b2.ms, namespace={})
     return np.asarray(voltages.v[0] / b2.mV), np.asarray(spikes.t / b2.ms)
 
 
@@ -88,12 +94,12 @@ def _snnsim_lif(
     initial_mv=-65.0,
 ):
     """Run the snnsim LIF primitive with the same fixed-conductance protocol."""
-    steps = int(round(duration_ms / dt_ms))
+    steps = duration_steps(duration_ms, dt_ms)
     voltage = torch.tensor([[initial_mv]], dtype=torch.float64)
     refractory = torch.zeros((1, 1), dtype=torch.long)
     g_e = torch.tensor([[excitatory_us]], dtype=torch.float64)
     g_i = torch.tensor([[inhibitory_us]], dtype=torch.float64)
-    refractory_steps = max(1, int(round(refractory_ms / dt_ms)))
+    ref_count = refractory_steps(refractory_ms, dt_ms, policy="nearest")
     voltages = []
     spike_times = []
     for step in range(steps):
@@ -104,7 +110,7 @@ def _snnsim_lif(
             g_i,
             capacitance_nf,
             leak_us,
-            refractory_steps,
+            ref_count,
             M.spike_biophysical,
             v_grad_dampen=1.0,
             dt_override=dt_ms,
@@ -158,6 +164,68 @@ def test_threshold_reset_and_refractory_match_brian2():
     assert len(snnsim_spikes) >= 5, "protocol must exercise repeated refractoriness"
     np.testing.assert_allclose(snnsim_voltage, brian_voltage, atol=1e-11, rtol=0)
     np.testing.assert_allclose(snnsim_spikes, brian_spikes, atol=1e-12, rtol=0)
+
+
+@pytest.mark.parametrize("dt_ms", [0.05, 0.1, 0.2, 0.3, 0.6])
+@pytest.mark.parametrize("drive_us", [0.2, 100.0], ids=["voltage-release", "strong-drive"])
+def test_collection_production_refractory_and_duration_match_brian2(
+    monkeypatch, dt_ms, drive_us
+):
+    """Public production wiring agrees with independent E/I refractory clocks."""
+    nominal_ms = 200.0
+    expected_steps = int(Fraction("200") / Fraction(str(dt_ms)))
+    monkeypatch.setattr(M, "N_IN", 1)
+    monkeypatch.setattr(M, "N_OUT", 1)
+    set_sim_dt(dt_ms, nominal_ms)
+    net = build_net(
+        "ping", hidden_sizes=[4], w_ee=(0.0, 0.0), w_ei=(0.0, 0.0),
+        w_ie=(0.0, 0.0), w_ii=(0.0, 0.0), refractory_e_ms=1.2,
+        refractory_i_ms=0.6, refractory_policy="exact",
+    )
+    net.recording = True
+    # Production external drive adds to an exponentially decaying conductance.
+    # Balance each decay after the first kick to hold that conductance fixed.
+    e_drive = torch.full((expected_steps, 4), drive_us * (1 - math.exp(-dt_ms / 2)))
+    i_drive = torch.full((expected_steps, 1), drive_us * (1 - math.exp(-dt_ms / 2)))
+    e_drive[0] = drive_us
+    i_drive[0] = drive_us
+    with torch.no_grad():
+        net(ext_g=e_drive, ext_g_i=i_drive)
+
+    assert net.timing_metadata["nominal_duration_ms"] == nominal_ms
+    assert net.timing_metadata["duration_steps"] == expected_steps
+    assert net.timing_metadata["realized_duration_ms"] == pytest.approx(
+        199.8 if dt_ms in (0.3, 0.6) else 200.0
+    )
+    for key, voltage_key, capacitance, leak, refractory_ms in (
+        ("hid", "v_e_1", 1.0, 0.05, 1.2),
+        ("inh", "v_i_1", 0.5, 0.1, 0.6),
+    ):
+        brian_voltage, brian_times = _brian_lif(
+            dt_ms=dt_ms, duration_ms=nominal_ms, capacitance_nf=capacitance,
+            leak_us=leak, refractory_ms=refractory_ms,
+            excitatory_us=drive_us, inhibitory_us=0.0,
+        )
+        actual_voltage = net.spike_record[voltage_key][:, 0].numpy()
+        actual_indices = torch.where(net.spike_record[key][:, 0] != 0)[0].numpy()
+        expected_counter = Fraction(str(refractory_ms)) / Fraction(str(dt_ms))
+        assert expected_counter.denominator == 1
+        expected_counter = int(expected_counter)
+        assert len(brian_voltage) == len(actual_voltage) == expected_steps
+        assert len(actual_indices) > 5
+        np.testing.assert_allclose(
+            actual_indices * dt_ms, brian_times, atol=1e-10, rtol=0
+        )
+        # Production states use float32; Brian2's independent solver uses float64.
+        np.testing.assert_allclose(actual_voltage, brian_voltage, atol=2e-4, rtol=0)
+        if drive_us == 100.0:
+            np.testing.assert_array_equal(np.diff(actual_indices), expected_counter)
+        else:
+            first_spike = actual_indices[0]
+            release = first_spike + expected_counter
+            np.testing.assert_array_equal(actual_voltage[first_spike:release], -65.0)
+            assert actual_voltage[release] > -65.0
+            assert brian_voltage[release] > -65.0
 
 
 def test_exponential_synapse_matches_brian2_event_dynamics():
@@ -350,7 +418,9 @@ PING_DISCARD_MS = 50.0
 PING_BIN_MS = 1.0
 
 
-def _snnsim_ping_network(dt_ms, tau_gaba_ms=6.0):
+def _snnsim_ping_network(
+    dt_ms, tau_gaba_ms=6.0, *, refractory_e_ms=3.0, refractory_i_ms=1.5
+):
     """Run a heterogeneous 20E/5I PING circuit with tonic E-cell drive."""
     steps = int(round(PING_DURATION_MS / dt_ms))
     voltage_e = torch.linspace(-67.0, -63.0, PING_N_E, dtype=torch.float64)[None]
@@ -376,7 +446,7 @@ def _snnsim_ping_network(dt_ms, tau_gaba_ms=6.0):
             g_ie,
             1.0,
             0.05,
-            max(1, int(round(3.0 / dt_ms))),
+            refractory_steps(refractory_e_ms, dt_ms, policy="nearest"),
             M.spike_biophysical,
             v_grad_dampen=1.0,
             dt_override=dt_ms,
@@ -388,7 +458,7 @@ def _snnsim_ping_network(dt_ms, tau_gaba_ms=6.0):
             None,
             0.5,
             0.1,
-            max(1, int(round(1.5 / dt_ms))),
+            refractory_steps(refractory_i_ms, dt_ms, policy="nearest"),
             M.spike_biophysical,
             v_grad_dampen=1.0,
             dt_override=dt_ms,
@@ -399,7 +469,9 @@ def _snnsim_ping_network(dt_ms, tau_gaba_ms=6.0):
     return np.asarray(e_events), np.asarray(i_events)
 
 
-def _brian_ping_network(dt_ms, tau_gaba_ms=6.0):
+def _brian_ping_network(
+    dt_ms, tau_gaba_ms=6.0, *, refractory_e_ms=3.0, refractory_i_ms=1.5
+):
     """Run an independently encoded native-Brian2 version of the PING circuit."""
     b2.start_scope()
     b2.prefs.codegen.target = "numpy"
@@ -428,7 +500,7 @@ def _brian_ping_network(dt_ms, tau_gaba_ms=6.0):
         equations,
         threshold="v >= V_threshold",
         reset="v = V_reset",
-        refractory=3.0 * b2.ms,
+        refractory=refractory_e_ms * b2.ms,
         method="exponential_euler",
         namespace=namespace,
     )
@@ -437,7 +509,7 @@ def _brian_ping_network(dt_ms, tau_gaba_ms=6.0):
         equations,
         threshold="v >= V_threshold",
         reset="v = V_reset",
-        refractory=1.5 * b2.ms,
+        refractory=refractory_i_ms * b2.ms,
         method="exponential_euler",
         namespace=namespace,
     )
@@ -648,8 +720,13 @@ def test_gamma_gated_sparsity_tau_sweep_matches_brian2():
     brian_rows = []
 
     for tau_gaba_ms in tau_gaba_sweep_ms:
-        snnsim = _cycle_sparsity_observables(_snnsim_ping_network(0.1, tau_gaba_ms))
-        brian = _cycle_sparsity_observables(_brian_ping_network(0.1, tau_gaba_ms))
+        refractory = {"refractory_e_ms": 1.2, "refractory_i_ms": 0.6}
+        snnsim = _cycle_sparsity_observables(
+            _snnsim_ping_network(0.1, tau_gaba_ms, **refractory)
+        )
+        brian = _cycle_sparsity_observables(
+            _brian_ping_network(0.1, tau_gaba_ms, **refractory)
+        )
         snnsim_rows.append(snnsim)
         brian_rows.append(brian)
 

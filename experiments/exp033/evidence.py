@@ -44,7 +44,7 @@ def exact_values(a, b):
 
 def validate_summary(numbers, subset):
     r = numbers["results"]
-    cfg = recipe.configuration()
+    cfg = recipe.configuration(version=1)
     if numbers.get("slug") != recipe.SLUG or numbers["config"] != {
         k: cfg[k] for k in numbers["config"]
     }:
@@ -166,6 +166,7 @@ def analyse_imported(source, frequency_source):
         r["reductions"]["three_d_qss"],
         r["reductions"]["two_d_all_pairs"],
         r["sigma_sensitivity"],
+        configuration=recipe.configuration(version=1),
     )
     retained = {
         name: {

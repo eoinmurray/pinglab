@@ -5,6 +5,12 @@ from pathlib import Path
 
 import numpy as np
 from experiments.helpers.checkpoints import public_provenance, resolve_checkpoint
+from experiments.helpers.operating_point import (
+    duration_configuration,
+    duration_steps,
+    refractory_configuration,
+    refractory_execution_configuration,
+)
 from pingstore.contracts import PingstoreError, load_json
 
 from . import recipe
@@ -38,23 +44,29 @@ def _same(actual, expected) -> bool:
     return actual == expected
 
 
-def training_contract(bank: Path) -> dict:
+def training_contract(bank: Path, cfg: dict | None = None) -> dict:
+    cfg = recipe.configuration() if cfg is None else cfg
+    dts = cfg["dt_sweep_ms"]
+    adopted = cfg["schema"] == "exp044.recipe/v2"
     common = None
     cells = []
-    for dt in recipe.DT_SWEEP_MS:
+    for dt in dts:
         for seed in recipe.SEEDS:
             name = recipe.cell_name(dt, seed)
-            cfg = load_json(bank / name / "config.json")
-            if not _same(cfg.get("dt"), dt):
+            training_cfg = load_json(bank / name / "config.json")
+            if not _same(training_cfg.get("dt"), dt):
                 raise PingstoreError(
                     f"{name}: config dt does not match registered {dt}"
                 )
-            if type(cfg.get("seed")) is not int or cfg["seed"] != seed:
+            if (
+                type(training_cfg.get("seed")) is not int
+                or training_cfg["seed"] != seed
+            ):
                 raise PingstoreError(
                     f"{name}: config seed does not match registered {seed}"
                 )
             try:
-                selected = {k: cfg[k] for k in recipe.TRAINING_COMMON_FIELDS}
+                selected = {k: training_cfg[k] for k in recipe.TRAINING_COMMON_FIELDS}
             except KeyError as exc:
                 raise PingstoreError(
                     f"{name}: missing training config field {exc.args[0]}"
@@ -67,7 +79,23 @@ def training_contract(bank: Path) -> dict:
                         raise PingstoreError(
                             f"{name}: config {key}={selected[key]!r} disagrees with common value {expected!r}"
                         )
-            cells.append({"cell_name": name, "dt_ms": dt, "seed": seed})
+            if adopted:
+                expected_refs = refractory_configuration()
+                for key, value in expected_refs.items():
+                    actual_value = training_cfg.get(key)
+                    if actual_value is None and dt == 0.1:
+                        continue
+                    if actual_value != value:
+                        raise PingstoreError(
+                            f"{name}: missing or inconsistent explicit {key}"
+                        )
+            row = {"cell_name": name, "dt_ms": dt, "seed": seed}
+            if adopted:
+                row["execution_dynamics"] = {
+                    **duration_configuration(training_cfg["t_ms"], dt),
+                    **refractory_execution_configuration(dt),
+                }
+            cells.append(row)
     for key, value in {
         "model": "ping",
         "dataset": "mnist",
@@ -114,7 +142,7 @@ def training_contract(bank: Path) -> dict:
         "common": common,
         "cells": cells,
         "registered_differences": {
-            "dt_ms": list(recipe.DT_SWEEP_MS),
+            "dt_ms": list(dts),
             "seeds": list(recipe.SEEDS),
         },
     }
@@ -168,6 +196,7 @@ def measurement(path: Path, cell: dict, common: dict, samples: int) -> dict:
         "dataset": "mnist",
         "n_hidden": common["n_hidden"],
         "n_inh": common["n_inh"],
+        **cell.get("execution_dynamics", {}),
     }.items():
         if not _same(cfg.get(key), expected):
             raise PingstoreError(f"inference {key} disagrees with retained recipe")
@@ -205,7 +234,7 @@ def snapshot(path: Path, dt: float, common: dict) -> dict:
         if not np.isclose(float(data["dt"]), dt):
             raise PingstoreError("snapshot timestep mismatch")
         result = {key: np.array(data[key]) for key in ("spk_e", "spk_i")}
-    steps = round(common["t_ms"] / dt)
+    steps = duration_steps(common["t_ms"], dt)
     for key, population in (("spk_e", "n_hidden"), ("spk_i", "n_inh")):
         array = result[key]
         if array.shape != (steps, common[population]) or not np.all(

@@ -8,11 +8,11 @@
 #let data-file = data-file.with(article: "exp044")
 
 #let meta = (
-  tags: ("data", "v35.4.0"),
+  tags: ("data", "v36.0.0"),
   title: "Firing Rate Across the Timestep Sweep",
   created_at: "2026-06-02T00:00:00Z",
-  updated_at: "2026-08-31T00:00:00Z",
-  description: "Compares final-epoch firing rate, classification accuracy and illustrative rasters across a twentyfold integration-timestep sweep.",
+  updated_at: "2026-09-09",
+  description: "Compares final-epoch firing rate, classification accuracy and illustrative rasters across a twelvefold integration-timestep sweep.",
   collection: "gamma-gated-sparsity",
 )
 
@@ -35,8 +35,8 @@
 #let body = [
   #journal-abstract(body: [
   We asked how integration timestep affects the activity and accuracy of PING
-  classifiers. We compared trained network families using the same timestep and
-  evaluated their MNIST performance.
+  classifiers. We compared separately trained networks at matched training and evaluation
+  timesteps, with fixed physical refractory periods, and evaluated their MNIST performance.
 
   Excitatory firing and accuracy varied across the sweep, showing that the
   timestep is part of the learned operating regime rather than a neutral solver
@@ -51,10 +51,16 @@
   #result-card[
   === Timestep rate and accuracy
 
+  Mean test accuracy ranged from #number(summary.acc_min_pct)% to
+  #number(summary.acc_max_pct)%, spanning #number(summary.acc_span_pp) percentage
+  points. Mean E rate ranged from #number(summary.e_rate_min_hz) to
+  #number(summary.e_rate_max_hz) Hz. Accuracy persisted across the tested
+  resolutions, while firing remained timestep-dependent (@fig:exp044-result-1).
+
   #figure(
     data-image(data-file("exp044/dt_sweep.svg"), width: 100%,
       alt: "Hidden excitatory firing rate and test accuracy against integration timestep, with uncertainty across training seeds."),
-    caption: [Hidden E rate (black) and test accuracy (red) across the twentyfold
+    caption: [Hidden E rate (black) and test accuracy (red) across the twelvefold
       timestep sweep. Markers show means over #n seeds; bars show ±1 standard
       error of the mean. Each network was evaluated on #cfg.evaluation_samples
       official-test images at its training timestep.],
@@ -69,8 +75,8 @@
     data-image(data-file("exp044/raster_strip.png"), width: 100%,
       alt: "Single-trial excitatory and inhibitory spike rasters at five integration timesteps, plotted against physical time."),
     caption: [E (black) and I (red) rasters for the same official-test image,
-      seed #cfg.raster.seed, at timesteps *(A–E)* 0.05, 0.1, 0.2, 0.5 and
-      1.0 ms, respectively. Panels display
+      seed #cfg.raster.seed, at timesteps *(A–E)* 0.05, 0.1, 0.2, 0.3 and
+      0.6 ms, respectively. Panels display
       #cfg.raster.n_e_plot E and #cfg.raster.n_i_plot I neurons over the first
       #cfg.raster.window_ms ms. These illustrative probes support visual cadence
       inspection, not a population estimate of gamma-period invariance.],
@@ -101,18 +107,21 @@
     ],
     compute: [
   + *Reuse the trained population.* One PING network was trained per
-    $Delta t_"sim" in {0.05, 0.1, 0.25, 0.5, 1.0}$ ms and seed $in {42, 43, 44}$,
+    $Delta t_"sim" in {0.05, 0.1, 0.2, 0.3, 0.6}$ ms and seed $in {42, 43, 44}$,
     giving fifteen networks. Each had #c.n_in inputs, #c.n_hidden excitatory
     neurons, #c.n_inh inhibitory neurons and #c.n_out class outputs.
     Network geometry, synaptic settings, readout and optimisation settings were
-    checked for agreement across the comparison.
+    checked for agreement across the comparison. E/I refractory holds were fixed
+    at 1.2/0.6 ms: 24/12, 12/6, 6/3, 4/2 and 2/1 steps, respectively.
+    Twelve networks were newly trained for this design; three 0.1-ms networks
+    were reused unchanged after execution-equivalence checks.
 
-  + *Keep data and physical duration fixed.* The #(c.max_samples)-image MNIST
+  + *Keep data and nominal duration fixed.* The #(c.max_samples)-image MNIST
     training pool contained #c.dataset_split.optimizer_train_samples optimisation
     images and #c.dataset_split.validation_samples validation images; the official
-    test partition was excluded from training. Each presentation lasted
-    $T_"present" = 200$ ms, so the integration timestep $Delta t_"sim"$ changed the step count
-    from 4,000 to 200. Image intensities drove Poisson input with peak rate
+    test partition was excluded from training. The nominal presentation duration
+    was 200 ms; whole-step rounding gave 4,000, 2,000, 1,000, 666 and 333 steps.
+    Realised $T_"present"$ was 199.8 ms at 0.3/0.6 ms and 200 ms otherwise. Image intensities drove Poisson input with peak rate
     #c.input_rate Hz.
     ],
     analyse: [
@@ -132,7 +141,7 @@
     #(cfg.evaluation_samples)-image subset of the official MNIST test partition,
     without retraining. Accuracy was the percentage of correctly classified
     images; population firing rate was total spikes divided by the number of
-    evaluated images, population size and trial duration in seconds.
+    evaluated images, population size and realised trial duration in seconds.
     Excitatory and inhibitory rates were recorded separately.
     ],
   )
@@ -141,8 +150,9 @@
   #table(
     columns: 2,
     [Parameter], [Value],
-    [Integration timestep $Delta t_"sim"$], [0.05–1.0 ms (swept)],
-    [Presentation duration $T_"present"$], [#c.t_ms ms],
+    [Integration timestep $Delta t_"sim"$], [0.05–0.6 ms (swept)],
+    [Presentation duration $T_"present"$], [#c.t_ms ms nominal; 199.8 ms at 0.3/0.6 ms],
+    [Refractory hold, E/I], [1.2/0.6 ms at every timestep],
     [MNIST training pool], [#c.max_samples images: #c.dataset_split.optimizer_train_samples optimisation / #c.dataset_split.validation_samples validation],
     [Official-test evaluation], [#cfg.evaluation_samples images per network],
     [Epochs], [#c.epochs],
@@ -165,7 +175,7 @@
 } else {
   pending-report(
     data-file, inputs,
-    [How sensitive are firing rate and classification accuracy to numerical timestep? Compare trained PING networks across integration timesteps at fixed physical presentation duration.],
+    [How sensitive are firing rate and classification accuracy to numerical timestep? Compare trained PING networks across integration timesteps at fixed physical refractory periods and nominal presentation duration.],
     preview-figures, json-inputs: ("exp044",),
   )
 }

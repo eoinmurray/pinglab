@@ -14,7 +14,7 @@ import numpy as np
 import scipy
 from experiments.exp033 import evidence, inputs, recipe
 from experiments.exp033 import numerics as model
-from pingstore.contracts import PingstoreError, write_json_atomic
+from pingstore.contracts import PingstoreError
 from scipy.integrate import solve_ivp
 
 
@@ -143,6 +143,7 @@ def continuation(grid, *, sigma=recipe.SIGMA_V_MV, tau=recipe.TAU_GABA_MS):
 
 def simulate():
     cfg = recipe.configuration()
+    print("[theory] reference continuation", flush=True)
     grid = np.linspace(*cfg["drive_grid"])
     result = {
         "schema": "exp033.compute/v1",
@@ -154,6 +155,7 @@ def simulate():
     }
     hopf = result["reference"]["hopf"]
     if hopf:
+        print(f"[theory] reference ramps and cycle; onset {hopf['I_ext_star']:.6f} nA", flush=True)
         result["reference"].update(
             ramp=ramp(hopf, recipe.SIGMA_V_MV), cycle=cycle(hopf, recipe.SIGMA_V_MV)
         )
@@ -169,10 +171,13 @@ def simulate():
         ("keep_I_ge", model.rhs_2d_I_ge, model.fixed_point_2d_I_ge),
     )
     for name, rhs, fp in specs:
+        print(f"[theory] reduction {name}", flush=True)
         result["reductions"][name] = model.reduction_sweep(rhs, fp, grid)
     for tau in cfg["tau_grid_ms"]:
+        print(f"[theory] inhibitory decay {tau:g} ms", flush=True)
         result["frequency"].append({"tau_gaba_ms": tau, **continuation(grid, tau=tau)})
     for sigma in cfg["sigma_grid_mV"]:
+        print(f"[theory] noise sensitivity {sigma:g} mV", flush=True)
         coarse = continuation(np.linspace(*cfg["sensitivity_grid"]), sigma=sigma)
         fine = continuation(np.linspace(*cfg["convergence_grid"]), sigma=sigma)
         row = {"sigma_V_mV": sigma, **coarse, "convergence": fine}
@@ -186,15 +191,13 @@ def simulate():
 
 def compute(*, run_id=None):
     with inputs.execution(REPO, "compute", sources={}, run_id=run_id) as run:
-        evidence.write(run.export, simulate())
-        write_json_atomic(
-            run.scratch / "environment.json",
-            {
-                "python": platform.python_version(),
-                "numpy": np.__version__,
-                "scipy": scipy.__version__,
-            },
-        )
+        with model.gain_parameters(run.record["execution"]["configuration"]):
+            evidence.write(run.export, simulate())
+        run.record["execution"]["environment"] = {
+            "python": platform.python_version(),
+            "numpy": np.__version__,
+            "scipy": scipy.__version__,
+        }
     return run.run_id
 
 

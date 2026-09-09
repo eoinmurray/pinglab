@@ -59,6 +59,7 @@ from scan import (  # noqa: E402,F401
     primary_inh_key,
 )
 from simulation_inputs import realize_simulation_inputs
+from timing import duration_metadata, duration_steps, refractory_metadata
 
 # =============================================================================
 # Training (moved to train.py)
@@ -563,6 +564,25 @@ def _build_parent_parser():
         type=float,
         default=0.25,
         help="Integration timestep in ms (default: 0.25)",
+    )
+    net_group.add_argument(
+        "--refractory-e-ms",
+        type=float,
+        default=3.0,
+        help="Excitatory absolute refractory duration in ms (default: 3).",
+    )
+    net_group.add_argument(
+        "--refractory-i-ms",
+        type=float,
+        default=1.5,
+        help="Inhibitory absolute refractory duration in ms (default: 1.5).",
+    )
+    net_group.add_argument(
+        "--refractory-policy",
+        choices=("nearest", "exact"),
+        default="nearest",
+        help="Counter conversion: nearest integer step, or require exact "
+        "representation (default: nearest).",
     )
     net_group.add_argument(
         "--t-ms",
@@ -1366,6 +1386,15 @@ def save_run_artifacts(out_dir, args, mode):
     for k, v in vars(args).items():
         if v is not None:
             config[k] = v
+    config.update(duration_metadata(args.t_ms, args.dt))
+    config.update(
+        refractory_metadata(
+            getattr(args, "refractory_e_ms", 3.0),
+            getattr(args, "refractory_i_ms", 1.5),
+            args.dt,
+            policy=getattr(args, "refractory_policy", "nearest"),
+        )
+    )
     with open(out_dir / "config.json", "w") as f:
         json.dump(config, f, indent=2, default=str)
 
@@ -1578,6 +1607,8 @@ def _bundle_transition_schedule(args, dt, t_steps):
     target = translate_cobanet_v1(target_graph)
     structural = (
         "dt",
+        "refractory_e_ms",
+        "refractory_i_ms",
         "hidden_size",
         "input_size",
         "output_size",
@@ -1673,7 +1704,7 @@ def _run_sim(args, C, out_dir, log):
     spike_rate = getattr(args, "spike_rate", None) or C.SPIKE_RATE_BASE
     t_e_async = getattr(args, "t_e_async", None) or C.T_E_ASYNC_DEFAULT
     dt = args.dt
-    T_steps = int(round(args.t_ms / dt))
+    T_steps = duration_steps(args.t_ms, dt)
     transition = _bundle_transition_schedule(args, dt, T_steps)
     recurrent_scales = transition[0] if transition is not None else None
     if transition is not None:
@@ -1918,6 +1949,9 @@ def _run_train(args, C, out_dir, log):
         snapshot_init=True,
         snapshot_end=True,
         t_ms=args.t_ms,
+        refractory_e_ms=args.refractory_e_ms,
+        refractory_i_ms=args.refractory_i_ms,
+        refractory_policy=args.refractory_policy,
         hidden_sizes=args.n_hidden,
         max_samples=args.max_samples,
         v_grad_dampen=args.v_grad_dampen,
@@ -1968,6 +2002,9 @@ def _emit_infer(args, C, out_dir, log, snapshot_mode=False):
             load_weights=args.load_weights,
             dataset=args.dataset,
             t_ms=args.t_ms,
+            refractory_e_ms=args.refractory_e_ms,
+            refractory_i_ms=args.refractory_i_ms,
+            refractory_policy=args.refractory_policy,
             w_in=w_in,
             ei_strength=args.ei_strength,
             ei_ratio=args.ei_ratio,
@@ -2007,6 +2044,9 @@ def _emit_infer(args, C, out_dir, log, snapshot_mode=False):
         dataset=args.dataset,
         max_samples=args.max_samples,
         t_ms=args.t_ms,
+        refractory_e_ms=args.refractory_e_ms,
+        refractory_i_ms=args.refractory_i_ms,
+        refractory_policy=args.refractory_policy,
         w_in=w_in,
         ei_strength=args.ei_strength,
         ei_ratio=args.ei_ratio,
@@ -2055,6 +2095,9 @@ def _run_dump_weights(args, C, out_dir, log):
         load_weights=args.load_weights,
         dataset=args.dataset,
         t_ms=args.t_ms,
+        refractory_e_ms=args.refractory_e_ms,
+        refractory_i_ms=args.refractory_i_ms,
+        refractory_policy=args.refractory_policy,
         w_in=w_in,
         ei_strength=args.ei_strength,
         ei_ratio=args.ei_ratio,
@@ -2090,6 +2133,9 @@ def _emit_probe(args, C, out_dir, log):
         model_name=args.model,
         dt=args.dt,
         t_ms=args.t_ms,
+        refractory_e_ms=args.refractory_e_ms,
+        refractory_i_ms=args.refractory_i_ms,
+        refractory_policy=args.refractory_policy,
         hidden_sizes=args.n_hidden,
         n_in=getattr(args, "n_in", 784),
         n_inh=getattr(args, "n_inh", None),
@@ -2296,11 +2342,7 @@ def main(argv=None):
                         "CLI Poisson generation requires exactly one graph input"
                     )
                 dt_ms = float(graph["timebase"]["dt"]["value"])
-                steps = float(args.t_ms) / dt_ms
-                if not steps.is_integer():
-                    raise ValueError(
-                        "--t-ms must be an exact multiple of the graph timestep"
-                    )
+                steps = duration_steps(args.t_ms, dt_ms)
                 rates = (
                     args.input_rates
                     if poisson_protocol == "categorical-rate"
@@ -2419,6 +2461,16 @@ def main(argv=None):
         )
 
     execute_request(request, legacy=_legacy_request)
+
+    if mode in {"sim", "train"}:
+        # Supplied inputs may determine the actual trial length. Keep the
+        # original request alongside the number of steps that really ran.
+        config_path = out_dir / "config.json"
+        completed_config = json.loads(config_path.read_text())
+        completed_config.update(duration_metadata(args.t_ms, args.dt))
+        completed_config["duration_steps"] = int(M.T_steps)
+        completed_config["realized_duration_ms"] = M.T_steps * float(args.dt)
+        config_path.write_text(json.dumps(completed_config, indent=2, default=str))
 
     _elapsed = _time.monotonic() - _t0
     # No device here: it would be a guess. train's summary reports the device it

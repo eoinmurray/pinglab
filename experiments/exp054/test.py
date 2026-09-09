@@ -67,6 +67,11 @@ def recording(cfg):
 
 def config_record(cfg, item):
     return {
+        **{
+            key: cfg[key]
+            for key in ("refractory_e_ms", "refractory_i_ms", "refractory_policy")
+            if key in cfg
+        },
         "mode": "sim",
         "model": "ping",
         "input": "synthetic-spikes",
@@ -195,7 +200,7 @@ def test_population_recipe_versions_and_input_channels(smoke):
         {**previous, "n_e": 1024},
         {**current, "n_e": 256},
         {**current, "n_i": 1024},
-        {**current, "schema": "exp054.recipe/v5"},
+        {**current, "schema": "exp054.recipe/v999"},
         {**current, "tau_gaba_ms": 9.0},
         {**current, "dt_ms": 0.25},
         {**intermediate, "dt_ms": 0.1},
@@ -282,9 +287,15 @@ def assert_article_renders(root, presentation):
         pytest.skip("Typst is not installed")
     repo = Path(__file__).resolve().parents[2]
     for name in (
-        "exp054.typ", "templates/article-layout.typ", "templates/dataset.typ",
-        "templates/abstract.typ", "templates/methods.typ", "templates/result-card.typ",
-        "templates/contents.typ", "templates/equations.typ", "templates/status.typ",
+        "exp054.typ",
+        "templates/article-layout.typ",
+        "templates/dataset.typ",
+        "templates/abstract.typ",
+        "templates/methods.typ",
+        "templates/result-card.typ",
+        "templates/contents.typ",
+        "templates/equations.typ",
+        "templates/status.typ",
     ):
         target = root / "writings" / name
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -448,9 +459,7 @@ def test_failures_remain_hidden_and_cannot_resume(lab, monkeypatch, stage):
         operation(run_id=hidden.name[1:-4])
 
 
-@pytest.mark.parametrize(
-    "damage", ["payload", "layout", "v2", "recipe", "inventory"]
-)
+@pytest.mark.parametrize("damage", ["payload", "layout", "v2", "recipe", "inventory"])
 def test_corrupt_inputs_rejected_before_reservation(lab, damage):
     root, frequency, _ = lab
     identity = compute.compute()
@@ -615,7 +624,7 @@ def test_historical_analysis_preserves_scalars_and_borrowed_theory(lab):
     native = inputs.source(root, compute.compute(), "compute")
     f = inputs.source(root, frequency, "analyse", experiment="exp041")
     original_numbers, _ = mf_measurements.analyse(
-        synthetic(), load_json(f.export / "results.json")
+        synthetic(version=1), load_json(f.export / "results.json")
     )
     result = original_numbers["results"]
     subset = {

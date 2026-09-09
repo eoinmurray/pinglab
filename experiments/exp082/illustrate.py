@@ -112,7 +112,7 @@ def compute(identity, *, run_id=None):
         write_json_atomic(
             run.export / "evidence.json",
             {
-                "schema": "exp082.showcase-selection/v1",
+                "schema": configuration["schema"],
                 "configuration": configuration,
                 "training_contract": contract,
                 "candidates": candidates,

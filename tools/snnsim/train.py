@@ -35,6 +35,7 @@ from datasets import (
 from encoders import EVAL_SEED, encode_batch
 from metrics import compute_metrics
 from scan import _auto_device, primary_hid_key, primary_inh_key
+from timing import duration_metadata, refractory_metadata
 
 log = logging.getLogger("cli")
 
@@ -204,6 +205,9 @@ def train(
     adapt_tau_bounds_ms=None,
     adapt_strength_init_mv=1.0,
     adapt_strength_max_mv=None,
+    refractory_e_ms=None,
+    refractory_i_ms=None,
+    refractory_policy="nearest",
 ):
     """Train a model on a supported dataset."""
     from torch.utils.data import DataLoader, TensorDataset
@@ -329,6 +333,9 @@ def train(
     )
     net = build_net(
         model_name,
+        refractory_e_ms=refractory_e_ms,
+        refractory_i_ms=refractory_i_ms,
+        refractory_policy=refractory_policy,
         w_in=w_in,
         w_in_initial_zero_fraction=w_in_initial_zero_fraction,
         w_ee=w_ee,
@@ -359,6 +366,13 @@ def train(
         adapt_strength_init_mv=adapt_strength_init_mv,
         adapt_strength_max_mv=adapt_strength_max_mv,
     )
+    timing_config = {
+        **duration_metadata(t_ms, dt),
+        **refractory_metadata(
+            net.refractory_e_ms, net.refractory_i_ms, dt,
+            policy=net.refractory_policy,
+        ),
+    }
     if readout_mode != "rate":
         log.info(f"  readout_mode={readout_mode}")
     if readout_w_out_scale != 1.0:
@@ -419,7 +433,8 @@ def train(
         "weight_decay": weight_decay,
         "epochs": epochs,
         "dt": dt,
-        "t_ms": M.T_ms,
+        "t_ms": t_ms,
+        **timing_config,
         "dataset": dataset,
         "n_hidden": M.N_HID,
         "n_inh": M.N_INH,
@@ -619,7 +634,8 @@ def train(
             "run_finished_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
             "config": {
                 "dt": dt,
-                "t_ms": M.T_ms,
+                "t_ms": t_ms,
+                **timing_config,
                 "epochs": 0,
                 "lr": lr,
                 "input_rate": M.max_rate_hz,
@@ -734,7 +750,7 @@ def train(
                         spike_counts,
                         fr_reg_upper_target_hz,
                         fr_reg_upper_strength,
-                        M.T_ms / 1000.0,
+                        (M.T_steps * dt) / 1000.0,
                     )
             opt.zero_grad()
             loss.backward()
@@ -1164,7 +1180,8 @@ def train(
         "run_finished_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "config": {
             "dt": dt,
-            "t_ms": M.T_ms,
+            "t_ms": t_ms,
+            **timing_config,
             "epochs": epochs,
             "lr": lr,
             "weight_decay": weight_decay,

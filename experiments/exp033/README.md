@@ -1,5 +1,51 @@
 # exp033 — conductance mean-field onset and dimensional reductions
 
+## Adopted refractory recipe — 2026-09-09
+
+Recipe v2 adopts **1.2-ms E / 0.6-ms I** refractory periods in the continuous-time
+LIF gain. Recipe v1 remains frozen at **3/1.5 ms**. The equations, other physical
+parameters, grids, integration settings and measurement definitions are unchanged.
+V2 also records `gain_integral: erfcx_for_negative_arguments`: for negative
+integration arguments, the equivalent scaled-complementary-error-function form
+avoids cancellation in `1 + erf(u)`. The positive-tail overflow guard remains.
+V1 preserves the original arithmetic. This stabilization was necessary because
+the 3-mV sensitivity trajectories reach inputs at which the original formula
+has percent-level gain errors; it does not change the mathematical LIF model.
+Compute binds the gain functions to its recorded recipe; analysis and presentation
+retain that configuration instead of substituting live defaults. Current campaign
+reuse requires v2, while historical readers continue accepting v1.
+
+Exp054 recipe versions 1–5 retain the original v1 theory. New exp054 recipe v6
+uses the adopted v2 gain and refractories. Its accepted separate-source refresh
+reuses the original spike run with `exp033-r012-analyse`; no spike rerun was
+needed. See PLAN.md steps 5.8 and 7.
+
+The current independent stages follow Runner and Storage Guides 4.4.0. A new
+native presentation contains six SVG figures plus `numbers.json`; all waveform
+coordinates come from the recorded computation. The migration sections below
+describe historical executions and their older nine-figure presentation.
+
+Accepted independent runs: **`exp033-r011-compute` → `exp033-r012-analyse` →
+`exp033-r015-present`**, with existing `exp041-r002-analyse` supplying the same
+18 spiking-frequency measurements. Compute took **2 min 17 s** locally. The
+reference onset moved from **0.596337 to 0.593905 nA**, onset frequency remains
+**27.566445 Hz**, and E cycle amplitude at onset plus 0.4 nA increased **2.256%**.
+The sampled criticality and dimensional-reduction conclusions remain unchanged.
+These comparisons include the documented integrand stabilization.
+
+The latest presentation replaces `exp033-r014-present` only to clarify the
+noise-sensitivity annotation as “onset criterion met”; its numerical export
+and analysis reference are unchanged. No new solve or analysis was run.
+
+All 7,062 continuation records, 250 ramps and five cycles validate. Independent
+gain and half-step Jacobian checks passed, as did 97 regression tests and a
+34-test follow-up after presentation fixes. All six figures were inspected;
+the accepted presentation adds units and resolves legend, panel-label and tick
+overlaps without changing numerical results. Historical runs remain immutable;
+the first, interrupted `r010` writer is hidden and unused. See PLAN.md step 5.7
+for exact digests, numerical acceptance and limitations. The article and exp054's separate-source comparison have now been reconciled
+with these results under PLAN.md steps 5.8 and 7.
+
 ## Contract migration
 
 Execution follows Experiment Runner Guide 4.3.0 and Storage Guide 4.3.0. Contract migration

@@ -38,7 +38,7 @@ def source(repo, identity, stage, *, experiment=recipe.SLUG, reference=None):
 
 
 @contextmanager
-def execution(repo, stage, *, sources, run_id=None):
+def execution(repo, stage, *, sources, run_id=None, configuration=None):
     if os.environ.get("SLURM_JOB_ID") and run_id is None:
         raise PingstoreError("exp033 HPC identities must be reserved before submission")
     ancestors = {}
@@ -55,7 +55,7 @@ def execution(repo, stage, *, sources, run_id=None):
         stage,
         inputs=sources,
         run_id=run_id,
-        configuration=recipe.configuration(),
+        configuration=recipe.validate(configuration) if configuration is not None else recipe.configuration(),
     ) as run:
         yield run
         for ancestor in ancestors.values():
@@ -64,6 +64,4 @@ def execution(repo, stage, *, sources, run_id=None):
 
 def configuration(run):
     cfg = run.record["execution"].get("configuration")
-    if cfg != recipe.configuration():
-        raise PingstoreError("inconsistent exp033 recipe")
-    return cfg
+    return recipe.validate(cfg)

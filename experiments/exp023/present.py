@@ -11,13 +11,15 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
 
 import numpy as np
-from experiments.exp023 import inputs, plots, recipe
+from experiments.exp023 import inputs, plots, recipe, reporting
 from experiments.helpers import theme
 from pingstore.contracts import PingstoreError, load_json, write_json_atomic
 from pingstore.stages import stage_run
 
 
-def present(identity: str, *, run_id: str | None = None) -> str:
+def present(
+    identity: str, *, run_id: str | None = None, metadata_source: str | None = None
+) -> str:
     analysis = inputs.source(REPO, identity, "analyse")
     if set(analysis.record["inputs"]) != {"compute"}:
         raise PingstoreError("exp023 analysis must pin exactly its computation")
@@ -31,6 +33,10 @@ def present(identity: str, *, run_id: str | None = None) -> str:
         or results.get("measurement") != analysis.record["execution"]["configuration"]
     ):
         raise PingstoreError("unsupported or inconsistent exp023 analysis payload")
+    if metadata_source is not None:
+        return reporting.correct_presentation(
+            REPO, metadata_source, analysis, compute, cfg, results, run_id=run_id
+        )
     with np.load(analysis.export / "spectra.npz", allow_pickle=False) as data:
         spectra = {
             cell: {
@@ -114,8 +120,12 @@ def main() -> None:
         "--source", required=True, help="completed exp023 analyse run ID"
     )
     parser.add_argument("--run-id", help="unused v4 identity reserved before dispatch")
+    parser.add_argument(
+        "--metadata-source",
+        help="existing presentation to copy unchanged except the audited refractory metadata",
+    )
     args = parser.parse_args()
-    present(args.source, run_id=args.run_id)
+    present(args.source, run_id=args.run_id, metadata_source=args.metadata_source)
 
 
 if __name__ == "__main__":
