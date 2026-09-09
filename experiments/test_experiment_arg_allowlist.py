@@ -21,7 +21,7 @@ import pytest
 
 EXPERIMENTS = Path(__file__).resolve().parent
 
-from experiments.helpers.cli import ALL_META_FLAGS
+from experiments.helpers.cli import ALL_META_FLAGS, parse_meta
 
 # Synced with helpers/cli.py — the closed meta vocabulary (+ legacy wipe/replot).
 ALLOWED_EXACT = set(ALL_META_FLAGS) | {"--no-wipe-dir", "--wipe-dir", "--replot"}
@@ -73,6 +73,25 @@ def _accepted_flags(src: str) -> set[str]:
 def test_runners_exist():
     # Guards against a glob/path mistake silently passing the gate on zero files.
     assert RUNNERS, f"no exp<NNN>.py runners found under {EXPERIMENTS}"
+
+
+def test_scheduler_cell_meta_flags_parse_for_dispatch_runner():
+    meta = parse_meta(
+        ["compute.py", "--train-cell", "ping__off__seed42"],
+        allow_dispatch=True,
+    )
+    assert meta.train_cell == "ping__off__seed42"
+
+    listing = parse_meta(
+        ["compute.py", "--list-cells", "variable_rate"],
+        allow_dispatch=True,
+    )
+    assert listing.list_cells == "variable_rate"
+
+
+def test_retired_modal_flag_is_rejected():
+    with pytest.raises(SystemExit, match="unknown flag '--modal'"):
+        parse_meta(["compute.py", "--modal"], allow_dispatch=True)
 
 
 @pytest.mark.parametrize("runner", RUNNERS, ids=lambda p: p.name)

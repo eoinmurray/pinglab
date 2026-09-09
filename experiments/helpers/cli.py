@@ -13,8 +13,7 @@ Two tiers:
     (train ≫ analyze > plot) means you only ever skip the expensive PREFIX, so
     two flags cover every case.
   • dispatch — the cloud fan-out surface, opt-in (allow_dispatch=True) for the
-    fan-out runners only. The RunPod orchestration lives in helpers/runpod.py;
-    Modal-backed runners share the same closed meta vocabulary.
+    fan-out runners only. The orchestration lives in helpers/runpod.py.
 
 Parsing is bare-argv (no argparse) but STRICT: an unknown --flag is a hard error,
 so a typo like `--skip-trianing` fails loudly instead of silently training.
@@ -33,7 +32,7 @@ LIFECYCLE_OPTVALUE = ("--plot-only",)
 LIFECYCLE_FLAGS = (*LIFECYCLE_BOOL, *LIFECYCLE_OPTVALUE)
 
 # ── Dispatch flags (opt-in, fan-out runners only) ─────────────────────────
-DISPATCH_BOOL = ("--runpod", "--modal", "--live", "--collect", "--reap", "--pod-run", "--plumbing")
+DISPATCH_BOOL = ("--runpod", "--live", "--collect", "--reap", "--pod-run", "--plumbing")
 DISPATCH_VALUE = (
     "--gpu", "--cells-per-pod", "--train-cell", "--list-cells",
 )  # required single value
@@ -58,7 +57,6 @@ class Meta:
     plot_fig: str | None = None
     # dispatch (only populated when the runner opts in)
     runpod: bool = False
-    modal: bool = False
     live: bool = False
     collect: bool = False
     reap: bool = False
@@ -102,7 +100,6 @@ def _usage(prog: str, *, allow_dispatch: bool) -> str:
             "",
             "  Cloud fan-out:",
             "  --runpod           dispatch the fleet (DRY-RUN unless --live)",
-            "  --modal            dispatch via Modal instead of RunPod (DRY-RUN unless --live)",
             "  --live             actually create cloud jobs and spend money",
             "  --collect          pull trained cells off the shared volume",
             "  --reap             terminate all pods (kill switch)",
@@ -155,8 +152,6 @@ def parse_meta(argv: list[str], *, allow_dispatch: bool = False) -> Meta:
         # dispatch
         elif tok == "--runpod":
             meta.runpod = True
-        elif tok == "--modal":
-            meta.modal = True
         elif tok == "--live":
             meta.live = True
         elif tok == "--collect":
