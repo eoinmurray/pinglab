@@ -68,8 +68,10 @@
 #let inputs = (
   "exp023",
   "exp025",
+  "exp037",
   "exp038",
   "exp042",
+  "exp044",
   "exp049",
   "exp110",
   "exp082",
@@ -82,12 +84,12 @@
     if target() == "html" {
       html.elem(
         "div",
-        attrs: (style: "color: #b42318; font-size: 0.9em; font-weight: 600; line-height: 1; margin: 0.45rem 0 -0.7rem;"),
+        attrs: (style: "color: #b42318; font-size: 0.9em; font-weight: 400; line-height: 1; margin: 0.45rem 0 -0.7rem;"),
         label,
       )
     } else {
       block(above: 0.4em, below: 0.05em)[
-        #text(size: 9pt, weight: "semibold", fill: rgb("#b42318"))[#label]
+        #text(size: 9pt, weight: "regular", fill: rgb("#b42318"))[#label]
       ]
     }
   }
@@ -95,6 +97,25 @@
 
 #let render-report(data-file) = [
   #set heading(numbering: none)
+  #set math.equation(numbering: "(1)")
+  #counter(math.equation).update(0)
+  #show math.equation.where(block: true): equation => context {
+    if target() == "html" {
+      html.elem("div", attrs: (
+        class: "pinglab-numbered-equation",
+        style: "display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:1em",
+      ), {
+        html.elem("div", attrs: (style: "min-width:0;overflow-x:auto;overflow-y:hidden"), equation)
+        html.elem(
+          "span",
+          attrs: (class: "pinglab-equation-number"),
+          numbering(equation.numbering, ..counter(math.equation).at(equation.location())),
+        )
+      })
+    } else {
+      equation
+    }
+  }
   #metadata("exp110-start")
 
   == Abstract
@@ -390,6 +411,14 @@
   adapt did not preserve the strong temporal contrast observed with the fixed
   PING loop.
 
+  Training from standard or one-tenth-standard initialization eliminated most
+  E→I connections, while most I→E connections remained positive and their
+  mean strength increased (Fig. 5D–G). Mean E→I strength fell from standard
+  initialization but rose from one-tenth-standard initialization;
+  zero-initialized recurrence remained zero. Thus, weak temporal contrast
+  accompanied asymmetric recurrent reorganization, without isolating any
+  weight change as its cause.
+
   #figure(
     data-image(
       data-file("exp049/training_summary.svg"),
@@ -524,17 +553,16 @@
 
   #figure(
     data-image(
-      data-file("exp110/robustness_compound.png"),
+      data-file("exp037/perturbation_curves.svg"),
       width: 92%,
-      alt: "COBA and PING accuracy under spike deletion and addition, followed by firing rate and accuracy across integration timesteps.",
+      alt: "COBA and PING test accuracy under spike deletion and baseline-relative spike insertion.",
     ),
-    caption: [*Spike perturbations and integration timesteps in trained
-      classifiers.* Networks contained 1,024 excitatory (E) and 256
-      inhibitory (I) neurons. Tests used 1,000 MNIST test images, nominally 200-ms
+    caption: [*Spike perturbations in trained classifiers.* Networks contained
+      1,024 excitatory (E) and 256 inhibitory (I) neurons. Tests used 1,000
+      MNIST test images, nominally 200-ms
       presentations and 784 independent, pixel-proportional Poisson channels
       (25-Hz maximum-pixel rate). All summaries use three independent
-      training replicates per model/condition (seeds 42–44); E rates average
-      all E neurons and test presentations.
+      training replicates per model/condition (seeds 42–44).
 
       *(A–B)* Inference-time perturbations of unpenalised COBA (red squares)
       and PING (black diamonds), without retraining, at a 0.1-ms timestep.
@@ -552,32 +580,13 @@
       periods. Both perturbations preceded readout and subsequent recurrent
       transmission.
 
-      *(C)* Mean E firing rate (black diamonds, left axis) and test accuracy
-      (grey squares, right axis), with means ± SEM. PING networks were trained
-      separately at timesteps of 0.05, 0.1, 0.2, 0.3 and 0.6 ms and evaluated
-      at their final epoch-50 checkpoints using their training timestep.
-      E/I refractory holds remained 1.2/0.6 ms at every timestep.
-      Presentations lasted 199.8 ms at 0.3 and 0.6 ms and 200 ms otherwise;
-      firing rates use these realised durations.
-
-      Source experiments: #link("/exp037/")[exp037] — #link("/exp037/")[_Dropped Spikes vs Added Noise_] and
-      #link("/exp044/")[exp044] — #link("/exp044/")[_Firing Rate Across the Timestep Sweep._]],
+      Source experiment: #link("/exp037/")[exp037] — #link("/exp037/")[_Dropped Spikes vs Added Noise._]],
   ) <fig:robustness>
 
   #editing-paragraph-label("P13")
-  Classification performance remained near 90% across a twelvefold range of
-  integration timesteps. We compared five timestep settings from 0.05 to 0.6 ms,
-  with three independently trained PING classifiers per setting. Each network
-  was evaluated at epoch 50 using its training timestep, the same 1,000 MNIST
-  test images and nominally 200-ms presentations. Mean test accuracy ranged
-  from 88.4% to 89.6%, a span of 1.27 percentage points, whereas mean excitatory
-  firing increased from 14.3 to 17.0 Hz between the finest and coarsest timesteps
-  (Fig. 7C). Thus, classification performance persisted across the tested
-  numerical resolutions, although excitatory activity remained
-  timestep-dependent. Because networks were trained separately at each
-  timestep, this comparison establishes robustness of the matched
-  training-and-evaluation procedure rather than numerical convergence for a
-  fixed set of weights.
+  Classification accuracy remained near 90% across tested timesteps, although
+  excitatory firing varied. This supports robustness after separate training
+  at each timestep, without establishing fixed-weight convergence (Appendix A5).
 
   #editing-paragraph-label("P14")
   Rearranging inhibitory spike timing produced opposite effects on
@@ -733,7 +742,7 @@
     [5], [4 recurrent-training conditions], [Final],
     [6; 2I²], [6 inhibitory decay times], [Final],
     [7A–B], [Spike perturbations; reused COBA/PING], [Best validation],
-    [7C], [5 timesteps; 0.05–0.6 ms], [Final],
+    [App. A1], [5 timesteps; 0.05–0.6 ms], [Final],
     [8], [Inhibitory replay; reused PING], [Final],
     [9], [Variable-rate, spike-count training], [Best validation],
   )
@@ -792,10 +801,9 @@
   $s_j[k] in {0, 1}$ indicates a spike delivered during that update. The
   excitatory decay time $tau_E = tau_"AMPA"$ was 2 ms; the inhibitory decay
   time $tau_I = tau_"GABA"$ was 6 ms, except in the inhibitory-timescale
-  experiment, which used 4.5, 6, 9, 12, 18 and 27 ms. Existing conductances
-  decayed before spike increments were added. Membrane voltage was then
-  integrated using exponential Euler, holding the updated conductances
-  constant over each step. The integration timestep $Delta t_"sim"$ was
+  experiment, which used 4.5, 6, 9, 12, 18 and 27 ms. Membrane voltage
+  was integrated using exponential Euler; update ordering is specified in
+  Appendix A1. The integration timestep $Delta t_"sim"$ was
   ordinarily 0.1 ms. The timestep experiment used 0.05, 0.1, 0.2,
   0.3 and 0.6 ms, each representing both refractory periods exactly as
   integer numbers of steps. Exact updates and recurrent transmission timing
@@ -809,59 +817,11 @@
   #editing-paragraph-label("P20")
   Classifier networks contained input→E, E→I, I→E and E→output projections,
   with E→E and I→I connections disabled; COBA additionally disabled reciprocal
-  E–I coupling. Input and recurrent weights were drawn from Gaussian
-  distributions with the parent parameters in Table 2, clamped below at
-  zero and divided by the presynaptic population size $N_"pre"$. Before
-  this division, each input weight was independently zeroed with probability
-  $q_"zero" = 0.95$. Surviving weights were multiplied by
-  $1 / (1 - q_"zero") = 20$, preserving the expected summed connection
-  strength despite the zeroing. This imposed no permanent connectivity mask:
-  initially zero trainable weights could become positive during optimization.
-  Readout weights were initialized directly, without fan-in normalization.
-  These weights were dimensionless because they drove a normalized output
-  state with threshold 1, rather than a synaptic conductance or a membrane
-  voltage in millivolts. Exact initialization transformations are given in
-  Appendix A.
-
-  #let parameter-table = table(
-    columns: (auto, auto),
-    table.header([Parameter], [Standard value]),
-    [Population sizes $N_E, N_I$], [1,024; 256],
-    [Membrane capacitance $C_m$, E/I], [1/0.5 nF],
-    [Leak conductance $g_L$, E/I], [0.05/0.1 µS],
-    [Leak/reset potentials $E_L, V_"reset"$], [−65 mV],
-    [Spike threshold $V_"th"$], [−50 mV],
-    [Reversal potentials $E_E, E_I$], [0; −80 mV],
-    [Refractory period $tau_"ref"$, E/I], [1.2/0.6 ms],
-    [Synaptic decay $tau_"AMPA", tau_"GABA"$], [2; 6 ms],
-    [Integration timestep $Delta t_"sim"$], [0.1 ms],
-    [Input parent mean/SD $mu_"in", sigma_"in"$], [0.9/0.09 µS],
-    [Recurrent parent mean/SD, E→I], [1/0.1 µS],
-    [Recurrent parent mean/SD, I→E], [2/0.2 µS],
-    [Input-zeroing probability $q_"zero"$], [0.95],
-    [Readout initialization mean/SD (dimensionless)], [1.12/0.835],
-    [Output decay time; threshold], [2 ms; 1],
-    [Presentation duration; maximum-pixel rate], [200 ms; 25 Hz],
-    [Optimizer; learning rate], [AdamW; 0.0004],
-    [Epochs; minibatch size], [50; 256],
-    [Weight decay; gradient-norm limit], [0; 1],
-    [Surrogate slope; voltage-gradient damping], [1; 1,000 (PING), 1 (COBA)],
-  )
-  #context figure(
-    if target() == "html" {
-      html.elem("div", attrs: (style: "display: flex; justify-content: center; overflow-x: auto;"), parameter-table)
-    } else {
-      align(center, parameter-table)
-    },
-    kind: table,
-    caption: [*Standard spiking-classifier parameters and exceptions.*
-      Values describe standard classifiers, not the separate mean-field model.
-      Figure 1 used input parent mean/SD 1.5/0.3 µS and PING recurrent means
-      1.5/3 µS. Coupling strengths, inhibitory decay times and timesteps varied
-      in their respective sweeps. Figure 9 used readout mean/SD 0.05/0.04 and
-      variable input rates; stream durations varied during evaluation.
-      Readout initialization values are rounded.],
-  ) <tab:shared-parameters>
+  E–I coupling. Input and recurrent weights used lower-clamped Gaussian draws
+  with fan-in normalization (Appendix A4; Table A1). Here, $N_"pre"$ is the
+  presynaptic population size; input weights were initially zeroed with probability
+  $q_"zero" = 0.95$ but remained trainable. Readout weights were
+  dimensionless and initialized directly without fan-in normalization.
 
   === Classifier training
 
@@ -873,8 +833,9 @@
   class-stratified split. Both sampling and splitting used seed 42, giving
   the same data partitions across training replicates. The official
   10,000-image test partition remained separate from optimization and
-  checkpoint selection. Endpoint evaluations in Figs. 3–8 used a common
-  subset of 1,000 test images sampled uniformly without replacement using
+  checkpoint selection. Endpoint evaluations in Figs. 3–8 and Appendix
+  Fig. A1 used a common subset of 1,000 test images sampled uniformly without
+  replacement using
   seed 42, without class stratification. This subset and its presentation
   order were fixed independently of training seed. Single-image probes and
   illustrative rasters used separately specified examples; continuous-stream
@@ -901,12 +862,10 @@
 
   Independent image presentations lasted nominally 200 ms and began with
   freshly initialized hidden and output states. Training generated fresh
-  encoding draws on each presentation. Endpoint evaluation restarted a
-  separate encoding random stream with fixed seed 20260415, providing
-  matched input spike trains across networks evaluated with the same images,
-  ordering, batch grouping and encoding settings. Perturbation randomness
-  was generated separately. Variable input rates and state continuity
-  between successive images in the streaming experiment are described below.
+  encoding draws on each presentation. Endpoint encodings were matched across
+  networks at common input settings, with independent perturbation randomness
+  (Appendix B5). Variable input rates and state continuity between successive
+  images in the streaming experiment are described below.
 
   #editing-paragraph-label("P23")
   The output layer contained ten leaky integrate-and-fire units, one per
@@ -918,7 +877,8 @@
   subtracted from the state. Output units had no refractory period and
   began each independent presentation at zero.
 
-  For ordinary classification (Figs. 3–8), class logits and predictions were
+  For ordinary classification (Figs. 3–8 and Appendix Fig. A1), class logits
+  and predictions were
 
   #math.equation(
     block: true,
@@ -957,10 +917,8 @@
   for output neurons—and the surrogate slope $beta = 1$. Gradients through
   each hidden excitatory and inhibitory membrane increment were additionally
   divided by the voltage-gradient damping factor $d_"grad" = 1,000$ in PING
-  and $d_"grad" = 1$ in COBA. This operation preserved the forward voltage
-  update and left the direct gradient path through the previous membrane
-  voltage unchanged. Output-neuron updates did not receive this damping.
-  Full backward equations are given in Appendix A.
+  and $d_"grad" = 1$ in COBA. Forward dynamics were unchanged; output updates
+  were undamped. Exact gradient paths are specified in Appendix A3.
 
   #editing-paragraph-label("P25")
   For the accuracy–rate comparison (Fig. 3D), we added a one-sided quadratic
@@ -1017,7 +975,7 @@
   We compared untrained loop-disabled COBA and PING circuits containing
   1,024 excitatory and 256 inhibitory neurons (Fig. 1). Reciprocal E→I
   and I→E coupling was absent in COBA and enabled in PING, using the
-  initialization parameters specified in Table 2. Each simulation lasted
+  initialization parameters specified in Table A1. Each simulation lasted
   400 ms at a 0.1-ms timestep, beginning with membrane voltages of −65 mV
   and zero synaptic conductances; no burn-in interval was discarded.
   Illustrative rasters used 1,024 independent Poisson input channels at
@@ -1068,9 +1026,8 @@
   the full presentation. For the inhibitory-timescale classifiers, spectra
   were averaged across the 1,000 test presentations within each network
   before locating the largest peak between 5 and 150 Hz. The spectral-peak
-  frequency $f_gamma$ was refined by parabolic interpolation through the
-  peak and its two neighboring bins, with the adjustment limited to half a
-  bin. The 200-ms presentations gave a frequency-bin spacing of 5 Hz.
+  frequency $f_gamma$ was refined by parabolic interpolation (Appendix B1).
+  The 200-ms presentations gave a frequency-bin spacing of 5 Hz.
 
   The illustrative spectra in Fig. 1E,G instead used individual 400-ms
   trials, giving 2.5-Hz bin spacing. Their peak annotation additionally
@@ -1081,12 +1038,9 @@
   #editing-paragraph-label("P30")
   We quantified excitatory-population temporal structure using
   autocorrelation lobe–trough contrast (Figs. 2C and 5C). Spikes were pooled
-  across excitatory neurons into 1-ms count bins. We calculated the
-  uncentered autocorrelogram up to 100-ms lag, dividing each lag’s summed
-  count products by the number of contributing bin pairs and the squared
-  mean bin count. Before extracting features, we replaced the zero-lag
-  value with its 1-ms neighbor and applied three-point smoothing with
-  weights 0.25, 0.5 and 0.25.
+  across excitatory neurons into 1-ms count bins. We normalized and smoothed
+  the uncentered autocorrelogram over lags up to 100 ms as specified in
+  Appendix B2.
 
   We identified the first local minimum at a lag of at least 2 ms and the
   maximum at positive lags preceding that minimum. Contrast was defined as
@@ -1160,21 +1114,12 @@
   }
 
   #editing-paragraph-label("P32")
-  We located the mean-field oscillatory onset by continuing fixed points
-  across 401 equally spaced external currents $I_"ext"$ from 0 to 4 nA,
-  in 0.01-nA increments (Fig. 2G). We solved the steady-state equations by
-  nonlinear root finding, using the preceding solution to initialize each
-  subsequent solve. At each equilibrium, we calculated the continuous-time
-  Jacobian $J_"flow"$ of the four-variable model using centered finite
-  differences, with perturbations of $10^(-6) thin "ms"^(-1)$ for rate
-  coordinates and $10^(-6)$ µS for conductance coordinates.
-
-  Among the complex eigenvalues, we selected the conjugate pair with the
-  largest real part and identified its first crossing from negative to
-  nonnegative real part as current increased. We refined the onset current
-  $I_"ext"^*$ using Brent’s method to locate zero real part, recalculating
-  the equilibrium and Jacobian at each trial current. The onset frequency
-  was
+  We continued fixed points across external currents $I_"ext" = 0$–4 nA
+  and located onset at $I_"ext"^*$, where the leading complex-conjugate
+  eigenvalue pair first crossed from negative to nonnegative real part
+  (Fig. 2G). Eigenvalues came from the continuous-time Jacobian $J_"flow"$
+  of the four-variable model; continuation and refinement details are given
+  in Appendix C2. The onset frequency was
 
   #math.equation(
     block: true,
@@ -1191,26 +1136,14 @@
   thresholds and numerical tolerances are specified in Appendix C.
 
   #editing-paragraph-label("P33")
-  We assessed onset criticality numerically using upward and downward sweeps
-  through 25 equally spaced external currents from $I_"ext"^* - 0.1$ nA
-  to $I_"ext"^* + 0.55$ nA (Fig. 2H). We initialized the lowest-current
-  equilibrium with its excitatory rate increased by $10^(-3) thin "ms"^(-1)$.
-  At each current, we integrated the four-variable equations for 2 s using
-  LSODA, carrying the final state into the next integration and from the
-  upward sweep into the downward sweep. The peak-to-peak excitatory-rate
-  amplitude $A_"pp"$, measured in $"ms"^(-1)$, was the maximum minus the
-  minimum rate over the final 500 ms.
-
-  We classified the sampled onset as consistent with a supercritical
-  transition when the maximum absolute difference between upward and
-  downward amplitudes at matched currents was below $10^(-4) thin "ms"^(-1)$,
-  and a linear regression of $A_"pp"^2$ against excess current
-  $I_"ext" - I_"ext"^*$ had a positive slope and coefficient of determination
-  $R_"fit"^2 > 0.9$. The regression included an intercept and used
-  upward-sweep points above onset. This was a numerical classification of
-  the sampled trajectories; no first Lyapunov coefficient was calculated.
-  Exact regression conventions and numerical settings are specified in
-  Appendix C.
+  We assessed onset criticality using upward and downward drive sweeps,
+  integrating for 2 s at each current (Fig. 2H). Peak-to-peak excitatory-rate
+  amplitude $A_"pp"$, in $"ms"^(-1)$, was the maximum minus the minimum
+  over the final 500 ms. A numerically supercritical classification required
+  no resolved hysteresis and a positive amplitude-squared slope above onset,
+  using the predefined branch-gap and fit thresholds in Appendix C3.
+  Sweep settings are specified in Appendix C2. No first Lyapunov coefficient
+  was calculated.
 
   We assessed inhibitory-timescale dependence by repeating the fixed-point
   continuation and onset refinement at inhibitory decay times
@@ -1239,9 +1172,8 @@
   deviation divided by $sqrt(3)$.
 
   For the unpenalised conditions, validation learning curves averaged accuracy
-  across the three replicates at each epoch. Illustrative rasters used the
-  seed-42, epoch-50 checkpoint from each architecture and the first digit-0
-  image in the official test set, presented for 400 ms.
+  across the three replicates at each epoch. Illustrative-example selection
+  is specified in Appendix B4.
 
   #editing-paragraph-label("P35")
   We examined the effect of adding reciprocal inhibition after learning by
@@ -1263,11 +1195,6 @@
   official MNIST test images for 200 ms per image. Test accuracy and mean
   per-neuron E and I firing rates were summarized as means and sample
   standard deviations across the three training replicates.
-
-  Illustrative rasters used the seed-42 classifier and the first image in
-  the official test set, a digit 7, at $s = 0$ and $s = 1$. Both
-  presentations lasted 200 ms. Fixed subsets of 200 E and 64 I neurons
-  were selected uniformly without replacement using seed 0 for display.
 
   #editing-paragraph-label("P36")
   We compared fixed reciprocal E→I and I→E weights at standard strength
@@ -1332,13 +1259,9 @@
   #editing-paragraph-label("P38")
   We quantified excitatory spike counts per cycle using the same 18
   epoch-50 classifiers and common subset of 1,000 test images, presented
-  for 200 ms each (Fig. 6C–H). For each presentation, we summed inhibitory
-  spikes across neurons at each 0.1-ms simulation step and smoothed the
-  resulting trace with a normalized Gaussian kernel of standard deviation
-  $sigma_"smooth" = 1$ ms. We detected peaks with heights at least 5% of
-  the maximum smoothed value within that presentation, requiring a minimum
-  separation of approximately half the period corresponding to that
-  network's spectral-peak frequency $f_gamma$.
+  for 200 ms each (Fig. 6C–H). Inhibitory bursts were detected from
+  Gaussian-smoothed population spike counts, with peak separation scaled to
+  each network's spectral period (Appendix B3).
 
   We placed cycle boundaries at the midpoints between consecutive
   inhibitory-burst peaks, extending the first and last intervals to the
@@ -1390,26 +1313,9 @@
   matched baseline-relative doses.
 
   #editing-paragraph-label("P40")
-  We examined timestep dependence using PING classifiers trained at
-  integration timesteps $Delta t_"sim" = 0.05, 0.1, 0.2, 0.3$ and $0.6$ ms,
-  with three independent training replicates per timestep (seeds 42–44),
-  giving 15 networks (Fig. 7C). All networks were trained for 50 epochs
-  without an activity penalty, with recurrent weights fixed at standard
-  strength. Excitatory and inhibitory refractory periods remained 1.2 and
-  0.6 ms, respectively, represented exactly by integer step counts at every
-  timestep. We reused the three existing 0.1-ms classifiers and trained
-  twelve networks at the remaining timesteps.
-
-  Each network's epoch-50 checkpoint was evaluated at its training timestep
-  on the common subset of 1,000 test images. Presentations lasted nominally
-  200 ms, truncated to complete simulation steps: the realised duration was
-  199.8 ms at 0.3 and 0.6 ms and 200 ms otherwise. Mean per-neuron
-  excitatory firing rates were calculated across all neurons and test
-  presentations using the realised duration. Accuracy and excitatory firing
-  rate were summarized as means and SEM across the three training replicates
-  at each timestep. Because weights were trained separately at each
-  timestep, this experiment assessed timestep dependence after training and
-  did not establish numerical convergence with weights held fixed.
+  We evaluated separately trained PING classifiers at matched training and
+  evaluation timesteps while holding refractory durations fixed. The full
+  protocol and results are given in Appendix A5.
 
   #editing-paragraph-label("P41")
   We applied two count-preserving inhibitory replay perturbations to three
@@ -1429,21 +1335,16 @@
   comprised 228 simulation steps and were defined independently of detected
   bursts. Figure 8 displays both sweeps through 14 ms.
 
-  Offsets were rounded to the simulation grid. Boundary reflection kept
-  events within the presentation, and same-neuron collisions were resolved
-  by moving events to the nearest unoccupied timestep. Each inhibitory
-  neuron's spike count was preserved exactly within every presentation.
-  Thus, $sigma$ describes proposed offsets before boundary and collision
-  adjustments. Both arms shared the same zero-jitter replay control; exact
-  transformation rules are specified in Appendix D.
+  Each inhibitory neuron's spike count was preserved within every
+  presentation. The parameter $sigma$ describes proposed offsets before
+  boundary and collision adjustments; both arms shared the zero-jitter
+  replay control. Exact transformations are specified in Appendix D.
 
   Accuracy and mean per-neuron excitatory and replayed inhibitory rates
   were calculated across the complete test subset, then averaged across
   the three training replicates. Figure 8 shows these means without
-  uncertainty intervals. Illustrative rasters used the seed-42 classifier
-  and official test image 0, a digit 7, at $sigma = 14$ ms. Replay
-  interrupted responsive feedback because delivered inhibition could no
-  longer respond to ongoing excitatory activity.
+  uncertainty intervals. Replay interrupted responsive feedback because
+  delivered inhibition could no longer respond to ongoing excitatory activity.
 
   === Continuous streams
 
@@ -1507,12 +1408,8 @@
   For each stream, five images were sampled uniformly without replacement
   from the full 10,000-image official MNIST test partition, without class
   stratification. Digit labels could repeat within a stream, and images
-  could recur across streams. Image-sampling seeds depended on network
-  seed, presentation duration and input rate, so these evaluations did not
-  use the fixed 1,000-image endpoint subset. Bernoulli encoding used a
-  separate random stream indexed by network seed and stream number.
-  Encoding seeds were reused across conditions, without imposing identical
-  spike trains when images, durations or rates differed.
+  could recur across streams. Image samples varied across networks and conditions;
+  encoding used an independent random stream (Appendix B5).
 
   For each network and condition, accuracy was the fraction of correct
   decisions across all 200 presentations, including presentations with no
@@ -1522,20 +1419,9 @@
   and SEM across those same three replicates.
 
   #editing-paragraph-label("P44")
-  For the illustrative stream (Fig. 9A–D), we used the seed-42 classifier
-  with five predefined presentation-duration–maximum-pixel-rate pairs:
-  (100 ms, 5 Hz), (200 ms, 7.5 Hz), (50 ms, 25 Hz), (100 ms, 15 Hz) and
-  (200 ms, 10 Hz). Each candidate contained five distinct digit classes
-  drawn in random order, with one image sampled uniformly from each class
-  in the official MNIST test partition.
-
-  Candidates were evaluated in a predetermined order, and the first
-  yielding five correct classifications was retained for the illustration.
-  The first candidate met this criterion, producing the sequence 1, 7, 9,
-  5 and 2. Its image-selection and spike-encoding seeds were 820000 and
-  830000, respectively. This illustrative selection was separate from the
-  quantitative streaming evaluation. Rasters displayed the first 200
-  excitatory and 64 inhibitory neurons.
+  The illustrative stream was selected independently of quantitative
+  evaluation using a predefined five-correct criterion, met by the first
+  candidate (Appendix B4).
 
   To visualize the evolving readout within each presentation, we
   transformed cumulative output-spike counts into softmax shares:
@@ -1569,8 +1455,8 @@
 
   Each network's outcome was calculated before aggregation across
   networks. Displayed error bars or bands represent SEM in Figs. 3,
-  5A–C, 6A–B, 7C and 9F, and sample SD in Figs. 4 and 7A–B. Sample SD
-  used the denominator $n - 1$, and SEM was calculated as
+  5A–C, 6A–B and 9F and Appendix Fig. A1, and sample SD in Figs. 4 and 7A–B.
+  Sample SD used the denominator $n - 1$, and SEM was calculated as
   $"SD" / sqrt(n)$, where $n = 3$ is the number of training replicates.
   Figures 8 and 9E show means without uncertainty intervals. Pooled
   weight summaries and neuron–cycle distributions were calculated directly
@@ -1629,13 +1515,17 @@
 
   == Appendix A — Discrete dynamics and gradient calculations
 
-  *A1 — Discrete neuronal and synaptic updates.* Give the actual recurrence
-  equations implementing the continuous equations in Methods: exponential
-  conductance decay, event increments, effective membrane equilibrium and
-  exponential-Euler update. Specify the ordering of recurrent transmission,
-  threshold evaluation, refractory-counter updates and reset. Define the
-  timestep indexing so the transmission delay is unambiguous.
-  Supports Methods P19; Figs. 1–8.
+  *A1 — Discrete neuronal and synaptic updates.* Existing conductances
+  decayed before spike increments were added. Membrane voltage was then
+  integrated using exponential Euler, holding the updated conductances
+  constant over each step.
+
+  *Remaining scaffold:* Give the actual recurrence equations implementing
+  the continuous equations in Methods: exponential conductance decay, event
+  increments, effective membrane equilibrium and exponential-Euler update.
+  Specify the ordering of recurrent transmission, threshold evaluation,
+  refractory-counter updates and reset. Define the timestep indexing so the
+  transmission delay is unambiguous. Supports Methods P19; Figs. 1–8 and A1.
 
   *A2 — Output-state recurrence.* Give the output update, including its
   timestep-dependent input factor, pre-reset evidence accumulation and
@@ -1643,43 +1533,209 @@
   accumulation diverge. Supply the implementation equations without repeating
   the readout definitions or parameter values. Supports P23 and P42; Figs. 3–9.
 
-  *A3 — Surrogate and damped derivatives.* Write the fast-sigmoid surrogate
-  derivative and the forward-preserving gradient-scaling operation. Show which
+  *A3 — Surrogate and damped derivatives.* Voltage-gradient damping preserved
+  the forward voltage update and left the direct gradient path through the
+  previous membrane voltage unchanged. Output-neuron updates did not receive
+  this damping.
+
+  *Remaining scaffold:* Starting from the fast-sigmoid surrogate in Equation 5,
+  write the forward-preserving gradient-scaling operation. Show which
   membrane-increment derivatives receive damping, which direct state paths
   remain, and how hidden hard resets differ from differentiable output
   subtractive resets. Do not repeat optimizer settings. Supports P24.
 
-  *A4 — Initialization transformation.* Express the executed sequence
-  algebraically: Gaussian draw, lower clamp, independent initial-zero mask,
-  survivor rescaling and division by presynaptic population size. Explain why
-  the parent mean differs from the realized matrix mean. Distinguish the
-  output initializer, which uses stored-weight parameters directly. Refer to
-  Table 2 for values. Supports P20 and P42.
+  *A4 — Initialization transformation.* Input and recurrent weights were
+  drawn from Gaussian distributions with the parent parameters in Table A1,
+  clamped below at zero and divided by the presynaptic population size
+  $N_"pre"$. Before
+  this division, each input weight was independently zeroed with probability
+  $q_"zero" = 0.95$. Surviving weights were multiplied by
+  $1 / (1 - q_"zero") = 20$, preserving the expected summed connection
+  strength despite the zeroing. This imposed no permanent connectivity mask:
+  initially zero trainable weights could become positive during optimization.
+  Readout weights were initialized directly, without fan-in normalization.
+  These weights were dimensionless because they drove a normalized output
+  state with threshold 1, rather than a synaptic conductance or a membrane
+  voltage in millivolts.
+
+  *Remaining scaffold:* Express this sequence algebraically and explain why
+  the parent mean differs from the realized matrix mean. Refer to Table A1
+  for values. Supports P20 and P42.
+
+  #let parameter-table = table(
+    columns: (auto, auto),
+    table.header([Parameter], [Standard value]),
+    [Population sizes $N_E, N_I$], [1,024; 256],
+    [Membrane capacitance $C_m$, E/I], [1/0.5 nF],
+    [Leak conductance $g_L$, E/I], [0.05/0.1 µS],
+    [Leak/reset potentials $E_L, V_"reset"$], [−65 mV],
+    [Spike threshold $V_"th"$], [−50 mV],
+    [Reversal potentials $E_E, E_I$], [0; −80 mV],
+    [Refractory period $tau_"ref"$, E/I], [1.2/0.6 ms],
+    [Synaptic decay $tau_"AMPA", tau_"GABA"$], [2; 6 ms],
+    [Integration timestep $Delta t_"sim"$], [0.1 ms],
+    [Input parent mean/SD $mu_"in", sigma_"in"$], [0.9/0.09 µS],
+    [Recurrent parent mean/SD, E→I], [1/0.1 µS],
+    [Recurrent parent mean/SD, I→E], [2/0.2 µS],
+    [Input-zeroing probability $q_"zero"$], [0.95],
+    [Readout initialization mean/SD (dimensionless)], [1.12/0.835],
+    [Output decay time; threshold], [2 ms; 1],
+    [Presentation duration; maximum-pixel rate], [200 ms; 25 Hz],
+    [Optimizer; learning rate], [AdamW; 0.0004],
+    [Epochs; minibatch size], [50; 256],
+    [Weight decay; gradient-norm limit], [0; 1],
+    [Surrogate slope; voltage-gradient damping], [1; 1,000 (PING), 1 (COBA)],
+  )
+  #context figure(
+    if target() == "html" {
+      html.elem("div", attrs: (style: "display: flex; justify-content: center; overflow-x: auto;"), parameter-table)
+    } else {
+      align(center, parameter-table)
+    },
+    kind: table,
+    numbering: n => "A1",
+    caption: [*Standard spiking-classifier parameters and exceptions.*
+      Values describe standard classifiers, not the separate mean-field model.
+      Figure 1 used input parent mean/SD 1.5/0.3 µS and PING recurrent means
+      1.5/3 µS. Coupling strengths, inhibitory decay times and timesteps varied
+      in their respective sweeps. Figure 9 used readout mean/SD 0.05/0.04 and
+      variable input rates; stream durations varied during evaluation.
+      Readout initialization values are rounded.],
+  ) <tab:shared-parameters>
+
+  *A5 — Numerical-resolution validation.*
+
+  We examined timestep dependence using PING classifiers trained at
+  integration timesteps $Delta t_"sim" = 0.05, 0.1, 0.2, 0.3$ and $0.6$ ms,
+  with three independent training replicates per timestep (seeds 42–44),
+  giving 15 networks (Appendix Fig. A1). All networks were trained for 50 epochs
+  without an activity penalty, with recurrent weights fixed at standard
+  strength. Excitatory and inhibitory refractory periods remained 1.2 and
+  0.6 ms, respectively, represented exactly by integer step counts at every
+  timestep. We reused the three existing 0.1-ms classifiers and trained
+  twelve networks at the remaining timesteps.
+
+  Each network's epoch-50 checkpoint was evaluated at its training timestep
+  on the common subset of 1,000 test images. Presentations lasted nominally
+  200 ms, truncated to complete simulation steps: the realised duration was
+  199.8 ms at 0.3 and 0.6 ms and 200 ms otherwise. Mean per-neuron
+  excitatory firing rates were calculated across all neurons and test
+  presentations using the realised duration. Accuracy and excitatory firing
+  rate were summarized as means and SEM across the three training replicates
+  at each timestep. Because weights were trained separately at each
+  timestep, this experiment assessed timestep dependence after training and
+  did not establish numerical convergence with weights held fixed.
+
+  Across this twelvefold timestep range, mean test accuracy ranged from
+  88.4% to 89.6%, a span of 1.27 percentage points, whereas mean excitatory
+  firing increased from 14.3 to 17.0 Hz between the finest and coarsest
+  timesteps (Appendix Fig. A1). Thus, classification performance persisted
+  across the tested numerical resolutions, although excitatory activity
+  remained timestep-dependent.
+
+  #figure(
+    data-image(
+      data-file("exp044/dt_sweep.svg"),
+      width: 80%,
+      alt: "Hidden excitatory firing rate and test accuracy across five integration timesteps, with SEM across independently trained classifiers.",
+    ),
+    numbering: n => "A1",
+    caption: [*Timestep dependence after separate training.*
+      Mean per-neuron E firing rate (black diamonds, left axis) and test
+      accuracy (red squares, right axis), with means ± SEM across three
+      independently trained PING classifiers per timestep (seeds 42–44).
+      Networks contained 1,024 E and 256 I neurons and used the same
+      1,000 MNIST test images, 784 independent pixel-proportional Poisson
+      channels and a 25-Hz maximum-pixel rate. Each epoch-50 checkpoint was
+      evaluated at its training timestep; E/I refractory holds remained
+      1.2/0.6 ms. Presentations lasted 199.8 ms at 0.3 and 0.6 ms and
+      200 ms otherwise; rates use the realised durations.
+      Source experiment: #link("/exp044/")[exp044] — #link("/exp044/")[_Firing Rate Across the Timestep Sweep._]],
+  ) <fig:timestep-validation>
 
   == Appendix B — Measurement algorithms and boundary cases
 
-  *B1 — Spectral interpolation.* Give the three-bin parabolic interpolation
-  formula on linear spectral power. Specify the half-bin correction limit and
-  zero-offset behavior at spectrum boundaries or zero curvature. Explain
-  treatment of unusable traces where applicable. Leave window lengths,
-  frequency ranges and averaging order in Methods.
+  *B1 — Spectral interpolation.* The spectral-peak frequency $f_gamma$ was
+  refined by parabolic interpolation through the peak and its two neighboring
+  bins, with the adjustment limited to half a bin.
+
+  *Remaining scaffold:* Give the three-bin interpolation formula on linear
+  spectral power. Specify zero-offset behavior at spectrum boundaries or
+  zero curvature and treatment of unusable traces where applicable. Leave
+  window lengths, frequency ranges and averaging order in Methods.
   Supports P29; Figs. 1E/G, 2I and 6A–B.
 
-  *B2 — Autocorrelation implementation.* Give the FFT construction and
-  finite-overlap normalization explicitly. Specify discarded incomplete bins,
-  treatment of zero lag, smoothing at array boundaries, the asymmetric
-  inequalities used to identify a trough, and first-maximum tie handling.
-  State when contrast is undefined and distinguish missing values in the
-  coupling-grid analysis from zero substitution in the training diagnostic.
-  Supports P30; Figs. 2C and 5C.
+  *B2 — Autocorrelation implementation.* We calculated the
+  uncentered autocorrelogram up to 100-ms lag, dividing each lag’s summed
+  count products by the number of contributing bin pairs and the squared
+  mean bin count. Before extracting features, we replaced the zero-lag
+  value with its 1-ms neighbor and applied three-point smoothing with
+  weights 0.25, 0.5 and 0.25.
 
-  *B3 — Cycle-boundary discretization.* Specify the Gaussian kernel's
-  ±4-standard-deviation support, integer rounding of minimum peak separation,
-  floor-rounded midpoint boundaries and half-open counting intervals. Explain
-  the single-detected-burst case: its counting interval spans the entire
+  *Remaining scaffold:* Give the FFT construction and finite-overlap
+  normalization explicitly. Specify discarded incomplete bins, smoothing at
+  array boundaries, the asymmetric inequalities used to identify a trough,
+  and first-maximum tie handling. State when contrast is undefined and
+  distinguish missing values in the coupling-grid analysis from zero
+  substitution in the training diagnostic. Supports P30; Figs. 2C and 5C.
+
+  *B3 — Burst detection and cycle-boundary discretization.* For each
+  presentation, we summed inhibitory spikes across neurons at each 0.1-ms
+  simulation step and smoothed the resulting trace with a normalized Gaussian
+  kernel of standard deviation
+  $sigma_"smooth" = 1$ ms. We detected peaks with heights at least 5% of
+  the maximum smoothed value within that presentation, requiring a minimum
+  separation of approximately half the period corresponding to that
+  network's spectral-peak frequency $f_gamma$.
+
+  *Remaining scaffold:* Specify the Gaussian kernel's ±4-standard-deviation
+  support, integer rounding of minimum peak separation, floor-rounded
+  midpoint boundaries and half-open counting intervals. Explain the
+  single-detected-burst case: its counting interval spans the entire
   presentation. Clarify these consequences of the cycle definition without
-  repeating the detection protocol or pooled results.
-  Supports P38; Fig. 6C–H.
+  repeating pooled results. Supports P38; Fig. 6C–H.
+
+  *B4 — Illustrative-example selection.*
+
+  For Fig. 3, illustrative rasters used the seed-42, epoch-50 checkpoint
+  from each architecture and the first digit-0 image in the official test
+  set, presented for 400 ms.
+
+  For Fig. 4, illustrative rasters used the seed-42 classifier and the first
+  image in the official test set, a digit 7, at $s = 0$ and $s = 1$. Both
+  presentations lasted 200 ms. Fixed subsets of 200 E and 64 I neurons
+  were selected uniformly without replacement using seed 0 for display.
+
+  For Fig. 8, illustrative rasters used the seed-42 classifier
+  and official test image 0, a digit 7, at $sigma = 14$ ms.
+
+  For the illustrative stream (Fig. 9A–D), we used the seed-42 classifier
+  with five predefined presentation-duration–maximum-pixel-rate pairs:
+  (100 ms, 5 Hz), (200 ms, 7.5 Hz), (50 ms, 25 Hz), (100 ms, 15 Hz) and
+  (200 ms, 10 Hz). Each candidate contained five distinct digit classes
+  drawn in random order, with one image sampled uniformly from each class
+  in the official MNIST test partition.
+
+  Candidates were evaluated in a predetermined order, and the first
+  yielding five correct classifications was retained for the illustration.
+  The first candidate met this criterion, producing the sequence 1, 7, 9,
+  5 and 2. Its image-selection and spike-encoding seeds were 820000 and
+  830000, respectively. This illustrative selection was separate from the
+  quantitative streaming evaluation. Rasters displayed the first 200
+  excitatory and 64 inhibitory neurons.
+
+  *B5 — Random-stream implementation.* Endpoint evaluation restarted a
+  separate encoding random stream with fixed seed 20260415, providing
+  matched input spike trains across networks evaluated with the same images,
+  ordering, batch grouping and encoding settings. Perturbation randomness
+  was generated separately.
+
+  For quantitative continuous-stream evaluation, image-sampling seeds depended
+  on network seed, presentation duration and input rate, so these evaluations
+  did not use the fixed 1,000-image endpoint subset. Bernoulli encoding used a
+  separate random stream indexed by network seed and stream number.
+  Encoding seeds were reused across conditions, without imposing identical
+  spike trains when images, durations or rates differed.
 
   == Appendix C — Mean-field closure and numerical specification
 
@@ -1691,40 +1747,80 @@
   repeat the four final equations or their parameter table.
   Supports P31; Fig. 2G–I.
 
-  *C2 — Numerical solution details.* Specify initialization of the fixed-point
-  solver and continuation between neighboring drives, failed-solution handling,
-  numerical quadrature settings and the selection of the leading complex
-  eigenvalue. For negative integration arguments $u$, the gain integrand was
-  evaluated as $"erfcx"(-u)$, the scaled complementary error function,
-  rather than $exp(u^2)(1 + "erf"(u))$, to avoid cancellation. This numerical
-  correction accompanied the refractory change, so differences from the
-  earlier mean-field calculation cannot be attributed to refractoriness alone.
-  Put the precise Brent and LSODA tolerances and maximum integration step in
-  Appendix Table C1, rather than repeating the drive grids
-  and integration durations. Supports P32–P33.
+  *C2 — Numerical solution details.*
+
+  We located the mean-field oscillatory onset by continuing fixed points
+  across 401 equally spaced external currents $I_"ext"$ from 0 to 4 nA,
+  in 0.01-nA increments (Fig. 2G). We solved the steady-state equations by
+  nonlinear root finding, using the preceding solution to initialize each
+  subsequent solve. At each equilibrium, we calculated the continuous-time
+  Jacobian $J_"flow"$ of the four-variable model using centered finite
+  differences, with perturbations of $10^(-6) thin "ms"^(-1)$ for rate
+  coordinates and $10^(-6)$ µS for conductance coordinates.
+
+  Among the complex eigenvalues, we selected the conjugate pair with the
+  largest real part and identified its first crossing from negative to
+  nonnegative real part as current increased. We refined the onset current
+  $I_"ext"^*$ using Brent’s method to locate zero real part, recalculating
+  the equilibrium and Jacobian at each trial current.
+
+  We assessed onset criticality numerically using upward and downward sweeps
+  through 25 equally spaced external currents from $I_"ext"^* - 0.1$ nA
+  to $I_"ext"^* + 0.55$ nA (Fig. 2H). We initialized the lowest-current
+  equilibrium with its excitatory rate increased by $10^(-3) thin "ms"^(-1)$.
+  At each current, we integrated the four-variable equations for 2 s using
+  LSODA, carrying the final state into the next integration and from the
+  upward sweep into the downward sweep. The peak-to-peak excitatory-rate
+  amplitude $A_"pp"$, measured in $"ms"^(-1)$, was the maximum minus the
+  minimum rate over the final 500 ms.
+
+  For negative integration arguments $u$, the gain integrand was evaluated
+  as $"erfcx"(-u)$, the scaled complementary error function, rather than
+  $exp(u^2)(1 + "erf"(u))$, to avoid cancellation. This numerical correction
+  accompanied the refractory change, so differences from the earlier
+  mean-field calculation cannot be attributed to refractoriness alone.
+
+  *Remaining scaffold:* Specify initialization of the first fixed-point
+  solve, failed-solution handling, numerical quadrature settings and
+  eigenvalue-selection thresholds. Put the precise Brent and LSODA tolerances
+  and maximum integration step in Appendix Table C1. Supports P32–P33.
 
   *Appendix Table C1 placement — Numerical solver settings.* Record the
   quadrature, root-refinement and integration settings needed to reproduce
   the displayed mean-field calculation; omit protocol values already in Methods.
 
-  *C3 — Criticality calculation.* Define the branch gap as the maximum
-  absolute difference between matched upward/downward amplitudes. State its
-  threshold of $10^(-4)$ inverse milliseconds. Specify that the
-  amplitude-squared regression used upward-branch points above onset, included
-  an intercept and used centered total sum of squares. Explain handling of
-  insufficient points or zero variance. Supports P33; Fig. 2H.
+  *C3 — Criticality calculation.*
+
+  We classified the sampled onset as consistent with a supercritical
+  transition when the maximum absolute difference between upward and
+  downward amplitudes at matched currents was below $10^(-4) thin "ms"^(-1)$,
+  and a linear regression of $A_"pp"^2$ against excess current
+  $I_"ext" - I_"ext"^*$ had a positive slope and coefficient of determination
+  $R_"fit"^2 > 0.9$. The regression included an intercept and used
+  upward-sweep points above onset. This was a numerical classification of
+  the sampled trajectories; no first Lyapunov coefficient was calculated.
+
+  *Remaining scaffold:* Specify the centered total sum of squares and
+  handling of insufficient points or zero variance. Supports P33; Fig. 2H.
 
   == Appendix D — Exact replay transformations
 
-  *D1 — Quantization and boundary reflection.* Give the conversion of
-  Gaussian offsets to integer timestep shifts and the repeated-reflection
-  mapping into a bounded interval. For independent jitter, apply reflection
-  to event destinations. For group jitter, derive the allowable shared
-  displacement from the earliest and latest events in the source window.
-  Explain the degenerate interval case. Supports P41; Fig. 8.
+  *D1 — Quantization and boundary reflection.* Offsets were rounded to the
+  simulation grid. Boundary reflection kept events within the presentation.
 
-  *D2 — Collision resolution.* Describe stable event ordering and resolution
-  of duplicate same-neuron destinations by searching offsets in the order
+  *Remaining scaffold:* Give the conversion of Gaussian offsets to integer
+  timestep shifts and the repeated-reflection mapping into a bounded interval.
+  For independent jitter, apply reflection to event destinations. For group
+  jitter, derive the allowable shared displacement from the earliest and
+  latest events in the source window. Explain the degenerate interval case.
+  Supports P41; Fig. 8.
+
+  *D2 — Collision resolution.* Same-neuron collisions were resolved by moving
+  events to the nearest unoccupied timestep. Each inhibitory neuron's spike
+  count was preserved exactly within every presentation.
+
+  *Remaining scaffold:* Describe stable event ordering and resolution of
+  duplicate same-neuron destinations by searching offsets in the order
   +1, −1, +2, −2, continuing outward and skipping out-of-range candidates.
   Explain that count preservation survives this operation, although collision
   adjustment can change within-group relative timing. Supports P41; Fig. 8.
