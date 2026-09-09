@@ -130,6 +130,8 @@ mover[accent="true" i] > :not(:first-child) {
    Everything below composes those tokens — no one-off px or ad-hoc greys. */
 :root {
   --ink: #1a1a1a;
+  --link-ink: #1a1a1a;
+  --link-muted: #666;
   --muted: #666;          /* every piece of secondary text, one grey */
   --rule: #e7e5df;
   --rule-strong: #d8d5cd;
@@ -175,13 +177,13 @@ h3 { font-size: var(--fs-h2); line-height: 1.25; font-weight: 700; margin: 2.4re
 h4 { font-size: var(--fs-h3); line-height: 1.3; font-weight: 700; margin: 1.8rem 0 .35rem; text-wrap: balance; }
 /* Print-style links: ink with a hairline underline, not web blue. */
 a {
-  color: var(--ink);
+  color: var(--link-ink);
   text-decoration: underline;
   text-decoration-thickness: 1px;
   text-underline-offset: 2px;
 }
 a:focus-visible {
-  outline: 2px solid var(--ink);
+  outline: 2px solid var(--link-ink);
   outline-offset: 3px;
   border-radius: 1px;
 }
@@ -212,8 +214,8 @@ figcaption,
    larger description margin only when that line actually exists. */
 .byline { font-size: var(--fs-small); color: var(--muted); margin: .2rem 0 1.5rem; }
 .entry-meta + .byline { margin-top: -.9rem; }
-.byline a { color: var(--muted); }
-.byline a:hover { color: var(--ink); }
+.byline a { color: var(--link-muted); }
+.byline a:hover { color: var(--link-ink); }
 
 /* Citations: inline numbers stay in the text (underline on hover); the reference list is
    secondary text, each entry's DOI a quiet link out. */
@@ -226,8 +228,8 @@ figcaption,
 ol.refs { font-size: var(--fs-small); line-height: 1.55; padding-left: 1.5rem; margin: 1rem 0; }
 ol.refs li { margin: .45rem 0; }
 ol.refs li::marker { color: var(--muted); }
-ol.refs .doi { color: var(--muted); }
-ol.refs .doi:hover { color: var(--ink); }
+ol.refs .doi { color: var(--link-muted); }
+ol.refs .doi:hover { color: var(--link-ink); }
 /* Hover popover for an inline citation (Wikipedia-style): a small card echoing the reference. */
 .cite-popover {
   position: absolute; z-index: 50; display: none;
@@ -236,8 +238,8 @@ ol.refs .doi:hover { color: var(--ink); }
   box-shadow: 0 4px 16px rgba(0, 0, 0, .1);
   font-size: var(--fs-small); line-height: 1.5; color: var(--ink);
 }
-.cite-popover .doi { color: var(--muted); }
-.cite-popover .doi:hover { color: var(--ink); }
+.cite-popover .doi { color: var(--link-muted); }
+.cite-popover .doi:hover { color: var(--link-ink); }
 
 /* Experiment artifact stage (`.status`): inherits the metadata line's quiet treatment. */
 
@@ -261,9 +263,9 @@ ol.refs .doi:hover { color: var(--ink); }
 
 /* Heading anchors: every heading carries a slug id (link to page#slug); a quiet # permalink
    fades in on hover to grab that URL. */
-.hx .permalink { opacity: 0; margin-left: .3em; color: var(--muted); text-decoration: none; font-weight: 400; font-size: .85em; }
+.hx .permalink { opacity: 0; margin-left: .3em; color: var(--link-muted); text-decoration: none; font-weight: 400; font-size: .85em; }
 .hx:hover .permalink, .hx:focus-within .permalink { opacity: 1; }
-.hx .permalink:hover { color: var(--ink); }
+.hx .permalink:hover { color: var(--link-ink); }
 
 /* Figure placeholder (`#pending` / `#pending-figure`): a figure whose asset isn't ready yet.
    A tinted, dashed panel that reserves the figure's footprint so the page doesn't reflow when the
@@ -281,10 +283,10 @@ ol.refs .doi:hover { color: var(--ink); }
 
 /* Entry meta strip: id · date · status · pdf, all inline. The pdf is a concrete destination, so it
    keeps its underline (muted, darkening on hover) rather than the bare listing-nav treatment. */
-.entry-pdf { color: var(--muted); text-decoration: underline; }
-.entry-pdf:hover { color: var(--ink); }
-.entry-collection { color: var(--muted); text-decoration: underline; }
-.entry-collection:hover { color: var(--ink); }
+.entry-pdf { color: var(--link-muted); text-decoration: underline; }
+.entry-pdf:hover { color: var(--link-ink); }
+.entry-collection { color: var(--link-muted); text-decoration: underline; }
+.entry-collection:hover { color: var(--link-ink); }
 /* On listing pages the description sits closer to the list it heads (entry pages keep the
    airier 1.75rem before the body). */
 .listing .entry-meta { margin-bottom: 1.25rem; }
@@ -312,12 +314,12 @@ ol.refs .doi:hover { color: var(--ink); }
   padding: 0;
 }
 .site-links a {
-  color: var(--muted);
+  color: var(--link-muted);
   font-size: var(--fs-small);
   white-space: nowrap;
   text-decoration: none;
 }
-.site-links a:hover { color: var(--ink); text-decoration: underline; }
+.site-links a:hover { color: var(--link-ink); text-decoration: underline; }
 .site-head h1, .site-head h2 {
   font-size: 1.5rem;
   line-height: 1.15;
@@ -354,7 +356,7 @@ ol.refs .doi:hover { color: var(--ink); }
    links in the landing hero — both the nav row and inline links in the body prose. */
 .welcome-links a, .welcome-body a { text-decoration: underline; }
 .welcome-links a { color: #444; }
-.welcome-links a:hover { color: var(--ink); }
+.welcome-links a:hover { color: var(--link-ink); }
 .welcome-kicker {
   font-family: var(--mono); font-size: var(--fs-label); color: var(--muted);
   text-transform: uppercase; letter-spacing: .08em; margin: 3rem 0 .65rem;
@@ -372,8 +374,8 @@ ol.refs .doi:hover { color: var(--ink); }
 /* A quiet aside under a section (the "prefer to do it by hand?" line) — smaller and muted,
    so it reads as a footnote to the block above, not the next paragraph. */
 .welcome-note { margin: 0 0 1rem; font-size: var(--fs-small); color: var(--muted); }
-.welcome-note a { color: var(--muted); text-decoration: underline; }
-.welcome-note a:hover { color: var(--ink); }
+.welcome-note a { color: var(--link-muted); text-decoration: underline; }
+.welcome-note a:hover { color: var(--link-ink); }
 /* The paste-into-your-agent command is a sentence, not shell — let it wrap rather than
    clip/scroll at the .welcome column width. */
 .welcome-cmd pre { white-space: pre-wrap; }
@@ -407,8 +409,8 @@ ol.refs .doi:hover { color: var(--ink); }
 }
 .welcome-docs-tier ul { list-style: none; padding-left: 0; margin: 0; }
 .welcome-docs-tier li { padding: .125rem 0; font-size: var(--fs-small); line-height: 1.4; }
-.welcome-docs-tier a { text-decoration: underline; color: var(--ink); }
-.welcome-docs-tier a:hover { color: var(--ink); }
+.welcome-docs-tier a { text-decoration: underline; color: var(--link-ink); }
+.welcome-docs-tier a:hover { color: var(--link-ink); }
 .welcome-foot {
   margin: 1.75rem 0 0;
   padding-top: .85rem;
@@ -416,8 +418,8 @@ ol.refs .doi:hover { color: var(--ink); }
   font-size: var(--fs-small);
   color: var(--muted);
 }
-.welcome-foot a { color: var(--muted); }
-.welcome-foot a:hover { color: var(--ink); }
+.welcome-foot a { color: var(--link-muted); }
+.welcome-foot a:hover { color: var(--link-ink); }
 
 /* Homepage collection directory: collection-name links, description beneath. These are the
    page's hero items, so they sit one step above body — the middle of the home hierarchy
@@ -481,7 +483,7 @@ ol.refs .doi:hover { color: var(--ink); }
 .article-header .entry-collection, .article-header .entry-pdf {
   color: inherit; text-decoration: underline; text-decoration-color: #bcc0c4;
 }
-.row-meta a:hover { color: var(--ink); text-decoration-color: currentColor; }
+.row-meta a:hover { color: var(--link-ink); text-decoration-color: currentColor; }
 
 .article-header { margin-bottom: 1.75rem; }
 .article-header .entry-meta {
@@ -518,8 +520,8 @@ ol.refs .doi:hover { color: var(--ink); }
 
 /* Foot-of-listing nav line: quiet by default, links darken + underline on hover. */
 .page-foot { margin-top: 2rem; }
-.page-foot a { color: var(--muted); }
-.page-foot a:hover { color: var(--ink); }
+.page-foot a { color: var(--link-muted); }
+.page-foot a:hover { color: var(--link-ink); }
 
 p { margin: 1rem 0; text-wrap: pretty; }
 img, video { max-width: 100%; height: auto; display: block; margin: 1.5rem auto; }
@@ -635,7 +637,8 @@ pre code { font-size: 1em; }
 
 /* Built-in developer-documentation skin. A collection opts in with `theme: docs`; its collection
    page and writings keep the default components, measurements, ordering, and metadata exactly.
-   Only visual tokens and surfaces change: neutral sans/mono type, cool slate ink, and blue links. */
+   Only visual tokens and surfaces change: neutral sans/mono type and cool slate ink.
+   Link colours are shared with the default theme. */
 body:has(.theme-docs) {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Helvetica, Arial, sans-serif;
   color: #172033;
@@ -658,7 +661,6 @@ body:has(.theme-docs) h6 {
   font-family: inherit;
   letter-spacing: -.018em;
 }
-body:has(.theme-docs) a { color: var(--docs-accent); text-decoration-color: #9db4da; }
 body:has(.theme-docs) .entry-meta,
 body:has(.theme-docs) .page-foot { color: var(--muted); }
 body:has(.theme-docs) code {
@@ -729,7 +731,7 @@ body:has(.theme-docs) td { color: #334155; }
 @media (max-width: 22rem) {
   .welcome-docs { grid-template-columns: 1fr; }
 }
-</style><meta name="generator" content="demolab 5.4.5"><script src="cite-popover.js" defer></script><script src="image-lightbox.js" defer></script><script src="https://hypothes.is/embed.js" async></script><div class="theme-docs" aria-hidden="true"></div><header class="article-header"><div class="row-heading"><div class="row-title-group"><h2 id="runtime-state-checkpoints-and-provenance" class="hx">Runtime state, checkpoints, and provenance<a class="permalink" href="#runtime-state-checkpoints-and-provenance" aria-label="Link to this section">#</a></h2></div></div><div class="entry-meta"><div class="row-meta"><span class="row-id">#exp089</span> · <a class="entry-collection" href="snnlang-docs">SNNLANG</a> · <span class="entry-tags"><a class="tag" href="tags/txt">txt</a> <a class="tag" href="tags/v35.4.0">v35.4.0</a></span></div><div class="article-dates"><div class="article-date">Created <time datetime="2026-08-14T00:00:00Z" title="Created 14 August 2026 at 12:00 am">14 Aug 26, 12:00 am</time></div></div></div></header><style>nav[aria-label="Table of Contents"] ul { margin: .35rem 0; } nav[aria-label="Table of Contents"] li > p { margin: 0; } nav[aria-label="Table of Contents"] ul ol { margin: 0; } nav[aria-label="Table of Contents"] ul ol > li:first-child { margin-top: 0; }</style><nav aria-label="Table of Contents"><ul><li><a href="#developer-guide">Developer guide</a></li><li><a href="#api-reference">API reference</a></li><li><a href="#dataset">Dataset</a></li></ul></nav><h3 id="developer-guide" class="hx">Developer guide<a class="permalink" href="#developer-guide" aria-label="Link to this section">#</a></h3><h4 id="runtime-state" class="hx">Runtime state<a class="permalink" href="#runtime-state" aria-label="Link to this section">#</a></h4><p>Runtime state contains the dynamic values required to continue one trajectory: voltages, refractory counters, conductances, projection and input histories, and completed step count. It excludes static parameter values.</p><p>A runtime-state signature covers timestep, populations, input shapes, projections, delays, synapses, and state layout. Incompatible state is rejected rather than partially loaded. This supports burn-in followed by a compatible intervention without restarting the circuit.</p><p>Runtime-state save, load, validation, and continuation are implemented.</p><h4 id="checkpoints" class="hx">Checkpoints<a class="permalink" href="#checkpoints" aria-label="Link to this section">#</a></h4><p>Parameter checkpoints and runtime state serve different purposes. A parameter checkpoint describes learned or initialized weights. Runtime state describes where one simulation trajectory currently is. A graph-training checkpoint additionally carries named optimizer state, the completed-update count, CPU stochastic state, exact named accelerator generator states when applicable, the resolved execution protocol, initializer metadata, and graph and training digests.</p><p>The graph trainer can write both the final update and the lowest-loss update selected during an invocation. Resume validates the complete named parameter set, shapes, dtypes, recipe identity, protocol, initializer provenance, random backend, and accelerator device topology before restoring parameters, AdamW state, random-number streams, and the next dataset epoch and batch. A partial or positional mapping is rejected. CPU, CUDA, and MPS checkpoints resume only on the same random backend; CUDA requires the exact contiguous device set captured from <code>cuda:0</code> onward.</p><h4 id="provenance" class="hx">Provenance<a class="permalink" href="#provenance" aria-label="Link to this section">#</a></h4><p>A run should retain the bundle digest, resolved execution protocol, seeds, backend and version, realized initializer statistics, checkpoint identity, and produced artifacts. Dense-array graph runs now emit a versioned execution protocol in <code>metrics.json</code>, including source digests, resolved input contracts, dataset metadata, timing, masks, and execution seed. A resumed run must preserve optimizer state, data order, and stochastic streams when exact continuation is claimed.</p><p>The bundle is network provenance, not the complete experiment record. Experiment runners still own conditions, orchestration, analysis, figures, and publication.</p><h3 id="api-reference" class="hx">API reference<a class="permalink" href="#api-reference" aria-label="Link to this section">#</a></h3><h4 id="graphruntimestate" class="hx"><code>GraphRuntimeState</code><a class="permalink" href="#graphruntimestate" aria-label="Link to this section">#</a></h4><pre><code data-lang="python"><span style="color: #4b69c6">GraphRuntimeState</span>(
+</style><meta name="generator" content="demolab 5.5.1"><script src="cite-popover.js" defer></script><script src="image-lightbox.js" defer></script><script src="https://hypothes.is/embed.js" async></script><div class="theme-docs" aria-hidden="true"></div><header class="article-header"><div class="row-heading"><div class="row-title-group"><h2 id="runtime-state-checkpoints-and-provenance" class="hx">Runtime state, checkpoints, and provenance<a class="permalink" href="#runtime-state-checkpoints-and-provenance" aria-label="Link to this section">#</a></h2></div></div><div class="entry-meta"><div class="row-meta"><span class="row-id">#exp089</span> · <a class="entry-collection" href="snnlang-docs">SNNLANG</a> · <span class="entry-tags"><a class="tag" href="tags/txt">txt</a> <a class="tag" href="tags/v35.4.0">v35.4.0</a></span></div><div class="article-dates"><div class="article-date">Created <time datetime="2026-08-14T00:00:00Z" title="Created 14 August 2026 at 12:00 am">14 Aug 26, 12:00 am</time></div></div></div></header><style>nav[aria-label="Table of Contents"] ul { margin: .35rem 0; } nav[aria-label="Table of Contents"] li > p { margin: 0; } nav[aria-label="Table of Contents"] ul ol { margin: 0; } nav[aria-label="Table of Contents"] ul ol > li:first-child { margin-top: 0; }</style><nav aria-label="Table of Contents"><ul><li><a href="#developer-guide">Developer guide</a></li><li><a href="#api-reference">API reference</a></li></ul></nav><h3 id="developer-guide" class="hx">Developer guide<a class="permalink" href="#developer-guide" aria-label="Link to this section">#</a></h3><h4 id="runtime-state" class="hx">Runtime state<a class="permalink" href="#runtime-state" aria-label="Link to this section">#</a></h4><p>Runtime state contains the dynamic values required to continue one trajectory: voltages, refractory counters, conductances, projection and input histories, and completed step count. It excludes static parameter values.</p><p>A runtime-state signature covers timestep, populations, input shapes, projections, delays, synapses, and state layout. Incompatible state is rejected rather than partially loaded. This supports burn-in followed by a compatible intervention without restarting the circuit.</p><p>Runtime-state save, load, validation, and continuation are implemented.</p><h4 id="checkpoints" class="hx">Checkpoints<a class="permalink" href="#checkpoints" aria-label="Link to this section">#</a></h4><p>Parameter checkpoints and runtime state serve different purposes. A parameter checkpoint describes learned or initialized weights. Runtime state describes where one simulation trajectory currently is. A graph-training checkpoint additionally carries named optimizer state, the completed-update count, CPU stochastic state, exact named accelerator generator states when applicable, the resolved execution protocol, initializer metadata, and graph and training digests.</p><p>The graph trainer can write both the final update and the lowest-loss update selected during an invocation. Resume validates the complete named parameter set, shapes, dtypes, recipe identity, protocol, initializer provenance, random backend, and accelerator device topology before restoring parameters, AdamW state, random-number streams, and the next dataset epoch and batch. A partial or positional mapping is rejected. CPU, CUDA, and MPS checkpoints resume only on the same random backend; CUDA requires the exact contiguous device set captured from <code>cuda:0</code> onward.</p><h4 id="provenance" class="hx">Provenance<a class="permalink" href="#provenance" aria-label="Link to this section">#</a></h4><p>A run should retain the bundle digest, resolved execution protocol, seeds, backend and version, realized initializer statistics, checkpoint identity, and produced artifacts. Dense-array graph runs now emit a versioned execution protocol in <code>metrics.json</code>, including source digests, resolved input contracts, dataset metadata, timing, masks, and execution seed. A resumed run must preserve optimizer state, data order, and stochastic streams when exact continuation is claimed.</p><p>The bundle is network provenance, not the complete experiment record. Experiment runners still own conditions, orchestration, analysis, figures, and publication.</p><h3 id="api-reference" class="hx">API reference<a class="permalink" href="#api-reference" aria-label="Link to this section">#</a></h3><h4 id="graphruntimestate" class="hx"><code>GraphRuntimeState</code><a class="permalink" href="#graphruntimestate" aria-label="Link to this section">#</a></h4><pre><code data-lang="python"><span style="color: #4b69c6">GraphRuntimeState</span>(
     signature,
     compatibility,
     completed_steps,
@@ -747,4 +749,4 @@ body:has(.theme-docs) td { color: #334155; }
 <span style="color: #4b69c6">restore_training_rng_state</span>(checkpoint, device) <span style="color: #d73948">-</span><span style="color: #d73948">></span> <span style="color: #d73948">None</span>
 <span style="color: #4b69c6">legacy_parameter_map_v1</span>(graph) <span style="color: #d73948">-</span><span style="color: #d73948">></span> <span style="color: #4b69c6">dict</span>[<span style="color: #4b69c6">str</span>, <span style="color: #4b69c6">str</span>]
 <span style="color: #4b69c6">import_legacy_parameters_v1</span>(graph, state_dict) <span style="color: #d73948">-</span><span style="color: #d73948">></span> ParameterInterchange
-<span style="color: #4b69c6">export_legacy_parameters_v1</span>(graph, parameters) <span style="color: #d73948">-</span><span style="color: #d73948">></span> ParameterInterchange</code></pre><p>Training checkpoints use schema <code>tools/snnsim.training-checkpoint/v1</code> and store a JSON manifest beside a digest-verified compressed tensor payload. Manifest version 2 adds <code>rng_backend</code>, an exact accelerator-device inventory, and one authenticated uint8 generator state per device while retaining the CPU generator. Parameters and optimizer tensors are keyed by stable graph parameter id. The manifest authenticates the graph and training recipes, completed update, resolved execution protocol, realized initialization metadata, optimizer scalars, selected loss, tensor layout, dataset iterator position, and stochastic topology. CPU-only manifest version 1 remains loadable.</p><p>CUDA capture uses every state returned by <code>torch.cuda.get_rng_state_all</code>; resume requires the available device count to reproduce the exact <code>cuda:0 ... cuda:N</code> inventory before any generator is changed. MPS stores exactly one <code>mps</code> state. Cross-backend resume, missing or extra states, non-contiguous CUDA ids, malformed RNG tensors, and unavailable MPS restoration fail closed. Training metrics report the checkpoint RNG backend and device names.</p><p>Mocked topology fixtures prove schema, inventory, validation, and restore dispatch without allocating hardware. They do <strong>not</strong> prove accelerator numerical determinism or legacy-versus-graph parity; those claims require the publication-device cases in the final conformance campaign.</p><p><code>ExecutionSpec.checkpoint</code> resumes graph training from a checkpoint directory. The <code>save_final_checkpoint</code> and <code>save_selected_checkpoint</code> options persist the final and invocation-selected states. <code>legacy_parameter_map_v1</code> provides the explicit one-layer legacy adapter map and fails closed for graphs that cannot be represented without omissions or ambiguity.</p><p>Simulation and inference requests also accept a graph training-checkpoint directory. They authenticate the payload and graph digest, require exact parameter names, shapes, and dtypes, and load parameters without restoring optimizer, random-stream, or data-order state. Inference metrics retain the checkpoint format, path, graph and training digests, completed update, and selected loss. A non-directory checkpoint remains the explicit legacy PyTorch state-file route.</p><p>Parameter interchange uses schema <code>tools/snnsim.legacy-parameter-interchange/v1</code>. Import and export require the exact six supported one-layer keys, runtime shapes, floating dtypes, and complete graph coverage. The returned provenance records direction, mapping version, and the full semantic map. This is parameter-only interchange: legacy optimizer objects are not relabelled as portable graph-training checkpoints.</p><h4 id="provenance-fields" class="hx">Provenance fields<a class="permalink" href="#provenance-fields" aria-label="Link to this section">#</a></h4><p>Graph simulation metrics include device, recording profile, build and simulation timing, runtime-state schema and signature, completed steps, and the resolved execution protocol. Dense file bindings add source paths, SHA-256 digests, array keys, shapes, dtypes, dataset metadata, timing, masks, and execution seed.</p><p><a href="/exp090/">exp090</a> — <a href="/exp090/"><em>Compatibility, status, and extension</em></a></p><h3 id="dataset" class="hx">Dataset<a class="permalink" href="#dataset" aria-label="Link to this section">#</a></h3><style>.run-view {margin:1rem 0 2rem;border:1px solid var(--rule-strong,#ddd);border-radius:.35rem;font-size:.85rem;overflow-x:auto;} .run-view .run-dependencies {display:grid;grid-template-columns:max-content minmax(0,1fr);gap:.35rem 1rem;margin:0;padding:.7rem .8rem;border-bottom:1px solid var(--rule-strong,#ddd);} .run-view .run-dependencies dt {font-weight:600;color:var(--muted,#666);} .run-view .run-dependencies dd {margin:0;} .run-view .run-dependencies a {white-space:nowrap;} .run-view table {width:100%;margin:0;border:0;border-collapse:collapse;font-size:inherit;} .run-view th,.run-view td {padding:.6rem .8rem;text-align:left;vertical-align:baseline;border:0;border-bottom:1px solid var(--rule-strong,#ddd);} .run-view th {font-weight:600;color:var(--muted,#666);} .run-view tbody tr:last-child td {border-bottom:0;} .run-view .run-name {white-space:nowrap;} .run-view .run-stage-present {text-decoration:underline;text-underline-offset:.15em;} .run-view .run-date,.run-view .run-origin {color:var(--muted,#666);} .run-view .run-date {min-width:7.5em;white-space:nowrap;} .run-view .run-duration {white-space:nowrap;font-variant-numeric:tabular-nums;} .run-view .run-size {text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums;} .run-view [aria-current=true] {font-weight:600;}</style><aside class="run-view" aria-label="Dataset"><dl class="run-dependencies"><dt>Upstream</dt><dd class="experiment-upstream">—</dd><dt>Downstream</dt><dd class="experiment-downstream">—</dd></dl><table aria-label="Dataset"><thead><tr><th scope="col" class="run-name">Run</th><th scope="col" class="run-date">Date</th><th scope="col" class="run-duration">Duration</th><th scope="col" class="run-size">Size</th><th scope="col" class="run-origin">Ran on</th></tr></thead><tbody><tr><td colspan="5">No datasets declared.</td></tr></tbody></table></aside><div class="entry-tail"></div></body></html>
+<span style="color: #4b69c6">export_legacy_parameters_v1</span>(graph, parameters) <span style="color: #d73948">-</span><span style="color: #d73948">></span> ParameterInterchange</code></pre><p>Training checkpoints use schema <code>tools/snnsim.training-checkpoint/v1</code> and store a JSON manifest beside a digest-verified compressed tensor payload. Manifest version 2 adds <code>rng_backend</code>, an exact accelerator-device inventory, and one authenticated uint8 generator state per device while retaining the CPU generator. Parameters and optimizer tensors are keyed by stable graph parameter id. The manifest authenticates the graph and training recipes, completed update, resolved execution protocol, realized initialization metadata, optimizer scalars, selected loss, tensor layout, dataset iterator position, and stochastic topology. CPU-only manifest version 1 remains loadable.</p><p>CUDA capture uses every state returned by <code>torch.cuda.get_rng_state_all</code>; resume requires the available device count to reproduce the exact <code>cuda:0 ... cuda:N</code> inventory before any generator is changed. MPS stores exactly one <code>mps</code> state. Cross-backend resume, missing or extra states, non-contiguous CUDA ids, malformed RNG tensors, and unavailable MPS restoration fail closed. Training metrics report the checkpoint RNG backend and device names.</p><p>Mocked topology fixtures prove schema, inventory, validation, and restore dispatch without allocating hardware. They do <strong>not</strong> prove accelerator numerical determinism or legacy-versus-graph parity; those claims require the publication-device cases in the final conformance campaign.</p><p><code>ExecutionSpec.checkpoint</code> resumes graph training from a checkpoint directory. The <code>save_final_checkpoint</code> and <code>save_selected_checkpoint</code> options persist the final and invocation-selected states. <code>legacy_parameter_map_v1</code> provides the explicit one-layer legacy adapter map and fails closed for graphs that cannot be represented without omissions or ambiguity.</p><p>Simulation and inference requests also accept a graph training-checkpoint directory. They authenticate the payload and graph digest, require exact parameter names, shapes, and dtypes, and load parameters without restoring optimizer, random-stream, or data-order state. Inference metrics retain the checkpoint format, path, graph and training digests, completed update, and selected loss. A non-directory checkpoint remains the explicit legacy PyTorch state-file route.</p><p>Parameter interchange uses schema <code>tools/snnsim.legacy-parameter-interchange/v1</code>. Import and export require the exact six supported one-layer keys, runtime shapes, floating dtypes, and complete graph coverage. The returned provenance records direction, mapping version, and the full semantic map. This is parameter-only interchange: legacy optimizer objects are not relabelled as portable graph-training checkpoints.</p><h4 id="provenance-fields" class="hx">Provenance fields<a class="permalink" href="#provenance-fields" aria-label="Link to this section">#</a></h4><p>Graph simulation metrics include device, recording profile, build and simulation timing, runtime-state schema and signature, completed steps, and the resolved execution protocol. Dense file bindings add source paths, SHA-256 digests, array keys, shapes, dtypes, dataset metadata, timing, masks, and execution seed.</p><p><a href="/exp090/">exp090</a> — <a href="/exp090/"><em>Compatibility, status, and extension</em></a></p><div class="entry-tail"></div></body></html>

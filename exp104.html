@@ -130,6 +130,8 @@ mover[accent="true" i] > :not(:first-child) {
    Everything below composes those tokens — no one-off px or ad-hoc greys. */
 :root {
   --ink: #1a1a1a;
+  --link-ink: #1a1a1a;
+  --link-muted: #666;
   --muted: #666;          /* every piece of secondary text, one grey */
   --rule: #e7e5df;
   --rule-strong: #d8d5cd;
@@ -175,13 +177,13 @@ h3 { font-size: var(--fs-h2); line-height: 1.25; font-weight: 700; margin: 2.4re
 h4 { font-size: var(--fs-h3); line-height: 1.3; font-weight: 700; margin: 1.8rem 0 .35rem; text-wrap: balance; }
 /* Print-style links: ink with a hairline underline, not web blue. */
 a {
-  color: var(--ink);
+  color: var(--link-ink);
   text-decoration: underline;
   text-decoration-thickness: 1px;
   text-underline-offset: 2px;
 }
 a:focus-visible {
-  outline: 2px solid var(--ink);
+  outline: 2px solid var(--link-ink);
   outline-offset: 3px;
   border-radius: 1px;
 }
@@ -212,8 +214,8 @@ figcaption,
    larger description margin only when that line actually exists. */
 .byline { font-size: var(--fs-small); color: var(--muted); margin: .2rem 0 1.5rem; }
 .entry-meta + .byline { margin-top: -.9rem; }
-.byline a { color: var(--muted); }
-.byline a:hover { color: var(--ink); }
+.byline a { color: var(--link-muted); }
+.byline a:hover { color: var(--link-ink); }
 
 /* Citations: inline numbers stay in the text (underline on hover); the reference list is
    secondary text, each entry's DOI a quiet link out. */
@@ -226,8 +228,8 @@ figcaption,
 ol.refs { font-size: var(--fs-small); line-height: 1.55; padding-left: 1.5rem; margin: 1rem 0; }
 ol.refs li { margin: .45rem 0; }
 ol.refs li::marker { color: var(--muted); }
-ol.refs .doi { color: var(--muted); }
-ol.refs .doi:hover { color: var(--ink); }
+ol.refs .doi { color: var(--link-muted); }
+ol.refs .doi:hover { color: var(--link-ink); }
 /* Hover popover for an inline citation (Wikipedia-style): a small card echoing the reference. */
 .cite-popover {
   position: absolute; z-index: 50; display: none;
@@ -236,8 +238,8 @@ ol.refs .doi:hover { color: var(--ink); }
   box-shadow: 0 4px 16px rgba(0, 0, 0, .1);
   font-size: var(--fs-small); line-height: 1.5; color: var(--ink);
 }
-.cite-popover .doi { color: var(--muted); }
-.cite-popover .doi:hover { color: var(--ink); }
+.cite-popover .doi { color: var(--link-muted); }
+.cite-popover .doi:hover { color: var(--link-ink); }
 
 /* Experiment artifact stage (`.status`): inherits the metadata line's quiet treatment. */
 
@@ -261,9 +263,9 @@ ol.refs .doi:hover { color: var(--ink); }
 
 /* Heading anchors: every heading carries a slug id (link to page#slug); a quiet # permalink
    fades in on hover to grab that URL. */
-.hx .permalink { opacity: 0; margin-left: .3em; color: var(--muted); text-decoration: none; font-weight: 400; font-size: .85em; }
+.hx .permalink { opacity: 0; margin-left: .3em; color: var(--link-muted); text-decoration: none; font-weight: 400; font-size: .85em; }
 .hx:hover .permalink, .hx:focus-within .permalink { opacity: 1; }
-.hx .permalink:hover { color: var(--ink); }
+.hx .permalink:hover { color: var(--link-ink); }
 
 /* Figure placeholder (`#pending` / `#pending-figure`): a figure whose asset isn't ready yet.
    A tinted, dashed panel that reserves the figure's footprint so the page doesn't reflow when the
@@ -281,10 +283,10 @@ ol.refs .doi:hover { color: var(--ink); }
 
 /* Entry meta strip: id · date · status · pdf, all inline. The pdf is a concrete destination, so it
    keeps its underline (muted, darkening on hover) rather than the bare listing-nav treatment. */
-.entry-pdf { color: var(--muted); text-decoration: underline; }
-.entry-pdf:hover { color: var(--ink); }
-.entry-collection { color: var(--muted); text-decoration: underline; }
-.entry-collection:hover { color: var(--ink); }
+.entry-pdf { color: var(--link-muted); text-decoration: underline; }
+.entry-pdf:hover { color: var(--link-ink); }
+.entry-collection { color: var(--link-muted); text-decoration: underline; }
+.entry-collection:hover { color: var(--link-ink); }
 /* On listing pages the description sits closer to the list it heads (entry pages keep the
    airier 1.75rem before the body). */
 .listing .entry-meta { margin-bottom: 1.25rem; }
@@ -312,12 +314,12 @@ ol.refs .doi:hover { color: var(--ink); }
   padding: 0;
 }
 .site-links a {
-  color: var(--muted);
+  color: var(--link-muted);
   font-size: var(--fs-small);
   white-space: nowrap;
   text-decoration: none;
 }
-.site-links a:hover { color: var(--ink); text-decoration: underline; }
+.site-links a:hover { color: var(--link-ink); text-decoration: underline; }
 .site-head h1, .site-head h2 {
   font-size: 1.5rem;
   line-height: 1.15;
@@ -354,7 +356,7 @@ ol.refs .doi:hover { color: var(--ink); }
    links in the landing hero — both the nav row and inline links in the body prose. */
 .welcome-links a, .welcome-body a { text-decoration: underline; }
 .welcome-links a { color: #444; }
-.welcome-links a:hover { color: var(--ink); }
+.welcome-links a:hover { color: var(--link-ink); }
 .welcome-kicker {
   font-family: var(--mono); font-size: var(--fs-label); color: var(--muted);
   text-transform: uppercase; letter-spacing: .08em; margin: 3rem 0 .65rem;
@@ -372,8 +374,8 @@ ol.refs .doi:hover { color: var(--ink); }
 /* A quiet aside under a section (the "prefer to do it by hand?" line) — smaller and muted,
    so it reads as a footnote to the block above, not the next paragraph. */
 .welcome-note { margin: 0 0 1rem; font-size: var(--fs-small); color: var(--muted); }
-.welcome-note a { color: var(--muted); text-decoration: underline; }
-.welcome-note a:hover { color: var(--ink); }
+.welcome-note a { color: var(--link-muted); text-decoration: underline; }
+.welcome-note a:hover { color: var(--link-ink); }
 /* The paste-into-your-agent command is a sentence, not shell — let it wrap rather than
    clip/scroll at the .welcome column width. */
 .welcome-cmd pre { white-space: pre-wrap; }
@@ -407,8 +409,8 @@ ol.refs .doi:hover { color: var(--ink); }
 }
 .welcome-docs-tier ul { list-style: none; padding-left: 0; margin: 0; }
 .welcome-docs-tier li { padding: .125rem 0; font-size: var(--fs-small); line-height: 1.4; }
-.welcome-docs-tier a { text-decoration: underline; color: var(--ink); }
-.welcome-docs-tier a:hover { color: var(--ink); }
+.welcome-docs-tier a { text-decoration: underline; color: var(--link-ink); }
+.welcome-docs-tier a:hover { color: var(--link-ink); }
 .welcome-foot {
   margin: 1.75rem 0 0;
   padding-top: .85rem;
@@ -416,8 +418,8 @@ ol.refs .doi:hover { color: var(--ink); }
   font-size: var(--fs-small);
   color: var(--muted);
 }
-.welcome-foot a { color: var(--muted); }
-.welcome-foot a:hover { color: var(--ink); }
+.welcome-foot a { color: var(--link-muted); }
+.welcome-foot a:hover { color: var(--link-ink); }
 
 /* Homepage collection directory: collection-name links, description beneath. These are the
    page's hero items, so they sit one step above body — the middle of the home hierarchy
@@ -481,7 +483,7 @@ ol.refs .doi:hover { color: var(--ink); }
 .article-header .entry-collection, .article-header .entry-pdf {
   color: inherit; text-decoration: underline; text-decoration-color: #bcc0c4;
 }
-.row-meta a:hover { color: var(--ink); text-decoration-color: currentColor; }
+.row-meta a:hover { color: var(--link-ink); text-decoration-color: currentColor; }
 
 .article-header { margin-bottom: 1.75rem; }
 .article-header .entry-meta {
@@ -518,8 +520,8 @@ ol.refs .doi:hover { color: var(--ink); }
 
 /* Foot-of-listing nav line: quiet by default, links darken + underline on hover. */
 .page-foot { margin-top: 2rem; }
-.page-foot a { color: var(--muted); }
-.page-foot a:hover { color: var(--ink); }
+.page-foot a { color: var(--link-muted); }
+.page-foot a:hover { color: var(--link-ink); }
 
 p { margin: 1rem 0; text-wrap: pretty; }
 img, video { max-width: 100%; height: auto; display: block; margin: 1.5rem auto; }
@@ -635,7 +637,8 @@ pre code { font-size: 1em; }
 
 /* Built-in developer-documentation skin. A collection opts in with `theme: docs`; its collection
    page and writings keep the default components, measurements, ordering, and metadata exactly.
-   Only visual tokens and surfaces change: neutral sans/mono type, cool slate ink, and blue links. */
+   Only visual tokens and surfaces change: neutral sans/mono type and cool slate ink.
+   Link colours are shared with the default theme. */
 body:has(.theme-docs) {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Helvetica, Arial, sans-serif;
   color: #172033;
@@ -658,7 +661,6 @@ body:has(.theme-docs) h6 {
   font-family: inherit;
   letter-spacing: -.018em;
 }
-body:has(.theme-docs) a { color: var(--docs-accent); text-decoration-color: #9db4da; }
 body:has(.theme-docs) .entry-meta,
 body:has(.theme-docs) .page-foot { color: var(--muted); }
 body:has(.theme-docs) code {
@@ -729,9 +731,9 @@ body:has(.theme-docs) td { color: #334155; }
 @media (max-width: 22rem) {
   .welcome-docs { grid-template-columns: 1fr; }
 }
-</style><meta name="generator" content="demolab 5.4.5"><script src="cite-popover.js" defer></script><script src="image-lightbox.js" defer></script><script src="https://hypothes.is/embed.js" async></script><div class="theme-docs" aria-hidden="true"></div><header class="article-header"><div class="row-heading"><div class="row-title-group"><h2 id="cloudflare-r2-archive" class="hx">Cloudflare R2 archive<a class="permalink" href="#cloudflare-r2-archive" aria-label="Link to this section">#</a></h2></div></div><div class="entry-meta"><div class="row-meta"><span class="row-id">#exp104</span> · <a class="entry-collection" href="pinglab-docs">Pinglab</a> · <span class="entry-tags"><a class="tag" href="tags/txt">txt</a> <a class="tag" href="tags/v35.4.0">v35.4.0</a></span></div><div class="article-dates"><div class="article-date">Created <time datetime="2026-08-11T00:00:00Z" title="Created 11 August 2026 at 12:00 am">11 Aug 26, 12:00 am</time></div><div class="article-date">Updated <time datetime="2026-08-28T00:00:00Z" title="Updated 28 August 2026 at 12:00 am">28 Aug 26, 12:00 am</time></div></div></div></header><style>nav[aria-label="Table of Contents"] ul { margin: .35rem 0; } nav[aria-label="Table of Contents"] li > p { margin: 0; } nav[aria-label="Table of Contents"] ul ol { margin: 0; } nav[aria-label="Table of Contents"] ul ol > li:first-child { margin-top: 0; }</style><nav aria-label="Table of Contents"><ul><li><a href="#what-is-backed-up">What is backed up</a></li><li><a href="#access-and-authentication">Access and authentication</a></li><li><a href="#inspect-snapshots">Inspect snapshots</a></li><li><a href="#archive-a-completed-campaign">Archive a completed campaign</a></li><li><a href="#restore-campaign-payloads">Restore campaign payloads</a></li><li><a href="#completed-run-recovery">Completed-run recovery</a></li><li><a href="#safety-and-troubleshooting">Safety and troubleshooting</a></li><li><a href="#dataset">Dataset</a></li></ul></nav><h3 id="what-is-backed-up" class="hx">What is backed up<a class="permalink" href="#what-is-backed-up" aria-label="Link to this section">#</a></h3><p>R2 is remote backup storage for expensive-to-reproduce payloads such as trained checkpoint banks. Git records source code; Pingstore records completed scientific runs. An R2 snapshot is not automatically a complete Pingstore run, and a successful download does not make recovered files operational evidence.</p><p>The current helper is <code>experiments/helpers/archive.py</code>. Its interfaces differ:</p><table><tr><td><strong>Command</strong></td><td><strong>Current scope</strong></td></tr><tr><td><code>list</code></td><td>List an experiment’s remote snapshots and summary metadata.</td></tr><tr><td><code>archive-campaign</code></td><td>Validate the named <code>exp022</code> campaign and back up its complete cell payload bank with an inventory.</td></tr><tr><td><code>restore-campaign</code></td><td>Copy that bank into a separate absent or empty directory and compare the copy with remote files.</td></tr><tr><td><code>archive</code> / <code>restore</code></td><td>Older active-view/scratch interfaces. These do not provide complete v3 run backup and recovery; do not use them as that workflow.</td></tr></table><p>The generic <code>archive</code> resolves an export through the published artifact view rather than accepting an explicit complete run. It can miss the authoritative <code>run.json</code>, retained execution provenance, and notes. The generic <code>restore</code> copies files into a hidden scratch layout but does not reconstruct or validate a complete manifest. Those limits require implementation work, not a documentation promise.</p><h3 id="access-and-authentication" class="hx">Access and authentication<a class="permalink" href="#access-and-authentication" aria-label="Link to this section">#</a></h3><p>Check the machine you are using; remote configuration is local to that account. Do not infer R2 access from an SSH alias or from access working on another host.</p><pre><code data-lang="sh"><span style="color: #4b69c6">rclone</span> listremotes</code></pre><p>If <code>r2:</code> is missing, create an <strong>Object Read &amp; Write</strong> credential scoped to the <code>pinglab</code> bucket in the <a href="https://dash.cloudflare.com/">Cloudflare dashboard</a>, then run:</p><pre><code data-lang="sh"><span style="color: #4b69c6">rclone</span> config</code></pre><p>Choose remote name <code>r2</code>, storage <code>s3</code>, and provider <code>Cloudflare</code>. Enter the Access Key ID, Secret Access Key, and endpoint supplied by Cloudflare for the bucket’s jurisdiction. For an EU-jurisdiction bucket, use its EU endpoint. Follow the official <a href="https://developers.cloudflare.com/r2/examples/rclone/">rclone setup guide</a> and <a href="https://developers.cloudflare.com/r2/api/tokens/">token guide</a>. Use separate scoped credentials per machine where practical; read-only access is sufficient for inspection and download.</p><p>Never commit credentials or print unredacted configuration. Verify the remote without uploading:</p><pre><code data-lang="sh"><span style="color: #4b69c6">rclone</span> config redacted r2
+</style><meta name="generator" content="demolab 5.5.1"><script src="cite-popover.js" defer></script><script src="image-lightbox.js" defer></script><script src="https://hypothes.is/embed.js" async></script><div class="theme-docs" aria-hidden="true"></div><header class="article-header"><div class="row-heading"><div class="row-title-group"><h2 id="cloudflare-r2-archive" class="hx">Cloudflare R2 archive<a class="permalink" href="#cloudflare-r2-archive" aria-label="Link to this section">#</a></h2></div></div><div class="entry-meta"><div class="row-meta"><span class="row-id">#exp104</span> · <a class="entry-collection" href="pinglab-docs">Pinglab</a> · <span class="entry-tags"><a class="tag" href="tags/txt">txt</a> <a class="tag" href="tags/v35.4.0">v35.4.0</a></span></div><div class="article-dates"><div class="article-date">Created <time datetime="2026-08-11T00:00:00Z" title="Created 11 August 2026 at 12:00 am">11 Aug 26, 12:00 am</time></div><div class="article-date">Updated <time datetime="2026-08-28T00:00:00Z" title="Updated 28 August 2026 at 12:00 am">28 Aug 26, 12:00 am</time></div></div></div></header><style>nav[aria-label="Table of Contents"] ul { margin: .35rem 0; } nav[aria-label="Table of Contents"] li > p { margin: 0; } nav[aria-label="Table of Contents"] ul ol { margin: 0; } nav[aria-label="Table of Contents"] ul ol > li:first-child { margin-top: 0; }</style><nav aria-label="Table of Contents"><ul><li><a href="#what-is-backed-up">What is backed up</a></li><li><a href="#access-and-authentication">Access and authentication</a></li><li><a href="#inspect-snapshots">Inspect snapshots</a></li><li><a href="#archive-a-completed-campaign">Archive a completed campaign</a></li><li><a href="#restore-campaign-payloads">Restore campaign payloads</a></li><li><a href="#completed-run-recovery">Completed-run recovery</a></li><li><a href="#safety-and-troubleshooting">Safety and troubleshooting</a></li></ul></nav><h3 id="what-is-backed-up" class="hx">What is backed up<a class="permalink" href="#what-is-backed-up" aria-label="Link to this section">#</a></h3><p>R2 is remote backup storage for expensive-to-reproduce payloads such as trained checkpoint banks. Git records source code; Pingstore records completed scientific runs. An R2 snapshot is not automatically a complete Pingstore run, and a successful download does not make recovered files operational evidence.</p><p>The current helper is <code>experiments/helpers/archive.py</code>. Its interfaces differ:</p><table><tr><td><strong>Command</strong></td><td><strong>Current scope</strong></td></tr><tr><td><code>list</code></td><td>List an experiment’s remote snapshots and summary metadata.</td></tr><tr><td><code>archive-campaign</code></td><td>Validate the named <code>exp022</code> campaign and back up its complete cell payload bank with an inventory.</td></tr><tr><td><code>restore-campaign</code></td><td>Copy that bank into a separate absent or empty directory and compare the copy with remote files.</td></tr><tr><td><code>archive</code> / <code>restore</code></td><td>Older active-view/scratch interfaces. These do not provide complete v3 run backup and recovery; do not use them as that workflow.</td></tr></table><p>The generic <code>archive</code> resolves an export through the published artifact view rather than accepting an explicit complete run. It can miss the authoritative <code>run.json</code>, retained execution provenance, and notes. The generic <code>restore</code> copies files into a hidden scratch layout but does not reconstruct or validate a complete manifest. Those limits require implementation work, not a documentation promise.</p><h3 id="access-and-authentication" class="hx">Access and authentication<a class="permalink" href="#access-and-authentication" aria-label="Link to this section">#</a></h3><p>Check the machine you are using; remote configuration is local to that account. Do not infer R2 access from an SSH alias or from access working on another host.</p><pre><code data-lang="sh"><span style="color: #4b69c6">rclone</span> listremotes</code></pre><p>If <code>r2:</code> is missing, create an <strong>Object Read &amp; Write</strong> credential scoped to the <code>pinglab</code> bucket in the <a href="https://dash.cloudflare.com/">Cloudflare dashboard</a>, then run:</p><pre><code data-lang="sh"><span style="color: #4b69c6">rclone</span> config</code></pre><p>Choose remote name <code>r2</code>, storage <code>s3</code>, and provider <code>Cloudflare</code>. Enter the Access Key ID, Secret Access Key, and endpoint supplied by Cloudflare for the bucket’s jurisdiction. For an EU-jurisdiction bucket, use its EU endpoint. Follow the official <a href="https://developers.cloudflare.com/r2/examples/rclone/">rclone setup guide</a> and <a href="https://developers.cloudflare.com/r2/api/tokens/">token guide</a>. Use separate scoped credentials per machine where practical; read-only access is sufficient for inspection and download.</p><p>Never commit credentials or print unredacted configuration. Verify the remote without uploading:</p><pre><code data-lang="sh"><span style="color: #4b69c6">rclone</span> config redacted r2
 <span style="color: #4b69c6">rclone</span> lsf --dirs-only r2:pinglab/archive</code></pre><p>The helper defaults to remote <code>r2</code> and bucket <code>pinglab</code>; <code>PINGLAB_R2_REMOTE</code> and <code>PINGLAB_R2_BUCKET</code> override these. R2 credentials are separate from RunPod volume credentials.</p><h3 id="inspect-snapshots" class="hx">Inspect snapshots<a class="permalink" href="#inspect-snapshots" aria-label="Link to this section">#</a></h3><pre><code data-lang="sh"><span style="color: #4b69c6">uv</span> run python experiments/helpers/archive.py list exp022
 <span style="color: #4b69c6">rclone</span> tree r2:pinglab/archive/exp022 --max-depth 2
 <span style="color: #4b69c6">rclone</span> size r2:pinglab/archive/exp022</code></pre><p>For an explicitly chosen snapshot identifier:</p><pre><code data-lang="sh"><span style="color: #4b69c6">rclone</span> cat r2:pinglab/archive/exp022/<span style="color: #d73948">&lt;</span>snapshot-id<span style="color: #d73948">></span>/MANIFEST.json</code></pre><p>Replace the placeholder before running. The remote prefix is <code>archive/&lt;experiment>/&lt;snapshot-id>/</code>; older snapshots use a producing commit, while campaign snapshots add a manifest-digest suffix. Inspect the manifest’s archive type, source, inventory, and identity before choosing a recovery procedure. A commit alone does not uniquely identify every run produced by that code. Inspection for historical migration or recovery requires separate authorization.</p><h3 id="archive-a-completed-campaign" class="hx">Archive a completed campaign<a class="permalink" href="#archive-a-completed-campaign" aria-label="Link to this section">#</a></h3><p>For an explicitly selected <code>exp022</code> campaign with all cells complete and valid:</p><pre><code data-lang="sh"><span style="color: #4b69c6">uv</span> run python experiments/helpers/archive.py archive-campaign \
   /path/to/campaign/campaign.json</code></pre><p>Replace the example path with the exact manifest. The helper checks the campaign, archives its <code>cells/</code> bank, records file sizes and SHA-256 hashes in <code>MANIFEST.json</code>, and verifies the uploaded payload against the local source. Its snapshot identity combines the producing commit and campaign manifest digest; an existing destination is refused.</p><p>Expected result: a reported snapshot ID and successful copy verification. Keep the campaign manifest and execution records separately: this command copies the cell bank, not every file in the campaign directory or a complete v3 run. Uploading consumes storage and transfer resources; confirm the source and authorization first.</p><h3 id="restore-campaign-payloads" class="hx">Restore campaign payloads<a class="permalink" href="#restore-campaign-payloads" aria-label="Link to this section">#</a></h3><p>Choose a specific snapshot and a separate destination:</p><pre><code data-lang="sh"><span style="color: #4b69c6">uv</span> run python experiments/helpers/archive.py restore-campaign \
-  exp022 <span style="color: #d73948">&lt;</span>snapshot-id<span style="color: #d73948">></span> --destination /path/to/empty-recovery-directory</code></pre><p>The destination must be absent or empty. The helper copies the payload and runs <code>rclone check --download</code>; this checks the downloaded files against the remote copy. It does not independently establish the original scientific provenance or reconstruct a completed run. The current restore path also does not verify every downloaded file against the recorded SHA-256 inventory; retain and check that manifest before treating recovery as authenticated evidence.</p><p>Do not restore over a live bank, an existing completed run, or a published artifact directory. Keep the recovered payload separate until its identity, completeness, checkpoint roles, and intended use have been validated.</p><h3 id="completed-run-recovery" class="hx">Completed-run recovery<a class="permalink" href="#completed-run-recovery" aria-label="Link to this section">#</a></h3><p>The <a href="https://github.com/eoinmurray/pinglab/blob/main/tools/pingstore/README.md">Storage Guide</a> is authoritative. A complete v3 backup must preserve <code>run.json</code>, the full <code>export/</code>, and any <code>README.md</code> or <code>provenance/</code>. Its payload checksum covers every payload file, not only model weights.</p><p>Recovery must validate the schema, exact root layout, payload checksum, and required upstream input references before making a run visible or consuming it. A hidden <code>.pingstore/runs/.&lt;run-id>.tmp/</code> directory is incomplete until validation and atomic completion. Do not fabricate missing provenance, choose the latest snapshot implicitly, or rename a payload-only download into a completed run.</p><p>The helper currently has no general command that performs that complete workflow. Recovering historical evidence, importing payloads into new runs, or migrating old schemas requires separate explicit authorization and a source-specific plan. V2 evidence remains non-operational; it must not be silently relabelled as v3.</p><h3 id="safety-and-troubleshooting" class="hx">Safety and troubleshooting<a class="permalink" href="#safety-and-troubleshooting" aria-label="Link to this section">#</a></h3><ol><li><strong>Remote missing or access denied:</strong> check the local remote name, bucket scope, endpoint, and permissions. Do not paste secrets into logs or the repository.</li><li><strong>Snapshot already exists:</strong> verify its identity rather than overwriting it. <code>rclone copy</code> avoids destination deletion, but can still overwrite matching objects; it is not an immutability guarantee by itself.</li><li><strong>Copy interrupted or verification failed:</strong> retain the source and incomplete destination for inspection. Do not delete the original or declare recovery complete.</li><li><strong>Unexpected snapshot contents:</strong> stop before restoration into operational storage. Distinguish a campaign cell bank, a legacy export snapshot, and a complete run.</li><li><strong>Deletion or cleanup:</strong> keep it separate and explicitly authorized. Never run <code>rclone sync</code> against an archive prefix. The helper has no delete command.</li></ol><p><a href="/exp103/">exp103</a> — <a href="/exp103/"><em>Compute options</em></a></p><h3 id="dataset" class="hx">Dataset<a class="permalink" href="#dataset" aria-label="Link to this section">#</a></h3><style>.run-view {margin:1rem 0 2rem;border:1px solid var(--rule-strong,#ddd);border-radius:.35rem;font-size:.85rem;overflow-x:auto;} .run-view .run-dependencies {display:grid;grid-template-columns:max-content minmax(0,1fr);gap:.35rem 1rem;margin:0;padding:.7rem .8rem;border-bottom:1px solid var(--rule-strong,#ddd);} .run-view .run-dependencies dt {font-weight:600;color:var(--muted,#666);} .run-view .run-dependencies dd {margin:0;} .run-view .run-dependencies a {white-space:nowrap;} .run-view table {width:100%;margin:0;border:0;border-collapse:collapse;font-size:inherit;} .run-view th,.run-view td {padding:.6rem .8rem;text-align:left;vertical-align:baseline;border:0;border-bottom:1px solid var(--rule-strong,#ddd);} .run-view th {font-weight:600;color:var(--muted,#666);} .run-view tbody tr:last-child td {border-bottom:0;} .run-view .run-name {white-space:nowrap;} .run-view .run-stage-present {text-decoration:underline;text-underline-offset:.15em;} .run-view .run-date,.run-view .run-origin {color:var(--muted,#666);} .run-view .run-date {min-width:7.5em;white-space:nowrap;} .run-view .run-duration {white-space:nowrap;font-variant-numeric:tabular-nums;} .run-view .run-size {text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums;} .run-view [aria-current=true] {font-weight:600;}</style><aside class="run-view" aria-label="Dataset"><dl class="run-dependencies"><dt>Upstream</dt><dd class="experiment-upstream">—</dd><dt>Downstream</dt><dd class="experiment-downstream">—</dd></dl><table aria-label="Dataset"><thead><tr><th scope="col" class="run-name">Run</th><th scope="col" class="run-date">Date</th><th scope="col" class="run-duration">Duration</th><th scope="col" class="run-size">Size</th><th scope="col" class="run-origin">Ran on</th></tr></thead><tbody><tr><td colspan="5">No datasets declared.</td></tr></tbody></table></aside><div class="entry-tail"></div></body></html>
+  exp022 <span style="color: #d73948">&lt;</span>snapshot-id<span style="color: #d73948">></span> --destination /path/to/empty-recovery-directory</code></pre><p>The destination must be absent or empty. The helper copies the payload and runs <code>rclone check --download</code>; this checks the downloaded files against the remote copy. It does not independently establish the original scientific provenance or reconstruct a completed run. The current restore path also does not verify every downloaded file against the recorded SHA-256 inventory; retain and check that manifest before treating recovery as authenticated evidence.</p><p>Do not restore over a live bank, an existing completed run, or a published artifact directory. Keep the recovered payload separate until its identity, completeness, checkpoint roles, and intended use have been validated.</p><h3 id="completed-run-recovery" class="hx">Completed-run recovery<a class="permalink" href="#completed-run-recovery" aria-label="Link to this section">#</a></h3><p>The <a href="https://github.com/eoinmurray/pinglab/blob/main/tools/pingstore/README.md">Storage Guide</a> is authoritative. A complete v3 backup must preserve <code>run.json</code>, the full <code>export/</code>, and any <code>README.md</code> or <code>provenance/</code>. Its payload checksum covers every payload file, not only model weights.</p><p>Recovery must validate the schema, exact root layout, payload checksum, and required upstream input references before making a run visible or consuming it. A hidden <code>.pingstore/runs/.&lt;run-id>.tmp/</code> directory is incomplete until validation and atomic completion. Do not fabricate missing provenance, choose the latest snapshot implicitly, or rename a payload-only download into a completed run.</p><p>The helper currently has no general command that performs that complete workflow. Recovering historical evidence, importing payloads into new runs, or migrating old schemas requires separate explicit authorization and a source-specific plan. V2 evidence remains non-operational; it must not be silently relabelled as v3.</p><h3 id="safety-and-troubleshooting" class="hx">Safety and troubleshooting<a class="permalink" href="#safety-and-troubleshooting" aria-label="Link to this section">#</a></h3><ol><li><strong>Remote missing or access denied:</strong> check the local remote name, bucket scope, endpoint, and permissions. Do not paste secrets into logs or the repository.</li><li><strong>Snapshot already exists:</strong> verify its identity rather than overwriting it. <code>rclone copy</code> avoids destination deletion, but can still overwrite matching objects; it is not an immutability guarantee by itself.</li><li><strong>Copy interrupted or verification failed:</strong> retain the source and incomplete destination for inspection. Do not delete the original or declare recovery complete.</li><li><strong>Unexpected snapshot contents:</strong> stop before restoration into operational storage. Distinguish a campaign cell bank, a legacy export snapshot, and a complete run.</li><li><strong>Deletion or cleanup:</strong> keep it separate and explicitly authorized. Never run <code>rclone sync</code> against an archive prefix. The helper has no delete command.</li></ol><p><a href="/exp103/">exp103</a> — <a href="/exp103/"><em>Compute options</em></a></p><div class="entry-tail"></div></body></html>
