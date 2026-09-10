@@ -72,6 +72,7 @@
   "exp038",
   "exp042",
   "exp044",
+  "exp046",
   "exp049",
   "exp110",
   "exp082",
@@ -168,12 +169,12 @@
   // includes all figure and table captions but excludes generated labels.
   #context {
     let counts = [
-      - *Results:* 1,181 words
-      - *Methods:* 4,181 words
-      - *Captions:* 1,503 words
+      - *Results:* 1,290 words
+      - *Methods:* 4,343 words
+      - *Captions:* 1,664 words
       - *Appendix A:* 1,523 words
-      - *Appendix B:* 1,231 words
-      - *Appendix C:* 830 words
+      - *Appendix B:* 1,248 words
+      - *Appendix C:* 832 words
       - *Appendix D:* 404 words
     ]
     if target() == "html" {
@@ -424,8 +425,11 @@
       decay times 4.5, 6, 9, 12, 18 and 27 ms. Cycles span midpoints between
       detected inhibitory bursts, with edge intervals extending to
       presentation boundaries (Methods). Presentations without bursts are
-      excluded. Distributions pool neurons, cycles and three replicates per
-      condition, without uncertainty bars. Source experiments:
+      excluded. These opportunity-pooled distributions weight each pair
+      equally, giving networks weight proportional to their detected cycle
+      totals; they have no uncertainty bars. Equal-network distributions are
+      shown in #manuscript-figure-ref(<fig:equal-network-cycles>, appendix: true).
+      Source experiments:
       #link("/exp041/")[exp041] — #link("/exp041/")[_Firing Rate Tracks Gamma Frequency_] and
       #link("/exp046/")[exp046] — #link("/exp046/")[_One Spike per Gamma Cycle._]],
   ) <fig:cycle-participation>
@@ -438,6 +442,17 @@
   predominantly one-spike participation among active neurons alongside
   widespread within-cycle silence, without establishing a strict firing
   ceiling or constant participating fraction.
+
+  With equal network weighting, the largest within-condition change was
+  0.191 percentage points in the one-spike fraction at 27 ms
+  (#manuscript-figure-ref(<fig:equal-network-cycles>, appendix: true)).
+  Across all 18 equally weighted networks, 76.35% of pairs contained no
+  spikes, 22.09% one and 1.56% two or more: 98.44% contained at most one,
+  compared with 98.85% under opportunity pooling. The latter gives greater
+  weight to faster rhythms with more detected cycles; equal-network averaging
+  also balances the six decay conditions. The predominance of zero- and
+  one-spike pairs therefore persisted under both weighting choices in this
+  three-replicate design.
 
   === The operating regime has asymmetric perturbation sensitivity
 
@@ -1036,18 +1051,24 @@
   per-network frequencies at each decay time.
 
   #editing-paragraph-label("P38")
-  The same classifiers and presentations supplied excitatory spike counts
-  per cycle (Fig. 6C–H). Inhibitory bursts were detected from smoothed
+  We reused the same classifiers' recorded spikes to measure excitatory
+  counts per cycle (Fig. 6C–H) and compare network weighting
+  (#manuscript-figure-ref(<fig:equal-network-cycles>, appendix: true)), without
+  new inference or training. Inhibitory bursts were detected from smoothed
   population counts with peak separation scaled to each network's spectral
   period (Appendix B3).
 
   Cycle boundaries were midpoints between inhibitory-burst peaks, with edge
   intervals extending to presentation boundaries. Presentations without
   bursts were excluded. Each excitatory neuron–cycle pair was classified as
-  containing 0, 1, 2 or ≥3 spikes. Fractions pooled pairs equally within
-  each decay condition across presentations and training replicates; overall
-  fractions pooled all six decays. Active-pair fractions excluded zero-spike
-  pairs. Appendix B specifies discretization and single-burst conventions.
+  containing 0, 1, 2 or ≥3 spikes. Opportunity-pooled fractions normalized
+  summed counts within each decay condition across presentations and training
+  replicates; overall fractions pooled all six decays. For equal-network
+  estimates, we normalized each network's four counts separately and averaged
+  its fractions equally with the other two networks in its condition, or
+  across all 18 networks for the overall summary. Active-pair fractions
+  excluded zero-spike pairs. Appendix B specifies discretization and
+  single-burst conventions.
 
   === Spike perturbations and numerical resolution
 
@@ -1211,9 +1232,14 @@
 
   Figures 8 and 9E show means without uncertainty intervals. Pooled weight
   summaries gave equal weight to each network because the matrices were
-  equal-sized; their SEM used the three network-level summaries. Neuron–cycle
-  distributions instead weighted networks in proportion to their available
-  neuron–cycle pairs. These summaries and fitted relationships were descriptive.
+  equal-sized; their SEM used the three network-level summaries.
+  Opportunity-pooled neuron–cycle distributions weighted networks in proportion
+  to their available pairs; equal-network distributions instead averaged
+  separately normalized network fractions. Both were descriptive, with
+  individual-network values shown for the latter and no uncertainty intervals.
+  A network with no detected cycles would have an undefined distribution and
+  abort the equal-network analysis; none did. These summaries and fitted
+  relationships do not treat neuron–cycle pairs as independent replicates.
 
   Cycle-participation analysis excluded presentations without a detected
   inhibitory burst. Twelve of the 18,000 network–image presentations met
@@ -1639,7 +1665,10 @@
   #manuscript-note([*Note:* Double-check the autocorrelation implementation.])
 
   *B3 — Burst detection and cycle-boundary discretization.* This procedure
-  supplied the neuron–cycle distributions in #manuscript-figure-ref(<fig:cycle-participation>, panel: "C–H"). For each
+  supplied the pooled neuron–cycle distributions in
+  #manuscript-figure-ref(<fig:cycle-participation>, panel: "C–H") and the
+  equal-network comparison in
+  #manuscript-figure-ref(<fig:equal-network-cycles>, appendix: true). For each
   presentation, we summed inhibitory spikes across neurons at each 0.1-ms
   simulation step and convolved the resulting trace with a unit-sum Gaussian
   kernel of standard deviation 1 ms. The kernel extended ±4 ms (81 samples),
@@ -1675,6 +1704,26 @@
 
   #manuscript-note([*Note:* Double-check burst detection and
     cycle-boundary discretization.])
+
+  #figure(
+    data-image(
+      data-file("exp046/spikes_per_cycle_distribution_equal_network.svg"),
+      width: 92%,
+      alt: "Six distributions of excitatory spikes per neuron and inhibitory-burst cycle, showing equal-network means and three individual network values per spike-count category.",
+    ),
+    numbering: n => "B1",
+    caption: [*Cycle-count distributions with equal network weighting.*
+      *(A–F)* Inhibitory decay times 4.5, 6, 9, 12, 18 and 27 ms. Bars show
+      arithmetic means of the fractions of neuron–cycle pairs containing
+      0, 1, 2 or ≥3 excitatory spikes, after each network's counts were
+      normalized separately. Black points show the three independently
+      trained networks per condition, irrespective of their cycle totals;
+      no uncertainty intervals are shown. The analysis reused the same
+      epoch-50 classifiers and spike recordings as
+      #manuscript-figure-ref(<fig:cycle-participation>, panel: "C–H"), including
+      the same burst detection, edge intervals and zero-burst exclusions.
+      Source experiment: #link("/exp046/")[exp046] — #link("/exp046/")[_One Spike per Gamma Cycle._]],
+  ) <fig:equal-network-cycles>
 
   *B4 — Illustrative-example selection.*
 
