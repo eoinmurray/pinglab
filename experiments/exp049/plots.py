@@ -842,8 +842,11 @@ def fig_training_summary(data, out_path: Path, run_id: str) -> None:
         theme.label_panel(ax, letter)
         ax.set_xlim(-0.6, 3.6)
         ax.set_xticks(
-            x, ["Frozen", "Std.", "10%", "Zero"], fontsize=theme.SIZE_ANNOTATION,
-            rotation=25, ha="right"
+            x,
+            ["Frozen", "Std.", "10%", "Zero"],
+            fontsize=theme.SIZE_ANNOTATION,
+            rotation=25,
+            ha="right",
         )
         ax.tick_params(axis="x", length=0, pad=4)
         ax.tick_params(
@@ -901,16 +904,38 @@ def fig_training_summary(data, out_path: Path, run_id: str) -> None:
     ]:
         before = []
         after = []
+        per_network = []
         for cond in conds:
-            s = data["weights"][cond]["weights"][dr]["stats"]
+            entry = data["weights"][cond]["weights"][dr]
+            s = entry["stats"]
             if kind == "fraction":
                 before.append(100 * (1 - s["init_zero_fraction"]))
                 after.append(100 * (1 - s["trained_zero_fraction"]))
+                per_network.append(
+                    [
+                        (
+                            100 * (1 - row["init_zero_fraction"]),
+                            100 * (1 - row["trained_zero_fraction"]),
+                        )
+                        for row in entry["per_network"]
+                    ]
+                )
             else:
                 before.append(1000 * s["init_mean"])
                 after.append(1000 * s["trained_mean"])
+                per_network.append(
+                    [
+                        (1000 * row["init_mean"], 1000 * row["trained_mean"])
+                        for row in entry["per_network"]
+                    ]
+                )
         ax.bar(
-            x, before, width=0.72, color=theme.GREY_LIGHT, edgecolor="none", zorder=1
+            x,
+            before,
+            width=0.72,
+            color=theme.GREY_LIGHT,
+            edgecolor="none",
+            zorder=1,
         )
         ax.bar(
             x,
@@ -921,6 +946,33 @@ def fig_training_summary(data, out_path: Path, run_id: str) -> None:
             linewidth=0,
             zorder=3,
         )
+        for xx, rows, pooled_before, pooled_after in zip(x, per_network, before, after):
+            network_before = np.asarray([row[0] for row in rows], dtype=float)
+            network_after = np.asarray([row[1] for row in rows], dtype=float)
+            sem_before = network_before.std(ddof=1) / np.sqrt(network_before.size)
+            sem_after = network_after.std(ddof=1) / np.sqrt(network_after.size)
+            ax.errorbar(
+                xx - 0.13,
+                pooled_before,
+                yerr=sem_before,
+                fmt="none",
+                ecolor=theme.INK_BLACK,
+                elinewidth=0.8,
+                capsize=2,
+                capthick=0.8,
+                zorder=5,
+            )
+            ax.errorbar(
+                xx + 0.13,
+                pooled_after,
+                yerr=sem_after,
+                fmt="none",
+                ecolor=theme.INK_BLACK,
+                elinewidth=0.8,
+                capsize=2,
+                capthick=0.8,
+                zorder=5,
+            )
         if kind == "fraction":
             ax.set_ylim(0, 116)
             ax.set_yticks([0, 50, 100])

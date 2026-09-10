@@ -252,6 +252,7 @@ def card(metrics_list, final_cells):
 def weight_distributions(arrays):
     result = {}
     for direction, offset, canonical in (("ei", 0, 1 / 1024), ("ie", 2, 2 / 256)):
+        per_network = [weight_summary(a[offset], a[offset + 1]) for a in arrays]
         initial = np.concatenate([a[offset].ravel() for a in arrays])
         trained = np.concatenate([a[offset + 1].ravel() for a in arrays])
         ni, nt = initial[initial > 0], trained[trained > 0]
@@ -271,6 +272,7 @@ def weight_distributions(arrays):
             "has_initial": bool(ni.size),
             "has_trained": bool(nt.size),
             "stats": weight_summary(initial, trained),
+            "per_network": per_network,
             "canonical": canonical,
         }
     return result

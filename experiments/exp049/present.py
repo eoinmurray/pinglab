@@ -66,7 +66,7 @@ def present(identity, *, run_id=None):
         run_id=run_id,
         configuration={
             "schema": "exp049.presentation/v1",
-            "labels": "official-test endpoints; validation trajectories; reference-image contrast; no inferred basin boundary",
+            "labels": "official-test endpoints; validation trajectories; reference-image contrast; weight SEM across network-level summaries; no inferred basin boundary",
         },
     ) as run:
         theme.set_paper_mode(True)

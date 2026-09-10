@@ -10,7 +10,7 @@
   tags: ("data", "v36.0.0"),
   title: "Training Recurrent Weights Weakens PING Rhythmicity",
   created_at: "2026-06-09T00:00:00Z",
-  updated_at: "2026-09-07",
+  updated_at: "2026-09-10",
   description: "Trainable recurrent conductances produced lower reference-image rhythmicity and higher excitatory firing than the frozen PING control; outcomes depended on initialization.",
   collection: "gamma-gated-sparsity",
 )
@@ -70,10 +70,18 @@
       *(D, E)* Positive-weight fractions for E→I and I→E; *(F, G)* corresponding
       per-edge means including zeros, in model conductance units scaled by
       $10^(-3)$. Weight statistics pool all entries across the three seeds;
-      no weight uncertainty is shown. Wide grey bars show initialization and
-      narrow red bars show epoch 50. Black arrows connect before to after
-      when the relative change is at least 5%; this is a display threshold,
-      not a statistical-significance test.
+      each pool contains 786,432 entries from three equal-sized matrices.
+      These are exact pooled descriptions, but the weights within a matrix
+      were trained together and are not independent replications. The three
+      independently trained networks, not the individual weights, determine
+      the replication level. Wide grey bars show initialization and narrow
+      red bars show epoch 50. Error bars show ±1 SEM across the three
+      per-network statistics (sample SD divided by $sqrt(3)$), not across
+      individual weights. Because the matrices are equal-sized, each pooled
+      bar equals the mean of the three corresponding network values. Black
+      arrows connect pooled values before and after when the relative change is
+      at least 5%; this is a display threshold, not a statistical-significance
+      test.
     ],
   ) <fig:exp049-result-1>
 

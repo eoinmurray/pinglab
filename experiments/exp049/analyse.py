@@ -16,7 +16,7 @@ MEASUREMENT = {
     "final_outcomes": "endpoint means and sample-SD/sqrt(n) SEM across seeds; unsmoothed final reference-image contrast",
     "endpoint": "final-epoch checkpoint; official MNIST test accuracy and exact hid/inh rate keys",
     "psd": "per-trial full-length Welch density; demean; detrend=False; skip constant trials; average PSD; maximum raw bin in inclusive 5-150 Hz band",
-    "weights": "native-dtype means; <=0 zero fraction; positive-only mean; pool seeds before 49-bin histograms",
+    "weights": "native-dtype means; <=0 zero fraction; positive-only mean; retain per-network summaries and pool equal-sized matrices before 49-bin histograms",
     "cards": "raw training rate_e/rate_i; per-seed trajectories and nanmean; mean endpoint PSD and scalars",
     "trajectories": "prefer test_rate_e/test_rate_i keys even if null; exclude incomplete curves; mean and min/max then five-epoch edge-padded moving average",
     "phase": "unsmoothed seed means; segment contrast averages adjacent endpoints",

@@ -380,10 +380,15 @@
       independent training replicates.
       *(D–E)* Pooled positive-weight fractions for E→I/I→E.
       *(F–G)* Pooled arithmetic means including zeros, in $10^(-3)$ µS. Each
-      pool contains 786,432 entries from three complete matrices. Wide
-      grey/narrow red bars denote initialization/epoch 50, without
-      uncertainty estimates. Arrows mark relative changes ≥5%, not
-      statistical significance. Source experiment:
+      pool contains 786,432 entries from three equal-sized complete matrices,
+      so every network contributes equally. These are exact descriptions of
+      the pooled matrices, but jointly trained weights within a matrix are not
+      independent replications; the replication level is three networks.
+      Wide grey/narrow red bars denote initialization/epoch 50. Error bars show
+      ±1 SEM across the three per-network statistics (sample SD divided by
+      $sqrt(3)$), not across individual weights. Equal matrix sizes make each
+      pooled bar identical to the corresponding across-network mean. Arrows
+      mark pooled relative changes ≥5%, not statistical significance. Source experiment:
       #link("/exp049/")[exp049] — #link("/exp049/")[_Training Recurrent Weights Weakens PING Rhythmicity._]],
   ) <fig:trainable-loop>
 
@@ -995,7 +1000,11 @@
   and epoch 50, we pooled the three complete matrices separately for each
   connection direction and condition, giving 786,432 entries per pooled
   distribution. We calculated the fraction of strictly positive weights and
-  the arithmetic mean weight across all entries, including zeros.
+  the arithmetic mean weight across all entries, including zeros. Because the
+  three matrices had equal size, each network contributed equally to these
+  pooled summaries. We also retained the same two statistics separately for
+  each network. The weights within a matrix were trained jointly and were not
+  treated as independent training replicates.
 
   === Inhibitory timescale and cycle participation
 

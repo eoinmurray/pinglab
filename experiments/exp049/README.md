@@ -224,3 +224,18 @@ before/after fractions and total means including zeros. Arrows mark relative
 changes of at least 5%; they do not represent statistical significance.
 Regenerate analyse from an explicit existing compute run before present; old
 analysis lacks the new outcome summaries. No training is required.
+
+### 2026-09-10 — weight-pooling replication display
+
+Analysis now retains positive-weight fractions and all-entry arithmetic means
+for each of the three matrices as well as the existing equal-size pooled
+summaries. Figure 1 keeps the pooled bars and shows SEM across the three
+per-network statistics. The article and manuscript captions state that
+786,432 pooled weights exactly describe three matrices but do not constitute
+independent training replications; weights within each matrix were trained
+jointly.
+
+`exp049-r013-analyse` reanalysed the unchanged `exp049-r001-compute` evidence,
+and `exp049-r015-present` rendered the final SEM display. No training or
+simulation was performed. The exp049 suite passed 23 tests, the exp110 suite
+passed 6 tests, Ruff passed, and the regenerated figure was visually inspected.

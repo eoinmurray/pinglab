@@ -637,6 +637,33 @@ def test_weight_summaries_keep_e_to_i_and_i_to_e_pruning_separate():
     assert w_ei["trained_mean"] != w_ie["trained_mean"]
 
 
+def test_weight_distributions_retain_network_values_and_equal_weight_pooling():
+    arrays = [
+        (
+            np.array([[0.0, float(seed)]]),
+            np.array([[float(seed), float(seed)]]),
+            np.array([[0.0, 2.0 * seed]]),
+            np.array([[2.0 * seed, 2.0 * seed]]),
+        )
+        for seed in (1, 2, 3)
+    ]
+
+    distributions = measurements.weight_distributions(arrays)
+
+    for direction in ("ei", "ie"):
+        entry = distributions[direction]
+        assert len(entry["per_network"]) == 3
+        for phase in ("init", "trained"):
+            pooled_mean = entry["stats"][f"{phase}_mean"]
+            network_means = [r[f"{phase}_mean"] for r in entry["per_network"]]
+            assert pooled_mean == pytest.approx(np.mean(network_means))
+            pooled_positive = 1 - entry["stats"][f"{phase}_zero_fraction"]
+            network_positive = [
+                1 - r[f"{phase}_zero_fraction"] for r in entry["per_network"]
+            ]
+            assert pooled_positive == pytest.approx(np.mean(network_positive))
+
+
 def test_final_outcomes_uses_sample_sem_and_raw_final_contrast():
     endpoints = [dict(acc=v, e_rate_hz=2 * v, i_rate_hz=0) for v in (1, 2, 3)]
     metrics = [{"epochs": [{"contrast": 99}, {"contrast": v}]} for v in (0.1, 0.2, 0.3)]
