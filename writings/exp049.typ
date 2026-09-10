@@ -49,12 +49,14 @@
   #result-card[
   === E→I pruning accompanies low contrast
 
-  Training from standard and 10%-standard recurrence drove most E→I weights
-  to zero, while most I→E weights remained positive and their total mean grew.
+  In all three networks in each condition, training from standard and
+  10%-standard recurrence drove most E→I weights to zero, while most I→E
+  weights remained positive and their mean across all entries grew.
   Both conditions ended with lower reference-image contrast and higher E rates
   than frozen recurrence. Zero-initialized recurrence remained zero
-  (#result-figure-ref(<fig:exp049-result-1>)). These observations do not isolate
-  pruning as the cause of reduced contrast or establish equivalent accuracy.
+  (#result-figure-ref(<fig:exp049-result-1>)). This pattern across three training
+  replicates per condition remains descriptive: it does not isolate pruning
+  as the cause of reduced contrast or establish equivalent accuracy.
 
   #figure(
     data-image(data-file("exp049/training_summary.svg"), width: 100%,
@@ -63,25 +65,22 @@
       Final checkpoints: *(A)* official-test accuracy, *(B)* per-neuron E/I
       firing rates over the same #eval_n test images and *(C)* unsmoothed
       reference-image contrast $R = R_"contrast"$. Bars and error bars in A–C
-      show means ±1 SEM across three independently trained seeds (sample SD
-      divided by $sqrt(3)$). In B, black denotes E and red I.
+      show means ±1 standard error of the mean (SEM) across three independently
+      trained networks (sample standard deviation divided by $sqrt(3)$).
+      In B, black denotes E and red I.
       Frozen denotes fixed standard recurrence; Std., 10% and Zero denote
       trainable recurrence initialized at standard, 10%-standard and zero weights.
       *(D, E)* Positive-weight fractions for E→I and I→E; *(F, G)* corresponding
       per-edge means including zeros, in model conductance units scaled by
-      $10^(-3)$. Weight statistics pool all entries across the three seeds;
-      each pool contains 786,432 entries from three equal-sized matrices.
-      These are exact pooled descriptions, but the weights within a matrix
-      were trained together and are not independent replications. The three
-      independently trained networks, not the individual weights, determine
-      the replication level. Wide grey bars show initialization and narrow
-      red bars show epoch 50. Error bars show ±1 SEM across the three
-      per-network statistics (sample SD divided by $sqrt(3)$), not across
-      individual weights. Because the matrices are equal-sized, each pooled
-      bar equals the mean of the three corresponding network values. Black
-      arrows connect pooled values before and after when the relative change is
-      at least 5%; this is a display threshold, not a statistical-significance
-      test.
+      $10^(-3)$. For each direction, condition and time point, weight statistics
+      pool 786,432 entries from three equal-sized matrices, giving each network
+      equal weight. Wide grey bars show initialization and narrow red bars show
+      epoch 50. Error bars show ±1 SEM across the three per-network statistics,
+      calculated separately before and after training; they do not describe
+      uncertainty in the paired change. Individual weights are not independent
+      training replicates. Black arrows connect pooled values before and after
+      when the relative change is at least 5%; this is a display threshold,
+      not a statistical-significance test.
     ],
   ) <fig:exp049-result-1>
 
@@ -117,8 +116,9 @@
     compute: [
   + *Compare recurrent trainability.* Twelve conductance-based leaky-integrate-and-fire
     classifiers had 784 Poisson input channels, 1,024 excitatory (E), 256
-    inhibitory (I) and 10 output neurons. Three seeds per condition compared
-    frozen canonical recurrence with trainable canonical, zero and 10%-canonical
+    inhibitory (I) and 10 output neurons. With three training replicates per
+    condition, we compared frozen canonical recurrence with trainable canonical,
+    zero and 10%-canonical
     E→I/I→E conductances; E→E and I→I coupling stayed zero. Canonical initializer
     means were $1/1024$ and $2/256$, respectively, with standard deviations one
     tenth of each mean and negative draws clamped to zero.
@@ -159,13 +159,23 @@
     2 ms onward, and $A_"lobe"$ the preceding positive-lag maximum of the smoothed
     autocorrelogram. We reused the recorded scalar; it is neither a
     test-population rhythm estimate nor a calibrated probability of PING.
+
+  + *Summarize recurrent weights.* We reanalysed the initial and epoch-50
+    E→I and I→E matrices. For each direction and condition, we calculated the
+    strictly positive fraction and arithmetic mean including zeros, both per
+    network and over the three pooled matrices. Equal matrix sizes gave each
+    network equal weight. Separately at each time point, we calculated SEM as
+    the sample standard deviation of the three network summaries divided by
+    $sqrt(3)$. The independently trained network was the unit of replication;
+    jointly trained weights were not additional replicates. These descriptive
+    summaries did not test the significance of training-induced changes.
     ],
     present: [
-  #set enum(start: 6)
+  #set enum(start: 7)
 
   + *Expose retained training evidence.* We displayed retained validation,
     activity and temporal-contrast measurements with their
-    distinct seed and illustrative-probe roles.
+    distinct training-replicate and illustrative-probe roles.
     ],
   )
   #run-view("exp049", inputs)

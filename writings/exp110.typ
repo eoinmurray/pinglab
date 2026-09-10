@@ -355,12 +355,13 @@
   (Fig. 5C). These means describe three networks per condition responding to
   one fixed encoding of a reference digit, not test-set variability.
 
-  Standard and one-tenth-standard training eliminated most E→I connections;
-  most I→E connections remained positive and their mean strength increased
-  (Fig. 5D–G). Mean E→I strength fell from standard but rose from
+  In all three networks in each condition, standard and one-tenth-standard
+  training eliminated most E→I connections; most I→E connections remained
+  positive and their mean strength across all entries increased (Fig. 5D–G).
+  Mean E→I strength fell from standard but rose from
   one-tenth-standard initialization; zero-initialized recurrence remained
-  zero. Weak contrast accompanied asymmetric reorganization without
-  identifying a causal weight change.
+  zero. Weak contrast accompanied asymmetric reorganization in these
+  three-replicate comparisons, without identifying a causal weight change.
 
   #figure(
     data-image(
@@ -379,16 +380,15 @@
       estimate trial-to-trial variability. A–C show means ± SEM across three
       independent training replicates.
       *(D–E)* Pooled positive-weight fractions for E→I/I→E.
-      *(F–G)* Pooled arithmetic means including zeros, in $10^(-3)$ µS. Each
-      pool contains 786,432 entries from three equal-sized complete matrices,
-      so every network contributes equally. These are exact descriptions of
-      the pooled matrices, but jointly trained weights within a matrix are not
-      independent replications; the replication level is three networks.
-      Wide grey/narrow red bars denote initialization/epoch 50. Error bars show
-      ±1 SEM across the three per-network statistics (sample SD divided by
-      $sqrt(3)$), not across individual weights. Equal matrix sizes make each
-      pooled bar identical to the corresponding across-network mean. Arrows
-      mark pooled relative changes ≥5%, not statistical significance. Source experiment:
+      *(F–G)* Pooled arithmetic means including zeros, in $10^(-3)$ µS. For each
+      direction, condition and time point, the pool contains 786,432 entries
+      from three equal-sized complete matrices, giving each network equal
+      weight. Wide grey/narrow red bars denote initialization/epoch 50.
+      Error bars show ±1 SEM across the three per-network statistics (sample
+      SD divided by $sqrt(3)$), calculated separately before and after training;
+      they do not describe uncertainty in the paired change. Individual weights
+      are not independent training replicates. Arrows mark pooled relative
+      changes ≥5%, not statistical significance. Source experiment:
       #link("/exp049/")[exp049] — #link("/exp049/")[_Training Recurrent Weights Weakens PING Rhythmicity._]],
   ) <fig:trainable-loop>
 
@@ -1002,9 +1002,11 @@
   distribution. We calculated the fraction of strictly positive weights and
   the arithmetic mean weight across all entries, including zeros. Because the
   three matrices had equal size, each network contributed equally to these
-  pooled summaries. We also retained the same two statistics separately for
-  each network. The weights within a matrix were trained jointly and were not
-  treated as independent training replicates.
+  pooled summaries. We also calculated the same two statistics separately for
+  each network and calculated their SEM across the three networks, separately
+  at initialization and epoch 50. These were descriptive summaries, without
+  significance tests of training-induced weight changes. Jointly trained
+  weights within a matrix were not independent training replicates.
 
   === Inhibitory timescale and cycle participation
 
@@ -1193,13 +1195,13 @@
   and, for variable-rate training, the sampling of input rates. The
   training-data split and endpoint test-image subset were fixed separately.
   Repeated interventions on a network were repeated measurements;
-  individual neurons, presentations and neuron–cycle pairs were not
+  individual weights, neurons, presentations and neuron–cycle pairs were not
   additional network replicates. Untrained circuit probes used a single
   seed, and mean-field calculations were deterministic.
 
   Each network's outcome was calculated before aggregation across
   networks. Displayed error bars or bands represent SEM in Figs. 3,
-  5A–C, 6A–B and 9F and Appendix Fig. A1, and sample SD in Figs. 4 and 7A–B.
+  5A–G, 6A–B and 9F and Appendix Fig. A1, and sample SD in Figs. 4 and 7A–B.
   Sample SD used the denominator $n - 1$, and SEM was calculated as
   $"SD" / sqrt(n)$, where $n = 3$ is the number of training replicates.
 
@@ -1207,11 +1209,11 @@
     replicates; consequently, both sample SD and SEM are unstable estimates of
     between-network variability and should be interpreted cautiously.])
 
-  Figures 8 and 9E show means without uncertainty intervals. Pooled
-  weight summaries and neuron–cycle distributions were calculated directly
-  from their constituent observations; consequently, networks contributed
-  to cycle distributions in proportion to their available neuron–cycle
-  pairs. These summaries and fitted relationships were descriptive.
+  Figures 8 and 9E show means without uncertainty intervals. Pooled weight
+  summaries gave equal weight to each network because the matrices were
+  equal-sized; their SEM used the three network-level summaries. Neuron–cycle
+  distributions instead weighted networks in proportion to their available
+  neuron–cycle pairs. These summaries and fitted relationships were descriptive.
 
   Cycle-participation analysis excluded presentations without a detected
   inhibitory burst. Twelve of the 18,000 network–image presentations met
