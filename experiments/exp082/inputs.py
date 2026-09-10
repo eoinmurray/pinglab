@@ -72,7 +72,11 @@ def compute_evidence(repo, run):
     bank = source(repo, pin["run_id"], "compute", experiment="exp022", reference=pin)
     contract = evidence.training_contract(bank.export)
     expected = {
-        "schema": "exp082.compute/v1",
+        "schema": (
+            "exp082.compute/v2"
+            if cfg["schema"] == "exp082.recipe/v3"
+            else "exp082.compute/v1"
+        ),
         "recipe": cfg,
         "training_contract": contract,
         "jobs": recipe.jobs(cfg),
@@ -82,6 +86,10 @@ def compute_evidence(repo, run):
     if historical:
         evidence.validate_import(run, cfg)
         expected["condition_evidence"] = "historical-aggregate/v1"
+    if cfg["schema"] == "exp082.recipe/v3":
+        expected["image_stream_bank"] = evidence.validate_image_stream_bank(
+            saved.get("image_stream_bank"), cfg
+        )
     if saved != expected:
         raise PingstoreError("compute evidence differs from pinned bank and recipe")
     evidence.validate_compute(run.export, cfg, historical=historical)

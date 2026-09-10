@@ -36,7 +36,11 @@ def _run_jobs(bank, directory, jobs, contract):
             directory / ".scratch/simulations" / job["path"] / "dataset.json",
             worker.dataset,
         )
-        evidence.counts(directory / "export" / job["path"] / "counts.npz", cfg)
+        retained = evidence.counts(
+            directory / "export" / job["path"] / "counts.npz", cfg
+        )
+        if not (retained["labels"] == worker.image_stream_labels).all():
+            raise PingstoreError("condition labels differ from shared image bank")
 
 
 def _job_inventory(directory, jobs):
@@ -237,16 +241,17 @@ def compute(identity, *, run_id=None, collect=False):
             for name in ("matched", "variable"):
                 worker.stream(name)
             write_json_atomic(run.scratch / "dataset.json", worker.dataset)
-            evidence.validate_compute(run.export, cfg)
             write_json_atomic(
                 run.export / "evidence.json",
                 {
-                    "schema": "exp082.compute/v1",
+                    "schema": "exp082.compute/v2",
                     "recipe": cfg,
                     "training_contract": contract,
                     "jobs": recipe.jobs(cfg),
+                    "image_stream_bank": worker.image_stream_bank,
                 },
             )
+            evidence.validate_compute(run.export, cfg)
     return run.run_id
 
 

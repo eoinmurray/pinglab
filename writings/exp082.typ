@@ -10,7 +10,7 @@
   tags: ("data", "reviewed", "v36.0.0"),
   title: "Spike-Count Classification in a Continuous Stream",
   created_at: "2026-08-10T00:00:00Z",
-  updated_at: "2026-09-07",
+  updated_at: "2026-09-10",
   description: "A multi-seed study of spike-count classification across input rates and presentation durations.",
   collection: "gamma-gated-sparsity",
 )
@@ -27,6 +27,7 @@
 #let render-report(data-file) = [
   #let r = data-json(data-file("exp082/numbers.json"))
   #let pct(x) = str(calc.round(100 * x, digits: 1)) + "%"
+  #let shared-image-bank = r.config.at("image_stream_policy", default: none) != none
   #let mean(xs) = xs.sum() / xs.len()
   #let accuracy(duration, rate) = pct(mean(
     r
@@ -195,7 +196,17 @@
       higher validation accuracy.
     ]),
     method-card([Evaluation streams], [
-      We sampled images from the official 10,000-image MNIST test partition.
+      #if shared-image-bank [
+        We prespecified one bank of 40 five-digit streams from the official
+        10,000-image MNIST test partition and reused the same ordered image
+        indices for every network, duration and input rate.
+      ] else [
+        We sampled images from the official 10,000-image MNIST test partition
+        separately by condition. The retained seed formula accidentally gave
+        ten duration-rate pairs identical image streams while other conditions
+        remained unpaired; condition comparisons therefore also contain image-sampling
+        variation.
+      ]
       We tested all eleven training rates at 25, 50, 100 and 200 ms
       (#result-figure-ref(<fig:exp082-result-1>, panel: "E–F")). Each
       duration–rate–network condition contained 40 five-digit streams, giving
@@ -204,7 +215,9 @@
     method-card([Input encoding], [
       Pixels generated independent Bernoulli spikes at 0.1-ms resolution. Spike
       probability was proportional to pixel intensity and the condition’s
-      maximum-pixel input rate. Digits followed without gaps; segment labels give
+      maximum-pixel input rate. #if shared-image-bank [Encoding randomness used
+      a separate collision-free seed derived from the training-seed, duration,
+      rate and stream indices.] Digits followed without gaps; segment labels give
       their durations and input rates (#result-figure-ref(<fig:exp082-result-1>, panel: "A")
       and #result-figure-ref(<fig:exp082-result-5>, panel: "A")).
     ]),

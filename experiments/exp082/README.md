@@ -43,7 +43,21 @@ The package's bare entry point rejects monolithic execution.
   condition statistics, fetch MNIST, or invoke inference. Missing pixels fail
   validation; historical reconstruction must be a documented import operation.
 
-## Preserved scientific recipe
+## Current evaluation protocol
+
+New evaluation runs use `exp082.recipe/v3`. One deterministic bank of image
+indices supplies every training-seed, duration and rate condition, so all 132
+cells see the same 40 ordered five-digit streams. Image selection uses its own
+named RNG seed. Bernoulli encoding uses a separate seed obtained by injectively
+pairing the training-seed, duration, rate and stream indices; it cannot acquire
+the arithmetic collisions present in the retained evaluation. The compute run
+records the shared indices, labels and exact MNIST array identity once in its
+scientific evidence and verifies every condition's labels against that bank.
+
+The v1/v2 recipes remain readable only for immutable historical evidence. They
+must not be presented as v3 or silently rewritten.
+
+## Preserved historical scientific recipe
 
 - Three independently trained seeds (42–44), validation-selected `weights.pth`;
   `weights_final.pth` remains a distinct validated checkpoint, never substituted.
@@ -53,8 +67,12 @@ The package's bare entry point rejects monolithic execution.
   five with the corrected time × batch × input tensor arrangement. Hidden state
   continues within each stream; output state/counts reset at digit boundaries.
   The factorial grid has 132 seed conditions and 26,400 decisions.
-- The original image sampling RNG and separate input-encoding RNG seeds are
-  unchanged. Count ties retain NumPy argmax's first-class rule, including silent
+- The retained grid used condition-dependent image sampling. Its arithmetic
+  formula mapped 44 duration-rate conditions onto only 34 seeds within each
+  network, accidentally pairing ten condition pairs while leaving the others
+  unpaired. Separate input-encoding seeds were used. This does not imply a
+  directional accuracy bias, but condition differences also contain image-sample
+  variation. Count ties retain NumPy argmax's first-class rule, including silent
   decisions. E/I rates use the original 1024/256 population denominators.
 - The two illustrative five-digit streams retain their exact condition order,
   sampling RNG seeds 82/83 and encoding seeds 83/84. The matched stream is 200 ms,

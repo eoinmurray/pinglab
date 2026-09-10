@@ -102,10 +102,30 @@ def lab(tmp_path, monkeypatch):
     calls = []
 
     class Worker:
-        dataset = {"fixture": True}
-
         def __init__(self, bank, directory, cfg):
             self.directory, self.cfg = directory, cfg
+            self.dataset = {
+                "partition": "official_mnist_test",
+                "images": {
+                    "shape": [10_000, 784],
+                    "dtype": "float32",
+                    "sha256": "0" * 64,
+                },
+                "labels": {
+                    "shape": [10_000],
+                    "dtype": "int64",
+                    "sha256": "1" * 64,
+                },
+            }
+            shape = (cfg["streams_per_cell"], cfg["digits_per_stream"])
+            self.image_stream_labels = np.zeros(shape, dtype=np.int64)
+            self.image_stream_bank = {
+                "policy": cfg["image_stream_policy"],
+                "sampling_seed": cfg["image_sampling_seed"],
+                "indices": np.arange(np.prod(shape)).reshape(shape).tolist(),
+                "labels": self.image_stream_labels.tolist(),
+                "dataset": self.dataset,
+            }
 
         def condition(self, job):
             calls.append(job["id"])
@@ -519,7 +539,7 @@ def test_batches_preserve_time_axis_and_partial_batch(tmp_path, monkeypatch):
 
     def simulate(train, spikes, resets, attachments, kind):
         seen.append(tuple(spikes.shape))
-        assert resets == (0, 20)
+        assert resets == (0, 250)
         shape = (spikes.shape[1], 2)
         return {
             "out_counts": np.ones((*shape, 10), dtype=np.int64),
@@ -532,7 +552,7 @@ def test_batches_preserve_time_axis_and_partial_batch(tmp_path, monkeypatch):
         "id": "fixture",
         "path": "jobs/fixture",
         "seed": 42,
-        "duration_ms": 2.0,
+        "duration_ms": 25.0,
         "rate_hz": 5.0,
         "cell_name": recipe.training_cell_name(42),
     }
@@ -540,6 +560,75 @@ def test_batches_preserve_time_axis_and_partial_batch(tmp_path, monkeypatch):
     assert seen == [(4, 3, 784), (4, 2, 784)]
     counts = evidence.counts(tmp_path / "export/jobs/fixture/counts.npz", cfg)
     assert measurements.condition_row(job, counts, cfg)["n_total"] == 10
+
+
+def test_quantitative_conditions_share_one_image_bank(tmp_path, monkeypatch):
+    images = np.repeat(np.arange(30, dtype=np.float32)[:, None], 784, axis=1)
+    labels = np.arange(30, dtype=np.int64) % 10
+    monkeypatch.setattr(
+        inference,
+        "load_mnist_split",
+        lambda **k: (None, images, None, labels),
+    )
+    cfg = recipe.configuration(streams=2, digits=3, batch=2)
+    worker = inference.Inference(SimpleNamespace(export=tmp_path), tmp_path, cfg)
+    encoded = []
+
+    def encode(pixels, conditions, generator):
+        encoded.append((pixels[:, 0].copy(), generator.initial_seed()))
+        return torch.zeros((4, 1, 784))
+
+    def simulate(train, spikes, resets, attachments, kind):
+        shape = (spikes.shape[1], cfg["digits_per_stream"])
+        return {
+            "out_counts": np.zeros((*shape, 10), dtype=np.int64),
+            "e_counts": np.zeros(shape, dtype=np.int64),
+            "i_counts": np.zeros(shape, dtype=np.int64),
+        }
+
+    monkeypatch.setattr(inference, "encode_stream", encode)
+    monkeypatch.setattr(worker, "simulate", simulate)
+    jobs = (recipe.jobs(cfg)[0], recipe.jobs(cfg)[-1])
+    for job in jobs:
+        worker.condition(job)
+
+    assert [row[0].tolist() for row in encoded[:2]] == [
+        row[0].tolist() for row in encoded[2:]
+    ]
+    assert [row[1] for row in encoded] == [
+        *(recipe.encoding_seed(jobs[0], index) for index in range(2)),
+        *(recipe.encoding_seed(jobs[1], index) for index in range(2)),
+    ]
+
+
+def test_encoding_seeds_are_collision_free_for_the_full_evaluation():
+    cfg = recipe.configuration()
+    seeds = {
+        recipe.encoding_seed(job, stream_index)
+        for job in recipe.jobs(cfg)
+        for stream_index in range(cfg["streams_per_cell"])
+    }
+    assert len(seeds) == len(recipe.jobs(cfg)) * cfg["streams_per_cell"]
+
+
+def test_image_and_encoding_plans_do_not_depend_on_job_order():
+    cfg = recipe.configuration()
+    forwards = recipe.jobs(cfg)
+    backwards = list(reversed(forwards))
+    image_bank = inference.shared_image_stream_indices(10_000, cfg)
+
+    assert np.array_equal(
+        image_bank, inference.shared_image_stream_indices(10_000, cfg)
+    )
+    assert {
+        job["id"]: recipe.encoding_seed(job, 0) for job in forwards
+    } == {job["id"]: recipe.encoding_seed(job, 0) for job in backwards}
+    assert recipe.validate_configuration(recipe.configuration(version=1))["schema"] == (
+        "exp082.recipe/v1"
+    )
+    assert recipe.validate_configuration(recipe.configuration(version=2))["schema"] == (
+        "exp082.recipe/v2"
+    )
 
 
 def test_analysis_sem_preserves_three_seed_estimator():

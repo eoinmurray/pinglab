@@ -61,6 +61,19 @@ def pick_digits(
     return x_test[indices], y_test[indices]
 
 
+def shared_image_stream_indices(n_images: int, cfg: dict) -> np.ndarray:
+    """Select one image-stream bank shared by every quantitative condition."""
+    if n_images < cfg["digits_per_stream"]:
+        raise ValueError("image bank is smaller than one exp082 stream")
+    rng = np.random.default_rng(cfg["image_sampling_seed"])
+    return np.stack(
+        [
+            rng.choice(n_images, cfg["digits_per_stream"], replace=False)
+            for _ in range(cfg["streams_per_cell"])
+        ]
+    )
+
+
 def array_record(array):
     return {
         "shape": list(array.shape),
@@ -73,10 +86,19 @@ class Inference:
     def __init__(self, bank, directory, cfg):
         self.bank, self.directory, self.cfg = bank, directory, cfg
         _, self.images, _, self.labels = load_mnist_split(max_samples=7000)
+        self.image_stream_indices = shared_image_stream_indices(len(self.labels), cfg)
+        self.image_stream_labels = self.labels[self.image_stream_indices]
         self.dataset = {
             "partition": "official_mnist_test",
             "images": array_record(self.images),
             "labels": array_record(self.labels),
+        }
+        self.image_stream_bank = {
+            "policy": cfg["image_stream_policy"],
+            "sampling_seed": cfg["image_sampling_seed"],
+            "indices": self.image_stream_indices.tolist(),
+            "labels": self.image_stream_labels.tolist(),
+            "dataset": self.dataset,
         }
 
     def simulate(self, train, spikes, resets, attachments, output_kind):
@@ -172,12 +194,6 @@ class Inference:
 
     def condition(self, job):
         cfg = self.cfg
-        rng = np.random.default_rng(
-            82_000
-            + job["seed"]
-            + int(job["duration_ms"] * 10)
-            + int(job["rate_hz"] * 100)
-        )
         conditions = tuple(
             (job["duration_ms"], job["rate_hz"])
             for _ in range(cfg["digits_per_stream"])
@@ -189,12 +205,12 @@ class Inference:
         values = {k: [] for k in ("out_counts", "e_counts", "i_counts", "labels")}
         pixels, labels = [], []
         for index in range(cfg["streams_per_cell"]):
-            ids = rng.choice(len(self.labels), cfg["digits_per_stream"], replace=False)
+            ids = self.image_stream_indices[index]
             pixels.append(
                 encode_stream(
                     self.images[ids],
                     conditions,
-                    torch.Generator().manual_seed(82_000 + job["seed"] * 100 + index),
+                    torch.Generator().manual_seed(recipe.encoding_seed(job, index)),
                 )
             )
             labels.append(self.labels[ids])

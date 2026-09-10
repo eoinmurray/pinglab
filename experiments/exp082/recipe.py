@@ -21,6 +21,10 @@ N_CLASSES, N_INPUT = 10, 784
 DT_MS = 0.1
 STREAMS_PER_CELL, DIGITS_PER_STREAM, STREAM_BATCH_SIZE = 40, 5, 5
 EVALUATION_PROFILE = "production"
+IMAGE_SAMPLING_SEED = 82_000
+ENCODING_SEED_BASE = 830_000
+IMAGE_STREAM_POLICY = "shared-across-training-seeds-durations-rates/v1"
+ENCODING_SEED_POLICY = "cantor-paired-training-duration-rate-stream-indices/v1"
 VARIABLE_STREAM = ((200.0, 0.5), (50.0, 25.0), (100.0, 2.0), (25.0, 10.0), (200.0, 5.0))
 # Both duration and rate vary within each candidate. The protocol and candidate
 # order are fixed before inference; retain the first 5/5 and first 3/5 streams.
@@ -63,8 +67,8 @@ def training_dir(seed):
     return Path(training_cell_name(seed))
 
 
-def configuration(*, smoke=False, streams=None, digits=None, batch=None, version=2):
-    if version not in (1, 2):
+def configuration(*, smoke=False, streams=None, digits=None, batch=None, version=3):
+    if version not in (1, 2, 3):
         raise ValueError("unsupported exp082 recipe version")
     pilot = any(v is not None for v in (streams, digits))
     cfg: dict[str, Any] = {
@@ -82,6 +86,16 @@ def configuration(*, smoke=False, streams=None, digits=None, batch=None, version
         "digits_per_stream": digits if digits is not None else 3 if smoke else 5,
         "stream_batch_size": batch if batch is not None else 1 if smoke else 5,
         "dt_ms": DT_MS,
+        **(
+            {
+                "image_stream_policy": IMAGE_STREAM_POLICY,
+                "image_sampling_seed": IMAGE_SAMPLING_SEED,
+                "encoding_seed_policy": ENCODING_SEED_POLICY,
+                "encoding_seed_base": ENCODING_SEED_BASE,
+            }
+            if version >= 3
+            else {}
+        ),
     }
     for k in ("streams_per_cell", "digits_per_stream", "stream_batch_size"):
         if type(cfg[k]) is not int or cfg[k] < 1:
@@ -112,7 +126,11 @@ def validate_configuration(cfg):
         "production",
     ):
         raise ValueError("invalid exp082 recipe profile")
-    if cfg.get("schema") not in ("exp082.recipe/v1", "exp082.recipe/v2"):
+    if cfg.get("schema") not in (
+        "exp082.recipe/v1",
+        "exp082.recipe/v2",
+        "exp082.recipe/v3",
+    ):
         raise ValueError("invalid exp082 recipe schema")
     expected = configuration(
         version=int(cfg["schema"].rsplit("v", 1)[1]),
@@ -152,6 +170,30 @@ def parse_condition_job_id(job_id: str) -> tuple[int, float, float]:
         _number_from_tag(parts[1].removeprefix("d")),
         _number_from_tag(parts[2].removeprefix("r")),
     )
+
+
+def _cantor_pair(left: int, right: int) -> int:
+    total = left + right
+    return total * (total + 1) // 2 + right
+
+
+def encoding_seed(job: dict[str, Any], stream_index: int) -> int:
+    """Injectively map one condition and stream to its encoding RNG seed."""
+    if type(stream_index) is not int or stream_index < 0:
+        raise ValueError("stream index must be a non-negative integer")
+    try:
+        indices = (
+            SEEDS.index(job["seed"]),
+            DURATIONS_MS.index(job["duration_ms"]),
+            PSYCHOMETRIC_RATES_HZ.index(job["rate_hz"]),
+            stream_index,
+        )
+    except (KeyError, ValueError) as exc:
+        raise ValueError("encoding seed requires a frozen exp082 condition") from exc
+    value = indices[0]
+    for index in indices[1:]:
+        value = _cantor_pair(value, index)
+    return ENCODING_SEED_BASE + value
 
 
 def jobs(cfg):

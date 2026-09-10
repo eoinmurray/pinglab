@@ -193,6 +193,72 @@ def counts(path, cfg):
     return data
 
 
+def validate_image_stream_bank(value, cfg):
+    """Validate the single retained image plan for a v3 evaluation run."""
+    if not isinstance(value, dict) or set(value) != {
+        "policy",
+        "sampling_seed",
+        "indices",
+        "labels",
+        "dataset",
+    }:
+        raise PingstoreError("image-stream bank record differs")
+    if (
+        value["policy"] != cfg.get("image_stream_policy")
+        or value["sampling_seed"] != cfg.get("image_sampling_seed")
+    ):
+        raise PingstoreError("image-stream bank policy differs")
+    dataset = value["dataset"]
+    if not isinstance(dataset, dict) or set(dataset) != {
+        "partition",
+        "images",
+        "labels",
+    }:
+        raise PingstoreError("image-stream dataset record differs")
+    images, dataset_labels = dataset["images"], dataset["labels"]
+    if (
+        dataset["partition"] != "official_mnist_test"
+        or not isinstance(images, dict)
+        or not isinstance(dataset_labels, dict)
+        or set(images) != {"shape", "dtype", "sha256"}
+        or set(dataset_labels) != {"shape", "dtype", "sha256"}
+        or images.get("shape") != [10_000, recipe.N_INPUT]
+        or dataset_labels.get("shape") != [10_000]
+        or images.get("dtype") != "float32"
+        or dataset_labels.get("dtype") != "int64"
+        or any(
+            not isinstance(record.get("sha256"), str)
+            or len(record["sha256"]) != 64
+            for record in (images, dataset_labels)
+        )
+    ):
+        raise PingstoreError("image-stream dataset identity differs")
+    indices, labels = value["indices"], value["labels"]
+    shape = (cfg["streams_per_cell"], cfg["digits_per_stream"])
+    if (
+        not isinstance(indices, list)
+        or not isinstance(labels, list)
+        or len(indices) != shape[0]
+        or len(labels) != shape[0]
+    ):
+        raise PingstoreError("image-stream bank dimensions differ")
+    for index_row, label_row in zip(indices, labels, strict=True):
+        if (
+            not isinstance(index_row, list)
+            or not isinstance(label_row, list)
+            or len(index_row) != shape[1]
+            or len(label_row) != shape[1]
+            or len(set(index_row)) != len(index_row)
+            or any(
+                type(index) is not int or not 0 <= index < 10_000
+                for index in index_row
+            )
+            or any(type(label) is not int or not 0 <= label < 10 for label in label_row)
+        ):
+            raise PingstoreError("invalid image-stream bank values")
+    return value
+
+
 def stream(root, name, *, conditions=None):
     folder = _unit(root, "streams", name)
     meta = load_json(folder / "stream.json")
@@ -388,10 +454,20 @@ def validate_compute(root, cfg, *, historical=False):
         }
     if units != expected:
         raise PingstoreError("incomplete or extra condition jobs")
+    expected_labels = None
+    if not historical and cfg["schema"] == "exp082.recipe/v3":
+        saved = load_json(base / "evidence.json")
+        expected_labels = np.asarray(
+            validate_image_stream_bank(saved.get("image_stream_bank"), cfg)["labels"]
+        )
     for job in recipe.jobs(cfg):
         if historical:
             aggregate(_file(root, job["path"], "condition.json"), job, cfg)
         else:
-            counts(_file(root, job["path"], "counts.npz"), cfg)
+            retained = counts(_file(root, job["path"], "counts.npz"), cfg)
+            if expected_labels is not None and not np.array_equal(
+                retained["labels"], expected_labels
+            ):
+                raise PingstoreError("condition labels differ from shared image bank")
     for name in ("matched", "variable"):
         stream(root, name)
