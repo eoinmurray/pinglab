@@ -236,6 +236,69 @@ def test_runner_environment_exposes_shared_derived_root(tmp_path: Path) -> None:
     assert environment["PINGLAB_SMOKE"] == "1"
 
 
+def test_training_aggregation_keeps_validated_run_references(tmp_path, monkeypatch):
+    from pingstore.tests.test_discovery import make_run
+
+    repo = tmp_path / "repo"
+    store = repo / ".pingstore/runs"
+    root = tmp_path / "campaign"
+    plan = build_plan(root, "fixture")
+    plan["exp022_manifest"] = str(root / "exp022/campaign.json")
+    row = next(row for row in execution.rows_in_order(plan) if row["slug"] == "exp022")
+    monkeypatch.setattr(execution, "REPO", repo)
+    compute = make_run(store, "exp022-r001-compute", stage="compute")
+
+    def reference(directory):
+        record = execution.load_json(directory / "run.json")
+        return {"run_id": record["run_id"], "payload_digest": record["payload_digest"]}
+
+    analysis = make_run(
+        store, "exp022-r002-analyse", stage="analyse", inputs={"compute": reference(compute)}
+    )
+    presentation = make_run(
+        store, "exp022-r003-present", inputs={"analysis": reference(analysis)}
+    )
+    before = {p.relative_to(presentation): p.read_bytes()
+              for p in presentation.rglob("*") if p.is_file()}
+    execution.write_json_atomic(
+        Path(plan["exp022_manifest"]), {"pingstore_run_id": compute.name}
+    )
+    calls = []
+
+    def execute(command, **kwargs):
+        calls.append((command[2], command[-1]))
+        output = analysis if command[2].endswith(".analyse") else presentation
+        return SimpleNamespace(stdout=output.name + "\n")
+
+    monkeypatch.setattr(execution.subprocess, "run", execute)
+    execution._aggregate_exp022(plan, row, environment={"FIXTURE": "1"})
+    assert calls == [
+        ("experiments.exp022.analyse", compute.name),
+        ("experiments.exp022.present", analysis.name),
+    ]
+    assert execution.load_json(Path(row["required_outputs"][0])) == {
+        "compute": reference(compute), "analyse": reference(analysis),
+        "present": reference(presentation),
+    }
+    assert execution._outputs_valid_for_plan(plan, row)
+    assert not Path(row["paths"]["derived"]).exists()
+    assert not (repo / ".artifacts").exists()
+    assert before == {p.relative_to(presentation): p.read_bytes()
+                      for p in presentation.rglob("*") if p.is_file()}
+    (presentation / "export/numbers.json").write_text("corrupt")
+    assert not execution._outputs_valid_for_plan(plan, row)
+
+
+def test_training_aggregation_rejects_legacy_copy_plan_before_execution(tmp_path, monkeypatch):
+    plan = build_plan(tmp_path / "campaign", "fixture")
+    row = next(row for row in execution.rows_in_order(plan) if row["slug"] == "exp022")
+    row["execution"] = {"mode": "monolithic"}
+    monkeypatch.setattr(execution.subprocess, "run", lambda *a, **k: pytest.fail("executed"))
+    with pytest.raises(execution.CollectionError, match="original checkout"):
+        execution._aggregate_exp022(plan, row)
+    assert not (tmp_path / "campaign").exists()
+
+
 def test_init_composes_pingstore_and_exp022_manifests(
     tmp_path: Path,
     monkeypatch,
@@ -296,6 +359,10 @@ def test_local_resume_runs_in_dependency_order(tmp_path: Path, monkeypatch) -> N
 
     # Scientific work is mocked here; real stage-reference validation has its
     # own fixture-run coverage in exp024/test.py and exp081/test.py.
+    monkeypatch.setattr(
+        execution, "_exp022_completed",
+        lambda plan, row: execution.load_json(Path(row["required_outputs"][0])),
+    )
     for adapter in (
         exp023_collection,
         exp024_collection,
@@ -351,7 +418,7 @@ def test_local_resume_runs_in_dependency_order(tmp_path: Path, monkeypatch) -> N
     ]
 
 
-def test_collection_provenance_rejects_cross_campaign_output(tmp_path: Path) -> None:
+def test_legacy_collection_provenance_rejects_cross_campaign_output(tmp_path: Path) -> None:
     root = tmp_path / "campaign"
     plan = build_plan(root, "campaign-a")
     plan["source"] = {
@@ -365,8 +432,9 @@ def test_collection_provenance_rejects_cross_campaign_output(tmp_path: Path) -> 
         Path(plan["exp022_manifest"]), {"manifest_sha256": "c" * 64}
     )
     row = execution.rows_in_order(plan)[0]
+    row["execution"] = {"mode": "monolithic"}
     output = Path(row["required_outputs"][0])
-    output.parent.mkdir(parents=True)
+    output.parent.mkdir(parents=True, exist_ok=True)
     execution.write_json_atomic(
         output, {"collection_provenance": {"campaign_id": "campaign-b"}}
     )
@@ -635,164 +703,6 @@ def test_finalize_captures_campaign_and_writes_pingstore_inventory(
     assert calls == [
         (root, {"campaign_id": "smoke", "stages": [{"experiments": [legacy]}]})
     ]
-
-
-def test_publication_build_runs_promotion_from_separate_checkout(
-    tmp_path: Path,
-    monkeypatch,
-) -> None:
-    root = tmp_path / "campaign"
-    checkout = tmp_path / "publication"
-    root.mkdir()
-    checkout.mkdir()
-    (root / "inventory.json").write_text("{}")
-    execution.write_json_atomic(
-        root / "run.json",
-        {
-            "run_id": "smoke",
-            "status": "complete",
-        },
-    )
-    plan = build_plan(root, "smoke")
-    plan["profile"] = "smoke"
-    plan["source"] = {"git_commit": "a" * 40, "git_clean": True, "lockfile": None}
-    calls = []
-
-    monkeypatch.setattr(execution, "load_plan", lambda _root: plan)
-    monkeypatch.setattr(execution, "validate_campaign", lambda _root: {})
-    repair_source = {
-        "git_commit": "d" * 40,
-        "git_clean": True,
-        "lockfile": None,
-    }
-    plan["repairs"] = {"exp082": {"source": repair_source}}
-    monkeypatch.setattr(execution, "_checkout_source", lambda _path: repair_source)
-    monkeypatch.setattr(execution.shutil, "which", lambda _name: "/usr/bin/uv")
-    promotions = []
-    from pingstore import materialize
-
-    for adapter in (
-        exp023_collection,
-        exp024_collection,
-        exp025_collection,
-        exp033_collection,
-        exp037_collection,
-        exp038_collection,
-        exp041_collection,
-        exp042_collection,
-        exp044_collection,
-        exp046_collection,
-        exp047_collection,
-        exp049_collection,
-        exp054_collection,
-        exp080_collection,
-        exp081_collection,
-        exp082_collection,
-        exp110_collection,
-    ):
-        monkeypatch.setattr(
-            adapter,
-            "completed",
-            lambda repo, plan, row: SimpleNamespace(
-                record={"run_id": row["slug"] + "-r003-present-local"}
-            ),
-        )
-    monkeypatch.setattr(
-        materialize,
-        "materialize_run",
-        lambda store, identity, target: promotions.append(
-            (store, identity.split("-", 1)[0], target)
-        ),
-    )
-    monkeypatch.setattr(
-        execution,
-        "promote_experiment",
-        lambda root, slug, *, artifacts_root: promotions.append(
-            (root, slug, artifacts_root)
-        ),
-    )
-
-    def fake_run(command, **kwargs):
-        calls.append((command, kwargs))
-        return SimpleNamespace(returncode=0, stdout="built 1 entry", stderr="")
-
-    monkeypatch.setattr(execution.subprocess, "run", fake_run)
-    result = execution.build_publication(root, checkout)
-    assert result["promoted"] == [row["slug"] for row in execution.rows_in_order(plan)]
-    assert len(promotions) == len(result["promoted"])
-    assert calls == [
-        (
-            [
-                "/usr/bin/uv",
-                "run",
-                "--frozen",
-                "--project",
-                str(checkout),
-                "demolab",
-                "build",
-            ],
-            {"cwd": checkout, "check": True, "capture_output": True, "text": True},
-        )
-    ]
-
-
-def test_publication_build_rejects_stubbed_entries(tmp_path: Path, monkeypatch) -> None:
-    root = tmp_path / "campaign"
-    checkout = tmp_path / "publication"
-    root.mkdir()
-    checkout.mkdir()
-    (root / "inventory.json").write_text("{}")
-    execution.write_json_atomic(
-        root / "run.json",
-        {
-            "run_id": "smoke",
-            "status": "complete",
-        },
-    )
-    plan = build_plan(root, "smoke")
-    plan["source"] = {"git_commit": "a" * 40, "git_clean": True, "lockfile": None}
-    monkeypatch.setattr(execution, "load_plan", lambda _root: plan)
-    monkeypatch.setattr(execution, "validate_campaign", lambda _root: {})
-    monkeypatch.setattr(execution, "_checkout_source", lambda _path: plan["source"])
-    monkeypatch.setattr(execution.shutil, "which", lambda _name: "/usr/bin/uv")
-    monkeypatch.setattr(execution, "promote_experiment", lambda *_args, **_kwargs: None)
-    from pingstore import materialize
-
-    for adapter in (
-        exp023_collection,
-        exp024_collection,
-        exp025_collection,
-        exp033_collection,
-        exp037_collection,
-        exp038_collection,
-        exp041_collection,
-        exp042_collection,
-        exp044_collection,
-        exp046_collection,
-        exp047_collection,
-        exp049_collection,
-        exp054_collection,
-        exp080_collection,
-        exp081_collection,
-        exp082_collection,
-        exp110_collection,
-    ):
-        monkeypatch.setattr(
-            adapter,
-            "completed",
-            lambda repo, plan, row: SimpleNamespace(
-                record={"run_id": row["slug"] + "-r003-present-local"}
-            ),
-        )
-    monkeypatch.setattr(materialize, "materialize_run", lambda *args: None)
-
-    def fake_run(command, **_kwargs):
-        output = "built 37 entries, 1 stubbed: exp022" if "demolab" in command else ""
-        return SimpleNamespace(returncode=0, stdout=output, stderr="")
-
-    monkeypatch.setattr(execution.subprocess, "run", fake_run)
-    with pytest.raises(execution.CollectionError, match="stubbed"):
-        execution.build_publication(root, checkout)
 
 
 def test_slurm_resources_require_every_measured_tier(tmp_path: Path) -> None:

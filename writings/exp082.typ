@@ -27,7 +27,10 @@
 #let render-report(data-file) = [
   #let r = data-json(data-file("exp082/numbers.json"))
   #let pct(x) = str(calc.round(100 * x, digits: 1)) + "%"
-  #let shared-image-bank = r.config.at("image_stream_policy", default: none) != none
+  #let image-policy = r.config.at("image_stream_policy", default: none)
+  #assert(image-policy in (none, "shared-across-training-seeds-durations-rates/v1"),
+    message: "unsupported exp082 image-stream policy")
+  #let shared-image-bank = image-policy != none
   #let mean(xs) = xs.sum() / xs.len()
   #let accuracy(duration, rate) = pct(mean(
     r
@@ -59,10 +62,12 @@
     motivated the rate range used to train a variable rate PING classifier in
     #link("/exp022/")[exp022] — #link("/exp022/")[_Training Runs._]
     We tested whether these networks could classify continuous digit streams
-    while retaining hidden state. Longer, stronger inputs improved accuracy,
-    and one network classified five successive digits correctly despite changing
-    durations and rates. Weak inputs exposed silent and incorrect responses.
-    Decisions required supplied digit boundaries.
+    while retaining hidden state. #if shared-image-bank [With image sequences
+    matched across conditions, longer, stronger inputs improved accuracy.] else [
+    Longer, stronger inputs improved accuracy.] One network classified five
+    successive digits correctly despite changing durations and rates. Weak inputs
+    exposed silent and incorrect responses. Decisions required supplied digit
+    boundaries, and the selected successful example does not estimate reliability.
   ])
 
   == Results
@@ -76,14 +81,17 @@
         (#result-figure-ref(<fig:exp082-result-1>, panel: "A–D")). Hidden neuronal state continued
         between digits, while output state and counts reset at supplied boundaries.
         This example demonstrates capability, not reliability across arbitrary streams.
-        We selected the first stream with five correct decisions from a predefined
+        We reused the first stream with five correct decisions from a predefined
         candidate sequence; the first candidate qualified.
 
         At 25 Hz, increasing presentation duration from 25 to 200 ms raised mean
         accuracy from #accuracy(25, 25) to #accuracy(200, 25)
         (#result-figure-ref(<fig:exp082-result-1>, panel: "E–F")). At 200 ms, increasing input
         rate from 0.5 to 25 Hz raised accuracy from #accuracy(200, 0.5) to
-        #accuracy(200, 25).
+        #accuracy(200, 25). #if shared-image-bank [These comparisons used the same
+        ordered images; variation from spike encoding and the small, fixed image
+        sample remains.] else [Image samples were only partly paired across
+        conditions, so these differences also include image-sampling variation.]
       ],
       visual: [#figure(
         report-image(
@@ -98,11 +106,15 @@
           *(B)* Spikes from the first 200 excitatory neurons; *(C)* spikes from
           the first 64 inhibitory neurons; *(D)*
           softmax-normalized output-count shares. Red traces identify the true classes.
+          Panels A–D reuse the selected illustrative recording, independently
+          of the quantitative evaluation in E–F.
           *(E)* Accuracy across presentation duration and maximum-pixel
           input rate; *(F)* the 200-ms rate–accuracy curve. Values are means across
           three independently trained networks, each evaluated on
           #r.config.digits_per_seed_cell digit presentations per condition.
-          Error bars show SEM across networks.],
+          #if shared-image-bank [The same 40 ordered five-image streams were
+          used for every network and condition, with separate encoding draws.]
+          E has no uncertainty intervals; F shows SEM across networks.],
       ) <fig:exp082-result-1>],
     )
 
@@ -180,7 +192,17 @@
       #link("/exp022/")[exp022] — #link("/exp022/")[_Training Runs._]
       Each contained 1,024 excitatory neurons, 256 inhibitory neurons and ten
       output leaky integrate-and-fire neurons, with learned input-to-excitatory
-      and excitatory-to-output projections.
+      and excitatory-to-output projections and fixed recurrent weights.
+      Evaluation held all weights fixed; the revised sampling protocol did not
+      require retraining.
+    ]),
+    method-card([Simulation and refractory periods], [
+      We used a 0.1-ms integration timestep. Hidden excitatory and inhibitory
+      neurons remained at reset for 1.2 and 0.6 ms after a spike, respectively,
+      corresponding to 12 and six timesteps. Output neurons had no refractory
+      period. #if shared-image-bank [The repeated evaluation specified these
+      physical durations explicitly, preserving the refractory holds used by
+      the earlier fixed-timestep measurements.]
     ]),
     method-card([Training and checkpoint selection], [
       Training used 6,300 optimization images and 700 validation images for 50
@@ -191,15 +213,19 @@
       $ L_"CE" = -1/(D N) sum_(d=1)^D sum_(i=1)^N log p_(i,y_i)^((d)). $ <eq-validation-ce>
       Here $N=700$ is the number of validation images, $D=3$ is the number of
       encoding draws, $y_i$ is the true class of image $i$, and $p_(i,y_i)^((d))$
-      is its true-class softmax share for draw $d$, defined in step 6. We selected
+      is its true-class softmax share for draw $d$, defined below. We selected
       the epoch with the lowest $L_"CE"$. If epochs tied, we chose the one with
-      higher validation accuracy.
+      higher validation accuracy, then the earlier epoch.
     ]),
     method-card([Evaluation streams], [
       #if shared-image-bank [
-        We prespecified one bank of 40 five-digit streams from the official
-        10,000-image MNIST test partition and reused the same ordered image
-        indices for every network, duration and input rate.
+        We repeated the quantitative evaluation using one prespecified bank of
+        40 five-image streams from the official 10,000-image MNIST test partition.
+        Image sampling used seed 82000. Within each stream, we sampled five
+        images uniformly without replacement and without class stratification;
+        labels could repeat and images could recur across streams. Every network,
+        duration and input rate used the same ordered image indices, so both
+        image identity and preceding-image order were paired across conditions.
       ] else [
         We sampled images from the official 10,000-image MNIST test partition
         separately by condition. The retained seed formula accidentally gave
@@ -210,19 +236,37 @@
       We tested all eleven training rates at 25, 50, 100 and 200 ms
       (#result-figure-ref(<fig:exp082-result-1>, panel: "E–F")). Each
       duration–rate–network condition contained 40 five-digit streams, giving
-      200 decisions. Batches contained five streams with separate neuronal states.
+      200 decisions. The 132 network–duration–rate conditions therefore yielded
+      26,400 decisions, not 26,400 independently sampled images. Duration and rate
+      were constant within each quantitative stream. Batches contained five
+      streams with separate neuronal states.
     ]),
+    ..if shared-image-bank { (method-card([Earlier evaluation and pairing], [
+      The earlier evaluation sampled images separately by condition. Its seed
+      formula mapped 44 duration–rate combinations onto only 34 image-sampling
+      seeds per network: ten pairs shared identical streams while the other
+      conditions remained unpaired. The current quantitative results replace
+      that mixed design with a common image bank. Image selection and encoding
+      seeds both changed; differences from the earlier estimates cannot be
+      attributed to image pairing alone. We reused the previously selected
+      capability recording independently of this repeated grid evaluation.
+    ]),) } else { () },
     method-card([Input encoding], [
       Pixels generated independent Bernoulli spikes at 0.1-ms resolution. Spike
       probability was proportional to pixel intensity and the condition’s
-      maximum-pixel input rate. #if shared-image-bank [Encoding randomness used
-      a separate collision-free seed derived from the training-seed, duration,
-      rate and stream indices.] Digits followed without gaps; segment labels give
+      maximum-pixel input rate. #if shared-image-bank [Image selection and spike
+      encoding used separate random generators. Each network–duration–rate–stream
+      combination had a distinct encoding seed, giving 5,280 seeds across the
+      quantitative grid. Each generator advanced across its stream's five
+      presentations. Pairing therefore matched images and their order, not
+      realized input spike trains.] Digits followed without gaps; segment labels give
       their durations and input rates (#result-figure-ref(<fig:exp082-result-1>, panel: "A")
       and #result-figure-ref(<fig:exp082-result-5>, panel: "A")).
     ]),
     method-card([State and decision boundaries], [
-      Hidden neuronal state persisted between digits within each stream.
+      Each stream began with freshly initialized hidden and output states.
+      Hidden neuronal and synaptic state then persisted between digits within
+      that stream.
       Output-neuron state and spike counts reset at every supplied digit
       boundary. The readout accumulated evidence over the full presentation
       (#result-figure-ref(<fig:exp082-result-1>, panel: "B–D") and
@@ -250,17 +294,27 @@
     ]),
     method-card([Performance summaries], [
       We calculated accuracy for each duration–rate–network condition and
-      summarized retained measurements as means and SEM across three training
+      summarized network-level measurements as means and SEM across three training
       replicates (#result-figure-ref(<fig:exp082-result-1>, panel: "E–F")).
-      Error bars describe variation across networks, not individual digit decisions.
+      Accuracy included silent presentations and all other decisions. SEM was
+      sample SD divided by the square root of three; it summarizes observed
+      variation across networks and their encoding draws, not uncertainty across
+      independent image banks. The 200-ms curve reuses the corresponding heatmap
+      evaluations. #if shared-image-bank [One shared image bank and one encoding
+      draw per network, condition and stream do not separately estimate
+      image-sampling, encoding and training variability.]
     ]),
     method-card([Capability example], [
-      We simulated seed-42 candidates with the predefined sequence of
+      We reused a seed-42 recording selected with the predefined sequence of
       duration–rate pairs:
       #r.showcase_selection.configuration.conditions.map(pair => "(" + str(pair.at(0)) + " ms, " + str(pair.at(1)) + " Hz)").join(", ", last: " and ").
       We fixed candidate order and digit-sampling and encoding seeds before
       inference. #result-figure-ref(<fig:exp082-result-1>) uses the first candidate
-      achieving five correct decisions.
+      achieving five correct decisions. This search used five distinct digit
+      classes per candidate, unlike the quantitative image sampling, which
+      allowed repeated labels. The first candidate, with image-selection seed
+      820000 and encoding seed 830000, qualified. It was not drawn from the
+      quantitative image bank.
     ]),
     method-card([Failure example], [
       We reused a separately specified seed-42 stream with pairs
@@ -279,6 +333,10 @@
       We evaluated classification with known boundaries and continuing hidden
       state, without testing autonomous segmentation, a hidden-state-reset
       control, or gamma activity’s causal contribution to recognition.
+      Presentation and readout windows changed together, so the duration
+      comparison does not separate extra sensory exposure from extra integration
+      time. The selected success and separately specified failure stream are
+      illustrations, not estimates of the frequency of such outcomes.
     ]),
   ))
 

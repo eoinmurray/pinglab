@@ -7,10 +7,8 @@ import pytest
 from pingstore.contracts import (
     PingstoreError,
     load_json,
-    validate_collections,
     validate_run,
 )
-from pingstore.materialize import materialize_run, materialize_view
 from pingstore.native import (
     capture_campaign_metadata,
     capture_failed_local_run,
@@ -52,26 +50,6 @@ def _staging(tmp_path: Path, run_id: str = "r001") -> Path:
     (staging / "result.svg").write_text("<svg/>")
     (staging / "state.npz").write_bytes(b"raw")
     return staging
-
-
-def _presentation(repo: Path) -> dict:
-    from pingstore.contracts import payload_digest, write_json_atomic
-
-    identity = "exp001-r001-present"
-    directory = repo / ".pingstore/runs" / identity
-    (directory / "export").mkdir(parents=True)
-    (directory / "README.md").write_text("# exp001 run\n")
-    (directory / "export/result.svg").write_text("<svg/>")
-    record = {
-        "schema": "pingstore.run/v4", "run_id": identity, "experiment": "exp001",
-        "collection": "demo", "origin": "local", "stage": "present", "inputs": {},
-        "created_at": "2026-08-27T12:00:00Z", "execution": {}, "provenance": {},
-        "payload_digest": payload_digest(directory),
-    }
-    write_json_atomic(directory / "run.json", {**record, "payload_digest": "sha256:" + "0" * 64})
-    record["payload_digest"] = payload_digest(directory)
-    write_json_atomic(directory / "run.json", record)
-    return record
 
 
 def test_local_capture_is_flat_complete_and_immutable(tmp_path: Path) -> None:
@@ -168,24 +146,6 @@ def test_campaign_capture_uses_same_flat_run_layout(
     run = tmp_path / ".pingstore/runs" / run_id
     assert (run / "run.json").is_file()
     assert (run / "presentation/numbers.json").is_file()
-
-
-def test_manual_view_materializes_one_run_per_experiment(tmp_path: Path) -> None:
-    repo = _repo(tmp_path)
-    run = _presentation(repo)
-    collections = {"demo/latest": [run["run_id"]]}
-    validate_collections(collections)
-    (repo / ".pingstore/collections.json").write_text(json.dumps(collections))
-
-    active = repo / "active"
-    materialize_run(repo / ".pingstore", run["run_id"], active)
-    assert (active / "exp001/result.svg").is_file()
-    assert not (active / "exp001/state.npz").exists()
-
-    view = repo / "view"
-    materialize_view(repo / ".pingstore", "demo/latest", view)
-    assert (view / "exp001/result.svg").is_file()
-    assert not (view / "exp001/state.npz").exists()
 
 
 def _v1_store(tmp_path: Path, *, relocated_readme: bool = False) -> Path:
@@ -316,26 +276,6 @@ def test_v2_reader_rejects_invalid_payload(tmp_path, invalid):
         (directory / "export/derived/state.npz").write_bytes(b"corrupt")
     with pytest.raises(PingstoreError):
         validate_run_directory(directory)
-    with pytest.raises(PingstoreError):
-        materialize_run(repo / ".pingstore", run["run_id"], tmp_path / "view")
-    assert not (tmp_path / "view").exists()
-
-
-def test_materialization_copies_presentation_exactly_without_suffix_filter(tmp_path):
-    from pingstore.contracts import payload_digest, write_json_atomic
-
-    repo = _repo(tmp_path)
-    run = _presentation(repo)
-    directory = repo / ".pingstore/runs" / run["run_id"]
-    # Fixture assembly only: include an explicitly designated presentation file
-    # whose suffix the v1 materializer would have silently discarded.
-    (directory / "export/download.npz").write_bytes(b"presentation download")
-    run["payload_digest"] = payload_digest(directory)
-    write_json_atomic(directory / "run.json", run)
-    materialize_run(repo / ".pingstore", run["run_id"], tmp_path / "view")
-    source = {p.name: p.read_bytes() for p in (directory / "export").iterdir()}
-    target = {p.name: p.read_bytes() for p in (tmp_path / "view/exp001").iterdir()}
-    assert target == source
 
 
 @pytest.mark.parametrize("export_root", ["../outside", "/tmp", "export/../../outside", "export/missing", "data/cells", 42])

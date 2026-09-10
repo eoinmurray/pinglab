@@ -383,6 +383,8 @@ def test_continuous_stream_compound_preserves_evidence(tmp_path, monkeypatch):
     assert {text.get_text() for text in fig.texts} == set("ABCDEF")
     assert np.allclose(fig.axes[4].images[0].get_array(), np.array(rows["grid"]) * 100)
     assert np.allclose(fig.axes[5].lines[0].get_ydata(), (40, 80))
+    digit_alphas = [axis.images[0].get_alpha() for axis in fig.axes if axis.images][1:]
+    assert digit_alphas == [pytest.approx(0.2), pytest.approx(1.0)]
     # Each displayed trace stops at the boundary instead of joining count resets.
     for line in fig.axes[3].lines[:-1]:
         assert np.ptp(line.get_xdata()) < 5

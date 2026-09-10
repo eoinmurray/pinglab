@@ -105,6 +105,24 @@
 }
 
 #let render-report(data-file) = [
+  #let stream-data = json(data-file("exp082/numbers.json"))
+  #let stream-image-policy = stream-data.config.at("image_stream_policy", default: none)
+  #assert(stream-image-policy in (none, "shared-across-training-seeds-durations-rates/v1"),
+    message: "unsupported continuous-stream image policy")
+  #let shared-stream-images = stream-image-policy != none
+  #let stream-mean(duration, rate) = {
+    let values = stream-data.grid_per_seed
+      .filter(row => row.duration_ms == duration and row.rate_hz == rate)
+      .map(row => row.accuracy)
+    values.sum() / values.len()
+  }
+  #let stream-pct(value) = str(calc.round(100 * value, digits: 1)) + "%"
+  #let stream-accuracy(duration, rate) = stream-pct(stream-mean(duration, rate))
+  #let stream-upper-means = (stream-data.config.psychometric_rates_hz
+    .filter(rate => rate >= 5)
+    .map(rate => stream-mean(200, rate)))
+  #let stream-upper-increasing = (range(1, stream-upper-means.len())
+    .all(i => stream-upper-means.at(i) > stream-upper-means.at(i - 1)))
   #set heading(numbering: none)
   #set math.equation(numbering: "(1)")
   #counter(math.equation).update(0)
@@ -555,7 +573,7 @@
       variable-rate training (0.5–25 Hz). During inference, hidden E/I state
       continued between digits; output voltage/counts reset at supplied
       boundaries.
-      *(A–C)* Illustrative seed-42 stream selected by a predefined
+      *(A–C)* Reused illustrative seed-42 stream selected by a predefined
       five-correct criterion: digits 1, 7, 9, 5, 2 at duration–rate pairs
       (100 ms, 5 Hz), (200 ms, 7.5 Hz), (50 ms, 25 Hz), (100 ms, 15 Hz),
       (200 ms, 10 Hz). A shows images, labels and conditions; B/C show the
@@ -565,23 +583,35 @@
       red, others grey. Shares are not calibrated probabilities; the dashed
       0.5 line is not a decision threshold. Classification uses the largest
       final count (Methods).
-      *(E–F)* Accuracy across 40 five-digit test streams per
+      *(E–F)* #if shared-stream-images [Repeated quantitative evaluation on the
+      same 40 ordered five-image streams for every network, duration and rate,
+      with separate spike-encoding draws.] else [Quantitative evaluation with
+      image samples only partly paired across duration–rate conditions.]
+      Accuracy across 40 five-digit test streams per
       network/condition (200 decisions), with duration/rate fixed within
       each stream. E shows replicate-mean percentage accuracy at four
       durations and eleven rates, without uncertainty intervals. F reuses
       the 200-ms evaluations: mean ± SEM across three replicates on a
-      logarithmic rate axis. Source experiment:
+      logarithmic rate axis. The illustrative recording was selected separately
+      from this grid. Source experiment:
       #link("/exp082/")[exp082] — #link("/exp082/")[_Spike-Count Classification in a Continuous Stream._]],
   ) <fig:continuous-stream>
 
   #editing-paragraph-label("P16")
   Quantitative streaming evaluation showed dependence on duration and input
   strength (Fig. 9E,F). At 25-Hz maximum-pixel input, increasing duration
-  from 25 to 200 ms raised mean accuracy from 72.3% to 88.5%. At 200 ms,
-  increasing input from 0.5 to 5 Hz raised accuracy from 26.0% to 82.7%;
-  accuracy ranged from 82.7% to 88.7% across 5–25 Hz without a strictly
-  monotonic increase. Brief presentations and weak drive therefore
-  constrained performance.
+  from 25 to 200 ms raised mean accuracy from #stream-accuracy(25, 25) to
+  #stream-accuracy(200, 25). At 200 ms, increasing input from 0.5 to 5 Hz
+  raised accuracy from #stream-accuracy(200, 0.5) to #stream-accuracy(200, 5).
+  #if stream-upper-increasing [Mean accuracy then increased across the tested
+  rates from 5 to 25 Hz, reaching #stream-accuracy(200, 25).] else [Accuracy
+  ranged from #stream-pct(calc.min(..stream-upper-means)) to
+  #stream-pct(calc.max(..stream-upper-means)) across 5–25 Hz without a strictly
+  monotonic increase.] Brief presentations and weak drive constrained
+  performance. #if shared-stream-images [The repeated grid paired image identity
+  and order across conditions; its uncertainty remains conditional on one
+  sampled image bank.] else [These comparisons also contain image-sampling
+  variation because conditions were only partly paired.]
 
   == Methods
 
@@ -673,7 +703,11 @@
   We reused the fixed-0.1-ms spiking measurements, whose executed E/I
   refractory holds were already 1.2/0.6 ms. We recomputed the timestep
   comparison and the separate mean-field calculation with these same
-  refractory durations; the remaining spiking measurements were reused.
+  refractory durations. #if shared-stream-images [We subsequently repeated the
+  quantitative continuous-stream evaluation with a shared image bank and
+  explicitly specified the same refractory durations; its earlier selected
+  showcase and the other spiking measurements were reused.] else [The remaining
+  spiking measurements were reused.]
 
   #editing-paragraph-label("P20")
   Classifier networks contained input→E, E→I, I→E and E→output projections,
@@ -1161,6 +1195,8 @@
   mean $mu_"out" = 0.05$ and standard deviation $sigma_"out" = 0.04$, then
   clamped below at zero, without fan-in normalization. Evaluations used
   each network's best-validation checkpoint with weights held fixed.
+  #if shared-stream-images [The paired evaluation reused the same three trained
+  classifiers; we did not retrain them for the change in sampling.]
   During continuous streams, output state and accumulated counts were reset
   to zero at each supplied image boundary, while hidden neuronal and
   synaptic states continued between images.
@@ -1180,18 +1216,35 @@
   For each stream, five images were sampled uniformly without replacement
   from the full 10,000-image official MNIST test partition, without class
   stratification. Digit labels could repeat within a stream, and images
-  could recur across streams. Image samples varied across networks and conditions;
-  encoding used an independent random stream (Appendix B5).
+  could recur across streams. #if shared-stream-images [We prespecified one bank
+  of 40 ordered streams and reused the same image indices for every network,
+  duration and rate. Thus, conditions shared both the target images and the
+  preceding-image order. Spike encoding used separate generators with distinct
+  seeds for all 5,280 network–condition–stream combinations (Appendix B5).
+  The 26,400 decisions are repeated evaluations of this image bank, not that
+  many independently sampled images.] else [Image samples varied across networks
+  and most conditions, but ten duration–rate pairs accidentally shared streams
+  within each network. Encoding used a separate random generator (Appendix B5).]
+
+  #if shared-stream-images [This evaluation replaced an earlier grid whose
+  arithmetic image-seed formula mapped 44 duration–rate combinations onto
+  34 seeds per network. Ten condition pairs shared streams accidentally while
+  the remainder were unpaired. Image-sampling and encoding seeds both changed
+  in the repeated evaluation; differences from the earlier estimates cannot
+  isolate an effect of pairing alone.]
 
   Accuracy included all 200 decisions per network and condition, including
   presentations with no output spikes. Figure 9F reuses the 200-ms
   evaluations from Fig. 9E; aggregation and uncertainty follow the reporting
-  protocol below.
+  protocol below. Presentation and count-accumulation windows had equal duration,
+  so their effects were not separated. We did not compare continuing hidden
+  state with a hidden-state-reset control or test autonomous image segmentation.
 
   #editing-paragraph-label("P44")
-  The illustrative stream was selected independently of quantitative
+  We reused the illustrative recording selected independently of quantitative
   evaluation using a predefined five-correct criterion, met by the first
-  candidate (Appendix B4).
+  candidate (Appendix B4). #if shared-stream-images [It was not a stream from
+  the shared quantitative image bank.]
 
   To visualize the evolving readout within each presentation, we
   transformed cumulative output-spike counts into softmax shares:
@@ -1225,6 +1278,14 @@
   5A–G, 6A–B and 9F and Appendix Fig. A1, and sample SD in Figs. 4 and 7A–B.
   Sample SD used the denominator $n - 1$, and SEM was calculated as
   $"SD" / sqrt(n)$, where $n = 3$ is the number of training replicates.
+
+  #if shared-stream-images [For continuous-stream evaluation, all networks
+  shared one image bank but used different encoding draws. Its SEM therefore
+  summarizes variation across these trained networks and their encodings,
+  conditional on the sampled images. One bank and one encoding draw per
+  network, condition and stream do not separately estimate image-sampling,
+  encoding and training variability. Image pairing does not make the 200
+  sequential decisions per condition independent network replicates.]
 
   #manuscript-note([*Note:* Training cost limited each condition to three
     replicates; consequently, both sample SD and SEM are unstable estimates of
@@ -1768,30 +1829,68 @@
   draws therefore did not advance the input-encoding stream.
 
   Quantitative continuous-stream evaluation sampled images from the full
-  official test partition rather than the fixed endpoint subset. For each
-  network and duration–rate condition, one image-sampling generator advanced
-  through 40 streams, selecting five distinct images without replacement
-  within each stream; images could recur between streams. The image-sampling
-  and encoding seeds were
+  official test partition rather than the fixed endpoint subset.
 
-  #math.equation(
-    block: true,
-    numbering: "(1)",
-    $ eta_"images" &= 82000 + q + floor(10 d) + floor(100 r), \
-      eta_"encode" &= 82000 + 100 q + j, $,
-  ) <eq:stream-random-seeds>
+  #if shared-stream-images [
+    One NumPy image-sampling generator, initialized with seed 82000, advanced
+    through 40 streams, selecting five distinct image indices uniformly
+    without replacement within each stream. Images could recur between streams;
+    neither digit classes nor the complete bank were stratified. We used the
+    same ordered indices for all networks and conditions. We recorded the
+    sampled indices and labels and checked every condition's labels against
+    this bank.
 
-  where $q in {42, 43, 44}$ is the training seed, $d$ is the numerical
-  presentation duration in milliseconds, $r$ is the numerical maximum-pixel
-  rate in hertz, and $j = 0, dots, 39$ indexes streams. The floor operation
-  takes the integer part. A separate encoding generator was restarted for
-  each stream and advanced across its five presentations. Encoding seeds
-  were reused across duration–rate conditions, but sampled images,
-  Bernoulli probabilities and the number of random draws could differ;
-  seed reuse therefore did not impose identical spike trains.
+    For spike encoding, we used an integer-pairing map to assign a distinct
+    seed to each network, duration, rate and stream:
 
-  #manuscript-note([*Note:* Check whether the random-stream description
-    can be simplified.])
+    #math.equation(
+      block: true,
+      numbering: "(1)",
+      $ C(a,b) &= ((a+b)(a+b+1))/2 + b, \
+        eta_"encode" &= 830000 + C(C(C(i_s,i_d),i_r),j). $,
+    ) <eq:stream-random-seeds>
+
+    Here, $C$ maps two non-negative integers $a,b$ to one integer;
+    $i_s in {0,1,2}$ indexes training seeds 42–44,
+    $i_d in {0, dots, 3}$ indexes durations 25, 50, 100 and 200 ms,
+    $i_r in {0, dots, 10}$ indexes the eleven input rates in ascending order,
+    and $j in {0, dots, 39}$ indexes streams. The seed $eta_"encode"$ is unique
+    within the 5,280 quantitative network–condition–stream combinations.
+    A dedicated CPU PyTorch generator was initialized for each combination
+    and advanced across its five presentations. Image selection did not
+    consume encoding draws. Matching images therefore did not match their
+    realized spike trains across conditions or networks.
+
+    The earlier image-seed formula combined scaled duration and rate by
+    addition, causing the ten condition-pair collisions described in Methods.
+    Its encoding seeds also omitted duration and rate. The repeated grid
+    replaces both constructions; it does not retroactively pair the earlier
+    measurements or establish how much each change contributed to differences
+    in accuracy.
+  ] else [
+    For each network and duration–rate condition, one image-sampling generator
+    advanced through 40 streams, selecting five distinct images without
+    replacement within each stream; images could recur between streams.
+    The image-sampling and encoding seeds were
+
+    #math.equation(
+      block: true,
+      numbering: "(1)",
+      $ eta_"images" &= 82000 + q + floor(10 d) + floor(100 r), \
+        eta_"encode" &= 82000 + 100 q + j, $,
+    ) <eq:stream-random-seeds>
+
+    where $q in {42, 43, 44}$ is the training seed, $d$ is the numerical
+    presentation duration in milliseconds, $r$ is the numerical maximum-pixel
+    rate in hertz, and $j = 0, dots, 39$ indexes streams. The floor operation
+    takes the integer part. The image formula assigned only 34 distinct seeds
+    to 44 duration–rate combinations per network, accidentally pairing ten
+    condition pairs. A separate encoding generator restarted for each stream
+    and advanced across its five presentations. Encoding seeds were reused
+    across duration–rate conditions, but images, Bernoulli probabilities and
+    the number of random draws could differ; seed reuse did not impose
+    identical spike trains.
+  ]
 
   == Appendix C — Mean-field closure and numerical specification
 

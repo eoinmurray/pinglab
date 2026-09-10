@@ -16,6 +16,19 @@ from .recipe import (
 )
 
 
+def _rate_alpha(rate_hz: float, rates_hz: np.ndarray) -> float:
+    """Map the displayed log-rate range onto a visible opacity range."""
+    log_rates = np.log(np.asarray(rates_hz, dtype=float))
+    if log_rates.max() == log_rates.min():
+        return 1.0
+    return float(
+        0.2
+        + 0.8
+        * (np.log(rate_hz) - log_rates.min())
+        / (log_rates.max() - log_rates.min())
+    )
+
+
 def plot_stream(result: dict[str, Any], path: Path, run_id: str) -> None:
     theme.apply()
     spikes_e = result["spikes_e"]
@@ -79,7 +92,6 @@ def plot_stream_headline(
     for spine in thumbnail_axis.spines.values():
         spine.set_visible(False)
     rates = np.asarray([condition[1] for condition in conditions], dtype=float)
-    log_rates = np.log(rates)
     for index, ((duration_ms, rate_hz), start_ms, stop_ms) in enumerate(
         zip(conditions, starts_ms, stops_ms, strict=True)
     ):
@@ -111,17 +123,12 @@ def plot_stream_headline(
         inset = fig.add_axes(  # ty: ignore[no-matching-overload]
             [left, bottom, width, height]
         )
-        alpha = 1.0
-        if log_rates.max() > log_rates.min():
-            alpha = 0.2 + 0.8 * (np.log(rate_hz) - log_rates.min()) / (
-                log_rates.max() - log_rates.min()
-            )
         inset.imshow(
             np.asarray(result["pixels"])[index].reshape(28, 28),
             cmap="Greys",
             interpolation="nearest",
             aspect=aspect,
-            alpha=alpha,
+            alpha=_rate_alpha(rate_hz, rates),
         )
         inset.set_xticks([])
         inset.set_yticks([])
@@ -458,6 +465,7 @@ def plot_continuous_stream_compound(
         curve_axis = fig.add_axes((0.755, 0.105, 0.21, 0.25))
         color_axis = fig.add_axes((0.95, 0.48, 0.01, 0.46))
         boundaries = np.asarray(stream["boundaries"]) * DT_MS
+        rates = np.asarray([condition[1] for condition in stream["conditions"]])
         total_ms = boundaries[-1]
         time_ms = np.arange(len(stream["probabilities"])) * DT_MS
         thumbnail_axis = axes[0]
@@ -480,7 +488,8 @@ def plot_continuous_stream_compound(
             center = box.x0 + (start + stop) / 2 / total_ms * box.width
             inset = fig.add_axes((center - width / 2, box.y0 + box.height * 0.03, width, height))
             inset.imshow(np.asarray(stream["pixels"])[index].reshape(28, 28),
-                         cmap="Greys", interpolation="nearest", alpha=1.0)
+                         cmap="Greys", interpolation="nearest",
+                         alpha=_rate_alpha(rate, rates))
             inset.axis("off")
             thumbnail_axis.text((start + stop) / 2, 1.0,
                                 f"{duration:g} ms\n{rate:g} Hz",

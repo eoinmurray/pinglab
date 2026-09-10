@@ -1,6 +1,6 @@
 # Storage Guide
 
-Version: **4.5.0**
+Version: **4.6.0**
 
 This guide defines Pingstore's filesystem convention. Pingstore is not a
 service, database, catalogue, lifecycle manager, or general management CLI.
@@ -111,10 +111,16 @@ uv run pingstore discover
 uv run pingstore discover --source .pingstore/runs
 ```
 
-Materialization validates an explicitly selected present run and copies its flat
-`export/` to `.artifacts/<experiment>/`. Publishing compute or analyse runs is
-rejected. Presentation metadata is read from `run.json`; exports do not contain
-compatibility manifests.
+Preview and publication read selected present runs directly from their validated
+`export/`. Do not create `.artifacts/` or another per-experiment copy of run
+outputs. Publishing compute or analyse runs is rejected. Presentation metadata
+is read from `run.json`; exports do not contain compatibility manifests.
+
+The [local publisher](../publishing/README.md) freezes complete selected present
+runs in a disposable build workspace under `.demolab/`, validates the copies,
+and emits a static site. These build inputs retain the run-folder contract;
+they do not form another persistent scientific store. Collection execution keeps
+run-ID and payload-digest references instead of copying presentation exports.
 
 `collections.json`, when present, maps named views to explicit run-ID arrays.
 No official or latest selection is inferred.
@@ -191,6 +197,9 @@ store changes, or deletion of the recovery archive.
 
 ## 8. Version history
 
+- **4.6.0** — Retire artifact materialization; preview and publication consume
+  validated present exports directly, with complete run copies confined to
+  disposable publication workspaces.
 - **4.5.0** — Add hash-bound, repeatable experiment filters to pruning while
   retaining all out-of-scope runs and cross-scope ancestry.
 - **4.4.0** — Add hash-bound pruning that retains HPC work, each experiment's

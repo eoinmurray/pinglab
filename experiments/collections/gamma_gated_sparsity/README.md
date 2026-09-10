@@ -88,9 +88,14 @@ experiments not yet migrated remain monolithic. Exp042 now dispatches eight
 reserved compute shards, completes its compact v3 compute evidence, and invokes
 analyse and present independently; see [its stage notes](../../exp042/README.md).
 Use `slurm-status` to combine scheduler and output state. After a failed campaign,
-`resume` prints the missing-work plan and `resume --live` submits it. Publication is
-a separate `build` command and requires a clean disposable worktree at the campaign
-commit.
+`resume` prints the missing-work plan and `resume --live` submits it. New exp022
+campaigns retain compute, analyse and present run references in `stage-refs.json`;
+aggregation does not copy or stamp presentation exports. Existing campaign plans
+remain unchanged and require their original checkout.
+
+The collection's former artifact-promotion `build` command is retired. Use the
+[local publisher](../../../tools/publishing/README.md) to freeze selected v4
+present runs and build the static site directly from Pingstore.
 
 Use the identical commands with a campaign initialized using `--smoke` for the
 Slurm rehearsal. Smoke and production require separate unique campaign roots and

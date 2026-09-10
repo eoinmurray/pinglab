@@ -104,7 +104,9 @@ def build_plan(root: Path, campaign_id: str, *, smoke: bool = False) -> dict[str
             else resolved / "downstream" / experiment.slug
         )
         execution = {"mode": "monolithic"}
-        if experiment.slug == "exp024":
+        if experiment.slug == "exp022":
+            execution = {"mode": "exp022-staged", "stages": ["compute", "analyse", "present"]}
+        elif experiment.slug == "exp024":
             execution = {"mode": "exp024-staged", "stages": ["analyse", "present"]}
         elif experiment.slug == "exp110":
             execution = {"mode": "exp110-present-only", "stages": ["present"]}
@@ -157,6 +159,7 @@ def build_plan(root: Path, campaign_id: str, *, smoke: bool = False) -> dict[str
                 "required_outputs": [str(state / "stage-refs.json")]
                 if experiment.slug
                 in {
+                    "exp022",
                     "exp023",
                     "exp024",
                     "exp025",

@@ -1,29 +1,19 @@
-"""Canonical artifact + figure directories for a notebook slug.
+"""Legacy runner scratch paths and retained Pingstore identity counters.
 
-Direct runners write all state and derived output into the hidden Pingstore run
-being assembled at `.pingstore/runs/.<run-id>.tmp/`. State lives beneath
-`export/state/`; derived output lives directly beneath `presentation/`. On completion
-the hidden directory receives `run.json` and is atomically renamed to its
-immutable visible run ID. `.artifacts/<slug>/` is only a materialized publication
-view consumed by Typst.
-
-(The figure root used to be the Astro site's `src/docs/public/figures/notebooks/`;
-it moved to `.artifacts/` when the site migrated to Typst.)
+Completed outputs live in validated Pingstore runs. Preview and publication
+resolve selected present exports directly; no active artifact view exists.
+New execution code uses pingstore.stages rather than these legacy scratch paths.
 """
 
 from __future__ import annotations
 
-import json
 import os
 from dataclasses import dataclass
 from pathlib import Path
 
-from pingstore.contracts import load_json, validate_run_directory
-from pingstore.layout import export_directory
 from pingstore.native import execution_origin, make_run_id
 
 REPO = Path(__file__).resolve().parents[2]
-FIGURES_ROOT = REPO / ".artifacts"
 RUNS_ROOT = REPO / ".pingstore" / "runs"
 
 STATE_ENV = "PINGLAB_RUN_STATE_DIR"
@@ -104,13 +94,10 @@ def runner_paths(slug: str) -> RunnerPaths:
 
 
 def current_run_number(slug: str) -> int:
-    """Include retained identities, with a legacy view fallback."""
+    """Include retained Pingstore identities without a publication-view fallback."""
     import re
 
-    try:
-        number = int((FIGURES_ROOT / slug / "_run.txt").read_text().strip())
-    except (FileNotFoundError, ValueError):
-        number = 0
+    number = 0
     for path in RUNS_ROOT.glob(f"{slug}-r*-*"):
         match = re.match(rf"{slug}-r(\d+)-", path.name)
         if match:
@@ -123,37 +110,3 @@ def artifacts_and_figures(slug: str) -> tuple[Path, Path]:
     """Return (artifacts_dir, figures_dir) for a notebook slug (e.g. "nb024")."""
     paths = runner_paths(slug)
     return paths.state, paths.derived
-
-
-def active_run_state(slug: str) -> Path:
-    """Return the immutable state directory backing the active artifact view."""
-    active_manifest = FIGURES_ROOT / slug / "_manifest.json"
-    if not active_manifest.is_file():
-        raise FileNotFoundError(f"no active Pingstore run for {slug}")
-    manifest_text = active_manifest.read_text()
-    manifest = json.loads(manifest_text)
-    full_id = manifest.get("pingstore_run_id")
-    if full_id:
-        from pingstore.contracts import run_root
-
-        candidate = run_root(REPO / ".pingstore", full_id)
-        run = validate_run_directory(candidate)
-        if run["experiment"] != slug:
-            raise RuntimeError(f"active run experiment differs from {slug}")
-        return export_directory(candidate, run)
-    identity = manifest.get("run_id")
-    if not isinstance(identity, str) or not identity:
-        raise RuntimeError(f"active manifest for {slug} has no run_id")
-    matches = []
-    for candidate in RUNS_ROOT.glob(f"{slug}-*"):
-        if not (candidate / "run.json").is_file():
-            continue
-        for relative in ("export/provenance/_manifest.json", "export/provenance/legacy/_manifest.json"):
-            stored = candidate / relative
-            if stored.is_file() and load_json(stored) == manifest:
-                run = validate_run_directory(candidate)
-                matches.append(export_directory(candidate, run))
-                break
-    if len(matches) != 1:
-        raise RuntimeError(f"cannot resolve active Pingstore state for {slug}")
-    return matches[0]

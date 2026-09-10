@@ -1,6 +1,6 @@
 # Experiment Runner Guide
 
-Version: **4.5.0**
+Version: **4.6.0**
 
 This guide defines Pinglab's independent compute, analyse, and present commands.
 The [Storage Guide](../tools/pingstore/README.md) owns run layout and validation.
@@ -143,9 +143,12 @@ when transferring a derived result.
 exports. Preview selects one of those runs and renders current Typst source; it
 does not mutate Pingstore or published artifacts.
 
-Publication is separately authorized. Materialize the complete flat export of
-an explicitly selected present run into `.artifacts/<experiment>/`, then build or
-publish. Compute and analyse runs cannot be published directly.
+Publication is separately authorized and reads selected present runs directly
+from their validated `export/`. Do not copy outputs into `.artifacts/`.
+Collection execution retains explicit run-ID and payload-digest references.
+Use the [local publisher](../tools/publishing/README.md) for a frozen static
+build; its complete selected-run copies are disposable build inputs under
+`.demolab/`. Compute and analyse runs cannot be published directly.
 
 ## 6. Historical work
 
@@ -170,6 +173,8 @@ before changing the guide outside the requested scope.
 
 ## 8. Version history
 
+- **4.6.0** — Remove the artifact-copy publication step and retain collection
+  stage references instead of duplicated presentation exports.
 - **4.5.0** — Permit sparing, justified compute partitioning and explicit
   hidden-run checkpoint recovery while retaining unchunked compute as the
   default.

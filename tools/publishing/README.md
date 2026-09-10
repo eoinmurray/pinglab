@@ -26,6 +26,10 @@ again. A frozen presentation projection supplies article defaults and provenance
 Demolab compiles figures and data into articles and copies declared media. The
 published output does not contain the store or build workspace.
 
+Preview and publication resolve data from the selected runs' validated `export/`
+directories. There is no `.artifacts/` materialization step. Do not create a
+persistent per-experiment copy of presentation files before building.
+
 The successful output is `.demolab/publication/site/`, with a local build receipt
 at `.demolab/publication/build.json` recording selections, source status, and file
 checksums. This is disposable publication scratch, not a Pingstore catalogue or

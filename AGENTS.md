@@ -33,10 +33,13 @@ management CLI.
   records belong in `run.json` or discarded writer scratch space. README holds
   the human-readable dated history. Do not create provenance sidecars.
 - Discovery validates all completed runs, then lists present runs with nonempty
-  output beyond bookkeeping. Materialize only a present run's entire `export/`
-  into `.artifacts/<experiment>/`, without extension filtering; reject publication
-  of compute/analyse runs. Presentation metadata is only a provenance projection.
-- Require v4 for writers, readers, stage inputs, discovery and materialization.
+  output beyond bookkeeping. Preview and publication read selected present runs
+  directly from their validated `export/`; reject publication of compute/analyse
+  runs. Do not create `.artifacts/` or another per-experiment copy of run outputs.
+  Disposable publication builds may copy complete selected present runs into an
+  isolated workspace under `.demolab/`. Presentation metadata is only a
+  provenance projection.
+- Require v4 for writers, readers, stage inputs, discovery and publication.
   Reject v2/v3, including legacy capture and completion of old reservations; there
   is no compatibility exception for flat runners or historical presentations.
   Use shared validated v4 layout helpers, not hardcoded consumer paths.

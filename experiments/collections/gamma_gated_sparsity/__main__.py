@@ -8,7 +8,6 @@ from pathlib import Path
 
 from .execution import (
     aggregate_exp022,
-    build_publication,
     campaign_status,
     compose_campaign,
     finalize_campaign,
@@ -67,11 +66,6 @@ def parser() -> argparse.ArgumentParser:
         "finalize", help="validate outputs and freeze the Pingstore inventory"
     )
     finalize.add_argument("--campaign-root", type=Path, required=True)
-    build = commands.add_parser(
-        "build", help="promote into a separate checkout and build the publication"
-    )
-    build.add_argument("--campaign-root", type=Path, required=True)
-    build.add_argument("--checkout", type=Path, required=True)
     compose = commands.add_parser(
         "compose", help="compose a complete campaign from base and repair outputs"
     )
@@ -139,15 +133,6 @@ def main(argv: list[str] | None = None) -> None:
     if args.command == "finalize":
         print(
             json.dumps(finalize_campaign(args.campaign_root), indent=2, sort_keys=True)
-        )
-        return
-    if args.command == "build":
-        print(
-            json.dumps(
-                build_publication(args.campaign_root, args.checkout),
-                indent=2,
-                sort_keys=True,
-            )
         )
         return
     if args.command == "compose":

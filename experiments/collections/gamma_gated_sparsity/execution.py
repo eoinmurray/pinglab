@@ -13,7 +13,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from pingstore.campaign_promotion import promote_experiment
 from pingstore.campaign_runtime import initialize_run
 from pingstore.native import capture_campaign_metadata
 from pingstore.payload import (
@@ -440,7 +439,37 @@ def _stage_adapter(slug: str):
     return collection
 
 
+def _exp022_completed(plan: dict[str, Any], row: dict[str, Any]):
+    """Validate the campaign's explicit stage references in the primary store."""
+    from pingstore.contracts import PingstoreError
+    from pingstore.stages import source_run
+
+    references = load_json(Path(row["required_outputs"][0]))
+    compute_id = load_json(Path(plan["exp022_manifest"]))["pingstore_run_id"]
+    if references["compute"]["run_id"] != compute_id:
+        raise PingstoreError("exp022 campaign references a different computation")
+    runs = {
+        stage: source_run(
+            REPO / ".pingstore", references[stage]["run_id"],
+            stage=stage, experiment="exp022", reference=references[stage],
+        )
+        for stage in ("compute", "analyse", "present")
+    }
+    if (runs["analyse"].record["inputs"].get("compute") != runs["compute"].reference
+            or runs["present"].record["inputs"].get("analysis") != runs["analyse"].reference):
+        raise PingstoreError("exp022 collection stage inputs do not match")
+    if not (runs["present"].export / "numbers.json").is_file():
+        raise PingstoreError("exp022 presentation is incomplete")
+    return runs["present"]
+
+
 def _outputs_valid_for_plan(plan: dict[str, Any], row: dict[str, Any]) -> bool:
+    if row.get("execution", {}).get("mode") == "exp022-staged":
+        try:
+            _exp022_completed(plan, row)
+            return True
+        except (OSError, KeyError, ValueError):
+            return False
     if (
         row.get("slug")
         in {
@@ -752,6 +781,11 @@ def _aggregate_exp022(
     *,
     environment: dict[str, str] | None = None,
 ) -> None:
+    if row.get("execution", {}).get("mode") != "exp022-staged":
+        raise CollectionError(
+            "legacy exp022 campaign needs its original checkout; "
+            "new campaigns retain explicit Pingstore stage references"
+        )
     root = Path(plan["campaign_root"])
     manifest = Path(plan["exp022_manifest"])
     environment = environment or _runner_environment(plan, row)
@@ -776,7 +810,7 @@ def _aggregate_exp022(
             env=environment,
             check=True,
         )
-    source_run(REPO / ".pingstore", compute_id, stage="compute", experiment="exp022")
+    compute = source_run(REPO / ".pingstore", compute_id, stage="compute", experiment="exp022")
 
     # This collection operation explicitly composes stages. Individual stage
     # entrypoints never run each other or refresh publication artifacts.
@@ -799,24 +833,19 @@ def _aggregate_exp022(
         return completed.stdout.strip().splitlines()[-1]
 
     analysis_id = execute_stage("analyse", compute_id)
+    analysis = source_run(
+        REPO / ".pingstore", analysis_id, stage="analyse", experiment="exp022"
+    )
     presentation_id = execute_stage("present", analysis_id)
     presentation = source_run(
         REPO / ".pingstore", presentation_id, stage="present", experiment="exp022"
     )
-    derived = Path(row["paths"]["derived"])
-    if (
-        derived.resolve() == (REPO / ".artifacts").resolve()
-        or (REPO / ".artifacts").resolve() in derived.resolve().parents
-    ):
-        raise CollectionError("collection staging must not replace published artifacts")
-    if derived.name != "exp022":
-        raise CollectionError("exp022 collection view must end in exp022")
-    from pingstore.materialize import materialize_run
-
-    materialize_run(REPO / ".pingstore", presentation.record["run_id"], derived.parent)
-    if not _outputs_valid(row):
-        raise CollectionError("exp022 aggregation did not produce numbers.json")
-    _stamp_collection_provenance(plan, row)
+    write_json_atomic(Path(row["required_outputs"][0]), {
+        "compute": compute.reference,
+        "analyse": analysis.reference,
+        "present": presentation.reference,
+    })
+    _exp022_completed(plan, row)
     _write_status(
         root,
         "exp022",
@@ -1029,6 +1058,7 @@ def finalize_campaign(root: Path) -> dict[str, Any]:
                         for row in stage["experiments"]
                         if row.get("execution", {}).get("mode")
                         not in {
+                            "exp022-staged",
                             "exp023-staged",
                             "exp024-staged",
                             "exp025-staged",
@@ -1067,120 +1097,4 @@ def finalize_campaign(root: Path) -> dict[str, Any]:
         "file_count": inventory["file_count"],
         "total_size_bytes": inventory["total_size_bytes"],
         "payload_digest": inventory["payload_digest"],
-    }
-
-
-def _checkout_source(checkout: Path) -> dict[str, Any]:
-    checkout = checkout.resolve()
-    if checkout == REPO.resolve():
-        raise CollectionError(
-            "publication build requires a separate disposable checkout"
-        )
-    if not (checkout / ".git").exists():
-        raise CollectionError(f"publication checkout is not a Git worktree: {checkout}")
-    commit = subprocess.run(
-        ["git", "rev-parse", "HEAD"],
-        cwd=checkout,
-        check=True,
-        capture_output=True,
-        text=True,
-    ).stdout.strip()
-    clean = not subprocess.run(
-        ["git", "status", "--porcelain"],
-        cwd=checkout,
-        check=True,
-        capture_output=True,
-        text=True,
-    ).stdout.strip()
-    lock = checkout / "uv.lock"
-    return {
-        "git_commit": commit,
-        "git_clean": clean,
-        "lockfile": {"path": "uv.lock", "sha256": _sha256(lock)}
-        if lock.is_file()
-        else None,
-    }
-
-
-def build_publication(root: Path, checkout: Path) -> dict[str, Any]:
-    """Promote a finalized campaign into a separate checkout and build it."""
-    root = validate_campaign_root(root)
-    plan = load_plan(root)
-    validate_campaign(root)
-    run = load_json(root / "run.json")
-    if run.get("status") != "complete" or not (root / "inventory.json").is_file():
-        raise CollectionError("campaign must be finalized before publication build")
-    checkout = checkout.resolve()
-    target_source = _checkout_source(checkout)
-    allowed_sources = [
-        plan["source"],
-        *[
-            source
-            for repair in (plan.get("repairs") or {}).values()
-            if isinstance(repair, dict)
-            for source in (repair.get("source"), repair.get("integration_source"))
-            if isinstance(source, dict)
-        ],
-    ]
-    if target_source not in allowed_sources:
-        raise CollectionError(
-            "publication checkout must be clean and match a campaign source commit and lockfile"
-        )
-    uv = shutil.which("uv")
-    if uv is None:
-        raise CollectionError("uv is required for publication build")
-    promoted = []
-    for row in rows_in_order(plan):
-        if row.get("execution", {}).get("mode") in {
-            "exp023-staged",
-            "exp024-staged",
-            "exp025-staged",
-            "exp033-staged",
-            "exp037-staged",
-            "exp082-staged",
-            "exp038-staged",
-            "exp041-staged",
-            "exp042-staged",
-            "exp044-staged",
-            "exp046-staged",
-            "exp047-staged",
-            "exp049-staged",
-            "exp054-staged",
-            "exp080-staged",
-            "exp081-staged",
-            "exp110-present-only",
-        }:
-            completed = _stage_adapter(row["slug"]).completed
-            from pingstore.materialize import materialize_run
-
-            presentation = completed(REPO, plan, row)
-            # This is the explicitly requested publication command, not a stage.
-            materialize_run(
-                REPO / ".pingstore",
-                presentation.record["run_id"],
-                checkout / ".artifacts",
-            )
-            promoted.append(row["slug"])
-            continue
-        promote_experiment(
-            root,
-            row["slug"],
-            artifacts_root=checkout / ".artifacts",
-        )
-        promoted.append(row["slug"])
-    built = subprocess.run(
-        [uv, "run", "--frozen", "--project", str(checkout), "demolab", "build"],
-        cwd=checkout,
-        check=True,
-        capture_output=True,
-        text=True,
-    )
-    output = built.stdout + built.stderr
-    if "stubbed:" in output or "failed to build" in output:
-        raise CollectionError("Demolab build produced stubbed entries:\n" + output)
-    return {
-        "campaign_id": plan["campaign_id"],
-        "checkout": str(checkout),
-        "promoted": promoted,
-        "site": str(checkout / "artifacts" / "site"),
     }

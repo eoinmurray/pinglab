@@ -23,7 +23,6 @@ from pingstore.layout import (
     initialize_layout,
     presentation_directory,
 )
-from pingstore.materialize import materialize_run, materialize_view
 
 
 def make_run(store, stage="present", *, number=1, schema=RUN_SCHEMA):
@@ -234,31 +233,6 @@ def test_discovery_omits_empty_and_bookkeeping_only_exports(tmp_path):
     assert discover_runs(tmp_path / "runs") == []
 
 
-def test_materialization_copies_only_whole_present_export(tmp_path):
-    directory = make_run(tmp_path)
-    (directory / "export/download.unusual").write_bytes(b"arbitrary suffix")
-    resign(directory)
-    materialize_run(tmp_path, directory.name, tmp_path / "artifacts")
-    copied = tmp_path / "artifacts/exp001"
-    assert {p.name: p.read_bytes() for p in copied.iterdir()} == {
-        p.name: p.read_bytes() for p in (directory / "export").iterdir()
-    }
-
-
-@pytest.mark.parametrize("stage", ["compute", "analyse"])
-@pytest.mark.parametrize("schema", [RUN_SCHEMA, LEGACY_RUN_SCHEMA])
-def test_both_materializers_reject_scientific_stages(tmp_path, stage, schema):
-    directory = make_run(tmp_path, stage, schema=schema)
-    write_json_atomic(tmp_path / "collections.json", {"demo": [directory.name]})
-    error = "cannot be published" if schema == RUN_SCHEMA else "requires v4"
-    with pytest.raises(PingstoreError, match=error):
-        materialize_run(tmp_path, directory.name, tmp_path / "artifacts")
-    with pytest.raises(PingstoreError, match=error):
-        materialize_view(tmp_path, "demo", tmp_path / "view")
-    assert not (tmp_path / "artifacts").exists()
-    assert not (tmp_path / "view").exists()
-
-
 @pytest.mark.parametrize("stage", [None, "compute", "analyse", "present"])
 def test_legacy_evidence_is_rejected_by_operational_readers(tmp_path, stage):
     directory = make_run(tmp_path, stage, schema=LEGACY_RUN_SCHEMA)
@@ -267,8 +241,6 @@ def test_legacy_evidence_is_rejected_by_operational_readers(tmp_path, stage):
         stages.source_run(tmp_path, directory.name)
     with pytest.raises(PingstoreError, match="requires v4"):
         discover_runs(tmp_path / "runs")
-    with pytest.raises(PingstoreError, match="requires v4"):
-        materialize_run(tmp_path, directory.name, tmp_path / "artifacts")
     assert before == ((directory / "run.json").read_bytes(), payload_digest(directory))
 
 
