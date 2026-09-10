@@ -10,7 +10,7 @@
   tags: ("data", "v36.0.0"),
   title: "One Spike per Gamma Cycle",
   created_at: "2026-06-04T00:00:00Z",
-  updated_at: "2026-09-07",
+  updated_at: "2026-09-10",
   description: "Counting E spikes per gamma cycle across 18 inhibitory-timescale checkpoints shows the architecture is overwhelmingly one-spike-per-cycle.",
   collection: "gamma-gated-sparsity",
 )
@@ -18,6 +18,7 @@
 #let inputs = ("exp046",)
 #let preview-figures = (
   (path: "exp046/spikes_per_cycle_distribution.svg", label: "spikes per cycle distribution"),
+  (path: "exp046/spikes_per_cycle_distribution_equal_network.svg", label: "equal-network spikes per cycle distribution"),
   (path: "exp046/ceiling_vs_fgamma.svg", label: "ceiling vs fgamma"),
 )
 
@@ -32,8 +33,9 @@
 
   Excitatory neurons were usually silent within a cycle and, when active,
   overwhelmingly emitted a single spike; the busiest cells tracked that ceiling.
-  This supports the one-spike-per-cycle approximation for this sweep, but does not
-  turn the population relationship into a universal participation law.
+  Opportunity-pooled and equally weighted network distributions both support
+  the one-spike-per-cycle approximation for this sweep, but do not turn the
+  population relationship into a universal participation law.
   ])
 
   == Results
@@ -53,8 +55,34 @@
       alt: "Six bar charts, one per τ_GABA, of the probability an E neuron emits 0, 1, 2, or ≥3 spikes in a gamma cycle; every panel is dominated by the 0 and 1 bars."),
     caption: [Distribution of E spike count per gamma cycle per neuron at
       $tau_"GABA"$ values *(A–F)* 4.5, 6, 9, 12, 18 and 27 ms, respectively,
-      aggregating three training replicates per condition and 167.2 million neuron–cycle pairs.],
+      opportunity-pooling 167.2 million neuron–cycle pairs across three training
+      replicates per condition.],
   ) <fig:exp046-result-1>
+
+  ]
+
+  #result-card[
+  === Equal weighting by trained network
+
+  Giving each trained network equal weight within its decay condition changed
+  no spike-count fraction by more than 0.20 percentage points relative to
+  opportunity pooling; the largest shift was 0.191 percentage points for the
+  one-spike fraction at
+  $tau_"GABA" = 27$ ms (#result-figure-ref(<fig:exp046-result-2>)). Across the
+  balanced 18-network design, the equal-network mean assigned 76.35% of pairs
+  to zero spikes, 22.09% to one spike and 1.56% to two or more spikes. Thus,
+  98.44% contained at most one spike for a trained network sampled uniformly
+  from the design, although each condition contains only three networks.
+
+  #figure(
+    data-image(data-file("exp046/spikes_per_cycle_distribution_equal_network.svg"), width: 100%,
+      alt: "Six bar charts, one per τ_GABA, showing equal-network mean fractions for 0, 1, 2, or ≥3 excitatory spikes per neuron and gamma cycle, with three individual-network points per bar."),
+    caption: [Equal-network distributions at $tau_"GABA"$ values *(A–F)* 4.5,
+      6, 9, 12, 18 and 27 ms. Each black point is one separately trained network
+      after its four neuron–cycle counts were normalized to sum to one; bars are
+      arithmetic means across the three networks, irrespective of their detected
+      cycle totals. No uncertainty interval is shown.],
+  ) <fig:exp046-result-2>
 
   ]
 
@@ -65,7 +93,7 @@
   $r = f_gamma$ (fit $r = 0.97 f_gamma$, $R_"fit"^2 = 0.88$), whereas the
   median neuron followed the shallower $r approx 0.20 f_gamma$ participation
   slope from the inhibitory-timescale sweep. Even the most active neuron rarely exceeded one spike per
-  cycle, making the ceiling near-strict in these measurements (#result-figure-ref(<fig:exp046-result-2>)).
+  cycle, making the ceiling near-strict in these measurements (#result-figure-ref(<fig:exp046-result-3>)).
 
   #figure(
     data-image(data-file("exp046/ceiling_vs_fgamma.svg"), width: 100%,
@@ -74,7 +102,7 @@
       across the $tau_"GABA"$ sweep. Curves show the busiest and median neurons
       in each network, the one-spike-per-cycle reference and the earlier
       participation slope.],
-  ) <fig:exp046-result-2>
+  ) <fig:exp046-result-3>
 
   ]
   ]
@@ -101,7 +129,14 @@
     present: [
   #set enum(start: 5)
 
-  + *Aggregate displayed counts.* We bucketed counts globally into ${0, 1, 2, >= 3}$ and aggregated by $tau_"GABA"$.
+  + *Estimate opportunity and network distributions.* We bucketed spike counts
+    into ${0, 1, 2, >= 3}$. For the opportunity-pooled distribution, we summed
+    bucket counts across neurons, cycles and networks before normalization. For
+    the equal-network distribution, we normalized each network's bucket counts
+    separately and then took their arithmetic mean, giving the three networks
+    equal weight within each $tau_"GABA"$ condition and all 18 networks equal
+    weight in the across-sweep summary. A network with no detected cycles would
+    have an undefined distribution and abort this analysis; none did.
 
   The cycle anchor is the I-burst: this is the right anchor because the cycle is operationally defined as _"the time between one inhibitory blanket and the next"_, not as the time between E bursts (which can be silent on a given cycle).
     ],

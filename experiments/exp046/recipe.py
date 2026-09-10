@@ -23,6 +23,10 @@ FIGURES = tuple(
     for name in ("spikes_per_cycle_distribution", "ceiling_vs_fgamma")
     for ext in ("svg", "pdf")
 )
+FIGURES += tuple(
+    "spikes_per_cycle_distribution_equal_network." + ext
+    for ext in ("svg", "pdf")
+)
 
 
 def configuration(*, smoke=False, version=2):

@@ -37,7 +37,7 @@ def present(identity, *, run_id=None):
     inputs.frequency_evidence(REPO, frequencies, bank, cfg, checkpoints)
     result = load_json(analysis.export / "results.json")
     if (
-        result.get("schema") != "exp046.analysis/v1"
+        result.get("schema") != "exp046.analysis/v2"
         or result.get("recipe") != cfg
         or result.get("measurement") != measurements.MEASUREMENT
         or result.get("checkpoint_provenance") != checkpoints
@@ -51,7 +51,7 @@ def present(identity, *, run_id=None):
         sources={"analysis": analysis},
         run_id=run_id,
         configuration={
-            "schema": "exp046.presentation/v1",
+            "schema": "exp046.presentation/v2",
             "legacy_reference_slope": 0.20,
             "scientific_reference_review": "deferred by author",
         },
@@ -59,6 +59,11 @@ def present(identity, *, run_id=None):
         theme.set_paper_mode(True)
         plots.plot_distribution(
             result["per_tau"], run.export / "spikes_per_cycle_distribution"
+        )
+        plots.plot_equal_network_distribution(
+            result["per_tau_equal_network"],
+            result["results"],
+            run.export / "spikes_per_cycle_distribution_equal_network",
         )
         plots.plot_ceiling_vs_fgamma(
             result["results"], run.export / "ceiling_vs_fgamma"

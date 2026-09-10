@@ -3,13 +3,25 @@
 import numpy as np
 
 MEASUREMENT = {
-    "schema": "exp046.measurement/v1",
+    "schema": "exp046.measurement/v2",
     "burst_detection": "population I count; Gaussian sigma 1 ms, +/-4 sigma; height 5% of trial maximum; minimum separation floor(half exp041 cycle period)",
     "cycle_edges": "integer midpoints between peaks; first and last intervals extend to trial boundaries; zero-peak trials skipped",
     "buckets": ["0", "1", "2", ">=3"],
-    "aggregation": "pool cell-cycle counts across seeds and conditions",
+    "aggregation": "retain opportunity-pooled fractions and average separately normalized network distributions equally within tau_GABA and across the balanced 18-network design",
+    "undefined_network_distribution": "abort when a network has no detected neuron-cycle pairs",
     "ceiling_fit": "through-origin least squares over 18 network maxima; centred R squared; retained 1e-9 denominator floors",
 }
+
+BUCKET_NAMES = ("zero", "one", "two", "three_plus")
+FRACTION_NAMES = tuple(f"frac_{name}" for name in BUCKET_NAMES)
+
+
+def bucket_fractions(bucket_counts) -> dict[str, float]:
+    buckets = np.asarray(bucket_counts, dtype=np.float64)
+    total = float(buckets.sum())
+    if total <= 0:
+        raise ValueError("network has no detected neuron-cycle pairs")
+    return dict(zip(FRACTION_NAMES, map(float, buckets / total), strict=True))
 
 
 def detect_i_burst_steps(
@@ -121,27 +133,40 @@ def measure(R, per_cell_rate_hz, acc, tau_gaba_ms, dt_ms, f_gamma_hz):
 
 def summarize(rows):
     per_tau = {}
+    per_tau_equal_network = {}
     for tau in sorted({r["tau_gaba_ms"] for r in rows}):
-        buckets = np.zeros(4, dtype=np.float64)
-        for row in rows:
-            if row["tau_gaba_ms"] == tau:
-                buckets += np.array(row["bucket_counts"], dtype=np.float64)
-        fractions = buckets / max(buckets.sum(), 1.0)
-        per_tau[f"tau_{tau:g}"] = dict(
-            zip(
-                ("frac_zero", "frac_one", "frac_two", "frac_three_plus"),
-                map(float, fractions),
-                strict=True,
-            )
+        group = [row for row in rows if row["tau_gaba_ms"] == tau]
+        buckets = sum(
+            (np.asarray(row["bucket_counts"], dtype=np.float64) for row in group),
+            start=np.zeros(4, dtype=np.float64),
+        )
+        per_tau[f"tau_{tau:g}"] = bucket_fractions(buckets)
+        network_fractions = np.asarray(
+            [list(bucket_fractions(row["bucket_counts"]).values()) for row in group]
+        )
+        per_tau_equal_network[f"tau_{tau:g}"] = dict(
+            zip(FRACTION_NAMES, map(float, network_fractions.mean(axis=0)), strict=True)
         )
     global_buckets = np.zeros(4, dtype=np.int64)
     for row in rows:
         global_buckets += np.array(row["bucket_counts"], dtype=np.int64)
     total = int(global_buckets.sum())
     global_fracs = {
-        name: float(global_buckets[i]) / max(total, 1)
-        for i, name in enumerate(("zero", "one", "two", "three_plus"))
+        name: value
+        for name, value in zip(
+            BUCKET_NAMES, bucket_fractions(global_buckets).values(), strict=True
+        )
     }
+    all_network_fractions = np.asarray(
+        [list(bucket_fractions(row["bucket_counts"]).values()) for row in rows]
+    )
+    global_equal_network_fracs = dict(
+        zip(
+            BUCKET_NAMES,
+            map(float, all_network_fractions.mean(axis=0)),
+            strict=True,
+        )
+    )
     ordered = [
         r
         for tau in sorted({r["tau_gaba_ms"] for r in rows})
@@ -155,7 +180,9 @@ def summarize(rows):
     total_ss = float(((maximum - maximum.mean()) ** 2).sum())
     return {
         "per_tau": per_tau,
+        "per_tau_equal_network": per_tau_equal_network,
         "global_fracs": global_fracs,
+        "global_equal_network_fracs": global_equal_network_fracs,
         "n_cell_cycle_pairs": total,
         "ceiling": {
             "max_cell_slope_vs_fgamma": slope,

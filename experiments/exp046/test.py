@@ -154,7 +154,15 @@ def test_independent_stages_preserve_outputs_without_publication(
     present_id = present.present(analysis_id)
     shown = inputs.source(root, present_id, "present")
     numbers = load_json(shown.export / "numbers.json")
-    for key in ("results", "global_fracs", "per_tau", "ceiling", "n_cell_cycle_pairs"):
+    for key in (
+        "results",
+        "global_fracs",
+        "global_equal_network_fracs",
+        "per_tau",
+        "per_tau_equal_network",
+        "ceiling",
+        "n_cell_cycle_pairs",
+    ):
         assert numbers[key] == data[key]
     assert all((shown.export / name).is_file() for name in recipe.FIGURES)
     assert not (root / ".artifacts").exists()
@@ -196,7 +204,7 @@ def test_cycle_count_boundaries_and_zero_peak_trials():
     assert measurements.detect_i_burst_steps(np.zeros((2000, 2)), 0.1, 50).size == 0
 
 
-def test_summary_pools_counts_and_fits_all_networks():
+def test_summary_preserves_pooled_and_equal_network_estimands():
     rows = [
         {
             "tau_gaba_ms": tau,
@@ -212,9 +220,68 @@ def test_summary_pools_counts_and_fits_all_networks():
     ]
     result = measurements.summarize(rows)
     assert result["per_tau"]["tau_6"]["frac_zero"] == pytest.approx(90 / 110)
+    assert result["per_tau_equal_network"]["tau_6"] == pytest.approx(
+        {
+            "frac_zero": 0.45,
+            "frac_one": 0.55,
+            "frac_two": 0,
+            "frac_three_plus": 0,
+        }
+    )
+    assert result["global_equal_network_fracs"] == pytest.approx(
+        {"zero": 0.3, "one": 11 / 30, "two": 1 / 3, "three_plus": 0}
+    )
     assert result["n_cell_cycle_pairs"] == 120
     assert result["ceiling"]["max_cell_slope_vs_fgamma"] == pytest.approx(0.8)
     assert result["ceiling"]["max_cell_r2"] == pytest.approx(1)
+
+
+def test_equal_network_summary_rejects_undefined_network_distribution():
+    with pytest.raises(ValueError, match="no detected neuron-cycle pairs"):
+        measurements.summarize(
+            [
+                {
+                    "tau_gaba_ms": 6,
+                    "f_gamma_hz": 40,
+                    "per_cell_max_rate_hz": 10,
+                    "bucket_counts": [0, 0, 0, 0],
+                }
+            ]
+        )
+
+
+def test_equal_network_plot_shows_means_and_networks(tmp_path, monkeypatch):
+    summary = {
+        "tau_6": {
+            "frac_zero": 0.45,
+            "frac_one": 0.55,
+            "frac_two": 0,
+            "frac_three_plus": 0,
+        }
+    }
+    rows = [
+        {
+            "tau_gaba_ms": 6,
+            "seed": seed,
+            "network_fracs": {
+                "frac_zero": zero,
+                "frac_one": 1 - zero,
+                "frac_two": 0,
+                "frac_three_plus": 0,
+            },
+        }
+        for seed, zero in ((42, 0.9), (43, 0.3), (44, 0.15))
+    ]
+
+    def inspect(fig, _path):
+        ax = fig.axes[0]
+        assert [bar.get_height() for bar in ax.patches] == pytest.approx(
+            [0.45, 0.55, 0, 0]
+        )
+        assert len(ax.collections) == 3
+
+    monkeypatch.setattr(plots, "save_figure", inspect)
+    plots.plot_equal_network_distribution(summary, rows, tmp_path / "equal")
 
 
 @pytest.mark.parametrize(
@@ -342,7 +409,7 @@ def test_retired_entrypoints_fail_without_outputs(tmp_path):
     assert "explicit" in result.stderr
 
 
-def test_unchanged_article_renders_explicit_present_outputs(cycle_lab):
+def test_article_renders_explicit_present_outputs(cycle_lab):
     import shutil
 
     from demolab_cli import _paths
@@ -362,7 +429,7 @@ def test_unchanged_article_renders_explicit_present_outputs(cycle_lab):
     )
     document = root / "document.typ"
     document.write_text(
-        '#set page(paper: "a4", margin: 18mm, header: [Synthetic data; article claims unchanged and not reviewed.])\n'
+        '#set page(paper: "a4", margin: 18mm, header: [Synthetic data; article not reviewed.])\n'
         '#set text(size: 10pt)\n#import "writings/exp046.typ": body\n#body\n'
     )
     command = [

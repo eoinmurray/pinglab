@@ -41,9 +41,17 @@ def analyse(identity, frequency_id, *, run_id=None):
                 common["dt"],
                 values[(cell["tau_gaba_ms"], cell["seed"])],
             )
-            rows.append({**row, "seed": cell["seed"]})
+            rows.append(
+                {
+                    **row,
+                    "seed": cell["seed"],
+                    "network_fracs": measurements.bucket_fractions(
+                        row["bucket_counts"]
+                    ),
+                }
+            )
         result = {
-            "schema": "exp046.analysis/v1",
+            "schema": "exp046.analysis/v2",
             "recipe": cfg,
             "measurement": measurements.MEASUREMENT,
             "checkpoint_policy": recipe.CHECKPOINT_POLICY,

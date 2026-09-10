@@ -1,10 +1,11 @@
 # exp046 — spikes per excitatory cell per gamma cycle
 
-Execution target: **Experiment Runner Guide 4.3.0 / Storage Guide 4.3.0**,
+Execution target: **Experiment Runner Guide 4.5.0 / Storage Guide 4.5.0**,
 using `pingstore.run/v4` and source-neutral stage IDs. This migration preserves
 the numerical definitions. The author deferred scientific and article review
-until after migration and historical-data handling; the article is unchanged
-and remains `Implemented`. Writing Guide 9.0.0 review is **not complete**.
+until after migration and historical-data handling. The equal-network companion
+described below updates the article under Writing Guide 36.0.0; author review is
+still **not complete**.
 
 ## Independent stages
 
@@ -47,16 +48,20 @@ inside a stage, or automatic materialization.
   5% height threshold and half-period minimum distance derived from the selected
   exp041 frequency. Integer midpoint boundaries and trial-edge intervals remain
   unchanged; trials without detected peaks are skipped, as before.
-- Count every E cell in every detected interval, using buckets 0, 1, 2 and >=3.
-  Pool cell-cycle counts across seeds and conditions, rather than averaging
-  percentages. Preserve the through-origin fit of all 18 network maximum rates,
-  centred R squared and the existing denominator floors.
+- Count every E neuron in every detected interval, using buckets 0, 1, 2 and
+  >=3. Retain the opportunity-pooled distribution, and separately normalize
+  each network before averaging the three network distributions equally within
+  each inhibitory-decay condition. Preserve the through-origin fit of all 18
+  network maximum rates, centred R squared and the existing denominator floors.
 - Reject incomplete grids, mismatched bank/profile evidence, invalid indices,
   duplicate sparse spikes, nonfinite values and disagreement between retained
   per-cell rates and full spike counts.
 
 Analysis exports `results.json`. Presentation exports `numbers.json`,
 `spikes_per_cycle_distribution.{svg,pdf}` and `ceiling_vs_fgamma.{svg,pdf}`.
+It also exports
+`spikes_per_cycle_distribution_equal_network.{svg,pdf}` for the companion
+network-weighted estimator.
 Existing `results`, `global_fracs`, `per_tau`, `ceiling` and
 `n_cell_cycle_pairs` fields remain available. This preserves the outputs used
 by exp092 and exp109; their own execution migrations are separate work.
@@ -189,3 +194,20 @@ and fits match the saved analysis exactly. The exp046 suite passed 26 tests,
 including a regression check for observations above the gamma frequency.
 The new plot was visually checked; the other scientific-review items recorded
 above remain open. Retained runs and publication selections are unchanged.
+
+## Equal-network companion — 2026-09-10
+
+The analysis now retains the original opportunity-pooled distributions and adds
+a companion estimator that normalizes each trained network separately before
+averaging networks equally. It reports means across three networks within each
+inhibitory-decay condition and across all 18 networks in the balanced design.
+An entirely zero-cycle network makes this estimator undefined and aborts the
+analysis rather than being represented as a zero distribution.
+
+The companion presentation shows the equal-network means with all three
+network-level distributions visible. It does not treat neurons or cycles as
+independent replicates and does not add an uncertainty interval for three
+networks. This change reuses retained spike evidence; it requires a new analysis
+and presentation but no inference or training. The opportunity-pooled fields and
+figures remain available under their existing names. exp110 was explicitly out
+of scope and remains pinned to its prior exp046 evidence.

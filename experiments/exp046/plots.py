@@ -58,6 +58,63 @@ def plot_distribution(
         plt.close(fig)
 
 
+def plot_equal_network_distribution(
+    per_tau: dict, rows: list[dict], out_path: Path
+) -> None:
+    """Plot equal-network means with all three network distributions visible."""
+    theme.apply()
+    taus_sorted = sorted(float(k.removeprefix("tau_")) for k in per_tau)
+    fig, axes = plt.subplots(
+        1,
+        len(taus_sorted),
+        figsize=(6.9, 4.5 * 6.9 / (2.4 * len(taus_sorted))),
+        sharey=True,
+    )
+    if len(taus_sorted) == 1:
+        axes = [axes]
+    labels = ["0", "1", "2", "≥3"]
+    keys = ("frac_zero", "frac_one", "frac_two", "frac_three_plus")
+    cmap = plt.get_cmap("viridis")
+    for i, tau in enumerate(taus_sorted):
+        ax = axes[i]
+        means = [per_tau[f"tau_{tau:g}"][key] for key in keys]
+        color = cmap(i / max(1, len(taus_sorted) - 1))
+        ax.bar(
+            labels,
+            means,
+            color=color,
+            alpha=0.55,
+            edgecolor=theme.GREY_MID,
+            lw=0.5,
+        )
+        networks = sorted(
+            (row for row in rows if row["tau_gaba_ms"] == tau),
+            key=lambda row: row["seed"],
+        )
+        offsets = np.linspace(-0.12, 0.12, len(networks))
+        for offset, row in zip(offsets, networks, strict=True):
+            ax.scatter(
+                np.arange(4) + offset,
+                [row["network_fracs"][key] for key in keys],
+                s=9,
+                color=theme.INK_BLACK,
+                zorder=3,
+            )
+        ax.set_title(f"τ_GABA = {tau:g} ms", fontsize=theme.SIZE_LABEL)
+        if i == 0:
+            ax.set_ylabel("Equal-network mean fraction", fontsize=theme.SIZE_LABEL)
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+        ax.set_ylim(0, 1.05)
+        ax.grid(True, axis="y", alpha=0.15, lw=0.4)
+    theme.label_panels(axes)
+    fig.supxlabel("spikes / (neuron · cycle)", fontsize=theme.SIZE_LABEL)
+    fig.tight_layout()
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    save_figure(fig, out_path)
+    plt.close(fig)
+
+
 def plot_ceiling_vs_fgamma(rows: list[dict], out_path: Path) -> None:
     """Per-cell max E rate vs f_γ. y = f_γ line is the 1-spike/cycle ceiling."""
     theme.apply()
