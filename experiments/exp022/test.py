@@ -271,7 +271,8 @@ def test_all_resolved_commands_keep_family_contract(tmp_path: Path) -> None:
         assert "--readout-w-out-scale" not in args
         if cell["model"] == "coba":
             assert args[args.index("--ei-strength") + 1] == "0"
-            assert args[args.index("--v-grad-dampen") + 1] == "1"
+            expected_damping = "1000" if cell["training_run_id"] == "TR-02" else "1"
+            assert args[args.index("--v-grad-dampen") + 1] == expected_damping
         else:
             assert args[args.index("--v-grad-dampen") + 1] == "1000"
             if cell["model"] == "ping":
