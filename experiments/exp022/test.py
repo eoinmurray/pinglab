@@ -735,7 +735,7 @@ def test_mnist_link_helper_accepts_existing_and_concurrent_creation(
     cache = tmp_path / "cache"
     (cache / "MNIST").mkdir(parents=True)
     link = tmp_path / "mnist"
-    helper = exp022.REPO / "experiments" / "exp022" / "slurm" / "ensure-mnist-link.sh"
+    helper = exp022.REPO / "experiments" / "helpers" / "ensure-mnist-link.sh"
     commands = [[str(helper), str(cache), str(link)] for _ in range(2)]
     processes = [subprocess.Popen(command) for command in commands]
     assert [process.wait() for process in processes] == [0, 0]
@@ -749,13 +749,13 @@ def test_wilkes_modules_load_in_sanitized_environment(tmp_path: Path) -> None:
     initializer.write_text(
         'module() { printf "%s\\n" "$*" >> "$EXP022_MODULE_CALLS"; }\n'
     )
-    helper = exp022.REPO / "experiments" / "exp022" / "slurm" / "load-wilkes-modules.sh"
+    helper = exp022.REPO / "experiments" / "helpers" / "load-wilkes-modules.sh"
     subprocess.run(
         [
             "env",
             "-i",
             f"PATH={Path('/usr/bin')}:/bin",
-            f"EXP022_MODULES_INIT={initializer}",
+            f"PINGLAB_MODULES_INIT={initializer}",
             f"EXP022_MODULE_CALLS={calls}",
             "/bin/bash",
             "-c",
