@@ -37,7 +37,7 @@ def test_receipt_precedes_submission_and_blocks_repeat(tmp_path):
 
 
 def test_dry_run_does_not_write_or_contact_scheduler(tmp_path):
-    receipt = tmp_path / "submitted.json"
+    receipt = tmp_path / "absent" / "submitted.json"
 
     def fail(*_args, **_kwargs):
         raise AssertionError("dry run contacted scheduler")
@@ -54,3 +54,4 @@ def test_dry_run_does_not_write_or_contact_scheduler(tmp_path):
         == {}
     )
     assert not receipt.exists()
+    assert not receipt.parent.exists()

@@ -28,7 +28,6 @@ def submit_pipeline(
         raise PingstoreError(
             "submission was already attempted; inspect its receipt and Slurm before recovery"
         )
-    receipt.parent.mkdir(parents=True, exist_ok=True)
     payload: dict[str, Any] = {
         "schema": "pinglab.slurm-submission/v1",
         "status": "submitting",
@@ -39,6 +38,7 @@ def submit_pipeline(
     if live:
         # Persist intent before the first external mutation.  An ambiguous sbatch
         # response must never become permission for an automatic resubmission.
+        receipt.parent.mkdir(parents=True, exist_ok=True)
         write_json_atomic(receipt, payload)
     jobs: dict[str, str] = {}
     dependency = None

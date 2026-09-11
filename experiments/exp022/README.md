@@ -14,9 +14,8 @@ Guide](../README.md) and requires `pingstore.run/v4`.
 - `present.py` renders a completed analysis and can explicitly carry verified
   historical raster images when the original raw probes were not retained.
 - `hpc.py` owns the reviewed Slurm plan and standard submission adapter.
-- `slurm/` contains exp022 Wilkes environment checks and the
-  [operator runbook](slurm/README.md); execution uses the repository-wide
-  scheduler wrapper.
+- `hpc_diagnostic.py` implements the exp022-specific Wilkes preflight check;
+  `hpc.py diagnose` submits it through the shared HPC infrastructure.
 
 `experiments.exp022` exports the recipe for downstream consumers. Execution uses
 the explicit stage modules rather than the package root.
@@ -38,7 +37,7 @@ uv run python experiments/exp022/present.py --source <analyse-run-id>
 ```
 
 RunPod, bank-array, import, recovery, and diagnostic modes are explicit compute operations.
-Use `compute.py --help` and the Slurm runbook for their arguments. No exp022
+Use `compute.py --help` and `hpc.py --help` for their arguments. No exp022
 command schedules other experiments, analyses, presentations, or publication.
 
 Completed runs contain exactly `run.json`, `README.md`, and `export/`. The 102
@@ -46,6 +45,28 @@ model cells are direct scientific-unit directories in compute exports. Analysis
 exports contain measurements and plot-ready arrays. Presentation exports are
 flat publication inputs. All readers validate the complete v4 source and its
 payload digest before use.
+
+## Wilkes HPC diagnostic
+
+From a reviewed clean checkout with a frozen environment and prepopulated MNIST
+cache, inspect the command, validate it with Slurm, then submit it explicitly:
+
+```sh
+uv run python -m experiments.exp022.hpc diagnose \
+  --account <gpu-account> --mnist-cache <persistent-torch-data> \
+  --output-root <diagnostic-root>
+uv run python -m experiments.exp022.hpc diagnose \
+  --account <gpu-account> --mnist-cache <persistent-torch-data> \
+  --output-root <diagnostic-root> --test-only
+uv run python -m experiments.exp022.hpc diagnose \
+  --account <gpu-account> --mnist-cache <persistent-torch-data> \
+  --output-root <diagnostic-root> --live
+```
+
+The live command writes its submission receipt before contacting Slurm. The
+result records the reviewed commit, dirty state, Python/PyTorch/CUDA versions,
+allocated GPU, MNIST sample count, registered cell count, scheduler identity and
+atomic-write success. It runs one short GPU job and never trains a model.
 
 ## Parallel HPC bank training
 

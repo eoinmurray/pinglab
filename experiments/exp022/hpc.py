@@ -130,6 +130,49 @@ def review(args):
     )
 
 
+def diagnostic_command(args):
+    logs = args.output_root / "logs"
+    return [
+        "sbatch",
+        "--parsable",
+        f"--account={args.account}",
+        f"--partition={args.partition}",
+        "--nodes=1",
+        "--job-name=exp022-diagnostic",
+        f"--time={args.walltime}",
+        f"--cpus-per-task={args.cpus}",
+        f"--mem={args.memory_gb}G",
+        "--gres=gpu:1",
+        f"--output={logs}/%x-%j.out",
+        f"--error={logs}/%x-%j.err",
+        "--export=NONE",
+        f"--chdir={REPO}",
+        str(REPO / "experiments/helpers/hpc/diagnostic.sbatch"),
+        str(REPO),
+        str(args.mnist_cache),
+        str(args.output_root),
+        "experiments.exp022.hpc_diagnostic",
+    ]
+
+
+def diagnose(args):
+    if not (args.mnist_cache / "MNIST").is_dir():
+        raise PingstoreError("persistent MNIST cache is missing")
+    if not 1 <= args.cpus <= 4 or not 1 <= args.memory_gb <= 20:
+        raise PingstoreError("diagnostics are limited to four CPUs and 20 GB memory")
+    if args.live or args.test_only:
+        (args.output_root / "logs").mkdir(parents=True, exist_ok=True)
+    submit_pipeline(
+        steps=("diagnostic",),
+        command_for=lambda _stage, _dependency: diagnostic_command(args),
+        receipt=args.output_root / "submitted.json",
+        live=args.live,
+        test_only=args.test_only,
+        context={"experiment": recipe.SLUG, "operation": "diagnostic"},
+        runner=subprocess.run,
+    )
+
+
 def worker(args):
     plan = load_json(args.plan)
     check_plan(plan)
@@ -186,15 +229,36 @@ def main():
     group = reviewed.add_mutually_exclusive_group()
     group.add_argument("--live", action="store_true")
     group.add_argument("--test-only", action="store_true")
+    diagnostic = sub.add_parser("diagnose")
+    diagnostic.add_argument("--account", required=True)
+    diagnostic.add_argument("--mnist-cache", type=Path, required=True)
+    diagnostic.add_argument("--output-root", type=Path, required=True)
+    diagnostic.add_argument("--partition", default="ampere")
+    diagnostic.add_argument("--walltime", default="00:10:00")
+    diagnostic.add_argument("--cpus", type=int, default=4)
+    diagnostic.add_argument("--memory-gb", type=int, default=20)
+    group = diagnostic.add_mutually_exclusive_group()
+    group.add_argument("--live", action="store_true")
+    group.add_argument("--test-only", action="store_true")
     worker_parser = sub.add_parser("worker")
     worker_parser.add_argument("plan", type=Path)
     worker_parser.add_argument("stage", choices=("compute", "collect"))
     args = parser.parse_args()
-    args.plan = args.plan.resolve()
+    if hasattr(args, "plan"):
+        args.plan = args.plan.resolve()
     if hasattr(args, "root"):
         args.root = args.root.resolve()
+    if hasattr(args, "mnist_cache"):
+        args.mnist_cache = args.mnist_cache.resolve()
+    if hasattr(args, "output_root"):
+        args.output_root = args.output_root.resolve()
     try:
-        {"prepare": prepare, "review": review, "worker": worker}[args.action](args)
+        {
+            "prepare": prepare,
+            "review": review,
+            "diagnose": diagnose,
+            "worker": worker,
+        }[args.action](args)
     except (
         KeyError,
         OSError,
