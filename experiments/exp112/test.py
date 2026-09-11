@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from experiments.exp112 import recipe
+from experiments.exp112 import hpc, recipe
 
 
 def test_complete_factorial_case_order():
@@ -64,3 +64,19 @@ def test_final_epoch_raster_command_is_paired_digit_zero(tmp_path: Path):
         "spk_i",
     ]
     assert Path(args[args.index("--load-weights") + 1]).name == "weights_final.pth"
+
+
+def test_hpc_array_uses_one_frozen_condition_per_task(tmp_path: Path):
+    plan = {
+        "account": "project",
+        "partition": "ampere",
+        "walltime": "01:00:00",
+        "cpus": 4,
+        "memory_gb": 32,
+        "gpus": 1,
+        "concurrency": 4,
+    }
+    command = hpc.command(plan, tmp_path / "plan.json")
+    assert "--array=0-3%4" in command
+    assert "--gres=gpu:1" in command
+    assert command[-2:] == [str(tmp_path / "plan.json"), str(hpc.REPO)]

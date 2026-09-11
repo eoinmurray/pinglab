@@ -338,7 +338,10 @@ def test_shard_does_not_reuse_tampered_metrics(lab):
     identity = stages.reserve_stage(root / ".pingstore", "exp042", "compute")
     record = compute.shard(bank_id, run_id=identity, index=0)
     directory = root / ".pingstore/runs" / f".{identity}.tmp"
-    (directory / "export/jobs" / (record["jobs"][0] + ".json")).write_text("{}")
+    assert record["schema"] == "pinglab.concurrent-shard/v1"
+    assert record["experiment"] == "exp042"
+    assert record["inputs"]["bank"]["run_id"] == bank_id
+    (directory / "export/jobs" / (record["work_items"][0] + ".json")).write_text("{}")
     with pytest.raises(PingstoreError, match="changed"):
         compute.shard(bank_id, run_id=identity, index=0)
 
@@ -566,10 +569,15 @@ def test_article_renders_fixture_and_unavailable_data_states(lab):
     source_root = Path(__file__).resolve().parents[2]
     (root / "writings").mkdir()
     for name in (
-        "exp042.typ", "templates/dataset.typ", "templates/abstract.typ",
-        "templates/methods.typ", "templates/article-layout.typ",
-        "templates/result-card.typ", "templates/contents.typ",
-        "templates/equations.typ", "templates/status.typ",
+        "exp042.typ",
+        "templates/dataset.typ",
+        "templates/abstract.typ",
+        "templates/methods.typ",
+        "templates/article-layout.typ",
+        "templates/result-card.typ",
+        "templates/contents.typ",
+        "templates/equations.typ",
+        "templates/status.typ",
     ):
         target = root / "writings" / name
         target.parent.mkdir(parents=True, exist_ok=True)

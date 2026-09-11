@@ -64,20 +64,28 @@ Stages never select a latest run or launch another stage.
 ## Wilkes3 execution
 
 Use a clean committed checkout, a frozen environment and a prepopulated MNIST
-cache. The submit wrapper reserves four independent compute identities and
-submits one four-element Slurm array; it does not submit four separate jobs.
-Each array task receives one A100 and executes one condition concurrently,
-subject to scheduler availability.
+cache. The standard HPC adapter first freezes the four complete cell
+configurations, one-cell-per-task allocation, source identity and scheduler
+resources in a reviewable plan. Review submits one four-element Slurm array;
+it does not submit four separate jobs. Each array task receives one GPU and
+executes one condition concurrently, subject to scheduler availability. A
+receipt is written before Slurm is contacted, preventing blind resubmission
+after an ambiguous response.
 
 ```sh
-export EXP112_SLURM_ACCOUNT=<project>
-export EXP112_MNIST_CACHE=<persistent-directory-containing-MNIST>
-export EXP112_WALLTIME=01:00:00
-experiments/exp112/slurm/submit.sh --dry-run
-experiments/exp112/slurm/submit.sh
+uv run python -m experiments.exp112.hpc prepare \
+  --plan .scratch/exp112-hpc/production.json \
+  --account <project> \
+  --mnist-cache <persistent-directory-containing-MNIST> \
+  --walltime 01:00:00
+uv run python -m experiments.exp112.hpc review \
+  .scratch/exp112-hpc/production.json
+uv run python -m experiments.exp112.hpc review \
+  .scratch/exp112-hpc/production.json --test-only
+uv run python -m experiments.exp112.hpc review \
+  .scratch/exp112-hpc/production.json --live
 ```
 
-The wrapper requires `EXP112_CONCURRENCY=4` if that variable is supplied.
 Separate submissions must remain at least 120 seconds apart. Queue time is not
 part of the estimated 14–20 minute training time per condition.
 
