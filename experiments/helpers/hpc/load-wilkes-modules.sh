@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Slurm exports are deliberately sanitized, so initialise Environment Modules
+# HPC submissions are deliberately sanitized, so initialise Environment Modules
 # explicitly before selecting the reviewed Wilkes3 GPU software stack.
 modules_init="${PINGLAB_MODULES_INIT:-/etc/profile.d/modules.sh}"
 if [[ ! -r "$modules_init" ]]; then

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -euo pipefail
+set -euo pipefail  # Shared by reviewed HPC workers and diagnostics.
 if [[ $# -lt 1 || $# -gt 2 ]]; then
   echo "usage: $0 PERSISTENT_MNIST_ROOT [LINK_PATH]" >&2
   exit 2

@@ -93,7 +93,7 @@ independent work receives a new run identity.
 ### Concurrent HPC workers within one compute run
 
 When one scientific compute result requires concurrent workers before it is
-meaningful or consumable, use `experiments.helpers.concurrent_compute`. Do not
+meaningful or consumable, use `experiments.helpers.hpc.concurrent_compute`. Do not
 copy its locking, completion-record, provenance, or collection machinery into an
 experiment.
 
@@ -114,7 +114,7 @@ shard may be reused explicitly. Stale writer locks require reviewed recovery.
 The collector never executes missing work. It requires and verifies the exact
 complete shard set, then projects worker timing, host, device, command and Slurm
 identity into `run.json`; shard bookkeeping is discarded when the run completes.
-Submitters use the receipt-first helper in `experiments.helpers.slurm_submit` so
+Submitters use the receipt-first helper in `experiments.helpers.hpc.slurm_submit` so
 an ambiguous scheduler response cannot trigger automatic resubmission. Analyse
 and present remain separate explicit stages.
 

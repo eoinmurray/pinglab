@@ -1,4 +1,4 @@
-"""Receipt-first Slurm submission shared by experiment-local HPC adapters."""
+"""Receipt-first Slurm submission for experiment-local HPC adapters."""
 
 from __future__ import annotations
 

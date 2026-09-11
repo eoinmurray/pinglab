@@ -1,4 +1,4 @@
-"""Shared resumable concurrency for one hidden Pingstore compute run.
+"""Shared resumable HPC concurrency for one hidden Pingstore compute run.
 
 Experiments own scientific work items and partitioning in ``recipe.py``.  This
 module owns only the concurrency lifecycle: reservation validation, worker and

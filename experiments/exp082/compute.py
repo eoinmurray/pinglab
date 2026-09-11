@@ -9,7 +9,7 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
 from experiments.exp082 import evidence, inputs, recipe
 from experiments.exp082.inference import Inference
-from experiments.helpers import concurrent_compute
+from experiments.helpers.hpc import concurrent_compute
 from pingstore.contracts import (
     PingstoreError,
     file_sha256,

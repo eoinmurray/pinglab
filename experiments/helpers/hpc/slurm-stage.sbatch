@@ -9,7 +9,7 @@ experiment="${5:?experiment module is required}"
 
 cd "$repo"
 if [[ "$environment" == "gpu" ]]; then
-  source experiments/helpers/load-wilkes-modules.sh
+  source experiments/helpers/hpc/load-wilkes-modules.sh
 elif [[ "$environment" == "cpu" ]]; then
   source /etc/profile.d/modules.sh
   module purge
@@ -22,5 +22,5 @@ export OMP_NUM_THREADS="${SLURM_CPUS_PER_TASK:-4}"
 export OPENBLAS_NUM_THREADS="$OMP_NUM_THREADS"
 export PINGLAB_NO_SYNC=1
 cache="$(.venv/bin/python -c 'import json,sys; print(json.load(open(sys.argv[1]))["mnist_cache"])' "$plan")"
-experiments/helpers/ensure-mnist-link.sh "$cache"
+experiments/helpers/hpc/ensure-mnist-link.sh "$cache"
 exec .venv/bin/python -m "experiments.${experiment}.hpc" worker "$plan" "$stage"

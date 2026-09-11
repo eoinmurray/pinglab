@@ -11,7 +11,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
 from experiments.exp037 import evidence, inputs, recipe
-from experiments.helpers import concurrent_compute
+from experiments.helpers.hpc import concurrent_compute
 from experiments.helpers.run_cli import run_cli
 from pingstore.contracts import (
     PingstoreError,

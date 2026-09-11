@@ -13,7 +13,7 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
 
 from experiments.exp112 import recipe
-from experiments.helpers.slurm_submit import submit_pipeline
+from experiments.helpers.hpc.slurm_submit import submit_pipeline
 from pingstore.contracts import PingstoreError, load_json, write_json_atomic
 from pingstore.stages import _capture_code, reserve_stage, stage_reservation
 
@@ -97,7 +97,7 @@ def command(plan: dict, path: Path, dependency: str | None = None) -> list[str]:
         f"--error={logs}/%x-%A_%a.err",
         "--export=NONE",
         f"--chdir={REPO}",
-        str(REPO / "experiments/helpers/slurm-stage.sbatch"),
+        str(REPO / "experiments/helpers/hpc/slurm-stage.sbatch"),
         str(path),
         "compute",
         str(REPO),
