@@ -22,10 +22,9 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "experiments"), str(REPO / "tools")]
 
 from experiments.exp022 import recipe
+from experiments.exp022.checkpoints import resolve_checkpoint
 from pingstore.contracts import PingstoreError, write_json_atomic
 from pingstore.stages import reserve_stage, source_run, stage_run
-
-from experiments.exp022.checkpoints import resolve_checkpoint
 
 SCHEMA = "pinglab.exp022.bank"
 SCHEMA_VERSION = 1

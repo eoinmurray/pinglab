@@ -8,13 +8,12 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
 
+from experiments.exp033 import evidence, inputs, plots
 from pingstore.contracts import (
     PingstoreError,
     load_json,
     write_json_atomic,
 )
-
-from experiments.exp033 import evidence, inputs, plots
 
 
 def article_numbers(numbers):

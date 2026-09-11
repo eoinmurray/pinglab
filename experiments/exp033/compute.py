@@ -12,11 +12,10 @@ sys.path[:0] = [str(REPO), str(REPO / "tools")]
 
 import numpy as np
 import scipy
-from pingstore.contracts import PingstoreError
-from scipy.integrate import solve_ivp
-
 from experiments.exp033 import evidence, inputs, recipe
 from experiments.exp033 import numerics as model
+from pingstore.contracts import PingstoreError
+from scipy.integrate import solve_ivp
 
 
 def integrate(

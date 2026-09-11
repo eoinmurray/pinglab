@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import numpy as np
-
 from experiments.exp033 import numerics as exp033
 
 """Synthetic staged evidence and bounded numerical checks; no production runs."""
@@ -14,14 +13,6 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
-from pingstore import stages
-from pingstore.contracts import (
-    PingstoreError,
-    load_json,
-    payload_digest,
-    write_json_atomic,
-)
-
 from experiments.exp033 import (
     analyse,
     compute,
@@ -32,6 +23,13 @@ from experiments.exp033 import (
     plots,
     present,
     recipe,
+)
+from pingstore import stages
+from pingstore.contracts import (
+    PingstoreError,
+    load_json,
+    payload_digest,
+    write_json_atomic,
 )
 
 

@@ -2,9 +2,8 @@
 
 import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib.ticker import MaxNLocator
-
 from experiments.helpers import theme
+from matplotlib.ticker import MaxNLocator
 
 from .recipe import SIGMA_V_MV
 

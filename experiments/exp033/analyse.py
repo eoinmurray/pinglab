@@ -7,9 +7,8 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
 
-from pingstore.contracts import PingstoreError, load_json, write_json_atomic
-
 from experiments.exp033 import evidence, inputs, measurements
+from pingstore.contracts import PingstoreError, load_json, write_json_atomic
 
 
 def analyse(identity, frequency_source, *, run_id=None):
