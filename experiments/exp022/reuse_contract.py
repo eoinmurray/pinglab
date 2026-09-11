@@ -153,11 +153,20 @@ def inspect_source(repo: Path) -> tuple[SourceRun, dict]:
         experiment="exp022",
         reference=SOURCE_REFERENCE,
     )
-    units = list(source.export.iterdir())
-    if {unit.name for unit in units} != set(current) or any(
-        not unit.is_dir() or unit.is_symlink() for unit in units
+    entries = list(source.export.iterdir())
+    units = [entry for entry in entries if entry.is_dir()]
+    snapshots = [entry for entry in entries if entry.is_file()]
+    expected_snapshots = {
+        f"snapshots--{name}--recording.npz" for name in diagnostics
+    }
+    if (
+        {unit.name for unit in units} != set(current)
+        or {snapshot.name for snapshot in snapshots} != expected_snapshots
+        or any(entry.is_symlink() for entry in entries)
     ):
-        raise PingstoreError("retained bank must contain exactly the current 102-cell registry")
+        raise PingstoreError(
+            "retained bank must contain exactly 102 cells and 34 diagnostic snapshots"
+        )
     records = {
         name: _inspect_reused_cell(source, current[name]) for name in reused
     }
