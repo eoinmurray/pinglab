@@ -90,3 +90,9 @@ jobs:
         run: >-
           uv run pytest -q
           tools/snnsim/tests
+          tools/snnlang/tests
+          tools/snnviz/tests
+          tools/pingstore/tests
+          tools/publishing/tests
+          experiments
+          writings
