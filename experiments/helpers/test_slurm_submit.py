@@ -1,10 +1,8 @@
 import subprocess
 
 import pytest
-
-from pingstore.contracts import PingstoreError, load_json
-
 from experiments.helpers.slurm_submit import submit_pipeline
+from pingstore.contracts import PingstoreError, load_json
 
 
 def test_receipt_precedes_submission_and_blocks_repeat(tmp_path):
