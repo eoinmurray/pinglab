@@ -30,10 +30,13 @@ from pingstore.contracts import (
     write_json_atomic,
 )
 from pingstore.layout import canonical_export_file, normalize_export_layout
-from pingstore.locking import operation_lock
-from pingstore.native import execution_origin
-from pingstore.registry import memberships
-from pingstore.stages import reserve_stage, stage_reservation
+from pingstore.membership import memberships
+from pingstore.stages import (
+    execution_origin,
+    operation_lock,
+    reserve_stage,
+    stage_reservation,
+)
 from snnsim.timing import duration_steps
 
 SCHEMA = "pinglab.exp022.gradient-damping-bank/v1"
