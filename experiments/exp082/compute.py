@@ -1,8 +1,6 @@
 """Compute exp082 streaming inference from a pinned v4 bank, with six shards."""
 
 import argparse
-import contextlib
-import fcntl
 import os
 import sys
 from pathlib import Path
@@ -11,14 +9,14 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
 from experiments.exp082 import evidence, inputs, recipe
 from experiments.exp082.inference import Inference
+from experiments.helpers import concurrent_compute
 from pingstore.contracts import (
     PingstoreError,
     file_sha256,
     load_json,
-    run_root,
     write_json_atomic,
 )
-from pingstore.stages import _capture_code, reserve_stage, stage_reservation, utc_now
+from pingstore.stages import _capture_code, reserve_stage
 
 
 def _run_jobs(bank, directory, jobs, contract):
@@ -66,40 +64,17 @@ def _verify_shard(directory, record, jobs):
 
 
 def _shard_paths(repo, run_id, index, count):
-    if count != recipe.SHARDS or not 0 <= index < count:
-        raise PingstoreError("exp082 requires six shards and an index in [0, 6)")
-    destination = run_root(repo / ".pingstore", run_id)
-    directory = destination.with_name(f".{run_id}.tmp")
-    record = stage_reservation(directory)
-    if (
-        record["experiment"] != recipe.SLUG
-        or record["stage"] != "compute"
-        or record["run_id"] != run_id
-        or destination.exists()
-        or (directory / "run.json").exists()
-    ):
-        raise PingstoreError("shards require an unused exp082 v4 compute reservation")
-    return directory
+    return concurrent_compute.working_directory(
+        repo,
+        run_id,
+        index,
+        count,
+        experiment=recipe.SLUG,
+        expected_count=recipe.SHARDS,
+    )
 
 
-@contextlib.contextmanager
-def _compute_lock(directory, *, exclusive):
-    path = directory / ".scratch/compute.lock"
-    if any(p.is_symlink() for p in (directory, *directory.parents, path.parent, path)):
-        raise PingstoreError("compute working paths must not use symlinks")
-    path.parent.mkdir(parents=True, exist_ok=True)
-    descriptor = os.open(path, os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
-    with os.fdopen(descriptor, "a+b") as handle:
-        try:
-            fcntl.flock(
-                handle, (fcntl.LOCK_EX if exclusive else fcntl.LOCK_SH) | fcntl.LOCK_NB
-            )
-        except BlockingIOError as exc:
-            raise PingstoreError("compute reservation is busy") from exc
-        try:
-            yield
-        finally:
-            fcntl.flock(handle, fcntl.LOCK_UN)
+_compute_lock = concurrent_compute.compute_lock
 
 
 def shard(identity, *, run_id, index, count=recipe.SHARDS):
@@ -108,65 +83,27 @@ def shard(identity, *, run_id, index, count=recipe.SHARDS):
     contract = evidence.training_contract(bank.export)
     cfg = recipe.environment_configuration()
     directory = _shard_paths(REPO, run_id, index, count)
-    with _compute_lock(directory, exclusive=False):
-        folder = directory / ".scratch" / "shards" / str(index)
-        folder.mkdir(parents=True, exist_ok=True)
-        lock = folder / "writer.lock"
-        try:
-            descriptor = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
-        except FileExistsError as exc:
-            raise PingstoreError(
-                "shard is busy; interrupted locks need explicit recovery"
-            ) from exc
-        os.close(descriptor)
-        try:
-            # Recheck after locking so collection cannot race a newly started worker.
-            _shard_paths(REPO, run_id, index, count)
-            code = _capture_code(REPO, directory)
-            # A partitioned compute run requires one frozen checkout across workers.
-            if code.get("code_dirty"):
-                raise PingstoreError(
-                    "distributed exp082 compute requires committed execution code"
-                )
-            job_list = recipe.jobs(cfg)[index::count]
-            expected = {
-                "run_id": run_id,
-                "bank": bank.reference,
-                "recipe": cfg,
-                "index": index,
-                "count": count,
-                "source": code,
-                "jobs": [job["id"] for job in job_list],
-            }
-            marker = folder / "completed.json"
-            if marker.exists():
-                previous = load_json(marker)
-                if any(previous.get(k) != v for k, v in expected.items()):
-                    raise PingstoreError(
-                        "shard source or recipe changed; reserve a fresh compute run"
-                    )
-                _verify_shard(directory, previous, job_list)
-                return previous
-            started = utc_now()
-            _run_jobs(bank, directory, job_list, contract)
-            for ancestor in inputs.lineage(REPO, identity, bank.reference).values():
-                ancestor.check_unchanged()
-            record = {
-                **expected,
-                "started_at": started,
-                "completed_at": utc_now(),
-                "command": [sys.executable, *sys.argv],
-                "scheduler": {
-                    k: os.environ[k]
-                    for k in ("SLURM_JOB_ID", "SLURM_ARRAY_TASK_ID")
-                    if k in os.environ
-                },
-                "files": _job_inventory(directory, job_list),
-            }
-            write_json_atomic(marker, record)
-            return record
-        finally:
-            lock.unlink()
+    job_list = recipe.jobs(cfg)[index::count]
+
+    def check_inputs():
+        for ancestor in inputs.lineage(REPO, identity, bank.reference).values():
+            ancestor.check_unchanged()
+
+    return concurrent_compute.execute_shard(
+        repo=REPO,
+        experiment=recipe.SLUG,
+        run_id=run_id,
+        index=index,
+        count=count,
+        expected_count=recipe.SHARDS,
+        inputs={"bank": bank.reference},
+        configuration=cfg,
+        items=job_list,
+        run_items=lambda: _run_jobs(bank, directory, job_list, contract),
+        inventory=lambda: _job_inventory(directory, job_list),
+        check_inputs=check_inputs,
+        capture_code=_capture_code,
+    )
 
 
 def compute(identity, *, run_id=None, collect=False):
@@ -176,42 +113,25 @@ def compute(identity, *, run_id=None, collect=False):
     if collect and not run_id:
         raise PingstoreError("collection requires an explicit compute reservation")
     run_id = run_id or reserve_stage(REPO / ".pingstore", recipe.SLUG, "compute")
-    directory = _shard_paths(REPO, run_id, 0, recipe.SHARDS)
-    with _compute_lock(directory, exclusive=True):
-        _shard_paths(REPO, run_id, 0, recipe.SHARDS)
-        if not collect and (directory / ".scratch/shards").exists():
-            raise PingstoreError("sharded work requires explicit --collect")
-        if collect:
-            directory = _shard_paths(REPO, run_id, 0, recipe.SHARDS)
-            if list((directory / ".scratch/shards").glob("*/writer.lock")):
-                raise PingstoreError("compute shards are still running")
-            for index in range(recipe.SHARDS):
-                record = load_json(
-                    directory / ".scratch/shards" / str(index) / "completed.json"
-                )
-                if (
-                    record.get("run_id") != run_id
-                    or record.get("bank") != bank.reference
-                    or record.get("recipe") != cfg
-                    or record.get("index") != index
-                    or record.get("count") != recipe.SHARDS
-                ):
-                    raise PingstoreError("shard bank, recipe or identity mismatch")
-                _verify_shard(
-                    directory, record, recipe.jobs(cfg)[index :: recipe.SHARDS]
-                )
+    with concurrent_compute.collect_shards(
+        repo=REPO,
+        experiment=recipe.SLUG,
+        run_id=run_id,
+        count=recipe.SHARDS,
+        inputs={"bank": bank.reference},
+        configuration=cfg,
+        items_for=lambda index: recipe.jobs(cfg)[index :: recipe.SHARDS],
+        inventory_for=lambda index: _job_inventory(
+            _shard_paths(REPO, run_id, index, recipe.SHARDS),
+            recipe.jobs(cfg)[index :: recipe.SHARDS],
+        ),
+        collect=collect,
+    ) as (_directory, shard_records):
         with inputs.execution(
             REPO, "compute", sources={"bank": bank}, run_id=run_id, configuration=cfg
         ) as run:
             if collect:
-                for index in range(recipe.SHARDS):
-                    marker = load_json(
-                        run.scratch / "shards" / str(index) / "completed.json"
-                    )
-                    if marker["source"] != run.record["provenance"]:
-                        raise PingstoreError(
-                            "worker and collector execution code differ"
-                        )
+                concurrent_compute.retain_worker_provenance(run, shard_records)
             environment = {
                 "PINGLAB_SMOKE": "1" if cfg["profile"] == "smoke" else "0",
                 **{

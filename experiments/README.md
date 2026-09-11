@@ -1,6 +1,6 @@
 # Experiment Runner Guide
 
-Version: **4.6.0**
+Version: **4.7.0**
 
 This guide defines Pinglab's independent compute, analyse, and present commands.
 The [Storage Guide](../tools/pingstore/README.md) owns run layout and validation.
@@ -90,6 +90,34 @@ downstream.
 A completed compute run is immutable and cannot be resumed or extended. Further
 independent work receives a new run identity.
 
+### Concurrent HPC workers within one compute run
+
+When one scientific compute result requires concurrent workers before it is
+meaningful or consumable, use `experiments.helpers.concurrent_compute`. Do not
+copy its locking, completion-record, provenance, or collection machinery into an
+experiment.
+
+The experiment's `recipe.py` remains authoritative for scientific work-item
+definitions and partition constraints. Before submission, the experiment-local
+HPC adapter freezes the complete resolved recipe, ordered work-item IDs, exact
+work-item-to-shard allocation, input pins, clean source identity and scheduler
+resources in a reviewable plan. Workers consume that allocation; they do not
+reconstruct it from mutable environment state.
+
+Workers share one hidden reserved compute run but write only their assigned
+scientific outputs and `.scratch/shards/<index>/` bookkeeping. The shared helper
+provides a nonblocking shared worker lock, exclusive collector lock, one
+exclusive writer lock per shard, an immutable `pinglab.concurrent-shard/v1`
+completion record, input revalidation and payload checksums. A matching completed
+shard may be reused explicitly. Stale writer locks require reviewed recovery.
+
+The collector never executes missing work. It requires and verifies the exact
+complete shard set, then projects worker timing, host, device, command and Slurm
+identity into `run.json`; shard bookkeeping is discarded when the run completes.
+Submitters use the receipt-first helper in `experiments.helpers.slurm_submit` so
+an ambiguous scheduler response cannot trigger automatic resubmission. Analyse
+and present remain separate explicit stages.
+
 ## 3. Run records
 
 Every completed run contains exactly `run.json`, `README.md`, and `export/`.
@@ -173,6 +201,9 @@ before changing the guide outside the requested scope.
 
 ## 8. Version history
 
+- **4.7.0** — Standardize concurrent HPC compute around recipe-owned work items,
+  frozen reviewed allocations, shared resumable shard locking and verification,
+  receipt-first Slurm submission, and an explicit non-computing collector.
 - **4.6.0** — Remove the artifact-copy publication step and retain collection
   stage references instead of duplicated presentation exports.
 - **4.5.0** — Permit sparing, justified compute partitioning and explicit

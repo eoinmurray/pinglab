@@ -3,7 +3,6 @@
 import argparse
 import json
 import os
-import shlex
 import subprocess
 import sys
 from pathlib import Path
@@ -11,6 +10,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
 from experiments.exp037 import evidence, inputs, recipe
+from experiments.helpers.slurm_submit import submit_pipeline
 from pingstore.contracts import PingstoreError, load_json, write_json_atomic
 from pingstore.stages import _capture_code, reserve_stage, stage_reservation
 
@@ -25,6 +25,19 @@ def check_plan(plan):
         raise PingstoreError("HPC execution requires the exact frozen plan source")
     if plan["recipe"] != recipe.configuration(smoke=plan["profile"] == "smoke"):
         raise PingstoreError("HPC recipe changed")
+    cfg = plan["recipe"]
+    expected_items = [job["id"] for job in recipe.jobs(cfg)]
+    expected_partitions = [
+        [job["id"] for job in recipe.shard_jobs(cfg, index)]
+        for index in range(recipe.SHARDS)
+    ]
+    if (
+        plan.get("work_items") != expected_items
+        or plan.get("partitions") != expected_partitions
+        or sorted(item for shard in expected_partitions for item in shard)
+        != sorted(expected_items)
+    ):
+        raise PingstoreError("HPC work-item allocation changed")
     source = inputs.source(
         REPO,
         plan["bank"]["run_id"],
@@ -46,13 +59,19 @@ def prepare(args):
     if code.get("code_dirty"):
         raise PingstoreError("commit execution code before preparing HPC work")
     source = inputs.source(REPO, args.source, "compute", experiment="exp022")
+    cfg = recipe.configuration(smoke=args.profile == "smoke")
     plan = {
         "schema": "exp037.hpc/v1",
         "repo": str(REPO),
         "code": code,
         "bank": source.reference,
         "profile": args.profile,
-        "recipe": recipe.configuration(smoke=args.profile == "smoke"),
+        "recipe": cfg,
+        "work_items": [job["id"] for job in recipe.jobs(cfg)],
+        "partitions": [
+            [job["id"] for job in recipe.shard_jobs(cfg, index)]
+            for index in range(recipe.SHARDS)
+        ],
         "account": args.account,
         "cpu_account": args.cpu_account,
         "cpu_partition": "icelake",
@@ -113,43 +132,19 @@ def review(args):
         }:
             raise PingstoreError("reservation differs from reviewed plan")
     receipt = args.plan.with_suffix(".submitted.json")
-    if receipt.exists():
-        raise PingstoreError(
-            "submission was already attempted; inspect its receipt before recovery"
-        )
     if args.live or args.test_only:
         (args.plan.parent / "logs").mkdir(exist_ok=True)
-    if args.live:
-        # Write before contacting Slurm: an uncertain response must never trigger a duplicate launch.
-        write_json_atomic(receipt, {"status": "submitting", "jobs": {}})
-    jobs = {}
-    dependency = None
-    for stage in ("compute", "collect", "analyse", "present"):
-        cmd = command(plan, args.plan, stage, dependency)
-        print(shlex.join(cmd), flush=True)
-        if args.live or args.test_only:
-            actual = cmd if args.live else [cmd[0], "--test-only", *cmd[1:]]
-            result = subprocess.run(actual, capture_output=True, text=True)
-            print(result.stdout + result.stderr, end="", flush=True)
-            result.check_returncode()
-            if args.live:
-                job_id = result.stdout.strip().split(";")[0]
-                if not job_id.isdigit():
-                    raise PingstoreError(
-                        "ambiguous Slurm response; inspect receipt and scheduler"
-                    )
-                jobs[stage] = job_id
-                write_json_atomic(receipt, {"status": "submitting", "jobs": jobs})
-                dependency = job_id
-        if not args.live:
-            # Test-only validates each resource request independently; no job IDs exist yet.
-            dependency = None
-    if args.live:
-        write_json_atomic(receipt, {"status": "submitted", "jobs": jobs})
-    else:
-        print(
-            "No jobs submitted. Live launch chains compute -> collect -> analyse -> present with afterok dependencies."
-        )
+    submit_pipeline(
+        steps=("compute", "collect", "analyse", "present"),
+        command_for=lambda stage, dependency: command(
+            plan, args.plan, stage, dependency
+        ),
+        receipt=receipt,
+        live=args.live,
+        test_only=args.test_only,
+        context={"experiment": recipe.SLUG, "plan": str(args.plan)},
+        runner=subprocess.run,
+    )
 
 
 def worker(args):
