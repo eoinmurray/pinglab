@@ -2,14 +2,14 @@
 
 Wall-time estimates assume A100-class GPUs and exclude scheduler queue time.
 
-1. [ ] Confirm the scope is exactly the 18 `TR-02` COBA cells: six activity conditions (off, 25, 10, 5, 2.5 and 1 Hz) × seeds 42–44. **Estimate: 10 min.**
-2. [ ] Change those 18 cells to `v_grad_dampen = 1000` while retaining `ei_strength = 0`; do not change `TR-01`, PING or other training families. **Estimate: 30–60 min.**
-3. [ ] Update exp022 configuration and scientific-contract validation to require the new `TR-02` COBA damping value. **Estimate: 30–60 min.**
-4. [ ] Add a provenance-safe replacement-bank path that reuses 84 unchanged cells and retrains 18 cells while producing one complete 102-cell bank. **Estimate: 1–2 h.**
-5. [ ] Verify that reused cells retain exact payload hashes and source references and that replacement cells retain both `weights.pth` and `weights_final.pth`. **Estimate: 30 min.**
-6. [ ] Commit and push the execution changes before running tests or preparing HPC work. **Estimate: 10–20 min.**
-7. [ ] Run focused exp022 contract and bank tests after the commit and push. **Estimate: 10–20 min.**
-8. [ ] Prepare and review the frozen exp022 HPC plan and perform a scheduler test-only submission. **Estimate: 20–30 min plus queue response.**
+1. [x] Confirm the scope is exactly the 18 `TR-02` COBA cells: six activity conditions (off, 25, 10, 5, 2.5 and 1 Hz) × seeds 42–44. **Estimate: 10 min.**
+2. [x] Change those 18 cells to `v_grad_dampen = 1000` while retaining `ei_strength = 0`; do not change `TR-01`, PING or other training families. **Estimate: 30–60 min.**
+3. [x] Update exp022 configuration and scientific-contract validation to require the new `TR-02` COBA damping value. **Estimate: 30–60 min.**
+4. [x] Add a provenance-safe replacement-bank path that reuses 84 unchanged cells and retrains 18 cells while producing one complete 102-cell bank. **Estimate: 1–2 h.**
+5. [x] Verify that reused cells retain exact payload hashes and source references and that replacement cells retain both `weights.pth` and `weights_final.pth`. **Estimate: 30 min.**
+6. [x] Commit and push the execution changes before running tests or preparing HPC work. **Estimate: 10–20 min.**
+7. [x] Run focused exp022 contract and bank tests after the commit and push. **Estimate: 10–20 min.**
+8. [x] Prepare and review the frozen exp022 HPC plan and perform a scheduler test-only submission. **Estimate: 20–30 min plus queue response.**
 9. [ ] Run the exp022 replacement compute bank with 18 concurrent GPUs. **Estimate: 1 h 25 min–1 h 45 min; 21.66 GPU-hours.**
 10. [ ] Validate the completed 102-cell exp022 bank, including `v_grad_dampen = 1000` and `ei_strength = 0` for all 18 replacement cells and byte-identical reuse for the other 84. **Estimate: 10–20 min.**
 11. [ ] Run exp025 compute from the replacement exp022 bank. **Estimate: 1 h 20 min–1 h 40 min on one GPU.**
