@@ -147,7 +147,7 @@ def reserve(repo: Path, *, origin: str = "slurm-wilkes", run_id: str | None = No
                  "1000 and the recurrent loop disabled. Both checkpoint roles and original "
                  "training origins are retained. "
                  "All 34 seed-42 diagnostics will be regenerated during explicit finalization.")
-        compute._checked_manifest(root / "campaign.json")
+        compute._checked_bank_manifest(root / "campaign.json")
         source.check_unchanged()
         return run_id
 
@@ -187,7 +187,7 @@ def _load(repo: Path, run_id: str):
             raise PingstoreError("working campaign differs from the reserved contract")
         from experiments.exp022 import compute
 
-        manifest = compute._checked_manifest(path)
+        manifest = compute._checked_bank_manifest(path)
     return directory, record, source, plan, manifest
 
 
