@@ -74,14 +74,19 @@ def test_tr02_registry_uses_explicit_hz_targets() -> None:
             assert strength == "0.041"
 
 
-def test_exp110_coba_damping_scope_is_exact_and_family_local() -> None:
+def test_exp110_coba_damping_scope_includes_every_coba_cell() -> None:
     replacements = reuse_contract.replacement_cells()
-    assert len(replacements) == 18
+    assert len(replacements) == 21
+    assert {cell["model"] for cell in replacements} == {"coba"}
     assert {
-        (cell["training_run_id"], cell["model"], cell["seed"])
+        (cell["training_run_id"], cell["family"])
         for cell in replacements
-    } == {("TR-02", "coba", seed) for seed in (42, 43, 44)}
-    assert {cell["rate_target_hz"] for cell in replacements} == {
+    } == {("TR-01", "canonical"), ("TR-02", "activity_frontier")}
+    assert {
+        cell["rate_target_hz"]
+        for cell in replacements
+        if cell["training_run_id"] == "TR-02"
+    } == {
         None,
         25.0,
         10.0,
@@ -99,17 +104,6 @@ def test_exp110_coba_damping_scope_is_exact_and_family_local() -> None:
             cell, *recipe.cell_samples_epochs(cell)
         )
         assert contract["optimizer"]["voltage_gradient_damping_divisor"] == 1000
-    canonical = recipe.training_run_cell("TR-01", model="coba", seed=42)
-    canonical_args = recipe.build_train_args(
-        canonical, Path("unused"), *recipe.cell_samples_epochs(canonical)
-    )
-    assert canonical_args[canonical_args.index("--v-grad-dampen") + 1] == "1"
-    assert (
-        recipe.scientific_contract(
-            canonical, *recipe.cell_samples_epochs(canonical)
-        )["optimizer"]["voltage_gradient_damping_divisor"]
-        == 1
-    )
 
 
 def test_replacement_projection_retains_science_and_moves_execution_metadata(
@@ -271,8 +265,7 @@ def test_all_resolved_commands_keep_family_contract(tmp_path: Path) -> None:
         assert "--readout-w-out-scale" not in args
         if cell["model"] == "coba":
             assert args[args.index("--ei-strength") + 1] == "0"
-            expected_damping = "1000" if cell["training_run_id"] == "TR-02" else "1"
-            assert args[args.index("--v-grad-dampen") + 1] == expected_damping
+            assert args[args.index("--v-grad-dampen") + 1] == "1000"
         else:
             assert args[args.index("--v-grad-dampen") + 1] == "1000"
             if cell["model"] == "ping":

@@ -23,20 +23,22 @@ CELL_FILES = ("config.json", "metrics.json", "weights.pth", "weights_final.pth")
 
 
 def replacement_cells() -> list[dict]:
-    """The exact exp110 activity-frontier COBA training selection."""
+    """Every COBA training cell required by exp110's matched-damping bank."""
     cells = [
         copy.deepcopy(cell)
         for cell in recipe.CANONICAL_CELLS
-        if cell["training_run_id"] == "TR-02" and cell["model"] == "coba"
+        if cell["model"] == "coba"
     ]
     names = {cell["name"] for cell in cells}
     expected = {
+        f"coba__canonical__seed{seed}" for seed in recipe.SEEDS_BASELINE
+    } | {
         recipe.cell_name("coba", target, seed)
         for target in recipe.RATE_TARGET_GRID_HZ
         for seed in recipe.SEEDS_BASELINE
     }
-    if len(cells) != 18 or names != expected:
-        raise PingstoreError("registry drift: expected the approved 18 TR-02 COBA cells")
+    if len(cells) != 21 or names != expected:
+        raise PingstoreError("registry drift: expected all 21 COBA cells")
     for cell in cells:
         args = recipe.build_train_args(
             cell,
@@ -44,9 +46,7 @@ def replacement_cells() -> list[dict]:
             *recipe.cell_samples_epochs(cell),
         )
         value = args[args.index("--v-grad-dampen") + 1]
-        if value != "1000" or cell.get("recipe_overrides") != {
-            "--v-grad-dampen": "1000"
-        }:
+        if value != "1000":
             raise PingstoreError(f"replacement damping contract changed: {cell['name']}")
         if args[args.index("--ei-strength") + 1] != "0":
             raise PingstoreError(f"replacement COBA loop is not disabled: {cell['name']}")
@@ -152,7 +152,7 @@ def _inspect_reused_cell(source: SourceRun, cell: dict) -> dict:
 
 
 def inspect_source(repo: Path) -> tuple[SourceRun, dict]:
-    """Validate the pinned bank and return the exact 84/18 assembly plan."""
+    """Validate the pinned bank and return the exact 81/21 assembly plan."""
     current = {cell["name"]: cell for cell in recipe.CANONICAL_CELLS}
     if len(current) != 102:
         raise PingstoreError("current exp022 registry must contain 102 unique cells")
@@ -162,8 +162,8 @@ def inspect_source(repo: Path) -> tuple[SourceRun, dict]:
     diagnostics = sorted(
         name for name, cell in current.items() if cell["seed"] == 42
     )
-    if len(reused) != 84 or len(new) != 18 or len(diagnostics) != 34:
-        raise PingstoreError("registry drift: expected 84 reused, 18 new and 34 probes")
+    if len(reused) != 81 or len(new) != 21 or len(diagnostics) != 34:
+        raise PingstoreError("registry drift: expected 81 reused, 21 new and 34 probes")
     source = source_run(
         Path(repo) / ".pingstore",
         SOURCE_REFERENCE["run_id"],
@@ -189,7 +189,7 @@ def inspect_source(repo: Path) -> tuple[SourceRun, dict]:
         name: _inspect_reused_cell(source, current[name]) for name in reused
     }
     plan = {
-        "schema": "exp022.bank-reuse/v2",
+        "schema": "exp022.bank-reuse/v3",
         "purpose": "exp110_coba_gradient_damping_alignment",
         "source": dict(SOURCE_REFERENCE),
         "reused_cells": reused,

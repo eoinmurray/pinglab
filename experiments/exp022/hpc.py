@@ -35,10 +35,10 @@ def check_plan(plan):
         status = reuse.status(REPO, plan["run_id"])
         if (
             set(status["new_cells"]) != {row["name"] for row in items}
-            or len(items) != 18
+            or len(items) != 21
             or status["source"] != plan.get("source")
         ):
-            raise PingstoreError("replacement-bank source or 84/18 partition changed")
+            raise PingstoreError("replacement-bank source or 81/21 partition changed")
     if not (Path(plan["mnist_cache"]) / "MNIST").is_dir():
         raise PingstoreError("persistent MNIST cache is missing")
     if type(plan.get("concurrency")) is not int or plan["concurrency"] < 1:
@@ -218,7 +218,7 @@ def main():
     prepared.add_argument(
         "--replacement",
         choices=("exp110-coba-damping",),
-        help="prepare the exact 84-reused/18-retrained exp110 replacement bank",
+        help="prepare the exact 81-reused/21-retrained exp110 replacement bank",
     )
     prepared.add_argument("--account", required=True)
     prepared.add_argument("--mnist-cache", type=Path, required=True)

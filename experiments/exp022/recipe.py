@@ -106,22 +106,16 @@ def refractory_execution_configuration(dt_ms: float) -> dict:
         policy=REFRACTORY_POLICY,
     )
 
-# Production recipe for the next exp022 bank. COBA and PING share the input and
-# readout initialization distributions selected by the matched-midpoint gate. They
-# differ only in loop engagement and the loop-specific backward stabilizer.
-# Gradient dampening (--v-grad-dampen) is loop-specific. Sweeping a dampening
-# ladder {1, 10, 100, 1000} across both architectures shows PING needs it: its
-# BPTT gradient explodes through the recurrent E→I→E loop at dampening 1 and the
-# network only trains once the stabiliser is applied, whereas COBA (no loop) is
-# insensitive and trains identically across the whole ladder. So COBA trains with
-# NO dampening (1) and PING keeps the stabiliser (1000). Training COBA without the
-# crutch keeps the two architectures honest — COBA earns its accuracy on the bare
-# feedforward gradient.
+# Production recipe for the next exp022 bank. COBA and PING share the input,
+# readout initialization distributions and backward voltage-gradient damping
+# selected for exp110. They differ in forward loop engagement: COBA disables the
+# E→I→E loop, while PING enables it. Keeping --v-grad-dampen fixed at 1000 removes
+# an optimizer mismatch from the architectural comparison.
 MODEL_RECIPES: dict[str, dict] = {
     "coba": {
         "__build_as": "ping",
         "--ei-strength": "0",
-        "--v-grad-dampen": "1",
+        "--v-grad-dampen": "1000",
         "--w-in": SHARED_W_IN_SUMMED_PARENT_MEAN,
         "--w-in-initial-zero-fraction": "0.95",
         "--readout": "mem-mean",
@@ -234,13 +228,6 @@ def _activity_frontier_cells() -> list[dict]:
                     "tag": rate_target_display(target_hz), "seed": s, "dt_ms": DT_MS,
                     "tau_gaba": TAU_GABA_GAMMA,
                     "rate_target_hz": target_hz,
-                    # Exp110 compares this complete frontier. Match the PING
-                    # backward damping while preserving COBA's loop-off forward
-                    # architecture. Keep the override family-scoped: TR-01
-                    # canonical COBA remains the historical undamped reference.
-                    "recipe_overrides": (
-                        {"--v-grad-dampen": "1000"} if m == "coba" else {}
-                    ),
                     "extra": extra,
                 })
     return cells
@@ -538,7 +525,7 @@ def cells_in_resource_tier(tier: str) -> list[dict]:
 # Run scale — stamped into the manifest by run_dirs.prepare and rendered as
 # the Methods table via RunScale; the mdx never restates these numbers.
 SCALE = {
-    "schema": "exp022.recipe/v3",
+    "schema": "exp022.recipe/v4",
     **refractory_configuration(),
     "dt_sweep_ms": list(DT_SWEEP_MS),
     "presentation_duration_policy": "whole_steps_floor_with_integer_tolerance",

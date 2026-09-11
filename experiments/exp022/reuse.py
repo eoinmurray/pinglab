@@ -1,4 +1,4 @@
-"""Exp022's pinned 84-cell reuse and 18-cell COBA damping replacement.
+"""Exp022's pinned 81-cell reuse and 21-cell COBA damping replacement.
 
 This is deliberately an experiment workflow, not a general bank merger. Training
 and finalization are separate commands; only finalization makes a run visible.
@@ -39,7 +39,7 @@ from pingstore.stages import (
 )
 from snnsim.timing import duration_steps
 
-SCHEMA = "pinglab.exp022.gradient-damping-bank/v1"
+SCHEMA = "pinglab.exp022.gradient-damping-bank/v2"
 CELL_FILES = ("config.json", "metrics.json", "weights.pth", "weights_final.pth")
 
 
@@ -81,7 +81,7 @@ def _history(directory: Path, message: str) -> None:
 
 
 def reserve(repo: Path, *, origin: str = "slurm-wilkes", run_id: str | None = None) -> str:
-    """Initialize a fresh reservation, pin its source, and create 18 worker rows.
+    """Initialize a fresh reservation, pin its source, and create 21 worker rows.
 
     A supplied identity must already have been allocated with ``reserve_stage``;
     this permits copying that exact reservation into the frozen HPC checkout.
@@ -140,10 +140,10 @@ def reserve(repo: Path, *, origin: str = "slurm-wilkes", run_id: str | None = No
         write_json_atomic(directory / "run.json", record)
         _history(directory, f"allocated `{run_id}` with origin `{origin}` from clean Git commit "
                  f"`{commit}`; retained input `{source.reference['run_id']}` at "
-                 f"`{source.reference['payload_digest']}`. The 84 reused cells retain their "
+                 f"`{source.reference['payload_digest']}`. The 81 reused cells retain their "
                  "source-bank bytes and training origins. Reserved a complete 102-cell "
-                 "replacement bank: 84 cells will be copied byte-for-byte from the pinned "
-                 "retained bank; 18 TR-02 COBA cells will be trained with gradient damping "
+                 "replacement bank: 81 cells will be copied byte-for-byte from the pinned "
+                 "retained bank; all 21 COBA cells will be trained with gradient damping "
                  "1000 and the recurrent loop disabled. Both checkpoint roles and original "
                  "training origins are retained. "
                  "All 34 seed-42 diagnostics will be regenerated during explicit finalization.")
@@ -214,7 +214,7 @@ def train_cell(repo: Path, run_id: str, name: str, *, recover_stale: bool = Fals
         if record["bank_reuse"].get("prepared_export"):
             raise PingstoreError("assembled bank can only be finalized")
         if name not in plan["new_cells"]:
-            raise PingstoreError("only the 18 replacement cells may be trained")
+            raise PingstoreError("only the 21 replacement cells may be trained")
         row = campaign.manifest_cell(manifest, name)
         # A killed worker may have completed its files before releasing its lock.
         if campaign.lock_path(manifest, name).exists() and campaign.validate_cell(row)["valid"]:
@@ -316,7 +316,7 @@ def _assemble(directory: Path, record: dict, source, plan: dict, manifest: dict)
     cells = root / "cells"
     actual = {p.name for p in cells.iterdir()} if cells.exists() else set()
     if actual != set(plan["new_cells"]):
-        raise PingstoreError("training directories do not exactly match the 18 replacement cells")
+        raise PingstoreError("training directories do not exactly match the 21 replacement cells")
     for row in manifest["cells"]:
         if campaign.lock_path(manifest, row["name"]).exists():
             raise PingstoreError(f"cell attempt still owns {row['name']}; recover it before finalization")
@@ -459,7 +459,7 @@ def handle_cli(argv: list[str], repo: Path) -> bool:
         return False
     parser = argparse.ArgumentParser(description=__doc__)
     modes = parser.add_mutually_exclusive_group(required=True)
-    modes.add_argument("--reuse-plan", action="store_true", help="inspect the exact source and 84/18 assembly without writing")
+    modes.add_argument("--reuse-plan", action="store_true", help="inspect the exact source and 81/21 assembly without writing")
     modes.add_argument("--reuse-reserve", action="store_true", help="reserve the incomplete compute writer before dispatch")
     modes.add_argument("--reuse-status", action="store_true")
     modes.add_argument("--reuse-train-cell", metavar="NAME")

@@ -85,22 +85,22 @@ its source-pinning contract remain recoverable in Git history.
 
 ## Exp110 COBA gradient-damping replacement
 
-Exp110's activity-frontier comparison requires the eighteen `TR-02` COBA cells
-(six rate targets and seeds 42–44) to use the same backward voltage-gradient
-damping divisor as PING. These replacement cells use
-`--v-grad-dampen 1000` while retaining the loop-disabled COBA forward model
-(`--ei-strength 0`). The three `TR-01` canonical COBA cells remain at divisor
-1; this is deliberately a `TR-02`-scoped change.
+Exp110's comparison requires every COBA cell to use the same backward
+voltage-gradient damping divisor as PING. These are the three `TR-01` canonical
+cells trained on the full 60,000-image pool plus the eighteen `TR-02` cells for
+the six activity conditions (off, 25, 10, 5, 2.5 and 1 Hz) at seeds 42–44. Their
+divisor is 1000 (`--v-grad-dampen 1000`) and their recurrent loop remains
+disabled (`--ei-strength 0`).
 
 The replacement workflow is pinned to `exp022-r007-compute`. It creates one new
-standalone 102-cell bank by copying 84 compatible cells byte-for-byte and
-training only the 18 replacements. Both checkpoint roles are retained. The
+standalone 102-cell bank by copying 81 compatible cells byte-for-byte and
+training only the 21 replacements. Both checkpoint roles are retained. The
 source run, per-cell file hashes, training attempts, resolved parameters and
 regenerated seed-42 diagnostic provenance are recorded in the new run's
 `run.json`; no provenance sidecars enter `export/`.
 
 ```sh
-# Read-only inspection of the exact source and 84/18 partition.
+# Read-only inspection of the exact source and 81/21 partition.
 uv run python -m experiments.exp022.compute --reuse-plan
 
 # Reserve and execute through the reviewed HPC adapter.
@@ -110,8 +110,8 @@ uv run python -m experiments.exp022.hpc prepare \
   --plan <working-root>/production.json \
   --account <account> \
   --mnist-cache <persistent-data-root> \
-  --walltime 02:00:00 \
-  --concurrency 18
+  --walltime 12:00:00 \
+  --concurrency 21
 
 uv run python -m experiments.exp022.hpc review <working-root>/production.json
 uv run python -m experiments.exp022.hpc review \
@@ -121,7 +121,7 @@ uv run python -m experiments.exp022.hpc review \
 ```
 
 Preparation requires a clean committed checkout, validates the pinned source,
-allocates the compute identity before dispatch and freezes exactly 18 one-cell
+allocates the compute identity before dispatch and freezes exactly 21 one-cell
 workers. Review is read-only. Test-only and live submission are separate
 explicit operations. The collector validates all replacements and both
 checkpoint roles, assembles all 102 cells, regenerates the 34 seed-42 diagnostic
