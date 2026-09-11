@@ -134,8 +134,8 @@ def reserve(repo: Path, *, origin: str = "slurm-wilkes", run_id: str | None = No
             selection_tier="exp110-coba-damping-replacement",
         )
         manifest["pingstore_run_id"] = run_id
-        campaign.write_manifest(root / "campaign.json", manifest)
-        manifest = campaign.load_manifest(root / "campaign.json")
+        campaign.write_manifest(root / "bank.json", manifest)
+        manifest = campaign.load_manifest(root / "bank.json")
         record["bank_reuse"]["campaign"] = manifest
         write_json_atomic(directory / "run.json", record)
         _history(directory, f"allocated `{run_id}` with origin `{origin}` from clean Git commit "
@@ -147,7 +147,7 @@ def reserve(repo: Path, *, origin: str = "slurm-wilkes", run_id: str | None = No
                  "1000 and the recurrent loop disabled. Both checkpoint roles and original "
                  "training origins are retained. "
                  "All 34 seed-42 diagnostics will be regenerated during explicit finalization.")
-        compute._checked_bank_manifest(root / "campaign.json")
+        compute._checked_bank_manifest(root / "bank.json")
         source.check_unchanged()
         return run_id
 
@@ -182,7 +182,7 @@ def _load(repo: Path, run_id: str):
     if manifest["environment"]["lockfile"] != campaign.lock_identity(repo):
         raise PingstoreError("reuse environment lockfile changed")
     if not reuse.get("prepared_export"):
-        path = directory / ".scratch/reuse/campaign.json"
+        path = directory / ".scratch/reuse/bank.json"
         if campaign.load_manifest(path) != manifest:
             raise PingstoreError("working campaign differs from the reserved contract")
         from experiments.exp022 import compute
@@ -232,7 +232,7 @@ def train_cell(repo: Path, run_id: str, name: str, *, recover_stale: bool = Fals
             result = 0
         else:
             result = compute._train_bank_cell(
-                directory / ".scratch/reuse/campaign.json", name, recover_stale=recover_stale
+                directory / ".scratch/reuse/bank.json", name, recover_stale=recover_stale
             )
         source.check_unchanged()
         return result

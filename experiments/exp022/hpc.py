@@ -73,7 +73,7 @@ def prepare(args):
         manifest_path = (
             REPO
             / ".pingstore/runs"
-            / f".{run_id}.tmp/.scratch/reuse/campaign.json"
+            / f".{run_id}.tmp/.scratch/reuse/bank.json"
         )
         source = reuse.status(REPO, run_id)["source"]
         mode = "exp110-coba-damping-replacement"
