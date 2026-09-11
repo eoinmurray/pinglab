@@ -60,7 +60,7 @@
   tags: ("data", "v36.0.0"),
   title: "Manuscript",
   created_at: "2026-09-02T00:00:00Z",
-  updated_at: "2026-09-10",
+  updated_at: "2026-09-11",
   description: "A manuscript scaffold connecting PING circuit dynamics, low-rate task performance, cycle participation, perturbation sensitivity and continuous-stream classification.",
   collection: "gamma-gated-sparsity",
 )
@@ -190,7 +190,7 @@
       - *Results:* 1,290 words
       - *Methods:* 4,343 words
       - *Captions:* 1,664 words
-      - *Appendix A:* 1,523 words
+      - *Appendix A:* 1,540 words
       - *Appendix B:* 1,248 words
       - *Appendix C:* 832 words
       - *Appendix D:* 404 words
@@ -517,7 +517,7 @@
   Count-preserving inhibitory replay produced opposite effects under
   independent-spike shifts and shared shifts within fixed 22.8-ms clock
   windows (Fig. 8). At proposed jitter SD 14 ms, independent shifts reduced
-  mean excitatory firing from 16.6 to 0.008 Hz and accuracy from 89.8% to
+  mean excitatory firing from 16.6 to 0.0075 Hz and accuracy from 89.8% to
   11.9%; group shifts increased firing to 68.3 Hz while accuracy declined to
   82.5%. Replayed inhibitory firing remained 108.3 Hz. Thus, timing altered
   excitatory recruitment despite preserved inhibitory counts. The group
@@ -1454,8 +1454,13 @@
       alpha_"grad" = 1 / d_"grad", $,
   ) <eq:voltage-gradient-scaling>
 
-  where $d_"grad"$ is the damping divisor. This operation preserved the
-  forward value while multiplying its backward derivative by $alpha_"grad"$.
+  where $d_"grad"$ is the damping divisor. We used voltage-gradient damping
+  only in PING ($d_"grad" = 1,000$); COBA was undamped ($d_"grad" = 1$).
+  This operation preserved the forward value while multiplying its backward
+  derivative by $alpha_"grad"$.
+
+  #manuscript-note([*Note:* Double-check whether we should use the same
+  voltage-gradient damping in both PING and COBA.])
 
   For both hidden populations, we applied this operation to the
   exponential-Euler membrane increment $F[k]$ from Appendix A1, before

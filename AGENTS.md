@@ -2,6 +2,7 @@
 
 - Do not use the in app browser skill for checking renderings on .typ files on localhost:3000. Just present the link to me and I'll check myself.
 - When a concrete experiment ID such as `exp110` is mentioned, immediately rename the current Codex task to `<expid> - <short description>`.
+- dont run the tests before a git commit and push.
 
 # Pingstore filesystem convention
 

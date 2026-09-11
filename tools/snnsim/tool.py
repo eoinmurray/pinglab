@@ -405,7 +405,7 @@ def _build_parent_parser():
         action="store_true",
         default=False,
         help="Make each hidden COBA cell's leak membrane time constant trainable "
-        "under bounded positive τ_m ranges. Implements exp100's g_L = C_m / τ_m "
+        "under bounded positive τ_m ranges. Uses g_L = C_m / τ_m "
         "without changing synaptic τ_AMPA/τ_GABA. Default off.",
     )
     net_group.add_argument(
@@ -1251,7 +1251,8 @@ Models:
               feedforward weights train against this fixed substrate.
               (With --ei-strength 0 the I-loop is silenced — E cells only.)
 
-For the underlying theory of --v-grad-dampen see /articles/exp006/.
+Voltage-gradient damping scales the surrogate-gradient contribution to the
+membrane-voltage update.
 """
     parser = argparse.ArgumentParser(
         prog="pinglab-cli",

@@ -278,7 +278,7 @@
   time. $Delta t_"sim"$ is the timestep, $W$ a conductance increment per spike (µS),
   and superscripts identify the receiving E or I population.
 
-  The derivation starts from the COBANet model (#link("/exp100/")[exp100] — #link("/exp100/")[_COBANet_]): conductance-based E
+  The derivation starts from a conductance-based model with E
   and I membranes, a threshold-reset rule, and three exponential synapses (no E→E; I
   receives no inhibition):
   $ C_m^E dot(V_m)^E = -g_L^E (V_m^E - E_L) - g_e^E (V_m^E - E_e) - g_i^E (V_m^E - E_i) $ <eq-old-1>

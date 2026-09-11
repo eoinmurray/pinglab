@@ -1,0 +1,52 @@
+# exp110 factuality audit — 11 September 2026
+
+The main numerical findings are supported by the retained evidence. I found one terminology problem and one small numerical rounding error. The accuracy comparison also needs a causal interpretation boundary, although the differing training settings are already disclosed. No manuscript, experiment code, or stored run was changed by this audit.
+
+Audited source: [exp110.typ](/Users/eoin/pinglab/writings/exp110.typ), Git `d0cd282ca0d3345f6a52b54e82ba5138e1b3c00d`, manuscript SHA-256 `58b42a1f5835340cf777842faf0402a198b8f4db854ee5ae60eb6910a223a6b8`. This audit covers the current default presentations, with no URL input overrides. It does not certify different future or manually selected runs.
+
+## Findings
+
+1. **“Gamma-cycle” overstates the frequency scope of the complete sweep.** The [section heading and opening result](/Users/eoin/pinglab/writings/exp110.typ:414) describe gamma-cycle participation, but the slowest classifiers have a mean spectral peak of **11.748626 Hz**, and the corresponding mean-field onset is **17.940004 Hz**. Figure 2I also labels its entire vertical axis “gamma frequency”. These low frequencies are outside conventional gamma bands; the exact boundary varies, but a 12-Hz rhythm should not be described as gamma merely because the circuit uses the PING architecture or the peak search spans 5–150 Hz. Use “population-cycle participation” or “oscillatory-cycle participation” for the complete sweep and distinguish its gamma-frequency conditions. The numerical results themselves do not need changing. See the authors’ definition in [Buzsáki and Wang, 2012](https://www.cns.nyu.edu/wanglab/publications/pdf/buzsaki_ARN2012.pdf), which uses 30–90 Hz, and the [stored classifier results](/Users/eoin/pinglab/.pingstore/runs/exp041-r005-present/export/numbers.json).
+
+2. **The independent-jitter endpoint is rounded incorrectly.** [Results P14](/Users/eoin/pinglab/writings/exp110.typ:520) reports **0.008 Hz** at jitter SD 14 ms. The actual replicate mean is **0.00748046875 Hz** (`aggregate.cell_jitter_sweep`, `sigma_ms = 14`), which rounds to **0.007 Hz** at three decimal places, or preferably **0.0075 Hz** at two significant figures. The reported 11.9% accuracy is correct. This does not change the near-silencing conclusion. Evidence: [exp042 numbers](/Users/eoin/pinglab/.pingstore/runs/exp042-r019-present/export/numbers.json).
+
+3. **Interpretation caveat: the accuracy–rate comparison does not isolate recurrence from training configuration.** The [heading](/Users/eoin/pinglab/writings/exp110.typ:308) attributes the favorable trade-off to the fixed PING loop. However, [Methods P24](/Users/eoin/pinglab/writings/exp110.typ:811) correctly reports voltage-gradient damping divisors of **1,000 for PING and 1 for COBA**, confirmed in the training configurations. The results establish the trade-off for these two trained model recipes; they do not separately identify the contribution of recurrence versus the differing gradient treatment. “PING classifiers retain accuracy at lower excitatory rates” would avoid the stronger causal reading. This is a qualification, not an incorrect measurement or an undisclosed setting.
+
+## Direct checks and supported results
+
+Read-only Pingstore discovery completed successfully, validating completed local run layouts and payload checksums. The source trace for the thirteen relevant experiments contains 43 runs: 15 compute, 13 analyse and 15 present. Ten presentations are direct manuscript inputs; the other source experiments enter through figure ancestry.
+
+| Evidence | Result of checking |
+|---|---|
+| Figure 1, exp023 | Peak 55.971311 Hz; COBA sweep 2.910156–481.530755 Hz; PING E sweep 2.797852–11.237793 Hz; maximum PING I rate 124.394529 Hz. Manuscript rounding agrees. |
+| Figure 2, exp054/exp033 | Selected contrasts 0.000301460, 0.268201855 and 0.988749134. Onset 0.593904771 nA and 27.566445 Hz. Recalculation from retained ODE trajectories gives amplitude-squared slope 0.000113450295, R² 0.999436785 and hysteresis gap 0.000001345330 ms⁻¹, matching the recorded numerical verdict. |
+| Figure 3, exp025 | Unpenalised PING: 89.766667% at 16.606551 Hz; COBA: 91.066667% at 113.924281 Hz. At the 10-Hz ceiling: 88.6% versus 86.033333%. Reported differences and rate ratio agree. |
+| Figure 4, exp038 | E rate 112.088485 → 8.099364 Hz; accuracy 91.033333 → 42.866667%; terminal I rate 44.997982 Hz. The manuscript uses sample SD, consistent with the stored summaries. |
+| Figure 5, exp049 | Final contrast means 0.999300827, 0.094403431, 0.095429643 and 0.018496295. All three networks in each nonzero trainable condition exhibit the claimed E→I zeroing and I→E mean increase; zero-initialized recurrence remains zero. Network-level weight statistics support the pooled summaries and SEM definition. |
+| Figure 6, exp041/exp046 | All 18 spectral peaks were reproduced exactly from the retained 1,000-presentation population traces. An independent event-index calculation reproduced every four-bin cycle-count vector and cycle total for all 18 networks, covering all 18,000 presentations. The affine fit and reported endpoints agree. |
+| Figure 7, exp037 | At 80% deletion: 89.266667%/89.166667% COBA/PING; complete deletion: 10.6% each. At 100% insertion: 82.8%/38.5%; at 200%: 72.633333%/11.366667%. All reported values agree. |
+| Figure 8, exp042 | Accuracy, group-jitter E rate and preserved I rate agree. Independent-jitter E rate has the rounding error above. The described reset-preserving deletion, reset-free insertion and count-preserving replay operations match the implementations. |
+| Figure 9, exp082 | All 132 accuracy entries match argmax decisions recomputed from raw output counts: 26,400 decisions. All condition label arrays match the shared image bank. The encoding map produces 5,280 distinct seeds. Dynamic Results values are 75.2% → 90.3% at 25 Hz as duration increases, and 26.3% → 82.7% at 200 ms as input increases from 0.5 to 5 Hz. The selected showcase is candidate zero, correctly classifying 1, 7, 9, 5, 2. |
+| Appendix A5, exp044 | Mean accuracy range 88.366667–89.633333%; finest/coarsest E rates 14.269106/17.017737 Hz. Realised durations of 199.8 ms at 0.3/0.6 ms agree with the step counts. |
+
+The pooled cycle total is **167,178,240**. Zero/one/multiple-spike fractions are **75.236682% / 23.617776% / 1.145543%**. Single spikes account for **95.374034%** of active pairs. The largest within-condition equal-network weighting change is **0.1913915 percentage points** in the one-spike fraction at 27 ms. These reproduce the manuscript’s rounded values.
+
+All **84** training records contain epochs 1–50, and all **4,200 epoch records** report zero skipped optimizer steps and zero NaN-output batches. Recomputing the lowest-validation-loss selection, with accuracy and epoch tie rules, matches all 84 recorded best checkpoints. All 84 training executions report CUDA and PyTorch 2.11.0+cu128; for the twelve replacement timestep trainings this metadata is preserved in `exp022-r007-compute/run.json`, rather than the scientific configuration files. Mean-field execution records confirm Python 3.10.19, NumPy 2.2.6 and SciPy 1.15.3.
+
+The discrete voltage/output equations, initialization transformation, activity penalty, checkpoint policy, autocorrelation algorithm, spectral interpolation and replay reflection/collision rules were compared with their implementations. No further equation-to-code discrepancy was identified. The noisy-LIF gain also matches [Brunel (2000), Eq. 21](https://web.njit.edu/~horacio/AdvancedCompNeuro/downloads/Brunel_JCompNeurosci-2000.pdf).
+
+## Resolution of draft notes and audit limits
+
+- **Twelve excluded presentations:** all occur at 27-ms inhibitory decay, seed 43, and have **zero inhibitory spikes**. They contain 398–1,153 excitatory spikes each. Their endpoint-subset indices are 37, 106, 136, 157, 224, 329, 424, 435, 478, 584, 748 and 853. Thus this exclusion is not caused by the detector missing a nonempty inhibitory spike train. The mechanism preventing inhibitory recruitment was not isolated by this audit. The manuscript’s 17,988 contributing presentations is correct.
+- **Noise scale:** 4 mV is the executed mean-field parameter. Its lack of calibration to the spiking network is correctly stated; checking the implementation does not provide a physiological calibration.
+- **Interpolation, burst detection, and criticality notes:** the documented algorithms match the code and the direct recalculations above. The supercriticality statement is appropriately limited to a finite-duration numerical criterion, not an analytical Lyapunov-coefficient result.
+- **Refractory reconciliation:** the 1.2/0.6-ms description is consistent with the 12/6 counters in the original fixed-0.1-ms source and the retained exp023 reporting correction. The replacement timestep protocol explicitly specifies these durations. The current reusable simulator defaults are not evidence of the parameters used by old executions.
+- **Reproducibility remains qualified:** the manuscript already acknowledges executions with uncommitted code. For example, the replacement mean-field compute run records `code_dirty: true`. Retained outputs and present source agreement cannot reconstruct an unavailable executed patch or establish that no discarded attempts occurred. Those existing notes should remain until supported by archived execution evidence.
+
+This was a read-only scientific audit plus this report. No new network inference, training, ODE integration, publication, or article rendering was performed. Figures 2 and 6 were inspected as stored images; this was not a comprehensive visual-layout review. No automated tests were created for the writing.
+
+## Presentation identities used
+
+Direct inputs: `exp023-r014-present`, `exp025-r007-present`, `exp037-r017-present`, `exp038-r008-present`, `exp042-r019-present`, `exp044-r009-present`, `exp046-r008-present`, `exp049-r015-present`, `exp082-r030-present`, `exp110-r021-present`.
+
+Figure 2 synthesis uses `exp054-r013-analyse`, whose refreshed theory descends from `exp033-r011-compute` and `exp033-r012-analyse`. Figure 6 uses `exp041-r002-analyse` and `exp046-r002-analyse`; the appendix uses `exp046-r007-analyse`. The later cycle analysis retains the same opportunity-pooled measurements and adds equal-network summaries. Raw recomputations used `exp041-r001-compute`, `exp046-r001-compute`, `exp082-r027-compute`, and `exp033-r011-compute`.

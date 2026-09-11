@@ -22,19 +22,11 @@ url_inputs:
   source.exp047: { type: path, root: .pingstore/runs }
   source.exp049: { type: path, root: .pingstore/runs }
   source.exp054: { type: path, root: .pingstore/runs }
-  source.exp074: { type: path, root: .pingstore/runs }
-  source.exp075: { type: path, root: .pingstore/runs }
-  source.exp076: { type: path, root: .pingstore/runs }
-  source.exp077: { type: path, root: .pingstore/runs }
   source.exp080: { type: path, root: .pingstore/runs }
   source.exp081: { type: path, root: .pingstore/runs }
   source.exp082: { type: path, root: .pingstore/runs }
   source.exp099: { type: path, root: .pingstore/runs }
   source.exp110: { type: path, root: .pingstore/runs }
-
-links:
-  - label: Documentation
-    url: documentation.html
 
 index:
   mode: expanded

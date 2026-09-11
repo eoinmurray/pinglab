@@ -237,8 +237,8 @@
     excitatory (E), 256 inhibitory (I), and 10 output leaky-integrate-and-fire neurons.
     Pyramidal-interneuron gamma (PING) enabled fixed E↔I coupling; COBA disabled it;
     E→E and I→I coupling were zero throughout. Only input and readout weights
-    trained; class scores were mean pre-reset output membrane voltages
-    (#link("/exp006/")[exp006] — #link("/exp006/")[_Training_]). Voltage-gradient damping differed:
+    trained; class scores were mean pre-reset output membrane voltages.
+    Voltage-gradient damping differed:
     1 for COBA, 1,000 for PING.
 
   + *Train with activity ceilings.* Networks trained for 50 epochs with AdamW

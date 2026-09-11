@@ -15,10 +15,6 @@
     "exp047": "gamma-gated-sparsity",
     "exp049": "gamma-gated-sparsity",
     "exp054": "gamma-gated-sparsity",
-    "exp074": "snnlang-docs",
-    "exp075": "snnlang-docs",
-    "exp076": "snnlang-docs",
-    "exp077": "snnlang-docs",
     "exp080": "gamma-gated-sparsity",
     "exp081": "gamma-gated-sparsity",
     "exp082": "gamma-gated-sparsity",
@@ -26,6 +22,26 @@
     "exp110": "gamma-gated-sparsity"
   },
   "historical": {
+    "exp074": {
+      "collection": "snnlang-docs",
+      "disposition": "removed-code-retained-runs",
+      "evidence": "Code, article and active integration entries were removed at the author's request on 2026-09-11. Hash-bound pruning retained all three runs because the latest visible presentation and its ancestry are protected."
+    },
+    "exp075": {
+      "collection": "snnlang-docs",
+      "disposition": "removed-code-retained-runs",
+      "evidence": "Code, article and active integration entries were removed at the author's request on 2026-09-11. Hash-bound pruning retained all three runs because the latest visible presentation and its ancestry are protected."
+    },
+    "exp076": {
+      "collection": "snnlang-docs",
+      "disposition": "removed-code-retained-runs",
+      "evidence": "Code, article and active integration entries were removed at the author's request on 2026-09-11. Hash-bound pruning retained all three runs because the latest visible presentation and its ancestry are protected."
+    },
+    "exp077": {
+      "collection": "snnlang-docs",
+      "disposition": "removed-code-retained-runs",
+      "evidence": "Code, article and active integration entries were removed at the author's request on 2026-09-11. Hash-bound pruning retained all three runs because the latest visible presentation and its ancestry are protected."
+    },
     "exp111": {
       "collection": "gamma-gated-sparsity",
       "disposition": "removed-code-retained-runs",
