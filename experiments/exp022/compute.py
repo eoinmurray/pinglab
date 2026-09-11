@@ -1521,28 +1521,12 @@ def main() -> None:
         help="simulate fixed probes only; requires --source",
     )
     args = parser.parse_args()
-    if args.hpc:
-        if (
-            args.import_source
-            or args.source
-            or args.diagnostics
-            or (args.hpc_root is None and not os.environ.get("EXP022_HPC_ROOT"))
-        ):
-            parser.error(
-                "--hpc requires a fresh working root and cannot be combined "
-                "with other compute modes"
-            )
-        root = (args.hpc_root or Path(os.environ["EXP022_HPC_ROOT"])).resolve()
-        if root.exists():
-            parser.error(f"--hpc working root already exists: {root}")
-        create_command = [
-            python_executable(), str(Path(__file__).resolve()),
-            "--bank-create", str(root), "--execution-origin", "slurm-wilkes",
-        ]
-        subprocess.run(create_command, cwd=REPO, check=True)
-        submit = REPO / "experiments/exp022/slurm/submit-bank.sh"
-        subprocess.run([str(submit), str(root / "bank.json"), "all"], cwd=REPO, check=True)
-        return
+    if args.hpc or args.hpc_root is not None:
+        parser.error(
+            "--hpc/--hpc-root are retired; use experiments.exp022.hpc prepare/review "
+            "so the "
+            "cell allocation is frozen and reviewed before receipt-first submission"
+        )
     if args.import_source:
         if args.source or args.diagnostics:
             parser.error("--import-source cannot be combined with diagnostic execution")

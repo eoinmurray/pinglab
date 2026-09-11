@@ -100,20 +100,6 @@ def shard(identity, *, run_id, index, count=recipe.SHARDS):
     )
 
 
-def _verify_shard(directory, record, jobs):
-    if set(record.get("files", {})) != {job["id"] for job in jobs}:
-        raise PingstoreError("incomplete shard inventory")
-    for job in jobs:
-        path = _job_path(directory / "export", job)
-        if (
-            path.is_symlink()
-            or not path.is_file()
-            or file_sha256(path) != record["files"][job["id"]]
-            or load_json(path).get("job") != job
-        ):
-            raise PingstoreError("shard payload changed or is incomplete")
-
-
 def compute(identity, *, run_id=None, collect=False):
     bank = inputs.source(REPO, identity, "compute", experiment="exp022")
     evidence = inputs.bank_evidence(bank)

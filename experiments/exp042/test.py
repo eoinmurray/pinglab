@@ -274,6 +274,27 @@ def test_shards_are_pinned_resumable_and_collect_without_repeating_sweeps(lab):
         compute.shard(bank_id, run_id=identity, index=0)
 
 
+def test_hpc_pipeline_uses_reviewed_eight_shard_array(tmp_path):
+    from experiments.exp042 import hpc
+
+    plan = {
+        "account": "gpu",
+        "cpu_account": "cpu",
+        "partition": "ampere",
+        "cpu_partition": "icelake",
+        "walltime": "02:00:00",
+        "collector_walltime": "00:30:00",
+        "cpus": 4,
+        "memory_gb": 32,
+    }
+    compute_command = hpc.command(plan, tmp_path / "plan.json", "compute")
+    collect_command = hpc.command(plan, tmp_path / "plan.json", "collect", "123")
+    assert "--array=0-7%8" in compute_command
+    assert "--gres=gpu:1" in compute_command
+    assert "--dependency=afterok:123" in collect_command
+    assert compute_command[-1] == "exp042"
+
+
 def test_production_retains_all_figure_rows(lab, monkeypatch):
     root, bank_id, calls = lab
     monkeypatch.setenv("PINGLAB_SMOKE", "0")

@@ -79,4 +79,10 @@ def test_hpc_array_uses_one_frozen_condition_per_task(tmp_path: Path):
     command = hpc.command(plan, tmp_path / "plan.json")
     assert "--array=0-3%4" in command
     assert "--gres=gpu:1" in command
-    assert command[-2:] == [str(tmp_path / "plan.json"), str(hpc.REPO)]
+    assert command[-5:] == [
+        str(tmp_path / "plan.json"),
+        "compute",
+        str(hpc.REPO),
+        "gpu",
+        "exp112",
+    ]

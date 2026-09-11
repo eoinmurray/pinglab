@@ -13,8 +13,10 @@ Guide](../README.md) and requires `pingstore.run/v4`.
 - `analyse.py` measures a completed compute run without executing new science.
 - `present.py` renders a completed analysis and can explicitly carry verified
   historical raster images when the original raw probes were not retained.
-- `slurm/` contains exp022 Wilkes environment checks, the generic bank-array
-  worker, and the [operator runbook](slurm/README.md).
+- `hpc.py` owns the reviewed Slurm plan and standard submission adapter.
+- `slurm/` contains exp022 Wilkes environment checks and the
+  [operator runbook](slurm/README.md); execution uses the repository-wide
+  scheduler wrapper.
 
 `experiments.exp022` exports the recipe for downstream consumers. Execution uses
 the explicit stage modules rather than the package root.
@@ -47,34 +49,35 @@ payload digest before use.
 
 ## Parallel HPC bank training
 
-The single-command HPC entry point creates a new empty bank for all 102 cells
-and submits one Slurm array task per cell:
+The standard HPC adapter freezes all selected cell configurations, the
+one-cell-per-task allocation, clean source identity and scheduler resources in
+a reviewable plan. Preparing creates the empty bank and reserves its compute
+run; reviewing does not submit unless `--live` is explicit:
 
 ```sh
-uv run python -m experiments.exp022.compute --hpc-root <working-root> --hpc
+uv run python -m experiments.exp022.hpc prepare \
+  --root <working-root> --plan .scratch/exp022-hpc/production.json \
+  --account <gpu-account> --mnist-cache <persistent-torch-data> \
+  --walltime <measured-HH:MM:SS> --concurrency <reviewed-limit>
+uv run python -m experiments.exp022.hpc review \
+  .scratch/exp022-hpc/production.json
+uv run python -m experiments.exp022.hpc review \
+  .scratch/exp022-hpc/production.json --test-only
+uv run python -m experiments.exp022.hpc review \
+  .scratch/exp022-hpc/production.json --live
 ```
 
-Set the same `EXP022_SLURM_ACCOUNT`, `EXP022_WALLTIME`,
-`EXP022_CONCURRENCY`, `EXP022_MNIST_CACHE`, and optional `EXP022_UV`
-variables used by `submit-bank.sh`. The working root must not already exist.
-This never edits an existing Pingstore run. After the array finishes, status and
-finalization remain explicit operations.
+The working root and plan must not already exist. Receipt-first submission
+launches one array task per cell and an `afterok` collector. The collector never
+trains a missing cell: it validates all 102 cells, generates the retained
+diagnostic probes and atomically completes the reserved v4 compute run.
 
-Exp022 retains an experiment-local parallel runner. It does not schedule other
-experiments or read a collection registry. A clean checkout creates one frozen
-manifest for all 102 committed scenarios and preallocates its compute run:
-
-```sh
-uv run python -m experiments.exp022.compute \
-  --bank-create <working-root> --execution-origin slurm-wilkes
-experiments/exp022/slurm/submit-bank.sh <working-root>/bank.json all
-```
-
-The submission wrapper freezes the retry selection and launches one cell per
-Slurm array task. `--tier` selections partition the same manifest without
-changing scientific parameters. Valid cells are skipped; failed partial output
-is preserved, and stale ownership requires an explicit `--recover-stale` worker
-invocation after the scheduler confirms the prior owner is inactive.
+Exp022 retains its richer per-cell attempt and recovery records underneath the
+standard reviewed-plan interface. Every fresh plan covers the complete 102-cell
+bank so its dependent collector can finish the reserved run. Valid cells are
+skipped; failed partial output is preserved, and stale ownership requires
+explicit reviewed recovery after the scheduler confirms the prior owner is
+inactive.
 
 After every task is inactive, inspect `--bank-status <working-root>/bank.json`.
 Run `--bank-finalize <working-root>/bank.json` on an allocated GPU node: it

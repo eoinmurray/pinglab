@@ -113,9 +113,26 @@ uses 1,000 images, 11 drop levels and 21 add levels. Both retain seeds 42–44;
 raster jobs use seed 42, sample index 0. Checkpoint selection and statistics do
 not change between profiles.
 
-The collection retains **six ordered round-robin compute shards**. The adapter
-reserves source-neutral compute/analyse/present IDs before submission. A worker
-uses the explicit bank and compute reservation:
+The experiment retains **six one-model/seed compute shards**. Its reviewed plan
+freezes the complete resolved recipe, ordered work-item IDs, exact shard
+allocation, selected bank, clean source identity and scheduler resources. The
+adapter reserves source-neutral compute/analyse/present IDs before receipt-first
+submission:
+
+```sh
+uv run python -m experiments.exp037.hpc prepare \
+  --source <bank-id> --plan .scratch/exp037-hpc/production.json \
+  --account <gpu-account> --cpu-account <cpu-account> \
+  --mnist-cache <persistent-torch-data>
+uv run python -m experiments.exp037.hpc review \
+  .scratch/exp037-hpc/production.json
+uv run python -m experiments.exp037.hpc review \
+  .scratch/exp037-hpc/production.json --test-only
+uv run python -m experiments.exp037.hpc review \
+  .scratch/exp037-hpc/production.json --live
+```
+
+The lower-level worker interface uses the explicit bank and compute reservation:
 
 ```sh
 uv run python -m experiments.exp037.compute --source <bank-id> \
@@ -124,8 +141,9 @@ uv run python -m experiments.exp037.compute --source <bank-id> \
   --run-id <reserved-compute-id> --collect
 ```
 
-Workers require committed execution code. Each shard records its bank, recipe,
-code provenance, job IDs, scheduler identity and checksums of outputs and attachments.
+Workers require committed execution code. Shared concurrency machinery records
+each shard's input pins, recipe, code provenance, work-item IDs, scheduler
+identity, host/device and checksums of outputs and attachments.
 A completed shard can be reused only after those checks pass. The collector
 requires all six shards, matching worker/collector code and an exclusive compute
 lock; it does not rerun jobs. An incomplete job or stale writer lock needs explicit

@@ -498,6 +498,28 @@ def test_six_shards_reuse_collect_and_no_reexecution(lab):
     assert calls[-2:] == ["matched", "variable"]
 
 
+def test_hpc_pipeline_uses_reviewed_six_shard_array(tmp_path):
+    from experiments.exp082 import hpc
+
+    plan = {
+        "account": "gpu",
+        "cpu_account": "cpu",
+        "partition": "ampere",
+        "cpu_partition": "icelake",
+        "walltime": "04:00:00",
+        "collector_walltime": "01:00:00",
+        "cpus": 4,
+        "memory_gb": 32,
+    }
+    compute_command = hpc.command(plan, tmp_path / "plan.json", "compute")
+    analyse_command = hpc.command(plan, tmp_path / "plan.json", "analyse", "456")
+    assert "--array=0-5%6" in compute_command
+    assert "--gres=gpu:1" in compute_command
+    assert "--dependency=afterok:456" in analyse_command
+    assert "--gres=gpu:1" not in analyse_command
+    assert compute_command[-1] == "exp082"
+
+
 def test_shard_rejects_changed_payload(lab):
     repo, bank, _, _ = lab
     identity = stages.reserve_stage(repo / ".pingstore", "exp082", "compute")

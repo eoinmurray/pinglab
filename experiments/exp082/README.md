@@ -101,10 +101,27 @@ Collection profiles are fixed smoke/production and do not inherit pilot knobs.
 
 ## Six-shard collection execution
 
-The exp082-specific collection hooks now dispatch a dedicated staged adapter.
+The standard experiment-local HPC adapter freezes the complete resolved recipe,
+ordered work items, exact shard allocation, selected bank and showcase, source
+identity and scheduler resources in a reviewed plan:
+
+```sh
+uv run python -m experiments.exp082.hpc prepare \
+  --source <bank-id> --showcase <showcase-compute-id> \
+  --plan .scratch/exp082-hpc/production.json \
+  --account <gpu-account> --cpu-account <cpu-account> \
+  --mnist-cache <persistent-torch-data>
+uv run python -m experiments.exp082.hpc review \
+  .scratch/exp082-hpc/production.json
+uv run python -m experiments.exp082.hpc review \
+  .scratch/exp082-hpc/production.json --test-only
+uv run python -m experiments.exp082.hpc review \
+  .scratch/exp082-hpc/production.json --live
+```
+
 The adapter reserves source-neutral IDs through the shared allocator, pins the
-bank and dispatches the evaluation compute, bounded showcase compute, analysis
-and presentation separately. Six ordered round-robin workers retain
+bank and dispatches evaluation compute, collection, analysis and presentation as
+an explicit receipt-first dependency chain. Six ordered round-robin workers retain
 the existing 132-job production / 18-job smoke partition. The compute collector
 checks all worker records, source code, bank/recipe identities, dataset bytes and
 payloads before generating the two illustrative streams and completing compute.

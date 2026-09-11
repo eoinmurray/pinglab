@@ -97,9 +97,12 @@ def command(plan: dict, path: Path, dependency: str | None = None) -> list[str]:
         f"--error={logs}/%x-%A_%a.err",
         "--export=NONE",
         f"--chdir={REPO}",
-        str(REPO / "experiments/exp112/slurm/array.sbatch"),
+        str(REPO / "experiments/helpers/slurm-stage.sbatch"),
         str(path),
+        "compute",
         str(REPO),
+        "gpu",
+        recipe.SLUG,
     ]
 
 
@@ -148,6 +151,7 @@ def main() -> None:
     group.add_argument("--test-only", action="store_true")
     worker_parser = sub.add_parser("worker")
     worker_parser.add_argument("plan", type=Path)
+    worker_parser.add_argument("stage", choices=("compute",))
     args = parser.parse_args()
     args.plan = args.plan.resolve()
     try:

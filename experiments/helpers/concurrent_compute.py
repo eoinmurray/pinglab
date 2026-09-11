@@ -239,8 +239,17 @@ def collect_shards(
         if collect:
             if list(shard_root.glob("*/writer.lock")):
                 raise PingstoreError("compute shards are still running")
+            allocated: set[str] = set()
             for index in range(count):
                 record = load_json(shard_root / str(index) / "completed.json")
+                work_items = work_item_ids(items_for(index))
+                overlap = allocated.intersection(work_items)
+                if overlap:
+                    raise PingstoreError(
+                        "work items are allocated to more than one shard: "
+                        + ", ".join(sorted(overlap))
+                    )
+                allocated.update(work_items)
                 expected = {
                     "schema": SHARD_SCHEMA,
                     "run_id": run_id,
@@ -249,7 +258,7 @@ def collect_shards(
                     "configuration": dict(configuration),
                     "index": index,
                     "count": count,
-                    "work_items": work_item_ids(items_for(index)),
+                    "work_items": work_items,
                 }
                 if any(record.get(key) != value for key, value in expected.items()):
                     raise PingstoreError(

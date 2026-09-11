@@ -710,13 +710,23 @@ def test_bank_creation_refuses_existing_destination(tmp_path: Path, monkeypatch)
     assert evidence.read_text() == "existing work"
 
 
-def test_bank_array_uses_frozen_selection_and_exp022_only() -> None:
-    submit = (exp022.REPO / "experiments/exp022/slurm/submit-bank.sh").read_text()
-    worker = (exp022.REPO / "experiments/exp022/slurm/bank-array.sbatch").read_text()
-    assert 'chmod 0444 "$selection"' in submit
-    assert 'mapfile -t cells < "$EXP022_SELECTION"' in worker
-    assert "--bank-list" not in worker
-    assert "experiments/collections" not in submit + worker
+def test_hpc_array_uses_frozen_cells_and_shared_wrapper(tmp_path: Path) -> None:
+    from experiments.exp022 import hpc
+
+    plan = {
+        "account": "gpu-account",
+        "partition": "ampere",
+        "walltime": "01:00:00",
+        "collector_walltime": "00:30:00",
+        "cpus": 4,
+        "memory_gb": 32,
+        "partitions": [["a"], ["b"], ["c"]],
+        "concurrency": 2,
+    }
+    command = hpc.command(plan, tmp_path / "plan.json", "compute")
+    assert "--array=0-2%2" in command
+    assert str(exp022.REPO / "experiments/helpers/slurm-stage.sbatch") in command
+    assert command[-1] == "exp022"
 
 
 def test_mnist_link_helper_accepts_existing_and_concurrent_creation(

@@ -29,25 +29,22 @@ write. Never run production computation on a login node.
 
 ## Parallel exp022 scenarios
 
-Create a complete frozen exp022 bank manifest from a clean reviewed checkout:
+Prepare a complete frozen exp022 bank and review its exact allocation from a
+clean checkout:
 
 ```sh
-uv run python -m experiments.exp022.compute --bank-create <working-root> \
-  --execution-origin slurm-wilkes
+uv run python -m experiments.exp022.hpc prepare \
+  --root <working-root> --plan <plan.json> \
+  --account <account> --mnist-cache <torch-data> \
+  --walltime <HH:MM:SS> --concurrency <N>
+uv run python -m experiments.exp022.hpc review <plan.json>
+uv run python -m experiments.exp022.hpc review <plan.json> --test-only
+uv run python -m experiments.exp022.hpc review <plan.json> --live
 ```
 
-Set `EXP022_SLURM_ACCOUNT`, `EXP022_WALLTIME`, `EXP022_CONCURRENCY`, and
-`EXP022_MNIST_CACHE`, then submit all scenarios or one resource tier:
-
-```sh
-experiments/exp022/slurm/submit-bank.sh <working-root>/bank.json all --dry-run
-experiments/exp022/slurm/submit-bank.sh <working-root>/bank.json all
-```
-
-The wrapper validates the manifest, freezes the retry list read-only, and
-submits `bank-array.sbatch`. Each array task owns and trains exactly one scenario.
-Use job arrays rather than loops of `sbatch`, and keep separate submissions at
-least 120 seconds apart.
+The plan freezes complete cell configurations and one cell per array task. The
+shared wrapper writes its receipt before submitting the array and dependent
+collector. Keep separate submissions at least 120 seconds apart.
 
 After the array is inactive, inspect status. Use `--recover-stale` only after
 confirming the recorded owner is no longer active. Finalization generates

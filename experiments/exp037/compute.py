@@ -97,13 +97,6 @@ def _job_inventory(directory, jobs):
     return files
 
 
-def _verify_shard(directory, record, jobs):
-    if record.get("jobs") != [job["id"] for job in jobs]:
-        raise PingstoreError("shard job identity differs")
-    if record.get("files") != _job_inventory(directory, jobs):
-        raise PingstoreError("shard payload changed or is incomplete")
-
-
 def _shard_paths(repo, run_id, index, count):
     return concurrent_compute.working_directory(
         repo,

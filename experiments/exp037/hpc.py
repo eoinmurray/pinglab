@@ -118,7 +118,14 @@ def command(plan, path, stage, dependency=None):
         args += ["--gres=gpu:1", "--array=0-5%6"]
     if dependency:
         args += [f"--dependency=afterok:{dependency}"]
-    args += [str(REPO / "experiments/exp037/slurm.sbatch"), str(path), stage, str(REPO)]
+    args += [
+        str(REPO / "experiments/helpers/slurm-stage.sbatch"),
+        str(path),
+        stage,
+        str(REPO),
+        "gpu" if stage == "compute" else "cpu",
+        recipe.SLUG,
+    ]
     return args
 
 

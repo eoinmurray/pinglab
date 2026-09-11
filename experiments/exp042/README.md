@@ -127,8 +127,26 @@ errors remain retained in the analysis for the scientific uncertainty account.
 
 ## HPC and recovery
 
-The collection adapter retains eight round-robin compute shards. It reserves the
-compute, analyse and present IDs before live Slurm submission. Shards receive an
+The standard experiment-local HPC adapter retains eight round-robin compute
+shards. It freezes the complete resolved recipe, ordered work items, exact shard
+allocation, selected bank, source identity and scheduler resources in a reviewed
+plan, then reserves the compute, analyse and present IDs before live Slurm
+submission:
+
+```sh
+uv run python -m experiments.exp042.hpc prepare \
+  --source <bank-id> --plan .scratch/exp042-hpc/production.json \
+  --account <gpu-account> --cpu-account <cpu-account> \
+  --mnist-cache <persistent-torch-data>
+uv run python -m experiments.exp042.hpc review \
+  .scratch/exp042-hpc/production.json
+uv run python -m experiments.exp042.hpc review \
+  .scratch/exp042-hpc/production.json --test-only
+uv run python -m experiments.exp042.hpc review \
+  .scratch/exp042-hpc/production.json --live
+```
+
+Submission uses the shared receipt-first Slurm pipeline. Shards receive an
 explicit completed bank and write only their allocated compute reservation.
 Each shard has private override scratch, an exclusive worker lock, code/bank/recipe
 record, and checksummed completion record. Distributed execution requires frozen,
