@@ -2,8 +2,8 @@
 
 import re
 
-from experiments.exp022.recipe import training_run_cell, training_run_values
 from experiments.exp022.checkpoints import checkpoint_policy
+from experiments.exp022.recipe import training_run_cell, training_run_values
 from experiments.helpers.datasets import MNIST_REDUCED_EVAL_SAMPLES
 
 SLUG = "exp042"

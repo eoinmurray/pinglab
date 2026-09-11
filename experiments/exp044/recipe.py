@@ -1,10 +1,10 @@
 """The retained timestep audit recipe; training remains owned by exp022."""
 
+from experiments.exp022.checkpoints import checkpoint_policy
 from experiments.exp022.recipe import (
     LEGACY_DT_SWEEP_MS,
     training_run_values,
 )
-from experiments.exp022.checkpoints import checkpoint_policy
 from experiments.helpers.datasets import MNIST_REDUCED_EVAL_SAMPLES
 from snnsim.timing import duration_metadata, duration_steps, refractory_metadata
 
