@@ -82,3 +82,48 @@ requires all 102 cells, validates them again, generates the diagnostic probes,
 and atomically completes the preallocated v4 compute run. It does not analyse,
 present, materialize, or publish. The retired 90/12 reconstruction workflow and
 its source-pinning contract remain recoverable in Git history.
+
+## Exp110 COBA gradient-damping replacement
+
+Exp110's activity-frontier comparison requires the eighteen `TR-02` COBA cells
+(six rate targets and seeds 42–44) to use the same backward voltage-gradient
+damping divisor as PING. These replacement cells use
+`--v-grad-dampen 1000` while retaining the loop-disabled COBA forward model
+(`--ei-strength 0`). The three `TR-01` canonical COBA cells remain at divisor
+1; this is deliberately a `TR-02`-scoped change.
+
+The replacement workflow is pinned to `exp022-r007-compute`. It creates one new
+standalone 102-cell bank by copying 84 compatible cells byte-for-byte and
+training only the 18 replacements. Both checkpoint roles are retained. The
+source run, per-cell file hashes, training attempts, resolved parameters and
+regenerated seed-42 diagnostic provenance are recorded in the new run's
+`run.json`; no provenance sidecars enter `export/`.
+
+```sh
+# Read-only inspection of the exact source and 84/18 partition.
+uv run python -m experiments.exp022.compute --reuse-plan
+
+# Reserve and execute through the reviewed HPC adapter.
+uv run python -m experiments.exp022.hpc prepare \
+  --replacement exp110-coba-damping \
+  --root <working-root> \
+  --plan <working-root>/production.json \
+  --account <account> \
+  --mnist-cache <persistent-data-root> \
+  --walltime 02:00:00 \
+  --concurrency 18
+
+uv run python -m experiments.exp022.hpc review <working-root>/production.json
+uv run python -m experiments.exp022.hpc review \
+  <working-root>/production.json --test-only
+uv run python -m experiments.exp022.hpc review \
+  <working-root>/production.json --live
+```
+
+Preparation requires a clean committed checkout, validates the pinned source,
+allocates the compute identity before dispatch and freezes exactly 18 one-cell
+workers. Review is read-only. Test-only and live submission are separate
+explicit operations. The collector validates all replacements and both
+checkpoint roles, assembles all 102 cells, regenerates the 34 seed-42 diagnostic
+recordings and atomically exposes the run. It never launches analysis,
+presentation or publication.

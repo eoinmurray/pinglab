@@ -233,7 +233,15 @@ def _activity_frontier_cells() -> list[dict]:
                     "name": cell_name(m, target_hz, s), "model": m, "family": "activity_frontier",
                     "tag": rate_target_display(target_hz), "seed": s, "dt_ms": DT_MS,
                     "tau_gaba": TAU_GABA_GAMMA,
-                    "rate_target_hz": target_hz, "extra": extra,
+                    "rate_target_hz": target_hz,
+                    # Exp110 compares this complete frontier. Match the PING
+                    # backward damping while preserving COBA's loop-off forward
+                    # architecture. Keep the override family-scoped: TR-01
+                    # canonical COBA remains the historical undamped reference.
+                    "recipe_overrides": (
+                        {"--v-grad-dampen": "1000"} if m == "coba" else {}
+                    ),
+                    "extra": extra,
                 })
     return cells
 
@@ -431,6 +439,8 @@ def require_training_run_cells(
 def scientific_contract(cell: dict, max_samples: int, epochs: int) -> dict:
     """Cold-readable scientific fields that must not hide behind CLI defaults."""
     input_rates = cell.get("input_rates_hz")
+    model_recipe = dict(MODEL_RECIPES[cell["model"]])
+    model_recipe.update(cell.get("recipe_overrides", {}))
     return {
         "dataset": {
             "name": "mnist",
@@ -476,9 +486,12 @@ def scientific_contract(cell: dict, max_samples: int, epochs: int) -> dict:
         "constraints": {"dales_law": DALES_LAW},
         "optimizer": {
             "name": "adamw",
-            "learning_rate": float(MODEL_RECIPES[cell["model"]]["--lr"]),
+            "learning_rate": float(model_recipe["--lr"]),
             "weight_decay": WEIGHT_DECAY,
             "gradient_clip_norm": GRAD_CLIP_NORM,
+            "voltage_gradient_damping_divisor": float(
+                model_recipe["--v-grad-dampen"]
+            ),
             "batch_size": BATCH_SIZE,
             "epochs": int(epochs),
         },
@@ -525,7 +538,7 @@ def cells_in_resource_tier(tier: str) -> list[dict]:
 # Run scale — stamped into the manifest by run_dirs.prepare and rendered as
 # the Methods table via RunScale; the mdx never restates these numbers.
 SCALE = {
-    "schema": "exp022.recipe/v2",
+    "schema": "exp022.recipe/v3",
     **refractory_configuration(),
     "dt_sweep_ms": list(DT_SWEEP_MS),
     "presentation_duration_policy": "whole_steps_floor_with_integer_tolerance",

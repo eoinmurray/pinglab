@@ -10,7 +10,7 @@ import numpy as np
 import pytest
 import torch
 from experiments.exp022 import compute as exp022
-from experiments.exp022 import recipe
+from experiments.exp022 import recipe, reuse, reuse_contract
 from experiments.exp022.analyse import _gamma_psd, bank_composition, measure_snapshot
 from experiments.helpers import rhythmicity as figure_metrics
 from pingstore.contracts import PingstoreError
@@ -72,6 +72,81 @@ def test_tr02_registry_uses_explicit_hz_targets() -> None:
             assert "--fr-reg-upper-strength" in args
             strength = args[args.index("--fr-reg-upper-strength") + 1]
             assert strength == "0.041"
+
+
+def test_exp110_coba_damping_scope_is_exact_and_family_local() -> None:
+    replacements = reuse_contract.replacement_cells()
+    assert len(replacements) == 18
+    assert {
+        (cell["training_run_id"], cell["model"], cell["seed"])
+        for cell in replacements
+    } == {("TR-02", "coba", seed) for seed in (42, 43, 44)}
+    assert {cell["rate_target_hz"] for cell in replacements} == {
+        None,
+        25.0,
+        10.0,
+        5.0,
+        2.5,
+        1.0,
+    }
+    for cell in replacements:
+        args = recipe.build_train_args(
+            cell, Path("unused"), *recipe.cell_samples_epochs(cell)
+        )
+        assert args[args.index("--v-grad-dampen") + 1] == "1000"
+        assert args[args.index("--ei-strength") + 1] == "0"
+        contract = recipe.scientific_contract(
+            cell, *recipe.cell_samples_epochs(cell)
+        )
+        assert contract["optimizer"]["voltage_gradient_damping_divisor"] == 1000
+    canonical = recipe.training_run_cell("TR-01", model="coba", seed=42)
+    canonical_args = recipe.build_train_args(
+        canonical, Path("unused"), *recipe.cell_samples_epochs(canonical)
+    )
+    assert canonical_args[canonical_args.index("--v-grad-dampen") + 1] == "1"
+    assert (
+        recipe.scientific_contract(
+            canonical, *recipe.cell_samples_epochs(canonical)
+        )["optimizer"]["voltage_gradient_damping_divisor"]
+        == 1
+    )
+
+
+def test_replacement_projection_retains_science_and_moves_execution_metadata(
+    tmp_path: Path,
+) -> None:
+    trained = tmp_path / "trained"
+    target = tmp_path / "target"
+    trained.mkdir()
+    target.mkdir()
+    history = [{"ep": 1, "samples": 10}]
+    (trained / "metrics.jsonl").write_text(json.dumps(history[0]) + "\n")
+    for directory in (trained, target):
+        (directory / "weights.pth").write_bytes(b"best")
+        (directory / "weights_final.pth").write_bytes(b"final")
+    (target / "config.json").write_text(json.dumps({
+        "v_grad_dampen": 1000,
+        "ei_strength": 0,
+        "bank_id": "working",
+        "device": "cuda",
+    }))
+    (target / "metrics.json").write_text(json.dumps({
+        "config": {
+            "v_grad_dampen": 1000,
+            "ei_strength": 0,
+            "bank_manifest_sha256": "digest",
+        },
+        "checkpoints": {},
+        "total_elapsed_s": 1.0,
+    }))
+    metadata = reuse._project_new_cell(trained, target)
+    config = json.loads((target / "config.json").read_text())
+    metrics = json.loads((target / "metrics.json").read_text())
+    assert config == {"v_grad_dampen": 1000, "ei_strength": 0}
+    assert metrics["config"] == {"v_grad_dampen": 1000, "ei_strength": 0}
+    assert metrics["epochs"] == history
+    assert metadata["config.json"]["root"]["bank_id"] == "working"
+    assert metadata["metrics.json"]["config"]["bank_manifest_sha256"] == "digest"
 
 
 def test_downstream_contract_interface_is_isolated_and_fail_closed() -> None:

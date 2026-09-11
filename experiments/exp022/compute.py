@@ -753,12 +753,12 @@ def _checked_bank_manifest(path: Path) -> dict:
         raise SystemExit("bank lockfile identity does not match the checkout")
     tier = manifest.get("selection", {}).get("tier")
     try:
-        selected_cells = (
-            [cell for cell in recipe.CANONICAL_CELLS
-             if cell["family"] == "dt" and cell["dt_ms"] != recipe.DT_MS]
-            if tier == "refractory-replacement"
-            else recipe.cells_in_resource_tier(tier)
-        )
+        if tier == "exp110-coba-damping-replacement":
+            from experiments.exp022.reuse_contract import replacement_cells
+
+            selected_cells = replacement_cells()
+        else:
+            selected_cells = recipe.cells_in_resource_tier(tier)
     except ValueError as exc:
         raise SystemExit(str(exc)) from exc
     manifest_names_list = [row.get("name") for row in manifest.get("cells", [])]
@@ -1285,6 +1285,10 @@ def import_bank(identity: str, *, run_id: str | None = None) -> str:
 
 
 def main() -> None:
+    from experiments.exp022 import reuse
+
+    if reuse.handle_cli(sys.argv[1:], REPO):
+        return
     if _handle_bank_cli(sys.argv[1:]):
         return
     retired = {"--skip-training", "--plot-only", "--only-missing"} & set(sys.argv[1:])

@@ -10,7 +10,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
 
-from experiments.exp022 import compute, recipe
+from experiments.exp022 import compute, recipe, reuse
 from experiments.helpers.hpc.slurm_submit import submit_pipeline
 from pingstore.contracts import PingstoreError, load_json, write_json_atomic
 from pingstore.stages import _capture_code
@@ -31,6 +31,14 @@ def check_plan(plan):
         or manifest.get("pingstore_run_id") != plan.get("run_id")
     ):
         raise PingstoreError("HPC cell configuration or allocation changed")
+    if plan.get("mode") == "exp110-coba-damping-replacement":
+        status = reuse.status(REPO, plan["run_id"])
+        if (
+            set(status["new_cells"]) != {row["name"] for row in items}
+            or len(items) != 18
+            or status["source"] != plan.get("source")
+        ):
+            raise PingstoreError("replacement-bank source or 84/18 partition changed")
     if not (Path(plan["mnist_cache"]) / "MNIST").is_dir():
         raise PingstoreError("persistent MNIST cache is missing")
     if type(plan.get("concurrency")) is not int or plan["concurrency"] < 1:
@@ -46,24 +54,52 @@ def prepare(args):
     code = _capture_code(REPO, REPO)
     if code.get("code_dirty"):
         raise PingstoreError("commit execution code before preparing HPC work")
-    command = [
-        sys.executable,
-        str(REPO / "experiments/exp022/compute.py"),
-        "--bank-create",
-        str(args.root),
-        "--execution-origin",
-        "slurm",
-    ]
-    subprocess.run(command, cwd=REPO, check=True)
-    manifest_path = args.root / "bank.json"
+    args.root.mkdir(parents=True)
+    if args.replacement == "exp110-coba-damping":
+        completed = subprocess.run(
+            [
+                sys.executable,
+                str(REPO / "experiments/exp022/compute.py"),
+                "--reuse-reserve",
+                "--execution-origin",
+                "slurm-wilkes",
+            ],
+            cwd=REPO,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        run_id = completed.stdout.strip().splitlines()[-1]
+        manifest_path = (
+            REPO
+            / ".pingstore/runs"
+            / f".{run_id}.tmp/.scratch/reuse/campaign.json"
+        )
+        source = reuse.status(REPO, run_id)["source"]
+        mode = "exp110-coba-damping-replacement"
+    else:
+        command = [
+            sys.executable,
+            str(REPO / "experiments/exp022/compute.py"),
+            "--bank-create",
+            str(args.root / "bank"),
+            "--execution-origin",
+            "slurm-wilkes",
+        ]
+        subprocess.run(command, cwd=REPO, check=True)
+        manifest_path = args.root / "bank/bank.json"
+        source = None
+        mode = "complete-bank"
     manifest = compute._checked_bank_manifest(manifest_path)
     items = manifest["cells"]
     plan = {
         "schema": "exp022.hpc/v1",
+        "mode": mode,
         "repo": str(REPO),
         "code": code,
         "manifest": str(manifest_path.resolve()),
         "run_id": manifest["pingstore_run_id"],
+        **({"source": source} if source is not None else {}),
         "work_items": items,
         "partitions": [[cell["name"]] for cell in items],
         "account": args.account,
@@ -142,29 +178,35 @@ def worker(args):
             raise PingstoreError(
                 "Slurm array index is outside the frozen allocation"
             ) from exc
-        subprocess.run(
-            [
-                sys.executable,
-                str(REPO / "experiments/exp022/compute.py"),
-                "--bank-train-cell",
-                cell_name,
-                "--bank",
-                str(manifest),
-            ],
-            cwd=REPO,
-            check=True,
-        )
+        if plan.get("mode") == "exp110-coba-damping-replacement":
+            reuse.train_cell(REPO, plan["run_id"], cell_name)
+        else:
+            subprocess.run(
+                [
+                    sys.executable,
+                    str(REPO / "experiments/exp022/compute.py"),
+                    "--bank-train-cell",
+                    cell_name,
+                    "--bank",
+                    str(manifest),
+                ],
+                cwd=REPO,
+                check=True,
+            )
     else:
-        subprocess.run(
-            [
-                sys.executable,
-                str(REPO / "experiments/exp022/compute.py"),
-                "--bank-finalize",
-                str(manifest),
-            ],
-            cwd=REPO,
-            check=True,
-        )
+        if plan.get("mode") == "exp110-coba-damping-replacement":
+            reuse.finalize(REPO, plan["run_id"])
+        else:
+            subprocess.run(
+                [
+                    sys.executable,
+                    str(REPO / "experiments/exp022/compute.py"),
+                    "--bank-finalize",
+                    str(manifest),
+                ],
+                cwd=REPO,
+                check=True,
+            )
 
 
 def main():
@@ -173,6 +215,11 @@ def main():
     prepared = sub.add_parser("prepare")
     prepared.add_argument("--root", type=Path, required=True)
     prepared.add_argument("--plan", type=Path, required=True)
+    prepared.add_argument(
+        "--replacement",
+        choices=("exp110-coba-damping",),
+        help="prepare the exact 84-reused/18-retrained exp110 replacement bank",
+    )
     prepared.add_argument("--account", required=True)
     prepared.add_argument("--mnist-cache", type=Path, required=True)
     prepared.add_argument("--partition", default="ampere")
