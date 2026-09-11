@@ -6,10 +6,11 @@ already owned by one source experiment are consumed directly by the manuscript
 rather than copied or bundled here.
 
 ```sh
-uv run python -m experiments.exp110.present --source <exp054-analysis-run-id> \
-  --exp041-source <exp041-present-run-id> --exp046-source <exp046-present-run-id> \
-  --exp037-source <exp037-present-run-id> --exp044-source <exp044-present-run-id>
+uv run python -m experiments.exp110.present --source <exp054-analysis-run-id>
 ```
+
+The runner pins the accepted exp041, exp046, exp037 and exp044 presentation
+sources in code; they are not runtime recipe overrides.
 
 The onset output originated as exp054 Figure 6. The presentation reads the
 validated exp054 analysis coordinates, whose immutable lineage includes the
@@ -27,9 +28,7 @@ use the explicit command
 below for this refresh.
 
 ```sh
-uv run python -m experiments.exp110.present --source exp054-r013-analyse \
-  --exp041-source exp041-r005-present --exp046-source exp046-r005-present \
-  --exp037-source exp037-r017-present --exp044-source exp044-r009-present
+uv run python -m experiments.exp110.present --source exp054-r013-analyse
 ```
 
 This produced `exp110-r021-present` (payload

@@ -9,40 +9,35 @@ SLUG = "exp099"
 DT_MS, DURATION_MS, SEED = 0.1, 1100.0, 7
 BURN_IN_MS = 500.0
 N_E, N_I = 1600, 400
+CAPACITANCE_NF, LEAK_US = 0.15, 0.01
+BASELINE_HZ = 0.8
+RECURRENT_SCALE, INHIBITORY_SCALE = 0.08, 5.0
 VIEW_START_MS, VIEW_END_MS = BURN_IN_MS, DURATION_MS
 ONSET_MS, PEAK_MS, PLATEAU_END_MS, OFFSET_MS = 700.0, 750.0, 850.0, 900.0
 VIDEO, POSTER = "private-e-drive.mp4", "private-e-drive.png"
 
 
-def configuration(
-    *,
-    seed=SEED,
-    capacitance_nf=0.15,
-    leak_us=0.01,
-    baseline_hz=0.8,
-    recurrent_scale=0.08,
-    inhibitory_scale=5.0,
-) -> dict:
+def configuration() -> dict:
     return {
         "schema": "exp099.recipe/v2",
         "condition": "private-ei-drive",
         "dt_ms": DT_MS,
         "t_ms": DURATION_MS,
         "burn_in_ms": BURN_IN_MS,
-        "seed": seed,
+        "seed": SEED,
         "n_e": N_E,
         "n_i": N_I,
         "connection_probability": 0.1,
         "external_afferents_per_neuron": 400,
-        "baseline_e_hz": baseline_hz,
-        "baseline_i_hz": baseline_hz,
-        "stimulus_e_hz": baseline_hz * 1.5,
-        "stimulus_i_hz": baseline_hz * 1.5,
-        "capacitance_nf": capacitance_nf,
-        "leak_us": leak_us,
+        "baseline_e_hz": BASELINE_HZ,
+        "baseline_i_hz": BASELINE_HZ,
+        "stimulus_e_hz": BASELINE_HZ * 1.5,
+        "stimulus_i_hz": BASELINE_HZ * 1.5,
+        "capacitance_nf": CAPACITANCE_NF,
+        "leak_us": LEAK_US,
         "external_weight_us": 0.004,
-        "recurrent_e_weight_us": 0.0125 * recurrent_scale,
-        "recurrent_i_weight_us": 0.00835 * recurrent_scale * inhibitory_scale,
+        "recurrent_e_weight_us": 0.0125 * RECURRENT_SCALE,
+        "recurrent_i_weight_us": 0.00835 * RECURRENT_SCALE * INHIBITORY_SCALE,
         "tau_ampa_ms": 1.5,
         "tau_gaba_ms": 7.5,
         "delay_ms": 1.5,

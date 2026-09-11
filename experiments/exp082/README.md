@@ -13,10 +13,12 @@ validated lineage are recorded below; immutable run records retain their checks.
 ```sh
 uv run python -m experiments.exp082.compute --source <exp022-compute-run-id>
 uv run python -m experiments.exp082.illustrate --source <exp022-compute-run-id>
-uv run python -m experiments.exp082.analyse --source <exp082-compute-run-id> \
-  --showcase-source <exp082-showcase-compute-run-id>
+uv run python -m experiments.exp082.analyse --source <exp082-compute-run-id>
 uv run python -m experiments.exp082.present --source <exp082-analyse-run-id>
 ```
+
+The analysis runner pins the accepted showcase `exp082-r018-compute`; it is not
+selectable through a runtime recipe override.
 
 Each stage requires an explicit, completed v4 source. Exact payloads, authoritative
 manifests and all ancestral pins are validated before use and again before atomic

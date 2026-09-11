@@ -58,6 +58,29 @@ STAGE_META = {
     "--shard-index",  # scheduler-owned partition of a committed recipe
 }
 
+REMOVED_RUNNER_FLAGS = {
+    "exp022/compute.py": {"--hpc", "--hpc-root"},
+    "exp023/present.py": {"--metadata-source"},
+    "exp054/analyse.py": {"--theory-source"},
+    "exp082/analyse.py": {"--showcase-source"},
+    "exp099/compute.py": {
+        "--baseline-hz",
+        "--capacitance-nf",
+        "--inhibitory-scale",
+        "--leak-us",
+        "--no-i-external",
+        "--recurrent-scale",
+        "--seed",
+    },
+    "exp099/present.py": {"--view-end-ms", "--view-start-ms"},
+    "exp110/present.py": {
+        "--exp037-source",
+        "--exp041-source",
+        "--exp044-source",
+        "--exp046-source",
+    },
+}
+
 
 def _accepted_flags(src: str) -> set[str]:
     argparse_flags = set(re.findall(r'add_argument\(\s*"(--[a-z0-9-]+)"', src))
@@ -73,6 +96,12 @@ def test_runners_exist():
 def test_retired_modal_flag_is_rejected():
     with pytest.raises(SystemExit, match="unknown flag '--modal'"):
         parse_meta(["compute.py", "--modal"])
+
+
+@pytest.mark.parametrize("relative, flags", REMOVED_RUNNER_FLAGS.items())
+def test_removed_runner_flags_stay_removed(relative, flags):
+    accepted = _accepted_flags((EXPERIMENTS / relative).read_text())
+    assert accepted.isdisjoint(flags)
 
 
 @pytest.mark.parametrize("runner", RUNNERS, ids=lambda p: p.name)

@@ -76,27 +76,8 @@ def simulate(cfg, *, chunk_steps=1000):
     return bundle, retained, weights
 
 
-def compute(
-    *,
-    run_id=None,
-    seed=recipe.SEED,
-    capacitance_nf=0.15,
-    leak_us=0.01,
-    baseline_hz=0.8,
-    recurrent_scale=0.08,
-    inhibitory_scale=5.0,
-    no_i_external=False,
-):
-    cfg = recipe.configuration(
-        seed=seed,
-        capacitance_nf=capacitance_nf,
-        leak_us=leak_us,
-        baseline_hz=baseline_hz,
-        recurrent_scale=recurrent_scale,
-        inhibitory_scale=inhibitory_scale,
-    )
-    if no_i_external:
-        cfg.update(condition="no-i-external", baseline_i_hz=0.0, stimulus_i_hz=0.0)
+def compute(*, run_id=None):
+    cfg = recipe.configuration()
     with stage_run(
         REPO, recipe.SLUG, "compute", run_id=run_id, configuration=cfg
     ) as run:
@@ -118,24 +99,8 @@ def compute(
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--run-id")
-    p.add_argument("--seed", type=int, default=recipe.SEED)
-    p.add_argument("--capacitance-nf", type=float, default=0.15)
-    p.add_argument("--leak-us", type=float, default=0.01)
-    p.add_argument("--baseline-hz", type=float, default=0.8)
-    p.add_argument("--recurrent-scale", type=float, default=0.08)
-    p.add_argument("--inhibitory-scale", type=float, default=5.0)
-    p.add_argument("--no-i-external", action="store_true")
     a = p.parse_args()
-    compute(
-        run_id=a.run_id,
-        seed=a.seed,
-        capacitance_nf=a.capacitance_nf,
-        leak_us=a.leak_us,
-        baseline_hz=a.baseline_hz,
-        recurrent_scale=a.recurrent_scale,
-        inhibitory_scale=a.inhibitory_scale,
-        no_i_external=a.no_i_external,
-    )
+    compute(run_id=a.run_id)
 
 
 if __name__ == "__main__":

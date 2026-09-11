@@ -209,8 +209,8 @@ cases with equal input rates shared afferent counts. Selection considered raster
 firing rates, baseline correlations and 10 ms burst-window participation jointly.
 
 The new defaults are 0.8 Hz baseline (1.2 Hz pulse), 1.0 nS E and 3.34 nS I.
-For the existing scale-based CLI, these are `--baseline-hz 0.8`,
-`--recurrent-scale 0.08`, and `--inhibitory-scale 5.0`; both scale factors
+The committed recipe fixes the baseline rate at 0.8 Hz, recurrent scale at
+0.08, and inhibitory scale at 5.0; both scale factors
 contribute to the inhibitory physical weight.
 
 Fresh compute `exp099-r059-compute` took 6.092 s. Every recorded field matches

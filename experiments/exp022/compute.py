@@ -1298,16 +1298,6 @@ def main() -> None:
             "or present.py --source ANALYSIS_RUN"
         )
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
-        "--hpc",
-        action="store_true",
-        help="create a fresh 102-cell bank and submit its Slurm array",
-    )
-    parser.add_argument(
-        "--hpc-root",
-        type=Path,
-        help="dedicated absolute working directory for --hpc (or EXP022_HPC_ROOT)",
-    )
     parser.add_argument("--run-id", help="identity already reserved before dispatch")
     parser.add_argument(
         "--import-source", help="copy an explicit v4 compute bank without computation"
@@ -1321,12 +1311,6 @@ def main() -> None:
         help="simulate fixed probes only; requires --source",
     )
     args = parser.parse_args()
-    if args.hpc or args.hpc_root is not None:
-        parser.error(
-            "--hpc/--hpc-root are retired; use experiments.exp022.hpc prepare/review "
-            "so the "
-            "cell allocation is frozen and reviewed before receipt-first submission"
-        )
     if args.import_source:
         if args.source or args.diagnostics:
             parser.error("--import-source cannot be combined with diagnostic execution")

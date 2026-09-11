@@ -23,6 +23,13 @@ from experiments.helpers.figsave import save_figure
 from pingstore.contracts import PingstoreError, load_json
 from pingstore.stages import source_run, stage_run
 
+CANONICAL_PRESENTATION_SOURCES = {
+    "exp041": "exp041-r005-present",
+    "exp046": "exp046-r005-present",
+    "exp037": "exp037-r017-present",
+    "exp044": "exp044-r009-present",
+}
+
 
 def _source_figure(identity: str, experiment: str, name: str):
     source = source_run(
@@ -239,26 +246,14 @@ def present(
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source", required=True, help="completed exp054 analysis run")
-    parser.add_argument(
-        "--exp041-source", required=True, help="completed exp041 presentation run"
-    )
-    parser.add_argument(
-        "--exp046-source", required=True, help="completed exp046 presentation run"
-    )
-    parser.add_argument(
-        "--exp037-source", required=True, help="completed exp037 presentation run"
-    )
-    parser.add_argument(
-        "--exp044-source", required=True, help="completed exp044 presentation run"
-    )
     parser.add_argument("--run-id", help="fresh v4 identity reserved before dispatch")
     arguments = parser.parse_args()
     present(
         arguments.source,
-        arguments.exp041_source,
-        arguments.exp046_source,
-        arguments.exp037_source,
-        arguments.exp044_source,
+        CANONICAL_PRESENTATION_SOURCES["exp041"],
+        CANONICAL_PRESENTATION_SOURCES["exp046"],
+        CANONICAL_PRESENTATION_SOURCES["exp037"],
+        CANONICAL_PRESENTATION_SOURCES["exp044"],
         run_id=arguments.run_id,
     )
 

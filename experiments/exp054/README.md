@@ -24,16 +24,17 @@ three seconds; no simulation or theory solve ran.
 
 ```sh
 uv run python -m experiments.exp054.analyse --source exp054-r008-compute \
-  --frequency-source exp041-r002-analyse --theory-source exp033-r012-analyse
+  --frequency-source exp041-r002-analyse
 uv run python -m experiments.exp054.present --source exp054-r013-analyse
 ```
 
 The new analysis-only `exp054.theory-refresh/v1` recipe keeps the complete
 `spike_source_recipe` and `theory_recipe` separate. The spike source's embedded
 historical theory is unused; its old declaration is retained as source history.
-The selected theory uses 1.2/0.6-ms refractories and the stable exp033 v2 gain
-integral. Omitting `--theory-source` retains the historical combined-compute
-analysis path. At completion of step 5.8, compute recipes were unchanged. The collection dispatcher has
+The runner pins `exp033-r012-analyse`; its selected theory uses 1.2/0.6-ms
+refractories and the stable exp033 v2 gain integral. The historical
+combined-compute analysis path remains available through the Python API, not a
+CLI recipe override. At completion of step 5.8, compute recipes were unchanged. The collection dispatcher has
 not been repinned to this explicit refresh workflow.
 
 The reference theory onset changed from 0.59633710 to **0.59390477 nA** (−0.408%);

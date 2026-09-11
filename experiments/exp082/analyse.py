@@ -11,6 +11,8 @@ sys.path[:0] = [str(REPO), str(REPO / "tools")]
 from experiments.exp082 import evidence, inputs, measurements, recipe
 from pingstore.contracts import PingstoreError, load_json, write_json_atomic
 
+CANONICAL_SHOWCASE_SOURCE = "exp082-r018-compute"
+
 
 def analyse(identity, showcase_identity, *, run_id=None):
     source = inputs.source(REPO, identity, "compute")
@@ -106,11 +108,10 @@ def analyse(identity, showcase_identity, *, run_id=None):
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--source", required=True)
-    p.add_argument("--showcase-source", required=True)
     p.add_argument("--run-id")
     a = p.parse_args()
     try:
-        print(analyse(a.source, a.showcase_source, run_id=a.run_id))
+        print(analyse(a.source, CANONICAL_SHOWCASE_SOURCE, run_id=a.run_id))
     except (PingstoreError, OSError, KeyError, ValueError, RuntimeError) as exc:
         p.exit(1, f"exp082 analyse: {exc}\n")
 

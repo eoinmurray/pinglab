@@ -136,16 +136,14 @@ def render_outputs(
     }
 
 
-def present(
-    identity,
-    *,
-    run_id=None,
-    view_start_ms=recipe.VIEW_START_MS,
-    view_end_ms=recipe.VIEW_END_MS,
-):
+def present(identity, *, run_id=None):
     analysis, compute, cfg, results = resolved(identity)
-    view = {"start_ms": view_start_ms, "end_ms": view_end_ms, "frames": 625}
-    if not 0 <= view_start_ms < view_end_ms <= cfg["t_ms"]:
+    view = {
+        "start_ms": cfg["view_start_ms"],
+        "end_ms": cfg["view_end_ms"],
+        "frames": 625,
+    }
+    if not 0 <= view["start_ms"] < view["end_ms"] <= cfg["t_ms"]:
         raise ValueError("presentation interval must lie within the recording")
     with stage_run(
         REPO,
@@ -166,15 +164,8 @@ def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--source", required=True)
     p.add_argument("--run-id")
-    p.add_argument("--view-start-ms", type=float, default=recipe.VIEW_START_MS)
-    p.add_argument("--view-end-ms", type=float, default=recipe.VIEW_END_MS)
     a = p.parse_args()
-    present(
-        a.source,
-        run_id=a.run_id,
-        view_start_ms=a.view_start_ms,
-        view_end_ms=a.view_end_ms,
-    )
+    present(a.source, run_id=a.run_id)
 
 
 if __name__ == "__main__":

@@ -12,6 +12,8 @@ from experiments.exp054 import evidence, inputs, measurements, recipe
 from experiments.exp054 import theory as theory_inputs
 from pingstore.contracts import PingstoreError, load_json, write_json_atomic
 
+CANONICAL_THEORY_SOURCE = "exp033-r012-analyse"
+
 
 def analyse(identity, frequency_source, *, theory_source=None, run_id=None):
     source = inputs.source(REPO, identity, "compute")
@@ -104,15 +106,11 @@ def main():
         "--frequency-source", required=True, help="completed exp041 analysis run"
     )
     parser.add_argument("--run-id", help="fresh v4 identity reserved before dispatch")
-    parser.add_argument(
-        "--theory-source",
-        help="completed exp033 analysis; replaces embedded theory only",
-    )
     args = parser.parse_args()
     analyse(
         args.source,
         args.frequency_source,
-        theory_source=args.theory_source,
+        theory_source=CANONICAL_THEORY_SOURCE,
         run_id=args.run_id,
     )
 
