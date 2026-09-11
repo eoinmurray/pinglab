@@ -20,7 +20,6 @@ from experiments.exp022 import compute as campaign
 from experiments.exp022 import recipe
 from experiments.exp022.checkpoints import public_provenance, resolve_checkpoint
 from experiments.exp022.reuse_contract import inspect_source, replacement_cells
-from experiments.helpers.operating_point import duration_steps
 from pingstore.contracts import (
     RUN_SCHEMA,
     PingstoreError,
@@ -35,6 +34,7 @@ from pingstore.locking import operation_lock
 from pingstore.native import execution_origin
 from pingstore.registry import memberships
 from pingstore.stages import reserve_stage, stage_reservation
+from snnsim.timing import duration_steps
 
 SCHEMA = "pinglab.exp022.gradient-damping-bank/v1"
 CELL_FILES = ("config.json", "metrics.json", "weights.pth", "weights_final.pth")
