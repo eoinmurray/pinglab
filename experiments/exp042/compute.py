@@ -17,7 +17,6 @@ from experiments.helpers.hpc import concurrent_compute
 from pingstore.contracts import (
     PingstoreError,
     file_sha256,
-    load_json,
     write_json_atomic,
 )
 from pingstore.stages import _capture_code, reserve_stage
