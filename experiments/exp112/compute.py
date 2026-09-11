@@ -124,7 +124,7 @@ def _validate_training(config: dict, metrics: dict, case: dict) -> None:
         "fr_reg_upper_strength": recipe.RATE_PENALTY_STRENGTH,
         "seed": recipe.SEED,
     }
-    observed = metrics.get("config", {})
+    observed = config
     wrong = {
         key: (observed.get(key), value)
         for key, value in expected.items()
