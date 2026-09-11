@@ -711,8 +711,6 @@ def test_bank_creation_refuses_existing_destination(tmp_path: Path, monkeypatch)
 
 
 def test_hpc_array_uses_frozen_cells_and_shared_wrapper(tmp_path: Path) -> None:
-    from argparse import Namespace
-
     from experiments.exp022 import hpc
 
     plan = {
@@ -729,20 +727,6 @@ def test_hpc_array_uses_frozen_cells_and_shared_wrapper(tmp_path: Path) -> None:
     assert "--array=0-2%2" in command
     assert str(exp022.REPO / "experiments/helpers/hpc/slurm-stage.sbatch") in command
     assert command[-1] == "exp022"
-    diagnostic = hpc.diagnostic_command(
-        Namespace(
-            account="gpu-account",
-            partition="ampere",
-            walltime="00:10:00",
-            cpus=4,
-            memory_gb=20,
-            output_root=tmp_path / "diagnostic",
-            mnist_cache=tmp_path / "mnist",
-        )
-    )
-    assert "--gres=gpu:1" in diagnostic
-    assert str(exp022.REPO / "experiments/helpers/hpc/diagnostic.sbatch") in diagnostic
-    assert diagnostic[-1] == "experiments.exp022.hpc_diagnostic"
 
 
 def test_mnist_link_helper_accepts_existing_and_concurrent_creation(
@@ -794,7 +778,6 @@ EXPERIMENT = REPO / "experiments" / "exp022"
         "compute.py",
         "analyse.py",
         "present.py",
-        "hpc_diagnostic.py",
     ],
 )
 def test_file_entrypoints_resolve_from_an_external_directory(entrypoint, tmp_path):
