@@ -137,8 +137,7 @@ The lower-level worker interface uses the explicit bank and compute reservation:
 ```sh
 uv run python -m experiments.exp037.compute --source <bank-id> \
   --run-id <reserved-compute-id> --shard-index <0-to-5>
-uv run python -m experiments.exp037.compute --source <bank-id> \
-  --run-id <reserved-compute-id> --collect
+uv run python -m experiments.exp037.hpc worker <reviewed-plan.json> collect
 ```
 
 Workers require committed execution code. Shared concurrency machinery records

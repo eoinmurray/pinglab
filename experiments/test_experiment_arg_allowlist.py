@@ -59,7 +59,7 @@ STAGE_META = {
 }
 
 REMOVED_RUNNER_FLAGS = {
-    "exp022/compute.py": {"--hpc", "--hpc-root"},
+    "exp022/compute.py": {"--hpc", "--hpc-root", "--plumbing"},
     "exp023/present.py": {"--metadata-source"},
     "exp054/analyse.py": {"--theory-source"},
     "exp082/analyse.py": {"--showcase-source"},
@@ -79,6 +79,9 @@ REMOVED_RUNNER_FLAGS = {
         "--exp044-source",
         "--exp046-source",
     },
+    "exp037/compute.py": {"--collect"},
+    "exp042/compute.py": {"--collect"},
+    "exp082/compute.py": {"--collect"},
 }
 
 

@@ -133,8 +133,7 @@ ceiling (1,056 batched quantitative simulations plus two illustrations).
 ```sh
 uv run python -m experiments.exp082.compute --source <bank-id> \
   --run-id <reserved-compute-id> --shard-index <0-to-5>
-uv run python -m experiments.exp082.compute --source <bank-id> \
-  --run-id <reserved-compute-id> --collect
+uv run python -m experiments.exp082.hpc worker <reviewed-plan.json> collect
 ```
 
 Distributed compute requires committed execution code. Worker completion markers

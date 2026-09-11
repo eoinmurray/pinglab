@@ -177,21 +177,14 @@ def main():
     parser.add_argument(
         "--shard-index", type=int, help="compute worker index (six shards)"
     )
-    parser.add_argument(
-        "--collect",
-        action="store_true",
-        help="complete this compute run from its six shards",
-    )
     args = parser.parse_args()
     try:
         if args.shard_index is not None:
-            if not args.run_id or args.collect:
-                raise PingstoreError(
-                    "shard workers require --run-id and cannot --collect"
-                )
+            if not args.run_id:
+                raise PingstoreError("shard workers require --run-id")
             shard(args.source, run_id=args.run_id, index=args.shard_index)
         else:
-            compute(args.source, run_id=args.run_id, collect=args.collect)
+            compute(args.source, run_id=args.run_id)
     except (PingstoreError, OSError, KeyError, ValueError) as exc:
         parser.exit(1, f"exp082 compute: {exc}\n")
 

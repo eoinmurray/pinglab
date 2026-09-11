@@ -731,7 +731,6 @@ def _bank_parser() -> argparse.ArgumentParser:
     parser.add_argument("--tier", default="all")
     parser.add_argument("--retry-only", action="store_true")
     parser.add_argument("--recover-stale", action="store_true")
-    parser.add_argument("--plumbing", action="store_true")
     return parser
 
 
@@ -993,8 +992,6 @@ def _handle_bank_cli(argv: list[str]) -> bool:
             raise SystemExit(
                 f"bank destination already exists and will not be modified: {root}"
             )
-        if args.plumbing:
-            os.environ["PINGLAB_NB022_PLUMBING"] = "1"
         # Reject predictable setup failures before allocating a run identity.
         _commit, dirty = git_identity(REPO)
         if dirty:
@@ -1014,7 +1011,7 @@ def _handle_bank_cli(argv: list[str]) -> bool:
             samples_epochs=recipe.cell_samples_epochs,
             build_args=recipe.build_train_args,
             scientific_contract_for=recipe.scientific_contract,
-            plumbing=args.plumbing,
+            plumbing=False,
             selection_tier="all",
         )
         manifest["pingstore_run_id"] = reserved
