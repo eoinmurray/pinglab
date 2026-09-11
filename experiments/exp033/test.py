@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import numpy as np
+
 from experiments.exp033 import numerics as exp033
 
 """Synthetic staged evidence and bounded numerical checks; no production runs."""
@@ -13,9 +14,16 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+from pingstore import stages
+from pingstore.contracts import (
+    PingstoreError,
+    load_json,
+    payload_digest,
+    write_json_atomic,
+)
+
 from experiments.exp033 import (
     analyse,
-    appearance,
     compute,
     evidence,
     inputs,
@@ -24,13 +32,6 @@ from experiments.exp033 import (
     plots,
     present,
     recipe,
-)
-from pingstore import stages
-from pingstore.contracts import (
-    PingstoreError,
-    load_json,
-    payload_digest,
-    write_json_atomic,
 )
 
 
@@ -180,8 +181,9 @@ def lab(tmp_path, monkeypatch):
     raw = synthetic()
     calls = []
 
-    def simulate():
+    def simulate(configuration=None):
         calls.append("compute")
+        assert configuration == recipe.configuration()
         return copy.deepcopy(raw)
 
     monkeypatch.setattr(compute, "simulate", simulate)
@@ -213,7 +215,7 @@ def test_independent_stages_and_lossless_arrays(lab, monkeypatch):
     )
     assert not list(source.export.glob("*.svg"))
     monkeypatch.setattr(compute, "simulate", fail)
-    for name in ("solve_ivp", "fsolve", "brentq", "sweep", "find_hopf"):
+    for name in ("fsolve", "brentq", "sweep", "find_hopf"):
         monkeypatch.setattr(numerics, name, fail)
     analysis_id = analyse.analyse(identity, frequency)
     analysis_source = inputs.source(root, analysis_id, "analyse")
@@ -229,7 +231,7 @@ def test_independent_stages_and_lossless_arrays(lab, monkeypatch):
     assert set(presented.record["inputs"]) == {"analysis"}
     assert all((presented.presentation / name).is_file() for name in recipe.FIGURES)
     displayed = load_json(presented.presentation / "numbers.json")
-    assert displayed == appearance.article_numbers(expected)
+    assert displayed == present.article_numbers(expected)
     assert displayed["results"] == expected["results"]
     assert [c["passed"] for c in displayed["success_criteria"]] == [
         c["passed"] for c in expected["success_criteria"]
@@ -292,7 +294,7 @@ def test_compute_failure_and_reserved_identity_reuse(lab, monkeypatch):
     root, _, _, _ = lab
     identity = stages.reserve_stage(root / ".pingstore", "exp033", "compute")
 
-    def broken():
+    def broken(configuration=None):
         raise RuntimeError("solver failure")
 
     monkeypatch.setattr(compute, "simulate", broken)
@@ -374,52 +376,12 @@ def test_failed_integrator_does_not_return_partial_evidence(monkeypatch):
         compute.integrate(numerics.rhs_4d, np.ones(4), 1.0, 1.0)
 
 
-def test_bounded_ramp_and_cycle_measurement_equivalence(monkeypatch):
-    h = synthetic()["reference"]["hopf"]
-
-    def solve(rhs, span, initial, args=(), **kwargs):
-        t = np.linspace(0, span[1], 101)
-        amp = np.sqrt(max(args[0] - h["I_ext_star"], 0)) * 0.005
-
-        def values(tt):
-            return np.array(
-                [initial[k] + amp * np.sin(tt / 5 - k) for k in range(len(initial))]
-            )
-
-        return SimpleNamespace(
-            t=t, y=values(t), sol=values, success=True, message="synthetic"
-        )
-
-    monkeypatch.setattr(compute, "solve_ivp", solve)
-    monkeypatch.setattr(numerics, "solve_ivp", solve)
-    monkeypatch.setattr(
-        numerics, "fixed_point", lambda *a, **k: np.array([0.004, 0.001, 0.008, 0.012])
-    )
-    for sigma in recipe.SIGMA_V_GRID_MV:
-        old = numerics.hysteresis_sweep(h["I_ext_star"], sigma=sigma)
-        new = measurements.hysteresis(compute.ramp(h, sigma), h)
-        assert old == new
-        old_cycle = numerics.limit_cycle_metrics(h, sigma=sigma)
-        new_cycle = measurements.cycle(compute.cycle(h, sigma))
-        assert new_cycle == {
-            k: old_cycle[k] for k in ("I_ext", "e_leads_i_ms", "e_peak_to_peak")
-        }
-    old_comp = numerics.compute_2d_vs_4d(h)
-    comp = compute.comparison(h)
-    for key in ("4d", "2d"):
-        t, y = comp[key]["t_ms"], comp[key]["Y"]
-        d = y[0] - comp["fp"][0]
-        assert old_comp["pp_" + key] == float(d[t > 150].max() - d[t > 150].min())
-
-
 def test_imports_do_not_create_storage_or_import_renderers(tmp_path):
     repo = Path(__file__).resolve().parents[2]
     env = {
         **os.environ,
         "PYTHONDONTWRITEBYTECODE": "1",
         "PYTHONPATH": str(repo),
-        "PINGLAB_RUN_STATE_DIR": str(tmp_path / "state"),
-        "PINGLAB_RUN_DERIVED_DIR": str(tmp_path / "derived"),
     }
     code = "from experiments import exp033; import sys; assert 'matplotlib.pyplot' not in sys.modules; assert not hasattr(exp033, 'RUN_PATHS')"
     result = subprocess.run(
@@ -446,18 +408,33 @@ def test_compute_orchestration_preserves_every_grid(monkeypatch):
     expected = synthetic()
     calls = []
 
-    def continuation(grid, *, sigma=recipe.SIGMA_V_MV, tau=recipe.TAU_GABA_MS):
+    def continuation(
+        grid,
+        *,
+        sigma=recipe.SIGMA_V_MV,
+        tau=recipe.TAU_GABA_MS,
+        configuration=None,
+    ):
+        assert configuration == recipe.configuration()
         calls.append((grid.tolist(), sigma, tau))
         return copy.deepcopy(expected["reference"])
 
     monkeypatch.setattr(compute, "continuation", continuation)
-    monkeypatch.setattr(compute, "ramp", lambda *a: expected["reference"]["ramp"])
-    monkeypatch.setattr(compute, "cycle", lambda *a: expected["reference"]["cycle"])
+    monkeypatch.setattr(compute, "ramp", lambda *a, **k: expected["reference"]["ramp"])
+    monkeypatch.setattr(
+        compute, "cycle", lambda *a, **k: expected["reference"]["cycle"]
+    )
     monkeypatch.setattr(compute, "comparison", lambda *a: expected["comparison"])
-    monkeypatch.setattr(compute, "ladder", lambda: expected["ladder"])
+    monkeypatch.setattr(compute, "ladder", lambda *a: expected["ladder"])
     reductions = []
 
-    def reduction(rhs, fp, grid):
+    def reduction(rhs, fp, grid, *, tau_gaba, sigma, eps):
+        cfg = recipe.configuration()
+        assert (tau_gaba, sigma, eps) == (
+            cfg["tau_GABA_ms"],
+            cfg["sigma_V_mV"],
+            cfg["jacobian_eps"],
+        )
         reductions.append((rhs.__name__, fp.__name__, grid.tolist()))
         return []
 
@@ -525,26 +502,6 @@ def test_frequency_axis_does_not_magnify_roundoff(tmp_path, monkeypatch):
     assert not path.intersects_bbox(text_box, filled=False)
 
 
-def test_historical_svg_changes_only_stamp_and_legend(tmp_path):
-    import xml.etree.ElementTree as ET
-
-    source, destination = tmp_path / "source.svg", tmp_path / "output.svg"
-    source.write_text(
-        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 573.113688 325.44" height="325.44pt"><g id="axes_1"><path id="trace" d="M 1 2 L 3 4"/><g id="legend_1"><text x="300" y="20">4D</text></g></g><g id="stamp"><!-- exp033-numerics --><text>old</text></g></svg>'
-    )
-    before = source.read_bytes()
-    appearance.historical_svg(source, destination, move_legend=True)
-    root = ET.parse(destination).getroot()
-    assert root.get("viewBox") == "0 -60 573.113688 385.44"
-    assert root.get("height") == "385.44pt"
-    assert root.find('.//*[@id="trace"]').attrib == {"id": "trace", "d": "M 1 2 L 3 4"}
-    assert root.find('.//*[@id="legend_1"]').get("transform") == "translate(0 -60)"
-    assert root.find('.//*[@id="stamp"]') is None
-    assert source.read_bytes() == before
-    with pytest.raises(PingstoreError, match="exactly one"):
-        appearance.historical_svg(destination, tmp_path / "twice.svg")
-
-
 def test_article_selected_inputs_equations_and_absent_data(lab):
     import re
     import shutil
@@ -558,10 +515,16 @@ def test_article_selected_inputs_equations_and_absent_data(lab):
     repo = Path(__file__).resolve().parents[2]
     (root / "writings").mkdir()
     for name in (
-        "exp033.typ", "templates/dataset.typ", "templates/abstract.typ",
-        "templates/methods.typ", "templates/article-layout.typ",
-        "templates/result-card.typ", "templates/references.typ",
-        "templates/contents.typ", "templates/equations.typ", "templates/status.typ",
+        "exp033.typ",
+        "templates/dataset.typ",
+        "templates/abstract.typ",
+        "templates/methods.typ",
+        "templates/article-layout.typ",
+        "templates/result-card.typ",
+        "templates/references.typ",
+        "templates/contents.typ",
+        "templates/equations.typ",
+        "templates/status.typ",
     ):
         target = root / "writings" / name
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -642,36 +605,6 @@ def test_refined_hopf_lies_inside_coarse_bracket() -> None:
     assert abs(hopf["leading_eigenvalue"][0]) < 1e-8
 
 
-def test_hysteresis_propagates_sigma(monkeypatch) -> None:
-    observed: list[float] = []
-
-    def fake_fixed_point(_drive, _tau=exp033.TAU_GABA_MS, x0=None, sigma=4.0):
-        observed.append(sigma)
-        return np.ones(4)
-
-    def fake_settle(drive, state, _tau=exp033.TAU_GABA_MS, sigma=4.0, **_kwargs):
-        observed.append(sigma)
-        return max(0.0, drive - 0.5), state
-
-    monkeypatch.setattr(exp033, "fixed_point", fake_fixed_point)
-    monkeypatch.setattr(exp033, "settle", fake_settle)
-    exp033.hysteresis_sweep(0.5, sigma=5.5, span=(-0.05, 0.05), n=3)
-    assert observed and set(observed) == {5.5}
-
-
-def test_tau_gaba_sweep_propagates_sigma(monkeypatch) -> None:
-    observed: list[tuple[float, float]] = []
-
-    def fake_sweep(_grid, tau_gaba=0.0, sigma=0.0):
-        observed.append((tau_gaba, sigma))
-        return []
-
-    monkeypatch.setattr(exp033, "sweep", fake_sweep)
-    monkeypatch.setattr(exp033, "find_hopf", lambda *_args, **_kwargs: None)
-    exp033.frequency_vs_tau_gaba([4.5, 9.0], np.array([0.0, 1.0]), sigma=6.0)
-    assert observed == [(4.5, 6.0), (9.0, 6.0)]
-
-
 def test_exp054_explicitly_selects_reference_sigma() -> None:
     from experiments.exp054.recipe import configuration
 
@@ -680,7 +613,7 @@ def test_exp054_explicitly_selects_reference_sigma() -> None:
 
 def test_publication_text_does_not_claim_fully_fitted_scale() -> None:
     corpus = "\n".join(
-        (exp033.REPO / path).read_text()
+        (Path(__file__).resolve().parents[2] / path).read_text()
         for path in (
             "writings/exp033.typ",
             "writings/exp054.typ",

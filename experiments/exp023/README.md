@@ -15,17 +15,12 @@ configuration has its own schema and explicit correction provenance. The
 recorded source was dirty, so the Git base is not asserted to be a complete
 execution snapshot. The f–I spike totals alone cannot establish per-cell ISIs.
 
-```sh
-uv run python -m experiments.exp023.present --source exp023-r012-analyse \
-  --metadata-source exp023-r013-present
-```
-
-This explicit metadata path accepts only the audited compute identity, payload,
-recipe and source base. It copies all **24 figure files byte-for-byte** and
-preserves every scientific measurement. No simulation, analysis or drawing
-runs; compute and analyse sources remain immutable. The article already reads
-the reported values dynamically from `numbers.json`. Publication selection and
-article prose were not changed.
+The one-off metadata-correction path accepted only the audited compute identity,
+payload, recipe and source base. It copied all **24 figure files byte-for-byte**
+and preserved every scientific measurement. No simulation, analysis or drawing
+ran; compute and analyse sources remained immutable. After producing the
+validated `exp023-r014-present`, that correction implementation was retired.
+The immutable run retains its exact correction provenance.
 
 The new presentation passes v4 layout, payload and lineage checks; **40 tests**,
 lint and whitespace checks pass. Exact run digests and acceptance details are

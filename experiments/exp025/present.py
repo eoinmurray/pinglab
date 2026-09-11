@@ -2,15 +2,13 @@
 
 import argparse
 import sys
-import time
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
-from experiments.exp025 import inputs, plots, recipe
-from experiments.exp025.analyse import MEASUREMENT
+from experiments.exp025 import inputs, plots
+from experiments.exp025.analyse import MEASUREMENT, MEASUREMENT_V1
 from experiments.helpers import theme
-from experiments.helpers.fmt import format_duration
 from pingstore.contracts import PingstoreError, load_json, write_json_atomic
 
 
@@ -22,87 +20,59 @@ def present(identity, *, run_id=None):
     compute = inputs.source(
         REPO, refs["compute"]["run_id"], "compute", reference=refs["compute"]
     )
-    cfg, bank, contract = inputs.compute_evidence(REPO, compute)
+    cfg, bank, _ = inputs.compute_evidence(REPO, compute)
     result = load_json(source.export / "results.json")
+    analysis_schema = result.get("schema")
+    expected_measurement = (
+        MEASUREMENT_V1 if analysis_schema == "exp025.analysis/v1" else MEASUREMENT
+    )
     if (
         refs["bank"] != bank.reference
-        or result.get("schema") != "exp025.analysis/v1"
+        or analysis_schema not in ("exp025.analysis/v1", "exp025.analysis/v2")
         or result.get("recipe") != cfg
-        or result.get("measurement") != MEASUREMENT
-        or source.record["execution"].get("configuration") != MEASUREMENT
+        or source.record["execution"].get("configuration") != expected_measurement
+        or (
+            analysis_schema == "exp025.analysis/v1"
+            and result.get("measurement") != MEASUREMENT_V1
+        )
     ):
         raise PingstoreError("analysis evidence or bank pin differs")
-    checkpoints = [
-        c for group in result["training_sources"].values() for c in group["checkpoints"]
-    ]
-    names = {
-        c["cell_name"]
-        for c in recipe.bank_cells()
-        if c["group"] == "shared_tr02" or c["seed"] in cfg["low_w_in_seeds"]
-    }
-    expected = [c for c in contract["checkpoints"] if c["training_cell"] in names]
-    if sorted(checkpoints, key=lambda c: c["training_cell"]) != sorted(
-        expected, key=lambda c: c["training_cell"]
-    ):
-        raise PingstoreError("analysis checkpoint evidence differs")
-    started = time.monotonic()
     with inputs.execution(
         REPO,
         "present",
         sources={"analysis": source},
         run_id=run_id,
         configuration={
-            "schema": "exp025.presentation/v1",
+            "schema": "exp025.presentation/v2",
             "scientific_review": "deferred",
         },
     ) as run:
         theme.set_paper_mode(True)
         out = run.export
-        rid = run.run_id
         plots.plot_rate_target_p_fgamma(
-            result["rate_target_p_fgamma"], out / "theta_p_fgamma", rid
+            result["rate_target_p_fgamma"], out / "theta_p_fgamma"
         )
-        for model in ("coba", "ping"):
-            plots.render_raster(
-                source.export / f"raster__{model}.npz",
-                out / f"raster__{model}",
-                f"{model} — trained network, MNIST digit 0, 400 ms",
-            )
         plots.fig_results_compound(
             result["frontier_statistics"],
             result["plot_data"]["baseline"],
             source.export / "raster__coba.npz",
             source.export / "raster__ping.npz",
             out / "results_compound",
-            rid,
         )
         plots.plot_low_w_in(
             result["low_w_in_sweep"],
             result["plot_data"]["low_w_in"],
             out / "low_w_in_sweep",
-            rid,
         )
         plots.plot_w_in_scale_sweep(
             result["w_in_scale_sweep"],
             result["plot_data"]["scale_crossing"],
             out / "w_in_scale_sweep",
-            rid,
         )
         plots.plot_w_in_scale_sweep_vs_rate(
-            result["w_in_scale_sweep"], out / "w_in_scale_sweep_vs_rate", rid
+            result["w_in_scale_sweep"], out / "w_in_scale_sweep_vs_rate"
         )
-        duration = time.monotonic() - started
-        write_json_atomic(
-            out / "numbers.json",
-            {
-                **result,
-                "run_id": rid,
-                "notebook_run_id": rid,
-                "duration_s": duration,
-                "duration": format_duration(duration),
-                "git_sha": run.record["provenance"]["git_commit"],
-            },
-        )
+        write_json_atomic(out / "numbers.json", result)
     return run.run_id
 
 

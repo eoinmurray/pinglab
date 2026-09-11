@@ -4,16 +4,16 @@ import math
 from pathlib import Path
 
 import numpy as np
-from experiments.helpers.checkpoints import public_provenance, resolve_checkpoint
-from experiments.helpers.operating_point import (
+from experiments.exp022.checkpoints import public_provenance, resolve_checkpoint
+from pingstore.contracts import PingstoreError, load_json
+
+from . import recipe
+from .recipe import (
     duration_configuration,
     duration_steps,
     refractory_configuration,
     refractory_execution_configuration,
 )
-from pingstore.contracts import PingstoreError, load_json
-
-from . import recipe
 
 
 def finite(value, label: str, *, minimum=0.0, maximum=None) -> float:

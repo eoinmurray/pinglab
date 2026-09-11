@@ -1,10 +1,10 @@
 # snnsim tests
 
-Tests are grouped by the subsystem they exercise, not by an ordered assurance
-level. The directory names answer **what is under test**; pytest markers answer
-**how the test runs**.
+Tests are kept in one flat directory. Module names identify the subsystem or
+behaviour under test; pytest markers answer **how the test runs**.
 
-Keep a test module focused on one public API or coherent behaviour. Split it
+Keep a test module focused on one public API or coherent behaviour, and give new
+modules specific names that remain unambiguous in this directory. Split a module
 when independent behaviours accumulate, normally before it grows beyond roughly
 500 lines. Several closely related tests in one module are expected. Use test
 classes only when the class gives those tests a meaningful behavioural name or

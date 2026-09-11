@@ -4,10 +4,13 @@ from pathlib import Path
 from typing import Any
 
 from experiments.exp022 import training_run_cell, training_run_values
-from experiments.helpers.checkpoints import checkpoint_policy
-from experiments.helpers.operating_point import refractory_configuration
+from experiments.exp022.checkpoints import checkpoint_policy
+from snnsim.timing import refractory_metadata
 
 SLUG = "exp082"
+REFRACTORY_E_MS = 1.2
+REFRACTORY_I_MS = 0.6
+REFRACTORY_POLICY = "exact"
 SHARDS = 6
 ANALYSIS_PURPOSE = "deployment_performance"
 CHECKPOINT_POLICY = checkpoint_policy(ANALYSIS_PURPOSE)
@@ -56,6 +59,34 @@ FIGURES = (
     "continuous_stream_compound.png",
     "continuous_stream_compound.pdf",
 )
+
+
+def refractory_configuration() -> dict:
+    return {
+        "refractory_e_ms": REFRACTORY_E_MS,
+        "refractory_i_ms": REFRACTORY_I_MS,
+        "refractory_policy": REFRACTORY_POLICY,
+    }
+
+
+def refractory_args() -> list[str]:
+    return [
+        "--refractory-e-ms",
+        str(REFRACTORY_E_MS),
+        "--refractory-i-ms",
+        str(REFRACTORY_I_MS),
+        "--refractory-policy",
+        REFRACTORY_POLICY,
+    ]
+
+
+def refractory_execution_configuration(dt_ms: float) -> dict:
+    return refractory_metadata(
+        REFRACTORY_E_MS,
+        REFRACTORY_I_MS,
+        dt_ms,
+        policy=REFRACTORY_POLICY,
+    )
 
 
 def training_cell_name(seed):

@@ -335,7 +335,7 @@ ownership; do not alter the completed import to accommodate the display.
 The article retains creation date 2026-06-15 and `[▦ DATA]`, with substantive
 revision date 2026-08-28. Dependent exp092 and exp109 already have `[▦ DATA]` and
 need no status edits. The approved scientific corrections, limitations and
-preserved equations are recorded in [SCIENCE_REVIEW.md](SCIENCE_REVIEW.md).
+preserved equations remain recorded in this README and the article.
 No Reviewed status was assigned. The article is validated against the full
 historical production evidence; synthetic/smoke runs are contract tests, not
 new evidence for its numerical claims.

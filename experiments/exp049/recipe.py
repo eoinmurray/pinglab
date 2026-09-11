@@ -1,14 +1,13 @@
 """Retained TR-05 endpoint recipe; all training belongs to exp022."""
 
 from experiments.exp022 import training_run_cell, training_run_values
-from experiments.helpers.checkpoints import checkpoint_policy
+from experiments.exp022.checkpoints import checkpoint_policy
 from experiments.helpers.datasets import MNIST_REDUCED_EVAL_SAMPLES
-from experiments.helpers.operating_point import (
-    refractory_args,
-    refractory_configuration,
-)
 
 SLUG = "exp049"
+REFRACTORY_E_MS = 1.2
+REFRACTORY_I_MS = 0.6
+REFRACTORY_POLICY = "exact"
 
 ANALYSIS_PURPOSE = "endpoint_dynamics"
 
@@ -76,6 +75,25 @@ ARRAYS = {
     "weights_dump.npz": WEIGHT_ARRAYS,
     "recording.npz": SNAPSHOT_ARRAYS,
 }
+
+
+def refractory_configuration() -> dict:
+    return {
+        "refractory_e_ms": REFRACTORY_E_MS,
+        "refractory_i_ms": REFRACTORY_I_MS,
+        "refractory_policy": REFRACTORY_POLICY,
+    }
+
+
+def refractory_args() -> list[str]:
+    return [
+        "--refractory-e-ms",
+        str(REFRACTORY_E_MS),
+        "--refractory-i-ms",
+        str(REFRACTORY_I_MS),
+        "--refractory-policy",
+        REFRACTORY_POLICY,
+    ]
 FIGURES = tuple(
     name + "." + ext
     for name, exts in [("card__" + c, ("png", "pdf")) for c in COND_ORDER]

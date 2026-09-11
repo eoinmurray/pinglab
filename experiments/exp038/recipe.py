@@ -3,14 +3,13 @@
 import numpy as np
 from experiments.exp022 import FR_STRENGTH_UPPER as FR_STRENGTH_UPPER
 from experiments.exp022 import training_run_cell, training_run_values
-from experiments.helpers.checkpoints import checkpoint_policy
+from experiments.exp022.checkpoints import checkpoint_policy
 from experiments.helpers.datasets import MNIST_REDUCED_EVAL_SAMPLES
-from experiments.helpers.operating_point import (
-    refractory_args,
-    refractory_configuration,
-)
 
 SLUG = "exp038"
+REFRACTORY_E_MS = 1.2
+REFRACTORY_I_MS = 0.6
+REFRACTORY_POLICY = "exact"
 ANALYSIS_PURPOSE = "deployment_performance"
 CHECKPOINT_POLICY = checkpoint_policy(ANALYSIS_PURPOSE)
 CHECKPOINT_ROLE = CHECKPOINT_POLICY["role"]
@@ -60,6 +59,25 @@ FIGURES = tuple(
     )
     for ext in extensions
 )
+
+
+def refractory_configuration() -> dict:
+    return {
+        "refractory_e_ms": REFRACTORY_E_MS,
+        "refractory_i_ms": REFRACTORY_I_MS,
+        "refractory_policy": REFRACTORY_POLICY,
+    }
+
+
+def refractory_args() -> list[str]:
+    return [
+        "--refractory-e-ms",
+        str(REFRACTORY_E_MS),
+        "--refractory-i-ms",
+        str(REFRACTORY_I_MS),
+        "--refractory-policy",
+        REFRACTORY_POLICY,
+    ]
 
 
 def cell_name(model: str, rate_target_hz: float | None, seed: int) -> str:

@@ -1,14 +1,12 @@
+"""Synthetic v4 stage fixtures; no production simulations or archive imports."""
+
 from __future__ import annotations
 
 from pathlib import Path
 
-from experiments import exp022, exp025
-
-"""Synthetic v3 stage fixtures; no production simulations or archive imports."""
-
-
 import numpy as np
 import pytest
+from experiments import exp022
 from experiments.exp025 import (
     analyse,
     compute,
@@ -17,6 +15,10 @@ from experiments.exp025 import (
     measurements,
     present,
     recipe,
+)
+from experiments.exp025.measurements import (
+    aggregate_frontier,
+    aggregate_low_w_in_seed_rows,
 )
 from experiments.exp044.test import _common_config
 from pingstore import stages
@@ -203,6 +205,7 @@ def test_independent_stages_preserve_bank_and_do_not_publish(lab, monkeypatch):
     assert len(calls) == 56
     run = inputs.source(root, identity, "compute")
     assert set(run.record["inputs"]) == {"bank"}
+    assert not (run.export / "evidence.json").exists()
     corrected = load_json(run.file("frontier", "coba__off__seed42", "metrics.json"))
     assert (
         corrected["config"]["seed"] == 42 and corrected["config"]["tau_gaba_ms"] == 6.0
@@ -216,6 +219,18 @@ def test_independent_stages_preserve_bank_and_do_not_publish(lab, monkeypatch):
     measured_id = analyse.analyse(identity)
     measured = inputs.source(root, measured_id, "analyse")
     data = load_json(measured.export / "results.json")
+    assert data["schema"] == "exp025.analysis/v2"
+    assert (
+        not {
+            "measurement",
+            "checkpoint_policy",
+            "checkpoint_provenance",
+            "training_sources",
+            "git_sha_train",
+            "config",
+        }
+        & data.keys()
+    )
     assert len(data["results"]) == 36
     assert len(data["frontier_statistics"]) == 12
     assert len(data["rate_target_p_fgamma"]) == 12
@@ -235,8 +250,9 @@ def test_independent_stages_preserve_bank_and_do_not_publish(lab, monkeypatch):
         )
     shown = inputs.source(root, present.present(measured_id), "present")
     numbers = load_json(shown.export / "numbers.json")
-    assert all(numbers[k] == v for k, v in data.items())
+    assert numbers == data
     assert all((shown.export / name).is_file() for name in recipe.FIGURES)
+    assert not list(shown.export.glob("raster__*"))
     assert not (root / ".artifacts").exists()
     bank.check_unchanged()
 
@@ -305,6 +321,25 @@ def test_penalty_retains_float32_samplewise_definition(tmp_path):
     assert value[2] == float(0.041 * (np.maximum(rates - 1.0, 0.0) ** 2).mean())
 
 
+def test_low_curve_preserves_zero_test_rates() -> None:
+    histories = [
+        [
+            {
+                "ep": 1,
+                "acc": 50.0,
+                "test_rate_e": 0.0,
+                "rate_e": 4.0,
+                "test_rate_i": 0.0,
+                "rate_i": 2.0,
+            }
+        ]
+    ]
+    curve = analyse.low_curve(histories)
+    assert curve["rate_e_mean"] == [0.0]
+    assert curve["rate_i_mean"] == [0.0]
+    assert analyse.history_value(histories[0][0], "test_rate_e", "rate_e") == 0.0
+
+
 @pytest.mark.parametrize("fault", ["duplicate", "shape", "nan", "samples"])
 def test_recording_semantics_reject_corrupt_but_resigned_payload(lab, fault):
     from pingstore.contracts import payload_digest
@@ -343,26 +378,30 @@ def test_recording_semantics_reject_corrupt_but_resigned_payload(lab, fault):
 
 
 def test_frontier_strength_is_owned_by_exp022() -> None:
-    assert exp025.FR_STRENGTH_UPPER == exp022.FR_STRENGTH_UPPER == 0.041
+    assert recipe.FR_STRENGTH_UPPER == exp022.FR_STRENGTH_UPPER == 0.041
+
+
+def test_writeup_anchor_scales_remain_in_the_recipe() -> None:
+    assert {1.0, 3.0} <= set(recipe.W_IN_SCALE_VALUES)
 
 
 def _frontier_rows() -> list[dict]:
     return [
         {
-            "cell_name": exp025.cell_name(model, rate_target_hz, seed),
+            "cell_name": recipe.cell_name(model, rate_target_hz, seed),
             "model": model,
             "rate_target_hz": rate_target_hz,
-            "rate_target_display": exp025.rate_target_display(rate_target_hz),
+            "rate_target_display": recipe.rate_target_display(rate_target_hz),
             "seed": seed,
             "final_acc": 80.0 + seed / 100.0,
             "rate_e": 10.0 + seed / 100.0,
             "evaluation_partition": "official_mnist_test",
-            "evaluation_samples": exp025.EVAL_MAX_SAMPLES,
-            "checkpoint_role": exp025.CHECKPOINT_ROLE,
+            "evaluation_samples": recipe.EVAL_MAX_SAMPLES,
+            "checkpoint_role": recipe.CHECKPOINT_ROLE,
         }
-        for model in exp025.MODELS
-        for rate_target_hz in exp025.RATE_TARGET_GRID_HZ
-        for seed in exp025.seeds_for(rate_target_hz)
+        for model in recipe.MODELS
+        for rate_target_hz in recipe.RATE_TARGET_GRID_HZ
+        for seed in recipe.SEEDS
     ]
 
 
@@ -374,7 +413,7 @@ def test_frontier_consumes_all_36_registered_tr02_cells() -> None:
 
 
 def test_frontier_statistics_record_three_seed_provenance_per_point() -> None:
-    stats = exp025.aggregate_frontier(_frontier_rows())
+    stats = aggregate_frontier(_frontier_rows())
     assert len(stats) == 12
     for point in stats:
         assert point["statistic"] == "mean_across_independent_seeds"
@@ -416,19 +455,19 @@ def test_frontier_endpoint_requests_one_official_test_forward_pass(
 
 
 def test_low_w_in_cells_are_owned_by_exp022() -> None:
-    assert tuple(exp025.LOW_W_IN_VALUES) == (0.05, 0.1, 0.3, 0.9)
+    assert tuple(recipe.LOW_W_IN_VALUES) == (0.05, 0.1, 0.3, 0.9)
     assert (
-        exp025.low_w_in_cell_name(0.9, 43)
+        recipe.low_w_in_cell_name(0.9, 43)
         == exp022.training_run_cell("TR-07", w_in=0.9, seed=43)["name"]
     )
 
 
 def test_low_w_in_production_grid_uses_three_seeds() -> None:
-    assert exp025.LOW_W_IN_SEEDS == [42, 43, 44]
+    assert recipe.SEEDS == [42, 43, 44]
     paths = {
-        exp025.low_w_in_cell_name(w_in, seed)
-        for w_in in exp025.LOW_W_IN_VALUES
-        for seed in exp025.LOW_W_IN_SEEDS
+        recipe.low_w_in_cell_name(w_in, seed)
+        for w_in in recipe.LOW_W_IN_VALUES
+        for seed in recipe.SEEDS
     }
     assert len(paths) == 12
 
@@ -439,7 +478,7 @@ def test_low_w_in_aggregation_reports_mean_and_sem() -> None:
         {"seed": 43, "final_acc": 82.0, "rate_e": 12.0, "rate_i": 7.0},
         {"seed": 44, "final_acc": 84.0, "rate_e": 14.0, "rate_i": 9.0},
     ]
-    result = exp025.aggregate_low_w_in_seed_rows(0.3, rows)
+    result = aggregate_low_w_in_seed_rows(0.3, rows)
     assert result["n_seeds"] == 3
     assert result["seeds"] == [42, 43, 44]
     assert result["final_acc"] == 82.0

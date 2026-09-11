@@ -4,8 +4,7 @@ import math
 from typing import Any, cast
 
 import numpy as np
-from experiments.helpers.checkpoints import public_provenance, resolve_checkpoint
-from experiments.helpers.operating_point import refractory_execution_configuration
+from experiments.exp022.checkpoints import public_provenance, resolve_checkpoint
 from pingstore.contracts import PingstoreError, load_json
 from pingstore.layout import canonical_export_file, canonical_export_unit
 
@@ -308,7 +307,10 @@ def showcase_configuration(*, conditions=None, version=2):
     return {
         "schema": f"exp082.showcase-selection/v{version}",
         **(
-            {"dt_ms": recipe.DT_MS, **refractory_execution_configuration(recipe.DT_MS)}
+            {
+                "dt_ms": recipe.DT_MS,
+                **recipe.refractory_execution_configuration(recipe.DT_MS),
+            }
             if version >= 2 else {}
         ),
         "conditions": [

@@ -7,6 +7,7 @@ from pathlib import Path
 
 import numpy as np
 import pytest
+from experiments import exp022
 from experiments.exp038 import (
     analyse,
     compute,
@@ -257,6 +258,52 @@ def test_recipe_retains_full_production_grid():
     assert (
         recipe.configuration()["rate_rasters"] == np.linspace(0, 100, 40)[:10].tolist()
     )
+
+
+def test_frontier_registry_and_ei_summary_are_multiseed(tmp_path):
+    expected = {
+        cell["name"]
+        for cell in exp022.CANONICAL_CELLS
+        if cell["training_run_id"] == "TR-02"
+    }
+    observed = {
+        recipe.cell_name(model, target, seed)
+        for model in recipe.MODELS
+        for target in recipe.RATE_TARGET_GRID_HZ
+        for seed in recipe.seeds_for(target)
+    }
+    assert observed == expected
+
+    points = [
+        {
+            "seed": seed,
+            "ei_strength": ei,
+            "acc": acc,
+            "hid_rate_hz": rate,
+            "inh_rate_hz": rate / 2,
+            "n_total": 1400,
+        }
+        for ei, accs, rates in (
+            (0.0, (88, 90, 92), (120, 130, 140)),
+            (1.0, (50, 55, 60), (8, 9, 10)),
+        )
+        for seed, acc, rate in zip(recipe.SEEDS_BASELINE, accs, rates)
+    ]
+    summary = measurements.summarize_ei_points(points)
+    assert [row["ei_strength"] for row in summary] == [0.0, 1.0]
+    assert summary[0]["acc"] == 90.0
+    assert summary[0]["acc_sd"] == 2.0
+    assert summary[1]["hid_rate_hz"] == 9.0
+    assert summary[1]["hid_rate_hz_sd"] == 1.0
+
+    job = next(j for j in recipe.jobs(recipe.configuration()) if j["kind"] == "ei_sweep")
+    args = recipe.inference_args(tmp_path, tmp_path / "weights.pth", tmp_path / "out", job)
+    assert args[args.index("--max-samples") + 1] == "1000"
+    assert args[args.index("--load-weights") + 1].endswith("weights.pth")
+    assert args[args.index("--skip-load") + 1:args.index("--skip-load") + 3] == [
+        "W_ei.",
+        "W_ie.",
+    ]
 
 
 def test_snapshots_preserve_full_population_rate_and_rng_selection(tmp_path):

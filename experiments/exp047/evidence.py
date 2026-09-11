@@ -2,14 +2,14 @@
 
 import math
 
-from experiments.helpers.operating_point import (
-    duration_configuration,
-    refractory_execution_configuration,
-)
 from pingstore.contracts import PingstoreError, load_json
 from pingstore.layout import canonical_export_file
 
 from . import recipe
+from .recipe import (
+    duration_configuration,
+    refractory_execution_configuration,
+)
 
 
 def configuration(cfg):

@@ -21,7 +21,7 @@ from execution import (
 from tool import main
 
 from tools.snnlang.examples.build_examples import ping_classifier
-from tools.snnsim.tests.execution._builders import (
+from tools.snnsim.tests._execution_builders import (
     direct_train_bundle as _direct_train_bundle,
 )
 

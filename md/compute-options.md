@@ -2,7 +2,7 @@
 
 This is the operational map for pinglab compute. It separates the persistent control plane from the machines that perform numerical work, and records the authentication boundary for each provider. Prices, balances, queues, and GPU stock change. Host aliases, hardware, accounts, and service names below are the recorded project configuration, not a live availability report. Check the relevant machine and provider before launch; an edit date is not evidence that credentials or capacity were revalidated.
 
-Never place a password, TOTP seed, private SSH key, RunPod API key, or Modal token in this repository. Authentication commands either use an encrypted local key or open the provider’s own interactive login flow.
+Never place a password, TOTP seed, private SSH key, or Modal token in this repository. Authentication commands either use an encrypted local key or open the provider’s own interactive login flow.
 
 ## Execution workflow
 
@@ -147,40 +147,11 @@ squeue -u "$USER"
 
 The names are easy to invert: SL2 maps to `gpu1`, while SL3 maps to `gpu2`.
 
-## RunPod
-
-**When to use.** Use RunPod for urgent burst capacity when Olorin is occupied and Wilkes3 is queued. Prefer a 4090 when the workload fits in 24 GB and stock exists; use a 5090 for additional VRAM or faster turnaround. Always run the smoke test before a fleet launch because allocation does not guarantee that the container will become usable promptly.
-
-**Provider overview.** RunPod provides per-second GPU pods. Pinglab targets Secure Cloud in `EU-RO-1`, attaches the shared network volume, and uses `ghcr.io/eoinmurray/pinglab:cu128`, the same image used by experiment dispatch. GPU stock and regional prices are volatile. Pods must be reaped after failures because a rented but unusable pod can still bill.
-
-**How to use.** `runpodctl doctor` stores the account API key in the user’s RunPod configuration. Do not commit the key. The account also holds an SSH public key, optional S3 credentials for volume collection, and optional container-registry authentication for GHCR pulls.
-
-```sh
-# One-time interactive authentication.
-runpodctl doctor
-
-# Read-only inventory and account checks.
-runpodctl gpu list
-runpodctl datacenter list
-runpodctl pod list -o json
-runpodctl user -o json
-
-# Dry-run plan, then an explicitly paid capacity check.
-uv run python experiments/helpers/runpod_smoke.py
-uv run python experiments/helpers/runpod_smoke.py --live
-
-# Experiment dispatch remains a dry-run without --live.
-uv run python -m experiments.exp022.compute --runpod --gpu 5090
-uv run python -m experiments.exp022.compute --runpod --gpu 5090 --live
-```
-
-Pod creation can incur charges. Dry-run first, obtain explicit approval, record the pod IDs, launch, monitor, and collect. Verify that the pods created for this dispatch are terminated; unrelated pods need not disappear. Broad reap commands can affect other work, so inspect their scope before using them.
-
 ## Modal
 
-**When to use.** Use Modal when managed function execution and reduced infrastructure management fit the workload; compare current cost and startup behaviour rather than assuming a fixed premium or guaranteed startup time. It is useful as an escape hatch when RunPod image or SSH transport is unreliable. Only runners with an implemented Modal backend can use it.
+**When to use.** Use Modal when managed function execution and reduced infrastructure management fit the workload; compare current cost and startup behaviour rather than assuming a fixed premium or guaranteed startup time. Only runners with an implemented Modal backend can use it.
 
-**Provider overview.** Modal runs containerized functions and bills GPU, CPU, and memory by execution time. It provides managed scheduling rather than a persistent SSH host. Pinglab’s Modal integration is narrower than its RunPod integration, so backend support must be confirmed in the selected runner.
+**Provider overview.** Modal runs containerized functions and bills GPU, CPU, and memory by execution time. It provides managed scheduling rather than a persistent SSH host, so backend support must be confirmed in the selected runner.
 
 **How to use.** `modal setup` opens Modal’s authentication flow and stores a local token. Never commit token values. For a runner implementing the project remote-dispatch contract, `--live` gates paid work. The low-level SNNSIM tool’s `--modal` is a different interface; do not assume it shares that gate.
 
@@ -202,7 +173,7 @@ Modal is not a drop-in flag for every experiment. If a runner does not expose `-
 
 1.  **Before launch:** inspect the recipe, supported backend flags, resource request, output destination, and reserved run identity. Confirm shared-machine permission or paid-work approval.
 
-2.  **During execution:** retain job or pod IDs, inspect logs and progress, and distinguish retries from a new scientific condition.
+2.  **During execution:** retain scheduler or job IDs, inspect logs and progress, and distinguish retries from a new scientific condition.
 
 3.  **After execution:** require the stage’s completed run and validation, not just a successful scheduler exit or a directory containing files. Keep partial outputs hidden.
 
@@ -212,4 +183,4 @@ Modal is not a drop-in flag for every experiment. If a runner does not expose `-
 
 ## Decision order
 
-Use the smallest adequate option. Develop locally; orchestrate from Hetzner; use an available Olorin GPU when shared-machine policy permits; submit planned production to Wilkes3 SL2; use RunPod for urgent overflow; choose Modal when managed execution fits the task and current cost; and leave SL3 for work that can wait. [exp104](/exp104/) — [_Cloudflare R2 archive_](/exp104/)
+Use the smallest adequate option. Develop locally; orchestrate from Hetzner; use an available Olorin GPU when shared-machine policy permits; submit planned production to Wilkes3 SL2; choose Modal when managed execution fits the task and current cost; and leave SL3 for work that can wait. [exp104](/exp104/) — [_Cloudflare R2 archive_](/exp104/)

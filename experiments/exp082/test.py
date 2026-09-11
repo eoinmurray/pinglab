@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+import json
+import os
+import subprocess
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -363,13 +367,21 @@ def test_continuous_stream_compound_preserves_evidence(tmp_path, monkeypatch):
     n = 100
     shares = np.full((n, 10), 0.1)
     stream = {
-        "conditions": ((5, 5), (5, 25)), "boundaries": (0, 50, 100),
-        "labels": (1, 2), "predictions": (1, 2), "pixels": np.zeros((2, 784)),
-        "spikes_e": np.zeros((n, 200)), "spikes_i": np.zeros((n, 64)),
+        "conditions": ((5, 5), (5, 25)),
+        "boundaries": (0, 50, 100),
+        "labels": (1, 2),
+        "predictions": (1, 2),
+        "pixels": np.zeros((2, 784)),
+        "spikes_e": np.zeros((n, 200)),
+        "spikes_i": np.zeros((n, 64)),
         "probabilities": shares,
     }
-    rows = {"durations": (25, 200), "rates": (0.5, 25),
-            "grid": [[0.2, 0.4], [0.6, 0.8]], "grid_sem": [0.01, 0.02]}
+    rows = {
+        "durations": (25, 200),
+        "rates": (0.5, 25),
+        "grid": [[0.2, 0.4], [0.6, 0.8]],
+        "grid_sem": [0.01, 0.02],
+    }
     saved = []
     monkeypatch.setattr(plt, "close", lambda fig: saved.append(fig))
     output = tmp_path / "compound"
@@ -624,9 +636,9 @@ def test_image_and_encoding_plans_do_not_depend_on_job_order():
     assert np.array_equal(
         image_bank, inference.shared_image_stream_indices(10_000, cfg)
     )
-    assert {
-        job["id"]: recipe.encoding_seed(job, 0) for job in forwards
-    } == {job["id"]: recipe.encoding_seed(job, 0) for job in backwards}
+    assert {job["id"]: recipe.encoding_seed(job, 0) for job in forwards} == {
+        job["id"]: recipe.encoding_seed(job, 0) for job in backwards
+    }
     assert recipe.validate_configuration(recipe.configuration(version=1))["schema"] == (
         "exp082.recipe/v1"
     )
@@ -885,6 +897,36 @@ def test_exp082_condition_jobs_cover_the_registered_grid() -> None:
     }
 
 
+def test_import_does_not_create_storage(tmp_path: Path) -> None:
+    root = Path(__file__).resolve().parents[2]
+    training = tmp_path / "training"
+    code = (
+        "from experiments import exp082 as m; import json; "
+        "print(json.dumps({'run_paths': hasattr(m, 'RUN_PATHS'), "
+        "'legacy_execution': hasattr(m, 'run_infer_job'), "
+        "'condition_jobs': len(m.infer_jobs())}))"
+    )
+    result = subprocess.run(
+        [sys.executable, "-c", code],
+        cwd=tmp_path,
+        env={
+            **os.environ,
+            "PYTHONPATH": str(root),
+            "PINGLAB_TRAINING_ROOT": str(training),
+            "PINGLAB_SMOKE": "0",
+        },
+        text=True,
+        capture_output=True,
+        check=True,
+    )
+    assert json.loads(result.stdout) == {
+        "run_paths": False,
+        "legacy_execution": False,
+        "condition_jobs": 132,
+    }
+    assert not training.exists()
+
+
 def test_output_activity_summary_uses_presentation_boundaries() -> None:
     spikes = np.zeros((5, 3), dtype=np.int8)
     spikes[0, 0] = 1
@@ -1011,7 +1053,9 @@ def test_historical_import_cannot_adopt_a_new_execution_recipe(tmp_path, monkeyp
             },
         },
     )
-    monkeypatch.setattr(evidence, "load_json", lambda _: {"grid_per_seed": recipe.jobs(cfg)})
+    monkeypatch.setattr(
+        evidence, "load_json", lambda _: {"grid_per_seed": recipe.jobs(cfg)}
+    )
     monkeypatch.setattr(evidence, "aggregate", lambda path, job, config: job)
     evidence.validate_import(run, cfg)
     with pytest.raises(PingstoreError, match="retained import contract"):

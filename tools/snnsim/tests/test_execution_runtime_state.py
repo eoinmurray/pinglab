@@ -19,10 +19,10 @@ from execution import (
 from tool import main
 
 from tools import snnlang as snn
-from tools.snnsim.tests.execution._builders import (
+from tools.snnsim.tests._execution_builders import (
     coupled_graph as _coupled_graph,
 )
-from tools.snnsim.tests.execution._builders import (
+from tools.snnsim.tests._execution_builders import (
     state_tensors as _state_tensors,
 )
 

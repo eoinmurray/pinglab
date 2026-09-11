@@ -13,54 +13,15 @@ from .recipe import MODELS
 
 MODEL_COLORS = {"coba": theme.DEEP_RED, "ping": theme.INK_BLACK}
 MODEL_MARKERS = {"coba": "s", "ping": "D"}
-
-
-def render_raster(npz_path: Path, out_path: Path, title: str) -> None:
-    """Population spike raster from recording.npz."""
-    theme.apply()
-    data = np.load(npz_path)
-    dt = float(data["dt"])
-    T, n_e, n_i = int(data["T"]), int(data["n_e"]), int(data["n_i"])
-    t_ms = np.arange(T) * dt
-    has_i = data["i_t"].size > 0
-    if has_i:
-        fig, (ax_e, ax_i) = plt.subplots(
-            2,
-            1,
-            figsize=(5.6, 3.15),
-            sharex=True,
-            gridspec_kw={"height_ratios": [4, 1]},
-        )
-    else:
-        fig, ax_e = plt.subplots(1, 1, figsize=(5.6, 3.15))
-        ax_i = None
-    e_idx, e_t = data["e_cell"], data["e_t"]
-    ax_e.scatter(t_ms[e_t], e_idx, s=1.0, c=theme.INK_BLACK, marker="|", linewidths=0.5)
-    ax_e.set_ylabel("E neuron")
-    ax_e.set_ylim(0, n_e)
-    ax_e.set_xlim(0, T * dt)
-    ax_e.set_title(title)
-    if has_i:
-        assert ax_i is not None  # has_i is only True when the 2-axes branch ran
-        i_idx, i_t = data["i_cell"], data["i_t"]
-        ax_i.scatter(
-            t_ms[i_t], i_idx, s=1.0, c=theme.DEEP_RED, marker="|", linewidths=0.5
-        )
-        ax_i.set_ylabel("I neuron")
-        ax_i.set_ylim(0, n_i)
-        ax_i.set_xlim(0, T * dt)
-        ax_i.set_xlabel("time (ms)")
-    else:
-        ax_e.set_xlabel("time (ms)")
-    fig.tight_layout()
-    save_figure(fig, out_path, formats=("png", "pdf"))  # dense raster: PNG, not SVG
-    plt.close(fig)
+SCALE_STYLES = {
+    "coba@rt1hz": ("COBA (1 Hz target)", theme.DEEP_RED, "s", "-"),
+    "ping@rt1hz": ("PING (1 Hz target)", theme.INK_BLACK, "o", "-"),
+}
 
 
 def plot_rate_target_p_fgamma(
     rows: list[dict],
     out_path: Path,
-    run_id: str,
 ) -> None:
     """4-panel decomposition vs rate target (Hz):
     (top-left)  p vs rate target (PING only) — the per-cycle participation gate
@@ -175,7 +136,7 @@ def plot_rate_target_p_fgamma(
     plt.close(fig)
 
 
-def plot_low_w_in(rows: list[dict], curves: dict, out_path: Path, run_id: str) -> None:
+def plot_low_w_in(rows: list[dict], curves: dict, out_path: Path) -> None:
     """2 rows × 3 cols. One column per --w-in init. Top row: per-epoch
     accuracy. Bottom row: per-epoch firing rates with E (black) and I
     (red) overlaid. Reads per-epoch traces from each run's metrics.json."""
@@ -251,82 +212,70 @@ def plot_low_w_in(rows: list[dict], curves: dict, out_path: Path, run_id: str) -
     plt.close(fig)
 
 
+def _plot_scale_series(
+    axes,
+    rows: list[dict],
+    *,
+    x_key: str,
+    y_keys: tuple[str, ...],
+    sort_key: str | None = None,
+    mark_trained: bool = False,
+) -> None:
+    for cell, (label, color, marker, linestyle) in SCALE_STYLES.items():
+        selected = [row for row in rows if row["cell"] == cell]
+        if sort_key is not None:
+            selected.sort(key=lambda row: row[sort_key])
+        if not selected:
+            continue
+        xs = [row[x_key] for row in selected]
+        style = {
+            "marker": marker,
+            "color": color,
+            "lw": 1.5,
+            "ls": linestyle,
+            "label": label,
+        }
+        for axis, key in zip(axes, y_keys, strict=True):
+            axis.plot(xs, [row[key] for row in selected], **style)
+        if not mark_trained:
+            continue
+        trained = next(
+            (row for row in selected if abs(row["scale"] - 1.0) < 1e-6), None
+        )
+        if trained is None:
+            continue
+        star = {
+            "marker": "*",
+            "color": color,
+            "markersize": 16,
+            "markeredgecolor": theme.INK_BLACK,
+            "markeredgewidth": 0.7,
+            "linestyle": "None",
+            "zorder": 5,
+        }
+        for axis, key in zip(axes, y_keys, strict=True):
+            axis.plot([trained[x_key]], [trained[key]], **star)
+
+
 def plot_w_in_scale_sweep(
-    rows: list[dict], f_star_s: float | None, out_path: Path, run_id: str
+    rows: list[dict], f_star_s: float | None, out_path: Path
 ) -> None:
     """Six-panel: CE loss, penalty, total loss, accuracy, E rate, I rate
     vs W_in scale. One curve per (model, rate_target_hz) cell."""
     theme.apply()
     fig, axes_2d = plt.subplots(2, 3, figsize=(6.9, 4.6), dpi=150)
     axes = axes_2d.flatten()
-    styles = {
-        "coba@rt1hz": ("COBA (1 Hz target)", theme.DEEP_RED, "s", "-"),
-        "ping@rt1hz": ("PING (1 Hz target)", theme.INK_BLACK, "o", "-"),
-    }
     for ax in axes:
         ax.set_xlabel("$W_\\text{in}$ scale $s$", fontsize=theme.SIZE_LABEL)
         ax.axvline(1.0, color=theme.GREY_MID, lw=0.6, ls="--", alpha=0.7)
         if f_star_s is not None:
             ax.axvline(f_star_s, color=theme.INK_BLACK, lw=0.8, ls=":", alpha=0.7)
-    for cell, (label, color, marker, ls) in styles.items():
-        msel = [r for r in rows if r["cell"] == cell]
-        if not msel:
-            continue
-        xs = [r["scale"] for r in msel]
-        axes[0].plot(
-            xs,
-            [r["loss"] for r in msel],
-            marker=marker,
-            color=color,
-            lw=1.5,
-            ls=ls,
-            label=label,
-        )
-        axes[1].plot(
-            xs,
-            [r["penalty"] for r in msel],
-            marker=marker,
-            color=color,
-            lw=1.5,
-            ls=ls,
-            label=label,
-        )
-        axes[2].plot(
-            xs,
-            [r["total_loss"] for r in msel],
-            marker=marker,
-            color=color,
-            lw=1.5,
-            ls=ls,
-            label=label,
-        )
-        axes[3].plot(
-            xs,
-            [r["acc"] for r in msel],
-            marker=marker,
-            color=color,
-            lw=1.5,
-            ls=ls,
-            label=label,
-        )
-        axes[4].plot(
-            xs,
-            [r["rate_e"] for r in msel],
-            marker=marker,
-            color=color,
-            lw=1.5,
-            ls=ls,
-            label=label,
-        )
-        axes[5].plot(
-            xs,
-            [r["rate_i"] for r in msel],
-            marker=marker,
-            color=color,
-            lw=1.5,
-            ls=ls,
-            label=label,
-        )
+    _plot_scale_series(
+        axes,
+        rows,
+        x_key="scale",
+        y_keys=("loss", "penalty", "total_loss", "acc", "rate_e", "rate_i"),
+    )
     axes[0].set_ylabel("Test cross-entropy", fontsize=theme.SIZE_LABEL)
     axes[0].set_title("CE loss", fontsize=theme.SIZE_TITLE)
     if f_star_s is not None:
@@ -363,9 +312,7 @@ def plot_w_in_scale_sweep(
     plt.close(fig)
 
 
-def plot_w_in_scale_sweep_vs_rate(
-    rows: list[dict], out_path: Path, run_id: str
-) -> None:
+def plot_w_in_scale_sweep_vs_rate(rows: list[dict], out_path: Path) -> None:
     """Same data as plot_w_in_scale_sweep, but x-axis is E rate instead
     of W_in scale s. Y-axes: CE | penalty | total loss | accuracy |
     I rate | s. Each cell's trained s=1 point marked with a filled star
@@ -374,93 +321,17 @@ def plot_w_in_scale_sweep_vs_rate(
     theme.apply()
     fig, axes_2d = plt.subplots(2, 3, figsize=(6.9, 4.6), dpi=150)
     axes = axes_2d.flatten()
-    styles = {
-        "coba@rt1hz": ("COBA (1 Hz target)", theme.DEEP_RED, "s", "-"),
-        "ping@rt1hz": ("PING (1 Hz target)", theme.INK_BLACK, "o", "-"),
-    }
     for ax in axes:
         ax.set_xlabel("Hidden E rate (Hz)", fontsize=theme.SIZE_LABEL)
     # Order each cell by E rate so lines don't backtrack.
-    for cell, (label, color, marker, ls) in styles.items():
-        msel = sorted(
-            (r for r in rows if r["cell"] == cell),
-            key=lambda r: r["rate_e"],
-        )
-        if not msel:
-            continue
-        xs = [r["rate_e"] for r in msel]
-        axes[0].plot(
-            xs,
-            [r["loss"] for r in msel],
-            marker=marker,
-            color=color,
-            lw=1.5,
-            ls=ls,
-            label=label,
-        )
-        axes[1].plot(
-            xs,
-            [r["penalty"] for r in msel],
-            marker=marker,
-            color=color,
-            lw=1.5,
-            ls=ls,
-            label=label,
-        )
-        axes[2].plot(
-            xs,
-            [r["total_loss"] for r in msel],
-            marker=marker,
-            color=color,
-            lw=1.5,
-            ls=ls,
-            label=label,
-        )
-        axes[3].plot(
-            xs,
-            [r["acc"] for r in msel],
-            marker=marker,
-            color=color,
-            lw=1.5,
-            ls=ls,
-            label=label,
-        )
-        axes[4].plot(
-            xs,
-            [r["rate_i"] for r in msel],
-            marker=marker,
-            color=color,
-            lw=1.5,
-            ls=ls,
-            label=label,
-        )
-        axes[5].plot(
-            xs,
-            [r["scale"] for r in msel],
-            marker=marker,
-            color=color,
-            lw=1.5,
-            ls=ls,
-            label=label,
-        )
-        # Mark each cell's trained operating point (s = 1) with a star.
-        trained = next((r for r in msel if abs(r["scale"] - 1.0) < 1e-6), None)
-        if trained is not None:
-            star_kwargs = dict(
-                marker="*",
-                color=color,
-                markersize=16,
-                markeredgecolor=theme.INK_BLACK,
-                markeredgewidth=0.7,
-                linestyle="None",
-                zorder=5,
-            )
-            axes[0].plot([trained["rate_e"]], [trained["loss"]], **star_kwargs)
-            axes[1].plot([trained["rate_e"]], [trained["penalty"]], **star_kwargs)
-            axes[2].plot([trained["rate_e"]], [trained["total_loss"]], **star_kwargs)
-            axes[3].plot([trained["rate_e"]], [trained["acc"]], **star_kwargs)
-            axes[4].plot([trained["rate_e"]], [trained["rate_i"]], **star_kwargs)
-            axes[5].plot([trained["rate_e"]], [trained["scale"]], **star_kwargs)
+    _plot_scale_series(
+        axes,
+        rows,
+        x_key="rate_e",
+        y_keys=("loss", "penalty", "total_loss", "acc", "rate_i", "scale"),
+        sort_key="rate_e",
+        mark_trained=True,
+    )
     axes[0].set_ylabel("Test cross-entropy", fontsize=theme.SIZE_LABEL)
     axes[0].set_title("CE loss", fontsize=theme.SIZE_TITLE)
     axes[1].set_ylabel("Spike-budget penalty", fontsize=theme.SIZE_LABEL)
@@ -491,7 +362,7 @@ def _despine(ax):
         ax.spines[sp].set_visible(False)
 
 
-def fig_results_compound(frontier_stats, curves, npz_coba, npz_ping, out_path, run_id):
+def fig_results_compound(frontier_stats, curves, npz_coba, npz_ping, out_path):
     """exp023-Figure-1-style super figure (replotted from cache, no retraining):
     top row two trained-baseline rasters (COBA | PING), bottom row four small
     plots — train loss, test accuracy, accuracy–rate frontier, accuracy/rate
@@ -550,7 +421,12 @@ def fig_results_compound(frontier_stats, curves, npz_coba, npz_ping, out_path, r
             ax.set_ylim(-2, N_E + 2)
             ax.set_yticks([N_E / 2])
             ax.set_yticklabels(["E"])
-            ax.set_title("I silent", loc="right", fontsize=theme.SIZE_ANNOTATION, color=theme.MUTED)
+            ax.set_title(
+                "I silent",
+                loc="right",
+                fontsize=theme.SIZE_ANNOTATION,
+                color=theme.MUTED,
+            )
         ax.set_xlim(0, T * dt)
         ax.set_xlabel("time (ms)")
         ax.tick_params(axis="y", length=0)

@@ -1,11 +1,11 @@
 """Preserved paired pool-size controls, with no execution on import."""
 
-from experiments.helpers.operating_point import (
-    refractory_args,
-    refractory_configuration,
-)
+from snnsim.timing import duration_metadata, refractory_metadata
 
 SLUG = "exp047"
+REFRACTORY_E_MS = 1.2
+REFRACTORY_I_MS = 0.6
+REFRACTORY_POLICY = "exact"
 FIGURES = ("pool_size_controls.svg", "pool_size_controls.pdf")
 DEFINITION = "j_ie_synapse = g_ie_total / n_i"
 MEASUREMENT = {
@@ -13,6 +13,38 @@ MEASUREMENT = {
     "aggregation": "seed mean and sample SD",
     "sd_ddof": 1,
 }
+
+
+def refractory_configuration() -> dict:
+    return {
+        "refractory_e_ms": REFRACTORY_E_MS,
+        "refractory_i_ms": REFRACTORY_I_MS,
+        "refractory_policy": REFRACTORY_POLICY,
+    }
+
+
+def refractory_args() -> list[str]:
+    return [
+        "--refractory-e-ms",
+        str(REFRACTORY_E_MS),
+        "--refractory-i-ms",
+        str(REFRACTORY_I_MS),
+        "--refractory-policy",
+        REFRACTORY_POLICY,
+    ]
+
+
+def duration_configuration(duration_ms: float, dt_ms: float) -> dict:
+    return duration_metadata(duration_ms, dt_ms)
+
+
+def refractory_execution_configuration(dt_ms: float) -> dict:
+    return refractory_metadata(
+        REFRACTORY_E_MS,
+        REFRACTORY_I_MS,
+        dt_ms,
+        policy=REFRACTORY_POLICY,
+    )
 
 
 def configuration(*, smoke=False, version=2):

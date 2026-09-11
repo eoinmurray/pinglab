@@ -2,15 +2,11 @@
 
 from pathlib import Path
 
-from experiments.helpers.operating_point import (
-    REFRACTORY_E_MS,
-    REFRACTORY_I_MS,
-    refractory_args,
-    refractory_configuration,
-)
-
 SLUG = "exp023"
 DT_MS = 0.1
+REFRACTORY_E_MS = 1.2
+REFRACTORY_I_MS = 0.6
+REFRACTORY_POLICY = "exact"
 N_E, N_I, N_IN = 1024, 256, 1024
 # The old f–I command omitted --n-in and used the simulator's 784-channel default.
 # Preserve this distinction; unifying the protocols is a separate scientific change.
@@ -36,6 +32,25 @@ BIOPHYSICS = {
     "refractory_E_ms": REFRACTORY_E_MS,
     "refractory_I_ms": REFRACTORY_I_MS,
 }
+
+
+def refractory_configuration() -> dict:
+    return {
+        "refractory_e_ms": REFRACTORY_E_MS,
+        "refractory_i_ms": REFRACTORY_I_MS,
+        "refractory_policy": REFRACTORY_POLICY,
+    }
+
+
+def refractory_args() -> list[str]:
+    return [
+        "--refractory-e-ms",
+        str(REFRACTORY_E_MS),
+        "--refractory-i-ms",
+        str(REFRACTORY_I_MS),
+        "--refractory-policy",
+        REFRACTORY_POLICY,
+    ]
 
 
 def _args(cell: str, rate: int, n_in: int, smoke: bool) -> list[str]:

@@ -2,8 +2,9 @@
 
 import matplotlib.pyplot as plt
 import numpy as np
-from experiments.helpers import theme
 from matplotlib.ticker import MaxNLocator
+
+from experiments.helpers import theme
 
 from .recipe import SIGMA_V_MV
 
@@ -19,10 +20,14 @@ def plot_limit_cycle(metrics, out_path, run_id):
     fig, ax = plt.subplots(figsize=(8.0, 4.5), dpi=150)
     ax.plot(tt - tt[0], E, color=theme.INK_BLACK, lw=1.3, label="$E$")
     ax.set_xlabel("time (ms)", fontsize=theme.SIZE_LABEL)
-    ax.set_ylabel("$E$ rate (ms$^{-1}$)", fontsize=theme.SIZE_LABEL, color=theme.INK_BLACK)
+    ax.set_ylabel(
+        "$E$ rate (ms$^{-1}$)", fontsize=theme.SIZE_LABEL, color=theme.INK_BLACK
+    )
     ax2 = ax.twinx()
     ax2.plot(tt - tt[0], I, color=theme.DEEP_RED, lw=1.3, label="$I$")
-    ax2.set_ylabel("$I$ rate (ms$^{-1}$)", fontsize=theme.SIZE_LABEL, color=theme.DEEP_RED)
+    ax2.set_ylabel(
+        "$I$ rate (ms$^{-1}$)", fontsize=theme.SIZE_LABEL, color=theme.DEEP_RED
+    )
     fig.tight_layout()
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
@@ -116,8 +121,10 @@ def plot_reduction_ladder(hopf4, hopf3, coordinates, out_path, run_id):
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
     ax.legend(
-        fontsize=theme.SIZE_LEGEND, frameon=False,
-        loc="lower left", bbox_to_anchor=(0, 1.02),
+        fontsize=theme.SIZE_LEGEND,
+        frameon=False,
+        loc="lower left",
+        bbox_to_anchor=(0, 1.02),
     )
     fig.tight_layout()
     fig.savefig(out_path, dpi=150)

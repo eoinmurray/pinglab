@@ -22,16 +22,10 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "experiments"), str(REPO / "tools")]
 
 from experiments.exp022 import recipe
-from experiments.helpers.operating_point import (
-    refractory_args,
-    refractory_configuration,
-)
 from pingstore.contracts import PingstoreError, write_json_atomic
-from pingstore.stages import reserve_stage, source_run, stage_reservation, stage_run
+from pingstore.stages import reserve_stage, source_run, stage_run
 
-from helpers import runpod
-from helpers.checkpoints import resolve_checkpoint
-from helpers.cli import parse_meta
+from experiments.exp022.checkpoints import resolve_checkpoint
 
 SCHEMA = "pinglab.exp022.bank"
 SCHEMA_VERSION = 1
@@ -663,7 +657,7 @@ def summarize_status(manifest: dict[str, Any], *, load_checkpoint: bool = True) 
 
 def cell_dir(name: str) -> Path:
     """Shared per-cell artifact directory."""
-    return recipe.TRAINING_ROOT / name
+    return recipe.training_root() / name
 
 
 def load_cell(name: str) -> Path:
@@ -678,49 +672,15 @@ def load_cell(name: str) -> Path:
     return d
 
 
-def runpod_is_done(cell: dict, plumbing: bool) -> bool:
-    """A cell is done iff its metrics.json exists AND was trained at the scale
-    THIS run expects (max_samples, epochs, dt all matching).
-
-    Existence alone is not enough: a training root may contain cells produced
-    under a different run contract, and a bare exists() check would skip those
-    and silently ship a mixed-scale, invalid dataset. Comparing the baked config
-    makes the marker honest: a stale cell reads as pending and gets retrained.
-    """
-    p = cell_dir(cell["name"]) / "metrics.json"
-    if not p.exists():
-        return False
-    try:
-        cfg = json.loads(p.read_text()).get("config", {})
-    except (json.JSONDecodeError, OSError):
-        return False
-    if plumbing:
-        os.environ["PINGLAB_NB022_PLUMBING"] = "1"
-    want_ms, want_ep = recipe.cell_samples_epochs(cell)
-    return (
-        cfg.get("max_samples") == want_ms
-        and cfg.get("epochs") == want_ep
-        and cfg.get("dt") == cell["dt_ms"]
-        and all(
-            cfg.get(key) == value for key, value in refractory_configuration().items()
-        )
-    )
-
-
 def _train_one_cell(cell: dict, plumbing: bool) -> None:
-    """Train ONE cell by invoking the SNN CLI — flags identical to a local run.
-
-    Writes to cell_dir(name), which sits under TRAINING_ROOT — on a pod that is
-    the shared network volume (/shared/training via PINGLAB_TRAINING_ROOT), so
-    the artifact is durable the moment it lands. Used by --pod-run and --train-cell.
-    """
-    _writable_compute_root(recipe.TRAINING_ROOT)
+    """Train one registered cell under the configured working root."""
+    _writable_compute_root(recipe.training_root())
     ms, ep = recipe.cell_samples_epochs(cell)  # honours PINGLAB_NB022_PLUMBING
     spec = cell
     if plumbing:
         # build_train_args re-applies a canonical cell's own max_samples (60000),
         # which would defeat the tiny plumbing scale. Strip it so the plumbing
-        # ms=100 takes — and so runpod_is_done agrees with what was trained.
+        # ms=100 takes and the retained parameters match what was trained.
         spec = {k: v for k, v in cell.items() if k != "max_samples"}
     args = recipe.build_train_args(spec, cell_dir(cell["name"]), ms, ep)
     print(
@@ -751,140 +711,6 @@ def _stamp_training_run_identity(cell: dict) -> None:
 
 def _cell_by_name(name: str) -> dict | None:
     return next((c for c in recipe.CANONICAL_CELLS if c["name"] == name), None)
-
-
-def pod_run() -> None:
-    """Pod-side entrypoint (the image runs this compute module with `--pod-run`).
-
-    Trains every cell named in the CELLS env var to the shared volume, skipping
-    any already done there (scale-aware marker → free resume across pods), then
-    self-terminates. The loop, skip-done and always-self-terminate contract lives
-    in runpod.pod_run_loop; here we only say what a cell's done-check and training
-    run are.
-    """
-    plumbing = os.environ.get("PINGLAB_NB022_PLUMBING") == "1"
-    print(f"[pod-run] plumbing={plumbing} root={recipe.TRAINING_ROOT}")
-
-    def is_done(name: str) -> bool:
-        cell = _cell_by_name(name)
-        return cell is not None and runpod_is_done(cell, plumbing)
-
-    def run_job(name: str) -> None:
-        cell = _cell_by_name(name)
-        assert cell is not None  # pod_run_loop only passes registered job ids
-        _train_one_cell(cell, plumbing)
-
-    runpod.pod_run_loop(
-        job_ids=[c["name"] for c in recipe.CANONICAL_CELLS],
-        is_done=is_done,
-        run_job=run_job,
-    )
-
-
-def runpod_buckets(cells: list[dict], cells_per_pod: int) -> list[dict]:
-    """Assign cells to pods: each canonical cell → its own pod (heavy, isolated);
-    every other family packed cells_per_pod at a time. Returns [{name, cells}]."""
-    canonical = [c["name"] for c in cells if c["family"] == "canonical"]
-    sweep = [c["name"] for c in cells if c["family"] != "canonical"]
-    buckets = [{"name": f"canon-{n}", "cells": [n]} for n in canonical]
-    for i in range(0, len(sweep), cells_per_pod):
-        buckets.append(
-            {
-                "name": f"sweep-{i // cells_per_pod:02d}",
-                "cells": sweep[i : i + cells_per_pod],
-            }
-        )
-    return buckets
-
-
-def run_via_runpod(argv: list[str]) -> None:
-    """`--runpod` dispatch: fire a laptop-independent RunPod fan-out via the shared
-    runpod.dispatch path.
-
-    Pods self-run their assigned cells to the shared network volume and
-    self-terminate; the laptop only fires them. Retrieve results afterwards with
-    `--runpod --collect`, then capture a compute run and explicitly analyse/present it.
-    Dry-run by DEFAULT; --live to create pods. Exp022's only bespoke bit is
-    runpod_buckets (one pod per canonical cell); everything else is the common
-    fan-out in helpers/runpod.py.
-    """
-    meta, reserved = _dispatch_meta(argv)
-
-    cells = recipe.CANONICAL_CELLS
-    if meta.only_cells:
-        wanted = set(meta.only_cells)
-        cells = [c for c in cells if c["name"] in wanted]
-        missing = wanted - {c["name"] for c in cells}
-        if missing:
-            raise SystemExit(f"unknown cell(s): {sorted(missing)}")
-
-    if meta.live and not meta.collect and reserved is None:
-        reserved = reserve_stage(
-            REPO / ".pingstore", recipe.SLUG, "compute", origin="runpod"
-        )
-    if meta.collect and reserved is None:
-        raise SystemExit("collection requires --run-id from the original dispatch")
-    local_root = recipe.TRAINING_ROOT
-    subdir = runpod.TRAINING_SUBDIR
-    extra_env = None
-    if reserved:
-        temporary = REPO / ".pingstore/runs" / f".{reserved}.tmp"
-        reservation = stage_reservation(temporary)
-        if (
-            reservation["run_id"] != reserved
-            or reservation["experiment"] != recipe.SLUG
-            or reservation["stage"] != "compute"
-            or reservation["origin"] != "runpod"
-        ):
-            raise PingstoreError(
-                "RunPod requires its own reserved exp022 compute identity"
-            )
-        local_root = temporary / "export/cells"
-        subdir = f"{reserved}/cells"
-        extra_env = {
-            "PINGLAB_TRAINING_ROOT": f"{runpod.VOLUME_MOUNT}/{subdir}",
-            "PINGSTORE_RUN_ID": reserved,
-        }
-        print(f"reserved compute run: {reserved}")
-    runpod.dispatch(
-        slug=recipe.SLUG,
-        runner=recipe.SLUG,
-        buckets=runpod_buckets(cells, meta.cells_per_pod),
-        gpu=meta.gpu,
-        live=meta.live,
-        plumbing=meta.plumbing,
-        collect=meta.collect,
-        collect_subdir=subdir,
-        local_collect_dir=str(local_root),
-        extra_env=extra_env,
-        plumbing_env={"PINGLAB_NB022_PLUMBING": "1"},
-    )
-    if meta.collect:
-        with stage_run(
-            REPO,
-            recipe.SLUG,
-            "compute",
-            run_id=reserved,
-            configuration=recipe.SCALE,
-            operation="collect-runpod",
-        ) as run:
-            for cell in recipe.CANONICAL_CELLS:
-                for role in ("best_validation", "final_epoch"):
-                    resolve_checkpoint(local_root / cell["name"], role)
-            generate_snapshots(local_root, run.export / "snapshots")
-            promote_cells(run.export)
-
-
-def _dispatch_meta(argv: list[str]):
-    arguments = list(argv)
-    reserved = None
-    if "--run-id" in arguments:
-        index = arguments.index("--run-id")
-        if index + 1 == len(arguments) or arguments[index + 1].startswith("--"):
-            raise SystemExit("--run-id requires a reserved identity")
-        reserved = arguments[index + 1]
-        del arguments[index : index + 2]
-    return parse_meta(arguments, allow_dispatch=True), reserved
 
 
 def _bank_parser() -> argparse.ArgumentParser:
@@ -1274,7 +1100,7 @@ def generate_snapshots(bank: Path, output: Path) -> None:
             sys.executable,
             str(recipe.SNN_TOOL),
             "sim",
-            *refractory_args(),
+            *recipe.refractory_args(),
             "--infer",
             "--load-config",
             str(trained / "config.json"),
@@ -1471,32 +1297,6 @@ def main() -> None:
             "combined lifecycle flags are retired: use analyse.py --source COMPUTE_RUN "
             "or present.py --source ANALYSIS_RUN"
         )
-    if any(
-        flag in sys.argv
-        for flag in ("--runpod", "--reap", "--pod-run", "--train-cell", "--list-cells")
-    ):
-        meta, _reserved = _dispatch_meta(sys.argv)
-        if meta.list_cells:
-            print(
-                "\n".join(
-                    cell["name"]
-                    for cell in recipe.cells_in_resource_tier(meta.list_cells)
-                )
-            )
-            return
-        _writable_compute_root(recipe.TRAINING_ROOT)
-        if meta.train_cell:
-            cell = _cell_by_name(meta.train_cell)
-            if cell is None:
-                raise SystemExit(f"unknown cell: {meta.train_cell}")
-            _train_one_cell(cell, meta.plumbing)
-        elif meta.reap:
-            runpod.reap_all_pods()
-        elif meta.pod_run:
-            pod_run()
-        else:
-            run_via_runpod(sys.argv)
-        return
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--hpc",

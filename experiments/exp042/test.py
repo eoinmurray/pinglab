@@ -1,5 +1,6 @@
 """Synthetic fixtures only: no historical import, dataset download or scientific run."""
 
+import json
 import shutil
 import subprocess
 import sys
@@ -23,6 +24,22 @@ from pingstore.contracts import (
     load_json,
     write_json_atomic,
 )
+
+
+def _write_final_checkpoint(train_dir: Path, config: dict) -> None:
+    (train_dir / "config.json").write_text(json.dumps(config))
+    checkpoint = train_dir / "weights_final.pth"
+    checkpoint.write_bytes(b"final")
+    (train_dir / "metrics.json").write_text(json.dumps({
+        "config": {"epochs": 50},
+        "checkpoints": {
+            "final_epoch": {
+                "filename": checkpoint.name,
+                "epoch": 50,
+                "sha256": file_sha256(checkpoint),
+            }
+        },
+    }))
 
 
 @pytest.fixture
@@ -335,6 +352,74 @@ def test_zero_replay_is_shared_between_concurrent_workers(lab):
     assert a == b
     assert len(calls) == 2  # one baseline and one zero replay
     assert sum("--i-override-file" in args for args in calls) == 1
+
+
+def test_inference_caps_and_override_cleanup(monkeypatch, tmp_path):
+    train_dir = tmp_path / "train"
+    train_dir.mkdir()
+    _write_final_checkpoint(train_dir, {})
+    observed = []
+
+    def fake_run(command):
+        observed.append(command)
+        out = Path(command[command.index("--out-dir") + 1])
+        out.mkdir(parents=True, exist_ok=True)
+        (out / "metrics.json").write_text("{}")
+        if "--i-override-file" not in command:
+            np.savez(
+                out / "rasters.npz",
+                n_trials=np.int32(0),
+                T=np.int32(20),
+                n_i=np.int32(2),
+                i_trial=np.array([], dtype="int32"),
+                i_t=np.array([], dtype="int32"),
+                i_cell=np.array([], dtype="int32"),
+            )
+
+    monkeypatch.setattr(simulation, "run_cli", fake_run)
+    smoke = simulation.Simulator(
+        tmp_path / "smoke", tmp_path / "smoke-commands", recipe.configuration(smoke=True)
+    )
+    smoke._run_baseline(train_dir)
+    assert observed[-1][observed[-1].index("--max-samples") + 1] == "100"
+
+    production = simulation.Simulator(
+        tmp_path / "production",
+        tmp_path / "production-commands",
+        recipe.configuration(),
+    )
+    production._run_with_override(train_dir, tmp_path / "override.npz")
+    assert observed[-1][observed[-1].index("--max-samples") + 1] == "1000"
+
+    cleanup = simulation.Simulator(
+        tmp_path / "cleanup", tmp_path / "cleanup-commands", recipe.configuration()
+    )
+    monkeypatch.setattr(cleanup, "_run_baseline", lambda _path: ({}, {}))
+    seen = []
+
+    def fake_build(_rasters, _condition, _generator, _dt, path):
+        path.write_bytes(b"override")
+
+    def fake_override(_train_dir, path):
+        assert path.exists()
+        seen.append(path)
+        return {"best_acc": 90.0, "rates_hz": {}, "n_total": 1000}
+
+    monkeypatch.setattr(cleanup, "_build_override_file", fake_build)
+    monkeypatch.setattr(cleanup, "_run_with_override", fake_override)
+    cleanup.evaluate(
+        train_dir,
+        {"id": "fixture", "condition": "jitter_sigma_14", "seed_offset": 42},
+    )
+    assert len(seen) == 1
+    assert not seen[0].exists()
+
+
+def test_writeup_anchor_levels_remain_in_the_recipe():
+    assert {0.0, 14.0, 100.0} <= set(recipe.JITTER_SIGMAS_MS)
+    assert {0.0, 0.5, 1.0, 2.0, 5.0, 9.0, 14.0} <= set(
+        recipe.CELL_JITTER_SIGMAS_MS
+    )
 
 
 def test_zero_replay_cache_rejects_recipe_drift(lab):

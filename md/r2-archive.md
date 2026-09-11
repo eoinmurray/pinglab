@@ -38,7 +38,7 @@ rclone config redacted r2
 rclone lsf --dirs-only r2:pinglab/archive
 ```
 
-The helper defaults to remote `r2` and bucket `pinglab`; `PINGLAB_R2_REMOTE` and `PINGLAB_R2_BUCKET` override these. R2 credentials are separate from RunPod volume credentials.
+The helper defaults to remote `r2` and bucket `pinglab`; `PINGLAB_R2_REMOTE` and `PINGLAB_R2_BUCKET` override these.
 
 ## Inspect snapshots
 

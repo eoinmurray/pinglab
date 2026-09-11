@@ -7,15 +7,15 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
 
-from experiments.exp033 import evidence, inputs, measurements
 from pingstore.contracts import PingstoreError, load_json, write_json_atomic
+
+from experiments.exp033 import evidence, inputs, measurements
 
 
 def analyse(identity, frequency_source, *, run_id=None):
     compute = inputs.source(REPO, identity, "compute")
     cfg = inputs.configuration(compute)
-    imported = compute.record["execution"]["operation"] == "historical-import"
-    if compute.record["inputs"] and not imported:
+    if compute.record["inputs"]:
         raise PingstoreError("initial exp033 computation must not have upstream inputs")
     frequencies = inputs.source(REPO, frequency_source, "analyse", experiment="exp041")
     with inputs.execution(
@@ -25,19 +25,13 @@ def analyse(identity, frequency_source, *, run_id=None):
         run_id=run_id,
         configuration=cfg,
     ) as run:
-        if imported:
-            numbers, coordinates, provenance = evidence.analyse_imported(
-                compute, frequencies
-            )
-            run.record["historical_analysis"] = provenance
-        else:
-            raw = evidence.read(compute.export)
-            if raw.get("recipe") != cfg:
-                raise PingstoreError("compute payload and recorded recipe disagree")
-            numbers, coordinates = measurements.analyse(
-                raw,
-                load_json(frequencies.export / "results.json"),
-            )
+        raw = evidence.read(compute.export)
+        if raw.get("recipe") != cfg:
+            raise PingstoreError("compute payload and recorded recipe disagree")
+        numbers, coordinates = measurements.analyse(
+            raw,
+            load_json(frequencies.export / "results.json"),
+        )
         write_json_atomic(run.export / "results.json", numbers)
         evidence.write(run.export, coordinates)
     return run.run_id

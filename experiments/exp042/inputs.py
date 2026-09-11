@@ -2,7 +2,7 @@
 
 from contextlib import contextmanager
 
-from experiments.helpers.checkpoints import public_provenance, resolve_checkpoint
+from experiments.exp022.checkpoints import public_provenance, resolve_checkpoint
 from pingstore.contracts import PingstoreError, load_json
 from pingstore.stages import source_run, stage_run
 

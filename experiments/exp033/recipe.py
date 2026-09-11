@@ -1,15 +1,12 @@
 """Committed mean-field recipe; no storage or execution on import."""
 
-from experiments.helpers.operating_point import TAU_GABA_GAMMA_MS
-
 SLUG = "exp033"
 # ── Timescales (ms) ───────────────────────────────────────────────────
 TAU_E_MS = 20.0  # E membrane (= CELL_E tau_m)
 TAU_I_MS = 5.0  # I membrane (= CELL_I tau_m)
 TAU_AMPA_MS = 2.0
-# Canonical operating point (was 9.0); single source of truth in helpers so the
-# mean-field analysis tracks the spiking collection's τ_GABA.
-TAU_GABA_MS = TAU_GABA_GAMMA_MS
+# Exp033's adopted spiking-reference condition (was 9.0).
+TAU_GABA_MS = 6.0
 
 # ── COBANet-grounded gain with a free effective-noise scale ───────────
 # Couplings are the ei-strength values, fan-in normalised so the lumped
@@ -45,30 +42,30 @@ def configuration(*, version=2):
         "schema": f"exp033.recipe/v{version}",
         **({"gain_integral": "erfcx_for_negative_arguments"} if version == 2 else {}),
         "profile": "production",
-        "tau_E_ms": 20.0,
-        "tau_I_ms": 5.0,
-        "tau_AMPA_ms": 2.0,
-        "tau_GABA_ms": 6.0,
-        "W_tilde_EI": 1.0,
-        "W_tilde_IE": 2.0,
-        "dV_inh_mV": 15.0,
-        "dV_exc_mV": 65.0,
-        "sigma_V_mV": 4.0,
-        "cell_E": {"tau_m": 20.0, "g_L": 0.05, "tau_ref": 3.0 if version == 1 else 1.2},
-        "cell_I": {"tau_m": 5.0, "g_L": 0.1, "tau_ref": 1.5 if version == 1 else 0.6},
-        "rest_mV": -65.0,
-        "threshold_mV": -50.0,
-        "reset_mV": -65.0,
+        "tau_E_ms": TAU_E_MS,
+        "tau_I_ms": TAU_I_MS,
+        "tau_AMPA_ms": TAU_AMPA_MS,
+        "tau_GABA_ms": TAU_GABA_MS,
+        "W_tilde_EI": WT_EI,
+        "W_tilde_IE": WT_IE,
+        "dV_inh_mV": DV_INH_MV,
+        "dV_exc_mV": DV_EXC_MV,
+        "sigma_V_mV": SIGMA_V_MV,
+        "cell_E": {**CELL_E, "tau_ref": 3.0 if version == 1 else CELL_E["tau_ref"]},
+        "cell_I": {**CELL_I, "tau_ref": 1.5 if version == 1 else CELL_I["tau_ref"]},
+        "rest_mV": E_L_MV,
+        "threshold_mV": V_TH_MV,
+        "reset_mV": V_RESET_MV,
         "drive_grid": [0.0, 4.0, 401],
-        "sigma_grid_mV": [3.0, 4.0, 5.0, 6.0],
+        "sigma_grid_mV": list(SIGMA_V_GRID_MV),
         "sensitivity_grid": [0.0, 1.2, 121],
         "convergence_grid": [0.0, 1.2, 241],
-        "tau_grid_ms": [4.5, 6.0, 9.0, 12.0, 18.0, 27.0],
+        "tau_grid_ms": list(TAU_GRID_MS),
         "jacobian_eps": 1e-06,
         "hopf_refinement": {"method": "brentq", "xtol": 1e-10, "rtol": 1e-12},
         "hysteresis": {
-            "span_nA": [-0.1, 0.55],
-            "points": 25,
+            "span_nA": list(HYSTERESIS_SPAN_NA),
+            "points": HYSTERESIS_POINTS,
             "t_max_ms": 2000.0,
             "settle_start_ms": 1500.0,
             "threshold": 0.0001,
@@ -77,7 +74,7 @@ def configuration(*, version=2):
             "max_step": 1.0,
         },
         "cycle": {
-            "offset_nA": 0.4,
+            "offset_nA": LIMIT_CYCLE_OFFSET_NA,
             "t_max_ms": 700.0,
             "rtol": 1e-09,
             "atol": 1e-12,

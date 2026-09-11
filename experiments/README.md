@@ -42,8 +42,9 @@ Every input is an explicit completed v4 run. Commands never choose latest,
 automatically execute another stage, materialize, or publish.
 
 New IDs are source-neutral: `exp022-r001-compute`,
-`exp022-r002-analyse`, and `exp022-r003-present`. Local, Slurm, and RunPod use the
-same shape. Execution location and scheduler details belong in `run.json`.
+`exp022-r002-analyse`, and `exp022-r003-present`. Local and scheduler-backed
+execution use the same shape. Execution location and scheduler details belong
+in `run.json`.
 
 Failed work remains in its hidden temporary run. Downstream stages do not consume
 it. Rerun with a new identity unless an experiment-specific compute recovery

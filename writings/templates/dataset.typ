@@ -286,7 +286,6 @@
                   else if origin == "local" { "Local" }
                   else if origin == "mixed" { "Mixed" }
                   else if origin == "modal" { "Modal" }
-                  else if origin == "runpod" { "RunPod" }
                   else { "Unknown" }
                 let title = if display.basis == "scientific-execution" {
                   "Recorded scientific execution origin: " + origin + ". The run record itself was created on " + run.origin + "."

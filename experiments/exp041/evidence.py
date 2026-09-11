@@ -4,7 +4,7 @@ import math
 from pathlib import Path
 
 import numpy as np
-from experiments.helpers.checkpoints import public_provenance, resolve_checkpoint
+from experiments.exp022.checkpoints import public_provenance, resolve_checkpoint
 from pingstore.contracts import PingstoreError, load_json
 
 from . import recipe

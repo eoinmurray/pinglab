@@ -3,12 +3,11 @@
 from experiments.exp022 import FR_STRENGTH_UPPER as FR_STRENGTH_UPPER
 from experiments.exp022 import training_run_cell, training_run_values
 from experiments.helpers.datasets import MNIST_REDUCED_EVAL_SAMPLES
-from experiments.helpers.operating_point import (
-    refractory_args,
-    refractory_configuration,
-)
 
 SLUG = "exp025"
+REFRACTORY_E_MS = 1.2
+REFRACTORY_I_MS = 0.6
+REFRACTORY_POLICY = "exact"
 ANALYSIS_PURPOSE = "endpoint_dynamics"
 CHECKPOINT_ROLE = "final_epoch"
 CHECKPOINT_POLICY = {"purpose": ANALYSIS_PURPOSE, "role": CHECKPOINT_ROLE}
@@ -16,7 +15,6 @@ MODELS = list(training_run_values("TR-02", "model"))
 SEEDS = list(training_run_values("TR-02", "seed"))
 RATE_TARGET_GRID_HZ = list(training_run_values("TR-02", "rate_target_hz"))
 LOW_W_IN_VALUES = training_run_values("TR-07", "w_in")
-LOW_W_IN_SEEDS = list(SEEDS)
 EVAL_MAX_SAMPLES = MNIST_REDUCED_EVAL_SAMPLES
 F_GAMMA_BAND_HZ = (5.0, 150.0)
 W_IN_SCALE_VALUES = [
@@ -54,11 +52,26 @@ FIGURES = tuple(
         "w_in_scale_sweep_vs_rate",
     )
     for ext in ("svg", "pdf")
-) + tuple(
-    f"{name}.{ext}"
-    for name in ("raster__coba", "raster__ping", "results_compound")
-    for ext in ("png", "pdf")
-)
+) + tuple(f"results_compound.{ext}" for ext in ("png", "pdf"))
+
+
+def refractory_configuration() -> dict:
+    return {
+        "refractory_e_ms": REFRACTORY_E_MS,
+        "refractory_i_ms": REFRACTORY_I_MS,
+        "refractory_policy": REFRACTORY_POLICY,
+    }
+
+
+def refractory_args() -> list[str]:
+    return [
+        "--refractory-e-ms",
+        str(REFRACTORY_E_MS),
+        "--refractory-i-ms",
+        str(REFRACTORY_I_MS),
+        "--refractory-policy",
+        REFRACTORY_POLICY,
+    ]
 
 
 def cell_name(model, rate_target_hz, seed):
@@ -73,10 +86,6 @@ def low_w_in_cell_name(w_in, seed):
 
 def rate_target_display(value):
     return "off" if value is None else f"{value:g}"
-
-
-def seeds_for(_):
-    return list(SEEDS)
 
 
 def bank_cells():

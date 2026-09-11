@@ -4,12 +4,11 @@ import copy
 
 import numpy as np
 from experiments.exp033 import recipe as mean_field
-from experiments.helpers.operating_point import (
-    refractory_args,
-    refractory_configuration,
-)
 
 SLUG = "exp054"
+REFRACTORY_E_MS = 1.2
+REFRACTORY_I_MS = 0.6
+REFRACTORY_POLICY = "exact"
 FIGURES = (
     "turnon_maps_compound.png",
     "turnon_compound.png",
@@ -19,6 +18,25 @@ FIGURES = (
     "rate_invariance.png",
     "null_autocorr.png",
 )
+
+
+def refractory_configuration() -> dict:
+    return {
+        "refractory_e_ms": REFRACTORY_E_MS,
+        "refractory_i_ms": REFRACTORY_I_MS,
+        "refractory_policy": REFRACTORY_POLICY,
+    }
+
+
+def refractory_args() -> list[str]:
+    return [
+        "--refractory-e-ms",
+        str(REFRACTORY_E_MS),
+        "--refractory-i-ms",
+        str(REFRACTORY_I_MS),
+        "--refractory-policy",
+        REFRACTORY_POLICY,
+    ]
 
 
 def configuration(*, smoke=False, version=6):

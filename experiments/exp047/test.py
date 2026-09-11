@@ -27,7 +27,7 @@ from pingstore.discovery import discover_runs
 
 
 def fixture_documents(cfg, item):
-    from experiments.helpers.operating_point import (
+    from experiments.exp047.recipe import (
         duration_configuration,
         refractory_execution_configuration,
     )

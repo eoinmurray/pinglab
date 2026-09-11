@@ -55,14 +55,6 @@ def execution_origin(host: str | None = None) -> str:
     return "local" if raw == "local" else _safe_label(raw, "local")
 
 
-def make_legacy_run_id(experiment: str, identity: str, origin: str) -> str:
-    """Format the remaining exp022 legacy scratch identity."""
-    return (
-        f"{experiment}-{_safe_label(identity, 'run')}-"
-        f"{_safe_label(origin, 'unknown')}"
-    )
-
-
 @contextlib.contextmanager
 def operation_lock(root: Path, *, exclusive: bool):
     """Coordinate v4 writers with exclusive pruning."""

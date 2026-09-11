@@ -1,27 +1,16 @@
 """Lossless numerical storage and validation of retained scientific evidence."""
 
 import copy
-import json
 import math
-import zipfile
 
 import numpy as np
 from pingstore.contracts import (
     PingstoreError,
-    file_sha256,
     load_json,
     write_json_atomic,
 )
 
 from . import measurements, recipe
-from .summary import summary
-
-CARRY = (
-    "limit_cycle.svg",
-    "timeseries.svg",
-    "phase_planes.svg",
-    "reduction_ladder.svg",
-)
 
 
 def exact_values(a, b):
@@ -130,75 +119,6 @@ def verify_amplitudes(criticality, onset):
         elif not exact_values(value, criticality[key]):
             raise PingstoreError("retained hysteresis evidence disagrees")
     return measured
-
-
-def analyse_imported(source, frequency_source):
-    """Validate and read an existing immutable imported compute run."""
-    if (
-        source.record["execution"]["operation"] != "historical-import"
-        or source.record["inputs"] != {"frequencies": frequency_source.reference}
-        or source.record.get("historical_import", {}).get("carry_forward_figures")
-        != list(CARRY)
-    ):
-        raise PingstoreError("exp033 retained evidence or frequency lineage differs")
-    old = load_json(source.export / "historical-numbers.json")
-    with zipfile.ZipFile(source.export / "mean-field.zip") as archive:
-        if archive.namelist() != ["numerical-evidence.json"]:
-            raise PingstoreError("unexpected retained numerical entries")
-        subset = json.loads(archive.read("numerical-evidence.json"))
-    validate_summary(old, subset)
-    current = measurements.spiking_medians(
-        load_json(frequency_source.export / "results.json")
-    )
-    recorded = subset["spiking_exp041"]
-    deltas = {str(t): current[t] - recorded[str(t)] for t in current}
-    if deltas != source.record["historical_import"]["frequency_deltas_hz"]:
-        raise PingstoreError("retained overlay disagrees with verified upstream")
-    r = old["results"]
-    crit = verify_amplitudes(r["criticality"], r["hopf"]["I_ext_star"])
-    numbers = summary(
-        r["hopf"],
-        r["criticality"],
-        r["two_d_vs_four_d"],
-        r["limit_cycle"],
-        subset["frequency_vs_tau_gaba"],
-        recorded,
-        r["reductions"]["three_d_qss"],
-        r["reductions"]["two_d_all_pairs"],
-        r["sigma_sensitivity"],
-        configuration=recipe.configuration(version=1),
-    )
-    retained = {
-        name: {
-            "source": source.reference,
-            "path": "retained-figures/" + name,
-            "sha256": file_sha256(source.export / "retained-figures" / name),
-        }
-        for name in CARRY
-    }
-    return (
-        numbers,
-        {"sweep": subset["sweep"], "retained_figures": retained},
-        {
-            "scope": "retained measurements; no trajectories regenerated",
-            "borrowed_sweep_producer": source.record["historical_import"][
-                "cache_producer"
-            ],
-            "hysteresis_remeasured_from_all_branch_amplitudes": True,
-            "hysteresis_recomputed": crit,
-            "regression_tolerance": {"rtol": 1e-12, "atol": 1e-15},
-            "summary_policy": "preserve retained scalars; record local regression separately",
-            "frequency_overlay": "original retained seed medians",
-            "current_frequency_deltas_hz": deltas,
-            "retained_measurements": [
-                "limit_cycle",
-                "two_d_vs_four_d",
-                "reductions",
-                "sigma_sensitivity",
-            ],
-            "retained_figures": retained,
-        },
-    )
 
 
 def write(directory, document):

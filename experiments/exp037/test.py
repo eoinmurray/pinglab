@@ -7,6 +7,7 @@ from pathlib import Path
 
 import numpy as np
 import pytest
+from experiments import exp022
 from experiments.exp037 import (
     analyse,
     compute,
@@ -469,8 +470,93 @@ def test_recipe_preserves_production_and_smoke_grids():
         assert len({j["path"] for j in jobs}) == total
         assert sum(j["kind"] == "sweep" for j in jobs) == sweeps
         assert {j["seed"] for j in jobs if j["kind"] == "sweep"} == {42, 43, 44}
-        assert {j["sample_index"] for j in jobs if j["kind"] == "raster"} == {0}
+        rasters = [j for j in jobs if j["kind"] == "raster"]
+        assert len(rasters) == 12
+        assert {j["seed"] for j in rasters} == {42}
+        assert {j["sample_index"] for j in rasters} == {0}
     assert recipe.SHARDS == 6
+
+
+def test_frontier_registry_and_multiseed_summaries_are_complete(tmp_path):
+    expected = {
+        cell["name"]
+        for cell in exp022.CANONICAL_CELLS
+        if cell["training_run_id"] == "TR-02"
+    }
+    observed = {
+        recipe.cell_name(model, target, seed)
+        for model in recipe.MODELS
+        for target in recipe.RATE_TARGET_GRID_HZ
+        for seed in recipe.seeds_for(target)
+    }
+    assert observed == expected
+    rows = [
+        {
+            "cell_name": f"ping__off__seed{seed}",
+            "model": "ping",
+            "rate_target_display": "off",
+            "rate_target_hz": None,
+            "seed": seed,
+            "best_acc": value + 1,
+            "final_acc": value,
+            "rate_e": value / 10,
+        }
+        for seed, value in zip((42, 43, 44), (80.0, 82.0, 84.0))
+    ]
+    point = measurements.summarize_frontier(rows)[0]
+    assert point["seeds"] == [42, 43, 44]
+    assert point["n_seeds"] == 3
+    assert point["statistic"] == "mean_across_independent_seeds"
+    assert point["uncertainty"] == "sem_across_independent_seeds"
+    assert point["final_acc"] == 82.0
+    np.testing.assert_allclose(point["final_acc_sem"], 2 / np.sqrt(3))
+
+    summary_rows = [
+        {"level": level, "seed": seed, "acc": value}
+        for level, values in ((0.0, (80, 82, 84)), (0.5, (40, 50, 60)))
+        for seed, value in zip(recipe.SEEDS_BASELINE, values)
+    ]
+    xs, means, sds = measurements.summarize_accuracy(summary_rows, "level")
+    np.testing.assert_allclose(xs, [0.0, 0.5])
+    np.testing.assert_allclose(means, [82.0, 50.0])
+    np.testing.assert_allclose(sds, [2.0, 10.0])
+
+    job = next(j for j in recipe.jobs(recipe.configuration()) if j["kind"] == "sweep")
+    args = recipe.inference_args(tmp_path, tmp_path / "weights.pth", tmp_path / "out", job)
+    assert args[args.index("--max-samples") + 1] == "1000"
+    assert args[args.index("--load-weights") + 1].endswith("weights.pth")
+
+
+def test_perturbation_summary_retains_seed_and_sample_provenance():
+    rows = [
+        {
+            "model": "ping",
+            "seed": seed,
+            "mode": "drop",
+            "level": 0.5,
+            "acc": acc,
+            "e_rate_hz": rate,
+            "n_total": 1400,
+        }
+        for seed, acc, rate in zip(
+            recipe.SEEDS_BASELINE, (70, 80, 90), (8, 9, 10)
+        )
+    ]
+    assert measurements.summarize_perturbation_rows(rows) == [{
+        "model": "ping",
+        "mode": "drop",
+        "level": 0.5,
+        "acc": 80.0,
+        "acc_sd": 10.0,
+        "e_rate_hz": 9.0,
+        "e_rate_hz_sd": 1.0,
+        "seeds": [42, 43, 44],
+        "n_total_per_seed": [1400, 1400, 1400],
+    }]
+
+
+def test_writeup_anchor_levels_remain_in_the_recipe():
+    assert {0.0, 0.8, 1.0} <= set(recipe.PERTURB_DROP_LEVELS)
 
 
 def test_raster_selection_preserves_dtype_sum_and_rng(tmp_path):

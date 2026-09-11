@@ -55,7 +55,9 @@ def execution(repo, stage, *, sources, run_id=None, configuration=None):
         stage,
         inputs=sources,
         run_id=run_id,
-        configuration=recipe.validate(configuration) if configuration is not None else recipe.configuration(),
+        configuration=recipe.validate(configuration)
+        if configuration is not None
+        else recipe.configuration(),
     ) as run:
         yield run
         for ancestor in ancestors.values():

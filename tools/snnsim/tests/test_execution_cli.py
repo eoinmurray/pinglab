@@ -21,7 +21,7 @@ from execution import (
 from tool import parse_args
 
 from tools.snnlang.examples.build_examples import deep_network, ping_classifier
-from tools.snnsim.tests.execution._builders import coupled_graph as _coupled_graph
+from tools.snnsim.tests._execution_builders import coupled_graph as _coupled_graph
 
 
 def test_legacy_and_bundle_cli_arguments_both_lower_to_typed_specs(tmp_path):

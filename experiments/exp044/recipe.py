@@ -4,15 +4,14 @@ from experiments.exp022.recipe import (
     LEGACY_DT_SWEEP_MS,
     training_run_values,
 )
-from experiments.helpers.checkpoints import checkpoint_policy
+from experiments.exp022.checkpoints import checkpoint_policy
 from experiments.helpers.datasets import MNIST_REDUCED_EVAL_SAMPLES
-from experiments.helpers.operating_point import (
-    duration_steps,
-    refractory_args,
-    refractory_configuration,
-)
+from snnsim.timing import duration_metadata, duration_steps, refractory_metadata
 
 SLUG = "exp044"
+REFRACTORY_E_MS = 1.2
+REFRACTORY_I_MS = 0.6
+REFRACTORY_POLICY = "exact"
 TRAINING_RUN = "TR-04"
 ANALYSIS_PURPOSE = "endpoint_dynamics"
 CHECKPOINT_POLICY = checkpoint_policy(ANALYSIS_PURPOSE)
@@ -36,6 +35,38 @@ FIGURES = (
     "training_curves.svg",
     "training_curves.pdf",
 )
+
+
+def refractory_configuration() -> dict:
+    return {
+        "refractory_e_ms": REFRACTORY_E_MS,
+        "refractory_i_ms": REFRACTORY_I_MS,
+        "refractory_policy": REFRACTORY_POLICY,
+    }
+
+
+def refractory_args() -> list[str]:
+    return [
+        "--refractory-e-ms",
+        str(REFRACTORY_E_MS),
+        "--refractory-i-ms",
+        str(REFRACTORY_I_MS),
+        "--refractory-policy",
+        REFRACTORY_POLICY,
+    ]
+
+
+def duration_configuration(duration_ms: float, dt_ms: float) -> dict:
+    return duration_metadata(duration_ms, dt_ms)
+
+
+def refractory_execution_configuration(dt_ms: float) -> dict:
+    return refractory_metadata(
+        REFRACTORY_E_MS,
+        REFRACTORY_I_MS,
+        dt_ms,
+        policy=REFRACTORY_POLICY,
+    )
 
 TRAINING_COMMON_FIELDS = (
     "model",

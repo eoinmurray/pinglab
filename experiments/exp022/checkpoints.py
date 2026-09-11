@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
 from pathlib import Path
 from typing import Iterable
+
+from pingstore.contracts import file_sha256
 
 ROLES = {
     "best_validation": "weights.pth",
@@ -46,14 +47,6 @@ def checkpoint_policy(purpose: str) -> dict[str, str]:
     return {"purpose": purpose, "role": role}
 
 
-def sha256_file(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
-
-
 def resolve_checkpoint(train_dir: Path, role: str) -> dict:
     """Return a verified checkpoint record for ``role`` or fail closed."""
     train_dir = Path(train_dir).resolve()
@@ -75,7 +68,7 @@ def resolve_checkpoint(train_dir: Path, role: str) -> dict:
     path = train_dir / filename
     if not path.is_file():
         raise RuntimeError(f"missing {role} checkpoint: {path}")
-    digest = sha256_file(path)
+    digest = file_sha256(path)
     if recorded.get("sha256") != digest:
         raise RuntimeError(f"checkpoint hash mismatch for {path}")
     expected_epoch = (

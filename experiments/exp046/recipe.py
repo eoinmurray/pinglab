@@ -10,12 +10,11 @@ from experiments.exp041.recipe import (
     TAU_GABA_SWEEP,
     cell_name,
 )
-from experiments.helpers.operating_point import (
-    refractory_args,
-    refractory_configuration,
-)
 
 SLUG = "exp046"
+REFRACTORY_E_MS = 1.2
+REFRACTORY_I_MS = 0.6
+REFRACTORY_POLICY = "exact"
 __all__ = ["ANALYSIS_PURPOSE", "CHECKPOINT_ROLE", "cell_name"]
 TAU_GABA_SWEEP_MS = TAU_GABA_SWEEP
 FIGURES = tuple(
@@ -27,6 +26,25 @@ FIGURES += tuple(
     "spikes_per_cycle_distribution_equal_network." + ext
     for ext in ("svg", "pdf")
 )
+
+
+def refractory_configuration() -> dict:
+    return {
+        "refractory_e_ms": REFRACTORY_E_MS,
+        "refractory_i_ms": REFRACTORY_I_MS,
+        "refractory_policy": REFRACTORY_POLICY,
+    }
+
+
+def refractory_args() -> list[str]:
+    return [
+        "--refractory-e-ms",
+        str(REFRACTORY_E_MS),
+        "--refractory-i-ms",
+        str(REFRACTORY_I_MS),
+        "--refractory-policy",
+        REFRACTORY_POLICY,
+    ]
 
 
 def configuration(*, smoke=False, version=2):

@@ -11,21 +11,13 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "experiments"), str(REPO / "tools")]
 
-from experiments.helpers.operating_point import (
-    duration_steps,
-    refractory_args,
-    refractory_configuration,
-    refractory_execution_configuration,
-)
+from snnsim.timing import duration_steps, refractory_metadata
 
 from helpers import theme
-from helpers.checkpoints import epoch_metrics
-from helpers.operating_point import TAU_GABA_GAMMA_MS
-from helpers.paths import artifacts_and_figures
+from experiments.exp022.checkpoints import epoch_metrics
 
 SLUG = "exp022"
 RESULT_CHECKPOINT_ROLE = "final_epoch"
-ARTIFACTS, FIGURES = artifacts_and_figures(SLUG)
 
 
 def _display_path(path: Path) -> Path:
@@ -38,13 +30,14 @@ def _display_path(path: Path) -> Path:
 # ── Canonical training registry (the hub the collection reuses) ──────
 # Analysis notebooks import `load_cell` / `cell_dir` from this module rather
 # than retraining; this entry is the single producer of the shared cells.
-# PINGLAB_TRAINING_ROOT overrides the location: RunPod pods set it to the shared
-# network-volume mount (/shared/training) so a fan-out writes durable artifacts
-# there instead of an ephemeral pod disk. Local runs use the default and are
-# unaffected. cell_dir / load_cell read through this, so every consumer follows.
-TRAINING_ROOT = Path(os.environ["PINGLAB_TRAINING_ROOT"]) if os.environ.get(
-    "PINGLAB_TRAINING_ROOT"
-) else ARTIFACTS
+# PINGLAB_TRAINING_ROOT optionally selects a dedicated external working root.
+# Normal staged execution installs its reserved export directory explicitly;
+# there is deliberately no unreserved import-time Pingstore fallback.
+TRAINING_ROOT: Path | None = (
+    Path(os.environ["PINGLAB_TRAINING_ROOT"])
+    if os.environ.get("PINGLAB_TRAINING_ROOT")
+    else None
+)
 SNN_TOOL = REPO / "tools" / "snnsim" / "tool.py"
 
 EPOCHS_STANDARD = 50
@@ -71,10 +64,12 @@ N_OUTPUT = 10
 WEIGHT_DECAY = 0.0
 GRAD_CLIP_NORM = 1.0
 DALES_LAW = True
-# GABA decay at the collection reference condition; the standard for every
-# family except the τ_GABA sweep. Single source of truth in helpers so the
-# whole collection moves together (see helpers/operating_point.py).
-TAU_GABA_GAMMA = TAU_GABA_GAMMA_MS
+# Exp022's adopted hidden-neuron dynamics. These are experiment parameters,
+# not generic snnsim defaults.
+REFRACTORY_E_MS = 1.2
+REFRACTORY_I_MS = 0.6
+REFRACTORY_POLICY = "exact"
+TAU_GABA_GAMMA = 6.0
 SHARED_W_IN_SUMMED_PARENT_MEAN = "0.9"
 # Stored-weight parameters exactly corresponding to the accepted legacy
 # Normal(5.1, 3.8) / 1024 × 225 recipe, now expressed directly.
@@ -82,6 +77,34 @@ SHARED_READOUT_W_INIT_MEAN = "1.12060546875"
 SHARED_READOUT_W_INIT_STD = "0.8349609375"
 TR06_READOUT_W_INIT_MEAN = "0.05"
 TR06_READOUT_W_INIT_STD = "0.04"
+
+
+def refractory_configuration() -> dict:
+    return {
+        "refractory_e_ms": REFRACTORY_E_MS,
+        "refractory_i_ms": REFRACTORY_I_MS,
+        "refractory_policy": REFRACTORY_POLICY,
+    }
+
+
+def refractory_args() -> list[str]:
+    return [
+        "--refractory-e-ms",
+        str(REFRACTORY_E_MS),
+        "--refractory-i-ms",
+        str(REFRACTORY_I_MS),
+        "--refractory-policy",
+        REFRACTORY_POLICY,
+    ]
+
+
+def refractory_execution_configuration(dt_ms: float) -> dict:
+    return refractory_metadata(
+        REFRACTORY_E_MS,
+        REFRACTORY_I_MS,
+        dt_ms,
+        policy=REFRACTORY_POLICY,
+    )
 
 # Production recipe for the next exp022 bank. COBA and PING share the input and
 # readout initialization distributions selected by the matched-midpoint gate. They
@@ -519,9 +542,18 @@ SCALE = {
 }
 
 
+def training_root() -> Path:
+    if TRAINING_ROOT is None:
+        raise RuntimeError(
+            "exp022 training root is not configured; use staged execution or set "
+            "PINGLAB_TRAINING_ROOT explicitly"
+        )
+    return TRAINING_ROOT
+
+
 def cell_dir(name: str) -> Path:
     """Shared per-cell artifact directory."""
-    return TRAINING_ROOT / name
+    return training_root() / name
 
 
 def load_cell(name: str) -> Path:

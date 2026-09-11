@@ -1,12 +1,8 @@
 """The retained inhibitory-decay sweep recipe; training remains owned by exp022."""
 
 from experiments.exp022.recipe import training_run_cell, training_run_values
-from experiments.helpers.checkpoints import checkpoint_policy
+from experiments.exp022.checkpoints import checkpoint_policy
 from experiments.helpers.datasets import MNIST_REDUCED_EVAL_SAMPLES
-from experiments.helpers.operating_point import (
-    refractory_args,
-    refractory_configuration,
-)
 
 SLUG = "exp041"
 TRAINING_RUN = "TR-03"
@@ -25,6 +21,10 @@ RASTER_N_E_PLOT = 200
 RASTER_N_I_PLOT = 64
 RASTER_T_WINDOW_MS = 100.0
 DT_TRAIN = 0.1
+REFRACTORY_E_MS = 1.2
+REFRACTORY_I_MS = 0.6
+REFRACTORY_POLICY = "exact"
+TAU_GABA_REFERENCE_MS = 6.0
 F_GAMMA_BAND_HZ = (5.0, 150.0)
 FIGURES = tuple(
     name + "." + ext
@@ -37,6 +37,25 @@ FIGURES = tuple(
     )
     for ext in extensions
 )
+
+
+def refractory_configuration() -> dict:
+    return {
+        "refractory_e_ms": REFRACTORY_E_MS,
+        "refractory_i_ms": REFRACTORY_I_MS,
+        "refractory_policy": REFRACTORY_POLICY,
+    }
+
+
+def refractory_args() -> list[str]:
+    return [
+        "--refractory-e-ms",
+        str(REFRACTORY_E_MS),
+        "--refractory-i-ms",
+        str(REFRACTORY_I_MS),
+        "--refractory-policy",
+        REFRACTORY_POLICY,
+    ]
 
 
 TRAINING_COMMON_FIELDS = (

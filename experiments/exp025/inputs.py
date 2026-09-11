@@ -78,12 +78,17 @@ def compute_evidence(repo, run):
     pin = run.record["inputs"]["bank"]
     bank = source(repo, pin["run_id"], "compute", experiment="exp022", reference=pin)
     contract = evidence.training_contract(bank.export)
-    expected = {
-        "schema": "exp025.compute/v1",
-        "recipe": cfg,
-        "training_contract": contract,
-        "jobs": recipe.jobs(cfg),
-    }
-    if load_json(run.export / "evidence.json") != expected:
-        raise PingstoreError("compute evidence differs from the pinned bank/recipe")
+    # Historical v4 imports retained this metadata envelope in the payload.
+    # Validate it when present, but future compute runs keep execution metadata
+    # solely in run.json and export only scientific outputs.
+    legacy = run.export / "evidence.json"
+    if legacy.is_file():
+        expected = {
+            "schema": "exp025.compute/v1",
+            "recipe": cfg,
+            "training_contract": contract,
+            "jobs": recipe.jobs(cfg),
+        }
+        if load_json(legacy) != expected:
+            raise PingstoreError("compute evidence differs from the pinned bank/recipe")
     return cfg, bank, contract

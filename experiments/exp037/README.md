@@ -79,7 +79,7 @@ experiment.
 
 Experiment Runner Guide 4.3.0 and Storage Guide 4.3.0. The scientific recipe remains the
 existing TR-02 perturbation study; training belongs to exp022. The flat runner,
-implicit scratch/cache paths and legacy RunPod dispatch entrypoint are retired.
+implicit scratch/cache paths and legacy cloud dispatch entrypoint are retired.
 Importing the package exposes pure recipe and measurement helpers, not execution.
 
 Each stage requires an explicit completed v4 source and completes independently:

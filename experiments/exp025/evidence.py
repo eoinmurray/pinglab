@@ -7,7 +7,7 @@ import numpy as np
 from experiments.exp041.evidence import _same, finite
 from experiments.exp041.recipe import TRAINING_COMMON_FIELDS
 from experiments.exp044.evidence import snapshot as validate_snapshot
-from experiments.helpers.checkpoints import public_provenance, resolve_checkpoint
+from experiments.exp022.checkpoints import public_provenance, resolve_checkpoint
 from pingstore.contracts import PingstoreError, load_json
 
 from . import recipe

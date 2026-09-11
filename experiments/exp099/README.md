@@ -63,6 +63,9 @@ spikes), mean pair correlation from 10 ms counts in at most 100 sampled cells,
 SNNSIM autocorrelation contrast, and the population spectrum. These are
 descriptive checks, not a PING classifier. Silence is reported explicitly.
 Presentation consumes these measurements without recomputing estimators.
+The single presentation command now emits the video, network diagram, full-population
+spike raster, reference-paper crop and `numbers.json`; the former raster and
+reference augmentation commands have been consolidated into this stage.
 
 ## Shared tools
 

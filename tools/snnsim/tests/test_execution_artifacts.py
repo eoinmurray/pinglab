@@ -15,7 +15,7 @@ from execution import (
 )
 
 from tools.snnlang.examples.build_examples import ping_classifier
-from tools.snnsim.tests.execution._builders import (
+from tools.snnsim.tests._execution_builders import (
     standard_readout_graph as _standard_readout_graph,
 )
 

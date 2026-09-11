@@ -16,7 +16,7 @@ from experiments.exp022 import recipe
 from pingstore.contracts import PingstoreError, load_json, write_json_atomic
 from pingstore.stages import source_run, stage_run
 
-from helpers.checkpoints import checkpoint_provenance, epoch_metrics
+from experiments.exp022.checkpoints import checkpoint_provenance, epoch_metrics
 from helpers.fmt import format_duration
 
 

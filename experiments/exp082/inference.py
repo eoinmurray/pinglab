@@ -10,7 +10,6 @@ from pathlib import Path
 import numpy as np
 import torch
 from experiments.helpers.datasets import load_mnist_split
-from experiments.helpers.operating_point import refractory_args
 from pingstore.contracts import (
     PingstoreError,
     file_sha256,
@@ -119,7 +118,7 @@ class Inference:
                 sys.executable,
                 str(tool),
                 "sim",
-                *refractory_args(),
+                *recipe.refractory_args(),
                 "--load-config",
                 str(train / "config.json"),
                 "--load-weights",

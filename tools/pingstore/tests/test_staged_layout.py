@@ -241,7 +241,7 @@ def test_non_v4_evidence_is_rejected_by_operational_readers(tmp_path):
     assert before == ((directory / "run.json").read_bytes(), payload_digest(directory))
 
 
-@pytest.mark.parametrize("origin", ["local", "slurm-wilkes", "runpod"])
+@pytest.mark.parametrize("origin", ["local", "slurm-wilkes", "slurm-zenith"])
 def test_stage_writer_finishes_v4_with_readme_and_no_provenance(tmp_path, monkeypatch, origin):
     monkeypatch.setattr(stages, "memberships", lambda repo: {"exp001": "demo"})
     monkeypatch.setattr(stages, "_capture_code", lambda repo, directory: {
@@ -280,7 +280,7 @@ def test_source_neutral_reservations_keep_origin_and_avoid_cross_origin_collisio
     (runs / "exp001-r007-compute-local").mkdir(parents=True)
     (runs / ".exp001-analyse-r008-slurm.tmp").mkdir()
     (runs / "exp001-r009-present").mkdir()
-    origins = ["local", "slurm-wilkes", "runpod"] * 4
+    origins = ["local", "slurm-wilkes", "slurm-zenith"] * 4
     with ThreadPoolExecutor(max_workers=6) as pool:
         identities = list(pool.map(lambda origin: stages.reserve_stage(
             tmp_path, "exp001", "compute", origin=origin), origins))

@@ -519,6 +519,25 @@ def test_production_recipe_and_raster_selection(tmp_path):
         np.testing.assert_array_equal(data[key], values)
 
 
+def test_smoke_and_single_sample_inference_caps(tmp_path):
+    jobs = recipe.jobs(recipe.configuration(smoke=True))
+    infer = next(job for job in jobs if job["kind"] == "infer")
+    args = recipe.inference_args(
+        tmp_path, tmp_path / "weights_final.pth", tmp_path / "out", infer
+    )
+    assert args[args.index("--max-samples") + 1] == "100"
+
+    snapshot = next(job for job in jobs if job["kind"] == "snapshot")
+    args = recipe.inference_args(
+        tmp_path,
+        tmp_path / "weights_final.pth",
+        tmp_path / "out",
+        {**snapshot, "sample_index": 50},
+    )
+    assert "--max-samples" not in args
+    assert args[-2:] == ["--sample-index", "50"]
+
+
 def test_article_renders_only_selected_presentation(lab):
     import shutil
 

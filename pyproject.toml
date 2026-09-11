@@ -36,12 +36,8 @@ build-backend = "hatchling.build"
 packages = ["tools/snnsim", "tools/snnlang", "tools/snnviz", "tools/pingstore"]
 
 # torch/torchvision on Linux resolve from PyTorch's CUDA-12.8 (cu128) wheel index
-# rather than PyPI. PyPI's Linux torch wheel bundles the cu13 runtime (the
-# driver-incompatible "cu130" build the RunPod pods can't use), so `uv sync`
-# would bake ~2 GB of throwaway CUDA that the old Dockerfile then re-downloaded
-# a second time as a cu128 `--reinstall` layer. Pinning the index makes cu128
-# the *only* torch uv ever resolves on Linux — one install, one layer, no
-# duplicate. The marker keeps macOS/Windows dev on the normal PyPI wheels
+# rather than PyPI. This keeps Linux GPU environments on the project's recorded
+# CUDA runtime while the marker leaves macOS/Windows on the normal PyPI wheels
 # (the cu128 index has no macOS build). Explicit index ⇒ only these two
 # packages come from it; everything else stays on PyPI.
 [[tool.uv.index]]
@@ -86,11 +82,6 @@ dev = [
     "pytest-cov>=7.1.0",
     "ruff>=0.15.20",
     "ty>=0.0.55",
-    # boto3: the RunPod S3 volume-collect path (helpers/runpod.py collect_via_s3)
-    # reads trained cells off the shared network volume over HTTPS. It runs only
-    # on the collecting machine, never on a pod, so it lives in dev — the pod
-    # image builds with `uv sync --no-dev` and stays lean (no boto3 baked in).
-    "boto3>=1.34",
     # 2.9 is the latest Brian2 line supporting the project's Python >=3.10;
     # Brian2 2.10 requires Python >=3.12.
     "brian2>=2.9,<2.10",

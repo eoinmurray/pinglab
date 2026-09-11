@@ -6,9 +6,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 from experiments.helpers import theme
 from experiments.helpers.figsave import save_figure
-from experiments.helpers.operating_point import TAU_GABA_GAMMA_MS
 
-from .recipe import F_GAMMA_BAND_HZ
+from .recipe import F_GAMMA_BAND_HZ, TAU_GABA_REFERENCE_MS
 
 
 def plot_quantitative_law(
@@ -42,7 +41,9 @@ def plot_quantitative_law(
             markersize=6 if standalone else 3,
             color=theme.INK_BLACK,
             capsize=3 if standalone else 2,
-            label=f"τ_GABA = {tau:g} ms" if standalone and tau == TAU_GABA_GAMMA_MS else None,
+            label=f"τ_GABA = {tau:g} ms"
+            if standalone and tau == TAU_GABA_REFERENCE_MS
+            else None,
         )
         ax_rate.annotate(
             f" {tau:g} ms",

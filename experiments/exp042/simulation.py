@@ -8,12 +8,11 @@ import tempfile
 from pathlib import Path
 
 import numpy as np
-from experiments.helpers.checkpoints import cache_tag, resolve_checkpoint
-from experiments.helpers.operating_point import refractory_args
+from experiments.exp022.checkpoints import cache_tag, resolve_checkpoint
 from experiments.helpers.run_cli import run_cli
 from pingstore.contracts import write_json_atomic
 
-from .recipe import CHECKPOINT_ROLE, EVAL_SEED, replay_job
+from .recipe import CHECKPOINT_ROLE, EVAL_SEED, refractory_args, replay_job
 from .transforms import _build_override
 
 

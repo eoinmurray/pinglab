@@ -35,6 +35,22 @@ def test_registry_has_102_unique_cells_partitioned_once() -> None:
     assert sorted(tiered) == sorted(names)
 
 
+def test_compact_epoch_records_feed_training_summaries(tmp_path):
+    rows = [
+        {"ep": 1, "acc": 80, "rate_e": 5, "rate_i": 20, "contrast": 0.4},
+        {
+            "ep": 2,
+            "acc": 90,
+            "test_rate_e": 6,
+            "test_rate_i": 21,
+            "contrast": 0.6,
+        },
+    ]
+    (tmp_path / "metrics.json").write_text(json.dumps({"epochs": rows}))
+    assert exp022.training_curve(tmp_path) == ([1, 2], [80.0, 90.0])
+    assert exp022.final_rates(tmp_path) == (6.0, 21.0)
+
+
 def test_tr02_registry_uses_explicit_hz_targets() -> None:
     cells = [
         cell for cell in recipe.CANONICAL_CELLS if cell["training_run_id"] == "TR-02"
@@ -101,6 +117,12 @@ def test_bank_python_identity_normalizes_parent_alias(
 def test_exp022_display_path_accepts_external_bank_root(tmp_path: Path) -> None:
     external = tmp_path / "bank" / "derived"
     assert recipe._display_path(external) == external
+
+
+def test_training_root_must_be_explicit(monkeypatch) -> None:
+    monkeypatch.setattr(recipe, "TRAINING_ROOT", None)
+    with pytest.raises(RuntimeError, match="training root is not configured"):
+        recipe.training_root()
 
 
 @pytest.mark.parametrize("family,run_id", recipe.TRAINING_RUN_IDS.items())

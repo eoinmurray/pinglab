@@ -11,7 +11,7 @@ sys.path[:0] = [str(REPO), str(REPO / "tools")]
 from experiments.exp025 import evidence, inputs, measurements, recipe
 from pingstore.contracts import PingstoreError, write_json_atomic
 
-MEASUREMENT = {
+MEASUREMENT_V1 = {
     "schema": "exp025.measurement/v1",
     "frontier": "final-epoch official-test accuracy and mean E rate; three independent seeds, mean and SEM",
     "pfg": "representative seed 42; Welch E-population frequency; per-trial frequency anchors inhibitory peak cycles; active cell-cycle fraction",
@@ -19,22 +19,25 @@ MEASUREMENT = {
     "low_w_in": "retained validation histories; original fallback rules and seed aggregation",
     "crossing": "midpoint of first adjacent scale pair crossing I rate 0.05 Hz",
 }
+MEASUREMENT = {
+    **MEASUREMENT_V1,
+    "schema": "exp025.measurement/v2",
+    "low_w_in": "retained validation histories; prefer explicit test-rate fields, including zero; original seed aggregation",
+}
+
+
+def history_value(row, preferred, fallback=None):
+    value = row.get(preferred)
+    if value is None and fallback is not None:
+        value = row.get(fallback)
+    return float(value) if value is not None else 0.0
 
 
 def low_curve(histories):
     def series(key, fallback=None):
         return np.asarray(
             [
-                [
-                    float(
-                        e.get(key)
-                        if e.get(key) is not None
-                        else (e.get(fallback) or 0.0)
-                        if fallback
-                        else 0.0
-                    )
-                    for e in history
-                ]
+                [history_value(e, key, fallback) for e in history]
                 for history in histories
             ],
             dtype=float,
@@ -125,9 +128,7 @@ def analyse(identity, *, run_id=None):
                     }
                 )
             elif job["kind"] == "pfg":
-                m = measurements.measure_p_fgamma(
-                    artifact, train["dt"], job["is_ping"]
-                )
+                m = measurements.measure_p_fgamma(artifact, train["dt"], job["is_ping"])
                 pfg.append(
                     {
                         "model": cell["model"],
@@ -172,12 +173,8 @@ def analyse(identity, *, run_id=None):
                         "best_acc": float(m["best_acc"]),
                         "best_epoch": int(m["best_epoch"]),
                         "final_acc": float(last["acc"]),
-                        "rate_e": float(
-                            last.get("test_rate_e") or last.get("rate_e") or 0.0
-                        ),
-                        "rate_i": float(
-                            last.get("test_rate_i") or last.get("rate_i") or 0.0
-                        ),
+                        "rate_e": history_value(last, "test_rate_e", "rate_e"),
+                        "rate_i": history_value(last, "test_rate_i", "rate_i"),
                     }
                 )
             low.append(measurements.aggregate_low_w_in_seed_rows(w, per_seed))
@@ -204,54 +201,9 @@ def analyse(identity, *, run_id=None):
             ),
             None,
         )
-        training_sources = {}
-        for group, registry in (
-            ("shared_tr02", "TR-02"),
-            ("low_w_in_controls", "TR-07"),
-        ):
-            names = [
-                c["cell_name"]
-                for c in contract["cells"]
-                if c["group"] == group
-                and (group == "shared_tr02" or c["seed"] in cfg["low_w_in_seeds"])
-            ]
-            training_sources[group] = {
-                "owner": f"exp022/{registry}",
-                "max_samples": 7000,
-                "epochs": 50,
-                "seeds": recipe.SEEDS
-                if group == "shared_tr02"
-                else cfg["low_w_in_seeds"],
-                "checkpoint_role": recipe.CHECKPOINT_ROLE,
-                "checkpoints": [
-                    c for c in contract["checkpoints"] if c["training_cell"] in names
-                ],
-            }
         result = {
-            "schema": "exp025.analysis/v1",
+            "schema": "exp025.analysis/v2",
             "recipe": cfg,
-            "measurement": MEASUREMENT,
-            "checkpoint_policy": recipe.CHECKPOINT_POLICY,
-            "checkpoint_provenance": training_sources["shared_tr02"]["checkpoints"],
-            "training_sources": training_sources,
-            "git_sha_train": contract["configs"][
-                recipe.cell_name(recipe.MODELS[0], None, 42)
-            ].get("git_sha"),
-            "config": {
-                "dataset": "mnist",
-                "models": recipe.MODELS,
-                "rate_target_grid_hz": [
-                    t for t in recipe.RATE_TARGET_GRID_HZ if t is not None
-                ],
-                "max_samples": 7000,
-                "evaluation_samples": cfg["evaluation_samples"],
-                "epochs": 50,
-                "t_ms": 200.0,
-                "dt": 0.1,
-                "frontier_seeds": recipe.SEEDS,
-                "representative_seed": 42,
-                "fr_strength_upper": recipe.FR_STRENGTH_UPPER,
-            },
             "results": frontier,
             "frontier_statistics": measurements.aggregate_frontier(frontier),
             "rate_target_p_fgamma": pfg,

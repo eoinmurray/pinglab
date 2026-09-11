@@ -25,15 +25,6 @@ def compute(identity, *, run_id=None):
         run.record["execution"]["environment"] = {
             "PINGLAB_SMOKE": "1" if cfg["profile"] == "smoke" else "0"
         }
-        write_json_atomic(
-            run.export / "evidence.json",
-            {
-                "schema": "exp025.compute/v1",
-                "recipe": cfg,
-                "training_contract": contract,
-                "jobs": recipe.jobs(cfg),
-            },
-        )
         commands = []
         for job in recipe.jobs(cfg):
             name = job["cell_name"]

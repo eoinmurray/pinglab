@@ -9,7 +9,6 @@ import numpy as np
 REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
 from experiments.exp038 import evidence, inputs, measurements, recipe
-from experiments.helpers.frontier import summarize_frontier
 from pingstore.contracts import PingstoreError, write_json_atomic
 
 MEASUREMENT = {
@@ -115,7 +114,7 @@ def analyse(identity, *, run_id=None):
                     "fr_strength_upper": recipe.FR_STRENGTH_UPPER,
                 },
                 "baseline_results": baseline,
-                "frontier_summary": summarize_frontier(baseline),
+                "frontier_summary": measurements.summarize_frontier(baseline),
                 "ei_sweep": ei,
                 "ei_sweep_summary": measurements.summarize_ei_points(ei),
                 "fi_sweep_uniform": uniform,

@@ -11,7 +11,7 @@ add_argument + bare `"--flag" in sys.argv` checks) and fails on anything outside
 the meta allowlist. A new science flag lights up here until it is either hardcoded
 or (if genuinely meta) added to ALLOWED with justification.
 
-Scope note: helper and dispatch modules are excluded.
+Scope note: helper modules are excluded.
 """
 
 import re
@@ -70,23 +70,9 @@ def test_runners_exist():
     assert RUNNERS, f"no exp<NNN>.py runners found under {EXPERIMENTS}"
 
 
-def test_scheduler_cell_meta_flags_parse_for_dispatch_runner():
-    meta = parse_meta(
-        ["compute.py", "--train-cell", "ping__off__seed42"],
-        allow_dispatch=True,
-    )
-    assert meta.train_cell == "ping__off__seed42"
-
-    listing = parse_meta(
-        ["compute.py", "--list-cells", "variable_rate"],
-        allow_dispatch=True,
-    )
-    assert listing.list_cells == "variable_rate"
-
-
 def test_retired_modal_flag_is_rejected():
     with pytest.raises(SystemExit, match="unknown flag '--modal'"):
-        parse_meta(["compute.py", "--modal"], allow_dispatch=True)
+        parse_meta(["compute.py", "--modal"])
 
 
 @pytest.mark.parametrize("runner", RUNNERS, ids=lambda p: p.name)

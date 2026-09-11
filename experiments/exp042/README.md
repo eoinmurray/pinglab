@@ -164,9 +164,9 @@ collection orchestrator invoke analyse and present explicitly. Neither downstrea
 stage launches compute. A failed collector remains hidden and needs a fresh
 identity or separately reviewed recovery, not automatic reuse.
 
-Legacy monolithic commands, `--skip-training`, `--plot-only` and the old RunPod
+Legacy monolithic commands, `--skip-training`, `--plot-only` and the old cloud
 dispatcher are not operational interfaces. The simulator can execute on the
-current host, including an explicitly provisioned GPU host; automated RunPod
+current host, including an explicitly provisioned GPU host; automated cloud
 dispatch has not been ported to the v4 reservation protocol. Historical campaigns
 require their original checkout and are not accepted by the new adapter.
 

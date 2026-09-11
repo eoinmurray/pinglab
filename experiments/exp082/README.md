@@ -7,8 +7,8 @@ split into independent compute, analyse and present stages. The separately
 approved historical import and derived rebuild are complete; no production
 simulation, training or publication was performed. The article was revised under
 Writing Guide 16.0.0, then updated to the plain Results heading in 17.0.0;
-it has not been marked Reviewed. See
-[MIGRATION_REVIEW.md](MIGRATION_REVIEW.md) for exact runs, bytes and checks.
+it has not been marked Reviewed. Exact operational identities and the current
+validated lineage are recorded below; immutable run records retain their checks.
 
 ```sh
 uv run python -m experiments.exp082.compute --source <exp022-compute-run-id>
@@ -147,9 +147,9 @@ publication globals, cache execution and `--replot` are retired.
 
 ## Historical evidence and approval boundary
 
-See [IMPORT_PLAN.md](IMPORT_PLAN.md) for the audit and approved import selection.
-The current validated `exp022-r001-compute` bank contains byte-identical best and
-final TR-06 weights. Its three cells are inherited from the base production bank;
+The approved import selected 199 historical source files under an explicit
+historical-import contract. The current validated `exp022-r001-compute` bank
+contains byte-identical best and final TR-06 weights. Its three cells are inherited from the base production bank;
 configuration/history changes are campaign annotations, not numerical training
 changes. The two banks are not generally interchangeable.
 

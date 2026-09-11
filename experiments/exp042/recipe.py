@@ -3,9 +3,8 @@
 import re
 
 from experiments.exp022.recipe import training_run_cell, training_run_values
-from experiments.helpers.checkpoints import checkpoint_policy
+from experiments.exp022.checkpoints import checkpoint_policy
 from experiments.helpers.datasets import MNIST_REDUCED_EVAL_SAMPLES
-from experiments.helpers.operating_point import F_GAMMA_HZ, refractory_configuration
 
 SLUG = "exp042"
 TRAINING_RUN = "TR-02"
@@ -16,7 +15,10 @@ EVAL_SEED = 20260415
 SEEDS = training_run_values(TRAINING_RUN, "seed")
 JITTER_SIGMAS_MS = (0.0, 1.0, 3.0, 7.0, 14.0, 21.0, 28.0, 42.0, 60.0, 100.0)
 CELL_JITTER_SIGMAS_MS = (0.0, 0.5, 1.0, 2.0, 5.0, 9.0, 14.0, 21.0, 50.0)
-F_GAMMA_REFERENCE_HZ = F_GAMMA_HZ
+F_GAMMA_REFERENCE_HZ = 43.95
+REFRACTORY_E_MS = 1.2
+REFRACTORY_I_MS = 0.6
+REFRACTORY_POLICY = "exact"
 JITTER_BOUNDARY_POLICY = "reflect_in_range/v1"
 JITTER_COLLISION_POLICY = "nearest_free_bounded_alternating/v1"
 EVAL_MAX_SAMPLES = MNIST_REDUCED_EVAL_SAMPLES
@@ -27,6 +29,25 @@ RASTER_N_I_PLOT = 64
 COMPOUND_SIGMA_MS = 14.0
 SHARDS = 8
 FIGURES = ("rhythm_compound.png",)
+
+
+def refractory_configuration() -> dict:
+    return {
+        "refractory_e_ms": REFRACTORY_E_MS,
+        "refractory_i_ms": REFRACTORY_I_MS,
+        "refractory_policy": REFRACTORY_POLICY,
+    }
+
+
+def refractory_args() -> list[str]:
+    return [
+        "--refractory-e-ms",
+        str(REFRACTORY_E_MS),
+        "--refractory-i-ms",
+        str(REFRACTORY_I_MS),
+        "--refractory-policy",
+        REFRACTORY_POLICY,
+    ]
 
 
 def cell_name(seed):

@@ -9,7 +9,6 @@ import numpy as np
 REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
 from experiments.exp037 import evidence, inputs, measurements, recipe
-from experiments.helpers.frontier import summarize_frontier
 from pingstore.contracts import PingstoreError, write_json_atomic
 
 MEASUREMENT = {
@@ -101,7 +100,7 @@ def analyse(identity, *, run_id=None):
                 "addition_axis": "per_seed_test_baseline_percent"
                 if recipe.relative(cfg)
                 else "reference_image_percent",
-                "frontier_summary": summarize_frontier(rows),
+                "frontier_summary": measurements.summarize_frontier(rows),
                 "perturbation": perturb,
                 "perturbation_summary": measurements.summarize_perturbation_rows(
                     perturb

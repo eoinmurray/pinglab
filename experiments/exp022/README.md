@@ -8,8 +8,8 @@ Guide](../README.md) and requires `pingstore.run/v4`.
 
 - `recipe.py` owns the scientific registry and read-only model-bank interface.
 - `compute.py` owns direct and parallel training, frozen bank manifests,
-  per-cell validation and recovery, RunPod dispatch, v4 bank import, and
-  explicitly requested retained diagnostic simulations.
+  per-cell validation and recovery, v4 bank import, and explicitly requested
+  retained diagnostic simulations.
 - `analyse.py` measures a completed compute run without executing new science.
 - `present.py` renders a completed analysis and can explicitly carry verified
   historical raster images when the original raw probes were not retained.
@@ -34,9 +34,9 @@ uv run python experiments/exp022/analyse.py --source <compute-run-id>
 uv run python experiments/exp022/present.py --source <analyse-run-id>
 ```
 
-RunPod, bank-array, import, recovery, and diagnostic modes are explicit compute operations.
-Use `compute.py --help` and `hpc.py --help` for their arguments. No exp022
-command schedules other experiments, analyses, presentations, or publication.
+Bank-array, import, recovery, and diagnostic modes are explicit operations. Use
+`compute.py --help` and `hpc.py --help` for their arguments. No exp022 command
+schedules other experiments, analyses, presentations, or publication.
 
 Completed runs contain exactly `run.json`, `README.md`, and `export/`. The 102
 model cells are direct scientific-unit directories in compute exports. Analysis
