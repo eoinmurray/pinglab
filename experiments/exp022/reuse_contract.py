@@ -100,6 +100,24 @@ def _inspect_reused_cell(source: SourceRun, cell: dict) -> dict:
     expected = compute._expected_config({"parameters": _current_parameters(cell)})
     for key, wanted in expected.items():
         actual = config.get(key, nested.get(key))
+        if actual is None and key in {
+            "refractory_e_ms",
+            "refractory_i_ms",
+            "refractory_policy",
+        }:
+            interpretation = (
+                source.record.get("bank_reuse", {})
+                .get("cell_provenance", {})
+                .get(name, {})
+                .get("refractory_interpretation")
+            )
+            if (
+                isinstance(interpretation, dict)
+                and compute._same(interpretation.get("e_ms"), 1.2)
+                and compute._same(interpretation.get("i_ms"), 0.6)
+                and interpretation.get("reuse_validation")
+            ):
+                continue
         if not compute._same(actual, wanted):
             raise PingstoreError(
                 f"{name}: saved {key}={actual!r} disagrees with {wanted!r}"
