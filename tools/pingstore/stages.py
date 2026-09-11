@@ -156,8 +156,14 @@ def _reserve_stage(root: Path, experiment: str, stage: str,
     runs = root / "runs"
     runs.mkdir(parents=True, exist_ok=True)
     pattern = re.compile(rf"^\.?{experiment}-(?:(?:compute|analyse|present)-)?r(\d+)-")
-    number = max((int(match.group(1)) for path in runs.iterdir()
-                  if (match := pattern.match(path.name))), default=0)
+    number = max(
+        (
+            int(match.group(1))
+            for path in runs.iterdir()
+            if (match := pattern.match(path.name))
+        ),
+        default=0,
+    )
     while True:
         number += 1
         identity = f"{experiment}-r{number:03d}-{stage}"
