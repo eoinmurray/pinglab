@@ -3,13 +3,11 @@
 import subprocess
 import sys
 from pathlib import Path
-from types import SimpleNamespace
 
 import numpy as np
 import pytest
 from experiments.exp041 import (
     analyse,
-    collection,
     compute,
     evidence,
     inputs,
@@ -228,58 +226,6 @@ def test_missing_measurements_never_become_zeros(lab, damage):
     assert len(calls) == 24
 
 
-def test_collection_reserves_and_dispatches_explicit_stages(lab, monkeypatch):
-    from experiments.collections.gamma_gated_sparsity.plan import build_plan
-
-    root, bank_id, _ = lab
-    plan = build_plan(root / "campaign", "fixture", smoke=True)
-    plan["profile"] = "smoke"
-    plan["exp022_manifest"] = str(root / "bank-manifest.json")
-    write_json_atomic(Path(plan["exp022_manifest"]), {"pingstore_run_id": bank_id})
-    row = next(
-        r for s in plan["stages"] for r in s["experiments"] if r["slug"] == "exp041"
-    )
-    assert row["command"] == []
-    assert row["execution"]["stages"] == ["compute", "analyse", "present"]
-    ids = collection.reserve(root, row, origin="slurm-wilkes")
-    for stage, identity in ids.items():
-        assert identity.endswith("-" + stage)
-        reservation = load_json(
-            root
-            / ".pingstore/runs"
-            / f".{identity}.tmp"
-            / ".reservation.json"
-        )
-        assert reservation["origin"] == "slurm-wilkes"
-    assert collection.reserve(root, row) == ids
-    with pytest.raises(PingstoreError, match="legacy exp041"):
-        collection.require_staged({"execution": {"mode": "monolithic"}})
-    commands = []
-
-    def dispatch(command, **kwargs):
-        commands.append(command)
-        stage = command[2].rsplit(".", 1)[-1]
-        module = {"compute": compute, "analyse": analyse, "present": present}[stage]
-        getattr(module, stage)(
-            command[command.index("--source") + 1],
-            run_id=command[command.index("--run-id") + 1],
-        )
-        return SimpleNamespace(stdout="")
-
-    monkeypatch.setattr(collection.subprocess, "run", dispatch)
-    refs = collection.execute(root, plan, row)
-    assert len(commands) == 3
-    assert collection.execute(root, plan, row) == refs
-    assert len(commands) == 3
-    assert (
-        collection.completed(root, plan, row).record["run_id"]
-        == refs["present"]["run_id"]
-    )
-    plan["profile"] = "production"
-    with pytest.raises(PingstoreError, match="profile"):
-        collection.execute(root, plan, row)
-
-
 def test_independent_stages_retain_science_and_never_publish(lab, monkeypatch):
     from experiments.exp041 import measurements
 
@@ -486,26 +432,6 @@ def test_inference_caps_and_import_side_effects(tmp_path):
         text=True,
     )
     assert result.returncode == 0, result.stderr
-
-
-@pytest.mark.parametrize("slug", ["exp054"])
-def test_migrated_consumers_require_explicit_exp041_stage_references(
-    tmp_path, monkeypatch, slug
-):
-    from experiments.collections.gamma_gated_sparsity import execution
-    from experiments.collections.gamma_gated_sparsity.plan import build_plan
-
-    plan = build_plan(tmp_path / "campaign", "fixture", smoke=True)
-    row = next(
-        r for stage in plan["stages"] for r in stage["experiments"] if r["slug"] == slug
-    )
-    monkeypatch.setattr(
-        execution.subprocess,
-        "run",
-        lambda *a, **k: pytest.fail("legacy downstream launch"),
-    )
-    with pytest.raises(PingstoreError, match="requires completed exp041 analysis"):
-        execution._run_downstream(plan, row)
 
 
 def test_article_renders_only_explicit_present_inputs(lab):

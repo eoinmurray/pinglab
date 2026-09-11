@@ -26,23 +26,18 @@ from experiments.helpers.cli import ALL_META_FLAGS, parse_meta
 # Synced with helpers/cli.py — the closed meta vocabulary (+ legacy wipe/replot).
 ALLOWED_EXACT = set(ALL_META_FLAGS) | {"--no-wipe-dir", "--wipe-dir", "--replot"}
 
-# exp022 is also the collection's scheduler-facing checkpoint registry. These
-# flags select committed cells, lifecycle actions, or output formatting; none
-# overrides a scientific parameter. Keep the exception local so ordinary
-# experiment runners cannot acquire campaign controls accidentally.
-EXP022_CAMPAIGN_META = {
-    "--campaign",
-    "--campaign-aggregate",
-    "--campaign-id",
+# Exp022's bank-array workflow controls one explicitly reserved compute run.
+# Keep the exception local so ordinary experiment runners cannot acquire
+# per-cell worker controls accidentally.
+EXP022_BANK_META = {
+    "--bank",
+    "--bank-create",
+    "--bank-finalize",
+    "--bank-list",
+    "--bank-status",
+    "--bank-train-cell",
+    "--bank-validate",
     "--execution-origin",
-    "--campaign-import-compatible",
-    "--campaign-list",
-    "--campaign-manifest",
-    "--campaign-status",
-    "--campaign-train-cell",
-    "--campaign-validate",
-    "--json",
-    "--from-campaign",
     "--recover-stale",
     "--retry-only",
     "--tier",
@@ -97,7 +92,7 @@ def test_retired_modal_flag_is_rejected():
 @pytest.mark.parametrize("runner", RUNNERS, ids=lambda p: p.name)
 def test_runner_accepts_only_meta_flags(runner):
     allowed = ALLOWED_EXACT | (
-        EXP022_CAMPAIGN_META if runner.parent.name == "exp022" else set()
+        EXP022_BANK_META if runner.parent.name == "exp022" else set()
     )
     if runner.parent != EXPERIMENTS:
         allowed |= STAGE_META

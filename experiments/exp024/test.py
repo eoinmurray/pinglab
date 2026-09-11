@@ -1,16 +1,13 @@
 """Exp024 contract and measurement checks using tiny retained histories, no simulation."""
 
-import copy
 import subprocess
 import sys
 from pathlib import Path
-from types import SimpleNamespace
 
 import pytest
-from experiments.exp024 import analyse, collection, present, recipe
+from experiments.exp024 import analyse, present, recipe
 from pingstore import stages
 from pingstore.contracts import (
-    LEGACY_RUN_SCHEMA,
     RUN_SCHEMA,
     PingstoreError,
     load_json,
@@ -67,12 +64,10 @@ def config(model, seed):
     }
 
 
-def make_compute(repo, *, schema=RUN_SCHEMA, mutation=None):
-    identity = (
-        "exp022-r001-compute" if schema == RUN_SCHEMA else "exp022-r001-compute-local"
-    )
+def make_compute(repo, *, mutation=None):
+    identity = "exp022-r001-compute"
     directory = repo / ".pingstore/runs" / identity
-    initialize_layout(directory, "exp022", schema=schema)
+    initialize_layout(directory, "exp022")
     for model in recipe.MODELS:
         for seed in recipe.SEEDS:
             cfg = config(model, seed)
@@ -98,21 +93,18 @@ def make_compute(repo, *, schema=RUN_SCHEMA, mutation=None):
             if mutation:
                 mutation(cfg, metrics)
             cell = directory / "export" / recipe.cell_name(model, seed)
-            if schema != RUN_SCHEMA:
-                cell = directory / "export/cells" / recipe.cell_name(model, seed)
             write_json_atomic(cell / "config.json", cfg)
             write_json_atomic(cell / "metrics.json", metrics)
     write_json_atomic(
         directory / "run.json",
         {
-            "schema": schema,
+            "schema": RUN_SCHEMA,
             "run_id": identity,
             "experiment": "exp022",
             "collection": "demo",
             "origin": "local",
             "stage": "compute",
             "inputs": {},
-            **({} if schema == RUN_SCHEMA else {"export_root": "export/cells"}),
             "created_at": "2026-08-27T12:00:00+00:00",
             "execution": {},
             "provenance": {},
@@ -128,10 +120,13 @@ def resign(directory):
     write_json_atomic(directory / "run.json", record)
 
 
-def test_analysis_rejects_typed_v2_before_reserving(repo):
-    identity, directory = make_compute(repo, schema=LEGACY_RUN_SCHEMA)
+def test_analysis_rejects_non_v4_before_reserving(repo):
+    identity, directory = make_compute(repo)
+    record = load_json(directory / "run.json")
+    record["schema"] = "pingstore.run/v3"
+    write_json_atomic(directory / "run.json", record)
     before = (directory / "run.json").read_bytes(), payload_digest(directory)
-    with pytest.raises(PingstoreError, match="requires v4"):
+    with pytest.raises(PingstoreError, match="operational run schema"):
         analyse.analyse(identity)
     assert before == ((directory / "run.json").read_bytes(), payload_digest(directory))
     assert list((repo / ".pingstore/runs").iterdir()) == [directory]
@@ -252,89 +247,6 @@ def test_presentation_does_not_invoke_analysis(repo, monkeypatch):
         analyse, "read_cell", lambda *a, **k: pytest.fail("training cell read")
     )
     present.present(analysis_id)
-
-
-def test_collection_dispatch_tracks_runs_without_materialization(repo, monkeypatch):
-    identity, _ = make_compute(repo)
-    manifest = repo / "campaign/campaign.json"
-    write_json_atomic(manifest, {"pingstore_run_id": identity})
-    row = {
-        "execution": {"mode": "exp024-staged"},
-        "paths": {"state": str(repo / "campaign/downstream/exp024")},
-        "required_outputs": [str(repo / "campaign/downstream/exp024/stage-refs.json")],
-    }
-    plan = {"exp022_manifest": str(manifest)}
-    reserved = collection.reserve(repo, row, origin="slurm-wilkes")
-    calls = []
-
-    def run(command, **kwargs):
-        calls.append(command)
-        source = command[command.index("--source") + 1]
-        run_id = command[command.index("--run-id") + 1]
-        function = (
-            analyse.analyse if command[2].endswith("analyse") else present.present
-        )
-        function(source, run_id=run_id)
-        return SimpleNamespace(stdout=run_id + "\n")
-
-    monkeypatch.setattr(collection.subprocess, "run", run)
-    refs = collection.execute(repo, plan, row)
-    assert refs["analyse"]["run_id"] == reserved["analyse"]
-    assert refs["present"]["run_id"] == reserved["present"]
-    assert len(calls) == 2
-    assert collection.completed(repo, plan, row).record["stage"] == "present"
-    assert not (repo / ".artifacts").exists()
-    assert not (repo / "campaign/derived").exists()
-    old = copy.deepcopy(row)
-    old["execution"] = {"mode": "monolithic"}
-    with pytest.raises(PingstoreError, match="legacy"):
-        collection.execute(repo, plan, old)
-
-
-def test_collection_retries_presentation_with_fresh_id_and_reuses_analysis(
-    repo, monkeypatch
-):
-    identity, _ = make_compute(repo)
-    manifest = repo / "campaign/campaign.json"
-    write_json_atomic(manifest, {"pingstore_run_id": identity})
-    row = {
-        "execution": {"mode": "exp024-staged"},
-        "paths": {"state": str(repo / "campaign/exp024")},
-        "required_outputs": [str(repo / "campaign/exp024/stage-refs.json")],
-    }
-    plan = {"exp022_manifest": str(manifest)}
-    calls = []
-    original_plot = present.plot_model_curves
-
-    def run(command, **kwargs):
-        module = command[2]
-        calls.append(module)
-        source = command[command.index("--source") + 1]
-        run_id = command[command.index("--run-id") + 1]
-        function = analyse.analyse if module.endswith("analyse") else present.present
-        function(source, run_id=run_id)
-        return SimpleNamespace(stdout=run_id + "\n")
-
-    def fail(*args):
-        raise RuntimeError("plot failure")
-
-    monkeypatch.setattr(collection.subprocess, "run", run)
-    monkeypatch.setattr(present, "plot_model_curves", fail)
-    with pytest.raises(RuntimeError, match="plot failure"):
-        collection.execute(repo, plan, row)
-    refs_before = load_json(Path(row["required_outputs"][0]))
-    failed = next((repo / ".pingstore/runs").glob(".exp024-*-present.tmp"))
-    failed_digest = payload_digest(failed)
-    monkeypatch.setattr(present, "plot_model_curves", original_plot)
-    refs = collection.execute(repo, plan, row)
-    assert refs["analyse"] == refs_before["analyse"]
-    assert calls.count("experiments.exp024.analyse") == 1
-    assert refs["present"]["run_id"] not in failed.name
-    assert payload_digest(failed) == failed_digest
-    assert (
-        collection.completed(repo, plan, row).record["run_id"]
-        == refs["present"]["run_id"]
-    )
 
 
 @pytest.mark.parametrize("entrypoint", ["analyse.py", "present.py"])

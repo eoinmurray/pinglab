@@ -24,7 +24,7 @@ def source(tmp_path):
     return tmp_path
 
 
-def test_projection_is_read_only_and_distinguishes_sizes(source):
+def test_projection_is_read_only_and_reports_present_export(source):
     store = source / ".pingstore/runs"
     parent = make_run(store, "exp001-r001-compute", stage="compute")
     parent_meta = json.loads((parent / "run.json").read_text())
@@ -35,24 +35,13 @@ def test_projection_is_read_only_and_distinguishes_sizes(source):
     child = make_run(
         store, "exp001-r002-present", inputs={"first": reference, "also": reference}
     )
-    (source / ".pingstore/collections.json").write_text(
-        json.dumps({"chosen": [child.name]})
-    )
     before = {p: p.read_bytes() for p in store.rglob("*") if p.is_file()}
     data = projection(source)
     assert len(data["runs"]) == 1
     run = data["runs"][0]
-    assert run["collection"] == "demo" and run["views"] == ["chosen"]
     assert run["basepath"] == f"/.pingstore/runs/{child.name}/export"
-    assert run["upstream_runs"] == [parent.name]
     assert run["export_bytes"] == sum(
         p.stat().st_size for p in (child / "export").iterdir()
-    )
-    assert run["payload_bytes"] > run["export_bytes"]
-    assert run["upstream_payload_bytes"] == sum(
-        len(v)
-        for p, v in before.items()
-        if p.is_relative_to(parent) and p != parent / "run.json"
     )
     assert before == {p: p.read_bytes() for p in store.rglob("*") if p.is_file()}
     assert not (source / ".demolab").exists()
@@ -71,7 +60,6 @@ def test_duration_projects_recorded_operation_for_every_stage(source, stage, ope
     data = projection(source)
     row = data["display_runs"][0]
     assert row["duration_seconds"] == 157.5
-    assert row["execution_operation"] == operation
     if stage == "present":
         assert data["runs"][0]["duration_seconds"] == 157.5
     else:
@@ -135,11 +123,6 @@ def test_scientific_span_and_job_total_are_separate_from_import(source):
     assert row["display_timing"]["duration_seconds"] == 198256
     assert row["display_timing"]["basis"] == "scientific-execution"
     assert row["display_timing"]["import_seconds"] == 3
-    assert row["scientific_timing"] == {
-        "duration_seconds": 198256, "started_at": "2026-08-18T15:42:06Z",
-        "completed_at": "2026-08-20T22:46:22Z", "origin": "slurm",
-        "jobs": 2, "job_seconds": 10800.75,
-    }
     assert before == {p: p.read_bytes() for p in directory.rglob("*") if p.is_file()}
 
 

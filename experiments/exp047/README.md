@@ -62,19 +62,14 @@ and sample-SD error bars are unchanged. The right-column title now says
 weight is held identical. Run-ID stamps are omitted to keep repository identifiers
 out of rendered scientific figures.
 
-## Collection integration
+## Retired collection integration
 
-`collection.py` implements explicit compute/analyse/present orchestration,
-reservation before dispatch, exact stage-reference checking, profile checks,
-failure handling and reuse of a completed chain. It does not publish.
+The former collection adapter, planner, dispatcher and Slurm reservation gate
+have been removed. New exp047 work uses only the independent stage commands
+above with explicit source-run references. Historical campaign records remain
+provenance and are not operational inputs.
 
-The shared collection planner, execution dispatcher and Slurm reservation gate
-register exp047. New plans use explicit stage references instead of legacy
-derived paths; Slurm reserves all three stage identities before dispatch. The
-shared regression test rejects legacy composite exp047 output as operational
-evidence while preserving historical composition checks.
-
-Concurrent exp033 edits initially changed `plan.py` after this task's baseline
+Historically, concurrent exp033 edits changed `plan.py` after this task's baseline
 check. Editing stopped, and the author subsequently approved the shared-file
 handoff. Exp047-only changes were then applied to the current planner, dispatcher,
 Slurm module and shared collection test, preserving the existing exp033 edits.
@@ -222,7 +217,7 @@ The shared collection test's pre-existing exp033 import-order lint was left
 untouched at the ownership handoff. Commands:
 
 ```sh
-uv run --no-sync pytest -q experiments/exp047/test.py experiments/exp023/test.py experiments/exp081/test.py experiments/collections/gamma_gated_sparsity/test.py tools/pingstore/tests
+uv run --no-sync pytest -q experiments/exp047/test.py experiments/exp023/test.py experiments/exp081/test.py tools/pingstore/tests
 uv run --no-sync ruff check experiments/exp047
 uv run --no-sync ruff format --check experiments/exp047
 uv run --no-sync ty check experiments/exp047/test.py

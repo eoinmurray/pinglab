@@ -9,7 +9,6 @@ import numpy as np
 import pytest
 from experiments.exp042 import (
     analyse,
-    collection,
     compute,
     inputs,
     present,
@@ -342,40 +341,6 @@ def test_shard_does_not_reuse_tampered_metrics(lab):
     (directory / "export/jobs" / (record["jobs"][0] + ".json")).write_text("{}")
     with pytest.raises(PingstoreError, match="changed"):
         compute.shard(bank_id, run_id=identity, index=0)
-
-
-def test_collection_dispatches_explicit_sources_and_reservations(lab, monkeypatch):
-    root, bank_id, _ = lab
-    manifest = root / "bank.json"
-    write_json_atomic(manifest, {"pingstore_run_id": bank_id})
-    row = {
-        "slug": "exp042",
-        "execution": {"mode": "exp042-staged"},
-        "paths": {"state": str(root / "campaign")},
-        "required_outputs": [str(root / "campaign/stage-refs.json")],
-    }
-    plan = {"exp022_manifest": str(manifest), "profile": "smoke"}
-    commands = []
-
-    def dispatch(args, **kwargs):
-        commands.append(args)
-        name = args[2].rsplit(".", 1)[1]
-        module = {"compute": compute, "analyse": analyse, "present": present}[name]
-        source = args[args.index("--source") + 1]
-        identity = args[args.index("--run-id") + 1]
-        getattr(module, name)(source, run_id=identity)
-        return subprocess.CompletedProcess(args, 0, stdout=identity + "\n")
-
-    monkeypatch.setattr(collection.subprocess, "run", dispatch)
-    refs = collection.execute(root, plan, row)
-    assert len(commands) == 3
-    assert refs["bank"]["run_id"] == bank_id
-    assert (
-        collection.completed(root, plan, row).record["run_id"]
-        == refs["present"]["run_id"]
-    )
-    collection.execute(root, plan, row)
-    assert len(commands) == 3
 
 
 def test_transforms_are_deterministic_binary_and_count_preserving_over_full_grid():

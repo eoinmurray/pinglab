@@ -1,6 +1,6 @@
 # Storage Guide
 
-Version: **4.6.0**
+Version: **4.7.0**
 
 This guide defines Pingstore's filesystem convention. Pingstore is not a
 service, database, catalogue, lifecycle manager, or general management CLI.
@@ -135,6 +135,14 @@ discovery, explicit collection and article-default pins, inputs of incomplete
 runs, and the complete transitive ancestry of those roots. It also retains each
 experiment's highest allocated counter so a removed identity cannot be reused.
 
+An experiment explicitly recorded in `experiments/history.json` with disposition
+`removed-and-pruned` is retired. Its non-HPC runs are not retained merely as its
+newest presentation or identity high-watermark; the history record must preserve
+the exact `highest_allocated_counter` before pruning. Pins, incomplete inputs,
+out-of-scope descendants, transitive ancestry and HPC provenance still take
+precedence. An absent experiment directory or writing is not by itself permission
+to prune an experiment's runs.
+
 Pruning requires two separate invocations:
 
 ```sh
@@ -197,6 +205,9 @@ store changes, or deletion of the recovery archive.
 
 ## 8. Version history
 
+- **4.7.0** — Permit explicitly retired experiments to prune their local latest
+  presentation and run high-watermark after recording that counter in experiment
+  history; all stronger retention roots remain in force.
 - **4.6.0** — Retire artifact materialization; preview and publication consume
   validated present exports directly, with complete run copies confined to
   disposable publication workspaces.

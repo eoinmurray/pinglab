@@ -77,22 +77,12 @@ The convenience recipe exports, including `EPOCHS_STANDARD`, remain available
 to existing collection checks. Numerical `analyze()` is now pure and does not
 write `decision.json`; that output belongs to the analyse stage.
 
-## Collection integration and ownership
+## Retired collection integration
 
-The dedicated `collection.py` adapter reserves compute/analyse/present IDs,
-dispatches them independently, verifies their complete ancestry, and rejects
-legacy campaign rows and interrupted reservations. Synthetic integration tests
-exercise it without launching simulation or training.
-
-With Anomancer's approval and exp082/exp054 ownership coordination, registration
-was added to `experiments/collections/gamma_gated_sparsity/{plan,execution,slurm}.py`.
-It covers staged plans, `stage-refs.json` completion, adapter dispatch and Slurm
-reservation handling. Existing monolithic plans are rejected. No simulator or
-workload-sharding change was needed: exp080 remains a single compute job.
-Exp082's concurrent hunks were preserved and committed separately by its owner.
-Five shared collection fixtures were updated with separate approval: the
-staged-mode allowlist, three adapter mock lists, and legacy-output rejection.
-All 27 collection tests pass with exp080 registered.
+The former exp080 adapter and shared collection planner, dispatcher and Slurm
+registration have been removed. Exp080 remains a single independent compute
+job followed by explicit analyse and present commands. Historical registration
+and campaign records remain provenance only; they cannot resume or launch work.
 
 The calibrated interval is reflected in exp022's TR-06 recipe and then exp082.
 Neither directly reads exp080's outputs, and neither is an operational upstream

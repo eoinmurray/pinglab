@@ -9,7 +9,6 @@ import numpy as np
 import pytest
 from experiments.exp037 import (
     analyse,
-    collection,
     compute,
     inputs,
     measurements,
@@ -287,49 +286,6 @@ def test_failed_simulation_never_completes(lab, monkeypatch):
     assert list((root / ".pingstore/runs").glob(".exp037-*-compute.tmp"))
 
 
-def test_collection_reserves_dispatches_and_resumes(lab, monkeypatch):
-    root, bank, _ = lab
-    manifest = root / "bank.json"
-    write_json_atomic(manifest, {"pingstore_run_id": bank})
-    row = {
-        "slug": "exp037",
-        "execution": {"mode": "exp037-staged"},
-        "paths": {"state": str(root / "campaign/state")},
-        "required_outputs": [str(root / "campaign/state/stage-refs.json")],
-    }
-    plan = {"profile": "smoke", "exp022_manifest": str(manifest)}
-    reservations = collection.reserve(root, row)
-    assert all(value.endswith("-" + stage) for stage, value in reservations.items())
-    calls = []
-
-    def dispatch(command, **kwargs):
-        calls.append(command)
-        stage = command[2].rsplit(".", 1)[1]
-        method = {
-            "compute": compute.compute,
-            "analyse": analyse.analyse,
-            "present": present.present,
-        }[stage]
-        method(
-            command[command.index("--source") + 1],
-            run_id=command[command.index("--run-id") + 1],
-        )
-        return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
-
-    monkeypatch.setattr(collection.subprocess, "run", dispatch)
-    refs = collection.execute(root, plan, row)
-    assert len(calls) == 3
-    assert set(refs) == {"bank", "compute", "analyse", "present"}
-    assert (
-        collection.completed(root, plan, row).record["run_id"]
-        == reservations["present"]
-    )
-    collection.execute(root, plan, row)
-    assert len(calls) == 3
-    with pytest.raises(PingstoreError):
-        collection.require_staged({"execution": {"mode": "monolithic"}})
-
-
 def test_retired_entrypoints_and_import_side_effects(tmp_path):
     root = Path(__file__).resolve().parents[2]
     code = "from experiments import exp037; assert exp037.CHECKPOINT_ROLE == 'best_validation'"
@@ -603,54 +559,6 @@ def test_collect_rejects_missing_shards_and_busy_reservation(lab, monkeypatch):
     with compute._compute_lock(directory, exclusive=False):
         with pytest.raises(PingstoreError, match="busy"):
             compute.compute(bank, run_id=rid)
-
-
-def test_collection_keeps_six_staged_compute_shards(tmp_path):
-    from experiments.collections.gamma_gated_sparsity.plan import build_plan
-    from experiments.collections.gamma_gated_sparsity.workloads import jobs_for_shard
-
-    plan = build_plan(tmp_path / "campaign", "fixture")
-    row = next(
-        row
-        for stage in plan["stages"]
-        for row in stage["experiments"]
-        if row["slug"] == "exp037"
-    )
-    assert row["execution"]["mode"] == "exp037-staged"
-    assert row["execution"]["shards"] == 6
-    assert row["execution"]["stages"] == ["compute", "analyse", "present"]
-    assert row["command"] == []
-    shards = [jobs_for_shard("exp037", index, 6) for index in range(6)]
-    assert sum(map(len, shards)) == 210
-    assert len(set().union(*map(set, shards))) == 210
-
-
-def test_collection_dispatches_shards_with_bank_and_reservation(lab, monkeypatch):
-    root, bank, _ = lab
-    manifest = root / "bank.json"
-    write_json_atomic(manifest, {"pingstore_run_id": bank})
-    row = {
-        "slug": "exp037",
-        "execution": {"mode": "exp037-staged"},
-        "paths": {"state": str(root / "campaign/state")},
-        "required_outputs": [str(root / "campaign/state/stage-refs.json")],
-    }
-    plan = {"profile": "smoke", "exp022_manifest": str(manifest)}
-    reservations = collection.reserve(root, row)
-    calls = []
-    monkeypatch.setattr(
-        collection.subprocess, "run", lambda command, **kw: calls.append((command, kw))
-    )
-    result = collection.execute_shard(root, plan, row, 2, 6)
-    command, kwargs = calls[0]
-    assert command[2] == "experiments.exp037.compute"
-    assert command[command.index("--source") + 1] == bank
-    assert command[command.index("--run-id") + 1] == reservations["compute"]
-    assert command[command.index("--shard-index") + 1] == "2"
-    assert kwargs["env"]["PINGLAB_SMOKE"] == "1"
-    assert result["compute_run_id"] == reservations["compute"]
-    with pytest.raises(PingstoreError):
-        collection.execute_shard(root, plan, row, 0, 5)
 
 
 def test_reviewed_figures_keep_coordinates_show_full_range_and_omit_run_ids(

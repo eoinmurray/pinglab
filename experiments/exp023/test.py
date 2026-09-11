@@ -13,11 +13,10 @@ from unittest.mock import patch
 
 import numpy as np
 import pytest
-from experiments.exp023 import analyse, collection, compute, inputs, present, recipe
+from experiments.exp023 import analyse, compute, inputs, present, recipe
 from experiments.helpers import run_cli
 from pingstore import stages
 from pingstore.contracts import (
-    LEGACY_RUN_SCHEMA,
     PingstoreError,
     load_json,
     payload_digest,
@@ -189,13 +188,13 @@ def test_missing_or_corrupt_snapshot_is_not_silently_recomputed(repo):
 
 def test_unsupported_schema_is_rejected_before_scientific_consumption(repo):
     root, _ = repo
-    identity = "exp023-r001-compute-local"
+    identity = "exp023-r001-compute"
     directory = root / ".pingstore/runs" / identity
-    initialize_layout(directory, "exp023", schema=LEGACY_RUN_SCHEMA)
+    initialize_layout(directory, "exp023")
     write_json_atomic(
         directory / "run.json",
         {
-            "schema": LEGACY_RUN_SCHEMA,
+            "schema": "pingstore.run/v3",
             "run_id": identity,
             "experiment": "exp023",
             "stage": "compute",
@@ -208,7 +207,7 @@ def test_unsupported_schema_is_rejected_before_scientific_consumption(repo):
             "payload_digest": payload_digest(directory),
         },
     )
-    with pytest.raises(PingstoreError, match="requires v4"):
+    with pytest.raises(PingstoreError, match="operational run schema"):
         analyse.analyse(identity)
 
 
@@ -230,73 +229,6 @@ def test_retired_launcher_rejects_all_combined_modes(flag):
     )
     assert result.returncode != 0
     assert "independent stages" in result.stderr
-
-
-def test_collection_plans_use_reserved_stages_and_reject_legacy(repo):
-    from experiments.collections.gamma_gated_sparsity.plan import build_plan
-
-    root, _ = repo
-    plan = build_plan(root / "campaign", "fixture")
-    row = next(
-        row
-        for stage in plan["stages"]
-        for row in stage["experiments"]
-        if row["slug"] == "exp023"
-    )
-    assert row["execution"]["mode"] == "exp023-staged"
-    assert row["command"] == []
-    reservations = collection.reserve(root, row, origin="slurm-wilkes")
-    assert set(reservations) == {"compute", "analyse", "present"}
-    for stage, identity in reservations.items():
-        assert identity.endswith("-" + stage)
-        reservation = load_json(
-            root
-            / ".pingstore/runs"
-            / f".{identity}.tmp"
-            / ".reservation.json"
-        )
-        assert reservation["origin"] == "slurm-wilkes"
-    assert collection.reserve(root, row) == reservations
-    with pytest.raises(PingstoreError, match="legacy exp023"):
-        collection.require_staged({"execution": {"mode": "monolithic"}})
-
-
-def test_collection_dispatches_explicit_stages_and_reuses_completed_chain(
-    repo, monkeypatch
-):
-    from types import SimpleNamespace
-
-    from experiments.collections.gamma_gated_sparsity.plan import build_plan
-
-    root, _ = repo
-    plan = build_plan(root / "campaign", "fixture", smoke=True)
-    row = next(
-        row
-        for stage in plan["stages"]
-        for row in stage["experiments"]
-        if row["slug"] == "exp023"
-    )
-    calls = []
-
-    def dispatch(command, **kwargs):
-        calls.append(command)
-        stage = command[2].rsplit(".", 1)[-1]
-        run_id = command[command.index("--run-id") + 1]
-        if stage == "compute":
-            compute.compute(run_id=run_id)
-        else:
-            source_id = command[command.index("--source") + 1]
-            getattr({"analyse": analyse, "present": present}[stage], stage)(
-                source_id, run_id=run_id
-            )
-        return SimpleNamespace(stdout="")
-
-    monkeypatch.setattr(collection.subprocess, "run", dispatch)
-    refs = collection.execute(root, plan, row)
-    assert len(calls) == 3
-    assert collection.execute(root, plan, row) == refs
-    assert len(calls) == 3
-    assert not (root / ".artifacts").exists()
 
 
 def test_spectrum_and_selection_preserve_original_rules():

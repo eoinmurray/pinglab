@@ -305,45 +305,6 @@ def test_penalty_retains_float32_samplewise_definition(tmp_path):
     assert value[2] == float(0.041 * (np.maximum(rates - 1.0, 0.0) ** 2).mean())
 
 
-def test_collection_dispatch_and_resume_use_pinned_stages(lab, monkeypatch):
-    from types import SimpleNamespace
-
-    from experiments.collections.gamma_gated_sparsity.plan import build_plan
-    from experiments.exp025 import collection
-
-    root, bank_id, _ = lab
-    plan = build_plan(root / "campaign", "fixture", smoke=True)
-    plan["profile"] = "smoke"
-    plan["exp022_manifest"] = str(root / "campaign/exp022-manifest.json")
-    write_json_atomic(Path(plan["exp022_manifest"]), {"pingstore_run_id": bank_id})
-    # Build-plan rows are grouped by collection phase.
-    from experiments.collections.gamma_gated_sparsity.execution import rows_in_order
-
-    row = next(r for r in rows_in_order(plan) if r["slug"] == "exp025")
-    seen = []
-
-    def dispatch(command, **kwargs):
-        stage = command[2].split(".")[-1]
-        seen.append(stage)
-        source = command[command.index("--source") + 1]
-        identity = command[command.index("--run-id") + 1]
-        {
-            "compute": compute.compute,
-            "analyse": analyse.analyse,
-            "present": present.present,
-        }[stage](source, run_id=identity)
-        return SimpleNamespace(stdout="")
-
-    monkeypatch.setattr(collection.subprocess, "run", dispatch)
-    refs = collection.execute(root, plan, row)
-    assert seen == ["compute", "analyse", "present"]
-    assert refs == collection.execute(root, plan, row)
-    assert len(seen) == 3
-    plan["profile"] = "production"
-    with pytest.raises(PingstoreError, match="profile"):
-        collection.execute(root, plan, row)
-
-
 @pytest.mark.parametrize("fault", ["duplicate", "shape", "nan", "samples"])
 def test_recording_semantics_reject_corrupt_but_resigned_payload(lab, fault):
     from pingstore.contracts import payload_digest

@@ -5,15 +5,13 @@ from __future__ import annotations
 import subprocess
 import sys
 from pathlib import Path
-from types import SimpleNamespace
 
 import numpy as np
 import pytest
-from experiments.exp081 import analyse, collection, compute, present
+from experiments.exp081 import analyse, compute, present
 from experiments.exp081 import recipe as exp081
 from pingstore import stages
 from pingstore.contracts import (
-    LEGACY_RUN_SCHEMA,
     RUN_SCHEMA,
     PingstoreError,
     load_json,
@@ -136,15 +134,15 @@ def test_independent_stages_pin_v3_and_preserve_measurements(stage_repo, monkeyp
 
 
 @pytest.mark.parametrize("stage", ["compute", "analyse"])
-def test_downstream_rejects_v2_even_when_typed(stage_repo, stage):
+def test_downstream_rejects_non_v4_even_when_typed(stage_repo, stage):
     repo, cfg = stage_repo
-    identity = f"exp081-r001-{stage}-local"
+    identity = f"exp081-r001-{stage}"
     directory = run_directory(repo, identity)
-    initialize_layout(directory, "exp081", schema=LEGACY_RUN_SCHEMA)
+    initialize_layout(directory, "exp081")
     write_json_atomic(
         directory / "run.json",
         {
-            "schema": LEGACY_RUN_SCHEMA,
+            "schema": "pingstore.run/v3",
             "run_id": identity,
             "experiment": "exp081",
             "collection": "demo",
@@ -157,8 +155,7 @@ def test_downstream_rejects_v2_even_when_typed(stage_repo, stage):
             "payload_digest": payload_digest(directory),
         },
     )
-    validate_run_directory(directory)
-    with pytest.raises(PingstoreError, match="requires v4"):
+    with pytest.raises(PingstoreError, match="operational run schema"):
         (analyse.analyse if stage == "compute" else present.present)(identity)
     assert len(list((repo / ".pingstore/runs").iterdir())) == 1
 
@@ -237,63 +234,3 @@ def test_retired_entrypoints_fail_without_execution(tmp_path):
     )
     assert result.returncode != 0
     assert "requires independent stages" in result.stderr
-
-
-def test_collection_reserves_dispatches_and_resumes_without_v2_capture(
-    stage_repo, monkeypatch
-):
-    from experiments.collections.gamma_gated_sparsity import execution
-    from experiments.collections.gamma_gated_sparsity.plan import build_plan
-
-    repo, _ = stage_repo
-    plan = build_plan(repo / "campaign", "fixture", smoke=True)
-    plan["profile"] = "smoke"
-    row = next(
-        row
-        for stage in plan["stages"]
-        for row in stage["experiments"]
-        if row["slug"] == "exp081"
-    )
-    assert row["execution"]["mode"] == "exp081-staged"
-    identities = collection.reserve(repo, row, origin="slurm-wilkes")
-    for stage, identity in identities.items():
-        assert identity.endswith("-" + stage)
-        reservation = load_json(
-            repo
-            / ".pingstore/runs"
-            / f".{identity}.tmp"
-            / ".reservation.json"
-        )
-        assert reservation["origin"] == "slurm-wilkes"
-    calls = []
-
-    def dispatch(command, **kwargs):
-        calls.append(command)
-        stage = command[2].rsplit(".", 1)[1]
-        run_id = command[command.index("--run-id") + 1]
-        assert kwargs["env"]["PINGLAB_SMOKE"] == "1"
-        if stage == "compute":
-            identity = compute.compute(run_id=run_id)
-        else:
-            source = command[command.index("--source") + 1]
-            identity = (analyse.analyse if stage == "analyse" else present.present)(
-                source, run_id=run_id
-            )
-        return SimpleNamespace(stdout=identity + "\n")
-
-    monkeypatch.setattr(collection.subprocess, "run", dispatch)
-    refs = collection.execute(repo, plan, row)
-    assert len(calls) == 3
-    assert refs["compute"]["run_id"] == identities["compute"]
-    assert (
-        collection.completed(repo, plan, row).record["run_id"] == identities["present"]
-    )
-    assert collection.execute(repo, plan, row) == refs
-    assert len(calls) == 3
-    assert not (repo / ".artifacts").exists()
-    monkeypatch.setattr(execution, "REPO", repo)
-    assert execution._outputs_valid_for_plan(plan, row)
-    legacy = {**row, "execution": {"mode": "monolithic"}}
-    assert not execution._outputs_valid_for_plan(plan, legacy)
-    with pytest.raises(PingstoreError, match="not conformant"):
-        collection.execute(repo, plan, legacy)

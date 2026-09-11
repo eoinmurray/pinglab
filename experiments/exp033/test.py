@@ -16,7 +16,6 @@ import pytest
 from experiments.exp033 import (
     analyse,
     appearance,
-    collection,
     compute,
     evidence,
     inputs,
@@ -434,75 +433,6 @@ def test_imports_do_not_create_storage_or_import_renderers(tmp_path):
     assert list(tmp_path.iterdir()) == []
 
 
-def test_collection_dispatch_pins_frequencies_and_never_publishes(lab, monkeypatch):
-    root, frequency, _, calls = lab
-    from experiments.collections.gamma_gated_sparsity import execution
-    from experiments.collections.gamma_gated_sparsity.plan import build_plan
-
-    plan = build_plan(root / "campaign", "fixture")
-    row = next(
-        r for s in plan["stages"] for r in s["experiments"] if r["slug"] == "exp033"
-    )
-    assert row["command"] == [] and row["execution"]["mode"] == "exp033-staged"
-    assert execution._stage_adapter("exp033") is collection
-    monkeypatch.setattr(
-        collection,
-        "campaign_frequencies",
-        lambda *a: inputs.source(root, frequency, "analyse", experiment="exp041"),
-    )
-    commands = []
-
-    def execute(command, **kwargs):
-        commands.append(command)
-        stage = command[2].rsplit(".", 1)[-1]
-        run_id = command[command.index("--run-id") + 1]
-        if stage == "compute":
-            identity = compute.compute(run_id=run_id)
-        elif stage == "analyse":
-            identity = analyse.analyse(
-                command[command.index("--source") + 1],
-                command[command.index("--frequency-source") + 1],
-                run_id=run_id,
-            )
-        else:
-            identity = present.present(
-                command[command.index("--source") + 1], run_id=run_id
-            )
-        return SimpleNamespace(stdout=identity + "\n")
-
-    monkeypatch.setattr(collection.subprocess, "run", execute)
-    refs = collection.execute(root, plan, row)
-    assert set(refs) == {"compute", "analyse", "present", "frequencies"}
-    assert [c[2].rsplit(".", 1)[-1] for c in commands] == [
-        "compute",
-        "analyse",
-        "present",
-    ]
-    assert (
-        collection.completed(root, plan, row).record["run_id"]
-        == refs["present"]["run_id"]
-    )
-    collection.execute(root, plan, row)
-    assert len(commands) == 3 and calls == ["compute"]
-    assert not (root / ".artifacts").exists()
-    row["execution"]["mode"] = "monolithic"
-    with pytest.raises(PingstoreError, match="legacy exp033"):
-        collection.execute(root, plan, row)
-
-
-def test_collection_waits_for_exp041_without_launching_it(lab, monkeypatch):
-    root, _, _, _ = lab
-    from experiments.collections.gamma_gated_sparsity.plan import build_plan
-
-    plan = build_plan(root / "campaign", "fixture")
-    row = next(
-        r for s in plan["stages"] for r in s["experiments"] if r["slug"] == "exp033"
-    )
-    monkeypatch.setattr(collection.subprocess, "run", fail)
-    with pytest.raises(PingstoreError, match="completed exp041 analysis"):
-        collection.execute(root, plan, row)
-
-
 def test_array_nan_and_pickle_are_rejected(tmp_path):
     with pytest.raises(PingstoreError):
         evidence.write(tmp_path, {"x": np.array([np.nan])})
@@ -544,42 +474,6 @@ def test_compute_orchestration_preserves_every_grid(monkeypatch):
     assert len(reductions) == 7
     assert all(row[2] == grid for row in reductions)
     assert len(result["sensitivity"]) == 4
-
-
-def test_failed_campaign_reservation_is_not_replaced(lab, monkeypatch):
-    root, _, _, _ = lab
-    row = {
-        "execution": {"mode": "exp033-staged"},
-        "paths": {"state": str(root / "campaign")},
-        "required_outputs": [str(root / "campaign/stage-refs.json")],
-    }
-    identities = collection.reserve(root, row, origin="slurm-wilkes")
-
-    def broken():
-        raise RuntimeError("fixture failure")
-
-    monkeypatch.setattr(compute, "simulate", broken)
-    with pytest.raises(RuntimeError):
-        compute.compute(run_id=identities["compute"])
-    with pytest.raises(PingstoreError, match="explicit recovery"):
-        collection.reserve(root, row)
-    assert load_json(root / "campaign/stage-reservations.json") == identities
-
-
-def test_hpc_without_prior_reservation_fails_before_work(lab, monkeypatch):
-    root, _, _, calls = lab
-    monkeypatch.setenv("SLURM_JOB_ID", "fixture")
-    with pytest.raises(PingstoreError, match="before submission"):
-        compute.compute()
-    row = {
-        "execution": {"mode": "exp033-staged"},
-        "paths": {"state": str(root / "campaign")},
-        "required_outputs": [str(root / "campaign/stage-refs.json")],
-    }
-    with pytest.raises(PingstoreError, match="before submission"):
-        collection.reserve(root, row)
-    assert calls == []
-    assert not list((root / ".pingstore/runs").glob("*exp033*"))
 
 
 def test_historical_regression_tolerance_preserves_evidence():

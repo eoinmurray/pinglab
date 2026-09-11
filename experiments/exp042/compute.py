@@ -97,7 +97,7 @@ def shard(identity, *, run_id, index, count=recipe.SHARDS):
             # Recheck after locking so collection cannot race a newly started worker.
             _shard_paths(REPO, run_id, index, count)
             code = _capture_code(REPO, directory)
-            # The campaign requires a frozen checkout; do not permit mixed worker code.
+            # A partitioned compute run requires one frozen checkout across workers.
             if code.get("code_dirty"):
                 raise PingstoreError(
                     "distributed exp042 compute requires committed execution code"

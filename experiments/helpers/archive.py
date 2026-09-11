@@ -1,12 +1,10 @@
-"""Explicit campaign backup and historical snapshot recovery through R2.
+"""Historical snapshot recovery through R2.
 
-Archive a verified exp022 campaign bank by its manifest. The old implicit
-active-run archive command is retired; scientific runs have no publication-view
-pointer. Existing remote snapshots remain available to the recovery commands.
+Creation of collection campaigns and campaign archives is retired. Existing
+remote snapshots remain available to these explicitly requested recovery commands.
 
 Usage (always via uv):
 
-    uv run python experiments/helpers/archive.py archive-campaign <campaign>/campaign.json
     uv run python experiments/helpers/archive.py list exp022
     uv run python experiments/helpers/archive.py restore exp022 <snapshot>
     uv run python experiments/helpers/archive.py restore-campaign exp022 <snapshot> --destination <empty-dir>
@@ -18,12 +16,10 @@ PINGLAB_R2_BUCKET defaults to "pinglab". Operations remain explicitly requested.
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import os
 import subprocess
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
@@ -71,46 +67,6 @@ def _remote_dir_exists(path: str) -> bool:
     return bool(out.strip())
 
 
-# ── Local stats + manifest ───────────────────────────────────────────
-
-def _file_inventory(path: Path) -> tuple[list[dict], str]:
-    files = []
-    for source in sorted(item for item in path.rglob("*") if item.is_file()):
-        hasher = hashlib.sha256()
-        with source.open("rb") as handle:
-            for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-                hasher.update(chunk)
-        files.append({
-            "path": source.relative_to(path).as_posix(),
-            "size_bytes": source.stat().st_size,
-            "sha256": hasher.hexdigest(),
-        })
-    canonical = json.dumps(files, sort_keys=True, separators=(",", ":"))
-    return files, hashlib.sha256(canonical.encode()).hexdigest()
-
-
-def verified_campaign_source(manifest_path: Path) -> tuple[dict, Path]:
-    """Return exactly the complete external cell bank named by an exp022 manifest."""
-    if str(REPO) not in sys.path:
-        sys.path.insert(0, str(REPO))
-    from experiments.exp022 import campaign, compute, recipe
-
-    manifest = compute._checked_manifest(
-        manifest_path, allow_generated_dirty=True,
-    )
-    source = (Path(manifest["campaign_root"]) / "cells").resolve()
-    if source == (ARTIFACTS_ROOT / "exp022").resolve():
-        raise SystemExit("campaign archive source must not fall back to the legacy local bank")
-    if len(manifest["cells"]) != len(recipe.CANONICAL_CELLS):
-        raise SystemExit("campaign archive requires the complete exp022 registry")
-    status = campaign.summarize_status(manifest)
-    if status["retry_cells"] or status["recoverable_cells"] or any(
-        row["state"] != "complete" for row in status["cells"]
-    ):
-        raise SystemExit("campaign archive refused: every cell must be complete and valid")
-    return manifest, source
-
-
 def _human(n: int) -> str:
     x = float(n)
     for unit in ("B", "KiB", "MiB", "GiB", "TiB"):
@@ -121,48 +77,6 @@ def _human(n: int) -> str:
 
 
 # ── Commands ─────────────────────────────────────────────────────────
-
-def cmd_archive_campaign(manifest_path: Path) -> None:
-    manifest, src = verified_campaign_source(manifest_path.resolve())
-    sha = manifest["repository"]["commit"]
-    snapshot_id = f"{sha}-{manifest['manifest_sha256'][:12]}"
-    dest = _dest("exp022", snapshot_id)
-    files, tree_sha = _file_inventory(src)
-    size = sum(item["size_bytes"] for item in files)
-    print(f"archiving verified campaign {manifest['campaign_id']} ({len(files)} files · {_human(size)})")
-    print(f"       → {dest}  [producing sha {sha}]")
-    if _remote_dir_exists(dest):
-        raise SystemExit(f"immutable campaign snapshot already exists: {dest}")
-    snapshot = {
-        "archive": "pinglab exp022 campaign snapshot",
-        "slug": "exp022",
-        "snapshot_id": snapshot_id,
-        "campaign_id": manifest["campaign_id"],
-        "campaign_manifest_sha256": manifest["manifest_sha256"],
-        "producing_git_sha": sha,
-        "snapshot_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-        "n_files": len(files),
-        "size_bytes": size,
-        "size_human": _human(size),
-        "source": str(src),
-        "tree_sha256": tree_sha,
-        "files": files,
-        "restore": (
-            "uv run python experiments/helpers/archive.py restore-campaign "
-            f"exp022 {snapshot_id} --destination <separate-empty-directory>"
-        ),
-    }
-    mpath = Path(manifest["campaign_root"]) / "submissions" / f"archive-{snapshot_id}.json"
-    mpath.write_text(json.dumps(snapshot, indent=2) + "\n")
-    _rclone(["copy", str(src), dest, "--transfers", "16", "--checkers", "16",
-             "--stats", "30s", "--stats-one-line"])
-    _rclone(["copyto", str(mpath), f"{dest}/{MANIFEST}"])
-    _rclone(["check", str(src), dest, "--exclude", MANIFEST, "--download"])
-    remote = _read_remote_manifest("exp022", snapshot_id)
-    if remote.get("tree_sha256") != tree_sha:
-        raise SystemExit("remote campaign snapshot manifest hash does not match local inventory")
-    print(f"\n✓ archived exp022 campaign {manifest['campaign_id']} → {dest}")
-
 
 def _snapshots(slug: str) -> list[str]:
     base = f"{REMOTE}:{BUCKET}/{PREFIX}/{slug}"
@@ -237,8 +151,6 @@ def main() -> None:
     ap = argparse.ArgumentParser(
         description="Ad-hoc provenance-keyed backup of a run's scratch to R2.")
     sub = ap.add_subparsers(dest="cmd", required=True)
-    ac = sub.add_parser("archive-campaign", help="archive the exact verified exp022 campaign bank")
-    ac.add_argument("manifest", type=Path)
     ls = sub.add_parser("list", help="list a slug's snapshots on R2")
     ls.add_argument("slug")
     r = sub.add_parser("restore", help="pull a snapshot into a hidden Pingstore run")
@@ -251,9 +163,7 @@ def main() -> None:
     args = ap.parse_args()
 
     _ensure_rclone_remote()
-    if args.cmd == "archive-campaign":
-        cmd_archive_campaign(args.manifest)
-    elif args.cmd == "list":
+    if args.cmd == "list":
         cmd_list(args.slug)
     elif args.cmd == "restore":
         cmd_restore(args.slug, args.sha)

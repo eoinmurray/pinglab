@@ -1,17 +1,14 @@
 """Exp047 contract regressions using synthetic metrics, never simulation."""
 
-import copy
 import json
 import subprocess
 import sys
 from functools import partial
 from pathlib import Path
-from types import SimpleNamespace
 
 import pytest
 from experiments.exp047 import (
     analyse,
-    collection,
     compute,
     evidence,
     inputs,
@@ -350,132 +347,6 @@ def test_analysis_grid_validation_does_not_accept_invented_or_missing_rows(repo)
     resign(source.directory)
     with pytest.raises(PingstoreError, match="shared simulation rows disagree"):
         present.present(identity)
-
-
-def row_for(root):
-    from experiments.collections.gamma_gated_sparsity.plan import build_plan
-
-    plan = build_plan(root / "campaign", "fixture", smoke=True)
-    return next(
-        row
-        for stage in plan["stages"]
-        for row in stage["experiments"]
-        if row["slug"] == "exp047"
-    )
-
-
-def test_collection_plan_registers_exp047_adapter_and_rejects_legacy(repo):
-    from experiments.collections.gamma_gated_sparsity import execution
-
-    root, _ = repo
-    row = row_for(root)
-    assert row["command"] == []
-    assert row["execution"] == {
-        "mode": "exp047-staged",
-        "stages": list(collection.STAGES),
-    }
-    assert row["required_outputs"] == [
-        str(root / "campaign/downstream/exp047/stage-refs.json")
-    ]
-    assert row["dependencies"] == ()
-    assert execution._stage_adapter("exp047") is collection
-    assert not execution._outputs_valid_for_plan(
-        {}, {**row, "execution": {"mode": "monolithic"}}
-    )
-
-
-def test_slurm_reserves_exp047_stages_before_mock_submission(repo, monkeypatch):
-    from experiments.collections.gamma_gated_sparsity import slurm
-    from experiments.collections.gamma_gated_sparsity.plan import build_plan
-
-    root, _ = repo
-    campaign = root / "campaign"
-    plan = build_plan(campaign, "fixture", smoke=True)
-    plan.update(
-        profile="smoke",
-        source={"git_commit": "fixture"},
-        exp022_manifest=str(root / "bank.json"),
-    )
-    write_json_atomic(root / "bank.json", {"manifest_sha256": "fixture"})
-    resources = root / "resources.json"
-    resources.write_text("{}")
-    monkeypatch.setattr(slurm, "REPO", root)
-    monkeypatch.setattr(slurm, "load_plan", lambda _: plan)
-    monkeypatch.setattr(slurm, "load_resources", lambda _: {})
-    monkeypatch.setattr(
-        slurm, "_outputs_valid_for_plan", lambda _, row: row["slug"] != "exp047"
-    )
-    monkeypatch.setattr(
-        slurm, "_run", lambda *a, **k: pytest.fail("real scheduler call")
-    )
-    calls = []
-
-    def submit(*args, **kwargs):
-        calls.append(kwargs["name"])
-        if kwargs["name"] == "ggs-exp047":
-            reserved = load_json(campaign / "downstream/exp047/stage-reservations.json")
-            assert set(reserved) == set(collection.STAGES)
-            for stage, identity in reserved.items():
-                record = stages.stage_reservation(
-                    root / ".pingstore/runs" / f".{identity}.tmp"
-                )
-                assert record["stage"] == stage
-                assert record["origin"] == "slurm-wilkes"
-            assert kwargs["dependencies"] == []
-        return {"name": kwargs["name"], "job_id": "mock-" + kwargs["name"]}
-
-    monkeypatch.setattr(slurm, "_submit_job", submit)
-    slurm.submit_campaign(campaign, resources, submit=True)
-    assert calls == ["ggs-exp047", "ggs-finalize"]
-
-
-def test_collection_explicit_dispatch_reuse_and_profile_guard(repo, monkeypatch):
-    root, _ = repo
-    row, plan = row_for(root), {"profile": "smoke"}
-    calls = []
-
-    def dispatch(command, **kwargs):
-        calls.append(command)
-        stage = command[2].rsplit(".", 1)[-1]
-        identity = command[command.index("--run-id") + 1]
-        if stage == "compute":
-            assert "--source" not in command
-            compute.compute(run_id=identity)
-        else:
-            source_id = command[command.index("--source") + 1]
-            getattr({"analyse": analyse, "present": present}[stage], stage)(
-                source_id, run_id=identity
-            )
-        return SimpleNamespace(stdout="")
-
-    monkeypatch.setattr(collection.subprocess, "run", dispatch)
-    refs = collection.execute(root, plan, row)
-    assert len(calls) == 3
-    assert collection.execute(root, plan, row) == refs
-    assert len(calls) == 3
-    with pytest.raises(PingstoreError, match="profile differs"):
-        collection.execute(root, {"profile": "production"}, row)
-    altered = copy.deepcopy(refs)
-    del altered["compute"]
-    write_json_atomic(Path(row["required_outputs"][0]), altered)
-    with pytest.raises(PingstoreError, match="incomplete stage lineage"):
-        collection.references(root, row)
-
-
-def test_reservations_reject_legacy_and_orphaned_completion(repo):
-    root, _ = repo
-    row = row_for(root)
-    reserved = collection.reserve(root, row, origin="slurm-wilkes")
-    assert collection.reserve(root, row) == reserved
-    for stage, identity in reserved.items():
-        assert identity.endswith("-" + stage)
-        record = stages.stage_reservation(root / ".pingstore/runs" / f".{identity}.tmp")
-        assert record["origin"] == "slurm-wilkes"
-    compute.compute(run_id=reserved["compute"])
-    with pytest.raises(PingstoreError, match="lacks campaign reference"):
-        collection.reserve(root, row)
-    with pytest.raises(PingstoreError, match="legacy exp047"):
-        collection.require_staged({"execution": {"mode": "monolithic"}})
 
 
 def test_retired_runner_fails_before_any_output(tmp_path):

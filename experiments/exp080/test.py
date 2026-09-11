@@ -8,7 +8,6 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
-from types import SimpleNamespace
 from xml.etree import ElementTree
 
 import numpy as np
@@ -16,7 +15,6 @@ import pytest
 from experiments import exp080
 from experiments.exp080 import (
     analyse,
-    collection,
     compute,
     inputs,
     measurements,
@@ -365,41 +363,6 @@ def test_reservations_are_source_neutral_atomic_and_not_reusable(repo):
         compute.compute(run_id=identity)
 
 
-def test_collection_adapter_reserves_and_dispatches_separate_stages(repo, monkeypatch):
-    root, _ = repo
-    row = {
-        "execution": {"mode": "exp080-staged"},
-        "paths": {"state": str(root / "campaign")},
-        "required_outputs": [str(root / "campaign/stage-refs.json")],
-    }
-    commands = []
-
-    def dispatch(command, **kwargs):
-        commands.append(command)
-        stage = command[2].rsplit(".", 1)[-1]
-        identity = command[command.index("--run-id") + 1]
-        if stage == "compute":
-            compute.compute(run_id=identity)
-        else:
-            source = command[command.index("--source") + 1]
-            getattr({"analyse": analyse, "present": present}[stage], stage)(
-                source, run_id=identity
-            )
-        return SimpleNamespace(stdout="")
-
-    monkeypatch.setattr(collection.subprocess, "run", dispatch)
-    refs = collection.execute(root, {"profile": "smoke"}, row)
-    assert [c[2] for c in commands] == [
-        f"experiments.exp080.{s}" for s in collection.STAGES
-    ]
-    assert set(refs) == set(collection.STAGES)
-    assert collection.completed(root, {}, row).reference == refs["present"]
-    collection.execute(root, {"profile": "smoke"}, row)
-    assert len(commands) == 3
-    with pytest.raises(PingstoreError, match="legacy"):
-        collection.require_staged({"execution": {"mode": "monolithic"}})
-
-
 @pytest.mark.parametrize("memory_only", [False, True])
 def test_cpu_checkpoint_keeps_selected_epoch_weights(
     tmp_path, monkeypatch, memory_only
@@ -553,28 +516,6 @@ def test_historical_illustration_is_carried_without_simulation(repo, monkeypatch
         presentation.record["retained_figures"]["feature_images.png"]["regenerated"]
         is False
     )
-
-
-def test_shared_collection_registration_rejects_legacy_rows(tmp_path):
-    from experiments.collections.gamma_gated_sparsity import execution, plan
-
-    campaign = plan.build_plan(tmp_path / "campaign", "fixture")
-    row = next(
-        r for s in campaign["stages"] for r in s["experiments"] if r["slug"] == "exp080"
-    )
-    assert row["execution"] == {
-        "mode": "exp080-staged",
-        "stages": ["compute", "analyse", "present"],
-    }
-    assert row["command"] == []
-    assert row["required_outputs"] == [
-        str(tmp_path / "campaign/downstream/exp080/stage-refs.json")
-    ]
-    assert execution._stage_adapter("exp080") is collection
-    legacy = {**row, "execution": {"mode": "monolithic"}}
-    assert not execution._outputs_valid_for_plan(campaign, legacy)
-    with pytest.raises(PingstoreError, match="legacy"):
-        execution._run_downstream(campaign, legacy)
 
 
 @pytest.mark.parametrize("view", ["crossed", "censored", "absent", "broken"])

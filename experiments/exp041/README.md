@@ -21,8 +21,9 @@ automatic upstream execution, materialization or publication.
 
 The retired combined runner and module entry point fail before creating outputs.
 Importing the package exposes recipe definitions without resolving storage paths.
-New collection plans reserve and dispatch all three stages explicitly, including
-Slurm origin metadata. Existing legacy campaign plans cannot resume this study.
+No collection planner remains. Scheduler submission, when explicitly arranged,
+must invoke these stage commands with preallocated identities. Existing legacy
+campaign plans cannot resume this study.
 
 ## Preserved science
 
@@ -83,9 +84,9 @@ review`. This is not author acceptance or publication.
 
 ## Downstream boundary
 
-Exp033 and exp054 still consume legacy exp041 paths. New campaigns stop those
-consumers explicitly rather than reading stale or missing files after exp041
-finishes. Their own staged input migrations are separate work. Exp046 now pins
+Exp033 and exp054 formerly consumed legacy exp041 paths. Their current staged
+commands require explicit source identities rather than reading stale or missing
+files after exp041 finishes. Exp046 pins
 the exp041 analysis measurements and the same exp022 training bank directly;
 no automatic publication bridge was introduced. Its selective historical-data
 import is recorded in [the exp046 notes](../exp046/README.md); scientific article

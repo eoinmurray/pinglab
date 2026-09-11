@@ -17,10 +17,9 @@ from pathlib import Path
 from pingstore.contracts import (
     PingstoreError,
     load_json,
-    validate_operational_run_directory,
     write_json_atomic,
 )
-from pingstore.discovery import discover_runs
+from pingstore.discovery import discover_store, validated_run_graph
 from pingstore.layout import (
     export_directory,
     has_presentation_content,
@@ -191,26 +190,12 @@ def projection(
     declared_dependencies: dict | None = None, selected_ids: set[str] | None = None,
 ) -> dict:
     source = root / ".pingstore/runs"
-    records = {}
     if selected_ids is None:
         # Ordinary discovery still validates every visible completed run.
-        discovered = discover_runs(source) if source.exists() or source.is_symlink() else []
-        if source.exists():
-            for directory in sorted(source.iterdir()):
-                if not directory.name.startswith(".") and not directory.is_symlink() and directory.is_dir():
-                    records[directory.name] = load_json(directory / "run.json")
+        records, discovered = discover_store(source) if source.exists() or source.is_symlink() else ({}, [])
     else:
         # Publication supplies explicit identities; validate only their complete ancestry.
-        pending = list(selected_ids)
-        while pending:
-            identity = pending.pop()
-            if identity in records:
-                continue
-            if Path(identity).name != identity or identity.startswith("."):
-                raise PingstoreError("unsafe publication run identity")
-            record = validate_operational_run_directory(source / identity)
-            records[identity] = record
-            pending.extend(ref["run_id"] for ref in record["inputs"].values())
+        records = validated_run_graph(source, selected_ids)
         discovered = []
         for identity in sorted(selected_ids):
             record = records[identity]
@@ -218,72 +203,24 @@ def projection(
             if directory is None or not has_presentation_content(directory):
                 raise PingstoreError("publication requires a populated present run: " + identity)
             discovered.append({"id": identity, "created_at": record["created_at"]})
-    for key, record in records.items():
-        for reference in record["inputs"].values():
-            parent = records.get(reference["run_id"])
-            if (
-                parent is None
-                or parent["payload_digest"] != reference["payload_digest"]
-            ):
-                raise PingstoreError(
-                    f"{key}: missing or changed upstream input {reference['run_id']}"
-                )
-
-    def ancestors(key: str, trail: tuple = ()) -> set[str]:
-        if key in trail:
-            raise PingstoreError("cyclic run provenance: " + key)
-        found = set()
-        for reference in records[key]["inputs"].values():
-            parent = reference["run_id"]
-            found.add(parent)
-            found.update(ancestors(parent, (*trail, key)))
-        return found
-
-    sizes = {}
-    for key in records:
-        directory = source / key
-        files = [
-            p
-            for p in directory.rglob("*")
-            if p.is_file() and p != directory / "run.json"
-        ]
-        sizes[key] = sum(p.stat().st_size for p in files)
-
-    memberships = {}
-    views = root / ".pingstore/collections.json"
-    if views.exists():
-        from pingstore.contracts import validate_collections
-
-        for name, ids in validate_collections(load_json(views)).items():
-            for key in ids:
-                memberships.setdefault(key, []).append(name)
     runs = []
     for entry in discovered:
         record = records[entry["id"]]
         timing = scientific_timing(source / entry["id"], record)
         directory = presentation_directory(source / entry["id"], record)
         files = sorted(directory.iterdir())
-        parents = ancestors(entry["id"])
         runs.append(
             {
                 "id": entry["id"],
                 "experiment": record["experiment"],
                 "stage": record["stage"],
                 "created_at": entry["created_at"],
-                "collection": record["collection"],
-                "views": memberships.get(entry["id"], []),
                 "origin": record["origin"],
                 "display_origin": display_origin(record),
                 "duration_seconds": execution_duration(record),
                 "display_timing": display_timing(record, timing),
-                "execution_operation": record["execution"].get("operation"),
-                "scientific_timing": timing,
                 "basepath": "/" + directory.relative_to(root).as_posix(),
                 "export_bytes": sum(p.stat().st_size for p in files),
-                "export_files": len(files),
-                "payload_bytes": sizes[entry["id"]],
-                "upstream_payload_bytes": sum(sizes[key] for key in parents),
-                "upstream_runs": sorted(parents),
                 "files": [p.name for p in files],
             }
         )
@@ -306,8 +243,6 @@ def projection(
             "display_origin": display_origin(record),
             "duration_seconds": execution_duration(record),
             "display_timing": display_timing(record, timing),
-            "execution_operation": record["execution"].get("operation"),
-            "scientific_timing": timing,
             "export_bytes": sum(
                 path.stat().st_size for path in directory.rglob("*") if path.is_file()
             ),

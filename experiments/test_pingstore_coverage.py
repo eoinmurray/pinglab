@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from pingstore.registry import coverage
+from pingstore.membership import coverage
 
 REPO = Path(__file__).resolve().parents[1]
 
@@ -12,7 +12,6 @@ def test_every_runnable_experiment_has_membership_and_capture_route() -> None:
     assert result["missing_membership"] == []
     assert result["stale_membership"] == []
     assert result["missing_capture"] == []
-    assert result["writing_mismatches"] == {}
     assert result["passed"] is True
     assert set(result["capture_routes"]) == set(result["registered"])
     assert result["capture_routes"]["exp024"] == "independent-stages"

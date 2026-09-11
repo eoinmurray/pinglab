@@ -18,12 +18,10 @@ from experiments.helpers.operating_point import (
 import shutil
 import subprocess
 import sys
-from types import SimpleNamespace
 
 import numpy as np
 from experiments.exp044 import (
     analyse,
-    collection,
     compute,
     inputs,
     present,
@@ -402,55 +400,6 @@ def test_combined_launchers_are_retired(flag):
     )
     assert result.returncode != 0
     assert "independent stages" in result.stderr
-
-
-def test_collection_reserves_and_dispatches_explicit_stages(lab, monkeypatch):
-    from experiments.collections.gamma_gated_sparsity.plan import build_plan
-
-    root, bank_id, _ = lab
-    plan = build_plan(root / "campaign", "fixture", smoke=True)
-    plan["profile"] = "smoke"
-    plan["exp022_manifest"] = str(root / "bank-manifest.json")
-    write_json_atomic(Path(plan["exp022_manifest"]), {"pingstore_run_id": bank_id})
-    row = next(
-        r for s in plan["stages"] for r in s["experiments"] if r["slug"] == "exp044"
-    )
-    assert row["command"] == []
-    assert row["execution"]["stages"] == ["compute", "analyse", "present"]
-    ids = collection.reserve(root, row, origin="slurm-wilkes")
-    for stage, identity in ids.items():
-        assert identity.endswith("-" + stage)
-        reservation = load_json(
-            root / ".pingstore/runs" / f".{identity}.tmp" / ".reservation.json"
-        )
-        assert reservation["origin"] == "slurm-wilkes"
-    assert collection.reserve(root, row) == ids
-    with pytest.raises(PingstoreError, match="legacy exp044"):
-        collection.require_staged({"execution": {"mode": "monolithic"}})
-    commands = []
-
-    def dispatch(command, **kwargs):
-        commands.append(command)
-        stage = command[2].rsplit(".", 1)[-1]
-        module = {"compute": compute, "analyse": analyse, "present": present}[stage]
-        getattr(module, stage)(
-            command[command.index("--source") + 1],
-            run_id=command[command.index("--run-id") + 1],
-        )
-        return SimpleNamespace(stdout="")
-
-    monkeypatch.setattr(collection.subprocess, "run", dispatch)
-    refs = collection.execute(root, plan, row)
-    assert len(commands) == 3
-    assert collection.execute(root, plan, row) == refs
-    assert len(commands) == 3
-    assert (
-        collection.completed(root, plan, row).record["run_id"]
-        == refs["present"]["run_id"]
-    )
-    plan["profile"] = "production"
-    with pytest.raises(PingstoreError, match="profile"):
-        collection.execute(root, plan, row)
 
 
 def test_article_renders_selected_analysis(lab):

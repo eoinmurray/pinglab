@@ -34,10 +34,10 @@ automatic CUDA/MPS/CPU selection. Replay requires the same device/runtime for
 bitwise random-stream reproducibility.
 
 The old script and `python -m experiments.exp081` now fail with stage directions.
-New collection plans use an explicit three-stage adapter, reserve identities
-before scheduler submission, and retain exact stage references for resumption.
-They do not recapture exp081 as v2. Old monolithic campaign plans fail rather than
-being silently rewritten. Publication remains separately authorized.
+No collection adapter remains: scheduler submission must invoke the independent
+stage commands with explicit reserved identities and source references. Old
+monolithic campaign plans remain historical and cannot be resumed. Publication
+remains separately authorized.
 
 ## Evidence and verification boundary
 

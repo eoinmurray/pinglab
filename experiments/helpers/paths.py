@@ -11,7 +11,7 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
-from pingstore.native import execution_origin, make_run_id
+from pingstore.stages import execution_origin, make_legacy_run_id
 
 REPO = Path(__file__).resolve().parents[2]
 RUNS_ROOT = REPO / ".pingstore" / "runs"
@@ -83,7 +83,7 @@ def runner_paths(slug: str) -> RunnerPaths:
             f"{REQUIRE_ISOLATED_ENV}=1 requires {STATE_ENV}, {DERIVED_ENV}, and {LOG_ENV}"
         )
     identity = f"r{current_run_number(slug) + 1:03d}"
-    run_id = make_run_id(slug, identity, execution_origin())
+    run_id = make_legacy_run_id(slug, identity, execution_origin())
     temporary = RUNS_ROOT / f".{run_id}.tmp"
     return RunnerPaths(
         state=temporary / "export" / "state",

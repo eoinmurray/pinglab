@@ -8,7 +8,6 @@ import zipfile
 from functools import partial
 from html.parser import HTMLParser
 from pathlib import Path
-from types import SimpleNamespace
 
 import numpy as np
 import pytest
@@ -16,7 +15,6 @@ from experiments.exp033 import measurements as mf_measurements
 from experiments.exp033.test import synthetic
 from experiments.exp054 import (
     analyse,
-    collection,
     compute,
     evidence,
     inputs,
@@ -207,14 +205,6 @@ def test_population_recipe_versions_and_input_channels(smoke):
     ):
         with pytest.raises(PingstoreError, match="recipe"):
             recipe.validate(invalid)
-
-
-def test_campaign_cannot_reuse_previous_population_recipe(monkeypatch):
-    monkeypatch.setattr(
-        evidence, "compute_contract", lambda _: recipe.configuration(version=1)
-    )
-    with pytest.raises(PingstoreError, match="recipe"):
-        collection._profile({"compute": object()}, {"profile": "production"})
 
 
 @pytest.mark.parametrize("dtype", [np.float32, np.float64])
@@ -529,76 +519,6 @@ def test_hpc_requires_prior_reservation(lab, monkeypatch):
     assert inputs.source(root, identity, "compute").record["origin"] == "slurm"
 
 
-def test_collection_dispatches_explicit_stages_and_reuses(lab, monkeypatch):
-    root, frequency, _ = lab
-    row = {
-        "execution": {"mode": "exp054-staged"},
-        "paths": {"state": str(root / "campaign")},
-        "required_outputs": [str(root / "campaign/stage-runs.json")],
-    }
-    f = inputs.source(root, frequency, "analyse", experiment="exp041")
-    monkeypatch.setattr(collection, "campaign_frequencies", lambda *a: f)
-
-    def execute(command, **kw):
-        stage = command[2].split(".")[-1]
-        identity = command[command.index("--run-id") + 1]
-        if stage == "compute":
-            result = compute.compute(run_id=identity)
-        elif stage == "analyse":
-            assert command[command.index("--frequency-source") + 1] == frequency
-            result = analyse.analyse(
-                command[command.index("--source") + 1], frequency, run_id=identity
-            )
-        else:
-            # Separate test above exercises the actual rendering implementation.
-            source = inputs.source(
-                root, command[command.index("--source") + 1], "analyse"
-            )
-            with inputs.execution(
-                root,
-                "present",
-                sources={"analysis": source},
-                run_id=identity,
-                configuration=inputs.configuration(source),
-            ) as run:
-                for name in recipe.FIGURES:
-                    (run.export / name).write_bytes(b"synthetic fixture")
-                write_json_atomic(
-                    run.export / "numbers.json",
-                    load_json(source.export / "results.json"),
-                )
-            result = run.run_id
-        return SimpleNamespace(stdout=result + "\n")
-
-    monkeypatch.setattr(collection.subprocess, "run", execute)
-    refs = collection.execute(root, {"profile": "smoke"}, row)
-    monkeypatch.setattr(
-        collection.subprocess,
-        "run",
-        lambda *a, **k: pytest.fail("reused campaign executed"),
-    )
-    assert collection.execute(root, {"profile": "smoke"}, row) == refs
-    with pytest.raises(PingstoreError, match="profile"):
-        collection.completed(root, {"profile": "production"}, row)
-    assert not (root / ".artifacts").exists()
-
-
-def test_legacy_and_interrupted_campaigns_fail_closed(lab):
-    root, _, _ = lab
-    with pytest.raises(PingstoreError, match="legacy"):
-        collection.require_staged({})
-    row = {
-        "execution": {"mode": "exp054-staged"},
-        "paths": {"state": str(root / "campaign")},
-        "required_outputs": [str(root / "campaign/stage-runs.json")],
-    }
-    ids = collection.reserve(root, row)
-    temporary = root / ".pingstore/runs" / ("." + ids["compute"] + ".tmp")
-    (temporary / ".writer.lock").write_text("interrupted")
-    with pytest.raises(PingstoreError, match="explicit recovery"):
-        collection.reserve(root, row)
-
-
 def test_measured_rates_use_post_burn_full_populations(tmp_path):
     cfg = recipe.configuration(smoke=True)
     data = recording(cfg)
@@ -748,89 +668,6 @@ def test_contrast_can_reach_one_and_silent_data_remain_undefined():
     steps = round((cfg["sim_ms"] - cfg["burn_ms"]) / cfg["dt_ms"])
     result = measurements.score(np.zeros((steps, cfg["n_e"]), np.int8), cfg)
     assert np.isnan(result["contrast"])
-
-
-def test_shared_collection_dispatches_only_explicit_exp054_adapter(
-    tmp_path, monkeypatch
-):
-    from experiments.collections.gamma_gated_sparsity import execution
-    from experiments.collections.gamma_gated_sparsity.plan import build_plan
-
-    plan = build_plan(tmp_path / "campaign", "fixture", smoke=True)
-    row = next(
-        r for s in plan["stages"] for r in s["experiments"] if r["slug"] == "exp054"
-    )
-    assert row["execution"] == {
-        "mode": "exp054-staged",
-        "stages": list(collection.STAGES),
-    }
-    assert row["command"] == []
-    assert Path(row["required_outputs"][0]).name == "stage-refs.json"
-    assert execution._stage_adapter("exp054") is collection
-    called = []
-    monkeypatch.setattr(execution, "_outputs_valid_for_plan", lambda *a: False)
-    monkeypatch.setattr(
-        collection, "execute", lambda repo, plan, row: called.append(row) or {}
-    )
-    monkeypatch.setattr(
-        execution.subprocess, "run", lambda *a, **k: pytest.fail("legacy execution")
-    )
-    execution._run_downstream(plan, row)
-    assert called == [row]
-    assert (
-        load_json(tmp_path / "campaign/collection-status/exp054.json")["state"]
-        == "complete"
-    )
-
-
-def test_scheduler_reserves_exp054_before_dispatch_without_running_jobs(
-    tmp_path, monkeypatch
-):
-    from experiments.collections.gamma_gated_sparsity import execution, slurm
-    from experiments.collections.gamma_gated_sparsity.plan import build_plan
-    from experiments.collections.gamma_gated_sparsity.testing import slurm_resources
-
-    campaign = tmp_path / "campaign"
-    plan = build_plan(campaign, "fixture", smoke=True)
-    plan.update(
-        profile="smoke",
-        source={"git_clean": True},
-        exp022_manifest=str(tmp_path / "bank.json"),
-    )
-    write_json_atomic(tmp_path / "bank.json", {"manifest_sha256": "a" * 64})
-    resources = tmp_path / "resources.json"
-    write_json_atomic(resources, slurm_resources(tmp_path))
-    monkeypatch.setattr(slurm, "REPO", tmp_path)
-    monkeypatch.setattr(slurm, "load_plan", lambda *a: plan)
-    monkeypatch.setattr(
-        slurm, "_outputs_valid_for_plan", lambda plan, row: row["slug"] != "exp054"
-    )
-    events = []
-    reserve = collection.reserve
-
-    def reserve_exp054(repo, row, **kwargs):
-        ids = reserve(repo, row, **kwargs)
-        events.append("reserved")
-        for stage, identity in ids.items():
-            record = stages.stage_reservation(
-                repo / ".pingstore/runs" / f".{identity}.tmp"
-            )
-            assert record["stage"] == stage and record["origin"] == "slurm-wilkes"
-        return ids
-
-    def submit_job(plan, resources, **kwargs):
-        assert events and events[0] == "reserved"
-        events.append(kwargs["name"])
-        return {"name": kwargs["name"], "job_id": "fixture", "command": []}
-
-    monkeypatch.setattr(collection, "reserve", reserve_exp054)
-    monkeypatch.setattr(slurm, "_submit_job", submit_job)
-    monkeypatch.setattr(
-        execution.subprocess, "run", lambda *a, **k: pytest.fail("scheduler contacted")
-    )
-    slurm.submit_campaign(campaign, resources, submit=True)
-    assert events == ["reserved", "ggs-exp054", "ggs-finalize"]
-    assert not list((tmp_path / ".pingstore/runs").glob("exp054-*"))
 
 
 def test_postburn_sparse_evidence_preserves_all_analysis_inputs(tmp_path):

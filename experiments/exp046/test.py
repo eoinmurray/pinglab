@@ -11,7 +11,6 @@ from experiments.exp041 import compute as upstream_compute
 from experiments.exp041 import test as upstream_tests
 from experiments.exp046 import (
     analyse,
-    collection,
     compute,
     inputs,
     measurements,
@@ -452,75 +451,3 @@ def test_article_renders_explicit_present_outputs(cycle_lab):
     (output.export / "spikes_per_cycle_distribution.svg").write_text("corrupt")
     result = subprocess.run(command, capture_output=True, text=True, timeout=60)
     assert result.returncode != 0
-
-
-def test_collection_dispatch_uses_explicit_frequency_source(cycle_lab, monkeypatch):
-    from experiments.collections.gamma_gated_sparsity.plan import build_plan
-
-    root, bank_id, frequency_id, _ = cycle_lab
-    plan = build_plan(root / "campaign", "fixture", smoke=True)
-    plan["profile"] = "smoke"
-    row = next(
-        r for s in plan["stages"] for r in s["experiments"] if r["slug"] == "exp046"
-    )
-    monkeypatch.setattr(
-        collection,
-        "campaign_bank",
-        lambda *a: inputs.source(root, bank_id, "compute", experiment="exp022"),
-    )
-    monkeypatch.setattr(
-        collection,
-        "campaign_frequencies",
-        lambda *a: inputs.source(root, frequency_id, "analyse", experiment="exp041"),
-    )
-    calls = []
-
-    def dispatch(command, **kwargs):
-        from types import SimpleNamespace
-
-        calls.append(command)
-
-        def value(key):
-            return command[command.index(key) + 1]
-
-        stage = command[2].rsplit(".", 1)[-1]
-        if stage == "compute":
-            compute.compute(value("--source"), run_id=value("--run-id"))
-        elif stage == "analyse":
-            analyse.analyse(
-                value("--source"), value("--frequency-source"), run_id=value("--run-id")
-            )
-        else:
-            present.present(value("--source"), run_id=value("--run-id"))
-        return SimpleNamespace(stdout="")
-
-    monkeypatch.setattr(collection.subprocess, "run", dispatch)
-    collection.reserve(root, row, origin="slurm")
-    refs = collection.execute(root, plan, row)
-    assert len(calls) == 3
-    assert calls[1][calls[1].index("--frequency-source") + 1] == frequency_id
-    assert (
-        inputs.source(root, refs["compute"]["run_id"], "compute").record["origin"]
-        == "slurm"
-    )
-    collection.execute(root, plan, row)
-    assert len(calls) == 3
-    plan["profile"] = "production"
-    with pytest.raises(PingstoreError, match="profile"):
-        collection.execute(root, plan, row)
-    assert len(calls) == 3
-
-
-def test_collection_requires_completed_frequency_dependency(cycle_lab):
-    from experiments.collections.gamma_gated_sparsity.plan import build_plan
-
-    root, _, _, _ = cycle_lab
-    plan = build_plan(root / "campaign", "fixture", smoke=True)
-    with pytest.raises(PingstoreError, match="completed exp041 analysis"):
-        collection.campaign_frequencies(root, plan)
-    assert not list((root / ".pingstore/runs").glob("exp046-*"))
-
-
-def test_legacy_collection_plan_rejected():
-    with pytest.raises(PingstoreError, match="legacy"):
-        collection.require_staged({"execution": {"mode": "monolithic"}})

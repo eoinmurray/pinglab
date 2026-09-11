@@ -5,8 +5,12 @@ from pathlib import Path
 
 import pytest
 
-from tools.pingstore.campaign_runtime import initialize_run
-from tools.pingstore.payload import ContractError, inventory_payload, write_json_atomic
+from tools.pingstore.payload import (
+    CONTRACT_VERSION,
+    ContractError,
+    inventory_payload,
+    write_json_atomic,
+)
 from tools.snnsim.migration import load_equivalence_policy, migration_preflight
 
 POLICY = Path(__file__).parents[2] / "equivalence-policy-v1.json"
@@ -15,23 +19,27 @@ TRAINING = "sha256:" + "b" * 64
 
 
 def _campaign(root: Path, *, executor: str) -> Path:
-    run = initialize_run(
-        root,
-        run_id=f"{executor}-campaign",
-        kind="campaign",
-        experiment=None,
-        collection="snnlang",
-        command=["collection", "run"],
-        repository=root.parent,
-        executor=executor,
-        graph_digest=GRAPH if executor == "graph" else None,
-        training_digest=TRAINING if executor == "graph" else None,
-    )
-    if executor == "legacy":
-        run["kind"] = "legacy"
-        run["status"] = "legacy"
-    else:
-        run["status"] = "complete"
+    root.mkdir()
+    (root / "derived").mkdir()
+    run = {
+        "contract_version": CONTRACT_VERSION,
+        "run_id": f"{executor}-campaign",
+        "kind": "legacy" if executor == "legacy" else "campaign",
+        "status": "legacy" if executor == "legacy" else "complete",
+        "created_at_utc": "2026-08-24T12:00:00Z",
+        "source": {"git_commit": None, "git_clean": None, "lockfile": None},
+        "execution": {
+            "experiment": None,
+            "collection": "snnlang",
+            "command": ["collection", "run"],
+            "executor": executor,
+            "graph_digest": GRAPH if executor == "graph" else None,
+            "training_digest": TRAINING if executor == "graph" else None,
+        },
+        "upstream": [],
+        "archive": None,
+        "provenance_notes": "fixture",
+    }
     write_json_atomic(root / "run.json", run)
     write_json_atomic(
         root / "inventory.json", inventory_payload(root, run_id=run["run_id"])

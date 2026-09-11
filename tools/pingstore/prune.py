@@ -17,10 +17,10 @@ from .contracts import (
     file_sha256,
     load_json,
     validate_collections,
-    validate_operational_run_directory,
 )
-from .discovery import discover_runs
-from .locking import operation_lock
+from .discovery import discover_store
+from .membership import load_history
+from .stages import operation_lock
 
 PLAN_SCHEMA = "pingstore.prune-plan/v2"
 HPC_MARKER = re.compile(r"(?:^|[-_.])(?:slurm|hpc|wilkes|csd3|gpu-q)(?:$|[-_.0-9])")
@@ -32,32 +32,6 @@ PROVENANCE_KEYS = {
     "producer_origin",
     "scheduler",
 }
-
-
-def _visible_runs(runs: Path) -> list[Path]:
-    return [
-        path
-        for path in sorted(runs.iterdir())
-        if path.is_dir() and not path.name.startswith(".") and not path.is_symlink()
-    ]
-
-
-def _validated_graph(runs: Path) -> dict[str, dict]:
-    records = {
-        directory.name: validate_operational_run_directory(directory)
-        for directory in _visible_runs(runs)
-    }
-    for child, record in records.items():
-        for reference in record["inputs"].values():
-            parent = records.get(reference["run_id"])
-            if (
-                parent is None
-                or parent["payload_digest"] != reference["payload_digest"]
-            ):
-                raise PingstoreError(
-                    f"{child}: missing or changed input {reference['run_id']}"
-                )
-    return records
 
 
 def _authoritative_provenance_values(value, key: str = ""):
@@ -199,10 +173,25 @@ def build_plan(
             raise PingstoreError(
                 f"prune does not accept unsupported runs entry: {path}"
             )
-    records = _validated_graph(runs)
+    records, discovered = discover_store(runs)
     scope = _experiment_scope(experiments, records)
-    discovered = discover_runs(runs)
     reasons: dict[str, set[str]] = defaultdict(set)
+    historical = load_history(repo)
+    retired = {
+        experiment
+        for experiment, row in historical.items()
+        if row["disposition"] == "removed-and-pruned"
+    }
+    for experiment in sorted(retired & {record["experiment"] for record in records.values()}):
+        counters = [
+            _counter(run_id)
+            for run_id, record in records.items()
+            if record["experiment"] == experiment
+        ]
+        if historical[experiment].get("highest_allocated_counter") != max(counters):
+            raise PingstoreError(
+                f"retired experiment {experiment} must record highest_allocated_counter={max(counters)}"
+            )
 
     if scope is not None:
         for run_id, record in records.items():
@@ -212,6 +201,8 @@ def build_plan(
     latest: dict[str, dict] = {}
     for row in discovered:
         if scope is not None and row["experiment"] not in scope:
+            continue
+        if row["experiment"] in retired:
             continue
         current = latest.get(row["experiment"])
         if current is None or (row["created_at"], row["id"]) > (
@@ -243,7 +234,9 @@ def build_plan(
     by_experiment: dict[str, list[str]] = defaultdict(list)
     for run_id, record in records.items():
         by_experiment[record["experiment"]].append(run_id)
-    for run_ids in by_experiment.values():
+    for experiment, run_ids in by_experiment.items():
+        if experiment in retired:
+            continue
         high = max(run_ids, key=lambda run_id: (_counter(run_id), run_id))
         if high not in keep:
             keep.add(high)
@@ -260,14 +253,20 @@ def build_plan(
                 "payload_digest": record["payload_digest"],
                 "run_json_sha256": file_sha256(directory / "run.json"),
                 "bytes": _directory_bytes(directory),
-                "reasons": sorted(reasons[run_id])
-                if run_id in keep
-                else ["superseded"],
+                "reasons": (
+                    sorted(reasons[run_id])
+                    if run_id in keep
+                    else [
+                        "retired-experiment"
+                        if record["experiment"] in retired
+                        else "superseded"
+                    ]
+                ),
             }
         )
     plan = {
         "schema": PLAN_SCHEMA,
-        "policy": "keep-hpc-and-latest-visible-with-ancestry",
+        "policy": "keep-hpc-active-latest-pins-high-watermarks-and-ancestry",
         "experiments": sorted(scope) if scope is not None else None,
         "hidden": hidden,
         "keep": [row for row in rows if row["run_id"] in keep],
@@ -289,10 +288,9 @@ def _live_writer(directory: Path) -> bool:
 
 
 def _validate_survivors(runs: Path, expected: set[str]) -> None:
-    records = _validated_graph(runs)
+    records, _ = discover_store(runs)
     if set(records) != expected:
         raise PingstoreError("pruned store contains an unexpected completed-run set")
-    discover_runs(runs)
 
 
 def apply_plan(

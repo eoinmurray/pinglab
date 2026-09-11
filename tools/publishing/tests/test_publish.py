@@ -29,7 +29,7 @@ def test_selected_projection_checks_ancestry_not_unrelated_payload(tmp_path):
     child = make_run(store, 'exp001-r002-present', inputs={'source': reference})
     unrelated = make_run(store, 'exp002-r001-present')
     (unrelated / 'export/numbers.json').write_text('corrupt')
-    assert projection(tmp_path, selected_ids={child.name})['runs'][0]['upstream_runs'] == [parent.name]
+    assert projection(tmp_path, selected_ids={child.name})['runs'][0]['id'] == child.name
     (parent / 'export/numbers.json').write_text('corrupt')
     with pytest.raises(PingstoreError):
         projection(tmp_path, selected_ids={child.name})

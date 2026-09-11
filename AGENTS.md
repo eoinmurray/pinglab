@@ -19,6 +19,10 @@ management CLI.
   no-write dry run followed by the exact complete SHA-256 plan hash, retain HPC
   runs, newest visible presentations, explicit pins, incomplete inputs, full
   ancestry and allocation high-watermarks, and abort on drift or active writers.
+  Experiments explicitly recorded as `removed-and-pruned` may drop their local
+  latest presentation and run high-watermark only after preserving the exact
+  highest allocated counter in experiment history; stronger retention roots
+  still apply.
   It must not edit visible run contents or create catalogues or lifecycle states.
 
 - Store every completed run at `.pingstore/runs/<run-id>/`. All operational runs

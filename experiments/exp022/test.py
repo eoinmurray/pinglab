@@ -1,16 +1,19 @@
 from __future__ import annotations
 
-import copy
 import json
 import re
 import subprocess
+import sys
 from pathlib import Path
 
+import numpy as np
 import pytest
 import torch
-from experiments.exp022 import campaign, recipe
 from experiments.exp022 import compute as exp022
-from experiments.helpers import archive
+from experiments.exp022 import recipe
+from experiments.exp022.analyse import _gamma_psd, bank_composition, measure_snapshot
+from experiments.helpers import rhythmicity as figure_metrics
+from pingstore.contracts import PingstoreError
 
 CONCRETE_TIERS = (
     "standard",
@@ -69,18 +72,18 @@ def test_downstream_contract_interface_is_isolated_and_fail_closed() -> None:
         recipe.require_training_run_cells("TR-06", {"invented-cell"})
 
 
-def test_campaign_python_identity_stays_inside_environment(
+def test_bank_python_identity_stays_inside_environment(
     monkeypatch, tmp_path: Path
 ) -> None:
     bin_dir = tmp_path / "venv" / "bin"
     bin_dir.mkdir(parents=True)
     python = bin_dir / "python"
     python.write_text("")
-    monkeypatch.setattr(campaign.sys, "executable", str(bin_dir / "python3"))
-    assert campaign.python_executable() == str(python)
+    monkeypatch.setattr(exp022.sys, "executable", str(bin_dir / "python3"))
+    assert exp022.python_executable() == str(python)
 
 
-def test_campaign_python_identity_normalizes_parent_alias(
+def test_bank_python_identity_normalizes_parent_alias(
     monkeypatch, tmp_path: Path
 ) -> None:
     real_bin = tmp_path / "real" / "venv" / "bin"
@@ -90,13 +93,13 @@ def test_campaign_python_identity_normalizes_parent_alias(
     alias = tmp_path / "alias"
     alias.symlink_to(tmp_path / "real", target_is_directory=True)
     monkeypatch.setattr(
-        campaign.sys, "executable", str(alias / "venv" / "bin" / "python3")
+        exp022.sys, "executable", str(alias / "venv" / "bin" / "python3")
     )
-    assert campaign.python_executable() == str(python)
+    assert exp022.python_executable() == str(python)
 
 
-def test_exp022_display_path_accepts_external_campaign_root(tmp_path: Path) -> None:
-    external = tmp_path / "campaign" / "derived"
+def test_exp022_display_path_accepts_external_bank_root(tmp_path: Path) -> None:
+    external = tmp_path / "bank" / "derived"
     assert recipe._display_path(external) == external
 
 
@@ -192,7 +195,7 @@ def test_all_resolved_cells_have_complete_scientific_contract(tmp_path: Path) ->
     for cell in recipe.CANONICAL_CELLS:
         samples, epochs = recipe.cell_samples_epochs(cell)
         args = recipe.build_train_args(cell, tmp_path / cell["name"], samples, epochs)
-        resolved = campaign.resolved_parameters(
+        resolved = exp022.resolved_parameters(
             cell,
             args,
             samples,
@@ -235,7 +238,7 @@ def test_every_production_argument_is_mapped_or_operational(tmp_path: Path) -> N
     for cell in recipe.CANONICAL_CELLS:
         samples, epochs = recipe.cell_samples_epochs(cell)
         args = recipe.build_train_args(cell, tmp_path / cell["name"], samples, epochs)
-        parameters = campaign.resolved_parameters(
+        parameters = exp022.resolved_parameters(
             cell,
             args,
             samples,
@@ -243,17 +246,17 @@ def test_every_production_argument_is_mapped_or_operational(tmp_path: Path) -> N
             scientific_contract=recipe.scientific_contract(cell, samples, epochs),
         )
         row = {"parameters": parameters}
-        expected = campaign._expected_config(row)
+        expected = exp022._expected_config(row)
         assert expected
 
 
 def test_unmapped_manifest_argument_fails_closed(tmp_path: Path) -> None:
     row = _manifest_cell(tmp_path)
     row["parameters"]["arguments"]["--future-scientific-knob"] = "1"
-    result = campaign.validate_cell(row, load_checkpoint=False)
+    result = exp022.validate_cell(row, load_checkpoint=False)
     assert result["state"] == "missing" or not result["valid"]
     row["output_directory"] = str(_write_valid_cell(_manifest_cell(tmp_path)))
-    result = campaign.validate_cell(row, load_checkpoint=False)
+    result = exp022.validate_cell(row, load_checkpoint=False)
     assert not result["valid"]
     assert "no saved-config mapping" in result["reasons"][0]
 
@@ -275,7 +278,7 @@ def test_scientific_argument_saved_config_transform(
     expected: object,
 ) -> None:
     row = {"parameters": {"arguments": {flag: raw}}}
-    assert campaign._same(campaign._expected_config(row)[key], expected)
+    assert exp022._same(exp022._expected_config(row)[key], expected)
 
 
 def test_validator_rejects_each_resolved_scientific_config_mismatch(
@@ -291,7 +294,7 @@ def test_validator_rejects_each_resolved_scientific_config_mismatch(
         "training_run_id": cell["training_run_id"],
         "resource_tier": "variable_rate",
         "output_directory": str(tmp_path / "cells" / cell["name"]),
-        "parameters": campaign.resolved_parameters(
+        "parameters": exp022.resolved_parameters(
             cell,
             args,
             samples,
@@ -300,7 +303,7 @@ def test_validator_rejects_each_resolved_scientific_config_mismatch(
         ),
     }
     directory = _write_valid_cell(row)
-    expected = campaign._expected_config(row)
+    expected = exp022._expected_config(row)
     original = json.loads((directory / "config.json").read_text())
     for key, value in expected.items():
         mutated = dict(original)
@@ -313,7 +316,7 @@ def test_validator_rejects_each_resolved_scientific_config_mismatch(
         else:
             mutated[key] = f"{value}-mismatch"
         (directory / "config.json").write_text(json.dumps(mutated))
-        result = campaign.validate_cell(row, load_checkpoint=False)
+        result = exp022.validate_cell(row, load_checkpoint=False)
         assert not result["valid"], key
         assert any(f"config {key} mismatch" in reason for reason in result["reasons"])
         (directory / "config.json").write_text(json.dumps(original))
@@ -348,11 +351,11 @@ def _manifest_cell(tmp_path: Path, *, epochs: int = 2, samples: int = 100) -> di
 def _write_valid_cell(row: dict) -> Path:
     directory = Path(row["output_directory"])
     directory.mkdir(parents=True, exist_ok=True)
-    expected = campaign._expected_config(row)
+    expected = exp022._expected_config(row)
     identity = {
         "training_cell_name": row["name"],
         "training_run_id": row["training_run_id"],
-        "campaign_resolved_parameters": row["parameters"],
+        "bank_resolved_parameters": row["parameters"],
     }
     roles = ("W_in", "W_out", "W_EE_1", "W_EI_1", "W_IE_1", "W_II_1")
     initialization = {
@@ -394,12 +397,12 @@ def _write_valid_cell(row: dict) -> Path:
         "best_validation": {
             "filename": "weights.pth",
             "epoch": 1,
-            "sha256": campaign.sha256_file(directory / "weights.pth"),
+            "sha256": exp022.sha256_file(directory / "weights.pth"),
         },
         "final_epoch": {
             "filename": "weights_final.pth",
             "epoch": epochs,
-            "sha256": campaign.sha256_file(directory / "weights_final.pth"),
+            "sha256": exp022.sha256_file(directory / "weights_final.pth"),
         },
     }
     (directory / "metrics.json").write_text(
@@ -418,14 +421,14 @@ def _write_valid_cell(row: dict) -> Path:
 
 def test_validator_states_and_valid_checkpoint(tmp_path: Path) -> None:
     row = _manifest_cell(tmp_path)
-    assert campaign.validate_cell(row)["state"] == "missing"
+    assert exp022.validate_cell(row)["state"] == "missing"
     directory = Path(row["output_directory"])
     directory.mkdir(parents=True)
     (directory / "config.json").write_text("{}")
-    assert campaign.validate_cell(row)["state"] == "partial"
+    assert exp022.validate_cell(row)["state"] == "partial"
     directory.rename(tmp_path / "discarded")
     _write_valid_cell(row)
-    assert campaign.validate_cell(row) == {
+    assert exp022.validate_cell(row) == {
         "valid": True,
         "state": "complete",
         "reasons": [],
@@ -443,11 +446,11 @@ def test_validator_recognizes_w_ff_readout_without_named_output_key(
     checkpoint.pop("b_out")
     torch.save(checkpoint, directory / "weights.pth")
     metrics = json.loads((directory / "metrics.json").read_text())
-    metrics["checkpoints"]["best_validation"]["sha256"] = campaign.sha256_file(
+    metrics["checkpoints"]["best_validation"]["sha256"] = exp022.sha256_file(
         directory / "weights.pth"
     )
     (directory / "metrics.json").write_text(json.dumps(metrics))
-    assert campaign.validate_cell(row) == {
+    assert exp022.validate_cell(row) == {
         "valid": True,
         "state": "complete",
         "reasons": [],
@@ -460,21 +463,21 @@ def test_validator_rejects_corrupt_mismatched_and_short_history(tmp_path: Path) 
     (directory / "weights.pth").write_bytes(b"not a checkpoint")
     assert any(
         "checkpoint load failed" in reason
-        for reason in campaign.validate_cell(row)["reasons"]
+        for reason in exp022.validate_cell(row)["reasons"]
     )
     _write_valid_cell(row)
     config = json.loads((directory / "config.json").read_text())
     config["seed"] = 44
     (directory / "config.json").write_text(json.dumps(config))
     assert any(
-        "seed mismatch" in reason for reason in campaign.validate_cell(row)["reasons"]
+        "seed mismatch" in reason for reason in exp022.validate_cell(row)["reasons"]
     )
     config["seed"] = 42
     (directory / "config.json").write_text(json.dumps(config))
     (directory / "metrics.jsonl").write_text(
         json.dumps({"ep": 1, "samples": 100}) + "\n"
     )
-    assert any("epoch 2" in reason for reason in campaign.validate_cell(row)["reasons"])
+    assert any("epoch 2" in reason for reason in exp022.validate_cell(row)["reasons"])
 
 
 def test_preserve_partial_never_overwrites(tmp_path: Path) -> None:
@@ -482,7 +485,7 @@ def test_preserve_partial_never_overwrites(tmp_path: Path) -> None:
     directory = Path(row["output_directory"])
     directory.mkdir(parents=True)
     (directory / "broken.txt").write_text("evidence")
-    preserved = campaign.preserve_partial(directory)
+    preserved = exp022.preserve_partial(directory)
     assert (
         preserved is not None and (preserved / "broken.txt").read_text() == "evidence"
     )
@@ -497,10 +500,10 @@ def test_status_identifies_retry_cells(tmp_path: Path) -> None:
         "output_directory": str(tmp_path / "cells" / "missing"),
     }
     _write_valid_cell(complete)
-    status = campaign.summarize_status(
+    status = exp022.summarize_status(
         {
-            "campaign_id": "test",
-            "campaign_root": str(tmp_path),
+            "bank_id": "test",
+            "bank_root": str(tmp_path),
             "cells": [complete, missing],
         }
     )
@@ -508,33 +511,33 @@ def test_status_identifies_retry_cells(tmp_path: Path) -> None:
     assert status["retry_cells"] == ["missing"]
 
 
-def test_campaign_train_does_not_touch_valid_cell(tmp_path: Path, monkeypatch) -> None:
+def test_bank_worker_does_not_touch_valid_cell(tmp_path: Path, monkeypatch) -> None:
     row = _manifest_cell(tmp_path)
     directory = _write_valid_cell(row)
-    before = campaign.sha256_file(directory / "weights.pth")
+    before = exp022.sha256_file(directory / "weights.pth")
     manifest = {
-        "campaign_id": "test",
+        "bank_id": "test",
         "manifest_sha256": "abc",
         "repository": {"commit": "deadbeef", "dirty": False},
-        "campaign_root": str(tmp_path),
+        "bank_root": str(tmp_path),
         "cells": [row],
     }
-    monkeypatch.setattr(exp022, "_checked_manifest", lambda _path: manifest)
+    monkeypatch.setattr(exp022, "_checked_bank_manifest", lambda _path: manifest)
     monkeypatch.setattr(
         exp022.subprocess,
         "run",
         lambda *_args, **_kwargs: pytest.fail("valid cell must not launch training"),
     )
-    assert exp022._campaign_train(tmp_path / "campaign.json", row["name"]) == 0
-    assert campaign.sha256_file(directory / "weights.pth") == before
+    assert exp022._train_bank_cell(tmp_path / "bank.json", row["name"]) == 0
+    assert exp022.sha256_file(directory / "weights.pth") == before
 
 
 def _attempt_manifest(tmp_path: Path, row: dict) -> dict:
     return {
-        "campaign_id": "test",
+        "bank_id": "test",
         "manifest_sha256": "abc",
         "repository": {"commit": "deadbeef", "dirty": False},
-        "campaign_root": str(tmp_path),
+        "bank_root": str(tmp_path),
         "cells": [row],
         "_runtime_commands": {row["name"]: ["tool", "train"]},
     }
@@ -543,52 +546,52 @@ def _attempt_manifest(tmp_path: Path, row: dict) -> dict:
 def test_running_cell_is_reported_and_excluded_from_retry(tmp_path: Path) -> None:
     row = _manifest_cell(tmp_path)
     manifest = _attempt_manifest(tmp_path, row)
-    record, lock = campaign.acquire_attempt(manifest, row)
-    status = campaign.summarize_status(manifest, load_checkpoint=False)
+    record, lock = exp022.acquire_attempt(manifest, row)
+    status = exp022.summarize_status(manifest, load_checkpoint=False)
     assert status["cells"][0]["state"] == "running"
     assert status["retry_cells"] == []
-    campaign.status_path(manifest, row["name"]).unlink()
-    lock_only_status = campaign.summarize_status(manifest, load_checkpoint=False)
+    exp022.status_path(manifest, row["name"]).unlink()
+    lock_only_status = exp022.summarize_status(manifest, load_checkpoint=False)
     assert lock_only_status["cells"][0]["state"] == "running"
     assert lock_only_status["retry_cells"] == []
-    campaign.release_attempt(lock, record["attempt_id"])
+    exp022.release_attempt(lock, record["attempt_id"])
 
 
 def test_duplicate_attempt_cannot_move_live_output(tmp_path: Path, monkeypatch) -> None:
     row = _manifest_cell(tmp_path)
     manifest = _attempt_manifest(tmp_path, row)
-    record, lock = campaign.acquire_attempt(manifest, row)
+    record, lock = exp022.acquire_attempt(manifest, row)
     directory = Path(row["output_directory"])
     directory.mkdir(parents=True)
     evidence = directory / "live.txt"
     evidence.write_text("still writing")
-    monkeypatch.setattr(exp022, "_checked_manifest", lambda _path: manifest)
+    monkeypatch.setattr(exp022, "_checked_bank_manifest", lambda _path: manifest)
     with pytest.raises(RuntimeError, match="active attempt"):
-        exp022._campaign_train(tmp_path / "campaign.json", row["name"])
+        exp022._train_bank_cell(tmp_path / "bank.json", row["name"])
     assert evidence.read_text() == "still writing"
     assert not (tmp_path / "failed").exists()
-    campaign.release_attempt(lock, record["attempt_id"])
+    exp022.release_attempt(lock, record["attempt_id"])
 
 
 def test_stale_attempt_requires_explicit_recovery(tmp_path: Path) -> None:
     row = _manifest_cell(tmp_path)
     manifest = _attempt_manifest(tmp_path, row)
-    record, lock = campaign.acquire_attempt(manifest, row)
-    status_file = campaign.status_path(manifest, row["name"])
+    record, lock = exp022.acquire_attempt(manifest, row)
+    status_file = exp022.status_path(manifest, row["name"])
     stale = json.loads(status_file.read_text())
     stale["pid"] = 999_999_999
-    campaign.atomic_json(status_file, stale)
-    status = campaign.summarize_status(manifest, load_checkpoint=False)
+    exp022.atomic_json(status_file, stale)
+    status = exp022.summarize_status(manifest, load_checkpoint=False)
     assert status["cells"][0]["state"] == "stale"
     assert status["retry_cells"] == []
     assert status["recoverable_cells"] == [row["name"]]
     with pytest.raises(RuntimeError, match="use --recover-stale"):
-        campaign.acquire_attempt(manifest, row)
-    recovered, recovered_lock = campaign.acquire_attempt(
+        exp022.acquire_attempt(manifest, row)
+    recovered, recovered_lock = exp022.acquire_attempt(
         manifest, row, recover_stale=True
     )
     assert recovered["attempt_id"] != record["attempt_id"]
-    campaign.release_attempt(recovered_lock, recovered["attempt_id"])
+    exp022.release_attempt(recovered_lock, recovered["attempt_id"])
     lock.unlink(missing_ok=True)
 
 
@@ -597,14 +600,14 @@ def test_failed_subprocess_without_metrics_records_failure(
 ) -> None:
     row = _manifest_cell(tmp_path)
     manifest = _attempt_manifest(tmp_path, row)
-    monkeypatch.setattr(exp022, "_checked_manifest", lambda _path: manifest)
+    monkeypatch.setattr(exp022, "_checked_bank_manifest", lambda _path: manifest)
     monkeypatch.setattr(exp022, "_gpu_metadata", lambda: {"available": False})
     monkeypatch.setattr(
         exp022.subprocess,
         "run",
         lambda *_args, **_kwargs: subprocess.CompletedProcess([], 7),
     )
-    assert exp022._campaign_train(tmp_path / "campaign.json", row["name"]) == 1
+    assert exp022._train_bank_cell(tmp_path / "bank.json", row["name"]) == 1
     attempt = json.loads((Path(row["output_directory"]) / "attempt.json").read_text())
     assert attempt["state"] == "failed"
     assert attempt["exit_code"] == 7
@@ -617,10 +620,12 @@ def test_preserve_partial_avoids_timestamp_collision(
     directory = Path(row["output_directory"])
     directory.mkdir(parents=True)
     (directory / "evidence").write_text("new")
-    monkeypatch.setattr(campaign, "utc_now", lambda: "2026-08-11T00:00:00+00:00")
+    monkeypatch.setattr(
+        exp022, "utc_now", lambda: "2026-08-11T00:00:00+00:00"
+    )
     occupied = tmp_path / "failed" / row["name"] / "2026-08-11T00-00-00+00-00"
     occupied.mkdir(parents=True)
-    preserved = campaign.preserve_partial(directory)
+    preserved = exp022.preserve_partial(directory)
     assert preserved is not None
     assert preserved.name.endswith("-1")
     assert (preserved / "evidence").read_text() == "new"
@@ -629,15 +634,19 @@ def test_preserve_partial_avoids_timestamp_collision(
 def _write_checked_manifest(
     tmp_path: Path, monkeypatch, tier: str = "variable_rate"
 ) -> Path:
-    monkeypatch.setattr(campaign, "git_identity", lambda _repo: ("deadbeef", False))
     monkeypatch.setattr(
-        campaign, "lock_identity", lambda _repo: {"path": "uv.lock", "sha256": "lock"}
+        exp022, "git_identity", lambda _repo: ("deadbeef", False)
+    )
+    monkeypatch.setattr(
+        exp022,
+        "lock_identity",
+        lambda _repo: {"path": "uv.lock", "sha256": "lock"},
     )
     cells = recipe.cells_in_resource_tier(tier)
-    payload = campaign.create_manifest(
+    payload = exp022.create_manifest(
         repo=exp022.REPO,
-        campaign_root=tmp_path,
-        campaign_id="checked",
+        bank_root=tmp_path,
+        bank_id="checked",
         cells=cells,
         tier_for=recipe.cell_resource_tier,
         samples_epochs=recipe.cell_samples_epochs,
@@ -645,8 +654,8 @@ def _write_checked_manifest(
         scientific_contract_for=recipe.scientific_contract,
         selection_tier=tier,
     )
-    path = tmp_path / "campaign.json"
-    campaign.write_manifest(path, payload)
+    path = tmp_path / "bank.json"
+    exp022.write_manifest(path, payload)
     return path
 
 
@@ -667,7 +676,7 @@ def test_checked_manifest_rejects_rehashed_executable_mutations(
     mutation: str,
 ) -> None:
     path = _write_checked_manifest(tmp_path, monkeypatch)
-    payload = campaign.load_manifest(path)
+    payload = exp022.load_manifest(path)
     payload.pop("manifest_sha256")
     if mutation == "command":
         payload["cells"][0]["command"][-1] = "tampered"
@@ -681,156 +690,33 @@ def test_checked_manifest_rejects_rehashed_executable_mutations(
         payload["cells"].append(dict(payload["cells"][0]))
     else:
         payload["cells"].pop()
-    campaign.write_manifest(path, payload)
+    exp022.write_manifest(path, payload)
     with pytest.raises(SystemExit):
-        exp022._checked_manifest(path)
+        exp022._checked_bank_manifest(path)
 
 
-def test_external_aggregation_completes_compute_without_downstream_dispatch(
-    tmp_path: Path, monkeypatch
-) -> None:
-    manifest = {
-        "campaign_id": "external",
-        "campaign_root": str(tmp_path),
-        "cells": [{} for _ in recipe.CANONICAL_CELLS],
-    }
-    monkeypatch.setattr(exp022, "_checked_manifest", lambda *_args, **_kwargs: manifest)
-    monkeypatch.setattr(
-        campaign,
-        "summarize_status",
-        lambda _manifest: {
-            "retry_cells": [],
-            "cells": [{"name": "cell", "valid": True}],
-        },
-    )
-    observed = []
-    monkeypatch.setattr(
-        exp022, "capture_campaign", lambda path, value: observed.append((path, value))
-    )
-    monkeypatch.setattr(
-        exp022.subprocess,
-        "run",
-        lambda *args, **kwargs: pytest.fail(
-            "aggregation must not dispatch downstream stages"
-        ),
-    )
-    assert exp022._handle_campaign_cli(
-        [
-            "compute.py",
-            "--campaign-aggregate",
-            str(tmp_path / "campaign.json"),
-        ]
-    )
-    assert observed == [(tmp_path / "campaign.json", manifest)]
-    assert recipe.training_root_provenance(tmp_path)["location"] == "external"
-
-
-def test_post_aggregation_check_allows_only_generated_exp022_artifacts(
-    tmp_path: Path,
-    monkeypatch,
-) -> None:
-    manifest_path = _write_checked_manifest(tmp_path, monkeypatch)
-    monkeypatch.setattr(campaign, "git_identity", lambda _repo: ("deadbeef", True))
-    monkeypatch.setattr(
-        campaign,
-        "git_dirty_paths",
-        lambda _repo: [".artifacts/exp022/numbers.json", ".demolab/pdfs/exp022.pdf"],
-    )
-    assert (
-        exp022._checked_manifest(
-            manifest_path,
-            allow_generated_dirty=True,
-        )["campaign_id"]
-        == "checked"
-    )
-    monkeypatch.setattr(
-        campaign,
-        "git_dirty_paths",
-        lambda _repo: ["experiments/exp022/compute.py"],
-    )
-    with pytest.raises(SystemExit, match="clean source worktree"):
-        exp022._checked_manifest(manifest_path, allow_generated_dirty=True)
-
-
-@pytest.mark.parametrize(
-    "occupied", ["empty", "manifest", "cell", "status", "arbitrary"]
-)
-def test_campaign_creation_refuses_existing_destination(
-    tmp_path: Path,
-    monkeypatch,
-    occupied: str,
-) -> None:
-    root = tmp_path / "campaign"
+def test_bank_creation_refuses_existing_destination(tmp_path: Path, monkeypatch) -> None:
+    root = tmp_path / "bank"
     root.mkdir()
-    if occupied == "manifest":
-        (root / "campaign.json").write_text("original manifest")
-    elif occupied == "cell":
-        cell = root / "cells" / "existing"
-        cell.mkdir(parents=True)
-        (cell / "weights.pth").write_text("expensive checkpoint")
-    elif occupied == "status":
-        status = root / "status"
-        status.mkdir()
-        (status / "cell.json").write_text("running")
-    elif occupied == "arbitrary":
-        (root / "notes.txt").write_text("keep me")
-    before = {
-        path.relative_to(root).as_posix(): path.read_bytes()
-        for path in root.rglob("*")
-        if path.is_file()
-    }
+    evidence = root / "keep.txt"
+    evidence.write_text("existing work")
     monkeypatch.setattr(
-        campaign,
-        "create_manifest",
-        lambda **_kwargs: {"campaign_id": "must-not-overwrite"},
+        exp022,
+        "reserve_stage",
+        lambda *_args, **_kwargs: pytest.fail("must not reserve over existing work"),
     )
-    with pytest.raises(SystemExit, match="already exists and will not be modified"):
-        exp022._handle_campaign_cli(
-            [
-                "compute.py",
-                "--campaign-manifest",
-                str(root),
-                "--campaign-id",
-                "must-not-overwrite",
-                "--tier",
-                "variable_rate",
-            ]
-        )
-    after = {
-        path.relative_to(root).as_posix(): path.read_bytes()
-        for path in root.rglob("*")
-        if path.is_file()
-    }
-    assert after == before
+    with pytest.raises(SystemExit, match="already exists"):
+        exp022._handle_bank_cli(["--bank-create", str(root)])
+    assert evidence.read_text() == "existing work"
 
 
-def test_verified_archive_source_is_manifest_cells_not_legacy(
-    tmp_path: Path, monkeypatch
-) -> None:
-    row = _manifest_cell(tmp_path)
-    manifest = _attempt_manifest(tmp_path, row)
-    manifest["cells"] = [{} for _ in recipe.CANONICAL_CELLS]
-    checked = {}
-
-    def fake_checked_manifest(_path, *, allow_generated_dirty=False):
-        checked["allow_generated_dirty"] = allow_generated_dirty
-        return manifest
-
-    monkeypatch.setattr(exp022, "_checked_manifest", fake_checked_manifest)
-    monkeypatch.setattr(
-        campaign,
-        "summarize_status",
-        lambda _manifest: {
-            "retry_cells": [],
-            "recoverable_cells": [],
-            "cells": [{"state": "complete"} for _ in recipe.CANONICAL_CELLS],
-        },
-    )
-    selected, source = archive.verified_campaign_source(tmp_path / "campaign.json")
-    assert selected is manifest
-    assert source == (tmp_path / "cells").resolve()
-    assert source != (archive.ARTIFACTS_ROOT / "exp022").resolve()
-    assert checked["allow_generated_dirty"] is True
+def test_bank_array_uses_frozen_selection_and_exp022_only() -> None:
+    submit = (exp022.REPO / "experiments/exp022/slurm/submit-bank.sh").read_text()
+    worker = (exp022.REPO / "experiments/exp022/slurm/bank-array.sbatch").read_text()
+    assert 'chmod 0444 "$selection"' in submit
+    assert 'mapfile -t cells < "$EXP022_SELECTION"' in worker
+    assert "--bank-list" not in worker
+    assert "experiments/collections" not in submit + worker
 
 
 def test_mnist_link_helper_accepts_existing_and_concurrent_creation(
@@ -870,112 +756,9 @@ def test_wilkes_modules_load_in_sanitized_environment(tmp_path: Path) -> None:
     assert calls.read_text().splitlines() == ["purge", "load rhel8/default-amp"]
 
 
-def test_submission_selection_is_frozen_read_only() -> None:
-    submit = (
-        exp022.REPO / "experiments" / "exp022" / "slurm" / "submit-tier.sh"
-    ).read_text()
-    array = (
-        exp022.REPO / "experiments" / "exp022" / "slurm" / "train-array.sbatch"
-    ).read_text()
-    assert 'chmod 0444 "$selection"' in submit
-    assert 'mapfile -t cells < "$EXP022_SELECTION"' in array
-    assert "--campaign-list" not in array
-
-
-def test_portable_cell_contract_ignores_only_output_path() -> None:
-    source = _manifest_cell(Path("/source"))
-    destination = _manifest_cell(Path("/destination"))
-    source["family"] = destination["family"] = "variable_rate"
-    source["parameters"]["arguments"]["--out-dir"] = "/source/cell"
-    destination["parameters"]["arguments"]["--out-dir"] = "/destination/cell"
-
-    assert exp022._portable_cell_contract(source) == exp022._portable_cell_contract(
-        destination
-    )
-
-    destination["parameters"]["arguments"]["--fr-reg-upper-strength"] = "0.041"
-    assert exp022._portable_cell_contract(source) != exp022._portable_cell_contract(
-        destination
-    )
-
-
-def test_import_compatible_cell_restamps_destination_and_keeps_origin(
-    tmp_path: Path,
-) -> None:
-    source_root = (tmp_path / "source").resolve()
-    destination_root = (tmp_path / "destination").resolve()
-    source_row = _manifest_cell(source_root)
-    source_row["family"] = "variable_rate"
-    source_row["parameters"]["arguments"]["--out-dir"] = source_row["output_directory"]
-    _write_valid_cell(source_row)
-    source_manifest = {
-        "schema": campaign.SCHEMA,
-        "schema_version": campaign.SCHEMA_VERSION,
-        "campaign_id": "base",
-        "campaign_root": str(source_root),
-        "repository": {"commit": "a" * 40, "dirty": False},
-        "cells": [source_row],
-    }
-    source_root.mkdir(exist_ok=True)
-    campaign.write_manifest(source_root / "campaign.json", source_manifest)
-
-    destination_row = copy.deepcopy(source_row)
-    destination_row["output_directory"] = str(
-        destination_root / "cells" / destination_row["name"]
-    )
-    destination_row["parameters"]["arguments"]["--out-dir"] = destination_row[
-        "output_directory"
-    ]
-    destination_manifest = {
-        **source_manifest,
-        "campaign_id": "repair",
-        "campaign_root": str(destination_root),
-        "repository": {"commit": "b" * 40, "dirty": False},
-        "cells": [destination_row],
-        "manifest_sha256": "c" * 64,
-    }
-
-    result = exp022._import_compatible_cells(
-        destination_manifest, source_root / "campaign.json"
-    )
-
-    assert result["imported"] == [destination_row["name"]]
-    assert result["pending_incompatible"] == []
-    assert campaign.validate_cell(destination_row)["valid"]
-    imported = json.loads(
-        (Path(destination_row["output_directory"]) / "metrics.json").read_text()
-    )
-    assert imported["campaign_id"] == "repair"
-    assert imported["imported_cell_provenance"]["campaign_id"] == "base"
-
-
-"""Relocation checks that never train, submit jobs or touch retained evidence."""
-
-import os
-import sys
-
-import pytest
-
 REPO = Path(__file__).resolve().parents[2]
 EXPERIMENT = REPO / "experiments" / "exp022"
 SLURM = EXPERIMENT / "slurm"
-
-
-@pytest.mark.parametrize(
-    "imports",
-    [
-        "from experiments.exp022 import campaign, compute",
-        "from experiments.exp022 import compute, campaign",
-    ],
-)
-def test_relocated_imports_preserve_campaign_identity(imports):
-    subprocess.run(
-        [sys.executable, "-c", imports + "; assert compute.campaign is campaign"],
-        cwd=REPO,
-        check=True,
-        capture_output=True,
-        text=True,
-    )
 
 
 @pytest.mark.parametrize(
@@ -998,46 +781,68 @@ def test_file_entrypoints_resolve_from_an_external_directory(entrypoint, tmp_pat
     assert "usage:" in completed.stdout
 
 
-def test_slurm_scripts_and_collection_references_resolve():
-    scripts = sorted(SLURM.glob("*.sh")) + sorted(SLURM.glob("*.sbatch"))
-    scripts.append(
-        REPO / "experiments/collections/gamma_gated_sparsity/collection-job.sbatch"
-    )
-    for script in scripts:
-        subprocess.run(["bash", "-n", str(script)], check=True, capture_output=True)
-        for reference in re.findall(r"experiments/exp022/[\w./-]+", script.read_text()):
-            target = REPO / reference
-            assert target.is_file(), (script, reference)
-    # This helper is executed directly; module initialization is only sourced.
-    assert os.access(SLURM / "ensure-mnist-link.sh", os.X_OK)
+"""Physical-time checks for the collection's nonintegral analysis bins."""
 
 
-def test_submit_wrapper_finds_repository_before_validation(tmp_path):
-    cache = tmp_path / "cache"
-    (cache / "MNIST").mkdir(parents=True)
-    manifest = tmp_path / "campaign.json"
-    manifest.write_text("{}")
-    uv = tmp_path / "uv"
-    uv.write_text(
-        '#!/bin/bash\nprintf "cwd=%s\\n" "$PWD"\nprintf "arg=%s\\n" "$@"\nexit 23\n'
+def periodic_raster(dt, period_ms=30.0, duration_ms=1800.0):
+    raster = np.zeros((round(duration_ms / dt), 10), dtype=bool)
+    events = np.rint(np.arange(0, duration_ms, period_ms) / dt).astype(int)
+    raster[events] = True
+    return raster
+
+
+@pytest.mark.parametrize("dt", [0.05, 0.1, 0.2, 0.3, 0.6])
+def test_spectrum_reports_physical_frequency_across_timestep_grid(dt):
+    frequencies, power, peak = _gamma_psd(periodic_raster(dt), dt)
+    assert frequencies.shape == power.shape
+    assert peak == pytest.approx(1000 / 30, abs=0.7)
+
+
+@pytest.mark.parametrize("dt", [0.1, 0.3, 0.6])
+def test_autocorrelation_lags_and_scalar_lookup_use_physical_time(dt):
+    raster = periodic_raster(dt)
+    lags, ac = figure_metrics.spike_autocorrelogram(raster, dt, max_lag_ms=60)
+    window = (lags >= 20) & (lags <= 40)
+    peak_lag = lags[window][np.argmax(ac[window])]
+    assert peak_lag == pytest.approx(30, abs=1.2)
+    # IEI bins remain physical milliseconds and can differ from the AC bins.
+    result = figure_metrics.rhythmicity_scalars(
+        lags, ac, np.array([30.0]), np.array([1]), bio_lag_ms=30.0
     )
-    uv.chmod(0o755)
-    completed = subprocess.run(
-        ["bash", str(SLURM / "submit-tier.sh"), str(manifest), "standard", "--dry-run"],
-        cwd=tmp_path,
-        capture_output=True,
-        text=True,
-        env={
-            **os.environ,
-            "EXP022_SLURM_ACCOUNT": "test-account",
-            "EXP022_WALLTIME": "00:01:00",
-            "EXP022_CONCURRENCY": "1",
-            "EXP022_MNIST_CACHE": str(cache),
-            "EXP022_UV": str(uv),
-        },
-    )
-    # Stop at mocked validation: no scheduler or campaign mutation is involved.
-    assert completed.returncode == 23, completed.stderr
-    assert f"cwd={REPO}" in completed.stdout
-    assert "arg=experiments/exp022/compute.py" in completed.stdout
-    assert "arg=--campaign-validate" in completed.stdout
+    expected = ac[round(30 / (lags[1] - lags[0]))]
+    assert result["biophysical"] == expected
+    assert result["iei_anchored"] == expected
+
+
+@pytest.mark.parametrize("dt,steps", [(0.1, 2000), (0.3, 666), (0.6, 333)])
+def test_snapshot_rate_integral_preserves_spike_counts_in_partial_bin(tmp_path, dt, steps):
+    spikes = np.zeros((steps, 2), dtype=bool)
+    spikes[-1] = True
+    source, destination = tmp_path / "recording.npz", tmp_path / "rasters.npz"
+    np.savez(source, spk_e=spikes, spk_i=spikes, dt=np.float32(dt))
+    measure_snapshot(source, destination)
+    with np.load(destination) as measured:
+        assert measured["bin_widths_ms"].sum() == pytest.approx(steps * dt)
+        assert len(measured["bin_widths_ms"]) == 200
+        assert measured["bin_widths_ms"][-1] == pytest.approx(1.0 if dt == 0.1 else 0.8)
+        for population in ("e", "i"):
+            integrated = np.sum(measured[f"{population}_rate"] * measured["bin_widths_ms"]) / 1000
+            assert integrated == pytest.approx(1.0)
+            assert measured[f"{population}_hz"] == pytest.approx(1000 / (steps * dt))
+
+
+def test_bank_composition_rejects_overlap_or_missing_cells():
+    record = {
+        "inputs": {"retained_bank": {"run_id": "source", "payload_digest": "digest"}},
+        "bank_reuse": {"plan": {
+            "reused_cells": ["old"], "new_cells": ["new"],
+            "diagnostic_policy": "regenerate_all",
+        }},
+    }
+    result = bank_composition(record, {"old", "new"})
+    assert result["reused_cells"] == result["new_cells"] == 1
+    with pytest.raises(PingstoreError, match="partition"):
+        bank_composition(record, {"old", "new", "missing"})
+    record["bank_reuse"]["plan"]["new_cells"].append("old")
+    with pytest.raises(PingstoreError, match="partition"):
+        bank_composition(record, {"old", "new"})

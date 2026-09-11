@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import contextlib
+import fcntl
 import os
+import platform
 import re
 import shutil
 import subprocess
@@ -32,11 +34,55 @@ from .layout import (
     normalize_export_layout,
     presentation_directory,
 )
-from .locking import operation_lock
-from .native import execution_origin
-from .registry import memberships
+from .membership import memberships
 
 STAGES = ("compute", "analyse", "present")
+LOCK_NAME = ".operation.lock"
+
+
+def _safe_label(value: object, fallback: str) -> str:
+    text = re.sub(r"[^a-z0-9.-]+", "-", str(value).lower()).strip("-.")
+    return text or fallback
+
+
+def execution_origin(host: str | None = None) -> str:
+    """Describe the local process or active Slurm allocation."""
+    slurm_job = os.environ.get("SLURM_JOB_ID")
+    if slurm_job:
+        cluster = os.environ.get("SLURM_CLUSTER_NAME") or host or platform.node()
+        return f"slurm-{_safe_label(cluster, 'cluster')}-{_safe_label(slurm_job, 'job')}"
+    raw = host or "local"
+    return "local" if raw == "local" else _safe_label(raw, "local")
+
+
+def make_legacy_run_id(experiment: str, identity: str, origin: str) -> str:
+    """Format the remaining exp022 legacy scratch identity."""
+    return (
+        f"{experiment}-{_safe_label(identity, 'run')}-"
+        f"{_safe_label(origin, 'unknown')}"
+    )
+
+
+@contextlib.contextmanager
+def operation_lock(root: Path, *, exclusive: bool):
+    """Coordinate v4 writers with exclusive pruning."""
+    root.mkdir(parents=True, exist_ok=True)
+    descriptor = os.open(root / LOCK_NAME, os.O_RDWR | os.O_CREAT, 0o600)
+    mode = fcntl.LOCK_EX if exclusive else fcntl.LOCK_SH
+    try:
+        try:
+            fcntl.flock(descriptor, mode | fcntl.LOCK_NB)
+        except BlockingIOError as exc:
+            action = "prune" if exclusive else "reserve or execute a run"
+            raise PingstoreError(
+                f"cannot {action} while another Pingstore operation is active"
+            ) from exc
+        yield
+    finally:
+        try:
+            fcntl.flock(descriptor, fcntl.LOCK_UN)
+        finally:
+            os.close(descriptor)
 
 
 def utc_now() -> str:

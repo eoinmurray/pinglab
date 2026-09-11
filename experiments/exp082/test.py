@@ -1,11 +1,9 @@
 from __future__ import annotations
 
-import shutil
 from pathlib import Path
 
 import numpy as np
 from experiments import exp022, exp082
-from experiments.collections.gamma_gated_sparsity.plan import build_plan
 from experiments.exp022 import compute as exp022_compute
 
 """Synthetic contract tests; never use the workspace store or real inference."""
@@ -14,10 +12,8 @@ from types import SimpleNamespace
 
 import pytest
 import torch
-from experiments.collections.gamma_gated_sparsity import execution, plan, workloads
 from experiments.exp082 import (
     analyse,
-    collection,
     compute,
     evidence,
     inference,
@@ -512,22 +508,6 @@ def test_shard_rejects_changed_payload(lab):
         compute.shard(bank, run_id=identity, index=0)
 
 
-def test_collection_adapter_and_workload():
-    cfg = recipe.configuration()
-    assert len(recipe.jobs(cfg)) == 132
-    row = next(
-        r
-        for s in plan.build_plan(Path("/tmp/exp082-campaign"), "fixture")["stages"]
-        for r in s["experiments"]
-        if r["slug"] == "exp082"
-    )
-    assert row["execution"]["mode"] == "exp082-staged"
-    assert execution._stage_adapter("exp082") is collection
-    assert row["execution"]["workload_contract"]["classified_presentations"] == 26400
-    with pytest.raises(ValueError, match="explicit v3 bank"):
-        workloads.execute_shard("exp082", 0, 6, smoke=False)
-
-
 def test_batches_preserve_time_axis_and_partial_batch(tmp_path, monkeypatch):
     monkeypatch.setattr(
         inference,
@@ -707,71 +687,6 @@ def test_dirty_shards_fail_without_scientific_work(lab, monkeypatch):
     with pytest.raises(PingstoreError, match="committed"):
         compute.shard(bank, run_id=identity, index=0)
     assert calls == []
-
-
-def test_collection_dispatches_explicit_stage_sources(lab, monkeypatch):
-    repo, bank, calls, fixture_showcase = lab
-    fake_plots(monkeypatch)
-    campaign = plan.build_plan(repo / "campaign", "fixture", smoke=True)
-    campaign["profile"] = "smoke"
-    campaign["exp022_manifest"] = str(repo / "campaign/exp022/campaign.json")
-    write_json_atomic(Path(campaign["exp022_manifest"]), {"pingstore_run_id": bank})
-    row = next(
-        r for s in campaign["stages"] for r in s["experiments"] if r["slug"] == "exp082"
-    )
-    commands = []
-
-    def dispatch(command, **kwargs):
-        commands.append(command)
-        module = command[2].rsplit(".", 1)[1]
-        source = command[command.index("--source") + 1]
-        identity = command[command.index("--run-id") + 1]
-        if module == "illustrate":
-            bank_source = inputs.source(repo, source, "compute", experiment="exp022")
-            fixture = inputs.source(repo, fixture_showcase, "compute")
-            with stages.stage_run(
-                repo,
-                "exp082",
-                "compute",
-                inputs={"bank": bank_source},
-                run_id=identity,
-                configuration=evidence.showcase_configuration(),
-                operation="showcase-selection",
-            ) as run:
-                for path in fixture.export.iterdir():
-                    destination = run.export / path.name
-                    if path.is_dir():
-                        shutil.copytree(path, destination)
-                    else:
-                        shutil.copy2(path, destination)
-        elif module == "analyse":
-            showcase = command[command.index("--showcase-source") + 1]
-            analyse.analyse(source, showcase, run_id=identity)
-        else:
-            getattr({"compute": compute, "present": present}[module], module)(
-                source, run_id=identity
-            )
-        return SimpleNamespace(stdout="")
-
-    monkeypatch.setattr(collection.subprocess, "run", dispatch)
-    references = collection.execute(repo, campaign, row)
-    assert [c[2] for c in commands] == [
-        "experiments.exp082.compute",
-        "experiments.exp082.illustrate",
-        "experiments.exp082.analyse",
-        "experiments.exp082.present",
-    ]
-    assert references["bank"]["run_id"] == bank
-    assert set(references) == {
-        "bank",
-        "compute",
-        "showcase",
-        "analyse",
-        "present",
-    }
-    collection.execute(repo, campaign, row)
-    assert len(commands) == 4
-    assert len(calls) == 20
 
 
 def test_simulator_serializes_batched_input_and_resets(tmp_path, monkeypatch):
@@ -1013,18 +928,6 @@ def test_grid_preflight_rejects_wholly_silent_readout() -> None:
     ]
     with np.testing.assert_raises_regex(RuntimeError, "output readout is silent"):
         exp082.grid_output_preflight(rows)
-
-
-def test_collection_requires_exp082_measurements_and_figures(tmp_path) -> None:
-    plan = build_plan(tmp_path / "campaign", "exp082-contract")
-    row = next(
-        row
-        for stage in plan["stages"]
-        for row in stage["experiments"]
-        if row["slug"] == "exp082"
-    )
-    assert row["execution"]["mode"] == "exp082-staged"
-    assert [Path(path).name for path in row["required_outputs"]] == ["stage-refs.json"]
 
 
 def test_showcase_varies_duration_and_rate():

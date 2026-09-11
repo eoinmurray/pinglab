@@ -1,4 +1,4 @@
-"""V4 enforcement and historical-store rejection; no scientific execution."""
+"""V4 storage, validation and stage lifecycle checks; no scientific execution."""
 
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -6,8 +6,6 @@ from pathlib import Path
 import pytest
 from pingstore import stages
 from pingstore.contracts import (
-    LEGACY_RUN_SCHEMA,
-    PREVIOUS_RUN_SCHEMA,
     RUN_SCHEMA,
     PingstoreError,
     load_json,
@@ -25,21 +23,18 @@ from pingstore.layout import (
 )
 
 
-def make_run(store, stage="present", *, number=1, schema=RUN_SCHEMA):
-    suffix = f"-{stage}" if stage else ""
-    origin_suffix = "-local" if schema == LEGACY_RUN_SCHEMA else ""
-    identity = f"exp001-r{number:03d}{suffix}{origin_suffix}"
+def make_run(store, stage="present", *, number=1):
+    identity = f"exp001-r{number:03d}-{stage}"
     directory = store / "runs" / identity
-    initialize_layout(directory, "exp001", schema=schema)
+    initialize_layout(directory, "exp001")
     record = {
-        "schema": schema, "run_id": identity, "experiment": "exp001",
+        "schema": RUN_SCHEMA, "run_id": identity, "experiment": "exp001",
         "collection": "demo", "origin": "local",
         "created_at": "2026-08-27T12:00:00+00:00",
         "execution": {}, "provenance": {},
+        "stage": stage, "inputs": {},
     }
-    if stage:
-        record.update(stage=stage, inputs={})
-    output = directory / ("export" if schema == RUN_SCHEMA else "presentation")
+    output = directory / "export"
     (output / "numbers.json").write_text('{"value": 1}\n')
     write_json_atomic(directory / "run.json", {**record, "payload_digest": "sha256:" + "0" * 64})
     record["payload_digest"] = payload_digest(directory)
@@ -179,11 +174,11 @@ def test_v4_requires_stage_and_counter_first_id(tmp_path):
     record = load_json(directory / "run.json")
     del record["stage"]
     write_json_atomic(directory / "run.json", record)
-    with pytest.raises(PingstoreError, match="explicit stage"):
+    with pytest.raises(PingstoreError, match="stage must"):
         validate_run_directory(directory)
     record.update(stage="present", run_id="exp001-present-r001-local")
     write_json_atomic(directory / "run.json", record)
-    with pytest.raises(PingstoreError, match="staged run ID"):
+    with pytest.raises(PingstoreError, match="run_id must encode"):
         validate_run_directory(directory)
 
 
@@ -214,7 +209,7 @@ def test_v4_rejects_symlinks(tmp_path, relative):
         validate_run_directory(directory)
 
 
-def test_discovery_requires_v3_and_validates_excluded_runs(tmp_path):
+def test_discovery_requires_v4_and_validates_excluded_runs(tmp_path):
     compute = make_run(tmp_path, "compute")
     make_run(tmp_path, "analyse", number=2)
     present = make_run(tmp_path, number=3)
@@ -233,13 +228,15 @@ def test_discovery_omits_empty_and_bookkeeping_only_exports(tmp_path):
     assert discover_runs(tmp_path / "runs") == []
 
 
-@pytest.mark.parametrize("stage", [None, "compute", "analyse", "present"])
-def test_legacy_evidence_is_rejected_by_operational_readers(tmp_path, stage):
-    directory = make_run(tmp_path, stage, schema=LEGACY_RUN_SCHEMA)
+def test_non_v4_evidence_is_rejected_by_operational_readers(tmp_path):
+    directory = make_run(tmp_path, "compute")
+    record = load_json(directory / "run.json")
+    record["schema"] = "pingstore.run/v3"
+    write_json_atomic(directory / "run.json", record)
     before = (directory / "run.json").read_bytes(), payload_digest(directory)
-    with pytest.raises(PingstoreError, match="requires v4"):
+    with pytest.raises(PingstoreError, match="operational run schema"):
         stages.source_run(tmp_path, directory.name)
-    with pytest.raises(PingstoreError, match="requires v4"):
+    with pytest.raises(PingstoreError, match="operational run schema"):
         discover_runs(tmp_path / "runs")
     assert before == ((directory / "run.json").read_bytes(), payload_digest(directory))
 
@@ -293,20 +290,6 @@ def test_source_neutral_reservations_keep_origin_and_avoid_cross_origin_collisio
         assert int(identity.split("-")[1][1:]) >= 10
         reservation = stages.stage_reservation(runs / f".{identity}.tmp")
         assert reservation["origin"] == origin
-
-
-@pytest.mark.parametrize("origin", ["local", "slurm-wilkes", "runpod"])
-def test_existing_suffixed_v3_is_historical_not_operational(tmp_path, origin):
-    directory = make_run(tmp_path)
-    record = load_json(directory / "run.json")
-    record.update(schema=PREVIOUS_RUN_SCHEMA, run_id=directory.name + "-" + origin, origin=origin)
-    renamed = directory.with_name(record["run_id"])
-    directory.rename(renamed)
-    write_json_atomic(renamed / "run.json", record)
-    before = (renamed / "run.json").read_bytes()
-    with pytest.raises(PingstoreError, match="requires v4"):
-        stages.source_run(tmp_path, renamed.name)
-    assert (renamed / "run.json").read_bytes() == before
 
 
 def test_suffixed_reservation_cannot_be_completed(tmp_path):

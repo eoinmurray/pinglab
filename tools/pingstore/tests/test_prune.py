@@ -9,8 +9,8 @@ from pingstore import prune as prune_module
 from pingstore import stages
 from pingstore.cli import main
 from pingstore.contracts import PingstoreError, payload_digest
-from pingstore.locking import operation_lock
 from pingstore.prune import apply_plan, build_plan, is_hpc_run
+from pingstore.stages import operation_lock
 
 
 def make_run(

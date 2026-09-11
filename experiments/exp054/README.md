@@ -164,23 +164,16 @@ frequency comparison, remove an internal experiment identifier from its legend,
 and supply inverse-millisecond units for mean-field rates and eigenvalues.
 These changes generated a new immutable presentation; earlier runs are unchanged.
 
-## Shared ownership and integration
+## Retired collection integration
 
-The local `collection.py` adapter supports explicit exp041 analysis input,
-reservation, independent stage dispatch and validated reuse. Shared registration
-now routes exp054 through it in `plan.py`, `execution.py` and `slurm.py`:
+The former local adapter and shared collection planner, dispatcher and Slurm
+registration have been removed. New exp054 work uses its independent stage
+commands, with explicit v4 exp041 analysis input and validated frequency
+ancestry. Historical campaign records remain unchanged and non-operational.
 
-- New plans require `stage-refs.json`, with no combined runner command.
-- Dispatch and reuse require staged v4 runs and explicit frequency ancestry.
-- Scheduler dispatch reserves all stage identities first. No shard/simulator
-  change was necessary. Tests mock scheduler submission; no real job was sent.
-- Finalization excludes exp054 from legacy capture. Separately authorized
-  publication can resolve its validated presentation through the existing route;
-  this task did not invoke publication or materialization.
-
-Only exp054 registration hunks and its necessary shared test expectations were
-changed. The shared tests affected are `test_gamma_gated_sparsity_collection.py`,
-`exp041/test.py` and `exp033/test.py`. Exp080's previously
+Historically, only exp054 registration hunks and their shared test expectations
+were changed. The affected tests included `exp041/test.py` and `exp033/test.py`.
+Exp080's previously
 uncommitted registration and fixture hunks were preserved, not adopted as ours.
 The old exp054 source-text assertion now checks the explicit recipe; dedicated
 numerical tests verify sigma propagation through the retained compute functions.

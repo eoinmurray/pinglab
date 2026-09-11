@@ -12,7 +12,7 @@ V1 preserves the original arithmetic. This stabilization was necessary because
 the 3-mV sensitivity trajectories reach inputs at which the original formula
 has percent-level gain errors; it does not change the mathematical LIF model.
 Compute binds the gain functions to its recorded recipe; analysis and presentation
-retain that configuration instead of substituting live defaults. Current campaign
+retain that configuration instead of substituting live defaults. Current staged
 reuse requires v2, while historical readers continue accepting v1.
 
 Exp054 recipe versions 1–5 retain the original v1 theory. New exp054 recipe v6

@@ -12,7 +12,6 @@ import pytest
 from experiments.exp044.test import _common_config
 from experiments.exp049 import (
     analyse,
-    collection,
     compute,
     inputs,
     measurements,
@@ -247,49 +246,6 @@ def test_failed_simulation_never_completes(lab, monkeypatch):
         compute.compute(bank)
     assert not list((root / ".pingstore/runs").glob("exp049-*-compute"))
     assert list((root / ".pingstore/runs").glob(".exp049-*-compute.tmp"))
-
-
-def test_collection_reserves_dispatches_and_resumes(lab, monkeypatch):
-    root, bank, _ = lab
-    manifest = root / "bank.json"
-    write_json_atomic(manifest, {"pingstore_run_id": bank})
-    row = {
-        "slug": "exp049",
-        "execution": {"mode": "exp049-staged"},
-        "paths": {"state": str(root / "campaign/state")},
-        "required_outputs": [str(root / "campaign/state/stage-refs.json")],
-    }
-    plan = {"profile": "smoke", "exp022_manifest": str(manifest)}
-    reservations = collection.reserve(root, row)
-    assert all(value.endswith("-" + stage) for stage, value in reservations.items())
-    calls = []
-
-    def dispatch(command, **kwargs):
-        calls.append(command)
-        stage = command[2].rsplit(".", 1)[1]
-        method = {
-            "compute": compute.compute,
-            "analyse": analyse.analyse,
-            "present": present.present,
-        }[stage]
-        method(
-            command[command.index("--source") + 1],
-            run_id=command[command.index("--run-id") + 1],
-        )
-        return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
-
-    monkeypatch.setattr(collection.subprocess, "run", dispatch)
-    refs = collection.execute(root, plan, row)
-    assert len(calls) == 3
-    assert set(refs) == {"bank", "compute", "analyse", "present"}
-    assert (
-        collection.completed(root, plan, row).record["run_id"]
-        == reservations["present"]
-    )
-    collection.execute(root, plan, row)
-    assert len(calls) == 3
-    with pytest.raises(PingstoreError):
-        collection.require_staged({"execution": {"mode": "monolithic"}})
 
 
 def test_retired_entrypoints_and_import_side_effects(tmp_path):
