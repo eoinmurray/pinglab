@@ -11,12 +11,12 @@ link_path="${2:-/tmp/mnist}"
   echo "MNIST cache missing under $target" >&2
   exit 2
 }
-if ln -s "$target" "$link_path" 2>/dev/null; then
-  exit 0
-fi
 if [[ -L "$link_path" ]]; then
   # Compute-node /tmp survives between jobs. Replace only a stale symlink;
   # never remove a real file or directory occupying the requested path.
+  if [[ "$(readlink -f "$link_path")" == "$target" ]]; then
+    exit 0
+  fi
   unlink "$link_path" 2>/dev/null || true
   ln -s "$target" "$link_path" 2>/dev/null || true
   [[ "$(readlink -f "$link_path")" == "$target" ]] || {
@@ -25,5 +25,14 @@ if [[ -L "$link_path" ]]; then
   }
   exit 0
 fi
-echo "MNIST link path exists and is not a symlink: $link_path" >&2
-exit 2
+if [[ -e "$link_path" ]]; then
+  echo "MNIST link path exists and is not a symlink: $link_path" >&2
+  exit 2
+fi
+if ln -s "$target" "$link_path" 2>/dev/null; then
+  exit 0
+fi
+[[ -L "$link_path" && "$(readlink -f "$link_path")" == "$target" ]] || {
+  echo "concurrent MNIST link creation produced an unexpected path: $link_path" >&2
+  exit 2
+}
