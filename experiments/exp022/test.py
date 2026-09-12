@@ -820,7 +820,7 @@ def test_hpc_array_uses_frozen_cells_and_shared_wrapper(tmp_path: Path) -> None:
     assert command[-1] == "exp022"
 
 
-def test_mnist_link_helper_accepts_existing_and_concurrent_creation(
+def test_mnist_link_helper_accepts_existing_concurrent_and_stale_links(
     tmp_path: Path,
 ) -> None:
     cache = tmp_path / "cache"
@@ -832,6 +832,19 @@ def test_mnist_link_helper_accepts_existing_and_concurrent_creation(
     assert [process.wait() for process in processes] == [0, 0]
     subprocess.run(commands[0], check=True)
     assert link.resolve() == cache.resolve()
+    stale_target = tmp_path / "stale-cache"
+    stale_target.mkdir()
+    link.unlink()
+    link.symlink_to(stale_target, target_is_directory=True)
+    subprocess.run(commands[0], check=True)
+    assert link.is_symlink()
+    assert link.resolve() == cache.resolve()
+    link.unlink()
+    link.mkdir()
+    refused = subprocess.run(commands[0], capture_output=True, text=True)
+    assert refused.returncode == 2
+    assert "is not a symlink" in refused.stderr
+    assert link.is_dir()
 
 
 def test_wilkes_modules_load_in_sanitized_environment(tmp_path: Path) -> None:

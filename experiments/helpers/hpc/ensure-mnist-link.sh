@@ -14,7 +14,15 @@ link_path="${2:-/tmp/mnist}"
 if ln -s "$target" "$link_path" 2>/dev/null; then
   exit 0
 fi
-[[ -L "$link_path" && "$(readlink -f "$link_path")" == "$target" ]] || {
-  echo "MNIST link exists with a different target: $link_path" >&2
-  exit 2
-}
+if [[ -L "$link_path" ]]; then
+  # Compute-node /tmp survives between jobs. Replace only a stale symlink;
+  # never remove a real file or directory occupying the requested path.
+  ln -sfn "$target" "$link_path"
+  [[ "$(readlink -f "$link_path")" == "$target" ]] || {
+    echo "failed to replace stale MNIST link: $link_path" >&2
+    exit 2
+  }
+  exit 0
+fi
+echo "MNIST link path exists and is not a symlink: $link_path" >&2
+exit 2
