@@ -17,7 +17,8 @@ fi
 if [[ -L "$link_path" ]]; then
   # Compute-node /tmp survives between jobs. Replace only a stale symlink;
   # never remove a real file or directory occupying the requested path.
-  ln -sfn "$target" "$link_path"
+  unlink "$link_path" 2>/dev/null || true
+  ln -s "$target" "$link_path" 2>/dev/null || true
   [[ "$(readlink -f "$link_path")" == "$target" ]] || {
     echo "failed to replace stale MNIST link: $link_path" >&2
     exit 2
