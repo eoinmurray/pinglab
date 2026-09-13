@@ -51,7 +51,7 @@ def lab(tmp_path, monkeypatch):
                 "hidden_sizes": [200],
                 "ei_strength": float(cell["model"] == "ping"),
                 "ei_ratio": 2.0,
-                "v_grad_dampen": 1000.0 if cell["model"] == "ping" else 1.0,
+                "v_grad_dampen": 1000.0,
                 "fr_reg_upper_strength": 0.0
                 if cell["rate_target_hz"] is None
                 else 0.041,

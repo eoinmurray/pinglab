@@ -54,7 +54,7 @@ def lab(tmp_path, monkeypatch):
                 "n_inh": 2,
                 "hidden_sizes": [4],
                 "ei_strength": float(cell["model"] == "ping"),
-                "v_grad_dampen": 1000.0 if cell["model"] == "ping" else 1.0,
+                "v_grad_dampen": 1000.0,
                 "w_in": [cell["w_in"], cell["w_in"] * 0.1],
                 "fr_reg_upper_strength": 0.0
                 if cell["rate_target_hz"] is None
@@ -260,7 +260,7 @@ def test_independent_stages_preserve_bank_and_do_not_publish(lab, monkeypatch):
 @pytest.mark.parametrize(
     "field,value",
     [
-        ("v_grad_dampen", 1000.0),
+        ("v_grad_dampen", 1.0),
         ("dt", 0.2),
         ("seed", 99),
         ("fr_reg_upper_strength", 0.04),
@@ -485,3 +485,23 @@ def test_low_w_in_aggregation_reports_mean_and_sem() -> None:
     assert result["final_acc_sem"] > 0
     assert result["statistic"] == "mean_across_independent_seeds"
     assert result["uncertainty"] == "sem_across_independent_seeds"
+
+
+def test_hpc_commands_use_gpu_then_dependent_cpu(tmp_path):
+    from experiments.exp025 import hpc
+
+    plan = {
+        "account": "gpu-account", "cpu_account": "cpu-account",
+        "partition": "ampere", "cpu_partition": "icelake",
+        "walltime": "02:00:00", "cpus": 4, "memory_gb": 32,
+    }
+    compute_cmd = hpc.command(plan, tmp_path / "plan.json", "compute")
+    analyse_cmd = hpc.command(
+        plan, tmp_path / "plan.json", "analyse", dependency="123"
+    )
+    assert "--account=gpu-account" in compute_cmd
+    assert "--gres=gpu:1" in compute_cmd
+    assert "--account=cpu-account" in analyse_cmd
+    assert "--partition=icelake" in analyse_cmd
+    assert "--dependency=afterok:123" in analyse_cmd
+    assert "--gres=gpu:1" not in analyse_cmd

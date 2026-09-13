@@ -52,7 +52,7 @@ def training_contract(bank):
             "seed": cell["seed"],
             "tau_gaba_ms": 6.0,
             "ei_strength": float(cell["model"] == "ping"),
-            "v_grad_dampen": 1000.0 if cell["model"] == "ping" else 1.0,
+            "v_grad_dampen": 1000.0,
             "w_in": [cell["w_in"], cell["w_in"] * 0.1],
             "fr_reg_upper_strength": 0.0
             if cell["rate_target_hz"] is None

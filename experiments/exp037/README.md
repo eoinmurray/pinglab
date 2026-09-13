@@ -37,7 +37,7 @@ no new outcome is assumed here.
 ### Standalone CSD3 preparation and launch
 
 Use a frozen checkout containing these changes, its own `.venv`, the validated
-complete `exp022-r001-compute` bank, and the persistent MNIST cache. Preserve the
+complete `exp022-r011-compute` replacement bank, and the persistent MNIST cache. Preserve the
 exp037 allocation high-watermark when preparing a separate checkout. Commit
 execution changes before preparation; source, lockfile, bank digest and recipe
 are checked again by each stage. Create separate plans and IDs for smoke and
@@ -45,7 +45,7 @@ production.
 
 ```sh
 uv run --frozen python -m experiments.exp037.hpc prepare \
-  --source exp022-r001-compute \
+  --source exp022-r011-compute \
   --plan .scratch/exp037-hpc/production.json \
   --account OLEARY-SL2-GPU --cpu-account OLEARY-SL3-CPU \
   --mnist-cache /rds/user/em586/hpc-work/datasets/torch
@@ -274,8 +274,9 @@ The evidence audit corrected the following points:
   19.8584 Hz for PING and 155.1872 Hz for COBA. The corresponding unperturbed
   test-set rates are 16.4367 and 112.0885 Hz. Neither the reference normalization
   nor the equal 0–40 Hz nominal sweep establishes matched fractional doses.
-- Perturbations affect both feedback and readout. Training also used different
-  voltage-gradient damping. The results do not isolate gamma gating, prove an
+- Perturbations affect both feedback and readout. The historical retained
+  results also used different voltage-gradient damping; replacement-bank runs
+  use damping 1000 for both models. Neither lineage isolates gamma gating, proves an
   activity floor, or establish loss of an underlying oscillator from visible
   raster bands alone.
 

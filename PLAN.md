@@ -10,8 +10,8 @@ Wall-time estimates assume A100-class GPUs and exclude scheduler queue time.
 6. [x] Commit and push the execution changes before running tests or preparing HPC work. **Estimate: 10–20 min.**
 7. [x] Run focused exp022 contract and bank tests after the commit and push. **Estimate: 10–20 min.**
 8. [x] Prepare and review the frozen exp022 HPC plan and perform scheduler test-only checks for its compute and collector links. **Estimate: 20–30 min plus queue response.**
-9. [ ] Run the exp022 replacement compute bank with 21 concurrent GPUs. **Estimate: 9.5–12 h; approximately 51 GPU-hours.**
-10. [ ] Validate the completed 102-cell exp022 bank, including `v_grad_dampen = 1000` and `ei_strength = 0` for all 21 replacement cells and byte-identical reuse for the other 81. **Estimate: 10–20 min.**
+9. [x] Run the exp022 replacement compute bank with 21 concurrent GPUs. **Estimate: 9.5–12 h; approximately 51 GPU-hours.**
+10. [x] Validate the completed 102-cell exp022 bank, including `v_grad_dampen = 1000` and `ei_strength = 0` for all 21 replacement cells and byte-identical reuse for the other 81. **Estimate: 10–20 min.**
 11. [ ] Run exp025 compute from the replacement exp022 bank. **Estimate: 1 h 20 min–1 h 40 min on one GPU.**
 12. [ ] Run exp025 analyse from the new exp025 compute run. **Estimate: <1 min.**
 13. [ ] Run exp025 present from the new exp025 analysis run, producing the replacement Figure 3 assets and `numbers.json`. **Estimate: <1 min.**

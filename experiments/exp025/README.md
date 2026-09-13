@@ -59,9 +59,29 @@ inhibitory burst peaks. The participation-frequency product is an approximation.
 The input-scale crossing is the midpoint of the first sampled pair crossing
 0.05 Hz I rate, not a fitted bifurcation.
 
-The retained bank uses gradient damping 1 for COBA and 1000 for PING, which
-limits causal attribution. Low-input-weight curves are validation histories;
-frontier endpoints are final-epoch official-test evaluations.
+New runs require gradient damping 1000 for both COBA and PING. The retained
+historical lineage below used damping 1 for COBA and 1000 for PING, which limits
+causal attribution in those old results. Low-input-weight curves are validation
+histories; frontier endpoints are final-epoch official-test evaluations.
+
+## CSD3 preparation and launch
+
+Prepare from a clean frozen checkout containing the completed replacement bank:
+
+```sh
+uv run --frozen python -m experiments.exp025.hpc prepare \
+  --source exp022-r011-compute \
+  --plan .scratch/exp025-exp110-d1000/production.json \
+  --account OLEARY-SL2-GPU --cpu-account OLEARY-SL3-CPU \
+  --mnist-cache /rds/user/em586/hpc-work/datasets/torch
+uv run --frozen python -m experiments.exp025.hpc review \
+  .scratch/exp025-exp110-d1000/production.json
+uv run --frozen python -m experiments.exp025.hpc review \
+  .scratch/exp025-exp110-d1000/production.json --test-only
+```
+
+Only the explicit `--live` review submits the single-GPU compute followed by
+CPU analysis and presentation with `afterok` dependencies. No stage publishes.
 
 ## Retained historical lineage
 

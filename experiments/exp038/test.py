@@ -51,7 +51,7 @@ def lab(tmp_path, monkeypatch):
                 "hidden_sizes": [200],
                 "ei_strength": float(cell["model"] == "ping"),
                 "ei_ratio": 2.0,
-                "v_grad_dampen": 1000.0 if cell["model"] == "ping" else 1.0,
+                "v_grad_dampen": 1000.0,
                 "fr_reg_upper_strength": 0.0
                 if cell["rate_target_hz"] is None
                 else 0.041,
@@ -518,3 +518,23 @@ def test_raster_labels_use_recorded_class_and_do_not_overlap(tmp_path, monkeypat
     assert all(box.x1 < raster.bbox.x1 and box.y0 > 0 for box in boxes)
     assert "label 7" in raster.axes[0].get_title(loc="left")
     assert "label 7" in curve._suptitle.get_text()
+
+
+def test_hpc_commands_use_gpu_then_dependent_cpu(tmp_path):
+    from experiments.exp038 import hpc
+
+    plan = {
+        "account": "gpu-account", "cpu_account": "cpu-account",
+        "partition": "ampere", "cpu_partition": "icelake",
+        "walltime": "02:00:00", "cpus": 4, "memory_gb": 32,
+    }
+    compute_cmd = hpc.command(plan, tmp_path / "plan.json", "compute")
+    present_cmd = hpc.command(
+        plan, tmp_path / "plan.json", "present", dependency="456"
+    )
+    assert "--account=gpu-account" in compute_cmd
+    assert "--gres=gpu:1" in compute_cmd
+    assert "--account=cpu-account" in present_cmd
+    assert "--partition=icelake" in present_cmd
+    assert "--dependency=afterok:456" in present_cmd
+    assert "--gres=gpu:1" not in present_cmd

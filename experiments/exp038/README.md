@@ -25,6 +25,24 @@ Failures leave hidden incomplete runs; they are not reusable evidence.
 submission. New collection plans reserve and dispatch all three stages, while
 old monolithic plans and the retired combined entrypoints fail explicitly.
 
+## CSD3 preparation and launch
+
+```sh
+uv run --frozen python -m experiments.exp038.hpc prepare \
+  --source exp022-r011-compute \
+  --plan .scratch/exp038-exp110-d1000/production.json \
+  --account OLEARY-SL2-GPU --cpu-account OLEARY-SL3-CPU \
+  --mnist-cache /rds/user/em586/hpc-work/datasets/torch
+uv run --frozen python -m experiments.exp038.hpc review \
+  .scratch/exp038-exp110-d1000/production.json
+uv run --frozen python -m experiments.exp038.hpc review \
+  .scratch/exp038-exp110-d1000/production.json --test-only
+```
+
+The reviewed plan requires damping 1000 for every selected COBA and PING cell.
+Only `--live` submits the single-GPU compute and dependent CPU stages; no stage
+publishes.
+
 ## Preserved scientific procedure
 
 The bank contains all 36 TR-02 cells: COBA and PING, six activity-ceiling
