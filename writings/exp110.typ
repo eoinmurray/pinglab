@@ -60,7 +60,7 @@
   tags: ("data", "v36.0.0"),
   title: "Manuscript",
   created_at: "2026-09-02T00:00:00Z",
-  updated_at: "2026-09-11",
+  updated_at: "2026-09-14",
   description: "A manuscript scaffold connecting PING circuit dynamics, low-rate task performance, cycle participation, perturbation sensitivity and continuous-stream classification.",
   collection: "gamma-gated-sparsity",
 )
@@ -311,11 +311,11 @@
   Both unpenalised architectures reached approximately 90% validation
   accuracy, with dense COBA firing and recurring PING volleys (Fig. 3A–C).
   PING achieved 89.8% mean test accuracy at a mean excitatory firing rate of
-  16.6 Hz, versus 91.1% at 113.9 Hz for COBA: a 6.9-fold firing-rate
-  reduction and 1.3-percentage-point accuracy reduction (Fig. 3D). Activity
+  16.6 Hz, versus 90.9% at 88.2 Hz for COBA: a 5.3-fold firing-rate
+  reduction and 1.1-percentage-point accuracy reduction (Fig. 3D). Activity
   penalties lowered firing in both families.
   At a 10-Hz training ceiling, both averaged approximately 9.1 Hz, but PING
-  retained higher accuracy (88.6% versus 86.0%), shifting the accuracy–rate
+  retained higher accuracy (88.6% versus 83.5%), shifting the accuracy–rate
   relationship favourably at low rates.
 
   #figure(
@@ -341,8 +341,8 @@
   Adding reciprocal inhibition to trained COBA classifiers without
   retraining replaced dense excitatory activity with recurring E/I volleys
   (Fig. 4A,B). Across the coupling sweep, mean excitatory firing fell from
-  112.1 to 8.1 Hz (13.8-fold), inhibitory firing reached 45.0 Hz, and
-  accuracy fell from 91.0% to 42.9% (Fig. 4C,D). The activity pattern
+  85.9 to 7.2 Hz (11.9-fold), inhibitory firing reached 40.0 Hz, and
+  accuracy fell from 90.4% to 43.2% (Fig. 4C,D). The activity pattern
   therefore did not require learning with inhibition, but inserting the loop
   after training incurred a substantial classification cost.
 
@@ -476,10 +476,10 @@
 
   #editing-paragraph-label("P12")
   Deleting 80% of naturally generated E/I transmitted spikes left mean
-  accuracy at 89.3% for COBA and 89.2% for PING; complete deletion reduced
+  accuracy at 88.9% for COBA and 89.2% for PING; complete deletion reduced
   both to 10.6% (Fig. 7A). Inserting events into both populations at each
-  network's baseline E firing rate reduced accuracy to 82.8% and 38.5%,
-  respectively; at twice baseline, accuracies were 72.6% and 11.4% (Fig.
+  network's baseline E firing rate reduced accuracy to 76.4% and 38.5%,
+  respectively; at twice baseline, accuracies were 53.1% and 11.4% (Fig.
   7B). PING therefore tolerated substantial deletion but was more sensitive
   to insertion at matched baseline-relative doses. Both interventions
   affected feedback and readout input, so they do not isolate rhythmic
@@ -809,8 +809,8 @@
   threshold—expressed in millivolts for hidden neurons and normalized units
   for output neurons—and the surrogate slope $beta = 1$. Gradients through
   each hidden excitatory and inhibitory membrane increment were additionally
-  divided by the voltage-gradient damping factor $d_"grad" = 1,000$ in PING
-  and $d_"grad" = 1$ in COBA. Forward dynamics were unchanged; output updates
+  divided by the voltage-gradient damping factor $d_"grad" = 1,000$ in both
+  PING and COBA. Forward dynamics were unchanged; output updates
   were undamped. Exact gradient paths are specified in Appendix A3.
 
   #editing-paragraph-label("P25")
@@ -1454,13 +1454,10 @@
       alpha_"grad" = 1 / d_"grad", $,
   ) <eq:voltage-gradient-scaling>
 
-  where $d_"grad"$ is the damping divisor. We used voltage-gradient damping
-  only in PING ($d_"grad" = 1,000$); COBA was undamped ($d_"grad" = 1$).
+  where $d_"grad"$ is the damping divisor. We used $d_"grad" = 1,000$ in
+  both PING and COBA.
   This operation preserved the forward value while multiplying its backward
   derivative by $alpha_"grad"$.
-
-  #manuscript-note([*Note:* Double-check whether we should use the same
-  voltage-gradient damping in both PING and COBA.])
 
   For both hidden populations, we applied this operation to the
   exponential-Euler membrane increment $F[k]$ from Appendix A1, before
@@ -1587,7 +1584,7 @@
     [Optimizer; learning rate], [AdamW; 0.0004],
     [Epochs; minibatch size], [50; 256],
     [Weight decay; gradient-norm limit], [0; 1],
-    [Surrogate slope; voltage-gradient damping], [1; 1,000 (PING), 1 (COBA)],
+    [Surrogate slope; voltage-gradient damping], [1; 1,000 (PING and COBA)],
   )
   #context figure(
     if target() == "html" {

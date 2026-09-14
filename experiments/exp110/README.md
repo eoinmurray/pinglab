@@ -46,3 +46,34 @@ It records completed replacement training and reuse, and the accompanying
 gain-integrand cancellation correction. The existing Methods/appendix scaffolds
 and standalone article structure remain. Fourteen targeted tests passed; all
 three scientific PNGs were inspected and the local 38-entry article build passed.
+
+## 2026-09-14 — Equal gradient damping in COBA and PING
+
+The replacement exp022 bank was completed on HPC as `exp022-r011-compute`,
+with all 21 COBA training replicates using voltage-gradient damping 1,000 and
+the other 81 models reused byte-for-byte. Because the isolated HPC checkout
+allocated identities already present locally, the completed exports were
+imported without scientific re-execution under collision-free local identities:
+
+- bank: `exp022-r015-compute`;
+- exp025: `exp025-r008-compute` → `exp025-r009-analyse` →
+  `exp025-r010-present`;
+- exp037: `exp037-r018-compute` → `exp037-r019-analyse` →
+  `exp037-r020-present`;
+- exp038: `exp038-r009-compute` → `exp038-r010-analyse` →
+  `exp038-r011-present`.
+
+Each imported record retains the byte-identical payload digest and the original
+HPC execution, timing and source provenance. A comparison of 173 unchanged PING
+JSON outputs found no missing files, scientific-configuration changes, accuracy
+changes or spike/count changes. The largest numerical rate difference was
+0.23 Hz and reflected floating-point evaluation variation rather than recipe
+drift.
+
+The local synthesis `exp110-r022-present` pins `exp037-r020-present` while
+retaining `exp054-r013-analyse`, `exp041-r005-present`,
+`exp046-r005-present` and `exp044-r009-present`. Its payload digest is
+`sha256:87acaed5752a7ddc50a35ad5c7c5816fd3d5da6a993a3ebf7ad744d649b751c3`.
+The manuscript now selects the replacement exp025, exp037, exp038 and exp110
+presentations and reports equal damping for COBA and PING. Historical runs are
+unchanged.
