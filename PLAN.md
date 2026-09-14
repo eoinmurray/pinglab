@@ -27,5 +27,5 @@ Wall-time estimates assume A100-class GPUs and exclude scheduler queue time.
 23. [x] Select the new exp025, exp037, exp038 and exp110 presentation runs for the manuscript. **Estimate: 10 min.**
 24. [x] Recalculate and revise every affected number and interpretation in exp110 Results, captions, Methods, parameter tables and appendices. **Estimate: 1–3 h.**
 25. [x] Remove the unequal-damping manuscript note only after the new lineage and wording are verified. **Estimate: 5 min.**
-26. [ ] Rebuild exp110 and check input coverage, ancestry, source links, equations, figure labels, rendered HTML and numerical consistency. **Estimate: 20–40 min.**
+26. [x] Rebuild exp110 and check input coverage, ancestry, source links, equations, figure labels, rendered HTML and numerical consistency. **Estimate: 20–40 min.**
 27. [x] Record the replacement rationale and final run IDs without altering any historical run. **Estimate: 10–20 min.**

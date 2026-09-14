@@ -77,3 +77,11 @@ retaining `exp054-r013-analyse`, `exp041-r005-present`,
 The manuscript now selects the replacement exp025, exp037, exp038 and exp110
 presentations and reports equal damping for COBA and PING. Historical runs are
 unchanged.
+
+The final local validation passed: all exp110 tests succeeded, the 20-entry
+Demolab site built successfully, and the four selected replacement presentation
+roots resolved through 26 ancestry-linked runs with matching declared input
+digests. The rendered exp110 article contained 33 sequential equations, 14
+labelled figures or tables, 11 images with alternative text, no broken local
+experiment links, and values consistent with the replacement `numbers.json`
+exports.
