@@ -21,8 +21,8 @@ Wall-time estimates assume A100-class GPUs and exclude scheduler queue time.
 17. [x] Run exp037 compute from the replacement exp022 bank using the six-shard production path. **Estimate: 45–55 min on six concurrent GPUs.**
 18. [x] Run exp037 analyse from the new exp037 compute run. **Estimate: <1 min.**
 19. [x] Run exp037 present from the new exp037 analysis run, producing the replacement Figure 7 assets and `numbers.json`. **Estimate: <1 min.**
-20. [ ] Compare unchanged PING measurements with the previous results to detect accidental recipe or evaluation drift. **Estimate: 20–40 min.**
-21. [ ] Update exp110's pinned exp037 presentation source while retaining the accepted exp054, exp041, exp046 and exp044 sources. **Estimate: 10 min.**
+20. [x] Compare unchanged PING measurements with the previous results to detect accidental recipe or evaluation drift. **Estimate: 20–40 min.**
+21. [x] Update exp110's pinned exp037 presentation source while retaining the accepted exp054, exp041, exp046 and exp044 sources. **Estimate: 10 min.**
 22. [ ] Run exp110 present to create a synthesis lineage containing the replacement exp037 evidence. **Estimate: 1–2 min.**
 23. [ ] Select the new exp025, exp037, exp038 and exp110 presentation runs for the manuscript. **Estimate: 10 min.**
 24. [ ] Recalculate and revise every affected number and interpretation in exp110 Results, captions, Methods, parameter tables and appendices. **Estimate: 1–3 h.**

@@ -26,7 +26,7 @@ from pingstore.stages import source_run, stage_run
 CANONICAL_PRESENTATION_SOURCES = {
     "exp041": "exp041-r005-present",
     "exp046": "exp046-r005-present",
-    "exp037": "exp037-r017-present",
+    "exp037": "exp037-r020-present",
     "exp044": "exp044-r009-present",
 }
 
