@@ -75,6 +75,8 @@ def build_cycle_participation_compound(
         exp041_plots.plot_quantitative_law(
             rates["aggregate"], rates["fit"], output_stem, axes=top_axes
         )
+        for axis in top_axes:
+            axis.set_xlabel("Spectral $f_\\mathrm{peak}$ (Hz)", fontsize=theme.SIZE_LABEL)
         exp046_plots.plot_distribution(
             cycles["per_tau"], output_stem, axes=bottom_axes,
             percentages=False, panel_labels="CDEFGH",

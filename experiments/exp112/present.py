@@ -21,7 +21,7 @@ LINESTYLES = {1.0: "-", 1000.0: "--"}
 
 
 def _training_figure(result: dict, destination: Path) -> None:
-    fig, axes = plt.subplots(1, 2, figsize=(7.2, 3.2), constrained_layout=True)
+    fig, axes = plt.subplots(1, 2, figsize=(7.6, 3.2), constrained_layout=True)
     for case in recipe.CASES:
         history = result["histories"][case["id"]]
         epochs = [row["ep"] for row in history]
@@ -33,18 +33,12 @@ def _training_figure(result: dict, destination: Path) -> None:
             "label": label,
         }
         axes[0].plot(epochs, [row["acc"] for row in history], **style)
-        axes[1].plot(epochs, [row["grad_norm"] for row in history], **style)
-    axes[0].set(xlabel="Epoch", ylabel="Validation accuracy (%)")
-    axes[1].set(xlabel="Epoch", ylabel="Mean pre-clip gradient norm", yscale="log")
+    axes[0].set(
+        xlabel="Epoch",
+        ylabel="Validation accuracy (%)",
+        title="A · Validation trajectories",
+    )
     axes[0].legend(frameon=False, fontsize=8)
-    for axis in axes:
-        axis.spines[["top", "right"]].set_visible(False)
-        axis.grid(alpha=0.18)
-    fig.savefig(destination, dpi=220)
-    plt.close(fig)
-
-
-def _test_figure(result: dict, destination: Path) -> None:
     rows = result["conditions"]
     labels = [
         f"{row['architecture'].upper()}\nd={row['v_grad_dampen']:g}" for row in rows
@@ -52,19 +46,17 @@ def _test_figure(result: dict, destination: Path) -> None:
     values = [row["official_test_accuracy_pct"] for row in rows]
     colors = [COLORS[row["architecture"]] for row in rows]
     hatches = ["" if row["v_grad_dampen"] == 1.0 else "//" for row in rows]
-    fig, axis = plt.subplots(figsize=(5.8, 3.5), constrained_layout=True)
-    bars = axis.bar(np.arange(len(rows)), values, color=colors, width=0.7)
+    bars = axes[1].bar(np.arange(len(rows)), values, color=colors, width=0.7)
     for bar, hatch in zip(bars, hatches, strict=True):
         bar.set_hatch(hatch)
-    axis.set(
+    axes[1].set(
         xticks=np.arange(len(rows)),
         xticklabels=labels,
         ylabel="Official MNIST test accuracy (%)",
+        title="B · Final test accuracy",
     )
-    axis.spines[["top", "right"]].set_visible(False)
-    axis.grid(axis="y", alpha=0.18)
     for bar, value in zip(bars, values, strict=True):
-        axis.text(
+        axes[1].text(
             bar.get_x() + bar.get_width() / 2,
             value,
             f"{value:.1f}",
@@ -72,6 +64,9 @@ def _test_figure(result: dict, destination: Path) -> None:
             va="bottom",
             fontsize=8,
         )
+    for axis in axes:
+        axis.spines[["top", "right"]].set_visible(False)
+        axis.grid(axis="y", alpha=0.18)
     fig.savefig(destination, dpi=220)
     plt.close(fig)
 
@@ -141,7 +136,6 @@ def present(identity: str, *, run_id: str | None = None) -> str:
         configuration={"schema": "exp112.presentation/v1"},
     ) as run:
         _training_figure(result, run.export / "training-comparison.png")
-        _test_figure(result, run.export / "test-accuracy.png")
         _raster_figure(
             result,
             source.export / "rasters.npz",

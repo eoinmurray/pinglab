@@ -154,7 +154,7 @@
 
   == Abstract
   A fixed excitatory–inhibitory PING loop produced a low-rate rhythmic regime
-  compatible with MNIST classification, linked excitatory firing to gamma-cycle
+  compatible with MNIST classification, linked excitatory firing to population-cycle
   participation, showed distinct sensitivity to spike and timing perturbations,
   and continued to support classification when inputs were presented as a
   continuous stream.
@@ -185,15 +185,17 @@
   // rendered text: section totals exclude headings, figures and tables,
   // captions, editing labels and red editorial notes; the caption total
   // includes all figure and table captions but excludes generated labels.
+  // Count whitespace-delimited tokens containing a letter or digit, including
+  // equation text but excluding equation numbers and standalone operators.
   #context {
     let counts = [
-      - *Results:* 1,290 words
-      - *Methods:* 4,343 words
-      - *Captions:* 1,664 words
-      - *Appendix A:* 1,540 words
-      - *Appendix B:* 1,248 words
-      - *Appendix C:* 832 words
-      - *Appendix D:* 404 words
+      - *Results:* 1,250 words
+      - *Methods:* 4,598 words
+      - *Captions:* 1,631 words
+      - *Appendix A:* 1,506 words
+      - *Appendix B:* 1,366 words
+      - *Appendix C:* 825 words
+      - *Appendix D:* 402 words
     ]
     if target() == "html" {
       html.elem("div", attrs: (style: "color: red;"), counts)
@@ -314,9 +316,11 @@
   16.6 Hz, versus 90.9% at 88.2 Hz for COBA: a 5.3-fold firing-rate
   reduction and 1.1-percentage-point accuracy reduction (Fig. 3D). Activity
   penalties lowered firing in both families.
-  At a 10-Hz training ceiling, both averaged approximately 9.1 Hz, but PING
-  retained higher accuracy (88.6% versus 83.5%), shifting the accuracy–rate
-  relationship favourably at low rates.
+  At a 10-Hz training ceiling, PING averaged 9.1 Hz and COBA 9.0 Hz, with
+  higher accuracy for PING (88.6% versus 83.5%), shifting the accuracy–rate
+  relationship favourably near this operating point. At tighter ceilings,
+  PING retained higher accuracy but also higher firing rates; those
+  comparisons were not rate-matched.
 
   #figure(
     data-image(
@@ -411,7 +415,7 @@
       #link("/exp049/")[exp049] — #link("/exp049/")[_Training Recurrent Weights Weakens PING Rhythmicity._]],
   ) <fig:trainable-loop>
 
-  === Excitatory firing is organised by gamma-cycle participation
+  === Excitatory firing is organised by population-cycle participation
 
   #editing-paragraph-label("P10")
   Across inhibitory decay times of 4.5–27 ms, mean spectral frequency fell
@@ -420,20 +424,22 @@
   −0.70 Hz and $R^2 = 0.997$. Mean test accuracy fell from 91.2% to 81.9%
   (Fig. 6B). Slower rhythms thus accompanied lower activity and a
   classification cost; the fitted slope alone does not establish neurons'
-  participation per cycle.
+  participation per cycle. The slowest condition lay below conventional
+  gamma frequencies, so we describe the full sweep as population cycles
+  rather than gamma cycles.#cite(1)
 
   #figure(
     data-image(
       data-file("exp110/cycle_participation_compound.png"),
       width: 92%,
-      alt: "Post-training excitatory firing rate and accuracy across gamma frequencies, followed by distributions of excitatory spikes per neuron and inferred inhibitory-burst cycle.",
+      alt: "Post-training excitatory firing rate and accuracy across population spectral-peak frequencies, followed by distributions of excitatory spikes per neuron and inferred inhibitory-burst cycle.",
     ),
     caption: [*Excitatory firing and spike counts per cycle across inhibitory decay
       times.* Eighteen epoch-50 classifiers comprise three independent
       replicates per decay time, evaluated with the common endpoint
       protocol.
       *(A–B)* Mean per-neuron E rate $r_E$ and test accuracy versus
-      spectral-peak frequency $f_gamma$, estimated from the largest
+      spectral-peak frequency $f_"peak"$, estimated from the largest
       interpolated 5–150-Hz peak of each network's trial-averaged Welch
       spectrum. Points and both-axis bars show means ± SEM across
       replicates. Labels give decay times; A's red dashed line is the
@@ -700,14 +706,14 @@
   inhibitory-timescale grid is specified below; exact updates and
   transmission ordering are in Appendix A1.
 
-  We reused the fixed-0.1-ms spiking measurements, whose executed E/I
-  refractory holds were already 1.2/0.6 ms. We recomputed the timestep
+  The earlier fixed-0.1-ms spiking measurements already used E/I
+  refractory holds of 1.2/0.6 ms. We recomputed the timestep
   comparison and the separate mean-field calculation with these same
   refractory durations. #if shared-stream-images [We subsequently repeated the
   quantitative continuous-stream evaluation with a shared image bank and
   explicitly specified the same refractory durations; its earlier selected
-  showcase and the other spiking measurements were reused.] else [The remaining
-  spiking measurements were reused.]
+  showcase was reused.] The subsequent COBA training and comparison reruns
+  are described below; all used the same refractory durations.
 
   #editing-paragraph-label("P20")
   Classifier networks contained input→E, E→I, I→E and E→output projections,
@@ -809,9 +815,15 @@
   threshold—expressed in millivolts for hidden neurons and normalized units
   for output neurons—and the surrogate slope $beta = 1$. Gradients through
   each hidden excitatory and inhibitory membrane increment were additionally
-  divided by the voltage-gradient damping factor $d_"grad" = 1,000$ in both
-  PING and COBA. Forward dynamics were unchanged; output updates
-  were undamped. Exact gradient paths are specified in Appendix A3.
+  divided by the dimensionless voltage-gradient damping divisor
+  $d_"grad" = 1,000$ in both PING and COBA. Damping altered backward
+  derivatives, not the forward update rule; output updates were undamped.
+  Exact gradient paths are specified in Appendix A3.
+
+  We retrained all 18 COBA classifiers in the six activity conditions with
+  this divisor, replacing the earlier $d_"grad" = 1$ classifiers while
+  preserving the other training settings. Corresponding PING classifiers
+  already used $d_"grad" = 1,000$ and were reused without retraining.
 
   #editing-paragraph-label("P25")
   For the accuracy–rate comparison (Fig. 3D), we added a one-sided quadratic
@@ -906,7 +918,7 @@
   the full presentation. For the inhibitory-timescale classifiers, spectra
   were averaged across the 1,000 test presentations within each network
   before locating the largest peak between 5 and 150 Hz. The spectral-peak
-  frequency $f_gamma$ was refined by parabolic interpolation (Appendix B1).
+  frequency $f_"peak"$ was refined by parabolic interpolation (Appendix B1).
   The 200-ms presentations gave a frequency-bin spacing of 5 Hz.
 
   The illustrative spectra in Fig. 1E,G instead used individual 400-ms
@@ -1008,7 +1020,7 @@
   repeated onset refinement at the six inhibitory decay times used for
   spiking classifiers, holding other mean-field parameters fixed. Figure 2I
   compares $f_"Hopf"$ with the median final-checkpoint spectral frequency
-  $f_gamma$ across three classifiers per decay time.
+  $f_"peak"$ across three classifiers per decay time.
 
   === Classifier comparisons and recurrent coupling
 
@@ -1018,6 +1030,11 @@
   firing rates used the common endpoint protocol. Unpenalised validation
   learning curves averaged replicate accuracies at each epoch;
   illustrative-example selection is specified in Appendix B4.
+
+  Following COBA retraining, we repeated the accuracy–rate, loop-insertion
+  and spike-perturbation evaluations (Figs. 3, 4 and 7), including the PING
+  comparisons where applicable. The other classifier measurements reused
+  their existing trained networks and evaluations.
 
   #editing-paragraph-label("P35")
   We inserted reciprocal inhibition into the unpenalised COBA classifiers
@@ -1072,13 +1089,13 @@
   #math.equation(
     block: true,
     numbering: "(1)",
-    $ macron(r)_E = a + p macron(f)_gamma $,
+    $ macron(r)_E = a + beta_(r f) macron(f)_"peak" $,
   ) <eq:rate-frequency-fit>
 
   by ordinary least squares, giving equal weight to each of the six
-  condition means. Here, $macron(r)_E$ and $macron(f)_gamma$ are the
+  condition means. Here, $macron(r)_E$ and $macron(f)_"peak"$ are the
   across-replicate mean excitatory firing rate and spectral-peak frequency,
-  both in hertz; $a$ is the fitted intercept in hertz and $p$ is the
+  both in hertz; $a$ is the fitted intercept in hertz and $beta_(r f)$ is the
   dimensionless fitted slope. Fit quality was quantified by the coefficient
   of determination $R_"fit"^2$, using the centered total sum of squares.
   The mean-field comparison in Fig. 2I used medians of the same three
@@ -1305,14 +1322,16 @@
   Cycle-participation analysis excluded presentations without a detected
   inhibitory burst. Twelve of the 18,000 network–image presentations met
   this criterion, all from the 27-ms inhibitory-timescale condition at
-  seed 43. The resulting distributions comprised 17,988 contributing
+  seed 43. All twelve had zero inhibitory spikes despite nonzero
+  excitatory activity; the cause of failed inhibitory recruitment remains
+  unresolved. The resulting distributions comprised 17,988 contributing
   presentations and 167,178,240 neuron–cycle pairs. This exclusion affected
   cycle-participation measurements, not test accuracy or whole-presentation
   firing rates. Selection of the illustrative continuous stream was handled
   separately, as described above.
 
-  #manuscript-note([*Note:* Re-investigate the cause of the 12 presentations
-    without a detected inhibitory burst.])
+  #manuscript-note([*Note:* Investigate why inhibition was not recruited
+    in these 12 presentations.])
 
   All 84 included networks completed 50 training epochs; their retained
   training records reported no skipped optimizer updates or batches with
@@ -1666,7 +1685,7 @@
     numbering: "(1)",
     $ delta_m &= op("clip")_([-1/2, 1/2])
         [ (S_(m-1) - S_(m+1)) / (2 (S_(m-1) - 2 S_m + S_(m+1))) ], \
-      f_gamma &= f_m + delta_m Delta f_"bin", $,
+      f_"peak" &= f_m + delta_m Delta f_"bin", $,
   ) <eq:spectral-peak-interpolation>
 
   Here, $S_j$ is the power spectral density at frequency bin $j$, $f_m$
@@ -1740,7 +1759,7 @@
   value within that presentation. Flat maxima were represented by their
   middle sample, rounded down for even-length plateaus. Minimum peak
   separation was half the period corresponding to the network's
-  spectral-peak frequency $f_gamma$, converted to simulation steps and
+  spectral-peak frequency $f_"peak"$, converted to simulation steps and
   rounded down, with a minimum of one step. Smaller competing peaks were
   removed first. The same network-level frequency set this separation for
   every presentation.
@@ -1924,7 +1943,7 @@
   $"ms"^(-1)$. The integration variable $u$ is dimensionless, and
   $"erf"$ is the error function. This expression gives the stationary
   firing rate of a LIF neuron driven by Gaussian white current noise
-  (Eq. 21 in Brunel, 2000).#cite(1)
+  (Eq. 21 in Brunel, 2000).#cite(2)
 
   To construct the population model, we approximated each synaptic current
   as $g(E_"rev" - V_m) approx g(E_"rev" - E_L)$, where $g$ is synaptic
@@ -2130,6 +2149,9 @@
   therefore change relative timing within a shifted group.
 
   #reference-list((
+    (text: [G. Buzsáki and X.-J. Wang. “Mechanisms of Gamma Oscillations.”
+      _Annual Review of Neuroscience_ 35, 203–225 (2012).],
+      doi: "10.1146/annurev-neuro-062111-150444"),
     (text: [N. Brunel. “Dynamics of Sparsely Connected Networks of
       Excitatory and Inhibitory Spiking Neurons.”
       _Journal of Computational Neuroscience_ 8(3), 183–208 (2000).],

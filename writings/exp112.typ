@@ -6,7 +6,7 @@
 #let data-file = data-file.with(article: "exp112")
 
 #let meta = (
-  tags: ("txt", "v36.0.0"),
+  tags: ("data", "v36.0.0"),
   title: "COBA–PING Gradient-Damping Comparison",
   created_at: "2026-09-11T00:00:00Z",
   updated_at: "2026-09-11",
@@ -21,30 +21,15 @@
 
   #with-result-sections[
     #journal-result-card(
-      title: "Training trajectories",
-      orientation: [The four conditions crossed E/I-loop engagement with voltage-gradient damping divisors of 1 and 1000.],
+      title: "Training and final test accuracy",
+      orientation: [The four conditions crossed E/I-loop engagement with voltage-gradient damping divisors of 1 and 1000, then evaluated every final-epoch network on the complete official MNIST test partition.],
       visual: figure(
         data-image(
           data-file("exp112/training-comparison.png"),
           width: 100%,
-          alt: "Validation accuracy and gradient-norm trajectories for COBA and PING at voltage-gradient damping divisors 1 and 1000.",
+          alt: "Validation trajectories and final official-test accuracy for COBA and PING at voltage-gradient damping divisors 1 and 1000.",
         ),
-        caption: [Validation accuracy and mean pre-clipping gradient norm across 50 epochs. Colour distinguishes COBA from PING; line style distinguishes the two dimensionless damping divisors. All conditions used the same 1,080 optimization images and 120 validation images.],
-        kind: image,
-        supplement: [Figure],
-      ),
-    )
-
-    #journal-result-card(
-      title: "Final test accuracy",
-      orientation: [Final-epoch parameters were evaluated on the complete official MNIST test partition.],
-      visual: figure(
-        data-image(
-          data-file("exp112/test-accuracy.png"),
-          width: 85%,
-          alt: "Official MNIST test accuracy for the four architecture and voltage-gradient-damping conditions.",
-        ),
-        caption: [Accuracy over the same 10,000 official MNIST test images for each final-epoch network. Colour distinguishes architecture; hatching marks damping divisor 1000. This single-seed comparison provides no across-training-replicate uncertainty estimate.],
+        caption: [Panel A shows validation accuracy across 50 epochs; colour distinguishes COBA from PING and line style distinguishes the two dimensionless damping divisors. Panel B shows final-epoch accuracy over the same 10,000 official MNIST test images; colour again distinguishes architecture and hatching marks divisor 1000. All conditions shared the same 1,080 optimization images and 120 validation images. This single-seed comparison provides no across-training-replicate uncertainty estimate.],
         kind: image,
         supplement: [Figure],
       ),

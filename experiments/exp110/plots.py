@@ -166,7 +166,7 @@ def build_onset_super_compound(grid, results, hopf, sweep, mf, meas, out_path):
         "o-",
         color=theme.INK_BLACK,
         lw=1.4,
-        label="mean-field $f^\\star$",
+        label="mean-field",
     )
     if meas:
         measured_decay = sorted(meas)
@@ -176,10 +176,10 @@ def build_onset_super_compound(grid, results, hopf, sweep, mf, meas, out_path):
             "s--",
             color=theme.DEEP_RED,
             lw=1.3,
-            label="spiking median $f_\\gamma$",
+            label="spiking median",
         )
     frequency_axis.set_xlabel("$\\tau_\\text{GABA}$ (ms)", fontsize=theme.SIZE_LABEL)
-    frequency_axis.set_ylabel("gamma frequency (Hz)", fontsize=theme.SIZE_LABEL)
+    frequency_axis.set_ylabel("frequency (Hz)", fontsize=theme.SIZE_LABEL)
     frequency_axis.set_title(
         "Frequency comparison",
         loc="left",

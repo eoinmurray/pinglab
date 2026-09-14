@@ -11,9 +11,9 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools"), str(REPO / "tools/snnsim")]
 import numpy as np
 import torch
-from execution import GraphExecutor, plan_graph
 from experiments.exp099 import recipe
 from pingstore.stages import stage_run
+from tools.snnsim.execution import GraphExecutor, plan_graph  # noqa: TID251
 
 
 def build_model(cfg):

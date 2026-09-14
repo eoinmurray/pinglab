@@ -85,3 +85,22 @@ digests. The rendered exp110 article contained 33 sequential equations, 14
 labelled figures or tables, 11 images with alternative text, no broken local
 experiment links, and values consistent with the replacement `numbers.json`
 exports.
+
+## 2026-09-14 — Manuscript grounding and frequency labels
+
+The grounding review verified the completed equal-damping bank and the
+replacement exp025/exp037/exp038 compute results. It corrected the manuscript's
+10-Hz-ceiling COBA rate to 9.0 Hz, clarified which training and evaluations were
+repeated, and qualified comparisons at tighter ceilings as not rate-matched.
+
+The complete timescale sweep now uses population-cycle terminology and
+spectral-peak notation because its slowest condition is approximately 12 Hz.
+The presentation-only refresh `exp110-r024-present` updates Figures 2 and 6
+labels with all seven source references unchanged from `exp110-r022-present`.
+Its payload is
+`sha256:980bbd9c827739fb81beafce927df061e828be8ef3c627d6d74b1fe2548f58a8`.
+No training, inference or analysis stage was rerun. The intermediate
+`exp110-r023-present` remains unchanged.
+
+See the [grounding review](../../reviews/exp110-grounding-2026-09-14.md) for
+the verified values, complete article selections and remaining evidence gaps.
