@@ -60,7 +60,7 @@
   tags: ("data", "v36.0.0"),
   title: "Manuscript",
   created_at: "2026-09-02T00:00:00Z",
-  updated_at: "2026-09-14",
+  updated_at: "2026-09-15",
   description: "A manuscript scaffold connecting PING circuit dynamics, low-rate task performance, cycle participation, perturbation sensitivity and continuous-stream classification.",
   collection: "gamma-gated-sparsity",
 )
@@ -831,10 +831,11 @@
   We trained classifiers for 50 epochs using AdamW with learning rate
   $eta = 0.0004$, zero weight decay and minibatches of 256 images. The
   objective was mean cross-entropy, supplemented by the activity penalty
-  described below where applicable. We used backpropagation through time
-  over each presentation and clipped the global Euclidean gradient norm to
-  a maximum of 1 before each optimizer update. Trainable connection weights
-  were subsequently clamped below at zero.
+  described below where applicable. We used full, untruncated
+  surrogate-gradient backpropagation through the complete temporal unrolling
+  of every presentation in each minibatch.#cite(2) Before each optimizer update,
+  we clipped the global Euclidean gradient norm to a maximum of 1. Trainable
+  connection weights were subsequently clamped below at zero.
 
   Spikes remained binary during forward simulation. During backpropagation,
   the threshold derivative was replaced by the fast-sigmoid surrogate
@@ -1944,7 +1945,7 @@
   $"ms"^(-1)$. The integration variable $u$ is dimensionless, and
   $"erf"$ is the error function. This expression gives the stationary
   firing rate of a LIF neuron driven by Gaussian white current noise
-  (Eq. 21 in Brunel, 2000).#cite(2)
+  (Eq. 21 in Brunel, 2000).#cite(3)
 
   To construct the population model, we approximated each synaptic current
   as $g(E_"rev" - V_m) approx g(E_"rev" - E_L)$, where $g$ is synaptic
@@ -2139,6 +2140,11 @@
     (text: [G. Buzsáki and X.-J. Wang. “Mechanisms of Gamma Oscillations.”
       _Annual Review of Neuroscience_ 35, 203–225 (2012).],
       doi: "10.1146/annurev-neuro-062111-150444"),
+    (text: [E. O. Neftci, H. Mostafa, and F. Zenke.
+      “Surrogate Gradient Learning in Spiking Neural Networks: Bringing the
+      Power of Gradient-Based Optimization to Spiking Neural Networks.”
+      _IEEE Signal Processing Magazine_ 36(6), 51–63 (2019).],
+      doi: "10.1109/MSP.2019.2931595"),
     (text: [N. Brunel. “Dynamics of Sparsely Connected Networks of
       Excitatory and Inhibitory Spiking Neurons.”
       _Journal of Computational Neuroscience_ 8(3), 183–208 (2000).],
