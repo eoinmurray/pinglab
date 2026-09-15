@@ -167,6 +167,67 @@ def test_scoped_plan_rejects_unknown_or_invalid_experiment(tmp_path):
         build_plan(tmp_path, ["exp999"])
 
 
+def test_explicit_retirement_prunes_latest_and_high_watermark_without_state(tmp_path):
+    old = make_run(
+        tmp_path,
+        "exp006-r001-compute",
+        stage="compute",
+        created_at="2026-01-01T00:00:00Z",
+    )
+    latest = make_run(
+        tmp_path,
+        "exp006-r002-present",
+        stage="present",
+        created_at="2026-01-02T00:00:00Z",
+        inputs={"compute": reference(old)},
+    )
+
+    protected = build_plan(tmp_path)
+    assert latest.name in {row["run_id"] for row in protected["keep"]}
+
+    retired = build_plan(tmp_path, retire_experiments=["exp006"])
+    assert retired["experiments"] == ["exp006"]
+    assert retired["retire_experiments"] == ["exp006"]
+    assert retired["retirement_high_watermarks"] == {"exp006": 2}
+    assert {row["run_id"] for row in retired["prune"]} == {
+        old.name,
+        latest.name,
+    }
+    assert all(row["reasons"] == ["retired-experiment"] for row in retired["prune"])
+
+
+@pytest.mark.parametrize("active", ["writing", "legacy-code", "staged-code"])
+def test_retirement_rejects_active_experiment(tmp_path, active):
+    make_run(
+        tmp_path,
+        "exp006-r001-present",
+        stage="present",
+        created_at="2026-01-01T00:00:00Z",
+    )
+    if active == "writing":
+        path = tmp_path / "writings/exp006.typ"
+    elif active == "legacy-code":
+        path = tmp_path / "experiments/exp006.py"
+    else:
+        path = tmp_path / "experiments/exp006/compute.py"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("# active\n")
+
+    with pytest.raises(PingstoreError, match="cannot retire exp006"):
+        build_plan(tmp_path, retire_experiments=["exp006"])
+
+
+def test_retirement_must_be_inside_explicit_scope(tmp_path):
+    fixture_store(tmp_path)
+
+    with pytest.raises(PingstoreError, match="inside the prune scope"):
+        build_plan(
+            tmp_path,
+            experiments=["exp001"],
+            retire_experiments=["exp002"],
+        )
+
+
 @pytest.mark.parametrize(
     "record",
     [
@@ -214,6 +275,27 @@ def test_scoped_confirm_applies_only_matching_scoped_plan(tmp_path):
     assert not paths["old_compute"].exists()
     assert not paths["old_present"].exists()
     assert paths["superseded"].exists()
+
+
+def test_retirement_confirmation_requires_same_explicit_retirement(tmp_path):
+    run = make_run(
+        tmp_path,
+        "exp006-r001-present",
+        stage="present",
+        created_at="2026-01-01T00:00:00Z",
+    )
+    plan = build_plan(tmp_path, retire_experiments=["exp006"])
+
+    with pytest.raises(PingstoreError, match="plan changed"):
+        apply_plan(tmp_path, plan["plan_hash"], experiments=["exp006"])
+    applied = apply_plan(
+        tmp_path,
+        plan["plan_hash"],
+        retire_experiments=["exp006"],
+    )
+
+    assert applied == plan
+    assert not run.exists()
 
 
 def test_confirm_rejects_plan_drift_without_removing_runs(tmp_path):
@@ -281,21 +363,52 @@ def test_cli_requires_dry_run_or_complete_hash(tmp_path, capsys):
 def test_cli_renders_repeatable_experiment_scope_in_confirmation(tmp_path, capsys):
     fixture_store(tmp_path)
 
-    assert main(
-        [
-            "prune",
-            "--root",
-            str(tmp_path),
-            "--experiment",
-            "exp002",
-            "--experiment",
-            "exp001",
-            "--dry-run",
-        ]
-    ) == 0
+    assert (
+        main(
+            [
+                "prune",
+                "--root",
+                str(tmp_path),
+                "--experiment",
+                "exp002",
+                "--experiment",
+                "exp001",
+                "--dry-run",
+            ]
+        )
+        == 0
+    )
     output = capsys.readouterr().out
     assert "Scope: exp001, exp002" in output
     assert "--experiment exp001 --experiment exp002 --confirm sha256:" in output
+
+
+def test_cli_renders_explicit_retirement_in_confirmation(tmp_path, capsys):
+    make_run(
+        tmp_path,
+        "exp006-r001-present",
+        stage="present",
+        created_at="2026-01-01T00:00:00Z",
+    )
+
+    assert (
+        main(
+            [
+                "prune",
+                "--root",
+                str(tmp_path),
+                "--retire-experiment",
+                "exp006",
+                "--dry-run",
+            ]
+        )
+        == 0
+    )
+    output = capsys.readouterr().out
+    assert "Scope: exp006" in output
+    assert "Retire: exp006" in output
+    assert "Retirement high-watermarks: exp006=r001" in output
+    assert "--retire-experiment exp006 --confirm sha256:" in output
 
 
 def test_prune_lock_blocks_reservation_and_execution(tmp_path):

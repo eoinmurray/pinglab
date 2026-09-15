@@ -1,6 +1,6 @@
 # Experiment Runner Guide
 
-Version: **4.7.0**
+Version: **4.8.0**
 
 This guide defines Pinglab's independent compute, analyse, and present commands.
 The [Storage Guide](../tools/pingstore/README.md) owns run layout and validation.
@@ -45,6 +45,11 @@ New IDs are source-neutral: `exp022-r001-compute`,
 `exp022-r002-analyse`, and `exp022-r003-present`. Local and scheduler-backed
 execution use the same shape. Execution location and scheduler details belong
 in `run.json`.
+
+Experiment IDs are permanent identities. Never reuse the number of a removed
+experiment; assign any successor a fresh `expXXX` number. This keeps old run
+identities unambiguous even after an explicitly retired experiment's final local
+run and allocation high-watermark have been pruned.
 
 Failed work remains in its hidden temporary run. Downstream stages do not consume
 it. Rerun with a new identity unless an experiment-specific compute recovery
@@ -202,6 +207,8 @@ before changing the guide outside the requested scope.
 
 ## 8. Version history
 
+- **4.8.0** — Make experiment IDs permanently single-use so an explicitly
+  retired experiment needs no persistent allocation tombstone.
 - **4.7.0** — Standardize concurrent HPC compute around recipe-owned work items,
   frozen reviewed allocations, shared resumable shard locking and verification,
   receipt-first Slurm submission, and an explicit non-computing collector.

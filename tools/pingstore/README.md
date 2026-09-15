@@ -1,6 +1,6 @@
 # Storage Guide
 
-Version: **4.7.0**
+Version: **4.8.0**
 
 This guide defines Pingstore's filesystem convention. Pingstore is not a
 service, database, catalogue, lifecycle manager, or general management CLI.
@@ -135,13 +135,20 @@ discovery, explicit collection and article-default pins, inputs of incomplete
 runs, and the complete transitive ancestry of those roots. It also retains each
 experiment's highest allocated counter so a removed identity cannot be reused.
 
-An experiment explicitly recorded in `experiments/history.json` with disposition
-`removed-and-pruned` is retired. Its non-HPC runs are not retained merely as its
-newest presentation or identity high-watermark; the history record must preserve
-the exact `highest_allocated_counter` before pruning. Pins, incomplete inputs,
-out-of-scope descendants, transitive ancestry and HPC provenance still take
-precedence. An absent experiment directory or writing is not by itself permission
-to prune an experiment's runs.
+Retirement is an explicit one-shot pruning mode, not persistent repository state.
+`--retire-experiment expNNN` is accepted only when that experiment has completed
+runs but no runnable code or writing. It limits an otherwise unscoped operation
+to the named experiment and permits its non-HPC newest presentation and identity
+high-watermark to be pruned. The dry-run derives the highest allocated counter
+from the validated run inventory and binds the retirement request into the plan
+hash. Pins, incomplete inputs, out-of-scope descendants, transitive ancestry and
+HPC provenance still take precedence.
+
+Experiment IDs are permanent and must never be reused after removal. Once an
+experiment's last run is explicitly retired and pruned, its old counter does not
+need to remain as live filesystem state because future work must use a new
+experiment ID. An absent experiment directory or writing is not by itself
+permission to prune an experiment's protected runs.
 
 Pruning requires two separate invocations:
 
@@ -167,6 +174,8 @@ plan hash. Unknown or malformed experiment filters are rejected.
 uv run pingstore prune --experiment exp099 --dry-run
 uv run pingstore prune --experiment exp099 --confirm <complete-sha256-plan-hash>
 uv run pingstore prune --experiment exp099 --experiment exp110 --dry-run
+uv run pingstore prune --retire-experiment exp114 --dry-run
+uv run pingstore prune --retire-experiment exp114 --confirm <complete-sha256-plan-hash>
 ```
 
 Run reservation and execution hold a shared lock at `.pingstore/.operation.lock`;
@@ -205,6 +214,8 @@ store changes, or deletion of the recovery archive.
 
 ## 8. Version history
 
+- **4.8.0** — Replace the persistent experiment-history registry with explicit,
+  hash-bound one-shot retirement; make experiment IDs permanently single-use.
 - **4.7.0** — Permit explicitly retired experiments to prune their local latest
   presentation and run high-watermark after recording that counter in experiment
   history; all stronger retention roots remain in force.
