@@ -52,6 +52,16 @@ def main(argv: list[str] | None = None) -> int:
         metavar="EXPNNN",
         help="limit pruning to this experiment (repeatable)",
     )
+    prune.add_argument(
+        "--retire-experiment",
+        action="append",
+        dest="retire_experiments",
+        metavar="EXPNNN",
+        help=(
+            "explicitly retire an experiment with no code or writing, allowing its "
+            "latest run and allocation high-watermark to be pruned (repeatable)"
+        ),
+    )
     action = prune.add_mutually_exclusive_group(required=True)
     action.add_argument(
         "--dry-run", action="store_true", help="print the exact immutable prune plan"
@@ -69,9 +79,18 @@ def main(argv: list[str] | None = None) -> int:
 
         try:
             if args.dry_run:
-                print(render_plan(build_plan(args.root, args.experiments)))
+                print(
+                    render_plan(
+                        build_plan(args.root, args.experiments, args.retire_experiments)
+                    )
+                )
             else:
-                plan = apply_plan(args.root, args.confirm, args.experiments)
+                plan = apply_plan(
+                    args.root,
+                    args.confirm,
+                    args.experiments,
+                    args.retire_experiments,
+                )
                 reclaimed = sum(row["bytes"] for row in plan["prune"])
                 print(
                     f"Pruned {len(plan['prune'])} runs ({reclaimed / 2**30:.2f} GiB)."

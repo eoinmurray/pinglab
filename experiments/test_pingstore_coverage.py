@@ -15,11 +15,3 @@ def test_every_runnable_experiment_has_membership_and_capture_route() -> None:
     assert result["passed"] is True
     assert set(result["capture_routes"]) == set(result["registered"])
     assert result["capture_routes"]["exp024"] == "independent-stages"
-
-
-def test_historical_experiment_dispositions_are_explicit() -> None:
-    historical = coverage(REPO)["historical"]
-    assert historical["exp087"]["disposition"] == "removed-and-pruned"
-    assert historical["exp094"]["disposition"] == "removed-and-pruned"
-    assert historical["exp096"]["disposition"] == "removed-and-pruned"
-    assert historical["exp097"]["disposition"] == "removed-and-pruned"

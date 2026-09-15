@@ -19,10 +19,9 @@ from .contracts import (
     validate_collections,
 )
 from .discovery import discover_store
-from .membership import load_history
 from .stages import operation_lock
 
-PLAN_SCHEMA = "pingstore.prune-plan/v2"
+PLAN_SCHEMA = "pingstore.prune-plan/v3"
 HPC_MARKER = re.compile(r"(?:^|[-_.])(?:slurm|hpc|wilkes|csd3|gpu-q)(?:$|[-_.0-9])")
 PROVENANCE_KEYS = {
     "host",
@@ -160,9 +159,44 @@ def _experiment_scope(
     return scope
 
 
+def _retirement_scope(
+    repo: Path,
+    experiments: list[str] | tuple[str, ...] | set[str] | None,
+    records: dict[str, dict],
+) -> set[str]:
+    retired = set(experiments or ())
+    invalid = sorted(value for value in retired if not EXPERIMENT_RE.fullmatch(value))
+    if invalid:
+        raise PingstoreError(f"invalid retirement experiment: {', '.join(invalid)}")
+    available = {record["experiment"] for record in records.values()}
+    missing = sorted(retired - available)
+    if missing:
+        raise PingstoreError(f"retirement experiment has no runs: {', '.join(missing)}")
+    for experiment in sorted(retired):
+        writing = repo / "writings" / f"{experiment}.typ"
+        legacy = repo / "experiments" / f"{experiment}.py"
+        staged = repo / "experiments" / experiment
+        if writing.is_file():
+            raise PingstoreError(
+                f"cannot retire {experiment} while its writing exists: {writing}"
+            )
+        if legacy.is_file() or (
+            staged.is_dir()
+            and any(
+                (staged / f"{stage}.py").is_file()
+                for stage in ("compute", "analyse", "present")
+            )
+        ):
+            raise PingstoreError(
+                f"cannot retire {experiment} while runnable experiment code exists"
+            )
+    return retired
+
+
 def build_plan(
     repo: Path,
     experiments: list[str] | tuple[str, ...] | set[str] | None = None,
+    retire_experiments: list[str] | tuple[str, ...] | set[str] | None = None,
 ) -> dict:
     repo = repo.resolve()
     runs = repo / ".pingstore/runs"
@@ -174,24 +208,13 @@ def build_plan(
                 f"prune does not accept unsupported runs entry: {path}"
             )
     records, discovered = discover_store(runs)
+    retired = _retirement_scope(repo, retire_experiments, records)
     scope = _experiment_scope(experiments, records)
+    if retired and scope is None:
+        scope = retired
+    elif not retired.issubset(scope or set()):
+        raise PingstoreError("retirement experiments must be inside the prune scope")
     reasons: dict[str, set[str]] = defaultdict(set)
-    historical = load_history(repo)
-    retired = {
-        experiment
-        for experiment, row in historical.items()
-        if row["disposition"] == "removed-and-pruned"
-    }
-    for experiment in sorted(retired & {record["experiment"] for record in records.values()}):
-        counters = [
-            _counter(run_id)
-            for run_id, record in records.items()
-            if record["experiment"] == experiment
-        ]
-        if historical[experiment].get("highest_allocated_counter") != max(counters):
-            raise PingstoreError(
-                f"retired experiment {experiment} must record highest_allocated_counter={max(counters)}"
-            )
 
     if scope is not None:
         for run_id, record in records.items():
@@ -242,6 +265,15 @@ def build_plan(
             keep.add(high)
             reasons[high].add("identity-high-watermark")
 
+    retirement_high_watermarks = {
+        experiment: max(
+            _counter(run_id)
+            for run_id, record in records.items()
+            if record["experiment"] == experiment
+        )
+        for experiment in sorted(retired)
+    }
+
     rows = []
     for run_id, record in sorted(records.items()):
         directory = runs / run_id
@@ -266,8 +298,10 @@ def build_plan(
         )
     plan = {
         "schema": PLAN_SCHEMA,
-        "policy": "keep-hpc-active-latest-pins-high-watermarks-and-ancestry",
+        "policy": "keep-hpc-latest-pins-high-watermarks-and-ancestry-with-explicit-retirement",
         "experiments": sorted(scope) if scope is not None else None,
+        "retire_experiments": sorted(retired),
+        "retirement_high_watermarks": retirement_high_watermarks,
         "hidden": hidden,
         "keep": [row for row in rows if row["run_id"] in keep],
         "prune": [row for row in rows if row["run_id"] not in keep],
@@ -297,6 +331,7 @@ def apply_plan(
     repo: Path,
     expected_hash: str,
     experiments: list[str] | tuple[str, ...] | set[str] | None = None,
+    retire_experiments: list[str] | tuple[str, ...] | set[str] | None = None,
 ) -> dict:
     if not re.fullmatch(r"sha256:[0-9a-f]{64}", expected_hash):
         raise PingstoreError(
@@ -309,7 +344,7 @@ def apply_plan(
     previous = store / f".prune-{expected_hash[7:19]}-runs.old"
     with operation_lock(store, exclusive=True):
         try:
-            plan = build_plan(repo, experiments)
+            plan = build_plan(repo, experiments, retire_experiments)
             if plan["plan_hash"] != expected_hash:
                 raise PingstoreError(
                     f"prune plan changed: expected {expected_hash}, now {plan['plan_hash']}"
@@ -365,7 +400,24 @@ def render_plan(plan: dict) -> str:
     lines = [
         f"Plan: {plan['plan_hash']}",
         "Scope: "
-        + (", ".join(plan["experiments"]) if plan["experiments"] else "all experiments"),
+        + (
+            ", ".join(plan["experiments"]) if plan["experiments"] else "all experiments"
+        ),
+        "Retire: "
+        + (
+            ", ".join(plan["retire_experiments"])
+            if plan["retire_experiments"]
+            else "none"
+        ),
+        "Retirement high-watermarks: "
+        + (
+            ", ".join(
+                f"{experiment}=r{counter:03d}"
+                for experiment, counter in plan["retirement_high_watermarks"].items()
+            )
+            if plan["retirement_high_watermarks"]
+            else "none"
+        ),
         f"Keep: {len(plan['keep'])} runs ({keep_bytes / 2**30:.2f} GiB)",
         f"Prune: {len(plan['prune'])} runs ({prune_bytes / 2**30:.2f} GiB)",
         "",
@@ -384,9 +436,15 @@ def render_plan(plan: dict) -> str:
         f"--experiment {shlex.quote(experiment)}"
         for experiment in (plan["experiments"] or [])
     )
+    retirement_args = " ".join(
+        f"--retire-experiment {shlex.quote(experiment)}"
+        for experiment in plan["retire_experiments"]
+    )
     command = "uv run pingstore prune"
     if scope_args:
         command += f" {scope_args}"
+    if retirement_args:
+        command += f" {retirement_args}"
     command += f" --confirm {plan['plan_hash']}"
     lines.extend(["", f"Confirm with: {command}"])
     return "\n".join(lines)
