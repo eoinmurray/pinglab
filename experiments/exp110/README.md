@@ -104,3 +104,24 @@ No training, inference or analysis stage was rerun. The intermediate
 
 See the [grounding review](../../reviews/exp110-grounding-2026-09-14.md) for
 the verified values, complete article selections and remaining evidence gaps.
+
+## 2026-09-14 — Equal-network cycle participation
+
+Presentation recipe v12 uses `exp046-r010-present` and its pinned
+`exp046-r007-analyse` for Figure 6C–H. The compound redraws the same six
+equal-network distributions as exp046 Figure 1, using black bars in one row
+without individual-network markers. Figure 6A's labels alternate sides of their
+points to avoid overlap; its measurements and all other source pins are unchanged.
+
+The completed presentation is `exp110-r027-present`. Its 24 distribution bars
+match exp046 Figure 1 exactly. Figures 2 and 7 retain byte-identical PNGs.
+Intermediate layout presentations `exp110-r025-present` and
+`exp110-r026-present` remain unchanged.
+
+The manuscript's Results, Figure 6 caption, Methods and Appendix B3 now describe
+only the equal-network estimator. Appendix Figure B1 and the comparison with
+opportunity pooling were removed. The summary reports 76.35% zero-spike,
+22.09% one-spike and 1.56% multiple-spike pairs, or 98.44% with at most one spike.
+These are means across the 18 equally weighted networks, not newly measured data.
+No training, inference or analysis was rerun. The existing plotting regression
+was updated; tests were not run under the author's pre-commit instruction.

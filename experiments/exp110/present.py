@@ -25,7 +25,7 @@ from pingstore.stages import source_run, stage_run
 
 CANONICAL_PRESENTATION_SOURCES = {
     "exp041": "exp041-r005-present",
-    "exp046": "exp046-r005-present",
+    "exp046": "exp046-r010-present",
     "exp037": "exp037-r020-present",
     "exp044": "exp044-r009-present",
 }
@@ -56,8 +56,8 @@ def build_cycle_participation_compound(
     rates = load_json(exp041_path)
     cycles = load_json(exp046_path)
     if (rates.get("schema") != "exp041.analysis/v1"
-            or cycles.get("schema") != "exp046.analysis/v1"
-            or len(cycles.get("per_tau", {})) != 6):
+            or cycles.get("schema") != "exp046.analysis/v2"
+            or len(cycles.get("per_tau_equal_network", {})) != 6):
         raise PingstoreError("unsupported cycle-participation analysis summaries")
     previous_paper_mode = theme.PAPER_MODE
     theme.set_paper_mode(True)
@@ -77,18 +77,21 @@ def build_cycle_participation_compound(
         )
         for axis in top_axes:
             axis.set_xlabel("Spectral $f_\\mathrm{peak}$ (Hz)", fontsize=theme.SIZE_LABEL)
-        exp046_plots.plot_distribution(
-            cycles["per_tau"], output_stem, axes=bottom_axes,
-            percentages=False, panel_labels="CDEFGH",
+        rate_labels = sorted(
+            (text for text in top_axes[0].texts if text.get_text().endswith(" ms")),
+            key=lambda text: text.xy[0],
         )
-        for ax, tau in zip(bottom_axes, sorted(float(k.removeprefix("tau_")) for k in cycles["per_tau"])):
-            for bar in ax.patches:
-                bar.set_facecolor(theme.INK_BLACK)
-                bar.set_edgecolor(theme.INK_BLACK)
-            ax.set_title(f"{tau:g} ms", fontsize=theme.SIZE_LABEL)
+        for index, text in enumerate(rate_labels):
+            text.set_ha("right" if index % 2 else "left")
+            text.set_position((-5, 3) if index % 2 else (5, -3))
+        exp046_plots.plot_equal_network_distribution(
+            cycles["per_tau_equal_network"], output_stem, axes=bottom_axes,
+            panel_labels="CDEFGH",
+        )
+        for ax in bottom_axes:
             ax.tick_params(axis="y", labelleft=ax is bottom_axes[0])
-        bottom_axes[0].set_ylabel("Neuron–cycle fraction", fontsize=theme.SIZE_LABEL)
-        fig.text(0.54, 0.045, "Spikes per neuron per cycle", ha="center", fontsize=theme.SIZE_LABEL)
+        bottom_axes[0].set_ylabel("Equal-network\nmean fraction", fontsize=theme.SIZE_LABEL, color="black")
+        fig.text(0.54, 0.045, "Spikes per neuron–cycle", ha="center", fontsize=theme.SIZE_LABEL, color="black")
         fig.subplots_adjust(left=0.09, right=0.98, bottom=0.14, top=0.94)
         save_figure(fig, output_stem, formats=("png", "pdf"))
     finally:

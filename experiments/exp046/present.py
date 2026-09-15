@@ -51,7 +51,8 @@ def present(identity, *, run_id=None):
         sources={"analysis": analysis},
         run_id=run_id,
         configuration={
-            "schema": "exp046.presentation/v2",
+            "schema": "exp046.presentation/v3",
+            "equal_network_style": "black bars, no network markers, single row",
             "legacy_reference_slope": 0.20,
             "scientific_reference_review": "deferred by author",
         },
@@ -62,7 +63,6 @@ def present(identity, *, run_id=None):
         )
         plots.plot_equal_network_distribution(
             result["per_tau_equal_network"],
-            result["results"],
             run.export / "spikes_per_cycle_distribution_equal_network",
         )
         plots.plot_ceiling_vs_fgamma(

@@ -10,14 +10,13 @@
   tags: ("data", "v36.0.0"),
   title: "One Spike per Gamma Cycle",
   created_at: "2026-06-04T00:00:00Z",
-  updated_at: "2026-09-10",
+  updated_at: "2026-09-14",
   description: "Pooled and equally weighted network distributions support predominantly one-spike gamma-cycle participation across 18 trained networks, with exceptions.",
   collection: "gamma-gated-sparsity",
 )
 
 #let inputs = ("exp046",)
 #let preview-figures = (
-  (path: "exp046/spikes_per_cycle_distribution.svg", label: "spikes per cycle distribution"),
   (path: "exp046/spikes_per_cycle_distribution_equal_network.svg", label: "equal-network spikes per cycle distribution"),
   (path: "exp046/ceiling_vs_fgamma.svg", label: "ceiling vs fgamma"),
 )
@@ -45,57 +44,39 @@
   #result-card[
   === Spikes per neuron-cycle
 
-  Across 167,178,240 neuron–cycle pairs, E neurons emitted zero spikes in
-  75.24% of pairs and one spike in 23.62%. Two-or-more
-  events occurred in 1.15% of pairs and three-or-more in 0.10%;
-  pooled over the sweep, 98.85% contained at most one spike
-  (#result-figure-ref(<fig:exp046-result-1>)). Among active pairs, 95.37%
-  contained exactly one spike, declining from 98.93% at 4.5-ms inhibitory
-  decay to 83.78% at 27 ms. Single-spike participation predominated, but its
-  frequency depended on the decay condition.
+  Across the balanced 18-network design, the equal-network mean assigned 76.35% of pairs
+  to zero spikes, 22.09% to one spike and 1.56% to two or more spikes. Thus,
+  98.44% contained at most one spike
+  (#result-figure-ref(<fig:exp046-result-1>)).
 
   #figure(
-    data-image(data-file("exp046/spikes_per_cycle_distribution.svg"), width: 100%,
-      alt: "Six bar charts, one per τ_GABA, of the probability an E neuron emits 0, 1, 2, or ≥3 spikes in a gamma cycle; every panel is dominated by the 0 and 1 bars."),
-    caption: [Distribution of E spike count per gamma cycle per neuron at
-      inhibitory decay times $tau_"GABA"$ of *(A–F)* 4.5, 6, 9, 12, 18 and 27 ms,
-      opportunity-pooling 167.2 million neuron–cycle pairs across three training
-      replicates per condition. Each pair contributes equally, so networks
-      contribute in proportion to their detected cycle totals. Presentations
-      without detected inhibitory bursts are excluded; no uncertainty bars
-      are shown.],
+    data-image(data-file("exp046/spikes_per_cycle_distribution_equal_network.svg"), width: 100%,
+      alt: "Six black bar charts in one row, one per τ_GABA, showing equal-network mean fractions for 0, 1, 2, or ≥3 excitatory spikes per neuron and gamma cycle."),
+    caption: [Equal-network distributions of excitatory spikes per neuron–cycle
+      at $tau_"GABA"$ values *(A–F)* 4.5, 6, 9, 12, 18 and 27 ms. Each
+      separately trained network's counts of pairs with 0, 1, 2 or ≥3 spikes
+      were normalized to sum to one; black bars are arithmetic means across
+      the three networks per condition, irrespective of their detected
+      cycle totals. These distributions reuse epoch-50 spike recordings from
+      the inhibitory-timescale sweep. Presentations without detected inhibitory
+      bursts are excluded; no uncertainty interval is shown.],
   ) <fig:exp046-result-1>
 
-  ]
-
-  #result-card[
-  === Equal weighting by trained network
+  For comparison, opportunity pooling across 167,178,240 neuron–cycle pairs
+  assigned 75.24% of pairs to zero spikes and 23.62% to one spike. Two-or-more
+  events occurred in 1.15% of pairs and three-or-more in 0.10%;
+  pooled over the sweep, 98.85% contained at most one spike. Among active
+  pairs, 95.37% contained exactly one spike, declining from 98.93% at 4.5-ms
+  inhibitory decay to 83.78% at 27 ms. Single-spike participation predominated,
+  but its frequency depended on the decay condition.
 
   Giving each trained network equal weight within its decay condition changed
   each spike-count fraction by less than 0.20 percentage points relative to
   opportunity pooling; the largest shift was 0.191 percentage points in the
-  one-spike fraction at
-  $tau_"GABA" = 27$ ms (#result-figure-ref(<fig:exp046-result-2>)). Across the
-  balanced 18-network design, the equal-network mean assigned 76.35% of pairs
-  to zero spikes, 22.09% to one spike and 1.56% to two or more spikes. Thus,
-  98.44% contained at most one spike, compared with 98.85% under pooling.
-
-  #figure(
-    data-image(data-file("exp046/spikes_per_cycle_distribution_equal_network.svg"), width: 100%,
-      alt: "Six bar charts, one per τ_GABA, showing equal-network mean fractions for 0, 1, 2, or ≥3 excitatory spikes per neuron and gamma cycle, with three individual-network points per bar."),
-    caption: [Equal-network distributions at $tau_"GABA"$ values *(A–F)* 4.5,
-      6, 9, 12, 18 and 27 ms. Each black point is one separately trained network
-      after its four neuron–cycle counts were normalized to sum to one; bars are
-      arithmetic means across the three networks, irrespective of their detected
-      cycle totals. These distributions reuse the same spike recordings as
-      #result-figure-ref(<fig:exp046-result-1>); no uncertainty interval is
-      shown for the three training replicates per condition.],
-  ) <fig:exp046-result-2>
-
-  The overall averages answer different questions: pooling samples a
-  neuron–cycle pair uniformly, whereas equal-network averaging first samples
-  a network uniformly. The latter also balances the six decay conditions;
-  pooling gives more weight to the faster rhythms that produced more cycles.
+  one-spike fraction at $tau_"GABA" = 27$ ms. Pooling samples a neuron–cycle
+  pair uniformly, whereas equal-network averaging first samples a network
+  uniformly. The latter also balances the six decay conditions; pooling gives
+  more weight to the faster rhythms that produced more cycles.
 
   ]
 
@@ -105,7 +86,7 @@
   Maximum per-neuron excitatory firing rate, $r_(E,"max")$, scaled with
   spectral-peak frequency, $f_gamma$, with through-origin fit
   $r_(E,"max") = 0.977 f_gamma$ and coefficient of determination
-  $R_"fit"^2 = 0.915$ (#result-figure-ref(<fig:exp046-result-3>)). Both
+  $R_"fit"^2 = 0.915$ (#result-figure-ref(<fig:exp046-result-2>)). Both
   rates are in hertz. Four of the 18 network maxima exceeded the
   one-spike-per-cycle reference, including 80.97 Hz at 67.21 Hz. Proximity
   of the fitted slope to one therefore does not establish a strict ceiling.
@@ -120,7 +101,7 @@
       $r_E = f_gamma$, where $r_E$ is per-neuron E rate. The dotted
       $0.20 f_gamma$ line is a fixed visual reference, not a fitted
       participation estimate. Neither line is the fitted maximum-rate model.],
-  ) <fig:exp046-result-3>
+  ) <fig:exp046-result-2>
 
   ]
   ]

@@ -140,7 +140,7 @@ def test_present_records_exp054_analysis_and_exports_only_the_bundle(
     )
     assert output.record["execution"]["configuration"]["source_recipe"] == source_recipe
 
-def test_cycle_participation_equal_width_and_no_percentages(tmp_path, monkeypatch):
+def test_cycle_participation_uses_equal_network_means(tmp_path, monkeypatch):
     import pytest
 
     rate = tmp_path / "rate.json"
@@ -157,8 +157,11 @@ def test_cycle_participation_equal_width_and_no_percentages(tmp_path, monkeypatc
         "fit": {"p_affine": 0.2, "a_affine": 0, "r2_affine": 1},
     })
     write_json_atomic(cycles, {
-        "schema": "exp046.analysis/v1",
+        "schema": "exp046.analysis/v2",
         "per_tau": {f"tau_{tau:g}": {
+            "frac_zero": 0.8, "frac_one": 0.18, "frac_two": 0.015, "frac_three_plus": 0.005,
+        } for tau in taus},
+        "per_tau_equal_network": {f"tau_{tau:g}": {
             "frac_zero": 0.7, "frac_one": 0.28, "frac_two": 0.015, "frac_three_plus": 0.005,
         } for tau in taus},
     })
@@ -171,6 +174,8 @@ def test_cycle_participation_equal_width_and_no_percentages(tmp_path, monkeypatc
         assert [text.get_text() for ax in bottom for text in ax.texts] == list("CDEFGH")
         for ax in bottom:
             assert [bar.get_height() for bar in ax.patches] == pytest.approx([0.7, 0.28, 0.015, 0.005])
+            assert not ax.collections
+            assert all(bar.get_facecolor() == (0, 0, 0, 1) for bar in ax.patches)
         save(fig, stem, **kwargs)
     monkeypatch.setattr(present, "save_figure", inspect)
     present.build_cycle_participation_compound(rate, cycles, tmp_path / "combined")

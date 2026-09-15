@@ -59,60 +59,61 @@ def plot_distribution(
 
 
 def plot_equal_network_distribution(
-    per_tau: dict, rows: list[dict], out_path: Path
+    per_tau: dict, out_path: Path, *, axes=None, panel_labels=None
 ) -> None:
-    """Plot equal-network means with all three network distributions visible."""
+    """Plot equal-network means in one monochrome row."""
     theme.apply()
     taus_sorted = sorted(float(k.removeprefix("tau_")) for k in per_tau)
-    fig, axes = plt.subplots(
-        1,
-        len(taus_sorted),
-        figsize=(6.9, 4.5 * 6.9 / (2.4 * len(taus_sorted))),
-        sharey=True,
-    )
-    if len(taus_sorted) == 1:
-        axes = [axes]
+    standalone = axes is None
+    if standalone:
+        fig, grid = plt.subplots(
+            1,
+            len(taus_sorted),
+            figsize=(6.9, 2.15),
+            sharey=True,
+            squeeze=False,
+            layout="constrained",
+        )
+        axes = grid.ravel()
+    axes = list(axes)
+    labels_for_panels = list(panel_labels) if panel_labels is not None else [
+        chr(ord("A") + i) for i in range(len(taus_sorted))
+    ]
+    if len(axes) != len(taus_sorted) or len(labels_for_panels) != len(taus_sorted):
+        raise ValueError("one axis and panel label are required per decay condition")
+    fig = axes[0].figure
     labels = ["0", "1", "2", "≥3"]
     keys = ("frac_zero", "frac_one", "frac_two", "frac_three_plus")
-    cmap = plt.get_cmap("viridis")
     for i, tau in enumerate(taus_sorted):
         ax = axes[i]
         means = [per_tau[f"tau_{tau:g}"][key] for key in keys]
-        color = cmap(i / max(1, len(taus_sorted) - 1))
-        ax.bar(
-            labels,
-            means,
-            color=color,
-            alpha=0.55,
-            edgecolor=theme.GREY_MID,
-            lw=0.5,
+        ax.bar(labels, means, color="black", edgecolor="black", lw=0.5)
+        ax.set_title(
+            "$\\tau_{\\mathrm{GABA}}$\n" + f"{tau:g} ms",
+            fontsize=theme.SIZE_TITLE,
+            color="black",
+            loc="center",
+            pad=8,
         )
-        networks = sorted(
-            (row for row in rows if row["tau_gaba_ms"] == tau),
-            key=lambda row: row["seed"],
+        ax.text(
+            0.03, 0.97, labels_for_panels[i], transform=ax.transAxes,
+            ha="left", va="top", fontsize=theme.SIZE_PANEL,
+            fontweight="bold", color="black",
         )
-        offsets = np.linspace(-0.12, 0.12, len(networks))
-        for offset, row in zip(offsets, networks, strict=True):
-            ax.scatter(
-                np.arange(4) + offset,
-                [row["network_fracs"][key] for key in keys],
-                s=9,
-                color=theme.INK_BLACK,
-                zorder=3,
-            )
-        ax.set_title(f"τ_GABA = {tau:g} ms", fontsize=theme.SIZE_LABEL)
-        if i == 0:
-            ax.set_ylabel("Equal-network mean fraction", fontsize=theme.SIZE_LABEL)
         ax.spines["top"].set_visible(False)
         ax.spines["right"].set_visible(False)
+        for spine in ax.spines.values():
+            spine.set_color("black")
+        ax.tick_params(colors="black", labelsize=theme.SIZE_LABEL)
         ax.set_ylim(0, 1.05)
-        ax.grid(True, axis="y", alpha=0.15, lw=0.4)
-    theme.label_panels(axes)
-    fig.supxlabel("spikes / (neuron · cycle)", fontsize=theme.SIZE_LABEL)
-    fig.tight_layout()
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    save_figure(fig, out_path)
-    plt.close(fig)
+        ax.set_yticks([0, 0.25, 0.5, 0.75, 1], ["0", "0.25", "0.5", "0.75", "1"])
+        ax.grid(False)
+    if standalone:
+        fig.supxlabel("Spikes per neuron–cycle", fontsize=theme.SIZE_LABEL, color="black")
+        fig.supylabel("Equal-network\nmean fraction", fontsize=theme.SIZE_LABEL, color="black")
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        save_figure(fig, out_path)
+        plt.close(fig)
 
 
 def plot_ceiling_vs_fgamma(rows: list[dict], out_path: Path) -> None:

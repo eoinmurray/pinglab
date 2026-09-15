@@ -211,3 +211,16 @@ networks. This change reuses retained spike evidence; it requires a new analysis
 and presentation but no inference or training. The opportunity-pooled fields and
 figures remain available under their existing names. exp110 was explicitly out
 of scope and remains pinned to its prior exp046 evidence.
+
+## Equal-network figure styling — 2026-09-14
+
+The equal-network distribution is now exp046 Figure 1. Its presentation uses
+black bars without individual-network markers, arranged in a single row of six
+panels with shared axis labels. Exp110 Figure 6C–H redraws the same equal-network
+data using this plotting function; its former Appendix Figure B1 was removed.
+
+Presentation run `exp046-r010-present` reuses `exp046-r007-analyse` without
+new inference or analysis. Its scientific payload matches that analysis exactly.
+The figure was visually inspected, and its visible text bounding boxes do not
+overlap. The existing plotting regression was updated for the requested style;
+the test suite was not run, following the author's pre-commit instruction.

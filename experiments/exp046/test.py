@@ -249,7 +249,7 @@ def test_equal_network_summary_rejects_undefined_network_distribution():
         )
 
 
-def test_equal_network_plot_shows_means_and_networks(tmp_path, monkeypatch):
+def test_equal_network_plot_shows_black_means_without_markers(tmp_path, monkeypatch):
     summary = {
         "tau_6": {
             "frac_zero": 0.45,
@@ -258,29 +258,16 @@ def test_equal_network_plot_shows_means_and_networks(tmp_path, monkeypatch):
             "frac_three_plus": 0,
         }
     }
-    rows = [
-        {
-            "tau_gaba_ms": 6,
-            "seed": seed,
-            "network_fracs": {
-                "frac_zero": zero,
-                "frac_one": 1 - zero,
-                "frac_two": 0,
-                "frac_three_plus": 0,
-            },
-        }
-        for seed, zero in ((42, 0.9), (43, 0.3), (44, 0.15))
-    ]
-
     def inspect(fig, _path):
         ax = fig.axes[0]
         assert [bar.get_height() for bar in ax.patches] == pytest.approx(
             [0.45, 0.55, 0, 0]
         )
-        assert len(ax.collections) == 3
+        assert len(ax.collections) == 0
+        assert all(bar.get_facecolor() == (0, 0, 0, 1) for bar in ax.patches)
 
     monkeypatch.setattr(plots, "save_figure", inspect)
-    plots.plot_equal_network_distribution(summary, rows, tmp_path / "equal")
+    plots.plot_equal_network_distribution(summary, tmp_path / "equal")
 
 
 @pytest.mark.parametrize(

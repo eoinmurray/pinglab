@@ -4,7 +4,7 @@ SLUG = "exp110"
 SOURCE_EXPERIMENT = "exp054"
 SOURCE_STAGE = "analyse"
 RATE_FREQUENCY_SOURCE = "rate_vs_fgamma.svg"
-CYCLE_COUNT_SOURCE = "spikes_per_cycle_distribution.svg"
+CYCLE_COUNT_SOURCE = "spikes_per_cycle_distribution_equal_network.svg"
 PERTURBATION_SOURCE = "numbers.json"
 TIMESTEP_SOURCE = "numbers.json"
 FIGURES = (
@@ -19,7 +19,8 @@ FIGURES = (
 
 def configuration(source_recipe: dict) -> dict:
     return {
-        "schema": "exp110.presentation/v11",
+        "schema": "exp110.presentation/v12",
+        "cycle_count_weighting": "equal_network",
         "figures": (
             "gamma-onset",
             "rate-frequency-and-cycle-participation",
