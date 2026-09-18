@@ -40,10 +40,9 @@ dist/
 node_modules
 .coverage
 
-# demolab (Typst publishing) + experiment scratch + build output
+# demolab (Typst publishing) + build output
 temp/
 tmp/
-.scratch/
 runs/
 .pingstore/
 .r2/

@@ -96,14 +96,6 @@
   }
 }
 
-#let manuscript-note(body) = context {
-  if target() == "html" {
-    html.elem("div", attrs: (style: "color: red;"), body)
-  } else {
-    text(fill: red, body)
-  }
-}
-
 #let render-report(data-file) = [
   #let stream-data = json(data-file("exp082/numbers.json"))
   #let stream-image-policy = stream-data.config.at("image_stream_policy", default: none)
@@ -194,21 +186,6 @@
   }
 
   == Meta
-
-  #manuscript-note([
-    *TODO*
-
-    + Review gradient dampening (P24;
-      #manuscript-appendix-ref(<appendix-a3>, [Appendix A3])).
-    + Review mean-field equations, closure assumptions and the 4-mV
-      voltage-noise scale (P31;
-      #manuscript-appendix-ref(<appendix-c1>, [Appendix C1])).
-    + Review mean-field continuation, onset refinement and
-      amplitude-measurement windows
-      (P32–P33; #manuscript-appendix-ref(<appendix-c2>, [Appendix C2]), Table C1).
-    + Review burst-peak rejection and cycle-boundary discretization
-      (P38, P45; #manuscript-appendix-ref(<appendix-b3>, [Appendix B3])).
-  ])
 
   // Keep these word counts up to date after manuscript edits. Counts use
   // rendered text: section totals exclude headings, figures and tables,
@@ -312,7 +289,7 @@
       (red squares, dashed), without uncertainty intervals. Methods define
       measurements and protocols. Source experiments:
       #link("/exp054/")[exp054] — #link("/exp054/")[_Pinglab Rythmicity Metric_],
-      #link("/exp033/")[exp033] — #link("/exp033/")[_Gamma Emerges at a Hopf Bifurcation_], and
+      #link("/exp033/")[exp033] — #link("/exp033/")[_Mean Field Analysis_], and
       #link("/exp041/")[exp041] — #link("/exp041/")[_Firing Rate Tracks Gamma Frequency._]],
   ) <fig:coupling-plane>
 
