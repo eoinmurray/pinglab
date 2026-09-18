@@ -33,7 +33,7 @@ from pingstore.contracts import (
 )
 
 
-def synthetic(*, version=2):
+def synthetic(*, version=3):
     cfg = recipe.configuration(version=version)
 
     def continuation(grid):

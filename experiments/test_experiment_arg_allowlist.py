@@ -51,6 +51,7 @@ RUNNERS = sorted(
 STAGE_META = {
     "--source",
     "--frequency-source",  # explicit second analysis input
+    "--theory-source",  # explicit theoretical analysis input
     "--run-id",
     "--import-source",
     "--diagnostics",
