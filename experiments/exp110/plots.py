@@ -1,7 +1,6 @@
 """Compose manuscript-owned figures from validated upstream measurements."""
 
 import matplotlib.pyplot as plt
-import numpy as np
 from experiments.exp054 import plots as exp054_plots
 from experiments.helpers import theme
 from experiments.helpers.figsave import save_figure
@@ -12,7 +11,7 @@ def _label_panel(axis, label, *, y=1.04):
     return theme.label_panel(axis, label, x=-0.08, y=y)
 
 
-def build_onset_super_compound(grid, results, hopf, sweep, mf, meas, out_path):
+def build_onset_super_compound(grid, branch, reference, mf, meas, out_path):
     """Combine the exp054 coupling map with its retained onset comparison."""
     previous_paper_mode = theme.PAPER_MODE
     theme.set_paper_mode(True)
@@ -82,39 +81,26 @@ def build_onset_super_compound(grid, results, hopf, sweep, mf, meas, out_path):
         _label_panel(axis, raster_letters[index])
 
     eigen_axis = fig.add_subplot(gs[2, 0])
-    drives = np.array([row["I_ext"] for row in results])
-    eigen_real = np.array([[value[0] for value in row["eigs"]] for row in results])
-    eigen_imag = np.array([[value[1] for value in row["eigs"]] for row in results])
-    scatter = None
-    for index in range(eigen_real.shape[1]):
-        scatter = eigen_axis.scatter(
-            eigen_real[:, index],
-            eigen_imag[:, index],
-            c=drives,
-            cmap="magma",
-            s=4,
-            linewidths=0,
-        )
-    eigen_axis.axvline(0, color=theme.GREY_MID, lw=0.6, ls=":")
-    if hopf:
-        omega = hopf["omega_star"]
-        eigen_axis.scatter(
-            [0, 0],
-            [omega, -omega],
-            facecolors="none",
-            edgecolors=theme.ELECTRIC_CYAN,
-            s=60,
-            lw=1.4,
-            zorder=5,
-        )
-    assert scatter is not None
-    color_axis = eigen_axis.inset_axes((0.27, 0.82, 0.43, 0.04))
-    colorbar = fig.colorbar(scatter, cax=color_axis, orientation="horizontal", ticks=(0, 2, 4))
-    colorbar.set_label("$I_\\text{ext}$ (nA)", fontsize=theme.SIZE_TICK, labelpad=2)
-    colorbar.ax.tick_params(labelsize=theme.SIZE_TICK)
-    colorbar.ax.xaxis.set_label_position("top")
-    eigen_axis.set_xlabel("Re$(\\lambda)$ (ms$^{-1}$)", fontsize=theme.SIZE_LABEL)
-    eigen_axis.set_ylabel("Im$(\\lambda)$ (ms$^{-1}$)", fontsize=theme.SIZE_LABEL)
+    onset = reference["onset"]
+    eigen_axis.plot(
+        branch["drive_nA"],
+        branch["leading_real_per_ms"],
+        color=theme.INK_BLACK,
+        lw=1.2,
+    )
+    eigen_axis.axhline(0, color=theme.GREY_MID, lw=0.6, ls=":")
+    eigen_axis.axvline(onset["drive_nA"], color=theme.AMBER, lw=0.6, ls=":")
+    eigen_axis.scatter(
+        [onset["drive_nA"]],
+        [0],
+        facecolors="none",
+        edgecolors=theme.ELECTRIC_CYAN,
+        s=45,
+        lw=1.2,
+        zorder=5,
+    )
+    eigen_axis.set_xlabel("$I_\\text{ext}$ (nA)", fontsize=theme.SIZE_LABEL)
+    eigen_axis.set_ylabel("leading Re$(\\lambda)$ (ms$^{-1}$)", fontsize=theme.SIZE_LABEL)
     eigen_axis.set_title(
         "Hopf crossing",
         loc="left",
@@ -126,8 +112,8 @@ def build_onset_super_compound(grid, results, hopf, sweep, mf, meas, out_path):
 
     amplitude_axis = fig.add_subplot(gs[2, 1])
     amplitude_axis.plot(
-        [row["I_ext"] for row in sweep["up"]],
-        [row["amp"] for row in sweep["up"]],
+        branch["ramp_drive_nA"],
+        branch["ramp_up_amplitude_per_ms"],
         "o-",
         color=theme.INK_BLACK,
         lw=1.2,
@@ -135,8 +121,8 @@ def build_onset_super_compound(grid, results, hopf, sweep, mf, meas, out_path):
         label="drive ↑",
     )
     amplitude_axis.plot(
-        [row["I_ext"] for row in sweep["down"]],
-        [row["amp"] for row in sweep["down"]],
+        branch["ramp_drive_nA"],
+        branch["ramp_down_amplitude_per_ms"],
         "s--",
         color=theme.DEEP_RED,
         lw=1.0,
@@ -144,7 +130,7 @@ def build_onset_super_compound(grid, results, hopf, sweep, mf, meas, out_path):
         markerfacecolor="none",
         label="drive ↓",
     )
-    amplitude_axis.axvline(hopf["I_ext_star"], color=theme.AMBER, lw=0.6, ls=":")
+    amplitude_axis.axvline(onset["drive_nA"], color=theme.AMBER, lw=0.6, ls=":")
     amplitude_axis.set_xlabel("$I_\\text{ext}$ (nA)", fontsize=theme.SIZE_LABEL)
     amplitude_axis.set_ylabel("E amplitude (ms$^{-1}$)", fontsize=theme.SIZE_LABEL)
     amplitude_axis.set_title(

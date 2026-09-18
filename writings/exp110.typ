@@ -60,7 +60,7 @@
   tags: ("data", "v36.0.0"),
   title: "Manuscript",
   created_at: "2026-09-02T00:00:00Z",
-  updated_at: "2026-09-15",
+  updated_at: "2026-09-18",
   description: "A manuscript scaffold connecting PING circuit dynamics, low-rate task performance, cycle participation, perturbation sensitivity and continuous-stream classification.",
   collection: "gamma-gated-sparsity",
 )
@@ -280,8 +280,8 @@
       *(D–F)* Illustrative 200-ms rasters at $(W_(E I), W_(I E)) = (0, 0)$,
       $(0.6, 1.2)$ and $(3, 6)$ µS; black/red marks show 160 E/48 I neurons.
       A–F have no uncertainty estimates.
-      *(G–H)* Separate four-variable mean-field model. G shows fixed-point
-      eigenvalues across $I_"ext" = 0$–4 nA (colour), with the leading pair
+      *(G–H)* Separate four-variable mean-field model. G shows the leading
+      eigenvalue real part across $I_"ext" = 0$–4 nA, with the zero crossing
       at $I_"ext"^* = 0.594$ nA circled in cyan. H shows upward/downward
       peak-to-peak E-rate amplitudes; the dotted line marks onset.
       *(I)* Mean-field onset frequencies (black circles, solid) and median
@@ -289,7 +289,7 @@
       (red squares, dashed), without uncertainty intervals. Methods define
       measurements and protocols. Source experiments:
       #link("/exp054/")[exp054] — #link("/exp054/")[_Pinglab Rythmicity Metric_],
-      #link("/exp033/")[exp033] — #link("/exp033/")[_Mean Field Analysis_], and
+      #link("/exp115/")[exp115] — #link("/exp115/")[_Numerical Hopf Investigation of PING_], and
       #link("/exp041/")[exp041] — #link("/exp041/")[_Firing Rate Tracks Gamma Frequency._]],
   ) <fig:coupling-plane>
 
@@ -1940,19 +1940,19 @@
   *C2 — Numerical solution details.* <appendix-c2>
 
   We solved the two population-rate self-consistency equations, recovering
-  synaptic conductances from their stationary relations. Each continuation
-  used 401 equally spaced currents over the range specified in Methods.
-  The first solve used the initial rates in Table C1; subsequent solves
-  started from the previous solution. Negative trial rates contributed zero
-  conductance during root finding.
+  synaptic conductances from their stationary relations. Continuations used
+  401, 801 and 1,601 equally spaced currents over the range specified in
+  Methods. The first solve used the initial rates in Table C1; subsequent
+  solves started from the previous solution. An analytic two-rate Jacobian
+  supplied the primary root solve. An independently bracketed scalar solve
+  checked every accepted equilibrium and provided a fallback where needed.
 
-  We calculated the four-variable continuous-time Jacobian by centred
-  finite differences. Among eigenvalues passing the imaginary-part
-  threshold in Table C1, we selected the pair with the largest real part.
-  The first change from negative to nonnegative real part bracketed onset.
-  Brent’s method refined the crossing, recomputing the equilibrium and
-  Jacobian at each trial current. Every refinement solve started from the
-  lower bracket’s equilibrium.
+  We calculated the four-variable continuous-time Jacobian analytically.
+  Sign changes in the quartic Routh–Hurwitz crossing function bracketed
+  candidate onsets. Brent’s method refined each crossing, after which direct
+  eigenvalues, quartic roots, damping of the noncritical pair and positive
+  transversality were checked. Crossing counts and locations also had to
+  agree across all three continuation grids.
 
   The upward amplitude sweep used 25 equally spaced currents from
   $I_"ext"^* - 0.1$ to $I_"ext"^* + 0.55$ nA, where $I_"ext"^*$ is the
@@ -1960,33 +1960,31 @@
   with its excitatory rate increased by $10^(-3) thin "ms"^(-1)$, then
   carried each integration’s final state into the next, including the
   transition to the descending sweep. Amplitudes used the solver’s
-  adaptive output times within the measurement window specified in
-  Methods.
+  fixed 1-ms samples over the final 500 ms of each integration.
 
-  For negative values of the dimensionless gain-integration variable $u$,
-  we evaluated the scaled complementary error function $"erfcx"(-u)$ to
-  avoid cancellation. For nonnegative arguments, the exponent $u^2$ was
-  capped at 700. This numerical correction accompanied the
-  refractory-period change, so differences from earlier calculations
-  cannot be attributed to refractoriness alone.
+  We evaluated the gain integral in scaled form, using the complementary
+  error function and its scaled counterpart to avoid overflow and
+  cancellation. A change of variables resolved the positive-tail boundary
+  layer when the upper integration bound exceeded eight.
 
   #let numerical-settings-table = table(
     columns: (1fr, 2fr),
     table.header([Numerical operation], [Method and setting]),
     [Gain quadrature],
-    [Adaptive QUADPACK integration; absolute and relative tolerances both
-      $1.49 times 10^(-8)$; maximum 200 subintervals],
+    [Adaptive QUADPACK integration; absolute tolerance $10^(-12)$,
+      relative tolerance $10^(-10)$; maximum 200 subintervals],
     [Equilibrium root finding],
-    [MINPACK hybrid method; internally estimated Jacobian;
-      relative-iterate tolerance $1.49012 times 10^(-8)$],
+    [MINPACK hybrid method with analytic Jacobian and iterate tolerance
+      $10^(-10)$; independently bracketed scalar check],
     [Initial equilibrium guess],
     [Excitatory and inhibitory rates $0.005$ and $0.002 thin "ms"^(-1)$,
       respectively],
     [Continuous-time Jacobian],
-    [Centred differences with perturbations $10^(-6) thin "ms"^(-1)$ for
-      rates and $10^(-6)$ µS for conductances],
-    [Complex-eigenvalue eligibility],
-    [Imaginary-part magnitude greater than $10^(-6) thin "ms"^(-1)$],
+    [Analytic four-variable Jacobian with direct eigenvalue and quartic-root
+      cross-checks],
+    [Continuation refinement],
+    [401, 801 and 1,601 current points; accepted crossing locations agree
+      within $10^(-7)$ nA],
     [Onset refinement],
     [Brent’s method; absolute current tolerance $10^(-10)$ nA;
       relative tolerance $10^(-12)$; maximum 100 iterations],
@@ -2003,9 +2001,7 @@
     kind: table,
     numbering: n => "C1",
     caption: [*Numerical settings for mean-field continuation, onset
-      refinement and amplitude sweeps.* Calculations used SciPy 1.15.3.
-      Quadrature tolerances, the equilibrium stopping tolerance and
-      Brent’s iteration limit used library defaults. The absolute
+      refinement and amplitude sweeps.* The absolute
       integration tolerance applied to rates in $"ms"^(-1)$ and
       conductances in µS; relative tolerances were dimensionless. Unlisted
       solver options retained their defaults.],

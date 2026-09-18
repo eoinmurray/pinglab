@@ -8,14 +8,14 @@ rather than copied or bundled here.
 ```sh
 uv run python -m experiments.exp110.present \
   --source <exp054-analysis-run-id> \
-  --theory-source <exp033-analysis-run-id>
+  --theory-source <exp115-analysis-run-id>
 ```
 
 The runner pins the accepted exp041, exp046, exp037 and exp044 presentation
 sources in code; they are not runtime recipe overrides.
 
 For the onset compound, exp110 reads the coupling grid directly from exp054,
-the mean-field onset evidence directly from exp033, and the trained-network
+the mean-field onset and numerical-criticality evidence directly from exp115, and the trained-network
 frequency measurements directly from exp041. It validates and joins these
 independent sources itself. It also
 composes the cycle-participation and robustness syntheses from their explicit

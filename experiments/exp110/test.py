@@ -1,10 +1,10 @@
 from pathlib import Path
 
 import pytest
-from experiments.exp033 import recipe as exp033_recipe
 from experiments.exp054 import plots as exp054_plots
 from experiments.exp054 import recipe as exp054_recipe
 from experiments.exp110 import plots, present, recipe
+from experiments.exp115 import recipe as exp115_recipe
 from PIL import Image
 from pingstore import stages
 from pingstore.contracts import write_json_atomic
@@ -32,7 +32,7 @@ def test_present_records_exp054_analysis_and_exports_only_the_bundle(
         "memberships",
         lambda _: {
             "exp025": "test",
-            "exp033": "test",
+            "exp115": "test",
             "exp038": "test",
             "exp041": "test",
             "exp046": "test",
@@ -51,11 +51,11 @@ def test_present_records_exp054_analysis_and_exports_only_the_bundle(
         tmp_path / ".pingstore", exp054_run.run_id,
         stage="analyse", experiment="exp054",
     )
-    with stages.stage_run(tmp_path, "exp033", "analyse") as exp033_run:
-        (exp033_run.export / "fixture.json").write_text("{}")
-    exp033_analysis = source_run(
-        tmp_path / ".pingstore", exp033_run.run_id,
-        stage="analyse", experiment="exp033",
+    with stages.stage_run(tmp_path, "exp115", "analyse") as exp115_run:
+        (exp115_run.export / "fixture.json").write_text("{}")
+    exp115_analysis = source_run(
+        tmp_path / ".pingstore", exp115_run.run_id,
+        stage="analyse", experiment="exp115",
     )
     presentations = {}
     source_analyses = {}
@@ -100,21 +100,21 @@ def test_present_records_exp054_analysis_and_exports_only_the_bundle(
             experiment=experiment,
         )
     exp054_cfg = exp054_recipe.configuration(smoke=True)
-    exp033_cfg = exp033_recipe.configuration()
+    exp115_cfg = exp115_recipe.configuration()
     exp054_coordinates = {"grid": []}
-    exp033_coordinates = {"sweep": []}
-    exp033_numbers = {
-        "slug": "exp033",
-        "results": {
-            "hopf": {},
-            "criticality": {},
-            "frequency_vs_tau_gaba": {
-                "mean_field": [
-                    {"tau_gaba_ms": tau, "f_star_Hz": 100 / tau}
-                    for tau in (4.5, 6, 9, 12, 18, 27)
-                ]
-            },
-        },
+    exp115_coordinates = {
+        "drive_nA": [], "leading_real_per_ms": [], "ramp_drive_nA": [],
+        "ramp_up_amplitude_per_ms": [], "ramp_down_amplitude_per_ms": [],
+    }
+    exp115_numbers = {
+        "reference": {"onset": {"drive_nA": 0.6}},
+        "conditions": [
+            {
+                "condition": {"tau_GABA_ms": tau, "sigma_mV": 4.0, "kappa": 1.0},
+                "onset": {"frequency_Hz": 100 / tau},
+            }
+            for tau in (4.5, 6, 9, 12, 18, 27)
+        ],
     }
     monkeypatch.setattr(present, "REPO", tmp_path)
     monkeypatch.setattr(
@@ -122,9 +122,9 @@ def test_present_records_exp054_analysis_and_exports_only_the_bundle(
         lambda identity: (exp054_analysis, exp054_cfg, exp054_coordinates),
     )
     monkeypatch.setattr(
-        present, "_exp033_analysis",
+        present, "_exp115_analysis",
         lambda identity: (
-            exp033_analysis, exp033_cfg, exp033_coordinates, exp033_numbers,
+            exp115_analysis, exp115_cfg, exp115_coordinates, exp115_numbers,
         ),
     )
 
@@ -146,7 +146,7 @@ def test_present_records_exp054_analysis_and_exports_only_the_bundle(
     )
     identity = present.present(
         exp054_analysis.record["run_id"],
-        exp033_analysis.record["run_id"],
+        exp115_analysis.record["run_id"],
         presentations["exp041"].record["run_id"],
         presentations["exp046"].record["run_id"],
         presentations["exp037"].record["run_id"],
@@ -157,7 +157,7 @@ def test_present_records_exp054_analysis_and_exports_only_the_bundle(
     )
     assert output.record["inputs"] == {
         "exp054_analysis": exp054_analysis.reference,
-        "exp033_analysis": exp033_analysis.reference,
+        "exp115_analysis": exp115_analysis.reference,
         "exp041_presentation": presentations["exp041"].reference,
         "exp046_presentation": presentations["exp046"].reference,
         "exp041_analysis": source_analyses["exp041"].reference,
@@ -170,7 +170,7 @@ def test_present_records_exp054_analysis_and_exports_only_the_bundle(
     )
     assert output.record["execution"]["configuration"]["source_recipes"] == {
         "exp054": exp054_cfg,
-        "exp033": exp033_cfg,
+        "exp115": exp115_cfg,
     }
 
 def test_cycle_participation_uses_equal_network_means(tmp_path, monkeypatch):

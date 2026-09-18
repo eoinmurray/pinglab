@@ -15,9 +15,9 @@ FIGURES = (
 )
 
 
-def configuration(exp054_recipe: dict, exp033_recipe: dict) -> dict:
+def configuration(exp054_recipe: dict, exp115_recipe: dict) -> dict:
     return {
-        "schema": "exp110.presentation/v13",
+        "schema": "exp110.presentation/v14",
         "cycle_count_weighting": "equal_network",
         "figures": (
             "gamma-onset",
@@ -27,6 +27,6 @@ def configuration(exp054_recipe: dict, exp033_recipe: dict) -> dict:
         "source_stage": "analyse",
         "source_recipes": {
             "exp054": exp054_recipe,
-            "exp033": exp033_recipe,
+            "exp115": exp115_recipe,
         },
     }

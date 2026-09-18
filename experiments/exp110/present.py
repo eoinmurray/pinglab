@@ -12,8 +12,6 @@ import numpy as np
 REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
 
-from experiments.exp033 import evidence as exp033_evidence
-from experiments.exp033 import recipe as exp033_recipe
 from experiments.exp037 import plots as exp037_plots
 from experiments.exp041 import plots as exp041_plots
 from experiments.exp046 import plots as exp046_plots
@@ -21,6 +19,7 @@ from experiments.exp054 import evidence as exp054_evidence
 from experiments.exp054 import plots as exp054_plots
 from experiments.exp054 import recipe as exp054_recipe
 from experiments.exp110 import plots, recipe
+from experiments.exp115 import recipe as exp115_recipe
 from experiments.helpers import theme
 from experiments.helpers.figsave import save_figure
 from pingstore.contracts import PingstoreError, load_json
@@ -75,25 +74,34 @@ def _exp054_analysis(identity: str):
     return analysis, cfg, coordinates
 
 
-def _exp033_analysis(identity: str):
+def _exp115_analysis(identity: str):
     analysis = source_run(
-        REPO / ".pingstore", identity, stage="analyse", experiment="exp033"
+        REPO / ".pingstore", identity, stage="analyse", experiment="exp115"
     )
     if set(analysis.record["inputs"]) != {"compute"}:
-        raise PingstoreError("exp110 requires an independent exp033 analysis")
+        raise PingstoreError("exp110 requires an independent exp115 analysis")
     reference = analysis.record["inputs"]["compute"]
     compute = source_run(
         REPO / ".pingstore", reference["run_id"], stage="compute",
-        experiment="exp033", reference=reference,
+        experiment="exp115", reference=reference,
     )
-    cfg = exp033_recipe.validate(analysis.record["execution"]["configuration"])
+    cfg = exp115_recipe.validate(analysis.record["execution"]["configuration"])
     if compute.record["execution"]["configuration"] != cfg:
-        raise PingstoreError("exp033 analysis and compute recipes differ")
-    coordinates = exp033_evidence.read(analysis.export)
+        raise PingstoreError("exp115 analysis and compute recipes differ")
     numbers = load_json(analysis.export / "results.json")
-    frequency = numbers.get("results", {}).get("frequency_vs_tau_gaba", {})
-    if numbers.get("slug") != "exp033" or set(frequency) != {"mean_field"}:
-        raise PingstoreError("unsupported independent exp033 analysis")
+    if (
+        numbers.get("schema") != "exp115.analysis/v2"
+        or numbers.get("reference", {}).get("condition") != cfg["reference"]
+    ):
+        raise PingstoreError("unsupported independent exp115 analysis")
+    with np.load(analysis.export / "reference-branch.npz", allow_pickle=False) as saved:
+        expected = {
+            "drive_nA", "leading_real_per_ms", "ramp_drive_nA",
+            "ramp_up_amplitude_per_ms", "ramp_down_amplitude_per_ms",
+        }
+        if set(saved.files) != expected:
+            raise PingstoreError("unsupported exp115 reference coordinates")
+        coordinates = {key: saved[key].copy() for key in expected}
     return analysis, cfg, coordinates, numbers
 
 
@@ -258,7 +266,7 @@ def build_robustness_compound(
 
 def present(
     exp054_identity: str,
-    exp033_identity: str,
+    exp115_identity: str,
     exp041_identity: str,
     exp046_identity: str,
     exp037_identity: str,
@@ -267,8 +275,8 @@ def present(
     run_id: str | None = None,
 ) -> str:
     exp054_analysis, exp054_cfg, exp054_coordinates = _exp054_analysis(exp054_identity)
-    exp033_analysis, exp033_cfg, exp033_coordinates, exp033_numbers = _exp033_analysis(
-        exp033_identity
+    exp115_analysis, exp115_cfg, exp115_coordinates, exp115_numbers = _exp115_analysis(
+        exp115_identity
     )
     exp041, _ = _source_figure(
         exp041_identity, "exp041", recipe.RATE_FREQUENCY_SOURCE
@@ -285,11 +293,17 @@ def present(
     rate_analysis = _presentation_analysis(exp041, "exp041")
     cycle_analysis = _presentation_analysis(exp046, "exp046")
     rate_numbers = load_json(rate_analysis.export / "results.json")
-    mean_field = exp033_numbers["results"]
-    tau_grid = [
-        row["tau_gaba_ms"]
-        for row in mean_field["frequency_vs_tau_gaba"]["mean_field"]
+    mean_field = [
+        {
+            "tau_gaba_ms": row["condition"]["tau_GABA_ms"],
+            "f_star_Hz": row["onset"]["frequency_Hz"],
+        }
+        for row in exp115_numbers["conditions"]
+        if row["condition"]["sigma_mV"] == 4.0
+        and row["condition"]["kappa"] == 1.0
+        and row["onset"] is not None
     ]
+    tau_grid = [row["tau_gaba_ms"] for row in mean_field]
     measured_frequency = _spiking_frequency_medians(rate_numbers, tau_grid)
     with (
         stage_run(
@@ -298,7 +312,7 @@ def present(
             "present",
             inputs={
                 "exp054_analysis": exp054_analysis,
-                "exp033_analysis": exp033_analysis,
+                "exp115_analysis": exp115_analysis,
                 "exp041_presentation": exp041,
                 "exp046_presentation": exp046,
                 "exp041_analysis": rate_analysis,
@@ -307,16 +321,15 @@ def present(
                 "exp044_presentation": exp044,
             },
             run_id=run_id,
-            configuration=recipe.configuration(exp054_cfg, exp033_cfg),
+            configuration=recipe.configuration(exp054_cfg, exp115_cfg),
         ) as run,
         exp054_plots.configured(exp054_cfg),
     ):
         plots.build_onset_super_compound(
             exp054_coordinates["grid"],
-            exp033_coordinates["sweep"],
-            mean_field["hopf"],
-            mean_field["criticality"],
-            mean_field["frequency_vs_tau_gaba"]["mean_field"],
+            exp115_coordinates,
+            exp115_numbers["reference"],
+            mean_field,
             measured_frequency,
             run.export / "onset_super_compound",
         )
@@ -337,7 +350,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source", required=True, help="completed exp054 analysis run")
     parser.add_argument(
-        "--theory-source", required=True, help="completed exp033 analysis run"
+        "--theory-source", required=True, help="completed exp115 analysis run"
     )
     parser.add_argument("--run-id", help="fresh v4 identity reserved before dispatch")
     arguments = parser.parse_args()
