@@ -10,8 +10,8 @@
   tags: ("data", "v36.0.0"),
   title: "Pinglab Rythmicity Metric",
   created_at: "2026-06-15T00:00:00Z",
-  updated_at: "2026-09-09",
-  description: "Lobe–trough contrast across untrained PING coupling strengths, with private- and shared-input null controls and a separate mean-field onset comparison.",
+  updated_at: "2026-09-18",
+  description: "Lobe–trough contrast across untrained PING coupling strengths, with private- and shared-input null controls.",
   collection: "gamma-gated-sparsity",
 )
 
@@ -148,10 +148,10 @@
 
   #journal-methods(
     orientation: [
-  Untrained PING populations tested coupling-dependent temporal structure; uncoupled controls tested the influence of input sharing. We reused the spiking recordings and replaced the separate mean-field comparison with newly computed conductance-model results at matching refractory durations.
+  Untrained PING populations tested coupling-dependent temporal structure; uncoupled controls tested the influence of input sharing. No external theory or trained-network measurements entered this experiment.
     ],
     compute: [
-  + *Sweep coupling.* We simulated 1,024 E and 256 I neurons at all 11×11 combinations of $W_(E I) = 0$–3 µS and $W_(I E) = 0$–6 µS. Each E neuron received a private 100 Hz Poisson channel with identity weight 0.5. We used a 6 ms GABA decay constant, seed 42, one trial, 0.1 ms steps and 1,000 ms recordings; we discarded the first 100 ms. E/I reset holds were 1.2/0.6 ms. These 136 recordings were reused unchanged for the refreshed theory comparison.
+  + *Sweep coupling.* We simulated 1,024 E and 256 I neurons at all 11×11 combinations of $W_(E I) = 0$–3 µS and $W_(I E) = 0$–6 µS. Each E neuron received a private 100 Hz Poisson channel with identity weight 0.5. We used a 6 ms GABA decay constant, seed 42, one trial, 0.1 ms steps and 1,000 ms recordings; we discarded the first 100 ms. E/I reset holds were 1.2/0.6 ms.
   + *Construct uncoupled controls.* We set both coupling strengths to zero. We scanned private input at 1/2/5/10/20/40/70/100 Hz and shared input at 8/12/16/20/28/40/60/100 Hz. Shared input used 200 channels, weight 0.2 and 95% initial zero connections. The 100 Hz private origin was shared with the coupling grid, giving 136 unique probes.
     ],
     analyse: [
@@ -167,12 +167,11 @@
     $ R_"contrast" = (A_"lobe" - A_"trough") / (A_"lobe" + A_"trough"). $ <exp054-contrast>
 
     For $0 <= "trough" <= "lobe"$ and a positive denominator, this lies in $[0,1]$. A missing trough or invalid denominator leaves the score undefined; no trough floor is imposed on contrast.
-  + *Compare mean-field onset.* We used the conductance model described in #link("/exp033/")[exp033] — #link("/exp033/")[_Gamma Emerges at a Hopf Bifurcation_] at 4 mV effective noise, 6 ms GABA decay and 1.2/0.6-ms E/I refractory periods. The refreshed calculation used the cancellation-resistant gain integral specified there. In that separate calculation, we continued fixed points over 401 drives from 0–4 nA and refined the leading-eigenvalue crossing with Brent's method. We swept 25 drives from 0.1 nA below to 0.55 nA above the crossing in both directions, carrying endpoint states. We integrated 2 s per drive with LSODA, recorded the trajectories and measured peak-to-peak E-rate amplitude ($"ms"^(-1)$) over the final 500 ms. The resulting onset was 0.594 nA at 27.6 Hz. The drive sweep was separate from the spiking coupling sweep; we reused its completed numerical results here without another solve.
     ],
     present: [
-  #set enum(start: 6)
+  #set enum(start: 5)
 
-  + *Compare frequencies.* We repeated the theoretical crossing search at inhibitory decays 4.5/6/9/12/18/27 ms. We reused the median frequency across three seeded spiking classifiers from #link("/exp041/")[exp041] — #link("/exp041/")[_Firing Rate Tracks Gamma Frequency_] at each decay; we did not refit the mean-field noise scale.
+  + *Present the retained measurements.* We displayed coupling maps, representative rasters, autocorrelograms and input-sharing controls from the saved exp054 analysis.
     ],
   )
   #run-view("exp054", inputs)
@@ -194,7 +193,7 @@
 } else {
   pending-report(
     data-file, inputs,
-    [Where does gamma appear in the excitatory–inhibitory coupling plane? Compare activity, rhythm diagnostics, null controls, and the mean-field onset prediction.],
+    [Where does gamma appear in the excitatory–inhibitory coupling plane? Compare activity, rhythm diagnostics, and null controls.],
     preview-figures, json-inputs: (),
   )
 }

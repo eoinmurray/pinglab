@@ -9,10 +9,10 @@
 
 #let meta = (
   tags: ("data", "v36.0.0"),
-  title: "Gamma Emerges at a Hopf Bifurcation",
+  title: "Mean Field Analysis",
   created_at: "2026-05-28T00:00:00Z",
-  updated_at: "2026-09-09",
-  description: "A four-variable population-rate model links oscillatory onset to synaptic timescales, with explicit limits on its connection to spiking recruitment.",
+  updated_at: "2026-09-18",
+  description: "A standalone four-variable population-rate model links oscillatory onset to synaptic timescales and tests which dynamical variables are required.",
   collection: "gamma-gated-sparsity",
 )
 
@@ -58,6 +58,17 @@
 
 
 #let body = [
+  #context {
+    let note = [*TODO:* Investigate and justify the choice of the 4 mV effective
+      voltage-noise scale, including whether it can be estimated or calibrated
+      from the spiking model.]
+    if target() == "html" {
+      html.elem("div", attrs: (style: "color: red;"), note)
+    } else {
+      text(fill: red, note)
+    }
+  }
+
   #journal-abstract(body: [
   We asked how gamma oscillations begin in a population description of the PING
   circuit and which variables are essential. We swept drive, inhibitory timescale
@@ -77,9 +88,8 @@
   === Hopf onset and frequency
 
   At the reference noise scale of 4 mV, one conjugate pair crossed at #istar nA
-  with onset frequency #fstar Hz. Up/down amplitudes nearly coincided, and the
-  inhibitory-decay trend agreed qualitatively with separately measured spiking
-  rhythms. We treat this as a candidate explanation of the
+  with onset frequency #fstar Hz. Up/down amplitudes nearly coincided, and onset
+  frequency decreased as inhibitory decay increased. We treat this as a candidate explanation of the
   #link("/exp025/")[exp025] — #link("/exp025/")[_Accuracy and Firing Rate With and Without Inhibition_], whose empirical
   marker is an inhibitory-rate crossing under input-weight scaling, not a fitted
   Hopf current. The model alone identifies neither that transition nor a minimum
@@ -202,9 +212,9 @@
 
   #journal-methods(
     orientation: [
-  We recomputed the deterministic population-rate model with 1.2/0.6-ms E/I
-  refractory periods and a cancellation-resistant gain integral, then compared
-  its onset frequencies with unchanged measurements from trained spiking networks.
+  We computed the deterministic population-rate model with 1.2/0.6-ms E/I
+  refractory periods and a cancellation-resistant gain integral. No spiking-network
+  measurements entered its computation, analysis or presentation.
     ],
     compute: [
   + *Define the population model.* E/I rates relaxed toward noisy LIF gains
@@ -252,10 +262,8 @@
 
   + *Vary noise and inhibitory decay.* Noise scales 3–6 mV used 121- and
     241-point drive grids over 0–1.2 nA, with refined crossings and repeated
-    amplitude tests. At six inhibitory decays, onset frequencies were compared
-    with three-seed medians of reused final-epoch spiking measurements.
-    Each network frequency came from the interpolated peak of trial-averaged
-    population spectra; these were not medians of individual-trial peaks.
+    amplitude tests. We repeated the theoretical crossing search at inhibitory
+    decays of 4.5, 6, 9, 12, 18 and 27 ms.
     ],
     present: [
   #set enum(start: 6)
@@ -661,15 +669,6 @@
   conductance in 2D by $2 times 10^(-3)$ µS. These probes are not matched
   perturbation-energy comparisons.
 
-  The spiking comparator comprised 18 independently trained networks: three
-  seeds at each inhibitory decay of 4.5, 6, 9, 12, 18 and 27 ms. Final-epoch
-  measurements used 1,000 fixed MNIST test images and 200 ms trials. Population
-  traces were demeaned, full-trial Hann-window power spectra averaged over
-  images, and a 5–150 Hz peak interpolated with its neighbouring bins before
-  taking the three-network median. Onset eigenfrequencies and finite-drive
-  spiking spectral peaks are different measurements. The comparison does not
-  identify a causal contribution of gamma timing to classifier accuracy.
-
   === What the amplitude ramps test
 
   The measured amplitude is
@@ -717,13 +716,10 @@
   crossing. No calibration equates it with this model's current threshold.
   The equilibrium at onset had E/I rates #estar/#irate Hz and is not silent.\]
 
-  The original frequency interpretation was that slower inhibition acts as
-  the clock and that synchronous excitatory volleys sharpen the spiking
-  rhythm, particularly at short inhibitory decay.
-  \[(!) The descending frequency trends support a timescale connection, but
-  the spiking networks were separately retrained. Synchrony was not isolated
-  as the cause of the mismatch, and the mean-field curve crosses above the
-  spiking curve at 27 ms rather than remaining below throughout.\]
+  The inhibitory-decay sweep tests whether slower inhibition sets a slower
+  intrinsic clock in the mean-field model. Its descending onset-frequency trend
+  establishes that model-internal timescale relationship; comparison with a
+  spiking model is a separate synthesis rather than evidence owned here.
 
   The waveforms illustrate E recruitment of I followed by inhibition of E,
   with near-sinusoidal rates. The earlier account identified the measured
