@@ -47,12 +47,20 @@ launch another stage or publish.
    interval or an unstable periodic orbit. It classifies sampled behaviour of
    the deterministic closure, not the separate spiking network.
 
-## Execution status
+## Completed recipe-v3 execution — 18 September 2026
 
-Recipe v3 has not been executed. The article therefore remains text-only and
-reports no revised onset, frequency or criticality results.
+The validated lineage is `exp115-r007-compute` → `exp115-r008-analyse` →
+`exp115-r009-present`. All 120 closure conditions contained one accepted Hopf
+onset. All six reference-closure decay-time ramps were consistent with
+supercriticality under the predefined finite-grid criteria; none was unresolved
+or classified subcritical/inconclusive.
+
+The reference condition had onset drive 0.5939047777721255 nA and frequency
+27.566444771089603 Hz. Its branch gap was 7.424340296782739e-6 /ms and its
+amplitude-squared fit had R² 0.9994110749117254. Across the six decay times,
+onset frequency decreased from 30.197527262692226 to 17.940004453875506 Hz.
 
 The earlier recipe-v2 lineage `exp115-r004-compute` → `exp115-r005-analyse` →
 `exp115-r006-present` calculated first Lyapunov coefficients. Those immutable
-runs remain historical evidence but are not inputs to the revised experiment or
-article. They must not be relabelled as amplitude-ramp results.
+runs remain historical evidence but are not inputs to the revised article. They
+must not be relabelled as amplitude-ramp results.

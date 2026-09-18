@@ -11,7 +11,7 @@
 #let equation-range(first, last) = [equations #ref(first, supplement: none)–#ref(last, supplement: none)]
 
 #let meta = (
-  tags: ("txt", "v36.0.0"),
+  tags: ("data", "v36.0.0"),
   title: "Numerical Hopf Investigation of PING",
   created_at: "2026-09-18T00:00:00Z",
   updated_at: "2026-09-18",
@@ -19,7 +19,7 @@
   collection: "gamma-gated-sparsity",
 )
 
-#let inputs = ()
+#let inputs = ("exp115",)
 #let preview-figures = (
   (path: "exp115/hopf-compound.svg", label: "Hopf onset and closure sensitivity"),
 )
@@ -58,7 +58,7 @@
 
 #let methods-section = journal-methods(
   orientation: [
-    We designed equilibrium, Hopf-onset and time-domain criticality calculations for the
+    We calculated equilibrium, Hopf-onset and time-domain criticality evidence for the
     deterministic mean-field closure. The calculations describe this closure;
     they do not establish a bifurcation in the separate spiking network.
   ],
@@ -80,47 +80,47 @@
       states the closure assumptions.
     ]),
     method-card([Specify the closure conditions], [
-      We will evaluate 120 deterministic conditions crossing six inhibitory decay times
+      We evaluated 120 deterministic conditions crossing six inhibitory decay times
       $tau_"GABA"$, four effective voltage-noise scales $sigma_V$ and five
       rate-relaxation multipliers $kappa$, using the tabulated grids. The
       reference values are 6 ms, 4 mV and 1, respectively. For population
       $P in {E,I}$, rate relaxation time $tau_(r,P)$ is $kappa$ times membrane
       time constant $tau_(m,P)$. Noise scale and relaxation are prescribed
       closure choices, with no fit to spiking activity. Summed event couplings
-      will be held fixed, so changing inhibitory decay also changes stationary
+      were held fixed, so changing inhibitory decay also changed stationary
       feedback strength.
     ]),
     method-card([Continue the equilibrium], [
-      We will evaluate the exponentially scaled Siegert integral by adaptive
+      We evaluated the exponentially scaled Siegert integral by adaptive
       quadrature and its
       first two current derivatives analytically
       (#link(<app:exp115-gain>)[Appendix B]), using the first-passage construction
       detailed by Kreutz-Delgado.#cite(4) A Powell hybrid solver with an
-      analytic Jacobian will continue the coupled rate equations over 401 evenly
+      analytic Jacobian continued the coupled rate equations over 401 evenly
       spaced drives from 0 to 4 nA, initialized by the tabulated rates and then
       the preceding equilibrium. An independent scalar Brent solve of
-      @eq:exp115-scalar-residual will check each solution and supply a fallback.
+      @eq:exp115-scalar-residual checked each solution and supplied a fallback.
       Acceptance required physical rates and scaled residuals below $10^(-10)$.
-      Equilibria will be shared across $kappa$, which does not change the
-      equilibrium equations; flow residuals and Jacobians will be recomputed for
+      Equilibria were shared across $kappa$, which does not change the
+      equilibrium equations; flow residuals and Jacobians were recomputed for
       every condition. Failed solves could not form continuation brackets.
     ]),
     method-card([Locate Hopf crossings and onset], [
-      We will bracket every sampled sign change in the difference between the
+      We bracketed every sampled sign change in the difference between the
       gain-dependent loop product $K$ and its critical value $K_H$, defined in
-      #link(<app:exp115-hopf>)[Appendix C]. Brent refinement will use
+      #link(<app:exp115-hopf>)[Appendix C]. Brent refinement used
       absolute tolerance $10^(-10)$ nA and relative tolerance $10^(-12)$,
       recomputing the equilibrium at each trial. Acceptance required a simple
       nonzero imaginary eigenvalue pair, two damped remaining modes and a
-      resolved nonzero crossing derivative. We will select the first
+      resolved nonzero crossing derivative. We selected the first
       stable-to-unstable crossing as onset only when the lower-drive branch was
-      stable. Its drive is $I_"ext"^*$. We will calculate its frequency
+      stable. Its drive is $I_"ext"^*$. We calculated its frequency
       $f_"Hopf"$, in Hz, from the quartic identity @eq:exp115-hopf-frequency
-      and check agreement with the critical eigenvalue's positive imaginary
+      and checked agreement with the critical eigenvalue's positive imaginary
       part, in rad/ms, multiplied by $1000/(2 pi)$.
     ]),
     method-card([Test sampled criticality], [
-      At the reference noise scale and relaxation multiplier, we will integrate
+      At the reference noise scale and relaxation multiplier, we integrated
       25 drives from 0.10 nA below to 0.55 nA above each accepted onset, first
       upward and then downward while carrying each final state into the next
       step. Each step lasts 2,000 ms; peak-to-peak excitatory-rate amplitude is
@@ -130,18 +130,18 @@
       $I_"ext"-I_"ext"^*$ above onset, and $R^2>0.9$.
     ]),
     method-card([Check numerical convergence], [
-      We apply #link(<app:exp115-numerics>)[Appendix D]'s residual and spectral
+      We applied #link(<app:exp115-numerics>)[Appendix D]'s residual and spectral
       criteria at every candidate crossing. Checks include 801- and 1,601-point
       drive grids with tighter quadrature, equilibrium and root tolerances.
       Acceptance requires matching crossing counts and directions, onset-drive
       changes below $10^(-7)$ nA and frequency changes below $10^(-4)$ Hz.
     ]),
     method-card([Record condition-level sensitivity], [
-      We will record equilibrium rates, conductances and Jacobian eigenvalues along each
+      We recorded equilibrium rates, conductances and Jacobian eigenvalues along each
       drive branch; every resolved crossing's drive, frequency and crossing
       derivative; the six time-domain ramps; and the corresponding residuals
       and convergence discrepancies. Comparisons retain the closure
-      condition and distinguish resolved crossings, intervals without a
+      condition and distinguished resolved crossings, intervals without a
       resolved crossing, and failed or unresolved calculations. Variation
       across closure choices is deterministic sensitivity, not sampling
       uncertainty. Finite ramps cannot exclude a narrower bistable interval or
@@ -569,22 +569,93 @@
   deterministic closure, not the separate spiking network.
 ]
 
-#let report-body = [
+#let render-report(data-file) = [
+  #let numbers = data-json(data-file("exp115/numbers.json"))
+  #let onset = numbers.reference.onset
+  #let criticality = numbers.reference.criticality
+  #let ramps = numbers.conditions.filter(row => row.criticality != none)
+  #let gaps = ramps.map(row => row.criticality.branch_gap_per_ms)
+  #let r2-values = ramps.map(row => row.criticality.amplitude_squared_r2)
+  #let reference-decays = numbers.conditions.filter(row =>
+    row.condition.sigma_mV == 4 and row.condition.kappa == 1
+  ).sorted(key: row => row.condition.tau_GABA_ms)
+
   #journal-abstract(body: [
-    We ask whether a four-variable mean-field closure of the canonical
+    We tested whether a four-variable mean-field closure of the canonical
     conductance-based PING circuit develops an oscillatory instability and
     whether its finite-amplitude onset is numerically consistent with a
     supercritical transition.
 
-    The revised experiment combines equilibrium continuation with matched
-    upward and downward time-domain ramps across inhibitory decay. It has not
-    yet been executed, so no onset, frequency or criticality result is reported.
-    Any future result will describe the closure rather than establish the same
-    bifurcation in the separate spiking network.
+    Equilibrium continuation resolved one Hopf onset in every tested closure
+    condition. Matched time-domain ramps were consistent with supercriticality
+    at all six inhibitory decay times, while onset frequency decreased with
+    inhibitory decay. These results characterize the deterministic closure, not
+    the separate spiking network.
   ])
 
   #parameter-section
+
+  == Results
+
+  #with-result-sections[
+    #journal-result-card(
+      title: "Sampled onset is supercritical",
+      observation: [
+        The reference equilibrium lost stability at
+        #calc.round(onset.drive_nA, digits: 6) nA with onset frequency
+        #calc.round(onset.frequency_Hz, digits: 2) Hz
+        (#result-figure-ref(<fig:exp115-hopf>, panel: "A")). Its upward and
+        downward amplitude branches nearly coincided: the maximum branch gap was
+        #calc.round(criticality.branch_gap_per_ms, digits: 8) $"ms"^(-1)$ and
+        the amplitude-squared fit had $R^2=#calc.round(criticality.amplitude_squared_r2, digits: 4)$
+        (#result-figure-ref(<fig:exp115-hopf>, panel: "B")). All
+        #numbers.summary.criticality_ramps decay-time ramps met the predefined
+        criteria for consistency with supercriticality; their largest branch gap
+        was #calc.round(calc.max(..gaps), digits: 8) $"ms"^(-1)$ and their
+        minimum $R^2$ was #calc.round(calc.min(..r2-values), digits: 4).
+        Across the reference decay series, predicted onset frequency fell from
+        #calc.round(reference-decays.first().onset.frequency_Hz, digits: 2) to
+        #calc.round(reference-decays.last().onset.frequency_Hz, digits: 2) Hz
+        (#result-figure-ref(<fig:exp115-hopf>, panel: "C")). Finite ramps cannot
+        exclude a narrower bistable interval or an unstable periodic orbit, and
+        they do not establish criticality in the spiking network.
+      ],
+      visual: [
+        #figure(
+          data-image(
+            data-file("exp115/hopf-compound.svg"),
+            width: 100%,
+            alt: "Three-panel mean-field calculation showing the leading eigenvalue crossing, matched upward and downward oscillation-amplitude ramps, and onset frequency across inhibitory decay and closure choices.",
+          ),
+          caption: [
+            *Hopf onset, sampled criticality and closure sensitivity.*
+            *A:* Largest real part of the equilibrium Jacobian eigenvalues versus
+            tonic drive at $tau_"GABA"=6$ ms, $sigma_V=4$ mV and $kappa=1$;
+            the red marker identifies the refined onset.
+            *B:* Upward and downward peak-to-peak excitatory-rate amplitudes over
+            the final 500 ms of each 2-s drive step at the same reference closure;
+            the dotted line marks the refined onset.
+            *C:* Eigenvalue-derived onset frequency versus inhibitory decay.
+            The black curve fixes $sigma_V=4$ mV and $kappa=1$; grey curves show
+            the other 19 closure choices. Each curve is deterministic, without
+            replicate averaging or statistical uncertainty intervals.
+          ],
+          kind: image,
+          supplement: [Figure],
+        ) <fig:exp115-hopf>
+      ],
+    )
+  ]
 ]
+
+#let report-body = if inputs-ready(data-file, inputs) {
+  render-report(data-file)
+} else {
+  [
+    #parameter-section
+    #pending-report(data-file, inputs, [], preview-figures)
+  ]
+}
 
 #let meta = meta + (assets: input-assets("exp115", inputs))
 #let body = journal-article("exp115", inputs, [
