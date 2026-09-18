@@ -9,11 +9,11 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 
-from experiments.exp033 import evidence as exp033_evidence
-from experiments.exp033 import recipe as exp033_recipe
 REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
 
+from experiments.exp033 import evidence as exp033_evidence
+from experiments.exp033 import recipe as exp033_recipe
 from experiments.exp037 import plots as exp037_plots
 from experiments.exp041 import plots as exp041_plots
 from experiments.exp046 import plots as exp046_plots
