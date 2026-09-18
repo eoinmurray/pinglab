@@ -128,3 +128,19 @@ opportunity pooling were removed. The summary reports 76.35% zero-spike,
 These are means across the 18 equally weighted networks, not newly measured data.
 No training, inference or analysis was rerun. The existing plotting regression
 was updated; tests were not run under the author's pre-commit instruction.
+
+## 2026-09-18 — Numerical criticality source
+
+Presentation recipe v14 replaces exp033 with `exp115-r008-analyse` as the
+mean-field source. Figure 2G now shows the leading eigenvalue real part across
+drive; Figure 2H uses exp115's fixed-sample upward/downward amplitude ramps;
+Figure 2I uses its six refined onset frequencies. The manuscript Appendix C now
+matches exp115's analytic Jacobians, three continuation grids, scaled gain
+quadrature and numerical criticality criteria.
+
+The completed presentation is `exp110-r029-present`, retaining
+`exp054-r016-analyse` and the prior exp037, exp041, exp044 and exp046 sources.
+Its payload digest is
+`sha256:e42da7a0410d941b277a2a1172c27a803b533153e3e9602a65cff5da5d22ae02`.
+No simulation, training or analysis was rerun. Five exp110 tests, Ruff, visual
+inspection of Figure 2 and the 22-entry Demolab build passed.
