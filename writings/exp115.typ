@@ -593,8 +593,6 @@
     the separate spiking network.
   ])
 
-  #parameter-section
-
   == Results
 
   #with-result-sections[
@@ -651,16 +649,14 @@
 #let report-body = if inputs-ready(data-file, inputs) {
   render-report(data-file)
 } else {
-  [
-    #parameter-section
-    #pending-report(data-file, inputs, [], preview-figures)
-  ]
+  pending-report(data-file, inputs, [], preview-figures)
 }
 
 #let meta = meta + (assets: input-assets("exp115", inputs))
 #let body = journal-article("exp115", inputs, [
   #report-body
   #methods-section
+  #parameter-section
   #mathematical-appendices
   #journal-references((
     (text: [C. Börgers and N. Kopell. “Synchronization in Networks of

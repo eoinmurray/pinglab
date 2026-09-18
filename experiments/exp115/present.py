@@ -16,15 +16,17 @@ import numpy as np
 from experiments.exp115 import recipe
 from experiments.exp115.compute import environment
 from experiments.helpers import theme
+from experiments.helpers.figsave import save_figure
 from pingstore.contracts import PingstoreError, load_json, write_json_atomic
 from pingstore.stages import source_run, stage_run
 
 
 def compound(numbers, coordinates, cfg, destination):
+    previous_paper_mode = theme.PAPER_MODE
     theme.set_paper_mode(True)
     theme.apply()
     fig, axes = plt.subplots(
-        1, 3, figsize=(180 / 25.4, 77 / 25.4), layout="constrained"
+        1, 3, figsize=(180 / 25.4, 64 / 25.4)
     )
     ax = axes[0]
     ax.plot(
@@ -45,11 +47,12 @@ def compound(numbers, coordinates, cfg, destination):
             (onset["drive_nA"], 0),
             xytext=(5, 8),
             textcoords="offset points",
-            fontsize=7,
+            fontsize=theme.SIZE_ANNOTATION,
         )
     else:
         ax.text(
-            0.04, 0.96, "Onset unresolved", transform=ax.transAxes, va="top", fontsize=7
+            0.04, 0.96, "Onset unresolved", transform=ax.transAxes,
+            va="top", fontsize=theme.SIZE_ANNOTATION,
         )
     ax.set(xlabel="Tonic drive (nA)", ylabel=r"Leading Re$(\lambda_J)$ (ms$^{-1}$)")
     by_condition = {
@@ -75,15 +78,20 @@ def compound(numbers, coordinates, cfg, destination):
             coordinates["ramp_down_amplitude_per_ms"],
             color=theme.DEEP_RED,
             linewidth=0.9,
-            marker="o",
+            linestyle="--",
+            marker="s",
             markersize=2.0,
+            markerfacecolor="white",
             label="Downward ramp",
         )
         if onset is not None:
             axes[1].axvline(onset["drive_nA"], color=theme.GREY_MID, linewidth=0.7, linestyle=":")
-        axes[1].legend(loc="best", fontsize=6, frameon=False)
+        axes[1].legend(loc="best", fontsize=theme.SIZE_LEGEND, frameon=False)
     else:
-        axes[1].text(0.04, 0.96, "Ramps unresolved", transform=axes[1].transAxes, va="top", fontsize=7)
+        axes[1].text(
+            0.04, 0.96, "Ramps unresolved", transform=axes[1].transAxes,
+            va="top", fontsize=theme.SIZE_ANNOTATION,
+        )
     axes[1].set(xlabel="Tonic drive (nA)", ylabel=r"E amplitude (pk–pk, ms$^{-1}$)")
     reference = (cfg["reference"]["sigma_mV"], cfg["reference"]["kappa"])
     pairs = [(sigma, kappa) for sigma in cfg["sigma_grid_mV"] for kappa in cfg["kappa_grid"]]
@@ -103,12 +111,13 @@ def compound(numbers, coordinates, cfg, destination):
         )
     axes[2].set_xlabel(r"Inhibitory decay $\tau_{GABA}$ (ms)")
     axes[2].set_ylabel(r"Onset frequency $f_{Hopf}$ (Hz)")
-    for letter, title, ax in zip(
-        "ABC", ("Equilibrium stability", "Amplitude ramps", "Onset frequency"), axes
+    for title, ax in zip(
+        ("Equilibrium stability", "Amplitude ramps", "Onset frequency"), axes
     ):
-        ax.set_title(f"{letter}  {title}", fontsize=8, loc="left")
+        ax.set_title(title, fontsize=theme.SIZE_LABEL, loc="left", fontweight="semibold")
         ax.spines[["top", "right"]].set_visible(False)
-        ax.tick_params(labelsize=7)
+        ax.tick_params(labelsize=theme.SIZE_TICK)
+    theme.label_panels(axes)
     from matplotlib.lines import Line2D
 
     axes[2].legend(
@@ -117,12 +126,18 @@ def compound(numbers, coordinates, cfg, destination):
             Line2D([], [], color=theme.GREY_LIGHT, label="Other closure choices"),
         ],
         loc="best",
-        fontsize=6,
+        fontsize=theme.SIZE_LEGEND,
         frameon=False,
     )
-    fig.savefig(destination / "hopf-compound.svg")
-    fig.savefig(destination / "hopf-compound.png", dpi=220)
+    fig.subplots_adjust(left=0.075, right=0.985, bottom=0.25, top=0.83, wspace=0.47)
+    save_figure(
+        fig,
+        destination / "hopf-compound",
+        formats=("svg", "png"),
+    )
     plt.close(fig)
+    theme.set_paper_mode(previous_paper_mode)
+    theme.apply()
 
 
 def present(identity, *, run_id=None):
