@@ -11,7 +11,8 @@ sys.path[:0] = [str(REPO), str(REPO / "tools")]
 
 from experiments.exp054 import evidence, inputs, recipe
 from experiments.helpers.run_cli import run_cli
-from pingstore.contracts import PingstoreError, load_json, write_json_atomic
+from pingstore.contracts import load_json, write_json_atomic
+
 
 def compute(*, run_id=None):
     cfg = recipe.configuration(smoke=os.environ.get("PINGLAB_SMOKE") == "1")

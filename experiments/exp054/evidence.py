@@ -8,6 +8,7 @@ from pingstore.contracts import PingstoreError, load_json, write_json_atomic
 
 from . import recipe
 
+
 def write(directory, document):
     arrays = {}
 

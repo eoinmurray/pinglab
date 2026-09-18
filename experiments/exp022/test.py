@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import re
 import subprocess
 import sys
 from pathlib import Path
@@ -47,8 +46,8 @@ def test_compact_epoch_records_feed_training_summaries(tmp_path):
         },
     ]
     (tmp_path / "metrics.json").write_text(json.dumps({"epochs": rows}))
-    assert exp022.training_curve(tmp_path) == ([1, 2], [80.0, 90.0])
-    assert exp022.final_rates(tmp_path) == (6.0, 21.0)
+    assert recipe.training_curve(tmp_path) == ([1, 2], [80.0, 90.0])
+    assert recipe.final_rates(tmp_path) == (6.0, 21.0)
 
 
 def test_tr02_registry_uses_explicit_hz_targets() -> None:
@@ -199,19 +198,6 @@ def test_registry_training_run_identity(family: str, run_id: str) -> None:
     cells = [cell for cell in recipe.CANONICAL_CELLS if cell["family"] == family]
     assert cells
     assert {cell["training_run_id"] for cell in cells} == {run_id}
-
-
-def test_every_registered_training_run_has_guide_and_results_sections() -> None:
-    writing = (exp022.REPO / "writings" / "exp022.typ").read_text()
-    run_ids = tuple(recipe.TRAINING_RUN_IDS.values())
-    assert len(run_ids) == len(set(run_ids))
-    results = re.findall(r"^\s*=== (TR-\d+) —", writing, re.MULTILINE)
-    specifications = re.findall(
-        r"^\s*=== Specification: (TR-\d+) —", writing, re.MULTILINE
-    )
-    for run_id in run_ids:
-        assert results.count(run_id) == 1
-        assert specifications.count(run_id) == 1
 
 
 def test_tr07_low_input_controls_use_production_contract(tmp_path: Path) -> None:

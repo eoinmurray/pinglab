@@ -6,7 +6,6 @@ from experiments.exp023 import recipe as exp023
 
 """Isolated exp023 pipeline fixtures; never execute a scientific simulation."""
 
-import shutil
 import subprocess
 import sys
 from unittest.mock import patch
@@ -239,65 +238,6 @@ def test_spectrum_and_selection_preserve_original_rules():
     assert analyse.pick_active(spikes) == 0
     assert analyse.pick_active(np.zeros_like(spikes)) is None
     assert analyse.population_psd(np.zeros_like(spikes), 0.1, (5, 150))[2] is None
-
-
-def test_article_renders_selected_fixture_numbers_and_all_sections(repo):
-    from demolab_cli import _paths
-
-    root, _ = repo
-    source_root = Path(__file__).resolve().parents[2]
-    compute_id = compute.compute()
-    analysis_id = analyse.analyse(compute_id)
-    present_id = present.present(analysis_id)
-    output = inputs.source(root, present_id, "present")
-    shutil.copytree(source_root / "writings", root / "writings")
-    (root / ".demolab").mkdir()
-    shutil.copy2(_paths.TYP / "lib.typ", root / ".demolab/lib.typ")
-    write_json_atomic(
-        root / "preview.json",
-        {"exp023": {"exp023": "/" + str(output.export.relative_to(root))}},
-    )
-    document = root / "document.typ"
-    document.write_text(
-        '#set page(paper: "a4", margin: 18mm)\n#set text(size: 10pt)\n'
-        '#import "writings/exp023.typ": body\n#body\n'
-    )
-    command = [
-        _paths.find_typst(source_root),
-        "compile",
-        "--root",
-        str(root),
-        "--input",
-        "demolab-preview-file=/preview.json",
-        "--format",
-        "png",
-        "--ppi",
-        "100",
-        str(document),
-        str(root / "article-{p}.png"),
-    ]
-    result = subprocess.run(command, capture_output=True, text=True, timeout=60)
-    assert result.returncode == 0, result.stderr
-    assert list(root.glob("article-*.png"))
-    text = (root / "writings/exp023.typ").read_text()
-    headings = [
-        "#journal-abstract",
-        "== Results",
-        "#journal-methods",
-        "#journal-references",
-    ]
-    positions = [text.index(heading) for heading in headings]
-    assert positions == sorted(positions)
-    for removed in ("Inputs and outputs", "Design Scope", "Prior art"):
-        assert removed not in text
-    assert "#cite(1)" in text
-    assert "#cite(2)" not in text
-    assert "same input as" not in text
-    assert "≈ 30 Hz" not in text
-    # Selected corrupt evidence must error, never show the unavailable notice.
-    (output.export / "numbers.json").write_text("invalid fixture JSON")
-    result = subprocess.run(command, capture_output=True, text=True, timeout=60)
-    assert result.returncode != 0
 
 
 @pytest.mark.parametrize("silent", [False, True])

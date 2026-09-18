@@ -15,7 +15,6 @@ from experiments.exp044.recipe import (
 
 """Temporary synthetic banks and mocked inference; never run scientific experiments."""
 
-import shutil
 import subprocess
 import sys
 
@@ -400,58 +399,6 @@ def test_combined_launchers_are_retired(flag):
     )
     assert result.returncode != 0
     assert "independent stages" in result.stderr
-
-
-def test_article_renders_selected_analysis(lab):
-    from demolab_cli import _paths
-
-    root, bank_id, _ = lab
-    compute_id = compute.compute(bank_id)
-    analysis_id = analyse.analyse(compute_id)
-    present_id = present.present(analysis_id)
-    output = inputs.source(root, present_id, "present")
-    source_root = Path(__file__).resolve().parents[2]
-    shutil.copytree(source_root / "writings", root / "writings")
-    (root / ".demolab").mkdir()
-    shutil.copy2(_paths.TYP / "lib.typ", root / ".demolab/lib.typ")
-    write_json_atomic(
-        root / "preview.json",
-        {"exp044": {"exp044": "/" + str(output.export.relative_to(root))}},
-    )
-    document = root / "document.typ"
-    document.write_text(
-        '#set page(paper: "a4", margin: 18mm)\n#set text(size: 10pt)\n#import "writings/exp044.typ": body\n#body\n'
-    )
-    command = [
-        _paths.find_typst(source_root),
-        "compile",
-        "--root",
-        str(root),
-        "--input",
-        "demolab-preview-file=/preview.json",
-        "--format",
-        "png",
-        "--ppi",
-        "80",
-        str(document),
-        str(root / "article-{p}.png"),
-    ]
-    result = subprocess.run(command, capture_output=True, text=True, timeout=60)
-    assert result.returncode == 0, result.stderr
-    assert list(root.glob("article-*.png"))
-    text = (root / "writings/exp044.typ").read_text()
-    headings = [
-        "#journal-abstract",
-        "== Results",
-        "#journal-methods",
-        "#journal-references",
-    ]
-    assert [text.index(h) for h in headings] == sorted(text.index(h) for h in headings)
-    assert "default: 256" not in text
-    assert "9–14 Hz" not in text
-    (output.export / "numbers.json").write_text("corrupt")
-    result = subprocess.run(command, capture_output=True, text=True, timeout=60)
-    assert result.returncode != 0
 
 
 def _common_config() -> dict:

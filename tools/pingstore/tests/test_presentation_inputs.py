@@ -278,7 +278,7 @@ def test_wrong_upstream_payload_pin_fails(source):
             }
         },
     )
-    with pytest.raises(PingstoreError, match="changed upstream"):
+    with pytest.raises(PingstoreError, match="missing or changed input"):
         projection(source)
 
 

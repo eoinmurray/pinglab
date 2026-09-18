@@ -1,5 +1,4 @@
 from experiments import (
-    exp025,
     exp037,
     exp038,
     exp041,
@@ -9,6 +8,7 @@ from experiments import (
     exp049,
     exp082,
 )
+from experiments.exp025 import recipe as exp025
 
 
 def test_collection_checkpoint_roles_are_explicit() -> None:

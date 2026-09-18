@@ -10,6 +10,7 @@ from pingstore.contracts import (
     write_json_atomic,
 )
 
+
 def exact_values(a, b):
     if isinstance(a, dict):
         return (

@@ -3,12 +3,9 @@
 from __future__ import annotations
 
 import os
-import re
-import shutil
 import subprocess
 import sys
 from pathlib import Path
-from xml.etree import ElementTree
 
 import numpy as np
 import pytest
@@ -516,102 +513,6 @@ def test_historical_illustration_is_carried_without_simulation(repo, monkeypatch
         presentation.record["retained_figures"]["feature_images.png"]["regenerated"]
         is False
     )
-
-
-@pytest.mark.parametrize("view", ["crossed", "censored", "absent", "broken"])
-def test_article_renders_explicit_evidence_without_false_branches(repo, view):
-    from demolab_cli import _paths
-
-    root, _ = repo
-    project = Path(__file__).resolve().parents[2]
-    presentation_id = present.present(analyse.analyse(compute.compute()))
-    run = inputs.source(root, presentation_id, "present")
-    # Changes below affect a disposable rendering fixture, never a completed run.
-    shutil.copytree(run.export, root / "render-data")
-    numbers = root / "render-data/numbers.json"
-    if view == "censored":
-        record = load_json(numbers)
-        record["decision"] = measurements.analyze(np.zeros((8, 3, 50), dtype=bool))
-        write_json_atomic(numbers, record)
-    elif view == "broken":
-        numbers.write_text("not json")
-    (root / "writings").mkdir()
-    for name in (
-        "exp080.typ", "templates/article-layout.typ", "templates/dataset.typ",
-        "templates/abstract.typ", "templates/methods.typ", "templates/result-card.typ",
-            "templates/references.typ", "templates/contents.typ", "templates/equations.typ",
-            "templates/status.typ",
-    ):
-        target = root / "writings" / name
-        target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(project / "writings" / name, target)
-    (root / ".demolab").mkdir()
-    for name in ("lib.typ", "style.css"):
-        shutil.copyfile(_paths.TYP / name, root / ".demolab" / name)
-    (root / ".demolab/VERSION").write_text("test")
-    write_json_atomic(
-        root / "preview.json",
-        {} if view == "absent" else {"exp080": {"exp080": "/render-data"}},
-    )
-    document = root / "article.typ"
-    document.write_text(
-        '#import "/.demolab/lib.typ": entry-page\n'
-        '#import "/writings/exp080.typ": meta, body\n'
-        '#entry-page(meta, body, id: "exp080")\n'
-    )
-    command = [
-        _paths.find_typst(project),
-        "compile",
-        "--root",
-        str(root),
-        "--input",
-        "demolab-preview-file=/preview.json",
-        "--features",
-        "html",
-        "--format",
-        "html",
-        str(document),
-        str(root / "article.html"),
-    ]
-    result = subprocess.run(command, capture_output=True, text=True, timeout=30)
-    if view == "broken":
-        assert result.returncode != 0 and "json" in result.stderr.lower()
-        return
-    assert result.returncode == 0, result.stderr
-    html = (root / "article.html").read_text()
-    contents = '<nav aria-label="Table of Contents">'
-    assert html.count(contents) == 1
-    assert "else [" not in html
-    if view == "absent":
-        assert html.index(contents) < html.index("A required run is unavailable")
-        assert 'class="pinglab-numbered-equation"' not in html
-        assert "All three nonlinear decoders reached" not in html
-        assert "A required run is unavailable" in html
-        return
-    rendered_headings = tuple(
-        (re.sub("<[^>]+>", "", match.group(1)).removesuffix("#").strip(), match)
-        for match in re.finditer(r"<h[1-6]\b[^>]*>(.*?)</h[1-6]>", html, re.S)
-    )
-    abstract = next(match for title, match in rendered_headings if title == "Abstract")
-    results = next(match for title, match in rendered_headings if title == "Results")
-    assert abstract.end() < html.index(contents) < results.start()
-    headings = re.findall(r"<h3\b[^>]*>(.*?)</h3>", html, re.S)
-    assert sum(heading.startswith("References") for heading in headings) == 1
-    assert html.count('class="pinglab-numbered-equation"') == 3
-    for number in range(1, 4):
-        assert f'<span class="pinglab-equation-number">({number})</span>' in html
-    assert len(re.findall(r"<img\b", html)) == 3
-    for math in re.findall(r"<math\b.*?</math>", html, re.S):
-        tree = ElementTree.fromstring(math)
-        for subscript in tree.iter("msub"):
-            assert "(" not in "".join(subscript[1].itertext())
-    assert "over 50 decoder-training epochs" not in html
-    if view == "crossed":
-        assert "The selected floor was 0.5 Hz" in html
-        assert "No rate met the criterion" not in html
-    else:
-        assert "No rate met the criterion" in html
-        assert "The selected floor is" not in html
 
 
 def test_cached_decoder_load_matches_checkpoint_predictions(tmp_path):

@@ -40,7 +40,10 @@ def validated_run_graph(
             continue
         if Path(identity).name != identity or identity.startswith("."):
             raise PingstoreError(f"unsafe run identity: {identity}")
-        record = validate_operational_run_directory(source / identity)
+        try:
+            record = validate_operational_run_directory(source / identity)
+        except PingstoreError as exc:
+            raise PingstoreError(f"{identity}: {exc}") from exc
         records[identity] = record
         if selected_ids is not None:
             pending.extend(ref["run_id"] for ref in record["inputs"].values())

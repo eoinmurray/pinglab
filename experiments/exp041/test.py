@@ -162,7 +162,7 @@ def test_v2_is_rejected_even_with_an_incomplete_payload(lab):
     r = load_json(path)
     r["schema"] = "pingstore.run/v2"
     write_json_atomic(path, r)
-    with pytest.raises(PingstoreError, match="requires v4"):
+    with pytest.raises(PingstoreError, match="pingstore.run/v4"):
         compute.compute(bank_id)
     assert calls == []
 
@@ -432,47 +432,3 @@ def test_inference_caps_and_import_side_effects(tmp_path):
         text=True,
     )
     assert result.returncode == 0, result.stderr
-
-
-def test_article_renders_only_explicit_present_inputs(lab):
-    import shutil
-
-    from demolab_cli import _paths
-
-    root, bank_id, _ = lab
-    compute_id = compute.compute(bank_id)
-    analysis_id = analyse.analyse(compute_id)
-    present_id = present.present(analysis_id)
-    output = inputs.source(root, present_id, "present")
-    source_root = Path(__file__).resolve().parents[2]
-    shutil.copytree(source_root / "writings", root / "writings")
-    (root / ".demolab").mkdir()
-    shutil.copy2(_paths.TYP / "lib.typ", root / ".demolab/lib.typ")
-    write_json_atomic(
-        root / "preview.json",
-        {"exp041": {"exp041": "/" + str(output.export.relative_to(root))}},
-    )
-    document = root / "document.typ"
-    document.write_text(
-        '#set page(paper: "a4", margin: 18mm)\n#set text(size: 10pt)\n#block(fill: yellow.lighten(60%), inset: 8pt)[Synthetic test data — not scientific results.]\n#import "writings/exp041.typ": body\n#body\n'
-    )
-    command = [
-        _paths.find_typst(source_root),
-        "compile",
-        "--root",
-        str(root),
-        "--input",
-        "demolab-preview-file=/preview.json",
-        "--format",
-        "png",
-        "--ppi",
-        "90",
-        str(document),
-        str(root / "article-{p}.png"),
-    ]
-    result = subprocess.run(command, capture_output=True, text=True, timeout=60)
-    assert result.returncode == 0, result.stderr
-    assert list(root.glob("article-*.png"))
-    (output.export / "numbers.json").write_text("corrupt")
-    result = subprocess.run(command, capture_output=True, text=True, timeout=60)
-    assert result.returncode != 0

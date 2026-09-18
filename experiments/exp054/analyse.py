@@ -7,7 +7,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
 
-from experiments.exp054 import evidence, inputs, measurements, recipe
+from experiments.exp054 import evidence, inputs, measurements
 from pingstore.contracts import PingstoreError, write_json_atomic
 
 

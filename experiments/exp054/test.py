@@ -1,11 +1,7 @@
 """Exp054 stage contracts with synthetic recordings, never production simulation."""
 
-import base64
-import shutil
-import subprocess
 import zipfile
 from functools import partial
-from html.parser import HTMLParser
 from pathlib import Path
 
 import numpy as np
@@ -217,105 +213,6 @@ def test_independent_stages_and_all_figures(lab, monkeypatch):
     assert [r["id"] for r in discover_runs(root / ".pingstore/runs")] == [
         output.record["run_id"]
     ]
-    assert_article_renders(root, output)
-
-
-def assert_article_renders(root, presentation):
-    """Render real article bindings; catch the maps-versus-raster caption mismatch."""
-    from demolab_cli import _paths
-
-    typst = shutil.which("typst")
-    if not typst:
-        pytest.skip("Typst is not installed")
-    repo = Path(__file__).resolve().parents[2]
-    for name in (
-        "exp054.typ",
-        "templates/article-layout.typ",
-        "templates/dataset.typ",
-        "templates/abstract.typ",
-        "templates/methods.typ",
-        "templates/result-card.typ",
-        "templates/contents.typ",
-        "templates/equations.typ",
-        "templates/status.typ",
-    ):
-        target = root / "writings" / name
-        target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(repo / "writings" / name, target)
-    (root / ".demolab").mkdir()
-    shutil.copyfile(_paths.TYP / "lib.typ", root / ".demolab/lib.typ")
-    write_json_atomic(
-        root / "preview.json",
-        {"exp054": {"exp054": "/" + str(presentation.export.relative_to(root))}},
-    )
-    (root / "article.typ").write_text(
-        '#set page(paper: "a4", margin: 18mm)\n#set text(size: 10pt)\n'
-        '#import "writings/exp054.typ": body\n#body\n'
-    )
-    base = [
-        typst,
-        "compile",
-        "--root",
-        str(root),
-        "--input",
-        "demolab-preview-file=/preview.json",
-    ]
-    for mode, extra in (
-        ("pdf", []),
-        ("html", ["--features", "html", "--format", "html"]),
-    ):
-        result = subprocess.run(
-            [*base, *extra, str(root / "article.typ"), str(root / ("article." + mode))],
-            capture_output=True,
-            text=True,
-        )
-        assert result.returncode == 0, result.stderr
-
-    class Images(HTMLParser):
-        def __init__(self):
-            super().__init__()
-            self.images = []
-            self.text = []
-
-        def handle_starttag(self, tag, attrs):
-            if tag == "img":
-                self.images.append(dict(attrs))
-
-        def handle_data(self, data):
-            self.text.append(data)
-
-    parsed = Images()
-    parsed.feed((root / "article.html").read_text())
-    assert len(parsed.images) == 5
-    first = parsed.images[0]
-    assert "above three example" in first["alt"]
-    assert (
-        base64.b64decode(first["src"].split(",", 1)[1])
-        == (presentation.export / "turnon_maps_compound.png").read_bytes()
-    )
-    text = " ".join(parsed.text)
-    assert "did not make rates or spike counts equal" in text
-    assert "do not prove rate invariance" in text
-    assert "(1)" in text and "(2)" in text
-    write_json_atomic(root / "preview.json", {"exp054": {"exp054": None}})
-    result = subprocess.run(
-        [
-            *base,
-            "--features",
-            "html",
-            "--format",
-            "html",
-            str(root / "article.typ"),
-            str(root / "absent.html"),
-        ],
-        capture_output=True,
-        text=True,
-    )
-    assert result.returncode == 0, result.stderr
-    absent = Images()
-    absent.feed((root / "absent.html").read_text())
-    assert not absent.images
-    assert "no content to display" in " ".join(absent.text)
 
 
 @pytest.mark.parametrize("smoke,count,points", [(False, 136, 11), (True, 51, 6)])

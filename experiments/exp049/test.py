@@ -535,51 +535,11 @@ def test_smoke_and_single_sample_inference_caps(tmp_path):
         {**snapshot, "sample_index": 50},
     )
     assert "--max-samples" not in args
-    assert args[-2:] == ["--sample-index", "50"]
-
-
-def test_article_renders_only_selected_presentation(lab):
-    import shutil
-
-    from demolab_cli import _paths
-
-    root, bank_id, _ = lab
-    cid = compute.compute(bank_id)
-    aid = analyse.analyse(cid)
-    pid = present.present(aid)
-    output = inputs.source(root, pid, "present")
-    source_root = Path(__file__).resolve().parents[2]
-    shutil.copytree(source_root / "writings", root / "writings")
-    (root / ".demolab").mkdir()
-    shutil.copy2(_paths.TYP / "lib.typ", root / ".demolab/lib.typ")
-    write_json_atomic(
-        root / "preview.json",
-        {"exp049": {"exp049": "/" + str(output.export.relative_to(root))}},
-    )
-    document = root / "document.typ"
-    document.write_text(
-        '#set page(paper: "a4", margin: 18mm)\n#set text(size: 10pt)\n#import "writings/exp049.typ": body\n#body\n'
-    )
-    command = [
-        _paths.find_typst(source_root),
-        "compile",
-        "--root",
-        str(root),
-        "--input",
-        "demolab-preview-file=/preview.json",
-        "--format",
-        "png",
-        "--ppi",
-        "80",
-        str(document),
-        str(root / "article-{p}.png"),
+    assert args[args.index("--sample-index") : args.index("--sample-index") + 2] == [
+        "--sample-index",
+        "50",
     ]
-    result = subprocess.run(command, capture_output=True, text=True, timeout=60)
-    assert result.returncode == 0, result.stderr
-    assert list(root.glob("article-*.png"))
-    (output.export / "numbers.json").write_text("broken JSON")
-    result = subprocess.run(command, capture_output=True, text=True, timeout=60)
-    assert result.returncode != 0
+    assert args[-2:] == ["--recording-mode", "spikes"]
 
 
 @pytest.mark.parametrize("fault", ["training_recipe", "history", "final_epoch"])

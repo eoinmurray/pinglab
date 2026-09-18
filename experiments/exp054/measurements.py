@@ -7,7 +7,6 @@ from experiments.helpers.rhythmicity import (
     rhythmicity_scalars,
     spike_autocorrelogram,
 )
-from pingstore.contracts import PingstoreError
 
 from . import evidence, recipe
 

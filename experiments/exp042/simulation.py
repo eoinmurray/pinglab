@@ -340,6 +340,7 @@ class Simulator:
         import torch
 
         gen = torch.Generator().manual_seed(EVAL_SEED + 17 + job["seed_offset"])
+        self.scratch.mkdir(parents=True, exist_ok=True)
         with tempfile.TemporaryDirectory(
             prefix=".override-", dir=self.scratch
         ) as directory:

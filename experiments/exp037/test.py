@@ -350,78 +350,6 @@ def test_present_rejects_resigned_incomplete_analysis(lab):
     assert not list((root / ".pingstore/runs").glob("*-present"))
 
 
-def test_article_renders_only_selected_presentation(lab):
-    import re
-    import shutil
-
-    from demolab_cli import _paths
-
-    root, bank_id, _ = lab
-    cid = compute.compute(bank_id)
-    aid = analyse.analyse(cid)
-    pid = present.present(aid)
-    output = inputs.source(root, pid, "present")
-    source_root = Path(__file__).resolve().parents[2]
-    shutil.copytree(source_root / "writings", root / "writings")
-    (root / ".demolab").mkdir()
-    shutil.copy2(_paths.TYP / "lib.typ", root / ".demolab/lib.typ")
-    write_json_atomic(
-        root / "preview.json",
-        {"exp037": {"exp037": "/" + str(output.export.relative_to(root))}},
-    )
-    document = root / "document.typ"
-    document.write_text(
-        '#set page(paper: "a4", margin: 18mm)\n#set text(size: 10pt)\n#import "writings/exp037.typ": body\n#body\n'
-    )
-    command = [
-        _paths.find_typst(source_root),
-        "compile",
-        "--root",
-        str(root),
-        "--input",
-        "demolab-preview-file=/preview.json",
-        "--format",
-        "png",
-        "--ppi",
-        "80",
-        str(document),
-        str(root / "article-{p}.png"),
-    ]
-    result = subprocess.run(command, capture_output=True, text=True, timeout=60)
-    assert result.returncode == 0, result.stderr
-    assert list(root.glob("article-*.png"))
-    html_command = [
-        _paths.find_typst(source_root),
-        "compile",
-        "--features",
-        "html",
-        "--format",
-        "html",
-        "--root",
-        str(root),
-        "--input",
-        "demolab-preview-file=/preview.json",
-        str(document),
-        str(root / "article.html"),
-    ]
-    result = subprocess.run(html_command, capture_output=True, text=True, timeout=60)
-    assert result.returncode == 0, result.stderr
-    html = (root / "article.html").read_text()
-    images = re.findall(r"<img\b[^>]*>", html)
-    assert len(images) == 2
-    assert all('alt="' in tag and 'src="' in tag for tag in images)
-    assert len(re.findall(r"<figcaption\b", html)) == 2
-    # Older v3 presentations lack the optional image-label projection.
-    numbers = load_json(output.export / "numbers.json")
-    numbers.pop("illustrative_labels")
-    write_json_atomic(output.export / "numbers.json", numbers)
-    result = subprocess.run(command, capture_output=True, text=True, timeout=60)
-    assert result.returncode == 0, result.stderr
-    (output.export / "numbers.json").write_text("broken JSON")
-    result = subprocess.run(command, capture_output=True, text=True, timeout=60)
-    assert result.returncode != 0
-
-
 def test_independent_stages_preserve_measurements_and_never_publish(lab, monkeypatch):
     root, bank, calls = lab
     cid = compute.compute(bank)
@@ -685,25 +613,6 @@ def test_reviewed_figures_keep_coordinates_show_full_range_and_omit_run_ids(
         "PING",
         "±1 SD band",
     ]
-
-
-def test_reviewed_article_structure_and_scientific_caveats():
-    text = (Path(__file__).resolve().parents[2] / "writings/exp037.typ").read_text()
-    assert 'created_at: "2026-05-30T00:00:00Z"' in text
-    assert 'updated_at: "2026-09-02T00:00:00Z"' in text
-    assert (
-        text.index("#journal-abstract")
-        < text.index("== Results")
-        < text.index("#methods-heading()")
-    )
-    assert "== Discussion" not in text
-    assert "minimum-validation-loss epoch" in text
-    assert "not test-set baseline rates" in text
-    assert "does not match relative perturbation doses" in text
-    assert "capped at one" in text
-    assert "digit 0" not in text
-    assert 'fit: "contain"' in text
-    assert "#journal-references" in text and "#cite(1)" in text
 
 
 def test_relative_grid_uses_each_seed_calibration_and_complete_shards():

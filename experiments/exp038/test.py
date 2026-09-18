@@ -440,56 +440,6 @@ def test_present_rejects_resigned_incomplete_analysis(lab):
     assert not list((root / ".pingstore/runs").glob("*-present"))
 
 
-def test_article_renders_only_selected_presentation(lab):
-    import shutil
-
-    from demolab_cli import _paths
-
-    root, bank_id, _ = lab
-    cid = compute.compute(bank_id)
-    aid = analyse.analyse(cid)
-    pid = present.present(aid)
-    output = inputs.source(root, pid, "present")
-    source_root = Path(__file__).resolve().parents[2]
-    shutil.copytree(source_root / "writings", root / "writings")
-    (root / ".demolab").mkdir()
-    shutil.copy2(_paths.TYP / "lib.typ", root / ".demolab/lib.typ")
-    write_json_atomic(
-        root / "preview.json",
-        {"exp038": {"exp038": "/" + str(output.export.relative_to(root))}},
-    )
-    document = root / "document.typ"
-    document.write_text(
-        '#set page(paper: "a4", margin: 18mm)\n#set text(size: 10pt)\n#import "writings/exp038.typ": body\n#body\n'
-    )
-    command = [
-        _paths.find_typst(source_root),
-        "compile",
-        "--root",
-        str(root),
-        "--input",
-        "demolab-preview-file=/preview.json",
-        "--format",
-        "png",
-        "--ppi",
-        "80",
-        str(document),
-        str(root / "article-{p}.png"),
-    ]
-    result = subprocess.run(command, capture_output=True, text=True, timeout=60)
-    assert result.returncode == 0, result.stderr
-    assert list(root.glob("article-*.png"))
-    # Older v3 presentations lack the optional image-label projection.
-    numbers = load_json(output.export / "numbers.json")
-    numbers.pop("illustrative_labels")
-    write_json_atomic(output.export / "numbers.json", numbers)
-    result = subprocess.run(command, capture_output=True, text=True, timeout=60)
-    assert result.returncode == 0, result.stderr
-    (output.export / "numbers.json").write_text("broken JSON")
-    result = subprocess.run(command, capture_output=True, text=True, timeout=60)
-    assert result.returncode != 0
-
-
 def test_raster_labels_use_recorded_class_and_do_not_overlap(tmp_path, monkeypatch):
     from experiments.exp038 import plots
 

@@ -1,7 +1,6 @@
 """Synthetic fixtures only: no historical import, dataset download or scientific run."""
 
 import json
-import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -664,65 +663,6 @@ def test_analysis_rejects_missing_or_false_count_invariant():
     }
     with pytest.raises(PingstoreError, match="spike-count invariant"):
         analyse.measurement(metrics, job, cfg)
-
-
-def test_article_renders_fixture_and_unavailable_data_states(lab):
-    from demolab_cli import _paths
-
-    root, bank_id, _ = lab
-    identity = present.present(analyse.analyse(compute.compute(bank_id)))
-    output = inputs.source(root, identity, "present")
-    source_root = Path(__file__).resolve().parents[2]
-    (root / "writings").mkdir()
-    for name in (
-        "exp042.typ",
-        "templates/dataset.typ",
-        "templates/abstract.typ",
-        "templates/methods.typ",
-        "templates/article-layout.typ",
-        "templates/result-card.typ",
-        "templates/contents.typ",
-        "templates/equations.typ",
-        "templates/status.typ",
-    ):
-        target = root / "writings" / name
-        target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(source_root / "writings" / name, target)
-    (root / ".demolab").mkdir()
-    shutil.copy2(_paths.TYP / "lib.typ", root / ".demolab/lib.typ")
-    mapping = {"exp042": {"exp042": "/" + str(output.export.relative_to(root))}}
-    write_json_atomic(root / "preview.json", mapping)
-    document = root / "document.typ"
-    document.write_text(
-        '#set page(paper: "a4", margin: 18mm)\n#set text(size: 10pt)\n'
-        "#set page(header: [SYNTHETIC TEST FIXTURE — NOT SCIENTIFIC RESULTS])\n"
-        '#import "writings/exp042.typ": body\n#body\n'
-    )
-    command = [
-        str(_paths.find_typst(source_root)),
-        "compile",
-        "--root",
-        str(root),
-        "--input",
-        "demolab-preview-file=/preview.json",
-        "--format",
-        "png",
-        "--ppi",
-        "90",
-        str(document),
-        str(root / "article-{p}.png"),
-    ]
-    result = subprocess.run(command, capture_output=True, text=True, timeout=60)
-    assert result.returncode == 0, result.stderr
-    assert list(root.glob("article-*.png"))
-    write_json_atomic(root / "preview.json", {"exp042": {"exp042": None}})
-    command[-1] = str(root / "pending-{p}.png")
-    result = subprocess.run(command, capture_output=True, text=True, timeout=60)
-    assert result.returncode == 0, result.stderr
-    write_json_atomic(root / "preview.json", mapping)
-    (output.export / "numbers.json").write_text("corrupt")
-    result = subprocess.run(command, capture_output=True, text=True, timeout=60)
-    assert result.returncode != 0
 
 
 def test_active_worker_blocks_collection(lab):

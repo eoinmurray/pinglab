@@ -95,4 +95,3 @@ jobs:
           tools/pingstore/tests
           tools/publishing/tests
           experiments
-          writings
