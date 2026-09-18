@@ -64,3 +64,11 @@ The earlier recipe-v2 lineage `exp115-r004-compute` → `exp115-r005-analyse` �
 `exp115-r006-present` calculated first Lyapunov coefficients. Those immutable
 runs remain historical evidence but are not inputs to the revised article. They
 must not be relabelled as amplitude-ramp results.
+
+## Presentation refresh — 18 September 2026
+
+`exp115-r010-present` reuses `exp115-r008-analyse` without recomputation. It
+moves the article's parameter table after Methods and redraws the three-panel
+figure at 180 × 64 mm using the shared paper typography, canonical panel labels
+and distinct upward/downward ramp encodings. Its payload digest is
+`sha256:dc4450b18a540a5705cfa3a5681484b392ad68c6d5f9591a13120e46ab30b997`.
