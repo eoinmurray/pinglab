@@ -135,11 +135,11 @@ def _despine(ax):
         ax.spines[sp].set_visible(False)
 
 
-def fig_bifurcation_compound(results, hopf, sweep, mf, meas, out_path, run_id):
+def fig_bifurcation_compound(results, hopf, sweep, mf, out_path, run_id):
     """Claim-3 anchor: the recruitment cliff as a predictable Hopf bifurcation.
     A — the 4D eigenvalue pair crossing into the right half-plane at I*.
     B — the hysteresis sweep (supercritical, reversible onset).
-    C — gamma frequency vs τ_GABA, reference mean-field vs exp041 spiking."""
+    C — mean-field onset frequency vs τ_GABA."""
     theme.apply()
     from matplotlib.gridspec import GridSpec
 
@@ -215,21 +215,11 @@ def fig_bifurcation_compound(results, hopf, sweep, mf, meas, out_path, run_id):
     axB.legend(fontsize=theme.SIZE_LEGEND, frameon=False, loc="upper left")
     _despine(axB)
 
-    # C — frequency vs τ_GABA: mean-field prediction vs spiking
+    # C — mean-field onset frequency vs τ_GABA
     axC = fig.add_subplot(gs[0, 2])
     tg = [d["tau_gaba_ms"] for d in mf if d["f_star_Hz"] is not None]
     fs = [d["f_star_Hz"] for d in mf if d["f_star_Hz"] is not None]
     axC.plot(tg, fs, "o-", color=theme.INK_BLACK, lw=1.4, label="mean-field $f^\\star$")
-    if meas:
-        mt = sorted(meas)
-        axC.plot(
-            mt,
-            [meas[t] for t in mt],
-            "s--",
-            color=theme.DEEP_RED,
-            lw=1.3,
-            label="spiking $f_\\gamma$",
-        )
     axC.set_xlabel("$\\tau_\\text{GABA}$ (ms)", fontsize=theme.SIZE_LABEL)
     axC.set_ylabel("gamma frequency (Hz)", fontsize=theme.SIZE_LABEL)
     axC.set_title(

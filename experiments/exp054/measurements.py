@@ -1,7 +1,6 @@
 """Original rhythmicity and rate estimators applied to explicit saved evidence."""
 
 import numpy as np
-from experiments.exp033 import measurements as mf_measurements
 from experiments.helpers.rhythmicity import (
     iei_histogram,
     population_event_times,
@@ -39,7 +38,6 @@ def score(spikes, cfg):
         "lobe_lag": scalars["lobe_lag"],
         "trough_lag": scalars["trough_lag"],
     }
-
 
 def recordings(source, cfg):
     measured, grid_cells = {}, {}
@@ -139,36 +137,4 @@ def summary(coords, cfg):
                 "contrast": [d["contrast"] for d in shared],
             },
         },
-    }
-
-
-def mean_field(raw, cfg):
-    if raw.get("schema") != "exp054.mean-field/v1":
-        raise PingstoreError("invalid exp054 mean-field evidence")
-    grid = np.linspace(*cfg["mean_field"]["drive_grid"])
-    reference = raw["reference"]
-    mf_measurements.validate_continuation(reference, grid)
-    if len(reference["sweep"]) != len(grid) or reference["hopf"] is None:
-        raise PingstoreError("incomplete exp054 reference continuation")
-    criticality = mf_measurements.hysteresis(reference["ramp"], reference["hopf"])
-    if [r["tau_gaba_ms"] for r in raw["frequency"]] != cfg["mean_field"]["tau_grid_ms"]:
-        raise PingstoreError("incomplete exp054 frequency sweep")
-    frequencies = []
-    for row in raw["frequency"]:
-        mf_measurements.validate_continuation(row, grid)
-        if len(row["sweep"]) != len(grid):
-            raise PingstoreError("incomplete exp054 frequency continuation")
-        h = row["hopf"]
-        frequencies.append(
-            {
-                "tau_gaba_ms": row["tau_gaba_ms"],
-                "f_star_Hz": h["freq_star_Hz"] if h else None,
-                "I_ext_star": h["I_ext_star"] if h else None,
-            }
-        )
-    return {
-        "sweep": reference["sweep"],
-        "hopf": reference["hopf"],
-        "criticality": criticality,
-        "frequency_vs_tau_gaba": frequencies,
     }

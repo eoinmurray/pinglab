@@ -1,7 +1,7 @@
 from pathlib import Path
 
 import pytest
-from experiments.exp033 import recipe as mean_field_recipe
+from experiments.exp033 import recipe as exp033_recipe
 from experiments.exp054 import plots as exp054_plots
 from experiments.exp054 import recipe as exp054_recipe
 from experiments.exp110 import plots, present, recipe
@@ -24,15 +24,15 @@ def test_figure_ownership_has_moved_from_exp054() -> None:
     )
 
 
-@pytest.mark.parametrize("refreshed_theory", [False, True])
 def test_present_records_exp054_analysis_and_exports_only_the_bundle(
-    tmp_path: Path, monkeypatch, refreshed_theory
+    tmp_path: Path, monkeypatch
 ) -> None:
     monkeypatch.setattr(
         stages,
         "memberships",
         lambda _: {
             "exp025": "test",
+            "exp033": "test",
             "exp038": "test",
             "exp041": "test",
             "exp046": "test",
@@ -45,10 +45,17 @@ def test_present_records_exp054_analysis_and_exports_only_the_bundle(
     monkeypatch.setattr(
         stages, "_capture_code", lambda *args: {"git_commit": "fixture", "dirty": False}
     )
-    with stages.stage_run(tmp_path, "exp054", "analyse") as run:
-        (run.export / "fixture.json").write_text("{}")
-    analysis = source_run(
-        tmp_path / ".pingstore", run.run_id, stage="analyse", experiment="exp054"
+    with stages.stage_run(tmp_path, "exp054", "analyse") as exp054_run:
+        (exp054_run.export / "fixture.json").write_text("{}")
+    exp054_analysis = source_run(
+        tmp_path / ".pingstore", exp054_run.run_id,
+        stage="analyse", experiment="exp054",
+    )
+    with stages.stage_run(tmp_path, "exp033", "analyse") as exp033_run:
+        (exp033_run.export / "fixture.json").write_text("{}")
+    exp033_analysis = source_run(
+        tmp_path / ".pingstore", exp033_run.run_id,
+        stage="analyse", experiment="exp033",
     )
     presentations = {}
     source_analyses = {}
@@ -61,7 +68,21 @@ def test_present_records_exp054_analysis_and_exports_only_the_bundle(
         sources = {}
         if experiment in ("exp041", "exp046"):
             with stages.stage_run(tmp_path, experiment, "analyse") as saved:
-                (saved.export / "results.json").write_text("{}")
+                document = {}
+                if experiment == "exp041":
+                    document = {
+                        "schema": "exp041.analysis/v1",
+                        "results": [
+                            {
+                                "tau_gaba_ms": tau,
+                                "seed": seed,
+                                "f_gamma_hz": 100 / tau + offset,
+                            }
+                            for tau in (4.5, 6, 9, 12, 18, 27)
+                            for seed, offset in ((42, 0), (43, 1), (44, 2))
+                        ],
+                    }
+                write_json_atomic(saved.export / "results.json", document)
             source_analyses[experiment] = source_run(tmp_path / ".pingstore", saved.run_id)
             sources["analysis"] = source_analyses[experiment]
         with stages.stage_run(tmp_path, experiment, "present", inputs=sources) as source:
@@ -78,26 +99,33 @@ def test_present_records_exp054_analysis_and_exports_only_the_bundle(
             stage="present",
             experiment=experiment,
         )
-    source_recipe = exp054_recipe.configuration(smoke=True)
-    if refreshed_theory:
-        source_recipe = exp054_recipe.refresh_configuration(
-            source_recipe, mean_field_recipe.configuration(version=2)
-        )
-    coordinates = {
-        "grid": [],
-        "mean_field": {
-            "sweep": [],
+    exp054_cfg = exp054_recipe.configuration(smoke=True)
+    exp033_cfg = exp033_recipe.configuration()
+    exp054_coordinates = {"grid": []}
+    exp033_coordinates = {"sweep": []}
+    exp033_numbers = {
+        "slug": "exp033",
+        "results": {
             "hopf": {},
             "criticality": {},
-            "frequency_vs_tau_gaba": [],
-            "spiking_exp041": {},
+            "frequency_vs_tau_gaba": {
+                "mean_field": [
+                    {"tau_gaba_ms": tau, "f_star_Hz": 100 / tau}
+                    for tau in (4.5, 6, 9, 12, 18, 27)
+                ]
+            },
         },
     }
     monkeypatch.setattr(present, "REPO", tmp_path)
     monkeypatch.setattr(
-        present,
-        "analysis_source",
-        lambda repo, identity: (analysis, source_recipe, coordinates, {}),
+        present, "_exp054_analysis",
+        lambda identity: (exp054_analysis, exp054_cfg, exp054_coordinates),
+    )
+    monkeypatch.setattr(
+        present, "_exp033_analysis",
+        lambda identity: (
+            exp033_analysis, exp033_cfg, exp033_coordinates, exp033_numbers,
+        ),
     )
 
     def render(*args) -> None:
@@ -117,7 +145,8 @@ def test_present_records_exp054_analysis_and_exports_only_the_bundle(
         render,
     )
     identity = present.present(
-        analysis.record["run_id"],
+        exp054_analysis.record["run_id"],
+        exp033_analysis.record["run_id"],
         presentations["exp041"].record["run_id"],
         presentations["exp046"].record["run_id"],
         presentations["exp037"].record["run_id"],
@@ -127,7 +156,8 @@ def test_present_records_exp054_analysis_and_exports_only_the_bundle(
         tmp_path / ".pingstore", identity, stage="present", experiment="exp110"
     )
     assert output.record["inputs"] == {
-        "exp054_analysis": analysis.reference,
+        "exp054_analysis": exp054_analysis.reference,
+        "exp033_analysis": exp033_analysis.reference,
         "exp041_presentation": presentations["exp041"].reference,
         "exp046_presentation": presentations["exp046"].reference,
         "exp041_analysis": source_analyses["exp041"].reference,
@@ -138,7 +168,10 @@ def test_present_records_exp054_analysis_and_exports_only_the_bundle(
     assert sorted(path.name for path in output.export.iterdir()) == sorted(
         recipe.FIGURES
     )
-    assert output.record["execution"]["configuration"]["source_recipe"] == source_recipe
+    assert output.record["execution"]["configuration"]["source_recipes"] == {
+        "exp054": exp054_cfg,
+        "exp033": exp033_cfg,
+    }
 
 def test_cycle_participation_uses_equal_network_means(tmp_path, monkeypatch):
     import pytest

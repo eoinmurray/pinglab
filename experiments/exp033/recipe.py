@@ -5,7 +5,7 @@ SLUG = "exp033"
 TAU_E_MS = 20.0  # E membrane (= CELL_E tau_m)
 TAU_I_MS = 5.0  # I membrane (= CELL_I tau_m)
 TAU_AMPA_MS = 2.0
-# Exp033's adopted spiking-reference condition (was 9.0).
+# Reference inhibitory decay used by the standalone mean-field model.
 TAU_GABA_MS = 6.0
 
 # ── COBANet-grounded gain with a free effective-noise scale ───────────
@@ -34,13 +34,13 @@ FIGURES = (
 TAU_GRID_MS = (4.5, 6.0, 9.0, 12.0, 18.0, 27.0)
 
 
-def configuration(*, version=2):
+def configuration(*, version=3):
     """Versioned gain parameters; historical definitions never use live defaults."""
-    if version not in (1, 2):
+    if version not in (1, 2, 3):
         raise ValueError("unsupported exp033 recipe version")
     return {
         "schema": f"exp033.recipe/v{version}",
-        **({"gain_integral": "erfcx_for_negative_arguments"} if version == 2 else {}),
+        **({"gain_integral": "erfcx_for_negative_arguments"} if version >= 2 else {}),
         "profile": "production",
         "tau_E_ms": TAU_E_MS,
         "tau_I_ms": TAU_I_MS,
@@ -88,13 +88,17 @@ def configuration(*, version=2):
         "ladder": {"drive_nA": 1.0, "t_max_ms": 400.0},
         "comparison_and_ladder_solver": {"rtol": 1e-08, "atol": 1e-11, "max_step": 0.5},
         "solver": "LSODA",
-        "upstream_aggregation": "median_across_three_seeds",
+        **(
+            {"upstream_aggregation": "median_across_three_seeds"}
+            if version <= 2
+            else {}
+        ),
     }
 
 
 def validate(cfg):
     from pingstore.contracts import PingstoreError
 
-    if cfg not in (configuration(version=1), configuration(version=2)):
+    if cfg not in tuple(configuration(version=version) for version in (1, 2, 3)):
         raise PingstoreError("inconsistent exp033 recipe")
     return cfg

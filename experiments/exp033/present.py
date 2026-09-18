@@ -35,18 +35,13 @@ def article_numbers(numbers):
 def present(identity, *, run_id=None):
     analysis = inputs.source(REPO, identity, "analyse")
     cfg = inputs.configuration(analysis)
-    if set(analysis.record["inputs"]) != {"compute", "frequencies"}:
-        raise PingstoreError("exp033 analysis must pin compute and exp041 frequencies")
-    upstreams = {}
-    for role, experiment, stage in (
-        ("compute", "exp033", "compute"),
-        ("frequencies", "exp041", "analyse"),
-    ):
-        ref = analysis.record["inputs"][role]
-        upstreams[role] = inputs.source(
-            REPO, ref["run_id"], stage, experiment=experiment, reference=ref
-        )
-    if inputs.configuration(upstreams["compute"]) != cfg:
+    if set(analysis.record["inputs"]) != {"compute"}:
+        raise PingstoreError("exp033 analysis must pin its compute run")
+    ref = analysis.record["inputs"]["compute"]
+    compute = inputs.source(
+        REPO, ref["run_id"], "compute", experiment="exp033", reference=ref
+    )
+    if inputs.configuration(compute) != cfg:
         raise PingstoreError("analysis and compute disagree on the theory recipe")
     with inputs.execution(
         REPO,
@@ -62,10 +57,7 @@ def present(identity, *, run_id=None):
         result = numbers["results"]
         h, crit = result["hopf"], result["criticality"]
         freq = result["frequency_vs_tau_gaba"]
-        mf, meas = (
-            freq["mean_field"],
-            {float(k): v for k, v in freq["spiking_exp041"].items()},
-        )
+        mf = freq["mean_field"]
         if h:
             plots.plot_limit_cycle(
                 coords["cycle"], run.export / "limit_cycle.svg", run.run_id
@@ -88,7 +80,6 @@ def present(identity, *, run_id=None):
                 h,
                 crit,
                 mf,
-                meas,
                 run.export / "bifurcation_compound.svg",
                 run.run_id,
             )

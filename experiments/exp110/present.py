@@ -7,16 +7,19 @@ import sys
 from pathlib import Path
 
 import matplotlib.pyplot as plt
+import numpy as np
 
+from experiments.exp033 import evidence as exp033_evidence
+from experiments.exp033 import recipe as exp033_recipe
 REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
 
 from experiments.exp037 import plots as exp037_plots
 from experiments.exp041 import plots as exp041_plots
 from experiments.exp046 import plots as exp046_plots
+from experiments.exp054 import evidence as exp054_evidence
 from experiments.exp054 import plots as exp054_plots
 from experiments.exp054 import recipe as exp054_recipe
-from experiments.exp054.present import analysis_source
 from experiments.exp110 import plots, recipe
 from experiments.helpers import theme
 from experiments.helpers.figsave import save_figure
@@ -47,6 +50,77 @@ def _presentation_analysis(presentation, experiment: str):
         REPO / ".pingstore", reference["run_id"], stage="analyse",
         experiment=experiment, reference=reference,
     )
+
+
+def _exp054_analysis(identity: str):
+    analysis = source_run(
+        REPO / ".pingstore", identity, stage="analyse", experiment="exp054"
+    )
+    if set(analysis.record["inputs"]) != {"compute"}:
+        raise PingstoreError("exp110 requires an independent exp054 analysis")
+    reference = analysis.record["inputs"]["compute"]
+    compute = source_run(
+        REPO / ".pingstore", reference["run_id"], stage="compute",
+        experiment="exp054", reference=reference,
+    )
+    cfg = exp054_recipe.validate(analysis.record["execution"]["configuration"])
+    if compute.record["execution"]["configuration"] != cfg:
+        raise PingstoreError("exp054 analysis and compute recipes differ")
+    coordinates = exp054_evidence.read(analysis.export)
+    if (
+        coordinates.get("schema") != "exp054.analysis/v2"
+        or coordinates.get("recipe") != cfg
+    ):
+        raise PingstoreError("unsupported exp054 analysis coordinates")
+    return analysis, cfg, coordinates
+
+
+def _exp033_analysis(identity: str):
+    analysis = source_run(
+        REPO / ".pingstore", identity, stage="analyse", experiment="exp033"
+    )
+    if set(analysis.record["inputs"]) != {"compute"}:
+        raise PingstoreError("exp110 requires an independent exp033 analysis")
+    reference = analysis.record["inputs"]["compute"]
+    compute = source_run(
+        REPO / ".pingstore", reference["run_id"], stage="compute",
+        experiment="exp033", reference=reference,
+    )
+    cfg = exp033_recipe.validate(analysis.record["execution"]["configuration"])
+    if compute.record["execution"]["configuration"] != cfg:
+        raise PingstoreError("exp033 analysis and compute recipes differ")
+    coordinates = exp033_evidence.read(analysis.export)
+    numbers = load_json(analysis.export / "results.json")
+    frequency = numbers.get("results", {}).get("frequency_vs_tau_gaba", {})
+    if numbers.get("slug") != "exp033" or set(frequency) != {"mean_field"}:
+        raise PingstoreError("unsupported independent exp033 analysis")
+    return analysis, cfg, coordinates, numbers
+
+
+def _spiking_frequency_medians(
+    document: dict, tau_grid: list[float]
+) -> dict[float, float]:
+    if document.get("schema") != "exp041.analysis/v1":
+        raise PingstoreError("unsupported exp041 frequency analysis")
+    rows = document.get("results", [])
+    expected = {(tau, seed) for tau in tau_grid for seed in (42, 43, 44)}
+    observed = [(row.get("tau_gaba_ms"), row.get("seed")) for row in rows]
+    if len(observed) != len(expected) or set(observed) != expected:
+        raise PingstoreError("exp110 requires all 18 exp041 frequency rows")
+    if any(
+        not np.isfinite(row.get("f_gamma_hz", np.nan))
+        or row["f_gamma_hz"] <= 0
+        for row in rows
+    ):
+        raise PingstoreError("invalid exp041 frequencies")
+    return {
+        tau: float(
+            np.median(
+                [row["f_gamma_hz"] for row in rows if row["tau_gaba_ms"] == tau]
+            )
+        )
+        for tau in tau_grid
+    }
 
 
 def build_cycle_participation_compound(
@@ -183,7 +257,8 @@ def build_robustness_compound(
 
 
 def present(
-    identity: str,
+    exp054_identity: str,
+    exp033_identity: str,
     exp041_identity: str,
     exp046_identity: str,
     exp037_identity: str,
@@ -191,7 +266,10 @@ def present(
     *,
     run_id: str | None = None,
 ) -> str:
-    analysis, source_recipe, coordinates, _ = analysis_source(REPO, identity)
+    exp054_analysis, exp054_cfg, exp054_coordinates = _exp054_analysis(exp054_identity)
+    exp033_analysis, exp033_cfg, exp033_coordinates, exp033_numbers = _exp033_analysis(
+        exp033_identity
+    )
     exp041, _ = _source_figure(
         exp041_identity, "exp041", recipe.RATE_FREQUENCY_SOURCE
     )
@@ -206,13 +284,21 @@ def present(
     )
     rate_analysis = _presentation_analysis(exp041, "exp041")
     cycle_analysis = _presentation_analysis(exp046, "exp046")
+    rate_numbers = load_json(rate_analysis.export / "results.json")
+    mean_field = exp033_numbers["results"]
+    tau_grid = [
+        row["tau_gaba_ms"]
+        for row in mean_field["frequency_vs_tau_gaba"]["mean_field"]
+    ]
+    measured_frequency = _spiking_frequency_medians(rate_numbers, tau_grid)
     with (
         stage_run(
             REPO,
             recipe.SLUG,
             "present",
             inputs={
-                "exp054_analysis": analysis,
+                "exp054_analysis": exp054_analysis,
+                "exp033_analysis": exp033_analysis,
                 "exp041_presentation": exp041,
                 "exp046_presentation": exp046,
                 "exp041_analysis": rate_analysis,
@@ -221,18 +307,17 @@ def present(
                 "exp044_presentation": exp044,
             },
             run_id=run_id,
-            configuration=recipe.configuration(source_recipe),
+            configuration=recipe.configuration(exp054_cfg, exp033_cfg),
         ) as run,
-        exp054_plots.configured(exp054_recipe.spike_configuration(source_recipe)),
+        exp054_plots.configured(exp054_cfg),
     ):
-        mean_field = coordinates["mean_field"]
         plots.build_onset_super_compound(
-            coordinates["grid"],
-            mean_field["sweep"],
+            exp054_coordinates["grid"],
+            exp033_coordinates["sweep"],
             mean_field["hopf"],
             mean_field["criticality"],
-            mean_field["frequency_vs_tau_gaba"],
-            {float(key): value for key, value in mean_field["spiking_exp041"].items()},
+            mean_field["frequency_vs_tau_gaba"]["mean_field"],
+            measured_frequency,
             run.export / "onset_super_compound",
         )
         build_cycle_participation_compound(
@@ -251,10 +336,14 @@ def present(
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source", required=True, help="completed exp054 analysis run")
+    parser.add_argument(
+        "--theory-source", required=True, help="completed exp033 analysis run"
+    )
     parser.add_argument("--run-id", help="fresh v4 identity reserved before dispatch")
     arguments = parser.parse_args()
     present(
         arguments.source,
+        arguments.theory_source,
         CANONICAL_PRESENTATION_SOURCES["exp041"],
         CANONICAL_PRESENTATION_SOURCES["exp046"],
         CANONICAL_PRESENTATION_SOURCES["exp037"],

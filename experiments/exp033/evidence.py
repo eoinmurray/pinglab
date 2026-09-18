@@ -10,9 +10,6 @@ from pingstore.contracts import (
     write_json_atomic,
 )
 
-from . import measurements, recipe
-
-
 def exact_values(a, b):
     if isinstance(a, dict):
         return (
@@ -29,47 +26,6 @@ def exact_values(a, b):
     if isinstance(a, float):
         return isinstance(b, (int, float)) and a.hex() == float(b).hex()
     return a == b
-
-
-def validate_summary(numbers, subset):
-    r = numbers["results"]
-    cfg = recipe.configuration(version=1)
-    if numbers.get("slug") != recipe.SLUG or numbers["config"] != {
-        k: cfg[k] for k in numbers["config"]
-    }:
-        raise PingstoreError("retained exp033 configuration differs")
-    if set(numbers["config"]) != {
-        "tau_E_ms",
-        "tau_I_ms",
-        "tau_AMPA_ms",
-        "tau_GABA_ms",
-        "W_tilde_EI",
-        "W_tilde_IE",
-        "dV_inh_mV",
-        "dV_exc_mV",
-        "sigma_V_mV",
-        "cell_E",
-        "cell_I",
-    }:
-        raise PingstoreError("retained exp033 configuration is incomplete")
-    for key in ("hopf", "criticality"):
-        if not exact_values(subset[key], r[key]):
-            raise PingstoreError("exp054 cache disagrees with exp033 " + key)
-    if not exact_values(
-        subset["frequency_vs_tau_gaba"], r["frequency_vs_tau_gaba"]["mean_field"]
-    ) or not exact_values(
-        subset["spiking_exp041"], r["frequency_vs_tau_gaba"]["spiking_exp041"]
-    ):
-        raise PingstoreError("retained frequency overlays disagree")
-    if len(subset["sweep"]) != 401:
-        raise PingstoreError("retained sweep must contain all 401 points")
-    measurements.validate_continuation(
-        {"sweep": subset["sweep"], "hopf": subset["hopf"]}, np.linspace(0, 4, 401)
-    )
-    if [row["sigma_V_mV"] for row in r["sigma_sensitivity"]["rows"]] != list(
-        recipe.SIGMA_V_GRID_MV
-    ):
-        raise PingstoreError("retained noise sensitivity is incomplete")
 
 
 def amplitude_summary(criticality, onset):

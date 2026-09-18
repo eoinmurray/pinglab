@@ -12,7 +12,6 @@ def summary(
     twod,
     limitcyc,
     mf_freq,
-    meas_fgamma,
     hopf3,
     two_d,
     sensitivity,
@@ -48,10 +47,7 @@ def summary(
             "criticality": criticality,
             "two_d_vs_four_d": twod,
             "limit_cycle": limitcyc,
-            "frequency_vs_tau_gaba": {
-                "mean_field": mf_freq,
-                "spiking_exp041": meas_fgamma,
-            },
+            "frequency_vs_tau_gaba": {"mean_field": mf_freq},
             "reductions": {
                 "three_d_qss": hopf3,
                 "two_d_all_pairs": two_d,
@@ -253,23 +249,7 @@ def cycle(record, configuration=None):
     }
 
 
-def spiking_medians(document):
-    rows = document["results"]
-    expected = {(tau, seed) for tau in recipe.TAU_GRID_MS for seed in (42, 43, 44)}
-    keys = [(r["tau_gaba_ms"], r["seed"]) for r in rows]
-    if len(keys) != len(expected) or set(keys) != expected:
-        raise PingstoreError("exp033 requires all 18 exp041 frequency rows")
-    if any(not np.isfinite(r["f_gamma_hz"]) or r["f_gamma_hz"] <= 0 for r in rows):
-        raise PingstoreError("invalid exp041 frequencies")
-    return {
-        tau: float(
-            np.median([r["f_gamma_hz"] for r in rows if r["tau_gaba_ms"] == tau])
-        )
-        for tau in recipe.TAU_GRID_MS
-    }
-
-
-def analyse(raw, frequencies):
+def analyse(raw):
     cfg = recipe.validate(raw.get("recipe"))
     if raw.get("schema") != "exp033.compute/v1":
         raise PingstoreError("exp033 compute evidence has an inconsistent recipe")
@@ -398,7 +378,6 @@ def analyse(raw, frequencies):
         twod,
         lc,
         freq,
-        spiking_medians(frequencies),
         h3,
         two_d,
         sensitivity,

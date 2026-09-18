@@ -1,55 +1,27 @@
 # exp054 — Pinglab Rythmicity Metric
 
-## Current recipe and article reconciliation — 2026-09-09
+## Current independent contract — 2026-09-18
 
-Recipe v6 is the default for future compute: the spike protocol is unchanged
-from v5, while its embedded theory uses exp033 v2's 1.2/0.6-ms refractory periods
-and cancellation-resistant gain integral. Versions 1–5 remain frozen, including
-their original 3/1.5-ms mean-field definitions. The combined-compute campaign
-route remains distinct from the explicit separate-source refresh below; new
-combined computations now use v6. No new production compute ran for this change.
-
-The accepted refresh remains `exp054-r013-analyse` → `exp054-r014-present`.
-`exp110-r021-present` now incorporates its replacement theory, and the exp054
-article distinguishes reused spiking probes from the separate recomputed theory.
-The dated sections below retain the earlier execution history.
-
-## Separate-source theory refresh — 2026-09-09
-
-PLAN.md step 5.8 is complete. The accepted pair is **`exp054-r013-analyse` →
-`exp054-r014-present`**, using all 136 probes from **`exp054-r008-compute`**,
-the adopted theory from **`exp033-r012-analyse`**, and unchanged frequencies
-from **`exp041-r002-analyse`**. Local analysis took five seconds and presentation
-three seconds; no simulation or theory solve ran.
+Recipe v7 contains only the untrained spiking coupling grid and null controls.
+Exp054 no longer imports, computes, accepts, validates or republishes exp033
+mean-field evidence or exp041 frequency measurements. The cross-experiment
+comparison belongs exclusively to exp110. Earlier completed runs remain
+immutable historical evidence.
 
 ```sh
-uv run python -m experiments.exp054.analyse --source exp054-r008-compute \
-  --frequency-source exp041-r002-analyse
-uv run python -m experiments.exp054.present --source exp054-r013-analyse
+uv run python -m experiments.exp054.compute
+uv run python -m experiments.exp054.analyse --source <exp054-compute-id>
+uv run python -m experiments.exp054.present --source <exp054-analysis-id>
 ```
 
-The new analysis-only `exp054.theory-refresh/v1` recipe keeps the complete
-`spike_source_recipe` and `theory_recipe` separate. The spike source's embedded
-historical theory is unused; its old declaration is retained as source history.
-The runner pins `exp033-r012-analyse`; its selected theory uses 1.2/0.6-ms
-refractories and the stable exp033 v2 gain integral. The historical
-combined-compute analysis path remains available through the Python API, not a
-CLI recipe override. At completion of step 5.8, compute recipes were unchanged. The collection dispatcher has
-not been repinned to this explicit refresh workflow.
+Compute has no inputs, analyse pins only the explicit exp054 compute run, and
+present pins only the explicit exp054 analysis run. A production compute remains
+a Slurm workload under the repository resource rules.
 
-The reference theory onset changed from 0.59633710 to **0.59390477 nA** (−0.408%);
-frequency remains **27.56644477 Hz** and the sampled criticality verdict is
-unchanged. All empirical numerical results and coordinates exactly match
-`exp054-r009-analyse`; all seven regenerated PNGs are byte-identical to
-`exp054-r012-present`. All were visually inspected. The theory-comparison figure
-is owned by exp110 and remains for PLAN.md step 5.10, whose renderer must select
-`recipe.spike_configuration()` while preserving both source recipes in provenance.
+## Historical combined-theory work
 
-All source layouts, checksums, recipe identities and complete ancestry validate.
-The 70-test regression passed, including eight separate-source contract tests;
-lint and whitespace checks pass. Exact stage/source digests and scientific
-limitations are recorded in PLAN.md. Execution follows Runner and Storage Guides
-4.4.0. No historical payloads, article prose or publication selections changed.
+The sections below describe immutable recipes v1–v6 and their dated runs. They
+are history, not supported inputs to the current exp054 stages.
 
 ## 1,024-E correction — 2026-09-08
 
@@ -95,8 +67,7 @@ materialization are not authorized by that approval.
 
 ```sh
 uv run python -m experiments.exp054.compute
-uv run python -m experiments.exp054.analyse --source <exp054-compute-id> \
-  --frequency-source <exp041-analysis-id>
+uv run python -m experiments.exp054.analyse --source <exp054-compute-id>
 uv run python -m experiments.exp054.present --source <exp054-analysis-id>
 ```
 
@@ -109,15 +80,12 @@ upstream stage, materializes output or publishes. The flat runner and combined
 package invocation now fail explicitly.
 
 - **Compute:** retain every sparse spike record, including pre-burn activity and
-  output spikes, for each unique untrained-network probe. Retain the mean-field
-  reference and frequency continuations plus complete up/down solver trajectories.
-  Exp033 numerical functions are reused as functions; no exp033 stage is launched.
-  Native compute has no upstream inputs. Configurations, commands and logs belong
+  output spikes, for each unique untrained-network probe. Native compute has no
+  upstream inputs. Configurations, commands and logs belong
   in provenance. ZIP compression preserves every original NPY member byte.
-- **Analyse:** reconstruct full E/I rasters, apply the original burn-in, measure
-  rates and rhythmicity, measure retained mean-field ramps, and calculate the
-  exp041 three-seed median overlay. Save the complete numerical summary and all
-  plotting coordinates. Inputs are explicit compute and exp041 analysis runs.
+- **Analyse:** reconstruct full E/I rasters, apply the original burn-in, and
+  measure rates and rhythmicity. Save the complete numerical summary and all
+  plotting coordinates. Its only input is the explicit exp054 compute run.
 - **Present:** draw the seven exp054-owned PNGs from saved analysis, with
   `numbers.json` in a flat export. No estimator or solver runs here. The former
   Figure 6 manuscript compound is now rendered by exp110 from this analysis.

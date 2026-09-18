@@ -6,15 +6,18 @@ already owned by one source experiment are consumed directly by the manuscript
 rather than copied or bundled here.
 
 ```sh
-uv run python -m experiments.exp110.present --source <exp054-analysis-run-id>
+uv run python -m experiments.exp110.present \
+  --source <exp054-analysis-run-id> \
+  --theory-source <exp033-analysis-run-id>
 ```
 
 The runner pins the accepted exp041, exp046, exp037 and exp044 presentation
 sources in code; they are not runtime recipe overrides.
 
-The onset output originated as exp054 Figure 6. The presentation reads the
-validated exp054 analysis coordinates, whose immutable lineage includes the
-exp041 frequency measurements and retained exp033 mean-field evidence. It also
+For the onset compound, exp110 reads the coupling grid directly from exp054,
+the mean-field onset evidence directly from exp033, and the trained-network
+frequency measurements directly from exp041. It validates and joins these
+independent sources itself. It also
 composes the cycle-participation and robustness syntheses from their explicit
 validated sources. Historical presentation runs remain unchanged.
 

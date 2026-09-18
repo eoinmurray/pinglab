@@ -1,7 +1,6 @@
 """Exp054 stage contracts with synthetic recordings, never production simulation."""
 
 import base64
-import json
 import shutil
 import subprocess
 import zipfile
@@ -11,8 +10,6 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-from experiments.exp033 import measurements as mf_measurements
-from experiments.exp033.test import synthetic
 from experiments.exp054 import (
     analyse,
     compute,
@@ -31,15 +28,6 @@ from pingstore.contracts import (
     write_json_atomic,
 )
 from pingstore.discovery import discover_runs
-
-
-def raw_theory():
-    source = synthetic()
-    return {
-        "schema": "exp054.mean-field/v1",
-        "reference": source["reference"],
-        "frequency": source["frequency"],
-    }
 
 
 def recording(cfg):
@@ -102,28 +90,13 @@ def lab(tmp_path, monkeypatch):
     monkeypatch.setattr(
         stages,
         "memberships",
-        lambda _: {s: "test" for s in ("exp054", "exp041", "exp033")},
+        lambda _: {"exp054": "test"},
     )
     monkeypatch.setattr(
         stages, "_capture_code", lambda *a: {"git_commit": "fixture", "dirty": False}
     )
     monkeypatch.setenv("PINGLAB_SMOKE", "1")
     monkeypatch.delenv("SLURM_JOB_ID", raising=False)
-    with stages.stage_run(tmp_path, "exp041", "analyse") as frequency:
-        write_json_atomic(
-            frequency.export / "results.json",
-            {
-                "results": [
-                    {
-                        "tau_gaba_ms": tau,
-                        "seed": seed,
-                        "f_gamma_hz": 200 / tau + seed / 100,
-                    }
-                    for tau in recipe.configuration()["mean_field"]["tau_grid_ms"]
-                    for seed in (42, 43, 44)
-                ]
-            },
-        )
     calls = []
     cfg = recipe.configuration(smoke=True)
     data = recording(cfg)
@@ -148,8 +121,7 @@ def lab(tmp_path, monkeypatch):
         (output / "run.sh").write_text("# synthetic fixture, never executed\n")
 
     monkeypatch.setattr(compute, "run_cli", simulate)
-    monkeypatch.setattr(compute, "mean_field", lambda cfg: raw_theory())
-    return tmp_path, frequency.run_id, calls
+    return tmp_path, calls
 
 
 def resign(path):
@@ -159,20 +131,14 @@ def resign(path):
 
 
 @pytest.mark.parametrize("smoke", [False, True])
-def test_population_recipe_versions_and_input_channels(smoke):
+def test_population_recipe_and_input_channels(smoke):
     current = recipe.configuration(smoke=smoke)
-    previous = recipe.configuration(smoke=smoke, version=1)
     assert current["n_e"] == 1024 and current["n_i"] == 256
     assert current["dt_ms"] == 0.1
     assert current["tau_gaba_ms"] == 6.0
-    intermediate = recipe.configuration(smoke=smoke, version=2)
-    assert intermediate["n_e"] == 1024 and intermediate["dt_ms"] == 0.25
-    assert previous["n_e"] == 256 and previous["n_i"] == 256
-    assert recipe.validate(previous) == previous
     assert recipe.validate(current) == current
-    timestep_only = recipe.configuration(smoke=smoke, version=3)
-    assert "tau_gaba_ms" not in timestep_only
-    for cfg in (previous, intermediate, timestep_only, current):
+    assert "mean_field" not in current
+    for cfg in (current,):
         assert recipe.validate(cfg) == cfg
         for private, channels in ((True, cfg["n_e"]), (False, 200)):
             args = recipe.simulation_args(
@@ -188,20 +154,16 @@ def test_population_recipe_versions_and_input_channels(smoke):
                 record["tau_gaba"] = 9.0
                 with pytest.raises(PingstoreError, match="configuration"):
                     evidence.simulation_config(record, cfg, item)
-            else:
-                assert "--tau-gaba" not in args
             assert args[args.index("--recording-start-step") + 1] == str(
                 round(cfg["burn_ms"] / cfg["dt_ms"])
             )
         assert len(recipe.jobs(cfg)) == (51 if smoke else 136)
     for invalid in (
-        {**previous, "n_e": 1024},
         {**current, "n_e": 256},
         {**current, "n_i": 1024},
         {**current, "schema": "exp054.recipe/v999"},
         {**current, "tau_gaba_ms": 9.0},
         {**current, "dt_ms": 0.25},
-        {**intermediate, "dt_ms": 0.1},
     ):
         with pytest.raises(PingstoreError, match="recipe"):
             recipe.validate(invalid)
@@ -222,7 +184,7 @@ def test_raster_timestep_matches_recording_precision(tmp_path, dtype):
 
 
 def test_independent_stages_and_all_figures(lab, monkeypatch):
-    root, frequency, calls = lab
+    root, calls = lab
     identity = compute.compute()
     source = inputs.source(root, identity, "compute")
     assert len(calls) == 51 and source.record["inputs"] == {}
@@ -233,26 +195,16 @@ def test_independent_stages_and_all_figures(lab, monkeypatch):
     monkeypatch.setattr(
         compute, "run_cli", lambda *a, **k: pytest.fail("analysis simulated")
     )
-    monkeypatch.setattr(
-        compute, "mean_field", lambda *a, **k: pytest.fail("analysis solved")
-    )
-    analysis_id = analyse.analyse(identity, frequency)
+    analysis_id = analyse.analyse(identity)
     analysis = inputs.source(root, analysis_id, "analyse")
     assert inputs.configuration(analysis)["profile"] == "smoke"
     numbers = load_json(analysis.export / "results.json")
-    assert numbers["mean_field"]["spiking_exp041"]["4.5"] == pytest.approx(
-        200 / 4.5 + 0.43
-    )
+    assert "mean_field" not in numbers
     assert discover_runs(root / ".pingstore/runs") == []
     monkeypatch.setattr(
         measurements,
         "recordings",
         lambda *a: pytest.fail("presentation measured rasters"),
-    )
-    monkeypatch.setattr(
-        measurements,
-        "mean_field",
-        lambda *a: pytest.fail("presentation measured theory"),
     )
     output = inputs.source(root, present.present(analysis_id), "present")
     assert output.record["inputs"] == {"analysis": analysis.reference}
@@ -372,8 +324,7 @@ def test_preserved_recipe_and_shared_origin(smoke, count, points):
     assert len(recipe.jobs(cfg)) == count
     assert len(cfg["wei_mean"]) == len(cfg["wie_mean"]) == points
     assert recipe.turnon_points(cfg)[-1] == ("C", points - 1, points - 1)
-    assert cfg["mean_field"]["sigma_V_mV"] == 4.0
-    assert cfg["mean_field"]["drive_grid"] == [0.0, 4.0, 401]
+    assert "mean_field" not in cfg
     assert len({j["id"] for j in recipe.jobs(cfg)}) == count
 
 
@@ -422,7 +373,7 @@ def test_bad_recordings_are_rejected(tmp_path, damage):
 
 @pytest.mark.parametrize("stage", ["compute", "analyse", "present"])
 def test_failures_remain_hidden_and_cannot_resume(lab, monkeypatch, stage):
-    root, frequency, _ = lab
+    root, _ = lab
 
     def fail(*a, **k):
         raise RuntimeError("fixture failure")
@@ -434,9 +385,9 @@ def test_failures_remain_hidden_and_cannot_resume(lab, monkeypatch, stage):
         identity = compute.compute()
         if stage == "analyse":
             monkeypatch.setattr(measurements, "recordings", fail)
-            operation = partial(analyse.analyse, identity, frequency)
+            operation = partial(analyse.analyse, identity)
         else:
-            analysis = analyse.analyse(identity, frequency)
+            analysis = analyse.analyse(identity)
             monkeypatch.setattr(plots, "fig_turnon_maps_compound", fail)
             operation = partial(present.present, analysis)
     before = {p.name for p in (root / ".pingstore/runs").glob("exp054-*")}
@@ -451,12 +402,12 @@ def test_failures_remain_hidden_and_cannot_resume(lab, monkeypatch, stage):
 
 @pytest.mark.parametrize("damage", ["payload", "layout", "v2", "recipe", "inventory"])
 def test_corrupt_inputs_rejected_before_reservation(lab, damage):
-    root, frequency, _ = lab
+    root, _ = lab
     identity = compute.compute()
     path = root / ".pingstore/runs" / identity
     record = load_json(path / "run.json")
     if damage == "payload":
-        (path / "export/arrays.npz").write_bytes(b"corrupt")
+        next(path.glob("export/probe--*--rasters.npz")).write_bytes(b"corrupt")
     elif damage == "manifest":
         record["stage"] = "present"
     elif damage == "layout":
@@ -472,15 +423,15 @@ def test_corrupt_inputs_rejected_before_reservation(lab, damage):
         record["payload_digest"] = payload_digest(path)
     write_json_atomic(path / "run.json", record)
     with pytest.raises((PingstoreError, ValueError)):
-        analyse.analyse(identity, frequency)
+        analyse.analyse(identity)
     assert not list((root / ".pingstore/runs").glob(".exp054-*.tmp"))
 
 
 def test_ancestor_metadata_change_does_not_change_payload_identity(lab):
-    root, frequency, _ = lab
+    root, _ = lab
     identity = compute.compute()
-    analysis = analyse.analyse(identity, frequency)
-    path = root / ".pingstore/runs" / frequency / "run.json"
+    analysis = analyse.analyse(identity)
+    path = root / ".pingstore/runs" / identity / "run.json"
     record = load_json(path)
     record["execution"]["note"] = "changed authoritative provenance"
     write_json_atomic(path, record)
@@ -488,13 +439,13 @@ def test_ancestor_metadata_change_does_not_change_payload_identity(lab):
 
 
 def test_source_change_during_stage_prevents_completion(lab, monkeypatch):
-    root, frequency, _ = lab
+    root, _ = lab
     identity = compute.compute()
     original = measurements.recordings
 
     def changing(source, cfg):
         result = original(source, cfg)
-        path = root / ".pingstore/runs" / frequency / "export/results.json"
+        path = root / ".pingstore/runs" / identity / "export/recordings.json"
         document = load_json(path)
         document["note"] = "changed during analysis"
         write_json_atomic(path, document)
@@ -502,12 +453,12 @@ def test_source_change_during_stage_prevents_completion(lab, monkeypatch):
 
     monkeypatch.setattr(measurements, "recordings", changing)
     with pytest.raises(PingstoreError):
-        analyse.analyse(identity, frequency)
+        analyse.analyse(identity)
     assert len(list((root / ".pingstore/runs").glob("exp054-*"))) == 1
 
 
 def test_hpc_requires_prior_reservation(lab, monkeypatch):
-    root, _, calls = lab
+    root, calls = lab
     monkeypatch.setenv("SLURM_JOB_ID", "fixture")
     with pytest.raises(PingstoreError, match="reserved before"):
         compute.compute()
@@ -526,124 +477,6 @@ def test_measured_rates_use_post_burn_full_populations(tmp_path):
     assert e.shape == (3000, 1024) and i.shape == (3000, 256)
     count = np.count_nonzero(data["e_t"] >= 1000)
     assert measurements.score(e, cfg)["rate"] == count / (1024 * 0.3)
-
-
-def test_missing_mean_field_sweep_and_wrong_sigma_fail():
-    cfg = recipe.configuration(smoke=True)
-    raw = raw_theory()
-    raw["reference"]["sweep"].pop()
-    with pytest.raises(PingstoreError, match="incomplete"):
-        measurements.mean_field(raw, cfg)
-    cfg["mean_field"]["sigma_V_mV"] = 3.0
-    with pytest.raises(PingstoreError, match="recipe"):
-        recipe.validate(cfg)
-
-
-def test_historical_analysis_preserves_scalars_and_borrowed_theory(lab):
-    root, frequency, _ = lab
-    native = inputs.source(root, compute.compute(), "compute")
-    f = inputs.source(root, frequency, "analyse", experiment="exp041")
-    original_numbers, _ = mf_measurements.analyse(
-        synthetic(version=1), load_json(f.export / "results.json")
-    )
-    result = original_numbers["results"]
-    subset = {
-        "sweep": synthetic()["reference"]["sweep"],
-        "hopf": result["hopf"],
-        "criticality": result["criticality"],
-        "frequency_vs_tau_gaba": result["frequency_vs_tau_gaba"]["mean_field"],
-        "spiking_exp041": {
-            str(k): v
-            for k, v in result["frequency_vs_tau_gaba"]["spiking_exp041"].items()
-        },
-    }
-    with stages.stage_run(
-        root,
-        "exp033",
-        "compute",
-        inputs={"frequencies": f},
-        operation="historical-import",
-    ) as theory:
-        write_json_atomic(theory.export / "historical-numbers.json", original_numbers)
-        with zipfile.ZipFile(theory.export / "mean-field.zip", "w") as z:
-            z.writestr("numerical-evidence.json", json.dumps(subset))
-        theory.record["historical_import"] = {
-            "cache_producer": {"experiment": "exp054", "job_id": "33913631"},
-            "frequency_deltas_hz": {k: 0.0 for k in subset["spiking_exp041"]},
-        }
-    t = inputs.source(root, theory.run_id, "compute", experiment="exp033")
-    cfg = inputs.configuration(native)
-    numbers = measurements.summary(measurements.recordings(native, cfg), cfg)
-    numbers["grid"]["contrast"][0][0] += 1e-16
-    with inputs.execution(
-        root,
-        "compute",
-        sources={"mean_field": t, "frequencies": f},
-        configuration=cfg,
-        operation="historical-import",
-    ) as imported:
-        for artifact in native.outputs.glob("probe--*--rasters.npz"):
-            identity = artifact.name.removeprefix("probe--").removesuffix(
-                "--rasters.npz"
-            )
-            destination = imported.export / "probe" / identity
-            destination.mkdir(parents=True)
-            shutil.copyfile(artifact, destination / "rasters.npz")
-        shutil.copyfile(
-            native.export / "recordings.json", imported.export / "recordings.json"
-        )
-        write_json_atomic(imported.export / "historical-numbers.json", numbers)
-    identity = analyse.analyse(imported.run_id, frequency)
-    source = inputs.source(root, identity, "analyse")
-    observed = load_json(source.export / "results.json")
-    assert all(observed[k] == numbers[k] for k in numbers)
-    coords = evidence.read(source.export)
-    assert coords["grid"][0][0]["contrast"] == numbers["grid"]["contrast"][0][0]
-    assert (
-        source.record["historical_analysis"]["empirical_recheck"][
-            "maximum_absolute_contrast_delta"
-        ]
-        > 0
-    )
-    assert observed["mean_field"]["hopf"] == subset["hopf"]
-
-
-@pytest.mark.parametrize("path", ["contrast", "rate"])
-def test_historical_comparison_does_not_hide_scientific_changes(path):
-    source = {
-        "config": {},
-        "grid": {"contrast": [0.5], "rate": [2.0]},
-        "rate_invariance": {},
-    }
-    other = json.loads(json.dumps(source))
-    other["grid"][path][0] += 0.001
-    with pytest.raises(PingstoreError, match="do not reproduce"):
-        evidence.compare_retained_numbers(source, other)
-
-
-def test_compute_checks_solver_completion_without_analysis(monkeypatch):
-    # Exercise the actual numerical orchestration with synthetic solver returns.
-    raw = raw_theory()
-    monkeypatch.setattr(
-        compute.numerical,
-        "continuation",
-        lambda *a, **k: {
-            "sweep": raw["reference"]["sweep"],
-            "hopf": raw["reference"]["hopf"],
-        },
-    )
-    monkeypatch.setattr(compute.numerical, "ramp", lambda *a: raw["reference"]["ramp"])
-    monkeypatch.setattr(
-        compute.numerical_validation,
-        "hysteresis",
-        lambda *a: pytest.fail("compute measured amplitudes"),
-    )
-    assert (
-        compute.mean_field(recipe.configuration())["schema"] == "exp054.mean-field/v1"
-    )
-    raw["reference"]["ramp"]["up"][0]["t_ms"][-1] = 1999.0
-    with pytest.raises(PingstoreError, match="incomplete"):
-        compute.mean_field(recipe.configuration())
 
 
 def test_null_lag_label_uses_renderable_mathtext(tmp_path):

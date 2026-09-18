@@ -215,14 +215,11 @@ def test_independent_stages_and_lossless_arrays(lab, monkeypatch):
     monkeypatch.setattr(compute, "simulate", fail)
     for name in ("fsolve", "brentq", "sweep", "find_hopf"):
         monkeypatch.setattr(numerics, name, fail)
-    analysis_id = analyse.analyse(identity, frequency)
+    analysis_id = analyse.analyse(identity)
     analysis_source = inputs.source(root, analysis_id, "analyse")
-    assert set(analysis_source.record["inputs"]) == {"compute", "frequencies"}
+    assert set(analysis_source.record["inputs"]) == {"compute"}
     expected = load_json(analysis_source.export / "results.json")
-    assert (
-        expected["results"]["frequency_vs_tau_gaba"]["spiking_exp041"]["6.0"]
-        == 100 / 6 + 1
-    )
+    assert set(expected["results"]["frequency_vs_tau_gaba"]) == {"mean_field"}
     monkeypatch.setattr(measurements, "analyse", fail)
     monkeypatch.setattr(analyse, "analyse", fail)
     presented = inputs.source(root, present.present(analysis_id), "present")
@@ -244,7 +241,7 @@ def test_independent_stages_and_lossless_arrays(lab, monkeypatch):
 def test_source_corruption_rejected_before_reservation(lab, damage):
     root, frequency, bank, _ = lab
     identity = compute.compute()
-    directory = root / ".pingstore/runs" / bank
+    directory = root / ".pingstore/runs" / identity
     if damage == "payload":
         (directory / "export/fixture.txt").write_text("changed")
     elif damage in ("manifest", "v2"):
@@ -260,31 +257,25 @@ def test_source_corruption_rejected_before_reservation(lab, damage):
         (directory / "export/link").symlink_to("fixture.txt")
     before = set((root / ".pingstore/runs").iterdir())
     with pytest.raises(PingstoreError):
-        analyse.analyse(identity, frequency)
+        analyse.analyse(identity)
     assert set((root / ".pingstore/runs").iterdir()) == before
 
 
-@pytest.mark.parametrize("target", ["ancestor", "compute"])
-def test_metadata_amendment_during_analysis_is_allowed(lab, monkeypatch, target):
+def test_metadata_amendment_during_analysis_is_allowed(lab, monkeypatch):
     root, frequency, bank, _ = lab
     identity = compute.compute()
     original = measurements.analyse
 
     def mutate(*args):
         output = original(*args)
-        path = (
-            root
-            / ".pingstore/runs"
-            / (bank if target == "ancestor" else identity)
-            / "run.json"
-        )
+        path = root / ".pingstore/runs" / identity / "run.json"
         record = load_json(path)
         record["execution"]["changed"] = True
         write_json_atomic(path, record)
         return output
 
     monkeypatch.setattr(measurements, "analyse", mutate)
-    analysis_id = analyse.analyse(identity, frequency)
+    analysis_id = analyse.analyse(identity)
     assert (root / ".pingstore/runs" / analysis_id).is_dir()
 
 
@@ -305,7 +296,7 @@ def test_compute_failure_and_reserved_identity_reuse(lab, monkeypatch):
 
 def test_presentation_failure_never_completes(lab, monkeypatch):
     root, frequency, _, _ = lab
-    aid = analyse.analyse(compute.compute(), frequency)
+    aid = analyse.analyse(compute.compute())
 
     def broken(*a, **k):
         raise RuntimeError("renderer failure")
@@ -341,27 +332,16 @@ def test_incomplete_measurements_fail(lab, damage):
     evidence.write(source.export, raw)
     resign(source.directory)
     with pytest.raises(PingstoreError):
-        analyse.analyse(identity, frequency)
+        analyse.analyse(identity)
 
 
 def test_wrong_stage_or_experiment_and_missing_inputs(lab):
     root, frequency, bank, _ = lab
     identity = compute.compute()
-    for source in (identity, bank):
-        with pytest.raises(PingstoreError):
-            analyse.analyse(identity, source)
     with pytest.raises(PingstoreError):
         present.present(identity)
     with pytest.raises(PingstoreError):
-        analyse.analyse(bank, frequency)
-
-
-def test_frequency_coverage_and_median():
-    d = frequencies()
-    assert measurements.spiking_medians(d)[6.0] == 100 / 6 + 1
-    d["results"].pop()
-    with pytest.raises(PingstoreError):
-        measurements.spiking_medians(d)
+        analyse.analyse(bank)
 
 
 def test_failed_integrator_does_not_return_partial_evidence(monkeypatch):
@@ -452,7 +432,7 @@ def test_compute_orchestration_preserves_every_grid(monkeypatch):
 
 
 def test_historical_regression_tolerance_preserves_evidence():
-    numbers, _ = measurements.analyse(synthetic(), frequencies())
+    numbers, _ = measurements.analyse(synthetic())
     r = numbers["results"]
     original = evidence.amplitude_summary(r["criticality"], r["hopf"]["I_ext_star"])
     recorded = copy.deepcopy(original)
@@ -467,7 +447,7 @@ def test_historical_regression_tolerance_preserves_evidence():
 
 def test_frequency_axis_does_not_magnify_roundoff(tmp_path, monkeypatch):
     data = synthetic()
-    numbers, _ = measurements.analyse(data, frequencies())
+    numbers, _ = measurements.analyse(data)
     rows = numbers["results"]["sigma_sensitivity"]["rows"]
     for i, row in enumerate(rows):
         row["hopf"]["freq_star_Hz"] = 27.566 + i * 1e-9
@@ -508,7 +488,7 @@ def test_article_selected_inputs_equations_and_absent_data(lab):
     from demolab_cli import _paths
 
     root, frequency, _, _ = lab
-    aid = analyse.analyse(compute.compute(), frequency)
+    aid = analyse.analyse(compute.compute())
     output = inputs.source(root, present.present(aid), "present")
     repo = Path(__file__).resolve().parents[2]
     (root / "writings").mkdir()
@@ -601,12 +581,6 @@ def test_refined_hopf_lies_inside_coarse_bracket() -> None:
     lo, hi = hopf["coarse_bracket_nA"]
     assert lo <= hopf["I_ext_star"] <= hi
     assert abs(hopf["leading_eigenvalue"][0]) < 1e-8
-
-
-def test_exp054_explicitly_selects_reference_sigma() -> None:
-    from experiments.exp054.recipe import configuration
-
-    assert configuration()["mean_field"]["sigma_V_mV"] == exp033.SIGMA_V_MV
 
 
 def test_publication_text_does_not_claim_fully_fitted_scale() -> None:

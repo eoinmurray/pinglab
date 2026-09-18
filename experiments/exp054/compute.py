@@ -1,4 +1,4 @@
-"""Retain full untrained-network rasters and mean-field solutions; never analyse or plot."""
+"""Retain full untrained-network rasters; never analyse or plot."""
 
 import argparse
 import contextlib
@@ -9,64 +9,9 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
 
-import numpy as np
-from experiments.exp033 import compute as numerical
-from experiments.exp033 import measurements as numerical_validation
 from experiments.exp054 import evidence, inputs, recipe
 from experiments.helpers.run_cli import run_cli
 from pingstore.contracts import PingstoreError, load_json, write_json_atomic
-
-
-def mean_field(cfg):
-    """Reuse numerical functions, never dispatch an exp033 stage."""
-    with numerical.model.gain_parameters(cfg["mean_field"]):
-        return _mean_field(cfg)
-
-
-def _mean_field(cfg):
-    mf = cfg["mean_field"]
-    numerical_cfg = numerical.recipe.configuration(
-        version=2 if "gain_integral" in mf else 1
-    )
-    grid = np.linspace(*mf["drive_grid"])
-    sigma = mf["sigma_V_mV"]
-    reference = numerical.continuation(grid, sigma=sigma, configuration=numerical_cfg)
-    if reference["hopf"] is None:
-        raise PingstoreError("exp054 reference onset is unavailable")
-    reference["ramp"] = numerical.ramp(
-        reference["hopf"], sigma, configuration=numerical_cfg
-    )
-    result = {
-        "schema": "exp054.mean-field/v1",
-        "reference": reference,
-        "frequency": [
-            {
-                "tau_gaba_ms": tau,
-                **numerical.continuation(
-                    grid, sigma=sigma, tau=tau, configuration=numerical_cfg
-                ),
-            }
-            for tau in mf["tau_grid_ms"]
-        ],
-    }
-    for row in (reference, *result["frequency"]):
-        numerical_validation.validate_continuation(row, grid)
-        if len(row["sweep"]) != len(grid):
-            raise PingstoreError("incomplete exp054 numerical continuation")
-    hysteresis = mf["hysteresis"]
-    expected_drives = np.linspace(
-        reference["hopf"]["I_ext_star"] + hysteresis["span_nA"][0],
-        reference["hopf"]["I_ext_star"] + hysteresis["span_nA"][1],
-        hysteresis["points"],
-    ).tolist()
-    for direction in ("up", "down"):
-        branch = reference["ramp"][direction]
-        if [r["I_ext"] for r in branch] != expected_drives:
-            raise PingstoreError("incomplete exp054 numerical ramp")
-        for row in branch:
-            numerical_validation.series(row, 4, end=hysteresis["t_max_ms"])
-    return result
-
 
 def compute(*, run_id=None):
     cfg = recipe.configuration(smoke=os.environ.get("PINGLAB_SMOKE") == "1")
@@ -97,7 +42,6 @@ def compute(*, run_id=None):
             destination = run.export / "probe" / item["id"]
             destination.mkdir(parents=True)
             original.rename(destination / "rasters.npz")
-        evidence.write(run.export, mean_field(cfg))
         write_json_atomic(
             run.export / "recordings.json",
             {
