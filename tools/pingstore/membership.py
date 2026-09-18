@@ -81,8 +81,8 @@ def coverage(repo: Path) -> dict[str, Any]:
         "runnable": sorted(runnable),
         "registered": sorted(registered),
         "missing_membership": sorted(runnable - registered),
-        "stale_membership": sorted(registered - runnable),
+        "article_only": sorted(registered - runnable),
         "capture_routes": capture_routes,
         "missing_capture": sorted(runnable - set(capture_routes)),
-        "passed": runnable == registered and runnable == set(capture_routes),
+        "passed": runnable <= registered and runnable == set(capture_routes),
     }

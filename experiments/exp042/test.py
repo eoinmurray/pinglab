@@ -356,7 +356,7 @@ def test_zero_replay_is_shared_between_concurrent_workers(lab):
 def test_inference_caps_and_override_cleanup(monkeypatch, tmp_path):
     train_dir = tmp_path / "train"
     train_dir.mkdir()
-    _write_final_checkpoint(train_dir, {})
+    _write_final_checkpoint(train_dir, {"dt": 0.1})
     observed = []
 
     def fake_run(command):
