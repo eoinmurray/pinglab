@@ -7,7 +7,7 @@
   tags: ("txt", "v36.0.0"),
   title: "COBA and PING Dynamics, Discretisation, and Learning",
   created_at: "2026-09-14T00:00:00Z",
-  updated_at: "2026-09-15",
+  updated_at: "2026-09-19",
   description: "A textbook derivation of the conductance-based COBA and PING equations, their discrete simulation, and their training by surrogate-gradient BPTT, voltage-gradient damping, gradient clipping, AdamW, and Dale projection.",
   collection: "demo",
 )
@@ -702,9 +702,8 @@
 
   The loop derivation isolates one interpretable amplification route rather than
   the full state Jacobian, and it does not imply that gamma oscillation itself
-  causes gradient explosion. A paired empirical comparison varies loop
-  engagement and damping independently:
-  #link("/exp112/")[exp112] — #link("/exp112/")[_COBA–PING Gradient-Damping Comparison._]
+  causes gradient explosion. A paired empirical comparison can vary loop
+  engagement and damping independently.
 
   #journal-references((
     (text: [Pinglab contributors. _SNNsim and the paired COBA/PING training
