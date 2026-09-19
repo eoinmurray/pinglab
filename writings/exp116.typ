@@ -56,19 +56,20 @@
       ],
     )
 
-    #let frequency-table = table(
-      columns: (1.4fr, 1fr),
-      table.header([Quantity], [Reference value]),
-      [Onset drive $I_"ext"^*$], [#calc.round(reference.onset.drive_nA, digits: 6) nA],
-      [Angular frequency $omega_"Hopf"$], [#calc.round(reference.onset.omega_per_ms, digits: 6) rad/ms],
-      [Hopf frequency $f_"Hopf"$], [#calc.round(reference.onset.frequency_Hz, digits: 2) Hz],
-    )
     #journal-result-card(
       title: "Crossing predicts onset frequency",
       observation: [The imaginary part of the crossing eigenvalues corresponded to an onset frequency of #calc.round(reference.onset.frequency_Hz, digits: 2) Hz (@tab:exp116-frequency). This is an eigenvalue-derived frequency of the deterministic closure, not a measured spectral peak from the spiking network.],
       visual: [
         #figure(
-          align(center, frequency-table),
+          align(center)[
+            #table(
+              columns: (1.4fr, 1fr),
+              table.header([Quantity], [Reference value]),
+              [Onset drive $I_"ext"^*$], [#calc.round(reference.onset.drive_nA, digits: 6) nA],
+              [Angular frequency $omega_"Hopf"$], [#calc.round(reference.onset.omega_per_ms, digits: 6) rad/ms],
+              [Hopf frequency $f_"Hopf"$], [#calc.round(reference.onset.frequency_Hz, digits: 2) Hz],
+            )
+          ],
           kind: table,
           caption: [Reference crossing quantities. Angular frequency is the positive imaginary part of the critical eigenvalue in radians per millisecond; $f_"Hopf"=1000 omega_"Hopf"/(2 pi)$ converts it to hertz.],
         ) <tab:exp116-frequency>
