@@ -67,12 +67,8 @@
       title: "Crossing predicts onset frequency",
       observation: [The imaginary part of the crossing eigenvalues corresponded to an onset frequency of #calc.round(reference.onset.frequency_Hz, digits: 2) Hz (@tab:exp116-frequency). This is an eigenvalue-derived frequency of the deterministic closure, not a measured spectral peak from the spiking network.],
       visual: [
-        #context figure(
-          if target() == "html" {
-            html.elem("div", attrs: (style: "display: flex; justify-content: center; overflow-x: auto;"), frequency-table)
-          } else {
-            align(center, frequency-table)
-          },
+        #figure(
+          align(center, frequency-table),
           kind: table,
           caption: [Reference crossing quantities. Angular frequency is the positive imaginary part of the critical eigenvalue in radians per millisecond; $f_"Hopf"=1000 omega_"Hopf"/(2 pi)$ converts it to hertz.],
         ) <tab:exp116-frequency>
