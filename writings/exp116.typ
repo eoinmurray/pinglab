@@ -132,8 +132,8 @@
   For population $P$, the stationary noisy-LIF gain is the Siegert
   first-passage rate#cite(2, 3)
 
-  $ Phi_P(I)=left[tau_("ref",P)+tau_(m,P)sqrt(pi)
-      integral_(alpha_P(I))^(beta_P(I)) e^(u^2)(1+op("erf")(u)) dif u right]^(-1), $ <eq:exp116-siegert>
+  $ Phi_P(I)=lr([tau_("ref",P)+tau_(m,P)sqrt(pi)
+      integral_(alpha_P(I))^(beta_P(I)) e^(u^2)(1+op("erf")(u)) dif u])^(-1), $ <eq:exp116-siegert>
 
   where $mu_P(I)=E_L+I/g_(L,P)$,
   $alpha_P=(V_"reset"-mu_P)/sigma_V$ and
