@@ -36,3 +36,13 @@ explicit inputs and never select a latest run, launch upstream work or publish.
 The numerical engine is reused from `experiments.exp115.numerics`; exp116 owns
 its smaller scientific recipe, analysis criteria and presentation. The compute
 run records the exact engine digest alongside the exp116 implementation digests.
+
+## Completed execution — 19 September 2026
+
+The validated lineage is `exp116-r002-compute` → `exp116-r003-analyse` →
+`exp116-r004-present`. All 14 conditions contained an accepted onset on both
+continuation grids. The reference onset was 0.5939047777721255 nA at
+27.566444771089603 Hz, and its amplitude ramps were consistent with the
+prespecified supercriticality criteria. Reference onset frequency decreased
+from 30.197527262692226 to 17.940004453875506 Hz across the inhibitory-decay
+sweep. All four robustness corner pairs retained the same direction.
