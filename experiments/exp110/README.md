@@ -7,15 +7,16 @@ rather than copied or bundled here.
 
 ```sh
 uv run python -m experiments.exp110.present \
-  --source <exp054-analysis-run-id> \
-  --theory-source <exp115-analysis-run-id>
+  --source exp054-r016-analyse \
+  --theory-source exp117-r024-analyse
 ```
 
 The runner pins the accepted exp041, exp046, exp037 and exp044 presentation
 sources in code; they are not runtime recipe overrides.
 
 For the onset compound, exp110 reads the coupling grid directly from exp054,
-the mean-field onset and numerical-criticality evidence directly from exp115, and the trained-network
+the mean-field onset and numerical-criticality evidence directly from exp117,
+and the trained-network
 frequency measurements directly from exp041. It validates and joins these
 independent sources itself. It also
 composes the cycle-participation and robustness syntheses from their explicit
@@ -144,3 +145,20 @@ Its payload digest is
 `sha256:e42da7a0410d941b277a2a1172c27a803b533153e3e9602a65cff5da5d22ae02`.
 No simulation, training or analysis was rerun. Five exp110 tests, Ruff, visual
 inspection of Figure 2 and the 22-entry Demolab build passed.
+
+## 2026-09-19 — Return to exp033 mean-field evidence
+
+Presentation recipe v13 again uses `exp033-r018-analyse` as the mean-field
+source after exp115 and exp116 were retired. The presentation-only replacement
+is `exp110-r030-present`, with `exp054-r016-analyse` and the existing exp037,
+exp041, exp044 and exp046 sources unchanged. No simulation, training or analysis
+was rerun. Tests were not run under the author's pre-commit instruction.
+
+## 2026-09-19 — Independent exp117 mean-field source
+
+Presentation recipe v15 replaces the current exp033 dependency with the raw
+`exp117-r024-analyse` evidence. An exp110-local adapter preserves Figure 2G–I:
+the eigenvalue plane and amplitude ramp come from exp117, while the frequency
+comparison joins exp117 Hopf frequencies to the 18 exp041 spiking measurements
+on the exact shared inhibitory-decay grid. The exp033 and exp115 history above
+remains unchanged.

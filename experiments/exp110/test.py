@@ -4,7 +4,7 @@ import pytest
 from experiments.exp054 import plots as exp054_plots
 from experiments.exp054 import recipe as exp054_recipe
 from experiments.exp110 import plots, present, recipe
-from experiments.exp115 import recipe as exp115_recipe
+from experiments.exp117 import recipe as exp117_recipe
 from PIL import Image
 from pingstore import stages
 from pingstore.contracts import write_json_atomic
@@ -32,7 +32,7 @@ def test_present_records_exp054_analysis_and_exports_only_the_bundle(
         "memberships",
         lambda _: {
             "exp025": "test",
-            "exp115": "test",
+            "exp117": "test",
             "exp038": "test",
             "exp041": "test",
             "exp046": "test",
@@ -51,11 +51,37 @@ def test_present_records_exp054_analysis_and_exports_only_the_bundle(
         tmp_path / ".pingstore", exp054_run.run_id,
         stage="analyse", experiment="exp054",
     )
-    with stages.stage_run(tmp_path, "exp115", "analyse") as exp115_run:
-        (exp115_run.export / "fixture.json").write_text("{}")
-    exp115_analysis = source_run(
-        tmp_path / ".pingstore", exp115_run.run_id,
-        stage="analyse", experiment="exp115",
+    exp117_cfg = exp117_recipe.configuration()
+    with stages.stage_run(
+        tmp_path, "exp117", "compute", configuration=exp117_cfg
+    ) as exp117_compute_run:
+        (exp117_compute_run.export / "continuation.json").write_text("{}")
+    exp117_compute = source_run(
+        tmp_path / ".pingstore", exp117_compute_run.run_id,
+        stage="compute", experiment="exp117",
+    )
+    with stages.stage_run(
+        tmp_path,
+        "exp117",
+        "analyse",
+        inputs={"compute": exp117_compute},
+        configuration=exp117_cfg,
+    ) as exp117_run:
+        write_json_atomic(
+            exp117_run.export / "results.json",
+            {
+                "schema": "exp117.analysis/v3",
+                "configuration": exp117_cfg,
+                "result": {},
+            },
+        )
+        write_json_atomic(
+            exp117_run.export / "plot_coordinates.json",
+            {"schema": "exp117.plot-coordinates/v4"},
+        )
+    exp117_analysis = source_run(
+        tmp_path / ".pingstore", exp117_run.run_id,
+        stage="analyse", experiment="exp117",
     )
     presentations = {}
     source_analyses = {}
@@ -100,40 +126,80 @@ def test_present_records_exp054_analysis_and_exports_only_the_bundle(
             experiment=experiment,
         )
     exp054_cfg = exp054_recipe.configuration(smoke=True)
-    exp115_cfg = exp115_recipe.configuration()
     exp054_coordinates = {"grid": []}
-    exp115_coordinates = {
-        "drive_nA": [], "leading_real_per_ms": [], "ramp_drive_nA": [],
-        "ramp_up_amplitude_per_ms": [], "ramp_down_amplitude_per_ms": [],
-    }
-    exp115_numbers = {
-        "reference": {"onset": {"drive_nA": 0.6}},
-        "conditions": [
+    taus = present.SHARED_TAU_GRID_MS
+    exp117_coordinates = {
+        "schema": "exp117.plot-coordinates/v4",
+        "rows": [
             {
-                "condition": {"tau_GABA_ms": tau, "sigma_mV": 4.0, "kappa": 1.0},
-                "onset": {"frequency_Hz": 100 / tau},
+                "I_ext_nA": drive,
+                "eigenvalues_per_ms": [
+                    [-0.1, 0.2], [-0.1, -0.2], [-0.4, 0.1], [-0.4, -0.1]
+                ],
             }
-            for tau in (4.5, 6, 9, 12, 18, 27)
+            for drive in (0.0, 4.0)
+        ],
+        "hopf": {
+            "I_ext_star_nA": 0.6,
+            "omega_Hopf_rad_per_ms": 0.17,
+        },
+        "criticality": {
+            "relative_drive_nA": [-0.1, 0.1],
+            "amplitude_up_Hz": [0.0, 2.0],
+            "amplitude_down_Hz": [0.0, 2.0],
+        },
+        "frequency_vs_tau_GABA": [
+            {"tau_GABA_ms": tau, "f_Hopf_Hz": 100 / tau}
+            for tau in reversed(taus)
         ],
     }
+    exp117_numbers = {
+        "schema": "exp117.analysis/v3",
+        "configuration": exp117_cfg,
+        "result": {},
+    }
     monkeypatch.setattr(present, "REPO", tmp_path)
+    loaded_analysis, loaded_cfg, loaded_coordinates, loaded_numbers = (
+        present._exp117_analysis(exp117_analysis.record["run_id"])
+    )
+    assert loaded_analysis.reference == exp117_analysis.reference
+    assert loaded_cfg == exp117_cfg
+    assert loaded_coordinates["schema"] == "exp117.plot-coordinates/v4"
+    assert loaded_numbers["schema"] == "exp117.analysis/v3"
     monkeypatch.setattr(
         present, "_exp054_analysis",
         lambda identity: (exp054_analysis, exp054_cfg, exp054_coordinates),
     )
     monkeypatch.setattr(
-        present, "_exp115_analysis",
+        present, "_exp117_analysis",
         lambda identity: (
-            exp115_analysis, exp115_cfg, exp115_coordinates, exp115_numbers,
+            exp117_analysis, exp117_cfg, exp117_coordinates, exp117_numbers,
         ),
     )
+
+    def render_onset(grid, results, hopf, sweep, mean_field, measured, destination):
+        assert [row["I_ext"] for row in results] == [0.0, 4.0]
+        assert hopf == {"I_ext_star": 0.6, "omega_star": 0.17}
+        assert [row["I_ext"] for row in sweep["up"]] == pytest.approx([0.5, 0.7])
+        assert [row["amp"] for row in sweep["up"]] == pytest.approx([0.0, 0.002])
+        assert sweep["down"] == sweep["up"]
+        assert [row["tau_gaba_ms"] for row in mean_field] == taus
+        assert [row["f_star_Hz"] for row in mean_field] == [
+            100 / tau for tau in taus
+        ]
+        assert list(measured) == taus
+        assert [measured[tau] for tau in taus] == [
+            100 / tau + 1 for tau in taus
+        ]
+        destination.with_suffix(".png").write_bytes(b"png")
+        destination.with_suffix(".pdf").write_bytes(b"pdf")
 
     def render(*args) -> None:
         destination = args[-1]
         destination.with_suffix(".png").write_bytes(b"png")
         destination.with_suffix(".pdf").write_bytes(b"pdf")
 
-    monkeypatch.setattr(plots, "build_onset_super_compound", render)
+    monkeypatch.setattr(plots, "build_onset_super_compound", render_onset)
     monkeypatch.setattr(
         present,
         "build_cycle_participation_compound",
@@ -146,7 +212,7 @@ def test_present_records_exp054_analysis_and_exports_only_the_bundle(
     )
     identity = present.present(
         exp054_analysis.record["run_id"],
-        exp115_analysis.record["run_id"],
+        exp117_analysis.record["run_id"],
         presentations["exp041"].record["run_id"],
         presentations["exp046"].record["run_id"],
         presentations["exp037"].record["run_id"],
@@ -157,7 +223,7 @@ def test_present_records_exp054_analysis_and_exports_only_the_bundle(
     )
     assert output.record["inputs"] == {
         "exp054_analysis": exp054_analysis.reference,
-        "exp115_analysis": exp115_analysis.reference,
+        "exp117_analysis": exp117_analysis.reference,
         "exp041_presentation": presentations["exp041"].reference,
         "exp046_presentation": presentations["exp046"].reference,
         "exp041_analysis": source_analyses["exp041"].reference,
@@ -170,7 +236,7 @@ def test_present_records_exp054_analysis_and_exports_only_the_bundle(
     )
     assert output.record["execution"]["configuration"]["source_recipes"] == {
         "exp054": exp054_cfg,
-        "exp115": exp115_cfg,
+        "exp117": exp117_cfg,
     }
 
 def test_cycle_participation_uses_equal_network_means(tmp_path, monkeypatch):

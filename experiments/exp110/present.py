@@ -19,7 +19,7 @@ from experiments.exp054 import evidence as exp054_evidence
 from experiments.exp054 import plots as exp054_plots
 from experiments.exp054 import recipe as exp054_recipe
 from experiments.exp110 import plots, recipe
-from experiments.exp115 import recipe as exp115_recipe
+from experiments.exp117 import recipe as exp117_recipe
 from experiments.helpers import theme
 from experiments.helpers.figsave import save_figure
 from pingstore.contracts import PingstoreError, load_json
@@ -31,6 +31,8 @@ CANONICAL_PRESENTATION_SOURCES = {
     "exp037": "exp037-r020-present",
     "exp044": "exp044-r009-present",
 }
+
+SHARED_TAU_GRID_MS = [4.5, 6.0, 9.0, 12.0, 18.0, 27.0]
 
 
 def _source_figure(identity: str, experiment: str, name: str):
@@ -74,35 +76,122 @@ def _exp054_analysis(identity: str):
     return analysis, cfg, coordinates
 
 
-def _exp115_analysis(identity: str):
+def _exp117_analysis(identity: str):
     analysis = source_run(
-        REPO / ".pingstore", identity, stage="analyse", experiment="exp115"
+        REPO / ".pingstore", identity, stage="analyse", experiment="exp117"
     )
     if set(analysis.record["inputs"]) != {"compute"}:
-        raise PingstoreError("exp110 requires an independent exp115 analysis")
+        raise PingstoreError("exp110 requires an independent exp117 analysis")
     reference = analysis.record["inputs"]["compute"]
     compute = source_run(
         REPO / ".pingstore", reference["run_id"], stage="compute",
-        experiment="exp115", reference=reference,
+        experiment="exp117", reference=reference,
     )
-    cfg = exp115_recipe.validate(analysis.record["execution"]["configuration"])
-    if compute.record["execution"]["configuration"] != cfg:
-        raise PingstoreError("exp115 analysis and compute recipes differ")
+    cfg = exp117_recipe.validate(analysis.record["execution"]["configuration"])
+    compute_cfg = exp117_recipe.validate(
+        compute.record["execution"]["configuration"]
+    )
+    if cfg.get("schema") != "exp117.recipe/v3" or compute_cfg != cfg:
+        raise PingstoreError("exp117 analysis and compute recipes differ")
     numbers = load_json(analysis.export / "results.json")
+    coordinates = load_json(analysis.export / "plot_coordinates.json")
     if (
-        numbers.get("schema") != "exp115.analysis/v2"
-        or numbers.get("reference", {}).get("condition") != cfg["reference"]
+        numbers.get("schema") != "exp117.analysis/v3"
+        or numbers.get("configuration") != cfg
+        or coordinates.get("schema") != "exp117.plot-coordinates/v4"
     ):
-        raise PingstoreError("unsupported independent exp115 analysis")
-    with np.load(analysis.export / "reference-branch.npz", allow_pickle=False) as saved:
-        expected = {
-            "drive_nA", "leading_real_per_ms", "ramp_drive_nA",
-            "ramp_up_amplitude_per_ms", "ramp_down_amplitude_per_ms",
-        }
-        if set(saved.files) != expected:
-            raise PingstoreError("unsupported exp115 reference coordinates")
-        coordinates = {key: saved[key].copy() for key in expected}
+        raise PingstoreError("unsupported independent exp117 analysis")
     return analysis, cfg, coordinates, numbers
+
+
+def _adapt_exp117_figure2(
+    coordinates: dict,
+) -> tuple[list[dict], dict, dict, list[dict]]:
+    """Map exp117 analysis fields to exp110's established Figure 2 contract."""
+    rows = coordinates.get("rows")
+    hopf_source = coordinates.get("hopf")
+    criticality = coordinates.get("criticality")
+    frequency_rows = coordinates.get("frequency_vs_tau_GABA")
+    if (
+        not isinstance(rows, list)
+        or not rows
+        or not isinstance(hopf_source, dict)
+        or not isinstance(criticality, dict)
+        or not isinstance(frequency_rows, list)
+    ):
+        raise PingstoreError("incomplete exp117 Figure 2 coordinates")
+
+    results = []
+    for row in rows:
+        drive = row.get("I_ext_nA")
+        eigenvalues = row.get("eigenvalues_per_ms")
+        if (
+            not np.isfinite(drive)
+            or not isinstance(eigenvalues, list)
+            or len(eigenvalues) != 4
+            or any(
+                not isinstance(value, list)
+                or len(value) != 2
+                or not np.isfinite(value).all()
+                for value in eigenvalues
+            )
+        ):
+            raise PingstoreError("invalid exp117 eigenvalue coordinates")
+        results.append({"I_ext": float(drive), "eigs": eigenvalues})
+
+    hopf = {
+        "I_ext_star": hopf_source.get("I_ext_star_nA"),
+        "omega_star": hopf_source.get("omega_Hopf_rad_per_ms"),
+    }
+    if not all(np.isfinite(value) for value in hopf.values()):
+        raise PingstoreError("invalid exp117 Hopf coordinates")
+
+    relative_drive = criticality.get("relative_drive_nA")
+    amplitude_up = criticality.get("amplitude_up_Hz")
+    amplitude_down = criticality.get("amplitude_down_Hz")
+    if (
+        not all(isinstance(values, list) for values in (
+            relative_drive, amplitude_up, amplitude_down
+        ))
+        or len(relative_drive) == 0
+        or len({len(relative_drive), len(amplitude_up), len(amplitude_down)}) != 1
+        or not all(
+            np.isfinite(value)
+            for values in (relative_drive, amplitude_up, amplitude_down)
+            for value in values
+        )
+    ):
+        raise PingstoreError("invalid exp117 criticality coordinates")
+    absolute_drive = [hopf["I_ext_star"] + value for value in relative_drive]
+    sweep = {
+        "up": [
+            {"I_ext": drive, "amp": amplitude / 1000}
+            for drive, amplitude in zip(absolute_drive, amplitude_up, strict=True)
+        ],
+        "down": [
+            {"I_ext": drive, "amp": amplitude / 1000}
+            for drive, amplitude in zip(absolute_drive, amplitude_down, strict=True)
+        ],
+    }
+
+    frequency_by_tau = {}
+    for row in frequency_rows:
+        tau = row.get("tau_GABA_ms")
+        frequency = row.get("f_Hopf_Hz")
+        if (
+            not np.isfinite(tau)
+            or not np.isfinite(frequency)
+            or tau in frequency_by_tau
+        ):
+            raise PingstoreError("invalid exp117 frequency coordinates")
+        frequency_by_tau[float(tau)] = float(frequency)
+    if set(frequency_by_tau) != set(SHARED_TAU_GRID_MS):
+        raise PingstoreError("exp110 requires the exact shared inhibitory-decay grid")
+    mean_field = [
+        {"tau_gaba_ms": tau, "f_star_Hz": frequency_by_tau[tau]}
+        for tau in SHARED_TAU_GRID_MS
+    ]
+    return results, hopf, sweep, mean_field
 
 
 def _spiking_frequency_medians(
@@ -266,7 +355,7 @@ def build_robustness_compound(
 
 def present(
     exp054_identity: str,
-    exp115_identity: str,
+    exp117_identity: str,
     exp041_identity: str,
     exp046_identity: str,
     exp037_identity: str,
@@ -275,8 +364,8 @@ def present(
     run_id: str | None = None,
 ) -> str:
     exp054_analysis, exp054_cfg, exp054_coordinates = _exp054_analysis(exp054_identity)
-    exp115_analysis, exp115_cfg, exp115_coordinates, exp115_numbers = _exp115_analysis(
-        exp115_identity
+    exp117_analysis, exp117_cfg, exp117_coordinates, _ = _exp117_analysis(
+        exp117_identity
     )
     exp041, _ = _source_figure(
         exp041_identity, "exp041", recipe.RATE_FREQUENCY_SOURCE
@@ -293,18 +382,12 @@ def present(
     rate_analysis = _presentation_analysis(exp041, "exp041")
     cycle_analysis = _presentation_analysis(exp046, "exp046")
     rate_numbers = load_json(rate_analysis.export / "results.json")
-    mean_field = [
-        {
-            "tau_gaba_ms": row["condition"]["tau_GABA_ms"],
-            "f_star_Hz": row["onset"]["frequency_Hz"],
-        }
-        for row in exp115_numbers["conditions"]
-        if row["condition"]["sigma_mV"] == 4.0
-        and row["condition"]["kappa"] == 1.0
-        and row["onset"] is not None
-    ]
-    tau_grid = [row["tau_gaba_ms"] for row in mean_field]
-    measured_frequency = _spiking_frequency_medians(rate_numbers, tau_grid)
+    theory_results, theory_hopf, theory_sweep, mean_field = (
+        _adapt_exp117_figure2(exp117_coordinates)
+    )
+    measured_frequency = _spiking_frequency_medians(
+        rate_numbers, SHARED_TAU_GRID_MS
+    )
     with (
         stage_run(
             REPO,
@@ -312,7 +395,7 @@ def present(
             "present",
             inputs={
                 "exp054_analysis": exp054_analysis,
-                "exp115_analysis": exp115_analysis,
+                "exp117_analysis": exp117_analysis,
                 "exp041_presentation": exp041,
                 "exp046_presentation": exp046,
                 "exp041_analysis": rate_analysis,
@@ -321,14 +404,15 @@ def present(
                 "exp044_presentation": exp044,
             },
             run_id=run_id,
-            configuration=recipe.configuration(exp054_cfg, exp115_cfg),
+            configuration=recipe.configuration(exp054_cfg, exp117_cfg),
         ) as run,
         exp054_plots.configured(exp054_cfg),
     ):
         plots.build_onset_super_compound(
             exp054_coordinates["grid"],
-            exp115_coordinates,
-            exp115_numbers["reference"],
+            theory_results,
+            theory_hopf,
+            theory_sweep,
             mean_field,
             measured_frequency,
             run.export / "onset_super_compound",
@@ -350,7 +434,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source", required=True, help="completed exp054 analysis run")
     parser.add_argument(
-        "--theory-source", required=True, help="completed exp115 analysis run"
+        "--theory-source", required=True, help="completed exp117 analysis run"
     )
     parser.add_argument("--run-id", help="fresh v4 identity reserved before dispatch")
     arguments = parser.parse_args()

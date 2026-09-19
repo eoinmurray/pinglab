@@ -60,7 +60,7 @@
   tags: ("data", "v36.0.0"),
   title: "Manuscript",
   created_at: "2026-09-02T00:00:00Z",
-  updated_at: "2026-09-18",
+  updated_at: "2026-09-19",
   description: "A manuscript scaffold connecting PING circuit dynamics, low-rate task performance, cycle participation, perturbation sensitivity and continuous-stream classification.",
   collection: "gamma-gated-sparsity",
 )
@@ -280,8 +280,8 @@
       *(D–F)* Illustrative 200-ms rasters at $(W_(E I), W_(I E)) = (0, 0)$,
       $(0.6, 1.2)$ and $(3, 6)$ µS; black/red marks show 160 E/48 I neurons.
       A–F have no uncertainty estimates.
-      *(G–H)* Separate four-variable mean-field model. G shows the leading
-      eigenvalue real part across $I_"ext" = 0$–4 nA, with the zero crossing
+      *(G–H)* Separate four-variable mean-field model. G shows fixed-point
+      eigenvalues across $I_"ext" = 0$–4 nA (colour), with the leading pair
       at $I_"ext"^* = 0.594$ nA circled in cyan. H shows upward/downward
       peak-to-peak E-rate amplitudes; the dotted line marks onset.
       *(I)* Mean-field onset frequencies (black circles, solid) and median
@@ -289,7 +289,7 @@
       (red squares, dashed), without uncertainty intervals. Methods define
       measurements and protocols. Source experiments:
       #link("/exp054/")[exp054] — #link("/exp054/")[_Pinglab Rythmicity Metric_],
-      #link("/exp115/")[exp115] — #link("/exp115/")[_Numerical Hopf Investigation of PING_], and
+      #link("/exp117/")[exp117] — #link("/exp117/")[_Mean-Field Analysis of PING Bifurcations_], and
       #link("/exp041/")[exp041] — #link("/exp041/")[_Firing Rate Tracks Gamma Frequency._]],
   ) <fig:coupling-plane>
 
@@ -1037,15 +1037,18 @@
   #editing-paragraph-label("P33")
   We assessed criticality with 2-s upward/downward drive integrations,
   measuring peak-to-peak E-rate amplitude $A_"pp"$ in $"ms"^(-1)$ over the
-  final 500 ms (#manuscript-figure-ref(<fig:coupling-plane>, panel: "H")). Numerical supercriticality required no resolved
+  final 500 ms at 1,001 fixed sample times
+  (#manuscript-figure-ref(<fig:coupling-plane>, panel: "H")). Numerical supercriticality required no resolved
   hysteresis and a positive amplitude-squared slope, using
   #manuscript-appendix-ref(<appendix-c>, [Appendix C])'s
-  predefined thresholds; no first Lyapunov coefficient was calculated. We
+  predefined thresholds. No first Lyapunov coefficient was calculated, so
+  narrower bistability or an unstable periodic orbit was not excluded. We
   repeated onset refinement at the six inhibitory decay times used for
   spiking classifiers, holding other mean-field parameters fixed.
   #manuscript-figure-ref(<fig:coupling-plane>, panel: "I")
-  compares $f_"Hopf"$ with the median final-checkpoint spectral frequency
-  $f_"peak"$ across three classifiers per decay time.
+  compares the mean-field Hopf eigenfrequency $f_"Hopf"$ with the median
+  finite-drive spectral-peak frequency $f_"peak"$ across three spiking
+  classifiers per decay time.
 
   === Classifier comparisons and recurrent coupling
 
@@ -1939,58 +1942,60 @@
 
   *C2 — Numerical solution details.* <appendix-c2>
 
-  We solved the two population-rate self-consistency equations, recovering
-  synaptic conductances from their stationary relations. Continuations used
-  401, 801 and 1,601 equally spaced currents over the range specified in
-  Methods. The first solve used the initial rates in Table C1; subsequent
-  solves started from the previous solution. An analytic two-rate Jacobian
-  supplied the primary root solve. An independently bracketed scalar solve
-  checked every accepted equilibrium and provided a fallback where needed.
+  We eliminated the stationary conductances and inhibitory rate analytically,
+  reducing equilibrium at each of 401 equally spaced currents to one scalar
+  excitatory-rate self-consistency residual. Brent’s method solved this
+  residual between zero and the refractory-limited maximum excitatory rate.
+  Accepted roots had an absolute residual no greater than
+  $10^(-11) thin "ms"^(-1)$.
 
   We calculated the four-variable continuous-time Jacobian analytically.
-  Sign changes in the quartic Routh–Hurwitz crossing function bracketed
-  candidate onsets. Brent’s method refined each crossing, after which direct
-  eigenvalues, quartic roots, damping of the noncritical pair and positive
-  transversality were checked. Crossing counts and locations also had to
-  agree across all three continuation grids.
+  Among eigenvalues with positive imaginary part greater than
+  $10^(-8) thin "ms"^(-1)$, we selected the pair with the largest real part.
+  The first change from negative to nonnegative real part bracketed onset.
+  Brent’s method refined the crossing, recomputing the scalar equilibrium and
+  analytical Jacobian at each trial current. Transversality used a centred
+  real-part difference at currents $10^(-5)$ nA below and above the refined
+  onset.
 
   The upward amplitude sweep used 25 equally spaced currents from
   $I_"ext"^* - 0.1$ to $I_"ext"^* + 0.55$ nA, where $I_"ext"^*$ is the
   refined onset current. We initialized the lowest-current equilibrium
   with its excitatory rate increased by $10^(-3) thin "ms"^(-1)$, then
   carried each integration’s final state into the next, including the
-  transition to the descending sweep. Amplitudes used the solver’s
-  fixed 1-ms samples over the final 500 ms of each integration.
+  transition to the descending sweep. Amplitudes used 1,001 fixed samples
+  spanning the final 500 ms of each integration, rather than the adaptive
+  solver-output times.
 
-  We evaluated the gain integral in scaled form, using the complementary
-  error function and its scaled counterpart to avoid overflow and
-  cancellation. A change of variables resolved the positive-tail boundary
-  layer when the upper integration bound exceeded eight.
+  For negative values of the dimensionless gain-integration variable $u$,
+  we evaluated the scaled complementary error function $"erfcx"(-u)$ to
+  avoid cancellation. For nonnegative arguments, the exponent $u^2$ was
+  capped at 700. This kept the gain evaluation finite across the
+  continuation range.
 
   #let numerical-settings-table = table(
     columns: (1fr, 2fr),
     table.header([Numerical operation], [Method and setting]),
     [Gain quadrature],
-    [Adaptive QUADPACK integration; absolute tolerance $10^(-12)$,
-      relative tolerance $10^(-10)$; maximum 200 subintervals],
+    [Adaptive QUADPACK integration; absolute and relative tolerances both
+      $1.49 times 10^(-8)$; maximum 200 subintervals],
     [Equilibrium root finding],
-    [MINPACK hybrid method with analytic Jacobian and iterate tolerance
-      $10^(-10)$; independently bracketed scalar check],
-    [Initial equilibrium guess],
-    [Excitatory and inhibitory rates $0.005$ and $0.002 thin "ms"^(-1)$,
-      respectively],
+    [Scalar Brent method; absolute rate tolerance
+      $10^(-13) thin "ms"^(-1)$, relative tolerance $10^(-12)$ and
+      accepted residual at most $10^(-11) thin "ms"^(-1)$],
     [Continuous-time Jacobian],
-    [Analytic four-variable Jacobian with direct eigenvalue and quartic-root
-      cross-checks],
-    [Continuation refinement],
-    [401, 801 and 1,601 current points; accepted crossing locations agree
-      within $10^(-7)$ nA],
+    [Analytical four-variable flow Jacobian],
+    [Complex-eigenvalue eligibility],
+    [Positive imaginary part greater than $10^(-8) thin "ms"^(-1)$],
     [Onset refinement],
-    [Brent’s method; absolute current tolerance $10^(-10)$ nA;
-      relative tolerance $10^(-12)$; maximum 100 iterations],
+    [Brent’s method; absolute current tolerance $10^(-12)$ nA and relative
+      tolerance $10^(-12)$; transversality step $10^(-5)$ nA],
     [Upward/downward integration],
     [LSODA; relative tolerance $10^(-7)$; scalar absolute tolerance
       $10^(-10)$; maximum step 1 ms; no supplied Jacobian],
+    [Amplitude sampling],
+    [Peak-to-peak excitatory rate over 1,001 fixed samples spanning the final
+      500 ms of each 2,000-ms integration],
   )
   #context figure(
     if target() == "html" {
@@ -2001,10 +2006,11 @@
     kind: table,
     numbering: n => "C1",
     caption: [*Numerical settings for mean-field continuation, onset
-      refinement and amplitude sweeps.* The absolute
-      integration tolerance applied to rates in $"ms"^(-1)$ and
-      conductances in µS; relative tolerances were dimensionless. Unlisted
-      solver options retained their defaults.],
+      refinement and amplitude sweeps.* Calculations used SciPy 1.15.3.
+      Quadrature tolerances used library defaults. The absolute integration
+      tolerance applied to rates in $"ms"^(-1)$ and conductances in µS;
+      relative tolerances were dimensionless. Unlisted solver options retained
+      their defaults.],
   ) <tab:mean-field-numerics>
 
   *C3 — Criticality calculation.* <appendix-c3> This classification supplied the transition
@@ -2040,7 +2046,8 @@
   $10^(-4) thin "ms"^(-1)$, $m > 0$, and $R_"fit"^2 > 0.9$. All other
   outcomes were labelled “subcritical/inconclusive”. This was a numerical
   classification of finite-duration sweeps; no first Lyapunov coefficient
-  was calculated.
+  was calculated, so narrower bistability or an unstable periodic orbit was
+  not excluded.
 
   == Appendix D — Exact replay transformations <appendix-d>
 
