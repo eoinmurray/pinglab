@@ -162,3 +162,11 @@ the eigenvalue plane and amplitude ramp come from exp117, while the frequency
 comparison joins exp117 Hopf frequencies to the 18 exp041 spiking measurements
 on the exact shared inhibitory-decay grid. The exp033 and exp115 history above
 remains unchanged.
+
+The completed presentation is `exp110-r031-present` (payload
+`sha256:c2adf7a55cbdd13e324bf5647d0ebf168785effa7c64609136126c92d3decf85`).
+It pins `exp054-r016-analyse`, `exp117-r024-analyse`, the canonical exp041 and
+exp046 presentation/analysis pairs, `exp037-r020-present` and
+`exp044-r009-present`. Figures 6 and 7 are byte-identical to
+`exp110-r030-present`. Five targeted tests, full Pingstore discovery, visual
+inspection of Figure 2 and the 21-entry manuscript build passed.
