@@ -1,4 +1,4 @@
-"""Render the single exp116 evidence figure without recomputation."""
+"""Render the four-part exp116 results story without recomputation."""
 
 import argparse
 import sys
@@ -20,28 +20,41 @@ from pingstore.contracts import PingstoreError, load_json, write_json_atomic
 from pingstore.stages import source_run, stage_run
 
 
-def compound(numbers, coordinates, cfg, destination):
-    previous = theme.PAPER_MODE
-    theme.set_paper_mode(True)
-    theme.apply()
-    fig, axes = plt.subplots(1, 3, figsize=(180 / 25.4, 64 / 25.4))
-    reference = numbers["reference"]
-    onset = reference["onset"]
-    axes[0].plot(
+def finish(axis):
+    axis.spines[["top", "right"]].set_visible(False)
+    axis.tick_params(labelsize=theme.SIZE_TICK)
+
+
+def onset_figure(numbers, coordinates, destination):
+    onset = numbers["reference"]["onset"]
+    fig, axis = plt.subplots(figsize=(90 / 25.4, 68 / 25.4))
+    axis.plot(
         coordinates["drive_nA"],
         coordinates["leading_real_per_ms"],
         color=theme.INK_BLACK,
         lw=1.1,
     )
-    axes[0].axhline(0, color=theme.DEEP_RED, lw=0.7, ls="--")
-    if onset:
-        axes[0].axvline(onset["drive_nA"], color=theme.DEEP_RED, lw=0.7, ls=":")
-        axes[0].plot(onset["drive_nA"], 0, "o", color=theme.DEEP_RED, ms=3)
-    axes[0].set(
-        xlabel="Tonic drive (nA)", ylabel=r"Leading Re$(\lambda_J)$ (ms$^{-1}$)"
+    axis.axhline(0, color=theme.DEEP_RED, lw=0.7, ls="--")
+    axis.axvline(onset["drive_nA"], color=theme.DEEP_RED, lw=0.7, ls=":")
+    axis.plot(onset["drive_nA"], 0, "o", color=theme.DEEP_RED, ms=3)
+    axis.annotate(
+        f"{onset['drive_nA']:.3f} nA",
+        (onset["drive_nA"], 0),
+        xytext=(5, 7),
+        textcoords="offset points",
+        fontsize=theme.SIZE_ANNOTATION,
     )
+    axis.set(xlabel="Tonic drive (nA)", ylabel=r"Leading Re$(\lambda_J)$ (ms$^{-1}$)")
+    finish(axis)
+    fig.subplots_adjust(left=0.23, right=0.96, bottom=0.22, top=0.95)
+    save_figure(fig, destination / "hopf-onset", formats=("svg", "png"))
+    plt.close(fig)
 
-    axes[1].plot(
+
+def criticality_figure(numbers, coordinates, destination):
+    onset = numbers["reference"]["onset"]
+    fig, axis = plt.subplots(figsize=(90 / 25.4, 68 / 25.4))
+    axis.plot(
         coordinates["ramp_drive_nA"],
         coordinates["ramp_up_amplitude_per_ms"],
         color=theme.INK_BLACK,
@@ -50,7 +63,7 @@ def compound(numbers, coordinates, cfg, destination):
         lw=1.1,
         label="Upward",
     )
-    axes[1].plot(
+    axis.plot(
         coordinates["ramp_drive_nA"],
         coordinates["ramp_down_amplitude_per_ms"],
         color=theme.DEEP_RED,
@@ -61,12 +74,19 @@ def compound(numbers, coordinates, cfg, destination):
         ls="--",
         label="Downward",
     )
-    axes[1].axvline(onset["drive_nA"], color=theme.GREY_MID, lw=0.7, ls=":")
-    axes[1].set(xlabel="Tonic drive (nA)", ylabel=r"E amplitude (pk–pk, ms$^{-1}$)")
-    axes[1].legend(frameon=False, fontsize=theme.SIZE_LEGEND)
+    axis.axvline(onset["drive_nA"], color=theme.GREY_MID, lw=0.7, ls=":")
+    axis.set(xlabel="Tonic drive (nA)", ylabel=r"E amplitude (pk–pk, ms$^{-1}$)")
+    axis.legend(frameon=False, fontsize=theme.SIZE_LEGEND)
+    finish(axis)
+    fig.subplots_adjust(left=0.23, right=0.96, bottom=0.22, top=0.95)
+    save_figure(fig, destination / "sampled-criticality", formats=("svg", "png"))
+    plt.close(fig)
 
+
+def frequency_figure(numbers, cfg, destination):
+    fig, axis = plt.subplots(figsize=(90 / 25.4, 68 / 25.4))
     primary = [row for row in numbers["conditions"] if row["purpose"] == "gaba_sweep"]
-    axes[2].plot(
+    axis.plot(
         [row["condition"]["tau_GABA_ms"] for row in primary],
         [row["onset"]["frequency_Hz"] for row in primary],
         color=theme.INK_BLACK,
@@ -78,8 +98,8 @@ def compound(numbers, coordinates, cfg, destination):
     robust = [
         row for row in numbers["conditions"] if row["purpose"] == "robustness_endpoint"
     ]
-    for sigma in cfg["robustness"]["sigma_corners_mV"]:
-        for kappa in cfg["robustness"]["kappa_corners"]:
+    for sigma_index, sigma in enumerate(cfg["robustness"]["sigma_corners_mV"]):
+        for kappa_index, kappa in enumerate(cfg["robustness"]["kappa_corners"]):
             pair = [
                 row
                 for row in robust
@@ -87,30 +107,37 @@ def compound(numbers, coordinates, cfg, destination):
                 and row["condition"]["kappa"] == kappa
             ]
             pair.sort(key=lambda row: row["condition"]["tau_GABA_ms"])
-            axes[2].plot(
+            axis.plot(
                 [row["condition"]["tau_GABA_ms"] for row in pair],
                 [row["onset"]["frequency_Hz"] for row in pair],
                 color=theme.GREY_LIGHT,
                 lw=0.65,
+                label="Closure corners"
+                if sigma_index == 0 and kappa_index == 0
+                else None,
             )
-    axes[2].set(
+    axis.set(
         xlabel=r"Inhibitory decay $\tau_{GABA}$ (ms)",
         ylabel=r"Onset frequency $f_{Hopf}$ (Hz)",
     )
-    for title, axis in zip(
-        ("Equilibrium stability", "Amplitude ramps", "Inhibitory timescale"), axes
-    ):
-        axis.set_title(
-            title, loc="left", fontsize=theme.SIZE_LABEL, fontweight="semibold"
-        )
-        axis.spines[["top", "right"]].set_visible(False)
-        axis.tick_params(labelsize=theme.SIZE_TICK)
-    theme.label_panels(axes)
-    fig.subplots_adjust(left=0.075, right=0.985, bottom=0.25, top=0.83, wspace=0.47)
-    save_figure(fig, destination / "minimal-hopf-evidence", formats=("svg", "png"))
+    axis.legend(frameon=False, fontsize=theme.SIZE_LEGEND)
+    finish(axis)
+    fig.subplots_adjust(left=0.23, right=0.96, bottom=0.22, top=0.95)
+    save_figure(fig, destination / "frequency-vs-gaba", formats=("svg", "png"))
     plt.close(fig)
-    theme.set_paper_mode(previous)
+
+
+def figures(numbers, coordinates, cfg, destination):
+    previous = theme.PAPER_MODE
+    theme.set_paper_mode(True)
     theme.apply()
+    try:
+        onset_figure(numbers, coordinates, destination)
+        criticality_figure(numbers, coordinates, destination)
+        frequency_figure(numbers, cfg, destination)
+    finally:
+        theme.set_paper_mode(previous)
+        theme.apply()
 
 
 def present(identity, *, run_id=None):
@@ -146,15 +173,14 @@ def present(identity, *, run_id=None):
         with np.load(
             analysis.export / "reference-branch.npz", allow_pickle=False
         ) as coordinates:
-            compound(numbers, coordinates, cfg, run.export)
+            figures(numbers, coordinates, cfg, run.export)
         write_json_atomic(run.export / "numbers.json", numbers)
-        (run.export / "figure-caption.txt").write_text(
-            "A: leading Jacobian eigenvalue real part across tonic drive for the reference closure; "
-            "the marker identifies the accepted stable-to-unstable crossing. B: upward and downward "
-            "peak-to-peak excitatory-rate amplitudes over the final 500 ms of each 2-s step. C: onset "
-            "frequency across the six inhibitory decay times at the reference closure; light endpoint "
-            "segments show the four low/high noise and relaxation corner checks. These deterministic "
-            "closure calculations are not measurements of the separate spiking network.\n"
+        (run.export / "figure-captions.txt").write_text(
+            "Hopf onset: leading Jacobian eigenvalue real part across tonic drive at the reference "
+            "closure. Sampled criticality: upward and downward peak-to-peak excitatory-rate "
+            "amplitudes over the final 500 ms of each 2-s step. Frequency versus GABA decay: the "
+            "reference sweep and four low/high noise and relaxation endpoint checks. These are "
+            "deterministic closure calculations, not measurements of the spiking network.\n"
         )
     return run.run_id
 

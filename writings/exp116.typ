@@ -19,7 +19,9 @@
 
 #let inputs = ("exp116",)
 #let preview-figures = (
-  (path: "exp116/minimal-hopf-evidence.svg", label: "minimal mean-field onset evidence"),
+  (path: "exp116/hopf-onset.svg", label: "Hopf onset"),
+  (path: "exp116/sampled-criticality.svg", label: "sampled criticality"),
+  (path: "exp116/frequency-vs-gaba.svg", label: "frequency versus inhibitory decay"),
 )
 
 #let render-report(data-file) = [
@@ -38,28 +40,87 @@
 
   #with-result-sections[
     #journal-result-card(
-      title: "Minimal onset evidence",
-      observation: [The reference equilibrium lost stability at #calc.round(reference.onset.drive_nA, digits: 6) nA with onset frequency #calc.round(reference.onset.frequency_Hz, digits: 2) Hz (#result-figure-ref(<fig:exp116-evidence>, panel: "A")). The sampled amplitude branches met the predefined criteria for consistency with a supercritical transition (#result-figure-ref(<fig:exp116-evidence>, panel: "B")). Across the six inhibitory decay times, onset frequency fell from #calc.round(primary.first().onset.frequency_Hz, digits: 2) to #calc.round(primary.last().onset.frequency_Hz, digits: 2) Hz, and all four endpoint closure checks retained that direction (#result-figure-ref(<fig:exp116-evidence>, panel: "C")). Finite ramps cannot exclude a narrower bistable interval or unstable periodic orbit.],
+      title: "Equilibrium loses stability",
+      observation: [At the reference closure, one complex-conjugate eigenvalue pair crossed from negative to positive real part at #calc.round(reference.onset.drive_nA, digits: 6) nA while the remaining modes stayed damped (#result-figure-ref(<fig:exp116-onset>)). The equilibrium therefore lost stability through a numerically resolved Hopf crossing.],
       visual: [
         #figure(
           data-image(
-            data-file("exp116/minimal-hopf-evidence.svg"),
-            width: 100%,
-            alt: "Three panels showing a mean-field eigenvalue crossing, upward and downward amplitude ramps, and onset frequency across inhibitory decay with endpoint robustness checks.",
+            data-file("exp116/hopf-onset.svg"),
+            width: 70%,
+            alt: "Largest real part of the four-variable model's Jacobian eigenvalues crossing zero as tonic drive increases.",
           ),
-          caption: [*A:* Largest real part of the equilibrium Jacobian eigenvalues versus tonic drive at the reference closure; the marker identifies the accepted crossing. *B:* Upward and downward peak-to-peak excitatory-rate amplitudes over the final 500 ms of each 2-s drive step. *C:* Onset frequency at the six reference-closure inhibitory decay times; light endpoint segments show the four low/high effective-noise and rate-relaxation corner checks. All curves are deterministic.],
+          caption: [Largest real part of the equilibrium flow-Jacobian eigenvalues across tonic drive at $tau_"GABA"=6$ ms, $sigma_V=4$ mV and $kappa=1$. The horizontal line marks zero real part; the vertical line and marker identify the refined crossing.],
           kind: image,
           supplement: [Figure],
-        ) <fig:exp116-evidence>
+        ) <fig:exp116-onset>
+      ],
+    )
+
+    #let frequency-table = table(
+      columns: (1.4fr, 1fr),
+      table.header([Quantity], [Reference value]),
+      [Onset drive $I_"ext"^*$], [#calc.round(reference.onset.drive_nA, digits: 6) nA],
+      [Angular frequency $omega_"Hopf"$], [#calc.round(reference.onset.omega_per_ms, digits: 6) rad/ms],
+      [Hopf frequency $f_"Hopf"$], [#calc.round(reference.onset.frequency_Hz, digits: 2) Hz],
+    )
+    #journal-result-card(
+      title: "Crossing predicts onset frequency",
+      observation: [The imaginary part of the crossing eigenvalues corresponded to an onset frequency of #calc.round(reference.onset.frequency_Hz, digits: 2) Hz (@tab:exp116-frequency). This is an eigenvalue-derived frequency of the deterministic closure, not a measured spectral peak from the spiking network.],
+      visual: [
+        #context figure(
+          if target() == "html" {
+            html.elem("div", attrs: (style: "display: flex; justify-content: center; overflow-x: auto;"), frequency-table)
+          } else {
+            align(center, frequency-table)
+          },
+          kind: table,
+          caption: [Reference crossing quantities. Angular frequency is the positive imaginary part of the critical eigenvalue in radians per millisecond; $f_"Hopf"=1000 omega_"Hopf"/(2 pi)$ converts it to hertz.],
+        ) <tab:exp116-frequency>
+      ],
+    )
+
+    #journal-result-card(
+      title: "Sampled onset is supercritical",
+      observation: [The upward and downward amplitude branches nearly coincided, with maximum gap #calc.round(reference.criticality.branch_gap_per_ms, digits: 8) $"ms"^(-1)$, while the amplitude-squared fit had $R^2_"fit"=#calc.round(reference.criticality.amplitude_squared_r2, digits: 4)$ (#result-figure-ref(<fig:exp116-criticality>)). The sampled behaviour was therefore consistent with a supercritical Hopf; finite ramps cannot exclude a narrower bistable interval or unstable periodic orbit.],
+      visual: [
+        #figure(
+          data-image(
+            data-file("exp116/sampled-criticality.svg"),
+            width: 70%,
+            alt: "Upward and downward excitatory-rate oscillation amplitudes across tonic drive around the Hopf onset.",
+          ),
+          caption: [Peak-to-peak excitatory-rate amplitude over the final 500 ms of each 2-s drive step at the reference closure. Circles show the ascending sequence, open squares the descending sequence, and the vertical line the refined Hopf onset.],
+          kind: image,
+          supplement: [Figure],
+        ) <fig:exp116-criticality>
+      ],
+    )
+
+    #journal-result-card(
+      title: "Slower inhibition lowers frequency",
+      observation: [Across the reference inhibitory-decay sweep, predicted Hopf frequency fell from #calc.round(primary.first().onset.frequency_Hz, digits: 2) to #calc.round(primary.last().onset.frequency_Hz, digits: 2) Hz (#result-figure-ref(<fig:exp116-gaba-frequency>)). Every low/high effective-noise and rate-relaxation corner retained the same endpoint direction.],
+      visual: [
+        #figure(
+          data-image(
+            data-file("exp116/frequency-vs-gaba.svg"),
+            width: 70%,
+            alt: "Hopf onset frequency decreasing with inhibitory decay for the reference closure and four endpoint robustness checks.",
+          ),
+          caption: [Eigenvalue-derived Hopf frequency versus inhibitory decay. The black curve uses $sigma_V=4$ mV and $kappa=1$ at all six decay times. Grey endpoint segments use the four combinations of $sigma_V in {3,6}$ mV and $kappa in {0.5,2}$. These deterministic comparisons have no statistical uncertainty intervals.],
+          kind: image,
+          supplement: [Figure],
+        ) <fig:exp116-gaba-frequency>
       ],
     )
   ]
 
   #journal-methods(body: (
     method-card([Define the closure], [We used excitatory and inhibitory population rates plus the recurrent excitatory and inhibitory conductances. Each rate relaxed toward a stationary noisy-LIF gain; conductances followed exponential AMPA and GABA filters. Fixed driving forces and prescribed effective-noise and rate-relaxation scales make this a deterministic closure rather than an exact reduction of the spiking network. #link(<app:exp116-closure>)[Appendix A] derives the four-variable system from the conductance-based neuron and synapse equations.]),
-    method-card([Locate oscillatory onset], [We continued equilibria of the system derived in #link(<app:exp116-closure>)[Appendix A] across 401 tonic-drive values from 0 to 4 nA and refined the first stable-to-unstable complex-eigenvalue crossing. We repeated every continuation on an 801-point grid and required onset drive and frequency to agree within $10^(-7)$ nA and $10^(-4)$ Hz. The reference continuation and accepted crossing are displayed in #result-figure-ref(<fig:exp116-evidence>, panel: "A").]),
-    method-card([Test sampled criticality], [At the reference closure, we integrated 25 ascending and descending drive steps from 0.10 nA below to 0.55 nA above onset. Each step lasted 2 s and carried its endpoint forward. We measured excitatory peak-to-peak amplitude over the final 500 ms. Consistency with supercritical onset required a branch gap below $10^(-4)$ $"ms"^(-1)$, positive amplitude-squared slope and $R^2_"fit">0.9$; #result-figure-ref(<fig:exp116-evidence>, panel: "B") displays both measured branches.]),
-    method-card([Test timescale and robustness], [We repeated onset detection at inhibitory decay times 4.5, 6, 9, 12, 18 and 27 ms with the reference effective-noise scale and rate relaxation. We then tested only the two decay endpoints at the four low/high corners of those closure choices. The robustness criterion required resolved onset at both endpoints and lower frequency under slower inhibition in every corner. #result-figure-ref(<fig:exp116-evidence>, panel: "C") displays the reference sweep and endpoint checks.]),
+    method-card([Continue the equilibria], [We solved the equilibrium of the system derived in #link(<app:exp116-closure>)[Appendix A] at 401 evenly spaced tonic-drive values from 0 to 4 nA. Adjacent solutions initialized one another. We repeated the continuation on an 801-point grid and required the refined onset drive and frequency to agree within $10^(-7)$ nA and $10^(-4)$ Hz.]),
+    method-card([Identify the Hopf crossing], [At each equilibrium, we calculated the four eigenvalues of the continuous-time flow Jacobian. We refined the first crossing at which one complex-conjugate pair changed from negative to positive real part while the other pair remained damped (#result-figure-ref(<fig:exp116-onset>)).]),
+    method-card([Calculate onset frequency], [We took the positive imaginary part $omega_"Hopf"$ of the critical eigenvalue in radians per millisecond and calculated $f_"Hopf"=1000 omega_"Hopf"/(2 pi)$ in hertz (@tab:exp116-frequency).]),
+    method-card([Test sampled criticality], [At the reference closure, we integrated 25 ascending and descending drive steps from 0.10 nA below to 0.55 nA above onset. Each step lasted 2 s and carried its endpoint forward. We measured excitatory peak-to-peak amplitude over the final 500 ms. Consistency with supercritical onset required a branch gap below $10^(-4)$ $"ms"^(-1)$, positive amplitude-squared slope and $R^2_"fit">0.9$ (#result-figure-ref(<fig:exp116-criticality>)).]),
+    method-card([Vary inhibitory decay], [We repeated onset detection at $tau_"GABA"=4.5,6,9,12,18$ and $27$ ms with the reference effective-noise scale and rate relaxation. We then tested only the two decay endpoints at the four low/high corners of those closure choices. Robustness required resolved onset at both endpoints and lower frequency under slower inhibition in every corner (#result-figure-ref(<fig:exp116-gaba-frequency>)).]),
   ))
 
   == Appendix A — Four-variable closure derivation <app:exp116-closure>
