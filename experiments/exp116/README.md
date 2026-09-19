@@ -46,3 +46,11 @@ continuation grids. The reference onset was 0.5939047777721255 nA at
 prespecified supercriticality criteria. Reference onset frequency decreased
 from 30.197527262692226 to 17.940004453875506 Hz across the inhibitory-decay
 sweep. All four robustness corner pairs retained the same direction.
+
+## Presentation refresh — 19 September 2026
+
+`exp116-r005-present` reuses `exp116-r003-analyse` without recomputation. It
+replaces the original compound figure with separate Hopf-onset,
+sampled-criticality and frequency-versus-GABA figures so the article can present
+the four claims independently; the calculated reference frequency is reported
+in an article table.
