@@ -477,6 +477,22 @@ def fig_results_compound(frontier_stats, curves, npz_coba, npz_ping, out_path):
         -xmax * 0.03, xmax * 1.12
     )  # left margin so near-zero points read; right headroom for the COBA label
     ax_fr.set_ylim(40, 100)  # all points ≥ 54%; crop dead space to grow the frontier
+    target_label_positions = {
+        "coba": {
+            1.0: ((-2, -8), "right", "top"),
+            2.5: ((5, -7), "left", "top"),
+            5.0: ((5, -5), "left", "top"),
+            10.0: ((5, -5), "left", "top"),
+            25.0: ((4, -8), "left", "top"),
+        },
+        "ping": {
+            1.0: ((-8, -2), "right", "top"),
+            2.5: ((-8, 3), "right", "bottom"),
+            5.0: ((-5, 8), "right", "bottom"),
+            10.0: ((0, 9), "center", "bottom"),
+            25.0: ((0, 9), "center", "bottom"),
+        },
+    }
     for m in MODELS:
         pts, base = model_curves[m]
         if pts:
@@ -496,13 +512,14 @@ def fig_results_compound(frontier_stats, curves, npz_coba, npz_ping, out_path):
                 target = point["rate_target_hz"]
                 if target is None:
                     continue
+                offset, horizontal, vertical = target_label_positions[m][target]
                 ax_fr.annotate(
                     f"{target:g}",
                     (point["rate_mean"], point["acc_mean"]),
-                    xytext=(0, 7 if m == "ping" else -7),
+                    xytext=offset,
                     textcoords="offset points",
-                    ha="center",
-                    va="bottom" if m == "ping" else "top",
+                    ha=horizontal,
+                    va=vertical,
                     fontsize=theme.SIZE_ANNOTATION,
                     color=MODEL_COLORS[m],
                 )
