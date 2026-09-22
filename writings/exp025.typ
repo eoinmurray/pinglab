@@ -8,10 +8,10 @@
 #let data-file = data-file.with(article: "exp025")
 
 #let meta = (
-  tags: ("data", "v35.4.0"),
+  tags: ("data", "v36.0.0"),
   title: "Accuracy and Firing Rate With and Without Inhibition",
   created_at: "2026-05-30T00:00:00Z",
-  updated_at: "2026-08-31T00:00:00Z",
+  updated_at: "2026-09-22T00:00:00Z",
   description: "Reused MNIST networks compare accuracy and excitatory firing rates with and without an inhibitory loop. Different gradient damping limits causal attribution to gamma timing.",
   collection: "gamma-gated-sparsity",
 )
@@ -117,8 +117,9 @@
       example, seed 42; E spikes are black and I spikes red. (C) Baseline
       validation accuracy over training. (D) Test accuracy versus mean E firing rate
       across activity ceilings; means ± SEM over three seeds, unpenalised points
-      starred. These rates are test-set averages, not raster estimates. PING
-      black and COBA red in panels C–D.
+      starred. Numeric labels give ceiling values in hertz; the PING 25 Hz ceiling
+      marker nearly coincides with its unpenalised star. These rates are test-set
+      averages, not raster estimates. PING black and COBA red in panels C–D.
     ],
   ) <fig:exp025-result-1>
 

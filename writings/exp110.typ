@@ -60,10 +60,18 @@
   tags: ("data", "v36.0.0"),
   title: "Manuscript",
   created_at: "2026-09-02T00:00:00Z",
-  updated_at: "2026-09-19",
+  updated_at: "2026-09-22",
   description: "A manuscript scaffold connecting PING circuit dynamics, low-rate task performance, cycle participation, perturbation sensitivity and continuous-stream classification.",
   collection: "gamma-gated-sparsity",
 )
+
+#block[
+  #set text(fill: rgb("#b42318"))
+  *TODO*
+  + Resolve the imported exp025 compute and analyse run provenance—without
+    rewriting existing runs—so a new valid presentation run can generate revised
+    plots.
+]
 
 #let inputs = (
   "exp023",
