@@ -492,6 +492,20 @@ def fig_results_compound(frontier_stats, curves, npz_coba, npz_ping, out_path):
                 color=MODEL_COLORS[m],
                 label=m.upper(),
             )
+            for point in pts:
+                target = point["rate_target_hz"]
+                if target is None:
+                    continue
+                ax_fr.annotate(
+                    f"{target:g}",
+                    (point["rate_mean"], point["acc_mean"]),
+                    xytext=(0, 7 if m == "ping" else -7),
+                    textcoords="offset points",
+                    ha="center",
+                    va="bottom" if m == "ping" else "top",
+                    fontsize=theme.SIZE_ANNOTATION,
+                    color=MODEL_COLORS[m],
+                )
     for m in MODELS:
         base = model_curves[m][1]
         if base is None:
