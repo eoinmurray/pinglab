@@ -349,7 +349,8 @@
       accuracy versus mean per-neuron E rate under the common endpoint
       protocol; bars show the standard error of the mean (SEM) on both axes.
       Ceilings were 1, 2.5, 5, 10 and 25 Hz; stars denote unpenalised
-      conditions.
+      conditions. The PING 25 Hz ceiling marker nearly coincides with its
+      unpenalised star.
       Source experiment: #link("/exp025/")[exp025] — #link("/exp025/")[_Accuracy and Firing Rate With and Without Inhibition._]],
   ) <fig:accuracy-rate>
 
