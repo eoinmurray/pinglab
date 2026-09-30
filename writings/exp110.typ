@@ -1,5 +1,5 @@
 // Author-approved standalone manuscript: no shared writing templates.
-#import "/.demolab/lib.typ": data-image, cite, reference-list
+#import "/.demolab/lib.typ": cite, data-image, reference-list
 
 // Resolve only the validated presentation inputs supplied by the publishing engine.
 #let prepared = "demolab-url-render" in sys.inputs or "demolab-bundle-root" in sys.inputs
@@ -60,7 +60,7 @@
   tags: ("data", "v36.0.0"),
   title: "Manuscript",
   created_at: "2026-09-02T00:00:00Z",
-  updated_at: "2026-09-22",
+  updated_at: "2026-09-27",
   description: "A manuscript scaffold connecting PING circuit dynamics, low-rate task performance, cycle participation, perturbation sensitivity and continuous-stream classification.",
   collection: "gamma-gated-sparsity",
 )
@@ -93,7 +93,9 @@
     if target() == "html" {
       html.elem(
         "div",
-        attrs: (style: "color: #b42318; font-size: 0.9em; font-weight: 400; line-height: 1; margin: 0.45rem 0 -0.7rem;"),
+        attrs: (
+          style: "color: #b42318; font-size: 0.9em; font-weight: 400; line-height: 1; margin: 0.45rem 0 -0.7rem;",
+        ),
         label,
       )
     } else {
@@ -107,31 +109,36 @@
 #let render-report(data-file) = [
   #let stream-data = json(data-file("exp082/numbers.json"))
   #let stream-image-policy = stream-data.config.at("image_stream_policy", default: none)
-  #assert(stream-image-policy in (none, "shared-across-training-seeds-durations-rates/v1"),
-    message: "unsupported continuous-stream image policy")
+  #assert(
+    stream-image-policy in (none, "shared-across-training-seeds-durations-rates/v1"),
+    message: "unsupported continuous-stream image policy",
+  )
   #let shared-stream-images = stream-image-policy != none
   #let stream-mean(duration, rate) = {
-    let values = stream-data.grid_per_seed
+    let values = stream-data
+      .grid_per_seed
       .filter(row => row.duration_ms == duration and row.rate_hz == rate)
       .map(row => row.accuracy)
     values.sum() / values.len()
   }
   #let stream-pct(value) = str(calc.round(100 * value, digits: 1)) + "%"
   #let stream-accuracy(duration, rate) = stream-pct(stream-mean(duration, rate))
-  #let stream-upper-means = (stream-data.config.psychometric_rates_hz
-    .filter(rate => rate >= 5)
-    .map(rate => stream-mean(200, rate)))
-  #let stream-upper-increasing = (range(1, stream-upper-means.len())
-    .all(i => stream-upper-means.at(i) > stream-upper-means.at(i - 1)))
+  #let stream-upper-means = (
+    stream-data.config.psychometric_rates_hz.filter(rate => rate >= 5).map(rate => stream-mean(200, rate))
+  )
+  #let stream-upper-increasing = (
+    range(1, stream-upper-means.len()).all(i => stream-upper-means.at(i) > stream-upper-means.at(i - 1))
+  )
   #set heading(numbering: none)
   #set math.equation(numbering: "(1)")
   #counter(math.equation).update(0)
   #context {
     if target() == "html" {
-      html.elem("style",
+      html.elem(
+        "style",
         "math { font-size: 1em; } "
-        + ".pinglab-numbered-equation { margin: 1.15rem 0; } "
-        + ".pinglab-numbered-equation + .pinglab-numbered-equation { margin-top: 1.65rem; }"
+          + ".pinglab-numbered-equation { margin: 1.15rem 0; } "
+          + ".pinglab-numbered-equation + .pinglab-numbered-equation { margin-top: 1.65rem; }",
       )
     }
   }
@@ -149,17 +156,21 @@
   #let manuscript-appendix-ref(target, body) = link(target, body)
   #show math.equation.where(block: true): equation => context {
     if target() == "html" {
-      html.elem("div", attrs: (
-        class: "pinglab-numbered-equation",
-        style: "display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:1em",
-      ), {
-        html.elem("div", attrs: (style: "min-width:0;overflow-x:auto;overflow-y:hidden"), equation)
-        html.elem(
-          "span",
-          attrs: (class: "pinglab-equation-number"),
-          numbering(equation.numbering, ..counter(math.equation).at(equation.location())),
-        )
-      })
+      html.elem(
+        "div",
+        attrs: (
+          class: "pinglab-numbered-equation",
+          style: "display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:1em",
+        ),
+        {
+          html.elem("div", attrs: (style: "min-width:0;overflow-x:auto;overflow-y:hidden"), equation)
+          html.elem(
+            "span",
+            attrs: (class: "pinglab-equation-number"),
+            numbering(equation.numbering, ..counter(math.equation).at(equation.location())),
+          )
+        },
+      )
     } else {
       equation
     }
@@ -167,26 +178,24 @@
   #metadata("exp110-start")
 
   == Abstract
-  A fixed excitatory–inhibitory PING loop produced a low-rate rhythmic regime
-  compatible with MNIST classification, linked excitatory firing to population-cycle
-  participation, showed distinct sensitivity to spike and timing perturbations,
-  and continued to support classification when inputs were presented as a
-  continuous stream.
+  TODO
 
   #context {
     let start = query(metadata.where(value: "exp110-start").before(here())).last().location()
     let end = query(metadata.where(value: "exp110-end").after(here())).first().location()
     let sections = query(heading.where(level: 2).after(start).before(end))
-    let entries = sections.enumerate().map(((index, section)) => {
-      let stop = if index + 1 < sections.len() { sections.at(index + 1).location() } else { end }
-      let children = query(heading.where(level: 3).after(section.location()).before(stop))
-      [
-        #link(section.location(), section.body)
-        #if children.len() > 0 {
-          list(tight: true, ..children.map(child => link(child.location(), child.body)))
-        }
-      ]
-    })
+    let entries = sections
+      .enumerate()
+      .map(((index, section)) => {
+        let stop = if index + 1 < sections.len() { sections.at(index + 1).location() } else { end }
+        let children = query(heading.where(level: 3).after(section.location()).before(stop))
+        [
+          #link(section.location(), section.body)
+          #if children.len() > 0 {
+            list(tight: true, ..children.map(child => link(child.location(), child.body)))
+          }
+        ]
+      })
     let contents = [*Contents* #list(tight: true, ..entries)]
     if target() == "html" {
       html.elem("nav", attrs: ("aria-label": "Table of Contents"), contents)
@@ -203,13 +212,16 @@
   // equation text but excluding equation numbers and standalone operators.
   #context {
     let counts = [
-      - *Results:* 1,249 words
-      - *Methods:* 4,458 words
+      - *Results:* 1,518 words
+      - *Methods:* 4,457 words
       - *Captions:* 1,631 words
       - *#manuscript-appendix-ref(<appendix-a>, [Appendix A]):* 1,506 words
       - *#manuscript-appendix-ref(<appendix-b>, [Appendix B]):* 1,235 words
       - *#manuscript-appendix-ref(<appendix-c>, [Appendix C]):* 764 words
       - *#manuscript-appendix-ref(<appendix-d>, [Appendix D]):* 379 words
+
+      *TODO*
+      + Review P9 and Figure 5 with Tim.
     ]
     if target() == "html" {
       html.elem("div", attrs: (style: "color: red;"), counts)
@@ -223,23 +235,26 @@
   === Reciprocal coupling creates a gamma-rhythmic low-rate regime
 
   #editing-paragraph-label("P1")
-  We compared loop-disabled COBA with PING circuits containing reciprocal
-  coupling between excitatory (E) and inhibitory (I) neurons
-  (#manuscript-figure-ref(<fig:matched-drive>, panel: "A,B")).
-  Illustrative 400-ms responses used separately chosen Poisson drives of 5
-  and 45 Hz per channel, respectively
+  We first asked whether reciprocal excitatory–inhibitory coupling could
+  produce rhythmic population activity while maintaining low firing rates in
+  individual excitatory neurons. We compared untrained conductance-based
+  spiking networks driven by Poisson input, with reciprocal coupling between
+  excitatory (E) and inhibitory (I) populations enabled (*loop-on*) or disabled
+  (*loop-off*; #manuscript-figure-ref(<fig:matched-drive>, panel: "A,B")).
+  Illustrative 400-ms responses used separately chosen Poisson drives of
+  5 Hz per channel for loop-off and 45 Hz for loop-on
   (#manuscript-figure-ref(<fig:matched-drive>, panel: "C,D")).
 
   #figure(
     data-image(
       data-file("exp023/overview_compound.png"),
       width: 92%,
-      alt: "Loop-disabled COBA and recurrent PING networks shown through wiring diagrams, illustrative spike rasters collected under different Poisson drives, power spectra and matched firing-rate–input sweeps.",
+      alt: "Loop-off and loop-on networks shown through wiring diagrams, illustrative spike rasters collected under different Poisson drives, power spectra and matched firing-rate–input sweeps.",
     ),
-    caption: [*COBA and PING circuit architecture and activity.*
-      *(A–B)* Loop-disabled COBA and reciprocal E→I/I→E PING.
+    caption: [*Loop-off and loop-on circuit architecture and activity.*
+      *(A–B)* Loop-off control and reciprocal E→I/I→E loop-on.
       *(C–D)* Illustrative 400-ms rasters: 1,024 E neurons (black), 256 I
-      (red), and 1,024 Poisson channels at 5 Hz (COBA) or 45 Hz (PING).
+      (red), and 1,024 Poisson channels at 5 Hz (loop-off) or 45 Hz (loop-on).
       *(E, G)* Mean-subtracted E-population Welch spectra; G's dashed line
       marks the interpolated peak. A missing marker is not a rhythmicity
       test.
@@ -250,28 +265,22 @@
   ) <fig:matched-drive>
 
   #editing-paragraph-label("P2")
-  Loop-disabled excitatory spikes were dispersed, with silent inhibitory
-  neurons (#manuscript-figure-ref(<fig:matched-drive>, panel: "C")); PING instead produced recurring E/I volleys and a
-  56.0-Hz spectral peak with higher-frequency harmonics. The control lacked
-  this regular harmonic structure
-  (#manuscript-figure-ref(<fig:matched-drive>, panel: "D,E,G")). These single-trial examples
-  support gamma-periodic organisation.
+  Loop-off excitatory spikes were dispersed, with silent inhibitory
+  neurons (#manuscript-figure-ref(<fig:matched-drive>, panel: "C")); loop-on instead produced recurring E/I volleys and a
+  56.0-Hz spectral peak with higher-frequency harmonics, with loop-off lacked (#manuscript-figure-ref(<fig:matched-drive>, panel: "D,E,G")).
 
   In matched 2–100-Hz drive sweeps, using 784 input channels rather than the
-  illustrative rasters' 1,024, COBA excitatory firing increased from 2.9 to
-  481.5 Hz while inhibition remained silent. PING excitatory rates stayed
+  illustrative rasters' 1,024, loop-off excitatory firing increased from 2.9 to
+  481.5 Hz while inhibition remained silent. Loop-on excitatory rates were constrained, staying
   between 2.8 and 11.2 Hz, while inhibitory firing reached 124.4 Hz
-  (#manuscript-figure-ref(<fig:matched-drive>, panel: "F,H")). Thus, reciprocal coupling constrained excitatory recruitment above
-  the lowest drive condition; each condition contained one trial.
+  (#manuscript-figure-ref(<fig:matched-drive>, panel: "F,H")).
 
   #editing-paragraph-label("P3")
   Across an 11×11 reciprocal-coupling grid, absent E→I or I→E coupling left
   excitatory firing near 169 Hz and autocorrelation lobe–trough contrast
-  near zero (#manuscript-figure-ref(<fig:coupling-plane>, panel: "A–C")). With both pathways present, stronger coupling
+  (#manuscript-appendix-ref(<appendix-b2>, [Appendix B2])) near zero (#manuscript-figure-ref(<fig:coupling-plane>, panel: "A–C")). With both pathways present, stronger coupling
   reduced excitatory firing to single-digit rates, sustained inhibitory
-  firing and increased contrast towards one across a broad region. The
-  low-rate, structured regime therefore extended beyond an isolated
-  operating point. Each condition used one untrained network and seed.
+  firing and increased contrast towards one across a broad region.
 
   #figure(
     data-image(
@@ -309,7 +318,8 @@
   firing became sparse and inhibitory volleys increasingly regular.
 
   #editing-paragraph-label("P5")
-  In the separate four-variable mean-field model, leading complex-conjugate
+  In the separate four-variable mean-field model
+  (#manuscript-appendix-ref(<appendix-c>, [Appendix C])), leading complex-conjugate
   eigenvalues crossed zero real part at $I_"ext"^* = 0.594$ nA,
   corresponding to 27.6 Hz (#manuscript-figure-ref(<fig:coupling-plane>, panel: "G")). Above onset, excitatory-rate amplitude
   increased continuously, with nearly coincident upward/downward sweeps and
@@ -320,50 +330,58 @@
   #editing-paragraph-label("P6")
   Increasing inhibitory decay from 4.5 to 27 ms reduced mean-field onset
   frequency from 30.2 to 17.9 Hz and median spiking-classifier spectral
-  frequency from 67.3 to 12.2 Hz (#manuscript-figure-ref(<fig:coupling-plane>, panel: "I")). This shared timescale dependence
-  does not imply quantitative agreement between mean-field onset
-  eigenfrequencies and finite-drive spectral peaks of the separate,
-  uncalibrated spiking model.
+  frequency from 67.3 to 12.2 Hz (#manuscript-figure-ref(<fig:coupling-plane>, panel: "I")). The mean-field and spiking models
+  showed the same qualitative behaviour—frequency decreased as inhibitory
+  decay slowed. The comparison was intended to assess qualitative behaviour
+  rather than establish quantitative agreement between mean-field onset
+  eigenfrequencies and finite-drive spectral peaks.
 
-  === The fixed PING loop preserves accuracy at lower excitatory rates
+  === The fixed reciprocal loop preserves accuracy at lower excitatory rates
 
   #editing-paragraph-label("P7")
-  Both unpenalised architectures reached approximately 90% validation
-  accuracy, with dense COBA firing and recurring PING volleys
+  We next trained loop-on and loop-off networks to classify handwritten
+  digits from MNIST using backpropagation through time with surrogate
+  gradients, asking whether reciprocal inhibition could reduce excitatory
+  firing while preserving classification accuracy.
+  Both architectures reached approximately 90% validation
+  accuracy, with dense loop-off firing and recurring loop-on volleys
   (#manuscript-figure-ref(<fig:accuracy-rate>, panel: "A–C")).
-  PING achieved 89.8% mean test accuracy at a mean excitatory firing rate of
-  16.6 Hz, versus 90.9% at 88.2 Hz for COBA: a 5.3-fold firing-rate
+  Loop-on achieved 89.8% mean test accuracy at a mean excitatory firing rate of
+  16.6 Hz, versus 90.9% at 88.2 Hz for loop-off: a 5.3-fold firing-rate
   reduction and 1.1-percentage-point accuracy reduction
-  (#manuscript-figure-ref(<fig:accuracy-rate>, panel: "D")). Activity
-  penalties lowered firing in both families.
-  At a 10-Hz training ceiling, PING averaged 9.1 Hz and COBA 9.0 Hz, with
-  higher accuracy for PING (88.6% versus 83.5%), shifting the accuracy–rate
-  relationship favourably near this operating point. At tighter ceilings,
-  PING retained higher accuracy but also higher firing rates; those
-  comparisons were not rate-matched.
+  (#manuscript-figure-ref(<fig:accuracy-rate>, panel: "D")). Tightening the activity-penalty ceiling
+  progressively reduced excitatory firing and classification accuracy in both
+  architectures, but their responses differed. Loop-off firing fell throughout
+  the sweep, accompanied by a steeper loss of accuracy, whereas loop-on firing
+  decreased less at the tightest ceilings while retaining higher accuracy.
+  At the 1-Hz ceiling, loop-on averaged 4.7 Hz and 81.3% accuracy, compared
+  with 2.1 Hz and 63.0% for loop-off. Thus, equal training ceilings did not
+  generally produce matched firing rates. At the 10-Hz ceiling, however, both
+  averaged approximately 9 Hz, with higher accuracy for loop-on (88.6% versus
+  83.5%).
 
   #figure(
     data-image(
       data-file("exp025/results_compound.png"),
       width: 92%,
-      alt: "COBA and PING single-trial activity, validation accuracy and test accuracy against excitatory firing rate.",
+      alt: "Loop-off and loop-on single-trial activity, validation accuracy and test accuracy against excitatory firing rate.",
     ),
-    caption: [*Accuracy and excitatory firing in COBA and PING classifiers.*
+    caption: [*Accuracy and excitatory firing in loop-off and loop-on classifiers.*
       *(A–B)* Illustrative 400-ms responses to digit-0 sample 0 from final
       unpenalised checkpoints, seed 42; E spikes are black, I red.
-      *(C–D)* COBA: red squares; PING: black diamonds. Means use three
+      *(C–D)* Loop-off: red squares; Loop-on: black diamonds. Means use three
       independent training replicates. C shows unpenalised validation
       accuracy without uncertainty intervals. D shows final-checkpoint test
       accuracy versus mean per-neuron E rate under the common endpoint
       protocol; bars show the standard error of the mean (SEM) on both axes.
       Ceilings were 1, 2.5, 5, 10 and 25 Hz; stars denote unpenalised
-      conditions. The PING 25 Hz ceiling marker nearly coincides with its
+      conditions. The loop-on 25 Hz ceiling marker nearly coincides with its
       unpenalised star.
       Source experiment: #link("/exp025/")[exp025] — #link("/exp025/")[_Accuracy and Firing Rate With and Without Inhibition._]],
   ) <fig:accuracy-rate>
 
   #editing-paragraph-label("P8")
-  Adding reciprocal inhibition to trained COBA classifiers without
+  Adding reciprocal inhibition to trained loop-off classifiers without
   retraining replaced dense excitatory activity with recurring E/I volleys
   (#manuscript-figure-ref(<fig:loop-transfer>, panel: "A,B")). Across the coupling sweep, mean excitatory firing fell from
   85.9 to 7.2 Hz (11.9-fold), inhibitory firing reached 40.0 Hz, and
@@ -380,7 +398,7 @@
     ),
     caption: [*Post-training insertion of reciprocal inhibition.*
       *(A–B)* Illustrative 200-ms responses to the same digit-7 image from
-      one validation-selected COBA classifier (seed 42), at $s = 0$ and $s =
+      one validation-selected loop-off classifier (seed 42), at $s = 0$ and $s =
       1$; fixed pseudorandom subsets show 200 E neurons (black) and 64 I
       (red). Learned weights remained frozen; recurrent matrices were newly
       initialized at each strength without retraining (Methods).
@@ -393,8 +411,11 @@
   ) <fig:loop-transfer>
 
   #editing-paragraph-label("P9")
+  We next asked whether the rhythmic activity observed with fixed reciprocal
+  coupling persisted when the recurrent excitatory–inhibitory weights were
+  trained alongside the input and readout weights.
   Training recurrent weights reduced autocorrelation contrast relative to
-  fixed PING recurrence. Final autocorrelation lobe–trough contrast was
+  fixed loop-on recurrence. Final autocorrelation lobe–trough contrast was
   0.999 with fixed recurrence, versus 0.094, 0.095 and 0.018 when recurrence
   was trained from standard, one-tenth-standard and zero initialization
   (#manuscript-figure-ref(<fig:trainable-loop>, panel: "C")). These means describe three networks per condition responding to
@@ -441,14 +462,16 @@
   === Excitatory firing is organised by population-cycle participation
 
   #editing-paragraph-label("P10")
+  We next varied the inhibitory decay time in separately trained loop-on
+  networks to examine how the timescale of inhibition shaped population
+  rhythms, excitatory firing and classification accuracy.
   Across inhibitory decay times of 4.5–27 ms, mean spectral frequency fell
   from 67.5 to 11.7 Hz and excitatory firing from 18.3 to 2.8 Hz
   (#manuscript-figure-ref(<fig:cycle-participation>, panel: "A")).
   The affine fit to six condition means had slope 0.285 Hz/Hz, intercept
   −0.70 Hz and $R^2 = 0.997$. Mean test accuracy fell from 91.2% to 81.9%
   (#manuscript-figure-ref(<fig:cycle-participation>, panel: "B")). Slower rhythms thus accompanied lower activity and a
-  classification cost; the fitted slope alone does not establish neurons'
-  participation per cycle. The slowest condition lay below conventional
+  classification cost. The slowest condition lay below conventional
   gamma frequencies, so we describe the full sweep as population cycles
   rather than gamma cycles.#cite(1)
 
@@ -484,6 +507,9 @@
   ) <fig:cycle-participation>
 
   #editing-paragraph-label("P11")
+  To examine how individual neurons participated in these population rhythms,
+  we counted each excitatory neuron’s spikes within cycles defined by
+  successive inhibitory bursts.
   Across the 18 equally weighted networks, the mean fractions were 76.35%
   with no spikes, 22.09% with one spike and 1.56% with two or more: 98.44%
   contained at most one spike
@@ -495,25 +521,29 @@
   === The operating regime has asymmetric perturbation sensitivity
 
   #editing-paragraph-label("P12")
-  Deleting 80% of naturally generated E/I transmitted spikes left mean
-  accuracy at 88.9% for COBA and 89.2% for PING; complete deletion reduced
-  both to 10.6% (#manuscript-figure-ref(<fig:robustness>, panel: "A")). Inserting events into both populations at each
-  network's baseline E firing rate reduced accuracy to 76.4% and 38.5%,
-  respectively; at twice baseline, accuracies were 53.1% and 11.4%
-  (#manuscript-figure-ref(<fig:robustness>, panel: "B")). PING therefore tolerated substantial deletion but was more sensitive
-  to insertion at matched baseline-relative doses. Both interventions
-  affected feedback and readout input, so they do not isolate rhythmic
-  disruption as the cause of failure.
+  We next tested how loop-on and loop-off classifiers responded to disrupted
+  spike transmission by deleting naturally generated spikes or inserting
+  additional spike events during inference.
+  Both networks maintained high accuracy when 80% of excitatory and inhibitory
+  spike transmissions were randomly deleted: 88.9% for loop-off and 89.2% for
+  loop-on. Deleting all transmissions reduced both to 10.6%
+  (#manuscript-figure-ref(<fig:robustness>, panel: "A")). Adding extra spikes
+  had a larger effect on loop-on networks. When spikes were added to both
+  populations at each network's baseline excitatory firing rate, accuracy
+  fell to 76.4% for loop-off and 38.5% for loop-on. Doubling the rate of added
+  spikes reduced accuracy further, to 53.1% and 11.4%, respectively
+  (#manuscript-figure-ref(<fig:robustness>, panel: "B")). Loop-on therefore tolerated substantial deletion but was more sensitive
+  to insertion at matched baseline-relative doses.
 
   #figure(
     data-image(
       data-file("exp037/perturbation_curves.svg"),
       width: 92%,
-      alt: "COBA and PING test accuracy under spike deletion and baseline-relative spike insertion.",
+      alt: "Loop-off and loop-on test accuracy under spike deletion and baseline-relative spike insertion.",
     ),
     caption: [*Spike perturbations in trained classifiers.*
       *(A–B)* Inference-time perturbations of validation-selected
-      unpenalised COBA (red squares) and PING (black diamonds), without
+      unpenalised loop-off (red squares) and loop-on (black diamonds), without
       retraining, using the common endpoint protocol. Lines and shading show
       mean ± sample SD across three independent training replicates; dashed
       lines mark 10% chance accuracy.
@@ -529,6 +559,9 @@
   ) <fig:robustness>
 
   #editing-paragraph-label("P13")
+  We next examined whether classification performance depended on the
+  simulation timestep by separately training and evaluating loop-on networks
+  at five temporal resolutions.
   Classification accuracy remained near 90% across tested timesteps, although
   excitatory firing varied. This supports robustness after separate training
   at each timestep, without establishing fixed-weight convergence
@@ -572,10 +605,10 @@
       #link("/exp042/")[exp042] — #link("/exp042/")[_Inhibitory Replay Perturbations Change Excitatory Firing._]],
   ) <fig:replay-perturbations>
 
-  === PING networks classify continuously presented inputs
+  === Loop-on networks classify continuously presented inputs
 
   #editing-paragraph-label("P15")
-  A PING classifier trained across variable input rates correctly classified
+  A loop-on classifier trained across variable input rates correctly classified
   five successive digits while retaining hidden state
   (#manuscript-figure-ref(<fig:continuous-stream>, panel: "A–D")). Sparse
   excitatory firing and inhibitory volleys persisted across changing
@@ -592,7 +625,7 @@
       alt: "A correctly classified five-digit continuous stream with per-digit durations and input rates labelled, alongside accuracy across presentation duration and input rate.",
     ),
     caption: [*Spike-count classification in continuous MNIST streams.* Three
-      independently trained, validation-selected PING classifiers used
+      independently trained, validation-selected loop-on classifiers used
       variable-rate training (0.5–25 Hz). During inference, hidden E/I state
       continued between digits; output voltage/counts reset at supplied
       boundaries.
@@ -607,9 +640,9 @@
       0.5 line is not a decision threshold. Classification uses the largest
       final count (Methods).
       *(E–F)* #if shared-stream-images [Repeated quantitative evaluation on the
-      same 40 ordered five-image streams for every network, duration and rate,
-      with separate spike-encoding draws.] else [Quantitative evaluation with
-      image samples only partly paired across duration–rate conditions.]
+        same 40 ordered five-image streams for every network, duration and rate,
+        with separate spike-encoding draws.] else [Quantitative evaluation with
+        image samples only partly paired across duration–rate conditions.]
       Accuracy across 40 five-digit test streams per
       network/condition (200 decisions), with duration/rate fixed within
       each stream. E shows replicate-mean percentage accuracy at four
@@ -627,14 +660,14 @@
   #stream-accuracy(200, 25). At 200 ms, increasing input from 0.5 to 5 Hz
   raised accuracy from #stream-accuracy(200, 0.5) to #stream-accuracy(200, 5).
   #if stream-upper-increasing [Mean accuracy then increased across the tested
-  rates from 5 to 25 Hz, reaching #stream-accuracy(200, 25).] else [Accuracy
-  ranged from #stream-pct(calc.min(..stream-upper-means)) to
-  #stream-pct(calc.max(..stream-upper-means)) across 5–25 Hz without a strictly
-  monotonic increase.] Brief presentations and weak drive constrained
+    rates from 5 to 25 Hz, reaching #stream-accuracy(200, 25).] else [Accuracy
+    ranged from #stream-pct(calc.min(..stream-upper-means)) to
+    #stream-pct(calc.max(..stream-upper-means)) across 5–25 Hz without a strictly
+    monotonic increase.] Brief presentations and weak drive constrained
   performance. #if shared-stream-images [The grid paired image identity
-  and order across conditions; its uncertainty remains conditional on one
-  sampled image bank.] else [These comparisons also contain image-sampling
-  variation because conditions were only partly paired.]
+    and order across conditions; its uncertainty remains conditional on one
+    sampled image bank.] else [These comparisons also contain image-sampling
+    variation because conditions were only partly paired.]
 
   == Methods
 
@@ -657,12 +690,12 @@
     [#link(<fig:coupling-plane>)[2A–F]], [Coupling grid; 1,024 E, 256 I], [—],
     [#link(<fig:coupling-plane>)[2G–I¹]], [Mean-field model], [—],
     [#link(<fig:accuracy-rate>)[3]], [2 architectures × 6 activity conditions], [Final],
-    [#link(<fig:loop-transfer>)[4]], [Loop insertion; reused COBA], [Best validation],
+    [#link(<fig:loop-transfer>)[4]], [Loop insertion; reused loop-off], [Best validation],
     [#link(<fig:trainable-loop>)[5]], [4 recurrent-training conditions], [Final],
     [#link(<fig:cycle-participation>)[6]; #link(<fig:coupling-plane>)[2I²]], [6 inhibitory decay times], [Final],
-    [#link(<fig:robustness>)[7A–B]], [Spike perturbations; reused COBA/PING], [Best validation],
+    [#link(<fig:robustness>)[7A–B]], [Spike perturbations; reused loop-off/loop-on], [Best validation],
     [#link(<fig:timestep-validation>)[App. A1]], [5 timesteps; 0.05–0.6 ms], [Final],
-    [#link(<fig:replay-perturbations>)[8]], [Inhibitory replay; reused PING], [Final],
+    [#link(<fig:replay-perturbations>)[8]], [Inhibitory replay; reused loop-on], [Final],
     [#link(<fig:continuous-stream>)[9]], [Variable-rate, spike-count training], [Best validation],
   )
   #counter(figure.where(kind: table)).update(0)
@@ -711,8 +744,10 @@
   #math.equation(
     block: true,
     numbering: "(1)",
-    $ g_x[k+1] = g_x[k] exp(- (Delta t_"sim") / tau_x)
-      + sum_j w_(x j) s_j[k], quad x in {E, I}. $,
+    $
+      g_x[k+1] = g_x[k] exp(- (Delta t_"sim") / tau_x)
+      + sum_j w_(x j) s_j[k], quad x in {E, I}.
+    $,
   ) <eq:synaptic-conductance-update>
 
   Here, $g_x[k]$ is conductance at step $k$, $w_(x j)$ the conductance
@@ -726,13 +761,13 @@
 
   Spiking measurements used E/I refractory holds of 1.2/0.6 ms. The
   timestep comparison, separate mean-field calculation, quantitative
-  continuous-stream evaluation and COBA training and comparisons used the
+  continuous-stream evaluation and loop-off training and comparisons used the
   same refractory durations. #if shared-stream-images [The quantitative
-  continuous-stream evaluation used a shared image bank.]
+    continuous-stream evaluation used a shared image bank.]
 
   #editing-paragraph-label("P20")
   Classifier networks contained input→E, E→I, I→E and E→output projections,
-  with E→E and I→I connections disabled; COBA additionally disabled reciprocal
+  with E→E and I→I connections disabled; loop-off additionally disabled reciprocal
   E–I coupling. Input and recurrent weights used lower-clamped Gaussian draws
   with fan-in normalization
   (#manuscript-appendix-ref(<appendix-a4>, [Appendix A4]); Table A1). Here, $N_"pre"$ is the
@@ -766,8 +801,10 @@
   #math.equation(
     block: true,
     numbering: "(1)",
-    $ s_j[k] tilde.op "Bernoulli"(p_j), quad
-      p_j = a_j r_("input,max") Delta t_"sim". $,
+    $
+      s_j[k] tilde.op "Bernoulli"(p_j), quad
+      p_j = a_j r_("input,max") Delta t_"sim".
+    $,
   ) <eq:input-spike-encoding>
 
   Here, $s_j[k] in {0, 1}$ indicates an input spike from pixel $j$ at
@@ -803,8 +840,10 @@
   #math.equation(
     block: true,
     numbering: "(1)",
-    $ z_c = 1 / N_t sum_(k=1)^(N_t) tilde(u)_c[k], quad
-      hat(y) = #math.op("arg max", limits: true)_c z_c, $,
+    $
+      z_c = 1 / N_t sum_(k=1)^(N_t) tilde(u)_c[k], quad
+      hat(y) = #math.op("arg max", limits: true) _c z_c,
+    $,
   ) <eq:output-classification>
 
   Here, $tilde(u)_c[k]$ is pre-reset output state at step $k$, $N_t$ the
@@ -837,7 +876,7 @@
   for output neurons—and the surrogate slope $beta = 1$. Gradients through
   each hidden excitatory and inhibitory membrane increment were additionally
   divided by the dimensionless voltage-gradient damping divisor
-  $d_"grad" = 1,000$ in both PING and COBA. Damping altered backward
+  $d_"grad" = 1,000$ in both loop-on and loop-off. Damping altered backward
   derivatives, not the forward update rule; output updates were undamped.
   Exact gradient paths are specified in
   #manuscript-appendix-ref(<appendix-a3>, [Appendix A3]).
@@ -850,8 +889,10 @@
   #math.equation(
     block: true,
     numbering: "(1)",
-    $ L_"total" = L_"CE" + lambda_"rate" / B sum_(b=1)^B
-      [(max(0, r_(E,b) - r_(E,"ceil"))) / (1 thin "Hz")]^2. $,
+    $
+      L_"total" = L_"CE" + lambda_"rate" / B sum_(b=1)^B
+      [(max(0, r_(E,b) - r_(E,"ceil"))) / (1 thin "Hz")]^2.
+    $,
   ) <eq:activity-penalty>
 
   Here, $L_"total"$ is the objective, $L_"CE"$ mean classification
@@ -863,7 +904,7 @@
   Hz; the unpenalised condition used $lambda_"rate" = 0$. The penalty acts
   on each presentation before minibatch averaging and imposes no hard rate
   limit. Only input/readout weights were trained; recurrence stayed fixed,
-  enabled in PING and disabled in COBA.
+  enabled in loop-on and disabled in loop-off.
 
   #editing-paragraph-label("P26")
   After each training epoch, we evaluated the 700 validation images using
@@ -882,15 +923,15 @@
   === Untrained circuit experiments
 
   #editing-paragraph-label("P27")
-  We compared untrained loop-disabled COBA and PING circuits containing
+  We compared untrained loop-off and loop-on circuits containing
   1,024 excitatory and 256 inhibitory neurons
   (#manuscript-figure-ref(<fig:matched-drive>)). Reciprocal E→I
-  and I→E coupling was absent in COBA and enabled in PING, using the
+  and I→E coupling was absent in loop-off and enabled in loop-on, using the
   initialization parameters specified in Table A1. Each simulation lasted
   400 ms at a 0.1-ms timestep, beginning with membrane voltages of −65 mV
   and zero synaptic conductances; no burn-in interval was discarded.
   Illustrative rasters used 1,024 independent Poisson input channels at
-  5 Hz per channel for COBA and 45 Hz for PING. The matched input–output
+  5 Hz per channel for loop-off and 45 Hz for loop-on. The matched input–output
   sweeps instead used 784 channels, testing both architectures at 2, 5,
   10, 20, 40, 70 and 100 Hz per channel. Each architecture–input condition
   comprised one trial with seed 42. Population firing rates were measured
@@ -995,10 +1036,12 @@
   #math.equation(
     block: true,
     numbering: "(1)",
-    $ tau_(r,E) dot(r)_E &= -r_E + Phi_E (I_"ext" - Delta V_"inh" g_I^E), \
-      tau_(r,I) dot(r)_I &= -r_I + Phi_I (Delta V_"exc" g_E^I), \
-      dot(g)_E^I &= -g_E^I / tau_"AMPA" + G_(E arrow.r I) r_E, \
-      dot(g)_I^E &= -g_I^E / tau_"GABA" + G_(I arrow.r E) r_I. $,
+    $
+      tau_(r,E) dot(r)_E & = -r_E + Phi_E (I_"ext" - Delta V_"inh" g_I^E), \
+      tau_(r,I) dot(r)_I & = -r_I + Phi_I (Delta V_"exc" g_E^I), \
+              dot(g)_E^I & = -g_E^I / tau_"AMPA" + G_(E arrow.r I) r_E, \
+              dot(g)_I^E & = -g_I^E / tau_"GABA" + G_(I arrow.r E) r_I.
+    $,
   ) <eq:mean-field-model>
 
   Here, dots denote derivatives with respect to time in milliseconds;
@@ -1062,7 +1105,7 @@
   === Classifier comparisons and recurrent coupling
 
   #editing-paragraph-label("P34")
-  We compared COBA and PING under the six activity conditions defined above,
+  We compared loop-off and loop-on under the six activity conditions defined above,
   giving 36 networks (#manuscript-figure-ref(<fig:accuracy-rate>)). Final-checkpoint test accuracy and excitatory
   firing rates used the common endpoint protocol. Unpenalised validation
   learning curves averaged replicate accuracies at each epoch;
@@ -1070,8 +1113,8 @@
   #manuscript-appendix-ref(<appendix-b4>, [Appendix B4]).
 
   The accuracy–rate, loop-insertion and spike-perturbation evaluations used
-  the 18 COBA classifiers trained with $d_"grad" = 1,000$, together with
-  the corresponding PING classifiers where applicable
+  the 18 loop-off classifiers trained with $d_"grad" = 1,000$, together with
+  the corresponding loop-on classifiers where applicable
   (#manuscript-figure-ref(<fig:accuracy-rate>),
   #manuscript-figure-ref(<fig:loop-transfer>) and
   #manuscript-figure-ref(<fig:robustness>)).
@@ -1079,7 +1122,7 @@
   protocols specified in Table 1.
 
   #editing-paragraph-label("P35")
-  We inserted reciprocal inhibition into the unpenalised COBA classifiers
+  We inserted reciprocal inhibition into the unpenalised loop-off classifiers
   from the accuracy–rate comparison, holding learned input and readout
   weights fixed without retraining (#manuscript-figure-ref(<fig:loop-transfer>)).
 
@@ -1120,7 +1163,7 @@
   === Inhibitory timescale and cycle participation
 
   #editing-paragraph-label("P37")
-  We separately trained 18 PING classifiers at inhibitory decay times
+  We separately trained 18 loop-on classifiers at inhibitory decay times
   $tau_"GABA" = 4.5, 6, 9, 12, 18$ and $27$ ms
   (#manuscript-figure-ref(<fig:cycle-participation>, panel: "A–B")). Input and
   readout weights were trained without an activity penalty; recurrence
@@ -1167,7 +1210,7 @@
   === Spike perturbations and numerical resolution
 
   #editing-paragraph-label("P39")
-  We separately applied deletion and insertion to unpenalised COBA and PING
+  We separately applied deletion and insertion to unpenalised loop-off and loop-on
   classifiers without retraining
   (#manuscript-figure-ref(<fig:robustness>, panel: "A–B")), using the common endpoint
   protocol and matched input encodings across perturbation conditions.
@@ -1194,14 +1237,14 @@
   baseline-relative doses.
 
   #editing-paragraph-label("P40")
-  We evaluated separately trained PING classifiers at matched training and
+  We evaluated separately trained loop-on classifiers at matched training and
   evaluation timesteps while holding refractory durations fixed. The full
   protocol and results are given in
   #manuscript-appendix-ref(<appendix-a5>, [Appendix A5]).
 
   #editing-paragraph-label("P41")
   We applied two count-preserving inhibitory replay perturbations to
-  unpenalised PING classifiers (#manuscript-figure-ref(<fig:replay-perturbations>)). Unperturbed inhibitory spikes
+  unpenalised loop-on classifiers (#manuscript-figure-ref(<fig:replay-perturbations>)). Unperturbed inhibitory spikes
   recorded under the common endpoint protocol were shifted and replayed,
   replacing naturally generated inhibitory outputs while excitatory activity
   and readout responses were recomputed with unchanged weights and identical
@@ -1281,16 +1324,16 @@
   from the full 10,000-image official MNIST test partition, without class
   stratification. Digit labels could repeat within a stream, and images
   could recur across streams. #if shared-stream-images [We prespecified one bank
-  of 40 ordered streams and reused the same image indices for every network,
-  duration and rate. Thus, conditions shared both the target images and the
-  preceding-image order. Spike encoding used separate generators with distinct
-  seeds for all 5,280 network–condition–stream combinations
-  (#manuscript-appendix-ref(<appendix-b5>, [Appendix B5])).
-  The 26,400 decisions are repeated evaluations of this image bank, not that
-  many independently sampled images.] else [Image samples varied across networks
-  and most conditions, but ten duration–rate pairs accidentally shared streams
-  within each network. Encoding used a separate random generator
-  (#manuscript-appendix-ref(<appendix-b5>, [Appendix B5])).]
+    of 40 ordered streams and reused the same image indices for every network,
+    duration and rate. Thus, conditions shared both the target images and the
+    preceding-image order. Spike encoding used separate generators with distinct
+    seeds for all 5,280 network–condition–stream combinations
+    (#manuscript-appendix-ref(<appendix-b5>, [Appendix B5])).
+    The 26,400 decisions are repeated evaluations of this image bank, not that
+    many independently sampled images.] else [Image samples varied across networks
+    and most conditions, but ten duration–rate pairs accidentally shared streams
+    within each network. Encoding used a separate random generator
+    (#manuscript-appendix-ref(<appendix-b5>, [Appendix B5])).]
 
   Accuracy included all 200 decisions per network and condition, including
   presentations with no output spikes.
@@ -1304,7 +1347,7 @@
   We reused the illustrative recording selected independently of quantitative
   evaluation using a predefined five-correct criterion, met by the first
   candidate (#manuscript-appendix-ref(<appendix-b4>, [Appendix B4])). #if shared-stream-images [It was not a stream from
-  the shared quantitative image bank.]
+    the shared quantitative image bank.]
 
   To visualize the evolving readout within each presentation, we
   transformed cumulative output-spike counts into softmax shares:
@@ -1346,12 +1389,12 @@
   $"SD" / sqrt(n)$, where $n = 3$ is the number of training replicates.
 
   #if shared-stream-images [For continuous-stream evaluation, all networks
-  shared one image bank but used different encoding draws. Its SEM therefore
-  summarizes variation across these trained networks and their encodings,
-  conditional on the sampled images. One bank and one encoding draw per
-  network, condition and stream do not separately estimate image-sampling,
-  encoding and training variability. Image pairing does not make the 200
-  sequential decisions per condition independent network replicates.]
+    shared one image bank but used different encoding draws. Its SEM therefore
+    summarizes variation across these trained networks and their encodings,
+    conditional on the sampled images. One bank and one encoding draw per
+    network, condition and stream do not separately estimate image-sampling,
+    encoding and training variability. Image pairing does not make the 200
+    sequential decisions per condition independent network replicates.]
 
   Figures #manuscript-figure-number(<fig:replay-perturbations>) and
   #manuscript-figure-number(<fig:continuous-stream>, panel: "E") show means without uncertainty intervals. Pooled weight
@@ -1399,9 +1442,11 @@
   #math.equation(
     block: true,
     numbering: "(1)",
-    $ g_("tot")[k+1] &= g_L + g_(E)[k+1] + g_(I)[k+1], \
-      V_(infinity)[k+1] &=
-        (g_L E_L + g_(E)[k+1] E_E + g_(I)[k+1] E_I) / (g_("tot")[k+1]). $,
+    $
+         g_("tot")[k+1] & = g_L + g_(E)[k+1] + g_(I)[k+1], \
+      V_(infinity)[k+1] & =
+                          (g_L E_L + g_(E)[k+1] E_E + g_(I)[k+1] E_I) / (g_("tot")[k+1]).
+    $,
   ) <eq:hidden-effective-equilibrium>
 
   Holding these conductances constant over the step, we calculated the
@@ -1410,11 +1455,15 @@
   #math.equation(
     block: true,
     numbering: "(1)",
-    $ V^*[k+1] = max lr({
-      V_"floor",
-      V[k] + (V_(infinity)[k+1] - V[k])
-        [1 - exp(- (Delta t_"sim" g_("tot")[k+1]) / C_m)]
-    }). $,
+    $
+      V^*[k+1] = max lr(
+        {
+          V_"floor",
+          V[k] + (V_(infinity)[k+1] - V[k])
+          [1 - exp(- (Delta t_"sim" g_("tot")[k+1]) / C_m)]
+        }
+      ).
+    $,
   ) <eq:hidden-discrete-voltage>
 
   Here, $g_"tot"$ is in µS, and $V_infinity$ and $V^*$ are voltages in
@@ -1445,13 +1494,17 @@
   #math.equation(
     block: true,
     numbering: "(1)",
-    $ tilde(u)_(c)[k+1] &= beta_"out" u_(c)[k]
-        + (1 - beta_"out") / h sum_j W_(j c)^"out" s_(j)^(E)[k+1], \
-      s_(c)^("out")[k+1] &= bold(1) lr([
-        tilde(u)_(c)[k+1] >= theta_"out"
-      ]), \
-      u_(c)[k+1] &= tilde(u)_(c)[k+1]
-        - theta_"out" s_(c)^("out")[k+1]. $,
+    $
+       tilde(u)_(c)[k+1] & = beta_"out" u_(c)[k]
+                           + (1 - beta_"out") / h sum_j W_(j c)^"out" s_(j)^(E)[k+1], \
+      s_(c)^("out")[k+1] & = bold(1) lr(
+                             [
+                               tilde(u)_(c)[k+1] >= theta_"out"
+                             ]
+                           ), \
+              u_(c)[k+1] & = tilde(u)_(c)[k+1]
+                           - theta_"out" s_(c)^("out")[k+1].
+    $,
   ) <eq:output-state-recurrence>
 
   Here, $W_(j c)^"out"$ is the dimensionless weight from hidden excitatory
@@ -1475,8 +1528,10 @@
   #math.equation(
     block: true,
     numbering: "(1)",
-    $ M_(c)[k+1] &= M_(c)[k] + tilde(u)_(c)[k+1], \
-      n_(c)[k+1] &= n_(c)[k] + s_(c)^("out")[k+1]. $,
+    $
+      M_(c)[k+1] & = M_(c)[k] + tilde(u)_(c)[k+1], \
+      n_(c)[k+1] & = n_(c)[k] + s_(c)^("out")[k+1].
+    $,
   ) <eq:output-state-accumulators>
 
   Here, $M_c$ is the cumulative pre-reset state and $n_c$ the cumulative
@@ -1498,13 +1553,15 @@
   #math.equation(
     block: true,
     numbering: "(1)",
-    $ cal(D)_(alpha_"grad")(x) = alpha_"grad" x
-        + (1 - alpha_"grad") op("sg")(x), quad
-      alpha_"grad" = 1 / d_"grad", $,
+    $
+      cal(D)_(alpha_"grad")(x) = alpha_"grad" x
+      + (1 - alpha_"grad") op("sg")(x), quad
+      alpha_"grad" = 1 / d_"grad",
+    $,
   ) <eq:voltage-gradient-scaling>
 
   where $d_"grad"$ is the damping divisor. We used $d_"grad" = 1,000$ in
-  both PING and COBA.
+  both loop-on and loop-off.
   This operation preserved the forward value while multiplying its backward
   derivative by $alpha_"grad"$.
 
@@ -1527,9 +1584,11 @@
   #math.equation(
     block: true,
     numbering: "(1)",
-    $ lr(( (∂ macron(V)[k+1]) / (∂ V[k]) ))_("BP")
+    $
+      lr(( (∂ macron(V)[k+1]) / (∂ V[k]) ))_("BP")
       = 1 - alpha_"grad"
-        [1 - exp(- (Delta t_"sim" g_("tot")[k+1]) / C_m)]. $,
+      [1 - exp(- (Delta t_"sim" g_("tot")[k+1]) / C_m)].
+    $,
   ) <eq:hidden-voltage-backward-rule>
 
   The subscript BP identifies the derivative used by backpropagation;
@@ -1551,8 +1610,10 @@
   #math.equation(
     block: true,
     numbering: "(1)",
-    $ lr(( (∂ u_(c)[k+1]) / (∂ tilde(u)_(c)[k+1]) ))_("BP")
-      = 1 - theta_"out" psi (tilde(u)_(c)[k+1] - theta_"out"), $,
+    $
+      lr(( (∂ u_(c)[k+1]) / (∂ tilde(u)_(c)[k+1]) ))_("BP")
+      = 1 - theta_"out" psi (tilde(u)_(c)[k+1] - theta_"out"),
+    $,
   ) <eq:output-reset-backward-rule>
 
   where $psi$ denotes the surrogate derivative in Equation 5 and the
@@ -1568,10 +1629,12 @@
   #math.equation(
     block: true,
     numbering: "(1)",
-    $ X_(j i) &tilde cal(N)(mu_"init", sigma_"init"^2), quad
-      M_(j i) tilde op("Bernoulli")(1 - q_"zero"), \
-      W_(j i) &= (M_(j i) max(0, X_(j i))) /
-        ((1 - q_"zero") N_"pre"). $,
+    $
+      X_(j i) & tilde cal(N)(mu_"init", sigma_"init"^2), quad
+                M_(j i) tilde op("Bernoulli")(1 - q_"zero"), \
+      W_(j i) & = (M_(j i) max(0, X_(j i))) /
+                ((1 - q_"zero") N_"pre").
+    $,
   ) <eq:initial-weight-transformation>
 
   Here, rows $j$ index presynaptic neurons, columns $i$ index postsynaptic
@@ -1589,8 +1652,10 @@
   #math.equation(
     block: true,
     numbering: "(1)",
-    $ bb(E)[W_(j i)] = mu_(+) / N_"pre", quad
-      bb(E) lr([sum_(j=1)^(N_"pre") W_(j i)]) = mu_(+). $,
+    $
+      bb(E)[W_(j i)] = mu_(+) / N_"pre", quad
+      bb(E) lr([sum_(j=1)^(N_"pre") W_(j i)]) = mu_(+).
+    $,
   ) <eq:initial-weight-expectations>
 
   Thus, compensation for zeroing preserved the expected summed incoming
@@ -1605,8 +1670,10 @@
   #math.equation(
     block: true,
     numbering: "(1)",
-    $ Y_(j c) tilde cal(N)(mu_"out", sigma_"out"^2), quad
-      W_(j c)^"out" = max(0, Y_(j c)). $,
+    $
+      Y_(j c) tilde cal(N)(mu_"out", sigma_"out"^2), quad
+      W_(j c)^"out" = max(0, Y_(j c)).
+    $,
   ) <eq:initial-readout-weights>
 
   Here, $c$ indexes output classes. These weights were dimensionless and
@@ -1636,7 +1703,7 @@
     [Optimizer; learning rate], [AdamW; 0.0004],
     [Epochs; minibatch size], [50; 256],
     [Weight decay; gradient-norm limit], [0; 1],
-    [Surrogate slope; voltage-gradient damping], [1; 1,000 (PING and COBA)],
+    [Surrogate slope; voltage-gradient damping], [1; 1,000 (loop-on and loop-off)],
   )
   #context figure(
     if target() == "html" {
@@ -1648,7 +1715,7 @@
     numbering: n => "A1",
     caption: [*Standard spiking-classifier parameters and exceptions.*
       Values describe standard classifiers, not the separate mean-field model.
-      #manuscript-figure-ref(<fig:matched-drive>) used input parent mean/SD 1.5/0.3 µS and PING recurrent means
+      #manuscript-figure-ref(<fig:matched-drive>) used input parent mean/SD 1.5/0.3 µS and loop-on recurrent means
       1.5/3 µS. Coupling strengths, inhibitory decay times and timesteps varied
       in their respective sweeps. #manuscript-figure-ref(<fig:continuous-stream>) used readout mean/SD 0.05/0.04 and
       variable input rates; stream durations varied during evaluation.
@@ -1657,7 +1724,7 @@
 
   *A5 — Timestep dependence after separate training.* <appendix-a5>
 
-  We assessed timestep dependence using 15 PING classifiers: three training
+  We assessed timestep dependence using 15 loop-on classifiers: three training
   replicates (seeds 42–44) at each integration timestep of 0.05, 0.1, 0.2,
   0.3 and 0.6 ms. All networks underwent 50 training epochs without an
   activity penalty, with recurrent weights fixed at standard strength.
@@ -1694,7 +1761,7 @@
       Mean per-neuron excitatory firing rate (black diamonds, left axis)
       and test accuracy (red squares, right axis) versus integration timestep
       on a logarithmic horizontal axis. Points show means across three
-      independently trained PING classifiers per timestep (seeds 42–44);
+      independently trained loop-on classifiers per timestep (seeds 42–44);
       error bars indicate ±1 SEM. Epoch-50 checkpoints were evaluated at
       their training timestep on the same 1,000 MNIST test images. Firing
       rates use realised presentation durations: 199.8 ms at 0.3 and 0.6 ms,
@@ -1716,9 +1783,11 @@
   #math.equation(
     block: true,
     numbering: "(1)",
-    $ delta_m &= op("clip")_([-1/2, 1/2])
-        [ (S_(m-1) - S_(m+1)) / (2 (S_(m-1) - 2 S_m + S_(m+1))) ], \
-      f_"peak" &= f_m + delta_m Delta f_"bin", $,
+    $
+       delta_m & = op("clip")_([-1/2, 1/2])
+                 [ (S_(m-1) - S_(m+1)) / (2 (S_(m-1) - 2 S_m + S_(m+1))) ], \
+      f_"peak" & = f_m + delta_m Delta f_"bin",
+    $,
   ) <eq:spectral-peak-interpolation>
 
   Here, $S_j$ is the power spectral density at frequency bin $j$, $f_m$
@@ -1738,9 +1807,11 @@
   #math.equation(
     block: true,
     numbering: "(1)",
-    $ A_("corr")[ell] =
+    $
+      A_("corr")[ell] =
       (sum_(b=0)^(N_"bin" - ell - 1) n_(E)[b] n_(E)[b+ell])
-      / ((N_"bin" - ell) macron(n)_E^2), quad ell = 1, dots, 100. $,
+      / ((N_"bin" - ell) macron(n)_E^2), quad ell = 1, dots, 100.
+    $,
   ) <eq:autocorrelation-normalization>
 
   Here, $n_(E)[b]$ is the excitatory population spike count in bin $b$,
@@ -1864,8 +1935,10 @@
     #math.equation(
       block: true,
       numbering: "(1)",
-      $ C(a,b) &= ((a+b)(a+b+1))/2 + b, \
-        eta_"encode" &= 830000 + C(C(C(i_s,i_d),i_r),j). $,
+      $
+              C(a,b) & = ((a+b)(a+b+1))/2 + b, \
+        eta_"encode" & = 830000 + C(C(C(i_s,i_d),i_r),j).
+      $,
     ) <eq:stream-random-seeds>
 
     Here, $C$ maps two non-negative integers $a,b$ to one integer;
@@ -1888,8 +1961,10 @@
     #math.equation(
       block: true,
       numbering: "(1)",
-      $ eta_"images" &= 82000 + q + floor(10 d) + floor(100 r), \
-        eta_"encode" &= 82000 + 100 q + j, $,
+      $
+        eta_"images" & = 82000 + q + floor(10 d) + floor(100 r), \
+        eta_"encode" & = 82000 + 100 q + j,
+      $,
     ) <eq:stream-random-seeds>
 
     where $q in {42, 43, 44}$ is the training seed, $d$ is the numerical
@@ -1914,16 +1989,20 @@
   #math.equation(
     block: true,
     numbering: "(1)",
-    $ Phi_P (I) = [tau_("ref",P) + tau_(m,P) sqrt(pi)
-      integral_(a_P)^(b_P) e^(u^2) (1 + "erf"(u)) dif u]^(-1), $,
+    $
+      Phi_P (I) = [tau_("ref",P) + tau_(m,P) sqrt(pi)
+        integral_(a_P)^(b_P) e^(u^2) (1 + "erf"(u)) dif u]^(-1),
+    $,
   ) <eq:noisy-lif-gain>
 
   #math.equation(
     block: true,
     numbering: "(1)",
-    $ mu_(V,P) &= E_L + I / g_(L,P), \
-      a_P &= (V_"reset" - mu_(V,P)) / sigma_V, quad
-      b_P = (V_"th" - mu_(V,P)) / sigma_V. $,
+    $
+      mu_(V,P) & = E_L + I / g_(L,P), \
+           a_P & = (V_"reset" - mu_(V,P)) / sigma_V, quad
+                 b_P = (V_"th" - mu_(V,P)) / sigma_V.
+    $,
   ) <eq:noisy-lif-bounds>
 
   Here, $I$ is mean input current in nA; $g_(L,P)$ is leak conductance in µS;
@@ -1988,27 +2067,33 @@
     [Gain quadrature],
     [Adaptive QUADPACK integration; absolute and relative tolerances both
       $1.49 times 10^(-8)$; maximum 200 subintervals],
+
     [Equilibrium root finding],
     [Scalar Brent method; absolute rate tolerance
       $10^(-13) thin "ms"^(-1)$, relative tolerance $10^(-12)$ and
       accepted residual at most $10^(-11) thin "ms"^(-1)$],
-    [Continuous-time Jacobian],
-    [Analytical four-variable flow Jacobian],
-    [Complex-eigenvalue eligibility],
-    [Positive imaginary part greater than $10^(-8) thin "ms"^(-1)$],
+
+    [Continuous-time Jacobian], [Analytical four-variable flow Jacobian],
+    [Complex-eigenvalue eligibility], [Positive imaginary part greater than $10^(-8) thin "ms"^(-1)$],
     [Onset refinement],
     [Brent’s method; absolute current tolerance $10^(-12)$ nA and relative
       tolerance $10^(-12)$; transversality step $10^(-5)$ nA],
+
     [Upward/downward integration],
     [LSODA; relative tolerance $10^(-7)$; scalar absolute tolerance
       $10^(-10)$; maximum step 1 ms; no supplied Jacobian],
+
     [Amplitude sampling],
     [Peak-to-peak excitatory rate over 1,001 fixed samples spanning the final
       500 ms of each 2,000-ms integration],
   )
   #context figure(
     if target() == "html" {
-      html.elem("div", attrs: (style: "display: flex; justify-content: center; overflow-x: auto;"), numerical-settings-table)
+      html.elem(
+        "div",
+        attrs: (style: "display: flex; justify-content: center; overflow-x: auto;"),
+        numerical-settings-table,
+      )
     } else {
       align(center, numerical-settings-table)
     },
@@ -2042,8 +2127,10 @@
   #math.equation(
     block: true,
     numbering: "(1)",
-    $ R_"fit"^2 = 1 - (sum_j [y_j - (m x_j + c)]^2)
-      / (sum_j (y_j - macron(y))^2), $,
+    $
+      R_"fit"^2 = 1 - (sum_j [y_j - (m x_j + c)]^2)
+      / (sum_j (y_j - macron(y))^2),
+    $,
   ) <eq:criticality-fit-r-squared>
 
   where $macron(y)$ is the mean squared amplitude over the included points.
@@ -2069,8 +2156,10 @@
   #math.equation(
     block: true,
     numbering: "(1)",
-    $ q = op("round")_"even" ((sigma Z) / (Delta t_"sim")), quad
-      Z tilde cal(N)(0, 1). $,
+    $
+      q = op("round")_"even" ((sigma Z) / (Delta t_"sim")), quad
+      Z tilde cal(N)(0, 1).
+    $,
   ) <eq:replay-offset-quantization>
 
   Here, $q$ is the integer displacement, $Z$ is a standard-normal draw,
@@ -2086,10 +2175,12 @@
   #math.equation(
     block: true,
     numbering: "(1)",
-    $ cal(R)_(L,U) (z) = cases(
+    $
+      cal(R)_(L,U) (z) = cases(
         L & U = L,
         L + w - abs(((z - L) op("mod") (2 w)) - w) & U > L,
-      ), quad w = U - L, $,
+      ), quad w = U - L,
+    $,
   ) <eq:replay-boundary-reflection>
 
   where $w$ is the interval span and modulo returns a nonnegative
@@ -2126,18 +2217,24 @@
   relative timing within a shifted group.
 
   #reference-list((
-    (text: [G. Buzsáki and X.-J. Wang. “Mechanisms of Gamma Oscillations.”
-      _Annual Review of Neuroscience_ 35, 203–225 (2012).],
-      doi: "10.1146/annurev-neuro-062111-150444"),
-    (text: [E. O. Neftci, H. Mostafa, and F. Zenke.
-      “Surrogate Gradient Learning in Spiking Neural Networks: Bringing the
-      Power of Gradient-Based Optimization to Spiking Neural Networks.”
-      _IEEE Signal Processing Magazine_ 36(6), 51–63 (2019).],
-      doi: "10.1109/MSP.2019.2931595"),
-    (text: [N. Brunel. “Dynamics of Sparsely Connected Networks of
-      Excitatory and Inhibitory Spiking Neurons.”
-      _Journal of Computational Neuroscience_ 8(3), 183–208 (2000).],
-      doi: "10.1023/A:1008925309027"),
+    (
+      text: [G. Buzsáki and X.-J. Wang. “Mechanisms of Gamma Oscillations.”
+        _Annual Review of Neuroscience_ 35, 203–225 (2012).],
+      doi: "10.1146/annurev-neuro-062111-150444",
+    ),
+    (
+      text: [E. O. Neftci, H. Mostafa, and F. Zenke.
+        “Surrogate Gradient Learning in Spiking Neural Networks: Bringing the
+        Power of Gradient-Based Optimization to Spiking Neural Networks.”
+        _IEEE Signal Processing Magazine_ 36(6), 51–63 (2019).],
+      doi: "10.1109/MSP.2019.2931595",
+    ),
+    (
+      text: [N. Brunel. “Dynamics of Sparsely Connected Networks of
+        Excitatory and Inhibitory Spiking Neurons.”
+        _Journal of Computational Neuroscience_ 8(3), 183–208 (2000).],
+      doi: "10.1023/A:1008925309027",
+    ),
   ))
   #metadata("exp110-end")
 ]
