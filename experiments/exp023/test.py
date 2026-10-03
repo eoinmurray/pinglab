@@ -214,7 +214,7 @@ def test_shared_cli_targets_existing_simulator():
     assert run_cli.SNN_MODULE == "snnlab.sim"
     with patch("sh.uv") as command:
         run_cli.run_cli(recipe.raster_args("ping"), no_sync=True)
-    assert command.call_args.args[1:4] == ("python", "-m", "snnlab.sim")
+    assert command.call_args.args[2:5] == ("python", "-m", "snnlab.sim")
 
 
 @pytest.mark.parametrize("flag", [[], ["--plot-only"], ["--skip-training"]])

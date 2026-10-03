@@ -47,7 +47,7 @@ url = "https://download.pytorch.org/whl/cu128"
 explicit = true
 
 [tool.uv.sources]
-snnlab = { git = "https://github.com/eoinmurray/snnlab", rev = "e967fccfc02850d108cdf8ba4e01273aa50c522d" }
+snnlab = { git = "https://github.com/eoinmurray/snnlab", rev = "c7b4ca305a2e88e843630f25546ce01fe72bdc1d" }
 torch = [{ index = "pytorch-cu128", marker = "sys_platform == 'linux'" }]
 torchvision = [{ index = "pytorch-cu128", marker = "sys_platform == 'linux'" }]
 
