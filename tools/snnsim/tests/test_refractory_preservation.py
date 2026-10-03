@@ -16,12 +16,12 @@ import subprocess
 import sys
 from pathlib import Path
 
-import config as current_config
-import models as current_model
 import numpy as np
 import pytest
 import torch
-from encoders import encode_images_poisson
+from snnlab.sim import config as current_config
+from snnlab.sim import models as current_model
+from snnlab.sim.encoders import encode_images_poisson
 
 REPO = Path(__file__).resolve().parents[4]
 BASELINE = "255ab3b6e11fe4e92cd5f96c1634a2a58150bb05"
@@ -62,12 +62,15 @@ def preservation_context(tmp_path_factory):
         (root / filename).write_bytes(content)
         source_hashes[filename] = hashlib.sha256(content).hexdigest()
     old_model = _module("refractory_baseline_models", root / "models.py")
-    saved = sys.modules["models"]
+    saved = sys.modules.get("models")
     try:
         sys.modules["models"] = old_model
         old_config = _module("refractory_baseline_config", root / "config.py")
     finally:
-        sys.modules["models"] = saved
+        if saved is None:
+            sys.modules.pop("models", None)
+        else:
+            sys.modules["models"] = saved
     cells = sorted(
         path.name for path in bank.export.iterdir()
         if path.is_dir() and json.loads((path / "config.json").read_text())["dt"] == 0.1

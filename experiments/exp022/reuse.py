@@ -37,7 +37,7 @@ from pingstore.stages import (
     reserve_stage,
     stage_reservation,
 )
-from snnsim.timing import duration_steps
+from snnlab.sim.timing import duration_steps
 
 SCHEMA = "pinglab.exp022.gradient-damping-bank/v2"
 CELL_FILES = ("config.json", "metrics.json", "weights.pth", "weights_final.pth")

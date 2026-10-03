@@ -5,7 +5,7 @@ from pathlib import Path
 
 import matplotlib
 from experiments.helpers import theme
-from tools import snnlang as snn  # noqa: TID251
+from snnlab import lang as snn  # noqa: TID251
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
@@ -14,7 +14,7 @@ from matplotlib.collections import LineCollection
 from matplotlib.colors import to_rgba
 from matplotlib.patches import Rectangle
 from matplotlib.ticker import MaxNLocator
-from tools.snnviz import (  # noqa: TID251
+from snnlab.viz import (  # noqa: TID251
     DiagramGroup,
     FigureGrid,
     FrameTimeline,

@@ -12,7 +12,7 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "experiments"), str(REPO / "tools")]
 
 from experiments.exp022.checkpoints import epoch_metrics
-from snnsim.timing import duration_steps, refractory_metadata
+from snnlab.sim.timing import duration_steps, refractory_metadata
 
 from helpers import theme
 

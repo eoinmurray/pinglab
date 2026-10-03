@@ -17,8 +17,8 @@ from __future__ import annotations
 
 import copy
 
-import models as M
 import pytest
+from snnlab.sim import models as M
 
 # Every models.py global any CLI entry point reassigns at runtime. Snapshotted at
 # import so the restore target is the true module default, never a leaked value.
