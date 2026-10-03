@@ -7,3 +7,5 @@ ignored by Git except for this README and the adjacent `.gitignore`.
 
 Put all scratch work in a clearly named subdirectory. Do not place loose scratch
 files directly in `.scratch/`.
+
+Make use of snnlang, snnsim, snnviz where possible.
