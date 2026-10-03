@@ -20,10 +20,11 @@ import numpy as np
 import pytest
 import torch
 from snnlab.sim import config as current_config
+from snnlab.sim import inputs as current_inputs
 from snnlab.sim import models as current_model
 from snnlab.sim.encoders import encode_images_poisson
 
-REPO = Path(__file__).resolve().parents[4]
+REPO = Path(__file__).resolve().parents[2]
 BASELINE = "255ab3b6e11fe4e92cd5f96c1634a2a58150bb05"
 BANK = "exp022-r001-compute"
 DIGEST = "sha256:9e3c93df9541809d1d019fe5290afbf7dff7d07ec14b07160fabe7ad79c9a0a8"
@@ -47,7 +48,7 @@ def _module(name, path):
 
 @pytest.fixture(scope="module")
 def preservation_context(tmp_path_factory):
-    from tools.pingstore.stages import source_run
+    from pingstore.stages import source_run
 
     bank = source_run(
         REPO / ".pingstore", BANK, stage="compute", experiment="exp022",
@@ -62,15 +63,17 @@ def preservation_context(tmp_path_factory):
         (root / filename).write_bytes(content)
         source_hashes[filename] = hashlib.sha256(content).hexdigest()
     old_model = _module("refractory_baseline_models", root / "models.py")
-    saved = sys.modules.get("models")
+    saved = {name: sys.modules.get(name) for name in ("models", "inputs")}
     try:
         sys.modules["models"] = old_model
+        sys.modules["inputs"] = current_inputs
         old_config = _module("refractory_baseline_config", root / "config.py")
     finally:
-        if saved is None:
-            sys.modules.pop("models", None)
-        else:
-            sys.modules["models"] = saved
+        for name, module in saved.items():
+            if module is None:
+                sys.modules.pop(name, None)
+            else:
+                sys.modules[name] = module
     cells = sorted(
         path.name for path in bank.export.iterdir()
         if path.is_dir() and json.loads((path / "config.json").read_text())["dt"] == 0.1

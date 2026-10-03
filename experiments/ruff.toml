@@ -1,12 +1,10 @@
-# Experiment-scoped ruff config. Extends the repo root and enforces the demolab
-# tool↔experiment boundary: a runner reaches the snn engine ONLY by running it as
-# a subprocess (python tools/snnsim/tool.py ...), never by importing it. Every direct
-# import of the tool package or the torch engine lights up as TID251.
+# Experiment configuration: consume the installed snnlab library rather than
+# importing Pinglab tool implementations or bare simulator modules.
 extend = "../ruff.toml"
 
 [lint]
 extend-select = ["TID"]
 
 [lint.flake8-tidy-imports.banned-api]
-"tools".msg = "experiments reach the snn tool by subprocess, not import (demolab tool↔experiment boundary)"
-"models".msg = "experiments must not import the torch engine directly — go through tools/snnsim/tool.py"
+"tools".msg = "use installed snnlab APIs or its module CLI instead of Pinglab tool implementations"
+"models".msg = "use snnlab.sim APIs or python -m snnlab.sim, not a bare models import"

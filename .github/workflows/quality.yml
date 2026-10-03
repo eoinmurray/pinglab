@@ -90,7 +90,6 @@ jobs:
         if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
         run: >-
           uv run pytest -q
-          tools/snnsim/tests
           tools/pingstore/tests
           tools/publishing/tests
           experiments

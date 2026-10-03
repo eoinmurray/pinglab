@@ -58,4 +58,4 @@ The authoring, simulator and visualisation implementation lives in [snnlab](http
 from snnlab import lang, sim, viz
 ```
 
-For local library development, clone it alongside Pinglab and run `uv add --editable ../snnlab`. Revert that local source override before sharing reproducible experiment configurations. Legacy `tools/snnsim/tool.py` commands remain thin adapters to the installed library.
+For local library development, clone it alongside Pinglab and run `uv add --editable ../snnlab`. Revert that local source override before sharing reproducible experiment configurations. Invoke the simulator with `uv run python -m snnlab.sim` or `uv run snnsim`; the old tool directories have been removed.

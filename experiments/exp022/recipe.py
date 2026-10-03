@@ -38,7 +38,7 @@ TRAINING_ROOT: Path | None = (
     if os.environ.get("PINGLAB_TRAINING_ROOT")
     else None
 )
-SNN_TOOL = REPO / "tools" / "snnsim" / "tool.py"
+SNN_MODULE = "snnlab.sim"
 
 EPOCHS_STANDARD = 50
 DT_MS = 0.1

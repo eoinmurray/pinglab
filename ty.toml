@@ -1,12 +1,10 @@
 # ty type-checker configuration for pinglab.
-# Python lives in the demolab layer: tools/snnsim (the engine) + experiments/ (runners).
+# Python includes Pingstore and experiment runners; the SNN library is external.
 
 [environment]
 python-version = "3.10"
-# Source roots for first-party import resolution: the engine's flat imports
-# (`models`/`config`/etc.) resolve from tools/snnsim, the runners' `helpers.*` from
-# experiments/, and the repo root (".") so `tools.snnsim` resolves as a package.
-root = ["tools/snnsim", "experiments", "."]
+# Pinglab source roots; snnlab is resolved from the installed dependency.
+root = ["experiments", "."]
 
 [src]
 exclude = [

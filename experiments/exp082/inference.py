@@ -113,10 +113,10 @@ class Inference:
                 input_path, input_spikes=spikes.cpu().numpy(), readout_reset=reset
             )
             output = scratch / "output"
-            tool = Path(__file__).resolve().parents[2] / "tools/snnsim/tool.py"
             command = [
                 sys.executable,
-                str(tool),
+                "-m",
+                "snnlab.sim",
                 "sim",
                 *recipe.refractory_args(),
                 "--load-config",
@@ -150,7 +150,7 @@ class Inference:
             ):
                 subprocess.run(
                     command,
-                    cwd=tool.parents[2],
+                    cwd=Path(__file__).resolve().parents[2],
                     check=True,
                     stdout=stdout,
                     stderr=stderr,
