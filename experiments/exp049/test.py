@@ -114,7 +114,7 @@ def lab(tmp_path, monkeypatch):
     calls = []
 
     def simulate(args, **kwargs):
-        from config import save_selected_npz
+        from snnlab.sim.config import save_selected_npz
 
         fields = []
         if "--output-fields" in args:

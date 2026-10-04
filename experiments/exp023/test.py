@@ -52,7 +52,7 @@ def repo(tmp_path, monkeypatch):
         e[::100, 1] = True
         if arg("--ei-strength") != "0":
             i[5::100, 0] = True
-        from config import save_snapshot_npz
+        from snnlab.sim.config import save_snapshot_npz
 
         selected = args[args.index("--output-fields") + 1 :]
         selected = selected[
@@ -211,10 +211,10 @@ def test_unsupported_schema_is_rejected_before_scientific_consumption(repo):
 
 
 def test_shared_cli_targets_existing_simulator():
-    assert run_cli.SNN_TOOL.is_file()
+    assert run_cli.SNN_MODULE == "snnlab.sim"
     with patch("sh.uv") as command:
         run_cli.run_cli(recipe.raster_args("ping"), no_sync=True)
-    assert str(run_cli.SNN_TOOL) in command.call_args.args
+    assert command.call_args.args[2:5] == ("python", "-m", "snnlab.sim")
 
 
 @pytest.mark.parametrize("flag", [[], ["--plot-only"], ["--skip-training"]])
@@ -242,7 +242,7 @@ def test_spectrum_and_selection_preserve_original_rules():
 
 @pytest.mark.parametrize("silent", [False, True])
 def test_compact_snapshots_preserve_scope_analysis_and_fi_rates(tmp_path, silent):
-    from config import save_snapshot_npz
+    from snnlab.sim.config import save_snapshot_npz
 
     cfg = recipe.configuration(smoke=True)
     cfg.update(n_e=4, n_i=2)

@@ -783,8 +783,8 @@ def fig_acc_rate_trajectory(data, out_path: Path, run_id: str) -> None:
 
 def fig_training_summary(data, out_path: Path, run_id: str) -> None:
     """Seven-panel endpoint and recurrent-weight comparison from saved analysis."""
-    import snnviz
     from matplotlib.patches import Patch
+    from snnlab import viz as snnviz
 
     conds = [
         "frozen_ping",

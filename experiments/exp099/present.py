@@ -15,8 +15,8 @@ from experiments.exp099 import inputs, recipe
 from experiments.exp099.render import network_diagram, render, render_raster
 from pingstore.contracts import PingstoreError, load_json, write_json_atomic
 from pingstore.stages import stage_run
-from tools import snnlang as snn  # noqa: TID251
-from tools.snnviz import Recording  # noqa: TID251
+from snnlab import lang as snn  # noqa: TID251
+from snnlab.viz import Recording  # noqa: TID251
 
 REFERENCE_PDF = REPO / "papers/Susin-Destexhe-2021.pdf"
 

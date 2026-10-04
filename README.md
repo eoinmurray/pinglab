@@ -49,3 +49,13 @@ uv run pytest -m "not slow"    # skip slow end-to-end tests
 ## License
 
 MIT — see `LICENSE`.
+
+## SNN library
+
+The authoring, simulator and visualisation implementation lives in [snnlab](https://pypi.org/project/snnlab/). `uv sync` installs the PyPI release pinned in `uv.lock`, subject to the version requirement in `pyproject.toml`.
+
+```python
+from snnlab import lang, sim, viz
+```
+
+For local library development, clone it alongside Pinglab and run `uv add --editable ../snnlab`. Revert that local source override before sharing reproducible experiment configurations. Invoke the simulator with `uv run python -m snnlab.sim` or `uv run snnsim`; the old tool directories have been removed.

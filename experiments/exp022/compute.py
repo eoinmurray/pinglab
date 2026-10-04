@@ -143,7 +143,7 @@ def create_manifest(
                 if plumbing else cell)
         out = root / "cells" / cell["name"]
         args = build_args(spec, out, max_samples, epochs)
-        command = [python_executable(), str(repo / "tools" / "snnsim" / "tool.py"), *args]
+        command = [python_executable(), "-m", recipe.SNN_MODULE, *args]
         rows.append({
             "name": cell["name"],
             "training_run_id": cell["training_run_id"],
@@ -686,7 +686,7 @@ def _train_one_cell(cell: dict, plumbing: bool) -> None:
         f"[train-cell] {cell['training_run_id']} / {cell['name']} "
         f"(n={ms}, {ep} ep) → {cell_dir(cell['name'])}"
     )
-    subprocess.run([sys.executable, str(recipe.SNN_TOOL), *args], cwd=REPO, check=True)
+    subprocess.run([sys.executable, "-m", recipe.SNN_MODULE, *args], cwd=REPO, check=True)
     _stamp_training_run_identity(cell)
 
 
@@ -795,7 +795,7 @@ def _checked_bank_manifest(path: Path) -> dict:
                 epochs,
                 scientific_contract=recipe.scientific_contract(spec, samples, epochs),
             )
-            command = [python_executable(), str(recipe.SNN_TOOL), *train_args]
+            command = [python_executable(), "-m", recipe.SNN_MODULE, *train_args]
             output_directory = (root / "cells" / spec["name"]).resolve()
             expected = {
                 "name": spec["name"],
@@ -1094,7 +1094,7 @@ def generate_snapshots(bank: Path, output: Path) -> None:
             raise PingstoreError(f"probe output already exists: {destination}")
         args = [
             sys.executable,
-            str(recipe.SNN_TOOL),
+            "-m", recipe.SNN_MODULE,
             "sim",
             *recipe.refractory_args(),
             "--infer",

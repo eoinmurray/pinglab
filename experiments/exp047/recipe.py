@@ -1,6 +1,6 @@
 """Preserved paired pool-size controls, with no execution on import."""
 
-from snnsim.timing import duration_metadata, refractory_metadata
+from snnlab.sim.timing import duration_metadata, refractory_metadata
 
 SLUG = "exp047"
 REFRACTORY_E_MS = 1.2

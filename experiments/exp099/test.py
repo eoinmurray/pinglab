@@ -75,7 +75,7 @@ def test_paper_passive_scale_is_authored_in_graph():
 def test_visual_grid_and_recording_contract():
     import pytest
     from experiments.exp099.render import frame_grid
-    from tools.snnviz import Recording, RecordingError  # noqa: TID251
+    from snnlab.viz import Recording, RecordingError  # noqa: TID251
 
     grid, response = frame_grid()
     assert grid.rect("A").height > grid.rect("B").height

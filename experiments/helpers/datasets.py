@@ -1,6 +1,6 @@
 """Notebook-side dataset access (data, not CLI internals).
 
-Mirrors the MNIST source partitions used by tools/snnsim: the official training
+Mirrors the MNIST source partitions used by snnlab.sim: the official training
 partition remains separate from the untouched official test partition.
 
 Notebooks that only *run* the network never need this (the CLI loads data itself);

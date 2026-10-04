@@ -26,16 +26,19 @@ url_inputs:
   source.exp082: { type: path, root: .pingstore/runs }
   source.exp099: { type: path, root: .pingstore/runs }
   source.exp110: { type: path, root: .pingstore/runs }
+  source.exp121: { type: path, root: .pingstore/runs }
   source.exp117: { type: path, root: .pingstore/runs }
 
 index:
   mode: expanded
   recent: 5
 
-collection-order: [gamma-gated-sparsity, demo, documentation, literature, weekly-feed]
+collection-order: [gamma-gated-sparsity, neuromodulation, demo, documentation, literature, weekly-feed]
 collections:
   gamma-gated-sparsity:
     label: Gamma-gated sparsity
+  neuromodulation:
+    label: Neuromodulation
   demo:
     label: Uncategorized
   documentation:

@@ -6,7 +6,7 @@ from experiments.exp022.recipe import (
     training_run_values,
 )
 from experiments.helpers.datasets import MNIST_REDUCED_EVAL_SAMPLES
-from snnsim.timing import duration_metadata, duration_steps, refractory_metadata
+from snnlab.sim.timing import duration_metadata, duration_steps, refractory_metadata
 
 SLUG = "exp044"
 REFRACTORY_E_MS = 1.2

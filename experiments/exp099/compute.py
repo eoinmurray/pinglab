@@ -8,12 +8,12 @@ from pathlib import Path
 from time import perf_counter
 
 REPO = Path(__file__).resolve().parents[2]
-sys.path[:0] = [str(REPO), str(REPO / "tools"), str(REPO / "tools/snnsim")]
+sys.path[:0] = [str(REPO), str(REPO / "tools")]
 import numpy as np
 import torch
 from experiments.exp099 import recipe
 from pingstore.stages import stage_run
-from tools.snnsim.execution import GraphExecutor, plan_graph  # noqa: TID251
+from snnlab.sim.execution import GraphExecutor, plan_graph  # noqa: TID251
 
 
 def build_model(cfg):

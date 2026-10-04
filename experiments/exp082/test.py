@@ -734,8 +734,7 @@ def test_simulator_serializes_batched_input_and_resets(tmp_path, monkeypatch):
     )
 
     def simulate(command, **kwargs):
-        assert Path(command[1]).is_file()
-        assert Path(command[1]).parts[-2:] == ("snnsim", "tool.py")
+        assert command[1:3] == ["-m", "snnlab.sim"]
         assert Path(command[command.index("--load-weights") + 1]).name == "weights.pth"
         assert command[command.index("--device") + 1] == "auto"
         raw = evidence.arrays(Path(command[command.index("--input-file") + 1]))

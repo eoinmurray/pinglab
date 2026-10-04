@@ -83,15 +83,13 @@ jobs:
         if: github.event_name == 'push'
         run: >-
           uv run pytest -q -m "not slow"
-          tools/snnsim/tests
+          tools/pingstore/tests
+          experiments
 
       - name: Full test suite
         if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
         run: >-
           uv run pytest -q
-          tools/snnsim/tests
-          tools/snnlang/tests
-          tools/snnviz/tests
           tools/pingstore/tests
           tools/publishing/tests
           experiments

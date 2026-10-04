@@ -1,10 +1,10 @@
 """The one way an experiment runner invokes the SNN CLI: `sh.uv`.
 
-Every runner shells out to tools/snnsim/tool.py to train or infer. `run_cli` wraps
+Every runner invokes the installed snnlab.sim module to train or infer. `run_cli` wraps
 that single call so every runner spawns identically, replacing the mix of
 `subprocess.run([sys.executable, ...])` and ad-hoc `uv run` invocations.
 
-By default it runs `uv run python tool.py ...`. A pre-provisioned environment can
+By default it runs `uv run python -m snnlab.sim ...`. A pre-provisioned environment can
 set PINGLAB_NO_SYNC=1 to use `uv run --no-sync python ...` and avoid resolving
 dependencies again.
 """
@@ -16,7 +16,7 @@ import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
-SNN_TOOL = REPO / "tools" / "snnsim" / "tool.py"
+SNN_MODULE = "snnlab.sim"
 
 
 def run_cli(args, *, no_sync: bool | None = None, cwd: Path | None = None) -> None:
@@ -32,7 +32,7 @@ def run_cli(args, *, no_sync: bool | None = None, cwd: Path | None = None) -> No
     run_args = ["run"]
     if no_sync:
         run_args.append("--no-sync")
-    run_args += ["python", str(SNN_TOOL), *(str(a) for a in args)]
+    run_args += ["python", "-m", SNN_MODULE, *(str(a) for a in args)]
     sh.uv(  # ty: ignore[unresolved-attribute]  # sh builds command attrs at runtime
         *run_args,
         _cwd=str(cwd or REPO),

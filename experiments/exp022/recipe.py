@@ -12,7 +12,7 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "experiments"), str(REPO / "tools")]
 
 from experiments.exp022.checkpoints import epoch_metrics
-from snnsim.timing import duration_steps, refractory_metadata
+from snnlab.sim.timing import duration_steps, refractory_metadata
 
 from helpers import theme
 
@@ -38,7 +38,7 @@ TRAINING_ROOT: Path | None = (
     if os.environ.get("PINGLAB_TRAINING_ROOT")
     else None
 )
-SNN_TOOL = REPO / "tools" / "snnsim" / "tool.py"
+SNN_MODULE = "snnlab.sim"
 
 EPOCHS_STANDARD = 50
 DT_MS = 0.1

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import numpy as np
-from tools import snnlang as snn  # noqa: TID251
+from snnlab import lang as snn  # noqa: TID251
 
 SLUG = "exp099"
 DT_MS, DURATION_MS, SEED = 0.1, 1100.0, 7

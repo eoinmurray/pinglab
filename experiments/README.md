@@ -1,6 +1,6 @@
 # Experiment Runner Guide
 
-Version: **4.8.0**
+Version: **4.9.0**
 
 This guide defines Pinglab's independent compute, analyse, and present commands.
 The [Storage Guide](../tools/pingstore/README.md) owns run layout and validation.
@@ -28,6 +28,25 @@ compute.
 split into ordinary functions or descriptively named modules under
 `compute_parts/`. Do not use numbered entry points such as `compute-1.py` merely
 to organize source code.
+
+### Standalone experiments
+
+Each experiment must be runnable from its committed code and explicitly named
+data inputs. Keep experiment-specific definitions and execution logic in its own
+directory. Shared maintained helpers and supported tool interfaces are allowed;
+reuse another experiment's results through validated completed v4 runs, not by
+importing its implementation.
+
+Experiment commands must never import or execute code from `.scratch/`, read
+pre-existing scratch recordings or configuration, or require scratch files to
+exist. A compute command must implement the scientific computation; a wrapper
+that only copies scratch outputs is not a standalone compute stage. Promote
+required exploratory code into maintained code before exposing the experiment.
+
+Preserving previously completed scratch evidence is a separately authorized
+import operation, not a replacement for the experiment's runnable compute
+stage. This restriction does not prohibit temporary files created within
+`StageRun.scratch` during the current execution.
 
 ## 2. Commands and boundaries
 
@@ -207,6 +226,9 @@ before changing the guide outside the requested scope.
 
 ## 8. Version history
 
+- **4.9.0** — Require standalone experiment implementations, prohibit runtime
+  dependencies on scratch code or files, and restrict cross-experiment reuse to
+  validated data inputs rather than implementation imports.
 - **4.8.0** — Make experiment IDs permanently single-use so an explicitly
   retired experiment needs no persistent allocation tombstone.
 - **4.7.0** — Standardize concurrent HPC compute around recipe-owned work items,
