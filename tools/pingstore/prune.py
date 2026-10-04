@@ -242,16 +242,6 @@ def build_plan(
     hidden = _hidden_inputs(runs, records, reasons)
 
     keep = set(reasons)
-    todo = list(keep)
-    while todo:
-        child = todo.pop()
-        for reference in records[child]["inputs"].values():
-            parent = reference["run_id"]
-            if parent not in keep:
-                keep.add(parent)
-                reasons[parent].add("required-ancestor")
-                todo.append(parent)
-
     # The allocator derives its next counter from directories. Never permit a
     # deleted identity to become reusable, even for an experiment with no UI run.
     by_experiment: dict[str, list[str]] = defaultdict(list)
@@ -264,6 +254,17 @@ def build_plan(
         if high not in keep:
             keep.add(high)
             reasons[high].add("identity-high-watermark")
+
+    # Traverse ancestry only after every retention root has been added.
+    todo = list(keep)
+    while todo:
+        child = todo.pop()
+        for reference in records[child]["inputs"].values():
+            parent = reference["run_id"]
+            if parent not in keep:
+                keep.add(parent)
+                reasons[parent].add("required-ancestor")
+                todo.append(parent)
 
     retirement_high_watermarks = {
         experiment: max(

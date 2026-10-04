@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000" role="img" aria-labelledby="title desc">
+  <title id="title">Territorial opportunity, neural response and hormonal reinforcement</title>
+  <desc id="desc">Conceptual synthesis for male African cichlid fish. Territorial opportunity recruits a social behaviour network response and rapid dominant behaviour. The hypothalamic–pituitary–gonadal axis increases sex steroids that reinforce neural circuits. A dashed return arrow represents proposed feedback from social interactions. The initial detection mechanism and full causal sequence remain unresolved.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="strokeWidth"><path d="M0 0 L9 5 L0 10 Z" fill="#334155"/></marker>
+    <marker id="feedback" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="strokeWidth"><path d="M0 0 L9 5 L0 10 Z" fill="#64748b"/></marker>
+    <style>
+      text {font-family: Helvetica, Arial, sans-serif; fill:#202932}
+      .heading {font-size:34px;font-weight:700}
+      .label {font-size:27px;font-weight:700}
+      .detail {font-size:23px}
+      .note {font-size:21px;fill:#52606d}
+      .edge {fill:none;stroke:#334155;stroke-width:4;marker-end:url(#arrow)}
+      .proposed {fill:none;stroke:#64748b;stroke-width:4;stroke-dasharray:11 9;marker-end:url(#feedback)}
+      .box {stroke-width:2;rx:18}
+    </style>
+  </defs>
+  <rect width="1600" height="1000" fill="white"/>
+  <text x="40" y="55" class="heading">Territory: a reinforcing neural–endocrine loop</text>
+  <text x="40" y="90" class="note">Male African cichlid fish (Astatotilapia burtoni)</text>
+
+  <path d="M1390 200 V140 H800 V200" class="proposed"/>
+  <text x="1020" y="123" text-anchor="middle" class="note">Proposed feedback from social interactions</text>
+
+  <rect x="40" y="200" width="340" height="200" fill="#edf5e9" stroke="#739660" class="box"/>
+  <text x="210" y="250" text-anchor="middle" class="label">Territorial opportunity</text>
+  <text x="210" y="295" text-anchor="middle" class="detail">A dominant male leaves;</text>
+  <text x="210" y="330" text-anchor="middle" class="detail">a territory becomes available</text>
+
+  <rect x="580" y="200" width="440" height="200" fill="#eaf1f8" stroke="#6382a2" class="box"/>
+  <text x="800" y="245" text-anchor="middle" class="label">Social behaviour network (SBN)</text>
+  <text x="800" y="287" text-anchor="middle" class="detail">Preoptic / hypothalamic regions</text>
+  <text x="800" y="327" text-anchor="middle" class="detail">Neural response and adaptation</text>
+  <text x="800" y="368" text-anchor="middle" class="note">cfos / egr-1: response markers</text>
+
+  <rect x="1220" y="200" width="340" height="200" fill="#edf5e9" stroke="#739660" class="box"/>
+  <text x="1390" y="250" text-anchor="middle" class="label">Dominant behaviour</text>
+  <text x="1390" y="295" text-anchor="middle" class="detail">Occupy and defend territory</text>
+  <text x="1390" y="330" text-anchor="middle" class="detail">Court females; colour changes</text>
+  <text x="1390" y="370" text-anchor="middle" class="note">Within minutes</text>
+
+  <path d="M380 285 H580" class="edge"/>
+  <text x="480" y="245" text-anchor="middle" class="note">Detection mechanism</text>
+  <text x="480" y="270" text-anchor="middle" class="note">unresolved</text>
+  <path d="M1020 285 H1220" class="edge"/>
+  <text x="1120" y="265" text-anchor="middle" class="note">Rapid neural initiation</text>
+
+  <path d="M800 400 V510" class="edge"/>
+  <text x="820" y="461" class="note">Reproductive axis recruited</text>
+  <rect x="580" y="510" width="440" height="135" fill="#fff2df" stroke="#b99256" class="box"/>
+  <text x="800" y="554" text-anchor="middle" class="label">HPG axis</text>
+  <text x="800" y="592" text-anchor="middle" class="detail">Hypothalamus → pituitary → gonads</text>
+  <text x="800" y="625" text-anchor="middle" class="note">Brain-to-reproductive-gland pathway</text>
+  <path d="M800 645 V735" class="edge"/>
+  <rect x="580" y="735" width="440" height="120" fill="#fff2df" stroke="#b99256" class="box"/>
+  <text x="800" y="777" text-anchor="middle" class="label">Increased sex steroids</text>
+  <text x="800" y="818" text-anchor="middle" class="detail">Circulating levels rise within 30 min</text>
+
+  <path d="M580 795 H460 V350 H580" class="edge"/>
+  <text x="438" y="574" text-anchor="end" class="label">Hormonal reinforcement</text>
+  <text x="438" y="611" text-anchor="end" class="detail">Modulates circuits supporting</text>
+  <text x="438" y="643" text-anchor="end" class="detail">aggression and reproduction</text>
+
+  <text x="40" y="918" class="note">Solid arrows summarize the review’s account; they do not establish every causal step.</text>
+  <text x="40" y="949" class="note">Dashed arrow: proposed feedback synthesis. Gene-expression markers do not identify the initiating circuit.</text>
+  <text x="40" y="980" class="note">Based on Yan &amp; Lin (2026), residency-based hierarchy section and Figure 1, pp. 497–498.</text>
+</svg>
