@@ -52,7 +52,7 @@ MIT — see `LICENSE`.
 
 ## SNN library
 
-The authoring, simulator and visualisation implementation lives in [snnlab](https://github.com/eoinmurray/snnlab). `uv sync` installs the Git revision pinned in `pyproject.toml` and `uv.lock`.
+The authoring, simulator and visualisation implementation lives in [snnlab](https://pypi.org/project/snnlab/). `uv sync` installs the PyPI release pinned in `uv.lock`, subject to the version requirement in `pyproject.toml`.
 
 ```python
 from snnlab import lang, sim, viz
