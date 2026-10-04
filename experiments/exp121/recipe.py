@@ -130,6 +130,6 @@ def author_network(study="input", scale=1.0):
     )
     count = snn.ops.reduce(readout.spikes, operation="sum", over="time", name="count")
     net.output("spike_count", count)
-    for name, pop in {**populations, "out": readout}.items():
-        net.expose(pop.spikes, name=f"{name.lower()}_spikes")
+    net.expose(populations["I"].spikes, name="i_spikes")
+    net.expose(readout.spikes, name="out_spikes")
     return snn.compile(net, target=None)

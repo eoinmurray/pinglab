@@ -43,21 +43,20 @@ def test_diagonal_count_pulse_and_delay_survive_chunk_boundary():
     drive["private_e"][3, 0, 2] = 2
     fields = ["private_e_to_E.conductance", "E.voltage", "E.spikes"]
     with torch.inference_mode():
-        full = model(drive, recording_fields=fields)
-        first = model({k: v[:10] for k, v in drive.items()}, recording_fields=fields)
+        full = model(drive)
+        first = model({k: v[:10] for k, v in drive.items()})
         second = model(
             {k: v[10:] for k, v in drive.items()},
-            recording_fields=fields,
             runtime_state=first.runtime_state,
         )
-    g = full.recordings[fields[0]][:, 0].numpy()
+    g = full.diagnostics[fields[0]][:, 0].numpy()
     assert not g[:18].any()
     np.testing.assert_allclose(g[18, 2], 0.008)
     assert np.count_nonzero(g[18]) == 1
     for key in fields:
         torch.testing.assert_close(
-            full.recordings[key],
-            torch.cat([first.recordings[key], second.recordings[key]]),
+            full.diagnostics[key],
+            torch.cat([first.diagnostics[key], second.diagnostics[key]]),
             rtol=0,
             atol=0,
         )

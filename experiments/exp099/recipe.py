@@ -122,7 +122,7 @@ def author_network(cfg=None):
             signal_type="spikes",
             unit="spike",
         )
-        net.connect(
+        projection = net.connect(
             source,
             pop.excitatory,
             name=f"private_{name.lower()}_to_{name}",
@@ -131,6 +131,7 @@ def author_network(cfg=None):
             constraint=snn.NonNegative(),
             delay=cfg["delay_ms"] * snn.ms,
         )
+        net.expose(projection.conductance, name=f"{projection.id}.conductance")
     for src in ("E", "I"):
         for dst in ("E", "I"):
             excitatory = src == "E"
@@ -138,7 +139,7 @@ def author_network(cfg=None):
             # SNNSIM divides by source count and renormalizes surviving edges.
             # Compensate both factors to retain the specified physical edge weight.
             mean = physical * cfg[f"n_{src.lower()}"] * cfg["connection_probability"]
-            net.connect(
+            projection = net.connect(
                 pops[src].spikes,
                 pops[dst].excitatory if excitatory else pops[dst].inhibitory,
                 name=f"{src}_to_{dst}",
@@ -157,5 +158,8 @@ def author_network(cfg=None):
                 connection="recurrent",
                 delay=cfg["delay_ms"] * snn.ms,
             )
-    net.expose(pops["E"].spikes, pops["I"].spikes, name="populations")
+            net.expose(projection.conductance, name=f"{projection.id}.conductance")
+    for pop in pops.values():
+        net.expose(pop.spikes, name=f"{pop.id}.spikes")
+        net.expose(pop.voltage, name=f"{pop.id}.voltage")
     return snn.compile(net, target=None)

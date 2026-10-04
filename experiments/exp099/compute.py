@@ -32,9 +32,6 @@ def simulate(cfg, *, chunk_steps=1000):
     torch.set_num_threads(1)
     bundle, model = build_model(cfg)
     counts = recipe.afferent_counts(cfg)
-    fields = ["E.spikes", "I.spikes", "E.voltage", "I.voltage"] + [
-        f"{p.id}.conductance" for p in model.plan.projections
-    ]
     retained = {**counts}
     steps = len(counts["private_e"])
     for pop in ("e", "i"):
@@ -51,11 +48,10 @@ def simulate(cfg, *, chunk_steps=1000):
                     k: torch.from_numpy(v[start:stop, None].astype(np.float32))
                     for k, v in counts.items()
                 },
-                recording_fields=fields,
                 runtime_state=state,
             )
             state = result.runtime_state
-            data = result.recordings
+            data = result.diagnostics
             for pop in ("e", "i"):
                 retained[f"spk_{pop}"][start:stop] = (
                     data[f"{pop.upper()}.spikes"][:, 0].numpy().astype(bool)

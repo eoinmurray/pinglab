@@ -83,11 +83,10 @@ def compute(dataset_root):
                     )
                     result = model(
                         {"input_spikes": encoded},
-                        recording_fields=["out_spikes", "i_spikes"],
                     )
-                    output[k, trial] = result.recordings["out_spikes"][:, 0].numpy()
+                    output[k, trial] = result.diagnostics["out_spikes"][:, 0].numpy()
                     i_counts[k, trial] = (
-                        result.recordings["i_spikes"][:, 0].sum(dim=1).numpy()
+                        result.diagnostics["i_spikes"][:, 0].sum(dim=1).numpy()
                     )
                 hashes.append(trial_hashes)
                 if (trial + 1) % 10 == 0:
@@ -218,11 +217,12 @@ def compute_internal(identity, studies=R.INTERNAL_STUDIES):
                     for k, model in enumerate(models, start=1):
                         result = model(
                             {"input_spikes": encoded},
-                            recording_fields=["out_spikes", "i_spikes"],
                         )
-                        output[k, trial] = result.recordings["out_spikes"][:, 0].numpy()
+                        output[k, trial] = result.diagnostics["out_spikes"][
+                            :, 0
+                        ].numpy()
                         population[k, trial] = (
-                            result.recordings["i_spikes"][:, 0].sum(dim=1).numpy()
+                            result.diagnostics["i_spikes"][:, 0].sum(dim=1).numpy()
                         )
                     if (trial + 1) % 10 == 0:
                         print(f"{study}: {trial + 1}/100 images", flush=True)
