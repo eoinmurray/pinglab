@@ -1,5 +1,9 @@
 # exp082 — continuous-stream spike-count classification
 
+Local-data update, 2026-10-05: runs unused by the latest exp110 manuscript
+were explicitly deleted. Historical operation and size reports below describe
+the earlier store; they do not establish current local availability.
+
 ## Contract migration
 
 Experiment Runner Guide 4.3.0 and Storage Guide 4.3.0. The former flat runner has been
@@ -12,13 +16,14 @@ validated lineage are recorded below; immutable run records retain their checks.
 
 ```sh
 uv run python -m experiments.exp082.compute --source <exp022-compute-run-id>
-uv run python -m experiments.exp082.illustrate --source <exp022-compute-run-id>
 uv run python -m experiments.exp082.analyse --source <exp082-compute-run-id>
 uv run python -m experiments.exp082.present --source <exp082-analyse-run-id>
 ```
 
-The analysis runner pins the accepted showcase `exp082-r018-compute`; it is not
-selectable through a runtime recipe override.
+Normal compute now generates the evaluation grid and the selected showcase
+recordings in one run. Analyse reads both from its explicit compute source.
+Older split evidence requires an explicit `--showcase-source`; there is no
+hardcoded showcase identity or automatic source selection.
 
 Each stage requires an explicit, completed v4 source. Exact payloads, authoritative
 manifests and all ancestral pins are validated before use and again before atomic
@@ -34,7 +39,7 @@ The package's bare entry point rejects monolithic execution.
   Inference remains a compute operation, including the two illustrative streams.
 - Analyse calculates accuracy, silence, output totals, population firing rates,
   cumulative count shares and seed aggregation. It selects the first correct
-  presentation in the matched stream and validates the separately pinned showcase
+  presentation in the matched stream and validates the embedded showcase
   selection. Only derived display arrays and numerical
   results are copied; large raw recordings and the bank remain referenced.
   A wholly silent quantitative readout fails analysis.
@@ -163,7 +168,7 @@ reconstructs only the ten illustrative pixel arrays. Exact input re-encoding and
 full E/I/output raster equivalence are required before atomic completion.
 The one-off importer was retired; its executed code remains in run provenance.
 
-The current local chain combines `exp082-r001-compute` (retained evaluation) and
+The former local chain combined the earlier exp082 compute run (evaluation) and
 `exp082-r007-compute` (bounded showcase selection) in `exp082-r008-analyse`, then
 renders `exp082-r011-present`. This presentation-only rerender restyles the
 duration-rate heatmap to use exp048 Figure 2A's percentage scale, magma palette,
@@ -199,7 +204,7 @@ Ruff for the exp082 package/dedicated tests, the exp082 type check and diff
 whitespace checks passed. Other experiments' shared-test expectations were not
 changed. No shared-file conflict was observed during these scoped updates.
 Read-only discovery validated the local presentations. The article is now
-`[▦ DATA]`; no other article declares exp082 as a data input. Browser inspection
+`[▦ DATA]`; exp110 also declares exp082 as a data input. Browser inspection
 confirmed five loaded figures, the explicit selected presentation and lineage,
 working contents anchors, and three numbered equations. All five PDF pages and
 both additional exported diagnostic figures were inspected. Commit, push,
@@ -213,10 +218,10 @@ within each stream. Ascending candidates retain the first 5/5 and first 3/5
 examples, with all candidate outcomes recorded. The fixed-duration v4 showcase
 remains readable using its recorded configuration.
 
-`exp082-r018-compute` used the same pinned `exp022-r001-compute` bank. Candidate
+The original standalone showcase execution used the same pinned `exp022-r001-compute` bank. Candidate
 index 0 classified digits 1, 7, 9, 5, 2 correctly; index 8 supplied the 3/5
 counterexample. `exp082-r019-analyse` combines these with the unchanged
-`exp082-r001-compute` evaluation grid. `exp082-r020-present` renders the figures
+earlier exp082 evaluation grid. `exp082-r020-present` renders the figures
 and compound figure consumed by exp110. No training or grid inference was run.
 
 ## 2026-09-07 — publication compound layout
@@ -230,3 +235,25 @@ The PNG is 600 dpi; PDF text and curves remain vector, with embedded fonts and
 rasterized spike marks. This replaces the crop-and-paste assembly and its stray
 axis-label fragments. Numerical results and source recordings are unchanged.
 The compound is used by exp082 Figure 1 and exp110 Figure 9.
+
+
+## 2026-10-05 — One compute run for evaluation and illustrations
+
+The current local chain is `exp082-r031-compute` → `exp082-r032-analyse` →
+`exp082-r033-present`, pinned to `exp022-r001-compute`. The compute run consolidates
+already completed evaluation and showcase evidence without training or inference.
+Every copied scientific file is byte-identical to its source. The evidence summary
+embeds the original showcase selection alongside the evaluation recipe; the two
+original scientific configurations remain distinct and are not relabelled.
+
+`run.json` retains both source records, README histories, original evidence
+summaries and per-file hashes as historical provenance. Together with the copied
+scientific bytes these records reconstruct both original exports. The original
+compute identities are not operational inputs of the self-contained consolidation.
+The new analysis matches the previous numerical JSON and every display array
+exactly. Presentation reads only the new analysis and consolidated compute ancestry.
+
+Future normal compute executions produce both the grid and showcase in one run.
+The standalone illustration helper remains available for explicit older split
+workflows, but is not part of the normal three-stage command sequence. No stage
+launches another stage, and no publication is performed.

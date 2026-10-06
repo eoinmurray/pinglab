@@ -1,5 +1,9 @@
 # exp047 — inhibitory pool-size controls
 
+Local-data update, 2026-10-05: runs unused by the latest exp110 manuscript
+were explicitly deleted. Historical operation and size reports below describe
+the earlier store; they do not establish current local availability.
+
 ## Contract migration
 
 Experiment Runner Guide 4.3.0 and Storage Guide 4.3.0. The scientific recipe remains the
@@ -144,12 +148,12 @@ historical numerical replay were checked before atomic completion.
 
 | Run | Role | Entire run bytes | Export bytes |
 | --- | --- | ---: | ---: |
-| `exp047-r001-compute` | Local historical import of original HPC measurements | 1,274,814 | 21,247 |
-| `exp047-r002-analyse` | New local aggregation of retained measurements | 476,936 | 17,103 |
+| the earlier exp047 compute run | Local historical import of original HPC measurements | 1,274,814 | 21,247 |
+| the earlier exp047 analyse run | New local aggregation of retained measurements | 476,936 | 17,103 |
 | `exp047-r003-present` | Initial local presentation, retained unchanged | 599,196 | 138,217 |
 | `exp047-r004-present` | Corrected mean-synapse label; article review input | 608,786 | 137,856 |
 
-Analysis pins `exp047-r001-compute`; both presentations pin `exp047-r002-analyse`.
+The former analysis pinned the earlier exp047 compute run; its presentations pinned that analysis.
 Every pin includes the authoritative-manifest hash and payload checksum. The
 reviewed chain occupies **2,360,536 bytes**; all four runs occupy **2,959,732 bytes**.
 Source retention falls by **1,718,092 bytes (73.5%)** through lossless inventory

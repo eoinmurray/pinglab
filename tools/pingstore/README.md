@@ -1,6 +1,6 @@
 # Storage Guide
 
-Version: **4.8.0**
+Version: **4.9.0**
 
 This guide defines Pingstore's filesystem convention. Pingstore is not a
 service, database, catalogue, lifecycle manager, or general management CLI.
@@ -130,6 +130,7 @@ No official or latest selection is inferred.
 `pingstore prune` is the sole mutating maintenance command. It is a narrow
 garbage-collection operation, not a lifecycle manager or general storage CLI.
 It retains every run whose authoritative execution provenance identifies HPC,
+except superseded HPC presentations explicitly allowed by the option below,
 the newest populated present run for each experiment currently exposed by
 discovery, explicit collection and article-default pins, inputs of incomplete
 runs, and the complete transitive ancestry of those roots. It also retains each
@@ -163,6 +164,23 @@ filesystem changes. The plan hash binds the exact run records, payload digests,
 sizes, incomplete-run input state, and candidate set. Confirmation recomputes
 the plan under an exclusive pruning lock and aborts on any difference or active
 writer. A bare confirmation is forbidden.
+
+An explicit `--allow-superseded-hpc-presentations` option, requiring
+`--stage present` only, permits deletion of older HPC presentation runs.
+Latest presentations, explicit pins, incomplete inputs, full ancestry and
+allocation high-watermarks remain protected. HPC compute and analyse retention
+is unchanged. This exception is bound into the plan hash and must be repeated
+at confirmation.
+
+Pruning may be limited to stages with repeatable `--stage compute`,
+`--stage analyse`, or `--stage present`. Runs in other stages remain retention
+roots, including their full ancestry. Stage filters are bound into the plan hash
+and must be repeated at confirmation. For presentation-only cleanup:
+
+```sh
+uv run pingstore prune --stage present --dry-run
+uv run pingstore prune --stage present --confirm <complete-sha256-plan-hash>
+```
 
 Pruning may be limited to one or more experiments with a repeatable filter. All
 runs outside the filter remain untouched, and any filtered run required by an
@@ -213,6 +231,8 @@ Migration does not authorize experiment execution, publication, pruning, remote
 store changes, or deletion of the recovery archive.
 
 ## 8. Version history
+
+- **4.9.0** — Add hash-bound stage filters and an explicit superseded HPC presentation exception; preserve other stages and full ancestry.
 
 - **4.8.0** — Replace the persistent experiment-history registry with explicit,
   hash-bound one-shot retirement; make experiment IDs permanently single-use.

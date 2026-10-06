@@ -35,91 +35,99 @@ def _predictions(spikes_out, boundaries):
     ]
 
 
-def compute(identity, *, run_id=None):
-    bank = inputs.source(REPO, identity, "compute", experiment="exp022")
-    contract = evidence.training_contract(bank.export)
+def write_showcase(bank, run, contract, *, inference_configuration=None):
+    """Generate showcase recordings inside an existing compute execution."""
     conditions = recipe.SHOWCASE_CONDITIONS
     boundaries = np.cumsum(
         [0, *[int(round(duration / recipe.DT_MS)) for duration, _ in conditions]]
     ).tolist()
     configuration = evidence.showcase_configuration()
+    worker = Inference(
+        bank, run.directory, inference_configuration or recipe.configuration()
+    )
+    train = bank.export / recipe.training_cell_name(recipe.SEEDS[0])
+    candidates, selected = [], {}
+    for index in range(recipe.SHOWCASE_CANDIDATE_LIMIT):
+        digit_seed = recipe.SHOWCASE_DIGIT_SEED_BASE + index
+        encoding_seed = recipe.SHOWCASE_ENCODING_SEED_BASE + index
+        pixels, labels = pick_digits(
+            worker.images, worker.labels, len(conditions), digit_seed
+        )
+        spikes = encode_stream(
+            pixels,
+            conditions,
+            torch.Generator().manual_seed(encoding_seed),
+        )
+        raw = worker.simulate(
+            train,
+            spikes,
+            tuple(boundaries[:-1]),
+            run.scratch / "candidates" / f"candidate-{index:03d}",
+            "rasters",
+        )
+        arrays: dict[str, np.ndarray] = {
+            "pixels": pixels,
+            **_dense(raw, len(spikes)),
+        }
+        predictions = _predictions(arrays["spikes_out"], boundaries)
+        correct = [int(a == b) for a, b in zip(labels, predictions, strict=True)]
+        summary = {
+            "candidate_index": index,
+            "digit_seed": digit_seed,
+            "encoding_seed": encoding_seed,
+            "labels": labels.tolist(),
+            "predictions": predictions,
+            "correct": correct,
+            "n_correct": sum(correct),
+        }
+        candidates.append(summary)
+        print(f"Candidate {index}: {sum(correct)}/5", flush=True)
+        for name, target in recipe.SHOWCASE_TARGETS.items():
+            if name not in selected and summary["n_correct"] == target:
+                folder = run.export / "streams" / name
+                folder.mkdir(parents=True)
+                np.savez_compressed(
+                    folder / "recording.npz",
+                    **arrays,  # ty: ignore[invalid-argument-type]
+                )
+                write_json_atomic(
+                    folder / "stream.json",
+                    {
+                        "labels": summary["labels"],
+                        "boundaries": boundaries,
+                        "conditions": configuration["conditions"],
+                    },
+                )
+                selected[name] = index
+        if set(selected) == set(recipe.SHOWCASE_TARGETS):
+            break
+    if set(selected) != set(recipe.SHOWCASE_TARGETS):
+        raise RuntimeError("showcase candidate limit did not satisfy both targets")
+    saved = {
+        "schema": configuration["schema"],
+        "configuration": configuration,
+        "training_contract": contract,
+        "candidates": candidates,
+        "selected": selected,
+    }
+    write_json_atomic(run.scratch / "dataset.json", worker.dataset)
+    return saved
+
+
+def compute(identity, *, run_id=None):
+    """Explicit standalone showcase generation for older split workflows."""
+    bank = inputs.source(REPO, identity, "compute", experiment="exp022")
+    contract = evidence.training_contract(bank.export)
     with inputs.execution(
         REPO,
         "compute",
         sources={"bank": bank},
         run_id=run_id,
-        configuration=configuration,
+        configuration=evidence.showcase_configuration(),
         operation="showcase-selection",
     ) as run:
-        worker = Inference(bank, run.directory, recipe.configuration())
-        train = bank.export / recipe.training_cell_name(recipe.SEEDS[0])
-        candidates, selected = [], {}
-        for index in range(recipe.SHOWCASE_CANDIDATE_LIMIT):
-            digit_seed = recipe.SHOWCASE_DIGIT_SEED_BASE + index
-            encoding_seed = recipe.SHOWCASE_ENCODING_SEED_BASE + index
-            pixels, labels = pick_digits(
-                worker.images, worker.labels, len(conditions), digit_seed
-            )
-            spikes = encode_stream(
-                pixels,
-                conditions,
-                torch.Generator().manual_seed(encoding_seed),
-            )
-            raw = worker.simulate(
-                train,
-                spikes,
-                tuple(boundaries[:-1]),
-                run.scratch / "candidates" / f"candidate-{index:03d}",
-                "rasters",
-            )
-            arrays: dict[str, np.ndarray] = {
-                "pixels": pixels,
-                **_dense(raw, len(spikes)),
-            }
-            predictions = _predictions(arrays["spikes_out"], boundaries)
-            correct = [int(a == b) for a, b in zip(labels, predictions, strict=True)]
-            summary = {
-                "candidate_index": index,
-                "digit_seed": digit_seed,
-                "encoding_seed": encoding_seed,
-                "labels": labels.tolist(),
-                "predictions": predictions,
-                "correct": correct,
-                "n_correct": sum(correct),
-            }
-            candidates.append(summary)
-            print(f"Candidate {index}: {sum(correct)}/5", flush=True)
-            for name, target in recipe.SHOWCASE_TARGETS.items():
-                if name not in selected and summary["n_correct"] == target:
-                    folder = run.export / "streams" / name
-                    folder.mkdir(parents=True)
-                    np.savez_compressed(
-                        folder / "recording.npz", **arrays  # ty: ignore[invalid-argument-type]
-                    )
-                    write_json_atomic(
-                        folder / "stream.json",
-                        {
-                            "labels": summary["labels"],
-                            "boundaries": boundaries,
-                            "conditions": configuration["conditions"],
-                        },
-                    )
-                    selected[name] = index
-            if set(selected) == set(recipe.SHOWCASE_TARGETS):
-                break
-        if set(selected) != set(recipe.SHOWCASE_TARGETS):
-            raise RuntimeError("showcase candidate limit did not satisfy both targets")
-        write_json_atomic(
-            run.export / "evidence.json",
-            {
-                "schema": configuration["schema"],
-                "configuration": configuration,
-                "training_contract": contract,
-                "candidates": candidates,
-                "selected": selected,
-            },
-        )
-        write_json_atomic(run.scratch / "dataset.json", worker.dataset)
+        saved = write_showcase(bank, run, contract)
+        write_json_atomic(run.export / "evidence.json", saved)
         evidence.validate_showcase(run.export)
     return run.run_id
 

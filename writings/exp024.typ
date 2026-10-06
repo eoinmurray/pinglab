@@ -8,7 +8,7 @@
 #let data-file = data-file.with(article: "exp024")
 
 #let meta = (
-  tags: ("data", "v35.4.0"),
+  tags: ("txt", "v36.0.0"),
   title: "Accuracy Plateaus While Firing Rate Rises",
   created_at: "2026-06-02T00:00:00Z",
   updated_at: "2026-08-31T00:00:00Z",

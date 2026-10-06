@@ -21,7 +21,7 @@ from .contracts import (
 from .discovery import discover_store
 from .stages import operation_lock
 
-PLAN_SCHEMA = "pingstore.prune-plan/v3"
+PLAN_SCHEMA = "pingstore.prune-plan/v4"
 HPC_MARKER = re.compile(r"(?:^|[-_.])(?:slurm|hpc|wilkes|csd3|gpu-q)(?:$|[-_.0-9])")
 PROVENANCE_KEYS = {
     "host",
@@ -197,6 +197,8 @@ def build_plan(
     repo: Path,
     experiments: list[str] | tuple[str, ...] | set[str] | None = None,
     retire_experiments: list[str] | tuple[str, ...] | set[str] | None = None,
+    stages: list[str] | tuple[str, ...] | set[str] | None = None,
+    allow_superseded_hpc_presentations: bool = False,
 ) -> dict:
     repo = repo.resolve()
     runs = repo / ".pingstore/runs"
@@ -214,7 +216,16 @@ def build_plan(
         scope = retired
     elif not retired.issubset(scope or set()):
         raise PingstoreError("retirement experiments must be inside the prune scope")
+    stage_scope = set(stages) if stages is not None else None
+    if stage_scope is not None and (
+        not stage_scope or stage_scope - {"compute", "analyse", "present"}
+    ):
+        raise PingstoreError("invalid or empty stage filter")
     reasons: dict[str, set[str]] = defaultdict(set)
+    if stage_scope is not None:
+        for run_id, record in records.items():
+            if record["stage"] not in stage_scope:
+                reasons[run_id].add("out-of-stage-scope")
 
     if scope is not None:
         for run_id, record in records.items():
@@ -235,8 +246,20 @@ def build_plan(
             latest[row["experiment"]] = row
     for row in latest.values():
         reasons[row["id"]].add("latest-visible")
+    if allow_superseded_hpc_presentations and stage_scope != {"present"}:
+        raise PingstoreError("HPC presentation cleanup requires --stage present only")
+    latest_ids = {row["id"] for row in latest.values()}
     for run_id, record in records.items():
-        if (scope is None or record["experiment"] in scope) and is_hpc_run(record):
+        superseded_presentation = (
+            allow_superseded_hpc_presentations
+            and record["stage"] == "present"
+            and run_id not in latest_ids
+        )
+        if (
+            (scope is None or record["experiment"] in scope)
+            and is_hpc_run(record)
+            and not superseded_presentation
+        ):
             reasons[run_id].add("hpc")
     _add_declared_roots(repo, records, reasons)
     hidden = _hidden_inputs(runs, records, reasons)
@@ -302,6 +325,8 @@ def build_plan(
         "policy": "keep-hpc-latest-pins-high-watermarks-and-ancestry-with-explicit-retirement",
         "experiments": sorted(scope) if scope is not None else None,
         "retire_experiments": sorted(retired),
+        "stages": sorted(stage_scope) if stage_scope is not None else None,
+        "allow_superseded_hpc_presentations": allow_superseded_hpc_presentations,
         "retirement_high_watermarks": retirement_high_watermarks,
         "hidden": hidden,
         "keep": [row for row in rows if row["run_id"] in keep],
@@ -333,6 +358,8 @@ def apply_plan(
     expected_hash: str,
     experiments: list[str] | tuple[str, ...] | set[str] | None = None,
     retire_experiments: list[str] | tuple[str, ...] | set[str] | None = None,
+    stages: list[str] | tuple[str, ...] | set[str] | None = None,
+    allow_superseded_hpc_presentations: bool = False,
 ) -> dict:
     if not re.fullmatch(r"sha256:[0-9a-f]{64}", expected_hash):
         raise PingstoreError(
@@ -345,7 +372,13 @@ def apply_plan(
     previous = store / f".prune-{expected_hash[7:19]}-runs.old"
     with operation_lock(store, exclusive=True):
         try:
-            plan = build_plan(repo, experiments, retire_experiments)
+            plan = build_plan(
+                repo,
+                experiments,
+                retire_experiments,
+                stages,
+                allow_superseded_hpc_presentations,
+            )
             if plan["plan_hash"] != expected_hash:
                 raise PingstoreError(
                     f"prune plan changed: expected {expected_hash}, now {plan['plan_hash']}"
@@ -404,6 +437,13 @@ def render_plan(plan: dict) -> str:
         + (
             ", ".join(plan["experiments"]) if plan["experiments"] else "all experiments"
         ),
+        "Stages: " + (", ".join(plan.get("stages") or []) or "all stages"),
+        "Superseded HPC presentations: "
+        + (
+            "eligible"
+            if plan.get("allow_superseded_hpc_presentations")
+            else "protected"
+        ),
         "Retire: "
         + (
             ", ".join(plan["retire_experiments"])
@@ -446,6 +486,10 @@ def render_plan(plan: dict) -> str:
         command += f" {scope_args}"
     if retirement_args:
         command += f" {retirement_args}"
+    for stage in plan.get("stages") or []:
+        command += f" --stage {shlex.quote(stage)}"
+    if plan.get("allow_superseded_hpc_presentations"):
+        command += " --allow-superseded-hpc-presentations"
     command += f" --confirm {plan['plan_hash']}"
     lines.extend(["", f"Confirm with: {command}"])
     return "\n".join(lines)

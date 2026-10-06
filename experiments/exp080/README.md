@@ -1,5 +1,9 @@
 # exp080 — empirical input-rate calibration
 
+Local-data update, 2026-10-05: runs unused by the latest exp110 manuscript
+were explicitly deleted. Historical operation and size reports below describe
+the earlier store; they do not establish current local availability.
+
 ## Independent execution contract
 
 Experiment Runner Guide 4.3.0 and Storage Guide 4.3.0. The diagnostic decoder study remains
@@ -146,8 +150,8 @@ the complete run is smaller than the original 9.93 MB study payload.
 
 | Run | Execution | Complete bytes | Export bytes |
 | --- | --- | ---: | ---: |
-| `exp080-r001-compute` | Local historical import; no training or simulation | 11,262,238 | 9,847,370 |
-| `exp080-r002-analyse` | New analysis of imported correctness | 880,571 | 26,634 |
+| the earlier exp080 compute run | Local historical import; no training or simulation | 11,262,238 | 9,847,370 |
+| the earlier exp080 analyse run | New analysis of imported correctness | 880,571 | 26,634 |
 | `exp080-r003-present` | New plots from analysis; original PNG retained | 969,903 | 112,115 |
 
 Analysis pins compute; presentation pins analysis and the same compute ancestor.

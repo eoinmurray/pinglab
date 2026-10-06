@@ -1,10 +1,19 @@
 # Exp023 — PING fundamentals
 
+## Independent presentation — 2026-10-05
+
+The current presentation is **`exp023-r016-present`**, rendered directly from
+`exp023-r012-analyse` and `exp023-r011-compute`. It preserves all scientific
+measurements and the corrected reported E/I refractory periods of 1.2/0.6 ms.
+It has no presentation-run inputs. Earlier presentations were explicitly pruned.
+The renderer now applies the audited correction only to the exact retained
+compute identity and payload; it does not consume an earlier presentation.
+
 ## Refractory reporting correction — 2026-09-09
 
-PLAN.md step 5.9 is complete. **`exp023-r014-present`** corrects the displayed
+The previous reporting-correction presentation corrected the displayed
 E/I refractory periods from 3/1.5 ms to **1.2/0.6 ms**, using the unchanged
-`exp023-r011-compute`, `exp023-r012-analyse` and prior `exp023-r013-present`.
+`exp023-r011-compute`, `exp023-r012-analyse` and an earlier presentation.
 This is the verified 6-ms-GABA chain, not the rejected `r008` execution below.
 
 The historical simulator used 12/6 timestep counters; at the recorded 0.1-ms
@@ -19,12 +28,12 @@ The one-off metadata-correction path accepted only the audited compute identity,
 payload, recipe and source base. It copied all **24 figure files byte-for-byte**
 and preserved every scientific measurement. No simulation, analysis or drawing
 ran; compute and analyse sources remained immutable. After producing the
-validated `exp023-r014-present`, that correction implementation was retired.
-The immutable run retains its exact correction provenance.
+validated correction presentation, that one-off implementation was retired.
+The current independent presentation retains the correction basis.
 
-The new presentation passes v4 layout, payload and lineage checks; **40 tests**,
-lint and whitespace checks pass. Exact run digests and acceptance details are
-in PLAN.md. This correction follows Runner and Storage Guides 4.4.0; the
+The September correction passed v4 layout, payload and lineage checks, **40 tests**,
+lint and whitespace checks at that time. This historical correction followed
+Runner and Storage Guides 4.4.0; the
 sections below retain the historical migration and execution account.
 
 The implementation is maintained against Experiment Runner Guide 4.3.0,
@@ -116,7 +125,8 @@ as 6 ms evidence. Recorded conductance decay confirmed the mismatch.
 
 Fixed the CLI's model-global propagation and reran all 16 production trials
 at 400 ms, followed by analysis and figures. The corrected chain is
-`exp023-r011-compute`, `exp023-r012-analyse`, and `exp023-r013-present`.
+`exp023-r011-compute`, `exp023-r012-analyse`, and the original presentation
+(which has since been superseded and pruned).
 Recorded conductance decay independently confirms 6 ms. The PING raster's
 spectral peak changed from 41.386 to 55.971 Hz, E rate from 5.854 to 8.289 Hz,
 and I rate from 47.432 to 75.986 Hz. A simulator regression test checks actual

@@ -82,6 +82,16 @@ def compute_evidence(repo, run):
         "jobs": recipe.jobs(cfg),
     }
     saved = load_json(run.export / "evidence.json")
+    if saved.get("schema") == "exp082.compute/v3":
+        expected["schema"] = "exp082.compute/v3"
+        expected["showcase"] = evidence.validate_showcase(run.export)
+        if expected["showcase"].get("training_contract") != contract:
+            raise PingstoreError("combined showcase training contract differs")
+        if (
+            run.record.get("showcase_configuration")
+            != expected["showcase"]["configuration"]
+        ):
+            raise PingstoreError("combined showcase execution configuration differs")
     historical = saved.get("condition_evidence") == "historical-aggregate/v1"
     if historical:
         evidence.validate_import(run, cfg)

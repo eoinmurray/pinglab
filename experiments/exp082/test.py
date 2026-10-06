@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -20,6 +21,7 @@ from experiments.exp082 import (
     analyse,
     compute,
     evidence,
+    illustrate,
     inference,
     inputs,
     measurements,
@@ -226,6 +228,16 @@ def lab(tmp_path, monkeypatch):
             },
         )
         evidence.validate_showcase(showcase.export)
+
+    def write_fixture_showcase(bank, run, contract, *, inference_configuration=None):
+        source = inputs.source(tmp_path, showcase.run_id, "compute")
+        for name in recipe.SHOWCASE_TARGETS:
+            destination = run.export / "streams" / name
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copytree(source.unit("streams", name), destination)
+        return evidence.validate_showcase(source.export)
+
+    monkeypatch.setattr(illustrate, "write_showcase", write_fixture_showcase)
     return tmp_path, bank_identity, calls, showcase.run_id
 
 
@@ -1059,3 +1071,28 @@ def test_historical_import_cannot_adopt_a_new_execution_recipe(tmp_path, monkeyp
     evidence.validate_import(run, cfg)
     with pytest.raises(PingstoreError, match="retained import contract"):
         evidence.validate_import(run, recipe.configuration())
+
+
+def test_combined_compute_supplies_analysis_and_presentation(lab, monkeypatch):
+    repo, bank, calls, separate_showcase = lab
+    identity = compute.compute(bank)
+    source = inputs.source(repo, identity, "compute")
+    assert load_json(source.export / "evidence.json")["schema"] == "exp082.compute/v3"
+    assert evidence.showcase_evidence(repo, source)[0].record["run_id"] == bank
+    aid = analyse.analyse(identity)
+    fake_plots(monkeypatch)
+    pid = present.present(aid)
+    assert set(inputs.lineage(repo, pid)) == {bank, identity, aid, pid}
+    assert separate_showcase not in inputs.lineage(repo, pid)
+    assert len(calls) == 20
+
+
+def test_combined_compute_rejects_changed_showcase_configuration(lab):
+    repo, bank, _, _ = lab
+    identity = compute.compute(bank)
+    directory = repo / ".pingstore/runs" / identity
+    record = load_json(directory / "run.json")
+    record["showcase_configuration"]["training_seed"] = 999
+    write_json_atomic(directory / "run.json", record)
+    with pytest.raises(PingstoreError, match="showcase execution configuration"):
+        analyse.analyse(identity)

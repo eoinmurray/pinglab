@@ -7,7 +7,7 @@
 #let data-file = data-file.with(article: "exp054")
 
 #let meta = (
-  tags: ("data", "v36.0.0"),
+  tags: ("txt", "v36.0.0"),
   title: "Pinglab Rythmicity Metric",
   created_at: "2026-06-15T00:00:00Z",
   updated_at: "2026-09-18",

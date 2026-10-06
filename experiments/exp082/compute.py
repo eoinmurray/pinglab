@@ -7,7 +7,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
-from experiments.exp082 import evidence, inputs, recipe
+from experiments.exp082 import evidence, illustrate, inputs, recipe
 from experiments.exp082.inference import Inference
 from experiments.helpers.hpc import concurrent_compute
 from pingstore.contracts import (
@@ -154,17 +154,23 @@ def compute(identity, *, run_id=None, collect=False):
             for name in ("matched", "variable"):
                 worker.stream(name)
             write_json_atomic(run.scratch / "dataset.json", worker.dataset)
+            showcase = illustrate.write_showcase(
+                bank, run, contract, inference_configuration=cfg
+            )
+            run.record["showcase_configuration"] = showcase["configuration"]
             write_json_atomic(
                 run.export / "evidence.json",
                 {
-                    "schema": "exp082.compute/v2",
+                    "schema": "exp082.compute/v3",
                     "recipe": cfg,
                     "training_contract": contract,
                     "jobs": recipe.jobs(cfg),
                     "image_stream_bank": worker.image_stream_bank,
+                    "showcase": showcase,
                 },
             )
             evidence.validate_compute(run.export, cfg)
+            evidence.validate_showcase(run.export)
     return run.run_id
 
 

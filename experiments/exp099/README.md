@@ -1,5 +1,9 @@
 # EXP099: independent afferent excitation
 
+Local-data update, 2026-10-05: runs unused by the latest exp110 manuscript
+were explicitly deleted. Historical operation and size reports below describe
+the earlier store; they do not establish current local availability.
+
 This is a modified replication of the PING-network experiment in [Susin and Destexhe (2021)](https://doi.org/10.1371/journal.pcbi.1009416).
 
 ## Scientific configuration
@@ -213,11 +217,11 @@ The committed recipe fixes the baseline rate at 0.8 Hz, recurrent scale at
 0.08, and inhibitory scale at 5.0; both scale factors
 contribute to the inhibitory physical weight.
 
-Fresh compute `exp099-r059-compute` took 6.092 s. Every recorded field matches
+The earlier exp099 compute run took 6.092 s. Every recorded field matches
 the retained scratch c20 recording bit for bit, including afferent counts, E/I
 spikes, mean voltages and conductances. The scratch search record and verification
 retain the selected case, payload hashes and the new v4 source reference.
-Analysis `exp099-r060-analyse` measured visible baseline E/I rates
+The earlier exp099 analysis measured visible baseline E/I rates
 3.528125/3.825 Hz, plateau 11.50625/11.925 Hz and recovery 4.275/4.375 Hz.
 
 Search measurements remain in the scratch search's full results and raw records.

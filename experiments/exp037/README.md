@@ -1,5 +1,9 @@
 # exp037 — dropped spikes and added noise
 
+Local-data update, 2026-10-05: runs unused by the latest exp110 manuscript
+were explicitly deleted. Historical operation and size reports below describe
+the earlier store; they do not establish current local availability.
+
 ## Relative-dose revision (2026-09-07)
 
 The default recipe is now `exp037.recipe/v2`. Each of six workers owns one
@@ -215,7 +219,7 @@ Completed runs, each created independently:
 
 | Run | Operation | Complete run bytes |
 | --- | --- | ---: |
-| `exp037-r001-compute` | Local historical import, pinned to `exp022-r001-compute` | 8,051,632 |
+| the earlier exp037 compute run | Local historical import, pinned to `exp022-r001-compute` | 8,051,632 |
 | `exp037-r002-analyse` | Analysis of that imported evidence and bank | 499,225 |
 | `exp037-r003-present` | Ten figure files and presentation numbers | 938,728 |
 

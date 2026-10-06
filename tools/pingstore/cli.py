@@ -62,6 +62,18 @@ def main(argv: list[str] | None = None) -> int:
             "latest run and allocation high-watermark to be pruned (repeatable)"
         ),
     )
+    prune.add_argument(
+        "--stage",
+        action="append",
+        dest="stages",
+        choices=("compute", "analyse", "present"),
+        help="limit pruning to this stage (repeatable); other stages stay protected",
+    )
+    prune.add_argument(
+        "--allow-superseded-hpc-presentations",
+        action="store_true",
+        help="explicitly allow older HPC presentations to be pruned; requires --stage present",
+    )
     action = prune.add_mutually_exclusive_group(required=True)
     action.add_argument(
         "--dry-run", action="store_true", help="print the exact immutable prune plan"
@@ -81,7 +93,13 @@ def main(argv: list[str] | None = None) -> int:
             if args.dry_run:
                 print(
                     render_plan(
-                        build_plan(args.root, args.experiments, args.retire_experiments)
+                        build_plan(
+                            args.root,
+                            args.experiments,
+                            args.retire_experiments,
+                            args.stages,
+                            args.allow_superseded_hpc_presentations,
+                        )
                     )
                 )
             else:
@@ -90,6 +108,8 @@ def main(argv: list[str] | None = None) -> int:
                     args.confirm,
                     args.experiments,
                     args.retire_experiments,
+                    args.stages,
+                    args.allow_superseded_hpc_presentations,
                 )
                 reclaimed = sum(row["bytes"] for row in plan["prune"])
                 print(

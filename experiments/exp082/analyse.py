@@ -11,13 +11,15 @@ sys.path[:0] = [str(REPO), str(REPO / "tools")]
 from experiments.exp082 import evidence, inputs, measurements, recipe
 from pingstore.contracts import PingstoreError, load_json, write_json_atomic
 
-CANONICAL_SHOWCASE_SOURCE = "exp082-r018-compute"
 
-
-def analyse(identity, showcase_identity, *, run_id=None):
+def analyse(identity, showcase_identity=None, *, run_id=None):
     source = inputs.source(REPO, identity, "compute")
     cfg, bank, contract = inputs.compute_evidence(REPO, source)
-    showcase = inputs.source(REPO, showcase_identity, "compute")
+    showcase = (
+        inputs.source(REPO, showcase_identity, "compute")
+        if showcase_identity is not None and showcase_identity != identity
+        else source
+    )
     showcase_bank, showcase_record = evidence.showcase_evidence(REPO, showcase)
     if showcase_bank.reference != bank.reference:
         raise PingstoreError("showcase and evaluation use different training banks")
@@ -31,7 +33,9 @@ def analyse(identity, showcase_identity, *, run_id=None):
         {
             name: measurements.stream_result(
                 *evidence.stream(
-                    showcase, name, conditions=showcase_record["configuration"]["conditions"]
+                    showcase,
+                    name,
+                    conditions=showcase_record["configuration"]["conditions"],
                 )
             )
             for name in recipe.SHOWCASE_TARGETS
@@ -93,7 +97,11 @@ def analyse(identity, showcase_identity, *, run_id=None):
     with inputs.execution(
         REPO,
         "analyse",
-        sources={"compute": source, "showcase": showcase, "bank": bank},
+        sources={
+            "compute": source,
+            "bank": bank,
+            **({"showcase": showcase} if showcase is not source else {}),
+        },
         run_id=run_id,
         configuration={
             "schema": "exp082.analysis/v2",
@@ -108,10 +116,14 @@ def analyse(identity, showcase_identity, *, run_id=None):
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--source", required=True)
+    p.add_argument(
+        "--showcase-source",
+        help="explicit separate showcase for an older split compute",
+    )
     p.add_argument("--run-id")
     a = p.parse_args()
     try:
-        print(analyse(a.source, CANONICAL_SHOWCASE_SOURCE, run_id=a.run_id))
+        print(analyse(a.source, a.showcase_source, run_id=a.run_id))
     except (PingstoreError, OSError, KeyError, ValueError, RuntimeError) as exc:
         p.exit(1, f"exp082 analyse: {exc}\n")
 

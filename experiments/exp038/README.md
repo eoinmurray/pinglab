@@ -1,5 +1,9 @@
 # exp038 — switching on the inhibitory loop
 
+Local-data update, 2026-10-05: runs unused by the latest exp110 manuscript
+were explicitly deleted. Historical operation and size reports below describe
+the earlier store; they do not establish current local availability.
+
 Contract migration target: Experiment Runner Guide **3.0.0** and Storage Guide
 **4.0.0**, using `pingstore.run/v4` and source-neutral stage IDs. Scientific
 interpretation and article revision remain separate from this execution migration.
@@ -125,7 +129,7 @@ The independently completed runs are:
 
 | Stage | Run | Input |
 | --- | --- | --- |
-| Historical compute import | `exp038-r001-compute` | `exp022-r001-compute` |
+| Historical compute import | the earlier exp038 compute run | `exp022-r001-compute` |
 | Analyse | `exp038-r002-analyse` | Imported compute and the same bank |
 | Present | `exp038-r003-present` | The explicit analysis run |
 
@@ -220,7 +224,7 @@ The subsequent authorized import and its verification are recorded above and bel
 
 | Run | Export bytes | Whole run bytes, including provenance |
 | --- | ---: | ---: |
-| `exp038-r001-compute` | 1,028,560 | 5,612,054 |
+| the earlier exp038 compute run | 1,028,560 | 5,612,054 |
 | `exp038-r002-analyse` | 128,018 | 295,932 |
 | `exp038-r003-present` | 597,189 | 763,973 |
 

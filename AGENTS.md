@@ -17,7 +17,9 @@ management CLI.
   materialize, upload, or prune runs, or persist a catalogue.
 - `pingstore prune` is the sole mutating maintenance command. It must use a
   no-write dry run followed by the exact complete SHA-256 plan hash, retain HPC
-  runs, newest visible presentations, explicit pins, incomplete inputs, full
+  runs (except superseded HPC presentations explicitly authorized with
+  `--stage present --allow-superseded-hpc-presentations`), newest visible
+  presentations, explicit pins, incomplete inputs, full
   ancestry and allocation high-watermarks, and abort on drift or active writers.
   An explicit `--retire-experiment` operation may drop that experiment's local
   latest presentation and run high-watermark only after its runnable code and

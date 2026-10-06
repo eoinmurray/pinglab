@@ -1,5 +1,9 @@
 # exp110 — manuscript presentation synthesis
 
+Local-data update, 2026-10-05: runs unused by the latest exp110 manuscript
+were explicitly deleted. Historical operation and size reports below describe
+the earlier store; they do not establish current local availability.
+
 Exp110 owns figures whose panel composition synthesizes evidence from more than
 one source experiment. It performs no simulation and no measurement. Figures
 already owned by one source experiment are consumed directly by the manuscript
@@ -32,7 +36,9 @@ use the explicit command
 below for this refresh.
 
 ```sh
-uv run python -m experiments.exp110.present --source exp054-r013-analyse
+uv run python -m experiments.exp110.present \
+  --source exp054-r016-analyse \
+  --theory-source exp117-r024-analyse
 ```
 
 This produced `exp110-r021-present` (payload
@@ -41,7 +47,7 @@ in two recorded seconds, with six exports. It replaces the theory and timestep
 sources used by `exp110-r020-present`, retaining all five exp037/exp041/exp046
 source references exactly. Figure 6's PNG is byte-identical; Figures 2 and 7
 reflect the replacement evidence. Exp023's metadata-corrected
-`exp023-r014-present` is a direct article input, with unchanged scientific images,
+presentation was a direct article input, with unchanged scientific images,
 and therefore is not bundled into this presentation.
 
 The manuscript now reports the 0.05–0.6-ms sweep, fixed E/I reset holds of
@@ -61,7 +67,7 @@ imported without scientific re-execution under collision-free local identities:
 
 - bank: `exp022-r015-compute`;
 - exp025: `exp025-r008-compute` → `exp025-r009-analyse` →
-  `exp025-r010-present`;
+  the presentation rendered at that time (since superseded and pruned);
 - exp037: `exp037-r018-compute` → `exp037-r019-analyse` →
   `exp037-r020-present`;
 - exp038: `exp038-r009-compute` → `exp038-r010-analyse` →
@@ -75,7 +81,7 @@ changes or spike/count changes. The largest numerical rate difference was
 drift.
 
 The local synthesis `exp110-r022-present` pins `exp037-r020-present` while
-retaining `exp054-r013-analyse`, `exp041-r005-present`,
+retaining the earlier exp054 analyse run, `exp041-r005-present`,
 `exp046-r005-present` and `exp044-r009-present`. Its payload digest is
 `sha256:87acaed5752a7ddc50a35ad5c7c5816fd3d5da6a993a3ebf7ad744d649b751c3`.
 The manuscript now selects the replacement exp025, exp037, exp038 and exp110
@@ -132,7 +138,7 @@ was updated; tests were not run under the author's pre-commit instruction.
 
 ## 2026-09-18 — Numerical criticality source
 
-Presentation recipe v14 replaces exp033 with `exp115-r008-analyse` as the
+Presentation recipe v14 replaces exp033 with the earlier exp115 analyse run as the
 mean-field source. Figure 2G now shows the leading eigenvalue real part across
 drive; Figure 2H uses exp115's fixed-sample upward/downward amplitude ramps;
 Figure 2I uses its six refined onset frequencies. The manuscript Appendix C now
@@ -148,7 +154,7 @@ inspection of Figure 2 and the 22-entry Demolab build passed.
 
 ## 2026-09-19 — Return to exp033 mean-field evidence
 
-Presentation recipe v13 again uses `exp033-r018-analyse` as the mean-field
+Presentation recipe v13 again uses the earlier exp033 analyse run as the mean-field
 source after exp115 and exp116 were retired. The presentation-only replacement
 is `exp110-r030-present`, with `exp054-r016-analyse` and the existing exp037,
 exp041, exp044 and exp046 sources unchanged. No simulation, training or analysis
@@ -170,3 +176,10 @@ exp046 presentation/analysis pairs, `exp037-r020-present` and
 `exp044-r009-present`. Figures 6 and 7 are byte-identical to
 `exp110-r030-present`. Five targeted tests, full Pingstore discovery, visual
 inspection of Figure 2 and the 21-entry manuscript build passed.
+
+## 2026-10-05 — Latest article presentation inputs
+
+Article inputs use the latest available presentations with no explicit default
+pins. The independent exp023 presentation is now `exp023-r016-present`; its
+compute and analysis inputs remain unchanged. Superseded presentation references
+have been removed from the live store and generated presentation catalogue.

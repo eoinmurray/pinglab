@@ -1,5 +1,9 @@
 # Exp081: filtered-response theory
 
+Local-data update, 2026-10-05: runs unused by the latest exp110 manuscript
+were explicitly deleted. Historical operation and size reports below describe
+the earlier store; they do not establish current local availability.
+
 Independent stages follow Storage Guide 4.3.0 and Experiment Runner Guide 4.3.0.
 The article follows Writing Guide 8.0.0.
 The physical equations, rate/probe grids, random-seed derivation, integration
@@ -42,8 +46,8 @@ remains separately authorized.
 ## Evidence and verification boundary
 
 This refactor does not migrate legacy runs or constitute a new scientific run.
-The full-profile local chain is `exp081-r001-compute`,
-`exp081-r002-analyse` and `exp081-r003-present`.
+The former full-profile local chain comprised the earlier exp081 compute run,
+the earlier exp081 analyse run and `exp081-r003-present`.
 The current conformance pass reused those completed runs without simulation.
 Historical interpretations remain in the article's Discussion and Conclusion;
 they require verification against selected scientific evidence before publication.

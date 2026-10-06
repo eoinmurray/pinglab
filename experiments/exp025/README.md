@@ -1,5 +1,9 @@
 # exp025 — accuracy–rate frontier
 
+Local-data update, 2026-10-05: runs unused by the latest exp110 manuscript
+were explicitly deleted. Historical operation and size reports below describe
+the earlier store; they do not establish current local availability.
+
 `exp025` reuses an explicitly selected, completed `exp022` model-bank compute
 run. It evaluates the retained COBA and PING networks, measures the resulting
 accuracy/rate behaviour, and renders the article inputs.
@@ -46,7 +50,7 @@ bank.
 Compute execution configuration, commands, environment, checkpoint pins and
 timing belong in `run.json` or discarded writer scratch space. New compute runs
 therefore do not export a parallel metadata envelope. The historical
-`exp025-r001-compute` payload retains its original `evidence.json`; readers
+historical compute payloads included `evidence.json`; readers
 validate that immutable legacy v4 file when it is present but do not require it
 from new runs.
 
@@ -86,8 +90,8 @@ CPU analysis and presentation with `afterok` dependencies. No stage publishes.
 ## Retained historical lineage
 
 The original Gold-2 import was an explicit offline historical operation. It did
-not train, simulate, publish, or modify the source archive. The current retained
-lineage is `exp025-r001-compute` → `exp025-r002-analyse` →
+not train, simulate, publish, or modify the source archive. The former local
+lineage comprised the earlier exp025 compute run → `exp025-r002-analyse` →
 `exp025-r007-present`, pinned to `exp022-r001-compute`. Its source identities,
 operation history and checksums remain in the run records and README histories.
 

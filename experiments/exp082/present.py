@@ -19,16 +19,21 @@ def build_continuous_stream_compound(stream, summary, output_stem: Path) -> None
 
 def present(identity, *, run_id=None):
     source = inputs.source(REPO, identity, "analyse")
-    if set(source.record["inputs"]) != {"compute", "showcase", "bank"}:
+    if set(source.record["inputs"]) not in (
+        {"compute", "bank"},
+        {"compute", "showcase", "bank"},
+    ):
         raise PingstoreError("analysis must pin evaluation, showcase and bank")
     pin = source.record["inputs"]["compute"]
     compute = inputs.source(REPO, pin["run_id"], "compute", reference=pin)
     cfg, bank, _ = inputs.compute_evidence(REPO, compute)
     if source.record["inputs"]["bank"] != bank.reference:
         raise PingstoreError("analysis bank differs from compute ancestry")
-    showcase_pin = source.record["inputs"]["showcase"]
-    showcase = inputs.source(
-        REPO, showcase_pin["run_id"], "compute", reference=showcase_pin
+    showcase_pin = source.record["inputs"].get("showcase")
+    showcase = (
+        inputs.source(REPO, showcase_pin["run_id"], "compute", reference=showcase_pin)
+        if showcase_pin is not None
+        else compute
     )
     showcase_bank, showcase_record = evidence.showcase_evidence(REPO, showcase)
     if showcase_bank.reference != bank.reference:
@@ -52,7 +57,9 @@ def present(identity, *, run_id=None):
         raw, _ = evidence.stream(compute, name)
         streams[name] = {**raw, **result[name + "_stream"]}
     for name in recipe.SHOWCASE_TARGETS:
-        raw, _ = evidence.stream(showcase, name, conditions=showcase_record["configuration"]["conditions"])
+        raw, _ = evidence.stream(
+            showcase, name, conditions=showcase_record["configuration"]["conditions"]
+        )
         streams[name] = {**raw, **result[name + "_stream"]}
     if result.get("showcase_selection") != {
         key: showcase_record[key] for key in ("configuration", "candidates", "selected")

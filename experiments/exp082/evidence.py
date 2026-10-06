@@ -202,10 +202,9 @@ def validate_image_stream_bank(value, cfg):
         "dataset",
     }:
         raise PingstoreError("image-stream bank record differs")
-    if (
-        value["policy"] != cfg.get("image_stream_policy")
-        or value["sampling_seed"] != cfg.get("image_sampling_seed")
-    ):
+    if value["policy"] != cfg.get("image_stream_policy") or value[
+        "sampling_seed"
+    ] != cfg.get("image_sampling_seed"):
         raise PingstoreError("image-stream bank policy differs")
     dataset = value["dataset"]
     if not isinstance(dataset, dict) or set(dataset) != {
@@ -226,8 +225,7 @@ def validate_image_stream_bank(value, cfg):
         or images.get("dtype") != "float32"
         or dataset_labels.get("dtype") != "int64"
         or any(
-            not isinstance(record.get("sha256"), str)
-            or len(record["sha256"]) != 64
+            not isinstance(record.get("sha256"), str) or len(record["sha256"]) != 64
             for record in (images, dataset_labels)
         )
     ):
@@ -249,8 +247,7 @@ def validate_image_stream_bank(value, cfg):
             or len(label_row) != shape[1]
             or len(set(index_row)) != len(index_row)
             or any(
-                type(index) is not int or not 0 <= index < 10_000
-                for index in index_row
+                type(index) is not int or not 0 <= index < 10_000 for index in index_row
             )
             or any(type(label) is not int or not 0 <= label < 10 for label in label_row)
         ):
@@ -311,7 +308,8 @@ def showcase_configuration(*, conditions=None, version=2):
                 "dt_ms": recipe.DT_MS,
                 **recipe.refractory_execution_configuration(recipe.DT_MS),
             }
-            if version >= 2 else {}
+            if version >= 2
+            else {}
         ),
         "conditions": [
             list(value)
@@ -330,17 +328,19 @@ def showcase_configuration(*, conditions=None, version=2):
 
 def validate_showcase(root):
     saved = load_json(_root(root) / "evidence.json")
+    if saved.get("schema") == "exp082.compute/v3":
+        saved = saved.get("showcase", {})
     selected = saved.get("selected")
     if (
-        saved.get("schema") not in (
-            "exp082.showcase-selection/v1", "exp082.showcase-selection/v2"
-        )
+        saved.get("schema")
+        not in ("exp082.showcase-selection/v1", "exp082.showcase-selection/v2")
         or saved.get("configuration")
         not in tuple(
             showcase_configuration(conditions=conditions, version=version)
             for version in (1, 2)
             for conditions in (
-                recipe.SHOWCASE_CONDITIONS, recipe.FIXED_DURATION_SHOWCASE_CONDITIONS
+                recipe.SHOWCASE_CONDITIONS,
+                recipe.FIXED_DURATION_SHOWCASE_CONDITIONS,
             )
         )
         or saved["configuration"]["schema"] != saved["schema"]
@@ -409,10 +409,16 @@ def validate_showcase(root):
 
 
 def showcase_evidence(repo, run):
+    combined = (
+        load_json(run.export / "evidence.json").get("schema") == "exp082.compute/v3"
+    )
     if (
         run.record["stage"] != "compute"
         or run.record["experiment"] != recipe.SLUG
-        or run.record["execution"].get("operation") != "showcase-selection"
+        or (
+            not combined
+            and run.record["execution"].get("operation") != "showcase-selection"
+        )
         or set(run.record["inputs"]) != {"bank"}
     ):
         raise PingstoreError("invalid exp082 showcase compute run")
@@ -423,8 +429,18 @@ def showcase_evidence(repo, run):
         repo, pin["run_id"], "compute", experiment="exp022", reference=pin
     )
     saved = validate_showcase(run.export)
-    if run.record["execution"].get("configuration") != saved["configuration"]:
+    if (
+        not combined
+        and run.record["execution"].get("configuration") != saved["configuration"]
+    ):
         raise PingstoreError("showcase execution configuration differs")
+    if combined:
+        _, compute_bank, _ = inputs.compute_evidence(repo, run)
+        if compute_bank.reference != bank.reference:
+            raise PingstoreError("combined showcase bank differs from evaluation")
+        expected = run.record.get("showcase_configuration")
+        if expected != saved["configuration"]:
+            raise PingstoreError("combined showcase execution configuration differs")
     if saved.get("training_contract") != training_contract(bank.export):
         raise PingstoreError("showcase training contract differs")
     return bank, saved

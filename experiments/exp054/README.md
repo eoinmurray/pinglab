@@ -1,5 +1,9 @@
 # exp054 — Pinglab Rythmicity Metric
 
+Local-data update, 2026-10-05: runs unused by the latest exp110 manuscript
+were explicitly deleted. Historical operation and size reports below describe
+the earlier store; they do not establish current local availability.
+
 ## Current independent contract — 2026-09-18
 
 Recipe v7 contains only the untrained spiking coupling grid and null controls.
@@ -195,7 +199,7 @@ Explicit operational references:
 
 | Role | Existing run |
 | --- | --- |
-| Historical exp054 mean-field evidence retained by exp033 | `exp033-r001-compute` |
+| Historical exp054 mean-field evidence retained by exp033 | the earlier exp033 compute run |
 | Spiking frequency measurements | `exp041-r002-analyse` |
 | Transitive frequency ancestry | `exp041-r001-compute` → `exp022-r001-compute` |
 
@@ -223,7 +227,7 @@ operations on historical evidence, not new simulations or training.
 
 | Stage | Run | Complete bytes | Export bytes |
 | --- | --- | ---: | ---: |
-| Historical import | `exp054-r001-compute` | 8,706,249 | 3,233,495 |
+| Historical import | the earlier exp054 compute run | 8,706,249 | 3,233,495 |
 | Independent analysis | `exp054-r002-analyse` | 1,684,463 | 785,677 |
 | Initial rebuilt presentation | `exp054-r003-present` | 2,082,955 | 1,196,026 |
 | Corrected presentation | `exp054-r004-present` | 1,825,030 | 1,195,221 |
@@ -249,7 +253,7 @@ in the new analysis and presentation. Independent contrast recalculation differs
 by at most 4.440892098500626e-16, within the recorded FFT tolerance.
 
 Lineage is explicit: present → analyse → historical compute, with compute inputs
-`exp033-r001-compute` and `exp041-r002-analyse`; the frequency chain continues to
+the earlier exp033 compute run and `exp041-r002-analyse`; the frequency chain continues to
 `exp041-r001-compute` and `exp022-r001-compute`. No bank or upstream payload was
 copied. All 74 run manifests present before the import remained unchanged;
 all 79 run manifests present before the corrected presentation also remained
