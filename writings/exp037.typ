@@ -7,11 +7,12 @@
 #let data-file = data-file.with(article: "exp037")
 
 #let meta = (
-  title: "Dropped Spikes vs Added Noise (legacy)",
+  title: "Dropped Spikes vs Added Noise",
   created_at: "2026-05-30T00:00:00Z",
   updated_at: "2026-09-07",
   description: "Both trained networks tolerated substantial spike deletion, but PING accuracy fell more sharply under added spikes. The perturbations changed both recurrent feedback and readout input, so they do not isolate gamma gating.",
   collection: "gamma-gated-sparsity",
+  tags: ("data", "v36.0.0"),
 )
 
 #let inputs = ("exp037",)
@@ -166,7 +167,7 @@
     perturbation generator preserved the input-encoding stream across conditions.
     Prediction selected the largest time-averaged output membrane potential.
     The wider activity-penalty comparison is described in
-    #link("/exp025/")[exp025] — #link("/exp025/")[_Accuracy and Firing Rate With and Without Inhibition (legacy)._]
+    #link("/exp025/")[exp025] — #link("/exp025/")[_Accuracy and Firing Rate With and Without Inhibition._]
 
   + *Delete spikes after neuronal spike generation.* At each timestep,
     conductances were updated using the preceding timestep’s transmitted spikes.

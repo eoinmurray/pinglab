@@ -4,7 +4,14 @@
 
 Recipe v3 authors the untrained circuit with `snnlab.lang` and executes typed
 `ExecutionSpec` requests through snnlab 0.3.0's `GraphExecutor`. Compute does not
-invoke the simulator CLI or mutate simulator globals. Each stage is explicit:
+invoke the simulator CLI or mutate simulator globals.
+
+Circuit topology is shared through `experiments.helpers.ping.build_ping`.
+This recipe supplies all neuron, synapse, weight and delay definitions and owns
+the observables and compilation. The helper preserves population/projection
+names and declaration order; it does not execute or record activity.
+
+Each stage is explicit:
 
 ```sh
 uv run python experiments/exp023/compute.py
@@ -58,6 +65,9 @@ authorization. Current targets are Runner Guide **4.9.0**, Storage Guide
 **4.9.0** and Writing Guide **36.0.0**.
 
 ## Validation and completed native execution
+
+The shared-builder extraction on 2026-10-06 received static checks only; tests
+and experiment stages were not rerun. The results below precede that extraction.
 
 The 400-ms production chain is `exp023-r017-compute` → `exp023-r018-analyse` →
 `exp023-r020-present`. Its PING raster peak is 55.8505 Hz, E/I rates are

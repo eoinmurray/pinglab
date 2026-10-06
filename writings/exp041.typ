@@ -8,11 +8,12 @@
 #let data-file = data-file.with(article: "exp041")
 
 #let meta = (
-  title: "Firing Rate Tracks Gamma Frequency (legacy)",
+  title: "Firing Rate Tracks Gamma Frequency",
   created_at: "2026-06-02T00:00:00Z",
   updated_at: "2026-08-31T00:00:00Z",
   description: "Across PING networks trained at different inhibitory decay times, compare excitatory firing rate with gamma frequency and test accuracy.",
   collection: "gamma-gated-sparsity",
+  tags: ("data", "v36.0.0"),
 )
 
 #let inputs = ("exp041",)

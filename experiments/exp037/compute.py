@@ -1,18 +1,17 @@
 """Compute exp037 perturbations from a pinned v4 bank; includes six-shard execution."""
 
 import argparse
-import contextlib
 import os
-import shutil
 import sys
-import tempfile
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
+import torch
 from experiments.exp037 import evidence, inputs, recipe
+from experiments.exp037.simulation import perturb_forward
+from experiments.helpers.checkpoint_inference import run_inference, shard_identity
 from experiments.helpers.hpc import concurrent_compute
-from experiments.helpers.run_cli import run_cli
 from pingstore.contracts import (
     PingstoreError,
     file_sha256,
@@ -20,6 +19,7 @@ from pingstore.contracts import (
     write_json_atomic,
 )
 from pingstore.stages import _capture_code, reserve_stage
+from snnlab.sim.execution import resolve_device
 
 
 def _run_jobs(bank, directory, jobs, contract):
@@ -51,38 +51,24 @@ def _run_jobs(bank, directory, jobs, contract):
             )
         attachments.mkdir(parents=True)
         train = bank.unit(job["cell_name"])
-        shutil.copyfile(train / "config.json", attachments / "training-config.json")
-        with tempfile.TemporaryDirectory(prefix=".job-", dir=directory) as tmp:
-            scratch = Path(tmp) / "output"
-            args = recipe.inference_args(train, train / "weights.pth", scratch, job)
-            write_json_atomic(
-                attachments / "command.json", {"job": job, "arguments": args}
-            )
-            print(f"[infer] {job['id']}", flush=True)
-            with (
-                (attachments / "stdout.log").open("w") as stdout,
-                (attachments / "stderr.log").open("w") as stderr,
-                contextlib.redirect_stdout(stdout),
-                contextlib.redirect_stderr(stderr),
-            ):
-                run_cli(args, no_sync=True)
-            cfg = contract["configs"][job["cell_name"]]
-            evidence.inference_config(load_json(scratch / "config.json"), cfg, job)
-            evidence.recordings(scratch, cfg, job)
-            output.mkdir(parents=True)
-            if job["kind"] == "raster":
-                (scratch / "recording.npz").rename(output / "recording.npz")
-            else:
-                (scratch / "metrics.json").rename(output / "metrics.json")
-            for p in scratch.iterdir():
-                if p.name not in ("recording.npz", "metrics.json"):
-                    p.rename(attachments / p.name)
-                elif job["kind"] == "raster" and p.name == "metrics.json":
-                    p.rename(attachments / p.name)
-            evidence.recordings(output, cfg, job)
+        cfg = contract["configs"][job["cell_name"]]
+        request = recipe.inference_request(cfg, job)
+        generator = torch.Generator(
+            device=resolve_device(os.environ.get("PINGLAB_DEVICE", "auto"))
+        ).manual_seed(request["perturb_seed"])
+        run_inference(
+            train,
+            output,
+            attachments,
+            cfg,
+            request,
+            recipe.author_network,
+            forward=perturb_forward(generator),
+        )
+        evidence.recordings(output,cfg,job)
 
 
-def _job_inventory(directory, jobs):
+def _job_inventory(directory, jobs, *, verify_device=True):
     files = {}
     for job in jobs:
         for prefix in ("export", ".scratch/simulations"):
@@ -94,6 +80,19 @@ def _job_inventory(directory, jobs):
                     raise PingstoreError("unsupported job evidence entry")
                 if path.is_file():
                     files[str(path.relative_to(directory))] = file_sha256(path)
+    if verify_device:
+        from snnlab.sim.execution import resolve_device
+
+        expected_device = resolve_device(os.environ.get("PINGLAB_DEVICE", "auto"))
+        for job in jobs:
+            folder = directory / ".scratch/simulations" / job["path"]
+            requests = list(folder.rglob("request.json"))
+            if not requests or any(
+                load_json(path).get("device") != expected_device for path in requests
+            ):
+                raise PingstoreError(
+                    "completed shard used a different resolved execution device"
+                )
     return files
 
 
@@ -132,7 +131,7 @@ def shard(identity, *, run_id, index, count=recipe.SHARDS):
         count=count,
         expected_count=recipe.SHARDS,
         inputs={"bank": bank.reference},
-        configuration=cfg,
+        configuration=shard_identity(cfg, bank, recipe),
         items=job_list,
         run_items=lambda: _run_jobs(bank, directory, job_list, contract),
         inventory=lambda: _job_inventory(directory, job_list),
@@ -155,11 +154,12 @@ def compute(identity, *, run_id=None, collect=False):
         run_id=run_id,
         count=recipe.SHARDS,
         inputs={"bank": bank.reference},
-        configuration=cfg,
+        configuration=shard_identity(cfg, bank, recipe),
         items_for=lambda index: recipe.shard_jobs(cfg, index),
         inventory_for=lambda index: _job_inventory(
             _shard_paths(REPO, run_id, index, recipe.SHARDS),
             recipe.shard_jobs(cfg, index),
+            verify_device=False,
         ),
         collect=collect,
     ) as (_directory, shard_records):
@@ -177,13 +177,6 @@ def compute(identity, *, run_id=None, collect=False):
             )
             for job in resolved:
                 train = contract["configs"][job["cell_name"]]
-                evidence.inference_config(
-                    load_json(
-                        run.scratch / "simulations" / job["path"] / "config.json"
-                    ),
-                    train,
-                    job,
-                )
                 evidence.recordings(run.export / job["path"], train, job)
             write_json_atomic(
                 run.export / "evidence.json",

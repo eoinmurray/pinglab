@@ -1,7 +1,7 @@
 """Original rhythmicity and rate estimators applied to explicit saved evidence."""
 
 import numpy as np
-from experiments.helpers.rhythmicity import (
+from snnlab.analysis import (
     iei_histogram,
     population_event_times,
     rhythmicity_scalars,
@@ -38,12 +38,11 @@ def score(spikes, cfg):
         "trough_lag": scalars["trough_lag"],
     }
 
+
 def recordings(source, cfg):
     measured, grid_cells = {}, {}
     for item in recipe.jobs(cfg):
-        data = evidence.raster(
-            source.file("probe", item["id"], "rasters.npz"), cfg
-        )
+        data = evidence.raster(source.file("probe", item["id"], "rasters.npz"), cfg)
         e, i = dense(data, cfg)
         s = score(e, cfg)
         measured[item["id"]] = s

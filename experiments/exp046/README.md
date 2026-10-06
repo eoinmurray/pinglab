@@ -224,3 +224,18 @@ new inference or analysis. Its scientific payload matches that analysis exactly.
 The figure was visually inspected, and its visible text bounding boxes do not
 overlap. The existing plotting regression was updated for the requested style;
 the test suite was not run, following the author's pre-commit instruction.
+
+
+## Migration completion audit — 2026-10-06
+
+Native final-epoch inference emits complete sparse rasters and per-cell E rates. Existing cycle estimator and explicit matching exp041 frequency input are unchanged. Historical compute/training envelopes are read-only and checked against their pinned bank.
+
+Implementation migration is complete under static verification only. Python parsing,
+lint, diff review and read-only Pingstore discovery were performed. Existing
+synthetic fixtures were adapted where their CLI seams became obsolete; none
+were executed. No experiment stage, new run, regenerated result, commit or push
+was performed. Numerical parity, backend execution, performance and rendering
+remain unverified. The implementation marker and article title suffix were
+removed; authored prose/results/dates and review decisions were preserved.
+Writing Guide 36.0.0 availability/version tags were applied using validated local
+presentation discovery.

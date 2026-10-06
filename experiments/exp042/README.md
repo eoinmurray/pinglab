@@ -1,9 +1,95 @@
 # Exp042: independent timing-intervention stages
 
-Conformance targets: Experiment Runner Guide 4.3.0, Storage Guide 4.3.0 and
+Initial staged migration targets: Experiment Runner Guide 4.3.0, Storage Guide 4.3.0 and
 Writing Guide 8.0.0. This is a code/writing migration, not a new scientific run.
 The initial code migration imported no Gold-2 data. A separately authorized
 selective import is recorded below; no existing archive or completed run changed.
+
+## Functional sparse execution upgrade: 2026-10-06
+
+Recipe v7 keeps the scientific parameters and encoding streams from the native
+migration below. `NativeEvaluator` and its model/snapshot cache dictionaries
+have been removed. Ordinary functions load evaluation data, bind one verified
+model per training cell, evaluate its assigned jobs, and obtain the illustrative
+recordings. SNNLab's `RecordingSpec` with `SignalRecording(kind="spike_events")`
+records baseline I events directly; `SparseSpikeReplay` validates and supplies
+batch replay events without allocating dense batch overrides. Snapshots use
+`ExecutionResult.numpy(batch=0)` for the declared E/I diagnostics.
+
+The 64-image encoder stream and trial-wise perturbation draws remain explicit.
+The dataset snapshot provider is deliberately not substituted because its
+hashed batch-seed derivation would change those draws. Shared baseline and
+canonical zero-replay locks, complete expected-request identities and payload
+checks remain necessary: SNNLab's artifact validator does not yet authenticate
+the complete expected checkpoint/input request. No inference cache is copied
+into completed exports. Both condition rows retain their canonical replay
+provenance, and the trained-bank readers remain read-only.
+
+Validation is static only. No tests, stage execution, new runs, regenerated
+results, commits or pushes were performed. Native sparse/dense equivalence,
+accelerator behavior and concurrent reuse remain unverified. Historical runs,
+article prose and figures are unchanged; article availability validation remains
+deferred under the original static-only scope.
+
+## Native graph migration: 2026-10-06
+
+This implementation migration follows Experiment Runner Guide 4.9.0 and Storage
+Guide 4.9.0, with the narrowly scoped article edits described below.
+
+Recipe v6 authors the circuit with `snnlab.lang` and the maintained
+`experiments.helpers.ping.build_ping`; `snnlab.sim.GraphExecutor` executes it
+in process. The helper needs no extension. There is no simulator CLI builder,
+subprocess inference, reconstructed simulator configuration, legacy adapter,
+or import of another experiment's implementation.
+
+The recipe owns the three TR-02 cell identities, final-epoch checkpoint role,
+biophysics, mean pre-reset-voltage readout, 64-image evaluation batches, test
+subset seed, encoding seed, reset boundaries and both jitter grids. Checkpoint
+matrices are already in runtime source/target orientation with stored fan-in
+scaling; feedforward weights are clamped at zero and same-population recurrence
+must be zero. Typed `ReplaySpikes` replaces emitted I spikes after intrinsic
+reset and before recurrent transmission and recording. The perturbation
+transforms are unchanged, including trial-wise RNG order, reflecting boundaries,
+collision repair and exact per-trial/per-cell counts. Full neuronal, synaptic,
+delay and readout state resets for every presentation.
+
+Only explicit read-only input readers remain: the three training cells'
+scientific metadata, registered final-epoch metadata and SHA-256, and the six
+checkpoint tensors (four bound matrices and two verified zero matrices).
+Unsupported forward dynamics, malformed dimensions, nonfinite tensors, negative
+recurrent weights and inconsistent checkpoint registrations fail closed. These
+readers consume completed v4 banks; historical runs are not rewritten or
+reactivated. Downstream commands accept the native recipe explicitly rather than
+reconstructing old simulator settings.
+
+Baseline and zero-replay scratch caches use full request identities: bank pin,
+checkpoint role/epoch/full hash, scientific metadata, graph digest, normalized
+MNIST input/label bytes and ordered subset, encoder and perturbation seeds,
+replay contents, recording mode, recipe and runtime settings/source hashes.
+Shared cache writers are locked; completion markers authenticate raster and
+metric payloads. Single-image baselines reuse only an exact in-memory request;
+perturbed snapshots have no disk reuse path. Completed-shard reuse and collection
+also verify dataset and runtime identity, plus the shared helper's source,
+allocation, input and output checks. Execution requests are recorded in
+`run.json`, not retained as exported configuration inventories. New condition
+metrics use flat `<condition-id>--metrics.json` files; the historical generic
+`jobs/` container is not recreated.
+
+The main evaluation keeps its explicit encoder stream. Single-image snapshots
+now use an explicit training-seed encoder, following the native reference
+experiments; the obsolete simulator consumed initialization draws before
+encoding. Native snapshots therefore do not promise bitwise equality with
+historical snapshots. Historical figures and authored scientific results remain
+unchanged. Fresh native runs will be needed to assess numerical equivalence.
+
+Validation for this migration is static only: Ruff, Python syntax parsing,
+interface inspection and diff review. Existing CLI fixtures were adapted to the
+native inference seam but were not run. No experiment stages, tests, runs,
+results generation, commits or pushes were performed. Runtime execution,
+accelerator equivalence, concurrent replay reuse and article rendering remain
+unverified. Article edits only remove the obsolete title suffix and matching
+link labels under Writing Guide 36.0.0; availability/tag conformance is not
+claimed because this task permits static checks only.
 
 ## Reflecting-boundary sensitivity: 2026-09-01
 
@@ -95,22 +181,22 @@ illustrative perturbation recordings at 14 ms are additional compute work, not
 part of the condition-job count. Shared baseline caching avoids duplicate baseline
 simulations across shards. The two zero-zero arms share one canonical replay per
 seed, retaining separate logical rows and explicit `replay_of` provenance. The
-successful fresh-run launch budgets are 60 production and 33 smoke (three fewer
+successful fresh-run inference budgets are 60 production and 33 smoke (three fewer
 distinct sweep evaluations than condition rows, plus three baseline recordings
-and three illustrative launches).
+and three illustrative forwards).
 Retries can add work.
 No production runtime or retained-size measurement exists for this staged version.
 
 ## Retention and stage boundaries
 
-- Compute requests I-only baseline recordings and E/I-only illustrative snapshots;
+- Compute records I-only baselines and E/I-only illustrative snapshots;
   voltage, conductance, input and readout recording buffers are not allocated.
   Metrics-only overrides do not record trajectories. Inference loads only the
-  MNIST test partition, preserving test selection, normalization and RNG behavior.
-  Compute retains per-condition simulator metrics and two losslessly compressed
+  MNIST test partition, preserving test selection, normalization and the main evaluation RNG stream.
+  Compute retains per-condition native-graph metrics and two losslessly compressed
   single-trial spike recordings, with configurations, checkpoint hashes and
   execution provenance. Baseline I rasters and overrides remain scratch;
-  unused snapshot channels are not generated. Overrides are removed immediately after inference;
+  unused snapshot channels are not generated. Replay tensors remain in memory only during inference;
   sharded baselines are shared within the compute reservation until completion.
 - Analyse selects the same display cells, measures full-population illustrative
   rates, and computes the same per-seed rows, means and standard errors. Its
@@ -165,7 +251,7 @@ stage launches compute. A failed collector remains hidden and needs a fresh
 identity or separately reviewed recovery, not automatic reuse.
 
 Legacy monolithic commands, `--skip-training`, `--plot-only` and the old cloud
-dispatcher are not operational interfaces. The simulator can execute on the
+dispatcher are not operational interfaces. The native graph can execute on the
 current host, including an explicitly provisioned GPU host; automated cloud
 dispatch has not been ported to the v4 reservation protocol. Historical campaigns
 require their original checkout and are not accepted by the new adapter.
@@ -273,3 +359,18 @@ No collection compute experiment depends on exp042 raw arrays. Those
 outputs are present, but no downstream experiment was migrated or executed here.
 Keep the pinned exp022 bank and its complete ancestry with any transferred run.
 R2 remains unchanged. No simulation, publication, commit or push was performed.
+
+
+## Migration completion audit — 2026-10-06
+
+Existing native sparse execution retained. Added complete SNNLab source fingerprints and explicit reset/device-request identity. CPU collection authenticates the frozen worker protocol while keeping its own illustrative-recording execution identity separate. Baseline/zero-replay caches continue checking exact expected requests, full checkpoint hashes, ordered dataset content, transformed replay hashes and payload digests.
+
+Implementation migration is complete under static verification only. Python parsing,
+lint, diff review and read-only Pingstore discovery were performed. Existing
+synthetic fixtures were adapted where their CLI seams became obsolete; none
+were executed. No experiment stage, new run, regenerated result, commit or push
+was performed. Numerical parity, backend execution, performance and rendering
+remain unverified. The implementation marker and article title suffix were
+removed; authored prose/results/dates and review decisions were preserved.
+Writing Guide 36.0.0 availability/version tags were applied using validated local
+presentation discovery.

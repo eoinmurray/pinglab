@@ -1,8 +1,6 @@
 """Exp054 stage contracts with synthetic recordings, never production simulation."""
 
-import zipfile
 from functools import partial
-from pathlib import Path
 
 import numpy as np
 import pytest
@@ -47,38 +45,6 @@ def recording(cfg):
     return result
 
 
-def config_record(cfg, item):
-    return {
-        **{
-            key: cfg[key]
-            for key in ("refractory_e_ms", "refractory_i_ms", "refractory_policy")
-            if key in cfg
-        },
-        "mode": "sim",
-        "model": "ping",
-        "input": "synthetic-spikes",
-        "n_hidden": [cfg["n_e"]],
-        "n_inh": cfg["n_i"],
-        "n_batch": 1,
-        "n_in": cfg["n_e"] if item["private"] else cfg["shared_n_in"],
-        "t_ms": cfg["sim_ms"],
-        "dt": cfg["dt_ms"],
-        "tau_gaba": cfg.get("tau_gaba_ms"),
-        "seed": cfg["seed"],
-        "spike_rate": item["rate_hz"],
-        "w_ei_mean": item["wei"],
-        "w_ie_mean": item["wie"],
-        "private_w_in": item["private"],
-        "w_in": [cfg["private_w_in"] if item["private"] else cfg["shared_w_in"]],
-        "w_in_initial_zero_fraction": cfg["shared_zero_fraction"],
-        "dales_law": True,
-        "recurrent_initial_zero_fraction": 0.0,
-        "scale_w_in": 1.0,
-        "scale_w_ei": 1.0,
-        "scale_w_ie": 1.0,
-    }
-
-
 @pytest.fixture
 def lab(tmp_path, monkeypatch):
     for module in (compute, analyse, present):
@@ -97,15 +63,10 @@ def lab(tmp_path, monkeypatch):
     cfg = recipe.configuration(smoke=True)
     data = recording(cfg)
 
-    def simulate(args, **kwargs):
-        calls.append(args)
-        output = Path(args[args.index("--out-dir") + 1])
-        item = next(j for j in recipe.jobs(cfg) if j["id"] == output.name)
-        assert args == recipe.simulation_args(cfg, item, output)
-        write_json_atomic(output / "config.json", config_record(cfg, item))
-        write_json_atomic(output / "metrics.json", {"fixture": True})
+    def simulate(cfg, item, output, device):
+        calls.append(item)
         compact = {k: v for k, v in data.items() if not k.startswith("out_")}
-        burn = int(args[args.index("--recording-start-step") + 1])
+        burn = int(cfg["burn_ms"] / cfg["dt_ms"])
         for population in ("e", "i"):
             keep = compact[f"{population}_t"] >= burn
             for field in ("trial", "t", "cell"):
@@ -113,10 +74,10 @@ def lab(tmp_path, monkeypatch):
                     keep
                 ]
         compact["recording_start_step"] = np.int32(burn)
-        np.savez_compressed(output / "rasters.npz", **compact)
-        (output / "run.sh").write_text("# synthetic fixture, never executed\n")
+        np.savez_compressed(output, **compact)
+        return {"job": item, "graph_digest": "fixture"}
 
-    monkeypatch.setattr(compute, "run_cli", simulate)
+    monkeypatch.setattr(compute, "simulate_probe", simulate)
     return tmp_path, calls
 
 
@@ -136,23 +97,11 @@ def test_population_recipe_and_input_channels(smoke):
     assert "mean_field" not in current
     for cfg in (current,):
         assert recipe.validate(cfg) == cfg
-        for private, channels in ((True, cfg["n_e"]), (False, 200)):
-            args = recipe.simulation_args(
-                cfg, recipe.job(cfg, 0, 0, 100, private), Path("probe")
-            )
-            assert args[args.index("--n-in") + 1] == str(channels)
-            assert args[args.index("--dt") + 1] == str(cfg["dt_ms"])
-            if "tau_gaba_ms" in cfg:
-                assert args[args.index("--tau-gaba") + 1] == "6.0"
-                item = recipe.job(cfg, 0, 0, 100, private)
-                record = config_record(cfg, item)
-                evidence.simulation_config(record, cfg, item)
-                record["tau_gaba"] = 9.0
-                with pytest.raises(PingstoreError, match="configuration"):
-                    evidence.simulation_config(record, cfg, item)
-            assert args[args.index("--recording-start-step") + 1] == str(
-                round(cfg["burn_ms"] / cfg["dt_ms"])
-            )
+        assert cfg["encoder_seed"] == 43
+        assert cfg["biophysics"]["tau_ampa_ms"] == 2.0
+        assert recipe.recording(cfg).window.start_step == round(
+            cfg["burn_ms"] / cfg["dt_ms"]
+        )
         assert len(recipe.jobs(cfg)) == (51 if smoke else 136)
     for invalid in (
         {**current, "n_e": 256},
@@ -189,7 +138,7 @@ def test_independent_stages_and_all_figures(lab, monkeypatch):
     original = source.reference
     monkeypatch.setenv("PINGLAB_SMOKE", "0")
     monkeypatch.setattr(
-        compute, "run_cli", lambda *a, **k: pytest.fail("analysis simulated")
+        compute, "simulate_probe", lambda *a, **k: pytest.fail("analysis simulated")
     )
     analysis_id = analyse.analyse(identity)
     analysis = inputs.source(root, analysis_id, "analyse")
@@ -225,14 +174,7 @@ def test_preserved_recipe_and_shared_origin(smoke, count, points):
     assert len({j["id"] for j in recipe.jobs(cfg)}) == count
 
 
-def test_lossless_repacking_and_nan_codec(tmp_path):
-    cfg = recipe.configuration(smoke=True)
-    original, packed = tmp_path / "original.npz", tmp_path / "packed.npz"
-    np.savez(original, **recording(cfg))
-    evidence.repack(original, packed)
-    with zipfile.ZipFile(original) as a, zipfile.ZipFile(packed) as b:
-        assert a.namelist() == b.namelist()
-        assert all(a.read(n) == b.read(n) for n in a.namelist())
+def test_nan_codec(tmp_path):
     document = {
         "ac": np.array([np.nan, 1.0, 2.0]),
         "missing": np.nan,
@@ -276,7 +218,7 @@ def test_failures_remain_hidden_and_cannot_resume(lab, monkeypatch, stage):
         raise RuntimeError("fixture failure")
 
     if stage == "compute":
-        monkeypatch.setattr(compute, "run_cli", fail)
+        monkeypatch.setattr(compute, "simulate_probe", fail)
         operation = compute.compute
     else:
         identity = compute.compute()

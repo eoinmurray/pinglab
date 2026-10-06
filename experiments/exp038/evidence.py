@@ -1,6 +1,5 @@
 """Validate selected bank cells and complete raw inference evidence."""
 
-from pathlib import PurePosixPath
 
 import numpy as np
 from experiments.exp022.checkpoints import public_provenance, resolve_checkpoint
@@ -112,72 +111,6 @@ def histories(bank, contract):
     return result
 
 
-def inference_config(config, train, job):
-    keys = (
-        "model",
-        "dt",
-        "dataset",
-        "ei_ratio",
-        "w_in",
-        "readout_mode",
-        "dales_law",
-        "signed_readout",
-        "readout_bias",
-        "adaptive_threshold",
-        "train_leak",
-        "state_clamp",
-        "trainable_w_ee",
-        "trainable_w_ei",
-        "trainable_w_ie",
-        "trainable_w_ii",
-        "n_in",
-        "seed",
-        "w_in_initial_zero_fraction",
-        "recurrent_initial_zero_fraction",
-        "tau_m_e_bounds_ms",
-        "tau_m_i_bounds_ms",
-        "readout_w_init_mean",
-        "readout_w_init_std",
-        "surrogate_slope",
-    )
-    expected = {
-        **{k: train[k] for k in keys},
-        "t_ms": train["t_ms"],
-        "tau_gaba": train["tau_gaba_ms"],
-        "ei_strength": job.get("ei_strength", train["ei_strength"]),
-        "infer": job["kind"] != "fi_uniform",
-        "input": "synthetic-spikes" if job["kind"] == "fi_uniform" else "dataset",
-        "spike_rate": job.get("input_rate", train["input_rate"]),
-        "scale_w_in": 1.0,
-        "scale_w_ei": 1.0,
-        "scale_w_ie": 1.0,
-        "intervention": [],
-        "scale_projection": [],
-        "max_samples": job.get("samples"),
-    }
-    if "sample_index" in job:
-        expected["sample_index"] = job["sample_index"]
-    elif config.get("sample_index") is not None:
-        raise PingstoreError("unexpected single-image selection")
-    if job["kind"] == "fi_uniform":
-        expected["n_batch"] = job["trials"]
-    for key, value in expected.items():
-        if not _same(config.get(key), value):
-            raise PingstoreError(f"inference configuration differs: {key}")
-    skip = ["W_ei.", "W_ie."] if "ei_strength" in job else []
-    if (config.get("skip_load") or []) != skip:
-        raise PingstoreError("inference transfer-load policy differs")
-    if config.get("n_hidden") not in (train["n_hidden"], [train["n_hidden"]]):
-        raise PingstoreError("inference hidden population differs")
-    for key, filename in (
-        ("load_weights", "weights.pth"),
-        ("load_config", "config.json"),
-    ):
-        if PurePosixPath(config.get(key, "")).parts[-2:] != (
-            job["cell_name"],
-            filename,
-        ):
-            raise PingstoreError("inference checkpoint identity differs")
 
 
 def population_rate(metrics, prefix):

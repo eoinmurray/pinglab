@@ -38,7 +38,6 @@ TRAINING_ROOT: Path | None = (
     if os.environ.get("PINGLAB_TRAINING_ROOT")
     else None
 )
-SNN_MODULE = "snnlab.sim"
 
 EPOCHS_STANDARD = 50
 DT_MS = 0.1
@@ -87,15 +86,6 @@ def refractory_configuration() -> dict:
     }
 
 
-def refractory_args() -> list[str]:
-    return [
-        "--refractory-e-ms",
-        str(REFRACTORY_E_MS),
-        "--refractory-i-ms",
-        str(REFRACTORY_I_MS),
-        "--refractory-policy",
-        REFRACTORY_POLICY,
-    ]
 
 
 def refractory_execution_configuration(dt_ms: float) -> dict:
@@ -111,35 +101,6 @@ def refractory_execution_configuration(dt_ms: float) -> dict:
 # selected for exp110. They differ in forward loop engagement: COBA disables the
 # E→I→E loop, while PING enables it. Keeping --v-grad-dampen fixed at 1000 removes
 # an optimizer mismatch from the architectural comparison.
-MODEL_RECIPES: dict[str, dict] = {
-    "coba": {
-        "__build_as": "ping",
-        "--ei-strength": "0",
-        "--v-grad-dampen": "1000",
-        "--w-in": SHARED_W_IN_SUMMED_PARENT_MEAN,
-        "--w-in-initial-zero-fraction": "0.95",
-        "--readout": "mem-mean",
-        "--surrogate-slope": "1",
-        "--readout-w-init-mean": SHARED_READOUT_W_INIT_MEAN,
-        "--readout-w-init-std": SHARED_READOUT_W_INIT_STD,
-        "--lr": "0.0004",
-        "--batch-size": "256",
-    },
-    "ping": {
-        "__build_as": "ping",
-        "--ei-strength": "1",
-        "--v-grad-dampen": "1000",
-        "--w-in": SHARED_W_IN_SUMMED_PARENT_MEAN,
-        "--w-in-initial-zero-fraction": "0.95",
-        "--readout": "mem-mean",
-        "--surrogate-slope": "1",
-        "--readout-w-init-mean": SHARED_READOUT_W_INIT_MEAN,
-        "--readout-w-init-std": SHARED_READOUT_W_INIT_STD,
-        "--lr": "0.0004",
-        "--batch-size": "256",
-    },
-}
-
 MODELS = ["coba", "ping"]
 MODEL_COLORS = {"coba": theme.DEEP_RED, "ping": theme.INK_BLACK}
 MODEL_MARKERS = {"coba": "s", "ping": "D"}
@@ -154,17 +115,11 @@ TRAINING_RUN_IDS = {
     "low_w_in": "TR-07",
 }
 
-# ping recipe without the fixed --ei-strength, for the init family (exp049),
-# whose whole point is to vary ei-strength + recurrent trainability per cell.
-MODEL_RECIPES["ping_init"] = {
-    k: v for k, v in MODEL_RECIPES["ping"].items() if k != "--ei-strength"
-}
-# exp049 init conditions: (ei_strength, trainable W_EI, trainable W_IE).
 INIT_CONDITIONS: dict[str, tuple] = {
-    "frozen_ping": ("1", False, False),
-    "trainable_ping_init": ("1", True, True),
-    "trainable_zero_init": ("0", True, True),
-    "trainable_small_init": ("0.1", True, True),
+    "frozen_ping": (1.0, False, False),
+    "trainable_ping_init": (1.0, True, True),
+    "trainable_zero_init": (0.0, True, True),
+    "trainable_small_init": (0.1, True, True),
 }
 
 
@@ -209,36 +164,42 @@ def _label(x: float) -> str:
 
 
 # ── Cell registry: one spec per trained cell, tagged by family ───────
-# Each spec carries the family-specific bits (dt override + extra flags) so a
-# single build_train_args reproduces every family. Names match the existing
-# per-notebook artifacts, so folding the already-trained cells in is a move,
-# not a retrain.
+# Each cell carries its scientific overrides; identities retain the recorded bank names.
 
 
 def _activity_frontier_cells() -> list[dict]:
     cells = []
     for m in MODELS:
         for target_hz in RATE_TARGET_GRID_HZ:
-            extra = ([] if target_hz is None else
-                     ["--fr-reg-upper-target-hz", str(target_hz),
-                      "--fr-reg-upper-strength", str(FR_STRENGTH_UPPER)])
             for s in seeds_for(target_hz):
-                cells.append({
-                    "name": cell_name(m, target_hz, s), "model": m, "family": "activity_frontier",
-                    "tag": rate_target_display(target_hz), "seed": s, "dt_ms": DT_MS,
-                    "tau_gaba": TAU_GABA_GAMMA,
-                    "rate_target_hz": target_hz,
-                    "extra": extra,
-                })
+                cells.append(
+                    {
+                        "name": cell_name(m, target_hz, s),
+                        "model": m,
+                        "family": "activity_frontier",
+                        "tag": rate_target_display(target_hz),
+                        "seed": s,
+                        "dt_ms": DT_MS,
+                        "tau_gaba": TAU_GABA_GAMMA,
+                        "rate_target_hz": target_hz,
+                    }
+                )
     return cells
 
 
 def _tau_gaba_cells() -> list[dict]:
     return [
-        {"name": f"ping__tg{_label(tau)}__seed{s}", "model": "ping",
-         "family": "tau_gaba", "tag": f"τ={tau:g}", "seed": s, "dt_ms": DT_MS,
-         "tau_gaba": tau, "extra": []}
-        for tau in TAU_GABA_SWEEP for s in SEEDS_BASELINE
+        {
+            "name": f"ping__tg{_label(tau)}__seed{s}",
+            "model": "ping",
+            "family": "tau_gaba",
+            "tag": f"τ={tau:g}",
+            "seed": s,
+            "dt_ms": DT_MS,
+            "tau_gaba": tau,
+        }
+        for tau in TAU_GABA_SWEEP
+        for s in SEEDS_BASELINE
     ]
 
 
@@ -253,7 +214,6 @@ def _dt_cells(grid=DT_SWEEP_MS) -> list[dict]:
             "seed": s,
             "dt_ms": dt,
             "tau_gaba": TAU_GABA_GAMMA,
-            "extra": [],
         }
         for dt in grid
         for s in SEEDS_BASELINE
@@ -264,27 +224,39 @@ def _canonical_cells() -> list[dict]:
     # The canonical reference: rate target = off, trained on ALL of MNIST (not the
     # subset the other families use) once the full standard is restored.
     return [
-        {"name": f"{m}__canonical__seed{s}", "model": m, "family": "canonical",
-         "tag": "off · all MNIST", "seed": s, "dt_ms": DT_MS, "extra": [],
-         "tau_gaba": TAU_GABA_GAMMA, "max_samples": CANONICAL_MAX_SAMPLES}
-        for m in MODELS for s in SEEDS_BASELINE
+        {
+            "name": f"{m}__canonical__seed{s}",
+            "model": m,
+            "family": "canonical",
+            "tag": "off · all MNIST",
+            "seed": s,
+            "dt_ms": DT_MS,
+            "tau_gaba": TAU_GABA_GAMMA,
+            "max_samples": CANONICAL_MAX_SAMPLES,
+        }
+        for m in MODELS
+        for s in SEEDS_BASELINE
     ]
 
 
 def _init_cells() -> list[dict]:
     cells = []
     for cond, (ei, t_ei, t_ie) in INIT_CONDITIONS.items():
-        extra = ["--ei-strength", ei]
-        if t_ei:
-            extra.append("--trainable-w-ei")
-        if t_ie:
-            extra.append("--trainable-w-ie")
         for s in SEEDS_BASELINE:
-            cells.append({
-                "name": f"{cond}__seed{s}", "model": "ping_init",
-                "family": "init", "tag": cond, "seed": s, "dt_ms": DT_MS,
-                "tau_gaba": TAU_GABA_GAMMA, "extra": extra,
-            })
+            cells.append(
+                {
+                    "name": f"{cond}__seed{s}",
+                    "model": "ping_init",
+                    "family": "init",
+                    "tag": cond,
+                    "seed": s,
+                    "dt_ms": DT_MS,
+                    "tau_gaba": TAU_GABA_GAMMA,
+                    "ei_strength": ei,
+                    "trainable_w_ei": t_ei,
+                    "trainable_w_ie": t_ie,
+                }
+            )
     return cells
 
 
@@ -304,11 +276,8 @@ def _planned_variable_rate_cells() -> list[dict]:
             "input_rates_hz": list(VARIABLE_RATE_TRAINING_RATES_HZ),
             "rate_sampling": "uniform categorical per presentation",
             "consumer": VARIABLE_RATE_CONSUMER,
-            "recipe_overrides": {
-                "--readout-w-init-mean": TR06_READOUT_W_INIT_MEAN,
-                "--readout-w-init-std": TR06_READOUT_W_INIT_STD,
-            },
-            "extra": [],
+            "readout_w_init_mean": float(TR06_READOUT_W_INIT_MEAN),
+            "readout_w_init_std": float(TR06_READOUT_W_INIT_STD),
             "status": "ready_to_train",
         }
         for s in SEEDS_BASELINE
@@ -333,11 +302,6 @@ def _low_w_in_cells() -> list[dict]:
             "tau_gaba": TAU_GABA_GAMMA,
             "w_in": w_in,
             "rate_target_hz": 1.0,
-            "recipe_overrides": {"--w-in": str(w_in)},
-            "extra": [
-                "--fr-reg-upper-target-hz", "1.0",
-                "--fr-reg-upper-strength", str(FR_STRENGTH_UPPER),
-            ],
         }
         for w_in in LOW_W_IN_VALUES
         for seed in SEEDS_BASELINE
@@ -426,8 +390,6 @@ def require_training_run_cells(
 def scientific_contract(cell: dict, max_samples: int, epochs: int) -> dict:
     """Cold-readable scientific fields that must not hide behind CLI defaults."""
     input_rates = cell.get("input_rates_hz")
-    model_recipe = dict(MODEL_RECIPES[cell["model"]])
-    model_recipe.update(cell.get("recipe_overrides", {}))
     return {
         "dataset": {
             "name": "mnist",
@@ -473,17 +435,15 @@ def scientific_contract(cell: dict, max_samples: int, epochs: int) -> dict:
         "constraints": {"dales_law": DALES_LAW},
         "optimizer": {
             "name": "adamw",
-            "learning_rate": float(model_recipe["--lr"]),
+            "learning_rate": 0.0004,
             "weight_decay": WEIGHT_DECAY,
             "gradient_clip_norm": GRAD_CLIP_NORM,
-            "voltage_gradient_damping_divisor": float(
-                model_recipe["--v-grad-dampen"]
-            ),
+            "voltage_gradient_damping_divisor": 1000.0,
             "batch_size": BATCH_SIZE,
             "epochs": int(epochs),
         },
         "readout": {
-            "mode": cell.get("readout", MODEL_RECIPES[cell["model"]]["--readout"]),
+            "mode": cell.get("readout", "mem-mean"),
             "shape": [N_EXCITATORY, N_OUTPUT],
         },
         "seed": int(cell["seed"]),
@@ -568,60 +528,6 @@ def load_cell(name: str) -> Path:
     return d
 
 
-def build_train_args(
-    spec: dict,
-    out_dir: Path,
-    max_samples: int,
-    epochs: int,
-    recipes: dict[str, dict] | None = None,
-) -> list[str]:
-    """CLI `train` args for one registry cell, across all families."""
-    recipe = dict((recipes or MODEL_RECIPES)[spec["model"]])
-    recipe.update(spec.get("recipe_overrides", {}))
-    if spec.get("readout") is not None:
-        recipe["--readout"] = spec["readout"]
-    ms = spec.get("max_samples") or max_samples  # canonical cells override
-    args = [
-        "train",
-        *refractory_args(),
-        "--model",
-        recipe["__build_as"],
-        "--dataset",
-        "mnist",
-        "--n-hidden",
-        str(N_EXCITATORY),
-        "--input-rate",
-        str(INPUT_RATE_HZ),
-        "--max-samples",
-        str(ms),
-        "--epochs",
-        str(epochs),
-        "--t-ms",
-        str(T_MS),
-        "--dt",
-        str(spec["dt_ms"]),
-        "--tau-gaba",
-        str(spec["tau_gaba"]),
-        "--seed",
-        str(spec["seed"]),
-        "--weight-decay",
-        str(WEIGHT_DECAY),
-        "--dales-law",
-        "--out-dir",
-        str(out_dir),
-        "--wipe-dir",
-    ]
-    for k, v in recipe.items():
-        if k.startswith("__"):
-            continue
-        if v is True:
-            args.append(k)
-        elif v is not None:
-            args += [k, v]
-    args += spec["extra"]
-    if spec.get("input_rates_hz"):
-        args += ["--input-rates", *[str(rate) for rate in spec["input_rates_hz"]]]
-    return args
 
 
 # ── Runner ───────────────────────────────────────────────────────────
@@ -730,3 +636,95 @@ FAMILY_ARTIFACT_SLUGS = {
     "activity_frontier": "theta_u",
     "low_w_in": "low_w_in",
 }
+
+
+BIOPHYSICS = {"capacitance_e_nf":1.0,"capacitance_i_nf":0.5,
+    "leak_e_us":0.05,"leak_i_us":0.10,"resting_mv":-65.0,"threshold_mv":-50.0,
+    "reset_mv":-65.0,"readout_tau_ms":2.0,"readout_threshold":1.0}
+TRAINING_RATE_SEED_OFFSET = 82001
+REFERENCE_ENCODER_SEED = 0
+VALIDATION_ENCODER_SEEDS = (20260415,20260416,20260417)
+VALIDATION_RATE_SEEDS = (20270415,20270416,20270417)
+
+
+def training_settings(cell, max_samples, epochs):
+    """Complete supported scientific settings, independent of a CLI parser."""
+    target = cell.get("rate_target_hz")
+    w_in = cell.get("w_in", float(SHARED_W_IN_SUMMED_PARENT_MEAN))
+    return {
+        "model": "ping",
+        "dataset": "mnist",
+        "max_samples": max_samples,
+        "epochs": epochs,
+        "dt": float(cell["dt_ms"]),
+        "t_ms": T_MS,
+        "tau_ampa_ms": TAU_AMPA_MS,
+        "tau_gaba_ms": float(cell["tau_gaba"]),
+        "seed": cell["seed"],
+        "n_in": N_INPUT,
+        "n_hidden": N_EXCITATORY,
+        "n_inh": N_INHIBITORY,
+        "n_out": N_OUTPUT,
+        "hidden_sizes": [N_EXCITATORY],
+        "input_rate": INPUT_RATE_HZ,
+        "input_rates": cell.get("input_rates_hz"),
+        "input_rate_sampling": "uniform_categorical_per_presentation"
+        if cell.get("input_rates_hz")
+        else "fixed",
+        "w_in": [w_in, w_in * 0.1],
+        "w_in_initial_zero_fraction": 0.95,
+        "recurrent_initial_zero_fraction": 0.0,
+        "readout_w_init_mean": cell.get(
+            "readout_w_init_mean", float(SHARED_READOUT_W_INIT_MEAN)
+        ),
+        "readout_w_init_std": cell.get(
+            "readout_w_init_std", float(SHARED_READOUT_W_INIT_STD)
+        ),
+        "readout_w_out_scale": None,
+        "readout_mode": cell.get("readout", "mem-mean"),
+        "ei_strength": cell.get("ei_strength", 0.0 if cell["model"] == "coba" else 1.0),
+        "ei_ratio": 2.0,
+        "trainable_w_ei": cell.get("trainable_w_ei", False),
+        "trainable_w_ie": cell.get("trainable_w_ie", False),
+        "trainable_w_ee": False,
+        "trainable_w_ii": False,
+        "dales_law": True,
+        "signed_readout": False,
+        "readout_bias": False,
+        "adaptive_threshold": False,
+        "train_leak": False,
+        "state_clamp": False,
+        "v_grad_dampen": 1000.0,
+        "surrogate_slope": 1.0,
+        "lr": 0.0004,
+        "batch_size": BATCH_SIZE,
+        "weight_decay": WEIGHT_DECAY,
+        "grad_clip": GRAD_CLIP_NORM,
+        "fr_reg_upper_strength": 0.0 if target is None else FR_STRENGTH_UPPER,
+        "fr_reg_upper_target_hz": target or 0.0,
+        **refractory_configuration(),
+    }
+
+
+def author_network(training, *, observables=()):
+    from experiments.helpers.checkpoint_graph import author_network as author
+
+    return author(SLUG,training,BIOPHYSICS,refractory_configuration(),observables=observables)
+
+
+def diagnostic_request(training, cell):
+    return {
+        "checkpoint_role": RESULT_CHECKPOINT_ROLE,
+        "input": "snapshot",
+        "digit": 0,
+        "sample": 0,
+        "t_ms": training["t_ms"],
+        "input_rate_hz": 5.0
+        if cell["family"] == "variable_rate"
+        else training["input_rate"],
+        "batch_size": 1,
+        "subset_seed": 42,
+        "encoder_seed": 20260415,
+        "observables": ["spikes", "traces"],
+        "products": [],
+    }

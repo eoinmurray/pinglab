@@ -1,7 +1,5 @@
 """Validate selected bank cells and complete raw inference evidence."""
 
-import copy
-from pathlib import PurePosixPath
 
 import numpy as np
 from experiments.exp022.checkpoints import public_provenance, resolve_checkpoint
@@ -11,20 +9,6 @@ from experiments.exp044.evidence import snapshot as validate_snapshot
 from pingstore.contracts import PingstoreError, load_json
 
 from . import recipe
-
-
-def normalized_metrics(metrics, config):
-    """Add verified simulator metadata while preserving the original metrics."""
-    result = copy.deepcopy(metrics)
-    for key, value in (("seed", config["seed"]), ("tau_gaba_ms", config["tau_gaba"])):
-        if key in result["config"] and not _same(result["config"][key], value):
-            raise PingstoreError(f"conflicting metric metadata: {key}")
-        result["config"][key] = value
-    if result["config"].get("load_weights") != config["load_weights"]:
-        raise PingstoreError(
-            "metrics and command configuration reference different weights"
-        )
-    return result
 
 
 def training_contract(bank):
@@ -206,60 +190,3 @@ def recordings(directory, cfg, job):
             linear = (tr * p.shape[1] + ts) * pop + cell
             if np.unique(linear).size != linear.size:
                 raise PingstoreError("duplicate sparse spikes")
-
-
-def inference_config(config, train, job):
-    keys = (
-        "model",
-        "dt",
-        "dataset",
-        "ei_strength",
-        "ei_ratio",
-        "w_in",
-        "readout_mode",
-        "dales_law",
-        "signed_readout",
-        "readout_bias",
-        "adaptive_threshold",
-        "train_leak",
-        "state_clamp",
-        "trainable_w_ee",
-        "trainable_w_ei",
-        "trainable_w_ie",
-        "trainable_w_ii",
-        "n_in",
-        "seed",
-        "w_in_initial_zero_fraction",
-        "recurrent_initial_zero_fraction",
-        "tau_m_e_bounds_ms",
-        "tau_m_i_bounds_ms",
-    )
-    expected = {
-        **{k: train[k] for k in keys},
-        "t_ms": 400.0 if job["kind"] == "snapshot" else train["t_ms"],
-        "tau_gaba": train["tau_gaba_ms"],
-        "infer": True,
-        "input": "dataset",
-        "scale_w_in": job.get("scale", 1.0),
-        "scale_w_ei": 1.0,
-        "scale_w_ie": 1.0,
-        "intervention": [],
-        "scale_projection": [],
-        "max_samples": job.get("samples"),
-    }
-    if job["kind"] == "snapshot":
-        expected.update(digit=0, sample=0)
-    for key, value in expected.items():
-        if not _same(config.get(key), value):
-            raise PingstoreError(f"inference configuration differs: {key}")
-    if config.get("n_hidden") not in (train["n_hidden"], [train["n_hidden"]]):
-        raise PingstoreError("inference hidden population differs")
-    for key, filename in (
-        ("load_weights", "weights_final.pth"),
-        ("load_config", "config.json"),
-    ):
-        if PurePosixPath(config.get(key, "")).parts[-2:] != (
-            job["cell_name"],
-            filename,
-        ):
-            raise PingstoreError("inference checkpoint identity differs")

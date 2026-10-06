@@ -69,15 +69,6 @@ def refractory_configuration() -> dict:
     }
 
 
-def refractory_args() -> list[str]:
-    return [
-        "--refractory-e-ms",
-        str(REFRACTORY_E_MS),
-        "--refractory-i-ms",
-        str(REFRACTORY_I_MS),
-        "--refractory-policy",
-        REFRACTORY_POLICY,
-    ]
 
 
 def cell_name(model: str, rate_target_hz: float | None, seed: int) -> str:
@@ -185,49 +176,48 @@ def jobs(cfg):
     return result
 
 
-def inference_args(train, checkpoint, output, job):
-    args = [
-        "sim",
-        *refractory_args(),
-        "--load-config",
-        str(train / "config.json"),
-        "--load-weights",
-        str(checkpoint),
-        "--device",
-        "auto",
-    ]
-    if job["kind"] == "fi_uniform":
-        args += ["--recording-mode", "spikes"]
-        args += [
-            "--input",
-            "synthetic-spikes",
-            "--n-in",
-            "784",
-            "--input-rate",
-            str(job["input_rate"]),
-            "--n-batch",
-            str(job["trials"]),
-        ]
-    else:
-        args += ["--infer"]
-        if "ei_strength" in job:
-            args += [
-                "--ei-strength",
-                str(job["ei_strength"]),
-                "--skip-load",
-                "W_ei.",
-                "W_ie.",
-            ]
-        if "input_rate" in job:
-            args += ["--input-rate", str(job["input_rate"])]
-        if "samples" in job:
-            args += ["--max-samples", str(job["samples"])]
-        if "sample_index" in job:
-            args += ["--sample-index", str(job["sample_index"])] + [
-                "--recording-mode",
-                "spikes",
-                "--output-fields",
-                "spk_e",
-                "spk_i",
-            ]
-    return args + ["--out-dir", str(output)]
+
+
+BIOPHYSICS = {
+    "capacitance_e_nf": 1.0, "capacitance_i_nf": 0.5,
+    "leak_e_us": 0.05, "leak_i_us": 0.10,
+    "resting_mv": -65.0, "threshold_mv": -50.0, "reset_mv": -65.0,
+    "readout_tau_ms": 2.0, "readout_threshold": 1.0,
+}
+
+
+def author_network(training, *, observables=()):
+    from experiments.helpers.checkpoint_graph import author_network as author
+
+    return author(
+        SLUG, training, BIOPHYSICS, refractory_configuration(), observables=observables
+    )
+
+
+def inference_request(training, job):
+    snapshot = "sample_index" in job
+    request = {
+        "checkpoint_role": CHECKPOINT_ROLE,
+        "input": "synthetic"
+        if job["kind"] == "fi_uniform"
+        else "snapshot"
+        if snapshot
+        else "dataset",
+        "t_ms": training["t_ms"],
+        "input_rate_hz": job.get("input_rate", training["input_rate"]),
+        "samples": job.get("samples"),
+        "trials": job.get("trials"),
+        "batch_size": job["trials"]
+        if job["kind"] == "fi_uniform"
+        else 1
+        if snapshot
+        else 64,
+        "subset_seed": 42,
+        "encoder_seed": 20260415,
+        "sample_index": job.get("sample_index"),
+        "observables": ["spikes"] if snapshot else [],
+        "products": [],
+    }
+    if "ei_strength" in job:
+        request["ei_strength"] = job["ei_strength"]
+    return request

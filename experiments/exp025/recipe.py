@@ -63,15 +63,6 @@ def refractory_configuration() -> dict:
     }
 
 
-def refractory_args() -> list[str]:
-    return [
-        "--refractory-e-ms",
-        str(REFRACTORY_E_MS),
-        "--refractory-i-ms",
-        str(REFRACTORY_I_MS),
-        "--refractory-policy",
-        REFRACTORY_POLICY,
-    ]
 
 
 def cell_name(model, rate_target_hz, seed):
@@ -174,57 +165,43 @@ def jobs(cfg):
     return rows
 
 
-def inference_args(train, checkpoint, output, job):
-    args = [
-        "sim",
-        *refractory_args(),
-        "--infer",
-        "--device",
-        "auto",
-        "--load-config",
-        str(train / "config.json"),
-        "--load-weights",
-        str(checkpoint),
-        "--out-dir",
-        str(output),
-    ]
-    if job["kind"] == "snapshot":
-        return (
-            args
-            + ["--recording-mode", "spikes", "--output-fields", "spk_e", "spk_i"]
-            + [
-                "--input",
-                "dataset",
-                "--dataset",
-                "mnist",
-                "--digit",
-                "0",
-                "--sample",
-                "0",
-                "--t-ms",
-                "400",
-            ]
-        )
-    args += ["--max-samples", str(job["samples"])]
+
+
+BIOPHYSICS = {
+    "capacitance_e_nf": 1.0, "capacitance_i_nf": 0.5,
+    "leak_e_us": 0.05, "leak_i_us": 0.10,
+    "resting_mv": -65.0, "threshold_mv": -50.0, "reset_mv": -65.0,
+    "readout_tau_ms": 2.0, "readout_threshold": 1.0,
+}
+
+
+def author_network(training, *, observables=()):
+    from experiments.helpers.checkpoint_graph import author_network as author
+
+    return author(
+        SLUG, training, BIOPHYSICS, refractory_configuration(), observables=observables
+    )
+
+
+def inference_request(training, job):
+    snapshot = job["kind"] == "snapshot"
+    request = {
+        "checkpoint_role": CHECKPOINT_ROLE,
+        "input": "snapshot" if snapshot else "dataset",
+        "t_ms": 400.0 if snapshot else training["t_ms"],
+        "input_rate_hz": training["input_rate"],
+        "samples": job.get("samples"),
+        "batch_size": 1 if snapshot else 64,
+        "subset_seed": 42,
+        "encoder_seed": 20260415,
+        "digit": 0,
+        "sample": 0,
+        "observables": ["spikes"] if snapshot else [],
+        "products": [],
+        "scale": job.get("scale", 1),
+    }
     if job["kind"] == "pfg" and job["is_ping"]:
-        args += [
-            "--outputs",
-            "pop_traces",
-            "rasters",
-            "--recording-mode",
-            "spikes",
-            "--output-fields",
-            "pop_e",
-        ] + ["e_trial", "e_t", "e_cell", "i_trial", "i_t", "i_cell"]
-    elif job["kind"] == "scale":
-        args += [
-            "--scale-w-in",
-            str(job["scale"]),
-            "--outputs",
-            "per_cell_rates",
-            "--recording-mode",
-            "spikes",
-            "--output-fields",
-            "rate_e_per_sample",
-        ]
-    return args
+        request["products"] = ["population", "rasters"]
+    if job["kind"] == "scale":
+        request["products"] = ["rates"]
+    return request

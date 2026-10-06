@@ -1,17 +1,15 @@
 """Run explicit exp025 inference from an exp022 bank; never analyse or publish."""
 
 import argparse
-import contextlib
 import os
-import shutil
 import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
 from experiments.exp025 import evidence, inputs, recipe
-from experiments.helpers.run_cli import run_cli
-from pingstore.contracts import PingstoreError, load_json, write_json_atomic
+from experiments.helpers.checkpoint_inference import run_inference
+from pingstore.contracts import PingstoreError
 
 
 def compute(identity, *, run_id=None):
@@ -25,43 +23,19 @@ def compute(identity, *, run_id=None):
         run.record["execution"]["environment"] = {
             "PINGLAB_SMOKE": "1" if cfg["profile"] == "smoke" else "0"
         }
-        commands = []
         for job in recipe.jobs(cfg):
             name = job["cell_name"]
-            train = bank.unit(name)
             output = run.export / job["path"]
-            attachments = run.scratch / "simulations" / job["path"]
-            attachments.mkdir(parents=True)
-            shutil.copyfile(train / "config.json", attachments / "training-config.json")
-            args = recipe.inference_args(
-                train, train / "weights_final.pth", output, job
+            training = contract["configs"][name]
+            run_inference(
+                bank.unit(name),
+                output,
+                run.scratch / "simulations" / job["path"],
+                training,
+                recipe.inference_request(training, job),
+                recipe.author_network,
             )
-            commands.append({"job": job, "arguments": args})
-            write_json_atomic(run.scratch / "simulations.json", commands)
-            print(f"[infer] {job['path']}", flush=True)
-            with (
-                (attachments / "stdout.log").open("w") as stdout,
-                (attachments / "stderr.log").open("w") as stderr,
-                contextlib.redirect_stdout(stdout),
-                contextlib.redirect_stderr(stderr),
-            ):
-                run_cli(args, no_sync=True)
-            simulation_config = load_json(output / "config.json")
-            evidence.inference_config(simulation_config, contract["configs"][name], job)
-            if job["kind"] != "snapshot":
-                shutil.copyfile(
-                    output / "metrics.json", attachments / "metrics.original.json"
-                )
-                write_json_atomic(
-                    output / "metrics.json",
-                    evidence.normalized_metrics(
-                        load_json(output / "metrics.json"), simulation_config
-                    ),
-                )
-            evidence.recordings(output, contract["configs"][name], job)
-            for filename in ("config.json", "run.sh", "run.jsonl", "output.log"):
-                if (output / filename).exists():
-                    (output / filename).rename(attachments / filename)
+            evidence.recordings(output, training, job)
     return run.run_id
 
 

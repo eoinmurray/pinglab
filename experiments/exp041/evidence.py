@@ -236,3 +236,29 @@ def population_traces(path: Path, common: dict, samples: int) -> np.ndarray:
     if not np.isfinite(traces).all() or (traces < 0).any():
         raise PingstoreError("invalid population trace values")
     return traces
+
+
+def retained_contract(saved, current, bank):
+    """Validate additional read-only historical bank fields against their bytes.
+
+    New execution consumes only the scientific projection. Historical envelopes
+    may carry more source fields; none are used to reconstruct a simulator.
+    """
+    if not isinstance(saved, dict) or set(saved) != set(current):
+        raise PingstoreError("training evidence shape differs from pinned bank")
+    common = saved.get("common")
+    if not isinstance(common, dict) or any(
+        not _same(common.get(key), value) for key, value in current["common"].items()
+    ):
+        raise PingstoreError("training scientific projection differs")
+    for cell in current["cells"]:
+        config = load_json(bank / cell["cell_name"] / "config.json")
+        if any(
+            key not in config or not _same(config[key], value)
+            for key, value in common.items()
+        ):
+            raise PingstoreError("historical source fields differ from pinned bank")
+    expected = {**current, "common": common}
+    if not _same(saved, expected):
+        raise PingstoreError("training identities differ")
+    return saved

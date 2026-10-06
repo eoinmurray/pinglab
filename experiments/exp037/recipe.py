@@ -47,15 +47,6 @@ def refractory_configuration() -> dict:
     }
 
 
-def refractory_args() -> list[str]:
-    return [
-        "--refractory-e-ms",
-        str(REFRACTORY_E_MS),
-        "--refractory-i-ms",
-        str(REFRACTORY_I_MS),
-        "--refractory-policy",
-        REFRACTORY_POLICY,
-    ]
 
 
 def cell_name(model: str, rate_target_hz: float | None, seed: int) -> str:
@@ -227,30 +218,41 @@ def infer_jobs():
     ]
 
 
-def inference_args(train, checkpoint, output, job):
+
+
+BIOPHYSICS = {
+    "capacitance_e_nf": 1.0, "capacitance_i_nf": 0.5,
+    "leak_e_us": 0.05, "leak_i_us": 0.10,
+    "resting_mv": -65.0, "threshold_mv": -50.0, "reset_mv": -65.0,
+    "readout_tau_ms": 2.0, "readout_threshold": 1.0,
+}
+
+
+def author_network(training, *, observables=()):
+    from experiments.helpers.checkpoint_graph import author_network as author
+
+    return author(
+        SLUG, training, BIOPHYSICS, refractory_configuration(), observables=observables
+    )
+
+
+def inference_request(training, job):
     if job.get("level_units") and "applied_level" not in job:
-        raise ValueError("relative insertion job must be calibrated before execution")
-    args = [
-        "sim",
-        *refractory_args(),
-        "--infer",
-        "--load-config",
-        str(train / "config.json"),
-        "--load-weights",
-        str(checkpoint),
-        "--perturb-mode",
-        job["mode"],
-        "--perturb-level",
-        str(job.get("applied_level", job["level"])),
-        "--max-samples",
-        str(job["samples"]),
-    ]
-    if job["kind"] == "raster":
-        args += ["--sample-index", str(job["sample_index"])] + [
-            "--recording-mode",
-            "spikes",
-            "--output-fields",
-            "spk_e",
-            "spk_i",
-        ]
-    return args + ["--out-dir", str(output)]
+        raise ValueError("relative insertion requires explicit calibration")
+    return {
+        "checkpoint_role": CHECKPOINT_ROLE,
+        "input": "snapshot" if job["kind"] == "raster" else "dataset",
+        "t_ms": training["t_ms"],
+        "input_rate_hz": training["input_rate"],
+        "samples": job["samples"],
+        "batch_size": 1 if job["kind"] == "raster" else 64,
+        "subset_seed": 42,
+        "encoder_seed": 20260415,
+        "sample_index": job.get("sample_index"),
+        "observables": ["spikes"],
+        "products": [],
+        "perturb_mode": job["mode"],
+        "perturb_level": job.get("applied_level", job["level"]),
+        "perturb_seed": 20260416,
+        "perturb_stream": "sequential device E then I per timestep; continuous across batches",
+    }

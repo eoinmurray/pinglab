@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-"""Pipeline fixtures and bounded graph/legacy numerical conformance checks."""
+"""Pipeline fixtures and bounded graph/kernel numerical conformance checks."""
 
 import subprocess
 import sys
@@ -304,9 +304,9 @@ def test_old_recipes_are_rejected_before_downstream_run_creation(repo, schema):
 
 
 @pytest.mark.parametrize("cell", recipe.CELLS)
-def test_graph_matches_legacy_with_identical_weights_and_drive(monkeypatch, cell):
-    from snnlab.sim import models as M
+def test_graph_matches_independent_kernel_schedule(monkeypatch, cell):
     from snnlab.sim.execution import GraphExecutor, plan_graph
+    from snnlab.sim.models import fast_sigmoid_spike, lif_step_expeuler
 
     cfg = recipe.configuration()
     cfg.update(n_e=16, n_i=4)
@@ -314,71 +314,51 @@ def test_graph_matches_legacy_with_identical_weights_and_drive(monkeypatch, cell
     point["t_ms"] = 60
     bundle = recipe.author_network(cfg, point, traces=True)
     model = GraphExecutor(plan_graph(bundle.graph), seed=42)
-    for name, value in {
-        "N_IN": 24,
-        "N_OUT": 10,
-        "N_HID": 16,
-        "N_INH": 4,
-        "HIDDEN_SIZES": [16],
-        "dt": 0.1,
-        "T_ms": 60,
-        "T_steps": 600,
-        "tau_gaba": 6.0,
-        "EXACT_K_INITIALIZATION": False,
-    }.items():
-        monkeypatch.setattr(M, name, value)
-    monkeypatch.setenv("PINGLAB_NO_COMPILE", "1")
-    legacy = M.COBANet(
-        hidden_sizes=[16],
-        n_inh_per_layer={1: 4},
-        refractory_e_ms=1.2,
-        refractory_i_ms=0.6,
-        refractory_policy="exact",
-    )
-    with torch.no_grad():
-        parameters = model.parameter_map()
-        legacy.W_ff[0].copy_(parameters["input_to_E.weight"])
-        legacy.W_ei["1"].copy_(parameters["E_to_I.weight"])
-        legacy.W_ie["1"].copy_(parameters["I_to_E.weight"])
-        legacy.W_ee["1"].zero_()
-        legacy.W_ii["1"].zero_()
-    legacy.recording = True
+    parameters = model.parameter_map()
     drive = torch.zeros(600, 1, 24)
     drive[::2] = 1
+    voltage_e, voltage_i = torch.full((1, 16), -65.0), torch.full((1, 4), -65.0)
+    ref_e, ref_i = torch.zeros((1, 16), dtype=torch.long), torch.zeros((1, 4), dtype=torch.long)
+    spikes_e, spikes_i = torch.zeros(1, 16), torch.zeros(1, 4)
+    ge_e, ge_i, gi_e = torch.zeros(1, 16), torch.zeros(1, 4), torch.zeros(1, 16)
+    histories = {name: [] for name in ("spk_e", "spk_i", "v_e", "v_i", "ge_e", "ge_i", "gi_e")}
+    ampa, gaba = np.exp(-0.1 / 2.0), np.exp(-0.1 / 6.0)
+
+    def spike(voltage):
+        return fast_sigmoid_spike(voltage + 50.0, 5.0)
+
+    # This explicit physical schedule checks graph lowering, recurrent delay,
+    # synaptic decay and diagnostic routing independently of GraphExecutor.
     with torch.inference_mode():
         native = model({"drive": drive})
-        legacy(input_spikes=drive)
-    for name, key in {
-        "spk_e": "hid",
-        "spk_i": "inh",
-        "v_e": "v_e_1",
-        "v_i": "v_i_1",
-        "ge_e": "ge_e_1",
-        "ge_i": "ge_i_1",
-        "gi_e": "gi_e_1",
-    }.items():
-        actual = native.diagnostics[name][:, 0]
-        expected = torch.as_tensor(legacy.spike_record[key])
-        if expected.ndim == 3:
-            expected = expected[:, 0]
-        torch.testing.assert_close(
-            actual,
-            expected.to(actual.dtype),
-            rtol=0,
-            atol=0 if name.startswith("spk") else 2e-5,
-        )
+        for step in range(600):
+            ge_e = ge_e * ampa + drive[step] @ parameters["input_to_E.weight"]
+            ge_i = ge_i * ampa + spikes_e @ parameters["E_to_I.weight"]
+            gi_e = gi_e * gaba + spikes_i @ parameters["I_to_E.weight"]
+            voltage_e, spikes_e, ref_e = lif_step_expeuler(
+                voltage_e, ref_e, ge_e, gi_e, 1.0, 0.05, 12, spike,
+                v_grad_dampen=cfg.get("v_grad_dampen", 80.0), dt_override=0.1,
+            )
+            voltage_i, spikes_i, ref_i = lif_step_expeuler(
+                voltage_i, ref_i, ge_i, None, 0.5, 0.1, 6, spike,
+                v_grad_dampen=cfg.get("v_grad_dampen", 80.0), dt_override=0.1,
+            )
+            for name, value in {
+                "spk_e": spikes_e, "spk_i": spikes_i,
+                "v_e": voltage_e, "v_i": voltage_i,
+                "ge_e": ge_e, "ge_i": ge_i, "gi_e": gi_e,
+            }.items():
+                histories[name].append(value.clone())
+    for name, values in histories.items():
+        torch.testing.assert_close(native.diagnostics[name], torch.stack(values),
+            rtol=0, atol=0 if name.startswith("spk") else 2e-5)
     assert native.diagnostics["spk_e"].any()
     assert bool(native.diagnostics["spk_i"].any()) == (cell == "ping")
     if cell == "ping":
         conductance = native.diagnostics["gi_e"][:, 0]
-        # A timestep without I spikes must contain only the declared GABA decay.
         silent_previous_i = ~native.diagnostics["spk_i"][:-1, 0].any(1).bool()
-        torch.testing.assert_close(
-            conductance[1:][silent_previous_i],
-            conductance[:-1][silent_previous_i] * np.exp(-0.1 / 6.0),
-            rtol=0,
-            atol=1e-7,
-        )
+        torch.testing.assert_close(conductance[1:][silent_previous_i],
+            conductance[:-1][silent_previous_i] * gaba, rtol=0, atol=1e-7)
 
 
 def test_native_sweep_reductions_match_full_raster_counts():

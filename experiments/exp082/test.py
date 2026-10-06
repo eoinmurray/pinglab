@@ -171,7 +171,20 @@ def lab(tmp_path, monkeypatch):
                 {"labels": [0] * 5, "boundaries": bounds, "conditions": conditions},
             )
 
+    original_inventory = compute._job_inventory
+    monkeypatch.setattr(
+        compute,
+        "_job_inventory",
+        lambda directory, jobs, **kwargs: original_inventory(
+            directory, jobs, verify_device=False
+        ),
+    )
     monkeypatch.setattr(compute, "Inference", Worker)
+    monkeypatch.setattr(
+        compute,
+        "shard_identity",
+        lambda cfg, bank, module: {"recipe": cfg, "bank": bank.reference},
+    )
     bank_identity = run.run_id
     bank_source = inputs.source(tmp_path, bank_identity, "compute", experiment="exp022")
     candidates = []
@@ -735,46 +748,6 @@ def test_dirty_shards_fail_without_scientific_work(lab, monkeypatch):
     assert calls == []
 
 
-def test_simulator_serializes_batched_input_and_resets(tmp_path, monkeypatch):
-    monkeypatch.setattr(
-        inference,
-        "load_mnist_split",
-        lambda **k: (None, np.zeros((10, 784)), None, np.arange(10)),
-    )
-    worker = inference.Inference(
-        SimpleNamespace(export=tmp_path), tmp_path, recipe.configuration()
-    )
-
-    def simulate(command, **kwargs):
-        assert command[1:3] == ["-m", "snnlab.sim"]
-        assert Path(command[command.index("--load-weights") + 1]).name == "weights.pth"
-        assert command[command.index("--device") + 1] == "auto"
-        raw = evidence.arrays(Path(command[command.index("--input-file") + 1]))
-        assert raw["input_spikes"].shape == (4, 3, 784)
-        assert raw["readout_reset"].tolist() == [True, False, True, False]
-        out = Path(command[command.index("--out-dir") + 1])
-        out.mkdir()
-        np.savez_compressed(
-            out / "spike_summary.npz",
-            dt=np.float32(0.1),
-            T=4,
-            n_trials=3,
-            segment_starts=[0, 2],
-            segment_stops=[2, 4],
-            out_counts=np.zeros((3, 2, 10), dtype=np.int64),
-            e_counts=np.zeros((3, 2), dtype=np.int64),
-            i_counts=np.zeros((3, 2), dtype=np.int64),
-        )
-
-    monkeypatch.setattr(inference.subprocess, "run", simulate)
-    raw = worker.simulate(
-        tmp_path,
-        torch.ones((4, 3, 784)),
-        (0, 2),
-        tmp_path / "attachments",
-        "spike_summary",
-    )
-    assert raw["out_counts"].shape == (3, 2, 10)
 
 
 def test_exp022_planned_bank_targets_exp082() -> None:
@@ -794,15 +767,11 @@ def test_exp022_planned_bank_targets_exp082() -> None:
     assert all(cell in exp022.CANONICAL_CELLS for cell in cells)
 
 
-def test_exp022_variable_rate_args() -> None:
+def test_exp022_variable_rate_settings():
     cell = exp022.PLANNED_VARIABLE_RATE_CELLS[0]
-    args = exp022.build_train_args(cell, exp082.training_dir(42), 7000, 50)
-    assert args[args.index("--readout") + 1] == "spike-count"
-    assert args[args.index("--readout-w-init-mean") + 1] == "0.05"
-    assert args[args.index("--readout-w-init-std") + 1] == "0.04"
-    start = args.index("--input-rates") + 1
-    stop = start + len(exp082.TRAINING_RATES_HZ)
-    assert tuple(map(float, args[start:stop])) == exp082.TRAINING_RATES_HZ
+    cfg = exp022.training_settings(cell, 7000, 50)
+    assert cfg['readout_mode']=='spike-count' and tuple(cfg['input_rates'])==recipe.TRAINING_RATES_HZ
+
 
 
 def test_exp022_wilkes_resource_tiers_partition_registry() -> None:

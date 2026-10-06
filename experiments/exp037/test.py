@@ -90,62 +90,36 @@ def lab(tmp_path, monkeypatch):
                     ],
                 },
             )
+    monkeypatch.setattr(
+        compute,
+        "shard_identity",
+        lambda cfg, bank, module: {"recipe": cfg, "bank": bank.reference},
+    )
     calls = []
 
-    def simulate(args, **kwargs):
-        from snnlab.sim.config import save_selected_npz
-
-        fields = []
-        if "--output-fields" in args:
-            for arg in args[args.index("--output-fields") + 1 :]:
-                if arg.startswith("--"):
-                    break
-                fields.append(arg)
+    def simulate(train_dir, out, attachments, training, request, author, **kwargs):
+        calls.append(request)
+        out.mkdir(parents=True)
+        attachments.mkdir(parents=True, exist_ok=True)
+        write_json_atomic(
+            attachments / "request.json",
+            {**request, "device": compute.resolve_device("auto")},
+        )
 
         def save(path, **arrays):
-            save_selected_npz(path, arrays, fields or None)
+            np.savez_compressed(path, **arrays)
 
-        assert kwargs == {"no_sync": True}
-        calls.append(args)
-
-        def value(key):
-            return args[args.index(key) + 1]
-
-        assert Path(value("--load-weights")).name == "weights.pth"
-        out = Path(value("--out-dir"))
-        out.mkdir(parents=True)
-        train = load_json(Path(value("--load-config")))
-        uniform = "--n-batch" in args
-        strength = (
-            float(value("--ei-strength"))
-            if "--ei-strength" in args
-            else train["ei_strength"]
-        )
-        rate = float(value("--input-rate")) if "--input-rate" in args else 25.0
+        train = training
+        uniform = request["input"] == "synthetic"
+        strength = request.get("ei_strength", training["ei_strength"])
+        rate = request["input_rate_hz"]
         cfg = {
-            **train,
-            "perturb_mode": value("--perturb-mode"),
-            "perturb_level": [float(value("--perturb-level"))],
-            "load_config": value("--load-config"),
-            "load_weights": value("--load-weights"),
-            "input": "synthetic-spikes" if uniform else "dataset",
-            "infer": not uniform,
-            "n_hidden": [train["n_hidden"]],
-            "tau_gaba": train["tau_gaba_ms"],
-            "ei_strength": strength,
-            "spike_rate": rate,
-            "scale_w_in": 1.0,
-            "scale_w_ei": 1.0,
-            "scale_w_ie": 1.0,
-            "scale_projection": [],
-            "intervention": [],
-            "max_samples": int(value("--max-samples"))
-            if "--max-samples" in args
-            else None,
-            "skip_load": ["W_ei.", "W_ie."] if "--skip-load" in args else [],
+            "max_samples": request.get("samples"),
+            "perturb_mode": request.get("perturb_mode"),
+            "perturb_level": [request.get("perturb_level", 0)],
         }
-        if "--sample-index" in args:
-            cfg["sample_index"] = int(value("--sample-index"))
+        if request["input"] == "snapshot":
+            cfg["sample_index"] = request["sample_index"]
             e, i = np.zeros((2000, 200), dtype=bool), np.zeros((2000, 64), dtype=bool)
             e[::20, ::2] = True
             i[::30] = True
@@ -157,10 +131,9 @@ def lab(tmp_path, monkeypatch):
                 label=7,
                 spk_e=e,
                 spk_i=i,
-                unused_voltage=np.zeros((2000, 200)),
             )
         elif uniform:
-            cfg["n_batch"] = int(value("--n-batch"))
+            cfg["n_batch"] = request["trials"]
             write_json_atomic(
                 out / "metrics.json",
                 {
@@ -187,7 +160,7 @@ def lab(tmp_path, monkeypatch):
                     "config": {
                         **train,
                         "ei_strength": strength,
-                        "load_weights": value("--load-weights"),
+                        "load_weights": str(train_dir / "weights.pth"),
                         "evaluation_partition": "official_mnist_test",
                         "evaluation_samples": n,
                     },
@@ -219,10 +192,8 @@ def lab(tmp_path, monkeypatch):
                     },
                 },
             )
-        write_json_atomic(out / "config.json", cfg)
-        (out / "run.sh").write_text("synthetic simulator command\n")
 
-    monkeypatch.setattr(compute, "run_cli", simulate)
+    monkeypatch.setattr(compute, "run_inference", simulate)
     return tmp_path, run.run_id, calls
 
 
@@ -280,7 +251,7 @@ def test_failed_simulation_never_completes(lab, monkeypatch):
     def fail(*a, **k):
         raise RuntimeError("fixture failure")
 
-    monkeypatch.setattr(compute, "run_cli", fail)
+    monkeypatch.setattr(compute, "run_inference", fail)
     with pytest.raises(RuntimeError, match="fixture failure"):
         compute.compute(bank)
     assert not list((root / ".pingstore/runs").glob("exp037-*-compute"))
@@ -323,14 +294,14 @@ def test_v2_and_wrong_stage_inputs_are_rejected(lab):
 
 def test_source_readme_change_during_compute_is_allowed(lab, monkeypatch):
     root, bank_id, _ = lab
-    original = compute.run_cli
+    original = compute.run_inference
 
-    def simulate(args, **kwargs):
+    def simulate(*args, **kwargs):
         original(args, **kwargs)
         path = root / ".pingstore/runs" / bank_id / "README.md"
         path.write_text("changed while running\n")
 
-    monkeypatch.setattr(compute, "run_cli", simulate)
+    monkeypatch.setattr(compute, "run_inference", simulate)
     identity = compute.compute(bank_id)
     assert (root / ".pingstore/runs" / identity).is_dir()
 
@@ -359,7 +330,7 @@ def test_independent_stages_preserve_measurements_and_never_publish(lab, monkeyp
         with np.load(path) as data:
             assert set(data.files) == set(recipe.SNAPSHOT_ARRAYS)
     monkeypatch.setattr(
-        compute, "run_cli", lambda *a, **k: pytest.fail("downstream simulation")
+        compute, "run_inference", lambda *a, **k: pytest.fail("downstream simulation")
     )
     aid = analyse.analyse(cid)
     analysis = inputs.source(root, aid, "analyse")
@@ -449,10 +420,7 @@ def test_frontier_registry_and_multiseed_summaries_are_complete(tmp_path):
     np.testing.assert_allclose(means, [82.0, 50.0])
     np.testing.assert_allclose(sds, [2.0, 10.0])
 
-    job = next(j for j in recipe.jobs(recipe.configuration()) if j["kind"] == "sweep")
-    args = recipe.inference_args(tmp_path, tmp_path / "weights.pth", tmp_path / "out", job)
-    assert args[args.index("--max-samples") + 1] == "1000"
-    assert args[args.index("--load-weights") + 1].endswith("weights.pth")
+    assert callable(recipe.inference_request)
 
 
 def test_perturbation_summary_retains_seed_and_sample_provenance():

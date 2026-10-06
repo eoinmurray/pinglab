@@ -2,7 +2,7 @@
 
 ## Contract migration
 
-Experiment Runner Guide 4.3.0 and Storage Guide 4.3.0. The four TR-05 conditions and
+Experiment Runner Guide 4.9.0 and Storage Guide 4.9.0. The four TR-05 conditions and
 seeds 42–44 remain unchanged. Training belongs to exp022; exp049 never trains.
 The legacy flat runner and bare package entrypoint now reject execution.
 
@@ -23,7 +23,7 @@ Neither the stages nor the adapter publish into `.artifacts`.
 
 - **Compute:** 12 official-test inference jobs, 12 recurrent-weight dumps and
   four snapshots, all from `weights_final.pth` at epoch 50. It pins the exp022
-  bank and records the exact recipe, checkpoint hashes and simulator commands.
+  bank and records the exact recipe, checkpoint hashes and native graph execution identities.
 - **Analyse:** validates recordings and their configurations; reads the pinned
   bank's 50-epoch histories; saves all numerical results, histogram counts,
   trajectory aggregates and raster display coordinates.
@@ -239,3 +239,58 @@ jointly.
 and `exp049-r015-present` rendered the final SEM display. No training or
 simulation was performed. The exp049 suite passed 23 tests, the exp110 suite
 passed 6 tests, Ruff passed, and the regenerated figure was visually inspected.
+
+
+### 2026-10-06 — native graph implementation migration
+
+Future compute uses recipe-authored `snnlab.lang` graphs and the shared
+`experiments.helpers.ping.build_ping`, without extending that helper.
+`GraphExecutor` binds the four active matrices in stored `[source, target]`
+orientation, clamps feedforward matrices as before, and rejects extra tensors,
+non-float32/nonfinite matrices, negative recurrent weights and nonzero EE/II
+recurrence. Final checkpoint selection remains epoch 50 and authenticates the
+complete checkpoint file before binding and after all jobs for that network.
+
+The 12 condition/seed pairs, 200 ms at 0.1 ms, exact E/I refractory periods,
+official-test subset order (RandomState 42), 64-image batches and encoder seed
+20260415 are unchanged. Each graph call starts with fresh neuronal, synaptic,
+refractory, delay and readout state. Reference-image encoding preserves the
+endpoint producer's seed and preceding CPU input, mask, readout, EE, EI, IE and
+II draws. Initial recurrent matrices are reconstructed directly from those
+ordered draws; no simulator is reconstructed. CUDA/MPS reference-image draws
+use their originally untouched device streams. This preservation is based on
+source inspection and has not been checked by execution.
+
+Native `RecordingSpec`/`SignalRecording` retain full-window spike events;
+time reductions provide E/I counts online. E events become the same float32
+per-trial population means, and the four snapshots retain the existing dense
+boolean E/I file interface. Welch calculations, constant-trial handling, raw
+peak bins, weight pooling, histories, raster selection and SEM remain in the
+unchanged analysis/presentation definitions. `snnlab.analysis.power_spectrum`
+promotes float32 traces to float64; `spectral_peak` treats flat positive bands
+as undefined. Neither matches the retained definitions exactly, so neither was
+adopted.
+
+There is no cache, shard, partial-output or completed-run reuse in exp049.
+Every compute job executes afresh. Provenance retains the complete bank export
+pin, final checkpoint hashes, full training configurations, recipe, graph
+digest, ordered pixel/label/index content hashes, realized encoding-stream
+hashes, recording/reset/intervention definitions and runtime device/library
+settings. No reliance is placed on SNNLab's artifact validator to authenticate
+an expected request. Read-only support for exp049 recipe v1/v2 evidence,
+training configurations/histories, six-matrix checkpoint files and prior
+metrics/population/weight/snapshot payloads remains; Pingstore inputs still
+require validated v4 runs.
+
+The CLI argument builder, simulator dispatch and compatibility configuration
+validator are removed. Existing synthetic fixtures were adapted to the native
+cell boundary, without running them. Only static lint/type/syntax checks and
+diff review were performed. No stages, tests, discovery, rendering, runs,
+result regeneration, historical mutation, commit or push were performed.
+The title and its matching article-link labels no longer carry `(legacy)`.
+Writing Guide 36.0.0 was read; authored prose, results and dates were preserved.
+The affected articles have no existing availability/version tags; adding a
+verified availability classification remains unresolved under the static-only
+scope, which excludes the guide's required read-only discovery check.
+Numerical equivalence, backend execution and end-to-end stage behaviour remain
+unverified.

@@ -30,9 +30,7 @@ def replacement_cells() -> list[dict]:
         if cell["model"] == "coba"
     ]
     names = {cell["name"] for cell in cells}
-    expected = {
-        f"coba__canonical__seed{seed}" for seed in recipe.SEEDS_BASELINE
-    } | {
+    expected = {f"coba__canonical__seed{seed}" for seed in recipe.SEEDS_BASELINE} | {
         recipe.cell_name("coba", target, seed)
         for target in recipe.RATE_TARGET_GRID_HZ
         for seed in recipe.SEEDS_BASELINE
@@ -40,16 +38,9 @@ def replacement_cells() -> list[dict]:
     if len(cells) != 21 or names != expected:
         raise PingstoreError("registry drift: expected all 21 COBA cells")
     for cell in cells:
-        args = recipe.build_train_args(
-            cell,
-            Path("unused-output"),
-            *recipe.cell_samples_epochs(cell),
-        )
-        value = args[args.index("--v-grad-dampen") + 1]
-        if value != "1000":
-            raise PingstoreError(f"replacement damping contract changed: {cell['name']}")
-        if args[args.index("--ei-strength") + 1] != "0":
-            raise PingstoreError(f"replacement COBA loop is not disabled: {cell['name']}")
+        settings = recipe.training_settings(cell, *recipe.cell_samples_epochs(cell))
+        if settings["v_grad_dampen"] != 1000.0 or settings["ei_strength"] != 0.0:
+            raise PingstoreError(f"replacement COBA settings changed: {cell['name']}")
     return cells
 
 
@@ -65,16 +56,13 @@ def _load_object(path: Path) -> dict:
 
 def _current_parameters(cell: dict) -> dict:
     samples, epochs = recipe.cell_samples_epochs(cell)
-    args = recipe.build_train_args(cell, Path("unused-output"), samples, epochs)
-    parameters = compute.resolved_parameters(
+    return compute.resolved_parameters(
         cell,
-        args,
+        recipe.training_settings(cell, samples, epochs),
         samples,
         epochs,
         scientific_contract=recipe.scientific_contract(cell, samples, epochs),
     )
-    parameters["arguments"].pop("--out-dir")
-    return parameters
 
 
 def _inspect_reused_cell(source: SourceRun, cell: dict) -> dict:

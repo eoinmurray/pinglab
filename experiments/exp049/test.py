@@ -9,7 +9,6 @@ import sys
 from pathlib import Path
 
 import pytest
-from experiments.exp044.test import _common_config
 from experiments.exp049 import (
     analyse,
     compute,
@@ -47,7 +46,19 @@ def lab(tmp_path, monkeypatch):
             directory = run.export / cell["cell_name"]
             directory.mkdir(parents=True)
             cfg = {
-                **_common_config(),
+                **recipe.training_settings(cell),
+                **recipe.RUNTIME_REQUIREMENTS,
+                "n_in": 784,
+                "n_out": 10,
+                "dataset_split": {
+                    "optimizer_train_samples": 6300,
+                    "validation_samples": 700,
+                    "official_test_samples": 10000,
+                    "checkpoint_selection_partition": "validation",
+                    "official_test_used_during_training": False,
+                    "source_train_partition": "official_mnist_train",
+                    "source_test_partition": "official_mnist_test",
+                },
                 "dt": 0.1,
                 "seed": cell["seed"],
                 "n_hidden": 200,
@@ -62,6 +73,10 @@ def lab(tmp_path, monkeypatch):
                 "trainable_w_ei": cell["condition"] != "frozen_ping",
                 "trainable_w_ie": cell["condition"] != "frozen_ping",
                 "ei_ratio": 2.0,
+                "recurrent_initial_zero_fraction": 0.0,
+                "trainable_w_ee": False,
+                "trainable_w_ii": False,
+                "w_ee": [0.0, 0.0],
             }
             write_json_atomic(directory / "config.json", cfg)
             cps = {}
@@ -74,6 +89,10 @@ def lab(tmp_path, monkeypatch):
 
                 torch.save(
                     {
+                        "W_ff.0": torch.full((784, 200), 0.002),
+                        "W_ff.1": torch.full((200, 10), 0.002),
+                        "W_ee.1": torch.zeros((200, 200)),
+                        "W_ii.1": torch.zeros((64, 64)),
                         "W_ei.1": torch.full((200, 64), 0.002),
                         "W_ie.1": torch.full((64, 200), 0.002),
                     },
@@ -113,108 +132,81 @@ def lab(tmp_path, monkeypatch):
             )
     calls = []
 
-    def simulate(args, **kwargs):
-        from snnlab.sim.config import save_selected_npz
-
-        fields = []
-        if "--output-fields" in args:
-            for arg in args[args.index("--output-fields") + 1 :]:
-                if arg.startswith("--"):
-                    break
-                fields.append(arg)
-
-        def save(path, **arrays):
-            save_selected_npz(path, arrays, fields or None)
-
-        assert kwargs == {"no_sync": True}
-        calls.append(args)
-
-        def value(key):
-            return args[args.index(key) + 1]
-
-        assert Path(value("--load-weights")).name == "weights_final.pth"
-        out = Path(value("--out-dir"))
-        out.mkdir(parents=True)
-        train = load_json(Path(value("--load-config")))
-        dump = args[0] == "dump-weights"
-        strength = train["ei_strength"]
-        rate = train["input_rate"]
-        cfg = {
-            **train,
-            "load_config": value("--load-config"),
-            "load_weights": value("--load-weights"),
-            "input": "dataset",
-            "mode": "dump-weights" if dump else "sim",
-            "infer": None if dump else True,
-            "n_hidden": [train["n_hidden"]],
-            "tau_gaba": train["tau_gaba_ms"],
-            "ei_strength": strength,
-            "spike_rate": rate,
-            "scale_w_in": 1.0,
-            "scale_w_ei": 1.0,
-            "scale_w_ie": 1.0,
-            "scale_projection": [],
-            "intervention": [],
-            "max_samples": int(value("--max-samples"))
-            if "--max-samples" in args
-            else None,
-            "skip_load": ["W_ei.", "W_ie."] if "--skip-load" in args else [],
-        }
-        if dump:
-            arrays = {
-                key: np.full(
-                    (200, 64) if key.startswith("W_ei") else (64, 200),
-                    0.001 if key.endswith("init") else 0.002,
-                    dtype=np.float32,
+    def simulate(train_dir, train, checkpoint, cfg, data, export, device):
+        for job in (j for j in recipe.jobs(cfg) if j["cell_name"] == train_dir.name):
+            calls.append(job)
+            out = export / job["path"]
+            out.mkdir(parents=True)
+            if job["kind"] == "weights_dump":
+                matrices = {
+                    key: np.full(
+                        (200, 64) if key.startswith("W_ei") else (64, 200),
+                        0.001 if key.endswith("init") else 0.002,
+                        dtype=np.float32,
+                    )
+                    for key in recipe.WEIGHT_ARRAYS
+                }
+                np.savez_compressed(
+                    out / "weights_dump.npz",
+                    W_ei_1_init=matrices["W_ei_1_init"],
+                    W_ie_1_init=matrices["W_ie_1_init"],
+                    W_ei_1_trained=matrices["W_ei_1_trained"],
+                    W_ie_1_trained=matrices["W_ie_1_trained"],
                 )
-                for key in recipe.WEIGHT_ARRAYS
-            }
-            arrays["unused_input_matrix"] = np.zeros((784, 200))
-            save(out / "weights_dump.npz", **arrays)
-        elif "--sample-index" in args:
-            cfg["sample_index"] = int(value("--sample-index"))
-            e, i = np.zeros((2000, 200), dtype=bool), np.zeros((2000, 64), dtype=bool)
-            e[::20, ::2] = True
-            i[::30] = True
-            save(
-                out / "recording.npz",
-                dt=0.1,
-                n_e=200,
-                n_i=64,
-                label=7,
-                spk_e=e,
-                spk_i=i,
-                unused_voltage=np.zeros((2000, 200)),
-            )
-        else:
-            n = cfg["max_samples"]
-            pop = np.tile(
-                (20 + 10 * np.sin(2 * np.pi * 60 * np.arange(2000) * 0.0001)).astype(
-                    np.float32
-                ),
-                (n, 1),
-            )
-            save(out / "pop_traces.npz", dt=np.float32(0.1), pop_e=pop, pop_i=pop)
-            write_json_atomic(
-                out / "metrics.json",
-                {
-                    "config": {
-                        **train,
-                        "ei_strength": strength,
-                        "load_weights": value("--load-weights"),
-                        "evaluation_partition": "official_mnist_test",
-                        "evaluation_samples": n,
+            elif job["kind"] == "snapshot":
+                e, i = (
+                    np.zeros((2000, 200), dtype=bool),
+                    np.zeros((2000, 64), dtype=bool),
+                )
+                e[::20, ::2] = True
+                i[::30] = True
+                np.savez_compressed(
+                    out / "recording.npz",
+                    dt=0.1,
+                    n_e=200,
+                    n_i=64,
+                    label=7,
+                    spk_e=e,
+                    spk_i=i,
+                )
+            else:
+                n = job["samples"]
+                pop = np.tile(
+                    (
+                        20 + 10 * np.sin(2 * np.pi * 60 * np.arange(2000) * 0.0001)
+                    ).astype(np.float32),
+                    (n, 1),
+                )
+                np.savez_compressed(
+                    out / "pop_traces.npz", dt=np.float32(0.1), pop_e=pop
+                )
+                write_json_atomic(
+                    out / "metrics.json",
+                    {
+                        "config": {
+                            **train,
+                            "load_weights": f"{job['cell_name']}/weights_final.pth",
+                            "evaluation_partition": "official_mnist_test",
+                            "evaluation_samples": n,
+                        },
+                        "best_acc": 90.0,
+                        "n_correct": n * 9 // 10,
+                        "n_total": n,
+                        "rates_hz": {"hid": 20.0, "inh": 10.0},
                     },
-                    "best_acc": 90.0,
-                    "n_correct": n * 9 // 10,
-                    "n_total": n,
-                    "rates_hz": {"hid": 20.0, "inh": 10.0},
-                },
-            )
-        write_json_atomic(out / "config.json", cfg)
-        (out / "run.sh").write_text("synthetic simulator command\n")
+                )
+        return []
 
-    monkeypatch.setattr(compute, "run_cli", simulate)
+    monkeypatch.setattr(
+        compute,
+        "evaluation",
+        lambda _: (
+            np.zeros((1, 784), np.float32),
+            np.zeros(1, np.int64),
+            np.zeros(1, np.int64),
+        ),
+    )
+    monkeypatch.setattr(compute, "evaluate_cell", simulate)
     return tmp_path, run.run_id, calls
 
 
@@ -241,7 +233,7 @@ def test_failed_simulation_never_completes(lab, monkeypatch):
     def fail(*a, **k):
         raise RuntimeError("fixture failure")
 
-    monkeypatch.setattr(compute, "run_cli", fail)
+    monkeypatch.setattr(compute, "evaluate_cell", fail)
     with pytest.raises(RuntimeError, match="fixture failure"):
         compute.compute(bank)
     assert not list((root / ".pingstore/runs").glob("exp049-*-compute"))
@@ -286,14 +278,15 @@ def test_v2_and_wrong_stage_inputs_are_rejected(lab):
 
 def test_source_readme_change_during_compute_is_allowed(lab, monkeypatch):
     root, bank_id, _ = lab
-    original = compute.run_cli
+    original = compute.evaluate_cell
 
-    def simulate(args, **kwargs):
-        original(args, **kwargs)
+    def simulate(*args, **kwargs):
+        result = original(*args, **kwargs)
         path = root / ".pingstore/runs" / bank_id / "README.md"
         path.write_text("changed while running\n")
+        return result
 
-    monkeypatch.setattr(compute, "run_cli", simulate)
+    monkeypatch.setattr(compute, "evaluate_cell", simulate)
     identity = compute.compute(bank_id)
     assert (root / ".pingstore/runs" / identity).is_dir()
 
@@ -324,7 +317,7 @@ def test_independent_stages_preserve_roles_and_never_publish(lab, monkeypatch):
             with np.load(path) as data:
                 assert set(data.files) == set(keys)
     monkeypatch.setattr(
-        compute, "run_cli", lambda *a, **k: pytest.fail("downstream simulation")
+        compute, "evaluate_cell", lambda *a, **k: pytest.fail("downstream simulation")
     )
     aid = analyse.analyse(cid)
     a = inputs.source(root, aid, "analyse")
@@ -519,27 +512,12 @@ def test_production_recipe_and_raster_selection(tmp_path):
         np.testing.assert_array_equal(data[key], values)
 
 
-def test_smoke_and_single_sample_inference_caps(tmp_path):
-    jobs = recipe.jobs(recipe.configuration(smoke=True))
-    infer = next(job for job in jobs if job["kind"] == "infer")
-    args = recipe.inference_args(
-        tmp_path, tmp_path / "weights_final.pth", tmp_path / "out", infer
-    )
-    assert args[args.index("--max-samples") + 1] == "100"
-
-    snapshot = next(job for job in jobs if job["kind"] == "snapshot")
-    args = recipe.inference_args(
-        tmp_path,
-        tmp_path / "weights_final.pth",
-        tmp_path / "out",
-        {**snapshot, "sample_index": 50},
-    )
-    assert "--max-samples" not in args
-    assert args[args.index("--sample-index") : args.index("--sample-index") + 2] == [
-        "--sample-index",
-        "50",
-    ]
-    assert args[-2:] == ["--recording-mode", "spikes"]
+def test_smoke_and_single_sample_inference_caps():
+    cfg = recipe.configuration(smoke=True)
+    jobs = recipe.jobs(cfg)
+    assert {j["samples"] for j in jobs if j["kind"] == "infer"} == {100}
+    assert {j["sample_index"] for j in jobs if j["kind"] == "snapshot"} == {0}
+    assert cfg["evaluation_batch_size"] == 64
 
 
 @pytest.mark.parametrize("fault", ["training_recipe", "history", "final_epoch"])

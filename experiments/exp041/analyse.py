@@ -37,7 +37,9 @@ def analyse(identity, *, run_id=None):
     if retained != {
         "schema": "exp041.compute/v1",
         "config": cfg,
-        "training_contract": contract,
+        "training_contract": evidence.retained_contract(
+            retained.get("training_contract"), contract, bank.export
+        ),
         "checkpoint_provenance": checkpoints,
     }:
         raise PingstoreError(

@@ -118,6 +118,7 @@ def trials(*, smoke=False):
 
 def author_network(cfg: dict, point: dict, *, traces: bool):
     """Declare the untrained circuit, with no stimulus or simulator globals."""
+    from experiments.helpers.ping import build_ping
     from snnlab import lang
     from snnlab.sim.timing import refractory_steps
 
@@ -129,79 +130,59 @@ def author_network(cfg: dict, point: dict, *, traces: bool):
         signal_type="spikes",
         unit="spike",
     )
-    populations = {}
+    neurons = {}
     for label in ("E", "I"):
-        populations[label] = net.population(
-            label,
-            size=cfg[f"n_{label.lower()}"],
-            neuron=lang.COBA_LIF(
-                tau_mem=(b[f"C_m_{label}_nF"] / b[f"g_L_{label}_uS"]) * lang.ms,
-                capacitance_nf=b[f"C_m_{label}_nF"],
-                leak_us=b[f"g_L_{label}_uS"],
-                resting_mv=b["E_L_mV"],
-                threshold_mv=b["threshold_mV"],
-                reset_mv=b["reset_mV"],
-                initial_voltage_mv=cfg["initial_voltage_mV"],
-                refractory_steps=refractory_steps(
-                    b[f"refractory_{label}_ms"],
-                    point["dt_ms"],
-                    policy=cfg["refractory_policy"],
-                ),
-                voltage_grad_dampen=80.0,
+        neurons[label] = lang.COBA_LIF(
+            tau_mem=(b[f"C_m_{label}_nF"] / b[f"g_L_{label}_uS"]) * lang.ms,
+            capacitance_nf=b[f"C_m_{label}_nF"],
+            leak_us=b[f"g_L_{label}_uS"],
+            resting_mv=b["E_L_mV"],
+            threshold_mv=b["threshold_mV"],
+            reset_mv=b["reset_mV"],
+            initial_voltage_mv=cfg["initial_voltage_mV"],
+            refractory_steps=refractory_steps(
+                b[f"refractory_{label}_ms"],
+                point["dt_ms"],
+                policy=cfg["refractory_policy"],
             ),
+            voltage_grad_dampen=80.0,
         )
-    e, i = populations["E"], populations["I"]
-    external = net.connect(
-        drive,
-        e.excitatory,
-        name="input_to_E",
-        synapse=lang.AMPA(tau=b["tau_ampa_ms"] * lang.ms),
-        weight=lang.LowerClampedNormal(
+    strength = point["ei_strength"]
+    ie_strength = strength * cfg["ei_ratio"]
+    circuit = build_ping(
+        net,
+        source=drive,
+        n_e=cfg["n_e"],
+        n_i=cfg["n_i"],
+        neuron_e=neurons["E"],
+        neuron_i=neurons["I"],
+        ampa=lang.AMPA(tau=b["tau_ampa_ms"] * lang.ms),
+        gaba=lang.GABA(tau=b["tau_gaba_ms"] * lang.ms),
+        input_weight=lang.LowerClampedNormal(
             cfg["input_weight_parent_mean"],
             cfg["input_weight_parent_sd"],
             initial_zero_fraction=cfg["input_initial_zero_fraction"],
             zeroing="bernoulli",
         ),
-        constraint=lang.NonNegative(),
+        ei_weight=lang.LowerClampedNormal(strength, strength * 0.1),
+        ie_weight=lang.LowerClampedNormal(ie_strength, ie_strength * 0.1),
+        recurrent_delay=point["dt_ms"] * lang.ms,
         initialization_scaling="fan_in_normalized",
     )
-    strength = point["ei_strength"]
-    ei = net.connect(
-        e.spikes,
-        i.excitatory,
-        name="E_to_I",
-        synapse=lang.AMPA(tau=b["tau_ampa_ms"] * lang.ms),
-        weight=lang.LowerClampedNormal(strength, strength * 0.1),
-        constraint=lang.NonNegative(),
-        connection="recurrent",
-        delay=point["dt_ms"] * lang.ms,
-        initialization_scaling="fan_in_normalized",
-    )
-    ie_strength = strength * cfg["ei_ratio"]
-    ie = net.connect(
-        i.spikes,
-        e.inhibitory,
-        name="I_to_E",
-        synapse=lang.GABA(tau=b["tau_gaba_ms"] * lang.ms),
-        weight=lang.LowerClampedNormal(ie_strength, ie_strength * 0.1),
-        constraint=lang.NonNegative(),
-        connection="recurrent",
-        delay=point["dt_ms"] * lang.ms,
-        initialization_scaling="fan_in_normalized",
-    )
+    e, i = circuit.e, circuit.i
     if traces:
         for name, signal in {
             "spk_e": e.spikes,
             "spk_i": i.spikes,
             "v_e": e.voltage,
             "v_i": i.voltage,
-            "ge_e": external.conductance,
-            "ge_i": ei.conductance,
-            "gi_e": ie.conductance,
+            "ge_e": circuit.input_to_e.conductance,
+            "ge_i": circuit.e_to_i.conductance,
+            "gi_e": circuit.i_to_e.conductance,
         }.items():
             net.expose(signal, name=name)
     else:
-        for label, population in populations.items():
+        for label, population in (("E", e), ("I", i)):
             count = lang.ops.reduce(
                 population.spikes, operation="sum", over="time", name=f"{label}_counts"
             )

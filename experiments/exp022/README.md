@@ -127,3 +127,18 @@ explicit operations. The collector validates all replacements and both
 checkpoint roles, assembles all 102 cells, regenerates the 34 seed-42 diagnostic
 recordings and atomically exposes the run. It never launches analysis,
 presentation or publication.
+
+
+## Migration completion audit — 2026-10-06
+
+Native graph training, direct AdamW, sample-wise population-rate penalty, fixed three-draw validation panel and CE/accuracy/earliest checkpoint selection. Native diagnostic inference retains registered checkpoint roles. Registry scientific settings replace CLI flag recipes. Retry identities bind raw MNIST content, runtime/software sources and numerical settings. Read-only checkpoint/history and explicitly pinned bank-reuse readers remain.
+
+Implementation migration is complete under static verification only. Python parsing,
+lint, diff review and read-only Pingstore discovery were performed. Existing
+synthetic fixtures were adapted where their CLI seams became obsolete; none
+were executed. No experiment stage, new run, regenerated result, commit or push
+was performed. Numerical parity, backend execution, performance and rendering
+remain unverified. The implementation marker and article title suffix were
+removed; authored prose/results/dates and review decisions were preserved.
+Writing Guide 36.0.0 availability/version tags were applied using validated local
+presentation discovery.

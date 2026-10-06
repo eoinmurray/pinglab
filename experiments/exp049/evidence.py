@@ -1,84 +1,104 @@
 """Validate selected bank cells and complete raw inference evidence."""
 
+import math
 from pathlib import PurePosixPath
 
 import numpy as np
 from experiments.exp022.checkpoints import public_provenance, resolve_checkpoint
-from experiments.exp041.evidence import _same, finite
-from experiments.exp041.recipe import TRAINING_COMMON_FIELDS
 from pingstore.contracts import PingstoreError, load_json
 
 from . import recipe
+
+
+def finite(value, label, *, minimum=0.0, maximum=None):
+    if (
+        isinstance(value, bool)
+        or not isinstance(value, (int, float))
+        or not math.isfinite(value)
+        or value < minimum
+        or (maximum is not None and value > maximum)
+    ):
+        raise PingstoreError(f"invalid or missing {label}")
+    return float(value)
+
+
+def _same(actual, expected):
+    if isinstance(actual, bool) or isinstance(expected, bool):
+        return type(actual) is type(expected) and actual == expected
+    if isinstance(actual, (int, float)) and isinstance(expected, (int, float)):
+        return bool(np.isclose(actual, expected))
+    if isinstance(actual, list) and isinstance(expected, list):
+        return len(actual) == len(expected) and all(
+            _same(a, b) for a, b in zip(actual, expected)
+        )
+    return actual == expected
+
+
+def checkpoint_tensors(path, train):
+    """Read the final checkpoint; reject extra dynamics rather than adapting them."""
+    import torch
+
+    state = torch.load(path, map_location="cpu", weights_only=True)
+    shapes = recipe.checkpoint_shapes(train)
+    if not isinstance(state, dict) or set(state) != set(shapes):
+        raise PingstoreError("checkpoint must contain exactly the six TR-05 matrices")
+    for name, shape in shapes.items():
+        value = state[name]
+        if (
+            not isinstance(value, torch.Tensor)
+            or value.dtype != torch.float32
+            or tuple(value.shape) != shape
+            or not torch.isfinite(value).all()
+        ):
+            raise PingstoreError(f"invalid checkpoint tensor {name}")
+        if name in ("W_ee.1", "W_ii.1") and torch.count_nonzero(value):
+            raise PingstoreError(f"unsupported same-population recurrence {name}")
+        if name in ("W_ei.1", "W_ie.1") and (value < 0).any():
+            raise PingstoreError(f"negative recurrent weight {name}")
+    return state
 
 
 def training_contract(bank):
     cells = recipe.bank_cells()
     configs = {}
     checkpoints = []
-    common = None
-    varying = {
-        "ei_strength",
-        "trainable_w_ei",
-        "trainable_w_ie",
-    }
     for cell in cells:
         name = cell["cell_name"]
         cfg = load_json(bank / name / "config.json")
-        expected = {
-            "hidden_sizes": [recipe.N_E],
-            "n_hidden": recipe.N_E,
-            "n_inh": recipe.N_I,
-            "model": "ping",
-            "dataset": "mnist",
-            "dt": 0.1,
-            "t_ms": 200.0,
-            "epochs": 50,
-            "max_samples": 7000,
-            "seed": cell["seed"],
-            "tau_gaba_ms": 6.0,
-            "ei_strength": {
-                "frozen_ping": 1.0,
-                "trainable_ping_init": 1.0,
-                "trainable_zero_init": 0.0,
-                "trainable_small_init": 0.1,
-            }[cell["condition"]],
-            "trainable_w_ei": cell["condition"] != "frozen_ping",
-            "trainable_w_ie": cell["condition"] != "frozen_ping",
-            "v_grad_dampen": 1000.0,
-            "w_in": [0.9, 0.09],
-            "w_in_initial_zero_fraction": 0.95,
-            "readout_mode": "mem-mean",
-            "surrogate_slope": 1.0,
-            "readout_w_init_mean": 1.12060546875,
-            "readout_w_init_std": 0.8349609375,
-            "lr": 0.0004,
-            "batch_size": 256,
-            "fr_reg_upper_strength": 0.0,
-            "fr_reg_upper_target_hz": 0.0,
-        }
+        expected = recipe.training_settings(cell)
         for k, v in expected.items():
             if not _same(cfg.get(k), v):
                 raise PingstoreError(f"{name}: training {k} disagrees with recipe")
-        selected = {k: cfg[k] for k in TRAINING_COMMON_FIELDS if k not in varying}
-        if common is None:
-            common = selected
-        elif not _same(common, selected):
-            raise PingstoreError(f"{name}: inconsistent common training recipe")
+        for key, value in recipe.RUNTIME_REQUIREMENTS.items():
+            if not _same(cfg.get(key), value):
+                raise PingstoreError(f"{name}: unsupported runtime setting {key}")
+        for key in ("input_rate", "surrogate_slope", "v_grad_dampen"):
+            finite(cfg.get(key), key, minimum=1e-12)
         for key in ("n_hidden", "n_inh", "n_in", "n_out"):
             if type(cfg.get(key)) is not int or cfg[key] <= 0:
                 raise PingstoreError("invalid training population")
-        split = cfg["dataset_split"]
-        if (
-            split.get("checkpoint_selection_partition") != "validation"
-            or split.get("official_test_used_during_training") is not False
+        split = cfg.get("dataset_split")
+        expected_split = {
+            "checkpoint_selection_partition": "validation",
+            "official_test_used_during_training": False,
+            "optimizer_train_samples": 6300,
+            "validation_samples": 700,
+            "official_test_samples": 10000,
+            "source_train_partition": "official_mnist_train",
+            "source_test_partition": "official_mnist_test",
+        }
+        if not isinstance(split, dict) or any(
+            not _same(split.get(key), value) for key, value in expected_split.items()
         ):
-            raise PingstoreError("training requires held-out checkpoint selection")
+            raise PingstoreError(
+                "training requires the retained train/validation/test split"
+            )
         checkpoint = public_provenance(
             resolve_checkpoint(bank / name, recipe.CHECKPOINT_ROLE)
         )
         if checkpoint["epoch"] != cfg["epochs"] or checkpoint["training_cell"] != name:
             raise PingstoreError("checkpoint identity differs")
-        if cfg["n_in"] != 784:
+        if cfg["n_in"] != 784 or cfg["n_out"] != 10:
             raise PingstoreError("expected MNIST input population")
         configs[name] = cfg
         checkpoints.append(checkpoint)
@@ -113,83 +133,6 @@ def histories(bank, contract):
             raise PingstoreError("invalid selected epoch")
         result[name] = m
     return result
-
-
-def inference_config(config, train, job):
-    keys = (
-        "model",
-        "dt",
-        "dataset",
-        "ei_ratio",
-        "w_in",
-        "readout_mode",
-        "dales_law",
-        "signed_readout",
-        "readout_bias",
-        "adaptive_threshold",
-        "train_leak",
-        "state_clamp",
-        "trainable_w_ee",
-        "trainable_w_ei",
-        "trainable_w_ie",
-        "trainable_w_ii",
-        "n_in",
-        "seed",
-        "w_in_initial_zero_fraction",
-        "recurrent_initial_zero_fraction",
-        "tau_m_e_bounds_ms",
-        "tau_m_i_bounds_ms",
-        "readout_w_init_mean",
-        "readout_w_init_std",
-        "surrogate_slope",
-    )
-    expected = {
-        **{k: train[k] for k in keys},
-        "t_ms": train["t_ms"],
-        "tau_gaba": train["tau_gaba_ms"],
-        "ei_strength": train["ei_strength"],
-        "infer": None if job["kind"] == "weights_dump" else True,
-        "mode": "dump-weights" if job["kind"] == "weights_dump" else "sim",
-        "input": "dataset",
-        "spike_rate": job.get("input_rate", train["input_rate"]),
-        "scale_w_in": 1.0,
-        "scale_w_ei": 1.0,
-        "scale_w_ie": 1.0,
-        "intervention": [],
-        "scale_projection": [],
-        "max_samples": job.get("samples"),
-    }
-    if "sample_index" in job:
-        expected["sample_index"] = job["sample_index"]
-    elif config.get("sample_index") is not None:
-        raise PingstoreError("unexpected single-image selection")
-    if job["kind"] == "weights_dump":
-        for key in (
-            "n_in",
-            "scale_w_in",
-            "scale_w_ei",
-            "scale_w_ie",
-            "intervention",
-            "scale_projection",
-        ):
-            expected.pop(key)
-    for key, value in expected.items():
-        if not _same(config.get(key), value):
-            raise PingstoreError(f"inference configuration differs: {key}")
-    skip = []
-    if (config.get("skip_load") or []) != skip:
-        raise PingstoreError("inference transfer-load policy differs")
-    if config.get("n_hidden") not in (train["n_hidden"], [train["n_hidden"]]):
-        raise PingstoreError("inference hidden population differs")
-    for key, filename in (
-        ("load_weights", "weights_final.pth"),
-        ("load_config", "config.json"),
-    ):
-        if PurePosixPath(config.get(key, "")).parts[-2:] != (
-            job["cell_name"],
-            filename,
-        ):
-            raise PingstoreError("inference checkpoint identity differs")
 
 
 def metric(path, train, job):

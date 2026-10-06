@@ -1,20 +1,22 @@
 """Compute-only inference, retaining counts and exact illustrative recordings."""
 
 import hashlib
-import shutil
-import subprocess
-import sys
-import tempfile
-from pathlib import Path
+import os
 
 import numpy as np
 import torch
+from experiments.exp022.checkpoints import resolve_checkpoint
+from experiments.helpers import checkpoint_graph
 from experiments.helpers.datasets import load_mnist_split
 from pingstore.contracts import (
     PingstoreError,
     file_sha256,
+    load_json,
     write_json_atomic,
 )
+from snnlab.sim.execution import resolve_device
+from snnlab.sim.segments import BoundarySchedule, DecisionSegments, ResetVoltage
+from snnlab.sim.streaming import RecordingSpec, SignalRecording
 
 from . import recipe
 from .recipe import DT_MS, N_CLASSES, N_INPUT
@@ -102,94 +104,92 @@ class Inference:
 
     def simulate(self, train, spikes, resets, attachments, output_kind):
         attachments.mkdir(parents=True)
-        with tempfile.TemporaryDirectory(
-            prefix=".simulation-", dir=self.directory
-        ) as tmp:
-            scratch = Path(tmp)
-            reset = np.zeros(len(spikes), dtype=np.bool_)
-            reset[list(resets)] = True
-            input_path = scratch / "input.npz"
-            np.savez_compressed(
-                input_path, input_spikes=spikes.cpu().numpy(), readout_reset=reset
-            )
-            output = scratch / "output"
-            command = [
-                sys.executable,
-                "-m",
-                "snnlab.sim",
-                "sim",
-                *recipe.refractory_args(),
-                "--load-config",
-                str(train / "config.json"),
-                "--load-weights",
-                str(train / "weights.pth"),
-                "--device",
-                "auto",
-                "--n-in",
-                str(N_INPUT),
-                "--input-file",
-                str(input_path),
-                "--outputs",
-                output_kind,
-                "--out-dir",
-                str(output),
-            ]
-            write_json_atomic(
-                attachments / "command.json",
-                {
-                    "command": command,
-                    "input_sha256": file_sha256(input_path),
-                    "input_array": array_record(spikes.cpu().numpy()),
-                    "readout_reset_steps": list(map(int, resets)),
-                    "dataset": self.dataset,
-                },
-            )
-            with (
-                (attachments / "stdout.log").open("w") as stdout,
-                (attachments / "stderr.log").open("w") as stderr,
-            ):
-                subprocess.run(
-                    command,
-                    cwd=Path(__file__).resolve().parents[2],
-                    check=True,
-                    stdout=stdout,
-                    stderr=stderr,
+        training = load_json(train / "config.json")
+        checkpoint = resolve_checkpoint(train, recipe.CHECKPOINT_ROLE)
+        state = checkpoint_graph.checkpoint_tensors(checkpoint["path"], training)
+        bundle = recipe.author_network(training)
+        device = resolve_device(os.environ.get("PINGLAB_DEVICE", "auto"))
+        model = checkpoint_graph.bind_model(bundle, training, state, device=device)
+        schedule = BoundarySchedule(tuple(map(int, resets)))
+        segments = DecisionSegments(
+            schedule,
+            len(spikes),
+            population_totals=("E", "I"),
+            output_spike_counts=("readout",),
+        )
+        recording = (
+            RecordingSpec(
+                tuple(
+                    SignalRecording(f"{label}.spikes", kind="spike_events")
+                    for label in ("E", "I", "readout")
                 )
-            filename = output_kind + ".npz"
-            with np.load(output / filename, allow_pickle=False) as archive:
-                raw = {k: archive[k].copy() for k in archive.files}
-            if (
-                not np.isclose(float(raw["dt"]), DT_MS)
-                or int(raw["T"]) != len(spikes)
-                or int(raw["n_trials"]) != spikes.shape[1]
-            ):
-                raise PingstoreError("simulator dimensions or timestep differ")
-            if output_kind == "spike_summary":
-                starts, stops = list(resets), [*list(resets)[1:], len(spikes)]
-                if (
-                    raw["segment_starts"].tolist() != starts
-                    or raw["segment_stops"].tolist() != stops
-                ):
+            )
+            if output_kind == "rasters"
+            else None
+        )
+        with torch.inference_mode():
+            result = model(
+                {"drive": spikes.to(device)},
+                diagnostics=False,
+                recording=recording,
+                resets=(ResetVoltage("readout", schedule),),
+                decisions=segments,
+            )
+        starts, stops = list(resets), [*list(resets)[1:], len(spikes)]
+        raw = {
+            "dt": np.float32(DT_MS),
+            "T": np.int32(len(spikes)),
+            "n_trials": np.int32(spikes.shape[1]),
+            "n_e": np.int32(training["n_hidden"]),
+            "n_i": np.int32(training["n_inh"]),
+        }
+        if output_kind == "spike_summary":
+            raw.update(
+                segment_starts=np.array(starts, dtype=np.int64),
+                segment_stops=np.array(stops, dtype=np.int64),
+                e_counts=np.zeros((spikes.shape[1], len(resets)), dtype=np.int64),
+                i_counts=np.zeros((spikes.shape[1], len(resets)), dtype=np.int64),
+                out_counts=np.zeros(
+                    (spikes.shape[1], len(resets), N_CLASSES), dtype=np.int64
+                ),
+            )
+            seen = set()
+            for row in result.decisions:
+                index = starts.index(row["start_step"])
+                batch = row["batch"]
+                if row["end_step"] != stops[index] or (batch, index) in seen:
                     raise PingstoreError(
-                        "simulator did not preserve decision boundaries"
+                        "decision coverage differs from requested boundaries"
                     )
-                shape = (spikes.shape[1], len(resets))
-                for key in ("e_counts", "i_counts", "out_counts"):
-                    expected = (*shape, 10) if key == "out_counts" else shape
-                    if (
-                        raw[key].shape != expected
-                        or raw[key].dtype.kind not in "iu"
-                        or np.any(raw[key] < 0)
-                    ):
-                        raise PingstoreError("invalid simulator counts")
-            elif int(raw["n_e"]) != 1024 or int(raw["n_i"]) != 256:
-                raise PingstoreError("simulator populations differ")
-            for path in output.iterdir():
-                if path.name != filename:
-                    if not path.is_file() or path.is_symlink():
-                        raise PingstoreError("unexpected simulator attachment")
-                    shutil.copyfile(path, attachments / path.name)
-            return raw
+                seen.add((batch, index))
+                raw["e_counts"][batch, index] = row["population_totals"]["E"]
+                raw["i_counts"][batch, index] = row["population_totals"]["I"]
+                raw["out_counts"][batch, index] = row["output_spike_counts"]["readout"]
+            if len(seen) != spikes.shape[1] * len(resets):
+                raise PingstoreError("missing decision segment")
+        else:
+            for prefix, label in (("e", "E"), ("i", "I"), ("out", "readout")):
+                coordinates = result.recorded_signals[f"{label}.spikes"].cpu().numpy()
+                for field, axis in (("t", 0), ("trial", 1), ("cell", 2)):
+                    raw[f"{prefix}_{field}"] = coordinates[:, axis].astype(np.int32)
+        write_json_atomic(
+            attachments / "request.json",
+            {
+                "recipe": self.cfg,
+                "training": training,
+                "checkpoint": {k: v for k, v in checkpoint.items() if k != "path"},
+                "input_array": array_record(spikes.cpu().numpy()),
+                "readout_reset_steps": list(map(int, resets)),
+                "reset_policy": "readout voltage only; preserve output synapse, hidden state and delays",
+                "recording": output_kind,
+                "dataset": self.dataset,
+                "graph_digest": bundle.manifest["graph_digest"],
+                "device": device,
+            },
+        )
+        if file_sha256(checkpoint["path"]) != checkpoint["sha256"]:
+            raise PingstoreError("checkpoint changed during streaming inference")
+        return raw
 
     def condition(self, job):
         cfg = self.cfg

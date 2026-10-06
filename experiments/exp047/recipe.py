@@ -23,15 +23,6 @@ def refractory_configuration() -> dict:
     }
 
 
-def refractory_args() -> list[str]:
-    return [
-        "--refractory-e-ms",
-        str(REFRACTORY_E_MS),
-        "--refractory-i-ms",
-        str(REFRACTORY_I_MS),
-        "--refractory-policy",
-        REFRACTORY_POLICY,
-    ]
 
 
 def duration_configuration(duration_ms: float, dt_ms: float) -> dict:
@@ -111,38 +102,34 @@ def jobs(cfg):
     return result
 
 
-def simulation_args(cfg, item, output):
-    return [
-        "sim",
-        *refractory_args(),
-        "--input",
-        "synthetic-spikes",
-        "--model",
-        "ping",
-        "--n-hidden",
-        str(cfg["n_e"]),
-        "--n-in",
-        str(cfg["n_in"]),
-        "--n-inh",
-        str(item["n_i"]),
-        "--ei-strength",
-        str(cfg["g_ei_total"]),
-        "--ei-ratio",
-        str(item["g_ie_total"] / cfg["g_ei_total"]),
-        "--w-in",
-        str(cfg["w_in_mean"]),
-        "--w-in-initial-zero-fraction",
-        str(cfg["w_in_initial_zero_fraction"]),
-        "--input-rate",
-        str(cfg["input_rate_hz"]),
-        "--n-batch",
-        str(cfg["n_batch"]),
-        "--t-ms",
-        str(cfg["t_ms"]),
-        "--dt",
-        str(cfg["dt_ms"]),
-        "--seed",
-        str(item["seed"]),
-        "--out-dir",
-        str(output),
-    ]
+
+
+BIOPHYSICS = {"capacitance_e_nf":1.0,"capacitance_i_nf":0.5,
+    "leak_e_us":0.05,"leak_i_us":0.10,"resting_mv":-65.0,"threshold_mv":-50.0,
+    "reset_mv":-65.0,"readout_tau_ms":2.0,"readout_threshold":1.0}
+
+
+def network_settings(cfg, item):
+    return {
+        "n_in": cfg["n_in"],
+        "n_hidden": cfg["n_e"],
+        "n_inh": item["n_i"],
+        "n_out": 10,
+        "dt": cfg["dt_ms"],
+        "tau_ampa_ms": 2.0,
+        "tau_gaba_ms": 9.0,
+        "seed": item["seed"],
+        "v_grad_dampen": 80.0,
+        "surrogate_slope": 1.0,
+        "ei_strength": cfg["g_ei_total"],
+        "ei_ratio": item["g_ie_total"] / cfg["g_ei_total"],
+        "w_in": [cfg["w_in_mean"], cfg["w_in_mean"] * 0.1],
+        "w_in_initial_zero_fraction": cfg["w_in_initial_zero_fraction"],
+        "readout_w_out_scale": 1.0,
+    }
+
+
+def author_network(cfg, item):
+    from experiments.helpers.checkpoint_graph import author_network as author
+
+    return author(SLUG,network_settings(cfg,item),BIOPHYSICS,refractory_configuration())

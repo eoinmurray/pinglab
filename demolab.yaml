@@ -27,6 +27,8 @@ url_inputs:
   source.exp099: { type: path, root: .pingstore/runs }
   source.exp110: { type: path, root: .pingstore/runs }
   source.exp117: { type: path, root: .pingstore/runs }
+  source.exp122: { type: path, root: .pingstore/runs }
+  source.exp123: { type: path, root: .pingstore/runs }
 
 index:
   mode: expanded

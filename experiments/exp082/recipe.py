@@ -69,15 +69,6 @@ def refractory_configuration() -> dict:
     }
 
 
-def refractory_args() -> list[str]:
-    return [
-        "--refractory-e-ms",
-        str(REFRACTORY_E_MS),
-        "--refractory-i-ms",
-        str(REFRACTORY_I_MS),
-        "--refractory-policy",
-        REFRACTORY_POLICY,
-    ]
 
 
 def refractory_execution_configuration(dt_ms: float) -> dict:
@@ -245,3 +236,19 @@ def jobs(cfg):
 
 def infer_jobs():
     return [j["id"] for j in jobs(environment_configuration())]
+
+
+BIOPHYSICS = {
+    "capacitance_e_nf": 1.0, "capacitance_i_nf": 0.5,
+    "leak_e_us": 0.05, "leak_i_us": 0.10,
+    "resting_mv": -65.0, "threshold_mv": -50.0, "reset_mv": -65.0,
+    "readout_tau_ms": 2.0, "readout_threshold": 1.0,
+}
+
+
+def author_network(training, *, observables=()):
+    from experiments.helpers.checkpoint_graph import author_network as author
+
+    return author(
+        SLUG, training, BIOPHYSICS, refractory_configuration(), observables=observables
+    )

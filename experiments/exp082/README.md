@@ -257,3 +257,18 @@ Future normal compute executions produce both the grid and showcase in one run.
 The standalone illustration helper remains available for explicit older split
 workflows, but is not part of the normal three-stage command sequence. No stage
 launches another stage, and no publication is performed.
+
+
+## Migration completion audit — 2026-10-06
+
+Native readout-only voltage resets and DecisionSegments preserve hidden state, output synapse semantics and half-open decision windows. Online E/I/output counts serve quantitative conditions; native sparse events serve illustrative streams. Ordered shared image bank, Cantor-paired encoding seeds, batching, candidate selection and uncertainty are unchanged. Historical aggregate/showcase readers remain.
+
+Implementation migration is complete under static verification only. Python parsing,
+lint, diff review and read-only Pingstore discovery were performed. Existing
+synthetic fixtures were adapted where their CLI seams became obsolete; none
+were executed. No experiment stage, new run, regenerated result, commit or push
+was performed. Numerical parity, backend execution, performance and rendering
+remain unverified. The implementation marker and article title suffix were
+removed; authored prose/results/dates and review decisions were preserved.
+Writing Guide 36.0.0 availability/version tags were applied using validated local
+presentation discovery.

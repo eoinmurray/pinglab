@@ -8,11 +8,12 @@
 #let data-file = data-file.with(article: "exp038")
 
 #let meta = (
-  title: "Switching On the Inhibitory Loop (legacy)",
+  title: "Switching On the Inhibitory Loop",
   created_at: "2026-05-30T00:00:00Z",
   updated_at: "2026-08-31T00:00:00Z",
   description: "Enabling an inhibitory loop after feedforward training reduced excitatory firing but lowered classification accuracy; the experiment does not isolate a benefit of gamma timing.",
   collection: "gamma-gated-sparsity",
+  tags: ("data", "v36.0.0"),
 )
 
 #let inputs = ("exp038",)
@@ -101,7 +102,7 @@
 
   #journal-methods(
     orientation: [
-  We reused networks from the #link("/exp022/")[exp022] — #link("/exp022/")[_Training Runs (legacy)_] and
+  We reused networks from the #link("/exp022/")[exp022] — #link("/exp022/")[_Training Runs_] and
   reanalysed recorded inference observations. No new training or simulation
   was performed for this account.
     ],
@@ -175,7 +176,7 @@
   final-epoch validation accuracy, final-epoch training E rate, and across-seed
   means and SEM; these are distinct from the inference measurements above.
   The loop-transfer comparison used only the three unpenalised feedforward
-  classifiers. The #link("/exp025/")[exp025] — #link("/exp025/")[_Accuracy and Firing Rate With and Without Inhibition (legacy)_] describes the
+  classifiers. The #link("/exp025/")[exp025] — #link("/exp025/")[_Accuracy and Firing Rate With and Without Inhibition_] describes the
   broader training design.
 
   Feedforward and loop-enabled training used voltage-gradient damping of 1 and

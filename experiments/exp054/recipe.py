@@ -25,21 +25,10 @@ def refractory_configuration() -> dict:
     }
 
 
-def refractory_args() -> list[str]:
-    return [
-        "--refractory-e-ms",
-        str(REFRACTORY_E_MS),
-        "--refractory-i-ms",
-        str(REFRACTORY_I_MS),
-        "--refractory-policy",
-        REFRACTORY_POLICY,
-    ]
-
-
-def configuration(*, smoke=False, version=7):
-    if version != 7:
+def configuration(*, smoke=False, version=8):
+    if version not in (7, 8):
         raise ValueError("unsupported exp054 recipe version")
-    return {
+    cfg = {
         "schema": f"exp054.recipe/v{version}",
         **refractory_configuration(),
         "profile": "smoke" if smoke else "production",
@@ -66,14 +55,34 @@ def configuration(*, smoke=False, version=7):
         "display_i": 48,
         "display_stride": 1 if smoke else 2,
     }
+    if version == 8:
+        cfg.update(
+            executor="snnlab.sim.GraphExecutor",
+            biophysics=dict(BIOPHYSICS),
+            initialization_stream="exp054 ordered CPU draws/v1",
+            encoder_seed=43,
+            weight_initialization={
+                "relative_sd": 0.1,
+                "discarded_readout": {"width": 10, "mean": 5.1, "sd": 3.8},
+                "discarded_ee": {"mean": 0.0, "sd": 0.0},
+            },
+            reset="fresh state per probe; resting voltage; zero conductances and refractory",
+        )
+    return cfg
 
 
 def validate(cfg):
-    if cfg not in tuple(configuration(smoke=smoke) for smoke in (False, True)):
+    if cfg not in tuple(
+        configuration(smoke=smoke, version=version)
+        for smoke in (False, True)
+        for version in (7, 8)
+    ):
         from pingstore.contracts import PingstoreError
 
         raise PingstoreError("inconsistent exp054 recipe")
     return cfg
+
+
 def job(cfg, wei, wie, rate, private=True):
     return {
         "id": f"{'priv' if private else 'shared'}_wei{wei:g}_wie{wie:g}_r{rate:g}_T{cfg['sim_ms']:g}",
@@ -108,60 +117,120 @@ def turnon_points(cfg):
     ]
 
 
-def simulation_args(cfg, item, output):
-    args = [
-        "sim",
-        *refractory_args(),
-        "--input",
-        "synthetic-spikes",
-        "--model",
-        "ping",
-        "--n-hidden",
-        str(cfg["n_e"]),
-        "--n-inh",
-        str(cfg["n_i"]),
-        "--n-in",
-        str(cfg["n_e"] if item["private"] else cfg["shared_n_in"]),
-        "--w-ei-mean",
-        str(item["wei"]),
-        "--w-ie-mean",
-        str(item["wie"]),
-        "--input-rate",
-        str(item["rate_hz"]),
-        "--n-batch",
-        "1",
-        "--t-ms",
-        str(cfg["sim_ms"]),
-        "--dt",
-        str(cfg["dt_ms"]),
-        "--seed",
-        str(cfg["seed"]),
-        "--outputs",
-        "rasters",
-        "--out-dir",
-        str(output),
-    ]
-    if "tau_gaba_ms" in cfg:
-        args += ["--tau-gaba", str(cfg["tau_gaba_ms"])]
+BIOPHYSICS = {
+    "capacitance_e_nf": 1.0,
+    "capacitance_i_nf": 0.5,
+    "leak_e_us": 0.05,
+    "leak_i_us": 0.10,
+    "resting_mv": -65.0,
+    "threshold_mv": -50.0,
+    "reset_mv": -65.0,
+    "tau_ampa_ms": 2.0,
+    "reversal_ampa_mv": 0.0,
+    "reversal_gaba_mv": -80.0,
+}
+
+
+def author_network(cfg, item):
+    from experiments.helpers.ping import build_ping
+    from snnlab import lang
+    from snnlab.sim.timing import refractory_steps
+
+    b = cfg["biophysics"]
+    net = lang.Network("exp054_rhythmicity", dt=cfg["dt_ms"] * lang.ms)
+    channels = cfg["n_e"] if item["private"] else cfg["shared_n_in"]
+    drive = net.input(
+        "drive", shape=("time", "batch", channels), signal_type="spikes", unit="spike"
+    )
+    neurons = {}
+    for label in ("e", "i"):
+        neurons[label] = lang.COBA_LIF(
+            tau_mem=b[f"capacitance_{label}_nf"] / b[f"leak_{label}_us"] * lang.ms,
+            capacitance_nf=b[f"capacitance_{label}_nf"],
+            leak_us=b[f"leak_{label}_us"],
+            resting_mv=b["resting_mv"],
+            threshold_mv=b["threshold_mv"],
+            reset_mv=b["reset_mv"],
+            refractory_steps=refractory_steps(
+                cfg[f"refractory_{label}_ms"],
+                cfg["dt_ms"],
+                policy=cfg["refractory_policy"],
+            ),
+            voltage_grad_dampen=80.0,
+        )
+    build_ping(
+        net,
+        source=drive,
+        n_e=cfg["n_e"],
+        n_i=cfg["n_i"],
+        neuron_e=neurons["e"],
+        neuron_i=neurons["i"],
+        ampa=lang.AMPA(tau=b["tau_ampa_ms"] * lang.ms),
+        gaba=lang.GABA(tau=cfg["tau_gaba_ms"] * lang.ms),
+        input_weight=lang.Constant(0.0),
+        ei_weight=lang.Constant(0.0),
+        ie_weight=lang.Constant(0.0),
+        recurrent_delay=cfg["dt_ms"] * lang.ms,
+        initialization_scaling="direct",
+    )
+    return lang.compile(net, target="tools/snnsim")
+
+
+def initial_parameters(cfg, item):
+    """Preserve the probe's ordered CPU stream without a simulator or adapter.
+
+    The discarded output and zero E→E draws precede reciprocal weights in
+    the original protocol. Private identity replacement occurs after drawing
+    the input matrix; shared inputs also consume compensated Bernoulli zeroing.
+    Runtime matrices use [source, target] orientation.
+    """
+    import torch
+
+    generator = torch.Generator().manual_seed(cfg["seed"])
+    n_e, n_i = cfg["n_e"], cfg["n_i"]
+    channels = n_e if item["private"] else cfg["shared_n_in"]
+
+    def normal(shape, mean, sd):
+        return (
+            torch.randn(*shape, generator=generator).mul_(sd).add_(mean).clamp_(min=0)
+        )
+
+    initialization = cfg["weight_initialization"]
+    relative_sd = initialization["relative_sd"]
+    mean = cfg["private_w_in"] if item["private"] else cfg["shared_w_in"]
+    external = normal((channels, n_e), mean, mean * relative_sd)
+    if not item["private"]:
+        external = (
+            external
+            * (
+                torch.rand(channels, n_e, generator=generator)
+                > cfg["shared_zero_fraction"]
+            ).float()
+        )
+        external = external / (1.0 - cfg["shared_zero_fraction"])
+    external = external / channels
+    readout = initialization["discarded_readout"]
+    normal((n_e, readout["width"]), readout["mean"], readout["sd"])
+    ee = initialization["discarded_ee"]
+    normal((n_e, n_e), ee["mean"], ee["sd"])
+    ei = normal((n_e, n_i), item["wei"], item["wei"] * relative_sd) / n_e
+    ie = normal((n_i, n_e), item["wie"], item["wie"] * relative_sd) / n_i
     if item["private"]:
-        args += ["--private-w-in", "--w-in", str(cfg["private_w_in"])]
-    else:
-        args += [
-            "--w-in",
-            str(cfg["shared_w_in"]),
-            "--w-in-initial-zero-fraction",
-            str(cfg["shared_zero_fraction"]),
-        ]
-    return args + [
-        "--recording-mode",
-        "spikes",
-        "--recording-start-step",
-        str(int(cfg["burn_ms"] / cfg["dt_ms"])),
-        "--output-fields",
-        "e_trial",
-        "e_t",
-        "e_cell",
-        "i_trial",
-        "i_t",
-        "i_cell",
-    ]
+        external = torch.eye(n_e) * cfg["private_w_in"]
+    return {"input_to_E.weight": external, "E_to_I.weight": ei, "I_to_E.weight": ie}
+
+
+def recording(cfg):
+    from snnlab.sim.streaming import MeasurementWindow, RecordingSpec, SignalRecording
+    from snnlab.sim.timing import duration_steps
+
+    return RecordingSpec(
+        signals=tuple(
+            SignalRecording(f"{label}.spikes", kind="spike_events")
+            for label in ("E", "I")
+        ),
+        window=MeasurementWindow(
+            duration_steps(cfg["burn_ms"], cfg["dt_ms"]),
+            duration_steps(cfg["sim_ms"], cfg["dt_ms"]),
+        ),
+    )

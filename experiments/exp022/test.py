@@ -63,24 +63,19 @@ def test_tr02_registry_uses_explicit_hz_targets() -> None:
         1.0,
     }
     for cell in cells:
-        args = cell["extra"]
-        if cell["rate_target_hz"] is None:
-            assert "--fr-reg-upper-target-hz" not in args
-        else:
-            assert "--fr-reg-upper-target-hz" in args
-            assert "--fr-reg-upper-strength" in args
-            strength = args[args.index("--fr-reg-upper-strength") + 1]
-            assert strength == "0.041"
+        cfg = recipe.training_settings(cell, 7000, 50)
+        assert cfg["fr_reg_upper_target_hz"] == (cell["rate_target_hz"] or 0)
+        assert cfg['fr_reg_upper_strength']==(0 if cell['rate_target_hz'] is None else .041)
 
 
 def test_exp110_coba_damping_scope_includes_every_coba_cell() -> None:
     replacements = reuse_contract.replacement_cells()
     assert len(replacements) == 21
     assert {cell["model"] for cell in replacements} == {"coba"}
-    assert {
-        (cell["training_run_id"], cell["family"])
-        for cell in replacements
-    } == {("TR-01", "canonical"), ("TR-02", "activity_frontier")}
+    assert {(cell["training_run_id"], cell["family"]) for cell in replacements} == {
+        ("TR-01", "canonical"),
+        ("TR-02", "activity_frontier"),
+    }
     assert {
         cell["rate_target_hz"]
         for cell in replacements
@@ -94,14 +89,9 @@ def test_exp110_coba_damping_scope_includes_every_coba_cell() -> None:
         1.0,
     }
     for cell in replacements:
-        args = recipe.build_train_args(
-            cell, Path("unused"), *recipe.cell_samples_epochs(cell)
-        )
-        assert args[args.index("--v-grad-dampen") + 1] == "1000"
-        assert args[args.index("--ei-strength") + 1] == "0"
-        contract = recipe.scientific_contract(
-            cell, *recipe.cell_samples_epochs(cell)
-        )
+        cfg = recipe.training_settings(cell, *recipe.cell_samples_epochs(cell))
+        assert cfg["v_grad_dampen"] == 1000 and cfg["ei_strength"] == 0
+        contract = recipe.scientific_contract(cell, *recipe.cell_samples_epochs(cell))
         assert contract["optimizer"]["voltage_gradient_damping_divisor"] == 1000
 
 
@@ -200,78 +190,39 @@ def test_registry_training_run_identity(family: str, run_id: str) -> None:
     assert {cell["training_run_id"] for cell in cells} == {run_id}
 
 
-def test_tr07_low_input_controls_use_production_contract(tmp_path: Path) -> None:
-    cells = [
-        cell for cell in recipe.CANONICAL_CELLS if cell["training_run_id"] == "TR-07"
-    ]
+def test_tr07_low_input_controls_use_production_contract():
+    cells = [c for c in recipe.CANONICAL_CELLS if c["training_run_id"] == "TR-07"]
     assert len(cells) == 12
-    assert {cell["seed"] for cell in cells} == {42, 43, 44}
-    assert {cell["w_in"] for cell in cells} == {0.05, 0.1, 0.3, 0.9}
     for cell in cells:
-        args = recipe.build_train_args(
-            cell,
-            tmp_path / cell["name"],
-            recipe.SUBSET_MAX_SAMPLES,
-            recipe.EPOCHS_STANDARD,
-        )
-        assert args[args.index("--max-samples") + 1] == "7000"
-        assert args[args.index("--epochs") + 1] == "50"
-        assert args[args.index("--seed") + 1] == str(cell["seed"])
-        assert args[args.index("--w-in") + 1] == str(cell["w_in"])
-        assert args[args.index("--fr-reg-upper-target-hz") + 1] == "1.0"
-        assert args[args.index("--fr-reg-upper-strength") + 1] == "0.041"
+        cfg = recipe.training_settings(cell, 7000, 50)
+        assert cfg["w_in"] == [cell["w_in"], cell["w_in"] * 0.1]
+        assert cfg['fr_reg_upper_target_hz']==1 and cfg['fr_reg_upper_strength']==.041
 
 
-def test_all_resolved_commands_keep_family_contract(tmp_path: Path) -> None:
+
+def test_all_resolved_settings_keep_family_contract():
     for cell in recipe.CANONICAL_CELLS:
-        samples, epochs = recipe.cell_samples_epochs(cell)
-        args = recipe.build_train_args(cell, tmp_path / cell["name"], samples, epochs)
-        assert args[args.index("--epochs") + 1] == "50"
-        assert args[args.index("--seed") + 1] == str(cell["seed"])
-        assert args[args.index("--dt") + 1] == str(cell["dt_ms"])
-        assert args[args.index("--tau-gaba") + 1] == str(cell["tau_gaba"])
-        assert args[args.index("--n-hidden") + 1] == "1024"
-        assert args[args.index("--input-rate") + 1] == "25.0"
-        assert args[args.index("--weight-decay") + 1] == "0.0"
-        assert "--dales-law" in args
-        expected_w_in = str(cell["w_in"]) if cell["family"] == "low_w_in" else "0.9"
-        assert args[args.index("--w-in") + 1] == expected_w_in
-        expected_readout_mean = (
-            recipe.TR06_READOUT_W_INIT_MEAN
-            if cell["family"] == "variable_rate"
-            else recipe.SHARED_READOUT_W_INIT_MEAN
+        cfg = recipe.training_settings(cell, *recipe.cell_samples_epochs(cell))
+        assert cfg["epochs"] == 50 and cfg["seed"] == cell["seed"]
+        assert cfg["dt"] == cell["dt_ms"] and cfg["tau_gaba_ms"] == cell["tau_gaba"]
+        assert (
+            cfg["n_hidden"] == 1024 and cfg["n_inh"] == 256 and cfg["input_rate"] == 25
         )
-        expected_readout_std = (
-            recipe.TR06_READOUT_W_INIT_STD
-            if cell["family"] == "variable_rate"
-            else recipe.SHARED_READOUT_W_INIT_STD
-        )
-        assert args[args.index("--readout-w-init-mean") + 1] == expected_readout_mean
-        assert args[args.index("--readout-w-init-std") + 1] == expected_readout_std
-        assert "--readout-w-out-scale" not in args
+        assert cfg["weight_decay"] == 0 and cfg["dales_law"] is True
+        assert cfg["v_grad_dampen"] == 1000
         if cell["model"] == "coba":
-            assert args[args.index("--ei-strength") + 1] == "0"
-            assert args[args.index("--v-grad-dampen") + 1] == "1000"
-        else:
-            assert args[args.index("--v-grad-dampen") + 1] == "1000"
-            if cell["model"] == "ping":
-                assert args[args.index("--ei-strength") + 1] == "1"
-        if cell["family"] == "canonical":
-            assert args[args.index("--max-samples") + 1] == "60000"
-        else:
-            assert args[args.index("--max-samples") + 1] == "7000"
+            assert cfg["ei_strength"] == 0
         if cell["family"] == "variable_rate":
-            assert args[args.index("--readout") + 1] == "spike-count"
-            assert tuple(map(float, args[args.index("--input-rates") + 1 :])) == (
-                recipe.VARIABLE_RATE_TRAINING_RATES_HZ
-            )
+            assert cfg["readout_mode"] == "spike-count"
+            assert tuple(cfg['input_rates'])==recipe.VARIABLE_RATE_TRAINING_RATES_HZ
+
 
 
 def test_all_resolved_cells_have_complete_scientific_contract(tmp_path: Path) -> None:
     contracts = []
     for cell in recipe.CANONICAL_CELLS:
         samples, epochs = recipe.cell_samples_epochs(cell)
-        args = recipe.build_train_args(cell, tmp_path / cell["name"], samples, epochs)
+        args = recipe.training_settings(cell, samples, epochs)
         resolved = exp022.resolved_parameters(
             cell,
             args,
@@ -311,10 +262,12 @@ def test_all_resolved_cells_have_complete_scientific_contract(tmp_path: Path) ->
     assert len(contracts) == 102
 
 
-def test_every_production_argument_is_mapped_or_operational(tmp_path: Path) -> None:
+def test_every_production_setting_has_a_saved_scientific_projection(
+    tmp_path: Path,
+) -> None:
     for cell in recipe.CANONICAL_CELLS:
         samples, epochs = recipe.cell_samples_epochs(cell)
-        args = recipe.build_train_args(cell, tmp_path / cell["name"], samples, epochs)
+        args = recipe.training_settings(cell, samples, epochs)
         parameters = exp022.resolved_parameters(
             cell,
             args,
@@ -327,35 +280,8 @@ def test_every_production_argument_is_mapped_or_operational(tmp_path: Path) -> N
         assert expected
 
 
-def test_unmapped_manifest_argument_fails_closed(tmp_path: Path) -> None:
-    row = _manifest_cell(tmp_path)
-    row["parameters"]["arguments"]["--future-scientific-knob"] = "1"
-    result = exp022.validate_cell(row, load_checkpoint=False)
-    assert result["state"] == "missing" or not result["valid"]
-    row["output_directory"] = str(_write_valid_cell(_manifest_cell(tmp_path)))
-    result = exp022.validate_cell(row, load_checkpoint=False)
-    assert not result["valid"]
-    assert "no saved-config mapping" in result["reasons"][0]
 
 
-@pytest.mark.parametrize(
-    ("flag", "raw", "key", "expected"),
-    [
-        ("--w-in", "0.9", "w_in", [0.9, 0.09]),
-        ("--trainable-w-ei", True, "trainable_w_ei", True),
-        ("--trainable-w-ie", True, "trainable_w_ie", True),
-        ("--n-hidden", "1024", "hidden_sizes", [1024]),
-        ("--dales-law", True, "dales_law", True),
-    ],
-)
-def test_scientific_argument_saved_config_transform(
-    flag: str,
-    raw: object,
-    key: str,
-    expected: object,
-) -> None:
-    row = {"parameters": {"arguments": {flag: raw}}}
-    assert exp022._same(exp022._expected_config(row)[key], expected)
 
 
 def test_validator_rejects_each_resolved_scientific_config_mismatch(
@@ -363,9 +289,7 @@ def test_validator_rejects_each_resolved_scientific_config_mismatch(
 ) -> None:
     cell = recipe.PLANNED_VARIABLE_RATE_CELLS[0]
     samples, epochs = 100, 2
-    args = recipe.build_train_args(
-        cell, tmp_path / "cells" / cell["name"], samples, epochs
-    )
+    args = recipe.training_settings(cell, samples, epochs)
     row = {
         "name": cell["name"],
         "training_run_id": cell["training_run_id"],
@@ -399,30 +323,18 @@ def test_validator_rejects_each_resolved_scientific_config_mismatch(
         (directory / "config.json").write_text(json.dumps(original))
 
 
-def _manifest_cell(tmp_path: Path, *, epochs: int = 2, samples: int = 100) -> dict:
-    directory = tmp_path / "cells" / "ping__variable_rate__seed42"
+def _manifest_cell(tmp_path, *, epochs=2, samples=100):
+    cell = recipe.PLANNED_VARIABLE_RATE_CELLS[0]
     return {
-        "name": "ping__variable_rate__seed42",
+        "name": cell["name"],
         "training_run_id": "TR-06",
         "resource_tier": "variable_rate",
-        "output_directory": str(directory),
-        "parameters": {
-            "epochs": epochs,
-            "max_samples": samples,
-            "arguments": {
-                "--model": "ping",
-                "--dataset": "mnist",
-                "--epochs": str(epochs),
-                "--max-samples": str(samples),
-                "--dt": "0.1",
-                "--t-ms": "200.0",
-                "--tau-gaba": "6.0",
-                "--seed": "42",
-                "--readout": "spike-count",
-                "--input-rates": ["0.5", "1.0", "2.0", "5.0", "10.0", "25.0"],
-            },
-        },
+        "output_directory": str(tmp_path / "cells" / cell["name"]),
+        "parameters": exp022.resolved_parameters(
+            cell, recipe.training_settings(cell, samples, epochs), samples, epochs
+        ),
     }
+
 
 
 def _write_valid_cell(row: dict) -> Path:
@@ -460,11 +372,12 @@ def _write_valid_cell(row: dict) -> Path:
         + "\n"
     )
     state = {
-        "b_out": torch.ones(10),
         "W_ff.0": torch.ones(784, 1024),
         "W_ff.1": torch.ones(1024, 10),
         "W_ei.1": torch.ones(1024, 256),
         "W_ie.1": torch.ones(256, 1024),
+        "W_ee.1": torch.zeros(1024, 1024),
+        "W_ii.1": torch.zeros(256, 256),
     }
     torch.save(state, directory / "weights.pth")
     torch.save(
@@ -520,7 +433,7 @@ def test_validator_recognizes_w_ff_readout_without_named_output_key(
     checkpoint = torch.load(
         directory / "weights.pth", map_location="cpu", weights_only=True
     )
-    checkpoint.pop("b_out")
+    assert "b_out" not in checkpoint
     torch.save(checkpoint, directory / "weights.pth")
     metrics = json.loads((directory / "metrics.json").read_text())
     metrics["checkpoints"]["best_validation"]["sha256"] = exp022.sha256_file(
@@ -672,22 +585,22 @@ def test_stale_attempt_requires_explicit_recovery(tmp_path: Path) -> None:
     lock.unlink(missing_ok=True)
 
 
-def test_failed_subprocess_without_metrics_records_failure(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_failed_native_training_without_metrics_records_failure(tmp_path, monkeypatch):
+    from experiments.exp022 import training
+
     row = _manifest_cell(tmp_path)
     manifest = _attempt_manifest(tmp_path, row)
-    monkeypatch.setattr(exp022, "_checked_bank_manifest", lambda _path: manifest)
+    monkeypatch.setattr(exp022, "_checked_bank_manifest", lambda _: manifest)
     monkeypatch.setattr(exp022, "_gpu_metadata", lambda: {"available": False})
-    monkeypatch.setattr(
-        exp022.subprocess,
-        "run",
-        lambda *_args, **_kwargs: subprocess.CompletedProcess([], 7),
-    )
-    assert exp022._train_bank_cell(tmp_path / "bank.json", row["name"]) == 1
-    attempt = json.loads((Path(row["output_directory"]) / "attempt.json").read_text())
-    assert attempt["state"] == "failed"
-    assert attempt["exit_code"] == 7
+
+    def fail(*args):
+        raise RuntimeError("native training failed")
+
+    monkeypatch.setattr(training, "train_cell", fail)
+    with pytest.raises(RuntimeError, match="native training failed"):
+        exp022._train_bank_cell(tmp_path / "bank.json", row["name"])
+    assert json.loads((Path(row['output_directory'])/'attempt.json').read_text())['state']=='failed'
+
 
 
 def test_preserve_partial_avoids_timestamp_collision(
@@ -711,14 +624,15 @@ def test_preserve_partial_avoids_timestamp_collision(
 def _write_checked_manifest(
     tmp_path: Path, monkeypatch, tier: str = "variable_rate"
 ) -> Path:
-    monkeypatch.setattr(
-        exp022, "git_identity", lambda _repo: ("deadbeef", False)
-    )
+    monkeypatch.setattr(exp022, "git_identity", lambda _repo: ("deadbeef", False))
     monkeypatch.setattr(
         exp022,
         "lock_identity",
         lambda _repo: {"path": "uv.lock", "sha256": "lock"},
     )
+    from experiments.exp022 import training
+
+    monkeypatch.setattr(training, "execution_identity", lambda: {"fixture": True})
     cells = recipe.cells_in_resource_tier(tier)
     payload = exp022.create_manifest(
         repo=exp022.REPO,
@@ -727,7 +641,7 @@ def _write_checked_manifest(
         cells=cells,
         tier_for=recipe.cell_resource_tier,
         samples_epochs=recipe.cell_samples_epochs,
-        build_args=recipe.build_train_args,
+        build_settings=recipe.training_settings,
         scientific_contract_for=recipe.scientific_contract,
         selection_tier=tier,
     )

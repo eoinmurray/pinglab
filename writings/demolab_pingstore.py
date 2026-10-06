@@ -38,6 +38,8 @@ def declared_dependencies() -> dict[str, tuple[str, ...]]:
             "exp054",
         ),
         "exp117": (),
+        "exp122": ("exp022",),
+        "exp123": ("exp022",),
     }
 
 

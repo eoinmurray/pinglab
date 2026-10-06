@@ -1,7 +1,6 @@
 """Lossless storage and validation of current and retained scientific evidence."""
 
 import math
-import zipfile
 
 import numpy as np
 from pingstore.contracts import PingstoreError, load_json, write_json_atomic
@@ -66,46 +65,6 @@ def read(directory):
     return document
 
 
-def simulation_config(record, cfg, item):
-    expected = {
-        "mode": "sim",
-        "model": "ping",
-        "input": "synthetic-spikes",
-        "n_hidden": [cfg["n_e"]],
-        "n_inh": cfg["n_i"],
-        "n_batch": 1,
-        "n_in": cfg["n_e"] if item["private"] else cfg["shared_n_in"],
-        "t_ms": cfg["sim_ms"],
-        "dt": cfg["dt_ms"],
-        "seed": cfg["seed"],
-        "spike_rate": item["rate_hz"],
-        "w_ei_mean": item["wei"],
-        "w_ie_mean": item["wie"],
-        "private_w_in": item["private"],
-        "w_in": [cfg["private_w_in"] if item["private"] else cfg["shared_w_in"]],
-        "scale_w_in": 1.0,
-        "scale_w_ei": 1.0,
-        "scale_w_ie": 1.0,
-        "dales_law": True,
-        "recurrent_initial_zero_fraction": 0.0,
-    }
-    for key in ("refractory_e_ms", "refractory_i_ms", "refractory_policy"):
-        if key in cfg:
-            expected[key] = cfg[key]
-    if "tau_gaba_ms" in cfg:
-        expected["tau_gaba"] = cfg["tau_gaba_ms"]
-    if not item["private"]:
-        expected["w_in_initial_zero_fraction"] = cfg["shared_zero_fraction"]
-    if any(record.get(k) != v for k, v in expected.items()):
-        raise PingstoreError("exp054 simulation configuration differs from recipe")
-    if (
-        record.get("load_weights")
-        or record.get("intervention")
-        or record.get("scale_projection")
-    ):
-        raise PingstoreError("exp054 probes must be untrained and unperturbed")
-
-
 def raster(path, cfg):
     with np.load(path, allow_pickle=False) as archive:
         fields = {"dt", "T", "n_trials", "n_e", "n_i"} | {
@@ -155,26 +114,6 @@ def raster(path, cfg):
         if len(set(zip(trial.tolist(), times.tolist(), cells.tolist()))) != len(times):
             raise PingstoreError("duplicate exp054 spike index")
     return data
-
-
-def repack(source, destination):
-    """Preserve every NPY member byte exactly; change ZIP compression only."""
-    with (
-        zipfile.ZipFile(source) as original,
-        zipfile.ZipFile(
-            destination, "w", zipfile.ZIP_DEFLATED, compresslevel=9
-        ) as packed,
-    ):
-        names = original.namelist()
-        if len(names) != len(set(names)) or any(
-            "/" in n or not n.endswith(".npy") for n in names
-        ):
-            raise PingstoreError("invalid exp054 NPZ members")
-        for name in names:
-            packed.writestr(name, original.read(name))
-    with zipfile.ZipFile(source) as original, zipfile.ZipFile(destination) as packed:
-        if any(original.read(n) != packed.read(n) for n in original.namelist()):
-            raise PingstoreError("exp054 repacking changed NPY bytes")
 
 
 def compute_contract(source):

@@ -1,6 +1,5 @@
 """Synthetic fixtures only: no historical import, dataset download or scientific run."""
 
-import json
 import subprocess
 import sys
 from pathlib import Path
@@ -23,22 +22,6 @@ from pingstore.contracts import (
     load_json,
     write_json_atomic,
 )
-
-
-def _write_final_checkpoint(train_dir: Path, config: dict) -> None:
-    (train_dir / "config.json").write_text(json.dumps(config))
-    checkpoint = train_dir / "weights_final.pth"
-    checkpoint.write_bytes(b"final")
-    (train_dir / "metrics.json").write_text(json.dumps({
-        "config": {"epochs": 50},
-        "checkpoints": {
-            "final_epoch": {
-                "filename": checkpoint.name,
-                "epoch": 50,
-                "sha256": file_sha256(checkpoint),
-            }
-        },
-    }))
 
 
 @pytest.fixture
@@ -66,6 +49,22 @@ def lab(tmp_path, monkeypatch):
                 "training_cell_name": cell.name,
                 "seed": seed,
                 "dataset": "mnist",
+                "model": "ping",
+                "readout_mode": "mem-mean",
+                "input_rate_sampling": "fixed",
+                "dales_law": True,
+                "hidden_sizes": [4],
+                "n_in": 784,
+                "n_out": 10,
+                "signed_readout": False,
+                "readout_bias": False,
+                "train_leak": False,
+                "adaptive_threshold": False,
+                "state_clamp": False,
+                "tau_ampa_ms": 2.0,
+                "input_rate": 25.0,
+                "surrogate_slope": 1.0,
+                "v_grad_dampen": 1000.0,
                 "ei_strength": 1.0,
                 "fr_reg_upper_strength": 0.0,
                 "dt": 0.1,
@@ -95,54 +94,58 @@ def lab(tmp_path, monkeypatch):
             )
     calls = []
 
-    def simulate(args):
-        calls.append(args)
+    import torch
 
-        def get(key):
-            return args[args.index(key) + 1]
+    monkeypatch.setattr(
+        simulation,
+        "load_dataset",
+        lambda *a, **k: (
+            None,
+            np.zeros((10000, 784), dtype=np.float32),
+            None,
+            np.zeros(10000, dtype=np.int64),
+        ),
+    )
+    monkeypatch.setattr(
+        inputs,
+        "checkpoint_tensors",
+        lambda *a: {
+            "W_ff.0": torch.zeros(784, 4),
+            "W_ff.1": torch.zeros(4, 10),
+            "W_ei.1": torch.zeros(4, 2),
+            "W_ie.1": torch.zeros(2, 4),
+            "W_ee.1": torch.zeros(4, 4),
+            "W_ii.1": torch.zeros(2, 2),
+        },
+    )
 
-        cfg = load_json(Path(get("--load-config")))
-        assert Path(get("--load-weights")).name == "weights_final.pth"
-        out = Path(get("--out-dir"))
-        out.mkdir(parents=True, exist_ok=True)
-        if "--sample-index" in args:
-            assert "--max-samples" not in args
+    def infer(model, cfg, configuration, data, *, recording, rasters=None, sample=None):
+        calls.append(
+            {"recording": recording, "replay": rasters is not None, "sample": sample}
+        )
+        if sample is not None:
             e, i = np.zeros((20, 4), dtype=bool), np.zeros((20, 2), dtype=bool)
             e[::4] = True
             i[::3] = True
-            mode = get("--recording-mode")
-            assert mode == ("spikes" if "--i-override-file" in args else "inhibitory")
             arrays = {"spk_i": i, "label": np.int64(0)}
-            if mode == "spikes":
+            if recording == "spikes":
                 arrays["spk_e"] = e
-            np.savez(out / "recording.npz", **arrays)
-        else:
-            samples = int(get("--max-samples"))
-            write_json_atomic(
-                out / "metrics.json",
-                {
-                    "best_acc": 90 + cfg["seed"] - 42,
-                    "n_total": samples,
-                    "rates_hz": {"hid": 10 + cfg["seed"] - 42, "inh": 20},
-                    "config": {
-                        "evaluation_samples": samples,
-                        "evaluation_partition": "official_mnist_test",
-                    },
-                },
-            )
-        if "--outputs" in args and get("--outputs") == "rasters":
-            assert get("--recording-mode") == "inhibitory"
-            np.savez(
-                out / "rasters.npz",
-                T=np.int32(20),
-                n_i=np.int32(2),
-                n_trials=np.int32(samples),
-                i_trial=np.array([0, 0]),
-                i_t=np.array([2, 12]),
-                i_cell=np.array([0, 1]),
-            )
+            return arrays
+        samples = configuration["evaluation_samples"]
+        return {
+            "best_acc": 90 + cfg["seed"] - 42,
+            "n_total": samples,
+            "rates_hz": {"hid": 10 + cfg["seed"] - 42, "inh": 20},
+        }, {
+            "T": np.int32(20),
+            "n_i": np.int32(2),
+            "n_trials": np.int32(samples),
+            "i_trial": np.array([0, 0], dtype=np.int32),
+            "i_t": np.array([2, 12], dtype=np.int32),
+            "i_cell": np.array([0, 1], dtype=np.int32),
+        }
 
-    monkeypatch.setattr(simulation, "run_cli", simulate)
+    monkeypatch.setattr(simulation, "infer_batches", infer)
     return tmp_path, bank.run_id, calls
 
 
@@ -155,16 +158,16 @@ def test_stages_preserve_small_evidence_and_never_run_upstream(lab, monkeypatch)
     old.write_text("unrelated historical view")
     identity = compute.compute(bank_id)
     raw = inputs.source(root, identity, "compute")
-    assert len(list(raw.export.glob("jobs/*.json"))) == 30
+    assert len(list(raw.export.glob("eval__*--metrics.json"))) == 30
     assert len(calls) == 33  # 30 sweep evaluations plus three illustrative launches
     for job in recipe.jobs(recipe.configuration(smoke=True)):
         if job["condition"] == "cell_jitter_sigma_0":
-            row = load_json(raw.export / "jobs" / (job["id"] + ".json"))
+            row = load_json(raw.file(job["id"] + "--metrics.json"))
             source = recipe.replay_job(job)["id"]
             assert row["replay_of"] == source
             assert (
                 row["metrics"]
-                == load_json(raw.export / "jobs" / (source + ".json"))["metrics"]
+                == load_json(raw.file(source + "--metrics.json"))["metrics"]
             )
     assert raw.record["inputs"] == {"bank": before}
     assert not list(raw.directory.glob(".scratch-*"))
@@ -173,13 +176,18 @@ def test_stages_preserve_small_evidence_and_never_run_upstream(lab, monkeypatch)
         with np.load(raw.export / filename) as data:
             assert set(data.files) == {"spk_e", "spk_i", "label"}
     assert {p.name for p in raw.export.iterdir()} == {
-        "jobs",
+        *(
+            job["id"] + "--metrics.json"
+            for job in recipe.jobs(recipe.configuration(smoke=True))
+        ),
         "cell.npz",
         "cycle.npz",
         "evidence.json",
     }
     monkeypatch.setattr(
-        simulation, "run_cli", lambda *a: pytest.fail("downstream simulation")
+        simulation,
+        "infer_batches",
+        lambda *a, **k: pytest.fail("downstream simulation"),
     )
     monkeypatch.setenv("PINGLAB_SMOKE", "0")
     analysis_id = analyse.analyse(identity)
@@ -211,9 +219,11 @@ def test_missing_metric_fails_without_simulation(lab, monkeypatch):
     root, bank_id, _ = lab
     identity = compute.compute(bank_id)
     raw = inputs.source(root, identity, "compute")
-    next(raw.export.glob("jobs/*.json")).unlink()
+    next(raw.export.glob("eval__*--metrics.json")).unlink()
     monkeypatch.setattr(
-        simulation, "run_cli", lambda *a: pytest.fail("missing-data fallback")
+        simulation,
+        "infer_batches",
+        lambda *a, **k: pytest.fail("missing-data fallback"),
     )
     with pytest.raises(PingstoreError, match="checksum"):
         analyse.analyse(identity)
@@ -254,8 +264,8 @@ def test_failure_is_hidden_and_source_immutable(lab, monkeypatch):
     source = inputs.source(root, bank_id, "compute", experiment="exp022")
     monkeypatch.setattr(
         simulation,
-        "run_cli",
-        lambda *a: (_ for _ in ()).throw(RuntimeError("fixture failure")),
+        "infer_batches",
+        lambda *a, **k: (_ for _ in ()).throw(RuntimeError("fixture failure")),
     )
     with pytest.raises(RuntimeError, match="fixture failure"):
         compute.compute(bank_id)
@@ -283,7 +293,7 @@ def test_shards_are_pinned_resumable_and_collect_without_repeating_sweeps(lab):
         len(calls) == before + 3
     )  # only two illustrative arms and their shared baseline
     output = inputs.source(root, identity, "compute")
-    assert len(list(output.export.glob("jobs/*.json"))) == 30
+    assert len(list(output.export.glob("eval__*--metrics.json"))) == 30
     assert output.record["origin"] == "slurm-wilkes"
     assert not (output.directory / ".baseline-scratch").exists()
     with pytest.raises((PingstoreError, OSError)):
@@ -316,9 +326,9 @@ def test_production_retains_all_figure_rows(lab, monkeypatch):
     monkeypatch.setenv("PINGLAB_SMOKE", "0")
     identity = compute.compute(bank_id)
     raw = inputs.source(root, identity, "compute")
-    assert len(list(raw.export.glob("jobs/*.json"))) == 57
+    assert len(list(raw.export.glob("eval__*--metrics.json"))) == 57
     assert len(calls) == 60
-    assert sum("--sample-index" in args for args in calls) == 3
+    assert sum(call["sample"] is not None for call in calls) == 3
 
 
 def test_zero_replay_is_shared_between_concurrent_workers(lab):
@@ -337,88 +347,29 @@ def test_zero_replay_is_shared_between_concurrent_workers(lab):
     barrier = Barrier(2)
 
     def worker(index):
-        scratch = root / f"worker-{index}"
-        scratch.mkdir()
-        simulator = simulation.Simulator(
-            scratch, scratch / "commands", cfg, baseline_root=root / "shared"
-        )
+        data = simulation.load_evaluation(cfg)
         barrier.wait(timeout=5)
-        job = jobs[index]
-        return simulator.evaluate(bank.export / job["cell"], job)
+        return next(
+            simulation.evaluate_jobs(
+                bank,
+                cfg,
+                data,
+                root / "shared",
+                [jobs[index]],
+                [],
+            )
+        )[1]
 
     with ThreadPoolExecutor(max_workers=2) as pool:
         a, b = list(pool.map(worker, range(2)))
     assert a == b
     assert len(calls) == 2  # one baseline and one zero replay
-    assert sum("--i-override-file" in args for args in calls) == 1
-
-
-def test_inference_caps_and_override_cleanup(monkeypatch, tmp_path):
-    train_dir = tmp_path / "train"
-    train_dir.mkdir()
-    _write_final_checkpoint(train_dir, {"dt": 0.1})
-    observed = []
-
-    def fake_run(command):
-        observed.append(command)
-        out = Path(command[command.index("--out-dir") + 1])
-        out.mkdir(parents=True, exist_ok=True)
-        (out / "metrics.json").write_text("{}")
-        if "--i-override-file" not in command:
-            np.savez(
-                out / "rasters.npz",
-                n_trials=np.int32(0),
-                T=np.int32(20),
-                n_i=np.int32(2),
-                i_trial=np.array([], dtype="int32"),
-                i_t=np.array([], dtype="int32"),
-                i_cell=np.array([], dtype="int32"),
-            )
-
-    monkeypatch.setattr(simulation, "run_cli", fake_run)
-    smoke = simulation.Simulator(
-        tmp_path / "smoke", tmp_path / "smoke-commands", recipe.configuration(smoke=True)
-    )
-    smoke._run_baseline(train_dir)
-    assert observed[-1][observed[-1].index("--max-samples") + 1] == "100"
-
-    production = simulation.Simulator(
-        tmp_path / "production",
-        tmp_path / "production-commands",
-        recipe.configuration(),
-    )
-    production._run_with_override(train_dir, tmp_path / "override.npz")
-    assert observed[-1][observed[-1].index("--max-samples") + 1] == "1000"
-
-    cleanup = simulation.Simulator(
-        tmp_path / "cleanup", tmp_path / "cleanup-commands", recipe.configuration()
-    )
-    monkeypatch.setattr(cleanup, "_run_baseline", lambda _path: ({}, {}))
-    seen = []
-
-    def fake_build(_rasters, _condition, _generator, _dt, path):
-        path.write_bytes(b"override")
-
-    def fake_override(_train_dir, path):
-        assert path.exists()
-        seen.append(path)
-        return {"best_acc": 90.0, "rates_hz": {}, "n_total": 1000}
-
-    monkeypatch.setattr(cleanup, "_build_override_file", fake_build)
-    monkeypatch.setattr(cleanup, "_run_with_override", fake_override)
-    cleanup.evaluate(
-        train_dir,
-        {"id": "fixture", "condition": "jitter_sigma_14", "seed_offset": 42},
-    )
-    assert len(seen) == 1
-    assert not seen[0].exists()
+    assert sum(call["replay"] for call in calls) == 1
 
 
 def test_writeup_anchor_levels_remain_in_the_recipe():
     assert {0.0, 14.0, 100.0} <= set(recipe.JITTER_SIGMAS_MS)
-    assert {0.0, 0.5, 1.0, 2.0, 5.0, 9.0, 14.0} <= set(
-        recipe.CELL_JITTER_SIGMAS_MS
-    )
+    assert {0.0, 0.5, 1.0, 2.0, 5.0, 9.0, 14.0} <= set(recipe.CELL_JITTER_SIGMAS_MS)
 
 
 def test_zero_replay_cache_rejects_recipe_drift(lab):
@@ -428,14 +379,14 @@ def test_zero_replay_cache_rejects_recipe_drift(lab):
     job = next(j for j in recipe.jobs(cfg) if j["condition"] == "jitter_sigma_0")
     scratch = root / "scratch"
     scratch.mkdir()
-    simulator = simulation.Simulator(scratch, scratch / "commands", cfg)
-    simulator.evaluate(bank.export / job["cell"], job)
+    data = simulation.load_evaluation(cfg)
+    list(simulation.evaluate_jobs(bank, cfg, data, scratch, [job], []))
     path = next(scratch.glob("zero-replay/*/*/result.json"))
     record = load_json(path)
-    record["recipe"]["evaluation_samples"] += 1
+    record["request"]["recipe"]["evaluation_samples"] += 1
     write_json_atomic(path, record)
-    with pytest.raises(ValueError, match="zero-replay scratch"):
-        simulator.evaluate(bank.export / job["cell"], job)
+    with pytest.raises(PingstoreError, match="zero-replay scratch"):
+        list(simulation.evaluate_jobs(bank, cfg, data, scratch, [job], []))
 
 
 def test_shard_does_not_reuse_tampered_metrics(lab):
@@ -446,7 +397,9 @@ def test_shard_does_not_reuse_tampered_metrics(lab):
     assert record["schema"] == "pinglab.concurrent-shard/v1"
     assert record["experiment"] == "exp042"
     assert record["inputs"]["bank"]["run_id"] == bank_id
-    (directory / "export/jobs" / (record["work_items"][0] + ".json")).write_text("{}")
+    (directory / "export" / (record["work_items"][0] + "--metrics.json")).write_text(
+        "{}"
+    )
     with pytest.raises(PingstoreError, match="changed"):
         compute.shard(bank_id, run_id=identity, index=0)
 
@@ -592,21 +545,17 @@ def test_sparse_override_serialization_retains_every_trial_cell_count(
         "i_t": np.array([0, 1, 19, 0, 18, 19], dtype="int32"),
         "i_cell": np.array([0, 0, 1, 1, 1, 0], dtype="int32"),
     }
-    cfg = recipe.configuration()
-    simulator = simulation.Simulator(tmp_path, tmp_path / "commands", cfg)
-    path = tmp_path / "override.npz"
-    diagnostics = simulator._build_override_file(
+    output, diagnostics = simulation.override_rasters(
         R,
         condition,
         torch.Generator().manual_seed(0),
         1.0,
-        path,
+        recipe.configuration(),
     )
     source_counts = np.zeros((2, 2), dtype=int)
     np.add.at(source_counts, (R["i_trial"], R["i_cell"]), 1)
-    with np.load(path) as data:
-        output_counts = np.zeros((2, 2), dtype=int)
-        np.add.at(output_counts, (data["i_trial"], data["i_cell"]), 1)
+    output_counts = np.zeros((2, 2), dtype=int)
+    np.add.at(output_counts, (output["i_trial"], output["i_cell"]), 1)
     assert np.array_equal(output_counts, source_counts)
     assert diagnostics["input_spikes"] == diagnostics["output_spikes"] == 6
     assert diagnostics["trials_checked"] == 2
@@ -625,16 +574,13 @@ def test_sparse_override_rejects_duplicate_baseline_events(tmp_path):
         "i_t": np.array([3, 3], dtype="int32"),
         "i_cell": np.array([1, 1], dtype="int32"),
     }
-    simulator = simulation.Simulator(
-        tmp_path, tmp_path / "commands", recipe.configuration()
-    )
-    with pytest.raises(ValueError, match="duplicate events"):
-        simulator._build_override_file(
+    with pytest.raises(PingstoreError, match="duplicate coordinates"):
+        simulation.override_rasters(
             R,
             "cell_jitter_sigma_50",
             torch.Generator().manual_seed(0),
             1.0,
-            tmp_path / "override.npz",
+            recipe.configuration(),
         )
 
 

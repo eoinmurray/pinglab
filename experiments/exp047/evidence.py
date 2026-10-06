@@ -33,42 +33,6 @@ def finite_rate(value):
     return float(value)
 
 
-def simulation_config(document, cfg, item):
-    expected = {
-        "mode": "sim",
-        "model": "ping",
-        "input": "synthetic-spikes",
-        "n_hidden": [cfg["n_e"]],
-        "n_in": cfg["n_in"],
-        "n_inh": item["n_i"],
-        "ei_strength": cfg["g_ei_total"],
-        "ei_ratio": item["g_ie_total"] / cfg["g_ei_total"],
-        "w_in": [cfg["w_in_mean"]],
-        "w_in_initial_zero_fraction": cfg["w_in_initial_zero_fraction"],
-        "recurrent_initial_zero_fraction": 0.0,
-        "spike_rate": cfg["input_rate_hz"],
-        "n_batch": cfg["n_batch"],
-        "t_ms": cfg["t_ms"],
-        "dt": cfg["dt_ms"],
-        "seed": item["seed"],
-        "dales_law": True,
-        "private_w_in": False,
-        "scale_w_in": 1.0,
-        "scale_w_ei": 1.0,
-        "scale_w_ie": 1.0,
-    }
-    if "refractory_e_ms" in cfg:
-        expected.update(
-            {
-                key: cfg[key]
-                for key in ("refractory_e_ms", "refractory_i_ms", "refractory_policy")
-            }
-        )
-    if (
-        any(document.get(k) != v for k, v in expected.items())
-        or document.get("load_weights") is not None
-    ):
-        raise PingstoreError(f"exp047 simulation configuration differs: {item['id']}")
 
 
 def metric(document, cfg, item):

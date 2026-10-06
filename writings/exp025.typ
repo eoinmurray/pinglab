@@ -8,11 +8,12 @@
 #let data-file = data-file.with(article: "exp025")
 
 #let meta = (
-  title: "Accuracy and Firing Rate With and Without Inhibition (legacy)",
+  title: "Accuracy and Firing Rate With and Without Inhibition",
   created_at: "2026-05-30T00:00:00Z",
   updated_at: "2026-09-22T00:00:00Z",
   description: "Reused MNIST networks compare accuracy and excitatory firing rates with and without an inhibitory loop. Different gradient damping limits causal attribution to gamma timing.",
   collection: "gamma-gated-sparsity",
+  tags: ("data", "v36.0.0"),
 )
 
 #let inputs = ("exp025",)
@@ -225,7 +226,7 @@
   #journal-methods(
     orientation: [
   We reused networks and learning histories from the
-  #link("/exp022/")[exp022] — #link("/exp022/")[_Training Runs (legacy)_] and reanalysed recorded inference
+  #link("/exp022/")[exp022] — #link("/exp022/")[_Training Runs_] and reanalysed recorded inference
   measurements; no new training or simulation was performed.
     ],
     compute: [
@@ -341,8 +342,8 @@
   peaks, with the trial endpoints closing the first and last cycles. Trials with
   no usable frequency or I peak were omitted from participation; active
   neuron/cycle pairs were pooled across accepted trials. This extends the
-  #link("/exp041/")[exp041] — #link("/exp041/")[_Firing Rate Tracks Gamma Frequency (legacy)_] using the
-  #link("/exp046/")[exp046] — #link("/exp046/")[_One Spike per Gamma Cycle (legacy)._]
+  #link("/exp041/")[exp041] — #link("/exp041/")[_Firing Rate Tracks Gamma Frequency_] using the
+  #link("/exp046/")[exp046] — #link("/exp046/")[_One Spike per Gamma Cycle._]
 
   Input-scale values were 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45,
   0.5, 0.55, 0.6, 0.65, 0.7, 0.8, 0.9, 1, 1.15, 1.3, 1.5, 1.75, 2, 2.5,

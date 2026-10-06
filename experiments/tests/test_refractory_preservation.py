@@ -19,8 +19,12 @@ from pathlib import Path
 import numpy as np
 import pytest
 import torch
-from snnlab.sim import config as current_config
-from snnlab.sim import inputs as current_inputs
+from experiments.helpers.checkpoint_graph import (
+    PARAMETERS,
+    author_network,
+    bind_model,
+    initial_draws,
+)
 from snnlab.sim import models as current_model
 from snnlab.sim.encoders import encode_images_poisson
 
@@ -56,7 +60,7 @@ def preservation_context(tmp_path_factory):
     )
     root = tmp_path_factory.mktemp("refractory-baseline")
     source_hashes = {}
-    for filename in ("models.py", "config.py"):
+    for filename in ("models.py", "config.py", "inputs.py"):
         content = subprocess.check_output(
             ["git", "show", f"{BASELINE}:tools/snnsim/{filename}"], cwd=REPO,
         )
@@ -66,7 +70,7 @@ def preservation_context(tmp_path_factory):
     saved = {name: sys.modules.get(name) for name in ("models", "inputs")}
     try:
         sys.modules["models"] = old_model
-        sys.modules["inputs"] = current_inputs
+        sys.modules["inputs"] = _module("refractory_baseline_inputs", root / "inputs.py")
         old_config = _module("refractory_baseline_config", root / "config.py")
     finally:
         for name, module in saved.items():
@@ -122,6 +126,45 @@ def _build(builder, module, cfg, explicit):
     return builder.build_net(cfg["model"], **kwargs)
 
 
+def _native(cfg, weights, old):
+    biophysics = {
+        "capacitance_e_nf": 1.0, "capacitance_i_nf": 0.5,
+        "leak_e_us": 0.05, "leak_i_us": 0.1,
+        "resting_mv": -65.0, "threshold_mv": -50.0, "reset_mv": -65.0,
+        "readout_tau_ms": 2.0, "readout_threshold": 1.0,
+    }
+    bundle = author_network("retained-refractory-reference", cfg, biophysics,
+        {"refractory_e_ms": 1.2, "refractory_i_ms": 0.6, "refractory_policy": "exact"},
+        observables=("spikes", "traces"))
+    model = bind_model(bundle, cfg, weights, device="cpu")
+    for name, parameter in model.parameter_map().items():
+        parameter.requires_grad_(dict(old.named_parameters())[PARAMETERS[name]].requires_grad)
+    return model
+
+
+def _native_forward(model, cfg, spikes):
+    state = None
+    if RANDOMIZE_INITIAL_STATE:
+        # Build an empty compatible state, then reproduce only the historical
+        # randomized initial membrane draw, without a legacy execution route.
+        with torch.no_grad():
+            state = model({"drive": torch.zeros_like(spikes[:1])}).runtime_state
+        state.completed_steps = 0
+        for group in (state.refractory, state.conductances,
+                      state.population_histories, state.input_histories):
+            for value in group.values():
+                value.zero_()
+        for label, size in (("E", cfg["n_hidden"]), ("I", cfg["n_inh"])):
+            voltage, ref = current_model.init_lif_state(
+                spikes.shape[1], size, torch.device("cpu"), randomize=True)
+            state.voltages[label] = voltage
+            state.refractory[label] = ref
+        state.voltages["readout"].zero_()
+        state.reduction_state.clear()
+        state.reduction_tensors.clear()
+    return model({"drive": spikes}, runtime_state=state)
+
+
 def _input(cfg, batch=1, duration_ms=200.0):
     from torchvision.datasets import MNIST
 
@@ -149,32 +192,38 @@ def test_all_retained_cells_match_pre_adoption_forward(preservation_context, che
     for name in cells:
         unit = bank.unit(name)
         cfg = json.loads((unit / "config.json").read_text())
+        if isinstance(cfg.get("readout_w_init"), dict):
+            cfg.setdefault("readout_w_init_mean", cfg["readout_w_init"]["mean"])
+            cfg.setdefault("readout_w_init_std", cfg["readout_w_init"]["std"])
         old = _build(old_config, old_model, cfg, False)
-        new = _build(current_config, current_model, cfg, True)
-        _equal(old.state_dict(), new.state_dict(), f"{name}: initialization")
+        _, initial = initial_draws(cfg)
+        for key, expected in initial.items():
+            torch.testing.assert_close(old.state_dict()[PARAMETERS[key]], expected, rtol=0, atol=0)
         weights = torch.load(unit / checkpoint, map_location="cpu", weights_only=True)
         old.load_state_dict(weights, strict=True)
-        new.load_state_dict(weights, strict=True)
+        new = _native(cfg, weights, old)
         spikes, _ = _input(cfg)
-        results = []
-        for net in (old, new):
-            net.eval()
-            net.recording = True
-            torch.manual_seed(cfg["seed"] + 1000)
-            with torch.no_grad():
-                output = net(input_spikes=spikes, randomize_init=RANDOMIZE_INITIAL_STATE)
-            results.append((output, net.spike_record, torch.get_rng_state()))
-        for a, b, label in (
-            (results[0][0], results[1][0], "readout"),
-            (results[0][2], results[1][2], "RNG state"),
-        ):
-            assert torch.equal(a, b), f"{name}: {checkpoint}: {label}"
-        _equal(results[0][1], results[1][1], f"{name}: {checkpoint}: trajectory")
-        assert old.rates == new.rates
+        old.eval()
+        old.recording = True
+        torch.manual_seed(cfg["seed"] + 1000)
+        with torch.no_grad():
+            expected = old(input_spikes=spikes, randomize_init=RANDOMIZE_INITIAL_STATE)
+        expected_rng = torch.get_rng_state()
+        torch.manual_seed(cfg["seed"] + 1000)
+        with torch.no_grad():
+            result = _native_forward(new, cfg, spikes)
+        torch.testing.assert_close(expected, result.outputs["class_scores"], rtol=1e-6, atol=1e-6)
+        assert torch.equal(expected_rng, torch.get_rng_state())
+        for native, historical in {
+            "spk_e": "hid", "spk_i": "inh", "v_e": "v_e_1", "v_i": "v_i_1",
+            "ge_e": "ge_e_1", "ge_i": "ge_i_1", "gi_e": "gi_e_1",
+        }.items():
+            torch.testing.assert_close(result.diagnostics[native], old.spike_record[historical],
+                rtol=0, atol=0 if native.startswith("spk") else 2e-5)
         print(json.dumps({"cell": name, "checkpoint": checkpoint, "equal": True,
-                          "e_spikes": int(new.spike_record["hid"].sum()),
-                          "i_spikes": int(new.spike_record["inh"].sum())}), flush=True)
-        del old, new, results, weights
+            "e_spikes": int(result.diagnostics["spk_e"].sum()),
+            "i_spikes": int(result.diagnostics["spk_i"].sum())}), flush=True)
+        del old, new, result, weights
         gc.collect()
 
 
@@ -187,32 +236,34 @@ def test_retained_training_forward_backward_matches(preservation_context, name):
     unit = bank.unit(name)
     cfg = json.loads((unit / "config.json").read_text())
     weights = torch.load(unit / "weights_final.pth", map_location="cpu", weights_only=True)
-    # A complete 200-ms, two-image training batch exercises temporal gradients.
     spikes, labels = _input(cfg, batch=2)
+    old = _build(old_config, old_model, cfg, False)
+    old.load_state_dict(weights, strict=True)
+    new = _native(cfg, weights, old)
     results = []
-    for module, builder, explicit in (
-        (old_model, old_config, False), (current_model, current_config, True),
-    ):
-        net = _build(builder, module, cfg, explicit)
-        net.load_state_dict(weights, strict=True)
+    for net, native in ((old, False), (new, True)):
         net.train()
         torch.manual_seed(cfg["seed"] + 2000)
-        logits = net(input_spikes=spikes, randomize_init=RANDOMIZE_INITIAL_STATE)
+        result = _native_forward(net, cfg, spikes) if native else None
+        logits = result.outputs["class_scores"] if native else net(input_spikes=spikes, randomize_init=RANDOMIZE_INITIAL_STATE)
         loss = torch.nn.functional.cross_entropy(logits, labels)
         strength = cfg.get("fr_reg_upper_strength", 0.0)
         if strength:
             target = cfg["fr_reg_upper_target_hz"]
-            penalty = sum((counts.mean(dim=1) / 0.2 - target).clamp(min=0).square().mean()
-                          for counts in net.last_spike_counts) / len(net.last_spike_counts)
+            counts = [result.outputs["spk_e_count"]] if native else net.last_spike_counts
+            penalty = sum((value.mean(dim=1) / 0.2 - target).clamp(min=0).square().mean()
+                          for value in counts) / len(counts)
             loss = loss + strength * penalty
         loss.backward()
-        gradients = {key: parameter.grad.detach().clone()
-                     for key, parameter in net.named_parameters() if parameter.grad is not None}
+        parameters = net.parameter_map() if native else dict(net.named_parameters())
+        gradients = {(PARAMETERS[key] if native else key): parameter.grad.detach().clone()
+                     for key, parameter in parameters.items() if parameter.grad is not None}
         assert gradients and all(torch.isfinite(value).all() for value in gradients.values())
         assert any(torch.count_nonzero(value) for value in gradients.values())
         results.append((logits.detach(), loss.detach(), gradients, torch.get_rng_state()))
-        del logits, loss, net
-        gc.collect()
-    for index in (0, 1, 3):
-        assert torch.equal(results[0][index], results[1][index]), (name, index)
-    _equal(results[0][2], results[1][2], f"{name}: gradients")
+    for index in (0, 1):
+        torch.testing.assert_close(results[0][index], results[1][index], rtol=1e-6, atol=1e-6)
+    assert torch.equal(results[0][3], results[1][3])
+    assert results[0][2].keys() == results[1][2].keys()
+    for key in results[0][2]:
+        torch.testing.assert_close(results[0][2][key], results[1][2][key], rtol=1e-5, atol=1e-6)

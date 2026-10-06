@@ -345,3 +345,18 @@ These changes affect future execution only. Existing immutable runs and R2
 archives are unchanged. Required arrays keep their original numerical values;
 selected NPZ outputs use lossless compression. No production rerun or new
 publication was performed for this cleanup.
+
+
+## Migration completion audit — 2026-10-06
+
+Native perturbation inference uses sequential device E-then-I Bernoulli draws continuously across evaluation batches. A raw-step preview followed by authenticated emitted-spike replay preserves raw neuron resets and perturbed feedback/readout. Calibration, percentage doses, transmission counters, six scientific shards and estimators are unchanged. This two-pass path has unmeasured performance overhead.
+
+Implementation migration is complete under static verification only. Python parsing,
+lint, diff review and read-only Pingstore discovery were performed. Existing
+synthetic fixtures were adapted where their CLI seams became obsolete; none
+were executed. No experiment stage, new run, regenerated result, commit or push
+was performed. Numerical parity, backend execution, performance and rendering
+remain unverified. The implementation marker and article title suffix were
+removed; authored prose/results/dates and review decisions were preserved.
+Writing Guide 36.0.0 availability/version tags were applied using validated local
+presentation discovery.

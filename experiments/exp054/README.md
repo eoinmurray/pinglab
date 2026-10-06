@@ -4,9 +4,9 @@ Local-data update, 2026-10-05: runs unused by the latest exp110 manuscript
 were explicitly deleted. Historical operation and size reports below describe
 the earlier store; they do not establish current local availability.
 
-## Current independent contract — 2026-09-18
+## Current independent contract — 2026-10-06
 
-Recipe v7 contains only the untrained spiking coupling grid and null controls.
+Recipe v8 contains only the untrained spiking coupling grid and null controls.
 Exp054 no longer imports, computes, accepts, validates or republishes exp033
 mean-field evidence or exp041 frequency measurements. The cross-experiment
 comparison belongs exclusively to exp110. Earlier completed runs remain
@@ -332,3 +332,58 @@ These changes affect future execution only. Existing immutable runs and R2
 archives are unchanged. Required arrays keep their original numerical values;
 selected NPZ outputs use lossless compression. No production rerun or new
 publication was performed for this cleanup.
+
+
+## Native graph migration (2026-10-06)
+
+New compute uses recipe v8, `snnlab.lang`, the maintained `build_ping`, and
+`GraphExecutor(plan_graph(...))`. No CLI, subprocess, legacy model builder or
+compatibility adapter remains. Each probe starts at resting voltage with zero
+conductances, refractory counters and delay history. Reciprocal transmission
+has one timestep delay. Native `RecordingSpec` / `SignalRecording` spike events
+retain all E/I neurons from the burn-in boundary, in absolute step coordinates.
+No dense diagnostic histories or unused output population are retained.
+
+The recipe preserves CPU weight seed 42 and independent input seed 43, including
+input, discarded readout and zero E→E draw order before reciprocal weights.
+Private input initialization consumes no sparsity-mask draw before identity
+replacement; shared input retains compensated Bernoulli zeroing. Parameters are
+bound through `parameter_map()` in runtime source-by-target orientation.
+The grid-origin/private-null reuse remains the single identical seeded job.
+There is no cross-run cache, checkpoint, shard reuse or dataset-provider path.
+
+Analysis reuses the four matching public `snnlab.analysis` rhythmicity functions;
+post-burn reconstruction, rates, display windows, sorting, summaries, undefined
+contrast and single-seed/no-uncertainty interpretation are unchanged. No online
+reduction replaces the recorded spikes needed for the existing estimators.
+Compute, analyse and present still complete independently.
+
+Read-only historical support is restricted to the exact recipe-v7 production
+and smoke definitions, validated v4 input ancestry, existing sparse raster forms
+(full or burn-in compact), and the saved analysis array codec. This does not
+accept v2/v3 storage, rebuild a historical simulator or mutate retained runs.
+The obsolete simulation configuration validator and ZIP repacker were removed.
+
+Only static parsing, lint and diff checks accompany this migration. No tests,
+experiment stages, new runs or regenerated results were executed. Numerical
+trajectory parity, device behaviour, sparse-recording execution and rendering
+remain unverified. Article scientific prose/results and authored dates remain
+unchanged; only the legacy title marker and its matching manuscript link changed.
+Writing Guide 36.0.0 was consulted. Local-data discovery was not executed under
+the static-only constraint; availability tags could not be verified, and missing
+existing tags were not guessed.
+
+
+## Migration completion audit — 2026-10-06
+
+Existing native build_ping execution retained without a compute rewrite. Burn-in sparse recording, ordered CPU initialization including discarded draws, independent encoding seed, private/shared controls, matching public rhythmicity analysis functions and v7 read-only input support were audited.
+
+Implementation migration is complete under static verification only. Python parsing,
+lint, diff review and read-only Pingstore discovery were performed. Existing
+synthetic fixtures were adapted where their CLI seams became obsolete; none
+were executed. No experiment stage, new run, regenerated result, commit or push
+was performed. Numerical parity, backend execution, performance and rendering
+remain unverified. The implementation marker and article title suffix were
+removed; authored prose/results/dates and review decisions were preserved.
+Writing Guide 36.0.0 availability/version tags were applied using validated local
+presentation discovery.

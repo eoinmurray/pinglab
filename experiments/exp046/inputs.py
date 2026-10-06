@@ -79,10 +79,15 @@ def compute_evidence(repo, compute):
     bank = source(repo, ref["run_id"], "compute", experiment="exp022", reference=ref)
     contract = evidence.training_contract(bank.export)
     checkpoints = evidence.checkpoints(bank.export, contract)
-    if load_json(compute.export / "evidence.json") != {
+    retained = load_json(compute.export / "evidence.json")
+    from experiments.exp041.evidence import retained_contract
+
+    if retained != {
         "schema": "exp046.compute/v1",
         "config": cfg,
-        "training_contract": contract,
+        "training_contract": retained_contract(
+            retained.get("training_contract"), contract, bank.export
+        ),
         "checkpoint_provenance": checkpoints,
     }:
         raise PingstoreError("exp046 compute evidence differs from its pinned bank")

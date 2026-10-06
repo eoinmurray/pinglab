@@ -115,65 +115,6 @@ def histories(bank, contract):
     return result
 
 
-def inference_config(config, train, job):
-    keys = (
-        "model",
-        "dt",
-        "dataset",
-        "ei_ratio",
-        "w_in",
-        "readout_mode",
-        "dales_law",
-        "signed_readout",
-        "readout_bias",
-        "adaptive_threshold",
-        "train_leak",
-        "state_clamp",
-        "trainable_w_ee",
-        "trainable_w_ei",
-        "trainable_w_ie",
-        "trainable_w_ii",
-        "n_in",
-        "seed",
-        "w_in_initial_zero_fraction",
-        "recurrent_initial_zero_fraction",
-        "tau_m_e_bounds_ms",
-        "tau_m_i_bounds_ms",
-        "readout_w_init_mean",
-        "readout_w_init_std",
-        "surrogate_slope",
-    )
-    expected = {
-        **{k: train[k] for k in keys},
-        "t_ms": train["t_ms"],
-        "tau_gaba": train["tau_gaba_ms"],
-        "ei_strength": train["ei_strength"],
-        "infer": True,
-        "input": "dataset",
-        "spike_rate": train["input_rate"],
-        "scale_w_in": 1.0,
-        "scale_w_ei": 1.0,
-        "scale_w_ie": 1.0,
-        "intervention": [],
-        "scale_projection": [],
-        "max_samples": job["samples"],
-        "perturb_mode": job["mode"],
-        "perturb_level": [job.get("applied_level", job["level"])],
-        "sample_index": job.get("sample_index"),
-    }
-    for k, v in expected.items():
-        if not _same(config.get(k), v):
-            raise PingstoreError(f"inference configuration differs: {k}")
-    if config.get("skip_load"):
-        raise PingstoreError("perturbations require the complete selected checkpoint")
-    if config.get("n_hidden") not in (train["n_hidden"], [train["n_hidden"]]):
-        raise PingstoreError("inference hidden population differs")
-    for k, filename in (
-        ("load_weights", "weights.pth"),
-        ("load_config", "config.json"),
-    ):
-        if PurePosixPath(config.get(k, "")).parts[-2:] != (job["cell_name"], filename):
-            raise PingstoreError("inference checkpoint identity differs")
 
 
 def metric(path, train, job):

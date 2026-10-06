@@ -46,21 +46,14 @@ def cycle_lab(lab, monkeypatch):
         monkeypatch.setattr(module, "REPO", root)
     calls = []
 
-    def simulate(args, **kwargs):
-        calls.append(args)
-
-        def value(key):
-            return args[args.index(key) + 1]
-
-        assert value("--device") == "auto"
-        assert args[args.index("--outputs") + 1 : args.index("--recording-mode")] == [
-            "rasters",
-            "per_cell_rates",
-        ]
-        output = Path(value("--out-dir"))
-        output.mkdir(parents=True)
-        config = load_json(Path(value("--load-config")))
-        samples = int(value("--max-samples"))
+    def simulate(train_dir, out, attachments, training, request, author, **kwargs):
+        calls.append(request)
+        out.mkdir(parents=True)
+        attachments.mkdir(parents=True, exist_ok=True)
+        write_json_atomic(attachments / "request.json", request)
+        output = out
+        config = training
+        samples = request["samples"]
         steps = round(config["t_ms"] / config["dt"])
         rows = {f"{p}_{key}": [] for p in ("e", "i") for key in ("trial", "t", "cell")}
         for trial in range(samples):
@@ -102,10 +95,8 @@ def cycle_lab(lab, monkeypatch):
                 "rates_hz": {"hid": float(rates.mean()), "inh": 1.0},
             },
         )
-        write_json_atomic(output / "config.json", config)
-        (output / "run.sh").write_text("synthetic command\n")
 
-    monkeypatch.setattr(compute, "run_cli", simulate)
+    monkeypatch.setattr(compute, "run_inference", simulate)
     return root, bank_id, frequency_id, calls
 
 
@@ -127,7 +118,7 @@ def test_independent_stages_preserve_outputs_without_publication(
     assert len(list(output.export.glob("infer--*/rasters.npz"))) == 18
     assert not list(output.export.glob("infer--*/config.json"))
     monkeypatch.setattr(
-        compute, "run_cli", lambda *a, **k: pytest.fail("implicit inference")
+        compute, "run_inference", lambda *a, **k: pytest.fail("implicit inference")
     )
     analysis_id = analyse.analyse(identity, frequency_id)
     analysis_run = inputs.source(root, analysis_id, "analyse")
@@ -346,7 +337,7 @@ def test_failed_compute_stays_hidden(cycle_lab, monkeypatch):
     root, bank_id, _, _ = cycle_lab
     monkeypatch.setattr(
         compute,
-        "run_cli",
+        "run_inference",
         lambda *a, **k: (_ for _ in ()).throw(RuntimeError("simulator failed")),
     )
     with pytest.raises(RuntimeError, match="simulator failed"):

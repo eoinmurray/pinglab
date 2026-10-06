@@ -58,7 +58,8 @@ def configuration(run):
     cfg = run.record["execution"].get("configuration")
     if (
         not isinstance(cfg, dict)
-        or cfg.get("schema") not in ("exp049.recipe/v1", "exp049.recipe/v2")
+        or cfg.get("schema")
+        not in ("exp049.recipe/v1", "exp049.recipe/v2", "exp049.recipe/v3")
         or cfg.get("profile") not in ("smoke", "production")
         or cfg
         != recipe.configuration(

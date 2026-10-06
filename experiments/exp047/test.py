@@ -104,24 +104,12 @@ def repo(tmp_path, monkeypatch):
     monkeypatch.setenv("PINGLAB_SMOKE", "1")
     calls = []
 
-    def simulate(args, **kwargs):
-        calls.append(args)
+    def simulate(cfg, item):
+        calls.append(item)
+        _, metrics = fixture_documents(cfg, item)
+        return metrics, {"job": item, "graph_digest": "fixture", "device": "cpu"}
 
-        def arg(flag):
-            return args[args.index(flag) + 1]
-
-        cfg = recipe.configuration(smoke=arg("--t-ms") == "200.0")
-        item = recipe.job(
-            int(arg("--n-inh")), float(arg("--ei-ratio")), int(arg("--seed"))
-        )
-        config, metrics = fixture_documents(cfg, item)
-        output = Path(arg("--out-dir"))
-        assert args == recipe.simulation_args(cfg, item, output)
-        write_json_atomic(output / "config.json", config)
-        write_json_atomic(output / "metrics.json", metrics)
-        (output / "run.sh").write_text("# synthetic fixture; not executed\n")
-
-    monkeypatch.setattr(compute, "run_cli", simulate)
+    monkeypatch.setattr(compute, "simulate_probe", simulate)
     return tmp_path, calls
 
 
@@ -142,7 +130,7 @@ def test_independent_stages_preserve_shared_rows_and_never_publish(repo, monkeyp
     assert not list(source.export.rglob("run.sh"))
     monkeypatch.setenv("PINGLAB_SMOKE", "0")
     monkeypatch.setattr(
-        compute, "run_cli", lambda *a, **k: pytest.fail("downstream simulated")
+        compute, "simulate_probe", lambda *a, **k: pytest.fail("downstream simulated")
     )
     analysis_id = analyse.analyse(compute_id)
     analysis = inputs.source(root, analysis_id, "analyse")
@@ -215,7 +203,7 @@ def test_stage_failures_remain_hidden(repo, monkeypatch, mode):
         raise RuntimeError("fixture failure")
 
     if mode == "simulation":
-        monkeypatch.setattr(compute, "run_cli", fail)
+        monkeypatch.setattr(compute, "simulate_probe", fail)
         command = compute.compute
     else:
         compute_id = compute.compute()

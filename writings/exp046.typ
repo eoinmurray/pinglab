@@ -7,11 +7,12 @@
 #let data-file = data-file.with(article: "exp046")
 
 #let meta = (
-  title: "One Spike per Gamma Cycle (legacy)",
+  title: "One Spike per Gamma Cycle",
   created_at: "2026-06-04T00:00:00Z",
   updated_at: "2026-09-14",
   description: "Pooled and equally weighted network distributions support predominantly one-spike gamma-cycle participation across 18 trained networks, with exceptions.",
   collection: "gamma-gated-sparsity",
+  tags: ("data", "v36.0.0"),
 )
 
 #let inputs = ("exp046",)

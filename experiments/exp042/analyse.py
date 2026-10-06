@@ -11,6 +11,7 @@ sys.path[:0] = [str(REPO), str(REPO / "tools")]
 import numpy as np
 from experiments.exp042 import inputs, recipe
 from pingstore.contracts import PingstoreError, load_json, write_json_atomic
+from snnlab.sim.timing import duration_steps
 
 MEASUREMENT = {
     "schema": "exp042.measurement/v2",
@@ -111,7 +112,7 @@ def raster_sample(path, training, cfg):
         e, i = np.array(data["spk_e"]), np.array(data["spk_i"])
         label = int(data["label"])
     for value, cells in ((e, training["n_hidden"]), (i, training["n_inh"])):
-        expected_steps = int(round(training["t_ms"] / training["dt"]))
+        expected_steps = duration_steps(training["t_ms"], training["dt"])
         if (
             value.ndim not in (2, 3)
             or value.shape[0] != expected_steps
@@ -129,7 +130,7 @@ def raster_sample(path, training, cfg):
     rng = np.random.default_rng(raster["selection_seed"])
     e_idx = np.sort(rng.choice(e.shape[1], raster["n_e_plot"], replace=False))
     i_idx = np.sort(rng.choice(i.shape[1], raster["n_i_plot"], replace=False))
-    seconds = training["t_ms"] / 1000.0
+    seconds = expected_steps * training["dt"] / 1000.0
     row = {
         "label": label,
         "dt": training["dt"],
@@ -171,7 +172,7 @@ def analyse(identity, *, run_id=None):
     ) as run:
         groups = {key: [] for key in ("jitter_sweep", "cell_jitter_sweep")}
         for job in recipe.jobs(cfg):
-            data = load_json(compute.export / "jobs" / (job["id"] + ".json"))
+            data = load_json(compute.file(job["id"] + "--metrics.json"))
             if data.get("job") != job:
                 raise PingstoreError("retained condition does not match recipe")
             groups[job["group"]].append(measurement(data["metrics"], job, cfg))

@@ -9,6 +9,7 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
 from experiments.exp082 import evidence, illustrate, inputs, recipe
 from experiments.exp082.inference import Inference
+from experiments.helpers.checkpoint_inference import shard_identity
 from experiments.helpers.hpc import concurrent_compute
 from pingstore.contracts import (
     PingstoreError,
@@ -41,7 +42,7 @@ def _run_jobs(bank, directory, jobs, contract):
             raise PingstoreError("condition labels differ from shared image bank")
 
 
-def _job_inventory(directory, jobs):
+def _job_inventory(directory, jobs, *, verify_device=True):
     files = {}
     for job in jobs:
         for prefix in ("export", ".scratch/simulations"):
@@ -53,6 +54,19 @@ def _job_inventory(directory, jobs):
                     raise PingstoreError("unsupported job evidence entry")
                 if path.is_file():
                     files[str(path.relative_to(directory))] = file_sha256(path)
+    if verify_device:
+        from snnlab.sim.execution import resolve_device
+
+        expected_device = resolve_device(os.environ.get("PINGLAB_DEVICE", "auto"))
+        for job in jobs:
+            folder = directory / ".scratch/simulations" / job["path"]
+            requests = list(folder.rglob("request.json"))
+            if not requests or any(
+                load_json(path).get("device") != expected_device for path in requests
+            ):
+                raise PingstoreError(
+                    "completed shard used a different resolved execution device"
+                )
     return files
 
 
@@ -90,7 +104,7 @@ def shard(identity, *, run_id, index, count=recipe.SHARDS):
         count=count,
         expected_count=recipe.SHARDS,
         inputs={"bank": bank.reference},
-        configuration=cfg,
+        configuration=shard_identity(cfg, bank, recipe),
         items=job_list,
         run_items=lambda: _run_jobs(bank, directory, job_list, contract),
         inventory=lambda: _job_inventory(directory, job_list),
@@ -112,11 +126,12 @@ def compute(identity, *, run_id=None, collect=False):
         run_id=run_id,
         count=recipe.SHARDS,
         inputs={"bank": bank.reference},
-        configuration=cfg,
+        configuration=shard_identity(cfg, bank, recipe),
         items_for=lambda index: recipe.jobs(cfg)[index :: recipe.SHARDS],
         inventory_for=lambda index: _job_inventory(
             _shard_paths(REPO, run_id, index, recipe.SHARDS),
             recipe.jobs(cfg)[index :: recipe.SHARDS],
+            verify_device=False,
         ),
         collect=collect,
     ) as (_directory, shard_records):

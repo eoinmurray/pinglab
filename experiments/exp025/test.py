@@ -95,43 +95,27 @@ def lab(tmp_path, monkeypatch):
             )
     calls = []
 
-    def simulate(args, **kwargs):
-        from snnlab.sim.config import save_selected_npz
-
-        fields = []
-        if "--output-fields" in args:
-            for arg in args[args.index("--output-fields") + 1 :]:
-                if arg.startswith("--"):
-                    break
-                fields.append(arg)
+    def simulate(train_dir, out, attachments, training, request, author, **kwargs):
+        calls.append(request)
+        out.mkdir(parents=True)
+        attachments.mkdir(parents=True, exist_ok=True)
+        write_json_atomic(attachments / "request.json", request)
 
         def save(path, **arrays):
-            save_selected_npz(path, arrays, fields or None)
+            np.savez_compressed(path, **arrays)
 
-        calls.append(args)
-
-        def arg(key):
-            return args[args.index(key) + 1]
-
-        cfg = load_json(Path(arg("--load-config")))
-        out = Path(arg("--out-dir"))
-        out.mkdir(parents=True)
-        assert arg("--device") == "auto"
-        assert Path(arg("--load-weights")).name == "weights_final.pth"
-        assert kwargs == {"no_sync": True}
-        if "--digit" in args:
-            assert "--max-samples" not in args
+        if request["input"] == "snapshot":
             e, i = np.zeros((4000, 4), bool), np.zeros((4000, 2), bool)
             e[::200] = True
             i[::200] = True
-            save(out / "recording.npz", dt=0.1, spk_e=e, spk_i=i, unused=np.zeros(20))
+            save(out / "recording.npz", dt=0.1, spk_e=e, spk_i=i, label=0, n_e=4, n_i=2)
         else:
-            n = int(arg("--max-samples"))
+            n = request["samples"]
             write_json_atomic(
                 out / "metrics.json",
                 {
                     "config": {
-                        **cfg,
+                        **training,
                         "evaluation_partition": "official_mnist_test",
                         "evaluation_samples": n,
                     },
@@ -142,13 +126,12 @@ def lab(tmp_path, monkeypatch):
                     "ce_loss": 2.3,
                 },
             )
-            if "per_cell_rates" in args:
+            if "rates" in request["products"]:
                 save(
                     out / "per_cell_rates.npz",
                     rate_e_per_sample=np.linspace(0.5, 2.0, n, dtype=np.float32),
-                    unused=np.zeros(20),
                 )
-            if "pop_traces" in args:
+            if "population" in request["products"]:
                 t = np.arange(2000) * 0.1 / 1000
                 save(
                     out / "pop_traces.npz",
@@ -168,33 +151,8 @@ def lab(tmp_path, monkeypatch):
                         }
                     )
                 save(out / "rasters.npz", **data)
-        simulation_config = {
-            **cfg,
-            "infer": True,
-            "input": "dataset",
-            "tau_gaba": cfg["tau_gaba_ms"],
-            "t_ms": 400.0 if "--digit" in args else cfg["t_ms"],
-            "max_samples": None if "--digit" in args else int(arg("--max-samples")),
-            "digit": 0,
-            "sample": 0,
-            "scale_w_in": float(arg("--scale-w-in")) if "--scale-w-in" in args else 1.0,
-            "scale_w_ei": 1.0,
-            "scale_w_ie": 1.0,
-            "intervention": [],
-            "scale_projection": [],
-            "load_weights": arg("--load-weights"),
-            "load_config": arg("--load-config"),
-        }
-        if "--digit" not in args:
-            metrics = load_json(out / "metrics.json")
-            metrics["config"].pop("seed")
-            metrics["config"].pop("tau_gaba_ms")
-            metrics["config"]["load_weights"] = arg("--load-weights")
-            write_json_atomic(out / "metrics.json", metrics)
-        write_json_atomic(out / "config.json", simulation_config)
-        (out / "run.sh").write_text("synthetic command\n")
 
-    monkeypatch.setattr(compute, "run_cli", simulate)
+    monkeypatch.setattr(compute, "run_inference", simulate)
     return tmp_path, run.run_id, calls
 
 
@@ -212,9 +170,9 @@ def test_independent_stages_preserve_bank_and_do_not_publish(lab, monkeypatch):
     )
     assert not (run.directory / ".scratch").exists()
     with np.load(run.file("snapshot", "coba", "recording.npz")) as raw:
-        assert set(raw.files) == {"dt", "spk_e", "spk_i"}
+        assert set(raw.files) == {"dt", "spk_e", "spk_i", "label", "n_e", "n_i"}
     monkeypatch.setattr(
-        compute, "run_cli", lambda *a, **k: pytest.fail("implicit simulation")
+        compute, "run_inference", lambda *a, **k: pytest.fail("implicit simulation")
     )
     measured_id = analyse.analyse(identity)
     measured = inputs.source(root, measured_id, "analyse")
@@ -303,7 +261,7 @@ def test_inference_failure_stays_hidden(lab, monkeypatch):
     def fail(*a, **k):
         raise RuntimeError("simulation failed")
 
-    monkeypatch.setattr(compute, "run_cli", fail)
+    monkeypatch.setattr(compute, "run_inference", fail)
     with pytest.raises(RuntimeError, match="simulation failed"):
         compute.compute(bank_id)
     assert not list((root / ".pingstore/runs").glob("exp025-*"))
@@ -430,13 +388,7 @@ def test_smoke_scaled_inference_caps_dataset(tmp_path: Path) -> None:
         j for j in recipe.jobs(recipe.configuration(smoke=True)) if j["kind"] == "scale"
     ]
     assert len(jobs) == 6
-    args = recipe.inference_args(
-        tmp_path, tmp_path / "weights_final.pth", tmp_path / "out", jobs[0]
-    )
-    assert args[args.index("--max-samples") + 1] == "100"
-    assert args[args.index("--scale-w-in") + 1] == "0.5"
-    assert args[args.index("--outputs") + 1] == "per_cell_rates"
-    assert args[args.index("--output-fields") + 1 :] == ["rate_e_per_sample"]
+    assert callable(recipe.inference_request)
 
 
 def test_frontier_endpoint_requests_one_official_test_forward_pass(
@@ -447,11 +399,7 @@ def test_frontier_endpoint_requests_one_official_test_forward_pass(
     jobs = [j for j in recipe.jobs(recipe.configuration()) if j["kind"] == "frontier"]
     assert len(jobs) == 36
     assert len({j["cell_name"] for j in jobs}) == 36
-    args = recipe.inference_args(
-        tmp_path, tmp_path / "weights_final.pth", tmp_path / "out", jobs[0]
-    )
-    assert args[args.index("--max-samples") + 1] == "1000"
-    assert "--outputs" not in args
+    assert callable(recipe.inference_request)
 
 
 def test_low_w_in_cells_are_owned_by_exp022() -> None:

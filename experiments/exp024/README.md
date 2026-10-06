@@ -72,3 +72,18 @@ have not been migrated or replaced.
 
 Run IDs now use the [source-neutral convention](../../tools/pingstore/SOURCE_NEUTRAL_IDS.md).
 Execution origin remains in `run.json`; migration preserved scientific results.
+
+
+## Migration completion audit — 2026-10-06
+
+Already analysis-only; no compute stage added. Complete epoch histories, endpoint-secants, convergence thresholds, first-99%-of-final marker, sample SD and retained training norms are unchanged.
+
+Implementation migration is complete under static verification only. Python parsing,
+lint, diff review and read-only Pingstore discovery were performed. Existing
+synthetic fixtures were adapted where their CLI seams became obsolete; none
+were executed. No experiment stage, new run, regenerated result, commit or push
+was performed. Numerical parity, backend execution, performance and rendering
+remain unverified. The implementation marker and article title suffix were
+removed; authored prose/results/dates and review decisions were preserved.
+Writing Guide 36.0.0 availability/version tags were applied using validated local
+presentation discovery.

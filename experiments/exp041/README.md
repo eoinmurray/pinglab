@@ -203,3 +203,18 @@ These changes affect future execution only. Existing immutable runs and R2
 archives are unchanged. Required arrays keep their original numerical values;
 selected NPZ outputs use lossless compression. No production rerun or new
 publication was performed for this cleanup.
+
+
+## Migration completion audit — 2026-10-06
+
+Native final-epoch tau-GABA evaluations and snapshots, with population traces reconstructed from native sparse E events. Estimators, windows, seed SEM and aggregation remain unchanged. Extra fields in historical training envelopes are validated against the pinned bank bytes without simulator reconstruction.
+
+Implementation migration is complete under static verification only. Python parsing,
+lint, diff review and read-only Pingstore discovery were performed. Existing
+synthetic fixtures were adapted where their CLI seams became obsolete; none
+were executed. No experiment stage, new run, regenerated result, commit or push
+was performed. Numerical parity, backend execution, performance and rendering
+remain unverified. The implementation marker and article title suffix were
+removed; authored prose/results/dates and review decisions were preserved.
+Writing Guide 36.0.0 availability/version tags were applied using validated local
+presentation discovery.

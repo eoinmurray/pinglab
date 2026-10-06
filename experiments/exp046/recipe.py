@@ -36,15 +36,6 @@ def refractory_configuration() -> dict:
     }
 
 
-def refractory_args() -> list[str]:
-    return [
-        "--refractory-e-ms",
-        str(REFRACTORY_E_MS),
-        "--refractory-i-ms",
-        str(REFRACTORY_I_MS),
-        "--refractory-policy",
-        REFRACTORY_POLICY,
-    ]
 
 
 def configuration(*, smoke=False, version=2):
@@ -61,34 +52,34 @@ def configuration(*, smoke=False, version=2):
     }
 
 
-def inference_args(train, checkpoint, output, *, samples, tau_gaba_ms):
-    return [
-        "sim",
-        *refractory_args(),
-        "--infer",
-        "--device",
-        "auto",
-        "--load-config",
-        str(train / "config.json"),
-        "--load-weights",
-        str(checkpoint),
-        "--tau-gaba",
-        str(tau_gaba_ms),
-        "--max-samples",
-        str(samples),
-        "--out-dir",
-        str(output),
-        "--outputs",
-        "rasters",
-        "per_cell_rates",
-        "--recording-mode",
-        "spikes",
-        "--output-fields",
-        "rate_e_per_cell",
-        "e_trial",
-        "e_t",
-        "e_cell",
-        "i_trial",
-        "i_t",
-        "i_cell",
-    ]
+
+
+BIOPHYSICS = {
+    "capacitance_e_nf": 1.0, "capacitance_i_nf": 0.5,
+    "leak_e_us": 0.05, "leak_i_us": 0.10,
+    "resting_mv": -65.0, "threshold_mv": -50.0, "reset_mv": -65.0,
+    "readout_tau_ms": 2.0, "readout_threshold": 1.0,
+}
+
+
+def author_network(training, *, observables=()):
+    from experiments.helpers.checkpoint_graph import author_network as author
+
+    return author(
+        SLUG, training, BIOPHYSICS, refractory_configuration(), observables=observables
+    )
+
+
+def inference_request(training, cfg):
+    return {
+        "checkpoint_role": CHECKPOINT_ROLE,
+        "input": "dataset",
+        "t_ms": training["t_ms"],
+        "input_rate_hz": training["input_rate"],
+        "samples": cfg["evaluation_samples"],
+        "batch_size": 64,
+        "subset_seed": 42,
+        "encoder_seed": 20260415,
+        "observables": [],
+        "products": ["rasters", "rates"],
+    }

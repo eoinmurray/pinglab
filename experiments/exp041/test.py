@@ -85,19 +85,13 @@ def lab(tmp_path, monkeypatch):
                 )
     calls = []
 
-    def simulate(args, **kwargs):
-        calls.append(args)
-
-        def arg(key):
-            return args[args.index(key) + 1]
-
-        out = Path(arg("--out-dir"))
+    def simulate(train_dir, out, attachments, training, request, author, **kwargs):
+        calls.append(request)
         out.mkdir(parents=True)
-        cfg = load_json(Path(arg("--load-config")))
-        assert arg("--device") == "auto"
-        assert Path(arg("--load-weights")).name == "weights_final.pth"
-        if "--sample-index" in args:
-            assert "--max-samples" not in args
+        attachments.mkdir(parents=True, exist_ok=True)
+        write_json_atomic(attachments / "request.json", request)
+        cfg = training
+        if request["input"] == "snapshot":
             steps = round(cfg["t_ms"] / cfg["dt"])
             e, i = np.zeros((steps, 4), dtype=bool), np.zeros((steps, 2), dtype=bool)
             e[::20, :] = True
@@ -106,7 +100,7 @@ def lab(tmp_path, monkeypatch):
                 out / "recording.npz", spk_e=e, spk_i=i, dt=cfg["dt"], label=3
             )
         else:
-            samples = int(arg("--max-samples"))
+            samples = request["samples"]
             write_json_atomic(
                 out / "metrics.json",
                 {
@@ -130,10 +124,8 @@ def lab(tmp_path, monkeypatch):
             np.savez_compressed(
                 out / "pop_traces.npz", pop_e=np.tile(wave, (samples, 1)), dt=cfg["dt"]
             )
-        write_json_atomic(out / "config.json", cfg)
-        (out / "run.sh").write_text("fixture\n")
 
-    monkeypatch.setattr(compute, "run_cli", simulate)
+    monkeypatch.setattr(compute, "run_inference", simulate)
     return tmp_path, bank.run_id, calls
 
 
@@ -184,7 +176,7 @@ def test_failure_stays_hidden_and_reservations_cannot_be_reused(lab, monkeypatch
     def fail(*a, **k):
         raise RuntimeError("fixture failure")
 
-    monkeypatch.setattr(compute, "run_cli", fail)
+    monkeypatch.setattr(compute, "run_inference", fail)
     with pytest.raises(RuntimeError, match="fixture failure"):
         compute.compute(bank_id, run_id=identity)
     assert (root / ".pingstore/runs" / f".{identity}.tmp").is_dir()
@@ -241,7 +233,7 @@ def test_independent_stages_retain_science_and_never_publish(lab, monkeypatch):
     assert not list(output.export.rglob("run.sh"))
     monkeypatch.setenv("PINGLAB_SMOKE", "0")
     monkeypatch.setattr(
-        compute, "run_cli", lambda *a, **k: pytest.fail("downstream inference")
+        compute, "run_inference", lambda *a, **k: pytest.fail("downstream inference")
     )
     analysis_id = analyse.analyse(compute_id)
     analysis_run = inputs.source(root, analysis_id, "analyse")
@@ -404,22 +396,7 @@ def test_strict_lineage_does_not_ignore_missing_historical_input(lab):
 def test_inference_caps_and_import_side_effects(tmp_path):
     assert recipe.configuration()["evaluation_samples"] == 1000
     assert recipe.configuration(smoke=True)["evaluation_samples"] == 100
-    args = recipe.inference_args(
-        Path("cell"),
-        Path("weights_final.pth"),
-        Path("out"),
-        samples=100,
-        tau_gaba_ms=6,
-        sample_index=50,
-    )
-    assert (
-        "--max-samples" not in args and args[args.index("--sample-index") + 1] == "50"
-    )
-    args = recipe.inference_args(
-        Path("cell"), Path("weights_final.pth"), Path("out"), samples=100, tau_gaba_ms=6
-    )
-    assert args[args.index("--max-samples") + 1] == "100"
-    assert args[args.index("--outputs") + 1] == "pop_traces"
+    assert callable(recipe.inference_request)
     root = Path(__file__).resolve().parents[2]
     result = subprocess.run(
         [

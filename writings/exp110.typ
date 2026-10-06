@@ -59,9 +59,10 @@
 #let meta = (
   title: "Manuscript",
   created_at: "2026-09-02T00:00:00Z",
-  updated_at: "2026-09-27",
+  updated_at: "2026-10-06",
   description: "A manuscript scaffold connecting PING circuit dynamics, low-rate task performance, cycle participation, perturbation sensitivity and continuous-stream classification.",
   collection: "gamma-gated-sparsity",
+  tags: ("data", "v36.0.0"),
 )
 
 #block[
@@ -211,7 +212,7 @@
   // equation text but excluding equation numbers and standalone operators.
   #context {
     let counts = [
-      - *Results:* 1,518 words
+      - *Results:* 1,527 words
       - *Methods:* 4,457 words
       - *Captions:* 1,631 words
       - *#manuscript-appendix-ref(<appendix-a>, [Appendix A]):* 1,506 words
@@ -275,6 +276,8 @@
   (#manuscript-figure-ref(<fig:matched-drive>, panel: "F,H")).
 
   #editing-paragraph-label("P3")
+  We next varied the strengths of both directions of the excitatory–inhibitory
+  loop to examine how coupling affected firing rates and rhythmic activity.
   Across an 11×11 reciprocal-coupling grid, absent E→I or I→E coupling left
   excitatory firing near 169 Hz and autocorrelation lobe–trough contrast
   (#manuscript-appendix-ref(<appendix-b2>, [Appendix B2])) near zero (#manuscript-figure-ref(<fig:coupling-plane>, panel: "A–C")). With both pathways present, stronger coupling
@@ -304,9 +307,9 @@
       finite-drive spectral peaks from three separately trained classifiers
       (red squares, dashed), without uncertainty intervals. Methods define
       measurements and protocols. Source experiments:
-      #link("/exp054/")[exp054] — #link("/exp054/")[_Pinglab Rythmicity Metric (legacy)_],
+      #link("/exp054/")[exp054] — #link("/exp054/")[_Pinglab Rythmicity Metric_],
       #link("/exp117/")[exp117] — #link("/exp117/")[_Mean-Field Analysis of PING Bifurcations_], and
-      #link("/exp041/")[exp041] — #link("/exp041/")[_Firing Rate Tracks Gamma Frequency (legacy)._]],
+      #link("/exp041/")[exp041] — #link("/exp041/")[_Firing Rate Tracks Gamma Frequency._]],
   ) <fig:coupling-plane>
 
   #editing-paragraph-label("P4")
@@ -317,8 +320,9 @@
   firing became sparse and inhibitory volleys increasingly regular.
 
   #editing-paragraph-label("P5")
-  In the separate four-variable mean-field model
-  (#manuscript-appendix-ref(<appendix-c>, [Appendix C])), leading complex-conjugate
+  We used a separate four-variable mean-field model to examine how
+  oscillations emerged as external drive increased
+  (#manuscript-appendix-ref(<appendix-c>, [Appendix C])). Leading complex-conjugate
   eigenvalues crossed zero real part at $I_"ext"^* = 0.594$ nA,
   corresponding to 27.6 Hz (#manuscript-figure-ref(<fig:coupling-plane>, panel: "G")). Above onset, excitatory-rate amplitude
   increased continuously, with nearly coincident upward/downward sweeps and
@@ -327,6 +331,8 @@
   onset; criticality was not established analytically.
 
   #editing-paragraph-label("P6")
+  We then compared how slowing inhibition affected oscillation frequency in
+  the mean-field model and trained spiking classifiers.
   Increasing inhibitory decay from 4.5 to 27 ms reduced mean-field onset
   frequency from 30.2 to 17.9 Hz and median spiking-classifier spectral
   frequency from 67.3 to 12.2 Hz (#manuscript-figure-ref(<fig:coupling-plane>, panel: "I")). The mean-field and spiking models
@@ -376,10 +382,12 @@
       Ceilings were 1, 2.5, 5, 10 and 25 Hz; stars denote unpenalised
       conditions. The loop-on 25 Hz ceiling marker nearly coincides with its
       unpenalised star.
-      Source experiment: #link("/exp025/")[exp025] — #link("/exp025/")[_Accuracy and Firing Rate With and Without Inhibition (legacy)._]],
+      Source experiment: #link("/exp025/")[exp025] — #link("/exp025/")[_Accuracy and Firing Rate With and Without Inhibition._]],
   ) <fig:accuracy-rate>
 
   #editing-paragraph-label("P8")
+  We next asked whether adding reciprocal inhibition after training could
+  produce sparse rhythmic activity while preserving classification accuracy.
   Adding reciprocal inhibition to trained loop-off classifiers without
   retraining replaced dense excitatory activity with recurring E/I volleys
   (#manuscript-figure-ref(<fig:loop-transfer>, panel: "A,B")). Across the coupling sweep, mean excitatory firing fell from
@@ -406,7 +414,7 @@
       in 0.1 steps. C shows per-neuron E/I rates (black circles/red
       squares); D shows accuracy (grey squares), with the dashed line
       marking mean accuracy at $s = 0$. Source experiment:
-      #link("/exp038/")[exp038] — #link("/exp038/")[_Switching On the Inhibitory Loop (legacy)._]],
+      #link("/exp038/")[exp038] — #link("/exp038/")[_Switching On the Inhibitory Loop._]],
   ) <fig:loop-transfer>
 
   #editing-paragraph-label("P9")
@@ -420,6 +428,7 @@
   (#manuscript-figure-ref(<fig:trainable-loop>, panel: "C")). These means describe three networks per condition responding to
   one fixed encoding of a reference digit, not test-set variability.
 
+  We also compared the recurrent connection weights before and after training.
   In all three networks in each condition, standard and one-tenth-standard
   training eliminated most E→I connections; most I→E connections remained
   positive and their mean strength across all entries increased
@@ -455,7 +464,7 @@
       they do not describe uncertainty in the paired change. Individual weights
       are not independent training replicates. Arrows mark pooled relative
       changes ≥5%, not statistical significance. Source experiment:
-      #link("/exp049/")[exp049] — #link("/exp049/")[_Training Recurrent Weights Weakens PING Rhythmicity (legacy)._]],
+      #link("/exp049/")[exp049] — #link("/exp049/")[_Training Recurrent Weights Weakens PING Rhythmicity._]],
   ) <fig:trainable-loop>
 
   === Excitatory firing is organised by population-cycle participation
@@ -501,8 +510,8 @@
       excluded. These distributions reuse the same classifiers' recorded
       spikes without new inference or training.
       Source experiments:
-      #link("/exp041/")[exp041] — #link("/exp041/")[_Firing Rate Tracks Gamma Frequency (legacy)_] and
-      #link("/exp046/")[exp046] — #link("/exp046/")[_One Spike per Gamma Cycle (legacy)._]],
+      #link("/exp041/")[exp041] — #link("/exp041/")[_Firing Rate Tracks Gamma Frequency_] and
+      #link("/exp046/")[exp046] — #link("/exp046/")[_One Spike per Gamma Cycle._]],
   ) <fig:cycle-participation>
 
   #editing-paragraph-label("P11")
@@ -554,7 +563,7 @@
       to E and I. Collisions add no event; inserted events cause no reset or
       refractory period. Both interventions affect readout and recurrent
       transmission. Exact dose grids and operations are given in Methods.
-      Source experiment: #link("/exp037/")[exp037] — #link("/exp037/")[_Dropped Spikes vs Added Noise (legacy)._]],
+      Source experiment: #link("/exp037/")[exp037] — #link("/exp037/")[_Dropped Spikes vs Added Noise._]],
   ) <fig:robustness>
 
   #editing-paragraph-label("P13")
@@ -567,15 +576,17 @@
   (#manuscript-appendix-ref(<appendix-a5>, [Appendix A5])).
 
   #editing-paragraph-label("P14")
-  Count-preserving inhibitory replay produced opposite effects under
-  independent-spike shifts and shared shifts within fixed 22.8-ms clock
-  windows (#manuscript-figure-ref(<fig:replay-perturbations>)). At proposed jitter SD 14 ms, independent shifts reduced
+  We next tested how inhibitory spike timing affected loop-on classifiers by
+  artificially shifting and replaying recorded inhibitory spikes while preserving each
+  neuron's spike count within every presentation. Shifting each inhibitory
+  spike separately reduced excitatory firing. Shifting all inhibitory spikes
+  from the same fixed 22.8-ms time window together increased it
+  (#manuscript-figure-ref(<fig:replay-perturbations>)). At a proposed jitter
+  standard deviation of 14 ms, independent shifts reduced
   mean excitatory firing from 16.6 to 0.0075 Hz and accuracy from 89.8% to
   11.9%; group shifts increased firing to 68.3 Hz while accuracy declined to
   82.5%. Replayed inhibitory firing remained 108.3 Hz. Thus, timing altered
-  excitatory recruitment despite preserved inhibitory counts. The group
-  windows were not detected cycles, and replay prevented inhibition from
-  responding to ongoing excitatory activity.
+  excitatory recruitment despite preserved inhibitory counts.
 
   #figure(
     data-image(
@@ -601,21 +612,45 @@
       endpoint protocol; no uncertainty intervals. Displayed jitter values
       are 0, 0.5, 1, 2, 5, 9, 14 ms (C) and 0, 1, 3, 7, 14 ms (D); both
       share the zero-jitter replay control. Source experiment:
-      #link("/exp042/")[exp042] — #link("/exp042/")[_Inhibitory Replay Perturbations Change Excitatory Firing (legacy)._]],
+      #link("/exp042/")[exp042] — #link("/exp042/")[_Inhibitory Replay Perturbations Change Excitatory Firing._]],
   ) <fig:replay-perturbations>
 
   === Loop-on networks classify continuously presented inputs
 
   #editing-paragraph-label("P15")
+  We next tested whether loop-on classifiers could classify successive images
+  while carrying their hidden state from one presentation to the next.
   A loop-on classifier trained across variable input rates correctly classified
-  five successive digits while retaining hidden state
-  (#manuscript-figure-ref(<fig:continuous-stream>, panel: "A–D")). Sparse
-  excitatory firing and inhibitory volleys persisted across changing
-  durations and input rates. The first candidate satisfied the predefined
-  five-correct selection criterion; the example therefore demonstrates
+  five successive digits presented at changing durations and input rates
+  (#manuscript-figure-ref(<fig:continuous-stream>, panel: "A")).
+  Sparse excitatory firing
+  (#manuscript-figure-ref(<fig:continuous-stream>, panel: "B")) and inhibitory
+  volleys (#manuscript-figure-ref(<fig:continuous-stream>, panel: "C"))
+  persisted throughout the stream. The readout accumulated spike-count
+  evidence during each presentation
+  (#manuscript-figure-ref(<fig:continuous-stream>, panel: "D")).
+  We selected an example in which all five digits were classified correctly;
+  the first candidate met this criterion. The example therefore demonstrates
   feasibility, not reliability across arbitrary streams. Output state and
   counts reset at supplied boundaries, so this result does not establish
-  autonomous boundary detection.
+  autonomous boundary detection. We then evaluated streaming accuracy across
+  different presentation durations and input strengths, using repeated trials
+  to assess performance beyond the illustrative example. At 25-Hz
+  maximum-pixel input, increasing duration from 25 to 200 ms raised mean
+  accuracy from #stream-accuracy(25, 25) to #stream-accuracy(200, 25)
+  (#manuscript-figure-ref(<fig:continuous-stream>, panel: "E")). At 200 ms,
+  increasing input from 0.5 to 5 Hz raised accuracy from
+  #stream-accuracy(200, 0.5) to #stream-accuracy(200, 5)
+  (#manuscript-figure-ref(<fig:continuous-stream>, panel: "F")).
+  #if stream-upper-increasing [Mean accuracy then increased across the tested
+    rates from 5 to 25 Hz, reaching #stream-accuracy(200, 25).] else [Accuracy
+    ranged from #stream-pct(calc.min(..stream-upper-means)) to
+    #stream-pct(calc.max(..stream-upper-means)) across 5–25 Hz without a strictly
+    monotonic increase.] Brief presentations and weak drive constrained
+  performance. #if shared-stream-images [The grid paired image identity
+    and order across conditions; its uncertainty remains conditional on one
+    sampled image bank.] else [These comparisons also contain image-sampling
+    variation because conditions were only partly paired.]
 
   #figure(
     data-image(
@@ -649,24 +684,8 @@
       the 200-ms evaluations: mean ± SEM across three replicates on a
       logarithmic rate axis. The illustrative recording was selected separately
       from this grid. Source experiment:
-      #link("/exp082/")[exp082] — #link("/exp082/")[_Spike-Count Classification in a Continuous Stream (legacy)._]],
+      #link("/exp082/")[exp082] — #link("/exp082/")[_Spike-Count Classification in a Continuous Stream._]],
   ) <fig:continuous-stream>
-
-  #editing-paragraph-label("P16")
-  Quantitative streaming evaluation showed dependence on duration and input
-  strength (#manuscript-figure-ref(<fig:continuous-stream>, panel: "E,F")). At 25-Hz maximum-pixel input, increasing duration
-  from 25 to 200 ms raised mean accuracy from #stream-accuracy(25, 25) to
-  #stream-accuracy(200, 25). At 200 ms, increasing input from 0.5 to 5 Hz
-  raised accuracy from #stream-accuracy(200, 0.5) to #stream-accuracy(200, 5).
-  #if stream-upper-increasing [Mean accuracy then increased across the tested
-    rates from 5 to 25 Hz, reaching #stream-accuracy(200, 25).] else [Accuracy
-    ranged from #stream-pct(calc.min(..stream-upper-means)) to
-    #stream-pct(calc.max(..stream-upper-means)) across 5–25 Hz without a strictly
-    monotonic increase.] Brief presentations and weak drive constrained
-  performance. #if shared-stream-images [The grid paired image identity
-    and order across conditions; its uncertainty remains conditional on one
-    sampled image bank.] else [These comparisons also contain image-sampling
-    variation because conditions were only partly paired.]
 
   == Methods
 

@@ -80,7 +80,9 @@ def _history(directory: Path, message: str) -> None:
         handle.write(f"- {campaign.utc_now()}: {message}\n")
 
 
-def reserve(repo: Path, *, origin: str = "slurm-wilkes", run_id: str | None = None) -> str:
+def reserve(
+    repo: Path, *, origin: str = "slurm-wilkes", run_id: str | None = None
+) -> str:
     """Initialize a fresh reservation, pin its source, and create 21 worker rows.
 
     A supplied identity must already have been allocated with ``reserve_stage``;
@@ -97,39 +99,67 @@ def reserve(repo: Path, *, origin: str = "slurm-wilkes", run_id: str | None = No
         if dirty:
             raise PingstoreError("bank reservation requires a clean source worktree")
         if run_id is None:
-            run_id = reserve_stage(repo / ".pingstore", recipe.SLUG, "compute", origin=origin)
+            run_id = reserve_stage(
+                repo / ".pingstore", recipe.SLUG, "compute", origin=origin
+            )
         directory = _directory(repo, run_id)
-        if ({path.name for path in directory.iterdir()} != {"README.md", "export", ".reservation.json"}
-                or not (directory / "README.md").is_file()
-                or not (directory / ".reservation.json").is_file()
-                or not (directory / "export").is_dir()
-                or any((directory / "export").iterdir())):
-            raise PingstoreError("bank initialization requires a fresh unused reservation with an empty export")
+        if (
+            {path.name for path in directory.iterdir()}
+            != {"README.md", "export", ".reservation.json"}
+            or not (directory / "README.md").is_file()
+            or not (directory / ".reservation.json").is_file()
+            or not (directory / "export").is_dir()
+            or any((directory / "export").iterdir())
+        ):
+            raise PingstoreError(
+                "bank initialization requires a fresh unused reservation with an empty export"
+            )
         reservation = stage_reservation(directory)
-        if (reservation["run_id"] != run_id or reservation["experiment"] != recipe.SLUG
-                or reservation["stage"] != "compute" or reservation["origin"] != origin):
-            raise PingstoreError("preallocated reservation identity or execution origin mismatch")
+        if (
+            reservation["run_id"] != run_id
+            or reservation["experiment"] != recipe.SLUG
+            or reservation["stage"] != "compute"
+            or reservation["origin"] != origin
+        ):
+            raise PingstoreError(
+                "preallocated reservation identity or execution origin mismatch"
+            )
         record = {
-            "schema": RUN_SCHEMA, "run_id": run_id, "experiment": recipe.SLUG,
-            "collection": memberships(repo)[recipe.SLUG], "stage": "compute",
-            "origin": origin, "created_at": reservation["reserved_at"],
+            "schema": RUN_SCHEMA,
+            "run_id": run_id,
+            "experiment": recipe.SLUG,
+            "collection": memberships(repo)[recipe.SLUG],
+            "stage": "compute",
+            "origin": origin,
+            "created_at": reservation["reserved_at"],
             "inputs": {"retained_bank": source.reference},
             "execution": {
-                "operation": "gradient-damping-bank-reuse", "command": [sys.executable, *sys.argv],
-                "cwd": str(repo), "host": execution_origin(),
-                "started_at": campaign.utc_now(), "configuration": recipe.SCALE,
+                "operation": "gradient-damping-bank-reuse",
+                "command": [sys.executable, *sys.argv],
+                "cwd": str(repo),
+                "host": execution_origin(),
+                "started_at": campaign.utc_now(),
+                "configuration": recipe.SCALE,
             },
-            "provenance": {"git_commit": commit, "dirty": False, "code_dirty": False,
-                           "lockfile_sha256": campaign.lock_identity(repo)["sha256"]},
+            "provenance": {
+                "git_commit": commit,
+                "dirty": False,
+                "code_dirty": False,
+                "lockfile_sha256": campaign.lock_identity(repo)["sha256"],
+            },
             "bank_reuse": {"schema": SCHEMA, "plan": plan, "reservation": reservation},
         }
         # Even an allocation interrupted before manifest creation protects its parent.
         write_json_atomic(directory / "run.json", record)
         root = directory / ".scratch/reuse"
         manifest = campaign.create_manifest(
-            repo=repo, bank_root=root, bank_id=run_id,
-            cells=replacement_cells(), tier_for=recipe.cell_resource_tier,
-            samples_epochs=recipe.cell_samples_epochs, build_args=recipe.build_train_args,
+            repo=repo,
+            bank_root=root,
+            bank_id=run_id,
+            cells=replacement_cells(),
+            tier_for=recipe.cell_resource_tier,
+            samples_epochs=recipe.cell_samples_epochs,
+            build_settings=recipe.training_settings,
             scientific_contract_for=recipe.scientific_contract,
             selection_tier="exp110-coba-damping-replacement",
         )
@@ -138,15 +168,18 @@ def reserve(repo: Path, *, origin: str = "slurm-wilkes", run_id: str | None = No
         manifest = campaign.load_manifest(root / "bank.json")
         record["bank_reuse"]["campaign"] = manifest
         write_json_atomic(directory / "run.json", record)
-        _history(directory, f"allocated `{run_id}` with origin `{origin}` from clean Git commit "
-                 f"`{commit}`; retained input `{source.reference['run_id']}` at "
-                 f"`{source.reference['payload_digest']}`. The 81 reused cells retain their "
-                 "source-bank bytes and training origins. Reserved a complete 102-cell "
-                 "replacement bank: 81 cells will be copied byte-for-byte from the pinned "
-                 "retained bank; all 21 COBA cells will be trained with gradient damping "
-                 "1000 and the recurrent loop disabled. Both checkpoint roles and original "
-                 "training origins are retained. "
-                 "All 34 seed-42 diagnostics will be regenerated during explicit finalization.")
+        _history(
+            directory,
+            f"allocated `{run_id}` with origin `{origin}` from clean Git commit "
+            f"`{commit}`; retained input `{source.reference['run_id']}` at "
+            f"`{source.reference['payload_digest']}`. The 81 reused cells retain their "
+            "source-bank bytes and training origins. Reserved a complete 102-cell "
+            "replacement bank: 81 cells will be copied byte-for-byte from the pinned "
+            "retained bank; all 21 COBA cells will be trained with gradient damping "
+            "1000 and the recurrent loop disabled. Both checkpoint roles and original "
+            "training origins are retained. "
+            "All 34 seed-42 diagnostics will be regenerated during explicit finalization.",
+        )
         compute._checked_bank_manifest(root / "bank.json")
         source.check_unchanged()
         return run_id

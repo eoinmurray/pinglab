@@ -234,3 +234,18 @@ and coordinated exclusive staging remain required; never include exp033 or other
 tasks' changes. The exp033 task was explicitly given the exclusive Git window
 while exp047 continued only package/article/test work, plus ownership of the
 narrow exp033 addition to Slurm's staged dispatch set after its commit.
+
+
+## Migration completion audit — 2026-10-06
+
+Native untrained graph probes preserve pool/coupling/seed job de-duplication, fan-in scaling, sparse input initialization and independent seed-plus-one synthetic encoding. Online graph counts replace unused trajectories. The omitted tau-GABA CLI setting is now explicitly fixed at its original 9 ms in the recipe. No cache or upstream input is introduced.
+
+Implementation migration is complete under static verification only. Python parsing,
+lint, diff review and read-only Pingstore discovery were performed. Existing
+synthetic fixtures were adapted where their CLI seams became obsolete; none
+were executed. No experiment stage, new run, regenerated result, commit or push
+was performed. Numerical parity, backend execution, performance and rendering
+remain unverified. The implementation marker and article title suffix were
+removed; authored prose/results/dates and review decisions were preserved.
+Writing Guide 36.0.0 availability/version tags were applied using validated local
+presentation discovery.

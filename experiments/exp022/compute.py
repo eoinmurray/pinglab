@@ -27,7 +27,7 @@ from pingstore.contracts import PingstoreError, write_json_atomic
 from pingstore.stages import reserve_stage, source_run, stage_run
 
 SCHEMA = "pinglab.exp022.bank"
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 REQUIRED_CELL_FILES = (
     "config.json",
     "metrics.json",
@@ -83,29 +83,7 @@ def lock_identity(repo: Path) -> dict[str, Any]:
     }
 
 
-def resolved_parameters(
-    cell: dict[str, Any], args: list[str], max_samples: int, epochs: int,
-    scientific_contract: dict[str, Any] | None = None,
-) -> dict[str, Any]:
-    """Cold-readable scientific contract, including the exact CLI argument map."""
-    values: dict[str, Any] = {}
-    index = 1  # skip the ``train`` verb
-    while index < len(args):
-        token = args[index]
-        if not token.startswith("--"):
-            index += 1
-            continue
-        if index + 1 >= len(args) or args[index + 1].startswith("--"):
-            values[token] = True
-            index += 1
-            continue
-        following: list[str] = []
-        index += 1
-        while index < len(args) and not args[index].startswith("--"):
-            following.append(args[index])
-            index += 1
-        values[token] = following[0] if len(following) == 1 else following
-    values.pop("--wipe-dir", None)
+def resolved_parameters(cell, settings, max_samples, epochs, scientific_contract=None):
     result = {
         "training_run_id": cell["training_run_id"],
         "family": cell["family"],
@@ -113,7 +91,7 @@ def resolved_parameters(
         "seed": cell["seed"],
         "max_samples": max_samples,
         "epochs": epochs,
-        "arguments": values,
+        "settings": settings,
     }
     if scientific_contract is not None:
         result["scientific_contract"] = scientific_contract
@@ -121,14 +99,18 @@ def resolved_parameters(
 
 
 def create_manifest(
-    *, repo: Path, bank_root: Path, bank_id: str,
-    cells: list[dict[str, Any]], tier_for: Callable[[dict[str, Any]], str],
+    *,
+    repo: Path,
+    bank_root: Path,
+    bank_id: str,
+    cells: list[dict[str, Any]],
+    tier_for: Callable[[dict[str, Any]], str],
     samples_epochs: Callable[[dict[str, Any]], tuple[int, int]],
-    build_args: Callable[[dict[str, Any], Path, int, int], list[str]],
-    scientific_contract_for: Callable[
-        [dict[str, Any], int, int], dict[str, Any]
-    ] | None = None,
-    plumbing: bool = False, selection_tier: str = "all",
+    build_settings: Callable[[dict[str, Any], int, int], dict],
+    scientific_contract_for: Callable[[dict[str, Any], int, int], dict[str, Any]]
+    | None = None,
+    plumbing: bool = False,
+    selection_tier: str = "all",
 ) -> dict[str, Any]:
     root = bank_root.resolve()
     if root == repo.resolve():
@@ -136,31 +118,54 @@ def create_manifest(
     commit, dirty = git_identity(repo)
     if dirty:
         raise ValueError("refusing to create a bank manifest from a dirty worktree")
+    from experiments.exp022.training import execution_digest, execution_identity
+
+    native_identity = execution_identity()
+    native_digest = execution_digest(native_identity)
     rows = []
     for cell in cells:
         max_samples, epochs = samples_epochs(cell)
-        spec = ({k: v for k, v in cell.items() if k != "max_samples"}
-                if plumbing else cell)
+        spec = (
+            {k: v for k, v in cell.items() if k != "max_samples"} if plumbing else cell
+        )
         out = root / "cells" / cell["name"]
-        args = build_args(spec, out, max_samples, epochs)
-        command = [python_executable(), "-m", recipe.SNN_MODULE, *args]
-        rows.append({
-            "name": cell["name"],
-            "training_run_id": cell["training_run_id"],
-            "family": cell["family"],
-            "resource_tier": tier_for(cell),
-            "parameters": resolved_parameters(
-                cell, args, max_samples, epochs,
-                scientific_contract=(
-                    scientific_contract_for(cell, max_samples, epochs)
-                    if scientific_contract_for else None
+        settings = build_settings(spec, max_samples, epochs)
+        settings["execution_digest"] = native_digest
+        command = [
+            python_executable(),
+            "experiments/exp022/compute.py",
+            "--native-cell",
+            cell["name"],
+            "--native-output",
+            str(out),
+            "--native-samples",
+            str(max_samples),
+            "--native-epochs",
+            str(epochs),
+        ]
+        rows.append(
+            {
+                "name": cell["name"],
+                "training_run_id": cell["training_run_id"],
+                "family": cell["family"],
+                "resource_tier": tier_for(cell),
+                "parameters": resolved_parameters(
+                    cell,
+                    settings,
+                    max_samples,
+                    epochs,
+                    scientific_contract=(
+                        scientific_contract_for(cell, max_samples, epochs)
+                        if scientific_contract_for
+                        else None
+                    ),
                 ),
-            ),
-            "command": command,
-            "command_shell": shlex.join(command),
-            "output_directory": str(out),
-            "required_outputs": list(REQUIRED_CELL_FILES),
-        })
+                "command": command,
+                "command_shell": shlex.join(command),
+                "output_directory": str(out),
+                "required_outputs": list(REQUIRED_CELL_FILES),
+            }
+        )
     return {
         "schema": SCHEMA,
         "schema_version": SCHEMA_VERSION,
@@ -170,6 +175,7 @@ def create_manifest(
         "environment": {
             "lockfile": lock_identity(repo),
             "python": platform.python_version(),
+            "native_identity": native_identity,
         },
         "bank_root": str(root),
         "plumbing": plumbing,
@@ -228,115 +234,31 @@ def _same(actual: Any, expected: Any) -> bool:
     return actual == expected
 
 
-ARG_TO_CONFIG = {
-    "--refractory-e-ms": "refractory_e_ms",
-    "--refractory-i-ms": "refractory_i_ms",
-    "--refractory-policy": "refractory_policy",
-    "--model": "model",
-    "--dataset": "dataset",
-    "--max-samples": "max_samples",
-    "--epochs": "epochs",
-    "--t-ms": "t_ms",
-    "--dt": "dt",
-    "--tau-gaba": "tau_gaba_ms",
-    "--seed": "seed",
-    "--ei-strength": "ei_strength",
-    "--v-grad-dampen": "v_grad_dampen",
-    "--w-in-initial-zero-fraction": "w_in_initial_zero_fraction",
-    "--readout": "readout_mode",
-    "--surrogate-slope": "surrogate_slope",
-    "--readout-w-out-scale": "readout_w_out_scale",
-    "--readout-w-init-mean": "readout_w_init_mean",
-    "--readout-w-init-std": "readout_w_init_std",
-    "--lr": "lr",
-    "--batch-size": "batch_size",
-    "--fr-reg-upper-target-hz": "fr_reg_upper_target_hz",
-    "--fr-reg-upper-strength": "fr_reg_upper_strength",
-    "--input-rates": "input_rates",
-    "--input-rate": "input_rate",
-    "--n-hidden": "hidden_sizes",
-    "--weight-decay": "weight_decay",
-    "--dales-law": "dales_law",
-    "--w-in": "w_in",
-    "--trainable-w-ei": "trainable_w_ei",
-    "--trainable-w-ie": "trainable_w_ie",
-}
-OPERATIONAL_ARGUMENTS = {"--out-dir"}
-FLOAT_CONFIG = {
-    "refractory_e_ms",
-    "refractory_i_ms",
-    "dt",
-    "t_ms",
-    "tau_gaba_ms",
-    "ei_strength",
-    "v_grad_dampen",
-    "w_in_initial_zero_fraction",
-    "surrogate_slope",
-    "readout_w_out_scale",
-    "readout_w_init_mean",
-    "readout_w_init_std",
-    "lr",
-    "fr_reg_upper_target_hz",
-    "fr_reg_upper_strength",
-    "input_rate",
-    "weight_decay",
-}
-INT_CONFIG = {"max_samples", "epochs", "seed", "batch_size"}
-BOOL_CONFIG = {"dales_law", "trainable_w_ei", "trainable_w_ie"}
+def _expected_config(cell):
+    return dict(cell['parameters']['settings'])
 
 
-def _expected_config(cell: dict[str, Any]) -> dict[str, Any]:
-    result: dict[str, Any] = {}
-    for flag, raw in cell["parameters"]["arguments"].items():
-        key = ARG_TO_CONFIG.get(flag)
-        if key is None:
-            if flag in OPERATIONAL_ARGUMENTS:
-                continue
-            raise ValueError(
-                f"manifest argument {flag!r} has no saved-config mapping or "
-                "operational exemption"
-            )
-        if key in FLOAT_CONFIG:
-            result[key] = float(raw)
-        elif key in INT_CONFIG:
-            result[key] = int(raw)
-        elif key == "input_rates":
-            result[key] = [float(value) for value in raw]
-        elif key == "hidden_sizes":
-            values = raw if isinstance(raw, list) else [raw]
-            result[key] = [int(value) for value in values]
-        elif key == "w_in":
-            mean = float(raw)
-            result[key] = [mean, mean * 0.1]
-        elif key in BOOL_CONFIG:
-            result[key] = bool(raw)
-        else:
-            result[key] = raw
-    contract = cell["parameters"].get("scientific_contract")
-    if contract is not None:
-        result.update({
-            "n_in": int(contract["input"]["channels"]),
-            "n_hidden": int(contract["topology"]["excitatory_neurons"]),
-            "n_inh": int(contract["topology"]["inhibitory_neurons"]),
-            "n_out": int(contract["topology"]["output_neurons"]),
-            "tau_ampa_ms": float(contract["dynamics"]["tau_ampa_ms"]),
-            "grad_clip": float(contract["optimizer"]["gradient_clip_norm"]),
-            "input_rate_sampling": contract["input"]["rate_sampling"],
-        })
-    return result
-
-
-def validate_cell(cell: dict[str, Any], *, load_checkpoint: bool = True) -> dict[str, Any]:
+def validate_cell(
+    cell: dict[str, Any], *, load_checkpoint: bool = True
+) -> dict[str, Any]:
     directory = Path(cell["output_directory"])
     missing = [name for name in REQUIRED_CELL_FILES if not (directory / name).is_file()]
     if missing:
         state = "missing" if len(missing) == len(REQUIRED_CELL_FILES) else "partial"
-        return {"valid": False, "state": state, "reasons": [f"missing {name}" for name in missing]}
+        return {
+            "valid": False,
+            "state": state,
+            "reasons": [f"missing {name}" for name in missing],
+        }
     reasons: list[str] = []
     try:
         config = _json(directory / "config.json")
         metrics = _json(directory / "metrics.json")
-        history = [json.loads(line) for line in (directory / "metrics.jsonl").read_text().splitlines() if line]
+        history = [
+            json.loads(line)
+            for line in (directory / "metrics.jsonl").read_text().splitlines()
+            if line
+        ]
     except (OSError, ValueError, json.JSONDecodeError) as exc:
         return {"valid": False, "state": "invalid", "reasons": [str(exc)]}
     for payload, label in ((config, "config"), (metrics, "metrics")):
@@ -362,17 +284,25 @@ def validate_cell(cell: dict[str, Any], *, load_checkpoint: bool = True) -> dict
     initialization = config.get("weight_initialization")
     metrics_initialization = nested.get("weight_initialization")
     required_roles = {"W_in", "W_out", "W_EE_1", "W_EI_1", "W_IE_1", "W_II_1"}
-    if not isinstance(initialization, dict) or not required_roles <= set(initialization):
+    if not isinstance(initialization, dict) or not required_roles <= set(
+        initialization
+    ):
         reasons.append("config missing complete weight initialization provenance")
     elif initialization != metrics_initialization:
         reasons.append("config/metrics weight initialization provenance mismatch")
     else:
         for role, record in initialization.items():
             if record.get("zeros_remain_trainable") is not True:
-                reasons.append(f"{role} does not declare trainable initialization zeros")
+                reasons.append(
+                    f"{role} does not declare trainable initialization zeros"
+                )
             if record.get("distribution") not in {
-                "lower_clamped_normal", "signed_normal", "kaiming_uniform_signed",
-                "uniform", "constant", "zeros",
+                "lower_clamped_normal",
+                "signed_normal",
+                "kaiming_uniform_signed",
+                "uniform",
+                "constant",
+                "zeros",
             }:
                 reasons.append(f"{role} has unknown initialization distribution")
             if not isinstance(record.get("statistics"), dict):
@@ -389,7 +319,9 @@ def validate_cell(cell: dict[str, Any], *, load_checkpoint: bool = True) -> dict
     samples = int(cell["parameters"]["max_samples"])
     if len(history) < epochs or int(history[-1].get("ep", -1)) < epochs:
         reasons.append(f"history did not reach epoch {epochs}")
-    observed_samples = [row.get("samples") for row in history if row.get("samples") is not None]
+    observed_samples = [
+        row.get("samples") for row in history if row.get("samples") is not None
+    ]
     expected_train_samples = round(samples * 0.9)  # fixed MNIST validation split
     if len(observed_samples) < epochs or any(
         int(value) != expected_train_samples for value in observed_samples[:epochs]
@@ -399,8 +331,6 @@ def validate_cell(cell: dict[str, Any], *, load_checkpoint: bool = True) -> dict
             f"for each of {epochs} epochs"
         )
     if load_checkpoint:
-        import torch
-
         checkpoint_specs = {
             "best_validation": ("weights.pth", metrics.get("best_epoch")),
             "final_epoch": ("weights_final.pth", epochs),
@@ -419,23 +349,9 @@ def validate_cell(cell: dict[str, Any], *, load_checkpoint: bool = True) -> dict
             if record.get("sha256") != sha256_file(path):
                 reasons.append(f"{role} checkpoint hash mismatch")
             try:
-                checkpoint = torch.load(path, map_location="cpu", weights_only=True)
-                if not isinstance(checkpoint, dict) or not checkpoint:
-                    reasons.append(f"{role} checkpoint is not a non-empty mapping")
-                    continue
-                n_in = int(config.get("n_in", 784))
-                n_hidden = int(config.get("n_hidden", 1024))
-                n_inh = int(config.get("n_inh", 256))
-                expected_shapes = {
-                    "W_ff.0": (n_in, n_hidden),
-                    "W_ff.1": (n_hidden, 10),
-                    "W_ei.1": (n_hidden, n_inh),
-                    "W_ie.1": (n_inh, n_hidden),
-                }
-                for key, shape in expected_shapes.items():
-                    value = checkpoint.get(key)
-                    if value is None or tuple(value.shape) != shape:
-                        reasons.append(f"{role} checkpoint {key} shape mismatch")
+                from experiments.helpers.checkpoint_graph import checkpoint_tensors
+
+                checkpoint_tensors(path, config)
             except Exception as exc:  # noqa: BLE001
                 reasons.append(
                     f"{role} checkpoint load failed: {type(exc).__name__}: {exc}"
@@ -677,16 +593,11 @@ def _train_one_cell(cell: dict, plumbing: bool) -> None:
     ms, ep = recipe.cell_samples_epochs(cell)  # honours PINGLAB_NB022_PLUMBING
     spec = cell
     if plumbing:
-        # build_train_args re-applies a canonical cell's own max_samples (60000),
-        # which would defeat the tiny plumbing scale. Strip it so the plumbing
-        # ms=100 takes and the retained parameters match what was trained.
+        # The plumbing profile explicitly caps every family, including canonical cells.
         spec = {k: v for k, v in cell.items() if k != "max_samples"}
-    args = recipe.build_train_args(spec, cell_dir(cell["name"]), ms, ep)
-    print(
-        f"[train-cell] {cell['training_run_id']} / {cell['name']} "
-        f"(n={ms}, {ep} ep) → {cell_dir(cell['name'])}"
-    )
-    subprocess.run([sys.executable, "-m", recipe.SNN_MODULE, *args], cwd=REPO, check=True)
+    from experiments.exp022.training import train_cell
+
+    train_cell(spec, cell_dir(cell["name"]), ms, ep)
     _stamp_training_run_identity(cell)
 
 
@@ -751,6 +662,11 @@ def _checked_bank_manifest(path: Path) -> dict:
         )
     if manifest.get("environment", {}).get("lockfile") != lock_identity(REPO):
         raise SystemExit("bank lockfile identity does not match the checkout")
+    from experiments.exp022.training import execution_digest, execution_identity
+
+    native_identity = execution_identity()
+    if manifest["environment"].get("native_identity") != native_identity:
+        raise SystemExit("training data, execution request or runtime source changed")
     tier = manifest.get("selection", {}).get("tier")
     try:
         if tier == "exp110-coba-damping-replacement":
@@ -766,9 +682,7 @@ def _checked_bank_manifest(path: Path) -> dict:
         raise SystemExit("bank manifest contains duplicate cell names")
     expected_names_list = [cell["name"] for cell in selected_cells]
     if manifest_names_list != expected_names_list:
-        raise SystemExit(
-            "bank cell list does not exactly match its declared selection"
-        )
+        raise SystemExit("bank cell list does not exactly match its declared selection")
     previous_plumbing = os.environ.get("PINGLAB_NB022_PLUMBING")
     runtime_commands = {}
     try:
@@ -785,17 +699,27 @@ def _checked_bank_manifest(path: Path) -> dict:
                 if manifest.get("plumbing")
                 else spec
             )
-            train_args = recipe.build_train_args(
-                command_spec, root / "cells" / spec["name"], samples, epochs
-            )
+            settings = recipe.training_settings(command_spec, samples, epochs)
+            settings["execution_digest"] = execution_digest(native_identity)
             resolved = resolved_parameters(
                 spec,
-                train_args,
+                settings,
                 samples,
                 epochs,
                 scientific_contract=recipe.scientific_contract(spec, samples, epochs),
             )
-            command = [python_executable(), "-m", recipe.SNN_MODULE, *train_args]
+            command = [
+                python_executable(),
+                "experiments/exp022/compute.py",
+                "--native-cell",
+                spec["name"],
+                "--native-output",
+                str(root / "cells" / spec["name"]),
+                "--native-samples",
+                str(samples),
+                "--native-epochs",
+                str(epochs),
+            ]
             output_directory = (root / "cells" / spec["name"]).resolve()
             expected = {
                 "name": spec["name"],
@@ -914,9 +838,16 @@ def _train_bank_cell(
         record["gpu"] = _gpu_metadata()
         atomic_json(cell_status_path, record)
         directory.parent.mkdir(parents=True, exist_ok=True)
-        command = manifest["_runtime_commands"][name]
-        completed = subprocess.run(command, cwd=REPO)
-        exit_code = completed.returncode
+        from experiments.exp022.training import train_cell
+
+        spec = _cell_by_name(name)
+        train_cell(
+            spec,
+            directory,
+            row["parameters"]["max_samples"],
+            row["parameters"]["epochs"],
+        )
+        exit_code = 0
         if exit_code == 0:
             spec = _cell_by_name(name)
             assert spec is not None
@@ -1008,7 +939,7 @@ def _handle_bank_cli(argv: list[str]) -> bool:
             cells=recipe.CANONICAL_CELLS,
             tier_for=recipe.cell_resource_tier,
             samples_epochs=recipe.cell_samples_epochs,
-            build_args=recipe.build_train_args,
+            build_settings=recipe.training_settings,
             scientific_contract_for=recipe.scientific_contract,
             plumbing=False,
             selection_tier="all",
@@ -1043,9 +974,7 @@ def _handle_bank_cli(argv: list[str]) -> bool:
         return True
     # Login-node listing/status remains metadata-only. Finalization, which must
     # run in an allocation, additionally hashes and loads every checkpoint.
-    status = summarize_status(
-        manifest, load_checkpoint=bool(args.bank_finalize)
-    )
+    status = summarize_status(manifest, load_checkpoint=bool(args.bank_finalize))
     if args.bank_finalize:
         _finalize_bank(manifest_path, manifest, status)
         return True
@@ -1092,31 +1021,22 @@ def generate_snapshots(bank: Path, output: Path) -> None:
         destination = output / cell["name"]
         if destination.exists():
             raise PingstoreError(f"probe output already exists: {destination}")
-        args = [
-            sys.executable,
-            "-m", recipe.SNN_MODULE,
-            "sim",
-            *recipe.refractory_args(),
-            "--infer",
-            "--load-config",
-            str(trained / "config.json"),
-            "--load-weights",
-            str(checkpoint["path"]),
-            "--digit",
-            "0",
-            "--sample",
-            "0",
-            "--out-dir",
-            str(destination),
-        ]
-        if cell["family"] == "variable_rate":
-            args += ["--input-rate", "5"]
-        print(f"[compute probe] {cell['name']}", flush=True)
-        subprocess.run(args, cwd=REPO, check=True)
+        from experiments.helpers.checkpoint_inference import run_inference
+
+        training = json.loads((trained / "config.json").read_text())
+        request = recipe.diagnostic_request(training, cell)
+        run_inference(
+            trained,
+            destination,
+            output.parent / ".scratch/diagnostic-requests" / cell["name"],
+            training,
+            request,
+            recipe.author_network,
+        )
         write_json_atomic(
             destination / "probe-command.json",
             {
-                "command": args,
+                "command": request,
                 "checkpoint": {
                     key: value for key, value in checkpoint.items() if key != "path"
                 },
@@ -1285,6 +1205,23 @@ def import_bank(identity: str, *, run_id: str | None = None) -> str:
 
 
 def main() -> None:
+    if "--native-cell" in sys.argv:
+        parser = argparse.ArgumentParser(
+            description="Train one explicit native exp022 cell"
+        )
+        parser.add_argument("--native-cell", required=True)
+        parser.add_argument("--native-output", type=Path, required=True)
+        parser.add_argument("--native-samples", type=int, required=True)
+        parser.add_argument("--native-epochs", type=int, required=True)
+        args = parser.parse_args()
+        cell = _cell_by_name(args.native_cell)
+        if cell is None:
+            parser.error("unregistered cell")
+        _writable_compute_root(args.native_output)
+        from experiments.exp022.training import train_cell
+
+        train_cell(cell, args.native_output, args.native_samples, args.native_epochs)
+        return
     from experiments.exp022 import reuse
 
     if reuse.handle_cli(sys.argv[1:], REPO):

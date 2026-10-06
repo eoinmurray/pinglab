@@ -13,7 +13,7 @@ from experiments.exp099 import inputs, recipe
 from pingstore.contracts import write_json_atomic
 from pingstore.stages import stage_run
 from scipy.signal import welch
-from snnlab.sim.metrics import rhythmicity_metrics  # noqa: TID251
+from snnlab.analysis import rhythmicity_metrics  # noqa: TID251
 
 
 def activity_diagnostics(spikes, dt):

@@ -47,71 +47,16 @@ def refractory_configuration() -> dict:
     }
 
 
-def refractory_args() -> list[str]:
-    return [
-        "--refractory-e-ms",
-        str(REFRACTORY_E_MS),
-        "--refractory-i-ms",
-        str(REFRACTORY_I_MS),
-        "--refractory-policy",
-        REFRACTORY_POLICY,
-    ]
 
 
 TRAINING_COMMON_FIELDS = (
-    "model",
-    "dataset",
-    "max_samples",
-    "epochs",
-    "t_ms",
-    "tau_ampa_ms",
-    "dt",
-    "input_rate",
-    "input_rate_sampling",
-    "hidden_sizes",
-    "n_in",
-    "n_hidden",
-    "n_inh",
-    "n_out",
-    "ei_strength",
-    "w_in",
-    "w_in_initial_zero_fraction",
-    "readout_mode",
-    "readout_w_init_mean",
-    "readout_w_init_std",
-    "surrogate_slope",
-    "lr",
-    "batch_size",
-    "weight_decay",
-    "grad_clip",
-    "v_grad_dampen",
-    "dales_law",
-    "trainable_w_ei",
-    "trainable_w_ie",
-    "dataset_split",
-    "validation_encoder_draws",
-    "fr_reg_upper_strength",
-    "fr_reg_upper_target_hz",
-    "recurrent_initial_zero_fraction",
-    "adaptive_threshold",
-    "train_leak",
-    "signed_readout",
-    "readout_bias",
-    "trainable_w_ee",
-    "trainable_w_ii",
-    "state_clamp",
-    "ei_ratio",
-    "w_ee",
-    "readout_reduction",
-    "readout_reference",
-    "readout_units",
-    "readout_w_out_scale",
-    "tau_m_e_bounds_ms",
-    "tau_m_i_bounds_ms",
-    "readout_tau_bounds_ms",
-    "adapt_tau_bounds_ms",
-    "adapt_strength_init_mv",
-    "adapt_strength_max_mv",
+    'model','dataset','max_samples','epochs','t_ms','tau_ampa_ms','dt','input_rate',
+    'input_rate_sampling','hidden_sizes','n_in','n_hidden','n_inh','n_out','ei_strength','ei_ratio',
+    'w_in','w_in_initial_zero_fraction','recurrent_initial_zero_fraction','readout_mode',
+    'readout_w_init_mean','readout_w_init_std','surrogate_slope','lr','batch_size','weight_decay',
+    'grad_clip','v_grad_dampen','dales_law','trainable_w_ei','trainable_w_ie',
+    'dataset_split','validation_encoder_draws','fr_reg_upper_strength','fr_reg_upper_target_hz',
+    'adaptive_threshold','train_leak','signed_readout','readout_bias','trainable_w_ee','trainable_w_ii','state_clamp',
 )
 
 
@@ -142,47 +87,36 @@ def configuration(*, smoke: bool = False, version=2) -> dict:
     }
 
 
-def inference_args(
-    train_dir,
-    checkpoint,
-    destination,
-    *,
-    samples: int,
-    tau_gaba_ms: float,
-    sample_index: int | None = None,
-) -> list[str]:
-    args = [
-        "sim",
-        *refractory_args(),
-        "--infer",
-        "--device",
-        "auto",
-        "--load-config",
-        str(train_dir / "config.json"),
-        "--load-weights",
-        str(checkpoint),
-        "--tau-gaba",
-        str(tau_gaba_ms),
-        "--out-dir",
-        str(destination),
-    ]
-    if sample_index is None:
-        args += [
-            "--outputs",
-            "pop_traces",
-            "--max-samples",
-            str(samples),
-            "--recording-mode",
-            "spikes",
-            "--output-fields",
-            "pop_e",
-        ]
-    else:
-        args += ["--sample-index", str(sample_index)] + [
-            "--recording-mode",
-            "spikes",
-            "--output-fields",
-            "spk_e",
-            "spk_i",
-        ]
-    return args
+
+
+BIOPHYSICS = {
+    "capacitance_e_nf": 1.0, "capacitance_i_nf": 0.5,
+    "leak_e_us": 0.05, "leak_i_us": 0.10,
+    "resting_mv": -65.0, "threshold_mv": -50.0, "reset_mv": -65.0,
+    "readout_tau_ms": 2.0, "readout_threshold": 1.0,
+}
+
+
+def author_network(training, *, observables=()):
+    from experiments.helpers.checkpoint_graph import author_network as author
+
+    return author(
+        SLUG, training, BIOPHYSICS, refractory_configuration(), observables=observables
+    )
+
+
+def inference_request(training, cfg, *, snapshot=False):
+    request = {
+        "checkpoint_role": CHECKPOINT_ROLE,
+        "input": "snapshot" if snapshot else "dataset",
+        "t_ms": training["t_ms"],
+        "input_rate_hz": training["input_rate"],
+        "samples": cfg["evaluation_samples"],
+        "batch_size": 1 if snapshot else 64,
+        "subset_seed": 42,
+        "encoder_seed": 20260415,
+        "sample_index": cfg["raster"]["sample_index"],
+        "observables": ["spikes"] if snapshot else [],
+        "products": [] if snapshot else ["population"],
+    }
+    return request
