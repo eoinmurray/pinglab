@@ -1,7 +1,5 @@
 """PING fundamentals: preserved scientific settings, without execution on import."""
 
-from pathlib import Path
-
 SLUG = "exp023"
 DT_MS = 0.1
 REFRACTORY_E_MS = 1.2
@@ -14,7 +12,7 @@ FI_N_IN = 784
 SEED = 42
 COBA_INPUT_RATE_HZ, PING_INPUT_RATE_HZ = 5, 45
 CELLS = ("coba", "ping")
-FI_EI = {"coba": "0", "ping": "1.5"}
+FI_EI = {"coba": 0.0, "ping": 1.5}
 FI_RATES_HZ = [2, 5, 10, 20, 40, 70, 100]
 F_GAMMA_BAND_HZ = (5.0, 150.0)
 BIOPHYSICS = {
@@ -42,131 +40,10 @@ def refractory_configuration() -> dict:
     }
 
 
-def refractory_args() -> list[str]:
-    return [
-        "--refractory-e-ms",
-        str(REFRACTORY_E_MS),
-        "--refractory-i-ms",
-        str(REFRACTORY_I_MS),
-        "--refractory-policy",
-        REFRACTORY_POLICY,
-    ]
-
-
-def _args(cell: str, rate: int, n_in: int, smoke: bool) -> list[str]:
-    return [
-        "sim",
-        *refractory_args(),
-        "--model",
-        "ping",
-        "--input",
-        "synthetic-spikes",
-        "--n-hidden",
-        str(N_E),
-        "--n-inh",
-        str(N_I),
-        "--n-in",
-        str(n_in),
-        "--ei-strength",
-        FI_EI[cell],
-        "--w-in",
-        "1.5",
-        "0.3",
-        "--w-in-initial-zero-fraction",
-        "0.95",
-        "--input-rate",
-        str(rate),
-        "--t-ms",
-        "200" if smoke else "400",
-        "--dt",
-        str(DT_MS),
-        "--seed",
-        str(SEED),
-        "--tau-gaba",
-        str(BIOPHYSICS["tau_gaba_ms"]),
-    ]
-
-
-def raster_args(
-    cell: str, out_dir: Path | None = None, *, smoke: bool = False
-) -> list[str]:
-    rate = COBA_INPUT_RATE_HZ if cell == "coba" else PING_INPUT_RATE_HZ
-    args = _args(cell, rate, N_IN, smoke) + [
-        "--output-fields",
-        "spk_e",
-        "spk_i",
-        "v_e_selected",
-        "ge_e_selected",
-        "gi_e_selected",
-        "v_i_selected",
-        "ge_i_selected",
-        "e_trace_index",
-        "i_trace_index",
-        "has_gi_e",
-    ]
-    if out_dir is not None:
-        args += ["--out-dir", str(out_dir)]
-    return args
-
-
-def fi_args(
-    cell: str, rate_hz: int, out_dir: Path | None = None, *, smoke: bool = False
-) -> list[str]:
-    args = _args(cell, rate_hz, FI_N_IN, smoke) + [
-        "--recording-mode",
-        "spikes",
-        "--output-fields",
-        "spk_e_count",
-        "spk_i_count",
-    ]
-    if out_dir is not None:
-        args += ["--out-dir", str(out_dir)]
-    return args
-
-
-def drive_provenance(*, smoke: bool = False, version=2) -> dict:
-    def point(args):
-        if version == 1:
-            args = args[:1] + args[1 + len(refractory_args()) :]
-
-        def value(flag):
-            return args[args.index(flag) + 1]
-
-        return {
-            "input": value("--input"),
-            "input_rate_hz": float(value("--input-rate")),
-            "ei_strength": float(value("--ei-strength")),
-            "t_ms": float(value("--t-ms")),
-            "dt_ms": float(value("--dt")),
-            "n_in": int(value("--n-in")),
-            "seed": int(value("--seed")),
-            "scientific_args": args,
-        }
-
+def configuration(*, smoke: bool = False) -> dict:
     return {
-        "raster_operating_points": {
-            cell: point(raster_args(cell, smoke=smoke)) for cell in CELLS
-        },
-        "fi_sweep": {
-            "input": "synthetic-spikes",
-            "input_rates_hz": list(FI_RATES_HZ),
-            "ei_strength_by_cell": {
-                cell: float(value) for cell, value in FI_EI.items()
-            },
-            "t_ms": 200 if smoke else 400,
-            "dt_ms": DT_MS,
-            "n_in": FI_N_IN,
-            "seed": SEED,
-        },
-    }
-
-
-def configuration(*, smoke: bool = False, version=2) -> dict:
-    if version not in (1, 2):
-        raise ValueError("unsupported exp023 recipe version")
-    return {
-        "schema": f"exp023.recipe/v{version}",
-        **(refractory_configuration() if version >= 2 else {}),
+        "schema": "exp023.recipe/v3",
+        **refractory_configuration(),
         "profile": "smoke" if smoke else "production",
         "model": "ping",
         "cells": list(CELLS),
@@ -182,19 +59,174 @@ def configuration(*, smoke: bool = False, version=2) -> dict:
         "recurrent_initial_zero_fraction": 0.0,
         "ei_ratio": 2.0,
         "integration": "exponential_euler",
-        "drive": drive_provenance(smoke=smoke, version=version),
-        "biophysics": {
-            **BIOPHYSICS,
-            **(
-                {"refractory_E_ms": 3.0, "refractory_I_ms": 1.5} if version == 1 else {}
-            ),
+        "drive": graph_drive(smoke=smoke),
+        "executor": "snnlab.sim.GraphExecutor",
+        "initialization_stream": "native graph parameter order; distinct from the historical CLI stream",
+        "biophysics": dict(BIOPHYSICS),
+    }
+
+
+def operating_point(cell: str, rate_hz: int, n_in: int, *, smoke=False) -> dict:
+    if cell not in CELLS:
+        raise ValueError(f"unknown loop condition: {cell}")
+    return {
+        "input": "synthetic-spikes",
+        "input_rate_hz": float(rate_hz),
+        "ei_strength": float(FI_EI[cell]),
+        "t_ms": 200 if smoke else 400,
+        "dt_ms": DT_MS,
+        "n_in": n_in,
+        "seed": SEED,
+    }
+
+
+def graph_drive(*, smoke=False) -> dict:
+    return {
+        "raster_operating_points": {
+            cell: operating_point(
+                cell,
+                COBA_INPUT_RATE_HZ if cell == "coba" else PING_INPUT_RATE_HZ,
+                N_IN,
+                smoke=smoke,
+            )
+            for cell in CELLS
+        },
+        "fi_sweep": {
+            "input": "synthetic-spikes",
+            "input_rates_hz": list(FI_RATES_HZ),
+            "ei_strength_by_cell": {cell: float(FI_EI[cell]) for cell in CELLS},
+            "t_ms": 200 if smoke else 400,
+            "dt_ms": DT_MS,
+            "n_in": FI_N_IN,
+            "seed": SEED,
         },
     }
 
 
-def simulations(*, smoke: bool = False):
-    for cell in CELLS:
-        yield f"scope/{cell}", raster_args(cell, smoke=smoke)
+def trials(*, smoke=False):
+    for cell, point in graph_drive(smoke=smoke)["raster_operating_points"].items():
+        yield f"scope/{cell}", cell, point, True
     for cell in CELLS:
         for rate in FI_RATES_HZ:
-            yield f"fi/{cell}__r{rate}", fi_args(cell, rate, smoke=smoke)
+            yield (
+                f"fi/{cell}__r{rate}",
+                cell,
+                operating_point(cell, rate, FI_N_IN, smoke=smoke),
+                False,
+            )
+
+
+def author_network(cfg: dict, point: dict, *, traces: bool):
+    """Declare the untrained circuit, with no stimulus or simulator globals."""
+    from snnlab import lang
+    from snnlab.sim.timing import refractory_steps
+
+    b = cfg["biophysics"]
+    net = lang.Network("exp023_ping_fundamentals", dt=point["dt_ms"] * lang.ms)
+    drive = net.input(
+        "drive",
+        shape=("time", "batch", point["n_in"]),
+        signal_type="spikes",
+        unit="spike",
+    )
+    populations = {}
+    for label in ("E", "I"):
+        populations[label] = net.population(
+            label,
+            size=cfg[f"n_{label.lower()}"],
+            neuron=lang.COBA_LIF(
+                tau_mem=(b[f"C_m_{label}_nF"] / b[f"g_L_{label}_uS"]) * lang.ms,
+                capacitance_nf=b[f"C_m_{label}_nF"],
+                leak_us=b[f"g_L_{label}_uS"],
+                resting_mv=b["E_L_mV"],
+                threshold_mv=b["threshold_mV"],
+                reset_mv=b["reset_mV"],
+                initial_voltage_mv=cfg["initial_voltage_mV"],
+                refractory_steps=refractory_steps(
+                    b[f"refractory_{label}_ms"],
+                    point["dt_ms"],
+                    policy=cfg["refractory_policy"],
+                ),
+                voltage_grad_dampen=80.0,
+            ),
+        )
+    e, i = populations["E"], populations["I"]
+    external = net.connect(
+        drive,
+        e.excitatory,
+        name="input_to_E",
+        synapse=lang.AMPA(tau=b["tau_ampa_ms"] * lang.ms),
+        weight=lang.LowerClampedNormal(
+            cfg["input_weight_parent_mean"],
+            cfg["input_weight_parent_sd"],
+            initial_zero_fraction=cfg["input_initial_zero_fraction"],
+            zeroing="bernoulli",
+        ),
+        constraint=lang.NonNegative(),
+        initialization_scaling="fan_in_normalized",
+    )
+    strength = point["ei_strength"]
+    ei = net.connect(
+        e.spikes,
+        i.excitatory,
+        name="E_to_I",
+        synapse=lang.AMPA(tau=b["tau_ampa_ms"] * lang.ms),
+        weight=lang.LowerClampedNormal(strength, strength * 0.1),
+        constraint=lang.NonNegative(),
+        connection="recurrent",
+        delay=point["dt_ms"] * lang.ms,
+        initialization_scaling="fan_in_normalized",
+    )
+    ie_strength = strength * cfg["ei_ratio"]
+    ie = net.connect(
+        i.spikes,
+        e.inhibitory,
+        name="I_to_E",
+        synapse=lang.GABA(tau=b["tau_gaba_ms"] * lang.ms),
+        weight=lang.LowerClampedNormal(ie_strength, ie_strength * 0.1),
+        constraint=lang.NonNegative(),
+        connection="recurrent",
+        delay=point["dt_ms"] * lang.ms,
+        initialization_scaling="fan_in_normalized",
+    )
+    if traces:
+        for name, signal in {
+            "spk_e": e.spikes,
+            "spk_i": i.spikes,
+            "v_e": e.voltage,
+            "v_i": i.voltage,
+            "ge_e": external.conductance,
+            "ge_i": ei.conductance,
+            "gi_e": ie.conductance,
+        }.items():
+            net.expose(signal, name=name)
+    else:
+        for label, population in populations.items():
+            count = lang.ops.reduce(
+                population.spikes, operation="sum", over="time", name=f"{label}_counts"
+            )
+            net.output(f"spk_{label.lower()}_count", count)
+    return lang.compile(net, target="tools/snnsim")
+
+
+def execution_request(bundle, point: dict, *, traces: bool):
+    from snnlab.sim.execution import ExecutionSpec, PoissonInputBinding
+    from snnlab.sim.timing import duration_steps
+
+    return ExecutionSpec(
+        kind="simulate",
+        executor="graph",
+        graph=bundle.graph,
+        seed=point["seed"],
+        device="cpu",
+        diagnostics=traces,
+        input_bindings=(
+            PoissonInputBinding(
+                input_id="drive",
+                steps_count=duration_steps(point["t_ms"], point["dt_ms"]),
+                batch_size=1,
+                rates_hz=(point["input_rate_hz"],),
+                seed=point["seed"],
+            ),
+        ),
+    )

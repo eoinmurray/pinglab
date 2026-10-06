@@ -48,38 +48,54 @@ def population_psd(spk_2d: np.ndarray, dt_ms: float, band_hz):
 def snapshot(path: Path, cfg: dict, point: dict, *, traces: bool = False) -> dict:
     with np.load(path, allow_pickle=False) as archive:
         data = {key: np.array(archive[key]) for key in archive.files}
-    dt = float(data["dt"])
+    required = {"dt", "T", "n_e", "n_i"}
+    if traces:
+        required |= {
+            "spk_e",
+            "spk_i",
+            "e_trace_index",
+            "i_trace_index",
+            "has_gi_e",
+            "v_e_selected",
+            "ge_e_selected",
+            "gi_e_selected",
+            "v_i_selected",
+            "ge_i_selected",
+        }
+    else:
+        required |= {"spk_e_count", "spk_i_count"}
+    if set(data) != required:
+        raise PingstoreError(f"{path}: unsupported native recording fields")
     steps = int(round(point["t_ms"] / point["dt_ms"]))
+    if any(
+        data[key].shape != () or data[key].dtype.kind not in "iu" or data[key] != value
+        for key, value in (("T", steps), ("n_e", cfg["n_e"]), ("n_i", cfg["n_i"]))
+    ):
+        raise PingstoreError(f"{path}: recording dimensions differ from recipe")
+    if data["dt"].shape != () or data["dt"].dtype.kind not in "fiu":
+        raise PingstoreError(f"{path}: invalid recording timestep")
+    dt = float(data["dt"])
     if not np.isfinite(dt) or not np.isclose(dt, point["dt_ms"]):
         raise PingstoreError(f"{path}: timestep differs from retained recipe")
-    if not traces and "spk_e_count" in data:
+    if not traces:
         for population in ("e", "i"):
-            count = data.get(f"spk_{population}_count")
+            count = data[f"spk_{population}_count"]
             if (
-                count is None
-                or count.shape != ()
+                count.shape != ()
                 or count.dtype.kind not in "iu"
                 or not 0 <= count.item() <= steps * cfg[f"n_{population}"]
             ):
                 raise PingstoreError(f"{path}: invalid population spike count")
-        if any(
-            np.asarray(data.get(key)).shape != () or data.get(key) != value
-            for key, value in (("T", steps), ("n_e", cfg["n_e"]), ("n_i", cfg["n_i"]))
-        ):
-            raise PingstoreError(f"{path}: count dimensions differ from recipe")
         data["dt"] = dt
         return data
     for key, n in (
         ("spk_e", cfg["n_e"]),
         ("spk_i", cfg["n_i"]),
-        ("input_spikes", point["n_in"]),
     ):
-        if key == "input_spikes" and key not in data:
-            continue
         spikes = data[key]
         if spikes.shape != (steps, n) or not np.isin(spikes, [0, 1]).all():
             raise PingstoreError(f"{path}: invalid {key} geometry or spikes")
-    if traces and "v_e_selected" in data:
+    if traces:
         for population in ("e", "i"):
             index = pick_active(data[f"spk_{population}"])
             expected_index = index if index is not None else 0
@@ -104,23 +120,6 @@ def snapshot(path: Path, cfg: dict, point: dict, *, traces: bool = False) -> dic
         flag = data.get("has_gi_e")
         if flag is None or flag.shape != () or flag.dtype.kind != "b":
             raise PingstoreError(f"{path}: invalid inhibitory conductance flag")
-    elif traces:
-        for key, n in (
-            ("v_e_1", cfg["n_e"]),
-            ("ge_e_1", cfg["n_e"]),
-            ("gi_e_1", cfg["n_e"]),
-            ("v_i_1", cfg["n_i"]),
-            ("ge_i_1", cfg["n_i"]),
-        ):
-            value = data.get(key)
-            if (
-                value is None
-                or value.shape != (steps, n)
-                or not np.isfinite(value).all()
-            ):
-                raise PingstoreError(f"{path}: missing or invalid {key}")
-            if key.startswith("g") and (value < 0).any():
-                raise PingstoreError(f"{path}: negative conductance")
     data["dt"] = dt
     return data
 
@@ -142,9 +141,7 @@ def select_traces(data: dict, biophysics: dict) -> tuple[dict, dict]:
         "e_index": e_index if e_index is not None else 0,
         "i_index": i_index,
         "e_active": e_index is not None,
-        "has_gi_e": bool(data["has_gi_e"])
-        if "has_gi_e" in data
-        else bool(data["gi_e_1"].any()),
+        "has_gi_e": bool(data["has_gi_e"]),
     }
     values = {"time_ms": np.arange(data["spk_e"].shape[0]) * data["dt"]}
     for population, index in (("e", selected["e_index"]), ("i", i_index)):
@@ -152,10 +149,7 @@ def select_traces(data: dict, biophysics: dict) -> tuple[dict, dict]:
             continue
 
         def trace(signal):
-            key = f"{signal}_{population}_selected"
-            return (
-                data[key] if key in data else data[f"{signal}_{population}_1"][:, index]
-            )
+            return data[f"{signal}_{population}_selected"]
 
         v, ge = trace("v"), trace("ge")
         gi = trace("gi") if population == "e" else np.zeros_like(ge)
@@ -225,25 +219,25 @@ def analyse(identity: str, *, run_id: str | None = None) -> str:
         for cell in cfg["cells"]:
             for rate in fi_point["input_rates_hz"]:
                 data = snapshot(
-                    compute.file("fi", f"{cell}__r{rate}", "recording.npz"),
+                    compute.file(
+                        "fi",
+                        f"{cell}__r{rate}",
+                        "spikes.npz",
+                    ),
                     cfg,
                     fi_point,
                 )
                 fi[cell]["in"].append(rate)
                 for population in ("e", "i"):
                     key = f"spk_{population}_count"
-                    if key in data:
-                        neurons = cfg[f"n_{population}"]
-                        rate_hz = (
-                            float(
-                                data[key]
-                                / (neurons * int(data["T"]) * data["dt"] / 1000.0)
-                            )
-                            if neurons
-                            else 0.0
+                    neurons = cfg[f"n_{population}"]
+                    rate_hz = (
+                        float(
+                            data[key] / (neurons * int(data["T"]) * data["dt"] / 1000.0)
                         )
-                    else:
-                        rate_hz = population_rate(data[f"spk_{population}"], data["dt"])
+                        if neurons
+                        else 0.0
+                    )
                     fi[cell][population].append(rate_hz)
         np.savez_compressed(run.export / "spectra.npz", **spectra)
         np.savez_compressed(run.export / "traces.npz", **traces)

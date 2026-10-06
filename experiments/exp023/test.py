@@ -2,18 +2,16 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from experiments.exp023 import recipe as exp023
-
-"""Isolated exp023 pipeline fixtures; never execute a scientific simulation."""
+"""Pipeline fixtures and bounded graph/legacy numerical conformance checks."""
 
 import subprocess
 import sys
-from unittest.mock import patch
+from types import SimpleNamespace
 
 import numpy as np
 import pytest
+import torch
 from experiments.exp023 import analyse, compute, inputs, present, recipe
-from experiments.helpers import run_cli
 from pingstore import stages
 from pingstore.contracts import (
     PingstoreError,
@@ -38,49 +36,33 @@ def repo(tmp_path, monkeypatch):
     monkeypatch.setenv("PINGLAB_SMOKE", "1")
     calls = []
 
-    def simulate(args, **kwargs):
-        calls.append(args)
-
-        def arg(flag):
-            return args[args.index(flag) + 1]
-
-        destination = Path(arg("--out-dir"))
-        destination.mkdir(parents=True)
-        steps = int(float(arg("--t-ms")) / float(arg("--dt")))
-        e = np.zeros((steps, recipe.N_E), dtype=bool)
-        i = np.zeros((steps, recipe.N_I), dtype=bool)
-        e[::100, 1] = True
-        if arg("--ei-strength") != "0":
-            i[5::100, 0] = True
-        from snnlab.sim.config import save_snapshot_npz
-
-        selected = args[args.index("--output-fields") + 1 :]
-        selected = selected[
-            : next(
-                (i for i, x in enumerate(selected) if x.startswith("--")), len(selected)
-            )
-        ]
-        save_snapshot_npz(
-            destination / "recording.npz",
-            {
-                "hid": e,
-                "inh": i,
-                "input": np.zeros((steps, int(arg("--n-in"))), dtype=bool),
-                "v_e_1": np.full(e.shape, -60.0),
-                "ge_e_1": np.full(e.shape, 0.01),
-                "gi_e_1": np.full(e.shape, 0.02 if i.any() else 0.0),
-                "v_i_1": np.full(i.shape, -55.0),
-                "ge_i_1": np.full(i.shape, 0.03),
-            },
-            float(arg("--dt")),
-            recipe.N_E,
-            recipe.N_I,
-            output_fields=selected,
+    def simulate(spec):
+        calls.append(spec)
+        point = spec.input_bindings[0]
+        steps = point.steps_count
+        e = torch.zeros(steps, 1, recipe.N_E)
+        i = torch.zeros(steps, 1, recipe.N_I)
+        e[::100, 0, 1] = 1
+        parameters = {row["id"]: row for row in spec.graph["parameters"]}
+        if parameters["E_to_I.weight"]["initializer"]["mean"]:
+            i[5::100, 0, 0] = 1
+        diagnostics = {
+            "spk_e": e,
+            "spk_i": i,
+            "v_e": torch.full_like(e, -60),
+            "v_i": torch.full_like(i, -55),
+            "ge_e": torch.full_like(e, 0.01),
+            "ge_i": torch.full_like(i, 0.03),
+            "gi_e": torch.full_like(e, 0.02 if i.any() else 0),
+        }
+        return SimpleNamespace(
+            diagnostics=diagnostics if spec.diagnostics else {},
+            outputs={"spk_e_count": e.sum(0), "spk_i_count": i.sum(0)},
+            parameters={"input_to_E.weight": torch.zeros(recipe.N_IN, recipe.N_E)},
+            metrics={"execution_protocol": {"fixture": True}},
         )
-        write_json_atomic(destination / "config.json", {"arguments": args})
-        (destination / "run.sh").write_text("fixture only\n")
 
-    monkeypatch.setattr(compute, "run_cli", simulate)
+    monkeypatch.setattr(compute, "simulate", simulate)
     return tmp_path, calls
 
 
@@ -90,7 +72,7 @@ def resign(directory):
     write_json_atomic(directory / "run.json", record)
 
 
-def test_independent_v3_stages_preserve_measurements_and_never_publish(
+def test_independent_v4_stages_preserve_measurements_and_never_publish(
     repo, monkeypatch
 ):
     root, calls = repo
@@ -102,7 +84,7 @@ def test_independent_v3_stages_preserve_measurements_and_never_publish(
     before = source.reference
     monkeypatch.setenv("PINGLAB_SMOKE", "0")
     monkeypatch.setattr(
-        compute, "run_cli", lambda *a, **k: pytest.fail("downstream simulation")
+        compute, "simulate", lambda *a, **k: pytest.fail("downstream simulation")
     )
     analysis_id = analyse.analyse(compute_id)
     analysis = inputs.source(root, analysis_id, "analyse")
@@ -149,7 +131,7 @@ def test_failure_leaves_hidden_run_and_never_runs_downstream(repo, monkeypatch):
     def fail(*a, **k):
         raise RuntimeError("fixture failure")
 
-    monkeypatch.setattr(compute, "run_cli", fail)
+    monkeypatch.setattr(compute, "simulate", fail)
     with pytest.raises(RuntimeError, match="fixture failure"):
         compute.compute()
     assert not list((root / ".pingstore/runs").glob("exp023-*"))
@@ -210,13 +192,6 @@ def test_unsupported_schema_is_rejected_before_scientific_consumption(repo):
         analyse.analyse(identity)
 
 
-def test_shared_cli_targets_existing_simulator():
-    assert run_cli.SNN_MODULE == "snnlab.sim"
-    with patch("sh.uv") as command:
-        run_cli.run_cli(recipe.raster_args("ping"), no_sync=True)
-    assert command.call_args.args[2:5] == ("python", "-m", "snnlab.sim")
-
-
 @pytest.mark.parametrize("flag", [[], ["--plot-only"], ["--skip-training"]])
 def test_retired_launcher_rejects_all_combined_modes(flag):
     root = Path(__file__).resolve().parents[2]
@@ -241,83 +216,228 @@ def test_spectrum_and_selection_preserve_original_rules():
 
 
 @pytest.mark.parametrize("silent", [False, True])
-def test_compact_snapshots_preserve_scope_analysis_and_fi_rates(tmp_path, silent):
-    from snnlab.sim.config import save_snapshot_npz
-
+def test_native_compact_recordings_preserve_trace_selection_and_rates(tmp_path, silent):
     cfg = recipe.configuration(smoke=True)
     cfg.update(n_e=4, n_i=2)
     point = {"t_ms": 10, "dt_ms": 0.1, "n_in": 3}
     rng = np.random.default_rng(42)
     e = (rng.random((100, 4)) < 0.1) & (not silent)
     i = (rng.random((100, 2)) < 0.1) & (not silent)
-    rec = {"hid": e, "inh": i, "input": np.zeros((100, 3), bool)}
-    for p, n in (("e", 4), ("i", 2)):
-        rec[f"v_{p}_1"] = rng.uniform(-70, -50, (100, n))
-        for g in ("ge", "gi"):
-            rec[f"{g}_{p}_1"] = rng.uniform(0, 0.2, (100, n))
-    save_snapshot_npz(tmp_path / "full.npz", rec, 0.1, 4, 2)
-    args = recipe.raster_args("ping")
-    fields = args[args.index("--output-fields") + 1 :]
-    save_snapshot_npz(tmp_path / "scope.npz", rec, 0.1, 4, 2, output_fields=fields)
-    full = analyse.snapshot(tmp_path / "full.npz", cfg, point, traces=True)
-    lean = analyse.snapshot(tmp_path / "scope.npz", cfg, point, traces=True)
-    full_traces, full_selection = analyse.select_traces(full, cfg["biophysics"])
-    lean_traces, lean_selection = analyse.select_traces(lean, cfg["biophysics"])
-    assert lean_selection == full_selection
-    assert "input_spikes" not in lean and "v_e_1" not in lean
-    for key in full_traces:
-        np.testing.assert_array_equal(lean_traces[key], full_traces[key])
-    save_snapshot_npz(
-        tmp_path / "fi.npz",
-        rec,
-        0.1,
-        4,
-        2,
-        output_fields=["spk_e_count", "spk_i_count"],
+    diagnostics = {"spk_e": torch.tensor(e[:, None]), "spk_i": torch.tensor(i[:, None])}
+    for population, size in (("e", 4), ("i", 2)):
+        for signal in ("v", "ge", "gi") if population == "e" else ("v", "ge"):
+            diagnostics[f"{signal}_{population}"] = torch.tensor(
+                rng.uniform(-70, -50, (100, 1, size))
+                if signal == "v"
+                else rng.uniform(0, 0.2, (100, 1, size))
+            )
+    result = SimpleNamespace(
+        diagnostics=diagnostics,
+        outputs={
+            "spk_e_count": torch.tensor(e.sum(0)[None]),
+            "spk_i_count": torch.tensor(i.sum(0)[None]),
+        },
     )
-    counts = analyse.snapshot(tmp_path / "fi.npz", cfg, point)
-    assert set(counts) == {"dt", "T", "n_e", "n_i", "spk_e_count", "spk_i_count"}
-    for p in ("e", "i"):
-        rate = float(
-            counts[f"spk_{p}_count"]
-            / (cfg[f"n_{p}"] * int(counts["T"]) * counts["dt"] / 1000.0)
+    np.savez_compressed(
+        tmp_path / "scope.npz", **compute.recording(result, cfg, point, traces=True)
+    )
+    scope = analyse.snapshot(tmp_path / "scope.npz", cfg, point, traces=True)
+    traces, selected = analyse.select_traces(scope, cfg["biophysics"])
+    assert selected["e_index"] == int(e.sum(0).argmax())
+    assert selected["i_index"] == (None if silent else int(i.sum(0).argmax()))
+    np.testing.assert_array_equal(
+        traces["v_e"], diagnostics["v_e"][:, 0, selected["e_index"]].numpy()
+    )
+    np.savez_compressed(
+        tmp_path / "counts.npz", **compute.recording(result, cfg, point, traces=False)
+    )
+    counts = analyse.snapshot(tmp_path / "counts.npz", cfg, point)
+    for population, spikes in (("e", e), ("i", i)):
+        assert counts[f"spk_{population}_count"] == spikes.sum()
+    # A dense sweep is rejected rather than silently accepted through an older interface.
+    np.savez_compressed(
+        tmp_path / "dense.npz", dt=0.1, T=100, n_e=4, n_i=2, spk_e=e, spk_i=i
+    )
+    with pytest.raises(PingstoreError, match="unsupported native recording fields"):
+        analyse.snapshot(tmp_path / "dense.npz", cfg, point)
+    scope.pop("v_e_selected")
+    np.savez_compressed(tmp_path / "missing.npz", **scope)
+    with pytest.raises(PingstoreError, match="unsupported native recording fields"):
+        analyse.snapshot(tmp_path / "missing.npz", cfg, point, traces=True)
+
+
+def test_geometry_and_duration_are_explicit_in_graph_requests():
+    for smoke, duration in ((False, 400), (True, 200)):
+        cfg = recipe.configuration(smoke=smoke)
+        trials = list(recipe.trials(smoke=smoke))
+        assert len(trials) == 16
+        assert {point["n_in"] for _, _, point, traces in trials if traces} == {1024}
+        assert {point["n_in"] for _, _, point, traces in trials if not traces} == {784}
+        for _, _, point, traces in trials:
+            bundle = recipe.author_network(cfg, point, traces=traces)
+            request = recipe.execution_request(bundle, point, traces=traces)
+            assert request.executor == "graph"
+            assert request.input_bindings[0].steps_count == duration * 10
+            assert request.input_bindings[0].rates_hz == (point["input_rate_hz"],)
+        assert {
+            point["input_rate_hz"] for _, _, point, traces in trials if not traces
+        } == set(recipe.FI_RATES_HZ)
+
+
+@pytest.mark.parametrize("schema", ["exp023.recipe/v1", "exp023.recipe/v2"])
+def test_old_recipes_are_rejected_before_downstream_run_creation(repo, schema):
+    root, _ = repo
+    identity = compute.compute()
+    analysis_id = analyse.analyse(identity)
+    source = inputs.source(root, identity, "compute")
+    record = load_json(source.directory / "run.json")
+    record["execution"]["configuration"]["schema"] = schema
+    write_json_atomic(source.directory / "run.json", record)
+    before = set((root / ".pingstore/runs").iterdir())
+    for action, argument in (
+        (analyse.analyse, identity),
+        (present.present, analysis_id),
+    ):
+        with pytest.raises(PingstoreError, match="requires native graph recipe v3"):
+            action(argument)
+    assert set((root / ".pingstore/runs").iterdir()) == before
+
+
+@pytest.mark.parametrize("cell", recipe.CELLS)
+def test_graph_matches_legacy_with_identical_weights_and_drive(monkeypatch, cell):
+    from snnlab.sim import models as M
+    from snnlab.sim.execution import GraphExecutor, plan_graph
+
+    cfg = recipe.configuration()
+    cfg.update(n_e=16, n_i=4)
+    point = recipe.operating_point(cell, 100, 24)
+    point["t_ms"] = 60
+    bundle = recipe.author_network(cfg, point, traces=True)
+    model = GraphExecutor(plan_graph(bundle.graph), seed=42)
+    for name, value in {
+        "N_IN": 24,
+        "N_OUT": 10,
+        "N_HID": 16,
+        "N_INH": 4,
+        "HIDDEN_SIZES": [16],
+        "dt": 0.1,
+        "T_ms": 60,
+        "T_steps": 600,
+        "tau_gaba": 6.0,
+        "EXACT_K_INITIALIZATION": False,
+    }.items():
+        monkeypatch.setattr(M, name, value)
+    monkeypatch.setenv("PINGLAB_NO_COMPILE", "1")
+    legacy = M.COBANet(
+        hidden_sizes=[16],
+        n_inh_per_layer={1: 4},
+        refractory_e_ms=1.2,
+        refractory_i_ms=0.6,
+        refractory_policy="exact",
+    )
+    with torch.no_grad():
+        parameters = model.parameter_map()
+        legacy.W_ff[0].copy_(parameters["input_to_E.weight"])
+        legacy.W_ei["1"].copy_(parameters["E_to_I.weight"])
+        legacy.W_ie["1"].copy_(parameters["I_to_E.weight"])
+        legacy.W_ee["1"].zero_()
+        legacy.W_ii["1"].zero_()
+    legacy.recording = True
+    drive = torch.zeros(600, 1, 24)
+    drive[::2] = 1
+    with torch.inference_mode():
+        native = model({"drive": drive})
+        legacy(input_spikes=drive)
+    for name, key in {
+        "spk_e": "hid",
+        "spk_i": "inh",
+        "v_e": "v_e_1",
+        "v_i": "v_i_1",
+        "ge_e": "ge_e_1",
+        "ge_i": "ge_i_1",
+        "gi_e": "gi_e_1",
+    }.items():
+        actual = native.diagnostics[name][:, 0]
+        expected = torch.as_tensor(legacy.spike_record[key])
+        if expected.ndim == 3:
+            expected = expected[:, 0]
+        torch.testing.assert_close(
+            actual,
+            expected.to(actual.dtype),
+            rtol=0,
+            atol=0 if name.startswith("spk") else 2e-5,
         )
-        assert rate == analyse.population_rate(full[f"spk_{p}"], full["dt"])
+    assert native.diagnostics["spk_e"].any()
+    assert bool(native.diagnostics["spk_i"].any()) == (cell == "ping")
+    if cell == "ping":
+        conductance = native.diagnostics["gi_e"][:, 0]
+        # A timestep without I spikes must contain only the declared GABA decay.
+        silent_previous_i = ~native.diagnostics["spk_i"][:-1, 0].any(1).bool()
+        torch.testing.assert_close(
+            conductance[1:][silent_previous_i],
+            conductance[:-1][silent_previous_i] * np.exp(-0.1 / 6.0),
+            rtol=0,
+            atol=1e-7,
+        )
 
 
-def _arg(args: list[str], flag: str) -> str:
-    return args[args.index(flag) + 1]
+def test_native_sweep_reductions_match_full_raster_counts():
+    from snnlab.sim.execution import simulate
 
-
-def test_raster_drive_provenance_matches_exact_execution_arguments() -> None:
-    provenance = exp023.drive_provenance()["raster_operating_points"]
-    for cell in exp023.CELLS:
-        executed = exp023.raster_args(cell, Path("/tmp/ignored"))
-        recorded = provenance[cell]
-        assert recorded["input"] == _arg(executed, "--input") == "synthetic-spikes"
-        assert recorded["input_rate_hz"] == float(_arg(executed, "--input-rate"))
-        assert recorded["ei_strength"] == float(_arg(executed, "--ei-strength"))
-        assert recorded["t_ms"] == float(_arg(executed, "--t-ms"))
-        assert recorded["dt_ms"] == float(_arg(executed, "--dt"))
-
-
-def test_fi_provenance_is_separate_and_matches_executed_grid() -> None:
-    executed = [args for name, args in exp023.simulations() if name.startswith("fi/")]
-
-    recorded = exp023.drive_provenance()["fi_sweep"]
-    assert len(executed) == len(exp023.FI_EI) * len(exp023.FI_RATES_HZ)
-    assert recorded["input_rates_hz"] == exp023.FI_RATES_HZ
-    assert {float(_arg(args, "--input-rate")) for args in executed} == set(
-        recorded["input_rates_hz"]
+    cfg = recipe.configuration()
+    cfg.update(n_e=16, n_i=4)
+    point = recipe.operating_point("ping", 100, 24)
+    point["t_ms"] = 20
+    with torch.inference_mode():
+        scope = simulate(
+            recipe.execution_request(
+                recipe.author_network(cfg, point, traces=True), point, traces=True
+            )
+        )
+        sweep = simulate(
+            recipe.execution_request(
+                recipe.author_network(cfg, point, traces=False), point, traces=False
+            )
+        )
+    full = compute.recording(scope, cfg, point, traces=True)
+    reduced = compute.recording(sweep, cfg, point, traces=False)
+    for population in ("e", "i"):
+        assert reduced[f"spk_{population}_count"] == full[f"spk_{population}"].sum()
+    assert sweep.diagnostics == {}
+    assert len(sweep.metrics["online_reductions"]) == 2
+    assert all(
+        count == 0 for count in sweep.metrics["retained_signal_samples"].values()
     )
-    assert all(_arg(args, "--input") == recorded["input"] for args in executed)
-    assert {cell: float(exp023.FI_EI[cell]) for cell in exp023.FI_EI} == recorded[
-        "ei_strength_by_cell"
-    ]
 
 
-def test_geometry_and_smoke_duration_preserve_the_live_recipe():
-    assert _arg(exp023.raster_args("coba"), "--n-in") == "1024"
-    assert _arg(exp023.fi_args("coba", 2), "--n-in") == "784"
-    assert _arg(exp023.raster_args("ping", smoke=True), "--t-ms") == "200"
-    assert _arg(exp023.fi_args("ping", 2), "--t-ms") == "400"
+def test_recipe_v3_records_graph_protocol_without_cli_arguments():
+    cfg = recipe.configuration()
+    assert cfg["schema"] == "exp023.recipe/v3"
+    assert len(list(recipe.trials())) == 16
+    assert all(
+        "scientific_args" not in point
+        for point in cfg["drive"]["raster_operating_points"].values()
+    )
+    point = cfg["drive"]["raster_operating_points"]["ping"]
+    bundle = recipe.author_network(cfg, point, traces=True)
+    populations = {row["id"]: row for row in bundle.graph["populations"]}
+    assert populations["E"]["neuron"]["refractory_steps"] == 12
+    assert populations["I"]["neuron"]["refractory_steps"] == 6
+    projections = {row["id"]: row for row in bundle.graph["projections"]}
+    assert projections["I_to_E"]["synapse"]["tau"] == {"value": 6.0, "unit": "ms"}
+    assert all(
+        row["delay"]["value"] == 0.1
+        for row in projections.values()
+        if row["connection"] == "recurrent"
+    )
+
+
+def test_new_recipe_drift_is_rejected(repo):
+    root, _ = repo
+    identity = compute.compute()
+    run = inputs.source(root, identity, "compute")
+    record = load_json(run.directory / "run.json")
+    record["execution"]["configuration"]["biophysics"]["tau_gaba_ms"] = 9.0
+    write_json_atomic(run.directory / "run.json", record)
+    with pytest.raises(PingstoreError, match="recipe differs"):
+        analyse.analyse(identity)

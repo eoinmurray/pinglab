@@ -5,9 +5,10 @@ from .recipe import (
     DT_MS,
     FI_EI,
     FI_RATES_HZ,
-    drive_provenance,
-    fi_args,
-    raster_args,
+    author_network,
+    configuration,
+    execution_request,
+    trials,
 )
 
 __all__ = [
@@ -15,7 +16,8 @@ __all__ = [
     "DT_MS",
     "FI_EI",
     "FI_RATES_HZ",
-    "drive_provenance",
-    "fi_args",
-    "raster_args",
+    "author_network",
+    "configuration",
+    "execution_request",
+    "trials",
 ]

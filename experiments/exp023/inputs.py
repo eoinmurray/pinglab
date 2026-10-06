@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from pingstore.contracts import RUN_SCHEMA, PingstoreError
+from pingstore.contracts import PingstoreError
 from pingstore.stages import SourceRun, source_run
 
 from . import recipe
@@ -11,31 +11,21 @@ from . import recipe
 def source(
     repo: Path, identity: str, stage: str, *, reference: dict | None = None
 ) -> SourceRun:
-    run = source_run(
+    return source_run(
         repo / ".pingstore",
         identity,
         stage=stage,
         experiment=recipe.SLUG,
         reference=reference,
     )
-    if run.record["schema"] != RUN_SCHEMA:
-        raise PingstoreError(
-            "exp023 requires v4 evidence; legacy v2/v3 is not accepted"
-        )
-    return run
 
 
 def configuration(run: SourceRun) -> dict:
     cfg = run.record["execution"].get("configuration")
-    if not isinstance(cfg, dict) or cfg.get("schema") not in (
-        "exp023.recipe/v1",
-        "exp023.recipe/v2",
-    ):
-        raise PingstoreError("exp023 requires a retained scientific recipe")
-    if cfg["schema"] == "exp023.recipe/v2" and cfg != recipe.configuration(
-        smoke=cfg.get("profile") == "smoke"
-    ):
-        raise PingstoreError("exp023 recipe differs from the explicit collection model")
+    if not isinstance(cfg, dict) or cfg.get("schema") != "exp023.recipe/v3":
+        raise PingstoreError("exp023 processing requires native graph recipe v3")
+    if cfg != recipe.configuration(smoke=cfg.get("profile") == "smoke"):
+        raise PingstoreError("exp023 recipe differs from the explicit graph model")
     if run.record["inputs"]:
         raise PingstoreError("exp023 initial compute must not have upstream inputs")
     return cfg
