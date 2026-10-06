@@ -83,7 +83,7 @@ def execution(
     ) as run:
         run.record["source_boundary"] = {
             "policy": SOURCE_POLICY,
-            "scope": "user-selected bank is starting evidence for exp044; not a repository-wide legacy exception",
+            "scope": "user-selected bank is starting evidence for exp044; not a repository-wide ancestry exception",
             "banks": {
                 identity: {
                     "reference": ancestor.reference,
@@ -104,12 +104,11 @@ def configuration(compute) -> dict:
     cfg = compute.record["execution"].get("configuration")
     if (
         not isinstance(cfg, dict)
-        or cfg.get("schema") not in ("exp044.recipe/v1", "exp044.recipe/v2")
+        or cfg.get("schema") != "exp044.recipe/v3"
         or cfg.get("profile") not in ("smoke", "production")
         or cfg
         != recipe.configuration(
             smoke=cfg["profile"] == "smoke",
-            version=int(cfg["schema"].rsplit("v", 1)[1]),
         )
     ):
         raise PingstoreError("unsupported or inconsistent retained exp044 recipe")

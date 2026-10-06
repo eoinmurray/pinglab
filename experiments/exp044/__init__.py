@@ -7,7 +7,6 @@ from .recipe import (
     DT_SWEEP_MS,
     EVAL_MAX_SAMPLES,
     SEEDS,
-    TRAINING_COMMON_FIELDS,
     cell_name,
     dt_label,
 )
@@ -19,7 +18,6 @@ __all__ = [
     "DT_SWEEP_MS",
     "EVAL_MAX_SAMPLES",
     "SEEDS",
-    "TRAINING_COMMON_FIELDS",
     "cell_name",
     "dt_label",
 ]

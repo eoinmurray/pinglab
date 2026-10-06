@@ -44,10 +44,63 @@ def _same(actual, expected) -> bool:
     return actual == expected
 
 
+def bank_science(config: dict, name: str) -> dict:
+    """Read only science needed from the immutable training bank's data schema.
+
+    The bank is an explicit input, not an executable simulator configuration.
+    These source spellings also form the article's saved numerical interface.
+    Initializers, optimizer replay settings and unused parameter bounds are not
+    part of exp044 inference. Checkpoint tensors supply the realized weights.
+    """
+    try:
+        if config["hidden_sizes"] != [config["n_hidden"]]:
+            raise PingstoreError(f"{name}: the audit requires one hidden E population")
+        if config["readout_mode"] != "mem-mean":
+            raise PingstoreError(f"{name}: the audit requires mean pre-reset voltage")
+        if config["input_rate_sampling"] != "fixed":
+            raise PingstoreError(f"{name}: the audit requires a fixed peak input rate")
+        if config["dales_law"] is not True:
+            raise PingstoreError(f"{name}: the audit requires nonnegative E/I pathways")
+        # These source features would change forward dynamics, so they cannot
+        # silently be discarded when binding this bank to the authored graph.
+        for feature in (
+            "signed_readout",
+            "readout_bias",
+            "train_leak",
+            "adaptive_threshold",
+            "state_clamp",
+        ):
+            if config[feature] is not False:
+                raise PingstoreError(f"{name}: unsupported bank dynamics: {feature}")
+        return {
+            "model": config["model"],
+            "dataset": config["dataset"],
+            "max_samples": config["max_samples"],
+            "epochs": config["epochs"],
+            "t_ms": config["t_ms"],
+            "tau_ampa_ms": config["tau_ampa_ms"],
+            "tau_gaba_ms": config["tau_gaba_ms"],
+            "input_rate": config["input_rate"],
+            "n_in": config["n_in"],
+            "n_hidden": config["n_hidden"],
+            "n_inh": config["n_inh"],
+            "n_out": config["n_out"],
+            "surrogate_slope": config["surrogate_slope"],
+            "v_grad_dampen": config["v_grad_dampen"],
+            "lr": config["lr"],
+            "batch_size": config["batch_size"],
+            "dataset_split": config["dataset_split"],
+            "validation_encoder_draws": config["validation_encoder_draws"],
+        }
+    except KeyError as exc:
+        raise PingstoreError(
+            f"{name}: missing scientific bank field {exc.args[0]}"
+        ) from exc
+
+
 def training_contract(bank: Path, cfg: dict | None = None) -> dict:
     cfg = recipe.configuration() if cfg is None else cfg
     dts = cfg["dt_sweep_ms"]
-    adopted = cfg["schema"] == "exp044.recipe/v2"
     common = None
     cells = []
     for dt in dts:
@@ -65,12 +118,7 @@ def training_contract(bank: Path, cfg: dict | None = None) -> dict:
                 raise PingstoreError(
                     f"{name}: config seed does not match registered {seed}"
                 )
-            try:
-                selected = {k: training_cfg[k] for k in recipe.TRAINING_COMMON_FIELDS}
-            except KeyError as exc:
-                raise PingstoreError(
-                    f"{name}: missing training config field {exc.args[0]}"
-                ) from exc
+            selected = bank_science(training_cfg, name)
             if common is None:
                 common = selected
             else:
@@ -79,22 +127,24 @@ def training_contract(bank: Path, cfg: dict | None = None) -> dict:
                         raise PingstoreError(
                             f"{name}: config {key}={selected[key]!r} disagrees with common value {expected!r}"
                         )
-            if adopted:
-                expected_refs = refractory_configuration()
-                for key, value in expected_refs.items():
-                    actual_value = training_cfg.get(key)
-                    if actual_value is None and dt == 0.1:
-                        continue
-                    if actual_value != value:
-                        raise PingstoreError(
-                            f"{name}: missing or inconsistent explicit {key}"
-                        )
-            row = {"cell_name": name, "dt_ms": dt, "seed": seed}
-            if adopted:
-                row["execution_dynamics"] = {
+            for key, value in refractory_configuration().items():
+                actual_value = training_cfg.get(key)
+                # Reused 0.1-ms checkpoints predate explicit refractory metadata.
+                if actual_value is None and dt == 0.1:
+                    continue
+                if actual_value != value:
+                    raise PingstoreError(
+                        f"{name}: missing or inconsistent explicit {key}"
+                    )
+            row = {
+                "cell_name": name,
+                "dt_ms": dt,
+                "seed": seed,
+                "execution_dynamics": {
                     **duration_configuration(training_cfg["t_ms"], dt),
                     **refractory_execution_configuration(dt),
-                }
+                },
+            }
             cells.append(row)
     for key, value in {
         "model": "ping",
@@ -113,6 +163,7 @@ def training_contract(bank: Path, cfg: dict | None = None) -> dict:
         or common["n_inh"] < recipe.RASTER_N_I_PLOT
     ):
         raise PingstoreError("training populations are smaller than the raster sample")
+    recipe.validate_network_settings(common)
     split = common["dataset_split"]
     expected_split = {
         "optimizer_train_samples": 6300,
@@ -202,7 +253,7 @@ def measurement(path: Path, cell: dict, common: dict, samples: int) -> dict:
             raise PingstoreError(f"inference {key} disagrees with retained recipe")
     if type(m.get("n_total")) is not int or m["n_total"] != samples:
         raise PingstoreError("incomplete inference sample count")
-    acc = finite(m.get("best_acc"), "test accuracy", maximum=100)
+    acc = finite(m.get("accuracy_pct"), "test accuracy", maximum=100)
     correct = m.get("n_correct")
     if (
         type(correct) is not int
@@ -212,19 +263,13 @@ def measurement(path: Path, cell: dict, common: dict, samples: int) -> dict:
         raise PingstoreError("test accuracy disagrees with retained counts")
     rates = m.get("rates_hz", {})
 
-    def rate(names):
-        keys = [key for key in names if key in rates]
-        if len(keys) != 1:
-            raise PingstoreError(f"missing or ambiguous population rate: {names}")
-        return finite(rates[keys[0]], keys[0])
-
     return {
         "dt_ms": cell["dt_ms"],
         "seed": cell["seed"],
         "t_ms": common["t_ms"],
         "acc": acc,
-        "e_rate_hz": rate(("hid", "hid1")),
-        "i_rate_hz": rate(("inh", "inh1")),
+        "e_rate_hz": finite(rates.get("e"), "E rate"),
+        "i_rate_hz": finite(rates.get("i"), "I rate"),
         "n_total": samples,
     }
 

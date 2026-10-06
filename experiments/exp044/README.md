@@ -1,7 +1,8 @@
 # Exp044: integration-timestep audit
 
-Conformance target: Experiment Runner Guide 4.3.0, Storage Guide 4.3.0 and
-Writing Guide 8.0.0. Training remains owned by exp022. Exp044 never launches it.
+Execution follows Experiment Runner Guide 4.9.0 and Storage Guide 4.9.0.
+The title and matching article links were edited under Writing Guide 36.0.0.
+Training remains owned by exp022. Exp044 never launches it.
 
 ```sh
 uv run python experiments/exp044/compute.py --source <exp022-compute-bank>
@@ -19,13 +20,14 @@ stage directions, including for `--plot-only` and `--skip-training`.
 
 ## Preserved science and outputs
 
-- The current v2 recipe uses timesteps 0.05, 0.1, 0.2, 0.3 and 0.6 ms, with
-  seeds 42–44, explicit E/I refractories of 1.2/0.6 ms, a 7,000-image training
+- The current v3 native-graph recipe uses timesteps 0.05, 0.1, 0.2, 0.3 and
+  0.6 ms, with seeds 42–44, explicit E/I refractories of 1.2/0.6 ms, a 7,000-image training
   pool and 50 training epochs. Trials last nominally 200 ms; whole-step
   truncation gives 666/333 steps and 199.8 ms at 0.3/0.6 ms. Final-epoch
   checkpoints are used for both evaluation and raster probes. The historical
-  v1 recipe and its 0.05/0.1/0.25/0.5/1-ms grid remain readable unchanged.
-- Compute retains 15 official-test evaluations and five seed-42 raw snapshots.
+  v1 recipe and its 0.05/0.1/0.25/0.5/1-ms grid remain historical evidence;
+  new stages accept only the v3 recipe.
+- Compute retains 15 official-test evaluations and five seed-42 raw spike probes.
   The default evaluation uses 1,000 images. `PINGLAB_SMOKE=1` retains the existing
   100-image diagnostic cap; it is recorded in compute provenance. Downstream
   stages use the saved profile, not their environment.
@@ -47,8 +49,11 @@ stage directions, including for `--plot-only` and `--skip-training`.
 
 Use `--run-id` only for an unused v4 reservation. Local and scheduler executions
 reserve fresh stage identities; failures leave hidden incomplete runs. Source
-checkpoints remain in the bank. Commands, logs and training configurations are
-written to discarded `.scratch/`, while scientific data live in compute `export/`.
+checkpoints remain in the bank. Graph execution binds bank checkpoints in
+memory; no CLI commands, copied training configurations or simulator logs are
+generated. Scientific data live
+in compute `export/`; graph digests, parameter roles, devices and timings live
+in `run.json`. Raw spike probes use `spikes.npz`.
 Analysis and presentation never simulate. None of the stages materializes or
 publishes. Preview/publication requires a separately selected present run.
 
@@ -78,7 +83,9 @@ bank; these runs do not claim to have verified that earlier source. The boundary
 does not authorize v2 consumption or relax validation of exp044's own stage
 inputs, and it is not a repository-wide change to the guides.
 
-## Verification
+## Historical verification
+
+The checks below predate the native-graph migration and do not verify it.
 
 The unit tests use synthetic temporary banks and mocked inference, not scientific
 runs. They exercise stage separation, checkpoint policy, measurements, failure
@@ -170,3 +177,51 @@ The three figure sets were inspected and are legible and unclipped despite the
 existing `tight_layout` warnings. Full digests, seed summaries and comparisons
 are recorded in PLAN.md. Article adoption, publication and consumer repinning
 remain separate work; no training, materialization or push occurred.
+
+## Native graph migration — 2026-10-06
+
+Compute declares the circuit with `snnlab.lang`, reuses
+`experiments.helpers.ping.build_ping` unchanged, and executes `GraphExecutor`
+directly. No removed PING component, CLI builder, subprocess, legacy model or
+parameter-interchange adapter is used. Scientific settings and checkpoint
+parameter roles belong to the recipe. Compute/analyse/present remain independent.
+
+The verified final-epoch bank matrices bind directly in runtime [source, target]
+orientation without transposition or fan-in rescaling. Feedforward matrices use
+the trained forward pass's nonnegative clamp; reciprocal matrices retain their
+stored values. Checkpoint keys, dtype, shapes, finiteness, nonnegative reciprocal
+weights and zero E→E/I→I matrices are checked before inference. Unsupported
+signed, adaptive, learned-leak or alternative-readout configurations are rejected.
+The output LIF retains its 2-ms decay, threshold-one subtractive reset and mean
+pre-reset voltage over the full trial. Each presentation starts from reset state.
+
+Official-test evaluations keep the seed-42 subset, 64-image batches and
+20260415 encoder stream, including mean cross-entropy and E/I firing rates.
+Raster probes use the same image and network seed,
+but their native encoder stream starts from that seed rather than consuming
+historical CLI weight-initialization draws. Exact historical raster identity is
+therefore not claimed. New v3 stages reject the former v1/v2 execution recipes;
+all historical runs, checkpoint files, measurements and figures remain unchanged.
+
+Validation for this migration is limited to source inspection, syntax parsing,
+Ruff and diff review. Existing stage-separation fixtures were updated to mock
+the native cell-evaluation boundary; they were not run. No experiment stage,
+training, simulation, run creation, result regeneration, commit or push occurred.
+Checkpoint loading against the real bank, graph execution, device behaviour,
+numerical parity, memory use and rendering remain unverified. The article's
+legacy title marker and matching links were removed without changing its results.
+Article tags and local-data availability remain unassessed: discovery and a full
+Writing Guide conformance pass are outside this static-only migration.
+
+
+The metadata cleanup removes `TRAINING_COMMON_FIELDS` and its package export.
+The bank reader explicitly extracts the scientific quantities needed for graph
+execution, training-history interpretation and the saved article interface.
+Initializer specifications, unused parameter bounds, optimizer replay settings
+and generic simulator feature inventories are not carried into the native
+recipe. Unsupported forward dynamics are rejected at the immutable-bank input
+boundary. The stored bank's field names and checkpoint tensor keys remain data
+schema requirements; they do not select or reconstruct a legacy executor.
+New metric exports use `accuracy_pct`, `cross_entropy` and E/I rate keys rather
+than the CLI's best-accuracy and hidden/inhibitory aliases. Analysis retains its
+existing article-facing result names. This follow-up received static checks only.

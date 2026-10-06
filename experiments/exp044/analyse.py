@@ -48,7 +48,7 @@ def analyse(identity: str, *, run_id: str | None = None) -> str:
     contract = evidence.training_contract(bank.export, cfg)
     checkpoints = evidence.checkpoints(bank.export, contract)
     if (
-        retained.get("schema") != "exp044.compute/v1"
+        retained.get("schema") != "exp044.compute/v2"
         or retained.get("config") != cfg
         or retained.get("training_contract") != contract
         or retained.get("checkpoint_provenance") != checkpoints
@@ -78,7 +78,7 @@ def analyse(identity: str, *, run_id: str | None = None) -> str:
         for dt in cfg["dt_sweep_ms"]:
             name = recipe.cell_name(dt, raster["seed"])
             snap = evidence.snapshot(
-                compute.file("snapshot", name, "recording.npz"),
+                compute.file("snapshot", name, "spikes.npz"),
                 dt,
                 contract["common"],
             )

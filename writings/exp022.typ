@@ -42,7 +42,7 @@
   exp038: "Switching On the Inhibitory Loop (legacy)",
   exp041: "Firing Rate Tracks Gamma Frequency (legacy)",
   exp042: "Inhibitory Replay Perturbations Change Excitatory Firing (legacy)",
-  exp044: "Firing Rate Across the Timestep Sweep (legacy)",
+  exp044: "Firing Rate Across the Timestep Sweep",
   exp046: "One Spike per Gamma Cycle (legacy)",
   exp049: "Training Recurrent Weights Weakens PING Rhythmicity (legacy)",
   exp082: "Spike-Count Classification in a Continuous Stream (legacy)",

@@ -1765,7 +1765,7 @@
       their training timestep on the same 1,000 MNIST test images. Firing
       rates use realised presentation durations: 199.8 ms at 0.3 and 0.6 ms,
       and 200 ms otherwise.
-      Source experiment: #link("/exp044/")[exp044] — #link("/exp044/")[_Firing Rate Across the Timestep Sweep (legacy)._]],
+      Source experiment: #link("/exp044/")[exp044] — #link("/exp044/")[_Firing Rate Across the Timestep Sweep._]],
   ) <fig:timestep-validation>
 
   == Appendix B — Measurement algorithms and boundary cases <appendix-b>

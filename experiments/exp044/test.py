@@ -95,49 +95,49 @@ def lab(tmp_path, monkeypatch):
                 )
     calls = []
 
-    def simulate(args, **kwargs):
-        calls.append(args)
-
-        def arg(key):
-            return args[args.index(key) + 1]
-
-        out = Path(arg("--out-dir"))
-        out.mkdir(parents=True)
-        cfg = load_json(Path(arg("--load-config")))
-        assert arg("--device") == "auto"
-        assert Path(arg("--load-weights")).name == "weights_final.pth"
-        if "--sample-index" in args:
-            assert "--max-samples" not in args
-            steps = duration_steps(cfg["t_ms"], cfg["dt"])
-            e, i = np.zeros((steps, 4), dtype=bool), np.zeros((steps, 2), dtype=bool)
-            e[::20, :] = True
-            i[::40, :] = True
-            np.savez_compressed(out / "recording.npz", spk_e=e, spk_i=i, dt=cfg["dt"])
-        else:
-            samples = int(arg("--max-samples"))
-            write_json_atomic(
-                out / "metrics.json",
-                {
-                    "config": {
-                        **cfg,
-                        **duration_configuration(cfg["t_ms"], cfg["dt"]),
-                        **refractory_execution_configuration(cfg["dt"]),
-                        "evaluation_partition": "official_mnist_test",
-                        "evaluation_samples": samples,
+    def evaluate_cell(train, checkpoint, cell, common, config, export):
+        assert checkpoint["filename"] == "weights_final.pth"
+        cfg = load_json(train / "config.json")
+        modes = ["infer"]
+        if cell["seed"] == config["raster"]["seed"]:
+            modes.append("snapshot")
+        for mode in modes:
+            calls.append(mode)
+            out = export / mode / cell["cell_name"]
+            out.mkdir(parents=True)
+            if mode == "snapshot":
+                steps = duration_steps(cfg["t_ms"], cfg["dt"])
+                e, i = (
+                    np.zeros((steps, 4), dtype=bool),
+                    np.zeros((steps, 2), dtype=bool),
+                )
+                e[::20, :] = True
+                i[::40, :] = True
+                np.savez_compressed(out / "spikes.npz", spk_e=e, spk_i=i, dt=cfg["dt"])
+            else:
+                samples = config["evaluation_samples"]
+                write_json_atomic(
+                    out / "metrics.json",
+                    {
+                        "config": {
+                            **cfg,
+                            **duration_configuration(cfg["t_ms"], cfg["dt"]),
+                            **refractory_execution_configuration(cfg["dt"]),
+                            "evaluation_partition": "official_mnist_test",
+                            "evaluation_samples": samples,
+                        },
+                        "accuracy_pct": 90.0,
+                        "n_correct": 9 * samples // 10,
+                        "n_total": samples,
+                        "rates_hz": {
+                            "e": 10.0 + cfg["dt"] + cfg["seed"] - 42,
+                            "i": 20.0,
+                        },
                     },
-                    "best_acc": 90.0,
-                    "n_correct": 9 * samples // 10,
-                    "n_total": samples,
-                    "rates_hz": {
-                        "hid": 10.0 + cfg["dt"] + cfg["seed"] - 42,
-                        "inh": 20.0,
-                    },
-                },
-            )
-        write_json_atomic(out / "config.json", cfg)
-        (out / "run.sh").write_text("fixture\n")
+                )
+        return []
 
-    monkeypatch.setattr(compute, "run_cli", simulate)
+    monkeypatch.setattr(compute, "evaluate_cell", evaluate_cell)
     return tmp_path, bank.run_id, calls
 
 
@@ -153,14 +153,14 @@ def test_independent_stages_preserve_science_and_never_publish(lab, monkeypatch)
     before = bank.reference
     compute_id = compute.compute(bank_id)
     assert len(calls) == 20
-    assert sum("--sample-index" in args for args in calls) == 5
+    assert calls.count("snapshot") == 5
     output = inputs.source(root, compute_id, "compute")
     assert output.record["inputs"] == {"bank": before}
-    assert len(list(output.export.glob("snapshot--*--recording.npz"))) == 5
+    assert len(list(output.export.glob("snapshot--*--spikes.npz"))) == 5
     assert not list(output.export.rglob("run.sh"))
     monkeypatch.setenv("PINGLAB_SMOKE", "0")
     monkeypatch.setattr(
-        compute, "run_cli", lambda *a, **k: pytest.fail("downstream inference")
+        compute, "evaluate_cell", lambda *a, **k: pytest.fail("downstream inference")
     )
     analysis_id = analyse.analyse(compute_id)
     analysis_run = inputs.source(root, analysis_id, "analyse")
@@ -174,7 +174,7 @@ def test_independent_stages_preserve_science_and_never_publish(lab, monkeypatch)
     assert results["measurement"]["history_partition"] == "validation"
     assert results["rasters"][0]["e_rate_hz"] == 1000
     raw = evidence.snapshot(
-        output.file("snapshot", recipe.cell_name(0.05, 42), "recording.npz"),
+        output.file("snapshot", recipe.cell_name(0.05, 42), "spikes.npz"),
         0.05,
         results["config"]["training_contract"]["common"],
     )
@@ -264,7 +264,7 @@ def test_corrupt_payload_and_snapshot_geometry_are_rejected(lab):
     root, bank_id, calls = lab
     identity = compute.compute(bank_id)
     output = inputs.source(root, identity, "compute")
-    path = output.file("snapshot", recipe.cell_name(0.05, 42), "recording.npz")
+    path = output.file("snapshot", recipe.cell_name(0.05, 42), "spikes.npz")
     np.savez_compressed(path, spk_e=np.zeros((2, 4)), spk_i=np.zeros((2, 2)), dt=0.05)
     with pytest.raises(PingstoreError, match="checksum"):
         analyse.analyse(identity)
@@ -307,15 +307,8 @@ def test_imports_do_not_resolve_environment_training_roots(tmp_path):
 def test_production_and_snapshot_caps_are_explicit():
     assert recipe.configuration()["evaluation_samples"] == 1000
     assert recipe.configuration(smoke=True)["evaluation_samples"] == 100
-    args = recipe.inference_args(
-        Path("cell"),
-        Path("weights_final.pth"),
-        Path("out"),
-        samples=100,
-        sample_index=50,
-    )
-    assert "--max-samples" not in args
-    assert args[args.index("--sample-index") + 1] == "50"
+    assert recipe.configuration()["raster"]["sample_index"] == 0
+    assert recipe.configuration()["evaluation_batch_size"] == 64
 
 
 def test_v2_is_rejected_even_with_an_incomplete_payload(lab):
@@ -346,7 +339,7 @@ def test_failure_stays_hidden_and_reservations_cannot_be_reused(lab, monkeypatch
     def fail(*a, **k):
         raise RuntimeError("fixture failure")
 
-    monkeypatch.setattr(compute, "run_cli", fail)
+    monkeypatch.setattr(compute, "evaluate_cell", fail)
     with pytest.raises(RuntimeError, match="fixture failure"):
         compute.compute(bank_id, run_id=identity)
     assert (root / ".pingstore/runs" / f".{identity}.tmp").is_dir()
@@ -376,11 +369,11 @@ def test_missing_measurements_never_become_zeros(lab, damage):
     path = output.file("infer", recipe.cell_name(0.05, 42), "metrics.json")
     r = load_json(path)
     if damage == "missing_rate":
-        del r["rates_hz"]["hid"]
+        del r["rates_hz"]["e"]
     elif damage == "zero_samples":
         r["n_total"] = 0
     else:
-        r["rates_hz"]["hid"] = float("nan")
+        r["rates_hz"]["e"] = float("nan")
     write_json_atomic(path, r)
     resign(output.directory)
     with pytest.raises(PingstoreError):
@@ -418,21 +411,12 @@ def _common_config() -> dict:
         "n_hidden": 1024,
         "n_inh": 256,
         "n_out": 10,
-        "ei_strength": 1.0,
-        "w_in": [0.9, 0.09],
-        "w_in_initial_zero_fraction": 0.95,
         "readout_mode": "mem-mean",
-        "readout_w_init_mean": 1.12060546875,
-        "readout_w_init_std": 0.8349609375,
         "surrogate_slope": 1.0,
         "lr": 0.0004,
         "batch_size": 256,
-        "weight_decay": 0.0,
-        "grad_clip": 1.0,
         "v_grad_dampen": 1000.0,
         "dales_law": True,
-        "trainable_w_ei": False,
-        "trainable_w_ie": False,
         "dataset_split": {
             "optimizer_train_samples": 6300,
             "validation_samples": 700,
@@ -449,28 +433,11 @@ def _common_config() -> dict:
             "encoder_seeds": [1, 2, 3],
             "input_rate_seeds": [4, 5, 6],
         },
-        "fr_reg_upper_strength": 0.0,
-        "fr_reg_upper_target_hz": 0.0,
-        "recurrent_initial_zero_fraction": 0.0,
         "adaptive_threshold": False,
         "train_leak": False,
         "signed_readout": False,
         "readout_bias": False,
-        "trainable_w_ee": False,
-        "trainable_w_ii": False,
         "state_clamp": False,
-        "ei_ratio": 0.25,
-        "w_ee": 0.0,
-        "readout_reduction": "mean",
-        "readout_reference": "absolute",
-        "readout_units": "mV",
-        "readout_w_out_scale": 1.0,
-        "tau_m_e_bounds_ms": [10.0, 30.0],
-        "tau_m_i_bounds_ms": [5.0, 15.0],
-        "readout_tau_bounds_ms": [10.0, 30.0],
-        "adapt_tau_bounds_ms": [20.0, 100.0],
-        "adapt_strength_init_mv": 0.0,
-        "adapt_strength_max_mv": 10.0,
     }
 
 
@@ -497,7 +464,29 @@ def test_training_contract_verifies_all_15_cells(tmp_path: Path, monkeypatch) ->
     assert {cell["seed"] for cell in contract["cells"]} == set(exp044.SEEDS)
 
 
-@pytest.mark.parametrize("field", exp044.TRAINING_COMMON_FIELDS)
+@pytest.mark.parametrize(
+    "field",
+    (
+        "model",
+        "dataset",
+        "max_samples",
+        "epochs",
+        "t_ms",
+        "tau_ampa_ms",
+        "tau_gaba_ms",
+        "input_rate",
+        "n_in",
+        "n_hidden",
+        "n_inh",
+        "n_out",
+        "surrogate_slope",
+        "v_grad_dampen",
+        "lr",
+        "batch_size",
+        "dataset_split",
+        "validation_encoder_draws",
+    ),
+)
 def test_training_contract_rejects_each_unregistered_difference(
     field: str,
     tmp_path: Path,
@@ -516,7 +505,7 @@ def test_training_contract_rejects_each_unregistered_difference(
     else:
         config[field] = f"{value}-mismatch"
     (target / "config.json").write_text(json.dumps(config))
-    with pytest.raises(ValueError, match=f"config {field}="):
+    with pytest.raises(PingstoreError):
         evidence.training_contract(tmp_path)
 
 
