@@ -7,8 +7,7 @@
 #let data-file = data-file.with(article: "exp082")
 
 #let meta = (
-  tags: ("data", "reviewed", "v36.0.0"),
-  title: "Spike-Count Classification in a Continuous Stream",
+  title: "Spike-Count Classification in a Continuous Stream (legacy)",
   created_at: "2026-08-10T00:00:00Z",
   updated_at: "2026-09-10",
   description: "A multi-seed study of spike-count classification across input rates and presentation durations.",
@@ -60,7 +59,7 @@
     Input calibration in
     #link("/exp080/")[exp080] — #link("/exp080/")[_Decoder Accuracy Improves with Input Rate_]
     motivated the rate range used to train a variable rate PING classifier in
-    #link("/exp022/")[exp022] — #link("/exp022/")[_Training Runs._]
+    #link("/exp022/")[exp022] — #link("/exp022/")[_Training Runs (legacy)._]
     We tested whether these networks could classify continuous digit streams
     while retaining hidden state. #if shared-image-bank [With image sequences
     matched across conditions, longer, stronger inputs improved accuracy.] else [
@@ -189,7 +188,7 @@
       #link("/exp080/")[exp080] — #link("/exp080/")[_Decoder Accuracy Improves with Input Rate_]
       motivated the input-rate range. We reused three frozen networks, trained
       with seeds 42–44, from
-      #link("/exp022/")[exp022] — #link("/exp022/")[_Training Runs._]
+      #link("/exp022/")[exp022] — #link("/exp022/")[_Training Runs (legacy)._]
       Each contained 1,024 excitatory neurons, 256 inhibitory neurons and ten
       output leaky integrate-and-fire neurons, with learned input-to-excitatory
       and excitatory-to-output projections and fixed recurrent weights.

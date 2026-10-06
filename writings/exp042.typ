@@ -7,8 +7,7 @@
 #let data-file = data-file.with(article: "exp042")
 
 #let meta = (
-  tags: ("data", "reviewed", "v36.0.0"),
-  title: "Inhibitory Replay Perturbations Change Excitatory Firing",
+  title: "Inhibitory Replay Perturbations Change Excitatory Firing (legacy)",
   created_at: "2026-06-02T00:00:00Z",
   updated_at: "2026-09-07",
   description: "Recorded inhibitory spike streams produced contrasting excitatory responses under independent-spike and fixed-window replay perturbations, but the experiment does not isolate synchrony.",

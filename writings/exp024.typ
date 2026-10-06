@@ -8,8 +8,7 @@
 #let data-file = data-file.with(article: "exp024")
 
 #let meta = (
-  tags: ("txt", "v36.0.0"),
-  title: "Accuracy Plateaus While Firing Rate Rises",
+  title: "Accuracy Plateaus While Firing Rate Rises (legacy)",
   created_at: "2026-06-02T00:00:00Z",
   updated_at: "2026-08-31T00:00:00Z",
   description: "Audits validation accuracy and firing-rate stability in unregularised PING and COBA training histories.",
@@ -45,7 +44,7 @@
   == Inputs
 
   Uses the unregularised baseline learning histories from
-  #link("/exp022/")[exp022] — #link("/exp022/")[_Training Runs_]: COBA and PING,
+  #link("/exp022/")[exp022] — #link("/exp022/")[_Training Runs (legacy)_]: COBA and PING,
   seeds #c.seeds.map(str).join([, ]).
   The complete trajectories support comparisons throughout learning, rather than
   only at a selected checkpoint.

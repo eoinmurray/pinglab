@@ -7,8 +7,7 @@
 #let data-file = data-file.with(article: "exp054")
 
 #let meta = (
-  tags: ("txt", "v36.0.0"),
-  title: "Pinglab Rythmicity Metric",
+  title: "Pinglab Rythmicity Metric (legacy)",
   created_at: "2026-06-15T00:00:00Z",
   updated_at: "2026-09-18",
   description: "Lobe–trough contrast across untrained PING coupling strengths, with private- and shared-input null controls.",

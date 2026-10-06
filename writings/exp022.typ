@@ -8,8 +8,7 @@
 #let data-file = data-file.with(article: "exp022")
 
 #let meta = (
-  tags: ("data", "v36.0.0"),
-  title: "Training Runs",
+  title: "Training Runs (legacy)",
   created_at: "2026-08-11T00:00:00Z",
   updated_at: "2026-09-09",
   description: "Seven controlled training families, their retained checkpoint bank, validation learning curves, and raster diagnostics.",
@@ -37,16 +36,16 @@
   [#status.trained of #status.cells registered training replicates have recorded results.]
 }
 #let study-titles = (
-  exp024: "Accuracy Plateaus While Firing Rate Rises",
-  exp025: "Accuracy and Firing Rate With and Without Inhibition",
-  exp037: "Dropped Spikes vs Added Noise",
-  exp038: "Switching On the Inhibitory Loop",
-  exp041: "Firing Rate Tracks Gamma Frequency",
-  exp042: "Inhibitory Replay Perturbations Change Excitatory Firing",
-  exp044: "Firing Rate Across the Timestep Sweep",
-  exp046: "One Spike per Gamma Cycle",
-  exp049: "Training Recurrent Weights Weakens PING Rhythmicity",
-  exp082: "Spike-Count Classification in a Continuous Stream",
+  exp024: "Accuracy Plateaus While Firing Rate Rises (legacy)",
+  exp025: "Accuracy and Firing Rate With and Without Inhibition (legacy)",
+  exp037: "Dropped Spikes vs Added Noise (legacy)",
+  exp038: "Switching On the Inhibitory Loop (legacy)",
+  exp041: "Firing Rate Tracks Gamma Frequency (legacy)",
+  exp042: "Inhibitory Replay Perturbations Change Excitatory Firing (legacy)",
+  exp044: "Firing Rate Across the Timestep Sweep (legacy)",
+  exp046: "One Spike per Gamma Cycle (legacy)",
+  exp049: "Training Recurrent Weights Weakens PING Rhythmicity (legacy)",
+  exp082: "Spike-Count Classification in a Continuous Stream (legacy)",
 )
 #let run-links(items) = items.map(item => [
   #link("/" + item + "/")[#item] — #link("/" + item + "/")[_#study-titles.at(item)_]

@@ -8,8 +8,7 @@
 #let data-file = data-file.with(article: "exp041")
 
 #let meta = (
-  tags: ("data", "v35.4.0"),
-  title: "Firing Rate Tracks Gamma Frequency",
+  title: "Firing Rate Tracks Gamma Frequency (legacy)",
   created_at: "2026-06-02T00:00:00Z",
   updated_at: "2026-08-31T00:00:00Z",
   description: "Across PING networks trained at different inhibitory decay times, compare excitatory firing rate with gamma frequency and test accuracy.",

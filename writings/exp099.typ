@@ -9,7 +9,6 @@
 #let data-file = data-file.with(article: "exp099")
 
 #let meta = (
-  tags: ("txt", "v36.0.0"),
   // Author-locked title: do not change.
   title: "Susin and Destexhe (2021)",
   created_at: "2026-08-26T00:00:00Z",

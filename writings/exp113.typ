@@ -4,7 +4,6 @@
 #import "/.demolab/lib.typ": cite
 
 #let meta = (
-  tags: ("txt", "v36.0.0"),
   title: "COBA and PING Dynamics, Discretisation, and Learning",
   created_at: "2026-09-14T00:00:00Z",
   updated_at: "2026-09-19",

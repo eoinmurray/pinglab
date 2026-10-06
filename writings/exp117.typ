@@ -9,7 +9,6 @@
 #let data-file = data-file.with(article: "exp117")
 
 #let meta = (
-  tags: ("txt", "v36.0.0"),
   title: "Mean-Field Analysis of PING Bifurcations",
   created_at: "2026-09-19T00:00:00Z",
   updated_at: "2026-09-19",

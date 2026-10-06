@@ -7,8 +7,7 @@
 #let data-file = data-file.with(article: "exp049")
 
 #let meta = (
-  tags: ("data", "v36.0.0"),
-  title: "Training Recurrent Weights Weakens PING Rhythmicity",
+  title: "Training Recurrent Weights Weakens PING Rhythmicity (legacy)",
   created_at: "2026-06-09T00:00:00Z",
   updated_at: "2026-09-10",
   description: "Trainable recurrent conductances produced lower reference-image rhythmicity and higher excitatory firing than the frozen PING control; outcomes depended on initialization.",
@@ -110,7 +109,7 @@
 
   #journal-methods(
     orientation: [
-  We reused networks from the #link("/exp022/")[exp022] — #link("/exp022/")[_Training Runs_] and
+  We reused networks from the #link("/exp022/")[exp022] — #link("/exp022/")[_Training Runs (legacy)_] and
   reanalysed recorded observations. No new training or simulation was performed.
     ],
     compute: [

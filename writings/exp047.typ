@@ -8,8 +8,7 @@
 #let data-file = data-file.with(article: "exp047")
 
 #let meta = (
-  tags: ("txt", "v36.0.0"),
-  title: "Pool-Size Effects Depend on Synaptic Scaling",
+  title: "Pool-Size Effects Depend on Synaptic Scaling (legacy)",
   created_at: "2026-07-14T00:00:00Z",
   updated_at: "2026-08-31T00:00:00Z",
   description: "Paired controls separate fixed summed I→E coupling from fixed expected synaptic strength as the inhibitory pool grows.",

@@ -57,7 +57,6 @@
 }
 
 #let meta = (
-  tags: ("data", "v36.0.0"),
   title: "Manuscript",
   created_at: "2026-09-02T00:00:00Z",
   updated_at: "2026-09-27",
@@ -305,9 +304,9 @@
       finite-drive spectral peaks from three separately trained classifiers
       (red squares, dashed), without uncertainty intervals. Methods define
       measurements and protocols. Source experiments:
-      #link("/exp054/")[exp054] — #link("/exp054/")[_Pinglab Rythmicity Metric_],
+      #link("/exp054/")[exp054] — #link("/exp054/")[_Pinglab Rythmicity Metric (legacy)_],
       #link("/exp117/")[exp117] — #link("/exp117/")[_Mean-Field Analysis of PING Bifurcations_], and
-      #link("/exp041/")[exp041] — #link("/exp041/")[_Firing Rate Tracks Gamma Frequency._]],
+      #link("/exp041/")[exp041] — #link("/exp041/")[_Firing Rate Tracks Gamma Frequency (legacy)._]],
   ) <fig:coupling-plane>
 
   #editing-paragraph-label("P4")
@@ -377,7 +376,7 @@
       Ceilings were 1, 2.5, 5, 10 and 25 Hz; stars denote unpenalised
       conditions. The loop-on 25 Hz ceiling marker nearly coincides with its
       unpenalised star.
-      Source experiment: #link("/exp025/")[exp025] — #link("/exp025/")[_Accuracy and Firing Rate With and Without Inhibition._]],
+      Source experiment: #link("/exp025/")[exp025] — #link("/exp025/")[_Accuracy and Firing Rate With and Without Inhibition (legacy)._]],
   ) <fig:accuracy-rate>
 
   #editing-paragraph-label("P8")
@@ -407,7 +406,7 @@
       in 0.1 steps. C shows per-neuron E/I rates (black circles/red
       squares); D shows accuracy (grey squares), with the dashed line
       marking mean accuracy at $s = 0$. Source experiment:
-      #link("/exp038/")[exp038] — #link("/exp038/")[_Switching On the Inhibitory Loop._]],
+      #link("/exp038/")[exp038] — #link("/exp038/")[_Switching On the Inhibitory Loop (legacy)._]],
   ) <fig:loop-transfer>
 
   #editing-paragraph-label("P9")
@@ -456,7 +455,7 @@
       they do not describe uncertainty in the paired change. Individual weights
       are not independent training replicates. Arrows mark pooled relative
       changes ≥5%, not statistical significance. Source experiment:
-      #link("/exp049/")[exp049] — #link("/exp049/")[_Training Recurrent Weights Weakens PING Rhythmicity._]],
+      #link("/exp049/")[exp049] — #link("/exp049/")[_Training Recurrent Weights Weakens PING Rhythmicity (legacy)._]],
   ) <fig:trainable-loop>
 
   === Excitatory firing is organised by population-cycle participation
@@ -502,8 +501,8 @@
       excluded. These distributions reuse the same classifiers' recorded
       spikes without new inference or training.
       Source experiments:
-      #link("/exp041/")[exp041] — #link("/exp041/")[_Firing Rate Tracks Gamma Frequency_] and
-      #link("/exp046/")[exp046] — #link("/exp046/")[_One Spike per Gamma Cycle._]],
+      #link("/exp041/")[exp041] — #link("/exp041/")[_Firing Rate Tracks Gamma Frequency (legacy)_] and
+      #link("/exp046/")[exp046] — #link("/exp046/")[_One Spike per Gamma Cycle (legacy)._]],
   ) <fig:cycle-participation>
 
   #editing-paragraph-label("P11")
@@ -555,7 +554,7 @@
       to E and I. Collisions add no event; inserted events cause no reset or
       refractory period. Both interventions affect readout and recurrent
       transmission. Exact dose grids and operations are given in Methods.
-      Source experiment: #link("/exp037/")[exp037] — #link("/exp037/")[_Dropped Spikes vs Added Noise._]],
+      Source experiment: #link("/exp037/")[exp037] — #link("/exp037/")[_Dropped Spikes vs Added Noise (legacy)._]],
   ) <fig:robustness>
 
   #editing-paragraph-label("P13")
@@ -602,7 +601,7 @@
       endpoint protocol; no uncertainty intervals. Displayed jitter values
       are 0, 0.5, 1, 2, 5, 9, 14 ms (C) and 0, 1, 3, 7, 14 ms (D); both
       share the zero-jitter replay control. Source experiment:
-      #link("/exp042/")[exp042] — #link("/exp042/")[_Inhibitory Replay Perturbations Change Excitatory Firing._]],
+      #link("/exp042/")[exp042] — #link("/exp042/")[_Inhibitory Replay Perturbations Change Excitatory Firing (legacy)._]],
   ) <fig:replay-perturbations>
 
   === Loop-on networks classify continuously presented inputs
@@ -650,7 +649,7 @@
       the 200-ms evaluations: mean ± SEM across three replicates on a
       logarithmic rate axis. The illustrative recording was selected separately
       from this grid. Source experiment:
-      #link("/exp082/")[exp082] — #link("/exp082/")[_Spike-Count Classification in a Continuous Stream._]],
+      #link("/exp082/")[exp082] — #link("/exp082/")[_Spike-Count Classification in a Continuous Stream (legacy)._]],
   ) <fig:continuous-stream>
 
   #editing-paragraph-label("P16")
@@ -1766,7 +1765,7 @@
       their training timestep on the same 1,000 MNIST test images. Firing
       rates use realised presentation durations: 199.8 ms at 0.3 and 0.6 ms,
       and 200 ms otherwise.
-      Source experiment: #link("/exp044/")[exp044] — #link("/exp044/")[_Firing Rate Across the Timestep Sweep._]],
+      Source experiment: #link("/exp044/")[exp044] — #link("/exp044/")[_Firing Rate Across the Timestep Sweep (legacy)._]],
   ) <fig:timestep-validation>
 
   == Appendix B — Measurement algorithms and boundary cases <appendix-b>

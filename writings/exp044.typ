@@ -8,8 +8,7 @@
 #let data-file = data-file.with(article: "exp044")
 
 #let meta = (
-  tags: ("data", "v36.0.0"),
-  title: "Firing Rate Across the Timestep Sweep",
+  title: "Firing Rate Across the Timestep Sweep (legacy)",
   created_at: "2026-06-02T00:00:00Z",
   updated_at: "2026-09-09",
   description: "Compares final-epoch firing rate, classification accuracy and illustrative rasters across a twelvefold integration-timestep sweep.",

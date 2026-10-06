@@ -9,7 +9,6 @@
 #let data-file = data-file.with(article: "exp081")
 
 #let meta = (
-  tags: ("txt", "reviewed", "v36.0.0"),
   title: "How Pixel Features Respond to Input Rate",
   created_at: "2026-08-10T00:00:00Z",
   updated_at: "2026-09-01",
