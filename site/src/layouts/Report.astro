@@ -1,0 +1,122 @@
+---
+import type { CollectionEntry } from 'astro:content';
+import Page from './Page.astro';
+import { dependencies, downstream } from '../lib/dependencies';
+import Dataset from '../components/Dataset.astro';
+import { collectionUrl, collectionLabel } from '../lib/collections';
+
+const parameterTables = import.meta.glob('../../../experiments/exp*/parameters.mdx', { eager: true, import: 'default' });
+const appendices = import.meta.glob('../../../experiments/exp*/appendix.mdx', { eager: true, import: 'default' });
+const referenceLists = import.meta.glob('../../../experiments/exp*/references.mdx', { eager: true, import: 'default' });
+
+interface Props {
+  report: CollectionEntry<'reports'>;
+  headings: { depth: number; slug: string; text: string }[];
+}
+const { report, headings } = Astro.props;
+const { data } = report;
+const Parameters = parameterTables[`../../../experiments/${data.id}/parameters.mdx`] as import('astro').MarkdownInstance<Record<string, unknown>>['Content'] | undefined;
+const References = referenceLists[`../../../experiments/${data.id}/references.mdx`] as import('astro').MarkdownInstance<Record<string, unknown>>['Content'] | undefined;
+const Appendix = appendices[`../../../experiments/${data.id}/appendix.mdx`] as import('astro').MarkdownInstance<Record<string, unknown>>['Content'] | undefined;
+const hasDataset = data.tags.includes('data') || (dependencies[data.id]?.length ?? 0) > 0 || downstream(data.id).length > 0;
+const contents = [
+  ...(data.abstract ? [{ slug: 'abstract', text: 'Abstract' }] : []),
+  ...headings.filter(heading => heading.depth === 2 || heading.depth === 3),
+  ...(Parameters ? [{ slug: 'parameters', text: 'Parameters' }] : []),
+  ...(hasDataset ? [{ slug: 'dataset', text: 'Dataset' }] : []),
+  ...(Appendix ? [{ slug: 'supplementary-details', text: 'Supplementary details' }] : []),
+  ...(References ? [{ slug: 'references', text: 'References' }] : []),
+];
+const frontMatter = {
+  title: data.title,
+  description: data.description,
+  authors: [{ author: data.author, affiliations: [] }],
+};
+---
+
+<Page title={data.title} description={data.description} frontMatter={frontMatter}>
+  <d-title>
+    <h1>{data.title}</h1>
+    <p>{data.description}</p>
+  </d-title>
+  <d-byline>
+    <div class="byline grid">
+      <div><h3>Experiment</h3><p class="experiment-id">{data.id}</p></div>
+      <div><h3>Author</h3><p class="author">{data.author}</p></div>
+      <div><h3>Created</h3><p><time datetime={data.created_at}>{data.created_at}</time></p></div>
+      <div><h3>Updated</h3><p><time datetime={data.updated_at}>{data.updated_at}</time></p></div>
+      <div><h3>Collection</h3><p><a class="collection-link" href={collectionUrl(data.collection)}>{collectionLabel(data.collection)}</a></p></div>
+    </div>
+  </d-byline>
+  <div class="report-body base-grid">
+    <aside class="report-toc">
+      <d-toc prerendered="true">
+        <nav aria-label="Table of contents">
+          <h2>Contents</h2>
+          <ol>{contents.map(heading => <li class:list={{ subsection: 'depth' in heading && heading.depth === 3 }}><a href={`#${heading.slug}`}>{heading.text}</a></li>)}</ol>
+        </nav>
+      </d-toc>
+    </aside>
+    <d-article role="article" aria-label={data.title}>
+      {data.abstract && <section class="report-abstract" aria-labelledby="abstract">
+        <h2 id="abstract">Abstract</h2>
+        <p>{data.abstract}</p>
+      </section>}
+      <slot />
+    </d-article>
+  </div>
+  {(Parameters || Appendix || References || hasDataset) && <d-appendix distill-prerendered aria-label="Report appendix">
+    {Parameters && <>
+      <h3 id="parameters">Parameters</h3>
+      <section class="parameters" aria-labelledby="parameters"><Parameters /></section>
+    </>}
+    {Appendix && <>
+      <h3 id="supplementary-details">Supplementary details</h3>
+      <section class="report-appendix" aria-labelledby="supplementary-details"><Appendix /></section>
+    </>}
+    {hasDataset && <Dataset experiment={data.id} selectedRuns={data.tags.includes('data') ? data.runs : {}} />} 
+    {References && <>
+      <h3 id="references">References</h3>
+      <section class="references" aria-labelledby="references"><References /></section>
+    </>}
+  </d-appendix>}
+</Page>
+
+<style is:global>
+  d-byline .experiment-id { font-weight: 600; }
+  d-byline .collection-link:hover { text-decoration: underline; }
+  .report-appendix { min-width: 0; margin-bottom: 2rem; }
+  .native-math { font-size: 1em; }
+  .native-math math { font-size: 1em; }
+  d-article > .source-table { grid-column: text; }
+  @media (min-width: 768px) { d-byline .byline { grid-template-columns: repeat(3, minmax(0, 1fr)); row-gap: 12px; } }
+  @media (min-width: 1180px) { d-byline .byline { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
+  .report-body { position: relative; --report-content-top: 4rem; }
+  .report-body > d-article { grid-column: screen; grid-row: 1; min-width: 0; padding-top: var(--report-content-top); }
+  .report-body > d-article > :first-child { margin-top: 0; }
+  .report-toc { position: relative; z-index: 1; grid-column: screen-start / text-start; grid-row: 1; justify-self: end; box-sizing: border-box; width: min(304px, 100%); min-width: 0; padding: calc(var(--report-content-top) + 1px) 24px 0; }
+  .report-toc d-toc { display: block; position: sticky; top: 24px; max-height: calc(100vh - 48px); overflow-y: auto; }
+  .report-toc h2 { font-size: 13px; line-height: 1.5; font-weight: 600; margin: 0 0 12px; }
+  .report-toc ol { list-style: none; margin: 0; padding: 0; }
+  .report-toc li { margin-bottom: 10px; font-size: 12px; line-height: 1.5; }
+  .report-toc .subsection { padding-left: 12px; }
+  .report-toc a { color: rgba(0, 0, 0, .6); text-decoration: none; border-bottom: none; }
+  .report-toc a:hover { color: black; }
+  .report-abstract { grid-column: text; }
+  .report-abstract h2 { margin-top: 0; }
+  :is(d-article, d-appendix) [id] { scroll-margin-top: 24px; }
+  @media (max-width: 1179px) {
+    .report-toc { grid-column: text; grid-row: 1; justify-self: stretch; width: auto; padding: 32px 0 24px; }
+    .report-toc d-toc { position: static; max-height: none; }
+    .report-body > d-article { grid-row: 2; }
+    .report-toc ol { columns: 2; column-gap: 24px; }
+    .report-toc li { break-inside: avoid; }
+  }
+  @media print { .report-toc { display: none; } }
+  d-appendix .parameters { min-width: 0; margin-bottom: 2rem; }
+  d-appendix .parameters table { width: 100%; border-collapse: collapse; font-size: inherit; line-height: inherit; margin-top: 0; }
+  d-appendix .parameters th, d-appendix .parameters td { text-align: left; padding: .6em .65em; border-bottom: 1px solid rgba(0, 0, 0, .1); vertical-align: top; }
+  d-appendix .parameters th:first-child, d-appendix .parameters td:first-child { padding-left: 0; width: 30%; }
+  d-appendix .parameters th:last-child, d-appendix .parameters td:last-child { padding-right: 0; }
+  @media (max-width: 999px) { d-appendix h3 { grid-column: text; margin-bottom: 1em; } }
+</style>

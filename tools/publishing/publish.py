@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import hashlib
 import json
 import re
@@ -13,16 +14,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-sys.path[:0] = [str(ROOT / 'tools'), str(ROOT)]
-from pingstore.contracts import (  # noqa: E402
-    load_json,
-    validate_operational_run_directory,
-)
-from pingstore.presentation_inputs import article_inputs, projection  # noqa: E402
-
-from writings.demolab_pingstore import declared_dependencies  # noqa: E402
-
-OUTPUT = ROOT / '.demolab/publication'
+OUTPUT = ROOT / '.publication'
 
 
 def run(*args, cwd=ROOT):
@@ -42,109 +34,87 @@ def inventory(directory):
     return result
 
 
+def load_json(path):
+    return json.loads(path.read_text())
+
+
 def select(root):
-    articles = article_inputs(root)
-    pins_path = root / 'writings/run-defaults.json'
-    pins = load_json(pins_path) if pins_path.exists() else {}
+    """Freeze the simple latest-presentation lookup for this Astro build."""
     latest = {}
     for directory in sorted((root / '.pingstore/runs').iterdir()):
-        if directory.name.startswith('.') or directory.is_symlink() or not directory.is_dir():
+        if directory.name.startswith('.') or not directory.is_dir():
             continue
         record = load_json(directory / 'run.json')
-        if record.get('schema') != 'pingstore.run/v4':
-            raise ValueError(f'Non-operational run in store: {directory.name}')
-        if record['stage'] != 'present':
+        if record.get('stage') != 'present':
             continue
-        timestamp = datetime.fromisoformat(record['execution']['completed_at'].replace('Z', '+00:00'))
-        if timestamp.utcoffset() is None:
-            raise ValueError('Completion timestamp must include a timezone')
-        key = (timestamp, record['run_id'])
+        key = (record['execution']['completed_at'], record['run_id'])
         experiment = record['experiment']
         if experiment not in latest or key > latest[experiment]:
             latest[experiment] = key
-    choices = {}
-    for article, keys in articles.items():
-        choices[article] = {}
-        for key in keys:
-            identity = pins.get(article, {}).get(key)
-            if identity is None:
-                candidate = latest.get(key.split('.')[-1])
-                if candidate is None:
-                    raise ValueError(f'Missing required presentation: {article}/{key}')
-                identity = candidate[1]
-            choices[article][key] = identity
-    return choices
+    return {experiment: value[1] for experiment, value in latest.items()}
+
+
+def source_inventory(root):
+    """Detect authored-source changes while Astro is building."""
+    files = []
+    for base in (root / 'site', root / 'experiments'):
+        for path in base.rglob('*'):
+            relative = path.relative_to(base)
+            if any(part in {'node_modules', '.astro', 'dist', '.git', '__pycache__'} for part in relative.parts):
+                continue
+            if path.is_file() and (base.name == 'site' or path.suffix in {'.mdx', '.json'}):
+                files.append(path)
+    return {str(path.relative_to(root)): hashlib.sha256(path.read_bytes()).hexdigest() for path in sorted(files)}
 
 
 def build():
     choices = select(ROOT)
-    identities = {identity for pins in choices.values() for identity in pins.values()}
-    print(f'Validating {len(identities)} selected presentations and their ancestry…', flush=True)
-    data = projection(ROOT, selected_ids=identities, declared_dependencies=declared_dependencies())
-    by_id = {row['id']: row for row in data['runs']}
-    for article, pins in choices.items():
-        for key, identity in pins.items():
-            if by_id[identity]['experiment'] != key.split('.')[-1]:
-                raise ValueError(f'Wrong experiment pin: {article}/{key}')
-    data['defaults'] = choices
+    sources = source_inventory(ROOT)
     OUTPUT.parent.mkdir(exist_ok=True)
-    with tempfile.TemporaryDirectory(prefix='publication-', dir=OUTPUT.parent) as temporary:
+    with tempfile.TemporaryDirectory(prefix='astro-publication-', dir=OUTPUT.parent) as temporary:
         staging = Path(temporary)
-        workspace = staging / 'workspace'
-        workspace.mkdir()
-        # Include the current authored working tree, including new unignored files.
-        names = subprocess.check_output(
-            ['git', 'ls-files', '-z', '--cached', '--others', '--exclude-standard'], cwd=ROOT,
-        ).decode().split('\0')
-        for name in set(names) - {''}:
-            source = ROOT / name
-            if source.is_symlink():
-                raise ValueError(f'Source symlink requires explicit handling: {name}')
-            if source.is_file():
-                target = workspace / name
-                target.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(source, target)
-        for identity in identities:
-            source = ROOT / '.pingstore/runs' / identity
-            target = workspace / '.pingstore/runs' / identity
-            shutil.copytree(source, target)
-            # Revalidate copied bytes to catch modification during the copy.
-            validate_operational_run_directory(target)
-        prepared = workspace / '.demolab/pinglab-inputs.json'
-        prepared.parent.mkdir()
-        prepared.write_text(json.dumps(data))
-        config = workspace / 'demolab.yaml'
-        command = [sys.executable, '-c', 'from pathlib import Path; assert Path(".demolab/pinglab-inputs.json").is_file()']
-        config.write_text(re.sub(r'^prepare:.*$', 'prepare: ' + json.dumps(command), config.read_text(), flags=re.M))
-        subprocess.run([str(ROOT / '.venv/bin/demolab'), 'build'], cwd=workspace, check=True)
-        site = workspace / '.demolab/site'
-        for article, pins in choices.items():
-            html = site / (article + '.html')
-            if not html.is_file():
-                raise ValueError(f'Missing article output: {article}')
-            if pins and 'A required run is unavailable' in html.read_text():
-                raise ValueError(f'Unpopulated article: {article}')
-        # Browsers must not download large videos just to open an article.
-        for html in site.glob('*.html'):
-            html.write_text(re.sub(r'<video\b(?![^>]*\bpreload=)', '<video preload="none"', html.read_text()))
+        selections = staging / 'selections.json'
+        selections.write_text(json.dumps(choices))
+        site = staging / 'site'
+        environment = dict(os.environ, PINGLAB_RUN_SELECTIONS=str(selections))
+        subprocess.run(['bun', 'run', 'astro', 'build', '--outDir', str(site)],
+                       cwd=ROOT / 'site', env=environment, check=True)
+        if source_inventory(ROOT) != sources:
+            raise ValueError('Authored sources changed during the build; build again')
+        if not (site / 'index.html').is_file():
+            raise ValueError('Astro did not produce a homepage')
+        for html in site.rglob('*.html'):
+            html.write_text(re.sub(r'<video\b[^>]*>',
+                lambda match: re.sub(r'\s+preload="[^"]*"', '', match[0])[:-1] + ' preload="none">', html.read_text()))
         (site / '.nojekyll').touch()
         receipt = {
             'built_at': datetime.now(timezone.utc).isoformat(),
             'source_commit': run('git', 'rev-parse', 'HEAD'),
             'working_tree_status': run('git', 'status', '--short'),
-            'selections': choices,
+            'latest_selections': choices,
+            'source_files': sources,
             'files': inventory(site),
         }
-        # Promote only a completed build; a failed build leaves the previous one intact.
         candidate = staging / 'result'
         candidate.mkdir()
         shutil.move(site, candidate / 'site')
         (candidate / 'build.json').write_text(json.dumps(receipt, indent=2) + '\n')
+        previous = OUTPUT.with_name('.publication-previous')
+        if previous.exists():
+            shutil.rmtree(previous)
         if OUTPUT.exists():
-            shutil.rmtree(OUTPUT)
-        shutil.move(candidate, OUTPUT)
+            OUTPUT.rename(previous)
+        try:
+            candidate.rename(OUTPUT)
+        except OSError:
+            if previous.exists():
+                previous.rename(OUTPUT)
+            raise
+        if previous.exists():
+            shutil.rmtree(previous)
     print(f'Built {len(receipt["files"])} files, {sum(v["bytes"] for v in receipt["files"].values()) / 1e6:.1f} MB')
-    print(f'Preview: task preview-publication\nOutput: {OUTPUT / "site"}')
+    print(f'Preview: python -m http.server 3001 --directory {OUTPUT / "site"}')
+
 
 
 def publish():

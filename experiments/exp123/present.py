@@ -20,28 +20,36 @@ from pingstore.stages import source_run, stage_run
 
 
 def save(fig, destination):
-    for ext in ("png", "svg", "pdf"):
-        fig.savefig(destination.with_suffix("." + ext), dpi=300)
+    with plt.rc_context({"savefig.bbox": None}):
+        for ext in ("png", "svg", "pdf"):
+            fig.savefig(destination.with_suffix("." + ext), dpi=300)
     plt.close(fig)
 
 
 def plot_grid(report, source, destination, coordinate):
+    rows, columns = 3, 3
+    images = report["image_reports"][:9]
     fig, axes = plt.subplots(
-        5, 2, figsize=(180 / 25.4, 170 / 25.4), layout="constrained"
+        rows, columns,
+        figsize=tuple(mm / 25.4 for mm in recipe.FIGURE_SIZE_MM),
+        layout="constrained",
     )
     fig.get_layout_engine().set(w_pad=0.06, h_pad=0.06)
     colours = (theme.INK_BLACK, theme.DEEP_RED, theme.ELECTRIC_CYAN)
-    for j, (ax, image) in enumerate(zip(axes.flat, report["image_reports"])):
+    for j, (ax, image) in enumerate(zip(axes.flat, images)):
         with np.load(
             source.unit(f"image{image['image_index']:05d}") / "trajectories.npz",
             allow_pickle=False,
         ) as data:
-            x = data["time_ms"] if coordinate == "time" else data["cycle_position"]
+            x = data["time_ms"] if coordinate == "time" else data["completed_volley_count"]
             score = (
                 data["true_score"]
                 if coordinate == "time"
-                else data["true_score_by_cycle"]
+                else data["true_score_by_completed_volley"]
             )
+            if coordinate == "cycles" and len(x):
+                x = np.concatenate(([0], x))
+                score = np.concatenate((data["true_score"][:, :, :1], score), axis=2)
             if len(x):
                 for ti, (tau, colour) in enumerate(
                     zip(report["design"]["tau_gaba_ms"], colours)
@@ -52,13 +60,15 @@ def plot_grid(report, source, destination, coordinate):
                         color=colour,
                         lw=1.3,
                         label=f"GABA {tau:g} ms",
+                        marker=None if coordinate == "time" else "o",
+                        markersize=2.5,
                     )
                 ax.set_xlim(x[0], x[-1])
             else:
                 ax.text(
                     0.5,
                     0.5,
-                    "No common cycles",
+                    "No common completed volleys",
                     transform=ax.transAxes,
                     ha="center",
                     va="center",
@@ -66,22 +76,28 @@ def plot_grid(report, source, destination, coordinate):
                 )
             ax.set_ylim(0, 1.04)
             ax.set_title(
-                f"Image {image['image_index']:02d} · digit {image['label']}",
+                f"Image {image['image_index']:02d} · digit {image['label']}"
+                if coordinate == "time"
+                else f"{image['image_index']:02d} · digit {image['label']}",
                 fontsize=theme.SIZE_TITLE,
             )
             if coordinate == "time":
                 ax.set_xticks([0, 100, 200])
+            elif len(x):
+                ax.set_xticks(np.arange(0, int(x[-1]) + 1))
             ax.set_yticks([0, 0.5, 1])
             ax.tick_params(labelsize=theme.SIZE_TICK)
-            if j % 2 == 0:
+            if j % columns == 0:
                 ax.set_ylabel("True-class\nsoftmax score", fontsize=theme.SIZE_LABEL)
             else:
                 ax.tick_params(labelleft=False)
-            if j >= 8:
+            if coordinate == "time" and j >= (rows - 1) * columns:
                 ax.set_xlabel(
-                    "Time (ms)" if coordinate == "time" else "Cycle position",
+                    "Time (ms)",
                     fontsize=theme.SIZE_LABEL,
                 )
+    if coordinate == "cycles":
+        fig.supxlabel("Completed volley count", fontsize=theme.SIZE_LABEL)
     theme.label_panels(axes.flat)
     handles, labels = axes[0, 0].get_legend_handles_labels()
     if handles:
@@ -96,12 +112,15 @@ def plot_grid(report, source, destination, coordinate):
 
 
 def plot_decisions(report, destination):
+    images = report["image_reports"][:9]
     fig, axes = plt.subplots(
-        2, 10, figsize=(180 / 25.4, 90 / 25.4), layout="constrained"
+        2, len(images),
+        figsize=tuple(mm / 25.4 for mm in recipe.FIGURE_SIZE_MM),
+        layout="constrained",
     )
     fig.get_layout_engine().set(w_pad=0.015, h_pad=0.06)
     taus = np.array(report["design"]["tau_gaba_ms"])
-    for j, image in enumerate(report["image_reports"]):
+    for j, image in enumerate(images):
         entries = [
             next(
                 d
@@ -110,7 +129,7 @@ def plot_decisions(report, destination):
             )
             for tau in taus
         ]
-        for k, coordinate in enumerate(("ms", "cycles")):
+        for k, coordinate in enumerate(("ms", "completed_volley_count")):
             ax = axes[k, j]
             q = np.array(
                 [
@@ -120,22 +139,17 @@ def plot_decisions(report, destination):
                     for d in entries
                 ]
             )
-            ax.fill_between(taus, q[:, 0], q[:, 2], color=theme.DEEP_RED, alpha=0.15)
             ax.plot(
-                taus, q[:, 1], color=theme.INK_BLACK, marker="o", markersize=3, lw=1
+                q[:, 1], taus, color=theme.INK_BLACK,
+                marker="o", markersize=3.7, lw=1, zorder=3,
             )
-            ax.vlines(taus, q[:, 0], q[:, 2], color=theme.DEEP_RED, lw=0.8)
-            upper = (
-                (210 if np.nanmax(q[:, 2], initial=0) > 100 else 110) if k == 0 else 5.2
-            )
-            ax.set_ylim(0, upper)
-            ax.set_yticks(
-                np.arange(0, 201, 25)
-                if upper == 210
-                else np.arange(0, 101, 10)
-                if k == 0
-                else np.arange(0, 5.1, 0.5)
-            )
+            upper = 200 if k == 0 else image["common_complete_intervals"]
+            ax.set_xlim(0, upper if upper else 1)
+            ax.set_xticks([0, 100, 200] if k == 0 else np.arange(upper + 1) if upper else [0])
+            if k == 0:
+                for label in ax.get_xticklabels():
+                    label.set_rotation(45)
+                    label.set_horizontalalignment("right")
             if not np.isfinite(q).any():
                 ax.text(
                     0.5,
@@ -151,19 +165,23 @@ def plot_decisions(report, destination):
                 f"{image['image_index']:02d} · {image['label']}",
                 fontsize=theme.SIZE_ANNOTATION,
             )
-            ax.set_xticks(taus, [f"{tau:g}" for tau in taus])
-            ax.set_xlim(2, 13)
+            ax.set_yticks(taus, [f"{tau:g}" for tau in taus])
+            ax.set_ylim(2, 13)
             if j == 0:
                 ax.set_ylabel(
-                    "Time (ms)" if k == 0 else "Cycle position",
+                    "GABA decay (ms)",
                     fontsize=theme.SIZE_LABEL,
                 )
-            elif upper != 210:
+            else:
                 ax.tick_params(labelleft=False)
+            if j == len(images) // 2:
+                ax.set_xlabel(
+                    "Time (ms)" if k == 0 else "Completed volley count",
+                    fontsize=theme.SIZE_LABEL,
+                )
             ax.tick_params(labelsize=theme.SIZE_TICK)
-    fig.supxlabel("GABA decay (ms)", fontsize=theme.SIZE_LABEL)
     fig.suptitle(
-        "Sustained correct decisions · median and interquartile range",
+        "Stable correct decisions · median",
         fontsize=theme.SIZE_TITLE,
         fontweight="bold",
     )
@@ -174,7 +192,7 @@ def plot_accuracy(report, destination):
     fig, axes = plt.subplots(
         2,
         3,
-        figsize=(180 / 25.4, 110 / 25.4),
+        figsize=tuple(mm / 25.4 for mm in recipe.FIGURE_SIZE_MM),
         layout="constrained",
         gridspec_kw={"height_ratios": [2, 1]},
         sharex="col",
@@ -227,14 +245,14 @@ def plot_accuracy(report, destination):
     save(fig, destination)
 
 
-def present(identity, accuracy_identity=None, pareto_identity=None):
+def present(identity):
     source = source_run(
         recipe.REPO / ".pingstore", identity, stage="analyse", experiment=recipe.SLUG
     )
     report = json.loads(source.file("results.json").read_text())
     if (
         report.get("schema") != "exp123.analysis/v1"
-        or len(report["image_reports"]) != 10
+        or len(report["image_reports"]) != 9
         or "decisions" not in report
     ):
         raise ValueError("unsupported analysis payload")
@@ -242,30 +260,12 @@ def present(identity, accuracy_identity=None, pareto_identity=None):
     theme.apply()
     plt.rcParams["svg.fonttype"] = "none"
     inputs = {"analyse": source}
-    accuracy_report = None
-    pareto_report = None
-    if accuracy_identity is not None:
-        accuracy_source = source_run(
-            recipe.REPO / ".pingstore",
-            accuracy_identity,
-            stage="analyse",
-            experiment=recipe.SLUG,
-        )
-        accuracy_report = json.loads(accuracy_source.file("accuracy.json").read_text())
-        if accuracy_report.get("schema") != "exp123.accuracy.analysis/v1":
-            raise ValueError("unsupported accuracy analysis")
-        inputs["accuracy_analyse"] = accuracy_source
-    if pareto_identity is not None:
-        pareto_source = source_run(
-            recipe.REPO / ".pingstore",
-            pareto_identity,
-            stage="analyse",
-            experiment=recipe.SLUG,
-        )
-        pareto_report = json.loads(pareto_source.file("pareto.json").read_text())
-        if pareto_report.get("schema") != "exp123.pareto.analysis/v1":
-            raise ValueError("unsupported pareto analysis")
-        inputs["pareto_analyse"] = pareto_source
+    accuracy_report = json.loads(source.file("accuracy.json").read_text())
+    pareto_report = json.loads(source.file("pareto.json").read_text())
+    if accuracy_report.get("schema") != "exp123.accuracy.analysis/v1":
+        raise ValueError("unsupported accuracy analysis")
+    if pareto_report.get("schema") != "exp123.pareto.analysis/v1":
+        raise ValueError("unsupported pareto analysis")
     with stage_run(
         recipe.REPO,
         recipe.SLUG,
@@ -274,10 +274,15 @@ def present(identity, accuracy_identity=None, pareto_identity=None):
         configuration=dict(
             schema="exp123.presentation/v1",
             paper_mode=True,
+            figure_size_mm=recipe.FIGURE_SIZE_MM,
             style="shared paper theme; trajectory panel labels and decision row labels A/B",
             draw_aggregation="mean within each image and tau",
             show_encoding_traces=False,
-            decision_layout="time across top row, cycles across bottom row; median and interquartile range",
+            time_trajectory_layout="3 rows by 3 columns; first nine images, indices 0–8",
+            cycle_trajectory_layout="3 rows by 3 columns; same nine images, indices 0–8",
+            volley_sampling="cumulative softmax at the inhibitory trough after each accepted peak; final unbounded peak excluded",
+            volley_zero="initial softmax score at physical time zero; illustrative origin, not a detected volley",
+            decision_layout="nine images, indices 0–8; time 0–200 ms on x in top row, completed volley count on x in bottom row with Figure 2 shared count range; GABA decay on y; median points connected across decay settings",
             accuracy_minimum_display_coverage=0.8,
             accuracy_axis_extent="last coordinate with at least 50% paired-trial coverage plus one grid step",
         ),
@@ -285,19 +290,17 @@ def present(identity, accuracy_identity=None, pareto_identity=None):
         plot_grid(report, source, run.export / "confidence_time", "time")
         plot_grid(report, source, run.export / "confidence_cycles", "cycles")
         plot_decisions(report, run.export / "sustained_decisions")
-        if accuracy_report is not None:
-            plot_accuracy(accuracy_report, run.export / "accuracy_comparison")
-            (run.export / "accuracy_numbers.json").write_text(
-                json.dumps(accuracy_report, indent=2, allow_nan=False) + "\n"
-            )
-        if pareto_report is not None:
-            from experiments.exp123.pareto_plots import plot_tradeoffs, plot_frontiers
+        plot_accuracy(accuracy_report, run.export / "accuracy_comparison")
+        (run.export / "accuracy_numbers.json").write_text(
+            json.dumps(accuracy_report, indent=2, allow_nan=False) + "\n"
+        )
+        from experiments.exp123.pareto_plots import plot_tradeoffs, plot_frontiers
 
-            plot_tradeoffs(pareto_report, run.export / "deadline_tradeoffs", save)
-            plot_frontiers(pareto_report, run.export / "pareto_frontiers", save)
-            (run.export / "pareto_numbers.json").write_text(
-                json.dumps(pareto_report, indent=2, allow_nan=False) + "\n"
-            )
+        plot_tradeoffs(pareto_report, run.export / "deadline_tradeoffs", save)
+        plot_frontiers(pareto_report, run.export / "pareto_frontiers", save)
+        (run.export / "pareto_numbers.json").write_text(
+            json.dumps(pareto_report, indent=2, allow_nan=False) + "\n"
+        )
         (run.export / "numbers.json").write_text(
             json.dumps(report, indent=2, allow_nan=False) + "\n"
         )
@@ -308,7 +311,5 @@ def present(identity, accuracy_identity=None, pareto_identity=None):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source", required=True)
-    parser.add_argument("--accuracy-source")
-    parser.add_argument("--pareto-source")
     args = parser.parse_args()
-    present(args.source, args.accuracy_source, args.pareto_source)
+    present(args.source)

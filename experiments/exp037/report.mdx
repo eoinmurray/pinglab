@@ -1,0 +1,60 @@
+---
+id: "exp037"
+title: "Dropped Spikes vs Added Noise"
+created_at: "2026-05-30"
+updated_at: "2026-09-07"
+description: "Both trained networks tolerated substantial spike deletion, but PING accuracy fell more sharply under added spikes. The perturbations changed both recurrent feedback and readout input, so they do not isolate gamma gating."
+collection: "gamma-gated-sparsity"
+author: "Eoin Murray"
+tags: ["data", "v36.0.0"]
+runs: {"exp037": "exp037-r020-present"}
+thumbnailRun: "exp037-r020-present"
+thumbnail: "perturbation_curves.svg"
+abstract: "We asked whether trained COBA and PING classifiers fail differently when hidden spikes are removed or spurious spikes are inserted during inference. We replayed validation-selected networks under matched deletion and insertion perturbations without retraining them. We compared insertion at equal fractions of each network’s unperturbed excitatory firing rate. The accuracy curves measure tolerance to deletion and relative insertion; they do not isolate recurrent timing from firing-rate and readout effects."
+---
+
+import LiveValue from '../../site/src/components/LiveValue.astro';
+import PublishedFigure from '../../site/src/components/PublishedFigure.astro';
+import NativeMath from '../../site/src/components/NativeMath.astro';
+import Equation from '../../site/src/components/Equation.astro';
+import SourceTable from '../../site/src/components/SourceTable.astro';
+import formulae from './math.json';
+import tables from './tables.json';
+
+<span id="loc-2" />
+
+## Results
+
+1. **Both networks tolerated substantial spike deletion.** At 80% deletion, COBA/PING retained <LiveValue report="exp037" expression={"acc(\"coba\", \"drop\", 0.8)"} />%/<LiveValue report="exp037" expression={"acc(\"ping\", \"drop\", 0.8)"} />% accuracy. At 90%, accuracy fell to <LiveValue report="exp037" expression={"acc(\"coba\", \"drop\", 0.9)"} />% and <LiveValue report="exp037" expression={"acc(\"ping\", \"drop\", 0.9)"} />%, respectively. Complete deletion reduced both to <LiveValue report="exp037" expression={"acc(\"ping\", \"drop\", 1)"} />% ([Fig. 1](#loc-3)A).
+
+2. **Added spikes exposed a marked difference in robustness.** With addition matched to each network’s baseline excitatory rate, COBA declined gradually while PING fell sharply around 80–110% addition. At 100%, accuracy was <LiveValue report="exp037" expression={"acc(\"coba\", \"add\", 100)"} />% for COBA versus <LiveValue report="exp037" expression={"acc(\"ping\", \"add\", 100)"} />% for PING; at <LiveValue report="exp037" expression={"add_max"} />%, it was <LiveValue report="exp037" expression={"acc(\"coba\", \"add\", add_max)"} />% versus <LiveValue report="exp037" expression={"acc(\"ping\", \"add\", add_max)"} />%. ([Fig. 1](#loc-3)B).
+
+<PublishedFigure run="exp037-r020-present" file="perturbation_curves.svg" id="loc-3" alt="Mean test accuracy under deletion and insertion, with sample-standard-deviation bands across three seeds." >
+  Figure 1: **(A)** Random hidden-spike deletion. **(B)** Independent Bernoulli spike insertion. Lines and markers show means across seeds 42–44, <LiveValue report="exp037" expression={"eval_n"} /> test images per seed; translucent bands show ±1 sample SD. The PING uncertainty band is grey and is most visible in **(B)**. The dashed line is nominal 10% chance. The insertion axis is the prescribed percentage of each model–seed network’s own unperturbed test-set E rate. Lines average accuracy at matched percentages; nominal Hz can differ across seeds.
+</PublishedFigure>
+
+3. **Rasters illustrate how transmitted activity changed.** Partial deletion preserved visible PING banding, while addition introduced spikes throughout the intervals between bands ([Fig. 2](#loc-4)A, B). COBA activity thinned under deletion and became denser under addition ([Fig. 2](#loc-4)C, D). These single-image examples do not quantify gamma coherence.
+
+<PublishedFigure run="exp037-r020-present" file="perturbation_rasters.png" id="loc-4" alt="Four panels of transmitted spikes: PING deletion and addition, then COBA deletion and addition, each at three perturbation levels." >
+  Figure 2: Seed-42 trials of <LiveValue report="exp037" expression={"trial-description"} />. **(A)** PING deletion; **(B)** PING addition; **(C)** COBA deletion; **(D)** COBA addition. Each deletion panel shows probabilities 0, 0.5 and 1; each addition panel shows nominal rates 0, 100 and <LiveValue report="exp037" expression={"add_max"} />% of that network’s unperturbed test-set E rate. Insertions were applied independently to E and I. Black marks denote E spikes and red marks I spikes, including inserted events. Each raster samples the same 200 E and 64 I neurons; annotated E rates use the full excitatory population over the displayed trial.
+</PublishedFigure>
+
+4. **Total firing concealed suppression of naturally generated spikes.** For PING seed 42 at 100% addition, natural E firing fell from <LiveValue report="exp037" expression={"rounded(baseline.e_rate_hz)"} /> to <LiveValue report="exp037" expression={"rounded(natural)"} /> Hz, while successful insertions contributed <LiveValue report="exp037" expression={"rounded(row.successful_insertion_hz.e1)"} /> Hz. This separately measured decomposition is not distinguished in [Fig. 2](#loc-4). It supports disruption of recurrent dynamics, but does not establish gamma disruption as the cause of classification failure.
+
+<span id="loc-5" />
+
+## Methods
+
+1. **Evaluate trained classifiers.** Validation-selected COBA and PING checkpoints from seeds 42–44 were tested on the same <LiveValue report="exp037" expression={"eval_n"} /> MNIST images without retraining. The reused training pool contained 6,300 optimization and 700 validation images. We selected the minimum-validation-loss epoch from <LiveValue report="exp037" expression={"cfg.epochs"} /> epochs in the unregularized conditions. Networks had 1,024 E and 256 I neurons, with E→I→E coupling enabled for PING and disabled for COBA; recurrent weights were fixed, while input and readout weights were learned. Training voltage-increment gradients were divided by 1,000 for PING and 1 for COBA, so these are different trained recipes, not an isolated loop control. Trials lasted <LiveValue report="exp037" expression={"cfg.t_ms"} /> ms at <LiveValue report="exp037" expression={"cfg.dt"} /> ms resolution, with no warm-up. Pixel intensity set Poisson input rates up to 25 Hz; an independent perturbation generator preserved the input-encoding stream across conditions. Prediction selected the largest time-averaged output membrane potential. The wider activity-penalty comparison is described in [exp025](/exp025) — [*Accuracy and Firing Rate With and Without Inhibition.*](/exp025)
+
+2. **Delete spikes after neuronal spike generation.** At each timestep, conductances were updated using the preceding timestep’s transmitted spikes. Membrane integration and threshold/reset operations then generated natural spikes. Immediately afterward, before recording or readout input, each emitted E/I spike was independently removed with probability 0–100%, in 10-percentage-point steps. Surviving spikes entered the current readout update and the next timestep’s recurrent feedback. Deletion did not undo the membrane reset associated with a removed spike ([Fig. 1](#loc-3)A [Fig. 2](#loc-4)A, C).
+
+3. **Insert spikes at the same point in the flow.** After membrane integration and natural spike generation, but before recording or readout input, independent Bernoulli events were added to E/I outputs, capped at one spike per neuron per timestep. Collisions with existing spikes added nothing. Inserted spikes entered the current readout update and next timestep’s recurrent feedback, but did not themselves trigger a membrane reset or refractory period. Nominal addition spanned 0–<LiveValue report="exp037" expression={"add_max"} />% of each model–seed’s unperturbed test E rate in 10-percentage-point steps. We calibrated this fixed baseline over the same <LiveValue report="exp037" expression={"eval_n"} /> test images and multiplied it by the requested percentage divided by 100 to obtain Hz. The same nominal per-neuron rate was applied independently to E and I ([Fig. 1](#loc-3)B [Fig. 2](#loc-4)B, D).
+
+4. **Separate natural and transmitted activity.** We counted natural spikes immediately before modification, successful insertions or deletions during modification, and transmitted spikes afterward. Natural activity therefore refers to neuron-generated spikes within the already perturbed network. Accuracy curves show means ± sample SD across three seeds, not confidence intervals. Illustrative rasters show transmitted activity from 200 E and 64 I neurons for seed 42 and test-image index 0; rate annotations use the full E population. Insertion percentages use the test-set baseline rather than the illustrative image’s rate.
+
+<span id="loc-6" />
+
+## Discussion
+
+Spike deletion did not undo the membrane-voltage reset, and insertion did not trigger a reset or refractory period. These interventions modified transmitted events, affecting both recurrent feedback and readout input. A follow-up could perturb recurrent synaptic inputs while leaving the readout driven by natural E spikes, alongside a readout-only control, to distinguish circuit disruption from direct readout contamination.

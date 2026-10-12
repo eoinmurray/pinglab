@@ -28,12 +28,12 @@ The checkpoint data are reused; there is no retraining and no comparison model.
    rest/reset −65 mV, threshold −50 mV, refractory holds 1.2/0.6 ms. AMPA decay
    and readout/filter time constants are 2 ms; recurrent delay is one 0.1 ms
    step. The output threshold is one with subtractive reset; no E→E/I→I paths.
-3. Use the first ten official MNIST test images, indices 0–9. For each
+3. Use the first nine official MNIST test images, indices 0–8. For each
    image, make 100 stochastic encodings with draw identifiers 42–141; actual
    generator seeds are `1000 * image_index + draw_identifier`. Normalize
    pixels by 255 and use maximum pixel rate 25 Hz. Reuse each full encoded
    tensor at 3, 6 and 12 ms GABA decay. Simulate 200 ms without burn-in,
-   resetting graph state at every presentation. This gives 3000 presentations.
+   resetting graph state at every presentation. This gives 2700 trajectory presentations.
 4. Analyse softmax of cumulative output spike counts at fixed temperature one.
    Scores are calculated independently for each draw before averaging. Retain
    all cumulative class counts, true-class scores, maximum scores and predicted
@@ -46,28 +46,45 @@ The checkpoint data are reused; there is no retraining and no comparison model.
    ≥max(1 smoothed count, 20% of maximum). Require a complete interior midpoint
    cycle and mean I participation ≥50%. Use SNNLab for cycle construction and
    counting. Volley sequences do not by themselves prove periodicity.
-6. Set the first I volley to cycle position zero and subsequent volleys to
-   consecutive integers. Interpolate scores between their physical times,
-   without extrapolation. Exclude initial latency before the first volley.
-   For each image, use a 0.05-cycle grid ending at the shortest complete-interval
-   coverage across all 300 paired presentations. Average all 100 draws at
-   every displayed coordinate; unavailable coverage is not replaced with zero.
-7. Render matching ten-panel house-style grids: time and cycle position,
-   with one panel per image and one mean curve per decay setting. Retain PNG,
+6. Figure 2 counts completed I volleys from one, defining completion as the
+   first minimum of smoothed I activity strictly between an accepted peak and
+   the next peak. Exclude the final peak without a following boundary. Sample
+   cumulative softmax at each completion's last completed simulation update;
+   scores include all spikes since onset. Use only counts available in all 300
+   presentations per image, averaging all 100 draws. Count zero shows the
+   initial score 0.1. This trough is an operational completion boundary, not a
+   guarantee that all associated output spikes have arrived. Retain interpolated
+   cycle-position evidence separately; Figure 3 uses the same completion boundaries.
+7. Render matching nine-image 3 × 3 physical-time and volley-count grids
+   (indices 0–8), with one mean curve per decay setting. Retain PNG,
    SVG and PDF figures and their scientific numbers in a v4 presentation run.
    Diagnose saturation at maximum score ≥0.99, reporting onset time and final
    correctness. No temperature fitting, confidence calibration or numerical
    alignment statistic is included in this first visual comparison.
-8. Measure the earliest update at which the true class is the unique largest
-   cumulative-count winner through the final update. Ties interrupt this
-   retrospective stability criterion; final ties or errors have no decision.
-   Map decision times only within accepted I-volley sequences, without
-   extrapolation. Plot per-image medians and quartiles among successful draws
-   against decay in milliseconds and cycle position. Report success fractions
-   and cycle-mapped counts separately: time and cycle summaries may use
-   different subsets, and unsuccessful draws are never assigned a zero time.
+8. Measure the earliest update at which the true class becomes the unique
+   largest cumulative-count winner and stays so through 200 ms. Ties interrupt
+   this retrospective stability criterion; final ties or errors have no decision.
+   Use the first trough completion at or after that update, numbered from one: the
+   earliest Figure 2 sample at which the decision is already stable. Require accepted sequences, a decision no later
+   than the final completion, and Figure 2's shared count range for count summaries.
+   Figure 3 shows median points for the same nine images: time 0–200 ms on x
+   above and completed volley count with Figure 2's count limits below; GABA
+   decay on y. Lines connect median points; no uncertainty bars are displayed. Trial counts are
+   integers, while medians can be fractional. The two rows can use different
+   successful-trial subsets; failures have no decision point.
 
-## Commands
+## Complete three-stage execution
+
+Each stage creates exactly one run. Compute includes the nine-image trajectory
+sample (100 draws each at 25 Hz) and the 500-image balanced benchmark (three draws
+each at 12.5, 25 and 50 Hz). Both use three inhibitory-decay settings, for 16,200
+presentations total. Baseline 25 Hz benchmark recordings are shared by the
+matched-coordinate and Pareto measurements within the same run.
+
+Analyse takes this single compute run and produces all trajectory, decision,
+matched-coordinate accuracy, deadline-cost and Pareto measurements. Present takes
+this single analysis run and always generates all six figures. Stages remain
+independent: no stage launches another stage or chooses its input automatically.
 
 Run each stage separately from the repository root, using the exact identity
 printed by the preceding stage.
@@ -77,6 +94,12 @@ uv run python experiments/exp123/compute.py --source exp022-r001-compute
 uv run python experiments/exp123/analyse.py --source <compute-run-id>
 uv run python experiments/exp123/present.py --source <analyse-run-id>
 ```
+
+## Historical execution
+
+The dated records below describe earlier runs and the former branched workflow.
+Its multi-source commands are historical; use the three commands above for the
+current complete experiment. Historical run IDs may have been pruned.
 
 ## Initial twenty-image execution — 2026-10-06
 
@@ -286,3 +309,136 @@ Mean-PSD peaks for 3/6/12 ms decay are 77.8/46.9/27.2 Hz at 12.5 Hz input,
 100.5/58.9/35.2 Hz at 25 Hz input and 126.2/77.4/45.8 Hz at 50 Hz input.
 These are spectral estimates with possible harmonic ambiguity, not proof of a
 single invariant gamma mechanism or measurements of physical energy.
+
+## Nine-image physical-time figure — 2026-10-07
+
+`exp123-r029-present` redraws Figure 1 as a 3 × 3 grid using only images 0–8;
+its plotting path no longer loads or renders image 9. Figure 2 and decision
+summaries retain their ten-image sample. The presentation reuses explicit
+analysis inputs `exp123-r013-analyse`, `exp123-r023-analyse` and
+`exp123-r026-analyse`; no simulations or measurements were rerun.
+
+## Consolidated full execution — 2026-10-07
+
+The complete experiment now uses one run per stage:
+
+1. `exp123-r040-compute`: 16,200 fresh graph presentations, including the nine
+   trajectory images and all 500 benchmark images at three encoding rates.
+2. `exp123-r041-analyse`: all trajectory, decision, matched-coordinate accuracy,
+   deadline-cost, Pareto and spectral measurements, with one compute input.
+3. `exp123-r042-present`: all six figures in PNG, SVG and PDF, with one analysis
+   input. Selected by the article.
+
+All nine trajectory score/count arrays and decision summaries matched the
+preceding evidence exactly. Matched-coordinate curves, Pareto rows and spectral
+estimates also matched exactly; nested inputs were verified for all 500 images.
+Each public command creates one run and accepts only its single explicit source;
+no stage launches another stage. Measurement helpers write into the owning
+analysis run rather than allocating additional runs.
+
+## Uniform figure dimensions — 2026-10-07
+
+`exp123-r031-present` renders all six figures at 180 × 170 mm, defined once in
+`recipe.py`. PNG, SVG and PDF exports preserve that canvas without tight
+cropping. Panel arrangements and measurements are retained, including Figure
+1's nine-image grid. It reuses the same three analysis inputs as the preceding
+presentation; no simulations or measurements were rerun.
+
+## Caption-width 16:9 figures — 2026-10-07
+
+`exp123-r034-present` renders all six figures at 180 × 101.25 mm (16:9),
+preserving the canvas in every export. The article displays images at full
+caption width without a viewport-height cap. Figure 1 retains its nine-image
+3 × 3 grid; Figure 2 arranges its ten images in two rows of five. Compact labels
+and tick spacing keep the shorter layouts legible. The same explicit analysis
+inputs are reused; no simulations or measurements were rerun.
+
+## Matched nine-image trajectory grids — 2026-10-07
+
+`exp123-r035-present` uses the same images 0–8 for Figures 1 and 2, both in
+3 × 3 grids. Neither trajectory plot loads or renders image 9. All figures
+retain their caption-width 16:9 canvas. The existing analysis inputs and
+measurements are reused.
+
+## Matched nine-image decision figure — 2026-10-07
+
+`exp123-r036-present` limits Figure 3 to the same images 0–8 as Figures 1 and 2.
+Its two rows contain nine columns: decision time above, cycle position below.
+The tenth image is excluded from the plotting code. All six figures retain
+their caption-width 16:9 canvas; analysis inputs and measurements are reused.
+
+## Completed cycle counts — 2026-10-07
+
+`exp123-r037-analyse` reanalyses `exp123-r010-compute`, adding integer completed
+inter-volley counts. Figure 2 samples scores at accepted volley completions,
+starting with zero at the first volley. Figure 3 counts full intervals completed
+at each sustained decision, within accepted volley coverage; fractional
+medians and quartiles can arise from aggregation of integer trial values.
+`exp123-r038-present` displays these measurements with integer cycle ticks,
+retaining the same nine images and 16:9 layouts. Matched-coordinate accuracy
+and Pareto inputs remain `exp123-r023-analyse` and `exp123-r026-analyse`.
+No simulations were rerun.
+
+## Decision figure axes — 2026-10-07
+
+`exp123-r039-present` puts decision time on Figure 3A's x-axis and completed
+cycles on Figure 3B's x-axis, with GABA decay on both y-axes. Medians and
+interquartile ranges are shown horizontally for the same nine images.
+It reuses `exp123-r037-analyse`, `exp123-r023-analyse` and
+`exp123-r026-analyse`; no simulations or measurements were rerun.
+
+After full validation, hash-bound exp123 pruning removed the seven superseded
+branched runs (0.25 GiB). Only the consolidated compute, analyse and present runs
+remain as completed exp123 evidence; the upstream training bank remains intact.
+
+
+## Volley count starting at one — 2026-10-09
+
+`exp123-r043-analyse` remeasures `exp123-r040-compute`, numbering accepted I
+volleys from one for Figures 2 and 3. `exp123-r044-present` displays the new
+coordinates. Trial decision counts and trajectory coordinates shift by exactly
++1; score arrays, decision times, matched-coordinate accuracy and Pareto
+measurements are unchanged. Methods, captions and the illustrative diagram use
+the same convention. No simulations were rerun.
+
+## Initial score at volley zero — 2026-10-09
+
+`exp123-r045-present` adds Figure 2's initial score at count zero, sampled from
+the recorded time-zero state (all logits zero; score 0.1 for every digit).
+This is an illustrative initial-state marker, not a detected volley. Detected
+volleys still start at one; Figure 3 is unchanged. The same analysis input is
+reused, without rerunning simulations or measurements.
+
+## Evidence per completed volley — 2026-10-09
+
+`exp123-r046-analyse` reanalyses `exp123-r040-compute`. Figure 2 now samples
+cumulative true-class softmax at the first minimum of smoothed I activity
+strictly between each accepted peak and the next. The final peak is excluded;
+all 100 draws per setting share a common completed-volley count range per image.
+The initial score remains at count zero. `exp123-r047-present` regenerates all
+six figures. All 2700 trajectory trials were checked for ordered boundaries and
+correct score sampling. Time trajectories, decision summaries and benchmark
+arrays are unchanged. No simulations were rerun. The Methods illustration and
+its standalone generating script have been removed.
+
+## Stable decisions at completed volleys — 2026-10-09
+
+`exp123-r049-analyse` reanalyses the same `exp123-r040-compute` recordings.
+The completed-volley decision coordinate is the first trough boundary at or
+after the retrospectively stable correct decision, within Figure 2's shared
+count range and valid completion coverage. This measures the first Figure 2
+sample at which the correct decision is already stable, rather than the count
+of peaks already passed. `exp123-r051-present` shows median points only, for the
+same nine images, with time 0–200 ms above and Figure 2's completed-volley count
+ranges below. All 2700 decisions were verified against recorded troughs;
+original decision times, trajectory and benchmark arrays are unchanged. No
+simulations were rerun. `exp123-r048-analyse` is a superseded preliminary
+measurement using counts of boundaries already passed and is not selected.
+
+The final presentation angles time tick labels to keep the nine columns legible.
+
+## Connected stable-decision medians — 2026-10-09
+
+`exp123-r052-present` reuses `exp123-r049-analyse` and connects Figure 3's
+median points across decay settings in both rows. Measurements and other
+figures are unchanged; no simulations or analysis were rerun.

@@ -11,6 +11,7 @@
 #let meta = (
   // Author-locked title: do not change.
   title: "Susin and Destexhe (2021)",
+  tags: ("data", "v36.0.0"),
   created_at: "2026-08-26T00:00:00Z",
   updated_at: "2026-09-09",
   description: "Independent excitatory afferent drive strengthens population bursting in a calibrated conductance-based E/I network.",

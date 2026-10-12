@@ -22,8 +22,8 @@ def source(
 
 def configuration(run: SourceRun) -> dict:
     cfg = run.record["execution"].get("configuration")
-    if not isinstance(cfg, dict) or cfg.get("schema") != "exp023.recipe/v3":
-        raise PingstoreError("exp023 processing requires native graph recipe v3")
+    if not isinstance(cfg, dict) or cfg.get("schema") != "exp023.recipe/v4":
+        raise PingstoreError("exp023 processing requires unified graph recipe v4")
     if cfg != recipe.configuration(smoke=cfg.get("profile") == "smoke"):
         raise PingstoreError("exp023 recipe differs from the explicit graph model")
     if run.record["inputs"]:

@@ -82,9 +82,9 @@ def compute(*, run_id: str | None = None) -> str:
         torch.set_num_threads(1)
         try:
             for relative, cell, point, traces in recipe.trials(smoke=smoke):
-                key = f"{'scope' if traces else 'fi'}-{cell}-network"
+                key = f"{cell}-network"
                 if key not in networks:
-                    bundle = recipe.author_network(cfg, point, traces=traces)
+                    bundle = recipe.author_network(cfg, point, traces=True)
                     directory = run.export / key
                     bundle.write(directory)
                     (directory / "reports" / "summary.md").rename(
@@ -118,7 +118,7 @@ def compute(*, run_id: str | None = None) -> str:
                             for name, value in weights.items()
                         ):
                             raise PingstoreError(
-                                "weights changed between matched-drive trials"
+                                "weights changed between raster and drive-response trials"
                             )
                 else:
                     np.savez_compressed(weights_path, **weights)

@@ -9,7 +9,8 @@ from experiments.helpers.ping import build_ping
 
 REPO = Path(__file__).resolve().parents[2]
 SLUG = "exp123"
-IMAGE_INDICES = tuple(range(10))
+FIGURE_SIZE_MM = (180, 101.25)
+IMAGE_INDICES = tuple(range(9))
 SEEDS = tuple(range(42, 142))
 ACCURACY_SEEDS = (42, 43, 44)
 ACCURACY_SELECTION_SEED = 123
@@ -55,8 +56,23 @@ def accuracy_images(labels):
 
 
 def recording_unit(image_index, rate, protocol):
-    suffix = f"-rate{rate:g}".replace(".", "p") if protocol == "pareto" else ""
+    if protocol == "trajectories":
+        return f"trajectory-image{image_index:05d}"
+    suffix = f"-rate{rate:g}".replace(".", "p")
     return f"image{image_index:05d}{suffix}"
+
+
+def full_configuration(labels):
+    trajectories = configuration("trajectories", IMAGE_INDICES)
+    benchmark = configuration("benchmark", accuracy_images(labels))
+    benchmark["input_rates_hz"] = PARETO_RATES_HZ
+    return dict(
+        schema="exp123.compute/v2",
+        protocols={"trajectories": trajectories, "benchmark": benchmark},
+        presentations=len(IMAGE_INDICES) * len(SEEDS) * len(TAUS_MS)
+        + len(benchmark["image_indices"]) * len(ACCURACY_SEEDS)
+        * len(TAUS_MS) * len(PARETO_RATES_HZ),
+    )
 
 
 def configuration(protocol="trajectories", image_indices=None):
@@ -64,7 +80,7 @@ def configuration(protocol="trajectories", image_indices=None):
         schema="exp123.compute/v1",
         protocol=protocol,
         image_indices=IMAGE_INDICES if image_indices is None else image_indices,
-        image_selection="first ten"
+        image_selection="first nine"
         if protocol == "trajectories"
         else "50 randomly sampled per digit without replacement",
         image_selection_seed=None
@@ -120,6 +136,11 @@ def measurement():
         phase_origin="first detected I volley = zero",
         phase_interpolation="linear between successive volley times; no extrapolation",
         phase_grid_step=0.05,
+        volley_count_origin="first accepted I volley = one; each subsequent accepted volley increments count",
+        volley_scores="sample cumulative scores at the first minimum of smoothed I activity strictly between each accepted peak and the next; last completed update; final peak has no completion",
+        completed_volley_count_origin="one at the trough following the first accepted I peak; zero is illustrative time-zero state",
+        decision_volley_count="number of accepted I volleys at or before decision; accepted coverage only",
+        decision_completed_volley_count="first inhibitory trough completion at or after stable decision; one-based; accepted sequences and shared Figure 2 count range only; decisions after last bounded completion excluded",
         phase_coverage="common complete volley intervals across every setting and draw within each image",
         saturation_threshold=0.99,
         decision_rule="earliest unique true-class cumulative-count winner sustained through the final update; ties are failures",

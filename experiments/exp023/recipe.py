@@ -1,4 +1,4 @@
-"""PING fundamentals: preserved scientific settings, without execution on import."""
+"""PING fundamentals: one network setup across raster, spectrum and drive response."""
 
 SLUG = "exp023"
 DT_MS = 0.1
@@ -6,9 +6,7 @@ REFRACTORY_E_MS = 1.2
 REFRACTORY_I_MS = 0.6
 REFRACTORY_POLICY = "exact"
 N_E, N_I, N_IN = 1024, 256, 1024
-# The old f–I command omitted --n-in and used the simulator's 784-channel default.
-# Preserve this distinction; unifying the protocols is a separate scientific change.
-FI_N_IN = 784
+FI_N_IN = N_IN
 SEED = 42
 COBA_INPUT_RATE_HZ, PING_INPUT_RATE_HZ = 5, 45
 CELLS = ("coba", "ping")
@@ -42,7 +40,7 @@ def refractory_configuration() -> dict:
 
 def configuration(*, smoke: bool = False) -> dict:
     return {
-        "schema": "exp023.recipe/v3",
+        "schema": "exp023.recipe/v4",
         **refractory_configuration(),
         "profile": "smoke" if smoke else "production",
         "model": "ping",
@@ -181,12 +179,11 @@ def author_network(cfg: dict, point: dict, *, traces: bool):
             "gi_e": circuit.i_to_e.conductance,
         }.items():
             net.expose(signal, name=name)
-    else:
-        for label, population in (("E", e), ("I", i)):
-            count = lang.ops.reduce(
-                population.spikes, operation="sum", over="time", name=f"{label}_counts"
-            )
-            net.output(f"spk_{label.lower()}_count", count)
+    for label, population in (("E", e), ("I", i)):
+        count = lang.ops.reduce(
+            population.spikes, operation="sum", over="time", name=f"{label}_counts"
+        )
+        net.output(f"spk_{label.lower()}_count", count)
     return lang.compile(net, target="tools/snnsim")
 
 

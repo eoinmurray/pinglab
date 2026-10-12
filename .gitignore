@@ -68,3 +68,8 @@ tools/artifacts/
 # Exported video is retained locally or archived externally. The repository's
 # compact-artifact CI rejects newly tracked files larger than 5 MiB.
 canvas-output/**/*.mp4
+
+# Disposable Astro publication output
+/.publication/
+/.publication-previous/
+/astro-publication-*/

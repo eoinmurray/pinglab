@@ -1,0 +1,102 @@
+---
+id: "exp041"
+title: "Firing Rate Tracks Gamma Frequency"
+created_at: "2026-06-02"
+updated_at: "2026-08-31"
+description: "Across PING networks trained at different inhibitory decay times, compare excitatory firing rate with gamma frequency and test accuracy."
+collection: "gamma-gated-sparsity"
+author: "Eoin Murray"
+tags: ["data", "v36.0.0"]
+runs: {"exp041": "exp041-r005-present"}
+thumbnailRun: "exp041-r005-present"
+thumbnail: "training_curves.svg"
+abstract: "We asked whether the excitatory firing rate of trained PING classifiers changes systematically with their gamma frequency. We reused networks trained with different inhibitory decay times and measured their final population rhythms, activity and MNIST performance. Slower rhythms accompanied lower excitatory firing while useful classification persisted across the sweep. The association supports a cycle-participation account, but does not prove constant participation or identify a physical non-rhythmic baseline."
+---
+
+import LiveValue from '../../site/src/components/LiveValue.astro';
+import PublishedFigure from '../../site/src/components/PublishedFigure.astro';
+import NativeMath from '../../site/src/components/NativeMath.astro';
+import Equation from '../../site/src/components/Equation.astro';
+import SourceTable from '../../site/src/components/SourceTable.astro';
+import formulae from './math.json';
+import tables from './tables.json';
+
+<span id="loc-2" />
+
+## Results
+
+<span id="loc-3" />
+
+### Inhibitory-timescale training response
+
+<PublishedFigure run="exp041-r005-present" file="training_curves.svg" id="" alt="Validation accuracy and excitatory firing rate over training across the inhibitory-decay sweep." >
+  Figure 1: **(A)** Reused validation accuracy and **(B)** excitatory rate, one line per trained network across <LiveValue report="exp041" expression={"cfg.epochs"} /> epochs. Subsequent test measurements used final-epoch weights; accuracy convergence did not select the epoch.
+</PublishedFigure>
+
+<span id="loc-4" />
+
+### Inhibitory-timescale spectra
+
+Per-network interpolated frequencies spanned approximately <LiveValue report="exp041" expression={"fg_lo"} />–<LiveValue report="exp041" expression={"fg_hi"} /> Hz across the inhibitory-decay sweep ([Fig. 2](#loc-5)).
+
+<PublishedFigure run="exp041-r005-present" file="psds.svg" id="loc-5" alt="Population-E power spectra by τ_GABA, gamma peak shifting with the inhibitory time constant." >
+  Figure 2: Population-E power spectral densities (PSDs), averaged across trials and then seeds at each inhibitory decay time. Dots mark binned peaks of these displayed means.
+</PublishedFigure>
+
+<span id="loc-6" />
+
+### Inhibitory-timescale rasters
+
+<PublishedFigure run="exp041-r005-present" file="raster_strip.png" id="" alt="One MNIST trial through each τ_GABA network; the gamma cycle period lengthens with τ_GABA." >
+  Figure 3: The same illustrative MNIST image at inhibitory decay times **(A–F)** 4.5, 6, 9, 12, 18 and 27 ms, respectively, using seed 42. Each panel shows 200 excitatory and 64 inhibitory neurons during the first 100 ms; displayed rates use the full populations and 200 ms trial. These probes illustrate timing, not the population frequency estimate.
+</PublishedFigure>
+
+<span id="loc-7" />
+
+### Rate and accuracy versus frequency
+
+Individual network rates spanned <LiveValue report="exp041" expression={"er_lo"} />–<LiveValue report="exp041" expression={"er_hi"} /> Hz and accuracies <LiveValue report="exp041" expression={"acc_lo"} />–<LiveValue report="exp041" expression={"acc_hi"} />% across the six inhibitory-decay conditions ([Fig. 4](#loc-8)).
+
+<PublishedFigure run="exp041-r005-present" file="rate_vs_fgamma.svg" id="loc-8" alt="Post-training E rate against gamma frequency; points lie on the affine fit line." >
+  Figure 4: **(A)** Final-epoch excitatory rate and **(B)** test accuracy against gamma frequency. Each point is a mean over three seeds; error bars show ±1 standard error. The affine line fits six condition means.
+</PublishedFigure>
+
+<span id="loc-9" />
+
+### Alternative rate-frequency fits
+
+<SourceTable report="exp041" markup={tables[0]} />
+
+Table 1: Both least-squares fits used the same six condition means and centred total sum of squares. The origin-constrained fit tests how much the association depends on a free intercept.
+
+<span id="loc-10" />
+
+## Methods
+
+We compared final-epoch dynamics across matched networks trained at different inhibitory decay times, keeping the evaluation data fixed.
+
+1. **Reuse matched trained networks.** Six inhibitory GABA decay constants, <NativeMath markup={formulae[0]} /> ms, and seeds 42–44 defined 18 PING networks. Training used 6,300 MNIST training images and 700 held-out validation images, 50 epochs of AdamW with zero weight decay, learning rate <NativeMath markup={formulae[1]} />, batches of 256, a time-averaged membrane-potential readout and no spike budget. Only inhibitory decay varied between conditions; simulation used 0.1 ms timesteps and 200 ms trials. We reused final-epoch weights to measure endpoint dynamics, without retraining or selecting weights by test performance.
+
+2. **Measure fixed-trial responses.** Each network received the same fixed subset of <LiveValue report="exp041" expression={"cfg.evaluation_samples"} /> images from the official MNIST test partition. We measured classification accuracy, mean excitatory spikes per neuron per second, and each trial’s population-E trace over the full 200 ms. The illustrative raster used image index 0 and seed 42; a fixed random seed of 0 selected displayed neurons without replacement.
+
+3. **Estimate rhythm frequency.** We demeaned each trial’s trace and used a Welch density estimate with one full-trial Hann window \[[1](#ref-1)\], then averaged PSDs across trials. The largest peak between 5 and 150 Hz defined the candidate gamma frequency; its neighbouring linear-power values gave
+   
+   
+   
+   <Equation id="" number="1" markup={formulae[2]} />
+   
+   
+   
+   Here <NativeMath markup={formulae[3]} /> is the interpolated spectral-peak frequency, <NativeMath markup={formulae[4]} /> the peak-bin frequency, and <NativeMath markup={formulae[5]} /> Hz the bin spacing; <NativeMath markup={formulae[6]} />, <NativeMath markup={formulae[7]} /> and <NativeMath markup={formulae[8]} /> are PSD values immediately below, at and above that bin. Because the peak search is restricted to the defined gamma band, the reported estimator is <NativeMath markup={formulae[9]} />. We clamped the correction to half a bin, using zero offset for zero curvature or a spectrum endpoint. Interpolation reduces bin quantisation but can remain biased \[[2](#ref-2)\]. Per-trial peak distributions were diagnostics; their medians did not enter the fit.
+
+4. **Fit the rate–frequency relation.** We averaged each network’s frequency and excitatory rate over the three seeds, then fitted the six condition points with equal weight by least squares:
+   
+   
+   
+   <Equation id="" number="2" markup={formulae[10]} />
+   
+   
+   
+   Here <NativeMath markup={formulae[11]} /> is mean excitatory firing rate in hertz, <NativeMath markup={formulae[12]} /> is the affine intercept in hertz, and <NativeMath markup={formulae[13]} /> and <NativeMath markup={formulae[14]} /> are dimensionless fitted slopes. Both fits report <NativeMath markup={formulae[15]} />, the coefficient of determination using centred total sum of squares; error bars are sample standard deviations divided by <NativeMath markup={formulae[16]} />.
+
+5. **Display matched endpoint evidence.** We displayed the retained frequency, rate and accuracy comparisons across inhibitory decay times, preserving seed-level values and across-seed summaries.

@@ -2,7 +2,7 @@
 
 ## Current independent stages
 
-Recipe v3 authors the untrained circuit with `snnlab.lang` and executes typed
+Recipe v4 authors the untrained circuit with `snnlab.lang` and executes typed
 `ExecutionSpec` requests through snnlab 0.3.0's `GraphExecutor`. Compute does not
 invoke the simulator CLI or mutate simulator globals.
 
@@ -20,7 +20,7 @@ uv run python experiments/exp023/present.py --source <native-analyse-run>
 ```
 
 Analysis and presentation accept only completed v4 evidence with the exact
-native recipe v3. Older recipe v1/v2 computations cannot be reprocessed by these
+unified recipe v4. Older recipe v1/v2/v3 computations cannot be reprocessed by these
 entry points. Their stored runs, provenance and completed presentations remain
 unchanged and viewable. There are no historical recording fallbacks, reporting
 corrections or unused-readout drawing branches in the operational pipeline.
@@ -36,7 +36,7 @@ zeroing and survivor rescaling followed by fan-in normalization. Recurrent
 parent SD is 10% of its mean, without initial zeroing.
 
 Two scope trials use 1,024 input channels at 5/45 Hz. Fourteen matched-drive
-f–I trials use 784 channels at 2, 5, 10, 20, 40, 70 and 100 Hz for both loop
+f–I trials use the same 1,024 channels at 2, 5, 10, 20, 40, 70 and 100 Hz for both loop
 conditions. Each trial uses seed 42, a 0.1-ms timestep, 400-ms production duration
 (200 ms with `PINGLAB_SMOKE=1`), 2/6-ms AMPA/GABA decay and exact 1.2/0.6-ms E/I
 refractory periods. Reciprocal synapses have explicit one-step delays.
@@ -51,11 +51,13 @@ rhythmicity significance test or evidence of measured gamma absence in COBA.
 
 ## Evidence and storage
 
-Four flat scientific network units retain compiled graphs and realized weights.
+Two scientific network units retain compiled graphs and realized weights, one
+per loop condition. Each compiled graph serves both scope and f–I trials.
+Spectra are measured from the exact scope recordings displayed as rasters.
 Scope exports retain compact multimodal `recording.npz`; f–I exports retain
 `spikes.npz` with online population counts. Graph digests, resolved Poisson
 protocols, initialization metadata and per-trial timing live in `run.json`.
-Repeated rates must realize identical weights within each condition.
+All raster and sweep trials must realize identical weights within each condition.
 
 Every stage uses the v4 atomic run contract, explicit input pins and independent
 completion. Presentation uses the measured spectra, traces and compute rasters;
@@ -65,6 +67,16 @@ authorization. Current targets are Runner Guide **4.9.0**, Storage Guide
 **4.9.0** and Writing Guide **36.0.0**.
 
 ## Validation and completed native execution
+
+On 2026-10-09, the unified 1,024-input production chain completed as
+`exp023-r023-compute` → `exp023-r024-analyse` → `exp023-r025-present`.
+All 16 trials shared one graph and identical realized weights per loop condition.
+C/D rasters and E/G spectra use the same recordings; F/H vary input rate on
+those same networks. The article default selects this presentation.
+Tests were not run, following the repository rule requiring commit and push first.
+
+The earlier results below used separate 1,024-input scope and 784-input sweep
+networks and are preserved as prior execution evidence.
 
 The shared-builder extraction on 2026-10-06 received static checks only; tests
 and experiment stages were not rerun. The results below precede that extraction.

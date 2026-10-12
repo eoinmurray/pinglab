@@ -1,46 +1,29 @@
-# Local publication
+# Local Astro publication
 
-Production is built on a machine with operational v4 Pingstore data. GitHub Pages
-serves `gh-pages` from `/`; it does not rebuild the writings. The retired production
-and PR preview workflows are retained here with `.disabled` extensions.
+GitHub Pages serves the `gh-pages` branch from `/`. Build locally with Bun,
+Python, Git, and the local Pingstore; Typst and Demolab are not required.
 
 ```sh
-task build-publication
-task preview-publication # http://localhost:3001; Ctrl-C when finished
-task publish
+uv run python tools/publishing/publish.py build
+python -m http.server 3001 --directory .publication/site
+uv run python tools/publishing/publish.py publish
 ```
 
-Requires the project environment (`uv sync`), Typst, Task, Git, and authenticated
-Git push access to `origin`. Pages must already use `gh-pages` from `/`.
+The builder freezes latest presentation selections for reports using latest,
+while frontmatter `runs` pins remain authoritative for pinned reports. Astro
+reads the selected exports directly and calculates bound numerical prose in
+TypeScript. The Pingstore lookup remains intentionally simple, without schema,
+payload-checksum or ancestry validation. No scientific outputs are copied to a
+persistent article directory.
 
-The build reads the current working tree, including uncommitted authored changes.
-It freezes the most recently completed present run per required experiment, with
-`writings/run-defaults.json` pins taking precedence. Completion time comes from
-`run.json`; ties use run ID. Missing, invalid, or mismatched inputs fail the build.
-Only selected runs and their full ancestry undergo payload validation. Discovery's
-ordinary all-run contract is unchanged.
+Authored-source fingerprints before and after the build detect concurrent
+edits. Static output and a receipt live in disposable `.publication/`; the
+receipt records latest selections, source fingerprints/status and output
+checksums. Failed builds preserve the previous publication. The finished site
+contains neither the store nor private build receipts. Videos preload nothing.
 
-An isolated build workspace receives complete copies of selected present runs;
-compute and analyse payloads stay in the original store. Copies are validated
-again. A frozen presentation projection supplies article defaults and provenance.
-Demolab compiles figures and data into articles and copies declared media. The
-published output does not contain the store or build workspace.
-
-Preview and publication resolve data from the selected runs' validated `export/`
-directories. There is no `.artifacts/` materialization step. Do not create a
-persistent per-experiment copy of presentation files before building.
-
-The successful output is `.demolab/publication/site/`, with a local build receipt
-at `.demolab/publication/build.json` recording selections, source status, and file
-checksums. This is disposable publication scratch, not a Pingstore catalogue or
-provenance authority. Failed builds preserve the previous output.
-
-`task publish` checks every site file against that receipt and pushes that exact
-build, without rebuilding. It preserves the remote `CNAME` and `pr-preview/` and
-rejects concurrent branch updates through a normal Git push. No force push is
-used. Existing preview directories remain; new PR previews are disabled.
-
-Inspect the local publication before publishing. Subsequent source changes do not
-change the frozen output; rebuild to include them. Publication does not commit or
-push source changes. GitHub Pages completes deployment asynchronously after the
-branch push.
+Inspect the publication on port 3001 before publishing. `publish` verifies the
+exact built files against the receipt and pushes them to `gh-pages` without
+rebuilding or committing source changes. It retains remote `CNAME` and
+`pr-preview/`, and uses a normal push to reject concurrent updates. The old
+Demolab production/preview workflow templates remain disabled.

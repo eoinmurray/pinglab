@@ -14,7 +14,7 @@ the [Storage Guide](tools/pingstore/README.md), and the
 
 ## Installation
 
-Prerequisites: [uv](https://docs.astral.sh/uv/) (Python), [typst](https://typst.app) and [task](https://taskfile.dev) (publishing).
+Prerequisites: [uv](https://docs.astral.sh/uv/) (Python), and [Bun](https://bun.sh) (Astro publishing).
 
 ```sh
 git clone https://github.com/eoinmurray/pinglab.git
@@ -26,17 +26,20 @@ uv sync --dev
 
 ## Publishing
 
-The site is built from Typst sources (`writings/`) with the installed Demolab engine:
+Reports are MDX files beside their experiment code. The Astro site uses Bun:
 
 ```sh
-uv run demolab build    # → .demolab/site/ (PDFs are disabled in demolab.yaml)
-uv run demolab dev      # live preview with article-scoped run selectors
+cd site
+bun install
+bun run dev --background   # http://localhost:3000
+bun run build              # site/dist
 ```
 
-Experiment reports read explicit Demolab inputs through `writings/templates/dataset.typ`.
-Without a selected input, they show an unavailable-data notice. A production
-build does not inherit preview selections or run experiments; the current
-configuration supplies no fixed publication inputs.
+For frozen production output and GitHub Pages publication, see the
+[local Astro publisher](tools/publishing/README.md). Numerical bindings read
+selected Pingstore presentations in TypeScript; runs and experiments are never
+launched by a site build. Original Typst writings remain as historical authored
+sources.
 
 ## Tests
 

@@ -78,6 +78,8 @@ def test_independent_v4_stages_preserve_measurements_and_never_publish(
     root, calls = repo
     compute_id = compute.compute()
     assert len(calls) == 16
+    for scope, sweep_trials in ((calls[0], calls[2:9]), (calls[1], calls[9:])):
+        assert all(trial.graph is scope.graph for trial in sweep_trials)
     source = inputs.source(root, compute_id, "compute")
     assert source.record["inputs"] == {}
     assert not list(source.export.rglob("run.sh"))
@@ -272,7 +274,7 @@ def test_geometry_and_duration_are_explicit_in_graph_requests():
         trials = list(recipe.trials(smoke=smoke))
         assert len(trials) == 16
         assert {point["n_in"] for _, _, point, traces in trials if traces} == {1024}
-        assert {point["n_in"] for _, _, point, traces in trials if not traces} == {784}
+        assert {point["n_in"] for _, _, point, traces in trials if not traces} == {1024}
         for _, _, point, traces in trials:
             bundle = recipe.author_network(cfg, point, traces=traces)
             request = recipe.execution_request(bundle, point, traces=traces)
@@ -284,7 +286,9 @@ def test_geometry_and_duration_are_explicit_in_graph_requests():
         } == set(recipe.FI_RATES_HZ)
 
 
-@pytest.mark.parametrize("schema", ["exp023.recipe/v1", "exp023.recipe/v2"])
+@pytest.mark.parametrize(
+    "schema", ["exp023.recipe/v1", "exp023.recipe/v2", "exp023.recipe/v3"]
+)
 def test_old_recipes_are_rejected_before_downstream_run_creation(repo, schema):
     root, _ = repo
     identity = compute.compute()
@@ -298,7 +302,7 @@ def test_old_recipes_are_rejected_before_downstream_run_creation(repo, schema):
         (analyse.analyse, identity),
         (present.present, analysis_id),
     ):
-        with pytest.raises(PingstoreError, match="requires native graph recipe v3"):
+        with pytest.raises(PingstoreError, match="requires unified graph recipe v4"):
             action(argument)
     assert set((root / ".pingstore/runs").iterdir()) == before
 
@@ -376,7 +380,7 @@ def test_native_sweep_reductions_match_full_raster_counts():
         )
         sweep = simulate(
             recipe.execution_request(
-                recipe.author_network(cfg, point, traces=False), point, traces=False
+                recipe.author_network(cfg, point, traces=True), point, traces=False
             )
         )
     full = compute.recording(scope, cfg, point, traces=True)
@@ -390,9 +394,9 @@ def test_native_sweep_reductions_match_full_raster_counts():
     )
 
 
-def test_recipe_v3_records_graph_protocol_without_cli_arguments():
+def test_recipe_v4_records_graph_protocol_without_cli_arguments():
     cfg = recipe.configuration()
-    assert cfg["schema"] == "exp023.recipe/v3"
+    assert cfg["schema"] == "exp023.recipe/v4"
     assert len(list(recipe.trials())) == 16
     assert all(
         "scientific_args" not in point

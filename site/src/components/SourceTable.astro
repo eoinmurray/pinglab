@@ -1,0 +1,12 @@
+---
+import { bindMarkup } from '../lib/report-values';
+interface Props { markup: string; report?: string; }
+const { markup, report } = Astro.props;
+const resolved = report ? await bindMarkup(markup, report) : markup;
+---
+<div class="source-table" tabindex="0" role="region" aria-label="Report table" set:html={resolved} />
+<style>
+  .source-table { min-width: 0; overflow-x: auto; }
+  .source-table :global(table) { width: 100%; border-collapse: collapse; font-size: inherit; }
+  .source-table :global(th), .source-table :global(td) { padding: .5em; border-bottom: 1px solid rgba(0, 0, 0, .1); text-align: left; vertical-align: top; }
+</style>

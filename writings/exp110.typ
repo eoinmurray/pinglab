@@ -59,7 +59,7 @@
 #let meta = (
   title: "Manuscript",
   created_at: "2026-09-02T00:00:00Z",
-  updated_at: "2026-10-06",
+  updated_at: "2026-10-09",
   description: "A manuscript scaffold connecting PING circuit dynamics, low-rate task performance, cycle participation, perturbation sensitivity and continuous-stream classification.",
   collection: "gamma-gated-sparsity",
   tags: ("data", "v36.0.0"),
@@ -212,9 +212,9 @@
   // equation text but excluding equation numbers and standalone operators.
   #context {
     let counts = [
-      - *Results:* 1,527 words
-      - *Methods:* 4,457 words
-      - *Captions:* 1,631 words
+      - *Results:* 1,526 words
+      - *Methods:* 4,465 words
+      - *Captions:* 1,638 words
       - *#manuscript-appendix-ref(<appendix-a>, [Appendix A]):* 1,506 words
       - *#manuscript-appendix-ref(<appendix-b>, [Appendix B]):* 1,235 words
       - *#manuscript-appendix-ref(<appendix-c>, [Appendix C]):* 764 words
@@ -256,10 +256,10 @@
       *(C–D)* Illustrative 400-ms rasters: 1,024 E neurons (black), 256 I
       (red), and 1,024 Poisson channels at 5 Hz (loop-off) or 45 Hz (loop-on).
       *(E, G)* Mean-subtracted E-population Welch spectra; G's dashed line
-      marks the interpolated peak. A missing marker is not a rhythmicity
-      test.
+      marks the interpolated peak.
       *(F, H)* Mean per-neuron E/I rates over matched 2–100-Hz drive sweeps
-      using 784 channels. Each point is one single-seed trial, without
+      using the same 1,024-channel networks as the rasters and spectra.
+      Each point is one single-seed trial, without
       uncertainty estimates; vertical scales differ. Source experiment:
       #link("/exp023/")[exp023] — #link("/exp023/")[_Turning the PING Loop On._]],
   ) <fig:matched-drive>
@@ -269,10 +269,10 @@
   neurons (#manuscript-figure-ref(<fig:matched-drive>, panel: "C")); loop-on instead produced recurring E/I volleys and a
   56.0-Hz spectral peak with higher-frequency harmonics, with loop-off lacked (#manuscript-figure-ref(<fig:matched-drive>, panel: "D,E,G")).
 
-  In matched 2–100-Hz drive sweeps, using 784 input channels rather than the
-  illustrative rasters' 1,024, loop-off excitatory firing increased from 2.9 to
-  481.5 Hz while inhibition remained silent. Loop-on excitatory rates were constrained, staying
-  between 2.8 and 11.2 Hz, while inhibitory firing reached 124.4 Hz
+  In matched 2–100-Hz drive sweeps on the same 1,024-input networks as the
+  illustrative rasters, loop-off excitatory firing increased from 1.7 to
+  484.6 Hz while inhibition remained silent. Loop-on excitatory rates were constrained, staying
+  between 1.7 and 11.6 Hz, while inhibitory firing reached 127.5 Hz
   (#manuscript-figure-ref(<fig:matched-drive>, panel: "F,H")).
 
   #editing-paragraph-label("P3")
@@ -950,7 +950,8 @@
   and zero synaptic conductances; no burn-in interval was discarded.
   Illustrative rasters used 1,024 independent Poisson input channels at
   5 Hz per channel for loop-off and 45 Hz for loop-on. The matched input–output
-  sweeps instead used 784 channels, testing both architectures at 2, 5,
+  sweeps reused the same 1,024-input networks and fixed weights within each loop
+  condition, testing both architectures at 2, 5,
   10, 20, 40, 70 and 100 Hz per channel. Each architecture–input condition
   comprised one trial with seed 42. Population firing rates were measured
   over the full trial, and spectra were calculated from the illustrative

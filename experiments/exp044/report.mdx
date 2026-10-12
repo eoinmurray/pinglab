@@ -1,0 +1,66 @@
+---
+id: "exp044"
+title: "Firing Rate Across the Timestep Sweep"
+created_at: "2026-06-02"
+updated_at: "2026-09-09"
+description: "Compares final-epoch firing rate, classification accuracy and illustrative rasters across a twelvefold integration-timestep sweep."
+collection: "gamma-gated-sparsity"
+author: "Eoin Murray"
+tags: ["data", "v36.0.0"]
+runs: {"exp044": "exp044-r009-present"}
+thumbnailRun: "exp044-r009-present"
+thumbnail: "dt_sweep.svg"
+abstract: "We asked how integration timestep affects the activity and accuracy of PING classifiers. We compared separately trained networks at matched training and evaluation timesteps, with fixed physical refractory periods, and evaluated their MNIST performance. Excitatory firing and accuracy varied across the sweep, showing that the timestep is part of the learned operating regime rather than a neutral solver setting. The comparison tests pipelines rather than holding weights fixed; the rasters do not establish invariance relative to the gamma period."
+---
+
+import LiveValue from '../../site/src/components/LiveValue.astro';
+import PublishedFigure from '../../site/src/components/PublishedFigure.astro';
+import NativeMath from '../../site/src/components/NativeMath.astro';
+import Equation from '../../site/src/components/Equation.astro';
+import SourceTable from '../../site/src/components/SourceTable.astro';
+import formulae from './math.json';
+import tables from './tables.json';
+
+<span id="loc-2" />
+
+## Results
+
+<span id="loc-3" />
+
+### Timestep rate and accuracy
+
+Mean test accuracy ranged from <LiveValue report="exp044" expression={"number(summary.acc_min_pct)"} />% to <LiveValue report="exp044" expression={"number(summary.acc_max_pct)"} />%, spanning <LiveValue report="exp044" expression={"number(summary.acc_span_pp)"} /> percentage points. Mean E rate ranged from <LiveValue report="exp044" expression={"number(summary.e_rate_min_hz)"} /> to <LiveValue report="exp044" expression={"number(summary.e_rate_max_hz)"} /> Hz. Accuracy persisted across the tested resolutions, while firing remained timestep-dependent ([Figure 1](#loc-4)).
+
+<PublishedFigure run="exp044-r009-present" file="dt_sweep.svg" id="loc-4" alt="Hidden excitatory firing rate and test accuracy against integration timestep, with uncertainty across training seeds." >
+  Figure 1: Hidden E rate (black) and test accuracy (red) across the twelvefold timestep sweep. Markers show means over <LiveValue report="exp044" expression={"n"} /> seeds; bars show ±1 standard error of the mean. Each network was evaluated on <LiveValue report="exp044" expression={"cfg.evaluation_samples"} /> official-test images at its training timestep.
+</PublishedFigure>
+
+<span id="loc-5" />
+
+### Timestep spike rasters
+
+<PublishedFigure run="exp044-r009-present" file="raster_strip.png" id="" alt="Single-trial excitatory and inhibitory spike rasters at five integration timesteps, plotted against physical time." >
+  Figure 2: E (black) and I (red) rasters for the same official-test image, seed <LiveValue report="exp044" expression={"cfg.raster.seed"} />, at timesteps **(A–E)** 0.05, 0.1, 0.2, 0.3 and 0.6 ms, respectively. Panels display <LiveValue report="exp044" expression={"cfg.raster.n_e_plot"} /> E and <LiveValue report="exp044" expression={"cfg.raster.n_i_plot"} /> I neurons over the first <LiveValue report="exp044" expression={"cfg.raster.window_ms"} /> ms. These illustrative probes support visual cadence inspection, not a population estimate of gamma-period invariance.
+</PublishedFigure>
+
+<span id="loc-6" />
+
+### Training-timestep response
+
+<PublishedFigure run="exp044-r009-present" file="training_curves.svg" id="" alt="Per-network validation accuracy and excitatory firing rate versus epoch, coloured by integration timestep." >
+  Figure 3: Recorded training histories: **(A)** validation accuracy and **(B)** E rate, one line per timestep and seed. Each epoch averaged <LiveValue report="exp044" expression={"c.validation_encoder_draws.count"} /> encoder draws per validation image. The final-epoch comparison is a finite-training snapshot, not an established fixed-point ceiling.
+</PublishedFigure>
+
+<span id="loc-7" />
+
+## Methods
+
+The audit reused separately trained networks and their learning histories, then measured endpoint dynamics at matched training and inference timesteps.
+
+1. **Reuse the trained population.** One PING network was trained per <NativeMath markup={formulae[0]} /> ms and seed <NativeMath markup={formulae[1]} />, giving fifteen networks. Each had <LiveValue report="exp044" expression={"c.n_in"} /> inputs, <LiveValue report="exp044" expression={"c.n_hidden"} /> excitatory neurons, <LiveValue report="exp044" expression={"c.n_inh"} /> inhibitory neurons and <LiveValue report="exp044" expression={"c.n_out"} /> class outputs. Network geometry, synaptic settings, readout and optimisation settings were checked for agreement across the comparison. E/I refractory holds were fixed at 1.2/0.6 ms: 24/12, 12/6, 6/3, 4/2 and 2/1 steps, respectively. Twelve networks were newly trained for this design; three 0.1-ms networks were reused unchanged after execution-equivalence checks.
+
+2. **Keep data and nominal duration fixed.** The 7000-image MNIST training pool contained <LiveValue report="exp044" expression={"c.dataset_split.optimizer_train_samples"} /> optimisation images and <LiveValue report="exp044" expression={"c.dataset_split.validation_samples"} /> validation images; the official test partition was excluded from training. The nominal presentation duration was 200 ms; whole-step rounding gave 4,000, 2,000, 1,000, 666 and 333 steps. Realised <NativeMath markup={formulae[2]} /> was 199.8 ms at 0.3/0.6 ms and 200 ms otherwise. Image intensities drove Poisson input with peak rate <LiveValue report="exp044" expression={"c.input_rate"} /> Hz.
+
+3. **Use the training endpoint.** Networks underwent <LiveValue report="exp044" expression={"c.epochs"} /> epochs of surrogate-gradient training \[[1](#ref-1)\], with batch size <LiveValue report="exp044" expression={"c.batch_size"} /> and learning rate <LiveValue report="exp044" expression={"c.lr"} />. Class scores used the mean-membrane readout, and validation histories averaged <LiveValue report="exp044" expression={"c.validation_encoder_draws.count"} /> encoder draws per image. The audit used the final epoch for rates, accuracy and rasters, rather than selecting the best validation epoch.
+
+4. **Measure held-out performance.** Each network was evaluated on the fixed 1000-image subset of the official MNIST test partition, without retraining. Accuracy was the percentage of correctly classified images; population firing rate was total spikes divided by the number of evaluated images, population size and realised trial duration in seconds. Excitatory and inhibitory rates were recorded separately.

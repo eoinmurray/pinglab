@@ -1,0 +1,217 @@
+import LiveValue from '../../site/src/components/LiveValue.astro';
+import PublishedFigure from '../../site/src/components/PublishedFigure.astro';
+import NativeMath from '../../site/src/components/NativeMath.astro';
+import Equation from '../../site/src/components/Equation.astro';
+import SourceTable from '../../site/src/components/SourceTable.astro';
+import formulae from './math.json';
+import tables from './tables.json';
+
+<span id="appendix-a" />
+
+## Appendix A — Discrete dynamics and gradient calculations
+
+<span id="appendix-a1" />**A1 — Discrete neuronal and synaptic updates.** These updates governed the spiking circuits in this study; their standard parameters are listed in Table A1. Let <NativeMath markup={formulae[165]} /> denote the number of completed updates. We updated conductances using Equation 2, first applying exponential decay and then adding the full weighted spike increments. Both recurrent pathways used spikes emitted during the preceding update; current external input entered the excitatory conductance before voltage integration. Consequently, newly emitted E or I spikes first affected the partner population in the following update.
+
+For each neuron, the updated conductances defined the total conductance and effective equilibrium voltage:
+
+<Equation id="" number="14" markup={formulae[166]} />
+
+Holding these conductances constant over the step, we calculated the trial voltage
+
+<Equation id="" number="15" markup={formulae[167]} />
+
+Here, <NativeMath markup={formulae[168]} /> is in µS, and <NativeMath markup={formulae[169]} /> and <NativeMath markup={formulae[170]} /> are voltages in mV. The numerical lower bound <NativeMath markup={formulae[171]} /> mV guarded against extreme negative values: any calculated voltage below this bound was replaced by −200 mV before spike evaluation. Membrane capacitance <NativeMath markup={formulae[172]} />, timestep <NativeMath markup={formulae[173]} />, leak conductance <NativeMath markup={formulae[174]} />, synaptic conductances <NativeMath markup={formulae[175]} />, and reversal potentials <NativeMath markup={formulae[176]} /> retain their Methods definitions.
+
+After calculating the trial voltage, we decremented the integer refractory counter by one, with a lower bound of zero. A neuron emitted a spike only when the decremented counter was zero and <NativeMath markup={formulae[177]} />. Spiking or still-refractory neurons were assigned the reset voltage <NativeMath markup={formulae[178]} /> mV; otherwise, the trial voltage was retained. Each spike reloaded the counter with <NativeMath markup={formulae[179]} />, where <NativeMath markup={formulae[180]} /> is the population-specific refractory duration and <NativeMath markup={formulae[181]} /> was an integer at every tested timestep. Spike eligibility therefore resumed on the <NativeMath markup={formulae[182]} />-th subsequent update. Conductances continued evolving during refractory holds.
+
+<span id="appendix-a2" />**A2 — Output-state recurrence.** We updated each output unit after the hidden population, using excitatory spikes delivered during the same timestep. With the indexing of [Appendix A1](#appendix-a1), the pre-reset state, output spike and retained state were
+
+<Equation id="" number="16" markup={formulae[183]} />
+
+Here, <NativeMath markup={formulae[184]} /> is the dimensionless weight from hidden excitatory neuron <NativeMath markup={formulae[185]} /> to output class <NativeMath markup={formulae[186]} />, and <NativeMath markup={formulae[187]} /> denotes its delivered spike. The decay factor was <NativeMath markup={formulae[188]} />, where <NativeMath markup={formulae[189]} /> is the output decay time. The dimensionless quantity <NativeMath markup={formulae[190]} /> expresses the timestep numerically in milliseconds and specifies the input-scaling convention. The indicator <NativeMath markup={formulae[191]} /> equals one when its condition holds and zero otherwise; <NativeMath markup={formulae[192]} /> is the output threshold. Only one threshold was subtracted per update, so the retained state could remain above threshold after a spike.
+
+The readout modes differed in the quantity accumulated before this subtractive reset. Mean-state readout accumulated the pre-reset state for Figs. [3](#loc-8)–[8](#loc-15) and [Appendix Fig. A1](#loc-30), whereas spike-count readout accumulated the emitted spike for [Fig. 9](#loc-17):
+
+<Equation id="" number="17" markup={formulae[193]} />
+
+Here, <NativeMath markup={formulae[194]} /> is the cumulative pre-reset state and <NativeMath markup={formulae[195]} /> the cumulative output-spike count. Neither accumulator decayed. The final logits were <NativeMath markup={formulae[196]} /> or <NativeMath markup={formulae[197]} />, respectively, where <NativeMath markup={formulae[198]} /> is the presentation’s step count. Output state and accumulators began at zero; supplied image-boundary resets cleared them before that step’s output drive was applied.
+
+<span id="appendix-a3" />**A3 — Surrogate and damped derivatives.** These derivatives governed the classifier training underlying Figs. [3](#loc-8)–[9](#loc-17) and [Appendix Fig. A1](#loc-30). Spikes used the binary forward threshold and surrogate backward derivative in Equation 5. To implement voltage-gradient damping, we used a stop-gradient operator <NativeMath markup={formulae[199]} />, which returned <NativeMath markup={formulae[200]} /> but contributed zero derivative during backpropagation. We defined
+
+<Equation id="" number="18" markup={formulae[201]} />
+
+where <NativeMath markup={formulae[202]} /> is the damping divisor. We used <NativeMath markup={formulae[203]} /> in both loop-on and loop-off. This operation preserved the forward value while multiplying its backward derivative by <NativeMath markup={formulae[204]} />.
+
+For both hidden populations, we applied this operation to the exponential-Euler membrane increment <NativeMath markup={formulae[205]} /> from [Appendix A1](#appendix-a1), before voltage clipping and reset:
+
+<Equation id="" number="19" markup={formulae[206]} />
+
+Here, <NativeMath markup={formulae[207]} /> denotes voltage before clipping. Damping scaled every derivative through <NativeMath markup={formulae[208]} />, including its dependence on conductances and previous voltage, while the additive <NativeMath markup={formulae[209]} /> path retained unit derivative. At fixed updated conductances, the resulting backward rule was
+
+<Equation id="" number="20" markup={formulae[210]} />
+
+The subscript BP identifies the derivative used by backpropagation; timestep, total conductance and capacitance retain their [Appendix A1](#appendix-a1) definitions. Conductance recurrences and the surrogate spike function received no separate damping factor.
+
+Hidden reset and refractory decisions used Boolean masks and integer counters that were not differentiated. The retained-voltage branch carried zero derivative when a neuron spiked or remained refractory, while the spike-output branch retained surrogate gradients whenever the refractory mask permitted spiking. Voltage clipping also blocked gradients below the numerical floor.
+
+Output updates received no voltage-gradient damping. Their subtractive reset retained the derivative through the output spike, giving
+
+<Equation id="" number="21" markup={formulae[211]} />
+
+where <NativeMath markup={formulae[212]} /> denotes the surrogate derivative in Equation 5 and the output-state symbols retain their [Appendix A2](#appendix-a2) definitions. The current-step accumulator increment contributed a direct derivative for mean-state readout and a surrogate derivative for spike-count readout.
+
+<span id="appendix-a4" />**A4 — Initialization transformation.** For each input or recurrent projection, we generated independent Gaussian draws and Bernoulli retention indicators, then formed the initial weights:
+
+<Equation id="" number="22" markup={formulae[213]} />
+
+Here, rows <NativeMath markup={formulae[214]} /> index presynaptic neurons, columns <NativeMath markup={formulae[215]} /> index postsynaptic neurons, and <NativeMath markup={formulae[216]} /> is the presynaptic population size. The parent mean <NativeMath markup={formulae[217]} /> and standard deviation <NativeMath markup={formulae[218]} /> follow the projection-specific parameters in Table A1; <NativeMath markup={formulae[219]} /> and <NativeMath markup={formulae[220]} /> are conductance increments in µS. Input connections used <NativeMath markup={formulae[221]} />, giving a retention-compensation factor of 20; recurrent connections used <NativeMath markup={formulae[222]} />. Negative Gaussian draws produced additional zeros through lower clamping.
+
+Writing <NativeMath markup={formulae[223]} /> for the mean after lower clamping, this transformation gave
+
+<Equation id="" number="23" markup={formulae[224]} />
+
+Thus, compensation for zeroing preserved the expected summed incoming weight after lower clamping. Parent parameters described the Gaussian before these transformations; realised matrix means and incoming sums additionally depended on finite sampling and Bernoulli zeroing. The retention mask was used only during initialization, so initially zero trainable weights could become positive during optimization.
+
+Readout weights followed a separate initialization:
+
+<Equation id="" number="24" markup={formulae[225]} />
+
+Here, <NativeMath markup={formulae[226]} /> indexes output classes. These weights were dimensionless and used no additional Bernoulli zeroing or fan-in normalization. Their parent mean and standard deviation follow Table A1 for ordinary classification and the continuous-stream Methods for streaming classifiers.
+
+<SourceTable report="exp110" markup={tables[1]} />
+
+Table A1: **Standard spiking-classifier parameters and exceptions.** Values describe standard classifiers, not the separate mean-field model. [Fig. 1](#loc-5) used input parent mean/SD 1.5/0.3 µS and loop-on recurrent means 1.5/3 µS. Coupling strengths, inhibitory decay times and timesteps varied in their respective sweeps. [Fig. 9](#loc-17) used readout mean/SD 0.05/0.04 and variable input rates; stream durations varied during evaluation. Readout initialization values are rounded.
+
+<span id="appendix-a5" />**A5 — Timestep dependence after separate training.**
+
+We assessed timestep dependence using 15 loop-on classifiers: three training replicates (seeds 42–44) at each integration timestep of 0.05, 0.1, 0.2, 0.3 and 0.6 ms. All networks underwent 50 training epochs without an activity penalty, with recurrent weights fixed at standard strength. Three existing 0.1-ms classifiers were reused; twelve networks were trained at the remaining timesteps. Excitatory and inhibitory refractory periods remained 1.2 and 0.6 ms, respectively, corresponding to integer step counts throughout.
+
+Each epoch-50 checkpoint was evaluated at its training timestep on the common 1,000-image test subset. Nominally 200-ms presentations were truncated to complete simulation steps, giving realised durations of 199.8 ms at 0.3 and 0.6 ms and 200 ms otherwise. Mean per-neuron excitatory firing rates included all excitatory neurons and test presentations, using the realised duration. Accuracy and firing rate were summarised as means and SEM across the three training replicates at each timestep.
+
+Mean test accuracy ranged from 88.37% to 89.63% across the twelvefold timestep range ([Appendix Fig. A1](#loc-30)). Mean excitatory firing was 14.27 Hz at the finest timestep and 17.02 Hz at the coarsest. Classification performance therefore persisted across the tested resolutions, while excitatory activity remained timestep-dependent. Because each network was trained and evaluated at the same timestep, this comparison combines timestep effects during training and evaluation; it does not establish numerical convergence with fixed weights.
+
+<PublishedFigure run="exp044-r009-present" file="dt_sweep.svg" id="loc-30" alt="Hidden excitatory firing rate and test accuracy across five integration timesteps, with SEM across independently trained classifiers." >
+  Figure A1: **Timestep dependence after separate training.** Mean per-neuron excitatory firing rate (black diamonds, left axis) and test accuracy (red squares, right axis) versus integration timestep on a logarithmic horizontal axis. Points show means across three independently trained loop-on classifiers per timestep (seeds 42–44); error bars indicate ±1 SEM. Epoch-50 checkpoints were evaluated at their training timestep on the same 1,000 MNIST test images. Firing rates use realised presentation durations: 199.8 ms at 0.3 and 0.6 ms, and 200 ms otherwise. Source experiment: [exp044](/exp044) — [*Firing Rate Across the Timestep Sweep.*](/exp044)
+</PublishedFigure>
+
+<span id="appendix-b" />
+
+## Appendix B — Measurement algorithms and boundary cases
+
+<span id="appendix-b1" />**B1 — Spectral interpolation.** This refinement supplied the spectral frequencies in [Fig. 1](#loc-5)E,G, [Fig. 2](#loc-6)I and [Fig. 6](#loc-12)A. We refined the spectral maximum using a parabola through three neighbouring bins of linear power spectral density. Let <NativeMath markup={formulae[227]} /> index the largest-power bin within the search interval, choosing the lowest-frequency bin when maxima were tied. The interpolated spectral-peak frequency was
+
+<Equation id="" number="25" markup={formulae[228]} />
+
+Here, <NativeMath markup={formulae[229]} /> is the power spectral density at frequency bin <NativeMath markup={formulae[230]} />, <NativeMath markup={formulae[231]} /> is the selected bin’s frequency, <NativeMath markup={formulae[232]} /> is the frequency-bin spacing in hertz, and <NativeMath markup={formulae[233]} /> is a dimensionless offset. Clipping limits the displacement to half a bin.
+
+Neighbouring bins could lie outside the search interval, and the interpolated frequency was not subsequently restricted to that interval.
+
+<span id="appendix-b2" />**B2 — Autocorrelation implementation.** This algorithm supplied the lobe–trough contrasts in [Fig. 2](#loc-6)C and [Fig. 5](#loc-10)C. We pooled excitatory spikes across neurons into complete 1-ms population-count bins, discarding any incomplete final bin. The dimensionless, uncentered autocorrelogram was
+
+<Equation id="" number="26" markup={formulae[234]} />
+
+Here, <NativeMath markup={formulae[235]} /> is the excitatory population spike count in bin <NativeMath markup={formulae[236]} />, <NativeMath markup={formulae[237]} /> is the number of complete bins, <NativeMath markup={formulae[238]} /> is their mean count, and <NativeMath markup={formulae[239]} /> is the lag in milliseconds.
+
+We computed the numerator by zero-padding the count sequence to the smallest power-of-two length of at least <NativeMath markup={formulae[240]} />, then inverse-transforming the squared magnitude of its fast Fourier transform. The padding prevented circular wraparound. Division by <NativeMath markup={formulae[241]} /> corrected for the decreasing number of overlapping bin pairs at longer lags, while division by <NativeMath markup={formulae[242]} /> removed the overall firing-rate scale. Approximately independent stationary counts therefore had a baseline near one.
+
+We excluded zero lag because it was dominated by spikes matching themselves. Before smoothing, we replaced this entry with its 1-ms neighbour and convolved the autocorrelogram with weights <NativeMath markup={formulae[243]} />, using zero padding beyond both ends. This reduced small finite-sample fluctuations during feature selection.
+
+Denoting the smoothed values by <NativeMath markup={formulae[244]} />, we selected the first lag <NativeMath markup={formulae[245]} /> satisfying <NativeMath markup={formulae[246]} /> and <NativeMath markup={formulae[247]} />. The lobe was the maximum at positive lags preceding this trough, with ties resolved by the earliest lag. These values entered the contrast equation in Methods.
+
+<span id="appendix-b3" />**B3 — Burst detection and cycle-boundary discretization.** This procedure supplied the equal-network neuron–cycle distributions in [Fig. 6](#loc-12)C–H. For each presentation, we summed inhibitory spikes across neurons at each 0.1-ms simulation step and convolved the resulting trace with a unit-sum Gaussian kernel of standard deviation 1 ms. The kernel extended ±4 ms (81 samples), with zero padding beyond the presentation boundaries. Candidate bursts were interior local maxima reaching at least 5% of the maximum smoothed value within that presentation. Flat maxima were represented by their middle sample, rounded down for even-length plateaus. Minimum peak separation was half the period corresponding to the network’s spectral-peak frequency <NativeMath markup={formulae[248]} />, converted to simulation steps and rounded down, with a minimum of one step. Smaller competing peaks were removed first. The same network-level frequency set this separation for every presentation.
+
+For consecutive detected peak indices <NativeMath markup={formulae[249]} /> and <NativeMath markup={formulae[250]} />, we placed the intervening boundary at
+
+<Equation id="" number="27" markup={formulae[251]} />
+
+where <NativeMath markup={formulae[252]} /> is an integer simulation-step index and the floor operation rounds downward. The outer boundaries were zero and <NativeMath markup={formulae[253]} />, the presentation’s number of simulation steps. Excitatory spikes were counted separately for each neuron in the resulting half-open intervals: the starting boundary was included and the ending boundary excluded. A spike at an internal boundary therefore belonged to the following interval. The first and last intervals extended to the presentation boundaries and could contain partial cycles. When only one burst was detected, its counting interval covered the entire presentation; presentations without detected bursts contributed no neuron–cycle pairs.
+
+<span id="appendix-b4" />**B4 — Illustrative-example selection.**
+
+For [Fig. 3](#loc-8), illustrative rasters used the seed-42, epoch-50 checkpoint from each architecture and the first digit-0 image in the official test set, presented for 400 ms.
+
+For [Fig. 4](#loc-9), illustrative rasters used the seed-42 classifier and the first image in the official test set, a digit 7, at <NativeMath markup={formulae[254]} /> and <NativeMath markup={formulae[255]} />. Both presentations lasted 200 ms. Fixed subsets of 200 E and 64 I neurons were selected uniformly without replacement using seed 0 for display.
+
+For [Fig. 8](#loc-15), illustrative rasters used the seed-42 classifier and official test image 0, a digit 7, at <NativeMath markup={formulae[256]} /> ms.
+
+For the illustrative stream ([Fig. 9](#loc-17)A–D), we used the seed-42 classifier with five predefined presentation-duration–maximum-pixel-rate pairs: (100 ms, 5 Hz), (200 ms, 7.5 Hz), (50 ms, 25 Hz), (100 ms, 15 Hz) and (200 ms, 10 Hz). Each candidate contained five distinct digit classes drawn in random order, with one image sampled uniformly from each class in the official MNIST test partition.
+
+Candidates were evaluated in a predetermined order, and the first yielding five correct classifications was retained for the illustration. The first candidate met this criterion, producing the sequence 1, 7, 9, 5 and 2. Its image-selection and spike-encoding seeds were 820000 and 830000, respectively. This illustrative selection was separate from the quantitative streaming evaluation. Rasters displayed the first 200 excitatory and 64 inhibitory neurons.
+
+<span id="appendix-b5" />**B5 — Random-stream implementation.** These streams supplied the endpoint comparisons in Figs. [3](#loc-8)–[8](#loc-15) and the continuous-stream evaluation in [Fig. 9](#loc-17). Endpoint evaluation restarted a dedicated CPU encoding generator with seed 20260415, advancing it through successive batches of 64 images without reseeding between batches. Input spike trains were matched across networks when images, ordering, batch grouping, timestep, presentation duration and encoding rates agreed. Deletion and insertion used a separate generator with seed 20260416. Inhibitory replay shifts also used separate generators, with seeds determined by training replicate, jitter type and magnitude. Perturbation draws therefore did not advance the input-encoding stream.
+
+Quantitative continuous-stream evaluation sampled images from the full official test partition rather than the fixed endpoint subset.
+
+One NumPy image-sampling generator, initialized with seed 82000, advanced through 40 streams, selecting five distinct image indices uniformly without replacement within each stream. Images could recur between streams; neither digit classes nor the complete bank were stratified. We used the same ordered indices for all networks and conditions. We recorded the sampled indices and labels and checked every condition’s labels against this bank.
+
+For spike encoding, we used an integer-pairing map to assign a distinct seed to each network, duration, rate and stream:
+
+<Equation id="" number="28" markup={formulae[257]} />
+
+Here, <NativeMath markup={formulae[258]} /> maps two non-negative integers <NativeMath markup={formulae[259]} /> to one integer; <NativeMath markup={formulae[260]} /> indexes training seeds 42–44, <NativeMath markup={formulae[261]} /> indexes durations 25, 50, 100 and 200 ms, <NativeMath markup={formulae[262]} /> indexes the eleven input rates in ascending order, and <NativeMath markup={formulae[263]} /> indexes streams. The seed <NativeMath markup={formulae[264]} /> is unique within the 5,280 quantitative network–condition–stream combinations. A dedicated CPU PyTorch generator was initialized for each combination and advanced across its five presentations. Image selection did not consume encoding draws. Matching images therefore did not match their realized spike trains across conditions or networks.
+
+<span id="appendix-c" />
+
+## Appendix C — Mean-field closure and numerical specification
+
+**C1 — Gain function and population-model assumptions.** This closure defined the mean-field calculations in [Fig. 2](#loc-6)G–I. For each population <NativeMath markup={formulae[265]} />, denoting excitatory and inhibitory neurons, we used the stationary noisy-LIF gain:
+
+<Equation id="" number="29" markup={formulae[266]} />
+
+<Equation id="" number="30" markup={formulae[267]} />
+
+Here, <NativeMath markup={formulae[268]} /> is mean input current in nA; <NativeMath markup={formulae[269]} /> is leak conductance in µS; and <NativeMath markup={formulae[270]} /> is the corresponding effective mean voltage. The leak reversal, reset and threshold voltages are <NativeMath markup={formulae[271]} />, <NativeMath markup={formulae[272]} /> and <NativeMath markup={formulae[273]} />, respectively, in mV. Membrane and refractory times, <NativeMath markup={formulae[274]} /> and <NativeMath markup={formulae[275]} />, are in milliseconds, giving <NativeMath markup={formulae[276]} /> in <NativeMath markup={formulae[277]} />. The integration variable <NativeMath markup={formulae[278]} /> is dimensionless, and <NativeMath markup={formulae[279]} /> is the error function. This expression gives the stationary firing rate of a LIF neuron driven by Gaussian white current noise (Eq. 21 in Brunel, 2000).\[[3](#ref-3)\]
+
+To construct the population model, we approximated each synaptic current as <NativeMath markup={formulae[280]} />, where <NativeMath markup={formulae[281]} /> is synaptic conductance, <NativeMath markup={formulae[282]} /> its reversal potential and <NativeMath markup={formulae[283]} /> membrane voltage. This fixed the driving forces at rest and omitted conductance-dependent shunting. We replaced presynaptic spike trains by population rates while retaining exponential conductance decay. Each population rate then relaxed towards the steady-state rate predicted for its current input, with relaxation time <NativeMath markup={formulae[284]} />. This relaxation law was an additional modelling assumption. The effective noise scale <NativeMath markup={formulae[285]} /> mV was prescribed, rather than estimated from voltage recordings or calculated from population activity; the population equations themselves were deterministic.
+
+<span id="appendix-c2" />**C2 — Numerical solution details.**
+
+We eliminated the stationary conductances and inhibitory rate analytically, reducing equilibrium at each of 401 equally spaced currents to one scalar excitatory-rate self-consistency residual. Brent’s method solved this residual between zero and the refractory-limited maximum excitatory rate. Accepted roots had an absolute residual no greater than <NativeMath markup={formulae[286]} />.
+
+We calculated the four-variable continuous-time Jacobian analytically. Among eigenvalues with positive imaginary part greater than <NativeMath markup={formulae[287]} />, we selected the pair with the largest real part. The first change from negative to nonnegative real part bracketed onset. Brent’s method refined the crossing, recomputing the scalar equilibrium and analytical Jacobian at each trial current. Transversality used a centred real-part difference at currents <NativeMath markup={formulae[288]} /> nA below and above the refined onset.
+
+The upward amplitude sweep used 25 equally spaced currents from <NativeMath markup={formulae[289]} /> to <NativeMath markup={formulae[290]} /> nA, where <NativeMath markup={formulae[291]} /> is the refined onset current. We initialized the lowest-current equilibrium with its excitatory rate increased by <NativeMath markup={formulae[292]} />, then carried each integration’s final state into the next, including the transition to the descending sweep. Amplitudes used 1,001 fixed samples spanning the final 500 ms of each integration, rather than the adaptive solver-output times.
+
+For negative values of the dimensionless gain-integration variable <NativeMath markup={formulae[293]} />, we evaluated the scaled complementary error function <NativeMath markup={formulae[294]} /> to avoid cancellation. For nonnegative arguments, the exponent <NativeMath markup={formulae[295]} /> was capped at 700. This kept the gain evaluation finite across the continuation range.
+
+<SourceTable report="exp110" markup={tables[2]} />
+
+Table C1: **Numerical settings for mean-field continuation, onset refinement and amplitude sweeps.** Calculations used SciPy 1.15.3. Quadrature tolerances used library defaults. The absolute integration tolerance applied to rates in <NativeMath markup={formulae[296]} /> and conductances in µS; relative tolerances were dimensionless. Unlisted solver options retained their defaults.
+
+**C3 — Criticality calculation.** This classification supplied the transition assessment in [Fig. 2](#loc-6)H.
+
+We defined the hysteresis gap as the maximum absolute difference between upward and downward peak-to-peak excitatory-rate amplitudes at matched currents. For the amplitude-squared regression, we included all upward-sweep points satisfying <NativeMath markup={formulae[297]} /> nA, where <NativeMath markup={formulae[298]} /> is the refined onset current. Membership depended only on current, without an amplitude cutoff.
+
+For each included point <NativeMath markup={formulae[299]} />, we defined excess current <NativeMath markup={formulae[300]} /> and squared amplitude <NativeMath markup={formulae[301]} />, where the upward arrow identifies the ascending sweep. We fitted <NativeMath markup={formulae[302]} /> by unweighted least squares, with slope <NativeMath markup={formulae[303]} /> and freely fitted intercept <NativeMath markup={formulae[304]} />. The coefficient of determination was
+
+<Equation id="" number="31" markup={formulae[305]} />
+
+where <NativeMath markup={formulae[306]} /> is the mean squared amplitude over the included points. The numerator is the residual sum of squares, and the denominator is the centred total sum of squares.
+
+We classified the sampled onset as consistent with a supercritical transition only when the hysteresis gap was below <NativeMath markup={formulae[307]} />, <NativeMath markup={formulae[308]} />, and <NativeMath markup={formulae[309]} />. All other outcomes were labelled “subcritical/inconclusive”. This was a numerical classification of finite-duration sweeps; no first Lyapunov coefficient was calculated, so narrower bistability or an unstable periodic orbit was not excluded.
+
+<span id="appendix-d" />
+
+## Appendix D — Exact replay transformations
+
+**D1 — Quantization and boundary reflection.** These transformations defined the inhibitory replay perturbations in [Fig. 8](#loc-15).
+
+We converted Gaussian timing offsets to integer simulation-step displacements:
+
+<Equation id="" number="32" markup={formulae[310]} />
+
+Here, <NativeMath markup={formulae[311]} /> is the integer displacement, <NativeMath markup={formulae[312]} /> is a standard-normal draw, and <NativeMath markup={formulae[313]} /> and <NativeMath markup={formulae[314]} /> are the proposed jitter standard deviation and simulation timestep, respectively, in milliseconds. Rounding selected the nearest integer, with halfway ties resolved towards the even integer. Independent-spike jitter used one draw per event; group jitter used one shared draw per presentation and original source window.
+
+For an integer <NativeMath markup={formulae[315]} />, reflection into inclusive integer bounds <NativeMath markup={formulae[316]} /> was
+
+<Equation id="" number="33" markup={formulae[317]} />
+
+where <NativeMath markup={formulae[318]} /> is the interval span and modulo returns a nonnegative remainder. This mapping implements repeated reflection, including offsets spanning multiple boundary crossings.
+
+For independent jitter, an event at original index <NativeMath markup={formulae[319]} /> received candidate index <NativeMath markup={formulae[320]} />, where <NativeMath markup={formulae[321]} /> is the presentation’s number of simulation steps. For group jitter, let <NativeMath markup={formulae[322]} /> and <NativeMath markup={formulae[323]} /> be the earliest and latest original inhibitory-event indices within a source window, across all inhibitory neurons. We reflected the shared displacement into <NativeMath markup={formulae[324]} />, then added it to every event in that group. Group membership remained defined by the original timeline. Zero jitter returned the original stream unchanged.
+
+**D2 — Collision resolution.** Collision-resolved replay supplied both [Fig. 8](#loc-15) perturbation series.
+
+After reflection, we resolved duplicate destinations separately for each presentation and inhibitory neuron. Original chronological order determined event priority. At each pass, the earliest original event among those targeting the same timestep retained that destination; the remaining events advanced through offsets <NativeMath markup={formulae[325]} />, measured from their respective reflected candidate indices. Out-of-range proposals were skipped. All destinations were checked again after each pass, allowing newly introduced collisions to be resolved under the same priority rule.
+
+Resolution ended when every destination was in range and unique within its presentation and neuron. We reconstructed a binary replay stream while preserving each inhibitory neuron’s spike count in every presentation. Collision adjustments acted on individual events and could therefore change relative timing within a shifted group.

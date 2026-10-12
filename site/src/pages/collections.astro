@@ -1,0 +1,44 @@
+---
+import { getCollection } from 'astro:content';
+import Page from '../layouts/Page.astro';
+import { collectionId, collectionLabel, compareCollections } from '../lib/collections';
+
+const reports = (await getCollection('reports')).sort((a, b) => b.id.localeCompare(a.id));
+const names = [...new Set(reports.map(report => report.data.collection))].sort(compareCollections);
+const collections = names.map(name => ({
+  name,
+  reports: reports.filter(report => report.data.collection === name),
+}));
+---
+
+<Page title="Collections" description="Browse Pinglab experiments by collection.">
+  <d-title>
+    <h1>Collections</h1>
+    <p>Experiments grouped by collection, with the newest IDs first.</p>
+  </d-title>
+  <d-article aria-label="Experiment collections">
+    {collections.map(collection => <section class="collection" aria-labelledby={collectionId(collection.name)}>
+      <h2 id={collectionId(collection.name)}>{collectionLabel(collection.name)}</h2>
+      <p class="collection-count">{collection.reports.length} {collection.reports.length === 1 ? 'experiment' : 'experiments'}</p>
+      <ol class="collection-reports" role="list">
+        {collection.reports.map(report => <li>
+          <a href={`/${report.id}`}>
+            <span class="experiment-id">{report.id}</span>
+            <span>{report.data.title}</span>
+          </a>
+        </li>)}
+      </ol>
+    </section>)}
+  </d-article>
+</Page>
+
+<style>
+  .collection { grid-column: text; min-width: 0; }
+  h2 { scroll-margin-top: 24px; overflow-wrap: anywhere; }
+  .collection-count { color: rgba(0, 0, 0, .5); font-size: .8rem; margin-top: 0; }
+  .collection-reports { list-style: none; padding: 0; margin: 0; }
+  .collection-reports li { margin: 0; border-bottom: 1px solid rgba(0, 0, 0, .1); }
+  .collection-reports a { display: grid; grid-template-columns: 4.5rem minmax(0, 1fr); gap: 1rem; padding: .8rem 0; border-bottom: none; text-decoration: none; color: inherit; }
+  .collection-reports a:hover { text-decoration: underline; }
+  .experiment-id { font-size: .8rem; font-weight: 600; color: rgba(0, 0, 0, .6); }
+</style>

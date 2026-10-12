@@ -1,0 +1,55 @@
+---
+import 'katex/dist/katex.min.css';
+import '../styles/mathml.css';
+import base from '../styles/distill/styles-base.css?raw';
+import layout from '../styles/distill/styles-layout.css?raw';
+import titleStyle from '../styles/distill/d-title.css?raw';
+import byline from '../styles/distill/d-byline.css?raw';
+import article from '../styles/distill/d-article.css?raw';
+import appendix from '../styles/distill/d-appendix.css?raw';
+import math from '../styles/distill/d-math.css?raw';
+import print from '../styles/distill/styles-print.css?raw';
+
+interface Props {
+  title: string;
+  description?: string;
+  frontMatter?: Record<string, unknown>;
+}
+
+const { title, description, frontMatter } = Astro.props;
+const distillStyles = base + layout + titleStyle + byline + article + math + appendix + print;
+const frontMatterJson = JSON.stringify(frontMatter ?? null).replaceAll('<', '\\u003c');
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content={description} />
+    <title>{title} · Pinglab</title>
+    <style is:inline id="distill-prerendered-styles" set:html={distillStyles} />
+    <script is:inline src="/vendor/distill/template.v2.js"></script>
+  </head>
+  <body distill-prerendered>
+    {frontMatter && <d-front-matter><script is:inline type="application/json" set:html={frontMatterJson} /></d-front-matter>}
+    <header class="site-header base-grid"><nav class="l-page" aria-label="Site"><a href="/">Pinglab</a><a class="collections-link" href="/collections">Collections</a></nav></header>
+    <main><slot /></main>
+    <script>import '../scripts/citations';</script>
+  </body>
+</html>
+
+<style is:global>
+  .citation-preview { position: fixed; z-index: 10; box-sizing: border-box; width: min(380px, calc(100vw - 24px)); max-height: 50vh; overflow-y: auto; padding: 1rem; border: 1px solid rgba(0, 0, 0, .15); background: white; box-shadow: 0 4px 20px rgba(0, 0, 0, .12); font-size: 13px; line-height: 1.6; color: rgba(0, 0, 0, .8); }
+  .citation-preview[hidden] { display: none; }
+  .citation-preview a { color: inherit; }
+  .site-header { padding: 1rem 0; border-bottom: 1px solid rgba(0, 0, 0, .1); }
+  .site-header a { color: inherit; font-weight: 600; text-decoration: none; }
+  .site-header nav { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; }
+  .site-header .collections-link { font-size: .875rem; font-weight: 400; color: rgba(0, 0, 0, .6); }
+  .site-header .collections-link:hover { color: black; }
+  .metadata { font-size: .8rem; color: rgba(0, 0, 0, .6); }
+  .katex { font-size: 1.05em; }
+  .katex-display { overflow-x: auto; overflow-y: hidden; padding: .5rem 0; }
+  d-article { padding-bottom: 3rem; }
+</style>

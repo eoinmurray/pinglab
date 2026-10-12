@@ -2,8 +2,10 @@
 
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
+from matplotlib.ticker import MaxNLocator
 import numpy as np
 from experiments.helpers import theme
+from experiments.exp123 import recipe
 
 
 def conditions(report, rate, tau):
@@ -19,7 +21,9 @@ def conditions(report, rate, tau):
 
 def plot_tradeoffs(report, destination, save):
     fig, axes = plt.subplots(
-        3, 3, figsize=(180 / 25.4, 165 / 25.4), layout="constrained"
+        3, 3,
+        figsize=tuple(mm / 25.4 for mm in recipe.FIGURE_SIZE_MM),
+        layout="constrained",
     )
     fig.get_layout_engine().set(w_pad=0.04, h_pad=0.07)
     colours = (theme.INK_BLACK, theme.DEEP_RED, theme.ELECTRIC_CYAN)
@@ -44,8 +48,8 @@ def plot_tradeoffs(report, destination, save):
         for j, (xlabel, ylabel, title) in enumerate(
             (
                 ("Deadline (ms)", "Accuracy (%)", "Accuracy"),
-                ("Deadline (ms)", "Network spikes (×10³)", "Spike cost"),
-                ("Network spikes (×10³)", "Accuracy (%)", "Accuracy / cost"),
+                ("Deadline (ms)", "Network spikes\n(×10³)", "Spike cost"),
+                ("Network spikes\n(×10³)", "Accuracy (%)", "Accuracy / cost"),
             )
         ):
             ax = axes[ri, j]
@@ -62,6 +66,7 @@ def plot_tradeoffs(report, destination, save):
                 ax.set_xticks([0, 100, 200])
             else:
                 ax.set_xlim(left=0)
+                ax.xaxis.set_major_locator(MaxNLocator(nbins=4))
     theme.label_panels(axes.flat)
     handles, labels = axes[0, 0].get_legend_handles_labels()
     fig.legend(
@@ -72,7 +77,9 @@ def plot_tradeoffs(report, destination, save):
 
 def plot_frontiers(report, destination, save):
     fig, axes = plt.subplots(
-        2, 3, figsize=(180 / 25.4, 110 / 25.4), layout="constrained"
+        2, 3,
+        figsize=tuple(mm / 25.4 for mm in recipe.FIGURE_SIZE_MM),
+        layout="constrained",
     )
     fig.get_layout_engine().set(w_pad=0.04, h_pad=0.07)
     colours = (theme.INK_BLACK, theme.DEEP_RED, theme.ELECTRIC_CYAN)

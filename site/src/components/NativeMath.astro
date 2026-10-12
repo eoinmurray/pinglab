@@ -1,0 +1,5 @@
+---
+interface Props { markup: string; }
+const { markup } = Astro.props;
+---
+<span class="native-math" set:html={markup} />

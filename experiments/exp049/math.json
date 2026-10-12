@@ -1,0 +1,18 @@
+[
+  "<math><mi>𝑅</mi><mo>=</mo><msub><mi>𝑅</mi><mtext>contrast</mtext></msub></math>",
+  "<math><msqrt><mn>3</mn></msqrt></math>",
+  "<math><msup><mn>10</mn><mrow><mo>−</mo><mn>3</mn></mrow></msup></math>",
+  "<math><mfrac><mn>1</mn><mn>1024</mn></mfrac></math>",
+  "<math><mfrac><mn>2</mn><mn>256</mn></mfrac></math>",
+  "<math><mn>4</mn><mo lspace=\"0.2222222222222222em\" rspace=\"0.2222222222222222em\">×</mo><msup><mn>10</mn><mrow><mo>−</mo><mn>4</mn></mrow></msup></math>",
+  "<math><msub><mi>𝑔</mi><mi>𝐼</mi></msub><mrow><mo>(</mo><mrow><msub><mi>𝐸</mi><mi>𝐼</mi></msub><mo>−</mo><msub><mi>𝑉</mi><mi>𝑚</mi></msub></mrow><mo>)</mo></mrow></math>",
+  "<math><msub><mi>𝑔</mi><mi>𝐼</mi></msub></math>",
+  "<math><msub><mi>𝐸</mi><mi>𝐼</mi></msub><mo>=</mo><mo form=\"prefix\">−</mo><mn>80</mn></math>",
+  "<math><msub><mi>𝑉</mi><mi>𝑚</mi></msub></math>",
+  "<math><mrow><mo>(</mo><mrow><mfrac><mn>1</mn><mn>4</mn></mfrac><mo>,</mo><mfrac><mn>1</mn><mn>2</mn></mfrac><mo>,</mo><mfrac><mn>1</mn><mn>4</mn></mfrac></mrow><mo>)</mo></mrow></math>",
+  "<math display=\"block\"><msub><mi>𝑅</mi><mtext>contrast</mtext></msub><mo>=</mo><mfrac><mrow><msub><mi>𝐴</mi><mtext>lobe</mtext></msub><mo>−</mo><msub><mi>𝐴</mi><mtext>trough</mtext></msub></mrow><mrow><msub><mi>𝐴</mi><mtext>lobe</mtext></msub><mo>+</mo><msub><mi>𝐴</mi><mtext>trough</mtext></msub></mrow></mfrac></math>",
+  "<math><msub><mi>𝑅</mi><mtext>contrast</mtext></msub></math>",
+  "<math><msub><mi>𝐴</mi><mtext>trough</mtext></msub></math>",
+  "<math><msub><mi>𝐴</mi><mtext>lobe</mtext></msub></math>",
+  "<math><msqrt><mn>3</mn></msqrt></math>"
+]

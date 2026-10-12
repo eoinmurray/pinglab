@@ -1,0 +1,55 @@
+---
+id: "exp042"
+title: "Inhibitory Replay Perturbations Change Excitatory Firing"
+created_at: "2026-06-02"
+updated_at: "2026-09-07"
+description: "Recorded inhibitory spike streams produced contrasting excitatory responses under independent-spike and fixed-window replay perturbations, but the experiment does not isolate synchrony."
+collection: "gamma-gated-sparsity"
+author: "Eoin Murray"
+tags: ["data", "v36.0.0"]
+runs: {"exp042": "exp042-r019-present"}
+thumbnailRun: "exp042-r019-present"
+thumbnail: "rhythm_compound.png"
+abstract: "We asked how perturbing inhibitory spike timing changes trained PING classifiers. We reused three frozen MNIST classifiers and their retained inhibitory-spike recordings. We replayed each stream after either shifting every spike independently or shifting all spikes originating in the same fixed clock window together. Independent-spike jitter nearly silenced excitatory neurons, whereas fixed-window shifts increased their firing. Accuracy declined under both perturbations despite preservation of each inhibitory neuron’s spike count. Replay interrupted responsive feedback, so these measurements do not isolate synchrony or a gamma-specific mechanism."
+---
+
+import PublishedFigure from '../../site/src/components/PublishedFigure.astro';
+import NativeMath from '../../site/src/components/NativeMath.astro';
+import Equation from '../../site/src/components/Equation.astro';
+import SourceTable from '../../site/src/components/SourceTable.astro';
+import formulae from './math.json';
+import tables from './tables.json';
+
+<span id="loc-2" />
+
+## Results
+
+<span id="loc-3" />
+
+### Replay perturbations diverge
+
+<PublishedFigure run="exp042-r019-present" file="rhythm_compound.png" id="" alt="Independent-spike jitter suppresses excitatory firing, whereas fixed-window group shifts increase it. Replayed inhibitory spike rates remain constant across both sweeps." >
+  Figure 1: **(A)** Independent-spike and **(B)** fixed-window group jitter for the illustrative first test presentation from the training replicate initialized with seed 42 at <NativeMath markup={formulae[0]} /> ms; 200 of 1,024 E neurons and 64 of 256 I neurons are displayed over the 200 ms presentation. **(C)** Independent-spike and **(D)** fixed-window sweep summaries show per-neuron E rate, realised I-spike rate and test-accuracy means across three training replicates. Retained SEM across training replicates is not displayed.
+</PublishedFigure>
+
+<span id="loc-4" />
+
+## Methods
+
+1. **Models.** We reused three independently trained PING networks, initialized with training seeds 42–44.
+
+2. **Trials.** We tested each network-condition combination on the same 1,000 MNIST test images. The main figure represents 36,000 condition-level trials, or 33,000 distinct simulations because both arms shared the zero-jitter control.
+
+3. **Simulation.** We presented each image for 200 ms using a 0.1 ms timestep. We encoded pixel intensities as spike trains with a maximum input rate of 25 Hz, fixed across all training replicates and perturbation conditions. Full-intensity pixels therefore had a 25 Hz encoding rate; lower intensities scaled this rate proportionally.
+
+4. **Independent jitter.** We gave every inhibitory spike an independent Gaussian time shift, using <NativeMath markup={formulae[1]} /> and <NativeMath markup={formulae[2]} /> ms.
+
+5. **Group jitter.** We divided the timeline into fixed 22.8 ms windows and gave every inhibitory spike within a window the same shift, using <NativeMath markup={formulae[3]} /> and <NativeMath markup={formulae[4]} /> ms. The window spanned 228 simulation steps, obtained by rounding the period of the fixed 43.95 Hz reference to the 0.1 ms grid; windows were not detected gamma cycles.
+
+6. **Boundaries.** We reflected independent spikes that left the 200 ms interval back into it individually. For group jitter, we reflected the shared displacement once so that the group remained intact.
+
+7. **Collisions.** We moved same-neuron spikes landing on the same timestep to the nearest unused in-range timestep. No spikes were removed.
+
+8. **Measurements.** We recorded accuracy and mean excitatory and inhibitory firing rates. Curves show the mean across the three training seeds.
+
+9. **Range restriction.** We retained larger jitter values as boundary-sensitivity results but excluded them from the main figure because reflection became a substantial part of the intervention.

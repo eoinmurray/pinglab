@@ -1,4 +1,4 @@
-"""Simulate paired encodings for trajectories or the 500-image accuracy probe."""
+"""Simulate all trajectory, accuracy and encoding-rate probes in one run."""
 
 import argparse
 import hashlib
@@ -42,7 +42,7 @@ def graph_trial(tau, weights, encoded):
     }
 
 
-def compute(identity, protocol="trajectories"):
+def compute(identity):
     torch.set_num_threads(1)
     bank = source_run(
         recipe.REPO / ".pingstore", identity, stage="compute", experiment="exp022"
@@ -82,13 +82,7 @@ def compute(identity, protocol="trajectories"):
     if weights["W_ee.1"].count_nonzero() or weights["W_ii.1"].count_nonzero():
         raise ValueError("same-population recurrence must be absent")
     dataset = MNIST(str(recipe.REPO / "data"), train=False, download=False)
-    indices = (
-        recipe.IMAGE_INDICES
-        if protocol == "trajectories"
-        else recipe.accuracy_images(dataset.targets.numpy())
-    )
-    cfg = recipe.configuration(protocol, indices)
-    seeds = cfg["seeds"]
+    cfg = recipe.full_configuration(dataset.targets.numpy())
     with stage_run(
         recipe.REPO,
         recipe.SLUG,
@@ -101,83 +95,78 @@ def compute(identity, protocol="trajectories"):
             "torch": torch.__version__,
         }
         hashes = {}
-        for rate in cfg["input_rates_hz"]:
-            for start in range(0, len(indices), cfg["execution_batch_images"]):
-                batch_indices = indices[start : start + cfg["execution_batch_images"]]
-                encodings = []
-                for image_index in batch_indices:
-                    unit = run.export / recipe.recording_unit(
-                        image_index, rate, protocol
-                    )
-                    unit.mkdir()
-                    pixels = dataset.data[image_index].reshape(1, 784).float() / 255
-                    label = int(dataset.targets[image_index])
-                    generator_seeds = [1000 * image_index + seed for seed in seeds]
-                    encoded = torch.cat(
-                        [
-                            encode_images_poisson(
-                                pixels,
-                                recipe.STEPS,
-                                recipe.DT_MS,
-                                rate,
-                                generator=torch.Generator().manual_seed(seed),
-                            )
-                            for seed in generator_seeds
-                        ],
-                        dim=1,
-                    )
-                    encodings.append(encoded)
-                    hashes[
-                        f"{rate:g}:{image_index}"
-                        if protocol == "pareto"
-                        else str(image_index)
-                    ] = {
-                        str(seed): hashlib.sha256(
-                            encoded[:, b].numpy().tobytes()
-                        ).hexdigest()
-                        for b, seed in enumerate(seeds)
-                    }
-                    np.savez_compressed(
-                        unit / "input.npz",
-                        pixels=pixels.numpy().reshape(28, 28),
-                        label=label,
-                        spikes=encoded.numpy().astype(bool),
-                        seeds=seeds,
-                        generator_seeds=generator_seeds,
-                    )
-                batch_encoded = torch.cat(encodings, dim=1)
-                for tau in recipe.TAUS_MS:
-                    signals = graph_trial(tau, weights, batch_encoded)
-                    for j, image_index in enumerate(batch_indices):
+        for protocol, cfg in run.record["execution"]["configuration"]["protocols"].items():
+            indices, seeds = cfg["image_indices"], cfg["seeds"]
+            for rate in cfg["input_rates_hz"]:
+                for start in range(0, len(indices), cfg["execution_batch_images"]):
+                    batch_indices = indices[start : start + cfg["execution_batch_images"]]
+                    encodings = []
+                    for image_index in batch_indices:
                         unit = run.export / recipe.recording_unit(
                             image_index, rate, protocol
                         )
-                        selection = slice(j * len(seeds), (j + 1) * len(seeds))
-                        np.savez_compressed(
-                            unit / f"tau{tau:g}--spikes.npz",
-                            **{
-                                key: value[:, selection]
-                                for key, value in signals.items()
-                            },
-                            dt_ms=recipe.DT_MS,
-                            tau_gaba_ms=tau,
-                            image_index=image_index,
-                            label=int(dataset.targets[image_index]),
-                            seeds=seeds,
+                        unit.mkdir()
+                        pixels = dataset.data[image_index].reshape(1, 784).float() / 255
+                        label = int(dataset.targets[image_index])
+                        generator_seeds = [1000 * image_index + seed for seed in seeds]
+                        encoded = torch.cat(
+                            [
+                                encode_images_poisson(
+                                    pixels,
+                                    recipe.STEPS,
+                                    recipe.DT_MS,
+                                    rate,
+                                    generator=torch.Generator().manual_seed(seed),
+                                )
+                                for seed in generator_seeds
+                            ],
+                            dim=1,
                         )
-                print(
-                    f"rate {rate:g} Hz: {start + len(batch_indices)}/{len(indices)} images completed "
-                    f"({len(seeds) * len(recipe.TAUS_MS)} paired presentations per image)",
-                    flush=True,
-                )
+                        encodings.append(encoded)
+                        hashes[f"{protocol}:{rate:g}:{image_index}"] = {
+                            str(seed): hashlib.sha256(
+                                encoded[:, b].numpy().tobytes()
+                            ).hexdigest()
+                            for b, seed in enumerate(seeds)
+                        }
+                        np.savez_compressed(
+                            unit / "input.npz",
+                            pixels=pixels.numpy().reshape(28, 28),
+                            label=label,
+                            spikes=encoded.numpy().astype(bool),
+                            seeds=seeds,
+                            generator_seeds=generator_seeds,
+                        )
+                    batch_encoded = torch.cat(encodings, dim=1)
+                    for tau in recipe.TAUS_MS:
+                        signals = graph_trial(tau, weights, batch_encoded)
+                        for j, image_index in enumerate(batch_indices):
+                            unit = run.export / recipe.recording_unit(
+                                image_index, rate, protocol
+                            )
+                            selection = slice(j * len(seeds), (j + 1) * len(seeds))
+                            np.savez_compressed(
+                                unit / f"tau{tau:g}--spikes.npz",
+                                **{
+                                    key: value[:, selection]
+                                    for key, value in signals.items()
+                                },
+                                dt_ms=recipe.DT_MS,
+                                tau_gaba_ms=tau,
+                                image_index=image_index,
+                                label=int(dataset.targets[image_index]),
+                                seeds=seeds,
+                            )
+                    print(
+                        f"rate {rate:g} Hz: {start + len(batch_indices)}/{len(indices)} images completed "
+                        f"({len(seeds) * len(recipe.TAUS_MS)} paired presentations per image)",
+                        flush=True,
+                    )
         if recipe.sha256(checkpoint) != recipe.CHECKPOINT_SHA256:
             raise ValueError("checkpoint changed")
         run.record["execution"]["encoding_sha256"] = hashes
         run.record["execution"]["observations"] = {
-            "presentations": len(indices)
-            * len(seeds)
-            * len(recipe.TAUS_MS)
-            * len(cfg["input_rates_hz"]),
+            "presentations": run.record["execution"]["configuration"]["presentations"],
             "weights_frozen": True,
             "inputs_paired_across_tau": True,
         }
@@ -188,10 +177,5 @@ def compute(identity, protocol="trajectories"):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source", required=True)
-    parser.add_argument(
-        "--protocol",
-        choices=("trajectories", "accuracy", "pareto"),
-        default="trajectories",
-    )
     args = parser.parse_args()
-    compute(args.source, args.protocol)
+    compute(args.source)

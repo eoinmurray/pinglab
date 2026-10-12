@@ -1,0 +1,346 @@
+---
+id: "exp113"
+title: "COBA and PING Dynamics, Discretisation, and Learning"
+created_at: "2026-09-14"
+updated_at: "2026-09-19"
+description: "A textbook derivation of the conductance-based COBA and PING equations, their discrete simulation, and their training by surrogate-gradient BPTT, voltage-gradient damping, gradient clipping, AdamW, and Dale projection."
+collection: "demo"
+author: "Eoin Murray"
+tags: ["txt", "v36.0.0"]
+abstract: "COBA and PING classifiers share conductance-based leaky integrate-and-fire dynamics but differ in whether excitatory and inhibitory populations form a reciprocal feedback loop. We derive their event-driven synapses, exponential-Euler membrane update, spike and readout rules, and complete training calculation. We then explain why long recurrent gradient paths can amplify in this model and how voltage-gradient damping stabilizes selected backward sensitivities without changing the forward simulation."
+---
+
+import PublishedFigure from '../../site/src/components/PublishedFigure.astro';
+import NativeMath from '../../site/src/components/NativeMath.astro';
+import Equation from '../../site/src/components/Equation.astro';
+import SourceTable from '../../site/src/components/SourceTable.astro';
+import formulae from './math.json';
+import tables from './tables.json';
+
+<span id="loc-2" />
+
+## Model family and notation
+
+The COBA and PING classifiers use the same conductance-based leaky integrate-and-fire neuron. Their distinction is architectural. The COBA condition disables the recurrent excitatory-to-inhibitory-to-excitatory pathway, whereas PING enables the loop <NativeMath markup={formulae[0]} />.\[[1](#ref-1)\]
+
+Physical time is <NativeMath markup={formulae[1]} />, the simulation-step index is <NativeMath markup={formulae[2]} />, and <NativeMath markup={formulae[3]} />, where <NativeMath markup={formulae[4]} /> is the integration timestep. A presentation contains <NativeMath markup={formulae[5]} /> timesteps and has duration <NativeMath markup={formulae[6]} />. Superscripts on conductances identify AMPA or GABA polarity, while subscripts identify the receiving population.
+
+<span id="loc-3" />
+
+## Continuous membrane dynamics
+
+For neuron <NativeMath markup={formulae[7]} /> in population <NativeMath markup={formulae[8]} />, the membrane equation is
+
+<Equation id="loc-4" number="1" markup={formulae[9]} />
+
+In [Equation 1](#loc-4), <NativeMath markup={formulae[10]} /> is membrane voltage, <NativeMath markup={formulae[11]} /> is capacitance, <NativeMath markup={formulae[12]} /> is leak conductance, and <NativeMath markup={formulae[13]} /> and <NativeMath markup={formulae[14]} /> are total AMPA and GABA conductances. The reversal potentials are
+
+<Equation id="loc-5" number="2" markup={formulae[15]} />
+
+A conductance <NativeMath markup={formulae[16]} /> with reversal potential <NativeMath markup={formulae[17]} /> supplies current <NativeMath markup={formulae[18]} />. [Equation 2](#loc-5) therefore makes AMPA normally depolarizing and GABA normally hyperpolarizing. The fixed membrane parameters are
+
+<Equation id="" number="3" markup={formulae[19]} />
+
+The corresponding passive membrane time constants follow from <NativeMath markup={formulae[20]} />:
+
+<Equation id="" number="4" markup={formulae[21]} />
+
+<span id="loc-6" />
+
+## Continuous synaptic dynamics
+
+The continuous spike train emitted by presynaptic neuron <NativeMath markup={formulae[22]} /> is
+
+<Equation id="" number="5" markup={formulae[23]} />
+
+where <NativeMath markup={formulae[24]} /> is event time <NativeMath markup={formulae[25]} /> and <NativeMath markup={formulae[26]} /> is the Dirac impulse. A postsynaptic conductance <NativeMath markup={formulae[27]} /> with decay constant <NativeMath markup={formulae[28]} /> satisfies
+
+<Equation id="loc-7" number="6" markup={formulae[29]} />
+
+Here <NativeMath markup={formulae[30]} /> is the conductance increment produced by one presynaptic event. AMPA and GABA use separate copies of [Equation 6](#loc-7) with <NativeMath markup={formulae[31]} /> and the canonical <NativeMath markup={formulae[32]} />.
+
+<span id="loc-8" />
+
+## Discretising the synaptic equations
+
+Between events, [Equation 6](#loc-7) reduces to
+
+<Equation id="loc-9" number="7" markup={formulae[33]} />
+
+Integrating [Equation 7](#loc-9) from <NativeMath markup={formulae[34]} /> to <NativeMath markup={formulae[35]} /> gives
+
+<Equation id="loc-10" number="8" markup={formulae[36]} />
+
+Exponentiating [Equation 8](#loc-10) yields the event-free decay
+
+<Equation id="loc-11" number="9" markup={formulae[37]} />
+
+Integrating [Equation 6](#loc-7) across an infinitesimal interval containing one event gives
+
+<Equation id="loc-12" number="10" markup={formulae[38]} />
+
+Combining [Equation 9](#loc-11) and [Equation 10](#loc-12) gives the timestep recurrence
+
+<Equation id="loc-13" number="11" markup={formulae[39]} />
+
+In [Equation 11](#loc-13), <NativeMath markup={formulae[40]} /> is a dimensionless binary presynaptic spike vector, <NativeMath markup={formulae[41]} /> has presynaptic neurons on rows and postsynaptic neurons on columns, and <NativeMath markup={formulae[42]} /> is an external conductance increment. The simulator performs exact exponential decay followed by the full, undecayed event increment.\[[1](#ref-1)\]
+
+<span id="loc-14" />
+
+## E–I conductance recurrences
+
+Define the dimensionless decay factors
+
+<Equation id="loc-15" number="12" markup={formulae[43]} />
+
+For one E–I layer, [Equation 11](#loc-13) expands to
+
+<Equation id="loc-16" number="13" markup={formulae[44]} />
+
+<Equation id="loc-17" number="14" markup={formulae[45]} />
+
+<Equation id="loc-18" number="15" markup={formulae[46]} />
+
+<Equation id="loc-19" number="16" markup={formulae[47]} />
+
+The canonical architecture sets <NativeMath markup={formulae[48]} />. COBA additionally disables <NativeMath markup={formulae[49]} /> and <NativeMath markup={formulae[50]} />. PING enables those two projections: excitatory spikes recruit inhibitory neurons through [Equation 15](#loc-18), and inhibitory spikes subsequently produce GABA conductance through [Equation 14](#loc-17). A recurrent spike generated in one iteration is consumed in the next, giving each recurrent projection a one-timestep delay.
+
+<span id="loc-20" />
+
+## Exponential-Euler membrane discretisation
+
+The simulator first updates conductances with [Equation 13](#loc-16)–[Equation 16](#loc-19), then holds those new values constant during the membrane step. Expanding [Equation 1](#loc-4) for one neuron gives
+
+<Equation id="loc-21" number="17" markup={formulae[51]} />
+
+Define the total conductance and its conductance-weighted equilibrium voltage by
+
+<Equation id="loc-22" number="18" markup={formulae[52]} />
+
+Substituting [Equation 18](#loc-22) into [Equation 17](#loc-21) gives
+
+<Equation id="" number="19" markup={formulae[53]} />
+
+Let <NativeMath markup={formulae[54]} />. Because the conductances and <NativeMath markup={formulae[55]} /> are constant within the timestep,
+
+<Equation id="loc-23" number="20" markup={formulae[56]} />
+
+Integrating [Equation 20](#loc-23) over one timestep gives
+
+<Equation id="" number="21" markup={formulae[57]} />
+
+Returning to membrane voltage produces the pre-threshold candidate
+
+<Equation id="loc-24" number="22" markup={formulae[58]} />
+
+Equivalently, define
+
+<Equation id="loc-25" number="23" markup={formulae[59]} />
+
+[Equation 22](#loc-24) is the update used by the simulator. It is exact for the linear membrane equation under the stated zero-order hold on conductances; it is not an exact solution of the continuously co-evolving neuron and synapses.
+
+<span id="loc-26" />
+
+## Spike, reset, and refractory dynamics
+
+Let <NativeMath markup={formulae[60]} /> be the non-negative integer refractory counter. It is decremented before the threshold decision:
+
+<Equation id="loc-27" number="24" markup={formulae[61]} />
+
+A neuron emits the binary spike
+
+<Equation id="loc-28" number="25" markup={formulae[62]} />
+
+where <NativeMath markup={formulae[63]} /> is the Heaviside step function, <NativeMath markup={formulae[64]} />, and <NativeMath markup={formulae[65]} /> is an indicator. A neuron that spikes, or remains refractory after [Equation 24](#loc-27), is stored at <NativeMath markup={formulae[66]} />. A new spike sets the counter to the population’s refractory step count; otherwise it retains <NativeMath markup={formulae[67]} />.
+
+The canonical timestep is <NativeMath markup={formulae[68]} />. The excitatory and inhibitory refractory durations, <NativeMath markup={formulae[69]} /> and <NativeMath markup={formulae[70]} />, therefore correspond exactly to 12 and 6 timesteps.
+
+<span id="loc-29" />
+
+## Output readout and classification loss
+
+The canonical classifier uses an output LIF with mean pre-reset voltage. Let <NativeMath markup={formulae[71]} /> be the final hidden E-population spike vector and <NativeMath markup={formulae[72]} /> the hidden-to-output matrix. With output decay <NativeMath markup={formulae[73]} />, the pre-reset dimensionless output state is
+
+<Equation id="loc-30" number="26" markup={formulae[74]} />
+
+The output spike and subtractive reset are
+
+<Equation id="loc-31" number="27" markup={formulae[75]} />
+
+where <NativeMath markup={formulae[76]} />. Output state and its evidence accumulator begin at zero for each independent image presentation. Hidden E/I voltages, conductances, spikes and refractory counters likewise initialize anew for every independent presentation. The decoder therefore receives presentation boundaries through these per-forward resets. The class score is the mean pre-reset state over the complete readout window:
+
+<Equation id="loc-32" number="28" markup={formulae[77]} />
+
+For minibatch member <NativeMath markup={formulae[78]} />, softmax-normalized evidence is
+
+<Equation id="" number="29" markup={formulae[79]} />
+
+It is used for optimization but is not assumed to be a calibrated probability. For true class <NativeMath markup={formulae[80]} />, the mean cross-entropy training loss is
+
+<Equation id="" number="30" markup={formulae[81]} />
+
+Some conditions add a one-sided firing-rate ceiling. Let <NativeMath markup={formulae[82]} /> be the spike count of hidden E neuron <NativeMath markup={formulae[83]} /> in layer <NativeMath markup={formulae[84]} /> for presentation <NativeMath markup={formulae[85]} />. Its sample-wise population-mean rate is
+
+<Equation id="loc-33" number="31" markup={formulae[86]} />
+
+With tested ceiling <NativeMath markup={formulae[87]} /> and coefficient <NativeMath markup={formulae[88]} />, the penalty is
+
+<Equation id="loc-34" number="32" markup={formulae[89]} />
+
+The canonical reference conditions set <NativeMath markup={formulae[90]} />; activity-ceiling conditions use [Equation 32](#loc-34) with a positive coefficient.
+
+<span id="loc-35" />
+
+## Backpropagation through time
+
+Collect all differentiable voltages, conductances, spikes, output states and accumulators into the state vector <NativeMath markup={formulae[91]} />. One complete simulation step has the abstract form
+
+<Equation id="loc-36" number="33" markup={formulae[92]} />
+
+<NativeMath markup={formulae[93]} /> is a bundle rather than one additional simulator equation. It combines the discrete synapse rule in [Equation 11](#loc-13) and the decay factors in [Equation 12](#loc-15); the population-specific conductance updates from [Equation 13](#loc-16) through [Equation 16](#loc-19); the implemented membrane update in [Equation 23](#loc-25); the refractory, spike and reset operations in [Equation 24](#loc-27) and [Equation 25](#loc-28); and the output update in [Equation 26](#loc-30) and [Equation 27](#loc-31). It also advances the accumulators used to construct [Equation 28](#loc-32) and [Equation 31](#loc-33). The earlier continuous equations and intermediate derivation steps explain these operations but are not extra updates inside <NativeMath markup={formulae[94]} />.
+
+Here <NativeMath markup={formulae[95]} /> denotes external input, <NativeMath markup={formulae[96]} /> is the shared trainable parameter vector, and <NativeMath markup={formulae[97]} /> includes the readout and objective defined in [Equation 28](#loc-32)–[Equation 32](#loc-34). At <NativeMath markup={formulae[98]} />, a <NativeMath markup={formulae[99]} /> presentation applies <NativeMath markup={formulae[100]} /> 2,000 times. Each copy has a different state but reuses the same parameters.
+
+Define the state sensitivity
+
+<Equation id="loc-37" number="34" markup={formulae[101]} />
+
+Let <NativeMath markup={formulae[102]} /> be component <NativeMath markup={formulae[103]} /> of the current state and <NativeMath markup={formulae[104]} /> component <NativeMath markup={formulae[105]} /> of <NativeMath markup={formulae[106]} />. The project evaluates its loss from the terminal readout and rate accumulators. Consequently, for <NativeMath markup={formulae[107]} />, the current state affects the loss through the next state. Applying the multivariable chain rule component by component gives
+
+<Equation id="loc-38" number="35" markup={formulae[108]} />
+
+The second line of [Equation 35](#loc-38) sums every route from state component <NativeMath markup={formulae[109]} /> to the later loss through next-state component <NativeMath markup={formulae[110]} />. The third line substitutes [Equation 34](#loc-37) and [Equation 33](#loc-36). Stacking the component equations produces the transpose-Jacobian vector product in the fourth line; the final line supplies the terminal condition from [Equation 33](#loc-36). Because each parameter is reused, its total gradient is
+
+<Equation id="loc-39" number="36" markup={formulae[111]} />
+
+[Equation 35](#loc-38) and [Equation 36](#loc-39) define backpropagation through time (BPTT). PyTorch autograd evaluates these vector–Jacobian products and accumulates parameter gradients when backward propagation is requested; it need not construct the full Jacobian matrices explicitly.\[[4](#ref-4)\]
+
+For example, the local recurrence <NativeMath markup={formulae[112]} /> gives
+
+<Equation id="loc-40" number="37" markup={formulae[113]} />
+
+[Equation 37](#loc-40) shows temporal credit assignment directly: every use of the shared weight contributes according to the later loss sensitivity of the conductance it created.
+
+<span id="loc-41" />
+
+## Surrogate spike derivatives
+
+BPTT requires derivatives of the update operations, but the hard spike in [Equation 25](#loc-28) has derivative zero away from threshold and is undefined at threshold. Direct use of that derivative would block useful learning signals.
+
+Surrogate-gradient learning retains the binary forward spike while assigning a smooth backward derivative.\[[2](#ref-2)\] For <NativeMath markup={formulae[114]} />, the chosen proxy is
+
+<Equation id="loc-42" number="38" markup={formulae[115]} />
+
+The approximate equality in [Equation 38](#loc-42) denotes an assigned backward rule rather than the true derivative of the Heaviside function. For hidden neurons, <NativeMath markup={formulae[116]} /> is measured in millivolts and <NativeMath markup={formulae[117]} /> in reciprocal millivolts. The standard classifiers use <NativeMath markup={formulae[118]} />.
+
+Let <NativeMath markup={formulae[119]} /> denote stop-gradient: it returns <NativeMath markup={formulae[120]} /> forward but has zero derivative. The simulator constructs
+
+<Equation id="loc-43" number="39" markup={formulae[121]} />
+
+[Equation 39](#loc-43) equals <NativeMath markup={formulae[122]} /> numerically, while autograd differentiates only <NativeMath markup={formulae[123]} />.\[[5](#ref-5)\] Boolean reset and refractory decisions remain non-differentiable. Resetting hidden voltage to a constant cuts that voltage-state path, while the floating spike value carries the surrogate derivative into downstream synapses and the readout.
+
+<span id="loc-44" />
+
+## Why voltage gradients can explode
+
+Expanding [Equation 35](#loc-38) across many steps produces repeated Jacobian products:
+
+<Equation id="loc-45" number="40" markup={formulae[124]} />
+
+Products in [Equation 40](#loc-45) can shrink useful sensitivities or amplify them. This project combines a 2,000-step graph with voltage, conductance, spike and output-state memory. PING adds a closed route by which a voltage perturbation can return to the population from which it began:
+
+<Equation id="loc-46" number="41" markup={formulae[125]} />
+
+The local gain of this route follows from the membrane equations rather than from an extra model quantity. Choose <NativeMath markup={formulae[126]} /> for excitatory conductance or <NativeMath markup={formulae[127]} /> for inhibitory conductance. Differentiating [Equation 18](#loc-22) and the decay <NativeMath markup={formulae[128]} /> in [Equation 23](#loc-25) gives
+
+<Equation id="" number="42" markup={formulae[129]} />
+
+Applying the product rule to <NativeMath markup={formulae[130]} /> gives the conductance-to-voltage response
+
+<Equation id="loc-47" number="43" markup={formulae[131]} />
+
+The response <NativeMath markup={formulae[132]} /> in [Equation 43](#loc-47) has units of millivolts per microsiemens. Let <NativeMath markup={formulae[133]} /> and <NativeMath markup={formulae[134]} /> be diagonal matrices of the appropriate responses at I and E neurons. Let <NativeMath markup={formulae[135]} /> and <NativeMath markup={formulae[136]} /> be diagonal matrices containing the local surrogate derivatives from [Equation 38](#loc-42). One complete backward traversal of [Equation 41](#loc-46) then has return Jacobian
+
+<Equation id="loc-48" number="44" markup={formulae[137]} />
+
+The transposes in [Equation 44](#loc-48) convert the simulator’s presynaptic-row, postsynaptic-column weight storage into maps acting on column perturbations.
+
+At a fixed local linearization, a sensitivity returning through the loop <NativeMath markup={formulae[138]} /> times contains <NativeMath markup={formulae[139]} />. If the spectral radius <NativeMath markup={formulae[140]} />, some modes grow geometrically. A singular value above one permits amplification over one traversal, while time-varying, non-normal products can amplify transiently even if each instantaneous eigenvalue has magnitude below one.\[[3](#ref-3)\] Inhibitory polarity can reverse a perturbation’s sign without making its magnitude small.
+
+Recurrence therefore does not guarantee exploding gradients. It creates the return operator in [Equation 44](#loc-48), which BPTT may traverse many times. Loop-disabled COBA lacks that particular operator, but it still carries gradients through membrane, conductance, spike and readout state across the same long presentation.
+
+Global gradient clipping cannot by itself repair this internal propagation. It acts only after BPTT has formed the complete parameter gradient. Internal sensitivities may already be enormous, non-finite, or dominated by the amplifying paths in [Equation 40](#loc-45) before clipping occurs.
+
+<span id="loc-49" />
+
+## Voltage-gradient damping
+
+The project therefore intervenes inside the backward recurrence while preserving the physical forward trajectory. For dimensionless divisor <NativeMath markup={formulae[141]} />, define
+
+<Equation id="loc-50" number="45" markup={formulae[142]} />
+
+Forward evaluation of [Equation 45](#loc-50) gives <NativeMath markup={formulae[143]} />, but its backward derivative is
+
+<Equation id="" number="46" markup={formulae[144]} />
+
+The hidden E and I membrane updates replace [Equation 23](#loc-25) by
+
+<Equation id="loc-51" number="47" markup={formulae[145]} />
+
+[Equation 45](#loc-50) and [Equation 47](#loc-51) leave voltages and spikes unchanged forward. Backward, each selected conductance-to-voltage response is multiplied by <NativeMath markup={formulae[146]} />. The PING return term in [Equation 44](#loc-48) consequently becomes
+
+<Equation id="" number="48" markup={formulae[147]} />
+
+The standard paired classifiers use <NativeMath markup={formulae[148]} />, so <NativeMath markup={formulae[149]} /> and this particular complete loop term is scaled by <NativeMath markup={formulae[150]} />. This does not scale the entire state Jacobian because [Equation 45](#loc-50) is inserted only on the <NativeMath markup={formulae[151]} /> branch of [Equation 47](#loc-51). For one hidden neuron, the three local derivatives entering its candidate voltage are therefore
+
+<Equation id="loc-52" number="49" markup={formulae[152]} />
+
+Thus the conductance-to-voltage blocks are multiplied by <NativeMath markup={formulae[153]} />, but the direct identity route from <NativeMath markup={formulae[154]} /> to <NativeMath markup={formulae[155]} /> retains coefficient one. The conductance decay and spike-injection blocks, the refractory-counter update, and the local output recurrence contain no damping operator and are not directly rescaled. Downstream composite derivatives can nevertheless inherit attenuation when their path passes through a damped hidden-voltage increment. There is therefore no scalar <NativeMath markup={formulae[156]} /> for which the complete step Jacobian is simply <NativeMath markup={formulae[157]} />.
+
+Holding conductances fixed before bounds and reset, [Equation 49](#loc-52) and [Equation 23](#loc-25) give
+
+<Equation id="loc-53" number="50" markup={formulae[158]} />
+
+Without damping, [Equation 50](#loc-53) reduces to <NativeMath markup={formulae[159]} />. Strong damping moves the direct old-voltage derivative toward one while attenuating sensitivities entering through the membrane increment. It can therefore suppress recurrent-drive amplification without simply erasing membrane memory.
+
+Voltage-gradient damping is an altered backward rule, not a biophysical process or the exact derivative of the forward simulator. It deliberately biases temporal credit assignment and may suppress useful sensitivities along with unstable ones. The divisor is therefore an empirical training choice. Standard classifiers apply it to hidden E and I membrane increments, before voltage bounds, spike detection and reset; output-neuron updates are undamped.\[[1](#ref-1)\]
+
+<span id="loc-54" />
+
+## Gradient clipping, AdamW, and Dale projection
+
+After BPTT has accumulated the batch gradient <NativeMath markup={formulae[160]} />, the trainer computes its global Euclidean norm
+
+<Equation id="" number="51" markup={formulae[161]} />
+
+With clipping threshold <NativeMath markup={formulae[162]} />, it replaces the gradient by
+
+<Equation id="loc-55" number="52" markup={formulae[163]} />
+
+A non-finite norm causes the optimizer step to be skipped. Otherwise AdamW forms first- and second-moment estimates
+
+<Equation id="loc-56" number="53" markup={formulae[164]} />
+
+The square in [Equation 53](#loc-56) is elementwise. Bias correction gives
+
+<Equation id="" number="54" markup={formulae[165]} />
+
+For learning rate <NativeMath markup={formulae[166]} />, decoupled weight decay <NativeMath markup={formulae[167]} />, and numerical stabilizer <NativeMath markup={formulae[168]} />, AdamW applies
+
+<Equation id="loc-57" number="55" markup={formulae[169]} />
+
+The standard training recipe used <NativeMath markup={formulae[170]} />, <NativeMath markup={formulae[171]} />, minibatches of 256 presentations and 50 epochs. With zero weight decay, [Equation 55](#loc-57) is numerically the Adam update for the same hyperparameters.
+
+Dale-constrained trainable connection weights are finally projected onto the non-negative orthant:
+
+<Equation id="loc-58" number="56" markup={formulae[172]} />
+
+The canonical input and readout matrices are trainable, while recurrent E–I matrices are fixed unless an experiment explicitly makes them trainable. Thus one optimization cycle evaluates the forward dynamics, computes [Equation 32](#loc-34), applies surrogate-gradient BPTT with the internal rule in [Equation 47](#loc-51), clips by [Equation 52](#loc-55), updates by [Equation 55](#loc-57), and finishes with [Equation 56](#loc-58).
+
+<span id="loc-59" />
+
+## Scope and interpretation
+
+The dynamical discretisation is a numerical approximation to the continuous hybrid system, although [Equation 9](#loc-11) and [Equation 22](#loc-24) exactly solve their respective subproblems under the stated within-step assumptions. Surrogate spike derivatives and voltage-gradient damping introduce additional backward rules: they make learning possible and tractable but do not turn BPTT into the exact derivative of a smooth physical neuron.
+
+The loop derivation isolates one interpretable amplification route rather than the full state Jacobian, and it does not imply that gamma oscillation itself causes gradient explosion. A paired empirical comparison can vary loop engagement and damping independently.

@@ -10,9 +10,10 @@
 #let meta = (
   title: "Turning the PING Loop On",
   created_at: "2026-05-13T00:00:00Z",
-  updated_at: "2026-10-06",
+  updated_at: "2026-10-09",
   description: "PING stripped to its biophysical fundamentals: free-running activity, population spectra and rate responses with the excitatory–inhibitory loop off and on.",
   collection: "gamma-gated-sparsity",
+  tags: ("data", "v36.0.0"),
 )
 
 #let inputs = ("exp023",)
@@ -34,6 +35,7 @@
   #let r = data-json(data-file("exp023/numbers.json"))
   #assert(r.schema == "exp023.analysis/v1", message: "Unsupported exp023 presentation")
   #let c = r.config
+  #let unified = c.schema == "exp023.recipe/v4"
   #let b = c.biophysics
   #let points = c.drive.raster_operating_points
   #let sweep = c.drive.fi_sweep
@@ -68,6 +70,9 @@
       (A–B) COBA and PING schematics; (C–D) E/I rasters; (E, G)
       E-population spectra; (F, H) firing-rate–input curves. COBA occupies
       A, C, E and F; PING occupies B, D, G and H. E spikes are black and I spikes red.
+      #if unified [C–H use the same #(sweep.n_in)-input network setup, with fixed
+        weights within each loop condition. E/G are spectra of the exact
+        recordings shown in C/D.]
       Rasters and spectra show #points.coba.t_ms ms at
       #points.coba.input_rate_hz and #points.ping.input_rate_hz Hz input,
       respectively. Rate curves show one-trial population means over the
@@ -198,7 +203,10 @@
     ],
     compute: [
   + *Construct the two loop conditions.* Both networks contained #c.n_e
-    excitatory (E) and #c.n_i inhibitory (I) neurons. An input layer drove E neurons through
+    excitatory (E) and #c.n_i inhibitory (I) neurons.
+    #if unified [One #(sweep.n_in)-channel input layer and the same realized weights
+      were reused across raster trials and the drive sweep within each loop condition.]
+    An input layer drove E neurons through
     feedforward weights; reciprocal E→I and I→E weights formed the PING loop,
     without E→E or I→I recurrence. Loop coupling was
     #points.coba.ei_strength or #points.ping.ei_strength; the I→E parent mean
@@ -249,7 +257,10 @@
     raster trial. A silent E population used neuron zero; a silent I population
     had no selected-neuron panels. Raster trials used #points.coba.n_in input
     channels at #points.coba.input_rate_hz Hz for COBA and
-    #points.ping.input_rate_hz Hz for PING, unlike the matched-drive sweep.
+    #points.ping.input_rate_hz Hz for PING.
+    #if unified [These trials used the same network setup as the matched-drive
+      sweep; only input rate differed.] else [Their input-channel count differed
+      from the matched-drive sweep.]
 
     #block(breakable: false)[For the selected neurons, recorded conductances
     and voltages gave

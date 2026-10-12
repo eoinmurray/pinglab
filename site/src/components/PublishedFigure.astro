@@ -1,0 +1,16 @@
+---
+import { imageUrl } from '../lib/pingstore';
+interface Props { run: string; file: string; id?: string; alt?: string; }
+const { run, file, id, alt = '' } = Astro.props;
+const url = imageUrl(run, file);
+const video = /\.(mp4|webm|ogv)$/.test(file);
+---
+<figure class="l-body" id={id}>
+  {video ? <video src={url} controls preload="metadata" aria-label={alt} /> :
+    <a class="figure-image" href={url} aria-label={`Open figure: ${alt}`}><img src={url} alt={alt} loading="lazy" decoding="async" /></a>}
+  <figcaption><slot /></figcaption>
+</figure>
+<style>
+  .figure-image { display: block; border-bottom: none; }
+  img, video { display: block; width: 100%; height: auto; }
+</style>

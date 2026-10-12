@@ -1,0 +1,26 @@
+---
+import { imageUrl, latestPresentation } from '../lib/pingstore';
+
+interface Props {
+  experiment: string;
+  file: string;
+  alt: string;
+  number: number;
+  id?: string;
+}
+
+const { experiment, file, alt, number, id } = Astro.props;
+const run = await latestPresentation(experiment);
+---
+
+<figure id={id} class="l-body">
+  <a class="figure-image" href={imageUrl(run.id, file)} aria-label={`Open Figure ${number} at full size`}>
+    <img src={imageUrl(run.id, file)} alt={alt} loading="lazy" decoding="async" />
+  </a>
+  <figcaption><strong>Figure {number}.</strong> <slot /></figcaption>
+</figure>
+
+<style>
+  .figure-image { display: block; border-bottom: none; }
+  img { display: block; width: 100%; height: auto; }
+</style>
