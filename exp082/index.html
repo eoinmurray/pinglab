@@ -1,0 +1,965 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="A multi-seed study of spike-count classification across input rates and presentation durations."><title>Spike-Count Classification in a Continuous Stream · Pinglab</title><style id="distill-prerendered-styles">/*
+ * Copyright 2018 The Distill Template Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+html {
+  font-size: 14px;
+	line-height: 1.6em;
+  /* font-family: "Libre Franklin", "Helvetica Neue", sans-serif; */
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Fira Sans", "Droid Sans", "Helvetica Neue", Arial, sans-serif;
+  /*, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";*/
+  text-size-adjust: 100%;
+  -ms-text-size-adjust: 100%;
+  -webkit-text-size-adjust: 100%;
+}
+
+@media(min-width: 768px) {
+  html {
+    font-size: 16px;
+  }
+}
+
+body {
+  margin: 0;
+}
+
+a {
+  color: #004276;
+}
+
+figure {
+  margin: 0;
+}
+
+table {
+	border-collapse: collapse;
+	border-spacing: 0;
+}
+
+table th {
+	text-align: left;
+}
+
+table thead {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+table thead th {
+  padding-bottom: 0.5em;
+}
+
+table tbody :first-child td {
+  padding-top: 0.5em;
+}
+
+pre {
+  overflow: auto;
+  max-width: 100%;
+}
+
+p {
+  margin-top: 0;
+  margin-bottom: 1em;
+}
+
+sup, sub {
+  vertical-align: baseline;
+  position: relative;
+  top: -0.4em;
+  line-height: 1em;
+}
+
+sub {
+  top: 0.4em;
+}
+
+.kicker,
+.marker {
+  font-size: 15px;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.5);
+}
+
+
+/* Headline */
+
+@media(min-width: 1024px) {
+  d-title h1 span {
+    display: block;
+  }
+}
+
+/* Figure */
+
+figure {
+  position: relative;
+  margin-bottom: 2.5em;
+  margin-top: 1.5em;
+}
+
+figcaption+figure {
+
+}
+
+figure img {
+  width: 100%;
+}
+
+figure svg text,
+figure svg tspan {
+}
+
+figcaption,
+.figcaption {
+  color: rgba(0, 0, 0, 0.6);
+  font-size: 12px;
+  line-height: 1.5em;
+}
+
+@media(min-width: 1024px) {
+figcaption,
+.figcaption {
+    font-size: 13px;
+  }
+}
+
+figure.external img {
+  background: white;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  box-shadow: 0 1px 8px rgba(0, 0, 0, 0.1);
+  padding: 18px;
+  box-sizing: border-box;
+}
+
+figcaption a {
+  color: rgba(0, 0, 0, 0.6);
+}
+
+figcaption b,
+figcaption strong, {
+  font-weight: 600;
+  color: rgba(0, 0, 0, 1.0);
+}
+/*
+ * Copyright 2018 The Distill Template Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+@supports not (display: grid) {
+  .base-grid,
+  distill-header,
+  d-title,
+  d-abstract,
+  d-article,
+  d-appendix,
+  distill-appendix,
+  d-byline,
+  d-footnote-list,
+  d-citation-list,
+  distill-footer {
+    display: block;
+    padding: 8px;
+  }
+}
+
+.base-grid,
+distill-header,
+d-title,
+d-abstract,
+d-article,
+d-appendix,
+distill-appendix,
+d-byline,
+d-footnote-list,
+d-citation-list,
+distill-footer {
+  display: grid;
+  justify-items: stretch;
+  grid-template-columns: [screen-start] 8px [page-start kicker-start text-start gutter-start middle-start] 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr [text-end page-end gutter-end kicker-end middle-end] 8px [screen-end];
+  grid-column-gap: 8px;
+}
+
+.grid {
+  display: grid;
+  grid-column-gap: 8px;
+}
+
+@media(min-width: 768px) {
+  .base-grid,
+  distill-header,
+  d-title,
+  d-abstract,
+  d-article,
+  d-appendix,
+  distill-appendix,
+  d-byline,
+  d-footnote-list,
+  d-citation-list,
+  distill-footer {
+    grid-template-columns: [screen-start] 1fr [page-start kicker-start middle-start text-start] 45px 45px 45px 45px 45px 45px 45px 45px [ kicker-end text-end gutter-start] 45px [middle-end] 45px [page-end gutter-end] 1fr [screen-end];
+    grid-column-gap: 16px;
+  }
+
+  .grid {
+    grid-column-gap: 16px;
+  }
+}
+
+@media(min-width: 1000px) {
+  .base-grid,
+  distill-header,
+  d-title,
+  d-abstract,
+  d-article,
+  d-appendix,
+  distill-appendix,
+  d-byline,
+  d-footnote-list,
+  d-citation-list,
+  distill-footer {
+    grid-template-columns: [screen-start] 1fr [page-start kicker-start] 50px [middle-start] 50px [text-start kicker-end] 50px 50px 50px 50px 50px 50px 50px 50px [text-end gutter-start] 50px [middle-end] 50px [page-end gutter-end] 1fr [screen-end];
+    grid-column-gap: 16px;
+  }
+
+  .grid {
+    grid-column-gap: 16px;
+  }
+}
+
+@media(min-width: 1180px) {
+  .base-grid,
+  distill-header,
+  d-title,
+  d-abstract,
+  d-article,
+  d-appendix,
+  distill-appendix,
+  d-byline,
+  d-footnote-list,
+  d-citation-list,
+  distill-footer {
+    grid-template-columns: [screen-start] 1fr [page-start kicker-start] 60px [middle-start] 60px [text-start kicker-end] 60px 60px 60px 60px 60px 60px 60px 60px [text-end gutter-start] 60px [middle-end] 60px [page-end gutter-end] 1fr [screen-end];
+    grid-column-gap: 32px;
+  }
+
+  .grid {
+    grid-column-gap: 32px;
+  }
+}
+
+
+
+
+.base-grid {
+  grid-column: screen;
+}
+
+/* .l-body,
+d-article > *  {
+  grid-column: text;
+}
+
+.l-page,
+d-title > *,
+d-figure {
+  grid-column: page;
+} */
+
+.l-gutter {
+  grid-column: gutter;
+}
+
+.l-text,
+.l-body {
+  grid-column: text;
+}
+
+.l-page {
+  grid-column: page;
+}
+
+.l-body-outset {
+  grid-column: middle;
+}
+
+.l-page-outset {
+  grid-column: page;
+}
+
+.l-screen {
+  grid-column: screen;
+}
+
+.l-screen-inset {
+  grid-column: screen;
+  padding-left: 16px;
+  padding-left: 16px;
+}
+
+
+/* Aside */
+
+d-article aside {
+  grid-column: gutter;
+  font-size: 12px;
+  line-height: 1.6em;
+  color: rgba(0, 0, 0, 0.6)
+}
+
+@media(min-width: 768px) {
+  aside {
+    grid-column: gutter;
+  }
+
+  .side {
+    grid-column: gutter;
+  }
+}
+/*
+ * Copyright 2018 The Distill Template Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+d-title {
+  padding: 2rem 0 1.5rem;
+  contain: layout style;
+  overflow-x: hidden;
+}
+
+@media(min-width: 768px) {
+  d-title {
+    padding: 4rem 0 1.5rem;
+  }
+}
+
+d-title h1 {
+  grid-column: text;
+  font-size: 40px;
+  font-weight: 700;
+  line-height: 1.1em;
+  margin: 0 0 0.5rem;
+}
+
+@media(min-width: 768px) {
+  d-title h1 {
+    font-size: 50px;
+  }
+}
+
+d-title p {
+  font-weight: 300;
+  font-size: 1.2rem;
+  line-height: 1.55em;
+  grid-column: text;
+}
+
+d-title .status {
+  margin-top: 0px;
+  font-size: 12px;
+  color: #009688;
+  opacity: 0.8;
+  grid-column: kicker;
+}
+
+d-title .status span {
+  line-height: 1;
+  display: inline-block;
+  padding: 6px 0;
+  border-bottom: 1px solid #80cbc4;
+  font-size: 11px;
+  text-transform: uppercase;
+}
+/*
+ * Copyright 2018 The Distill Template Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+d-byline {
+  contain: style;
+  overflow: hidden;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+  font-size: 0.8rem;
+  line-height: 1.8em;
+  padding: 1.5rem 0;
+  min-height: 1.8em;
+}
+
+
+d-byline .byline {
+  grid-template-columns: 1fr 1fr;
+  grid-column: text;
+}
+
+@media(min-width: 768px) {
+  d-byline .byline {
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+  }
+}
+
+d-byline .authors-affiliations {
+  grid-column-end: span 2;
+  grid-template-columns: 1fr 1fr;
+  margin-bottom: 1em;
+}
+
+@media(min-width: 768px) {
+  d-byline .authors-affiliations {
+    margin-bottom: 0;
+  }
+}
+
+d-byline h3 {
+  font-size: 0.6rem;
+  font-weight: 400;
+  color: rgba(0, 0, 0, 0.5);
+  margin: 0;
+  text-transform: uppercase;
+}
+
+d-byline p {
+  margin: 0;
+}
+
+d-byline a,
+d-article d-byline a {
+  color: rgba(0, 0, 0, 0.8);
+  text-decoration: none;
+  border-bottom: none;
+}
+
+d-article d-byline a:hover {
+  text-decoration: underline;
+  border-bottom: none;
+}
+
+d-byline p.author {
+  font-weight: 500;
+}
+
+d-byline .affiliations {
+
+}
+/*
+ * Copyright 2018 The Distill Template Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+d-article {
+  contain: layout style;
+  overflow-x: hidden;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+  padding-top: 2rem;
+  color: rgba(0, 0, 0, 0.8);
+}
+
+d-article > * {
+  grid-column: text;
+}
+
+@media(min-width: 768px) {
+  d-article {
+    font-size: 16px;
+  }
+}
+
+@media(min-width: 1024px) {
+  d-article {
+    font-size: 1.06rem;
+    line-height: 1.7em;
+  }
+}
+
+
+/* H2 */
+
+
+d-article .marker {
+  text-decoration: none;
+  border: none;
+  counter-reset: section;
+  grid-column: kicker;
+  line-height: 1.7em;
+}
+
+d-article .marker:hover {
+  border: none;
+}
+
+d-article .marker span {
+  padding: 0 3px 4px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.2);
+  position: relative;
+  top: 4px;
+}
+
+d-article .marker:hover span {
+  color: rgba(0, 0, 0, 0.7);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.7);
+}
+
+d-article h2 {
+  font-weight: 600;
+  font-size: 24px;
+  line-height: 1.25em;
+  margin: 2rem 0 1.5rem 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  padding-bottom: 1rem;
+}
+
+@media(min-width: 1024px) {
+  d-article h2 {
+    font-size: 36px;
+  }
+}
+
+/* H3 */
+
+d-article h3 {
+  font-weight: 700;
+  font-size: 18px;
+  line-height: 1.4em;
+  margin-bottom: 1em;
+  margin-top: 2em;
+}
+
+@media(min-width: 1024px) {
+  d-article h3 {
+    font-size: 20px;
+  }
+}
+
+/* H4 */
+
+d-article h4 {
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 14px;
+  line-height: 1.4em;
+}
+
+d-article a {
+  color: inherit;
+}
+
+d-article p,
+d-article ul,
+d-article ol,
+d-article blockquote {
+  margin-top: 0;
+  margin-bottom: 1em;
+  margin-left: 0;
+  margin-right: 0;
+}
+
+d-article blockquote {
+  border-left: 2px solid rgba(0, 0, 0, 0.2);
+  padding-left: 2em;
+  font-style: italic;
+  color: rgba(0, 0, 0, 0.6);
+}
+
+d-article a {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.4);
+  text-decoration: none;
+}
+
+d-article a:hover {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.8);
+}
+
+d-article .link {
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+d-article ul,
+d-article ol {
+  padding-left: 24px;
+}
+
+d-article li {
+  margin-bottom: 1em;
+  margin-left: 0;
+  padding-left: 0;
+}
+
+d-article li:last-child {
+  margin-bottom: 0;
+}
+
+d-article pre {
+  font-size: 14px;
+  margin-bottom: 20px;
+}
+
+d-article hr {
+  grid-column: screen;
+  width: 100%;
+  border: none;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  margin-top: 60px;
+  margin-bottom: 60px;
+}
+
+d-article section {
+  margin-top: 60px;
+  margin-bottom: 60px;
+}
+
+d-article span.equation-mimic {
+  font-family: georgia;
+  font-size: 115%;
+  font-style: italic;
+}
+
+d-article > d-code,
+d-article section > d-code  {
+  display: block;
+}
+
+d-article > d-math[block],
+d-article section > d-math[block]  {
+  display: block;
+}
+
+@media (max-width: 768px) {
+  d-article > d-code,
+  d-article section > d-code,
+  d-article > d-math[block],
+  d-article section > d-math[block] {
+      overflow-x: scroll;
+      -ms-overflow-style: none;  // IE 10+
+      overflow: -moz-scrollbars-none;  // Firefox
+  }
+
+  d-article > d-code::-webkit-scrollbar,
+  d-article section > d-code::-webkit-scrollbar,
+  d-article > d-math[block]::-webkit-scrollbar,
+  d-article section > d-math[block]::-webkit-scrollbar {
+    display: none;  // Safari and Chrome
+  }
+}
+
+d-article .citation {
+  color: #668;
+  cursor: pointer;
+}
+
+d-include {
+  width: auto;
+  display: block;
+}
+
+d-figure {
+  contain: layout style;
+}
+
+/* KaTeX */
+
+.katex, .katex-prerendered {
+  contain: style;
+  display: inline-block;
+}
+
+/* Tables */
+
+d-article table {
+  border-collapse: collapse;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.2);
+}
+
+d-article table th {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.2);
+}
+
+d-article table td {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+d-article table tr:last-of-type td {
+  border-bottom: none;
+}
+
+d-article table th,
+d-article table td {
+  font-size: 15px;
+  padding: 2px 8px;
+}
+
+d-article table tbody :first-child td {
+  padding-top: 2px;
+}
+/*
+ * Copyright 2018 The Distill Template Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+span.katex-display {
+  text-align: left;
+  padding: 8px 0 8px 0;
+  margin: 0.5em 0 0.5em 1em;
+}
+
+span.katex {
+  -webkit-font-smoothing: antialiased;
+  color: rgba(0, 0, 0, 0.8);
+  font-size: 1.18em;
+}
+/*
+ * Copyright 2018 The Distill Template Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+
+d-appendix {
+  contain: layout style;
+  font-size: 0.8em;
+  line-height: 1.7em;
+  margin-top: 60px;
+  margin-bottom: 0;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+  color: rgba(0,0,0,0.5);
+  padding-top: 60px;
+  padding-bottom: 48px;
+}
+
+d-appendix h3 {
+  grid-column: page-start / text-start;
+  font-size: 15px;
+  font-weight: 500;
+  margin-top: 1em;
+  margin-bottom: 0;
+  color: rgba(0,0,0,0.65);
+}
+
+d-appendix h3 + * {
+  margin-top: 1em;
+}
+
+d-appendix ol {
+  padding: 0 0 0 15px;
+}
+
+@media (min-width: 768px) {
+  d-appendix ol {
+    padding: 0 0 0 30px;
+    margin-left: -30px;
+  }
+}
+
+d-appendix li {
+  margin-bottom: 1em;
+}
+
+d-appendix a {
+  color: rgba(0, 0, 0, 0.6);
+}
+
+d-appendix > * {
+  grid-column: text;
+}
+
+d-appendix > d-footnote-list,
+d-appendix > d-citation-list,
+d-appendix > distill-appendix {
+  grid-column: screen;
+}
+
+/*
+ * Copyright 2018 The Distill Template Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+@media print {
+
+  @page {
+    size: 8in 11in;
+    @bottom-right {
+      content: counter(page) " of " counter(pages);
+    }
+  }
+
+  html {
+    /* no general margins -- CSS Grid takes care of those */
+  }
+
+  p, code {
+    page-break-inside: avoid;
+  }
+
+  h2, h3 {
+    page-break-after: avoid;
+  }
+
+  d-header {
+    visibility: hidden;
+  }
+
+  d-footer {
+    display: none!important;
+  }
+
+}
+</style><script src="/vendor/distill/template.v2.js"></script><style>.figure-image[data-astro-cid-olutqroj]{border-bottom:none;display:block}img[data-astro-cid-olutqroj],video[data-astro-cid-olutqroj]{width:100%;height:auto;display:block}.numbered-equation[data-astro-cid-eamd5iue]{grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:1em;margin:1.5rem 0;display:grid}.equation-body[data-astro-cid-eamd5iue]{min-width:0;overflow:auto hidden}.source-table[data-astro-cid-5mx3j6xp]{min-width:0;overflow-x:auto}.source-table[data-astro-cid-5mx3j6xp] table{border-collapse:collapse;width:100%;font-size:inherit}.source-table[data-astro-cid-5mx3j6xp] th,.source-table[data-astro-cid-5mx3j6xp] td{text-align:left;vertical-align:top;border-bottom:1px solid #0000001a;padding:.5em}
+</style><link rel="stylesheet" href="/_astro/collections.CMzbPoF5.css"><style>.dataset[data-astro-cid-sicvmbkj]{min-width:0}p[data-astro-cid-sicvmbkj]:first-child{margin-top:0}.table-scroll[data-astro-cid-sicvmbkj]{overflow-x:auto}table[data-astro-cid-sicvmbkj]{border-collapse:collapse;width:100%;font-size:inherit;line-height:inherit}th[data-astro-cid-sicvmbkj],td[data-astro-cid-sicvmbkj]{text-align:left;white-space:nowrap;border-bottom:1px solid #0000001a;padding:.6em .65em}th[data-astro-cid-sicvmbkj]:first-child,td[data-astro-cid-sicvmbkj]:first-child{padding-left:0}th[data-astro-cid-sicvmbkj]:last-child,td[data-astro-cid-sicvmbkj]:last-child{padding-right:0}th[data-astro-cid-sicvmbkj],.selected[data-astro-cid-sicvmbkj]{font-weight:600}d-byline{background:#f5f7f9}d-appendix{color:#000000a6;background:#eef2f5}@media print{d-byline,d-appendix{background:#fff}}d-byline .experiment-id{font-weight:600}d-byline .collection-link:hover{text-decoration:underline}.report-appendix{min-width:0;margin-bottom:2rem}.native-math,.native-math math{font-size:1em}d-article>.source-table{grid-column:text}@media (width>=768px){d-byline .byline{grid-template-columns:repeat(3,minmax(0,1fr));row-gap:12px}}@media (width>=1180px){d-byline .byline{grid-template-columns:repeat(5,minmax(0,1fr))}}.report-body{--report-content-top:4rem;position:relative}.report-body>d-article{min-width:0;padding-top:var(--report-content-top);grid-area:1/screen}.report-body>d-article>:first-child{margin-top:0}.report-toc{z-index:1;box-sizing:border-box;width:min(304px,100%);min-width:0;padding:calc(var(--report-content-top) + 1px) 24px 0;grid-area:1/screen-start/auto/text-start;justify-self:end;position:relative}.report-toc d-toc{max-height:calc(100vh - 48px);display:block;position:sticky;top:24px;overflow-y:auto}.report-toc h2{margin:0 0 12px;font-size:13px;font-weight:600;line-height:1.5}.report-toc ol{margin:0;padding:0;list-style:none}.report-toc li{margin-bottom:10px;font-size:12px;line-height:1.5}.report-toc .subsection{padding-left:12px}.report-toc a{color:#0009;border-bottom:none;text-decoration:none}.report-toc a:hover{color:#000}.report-abstract{grid-column:text}.report-abstract h2{margin-top:0}:is(d-article,d-appendix) [id]{scroll-margin-top:24px}@media (width<=1179px){.report-toc{grid-area:1/text;justify-self:stretch;width:auto;padding:32px 0 24px}.report-toc d-toc{max-height:none;position:static}.report-body>d-article{grid-row:2}.report-toc ol{columns:2;column-gap:24px}.report-toc li{break-inside:avoid}}@media print{.report-toc{display:none}}d-appendix .parameters{min-width:0;margin-bottom:2rem}d-appendix .parameters table{border-collapse:collapse;width:100%;font-size:inherit;line-height:inherit;margin-top:0}d-appendix .parameters th,d-appendix .parameters td{text-align:left;vertical-align:top;border-bottom:1px solid #0000001a;padding:.6em .65em}d-appendix .parameters th:first-child,d-appendix .parameters td:first-child{width:30%;padding-left:0}d-appendix .parameters th:last-child,d-appendix .parameters td:last-child{padding-right:0}@media (width<=999px){d-appendix h3{grid-column:text;margin-bottom:1em}}
+</style></head><body distill-prerendered><d-front-matter><script type="application/json">{"title":"Spike-Count Classification in a Continuous Stream","description":"A multi-seed study of spike-count classification across input rates and presentation durations.","authors":[{"author":"Eoin Murray","affiliations":[]}]}</script></d-front-matter><header class="site-header base-grid"><nav class="l-page" aria-label="Site"><a href="/">Pinglab</a><a class="collections-link" href="/collections">Collections</a></nav></header><main><d-title><h1>Spike-Count Classification in a Continuous Stream</h1><p>A multi-seed study of spike-count classification across input rates and presentation durations.</p></d-title><d-byline><div class="byline grid"><div><h3>Experiment</h3><p class="experiment-id">exp082</p></div><div><h3>Author</h3><p class="author">Eoin Murray</p></div><div><h3>Created</h3><p><time datetime="2026-08-10">2026-08-10</time></p></div><div><h3>Updated</h3><p><time datetime="2026-09-10">2026-09-10</time></p></div><div><h3>Collection</h3><p><a class="collection-link" href="/collections#collection-gamma-gated-sparsity">Gamma-gated sparsity</a></p></div></div></d-byline><div class="report-body base-grid"><aside class="report-toc"><d-toc prerendered="true"><nav aria-label="Table of contents"><h2>Contents</h2><ol><li><a href="#abstract">Abstract</a></li><li><a href="#results">Results</a></li><li class="subsection"><a href="#continuous-classification-and-accuracy">Continuous classification and accuracy</a></li><li class="subsection"><a href="#spike-counts-identify-the-digit">Spike counts identify the digit</a></li><li class="subsection"><a href="#spikes-change-the-displayed-shares">Spikes change the displayed shares</a></li><li class="subsection"><a href="#weak-inputs-expose-failure-modes">Weak inputs expose failure modes</a></li><li><a href="#methods">Methods</a></li><li><a href="#dataset">Dataset</a></li></ol></nav></d-toc></aside><d-article role="article" aria-label="Spike-Count Classification in a Continuous Stream"><section class="report-abstract" aria-labelledby="abstract"><h2 id="abstract">Abstract</h2><p>Input calibration in exp080 — Decoder Accuracy Improves with Input Rate motivated the rate range used to train a variable rate PING classifier in exp022 — Training Runs. We tested whether these networks could classify continuous digit streams while retaining hidden state. With image sequences matched across conditions, longer, stronger inputs improved accuracy. One network classified five successive digits correctly despite changing durations and rates. Weak inputs exposed silent and incorrect responses. Decisions required supplied digit boundaries, and the selected successful example does not estimate reliability.</p></section><span id="loc-2"></span>
+<h2 id="results">Results</h2>
+<span id="loc-3"></span>
+<h3 id="continuous-classification-and-accuracy">Continuous classification and accuracy</h3>
+<p>One frozen PING network correctly classified five successive digits with varying presentation durations and input rates (<a href="#loc-4">Fig. 1</a>A–D). Hidden neuronal state continued between digits, while output state and counts reset at supplied boundaries. This example demonstrates capability, not reliability across arbitrary streams. We reused the first stream with five correct decisions from a predefined candidate sequence; the first candidate qualified.</p>
+<p>At 25 Hz, increasing presentation duration from 25 to 200 ms raised mean accuracy from <span>75.2%</span> to <span>90.3%</span> (<a href="#loc-4">Fig. 1</a>E–F). At 200 ms, increasing input rate from 0.5 to 25 Hz raised accuracy from <span>26.3%</span> to <span>90.3%</span>. These comparisons used the same ordered images; variation from spike encoding and the small, fixed image sample remains.</p>
+<figure class="l-body" id="loc-4" data-astro-cid-olutqroj><a class="figure-image" href="/run-images/exp082-r033-present/continuous_stream_compound.png" aria-label="Open figure: Five correctly classified digits with varying durations and input rates, alongside mean accuracy across presentation duration and input rate and the 200-ms rate–accuracy curve." data-astro-cid-olutqroj><img src="/run-images/exp082-r033-present/continuous_stream_compound.png" alt="Five correctly classified digits with varying durations and input rates, alongside mean accuracy across presentation duration and input rate and the 200-ms rate–accuracy curve." loading="lazy" decoding="async" data-astro-cid-olutqroj></a><figcaption data-astro-cid-olutqroj><p>Figure 1: Seed-42 network presented with digits <span>1, 7, 9, 5 and 2</span>. Each segment is labelled with its duration and maximum-pixel input rate. <strong>(A)</strong> Input thumbnails with true→predicted labels. <strong>(B)</strong> Spikes from the first 200 excitatory neurons; <strong>(C)</strong> spikes from the first 64 inhibitory neurons; <strong>(D)</strong> softmax-normalized output-count shares. Red traces identify the true classes. Panels A–D reuse the selected illustrative recording, independently of the quantitative evaluation in E–F. <strong>(E)</strong> Accuracy across presentation duration and maximum-pixel input rate; <strong>(F)</strong> the 200-ms rate–accuracy curve. Values are means across three independently trained networks, each evaluated on <span>200</span> digit presentations per condition. The same 40 ordered five-image streams were used for every network and condition, with separate encoding draws. E has no uncertainty intervals; F shows SEM across networks.</p></figcaption></figure>
+<span id="loc-5"></span>
+<h3 id="spike-counts-identify-the-digit">Spike counts identify the digit</h3>
+<p>By the presentation’s end, the true class, digit <span>4</span>, had accumulated the largest output-spike count (<a href="#loc-6">Fig. 2</a>). Intermediate leaders did not determine the decision.</p>
+<figure class="l-body" id="loc-6" data-astro-cid-olutqroj><a class="figure-image" href="/run-images/exp082-r033-present/single_trial.png" aria-label="Open figure: A correctly classified digit with excitatory and inhibitory rasters and ten softmax count-share trajectories." data-astro-cid-olutqroj><img src="/run-images/exp082-r033-present/single_trial.png" alt="A correctly classified digit with excitatory and inhibitory rasters and ten softmax count-share trajectories." loading="lazy" decoding="async" data-astro-cid-olutqroj></a><figcaption data-astro-cid-olutqroj><p>Figure 2: First correct digit in the seed-42 network’s matched 200-ms, 5-Hz stream. <strong>(A)</strong> Spikes from the first 200 excitatory neurons; <strong>(B)</strong> spikes from the first 64 inhibitory neurons; <strong>(C)</strong> softmax-normalized output-count shares. Red identifies the true class. These shares are not calibrated probabilities. The predicted digit is the class with the largest share at the presentation’s end.</p></figcaption></figure>
+<span id="loc-7"></span>
+<h3 id="spikes-change-the-displayed-shares">Spikes change the displayed shares</h3>
+<p>Output counts stepped upward at spikes and remained constant between them (<a href="#loc-8">Fig. 3</a>). Softmax normalization changed the displayed class shares at these increments; abrupt share changes need not reflect abrupt changes in the underlying network state.</p>
+<figure class="l-body" id="loc-8" data-astro-cid-olutqroj><a class="figure-image" href="/run-images/exp082-r033-present/single_trial_transition.png" aria-label="Open figure: Output spikes, cumulative class counts and softmax count shares from 91.5 to 94.5 ms in the same digit presentation." data-astro-cid-olutqroj><img src="/run-images/exp082-r033-present/single_trial_transition.png" alt="Output spikes, cumulative class counts and softmax count shares from 91.5 to 94.5 ms in the same digit presentation." loading="lazy" decoding="async" data-astro-cid-olutqroj></a><figcaption data-astro-cid-olutqroj><p>Figure 3: Post-hoc enlargement of 91.5–94.5 ms from the digit-4 presentation. <strong>(A)</strong> Output spikes; <strong>(B)</strong> cumulative class counts; <strong>(C)</strong> softmax-normalized count shares. Red identifies the true class.</p></figcaption></figure>
+<span id="loc-9"></span>
+<h3 id="weak-inputs-expose-failure-modes">Weak inputs expose failure modes</h3>
+<p>A stream with varying durations and input rates produced <span>3</span> correct decisions (<a href="#loc-10">Fig. 4</a>). The 200-ms, 0.5-Hz presentation produced no output spikes, whereas the 100-ms, 2-Hz presentation was misclassified despite output activity.</p>
+<figure class="l-body" id="loc-10" data-astro-cid-olutqroj><a class="figure-image" href="/run-images/exp082-r033-present/variable_stream.png" aria-label="Open figure: Five digits with changing rates and durations: three correct predictions, a silent 0.5 Hz failure and a non-silent 2 Hz failure." data-astro-cid-olutqroj><img src="/run-images/exp082-r033-present/variable_stream.png" alt="Five digits with changing rates and durations: three correct predictions, a silent 0.5 Hz failure and a non-silent 2 Hz failure." loading="lazy" decoding="async" data-astro-cid-olutqroj></a><figcaption data-astro-cid-olutqroj><p>Figure 4: Seed-42 network under the duration–rate conditions labelled above each segment. <strong>(A)</strong> Input thumbnails; <strong>(B)</strong> excitatory spikes; <strong>(C)</strong> inhibitory spikes; <strong>(D)</strong> softmax-normalized output-count shares. Badges show true→predicted labels. Thumbnail opacity indicates relative input rate; population sampling matches Figure 1.</p></figcaption></figure>
+<span id="loc-11"></span>
+<h2 id="methods">Methods</h2>
+<ol>
+<li>
+<p><strong>Input range and classifiers.</strong> The filtered-input calibration in <a href="/exp080">exp080</a> — <a href="/exp080"><em>Decoder Accuracy Improves with Input Rate</em></a> motivated the input-rate range. We reused three frozen networks, trained with seeds 42–44, from <a href="/exp022">exp022</a> — <a href="/exp022"><em>Training Runs.</em></a> Each contained 1,024 excitatory neurons, 256 inhibitory neurons and ten output leaky integrate-and-fire neurons, with learned input-to-excitatory and excitatory-to-output projections and fixed recurrent weights. Evaluation held all weights fixed; the revised sampling protocol did not require retraining.</p>
+</li>
+<li>
+<p><strong>Simulation and refractory periods.</strong> We used a 0.1-ms integration timestep. Hidden excitatory and inhibitory neurons remained at reset for 1.2 and 0.6 ms after a spike, respectively, corresponding to 12 and six timesteps. Output neurons had no refractory period. The repeated evaluation specified these physical durations explicitly, preserving the refractory holds used by the earlier fixed-timestep measurements.</p>
+</li>
+<li>
+<p><strong>Training and checkpoint selection.</strong> Training used 6,300 optimization images and 700 validation images for 50 epochs. Maximum-pixel input rates were sampled from 0.5, 0.75, 1, 1.5, 2, 3, 5, 7.5, 10, 15 and 25 Hz. After each epoch, we evaluated the network on three independently spike-encoded versions of the validation images. Mean validation cross-entropy was</p>
+<div class="numbered-equation" id data-astro-cid-eamd5iue><div class="equation-body" data-astro-cid-eamd5iue><span class="native-math"><math display="block"><msub><mi>𝐿</mi><mtext>CE</mtext></msub><mo>=</mo><mo form="prefix">−</mo><mfrac><mn>1</mn><mrow><mi>𝐷</mi><mi>𝑁</mi></mrow></mfrac><munderover><mo form="prefix">∑</mo><mrow><mi>𝑑</mi><mo lspace="0em" rspace="0em">=</mo><mn>1</mn></mrow><mi>𝐷</mi></munderover><munderover><mo form="prefix" lspace="0em">∑</mo><mrow><mi>𝑖</mi><mo lspace="0em" rspace="0em">=</mo><mn>1</mn></mrow><mi>𝑁</mi></munderover><mo form="prefix" lspace="0em" rspace="0.16666666666666666em">log</mo><msubsup><mi>𝑝</mi><mrow><mi>𝑖</mi><mo rspace="0em">,</mo><msub><mi>𝑦</mi><mi>𝑖</mi></msub></mrow><mrow><mo>(</mo><mi>𝑑</mi><mo>)</mo></mrow></msubsup><mi>.</mi></math></span></div><span data-astro-cid-eamd5iue>(1)</span></div>
+<p>Here <span class="native-math"><math><mi>𝑁</mi><mo>=</mo><mn>700</mn></math></span> is the number of validation images, <span class="native-math"><math><mi>𝐷</mi><mo>=</mo><mn>3</mn></math></span> is the number of encoding draws, <span class="native-math"><math><msub><mi>𝑦</mi><mi>𝑖</mi></msub></math></span> is the true class of image <span class="native-math"><math><mi>𝑖</mi></math></span>, and <span class="native-math"><math><msubsup><mi>𝑝</mi><mrow><mi>𝑖</mi><mo rspace="0em">,</mo><msub><mi>𝑦</mi><mi>𝑖</mi></msub></mrow><mrow><mo>(</mo><mi>𝑑</mi><mo>)</mo></mrow></msubsup></math></span> is its true-class softmax share for draw <span class="native-math"><math><mi>𝑑</mi></math></span>, defined below. We selected the epoch with the lowest <span class="native-math"><math><msub><mi>𝐿</mi><mtext>CE</mtext></msub></math></span>. If epochs tied, we chose the one with higher validation accuracy, then the earlier epoch.</p>
+</li>
+<li>
+<p><strong>Evaluation streams.</strong> We repeated the quantitative evaluation using one prespecified bank of 40 five-image streams from the official 10,000-image MNIST test partition. Image sampling used seed 82000. Within each stream, we sampled five images uniformly without replacement and without class stratification; labels could repeat and images could recur across streams. Every network, duration and input rate used the same ordered image indices, so both image identity and preceding-image order were paired across conditions. We tested all eleven training rates at 25, 50, 100 and 200 ms (<a href="#loc-4">Fig. 1</a>E–F). Each duration–rate–network condition contained 40 five-digit streams, giving 200 decisions. The 132 network–duration–rate conditions therefore yielded 26,400 decisions, not 26,400 independently sampled images. Duration and rate were constant within each quantitative stream. Batches contained five streams with separate neuronal states.</p>
+</li>
+<li>
+<p><strong>Earlier evaluation and pairing.</strong> The earlier evaluation sampled images separately by condition. Its seed formula mapped 44 duration–rate combinations onto only 34 image-sampling seeds per network: ten pairs shared identical streams while the other conditions remained unpaired. The current quantitative results replace that mixed design with a common image bank. Image selection and encoding seeds both changed; differences from the earlier estimates cannot be attributed to image pairing alone. We reused the previously selected capability recording independently of this repeated grid evaluation.</p>
+</li>
+<li>
+<p><strong>Input encoding.</strong> Pixels generated independent Bernoulli spikes at 0.1-ms resolution. Spike probability was proportional to pixel intensity and the condition’s maximum-pixel input rate. Image selection and spike encoding used separate random generators. Each network–duration–rate–stream combination had a distinct encoding seed, giving 5,280 seeds across the quantitative grid. Each generator advanced across its stream’s five presentations. Pairing therefore matched images and their order, not realized input spike trains. Digits followed without gaps; segment labels give their durations and input rates (<a href="#loc-4">Fig. 1</a>A and <a href="#loc-10">Fig. 4</a>A).</p>
+</li>
+<li>
+<p><strong>State and decision boundaries.</strong> Each stream began with freshly initialized hidden and output states. Hidden neuronal and synaptic state then persisted between digits within that stream. Output-neuron state and spike counts reset at every supplied digit boundary. The readout accumulated evidence over the full presentation (<a href="#loc-4">Fig. 1</a>B–D and <a href="#loc-10">Fig. 4</a>B–D).</p>
+</li>
+<li>
+<p><strong>Spike-count classification.</strong> The cumulative score for class <span class="native-math"><math><mi>𝑐</mi></math></span> at timestep <span class="native-math"><math><mi>𝑘</mi></math></span> was</p>
+<div class="numbered-equation" id="eq-cumulative-count" data-astro-cid-eamd5iue><div class="equation-body" data-astro-cid-eamd5iue><span class="native-math"><math display="block"><msub><mi>𝑧</mi><mrow><mi>𝑐</mi><mrow><mo>[</mo><mi>𝑘</mi><mo>]</mo></mrow></mrow></msub><mo>=</mo><munderover><mo form="prefix" lspace="0em">∑</mo><mrow><mi>𝑗</mi><mo lspace="0em" rspace="0em">=</mo><msub><mi>𝑘</mi><mn>0</mn></msub></mrow><mi>𝑘</mi></munderover><msub><mi>𝑠</mi><mrow><mi>𝑐</mi><mrow><mo>[</mo><mi>𝑗</mi><mo>]</mo></mrow></mrow></msub><mo rspace="0em">,</mo></math></span></div><span data-astro-cid-eamd5iue>(2)</span></div>
+<p>where <span class="native-math"><math><msub><mi>𝑘</mi><mn>0</mn></msub></math></span> is the first timestep of the presentation and <span class="native-math"><math><msub><mi>𝑠</mi><mrow><mi>𝑐</mi><mrow><mo>[</mo><mi>𝑗</mi><mo>]</mo></mrow></mrow></msub></math></span> equals 1 when output neuron <span class="native-math"><math><mi>𝑐</mi></math></span> spikes at timestep <span class="native-math"><math><mi>𝑗</mi></math></span>, and 0 otherwise. The displayed class share was</p>
+<div class="numbered-equation" id="eq-count-share" data-astro-cid-eamd5iue><div class="equation-body" data-astro-cid-eamd5iue><span class="native-math"><math display="block"><msub><mi>𝑝</mi><mrow><mi>𝑐</mi><mrow><mo>[</mo><mi>𝑘</mi><mo>]</mo></mrow></mrow></msub><mo>=</mo><mfrac><mrow><mo lspace="0em" rspace="0em">exp</mo><mrow><mo>(</mo><msub><mi>𝑧</mi><mrow><mi>𝑐</mi><mrow><mo>[</mo><mi>𝑘</mi><mo>]</mo></mrow></mrow></msub><mo>)</mo></mrow></mrow><mrow><msubsup><mo lspace="0em">∑</mo><mrow><mi>𝑎</mi><mo lspace="0em" rspace="0em">=</mo><mn>0</mn></mrow><mn>9</mn></msubsup><mo form="prefix" lspace="0em" rspace="0em">exp</mo><mrow><mo>(</mo><msub><mi>𝑧</mi><mrow><mi>𝑎</mi><mrow><mo>[</mo><mi>𝑘</mi><mo>]</mo></mrow></mrow></msub><mo>)</mo></mrow></mrow></mfrac><mo rspace="0em">,</mo></math></span></div><span data-astro-cid-eamd5iue>(3)</span></div>
+<p>where <span class="native-math"><math><mi>𝑎</mi></math></span> indexes the ten digit classes. These softmax shares are not calibrated probabilities.</p>
+<p>At the final timestep <span class="native-math"><math><msub><mi>𝑘</mi><mtext>end</mtext></msub></math></span>, we predicted</p>
+<div class="numbered-equation" id data-astro-cid-eamd5iue><div class="equation-body" data-astro-cid-eamd5iue><span class="native-math"><math display="block"><mover accent="true"><mi>𝑦</mi><mo>̂</mo></mover><mo>=</mo><mo form="prefix" lspace="0em" rspace="0.16666666666666666em">arg</mo><munder><mo form="prefix" lspace="0em" rspace="0.16666666666666666em">max</mo><mrow><mi>𝑐</mi><mo lspace="0em" rspace="0em">∈</mo><mrow><mo>{</mo><mrow><mn>0</mn><mo rspace="0em">,</mo><mi>…</mi><mo rspace="0em">,</mo><mn>9</mn></mrow><mo>}</mo></mrow></mrow></munder><msub><mi>𝑧</mi><mrow><mi>𝑐</mi><mrow><mo>[</mo><msub><mi>𝑘</mi><mtext>end</mtext></msub><mo>]</mo></mrow></mrow></msub><mo>=</mo><mo form="prefix" lspace="0em" rspace="0.16666666666666666em">arg</mo><munder><mo form="prefix" lspace="0em" rspace="0.16666666666666666em">max</mo><mrow><mi>𝑐</mi><mo lspace="0em" rspace="0em">∈</mo><mrow><mo>{</mo><mrow><mn>0</mn><mo rspace="0em">,</mo><mi>…</mi><mo rspace="0em">,</mo><mn>9</mn></mrow><mo>}</mo></mrow></mrow></munder><msub><mi>𝑝</mi><mrow><mi>𝑐</mi><mrow><mo>[</mo><msub><mi>𝑘</mi><mtext>end</mtext></msub><mo>]</mo></mrow></mrow></msub><mo rspace="0em">,</mo></math></span></div><span data-astro-cid-eamd5iue>(4)</span></div>
+<p>where <span class="native-math"><math><mover accent="true"><mi>𝑦</mi><mo>̂</mo></mover></math></span> is the predicted digit: the class with the greatest final cumulative count, equivalently the largest final displayed share (<a href="#loc-6">Fig. 2</a>C). Ties selected the lowest class index, including class 0 when all outputs were silent.</p>
+</li>
+<li>
+<p><strong>Performance summaries.</strong> We calculated accuracy for each duration–rate–network condition and summarized network-level measurements as means and SEM across three training replicates (<a href="#loc-4">Fig. 1</a>E–F). Accuracy included silent presentations and all other decisions. SEM was sample SD divided by the square root of three; it summarizes observed variation across networks and their encoding draws, not uncertainty across independent image banks. The 200-ms curve reuses the corresponding heatmap evaluations. One shared image bank and one encoding draw per network, condition and stream do not separately estimate image-sampling, encoding and training variability.</p>
+</li>
+<li>
+<p><strong>Capability example.</strong> We reused a seed-42 recording selected with the predefined sequence of duration–rate pairs: <span>(100 ms, 5 Hz), (200 ms, 7.5 Hz), (50 ms, 25 Hz), (100 ms, 15 Hz) and (200 ms, 10 Hz)</span>. We fixed candidate order and digit-sampling and encoding seeds before inference. <a href="#loc-4">Fig. 1</a> uses the first candidate achieving five correct decisions. This search used five distinct digit classes per candidate, unlike the quantitative image sampling, which allowed repeated labels. The first candidate, with image-selection seed 820000 and encoding seed 830000, qualified. It was not drawn from the quantitative image bank.</p>
+</li>
+<li>
+<p><strong>Failure example.</strong> We reused a separately specified seed-42 stream with pairs (200 ms, 0.5 Hz), (50 ms, 25 Hz), (100 ms, 2 Hz), (25 ms, 10 Hz) and (200 ms, 5 Hz). This example was not selected through the capability search (<a href="#loc-10">Fig. 4</a>).</p>
+</li>
+<li>
+<p><strong>Readout close-up.</strong> We selected the first correct digit from a separate 200-ms, 5-Hz stream (<a href="#loc-6">Fig. 2</a>) and enlarged its 91.5–94.5-ms interval post hoc (<a href="#loc-8">Fig. 3</a>). Equations <a href="#eq-cumulative-count">Equation 2</a> and <a href="#eq-count-share">Equation 3</a> define the displayed counts and shares.</p>
+</li>
+<li>
+<p><strong>Scope of inference.</strong> We evaluated classification with known boundaries and continuing hidden state, without testing autonomous segmentation, a hidden-state-reset control, or gamma activity’s causal contribution to recognition. Presentation and readout windows changed together, so the duration comparison does not separate extra sensory exposure from extra integration time. The selected success and separately specified failure stream are illustrations, not estimates of the frequency of such outcomes.</p>
+</li>
+</ol></d-article></div><d-appendix distill-prerendered="true" aria-label="Report appendix"><h3 id="dataset" data-astro-cid-sicvmbkj>Dataset</h3><section class="dataset" aria-labelledby="dataset" data-astro-cid-sicvmbkj><p data-astro-cid-sicvmbkj>Figures use the recorded presentation selections and their same-experiment inputs. The table includes completed run history; the presentation used by this report is emphasized. Dates are run creation times in UTC; durations cover each stage separately, and sizes cover its exported files. For imported runs, durations and execution locations refer to the recorded producing execution.</p><p data-astro-cid-sicvmbkj>Upstream: <a href="/exp022" data-astro-cid-sicvmbkj>exp022</a> — <a href="/exp022" data-astro-cid-sicvmbkj><em data-astro-cid-sicvmbkj>Training Runs</em></a></p><p data-astro-cid-sicvmbkj>Downstream: <a href="/exp110" data-astro-cid-sicvmbkj>exp110</a> — <a href="/exp110" data-astro-cid-sicvmbkj><em data-astro-cid-sicvmbkj>Manuscript</em></a></p><div class="table-scroll" tabindex="0" role="region" aria-label="Dataset runs" data-astro-cid-sicvmbkj><table data-astro-cid-sicvmbkj><thead data-astro-cid-sicvmbkj><tr data-astro-cid-sicvmbkj><th scope="col" data-astro-cid-sicvmbkj>Run</th><th scope="col" data-astro-cid-sicvmbkj>Date</th><th scope="col" data-astro-cid-sicvmbkj>Duration</th><th scope="col" data-astro-cid-sicvmbkj>Size</th><th scope="col" data-astro-cid-sicvmbkj>Ran on</th></tr></thead><tbody data-astro-cid-sicvmbkj><tr data-astro-cid-sicvmbkj><td data-astro-cid-sicvmbkj><span class="selected" title="Presentation used by this report" data-astro-cid-sicvmbkj>exp082-r033-present</span></td><td data-astro-cid-sicvmbkj><time datetime="2026-10-05T11:51:25+00:00" data-astro-cid-sicvmbkj>5 Oct 2026, 11:51</time></td><td title="Recorded producing execution time for this stage; excludes upstream runs and import time" data-astro-cid-sicvmbkj>3s</td><td title="1455163 bytes" data-astro-cid-sicvmbkj>1.5 MB</td><td data-astro-cid-sicvmbkj>Local</td></tr><tr data-astro-cid-sicvmbkj><td data-astro-cid-sicvmbkj><span title="analyse" data-astro-cid-sicvmbkj>exp082-r032-analyse</span></td><td data-astro-cid-sicvmbkj><time datetime="2026-10-05T11:51:01+00:00" data-astro-cid-sicvmbkj>5 Oct 2026, 11:51</time></td><td title="Recorded producing execution time for this stage; excludes upstream runs and import time" data-astro-cid-sicvmbkj>2s</td><td title="174196 bytes" data-astro-cid-sicvmbkj>174.2 KB</td><td data-astro-cid-sicvmbkj>Local</td></tr><tr data-astro-cid-sicvmbkj><td data-astro-cid-sicvmbkj><span title="compute" data-astro-cid-sicvmbkj>exp082-r031-compute</span></td><td data-astro-cid-sicvmbkj><time datetime="2026-10-05T11:50:36+00:00" data-astro-cid-sicvmbkj>5 Oct 2026, 11:50</time></td><td title="Recorded producing execution time for this stage; excludes upstream runs and import time" data-astro-cid-sicvmbkj>—</td><td title="686611 bytes" data-astro-cid-sicvmbkj>686.6 KB</td><td data-astro-cid-sicvmbkj>Unknown</td></tr></tbody></table></div></section></d-appendix></main><script type="module">var e,t,n=document.createElement(`aside`);n.className=`citation-preview`,n.id=`citation-preview`,n.setAttribute(`role`,`tooltip`),n.hidden=!0,document.body.append(n);function r(){clearTimeout(t),n.hidden=!0,e?.removeAttribute(`aria-describedby`),e=void 0}function i(){t=setTimeout(r,180)}function a(r){clearTimeout(t),e?.removeAttribute(`aria-describedby`);let i=document.getElementById(decodeURIComponent(r.hash.slice(1))),a=i?.closest(`li`)??i?.parentElement;if(!a)return;e=r,n.replaceChildren(...Array.from(a.childNodes).map(e=>e.cloneNode(!0))),n.querySelectorAll(`[id]`).forEach(e=>e.removeAttribute(`id`)),n.hidden=!1,r.setAttribute(`aria-describedby`,n.id);let o=r.getBoundingClientRect(),s=n.getBoundingClientRect().width;n.style.left=`${Math.max(12,Math.min(o.left,innerWidth-s-12))}px`,n.style.top=`${Math.min(o.bottom+8,Math.max(12,innerHeight-n.offsetHeight-12))}px`}for(let e of document.querySelectorAll(`d-article a[href^="#ref-"]`))e.addEventListener(`mouseenter`,()=>a(e)),e.addEventListener(`focus`,()=>a(e)),e.addEventListener(`mouseleave`,i),e.addEventListener(`blur`,i);n.addEventListener(`mouseenter`,()=>clearTimeout(t)),n.addEventListener(`mouseleave`,i),n.addEventListener(`focusin`,()=>clearTimeout(t)),n.addEventListener(`focusout`,i),document.addEventListener(`keydown`,e=>{e.key===`Escape`&&r()}),window.addEventListener(`scroll`,r,{passive:!0});</script></body></html>

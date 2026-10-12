@@ -1,0 +1,1074 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="A textbook derivation of the conductance-based COBA and PING equations, their discrete simulation, and their training by surrogate-gradient BPTT, voltage-gradient damping, gradient clipping, AdamW, and Dale projection."><title>COBA and PING Dynamics, Discretisation, and Learning · Pinglab</title><style id="distill-prerendered-styles">/*
+ * Copyright 2018 The Distill Template Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+html {
+  font-size: 14px;
+	line-height: 1.6em;
+  /* font-family: "Libre Franklin", "Helvetica Neue", sans-serif; */
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Fira Sans", "Droid Sans", "Helvetica Neue", Arial, sans-serif;
+  /*, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";*/
+  text-size-adjust: 100%;
+  -ms-text-size-adjust: 100%;
+  -webkit-text-size-adjust: 100%;
+}
+
+@media(min-width: 768px) {
+  html {
+    font-size: 16px;
+  }
+}
+
+body {
+  margin: 0;
+}
+
+a {
+  color: #004276;
+}
+
+figure {
+  margin: 0;
+}
+
+table {
+	border-collapse: collapse;
+	border-spacing: 0;
+}
+
+table th {
+	text-align: left;
+}
+
+table thead {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+table thead th {
+  padding-bottom: 0.5em;
+}
+
+table tbody :first-child td {
+  padding-top: 0.5em;
+}
+
+pre {
+  overflow: auto;
+  max-width: 100%;
+}
+
+p {
+  margin-top: 0;
+  margin-bottom: 1em;
+}
+
+sup, sub {
+  vertical-align: baseline;
+  position: relative;
+  top: -0.4em;
+  line-height: 1em;
+}
+
+sub {
+  top: 0.4em;
+}
+
+.kicker,
+.marker {
+  font-size: 15px;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.5);
+}
+
+
+/* Headline */
+
+@media(min-width: 1024px) {
+  d-title h1 span {
+    display: block;
+  }
+}
+
+/* Figure */
+
+figure {
+  position: relative;
+  margin-bottom: 2.5em;
+  margin-top: 1.5em;
+}
+
+figcaption+figure {
+
+}
+
+figure img {
+  width: 100%;
+}
+
+figure svg text,
+figure svg tspan {
+}
+
+figcaption,
+.figcaption {
+  color: rgba(0, 0, 0, 0.6);
+  font-size: 12px;
+  line-height: 1.5em;
+}
+
+@media(min-width: 1024px) {
+figcaption,
+.figcaption {
+    font-size: 13px;
+  }
+}
+
+figure.external img {
+  background: white;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  box-shadow: 0 1px 8px rgba(0, 0, 0, 0.1);
+  padding: 18px;
+  box-sizing: border-box;
+}
+
+figcaption a {
+  color: rgba(0, 0, 0, 0.6);
+}
+
+figcaption b,
+figcaption strong, {
+  font-weight: 600;
+  color: rgba(0, 0, 0, 1.0);
+}
+/*
+ * Copyright 2018 The Distill Template Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+@supports not (display: grid) {
+  .base-grid,
+  distill-header,
+  d-title,
+  d-abstract,
+  d-article,
+  d-appendix,
+  distill-appendix,
+  d-byline,
+  d-footnote-list,
+  d-citation-list,
+  distill-footer {
+    display: block;
+    padding: 8px;
+  }
+}
+
+.base-grid,
+distill-header,
+d-title,
+d-abstract,
+d-article,
+d-appendix,
+distill-appendix,
+d-byline,
+d-footnote-list,
+d-citation-list,
+distill-footer {
+  display: grid;
+  justify-items: stretch;
+  grid-template-columns: [screen-start] 8px [page-start kicker-start text-start gutter-start middle-start] 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr [text-end page-end gutter-end kicker-end middle-end] 8px [screen-end];
+  grid-column-gap: 8px;
+}
+
+.grid {
+  display: grid;
+  grid-column-gap: 8px;
+}
+
+@media(min-width: 768px) {
+  .base-grid,
+  distill-header,
+  d-title,
+  d-abstract,
+  d-article,
+  d-appendix,
+  distill-appendix,
+  d-byline,
+  d-footnote-list,
+  d-citation-list,
+  distill-footer {
+    grid-template-columns: [screen-start] 1fr [page-start kicker-start middle-start text-start] 45px 45px 45px 45px 45px 45px 45px 45px [ kicker-end text-end gutter-start] 45px [middle-end] 45px [page-end gutter-end] 1fr [screen-end];
+    grid-column-gap: 16px;
+  }
+
+  .grid {
+    grid-column-gap: 16px;
+  }
+}
+
+@media(min-width: 1000px) {
+  .base-grid,
+  distill-header,
+  d-title,
+  d-abstract,
+  d-article,
+  d-appendix,
+  distill-appendix,
+  d-byline,
+  d-footnote-list,
+  d-citation-list,
+  distill-footer {
+    grid-template-columns: [screen-start] 1fr [page-start kicker-start] 50px [middle-start] 50px [text-start kicker-end] 50px 50px 50px 50px 50px 50px 50px 50px [text-end gutter-start] 50px [middle-end] 50px [page-end gutter-end] 1fr [screen-end];
+    grid-column-gap: 16px;
+  }
+
+  .grid {
+    grid-column-gap: 16px;
+  }
+}
+
+@media(min-width: 1180px) {
+  .base-grid,
+  distill-header,
+  d-title,
+  d-abstract,
+  d-article,
+  d-appendix,
+  distill-appendix,
+  d-byline,
+  d-footnote-list,
+  d-citation-list,
+  distill-footer {
+    grid-template-columns: [screen-start] 1fr [page-start kicker-start] 60px [middle-start] 60px [text-start kicker-end] 60px 60px 60px 60px 60px 60px 60px 60px [text-end gutter-start] 60px [middle-end] 60px [page-end gutter-end] 1fr [screen-end];
+    grid-column-gap: 32px;
+  }
+
+  .grid {
+    grid-column-gap: 32px;
+  }
+}
+
+
+
+
+.base-grid {
+  grid-column: screen;
+}
+
+/* .l-body,
+d-article > *  {
+  grid-column: text;
+}
+
+.l-page,
+d-title > *,
+d-figure {
+  grid-column: page;
+} */
+
+.l-gutter {
+  grid-column: gutter;
+}
+
+.l-text,
+.l-body {
+  grid-column: text;
+}
+
+.l-page {
+  grid-column: page;
+}
+
+.l-body-outset {
+  grid-column: middle;
+}
+
+.l-page-outset {
+  grid-column: page;
+}
+
+.l-screen {
+  grid-column: screen;
+}
+
+.l-screen-inset {
+  grid-column: screen;
+  padding-left: 16px;
+  padding-left: 16px;
+}
+
+
+/* Aside */
+
+d-article aside {
+  grid-column: gutter;
+  font-size: 12px;
+  line-height: 1.6em;
+  color: rgba(0, 0, 0, 0.6)
+}
+
+@media(min-width: 768px) {
+  aside {
+    grid-column: gutter;
+  }
+
+  .side {
+    grid-column: gutter;
+  }
+}
+/*
+ * Copyright 2018 The Distill Template Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+d-title {
+  padding: 2rem 0 1.5rem;
+  contain: layout style;
+  overflow-x: hidden;
+}
+
+@media(min-width: 768px) {
+  d-title {
+    padding: 4rem 0 1.5rem;
+  }
+}
+
+d-title h1 {
+  grid-column: text;
+  font-size: 40px;
+  font-weight: 700;
+  line-height: 1.1em;
+  margin: 0 0 0.5rem;
+}
+
+@media(min-width: 768px) {
+  d-title h1 {
+    font-size: 50px;
+  }
+}
+
+d-title p {
+  font-weight: 300;
+  font-size: 1.2rem;
+  line-height: 1.55em;
+  grid-column: text;
+}
+
+d-title .status {
+  margin-top: 0px;
+  font-size: 12px;
+  color: #009688;
+  opacity: 0.8;
+  grid-column: kicker;
+}
+
+d-title .status span {
+  line-height: 1;
+  display: inline-block;
+  padding: 6px 0;
+  border-bottom: 1px solid #80cbc4;
+  font-size: 11px;
+  text-transform: uppercase;
+}
+/*
+ * Copyright 2018 The Distill Template Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+d-byline {
+  contain: style;
+  overflow: hidden;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+  font-size: 0.8rem;
+  line-height: 1.8em;
+  padding: 1.5rem 0;
+  min-height: 1.8em;
+}
+
+
+d-byline .byline {
+  grid-template-columns: 1fr 1fr;
+  grid-column: text;
+}
+
+@media(min-width: 768px) {
+  d-byline .byline {
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+  }
+}
+
+d-byline .authors-affiliations {
+  grid-column-end: span 2;
+  grid-template-columns: 1fr 1fr;
+  margin-bottom: 1em;
+}
+
+@media(min-width: 768px) {
+  d-byline .authors-affiliations {
+    margin-bottom: 0;
+  }
+}
+
+d-byline h3 {
+  font-size: 0.6rem;
+  font-weight: 400;
+  color: rgba(0, 0, 0, 0.5);
+  margin: 0;
+  text-transform: uppercase;
+}
+
+d-byline p {
+  margin: 0;
+}
+
+d-byline a,
+d-article d-byline a {
+  color: rgba(0, 0, 0, 0.8);
+  text-decoration: none;
+  border-bottom: none;
+}
+
+d-article d-byline a:hover {
+  text-decoration: underline;
+  border-bottom: none;
+}
+
+d-byline p.author {
+  font-weight: 500;
+}
+
+d-byline .affiliations {
+
+}
+/*
+ * Copyright 2018 The Distill Template Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+d-article {
+  contain: layout style;
+  overflow-x: hidden;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+  padding-top: 2rem;
+  color: rgba(0, 0, 0, 0.8);
+}
+
+d-article > * {
+  grid-column: text;
+}
+
+@media(min-width: 768px) {
+  d-article {
+    font-size: 16px;
+  }
+}
+
+@media(min-width: 1024px) {
+  d-article {
+    font-size: 1.06rem;
+    line-height: 1.7em;
+  }
+}
+
+
+/* H2 */
+
+
+d-article .marker {
+  text-decoration: none;
+  border: none;
+  counter-reset: section;
+  grid-column: kicker;
+  line-height: 1.7em;
+}
+
+d-article .marker:hover {
+  border: none;
+}
+
+d-article .marker span {
+  padding: 0 3px 4px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.2);
+  position: relative;
+  top: 4px;
+}
+
+d-article .marker:hover span {
+  color: rgba(0, 0, 0, 0.7);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.7);
+}
+
+d-article h2 {
+  font-weight: 600;
+  font-size: 24px;
+  line-height: 1.25em;
+  margin: 2rem 0 1.5rem 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  padding-bottom: 1rem;
+}
+
+@media(min-width: 1024px) {
+  d-article h2 {
+    font-size: 36px;
+  }
+}
+
+/* H3 */
+
+d-article h3 {
+  font-weight: 700;
+  font-size: 18px;
+  line-height: 1.4em;
+  margin-bottom: 1em;
+  margin-top: 2em;
+}
+
+@media(min-width: 1024px) {
+  d-article h3 {
+    font-size: 20px;
+  }
+}
+
+/* H4 */
+
+d-article h4 {
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 14px;
+  line-height: 1.4em;
+}
+
+d-article a {
+  color: inherit;
+}
+
+d-article p,
+d-article ul,
+d-article ol,
+d-article blockquote {
+  margin-top: 0;
+  margin-bottom: 1em;
+  margin-left: 0;
+  margin-right: 0;
+}
+
+d-article blockquote {
+  border-left: 2px solid rgba(0, 0, 0, 0.2);
+  padding-left: 2em;
+  font-style: italic;
+  color: rgba(0, 0, 0, 0.6);
+}
+
+d-article a {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.4);
+  text-decoration: none;
+}
+
+d-article a:hover {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.8);
+}
+
+d-article .link {
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+d-article ul,
+d-article ol {
+  padding-left: 24px;
+}
+
+d-article li {
+  margin-bottom: 1em;
+  margin-left: 0;
+  padding-left: 0;
+}
+
+d-article li:last-child {
+  margin-bottom: 0;
+}
+
+d-article pre {
+  font-size: 14px;
+  margin-bottom: 20px;
+}
+
+d-article hr {
+  grid-column: screen;
+  width: 100%;
+  border: none;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  margin-top: 60px;
+  margin-bottom: 60px;
+}
+
+d-article section {
+  margin-top: 60px;
+  margin-bottom: 60px;
+}
+
+d-article span.equation-mimic {
+  font-family: georgia;
+  font-size: 115%;
+  font-style: italic;
+}
+
+d-article > d-code,
+d-article section > d-code  {
+  display: block;
+}
+
+d-article > d-math[block],
+d-article section > d-math[block]  {
+  display: block;
+}
+
+@media (max-width: 768px) {
+  d-article > d-code,
+  d-article section > d-code,
+  d-article > d-math[block],
+  d-article section > d-math[block] {
+      overflow-x: scroll;
+      -ms-overflow-style: none;  // IE 10+
+      overflow: -moz-scrollbars-none;  // Firefox
+  }
+
+  d-article > d-code::-webkit-scrollbar,
+  d-article section > d-code::-webkit-scrollbar,
+  d-article > d-math[block]::-webkit-scrollbar,
+  d-article section > d-math[block]::-webkit-scrollbar {
+    display: none;  // Safari and Chrome
+  }
+}
+
+d-article .citation {
+  color: #668;
+  cursor: pointer;
+}
+
+d-include {
+  width: auto;
+  display: block;
+}
+
+d-figure {
+  contain: layout style;
+}
+
+/* KaTeX */
+
+.katex, .katex-prerendered {
+  contain: style;
+  display: inline-block;
+}
+
+/* Tables */
+
+d-article table {
+  border-collapse: collapse;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.2);
+}
+
+d-article table th {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.2);
+}
+
+d-article table td {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+d-article table tr:last-of-type td {
+  border-bottom: none;
+}
+
+d-article table th,
+d-article table td {
+  font-size: 15px;
+  padding: 2px 8px;
+}
+
+d-article table tbody :first-child td {
+  padding-top: 2px;
+}
+/*
+ * Copyright 2018 The Distill Template Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+span.katex-display {
+  text-align: left;
+  padding: 8px 0 8px 0;
+  margin: 0.5em 0 0.5em 1em;
+}
+
+span.katex {
+  -webkit-font-smoothing: antialiased;
+  color: rgba(0, 0, 0, 0.8);
+  font-size: 1.18em;
+}
+/*
+ * Copyright 2018 The Distill Template Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+
+d-appendix {
+  contain: layout style;
+  font-size: 0.8em;
+  line-height: 1.7em;
+  margin-top: 60px;
+  margin-bottom: 0;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+  color: rgba(0,0,0,0.5);
+  padding-top: 60px;
+  padding-bottom: 48px;
+}
+
+d-appendix h3 {
+  grid-column: page-start / text-start;
+  font-size: 15px;
+  font-weight: 500;
+  margin-top: 1em;
+  margin-bottom: 0;
+  color: rgba(0,0,0,0.65);
+}
+
+d-appendix h3 + * {
+  margin-top: 1em;
+}
+
+d-appendix ol {
+  padding: 0 0 0 15px;
+}
+
+@media (min-width: 768px) {
+  d-appendix ol {
+    padding: 0 0 0 30px;
+    margin-left: -30px;
+  }
+}
+
+d-appendix li {
+  margin-bottom: 1em;
+}
+
+d-appendix a {
+  color: rgba(0, 0, 0, 0.6);
+}
+
+d-appendix > * {
+  grid-column: text;
+}
+
+d-appendix > d-footnote-list,
+d-appendix > d-citation-list,
+d-appendix > distill-appendix {
+  grid-column: screen;
+}
+
+/*
+ * Copyright 2018 The Distill Template Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+@media print {
+
+  @page {
+    size: 8in 11in;
+    @bottom-right {
+      content: counter(page) " of " counter(pages);
+    }
+  }
+
+  html {
+    /* no general margins -- CSS Grid takes care of those */
+  }
+
+  p, code {
+    page-break-inside: avoid;
+  }
+
+  h2, h3 {
+    page-break-after: avoid;
+  }
+
+  d-header {
+    visibility: hidden;
+  }
+
+  d-footer {
+    display: none!important;
+  }
+
+}
+</style><script src="/vendor/distill/template.v2.js"></script><style>.figure-image[data-astro-cid-olutqroj]{border-bottom:none;display:block}img[data-astro-cid-olutqroj],video[data-astro-cid-olutqroj]{width:100%;height:auto;display:block}.numbered-equation[data-astro-cid-eamd5iue]{grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:1em;margin:1.5rem 0;display:grid}.equation-body[data-astro-cid-eamd5iue]{min-width:0;overflow:auto hidden}.source-table[data-astro-cid-5mx3j6xp]{min-width:0;overflow-x:auto}.source-table[data-astro-cid-5mx3j6xp] table{border-collapse:collapse;width:100%;font-size:inherit}.source-table[data-astro-cid-5mx3j6xp] th,.source-table[data-astro-cid-5mx3j6xp] td{text-align:left;vertical-align:top;border-bottom:1px solid #0000001a;padding:.5em}
+</style><link rel="stylesheet" href="/_astro/collections.CMzbPoF5.css"><style>.dataset[data-astro-cid-sicvmbkj]{min-width:0}p[data-astro-cid-sicvmbkj]:first-child{margin-top:0}.table-scroll[data-astro-cid-sicvmbkj]{overflow-x:auto}table[data-astro-cid-sicvmbkj]{border-collapse:collapse;width:100%;font-size:inherit;line-height:inherit}th[data-astro-cid-sicvmbkj],td[data-astro-cid-sicvmbkj]{text-align:left;white-space:nowrap;border-bottom:1px solid #0000001a;padding:.6em .65em}th[data-astro-cid-sicvmbkj]:first-child,td[data-astro-cid-sicvmbkj]:first-child{padding-left:0}th[data-astro-cid-sicvmbkj]:last-child,td[data-astro-cid-sicvmbkj]:last-child{padding-right:0}th[data-astro-cid-sicvmbkj],.selected[data-astro-cid-sicvmbkj]{font-weight:600}d-byline{background:#f5f7f9}d-appendix{color:#000000a6;background:#eef2f5}@media print{d-byline,d-appendix{background:#fff}}d-byline .experiment-id{font-weight:600}d-byline .collection-link:hover{text-decoration:underline}.report-appendix{min-width:0;margin-bottom:2rem}.native-math,.native-math math{font-size:1em}d-article>.source-table{grid-column:text}@media (width>=768px){d-byline .byline{grid-template-columns:repeat(3,minmax(0,1fr));row-gap:12px}}@media (width>=1180px){d-byline .byline{grid-template-columns:repeat(5,minmax(0,1fr))}}.report-body{--report-content-top:4rem;position:relative}.report-body>d-article{min-width:0;padding-top:var(--report-content-top);grid-area:1/screen}.report-body>d-article>:first-child{margin-top:0}.report-toc{z-index:1;box-sizing:border-box;width:min(304px,100%);min-width:0;padding:calc(var(--report-content-top) + 1px) 24px 0;grid-area:1/screen-start/auto/text-start;justify-self:end;position:relative}.report-toc d-toc{max-height:calc(100vh - 48px);display:block;position:sticky;top:24px;overflow-y:auto}.report-toc h2{margin:0 0 12px;font-size:13px;font-weight:600;line-height:1.5}.report-toc ol{margin:0;padding:0;list-style:none}.report-toc li{margin-bottom:10px;font-size:12px;line-height:1.5}.report-toc .subsection{padding-left:12px}.report-toc a{color:#0009;border-bottom:none;text-decoration:none}.report-toc a:hover{color:#000}.report-abstract{grid-column:text}.report-abstract h2{margin-top:0}:is(d-article,d-appendix) [id]{scroll-margin-top:24px}@media (width<=1179px){.report-toc{grid-area:1/text;justify-self:stretch;width:auto;padding:32px 0 24px}.report-toc d-toc{max-height:none;position:static}.report-body>d-article{grid-row:2}.report-toc ol{columns:2;column-gap:24px}.report-toc li{break-inside:avoid}}@media print{.report-toc{display:none}}d-appendix .parameters{min-width:0;margin-bottom:2rem}d-appendix .parameters table{border-collapse:collapse;width:100%;font-size:inherit;line-height:inherit;margin-top:0}d-appendix .parameters th,d-appendix .parameters td{text-align:left;vertical-align:top;border-bottom:1px solid #0000001a;padding:.6em .65em}d-appendix .parameters th:first-child,d-appendix .parameters td:first-child{width:30%;padding-left:0}d-appendix .parameters th:last-child,d-appendix .parameters td:last-child{padding-right:0}@media (width<=999px){d-appendix h3{grid-column:text;margin-bottom:1em}}
+</style></head><body distill-prerendered><d-front-matter><script type="application/json">{"title":"COBA and PING Dynamics, Discretisation, and Learning","description":"A textbook derivation of the conductance-based COBA and PING equations, their discrete simulation, and their training by surrogate-gradient BPTT, voltage-gradient damping, gradient clipping, AdamW, and Dale projection.","authors":[{"author":"Eoin Murray","affiliations":[]}]}</script></d-front-matter><header class="site-header base-grid"><nav class="l-page" aria-label="Site"><a href="/">Pinglab</a><a class="collections-link" href="/collections">Collections</a></nav></header><main><d-title><h1>COBA and PING Dynamics, Discretisation, and Learning</h1><p>A textbook derivation of the conductance-based COBA and PING equations, their discrete simulation, and their training by surrogate-gradient BPTT, voltage-gradient damping, gradient clipping, AdamW, and Dale projection.</p></d-title><d-byline><div class="byline grid"><div><h3>Experiment</h3><p class="experiment-id">exp113</p></div><div><h3>Author</h3><p class="author">Eoin Murray</p></div><div><h3>Created</h3><p><time datetime="2026-09-14">2026-09-14</time></p></div><div><h3>Updated</h3><p><time datetime="2026-09-19">2026-09-19</time></p></div><div><h3>Collection</h3><p><a class="collection-link" href="/collections#collection-demo">Uncategorized</a></p></div></div></d-byline><div class="report-body base-grid"><aside class="report-toc"><d-toc prerendered="true"><nav aria-label="Table of contents"><h2>Contents</h2><ol><li><a href="#abstract">Abstract</a></li><li><a href="#model-family-and-notation">Model family and notation</a></li><li><a href="#continuous-membrane-dynamics">Continuous membrane dynamics</a></li><li><a href="#continuous-synaptic-dynamics">Continuous synaptic dynamics</a></li><li><a href="#discretising-the-synaptic-equations">Discretising the synaptic equations</a></li><li><a href="#ei-conductance-recurrences">E–I conductance recurrences</a></li><li><a href="#exponential-euler-membrane-discretisation">Exponential-Euler membrane discretisation</a></li><li><a href="#spike-reset-and-refractory-dynamics">Spike, reset, and refractory dynamics</a></li><li><a href="#output-readout-and-classification-loss">Output readout and classification loss</a></li><li><a href="#backpropagation-through-time">Backpropagation through time</a></li><li><a href="#surrogate-spike-derivatives">Surrogate spike derivatives</a></li><li><a href="#why-voltage-gradients-can-explode">Why voltage gradients can explode</a></li><li><a href="#voltage-gradient-damping">Voltage-gradient damping</a></li><li><a href="#gradient-clipping-adamw-and-dale-projection">Gradient clipping, AdamW, and Dale projection</a></li><li><a href="#scope-and-interpretation">Scope and interpretation</a></li><li><a href="#references">References</a></li></ol></nav></d-toc></aside><d-article role="article" aria-label="COBA and PING Dynamics, Discretisation, and Learning"><section class="report-abstract" aria-labelledby="abstract"><h2 id="abstract">Abstract</h2><p>COBA and PING classifiers share conductance-based leaky integrate-and-fire dynamics but differ in whether excitatory and inhibitory populations form a reciprocal feedback loop. We derive their event-driven synapses, exponential-Euler membrane update, spike and readout rules, and complete training calculation. We then explain why long recurrent gradient paths can amplify in this model and how voltage-gradient damping stabilizes selected backward sensitivities without changing the forward simulation.</p></section><span id="loc-2"></span>
+<h2 id="model-family-and-notation">Model family and notation</h2>
+<p>The COBA and PING classifiers use the same conductance-based leaky integrate-and-fire neuron. Their distinction is architectural. The COBA condition disables the recurrent excitatory-to-inhibitory-to-excitatory pathway, whereas PING enables the loop <span class="native-math"><math><mi>𝐸</mi><mo stretchy="false">→</mo><mi>𝐼</mi><mo stretchy="false">→</mo><mi>𝐸</mi></math></span>.[<a href="#ref-1">1</a>]</p>
+<p>Physical time is <span class="native-math"><math><mi>𝑡</mi></math></span>, the simulation-step index is <span class="native-math"><math><mi>𝑘</mi></math></span>, and <span class="native-math"><math><msub><mi>𝑡</mi><mi>𝑘</mi></msub><mo>=</mo><mi>𝑘</mi><mi mathvariant="normal">Δ</mi><msub><mi>𝑡</mi><mtext>sim</mtext></msub></math></span>, where <span class="native-math"><math><mi mathvariant="normal">Δ</mi><msub><mi>𝑡</mi><mtext>sim</mtext></msub></math></span> is the integration timestep. A presentation contains <span class="native-math"><math><msub><mi>𝑁</mi><mi>𝑡</mi></msub></math></span> timesteps and has duration <span class="native-math"><math><msub><mi>𝑇</mi><mtext>present</mtext></msub><mo>=</mo><msub><mi>𝑁</mi><mi>𝑡</mi></msub><mi mathvariant="normal">Δ</mi><msub><mi>𝑡</mi><mtext>sim</mtext></msub></math></span>. Superscripts on conductances identify AMPA or GABA polarity, while subscripts identify the receiving population.</p>
+<span id="loc-3"></span>
+<h2 id="continuous-membrane-dynamics">Continuous membrane dynamics</h2>
+<p>For neuron <span class="native-math"><math><mi>𝑗</mi></math></span> in population <span class="native-math"><math><mi>𝑋</mi><mo>∈</mo><mrow><mo>{</mo><mrow><mi>𝐸</mi><mo>,</mo><mi>𝐼</mi></mrow><mo>}</mo></mrow></math></span>, the membrane equation is</p>
+<div class="numbered-equation" id="loc-4" data-astro-cid-eamd5iue><div class="equation-body" data-astro-cid-eamd5iue><span class="native-math"><math display="block"><msub><mi>𝐶</mi><mrow><mi>𝑚</mi><mo rspace="0em">,</mo><mi>𝑋</mi></mrow></msub><mfrac><mrow><mi>𝑑</mi><msub><mi>𝑉</mi><mrow><mi>𝑚</mi><mo rspace="0em">,</mo><mi>𝑋</mi><mo rspace="0em">,</mo><mi>𝑗</mi></mrow></msub></mrow><mrow><mi>𝑑</mi><mi>𝑡</mi></mrow></mfrac><mo>=</mo><mo form="prefix">−</mo><msub><mi>𝑔</mi><mrow><mi>𝐿</mi><mo rspace="0em">,</mo><mi>𝑋</mi></mrow></msub><mrow><mo>(</mo><mrow><msub><mi>𝑉</mi><mrow><mi>𝑚</mi><mo rspace="0em">,</mo><mi>𝑋</mi><mo rspace="0em">,</mo><mi>𝑗</mi></mrow></msub><mo>−</mo><msub><mi>𝐸</mi><mi>𝐿</mi></msub></mrow><mo>)</mo></mrow><mo>−</mo><msubsup><mi>𝑔</mi><mrow><mi>𝑋</mi><mo rspace="0em">,</mo><mi>𝑗</mi></mrow><mi>𝐸</mi></msubsup><mrow><mo>(</mo><mrow><msub><mi>𝑉</mi><mrow><mi>𝑚</mi><mo rspace="0em">,</mo><mi>𝑋</mi><mo rspace="0em">,</mo><mi>𝑗</mi></mrow></msub><mo>−</mo><msub><mi>𝐸</mi><mi>𝐸</mi></msub></mrow><mo>)</mo></mrow><mo>−</mo><msubsup><mi>𝑔</mi><mrow><mi>𝑋</mi><mo rspace="0em">,</mo><mi>𝑗</mi></mrow><mi>𝐼</mi></msubsup><mrow><mo>(</mo><mrow><msub><mi>𝑉</mi><mrow><mi>𝑚</mi><mo rspace="0em">,</mo><mi>𝑋</mi><mo rspace="0em">,</mo><mi>𝑗</mi></mrow></msub><mo>−</mo><msub><mi>𝐸</mi><mi>𝐼</mi></msub></mrow><mo>)</mo></mrow><mi>.</mi></math></span></div><span data-astro-cid-eamd5iue>(1)</span></div>
+<p>In <a href="#loc-4">Equation 1</a>, <span class="native-math"><math><msub><mi>𝑉</mi><mi>𝑚</mi></msub></math></span> is membrane voltage, <span class="native-math"><math><msub><mi>𝐶</mi><mi>𝑚</mi></msub></math></span> is capacitance, <span class="native-math"><math><msub><mi>𝑔</mi><mi>𝐿</mi></msub></math></span> is leak conductance, and <span class="native-math"><math><msup><mi>𝑔</mi><mi>𝐸</mi></msup></math></span> and <span class="native-math"><math><msup><mi>𝑔</mi><mi>𝐼</mi></msup></math></span> are total AMPA and GABA conductances. The reversal potentials are</p>
+<div class="numbered-equation" id="loc-5" data-astro-cid-eamd5iue><div class="equation-body" data-astro-cid-eamd5iue><span class="native-math"><math display="block"><msub><mi>𝐸</mi><mi>𝐿</mi></msub><mo>=</mo><mo form="prefix">−</mo><mn>65</mn><mspace width="0.2222em"></mspace><mtext>mV</mtext><mo rspace="0em">,</mo><mspace width="1em"></mspace><msub><mi>𝐸</mi><mi>𝐸</mi></msub><mo>=</mo><mn>0</mn><mspace width="0.2222em"></mspace><mtext>mV</mtext><mo rspace="0em">,</mo><mspace width="1em"></mspace><msub><mi>𝐸</mi><mi>𝐼</mi></msub><mo>=</mo><mo form="prefix">−</mo><mn>80</mn><mspace width="0.2222em"></mspace><mtext>mV</mtext><mi>.</mi></math></span></div><span data-astro-cid-eamd5iue>(2)</span></div>
+<p>A conductance <span class="native-math"><math><mi>𝑔</mi></math></span> with reversal potential <span class="native-math"><math><mi>𝐸</mi></math></span> supplies current <span class="native-math"><math><mi>𝐼</mi><mo>=</mo><mi>𝑔</mi><mrow><mo>(</mo><mrow><mi>𝐸</mi><mo>−</mo><msub><mi>𝑉</mi><mi>𝑚</mi></msub></mrow><mo>)</mo></mrow></math></span>. <a href="#loc-5">Equation 2</a> therefore makes AMPA normally depolarizing and GABA normally hyperpolarizing. The fixed membrane parameters are</p>
+<div class="numbered-equation" id data-astro-cid-eamd5iue><div class="equation-body" data-astro-cid-eamd5iue><span class="native-math"><math display="block"><msub><mi>𝐶</mi><mrow><mi>𝑚</mi><mo rspace="0em">,</mo><mi>𝐸</mi></mrow></msub><mo>=</mo><mn>1</mn><mspace width="0.2222em"></mspace><mtext>nF</mtext><mo rspace="0em">,</mo><mspace width="1em"></mspace><msub><mi>𝑔</mi><mrow><mi>𝐿</mi><mo rspace="0em">,</mo><mi>𝐸</mi></mrow></msub><mo>=</mo><mn>0.05</mn><mspace width="0.2222em"></mspace><mtext>µS</mtext><mo rspace="0em">,</mo><mspace width="1em"></mspace><msub><mi>𝐶</mi><mrow><mi>𝑚</mi><mo rspace="0em">,</mo><mi>𝐼</mi></mrow></msub><mo>=</mo><mn>0.5</mn><mspace width="0.2222em"></mspace><mtext>nF</mtext><mo rspace="0em">,</mo><mspace width="1em"></mspace><msub><mi>𝑔</mi><mrow><mi>𝐿</mi><mo rspace="0em">,</mo><mi>𝐼</mi></mrow></msub><mo>=</mo><mn>0.1</mn><mspace width="0.2222em"></mspace><mtext>µS</mtext><mi>.</mi></math></span></div><span data-astro-cid-eamd5iue>(3)</span></div>
+<p>The corresponding passive membrane time constants follow from <span class="native-math"><math><msub><mi>𝜏</mi><mi>𝑚</mi></msub><mo>=</mo><mfrac><msub><mi>𝐶</mi><mi>𝑚</mi></msub><msub><mi>𝑔</mi><mi>𝐿</mi></msub></mfrac></math></span>:</p>
+<div class="numbered-equation" id data-astro-cid-eamd5iue><div class="equation-body" data-astro-cid-eamd5iue><span class="native-math"><math display="block"><msub><mi>𝜏</mi><mrow><mi>𝑚</mi><mo rspace="0em">,</mo><mi>𝐸</mi></mrow></msub><mo>=</mo><mn>20</mn><mspace width="0.2222em"></mspace><mtext>ms</mtext><mo rspace="0em">,</mo><mspace width="1em"></mspace><msub><mi>𝜏</mi><mrow><mi>𝑚</mi><mo rspace="0em">,</mo><mi>𝐼</mi></mrow></msub><mo>=</mo><mn>5</mn><mspace width="0.2222em"></mspace><mtext>ms</mtext><mi>.</mi></math></span></div><span data-astro-cid-eamd5iue>(4)</span></div>
+<span id="loc-6"></span>
+<h2 id="continuous-synaptic-dynamics">Continuous synaptic dynamics</h2>
+<p>The continuous spike train emitted by presynaptic neuron <span class="native-math"><math><mi>𝑖</mi></math></span> is</p>
+<div class="numbered-equation" id data-astro-cid-eamd5iue><div class="equation-body" data-astro-cid-eamd5iue><span class="native-math"><math display="block"><msub><mi>𝑠</mi><mrow><mi>𝑖</mi><mrow><mo>(</mo><mi>𝑡</mi><mo>)</mo></mrow></mrow></msub><mo>=</mo><munder><mo form="prefix" lspace="0em">∑</mo><mi>𝑗</mi></munder><mi>𝛿</mi><mrow><mo>(</mo><mrow><mi>𝑡</mi><mo>−</mo><msub><mi>𝑡</mi><mrow><mi>𝑖</mi><mo rspace="0em">,</mo><mi>𝑗</mi></mrow></msub></mrow><mo>)</mo></mrow><mo rspace="0em">,</mo></math></span></div><span data-astro-cid-eamd5iue>(5)</span></div>
+<p>where <span class="native-math"><math><msub><mi>𝑡</mi><mrow><mi>𝑖</mi><mo rspace="0em">,</mo><mi>𝑗</mi></mrow></msub></math></span> is event time <span class="native-math"><math><mi>𝑗</mi></math></span> and <span class="native-math"><math><mi>𝛿</mi></math></span> is the Dirac impulse. A postsynaptic conductance <span class="native-math"><math><msub><mi>𝑔</mi><mi>𝑗</mi></msub></math></span> with decay constant <span class="native-math"><math><mi>𝜏</mi></math></span> satisfies</p>
+<div class="numbered-equation" id="loc-7" data-astro-cid-eamd5iue><div class="equation-body" data-astro-cid-eamd5iue><span class="native-math"><math display="block"><mfrac><mrow><mi>𝑑</mi><msub><mi>𝑔</mi><mi>𝑗</mi></msub></mrow><mrow><mi>𝑑</mi><mi>𝑡</mi></mrow></mfrac><mo>=</mo><mo form="prefix">−</mo><mfrac><msub><mi>𝑔</mi><mi>𝑗</mi></msub><mi>𝜏</mi></mfrac><mo>+</mo><munder><mo form="prefix" lspace="0em">∑</mo><mi>𝑖</mi></munder><msub><mi>𝑤</mi><mrow><mtext>event</mtext><mo rspace="0em">,</mo><mi>𝑖</mi><mo rspace="0em">,</mo><mi>𝑗</mi></mrow></msub><msub><mi>𝑠</mi><mrow><mi>𝑖</mi><mrow><mo>(</mo><mi>𝑡</mi><mo>)</mo></mrow></mrow></msub><mi>.</mi></math></span></div><span data-astro-cid-eamd5iue>(6)</span></div>
+<p>Here <span class="native-math"><math><msub><mi>𝑤</mi><mrow><mtext>event</mtext><mo rspace="0em">,</mo><mi>𝑖</mi><mo rspace="0em">,</mo><mi>𝑗</mi></mrow></msub></math></span> is the conductance increment produced by one presynaptic event. AMPA and GABA use separate copies of <a href="#loc-7">Equation 6</a> with <span class="native-math"><math><msub><mi>𝜏</mi><mtext>AMPA</mtext></msub><mo>=</mo><mn>2</mn><mspace width="0.2222em"></mspace><mtext>ms</mtext></math></span> and the canonical <span class="native-math"><math><msub><mi>𝜏</mi><mtext>GABA</mtext></msub><mo>=</mo><mn>6</mn><mspace width="0.2222em"></mspace><mtext>ms</mtext></math></span>.</p>
+<span id="loc-8"></span>
+<h2 id="discretising-the-synaptic-equations">Discretising the synaptic equations</h2>
+<p>Between events, <a href="#loc-7">Equation 6</a> reduces to</p>
+<div class="numbered-equation" id="loc-9" data-astro-cid-eamd5iue><div class="equation-body" data-astro-cid-eamd5iue><span class="native-math"><math display="block"><mfrac><mrow><mi>𝑑</mi><mi>𝑔</mi></mrow><mrow><mi>𝑑</mi><mi>𝑡</mi></mrow></mfrac><mo>=</mo><mo form="prefix">−</mo><mfrac><mi>𝑔</mi><mi>𝜏</mi></mfrac><mo rspace="0em">,</mo><mspace width="1em"></mspace><mfrac><mrow><mi>𝑑</mi><mi>𝑔</mi></mrow><mi>𝑔</mi></mfrac><mo>=</mo><mo form="prefix">−</mo><mfrac><mrow><mi>𝑑</mi><mi>𝑡</mi></mrow><mi>𝜏</mi></mfrac><mi>.</mi></math></span></div><span data-astro-cid-eamd5iue>(7)</span></div>
+<p>Integrating <a href="#loc-9">Equation 7</a> from <span class="native-math"><math><msub><mi>𝑡</mi><mi>𝑘</mi></msub></math></span> to <span class="native-math"><math><msub><mi>𝑡</mi><mrow><mi>𝑘</mi><mo lspace="0em" rspace="0em">+</mo><mn>1</mn></mrow></msub><mo>=</mo><msub><mi>𝑡</mi><mi>𝑘</mi></msub><mo>+</mo><mi mathvariant="normal">Δ</mi><msub><mi>𝑡</mi><mtext>sim</mtext></msub></math></span> gives</p>
+<div class="numbered-equation" id="loc-10" data-astro-cid-eamd5iue><div class="equation-body" data-astro-cid-eamd5iue><span class="native-math"><math display="block"><msubsup><mo lspace="0em">∫</mo><mrow><mi>𝑔</mi><mrow><mo>[</mo><mi>𝑘</mi><mo>]</mo></mrow></mrow><mrow><msup><mi>𝑔</mi><mo>−</mo></msup><mrow><mo>[</mo><mrow><mi>𝑘</mi><mo lspace="0em" rspace="0em">+</mo><mn>1</mn></mrow><mo>]</mo></mrow></mrow></msubsup><mfrac><mrow><mi>𝑑</mi><mi>𝑔</mi></mrow><mi>𝑔</mi></mfrac><mo>=</mo><mo form="prefix">−</mo><msubsup><mo form="prefix">∫</mo><msub><mi>𝑡</mi><mi>𝑘</mi></msub><mrow><msub><mi>𝑡</mi><mi>𝑘</mi></msub><mo lspace="0em" rspace="0em">+</mo><mi mathvariant="normal">Δ</mi><msub><mi>𝑡</mi><mtext>sim</mtext></msub></mrow></msubsup><mfrac><mrow><mi>𝑑</mi><mi>𝑡</mi></mrow><mi>𝜏</mi></mfrac><mo rspace="0em">,</mo><mspace width="1em"></mspace><mo form="prefix" lspace="0em" rspace="0.16666666666666666em">ln</mo><mfrac><mrow><msup><mi>𝑔</mi><mo>−</mo></msup><mrow><mo>[</mo><mrow><mi>𝑘</mi><mo>+</mo><mn>1</mn></mrow><mo>]</mo></mrow></mrow><mrow><mi>𝑔</mi><mrow><mo>[</mo><mi>𝑘</mi><mo>]</mo></mrow></mrow></mfrac><mo>=</mo><mo form="prefix">−</mo><mfrac><mrow><mi mathvariant="normal">Δ</mi><msub><mi>𝑡</mi><mtext>sim</mtext></msub></mrow><mi>𝜏</mi></mfrac><mi>.</mi></math></span></div><span data-astro-cid-eamd5iue>(8)</span></div>
+<p>Exponentiating <a href="#loc-10">Equation 8</a> yields the event-free decay</p>
+<div class="numbered-equation" id="loc-11" data-astro-cid-eamd5iue><div class="equation-body" data-astro-cid-eamd5iue><span class="native-math"><math display="block"><msup><mi>𝑔</mi><mo>−</mo></msup><mrow><mo>[</mo><mrow><mi>𝑘</mi><mo>+</mo><mn>1</mn></mrow><mo>]</mo></mrow><mo>=</mo><mi>𝑔</mi><mrow><mo>[</mo><mi>𝑘</mi><mo>]</mo></mrow><mo form="prefix" lspace="0.16666666666666666em" rspace="0em">exp</mo><mrow><mo>(</mo><mrow><mo>−</mo><mfrac><mrow><mi mathvariant="normal">Δ</mi><msub><mi>𝑡</mi><mtext>sim</mtext></msub></mrow><mi>𝜏</mi></mfrac></mrow><mo>)</mo></mrow><mi>.</mi></math></span></div><span data-astro-cid-eamd5iue>(9)</span></div>
+<p>Integrating <a href="#loc-7">Equation 6</a> across an infinitesimal interval containing one event gives</p>
+<div class="numbered-equation" id="loc-12" data-astro-cid-eamd5iue><div class="equation-body" data-astro-cid-eamd5iue><span class="native-math"><math display="block"><mi>𝑔</mi><mrow><mo>(</mo><msubsup><mi>𝑡</mi><mi>𝑖</mi><mo>+</mo></msubsup><mo>)</mo></mrow><mo>−</mo><mi>𝑔</mi><mrow><mo>(</mo><msubsup><mi>𝑡</mi><mi>𝑖</mi><mo>−</mo></msubsup><mo>)</mo></mrow><mo>=</mo><msub><mi>𝑤</mi><mtext>event</mtext></msub><mi>.</mi></math></span></div><span data-astro-cid-eamd5iue>(10)</span></div>
+<p>Combining <a href="#loc-11">Equation 9</a> and <a href="#loc-12">Equation 10</a> gives the timestep recurrence</p>
+<div class="numbered-equation" id="loc-13" data-astro-cid-eamd5iue><div class="equation-body" data-astro-cid-eamd5iue><span class="native-math"><math display="block"><mi>𝒈</mi><mrow><mo>[</mo><mrow><mi>𝑘</mi><mo>+</mo><mn>1</mn></mrow><mo>]</mo></mrow><mo>=</mo><mo form="prefix" lspace="0em" rspace="0em">exp</mo><mrow><mo>(</mo><mrow><mo>−</mo><mfrac><mrow><mi mathvariant="normal">Δ</mi><msub><mi>𝑡</mi><mtext>sim</mtext></msub></mrow><mi>𝜏</mi></mfrac></mrow><mo>)</mo></mrow><mi>𝒈</mi><mrow><mo>[</mo><mi>𝑘</mi><mo>]</mo></mrow><mo>+</mo><mi>𝒔</mi><mrow><mo>[</mo><mi>𝑘</mi><mo>]</mo></mrow><mi>𝑊</mi><mo>+</mo><mi>𝒖</mi><mrow><mo>[</mo><mi>𝑘</mi><mo>]</mo></mrow><mi>.</mi></math></span></div><span data-astro-cid-eamd5iue>(11)</span></div>
+<p>In <a href="#loc-13">Equation 11</a>, <span class="native-math"><math><mi>𝒔</mi><mrow><mo>[</mo><mi>𝑘</mi><mo>]</mo></mrow></math></span> is a dimensionless binary presynaptic spike vector, <span class="native-math"><math><mi>𝑊</mi></math></span> has presynaptic neurons on rows and postsynaptic neurons on columns, and <span class="native-math"><math><mi>𝒖</mi><mrow><mo>[</mo><mi>𝑘</mi><mo>]</mo></mrow></math></span> is an external conductance increment. The simulator performs exact exponential decay followed by the full, undecayed event increment.[<a href="#ref-1">1</a>]</p>
+<span id="loc-14"></span>
+<h2 id="ei-conductance-recurrences">E–I conductance recurrences</h2>
+<p>Define the dimensionless decay factors</p>
+<div class="numbered-equation" id="loc-15" data-astro-cid-eamd5iue><div class="equation-body" data-astro-cid-eamd5iue><span class="native-math"><math display="block"><msub><mi>𝛽</mi><mtext>AMPA</mtext></msub><mo>=</mo><mo form="prefix" lspace="0em" rspace="0em">exp</mo><mrow><mo>(</mo><mrow><mo>−</mo><mfrac><mrow><mi mathvariant="normal">Δ</mi><msub><mi>𝑡</mi><mtext>sim</mtext></msub></mrow><msub><mi>𝜏</mi><mtext>AMPA</mtext></msub></mfrac></mrow><mo>)</mo></mrow><mo rspace="0em">,</mo><mspace width="1em"></mspace><msub><mi>𝛽</mi><mtext>GABA</mtext></msub><mo>=</mo><mo form="prefix" lspace="0em" rspace="0em">exp</mo><mrow><mo>(</mo><mrow><mo>−</mo><mfrac><mrow><mi mathvariant="normal">Δ</mi><msub><mi>𝑡</mi><mtext>sim</mtext></msub></mrow><msub><mi>𝜏</mi><mtext>GABA</mtext></msub></mfrac></mrow><mo>)</mo></mrow><mi>.</mi></math></span></div><span data-astro-cid-eamd5iue>(12)</span></div>
+<p>For one E–I layer, <a href="#loc-13">Equation 11</a> expands to</p>
+<div class="numbered-equation" id="loc-16" data-astro-cid-eamd5iue><div class="equation-body" data-astro-cid-eamd5iue><span class="native-math"><math display="block"><msubsup><mi>𝒈</mi><mrow><mi>𝐸</mi><mrow><mo>[</mo><mrow><mi>𝑘</mi><mo lspace="0em" rspace="0em">+</mo><mn>1</mn></mrow><mo>]</mo></mrow></mrow><mi>𝐸</mi></msubsup><mo>=</mo><msub><mi>𝛽</mi><mtext>AMPA</mtext></msub><msubsup><mi>𝒈</mi><mrow><mi>𝐸</mi><mrow><mo>[</mo><mi>𝑘</mi><mo>]</mo></mrow></mrow><mi>𝐸</mi></msubsup><mo>+</mo><msub><mi>𝒔</mi><mrow><mi>𝐸</mi><mrow><mo>[</mo><mi>𝑘</mi><mo>]</mo></mrow></mrow></msub><msub><mi>𝑊</mi><mrow><mi>𝐸</mi><mo lspace="0em" rspace="0em" stretchy="false">→</mo><mi>𝐸</mi></mrow></msub><mo>+</mo><mi>𝒙</mi><mrow><mo>[</mo><mi>𝑘</mi><mo>]</mo></mrow><msub><mi>𝑊</mi><mtext>in</mtext></msub><mo>+</mo><msubsup><mi>𝒖</mi><mrow><mi>𝐸</mi><mrow><mo>[</mo><mi>𝑘</mi><mo>]</mo></mrow></mrow><mi>𝐸</mi></msubsup><mo rspace="0em">,</mo></math></span></div><span data-astro-cid-eamd5iue>(13)</span></div>
+<div class="numbered-equation" id="loc-17" data-astro-cid-eamd5iue><div class="equation-body" data-astro-cid-eamd5iue><span class="native-math"><math display="block"><msubsup><mi>𝒈</mi><mrow><mi>𝐸</mi><mrow><mo>[</mo><mrow><mi>𝑘</mi><mo lspace="0em" rspace="0em">+</mo><mn>1</mn></mrow><mo>]</mo></mrow></mrow><mi>𝐼</mi></msubsup><mo>=</mo><msub><mi>𝛽</mi><mtext>GABA</mtext></msub><msubsup><mi>𝒈</mi><mrow><mi>𝐸</mi><mrow><mo>[</mo><mi>𝑘</mi><mo>]</mo></mrow></mrow><mi>𝐼</mi></msubsup><mo>+</mo><msub><mi>𝒔</mi><mrow><mi>𝐼</mi><mrow><mo>[</mo><mi>𝑘</mi><mo>]</mo></mrow></mrow></msub><msub><mi>𝑊</mi><mrow><mi>𝐼</mi><mo lspace="0em" rspace="0em" stretchy="false">→</mo><mi>𝐸</mi></mrow></msub><mo>+</mo><msubsup><mi>𝒖</mi><mrow><mi>𝐸</mi><mrow><mo>[</mo><mi>𝑘</mi><mo>]</mo></mrow></mrow><mi>𝐼</mi></msubsup><mo rspace="0em">,</mo></math></span></div><span data-astro-cid-eamd5iue>(14)</span></div>
+<div class="numbered-equation" id="loc-18" data-astro-cid-eamd5iue><div class="equation-body" data-astro-cid-eamd5iue><span class="native-math"><math display="block"><msubsup><mi>𝒈</mi><mrow><mi>𝐼</mi><mrow><mo>[</mo><mrow><mi>𝑘</mi><mo lspace="0em" rspace="0em">+</mo><mn>1</mn></mrow><mo>]</mo></mrow></mrow><mi>𝐸</mi></msubsup><mo>=</mo><msub><mi>𝛽</mi><mtext>AMPA</mtext></msub><msubsup><mi>𝒈</mi><mrow><mi>𝐼</mi><mrow><mo>[</mo><mi>𝑘</mi><mo>]</mo></mrow></mrow><mi>𝐸</mi></msubsup><mo>+</mo><msub><mi>𝒔</mi><mrow><mi>𝐸</mi><mrow><mo>[</mo><mi>𝑘</mi><mo>]</mo></mrow></mrow></msub><msub><mi>𝑊</mi><mrow><mi>𝐸</mi><mo lspace="0em" rspace="0em" stretchy="false">→</mo><mi>𝐼</mi></mrow></msub><mo>+</mo><msub><mi>𝒙</mi><mrow><mi>𝐼</mi><mrow><mo>[</mo><mi>𝑘</mi><mo>]</mo></mrow></mrow></msub><msub><mi>𝑊</mi><mrow><mtext>in</mtext><mo rspace="0em">,</mo><mi>𝐼</mi></mrow></msub><mo>+</mo><msubsup><mi>𝒖</mi><mrow><mi>𝐼</mi><mrow><mo>[</mo><mi>𝑘</mi><mo>]</mo></mrow></mrow><mi>𝐸</mi></msubsup><mo rspace="0em">,</mo></math></span></div><span data-astro-cid-eamd5iue>(15)</span></div>
+<div class="numbered-equation" id="loc-19" data-astro-cid-eamd5iue><div class="equation-body" data-astro-cid-eamd5iue><span class="native-math"><math display="block"><msubsup><mi>𝒈</mi><mrow><mi>𝐼</mi><mrow><mo>[</mo><mrow><mi>𝑘</mi><mo lspace="0em" rspace="0em">+</mo><mn>1</mn></mrow><mo>]</mo></mrow></mrow><mi>𝐼</mi></msubsup><mo>=</mo><msub><mi>𝛽</mi><mtext>GABA</mtext></msub><msubsup><mi>𝒈</mi><mrow><mi>𝐼</mi><mrow><mo>[</mo><mi>𝑘</mi><mo>]</mo></mrow></mrow><mi>𝐼</mi></msubsup><mo>+</mo><msub><mi>𝒔</mi><mrow><mi>𝐼</mi><mrow><mo>[</mo><mi>𝑘</mi><mo>]</mo></mrow></mrow></msub><msub><mi>𝑊</mi><mrow><mi>𝐼</mi><mo lspace="0em" rspace="0em" stretchy="false">→</mo><mi>𝐼</mi></mrow></msub><mo>+</mo><msubsup><mi>𝒖</mi><mrow><mi>𝐼</mi><mrow><mo>[</mo><mi>𝑘</mi><mo>]</mo></mrow></mrow><mi>𝐼</mi></msubsup><mi>.</mi></math></span></div><span data-astro-cid-eamd5iue>(16)</span></div>
+<p>The canonical architecture sets <span class="native-math"><math><msub><mi>𝑊</mi><mrow><mi>𝐸</mi><mo lspace="0em" rspace="0em" stretchy="false">→</mo><mi>𝐸</mi></mrow></msub><mo>=</mo><msub><mi>𝑊</mi><mrow><mi>𝐼</mi><mo lspace="0em" rspace="0em" stretchy="false">→</mo><mi>𝐼</mi></mrow></msub><mo>=</mo><mn>0</mn></math></span>. COBA additionally disables <span class="native-math"><math><msub><mi>𝑊</mi><mrow><mi>𝐸</mi><mo lspace="0em" rspace="0em" stretchy="false">→</mo><mi>𝐼</mi></mrow></msub></math></span> and <span class="native-math"><math><msub><mi>𝑊</mi><mrow><mi>𝐼</mi><mo lspace="0em" rspace="0em" stretchy="false">→</mo><mi>𝐸</mi></mrow></msub></math></span>. PING enables those two projections: excitatory spikes recruit inhibitory neurons through <a href="#loc-18">Equation 15</a>, and inhibitory spikes subsequently produce GABA conductance through <a href="#loc-17">Equation 14</a>. A recurrent spike generated in one iteration is consumed in the next, giving each recurrent projection a one-timestep delay.</p>
+<span id="loc-20"></span>
+<h2 id="exponential-euler-membrane-discretisation">Exponential-Euler membrane discretisation</h2>
+<p>The simulator first updates conductances with <a href="#loc-16">Equation 13</a>–<a href="#loc-19">Equation 16</a>, then holds those new values constant during the membrane step. Expanding <a href="#loc-4">Equation 1</a> for one neuron gives</p>
+<div class="numbered-equation" id="loc-21" data-astro-cid-eamd5iue><div class="equation-body" data-astro-cid-eamd5iue><span class="native-math"><math display="block"><msub><mi>𝐶</mi><mi>𝑚</mi></msub><mfrac><mrow><mi>𝑑</mi><msub><mi>𝑉</mi><mi>𝑚</mi></msub></mrow><mrow><mi>𝑑</mi><mi>𝑡</mi></mrow></mfrac><mo>=</mo><mo form="prefix">−</mo><mrow><mo>(</mo><mrow><msub><mi>𝑔</mi><mi>𝐿</mi></msub><mo>+</mo><msub><mi>𝑔</mi><mi>𝐸</mi></msub><mo>+</mo><msub><mi>𝑔</mi><mi>𝐼</mi></msub></mrow><mo>)</mo></mrow><msub><mi>𝑉</mi><mi>𝑚</mi></msub><mo>+</mo><msub><mi>𝑔</mi><mi>𝐿</mi></msub><msub><mi>𝐸</mi><mi>𝐿</mi></msub><mo>+</mo><msub><mi>𝑔</mi><mi>𝐸</mi></msub><msub><mi>𝐸</mi><mi>𝐸</mi></msub><mo>+</mo><msub><mi>𝑔</mi><mi>𝐼</mi></msub><msub><mi>𝐸</mi><mi>𝐼</mi></msub><mi>.</mi></math></span></div><span data-astro-cid-eamd5iue>(17)</span></div>
+<p>Define the total conductance and its conductance-weighted equilibrium voltage by</p>
+<div class="numbered-equation" id="loc-22" data-astro-cid-eamd5iue><div class="equation-body" data-astro-cid-eamd5iue><span class="native-math"><math display="block"><msub><mi>𝑔</mi><mtext>tot</mtext></msub><mo>=</mo><msub><mi>𝑔</mi><mi>𝐿</mi></msub><mo>+</mo><msub><mi>𝑔</mi><mi>𝐸</mi></msub><mo>+</mo><msub><mi>𝑔</mi><mi>𝐼</mi></msub><mo rspace="0em">,</mo><mspace width="1em"></mspace><msub><mi>𝑉</mi><mi>∞</mi></msub><mo>=</mo><mfrac><mrow><msub><mi>𝑔</mi><mi>𝐿</mi></msub><msub><mi>𝐸</mi><mi>𝐿</mi></msub><mo>+</mo><msub><mi>𝑔</mi><mi>𝐸</mi></msub><msub><mi>𝐸</mi><mi>𝐸</mi></msub><mo>+</mo><msub><mi>𝑔</mi><mi>𝐼</mi></msub><msub><mi>𝐸</mi><mi>𝐼</mi></msub></mrow><msub><mi>𝑔</mi><mtext>tot</mtext></msub></mfrac><mi>.</mi></math></span></div><span data-astro-cid-eamd5iue>(18)</span></div>
+<p>Substituting <a href="#loc-22">Equation 18</a> into <a href="#loc-21">Equation 17</a> gives</p>
+<div class="numbered-equation" id data-astro-cid-eamd5iue><div class="equation-body" data-astro-cid-eamd5iue><span class="native-math"><math display="block"><msub><mi>𝐶</mi><mi>𝑚</mi></msub><mfrac><mrow><mi>𝑑</mi><msub><mi>𝑉</mi><mi>𝑚</mi></msub></mrow><mrow><mi>𝑑</mi><mi>𝑡</mi></mrow></mfrac><mo>=</mo><mo form="prefix">−</mo><msub><mi>𝑔</mi><mrow><mtext>tot</mtext><mrow><mo>(</mo><mrow><msub><mi>𝑉</mi><mi>𝑚</mi></msub><mo lspace="0em" rspace="0em">−</mo><msub><mi>𝑉</mi><mi>∞</mi></msub></mrow><mo>)</mo></mrow></mrow></msub><mo rspace="0em">,</mo><mspace width="1em"></mspace><msub><mi>𝜏</mi><mtext>eff</mtext></msub><mo>=</mo><mfrac><msub><mi>𝐶</mi><mi>𝑚</mi></msub><msub><mi>𝑔</mi><mtext>tot</mtext></msub></mfrac><mi>.</mi></math></span></div><span data-astro-cid-eamd5iue>(19)</span></div>
+<p>Let <span class="native-math"><math><mi>𝑞</mi><mo>=</mo><msub><mi>𝑉</mi><mi>𝑚</mi></msub><mo>−</mo><msub><mi>𝑉</mi><mi>∞</mi></msub></math></span>. Because the conductances and <span class="native-math"><math><msub><mi>𝑉</mi><mi>∞</mi></msub></math></span> are constant within the timestep,</p>
+<div class="numbered-equation" id="loc-23" data-astro-cid-eamd5iue><div class="equation-body" data-astro-cid-eamd5iue><span class="native-math"><math display="block"><mfrac><mrow><mi>𝑑</mi><mi>𝑞</mi></mrow><mrow><mi>𝑑</mi><mi>𝑡</mi></mrow></mfrac><mo>=</mo><mo form="prefix">−</mo><mfrac><mi>𝑞</mi><msub><mi>𝜏</mi><mtext>eff</mtext></msub></mfrac><mo rspace="0em">,</mo><mspace width="1em"></mspace><mfrac><mrow><mi>𝑑</mi><mi>𝑞</mi></mrow><mi>𝑞</mi></mfrac><mo>=</mo><mo form="prefix">−</mo><mfrac><mrow><mi>𝑑</mi><mi>𝑡</mi></mrow><msub><mi>𝜏</mi><mtext>eff</mtext></msub></mfrac><mi>.</mi></math></span></div><span data-astro-cid-eamd5iue>(20)</span></div>
+<p>Integrating <a href="#loc-23">Equation 20</a> over one timestep gives</p>
+<div class="numbered-equation" id data-astro-cid-eamd5iue><div class="equation-body" data-astro-cid-eamd5iue><span class="native-math"><math display="block"><mo lspace="0em" rspace="0.16666666666666666em">ln</mo><mfrac><mrow><mi>𝑞</mi><mrow><mo>[</mo><mrow><mi>𝑘</mi><mo>+</mo><mn>1</mn></mrow><mo>]</mo></mrow></mrow><mrow><mi>𝑞</mi><mrow><mo>[</mo><mi>𝑘</mi><mo>]</mo></mrow></mrow></mfrac><mo>=</mo><mo form="prefix">−</mo><mfrac><mrow><mi mathvariant="normal">Δ</mi><msub><mi>𝑡</mi><mtext>sim</mtext></msub></mrow><msub><mi>𝜏</mi><mtext>eff</mtext></msub></mfrac><mo rspace="0em">,</mo><mspace width="1em"></mspace><mi>𝑞</mi><mrow><mo>[</mo><mrow><mi>𝑘</mi><mo>+</mo><mn>1</mn></mrow><mo>]</mo></mrow><mo>=</mo><mi>𝑞</mi><mrow><mo>[</mo><mi>𝑘</mi><mo>]</mo></mrow><mo form="prefix" lspace="0.16666666666666666em" rspace="0em">exp</mo><mrow><mo>(</mo><mrow><mo>−</mo><mfrac><mrow><mi mathvariant="normal">Δ</mi><msub><mi>𝑡</mi><mtext>sim</mtext></msub></mrow><msub><mi>𝜏</mi><mtext>eff</mtext></msub></mfrac></mrow><mo>)</mo></mrow><mi>.</mi></math></span></div><span data-astro-cid-eamd5iue>(21)</span></div>
+<p>Returning to membrane voltage produces the pre-threshold candidate</p>
+<div class="numbered-equation" id="loc-24" data-astro-cid-eamd5iue><div class="equation-body" data-astro-cid-eamd5iue><span class="native-math"><math display="block"><msub><mi>𝑉</mi><mrow><mtext>candidate</mtext><mrow><mo>[</mo><mrow><mi>𝑘</mi><mo lspace="0em" rspace="0em">+</mo><mn>1</mn></mrow><mo>]</mo></mrow></mrow></msub><mo>=</mo><msub><mi>𝑉</mi><mi>∞</mi></msub><mo>+</mo><mrow><mo>(</mo><mrow><msub><mi>𝑉</mi><mrow><mi>𝑚</mi><mrow><mo>[</mo><mi>𝑘</mi><mo>]</mo></mrow></mrow></msub><mo>−</mo><msub><mi>𝑉</mi><mi>∞</mi></msub></mrow><mo>)</mo></mrow><mo form="prefix" lspace="0.16666666666666666em" rspace="0em">exp</mo><mrow><mo>(</mo><mrow><mo>−</mo><mfrac><mrow><mi mathvariant="normal">Δ</mi><msub><mi>𝑡</mi><mtext>sim</mtext></msub><msub><mi>𝑔</mi><mtext>tot</mtext></msub></mrow><msub><mi>𝐶</mi><mi>𝑚</mi></msub></mfrac></mrow><mo>)</mo></mrow><mi>.</mi></math></span></div><span data-astro-cid-eamd5iue>(22)</span></div>
+<p>Equivalently, define</p>
+<div class="numbered-equation" id="loc-25" data-astro-cid-eamd5iue><div class="equation-body" data-astro-cid-eamd5iue><span class="native-math"><math display="block"><mtable class="multiline-equation"><mtr><mtd><mi>𝑎</mi><mo>=</mo><mo form="prefix" lspace="0em" rspace="0em">exp</mo><mrow><mo>(</mo><mrow><mo>−</mo><mfrac><mrow><mi mathvariant="normal">Δ</mi><msub><mi>𝑡</mi><mtext>sim</mtext></msub><msub><mi>𝑔</mi><mtext>tot</mtext></msub></mrow><msub><mi>𝐶</mi><mi>𝑚</mi></msub></mfrac></mrow><mo>)</mo></mrow><mo rspace="0em">,</mo></mtd></mtr><mtr><mtd><mi mathvariant="normal">Δ</mi><mi>𝑉</mi><mrow><mo>[</mo><mi>𝑘</mi><mo>]</mo></mrow><mo>=</mo><mrow><mo>(</mo><mrow><msub><mi>𝑉</mi><mi>∞</mi></msub><mo>−</mo><msub><mi>𝑉</mi><mrow><mi>𝑚</mi><mrow><mo>[</mo><mi>𝑘</mi><mo>]</mo></mrow></mrow></msub></mrow><mo>)</mo></mrow><mrow><mo>(</mo><mrow><mn>1</mn><mo>−</mo><mi>𝑎</mi></mrow><mo>)</mo></mrow><mo rspace="0em">,</mo></mtd></mtr><mtr><mtd><msub><mi>𝑉</mi><mrow><mtext>candidate</mtext><mrow><mo>[</mo><mrow><mi>𝑘</mi><mo lspace="0em" rspace="0em">+</mo><mn>1</mn></mrow><mo>]</mo></mrow></mrow></msub><mo>=</mo><msub><mi>𝑉</mi><mrow><mi>𝑚</mi><mrow><mo>[</mo><mi>𝑘</mi><mo>]</mo></mrow></mrow></msub><mo>+</mo><mi mathvariant="normal">Δ</mi><mi>𝑉</mi><mrow><mo>[</mo><mi>𝑘</mi><mo>]</mo></mrow><mi>.</mi></mtd></mtr></mtable></math></span></div><span data-astro-cid-eamd5iue>(23)</span></div>
+<p><a href="#loc-24">Equation 22</a> is the update used by the simulator. It is exact for the linear membrane equation under the stated zero-order hold on conductances; it is not an exact solution of the continuously co-evolving neuron and synapses.</p>
+<span id="loc-26"></span>
+<h2 id="spike-reset-and-refractory-dynamics">Spike, reset, and refractory dynamics</h2>
+<p>Let <span class="native-math"><math><mi>𝑟</mi><mrow><mo>[</mo><mi>𝑘</mi><mo>]</mo></mrow></math></span> be the non-negative integer refractory counter. It is decremented before the threshold decision:</p>
+<div class="numbered-equation" id="loc-27" data-astro-cid-eamd5iue><div class="equation-body" data-astro-cid-eamd5iue><span class="native-math"><math display="block"><msup><mi>𝑟</mi><mo>−</mo></msup><mrow><mo>[</mo><mrow><mi>𝑘</mi><mo>+</mo><mn>1</mn></mrow><mo>]</mo></mrow><mo>=</mo><mo form="prefix" lspace="0em" rspace="0em">max</mo><mrow><mo>(</mo><mrow><mi>𝑟</mi><mrow><mo>[</mo><mi>𝑘</mi><mo>]</mo></mrow><mo>−</mo><mn>1</mn><mo>,</mo><mn>0</mn></mrow><mo>)</mo></mrow><mi>.</mi></math></span></div><span data-astro-cid-eamd5iue>(24)</span></div>
+<p>A neuron emits the binary spike</p>
+<div class="numbered-equation" id="loc-28" data-astro-cid-eamd5iue><div class="equation-body" data-astro-cid-eamd5iue><span class="native-math"><math display="block"><mi>𝑠</mi><mrow><mo>[</mo><mrow><mi>𝑘</mi><mo>+</mo><mn>1</mn></mrow><mo>]</mo></mrow><mo>=</mo><mi>𝐻</mi><mrow><mo>(</mo><mrow><msub><mi>𝑉</mi><mrow><mtext>candidate</mtext><mrow><mo>[</mo><mrow><mi>𝑘</mi><mo lspace="0em" rspace="0em">+</mo><mn>1</mn></mrow><mo>]</mo></mrow></mrow></msub><mo>−</mo><msub><mi>𝑉</mi><mtext>th</mtext></msub></mrow><mo>)</mo></mrow><mn>𝟏</mn><mrow><mo>[</mo><mrow><msup><mi>𝑟</mi><mo>−</mo></msup><mrow><mo>[</mo><mrow><mi>𝑘</mi><mo>+</mo><mn>1</mn></mrow><mo>]</mo></mrow><mo>=</mo><mn>0</mn></mrow><mo>]</mo></mrow><mo rspace="0em">,</mo></math></span></div><span data-astro-cid-eamd5iue>(25)</span></div>
+<p>where <span class="native-math"><math><mi>𝐻</mi></math></span> is the Heaviside step function, <span class="native-math"><math><msub><mi>𝑉</mi><mtext>th</mtext></msub><mo>=</mo><mo form="prefix">−</mo><mn>50</mn><mspace width="0.2222em"></mspace><mtext>mV</mtext></math></span>, and <span class="native-math"><math><mn>𝟏</mn></math></span> is an indicator. A neuron that spikes, or remains refractory after <a href="#loc-27">Equation 24</a>, is stored at <span class="native-math"><math><msub><mi>𝑉</mi><mtext>reset</mtext></msub><mo>=</mo><mo form="prefix">−</mo><mn>65</mn><mspace width="0.2222em"></mspace><mtext>mV</mtext></math></span>. A new spike sets the counter to the population’s refractory step count; otherwise it retains <span class="native-math"><math><msup><mi>𝑟</mi><mo>−</mo></msup><mrow><mo>[</mo><mrow><mi>𝑘</mi><mo>+</mo><mn>1</mn></mrow><mo>]</mo></mrow></math></span>.</p>
+<p>The canonical timestep is <span class="native-math"><math><mi mathvariant="normal">Δ</mi><msub><mi>𝑡</mi><mtext>sim</mtext></msub><mo>=</mo><mn>0.1</mn><mspace width="0.2222em"></mspace><mtext>ms</mtext></math></span>. The excitatory and inhibitory refractory durations, <span class="native-math"><math><mn>1.2</mn><mspace width="0.2222em"></mspace><mtext>ms</mtext></math></span> and <span class="native-math"><math><mn>0.6</mn><mspace width="0.2222em"></mspace><mtext>ms</mtext></math></span>, therefore correspond exactly to 12 and 6 timesteps.</p>
+<span id="loc-29"></span>
+<h2 id="output-readout-and-classification-loss">Output readout and classification loss</h2>
+<p>The canonical classifier uses an output LIF with mean pre-reset voltage. Let <span class="native-math"><math><mi>𝒉</mi><mrow><mo>[</mo><mi>𝑘</mi><mo>]</mo></mrow></math></span> be the final hidden E-population spike vector and <span class="native-math"><math><msub><mi>𝑊</mi><mtext>out</mtext></msub></math></span> the hidden-to-output matrix. With output decay <span class="native-math"><math><msub><mi>𝛽</mi><mi>𝑜</mi></msub><mo>=</mo><mo form="prefix" lspace="0em" rspace="0em">exp</mo><mrow><mo>(</mo><mrow><mo>−</mo><mi mathvariant="normal">Δ</mi><mfrac><msub><mi>𝑡</mi><mtext>sim</mtext></msub><msub><mi>𝜏</mi><mi>𝑜</mi></msub></mfrac></mrow><mo>)</mo></mrow></math></span>, the pre-reset dimensionless output state is</p>
+<div class="numbered-equation" id="loc-30" data-astro-cid-eamd5iue><div class="equation-body" data-astro-cid-eamd5iue><span class="native-math"><math display="block"><msub><mi>𝒂</mi><mrow><mi>𝑜</mi><mrow><mo>[</mo><mrow><mi>𝑘</mi><mo lspace="0em" rspace="0em">+</mo><mn>1</mn></mrow><mo>]</mo></mrow></mrow></msub><mo>=</mo><msub><mi>𝛽</mi><mi>𝑜</mi></msub><msub><mi>𝒖</mi><mrow><mi>𝑜</mi><mrow><mo>[</mo><mi>𝑘</mi><mo>]</mo></mrow></mrow></msub><mo>+</mo><mfrac><mrow><mn>1</mn><mo>−</mo><msub><mi>𝛽</mi><mi>𝑜</mi></msub></mrow><mrow><mi mathvariant="normal">Δ</mi><msub><mi>𝑡</mi><mtext>sim</mtext></msub></mrow></mfrac><mi>𝒉</mi><mrow><mo>[</mo><mrow><mi>𝑘</mi><mo>+</mo><mn>1</mn></mrow><mo>]</mo></mrow><msub><mi>𝑊</mi><mtext>out</mtext></msub><mi>.</mi></math></span></div><span data-astro-cid-eamd5iue>(26)</span></div>
+<p>The output spike and subtractive reset are</p>
+<div class="numbered-equation" id="loc-31" data-astro-cid-eamd5iue><div class="equation-body" data-astro-cid-eamd5iue><span class="native-math"><math display="block"><msub><mi>𝒔</mi><mrow><mi>𝑜</mi><mrow><mo>[</mo><mrow><mi>𝑘</mi><mo lspace="0em" rspace="0em">+</mo><mn>1</mn></mrow><mo>]</mo></mrow></mrow></msub><mo>=</mo><mi>𝐻</mi><mrow><mo>(</mo><mrow><msub><mi>𝒂</mi><mrow><mi>𝑜</mi><mrow><mo>[</mo><mrow><mi>𝑘</mi><mo lspace="0em" rspace="0em">+</mo><mn>1</mn></mrow><mo>]</mo></mrow></mrow></msub><mo>−</mo><msub><mi>𝜃</mi><mi>𝑜</mi></msub></mrow><mo>)</mo></mrow><mo rspace="0em">,</mo><mspace width="1em"></mspace><msub><mi>𝒖</mi><mrow><mi>𝑜</mi><mrow><mo>[</mo><mrow><mi>𝑘</mi><mo lspace="0em" rspace="0em">+</mo><mn>1</mn></mrow><mo>]</mo></mrow></mrow></msub><mo>=</mo><msub><mi>𝒂</mi><mrow><mi>𝑜</mi><mrow><mo>[</mo><mrow><mi>𝑘</mi><mo lspace="0em" rspace="0em">+</mo><mn>1</mn></mrow><mo>]</mo></mrow></mrow></msub><mo>−</mo><msub><mi>𝜃</mi><mi>𝑜</mi></msub><msub><mi>𝒔</mi><mrow><mi>𝑜</mi><mrow><mo>[</mo><mrow><mi>𝑘</mi><mo lspace="0em" rspace="0em">+</mo><mn>1</mn></mrow><mo>]</mo></mrow></mrow></msub><mo rspace="0em">,</mo></math></span></div><span data-astro-cid-eamd5iue>(27)</span></div>
+<p>where <span class="native-math"><math><msub><mi>𝜃</mi><mi>𝑜</mi></msub><mo>=</mo><mn>1</mn></math></span>. Output state and its evidence accumulator begin at zero for each independent image presentation. Hidden E/I voltages, conductances, spikes and refractory counters likewise initialize anew for every independent presentation. The decoder therefore receives presentation boundaries through these per-forward resets. The class score is the mean pre-reset state over the complete readout window:</p>
+<div class="numbered-equation" id="loc-32" data-astro-cid-eamd5iue><div class="equation-body" data-astro-cid-eamd5iue><span class="native-math"><math display="block"><msub><mi>𝑧</mi><mi>𝑐</mi></msub><mo>=</mo><mfrac><mn>1</mn><msub><mi>𝑁</mi><mi>𝑡</mi></msub></mfrac><munderover><mo form="prefix">∑</mo><mrow><mi>𝑘</mi><mo lspace="0em" rspace="0em">=</mo><mn>1</mn></mrow><msub><mi>𝑁</mi><mi>𝑡</mi></msub></munderover><msub><mi>𝑎</mi><mrow><mi>𝑜</mi><mo rspace="0em">,</mo><mi>𝑐</mi></mrow></msub><mrow><mo>[</mo><mi>𝑘</mi><mo>]</mo></mrow><mi>.</mi></math></span></div><span data-astro-cid-eamd5iue>(28)</span></div>
+<p>For minibatch member <span class="native-math"><math><mi>𝑏</mi></math></span>, softmax-normalized evidence is</p>
+<div class="numbered-equation" id data-astro-cid-eamd5iue><div class="equation-body" data-astro-cid-eamd5iue><span class="native-math"><math display="block"><msub><mi>𝑝</mi><mrow><mi>𝑏</mi><mo rspace="0em">,</mo><mi>𝑐</mi></mrow></msub><mo>=</mo><mfrac><mrow><mo lspace="0em" rspace="0em">exp</mo><mrow><mo>(</mo><msub><mi>𝑧</mi><mrow><mi>𝑏</mi><mo rspace="0em">,</mo><mi>𝑐</mi></mrow></msub><mo>)</mo></mrow></mrow><mrow><msubsup><mo lspace="0em">∑</mo><mrow><mi>𝑞</mi><mo lspace="0em" rspace="0em">=</mo><mn>1</mn></mrow><msub><mi>𝑁</mi><mtext>out</mtext></msub></msubsup><mo form="prefix" lspace="0em" rspace="0em">exp</mo><mrow><mo>(</mo><msub><mi>𝑧</mi><mrow><mi>𝑏</mi><mo rspace="0em">,</mo><mi>𝑞</mi></mrow></msub><mo>)</mo></mrow></mrow></mfrac><mi>.</mi></math></span></div><span data-astro-cid-eamd5iue>(29)</span></div>
+<p>It is used for optimization but is not assumed to be a calibrated probability. For true class <span class="native-math"><math><msub><mi>𝑦</mi><mi>𝑏</mi></msub></math></span>, the mean cross-entropy training loss is</p>
+<div class="numbered-equation" id data-astro-cid-eamd5iue><div class="equation-body" data-astro-cid-eamd5iue><span class="native-math"><math display="block"><msub><mi>𝐿</mi><mtext>CE</mtext></msub><mo>=</mo><mo form="prefix">−</mo><mfrac><mn>1</mn><mi>𝐵</mi></mfrac><munderover><mo form="prefix">∑</mo><mrow><mi>𝑏</mi><mo lspace="0em" rspace="0em">=</mo><mn>1</mn></mrow><mi>𝐵</mi></munderover><mo form="prefix" lspace="0em" rspace="0.16666666666666666em">ln</mo><msub><mi>𝑝</mi><mrow><mi>𝑏</mi><mo rspace="0em">,</mo><msub><mi>𝑦</mi><mi>𝑏</mi></msub></mrow></msub><mi>.</mi></math></span></div><span data-astro-cid-eamd5iue>(30)</span></div>
+<p>Some conditions add a one-sided firing-rate ceiling. Let <span class="native-math"><math><msub><mi>𝐾</mi><mrow><mi>𝑏</mi><mo rspace="0em">,</mo><mi>𝑙</mi><mo rspace="0em">,</mo><mi>𝑗</mi></mrow></msub><mo>=</mo><msubsup><mo form="prefix" lspace="0em">∑</mo><mrow><mi>𝑘</mi><mo lspace="0em" rspace="0em">=</mo><mn>1</mn></mrow><msub><mi>𝑁</mi><mi>𝑡</mi></msub></msubsup><msub><mi>𝑠</mi><mrow><mi>𝑏</mi><mo rspace="0em">,</mo><mi>𝑙</mi><mo rspace="0em">,</mo><mi>𝑗</mi></mrow></msub><mrow><mo>[</mo><mi>𝑘</mi><mo>]</mo></mrow></math></span> be the spike count of hidden E neuron <span class="native-math"><math><mi>𝑗</mi></math></span> in layer <span class="native-math"><math><mi>𝑙</mi></math></span> for presentation <span class="native-math"><math><mi>𝑏</mi></math></span>. Its sample-wise population-mean rate is</p>
+<div class="numbered-equation" id="loc-33" data-astro-cid-eamd5iue><div class="equation-body" data-astro-cid-eamd5iue><span class="native-math"><math display="block"><msub><mrow><mo>|</mo><mi>𝑟</mi><mo>|</mo></mrow><mrow><mi>𝑏</mi><mo rspace="0em">,</mo><mi>𝑙</mi></mrow></msub><mo>=</mo><mfrac><mn>1</mn><mrow><msub><mi>𝑁</mi><mrow><mi>𝐸</mi><mo rspace="0em">,</mo><mi>𝑙</mi></mrow></msub><msub><mi>𝑇</mi><mtext>present</mtext></msub></mrow></mfrac><munderover><mo form="prefix">∑</mo><mrow><mi>𝑗</mi><mo lspace="0em" rspace="0em">=</mo><mn>1</mn></mrow><msub><mi>𝑁</mi><mrow><mi>𝐸</mi><mo rspace="0em">,</mo><mi>𝑙</mi></mrow></msub></munderover><msub><mi>𝐾</mi><mrow><mi>𝑏</mi><mo rspace="0em">,</mo><mi>𝑙</mi><mo rspace="0em">,</mo><mi>𝑗</mi></mrow></msub><mi>.</mi></math></span></div><span data-astro-cid-eamd5iue>(31)</span></div>
+<p>With tested ceiling <span class="native-math"><math><msub><mi>𝑟</mi><mrow><mi>𝐸</mi><mo rspace="0em">,</mo><mtext>ceil</mtext></mrow></msub></math></span> and coefficient <span class="native-math"><math><msub><mi>𝜆</mi><mtext>rate</mtext></msub></math></span>, the penalty is</p>
+<div class="numbered-equation" id="loc-34" data-astro-cid-eamd5iue><div class="equation-body" data-astro-cid-eamd5iue><span class="native-math"><math display="block"><msub><mi>𝐿</mi><mtext>rate</mtext></msub><mo>=</mo><mfrac><msub><mi>𝜆</mi><mtext>rate</mtext></msub><mrow><mi>𝐵</mi><mi>𝐿</mi></mrow></mfrac><munderover><mo form="prefix">∑</mo><mrow><mi>𝑏</mi><mo lspace="0em" rspace="0em">=</mo><mn>1</mn></mrow><mi>𝐵</mi></munderover><munderover><mo form="prefix" lspace="0em">∑</mo><mrow><mi>𝑙</mi><mo lspace="0em" rspace="0em">=</mo><mn>1</mn></mrow><mi>𝐿</mi></munderover><msup><mrow><mo lspace="0em" rspace="0em">max</mo><mrow><mo>(</mo><mrow><mn>0</mn><mo>,</mo><msub><mrow><mo>|</mo><mi>𝑟</mi><mo>|</mo></mrow><mrow><mi>𝑏</mi><mo rspace="0em">,</mo><mi>𝑙</mi></mrow></msub><mo>−</mo><msub><mi>𝑟</mi><mrow><mi>𝐸</mi><mo rspace="0em">,</mo><mtext>ceil</mtext></mrow></msub></mrow><mo>)</mo></mrow></mrow><mn>2</mn></msup><mo rspace="0em">,</mo><mspace width="1em"></mspace><msub><mi>𝐿</mi><mtext>total</mtext></msub><mo>=</mo><msub><mi>𝐿</mi><mtext>CE</mtext></msub><mo>+</mo><msub><mi>𝐿</mi><mtext>rate</mtext></msub><mi>.</mi></math></span></div><span data-astro-cid-eamd5iue>(32)</span></div>
+<p>The canonical reference conditions set <span class="native-math"><math><msub><mi>𝜆</mi><mtext>rate</mtext></msub><mo>=</mo><mn>0</mn></math></span>; activity-ceiling conditions use <a href="#loc-34">Equation 32</a> with a positive coefficient.</p>
+<span id="loc-35"></span>
+<h2 id="backpropagation-through-time">Backpropagation through time</h2>
+<p>Collect all differentiable voltages, conductances, spikes, output states and accumulators into the state vector <span class="native-math"><math><mi>𝒙</mi><mrow><mo>[</mo><mi>𝑘</mi><mo>]</mo></mrow></math></span>. One complete simulation step has the abstract form</p>
+<div class="numbered-equation" id="loc-36" data-astro-cid-eamd5iue><div class="equation-body" data-astro-cid-eamd5iue><span class="native-math"><math display="block"><mi>𝒙</mi><mrow><mo>[</mo><mrow><mi>𝑘</mi><mo>+</mo><mn>1</mn></mrow><mo>]</mo></mrow><mo>=</mo><msub><mi>𝐹</mi><mrow><mi>𝑘</mi><mrow><mo>(</mo><mrow><mi>𝒙</mi><mrow><mo>[</mo><mi>𝑘</mi><mo>]</mo></mrow><mo rspace="0em">,</mo><mi>𝒖</mi><mrow><mo>[</mo><mi>𝑘</mi><mo>]</mo></mrow><mo rspace="0em">;</mo><mi>𝜃</mi></mrow><mo>)</mo></mrow></mrow></msub><mo rspace="0em">,</mo><mspace width="1em"></mspace><msub><mi>𝐿</mi><mtext>total</mtext></msub><mo>=</mo><mi>ℓ</mi><mrow><mo>(</mo><mrow><mi>𝒙</mi><mrow><mo>[</mo><msub><mi>𝑁</mi><mi>𝑡</mi></msub><mo>]</mo></mrow><mo>,</mo><mi>𝑦</mi></mrow><mo>)</mo></mrow><mi>.</mi></math></span></div><span data-astro-cid-eamd5iue>(33)</span></div>
+<p><span class="native-math"><math><msub><mi>𝐹</mi><mi>𝑘</mi></msub></math></span> is a bundle rather than one additional simulator equation. It combines the discrete synapse rule in <a href="#loc-13">Equation 11</a> and the decay factors in <a href="#loc-15">Equation 12</a>; the population-specific conductance updates from <a href="#loc-16">Equation 13</a> through <a href="#loc-19">Equation 16</a>; the implemented membrane update in <a href="#loc-25">Equation 23</a>; the refractory, spike and reset operations in <a href="#loc-27">Equation 24</a> and <a href="#loc-28">Equation 25</a>; and the output update in <a href="#loc-30">Equation 26</a> and <a href="#loc-31">Equation 27</a>. It also advances the accumulators used to construct <a href="#loc-32">Equation 28</a> and <a href="#loc-33">Equation 31</a>. The earlier continuous equations and intermediate derivation steps explain these operations but are not extra updates inside <span class="native-math"><math><msub><mi>𝐹</mi><mi>𝑘</mi></msub></math></span>.</p>
+<p>Here <span class="native-math"><math><mi>𝒖</mi><mrow><mo>[</mo><mi>𝑘</mi><mo>]</mo></mrow></math></span> denotes external input, <span class="native-math"><math><mi>𝜃</mi></math></span> is the shared trainable parameter vector, and <span class="native-math"><math><mi>ℓ</mi></math></span> includes the readout and objective defined in <a href="#loc-32">Equation 28</a>–<a href="#loc-34">Equation 32</a>. At <span class="native-math"><math><mi mathvariant="normal">Δ</mi><msub><mi>𝑡</mi><mtext>sim</mtext></msub><mo>=</mo><mn>0.1</mn><mspace width="0.2222em"></mspace><mtext>ms</mtext></math></span>, a <span class="native-math"><math><mn>200</mn><mspace width="0.2222em"></mspace><mtext>ms</mtext></math></span> presentation applies <span class="native-math"><math><msub><mi>𝐹</mi><mi>𝑘</mi></msub></math></span> 2,000 times. Each copy has a different state but reuses the same parameters.</p>
+<p>Define the state sensitivity</p>
+<div class="numbered-equation" id="loc-37" data-astro-cid-eamd5iue><div class="equation-body" data-astro-cid-eamd5iue><span class="native-math"><math display="block"><mi>𝜹</mi><mrow><mo>[</mo><mi>𝑘</mi><mo>]</mo></mrow><mo>=</mo><msub><mo form="prefix">∇</mo><mrow><mi>𝒙</mi><mrow><mo>[</mo><mi>𝑘</mi><mo>]</mo></mrow></mrow></msub><msub><mi>𝐿</mi><mtext>total</mtext></msub><mo rspace="0em">,</mo><mspace width="1em"></mspace><msub><mi>𝐽</mi><mrow><mtext>step</mtext><mrow><mo>[</mo><mi>𝑘</mi><mo>]</mo></mrow></mrow></msub><mo>=</mo><mfrac><mrow><mi>𝜕</mi><msub><mi>𝐹</mi><mi>𝑘</mi></msub></mrow><mrow><mi>𝜕</mi><mi>𝒙</mi><mrow><mo>[</mo><mi>𝑘</mi><mo>]</mo></mrow></mrow></mfrac><mi>.</mi></math></span></div><span data-astro-cid-eamd5iue>(34)</span></div>
+<p>Let <span class="native-math"><math><msub><mi>𝑥</mi><mrow><mi>𝑖</mi><mrow><mo>[</mo><mi>𝑘</mi><mo>]</mo></mrow></mrow></msub></math></span> be component <span class="native-math"><math><mi>𝑖</mi></math></span> of the current state and <span class="native-math"><math><msub><mi>𝐹</mi><mrow><mi>𝑘</mi><mo rspace="0em">,</mo><mi>𝑗</mi></mrow></msub></math></span> component <span class="native-math"><math><mi>𝑗</mi></math></span> of <span class="native-math"><math><msub><mi>𝐹</mi><mi>𝑘</mi></msub></math></span>. The project evaluates its loss from the terminal readout and rate accumulators. Consequently, for <span class="native-math"><math><mi>𝑘</mi><mo>&lt;</mo><msub><mi>𝑁</mi><mi>𝑡</mi></msub></math></span>, the current state affects the loss through the next state. Applying the multivariable chain rule component by component gives</p>
+<div class="numbered-equation" id="loc-38" data-astro-cid-eamd5iue><div class="equation-body" data-astro-cid-eamd5iue><span class="native-math"><math display="block"><mtable class="multiline-equation aligned"><mtr><mtd><msub><mi>𝛿</mi><mrow><mi>𝑖</mi><mrow><mo>[</mo><mi>𝑘</mi><mo>]</mo></mrow></mrow></msub></mtd><mtd><mo form="infix">=</mo><mfrac><mrow><mi>𝜕</mi><msub><mi>𝐿</mi><mtext>total</mtext></msub></mrow><mrow><mi>𝜕</mi><msub><mi>𝑥</mi><mrow><mi>𝑖</mi><mrow><mo>[</mo><mi>𝑘</mi><mo>]</mo></mrow></mrow></msub></mrow></mfrac></mtd></mtr><mtr><mtd></mtd><mtd><mo form="infix">=</mo><munder><mo form="prefix" lspace="0em">∑</mo><mi>𝑗</mi></munder><mfrac><mrow><mi>𝜕</mi><msub><mi>𝐿</mi><mtext>total</mtext></msub></mrow><mrow><mi>𝜕</mi><msub><mi>𝑥</mi><mrow><mi>𝑗</mi><mrow><mo>[</mo><mrow><mi>𝑘</mi><mo lspace="0em" rspace="0em">+</mo><mn>1</mn></mrow><mo>]</mo></mrow></mrow></msub></mrow></mfrac><mfrac><mrow><mi>𝜕</mi><msub><mi>𝑥</mi><mrow><mi>𝑗</mi><mrow><mo>[</mo><mrow><mi>𝑘</mi><mo lspace="0em" rspace="0em">+</mo><mn>1</mn></mrow><mo>]</mo></mrow></mrow></msub></mrow><mrow><mi>𝜕</mi><msub><mi>𝑥</mi><mrow><mi>𝑖</mi><mrow><mo>[</mo><mi>𝑘</mi><mo>]</mo></mrow></mrow></msub></mrow></mfrac></mtd></mtr><mtr><mtd></mtd><mtd><mo form="infix">=</mo><munder><mo form="prefix" lspace="0em">∑</mo><mi>𝑗</mi></munder><msub><mi>𝛿</mi><mrow><mi>𝑗</mi><mrow><mo>[</mo><mrow><mi>𝑘</mi><mo lspace="0em" rspace="0em">+</mo><mn>1</mn></mrow><mo>]</mo></mrow></mrow></msub><mfrac><mrow><mi>𝜕</mi><msub><mi>𝐹</mi><mrow><mi>𝑘</mi><mo rspace="0em">,</mo><mi>𝑗</mi></mrow></msub></mrow><mrow><mi>𝜕</mi><msub><mi>𝑥</mi><mrow><mi>𝑖</mi><mrow><mo>[</mo><mi>𝑘</mi><mo>]</mo></mrow></mrow></msub></mrow></mfrac><mo rspace="0em">,</mo></mtd></mtr><mtr><mtd><mi>𝜹</mi><mrow><mo>[</mo><mi>𝑘</mi><mo>]</mo></mrow></mtd><mtd><mo form="infix">=</mo><msubsup><mi>𝐽</mi><mrow><mtext>step</mtext><mrow><mo>[</mo><mi>𝑘</mi><mo>]</mo></mrow></mrow><mi>⊤</mi></msubsup><mi>𝜹</mi><mrow><mo>[</mo><mrow><mi>𝑘</mi><mo>+</mo><mn>1</mn></mrow><mo>]</mo></mrow><mo rspace="0em">,</mo><mspace width="1em"></mspace><mi>𝜹</mi><mrow><mo>[</mo><msub><mi>𝑁</mi><mi>𝑡</mi></msub><mo>]</mo></mrow><mo>=</mo><msub><mo form="prefix">∇</mo><mrow><mi>𝒙</mi><mrow><mo>[</mo><msub><mi>𝑁</mi><mi>𝑡</mi></msub><mo>]</mo></mrow></mrow></msub><mi>ℓ</mi><mrow><mo>(</mo><mrow><mi>𝒙</mi><mrow><mo>[</mo><msub><mi>𝑁</mi><mi>𝑡</mi></msub><mo>]</mo></mrow><mo>,</mo><mi>𝑦</mi></mrow><mo>)</mo></mrow><mi>.</mi></mtd></mtr></mtable></math></span></div><span data-astro-cid-eamd5iue>(35)</span></div>
+<p>The second line of <a href="#loc-38">Equation 35</a> sums every route from state component <span class="native-math"><math><msub><mi>𝑥</mi><mrow><mi>𝑖</mi><mrow><mo>[</mo><mi>𝑘</mi><mo>]</mo></mrow></mrow></msub></math></span> to the later loss through next-state component <span class="native-math"><math><msub><mi>𝑥</mi><mrow><mi>𝑗</mi><mrow><mo>[</mo><mrow><mi>𝑘</mi><mo lspace="0em" rspace="0em">+</mo><mn>1</mn></mrow><mo>]</mo></mrow></mrow></msub></math></span>. The third line substitutes <a href="#loc-37">Equation 34</a> and <a href="#loc-36">Equation 33</a>. Stacking the component equations produces the transpose-Jacobian vector product in the fourth line; the final line supplies the terminal condition from <a href="#loc-36">Equation 33</a>. Because each parameter is reused, its total gradient is</p>
+<div class="numbered-equation" id="loc-39" data-astro-cid-eamd5iue><div class="equation-body" data-astro-cid-eamd5iue><span class="native-math"><math display="block"><msub><mo>∇</mo><mi>𝜃</mi></msub><msub><mi>𝐿</mi><mtext>total</mtext></msub><mo>=</mo><msubsup><mo form="prefix">∇</mo><mi>𝜃</mi><mtext>direct</mtext></msubsup><msub><mi>𝐿</mi><mtext>total</mtext></msub><mo>+</mo><munderover><mo form="prefix" lspace="0em">∑</mo><mrow><mi>𝑘</mi><mo lspace="0em" rspace="0em">=</mo><mn>0</mn></mrow><mrow><msub><mi>𝑁</mi><mi>𝑡</mi></msub><mo lspace="0em" rspace="0em">−</mo><mn>1</mn></mrow></munderover><msup><mfrac><mrow><mi>𝜕</mi><msub><mi>𝐹</mi><mi>𝑘</mi></msub></mrow><mrow><mi>𝜕</mi><mi>𝜃</mi></mrow></mfrac><mi>⊤</mi></msup><mi>𝜹</mi><mrow><mo>[</mo><mrow><mi>𝑘</mi><mo>+</mo><mn>1</mn></mrow><mo>]</mo></mrow><mi>.</mi></math></span></div><span data-astro-cid-eamd5iue>(36)</span></div>
+<p><a href="#loc-38">Equation 35</a> and <a href="#loc-39">Equation 36</a> define backpropagation through time (BPTT). PyTorch autograd evaluates these vector–Jacobian products and accumulates parameter gradients when backward propagation is requested; it need not construct the full Jacobian matrices explicitly.[<a href="#ref-4">4</a>]</p>
+<p>For example, the local recurrence <span class="native-math"><math><mi>𝒈</mi><mrow><mo>[</mo><mrow><mi>𝑘</mi><mo>+</mo><mn>1</mn></mrow><mo>]</mo></mrow><mo>=</mo><mi>𝛽</mi><mi>𝒈</mi><mrow><mo>[</mo><mi>𝑘</mi><mo>]</mo></mrow><mo>+</mo><mi>𝒔</mi><mrow><mo>[</mo><mi>𝑘</mi><mo>]</mo></mrow><mi>𝑊</mi></math></span> gives</p>
+<div class="numbered-equation" id="loc-40" data-astro-cid-eamd5iue><div class="equation-body" data-astro-cid-eamd5iue><span class="native-math"><math display="block"><msub><mo>∇</mo><mi>𝑊</mi></msub><msub><mi>𝐿</mi><mtext>total</mtext></msub><mo>=</mo><munder><mo form="prefix" lspace="0em">∑</mo><mi>𝑘</mi></munder><mi>𝒔</mi><msup><mrow><mo>[</mo><mi>𝑘</mi><mo>]</mo></mrow><mi>⊤</mi></msup><msub><mo form="prefix">∇</mo><mrow><mi>𝒈</mi><mrow><mo>[</mo><mrow><mi>𝑘</mi><mo lspace="0em" rspace="0em">+</mo><mn>1</mn></mrow><mo>]</mo></mrow></mrow></msub><msub><mi>𝐿</mi><mtext>total</mtext></msub><mi>.</mi></math></span></div><span data-astro-cid-eamd5iue>(37)</span></div>
+<p><a href="#loc-40">Equation 37</a> shows temporal credit assignment directly: every use of the shared weight contributes according to the later loss sensitivity of the conductance it created.</p>
+<span id="loc-41"></span>
+<h2 id="surrogate-spike-derivatives">Surrogate spike derivatives</h2>
+<p>BPTT requires derivatives of the update operations, but the hard spike in <a href="#loc-28">Equation 25</a> has derivative zero away from threshold and is undefined at threshold. Direct use of that derivative would block useful learning signals.</p>
+<p>Surrogate-gradient learning retains the binary forward spike while assigning a smooth backward derivative.[<a href="#ref-2">2</a>] For <span class="native-math"><math><mi>𝜉</mi><mo>=</mo><msub><mi>𝑉</mi><mtext>candidate</mtext></msub><mo>−</mo><msub><mi>𝑉</mi><mtext>th</mtext></msub></math></span>, the chosen proxy is</p>
+<div class="numbered-equation" id="loc-42" data-astro-cid-eamd5iue><div class="equation-body" data-astro-cid-eamd5iue><span class="native-math"><math display="block"><mi>𝑝</mi><mrow><mo>(</mo><mi>𝜉</mi><mo>)</mo></mrow><mo>=</mo><mfrac><mrow><mi>𝛽</mi><mi>𝜉</mi></mrow><mrow><mn>1</mn><mo>+</mo><mi>𝛽</mi><mrow><mo>|</mo><mi>𝜉</mi><mo>|</mo></mrow></mrow></mfrac><mo rspace="0em">,</mo><mspace width="1em"></mspace><mfrac><mrow><mi>𝜕</mi><mi>𝑠</mi></mrow><mrow><mi>𝜕</mi><mi>𝜉</mi></mrow></mfrac><mo>≈</mo><mfrac><mi>𝛽</mi><msup><mrow><mo>(</mo><mrow><mn>1</mn><mo>+</mo><mi>𝛽</mi><mrow><mo>|</mo><mi>𝜉</mi><mo>|</mo></mrow></mrow><mo>)</mo></mrow><mn>2</mn></msup></mfrac><mi>.</mi></math></span></div><span data-astro-cid-eamd5iue>(38)</span></div>
+<p>The approximate equality in <a href="#loc-42">Equation 38</a> denotes an assigned backward rule rather than the true derivative of the Heaviside function. For hidden neurons, <span class="native-math"><math><mi>𝜉</mi></math></span> is measured in millivolts and <span class="native-math"><math><mi>𝛽</mi></math></span> in reciprocal millivolts. The standard classifiers use <span class="native-math"><math><mi>𝛽</mi><mo>=</mo><mn>1</mn></math></span>.</p>
+<p>Let <span class="native-math"><math><mo lspace="0em" rspace="0em">sg</mo><mrow><mo>(</mo><mi>𝑧</mi><mo>)</mo></mrow></math></span> denote stop-gradient: it returns <span class="native-math"><math><mi>𝑧</mi></math></span> forward but has zero derivative. The simulator constructs</p>
+<div class="numbered-equation" id="loc-43" data-astro-cid-eamd5iue><div class="equation-body" data-astro-cid-eamd5iue><span class="native-math"><math display="block"><mi>𝑠</mi><mo>=</mo><mo form="prefix" lspace="0em" rspace="0em">sg</mo><mrow><mo>(</mo><mrow><mi>𝐻</mi><mrow><mo>(</mo><mi>𝜉</mi><mo>)</mo></mrow></mrow><mo>)</mo></mrow><mo>+</mo><mi>𝑝</mi><mrow><mo>(</mo><mi>𝜉</mi><mo>)</mo></mrow><mo>−</mo><mo form="prefix" lspace="0em" rspace="0em">sg</mo><mrow><mo>(</mo><mrow><mi>𝑝</mi><mrow><mo>(</mo><mi>𝜉</mi><mo>)</mo></mrow></mrow><mo>)</mo></mrow><mi>.</mi></math></span></div><span data-astro-cid-eamd5iue>(39)</span></div>
+<p><a href="#loc-43">Equation 39</a> equals <span class="native-math"><math><mi>𝐻</mi><mrow><mo>(</mo><mi>𝜉</mi><mo>)</mo></mrow></math></span> numerically, while autograd differentiates only <span class="native-math"><math><mi>𝑝</mi><mrow><mo>(</mo><mi>𝜉</mi><mo>)</mo></mrow></math></span>.[<a href="#ref-5">5</a>] Boolean reset and refractory decisions remain non-differentiable. Resetting hidden voltage to a constant cuts that voltage-state path, while the floating spike value carries the surrogate derivative into downstream synapses and the readout.</p>
+<span id="loc-44"></span>
+<h2 id="why-voltage-gradients-can-explode">Why voltage gradients can explode</h2>
+<p>Expanding <a href="#loc-38">Equation 35</a> across many steps produces repeated Jacobian products:</p>
+<div class="numbered-equation" id="loc-45" data-astro-cid-eamd5iue><div class="equation-body" data-astro-cid-eamd5iue><span class="native-math"><math display="block"><mi>𝜹</mi><mrow><mo>[</mo><mi>𝑘</mi><mo>]</mo></mrow><mo>=</mo><msubsup><mi>𝐽</mi><mrow><mtext>step</mtext><mrow><mo>[</mo><mi>𝑘</mi><mo>]</mo></mrow></mrow><mi>⊤</mi></msubsup><msubsup><mi>𝐽</mi><mrow><mtext>step</mtext><mrow><mo>[</mo><mrow><mi>𝑘</mi><mo lspace="0em" rspace="0em">+</mo><mn>1</mn></mrow><mo>]</mo></mrow></mrow><mi>⊤</mi></msubsup><mi>…</mi><msubsup><mi>𝐽</mi><mrow><mtext>step</mtext><mrow><mo>[</mo><mrow><msub><mi>𝑁</mi><mi>𝑡</mi></msub><mo lspace="0em" rspace="0em">−</mo><mn>1</mn></mrow><mo>]</mo></mrow></mrow><mi>⊤</mi></msubsup><mi>𝜹</mi><mrow><mo>[</mo><msub><mi>𝑁</mi><mi>𝑡</mi></msub><mo>]</mo></mrow><mo>+</mo><mtext>direct terms</mtext><mi>.</mi></math></span></div><span data-astro-cid-eamd5iue>(40)</span></div>
+<p>Products in <a href="#loc-45">Equation 40</a> can shrink useful sensitivities or amplify them. This project combines a 2,000-step graph with voltage, conductance, spike and output-state memory. PING adds a closed route by which a voltage perturbation can return to the population from which it began:</p>
+<div class="numbered-equation" id="loc-46" data-astro-cid-eamd5iue><div class="equation-body" data-astro-cid-eamd5iue><span class="native-math"><math display="block"><mi>𝛿</mi><msub><mi>𝑽</mi><mi>𝐸</mi></msub><mo stretchy="false">→</mo><mi>𝛿</mi><msub><mi>𝒔</mi><mi>𝐸</mi></msub><mo stretchy="false">→</mo><mi>𝛿</mi><msub><mi>𝒈</mi><mrow><mi>𝐸</mi><mo lspace="0em" rspace="0em" stretchy="false">→</mo><mi>𝐼</mi></mrow></msub><mo stretchy="false">→</mo><mi>𝛿</mi><msub><mi>𝑽</mi><mi>𝐼</mi></msub><mo stretchy="false">→</mo><mi>𝛿</mi><msub><mi>𝒔</mi><mi>𝐼</mi></msub><mo stretchy="false">→</mo><mi>𝛿</mi><msub><mi>𝒈</mi><mrow><mi>𝐼</mi><mo lspace="0em" rspace="0em" stretchy="false">→</mo><mi>𝐸</mi></mrow></msub><mo stretchy="false">→</mo><mi>𝛿</mi><msub><mi>𝑽</mi><mi>𝐸</mi></msub><mi>.</mi></math></span></div><span data-astro-cid-eamd5iue>(41)</span></div>
+<p>The local gain of this route follows from the membrane equations rather than from an extra model quantity. Choose <span class="native-math"><math><mi>𝑋</mi><mo>=</mo><mi>𝐸</mi></math></span> for excitatory conductance or <span class="native-math"><math><mi>𝑋</mi><mo>=</mo><mi>𝐼</mi></math></span> for inhibitory conductance. Differentiating <a href="#loc-22">Equation 18</a> and the decay <span class="native-math"><math><mi>𝑎</mi></math></span> in <a href="#loc-25">Equation 23</a> gives</p>
+<div class="numbered-equation" id data-astro-cid-eamd5iue><div class="equation-body" data-astro-cid-eamd5iue><span class="native-math"><math display="block"><mfrac><mrow><mi>𝜕</mi><msub><mi>𝑉</mi><mi>∞</mi></msub></mrow><mrow><mi>𝜕</mi><msub><mi>𝑔</mi><mi>𝑋</mi></msub></mrow></mfrac><mo>=</mo><mfrac><mrow><msub><mi>𝐸</mi><mi>𝑋</mi></msub><mo>−</mo><msub><mi>𝑉</mi><mi>∞</mi></msub></mrow><msub><mi>𝑔</mi><mtext>tot</mtext></msub></mfrac><mo rspace="0em">,</mo><mspace width="1em"></mspace><mfrac><mrow><mi>𝜕</mi><mi>𝑎</mi></mrow><mrow><mi>𝜕</mi><msub><mi>𝑔</mi><mi>𝑋</mi></msub></mrow></mfrac><mo>=</mo><mo form="prefix">−</mo><mfrac><mrow><mi mathvariant="normal">Δ</mi><msub><mi>𝑡</mi><mtext>sim</mtext></msub></mrow><msub><mi>𝐶</mi><mi>𝑚</mi></msub></mfrac><mi>𝑎</mi><mi>.</mi></math></span></div><span data-astro-cid-eamd5iue>(42)</span></div>
+<p>Applying the product rule to <span class="native-math"><math><mi mathvariant="normal">Δ</mi><mi>𝑉</mi><mo>=</mo><mrow><mo>(</mo><mrow><msub><mi>𝑉</mi><mi>∞</mi></msub><mo>−</mo><msub><mi>𝑉</mi><mi>𝑚</mi></msub></mrow><mo>)</mo></mrow><mrow><mo>(</mo><mrow><mn>1</mn><mo>−</mo><mi>𝑎</mi></mrow><mo>)</mo></mrow></math></span> gives the conductance-to-voltage response</p>
+<div class="numbered-equation" id="loc-47" data-astro-cid-eamd5iue><div class="equation-body" data-astro-cid-eamd5iue><span class="native-math"><math display="block"><msub><mi>𝑅</mi><mi>𝑋</mi></msub><mo>≔</mo><mfrac><mrow><mi>𝜕</mi><mi mathvariant="normal">Δ</mi><mi>𝑉</mi></mrow><mrow><mi>𝜕</mi><msub><mi>𝑔</mi><mi>𝑋</mi></msub></mrow></mfrac><mo>=</mo><mfrac><mrow><mrow><mo>(</mo><mrow><msub><mi>𝐸</mi><mi>𝑋</mi></msub><mo>−</mo><msub><mi>𝑉</mi><mi>∞</mi></msub></mrow><mo>)</mo></mrow><mrow><mo>(</mo><mrow><mn>1</mn><mo>−</mo><mi>𝑎</mi></mrow><mo>)</mo></mrow></mrow><msub><mi>𝑔</mi><mtext>tot</mtext></msub></mfrac><mo>+</mo><mrow><mo>(</mo><mrow><msub><mi>𝑉</mi><mi>∞</mi></msub><mo>−</mo><msub><mi>𝑉</mi><mi>𝑚</mi></msub></mrow><mo>)</mo></mrow><mfrac><mrow><mi mathvariant="normal">Δ</mi><msub><mi>𝑡</mi><mtext>sim</mtext></msub></mrow><msub><mi>𝐶</mi><mi>𝑚</mi></msub></mfrac><mi>𝑎</mi><mi>.</mi></math></span></div><span data-astro-cid-eamd5iue>(43)</span></div>
+<p>The response <span class="native-math"><math><msub><mi>𝑅</mi><mi>𝑋</mi></msub></math></span> in <a href="#loc-47">Equation 43</a> has units of millivolts per microsiemens. Let <span class="native-math"><math><msub><mi>𝑅</mi><mrow><mi>𝐸</mi><mo lspace="0em" rspace="0em" stretchy="false">→</mo><mi>𝐼</mi></mrow></msub></math></span> and <span class="native-math"><math><msub><mi>𝑅</mi><mrow><mi>𝐼</mi><mo lspace="0em" rspace="0em" stretchy="false">→</mo><mi>𝐸</mi></mrow></msub></math></span> be diagonal matrices of the appropriate responses at I and E neurons. Let <span class="native-math"><math><msub><mi>𝑆</mi><mi>𝐸</mi></msub></math></span> and <span class="native-math"><math><msub><mi>𝑆</mi><mi>𝐼</mi></msub></math></span> be diagonal matrices containing the local surrogate derivatives from <a href="#loc-42">Equation 38</a>. One complete backward traversal of <a href="#loc-46">Equation 41</a> then has return Jacobian</p>
+<div class="numbered-equation" id="loc-48" data-astro-cid-eamd5iue><div class="equation-body" data-astro-cid-eamd5iue><span class="native-math"><math display="block"><msub><mi>𝐽</mi><mtext>loop</mtext></msub><mo>=</mo><msub><mi>𝑅</mi><mrow><mi>𝐼</mi><mo lspace="0em" rspace="0em" stretchy="false">→</mo><mi>𝐸</mi></mrow></msub><msubsup><mi>𝑊</mi><mrow><mi>𝐼</mi><mo lspace="0em" rspace="0em" stretchy="false">→</mo><mi>𝐸</mi></mrow><mi>⊤</mi></msubsup><msub><mi>𝑆</mi><mi>𝐼</mi></msub><msub><mi>𝑅</mi><mrow><mi>𝐸</mi><mo lspace="0em" rspace="0em" stretchy="false">→</mo><mi>𝐼</mi></mrow></msub><msubsup><mi>𝑊</mi><mrow><mi>𝐸</mi><mo lspace="0em" rspace="0em" stretchy="false">→</mo><mi>𝐼</mi></mrow><mi>⊤</mi></msubsup><msub><mi>𝑆</mi><mi>𝐸</mi></msub><mi>.</mi></math></span></div><span data-astro-cid-eamd5iue>(44)</span></div>
+<p>The transposes in <a href="#loc-48">Equation 44</a> convert the simulator’s presynaptic-row, postsynaptic-column weight storage into maps acting on column perturbations.</p>
+<p>At a fixed local linearization, a sensitivity returning through the loop <span class="native-math"><math><mi>𝑛</mi></math></span> times contains <span class="native-math"><math><msubsup><mi>𝐽</mi><mtext>loop</mtext><mi>𝑛</mi></msubsup><mi>𝛿</mi><msub><mi>𝑽</mi><mi>𝐸</mi></msub></math></span>. If the spectral radius <span class="native-math"><math><mi>𝜌</mi><mrow><mo>(</mo><msub><mi>𝐽</mi><mtext>loop</mtext></msub><mo>)</mo></mrow><mo>&gt;</mo><mn>1</mn></math></span>, some modes grow geometrically. A singular value above one permits amplification over one traversal, while time-varying, non-normal products can amplify transiently even if each instantaneous eigenvalue has magnitude below one.[<a href="#ref-3">3</a>] Inhibitory polarity can reverse a perturbation’s sign without making its magnitude small.</p>
+<p>Recurrence therefore does not guarantee exploding gradients. It creates the return operator in <a href="#loc-48">Equation 44</a>, which BPTT may traverse many times. Loop-disabled COBA lacks that particular operator, but it still carries gradients through membrane, conductance, spike and readout state across the same long presentation.</p>
+<p>Global gradient clipping cannot by itself repair this internal propagation. It acts only after BPTT has formed the complete parameter gradient. Internal sensitivities may already be enormous, non-finite, or dominated by the amplifying paths in <a href="#loc-45">Equation 40</a> before clipping occurs.</p>
+<span id="loc-49"></span>
+<h2 id="voltage-gradient-damping">Voltage-gradient damping</h2>
+<p>The project therefore intervenes inside the backward recurrence while preserving the physical forward trajectory. For dimensionless divisor <span class="native-math"><math><msub><mi>𝑑</mi><mtext>grad</mtext></msub><mo>&gt;</mo><mn>0</mn></math></span>, define</p>
+<div class="numbered-equation" id="loc-50" data-astro-cid-eamd5iue><div class="equation-body" data-astro-cid-eamd5iue><span class="native-math"><math display="block"><msub><mi>𝛼</mi><mtext>grad</mtext></msub><mo>=</mo><mfrac><mn>1</mn><msub><mi>𝑑</mi><mtext>grad</mtext></msub></mfrac><mo rspace="0em">,</mo><mspace width="1em"></mspace><msub><mi>𝒟︀</mi><mrow><mi>𝛼</mi><mrow><mo>(</mo><mi>𝑧</mi><mo>)</mo></mrow></mrow></msub><mo>=</mo><mi>𝛼</mi><mi>𝑧</mi><mo>+</mo><mrow><mo>(</mo><mrow><mn>1</mn><mo>−</mo><mi>𝛼</mi></mrow><mo>)</mo></mrow><mo form="prefix" lspace="0.16666666666666666em" rspace="0em">sg</mo><mrow><mo>(</mo><mi>𝑧</mi><mo>)</mo></mrow><mi>.</mi></math></span></div><span data-astro-cid-eamd5iue>(45)</span></div>
+<p>Forward evaluation of <a href="#loc-50">Equation 45</a> gives <span class="native-math"><math><msub><mi>𝒟︀</mi><mrow><mi>𝛼</mi><mrow><mo>(</mo><mi>𝑧</mi><mo>)</mo></mrow></mrow></msub><mo>=</mo><mi>𝑧</mi></math></span>, but its backward derivative is</p>
+<div class="numbered-equation" id data-astro-cid-eamd5iue><div class="equation-body" data-astro-cid-eamd5iue><span class="native-math"><math display="block"><mfrac><mrow><mi>𝜕</mi><msub><mi>𝒟︀</mi><mrow><mi>𝛼</mi><mrow><mo>(</mo><mi>𝑧</mi><mo>)</mo></mrow></mrow></msub></mrow><mrow><mi>𝜕</mi><mi>𝑧</mi></mrow></mfrac><mo>=</mo><mi>𝛼</mi><mi>.</mi></math></span></div><span data-astro-cid-eamd5iue>(46)</span></div>
+<p>The hidden E and I membrane updates replace <a href="#loc-25">Equation 23</a> by</p>
+<div class="numbered-equation" id="loc-51" data-astro-cid-eamd5iue><div class="equation-body" data-astro-cid-eamd5iue><span class="native-math"><math display="block"><msub><mi>𝑉</mi><mrow><mtext>candidate</mtext><mrow><mo>[</mo><mrow><mi>𝑘</mi><mo lspace="0em" rspace="0em">+</mo><mn>1</mn></mrow><mo>]</mo></mrow></mrow></msub><mo>=</mo><msub><mi>𝑉</mi><mrow><mi>𝑚</mi><mrow><mo>[</mo><mi>𝑘</mi><mo>]</mo></mrow></mrow></msub><mo>+</mo><msub><mi>𝒟︀</mi><msub><mi>𝛼</mi><mtext>grad</mtext></msub></msub><mrow><mo>(</mo><mrow><mi mathvariant="normal">Δ</mi><mi>𝑉</mi><mrow><mo>[</mo><mi>𝑘</mi><mo>]</mo></mrow></mrow><mo>)</mo></mrow><mi>.</mi></math></span></div><span data-astro-cid-eamd5iue>(47)</span></div>
+<p><a href="#loc-50">Equation 45</a> and <a href="#loc-51">Equation 47</a> leave voltages and spikes unchanged forward. Backward, each selected conductance-to-voltage response is multiplied by <span class="native-math"><math><msub><mi>𝛼</mi><mtext>grad</mtext></msub></math></span>. The PING return term in <a href="#loc-48">Equation 44</a> consequently becomes</p>
+<div class="numbered-equation" id data-astro-cid-eamd5iue><div class="equation-body" data-astro-cid-eamd5iue><span class="native-math"><math display="block"><msub><mi>𝐽</mi><mtext>loop,damped</mtext></msub><mo>=</mo><msubsup><mi>𝛼</mi><mtext>grad</mtext><mn>2</mn></msubsup><msub><mi>𝐽</mi><mtext>loop</mtext></msub><mi>.</mi></math></span></div><span data-astro-cid-eamd5iue>(48)</span></div>
+<p>The standard paired classifiers use <span class="native-math"><math><msub><mi>𝑑</mi><mtext>grad</mtext></msub><mo>=</mo><mn>1000</mn></math></span>, so <span class="native-math"><math><msub><mi>𝛼</mi><mtext>grad</mtext></msub><mo>=</mo><msup><mn>10</mn><mrow><mo>−</mo><mn>3</mn></mrow></msup></math></span> and this particular complete loop term is scaled by <span class="native-math"><math><msup><mn>10</mn><mrow><mo>−</mo><mn>6</mn></mrow></msup></math></span>. This does not scale the entire state Jacobian because <a href="#loc-50">Equation 45</a> is inserted only on the <span class="native-math"><math><mi mathvariant="normal">Δ</mi><mi>𝑉</mi></math></span> branch of <a href="#loc-51">Equation 47</a>. For one hidden neuron, the three local derivatives entering its candidate voltage are therefore</p>
+<div class="numbered-equation" id="loc-52" data-astro-cid-eamd5iue><div class="equation-body" data-astro-cid-eamd5iue><span class="native-math"><math display="block"><mfrac><mrow><mi>𝜕</mi><msub><mi>𝑉</mi><mtext>candidate</mtext></msub></mrow><mrow><mi>𝜕</mi><mrow><mo>(</mo><mrow><msub><mi>𝑉</mi><mi>𝑚</mi></msub><mo>,</mo><msub><mi>𝑔</mi><mi>𝐸</mi></msub><mo>,</mo><msub><mi>𝑔</mi><mi>𝐼</mi></msub></mrow><mo>)</mo></mrow></mrow></mfrac><mo>=</mo><mrow><mrow><mn>1</mn><mo>+</mo><msub><mi>𝛼</mi><mtext>grad</mtext></msub><mfrac><mrow><mi>𝜕</mi><mi mathvariant="normal">Δ</mi><mi>𝑉</mi></mrow><mrow><mi>𝜕</mi><msub><mi>𝑉</mi><mi>𝑚</mi></msub></mrow></mfrac><mo>,</mo><msub><mi>𝛼</mi><mtext>grad</mtext></msub><mfrac><mrow><mi>𝜕</mi><mi mathvariant="normal">Δ</mi><mi>𝑉</mi></mrow><mrow><mi>𝜕</mi><msub><mi>𝑔</mi><mi>𝐸</mi></msub></mrow></mfrac><mo>,</mo><msub><mi>𝛼</mi><mtext>grad</mtext></msub><mfrac><mrow><mi>𝜕</mi><mi mathvariant="normal">Δ</mi><mi>𝑉</mi></mrow><mrow><mi>𝜕</mi><msub><mi>𝑔</mi><mi>𝐼</mi></msub></mrow></mfrac></mrow></mrow><mi>.</mi></math></span></div><span data-astro-cid-eamd5iue>(49)</span></div>
+<p>Thus the conductance-to-voltage blocks are multiplied by <span class="native-math"><math><msub><mi>𝛼</mi><mtext>grad</mtext></msub></math></span>, but the direct identity route from <span class="native-math"><math><msub><mi>𝑉</mi><mrow><mi>𝑚</mi><mrow><mo>[</mo><mi>𝑘</mi><mo>]</mo></mrow></mrow></msub></math></span> to <span class="native-math"><math><msub><mi>𝑉</mi><mrow><mtext>candidate</mtext><mrow><mo>[</mo><mrow><mi>𝑘</mi><mo lspace="0em" rspace="0em">+</mo><mn>1</mn></mrow><mo>]</mo></mrow></mrow></msub></math></span> retains coefficient one. The conductance decay and spike-injection blocks, the refractory-counter update, and the local output recurrence contain no damping operator and are not directly rescaled. Downstream composite derivatives can nevertheless inherit attenuation when their path passes through a damped hidden-voltage increment. There is therefore no scalar <span class="native-math"><math><msub><mi>𝛼</mi><mtext>grad</mtext></msub></math></span> for which the complete step Jacobian is simply <span class="native-math"><math><msub><mi>𝛼</mi><mtext>grad</mtext></msub><msub><mi>𝐽</mi><mtext>step</mtext></msub></math></span>.</p>
+<p>Holding conductances fixed before bounds and reset, <a href="#loc-52">Equation 49</a> and <a href="#loc-25">Equation 23</a> give</p>
+<div class="numbered-equation" id="loc-53" data-astro-cid-eamd5iue><div class="equation-body" data-astro-cid-eamd5iue><span class="native-math"><math display="block"><mfrac><mrow><mi>𝜕</mi><msub><mi>𝑉</mi><mrow><mtext>candidate</mtext><mrow><mo>[</mo><mrow><mi>𝑘</mi><mo lspace="0em" rspace="0em">+</mo><mn>1</mn></mrow><mo>]</mo></mrow></mrow></msub></mrow><mrow><mi>𝜕</mi><msub><mi>𝑉</mi><mrow><mi>𝑚</mi><mrow><mo>[</mo><mi>𝑘</mi><mo>]</mo></mrow></mrow></msub></mrow></mfrac><mo>=</mo><mn>1</mn><mo>−</mo><msub><mi>𝛼</mi><mrow><mtext>grad</mtext><mrow><mo>(</mo><mrow><mn>1</mn><mo lspace="0em" rspace="0em">−</mo><mi>𝑎</mi></mrow><mo>)</mo></mrow></mrow></msub><mi>.</mi></math></span></div><span data-astro-cid-eamd5iue>(50)</span></div>
+<p>Without damping, <a href="#loc-53">Equation 50</a> reduces to <span class="native-math"><math><mi>𝑎</mi></math></span>. Strong damping moves the direct old-voltage derivative toward one while attenuating sensitivities entering through the membrane increment. It can therefore suppress recurrent-drive amplification without simply erasing membrane memory.</p>
+<p>Voltage-gradient damping is an altered backward rule, not a biophysical process or the exact derivative of the forward simulator. It deliberately biases temporal credit assignment and may suppress useful sensitivities along with unstable ones. The divisor is therefore an empirical training choice. Standard classifiers apply it to hidden E and I membrane increments, before voltage bounds, spike detection and reset; output-neuron updates are undamped.[<a href="#ref-1">1</a>]</p>
+<span id="loc-54"></span>
+<h2 id="gradient-clipping-adamw-and-dale-projection">Gradient clipping, AdamW, and Dale projection</h2>
+<p>After BPTT has accumulated the batch gradient <span class="native-math"><math><mi>𝒈</mi><mo>=</mo><msub><mo form="prefix">∇</mo><mi>𝜃</mi></msub><msub><mi>𝐿</mi><mtext>total</mtext></msub></math></span>, the trainer computes its global Euclidean norm</p>
+<div class="numbered-equation" id data-astro-cid-eamd5iue><div class="equation-body" data-astro-cid-eamd5iue><span class="native-math"><math display="block"><mo stretchy="false">‖</mo><mi>𝒈</mi><msub><mo stretchy="false">‖</mo><mn>2</mn></msub><mo>=</mo><msqrt><munder><mo lspace="0em">∑</mo><mi>𝑝</mi></munder><munder><mo form="prefix" lspace="0em">∑</mo><mi>𝑖</mi></munder><msubsup><mi>𝑔</mi><mrow><mi>𝑝</mi><mo rspace="0em">,</mo><mi>𝑖</mi></mrow><mn>2</mn></msubsup></msqrt><mi>.</mi></math></span></div><span data-astro-cid-eamd5iue>(51)</span></div>
+<p>With clipping threshold <span class="native-math"><math><mi>𝑐</mi><mo>=</mo><mn>1</mn></math></span>, it replaces the gradient by</p>
+<div class="numbered-equation" id="loc-55" data-astro-cid-eamd5iue><div class="equation-body" data-astro-cid-eamd5iue><span class="native-math"><math display="block"><mover accent="true"><mi>𝒈</mi><mo>̃</mo></mover><mo>=</mo><mi>𝒈</mi><mo form="prefix" lspace="0.16666666666666666em" rspace="0em">min</mo><mrow><mo>(</mo><mrow><mn>1</mn><mo>,</mo><mfrac><mi>𝑐</mi><mrow><mo stretchy="false">‖</mo><mi>𝒈</mi><msub><mo stretchy="false">‖</mo><mn>2</mn></msub></mrow></mfrac></mrow><mo>)</mo></mrow><mi>.</mi></math></span></div><span data-astro-cid-eamd5iue>(52)</span></div>
+<p>A non-finite norm causes the optimizer step to be skipped. Otherwise AdamW forms first- and second-moment estimates</p>
+<div class="numbered-equation" id="loc-56" data-astro-cid-eamd5iue><div class="equation-body" data-astro-cid-eamd5iue><span class="native-math"><math display="block"><mi>𝒎</mi><mrow><mo>[</mo><mi>𝑛</mi><mo>]</mo></mrow><mo>=</mo><msub><mi>𝛽</mi><mn>1</mn></msub><mi>𝒎</mi><mrow><mo>[</mo><mrow><mi>𝑛</mi><mo>−</mo><mn>1</mn></mrow><mo>]</mo></mrow><mo>+</mo><mrow><mo>(</mo><mrow><mn>1</mn><mo>−</mo><msub><mi>𝛽</mi><mn>1</mn></msub></mrow><mo>)</mo></mrow><mover accent="true"><mi>𝒈</mi><mo>̃</mo></mover><mrow><mo>[</mo><mi>𝑛</mi><mo>]</mo></mrow><mo rspace="0em">,</mo><mspace width="1em"></mspace><mi>𝒗</mi><mrow><mo>[</mo><mi>𝑛</mi><mo>]</mo></mrow><mo>=</mo><msub><mi>𝛽</mi><mn>2</mn></msub><mi>𝒗</mi><mrow><mo>[</mo><mrow><mi>𝑛</mi><mo>−</mo><mn>1</mn></mrow><mo>]</mo></mrow><mo>+</mo><mrow><mo>(</mo><mrow><mn>1</mn><mo>−</mo><msub><mi>𝛽</mi><mn>2</mn></msub></mrow><mo>)</mo></mrow><mover accent="true"><mi>𝒈</mi><mo>̃</mo></mover><msup><mrow><mo>[</mo><mi>𝑛</mi><mo>]</mo></mrow><mn>2</mn></msup><mi>.</mi></math></span></div><span data-astro-cid-eamd5iue>(53)</span></div>
+<p>The square in <a href="#loc-56">Equation 53</a> is elementwise. Bias correction gives</p>
+<div class="numbered-equation" id data-astro-cid-eamd5iue><div class="equation-body" data-astro-cid-eamd5iue><span class="native-math"><math display="block"><mover accent="true"><mi>𝒎</mi><mo>̂</mo></mover><mrow><mo>[</mo><mi>𝑛</mi><mo>]</mo></mrow><mo>=</mo><mfrac><mrow><mi>𝒎</mi><mrow><mo>[</mo><mi>𝑛</mi><mo>]</mo></mrow></mrow><mrow><mn>1</mn><mo>−</mo><msubsup><mi>𝛽</mi><mn>1</mn><mi>𝑛</mi></msubsup></mrow></mfrac><mo rspace="0em">,</mo><mspace width="1em"></mspace><mover accent="true"><mi>𝒗</mi><mo>̂</mo></mover><mrow><mo>[</mo><mi>𝑛</mi><mo>]</mo></mrow><mo>=</mo><mfrac><mrow><mi>𝒗</mi><mrow><mo>[</mo><mi>𝑛</mi><mo>]</mo></mrow></mrow><mrow><mn>1</mn><mo>−</mo><msubsup><mi>𝛽</mi><mn>2</mn><mi>𝑛</mi></msubsup></mrow></mfrac><mi>.</mi></math></span></div><span data-astro-cid-eamd5iue>(54)</span></div>
+<p>For learning rate <span class="native-math"><math><mi>𝜂</mi></math></span>, decoupled weight decay <span class="native-math"><math><msub><mi>𝜆</mi><mtext>wd</mtext></msub></math></span>, and numerical stabilizer <span class="native-math"><math><mi>𝜀</mi></math></span>, AdamW applies</p>
+<div class="numbered-equation" id="loc-57" data-astro-cid-eamd5iue><div class="equation-body" data-astro-cid-eamd5iue><span class="native-math"><math display="block"><msup><mi>𝜃</mi><mrow><mo>[</mo><mrow><mi>𝑛</mi><mo lspace="0em" rspace="0em">+</mo><mfrac><mn>1</mn><mn>2</mn></mfrac></mrow><mo>]</mo></mrow></msup><mo>=</mo><mrow><mo>(</mo><mrow><mn>1</mn><mo>−</mo><mi>𝜂</mi><msub><mi>𝜆</mi><mtext>wd</mtext></msub></mrow><mo>)</mo></mrow><msup><mi>𝜃</mi><mrow><mo>[</mo><mi>𝑛</mi><mo>]</mo></mrow></msup><mo>−</mo><mi>𝜂</mi><mfrac><mrow><mover accent="true"><mi>𝒎</mi><mo>̂</mo></mover><mrow><mo>[</mo><mi>𝑛</mi><mo>]</mo></mrow></mrow><mrow><msqrt><mover accent="true"><mi>𝒗</mi><mo>̂</mo></mover><mrow><mo>[</mo><mi>𝑛</mi><mo>]</mo></mrow></msqrt><mo>+</mo><mi>𝜀</mi></mrow></mfrac><mi>.</mi></math></span></div><span data-astro-cid-eamd5iue>(55)</span></div>
+<p>The standard training recipe used <span class="native-math"><math><mi>𝜂</mi><mo>=</mo><mn>0.0004</mn></math></span>, <span class="native-math"><math><msub><mi>𝜆</mi><mtext>wd</mtext></msub><mo>=</mo><mn>0</mn></math></span>, minibatches of 256 presentations and 50 epochs. With zero weight decay, <a href="#loc-57">Equation 55</a> is numerically the Adam update for the same hyperparameters.</p>
+<p>Dale-constrained trainable connection weights are finally projected onto the non-negative orthant:</p>
+<div class="numbered-equation" id="loc-58" data-astro-cid-eamd5iue><div class="equation-body" data-astro-cid-eamd5iue><span class="native-math"><math display="block"><msup><mi>𝜃</mi><mrow><mo>[</mo><mrow><mi>𝑛</mi><mo lspace="0em" rspace="0em">+</mo><mn>1</mn></mrow><mo>]</mo></mrow></msup><mo>=</mo><mo form="prefix" lspace="0em" rspace="0em">max</mo><mrow><mo>(</mo><mrow><mn>0</mn><mo>,</mo><msup><mi>𝜃</mi><mrow><mo>[</mo><mrow><mi>𝑛</mi><mo lspace="0em" rspace="0em">+</mo><mfrac><mn>1</mn><mn>2</mn></mfrac></mrow><mo>]</mo></mrow></msup></mrow><mo>)</mo></mrow><mi>.</mi></math></span></div><span data-astro-cid-eamd5iue>(56)</span></div>
+<p>The canonical input and readout matrices are trainable, while recurrent E–I matrices are fixed unless an experiment explicitly makes them trainable. Thus one optimization cycle evaluates the forward dynamics, computes <a href="#loc-34">Equation 32</a>, applies surrogate-gradient BPTT with the internal rule in <a href="#loc-51">Equation 47</a>, clips by <a href="#loc-55">Equation 52</a>, updates by <a href="#loc-57">Equation 55</a>, and finishes with <a href="#loc-58">Equation 56</a>.</p>
+<span id="loc-59"></span>
+<h2 id="scope-and-interpretation">Scope and interpretation</h2>
+<p>The dynamical discretisation is a numerical approximation to the continuous hybrid system, although <a href="#loc-11">Equation 9</a> and <a href="#loc-24">Equation 22</a> exactly solve their respective subproblems under the stated within-step assumptions. Surrogate spike derivatives and voltage-gradient damping introduce additional backward rules: they make learning possible and tractable but do not turn BPTT into the exact derivative of a smooth physical neuron.</p>
+<p>The loop derivation isolates one interpretable amplification route rather than the full state Jacobian, and it does not imply that gamma oscillation itself causes gradient explosion. A paired empirical comparison can vary loop engagement and damping independently.</p></d-article></div><d-appendix distill-prerendered="true" aria-label="Report appendix"><h3 id="references">References</h3><section class="references" aria-labelledby="references"><ol>
+<li>
+<p><span id="ref-1"></span> Pinglab contributors. <em>SNNsim and the paired COBA/PING training specification.</em> Software snapshot (2026): <a href="https://github.com/eoinmurray/pinglab/blob/a1e7361f8afc20f84e20764a03922a931dc0ffec/tools/snnsim/models.py">membrane dynamics and learning rules</a>, <a href="https://github.com/eoinmurray/pinglab/blob/a1e7361f8afc20f84e20764a03922a931dc0ffec/tools/snnsim/train.py#L668-L779">training loop and optimizer</a>, and <a href="https://github.com/eoinmurray/pinglab/blob/a1e7361f8afc20f84e20764a03922a931dc0ffec/experiments/exp022/recipe.py#L109-L138">paired training choices</a>.</p>
+</li>
+<li>
+<p><span id="ref-2"></span> E. O. Neftci, H. Mostafa and F. Zenke. “Surrogate Gradient Learning in Spiking Neural Networks.” <em>arXiv</em> (2019). <a href="https://doi.org/10.48550/arXiv.1901.09948">doi:10.48550/arXiv.1901.09948</a></p>
+</li>
+<li>
+<p><span id="ref-3"></span> R. Pascanu, T. Mikolov and Y. Bengio. <a href="https://proceedings.mlr.press/v28/pascanu13.html">“On the Difficulty of Training Recurrent Neural Networks.”</a> <em>Proceedings of the 30th International Conference on Machine Learning</em>, 1310–1318 (2013).</p>
+</li>
+<li>
+<p><span id="ref-4"></span> PyTorch contributors. <a href="https://docs.pytorch.org/docs/stable/notes/autograd.html">“Autograd mechanics”</a>, <a href="https://docs.pytorch.org/docs/stable/generated/torch.Tensor.backward.html">“Tensor.backward”</a>, and <a href="https://docs.pytorch.org/docs/stable/optim.html">“torch.optim.”</a> <em>PyTorch documentation</em> (accessed 15 September 2026).</p>
+</li>
+<li>
+<p><span id="ref-5"></span> PyTorch contributors. <a href="https://docs.pytorch.org/docs/stable/generated/torch.Tensor.detach.html">“Tensor.detach.”</a> <em>PyTorch documentation</em> (accessed 15 September 2026).</p>
+</li>
+</ol></section></d-appendix></main><script type="module">var e,t,n=document.createElement(`aside`);n.className=`citation-preview`,n.id=`citation-preview`,n.setAttribute(`role`,`tooltip`),n.hidden=!0,document.body.append(n);function r(){clearTimeout(t),n.hidden=!0,e?.removeAttribute(`aria-describedby`),e=void 0}function i(){t=setTimeout(r,180)}function a(r){clearTimeout(t),e?.removeAttribute(`aria-describedby`);let i=document.getElementById(decodeURIComponent(r.hash.slice(1))),a=i?.closest(`li`)??i?.parentElement;if(!a)return;e=r,n.replaceChildren(...Array.from(a.childNodes).map(e=>e.cloneNode(!0))),n.querySelectorAll(`[id]`).forEach(e=>e.removeAttribute(`id`)),n.hidden=!1,r.setAttribute(`aria-describedby`,n.id);let o=r.getBoundingClientRect(),s=n.getBoundingClientRect().width;n.style.left=`${Math.max(12,Math.min(o.left,innerWidth-s-12))}px`,n.style.top=`${Math.min(o.bottom+8,Math.max(12,innerHeight-n.offsetHeight-12))}px`}for(let e of document.querySelectorAll(`d-article a[href^="#ref-"]`))e.addEventListener(`mouseenter`,()=>a(e)),e.addEventListener(`focus`,()=>a(e)),e.addEventListener(`mouseleave`,i),e.addEventListener(`blur`,i);n.addEventListener(`mouseenter`,()=>clearTimeout(t)),n.addEventListener(`mouseleave`,i),n.addEventListener(`focusin`,()=>clearTimeout(t)),n.addEventListener(`focusout`,i),document.addEventListener(`keydown`,e=>{e.key===`Escape`&&r()}),window.addEventListener(`scroll`,r,{passive:!0});</script></body></html>
