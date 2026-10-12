@@ -83,6 +83,9 @@ const frontMatter = {
 </Page>
 
 <style is:global>
+  d-byline { background: #f5f7f9; }
+  d-appendix { background: #eef2f5; color: rgba(0, 0, 0, .65); }
+  @media print { d-byline, d-appendix { background: white; } }
   d-byline .experiment-id { font-weight: 600; }
   d-byline .collection-link:hover { text-decoration: underline; }
   .report-appendix { min-width: 0; margin-bottom: 2rem; }
