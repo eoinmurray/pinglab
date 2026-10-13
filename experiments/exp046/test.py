@@ -112,7 +112,7 @@ def test_independent_stages_preserve_outputs_without_publication(
     root, bank_id, frequency_id, calls = cycle_lab
     identity = compute.compute(bank_id)
     assert len(calls) == 18
-    assert all(c[c.index("--max-samples") + 1] == "100" for c in calls)
+    assert all(request["samples"] == 100 for request in calls)
     output = inputs.source(root, identity, "compute")
     assert set(output.record["inputs"]) == {"bank"}
     assert len(list(output.export.glob("infer--*/rasters.npz"))) == 18

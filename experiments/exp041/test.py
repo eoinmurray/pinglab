@@ -226,7 +226,7 @@ def test_independent_stages_retain_science_and_never_publish(lab, monkeypatch):
     before = bank.reference
     compute_id = compute.compute(bank_id)
     assert len(calls) == 24
-    assert sum("--sample-index" in args for args in calls) == 6
+    assert sum(request["input"] == "snapshot" for request in calls) == 6
     output = inputs.source(root, compute_id, "compute")
     assert output.record["inputs"] == {"bank": before}
     assert len(list(output.export.glob("infer--*/pop_traces.npz"))) == 18

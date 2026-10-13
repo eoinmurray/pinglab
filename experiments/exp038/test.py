@@ -373,7 +373,7 @@ def test_source_readme_change_during_compute_is_allowed(lab, monkeypatch):
     original = compute.run_inference
 
     def simulate(*args, **kwargs):
-        original(args, **kwargs)
+        original(*args, **kwargs)
         path = root / ".pingstore/runs" / bank_id / "README.md"
         path.write_text("changed while running\n")
 
