@@ -20,7 +20,10 @@ The Astro build has no Typst or Demolab dependency.
 Collections use the configured display labels and order in
 `src/lib/collections.ts`. Source tags remain internal metadata for data availability
 and author-assigned review status. Citation previews appear on hover or keyboard focus; clicks still
-navigate to references. Annotations and interactive run selectors are absent.
+navigate to references. Report pages embed Hypothes.is with highlights visible
+and the sidebar closed by default. Readers can open it from the Hypothesis
+toolbar or by clicking a highlight. The homepage and collection pages do not
+load the annotation client. Interactive run selectors are absent.
 
 ## Data and values
 
