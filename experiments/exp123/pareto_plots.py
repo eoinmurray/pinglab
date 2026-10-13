@@ -1,11 +1,11 @@
 """House-style views of measured deadline trade-offs and empirical frontiers."""
 
 import matplotlib.pyplot as plt
+import numpy as np
+from experiments.exp123 import recipe
+from experiments.helpers import theme
 from matplotlib.lines import Line2D
 from matplotlib.ticker import MaxNLocator
-import numpy as np
-from experiments.helpers import theme
-from experiments.exp123 import recipe
 
 
 def conditions(report, rate, tau):

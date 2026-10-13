@@ -1,7 +1,8 @@
 """One-image paired-encoding inhibitory-decay calibration."""
 
-from pathlib import Path
 import hashlib
+from pathlib import Path
+
 import numpy as np
 
 REPO = Path(__file__).resolve().parents[2]
@@ -132,8 +133,8 @@ def configuration():
 
 
 def network(tau_ms, leak_scale=1.0, capacitance_scale=1.0):
-    from snnlab import lang
     from experiments.helpers.ping import build_ping
+    from snnlab import lang
     from snnlab.sim.timing import refractory_steps
 
     net = lang.Network("exp122_gamma_calibration", dt=DT_MS * lang.ms)

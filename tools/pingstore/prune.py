@@ -11,6 +11,7 @@ import shutil
 from collections import defaultdict
 from pathlib import Path
 
+from .articles import articles
 from .contracts import (
     EXPERIMENT_RE,
     PingstoreError,
@@ -19,7 +20,6 @@ from .contracts import (
     validate_collections,
 )
 from .discovery import discover_store
-from .articles import articles
 from .stages import operation_lock
 
 PLAN_SCHEMA = "pingstore.prune-plan/v4"

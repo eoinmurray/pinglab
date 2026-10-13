@@ -10,12 +10,12 @@ sys.path[:0] = [
     str(Path(__file__).resolve().parents[2] / "tools"),
 ]
 import numpy as np
+from experiments.exp123 import recipe
+from pingstore.stages import source_run, stage_run
 from scipy.ndimage import gaussian_filter1d
 from scipy.signal import find_peaks
 from scipy.special import softmax
 from snnlab import analysis
-from experiments.exp123 import recipe
-from pingstore.stages import source_run, stage_run
 
 
 def volley_times(spikes, dt, cfg):

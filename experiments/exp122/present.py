@@ -118,7 +118,6 @@ def present(identity):
     raw = json.loads(source.file("metrics.json").read_text())
     if raw.get("schema") != "exp122.analysis/v2":
         raise ValueError("unsupported analysis schema")
-    cfg, rows = raw["design"], raw["rows"]
     ref = source.record["inputs"]["compute"]
     compute = source_run(
         recipe.REPO / ".pingstore", ref["run_id"], stage="compute", reference=ref

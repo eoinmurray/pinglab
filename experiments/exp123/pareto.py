@@ -1,9 +1,10 @@
 """Accuracy, deadline and network-spike frontiers from explicit paired runs."""
 
 import json
+
 import numpy as np
-from snnlab import analysis
 from experiments.exp123 import recipe
+from snnlab import analysis
 
 
 def frontier(correct, cost, time):

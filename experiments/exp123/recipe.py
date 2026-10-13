@@ -1,11 +1,12 @@
 """Frozen-network confidence trajectories in physical time and volley position."""
 
-from pathlib import Path
 import hashlib
+from pathlib import Path
+
 import numpy as np
+from experiments.helpers.ping import build_ping
 from snnlab import lang
 from snnlab.sim.timing import refractory_steps
-from experiments.helpers.ping import build_ping
 
 REPO = Path(__file__).resolve().parents[2]
 SLUG = "exp123"

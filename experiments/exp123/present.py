@@ -294,7 +294,7 @@ def present(identity):
         (run.export / "accuracy_numbers.json").write_text(
             json.dumps(accuracy_report, indent=2, allow_nan=False) + "\n"
         )
-        from experiments.exp123.pareto_plots import plot_tradeoffs, plot_frontiers
+        from experiments.exp123.pareto_plots import plot_frontiers, plot_tradeoffs
 
         plot_tradeoffs(pareto_report, run.export / "deadline_tradeoffs", save)
         plot_frontiers(pareto_report, run.export / "pareto_frontiers", save)

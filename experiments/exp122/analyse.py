@@ -11,11 +11,11 @@ sys.path[:0] = [
     str(Path(__file__).resolve().parents[2] / "tools"),
 ]
 import numpy as np
+from experiments.exp122 import recipe
+from pingstore.stages import source_run, stage_run
 from scipy.ndimage import gaussian_filter1d
 from scipy.signal import correlate, find_peaks
 from snnlab import analysis
-from experiments.exp122 import recipe
-from pingstore.stages import source_run, stage_run
 
 
 def dynamics(e, i, cfg):

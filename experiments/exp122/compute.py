@@ -12,12 +12,12 @@ sys.path[:0] = [
 ]
 import numpy as np
 import torch
-from torchvision.datasets import MNIST
 from experiments.exp122 import recipe
 from experiments.helpers.checkpoints import pinned_checkpoint
-from pingstore.stages import stage_run, source_run
+from pingstore.stages import source_run, stage_run
 from snnlab.sim.encoders import encode_images_poisson
 from snnlab.sim.execution import ExecutionSpec, build
+from torchvision.datasets import MNIST
 
 PARAMETERS = {
     "input_to_E.weight": "W_ff.0",

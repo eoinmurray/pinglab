@@ -6,8 +6,8 @@ import re
 from pathlib import Path
 from typing import Any
 
-from .contracts import PingstoreError
 from .articles import articles
+from .contracts import PingstoreError
 
 EXPERIMENT_RE = re.compile(r"^exp[0-9]{3}$")
 COLLECTION_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")

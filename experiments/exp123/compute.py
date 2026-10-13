@@ -4,8 +4,8 @@ import argparse
 import hashlib
 import json
 import sys
-from pathlib import Path
 from importlib.metadata import version
+from pathlib import Path
 
 sys.path[:0] = [
     str(Path(__file__).resolve().parents[2]),
@@ -13,12 +13,12 @@ sys.path[:0] = [
 ]
 import numpy as np
 import torch
-from torchvision.datasets import MNIST
-from snnlab.sim.encoders import encode_images_poisson
-from snnlab.sim.execution import ExecutionSpec, build
 from experiments.exp123 import recipe
 from experiments.helpers.checkpoints import pinned_checkpoint
 from pingstore.stages import source_run, stage_run
+from snnlab.sim.encoders import encode_images_poisson
+from snnlab.sim.execution import ExecutionSpec, build
+from torchvision.datasets import MNIST
 
 
 def graph_trial(tau, weights, encoded):
