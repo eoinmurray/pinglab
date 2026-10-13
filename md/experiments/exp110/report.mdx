@@ -31,7 +31,7 @@ export const streamAccuracy2005 = display(accuracy(200, 5));
 
 1. **Results:** 1,575 words
 
-2. **Methods:** 4,279 words
+2. **Methods:** 4,267 words
 
 3. **Captions:** 1,409 words
 
@@ -189,7 +189,7 @@ We next tested whether loop-on classifiers could classify successive images whil
 
 P16
 
-We combined untrained circuit simulations, trained MNIST classifiers, interventions on those classifiers and a separate mean-field model (Table 1). Inhibitory-timescale classifiers supplied frequency and cycle-participation measurements; unpenalised accuracy–rate classifiers supplied loop-insertion and spike-perturbation experiments. Unless specified otherwise, trained-network analyses used the common endpoint protocol below; Table 1 and Statistical reporting define checkpoints and replication.
+We examined how reciprocal excitatory–inhibitory coupling shaped population rhythms, excitatory firing and MNIST classification. We combined untrained circuit simulations, comparisons of trained classifiers, interventions on their activity and connectivity, and a separate mean-field model (Table 1). Frequency and cycle-participation measurements used classifiers trained at different inhibitory decay times; loop-insertion and spike-perturbation experiments reused unpenalised classifiers from the accuracy–rate comparison. Unless specified otherwise, trained-network evaluations used the common endpoint protocol below. Table 1 and Statistical reporting specify checkpoints and replication.
 
 <Table
   headers={["Figure", "Design", "Checkpoint"]}
@@ -235,8 +235,6 @@ g_{x [ k + 1 ]} = g_{x [ k ]} \exp ( - \frac{\Delta t_{\text{sim}}}{\tau_{x}} ) 
 $$
 
 Here, $g_{x [ k ]}$ is conductance at step $k$, $w_{x j}$ the conductance increment from source $j$, and $s_{j [ k ]} \in \{ 0 , 1 \}$ its delivered spike indicator. Decay times were $\tau_{E} = \tau_{\text{AMPA}} = 2$ ms and ordinarily $\tau_{I} = \tau_{\text{GABA}} = 6$ ms. Exponential-Euler voltage integration used $\Delta t_{\text{sim}} = 0.1$ ms, except in the timestep study ([Fig. 9](#loc-30)). The inhibitory-timescale grid is specified below; exact updates and transmission ordering are in [Appendix A1](#appendix-a1).
-
-Spiking measurements used E/I refractory holds of 1.2/0.6 ms. The timestep comparison, separate mean-field calculation, quantitative continuous-stream evaluation and loop-off training and comparisons used the same refractory durations. The quantitative continuous-stream evaluation used a shared image bank.
 
 P19
 
