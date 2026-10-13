@@ -5,8 +5,8 @@ Consumes explicitly validated upstream measurements and spike recordings.
 
 import matplotlib.pyplot as plt
 import numpy as np
-from experiments.helpers import theme
 from experiments.exp123 import recipe
+from experiments.helpers import theme
 
 
 def plot_inhibitory_overview(raw, raster_compute, destination, save):
