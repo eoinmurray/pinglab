@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000" role="img" aria-labelledby="title desc">
+<title id="title">Human social cognition and alliance-based status</title>
+<desc id="desc">Conceptual organization of regions discussed in Yan and Lin. Posterior superior temporal sulcus processes dynamic social cues; temporoparietal junction and medial prefrontal regions contribute to mental-state inference. Medial prefrontal and anterior cingulate regions represent others' actions, rewards and distress. These capacities support social decisions and interactions. Cultural norms, alliances and institutions organize status. Arrows organize functions and are not a complete experimentally established circuit.</desc>
+<defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0L9 5L0 10Z" fill="#334155"/></marker><style>
+text{font-family:Helvetica,Arial,sans-serif;fill:#202932}.title{font-size:34px;font-weight:700}.label{font-size:27px;font-weight:700}.detail{font-size:23px}.note{font-size:21px;fill:#52606d}.edge{fill:none;stroke:#334155;stroke-width:4;marker-end:url(#arrow)}.context{fill:none;stroke:#64748b;stroke-width:4;stroke-dasharray:11 9;marker-end:url(#arrow)}.box{stroke-width:2;rx:18}
+</style></defs>
+<rect width="1600" height="1000" fill="white"/>
+<text x="40" y="55" class="title">Human social cognition: interacting cortical networks</text>
+<text x="40" y="93" class="note">Functional synthesis of the review, rather than a complete anatomical wiring diagram</text>
+<rect x="40" y="170" width="390" height="165" fill="#eaf1f8" stroke="#6382a2" class="box"/>
+<text x="235" y="217" text-anchor="middle" class="label">pSTS</text>
+<text x="235" y="260" text-anchor="middle" class="detail">Dynamic social cues</text>
+<text x="235" y="299" text-anchor="middle" class="note">Biological motion / facial expressions</text>
+<rect x="605" y="170" width="390" height="165" fill="#eaf1f8" stroke="#6382a2" class="box"/>
+<text x="800" y="217" text-anchor="middle" class="label">TPJ</text>
+<text x="800" y="260" text-anchor="middle" class="detail">Others’ beliefs and intentions</text>
+<text x="800" y="299" text-anchor="middle" class="note">Mental-state predictions</text>
+<rect x="1170" y="170" width="390" height="165" fill="#eaf1f8" stroke="#6382a2" class="box"/>
+<text x="1365" y="217" text-anchor="middle" class="label">mPFC / dmPFC</text>
+<text x="1365" y="260" text-anchor="middle" class="detail">Mental-state inference</text>
+<text x="1365" y="299" text-anchor="middle" class="note">Reasoning about other people</text>
+<path d="M430 253H605" class="edge"/><path d="M995 253H1170" class="edge"/>
+<rect x="40" y="435" width="550" height="165" fill="#eaf1f8" stroke="#6382a2" class="box"/>
+<text x="315" y="477" text-anchor="middle" class="label">mPFC / ACC / ACCg</text>
+<text x="315" y="519" text-anchor="middle" class="detail">Others’ actions, rewards and distress</text>
+<text x="315" y="562" text-anchor="middle" class="note">Evidence across rodents, monkeys and humans</text>
+<rect x="830" y="435" width="730" height="165" fill="#edf5e9" stroke="#739660" class="box"/>
+<text x="1195" y="480" text-anchor="middle" class="label">Social decisions and interactions</text>
+<text x="1195" y="525" text-anchor="middle" class="detail">Assessment, observational learning and cooperation</text>
+<text x="1195" y="568" text-anchor="middle" class="note">Capacities relevant to choosing and maintaining allies</text>
+<path d="M590 517H830" class="edge"/>
+<path d="M1365 335V435" class="edge"/>
+<text x="1195" y="392" text-anchor="middle" class="note">Inform decisions</text>
+<rect x="40" y="725" width="620" height="135" fill="#fff2df" stroke="#b99256" class="box"/>
+<text x="350" y="772" text-anchor="middle" class="label">Cultural and institutional context</text>
+<text x="350" y="819" text-anchor="middle" class="detail">Norms, relationship networks and rules of authority</text>
+<rect x="960" y="725" width="600" height="135" fill="#fff2df" stroke="#b99256" class="box"/>
+<text x="1260" y="772" text-anchor="middle" class="label">Recognition, support and status</text>
+<text x="1260" y="819" text-anchor="middle" class="detail">Prestige → alliances → institutional authority</text>
+<path d="M660 792H960" class="context"/>
+<text x="810" y="774" text-anchor="middle" class="note">Organize</text>
+<path d="M1260 600V725" class="context"/>
+<text x="1280" y="662" class="note">Contribute to</text>
+<path d="M350 725V660H1020V600" class="context"/>
+<text x="570" y="645" class="note">Shape expectations and choices</text>
+<text x="40" y="920" class="note">Solid arrows organize the review’s functional account; they are not proofs of direct anatomical connections.</text>
+<text x="40" y="951" class="note">Dashed arrows: social-system interpretation. Neural capacities alone do not explain institutional authority.</text>
+<text x="40" y="982" class="note">Based on Yan &amp; Lin (2026), pp. 497 and 504–506, and Table 1.</text>
+</svg>
