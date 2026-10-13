@@ -1,23 +1,15 @@
 """Freeze trained weights and compute paired-input parameter sweeps."""
 
-import argparse
 import json
-import sys
-from pathlib import Path
 from time import perf_counter
 
-sys.path[:0] = [
-    str(Path(__file__).resolve().parents[2]),
-    str(Path(__file__).resolve().parents[2] / "tools"),
-]
 import numpy as np
 import torch
-from experiments.exp122 import recipe
+from experiments.exp123 import recipe
 from experiments.helpers.checkpoints import pinned_checkpoint
 from pingstore.stages import source_run, stage_run
 from snnlab.sim.encoders import encode_images_poisson
 from snnlab.sim.execution import ExecutionSpec, build
-from torchvision.datasets import MNIST
 
 PARAMETERS = {
     "input_to_E.weight": "W_ff.0",
@@ -27,8 +19,8 @@ PARAMETERS = {
 }
 
 
-def graph_trial(tau, weights, encoded, leak_scale=1.0, capacitance_scale=1.0):
-    bundle = recipe.network(tau, leak_scale, capacitance_scale)
+def graph_trial(tau, weights, encoded):
+    bundle = recipe.network(tau)
     model = build(
         ExecutionSpec(kind="simulate", graph=bundle.graph, device="cpu", seed=0)
     ).model
@@ -47,7 +39,7 @@ def graph_trial(tau, weights, encoded, leak_scale=1.0, capacitance_scale=1.0):
     return result
 
 
-def compute(source_id):
+def compute_overview(source_id, image_source_id):
     torch.set_num_threads(1)
     source = source_run(
         recipe.REPO / ".pingstore", source_id, stage="compute", experiment="exp022"
@@ -89,9 +81,13 @@ def compute(source_id):
     for name, value in expected.items():
         if trained.get(name) != value:
             raise ValueError(f"working checkpoint setting mismatch: {name}")
-    dataset = MNIST(str(recipe.REPO / "data"), train=False, download=False)
-    pixels = dataset.data[0].reshape(1, 784).float() / 255
-    label = int(dataset.targets[0])
+    image_source = source_run(
+        recipe.REPO / ".pingstore", image_source_id, stage="compute", experiment=recipe.SLUG
+    )
+    image_unit = image_source.unit(recipe.recording_unit(0, recipe.RATE_HZ, "trajectories"))
+    with np.load(image_unit / "input.npz", allow_pickle=False) as data:
+        pixels = torch.from_numpy(data["pixels"].copy()).reshape(1, 784).float()
+        label = int(data["label"])
     encoded = torch.cat(
         [
             encode_images_poisson(
@@ -101,7 +97,7 @@ def compute(source_id):
                 trained["input_rate"],
                 generator=torch.Generator().manual_seed(seed),
             )
-            for seed in recipe.SEEDS
+            for seed in recipe.OVERVIEW_SEEDS
         ],
         dim=1,
     )
@@ -109,9 +105,9 @@ def compute(source_id):
         str(seed): __import__("hashlib")
         .sha256(encoded[:, i].numpy().tobytes())
         .hexdigest()
-        for i, seed in enumerate(recipe.SEEDS)
+        for i, seed in enumerate(recipe.OVERVIEW_SEEDS)
     }
-    cfg = recipe.configuration()
+    cfg = recipe.overview_configuration()
     cfg.update(
         input_rate_hz=trained["input_rate"],
         training_tau_gaba_ms=trained["tau_gaba_ms"],
@@ -127,7 +123,7 @@ def compute(source_id):
         recipe.REPO,
         recipe.SLUG,
         "compute",
-        inputs={"trained_network": source},
+        inputs={"trained_network": source, "image": image_source},
         configuration=cfg,
     ) as run:
         run.record["execution"]["software"] = dict(
@@ -141,7 +137,7 @@ def compute(source_id):
             pixels=pixels.numpy().reshape(28, 28),
             label=label,
             spikes=encoded.numpy().astype(bool),
-            seeds=recipe.SEEDS,
+            seeds=recipe.OVERVIEW_SEEDS,
         )
         for condition in cfg["conditions"]:
             tau = condition["tau_gaba_ms"]
@@ -150,7 +146,7 @@ def compute(source_id):
             start = perf_counter()
             with torch.inference_mode():
                 result = graph_trial(
-                    tau, weights, encoded, leak_scale, capacitance_scale
+                    tau, weights, encoded
                 )
             signals = {
                 name: value.cpu().numpy().astype(bool)
@@ -167,7 +163,7 @@ def compute(source_id):
                 leak_scale=leak_scale,
                 capacitance_scale=capacitance_scale,
                 dt_ms=recipe.DT_MS,
-                seeds=recipe.SEEDS,
+                seeds=recipe.OVERVIEW_SEEDS,
             )
             print(
                 f"{condition['condition_id']}: tau={tau:.4f} ms, leak ×{leak_scale:.4f}: {perf_counter() - start:.2f}s; E/I/output spikes {e.sum()}/{i.sum()}/{out.sum()}",
@@ -184,8 +180,3 @@ def compute(source_id):
     print(identity, flush=True)
     return identity
 
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--source", required=True)
-    compute(parser.parse_args().source)

@@ -38,8 +38,9 @@ async function findLatestPresentation(experiment: string): Promise<Presentation 
   return candidates[0];
 }
 
-// Resolve once per build or dev-server session so a report uses one presentation.
+// Freeze build selections; development refreshes discover new presentations.
 export function optionalPresentation(experiment: string): Promise<Presentation | undefined> {
+  if (import.meta.env.DEV) return findLatestPresentation(experiment);
   if (!selections.has(experiment)) selections.set(experiment, findLatestPresentation(experiment));
   return selections.get(experiment)!;
 }
@@ -119,6 +120,7 @@ async function findDataset(experiment: string, runId?: string) {
 const datasets = new Map<string, ReturnType<typeof findDataset>>();
 
 export function dataset(experiment: string, runId?: string) {
+  if (import.meta.env.DEV) return findDataset(experiment, runId);
   const key = runId ?? experiment;
   if (!datasets.has(key)) datasets.set(key, findDataset(experiment, runId));
   return datasets.get(key)!;

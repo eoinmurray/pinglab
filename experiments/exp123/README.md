@@ -73,7 +73,7 @@ The checkpoint data are reused; there is no retraining and no comparison model.
    integers, while medians can be fractional. The two rows can use different
    successful-trial subsets; failures have no decision point.
 
-## Complete three-stage execution
+## Independent staged execution
 
 Each stage creates exactly one run. Compute includes the nine-image trajectory
 sample (100 draws each at 25 Hz) and the 500-image balanced benchmark (three draws
@@ -83,7 +83,10 @@ matched-coordinate and Pareto measurements within the same run.
 
 Analyse takes this single compute run and produces all trajectory, decision,
 matched-coordinate accuracy, deadline-cost and Pareto measurements. Present takes
-this single analysis run and always generates all six figures. Stages remain
+this analysis run plus an explicit exp123 overview analysis input for the
+inhibitory-decay overview metrics. The main analysis's pinned compute input supplies the
+3, 6 and 12 ms rasters. Present generates the
+overview and the existing exp123 figures. Stages remain
 independent: no stage launches another stage or chooses its input automatically.
 
 Run each stage separately from the repository root, using the exact identity
@@ -92,13 +95,15 @@ printed by the preceding stage.
 ```sh
 uv run python experiments/exp123/compute.py --source exp022-r001-compute
 uv run python experiments/exp123/analyse.py --source <compute-run-id>
-uv run python experiments/exp123/present.py --source <analyse-run-id>
+uv run python experiments/exp123/compute.py --protocol overview --source exp022-r001-compute --image-source <compute-run-id>
+uv run python experiments/exp123/analyse.py --protocol overview --source <overview-compute-run-id>
+uv run python experiments/exp123/present.py --source <analyse-run-id> --overview-source <overview-analyse-run-id>
 ```
 
 ## Historical execution
 
 The dated records below describe earlier runs and the former branched workflow.
-Its multi-source commands are historical; use the three commands above for the
+Its multi-source commands are historical; use the commands above for the
 current complete experiment. Historical run IDs may have been pruned.
 
 ## Initial twenty-image execution — 2026-10-06
@@ -203,8 +208,8 @@ Image indices and digits remain above each plot; caption references match.
    Compute percentile 95% intervals from 1000 paired image bootstrap resamples,
    stratified by digit, with seed 12345. These quantify image sampling variation,
    conditional on this trained network and sampled encodings.
-6. Show accuracy in three matched-coordinate panels, with paired-trial coverage
-   underneath. Suppress accuracy below 80% coverage; show axes through the last
+6. Show accuracy in three matched-coordinate panels. Suppress accuracy below
+   80% paired-trial coverage; show axes through the last
    coordinate retaining 50% plus one grid step. Report coverage and eligible
    image counts in the scientific numbers. High-budget and late-cycle subsets
    can change image composition even before the display cutoff.
@@ -442,3 +447,85 @@ The final presentation angles time tick labels to keep the nine columns legible.
 `exp123-r052-present` reuses `exp123-r049-analyse` and connects Figure 3's
 median points across decay settings in both rows. Measurements and other
 figures are unchanged; no simulations or analysis were rerun.
+
+## Accuracy panels only — 2026-10-13
+
+`exp123-r053-present` reuses `exp123-r049-analyse` and removes Figure 4's
+coverage panels D–F, arranging accuracy panels A–C in one row on a 180 × 70 mm
+canvas. The 80% paired-trial coverage cutoff and axis limits are unchanged;
+coverage measurements remain in `accuracy_numbers.json`. No simulations or
+analysis were rerun.
+
+## Baseline spike-cost panels — 2026-10-13
+
+`exp123-r054-present` reuses `exp123-r049-analyse` and keeps only Figure 5's
+former E and F panels: mean network spikes versus deadline and accuracy versus
+network spikes at 25 Hz encoding. They are relabelled A and B on a 180 × 85 mm
+canvas. Other encoding rates remain in the scientific numbers and Figure 6.
+No simulations or analysis were rerun.
+
+## Elapsed-time terminology — 2026-10-13
+
+`exp123-r055-present` reuses `exp123-r049-analyse` and labels the time axes in
+Figures 5 and 6 as elapsed time, matching Figure 4. The article uses the same
+terminology. Readout coordinates and measurements are unchanged; no simulations
+or analysis were rerun.
+
+## Decision axes fitted to medians — 2026-10-13
+
+`exp123-r057-present` reuses `exp123-r049-analyse`. Figure 3's time axes now
+fit each image's displayed medians with 5% headroom, rounded up to 10 ms
+and a minimum upper bound of 20 ms. Volley axes share the displayed median
+range, rounded out to integer ticks with 0.2 padding (1–2 volleys in this run).
+The image 08 time panel retains a 200 ms upper bound because a median reaches
+188.7 ms. Axis ranges are disclosed in the caption. No measurements changed.
+
+## Shared decision-time axes — 2026-10-13
+
+`exp123-r058-present` reuses `exp123-r049-analyse`. Every Figure 3A panel
+uses the same 0–200 ms range, with ticks every 10 ms and labels every 50 ms.
+Figure 3B's shared volley-count range is unchanged. No measurements changed.
+
+## Plots without uncertainty estimates — 2026-10-13
+
+`exp123-r059-present` reuses `exp123-r049-analyse` and omits uncertainty
+estimates from every plot. Figure 4's bootstrap bands are removed; other plots
+already showed only point estimates. The article caption and prose match.
+Recorded estimates remain in the numerical exports. No analysis was rerun.
+
+## Reused inhibitory-decay overview — 2026-10-13
+
+`exp123-r060-present` uses `exp123-r049-analyse` for the existing figures and
+explicit `exp122-r038-analyse` plus its pinned `exp122-r037-compute` for the new
+Figure 1. `overview_plot.py` adapts exp122 Figure 1's plotting code locally;
+it does not import another experiment's implementation. The 3–30 ms sweep,
+ten encoding draws and four example rasters are reused evidence. No simulations
+or analysis were rerun. The previous article figures are now Figures 2–6,
+with updated captions and cross-references; the removed Pareto section stays removed.
+
+## Exact baseline decay rasters — 2026-10-13
+
+`exp123-r061-present` retains Figure 1's exp122 sweep metrics but replaces
+its raster examples with exp123 recordings at exactly 3, 6 and 12 ms, for
+image 0 and encoding seed 42. The compute input `exp123-r040-compute` is
+validated against `exp123-r049-analyse`'s input pin. Four metrics occupy the
+left 2×2 grid; three rasters occupy the right column (E–G). No simulations or
+analysis were rerun.
+
+## Overview regenerated within exp123; exp122 retired — 2026-10-13
+
+Fresh exp123 overview computation `exp123-r062-compute` uses the explicitly
+pinned trained network `exp022-r001-compute` and image pixels from
+`exp123-r040-compute`. It runs ten logarithmically spaced inhibitory-decay
+conditions from 3 to 30 ms with ten freshly encoded draws each (100 presentations).
+`exp123-r063-analyse` measures the four overview curves using the experiment's
+local analysis code; all 100 draws pass the cycle-sequence criterion. Each curve
+matches the preceding overview exactly. `exp123-r064-present` combines this
+analysis with `exp123-r049-analyse` and its compute recordings for the 3/6/12 ms
+rasters. There are no runtime imports or data dependencies on exp122.
+
+Exp122's code and article were removed. Exact hash-bound prune plans removed
+its four completed runs and the 16 superseded exp123 presentations, including
+those that referenced exp122. The latest exp123 presentation and all compute
+and analysis inputs are retained. Exp122 is a retired identity and must never
+be reused.

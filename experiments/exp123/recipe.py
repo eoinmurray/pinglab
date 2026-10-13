@@ -212,3 +212,99 @@ def network(tau_ms):
     ):
         net.expose(signal, name=name)
     return lang.compile(net, target="tools/snnsim")
+
+
+OVERVIEW_SEEDS = tuple(range(42, 52))
+OVERVIEW_TAUS_MS = tuple(float(x) for x in np.geomspace(3, 30, 10))
+
+
+def overview_conditions():
+    return [
+        dict(
+            condition_id=f"tau{j:02d}", sweep="tau", condition_index=j,
+            axis_value=tau, tau_gaba_ms=tau, leak_scale=1.0,
+            capacitance_scale=1.0, capacitance_e_nf=1.0, capacitance_i_nf=0.5,
+            leak_e_us=0.05, leak_i_us=0.1,
+        )
+        for j, tau in enumerate(OVERVIEW_TAUS_MS)
+    ]
+
+
+def overview_configuration():
+    return dict(
+        schema="exp123.overview.compute/v1",
+        image_index=0,
+        partition="official_mnist_test",
+        seeds=OVERVIEW_SEEDS,
+        tau_gaba_ms=OVERVIEW_TAUS_MS,
+        conditions=overview_conditions(),
+        dt_ms=DT_MS,
+        duration_ms=DURATION_MS,
+        transient_ms=0.0,
+        population_bin_ms=1.0,
+        frequency_search_hz=(5.0, 150.0),
+        training_source="exp022-r001-compute",
+        training_unit=UNIT,
+        checkpoint_role=CHECKPOINT_ROLE,
+        checkpoint_sha256=CHECKPOINT_SHA256,
+        biological_defaults=dict(
+            capacitance_nf=[1.0, 0.5],
+            leak_us=[0.05, 0.1],
+            resting_mv=-65.0,
+            threshold_mv=-50.0,
+            reset_mv=-65.0,
+            refractory_ms=[1.2, 0.6],
+            voltage_grad_dampen=1000.0,
+            synapse_tau_ampa_ms=2.0,
+            readout_tau_ms=2.0,
+            readout_threshold=1.0,
+            initial_voltage_mv=-65.0,
+            recurrent_delay_ms=DT_MS,
+        ),
+        biological_default_basis="literal working protocol from exp022/exp041/exp044; paired with exp041's trained 6 ms cell",
+        script_sha256={p.name: sha256(p) for p in Path(__file__).parent.glob("*.py")},
+        helper_sha256=sha256(REPO / "experiments/helpers/ping.py"),
+    )
+
+
+def overview_analysis_configuration(source_configuration):
+    cfg = dict(source_configuration)
+    for key in (
+        "minimum_ac_peak",
+        "minimum_ac_prominence",
+        "maximum_cycle_interval_cv",
+        "cycle_interval_period_ratio_bounds",
+    ):
+        cfg.pop(key, None)
+    cfg.update(
+        frequency_search_hz=[5.0, 150.0],
+        estimator_version="snnlab-analysis-v1",
+        frequency_estimator="E population full-trial Welch PSD peak in 5–150 Hz, parabolic interpolation; condition summary is peak of mean PSD",
+        volley_frequency_estimator="1000 / mean interval between detected inhibitory volleys in ms",
+        volley_smoothing_ms=1.0,
+        volley_minimum_spacing_ms=2.0,
+        volley_relative_prominence=0.2,
+        volley_minimum_prominence_spikes=1.0,
+        minimum_mean_i_participation_pct=50.0,
+        minimum_cycles=1,
+        primary_rhythmicity="snnlab.analysis.rhythmicity_scalars contrast; E raster; 1 ms bins; 100 ms maximum lag",
+        rhythmicity_estimator="shared rate-normalized population autocorrelogram and pooled-event IEI histogram; helper contrast=(lobe-trough)/(lobe+trough)",
+        analysis_library="snnlab.analysis",
+        spectrum_settings=dict(
+            method="welch",
+            center=True,
+            detrend=False,
+            window="hann",
+            nperseg="full_trial",
+            scaling="density",
+        ),
+        spectral_peak_settings=dict(
+            interpolation="parabolic",
+            interpolation_boundary="spectrum",
+            clamp_band=False,
+        ),
+        analysis_script_sha256={
+            p.name: sha256(p) for p in Path(__file__).parent.glob("*.py")
+        },
+    )
+    return cfg

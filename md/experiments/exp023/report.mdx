@@ -2,7 +2,7 @@
 id: exp023
 title: "Turning the PING Loop On"
 created_at: "2026-05-13"
-updated_at: "2026-10-09"
+updated_at: "2026-10-13"
 description: "PING stripped to its biophysical fundamentals: free-running activity, population spectra and rate responses with the excitatory–inhibitory loop off and on."
 collection: "gamma-gated-sparsity"
 author: Eoin Murray
@@ -33,64 +33,33 @@ export const sweep = c.drive.fi_sweep;
 ### Architecture, spectra and rates
 
 <RunFigure experiment="exp023" file="overview_compound.png" number={1} id="fig-1" alt="Loop-off and loop-on schematics above population rasters, spectra and firing-rate curves.">
-  (A–B) COBA and PING schematics; (C–D) E/I rasters; (E, G) E-population spectra; (F, H) firing-rate–input curves. COBA occupies A, C, E and F; PING occupies B, D, G and H. E spikes are black and I spikes red. C–H use the same {sweep.n_in}-input network setup, with fixed weights within each loop condition. E/G are spectra of the exact recordings shown in C/D. Rasters and spectra show {points.coba.t_ms} ms at {points.coba.input_rate_hz} and {points.ping.input_rate_hz} Hz input, respectively. Rate curves show one-trial population means over the matched-drive sweep, without error bars; vertical scales differ. The dashed marker is the analysis-selected spectral peak, not a rhythmicity significance test. Schematics describe the model, not a measurement.
+  (A–B) COBA and PING schematics; (C–D) E/I rasters; (E, G) E-population spectra on the same vertical scale; (F, H) firing-rate–input curves. COBA occupies A, C, E and F; PING occupies B, D, G and H. E spikes are black and I spikes red. C–H use the same {sweep.n_in}-input network setup, with fixed weights within each loop condition. E/G are spectra of the exact recordings shown in C/D. Rasters and spectra show {points.coba.t_ms} ms at {points.coba.input_rate_hz} and {points.ping.input_rate_hz} Hz input, respectively. Rate curves show one-trial population means over the matched-drive sweep, without error bars; F/H vertical scales differ. The dashed marker is the analysis-selected spectral peak, not a rhythmicity significance test. Schematics describe the model, not a measurement.
 </RunFigure>
 
-### COBA excitatory membrane voltage
+### COBA excitatory-neuron dynamics
 
-<RunFigure experiment="exp023" file="traces__coba__v_e.svg" number={2} id="fig-2" alt="COBA excitatory membrane voltage">
-  Membrane voltage of the highest-spike-count E neuron with the loop off, driven at {points.coba.input_rate_hz} Hz for {points.coba.t_ms} ms. The dashed line marks the {b.threshold_mV} mV threshold; spikes reset voltage to {b.reset_mV} mV. This is an illustrative neuron, not a population mean.
+<RunFigure experiment="exp023" number={2} id="fig-2" columns={3} panels={[
+  { file: "traces__coba__v_e.svg", alt: "Loop-off excitatory membrane voltage." },
+  { file: "traces__coba__g_e.svg", alt: "Loop-off excitatory and leak conductances." },
+  { file: "traces__coba__i_e.svg", alt: "Loop-off signed excitatory and leak currents." },
+]}>
+  (A) Membrane voltage, (B) conductances and (C) signed currents of the same highest-spike-count E neuron with the loop off, driven at {points.coba.input_rate_hz} Hz for {points.coba.t_ms} ms. This is an illustrative neuron, not a population mean. In A, the dashed line marks the {b.threshold_mV} mV threshold; spikes reset voltage to {b.reset_mV} mV. In B, excitatory conductance is black and fixed leak dotted; input spikes increase excitation, which decays between events. The disconnected inhibitory feedback contributes no conductance. In C, positive current is depolarising; currents were reconstructed from voltage and conductance using the driving-force relation in Methods.
 </RunFigure>
 
-### COBA excitatory-neuron conductances
+### PING excitatory–inhibitory dynamics
 
-<RunFigure experiment="exp023" file="traces__coba__g_e.svg" number={3} id="fig-3" alt="COBA excitatory-neuron conductances">
-  Excitatory conductance (black) and fixed leak (dotted) for the same COBA neuron. Input spikes increase excitation, which decays between events; the disconnected inhibitory feedback contributes no conductance.
-</RunFigure>
-
-### COBA excitatory-neuron currents
-
-<RunFigure experiment="exp023" file="traces__coba__i_e.svg" number={4} id="fig-4" alt="COBA excitatory-neuron currents">
-  Signed excitatory and leak currents for the same COBA neuron. Positive current is depolarising; current was reconstructed from voltage and conductance using the driving-force relation in Methods.
-</RunFigure>
-
-### PING excitatory membrane voltage
-
-<RunFigure experiment="exp023" file="traces__ping__v_e.svg" number={5} id="fig-5" alt="PING excitatory membrane voltage">
-  Membrane voltage of the highest-spike-count PING E neuron at {points.ping.input_rate_hz} Hz input for {points.ping.t_ms} ms. This is a different input rate from COBA, not a matched-input trace comparison.
-</RunFigure>
-
-### PING excitatory-neuron conductances
-
-<RunFigure experiment="exp023" file="traces__ping__g_e.svg" number={6} id="fig-6" alt="PING excitatory-neuron conductances">
-  Excitatory (black), inhibitory (red when nonzero) and leak (dotted) conductances on the same PING E neuron. All conductances are non-negative; inhibition enters through its reversal potential, not a negative conductance.
-</RunFigure>
-
-### PING excitatory-neuron currents
-
-<RunFigure experiment="exp023" file="traces__ping__i_e.svg" number={7} id="fig-7" alt="PING excitatory-neuron currents">
-  Signed currents on the same PING E neuron. Inhibitory current is hyperpolarising when voltage exceeds the {b.E_I_mV} mV inhibitory reversal potential, even though inhibitory conductance is positive.
-</RunFigure>
-
-### PING inhibitory membrane voltage
-
-These cellular traces illustrate reciprocal E→I→E feedback; they do not
+These cellular traces illustrate reciprocal E→I→E feedback (Fig. 3A–F); they do not
 measure population-wide phase locking or spikes per cycle.
 
-<RunFigure experiment="exp023" file="traces__ping__v_i.svg" number={8} id="fig-8" alt="PING inhibitory membrane voltage">
-  Membrane voltage of the highest-spike-count PING I neuron, from the same trial as the PING E traces. The dashed line marks threshold.
-</RunFigure>
-
-### PING inhibitory-neuron conductances
-
-<RunFigure experiment="exp023" file="traces__ping__g_i.svg" number={9} id="fig-9" alt="PING inhibitory-neuron conductances">
-  Excitatory conductance arriving from the E population (black) and fixed leak (dotted) on the selected I neuron. The model has no I→I synapse.
-</RunFigure>
-
-### PING inhibitory-neuron currents
-
-<RunFigure experiment="exp023" file="traces__ping__i_i.svg" number={10} id="fig-10" alt="PING inhibitory-neuron currents">
-  Signed excitatory and leak currents on the same I neuron. Positive current is depolarising.
+<RunFigure experiment="exp023" number={3} id="fig-3" columns={3} panels={[
+  { file: "traces__ping__v_e.svg", alt: "PING excitatory membrane voltage." },
+  { file: "traces__ping__g_e.svg", alt: "PING excitatory-neuron excitatory, inhibitory and leak conductances." },
+  { file: "traces__ping__i_e.svg", alt: "PING excitatory-neuron signed currents." },
+  { file: "traces__ping__v_i.svg", alt: "PING inhibitory membrane voltage." },
+  { file: "traces__ping__g_i.svg", alt: "PING inhibitory-neuron excitatory and leak conductances." },
+  { file: "traces__ping__i_i.svg", alt: "PING inhibitory-neuron signed excitatory and leak currents." },
+]}>
+  (A–C) Membrane voltage, conductances and signed currents of the highest-spike-count PING E neuron; (D–F) the same quantities for the highest-spike-count I neuron from the same trial. Input was {points.ping.input_rate_hz} Hz for {points.ping.t_ms} ms, a different rate from COBA in Fig. 2, not a matched-input trace comparison. These are illustrative neurons, not population means. In A and D, dashed lines mark the {b.threshold_mV} mV threshold; spikes reset voltage to {b.reset_mV} mV. In B and E, excitation is black, inhibition red when nonzero and fixed leak dotted. The I neuron receives excitation from E; the model has no I→I synapse. All conductances are non-negative; inhibition enters through its reversal potential, not a negative conductance. In C and F, positive current is depolarising; currents were reconstructed using the driving-force relation in Methods. Inhibitory current in C is hyperpolarising when voltage exceeds the {b.E_I_mV} mV inhibitory reversal potential, even though inhibitory conductance is positive.
 </RunFigure>
 
 

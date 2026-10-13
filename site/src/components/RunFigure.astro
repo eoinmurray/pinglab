@@ -2,24 +2,42 @@
 import { getEntry } from 'astro:content';
 import { imageUrl, latestPresentation, optionalPresentation } from '../lib/pingstore';
 
-interface Props {
-  experiment: string;
+interface Panel {
   file: string;
   alt: string;
+}
+
+interface Props {
+  experiment: string;
+  file?: string;
+  alt?: string;
+  panels?: Panel[];
+  columns?: 1 | 2 | 3;
   number: number;
   id?: string;
   report?: string;
   allowUnavailable?: boolean;
 }
 
-const { experiment, file, alt, number, id, report, allowUnavailable = false } = Astro.props;
+const { experiment, file, alt, panels, columns = 2, number, id, report, allowUnavailable = false } = Astro.props;
+if (panels ? file || panels.length < 2 || panels.length > 26 : !file || !alt) {
+  throw new Error('RunFigure requires one file and alt text, or 2–26 lettered panels.');
+}
 const pin = report ? (await getEntry('reports', report))?.data.runs?.[experiment] : undefined;
 const run = pin ? { id: pin } : await (allowUnavailable ? optionalPresentation(experiment) : latestPresentation(experiment));
 ---
 
 <figure id={id} class="l-body">
-  {run ? <a class="figure-image" href={imageUrl(run.id, file)} aria-label={`Open Figure ${number} at full size`}>
-    <img src={imageUrl(run.id, file)} alt={alt} loading="lazy" decoding="async" />
+  {run ? panels ? <div class="figure-panels" style={`--panel-columns: ${columns}`}>
+    {panels.map((panel, index) => {
+      const label = String.fromCharCode(65 + index);
+      return <a class="figure-image figure-panel" href={imageUrl(run.id, panel.file)} aria-label={`Open Figure ${number}${label} at full size`}>
+        <span class="panel-label" aria-hidden="true">{label}</span>
+        <img src={imageUrl(run.id, panel.file)} alt={`${label}. ${panel.alt}`} loading="lazy" decoding="async" />
+      </a>;
+    })}
+  </div> : <a class="figure-image" href={imageUrl(run.id, file!)} aria-label={`Open Figure ${number} at full size`}>
+    <img src={imageUrl(run.id, file!)} alt={alt} loading="lazy" decoding="async" />
   </a> : <p class="figure-unavailable">Figure unavailable: no local presentation data.</p>}
   <figcaption><strong>Figure {number}.</strong> <slot /></figcaption>
 </figure>
@@ -27,4 +45,10 @@ const run = pin ? { id: pin } : await (allowUnavailable ? optionalPresentation(e
 <style>
   .figure-image { display: block; border-bottom: none; }
   img { display: block; width: 100%; height: auto; }
+  .figure-panels { display: grid; grid-template-columns: repeat(var(--panel-columns), minmax(0, 1fr)); gap: 12px; }
+  .figure-panel { min-width: 0; }
+  .panel-label { display: block; color: #111; font-weight: 700; font-size: 14px; line-height: 1.2; margin-bottom: 4px; }
+  @media (max-width: 600px) {
+    .figure-panels { grid-template-columns: 1fr; }
+  }
 </style>

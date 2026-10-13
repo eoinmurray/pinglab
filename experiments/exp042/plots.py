@@ -145,12 +145,20 @@ def fig_rhythm_compound(
     labels = [text.get_text() for text in legend.get_texts()]
     for ax in axes[1]:
         ax.get_legend().remove()
-    fig.legend(handles, labels, loc="lower center", ncol=3, frameon=False, fontsize=theme.SIZE_LEGEND)
+    fig.legend(
+        handles,
+        labels,
+        loc="upper left",
+        bbox_to_anchor=(0.02, 1.0),
+        ncol=3,
+        frameon=False,
+        fontsize=theme.SIZE_BASE,
+    )
     for ax in axes[0]:
         ax.set_xlabel("time (ms)")
     # The caption carries the findings.
     theme.label_panels(axes.flat)
-    fig.tight_layout(rect=(0, 0.07, 1, 0.98), h_pad=1.5, w_pad=1.8)
+    fig.tight_layout(rect=(0, 0, 1, 0.92), h_pad=1.5, w_pad=1.8)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     save_figure(fig, out_path, formats=("png",))  # dense rasters: PNG, not SVG
     plt.close(fig)

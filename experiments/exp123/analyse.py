@@ -358,5 +358,11 @@ def analyse(identity):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source", required=True)
+    parser.add_argument("--protocol", choices=("main", "overview"), default="main")
     args = parser.parse_args()
-    analyse(args.source)
+    if args.protocol == "overview":
+        from experiments.exp123.overview_analysis import analyse_overview
+
+        analyse_overview(args.source)
+    else:
+        analyse(args.source)

@@ -20,55 +20,45 @@ def conditions(report, rate, tau):
 
 
 def plot_tradeoffs(report, destination, save):
+    rate = recipe.RATE_HZ
     fig, axes = plt.subplots(
-        3, 3,
-        figsize=tuple(mm / 25.4 for mm in recipe.FIGURE_SIZE_MM),
+        1, 2,
+        figsize=(recipe.FIGURE_SIZE_MM[0] / 25.4, 85 / 25.4),
         layout="constrained",
     )
     fig.get_layout_engine().set(w_pad=0.04, h_pad=0.07)
     colours = (theme.INK_BLACK, theme.DEEP_RED, theme.ELECTRIC_CYAN)
-    for ri, rate in enumerate(report["design"]["input_rates_hz"]):
-        for tau, colour in zip(report["design"]["tau_gaba_ms"], colours):
-            rows = conditions(report, rate, tau)
-            t = np.array([r["deadline_ms"] for r in rows])
-            a = np.array([r["accuracy"] for r in rows]) * 100
-            c = np.array([r["mean_network_spikes"] for r in rows]) / 1000
-            low, high = np.array([r["accuracy_ci95"] for r in rows]).T * 100
-            for ax, x, y in zip(axes[ri], (t, t, c), (a, c, a)):
-                ax.plot(
-                    x,
-                    y,
-                    color=colour,
-                    lw=1.3,
-                    marker="o",
-                    markersize=3,
-                    label=f"GABA {tau:g} ms",
-                )
-            axes[ri, 0].fill_between(t, low, high, color=colour, alpha=0.12)
-        for j, (xlabel, ylabel, title) in enumerate(
-            (
-                ("Deadline (ms)", "Accuracy (%)", "Accuracy"),
-                ("Deadline (ms)", "Network spikes\n(×10³)", "Spike cost"),
-                ("Network spikes\n(×10³)", "Accuracy (%)", "Accuracy / cost"),
+    for tau, colour in zip(report["design"]["tau_gaba_ms"], colours):
+        rows = conditions(report, rate, tau)
+        t = np.array([r["deadline_ms"] for r in rows])
+        a = np.array([r["accuracy"] for r in rows]) * 100
+        c = np.array([r["mean_network_spikes"] for r in rows]) / 1000
+        for ax, x, y in zip(axes, (t, c), (c, a)):
+            ax.plot(
+                x, y, color=colour, lw=1.3, marker="o", markersize=3,
+                label=f"GABA {tau:g} ms",
             )
-        ):
-            ax = axes[ri, j]
-            ax.set_title(f"{rate:g} Hz · {title}", fontsize=theme.SIZE_ANNOTATION)
-            ax.set_xlabel(xlabel, fontsize=theme.SIZE_LABEL)
-            ax.set_ylabel(ylabel, fontsize=theme.SIZE_LABEL)
-            if j != 1:
-                ax.set_ylim(0, 100)
-                ax.set_yticks([0, 25, 50, 75, 100])
-            else:
-                ax.set_ylim(bottom=0)
-            if j < 2:
-                ax.set_xlim(0, 205)
-                ax.set_xticks([0, 100, 200])
-            else:
-                ax.set_xlim(left=0)
-                ax.xaxis.set_major_locator(MaxNLocator(nbins=4))
+    for j, (xlabel, ylabel, title) in enumerate(
+        (
+            ("Elapsed time (ms)", "Network spikes\n(×10³)", "Spike cost"),
+            ("Network spikes\n(×10³)", "Accuracy (%)", "Accuracy / cost"),
+        )
+    ):
+        ax = axes[j]
+        ax.set_title(f"{rate:g} Hz · {title}", fontsize=theme.SIZE_ANNOTATION)
+        ax.set_xlabel(xlabel, fontsize=theme.SIZE_LABEL)
+        ax.set_ylabel(ylabel, fontsize=theme.SIZE_LABEL)
+        if j == 0:
+            ax.set_ylim(bottom=0)
+            ax.set_xlim(0, 205)
+            ax.set_xticks([0, 100, 200])
+        else:
+            ax.set_ylim(0, 100)
+            ax.set_yticks([0, 25, 50, 75, 100])
+            ax.set_xlim(left=0)
+            ax.xaxis.set_major_locator(MaxNLocator(nbins=4))
     theme.label_panels(axes.flat)
-    handles, labels = axes[0, 0].get_legend_handles_labels()
+    handles, labels = axes[0].get_legend_handles_labels()
     fig.legend(
         handles, labels, loc="outside upper center", ncols=3, fontsize=theme.SIZE_LEGEND
     )
@@ -113,7 +103,7 @@ def plot_frontiers(report, destination, save):
                 zorder=4,
             )
         ax.set_title(f"Encoding {rate:g} Hz", fontsize=theme.SIZE_TITLE)
-        ax.set(xlim=(0, 220), ylim=(0, 100), xlabel="Deadline (ms)")
+        ax.set(xlim=(0, 220), ylim=(0, 100), xlabel="Elapsed time (ms)")
         ax.set_xticks([0, 100, 200])
         ax.set_yticks([0, 25, 50, 75, 100])
         frequency = [r for r in report["frequencies"] if r["input_rate_hz"] == rate]

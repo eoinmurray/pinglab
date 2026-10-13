@@ -113,6 +113,15 @@ def plot_grid(report, source, destination, coordinate):
 
 def plot_decisions(report, destination):
     images = report["image_reports"][:9]
+    image_indices = {image["image_index"] for image in images}
+    volley_medians = [
+        d["quartiles_completed_volley_count"][1]
+        for d in report["decisions"]
+        if d["image_index"] in image_indices
+        and d["quartiles_completed_volley_count"] is not None
+    ]
+    volley_lower = int(np.floor(min(volley_medians))) if volley_medians else 1
+    volley_upper = int(np.ceil(max(volley_medians))) if volley_medians else 2
     fig, axes = plt.subplots(
         2, len(images),
         figsize=tuple(mm / 25.4 for mm in recipe.FIGURE_SIZE_MM),
@@ -143,9 +152,13 @@ def plot_decisions(report, destination):
                 q[:, 1], taus, color=theme.INK_BLACK,
                 marker="o", markersize=3.7, lw=1, zorder=3,
             )
-            upper = 200 if k == 0 else image["common_complete_intervals"]
-            ax.set_xlim(0, upper if upper else 1)
-            ax.set_xticks([0, 100, 200] if k == 0 else np.arange(upper + 1) if upper else [0])
+            if k == 0:
+                ax.set_xlim(0, 200)
+                ax.set_xticks(np.arange(0, 201, 50))
+                ax.set_xticks(np.arange(0, 201, 10), minor=True)
+            else:
+                ax.set_xlim(volley_lower - 0.2, volley_upper + 0.2)
+                ax.set_xticks(np.arange(volley_lower, volley_upper + 1))
             if k == 0:
                 for label in ax.get_xticklabels():
                     label.set_rotation(45)
@@ -190,12 +203,10 @@ def plot_decisions(report, destination):
 
 def plot_accuracy(report, destination):
     fig, axes = plt.subplots(
-        2,
+        1,
         3,
-        figsize=tuple(mm / 25.4 for mm in recipe.FIGURE_SIZE_MM),
+        figsize=(recipe.FIGURE_SIZE_MM[0] / 25.4, 70 / 25.4),
         layout="constrained",
-        gridspec_kw={"height_ratios": [2, 1]},
-        sharex="col",
     )
     colours = (theme.INK_BLACK, theme.DEEP_RED, theme.ELECTRIC_CYAN)
     for j, (key, xlabel) in enumerate(
@@ -211,41 +222,29 @@ def plot_accuracy(report, destination):
         for ti, (tau, colour) in enumerate(
             zip(report["design"]["tau_gaba_ms"], colours)
         ):
-            y, low, high = [
-                np.array(curve[name][ti], dtype=float) * 100
-                for name in ("accuracy", "ci_low", "ci_high")
-            ]
+            y = np.array(curve["accuracy"][ti], dtype=float) * 100
             y[coverage < 0.8] = np.nan
-            low[coverage < 0.8] = np.nan
-            high[coverage < 0.8] = np.nan
-            axes[0, j].plot(x, y, color=colour, lw=1.3, label=f"GABA {tau:g} ms")
-            axes[0, j].fill_between(x, low, high, color=colour, alpha=0.12)
-        axes[0, j].set_ylim(0, 100)
-        axes[0, j].set_yticks([0, 25, 50, 75, 100])
-        axes[0, j].set_title(("Physical time", "Gamma cycles", "Input budget")[j])
-        axes[1, j].plot(x, coverage * 100, color=theme.INK_BLACK, lw=1.3)
-        axes[1, j].axhline(80, color=theme.GREY_MID, lw=0.7, ls="--")
-        axes[1, j].set_ylim(0, 105)
-        axes[1, j].set_yticks([0, 50, 100])
-        axes[1, j].set_xlabel(xlabel)
+            axes[j].plot(x, y, color=colour, lw=1.3, label=f"GABA {tau:g} ms")
+        axes[j].set_ylim(0, 100)
+        axes[j].set_yticks([0, 25, 50, 75, 100])
+        axes[j].set_title(("Physical time", "Gamma cycles", "Input budget")[j])
+        axes[j].set_xlabel(xlabel)
         retained = np.flatnonzero(coverage >= 0.5)
         end = min(len(x) - 1, retained[-1] + 1) if len(retained) else len(x) - 1
-        axes[1, j].set_xlim(x[0], x[end])
+        axes[j].set_xlim(x[0], x[end])
         if j == 0:
-            axes[0, j].set_ylabel("Accuracy (%)")
-            axes[1, j].set_ylabel("Paired trials\nretained (%)")
+            axes[j].set_ylabel("Accuracy (%)")
         else:
-            for row in range(2):
-                axes[row, j].tick_params(labelleft=False)
+            axes[j].tick_params(labelleft=False)
     theme.label_panels(axes.flat)
-    handles, labels = axes[0, 0].get_legend_handles_labels()
+    handles, labels = axes[0].get_legend_handles_labels()
     fig.legend(
         handles, labels, loc="outside upper center", ncols=3, fontsize=theme.SIZE_LEGEND
     )
     save(fig, destination)
 
 
-def present(identity):
+def present(identity, overview_identity):
     source = source_run(
         recipe.REPO / ".pingstore", identity, stage="analyse", experiment=recipe.SLUG
     )
@@ -259,7 +258,18 @@ def present(identity):
     theme.set_paper_mode(True)
     theme.apply()
     plt.rcParams["svg.fonttype"] = "none"
-    inputs = {"analyse": source}
+    overview = source_run(
+        recipe.REPO / ".pingstore", overview_identity, stage="analyse", experiment=recipe.SLUG
+    )
+    overview_report = json.loads(overview.file("metrics.json").read_text())
+    if overview_report.get("schema") != "exp123.overview.analysis/v1":
+        raise ValueError("unsupported inhibitory-overview analysis")
+    raster_ref = source.record["inputs"]["compute"]
+    raster_compute = source_run(
+        recipe.REPO / ".pingstore", raster_ref["run_id"], stage="compute",
+        experiment=recipe.SLUG, reference=raster_ref,
+    )
+    inputs = {"analyse": source, "overview_analyse": overview, "raster_compute": raster_compute}
     accuracy_report = json.loads(source.file("accuracy.json").read_text())
     pareto_report = json.loads(source.file("pareto.json").read_text())
     if accuracy_report.get("schema") != "exp123.accuracy.analysis/v1":
@@ -282,11 +292,38 @@ def present(identity):
             cycle_trajectory_layout="3 rows by 3 columns; same nine images, indices 0–8",
             volley_sampling="cumulative softmax at the inhibitory trough after each accepted peak; final unbounded peak excluded",
             volley_zero="initial softmax score at physical time zero; illustrative origin, not a detected volley",
-            decision_layout="nine images, indices 0–8; time 0–200 ms on x in top row, completed volley count on x in bottom row with Figure 2 shared count range; GABA decay on y; median points connected across decay settings",
+            decision_layout="nine images, indices 0–8; shared time x limits 0–200 ms with ticks every 10 ms and labels every 50 ms; shared completed volley range spanning displayed medians rounded out to integers with 0.2 padding; GABA decay on y; median points connected across decay settings",
             accuracy_minimum_display_coverage=0.8,
+            show_uncertainty_estimates=False,
+            overview_layout="four overview sweep metrics in a 2×2 grid on the left; three main-protocol E/I rasters stacked on the right",
+            overview_raster_tau_ms=recipe.TAUS_MS,
+            overview_raster_encoding_seed=42,
+            accuracy_layout="one row of three accuracy panels A–C; coverage panels omitted",
+            accuracy_figure_size_mm=[recipe.FIGURE_SIZE_MM[0], 70],
+            tradeoff_layout="one row of two panels: spike cost versus elapsed time and accuracy versus spike cost; 25 Hz encoding only",
+            tradeoff_figure_size_mm=[recipe.FIGURE_SIZE_MM[0], 85],
             accuracy_axis_extent="last coordinate with at least 50% paired-trial coverage plus one grid step",
         ),
     ) as run:
+        from experiments.exp123.overview_plot import plot_inhibitory_overview
+
+        plot_inhibitory_overview(
+            overview_report, raster_compute, run.export / "inhibitory_overview", save
+        )
+        overview_numbers = dict(overview_report)
+        overview_numbers["design"] = dict(overview_report["design"])
+        overview_numbers["raster_design"] = dict(
+            image_index=0, encoding_seed=42, tau_gaba_ms=recipe.TAUS_MS,
+            input_rate_hz=recipe.RATE_HZ,
+        )
+        overview_numbers["design"]["conditions"] = [
+            c for c in overview_report["design"]["conditions"] if c["sweep"] == "tau"
+        ]
+        for key in ("rows", "summaries", "psd_summaries"):
+            overview_numbers[key] = [r for r in overview_report[key] if r["sweep"] == "tau"]
+        (run.export / "overview_numbers.json").write_text(
+            json.dumps(overview_numbers, indent=2, allow_nan=False) + "\n"
+        )
         plot_grid(report, source, run.export / "confidence_time", "time")
         plot_grid(report, source, run.export / "confidence_cycles", "cycles")
         plot_decisions(report, run.export / "sustained_decisions")
@@ -311,5 +348,6 @@ def present(identity):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source", required=True)
+    parser.add_argument("--overview-source", required=True, help="Explicit exp123 overview analysis for the inhibitory-decay overview")
     args = parser.parse_args()
-    present(args.source)
+    present(args.source, args.overview_source)

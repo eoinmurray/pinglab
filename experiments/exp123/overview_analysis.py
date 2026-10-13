@@ -1,17 +1,10 @@
 """Measure spectra, autocorrelation, complete-cycle participation and cost."""
 
-import argparse
 import csv
 import json
-import sys
-from pathlib import Path
 
-sys.path[:0] = [
-    str(Path(__file__).resolve().parents[2]),
-    str(Path(__file__).resolve().parents[2] / "tools"),
-]
 import numpy as np
-from experiments.exp122 import recipe
+from experiments.exp123 import recipe
 from pingstore.stages import source_run, stage_run
 from scipy.ndimage import gaussian_filter1d
 from scipy.signal import correlate, find_peaks
@@ -178,11 +171,14 @@ def dynamics(e, i, cfg):
     )
 
 
-def analyse(identity):
+def analyse_overview(identity):
     source = source_run(
         recipe.REPO / ".pingstore", identity, stage="compute", experiment=recipe.SLUG
     )
-    cfg = recipe.analysis_configuration(source.record["execution"]["configuration"])
+    source_cfg = source.record["execution"]["configuration"]
+    if source_cfg.get("schema") != "exp123.overview.compute/v1":
+        raise ValueError("overview analysis requires an overview compute run")
+    cfg = recipe.overview_analysis_configuration(source_cfg)
     start = round(cfg["transient_ms"] / cfg["dt_ms"])
     rows = []
     with stage_run(
@@ -268,7 +264,7 @@ def analyse(identity):
         (run.export / "metrics.json").write_text(
             json.dumps(
                 dict(
-                    schema="exp122.analysis/v2",
+                    schema="exp123.overview.analysis/v1",
                     design={
                         key: cfg[key]
                         for key in (
@@ -277,8 +273,6 @@ def analyse(identity):
                             "partition",
                             "seeds",
                             "tau_gaba_ms",
-                            "leak_scales",
-                            "capacitance_scales",
                             "conditions",
                             "dt_ms",
                             "duration_ms",
@@ -319,8 +313,3 @@ def analyse(identity):
     print(identity, flush=True)
     return identity
 
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--source", required=True)
-    analyse(parser.parse_args().source)

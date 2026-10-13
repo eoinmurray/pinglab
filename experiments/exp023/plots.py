@@ -81,6 +81,7 @@ def plot_raster_compound(
     arch_axes = []
     raster_axes = []
     lower_axes = []
+    psd_axes = []
     for col, cell in enumerate(("coba", "ping")):
         c0 = 2 * col
         s = snaps[cell]
@@ -98,7 +99,10 @@ def plot_raster_compound(
             ax_arch.set_title(titles[cell], loc="left", fontweight="semibold")
 
         ax_r = fig.add_subplot(plot_gs[0, c0 : c0 + 2])  # one raster, I above E
-        ax_psd = fig.add_subplot(plot_gs[1, c0])  # PSD next to f–I
+        ax_psd = fig.add_subplot(
+            plot_gs[1, c0], sharey=psd_axes[0] if psd_axes else None
+        )  # PSD next to f–I
+        psd_axes.append(ax_psd)
         ax_fi = fig.add_subplot(plot_gs[1, c0 + 1])
         raster_axes.append(ax_r)
         lower_axes.extend((ax_psd, ax_fi))
@@ -200,6 +204,15 @@ def plot_raster_compound(
         _despine(ax_fi)
         if col == 1:
             ax_fi.legend(frameon=False, fontsize=theme.SIZE_LABEL - 2, loc="upper left")
+
+    psd_max = max(
+        float(np.max(values["density"][
+            (values["frequency_hz"] >= band_hz[0])
+            & (values["frequency_hz"] <= band_hz[1])
+        ]))
+        for values in spectra.values()
+    )
+    psd_axes[0].set_ylim(0, psd_max * 1.08 if psd_max > 0 else 1.0)
 
     # Label every row from left to right.
     theme.label_panels((*arch_axes, *raster_axes, *lower_axes))

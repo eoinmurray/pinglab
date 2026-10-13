@@ -177,5 +177,14 @@ def compute(identity):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source", required=True)
+    parser.add_argument("--protocol", choices=("main", "overview"), default="main")
+    parser.add_argument("--image-source", help="Explicit main compute run supplying overview image pixels")
     args = parser.parse_args()
-    compute(args.source)
+    if args.protocol == "overview":
+        from experiments.exp123.compute_parts.overview import compute_overview
+
+        if not args.image_source:
+            parser.error("--protocol overview requires --image-source")
+        compute_overview(args.source, args.image_source)
+    else:
+        compute(args.source)
