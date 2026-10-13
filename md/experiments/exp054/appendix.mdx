@@ -1,0 +1,13 @@
+import ReportAvailability from '../../../site/src/components/ReportAvailability.astro';
+import DataBranch from '../../../site/src/components/DataBranch.astro';
+import RunFigure from '../../../site/src/components/RunFigure.astro';
+
+<span id="loc-14" />
+
+## Appendix: reading the autocorrelogram
+
+The raw lag product $\sum_{k} n_{E [ k ]} n_{E [ k + \ell ]}$ counts spike pairs separated by $\ell$ bins. Only $N_{\text{bin}} - \ell$ bin pairs exist at that lag: the last $\ell$ bins have no partner. Dividing by this overlap converts the raw sum into an average product per available pair, removing the taper caused by finite recording length. Dividing again by ${\langle n_{E} \rangle}^{2}$ places independent firing near $A_{\text{corr}} = 1$; this is a reference level, not a lower bound.
+
+The Wiener–Khinchin route computes the lag products by zero-padding the count trace, taking its fast Fourier transform (FFT), multiplying by the complex conjugate and inverse-transforming. This costs $O ( n \log n )$ for all lags rather than a full $O ( n^{2} )$ direct correlation, where $O$ denotes asymptotic computational scaling.
+
+A central lobe above chance describes short-lag spike clustering. A later trough can reflect suppression between volleys; a subsequent peak near the period is separate evidence of recurrence. Contrast is zero when its lobe and trough are equal, and reaches one if a positive lobe is paired with a zero trough. It summarizes their relative heights without measuring a stable oscillation frequency. Finite recordings, missing extrema and shared-input coincidence therefore matter when interpreting this scalar alongside rasters and longer-lag structure.

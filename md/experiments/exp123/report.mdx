@@ -1,0 +1,195 @@
+---
+id: exp123
+title: Output Evidence Against Time and Gamma Cycles
+author: Eoin Murray
+thumbnail: confidence_time.png
+created_at: '2026-10-06'
+updated_at: '2026-10-10'
+description: Paired inhibitory-decay probes of output evidence, matched-coordinate accuracy and accuracy–deadline–spike-cost frontiers across input encoding rates.
+abstract: >-
+  We examine how output evidence accumulates in a trained pyramidal–interneuron
+  gamma (PING) network when inhibitory decay changes. With network weights fixed,
+  paired MNIST spike encodings are presented at inhibitory decay times of 3, 6
+  and 12 ms. We compare cumulative output-spike scores against elapsed time and
+  completed inhibitory volleys, then assess sustained correct decisions and
+  classification accuracy at matched time, cycle and input-spike coordinates.
+  Across three encoding rates, we also compare accuracy, decision deadlines and
+  network spike cost, identifying empirical Pareto candidates. These comparisons
+  examine whether volley count provides a useful coordinate for evidence
+  accumulation. Softmax scores are uncalibrated, later coordinates select trial
+  subsets, and spike cost is not a measure of physical energy.
+collection: neuromodulation
+tags: [data, v36.0.0]
+inputs: ["exp123"]
+---
+
+import RunFigure from '../../../site/src/components/RunFigure.astro';
+
+## Background
+
+We imported the trained PING network from
+[exp022](https://pl.eoinmurray.info/exp022/) — [*Training Runs*](https://pl.eoinmurray.info/exp022/)
+and kept its weights fixed. The [parameter table](#parameters)
+lists the network and simulation settings.
+
+## Evidence across time
+
+<RunFigure experiment="exp123" file="confidence_time.png" number={1} id="fig-time" alt="Nine panels in a three-by-three grid show mean true-class cumulative-spike softmax scores versus elapsed time under three inhibitory-decay settings.">
+  A–I each show one of the first nine MNIST test images.
+  We converted each image into 100 random spike trains, with brighter
+  pixels having higher average spike rates (25 spikes per second for
+  a fully bright pixel).
+  Each train was presented for 200 ms to the same trained network with
+  fixed weights, using three inhibitory decay times: 3 ms (black),
+  6 ms (red) and 12 ms (cyan). The x-axis shows elapsed time. The y-axis
+  shows the score assigned to the correct digit, calculated by applying
+  softmax to accumulated output spike counts. Each curve averages the
+  100 trials; no uncertainty bands are shown. This score is not a
+  calibrated probability of being correct.
+</RunFigure>
+
+We encoded each of the first nine MNIST test images into 100 random
+spike trains and reused each train at $\tau_{\mathrm{GABA}} = 3, 6, 12$ ms,
+where $\tau_{\mathrm{GABA}}$ is the inhibitory decay time constant.
+Brighter pixels had higher average spike rates, with 25 spikes per second
+for a fully bright pixel.
+Each presentation lasted 200 ms, with 0.1 ms simulation steps. For each
+trial, the logit for digit $c$ was its accumulated output spike count:
+
+$$
+z_c(t) = \sum_{k=1}^{\lfloor t / \Delta t_{\mathrm{sim}} \rfloor} s_c[k]. \tag{1}
+$$
+
+Here, $t$ is elapsed time, $\Delta t_{\mathrm{sim}}$ is the timestep, $k$ indexes
+simulation steps, and $s_c[k]$ is one when output neuron $c$ spikes,
+otherwise zero. We converted these logits into scores using softmax:
+
+$$
+p_c(t) = \frac{\exp(z_c(t))}{\sum_{j=0}^{9} \exp(z_j(t))}. \tag{2}
+$$
+
+Here, $p_c(t)$ is the score for digit $c$, and $j$ ranges over all ten
+digits. We averaged the correct digit's score *after softmax* across
+100 trials, separately for each decay setting. These scores are uncalibrated.
+
+## Evidence per completed volley
+
+<RunFigure experiment="exp123" file="confidence_cycles.png" number={2} id="fig-cycles" alt="The same nine test images as Figure 1 show mean cumulative softmax scores sampled at inhibitory troughs against completed volley count.">
+  A–I: the same nine MNIST test images, using the score definition
+  and colours of <a href="#fig-time">Figure 1</a>. Each point samples the
+  cumulative score at the inhibitory trough after the numbered volley,
+  then averages across 100 trials. The trough is the minimum of smoothed
+  I activity between successive accepted peaks; the final peak is excluded
+  because it has no following boundary.
+  Volley zero shows the initial score of 0.1 at time zero, not a detected volley.
+  Only counts available in every trial and setting are shown; lines
+  connect integer counts without representing elapsed time.
+  Clustering and score saturation can mimic alignment.
+</RunFigure>
+
+We detected inhibitory peaks after 1 ms Gaussian smoothing, requiring
+≥2 ms spacing and prominence ≥max(1 spike, 20% of the maximum).
+Accepted sequences required a complete interior cycle and mean
+inhibitory participation ≥50%.
+
+We defined each volley's completion as the minimum of smoothed
+inhibitory activity between its peak and the next. At that boundary,
+we sampled the correct digit's softmax score from all output spikes
+accumulated since onset.
+
+We averaged these samples across 100 trials for each decay setting,
+using completed-volley counts available in every trial and setting.
+The final unbounded volley is excluded; count zero shows the initial
+score of 0.1 at time zero, not a detected volley.
+Clustering and score saturation can mimic alignment.
+
+## Sustained correct decisions
+
+<RunFigure experiment="exp123" file="sustained_decisions.png" number={3} id="fig-decisions" alt="The same nine images as Figures 1 and 2 show median stable correct decisions versus GABA decay: time in row A and completed volley count in row B, with points connected across decay settings.">
+  A: time (ms). B: completed volley count, using the inhibitory
+  trough boundaries of <a href="#fig-cycles">Figure 2</a>.
+  B uses the first completion at which the decision is already stable.
+  Both rows show GABA decay on y for images 00–08. Each point is the
+  median among trials whose correct digit becomes the unique winner
+  and stays so through 200 ms. Lines connect the three decay settings.
+  Failed trials are excluded; B also
+  requires completion-boundary coverage within Figure 2's shared count
+  range. Trial counts are integers; medians can be fractional.
+</RunFigure>
+
+For the same nine images and 100 trials per decay setting, we found the
+earliest update at which the correct digit had the largest cumulative
+output spike count and remained the unique winner through 200 ms.
+Ties interrupt stability; trials without a stable correct decision were excluded.
+
+We used the first completed-volley trough boundary at or after each
+stable decision. This is the first sampled point at which the decision
+is already stable, numbered from one.
+Counts required accepted volley sequences, a decision no later than the
+final completion boundary, and the shared completed-volley count range.
+We summarised median decision time and median completed-volley count
+against inhibitory decay. The two summaries can include different
+trial subsets. Trial counts are integers; medians can be fractional.
+Stability was assessed retrospectively, not by a stopping rule.
+
+## Accuracy at matched coordinates
+
+<RunFigure experiment="exp123" file="accuracy_comparison.png" number={4} id="fig-accuracy" alt="Three accuracy curves compare inhibitory decay at matched elapsed time, cycle position and cumulative input count; three corresponding coverage plots show available paired trials.">
+  A–C: accuracy against time, cycle position and cumulative input
+  spikes. D–F: paired-trial coverage. Sample: 500 images, 50 per digit,
+  three paired encodings; decay 3/6/12 ms in black/red/cyan. Shading:
+  image-bootstrap 95% intervals. Dashed lines mark 80% coverage;
+  accuracy is omitted below it. Later coordinates select subsets.
+  Equal spike counts do not guarantee equal information.
+</RunFigure>
+
+We compared accuracy against time, cycle position and cumulative input
+spikes, alongside paired-trial coverage. The sample comprised 500 images,
+50 per digit, with three paired encodings and inhibitory decay times of
+3, 6 and 12 ms. Uncertainty was summarised with image-bootstrap 95% intervals.
+Accuracy is omitted below 80% coverage. Later coordinates select subsets.
+Equal spike counts do not guarantee equal information.
+
+## Accuracy and spike cost
+
+<RunFigure experiment="exp123" file="deadline_tradeoffs.png" number={5} id="fig-tradeoffs" alt="Nine panels show accuracy versus deadline, network spikes versus deadline and accuracy versus network spikes at three input encoding rates.">
+  A/D/G: accuracy versus deadline. B/E/H: mean network spikes versus
+  deadline. C/F/I: accuracy versus spike cost. Rows: 12.5/25/50 Hz
+  encoding; colours: 3/6/12 ms decay. Points mark five deadlines,
+  connected within each setting. Sample: 500 images, three paired
+  encodings. Shading in A/D/G: image-bootstrap 95% intervals.
+  Cost includes E, I and output spikes, excluding input.
+  Spike cost is not physical energy; encoding rate also changes drive.
+</RunFigure>
+
+We compared accuracy versus deadline, mean network spikes versus deadline,
+and accuracy versus spike cost at encoding rates of 12.5, 25 and 50 Hz
+and inhibitory decay times of 3, 6 and 12 ms. We evaluated five deadlines
+within each setting, using 500 images and three paired encodings.
+Accuracy uncertainty was summarised with image-bootstrap 95% intervals.
+Cost includes excitatory, inhibitory and output spikes, excluding input.
+Spike cost is not physical energy; encoding rate also changes drive.
+
+## Pareto candidates and frequency
+
+<RunFigure experiment="exp123" file="pareto_frontiers.png" number={6} id="fig-pareto" alt="Three connected bubble plots show empirical Pareto candidates at different encoding rates, with bubble area representing spike cost; three spectral-frequency plots verify decay modulation.">
+  A–C: Pareto comparisons at 12.5/25/50 Hz encoding. Position shows
+  deadline and accuracy; bubble area shows mean network spikes on a
+  common scale. Colours identify decay; traces connect deadlines.
+  Outlined bubbles are empirically nondominated; faint bubbles are
+  dominated. D–F: peaks of mean E-population PSDs at the same rates.
+  Peaks can reflect harmonics or heterogeneous rhythms. Sample and cost definition:
+  <a href="#fig-tradeoffs">Figure 5</a>. Frontier membership is
+  sample-dependent.
+</RunFigure>
+
+We compared Pareto candidates using deadline, accuracy and mean network
+spikes at encoding rates of 12.5, 25 and 50 Hz, for each inhibitory decay
+setting. Candidates were classified as empirically nondominated or dominated.
+Frontier membership is sample-dependent.
+
+We also measured peaks of mean excitatory-population power spectral
+densities at the same encoding rates. Peaks can reflect harmonics or
+heterogeneous rhythms. The sample and cost definition were the same as
+in the accuracy and spike-cost comparison.
+

@@ -1,0 +1,15 @@
+---
+interface Props {
+  title?: string;
+  eyebrow?: string;
+  variant?: 'default' | 'title' | 'contrast';
+  density?: 'default' | 'compact';
+  layout?: 'free' | 'title' | 'section' | 'text' | 'figure' | 'figure-text';
+}
+const { title, eyebrow, variant = 'default', density = 'default', layout = 'free' } = Astro.props;
+---
+<section class:list={['slide', `slide--${variant}`, `slide-layout--${layout}`, { 'slide--compact': density === 'compact' }]} data-slide tabindex="-1">
+  {eyebrow && <p class="slide-eyebrow">{eyebrow}</p>}
+  {title && <h2>{title}</h2>}
+  <div class="slide-content"><slot /></div>
+</section>

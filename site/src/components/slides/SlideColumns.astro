@@ -1,0 +1,8 @@
+---
+interface Props { ratio?: 'equal' | 'wide-left' | 'wide-right'; }
+const { ratio = 'equal' } = Astro.props;
+---
+<div class:list={['slide-columns', `slide-columns--${ratio}`]}>
+  <div><slot name="left" /></div>
+  <div><slot name="right" /></div>
+</div>

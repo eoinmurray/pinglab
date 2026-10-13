@@ -1,5 +1,6 @@
 ---
-import { imageUrl, latestPresentation } from '../lib/pingstore';
+import { getEntry } from 'astro:content';
+import { imageUrl, latestPresentation, optionalPresentation } from '../lib/pingstore';
 
 interface Props {
   experiment: string;
@@ -7,16 +8,19 @@ interface Props {
   alt: string;
   number: number;
   id?: string;
+  report?: string;
+  allowUnavailable?: boolean;
 }
 
-const { experiment, file, alt, number, id } = Astro.props;
-const run = await latestPresentation(experiment);
+const { experiment, file, alt, number, id, report, allowUnavailable = false } = Astro.props;
+const pin = report ? (await getEntry('reports', report))?.data.runs?.[experiment] : undefined;
+const run = pin ? { id: pin } : await (allowUnavailable ? optionalPresentation(experiment) : latestPresentation(experiment));
 ---
 
 <figure id={id} class="l-body">
-  <a class="figure-image" href={imageUrl(run.id, file)} aria-label={`Open Figure ${number} at full size`}>
+  {run ? <a class="figure-image" href={imageUrl(run.id, file)} aria-label={`Open Figure ${number} at full size`}>
     <img src={imageUrl(run.id, file)} alt={alt} loading="lazy" decoding="async" />
-  </a>
+  </a> : <p class="figure-unavailable">Figure unavailable: no local presentation data.</p>}
   <figcaption><strong>Figure {number}.</strong> <slot /></figcaption>
 </figure>
 

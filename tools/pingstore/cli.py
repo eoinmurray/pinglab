@@ -1,4 +1,4 @@
-"""Narrow Pingstore discovery, presentation and pruning commands."""
+"""Narrow Pingstore discovery, backup and pruning commands."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ from .discovery import discover_runs
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="pingstore",
-        description="Read-only integration with immutable Pingstore runs.",
+        description="Validate immutable Pingstore runs, back them up and prune superseded runs.",
     )
     commands = parser.add_subparsers(dest="command", required=True)
     discover = commands.add_parser(
@@ -25,15 +25,30 @@ def main(argv: list[str] | None = None) -> int:
         type=Path,
         help="runs directory (default: DEMOLAB_PREVIEW_SOURCE, then .pingstore/runs)",
     )
-    presentation = commands.add_parser(
-        "presentation-inputs",
-        help="prepare validated JSON for Pinglab's Typst run view",
+    backup = commands.add_parser(
+        "backup", help="append verified complete runs to an R2 backup using rclone"
     )
-    presentation.add_argument(
-        "--root",
+    backup.add_argument(
+        "--source",
         type=Path,
-        default=Path("."),
-        help="lab directory (default: current working directory)",
+        default=Path(".pingstore/runs"),
+        help="runs directory (default: .pingstore/runs in the current directory)",
+    )
+    remote = os.environ.get("PINGLAB_R2_REMOTE", "r2")
+    bucket = os.environ.get("PINGLAB_R2_BUCKET", "pinglab")
+    backup.add_argument(
+        "--destination",
+        default=f"{remote}:{bucket}/pingstore/runs",
+        help="rclone remote ending in /pingstore/runs (default: r2:pinglab/pingstore/runs; PINGLAB_R2_REMOTE and PINGLAB_R2_BUCKET override)",
+    )
+    backup_action = backup.add_mutually_exclusive_group(required=True)
+    backup_action.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="inspect the exact backup plan without uploading",
+    )
+    backup_action.add_argument(
+        "--confirm", metavar="PLAN_HASH", help="apply an unchanged dry-run plan"
     )
     prune = commands.add_parser(
         "prune",
@@ -82,10 +97,18 @@ def main(argv: list[str] | None = None) -> int:
         "--confirm", metavar="PLAN_HASH", help="apply an unchanged dry-run plan"
     )
     args = parser.parse_args(argv)
-    if args.command == "presentation-inputs":
-        from .presentation_inputs import prepare
+    if args.command == "backup":
+        from .backup import backup_runs
 
-        return prepare(args.root)
+        source = args.source.expanduser().absolute()
+        if not source.is_dir():
+            backup.error("source must be an existing Pingstore runs directory")
+        destination = args.destination.rstrip("/")
+        if ":" not in destination or not destination.endswith("/pingstore/runs"):
+            backup.error("destination must be an rclone remote ending in /pingstore/runs")
+        return backup_runs(
+            source, destination, dry_run=args.dry_run, confirm=args.confirm
+        )
     if args.command == "prune":
         from .prune import apply_plan, build_plan, render_plan
 

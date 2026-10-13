@@ -1,0 +1,17 @@
+---
+import { getCollection, render, type CollectionEntry } from 'astro:content';
+import Report from '../../layouts/Report.astro';
+
+export async function getStaticPaths() {
+  return (await getCollection('notes')).map(note => ({
+    params: { id: note.id },
+    props: { note },
+  }));
+}
+
+interface Props { note: CollectionEntry<'notes'>; }
+const { note } = Astro.props;
+const { Content, headings } = await render(note);
+---
+
+<Report report={note} headings={headings}><Content /></Report>

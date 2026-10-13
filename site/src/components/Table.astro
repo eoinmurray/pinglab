@@ -1,0 +1,48 @@
+---
+import { unified } from '@astrojs/markdown-remark';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+import { renderToString } from 'katex';
+
+type Cell = string | number | { math: string } | { markdown: string };
+interface Props {
+  headers: Cell[];
+  rows: Cell[][];
+  caption?: string;
+  id?: string;
+  label?: string;
+}
+const { headers, rows, caption, id, label = 'Report table' } = Astro.props;
+const validCell = (cell: unknown) => typeof cell === 'string'
+  || (typeof cell === 'number' && Number.isFinite(cell))
+  || (cell !== null && typeof cell === 'object' && Object.keys(cell).length === 1
+    && (('math' in cell && typeof cell.math === 'string')
+      || ('markdown' in cell && typeof cell.markdown === 'string')));
+if (!Array.isArray(headers) || headers.length < 2 || !headers.every(validCell)
+  || !Array.isArray(rows) || !rows.length
+  || !rows.every(row => Array.isArray(row) && row.length === headers.length && row.every(validCell))) {
+  throw new Error('Table requires headers and nonempty rows of matching width, with valid cells');
+}
+const processor = unified({
+  remarkPlugins: [remarkMath], rehypePlugins: [[rehypeKatex, { throwOnError: true }]], smartypants: false,
+}).createRenderer({ syntaxHighlight: false });
+// Rich cells are authored Markdown, rendered with the same mathematics plugins as the articles.
+const renderCell = async (cell: Cell) => typeof cell !== 'object' ? cell
+  : 'math' in cell ? { html: renderToString(cell.math, { throwOnError: true }) }
+  : { html: (await (await processor).render(cell.markdown)).code.replace(/^<p>([\s\S]*)<\/p>\s*$/, '$1') };
+const headings = await Promise.all(headers.map(renderCell));
+const body = await Promise.all(rows.map(row => Promise.all(row.map(renderCell))));
+---
+<div class="source-table" tabindex="0" role="region" aria-label={label} id={id}>
+  <table>
+    {caption && <caption>{caption}</caption>}
+    <thead><tr>{headings.map(cell => <th scope="col">{typeof cell === 'object' ? <Fragment set:html={cell.html} /> : cell}</th>)}</tr></thead>
+    <tbody>{body.map(row => <tr>{row.map(cell => <td>{typeof cell === 'object' ? <Fragment set:html={cell.html} /> : cell}</td>)}</tr>)}</tbody>
+  </table>
+</div>
+<style>
+  .source-table { min-width: 0; overflow-x: auto; }
+  .source-table :global(table) { width: 100%; border-collapse: collapse; font-size: inherit; }
+  .source-table :global(th), .source-table :global(td) { padding: .5em; border-bottom: 1px solid rgba(0, 0, 0, .1); text-align: left; vertical-align: top; }
+  .source-table :global(caption) { caption-side: bottom; text-align: left; padding-top: .5em; }
+</style>

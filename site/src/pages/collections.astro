@@ -1,44 +1,29 @@
 ---
-import { getCollection } from 'astro:content';
 import Page from '../layouts/Page.astro';
-import { collectionId, collectionLabel, compareCollections } from '../lib/collections';
+import { getPosts } from '../lib/posts';
+import { collectionLabel, collectionUrl, compareCollections } from '../lib/collections';
 
-const reports = (await getCollection('reports')).sort((a, b) => b.id.localeCompare(a.id));
-const names = [...new Set(reports.map(report => report.data.collection))].sort(compareCollections);
-const collections = names.map(name => ({
-  name,
-  reports: reports.filter(report => report.data.collection === name),
-}));
+const posts = await getPosts();
+const names = [...new Set(posts.map(post => post.collection))].sort(compareCollections);
 ---
 
-<Page title="Collections" description="Browse Pinglab experiments by collection.">
-  <d-title>
-    <h1>Collections</h1>
-    <p>Experiments grouped by collection, with the newest IDs first.</p>
-  </d-title>
-  <d-article aria-label="Experiment collections">
-    {collections.map(collection => <section class="collection" aria-labelledby={collectionId(collection.name)}>
-      <h2 id={collectionId(collection.name)}>{collectionLabel(collection.name)}</h2>
-      <p class="collection-count">{collection.reports.length} {collection.reports.length === 1 ? 'experiment' : 'experiments'}</p>
-      <ol class="collection-reports" role="list">
-        {collection.reports.map(report => <li>
-          <a href={`/${report.id}`}>
-            <span class="experiment-id">{report.id}</span>
-            <span>{report.data.title}</span>
-          </a>
-        </li>)}
-      </ol>
-    </section>)}
-  </d-article>
+<Page title="Collections" description="Browse Pinglab articles by collection.">
+  <div class="base-grid">
+    <ol class="collections-list l-page" aria-label="Collections">
+      {names.map(name => <li><a href={collectionUrl(name)}>{collectionLabel(name)}</a></li>)}
+    </ol>
+  </div>
 </Page>
 
 <style>
-  .collection { grid-column: text; min-width: 0; }
-  h2 { scroll-margin-top: 24px; overflow-wrap: anywhere; }
-  .collection-count { color: rgba(0, 0, 0, .5); font-size: .8rem; margin-top: 0; }
-  .collection-reports { list-style: none; padding: 0; margin: 0; }
-  .collection-reports li { margin: 0; border-bottom: 1px solid rgba(0, 0, 0, .1); }
-  .collection-reports a { display: grid; grid-template-columns: 4.5rem minmax(0, 1fr); gap: 1rem; padding: .8rem 0; border-bottom: none; text-decoration: none; color: inherit; }
-  .collection-reports a:hover { text-decoration: underline; }
-  .experiment-id { font-size: .8rem; font-weight: 600; color: rgba(0, 0, 0, .6); }
+  .collections-list { list-style: none; padding: 0; margin: 24px 0; }
+  .collections-list li { margin: 0; border-bottom: 1px solid rgba(0, 0, 0, .1); }
+  .collections-list li:last-child { border-bottom: none; }
+  .collections-list a { display: block; padding: 24px 0; color: inherit; font-size: 24px; font-weight: 700; line-height: 1.2; text-decoration: none; }
+  .collections-list a:hover { text-decoration: underline; }
+  .collections-list a:focus-visible { outline: 2px solid #004276; outline-offset: 6px; }
+  @media (min-width: 768px) {
+    .collections-list { margin-top: 60px; }
+    .collections-list a { font-size: 26px; }
+  }
 </style>

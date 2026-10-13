@@ -1,0 +1,16 @@
+---
+import { getCollection, render, type CollectionEntry } from 'astro:content';
+import SlideDeck from '../../layouts/SlideDeck.astro';
+
+export async function getStaticPaths() {
+  return (await getCollection('slides')).map(deck => ({
+    params: { id: deck.id }, props: { deck },
+  }));
+}
+interface Props { deck: CollectionEntry<'slides'>; }
+const { deck } = Astro.props;
+const { Content } = await render(deck);
+---
+<SlideDeck title={deck.data.title} author={deck.data.author} description={deck.data.description}>
+  <Content />
+</SlideDeck>

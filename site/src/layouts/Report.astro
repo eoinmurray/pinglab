@@ -5,20 +5,22 @@ import { dependencies, downstream } from '../lib/dependencies';
 import Dataset from '../components/Dataset.astro';
 import { collectionUrl, collectionLabel } from '../lib/collections';
 
-const parameterTables = import.meta.glob('../../../experiments/exp*/parameters.mdx', { eager: true, import: 'default' });
-const appendices = import.meta.glob('../../../experiments/exp*/appendix.mdx', { eager: true, import: 'default' });
-const referenceLists = import.meta.glob('../../../experiments/exp*/references.mdx', { eager: true, import: 'default' });
+const parameterTables = import.meta.glob('../../../md/experiments/exp*/parameters.mdx', { eager: true, import: 'default' });
+const appendices = import.meta.glob('../../../md/experiments/exp*/appendix.mdx', { eager: true, import: 'default' });
+const referenceLists = import.meta.glob('../../../md/experiments/exp*/references.mdx', { eager: true, import: 'default' });
 
 interface Props {
-  report: CollectionEntry<'reports'>;
+  report: CollectionEntry<'reports'> | CollectionEntry<'notes'>;
   headings: { depth: number; slug: string; text: string }[];
 }
 const { report, headings } = Astro.props;
 const { data } = report;
-const Parameters = parameterTables[`../../../experiments/${data.id}/parameters.mdx`] as import('astro').MarkdownInstance<Record<string, unknown>>['Content'] | undefined;
-const References = referenceLists[`../../../experiments/${data.id}/references.mdx`] as import('astro').MarkdownInstance<Record<string, unknown>>['Content'] | undefined;
-const Appendix = appendices[`../../../experiments/${data.id}/appendix.mdx`] as import('astro').MarkdownInstance<Record<string, unknown>>['Content'] | undefined;
-const hasDataset = data.tags.includes('data') || (dependencies[data.id]?.length ?? 0) > 0 || downstream(data.id).length > 0;
+const experiment = report.collection === 'reports' ? report : undefined;
+const articleDirectory = experiment ? `../../../md/experiments/${experiment.data.id}` : undefined;
+const Parameters = parameterTables[`${articleDirectory}/parameters.mdx`] as import('astro').MarkdownInstance<Record<string, unknown>>['Content'] | undefined;
+const References = referenceLists[`${articleDirectory}/references.mdx`] as import('astro').MarkdownInstance<Record<string, unknown>>['Content'] | undefined;
+const Appendix = appendices[`${articleDirectory}/appendix.mdx`] as import('astro').MarkdownInstance<Record<string, unknown>>['Content'] | undefined;
+const hasDataset = experiment && (experiment.data.tags.includes('data') || (dependencies[experiment.data.id]?.length ?? 0) > 0 || downstream(experiment.data.id).length > 0);
 const contents = [
   ...(data.abstract ? [{ slug: 'abstract', text: 'Abstract' }] : []),
   ...headings.filter(heading => heading.depth === 2 || heading.depth === 3),
@@ -40,8 +42,8 @@ const frontMatter = {
     <p>{data.description}</p>
   </d-title>
   <d-byline>
-    <div class="byline grid">
-      <div><h3>Experiment</h3><p class="experiment-id">{data.id}</p></div>
+    <div class="byline grid" style={`--byline-columns: ${experiment ? 5 : 4}`}>
+      {experiment && <div><h3>Experiment</h3><p class="experiment-id">{experiment.data.id}</p></div>}
       <div><h3>Author</h3><p class="author">{data.author}</p></div>
       <div><h3>Created</h3><p><time datetime={data.created_at}>{data.created_at}</time></p></div>
       <div><h3>Updated</h3><p><time datetime={data.updated_at}>{data.updated_at}</time></p></div>
@@ -74,7 +76,7 @@ const frontMatter = {
       <h3 id="supplementary-details">Supplementary details</h3>
       <section class="report-appendix" aria-labelledby="supplementary-details"><Appendix /></section>
     </>}
-    {hasDataset && <Dataset experiment={data.id} selectedRuns={data.tags.includes('data') ? data.runs : {}} />} 
+    {hasDataset && experiment && <Dataset experiment={experiment.data.id} selectedRuns={experiment.data.tags.includes('data') ? experiment.data.runs : {}} />} 
     {References && <>
       <h3 id="references">References</h3>
       <section class="references" aria-labelledby="references"><References /></section>
@@ -90,17 +92,15 @@ const frontMatter = {
 </Page>
 
 <style is:global>
-  d-byline { background: #f5f7f9; }
-  d-appendix { background: #eef2f5; color: rgba(0, 0, 0, .65); }
+  d-byline { background: #f6f7f4; }
+  d-appendix { background: #f6f7f4; color: rgba(0, 0, 0, .65); }
   @media print { d-byline, d-appendix { background: white; } }
   d-byline .experiment-id { font-weight: 600; }
   d-byline .collection-link:hover { text-decoration: underline; }
   .report-appendix { min-width: 0; margin-bottom: 2rem; }
-  .native-math { font-size: 1em; }
-  .native-math math { font-size: 1em; }
   d-article > .source-table { grid-column: text; }
   @media (min-width: 768px) { d-byline .byline { grid-template-columns: repeat(3, minmax(0, 1fr)); row-gap: 12px; } }
-  @media (min-width: 1180px) { d-byline .byline { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
+  @media (min-width: 1180px) { d-byline .byline { grid-template-columns: repeat(var(--byline-columns), minmax(0, 1fr)); } }
   .report-body { position: relative; --report-content-top: 4rem; }
   .report-body > d-article { grid-column: screen; grid-row: 1; min-width: 0; padding-top: var(--report-content-top); }
   .report-body > d-article > :first-child { margin-top: 0; }

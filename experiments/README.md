@@ -1,6 +1,6 @@
 # Experiment Runner Guide
 
-Version: **4.9.0**
+Version: **4.9.2**
 
 This guide defines Pinglab's independent compute, analyse, and present commands.
 The [Storage Guide](../tools/pingstore/README.md) owns run layout and validation.
@@ -14,8 +14,11 @@ experiments/expXXX/
     compute_parts/       # optional descriptive implementation modules
     analyse.py
     present.py
-writings/expXXX.typ
 ```
+
+Authored articles live separately in `md/experiments/expXXX/`, with
+`report.mdx` and optional `parameters.mdx`, `appendix.mdx`, and
+`references.mdx`. The [Writing Guide](../WRITING_GUIDE.md) governs them.
 
 `recipe.py` owns committed scientific definitions without executing on import.
 Compute produces expensive or primary scientific outputs. Analyse measures
@@ -225,6 +228,12 @@ or verified. If a reusable rule needs improvement, propose exact wording and ask
 before changing the guide outside the requested scope.
 
 ## 8. Version history
+
+- **4.9.2** — Move authored Astro articles to `md/experiments/expXXX/`;
+  experiment implementation and stage boundaries are unchanged.
+
+- **4.9.1** — Correct the article location to the experiment's co-located
+  Astro `report.mdx`; execution and stage boundaries are unchanged.
 
 - **4.9.0** — Require standalone experiment implementations, prohibit runtime
   dependencies on scratch code or files, and restrict cross-experiment reuse to

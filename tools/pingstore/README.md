@@ -1,6 +1,6 @@
 # Storage Guide
 
-Version: **4.9.0**
+Version: **4.10.2**
 
 This guide defines Pingstore's filesystem convention. Pingstore is not a
 service, database, catalogue, lifecycle manager, or general management CLI.
@@ -127,18 +127,18 @@ No official or latest selection is inferred.
 
 ## 6. Explicit pruning
 
-`pingstore prune` is the sole mutating maintenance command. It is a narrow
-garbage-collection operation, not a lifecycle manager or general storage CLI.
+`pingstore prune` is the sole command that removes local completed runs. It is a
+narrow garbage-collection operation, not a lifecycle manager or general storage CLI.
 It retains every run whose authoritative execution provenance identifies HPC,
 except superseded HPC presentations explicitly allowed by the option below,
 the newest populated present run for each experiment currently exposed by
-discovery, explicit collection and article-default pins, inputs of incomplete
+discovery, explicit collection and MDX frontmatter `runs` pins, inputs of incomplete
 runs, and the complete transitive ancestry of those roots. It also retains each
 experiment's highest allocated counter so a removed identity cannot be reused.
 
 Retirement is an explicit one-shot pruning mode, not persistent repository state.
 `--retire-experiment expNNN` is accepted only when that experiment has completed
-runs but no runnable code or writing. It limits an otherwise unscoped operation
+runs but no runnable code or `md/experiments/expNNN/report.mdx`. It limits an otherwise unscoped operation
 to the named experiment and permits its non-HPC newest presentation and identity
 high-watermark to be pruned. The dry-run derives the highest allocated counter
 from the validated run inventory and binds the retirement request into the plan
@@ -203,12 +203,54 @@ processes but does not record lifecycle state or select runs.
 Confirmation builds and validates a hard-linked retained tree beside `runs/`,
 atomically exchanges it with the original tree, validates it again, and only
 then removes the old tree. Visible run contents are never edited. A separately
-authorized external backup may precede confirmation; pruning itself does not
+authorized `pingstore backup` may precede confirmation; pruning itself does not
 create archives, catalogues, tombstones, lifecycle states, or publication
 selections. Historical v2/v3 evidence and migration archives are outside this
 operation.
 
-## 7. Historical schemas and migration
+## 7. Explicit external backups
+
+`pingstore backup` appends completed v4 runs to an external R2 backup using
+rclone. It validates every visible completed local run, its exact layout,
+scientific payload checksum and complete input graph. Hidden incomplete runs
+are excluded. Backup is independently invoked; pruning, experiment execution
+and publication never launch it automatically.
+
+```sh
+uv run pingstore backup --dry-run
+uv run pingstore backup --confirm <complete-sha256-plan-hash>
+```
+
+The source defaults to `.pingstore/runs` in the current working directory;
+`--source` accepts an explicit runs directory. The destination defaults to
+`r2:pinglab/pingstore/runs`, with `PINGLAB_R2_REMOTE`, `PINGLAB_R2_BUCKET` or
+`--destination` overrides. The destination must be an rclone remote ending in
+`/pingstore/runs`. Authentication stays in rclone's configuration outside this
+repository.
+
+Dry-run performs local validation and remote inspection without uploading.
+Its complete SHA-256 plan hash binds the destination, local run records,
+payload digests and file inventories, and remote inventory. Confirmation
+rebuilds the plan and aborts on drift. A shared Pingstore operation lock prevents
+pruning from removing local sources during either invocation.
+
+Uploads preserve each complete run folder and refuse conflicting remote
+objects. Scientific files and README upload first and are verified by download
+comparison. The local runs and remote inventory are revalidated before
+`run.json` completion records upload last in input-ancestry order, followed by
+another download comparison. An upload without `run.json` is incomplete and
+must never be consumed. Existing completed backups are checked against local
+file inventories and exact manifest and README bytes; their scientific files
+are not downloaded again on routine incremental backups. Recovery must
+independently validate the recorded payload checksums.
+
+Backup never deletes remote files or edits visible local runs. Local pruning
+does not remove earlier backups. A corrected local manifest or README conflicts
+with its previous backup and requires a separately authorized update operation.
+See the [R2 backup and recovery notes](../../md/r2-archive.md) for access setup
+and explicit recovery requirements.
+
+## 8. Historical schemas and migration
 
 V2 and v3 runs are historical evidence, not operational inputs. They may be
 inspected by explicit migration/recovery tooling but not consumed, discovered,
@@ -230,7 +272,17 @@ A migration to v4 must:
 Migration does not authorize experiment execution, publication, pruning, remote
 store changes, or deletion of the recovery archive.
 
-## 8. Version history
+## 9. Version history
+
+- **4.10.2** — Read article metadata and retirement protection from
+  `md/experiments/expNNN/report.mdx` after separating articles from code.
+
+- **4.10.1** — Read experiment collection metadata and explicit presentation
+  pins from Astro report frontmatter; recognize `report.mdx` in retirement
+  checks instead of depending on the historical writings directory.
+
+- **4.10.0** — Integrate the append-only R2 backup into the narrow Pingstore CLI;
+  retain explicit hash-bound confirmation, immutable uploads and download verification.
 
 - **4.9.0** — Add hash-bound stage filters and an explicit superseded HPC presentation exception; preserve other stages and full ancestry.
 

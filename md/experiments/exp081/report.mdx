@@ -1,0 +1,150 @@
+---
+id: "exp081"
+title: "How Pixel Features Respond to Input Rate"
+created_at: "2026-08-10"
+updated_at: "2026-09-01"
+description: "Direct simulations and a simpler theory test how sparse input events become average voltage features."
+collection: "gamma-gated-sparsity"
+author: "Eoin Murray"
+tags: ["txt", "v36.0.0"]
+inputs: ["exp081"]
+---
+
+import ReportAvailability from '../../../site/src/components/ReportAvailability.astro';
+import DataBranch from '../../../site/src/components/DataBranch.astro';
+import RunFigure from '../../../site/src/components/RunFigure.astro';
+
+import { reportData, display, mean, nullableRound } from '../../../site/src/lib/report-data';
+export const run = await reportData("exp081", { allowUnavailable: true });
+export const p = run?.parameters;
+export const pInputRateGridHzLen = run ? display(p.input_rate_grid_hz.length) : 'unavailable';
+export const pMomentDraws = run ? display(p.moment_draws) : 'unavailable';
+export const probeConductances = run ? display(p.probes_uS.map(String).join(", ")) : 'unavailable';
+export const distributionRates = run ? display(p.distribution_rates_hz.map(String).join(", ")) : 'unavailable';
+export const pNominalProbeUs = run ? display(p.nominal_probe_uS) : 'unavailable';
+export const pDistributionDraws = run ? display(p.distribution_draws) : 'unavailable';
+export const frequencyResponseRates = run ? display(p.frequency_response_rates_hz.map(String).join(", ")) : 'unavailable';
+export const pPresentationMs = run ? display(p.presentation_ms) : 'unavailable';
+export const meanCorrelation = run ? display(nullableRound(run.comparison.mean.pearson_r)) : 'unavailable';
+export const medianMeanRatio = run ? display(nullableRound(run.comparison.mean.median_predicted_empirical_ratio)) : 'unavailable';
+export const standardDeviationCorrelation = run ? display(nullableRound(run.comparison.standard_deviation.pearson_r)) : 'unavailable';
+export const pInputRateGridHzFirst = run ? display(p.input_rate_grid_hz[0]) : 'unavailable';
+export const pInputRateGridHzLast = run ? display(p.input_rate_grid_hz.at(-1)) : 'unavailable';
+export const pDtMs = run ? display(p.dt_ms) : 'unavailable';
+export const pMembraneTauAmpaMs = run ? display(p.membrane.tau_ampa_ms) : 'unavailable';
+export const pMembraneCMNf = run ? display(p.membrane.C_m_nF) : 'unavailable';
+export const pMembraneGLUs = run ? display(p.membrane.g_L_uS) : 'unavailable';
+export const pMembraneELMv = run ? display(p.membrane.E_L_mV) : 'unavailable';
+export const pMembraneEEMv = run ? display(p.membrane.E_e_mV) : 'unavailable';
+export const pHistogramBins = run ? display(p.histogram_bins) : 'unavailable';
+
+<ReportAvailability report="exp081" />
+
+<span id="loc-1" />
+
+## Abstract
+
+We asked how the spike rate produced by a fully active pixel determines the average voltage feature passed to downstream classifiers. We compared direct membrane simulations with a simpler theory that treats the system as steady and approximately linear.
+
+The theory reproduced the general filtering pattern and mean-response shape, but predicted responses that were too large and failed to capture variation between presentations. Accurately predicting voltage averaged over one presentation therefore still requires direct simulation of individual event counts and timings in this system.
+
+<span id="loc-2" />
+
+## Results
+
+<span id="loc-3" />
+
+### Voltage moments across input rates
+
+Each presentation began from rest. We varied input rate and conductance per event, then averaged the voltage rise over the presentation ([Fig. 1](#loc-4)).
+
+<RunFigure report="exp081" experiment="exp081" allowUnavailable file="empirical_moments.svg" number={1} id="loc-4" alt="Two panels show how the simulated mean voltage and its standard deviation change with input rate for three event strengths.">
+  **(A)** Simulated mean voltage feature and **(B)** sample SD, in mV, across {pInputRateGridHzLen} input rates. Each condition summarizes {pMomentDraws} independent presentations. Black, red and cyan denote {probeConductances} μS added per event; curves summarize the presentations and are not confidence intervals.
+</RunFigure>
+
+Higher rates should raise mean voltage. Variation could be nonmonotonic because event counts and timing differ between presentations and membrane responses are nonlinear.
+
+Mean voltage rose with both input rate and event strength. Its SD rose at low rates, then levelled off or fell for the two weaker event strengths, but remained high for the strongest. This may reflect relatively steadier event counts plus shunting and saturation; we did not test these mechanisms separately.
+
+<span id="loc-5" />
+
+### Input-rate response distributions
+
+Here we kept presentation duration and event strength fixed, and changed only the input rate from sparse to dense drive ([Fig. 2](#loc-6)).
+
+<RunFigure report="exp081" experiment="exp081" allowUnavailable file="response_distributions.svg" number={2} id="loc-6" alt="Three histograms show voltage responses changing from mostly near zero to a broad continuous spread as input rate increases.">
+  Distributions of the voltage feature at **(A–C)** {distributionRates} spikes/s, respectively, and {pNominalProbeUs} μS, using {pDistributionDraws} independent presentations per condition. Each bar gives the probability within one shared fixed-width bin. The vertical axis is logarithmic and voltage is in mV.
+</RunFigure>
+
+Input rate determines the expected number of events, not the exact number in any one presentation. A presentation may contain no events, one event or many; even equal event counts can give different average voltages when their timing differs.
+
+At the lowest rate, most responses were near zero. The middle rate produced a mixture of sparse responses, while the highest rate produced a broad, almost continuous spread of responses.
+
+<span id="loc-7" />
+
+### Filtering before and after averaging
+
+This figure shows the theory’s response around three steady input rates. It is a theoretical prediction; we did not measure these curves by deliberately varying the input rate over time ([Fig. 3](#loc-8)).
+
+<RunFigure report="exp081" experiment="exp081" allowUnavailable file="frequency_response.svg" number={3} id="loc-8" alt="Two panels show the predicted response to slow and fast input changes before and after averaging voltage over the presentation.">
+  Theoretical responses at {pNominalProbeUs} μS. The simulated input rate was not deliberately varied over time to measure these curves. Black, red and cyan denote steady input rates of {frequencyResponseRates} spikes/s. **(A)** shows the synapse and membrane response. **(B)** also includes {pPresentationMs} ms time averaging. Magnitude is in dB relative to the steady response at the lowest input rate; frequency is in Hz.
+</RunFigure>
+
+The model responds similarly to slow changes, but increasingly suppresses changes that are faster than the synapse and membrane can follow. Stronger input also reduces the response to slow changes because it increases shunting and leaves less voltage difference to drive excitation. Averaging over a fixed window adds the regularly spaced dips and rebounds in the response.
+
+<span id="loc-9" />
+
+### Theory versus simulation
+
+The simpler theory replaces each random conductance history with its mean steady state, then assumes that the remaining fluctuations are small ([Fig. 4](#loc-10)).
+
+<RunFigure report="exp081" experiment="exp081" allowUnavailable file="analytical_empirical.svg" number={4} id="loc-10" alt="Two panels compare theoretical curves with simulated points for mean voltage and standard deviation across input rates.">
+  Steady-state predictions (solid curves) and simulated estimates (points) of **(A)** mean feature and **(B)** sample SD, in mV. Each estimate uses {pMomentDraws} presentations per rate. Black, red and cyan denote {probeConductances} μS added per event.
+</RunFigure>
+
+If quantitatively accurate, this approximation would reproduce the simulated mean and SD curves.
+
+Predicted means preserved the broad curvature and event-strength ordering (Pearson correlation {meanCorrelation}), but were too large by a median factor of {medianMeanRatio}. The predicted and simulated SDs agreed poorly (Pearson correlation {standardDeviationCorrelation}), especially for the largest event strength. The theory therefore explains the general filtering pattern, but not the amount of variation across finite presentations.
+
+<span id="loc-11" />
+
+## Methods
+
+1. **Set the conditions.** We used a fully active pixel and varied its input rate from {pInputRateGridHzFirst} to {pInputRateGridHzLast} spikes/s across {pInputRateGridHzLen} conditions. We also varied the conductance added by each event across {probeConductances} μS. Each condition used {pMomentDraws} independent encoding draws of a {pPresentationMs} ms presentation. Separate distribution measurements used {pDistributionDraws} draws at {distributionRates} spikes/s and {pNominalProbeUs} μS.
+
+2. **Generate input events.** At each simulation step $k$, we made an independent yes-or-no event draw with probability $p_{\text{event}} = r_{\text{input}} \Delta \frac{t_{\text{sim}}}{1000}$, where $r_{\text{input}}$ is input rate in spikes/s and $\Delta t_{\text{sim}} =$ {pDtMs} ms. Physical time was $t_{k} = k \Delta t_{\text{sim}}$ and $N_{t} = \frac{T_{\text{present}}}{\Delta} t_{\text{sim}}$ steps formed one presentation. We used separate reproducible random streams for the moment and distribution measurements. Every presentation began with zero conductance and the membrane at its resting voltage.
+
+3. **Integrate conductance and voltage.** AMPA conductance decayed with time constant $\tau_{\text{AMPA}} =$ {pMembraneTauAmpaMs} ms, and each event then added its assigned conductance. Membrane voltage obeyed
+
+   $$
+   C_{m} \frac{d V_{m}}{d t} = g_{L} ( E_{L} - V_{m} ) + g ( t ) ( E_{e} - V_{m} ) .
+   \tag{1}
+   $$
+
+   Here $t$ is physical time in ms, $V_{m}$ is membrane voltage in mV, $g$ is excitatory conductance in μS, $C_{m} =$ {pMembraneCMNf} nF is capacitance, $g_{L} =$ {pMembraneGLUs} μS is leak conductance, and $E_{L} =$ {pMembraneELMv} mV and $E_{e} =$ {pMembraneEEMv} mV are reversal potentials. Within each step, we held the updated conductance fixed and used the exact exponential voltage solution in single precision.
+
+4. **Measure the voltage feature.** For each encoding draw, we approximated
+
+   $$
+   z_{\text{feature}} = \frac{1}{T_{\text{present}}} \int_{0}^{T_{\text{present}}} ( V_{m ( t )} - E_{L} ) \, \mathrm{d} t .
+   \tag{2}
+   $$
+
+   Here $z_{\text{feature}}$ is the mean voltage rise above rest, in mV, and $T_{\text{present}} =$ {pPresentationMs} ms is presentation duration. The recorded estimate subtracted resting voltage and averaged the $N_{t}$ voltages measured after each simulation update.
+
+5. **Summarize the simulated responses.** For every rate–strength condition, we calculated the mean and sample SD across encoding draws; the SD used the usual $n - 1$ variance denominator. For the distribution measurements, we used {pHistogramBins} equal-width bins from zero to the largest response rounded up to the next 5 mV, then divided each bin count by the number of draws.
+
+6. **Calculate the steady-state prediction.** For each condition, we calculated the mean conductance and its equilibrium voltage. We then assumed that small fluctuations around this steady state followed a linear synaptic and membrane response. Averaging across the presentation gave $H_{r ( \omega )}$, the predicted mapping from input fluctuations to the voltage feature at angular frequency $\omega$ in rad/ms, with predicted variance
+
+   $$
+   \text{Var} ( z_{\text{feature}} ) = \frac{1}{2 \pi} \int_{- \infty}^{\infty} {\vert H_{r ( \omega )} \vert}^{2} ( \frac{r_{\text{input}}}{1000} ) \, \mathrm{d} \omega .
+   \tag{3}
+   $$
+
+   [Appendix: simulation and theory details](#sec-appendix-model-specification-and-calculations) specifies this approximation, and [Appendix: how the simpler theory is derived](#sec-appendix-derivation-of-the-analytical-filter) shows where it comes from.
+
+7. **Integrate and compare.** We numerically integrated Equation 3 on a logarithmically spaced frequency grid, included the unrepresented near-zero-frequency tail and repeated the calculation on a coarser grid as a check. We compared predicted and simulated means and SDs using Pearson correlation, mean absolute error and the median predicted-to-simulated ratio. We excluded pairs in which both values were zero, calculated ratios only for positive simulated values and left undefined correlations undefined. We expressed frequency-response magnitude relative to the zero-frequency response at the lowest input rate.
+
+8. **Show the simulated evidence.** We displayed the recorded means and sample SDs for every rate–strength condition, together with the probability in each shared bin for the three distribution measurements. We reused the retained analysis without generating new draws or confidence intervals.
+
+9. **Show the theoretical evidence.** We displayed the predicted response to different frequencies before and after time averaging, then overlaid the predicted and simulated means and SDs for the same conditions. The frequency-response figure shows a theoretical mechanism, not a measured response to an input rate deliberately varied over time. We did not recalculate the statistics or rerun the simulation while preparing the figures.

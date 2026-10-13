@@ -1,0 +1,23 @@
+---
+import type { ImageMetadata } from 'astro';
+import Slide from './Slide.astro';
+import SlideMedia from './SlideMedia.astro';
+interface Props {
+  title: string;
+  subtitle?: string;
+  presenter?: string;
+  date?: string;
+  image?: ImageMetadata | string;
+  alt?: string;
+  imageLink?: string;
+}
+const { title, subtitle, presenter, date, image, alt = '', imageLink } = Astro.props;
+---
+<Slide title={title} layout="title" density="compact">
+  <div class="title-slide-body">
+    {subtitle && <p class="title-slide-subtitle">{subtitle}</p>}
+    {image && (imageLink ? <a class="title-slide-cover" href={imageLink}><SlideMedia image={image} alt={alt} /></a> : <div class="title-slide-cover"><SlideMedia image={image} alt={alt} /></div>)}
+    <div class="title-slide-description"><slot /></div>
+    {(presenter || date) && <p class="title-slide-byline">{[presenter, date].filter(Boolean).join(' · ')}</p>}
+  </div>
+</Slide>

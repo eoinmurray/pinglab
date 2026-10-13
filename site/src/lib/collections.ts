@@ -5,6 +5,8 @@ const collections = [
   { id: 'documentation', label: 'Documentation' },
   { id: 'literature', label: 'Literature' },
   { id: 'weekly-feed', label: 'Weekly feed' },
+  { id: 'notes', label: 'Notes' },
+  { id: 'slides', label: 'Slides' },
 ];
 
 export function collectionLabel(id: string): string {
@@ -20,4 +22,6 @@ export function compareCollections(a: string, b: string): number {
 }
 
 export function collectionId(collection: string): string { return `collection-${collection}`; }
-export function collectionUrl(collection: string): string { return `/collections#${encodeURIComponent(collectionId(collection))}`; }
+export function collectionUrl(collection: string): string {
+  return `/collections/${encodeURIComponent(collection)}`;
+}

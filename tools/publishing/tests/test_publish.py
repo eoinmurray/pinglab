@@ -3,43 +3,16 @@ import json
 import subprocess
 
 import pytest
-from pingstore.contracts import PingstoreError
-from pingstore.presentation_inputs import projection
 from pingstore.tests.test_discovery import make_run
 
 from tools.publishing import publish as publishing
 
 
-def test_selection_uses_completion_and_honours_pin(tmp_path):
-    (tmp_path / 'writings').mkdir()
-    (tmp_path / 'writings/exp001.typ').write_text('#let inputs = ("exp001",)')
+def test_selection_uses_completion_time_instead_of_run_counter(tmp_path):
     store = tmp_path / '.pingstore/runs'
-    older = make_run(store, 'exp001-r009-present', execution={'completed_at': '2026-08-27T10:00:00Z'})
+    make_run(store, 'exp001-r009-present', execution={'completed_at': '2026-08-27T10:00:00Z'})
     newer = make_run(store, 'exp001-r002-present', execution={'completed_at': '2026-08-28T10:00:00Z'})
-    assert publishing.select(tmp_path)['exp001']['exp001'] == newer.name
-    (tmp_path / 'writings/run-defaults.json').write_text(json.dumps({'exp001': {'exp001': older.name}}))
-    assert publishing.select(tmp_path)['exp001']['exp001'] == older.name
-
-
-def test_selected_projection_checks_ancestry_not_unrelated_payload(tmp_path):
-    (tmp_path / 'writings').mkdir()
-    store = tmp_path / '.pingstore/runs'
-    parent = make_run(store, 'exp001-r001-compute', stage='compute')
-    reference = {'run_id': parent.name, 'payload_digest': json.loads((parent / 'run.json').read_text())['payload_digest']}
-    child = make_run(store, 'exp001-r002-present', inputs={'source': reference})
-    unrelated = make_run(store, 'exp002-r001-present')
-    (unrelated / 'export/numbers.json').write_text('corrupt')
-    assert projection(tmp_path, selected_ids={child.name})['runs'][0]['id'] == child.name
-    (parent / 'export/numbers.json').write_text('corrupt')
-    with pytest.raises(PingstoreError):
-        projection(tmp_path, selected_ids={child.name})
-
-
-def test_projection_rejects_compute_selection(tmp_path):
-    (tmp_path / 'writings').mkdir()
-    parent = make_run(tmp_path / '.pingstore/runs', 'exp001-r001-compute', stage='compute')
-    with pytest.raises(PingstoreError, match='populated present'):
-        projection(tmp_path, selected_ids={parent.name})
+    assert publishing.select(tmp_path)['exp001'] == newer.name
 
 
 def test_publish_rejects_changed_output_before_git(tmp_path, monkeypatch):

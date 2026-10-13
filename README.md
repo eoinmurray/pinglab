@@ -1,6 +1,6 @@
 # Pinglab
 
-Site: [pl.eoinmurray.info](https://pl.eoinmurray.info)
+Site: [pinglab.eoinmurray.info](https://pinglab.eoinmurray.info)
 
 Conductance-based spiking neural networks with explicit excitatory/inhibitory populations and PING (pyramidal–interneuron gamma) dynamics. The site is the project's notebook — the manuscript, method reference, and per-result entries all live there.
 
@@ -10,7 +10,7 @@ Conductance-based spiking neural networks with explicit excitatory/inhibitory po
 Subsystem guidance lives beside the files it governs in three independently
 versioned guides: the [Experiment Runner Guide](experiments/README.md),
 the [Storage Guide](tools/pingstore/README.md), and the
-[Writing Guide](writings/README.md).
+[Writing Guide](WRITING_GUIDE.md).
 
 ## Installation
 
@@ -26,7 +26,8 @@ uv sync --dev
 
 ## Publishing
 
-Reports are MDX files beside their experiment code. The Astro site uses Bun:
+Reports are MDX files in `md/experiments/expXXX/`, separate from experiment code
+in `experiments/expXXX/`. The Astro site uses Bun:
 
 ```sh
 cd site

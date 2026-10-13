@@ -16,7 +16,9 @@ TypeScript. The Pingstore lookup remains intentionally simple, without schema,
 payload-checksum or ancestry validation. No scientific outputs are copied to a
 persistent article directory.
 
-Authored-source fingerprints before and after the build detect concurrent
+Authored-source fingerprints cover `site/`, `md/experiments/`, `md/notes/`, and
+`md/slides/`.
+Fingerprints before and after the build detect concurrent
 edits. Static output and a receipt live in disposable `.publication/`; the
 receipt records latest selections, source fingerprints/status and output
 checksums. Failed builds preserve the previous publication. The finished site
@@ -27,3 +29,14 @@ exact built files against the receipt and pushes them to `gh-pages` without
 rebuilding or committing source changes. It retains remote `CNAME` and
 `pr-preview/`, and uses a normal push to reject concurrent updates. The old
 Demolab production/preview workflow templates remain disabled.
+
+## Hostnames
+
+GitHub Pages uses `pinglab.eoinmurray.info` as its custom domain, with a
+DNS-only CNAME to `eoinmurray.github.io`. The publisher preserves the remote
+`CNAME` file.
+
+`pl.eoinmurray.info` is proxied through Cloudflare solely for a Single Redirect
+rule: hostname equals `pl.eoinmurray.info`, permanent 301 destination
+`concat("https://pinglab.eoinmurray.info", http.request.uri.path)`, with query
+strings preserved. No Worker is involved.

@@ -1,4 +1,4 @@
-"""Experiment collection membership derived from writing metadata."""
+"""Experiment collection membership derived from Astro report metadata."""
 
 from __future__ import annotations
 
@@ -7,27 +7,18 @@ from pathlib import Path
 from typing import Any
 
 from .contracts import PingstoreError
+from .articles import articles
 
 EXPERIMENT_RE = re.compile(r"^exp[0-9]{3}$")
 COLLECTION_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
-WRITING_COLLECTION_RE = re.compile(r'collection:\s*"([a-z0-9-]+)"')
 
 
 def memberships(repo: Path) -> dict[str, str]:
-    """Return active experiment memberships declared by their writings."""
+    """Return active experiment memberships declared by their reports."""
     result: dict[str, str] = {}
-    for path in sorted((repo / "writings").glob("exp[0-9][0-9][0-9].typ")):
-        matches = WRITING_COLLECTION_RE.findall(path.read_text(errors="replace"))
-        if not matches:
-            continue
-        unique = set(matches)
-        if len(unique) != 1:
-            raise PingstoreError(f"writing declares conflicting collections: {path}")
-        experiment = path.stem
-        collection = matches[0]
-        if not EXPERIMENT_RE.fullmatch(experiment):
-            raise PingstoreError(f"invalid experiment writing: {experiment}")
-        if not COLLECTION_RE.fullmatch(collection):
+    for experiment, metadata in articles(repo).items():
+        collection = metadata.get("collection")
+        if not isinstance(collection, str) or not COLLECTION_RE.fullmatch(collection):
             raise PingstoreError(f"invalid collection for {experiment}: {collection}")
         result[experiment] = collection
     return result
@@ -39,7 +30,7 @@ def membership(repo: Path, experiment: str) -> str:
         return memberships(repo)[experiment]
     except KeyError as exc:
         raise PingstoreError(
-            f"active writing for {experiment} must declare collection metadata"
+            f"active report for {experiment} must declare collection metadata"
         ) from exc
 
 

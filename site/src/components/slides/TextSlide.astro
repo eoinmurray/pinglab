@@ -1,0 +1,9 @@
+---
+import Slide from './Slide.astro';
+interface Props { title: string; density?: 'default' | 'compact'; }
+const { title, density = 'default' } = Astro.props;
+---
+<Slide title={title} density={density} layout="text">
+  <div class="text-slide-body"><slot /></div>
+  {Astro.slots.has('source') && <footer class="slide-source"><slot name="source" /></footer>}
+</Slide>

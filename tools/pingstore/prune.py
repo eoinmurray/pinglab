@@ -19,6 +19,7 @@ from .contracts import (
     validate_collections,
 )
 from .discovery import discover_store
+from .articles import articles
 from .stages import operation_lock
 
 PLAN_SCHEMA = "pingstore.prune-plan/v4"
@@ -74,18 +75,20 @@ def _add_declared_roots(
                         f"collection {view!r} names missing run {run_id}"
                     )
                 reasons[run_id].add(f"named-view:{view}")
-    defaults = repo / "writings/run-defaults.json"
-    if defaults.exists():
-        value = load_json(defaults)
-        for article, pins in value.items():
-            if not isinstance(pins, dict):
-                raise PingstoreError(f"invalid writing defaults for {article}")
-            for run_id in pins.values():
-                if run_id not in records:
-                    raise PingstoreError(
-                        f"writing default {article!r} names missing run {run_id}"
-                    )
-                reasons[run_id].add(f"writing-default:{article}")
+    for article, metadata in articles(repo).items():
+        for experiment, run_id in metadata["runs"].items():
+            if run_id not in records:
+                raise PingstoreError(
+                    f"report pin {article!r} names missing run {run_id}"
+                )
+            if (
+                records[run_id]["experiment"] != experiment
+                or records[run_id]["stage"] != "present"
+            ):
+                raise PingstoreError(
+                    f"report pin {article!r} is not a presentation for {experiment}"
+                )
+            reasons[run_id].add(f"report-pin:{article}")
 
 
 def _hidden_inputs(
@@ -173,7 +176,7 @@ def _retirement_scope(
     if missing:
         raise PingstoreError(f"retirement experiment has no runs: {', '.join(missing)}")
     for experiment in sorted(retired):
-        writing = repo / "writings" / f"{experiment}.typ"
+        writing = repo / "md" / "experiments" / experiment / "report.mdx"
         legacy = repo / "experiments" / f"{experiment}.py"
         staged = repo / "experiments" / experiment
         if writing.is_file():

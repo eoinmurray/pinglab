@@ -1,0 +1,35 @@
+---
+import 'katex/dist/katex.min.css';
+import '../styles/slides.css';
+import '../styles/slide-templates.css';
+interface Props { title: string; author: string; description: string; }
+const { title, author, description } = Astro.props;
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content={description} />
+    <meta name="author" content={author} />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>{title} · Pinglab slides</title>
+  </head>
+  <body class="deck-page">
+    <header class="deck-header">
+      <a href="/">← Pinglab</a>
+      <h1>{title}</h1>
+      <span>{author}</span>
+    </header>
+    <main class="deck" aria-label={title}><slot /></main>
+    <footer class="deck-controls" hidden>
+      <button type="button" data-previous aria-label="Previous slide">←</button>
+      <output data-counter aria-live="polite" aria-atomic="true"></output>
+      <button type="button" data-next aria-label="Next slide">→</button>
+      <button type="button" data-fullscreen>Fullscreen</button>
+      <span class="deck-hint">← → / Space · F fullscreen</span>
+    </footer>
+    <noscript><p class="deck-noscript">All slides are shown. Enable JavaScript for presentation controls.</p></noscript>
+    <script>import '../scripts/slides';</script>
+  </body>
+</html>

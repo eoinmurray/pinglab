@@ -1,0 +1,50 @@
+import Table from '../../../site/src/components/Table.astro';
+
+import { reportData } from '../../../site/src/lib/report-data';
+export const run = await reportData("exp044");
+// Authored labels and formatting; all parameter values come from the selected run.
+export function timestepParameters(run) {
+  const recipe = run.recipe;
+  const common = run.config.training_contract.common;
+  const number = (value) => {
+    if (typeof value !== 'number' || !Number.isFinite(value)) {
+      throw new Error('Missing or nonfinite timestep parameter');
+    }
+    return value;
+  };
+  const formatted = (value) => String(Number(number(value).toFixed(6)));
+  const timesteps = recipe.dt_sweep_ms;
+  if (!Array.isArray(timesteps) || timesteps.length === 0) throw new Error('Missing timestep sweep');
+  const nominal = number(recipe.trial_duration.nominal_ms);
+  const conditions = recipe.trial_duration.conditions;
+  if (!Array.isArray(conditions) || conditions.length !== timesteps.length) {
+    throw new Error('Missing timestep duration conditions');
+  }
+  const durations = new Map();
+  for (const timestep of timesteps) {
+    number(timestep);
+    const matching = conditions.filter((condition) => condition.dt_ms === timestep);
+    if (matching.length !== 1) throw new Error('Timestep requires one recorded duration');
+    const realized = number(matching[0].realized_ms);
+    if (Math.abs(realized - nominal) > 1e-9) {
+      const key = formatted(realized);
+      durations.set(key, [...(durations.get(key) ?? []), formatted(timestep)]);
+    }
+  }
+  const exceptions = [...durations].map(([duration, steps]) => `${duration} ms at ${steps.join('/')} ms`);
+  return {
+    headers: ['Parameter', 'Value'],
+    rows: [
+      [{ math: '\\text{Integration timestep }\\Delta t_{\\text{sim}}' }, `${formatted(Math.min(...timesteps))}–${formatted(Math.max(...timesteps))} ms (swept)`],
+      [{ math: '\\text{Presentation duration }T_{\\text{present}}' }, [`${formatted(nominal)} ms nominal`, ...exceptions].join('; ')],
+      ['Refractory hold, E/I', `${formatted(recipe.refractory_e_ms)}/${formatted(recipe.refractory_i_ms)} ms at every timestep`],
+      ['MNIST training pool', `${formatted(common.max_samples)} images: ${formatted(common.dataset_split.optimizer_train_samples)} optimisation / ${formatted(common.dataset_split.validation_samples)} validation`],
+      ['Official-test evaluation', `${formatted(recipe.evaluation_samples)} images per network`],
+      ['Epochs', number(common.epochs)],
+    ],
+  };
+}
+
+export const parameters = timestepParameters(run);
+
+<Table headers={parameters.headers} rows={parameters.rows} />

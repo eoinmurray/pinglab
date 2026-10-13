@@ -1,7 +1,0 @@
----
-import { reportValue } from '../lib/report-values';
-interface Props { report: string; expression: string; }
-const { report, expression } = Astro.props;
-const value = await reportValue(report, expression);
----
-<span>{value}</span>

@@ -1,0 +1,33 @@
+import PublishedFigure from '../../../site/src/components/PublishedFigure.astro';
+import Table from '../../../site/src/components/Table.astro';
+
+import { reportData, display, mean } from '../../../site/src/lib/report-data';
+export const run = await reportData("exp038");
+export const off = run?.ei_sweep_summary.find(row => Math.abs(row.ei_strength) < .001);
+export const on = run?.ei_sweep_summary.find(row => Math.abs(row.ei_strength - 1) < .001);
+export const evalPool = display(run.config.evaluation_pool_samples);
+export const evalN = display(run.config.evaluation_samples_per_seed[0]);
+
+<span id="loc-9" />
+
+## Appendix: Training and probe settings
+
+<Table
+  headers={["Parameter", "Value"]}
+  rows={[
+    ["Integration timestep", "0.1 ms"],
+    ["Trial duration", "200 ms"],
+    ["Evaluation corpus", "Official MNIST test partition (" + evalPool + " images)"],
+    ["Evaluated images per seed", evalN],
+    ["Training epochs", "50"],
+    ["Optimizer", { markdown: "AdamW; learning rate $4 \\times 10^{- 4}$; zero weight decay" }],
+    ["Batch size; gradient-norm clip", "256; 1"],
+    ["Excitatory / inhibitory synaptic decay", "2 / 6 ms"],
+  ]}
+/>
+
+The broader activity frontier contains 36 classifiers: two network configurations, three seeds, and six activity conditions (penalty off or ceilings of 25, 10, 5, 2.5 and 1 Hz). Its summaries preserve selected and final-epoch validation accuracy, final-epoch training E rate, and across-seed means and SEM; these are distinct from the inference measurements above. The loop-transfer comparison used only the three unpenalised feedforward classifiers. The [exp025](/exp025) — [*Accuracy and Firing Rate With and Without Inhibition*](/exp025) describes the broader training design.
+
+Feedforward and loop-enabled training used voltage-gradient damping of 1 and 1,000 respectively; this difference affects the auxiliary between-model comparisons, not the within-classifier inference intervention. Dale’s law was enforced, adaptive thresholds were disabled, and membrane time constants were not trained.
+
+Illustrative snapshots use test-image index 0, not selection by digit class. A fixed pseudorandom sample selects 200 E and 64 I neurons for display; reported firing rates use the full populations. Uniform-input E+I overlays add the two population means without weighting by neuron count, and are not a whole-network mean. Neither the transfer rasters nor these firing curves provide a spectral gamma-frequency estimate. The accuracy decline is consistent with changing the trained network’s dynamics, but does not identify the readout as its sole cause or test recovery by retraining.

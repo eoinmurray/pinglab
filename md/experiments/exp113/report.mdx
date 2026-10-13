@@ -1,0 +1,607 @@
+---
+id: "exp113"
+title: "COBA and PING Dynamics, Discretisation, and Learning"
+created_at: "2026-09-14"
+updated_at: "2026-09-19"
+description: "A textbook derivation of the conductance-based COBA and PING equations, their discrete simulation, and their training by surrogate-gradient BPTT, voltage-gradient damping, gradient clipping, AdamW, and Dale projection."
+collection: "demo"
+author: "Eoin Murray"
+tags: ["txt", "v36.0.0"]
+abstract: "COBA and PING classifiers share conductance-based leaky integrate-and-fire dynamics but differ in whether excitatory and inhibitory populations form a reciprocal feedback loop. We derive their event-driven synapses, exponential-Euler membrane update, spike and readout rules, and complete training calculation. We then explain why long recurrent gradient paths can amplify in this model and how voltage-gradient damping stabilizes selected backward sensitivities without changing the forward simulation."
+inputs: []
+---
+
+import PublishedFigure from '../../../site/src/components/PublishedFigure.astro';
+
+<span id="loc-2" />
+
+## Model family and notation
+
+The COBA and PING classifiers use the same conductance-based leaky integrate-and-fire neuron. Their distinction is architectural. The COBA condition disables the recurrent excitatory-to-inhibitory-to-excitatory pathway, whereas PING enables the loop $E \to I \to E$.\[[1](#ref-1)\]
+
+Physical time is $t$, the simulation-step index is $k$, and $t_{k} = k \Delta t_{\text{sim}}$, where $\Delta t_{\text{sim}}$ is the integration timestep. A presentation contains $N_{t}$ timesteps and has duration $T_{\text{present}} = N_{t} \Delta t_{\text{sim}}$. Superscripts on conductances identify AMPA or GABA polarity, while subscripts identify the receiving population.
+
+<span id="loc-3" />
+
+## Continuous membrane dynamics
+
+For neuron $j$ in population $X \in \{ E , I \}$, the membrane equation is
+
+<span id="loc-4" />
+
+$$
+C_{m , X} \frac{d V_{m , X , j}}{d t} = - g_{L , X} ( V_{m , X , j} - E_{L} ) - g_{X , j}^{E} ( V_{m , X , j} - E_{E} ) - g_{X , j}^{I} ( V_{m , X , j} - E_{I} ) .
+\tag{1}
+$$
+
+In [Equation 1](#loc-4), $V_{m}$ is membrane voltage, $C_{m}$ is capacitance, $g_{L}$ is leak conductance, and $g^{E}$ and $g^{I}$ are total AMPA and GABA conductances. The reversal potentials are
+
+<span id="loc-5" />
+
+$$
+E_{L} = - 65 \: \text{mV} , \quad E_{E} = 0 \: \text{mV} , \quad E_{I} = - 80 \: \text{mV} .
+\tag{2}
+$$
+
+A conductance $g$ with reversal potential $E$ supplies current $I = g ( E - V_{m} )$. [Equation 2](#loc-5) therefore makes AMPA normally depolarizing and GABA normally hyperpolarizing. The fixed membrane parameters are
+
+$$
+C_{m , E} = 1 \: \text{nF} , \quad g_{L , E} = 0.05 \: \mu\mathrm{S} , \quad C_{m , I} = 0.5 \: \text{nF} , \quad g_{L , I} = 0.1 \: \mu\mathrm{S} .
+\tag{3}
+$$
+
+The corresponding passive membrane time constants follow from $\tau_{m} = \frac{C_{m}}{g_{L}}$:
+
+$$
+\tau_{m , E} = 20 \: \text{ms} , \quad \tau_{m , I} = 5 \: \text{ms} .
+\tag{4}
+$$
+
+<span id="loc-6" />
+
+## Continuous synaptic dynamics
+
+The continuous spike train emitted by presynaptic neuron $i$ is
+
+$$
+s_{i ( t )} = \sum_{j} \delta ( t - t_{i , j} ) ,
+\tag{5}
+$$
+
+where $t_{i , j}$ is event time $j$ and $\delta$ is the Dirac impulse. A postsynaptic conductance $g_{j}$ with decay constant $\tau$ satisfies
+
+<span id="loc-7" />
+
+$$
+\frac{d g_{j}}{d t} = - \frac{g_{j}}{\tau} + \sum_{i} w_{\text{event} , i , j} s_{i ( t )} .
+\tag{6}
+$$
+
+Here $w_{\text{event} , i , j}$ is the conductance increment produced by one presynaptic event. AMPA and GABA use separate copies of [Equation 6](#loc-7) with $\tau_{\text{AMPA}} = 2 \: \text{ms}$ and the canonical $\tau_{\text{GABA}} = 6 \: \text{ms}$.
+
+<span id="loc-8" />
+
+## Discretising the synaptic equations
+
+Between events, [Equation 6](#loc-7) reduces to
+
+<span id="loc-9" />
+
+$$
+\frac{d g}{d t} = - \frac{g}{\tau} , \quad \frac{d g}{g} = - \frac{d t}{\tau} .
+\tag{7}
+$$
+
+Integrating [Equation 7](#loc-9) from $t_{k}$ to $t_{k + 1} = t_{k} + \Delta t_{\text{sim}}$ gives
+
+<span id="loc-10" />
+
+$$
+\int_{g [ k ]}^{g^{-} [ k + 1 ]} \frac{d g}{g} = - \int_{t_{k}}^{t_{k} + \Delta t_{\text{sim}}} \frac{d t}{\tau} , \quad \ln \frac{g^{-} [ k + 1 ]}{g [ k ]} = - \frac{\Delta t_{\text{sim}}}{\tau} .
+\tag{8}
+$$
+
+Exponentiating [Equation 8](#loc-10) yields the event-free decay
+
+<span id="loc-11" />
+
+$$
+g^{-} [ k + 1 ] = g [ k ] \exp ( - \frac{\Delta t_{\text{sim}}}{\tau} ) .
+\tag{9}
+$$
+
+Integrating [Equation 6](#loc-7) across an infinitesimal interval containing one event gives
+
+<span id="loc-12" />
+
+$$
+g ( t_{i}^{+} ) - g ( t_{i}^{-} ) = w_{\text{event}} .
+\tag{10}
+$$
+
+Combining [Equation 9](#loc-11) and [Equation 10](#loc-12) gives the timestep recurrence
+
+<span id="loc-13" />
+
+$$
+\boldsymbol{g} [ k + 1 ] = \exp ( - \frac{\Delta t_{\text{sim}}}{\tau} ) \boldsymbol{g} [ k ] + \boldsymbol{s} [ k ] W + \boldsymbol{u} [ k ] .
+\tag{11}
+$$
+
+In [Equation 11](#loc-13), $\boldsymbol{s} [ k ]$ is a dimensionless binary presynaptic spike vector, $W$ has presynaptic neurons on rows and postsynaptic neurons on columns, and $\boldsymbol{u} [ k ]$ is an external conductance increment. The simulator performs exact exponential decay followed by the full, undecayed event increment.\[[1](#ref-1)\]
+
+<span id="loc-14" />
+
+## E–I conductance recurrences
+
+Define the dimensionless decay factors
+
+<span id="loc-15" />
+
+$$
+\beta_{\text{AMPA}} = \exp ( - \frac{\Delta t_{\text{sim}}}{\tau_{\text{AMPA}}} ) , \quad \beta_{\text{GABA}} = \exp ( - \frac{\Delta t_{\text{sim}}}{\tau_{\text{GABA}}} ) .
+\tag{12}
+$$
+
+For one E–I layer, [Equation 11](#loc-13) expands to
+
+<span id="loc-16" />
+
+$$
+\boldsymbol{g}_{E [ k + 1 ]}^{E} = \beta_{\text{AMPA}} \boldsymbol{g}_{E [ k ]}^{E} + \boldsymbol{s}_{E [ k ]} W_{E \to E} + \boldsymbol{x} [ k ] W_{\text{in}} + \boldsymbol{u}_{E [ k ]}^{E} ,
+\tag{13}
+$$
+
+<span id="loc-17" />
+
+$$
+\boldsymbol{g}_{E [ k + 1 ]}^{I} = \beta_{\text{GABA}} \boldsymbol{g}_{E [ k ]}^{I} + \boldsymbol{s}_{I [ k ]} W_{I \to E} + \boldsymbol{u}_{E [ k ]}^{I} ,
+\tag{14}
+$$
+
+<span id="loc-18" />
+
+$$
+\boldsymbol{g}_{I [ k + 1 ]}^{E} = \beta_{\text{AMPA}} \boldsymbol{g}_{I [ k ]}^{E} + \boldsymbol{s}_{E [ k ]} W_{E \to I} + \boldsymbol{x}_{I [ k ]} W_{\text{in} , I} + \boldsymbol{u}_{I [ k ]}^{E} ,
+\tag{15}
+$$
+
+<span id="loc-19" />
+
+$$
+\boldsymbol{g}_{I [ k + 1 ]}^{I} = \beta_{\text{GABA}} \boldsymbol{g}_{I [ k ]}^{I} + \boldsymbol{s}_{I [ k ]} W_{I \to I} + \boldsymbol{u}_{I [ k ]}^{I} .
+\tag{16}
+$$
+
+The canonical architecture sets $W_{E \to E} = W_{I \to I} = 0$. COBA additionally disables $W_{E \to I}$ and $W_{I \to E}$. PING enables those two projections: excitatory spikes recruit inhibitory neurons through [Equation 15](#loc-18), and inhibitory spikes subsequently produce GABA conductance through [Equation 14](#loc-17). A recurrent spike generated in one iteration is consumed in the next, giving each recurrent projection a one-timestep delay.
+
+<span id="loc-20" />
+
+## Exponential-Euler membrane discretisation
+
+The simulator first updates conductances with [Equation 13](#loc-16)–[Equation 16](#loc-19), then holds those new values constant during the membrane step. Expanding [Equation 1](#loc-4) for one neuron gives
+
+<span id="loc-21" />
+
+$$
+C_{m} \frac{d V_{m}}{d t} = - ( g_{L} + g_{E} + g_{I} ) V_{m} + g_{L} E_{L} + g_{E} E_{E} + g_{I} E_{I} .
+\tag{17}
+$$
+
+Define the total conductance and its conductance-weighted equilibrium voltage by
+
+<span id="loc-22" />
+
+$$
+g_{\text{tot}} = g_{L} + g_{E} + g_{I} , \quad V_{\infty} = \frac{g_{L} E_{L} + g_{E} E_{E} + g_{I} E_{I}}{g_{\text{tot}}} .
+\tag{18}
+$$
+
+Substituting [Equation 18](#loc-22) into [Equation 17](#loc-21) gives
+
+$$
+C_{m} \frac{d V_{m}}{d t} = - g_{\text{tot} ( V_{m} - V_{\infty} )} , \quad \tau_{\text{eff}} = \frac{C_{m}}{g_{\text{tot}}} .
+\tag{19}
+$$
+
+Let $q = V_{m} - V_{\infty}$. Because the conductances and $V_{\infty}$ are constant within the timestep,
+
+<span id="loc-23" />
+
+$$
+\frac{d q}{d t} = - \frac{q}{\tau_{\text{eff}}} , \quad \frac{d q}{q} = - \frac{d t}{\tau_{\text{eff}}} .
+\tag{20}
+$$
+
+Integrating [Equation 20](#loc-23) over one timestep gives
+
+$$
+\ln \frac{q [ k + 1 ]}{q [ k ]} = - \frac{\Delta t_{\text{sim}}}{\tau_{\text{eff}}} , \quad q [ k + 1 ] = q [ k ] \exp ( - \frac{\Delta t_{\text{sim}}}{\tau_{\text{eff}}} ) .
+\tag{21}
+$$
+
+Returning to membrane voltage produces the pre-threshold candidate
+
+<span id="loc-24" />
+
+$$
+V_{\text{candidate} [ k + 1 ]} = V_{\infty} + ( V_{m [ k ]} - V_{\infty} ) \exp ( - \frac{\Delta t_{\text{sim}} g_{\text{tot}}}{C_{m}} ) .
+\tag{22}
+$$
+
+Equivalently, define
+
+<span id="loc-25" />
+
+$$
+\begin{gathered}
+a = \exp ( - \frac{\Delta t_{\text{sim}} g_{\text{tot}}}{C_{m}} ) , \\
+\Delta V [ k ] = ( V_{\infty} - V_{m [ k ]} ) ( 1 - a ) , \\
+V_{\text{candidate} [ k + 1 ]} = V_{m [ k ]} + \Delta V [ k ] .
+\end{gathered}
+\tag{23}
+$$
+
+[Equation 22](#loc-24) is the update used by the simulator. It is exact for the linear membrane equation under the stated zero-order hold on conductances; it is not an exact solution of the continuously co-evolving neuron and synapses.
+
+<span id="loc-26" />
+
+## Spike, reset, and refractory dynamics
+
+Let $r [ k ]$ be the non-negative integer refractory counter. It is decremented before the threshold decision:
+
+<span id="loc-27" />
+
+$$
+r^{-} [ k + 1 ] = \max ( r [ k ] - 1 , 0 ) .
+\tag{24}
+$$
+
+A neuron emits the binary spike
+
+<span id="loc-28" />
+
+$$
+s [ k + 1 ] = H ( V_{\text{candidate} [ k + 1 ]} - V_{\text{th}} ) 𝟏 [ r^{-} [ k + 1 ] = 0 ] ,
+\tag{25}
+$$
+
+where $H$ is the Heaviside step function, $V_{\text{th}} = - 50 \: \text{mV}$, and $𝟏$ is an indicator. A neuron that spikes, or remains refractory after [Equation 24](#loc-27), is stored at $V_{\text{reset}} = - 65 \: \text{mV}$. A new spike sets the counter to the population’s refractory step count; otherwise it retains $r^{-} [ k + 1 ]$.
+
+The canonical timestep is $\Delta t_{\text{sim}} = 0.1 \: \text{ms}$. The excitatory and inhibitory refractory durations, $1.2 \: \text{ms}$ and $0.6 \: \text{ms}$, therefore correspond exactly to 12 and 6 timesteps.
+
+<span id="loc-29" />
+
+## Output readout and classification loss
+
+The canonical classifier uses an output LIF with mean pre-reset voltage. Let $\boldsymbol{h} [ k ]$ be the final hidden E-population spike vector and $W_{\text{out}}$ the hidden-to-output matrix. With output decay $\beta_{o} = \exp ( - \Delta \frac{t_{\text{sim}}}{\tau_{o}} )$, the pre-reset dimensionless output state is
+
+<span id="loc-30" />
+
+$$
+\boldsymbol{a}_{o [ k + 1 ]} = \beta_{o} \boldsymbol{u}_{o [ k ]} + \frac{1 - \beta_{o}}{\Delta t_{\text{sim}}} \boldsymbol{h} [ k + 1 ] W_{\text{out}} .
+\tag{26}
+$$
+
+The output spike and subtractive reset are
+
+<span id="loc-31" />
+
+$$
+\boldsymbol{s}_{o [ k + 1 ]} = H ( \boldsymbol{a}_{o [ k + 1 ]} - \theta_{o} ) , \quad \boldsymbol{u}_{o [ k + 1 ]} = \boldsymbol{a}_{o [ k + 1 ]} - \theta_{o} \boldsymbol{s}_{o [ k + 1 ]} ,
+\tag{27}
+$$
+
+where $\theta_{o} = 1$. Output state and its evidence accumulator begin at zero for each independent image presentation. Hidden E/I voltages, conductances, spikes and refractory counters likewise initialize anew for every independent presentation. The decoder therefore receives presentation boundaries through these per-forward resets. The class score is the mean pre-reset state over the complete readout window:
+
+<span id="loc-32" />
+
+$$
+z_{c} = \frac{1}{N_{t}} \sum_{k = 1}^{N_{t}} a_{o , c} [ k ] .
+\tag{28}
+$$
+
+For minibatch member $b$, softmax-normalized evidence is
+
+$$
+p_{b , c} = \frac{\exp ( z_{b , c} )}{\sum_{q = 1}^{N_{\text{out}}} \exp ( z_{b , q} )} .
+\tag{29}
+$$
+
+It is used for optimization but is not assumed to be a calibrated probability. For true class $y_{b}$, the mean cross-entropy training loss is
+
+$$
+L_{\text{CE}} = - \frac{1}{B} \sum_{b = 1}^{B} \ln p_{b , y_{b}} .
+\tag{30}
+$$
+
+Some conditions add a one-sided firing-rate ceiling. Let $K_{b , l , j} = \sum_{k = 1}^{N_{t}} s_{b , l , j} [ k ]$ be the spike count of hidden E neuron $j$ in layer $l$ for presentation $b$. Its sample-wise population-mean rate is
+
+<span id="loc-33" />
+
+$$
+{\vert r \vert}_{b , l} = \frac{1}{N_{E , l} T_{\text{present}}} \sum_{j = 1}^{N_{E , l}} K_{b , l , j} .
+\tag{31}
+$$
+
+With tested ceiling $r_{E , \text{ceil}}$ and coefficient $\lambda_{\text{rate}}$, the penalty is
+
+<span id="loc-34" />
+
+$$
+L_{\text{rate}} = \frac{\lambda_{\text{rate}}}{B L} \sum_{b = 1}^{B} \sum_{l = 1}^{L} {\max ( 0 , {\vert r \vert}_{b , l} - r_{E , \text{ceil}} )}^{2} , \quad L_{\text{total}} = L_{\text{CE}} + L_{\text{rate}} .
+\tag{32}
+$$
+
+The canonical reference conditions set $\lambda_{\text{rate}} = 0$; activity-ceiling conditions use [Equation 32](#loc-34) with a positive coefficient.
+
+<span id="loc-35" />
+
+## Backpropagation through time
+
+Collect all differentiable voltages, conductances, spikes, output states and accumulators into the state vector $\boldsymbol{x} [ k ]$. One complete simulation step has the abstract form
+
+<span id="loc-36" />
+
+$$
+\boldsymbol{x} [ k + 1 ] = F_{k ( \boldsymbol{x} [ k ] , \boldsymbol{u} [ k ] ; \theta )} , \quad L_{\text{total}} = \ell ( \boldsymbol{x} [ N_{t} ] , y ) .
+\tag{33}
+$$
+
+$F_{k}$ is a bundle rather than one additional simulator equation. It combines the discrete synapse rule in [Equation 11](#loc-13) and the decay factors in [Equation 12](#loc-15); the population-specific conductance updates from [Equation 13](#loc-16) through [Equation 16](#loc-19); the implemented membrane update in [Equation 23](#loc-25); the refractory, spike and reset operations in [Equation 24](#loc-27) and [Equation 25](#loc-28); and the output update in [Equation 26](#loc-30) and [Equation 27](#loc-31). It also advances the accumulators used to construct [Equation 28](#loc-32) and [Equation 31](#loc-33). The earlier continuous equations and intermediate derivation steps explain these operations but are not extra updates inside $F_{k}$.
+
+Here $\boldsymbol{u} [ k ]$ denotes external input, $\theta$ is the shared trainable parameter vector, and $\ell$ includes the readout and objective defined in [Equation 28](#loc-32)–[Equation 32](#loc-34). At $\Delta t_{\text{sim}} = 0.1 \: \text{ms}$, a $200 \: \text{ms}$ presentation applies $F_{k}$ 2,000 times. Each copy has a different state but reuses the same parameters.
+
+Define the state sensitivity
+
+<span id="loc-37" />
+
+$$
+\boldsymbol{\delta} [ k ] = \nabla_{\boldsymbol{x} [ k ]} L_{\text{total}} , \quad J_{\text{step} [ k ]} = \frac{\partial F_{k}}{\partial \boldsymbol{x} [ k ]} .
+\tag{34}
+$$
+
+Let $x_{i [ k ]}$ be component $i$ of the current state and $F_{k , j}$ component $j$ of $F_{k}$. The project evaluates its loss from the terminal readout and rate accumulators. Consequently, for $k < N_{t}$, the current state affects the loss through the next state. Applying the multivariable chain rule component by component gives
+
+<span id="loc-38" />
+
+$$
+\begin{aligned}
+\delta_{i [ k ]} & = \frac{\partial L_{\text{total}}}{\partial x_{i [ k ]}} \\
+ & = \sum_{j} \frac{\partial L_{\text{total}}}{\partial x_{j [ k + 1 ]}} \frac{\partial x_{j [ k + 1 ]}}{\partial x_{i [ k ]}} \\
+ & = \sum_{j} \delta_{j [ k + 1 ]} \frac{\partial F_{k , j}}{\partial x_{i [ k ]}} , \\
+\boldsymbol{\delta} [ k ] & = J_{\text{step} [ k ]}^{\top} \boldsymbol{\delta} [ k + 1 ] , \quad \boldsymbol{\delta} [ N_{t} ] = \nabla_{\boldsymbol{x} [ N_{t} ]} \ell ( \boldsymbol{x} [ N_{t} ] , y ) .
+\end{aligned}
+\tag{35}
+$$
+
+The second line of [Equation 35](#loc-38) sums every route from state component $x_{i [ k ]}$ to the later loss through next-state component $x_{j [ k + 1 ]}$. The third line substitutes [Equation 34](#loc-37) and [Equation 33](#loc-36). Stacking the component equations produces the transpose-Jacobian vector product in the fourth line; the final line supplies the terminal condition from [Equation 33](#loc-36). Because each parameter is reused, its total gradient is
+
+<span id="loc-39" />
+
+$$
+\nabla_{\theta} L_{\text{total}} = \nabla_{\theta}^{\text{direct}} L_{\text{total}} + \sum_{k = 0}^{N_{t} - 1} {\frac{\partial F_{k}}{\partial \theta}}^{\top} \boldsymbol{\delta} [ k + 1 ] .
+\tag{36}
+$$
+
+[Equation 35](#loc-38) and [Equation 36](#loc-39) define backpropagation through time (BPTT). PyTorch autograd evaluates these vector–Jacobian products and accumulates parameter gradients when backward propagation is requested; it need not construct the full Jacobian matrices explicitly.\[[4](#ref-4)\]
+
+For example, the local recurrence $\boldsymbol{g} [ k + 1 ] = \beta \boldsymbol{g} [ k ] + \boldsymbol{s} [ k ] W$ gives
+
+<span id="loc-40" />
+
+$$
+\nabla_{W} L_{\text{total}} = \sum_{k} \boldsymbol{s} {[ k ]}^{\top} \nabla_{\boldsymbol{g} [ k + 1 ]} L_{\text{total}} .
+\tag{37}
+$$
+
+[Equation 37](#loc-40) shows temporal credit assignment directly: every use of the shared weight contributes according to the later loss sensitivity of the conductance it created.
+
+<span id="loc-41" />
+
+## Surrogate spike derivatives
+
+BPTT requires derivatives of the update operations, but the hard spike in [Equation 25](#loc-28) has derivative zero away from threshold and is undefined at threshold. Direct use of that derivative would block useful learning signals.
+
+Surrogate-gradient learning retains the binary forward spike while assigning a smooth backward derivative.\[[2](#ref-2)\] For $\xi = V_{\text{candidate}} - V_{\text{th}}$, the chosen proxy is
+
+<span id="loc-42" />
+
+$$
+p ( \xi ) = \frac{\beta \xi}{1 + \beta \vert \xi \vert} , \quad \frac{\partial s}{\partial \xi} \approx \frac{\beta}{{( 1 + \beta \vert \xi \vert )}^{2}} .
+\tag{38}
+$$
+
+The approximate equality in [Equation 38](#loc-42) denotes an assigned backward rule rather than the true derivative of the Heaviside function. For hidden neurons, $\xi$ is measured in millivolts and $\beta$ in reciprocal millivolts. The standard classifiers use $\beta = 1$.
+
+Let $\operatorname{sg} ( z )$ denote stop-gradient: it returns $z$ forward but has zero derivative. The simulator constructs
+
+<span id="loc-43" />
+
+$$
+s = \operatorname{sg} ( H ( \xi ) ) + p ( \xi ) - \operatorname{sg} ( p ( \xi ) ) .
+\tag{39}
+$$
+
+[Equation 39](#loc-43) equals $H ( \xi )$ numerically, while autograd differentiates only $p ( \xi )$.\[[5](#ref-5)\] Boolean reset and refractory decisions remain non-differentiable. Resetting hidden voltage to a constant cuts that voltage-state path, while the floating spike value carries the surrogate derivative into downstream synapses and the readout.
+
+<span id="loc-44" />
+
+## Why voltage gradients can explode
+
+Expanding [Equation 35](#loc-38) across many steps produces repeated Jacobian products:
+
+<span id="loc-45" />
+
+$$
+\boldsymbol{\delta} [ k ] = J_{\text{step} [ k ]}^{\top} J_{\text{step} [ k + 1 ]}^{\top} \ldots J_{\text{step} [ N_{t} - 1 ]}^{\top} \boldsymbol{\delta} [ N_{t} ] + \text{direct terms} .
+\tag{40}
+$$
+
+Products in [Equation 40](#loc-45) can shrink useful sensitivities or amplify them. This project combines a 2,000-step graph with voltage, conductance, spike and output-state memory. PING adds a closed route by which a voltage perturbation can return to the population from which it began:
+
+<span id="loc-46" />
+
+$$
+\delta \boldsymbol{V}_{E} \to \delta \boldsymbol{s}_{E} \to \delta \boldsymbol{g}_{E \to I} \to \delta \boldsymbol{V}_{I} \to \delta \boldsymbol{s}_{I} \to \delta \boldsymbol{g}_{I \to E} \to \delta \boldsymbol{V}_{E} .
+\tag{41}
+$$
+
+The local gain of this route follows from the membrane equations rather than from an extra model quantity. Choose $X = E$ for excitatory conductance or $X = I$ for inhibitory conductance. Differentiating [Equation 18](#loc-22) and the decay $a$ in [Equation 23](#loc-25) gives
+
+$$
+\frac{\partial V_{\infty}}{\partial g_{X}} = \frac{E_{X} - V_{\infty}}{g_{\text{tot}}} , \quad \frac{\partial a}{\partial g_{X}} = - \frac{\Delta t_{\text{sim}}}{C_{m}} a .
+\tag{42}
+$$
+
+Applying the product rule to $\Delta V = ( V_{\infty} - V_{m} ) ( 1 - a )$ gives the conductance-to-voltage response
+
+<span id="loc-47" />
+
+$$
+R_{X} \coloneqq \frac{\partial \Delta V}{\partial g_{X}} = \frac{( E_{X} - V_{\infty} ) ( 1 - a )}{g_{\text{tot}}} + ( V_{\infty} - V_{m} ) \frac{\Delta t_{\text{sim}}}{C_{m}} a .
+\tag{43}
+$$
+
+The response $R_{X}$ in [Equation 43](#loc-47) has units of millivolts per microsiemens. Let $R_{E \to I}$ and $R_{I \to E}$ be diagonal matrices of the appropriate responses at I and E neurons. Let $S_{E}$ and $S_{I}$ be diagonal matrices containing the local surrogate derivatives from [Equation 38](#loc-42). One complete backward traversal of [Equation 41](#loc-46) then has return Jacobian
+
+<span id="loc-48" />
+
+$$
+J_{\text{loop}} = R_{I \to E} W_{I \to E}^{\top} S_{I} R_{E \to I} W_{E \to I}^{\top} S_{E} .
+\tag{44}
+$$
+
+The transposes in [Equation 44](#loc-48) convert the simulator’s presynaptic-row, postsynaptic-column weight storage into maps acting on column perturbations.
+
+At a fixed local linearization, a sensitivity returning through the loop $n$ times contains $J_{\text{loop}}^{n} \delta \boldsymbol{V}_{E}$. If the spectral radius $\rho ( J_{\text{loop}} ) > 1$, some modes grow geometrically. A singular value above one permits amplification over one traversal, while time-varying, non-normal products can amplify transiently even if each instantaneous eigenvalue has magnitude below one.\[[3](#ref-3)\] Inhibitory polarity can reverse a perturbation’s sign without making its magnitude small.
+
+Recurrence therefore does not guarantee exploding gradients. It creates the return operator in [Equation 44](#loc-48), which BPTT may traverse many times. Loop-disabled COBA lacks that particular operator, but it still carries gradients through membrane, conductance, spike and readout state across the same long presentation.
+
+Global gradient clipping cannot by itself repair this internal propagation. It acts only after BPTT has formed the complete parameter gradient. Internal sensitivities may already be enormous, non-finite, or dominated by the amplifying paths in [Equation 40](#loc-45) before clipping occurs.
+
+<span id="loc-49" />
+
+## Voltage-gradient damping
+
+The project therefore intervenes inside the backward recurrence while preserving the physical forward trajectory. For dimensionless divisor $d_{\text{grad}} > 0$, define
+
+<span id="loc-50" />
+
+$$
+\alpha_{\text{grad}} = \frac{1}{d_{\text{grad}}} , \quad \mathcal{D}_{\alpha ( z )} = \alpha z + ( 1 - \alpha ) \operatorname{sg} ( z ) .
+\tag{45}
+$$
+
+Forward evaluation of [Equation 45](#loc-50) gives $\mathcal{D}_{\alpha ( z )} = z$, but its backward derivative is
+
+$$
+\frac{\partial \mathcal{D}_{\alpha ( z )}}{\partial z} = \alpha .
+\tag{46}
+$$
+
+The hidden E and I membrane updates replace [Equation 23](#loc-25) by
+
+<span id="loc-51" />
+
+$$
+V_{\text{candidate} [ k + 1 ]} = V_{m [ k ]} + \mathcal{D}_{\alpha_{\text{grad}}} ( \Delta V [ k ] ) .
+\tag{47}
+$$
+
+[Equation 45](#loc-50) and [Equation 47](#loc-51) leave voltages and spikes unchanged forward. Backward, each selected conductance-to-voltage response is multiplied by $\alpha_{\text{grad}}$. The PING return term in [Equation 44](#loc-48) consequently becomes
+
+$$
+J_{\text{loop,damped}} = \alpha_{\text{grad}}^{2} J_{\text{loop}} .
+\tag{48}
+$$
+
+The standard paired classifiers use $d_{\text{grad}} = 1000$, so $\alpha_{\text{grad}} = 10^{- 3}$ and this particular complete loop term is scaled by $10^{- 6}$. This does not scale the entire state Jacobian because [Equation 45](#loc-50) is inserted only on the $\Delta V$ branch of [Equation 47](#loc-51). For one hidden neuron, the three local derivatives entering its candidate voltage are therefore
+
+<span id="loc-52" />
+
+$$
+\frac{\partial V_{\text{candidate}}}{\partial ( V_{m} , g_{E} , g_{I} )} = 1 + \alpha_{\text{grad}} \frac{\partial \Delta V}{\partial V_{m}} , \alpha_{\text{grad}} \frac{\partial \Delta V}{\partial g_{E}} , \alpha_{\text{grad}} \frac{\partial \Delta V}{\partial g_{I}} .
+\tag{49}
+$$
+
+Thus the conductance-to-voltage blocks are multiplied by $\alpha_{\text{grad}}$, but the direct identity route from $V_{m [ k ]}$ to $V_{\text{candidate} [ k + 1 ]}$ retains coefficient one. The conductance decay and spike-injection blocks, the refractory-counter update, and the local output recurrence contain no damping operator and are not directly rescaled. Downstream composite derivatives can nevertheless inherit attenuation when their path passes through a damped hidden-voltage increment. There is therefore no scalar $\alpha_{\text{grad}}$ for which the complete step Jacobian is simply $\alpha_{\text{grad}} J_{\text{step}}$.
+
+Holding conductances fixed before bounds and reset, [Equation 49](#loc-52) and [Equation 23](#loc-25) give
+
+<span id="loc-53" />
+
+$$
+\frac{\partial V_{\text{candidate} [ k + 1 ]}}{\partial V_{m [ k ]}} = 1 - \alpha_{\text{grad} ( 1 - a )} .
+\tag{50}
+$$
+
+Without damping, [Equation 50](#loc-53) reduces to $a$. Strong damping moves the direct old-voltage derivative toward one while attenuating sensitivities entering through the membrane increment. It can therefore suppress recurrent-drive amplification without simply erasing membrane memory.
+
+Voltage-gradient damping is an altered backward rule, not a biophysical process or the exact derivative of the forward simulator. It deliberately biases temporal credit assignment and may suppress useful sensitivities along with unstable ones. The divisor is therefore an empirical training choice. Standard classifiers apply it to hidden E and I membrane increments, before voltage bounds, spike detection and reset; output-neuron updates are undamped.\[[1](#ref-1)\]
+
+<span id="loc-54" />
+
+## Gradient clipping, AdamW, and Dale projection
+
+After BPTT has accumulated the batch gradient $\boldsymbol{g} = \nabla_{\theta} L_{\text{total}}$, the trainer computes its global Euclidean norm
+
+$$
+\Vert \boldsymbol{g} \Vert_{2} = \sqrt{\sum_{p} \sum_{i} g_{p , i}^{2}} .
+\tag{51}
+$$
+
+With clipping threshold $c = 1$, it replaces the gradient by
+
+<span id="loc-55" />
+
+$$
+\tilde{\boldsymbol{g}} = \boldsymbol{g} \min ( 1 , \frac{c}{\Vert \boldsymbol{g} \Vert_{2}} ) .
+\tag{52}
+$$
+
+A non-finite norm causes the optimizer step to be skipped. Otherwise AdamW forms first- and second-moment estimates
+
+<span id="loc-56" />
+
+$$
+\boldsymbol{m} [ n ] = \beta_{1} \boldsymbol{m} [ n - 1 ] + ( 1 - \beta_{1} ) \tilde{\boldsymbol{g}} [ n ] , \quad \boldsymbol{v} [ n ] = \beta_{2} \boldsymbol{v} [ n - 1 ] + ( 1 - \beta_{2} ) \tilde{\boldsymbol{g}} {[ n ]}^{2} .
+\tag{53}
+$$
+
+The square in [Equation 53](#loc-56) is elementwise. Bias correction gives
+
+$$
+\hat{\boldsymbol{m}} [ n ] = \frac{\boldsymbol{m} [ n ]}{1 - \beta_{1}^{n}} , \quad \hat{\boldsymbol{v}} [ n ] = \frac{\boldsymbol{v} [ n ]}{1 - \beta_{2}^{n}} .
+\tag{54}
+$$
+
+For learning rate $\eta$, decoupled weight decay $\lambda_{\text{wd}}$, and numerical stabilizer $\varepsilon$, AdamW applies
+
+<span id="loc-57" />
+
+$$
+\theta^{[ n + \frac{1}{2} ]} = ( 1 - \eta \lambda_{\text{wd}} ) \theta^{[ n ]} - \eta \frac{\hat{\boldsymbol{m}} [ n ]}{\sqrt{\hat{\boldsymbol{v}} [ n ]} + \varepsilon} .
+\tag{55}
+$$
+
+The standard training recipe used $\eta = 0.0004$, $\lambda_{\text{wd}} = 0$, minibatches of 256 presentations and 50 epochs. With zero weight decay, [Equation 55](#loc-57) is numerically the Adam update for the same hyperparameters.
+
+Dale-constrained trainable connection weights are finally projected onto the non-negative orthant:
+
+<span id="loc-58" />
+
+$$
+\theta^{[ n + 1 ]} = \max ( 0 , \theta^{[ n + \frac{1}{2} ]} ) .
+\tag{56}
+$$
+
+The canonical input and readout matrices are trainable, while recurrent E–I matrices are fixed unless an experiment explicitly makes them trainable. Thus one optimization cycle evaluates the forward dynamics, computes [Equation 32](#loc-34), applies surrogate-gradient BPTT with the internal rule in [Equation 47](#loc-51), clips by [Equation 52](#loc-55), updates by [Equation 55](#loc-57), and finishes with [Equation 56](#loc-58).
+
+<span id="loc-59" />
+
+## Scope and interpretation
+
+The dynamical discretisation is a numerical approximation to the continuous hybrid system, although [Equation 9](#loc-11) and [Equation 22](#loc-24) exactly solve their respective subproblems under the stated within-step assumptions. Surrogate spike derivatives and voltage-gradient damping introduce additional backward rules: they make learning possible and tractable but do not turn BPTT into the exact derivative of a smooth physical neuron.
+
+The loop derivation isolates one interpretable amplification route rather than the full state Jacobian, and it does not imply that gamma oscillation itself causes gradient explosion. A paired empirical comparison can vary loop engagement and damping independently.

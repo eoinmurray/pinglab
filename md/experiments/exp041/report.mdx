@@ -1,0 +1,119 @@
+---
+id: "exp041"
+title: "Firing Rate Tracks Gamma Frequency"
+created_at: "2026-06-02"
+updated_at: "2026-08-31"
+description: "Across PING networks trained at different inhibitory decay times, compare excitatory firing rate with gamma frequency and test accuracy."
+collection: "gamma-gated-sparsity"
+author: "Eoin Murray"
+tags: ["data", "v36.0.0"]
+runs: {"exp041": "exp041-r005-present"}
+thumbnailRun: "exp041-r005-present"
+thumbnail: "training_curves.svg"
+abstract: "We asked whether the excitatory firing rate of trained PING classifiers changes systematically with their gamma frequency. We reused networks trained with different inhibitory decay times and measured their final population rhythms, activity and MNIST performance. Slower rhythms accompanied lower excitatory firing while useful classification persisted across the sweep. The association supports a cycle-participation account, but does not prove constant participation or identify a physical non-rhythmic baseline."
+inputs: ["exp041"]
+---
+
+import PublishedFigure from '../../../site/src/components/PublishedFigure.astro';
+import Table from '../../../site/src/components/Table.astro';
+
+import { reportData, display, round, mean } from '../../../site/src/lib/report-data';
+export const run = await reportData("exp041");
+export const cfg = run?.config;
+export const epochs = display(cfg.epochs);
+export const fgLo = display(round(Math.min(...run.results.map(row => row.f_gamma_hz))));
+export const fgHi = display(round(Math.max(...run.results.map(row => row.f_gamma_hz))));
+export const erLo = display(round(Math.min(...run.results.map(row => row.e_rate_hz)), 1));
+export const erHi = display(round(Math.max(...run.results.map(row => row.e_rate_hz)), 1));
+export const accLo = display(round(Math.min(...run.results.map(row => row.acc))));
+export const accHi = display(round(Math.max(...run.results.map(row => row.acc))));
+export const fa = display(round(run.fit.a_affine, 2));
+export const fp = display(round(run.fit.p_affine, 3));
+export const fr = display(round(run.fit.r2_affine, 3));
+export const po = display(round(run.fit.p_origin, 3));
+export const pr = display(round(run.fit.r2_origin, 3));
+export const cfgEvaluationSamples = display(cfg.evaluation_samples);
+
+<span id="loc-2" />
+
+## Results
+
+<span id="loc-3" />
+
+### Inhibitory-timescale training response
+
+<PublishedFigure run="exp041-r005-present" file="training_curves.svg" id="" alt="Validation accuracy and excitatory firing rate over training across the inhibitory-decay sweep." >
+  Figure 1: **(A)** Reused validation accuracy and **(B)** excitatory rate, one line per trained network across {epochs} epochs. Subsequent test measurements used final-epoch weights; accuracy convergence did not select the epoch.
+</PublishedFigure>
+
+<span id="loc-4" />
+
+### Inhibitory-timescale spectra
+
+Per-network interpolated frequencies spanned approximately {fgLo}–{fgHi} Hz across the inhibitory-decay sweep ([Fig. 2](#loc-5)).
+
+<PublishedFigure run="exp041-r005-present" file="psds.svg" id="loc-5" alt="Population-E power spectra by τ_GABA, gamma peak shifting with the inhibitory time constant." >
+  Figure 2: Population-E power spectral densities (PSDs), averaged across trials and then seeds at each inhibitory decay time. Dots mark binned peaks of these displayed means.
+</PublishedFigure>
+
+<span id="loc-6" />
+
+### Inhibitory-timescale rasters
+
+<PublishedFigure run="exp041-r005-present" file="raster_strip.png" id="" alt="One MNIST trial through each τ_GABA network; the gamma cycle period lengthens with τ_GABA." >
+  Figure 3: The same illustrative MNIST image at inhibitory decay times **(A–F)** 4.5, 6, 9, 12, 18 and 27 ms, respectively, using seed 42. Each panel shows 200 excitatory and 64 inhibitory neurons during the first 100 ms; displayed rates use the full populations and 200 ms trial. These probes illustrate timing, not the population frequency estimate.
+</PublishedFigure>
+
+<span id="loc-7" />
+
+### Rate and accuracy versus frequency
+
+Individual network rates spanned {erLo}–{erHi} Hz and accuracies {accLo}–{accHi}% across the six inhibitory-decay conditions ([Fig. 4](#loc-8)).
+
+<PublishedFigure run="exp041-r005-present" file="rate_vs_fgamma.svg" id="loc-8" alt="Post-training E rate against gamma frequency; points lie on the affine fit line." >
+  Figure 4: **(A)** Final-epoch excitatory rate and **(B)** test accuracy against gamma frequency. Each point is a mean over three seeds; error bars show ±1 standard error. The affine line fits six condition means.
+</PublishedFigure>
+
+<span id="loc-9" />
+
+### Alternative rate-frequency fits
+
+<Table
+  headers={["fit", "intercept (Hz)", "slope (Hz/Hz)", { markdown: "$R_{\\text{fit}}^{2}$" }]}
+  rows={[
+    ["affine", fa, fp, fr],
+    ["through origin", "0", po, pr],
+  ]}
+/>
+
+Table 1: Both least-squares fits used the same six condition means and centred total sum of squares. The origin-constrained fit tests how much the association depends on a free intercept.
+
+<span id="loc-10" />
+
+## Methods
+
+We compared final-epoch dynamics across matched networks trained at different inhibitory decay times, keeping the evaluation data fixed.
+
+1. **Reuse matched trained networks.** Six inhibitory GABA decay constants, $\tau_{\text{GABA}} \in \{ 4.5 , 6 , 9 , 12 , 18 , 27 \}$ ms, and seeds 42–44 defined 18 PING networks. Training used 6,300 MNIST training images and 700 held-out validation images, 50 epochs of AdamW with zero weight decay, learning rate $4 \times 10^{- 4}$, batches of 256, a time-averaged membrane-potential readout and no spike budget. Only inhibitory decay varied between conditions; simulation used 0.1 ms timesteps and 200 ms trials. We reused final-epoch weights to measure endpoint dynamics, without retraining or selecting weights by test performance.
+
+2. **Measure fixed-trial responses.** Each network received the same fixed subset of {cfgEvaluationSamples} images from the official MNIST test partition. We measured classification accuracy, mean excitatory spikes per neuron per second, and each trial’s population-E trace over the full 200 ms. The illustrative raster used image index 0 and seed 42; a fixed random seed of 0 selected displayed neurons without replacement.
+
+3. **Estimate rhythm frequency.** We demeaned each trial’s trace and used a Welch density estimate with one full-trial Hann window \[[1](#ref-1)\], then averaged PSDs across trials. The largest peak between 5 and 150 Hz defined the candidate gamma frequency; its neighbouring linear-power values gave
+
+   $$
+   f_{\text{peak}} = f_{\text{peak,bin}} + \frac{1}{2} \frac{y_{0} - y_{2}}{y_{0} - 2 y_{1} + y_{2}} \cdot \Delta f_{\text{bin}} .
+   \tag{1}
+   $$
+
+   Here $f_{\text{peak}}$ is the interpolated spectral-peak frequency, $f_{\text{peak,bin}}$ the peak-bin frequency, and $\Delta f_{\text{bin}} = 5$ Hz the bin spacing; $y_{0}$, $y_{1}$ and $y_{2}$ are PSD values immediately below, at and above that bin. Because the peak search is restricted to the defined gamma band, the reported estimator is $f_{\gamma} \equiv f_{\text{peak}}$. We clamped the correction to half a bin, using zero offset for zero curvature or a spectrum endpoint. Interpolation reduces bin quantisation but can remain biased \[[2](#ref-2)\]. Per-trial peak distributions were diagnostics; their medians did not enter the fit.
+
+4. **Fit the rate–frequency relation.** We averaged each network’s frequency and excitatory rate over the three seeds, then fitted the six condition points with equal weight by least squares:
+
+   $$
+   r_{E} = a + \beta_{r f} \cdot f_{\gamma} , \quad r_{E} = \beta_{r f , 0} \cdot f_{\gamma} .
+   \tag{2}
+   $$
+
+   Here $r_{E}$ is mean excitatory firing rate in hertz, $a$ is the affine intercept in hertz, and $\beta_{r f}$ and $\beta_{r f , 0}$ are dimensionless fitted slopes. Both fits report $R_{\text{fit}}^{2}$, the coefficient of determination using centred total sum of squares; error bars are sample standard deviations divided by $\sqrt{3}$.
+
+5. **Display matched endpoint evidence.** We displayed the retained frequency, rate and accuracy comparisons across inhibitory decay times, preserving seed-level values and across-seed summaries.

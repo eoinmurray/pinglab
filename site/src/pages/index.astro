@@ -1,66 +1,16 @@
 ---
-import { getCollection } from 'astro:content';
 import Page from '../layouts/Page.astro';
-import { collectionUrl, collectionLabel } from '../lib/collections';
+import PostsList from '../components/PostsList.astro';
+import { getPosts } from '../lib/posts';
 
-const reports = (await getCollection('reports')).sort((a, b) =>
-  b.id.localeCompare(a.id)
-);
-const dateLabel = (date: string) => new Intl.DateTimeFormat('en-GB', {
-  day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC',
-}).format(new Date(`${date}T00:00:00Z`));
+const posts = await getPosts();
 ---
 
-<Page title="Reports" description="Scientific reports from Pinglab.">
-  <h1 class="visually-hidden">Reports</h1>
-  <div class="base-grid">
-  <ol class="posts-list l-page" role="list">
-    {reports.map((report) => (
-      <li class="post-preview">
-        <div class="metadata">
-          <a class="experiment-id" href={`/${report.id}`} aria-label={`Read ${report.id}`}>{report.id}</a>
-          <div class="publishedDate"><span>Updated</span><time datetime={report.data.updated_at}>{dateLabel(report.data.updated_at)}</time></div>
-          <div class="collection"><a class="collection-badge" href={collectionUrl(report.data.collection)}>{collectionLabel(report.data.collection)}</a></div>
-        </div>
-        <a class="post-link" href={`/${report.id}`}>
-          <div class="description">
-            <h2 class="title">{report.data.title}</h2>
-            <p class="authors">{report.data.author}</p>
-            <p class="abstract">{report.data.description}</p>
-          </div>
-        </a>
-      </li>
-    ))}
-  </ol>
-  </div>
+<Page title="Articles" description="Scientific reports, notes, and slide decks from Pinglab.">
+  <h1 class="visually-hidden">Articles</h1>
+  <PostsList posts={posts} />
 </Page>
 
 <style>
-  /* Distill's homepage listing structure, adapted to Astro's v2 grid. */
-  .posts-list { list-style: none; padding: 0; margin: 24px 0; }
-  .post-preview { overflow: hidden; padding: 24px 0; border-bottom: 1px solid rgba(0, 0, 0, .1); }
-  .post-preview:last-child { border-bottom: none; }
-  .post-link { color: inherit; text-decoration: none; }
-  .post-link:focus-visible { outline: 2px solid #004276; outline-offset: 6px; }
-  .title { margin: 0 0 6px; font-size: 24px; font-weight: 700; line-height: 1.2; }
-  .description p { margin: 0 0 12px; font-size: 16px; line-height: 1.4; }
-  .description .authors { font-size: .875rem; margin-bottom: 1em; color: rgba(0, 0, 0, .67); }
-  .metadata { font-size: 12px; line-height: 1.4; margin-bottom: 18px; }
-  .experiment-id { display: inline-block; margin-right: 1em; color: rgba(0, 0, 0, .8); font-weight: 600; text-decoration: none; }
-  .experiment-id:hover { text-decoration: underline; }
-  .publishedDate { display: inline-block; margin-right: 1em; }
-  .publishedDate span { margin-right: .35em; }
-  .collection { display: inline-block; margin-top: 1em; }
-  .collection-badge { color: rgba(0, 0, 0, .67); padding: .3em .5em; border: 1px solid rgba(0, 0, 0, .4); border-radius: 3px; text-transform: uppercase; font-size: 80%; font-weight: 500; text-decoration: none; }
-  .collection-badge:hover { color: black; border-color: black; }
   .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-  @media (min-width: 768px) {
-    .posts-list { margin-top: 60px; }
-    .post-preview { display: grid; grid-template-columns: 15% 1fr; column-gap: 5%; }
-    .metadata { margin-top: 8px; }
-    .experiment-id { display: block; margin: 0 0 12px; }
-    .publishedDate, .publishedDate span, .collection { display: block; }
-    .title { font-size: 26px; }
-    .description p { line-height: 1.5; }
-  }
 </style>

@@ -1,0 +1,378 @@
+---
+title: "Journal club — Neural basis of social hierarchy across species"
+author: "Eoin Murray"
+description: "Yan & Lin (2026): territory, fighting, alliances, and interpretations of the neural basis of social hierarchy. Journal club, 5 October 2026."
+created_at: "2026-10-05"
+updated_at: "2026-10-13"
+---
+
+import TitleSlide from '../../../site/src/components/slides/TitleSlide.astro';
+import SectionSlide from '../../../site/src/components/slides/SectionSlide.astro';
+import TextSlide from '../../../site/src/components/slides/TextSlide.astro';
+import FigureSlide from '../../../site/src/components/slides/FigureSlide.astro';
+import FigureTextSlide from '../../../site/src/components/slides/FigureTextSlide.astro';
+import cover from './images/title.png';
+import routesFigure from './images/yan-lin-2026-fig-04.png';
+import territoryFigure from './images/yan-lin-2026-fig-01.png';
+import fightingFigure from './images/yan-lin-2026-fig-02.png';
+import learningFigure from './images/yan-lin-2026-fig-03.png';
+import territoryDiagram from './images/territory-status-loop.svg?url';
+import humanDiagram from './images/human-social-circuits.svg?url';
+import socialIntelligenceTable from './images/yan-lin-2026-table-01.png';
+
+{/* Source deck: _md/journal-club-oct-5th/slides.typ. Paper: Yan & Lin (2026), https://doi.org/10.1038/s41583-026-01047-z. */}
+
+<TitleSlide
+  title="Journal club"
+  subtitle="Yan & Lin (2026)"
+  presenter="Eoin Murray"
+  date="5 October 2026"
+  image={cover}
+  alt="Neural basis of social hierarchy across species, a review article by Rongzhen Yan and Dayu Lin in Nature Reviews Neuroscience."
+  imageLink="https://doi.org/10.1038/s41583-026-01047-z"
+/>
+
+{/* Talk outline: 45 minutes; questions afterwards.
+Hierarchy 8 min, Territory 8 min, Fighting 12 min, Alliances 9 min,
+Interpretations 8 min. Interpretation subsections remain undecided.
+1. Hierarchy
+Source: Yan & Lin (2026), Introduction, Box 1, residency and fighting
+sections, and Figure 1, pp. 495–498. */}
+
+<TextSlide title="Hierarch - What, why and how it varies" density="compact">
+
+1. **Rank and relationships** — The highest-ranking chicken pecks all others;
+    the second-ranking bird pecks everyone except the highest.
+1. **Why hierarchies form** — Once mice establish dominance relationships,
+    overt aggression declines.
+1. **Different forms** — Female mouse hierarchies are generally less linear
+    and less despotic than male hierarchies.
+1. **Deep evolutionary roots** — Hierarchies occur in crickets, cichlids,
+    chickens, mice and chimpanzees.
+1. **Unequal benefits and costs** — Dominant male cichlids gain reproductive
+    opportunities but have lower feeding and growth rates; subordinates are
+    reproductively suppressed.
+
+</TextSlide>
+
+<FigureSlide
+  title="Hierarch - Three example routes to status"
+  image={routesFigure}
+  alt="Yan and Lin (2026), Figure 4: neural mechanisms associated with different routes to social status."
+/>
+
+{/* Source: Yan & Lin (2026), mechanistic sections and Figure 4. */}
+
+<TextSlide title="Hierarch - The brain’s role in hierarchy" density="compact">
+
+1. **Territory**
+    1. **Social behaviour network (SBN):** basic social behaviour circuits.
+    1. **Hypothalamic–pituitary–gonadal (HPG) axis:** reproductive hormone pathway.
+1. **Fighting**
+    1. **Posterior ventrolateral ventromedial hypothalamus (pVMHvl):** aggression.
+    1. **Anterior VMHvl (aVMHvl):** defence and avoidance.
+    1. **Caudal medial preoptic area (cMPOA):** suppression of aggression.
+    1. **Ventral tegmental area (VTA), nucleus accumbens (NAc), basolateral amygdala (BLA):**
+        reward and threat learning.
+1. **Social alliances**
+    1. **Medial prefrontal cortex (mPFC), anterior cingulate cortex (ACC):**
+        social assessment and learning.
+    1. **Temporoparietal junction (TPJ), posterior superior temporal sulcus (pSTS):**
+        human mental-state inference and social cues.
+
+</TextSlide>
+
+{/* 2. Territory
+Source: Yan & Lin (2026), Residency-based social hierarchy, p. 497. */}
+
+<TextSlide title="Territory - Ownership gives residents an advantage" density="compact">
+
+1. **Resident advantage** — In several bird species, residents tend to defeat
+    intruders; body size alone does not determine the outcome.
+1. **Territory enables dominance** — In African cichlid fish, territory holders
+    defend spawning sites where females lay eggs, court females and reproduce.
+1. **Ownership can change status** — Removing a dominant cichlid allows a subordinate
+    to occupy its territory and begin defending it within minutes.
+1. **Fighting still contributes** — Residents use chasing and threat displays;
+    a vacant territory can trigger competition among several males.
+
+</TextSlide>
+
+{/* Focus on Figure 1a (appearance and behaviour). */}
+
+<FigureSlide
+  title="Territory - A territorial opportunity changes behaviour"
+  image={territoryFigure}
+  alt="Yan and Lin (2026), Figure 1: behaviour, hormonal changes and social behaviour network responses during territorial status transitions."
+/>
+
+{/* Source: Yan & Lin (2026), Residency-based social hierarchy, p. 497. */}
+
+<TextSlide title="Territory - Hormones adapt to changing status" density="compact">
+
+1. **Reproductive hormone pathway** — Status ascent activates the
+    hypothalamic–pituitary–gonadal (HPG) axis, linking the brain to reproductive
+    hormone production.
+1. **Rapid ascent response** — Within 30 minutes, circulating sex steroids increase
+    and steroid receptors are upregulated in hypothalamic regions involved in
+    aggression and reproduction.
+1. **Stable status differences** — Dominant male African cichlid fish maintain
+    higher testosterone; subordinates have suppressed testosterone, elevated
+    cortisol and reduced reproductive capacity.
+1. **Response to displacement** — After a dominant male loses its territory,
+    subordinate behaviour appears within approximately 30 minutes; cortisol
+    rises within 24 hours.
+
+</TextSlide>
+
+{/* Source: Yan & Lin (2026), Residency-based social hierarchy and Figure 1b,
+pp. 497–498. Gene expression does not establish the initiating mechanism. */}
+
+<TextSlide title="Territory - The social behaviour network responds" density="compact">
+
+1. **Distributed response** — Status transitions alter gene expression across the
+    social behaviour network, including preoptic and hypothalamic regions.
+1. **Ascending males** — The immediate early genes _cfos_ and _egr-1_ increase
+    together across multiple network regions.
+1. **Descending males** — Gene-expression changes follow a different, more selective
+    pattern, including the preoptic area (POA) and anterior tuberal nucleus (ATn).
+1. **Distinct transitions** — Gaining and losing status recruit different expression
+    patterns; descent is not simply the reverse of ascent.
+
+**A reinforcing loop**
+
+Territorial opportunity → neural response → dominant behaviour → social feedback
+→ further neural adaptation
+
+Hormonal changes ↔ neural circuits and behaviour
+
+<small>
+
+The review supports hormonal reinforcement and experience-dependent adaptation;
+    the complete feedback loop is a synthesis, and the initiating mechanism remains unclear.
+
+</small>
+
+</TextSlide>
+
+{/* Diagram and terminology for the reinforcing-loop synthesis. */}
+
+<FigureTextSlide
+  title="Territory - Neural and hormonal reinforcement"
+  image={{ src: territoryDiagram, width: 1600, height: 1000, format: 'svg' }}
+  alt="Conceptual synthesis of territorial opportunity, neural responses, dominant behaviour and hormonal reinforcement. The dashed social feedback loop is proposed; the initiating mechanism remains unresolved."
+>
+
+1. **Social behaviour network (SBN)** — Brain regions coordinating basic social
+    behaviours, including aggression and reproduction.
+1. **Preoptic and hypothalamic regions** — Brain areas linking social behaviour
+    with bodily and hormonal responses.
+1. **cfos and egr-1** — Genes whose increased expression marks a neural response.
+1. **Hypothalamic–pituitary–gonadal (HPG) axis** — Hormone pathway linking the
+    brain, pituitary gland and reproductive glands.
+1. **Sex steroids** — Hormones, including testosterone, that influence
+    reproductive function and behaviour-related circuits.
+1. **Social feedback** — Consequences of interactions that may influence later
+    behaviour and neural adaptation; the dashed loop is proposed.
+
+</FigureTextSlide>
+
+{/* Source: Yan & Lin (2026), Residency-based social hierarchy, p. 497. */}
+
+<TextSlide title="Territory - How does opportunity become a status transition?" density="compact">
+
+1. **Social opportunity** — Removing a dominant male makes its territory available;
+    one or several subordinate males may respond.
+1. **Rapid transition** — Within minutes, an ascending male can adopt dominant
+    colouration, occupy the territory and defend it.
+1. **Coordinated adaptation** — The review describes neural initiation followed by
+    hormonal reinforcement, alongside changes in social behaviour network gene expression.
+1. **Unresolved mechanism** — How the brain detects territorial opportunity and
+    initiates these changes remains poorly understood.
+
+</TextSlide>
+
+{/* 3. Fighting
+Source: Yan & Lin (2026), Fighting-based social hierarchy, pp. 498–499. */}
+
+<TextSlide title="Fighting - Fighting outcomes shape future encounters" density="compact">
+
+1. **Winner effect** — Winning increases readiness to attack; after repeated
+    victories, this can extend to other opponents.
+1. **Loser effect** — Defeat reduces willingness to escalate subsequent aggressive
+    encounters.
+1. **Opponent-specific learning** — Defeated animals associate an opponent’s cues
+    with the aversive experience and avoid that individual.
+1. **Hierarchy emerges over encounters** — Repeated interactions establish
+    dominance relationships as animals adjust whom they challenge and whom they yield to.
+
+</TextSlide>
+
+{/* Focus on the winner portion of Figure 2. */}
+
+<FigureSlide
+  title="Fighting - Winning strengthens aggression circuits"
+  image={fightingFigure}
+  alt="Yan and Lin (2026), Figure 2: circuits associated with winning, aggression, defeat and avoidance."
+/>
+
+{/* Source: Yan & Lin (2026), Role of social behaviour network and Figure 2,
+pp. 499–500. These circuit findings concern mice. */}
+
+<TextSlide title="Fighting - Losing suppresses attacks and teaches avoidance" density="compact">
+
+1. **Suppressing aggression** — After defeat, aggressor cues recruit
+    **caudal medial preoptic area (cMPOA)** neurons that inhibit aggression-driving
+    **posterior VMHvl (pVMHvl)** neurons.
+1. **Learning whom to avoid** — Pain during defeat triggers oxytocin release,
+    strengthening aggressor-cue inputs onto oxytocin-receptor neurons in the
+    **anterior VMHvl (aVMHvl)**.
+1. **Opponent-specific memory** — A single 10-minute defeat can reduce investigation
+    of, and proximity to, the aggressor the following day.
+1. **Causal evidence** — Inhibiting the cMPOA neurons increases attacks on stronger
+    opponents; activating the aVMHvl neurons induces avoidance even in undefeated mice.
+
+<small>
+
+VMHvl: ventrolateral part of the ventromedial hypothalamus. These findings concern mouse circuits.
+
+</small>
+
+</TextSlide>
+
+<FigureSlide
+  title="Fighting - Defeat recruits broader learning circuits"
+  image={learningFigure}
+  alt="Yan and Lin (2026), Figure 3: broader learning circuits recruited by social defeat."
+/>
+
+{/* Source: Yan & Lin (2026), Role of mesolimbic circuit, pp. 500–502.
+Contextual-memory mechanisms partly draw on broader fear-learning evidence. */}
+
+<TextSlide title="Fighting - Defeat recruits broader learning circuits" density="compact">
+
+1. **Teaching signals** — Dopamine from the **ventral tegmental area (VTA)** helps
+    reshape responses to aggressor cues and defeat-associated contexts.
+1. **Opponent and place memories** — The **basolateral amygdala (BLA)** supports
+    learning about threatening social cues; the **ventral hippocampus (vHip)**
+    contributes contextual information.
+1. **Reduced approach** — Dopamine decreases in the **nucleus accumbens (NAc)**
+    during attacks, favouring plasticity that reduces subsequent approach.
+1. **Increased avoidance** — Dopamine in the **tail of the striatum (TS)** increases
+    when defeated mice approach an aggressor, supporting threat avoidance.
+
+</TextSlide>
+
+{/* 4. Alliances
+Source: Yan & Lin (2026), Routes to high social status and Alliance-based
+social hierarchy, pp. 495–496 and 503. Alliances can supplement fighting. */}
+
+<TextSlide title="Alliances - Social support can outweigh individual strength" density="compact">
+
+1. **Coalition support** — Partners help individuals in conflicts and deter
+    challengers, allowing physically modest individuals to attain high rank.
+1. **Chimpanzees** — Physical attributes can influence initial rank, while
+    enduring dominance is supported by alliances.
+1. **Bottlenose dolphins** — Strong, stable alliances among largely unrelated
+    males improve access to females and reproductive success.
+1. **Relationships change rank** — Across several species, rank changes can
+    follow shifts in coalition structure rather than changes in physical condition.
+
+</TextSlide>
+
+{/* Source: Yan & Lin (2026), Social intelligence across species, pp. 503–504. */}
+
+<TextSlide title="Alliances - Building alliances requires social intelligence" density="compact">
+
+1. **Assess others** — Recognize individuals and track their behaviour,
+    capabilities and emotional states.
+1. **Learn by observation** — Rhesus monkeys can learn dominance relationships
+    by watching interactions without participating.
+1. **Adjust cooperation** — In cooperative tasks, dominant marmosets sometimes
+    follow subordinate partners; leading and following need not match rank.
+1. **Infer mental states** — Humans use theory of mind to anticipate others’
+    beliefs, intentions and responses; comparable abilities in other species remain debated.
+
+</TextSlide>
+
+{/* Functional synthesis; social-system links are interpretations, not neural connections. */}
+
+<FigureTextSlide
+  title="Alliances - Human neural networks and social systems"
+  image={{ src: humanDiagram, width: 1600, height: 1000, format: 'svg' }}
+  alt="Conceptual organization of human social cognition and alliance-based status. Social-system links are interpretations, not established neural connections."
+>
+
+1. **Posterior superior temporal sulcus (pSTS)** — Processes movement and
+    changing facial expressions.
+1. **Temporoparietal junction (TPJ)** — Helps infer others’ beliefs and intentions.
+1. **Medial prefrontal cortex (mPFC)** — Supports social assessment and reasoning
+    about others.
+1. **Dorsomedial prefrontal cortex (dmPFC)** — Part of mPFC involved in
+    mental-state inference.
+1. **Anterior cingulate cortex / gyrus (ACC / ACCg)** — Represents others’
+    distress and rewards; supports social learning. Evidence spans species.
+1. **Norms and institutions** — Shared expectations and rules that organize
+    support and authority; social systems, rather than brain regions.
+
+</FigureTextSlide>
+
+{/* Source: Yan & Lin (2026), Table 1. Clip the image at display time to hide
+its title and abbreviation footnote; preserve the original image unchanged. */}
+
+<FigureTextSlide
+  title="Alliances - Neural substrates of social intelligence"
+  image={socialIntelligenceTable}
+  alt="Yan and Lin (2026), Table 1: neural substrates of social intelligence across species. The original title and abbreviation footnote are cropped at display time."
+  balance="equal"
+  crop={{ top: 10 / 130.1 * 100, bottom: 13.6 / 130.1 * 100 }}
+>
+
+1. **Prelimbic cortex (PL)** — Rodent frontal region involved in monitoring others.
+1. **Anterior cingulate cortex (ACC)** — Supports social assessment, emotion
+    processing and observational learning.
+1. **Medial prefrontal cortex (mPFC)** — Frontal network representing information
+    about oneself and others.
+1. **Dorsomedial prefrontal cortex (dmPFC)** — Upper medial frontal region involved
+    in social evaluation and mental-state inference.
+1. **Ventromedial prefrontal cortex (vmPFC)** — Lower medial frontal region
+    contributing to valuation and mental-state inference.
+1. **Ventral tegmental area (VTA)** — Source of dopamine signals involved in learning.
+1. **Nucleus accumbens (NAc)** — Region involved in reward and approach behaviour.
+1. **Basolateral amygdala (BLA)** — Region linking cues to emotionally important outcomes.
+1. **Posterior superior temporal sulcus (pSTS)** — Processes movement and facial cues.
+1. **Temporoparietal junction (TPJ)** — Helps infer others’ beliefs and intentions.
+1. **Theory of mind (ToM)** — Inferring another person’s mental state; an ability,
+    rather than a brain region.
+
+</FigureTextSlide>
+
+{/* Source: Yan & Lin (2026), Different routes to high social status in humans,
+p. 497. Conceptual synthesis of social processes, not an established neural circuit. */}
+
+<TextSlide title="Alliances - Human status involves prestige, alliances and institutions" density="compact">
+
+1. **Dominance and prestige** — Influence can arise through coercion or through
+    respect voluntarily given for competence and achievement.
+1. **Alliances amplify prestige** — The authors argue that expertise alone does
+    not guarantee high status; relationship networks help sustain recognition and support.
+1. **Institutions formalize authority** — Collective endorsement can turn prestige
+    and social support into roles such as executive or director.
+1. **Authority reinforces status** — Formal positions increase visibility and
+    access to networks, helping sustain further influence.
+
+**Authors’ proposed cycle:** prestige → alliances → institutional status
+→ expanded visibility and networks.
+
+</TextSlide>
+
+{/* 5. Interpretations: text only; subsections to be decided. */}
+
+<SectionSlide title="Interpretations - Interpretations">
+
+The review’s human neural evidence mainly explains capacities for navigating
+social relationships, while its account of institutions leaves room for our
+interpretation that collective action can organize those capacities towards
+different distributions of status and authority.
+
+</SectionSlide>

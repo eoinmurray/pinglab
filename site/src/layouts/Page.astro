@@ -1,6 +1,5 @@
 ---
 import 'katex/dist/katex.min.css';
-import '../styles/mathml.css';
 import base from '../styles/distill/styles-base.css?raw';
 import layout from '../styles/distill/styles-layout.css?raw';
 import titleStyle from '../styles/distill/d-title.css?raw';
@@ -17,6 +16,8 @@ interface Props {
 }
 
 const { title, description, frontMatter } = Astro.props;
+const canonicalPath = Astro.url.pathname.replace(/\/+$/, '') + '/';
+const canonicalUrl = new URL(canonicalPath, Astro.site);
 const distillStyles = base + layout + titleStyle + byline + article + math + appendix + print;
 const frontMatterJson = JSON.stringify(frontMatter ?? null).replaceAll('<', '\\u003c');
 ---
@@ -27,19 +28,36 @@ const frontMatterJson = JSON.stringify(frontMatter ?? null).replaceAll('<', '\\u
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content={description} />
+    <link rel="canonical" href={canonicalUrl.href} />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>{title} · Pinglab</title>
     <style is:inline id="distill-prerendered-styles" set:html={distillStyles} />
     <script is:inline src="/vendor/distill/template.v2.js"></script>
   </head>
   <body distill-prerendered>
     {frontMatter && <d-front-matter><script is:inline type="application/json" set:html={frontMatterJson} /></d-front-matter>}
-    <header class="site-header base-grid"><nav class="l-page" aria-label="Site"><a href="/">Pinglab</a><a class="collections-link" href="/collections">Collections</a></nav></header>
+    <header class="site-header base-grid">
+      <nav class="l-page" aria-label="Site">
+        <a href="/">Pinglab</a>
+        <div class="nav-links">
+          <a href="/collections">Collections</a>
+          <a class="github-link" href="https://github.com/eoinmurray/pinglab" aria-label="Pinglab on GitHub">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false">
+              <path d="M12 .297C5.37.297 0 5.67 0 12.297c0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.043-1.61-4.043-1.61-.546-1.387-1.333-1.756-1.333-1.756-1.09-.745.083-.729.083-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.419-1.305.762-1.605-2.665-.3-5.467-1.334-5.467-5.931 0-1.31.469-2.381 1.236-3.221-.124-.303-.536-1.524.117-3.176 0 0 1.008-.322 3.301 1.23a11.52 11.52 0 0 1 3.003-.404c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.655 1.652.243 2.873.119 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.628-5.479 5.921.43.372.823 1.102.823 2.222 0 1.606-.015 2.898-.015 3.293 0 .322.216.694.825.576C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12" />
+            </svg>
+            <span>GitHub</span>
+          </a>
+        </div>
+      </nav>
+    </header>
     <main><slot /></main>
     <script>import '../scripts/citations';</script>
   </body>
 </html>
 
 <style is:global>
+  html, body { background: #fffef9; }
+  @media print { html, body { background: white; } }
   .citation-preview { position: fixed; z-index: 10; box-sizing: border-box; width: min(380px, calc(100vw - 24px)); max-height: 50vh; overflow-y: auto; padding: 1rem; border: 1px solid rgba(0, 0, 0, .15); background: white; box-shadow: 0 4px 20px rgba(0, 0, 0, .12); font-size: 13px; line-height: 1.6; color: rgba(0, 0, 0, .8); }
   .citation-preview[hidden] { display: none; }
   .citation-preview a { color: inherit; }
@@ -47,9 +65,12 @@ const frontMatterJson = JSON.stringify(frontMatter ?? null).replaceAll('<', '\\u
   d-title { padding-top: 1rem; }
   @media (min-width: 768px) { d-title { padding-top: 2rem; } }
   .site-header a { color: inherit; font-weight: 600; text-decoration: none; }
-  .site-header nav { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; }
-  .site-header .collections-link { font-size: .875rem; font-weight: 400; color: rgba(0, 0, 0, .6); }
-  .site-header .collections-link:hover { color: black; }
+  .site-header nav { display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
+  .site-header .nav-links { display: flex; align-items: center; gap: 1rem; }
+  .site-header .nav-links a { font-size: .875rem; font-weight: 400; color: rgba(0, 0, 0, .6); }
+  .site-header .nav-links a:hover, .site-header .nav-links a:focus-visible { color: black; }
+  .site-header .github-link { display: inline-flex; align-items: center; gap: .375rem; }
+  .site-header .github-link svg { flex-shrink: 0; }
   .metadata { font-size: .8rem; color: rgba(0, 0, 0, .6); }
   .katex { font-size: 1.05em; }
   .katex-display { overflow-x: auto; overflow-y: hidden; padding: .5rem 0; }

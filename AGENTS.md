@@ -1,5 +1,7 @@
 # Repo rules
 
+1. Run the Astro development server only on port 3000. Do not start additional instances on other ports or fall back to another port when 3000 is occupied. Anomancer normally starts the server manually; agents should use the existing server and only start it when explicitly requested.
+
 - Do not use the in app browser skill for checking renderings on .typ files on localhost:3000. Just present the link to me and I'll check myself.
 - When a concrete experiment ID such as `exp110` is mentioned, immediately rename the current Codex task to `<expid> - <short description>`.
 - dont run the tests before a git commit and push.
@@ -15,8 +17,15 @@ management CLI.
 - `pingstore discover` is a narrow read-only integration command: validate
   completed runs and emit Demolab discovery JSON. It must not select, mutate,
   materialize, upload, or prune runs, or persist a catalogue.
-- `pingstore prune` is the sole mutating maintenance command. It must use a
-  no-write dry run followed by the exact complete SHA-256 plan hash, retain HPC
+- `pingstore backup` is a narrow append-only external backup command. It must
+  validate completed v4 runs, use a no-upload dry run followed by the exact
+  complete SHA-256 plan hash, hold the shared operation lock, reject drift and
+  conflicting remote objects, verify uploaded bytes, and upload completion
+  records last in input-ancestry order. It must not delete remote files, edit
+  visible local runs, or implicitly run with pruning, execution or publication.
+- `pingstore prune` is the sole command that removes local completed runs. It
+  must use a no-write dry run followed by the exact complete SHA-256 plan hash,
+  retain HPC
   runs (except superseded HPC presentations explicitly authorized with
   `--stage present --allow-superseded-hpc-presentations`), newest visible
   presentations, explicit pins, incomplete inputs, full
@@ -71,8 +80,9 @@ management CLI.
 - Do not reintroduce collection/experiment directory nesting, catalogues,
   lifecycle states, automatic official selections, preview overrides, archive
   bundles, or a general Pingstore management CLI. The narrow discovery and
-  hash-bound prune commands above are the only operational CLI exceptions. The historical v2 migration
-  utility is not a conforming upgrade path and does not authorize v2 use.
+  hash-bound backup and prune commands above are the only operational CLI
+  exceptions. The historical v2 migration utility is not a conforming upgrade
+  path and does not authorize v2 use.
 
 # CSD3 / Dawn / Zenith resource etiquette
 
@@ -106,10 +116,10 @@ downstream stages never launch upstream work or automatically publish.
 
 # Experiment writing
 
-Before creating or editing `writings/expXXX.typ`, read and follow
-the versioned [Writing Guide](writings/README.md).
+Before creating or editing `md/experiments/expXXX/report.mdx` or its supporting
+article files, read and follow the versioned [Writing Guide](WRITING_GUIDE.md).
 
-The `writings/expXXX.typ` files are collectively know as "writings", or
+The `md/experiments/expXXX/report.mdx` files are collectively known as "writings", or
 "the writings".
 
 Do not create automated tests for the writings.

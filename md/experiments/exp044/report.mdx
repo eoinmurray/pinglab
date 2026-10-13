@@ -1,0 +1,92 @@
+---
+id: "exp044"
+title: "Firing Rate Across the Timestep Sweep"
+created_at: "2026-06-02"
+updated_at: "2026-09-09"
+description: "Compares final-epoch firing rate, classification accuracy and illustrative rasters across a twelvefold integration-timestep sweep."
+collection: "gamma-gated-sparsity"
+author: "Eoin Murray"
+tags: ["data", "v36.0.0"]
+runs: {"exp044": "exp044-r009-present"}
+thumbnailRun: "exp044-r009-present"
+thumbnail: "dt_sweep.svg"
+abstract: "We asked how integration timestep affects the activity and accuracy of PING classifiers. We compared separately trained networks at matched training and evaluation timesteps, with fixed physical refractory periods, and evaluated their MNIST performance. Excitatory firing and accuracy varied across the sweep, showing that the timestep is part of the learned operating regime rather than a neutral solver setting. The comparison tests pipelines rather than holding weights fixed; the rasters do not establish invariance relative to the gamma period."
+inputs: ["exp044"]
+---
+
+import PublishedFigure from '../../../site/src/components/PublishedFigure.astro';
+
+import { reportData, display, round, mean } from '../../../site/src/lib/report-data';
+export const run = await reportData("exp044");
+export const c = run?.config.training_contract.common;
+export const cfg = run?.recipe;
+export const summary = run?.summary;
+export const numberValue = value => round(value, 2);
+export const numberSummaryAccMinPct = display(numberValue(summary.acc_min_pct));
+export const numberSummaryAccMaxPct = display(numberValue(summary.acc_max_pct));
+export const numberSummaryAccSpanPp = display(numberValue(summary.acc_span_pp));
+export const numberSummaryERateMinHz = display(numberValue(summary.e_rate_min_hz));
+export const numberSummaryERateMaxHz = display(numberValue(summary.e_rate_max_hz));
+export const n = display(cfg.seeds.length);
+export const cfgEvaluationSamples = display(cfg.evaluation_samples);
+export const cfgRasterSeed = display(cfg.raster.seed);
+export const cfgRasterNEPlot = display(cfg.raster.n_e_plot);
+export const cfgRasterNIPlot = display(cfg.raster.n_i_plot);
+export const cfgRasterWindowMs = display(cfg.raster.window_ms);
+export const cValidationEncoderDrawsCount = display(c.validation_encoder_draws.count);
+export const cNIn = display(c.n_in);
+export const cNHidden = display(c.n_hidden);
+export const cNInh = display(c.n_inh);
+export const cNOut = display(c.n_out);
+export const trainingImages = display(c.dataset_split.optimizer_train_samples);
+export const validationImages = display(c.dataset_split.validation_samples);
+export const cInputRate = display(c.input_rate);
+export const epochs = display(c.epochs);
+export const batchSize = display(c.batch_size);
+export const cLr = display(c.lr);
+
+<span id="loc-2" />
+
+## Results
+
+
+
+<span id="loc-3" />
+
+### Timestep rate and accuracy
+
+Mean test accuracy ranged from {numberSummaryAccMinPct}% to {numberSummaryAccMaxPct}%, spanning {numberSummaryAccSpanPp} percentage points. Mean E rate ranged from {numberSummaryERateMinHz} to {numberSummaryERateMaxHz} Hz. Accuracy persisted across the tested resolutions, while firing remained timestep-dependent ([Figure 1](#loc-4)).
+
+<PublishedFigure run="exp044-r009-present" file="dt_sweep.svg" id="loc-4" alt="Hidden excitatory firing rate and test accuracy against integration timestep, with uncertainty across training seeds." >
+  Figure 1: Hidden E rate (black) and test accuracy (red) across the twelvefold timestep sweep. Markers show means over {n} seeds; bars show ±1 standard error of the mean. Each network was evaluated on {cfgEvaluationSamples} official-test images at its training timestep.
+</PublishedFigure>
+
+<span id="loc-5" />
+
+### Timestep spike rasters
+
+<PublishedFigure run="exp044-r009-present" file="raster_strip.png" id="" alt="Single-trial excitatory and inhibitory spike rasters at five integration timesteps, plotted against physical time." >
+  Figure 2: E (black) and I (red) rasters for the same official-test image, seed {cfgRasterSeed}, at timesteps **(A–E)** 0.05, 0.1, 0.2, 0.3 and 0.6 ms, respectively. Panels display {cfgRasterNEPlot} E and {cfgRasterNIPlot} I neurons over the first {cfgRasterWindowMs} ms. These illustrative probes support visual cadence inspection, not a population estimate of gamma-period invariance.
+</PublishedFigure>
+
+<span id="loc-6" />
+
+### Training-timestep response
+
+<PublishedFigure run="exp044-r009-present" file="training_curves.svg" id="" alt="Per-network validation accuracy and excitatory firing rate versus epoch, coloured by integration timestep." >
+  Figure 3: Recorded training histories: **(A)** validation accuracy and **(B)** E rate, one line per timestep and seed. Each epoch averaged {cValidationEncoderDrawsCount} encoder draws per validation image. The final-epoch comparison is a finite-training snapshot, not an established fixed-point ceiling.
+</PublishedFigure>
+
+<span id="loc-7" />
+
+## Methods
+
+The audit reused separately trained networks and their learning histories, then measured endpoint dynamics at matched training and inference timesteps.
+
+1. **Reuse the trained population.** One PING network was trained per $\Delta t_{\text{sim}} \in \{ 0.05 , 0.1 , 0.2 , 0.3 , 0.6 \}$ ms and seed $\in \{ 42 , 43 , 44 \}$, giving fifteen networks. Each had {cNIn} inputs, {cNHidden} excitatory neurons, {cNInh} inhibitory neurons and {cNOut} class outputs. Network geometry, synaptic settings, readout and optimisation settings were checked for agreement across the comparison. E/I refractory holds were fixed at 1.2/0.6 ms: 24/12, 12/6, 6/3, 4/2 and 2/1 steps, respectively. Twelve networks were newly trained for this design; three 0.1-ms networks were reused unchanged after execution-equivalence checks.
+
+2. **Keep data and nominal duration fixed.** The 7000-image MNIST training pool contained {trainingImages} optimisation images and {validationImages} validation images; the official test partition was excluded from training. The nominal presentation duration was 200 ms; whole-step rounding gave 4,000, 2,000, 1,000, 666 and 333 steps. Realised $T_{\text{present}}$ was 199.8 ms at 0.3/0.6 ms and 200 ms otherwise. Image intensities drove Poisson input with peak rate {cInputRate} Hz.
+
+3. **Use the training endpoint.** Networks underwent {epochs} epochs of surrogate-gradient training \[[1](#ref-1)\], with batch size {batchSize} and learning rate {cLr}. Class scores used the mean-membrane readout, and validation histories averaged {cValidationEncoderDrawsCount} encoder draws per image. The audit used the final epoch for rates, accuracy and rasters, rather than selecting the best validation epoch.
+
+4. **Measure held-out performance.** Each network was evaluated on the fixed 1000-image subset of the official MNIST test partition, without retraining. Accuracy was the percentage of correctly classified images; population firing rate was total spikes divided by the number of evaluated images, population size and realised trial duration in seconds. Excitatory and inhibitory rates were recorded separately.

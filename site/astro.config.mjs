@@ -7,6 +7,7 @@ import rehypeKatex from 'rehype-katex';
 
 // https://astro.build/config
 export default defineConfig({
+  site: 'https://pinglab.eoinmurray.info',
   server: { port: 3000 },
   devToolbar: { enabled: false },
   integrations: [mdx()],

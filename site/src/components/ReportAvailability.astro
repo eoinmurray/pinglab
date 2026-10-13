@@ -1,0 +1,12 @@
+---
+import { reportHasData } from '../lib/report-data';
+interface Props { report: string; }
+const available = await reportHasData(Astro.props.report);
+---
+{!available && <aside class="availability-notice">
+  The authored account is preserved below. Local presentation data is unavailable;
+  figures and calculated values cannot currently be displayed or checked.
+</aside>}
+<style>
+  .availability-notice { grid-column: text; border-left: 3px solid #7c8792; padding: .75em 1em; background: #f5f7f9; }
+</style>

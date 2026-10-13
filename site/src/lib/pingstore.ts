@@ -9,16 +9,16 @@ interface Presentation {
   completedAt: number;
 }
 
-const selections = new Map<string, Promise<Presentation>>();
+const selections = new Map<string, Promise<Presentation | undefined>>();
 
 const frozenSelections = process.env.PINGLAB_RUN_SELECTIONS
   ? readFile(process.env.PINGLAB_RUN_SELECTIONS, 'utf8').then(text => JSON.parse(text) as Record<string, string>)
   : undefined;
 
-async function findLatestPresentation(experiment: string): Promise<Presentation> {
+async function findLatestPresentation(experiment: string): Promise<Presentation | undefined> {
   if (frozenSelections) {
     const id = (await frozenSelections)[experiment];
-    if (!id) throw new Error(`No frozen presentation for ${experiment}`);
+    if (!id) return undefined;
     const record = JSON.parse(await readFile(join(runsRoot, id, 'run.json'), 'utf8'));
     return { id, exportDirectory: join(runsRoot, id, 'export'), completedAt: Date.parse(record.execution.completed_at) };
   }
@@ -35,14 +35,19 @@ async function findLatestPresentation(experiment: string): Promise<Presentation>
     });
   }
   candidates.sort((a, b) => b.completedAt - a.completedAt || b.id.localeCompare(a.id));
-  if (!candidates.length) throw new Error(`No presentation run found for ${experiment}`);
   return candidates[0];
 }
 
 // Resolve once per build or dev-server session so a report uses one presentation.
-export function latestPresentation(experiment: string): Promise<Presentation> {
+export function optionalPresentation(experiment: string): Promise<Presentation | undefined> {
   if (!selections.has(experiment)) selections.set(experiment, findLatestPresentation(experiment));
   return selections.get(experiment)!;
+}
+
+export async function latestPresentation(experiment: string): Promise<Presentation> {
+  const run = await optionalPresentation(experiment);
+  if (!run) throw new Error(`No presentation run found for ${experiment}`);
+  return run;
 }
 
 export function imageUrl(runId: string, filename: string): string {

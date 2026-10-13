@@ -205,7 +205,7 @@ def test_retirement_rejects_active_experiment(tmp_path, active):
         created_at="2026-01-01T00:00:00Z",
     )
     if active == "writing":
-        path = tmp_path / "writings/exp006.typ"
+        path = tmp_path / "md/experiments/exp006/report.mdx"
     elif active == "legacy-code":
         path = tmp_path / "experiments/exp006.py"
     else:

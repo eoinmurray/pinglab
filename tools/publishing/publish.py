@@ -57,12 +57,12 @@ def select(root):
 def source_inventory(root):
     """Detect authored-source changes while Astro is building."""
     files = []
-    for base in (root / 'site', root / 'experiments'):
+    for base in (root / 'site', root / 'md/experiments', root / 'md/notes', root / 'md/slides'):
         for path in base.rglob('*'):
             relative = path.relative_to(base)
             if any(part in {'node_modules', '.astro', 'dist', '.git', '__pycache__'} for part in relative.parts):
                 continue
-            if path.is_file() and (base.name == 'site' or path.suffix in {'.mdx', '.json'}):
+            if path.is_file() and (base.name in {'site', 'slides'} or path.suffix in {'.md', '.mdx', '.json'}):
                 files.append(path)
     return {str(path.relative_to(root)): hashlib.sha256(path.read_bytes()).hexdigest() for path in sorted(files)}
 

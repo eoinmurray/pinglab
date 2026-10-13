@@ -1,0 +1,31 @@
+import ReportAvailability from '../../../site/src/components/ReportAvailability.astro';
+import DataBranch from '../../../site/src/components/DataBranch.astro';
+import RunFigure from '../../../site/src/components/RunFigure.astro';
+import Table from '../../../site/src/components/Table.astro';
+
+<span id="loc-8" />
+
+<Table
+  headers={[{ markdown: "<strong>Parameter</strong>" }, { markdown: "<strong>Symbol</strong>" }, { markdown: "<strong>Value</strong>" }, { markdown: "<strong>Origin</strong>" }]}
+  rows={[
+    ["Population size, E / I", { markdown: "$N_{E}$ / $N_{I}$" }, "1,024 / 256", "Imported repository parameter"],
+    ["Membrane capacitance, E / I", { markdown: "$C_{m , E}$ / $C_{m , I}$" }, "1 / 0.5 nF", "Imported repository parameter"],
+    ["Leak conductance, E / I", { markdown: "$g_{L , E}$ / $g_{L , I}$" }, "0.05 / 0.10 µS", "Imported repository parameter"],
+    ["Membrane time constant, E / I", { markdown: "$\\tau_{m , E}$ / $\\tau_{m , I}$" }, "20 / 5 ms", { markdown: "Derived from imported $\\frac{C_{m}}{g_{L}}$" }],
+    ["Leak and reset potential", { markdown: "$E_{L}$ / $V_{\\text{reset}}$" }, "−65 / −65 mV", "Imported repository parameter"],
+    ["Spike threshold", { markdown: "$V_{\\text{th}}$" }, "−50 mV", "Imported repository parameter"],
+    ["Excitatory / inhibitory reversal", { markdown: "$E_{e}$ / $E_{i}$" }, "0 / −80 mV", "Imported repository parameter"],
+    ["Refractory period, E / I", { markdown: "$\\tau_{\\text{ref} , E}$ / $\\tau_{\\text{ref} , I}$" }, "1.2 / 0.6 ms", "Imported repository parameter"],
+    ["AMPA decay", { markdown: "$\\tau_{\\text{AMPA}}$" }, "2 ms", "Imported repository parameter"],
+    ["Reference GABA decay", { markdown: "$\\tau_{\\text{GABA}}$" }, "6 ms", "Imported repository parameter"],
+    ["GABA-decay sweep", { markdown: "$\\tau_{\\text{GABA}}$" }, "4.5, 6, 9, 12, 18, 27 ms", "Mean-field experimental choice"],
+    ["Summed coupling, E→I / I→E", { markdown: "$G_{E \\to I}$ / $G_{I \\to E}$" }, "1 / 2 µS", "Imported repository parameter"],
+    ["Fixed driving force, excitatory / inhibitory", { markdown: "$\\Delta V_{\\text{exc}}$ / $\\Delta V_{\\text{inh}}$" }, "65 / 15 mV", { markdown: "Mean-field choice derived at $E_{L}$" }],
+    ["Rate relaxation, E / I", { markdown: "$\\tau_{r , E}$ / $\\tau_{r , I}$" }, "20 / 5 ms", { markdown: "Mean-field assumption: set equal to $\\tau_{m}$" }],
+    ["Effective voltage-noise scale", { markdown: "$\\sigma_{V}$" }, "4 mV", "Mean-field assumption"],
+    ["Tonic excitatory drive", { markdown: "$I_{\\text{ext}}$" }, "0–4 nA", "Mean-field control choice"],
+    ["Criticality ramp", { markdown: "$I_{\\text{ext}} - I^{\\ast}$" }, "−0.1–0.55 nA; 25 points", "Mean-field experimental choice"],
+  ]}
+/>
+
+Table 1: Parameters of the four-variable model. “Imported” values are literal copies of established conductance-based system parameters; exp117 does not read another experiment at runtime. Derived entries follow algebraically from imported values. Mean-field assumptions and experimental choices define the closure or bifurcation analysis and are not measurements of the spiking network.

@@ -7,15 +7,15 @@ from pingstore.contracts import PingstoreError
 from pingstore.membership import membership, memberships
 
 
-def _writing(repo: Path, experiment: str, collection: str) -> None:
-    path = repo / "writings" / f"{experiment}.typ"
+def _report(repo: Path, experiment: str, collection: str) -> None:
+    path = repo / "md" / "experiments" / experiment / "report.mdx"
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(f'#let metadata = (collection: "{collection}",)\n')
+    path.write_text(f'---\nid: {experiment}\ncollection: {collection}\n---\n')
 
 
-def test_memberships_come_from_writing_metadata(tmp_path: Path) -> None:
-    _writing(tmp_path, "exp001", "demo")
-    _writing(tmp_path, "exp002", "gamma-gated-sparsity")
+def test_memberships_come_from_report_metadata(tmp_path: Path) -> None:
+    _report(tmp_path, "exp001", "demo")
+    _report(tmp_path, "exp002", "gamma-gated-sparsity")
     assert memberships(tmp_path) == {
         "exp001": "demo",
         "exp002": "gamma-gated-sparsity",

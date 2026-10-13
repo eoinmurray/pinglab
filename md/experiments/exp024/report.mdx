@@ -1,0 +1,143 @@
+---
+id: "exp024"
+title: "Accuracy Plateaus While Firing Rate Rises"
+created_at: "2026-06-02"
+updated_at: "2026-08-31"
+description: "Audits validation accuracy and firing-rate stability in unregularised PING and COBA training histories."
+collection: "gamma-gated-sparsity"
+author: "Eoin Murray"
+tags: ["txt", "v36.0.0"]
+inputs: ["exp024"]
+---
+
+import ReportAvailability from '../../../site/src/components/ReportAvailability.astro';
+import DataBranch from '../../../site/src/components/DataBranch.astro';
+import RunFigure from '../../../site/src/components/RunFigure.astro';
+
+import { reportData, display, round, mean } from '../../../site/src/lib/report-data';
+export const run = await reportData("exp024", { allowUnavailable: true });
+export const c = run?.config;
+export const modelValue = (model, field, digits = 2) => round(run.models[model][field].mean, digits);
+export const count = (model, field) => run.models[model][field];
+export const seeds = run ? display(c.seeds.map(String).join(", ")) : 'unavailable';
+export const valueCobaFinalAcc = run ? display(modelValue("coba", "final_acc")) : 'unavailable';
+export const valueCobaFinalERateHz = run ? display(modelValue("coba", "final_e_rate_hz")) : 'unavailable';
+export const valueCobaERateSlopeLast10HzPerEpDigits3 = run ? display(modelValue("coba", "e_rate_slope_last10_hz_per_ep", 3)) : 'unavailable';
+export const countCobaAccuracyConvergedCount = run ? display(count("coba", "accuracy_converged_count")) : 'unavailable';
+export const n = run ? display(c.seeds.length) : 'unavailable';
+export const countCobaERateConvergedCount = run ? display(count("coba", "e_rate_converged_count")) : 'unavailable';
+export const valuePingFinalERateHz = run ? display(modelValue("ping", "final_e_rate_hz")) : 'unavailable';
+export const valuePingFinalIRateHz = run ? display(modelValue("ping", "final_i_rate_hz")) : 'unavailable';
+export const valuePingERateSlopeLast10HzPerEpDigits3 = run ? display(modelValue("ping", "e_rate_slope_last10_hz_per_ep", 3)) : 'unavailable';
+export const countPingAccuracyConvergedCount = run ? display(count("ping", "accuracy_converged_count")) : 'unavailable';
+export const countPingERateConvergedCount = run ? display(count("ping", "e_rate_converged_count")) : 'unavailable';
+export const epochs = run ? display(c.epochs) : 'unavailable';
+export const cMaxSamples = run ? display(c.max_samples) : 'unavailable';
+export const trainingImages = run ? display(c.dataset_split.optimizer_train_samples) : 'unavailable';
+export const validationImages = run ? display(c.dataset_split.validation_samples) : 'unavailable';
+export const cDatasetSplitOfficialTestSamples = run ? display(c.dataset_split.official_test_samples) : 'unavailable';
+export const cValidationEncoderDrawsCount = run ? display(c.validation_encoder_draws.count) : 'unavailable';
+export const cNIn = run ? display(c.n_in) : 'unavailable';
+export const cInputRate = run ? display(c.input_rate) : 'unavailable';
+export const cTMs = run ? display(c.t_ms) : 'unavailable';
+export const cDt = run ? display(c.dt) : 'unavailable';
+export const cNHidden = run ? display(c.n_hidden) : 'unavailable';
+export const cNInh = run ? display(c.n_inh) : 'unavailable';
+export const cNOut = run ? display(c.n_out) : 'unavailable';
+export const cLr = run ? display(c.lr) : 'unavailable';
+export const batchSize = run ? display(c.batch_size) : 'unavailable';
+export const cVoltageGradientDampingCoba = run ? display(c.voltage_gradient_damping.coba) : 'unavailable';
+export const cVoltageGradientDampingPing = run ? display(c.voltage_gradient_damping.ping) : 'unavailable';
+export const cWindowEpochs = run ? display(c.window_epochs) : 'unavailable';
+export const rMeasurementAccuracyThresholdPpPerEpoch = run ? display(run.measurement.accuracy_threshold_pp_per_epoch) : 'unavailable';
+export const rMeasurementRateThresholdHzPerEpoch = run ? display(run.measurement.rate_threshold_hz_per_epoch) : 'unavailable';
+
+<ReportAvailability report="exp024" />
+
+<span id="loc-1" />
+
+## Abstract
+
+We asked whether classification accuracy and neuronal firing rate converge together during training. We audited the retained learning histories of unregularised COBA and PING classifiers, applying separate plateau criteria to performance and activity.
+
+Accuracy could settle while excitatory firing continued to change, and rate stability differed across architectures and training replicates. Training convergence therefore needs separate accuracy and activity checks; a low firing rate alone does not demonstrate a fixed-rate attractor.
+
+<span id="loc-2" />
+
+## Inputs
+
+Uses the unregularised baseline learning histories from [exp022](/exp022) — [*Training Runs*](/exp022): COBA and PING, seeds {seeds}. The complete trajectories support comparisons throughout learning, rather than only at a selected checkpoint.
+
+<span id="loc-3" />
+
+## Results
+
+<span id="loc-4" />
+
+### COBA training trajectories
+
+Final mean validation accuracy was {valueCobaFinalAcc}% and E rate {valueCobaFinalERateHz} Hz. The mean final-window E-rate slope was {valueCobaERateSlopeLast10HzPerEpDigits3} Hz/epoch; {countCobaAccuracyConvergedCount}/{n} seeds met the accuracy criterion and {countCobaERateConvergedCount}/{n} met the rate criterion ([Fig. 1](#loc-5)).
+
+<RunFigure report="exp024" experiment="exp024" allowUnavailable file="coba_curves.svg" number={1} id="loc-5" alt="COBA training and validation loss, validation accuracy, and excitatory firing rate over epochs.">
+  (A) Training and validation loss, (B) validation accuracy and (C) E firing rate for COBA, with {n} seeds shown separately. Training loss is solid and validation loss dashed.
+</RunFigure>
+
+<span id="loc-6" />
+
+### PING training trajectories
+
+Final mean E and I rates were {valuePingFinalERateHz} and {valuePingFinalIRateHz} Hz. The mean final-window E-rate slope was {valuePingERateSlopeLast10HzPerEpDigits3} Hz/epoch; {countPingAccuracyConvergedCount}/{n} seeds met the accuracy criterion and {countPingERateConvergedCount}/{n} met the rate criterion ([Fig. 2](#loc-7)).
+
+<RunFigure report="exp024" experiment="exp024" allowUnavailable file="ping_curves.svg" number={2} id="loc-7" alt="PING training and validation loss, validation accuracy, and excitatory and inhibitory firing rates over epochs.">
+  (A) Training and validation loss, (B) validation accuracy and (C) E/I firing rates for PING, with {n} seeds shown separately. E rate is solid and I rate dashed; curves show individual seeds without uncertainty bands.
+</RunFigure>
+
+<span id="loc-8" />
+
+### COBA-PING endpoint comparison
+
+The 99%-of-final-accuracy markers do not establish sustained convergence. These reused training observations are not a direct measurement of confidence or a causal rate–margin relation ([Fig. 3](#loc-9)).
+
+<RunFigure report="exp024" experiment="exp024" allowUnavailable file="confidence_inflation.svg" number={3} id="loc-9" alt="Validation accuracy, validation cross-entropy, and excitatory firing rate for COBA and PING.">
+  (A) Validation accuracy, (B) cross-entropy on a log axis and (C) E rate; COBA red, PING black, {n} seeds each. Dotted lines show each architecture’s mean first epoch reaching 99% of its final accuracy.
+</RunFigure>
+
+<span id="loc-10" />
+
+## Methods
+
+We assessed finite changes in accuracy, activity and weights using recorded learning histories from unregularised classifiers.
+
+1. **Select the baseline histories.** We reused all {n} seeds per architecture from the unregularised activity comparison. Each history contains {epochs} consecutive completed epochs; final values refer to the last epoch, not the checkpoint selected by minimum validation loss. The audit involved no new training or inference.
+
+2. **Identify the evaluation split.** The training pool contained {cMaxSamples} images from MNIST’s official training partition, split into {trainingImages} optimisation samples and {validationImages} validation samples. The official test partition of {cDatasetSplitOfficialTestSamples} images was not used during training. Per-epoch evaluation averaged {cValidationEncoderDrawsCount} fixed encoder draws per validation sample; those draws are not independent training seeds.
+
+3. **Recover the training conditions.** Images drove {cNIn} Poisson input channels at a maximum pixel rate of {cInputRate} Hz for {cTMs} ms, with a {cDt} ms timestep. The networks used {cNHidden} excitatory and {cNInh} inhibitory hidden neurons and {cNOut} output neurons. Mean output membrane voltage supplied the class logits. Training used surrogate gradients\[[1](#ref-1)\], learning rate {cLr} and batches of {batchSize}. Voltage-gradient damping was {cVoltageGradientDampingCoba} for COBA and {cVoltageGradientDampingPing} for PING; no activity regulariser was applied.
+
+4. **Measure final-window drift.** For each seed, we recorded validation accuracy, training and validation cross-entropy, and population-mean E and I rates. The final {cWindowEpochs} epochs define the endpoint slope
+
+   $$
+   s_{x} = \frac{x_{E} - x_{E - w + 1}}{w - 1}
+   \tag{1}
+   $$
+
+   Here $x_{e}$ is a measurement at epoch $e$, $E$ is the final epoch, $w$ is the window length, and $s_{x}$ is change per epoch. Absolute slopes below {rMeasurementAccuracyThresholdPpPerEpoch} percentage points/epoch for accuracy or {rMeasurementRateThresholdHzPerEpoch} Hz/epoch for E rate meet the audit’s operational stability criterion. This endpoint diagnostic does not exclude fluctuations within the window or prove asymptotic convergence.
+
+   We recorded per-seed slopes, first-to-final-epoch weight-norm ratios, and final-window weight-norm slopes, and computed means and sample standard deviations across seeds. Curves show individual seeds. The first epoch reaching 99% of final accuracy supplies a separate descriptive marker, averaged across seeds; it does not require subsequent accuracy to stay above the threshold.
+
+5. **Display recorded trajectories.** We displayed individual-seed learning curves and across-seed endpoint summaries with the recorded stability thresholds and aggregation.
+
+<span id="loc-11" />
+
+## Discussion
+
+Cross-entropy can keep rewarding larger decision gaps after the predicted class becomes correct:
+
+$$
+\text{CE} = - \log p_{y} = \log ( 1 + \sum_{k \ne y} e^{z_{k} - z_{y}} )
+\tag{2}
+$$
+
+Here $\text{CE}$ is cross-entropy for one example, $y$ its true class, $k$ an alternative class, $z_{y}$ and $z_{k}$ their logits, and $p_{y}$ the softmax probability of the true class. The decision margin $m = z_{y} - \max_{k \ne y} z_{k}$ determines correctness by its sign, whereas cross-entropy depends on all the logit gaps. Aggregate accuracy can remain steady while individual predictions change.
+
+The continued activity drift is consistent with ongoing optimisation, but these curves do not establish that confidence growth causes the rate increase. The mean-membrane readout depends on synaptic drive and membrane dynamics; it is not simply a linear function of the mean E rate. PING’s lower activity and slower drift in this comparison do not demonstrate a fixed-rate attractor or isolate a causal benefit of gamma timing.

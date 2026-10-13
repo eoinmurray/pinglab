@@ -1,0 +1,9 @@
+---
+interface Props { available: boolean; selected: boolean; }
+const { available, selected } = Astro.props;
+---
+{selected && <slot />}
+{!available && <div class="unresolved-branch">
+  <p><em>Conditional account; the applicable branch cannot be checked without its source data.</em></p>
+  <slot />
+</div>}
