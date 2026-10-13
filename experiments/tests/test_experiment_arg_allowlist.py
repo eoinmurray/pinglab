@@ -14,6 +14,7 @@ or (if genuinely meta) added to ALLOWED with justification.
 Scope note: helper modules are excluded.
 """
 
+import ast
 import re
 from pathlib import Path
 
@@ -62,7 +63,6 @@ STAGE_META = {
 REMOVED_RUNNER_FLAGS = {
     "exp022/compute.py": {"--hpc", "--hpc-root", "--plumbing"},
     "exp023/present.py": {"--metadata-source"},
-    "exp082/analyse.py": {"--showcase-source"},
     "exp099/compute.py": {
         "--baseline-hz",
         "--capacitance-nf",
@@ -83,6 +83,35 @@ REMOVED_RUNNER_FLAGS = {
     "exp042/compute.py": {"--collect"},
     "exp082/compute.py": {"--collect"},
 }
+
+# Exceptions belong to individual stages, never the general meta vocabulary.
+# Exp082 can explicitly consume separate completed v4 showcase evidence.
+# Exp123 selects one of two committed scientific partitions; neither accepts
+# user-defined scientific values. Its extra source flags pin dependency roles.
+STAGE_SPECIFIC_FLAGS = {
+    "exp082/analyse.py": {"--showcase-source"},
+    "exp123/compute.py": {"--protocol", "--image-source"},
+    "exp123/analyse.py": {"--protocol"},
+    "exp123/present.py": {"--overview-source"},
+}
+
+
+@pytest.mark.parametrize("stage", ["compute", "analyse"])
+def test_exp123_protocol_selects_only_committed_partitions(stage):
+    tree = ast.parse((EXPERIMENTS / "exp123" / f"{stage}.py").read_text())
+    protocols = [
+        node for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr == "add_argument"
+        and node.args
+        and isinstance(node.args[0], ast.Constant)
+        and node.args[0].value == "--protocol"
+    ]
+    assert len(protocols) == 1
+    options = {keyword.arg: ast.literal_eval(keyword.value) for keyword in protocols[0].keywords}
+    assert options["choices"] == ("main", "overview")
+    assert options["default"] == "main"
 
 
 def _accepted_flags(src: str) -> set[str]:
@@ -114,6 +143,7 @@ def test_runner_accepts_only_meta_flags(runner):
     )
     if runner.parent != EXPERIMENTS:
         allowed |= STAGE_META
+    allowed |= STAGE_SPECIFIC_FLAGS.get(runner.relative_to(EXPERIMENTS).as_posix(), set())
     offenders = sorted(
         f for f in _accepted_flags(runner.read_text()) if f not in allowed
     )

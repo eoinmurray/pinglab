@@ -381,7 +381,8 @@ def _write_valid_cell(row: dict) -> Path:
     }
     torch.save(state, directory / "weights.pth")
     torch.save(
-        {**state, "b_out": torch.full((10,), 2.0)}, directory / "weights_final.pth"
+        {**state, "W_ff.1": torch.full((1024, 10), 2.0)},
+        directory / "weights_final.pth",
     )
     checkpoints = {
         "best_validation": {

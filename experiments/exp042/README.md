@@ -374,3 +374,10 @@ remain unverified. The implementation marker and article title suffix were
 removed; authored prose/results/dates and review decisions were preserved.
 Writing Guide 36.0.0 availability/version tags were applied using validated local
 presentation discovery.
+
+## Quality-check repair — 13 October 2026
+
+Shard request scratch now uses a validated JSON object envelope. Collection
+reads the frozen worker configuration under the shared helper's exclusive
+collector lock, so an active worker blocks collection before completion records
+are read. Completed run layouts and scientific definitions are unchanged.

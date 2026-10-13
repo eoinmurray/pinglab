@@ -209,7 +209,7 @@ def collect_shards(
     run_id: str,
     count: int,
     inputs: Mapping[str, Mapping[str, str]],
-    configuration: Mapping[str, Any],
+    configuration: Mapping[str, Any] | Callable[[], Mapping[str, Any]],
     items_for: Callable[[int], Sequence[WorkItem]],
     inventory_for: Callable[[int], Inventory],
     collect: bool,
@@ -239,6 +239,8 @@ def collect_shards(
         if collect:
             if list(shard_root.glob("*/writer.lock")):
                 raise PingstoreError("compute shards are still running")
+            # Resolve frozen worker configuration only while collectors exclude workers.
+            configuration = configuration() if callable(configuration) else configuration
             allocated: set[str] = set()
             for index in range(count):
                 record = load_json(shard_root / str(index) / "completed.json")

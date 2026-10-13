@@ -295,6 +295,8 @@ def test_shards_are_pinned_resumable_and_collect_without_repeating_sweeps(lab):
     output = inputs.source(root, identity, "compute")
     assert len(list(output.export.glob("eval__*--metrics.json"))) == 30
     assert output.record["origin"] == "slurm-wilkes"
+    assert output.record["execution"]["requests"]
+    assert all(isinstance(request, dict) for request in output.record["execution"]["requests"])
     assert not (output.directory / ".baseline-scratch").exists()
     with pytest.raises((PingstoreError, OSError)):
         compute.shard(bank_id, run_id=identity, index=0)
@@ -619,6 +621,14 @@ def test_active_worker_blocks_collection(lab):
         with pytest.raises(PingstoreError, match="busy"):
             compute.compute(bank_id, run_id=identity, collect=True)
     assert not (directory / "run.json").exists()
+
+
+@pytest.mark.parametrize("envelope", [{"requests": {}}, {"requests": ["invalid"]}, {}])
+def test_malformed_shard_requests_are_rejected(tmp_path, envelope):
+    path = tmp_path / "requests.json"
+    write_json_atomic(path, envelope)
+    with pytest.raises(PingstoreError, match="invalid shard request envelope"):
+        compute._shard_requests(path)
 
 
 def test_ancestor_metadata_amendment_does_not_change_payload_identity(lab):

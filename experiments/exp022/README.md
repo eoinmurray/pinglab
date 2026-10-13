@@ -142,3 +142,10 @@ remain unverified. The implementation marker and article title suffix were
 removed; authored prose/results/dates and review decisions were preserved.
 Writing Guide 36.0.0 availability/version tags were applied using validated local
 presentation discovery.
+
+## Quality-check repair — 13 October 2026
+
+Native bank training now runs through the private
+`experiments.exp022.compute_parts.native_worker` module. Public `compute.py`
+retains recipe-owned bank commands without exposing per-worker sample or epoch
+overrides. Bank plans freeze and validate the private worker command explicitly.

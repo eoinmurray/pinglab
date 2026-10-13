@@ -29,6 +29,18 @@ def _job_path(export, job):
     return export / (job["id"] + "--metrics.json")
 
 
+def _shard_requests(path):
+    envelope = load_json(path)
+    requests = envelope.get("requests")
+    if (
+        set(envelope) != {"requests"}
+        or not isinstance(requests, list)
+        or any(not isinstance(request, dict) for request in requests)
+    ):
+        raise PingstoreError("invalid shard request envelope")
+    return requests
+
+
 def _run_jobs(bank, cfg, data, root, export, jobs, requests):
     for job, metrics in simulation.evaluate_jobs(bank, cfg, data, root, jobs, requests):
         record = {"job": job, "metrics": metrics}
@@ -74,7 +86,7 @@ def _shard(identity, *, run_id, index, count=recipe.SHARDS):
             job_list,
             requests,
         )
-        write_json_atomic(request_path, requests)
+        write_json_atomic(request_path, {"requests": requests})
 
     def inventory():
         return {
@@ -168,18 +180,13 @@ def _collection_protocol(directory, cfg, data):
 
 def _complete(bank, evidence, cfg, data, root, run_id, collect):
     directory = _shard_paths(REPO, run_id, 0, recipe.SHARDS)
-    collection_protocol = (
-        _collection_protocol(directory, cfg, data)
-        if collect
-        else {"recipe": cfg, **data["protocol"]}
-    )
     with concurrent_compute.collect_shards(
         repo=REPO,
         experiment=recipe.SLUG,
         run_id=run_id,
         count=recipe.SHARDS,
         inputs={"bank": bank.reference},
-        configuration=collection_protocol,
+        configuration=lambda: _collection_protocol(directory, cfg, data),
         items_for=lambda index: recipe.jobs(cfg)[index :: recipe.SHARDS],
         inventory_for=lambda index: {
             "requests": file_sha256(
@@ -222,7 +229,7 @@ def _complete(bank, evidence, cfg, data, root, run_id, collect):
             if collect:
                 for index in range(recipe.SHARDS):
                     requests.extend(
-                        load_json(run.scratch / "shards" / str(index) / "requests.json")
+                        _shard_requests(run.scratch / "shards" / str(index) / "requests.json")
                     )
             if not collect:
                 _run_jobs(bank, cfg, data, root, run.export, recipe.jobs(cfg), requests)

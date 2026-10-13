@@ -133,7 +133,8 @@ def create_manifest(
         settings["execution_digest"] = native_digest
         command = [
             python_executable(),
-            "experiments/exp022/compute.py",
+            "-m",
+            "experiments.exp022.compute_parts.native_worker",
             "--native-cell",
             cell["name"],
             "--native-output",
@@ -710,7 +711,8 @@ def _checked_bank_manifest(path: Path) -> dict:
             )
             command = [
                 python_executable(),
-                "experiments/exp022/compute.py",
+                "-m",
+                "experiments.exp022.compute_parts.native_worker",
                 "--native-cell",
                 spec["name"],
                 "--native-output",
@@ -1205,23 +1207,6 @@ def import_bank(identity: str, *, run_id: str | None = None) -> str:
 
 
 def main() -> None:
-    if "--native-cell" in sys.argv:
-        parser = argparse.ArgumentParser(
-            description="Train one explicit native exp022 cell"
-        )
-        parser.add_argument("--native-cell", required=True)
-        parser.add_argument("--native-output", type=Path, required=True)
-        parser.add_argument("--native-samples", type=int, required=True)
-        parser.add_argument("--native-epochs", type=int, required=True)
-        args = parser.parse_args()
-        cell = _cell_by_name(args.native_cell)
-        if cell is None:
-            parser.error("unregistered cell")
-        _writable_compute_root(args.native_output)
-        from experiments.exp022.training import train_cell
-
-        train_cell(cell, args.native_output, args.native_samples, args.native_epochs)
-        return
     from experiments.exp022 import reuse
 
     if reuse.handle_cli(sys.argv[1:], REPO):
