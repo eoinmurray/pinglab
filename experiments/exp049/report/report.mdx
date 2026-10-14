@@ -1,0 +1,75 @@
+---
+id: "exp049"
+title: "Training Recurrent Weights Weakens PING Rhythmicity"
+created_at: "2026-06-09"
+updated_at: "2026-09-10"
+description: "Trainable recurrent conductances produced lower reference-image rhythmicity and higher excitatory firing than the frozen PING control; outcomes depended on initialization."
+collection: "gamma-gated-sparsity"
+author: "Eoin Murray"
+tags: ["data", "v36.0.0"]
+runs: {"exp049": "exp049-r015-present"}
+thumbnailRun: "exp049-r015-present"
+thumbnail: "training_summary.svg"
+abstract: "We asked whether surrogate-gradient training preserves PING rhythmicity when recurrent excitatory–inhibitory conductances can change. We compared trainable recurrent loops across initializations with a control whose recurrent PING weights remained frozen. Recurrent training weakened rhythmicity early and did not recover the rhythmic control, while activity and accuracy changed by condition. This constrains these learning recipes, but does not show that recurrent learning must always destroy gamma or that the compared conditions are accuracy-equivalent."
+inputs: ["exp049"]
+---
+
+import PublishedFigure from '../../../site/src/components/PublishedFigure.astro';
+
+import { reportData, display, round, mean } from '../../../site/src/lib/report-data';
+export const run = await reportData("exp049");
+export const evalN = display(run.config.evaluation_samples);
+export const contrastFirst = display(round(run.rhythmicity.epoch1_contrast_trainable, 3));
+export const contrastLow = display(round(run.rhythmicity.final_contrast_trainable_min, 3));
+export const contrastHigh = display(round(run.rhythmicity.final_contrast_trainable_max, 3));
+
+<span id="loc-2" />
+
+## Results
+
+<span id="loc-3" />
+
+### E→I pruning accompanies low contrast
+
+In all three networks in each condition, training from standard and 10%-standard recurrence drove most E→I weights to zero, while most I→E weights remained positive and their mean across all entries grew. Both conditions ended with lower reference-image contrast and higher E rates than frozen recurrence. Zero-initialized recurrence remained zero ([Fig. 1](#loc-4)). This pattern across three training replicates per condition remains descriptive: it does not isolate pruning as the cause of reduced contrast or establish equivalent accuracy.
+
+<PublishedFigure run="exp049-r015-present" file="training_summary.svg" id="loc-4" alt="Final accuracy, E/I rates and reference-image contrast across four conditions, with initial and final recurrent nonzero fractions and mean weights." >
+  Figure 1: Final checkpoints: **(A)** official-test accuracy, **(B)** per-neuron E/I firing rates over the same {evalN} test images and **(C)** unsmoothed reference-image contrast $R = R_{\text{contrast}}$. Bars and error bars in A–C show means ±1 standard error of the mean (SEM) across three independently trained networks (sample standard deviation divided by $\sqrt{3}$). In B, black denotes E and red I. Frozen denotes fixed standard recurrence; Std., 10% and Zero denote trainable recurrence initialized at standard, 10%-standard and zero weights. **(D, E)** Positive-weight fractions for E→I and I→E; **(F, G)** corresponding per-edge means including zeros, in model conductance units scaled by $10^{- 3}$. For each direction, condition and time point, weight statistics pool 786,432 entries from three equal-sized matrices, giving each network equal weight. Wide grey bars show initialization and narrow red bars show epoch 50. Error bars show ±1 SEM across the three per-network statistics, calculated separately before and after training; they do not describe uncertainty in the paired change. Individual weights are not independent training replicates. Black arrows connect pooled values before and after when the relative change is at least 5%; this is a display threshold, not a statistical-significance test.
+</PublishedFigure>
+
+<span id="loc-5" />
+
+### Rhythmicity starts low
+
+The unsmoothed trainable contrast averaged {contrastFirst} after epoch 1 and ended at {contrastLow}–{contrastHigh}. Because there is no epoch-0 observation, these histories cannot resolve the intervening transition ([Fig. 2](#loc-6)).
+
+<PublishedFigure run="exp049-r015-present" file="training_curves.svg" id="loc-6" alt="Validation accuracy and E/I rates over 50 epochs, alongside reference-image rhythmicity; frozen recurrence retains high contrast while trainable recurrence has low contrast." >
+  Figure 2: Recorded histories: **(A)** validation accuracy, **(B)** E rate, **(C)** I rate and **(D)** contrast from a fixed reference-image diagnostic. Lines show three-seed means; shading spans seed minima and maxima. Each series is smoothed with a five-epoch edge-padded moving average, not a confidence interval.
+</PublishedFigure>
+
+<span id="loc-7" />
+
+## Methods
+
+We reused networks from the [exp022](/exp022) — [*MNIST*](/exp022) (legacy) and reanalysed recorded observations. No new training or simulation was performed.
+
+1. **Compare recurrent trainability.** Twelve conductance-based leaky-integrate-and-fire classifiers had 784 Poisson input channels, 1,024 excitatory (E), 256 inhibitory (I) and 10 output neurons. With three training replicates per condition, we compared frozen canonical recurrence with trainable canonical, zero and 10%-canonical E→I/I→E conductances; E→E and I→I coupling stayed zero. Canonical initializer means were $\frac{1}{1024}$ and $\frac{2}{256}$, respectively, with standard deviations one tenth of each mean and negative draws clamped to zero.
+
+2. **Train on a held-out split.** The 7,000-image subset contained 6,300 optimizer-training and 700 validation images from the official MNIST training partition. Input and readout weights trained for 50 epochs with AdamW, learning rate $4 \times 10^{- 4}$, zero weight decay, batch size 256, surrogate slope 1, voltage-gradient damping 1,000, gradient-norm clipping at 1 and no firing-rate penalty. Class scores were mean pre-reset output voltages; each 200 ms presentation used 0.1 ms steps and pixel-dependent input rates up to 25 Hz.
+
+3. **Constrain conductance signs.** Trainable recurrent magnitudes were projected onto the non-negative cone after each optimizer step. Inhibition arose through $g_{I} ( E_{I} - V_{m} )$, where $g_{I}$ is inhibitory conductance, $E_{I} = - 80$ mV its reversal potential, and $V_{m}$ membrane voltage: a positive I→E weight need not become negative to inhibit. Input zeros remained trainable and could regrow.
+
+4. **Evaluate final networks.** All endpoint tests and weight comparisons used epoch 50, not validation-selected weights. Accuracy and whole-population mean E/I rates used the same {evalN} official-test images per network; per-epoch validation metrics averaged three fixed Poisson encoding draws. For endpoint spectra, demeaned nonconstant E-population traces received full-trial Welch density estimation; the mean spectrum’s largest bin within 5–150 Hz defined the selected peak, without interpolation.
+
+5. **Measure temporal contrast.** After each epoch, the same fixed reference digit’s Poisson spike realization elicited a diagnostic response. E-population counts were binned at 1 ms; their autocorrelation was normalized by lag overlap and squared mean count, over 0–100 ms, then smoothed with weights $( \frac{1}{4} , \frac{1}{2} , \frac{1}{4} )$ after replacing the zero-lag entry by its neighbour:
+
+   $$
+   R_{\text{contrast}} = \frac{A_{\text{lobe}} - A_{\text{trough}}}{A_{\text{lobe}} + A_{\text{trough}}}
+   \tag{1}
+   $$
+
+   Here $R_{\text{contrast}}$ is dimensionless contrast, $A_{\text{trough}}$ the first local trough from lag 2 ms onward, and $A_{\text{lobe}}$ the preceding positive-lag maximum of the smoothed autocorrelogram. We reused the recorded scalar; it is neither a test-population rhythm estimate nor a calibrated probability of PING.
+
+6. **Summarize recurrent weights.** We reanalysed the initial and epoch-50 E→I and I→E matrices. For each direction and condition, we calculated the strictly positive fraction and arithmetic mean including zeros, both per network and over the three pooled matrices. Equal matrix sizes gave each network equal weight. Separately at each time point, we calculated SEM as the sample standard deviation of the three network summaries divided by $\sqrt{3}$. The independently trained network was the unit of replication; jointly trained weights were not additional replicates. These descriptive summaries did not test the significance of training-induced changes.
+
+7. **Expose retained training evidence.** We displayed retained validation, activity and temporal-contrast measurements with their distinct training-replicate and illustrative-probe roles.

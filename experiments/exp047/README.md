@@ -1,5 +1,24 @@
 # exp047 — inhibitory pool-size controls
 
+For GPU compute on Modal, use the [shared Modal wrapper](../helpers/MODAL.md)
+with `--experiment exp047`. It downloads a validated compute run to local Pingstore.
+
+## Native production run — 2026-10-14
+
+`exp047-r001-compute` completed all 42 distinct simulations on Modal A10G/CUDA
+using the production recipe: 500 ms at 0.1 ms timesteps, eight trials per seed
+and seeds 40, 41 and 42. Compute took 4 minutes 49 seconds, excluding setup and
+transfer. The shared wrapper retained the completed run on its Modal Volume and
+downloaded it into local Pingstore without recovery or recomputation.
+
+Local `exp047-r002-analyse` pins that compute, and `exp047-r003-present` pins
+the analysis and exports `pool_size_controls.svg`, `pool_size_controls.pdf` and
+`numbers.json`. All three v4 layouts, payload checksums, exact lineage and
+experiment output contracts were validated; the figure was visually checked.
+Read-only Pingstore discovery lists the presentation. The article's availability
+tag is now `data`, with authored dates and review status preserved. No exp047
+temporary run directories remain. No publication or test suite was run.
+
 Local-data update, 2026-10-05: runs unused by the latest exp110 manuscript
 were explicitly deleted. Historical operation and size reports below describe
 the earlier store; they do not establish current local availability.

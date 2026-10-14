@@ -224,7 +224,7 @@ def test_stages_are_isolated_and_replay_only_explicit_evidence(repo, monkeypatch
     assert {p.name for p in output.presentation.iterdir()} >= {
         "numbers.json",
         "decision.json",
-        "feature_images.png",
+        "feature_images.svg",
         "psychometric.svg",
         "training_history.svg",
     }

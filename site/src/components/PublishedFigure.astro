@@ -1,8 +1,8 @@
 ---
-import { imageUrl } from '../lib/pingstore';
+import { figureUrl } from '../lib/pingstore';
 interface Props { run: string; file: string; id?: string; alt?: string; }
 const { run, file, id, alt = '' } = Astro.props;
-const url = imageUrl(run, file);
+const url = await figureUrl(run, file);
 const video = /\.(mp4|webm|ogv)$/.test(file);
 ---
 <figure class="l-body" id={id}>

@@ -117,7 +117,7 @@ def test_independent_v4_stages_preserve_measurements_and_never_publish(
         load_json(output.export / "numbers.json")["fi_curves"] == results["fi_curves"]
     )
     assert all(p.is_file() for p in output.export.iterdir())
-    assert (output.export / "overview_compound.png").is_file()
+    assert (output.export / "overview_compound.svg").is_file()
     assert (output.export / "traces__ping__i_i.svg").is_file()
     assert not (output.directory / "presentation").exists()
     assert not (root / ".artifacts").exists()

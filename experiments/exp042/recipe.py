@@ -26,7 +26,7 @@ RASTER_N_E_PLOT = 200
 RASTER_N_I_PLOT = 64
 COMPOUND_SIGMA_MS = 14.0
 SHARDS = 8
-FIGURES = ("rhythm_compound.png",)
+FIGURES = ("rhythm_compound.svg",)
 
 CHECKPOINT_FILENAME = "weights_final.pth"
 BANK_REQUIREMENTS = {

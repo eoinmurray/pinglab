@@ -1,0 +1,77 @@
+<figure class="l-body" id="fig-capacitor">
+  <pixi-capacitor>
+    <div class="scene" role="img" aria-label="A occupies the left two-thirds: electron redistribution between two capacitor plates through external wires, across an insulating gap. B at upper right: capacitor voltage over time. C at lower right: conventional current over time; electron drift runs in the opposite direction.">
+      <p class="status" role="status">Loading capacitor…</p>
+    </div>
+    <div class="controls">
+      <label><span>Capacitance <i>C</i></span><input data-capacitance type="range" min="2" max="20" step="1" value="10" /><output data-capacitance-value>10 μF</output></label>
+      <label><span>Resistance <i>R</i></span><input data-resistance type="range" min="10" max="100" step="5" value="50" /><output data-resistance-value>50 kΩ</output></label>
+      <label><span>Battery <i>V</i><sub>b</sub></span><input data-battery type="range" min="1" max="6" step="0.5" value="5" /><output data-battery-value>5 V</output></label>
+      <div class="actions">
+        <label class="mode"><span>Mode</span><select data-mode><option value="charge">Charge</option><option value="hold">Hold</option><option value="discharge">Discharge</option></select></label>
+        <button type="button" data-restart disabled>Restart</button>
+        <button type="button" data-pause disabled>Pause</button>
+      </div>
+    </div>
+    <noscript>A battery removes electrons from one plate and supplies them to the other. Electrons travel along the wires, never through the insulating gap. Voltage rises as charging current falls.</noscript>
+  </pixi-capacitor>
+  <figcaption><strong>Figure 1.</strong> The plates start half filled. Charging removes electron dots from the top plate and adds them to empty cells below; discharge reverses this. The sliders change plate spacing, resistor width and battery size. The graphs show voltage and current calculated from the circuit equations. Each dot represents a group of electrons, and travel times are illustrative.</figcaption>
+</figure>
+
+<script>
+  import { mountCapacitor } from '../js/capacitor.js';
+  class Capacitor extends HTMLElement {
+    dispose?: () => void;
+    observer?: IntersectionObserver;
+    connectedCallback() {
+      this.observer = new IntersectionObserver(async entries => {
+        if (!entries.some(entry => entry.isIntersecting)) return;
+        this.observer?.disconnect();
+        try {
+          const dispose = await mountCapacitor(this);
+          if (this.isConnected) this.dispose = dispose;
+          else dispose();
+        } catch (error) {
+          console.error('Capacitor animation could not start', error);
+          const status = this.querySelector('.status');
+          if (status) status.textContent = 'The animation could not start. Equations and the caption describe the model.';
+        }
+      }, { rootMargin: '200px' });
+      this.observer.observe(this);
+    }
+    disconnectedCallback() { this.observer?.disconnect(); this.dispose?.(); }
+  }
+  if (!customElements.get('pixi-capacitor')) customElements.define('pixi-capacitor', Capacitor);
+</script>
+
+<style>
+  pixi-capacitor { display: block; box-sizing: border-box; padding: 12px; border: 1px solid #d6dfe7; border-radius: 12px; background: white; }
+  .scene { width: 100%; aspect-ratio: 124 / 36; position: relative; }
+  .scene :global(canvas) { display: block; width: 100%; height: 100%; }
+  .scene :global(.capacitor-math-labels) { position: absolute; inset: 0; pointer-events: none; font-family: system-ui, sans-serif; color: #263343; }
+  .scene :global(.capacitor-math-labels sub) { font-size: .75em; line-height: 0; vertical-align: baseline; position: relative; bottom: -.2em; }
+  .status { position: absolute; inset: 0; display: grid; place-content: center; padding: 24px; margin: 0; text-align: center; }
+  .controls { display: grid; grid-template-columns: repeat(3, minmax(150px, 1fr)) auto auto auto; align-items: center; gap: 12px; overflow-x: auto; width: 100%; box-sizing: border-box; padding: 12px 4px 8px; border-top: 1px solid #eaf0f4; }
+  .controls label { display: grid; grid-template-columns: minmax(0, 1fr) 48px; align-items: center; min-width: 0; gap: 8px; font: 13px/1.4 system-ui, sans-serif; color: #263343; }
+  .controls label > span { white-space: nowrap; }
+  .controls .mode { grid-template-columns: auto auto; }
+  .actions { display: contents; }
+  .controls > label input { grid-column: 1 / -1; grid-row: 2; }
+  .controls > label output { grid-column: 2; grid-row: 1; }
+  input[type="range"] { width: 100%; min-width: 0; margin: 0; accent-color: #626b74; }
+  output { width: 48px; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  button, select { border: 1px solid #cbd5df; border-radius: 6px; padding: 6px 10px; background: #f5f7f9; color: #263343; font: 13px/1.4 system-ui, sans-serif; cursor: pointer; }
+  button { min-width: 64px; }
+  button:hover { background: #eaf0f4; }
+  :is(input, button, select):focus-visible { outline: 2px solid #176d91; outline-offset: 3px; }
+  button:disabled { opacity: 0.5; cursor: default; }
+  figcaption { margin-top: 12px; }
+  @media (min-width: 1180px) {
+    figure { grid-column: text-start / page-end; display: grid; grid-template-columns: subgrid; }
+    pixi-capacitor { grid-column: 1 / -1; }
+    figcaption { grid-column: text; }
+  }
+  @media (max-width: 600px) {
+    .scene { aspect-ratio: 62 / 36; }
+  }
+</style>

@@ -2,6 +2,7 @@
 import 'katex/dist/katex.min.css';
 import '../styles/slides.css';
 import '../styles/slide-templates.css';
+import SiteSearch from '../components/SiteSearch.astro';
 interface Props { title: string; author: string; description: string; }
 const { title, author, description } = Astro.props;
 ---
@@ -19,6 +20,7 @@ const { title, author, description } = Astro.props;
     <header class="deck-header">
       <a href="/">← Pinglab</a>
       <h1>{title}</h1>
+      <SiteSearch />
       <span>{author}</span>
     </header>
     <main class="deck" aria-label={title}><slot /></main>

@@ -21,7 +21,7 @@ from pingstore.stages import source_run, stage_run
 
 def save(fig, destination):
     with plt.rc_context({"savefig.bbox": None}):
-        for ext in ("png", "svg", "pdf"):
+        for ext in ("svg", "pdf"):
             fig.savefig(destination.with_suffix("." + ext), dpi=300)
     plt.close(fig)
 

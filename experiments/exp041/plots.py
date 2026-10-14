@@ -335,5 +335,5 @@ def plot_raster_strip(
     theme.label_panels(axes)
     fig.tight_layout()
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    save_figure(fig, out_path, formats=("png", "pdf"))  # dense raster: PNG, not SVG
+    save_figure(fig, out_path, formats=("svg", "pdf"))
     plt.close(fig)

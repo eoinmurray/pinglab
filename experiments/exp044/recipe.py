@@ -25,7 +25,7 @@ RASTER_T_WINDOW_MS = 100.0
 FIGURES = (
     "dt_sweep.svg",
     "dt_sweep.pdf",
-    "raster_strip.png",
+    "raster_strip.svg",
     "raster_strip.pdf",
     "training_curves.svg",
     "training_curves.pdf",

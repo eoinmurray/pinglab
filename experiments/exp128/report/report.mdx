@@ -1,0 +1,75 @@
+---
+id: "exp128"
+title: "Introduction to Conductance based Synapses"
+author: "Eoin Murray"
+description: "Spikes open synaptic channels, which change the voltage of an attached neuron."
+created_at: "2026-10-14"
+updated_at: "2026-10-14"
+collection: ["guides"]
+tags: ["txt", "v36.0.0"]
+inputs: []
+abstract: "An arriving spike opens synaptic channels. Their conductance then decays, while current through them changes the receiving neuron's voltage. We use a simple animation to explore how synaptic weight, decay time and reversal potential shape this response, then combine excitatory and inhibitory inputs."
+---
+
+import SynapseAnimation from './SynapseAnimation.astro';
+
+## Introduction
+
+A spike causes neurotransmitter release. The transmitter crosses the synaptic cleft and opens channels embedded in the receiving neuron's membrane. We represent their combined conductance by $g_{\mathrm{syn}}$, measured in nanosiemens (nS). Each arrival at time $t_j$ adds the synaptic weight $w_{\mathrm{event}}$; between arrivals, conductance decays with time constant $\tau_{\mathrm{syn}}$. Time $t$ and $\tau_{\mathrm{syn}}$ are in milliseconds (ms), and $j$ labels spikes. The Dirac impulse $\delta(t-t_j)$ has unit area and units of inverse milliseconds; each impulse adds $w_{\mathrm{event}}$ nS at arrival.\[[1](#ref-1)\]
+
+$$
+\frac{dg_{\mathrm{syn}}}{dt}=-\frac{g_{\mathrm{syn}}}{\tau_{\mathrm{syn}}}+w_{\mathrm{event}}\sum_j\delta(t-t_j).
+\tag{1}
+$$
+
+Open channels carry current according to the difference between their reversal potential $E_{\mathrm{syn}}$ and the neuron's voltage $V_m$, both in millivolts (mV):
+
+$$
+I_{\mathrm{syn}}=g_{\mathrm{syn}}(E_{\mathrm{syn}}-V_m).
+\tag{2}
+$$
+
+Here $I_{\mathrm{syn}}$ is in picoamperes (pA), positive when it raises voltage. Above $V_m$, reversal potential makes the current depolarising; below it, hyperpolarising. At equality, net current is zero even with open channels. This sign convention is opposite to the outward-positive convention in reference [1].
+
+Between output spikes, the receiving neuron also leaks towards its resting voltage $E_L$:
+
+$$
+C_m\frac{dV_m}{dt}=g_L(E_L-V_m)+g_{\mathrm{syn}}(E_{\mathrm{syn}}-V_m).
+\tag{3}
+$$
+
+$C_m$ is membrane capacitance, set to 100 picofarads (pF); $g_L$ is leak conductance, set to 10 nS; and $E_L=-65$ mV. A leaky integrate-and-fire rule adds output spikes: reaching the threshold $V_{\mathrm{th}}=-50$ mV emits a spike and resets voltage to $V_{\mathrm{reset}}=-65$ mV. There is no refractory interval.\[[2](#ref-2)\]
+
+$$
+V_m\geq V_{\mathrm{th}}\;\Rightarrow\;\text{spike},\quad V_m\leftarrow V_{\mathrm{reset}}.
+\tag{4}
+$$
+
+## Explore the synapse
+
+Increase **Weight** $w_{\mathrm{event}}$ to open more channels, or **Decay** $\tau_{\mathrm{syn}}$ to keep them open longer. Move **Reversal** $E_{\mathrm{syn}}$ above or below −65 mV to raise or lower the neuron's voltage. At −65 mV, channels still open but the neuron stays at rest. Reversal potential changes the voltage response, not the conductance trace. The default weight of 8 nS produces output spikes; the voltage trace reaches threshold and resets.
+
+<SynapseAnimation />
+
+
+## Excitatory and inhibitory inputs
+
+Two presynaptic neurons now feed the receiving neuron: E supplies excitation and I supplies inhibition. Each has its own conductance, $g_E$ or $g_I$, and nonnegative synaptic weight, $w_E$ or $w_I$, all in nS. Their conductances obey the same decay-and-arrival rule:
+
+$$
+\frac{dg_P}{dt}=-\frac{g_P}{\tau_P}+w_P\sum_j\delta(t-t_j^P).
+\tag{5}
+$$
+
+$P\in\{E,I\}$ labels the input, $t_j^P$ its spike arrival times, and $\tau_P$ its decay time in ms. Here $\tau_E=12$ ms and $\tau_I=20$ ms. Both currents act on the same membrane voltage:
+
+$$
+C_m\frac{dV_m}{dt}=g_L(E_L-V_m)+g_E(E_E-V_m)+g_I(E_I-V_m).
+\tag{6}
+$$
+
+$E_E$ and $E_I$ are the two reversal potentials, adjustable in Figure 2 and initially set to 0 and −75 mV; capacitance, leak and rest retain their values from equation (3). These are illustrative settings. The two channel symbols represent two distinct conductance components, each combining the physical channels activated by its input.\[[1](#ref-1)\]
+
+Increase **Weight** $w_E$ to strengthen excitation, or **Weight** $w_I$ to strengthen inhibition. Set either to zero to remove its current. At its default reversal, the inhibitory conductance pulls voltage towards −75 mV and can suppress output spikes. Inhibition therefore uses a positive conductance with a different reversal potential, rather than a negative weight. The default weights are $w_E=8$ nS and $w_I=4$ nS, which allow the receiving neuron to fire. Its threshold and reset follow equation (4). Changing $E_I$ can change the polarity of the I-pathway current: it becomes depolarising when $E_I>V_m$.
+
+<SynapseAnimation dual />

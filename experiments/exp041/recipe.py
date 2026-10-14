@@ -33,7 +33,7 @@ FIGURES = tuple(
         ("training_curves", ("svg", "pdf")),
         ("psds", ("svg", "pdf")),
         ("per_trial_peaks", ("svg", "pdf")),
-        ("raster_strip", ("png", "pdf")),
+        ("raster_strip", ("svg", "pdf")),
     )
     for ext in extensions
 )

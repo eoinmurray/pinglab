@@ -9,11 +9,47 @@ bun run astro dev stop
 bun run build                # disposable dist/
 ```
 
-Articles live in `md/experiments/expXXX/report.mdx`, separate from experiment
-code under `experiments/expXXX/`.
+Pixi is prebundled when development starts, including animation scripts outside
+`site/`. Development and builds use separate Vite caches under
+`node_modules/.vite/dev` and `node_modules/.vite/build`, so a build cannot replace
+the dependency URLs used by a running preview.
+
+Page rendering errors are isolated by `src/middleware.ts`. The affected URL
+shows “An error occurred.” and the error message with a link back to the articles;
+other pages continue rendering. HTML is buffered so component errors cannot
+leave a partially rendered page. Development returns HTTP 500; static builds
+write the error page at the affected URL and log the failure. Static hosting
+serves that generated file with its normal success status. Compiler, import-resolution,
+and content-schema errors can still prevent a build before rendering begins.
+
+Development run assets are read directly from the requested presentation export;
+they do not scan every article's runs. Missing assets return HTTP 404. During a
+static build, unavailable run exports are logged and skipped in asset enumeration,
+while data or figure errors remain visible on their own article. Shared article
+appendices load only for the current report. Listings also exclude cached reports
+whose source file has been deleted.
+
+The header's Search button opens a site-wide command palette, also available
+with `Cmd+K` on macOS or `Ctrl+K` elsewhere. Type to filter, use Up/Down to
+select, Enter to navigate, and Escape to close. Home is the first item, so
+`Cmd+K` then Enter opens the homepage. It includes every article,
+note, slide deck, and collection that has a page, using the same content data
+as the article lists. Titles, descriptions, article IDs, and collection names
+are searchable. Experiment numbers also work without the `exp` prefix, with or
+without leading zeros (for example, `082` or `82`). New content appears
+automatically on the next content sync/build.
+
+`SiteSearch.astro` supplies the navigation data to a React island. The local
+`ui/command.tsx` adapts shadcn/ui's Command composition with `cmdk` and Radix
+Dialog; `styles/command.css` supplies Pinglab styling without Tailwind.
+
+Articles live in `experiments/expXXX/report/report.mdx`, with supporting MDX,
+CSS, and article components in the same `report/` directory. Experiment-specific
+browser JavaScript lives in `experiments/expXXX/js/`; article components import
+it from `../js/`. Shared site components and scripts remain under `site/src/`.
 Notes live in `md/notes/` as MDX and belong to the Notes collection
 at `/collections/notes/`. Each note requires `title`, `author`, `description`,
-`created_at`, `updated_at`, and `collection: notes` frontmatter; dates use quoted `YYYY-MM-DD` strings.
+`created_at`, `updated_at`, and `collection` frontmatter including `notes`; dates use quoted `YYYY-MM-DD` strings.
 The filename determines the URL, for example `/notes/compute-options/`.
 Notes and experiments both use `Report.astro`, including its byline, contents
 sidebar, article spacing, and annotations. Optional `abstract` frontmatter is
@@ -30,7 +66,7 @@ clickable collection names, including Notes, without article previews. Distill's
 v2 runtime and styles are self-hosted; the article shell supplies the byline,
 sticky contents, and appendix. Optional `parameters.mdx`, `appendix.mdx`, and
 `references.mdx` files supply footer content. The canonical scientific-writing
-rules are preserved in `../WRITING_GUIDE.md`.
+rules are preserved in `../md/notes/writing-guide.md`.
 Write mathematics directly in MDX as `$...$` for inline expressions and `$$`
 blocks for displayed equations. The existing remark-math and rehype-katex
 plugins render these with KaTeX. Preserve displayed equation numbers with
@@ -71,7 +107,25 @@ Do not create `math.json` sidecars or embed exported MathML in article sources.
 The Astro build has no Typst or Demolab dependency.
 
 Collections use the configured display labels and order in
-`src/lib/collections.ts`. Source tags remain internal metadata for data availability
+`src/lib/collections.ts`. Reports, notes, and slides accept a single collection
+slug or a nonempty list of unique slugs in frontmatter:
+
+```yaml
+collection: [neuromodulation, literature]
+```
+
+An article appears in every listed collection, and previews and article bylines
+link to each membership in the authored order. Existing scalar values remain
+valid. Notes must include `notes`; slides default to `slides` when the field is
+omitted. For experiment runs, the first collection supplies Pingstore's single
+provenance value; completed runs remain unchanged.
+
+The collections index and individual collection headers show the description
+configured in `src/lib/collections.ts`, a count of distinct article URLs, and
+the latest member article's `updated_at` date. Articles in multiple collections
+count once in each; latest activity describes article edits, not experiment execution.
+
+Source tags remain internal metadata for data availability
 and author-assigned review status. Citation previews appear on hover or keyboard focus; clicks still
 navigate to references. Report and note pages embed Hypothes.is with highlights visible
 and the sidebar closed by default. Readers can open it from the Hypothesis
@@ -174,6 +228,12 @@ build/dev session, or uses an article's explicit frontmatter `runs` selections.
 It does not perform schema/checksum/ancestry validation. Restart the dev server
 to pick up newly completed runs. Figures/media come directly from selected
 exports; only disposable builds copy them.
+
+`RunFigure` and `PublishedFigure` resolve a figure by its filename stem within
+the selected presentation: prefer `.svg`, then fall back to `.png`, regardless
+of which extension the article supplies. Links open the same resolved file.
+If neither exists, rendering fails; video filenames are used unchanged. Older
+PNG-only runs therefore remain usable when new presentations emit SVG.
 
 Native MDX bindings read the selected JSON through `src/lib/report-data.ts`,
 using the same run pins as the figures. Bound

@@ -1,0 +1,139 @@
+---
+id: "exp022"
+title: "MNIST"
+created_at: "2026-08-11"
+updated_at: "2026-10-14"
+description: "Seven controlled training families, their retained checkpoint bank, validation learning curves, and raster diagnostics."
+collection: ["gamma-gated-sparsity", "datasets"]
+author: "Eoin Murray"
+tags: ["data", "v36.0.0"]
+runs: {"exp022": "exp022-r019-present"}
+inputs: ["exp022"]
+---
+
+import ReportAvailability from '../../../site/src/components/ReportAvailability.astro';
+import RunFigure from '../../../site/src/components/RunFigure.astro';
+import Table from '../../../site/src/components/Table.astro';
+
+import { reportData, display } from '../../../site/src/lib/report-data';
+export const run = await reportData("exp022", { allowUnavailable: true });
+export const rStandardTMs = run ? display(run.standard.t_ms) : 'unavailable';
+export const rStandardEpochs = run ? display(run.standard.epochs) : 'unavailable';
+export const rStandardBatchSize = run ? display(run.standard.batch_size) : 'unavailable';
+export const trainingPoolLabel = family => {
+  if (!run) return 'unavailable';
+  const pool = family === 'canonical' ? run.standard.max_samples_canonical[0] : run.standard.max_samples_sweeps[0];
+  const training = Math.round(pool * 0.9);
+  const format = value => Number(display(value)).toLocaleString('en-GB');
+  return `${format(pool)} (${format(training)} train / ${format(pool - training)} validation)`;
+};
+export const trainingFamilyCount = family => run ? display(run.family_status[family].trained) : 'unavailable';
+
+<ReportAvailability report="exp022" />
+
+## Abstract
+
+We assembled {run ? display(run.n_cells) : 'unavailable'} trained spiking networks to recognise handwritten MNIST digits. Seven training groups compare network types, activity limits, timing, connection settings, and input rates. Their saved models and learning histories provide a reusable bank for later experiments.
+
+## Training-run overview
+
+The retained bank groups {run ? display(run.n_cells) : 'unavailable'} trained models into seven training families, each with initialization seeds 42–44. The table lists each family once; the model count includes all conditions and seeds within it. Dataset sizes refer to distinct images in the pool, followed by the optimizer-training and held-out validation split.
+
+<Table
+  id="training-run-summary"
+  label="Training families, dataset sizes, readouts, and input representations"
+  headers={["Training family", "Trained models", "Image pool (train / validation)", "Readout", "Input"]}
+  rows={[
+    ["TR01 — Full-data COBA/PING baseline", trainingFamilyCount('canonical'), trainingPoolLabel('canonical'), "Mean pre-reset output voltage", "MNIST pixels; Poisson spikes at a fixed 25 Hz peak rate"],
+    ["TR02 — COBA/PING activity-ceiling sweep", trainingFamilyCount('activity_frontier'), trainingPoolLabel('activity_frontier'), "Mean pre-reset output voltage", "MNIST pixels; Poisson spikes at a fixed 25 Hz peak rate"],
+    ["TR03 — PING inhibitory-decay sweep", trainingFamilyCount('tau_gaba'), trainingPoolLabel('tau_gaba'), "Mean pre-reset output voltage", "MNIST pixels; Poisson spikes at a fixed 25 Hz peak rate"],
+    ["TR04 — PING timestep sweep", trainingFamilyCount('dt'), trainingPoolLabel('dt'), "Mean pre-reset output voltage", "MNIST pixels; Poisson spikes at a fixed 25 Hz peak rate"],
+    ["TR05 — Recurrent initialization/trainability sweep", trainingFamilyCount('init'), trainingPoolLabel('init'), "Mean pre-reset output voltage", "MNIST pixels; Poisson spikes at a fixed 25 Hz peak rate"],
+    ["TR06 — Variable-rate PING", trainingFamilyCount('variable_rate'), trainingPoolLabel('variable_rate'), "Cumulative output spike count", "MNIST pixels; Poisson spikes with the peak rate sampled independently per presentation from 11 values spanning 0.5–25 Hz"],
+    ["TR07 — PING low-input recruitment sweep", trainingFamilyCount('low_w_in'), trainingPoolLabel('low_w_in'), "Mean pre-reset output voltage", "MNIST pixels; Poisson spikes at a fixed 25 Hz peak rate"],
+  ]}
+/>
+
+All families used the original 28 × 28 MNIST pixel intensities, scaled to [0, 1] and flattened into 784 input channels, without extracted or variable feature sets. “Variable-rate” means changing the Poisson encoding rate of those same pixels. For TR06, the readout sums output spikes over the presentation—the final cumulative spike count, not a cumulative sum of voltages. The official 10,000-image test partition was excluded from training and checkpoint selection. All families trained for {rStandardEpochs} epochs; [Training-run specification sheets](#sec-training-run-specification-sheets) gives the detailed conditions.
+
+## Results
+
+The seven figures pair each training family's learning history with one example of its network activity. Learning curves use validation images; each raster is a separate fixed digit-zero probe of a final-epoch model.
+
+### TR01 — Full-data baseline
+
+<RunFigure report="exp022" experiment="exp022" allowUnavailable file="training__TR-01.png" number={1} id="fig-tr-01" alt="TR01: validation learning curves on the left and a seed-42 excitatory/inhibitory spike raster on the right.">
+  (A) {trainingFamilyCount('canonical')} individual validation learning curves across conditions and seeds 42–44. Colours identify the full-data condition; dashed lines are COBA and solid lines are PING. (B) PING baseline, full training pool, 25 Hz peak input rate, seed 42, on one digit-zero presentation. Black marks are excitatory spikes; red marks are inhibitory spikes. Both panels use retained data; no across-seed average or uncertainty band is shown, and the raster is one example rather than a family-wide estimate.
+</RunFigure>
+
+### TR02 — Activity limits
+
+<RunFigure report="exp022" experiment="exp022" allowUnavailable file="training__TR-02.png" number={2} id="fig-tr-02" alt="TR02: validation learning curves on the left and a seed-42 excitatory/inhibitory spike raster on the right.">
+  (A) {trainingFamilyCount('activity_frontier')} individual validation learning curves across conditions and seeds 42–44. Colours identify the activity ceilings; dashed lines are COBA and solid lines are PING. (B) PING with a 1 Hz activity ceiling, 25 Hz peak input rate, seed 42, on one digit-zero presentation. Black marks are excitatory spikes; red marks are inhibitory spikes. Both panels use retained data; no across-seed average or uncertainty band is shown, and the raster is one example rather than a family-wide estimate.
+</RunFigure>
+
+### TR03 — Inhibitory decay
+
+<RunFigure report="exp022" experiment="exp022" allowUnavailable file="training__TR-03.png" number={3} id="fig-tr-03" alt="TR03: validation learning curves on the left and a seed-42 excitatory/inhibitory spike raster on the right.">
+  (A) {trainingFamilyCount('tau_gaba')} individual validation learning curves across conditions and seeds 42–44. Colours identify the inhibitory decay times. (B) PING with 6 ms inhibitory decay, 25 Hz peak input rate, seed 42, on one digit-zero presentation. Black marks are excitatory spikes; red marks are inhibitory spikes. Both panels use retained data; no across-seed average or uncertainty band is shown, and the raster is one example rather than a family-wide estimate.
+</RunFigure>
+
+### TR04 — Timestep
+
+<RunFigure report="exp022" experiment="exp022" allowUnavailable file="training__TR-04.png" number={4} id="fig-tr-04" alt="TR04: validation learning curves on the left and a seed-42 excitatory/inhibitory spike raster on the right.">
+  (A) {trainingFamilyCount('dt')} individual validation learning curves across conditions and seeds 42–44. Colours identify the simulation timesteps. (B) PING with a 0.1 ms timestep, 25 Hz peak input rate, seed 42, on one digit-zero presentation. Black marks are excitatory spikes; red marks are inhibitory spikes. Both panels use retained data; no across-seed average or uncertainty band is shown, and the raster is one example rather than a family-wide estimate.
+</RunFigure>
+
+### TR05 — Recurrent connections
+
+<RunFigure report="exp022" experiment="exp022" allowUnavailable file="training__TR-05.png" number={5} id="fig-tr-05" alt="TR05: validation learning curves on the left and a seed-42 excitatory/inhibitory spike raster on the right.">
+  (A) {trainingFamilyCount('init')} individual validation learning curves across conditions and seeds 42–44. Colours identify the recurrent initialization and trainability conditions. (B) PING with fixed recurrent connections, 25 Hz peak input rate, seed 42, on one digit-zero presentation. Black marks are excitatory spikes; red marks are inhibitory spikes. Both panels use retained data; no across-seed average or uncertainty band is shown, and the raster is one example rather than a family-wide estimate.
+</RunFigure>
+
+### TR06 — Variable input rate
+
+<RunFigure report="exp022" experiment="exp022" allowUnavailable file="training__TR-06.png" number={6} id="fig-tr-06" alt="TR06: validation learning curves on the left and a seed-42 excitatory/inhibitory spike raster on the right.">
+  (A) {trainingFamilyCount('variable_rate')} individual validation learning curves across conditions and seeds 42–44. All three curves use the same variable-rate training recipe. (B) variable-rate-trained PING, probed at a 5 Hz peak input rate, seed 42, on one digit-zero presentation. Black marks are excitatory spikes; red marks are inhibitory spikes. Both panels use retained data; no across-seed average or uncertainty band is shown, and the raster is one example rather than a family-wide estimate.
+</RunFigure>
+
+### TR07 — Input strength
+
+<RunFigure report="exp022" experiment="exp022" allowUnavailable file="training__TR-07.png" number={7} id="fig-tr-07" alt="TR07: validation learning curves on the left and a seed-42 excitatory/inhibitory spike raster on the right.">
+  (A) {trainingFamilyCount('low_w_in')} individual validation learning curves across conditions and seeds 42–44. Colours identify the initial input-coupling settings. (B) PING with input-coupling parent mean 0.05 and a 1 Hz activity ceiling, 25 Hz peak input rate, seed 42, on one digit-zero presentation. Black marks are excitatory spikes; red marks are inhibitory spikes. Both panels use retained data; no across-seed average or uncertainty band is shown, and the raster is one example rather than a family-wide estimate.
+</RunFigure>
+
+<span id="loc-20" />
+
+## Methods
+
+The completed bank contains 102 models: 90 reused models with unchanged weights and histories, plus twelve newly trained timestep models. The three existing 0.1-ms timestep models were reused after execution-equivalence checks. We analysed these histories and generated 34 final-epoch seed-42 diagnostic recordings.
+
+1. **Prepare the data.** Stratified MNIST splits provided 54,000 training and 6,000 validation images for the baseline, and 6,300 and 700 for sweeps. The split seed was 42; the official test set was excluded from training and model selection.
+
+2. **Build the networks.** Each network contained 1,024 excitatory neurons and ten spiking leaky integrate-and-fire outputs. Recurrent networks added feedback through 256 inhibitory neurons; feedforward controls disabled it. Input and output projections were trained, while recurrent projections were fixed except in designated conditions. Weights retained their excitatory or inhibitory sign. Hidden E/I neurons used 1.2/0.6-ms absolute refractory holds; these were already the effective durations in the reused 0.1-ms executions.
+
+3. **Vary the conditions.** Seven families covered the baseline, activity ceilings, inhibitory decay, timestep, recurrent initialization and trainability, and input drive. Each condition used initialization seeds 42–44; [Training-run specification sheets](#sec-training-run-specification-sheets) lists the grids and shared settings.
+
+4. **Present the images.** Pixels generated Poisson spikes over nominally {rStandardTMs} ms, normally with a maximum-pixel rate of 25 Hz and a 0.1 ms timestep. Variable-rate training sampled uniformly from eleven rates between 0.5 and 25 Hz. Timestep conditions ranged from 0.05 to 0.6 ms; whole-step presentations lasted 199.8 ms at 0.3/0.6 ms and 200 ms otherwise. Firing rates used realised durations.
+
+5. **Calculate class scores.** Most networks used mean pre-reset output voltage. Variable-rate training used spike counts and smaller initial readout weights.
+
+   $$
+   z_{\text{voltage}} = \frac{1}{N_{t}} \sum_{k = 1}^{N_{t}} u_{\text{out} [ k ]} , \quad z_{\text{count}} = \sum_{k = 1}^{N_{t}} s_{\text{out} [ k ]} .
+   \tag{1}
+   $$
+
+   Each score applies to one output neuron and presentation. Here $k$ indexes the $N_{t}$ timesteps, $u_{\text{out} [ k ]}$ is dimensionless pre-reset output state, and $s_{\text{out} [ k ]}$ is a dimensionless binary output spike; both scores are dimensionless.
+
+6. **Train the networks.** Training used {rStandardEpochs} epochs of AdamW, learning rate 0.0004, batches of {rStandardBatchSize}, zero weight decay, and gradient clipping at 1. Surrogate gradients approximated spike derivatives\[[1](#ref-1)\] voltage-gradient damping was 1,000 for recurrent networks and 1 for controls. Activity-constrained conditions minimized
+
+   $$
+   L_{\text{total}} = L_{\text{CE}} + \lambda_{\text{rate}} {\langle {\max ( 0 , r_{E} - r_{E , \text{ceil}} )}^{2} \rangle}_{\text{batch}} .
+   \tag{2}
+   $$
+
+   $L_{\text{total}}$ is total loss and $L_{\text{CE}}$ is mean cross-entropy. Each presentation’s mean excitatory firing rate $r_{E}$ and ceiling $r_{E , \text{ceil}}$ are in hertz. Brackets average the individual penalties across the minibatch; $\lambda_{\text{rate}} = 0.041$ with rates in hertz, or zero when disabled.
+
+7. **Select models.** Validation averaged three fixed Poisson encoding draws. Selection minimized mean cross-entropy, breaking ties by higher accuracy and then earlier epoch. Selected and final-epoch models were retained.
+
+8. **Measure activity and retain models.** Accuracy used selected models, whereas firing rates averaged final-epoch validation measurements across images and encoding draws. Retained models and histories support subsequent experiments. Learning curves show individual validation histories; baseline summaries average three seeds. The 34 new seed-42 digit-zero recordings covered every condition, including reused networks; their rasters are individual probes, not across-seed estimates. Spectra used the realised analysis-bin duration: grouping approximately 1 ms of simulation steps gave 0.9-ms bins at the 0.3-ms timestep and 1.2-ms bins at 0.6 ms.

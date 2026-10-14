@@ -16,8 +16,8 @@ TypeScript. The Pingstore lookup remains intentionally simple, without schema,
 payload-checksum or ancestry validation. No scientific outputs are copied to a
 persistent article directory.
 
-Authored-source fingerprints cover `site/`, `md/experiments/`, `md/notes/`, and
-`md/slides/`.
+Authored-source fingerprints cover `site/`, each experiment's `report/` and
+`js/` directories, `md/notes/`, and `md/slides/`, including supporting assets.
 Fingerprints before and after the build detect concurrent
 edits. Static output and a receipt live in disposable `.publication/`; the
 receipt records latest selections, source fingerprints/status and output

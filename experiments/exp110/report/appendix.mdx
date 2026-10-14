@@ -1,0 +1,304 @@
+import Table from '../../../site/src/components/Table.astro';
+
+<span id="appendix-a" />
+
+## Appendix A — Discrete dynamics and gradient calculations
+
+<span id="appendix-a1" />**A1 — Discrete neuronal and synaptic updates.** With $k$ denoting completed updates, conductances followed Equation 2: exponential decay preceded the full weighted spike increments. Recurrent input used the preceding update’s spikes; current external input entered before voltage integration. Newly emitted E/I spikes therefore reached the partner population on the following update. Standard parameters are in Table A1.
+
+For each neuron, the updated conductances defined the total conductance and effective equilibrium voltage:
+
+$$
+\begin{aligned}
+g_{\text{tot}} [ k + 1 ] & = g_{L} + g_{E} [ k + 1 ] + g_{I} [ k + 1 ] , \\
+V_{\infty} [ k + 1 ] & = \frac{g_{L} E_{L} + g_{E} [ k + 1 ] E_{E} + g_{I} [ k + 1 ] E_{I}}{g_{\text{tot}} [ k + 1 ]} .
+\end{aligned}
+\tag{16}
+$$
+
+Holding these conductances constant over the step, we calculated the trial voltage
+
+$$
+V^{\ast} [ k + 1 ] = \max \{ V_{\text{floor}} , V [ k ] + ( V_{\infty} [ k + 1 ] - V [ k ] ) [ 1 - \exp ( - \frac{\Delta t_{\text{sim}} g_{\text{tot}} [ k + 1 ]}{C_{m}} ) ] \} .
+\tag{17}
+$$
+
+Here, $g_{\text{tot}}$ is in µS, and $V_{\infty}$ and $V^{\ast}$ are voltages in mV. The numerical floor $V_{\text{floor}} = - 200$ mV clipped extreme negative voltages before spike evaluation. Membrane capacitance $C_{m}$, timestep $\Delta t_{\text{sim}}$, leak conductance $g_{L}$, synaptic conductances $g_{E} , g_{I}$, and reversal potentials $E_{L} , E_{E} , E_{I}$ retain their Methods definitions.
+
+After calculating the trial voltage, we decremented the integer refractory counter by one, with a lower bound of zero. A neuron emitted a spike only when the decremented counter was zero and $V^{\ast} [ k + 1 ] \ge V_{\text{th}}$. Spiking or still-refractory neurons were assigned the reset voltage $V_{\text{reset}} = - 65$ mV; otherwise, the trial voltage was retained. Each spike reloaded the counter with $N_{\text{ref}} = \frac{\tau_{\text{ref}}}{\Delta t_{\text{sim}}}$, where $\tau_{\text{ref}}$ is the population-specific refractory duration and $N_{\text{ref}}$ was an integer at every tested timestep. Spike eligibility therefore resumed on the $N_{\text{ref}}$-th subsequent update. Conductances continued evolving during refractory holds.
+
+<span id="appendix-a2" />**A2 — Output-state recurrence.** Output units followed Equations 8–9 after the hidden update, using excitatory spikes emitted in the same timestep. Only one threshold was subtracted per update, so retained output state could remain above threshold. Mean-state and spike-count readouts accumulated
+
+$$
+\begin{aligned}
+M_{c} [ k + 1 ] & = M_{c} [ k ] + \tilde{u}_{c} [ k + 1 ] , \\
+n_{c} [ k + 1 ] & = n_{c} [ k ] + s_{c}^{\text{out}} [ k + 1 ] .
+\end{aligned}
+\tag{18}
+$$
+
+Here, $M_{c}$ is cumulative pre-reset state and $n_{c}$ cumulative output-spike count for class $c$; $k$, $\tilde{u}_{c}$ and $s_{c}^{\text{out}}$ retain their Methods definitions. Neither accumulator decayed; final logits followed Equations 10 and 14. Output state and accumulators began at zero; supplied image-boundary resets cleared them before that step’s output drive.
+
+<span id="appendix-a3" />**A3 — Surrogate and damped derivatives.** Spikes used the surrogate derivative in Equation 11. For voltage-gradient damping, the stop-gradient operator $\operatorname{sg} ( x )$ returned $x$ with zero backward derivative. We defined
+
+$$
+\mathcal{D}_{\alpha_{\text{grad}}} ( x ) = \alpha_{\text{grad}} x + ( 1 - \alpha_{\text{grad}} ) \operatorname{sg} ( x ) , \quad \alpha_{\text{grad}} = \frac{1}{d_{\text{grad}}} ,
+\tag{19}
+$$
+
+where the damping divisor $d_{\text{grad}} = 1 , 000$ in both architectures. The operation preserved forward values and scaled backward derivatives by $\alpha_{\text{grad}}$.
+
+For both hidden populations, $F [ k ]$ denotes the unclipped exponential-Euler voltage increment in Equation 17. Before clipping and reset,
+
+$$
+\bar{V} [ k + 1 ] = V [ k ] + \mathcal{D}_{\alpha_{\text{grad}}} ( F [ k ] ) .
+\tag{20}
+$$
+
+Here, $\bar{V}$ denotes voltage before clipping. Damping scaled every derivative through $F [ k ]$, including its dependence on conductances and previous voltage, while the additive $V [ k ]$ path retained unit derivative. At fixed updated conductances, the resulting backward rule was
+
+$$
+{( \frac{\partial \bar{V} [ k + 1 ]}{\partial V [ k ]} )}_{\text{BP}} = 1 - \alpha_{\text{grad}} [ 1 - \exp ( - \frac{\Delta t_{\text{sim}} g_{\text{tot}} [ k + 1 ]}{C_{m}} ) ] .
+\tag{21}
+$$
+
+The subscript BP identifies the derivative used by backpropagation; timestep, total conductance and capacitance retain their [Appendix A1](#appendix-a1) definitions. Conductance recurrences and the surrogate spike function received no separate damping factor.
+
+Hidden reset and refractory decisions used Boolean masks and integer counters that were not differentiated. The retained-voltage branch carried zero derivative when a neuron spiked or remained refractory, while the spike-output branch retained surrogate gradients whenever the refractory mask permitted spiking. Voltage clipping also blocked gradients below the numerical floor.
+
+Output updates received no voltage-gradient damping. Their subtractive reset retained the derivative through the output spike, giving
+
+$$
+{( \frac{\partial u_{c} [ k + 1 ]}{\partial \tilde{u}_{c} [ k + 1 ]} )}_{\text{BP}} = 1 - \theta_{\text{out}} \psi ( \tilde{u}_{c} [ k + 1 ] - \theta_{\text{out}} ) ,
+\tag{22}
+$$
+
+where $\psi$ denotes the surrogate derivative in Equation 11 and output-state symbols retain their Methods definitions in Equations 8–9. The current-step accumulator increment contributed a direct derivative for mean-state readout and a surrogate derivative for spike-count readout.
+
+<span id="appendix-a4" />**A4 — Initialization transformation.** For each input or recurrent projection, we generated independent Gaussian draws and Bernoulli retention indicators, then formed the initial weights:
+
+$$
+\begin{aligned}
+X_{j i} & \sim \mathcal{N} ( \mu_{\text{init}} , \sigma_{\text{init}}^{2} ) , \quad M_{j i} \sim \operatorname{Bernoulli} ( 1 - q_{\text{zero}} ) , \\
+W_{j i} & = \frac{M_{j i} \max ( 0 , X_{j i} )}{( 1 - q_{\text{zero}} ) N_{\text{pre}}} .
+\end{aligned}
+\tag{23}
+$$
+
+Here, $j$ and $i$ index presynaptic and postsynaptic neurons, respectively, and $N_{\text{pre}}$ is presynaptic population size. Table A1 gives the Gaussian parent mean $\mu_{\text{init}}$ and parent standard deviation $\sigma_{\text{init}}$; draws $X_{j i}$ and weights $W_{j i}$ are in µS. The zeroing probability $q_{\text{zero}}$ was 0.95 for input and zero for recurrence; clamping negative draws added further zeros.
+
+Writing $\mu_{+} = \mathbb{E} [ \max ( 0 , X_{j i} ) ]$ for the mean after lower clamping, this transformation gave
+
+$$
+\mathbb{E} [ W_{j i} ] = \frac{\mu_{+}}{N_{\text{pre}}} , \quad \mathbb{E} [ \sum_{j = 1}^{N_{\text{pre}}} W_{j i} ] = \mu_{+} .
+\tag{24}
+$$
+
+Zeroing compensation therefore preserved expected summed incoming weight after clamping, not the parent mean or exact realised sum. Finite sampling and Bernoulli zeroing affected realised matrices. The mask applied only at initialization; initially zero trainable weights could become positive.
+
+Readout weights followed a separate initialization:
+
+$$
+Y_{j c} \sim \mathcal{N} ( \mu_{\text{out}} , \sigma_{\text{out}}^{2} ) , \quad W_{j c}^{\text{out}} = \max ( 0 , Y_{j c} ) .
+\tag{25}
+$$
+
+Here, $c$ indexes output classes. These weights were dimensionless and used no additional Bernoulli zeroing or fan-in normalization. Their parent mean and standard deviation follow Table A1 for TR01–TR05 and the continuous-stream Methods for TR06.
+
+<figure class="table-figure l-body">
+
+<Table
+  headers={["Parameter", "Standard value"]}
+  rows={[
+    [{ markdown: "Population sizes $N_{E} , N_{I}$" }, "1,024; 256"],
+    [{ markdown: "Membrane capacitance $C_{m}$, E/I" }, "1/0.5 nF"],
+    [{ markdown: "Leak conductance $g_{L}$, E/I" }, "0.05/0.1 µS"],
+    [{ markdown: "Leak/reset potentials $E_{L} , V_{\\text{reset}}$" }, "−65 mV"],
+    [{ markdown: "Spike threshold $V_{\\text{th}}$" }, "−50 mV"],
+    [{ markdown: "Reversal potentials $E_{E} , E_{I}$" }, "0; −80 mV"],
+    [{ markdown: "Refractory period $\\tau_{\\text{ref}}$, E/I" }, "1.2/0.6 ms"],
+    [{ markdown: "Synaptic decay $\\tau_{\\text{AMPA}} , \\tau_{\\text{GABA}}$" }, "2; 6 ms"],
+    [{ markdown: "Integration timestep $\\Delta t_{\\text{sim}}$" }, "0.1 ms"],
+    [{ markdown: "Input parent mean/SD $\\mu_{\\text{in}} , \\sigma_{\\text{in}}$" }, "0.9/0.09 µS"],
+    ["Recurrent parent mean/SD, E→I", "1/0.1 µS"],
+    ["Recurrent parent mean/SD, I→E", "2/0.2 µS"],
+    [{ markdown: "Input-zeroing probability $q_{\\text{zero}}$" }, "0.95"],
+    ["Readout parent mean/SD (dimensionless)", "1.12/0.835"],
+    ["Output decay time; threshold", "2 ms; 1"],
+    ["Presentation duration; maximum-pixel rate", "200 ms; 25 Hz"],
+    ["Optimizer; learning rate", "AdamW; 0.0004"],
+    ["Epochs; minibatch size", "50; 256"],
+    ["Weight decay; gradient-norm limit", "0; 1"],
+    ["Surrogate slope; voltage-gradient damping", "1; 1,000 (loop-on and loop-off)"],
+  ]}
+/>
+
+<figcaption>
+
+Table A1: **Standard spiking-classifier parameters and exceptions.** Values describe standard classifiers, not the separate mean-field model. [Fig. 1](#loc-5) used input parent mean/SD 1.5/0.3 µS and loop-on recurrent parent means 1.5/3 µS. Coupling strengths, inhibitory decay times and timesteps varied in their respective sweeps. TR06 ([Fig. 10](#loc-17)) used readout parent mean/SD 0.05/0.04 and variable input rates; stream durations varied during evaluation. Readout initialization values are rounded.
+
+</figcaption>
+
+</figure>
+
+<span id="appendix-b" />
+
+## Appendix B — Measurement algorithms and boundary cases
+
+<span id="appendix-b1" />**B1 — Spectral interpolation.** We refined the spectral maximum using a parabola through three neighbouring bins of linear power spectral density. Let $m$ index the largest-power bin within the search interval, choosing the lowest-frequency bin when maxima were tied. The interpolated spectral-peak frequency was
+
+$$
+\begin{aligned}
+\delta_{m} & = \operatorname{clip}_{[ - \frac{1}{2} , \frac{1}{2} ]} [ \frac{S_{m - 1} - S_{m + 1}}{2 ( S_{m - 1} - 2 S_{m} + S_{m + 1} )} ] , \\
+f_{\text{peak}} & = f_{m} + \delta_{m} \Delta f_{\text{bin}} ,
+\end{aligned}
+\tag{26}
+$$
+
+Here, $S_{j}$ is the power spectral density at frequency bin $j$, $f_{m}$ is the selected bin’s frequency, $\Delta f_{\text{bin}}$ is the frequency-bin spacing in hertz, and $\delta_{m}$ is a dimensionless offset. Clipping limits the displacement to half a bin.
+
+Neighbouring bins could lie outside the search interval, and the interpolated frequency was not subsequently restricted to that interval.
+
+<span id="appendix-b2" />**B2 — Rhythmicity metric implementation.** We pooled excitatory spikes into complete 1-ms population-count bins, discarding any incomplete final bin. The dimensionless, uncentered autocorrelogram was
+
+$$
+A_{\text{corr}} [ \ell ] = \frac{\sum_{b = 0}^{N_{\text{bin}} - \ell - 1} n_{E} [ b ] n_{E} [ b + \ell ]}{( N_{\text{bin}} - \ell ) \bar{n}_{E}^{2}} , \quad \ell = 1 , \ldots , 100 .
+\tag{27}
+$$
+
+Here, $n_{E} [ b ]$ is the excitatory population spike count in bin $b$, $N_{\text{bin}}$ is the number of complete bins, $\bar{n}_{E}$ is their mean count, and $\ell$ is the lag in milliseconds.
+
+We computed the numerator by inverse-transforming squared fast Fourier transform magnitudes, padding to the smallest power-of-two length of at least $2 N_{\text{bin}}$ to prevent circular wraparound. The denominator corrected for overlapping bin pairs and firing-rate scale, giving approximately independent stationary counts a baseline near one.
+
+We excluded zero lag’s self-matches, replaced that entry with its 1-ms neighbour, and smoothed with weights $( 0.25 , 0.5 , 0.25 )$ and zero padding at both ends.
+
+Denoting the smoothed values by $\tilde{A}_{\ell}$, we selected the first lag $\ell = 2 , \ldots , 99$ satisfying $\tilde{A}_{\ell} \le \tilde{A}_{\ell - 1}$ and $\tilde{A}_{\ell} < \tilde{A}_{\ell + 1}$. The lobe was the maximum at positive lags preceding this trough, with ties resolved by the earliest lag. These values entered the rhythmicity metric equation in Methods.
+
+<span id="appendix-b3" />**B3 — Burst detection and cycle-boundary discretization.** For each presentation, we smoothed inhibitory population counts at 0.1-ms resolution with a unit-sum Gaussian kernel (SD 1 ms; ±4-ms extent, 81 samples), zero-padding beyond presentation boundaries. Candidate bursts were interior maxima reaching at least 5% of the presentation’s smoothed maximum; plateaus used their middle sample, rounded down. Minimum peak separation was half the network’s spectral period, rounded down to simulation steps and bounded below by one step. Smaller competing peaks were removed first; the same network-level spectral-peak frequency $f_{\text{peak}}$ set separation for all presentations.
+
+For consecutive detected peak indices $p_{i}$ and $p_{i + 1}$, we placed the intervening boundary at
+
+$$
+b_{i} = \lfloor \frac{p_{i} + p_{i + 1}}{2} \rfloor ,
+\tag{28}
+$$
+
+where $b_{i}$ is an integer step index and the floor rounds downward. Outer boundaries were zero and the presentation length $N_{t}$ in steps. Per-neuron excitatory counts used intervals including their start and excluding their end, assigning boundary spikes to the following interval. Edge intervals could contain partial cycles. A single burst defined one whole-presentation interval; no bursts contributed no neuron–cycle pairs.
+
+<span id="appendix-b4" />**B4 — Illustrative-example selection.** Fixed official-test examples, checkpoints and display conditions for Figs. [3](#loc-8)A–B, [4](#loc-9) and [8](#loc-15)A–B are specified in their captions. Figure 4 used the first official-test image; displayed neuron subsets were sampled uniformly without replacement using seed 0.
+
+For [Fig. 10](#loc-17)A–D, each candidate contained five distinct digit classes in random order, with one official-test image sampled uniformly per class. We used the seed-42 TR06 classifier and the five predefined duration–rate pairs in the caption. Candidates were evaluated in a predetermined order until all five classifications were correct; the first candidate met this criterion. Image-selection and spike-encoding seeds were 820000 and 830000. This selection was independent of quantitative streaming evaluation.
+
+<span id="appendix-b5" />**B5 — Random-stream implementation.** Post-training evaluation restarted a dedicated CPU encoding generator with seed 20260415, advancing through batches of 64 images without reseeding. Matching images, order, batching, timestep, duration and rates produced matched input spikes across networks. Deletion/insertion used a separate generator with seed 20260416; replay shifts used separate generators seeded by training replicate, jitter type and magnitude. Perturbations did not advance input-encoding draws.
+
+For the quantitative streaming bank described in Methods, one NumPy image-sampling generator with seed 82000 advanced across the 40 streams. We recorded image indices and labels and checked each condition’s labels against the bank.
+
+For spike encoding, we used an integer-pairing map to assign a distinct seed to each network, duration, rate and stream:
+
+$$
+\begin{aligned}
+C ( a , b ) & = \frac{( a + b ) ( a + b + 1 )}{2} + b , \\
+\eta_{\text{encode}} & = 830000 + C ( C ( C ( i_{s} , i_{d} ) , i_{r} ) , j ) .
+\end{aligned}
+\tag{29}
+$$
+
+Here, $C$ maps two non-negative integers $a , b$ to one integer; $i_{s} \in \{ 0 , 1 , 2 \}$ indexes training seeds 42–44, $i_{d} \in \{ 0 , \ldots , 3 \}$ indexes durations 25, 50, 100 and 200 ms, $i_{r} \in \{ 0 , \ldots , 10 \}$ indexes the eleven input rates in ascending order, and $j \in \{ 0 , \ldots , 39 \}$ indexes streams. Each of the 5,280 combinations initialized a CPU PyTorch generator with its unique seed $\eta_{\text{encode}}$, advancing across five presentations. Image sampling did not consume encoding draws; shared images therefore had separate spike encodings across networks and conditions.
+
+<span id="appendix-c" />
+
+## Appendix C — Mean-field closure and numerical specification
+
+**C1 — Gain function and population-model assumptions.** For each population $P \in \{ E , I \}$, denoting excitatory and inhibitory neurons, we used the stationary noisy-LIF gain:
+
+$$
+\Phi_{P} ( I ) = {[ \tau_{\text{ref} , P} + \tau_{m , P} \sqrt{\pi} \int_{a_{P}}^{b_{P}} e^{u^{2}} ( 1 + \text{erf} ( u ) ) \, \mathrm{d} u ]}^{- 1} ,
+\tag{30}
+$$
+
+$$
+\begin{aligned}
+\mu_{V , P} & = E_{L} + \frac{I}{g_{L , P}} , \\
+a_{P} & = \frac{V_{\text{reset}} - \mu_{V , P}}{\sigma_{V}} , \quad b_{P} = \frac{V_{\text{th}} - \mu_{V , P}}{\sigma_{V}} .
+\end{aligned}
+\tag{31}
+$$
+
+Here, $I$ is mean input current in nA; $g_{L , P}$ is leak conductance in µS; and $\mu_{V , P}$ is the corresponding effective mean voltage. The leak reversal, reset and threshold voltages are $E_{L}$, $V_{\text{reset}}$ and $V_{\text{th}}$, respectively, in mV; $\sigma_{V} = 4$ mV is the prescribed voltage-noise scale. Membrane and refractory times, $\tau_{m , P}$ and $\tau_{\text{ref} , P}$, are in milliseconds, giving $\Phi_{P}$ in ${\text{ms}}^{- 1}$. The integration variable $u$ is dimensionless, and $\text{erf}$ is the error function. This expression gives the stationary firing rate of a LIF neuron driven by Gaussian white current noise (Eq. 21 in Brunel, 2000).\[[4](#ref-4)\]
+
+The closure replaced synaptic current $g ( E_{\text{rev}} - V_{m} )$ by $g ( E_{\text{rev}} - E_{L} )$, where $g$ is conductance, $E_{\text{rev}}$ reversal potential and $V_{m}$ membrane voltage. Presynaptic rates replaced spike trains while conductances retained exponential decay; population rates relaxed towards $\Phi_{P}$ with the assumed time constant $\tau_{r , P} = \tau_{m , P}$. Methods states the consequences of fixed driving forces and the prescribed noise scale.
+
+<span id="appendix-c2" />**C2 — Numerical solution details.** Table C1 specifies solvers, tolerances and sampling. At each of 401 equally spaced currents, we eliminated stationary conductances and inhibitory rate to obtain one scalar excitatory-rate residual, bracketed between zero and the refractory-limited maximum.
+
+Among eligible complex eigenvalue pairs, we selected the largest real part. Its first negative-to-nonnegative crossing bracketed onset; refinement recomputed equilibrium and Jacobian at each trial current. Transversality used a centred real-part difference around onset.
+
+The upward sweep used 25 equally spaced currents from $I_{\text{ext}}^{\ast} - 0.1$ to $I_{\text{ext}}^{\ast} + 0.55$ nA, where $I_{\text{ext}}^{\ast}$ is onset current. We increased the lowest-current equilibrium’s excitatory rate by $10^{- 3} \, {\text{ms}}^{- 1}$ and carried each integration’s final state into the next, including the descending sweep. Amplitudes used fixed sampling times rather than adaptive solver-output times.
+
+For gain integration, negative dimensionless arguments $u$ used the scaled complementary error function $\text{erfcx} ( - u )$ to avoid cancellation; nonnegative arguments capped $u^{2}$ at 700.
+
+<figure class="table-figure l-body">
+
+<Table
+  headers={["Numerical operation", "Method and setting"]}
+  rows={[
+    ["Gain quadrature", { markdown: "Adaptive QUADPACK integration; absolute and relative tolerances both $1.49 \\times 10^{- 8}$; maximum 200 subintervals" }],
+    ["Equilibrium root finding", { markdown: "Scalar Brent method; absolute rate tolerance $10^{- 13} \\, {\\text{ms}}^{- 1}$, relative tolerance $10^{- 12}$ and accepted residual at most $10^{- 11} \\, {\\text{ms}}^{- 1}$" }],
+    ["Continuous-time Jacobian", "Analytical four-variable flow Jacobian"],
+    ["Complex-eigenvalue eligibility", { markdown: "Positive imaginary part greater than $10^{- 8} \\, {\\text{ms}}^{- 1}$" }],
+    ["Onset refinement", { markdown: "Brent’s method; absolute current tolerance $10^{- 12}$ nA and relative tolerance $10^{- 12}$; transversality step $10^{- 5}$ nA" }],
+    ["Upward/downward integration", { markdown: "LSODA; relative tolerance $10^{- 7}$; scalar absolute tolerance $10^{- 10}$; maximum step 1 ms; no supplied Jacobian" }],
+    ["Amplitude sampling", "Peak-to-peak excitatory rate over 1,001 fixed samples spanning the final 500 ms of each 2,000-ms integration"],
+  ]}
+/>
+
+<figcaption>
+
+Table C1: **Numerical settings for mean-field continuation, onset refinement and amplitude sweeps.** Calculations used SciPy 1.15.3. Quadrature tolerances used library defaults. The absolute integration tolerance applied to rates in ${\text{ms}}^{- 1}$ and conductances in µS; relative tolerances were dimensionless. Unlisted solver options retained their defaults.
+
+</figcaption>
+
+</figure>
+
+**C3 — Criticality calculation.** We defined the hysteresis gap as the maximum absolute difference between upward and downward peak-to-peak excitatory-rate amplitudes at matched currents. For the amplitude-squared regression, we included all upward-sweep points satisfying $I_{\text{ext}} > I_{\text{ext}}^{\ast} + 10^{- 9}$ nA, where $I_{\text{ext}}^{\ast}$ is the refined onset current. Membership depended only on current, without an amplitude cutoff.
+
+For each included point $j$, we defined excess current $x_{j} = I_{\text{ext} , j} - I_{\text{ext}}^{\ast}$ and squared amplitude $y_{j} = {( A_{\text{pp} , j}^{\uparrow} )}^{2}$, where the upward arrow identifies the ascending sweep. We fitted $y_{j} \approx m x_{j} + c$ by unweighted least squares, with slope $m$ and freely fitted intercept $c$. The coefficient of determination was
+
+$$
+R_{\text{fit}}^{2} = 1 - \frac{\sum_{j} {[ y_{j} - ( m x_{j} + c ) ]}^{2}}{\sum_{j} {( y_{j} - \bar{y} )}^{2}} ,
+\tag{32}
+$$
+
+where $\bar{y}$ is mean squared amplitude over the included points.
+
+We classified the sampled onset as consistent with a supercritical transition only when the hysteresis gap was below $10^{- 4} \, {\text{ms}}^{- 1}$, $m > 0$, and $R_{\text{fit}}^{2} > 0.9$. All other outcomes were labelled “subcritical/inconclusive”. The finite-sweep interpretation limits are stated in Methods.
+
+<span id="appendix-d" />
+
+## Appendix D — Exact replay transformations
+
+**D1 — Quantization and boundary reflection.** For [Fig. 8](#loc-15), we converted Gaussian timing offsets to integer simulation-step displacements:
+
+$$
+q = \operatorname{round}_{\text{even}} ( \frac{\sigma Z}{\Delta t_{\text{sim}}} ) , \quad Z \sim \mathcal{N} ( 0 , 1 ) .
+\tag{33}
+$$
+
+Here, $q$ is the integer displacement, $Z$ is a standard-normal draw, and $\sigma$ and $\Delta t_{\text{sim}}$ are the proposed jitter standard deviation and simulation timestep, respectively, in milliseconds. Rounding used nearest integers with ties to even. Independent jitter drew per event; group jitter drew per presentation and original source window.
+
+For an integer $z$, reflection into inclusive integer bounds $[ L , U ]$ was
+
+$$
+\mathcal{R}_{L , U} ( z ) = \begin{cases}
+L & U = L \\
+L + w - \vert ( ( z - L ) \bmod ( 2 w ) ) - w \vert & U > L
+\end{cases} , \quad w = U - L ,
+\tag{34}
+$$
+
+where $w$ is interval span and modulo returns a nonnegative remainder. Reflection handled arbitrarily many boundary crossings.
+
+For independent jitter, an event at original index $k$ received candidate index $\mathcal{R}_{0 , N_{t} - 1} ( k + q )$, where $N_{t}$ is the presentation’s number of simulation steps. For group jitter, let $k_{\text{min}}$ and $k_{\text{max}}$ be the earliest and latest original inhibitory-event indices within a source window, across all inhibitory neurons. We reflected the shared displacement into $[ - k_{\text{min}} , N_{t} - 1 - k_{\text{max}} ]$, then added it to every event in that group. Group membership remained defined by the original timeline. Zero jitter returned the original stream unchanged.
+
+**D2 — Collision resolution.** After reflection, we resolved duplicate destinations separately for each presentation and inhibitory neuron. The earliest original event at each shared destination retained it; others tried offsets $+ 1 , - 1 , + 2 , - 2 , \ldots$, measured from their respective reflected candidate indices. We skipped out-of-range proposals and rechecked all destinations after each pass, resolving new collisions with the same chronological priority.
+
+Once destinations were in range and unique, we reconstructed binary streams preserving each neuron’s count within every presentation. Individual collision adjustments could change relative timing within shifted groups.

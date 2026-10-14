@@ -1,0 +1,201 @@
+import ReportAvailability from '../../../site/src/components/ReportAvailability.astro';
+import DataBranch from '../../../site/src/components/DataBranch.astro';
+import RunFigure from '../../../site/src/components/RunFigure.astro';
+import Table from '../../../site/src/components/Table.astro';
+import './training-specifications.css';
+
+<span id="sec-training-run-specification-sheets" />
+
+## Appendix: Training-run specification sheets
+
+The following shared sheet and all seven TR sheets specify the controlled recipes and their intended uses. The observed learning curves and diagnostic plots are in Results.
+
+<section class="training-specification" aria-label="Shared production specification">
+
+### Shared production specification
+
+All runs map Poisson-encoded pixels through 1,024 excitatory neurons to ten spiking output LIF neurons. COBA and PING use the same input-weight and readout-weight initialization distributions. COBA disables recurrent E/I coupling; PING adds a $1024 \to 256 \to 1024$ E/I feedback loop and uses stronger backward-pass gradient damping to stabilize training through that recurrent path.
+
+These are specified production settings, not newly measured results. Unless a TR-specific sheet says otherwise, every condition–seed network uses this contract. In the tables, $\mathcal{N} ( \mu_{\text{init}} , \sigma_{\text{init}}^{2} )$ denotes a normal distribution with initialization mean $\mu_{\text{init}}$ and standard deviation $\sigma_{\text{init}}$; $\max ( 0 , x )$ replaces a sampled weight $x$ by zero when negative. LIF means leaky integrate-and-fire.
+
+<Table
+  headers={[{ markdown: "<strong>Parameter</strong>" }, { markdown: "<strong>Default</strong>" }, { markdown: "<strong>Meaning</strong>" }]}
+  rows={[
+    ["Dataset", "MNIST", "784 normalized pixels encoded as independent Poisson channels"],
+    ["Presentation duration", "200 ms nominal", "One static digit; 199.8 ms in the two coarsest timestep conditions"],
+    ["Integration timestep", "0.1 ms", "2,000 recurrent updates per presentation"],
+    ["Epochs", "50", "Training horizon for every production training replicate"],
+    ["Seeds", "42, 43, 44", "Three independently initialized training replicates per configuration"],
+    ["Minibatch", "256", "Presentations per optimization step"],
+    ["Optimizer learning rate", { markdown: "$4 \\times 10^{- 4}$" }, "Shared learning rate"],
+    ["Input population", "784", "One channel per image pixel"],
+    ["Excitatory population", "1,024", "Learned stimulus representation"],
+    ["Inhibitory population", "256", "PING feedback population; silent when E/I coupling is disabled"],
+    [{ markdown: "$\\tau_{\\text{AMPA}}$" }, "2 ms", "Fixed excitatory synaptic decay"],
+    [{ markdown: "$\\tau_{\\text{GABA}}$" }, "6 ms", "Default inhibitory decay at the gamma operating point"],
+    ["Refractory hold, E/I", "1.2/0.6 ms", "Exactly represented by integer timestep counts; hidden neurons only"],
+    ["Input initial-zero fraction", "0.95", "Fraction set to zero at initialization; every entry remains trainable and may regrow"],
+    ["Input summed-coupling parent mean", "0.9", "Parent-Gaussian mean before lower clamping and fan-in normalization; shared by COBA and PING"],
+    ["Readout-weight initialization", { markdown: "$\\max ( 0 , \\mathcal{N} ( 1.1206 , 0.8350^{2} ) )$" }, "A directly stored lower-clamped Gaussian. Its zero-valued entries remain trainable; COBA and PING use the same initializer"],
+    ["E/I loop strength", "COBA: 0; PING: 1", "The forward architectural difference under comparison"],
+    ["Gradient damping", "COBA: 1; PING: 1,000", "Backward-pass stabilization for the recurrent PING loop; it does not change forward dynamics"],
+    ["Surrogate slope", "1", "Spike-gradient surrogate parameter"],
+    ["Default readout", "mean-voltage", { markdown: "A <strong>spiking</strong> $1024 \\to 10$ output-LIF layer. At each timestep its pre-reset voltages enter the temporal mean, then emitted spikes subtract the threshold before the next update. These mean voltages—not spike counts—are the logits" }],
+    ["Stored projection shapes", { markdown: "$784 \\times 1024$; $1024 \\times 256$; $256 \\times 1024$; $1024 \\times 10$" }, "Input→E, E→I, I→E, and E→class, in source-to-destination orientation"],
+  ]}
+/>
+
+</section>
+
+<section class="training-specification" aria-label="TR01 specification">
+
+### Specification: TR01 — Canonical full-data reference
+
+The full-data COBA and PING condition–seed networks are used for headline accuracy. They use the official MNIST training partition with no spike-budget penalty, so the comparison is not affected by the smaller dataset or regularization used in the sweeps. Ten percent of that partition is reserved for checkpoint selection; the official test partition remains untouched during training. This experiment reports their validation learning histories; independent official-test evaluation belongs to the downstream experiments.
+
+<Table
+  headers={[{ markdown: "<strong>Key parameter</strong>" }, { markdown: "<strong>Value</strong>" }, { markdown: "<strong>Why it differs</strong>" }]}
+  rows={[
+    ["Architectures", "COBA and PING", "Provides a feedforward control and recurrent E/I model"],
+    ["Training pool", "60,000 official training samples", "54,000 optimizer-training and 6,000 validation samples"],
+    ["Input rate", "25 Hz maximum-pixel rate", "Fixed-rate collection baseline"],
+    ["Spike budget", "Off", "Measures unconstrained capacity"],
+    ["Training replicates", "2 architectures × 3 seeds = 6", "Across-seed comparison for both models"],
+    ["Readout shape", { markdown: "$1024 \\to 10$ spiking LIF outputs" }, "mean-voltage: mean membrane voltage supplies the logits"],
+  ]}
+/>
+
+
+</section>
+
+<section class="training-specification" aria-label="TR02 specification">
+
+### Specification: TR02 — Activity-ceiling sweep
+
+This run measures the trade-off between accuracy and firing rate as the activity ceiling is tightened. For each presentation, the loss computes the population-mean hidden-E firing rate, applies a one-sided quadratic penalty above the target, then averages the penalties across the minibatch. Quiet presentations therefore cannot offset active presentations. Expressing the target in hertz and normalising over samples, neurons, duration, and hidden layers makes the intervention comparable across those dimensions. A smaller training pool keeps the multi-seed sweep manageable; only the activity target changes across conditions. Comparisons with the full-data training replicates also change training-pool size and cannot isolate the penalty alone. The resulting checkpoints are used by [exp024](/exp024) — [*Accuracy Plateaus While Firing Rate Rises*](/exp024), [exp025](/exp025) — [*Accuracy and Firing Rate With and Without Inhibition*](/exp025), [exp037](/exp037) — [*Dropped Spikes vs Added Noise*](/exp037), [exp038](/exp038) — [*Switching On the Inhibitory Loop*](/exp038).
+
+<Table
+  headers={[{ markdown: "<strong>Key parameter</strong>" }, { markdown: "<strong>Value</strong>" }, { markdown: "<strong>Why it differs</strong>" }]}
+  rows={[
+    ["Architectures", "COBA and PING", "Direct architecture comparison"],
+    ["Training pool", "7,000 official training samples", "6,300 optimizer-training and 700 validation samples"],
+    [{ markdown: "Hidden-E rate ceiling $r_{E , \\text{ceil}}$" }, "off, 25, 10, 5, 2.5, 1 Hz", "Spans unconstrained through severe sparsity"],
+    ["Penalty strength", { markdown: "$0.041$ when enabled" }, "Calibrated for the sample-wise, population-normalized Hz objective"],
+    ["Training replicates", "2 × 6 settings × 3 seeds = 36", "Error bars at every frontier point"],
+    ["Readout shape", { markdown: "$1024 \\to 10$ spiking LIF outputs" }, "mean-voltage: mean membrane voltage supplies the logits"],
+  ]}
+/>
+
+
+</section>
+
+<section class="training-specification" aria-label="TR03 specification">
+
+### Specification: TR03 — Inhibitory-timescale sweep
+
+This run changes $\tau_{\text{GABA}}$ to test how the inhibitory timescale affects gamma frequency, firing rate, and accuracy. All other scientific settings are held fixed, with 6 ms as the standard condition. The resulting checkpoints are used by [exp041](/exp041) — [*Firing Rate Tracks Gamma Frequency*](/exp041), [exp042](/exp042) — [*Inhibitory Replay Perturbations Change Excitatory Firing*](/exp042), [exp046](/exp046) — [*One Spike per Gamma Cycle*](/exp046).
+
+<Table
+  headers={[{ markdown: "<strong>Key parameter</strong>" }, { markdown: "<strong>Value</strong>" }, { markdown: "<strong>Why it differs</strong>" }]}
+  rows={[
+    ["Architecture", "PING", "The manipulated quantity belongs to the recurrent inhibitory loop"],
+    ["Training pool", "7,000 samples", "Sweep-scale default"],
+    [{ markdown: "$\\tau_{\\text{GABA}}$" }, "4.5, 6, 9, 12, 18, 27 ms", "Moves the inhibitory rhythm across a broad timescale range"],
+    ["Training replicates", "6 settings × 3 seeds = 18", "Across-seed estimate at each decay"],
+    ["Readout shape", { markdown: "$1024 \\to 10$ spiking LIF outputs" }, "mean-voltage: mean membrane voltage supplies the logits"],
+  ]}
+/>
+
+
+</section>
+
+<section class="training-specification" aria-label="TR04 specification">
+
+### Specification: TR04 — Integration-timestep sweep
+
+This run changes the integration timestep while keeping E/I refractory holds at 1.2/0.6 ms. Presentations last nominally 200 ms and contain whole simulation steps. It tests whether the learned operating regime depends on numerical resolution; separately trained networks do not establish fixed-weight numerical convergence. The finest timestep requires the longest unrolled training trajectories. The resulting checkpoints are used by [exp044](/exp044) — [*Firing Rate Across the Timestep Sweep*](/exp044).
+
+<Table
+  headers={[{ markdown: "<strong>Key parameter</strong>" }, { markdown: "<strong>Value</strong>" }, { markdown: "<strong>Why it differs</strong>" }]}
+  rows={[
+    ["Architecture", "PING", "Tests the recurrent reference model"],
+    ["Training pool", "7,000 samples", "Sweep-scale default"],
+    [{ markdown: "$\\Delta t_{\\text{sim}}$" }, "0.05, 0.1, 0.2, 0.3, 0.6 ms", "Twelvefold resolution range at fixed physical refractory holds"],
+    ["Steps/presentation", "4,000; 2,000; 1,000; 666; 333", "200; 200; 200; 199.8; 199.8 ms realised durations"],
+    ["Training replicates", "5 settings × 3 seeds = 15", "Across-seed stability check"],
+    ["Readout shape", { markdown: "$1024 \\to 10$ spiking LIF outputs" }, "mean-voltage: mean membrane voltage supplies the logits"],
+  ]}
+/>
+
+
+</section>
+
+<section class="training-specification" aria-label="TR05 specification">
+
+### Specification: TR05 — Recurrent-initialization sweep
+
+This run tests whether training preserves the PING loop or learns a useful loop from weaker initial conditions. Recurrent initialization and trainability change together, while the feedforward network and classifier remain fixed to the PING recipe. The resulting checkpoints are used by [exp049](/exp049) — [*Training Recurrent Weights Weakens PING Rhythmicity*](/exp049).
+
+<Table
+  headers={[{ markdown: "<strong>Key parameter</strong>" }, { markdown: "<strong>Value</strong>" }, { markdown: "<strong>Why it differs</strong>" }]}
+  rows={[
+    ["Architecture", "PING", "Manipulates the recurrent loop directly"],
+    ["Training pool", "7,000 samples", "Sweep-scale default"],
+    ["Loop conditions", "frozen PING; trainable PING init; trainable zero init; trainable 0.1 init", "Separates built-in dynamics from recurrence learned during task training"],
+    ["Trainable projections", { markdown: "$W_{\\text{EI}}$ and $W_{\\text{IE}}$ only in trainable conditions" }, "The frozen condition is the mechanistic control"],
+    ["Training replicates", "4 conditions × 3 seeds = 12", "Across-seed comparison"],
+    ["Readout shape", { markdown: "$1024 \\to 10$ spiking LIF outputs" }, "mean-voltage: mean membrane voltage supplies the logits"],
+  ]}
+/>
+
+
+</section>
+
+<section class="training-specification" aria-label="TR06 specification">
+
+### Specification: TR06 — Variable-rate streaming bank
+
+This condition trains PING across the input rates used by the continuous-stream classification study. One rate is sampled uniformly for each presentation, and the ten output LIF neurons produce class logits from their total spike counts rather than their mean membrane voltages. This keeps the cross-entropy logits dimensionless and gives one additional output spike the same logit increment. The readout weights use a small Gaussian initialization, $\mathcal{N} ( 0.05 , 0.04^{2} )$, lower-clamped at zero and governed by the shared non-negative constraint.
+
+The recorded design rationale for this smaller initializer was to avoid saturation at the mean-voltage scale and silence at the generic fan-in-normalized scale. The present bank retains the chosen $\mathcal{N} ( 0.05 , 0.04^{2} )$ setting; its learning curves do not independently establish those earlier calibration comparisons. This is a specified spike-count recipe, not a claim that the initializer is uniquely optimal.
+
+Output firing rates may still be reported as activity measurements. During streaming inference, the output neurons reset at digit boundaries while the hidden PING state continues. The resulting checkpoints are used by [exp082](/exp082) — [*Spike-Count Classification in a Continuous Stream*](/exp082).
+
+<Table
+  headers={[{ markdown: "<strong>Key parameter</strong>" }, { markdown: "<strong>Value</strong>" }, { markdown: "<strong>Why it differs</strong>" }]}
+  rows={[
+    ["Architecture", "PING", "Target model for streaming inference"],
+    ["Training pool", "7,000 samples", "Uses the shared sweep-scale training set"],
+    ["Input-rate set", "0.5, 0.75, 1, 1.5, 2, 3, 5, 7.5, 10, 15, 25 Hz", "Denser sampling within the interval selected by the input-rate calibration study"],
+    ["Sampling rule", "Uniform categorical, independently per presentation", "Makes rate variation part of the training distribution"],
+    ["Readout", "spike-count", "Hidden E spikes drive ten spiking LIF class neurons; each logit is that class neuron’s total spikes over the presentation"],
+    ["Readout initialization", { markdown: "$\\mathcal{N} ( 0.05 , 0.04^{2} )$, constrained non-negative" }, "Keeps the spiking outputs near threshold at high training rates without the saturation caused by the default mean-voltage scale"],
+    ["Readout shape", { markdown: "$1024 \\to 10$ spiking LIF outputs" }, "Ten class neurons emit and reset throughout the presentation"],
+    ["Training replicates", "1 recipe × 3 seeds = 3", "Models for continuous-stream classification"],
+  ]}
+/>
+
+
+</section>
+
+<section class="training-specification" aria-label="TR07 specification">
+
+### Specification: TR07 — Low-input recruitment sweep
+
+TR02 asks how changing the activity ceiling affects networks initialized at the standard input coupling. TR07 asks the complementary question: with the strictest TR02 ceiling fixed at 1 Hz from the first epoch, can PING recruit its inhibitory loop when the feedforward projection starts weak? It varies the parent mean used to initialize expected summed input coupling, before lower clamping and fan-in normalization; it does not directly set the mean of the stored synaptic matrix. The training pool, optimizer, recurrent loop, and mean-voltage readout remain at the reduced-sweep defaults. This bank retains all twelve models, and [exp025](/exp025) — [*Accuracy and Firing Rate With and Without Inhibition*](/exp025) aggregates the three seeds at each setting to test recruitment and path dependence.
+
+<Table
+  headers={[{ markdown: "<strong>Key parameter</strong>" }, { markdown: "<strong>Value</strong>" }, { markdown: "<strong>Why it differs</strong>" }]}
+  rows={[
+    ["Architecture", "PING", "Tests recruitment of the recurrent inhibitory loop"],
+    ["Training pool", "7,000 samples", "6,300 optimizer-training and 700 validation samples"],
+    ["Epochs", "50", "Matches the reduced production standard"],
+    ["Input summed-coupling parent mean", "0.05, 0.1, 0.3, 0.9", "Varies initial feedforward drive from weak coupling to the shared 0.9 standard before clamping and fan-in normalization"],
+    ["Hidden-E rate target", "1 Hz", "Applies the strictest TR02 activity ceiling from epoch 0"],
+    ["Parameters held fixed", "PING loop, optimizer, dataset split, and mean-voltage readout", "Isolates initial feedforward recruitment from the activity-ceiling sweep"],
+    ["Training replicates", "4 settings × 3 seeds = 12", "Across-seed estimate for every condition"],
+    ["Readout shape", { markdown: "$1024 \\to 10$ spiking LIF outputs" }, "mean-voltage: mean membrane voltage supplies the logits"],
+  ]}
+/>
+
+</section>

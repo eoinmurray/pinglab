@@ -1,5 +1,25 @@
 # Exp081: filtered-response theory
 
+For GPU compute on Modal, use the [shared Modal wrapper](../helpers/MODAL.md)
+with `--experiment exp081`. It downloads a validated compute run to local Pingstore.
+
+## Native full-profile run — 2026-10-14
+
+`exp081-r002-compute` ran on Modal A10G/CUDA with 512 draws per moment-grid
+condition and 4,096 draws per distribution rate. Compute took approximately one
+second, excluding image build and container startup. Its retained Volume copy
+and local Pingstore copy passed v4 layout and payload-checksum validation.
+An interrupted transfer was recovered without repeating the computation.
+
+Local `exp081-r003-analyse` pins that compute, and `exp081-r004-present` pins
+both stages and exports four SVG figures plus `numbers.json`. All three runs
+and their exact lineage references were validated; the four figures were
+visually checked. Quadrature refinement changed predicted variance by at most
+`9.875618987389394e-07` relative. The article's availability tag is now `data`;
+its authored dates and review status were preserved. No publication or test
+suite was run. The failed pre-compute reservation `exp081-r001-compute` was
+removed after its Modal app stopped and the successful later runs were validated.
+
 Local-data update, 2026-10-05: runs unused by the latest exp110 manuscript
 were explicitly deleted. Historical operation and size reports below describe
 the earlier store; they do not establish current local availability.

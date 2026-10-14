@@ -47,17 +47,17 @@ def present(identity, *, run_id=None):
             coords["shared_null"],
         )
         for function, name in (
-            (plots.fig_turnon_maps_compound, "turnon_maps_compound.png"),
-            (plots.fig_turnon_compound, "turnon_compound.png"),
-            (plots.fig_grid_maps_compound, "grid_maps.png"),
-            (plots.fig_grid_rasters, "grid_rasters.png"),
-            (plots.fig_grid_autocorr, "grid_autocorr.png"),
+            (plots.fig_turnon_maps_compound, "turnon_maps_compound.svg"),
+            (plots.fig_turnon_compound, "turnon_compound.svg"),
+            (plots.fig_grid_maps_compound, "grid_maps.svg"),
+            (plots.fig_grid_rasters, "grid_rasters.svg"),
+            (plots.fig_grid_autocorr, "grid_autocorr.svg"),
         ):
             function(grid, run.export / name)
         plots.fig_rate_invariance(
-            grid, private, shared, run.export / "rate_invariance.png"
+            grid, private, shared, run.export / "rate_invariance.svg"
         )
-        plots.fig_null_autocorr(shared, private, run.export / "null_autocorr.png")
+        plots.fig_null_autocorr(shared, private, run.export / "null_autocorr.svg")
         if not all((run.export / name).is_file() for name in recipe.FIGURES):
             raise PingstoreError("incomplete exp054 presentation")
         write_json_atomic(

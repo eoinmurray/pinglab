@@ -1,0 +1,6 @@
+---
+import CommandPalette from './CommandPalette';
+import { getNavigation } from '../lib/navigation';
+const navigation = await getNavigation();
+---
+<CommandPalette {...navigation} client:load />

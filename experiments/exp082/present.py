@@ -100,23 +100,23 @@ def present(identity, *, run_id=None):
         configuration={"schema": "exp082.presentation/v3"},
     ) as run:
         out, rid = run.export, run.run_id
-        plots.plot_variable_headline(streams["hero"], out / "hero_stream.png", rid)
+        plots.plot_variable_headline(streams["hero"], out / "hero_stream.svg", rid)
         plots.plot_variable_headline(
-            streams["alternative"], out / "alternative_stream.png", rid
+            streams["alternative"], out / "alternative_stream.svg", rid
         )
-        plots.plot_single_trial(streams["single_trial"], out / "single_trial.png", rid)
+        plots.plot_single_trial(streams["single_trial"], out / "single_trial.svg", rid)
         plots.plot_single_trial_transition(
-            streams["single_trial"], out / "single_trial_transition.png", rid
+            streams["single_trial"], out / "single_trial_transition.svg", rid
         )
-        plots.plot_stream(streams["matched"], out / "matched_stream.png", rid)
+        plots.plot_stream(streams["matched"], out / "matched_stream.svg", rid)
         plots.plot_variable_headline(
-            streams["variable"], out / "variable_stream.png", rid
+            streams["variable"], out / "variable_stream.svg", rid
         )
         plots.plot_psychometric(
             result["plot_data"], out / "psychometric_200ms.svg", rid
         )
         plots.plot_duration_rate_summary(
-            result["plot_data"], out / "duration_rate_summary.png", rid
+            result["plot_data"], out / "duration_rate_summary.svg", rid
         )
         build_continuous_stream_compound(
             streams["hero"],

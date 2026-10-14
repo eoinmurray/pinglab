@@ -6,7 +6,7 @@ import { getPosts } from '../lib/posts';
 const posts = await getPosts();
 ---
 
-<Page title="Articles" description="Scientific reports, notes, and slide decks from Pinglab.">
+<Page title="Articles" description="Scientific reports, notes, and slide decks from Pinglab." compact>
   <h1 class="visually-hidden">Articles</h1>
   <PostsList posts={posts} />
 </Page>

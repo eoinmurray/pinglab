@@ -6,11 +6,11 @@ CYCLE_COUNT_SOURCE = "spikes_per_cycle_distribution_equal_network.svg"
 PERTURBATION_SOURCE = "numbers.json"
 TIMESTEP_SOURCE = "numbers.json"
 FIGURES = (
-    "onset_super_compound.png",
+    "onset_super_compound.svg",
     "onset_super_compound.pdf",
-    "cycle_participation_compound.png",
+    "cycle_participation_compound.svg",
     "cycle_participation_compound.pdf",
-    "robustness_compound.png",
+    "robustness_compound.svg",
     "robustness_compound.pdf",
 )
 

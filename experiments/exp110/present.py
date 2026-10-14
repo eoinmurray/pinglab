@@ -264,7 +264,7 @@ def build_cycle_participation_compound(
         bottom_axes[0].set_ylabel("Equal-network\nmean fraction", fontsize=theme.SIZE_LABEL, color="black")
         fig.text(0.54, 0.045, "Spikes per neuron–cycle", ha="center", fontsize=theme.SIZE_LABEL, color="black")
         fig.subplots_adjust(left=0.09, right=0.98, bottom=0.14, top=0.94)
-        save_figure(fig, output_stem, formats=("png", "pdf"))
+        save_figure(fig, output_stem, formats=("svg", "pdf"))
     finally:
         plt.close(fig)
         theme.set_paper_mode(previous_paper_mode)
@@ -347,7 +347,7 @@ def build_robustness_compound(
     accuracy_axis.spines["top"].set_visible(False)
     theme.label_panels(axes)
     fig.subplots_adjust(left=0.075, right=0.92, bottom=0.29, top=0.87, wspace=0.60)
-    save_figure(fig, output_stem, formats=("png", "pdf"))
+    save_figure(fig, output_stem, formats=("svg", "pdf"))
     plt.close(fig)
     theme.set_paper_mode(previous_paper_mode)
     theme.apply()

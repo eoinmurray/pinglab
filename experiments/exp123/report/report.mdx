@@ -1,0 +1,210 @@
+---
+id: exp123
+title: Output Evidence Against Time and Gamma Cycles
+author: Eoin Murray
+thumbnail: confidence_time.png
+created_at: '2026-10-06'
+updated_at: '2026-10-13'
+description: Paired inhibitory-decay probes of output evidence, matched-coordinate accuracy and network spike cost at a 25 Hz input encoding rate.
+abstract: >-
+  We examined how inhibitory decay changes activity and decision-making in a
+  trained spiking network. Longer decay slowed the network’s rhythm and reduced
+  its spike rate. Slower networks took longer to classify images, but required
+  roughly the same number of cycles. Longer decay also reduced spike cost,
+  illustrating a trade-off between processing speed, accuracy and activity.
+  These results concern one trained network.
+collection: neuromodulation
+tags: [data, v36.0.0]
+inputs: ["exp123"]
+---
+
+import RunFigure from '../../../site/src/components/RunFigure.astro';
+
+## Background
+
+We imported the trained PING network from
+[exp022](https://pl.eoinmurray.info/exp022/) — [*MNIST*](https://pl.eoinmurray.info/exp022/)
+and kept its weights fixed. The [parameter table](#parameters)
+lists the network and simulation settings.
+
+## Inhibitory decay and network dynamics
+
+We varied inhibitory decay in a separate overview sweep.
+The same frozen trained network was presented with ten paired encodings of
+one MNIST test image at a maximum pixel rate of 25 Hz. This broader 3–30 ms
+sweep provides context for the 3, 6 and 12 ms comparisons that follow.
+
+<RunFigure experiment="exp123" file="inhibitory_overview.png" number={1} id="fig-overview" alt="Four metrics show how inhibitory decay changes spectral frequency, excitatory participation, total excitatory spike rate and rhythmicity; three excitatory and inhibitory rasters show activity at decay times of 3, 6 and 12 ms.">
+  A: excitatory-population power spectral density (PSD) peak in a 5–150 Hz search.
+  B: distinct excitatory neurons per accepted complete cycle as a percentage
+  of all excitatory neurons. C: total excitatory spikes per second.
+  D: excitatory-autocorrelogram lobe–trough contrast.
+  Black curves aggregate ten encoding draws: A uses the peak of the mean PSD;
+  B–D use mean draw-level measurements. Dashed lines mark the 6 ms training
+  decay constant. E–G: rasters at inhibitory decay constants of 3, 6
+  and 12 ms, respectively; τ denotes inhibitory decay time.
+  All 1,024 excitatory neurons are black;
+  256 inhibitory neurons are red and plotted above them. Rasters use encoding
+  draw 42 from the main-protocol recordings, while A–D summarise
+  the newly executed broader ten-encoding sweep. Rasters include boundary volleys;
+  participation excludes partial edge cycles. Both sets of simulations used
+  the same MNIST test image (digit seven),
+  fixed trained weights and the full 200 ms without burn-in.
+  No uncertainty estimates or independent training replicates are shown.
+  Spectral peaks can select harmonics.
+</RunFigure>
+
+Longer inhibitory decay reduced the spectral peak frequency and total
+excitatory spike rate in this sweep ([Figure 1](#fig-overview), A and C),
+while the proportion of excitatory neurons participating per cycle changed
+comparatively little (B). The rasters illustrate the wider spacing between
+volleys at longer decay times (E–G). These observations describe one image
+and one trained network.
+
+## Evidence across time
+
+<RunFigure experiment="exp123" file="confidence_time.png" number={2} id="fig-time" alt="Nine panels in a three-by-three grid show mean true-class cumulative-spike softmax scores versus elapsed time under three inhibitory-decay settings.">
+  A–I each show one of the first nine MNIST test images.
+  We converted each image into 100 random spike trains, with brighter
+  pixels having higher average spike rates (25 spikes per second for
+  a fully bright pixel).
+  Each train was presented for 200 ms to the same trained network with
+  fixed weights, using three inhibitory decay times: 3 ms (black),
+  6 ms (red) and 12 ms (cyan). The x-axis shows elapsed time. The y-axis
+  shows the score assigned to the correct digit, calculated by applying
+  softmax to accumulated output spike counts. Each curve averages the
+  100 trials; no uncertainty bands are shown. This score is not a
+  calibrated probability of being correct.
+</RunFigure>
+
+We encoded each of the first nine MNIST test images into 100 random
+spike trains and reused each train at $\tau_{\mathrm{GABA}} = 3, 6, 12$ ms,
+where $\tau_{\mathrm{GABA}}$ is the inhibitory decay time constant.
+Brighter pixels had higher average spike rates, with 25 spikes per second
+for a fully bright pixel.
+Each presentation lasted 200 ms, with 0.1 ms simulation steps. For each
+trial, the logit for digit $c$ was its accumulated output spike count:
+
+$$
+z_c(t) = \sum_{k=1}^{\lfloor t / \Delta t_{\mathrm{sim}} \rfloor} s_c[k]. \tag{1}
+$$
+
+Here, $t$ is elapsed time, $\Delta t_{\mathrm{sim}}$ is the timestep, $k$ indexes
+simulation steps, and $s_c[k]$ is one when output neuron $c$ spikes,
+otherwise zero. We converted these logits into scores using softmax:
+
+$$
+p_c(t) = \frac{\exp(z_c(t))}{\sum_{j=0}^{9} \exp(z_j(t))}. \tag{2}
+$$
+
+Here, $p_c(t)$ is the score for digit $c$, and $j$ ranges over all ten
+digits. We averaged the correct digit's score *after softmax* across
+100 trials, separately for each decay setting. These scores are uncalibrated.
+
+In [Figure 2](#fig-time), we plot these mean correct-digit scores against
+elapsed time, with one panel per image and one curve per inhibitory decay
+setting. Each trace averages 100 random encoding seeds for the same image,
+with each seed reused across the three decay settings. Each point therefore
+summarises the relative evidence accumulated
+for the correct digit by that time. A higher curve means a larger mean
+softmax score for the correct digit; an earlier rise means that this evidence
+developed sooner. The curves compare the timing of evidence accumulation,
+rather than the fraction of trials classified correctly.
+
+## Evidence per completed volley
+
+<RunFigure experiment="exp123" file="confidence_cycles.png" number={3} id="fig-cycles" alt="The same nine test images as Figure 2 show mean cumulative softmax scores sampled at inhibitory troughs against completed volley count.">
+  A–I: the same nine MNIST test images, using the score definition
+  and colours of <a href="#fig-time">Figure 2</a>. Each point samples the
+  cumulative score at the inhibitory trough after the numbered volley,
+  then averages across 100 trials. The trough is the minimum of smoothed
+  I activity between successive accepted peaks; the final peak is excluded
+  because it has no following boundary.
+  Volley zero shows the initial score of 0.1 at time zero, not a detected volley.
+  Only counts available in every trial and setting are shown; lines
+  connect integer counts without representing elapsed time.
+  Clustering and score saturation can mimic alignment.
+</RunFigure>
+
+We detected inhibitory peaks after 1 ms Gaussian smoothing, requiring
+≥2 ms spacing and prominence ≥max(1 spike, 20% of the maximum).
+Accepted sequences required a complete interior cycle and mean
+inhibitory participation ≥50%.
+
+We defined each volley's completion as the minimum of smoothed
+inhibitory activity between its peak and the next. At that boundary,
+we sampled the correct digit's softmax score from all output spikes
+accumulated since onset.
+
+We averaged these samples across 100 trials for each decay setting,
+using completed-volley counts available in every trial and setting.
+The final unbounded volley is excluded; count zero shows the initial
+score of 0.1 at time zero, not a detected volley.
+Clustering and score saturation can mimic alignment.
+
+## Sustained correct decisions
+
+<RunFigure experiment="exp123" file="sustained_decisions.png" number={4} id="fig-decisions" alt="The same nine images as Figures 2 and 3 show median stable correct decisions versus GABA decay: time in row A and completed volley count in row B, with points connected across decay settings.">
+  A: time (ms). B: completed volley count, using the inhibitory
+  trough boundaries of <a href="#fig-cycles">Figure 3</a>.
+  B uses the first completion at which the decision is already stable.
+  Both rows show GABA decay on y for images 00–08. Each point is the
+  median among trials whose correct digit becomes the unique winner
+  and stays so through 200 ms. Lines connect the three decay settings.
+  Each row uses a shared x-axis range across images.
+  Failed trials are excluded; B also
+  requires completion-boundary coverage within Figure 3's shared count
+  range. Trial counts are integers; medians can be fractional.
+</RunFigure>
+
+For the same nine images and 100 trials per decay setting, we found the
+earliest update at which the correct digit had the largest cumulative
+output spike count and remained the unique winner through 200 ms.
+Ties interrupt stability; trials without a stable correct decision were excluded.
+
+We used the first completed-volley trough boundary at or after each
+stable decision. This is the first sampled point at which the decision
+is already stable, numbered from one.
+Counts required accepted volley sequences, a decision no later than the
+final completion boundary, and the shared completed-volley count range.
+We summarised median decision time and median completed-volley count
+against inhibitory decay. The two summaries can include different
+trial subsets. Trial counts are integers; medians can be fractional.
+Stability was assessed retrospectively, not by a stopping rule.
+
+## Accuracy at matched coordinates
+
+<RunFigure experiment="exp123" file="accuracy_comparison.png" number={5} id="fig-accuracy" alt="Three panels compare accuracy across inhibitory decay settings at matched elapsed time, cycle position and cumulative input-spike count.">
+  A–C: accuracy against time, cycle position and cumulative input
+  spikes. Sample: 500 images, 50 per digit,
+  three paired encodings; decay 3/6/12 ms in black/red/cyan.
+  No uncertainty bands are shown. Accuracy is omitted where fewer than
+  80% of paired trials reach the coordinate. Later coordinates select subsets.
+  Equal spike counts do not guarantee equal information.
+</RunFigure>
+
+We compared accuracy against time, cycle position and cumulative input
+spikes. The sample comprised 500 images,
+50 per digit, with three paired encodings and inhibitory decay times of
+3, 6 and 12 ms.
+Accuracy is omitted below 80% coverage. Later coordinates select subsets.
+Equal spike counts do not guarantee equal information.
+
+## Accuracy and spike cost
+
+<RunFigure experiment="exp123" file="deadline_tradeoffs.png" number={6} id="fig-tradeoffs" alt="Two panels show mean network spikes versus elapsed time and accuracy versus network spikes at a 25 Hz input encoding rate.">
+  A: mean network spikes versus elapsed time. B: accuracy versus spike cost.
+  Input encoding: 25 Hz; colours: 3/6/12 ms inhibitory decay.
+  Points mark five elapsed times,
+  connected within each setting. Sample: 500 images, three paired
+  encodings. No uncertainty bands are shown.
+  Cost includes E, I and output spikes, excluding input.
+  Spike cost is not physical energy.
+</RunFigure>
+
+We compared mean network spikes versus elapsed time
+and accuracy versus spike cost at an encoding rate of 25 Hz
+and inhibitory decay times of 3, 6 and 12 ms. We evaluated five elapsed times
+within each setting, using 500 images and three paired encodings.
+Cost includes excitatory, inhibitory and output spikes, excluding input.
+Spike cost is not physical energy.

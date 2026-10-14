@@ -29,9 +29,9 @@ source and no separate external GABA or conductance-background process.
 Rates are per individual afferent. The current protocol runs seed 7 for 1,100 ms, with a hidden 500 ms baseline before the visible 600 ms window,
 matching the reference Figure 4 display duration and pulse shape: 200 ms baseline,
 50 ms rise, 100 ms plateau, 50 ms fall, and 200 ms recovery. Both E- and I-targeted
-rates follow 0.8 → 1.2 → 0.8 Hz. Initial voltage remains −65 mV. The video shows
-the final 600 ms, rebased to 0–600 ms, in 625 frames (25 seconds); the raster uses the same interval and a
-250–350 ms close-up. Earlier calibration and diagnostic runs remain documented
+rates follow 0.8 → 1.2 → 0.8 Hz. Initial voltage remains −65 mV. The browser replay shows
+the final 600 ms, rebased to 0–600 ms, over 25 seconds at 1× speed; the raster
+uses the same interval and a 250–350 ms close-up. Earlier calibration and diagnostic runs remain documented
 below as history.
 
 ## Independent stages
@@ -58,7 +58,8 @@ bundle contains zero placeholders for external projections; compute binds the
 actual diagonal matrices before execution. The full physical `[source, target]`
 matrices in `weights.npz`, together with the bundle, are the executed model.
 Do not execute the placeholder bundle alone and claim it reproduces this run.
-The diagram describes the bound physical model, not placeholder initializers.
+The diagram shows the compiled topology; executed physical weights remain
+in `weights.npz`.
 
 Analysis retains causal 20 ms population-rate traces, mean conductances onto E,
 mean voltages, prescribed source rates, and baseline/plateau/recovery firing
@@ -67,36 +68,47 @@ spikes), mean pair correlation from 10 ms counts in at most 100 sampled cells,
 SNNSIM autocorrelation contrast, and the population spectrum. These are
 descriptive checks, not a PING classifier. Silence is reported explicitly.
 Presentation consumes these measurements without recomputing estimators.
-The single presentation command now emits the video, network diagram, full-population
-spike raster, reference-paper crop and `numbers.json`; the former raster and
+The single presentation command emits the network diagram, full-population
+spike raster, reference-paper crop, `numbers.json` and `circuit.json`; the former raster and
 reference augmentation commands have been consolidated into this stage.
+
+The browser export reuses the recorded visible interval at 0.1 ms resolution,
+including input-count multiplicity, 160 evenly sampled E neurons and 40 I
+neurons, their matching private input channels, and up to 80 actual nonzero
+edges per recurrent projection. `report/PanelA.astro` loads this flat present
+export through the site media route; `report/js/panel-a.js` loops the 600 ms
+recording over 25 seconds. The four groups use a light theme, with only a
+millisecond clock and pause control. The right-hand pistons replay the
+analysis-recorded `mean_g_e`, `mean_g_i`, `mean_v_e` and `mean_v_i` at the
+same timestep: conductances are onto E, and voltages average each full
+population. Conductance scales share zero and the visible maximum plus
+15%; voltages share −80 to −50 mV. The afferent-rate plot below them
+shows both complete analysis-recorded prescribed rate traces with a cursor
+using the same replay time. A 0.25×–4× speed slider changes only playback;
+1× retains the 25-second loop. Neuron positions and 3 ms activity trails are display
+choices, not new simulation or measurements.
 
 ## Shared tools
 
-SNNLang authors and validates the graph and lowers it to its structural diagram.
+SNNLab authors and validates the graph. The structural diagram uses the public
+`lang.diagram(bundle, view="expanded")` → `viz.render_diagram(...)` workflow,
+without modifying its nodes, edges, groups, labels, theme or layout.
+The presentation record records the SNNLab
+version and rendering API. The network diagram is the article’s first figure.
 SNNSim GraphExecutor runs the network and its rhythmicity helper supplies the
 autocorrelation measurement. SNNViz owns the Recording contract, FigureGrid
-composition and nested panels, grid_layout cell positions, FrameTimeline,
-animation encoding and Graphviz diagram rendering. Matplotlib remains only
-the experiment-specific composition layer for pistons, traces and activity
-marks, as permitted by SNNViz's composition boundary. NumPy generates exact
+composition and Graphviz diagram rendering. Matplotlib renders the static
+spike raster; PixiJS renders the browser circuit, pistons and rate plot. NumPy generates exact
 Poisson counts because the existing SNNSim Poisson binding is Bernoulli-based.
 
 ## Visual conventions
 
-The video retains the previous white background, monospace titles, black E/red I
-palette, six-panel composition and piston means. Titles sit outside panels;
-mean labels sit inside above their pistons. D and E show the entire visible
-interval with ten integer time ticks, revealing only elapsed data. F labels
-sit inside the panel and its bottom axis is µS. Constant weights are shown as
-point masses, without invented distribution widths.
-
-Panel A shows 400 of the 1,600 E cells and 100 of the 400 I cells, evenly sampled,
-and at most 100 actual recurrent edges per pathway. Input dots represent
-aggregate target-specific streams, not all individual afferents. Input
-projections are excitatory even when their target label is red. Edge flashes
-use delayed arrivals; dots use recent events for visibility. Panel C shows a
-40 ms conductance trail. The 25 s video plays at 25 fps, with approximately 0.96 ms of source time per frame.
+The browser replay uses a light theme, blue E and rose I neurons, and grey
+travelling spike markers. Private-input events use dots; E↔I events have
+stronger trails. Background connection lines are omitted. The circuit,
+pistons and afferent-rate cursor share one clock, pause state, playback
+speed and timeline scrubber. The former six-panel video and poster renderer
+has been removed; completed historical exports remain immutable.
 
 Validation:
 

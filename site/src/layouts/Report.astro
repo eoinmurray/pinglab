@@ -3,11 +3,11 @@ import type { CollectionEntry } from 'astro:content';
 import Page from './Page.astro';
 import { dependencies, downstream } from '../lib/dependencies';
 import Dataset from '../components/Dataset.astro';
-import { collectionUrl, collectionLabel } from '../lib/collections';
+import { collectionUrl, collectionLabel, collectionMemberships } from '../lib/collections';
 
-const parameterTables = import.meta.glob('../../../md/experiments/exp*/parameters.mdx', { eager: true, import: 'default' });
-const appendices = import.meta.glob('../../../md/experiments/exp*/appendix.mdx', { eager: true, import: 'default' });
-const referenceLists = import.meta.glob('../../../md/experiments/exp*/references.mdx', { eager: true, import: 'default' });
+const parameterTables = import.meta.glob('../../../experiments/exp*/report/parameters.mdx', { import: 'default' });
+const appendices = import.meta.glob('../../../experiments/exp*/report/appendix.mdx', { import: 'default' });
+const referenceLists = import.meta.glob('../../../experiments/exp*/report/references.mdx', { import: 'default' });
 
 interface Props {
   report: CollectionEntry<'reports'> | CollectionEntry<'notes'>;
@@ -15,11 +15,12 @@ interface Props {
 }
 const { report, headings } = Astro.props;
 const { data } = report;
+const collections = collectionMemberships(data.collection);
 const experiment = report.collection === 'reports' ? report : undefined;
-const articleDirectory = experiment ? `../../../md/experiments/${experiment.data.id}` : undefined;
-const Parameters = parameterTables[`${articleDirectory}/parameters.mdx`] as import('astro').MarkdownInstance<Record<string, unknown>>['Content'] | undefined;
-const References = referenceLists[`${articleDirectory}/references.mdx`] as import('astro').MarkdownInstance<Record<string, unknown>>['Content'] | undefined;
-const Appendix = appendices[`${articleDirectory}/appendix.mdx`] as import('astro').MarkdownInstance<Record<string, unknown>>['Content'] | undefined;
+const articleDirectory = experiment ? `../../../experiments/${experiment.data.id}/report` : undefined;
+const Parameters = await parameterTables[`${articleDirectory}/parameters.mdx`]?.() as import('astro').MarkdownInstance<Record<string, unknown>>['Content'] | undefined;
+const References = await referenceLists[`${articleDirectory}/references.mdx`]?.() as import('astro').MarkdownInstance<Record<string, unknown>>['Content'] | undefined;
+const Appendix = await appendices[`${articleDirectory}/appendix.mdx`]?.() as import('astro').MarkdownInstance<Record<string, unknown>>['Content'] | undefined;
 const hasDataset = experiment && (experiment.data.tags.includes('data') || (dependencies[experiment.data.id]?.length ?? 0) > 0 || downstream(experiment.data.id).length > 0);
 const contents = [
   ...(data.abstract ? [{ slug: 'abstract', text: 'Abstract' }] : []),
@@ -47,7 +48,13 @@ const frontMatter = {
       <div><h3>Author</h3><p class="author">{data.author}</p></div>
       <div><h3>Created</h3><p><time datetime={data.created_at}>{data.created_at}</time></p></div>
       <div><h3>Updated</h3><p><time datetime={data.updated_at}>{data.updated_at}</time></p></div>
-      <div><h3>Collection</h3><p><a class="collection-link" href={collectionUrl(data.collection)}>{collectionLabel(data.collection)}</a></p></div>
+      <div>
+        <h3>{collections.length === 1 ? 'Collection' : 'Collections'}</h3>
+        <p>{collections.map((collection, index) => <>
+          {index > 0 && <br />}
+          <a class="collection-link" href={collectionUrl(collection)}>{collectionLabel(collection)}</a>
+        </>)}</p>
+      </div>
     </div>
   </d-byline>
   <div class="report-body base-grid">
@@ -95,10 +102,14 @@ const frontMatter = {
   d-byline { background: #f6f7f4; }
   d-appendix { background: #f6f7f4; color: rgba(0, 0, 0, .65); }
   @media print { d-byline, d-appendix { background: white; } }
-  d-byline .experiment-id { font-weight: 600; }
+  d-byline .experiment-id { font-size: 18px; font-weight: 600; }
   d-byline .collection-link:hover { text-decoration: underline; }
   .report-appendix { min-width: 0; margin-bottom: 2rem; }
   d-article > .source-table { grid-column: text; }
+  :is(d-article, d-appendix) figcaption { margin-top: 1.25rem; }
+  :is(d-article, d-appendix) .table-figure figcaption > :first-child { margin-top: 0; }
+  :is(d-article, d-appendix) .table-figure figcaption > :last-child { margin-bottom: 0; }
+  d-appendix .source-table caption { padding-top: .65rem; }
   @media (min-width: 768px) { d-byline .byline { grid-template-columns: repeat(3, minmax(0, 1fr)); row-gap: 12px; } }
   @media (min-width: 1180px) { d-byline .byline { grid-template-columns: repeat(var(--byline-columns), minmax(0, 1fr)); } }
   .report-body { position: relative; --report-content-top: 4rem; }

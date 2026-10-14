@@ -76,7 +76,7 @@ def plot_rate_rasters(samples: list[dict], out_path: Path, run_id: str) -> None:
     theme.label_panels(axes)
     fig.subplots_adjust(left=0.07, right=0.76, top=0.9, bottom=0.08)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    save_figure(fig, out_path, formats=("png", "pdf"))  # dense raster: PNG, not SVG
+    save_figure(fig, out_path, formats=("svg", "pdf"))
     plt.close(fig)
 
 
@@ -263,7 +263,7 @@ def plot_ei_rasters(samples: list[dict], out_path: Path, run_id: str) -> None:
     theme.label_panels(axes)
     fig.subplots_adjust(left=0.07, right=0.88, top=0.98, bottom=0.12)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    save_figure(fig, out_path, formats=("png", "pdf"))  # dense raster: PNG, not SVG
+    save_figure(fig, out_path, formats=("svg", "pdf"))
     plt.close(fig)
 
 
@@ -371,7 +371,6 @@ def fig_loop_transfer_compound(points, raster_lo, raster_hi, out_path, run_id):
     ax_a.legend(fontsize=theme.SIZE_LEGEND, frameon=False, loc="lower left")
     _despine(ax_a)
 
-    # Compound contains dense single-trial raster panels: rasterise as PNG, not SVG.
     theme.label_panels((*raster_axes, ax_r, ax_a))
-    save_figure(fig, out_path, formats=("png", "pdf"))
+    save_figure(fig, out_path, formats=("svg", "pdf"))
     plt.close(fig)

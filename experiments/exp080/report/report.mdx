@@ -1,0 +1,172 @@
+---
+id: "exp080"
+title: "Decoder Accuracy Improves with Input Rate"
+created_at: "2026-08-10"
+updated_at: "2026-08-31"
+description: "Direct-simulation decoder calibration of the input-rate range for later variable-rate PING training."
+collection: "gamma-gated-sparsity"
+author: "Eoin Murray"
+tags: ["data", "v36.0.0"]
+inputs: ["exp080"]
+---
+
+import ReportAvailability from '../../../site/src/components/ReportAvailability.astro';
+import DataBranch from '../../../site/src/components/DataBranch.astro';
+import RunFigure from '../../../site/src/components/RunFigure.astro';
+
+import { reportData, display, mean, percent } from '../../../site/src/lib/report-data';
+export const run = await reportData("exp080", { allowUnavailable: true });
+export const p = run?.parameters;
+export const d = run?.decision;
+export const seedCount = run ? display(p.seeds.length) : 'unavailable';
+export const validationImages = run ? display(p.validation_count) : 'unavailable';
+export const selectedEpochs = run ? display(run.training.map(record => String(record.selected_epoch)).join(", ")) : 'unavailable';
+export const selectedValidationAccuracies = run ? display(run.training.map(record => percent(record.selected_validation_accuracy)).join(", ")) : 'unavailable';
+export const pRatesHzAt2 = run ? display(p.rates_hz.at(2)) : 'unavailable';
+export const pRatesHzAt5 = run ? display(p.rates_hz.at(5)) : 'unavailable';
+export const pRatesHzLast = run ? display(p.rates_hz.at(-1)) : 'unavailable';
+export const pProbeUs = run ? display(p.probe_uS) : 'unavailable';
+export const pPresentationMs = run ? display(p.presentation_ms) : 'unavailable';
+export const pctPUsefulAccuracy = run ? display(percent(p.useful_accuracy)) : 'unavailable';
+export const testImages = run ? display(p.test_count) : 'unavailable';
+export const pctDRowsFirstAccuracy = run ? display(percent(d.rows[0].accuracy)) : 'unavailable';
+export const dRowsFirstRateHz = run ? display(d.rows[0].rate_hz) : 'unavailable';
+export const pctDRowsLastAccuracy = run ? display(percent(d.rows.at(-1).accuracy)) : 'unavailable';
+export const dRowsLastRateHz = run ? display(d.rows.at(-1).rate_hz) : 'unavailable';
+export const dRTrainHz = run ? display(d.r_train_hz) : 'unavailable';
+export const trainingRateAccuracy = run ? display(percent(d.rows.filter(row => row.rate_hz == d.r_train_hz)[0].accuracy)) : 'unavailable';
+export const dRecommendationCeilingHz = run ? display(d.recommendation.ceiling_hz) : 'unavailable';
+export const availableTrainingImages = run ? display(run.training_dataset.image_shape[0]) : 'unavailable';
+export const trainingImages = run ? display(p.train_count) : 'unavailable';
+export const unusedTrainingImages = run ? display((run.training_dataset.image_shape[0] - p.train_count - p.validation_count)) : 'unavailable';
+export const pDtMs = run ? display(p.dt_ms) : 'unavailable';
+export const inputRates = run ? display(p.rates_hz.map(String).join(", ")) : 'unavailable';
+export const epochs = run ? display(p.epochs) : 'unavailable';
+export const seeds = run ? display(p.seeds.map(String).join(", ")) : 'unavailable';
+
+<ReportAvailability report="exp080" />
+
+<span id="loc-1" />
+
+## Abstract
+
+This experiment asked which input rates preserve enough information in synaptically and membrane-filtered MNIST images for classification. In the retained calibration, nonlinear decoders were trained across the tested rates and evaluated on held-out digits.
+
+Decoder accuracy improved with input rate, yielding a practical tested range for later variable-rate PING experiments. The result calibrates the filtering and decoding pipeline; it does not measure PING-network accuracy or predict performance between tested rates.
+
+<span id="loc-2" />
+
+## Results
+
+<span id="loc-3" />
+
+### Mixed-rate validation trajectories
+
+The retained calibration contains three independently initialized nonlinear decoders trained on fresh encoding draws sampled across the complete input-rate grid ([Fig. 1](#loc-4)).
+
+<RunFigure report="exp080" experiment="exp080" allowUnavailable file="training_history.svg" number={1} id="loc-4" alt="Mixed-rate validation accuracy over training epochs, with one curve per decoder.">
+  Each curve shows validation accuracy by epoch for one of {seedCount} training replicates. Accuracy is the fraction correct across {validationImages} validation presentations, with input rate sampled uniformly and a fresh encoding draw used for every presentation and epoch.
+</RunFigure>
+
+If mixed-rate training learned digit structure that survived stochastic filtering, validation accuracy should improve across all three training replicates rather than only one trajectory.
+
+Each replicate reached its maximum late in training. The selected epochs were {selectedEpochs}, with validation accuracies {selectedValidationAccuracies}.
+
+**Notes.**
+
+1. The first occurrence of the maximum validation accuracy selected the checkpoint for each training replicate; later ties did not replace it.
+
+<span id="loc-5" />
+
+### Filtered digit features
+
+A reused illustration shows one MNIST digit after the same finite-window synaptic and membrane filtering at three input rates ([Fig. 2](#loc-6)).
+
+<RunFigure report="exp080" experiment="exp080" allowUnavailable file="feature_images.svg" number={2} id="loc-6" alt="One MNIST input digit and filtered feature images at 0.5, 5 and 25 Hz.">
+  **(A)** Reused illustrative input digit and its originally simulated features at **(B–D)** {pRatesHzAt2}, {pRatesHzAt5} and {pRatesHzLast} Hz, respectively. Simulations used {pProbeUs} μS conductance increments, {pPresentationMs} ms presentations and independent encoding draws; feature panels share a 0–65 mV scale.
+
+<DataBranch available={Boolean(run)} selected={run?.illustration.kind === "historical-image"}>
+The illustration was carried forward unchanged, not regenerated.
+</DataBranch>
+</RunFigure>
+
+Because sparse Bernoulli input produces a small, random number of events, reducing the rate should remove responses from different pixels rather than attenuate the whole digit uniformly.
+
+At 0.5 Hz only isolated fragments remained. The digit became progressively more complete at 5 and 25 Hz, consistent with stochastic event loss rather than uniform contrast scaling.
+
+<span id="loc-7" />
+
+### Held-out rate-accuracy curve
+
+The three selected decoders received identical held-out feature vectors and encoding draws. The practical floor required every decoder to reach {pctPUsefulAccuracy} accuracy at a tested rate ([Fig. 3](#loc-8)).
+
+<RunFigure report="exp080" experiment="exp080" allowUnavailable file="psychometric.svg" number={3} id="loc-8" alt="Held-out accuracy across tested input rates, showing the decoder mean and minimum-to-maximum range.">
+  Points show mean accuracy across {seedCount} training replicates at each maximum-pixel encoding rate; every replicate received the same {testImages} held-out images and encoding draws. Shading spans the minimum–maximum replicate accuracy, not a confidence interval. Rules mark 10% chance and the {pctPUsefulAccuracy} criterion.
+</RunFigure>
+
+If higher input rates preserved more digit structure, held-out accuracy should rise before approaching a plateau.
+
+Mean accuracy across training replicates increased monotonically from {pctDRowsFirstAccuracy} at {dRowsFirstRateHz} Hz to {pctDRowsLastAccuracy} at {dRowsLastRateHz} Hz.
+
+<DataBranch available={Boolean(run)} selected={run?.decision.criterion_crossed === true}>
+The selected floor was {dRTrainHz} Hz: all three decoders first crossed the criterion there, and mean accuracy was {trainingRateAccuracy}.
+</DataBranch>
+
+<DataBranch available={Boolean(run)} selected={run?.decision.criterion_crossed === false}>
+No rate met the criterion for every decoder, so the floor was right-censored at {dRecommendationCeilingHz} Hz.
+</DataBranch>
+
+The resulting interval is a decoder-relative calibration without interpolation; it does not establish PING-network performance.
+
+<span id="loc-9" />
+
+## Methods
+
+1. **Retained computation.** We reused a completed calibration containing three trained decoders, their validation histories and their held-out correctness records. We did not rerun feature simulation or decoder training for this article.
+
+2. **MNIST partitions.** Of the {availableTrainingImages} official training images, the first {trainingImages} trained the decoders and the next {validationImages} selected checkpoints; the remaining {unusedTrainingImages} were unused. Evaluation used the first {testImages} images from the separate official test partition, with no overlap.
+
+3. **Generate input events.** Each normalized pixel intensity $x_{i} \in [ 0 , 1 ]$ generated an independent binary event $s_{i [ k ]}$ at integration timestep $\Delta t_{\text{sim}} =$ {pDtMs} ms:
+
+   $$
+   p_{\text{event} , i} = \frac{r_{\text{input,max}} x_{i} \Delta t_{\text{sim}}}{1000} , \quad s_{i [ k ]} \sim \text{Bernoulli} ( p_{\text{event} , i} ) .
+   \tag{1}
+   $$
+
+   Here $i$ indexes pixels, $k$ is the simulation-step index, $p_{\text{event} , i}$ is event probability, and $r_{\text{input,max}}$ is maximum-pixel encoding rate in spikes/s; 1000 converts milliseconds to seconds.
+
+4. **Filter synaptic conductance.** Excitatory conductance $g_{i [ k ]}$, in μS, decayed each step by $\exp ( - \Delta \frac{t_{\text{sim}}}{\tau_{\text{AMPA}}} )$ before an event added $w_{\text{event}}$. The AMPA time constant was $\tau_{\text{AMPA}} = 2$ ms and event strength was $w_{\text{event}} =$ {pProbeUs} μS.
+
+5. **Integrate membrane voltage.** During simulation step $k$, the updated conductance $g_{i [ k ]}$ was held fixed while each non-spiking membrane voltage $V_{m , i} ( t )$ obeyed
+
+   $$
+   C_{m} \frac{d V_{m , i}}{d t} = g_{L} ( E_{L} - V_{m , i} ) + g_{i [ k ]} ( E_{e} - V_{m , i} ) .
+   \tag{2}
+   $$
+
+   Capacitance was $C_{m} = 1$ nF, leak conductance $g_{L} = 0.05$ μS, leak reversal $E_{L} = - 65$ mV and excitatory reversal $E_{e} = 0$ mV. Starting at zero conductance and $E_{L}$, voltage advanced by the exact exponential solution for that step. Simulation and decoder arithmetic used single precision.
+
+6. **Form pixel features.** The feature $z_{\text{feature} , i}$, in mV, averaged post-update voltages above rest:
+
+   $$
+   z_{\text{feature} , i} = \frac{1}{N_{t}} \sum_{k = 1}^{N_{t}} ( V_{m , i} ( k \Delta t_{\text{sim}} ) - E_{L} ) \approx \frac{1}{T_{\text{present}}} \int_{0}^{T_{\text{present}}} ( V_{m , i} ( t ) - E_{L} ) \, \mathrm{d} t .
+   \tag{3}
+   $$
+
+   Here $T_{\text{present}} =$ {pPresentationMs} ms, $N_{t} = \frac{T_{\text{present}}}{\Delta} t_{\text{sim}}$ is the timestep count, and physical time at step $k$ is $t_{k} = k \Delta t_{\text{sim}}$. Fresh encoding draws retained finite-window shot-noise effects without a stationary Gaussian approximation\[[1](#ref-1)\].
+
+7. **Train mixed-rate decoders.** At every epoch, we sampled the input rate for each training and validation presentation uniformly from {inputRates} Hz and generated a fresh encoding draw. Each 784–1024–10 ReLU decoder was trained for {epochs} epochs using cross-entropy, Adam with learning rate 0.001, no weight decay and batch size
+
+   1.
+
+8. **Independent training replicates.** Stochastic-stream identifiers {seeds} defined independent model initializations, rate assignments and encoding draws.
+
+9. **Select checkpoints.** At each of the {epochs} eligible epochs, validation accuracy was the fraction correct across {validationImages} validation presentations. The earliest epoch attaining the maximum validation accuracy supplied the selected checkpoint for each training replicate.
+
+10. **Evaluate shared test features.** Every held-out image was simulated once at each tested rate, and all selected decoders received the same feature vector for that image and rate; the feed-forward decoder had no state across presentations. The predicted class $\hat{y}$ was the class $c$ with the largest output logit $z_{c}$, and accuracy was measured per training replicate and rate.
+
+11. **Aggregate held-out accuracy.** For each rate and training replicate, we averaged correctness across {testImages} held-out images. We then recorded the mean, minimum and maximum accuracy across the {seedCount} training replicates at each rate.
+
+12. **Select the tested interval.** The practical floor was the lowest tested rate where every decoder reached {pctPUsefulAccuracy} accuracy, and the ceiling was the highest tested rate. No interpolation was used; an empty qualifying set was reported as right-censored.
+
+13. **Present retained evidence.** We redrew the validation trajectories and rate-accuracy summary from recorded measurements, using the aggregation defined above without interpolation. We reused the original finite-window feature illustration unchanged rather than implying a new simulation.

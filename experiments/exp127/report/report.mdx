@@ -1,0 +1,84 @@
+---
+id: "exp127"
+title: "Introduction to Spiking Neural Networks"
+created_at: "2026-10-14"
+updated_at: "2026-10-14"
+description: "A practical introduction to neurons, temporal computation, and learning for machine learning practitioners and software developers."
+collection: ["guides"]
+author: "Eoin Murray"
+tags: ["data", "v36.0.0"]
+inputs: ["exp127"]
+runs: {"exp127": "exp127-r014-present"}
+abstract: "An introduction to spiking neural networks for machine learning practitioners and software developers. Interactive demonstrations explore how a neuron accumulates input and fires, how synaptic weights combine inputs, and how supervised learning changes a small classifier. A recorded before-and-after comparison shows how training changes weights and output spikes. A training replay highlights a short stretch of the full loss curve. The examples use a synthetic two-class task."
+---
+
+import NeuronAnimation from './NeuronAnimation.astro';
+import ClassifierAnimation from './ClassifierAnimation.astro';
+import TrainingAnimation from './TrainingAnimation.astro';
+
+## Introduction
+
+A leaky integrate-and-fire neuron's input current $I(t)$ charges its membrane capacitance $C_m$. The membrane voltage $V_m$ leaks towards rest $E_L$, with time constant $\tau_m$; $t$ is time.\[[1](#ref-1)\]
+
+$$
+\frac{dV_m}{dt} = -\frac{V_m-E_L}{\tau_m}+\frac{I(t)}{C_m}
+\tag{1}
+$$
+
+Each input pulse $j$ starts at $t_j$, supplies current $I_j$, and lasts one simulation timestep $\Delta t_{\mathrm{sim}}$. Overlapping pulses add; between pulses the input current is zero.
+
+$$
+I(t)=\sum_{j:\,t_j\leq t<t_j+\Delta t_{\mathrm{sim}}} I_j
+\tag{2}
+$$
+
+Reaching the firing threshold $V_{\mathrm{th}}$ produces a spike.
+
+$$
+V_m\geq V_{\mathrm{th}}\;\Rightarrow\;\text{spike}
+\tag{3}
+$$
+
+The voltage then returns immediately to the reset value $V_{\mathrm{reset}}$.
+
+$$
+V_m\leftarrow V_{\mathrm{reset}}
+\tag{4}
+$$
+
+Here, $C_m=200$ pF and $\Delta t_{\mathrm{sim}}=0.25$ ms. Rest and reset are −65 mV, and threshold is −50 mV. Currents are in nA, voltages in mV, and times in ms. There is no refractory period.
+
+<NeuronAnimation />
+
+## Synapses
+
+A synapse connects a presynaptic neuron to a postsynaptic neuron. Its weight sets how strongly an arriving spike affects the receiving neuron.\[[2](#ref-2)\] In this simplified current-based model, the inputs add:
+
+$$
+I[k] = \sum_{i=1}^{N} w_i s_i[k]
+\tag{5}
+$$
+
+$N$ is the number of presynaptic neurons; $w_i$ is the current-pulse amplitude per spike from neuron $i$, in nA. The spike count $s_i[k]$ counts its arrivals during simulation step $k$, usually 0 or 1. Multiple arrivals contribute separately. The sum $I[k]$ is the total current applied throughout that step.
+
+Three independent Poisson spike trains encode rates of 40, 30, and 20 Hz below. These are mean spikes per second, with random exponentially distributed waiting times.\[[3](#ref-3)\] Change a weight to change that connection's contribution; zero removes it. Each arriving spike supplies a rectangular current pulse, without detailed biological synaptic dynamics.
+
+<NeuronAnimation synapses />
+
+## Training
+
+The classifier learns which of its first two inputs has the higher Poisson firing rate; a third supplies background spikes. We trained six nonnegative weights between three input channels and two spiking output neurons. Cross-entropy used their output spike counts. The forward pass retained the hard firing threshold; backpropagation used a smooth surrogate derivative to propagate learning signals through it.\[[4](#ref-4)\]
+
+Training follows a loop: run the inputs forward, compare the output spike counts with the correct classes, calculate gradients, and update the weights. A gradient describes how a small weight change would affect the loss; it is a calculation, not a spike travelling backwards.
+
+The animation uses a separate teaching run: 48 updates on the same batch of 128 training examples. The full graph shows the batch loss, while the network shows one example from that batch. Eight consecutive updates from the stretch with the largest loss decrease are replayed slowly. Weight changes and gradients are recorded; their motion is illustrative.
+
+<TrainingAnimation run="exp127-r014-present" />
+
+## Inference
+
+Once trained, the classifier runs inputs forward with fixed weights to make a prediction. The output with more spikes wins; ties are assigned to Class A.
+
+Training used 128 examples, with 64 separate validation examples selecting the checkpoint. On 128 held-out examples, accuracy increased from 50% to 100%. Toggle **Before Training / After Training** to compare the same recorded input. Before training, both outputs respond equally and fail to discriminate; training changes their relative responses. This is one training run on a synthetic task.
+
+<ClassifierAnimation run="exp127-r014-present" />

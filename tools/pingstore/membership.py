@@ -14,13 +14,18 @@ COLLECTION_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 
 
 def memberships(repo: Path) -> dict[str, str]:
-    """Return active experiment memberships declared by their reports."""
+    """Return each report's primary collection for new run provenance."""
     result: dict[str, str] = {}
     for experiment, metadata in articles(repo).items():
         collection = metadata.get("collection")
-        if not isinstance(collection, str) or not COLLECTION_RE.fullmatch(collection):
+        collections = [collection] if isinstance(collection, str) else collection
+        if (
+            not isinstance(collections, list) or not collections
+            or any(not isinstance(item, str) or not COLLECTION_RE.fullmatch(item) for item in collections)
+            or len(set(collections)) != len(collections)
+        ):
             raise PingstoreError(f"invalid collection for {experiment}: {collection}")
-        result[experiment] = collection
+        result[experiment] = collections[0]
     return result
 
 

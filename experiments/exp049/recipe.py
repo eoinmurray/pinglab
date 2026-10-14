@@ -98,7 +98,7 @@ def refractory_configuration() -> dict:
 
 FIGURES = tuple(
     name + "." + ext
-    for name, exts in [("card__" + c, ("png", "pdf")) for c in COND_ORDER]
+    for name, exts in [("card__" + c, ("svg", "pdf")) for c in COND_ORDER]
     + [("weights__" + c, ("svg", "pdf")) for c in COND_ORDER]
     + [
         (n, ("svg", "pdf"))
@@ -109,7 +109,7 @@ FIGURES = tuple(
             "acc_rate_trajectory",
         )
     ]
-    + [("training_summary", ("svg", "pdf", "png"))]
+    + [("training_summary", ("svg", "pdf"))]
     for ext in exts
 )
 

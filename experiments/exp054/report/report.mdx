@@ -1,0 +1,110 @@
+---
+id: "exp054"
+title: "Pinglab Rythmicity Metric"
+created_at: "2026-06-15"
+updated_at: "2026-09-18"
+description: "Lobe–trough contrast across untrained PING coupling strengths, with private- and shared-input null controls."
+collection: "gamma-gated-sparsity"
+author: "Eoin Murray"
+tags: ["data", "v36.0.0"]
+runs: {"exp054": "exp054-r017-present"}
+inputs: ["exp054"]
+---
+
+import ReportAvailability from '../../../site/src/components/ReportAvailability.astro';
+import DataBranch from '../../../site/src/components/DataBranch.astro';
+import RunFigure from '../../../site/src/components/RunFigure.astro';
+
+<ReportAvailability report="exp054" />
+
+<span id="loc-1" />
+
+## Abstract
+
+We asked where rhythmic activity appears as reciprocal PING coupling activates across the coupling map. We swept coupling directions in a network and compared autocorrelation structure with private- and shared-input controls.
+
+Rhythmic contrast was weak on uncoupled edges and stronger inside the coupled map; shared input imitated contrast without a recurrent loop. This supports the private-input control, but does not establish rate invariance or the spiking transition’s bifurcation type.
+
+<span id="loc-2" />
+
+## Results
+
+<span id="loc-3" />
+
+### Coupling-map structure
+
+On either zero-coupling edge the loop was broken: E fired at 168.91 Hz and contrast was 0.000301, while I was silent when E-to-I coupling was zero. The diagonal examples in panels D/E/F had contrasts 0.000301/0.268/0.989. Coupled conditions generally showed stronger temporal structure, although the map was not strictly monotonic ([Fig. 1](#loc-4)).
+
+<RunFigure report="exp054" experiment="exp054" allowUnavailable file="turnon_maps_compound.png" number={1} id="loc-4" alt="Maps of E rate, I rate and lobe\u2013trough contrast over the coupling grid, above three example E/I rasters showing asynchronous firing and increasingly separated volleys.">
+  **(A–C)** Per-neuron E rate, I rate and lobe–trough contrast, respectively, across the 11×11 coupling grid; $W_{E I}$ and $W_{I E}$ denote E-to-I and I-to-E coupling strengths. The high I rate on one zero edge is colour-clipped. **(D–F)** Rasters at the diagonal conditions marked D, E and F in panel C, respectively; E spikes are black and I spikes red. Each raster shows 200 ms from the first 160 E and 48 I neurons. One seed per condition; no uncertainty estimate.
+</RunFigure>
+
+<span id="loc-5" />
+
+### Coupled-grid rasters
+
+Many coupled-interior conditions showed separated volleys, whereas the zero-E-to-I column had silent I neurons and the zero-I-to-E row lacked inhibitory feedback to E ([Fig. 2](#loc-6)).
+
+<RunFigure report="exp054" experiment="exp054" allowUnavailable file="grid_rasters.png" number={2} id="loc-6" alt="E/I rasters at every other coupling-grid coordinate: dense edge activity and separated volleys in much of the coupled interior.">
+  **(A–AJ)** E/I rasters at a 6×6 subset of coupling coordinates, ordered row-major from high to low $W_{I E}$ and low to high $W_{E I}$; the maps above use all 121 conditions. Display windows and neuron subsets match Figure 1; measurements use all neurons over the full post-burn recording.
+</RunFigure>
+
+<span id="loc-7" />
+
+### Coupled-grid autocorrelograms
+
+Edge autocorrelograms remained near chance. In the coupled interior, short-lag clustering, suppression between volleys and later recurrence peaks supplied complementary temporal evidence ([Fig. 3](#loc-8)).
+
+<RunFigure report="exp054" experiment="exp054" allowUnavailable file="grid_autocorr.png" number={3} id="loc-8" alt="E-population autocorrelograms at a 6\u00d76 subset of coupling coordinates, with lobe and trough markers and a chance reference.">
+  **(A–AJ)** E-population autocorrelograms at the same 6×6 coordinates and in the same row-major coupling order, shown over 0–50 ms. Dotted lines mark the chance reference $A_{\text{corr}} = 1$; markers locate the selected lobe (▲) and trough (▼) of the smoothed curve. $R_{\text{contrast}}$ scores the first lobe and trough, not the later peak’s frequency.
+</RunFigure>
+
+<span id="loc-9" />
+
+### Input-sharing controls
+
+Without an inhibitory loop, the private-input null had a maximum contrast of 0.0392 over 2.00–168.91 Hz. The shared-input null reached 1 at 0.0109 Hz, but that estimate contained only 10 E spikes across the population. At 1.39 Hz its contrast was 0.127. Shared afferents can create short-lag coincidence detected by this score; the sparse extreme also illustrates its finite-sample sensitivity. These single-seed controls do not prove rate invariance or establish rhythmicity from contrast alone ([Fig. 4](#loc-10)).
+
+<RunFigure report="exp054" experiment="exp054" allowUnavailable file="rate_invariance.png" number={4} id="loc-10" alt="Contrast versus measured E firing rate: private-input null values remain small, while the sparsest shared-input nulls show elevated contrast.">
+  Contrast against measured E firing rate. Black and grey points are the private- and shared-input nulls; red points are the PING coupling grid, including its near-zero edges.
+</RunFigure>
+
+<span id="loc-11" />
+
+### Rate-matched null structure
+
+Shared-input examples showed central coincidence without inhibitory feedback; private-input examples showed smaller contrast and finite-sample fluctuations around chance. Their approximate rate matching did not make rates or spike counts equal ([Fig. 5](#loc-12)).
+
+<RunFigure report="exp054" experiment="exp054" allowUnavailable file="null_autocorr.png" number={5} id="loc-12" alt="Low-rate shared- and private-input null autocorrelograms selected by approximate rate matching, with each actual rate labelled.">
+  Null autocorrelograms nearest to target E rates of 1, 2.5 and 5 Hz. Shared-input examples **(A–C)** fired at 1.39/1.39/3.94 Hz; private-input examples **(D–F)** at 2.00/2.00/3.96 Hz. Within each input type, the first two targets selected the same recording; these are repeated displays, not independent observations.
+</RunFigure>
+
+<span id="loc-13" />
+
+## Methods
+
+Untrained PING populations tested coupling-dependent temporal structure; uncoupled controls tested the influence of input sharing. No external theory or trained-network measurements entered this experiment.
+
+1. **Sweep coupling.** We simulated 1,024 E and 256 I neurons at all 11×11 combinations of $W_{E I} = 0$–3 µS and $W_{I E} = 0$–6 µS. Each E neuron received a private 100 Hz Poisson channel with identity weight 0.5. We used a 6 ms GABA decay constant, seed 42, one trial, 0.1 ms steps and 1,000 ms recordings; we discarded the first 100 ms. E/I reset holds were 1.2/0.6 ms.
+
+2. **Construct uncoupled controls.** We set both coupling strengths to zero. We scanned private input at 1/2/5/10/20/40/70/100 Hz and shared input at 8/12/16/20/28/40/60/100 Hz. Shared input used 200 channels, weight 0.2 and 95% initial zero connections. The 100 Hz private origin was shared with the coupling grid, giving 136 unique probes.
+
+3. **Measure rates and autocorrelation.** We divided each population’s post-burn spike count by neuron count and 0.9 s. We binned E spikes at $\Delta t_{\text{bin}} = 1$ ms, obtaining counts $n_{E [ k ]}$ in $N_{\text{bin}} = 900$ bins. For integer lag $\ell = 1 , \ldots , 100$, we calculated
+
+   $$
+   A_{\text{corr} ( \ell )} = \frac{1}{{\langle n_{E} \rangle}^{2} ( N_{\text{bin}} - \ell )} \sum_{k = 0}^{N_{\text{bin}} - \ell - 1} n_{E [ k ]} n_{E [ k + \ell ]} .
+   \tag{1}
+   $$
+
+   Here $k$ indexes bins and $\langle n_{E} \rangle$ is their mean count; physical lag is $\ell \Delta t_{\text{bin}}$. Zero-padded FFT correlation, divided by available overlap and mean count squared, gives chance reference 1. We excluded zero lag.
+
+4. **Locate the lobe and trough.** We smoothed with weights $( 0.25 , 0.5 , 0.25 )$, filling the excluded zero-lag entry from the first lag. We found the first local minimum from lag 2, and the preceding maximum from lag 1. Their smoothed heights define
+
+   $$
+   R_{\text{contrast}} = \frac{A_{\text{lobe}} - A_{\text{trough}}}{A_{\text{lobe}} + A_{\text{trough}}} .
+   \tag{2}
+   $$
+
+   For $0 \le \text{trough} \le \text{lobe}$ and a positive denominator, this lies in $[ 0 , 1 ]$. A missing trough or invalid denominator leaves the score undefined; no trough floor is imposed on contrast.
+
+5. **Present the retained measurements.** We displayed coupling maps, representative rasters, autocorrelograms and input-sharing controls from the saved exp054 analysis.

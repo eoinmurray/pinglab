@@ -190,7 +190,7 @@ def build_onset_super_compound(grid, results, hopf, sweep, mf, meas, out_path):
     _label_panel(frequency_axis, "I")
     exp054_plots._despine(frequency_axis)
 
-    save_figure(fig, out_path, formats=("png", "pdf"))
+    save_figure(fig, out_path, formats=("svg", "pdf"))
     plt.close(fig)
     theme.set_paper_mode(previous_paper_mode)
     theme.apply()

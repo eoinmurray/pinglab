@@ -1,0 +1,121 @@
+---
+id: "exp124"
+title: "SHD"
+created_at: "2026-10-14"
+updated_at: "2026-10-14"
+description: "Two-layer SHD training diagnostics establish tiny-subset fitting and variable held-out learning, with earlier one-layer measurements preserved."
+collection: "datasets"
+author: "Eoin Murray"
+tags: ["data", "v36.0.0"]
+inputs: ["exp124"]
+runs: {"exp124": "exp124-r065-present"}
+---
+
+import ReportAvailability from '../../../site/src/components/ReportAvailability.astro';
+import RunFigure from '../../../site/src/components/RunFigure.astro';
+import Table from '../../../site/src/components/Table.astro';
+import { reportData, display, round } from '../../../site/src/lib/report-data';
+export const run = await reportData('exp124', { allowUnavailable: true });
+export const smoke = run?.smoke;
+export const metric = (model, split, key, initial = false) => smoke ? display(round(smoke.executions.local.conditions[model].epochs[initial ? 0 : 5][split][key], key === 'accuracy' ? 3 : 4)) : 'unavailable';
+export const accuracy = model => smoke ? display(round(100 * smoke.executions.local.conditions[model].epochs[5].validation.accuracy, 1)) : 'unavailable';
+export const change = model => smoke ? display(round(smoke.executions.local.conditions[model].weight_change_l2['input_to_E.weight'], 3)) : 'unavailable';
+export const timings = smoke ? Object.entries(smoke.executions).flatMap(([backend, execution]) => ['coba', 'ping'].map(model => [backend === 'local' ? 'Local CPU' : 'Modal A10G', model.toUpperCase(), round(execution.models[model].duration_seconds, 1)])) : [];
+export const longerMetric = (model, split, key, initial = false) => run ? display(round(run.executions.local.conditions[model].epochs[initial ? 0 : 20][split][key], 4)) : 'unavailable';
+export const longerAccuracy = (model, split) => run ? display(round(100 * run.executions.local.conditions[model].epochs[20][split].accuracy, 1)) : 'unavailable';
+export const longerTimings = run ? ['coba', 'ping'].map(model => ['Local CPU', model.toUpperCase(), round(run.executions.local.models[model].duration_seconds, 1)]) : [];
+export const diagnostics = run?.diagnostics;
+export const pilotAccuracy = (model, seed) => diagnostics ? display(round(100 * diagnostics.selected_cases.find(c => c.configuration.seed === seed).conditions[model].epochs.at(-1).validation.accuracy, 1)) : 'unavailable';
+export const tinyAccuracy = model => diagnostics ? display(round(100 * diagnostics.cases.find(c => c.configuration.variant === 'tuned' && c.configuration.train_per_class === 1 && c.configuration.epochs === (model === 'coba' ? 300 : 100)).conditions[model].epochs.at(-1).train.accuracy, 1)) : 'unavailable';
+export const pilotTimings = diagnostics ? diagnostics.selected_cases.flatMap(c => ['coba', 'ping'].map(model => [c.configuration.seed, model.toUpperCase(), round(c.measurements.models[model].duration_seconds, 1)])) : [];
+
+<ReportAvailability report="exp124" />
+
+## Abstract
+
+Our initial one-layer conductance-based networks changed hidden weights and reduced loss, but classification remained weak. We then investigated two-layer training through tiny fitting checks and reduced spoken-digit pilots. Both networks fitted the tiny subset after changing initialization and optimization settings. Held-out accuracy improved but varied across seeds, especially with inhibitory feedback enabled. These checks support a larger learning experiment; they do not establish competitive recognition or a general benefit from inhibition.
+
+## Results
+
+### One-layer COBA smoke
+
+With feedback disabled, local training loss fell from {metric('coba', 'train', 'loss', true)} to {metric('coba', 'train', 'loss')}, and the input-weight matrix changed by {change('coba')} in its flattened Euclidean norm. Final validation accuracy was {accuracy('coba')}% in both executions ([Fig. 1](#fig-coba)). Gradients remained finite throughout all updates. CPU and GPU accuracies matched at every measured epoch, while cross-entropy differed slightly. This short run demonstrates learning, while its small validation partition limits conclusions about generalisation.
+
+<RunFigure report="exp124" experiment="exp124" allowUnavailable file="smoke_coba_training_curves.svg" number={1} id="fig-coba" alt="One-layer COBA training and validation cross-entropy and accuracy across five completed epochs.">
+  **Reused one-layer COBA learning curves.** We trained input and readout weights on 200 spoken-digit examples and evaluated the same 100 held-out validation examples after each epoch. (A) Mean cross-entropy across each complete split. (B) Classification accuracy across each complete split; the dotted line marks 5% chance accuracy for 20 balanced classes. Black lines identify training and red lines validation; solid lines/circles show local CPU execution and dashed lines/crosses show Modal A10G execution. Epoch zero precedes optimization. Each backend curve represents one seed, with no across-seed average or uncertainty band.
+</RunFigure>
+
+### One-layer PING smoke
+
+With feedback enabled, local training loss fell from {metric('ping', 'train', 'loss', true)} to {metric('ping', 'train', 'loss')}, and the input-weight matrix changed by {change('ping')} in its flattened Euclidean norm. Final validation accuracy was {accuracy('ping')}% in both executions ([Fig. 2](#fig-ping)). Gradients remained finite throughout all updates. CPU and GPU accuracies matched at every measured epoch, while cross-entropy differed slightly. The two smoke runs are insufficient to determine whether inhibition improves spoken-digit recognition.
+
+<RunFigure report="exp124" experiment="exp124" allowUnavailable file="smoke_ping_training_curves.svg" number={2} id="fig-ping" alt="One-layer PING training and validation cross-entropy and accuracy across five completed epochs.">
+  **Reused one-layer PING learning curves.** We used the same examples, initial input/readout weights and shuffled sample order as for COBA, while enabling the fixed excitatory–inhibitory feedback loop. (A) Mean cross-entropy across each complete split. (B) Classification accuracy; the dotted line marks 5% chance accuracy. Black lines identify training and red lines validation; solid lines/circles show local CPU execution and dashed lines/crosses show Modal A10G execution. Epoch zero precedes optimization. Each backend curve represents one seed, with no across-seed average or uncertainty band.
+</RunFigure>
+
+### One-layer COBA after 20 epochs
+
+In a fresh local run with 1,000 training examples, COBA training loss fell from {longerMetric('coba', 'train', 'loss', true)} to {longerMetric('coba', 'train', 'loss')}. Final training accuracy was {longerAccuracy('coba', 'train')}% and validation accuracy {longerAccuracy('coba', 'validation')}% ([Fig. 3](#fig-coba-longer)). Hidden and readout weights changed, and gradients remained finite. Low accuracy on both splits indicates limited fitting under this recipe; this single-seed run does not establish competitive recognition.
+
+<RunFigure report="exp124" experiment="exp124" allowUnavailable file="coba_training_curves.svg" number={3} id="fig-coba-longer" alt="One-layer COBA training and validation cross-entropy and accuracy across twenty completed epochs.">
+  **Reused one-layer COBA longer training.** We trained a freshly initialized 128 E/32 I network on 1,000 spoken-digit examples and evaluated 200 held-out validation examples on local CPU. (A) Mean cross-entropy across each complete split. (B) Classification accuracy; the dotted line marks 5% chance accuracy across 20 balanced classes. Black lines/circles identify training and red lines/circles validation. Epoch zero precedes optimization. Each curve represents one seed, with no across-seed average or uncertainty band. The selected split differs from the five-epoch smoke.
+</RunFigure>
+
+### One-layer PING after 20 epochs
+
+In a fresh local run with 1,000 training examples, PING training loss fell from {longerMetric('ping', 'train', 'loss', true)} to {longerMetric('ping', 'train', 'loss')}. Final training accuracy was {longerAccuracy('ping', 'train')}% and validation accuracy {longerAccuracy('ping', 'validation')}% ([Fig. 4](#fig-ping-longer)). Hidden and readout weights changed, and gradients remained finite. Low accuracy on both splits indicates limited fitting under this recipe; this single-seed run does not establish competitive recognition.
+
+<RunFigure report="exp124" experiment="exp124" allowUnavailable file="ping_training_curves.svg" number={4} id="fig-ping-longer" alt="One-layer PING training and validation cross-entropy and accuracy across twenty completed epochs.">
+  **Reused one-layer PING longer training.** We trained a freshly initialized 128 E/32 I network on 1,000 spoken-digit examples and evaluated 200 held-out validation examples on local CPU. (A) Mean cross-entropy across each complete split. (B) Classification accuracy; the dotted line marks 5% chance accuracy across 20 balanced classes. Black lines/circles identify training and red lines/circles validation. Epoch zero precedes optimization. Each curve represents one seed, with no across-seed average or uncertainty band. The selected split differs from the five-epoch smoke.
+</RunFigure>
+
+### Two-layer COBA diagnosis
+
+The selected two-layer COBA recipe fitted 20 training examples to {tinyAccuracy('coba')}% accuracy after 300 optimizer updates ([Fig. 5A](#fig-coba-diagnostics)). On the 200-training/100-validation-example pilots, final validation accuracy was {pilotAccuracy('coba', 42)}% for seed 42 and {pilotAccuracy('coba', 43)}% for seed 43 ([Fig. 5D](#fig-coba-diagnostics)). All three learned matrices changed and received finite, nonzero gradients. These checks establish fitting capacity and modest held-out learning; the small utterance-split pilots remain insufficient to establish competitive performance.
+
+<RunFigure report="exp124" experiment="exp124" allowUnavailable file="coba_diagnostics.svg" number={5} id="fig-coba-diagnostics" alt="Two-layer COBA training diagnostics: tiny training and validation accuracy, and reduced-pilot training and validation accuracy, against optimizer updates.">
+  **New two-layer COBA measurements.** Each hidden layer contained 128 E/32 I neurons, with both feedback loops disabled. (A–B) Training and validation accuracy on 20/20 examples. (C–D) Accuracy on 200/100 examples. Colours identify the labelled recipes within each row; the corresponding validation panel uses the same colours. The dotted line marks 5% chance accuracy. Baseline uses a dense interlayer, damping 1000 and score gain 1; diverse adds 90% initial interlayer zeros; combined also uses damping 100 and gain 20. Faster readout means learning rate 0.01 rather than 0.0004. Tuned additionally centers initial readout weights and normalizes scores by per-example E2 rate. Pilots use balanced batches and centered readout initialization; labels identify overrides to mean readout, rate normalization, input strength, hidden learning rate or seed. A tiny epoch is one update; a pilot epoch is ten. Every curve is one measured seed, with no average or uncertainty band. Different seeds change initialization, sampled utterances and order.
+</RunFigure>
+
+### Two-layer PING diagnosis
+
+The selected two-layer PING recipe fitted 20 training examples to {tinyAccuracy('ping')}% accuracy after 100 optimizer updates ([Fig. 6A](#fig-ping-diagnostics)). Final pilot validation accuracy was {pilotAccuracy('ping', 42)}% for seed 42 and {pilotAccuracy('ping', 43)}% for seed 43 ([Fig. 6D](#fig-ping-diagnostics)). All three learned matrices changed and received finite, nonzero gradients. Validation varied substantially despite consistently improved fitting. These two small replicates do not establish a general recognition benefit from inhibition or achievement of the larger-run accuracy target.
+
+<RunFigure report="exp124" experiment="exp124" allowUnavailable file="ping_diagnostics.svg" number={6} id="fig-ping-diagnostics" alt="Two-layer PING training diagnostics: tiny training and validation accuracy, and reduced-pilot training and validation accuracy, against optimizer updates.">
+  **New two-layer PING measurements.** Each hidden layer contained 128 E/32 I neurons with fixed reciprocal feedback. (A–B) Training and validation accuracy on 20/20 examples. (C–D) Accuracy on 200/100 examples. Colours identify the labelled recipes within each row and carry through to its validation panel; the dotted line marks 5% chance accuracy. Baseline uses a dense interlayer, damping 1000 and score gain 1; diverse adds 90% initial interlayer zeros; combined also uses damping 100 and gain 20. Faster readout means learning rate 0.01 rather than 0.0004. Tuned additionally centers initial readout weights and normalizes scores by per-example E2 rate. Pilots use balanced batches and centered readout initialization; labelled overrides change readout reduction, normalization, input strength, hidden learning rate or seed. A tiny epoch is one update; a pilot epoch is ten. Each curve represents one seed, with no average or uncertainty band. Different seeds change initialization, sampled utterances and order. The longer COBA-only fitting confirmation has no PING curve.
+</RunFigure>
+
+## Execution time
+
+The following first two timing tables preserve the earlier one-layer measurements.
+
+The local CPU completed each condition in approximately 38 seconds, compared with approximately 444 seconds on the Modal A10G. The tested small workload therefore ran faster locally; these single executions do not establish a general CPU/GPU ranking.
+
+{run && <Table headers={['Execution', 'Condition', 'Condition wall time (s)']} rows={timings} caption="Table 1. Measured wall time per condition, including epoch-zero evaluation, five optimization epochs, complete training/validation evaluation after every epoch and retention of final weights. Dataset acquisition, graph construction, weight initialization, environment setup and remote result transfer are excluded." />}
+
+The twenty-epoch local run took 12.3 minutes for COBA and 11.3 minutes for PING, approximately 23.5 minutes combined.
+
+{run && <Table headers={['Execution', 'Condition', 'Condition wall time (s)']} rows={longerTimings} caption="Table 2. Measured wall time per condition for the 1,000-training/200-validation-example run, including epoch-zero evaluation, twenty optimization epochs, complete split evaluation after every epoch and retention of final weights. Dataset acquisition, graph construction and weight initialization are excluded." />}
+
+The selected two-layer pilots took approximately 8–9 minutes per seed for both conditions combined, running sequentially on local CPU with four threads.
+
+{diagnostics && <Table headers={['Seed', 'Condition', 'Condition wall time (s)']} rows={pilotTimings} caption="Table 3. Newly measured two-layer condition times for 200 training examples, 100 validation examples and twenty epochs. Times include epoch-zero evaluation, training and full split evaluation after each epoch; dataset acquisition, graph construction and initialization are excluded. These are individual executions, not repeated hardware benchmarks." />}
+
+## Methods
+
+1. **Select independent examples.** We used the official training partition of Spiking Heidelberg Digits, which represents spoken English and German digits as events across 700 cochlear-model channels [1]. With seed 42, we selected 15 distinct utterances per class: 10 for training and five for validation. The partitions were disjoint by utterance, not by speaker. All 20 classes remained present. We did not access the official test partition.
+2. **Bin spike events.** Each presentation lasted one second with a 1 ms integration step. Events were assigned to left-closed time bins and represented as binary channel events. Events at or after one second were discarded. Across the selected examples, 434 events were discarded and no within-channel/time-bin collisions occurred. No stochastic image-to-spikes encoding was applied.
+3. **Define matched one-layer networks.** Both networks had 128 excitatory and 32 inhibitory conductance-based LIF neurons. Excitatory and inhibitory capacitances were 1 and 0.5 nF; leak conductances were 0.05 and 0.1 μS. Rest/reset voltage was −65 mV, threshold −50 mV, and refractory durations were 2 and 1 ms. AMPA and GABA decay constants were 2 and 6 ms. External spikes targeted excitatory neurons. Fixed reciprocal conductances had summed incoming strengths of 1 μS for E→I and 2 μS for I→E in PING, with a one-step delay; both projections were zero in COBA. No E→E or I→I recurrence was added. The 20 outputs were signed, non-spiking leaky integrators with a 20 ms time constant, scored by mean voltage over the presentation. Hidden and output states reset at every presentation.
+4. **Train hidden and readout weights.** Both conditions shared learned-weight initialization and minibatch order. Input weights came from a lower-clamped Gaussian with parent mean 0.9 and SD 0.09, divided by the input fan-in. We initially zeroed 95% and compensated surviving weights by the retained fraction; these zeros were not permanently masked. Readout weights came from a Gaussian with mean zero and SD 0.1. We used cross-entropy, AdamW with learning rate 0.0004 and zero weight decay, batches of 16 and five epochs. Fast-sigmoid surrogate gradients had slope 1; voltage-gradient increments were damped by 1000 in both conditions, and the global gradient norm was clipped at 1. Hidden conductance weights remained nonnegative; readout weights were unconstrained. Recurrent weights remained fixed. We retained final-epoch weights without test-based selection.
+5. **Measure learning.** We evaluated complete training and validation splits before learning and after each completed epoch, weighted loss by the number of examples, and counted correct predictions. We checked finite scores, losses, gradients and final weights, and measured hidden/readout weight changes. These checks establish finite training under this protocol rather than fine-resolution gamma dynamics or official-test performance.
+
+6. **Repeat with more examples and updates.** For the larger local run, we used seed 42 to select 60 distinct utterances per class from the official training partition: 50 for training and 10 for validation, giving 1,000 and 200 examples. These partitions were utterance-disjoint, not speaker-disjoint; they were not the smoke's original split. We initialized both networks afresh and trained for twenty epochs with the same architecture, initialization recipe, optimizer and numerical settings. We discarded 1,842 events at or after one second and recorded no within-channel/time-bin collisions. We evaluated each complete split before training and after every epoch, retained final-epoch weights, and did not access official test data. The original smoke observations in Figures 1–2 are reused; Figures 3–4 reuse the earlier twenty-epoch local measurements.
+
+7. **Stack two hidden layers.** For the new diagnostics, we stacked two 128 E/32 I layers with the same neuron and loop settings as the earlier networks. E1 spikes drove E2 through a learned nonnegative AMPA matrix; input→E1 and E2→readout matrices were also learned. Initial interlayer weights had lower-clamped Gaussian parent mean 1.8 and SD 0.18 μS, divided by 128. Sparse variants initially zeroed 90% and compensated survivors by the retained fraction; the mask was not permanent. Learned initialization and example order were matched between COBA and PING within each paired run.
+8. **Compare training settings.** We used 20 training/20 validation examples for tiny fitting controls, and 200/100 for pilots, balanced across all classes. Displayed tiny controls tested sparse interlayer initialization, damping 100 and fixed score gain 20, then separate hidden/readout learning rates of 0.0004/0.01. Pilot controls compared mean versus maximum voltage, per-example rate normalization, input Gaussian parent mean 0.45 versus 0.9 μS (SD 10% of the mean), and hidden rates 0.001 or 0.002 versus 0.0004. Each presentation still lasted one second at a 1 ms step, with state reset. We evaluated complete splits after each epoch and retained final-epoch metrics rather than the best validation epoch.
+9. **Choose and confirm a shared recipe.** We selected the shared recipe from seed-42 pilots using joint final validation performance. It used 90% initial interlayer zeros, damping 100, hidden/readout rates 0.0004/0.01, batches of 20 containing one example per class without replacement, and initial readout weights centered across source neurons separately for each class. Mean leaky-integrator voltage was multiplied by gain 20 and by 20 Hz divided by the presentation's E2 firing rate averaged across its neurons, with a 1 Hz denominator floor. This positive rescaling changes the loss scale while preserving the argmax at fixed weights. Seed-42 validation was used in recipe selection. All partitions remained utterance-disjoint, not speaker-disjoint, and the official test partition remained untouched.
+10. **Check the selected fitting protocol.** With seed 43, we trained the selected recipe on 20 examples for 100 updates in both models, then ran a separate fresh COBA-only confirmation for 300 updates. The fitting criterion was at least 90% final training accuracy. All three learned matrices were checked for finite, nonzero gradients and changed weights. One tiny epoch was one update; a 200-example pilot epoch was ten. After passing the fitting criterion, we repeated the 200/100-example, twenty-epoch pilot with seed 43, changing initialization and sampled utterances. These controls checked capacity and optimization, while the pilots assessed limited held-out learning. Figures 1–4 reuse one-layer evidence; Figures 5–6 show new two-layer diagnostics.
+
+## References
+
+1. Cramer, B., Stradmann, Y., Schemmel, J., and Zenke, F. *The Heidelberg Spiking Data Sets for the Systematic Evaluation of Spiking Neural Networks.* IEEE Transactions on Neural Networks and Learning Systems, 33, 2744–2757 (2022). [doi:10.1109/TNNLS.2020.3044364](https://doi.org/10.1109/TNNLS.2020.3044364).

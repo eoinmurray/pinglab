@@ -1,4 +1,5 @@
 from pathlib import Path
+from xml.etree import ElementTree
 
 import pytest
 from experiments.exp054 import plots as exp054_plots
@@ -13,13 +14,13 @@ from pingstore.stages import source_run
 
 def test_figure_ownership_has_moved_from_exp054() -> None:
     assert not hasattr(exp054_plots, "build_super_compound")
-    assert "onset_super_compound.png" not in exp054_recipe.FIGURES
+    assert "onset_super_compound.svg" not in exp054_recipe.FIGURES
     assert recipe.FIGURES == (
-        "onset_super_compound.png",
+        "onset_super_compound.svg",
         "onset_super_compound.pdf",
-        "cycle_participation_compound.png",
+        "cycle_participation_compound.svg",
         "cycle_participation_compound.pdf",
-        "robustness_compound.png",
+        "robustness_compound.svg",
         "robustness_compound.pdf",
     )
 
@@ -191,12 +192,12 @@ def test_present_records_exp054_analysis_and_exports_only_the_bundle(
         assert [measured[tau] for tau in taus] == [
             100 / tau + 1 for tau in taus
         ]
-        destination.with_suffix(".png").write_bytes(b"png")
+        destination.with_suffix(".svg").write_bytes(b"svg")
         destination.with_suffix(".pdf").write_bytes(b"pdf")
 
     def render(*args) -> None:
         destination = args[-1]
-        destination.with_suffix(".png").write_bytes(b"png")
+        destination.with_suffix(".svg").write_bytes(b"svg")
         destination.with_suffix(".pdf").write_bytes(b"pdf")
 
     monkeypatch.setattr(plots, "build_onset_super_compound", render_onset)
@@ -278,7 +279,7 @@ def test_cycle_participation_uses_equal_network_means(tmp_path, monkeypatch):
         save(fig, stem, **kwargs)
     monkeypatch.setattr(present, "save_figure", inspect)
     present.build_cycle_participation_compound(rate, cycles, tmp_path / "combined")
-    assert (tmp_path / "combined.png").is_file()
+    assert (tmp_path / "combined.svg").is_file()
     assert (tmp_path / "combined.pdf").is_file()
 
 
@@ -335,6 +336,7 @@ def test_robustness_composite_uses_equal_width_row_panels(
         save(fig, stem, **kwargs)
     monkeypatch.setattr(present, "save_figure", inspect)
     present.build_robustness_compound(perturbation, timestep, tmp_path / "combined")
-    with Image.open(tmp_path / "combined.png") as combined:
-        assert combined.width > 2 * combined.height
+    view_box = ElementTree.parse(tmp_path / "combined.svg").getroot().attrib["viewBox"]
+    _, _, width, height = map(float, view_box.split())
+    assert width > 2 * height
     assert (tmp_path / "combined.pdf").is_file()
