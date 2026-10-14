@@ -29,21 +29,23 @@ export const streamAccuracy2005 = display(accuracy(200, 5));
 
 ## Meta
 
-1. **Results:** 1,618 words
+1. **Results:** 1,650 words
 
-2. **Methods:** 4,442 words
+2. **Methods:** 4,653 words
 
-3. **Captions:** 1,730 words
+3. **Captions:** 1,677 words
 
-4. **[Appendix A](#appendix-a):** 861 words
+4. **[Appendix A](#appendix-a):** 723 words
 
-5. **[Appendix B](#appendix-b):** 1,055 words
+5. **[Appendix B](#appendix-b):** 686 words
 
-6. **[Appendix C](#appendix-c):** 574 words
+6. **[Appendix C](#appendix-c):** 442 words
 
-7. **[Appendix D](#appendix-d):** 302 words
+7. **[Appendix D](#appendix-d):** 232 words
 
-**List of items**
+Counts exclude section headings, paragraph labels, mathematical expressions and table cells. Main-text captions are counted separately from Results and Methods; appendix captions are included in their respective appendix totals.
+
+**Items to be done**
 
 1. Review P9 and Figure 5 with Tim.
 2. For mean field model, potentially derive effective noise and membrane time constants from simulated data.
@@ -79,7 +81,7 @@ P3
 We next varied the strengths of both directions of the excitatory–inhibitory loop to examine how coupling affected firing rates and rhythmic activity. Across an 11×11 reciprocal-coupling grid, absent E→I or I→E coupling left excitatory firing near 169 Hz and the rhythmicity metric (autocorrelation lobe–trough contrast; [Appendix B2](#appendix-b2)) near zero ([Fig. 2](#loc-6)A–C). With both E→I and I→E pathways present, stronger coupling reduced excitatory firing to single-digit rates, sustained inhibitory firing and increased the rhythmicity metric towards one across a broad region.
 
 <PublishedFigure run="exp110-r031-present" file="onset_super_compound.png" id="loc-6" alt="Coupling-plane maps, representative spike rasters and mean-field analyses of oscillatory onset in the recurrent excitatory-inhibitory circuit." >
-  Figure 2: **Reciprocal-coupling sweep and mean-field onset.** **(A–C)** Mean E rate, I rate and the rhythmicity metric across an 11×11 grid of E→I ($W_{E I}$) and I→E ($W_{I E}$) initialization means on the fan-in-normalized summed-conductance scale. Each point represents one untrained network and seed; B’s grayscale is clipped at its 92nd percentile. **(D–F)** Illustrative 200-ms rasters at $( W_{E I} , W_{I E} ) = ( 0 , 0 )$, $( 0.6 , 1.2 )$ and $( 3 , 6 )$ µS; black/red marks show 160 E/48 I neurons. A–F have no uncertainty estimates. **(G–H)** Separate four-variable mean-field model. G shows fixed-point eigenvalues across $I_{\text{ext}} = 0$–4 nA (colour), with the leading pair at $I_{\text{ext}}^{\ast} = 0.594$ nA circled in cyan. H shows upward/downward peak-to-peak E-rate amplitudes; the dotted line marks onset. **(I)** Mean-field onset frequencies (black circles, solid) and median finite-drive spectral peaks from three classifiers per inhibitory decay time in training group TR03 (red squares, dashed), without uncertainty intervals. TR01–TR06 label groups of training regimes ([Table 1](#training-groups)); TR03 varies inhibitory decay in loop-on classifiers. Methods define measurements and protocols. Source experiments: [exp054](/exp054) — [*Pinglab Rythmicity Metric*](/exp054), [exp117](/exp117) — [*Mean-Field Analysis of PING Bifurcations*](/exp117), and [exp041](/exp041) — [*Firing Rate Tracks Gamma Frequency.*](/exp041)
+  Figure 2: **Reciprocal-coupling sweep and mean-field onset.** **(A–C)** Mean E rate, I rate and the rhythmicity metric across an 11×11 grid of E→I ($W_{E I}$) and I→E ($W_{I E}$) Gaussian parent means on the fan-in-normalized summed-conductance scale ([Appendix A4](#appendix-a4)). Each point represents one untrained network and seed; B’s grayscale is clipped at its 92nd percentile. **(D–F)** Illustrative 200-ms rasters at $( W_{E I} , W_{I E} ) = ( 0 , 0 )$, $( 0.6 , 1.2 )$ and $( 3 , 6 )$ µS; black/red marks show 160 E/48 I neurons. A–F have no uncertainty estimates. **(G–H)** Separate four-variable mean-field model. G shows fixed-point eigenvalues across $I_{\text{ext}} = 0$–4 nA (colour), with the leading pair at $I_{\text{ext}}^{\ast} = 0.594$ nA circled in cyan. H shows upward/downward peak-to-peak E-rate amplitudes; the dotted line marks onset. **(I)** Mean-field onset frequencies (black circles, solid) and median finite-drive spectral peaks from three classifiers per inhibitory decay time in training group TR03 (red squares, dashed), without uncertainty intervals. TR01–TR06 label groups of training regimes ([Table 1](#training-groups)); TR03 varies inhibitory decay in loop-on classifiers. Methods define measurements and protocols. Source experiments: [exp054](/exp054) — [*Pinglab Rythmicity Metric*](/exp054), [exp117](/exp117) — [*Mean-Field Analysis of PING Bifurcations*](/exp117), and [exp041](/exp041) — [*Firing Rate Tracks Gamma Frequency.*](/exp041)
 </PublishedFigure>
 
 P4
@@ -264,7 +266,7 @@ We compared untrained loop-off and loop-on circuits containing 1,024 excitatory 
 
 P21
 
-We mapped reciprocal coupling in untrained networks containing 1,024 excitatory and 256 inhibitory neurons ([Fig. 2](#loc-6)A–F). Each excitatory neuron received its own independent 100-Hz input channel through a fixed input weight of 0.5 µS. The E→I initialization parent mean $\mu_{E \to I}$ ranged from 0 to 3 µS in 0.3-µS increments, and the I→E parent mean $\mu_{I \to E}$ ranged from 0 to 6 µS in 0.6-µS increments, forming an $11 \times 11$ grid. Recurrent weights used Gaussian draws with standard deviations equal to 10% of their respective means, followed by lower clamping at zero and division by presynaptic population size. Each grid condition comprised one network and one trial with seed 42. Simulations lasted 1 s at a 0.1-ms timestep, with an inhibitory decay time of 6 ms. We discarded the first 100 ms and measured population firing rates and the excitatory-population rhythmicity metric (autocorrelation lobe–trough contrast) over the remaining 900 ms. Illustrative rasters show the first 200 ms after burn-in at three selected grid conditions.
+We mapped reciprocal coupling in untrained networks containing 1,024 excitatory and 256 inhibitory neurons ([Fig. 2](#loc-6)A–F). Each excitatory neuron received its own independent 100-Hz input channel through a fixed input weight of 0.5 µS. The E→I initialization parent mean $\mu_{E \to I}$ ranged from 0 to 3 µS in 0.3-µS increments, and the I→E parent mean $\mu_{I \to E}$ ranged from 0 to 6 µS in 0.6-µS increments, forming an $11 \times 11$ grid. Recurrent weights used Gaussian draws with parent standard deviations equal to 10% of their respective parent means, followed by lower clamping at zero and division by presynaptic population size. Each grid condition comprised one network and one trial with seed 42. Simulations lasted 1 s at a 0.1-ms timestep, with an inhibitory decay time of 6 ms. We discarded the first 100 ms and measured population firing rates and the excitatory-population rhythmicity metric (autocorrelation lobe–trough contrast) over the remaining 900 ms. Illustrative rasters show the first 200 ms after burn-in at three selected grid conditions.
 
 <span id="loc-23" />
 
@@ -441,7 +443,7 @@ P35
 
 We inserted reciprocal inhibition into the three unpenalised TR02 loop-off classifiers, holding learned input and readout weights fixed without retraining ([Fig. 4](#loc-9)).
 
-The dimensionless loop strength $s$ ranged from 0 to 1 in increments of 0.1. At each strength, we newly initialized the E→I and I→E matrices from Gaussian distributions with parent means $\mu_{E \to I} = s$ µS and $\mu_{I \to E} = 2 s$ µS, respectively, and standard deviations equal to 10% of each mean. We clamped negative draws to zero and divided weights by the presynaptic population size: 1,024 for E→I and 256 for I→E. Thus, $s = 0$ disabled the loop and $s = 1$ used the standard recurrent initialization.
+The dimensionless loop strength $s$ ranged from 0 to 1 in increments of 0.1. At each strength, we newly initialized the E→I and I→E matrices from Gaussian distributions with parent means $\mu_{E \to I} = s$ µS and $\mu_{I \to E} = 2 s$ µS, respectively, and parent standard deviations equal to 10% of each parent mean. We clamped negative draws to zero and divided weights by the presynaptic population size: 1,024 for E→I and 256 for I→E. Thus, $s = 0$ disabled the loop and $s = 1$ used the standard recurrent initialization.
 
 At each strength, we measured post-training test accuracy and E/I firing rates, summarized as means and sample SD across the three reused classifiers.
 
@@ -529,7 +531,7 @@ $$
 
 Here, $s_{c}^{\text{out} [ k ]} \in \{ 0 , 1 \}$ indicates an output spike; class index $c$, logit $z_{c}$ and presentation length $N_{t}$ are defined above. Counts entered cross-entropy directly without decay or duration normalization, using the same surrogate derivative. Classification selected the largest final count, breaking ties by lowest class index.
 
-Readout weights were initialized from a Gaussian distribution with dimensionless mean $\mu_{\text{out}} = 0.05$ and standard deviation $\sigma_{\text{out}} = 0.04$, clamped below at zero without fan-in normalization, and then trained alongside the input weights. Both sets of weights were held fixed during evaluation. Evaluations used each network’s best-validation checkpoint. The same three validation-selected TR06 classifiers were evaluated across all duration–rate conditions. During continuous streams, output state and accumulated counts were reset to zero at each supplied image boundary, while hidden neuronal and synaptic states continued between images.
+Readout weights were initialized from a Gaussian distribution with dimensionless parent mean $\mu_{\text{out}} = 0.05$ and parent standard deviation $\sigma_{\text{out}} = 0.04$ ([Appendix A4](#appendix-a4)), clamped below at zero without fan-in normalization, and then trained alongside the input weights. Both sets of weights were held fixed during evaluation. Evaluations used each network’s best-validation checkpoint. The same three validation-selected TR06 classifiers were evaluated across all duration–rate conditions. During continuous streams, output state and accumulated counts were reset to zero at each supplied image boundary, while hidden neuronal and synaptic states continued between images.
 
 P43
 
