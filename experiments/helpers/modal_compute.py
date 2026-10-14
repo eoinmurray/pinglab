@@ -13,7 +13,7 @@ REMOTE = Path("/root/pinglab")
 REPO = Path(__file__).resolve().parents[2] if modal.is_local() else REMOTE
 SOURCE = Path("/root/pinglab-source")
 SOURCE_DIRS = ("experiments", "tools")
-SUPPORTED = ("exp047", "exp080", "exp081", "exp124", "exp126")
+SUPPORTED = ("exp047", "exp080", "exp081", "exp124")
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
 
 app = modal.App("pinglab-compute")
@@ -55,7 +55,8 @@ else:
 def compute(experiment: str, reservation: dict, dispatch: str, smoke: bool,
             device: str = "cuda", cpu: int = 4, train_examples: int = 0,
             validation_examples: int = 0, epochs: int = 0,
-            implementation: str = "", seed: int = 42) -> list[str]:
+            full_dataset: bool = False,
+            variant: str = "", validation_fraction: float = 0.1, models: str = "") -> list[str]:
     # Replace whole directories so local deletions are reflected too.
     for directory in SOURCE_DIRS:
         shutil.rmtree(REMOTE / directory)
@@ -80,10 +81,17 @@ def compute(experiment: str, reservation: dict, dispatch: str, smoke: bool,
                        PINGLAB_DEVICE=device, EXP080_DEVICE=device, EXP081_DEVICE=device,
                        PINGLAB_CPU_THREADS=str(cpu), PINGLAB_MODAL_CPU_CORES=str(cpu))
     command = [sys.executable, f"experiments/{experiment}/compute.py", "--run-id", run_id]
-    if implementation:
-        if experiment != "exp126" or implementation not in ("snntorch", "snnlab"):
-            raise ValueError("invalid equation-matched comparison condition")
-        command.extend(("--phase", implementation, "--seed", str(seed)))
+    if models:
+        if experiment != "exp124" or any(name not in ("coba", "ping") for name in models.split(",")):
+            raise ValueError("models must select SHD conditions")
+        command.extend(("--models", *models.split(",")))
+    if full_dataset or variant:
+        if experiment != "exp124":
+            raise ValueError("SHD recipe options require exp124")
+        if full_dataset:
+            command.extend(("--full-dataset", "--validation-fraction", str(validation_fraction)))
+        if variant:
+            command.extend(("--variant", variant))
     for option, value in (("--train-examples", train_examples),
                           ("--validation-examples", validation_examples), ("--epochs", epochs)):
         if value:
@@ -104,122 +112,11 @@ def compute(experiment: str, reservation: dict, dispatch: str, smoke: bool,
             if path.is_file()]
 
 
-@app.function(image=image, gpu="A10:2", cpu=8, memory=32768, timeout=86400,
-              serialized=True, include_source=False,
-              volumes={"/modal-output": results}, retries=0)
-def compute_pair(phases: list[dict], cpu_per_phase: int = 4) -> list[dict]:
-    """Two independently completed phases, parallel processes on distinct GPUs."""
-    import json
-    for directory in SOURCE_DIRS:
-        shutil.rmtree(REMOTE / directory)
-        shutil.copytree(SOURCE / directory, REMOTE / directory)
-    for filename in ("pyproject.toml", "uv.lock"):
-        shutil.copyfile(SOURCE / filename, REMOTE / filename)
-    sys.path[:0] = [str(REMOTE), str(REMOTE / "tools")]
-    from pingstore.contracts import (
-        validate_operational_run_directory,
-        write_json_atomic,
-    )
-    from pingstore.layout import initialize_layout
-
-    if len(phases) != 2 or {row["implementation"] for row in phases} != {"snntorch", "snnlab"}:
-        raise ValueError("paired allocation requires exactly both implementations")
-    names = json.loads(subprocess.check_output([sys.executable, "-c",
-        "import json,torch; print(json.dumps([torch.cuda.get_device_name(i) for i in range(torch.cuda.device_count())]))"], text=True))
-    if len(names) != 2 or names[0] != names[1]:
-        raise ValueError(f"paired GPU hardware differs: {names}")
-    print(f"Matched allocation: {names}; {cpu_per_phase * 2} shared CPUs; one GPU per phase", flush=True)
-    # Download once before workers read the cache; prevent concurrent extraction.
-    subprocess.run([sys.executable, "-c",
-        "from torchvision.datasets import MNIST; MNIST('/tmp/pinglab-mnist',train=True,download=True); MNIST('/tmp/pinglab-mnist',train=False,download=True)"], cwd=REMOTE, check=True)
-    processes = []
-    for gpu_index, phase in enumerate(phases):
-        reservation = phase["reservation"]
-        identity = reservation["run_id"]
-        if reservation.get("phase") != phase["implementation"] or reservation["experiment"] != "exp126":
-            raise ValueError("phase reservation differs from work assignment")
-        temporary = REMOTE / ".pingstore/runs" / f".{identity}.tmp"
-        temporary.mkdir(parents=True)
-        initialize_layout(temporary, "exp126")
-        write_json_atomic(temporary / ".reservation.json", reservation)
-        environment = dict(os.environ, CUDA_VISIBLE_DEVICES=str(gpu_index),
-            PINGLAB_DEVICE="cuda", PINGLAB_CPU_THREADS=str(cpu_per_phase),
-            PINGLAB_MODAL_CPU_CORES=str(cpu_per_phase * 2), PINGLAB_MODAL_SHARED_HOST="1")
-        command = [sys.executable, "experiments/exp126/compute.py", "--phase", phase["implementation"],
-                   "--seed", str(phase["seed"]), "--run-id", identity]
-        processes.append((phase, subprocess.Popen(command, cwd=REMOTE, env=environment)))
-    # Both Popen calls precede any wait; children never share a CUDA device.
-    completed, errors = [], []
-    for phase, process in processes:
-        code = process.wait()
-        identity = phase["reservation"]["run_id"]
-        if code:
-            errors.append(f"{identity} exited with status {code}")
-            continue
-        source = REMOTE / ".pingstore/runs" / identity
-        validate_operational_run_directory(source)
-        destination = Path("/modal-output").resolve() / phase["dispatch"] / ".pingstore/runs" / identity
-        staging = destination.with_name(f".{identity}.tmp")
-        shutil.copytree(source, staging)
-        validate_operational_run_directory(staging)
-        staging.rename(destination)
-        completed.append({**phase, "files": [str(path.relative_to(destination)) for path in sorted(destination.rglob("*")) if path.is_file()]})
-    results.commit()
-    if errors:
-        raise RuntimeError("; ".join(errors))
-    return completed
-
-
-@app.function(image=image, cpu=4, memory=16384, timeout=3600,
-              serialized=True, include_source=False,
-              volumes={"/modal-output": results}, retries=0)
-def assemble_exp126(reservation: dict, dispatch: str, phases: list[dict]) -> list[str]:
-    """Explicit CPU-only assembly of completed phase evidence on the Volume."""
-    for directory in SOURCE_DIRS:
-        shutil.rmtree(REMOTE / directory)
-        shutil.copytree(SOURCE / directory, REMOTE / directory)
-    for filename in ("pyproject.toml", "uv.lock"):
-        shutil.copyfile(SOURCE / filename, REMOTE / filename)
-    sys.path[:0] = [str(REMOTE), str(REMOTE / "tools")]
-    from experiments.exp126.compute_parts.assembly import assemble
-    from pingstore.contracts import (
-        run_root,
-        validate_operational_run_directory,
-        write_json_atomic,
-    )
-    from pingstore.layout import initialize_layout
-
-    results.reload()
-    identities = []
-    for phase in phases:
-        identity = phase["run_id"]
-        source = Path("/modal-output").resolve() / phase["dispatch"] / ".pingstore/runs" / identity
-        record = validate_operational_run_directory(source)
-        if record["experiment"] != "exp126" or record.get("scope") != "phase":
-            raise ValueError("assembly source is not an exp126 phase")
-        destination = run_root(REMOTE / ".pingstore", identity)
-        shutil.copytree(source, destination)
-        validate_operational_run_directory(destination)
-        identities.append(identity)
-    identity = reservation["run_id"]
-    temporary = run_root(REMOTE / ".pingstore", identity).with_name(f".{identity}.tmp")
-    temporary.mkdir(parents=True)
-    initialize_layout(temporary, "exp126")
-    write_json_atomic(temporary / ".reservation.json", reservation)
-    assemble(REMOTE, identities, identity)
-    completed = temporary.with_name(identity)
-    destination = Path("/modal-output").resolve() / dispatch / ".pingstore/runs" / identity
-    staging = destination.with_name(f".{identity}.tmp")
-    shutil.copytree(completed, staging)
-    validate_operational_run_directory(staging)
-    staging.rename(destination)
-    results.commit()
-    return [str(path.relative_to(destination)) for path in sorted(destination.rglob("*")) if path.is_file()]
-
-
 @app.local_entrypoint()
 def main(experiment: str, smoke: bool = False, gpu: str = "A10G", cpu: int = 4,
-         train_examples: int = 0, validation_examples: int = 0, epochs: int = 0):
+         train_examples: int = 0, validation_examples: int = 0, epochs: int = 0,
+         full_dataset: bool = False, variant: str = "", validation_fraction: float = 0.1,
+         models: str = "", timeout: int = 86400):
     from pingstore.contracts import load_json, validate_operational_run_directory
     from pingstore.stages import operation_lock, reserve_stage, stage_reservation
 
@@ -227,6 +124,21 @@ def main(experiment: str, smoke: bool = False, gpu: str = "A10G", cpu: int = 4,
         raise ValueError(f"experiment must be one of {', '.join(SUPPORTED)}")
     if cpu < 1:
         raise ValueError("cpu must be positive")
+    if not 1 <= timeout <= 86400:
+        raise ValueError("timeout must be between one second and 24 hours")
+    if models and (experiment != "exp124" or any(name not in ("coba", "ping") for name in models.split(","))
+                   or len(set(models.split(","))) != len(models.split(","))):
+        raise ValueError("models must select unique SHD conditions")
+    if (full_dataset or variant) and experiment != "exp124":
+        raise ValueError("SHD recipe options require exp124")
+    if full_dataset and (smoke or train_examples or validation_examples):
+        raise ValueError("full dataset cannot be combined with smoke or example-count overrides")
+    if not 0 < validation_fraction < 1:
+        raise ValueError("validation fraction must be between zero and one")
+    if variant and variant not in ("baseline", "diverse", "damping", "sum", "gain", "combined", "maximum", "tuned", "paper"):
+        raise ValueError("unsupported SHD training variant")
+    if full_dataset and variant == "tuned":
+        raise ValueError("full-data Modal execution requires an unbalanced-batch profile such as paper")
     if any(value < 0 for value in (train_examples, validation_examples, epochs)):
         raise ValueError("training overrides must be positive, or zero to use defaults")
     if any((train_examples, validation_examples, epochs)):
@@ -247,9 +159,10 @@ def main(experiment: str, smoke: bool = False, gpu: str = "A10G", cpu: int = 4,
         remote_path = f"{dispatch}/.pingstore/runs/{run_id}"
         print(f"Reserved {run_id}; retained result: pinglab-compute-results/{remote_path}",
               flush=True)
-        files = compute.with_options(gpu=gpu_resource, cpu=cpu).remote(
+        files = compute.with_options(gpu=gpu_resource, cpu=cpu, timeout=timeout).remote(
             experiment, reservation, dispatch, smoke, device, cpu,
-            train_examples, validation_examples, epochs)
+            train_examples, validation_examples, epochs, full_dataset=full_dataset,
+            variant=variant, validation_fraction=validation_fraction, models=models)
         # Download under the reservation; partial transfers stay hidden.
         download = temporary / ".scratch" / run_id
         download.mkdir(parents=True)

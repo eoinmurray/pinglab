@@ -7,7 +7,7 @@ requires-python = ">=3.10"
 license = { text = "MIT" }
 authors = [{ name = "Eoin Murray" }]
 dependencies = [
-    "snnlab>=0.10.1",
+    "snnlab>=0.12.1",
     "demolab-cli>=5.5.1",
     "PyYAML>=6.0.3",
     "numpy>=2.2.6",

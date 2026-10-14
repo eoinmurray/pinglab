@@ -12,32 +12,29 @@ export default defineConfig({
   server: { port: 3000 },
   devToolbar: { enabled: false },
   // Article scripts live outside site/, but share its Pixi dependency.
-  vite: { resolve: { dedupe: ['pixi.js'] } },
+  vite: {
+    resolve: { dedupe: ['pixi.js'] },
+    optimizeDeps: { include: ['pixi.js'] },
+    plugins: [{
+      name: 'pinglab:separate-vite-caches',
+      config: (_, { command }) => ({
+        cacheDir: `node_modules/.vite/${command === 'serve' ? 'dev' : 'build'}`,
+      }),
+    }],
+  },
   integrations: [mdx(), react(), {
     name: 'pinglab:dev-run-images',
     hooks: {
       'astro:server:setup': ({ server }) => {
-        const paths = new Map();
-        let refresh;
         server.middlewares.use(async (request, response, next) => {
           const pathname = new URL(request.url, 'http://localhost').pathname;
           if (!pathname.startsWith('/run-images/')) return next();
           try {
             const module = await server.ssrLoadModule('/src/pages/run-images/[run]/[file].ts');
-            if (!paths.has(pathname)) {
-              refresh ??= module.getStaticPaths().then(entries => {
-                for (const { params, props } of entries) {
-                  paths.set(`/run-images/${encodeURIComponent(params.run)}/${encodeURIComponent(params.file)}`, props);
-                }
-              }).finally(() => { refresh = undefined; });
-              await refresh;
-            }
-            const props = paths.get(pathname);
-            if (!props) return next();
-            const result = await module.GET({ props });
+            const result = await module.serveRunAsset(pathname);
             response.statusCode = result.status;
             result.headers.forEach((value, key) => response.setHeader(key, value));
-            response.end(Buffer.from(await result.arrayBuffer()));
+            response.end(request.method === 'HEAD' ? undefined : Buffer.from(await result.arrayBuffer()));
           } catch (error) {
             next(error);
           }

@@ -1,3 +1,4 @@
+import { getReports } from './reports';
 import { getCollection } from 'astro:content';
 import { collectionMemberships } from './collections';
 
@@ -16,7 +17,7 @@ export interface Post {
 
 export async function getPosts(): Promise<Post[]> {
   const [reports, notes, slides] = await Promise.all([
-    getCollection('reports'), getCollection('notes'), getCollection('slides'),
+    getReports(), getCollection('notes'), getCollection('slides'),
   ]);
   const dated = [...slides.map(slide => ({
     ...slide, href: `/slides/${slide.id}`, label: 'Slides', collections: collectionMemberships(slide.data.collection ?? 'slides'),

@@ -18,7 +18,7 @@ def test_phase_counter_is_shared_with_all_other_stages(tmp_path):
         identities = list(
             pool.map(
                 lambda row: stages.reserve_stage(
-                    tmp_path, "exp126", row[0], phase=row[1]
+                    tmp_path, "exp999", row[0], phase=row[1]
                 ),
                 requests,
             )
@@ -38,23 +38,23 @@ def test_phase_counter_is_shared_with_all_other_stages(tmp_path):
     "record",
     [
         {
-            "run_id": "exp126-r001-compute-phase-snntorch",
+            "run_id": "exp999-r001-compute-phase-snntorch",
             "stage": "compute",
             "scope": "full",
         },
         {
-            "run_id": "exp126-r001-compute-phase-snntorch",
+            "run_id": "exp999-r001-compute-phase-snntorch",
             "stage": "compute",
             "scope": "phase",
             "phase": "snnlab",
         },
         {
-            "run_id": "exp126-r001-compute",
+            "run_id": "exp999-r001-compute",
             "stage": "compute",
             "scope": "phase",
             "phase": "snntorch",
         },
-        {"run_id": "exp126-r001-analyse", "stage": "analyse", "scope": "full"},
+        {"run_id": "exp999-r001-analyse", "stage": "analyse", "scope": "full"},
     ],
 )
 def test_phase_scope_and_identity_must_agree(record):
@@ -63,7 +63,7 @@ def test_phase_scope_and_identity_must_agree(record):
 
 
 def test_legacy_compute_scope_is_not_inferred_or_rewritten():
-    record = {"run_id": "exp126-r001-compute", "stage": "compute"}
+    record = {"run_id": "exp999-r001-compute", "stage": "compute"}
     before = dict(record)
     validate_compute_scope(record)
     assert record == before
@@ -71,9 +71,9 @@ def test_legacy_compute_scope_is_not_inferred_or_rewritten():
 
 def test_ordinary_consumer_rejects_phase(tmp_path, monkeypatch):
     record = {
-        "run_id": "exp126-r001-compute-phase-snntorch",
+        "run_id": "exp999-r001-compute-phase-snntorch",
         "stage": "compute",
-        "experiment": "exp126",
+        "experiment": "exp999",
         "scope": "phase",
         "phase": "snntorch",
     }

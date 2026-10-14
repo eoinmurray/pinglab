@@ -1,0 +1,136 @@
+---
+id: "exp129"
+title: "Introduction to Capacitors"
+author: "Eoin Murray"
+description: "Electrons separate onto two plates, creating a voltage and storing energy in an electric field."
+created_at: "2026-10-14"
+updated_at: "2026-10-14"
+collection: ["guides"]
+tags: ["txt", "v36.0.0"]
+inputs: []
+abstract: "A capacitor separates electric charge onto two plates. We follow electrons as it charges, holds its charge and discharges, connecting their redistribution to voltage and current. The circuit animation uses schematic electron dots. We then follow a presynaptic spike as it opens a synapse and triggers a neuron's ionic response."
+---
+
+import CapacitorAnimation from './CapacitorAnimation.astro';
+import NeuronMembraneAnimation from './NeuronMembraneAnimation.astro';
+
+## Introduction
+
+A capacitor has two metal plates separated by an insulator. Charging removes electrons from one plate and adds them to the other. The plates acquire equal and opposite net charges; electrons travel through the external wires, never across the insulating gap in this ideal model.\[[1](#ref-1)\]
+
+Capacitance $C$, measured in farads (F), relates the upper plate's positive charge $Q$, in coulombs (C), to the voltage difference $V_C$, in volts (V):
+
+$$
+Q=C V_C.
+\tag{1}
+$$
+
+A battery at voltage $V_b$ charges the capacitor through resistance $R$, measured in ohms (Ω). Conventional current $I$, in amperes (A), changes the voltage over time $t$, in seconds (s):\[[2](#ref-2)\]
+
+$$
+\begin{aligned}
+C\frac{dV_C}{dt}&=I,\\
+I&=\begin{cases}
+(V_b-V_C)/R & \text{Charge},\\
+0 & \text{Hold},\\
+-V_C/R & \text{Discharge}.
+\end{cases}
+\end{aligned}
+\tag{2}
+$$
+
+Charging slows as $V_C$ approaches $V_b$. Hold disconnects the external path; Discharge joins the plates through the resistor. Electron drift runs opposite to conventional current. The time constant $\tau$, in seconds, sets the charging and discharging timescale:
+
+$$
+\tau=RC.
+\tag{3}
+$$
+
+Choose a mode below, or adjust capacitance, resistance and battery voltage. Blue dots represent electrons. The dots exaggerate size and motion and represent groups of electrons. Changing a slider starts a fresh charge; switching modes preserves voltage. **Restart** returns to an uncharged capacitor. **Pause** freezes time. The model omits leakage and dielectric breakdown.
+
+<CapacitorAnimation />
+
+## A biophysical neuron
+
+A neuron's membrane separates conducting fluids and acts as a capacitor. Here the moving charges are ions: sodium ($\mathrm{Na}^{+}$) entering the cell can raise its voltage, while potassium ($\mathrm{K}^{+}$) leaving can lower it. Voltage-dependent channels control these flows. The animation uses the classic Hodgkin–Huxley squid-axon membrane model.\[[3](#ref-3)\] To receive presynaptic spikes, we add an excitatory synapse; this addition supplies the input current $I_{\mathrm{syn}}$ in the voltage equation below.
+
+The membrane voltage $V_m$ is the inside voltage relative to outside, in millivolts (mV). Membrane capacitance per area $C_m$ is in μF/cm²; inward synaptic current density $I_{\mathrm{syn}}$ and ionic current densities $I_{\mathrm{Na}}$, $I_{\mathrm{K}}$ and leak $I_L$ are in μA/cm². Time $t$ is in milliseconds (ms):
+
+$$
+C_m\frac{dV_m}{dt}=I_{\mathrm{syn}}-I_{\mathrm{Na}}-I_{\mathrm{K}}-I_L.
+\tag{4}
+$$
+
+For each pathway $p\in\{\mathrm{Na},\mathrm{K},L\}$, conductance density $g_p$ is in mS/cm² and reversal potential $E_p$ is in mV:
+
+$$
+I_p=g_p(V_m-E_p).
+\tag{5}
+$$
+
+These ionic currents are positive outwards; the current plot reverses their signs so upward means positive charge entering. The reversal potentials are $E_{\mathrm{Na}}=50$ mV, $E_{\mathrm{K}}=-77$ mV and $E_L=-54.3$ mV. Sodium activation $m$, sodium availability $h$ and potassium activation $n$ are dimensionless gates between zero and one:
+
+$$
+\begin{aligned}
+g_{\mathrm{Na}}&=\bar g_{\mathrm{Na}}m^3h,\\
+g_{\mathrm{K}}&=\bar g_{\mathrm{K}}n^4.
+\end{aligned}
+\tag{6}
+$$
+
+The available maximum conductance densities are $\bar g_{\mathrm{Na}}=120f_{\mathrm{Na}}$ and $\bar g_{\mathrm{K}}=36f_{\mathrm{K}}$ mS/cm². The channel sliders set the fractions $f_{\mathrm{Na}}$ and $f_{\mathrm{K}}$ from zero to one, both initially one. Leak conductance is fixed at $g_L=0.3$ mS/cm². Each gate $x\in\{m,h,n\}$ evolves as:
+
+$$
+\frac{dx}{dt}=\alpha_x(V_m)(1-x)-\beta_x(V_m)x.
+\tag{7}
+$$
+
+The rates $\alpha_x$ and $\beta_x$, in ms⁻¹, drive the gate towards one and zero, respectively. With $u=V_m/(1\,\mathrm{mV})$ the dimensionless numerical voltage, the animation uses the classical squid-axon rates at 6.3 °C in the inside-minus-outside voltage convention:\[[3](#ref-3), [4](#ref-4)\]
+
+$$
+\begin{aligned}
+\alpha_m(V_m)&=\frac{0.1(u+40)}{1-e^{-(u+40)/10}}\;\mathrm{ms}^{-1},\\
+\beta_m(V_m)&=4e^{-(u+65)/18}\;\mathrm{ms}^{-1}.
+\end{aligned}
+\tag{8}
+$$
+
+$$
+\begin{aligned}
+\alpha_h(V_m)&=0.07e^{-(u+65)/20}\;\mathrm{ms}^{-1},\\
+\beta_h(V_m)&=\frac{1}{1+e^{-(u+35)/10}}\;\mathrm{ms}^{-1}.
+\end{aligned}
+\tag{9}
+$$
+
+$$
+\begin{aligned}
+\alpha_n(V_m)&=\frac{0.01(u+55)}{1-e^{-(u+55)/10}}\;\mathrm{ms}^{-1},\\
+\beta_n(V_m)&=0.125e^{-(u+65)/80}\;\mathrm{ms}^{-1}.
+\end{aligned}
+\tag{10}
+$$
+
+Here $e$ is the base of the natural exponential. The apparent divisions by zero have finite limits: $\alpha_m=1$ ms⁻¹ at −40 mV and $\alpha_n=0.1$ ms⁻¹ at −55 mV. Each fresh demonstration starts at −65 mV with $x=\alpha_x/(\alpha_x+\beta_x)$, then runs for 200 ms without synaptic input before the displayed timeline begins. Membrane capacitance initially equals $C_m=1$ μF/cm².
+
+In a biological synapse, an arriving presynaptic spike causes transmitter release, opening synaptic channels. We add a standard conductance-based synapse with instantaneous opening and exponential decay, as described in *Neuronal Dynamics*, Section 3.1, Equations (3.1)–(3.2). This is an extension to the original Hodgkin–Huxley membrane model.\[[5](#ref-5)\] Its conductance density $g_{\mathrm{syn}}$ is in mS/cm², and we write its current as inward-positive (the opposite sign convention to that reference):
+
+$$
+I_{\mathrm{syn}}=g_{\mathrm{syn}}(E_{\mathrm{syn}}-V_m).
+\tag{11}
+$$
+
+The synaptic reversal potential is $E_{\mathrm{syn}}=0$ mV. Each arrival adds the selected weight $w$, in mS/cm², to this conductance; between arrivals it decays:
+
+$$
+\frac{dg_{\mathrm{syn}}}{dt}
+=-\frac{g_{\mathrm{syn}}}{\tau_{\mathrm{syn}}}
++w\sum_j\delta(t-t_j).
+\tag{12}
+$$
+
+We choose a decay time $\tau_{\mathrm{syn}}=2$ ms and default weight $w=0.2$ mS/cm² for this demonstration. The Dirac impulse $\delta$ has unit area and units of ms⁻¹, so each arrival increases conductance by $w$; this is equivalent to the exponential conductance in the cited model. Arrival times are $t_j=(5+40j)$ ms for $j=0,1,2,\ldots$, following a schematic 4 ms journey from a source with prescribed spikes. These timings are also demonstration choices; transmitter release and the presynaptic neuron's dynamics are not simulated.
+
+Voltage and the three gates are integrated with fourth-order Runge–Kutta steps of 0.01 ms. Synaptic conductance decays exponentially, evaluated at each step's start, midpoint and end. Action potentials emerge from the channel dynamics, without a firing threshold or voltage reset. Adjust capacitance, synaptic strength or the available channels to explore the response.
+
+<NeuronMembraneAnimation />

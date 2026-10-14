@@ -1,0 +1,72 @@
+---
+import { imageUrl } from '../../../site/src/lib/pingstore';
+interface Props { run: string; }
+const { run } = Astro.props;
+---
+<figure class="l-body" id="fig-training">
+  <pixi-training-loop data-source={imageUrl(run, 'training.json')}>
+    <div class="selectors" role="group" aria-label="Displayed training example">
+      <button type="button" data-example="0" aria-pressed="true" disabled>Class A</button>
+      <button type="button" data-example="1" aria-pressed="false" disabled>Class B</button>
+    </div>
+    <div class="phases" aria-label="Training stages">
+      <span data-phase="0">Forward spikes</span><span data-phase="1">Calculate loss</span><span data-phase="2">Backward gradients</span><span data-phase="3">Update weights</span>
+    </div>
+    <div class="scene" role="img" aria-label="A recorded SNNLab training loop beside its full loss curve. The highlighted interval contains the eight updates being replayed. Forward spikes, batch loss, backward gradients, and weight updates are shown in turn. A pink bar retains the previous loss until the next calculation updates it; backward motion is illustrative."><p class="status" role="status">Loading training…</p></div>
+    <div class="weights" aria-label="Synaptic weights in nanoamps">
+      <span class="weight-title">Weights (nA)</span>
+      {[0, 1].flatMap(target => [0, 1, 2].map(source => <div class="weight" data-target={target}>
+        <span>s{source + 1} → {target ? 'B' : 'A'}</span><strong data-weight={`${source}-${target}`}>—</strong><small data-change={`${source}-${target}`}></small>
+      </div>))}
+    </div>
+    <div class="controls"><button type="button" data-replay disabled>Replay</button><button type="button" data-next disabled>Next iteration</button><button type="button" data-pause disabled>Pause</button></div>
+    <noscript>The training replay requires JavaScript.</noscript>
+  </pixi-training-loop>
+  <figcaption>Figure 3: Recorded training on 128 examples. The graph shows all 48 updates; the shaded stretch is replayed slowly. Dots show spikes moving forward and gradients moving back; line thickness and numbers show the changing weights. The pink bar shows batch loss. Backward motion and weight transitions are illustrative.</figcaption>
+</figure>
+<script>
+  import { mountTraining } from '../js/training.js';
+  class PixiTrainingLoop extends HTMLElement {
+    dispose?: () => void;
+    observer?: IntersectionObserver;
+    connectedCallback() {
+      this.observer = new IntersectionObserver(async entries => {
+        if (!entries.some(entry => entry.isIntersecting)) return;
+        this.observer?.disconnect();
+        try { const dispose = await mountTraining(this); if (this.isConnected) this.dispose = dispose; else dispose(); }
+        catch (error) { console.error('Training replay could not start', error); const status = this.querySelector('.status'); if (status) status.textContent = 'The training replay is unavailable.'; }
+      }, { rootMargin: '200px' });
+      this.observer.observe(this);
+    }
+    disconnectedCallback() { this.observer?.disconnect(); this.dispose?.(); }
+  }
+  if (!customElements.get('pixi-training-loop')) customElements.define('pixi-training-loop', PixiTrainingLoop);
+</script>
+<style>
+  pixi-training-loop { display: block; box-sizing: border-box; padding: 12px; border: 1px solid #d6dfe7; border-radius: 12px; background: white; }
+  .selectors, .controls { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 4px; }
+  .selectors { padding-bottom: 12px; }
+  .phases { display: flex; flex-wrap: wrap; gap: 4px 12px; border-block: 1px solid #eaf0f4; padding: 10px 4px; font: 12px/1.4 system-ui, sans-serif; color: #687787; }
+  .phases span { padding: 3px 6px; border-radius: 4px; }
+  .phases span[data-active="true"] { color: #176d91; background: #e6eef4; }
+  .scene { width: 100%; aspect-ratio: 124 / 40; position: relative; }
+  .scene :global(canvas) { display: block; width: 100%; height: 100%; }
+  .scene :global(.training-labels) { position: absolute; inset: 0; pointer-events: none; font-family: system-ui, sans-serif; }
+  .status { position: absolute; inset: 0; display: grid; place-content: center; margin: 0; }
+  .weights { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px 16px; padding: 10px 4px 14px; font: 13px/1.4 system-ui, sans-serif; }
+  .weight-title { grid-column: 1 / -1; color: #687787; font-size: 12px; }
+  .weight { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; padding: 4px 6px; border-radius: 4px; color: #176d91; }
+  .weight[data-target="1"] { color: #846da7; }
+  .weight strong { font-weight: 500; font-variant-numeric: tabular-nums; }
+  .weight small { font-size: 11px; font-variant-numeric: tabular-nums; }
+  .weight[data-updating="true"] { background: #e6eef4; }
+  .controls { padding-top: 12px; border-top: 1px solid #eaf0f4; }
+  button { border: 1px solid #cbd5df; border-radius: 6px; padding: 6px 14px; background: #f5f7f9; color: #263343; font: 13px/1.4 system-ui, sans-serif; cursor: pointer; }
+  button[aria-pressed="true"] { background: #e6eef4; border-color: #8da9be; }
+  button:hover { background: #eaf0f4; }
+  button:focus-visible { outline: 2px solid #176d91; outline-offset: 3px; }
+  button:disabled { opacity: 0.5; cursor: default; }
+  figcaption { margin-top: 12px; }
+  @media (max-width: 600px) { .scene { aspect-ratio: 64 / 66; } }
+  @media (min-width: 1180px) { figure { grid-column: text-start / page-end; display: grid; grid-template-columns: subgrid; } pixi-training-loop { grid-column: 1 / -1; } figcaption { grid-column: text; } }
+</style>

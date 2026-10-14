@@ -9,6 +9,26 @@ bun run astro dev stop
 bun run build                # disposable dist/
 ```
 
+Pixi is prebundled when development starts, including animation scripts outside
+`site/`. Development and builds use separate Vite caches under
+`node_modules/.vite/dev` and `node_modules/.vite/build`, so a build cannot replace
+the dependency URLs used by a running preview.
+
+Page rendering errors are isolated by `src/middleware.ts`. The affected URL
+shows “An error occurred.” and the error message with a link back to the articles;
+other pages continue rendering. HTML is buffered so component errors cannot
+leave a partially rendered page. Development returns HTTP 500; static builds
+write the error page at the affected URL and log the failure. Static hosting
+serves that generated file with its normal success status. Compiler, import-resolution,
+and content-schema errors can still prevent a build before rendering begins.
+
+Development run assets are read directly from the requested presentation export;
+they do not scan every article's runs. Missing assets return HTTP 404. During a
+static build, unavailable run exports are logged and skipped in asset enumeration,
+while data or figure errors remain visible on their own article. Shared article
+appendices load only for the current report. Listings also exclude cached reports
+whose source file has been deleted.
+
 The header's Search button opens a site-wide command palette, also available
 with `Cmd+K` on macOS or `Ctrl+K` elsewhere. Type to filter, use Up/Down to
 select, Enter to navigate, and Escape to close. Home is the first item, so

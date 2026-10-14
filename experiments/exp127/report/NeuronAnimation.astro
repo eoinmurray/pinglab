@@ -1,0 +1,76 @@
+---
+interface Props { synapses?: boolean; }
+const { synapses = false } = Astro.props;
+const weights = [0.8, 3.2, 8];
+---
+<figure class="l-body" id={synapses ? 'fig-synapses' : 'fig-neuron'}>
+  <pixi-lif-neuron data-synapses={synapses ? 'true' : undefined}>
+    <div class="scene" role="img" aria-label={synapses ? 'Three presynaptic spike trains feed one neuron through adjustable current-based synaptic weights w_i in nA. The postsynaptic voltage V_m and firing threshold V_th are plotted on the right.' : 'Left: input-current pulses I_j in nA, membrane voltage V_m, and output spikes. Right: V_m against time t, with firing threshold V_th marked. Pulse motion is schematic; voltage is simulated live.'}>
+      <p class="status" role="status">Loading neuron…</p>
+    </div>
+    <div class:list={['controls', { 'weight-controls': synapses }]}>
+      {synapses ? weights.map((weight, i) => <label><span>Weight <i>w</i><sub>{i + 1}</sub></span><input type="range" data-weight={i} min="0" max="8" step="0.4" value={weight} /><output data-weight-value={i}>{weight} nA</output></label>) : <>
+      <label><span>Input current <i>I</i><sub>j</sub></span><input type="range" data-strength min="0.8" max="9.6" step="0.4" value="5.6" /><output data-strength-value>5.6 nA</output></label>
+      <label><span>Time constant <i>τ</i><sub>m</sub></span><input type="range" data-leak min="8" max="60" step="1" value="30" /><output data-leak-value>30 ms</output></label>
+      </>}
+      <button type="button" data-pause disabled>Pause</button>
+    </div>
+    <noscript>This animation requires JavaScript. Inputs raise voltage, leakage returns it towards rest, and reaching threshold emits a spike and resets the voltage.</noscript>
+  </pixi-lif-neuron>
+  <figcaption>
+    {synapses ? <>Figure 2: Three random spike streams feed one simulated neuron. Thicker lines mean stronger connections. Blue shows voltage; pink marks spikes and the firing threshold.</> : <>Figure 1: A simulated neuron receives current pulses. Blue shows its voltage; pink marks spikes and the firing threshold.</>}
+    {' '}Rest and reset are −65 mV (<i>E</i><sub>L</sub> = <i>V</i><sub>reset</sub>); the threshold is −50 mV. Spike motion is illustrative.
+  </figcaption>
+</figure>
+
+<script>
+  import { mountNeuron } from '../js/neuron.js';
+  class PixiLifNeuron extends HTMLElement {
+    dispose?: () => void;
+    observer?: IntersectionObserver;
+    connectedCallback() {
+      this.observer = new IntersectionObserver(async entries => {
+        if (!entries.some(entry => entry.isIntersecting)) return;
+        this.observer?.disconnect();
+        try {
+          const dispose = await mountNeuron(this);
+          if (this.isConnected) this.dispose = dispose;
+          else dispose();
+        } catch (error) {
+          console.error('Neuron animation could not start', error);
+          const status = this.querySelector('.status');
+          if (status) status.textContent = 'The animation could not start. The neuron model is explained in the accompanying text.';
+        }
+      }, { rootMargin: '200px' });
+      this.observer.observe(this);
+    }
+    disconnectedCallback() { this.observer?.disconnect(); this.dispose?.(); }
+  }
+  if (!customElements.get('pixi-lif-neuron')) customElements.define('pixi-lif-neuron', PixiLifNeuron);
+</script>
+
+<style>
+  pixi-lif-neuron { display: block; box-sizing: border-box; padding: 12px; border: 1px solid #d6dfe7; border-radius: 12px; background: white; }
+  .scene { width: 100%; aspect-ratio: 124 / 36; position: relative; }
+  .scene :global(canvas) { display: block; width: 100%; height: 100%; }
+  .scene :global(.neuron-labels) { position: absolute; inset: 0; pointer-events: none; font-family: system-ui, sans-serif; }
+  .status { position: absolute; inset: 0; display: grid; place-content: center; padding: 24px; margin: 0; text-align: center; }
+  .controls { display: grid; width: 100%; box-sizing: border-box; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; align-items: center; gap: 24px; padding: 12px 4px 4px; border-top: 1px solid #eaf0f4; }
+  .weight-controls { grid-template-columns: repeat(3, minmax(0, 1fr)) auto; gap: 16px; }
+  .controls label { display: grid; grid-template-columns: auto minmax(0, 1fr) 48px; align-items: center; gap: 8px; font: 13px/1.4 system-ui, sans-serif; color: #263343; }
+  input[type="range"] { width: 100%; min-width: 0; margin: 0; accent-color: #626b74; }
+  output { display: inline-block; width: 48px; min-width: 48px; text-align: right; font-variant-numeric: tabular-nums; }
+  input:focus-visible { outline: 2px solid #176d91; outline-offset: 3px; }
+  button { border: 1px solid #cbd5df; border-radius: 6px; padding: 6px 14px; background: #f5f7f9; color: #263343; font: 13px/1.4 system-ui, sans-serif; cursor: pointer; min-width: 80px; }
+  button:hover { background: #eaf0f4; }
+  button:focus-visible { outline: 2px solid #176d91; outline-offset: 3px; }
+  button:disabled { opacity: 0.5; cursor: default; }
+  figcaption { margin-top: 12px; }
+  @media (max-width: 800px) { .weight-controls { grid-template-columns: minmax(0, 1fr) auto; gap: 14px; } .weight-controls label { grid-column: 1 / -1; } .weight-controls button { grid-column: 2; } }
+  @media (max-width: 600px) { .scene { aspect-ratio: 62 / 36; } .controls { grid-template-columns: minmax(0, 1fr) auto; gap: 14px; } .controls label { grid-column: 1 / -1; } .controls button { grid-column: 2; } }
+  @media (min-width: 1180px) {
+    figure { grid-column: text-start / page-end; display: grid; grid-template-columns: subgrid; }
+    pixi-lif-neuron { grid-column: 1 / -1; }
+    figcaption { grid-column: text; }
+  }
+</style>

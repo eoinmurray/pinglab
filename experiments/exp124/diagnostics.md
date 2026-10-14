@@ -1,8 +1,14 @@
 # Two-layer SHD training diagnosis
 
-Local scientific checks, 14 October 2026. Both models retain two 128 E/32 I
+Historical local scientific checks, 14 October 2026. Both models used two 128 E/32 I
 hidden layers, with network declarations in `recipe.py`. These are reduced
 training experiments, not automated tests or official-test benchmarks.
+
+The newly prepared default `paper` profile has different population counts and
+training settings and has not run. The measurements below establish readiness
+only for the earlier `tuned` profile; see [README](README.md) for the prepared
+full-data Modal configuration. Completed outputs and the article's presentation
+pin retain their original provenance.
 
 ## What the checks establish
 
@@ -85,7 +91,7 @@ accuracy optimistic for subsequent independent evaluation.
 3. Cancelled 1,000-example runs have no resumable training checkpoint and are
    excluded from completed comparisons.
 
-The final selected preset is `tuned`: hidden learning rate 0.0004, readout
+The previously selected preset was `tuned`: hidden learning rate 0.0004, readout
 learning rate 0.01, balanced batches, centered initialization, and per-example
 rate-normalized mean voltage. Its numeric settings match the completed
 `exp124-r044-compute` pilot; only the preset name differs. During exploration,
@@ -100,7 +106,7 @@ final-step measurements, not best-epoch substitutions.
 
 ## Readiness and next run
 
-The selected default passed tiny fitting (COBA 90% at 300 updates; PING 100%
+The previously selected `tuned` profile passed tiny fitting (COBA 90% at 300 updates; PING 100%
 at 100) and both reduced pilots showed held-out accuracy above 5% chance.
 Pilot final validation was COBA 18% / PING 44% for seed 42 and COBA 14% / PING
 22% for seed 43. All three learned matrices had finite nonzero gradients and
@@ -109,10 +115,10 @@ makes a larger learning check useful; it does not establish 30% in ten epochs.
 No larger run has been submitted.
 
 ```sh
-.venv/bin/python experiments/exp124/compute.py --device cpu --train-examples 1000 --validation-examples 200 --epochs 20
+.venv/bin/python experiments/exp124/compute.py --variant tuned --device cpu --train-examples 1000 --validation-examples 200 --epochs 20
 ```
 
-This creates a fresh run with the selected defaults and trains COBA then PING
+This creates a fresh run with the earlier selected settings and trains COBA then PING
 sequentially. It has 50 optimizer updates per epoch, versus ten in the pilot.
 Allow roughly 35–45 minutes combined on the local four-thread CPU, estimated
 from measured two-layer timings; this is not a newly measured larger-run time.

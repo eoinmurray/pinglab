@@ -1,5 +1,5 @@
 ---
-import { getCollection } from 'astro:content';
+import { getReports } from '../lib/reports';
 import { dependencies, downstream } from '../lib/dependencies';
 import { dataset } from '../lib/pingstore';
 
@@ -17,7 +17,7 @@ const displayRuns = runs.map(run => ({
   executionOrigin: run.record.scientific_execution?.origin ?? run.record.completed_hpc_import?.source_origin
     ?? (run.record.execution.operation?.includes('import') ? 'unknown' : run.record.origin),
 }));
-const entries = await getCollection('reports');
+const entries = await getReports();
 const dependents = [...new Set([...downstream(experiment), ...entries.filter(entry => entry.id !== experiment && entry.data.runs?.[experiment]).map(entry => entry.id)])].sort();
 const reports = new Set(entries.map(report => report.id));
 const titles = new Map(entries.map(report => [report.id, report.data.title]));

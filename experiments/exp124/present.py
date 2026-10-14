@@ -19,6 +19,15 @@ from pingstore.contracts import load_json, write_json_atomic
 from pingstore.stages import source_run, stage_run
 
 
+def example_count(cfg, split):
+    return cfg.get(f"{split}_examples") or cfg[f"{split}_per_class"] * cfg["classes"]
+
+
+def accuracy_percent(row, split):
+    value = row[split]["accuracy"]
+    return float("nan") if value is None else 100 * value
+
+
 def present(identities, reference=None):
     sources = [source_run(REPO / ".pingstore", identity, stage="analyse", experiment=recipe.SLUG) for identity in identities]
     cfg = sources[0].record["execution"]["configuration"]
@@ -72,12 +81,12 @@ def present(identities, reference=None):
                     epochs = [row["epoch"] for row in rows]
                     marker = "o" if backend == "local" else "x"
                     axes[0].plot(epochs, [row[split]["loss"] for row in rows], style, marker=marker, markersize=3, color=color, label=f"{backend.capitalize()} {split}")
-                    axes[1].plot(epochs, [100 * row[split]["accuracy"] for row in rows], style, marker=marker, markersize=3, color=color)
+                    axes[1].plot(epochs, [accuracy_percent(row, split) for row in rows], style, marker=marker, markersize=3, color=color)
             axes[0].set(title="A  Classification loss", ylabel="Cross-entropy")
-            max_accuracy = max(row[split]["accuracy"] * 100
+            max_accuracy = max(accuracy_percent(row, split)
                                for execution in numbers["executions"].values()
                                for row in execution["conditions"][condition]["epochs"]
-                               for split in ("train", "validation"))
+                               for split in ("train", "validation") if row[split]["accuracy"] is not None)
             axes[1].set(title="B  Classification accuracy", ylabel="Accuracy (%)",
                         ylim=(0, max(20, max_accuracy * 1.2)))
             axes[1].axhline(5, linestyle=":", color="#777777", linewidth=1)
@@ -86,10 +95,68 @@ def present(identities, reference=None):
                 axis.xaxis.set_major_locator(MaxNLocator(nbins=10, integer=True))
                 axis.spines[["top", "right"]].set_visible(False)
             axes[0].legend(fontsize=8, frameon=False)
-            figure.suptitle(f"{condition.upper()} — SHD, {cfg['train_per_class'] * cfg['classes']} training / {cfg['validation_per_class'] * cfg['classes']} validation", fontsize=11)
+            figure.suptitle(f"{condition.upper()} — SHD, {example_count(cfg, 'train')} training / {example_count(cfg, 'validation')} validation", fontsize=11)
             for extension in ("svg", "png"):
                 figure.savefig(run.export / f"{condition}_training_curves.{extension}", dpi=180)
             plt.close(figure)
+        write_json_atomic(run.export / "numbers.json", numbers)
+    return run.run_id
+
+
+def present_full_training(identity, reference):
+    """Add full-data curves while retaining an explicitly validated article input."""
+    if not reference:
+        raise ValueError("full training requires an explicit reference presentation")
+    source = source_run(REPO / ".pingstore", identity, stage="analyse", experiment=recipe.SLUG)
+    retained = source_run(REPO / ".pingstore", reference, stage="present", experiment=recipe.SLUG)
+    cfg = source.record["execution"]["configuration"]
+    if not cfg.get("full_dataset") or cfg.get("schema") != "exp124.recipe/v3":
+        raise ValueError("expected full-data two-layer training")
+    if set(cfg["models"]) != set(recipe.MODELS):
+        raise ValueError("full-data article requires both models")
+    measurements = source.record["execution"]["source_measurements"]
+    conditions = load_json(source.file("results.json"))["conditions"]
+    numbers = load_json(retained.file("numbers.json"))
+    numbers["full_training"] = {"configuration": cfg, "conditions": conditions, **measurements}
+    with stage_run(REPO, recipe.SLUG, "present", inputs={"full_training": source, "retained_presentation": retained},
+                   configuration=cfg) as run:
+        for path in retained.export.iterdir():
+            if not path.is_file():
+                raise ValueError("retained presentation must have flat exports")
+            if path.name != "numbers.json":
+                shutil.copyfile(path, run.export / path.name)
+        with plt.rc_context({"font.size": 8, "axes.titlesize": 9, "axes.labelsize": 8,
+                             "xtick.labelsize": 8, "ytick.labelsize": 8}):
+            for condition in recipe.MODELS:
+                rows = conditions[condition]["epochs"]
+                figure, axes = plt.subplots(1, 2, figsize=(7.1, 3.8), constrained_layout=True)
+                for split, color in (("train", "#202020"), ("validation", "#a34d45")):
+                    epochs = [row["epoch"] for row in rows]
+                    axes[0].plot(epochs, [row[split]["loss"] for row in rows], color=color,
+                                 marker="o", markersize=2.5,
+                                 label="Online training" if split == "train" and cfg.get("training_measurement") == "online_pre_update_minibatches" else split.capitalize())
+                    axes[1].plot(epochs, [accuracy_percent(row, split) for row in rows],
+                                 color=color, marker="o", markersize=2.5)
+                axes[0].set(title="A  Classification loss", ylabel="Cross-entropy")
+                maximum = max(accuracy_percent(row, split) for row in rows for split in ("train", "validation") if row[split]["accuracy"] is not None)
+                axes[1].set(title="B  Classification accuracy", ylabel="Accuracy (%)",
+                            ylim=(0, min(100, max(20, maximum * 1.15))))
+                axes[1].axhline(5, linestyle=":", color="#777777", linewidth=1)
+                for axis in axes:
+                    axis.set(xlabel="Completed epoch", xlim=(0, cfg["epochs"]))
+                    axis.set_box_aspect(3 / 4)
+                    axis.xaxis.set_major_locator(MaxNLocator(nbins=5, integer=True))
+                    axis.spines[["top", "right"]].set_visible(False)
+                axes[0].legend(frameon=False)
+                figure.suptitle(f"{condition.upper()} — full SHD training, two hidden layers\n"
+                                f"{example_count(cfg, 'train'):,} training / {example_count(cfg, 'validation'):,} validation",
+                                fontsize=10)
+                for extension in ("svg", "png"):
+                    filename = f"full_{condition}_training_curves.{extension}"
+                    if (run.export / filename).exists():
+                        raise ValueError(f"retained export collides with {filename}")
+                    figure.savefig(run.export / filename, dpi=180)
+                plt.close(figure)
         write_json_atomic(run.export / "numbers.json", numbers)
     return run.run_id
 
@@ -100,7 +167,7 @@ def present_diagnostics(identities, reference=None, selected_source=None):
     selections = {}
     for source in sources:
         cfg = source.record["execution"]["configuration"]
-        counts = (cfg['train_per_class'] * cfg['classes'], cfg['validation_per_class'] * cfg['classes'])
+        counts = (example_count(cfg, 'train'), example_count(cfg, 'validation'))
         if counts not in ((20, 20), (200, 100)):
             raise ValueError("diagnostic panels require 20/20 or 200/100 examples")
         key = (*counts, cfg['seed'])
@@ -144,7 +211,7 @@ def present_diagnostics(identities, reference=None, selected_source=None):
                     continue
                 cfg = case["configuration"]
                 rows = case["conditions"][condition]["epochs"]
-                count = cfg['train_per_class'] * cfg['classes']
+                count = example_count(cfg, 'train')
                 if count == 20:
                     label = f"{cfg.get('variant', 'baseline')}, seed {cfg['seed']}"
                     if cfg.get("readout_learning_rate", cfg["learning_rate"]) != cfg["learning_rate"]:
@@ -169,7 +236,7 @@ def present_diagnostics(identities, reference=None, selected_source=None):
                         label += f", input {cfg['input_weight_mean']:g}"
                     if cfg['seed'] != 42:
                         label += f", seed {cfg['seed']}"
-                steps = [(row["epoch"] * ((cfg["train_per_class"] * cfg["classes"] + cfg["batch_size"] - 1) // cfg["batch_size"])) for row in rows]
+                steps = [(row["epoch"] * ((example_count(cfg, 'train') + cfg["batch_size"] - 1) // cfg["batch_size"])) for row in rows]
                 offset = 0 if count == 20 else 2
                 color = plt.get_cmap("tab10")(index % 10)
                 axes[offset].plot(steps, [100 * row['train']['accuracy'] for row in rows], label=label, color=color, linewidth=1.2)
@@ -205,9 +272,14 @@ if __name__ == "__main__":
     parser.add_argument("--source", action="append", required=True)
     parser.add_argument("--reference-present", help="Explicit earlier smoke presentation to retain alongside new curves")
     parser.add_argument("--diagnostics", action="store_true", help="Compare explicit diagnostic analyses across recipes")
+    parser.add_argument("--full-training", action="store_true", help="Add full-data curves while retaining the explicit reference presentation")
     parser.add_argument("--selected-source", help="Explicit diagnostic analysis whose final metrics are highlighted")
     args = parser.parse_args()
-    if args.diagnostics:
+    if args.full_training:
+        if args.diagnostics or args.selected_source or len(args.source) != 1:
+            parser.error("full-training requires one source and cannot be combined with diagnostics")
+        present_full_training(args.source[0], args.reference_present)
+    elif args.diagnostics:
         present_diagnostics(args.source, args.reference_present, args.selected_source)
     else:
         if args.selected_source:

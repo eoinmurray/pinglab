@@ -19,6 +19,21 @@ def maximum_scores(sources, parameters, config):
 extensions.register_operation("exp124.rate_normalize/v1", rate_normalized_scores)
 extensions.register_operation("exp124.temporal_max/v1", maximum_scores)
 
+
+def paper_surrogate(voltage, config):
+    """Paper derivative in threshold-normalized voltage, converted to mV."""
+    gap = config["voltage_scale_mv"]
+    return 1.0 / gap / (1 + config["beta"] * (voltage / gap).abs()).square()
+
+
+def adam_optimizer(groups, config):
+    import torch
+    return torch.optim.Adam(groups, **config)
+
+
+extensions.register_surrogate("exp124.paper_fast_sigmoid/v1", paper_surrogate)
+extensions.register_optimizer("exp124.adam/v1", adam_optimizer)
+
 SLUG = "exp124"
 MODELS = ("coba", "ping")
 
@@ -27,16 +42,17 @@ TRAINABLE = ("input_to_E1.weight", "E1_to_E2.weight", "readout_projection.weight
 
 
 def configuration(
-    train_examples=200, validation_examples=100, epochs=5, variant="tuned",
+    train_examples=200, validation_examples=100, epochs=5, variant="paper",
     seed=42, batch_size=None, learning_rate=None, readout_gain=None, damping=None,
     readout_learning_rate=None, balanced_batches=None, center_readout=None,
     interlayer_strength=None, normalize_readout=None, input_strength=None, models=None,
+    full_dataset=False, validation_fraction=0.1,
 ):
     models = tuple(MODELS if models is None else models)
     if not models or len(set(models)) != len(models) or any(model not in MODELS for model in models):
         raise ValueError("select unique supported models")
     tuned = variant == "tuned"
-    batch_size = (20 if tuned else 16) if batch_size is None else batch_size
+    batch_size = (256 if variant == "paper" else 20 if tuned else 16) if batch_size is None else batch_size
     balanced_batches = tuned if balanced_batches is None else balanced_batches
     center_readout = tuned if center_readout is None else center_readout
     normalize_readout = tuned if normalize_readout is None else normalize_readout
@@ -44,8 +60,12 @@ def configuration(
         raise ValueError("example counts and epochs must be positive")
     if train_examples % 20 or validation_examples % 20:
         raise ValueError("class-balanced example counts must be multiples of 20")
-    if variant not in ("baseline", "diverse", "damping", "sum", "gain", "combined", "maximum", "tuned"):
+    if variant not in ("baseline", "diverse", "damping", "sum", "gain", "combined", "maximum", "tuned", "paper"):
         raise ValueError("unsupported training variant")
+    if not 0 < validation_fraction < 1:
+        raise ValueError("validation_fraction must be between zero and one")
+    if full_dataset and balanced_batches:
+        raise ValueError("full dataset requires shuffled batches to retain uneven class counts")
     if batch_size < 1:
         raise ValueError("batch_size must be positive")
     if balanced_batches and batch_size % 20:
@@ -55,6 +75,17 @@ def configuration(
         "schema": "exp124.recipe/v2", "dataset": "shd", "seed": seed,
         "train_per_class": train_per_class, "validation_per_class": validation_per_class, "classes": 20,
         "n_input": 700, "n_e": 128, "n_i": 32, "epochs": epochs, "batch_size": batch_size,
+        "train_examples": train_examples, "validation_examples": validation_examples,
+        "full_dataset": full_dataset, "validation_fraction": validation_fraction,
+        "optimizer": "adamw", "optimizer_betas": [0.9, 0.999],
+        "tau_mem_e_ms": 20.0, "tau_mem_i_ms": 5.0,
+        "input_noise_hz": 0.0, "spike_deletion_probability": 0.0,
+        "firing_rate_regularization": False,
+        "training_measurement": "full_split_evaluation",
+        "projection_mode": "fast", "extension_validation": "structural",
+        "compile_mode": None,
+        "forward_retention": {"retain_parameters": False, "retain_final_state": False,
+                              "retain_runtime_state": False},
         "dt_ms": 1.0, "duration_ms": 1000.0, "learning_rate": 0.0004,
         "weight_decay": 0.0, "gradient_clip": 1.0,
         "voltage_gradient_damping": 1000.0, "surrogate_slope": 1.0,
@@ -91,6 +122,22 @@ def configuration(
         cfg["readout_gain"] = 20.0
     if variant == "maximum":
         cfg.update(readout_reduction="max", readout_gain=20.0)
+    if variant == "paper":
+        cfg.update(schema="exp124.recipe/v3", dt_ms=1.0,
+                   tau_ampa_ms=10.0, tau_gaba_ms=10.0,
+                   tau_mem_e_ms=20.0, tau_mem_i_ms=20.0,
+                   refractory_e_ms=0.0, refractory_i_ms=0.0,
+                   learning_rate=0.001, voltage_gradient_damping=1.0,
+                   surrogate_slope=100.0, surrogate_voltage_scale_mv=15.0,
+                   readout_reduction="max", readout_gain=1.0,
+                   optimizer="adam", gradient_clip=None,
+                   input_noise_hz=1.6, spike_deletion_probability=0.0008,
+                   training_measurement="online_pre_update_minibatches",
+                   gradient_measurement="none; no per-batch host diagnostic reads",
+                   architecture="COBA: 128 neurons per layer; PING: 128 E + 32 I per layer",
+                   population_sizes={"coba": {"e": 128, "i": 0}, "ping": {"e": 128, "i": 32}},
+                   paper_reference="https://arxiv.org/pdf/1910.07407v1",
+                   paper_adaptations="conductance neurons, nonnegative hidden weights, retained conductance initialization and fixed PING loops; batch size 256 and 1 ms steps match GPU timing benchmarks, not the original 2019 curve; stratified 10% validation is an explicit choice")
     if learning_rate is not None:
         cfg["learning_rate"] = learning_rate
     if readout_gain is not None:
@@ -115,10 +162,14 @@ def configuration(
     if cfg["readout_learning_rate"] <= 0:
         raise ValueError("readout learning rate must be positive")
     cfg["readout"] = f"non-spiking leaky integrator; {cfg['readout_reduction']} voltage over presentation"
+    if full_dataset:
+        cfg.update(train_per_class=None, validation_per_class=None,
+                   train_examples=None, validation_examples=None,
+                   split=f"seeded per-class {validation_fraction:.0%} holdout from official train; all remaining utterances train")
     return cfg
 
 def author_network(cfg, model):
-    if cfg.get("schema") != "exp124.recipe/v2" or cfg.get("hidden_layers") != 2:
+    if cfg.get("schema") not in ("exp124.recipe/v2", "exp124.recipe/v3") or cfg.get("hidden_layers") != 2:
         raise ValueError("exp124 authors only the two-layer recipe")
     if model not in MODELS:
         raise ValueError(model)
@@ -126,7 +177,9 @@ def author_network(cfg, model):
     drive = net.input("drive", shape=("time", "batch", cfg["n_input"]),
                      signal_type="spikes", unit="spike")
     neurons = {}
-    for label, tau, capacitance, leak in (("e", 20, 1.0, 0.05), ("i", 5, 0.5, 0.1)):
+    for label, capacitance in (("e", 1.0), ("i", 0.5)):
+        tau = cfg[f"tau_mem_{label}_ms"]
+        leak = capacitance / tau
         neurons[label] = lang.COBA_LIF(
             tau_mem=tau * lang.ms, capacitance_nf=capacitance, leak_us=leak,
             resting_mv=-65.0, reset_mv=-65.0, threshold_mv=-50.0,
@@ -138,7 +191,8 @@ def author_network(cfg, model):
     for index in (1, 2):
         suffix = str(index)
         e = net.population(f"E{suffix}", size=cfg["n_e"], neuron=neurons["e"])
-        i = net.population(f"I{suffix}", size=cfg["n_i"], neuron=neurons["i"])
+        i = (net.population(f"I{suffix}", size=cfg["n_i"], neuron=neurons["i"])
+             if model == "ping" or cfg["schema"] == "exp124.recipe/v2" else None)
         projection = net.connect(
             source, e.excitatory,
             name=f"input_to_E{suffix}" if index == 1 else "E1_to_E2",
@@ -146,10 +200,10 @@ def author_network(cfg, model):
             weight=lang.Constant(0), constraint=lang.NonNegative(),
             initialization_scaling="direct")
         learned.append(projection.weight)
-        for pre, target, name, synapse in (
+        for pre, target, name, synapse in (() if i is None else (
             (e.spikes, i.excitatory, f"E{suffix}_to_I{suffix}", lang.AMPA(tau=cfg["tau_ampa_ms"] * lang.ms)),
             (i.spikes, e.inhibitory, f"I{suffix}_to_E{suffix}", lang.GABA(tau=cfg["tau_gaba_ms"] * lang.ms)),
-        ):
+        )):
             loop = net.connect(pre, target, name=name, synapse=synapse,
                                weight=lang.Constant(0), constraint=lang.NonNegative(),
                                connection="recurrent", delay=cfg["dt_ms"] * lang.ms,
@@ -161,7 +215,8 @@ def author_network(cfg, model):
                             neuron=lang.LeakyIntegrator(tau=cfg["readout_tau_ms"] * lang.ms))
     projection = net.connect(
         source, readout.excitatory, name="readout_projection",
-        synapse=lang.LeakyIntegrator(tau=cfg["readout_tau_ms"] * lang.ms),
+        synapse=lang.LeakyIntegrator(tau=(cfg["tau_ampa_ms"] if cfg["variant"] == "paper"
+                                        else cfg["readout_tau_ms"]) * lang.ms),
         weight=lang.Constant(0), initialization_scaling="direct",
     )
     if cfg.get("readout_reduction") == "max":
@@ -184,6 +239,8 @@ def author_network(cfg, model):
     net.output("class_scores", scores)
     for index, (e, i) in enumerate(populations, 1):
         for label, population in (("e", e), ("i", i)):
+            if population is None:
+                continue
             net.output(f"{label}{index}_counts", lang.ops.reduce(
                 population.spikes, operation="sum", over="time", name=f"{label}{index}_count_reduction"))
             if index == 2:
@@ -194,11 +251,16 @@ def author_network(cfg, model):
         parameter_groups=(training.ParameterGroup(
             tuple(learned), name="hidden", lr=cfg["learning_rate"]),
             training.ParameterGroup((projection.weight,), name="readout", lr=cfg["readout_learning_rate"]),
-            training.ParameterGroup(tuple(fixed),
-                                    name="fixed_loop", lr=0.0, frozen=True)),
-        optimizer=training.AdamW(weight_decay=cfg["weight_decay"]),
-        surrogate=training.FastSigmoid(slope=cfg["surrogate_slope"]),
+            *((training.ParameterGroup(tuple(fixed), name="fixed_loop", lr=0.0, frozen=True),)
+              if fixed else ())),
+        optimizer=(training.CustomOptimizer("exp124.adam/v1", lr=cfg["learning_rate"],
+                   betas=cfg["optimizer_betas"], weight_decay=cfg["weight_decay"])
+                   if cfg["optimizer"] == "adam" else training.AdamW(weight_decay=cfg["weight_decay"])),
+        surrogate=(training.CustomSurrogate("exp124.paper_fast_sigmoid/v1", beta=cfg["surrogate_slope"],
+                   voltage_scale_mv=cfg["surrogate_voltage_scale_mv"])
+                   if cfg["variant"] == "paper" else training.FastSigmoid(slope=cfg["surrogate_slope"])),
         gradient_clip=cfg["gradient_clip"],
+        epochs=cfg["epochs"],
         presentation_duration=cfg["duration_ms"] * lang.ms,
     )
     return lang.compile(net, training=spec, target="tools/snnsim")

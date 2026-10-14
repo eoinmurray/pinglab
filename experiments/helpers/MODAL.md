@@ -1,7 +1,7 @@
 # Modal compute
 
 One shared wrapper calls the existing compute entry points for exp047, exp080,
-exp081, exp124 and exp126. From the repository root, authenticate once:
+exp081 and exp124. From the repository root, authenticate once:
 
 ```sh
 uvx --from 'modal>=1.1,<2' modal setup
@@ -14,7 +14,6 @@ uv run --no-project --python 3.12 --with 'modal>=1.1,<2' --with PyYAML modal run
 uv run --no-project --python 3.12 --with 'modal>=1.1,<2' --with PyYAML modal run experiments/helpers/modal_compute.py --experiment exp081
 uv run --no-project --python 3.12 --with 'modal>=1.1,<2' --with PyYAML modal run experiments/helpers/modal_compute.py --experiment exp080
 uv run --no-project --python 3.12 --with 'modal>=1.1,<2' --with PyYAML modal run experiments/helpers/modal_compute.py --experiment exp124 --smoke
-uv run --no-project --python 3.12 --with 'modal>=1.1,<2' --with PyYAML modal run experiments/helpers/modal_compute.py --experiment exp126 --gpu A10 --cpu 4
 ```
 
 Add `--smoke` for the existing reduced compute profile. The default GPU is A10G;
@@ -39,16 +38,11 @@ uploads the current `experiments/`, `tools/`, article metadata and dependency
 files, including uncommitted changes. HEAD must be available from the public
 Pinglab GitHub remote; there is no need to commit local code edits first. Local
 datasets, credentials and Pingstore are not uploaded. exp080 downloads MNIST
-inside its container. exp126 downloads MNIST in its container too, and runs its
-fixed 6,000-training / 1,000-validation / 10,000-test recipe. Its `--smoke` flag
-does not reduce this recipe. It measures optimization and evaluation separately,
-then performs five warmed full-test inference timing passes. See
-[exp126 instructions](../exp126/README.md) for timing boundaries and separate
-analyse/present commands.
+inside its container.
 
 exp124 defaults to its class-balanced SHD smoke: 200
-training and 100 validation examples, two hidden layers of 128 E/32 I neurons, five epochs for both
-COBA and PING. It downloads and authenticates only the official SHD training
+training and 100 validation examples, five epochs for both models, using the new
+`paper` profile: two 128-neuron COBA layers and two 128 E/32 I PING layers. It downloads and authenticates only the official SHD training
 archive inside the container. For the larger two-layer run, omit `--smoke` and
 pass explicit counts and epochs:
 
@@ -68,20 +62,17 @@ old compute. A disconnect can leave remote work running; check the Modal app
 before starting another expensive run. Remote incomplete computation is not a
 completed scientific result and is not recovered by this wrapper.
 
-Analyse and present remain explicit local commands using the returned compute
-run ID. The wrapper does not launch them or publish.
-
-For the equation-matched exp126 snnTorch/snnlab comparison, use the experiment's
-parallel launcher rather than the ordinary single-condition wrapper:
+For the prepared full-data SHD profile, use the explicit full-dataset option:
 
 ```sh
-uv run --no-project --python 3.12 --with 'modal>=1.1,<2' --with PyYAML modal run experiments/exp126/modal_compare.py::compare --implementation both --seeds 42 --gpu A10 --cpu 4
+uv run --no-project --python 3.12 --with 'modal>=1.1,<2' --with PyYAML modal run --detach experiments/helpers/modal_compute.py --experiment exp124 --gpu none --cpu 8 --variant paper --full-dataset --validation-fraction 0.1 --epochs 20
 ```
 
-It spawns both calls before waiting, with one GPU per container and at most two
-active containers. Both implementations also support independent dispatch via
-`--implementation snntorch` or `--implementation snnlab`. See
-[exp126 comparison instructions](../exp126/README.md) for optional paired seeds,
-explicit phase assembly into one full compute result before analysis, agreement
-gates and timing boundaries. This comparison
-has been prepared but not executed.
+This consumes every official training utterance: 7,340 for training and 816 for
+validation, using a seeded stratified 10% holdout. It cannot be combined with
+`--smoke` or explicit example counts. The wrapper forwards the profile and split
+settings unchanged to exp124 compute. This full-data command was submitted as `exp124-r066-compute` and cancelled by the author during the first COBA epoch; PING did not start. No completed result is available. The [exp124 README](../exp124/README.md) records the scientific
+settings and adaptations from the original paper.
+
+Analyse and present remain explicit local commands using the returned compute
+run ID. The wrapper does not launch them or publish.
