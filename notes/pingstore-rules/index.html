@@ -1,0 +1,1357 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Pingstore run layout, provenance, validation, pruning, Cloudflare R2 backup access and recovery."><link rel="canonical" href="https://pinglab.eoinmurray.info/notes/pingstore-rules/"><link rel="icon" type="image/svg+xml" href="/favicon.svg"><title>Pingstore Rules · Pinglab</title><style id="distill-prerendered-styles">/*
+ * Copyright 2018 The Distill Template Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+html {
+  font-size: 14px;
+	line-height: 1.6em;
+  /* font-family: "Libre Franklin", "Helvetica Neue", sans-serif; */
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Fira Sans", "Droid Sans", "Helvetica Neue", Arial, sans-serif;
+  /*, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";*/
+  text-size-adjust: 100%;
+  -ms-text-size-adjust: 100%;
+  -webkit-text-size-adjust: 100%;
+}
+
+@media(min-width: 768px) {
+  html {
+    font-size: 16px;
+  }
+}
+
+body {
+  margin: 0;
+}
+
+a {
+  color: #004276;
+}
+
+figure {
+  margin: 0;
+}
+
+table {
+	border-collapse: collapse;
+	border-spacing: 0;
+}
+
+table th {
+	text-align: left;
+}
+
+table thead {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+table thead th {
+  padding-bottom: 0.5em;
+}
+
+table tbody :first-child td {
+  padding-top: 0.5em;
+}
+
+pre {
+  overflow: auto;
+  max-width: 100%;
+}
+
+p {
+  margin-top: 0;
+  margin-bottom: 1em;
+}
+
+sup, sub {
+  vertical-align: baseline;
+  position: relative;
+  top: -0.4em;
+  line-height: 1em;
+}
+
+sub {
+  top: 0.4em;
+}
+
+.kicker,
+.marker {
+  font-size: 15px;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.5);
+}
+
+
+/* Headline */
+
+@media(min-width: 1024px) {
+  d-title h1 span {
+    display: block;
+  }
+}
+
+/* Figure */
+
+figure {
+  position: relative;
+  margin-bottom: 2.5em;
+  margin-top: 1.5em;
+}
+
+figcaption+figure {
+
+}
+
+figure img {
+  width: 100%;
+}
+
+figure svg text,
+figure svg tspan {
+}
+
+figcaption,
+.figcaption {
+  color: rgba(0, 0, 0, 0.6);
+  font-size: 12px;
+  line-height: 1.5em;
+}
+
+@media(min-width: 1024px) {
+figcaption,
+.figcaption {
+    font-size: 13px;
+  }
+}
+
+figure.external img {
+  background: white;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  box-shadow: 0 1px 8px rgba(0, 0, 0, 0.1);
+  padding: 18px;
+  box-sizing: border-box;
+}
+
+figcaption a {
+  color: rgba(0, 0, 0, 0.6);
+}
+
+figcaption b,
+figcaption strong, {
+  font-weight: 600;
+  color: rgba(0, 0, 0, 1.0);
+}
+/*
+ * Copyright 2018 The Distill Template Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+@supports not (display: grid) {
+  .base-grid,
+  distill-header,
+  d-title,
+  d-abstract,
+  d-article,
+  d-appendix,
+  distill-appendix,
+  d-byline,
+  d-footnote-list,
+  d-citation-list,
+  distill-footer {
+    display: block;
+    padding: 8px;
+  }
+}
+
+.base-grid,
+distill-header,
+d-title,
+d-abstract,
+d-article,
+d-appendix,
+distill-appendix,
+d-byline,
+d-footnote-list,
+d-citation-list,
+distill-footer {
+  display: grid;
+  justify-items: stretch;
+  grid-template-columns: [screen-start] 8px [page-start kicker-start text-start gutter-start middle-start] 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr [text-end page-end gutter-end kicker-end middle-end] 8px [screen-end];
+  grid-column-gap: 8px;
+}
+
+.grid {
+  display: grid;
+  grid-column-gap: 8px;
+}
+
+@media(min-width: 768px) {
+  .base-grid,
+  distill-header,
+  d-title,
+  d-abstract,
+  d-article,
+  d-appendix,
+  distill-appendix,
+  d-byline,
+  d-footnote-list,
+  d-citation-list,
+  distill-footer {
+    grid-template-columns: [screen-start] 1fr [page-start kicker-start middle-start text-start] 45px 45px 45px 45px 45px 45px 45px 45px [ kicker-end text-end gutter-start] 45px [middle-end] 45px [page-end gutter-end] 1fr [screen-end];
+    grid-column-gap: 16px;
+  }
+
+  .grid {
+    grid-column-gap: 16px;
+  }
+}
+
+@media(min-width: 1000px) {
+  .base-grid,
+  distill-header,
+  d-title,
+  d-abstract,
+  d-article,
+  d-appendix,
+  distill-appendix,
+  d-byline,
+  d-footnote-list,
+  d-citation-list,
+  distill-footer {
+    grid-template-columns: [screen-start] 1fr [page-start kicker-start] 50px [middle-start] 50px [text-start kicker-end] 50px 50px 50px 50px 50px 50px 50px 50px [text-end gutter-start] 50px [middle-end] 50px [page-end gutter-end] 1fr [screen-end];
+    grid-column-gap: 16px;
+  }
+
+  .grid {
+    grid-column-gap: 16px;
+  }
+}
+
+@media(min-width: 1180px) {
+  .base-grid,
+  distill-header,
+  d-title,
+  d-abstract,
+  d-article,
+  d-appendix,
+  distill-appendix,
+  d-byline,
+  d-footnote-list,
+  d-citation-list,
+  distill-footer {
+    grid-template-columns: [screen-start] 1fr [page-start kicker-start] 60px [middle-start] 60px [text-start kicker-end] 60px 60px 60px 60px 60px 60px 60px 60px [text-end gutter-start] 60px [middle-end] 60px [page-end gutter-end] 1fr [screen-end];
+    grid-column-gap: 32px;
+  }
+
+  .grid {
+    grid-column-gap: 32px;
+  }
+}
+
+
+
+
+.base-grid {
+  grid-column: screen;
+}
+
+/* .l-body,
+d-article > *  {
+  grid-column: text;
+}
+
+.l-page,
+d-title > *,
+d-figure {
+  grid-column: page;
+} */
+
+.l-gutter {
+  grid-column: gutter;
+}
+
+.l-text,
+.l-body {
+  grid-column: text;
+}
+
+.l-page {
+  grid-column: page;
+}
+
+.l-body-outset {
+  grid-column: middle;
+}
+
+.l-page-outset {
+  grid-column: page;
+}
+
+.l-screen {
+  grid-column: screen;
+}
+
+.l-screen-inset {
+  grid-column: screen;
+  padding-left: 16px;
+  padding-left: 16px;
+}
+
+
+/* Aside */
+
+d-article aside {
+  grid-column: gutter;
+  font-size: 12px;
+  line-height: 1.6em;
+  color: rgba(0, 0, 0, 0.6)
+}
+
+@media(min-width: 768px) {
+  aside {
+    grid-column: gutter;
+  }
+
+  .side {
+    grid-column: gutter;
+  }
+}
+/*
+ * Copyright 2018 The Distill Template Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+d-title {
+  padding: 2rem 0 1.5rem;
+  contain: layout style;
+  overflow-x: hidden;
+}
+
+@media(min-width: 768px) {
+  d-title {
+    padding: 4rem 0 1.5rem;
+  }
+}
+
+d-title h1 {
+  grid-column: text;
+  font-size: 40px;
+  font-weight: 700;
+  line-height: 1.1em;
+  margin: 0 0 0.5rem;
+}
+
+@media(min-width: 768px) {
+  d-title h1 {
+    font-size: 50px;
+  }
+}
+
+d-title p {
+  font-weight: 300;
+  font-size: 1.2rem;
+  line-height: 1.55em;
+  grid-column: text;
+}
+
+d-title .status {
+  margin-top: 0px;
+  font-size: 12px;
+  color: #009688;
+  opacity: 0.8;
+  grid-column: kicker;
+}
+
+d-title .status span {
+  line-height: 1;
+  display: inline-block;
+  padding: 6px 0;
+  border-bottom: 1px solid #80cbc4;
+  font-size: 11px;
+  text-transform: uppercase;
+}
+/*
+ * Copyright 2018 The Distill Template Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+d-byline {
+  contain: style;
+  overflow: hidden;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+  font-size: 0.8rem;
+  line-height: 1.8em;
+  padding: 1.5rem 0;
+  min-height: 1.8em;
+}
+
+
+d-byline .byline {
+  grid-template-columns: 1fr 1fr;
+  grid-column: text;
+}
+
+@media(min-width: 768px) {
+  d-byline .byline {
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+  }
+}
+
+d-byline .authors-affiliations {
+  grid-column-end: span 2;
+  grid-template-columns: 1fr 1fr;
+  margin-bottom: 1em;
+}
+
+@media(min-width: 768px) {
+  d-byline .authors-affiliations {
+    margin-bottom: 0;
+  }
+}
+
+d-byline h3 {
+  font-size: 0.6rem;
+  font-weight: 400;
+  color: rgba(0, 0, 0, 0.5);
+  margin: 0;
+  text-transform: uppercase;
+}
+
+d-byline p {
+  margin: 0;
+}
+
+d-byline a,
+d-article d-byline a {
+  color: rgba(0, 0, 0, 0.8);
+  text-decoration: none;
+  border-bottom: none;
+}
+
+d-article d-byline a:hover {
+  text-decoration: underline;
+  border-bottom: none;
+}
+
+d-byline p.author {
+  font-weight: 500;
+}
+
+d-byline .affiliations {
+
+}
+/*
+ * Copyright 2018 The Distill Template Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+d-article {
+  contain: layout style;
+  overflow-x: hidden;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+  padding-top: 2rem;
+  color: rgba(0, 0, 0, 0.8);
+}
+
+d-article > * {
+  grid-column: text;
+}
+
+@media(min-width: 768px) {
+  d-article {
+    font-size: 16px;
+  }
+}
+
+@media(min-width: 1024px) {
+  d-article {
+    font-size: 1.06rem;
+    line-height: 1.7em;
+  }
+}
+
+
+/* H2 */
+
+
+d-article .marker {
+  text-decoration: none;
+  border: none;
+  counter-reset: section;
+  grid-column: kicker;
+  line-height: 1.7em;
+}
+
+d-article .marker:hover {
+  border: none;
+}
+
+d-article .marker span {
+  padding: 0 3px 4px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.2);
+  position: relative;
+  top: 4px;
+}
+
+d-article .marker:hover span {
+  color: rgba(0, 0, 0, 0.7);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.7);
+}
+
+d-article h2 {
+  font-weight: 600;
+  font-size: 24px;
+  line-height: 1.25em;
+  margin: 2rem 0 1.5rem 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  padding-bottom: 1rem;
+}
+
+@media(min-width: 1024px) {
+  d-article h2 {
+    font-size: 36px;
+  }
+}
+
+/* H3 */
+
+d-article h3 {
+  font-weight: 700;
+  font-size: 18px;
+  line-height: 1.4em;
+  margin-bottom: 1em;
+  margin-top: 2em;
+}
+
+@media(min-width: 1024px) {
+  d-article h3 {
+    font-size: 20px;
+  }
+}
+
+/* H4 */
+
+d-article h4 {
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 14px;
+  line-height: 1.4em;
+}
+
+d-article a {
+  color: inherit;
+}
+
+d-article p,
+d-article ul,
+d-article ol,
+d-article blockquote {
+  margin-top: 0;
+  margin-bottom: 1em;
+  margin-left: 0;
+  margin-right: 0;
+}
+
+d-article blockquote {
+  border-left: 2px solid rgba(0, 0, 0, 0.2);
+  padding-left: 2em;
+  font-style: italic;
+  color: rgba(0, 0, 0, 0.6);
+}
+
+d-article a {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.4);
+  text-decoration: none;
+}
+
+d-article a:hover {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.8);
+}
+
+d-article .link {
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+d-article ul,
+d-article ol {
+  padding-left: 24px;
+}
+
+d-article li {
+  margin-bottom: 1em;
+  margin-left: 0;
+  padding-left: 0;
+}
+
+d-article li:last-child {
+  margin-bottom: 0;
+}
+
+d-article pre {
+  box-sizing: border-box;
+  min-width: 0;
+  padding: 20px 24px;
+  border: 1px solid #e5e2d9;
+  border-radius: 8px;
+  background: #f7f6f0;
+  color: #24292e;
+  font-size: 14px;
+  line-height: 1.65;
+  tab-size: 4;
+  margin-bottom: 20px;
+}
+
+d-article pre.astro-code {
+  background-color: #f7f6f0 !important;
+}
+
+d-article pre code {
+  display: block;
+  width: max-content;
+  min-width: 100%;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: inherit;
+  line-height: inherit;
+}
+
+@media (max-width: 767px) {
+  d-article pre {
+    padding: 16px;
+    font-size: 13px;
+  }
+}
+
+d-article hr {
+  grid-column: screen;
+  width: 100%;
+  border: none;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  margin-top: 60px;
+  margin-bottom: 60px;
+}
+
+d-article section {
+  margin-top: 60px;
+  margin-bottom: 60px;
+}
+
+d-article span.equation-mimic {
+  font-family: georgia;
+  font-size: 115%;
+  font-style: italic;
+}
+
+d-article > d-code,
+d-article section > d-code  {
+  display: block;
+}
+
+d-article > d-math[block],
+d-article section > d-math[block]  {
+  display: block;
+}
+
+@media (max-width: 768px) {
+  d-article > d-code,
+  d-article section > d-code,
+  d-article > d-math[block],
+  d-article section > d-math[block] {
+      overflow-x: scroll;
+      -ms-overflow-style: none;  // IE 10+
+      overflow: -moz-scrollbars-none;  // Firefox
+  }
+
+  d-article > d-code::-webkit-scrollbar,
+  d-article section > d-code::-webkit-scrollbar,
+  d-article > d-math[block]::-webkit-scrollbar,
+  d-article section > d-math[block]::-webkit-scrollbar {
+    display: none;  // Safari and Chrome
+  }
+}
+
+d-article .citation {
+  color: #668;
+  cursor: pointer;
+}
+
+d-include {
+  width: auto;
+  display: block;
+}
+
+d-figure {
+  contain: layout style;
+}
+
+/* KaTeX */
+
+.katex, .katex-prerendered {
+  contain: style;
+  display: inline-block;
+}
+
+/* Tables */
+
+d-article table {
+  border-collapse: collapse;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.2);
+}
+
+d-article table th {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.2);
+}
+
+d-article table td {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+d-article table tr:last-of-type td {
+  border-bottom: none;
+}
+
+d-article table th,
+d-article table td {
+  font-size: 15px;
+  padding: 2px 8px;
+}
+
+d-article table tbody :first-child td {
+  padding-top: 2px;
+}
+/*
+ * Copyright 2018 The Distill Template Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+span.katex-display {
+  text-align: left;
+  padding: 8px 0 8px 0;
+  margin: 0.5em 0 0.5em 1em;
+}
+
+span.katex {
+  -webkit-font-smoothing: antialiased;
+  color: rgba(0, 0, 0, 0.8);
+  font-size: 1.18em;
+}
+/*
+ * Copyright 2018 The Distill Template Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+
+d-appendix {
+  contain: layout style;
+  font-size: 0.8em;
+  line-height: 1.7em;
+  margin-top: 60px;
+  margin-bottom: 0;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+  color: rgba(0,0,0,0.5);
+  padding-top: 60px;
+  padding-bottom: 48px;
+}
+
+d-appendix h3 {
+  grid-column: page-start / text-start;
+  font-size: 15px;
+  font-weight: 500;
+  margin-top: 1em;
+  margin-bottom: 0;
+  color: rgba(0,0,0,0.65);
+}
+
+d-appendix h3 + * {
+  margin-top: 1em;
+}
+
+d-appendix ol {
+  padding: 0 0 0 15px;
+}
+
+@media (min-width: 768px) {
+  d-appendix ol {
+    padding: 0 0 0 30px;
+    margin-left: -30px;
+  }
+}
+
+d-appendix li {
+  margin-bottom: 1em;
+}
+
+d-appendix a {
+  color: rgba(0, 0, 0, 0.6);
+}
+
+d-appendix > * {
+  grid-column: text;
+}
+
+d-appendix > d-footnote-list,
+d-appendix > d-citation-list,
+d-appendix > distill-appendix {
+  grid-column: screen;
+}
+
+/*
+ * Copyright 2018 The Distill Template Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+@media print {
+
+  @page {
+    size: 8in 11in;
+    @bottom-right {
+      content: counter(page) " of " counter(pages);
+    }
+  }
+
+  html {
+    /* no general margins -- CSS Grid takes care of those */
+  }
+
+  p, code {
+    page-break-inside: avoid;
+  }
+
+  h2, h3 {
+    page-break-after: avoid;
+  }
+
+  d-header {
+    visibility: hidden;
+  }
+
+  d-footer {
+    display: none!important;
+  }
+
+}
+</style><script src="/vendor/distill/template.v2.js"></script><style>.availability-notice[data-astro-cid-j6iz5pnm]{background:#f5f7f9;border-left:3px solid #7c8792;grid-column:text;padding:.75em 1em}
+.figure-image[data-astro-cid-olutqroj]{border-bottom:none;display:block}img[data-astro-cid-olutqroj],video[data-astro-cid-olutqroj]{width:100%;height:auto;display:block}
+</style><link rel="stylesheet" href="/_astro/Report.DQA_R-Mr.css"><style>.figure-image[data-astro-cid-3j4ahvms]{border-bottom:none;display:block}img[data-astro-cid-3j4ahvms]{width:100%;height:auto;display:block}.figure-panels[data-astro-cid-3j4ahvms]{grid-template-columns:repeat(var(--panel-columns), minmax(0, 1fr));gap:12px;display:grid}.figure-panel[data-astro-cid-3j4ahvms]{min-width:0}.panel-label[data-astro-cid-3j4ahvms]{color:#111;margin-bottom:4px;font-size:14px;font-weight:700;line-height:1.2;display:block}@media (width<=600px){.figure-panels[data-astro-cid-3j4ahvms]{grid-template-columns:1fr}}
+.source-table[data-astro-cid-t6mhkqx2]{min-width:0;overflow-x:auto}.source-table[data-astro-cid-t6mhkqx2] table{border-collapse:collapse;width:100%;font-size:inherit}.source-table[data-astro-cid-t6mhkqx2] th,.source-table[data-astro-cid-t6mhkqx2] td{text-align:left;vertical-align:top;border-bottom:1px solid #0000001a;padding:.5em}.source-table[data-astro-cid-t6mhkqx2] caption{caption-side:bottom;text-align:left;padding-top:.5em}
+</style><link rel="stylesheet" href="/_astro/SiteSearch.ClBEWxrX.css"><style>:root{--listing-width:900px;--listing-scale:.9}.listing-width{width:min(100%, var(--listing-width));justify-self:center}.article-list{margin:24px 0;padding:0;list-style:none}.article-list-row{padding:calc(24px * var(--listing-scale)) 0;border-bottom:1px solid #0000001a;display:block}.article-list>:last-child,.article-list>:last-child>.article-list-row{border-bottom:none}.article-list-title{margin:0 0 calc(6px * var(--listing-scale));font-size:calc(24px * var(--listing-scale));font-weight:700;line-height:1.2}.article-list-description{font-size:calc(16px * var(--listing-scale));margin:0;line-height:1.4}@media (width>=768px){.article-list{margin-top:calc(60px * var(--listing-scale))}.article-list-row{grid-template-columns:15% 1fr;column-gap:5%;display:grid}.article-list-content{align-self:center}.article-list-title{font-size:calc(26px * var(--listing-scale))}.article-list-description{line-height:1.5}}html,body{background:#fffef9}@media print{html,body{background:#fff}}.citation-preview{z-index:10;box-sizing:border-box;color:#000c;background:#fff;border:1px solid #00000026;width:min(380px,100vw - 24px);max-height:50vh;padding:1rem;font-size:13px;line-height:1.6;position:fixed;overflow-y:auto;box-shadow:0 4px 20px #0000001f}.citation-preview[hidden]{display:none}.citation-preview a{color:inherit}.site-header{padding:1rem 0}d-title{padding-top:1rem}@media (width>=768px){d-title{padding-top:2rem}}.site-header a{color:inherit;font-weight:600;text-decoration:none}.site-header nav{justify-content:space-between;align-items:center;gap:1rem;display:flex}.site-header .nav-links{align-items:center;gap:1rem;display:flex}.site-header .nav-links a{color:#0009;font-size:.875rem;font-weight:400}.site-header .nav-links a:hover,.site-header .nav-links a:focus-visible{color:#000}.site-header .github-link{align-items:center;gap:.375rem;display:inline-flex}.site-header .github-link svg{flex-shrink:0}.metadata{color:#0009;font-size:.8rem}.katex{font-size:1.05em}.katex-display{padding:.5rem 0;overflow:auto hidden}d-article{padding-bottom:3rem}
+</style></head><body distill-prerendered><d-front-matter><script type="application/json">{"title":"Pingstore Rules","description":"Pingstore run layout, provenance, validation, pruning, Cloudflare R2 backup access and recovery.","authors":[{"author":"Eoin Murray","affiliations":[]}]}</script></d-front-matter><header class="site-header base-grid"><nav class="l-page" aria-label="Site"><a href="/">Pinglab</a><div class="nav-links"><style>astro-island,astro-slot,astro-static-slot{display:contents}</style><script>(function(){let e=async e=>{await(await e())()};(self.Astro||(self.Astro={})).load=e,window.dispatchEvent(new Event(`astro:load`))})();</script><script>(function(){function e(t){"@babel/helpers - typeof";return e=typeof Symbol==`function`&&typeof Symbol.iterator==`symbol`?function(e){return typeof e}:function(e){return e&&typeof Symbol==`function`&&e.constructor===Symbol&&e!==Symbol.prototype?`symbol`:typeof e},e(t)}function t(t,n){if(e(t)!=`object`||!t)return t;var r=t[Symbol.toPrimitive];if(r!==void 0){var i=r.call(t,n||`default`);if(e(i)!=`object`)return i;throw TypeError(`@@toPrimitive must return a primitive value.`)}return(n===`string`?String:Number)(t)}function n(n){var r=t(n,`string`);return e(r)==`symbol`?r:r+``}function r(e,t,r){return(t=n(t))in e?Object.defineProperty(e,t,{value:r,enumerable:!0,configurable:!0,writable:!0}):e[t]=r,e}let i=/* @__PURE__ */ new Set([`__proto__`,`constructor`,`prototype`]);{let e={0:e=>a(e),1:e=>n(e),2:e=>new RegExp(e),3:e=>new Date(e),4:e=>new Map(n(e)),5:e=>new Set(n(e)),6:e=>BigInt(e),7:e=>new URL(e),8:e=>new Uint8Array(e),9:e=>new Uint16Array(e),10:e=>new Uint32Array(e),11:e=>1/0*e},t=t=>{let[n,r]=t;return n in e?e[n](r):void 0},n=e=>e.map(t),a=e=>typeof e!=`object`||!e?e:Object.fromEntries(Object.entries(e).map(([e,n])=>[e,t(n)]));class o extends HTMLElement{constructor(...e){super(...e),r(this,`Component`,void 0),r(this,`hydrator`,void 0),r(this,`hydrate`,async()=>{var e;if(!this.hydrator||!this.isConnected)return;let t=(e=this.parentElement)==null?void 0:e.closest(`astro-island[ssr]`);if(t){t.addEventListener(`astro:hydrate`,this.hydrate,{once:!0});return}let n=this.querySelectorAll(`astro-slot`),r={},i=this.querySelectorAll(`template[data-astro-template]`);for(let e of i){let t=e.closest(this.tagName);t!=null&&t.isSameNode(this)&&(r[e.getAttribute(`data-astro-template`)||`default`]=e.innerHTML,e.remove())}for(let e of n){let t=e.closest(this.tagName);t!=null&&t.isSameNode(this)&&(r[e.getAttribute(`name`)||`default`]=e.innerHTML)}let o;try{o=this.hasAttribute(`props`)?a(JSON.parse(this.getAttribute(`props`))):{}}catch(e){let t=this.getAttribute(`component-url`)||`<unknown>`,n=this.getAttribute(`component-export`);throw n&&(t+=` (export ${n})`),console.error(`[hydrate] Error parsing props for component ${t}`,this.getAttribute(`props`),e),e}await this.hydrator(this)(this.Component,o,r,{client:this.getAttribute(`client`)}),this.removeAttribute(`ssr`),this.dispatchEvent(new CustomEvent(`astro:hydrate`))}),r(this,`unmount`,()=>{this.isConnected||this.dispatchEvent(new CustomEvent(`astro:unmount`))})}disconnectedCallback(){document.removeEventListener(`astro:after-swap`,this.unmount),document.addEventListener(`astro:after-swap`,this.unmount,{once:!0})}connectedCallback(){if(!this.hasAttribute(`await-children`)||document.readyState===`interactive`||document.readyState===`complete`)this.childrenConnectedCallback();else{let e=()=>{document.removeEventListener(`DOMContentLoaded`,e),t.disconnect(),this.childrenConnectedCallback()},t=new MutationObserver(()=>{var t;((t=this.lastChild)==null?void 0:t.nodeType)===Node.COMMENT_NODE&&this.lastChild.nodeValue===`astro:end`&&(this.lastChild.remove(),e())});t.observe(this,{childList:!0}),document.addEventListener(`DOMContentLoaded`,e)}}async childrenConnectedCallback(){let e=this.getAttribute(`before-hydration-url`);e&&await import(e),this.start()}getRetryImportUrl(e){let t=new URL(e,document.baseURI);return t.searchParams.set(`astro-retry`,Date.now().toString()),t.toString()}async importWithRetry(e){try{return await import(e)}catch(t){return await new Promise(e=>setTimeout(e,1e3)),import(this.getRetryImportUrl(e))}}handleHydrationError(e){let t=this.getAttribute(`component-url`),n=new CustomEvent(`astro:hydration-error`,{cancelable:!0,bubbles:!0,composed:!0,detail:{error:e,componentUrl:t}});this.dispatchEvent(n)&&console.error(`[astro-island] Error hydrating ${t}`,e)}async start(){let e=JSON.parse(this.getAttribute(`opts`)),t=this.getAttribute(`client`);if(Astro[t]===void 0){window.addEventListener(`astro:${t}`,()=>this.start(),{once:!0});return}try{await Astro[t](async()=>{let e=this.getAttribute(`renderer-url`);try{let[t,{default:n}]=await Promise.all([this.importWithRetry(this.getAttribute(`component-url`)),e?this.importWithRetry(e):Promise.resolve({default:()=>()=>{}})]),r=this.getAttribute(`component-export`)||`default`;if(r.includes(`.`)){this.Component=t;for(let e of r.split(`.`)){if(i.has(e)||!this.Component||typeof this.Component!=`object`&&typeof this.Component!=`function`||!Object.hasOwn(this.Component,e))throw Error(`Invalid component export path: ${r}`);this.Component=this.Component[e]}}else{if(i.has(r))throw Error(`Invalid component export path: ${r}`);this.Component=t[r]}return this.hydrator=n,this.hydrate}catch(e){return this.handleHydrationError(e),()=>{}}},e,this)}catch(e){this.handleHydrationError(e)}}attributeChangedCallback(){this.hydrate()}}r(o,`observedAttributes`,[`props`]),customElements.get(`astro-island`)||customElements.define(`astro-island`,o)}})();</script><astro-island uid="Z1s8LHW" prefix="r1" component-url="/_astro/CommandPalette.CFm07TmH.js" component-export="default" renderer-url="/_astro/client.tK5zrQFg.js" props="{&quot;collections&quot;:[1,[[0,{&quot;href&quot;:[0,&quot;/collections/gamma-gated-sparsity&quot;],&quot;title&quot;:[0,&quot;Gamma-gated sparsity&quot;],&quot;detail&quot;:[0,&quot;Collection&quot;],&quot;keywords&quot;:[1,[[0,&quot;gamma-gated-sparsity&quot;],[0,&quot;Experiments on gamma rhythms, sparse neural activity, and learning in spiking networks.&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/collections/neuromodulation&quot;],&quot;title&quot;:[0,&quot;Neuromodulation&quot;],&quot;detail&quot;:[0,&quot;Collection&quot;],&quot;keywords&quot;:[1,[[0,&quot;neuromodulation&quot;],[0,&quot;Experiments on how changes to neural dynamics affect network evidence, accuracy, and activity.&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/collections/datasets&quot;],&quot;title&quot;:[0,&quot;Datasets&quot;],&quot;detail&quot;:[0,&quot;Collection&quot;],&quot;keywords&quot;:[1,[[0,&quot;datasets&quot;],[0,&quot;Training banks, recordings, and other reusable experimental data, with their provenance and diagnostics.&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/collections/demo&quot;],&quot;title&quot;:[0,&quot;Uncategorized&quot;],&quot;detail&quot;:[0,&quot;Collection&quot;],&quot;keywords&quot;:[1,[[0,&quot;demo&quot;],[0,&quot;Articles and experiments without a subject collection.&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/collections/notes&quot;],&quot;title&quot;:[0,&quot;Notes&quot;],&quot;detail&quot;:[0,&quot;Collection&quot;],&quot;keywords&quot;:[1,[[0,&quot;notes&quot;],[0,&quot;Practical project notes, infrastructure guidance, and operational workflows.&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/collections/slides&quot;],&quot;title&quot;:[0,&quot;Slides&quot;],&quot;detail&quot;:[0,&quot;Collection&quot;],&quot;keywords&quot;:[1,[[0,&quot;slides&quot;],[0,&quot;Talks and journal-club presentations on research and related ideas.&quot;]]]}]]],&quot;articles&quot;:[1,[[0,{&quot;href&quot;:[0,&quot;/notes/compute-rules&quot;],&quot;title&quot;:[0,&quot;Compute Rules&quot;],&quot;detail&quot;:[0,&quot;Note&quot;],&quot;keywords&quot;:[1,[[0,&quot;compute-rules&quot;],[0,&quot;Compute providers, access boundaries, and execution workflows for Pinglab.&quot;],[0,&quot;notes&quot;],[0,&quot;Notes&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/notes/experiment-rules&quot;],&quot;title&quot;:[0,&quot;Experiment Rules&quot;],&quot;detail&quot;:[0,&quot;Note&quot;],&quot;keywords&quot;:[1,[[0,&quot;experiment-rules&quot;],[0,&quot;Independent compute, analyse and present stages, scientific inputs and execution contracts.&quot;],[0,&quot;notes&quot;],[0,&quot;Notes&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/notes/pingstore-rules&quot;],&quot;title&quot;:[0,&quot;Pingstore Rules&quot;],&quot;detail&quot;:[0,&quot;Note&quot;],&quot;keywords&quot;:[1,[[0,&quot;pingstore-rules&quot;],[0,&quot;Pingstore run layout, provenance, validation, pruning, Cloudflare R2 backup access and recovery.&quot;],[0,&quot;notes&quot;],[0,&quot;Notes&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/notes/writing-rules&quot;],&quot;title&quot;:[0,&quot;Writing Rules&quot;],&quot;detail&quot;:[0,&quot;Note&quot;],&quot;keywords&quot;:[1,[[0,&quot;writing-rules&quot;],[0,&quot;Scientific writing, evidence, terminology and editorial conventions for experiment articles.&quot;],[0,&quot;notes&quot;],[0,&quot;Notes&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/slides/journal-club-oct-5th&quot;],&quot;title&quot;:[0,&quot;Journal club — Neural basis of social hierarchy across species&quot;],&quot;detail&quot;:[0,&quot;Slides&quot;],&quot;keywords&quot;:[1,[[0,&quot;journal-club-oct-5th&quot;],[0,&quot;Yan &amp; Lin (2026): territory, fighting, alliances, and interpretations of the neural basis of social hierarchy. Journal club, 5 October 2026.&quot;],[0,&quot;slides&quot;],[0,&quot;Slides&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp126&quot;],&quot;title&quot;:[0,&quot;Current-based MNIST: snnTorch and snnlab&quot;],&quot;detail&quot;:[0,&quot;exp126&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp126&quot;],[0,&quot;Equation-matched snnTorch and snnlab classifiers trained on 10% of MNIST, with agreement diagnostics, learning curves and GPU training and inference timings.&quot;],[0,&quot;demo&quot;],[0,&quot;Uncategorized&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp125&quot;],&quot;title&quot;:[0,&quot;Scikit Digits&quot;],&quot;detail&quot;:[0,&quot;exp125&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp125&quot;],[0,&quot;A 64 → 128 → 10 LIF network learns handwritten digits, with training curves and a held-out test evaluation.&quot;],[0,&quot;datasets&quot;],[0,&quot;Datasets&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp124&quot;],&quot;title&quot;:[0,&quot;SHD&quot;],&quot;detail&quot;:[0,&quot;exp124&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp124&quot;],[0,&quot;Two-layer SHD training diagnostics establish tiny-subset fitting and variable held-out learning, with earlier one-layer measurements preserved.&quot;],[0,&quot;datasets&quot;],[0,&quot;Datasets&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp123&quot;],&quot;title&quot;:[0,&quot;Output Evidence Against Time and Gamma Cycles&quot;],&quot;detail&quot;:[0,&quot;exp123&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp123&quot;],[0,&quot;Paired inhibitory-decay probes of output evidence, matched-coordinate accuracy and network spike cost at a 25 Hz input encoding rate.&quot;],[0,&quot;neuromodulation&quot;],[0,&quot;Neuromodulation&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp117&quot;],&quot;title&quot;:[0,&quot;Mean-Field Analysis of PING Bifurcations&quot;],&quot;detail&quot;:[0,&quot;exp117&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp117&quot;],[0,&quot;An independent four-variable mean-field analysis identifies a Hopf bifurcation, sampled dynamics consistent with a supercritical transition, and decreasing onset frequency with slower inhibition.&quot;],[0,&quot;gamma-gated-sparsity&quot;],[0,&quot;Gamma-gated sparsity&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp113&quot;],&quot;title&quot;:[0,&quot;COBA and PING Dynamics, Discretisation, and Learning&quot;],&quot;detail&quot;:[0,&quot;exp113&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp113&quot;],[0,&quot;A textbook derivation of the conductance-based COBA and PING equations, their discrete simulation, and their training by surrogate-gradient BPTT, voltage-gradient damping, gradient clipping, AdamW, and Dale projection.&quot;],[0,&quot;demo&quot;],[0,&quot;Uncategorized&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp110&quot;],&quot;title&quot;:[0,&quot;Manuscript&quot;],&quot;detail&quot;:[0,&quot;exp110&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp110&quot;],[0,&quot;A manuscript scaffold connecting PING circuit dynamics, low-rate task performance, cycle participation, perturbation sensitivity and continuous-stream classification.&quot;],[0,&quot;gamma-gated-sparsity&quot;],[0,&quot;Gamma-gated sparsity&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp099&quot;],&quot;title&quot;:[0,&quot;Susin and Destexhe (2021)&quot;],&quot;detail&quot;:[0,&quot;exp099&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp099&quot;],[0,&quot;Independent excitatory afferent drive strengthens population bursting in a calibrated conductance-based E/I network.&quot;],[0,&quot;demo&quot;],[0,&quot;Uncategorized&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp082&quot;],&quot;title&quot;:[0,&quot;Spike-Count Classification in a Continuous Stream&quot;],&quot;detail&quot;:[0,&quot;exp082&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp082&quot;],[0,&quot;A multi-seed study of spike-count classification across input rates and presentation durations.&quot;],[0,&quot;gamma-gated-sparsity&quot;],[0,&quot;Gamma-gated sparsity&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp081&quot;],&quot;title&quot;:[0,&quot;How Pixel Features Respond to Input Rate&quot;],&quot;detail&quot;:[0,&quot;exp081&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp081&quot;],[0,&quot;Direct simulations and a simpler theory test how sparse input events become average voltage features.&quot;],[0,&quot;gamma-gated-sparsity&quot;],[0,&quot;Gamma-gated sparsity&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp080&quot;],&quot;title&quot;:[0,&quot;Decoder Accuracy Improves with Input Rate&quot;],&quot;detail&quot;:[0,&quot;exp080&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp080&quot;],[0,&quot;Direct-simulation decoder calibration of the input-rate range for later variable-rate PING training.&quot;],[0,&quot;gamma-gated-sparsity&quot;],[0,&quot;Gamma-gated sparsity&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp054&quot;],&quot;title&quot;:[0,&quot;Pinglab Rythmicity Metric&quot;],&quot;detail&quot;:[0,&quot;exp054&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp054&quot;],[0,&quot;Lobe–trough contrast across untrained PING coupling strengths, with private- and shared-input null controls.&quot;],[0,&quot;gamma-gated-sparsity&quot;],[0,&quot;Gamma-gated sparsity&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp049&quot;],&quot;title&quot;:[0,&quot;Training Recurrent Weights Weakens PING Rhythmicity&quot;],&quot;detail&quot;:[0,&quot;exp049&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp049&quot;],[0,&quot;Trainable recurrent conductances produced lower reference-image rhythmicity and higher excitatory firing than the frozen PING control; outcomes depended on initialization.&quot;],[0,&quot;gamma-gated-sparsity&quot;],[0,&quot;Gamma-gated sparsity&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp047&quot;],&quot;title&quot;:[0,&quot;Pool-Size Effects Depend on Synaptic Scaling&quot;],&quot;detail&quot;:[0,&quot;exp047&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp047&quot;],[0,&quot;Paired controls separate fixed summed I→E coupling from fixed expected synaptic strength as the inhibitory pool grows.&quot;],[0,&quot;gamma-gated-sparsity&quot;],[0,&quot;Gamma-gated sparsity&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp046&quot;],&quot;title&quot;:[0,&quot;One Spike per Gamma Cycle&quot;],&quot;detail&quot;:[0,&quot;exp046&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp046&quot;],[0,&quot;Pooled and equally weighted network distributions support predominantly one-spike gamma-cycle participation across 18 trained networks, with exceptions.&quot;],[0,&quot;gamma-gated-sparsity&quot;],[0,&quot;Gamma-gated sparsity&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp044&quot;],&quot;title&quot;:[0,&quot;Firing Rate Across the Timestep Sweep&quot;],&quot;detail&quot;:[0,&quot;exp044&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp044&quot;],[0,&quot;Compares final-epoch firing rate, classification accuracy and illustrative rasters across a twelvefold integration-timestep sweep.&quot;],[0,&quot;gamma-gated-sparsity&quot;],[0,&quot;Gamma-gated sparsity&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp042&quot;],&quot;title&quot;:[0,&quot;Inhibitory Replay Perturbations Change Excitatory Firing&quot;],&quot;detail&quot;:[0,&quot;exp042&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp042&quot;],[0,&quot;Recorded inhibitory spike streams produced contrasting excitatory responses under independent-spike and fixed-window replay perturbations, but the experiment does not isolate synchrony.&quot;],[0,&quot;gamma-gated-sparsity&quot;],[0,&quot;Gamma-gated sparsity&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp041&quot;],&quot;title&quot;:[0,&quot;Firing Rate Tracks Gamma Frequency&quot;],&quot;detail&quot;:[0,&quot;exp041&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp041&quot;],[0,&quot;Across PING networks trained at different inhibitory decay times, compare excitatory firing rate with gamma frequency and test accuracy.&quot;],[0,&quot;gamma-gated-sparsity&quot;],[0,&quot;Gamma-gated sparsity&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp038&quot;],&quot;title&quot;:[0,&quot;Switching On the Inhibitory Loop&quot;],&quot;detail&quot;:[0,&quot;exp038&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp038&quot;],[0,&quot;Enabling an inhibitory loop after feedforward training reduced excitatory firing but lowered classification accuracy; the experiment does not isolate a benefit of gamma timing.&quot;],[0,&quot;gamma-gated-sparsity&quot;],[0,&quot;Gamma-gated sparsity&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp037&quot;],&quot;title&quot;:[0,&quot;Dropped Spikes vs Added Noise&quot;],&quot;detail&quot;:[0,&quot;exp037&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp037&quot;],[0,&quot;Both trained networks tolerated substantial spike deletion, but PING accuracy fell more sharply under added spikes. The perturbations changed both recurrent feedback and readout input, so they do not isolate gamma gating.&quot;],[0,&quot;gamma-gated-sparsity&quot;],[0,&quot;Gamma-gated sparsity&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp025&quot;],&quot;title&quot;:[0,&quot;Accuracy and Firing Rate With and Without Inhibition&quot;],&quot;detail&quot;:[0,&quot;exp025&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp025&quot;],[0,&quot;Reused MNIST networks compare accuracy and excitatory firing rates with and without an inhibitory loop. Full-MNIST reference classifiers accompany a separate reduced-training-pool activity-ceiling sweep.&quot;],[0,&quot;gamma-gated-sparsity&quot;],[0,&quot;Gamma-gated sparsity&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp024&quot;],&quot;title&quot;:[0,&quot;Accuracy Plateaus While Firing Rate Rises&quot;],&quot;detail&quot;:[0,&quot;exp024&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp024&quot;],[0,&quot;Audits validation accuracy and firing-rate stability in unregularised PING and COBA training histories.&quot;],[0,&quot;gamma-gated-sparsity&quot;],[0,&quot;Gamma-gated sparsity&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp023&quot;],&quot;title&quot;:[0,&quot;Turning the PING Loop On&quot;],&quot;detail&quot;:[0,&quot;exp023&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp023&quot;],[0,&quot;PING stripped to its biophysical fundamentals: free-running activity, population spectra and rate responses with the excitatory–inhibitory loop off and on.&quot;],[0,&quot;gamma-gated-sparsity&quot;],[0,&quot;Gamma-gated sparsity&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp022&quot;],&quot;title&quot;:[0,&quot;MNIST&quot;],&quot;detail&quot;:[0,&quot;exp022&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp022&quot;],[0,&quot;Seven controlled training families, their retained checkpoint bank, validation learning curves, and raster diagnostics.&quot;],[0,&quot;gamma-gated-sparsity&quot;],[0,&quot;Gamma-gated sparsity&quot;],[0,&quot;datasets&quot;],[0,&quot;Datasets&quot;]]]}]]]}" ssr client="load" opts="{&quot;name&quot;:&quot;CommandPalette&quot;,&quot;value&quot;:true}" await-children><button type="button" class="command-trigger" aria-label="Search articles and collections (Ctrl K)" aria-haspopup="dialog" aria-expanded="false" data-state="closed"><span class="command-shortcut-icon" aria-hidden="true">⌘K</span><span>Search</span></button><!--astro:end--></astro-island><a href="/collections">Collections</a><a class="github-link" href="https://github.com/eoinmurray/pinglab" aria-label="Pinglab on GitHub"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false"><path d="M12 .297C5.37.297 0 5.67 0 12.297c0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.043-1.61-4.043-1.61-.546-1.387-1.333-1.756-1.333-1.756-1.09-.745.083-.729.083-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.419-1.305.762-1.605-2.665-.3-5.467-1.334-5.467-5.931 0-1.31.469-2.381 1.236-3.221-.124-.303-.536-1.524.117-3.176 0 0 1.008-.322 3.301 1.23a11.52 11.52 0 0 1 3.003-.404c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.655 1.652.243 2.873.119 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.628-5.479 5.921.43.372.823 1.102.823 2.222 0 1.606-.015 2.898-.015 3.293 0 .322.216.694.825.576C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"></path></svg><span>GitHub</span></a></div></nav></header><main><d-title><h1>Pingstore Rules</h1><p>Pingstore run layout, provenance, validation, pruning, Cloudflare R2 backup access and recovery.</p></d-title><d-byline><div class="byline grid" style="--byline-columns: 4"><div><h3>Author</h3><p class="author">Eoin Murray</p></div><div><h3>Created</h3><p><time datetime="2026-09-11">2026-09-11</time></p></div><div><h3>Updated</h3><p><time datetime="2026-10-14">2026-10-14</time></p></div><div><h3>Collection</h3><p><a class="collection-link" href="/collections/notes">Notes</a></p></div></div></d-byline><div class="report-body base-grid"><aside class="report-toc"><d-toc prerendered="true"><nav aria-label="Table of contents"><h2>Contents</h2><ol><li><a href="#1-contract">1. Contract</a></li><li><a href="#2-runjson">2. run.json</a></li><li><a href="#3-readme-history">3. README history</a></li><li><a href="#4-writing-and-validation">4. Writing and validation</a></li><li class="subsection"><a href="#task-owned-temporary-run-cleanup">Task-owned temporary-run cleanup</a></li><li class="subsection"><a href="#assembly-of-completed-compute-phases">Assembly of completed compute phases</a></li><li><a href="#5-discovery-and-publication">5. Discovery and publication</a></li><li><a href="#6-explicit-pruning">6. Explicit pruning</a></li><li><a href="#7-explicit-external-backups">7. Explicit external backups</a></li><li class="subsection"><a href="#back-up-new-runs">Back up new runs</a></li><li class="subsection"><a href="#access-and-destination">Access and destination</a></li><li class="subsection"><a href="#recovery-and-historical-archives">Recovery and historical archives</a></li><li><a href="#8-historical-schemas-and-migration">8. Historical schemas and migration</a></li><li><a href="#9-version-history">9. Version history</a></li></ol></nav></d-toc></aside><d-article role="article" aria-label="Pingstore Rules"><h1 id="pingstore-rules">Pingstore Rules</h1>
+<p>Version: <strong>4.11.0</strong></p>
+<p>These rules define Pingstore’s filesystem convention. Pingstore is not a
+service, database, catalogue, lifecycle manager, or general management CLI.</p>
+<p>Do not reintroduce collection/experiment directory nesting, catalogues,
+lifecycle states, automatic official selections, preview overrides, archive
+bundles, or a general Pingstore management CLI. The narrow discovery and
+hash-bound backup and prune commands below are the only operational CLI
+exceptions. The historical v2 migration utility is not a conforming upgrade
+path and does not authorize v2 use.</p>
+<h2 id="1-contract">1. Contract</h2>
+<p>Every completed operational run uses <code>pingstore.run/v4</code> and has exactly:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>.pingstore/runs/&#x3C;run-id>/</span></span>
+<span class="line"><span>├── run.json</span></span>
+<span class="line"><span>├── README.md</span></span>
+<span class="line"><span>└── export/</span></span></code></pre>
+<ul>
+<li><code>run.json</code> is the authoritative machine-readable record.</li>
+<li><code>README.md</code> is the mandatory human-readable history.</li>
+<li><code>export/</code> contains only scientific data. Run-wide and single-file unit outputs
+are flat; only genuine multi-file scientific units use a directory.</li>
+</ul>
+<p>There is no operational <code>provenance/</code> directory. Do not duplicate the command,
+configuration, environment, source revision, or timing in sidecar manifests or
+replay scripts. Record them once in <code>run.json</code>. Historical migration material
+belongs in a recoverable migration archive outside <code>.pingstore/runs/</code>.</p>
+<p>Execution logs, commands, execution configurations, environment captures,
+timing, import mappings, and copied source records are metadata: keep them in
+<code>run.json</code>, not <code>export/</code>. A per-unit scientific definition may remain as a role
+file when it is data needed to interpret that unit; it must not duplicate the
+run’s execution metadata. Writers may use <code>.scratch/</code> inside a hidden incomplete
+run, but completion discards it. Compute and analyse exports permit exactly one
+unit-directory level. A unit directory must contain at least two scientifically
+related files. A single-file unit is named <code>&#x3C;unit-id>--&#x3C;role-file></code> directly
+under <code>export/</code>. Unit IDs are canonical scientific identities, not generic
+containers such as <code>data</code>, <code>jobs</code>, <code>cells</code>, or <code>misc</code>; role filenames are short
+and repeatable.</p>
+<p>Use <code>recording.npz</code> for raw multimodal simulation time series, <code>spikes.npz</code> for
+raw spike-only output, and <code>rasters.npz</code> only for transformed raster/event data.
+The ambiguous aliases <code>snapshot.npz</code> and <code>recordings.npz</code> are forbidden. Common
+roles use their standard names; genuinely domain-specific descriptive filenames
+remain permitted. Present exports retain descriptive flat filenames.
+Present exports contain only flat regular files. No other root entries or
+symlinks are allowed in a completed run.</p>
+<h2 id="2-runjson">2. <code>run.json</code></h2>
+<p>Reports may declare <code>collection</code> as a single slug or a nonempty list of unique
+slugs. For new runs, the first listed collection supplies the single
+<code>run.json</code> provenance value. Additional memberships are site navigation metadata;
+changing report membership does not rewrite completed runs.</p>
+<p>A v4 record includes:</p>
+<ul>
+<li><code>schema</code>, <code>run_id</code>, <code>experiment</code>, <code>collection</code>, <code>stage</code>, <code>origin</code>, and
+<code>created_at</code>;</li>
+<li><code>inputs</code>, mapping roles to <code>{run_id, payload_digest}</code>;</li>
+<li><code>execution</code>, containing the actual command, working directory, host,
+configuration, environment when relevant, and start/completion times;</li>
+<li><code>provenance</code>, containing compact source identity such as the Git commit,
+dirty flags, and lockfile checksum;</li>
+<li><code>payload_digest</code>, the digest of <code>export/</code> only;</li>
+<li>optional experiment-specific scientific metadata.</li>
+</ul>
+<p>New compute records declare <code>scope</code> as <code>"full"</code> or <code>"phase"</code>. Phase records
+also require a descriptive lowercase hyphen-separated <code>phase</code> name, such as
+<code>"train"</code>, <code>"evaluate"</code> or <code>"diagnostics"</code>; full records omit <code>phase</code>. Scope
+describes scientific coverage, not execution success or lifecycle state. Every
+visible phase run is complete for its declared phase and satisfies the same v4
+layout, checksum and immutability requirements as a full run. Failed or unfinished
+work stays hidden and must never be labelled a completed phase.</p>
+<p>Existing completed v4 compute records without <code>scope</code> retain their existing
+declared scientific coverage; do not rewrite them or infer a phase from their
+contents. Consumers still validate recipe-defined completeness, including any
+existing partition semantics; absent scope is not proof of an unpartitioned
+full result.
+New phase-aware writers and validators must enforce the explicit scope contract
+and reject contradictory scope, phase and ID combinations. This does not relax
+the prohibition on operational v2/v3 inputs.</p>
+<p>Do not retain generated replay scripts in <code>export/</code>. Do not pin the bytes of an
+upstream <code>run.json</code>. An input is scientifically fixed
+by its run identity and immutable export digest. This permits corrections to
+metadata or README history without invalidating every descendant.</p>
+<p><code>payload_digest</code> is SHA-256 of UTF-8 compact, sorted-key JSON describing the
+lexicographically sorted export inventory. Each row contains <code>path</code>,
+<code>size_bytes</code>, and the file SHA-256. <code>run.json</code> and <code>README.md</code> are not payload
+bytes. Changing anything under <code>export/</code> changes scientific identity.</p>
+<h2 id="3-readme-history">3. README history</h2>
+<p>Every writer creates the README before execution and appends successful
+completion. It states the run, stage, explicit inputs, source revision, origin,
+and dated history. Imports and migrations append what changed, what did not run,
+and where the recoverable original is stored.</p>
+<p>README and <code>run.json</code> metadata may be corrected only by an explicit operation
+that appends the correction to the README. Export bytes remain immutable.</p>
+<h2 id="4-writing-and-validation">4. Writing and validation</h2>
+<p>Use shared validated v4 layout helpers, not hardcoded consumer paths. Local and
+HPC execution use the same run-folder contract. Allocate HPC run IDs before
+submission so concurrent jobs cannot claim the same identity. Keep complete
+execution provenance in <code>run.json</code>; do not infer provenance from filesystem
+timestamps or the run ID alone. Treat visible run directories as immutable.</p>
+<p>Reserve a new identity before local or scheduler execution. New IDs use
+<code>&#x3C;experiment>-rNNN-&#x3C;stage></code>, such as <code>exp022-r001-compute</code>; execution location
+belongs in <code>origin</code> and <code>execution</code>, not the ID.
+For a completed compute phase, use
+<code>&#x3C;experiment>-rNNN-compute-phase-&#x3C;name></code>, such as
+<code>expXXX-r001-compute-phase-train</code>. A full compute result, whether executed
+together or explicitly assembled, uses <code>&#x3C;experiment>-rNNN-compute</code>. Phase names
+are descriptive scientific names, not <code>stage-1</code> numbering. Do not use <code>-partial</code>
+or <code>-partial-stage-X</code>: a phase result has completed its declared work. Phase and
+full runs share the same experiment-wide allocation counter; never reuse a
+counter for another phase. <code>stage</code> remains <code>compute</code>; scope and phase belong in
+<code>run.json</code> and are never inferred as provenance from folder names.</p>
+<p>Build the run under <code>.pingstore/runs/.&#x3C;run-id>.tmp/</code>. Hidden working directories
+may contain temporary reservation and writer-lock files. Remove those files,
+finish <code>run.json</code>, README, and export, validate the exact layout and digest, then
+atomically rename the directory to its visible identity. Failed work remains
+hidden and is not operational evidence.</p>
+<p>Readers must validate v4 layout and the export digest before consumption.
+Compute starts with empty inputs unless its scientific definition explicitly
+requires completed source runs, including dependencies between named compute
+phases or phase assembly. Every stage names every input explicitly; it never
+selects “latest”, launches upstream work, or silently substitutes a run. Input
+references remain <code>{run_id, payload_digest}</code> pairs, validated before consumption
+and again before completion. Consumers requiring a full compute result reject
+phase scope unless they explicitly support that particular phase.</p>
+<p><code>export_root</code> is obsolete. Readers use the whole export and resolve explicit
+unit IDs. Hidden writers may temporarily use deeper tool-native paths, but the
+shared completion helper canonicalizes them before validation and visibility.</p>
+<h3 id="task-owned-temporary-run-cleanup">Task-owned temporary-run cleanup</h3>
+<p>At task completion, remove task-owned v4 <code>.pingstore/runs/.&#x3C;run-id>.tmp/</code>
+directories once they are no longer needed for execution, recovery or transfer.
+Confirm that local and remote workers or queued jobs have stopped, no active
+writer owns the directory, and no checkpoint or pending transfer needs it.
+Perform cleanup under the shared helper’s exclusive Pingstore operation lock.
+Preserve the experiment’s allocation high-watermark: remove a reservation only
+when a newer allocated identity remains; otherwise retain it until one exists.
+Do not sweep other tasks’ temporary runs or historical v2/v3 reservations.
+Report any temporary runs deliberately retained and why.</p>
+<h3 id="assembly-of-completed-compute-phases">Assembly of completed compute phases</h3>
+<p>Assembly is an experiment operation defined by the
+<a href="/notes/experiment-runner-guide/">Experiment Runner Guide</a>, not a Pingstore CLI
+operation. There is no generic <code>pingstore merge</code> command.</p>
+<ol>
+<li>An explicitly invoked experiment-local assembler selects phase run IDs and
+verifies their scientific coverage, compatibility and recorded dependencies.
+Shared Pingstore helpers validate v4 layouts, digests, references, allocation,
+locking and completion. Never choose phases by recency: a dependent phase
+must agree with the exact upstream identity and digest selected for assembly.</li>
+<li>Reserve a new full compute identity, copy the required scientific output bytes
+into its hidden temporary export using an explicit deterministic mapping,
+reject unexpected collisions, and validate the full export contract. This is
+a narrow allowance for copying phase outputs into a full scientific result,
+not publication materialization or another output store. Do not move, edit,
+rename, hard-link or delete source payloads as part of assembly.</li>
+<li>Set <code>stage: "compute"</code>, <code>scope: "full"</code> and
+<code>execution.operation: "assemble"</code>. Record every selected phase input under a
+stable role, its run ID and export digest, the actual assembly command, output
+mapping, configuration, source identity, origin and timing in <code>run.json</code>.
+README records the assembly history. Source execution details remain in the
+referenced phase records; assembly must not claim it reran their computation.</li>
+<li>Hold the shared operation lock throughout input use and writing, revalidate
+inputs before completion, calculate the new payload digest and atomically
+finalise the full run. Assembly executes no missing computation and never
+extends an already completed run. Its input graph remains authoritative even
+when the full export contains copied phase outputs.</li>
+<li>Phase inputs remain ancestry for retention, backup ordering and transfer.
+Assembly does not authorize their pruning. Compute phases are compute runs
+for stage filters and HPC retention; they are not directly publishable and
+discovery never lists them as present runs. Preserve all normal allocation
+high-watermark and active-writer protections.</li>
+</ol>
+<p>These rules specify phase-aware storage support; they do not claim that current
+helpers already implement it. Implement and validate shared allocation and
+scope-aware readers before writing new phase runs. Do not silently reinterpret
+or migrate historical records.</p>
+<h2 id="5-discovery-and-publication">5. Discovery and publication</h2>
+<p><code>pingstore discover</code> is the read-only integration command. It validates visible
+completed v4 runs and emits Demolab discovery JSON for populated present runs.
+It does not select, mutate, materialize, upload, prune, or persist a catalogue.</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="sh"><code><span class="line"><span style="color:#6F42C1">uv</span><span style="color:#032F62"> run</span><span style="color:#032F62"> pingstore</span><span style="color:#032F62"> discover</span></span>
+<span class="line"><span style="color:#6F42C1">uv</span><span style="color:#032F62"> run</span><span style="color:#032F62"> pingstore</span><span style="color:#032F62"> discover</span><span style="color:#005CC5"> --source</span><span style="color:#032F62"> .pingstore/runs</span></span></code></pre>
+<p>Preview and publication read selected present runs directly from their validated
+<code>export/</code>. Do not create <code>.artifacts/</code> or another per-experiment copy of run
+outputs. Publishing compute or analyse runs is rejected. Presentation metadata
+is read from <code>run.json</code>; exports do not contain compatibility manifests.</p>
+<p>The <a href="https://github.com/eoinmurray/pinglab/blob/main/tools/publishing/README.md">local publisher</a> freezes complete selected present
+runs in a disposable build workspace under <code>.demolab/</code>, validates the copies,
+and emits a static site. These build inputs retain the run-folder contract;
+they do not form another persistent scientific store. Collection execution keeps
+run-ID and payload-digest references instead of copying presentation exports.</p>
+<p><code>collections.json</code>, when present, maps named views to explicit run-ID arrays.
+No official or latest selection is inferred.</p>
+<h2 id="6-explicit-pruning">6. Explicit pruning</h2>
+<p><code>pingstore prune</code> is the sole command that removes local completed runs. It is a
+narrow garbage-collection operation, not a lifecycle manager or general storage CLI.
+It retains every run whose authoritative execution provenance identifies HPC,
+except superseded HPC presentations explicitly allowed by the option below,
+the newest populated present run for each experiment currently exposed by
+discovery, explicit collection and MDX frontmatter <code>runs</code> pins, inputs of incomplete
+runs, and the complete transitive ancestry of those roots. It also retains each
+experiment’s highest allocated counter so a removed identity cannot be reused.</p>
+<p>Retirement is an explicit one-shot pruning mode, not persistent repository state.
+<code>--retire-experiment expNNN</code> is accepted only when that experiment has completed
+runs but no runnable code or <code>experiments/expNNN/report/report.mdx</code>. It limits an otherwise unscoped operation
+to the named experiment and permits its non-HPC newest presentation and identity
+high-watermark to be pruned. The dry-run derives the highest allocated counter
+from the validated run inventory and binds the retirement request into the plan
+hash. Pins, incomplete inputs, out-of-scope descendants, transitive ancestry and
+HPC provenance still take precedence.</p>
+<p>Experiment IDs are permanent and must never be reused after removal. Once an
+experiment’s last run is explicitly retired and pruned, its old counter does not
+need to remain as live filesystem state because future work must use a new
+experiment ID. An absent experiment directory or writing is not by itself
+permission to prune an experiment’s protected runs.</p>
+<p>Pruning requires two separate invocations:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="sh"><code><span class="line"><span style="color:#6F42C1">uv</span><span style="color:#032F62"> run</span><span style="color:#032F62"> pingstore</span><span style="color:#032F62"> prune</span><span style="color:#005CC5"> --dry-run</span></span>
+<span class="line"><span style="color:#6F42C1">uv</span><span style="color:#032F62"> run</span><span style="color:#032F62"> pingstore</span><span style="color:#032F62"> prune</span><span style="color:#005CC5"> --confirm</span><span style="color:#D73A49"> &#x3C;</span><span style="color:#032F62">complete-sha256-plan-has</span><span style="color:#24292E">h</span><span style="color:#D73A49">></span></span></code></pre>
+<p>Dry-run validates every visible v4 run and the complete dependency graph, prints
+every retained and proposed run with its reason and byte count, and makes no
+filesystem changes. The plan hash binds the exact run records, payload digests,
+sizes, incomplete-run input state, and candidate set. Confirmation recomputes
+the plan under an exclusive pruning lock and aborts on any difference or active
+writer. A bare confirmation is forbidden.</p>
+<p>An explicit <code>--allow-superseded-hpc-presentations</code> option, requiring
+<code>--stage present</code> only, permits deletion of older HPC presentation runs.
+Latest presentations, explicit pins, incomplete inputs, full ancestry and
+allocation high-watermarks remain protected. HPC compute and analyse retention
+is unchanged. This exception is bound into the plan hash and must be repeated
+at confirmation.</p>
+<p>Pruning may be limited to stages with repeatable <code>--stage compute</code>,
+<code>--stage analyse</code>, or <code>--stage present</code>. Runs in other stages remain retention
+roots, including their full ancestry. Stage filters are bound into the plan hash
+and must be repeated at confirmation. For presentation-only cleanup:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="sh"><code><span class="line"><span style="color:#6F42C1">uv</span><span style="color:#032F62"> run</span><span style="color:#032F62"> pingstore</span><span style="color:#032F62"> prune</span><span style="color:#005CC5"> --stage</span><span style="color:#032F62"> present</span><span style="color:#005CC5"> --dry-run</span></span>
+<span class="line"><span style="color:#6F42C1">uv</span><span style="color:#032F62"> run</span><span style="color:#032F62"> pingstore</span><span style="color:#032F62"> prune</span><span style="color:#005CC5"> --stage</span><span style="color:#032F62"> present</span><span style="color:#005CC5"> --confirm</span><span style="color:#D73A49"> &#x3C;</span><span style="color:#032F62">complete-sha256-plan-has</span><span style="color:#24292E">h</span><span style="color:#D73A49">></span></span></code></pre>
+<p>Pruning may be limited to one or more experiments with a repeatable filter. All
+runs outside the filter remain untouched, and any filtered run required by an
+out-of-scope descendant remains as ancestry. The same filters are required for
+dry-run and confirmation because the sorted experiment scope is bound into the
+plan hash. Unknown or malformed experiment filters are rejected.</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="sh"><code><span class="line"><span style="color:#6F42C1">uv</span><span style="color:#032F62"> run</span><span style="color:#032F62"> pingstore</span><span style="color:#032F62"> prune</span><span style="color:#005CC5"> --experiment</span><span style="color:#032F62"> exp099</span><span style="color:#005CC5"> --dry-run</span></span>
+<span class="line"><span style="color:#6F42C1">uv</span><span style="color:#032F62"> run</span><span style="color:#032F62"> pingstore</span><span style="color:#032F62"> prune</span><span style="color:#005CC5"> --experiment</span><span style="color:#032F62"> exp099</span><span style="color:#005CC5"> --confirm</span><span style="color:#D73A49"> &#x3C;</span><span style="color:#032F62">complete-sha256-plan-has</span><span style="color:#24292E">h</span><span style="color:#D73A49">></span></span>
+<span class="line"><span style="color:#6F42C1">uv</span><span style="color:#032F62"> run</span><span style="color:#032F62"> pingstore</span><span style="color:#032F62"> prune</span><span style="color:#005CC5"> --experiment</span><span style="color:#032F62"> exp099</span><span style="color:#005CC5"> --experiment</span><span style="color:#032F62"> exp110</span><span style="color:#005CC5"> --dry-run</span></span>
+<span class="line"><span style="color:#6F42C1">uv</span><span style="color:#032F62"> run</span><span style="color:#032F62"> pingstore</span><span style="color:#032F62"> prune</span><span style="color:#005CC5"> --retire-experiment</span><span style="color:#032F62"> exp114</span><span style="color:#005CC5"> --dry-run</span></span>
+<span class="line"><span style="color:#6F42C1">uv</span><span style="color:#032F62"> run</span><span style="color:#032F62"> pingstore</span><span style="color:#032F62"> prune</span><span style="color:#005CC5"> --retire-experiment</span><span style="color:#032F62"> exp114</span><span style="color:#005CC5"> --confirm</span><span style="color:#D73A49"> &#x3C;</span><span style="color:#032F62">complete-sha256-plan-has</span><span style="color:#24292E">h</span><span style="color:#D73A49">></span></span></code></pre>
+<p>Run reservation and execution hold a shared lock at <code>.pingstore/.operation.lock</code>;
+confirmation requires the corresponding exclusive lock. The lock coordinates
+processes but does not record lifecycle state or select runs.</p>
+<p>Confirmation builds and validates a hard-linked retained tree beside <code>runs/</code>,
+atomically exchanges it with the original tree, validates it again, and only
+then removes the old tree. Visible run contents are never edited. A separately
+authorized <code>pingstore backup</code> may precede confirmation; pruning itself does not
+create archives, catalogues, tombstones, lifecycle states, or publication
+selections. Historical v2/v3 evidence and migration archives are outside this
+operation.</p>
+<h2 id="7-explicit-external-backups">7. Explicit external backups</h2>
+<p>The append-only backup lives in the existing <code>pinglab</code> R2 bucket at
+<code>r2:pinglab/pingstore/runs</code>. Each completed local run is copied with its complete
+v4 layout:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="text"><code><span class="line"><span>pingstore/runs/&#x3C;run-id>/</span></span>
+<span class="line"><span>    run.json</span></span>
+<span class="line"><span>    README.md</span></span>
+<span class="line"><span>    export/</span></span></code></pre>
+<p>The source is <code>.pingstore/runs/</code>. Git continues to hold experiment code;
+<code>run.json</code> holds execution provenance and input references. The backup contains
+scientific exports and their authoritative records, rather than payload-only
+campaign snapshots or a generated catalogue.</p>
+<h3 id="back-up-new-runs">Back up new runs</h3>
+<p><code>pingstore backup</code> appends completed v4 runs to an external R2 backup using
+rclone. It validates every visible completed local run, its exact layout,
+scientific payload checksum and complete input graph. Hidden incomplete runs
+are excluded. Backup is independently invoked; pruning, experiment execution
+and publication never launch it automatically.</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="sh"><code><span class="line"><span style="color:#6F42C1">uv</span><span style="color:#032F62"> run</span><span style="color:#032F62"> pingstore</span><span style="color:#032F62"> backup</span><span style="color:#005CC5"> --dry-run</span></span>
+<span class="line"><span style="color:#6F42C1">uv</span><span style="color:#032F62"> run</span><span style="color:#032F62"> pingstore</span><span style="color:#032F62"> backup</span><span style="color:#005CC5"> --confirm</span><span style="color:#D73A49"> &#x3C;</span><span style="color:#032F62">complete-sha256-plan-has</span><span style="color:#24292E">h</span><span style="color:#D73A49">></span></span></code></pre>
+<p>Replace <code>&#x3C;complete-sha256-plan-hash></code> with the full <code>sha256:...</code> value printed
+by the dry-run. The plan names every new run and reports its total bytes.</p>
+<p>The source defaults to <code>.pingstore/runs</code> in the current working directory;
+<code>--source</code> accepts an explicit runs directory. The destination defaults to
+<code>r2:pinglab/pingstore/runs</code>, with <code>PINGLAB_R2_REMOTE</code>, <code>PINGLAB_R2_BUCKET</code> or
+<code>--destination</code> overrides. The destination must be an rclone remote ending in
+<code>/pingstore/runs</code>. Authentication stays in rclone’s configuration outside this
+repository.</p>
+<p>Dry-run performs local validation and remote inspection without uploading.
+Its complete SHA-256 plan hash binds the destination, local run records,
+payload digests and file inventories, and remote inventory. Confirmation
+rebuilds the plan and aborts on drift. A shared Pingstore operation lock prevents
+pruning from removing local sources during either invocation.</p>
+<p>Uploads preserve each complete run folder and refuse conflicting remote
+objects. Scientific files and README upload first and are verified by download
+comparison using <code>rclone check --download</code>. The local runs and remote inventory
+are revalidated before
+<code>run.json</code> completion records upload last in input-ancestry order, followed by
+another download comparison. An upload without <code>run.json</code> is incomplete and
+must never be consumed; a later backup can resume an interrupted upload if
+existing objects match. Existing completed backups are checked against local
+file inventories and exact manifest and README bytes; their scientific files
+are not downloaded again on routine incremental backups. Recovery must
+independently validate the recorded payload checksums.</p>
+<p>Backup never deletes remote files or edits visible local runs. Local pruning
+does not remove earlier backups. A corrected local manifest or README conflicts
+with its previous backup and requires a separately authorized update operation.
+The first backup copies the local store; subsequent backups add completed run IDs.</p>
+<h3 id="access-and-destination">Access and destination</h3>
+<p>The existing local rclone configuration provides remote <code>r2</code> and bucket <code>pinglab</code>.
+Check configuration availability without printing credentials:</p>
+<pre class="astro-code github-light" style="background-color:#fff;color:#24292e; overflow-x: auto;" tabindex="0" data-language="sh"><code><span class="line"><span style="color:#6F42C1">rclone</span><span style="color:#032F62"> listremotes</span></span>
+<span class="line"><span style="color:#6F42C1">rclone</span><span style="color:#032F62"> lsf</span><span style="color:#032F62"> r2:pinglab/pingstore/runs</span><span style="color:#005CC5"> --dirs-only</span></span></code></pre>
+<p>Authentication is supplied by rclone’s local configuration; credentials are
+never stored in this repository. An explicit <code>--source</code> must name a validated
+local runs directory.</p>
+<p>For a new machine, follow Cloudflare’s <a href="https://developers.cloudflare.com/r2/examples/rclone/">rclone setup guide</a>
+with a bucket-scoped credential. Do not infer access from another machine’s
+configuration or an SSH alias.</p>
+<h3 id="recovery-and-historical-archives">Recovery and historical archives</h3>
+<p>Restore explicitly selected completed runs and their full input ancestry into a
+separate recovery directory. Validate every v4 root layout, scientific payload
+checksum and input reference under these rules before activation or consumption.
+A remote <code>run.json</code> marks completion by this backup workflow; it does not replace validation on recovery. Partial uploads
+must not become operational runs.</p>
+<p>Older campaign archives remain separate historical evidence. Their payload-only
+layout is not a complete v4 run backup. This workflow neither migrates nor changes
+those archives, and does not restore, publish, or execute experiments.</p>
+<p>The <a href="https://github.com/eoinmurray/pinglab/blob/main/tools/pingstore/backup.py">implementation</a> uses <a href="https://rclone.org/commands/rclone_copy/">rclone copy</a>
+with immutable checks and <a href="https://rclone.org/commands/rclone_check/">download verification</a>.</p>
+<h2 id="8-historical-schemas-and-migration">8. Historical schemas and migration</h2>
+<p>V2 and v3 runs are historical evidence, not operational inputs. They may be
+inspected by explicit migration/recovery tooling but not consumed, discovered,
+materialized, completed, or silently relabelled.</p>
+<p>Require v4 for writers, readers, stage inputs, discovery and publication.
+Reject v2/v3, including legacy capture and completion of old reservations; there
+is no compatibility exception for flat runners or historical presentations.
+Preserve historical runs and reservations unchanged as non-operational evidence.
+Historical inspection for migration/recovery and migration itself require
+separate explicit authorization; never silently rewrite or reactivate them.</p>
+<p>A migration to v4 must:</p>
+<ol>
+<li>validate every source run under its original schema;</li>
+<li>create a recoverable archive of original manifests, README files, and root
+provenance trees;</li>
+<li>preserve scientific export bytes and archive provenance or metadata rather
+than moving it into <code>export/</code>;</li>
+<li>generate or append the human-readable README history;</li>
+<li>replace manifest-byte pins with run-ID and export-digest pins;</li>
+<li>validate every completed v4 run and the complete dependency graph before
+activation; and</li>
+<li>leave hidden incomplete reservations unchanged as historical failed work.</li>
+</ol>
+<p>Migration does not authorize experiment execution, publication, pruning, remote
+store changes, or deletion of the recovery archive.</p>
+<h2 id="9-version-history">9. Version history</h2>
+<p><strong>4.11.0</strong> — Define completed compute phase scopes and names, explicit phase
+dependencies, and immutable full-run assembly by experiment code using shared
+storage helpers; retain ordinary lineage, backup and pruning protections.</p>
+<ul>
+<li>
+<p><strong>4.10.4</strong> — Read article metadata, pins, and retirement protection from
+<code>experiments/expNNN/report/report.mdx</code>.</p>
+</li>
+<li>
+<p><strong>4.10.3</strong> — Accept multiple report collections, using the first for new run provenance.</p>
+</li>
+<li>
+<p><strong>4.10.2</strong> — Read article metadata and retirement protection from
+<code>md/experiments/expNNN/report.mdx</code> after separating articles from code.</p>
+</li>
+<li>
+<p><strong>4.10.1</strong> — Read experiment collection metadata and explicit presentation
+pins from Astro report frontmatter; recognize <code>report.mdx</code> in retirement
+checks instead of depending on the historical writings directory.</p>
+</li>
+<li>
+<p><strong>4.10.0</strong> — Integrate the append-only R2 backup into the narrow Pingstore CLI;
+retain explicit hash-bound confirmation, immutable uploads and download verification.</p>
+</li>
+<li>
+<p><strong>4.9.0</strong> — Add hash-bound stage filters and an explicit superseded HPC presentation exception; preserve other stages and full ancestry.</p>
+</li>
+<li>
+<p><strong>4.8.0</strong> — Replace the persistent experiment-history registry with explicit,
+hash-bound one-shot retirement; make experiment IDs permanently single-use.</p>
+</li>
+<li>
+<p><strong>4.7.0</strong> — Permit explicitly retired experiments to prune their local latest
+presentation and run high-watermark after recording that counter in experiment
+history; all stronger retention roots remain in force.</p>
+</li>
+<li>
+<p><strong>4.6.0</strong> — Retire artifact materialization; preview and publication consume
+validated present exports directly, with complete run copies confined to
+disposable publication workspaces.</p>
+</li>
+<li>
+<p><strong>4.5.0</strong> — Add hash-bound, repeatable experiment filters to pruning while
+retaining all out-of-scope runs and cross-scope ancestry.</p>
+</li>
+<li>
+<p><strong>4.4.0</strong> — Add hash-bound pruning that retains HPC work, each experiment’s
+newest visible presentation, explicit pins, incomplete inputs, ancestry and
+allocation high-watermarks.</p>
+</li>
+<li>
+<p><strong>4.3.0</strong> — Flatten singleton scientific units, require at least two files for
+unit directories, and standardize simulation recording role names.</p>
+</li>
+<li>
+<p><strong>4.2.0</strong> — Standardize compute/analyse exports as run-wide root files plus
+<code>export/&#x3C;scientific-unit-id>/&#x3C;artifact-role></code>, with no deeper nesting.</p>
+</li>
+<li>
+<p><strong>4.1.0</strong> — Make exports scientific-data-only, prefer flat descriptive files,
+discard writer scratch space, and remove export evidence/metadata sidecars.</p>
+</li>
+<li>
+<p><strong>4.0.0</strong> — Make README mandatory; reduce completed roots to <code>run.json</code>,
+<code>README.md</code>, and <code>export/</code>; digest only immutable export bytes; remove manifest
+byte pins and operational provenance sidecars; archive v3 provenance outside
+operational runs.</p>
+</li>
+<li>
+<p><strong>3.0.0</strong> — Introduced source-neutral staged IDs.</p>
+</li>
+<li>
+<p><strong>2.0.0</strong> — Required v3 for operational paths.</p>
+</li>
+<li>
+<p><strong>1.0.0</strong> — Versioned the storage guide.</p>
+</li>
+</ul></d-article></div><script type="application/json" class="js-hypothesis-config">
+    {
+      "showHighlights": true,
+      "openSidebar": false
+    }
+  </script><script async src="https://hypothes.is/embed.js"></script></main><script type="module">var e,t,n=document.createElement(`aside`);n.className=`citation-preview`,n.id=`citation-preview`,n.setAttribute(`role`,`tooltip`),n.hidden=!0,document.body.append(n);function r(){clearTimeout(t),n.hidden=!0,e?.removeAttribute(`aria-describedby`),e=void 0}function i(){t=setTimeout(r,180)}function a(r){clearTimeout(t),e?.removeAttribute(`aria-describedby`);let i=document.getElementById(decodeURIComponent(r.hash.slice(1))),a=i?.closest(`li`)??i?.parentElement;if(!a)return;e=r,n.replaceChildren(...Array.from(a.childNodes).map(e=>e.cloneNode(!0))),n.querySelectorAll(`[id]`).forEach(e=>e.removeAttribute(`id`)),n.hidden=!1,r.setAttribute(`aria-describedby`,n.id);let o=r.getBoundingClientRect(),s=n.getBoundingClientRect().width;n.style.left=`${Math.max(12,Math.min(o.left,innerWidth-s-12))}px`,n.style.top=`${Math.min(o.bottom+8,Math.max(12,innerHeight-n.offsetHeight-12))}px`}for(let e of document.querySelectorAll(`d-article a[href^="#ref-"]`))e.addEventListener(`mouseenter`,()=>a(e)),e.addEventListener(`focus`,()=>a(e)),e.addEventListener(`mouseleave`,i),e.addEventListener(`blur`,i);n.addEventListener(`mouseenter`,()=>clearTimeout(t)),n.addEventListener(`mouseleave`,i),n.addEventListener(`focusin`,()=>clearTimeout(t)),n.addEventListener(`focusout`,i),document.addEventListener(`keydown`,e=>{e.key===`Escape`&&r()}),window.addEventListener(`scroll`,r,{passive:!0});</script></body></html>

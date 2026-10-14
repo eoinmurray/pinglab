@@ -1,0 +1,998 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Two-layer SHD training diagnostics establish tiny-subset fitting and variable held-out learning, with earlier one-layer measurements preserved."><link rel="canonical" href="https://pinglab.eoinmurray.info/exp124/"><link rel="icon" type="image/svg+xml" href="/favicon.svg"><title>SHD · Pinglab</title><style id="distill-prerendered-styles">/*
+ * Copyright 2018 The Distill Template Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+html {
+  font-size: 14px;
+	line-height: 1.6em;
+  /* font-family: "Libre Franklin", "Helvetica Neue", sans-serif; */
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Fira Sans", "Droid Sans", "Helvetica Neue", Arial, sans-serif;
+  /*, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";*/
+  text-size-adjust: 100%;
+  -ms-text-size-adjust: 100%;
+  -webkit-text-size-adjust: 100%;
+}
+
+@media(min-width: 768px) {
+  html {
+    font-size: 16px;
+  }
+}
+
+body {
+  margin: 0;
+}
+
+a {
+  color: #004276;
+}
+
+figure {
+  margin: 0;
+}
+
+table {
+	border-collapse: collapse;
+	border-spacing: 0;
+}
+
+table th {
+	text-align: left;
+}
+
+table thead {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+table thead th {
+  padding-bottom: 0.5em;
+}
+
+table tbody :first-child td {
+  padding-top: 0.5em;
+}
+
+pre {
+  overflow: auto;
+  max-width: 100%;
+}
+
+p {
+  margin-top: 0;
+  margin-bottom: 1em;
+}
+
+sup, sub {
+  vertical-align: baseline;
+  position: relative;
+  top: -0.4em;
+  line-height: 1em;
+}
+
+sub {
+  top: 0.4em;
+}
+
+.kicker,
+.marker {
+  font-size: 15px;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.5);
+}
+
+
+/* Headline */
+
+@media(min-width: 1024px) {
+  d-title h1 span {
+    display: block;
+  }
+}
+
+/* Figure */
+
+figure {
+  position: relative;
+  margin-bottom: 2.5em;
+  margin-top: 1.5em;
+}
+
+figcaption+figure {
+
+}
+
+figure img {
+  width: 100%;
+}
+
+figure svg text,
+figure svg tspan {
+}
+
+figcaption,
+.figcaption {
+  color: rgba(0, 0, 0, 0.6);
+  font-size: 12px;
+  line-height: 1.5em;
+}
+
+@media(min-width: 1024px) {
+figcaption,
+.figcaption {
+    font-size: 13px;
+  }
+}
+
+figure.external img {
+  background: white;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  box-shadow: 0 1px 8px rgba(0, 0, 0, 0.1);
+  padding: 18px;
+  box-sizing: border-box;
+}
+
+figcaption a {
+  color: rgba(0, 0, 0, 0.6);
+}
+
+figcaption b,
+figcaption strong, {
+  font-weight: 600;
+  color: rgba(0, 0, 0, 1.0);
+}
+/*
+ * Copyright 2018 The Distill Template Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+@supports not (display: grid) {
+  .base-grid,
+  distill-header,
+  d-title,
+  d-abstract,
+  d-article,
+  d-appendix,
+  distill-appendix,
+  d-byline,
+  d-footnote-list,
+  d-citation-list,
+  distill-footer {
+    display: block;
+    padding: 8px;
+  }
+}
+
+.base-grid,
+distill-header,
+d-title,
+d-abstract,
+d-article,
+d-appendix,
+distill-appendix,
+d-byline,
+d-footnote-list,
+d-citation-list,
+distill-footer {
+  display: grid;
+  justify-items: stretch;
+  grid-template-columns: [screen-start] 8px [page-start kicker-start text-start gutter-start middle-start] 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr [text-end page-end gutter-end kicker-end middle-end] 8px [screen-end];
+  grid-column-gap: 8px;
+}
+
+.grid {
+  display: grid;
+  grid-column-gap: 8px;
+}
+
+@media(min-width: 768px) {
+  .base-grid,
+  distill-header,
+  d-title,
+  d-abstract,
+  d-article,
+  d-appendix,
+  distill-appendix,
+  d-byline,
+  d-footnote-list,
+  d-citation-list,
+  distill-footer {
+    grid-template-columns: [screen-start] 1fr [page-start kicker-start middle-start text-start] 45px 45px 45px 45px 45px 45px 45px 45px [ kicker-end text-end gutter-start] 45px [middle-end] 45px [page-end gutter-end] 1fr [screen-end];
+    grid-column-gap: 16px;
+  }
+
+  .grid {
+    grid-column-gap: 16px;
+  }
+}
+
+@media(min-width: 1000px) {
+  .base-grid,
+  distill-header,
+  d-title,
+  d-abstract,
+  d-article,
+  d-appendix,
+  distill-appendix,
+  d-byline,
+  d-footnote-list,
+  d-citation-list,
+  distill-footer {
+    grid-template-columns: [screen-start] 1fr [page-start kicker-start] 50px [middle-start] 50px [text-start kicker-end] 50px 50px 50px 50px 50px 50px 50px 50px [text-end gutter-start] 50px [middle-end] 50px [page-end gutter-end] 1fr [screen-end];
+    grid-column-gap: 16px;
+  }
+
+  .grid {
+    grid-column-gap: 16px;
+  }
+}
+
+@media(min-width: 1180px) {
+  .base-grid,
+  distill-header,
+  d-title,
+  d-abstract,
+  d-article,
+  d-appendix,
+  distill-appendix,
+  d-byline,
+  d-footnote-list,
+  d-citation-list,
+  distill-footer {
+    grid-template-columns: [screen-start] 1fr [page-start kicker-start] 60px [middle-start] 60px [text-start kicker-end] 60px 60px 60px 60px 60px 60px 60px 60px [text-end gutter-start] 60px [middle-end] 60px [page-end gutter-end] 1fr [screen-end];
+    grid-column-gap: 32px;
+  }
+
+  .grid {
+    grid-column-gap: 32px;
+  }
+}
+
+
+
+
+.base-grid {
+  grid-column: screen;
+}
+
+/* .l-body,
+d-article > *  {
+  grid-column: text;
+}
+
+.l-page,
+d-title > *,
+d-figure {
+  grid-column: page;
+} */
+
+.l-gutter {
+  grid-column: gutter;
+}
+
+.l-text,
+.l-body {
+  grid-column: text;
+}
+
+.l-page {
+  grid-column: page;
+}
+
+.l-body-outset {
+  grid-column: middle;
+}
+
+.l-page-outset {
+  grid-column: page;
+}
+
+.l-screen {
+  grid-column: screen;
+}
+
+.l-screen-inset {
+  grid-column: screen;
+  padding-left: 16px;
+  padding-left: 16px;
+}
+
+
+/* Aside */
+
+d-article aside {
+  grid-column: gutter;
+  font-size: 12px;
+  line-height: 1.6em;
+  color: rgba(0, 0, 0, 0.6)
+}
+
+@media(min-width: 768px) {
+  aside {
+    grid-column: gutter;
+  }
+
+  .side {
+    grid-column: gutter;
+  }
+}
+/*
+ * Copyright 2018 The Distill Template Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+d-title {
+  padding: 2rem 0 1.5rem;
+  contain: layout style;
+  overflow-x: hidden;
+}
+
+@media(min-width: 768px) {
+  d-title {
+    padding: 4rem 0 1.5rem;
+  }
+}
+
+d-title h1 {
+  grid-column: text;
+  font-size: 40px;
+  font-weight: 700;
+  line-height: 1.1em;
+  margin: 0 0 0.5rem;
+}
+
+@media(min-width: 768px) {
+  d-title h1 {
+    font-size: 50px;
+  }
+}
+
+d-title p {
+  font-weight: 300;
+  font-size: 1.2rem;
+  line-height: 1.55em;
+  grid-column: text;
+}
+
+d-title .status {
+  margin-top: 0px;
+  font-size: 12px;
+  color: #009688;
+  opacity: 0.8;
+  grid-column: kicker;
+}
+
+d-title .status span {
+  line-height: 1;
+  display: inline-block;
+  padding: 6px 0;
+  border-bottom: 1px solid #80cbc4;
+  font-size: 11px;
+  text-transform: uppercase;
+}
+/*
+ * Copyright 2018 The Distill Template Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+d-byline {
+  contain: style;
+  overflow: hidden;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+  font-size: 0.8rem;
+  line-height: 1.8em;
+  padding: 1.5rem 0;
+  min-height: 1.8em;
+}
+
+
+d-byline .byline {
+  grid-template-columns: 1fr 1fr;
+  grid-column: text;
+}
+
+@media(min-width: 768px) {
+  d-byline .byline {
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+  }
+}
+
+d-byline .authors-affiliations {
+  grid-column-end: span 2;
+  grid-template-columns: 1fr 1fr;
+  margin-bottom: 1em;
+}
+
+@media(min-width: 768px) {
+  d-byline .authors-affiliations {
+    margin-bottom: 0;
+  }
+}
+
+d-byline h3 {
+  font-size: 0.6rem;
+  font-weight: 400;
+  color: rgba(0, 0, 0, 0.5);
+  margin: 0;
+  text-transform: uppercase;
+}
+
+d-byline p {
+  margin: 0;
+}
+
+d-byline a,
+d-article d-byline a {
+  color: rgba(0, 0, 0, 0.8);
+  text-decoration: none;
+  border-bottom: none;
+}
+
+d-article d-byline a:hover {
+  text-decoration: underline;
+  border-bottom: none;
+}
+
+d-byline p.author {
+  font-weight: 500;
+}
+
+d-byline .affiliations {
+
+}
+/*
+ * Copyright 2018 The Distill Template Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+d-article {
+  contain: layout style;
+  overflow-x: hidden;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+  padding-top: 2rem;
+  color: rgba(0, 0, 0, 0.8);
+}
+
+d-article > * {
+  grid-column: text;
+}
+
+@media(min-width: 768px) {
+  d-article {
+    font-size: 16px;
+  }
+}
+
+@media(min-width: 1024px) {
+  d-article {
+    font-size: 1.06rem;
+    line-height: 1.7em;
+  }
+}
+
+
+/* H2 */
+
+
+d-article .marker {
+  text-decoration: none;
+  border: none;
+  counter-reset: section;
+  grid-column: kicker;
+  line-height: 1.7em;
+}
+
+d-article .marker:hover {
+  border: none;
+}
+
+d-article .marker span {
+  padding: 0 3px 4px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.2);
+  position: relative;
+  top: 4px;
+}
+
+d-article .marker:hover span {
+  color: rgba(0, 0, 0, 0.7);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.7);
+}
+
+d-article h2 {
+  font-weight: 600;
+  font-size: 24px;
+  line-height: 1.25em;
+  margin: 2rem 0 1.5rem 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  padding-bottom: 1rem;
+}
+
+@media(min-width: 1024px) {
+  d-article h2 {
+    font-size: 36px;
+  }
+}
+
+/* H3 */
+
+d-article h3 {
+  font-weight: 700;
+  font-size: 18px;
+  line-height: 1.4em;
+  margin-bottom: 1em;
+  margin-top: 2em;
+}
+
+@media(min-width: 1024px) {
+  d-article h3 {
+    font-size: 20px;
+  }
+}
+
+/* H4 */
+
+d-article h4 {
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 14px;
+  line-height: 1.4em;
+}
+
+d-article a {
+  color: inherit;
+}
+
+d-article p,
+d-article ul,
+d-article ol,
+d-article blockquote {
+  margin-top: 0;
+  margin-bottom: 1em;
+  margin-left: 0;
+  margin-right: 0;
+}
+
+d-article blockquote {
+  border-left: 2px solid rgba(0, 0, 0, 0.2);
+  padding-left: 2em;
+  font-style: italic;
+  color: rgba(0, 0, 0, 0.6);
+}
+
+d-article a {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.4);
+  text-decoration: none;
+}
+
+d-article a:hover {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.8);
+}
+
+d-article .link {
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+d-article ul,
+d-article ol {
+  padding-left: 24px;
+}
+
+d-article li {
+  margin-bottom: 1em;
+  margin-left: 0;
+  padding-left: 0;
+}
+
+d-article li:last-child {
+  margin-bottom: 0;
+}
+
+d-article pre {
+  box-sizing: border-box;
+  min-width: 0;
+  padding: 20px 24px;
+  border: 1px solid #e5e2d9;
+  border-radius: 8px;
+  background: #f7f6f0;
+  color: #24292e;
+  font-size: 14px;
+  line-height: 1.65;
+  tab-size: 4;
+  margin-bottom: 20px;
+}
+
+d-article pre.astro-code {
+  background-color: #f7f6f0 !important;
+}
+
+d-article pre code {
+  display: block;
+  width: max-content;
+  min-width: 100%;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: inherit;
+  line-height: inherit;
+}
+
+@media (max-width: 767px) {
+  d-article pre {
+    padding: 16px;
+    font-size: 13px;
+  }
+}
+
+d-article hr {
+  grid-column: screen;
+  width: 100%;
+  border: none;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  margin-top: 60px;
+  margin-bottom: 60px;
+}
+
+d-article section {
+  margin-top: 60px;
+  margin-bottom: 60px;
+}
+
+d-article span.equation-mimic {
+  font-family: georgia;
+  font-size: 115%;
+  font-style: italic;
+}
+
+d-article > d-code,
+d-article section > d-code  {
+  display: block;
+}
+
+d-article > d-math[block],
+d-article section > d-math[block]  {
+  display: block;
+}
+
+@media (max-width: 768px) {
+  d-article > d-code,
+  d-article section > d-code,
+  d-article > d-math[block],
+  d-article section > d-math[block] {
+      overflow-x: scroll;
+      -ms-overflow-style: none;  // IE 10+
+      overflow: -moz-scrollbars-none;  // Firefox
+  }
+
+  d-article > d-code::-webkit-scrollbar,
+  d-article section > d-code::-webkit-scrollbar,
+  d-article > d-math[block]::-webkit-scrollbar,
+  d-article section > d-math[block]::-webkit-scrollbar {
+    display: none;  // Safari and Chrome
+  }
+}
+
+d-article .citation {
+  color: #668;
+  cursor: pointer;
+}
+
+d-include {
+  width: auto;
+  display: block;
+}
+
+d-figure {
+  contain: layout style;
+}
+
+/* KaTeX */
+
+.katex, .katex-prerendered {
+  contain: style;
+  display: inline-block;
+}
+
+/* Tables */
+
+d-article table {
+  border-collapse: collapse;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.2);
+}
+
+d-article table th {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.2);
+}
+
+d-article table td {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+d-article table tr:last-of-type td {
+  border-bottom: none;
+}
+
+d-article table th,
+d-article table td {
+  font-size: 15px;
+  padding: 2px 8px;
+}
+
+d-article table tbody :first-child td {
+  padding-top: 2px;
+}
+/*
+ * Copyright 2018 The Distill Template Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+span.katex-display {
+  text-align: left;
+  padding: 8px 0 8px 0;
+  margin: 0.5em 0 0.5em 1em;
+}
+
+span.katex {
+  -webkit-font-smoothing: antialiased;
+  color: rgba(0, 0, 0, 0.8);
+  font-size: 1.18em;
+}
+/*
+ * Copyright 2018 The Distill Template Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+
+d-appendix {
+  contain: layout style;
+  font-size: 0.8em;
+  line-height: 1.7em;
+  margin-top: 60px;
+  margin-bottom: 0;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+  color: rgba(0,0,0,0.5);
+  padding-top: 60px;
+  padding-bottom: 48px;
+}
+
+d-appendix h3 {
+  grid-column: page-start / text-start;
+  font-size: 15px;
+  font-weight: 500;
+  margin-top: 1em;
+  margin-bottom: 0;
+  color: rgba(0,0,0,0.65);
+}
+
+d-appendix h3 + * {
+  margin-top: 1em;
+}
+
+d-appendix ol {
+  padding: 0 0 0 15px;
+}
+
+@media (min-width: 768px) {
+  d-appendix ol {
+    padding: 0 0 0 30px;
+    margin-left: -30px;
+  }
+}
+
+d-appendix li {
+  margin-bottom: 1em;
+}
+
+d-appendix a {
+  color: rgba(0, 0, 0, 0.6);
+}
+
+d-appendix > * {
+  grid-column: text;
+}
+
+d-appendix > d-footnote-list,
+d-appendix > d-citation-list,
+d-appendix > distill-appendix {
+  grid-column: screen;
+}
+
+/*
+ * Copyright 2018 The Distill Template Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+@media print {
+
+  @page {
+    size: 8in 11in;
+    @bottom-right {
+      content: counter(page) " of " counter(pages);
+    }
+  }
+
+  html {
+    /* no general margins -- CSS Grid takes care of those */
+  }
+
+  p, code {
+    page-break-inside: avoid;
+  }
+
+  h2, h3 {
+    page-break-after: avoid;
+  }
+
+  d-header {
+    visibility: hidden;
+  }
+
+  d-footer {
+    display: none!important;
+  }
+
+}
+</style><script src="/vendor/distill/template.v2.js"></script><style>.availability-notice[data-astro-cid-j6iz5pnm]{background:#f5f7f9;border-left:3px solid #7c8792;grid-column:text;padding:.75em 1em}
+.figure-image[data-astro-cid-olutqroj]{border-bottom:none;display:block}img[data-astro-cid-olutqroj],video[data-astro-cid-olutqroj]{width:100%;height:auto;display:block}
+</style><link rel="stylesheet" href="/_astro/Report.DQA_R-Mr.css"><style>.figure-image[data-astro-cid-3j4ahvms]{border-bottom:none;display:block}img[data-astro-cid-3j4ahvms]{width:100%;height:auto;display:block}.figure-panels[data-astro-cid-3j4ahvms]{grid-template-columns:repeat(var(--panel-columns), minmax(0, 1fr));gap:12px;display:grid}.figure-panel[data-astro-cid-3j4ahvms]{min-width:0}.panel-label[data-astro-cid-3j4ahvms]{color:#111;margin-bottom:4px;font-size:14px;font-weight:700;line-height:1.2;display:block}@media (width<=600px){.figure-panels[data-astro-cid-3j4ahvms]{grid-template-columns:1fr}}
+.source-table[data-astro-cid-t6mhkqx2]{min-width:0;overflow-x:auto}.source-table[data-astro-cid-t6mhkqx2] table{border-collapse:collapse;width:100%;font-size:inherit}.source-table[data-astro-cid-t6mhkqx2] th,.source-table[data-astro-cid-t6mhkqx2] td{text-align:left;vertical-align:top;border-bottom:1px solid #0000001a;padding:.5em}.source-table[data-astro-cid-t6mhkqx2] caption{caption-side:bottom;text-align:left;padding-top:.5em}
+</style><link rel="stylesheet" href="/_astro/SiteSearch.ClBEWxrX.css"><style>:root{--listing-width:900px;--listing-scale:.9}.listing-width{width:min(100%, var(--listing-width));justify-self:center}.article-list{margin:24px 0;padding:0;list-style:none}.article-list-row{padding:calc(24px * var(--listing-scale)) 0;border-bottom:1px solid #0000001a;display:block}.article-list>:last-child,.article-list>:last-child>.article-list-row{border-bottom:none}.article-list-title{margin:0 0 calc(6px * var(--listing-scale));font-size:calc(24px * var(--listing-scale));font-weight:700;line-height:1.2}.article-list-description{font-size:calc(16px * var(--listing-scale));margin:0;line-height:1.4}@media (width>=768px){.article-list{margin-top:calc(60px * var(--listing-scale))}.article-list-row{grid-template-columns:15% 1fr;column-gap:5%;display:grid}.article-list-content{align-self:center}.article-list-title{font-size:calc(26px * var(--listing-scale))}.article-list-description{line-height:1.5}}html,body{background:#fffef9}@media print{html,body{background:#fff}}.citation-preview{z-index:10;box-sizing:border-box;color:#000c;background:#fff;border:1px solid #00000026;width:min(380px,100vw - 24px);max-height:50vh;padding:1rem;font-size:13px;line-height:1.6;position:fixed;overflow-y:auto;box-shadow:0 4px 20px #0000001f}.citation-preview[hidden]{display:none}.citation-preview a{color:inherit}.site-header{padding:1rem 0}d-title{padding-top:1rem}@media (width>=768px){d-title{padding-top:2rem}}.site-header a{color:inherit;font-weight:600;text-decoration:none}.site-header nav{justify-content:space-between;align-items:center;gap:1rem;display:flex}.site-header .nav-links{align-items:center;gap:1rem;display:flex}.site-header .nav-links a{color:#0009;font-size:.875rem;font-weight:400}.site-header .nav-links a:hover,.site-header .nav-links a:focus-visible{color:#000}.site-header .github-link{align-items:center;gap:.375rem;display:inline-flex}.site-header .github-link svg{flex-shrink:0}.metadata{color:#0009;font-size:.8rem}.katex{font-size:1.05em}.katex-display{padding:.5rem 0;overflow:auto hidden}d-article{padding-bottom:3rem}
+</style></head><body distill-prerendered><d-front-matter><script type="application/json">{"title":"SHD","description":"Two-layer SHD training diagnostics establish tiny-subset fitting and variable held-out learning, with earlier one-layer measurements preserved.","authors":[{"author":"Eoin Murray","affiliations":[]}]}</script></d-front-matter><header class="site-header base-grid"><nav class="l-page" aria-label="Site"><a href="/">Pinglab</a><div class="nav-links"><style>astro-island,astro-slot,astro-static-slot{display:contents}</style><script>(function(){let e=async e=>{await(await e())()};(self.Astro||(self.Astro={})).load=e,window.dispatchEvent(new Event(`astro:load`))})();</script><script>(function(){function e(t){"@babel/helpers - typeof";return e=typeof Symbol==`function`&&typeof Symbol.iterator==`symbol`?function(e){return typeof e}:function(e){return e&&typeof Symbol==`function`&&e.constructor===Symbol&&e!==Symbol.prototype?`symbol`:typeof e},e(t)}function t(t,n){if(e(t)!=`object`||!t)return t;var r=t[Symbol.toPrimitive];if(r!==void 0){var i=r.call(t,n||`default`);if(e(i)!=`object`)return i;throw TypeError(`@@toPrimitive must return a primitive value.`)}return(n===`string`?String:Number)(t)}function n(n){var r=t(n,`string`);return e(r)==`symbol`?r:r+``}function r(e,t,r){return(t=n(t))in e?Object.defineProperty(e,t,{value:r,enumerable:!0,configurable:!0,writable:!0}):e[t]=r,e}let i=/* @__PURE__ */ new Set([`__proto__`,`constructor`,`prototype`]);{let e={0:e=>a(e),1:e=>n(e),2:e=>new RegExp(e),3:e=>new Date(e),4:e=>new Map(n(e)),5:e=>new Set(n(e)),6:e=>BigInt(e),7:e=>new URL(e),8:e=>new Uint8Array(e),9:e=>new Uint16Array(e),10:e=>new Uint32Array(e),11:e=>1/0*e},t=t=>{let[n,r]=t;return n in e?e[n](r):void 0},n=e=>e.map(t),a=e=>typeof e!=`object`||!e?e:Object.fromEntries(Object.entries(e).map(([e,n])=>[e,t(n)]));class o extends HTMLElement{constructor(...e){super(...e),r(this,`Component`,void 0),r(this,`hydrator`,void 0),r(this,`hydrate`,async()=>{var e;if(!this.hydrator||!this.isConnected)return;let t=(e=this.parentElement)==null?void 0:e.closest(`astro-island[ssr]`);if(t){t.addEventListener(`astro:hydrate`,this.hydrate,{once:!0});return}let n=this.querySelectorAll(`astro-slot`),r={},i=this.querySelectorAll(`template[data-astro-template]`);for(let e of i){let t=e.closest(this.tagName);t!=null&&t.isSameNode(this)&&(r[e.getAttribute(`data-astro-template`)||`default`]=e.innerHTML,e.remove())}for(let e of n){let t=e.closest(this.tagName);t!=null&&t.isSameNode(this)&&(r[e.getAttribute(`name`)||`default`]=e.innerHTML)}let o;try{o=this.hasAttribute(`props`)?a(JSON.parse(this.getAttribute(`props`))):{}}catch(e){let t=this.getAttribute(`component-url`)||`<unknown>`,n=this.getAttribute(`component-export`);throw n&&(t+=` (export ${n})`),console.error(`[hydrate] Error parsing props for component ${t}`,this.getAttribute(`props`),e),e}await this.hydrator(this)(this.Component,o,r,{client:this.getAttribute(`client`)}),this.removeAttribute(`ssr`),this.dispatchEvent(new CustomEvent(`astro:hydrate`))}),r(this,`unmount`,()=>{this.isConnected||this.dispatchEvent(new CustomEvent(`astro:unmount`))})}disconnectedCallback(){document.removeEventListener(`astro:after-swap`,this.unmount),document.addEventListener(`astro:after-swap`,this.unmount,{once:!0})}connectedCallback(){if(!this.hasAttribute(`await-children`)||document.readyState===`interactive`||document.readyState===`complete`)this.childrenConnectedCallback();else{let e=()=>{document.removeEventListener(`DOMContentLoaded`,e),t.disconnect(),this.childrenConnectedCallback()},t=new MutationObserver(()=>{var t;((t=this.lastChild)==null?void 0:t.nodeType)===Node.COMMENT_NODE&&this.lastChild.nodeValue===`astro:end`&&(this.lastChild.remove(),e())});t.observe(this,{childList:!0}),document.addEventListener(`DOMContentLoaded`,e)}}async childrenConnectedCallback(){let e=this.getAttribute(`before-hydration-url`);e&&await import(e),this.start()}getRetryImportUrl(e){let t=new URL(e,document.baseURI);return t.searchParams.set(`astro-retry`,Date.now().toString()),t.toString()}async importWithRetry(e){try{return await import(e)}catch(t){return await new Promise(e=>setTimeout(e,1e3)),import(this.getRetryImportUrl(e))}}handleHydrationError(e){let t=this.getAttribute(`component-url`),n=new CustomEvent(`astro:hydration-error`,{cancelable:!0,bubbles:!0,composed:!0,detail:{error:e,componentUrl:t}});this.dispatchEvent(n)&&console.error(`[astro-island] Error hydrating ${t}`,e)}async start(){let e=JSON.parse(this.getAttribute(`opts`)),t=this.getAttribute(`client`);if(Astro[t]===void 0){window.addEventListener(`astro:${t}`,()=>this.start(),{once:!0});return}try{await Astro[t](async()=>{let e=this.getAttribute(`renderer-url`);try{let[t,{default:n}]=await Promise.all([this.importWithRetry(this.getAttribute(`component-url`)),e?this.importWithRetry(e):Promise.resolve({default:()=>()=>{}})]),r=this.getAttribute(`component-export`)||`default`;if(r.includes(`.`)){this.Component=t;for(let e of r.split(`.`)){if(i.has(e)||!this.Component||typeof this.Component!=`object`&&typeof this.Component!=`function`||!Object.hasOwn(this.Component,e))throw Error(`Invalid component export path: ${r}`);this.Component=this.Component[e]}}else{if(i.has(r))throw Error(`Invalid component export path: ${r}`);this.Component=t[r]}return this.hydrator=n,this.hydrate}catch(e){return this.handleHydrationError(e),()=>{}}},e,this)}catch(e){this.handleHydrationError(e)}}attributeChangedCallback(){this.hydrate()}}r(o,`observedAttributes`,[`props`]),customElements.get(`astro-island`)||customElements.define(`astro-island`,o)}})();</script><astro-island uid="Z1s8LHW" prefix="r1" component-url="/_astro/CommandPalette.CFm07TmH.js" component-export="default" renderer-url="/_astro/client.tK5zrQFg.js" props="{&quot;collections&quot;:[1,[[0,{&quot;href&quot;:[0,&quot;/collections/gamma-gated-sparsity&quot;],&quot;title&quot;:[0,&quot;Gamma-gated sparsity&quot;],&quot;detail&quot;:[0,&quot;Collection&quot;],&quot;keywords&quot;:[1,[[0,&quot;gamma-gated-sparsity&quot;],[0,&quot;Experiments on gamma rhythms, sparse neural activity, and learning in spiking networks.&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/collections/neuromodulation&quot;],&quot;title&quot;:[0,&quot;Neuromodulation&quot;],&quot;detail&quot;:[0,&quot;Collection&quot;],&quot;keywords&quot;:[1,[[0,&quot;neuromodulation&quot;],[0,&quot;Experiments on how changes to neural dynamics affect network evidence, accuracy, and activity.&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/collections/datasets&quot;],&quot;title&quot;:[0,&quot;Datasets&quot;],&quot;detail&quot;:[0,&quot;Collection&quot;],&quot;keywords&quot;:[1,[[0,&quot;datasets&quot;],[0,&quot;Training banks, recordings, and other reusable experimental data, with their provenance and diagnostics.&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/collections/demo&quot;],&quot;title&quot;:[0,&quot;Uncategorized&quot;],&quot;detail&quot;:[0,&quot;Collection&quot;],&quot;keywords&quot;:[1,[[0,&quot;demo&quot;],[0,&quot;Articles and experiments without a subject collection.&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/collections/notes&quot;],&quot;title&quot;:[0,&quot;Notes&quot;],&quot;detail&quot;:[0,&quot;Collection&quot;],&quot;keywords&quot;:[1,[[0,&quot;notes&quot;],[0,&quot;Practical project notes, infrastructure guidance, and operational workflows.&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/collections/slides&quot;],&quot;title&quot;:[0,&quot;Slides&quot;],&quot;detail&quot;:[0,&quot;Collection&quot;],&quot;keywords&quot;:[1,[[0,&quot;slides&quot;],[0,&quot;Talks and journal-club presentations on research and related ideas.&quot;]]]}]]],&quot;articles&quot;:[1,[[0,{&quot;href&quot;:[0,&quot;/notes/compute-rules&quot;],&quot;title&quot;:[0,&quot;Compute Rules&quot;],&quot;detail&quot;:[0,&quot;Note&quot;],&quot;keywords&quot;:[1,[[0,&quot;compute-rules&quot;],[0,&quot;Compute providers, access boundaries, and execution workflows for Pinglab.&quot;],[0,&quot;notes&quot;],[0,&quot;Notes&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/notes/experiment-rules&quot;],&quot;title&quot;:[0,&quot;Experiment Rules&quot;],&quot;detail&quot;:[0,&quot;Note&quot;],&quot;keywords&quot;:[1,[[0,&quot;experiment-rules&quot;],[0,&quot;Independent compute, analyse and present stages, scientific inputs and execution contracts.&quot;],[0,&quot;notes&quot;],[0,&quot;Notes&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/notes/pingstore-rules&quot;],&quot;title&quot;:[0,&quot;Pingstore Rules&quot;],&quot;detail&quot;:[0,&quot;Note&quot;],&quot;keywords&quot;:[1,[[0,&quot;pingstore-rules&quot;],[0,&quot;Pingstore run layout, provenance, validation, pruning, Cloudflare R2 backup access and recovery.&quot;],[0,&quot;notes&quot;],[0,&quot;Notes&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/notes/writing-rules&quot;],&quot;title&quot;:[0,&quot;Writing Rules&quot;],&quot;detail&quot;:[0,&quot;Note&quot;],&quot;keywords&quot;:[1,[[0,&quot;writing-rules&quot;],[0,&quot;Scientific writing, evidence, terminology and editorial conventions for experiment articles.&quot;],[0,&quot;notes&quot;],[0,&quot;Notes&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/slides/journal-club-oct-5th&quot;],&quot;title&quot;:[0,&quot;Journal club — Neural basis of social hierarchy across species&quot;],&quot;detail&quot;:[0,&quot;Slides&quot;],&quot;keywords&quot;:[1,[[0,&quot;journal-club-oct-5th&quot;],[0,&quot;Yan &amp; Lin (2026): territory, fighting, alliances, and interpretations of the neural basis of social hierarchy. Journal club, 5 October 2026.&quot;],[0,&quot;slides&quot;],[0,&quot;Slides&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp126&quot;],&quot;title&quot;:[0,&quot;Current-based MNIST: snnTorch and snnlab&quot;],&quot;detail&quot;:[0,&quot;exp126&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp126&quot;],[0,&quot;Equation-matched snnTorch and snnlab classifiers trained on 10% of MNIST, with agreement diagnostics, learning curves and GPU training and inference timings.&quot;],[0,&quot;demo&quot;],[0,&quot;Uncategorized&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp125&quot;],&quot;title&quot;:[0,&quot;Scikit Digits&quot;],&quot;detail&quot;:[0,&quot;exp125&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp125&quot;],[0,&quot;A 64 → 128 → 10 LIF network learns handwritten digits, with training curves and a held-out test evaluation.&quot;],[0,&quot;datasets&quot;],[0,&quot;Datasets&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp124&quot;],&quot;title&quot;:[0,&quot;SHD&quot;],&quot;detail&quot;:[0,&quot;exp124&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp124&quot;],[0,&quot;Two-layer SHD training diagnostics establish tiny-subset fitting and variable held-out learning, with earlier one-layer measurements preserved.&quot;],[0,&quot;datasets&quot;],[0,&quot;Datasets&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp123&quot;],&quot;title&quot;:[0,&quot;Output Evidence Against Time and Gamma Cycles&quot;],&quot;detail&quot;:[0,&quot;exp123&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp123&quot;],[0,&quot;Paired inhibitory-decay probes of output evidence, matched-coordinate accuracy and network spike cost at a 25 Hz input encoding rate.&quot;],[0,&quot;neuromodulation&quot;],[0,&quot;Neuromodulation&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp117&quot;],&quot;title&quot;:[0,&quot;Mean-Field Analysis of PING Bifurcations&quot;],&quot;detail&quot;:[0,&quot;exp117&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp117&quot;],[0,&quot;An independent four-variable mean-field analysis identifies a Hopf bifurcation, sampled dynamics consistent with a supercritical transition, and decreasing onset frequency with slower inhibition.&quot;],[0,&quot;gamma-gated-sparsity&quot;],[0,&quot;Gamma-gated sparsity&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp113&quot;],&quot;title&quot;:[0,&quot;COBA and PING Dynamics, Discretisation, and Learning&quot;],&quot;detail&quot;:[0,&quot;exp113&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp113&quot;],[0,&quot;A textbook derivation of the conductance-based COBA and PING equations, their discrete simulation, and their training by surrogate-gradient BPTT, voltage-gradient damping, gradient clipping, AdamW, and Dale projection.&quot;],[0,&quot;demo&quot;],[0,&quot;Uncategorized&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp110&quot;],&quot;title&quot;:[0,&quot;Manuscript&quot;],&quot;detail&quot;:[0,&quot;exp110&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp110&quot;],[0,&quot;A manuscript scaffold connecting PING circuit dynamics, low-rate task performance, cycle participation, perturbation sensitivity and continuous-stream classification.&quot;],[0,&quot;gamma-gated-sparsity&quot;],[0,&quot;Gamma-gated sparsity&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp099&quot;],&quot;title&quot;:[0,&quot;Susin and Destexhe (2021)&quot;],&quot;detail&quot;:[0,&quot;exp099&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp099&quot;],[0,&quot;Independent excitatory afferent drive strengthens population bursting in a calibrated conductance-based E/I network.&quot;],[0,&quot;demo&quot;],[0,&quot;Uncategorized&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp082&quot;],&quot;title&quot;:[0,&quot;Spike-Count Classification in a Continuous Stream&quot;],&quot;detail&quot;:[0,&quot;exp082&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp082&quot;],[0,&quot;A multi-seed study of spike-count classification across input rates and presentation durations.&quot;],[0,&quot;gamma-gated-sparsity&quot;],[0,&quot;Gamma-gated sparsity&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp081&quot;],&quot;title&quot;:[0,&quot;How Pixel Features Respond to Input Rate&quot;],&quot;detail&quot;:[0,&quot;exp081&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp081&quot;],[0,&quot;Direct simulations and a simpler theory test how sparse input events become average voltage features.&quot;],[0,&quot;gamma-gated-sparsity&quot;],[0,&quot;Gamma-gated sparsity&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp080&quot;],&quot;title&quot;:[0,&quot;Decoder Accuracy Improves with Input Rate&quot;],&quot;detail&quot;:[0,&quot;exp080&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp080&quot;],[0,&quot;Direct-simulation decoder calibration of the input-rate range for later variable-rate PING training.&quot;],[0,&quot;gamma-gated-sparsity&quot;],[0,&quot;Gamma-gated sparsity&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp054&quot;],&quot;title&quot;:[0,&quot;Pinglab Rythmicity Metric&quot;],&quot;detail&quot;:[0,&quot;exp054&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp054&quot;],[0,&quot;Lobe–trough contrast across untrained PING coupling strengths, with private- and shared-input null controls.&quot;],[0,&quot;gamma-gated-sparsity&quot;],[0,&quot;Gamma-gated sparsity&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp049&quot;],&quot;title&quot;:[0,&quot;Training Recurrent Weights Weakens PING Rhythmicity&quot;],&quot;detail&quot;:[0,&quot;exp049&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp049&quot;],[0,&quot;Trainable recurrent conductances produced lower reference-image rhythmicity and higher excitatory firing than the frozen PING control; outcomes depended on initialization.&quot;],[0,&quot;gamma-gated-sparsity&quot;],[0,&quot;Gamma-gated sparsity&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp047&quot;],&quot;title&quot;:[0,&quot;Pool-Size Effects Depend on Synaptic Scaling&quot;],&quot;detail&quot;:[0,&quot;exp047&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp047&quot;],[0,&quot;Paired controls separate fixed summed I→E coupling from fixed expected synaptic strength as the inhibitory pool grows.&quot;],[0,&quot;gamma-gated-sparsity&quot;],[0,&quot;Gamma-gated sparsity&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp046&quot;],&quot;title&quot;:[0,&quot;One Spike per Gamma Cycle&quot;],&quot;detail&quot;:[0,&quot;exp046&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp046&quot;],[0,&quot;Pooled and equally weighted network distributions support predominantly one-spike gamma-cycle participation across 18 trained networks, with exceptions.&quot;],[0,&quot;gamma-gated-sparsity&quot;],[0,&quot;Gamma-gated sparsity&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp044&quot;],&quot;title&quot;:[0,&quot;Firing Rate Across the Timestep Sweep&quot;],&quot;detail&quot;:[0,&quot;exp044&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp044&quot;],[0,&quot;Compares final-epoch firing rate, classification accuracy and illustrative rasters across a twelvefold integration-timestep sweep.&quot;],[0,&quot;gamma-gated-sparsity&quot;],[0,&quot;Gamma-gated sparsity&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp042&quot;],&quot;title&quot;:[0,&quot;Inhibitory Replay Perturbations Change Excitatory Firing&quot;],&quot;detail&quot;:[0,&quot;exp042&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp042&quot;],[0,&quot;Recorded inhibitory spike streams produced contrasting excitatory responses under independent-spike and fixed-window replay perturbations, but the experiment does not isolate synchrony.&quot;],[0,&quot;gamma-gated-sparsity&quot;],[0,&quot;Gamma-gated sparsity&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp041&quot;],&quot;title&quot;:[0,&quot;Firing Rate Tracks Gamma Frequency&quot;],&quot;detail&quot;:[0,&quot;exp041&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp041&quot;],[0,&quot;Across PING networks trained at different inhibitory decay times, compare excitatory firing rate with gamma frequency and test accuracy.&quot;],[0,&quot;gamma-gated-sparsity&quot;],[0,&quot;Gamma-gated sparsity&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp038&quot;],&quot;title&quot;:[0,&quot;Switching On the Inhibitory Loop&quot;],&quot;detail&quot;:[0,&quot;exp038&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp038&quot;],[0,&quot;Enabling an inhibitory loop after feedforward training reduced excitatory firing but lowered classification accuracy; the experiment does not isolate a benefit of gamma timing.&quot;],[0,&quot;gamma-gated-sparsity&quot;],[0,&quot;Gamma-gated sparsity&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp037&quot;],&quot;title&quot;:[0,&quot;Dropped Spikes vs Added Noise&quot;],&quot;detail&quot;:[0,&quot;exp037&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp037&quot;],[0,&quot;Both trained networks tolerated substantial spike deletion, but PING accuracy fell more sharply under added spikes. The perturbations changed both recurrent feedback and readout input, so they do not isolate gamma gating.&quot;],[0,&quot;gamma-gated-sparsity&quot;],[0,&quot;Gamma-gated sparsity&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp025&quot;],&quot;title&quot;:[0,&quot;Accuracy and Firing Rate With and Without Inhibition&quot;],&quot;detail&quot;:[0,&quot;exp025&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp025&quot;],[0,&quot;Reused MNIST networks compare accuracy and excitatory firing rates with and without an inhibitory loop. Full-MNIST reference classifiers accompany a separate reduced-training-pool activity-ceiling sweep.&quot;],[0,&quot;gamma-gated-sparsity&quot;],[0,&quot;Gamma-gated sparsity&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp024&quot;],&quot;title&quot;:[0,&quot;Accuracy Plateaus While Firing Rate Rises&quot;],&quot;detail&quot;:[0,&quot;exp024&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp024&quot;],[0,&quot;Audits validation accuracy and firing-rate stability in unregularised PING and COBA training histories.&quot;],[0,&quot;gamma-gated-sparsity&quot;],[0,&quot;Gamma-gated sparsity&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp023&quot;],&quot;title&quot;:[0,&quot;Turning the PING Loop On&quot;],&quot;detail&quot;:[0,&quot;exp023&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp023&quot;],[0,&quot;PING stripped to its biophysical fundamentals: free-running activity, population spectra and rate responses with the excitatory–inhibitory loop off and on.&quot;],[0,&quot;gamma-gated-sparsity&quot;],[0,&quot;Gamma-gated sparsity&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp022&quot;],&quot;title&quot;:[0,&quot;MNIST&quot;],&quot;detail&quot;:[0,&quot;exp022&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp022&quot;],[0,&quot;Seven controlled training families, their retained checkpoint bank, validation learning curves, and raster diagnostics.&quot;],[0,&quot;gamma-gated-sparsity&quot;],[0,&quot;Gamma-gated sparsity&quot;],[0,&quot;datasets&quot;],[0,&quot;Datasets&quot;]]]}]]]}" ssr client="load" opts="{&quot;name&quot;:&quot;CommandPalette&quot;,&quot;value&quot;:true}" await-children><button type="button" class="command-trigger" aria-label="Search articles and collections (Ctrl K)" aria-haspopup="dialog" aria-expanded="false" data-state="closed"><span class="command-shortcut-icon" aria-hidden="true">⌘K</span><span>Search</span></button><!--astro:end--></astro-island><a href="/collections">Collections</a><a class="github-link" href="https://github.com/eoinmurray/pinglab" aria-label="Pinglab on GitHub"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false"><path d="M12 .297C5.37.297 0 5.67 0 12.297c0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.043-1.61-4.043-1.61-.546-1.387-1.333-1.756-1.333-1.756-1.09-.745.083-.729.083-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.419-1.305.762-1.605-2.665-.3-5.467-1.334-5.467-5.931 0-1.31.469-2.381 1.236-3.221-.124-.303-.536-1.524.117-3.176 0 0 1.008-.322 3.301 1.23a11.52 11.52 0 0 1 3.003-.404c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.655 1.652.243 2.873.119 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.628-5.479 5.921.43.372.823 1.102.823 2.222 0 1.606-.015 2.898-.015 3.293 0 .322.216.694.825.576C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"></path></svg><span>GitHub</span></a></div></nav></header><main><d-title><h1>SHD</h1><p>Two-layer SHD training diagnostics establish tiny-subset fitting and variable held-out learning, with earlier one-layer measurements preserved.</p></d-title><d-byline><div class="byline grid" style="--byline-columns: 5"><div><h3>Experiment</h3><p class="experiment-id">exp124</p></div><div><h3>Author</h3><p class="author">Eoin Murray</p></div><div><h3>Created</h3><p><time datetime="2026-10-14">2026-10-14</time></p></div><div><h3>Updated</h3><p><time datetime="2026-10-14">2026-10-14</time></p></div><div><h3>Collection</h3><p><a class="collection-link" href="/collections/datasets">Datasets</a></p></div></div></d-byline><div class="report-body base-grid"><aside class="report-toc"><d-toc prerendered="true"><nav aria-label="Table of contents"><h2>Contents</h2><ol><li><a href="#abstract">Abstract</a></li><li><a href="#results">Results</a></li><li class="subsection"><a href="#one-layer-coba-smoke">One-layer COBA smoke</a></li><li class="subsection"><a href="#one-layer-ping-smoke">One-layer PING smoke</a></li><li class="subsection"><a href="#one-layer-coba-after-20-epochs">One-layer COBA after 20 epochs</a></li><li class="subsection"><a href="#one-layer-ping-after-20-epochs">One-layer PING after 20 epochs</a></li><li class="subsection"><a href="#two-layer-coba-diagnosis">Two-layer COBA diagnosis</a></li><li class="subsection"><a href="#two-layer-ping-diagnosis">Two-layer PING diagnosis</a></li><li><a href="#execution-time">Execution time</a></li><li><a href="#methods">Methods</a></li><li><a href="#references">References</a></li><li><a href="#dataset">Dataset</a></li></ol></nav></d-toc></aside><d-article role="article" aria-label="SHD">
+<h2 id="abstract">Abstract</h2>
+<p>Our initial one-layer conductance-based networks changed hidden weights and reduced loss, but classification remained weak. We then investigated two-layer training through tiny fitting checks and reduced spoken-digit pilots. Both networks fitted the tiny subset after changing initialization and optimization settings. Held-out accuracy improved but varied across seeds, especially with inhibitory feedback enabled. These checks support a larger learning experiment; they do not establish competitive recognition or a general benefit from inhibition.</p>
+<h2 id="results">Results</h2>
+<h3 id="one-layer-coba-smoke">One-layer COBA smoke</h3>
+<p>With feedback disabled, local training loss fell from 3.0018 to 2.9678, and the input-weight matrix changed by 1.219 in its flattened Euclidean norm. Final validation accuracy was 9% in both executions (<a href="#fig-coba">Fig. 1</a>). Gradients remained finite throughout all updates. CPU and GPU accuracies matched at every measured epoch, while cross-entropy differed slightly. This short run demonstrates learning, while its small validation partition limits conclusions about generalisation.</p>
+<figure id="fig-coba" class="l-body" data-astro-cid-3j4ahvms><a class="figure-image" href="/run-images/exp124-r065-present/smoke_coba_training_curves.svg" aria-label="Open Figure 1 at full size" data-astro-cid-3j4ahvms><img src="/run-images/exp124-r065-present/smoke_coba_training_curves.svg" alt="COBA training and validation cross-entropy and accuracy across five completed epochs." loading="lazy" decoding="async" data-astro-cid-3j4ahvms></a><figcaption data-astro-cid-3j4ahvms><strong data-astro-cid-3j4ahvms>Figure 1.</strong> <p><strong>COBA learning curves.</strong> We trained input and readout weights on 200 spoken-digit examples and evaluated the same 100 held-out validation examples after each epoch. (A) Mean cross-entropy across each complete split. (B) Classification accuracy across each complete split; the dotted line marks 5% chance accuracy for 20 balanced classes. Black lines identify training and red lines validation; solid lines/circles show local CPU execution and dashed lines/crosses show Modal A10G execution. Epoch zero precedes optimization. Each backend curve represents one seed, with no across-seed average or uncertainty band.</p></figcaption></figure>
+<h3 id="one-layer-ping-smoke">One-layer PING smoke</h3>
+<p>With feedback enabled, local training loss fell from 2.9963 to 2.9859, and the input-weight matrix changed by 1.205 in its flattened Euclidean norm. Final validation accuracy was 8% in both executions (<a href="#fig-ping">Fig. 2</a>). Gradients remained finite throughout all updates. CPU and GPU accuracies matched at every measured epoch, while cross-entropy differed slightly. The two smoke runs are insufficient to determine whether inhibition improves spoken-digit recognition.</p>
+<figure id="fig-ping" class="l-body" data-astro-cid-3j4ahvms><a class="figure-image" href="/run-images/exp124-r065-present/smoke_ping_training_curves.svg" aria-label="Open Figure 2 at full size" data-astro-cid-3j4ahvms><img src="/run-images/exp124-r065-present/smoke_ping_training_curves.svg" alt="PING training and validation cross-entropy and accuracy across five completed epochs." loading="lazy" decoding="async" data-astro-cid-3j4ahvms></a><figcaption data-astro-cid-3j4ahvms><strong data-astro-cid-3j4ahvms>Figure 2.</strong> <p><strong>PING learning curves.</strong> We used the same examples, initial input/readout weights and shuffled sample order as for COBA, while enabling the fixed excitatory–inhibitory feedback loop. (A) Mean cross-entropy across each complete split. (B) Classification accuracy; the dotted line marks 5% chance accuracy. Black lines identify training and red lines validation; solid lines/circles show local CPU execution and dashed lines/crosses show Modal A10G execution. Epoch zero precedes optimization. Each backend curve represents one seed, with no across-seed average or uncertainty band.</p></figcaption></figure>
+<h3 id="one-layer-coba-after-20-epochs">One-layer COBA after 20 epochs</h3>
+<p>In a fresh local run with 1,000 training examples, COBA training loss fell from 3.0022 to 2.886. Final training accuracy was 12.8% and validation accuracy 12.5% (<a href="#fig-coba-longer">Fig. 3</a>). Hidden and readout weights changed, and gradients remained finite. Low accuracy on both splits indicates limited fitting under this recipe; this single-seed run does not establish competitive recognition.</p>
+<figure id="fig-coba-longer" class="l-body" data-astro-cid-3j4ahvms><a class="figure-image" href="/run-images/exp124-r065-present/coba_training_curves.svg" aria-label="Open Figure 3 at full size" data-astro-cid-3j4ahvms><img src="/run-images/exp124-r065-present/coba_training_curves.svg" alt="COBA training and validation cross-entropy and accuracy across twenty completed epochs." loading="lazy" decoding="async" data-astro-cid-3j4ahvms></a><figcaption data-astro-cid-3j4ahvms><strong data-astro-cid-3j4ahvms>Figure 3.</strong> <p><strong>COBA longer training.</strong> We trained a freshly initialized 128 E/32 I network on 1,000 spoken-digit examples and evaluated 200 held-out validation examples on local CPU. (A) Mean cross-entropy across each complete split. (B) Classification accuracy; the dotted line marks 5% chance accuracy across 20 balanced classes. Black lines/circles identify training and red lines/circles validation. Epoch zero precedes optimization. Each curve represents one seed, with no across-seed average or uncertainty band. The selected split differs from the five-epoch smoke.</p></figcaption></figure>
+<h3 id="one-layer-ping-after-20-epochs">One-layer PING after 20 epochs</h3>
+<p>In a fresh local run with 1,000 training examples, PING training loss fell from 2.9963 to 2.885. Final training accuracy was 10.1% and validation accuracy 11% (<a href="#fig-ping-longer">Fig. 4</a>). Hidden and readout weights changed, and gradients remained finite. Low accuracy on both splits indicates limited fitting under this recipe; this single-seed run does not establish competitive recognition.</p>
+<figure id="fig-ping-longer" class="l-body" data-astro-cid-3j4ahvms><a class="figure-image" href="/run-images/exp124-r065-present/ping_training_curves.svg" aria-label="Open Figure 4 at full size" data-astro-cid-3j4ahvms><img src="/run-images/exp124-r065-present/ping_training_curves.svg" alt="PING training and validation cross-entropy and accuracy across twenty completed epochs." loading="lazy" decoding="async" data-astro-cid-3j4ahvms></a><figcaption data-astro-cid-3j4ahvms><strong data-astro-cid-3j4ahvms>Figure 4.</strong> <p><strong>PING longer training.</strong> We trained a freshly initialized 128 E/32 I network on 1,000 spoken-digit examples and evaluated 200 held-out validation examples on local CPU. (A) Mean cross-entropy across each complete split. (B) Classification accuracy; the dotted line marks 5% chance accuracy across 20 balanced classes. Black lines/circles identify training and red lines/circles validation. Epoch zero precedes optimization. Each curve represents one seed, with no across-seed average or uncertainty band. The selected split differs from the five-epoch smoke.</p></figcaption></figure>
+<h3 id="two-layer-coba-diagnosis">Two-layer COBA diagnosis</h3>
+<p>The selected two-layer COBA recipe fitted 20 training examples to 90% accuracy after 300 optimizer updates (<a href="#fig-coba-diagnostics">Fig. 5A</a>). On the 200-training/100-validation-example pilots, final validation accuracy was 18% for seed 42 and 14% for seed 43 (<a href="#fig-coba-diagnostics">Fig. 5D</a>). All three learned matrices changed and received finite, nonzero gradients. These checks establish fitting capacity and modest held-out learning; the small utterance-split pilots remain insufficient to establish competitive performance.</p>
+<figure id="fig-coba-diagnostics" class="l-body" data-astro-cid-3j4ahvms><a class="figure-image" href="/run-images/exp124-r065-present/coba_diagnostics.svg" aria-label="Open Figure 5 at full size" data-astro-cid-3j4ahvms><img src="/run-images/exp124-r065-present/coba_diagnostics.svg" alt="Two-layer COBA training diagnostics: tiny training and validation accuracy, and reduced-pilot training and validation accuracy, against optimizer updates." loading="lazy" decoding="async" data-astro-cid-3j4ahvms></a><figcaption data-astro-cid-3j4ahvms><strong data-astro-cid-3j4ahvms>Figure 5.</strong> <p><strong>New two-layer COBA measurements.</strong> Each hidden layer contained 128 E/32 I neurons, with both feedback loops disabled. (A–B) Training and validation accuracy on 20/20 examples. (C–D) Accuracy on 200/100 examples. Colours identify the labelled recipes within each row; the corresponding validation panel uses the same colours. The dotted line marks 5% chance accuracy. Baseline uses a dense interlayer, damping 1000 and score gain 1; diverse adds 90% initial interlayer zeros; combined also uses damping 100 and gain 20. Faster readout means learning rate 0.01 rather than 0.0004. Tuned additionally centers initial readout weights and normalizes scores by per-example E2 rate. Pilots use balanced batches and centered readout initialization; labels identify overrides to mean readout, rate normalization, input strength, hidden learning rate or seed. A tiny epoch is one update; a pilot epoch is ten. Every curve is one measured seed, with no average or uncertainty band. Different seeds change initialization, sampled utterances and order.</p></figcaption></figure>
+<h3 id="two-layer-ping-diagnosis">Two-layer PING diagnosis</h3>
+<p>The selected two-layer PING recipe fitted 20 training examples to 100% accuracy after 100 optimizer updates (<a href="#fig-ping-diagnostics">Fig. 6A</a>). Final pilot validation accuracy was 44% for seed 42 and 22% for seed 43 (<a href="#fig-ping-diagnostics">Fig. 6D</a>). All three learned matrices changed and received finite, nonzero gradients. Validation varied substantially despite consistently improved fitting. These two small replicates do not establish a general recognition benefit from inhibition or achievement of the larger-run accuracy target.</p>
+<figure id="fig-ping-diagnostics" class="l-body" data-astro-cid-3j4ahvms><a class="figure-image" href="/run-images/exp124-r065-present/ping_diagnostics.svg" aria-label="Open Figure 6 at full size" data-astro-cid-3j4ahvms><img src="/run-images/exp124-r065-present/ping_diagnostics.svg" alt="Two-layer PING training diagnostics: tiny training and validation accuracy, and reduced-pilot training and validation accuracy, against optimizer updates." loading="lazy" decoding="async" data-astro-cid-3j4ahvms></a><figcaption data-astro-cid-3j4ahvms><strong data-astro-cid-3j4ahvms>Figure 6.</strong> <p><strong>New two-layer PING measurements.</strong> Each hidden layer contained 128 E/32 I neurons with fixed reciprocal feedback. (A–B) Training and validation accuracy on 20/20 examples. (C–D) Accuracy on 200/100 examples. Colours identify the labelled recipes within each row and carry through to its validation panel; the dotted line marks 5% chance accuracy. Baseline uses a dense interlayer, damping 1000 and score gain 1; diverse adds 90% initial interlayer zeros; combined also uses damping 100 and gain 20. Faster readout means learning rate 0.01 rather than 0.0004. Tuned additionally centers initial readout weights and normalizes scores by per-example E2 rate. Pilots use balanced batches and centered readout initialization; labelled overrides change readout reduction, normalization, input strength, hidden learning rate or seed. A tiny epoch is one update; a pilot epoch is ten. Each curve represents one seed, with no average or uncertainty band. Different seeds change initialization, sampled utterances and order. The longer COBA-only fitting confirmation has no PING curve.</p></figcaption></figure>
+<h2 id="execution-time">Execution time</h2>
+<p>The following first two timing tables preserve the earlier one-layer measurements.</p>
+<p>The local CPU completed each condition in approximately 38 seconds, compared with approximately 444 seconds on the Modal A10G. The tested small workload therefore ran faster locally; these single executions do not establish a general CPU/GPU ranking.</p>
+<div class="source-table" tabindex="0" role="region" aria-label="Report table" data-astro-cid-t6mhkqx2><table data-astro-cid-t6mhkqx2><caption data-astro-cid-t6mhkqx2>Table 1. Measured wall time per condition, including epoch-zero evaluation, five optimization epochs, complete training/validation evaluation after every epoch and retention of final weights. Dataset acquisition, graph construction, weight initialization, environment setup and remote result transfer are excluded.</caption><thead data-astro-cid-t6mhkqx2><tr data-astro-cid-t6mhkqx2><th scope="col" data-astro-cid-t6mhkqx2>Execution</th><th scope="col" data-astro-cid-t6mhkqx2>Condition</th><th scope="col" data-astro-cid-t6mhkqx2>Condition wall time (s)</th></tr></thead><tbody data-astro-cid-t6mhkqx2><tr data-astro-cid-t6mhkqx2><td data-astro-cid-t6mhkqx2>Local CPU</td><td data-astro-cid-t6mhkqx2>COBA</td><td data-astro-cid-t6mhkqx2>37.9</td></tr><tr data-astro-cid-t6mhkqx2><td data-astro-cid-t6mhkqx2>Local CPU</td><td data-astro-cid-t6mhkqx2>PING</td><td data-astro-cid-t6mhkqx2>37.8</td></tr><tr data-astro-cid-t6mhkqx2><td data-astro-cid-t6mhkqx2>Modal A10G</td><td data-astro-cid-t6mhkqx2>COBA</td><td data-astro-cid-t6mhkqx2>444</td></tr><tr data-astro-cid-t6mhkqx2><td data-astro-cid-t6mhkqx2>Modal A10G</td><td data-astro-cid-t6mhkqx2>PING</td><td data-astro-cid-t6mhkqx2>443</td></tr></tbody></table></div>
+<p>The twenty-epoch local run took 12.3 minutes for COBA and 11.3 minutes for PING, approximately 23.5 minutes combined.</p>
+<div class="source-table" tabindex="0" role="region" aria-label="Report table" data-astro-cid-t6mhkqx2><table data-astro-cid-t6mhkqx2><caption data-astro-cid-t6mhkqx2>Table 2. Measured wall time per condition for the 1,000-training/200-validation-example run, including epoch-zero evaluation, twenty optimization epochs, complete split evaluation after every epoch and retention of final weights. Dataset acquisition, graph construction and weight initialization are excluded.</caption><thead data-astro-cid-t6mhkqx2><tr data-astro-cid-t6mhkqx2><th scope="col" data-astro-cid-t6mhkqx2>Execution</th><th scope="col" data-astro-cid-t6mhkqx2>Condition</th><th scope="col" data-astro-cid-t6mhkqx2>Condition wall time (s)</th></tr></thead><tbody data-astro-cid-t6mhkqx2><tr data-astro-cid-t6mhkqx2><td data-astro-cid-t6mhkqx2>Local CPU</td><td data-astro-cid-t6mhkqx2>COBA</td><td data-astro-cid-t6mhkqx2>736.2</td></tr><tr data-astro-cid-t6mhkqx2><td data-astro-cid-t6mhkqx2>Local CPU</td><td data-astro-cid-t6mhkqx2>PING</td><td data-astro-cid-t6mhkqx2>676</td></tr></tbody></table></div>
+<p>The selected two-layer pilots took approximately 8–9 minutes per seed for both conditions combined, running sequentially on local CPU with four threads.</p>
+<div class="source-table" tabindex="0" role="region" aria-label="Report table" data-astro-cid-t6mhkqx2><table data-astro-cid-t6mhkqx2><caption data-astro-cid-t6mhkqx2>Table 3. Newly measured two-layer condition times for 200 training examples, 100 validation examples and twenty epochs. Times include epoch-zero evaluation, training and full split evaluation after each epoch; dataset acquisition, graph construction and initialization are excluded. These are individual executions, not repeated hardware benchmarks.</caption><thead data-astro-cid-t6mhkqx2><tr data-astro-cid-t6mhkqx2><th scope="col" data-astro-cid-t6mhkqx2>Seed</th><th scope="col" data-astro-cid-t6mhkqx2>Condition</th><th scope="col" data-astro-cid-t6mhkqx2>Condition wall time (s)</th></tr></thead><tbody data-astro-cid-t6mhkqx2><tr data-astro-cid-t6mhkqx2><td data-astro-cid-t6mhkqx2>42</td><td data-astro-cid-t6mhkqx2>COBA</td><td data-astro-cid-t6mhkqx2>260.6</td></tr><tr data-astro-cid-t6mhkqx2><td data-astro-cid-t6mhkqx2>42</td><td data-astro-cid-t6mhkqx2>PING</td><td data-astro-cid-t6mhkqx2>260.7</td></tr><tr data-astro-cid-t6mhkqx2><td data-astro-cid-t6mhkqx2>43</td><td data-astro-cid-t6mhkqx2>COBA</td><td data-astro-cid-t6mhkqx2>237.9</td></tr><tr data-astro-cid-t6mhkqx2><td data-astro-cid-t6mhkqx2>43</td><td data-astro-cid-t6mhkqx2>PING</td><td data-astro-cid-t6mhkqx2>251.1</td></tr></tbody></table></div>
+<h2 id="methods">Methods</h2>
+<ol>
+<li>
+<p><strong>Select independent examples.</strong> We used the official training partition of Spiking Heidelberg Digits, which represents spoken English and German digits as events across 700 cochlear-model channels [1]. With seed 42, we selected 15 distinct utterances per class: 10 for training and five for validation. The partitions were disjoint by utterance, not by speaker. All 20 classes remained present. We did not access the official test partition.</p>
+</li>
+<li>
+<p><strong>Bin spike events.</strong> Each presentation lasted one second with a 1 ms integration step. Events were assigned to left-closed time bins and represented as binary channel events. Events at or after one second were discarded. Across the selected examples, 434 events were discarded and no within-channel/time-bin collisions occurred. No stochastic image-to-spikes encoding was applied.</p>
+</li>
+<li>
+<p><strong>Define matched one-layer networks.</strong> Both networks had 128 excitatory and 32 inhibitory conductance-based LIF neurons. Excitatory and inhibitory capacitances were 1 and 0.5 nF; leak conductances were 0.05 and 0.1 μS. Rest/reset voltage was −65 mV, threshold −50 mV, and refractory durations were 2 and 1 ms. AMPA and GABA decay constants were 2 and 6 ms. External spikes targeted excitatory neurons. Fixed reciprocal conductances had summed incoming strengths of 1 μS for E→I and 2 μS for I→E in PING, with a one-step delay; both projections were zero in COBA. No E→E or I→I recurrence was added. The 20 outputs were signed, non-spiking leaky integrators with a 20 ms time constant, scored by mean voltage over the presentation. Hidden and output states reset at every presentation.</p>
+</li>
+<li>
+<p><strong>Train hidden and readout weights.</strong> Both conditions shared learned-weight initialization and minibatch order. Input weights came from a lower-clamped Gaussian with parent mean 0.9 and SD 0.09, divided by the input fan-in. We initially zeroed 95% and compensated surviving weights by the retained fraction; these zeros were not permanently masked. Readout weights came from a Gaussian with mean zero and SD 0.1. We used cross-entropy, AdamW with learning rate 0.0004 and zero weight decay, batches of 16 and five epochs. Fast-sigmoid surrogate gradients had slope 1; voltage-gradient increments were damped by 1000 in both conditions, and the global gradient norm was clipped at 1. Hidden conductance weights remained nonnegative; readout weights were unconstrained. Recurrent weights remained fixed. We retained final-epoch weights without test-based selection.</p>
+</li>
+<li>
+<p><strong>Measure learning.</strong> We evaluated complete training and validation splits before learning and after each completed epoch, weighted loss by the number of examples, and counted correct predictions. We checked finite scores, losses, gradients and final weights, and measured hidden/readout weight changes. These checks establish finite training under this protocol rather than fine-resolution gamma dynamics or official-test performance.</p>
+</li>
+<li>
+<p><strong>Repeat with more examples and updates.</strong> For the larger local run, we used seed 42 to select 60 distinct utterances per class from the official training partition: 50 for training and 10 for validation, giving 1,000 and 200 examples. These partitions were utterance-disjoint, not speaker-disjoint; they were not the smoke’s original split. We initialized both networks afresh and trained for twenty epochs with the same architecture, initialization recipe, optimizer and numerical settings. We discarded 1,842 events at or after one second and recorded no within-channel/time-bin collisions. We evaluated each complete split before training and after every epoch, retained final-epoch weights, and did not access official test data. The original smoke observations in Figures 1–2 are reused; Figures 3–4 reuse the earlier twenty-epoch local measurements.</p>
+</li>
+<li>
+<p><strong>Stack two hidden layers.</strong> For the new diagnostics, we stacked two 128 E/32 I layers with the same neuron and loop settings as the earlier networks. E1 spikes drove E2 through a learned nonnegative AMPA matrix; input→E1 and E2→readout matrices were also learned. Initial interlayer weights had lower-clamped Gaussian parent mean 1.8 and SD 0.18 μS, divided by 128. Sparse variants initially zeroed 90% and compensated survivors by the retained fraction; the mask was not permanent. Learned initialization and example order were matched between COBA and PING within each paired run.</p>
+</li>
+<li>
+<p><strong>Compare training settings.</strong> We used 20 training/20 validation examples for tiny fitting controls, and 200/100 for pilots, balanced across all classes. Displayed tiny controls tested sparse interlayer initialization, damping 100 and fixed score gain 20, then separate hidden/readout learning rates of 0.0004/0.01. Pilot controls compared mean versus maximum voltage, per-example rate normalization, input Gaussian parent mean 0.45 versus 0.9 μS (SD 10% of the mean), and hidden rates 0.001 or 0.002 versus 0.0004. Each presentation still lasted one second at a 1 ms step, with state reset. We evaluated complete splits after each epoch and retained final-epoch metrics rather than the best validation epoch.</p>
+</li>
+<li>
+<p><strong>Choose and confirm a shared recipe.</strong> We selected the shared recipe from seed-42 pilots using joint final validation performance. It used 90% initial interlayer zeros, damping 100, hidden/readout rates 0.0004/0.01, batches of 20 containing one example per class without replacement, and initial readout weights centered across source neurons separately for each class. Mean leaky-integrator voltage was multiplied by gain 20 and by 20 Hz divided by the presentation’s E2 firing rate averaged across its neurons, with a 1 Hz denominator floor. This positive rescaling changes the loss scale while preserving the argmax at fixed weights. Seed-42 validation was used in recipe selection. All partitions remained utterance-disjoint, not speaker-disjoint, and the official test partition remained untouched.</p>
+</li>
+<li>
+<p><strong>Check the selected fitting protocol.</strong> With seed 43, we trained the selected recipe on 20 examples for 100 updates in both models, then ran a separate fresh COBA-only confirmation for 300 updates. The fitting criterion was at least 90% final training accuracy. All three learned matrices were checked for finite, nonzero gradients and changed weights. One tiny epoch was one update; a 200-example pilot epoch was ten. After passing the fitting criterion, we repeated the 200/100-example, twenty-epoch pilot with seed 43, changing initialization and sampled utterances. These controls checked capacity and optimization, while the pilots assessed limited held-out learning. Figures 1–4 reuse one-layer evidence; Figures 5–6 show new two-layer diagnostics.</p>
+</li>
+</ol>
+<h2 id="references">References</h2>
+<ol>
+<li>Cramer, B., Stradmann, Y., Schemmel, J., and Zenke, F. <em>The Heidelberg Spiking Data Sets for the Systematic Evaluation of Spiking Neural Networks.</em> IEEE Transactions on Neural Networks and Learning Systems, 33, 2744–2757 (2022). <a href="https://doi.org/10.1109/TNNLS.2020.3044364">doi:10.1109/TNNLS.2020.3044364</a>.</li>
+</ol></d-article></div><d-appendix distill-prerendered="true" aria-label="Report appendix"><h3 id="dataset" data-astro-cid-sicvmbkj>Dataset</h3><section class="dataset" aria-labelledby="dataset" data-astro-cid-sicvmbkj><p data-astro-cid-sicvmbkj>Figures use the recorded presentation selections and their same-experiment inputs. The table includes completed run history; the presentation used by this report is emphasized. Dates are run creation times in UTC; durations cover each stage separately, and sizes cover its exported files. For imported runs, durations and execution locations refer to the recorded producing execution.</p><p data-astro-cid-sicvmbkj>Upstream: —</p><p data-astro-cid-sicvmbkj>Downstream: —</p><div class="table-scroll" tabindex="0" role="region" aria-label="Dataset runs" data-astro-cid-sicvmbkj><table data-astro-cid-sicvmbkj><thead data-astro-cid-sicvmbkj><tr data-astro-cid-sicvmbkj><th scope="col" data-astro-cid-sicvmbkj>Run</th><th scope="col" data-astro-cid-sicvmbkj>Date</th><th scope="col" data-astro-cid-sicvmbkj>Duration</th><th scope="col" data-astro-cid-sicvmbkj>Size</th><th scope="col" data-astro-cid-sicvmbkj>Ran on</th></tr></thead><tbody data-astro-cid-sicvmbkj><tr data-astro-cid-sicvmbkj><td data-astro-cid-sicvmbkj><span class="selected" title="Presentation used by this report" data-astro-cid-sicvmbkj>exp124-r065-present</span></td><td data-astro-cid-sicvmbkj><time datetime="2026-10-14T13:57:20+00:00" data-astro-cid-sicvmbkj>14 Oct 2026, 13:57</time></td><td title="Recorded producing execution time for this stage; excludes upstream runs and import time" data-astro-cid-sicvmbkj>1s</td><td title="8536373 bytes" data-astro-cid-sicvmbkj>8.5 MB</td><td data-astro-cid-sicvmbkj>Local</td></tr><tr data-astro-cid-sicvmbkj><td data-astro-cid-sicvmbkj><span title="present" data-astro-cid-sicvmbkj>exp124-r064-present</span></td><td data-astro-cid-sicvmbkj><time datetime="2026-10-14T13:56:27+00:00" data-astro-cid-sicvmbkj>14 Oct 2026, 13:56</time></td><td title="Recorded producing execution time for this stage; excludes upstream runs and import time" data-astro-cid-sicvmbkj>&lt;1s</td><td title="8547998 bytes" data-astro-cid-sicvmbkj>8.5 MB</td><td data-astro-cid-sicvmbkj>Local</td></tr><tr data-astro-cid-sicvmbkj><td data-astro-cid-sicvmbkj><span title="present" data-astro-cid-sicvmbkj>exp124-r063-present</span></td><td data-astro-cid-sicvmbkj><time datetime="2026-10-14T13:43:06+00:00" data-astro-cid-sicvmbkj>14 Oct 2026, 13:43</time></td><td title="Recorded producing execution time for this stage; excludes upstream runs and import time" data-astro-cid-sicvmbkj>1s</td><td title="8533509 bytes" data-astro-cid-sicvmbkj>8.5 MB</td><td data-astro-cid-sicvmbkj>Local</td></tr><tr data-astro-cid-sicvmbkj><td data-astro-cid-sicvmbkj><span title="present" data-astro-cid-sicvmbkj>exp124-r062-present</span></td><td data-astro-cid-sicvmbkj><time datetime="2026-10-14T13:42:21+00:00" data-astro-cid-sicvmbkj>14 Oct 2026, 13:42</time></td><td title="Recorded producing execution time for this stage; excludes upstream runs and import time" data-astro-cid-sicvmbkj>1s</td><td title="8545617 bytes" data-astro-cid-sicvmbkj>8.5 MB</td><td data-astro-cid-sicvmbkj>Local</td></tr><tr data-astro-cid-sicvmbkj><td data-astro-cid-sicvmbkj><span title="analyse" data-astro-cid-sicvmbkj>exp124-r061-analyse</span></td><td data-astro-cid-sicvmbkj><time datetime="2026-10-14T13:42:15+00:00" data-astro-cid-sicvmbkj>14 Oct 2026, 13:42</time></td><td title="Recorded producing execution time for this stage; excludes upstream runs and import time" data-astro-cid-sicvmbkj>&lt;1s</td><td title="75882 bytes" data-astro-cid-sicvmbkj>75.9 KB</td><td data-astro-cid-sicvmbkj>Local</td></tr><tr data-astro-cid-sicvmbkj><td data-astro-cid-sicvmbkj><span title="analyse" data-astro-cid-sicvmbkj>exp124-r060-analyse</span></td><td data-astro-cid-sicvmbkj><time datetime="2026-10-14T13:27:44+00:00" data-astro-cid-sicvmbkj>14 Oct 2026, 13:27</time></td><td title="Recorded producing execution time for this stage; excludes upstream runs and import time" data-astro-cid-sicvmbkj>&lt;1s</td><td title="529818 bytes" data-astro-cid-sicvmbkj>529.8 KB</td><td data-astro-cid-sicvmbkj>Local</td></tr><tr data-astro-cid-sicvmbkj><td data-astro-cid-sicvmbkj><span title="compute" data-astro-cid-sicvmbkj>exp124-r059-compute</span></td><td data-astro-cid-sicvmbkj><time datetime="2026-10-14T13:27:43+00:00" data-astro-cid-sicvmbkj>14 Oct 2026, 13:27</time></td><td title="Recorded producing execution time for this stage; excludes upstream runs and import time" data-astro-cid-sicvmbkj>8m 12s</td><td title="6599026 bytes" data-astro-cid-sicvmbkj>6.6 MB</td><td data-astro-cid-sicvmbkj>Local</td></tr><tr data-astro-cid-sicvmbkj><td data-astro-cid-sicvmbkj><span title="analyse" data-astro-cid-sicvmbkj>exp124-r058-analyse</span></td><td data-astro-cid-sicvmbkj><time datetime="2026-10-14T13:18:09+00:00" data-astro-cid-sicvmbkj>14 Oct 2026, 13:18</time></td><td title="Recorded producing execution time for this stage; excludes upstream runs and import time" data-astro-cid-sicvmbkj>&lt;1s</td><td title="356651 bytes" data-astro-cid-sicvmbkj>356.7 KB</td><td data-astro-cid-sicvmbkj>Local</td></tr><tr data-astro-cid-sicvmbkj><td data-astro-cid-sicvmbkj><span title="compute" data-astro-cid-sicvmbkj>exp124-r057-compute</span></td><td data-astro-cid-sicvmbkj><time datetime="2026-10-14T13:18:08+00:00" data-astro-cid-sicvmbkj>14 Oct 2026, 13:18</time></td><td title="Recorded producing execution time for this stage; excludes upstream runs and import time" data-astro-cid-sicvmbkj>6m 50s</td><td title="1433375 bytes" data-astro-cid-sicvmbkj>1.4 MB</td><td data-astro-cid-sicvmbkj>Local</td></tr><tr data-astro-cid-sicvmbkj><td data-astro-cid-sicvmbkj><span title="analyse" data-astro-cid-sicvmbkj>exp124-r056-analyse</span></td><td data-astro-cid-sicvmbkj><time datetime="2026-10-14T13:11:28+00:00" data-astro-cid-sicvmbkj>14 Oct 2026, 13:11</time></td><td title="Recorded producing execution time for this stage; excludes upstream runs and import time" data-astro-cid-sicvmbkj>&lt;1s</td><td title="75880 bytes" data-astro-cid-sicvmbkj>75.9 KB</td><td data-astro-cid-sicvmbkj>Local</td></tr><tr data-astro-cid-sicvmbkj><td data-astro-cid-sicvmbkj><span title="compute" data-astro-cid-sicvmbkj>exp124-r055-compute</span></td><td data-astro-cid-sicvmbkj><time datetime="2026-10-14T13:11:27+00:00" data-astro-cid-sicvmbkj>14 Oct 2026, 13:11</time></td><td title="Recorded producing execution time for this stage; excludes upstream runs and import time" data-astro-cid-sicvmbkj>5m 6s</td><td title="1515332 bytes" data-astro-cid-sicvmbkj>1.5 MB</td><td data-astro-cid-sicvmbkj>Local</td></tr><tr data-astro-cid-sicvmbkj><td data-astro-cid-sicvmbkj><span title="analyse" data-astro-cid-sicvmbkj>exp124-r054-analyse</span></td><td data-astro-cid-sicvmbkj><time datetime="2026-10-14T12:59:43+00:00" data-astro-cid-sicvmbkj>14 Oct 2026, 12:59</time></td><td title="Recorded producing execution time for this stage; excludes upstream runs and import time" data-astro-cid-sicvmbkj>&lt;1s</td><td title="75899 bytes" data-astro-cid-sicvmbkj>75.9 KB</td><td data-astro-cid-sicvmbkj>Local</td></tr><tr data-astro-cid-sicvmbkj><td data-astro-cid-sicvmbkj><span title="compute" data-astro-cid-sicvmbkj>exp124-r053-compute</span></td><td data-astro-cid-sicvmbkj><time datetime="2026-10-14T12:59:43+00:00" data-astro-cid-sicvmbkj>14 Oct 2026, 12:59</time></td><td title="Recorded producing execution time for this stage; excludes upstream runs and import time" data-astro-cid-sicvmbkj>9m 30s</td><td title="6692191 bytes" data-astro-cid-sicvmbkj>6.7 MB</td><td data-astro-cid-sicvmbkj>Local</td></tr><tr data-astro-cid-sicvmbkj><td data-astro-cid-sicvmbkj><span title="analyse" data-astro-cid-sicvmbkj>exp124-r052-analyse</span></td><td data-astro-cid-sicvmbkj><time datetime="2026-10-14T12:49:09+00:00" data-astro-cid-sicvmbkj>14 Oct 2026, 12:49</time></td><td title="Recorded producing execution time for this stage; excludes upstream runs and import time" data-astro-cid-sicvmbkj>&lt;1s</td><td title="75779 bytes" data-astro-cid-sicvmbkj>75.8 KB</td><td data-astro-cid-sicvmbkj>Local</td></tr><tr data-astro-cid-sicvmbkj><td data-astro-cid-sicvmbkj><span title="compute" data-astro-cid-sicvmbkj>exp124-r051-compute</span></td><td data-astro-cid-sicvmbkj><time datetime="2026-10-14T12:48:57+00:00" data-astro-cid-sicvmbkj>14 Oct 2026, 12:48</time></td><td title="Recorded producing execution time for this stage; excludes upstream runs and import time" data-astro-cid-sicvmbkj>10m 9s</td><td title="6661408 bytes" data-astro-cid-sicvmbkj>6.7 MB</td><td data-astro-cid-sicvmbkj>Local</td></tr><tr data-astro-cid-sicvmbkj><td data-astro-cid-sicvmbkj><span title="analyse" data-astro-cid-sicvmbkj>exp124-r050-analyse</span></td><td data-astro-cid-sicvmbkj><time datetime="2026-10-14T12:39:10+00:00" data-astro-cid-sicvmbkj>14 Oct 2026, 12:39</time></td><td title="Recorded producing execution time for this stage; excludes upstream runs and import time" data-astro-cid-sicvmbkj>&lt;1s</td><td title="75874 bytes" data-astro-cid-sicvmbkj>75.9 KB</td><td data-astro-cid-sicvmbkj>Local</td></tr><tr data-astro-cid-sicvmbkj><td data-astro-cid-sicvmbkj><span title="compute" data-astro-cid-sicvmbkj>exp124-r049-compute</span></td><td data-astro-cid-sicvmbkj><time datetime="2026-10-14T12:39:04+00:00" data-astro-cid-sicvmbkj>14 Oct 2026, 12:39</time></td><td title="Recorded producing execution time for this stage; excludes upstream runs and import time" data-astro-cid-sicvmbkj>9m 32s</td><td title="6706505 bytes" data-astro-cid-sicvmbkj>6.7 MB</td><td data-astro-cid-sicvmbkj>Local</td></tr><tr data-astro-cid-sicvmbkj><td data-astro-cid-sicvmbkj><span title="present" data-astro-cid-sicvmbkj>exp124-r048-present</span></td><td data-astro-cid-sicvmbkj><time datetime="2026-10-14T12:34:08+00:00" data-astro-cid-sicvmbkj>14 Oct 2026, 12:34</time></td><td title="Recorded producing execution time for this stage; excludes upstream runs and import time" data-astro-cid-sicvmbkj>&lt;1s</td><td title="4665224 bytes" data-astro-cid-sicvmbkj>4.7 MB</td><td data-astro-cid-sicvmbkj>Local</td></tr><tr data-astro-cid-sicvmbkj><td data-astro-cid-sicvmbkj><span title="analyse" data-astro-cid-sicvmbkj>exp124-r047-analyse</span></td><td data-astro-cid-sicvmbkj><time datetime="2026-10-14T12:29:52+00:00" data-astro-cid-sicvmbkj>14 Oct 2026, 12:29</time></td><td title="Recorded producing execution time for this stage; excludes upstream runs and import time" data-astro-cid-sicvmbkj>&lt;1s</td><td title="75903 bytes" data-astro-cid-sicvmbkj>75.9 KB</td><td data-astro-cid-sicvmbkj>Local</td></tr><tr data-astro-cid-sicvmbkj><td data-astro-cid-sicvmbkj><span title="compute" data-astro-cid-sicvmbkj>exp124-r046-compute</span></td><td data-astro-cid-sicvmbkj><time datetime="2026-10-14T12:29:47+00:00" data-astro-cid-sicvmbkj>14 Oct 2026, 12:29</time></td><td title="Recorded producing execution time for this stage; excludes upstream runs and import time" data-astro-cid-sicvmbkj>8m 54s</td><td title="6866451 bytes" data-astro-cid-sicvmbkj>6.9 MB</td><td data-astro-cid-sicvmbkj>Local</td></tr><tr data-astro-cid-sicvmbkj><td data-astro-cid-sicvmbkj><span title="analyse" data-astro-cid-sicvmbkj>exp124-r045-analyse</span></td><td data-astro-cid-sicvmbkj><time datetime="2026-10-14T12:20:28+00:00" data-astro-cid-sicvmbkj>14 Oct 2026, 12:20</time></td><td title="Recorded producing execution time for this stage; excludes upstream runs and import time" data-astro-cid-sicvmbkj>&lt;1s</td><td title="75829 bytes" data-astro-cid-sicvmbkj>75.8 KB</td><td data-astro-cid-sicvmbkj>Local</td></tr><tr data-astro-cid-sicvmbkj><td data-astro-cid-sicvmbkj><span title="compute" data-astro-cid-sicvmbkj>exp124-r044-compute</span></td><td data-astro-cid-sicvmbkj><time datetime="2026-10-14T12:20:22+00:00" data-astro-cid-sicvmbkj>14 Oct 2026, 12:20</time></td><td title="Recorded producing execution time for this stage; excludes upstream runs and import time" data-astro-cid-sicvmbkj>8m 44s</td><td title="6732198 bytes" data-astro-cid-sicvmbkj>6.7 MB</td><td data-astro-cid-sicvmbkj>Local</td></tr><tr data-astro-cid-sicvmbkj><td data-astro-cid-sicvmbkj><span title="analyse" data-astro-cid-sicvmbkj>exp124-r043-analyse</span></td><td data-astro-cid-sicvmbkj><time datetime="2026-10-14T12:11:04+00:00" data-astro-cid-sicvmbkj>14 Oct 2026, 12:11</time></td><td title="Recorded producing execution time for this stage; excludes upstream runs and import time" data-astro-cid-sicvmbkj>&lt;1s</td><td title="75834 bytes" data-astro-cid-sicvmbkj>75.8 KB</td><td data-astro-cid-sicvmbkj>Local</td></tr><tr data-astro-cid-sicvmbkj><td data-astro-cid-sicvmbkj><span title="compute" data-astro-cid-sicvmbkj>exp124-r042-compute</span></td><td data-astro-cid-sicvmbkj><time datetime="2026-10-14T12:11:03+00:00" data-astro-cid-sicvmbkj>14 Oct 2026, 12:11</time></td><td title="Recorded producing execution time for this stage; excludes upstream runs and import time" data-astro-cid-sicvmbkj>9m 3s</td><td title="6721516 bytes" data-astro-cid-sicvmbkj>6.7 MB</td><td data-astro-cid-sicvmbkj>Local</td></tr><tr data-astro-cid-sicvmbkj><td data-astro-cid-sicvmbkj><span title="analyse" data-astro-cid-sicvmbkj>exp124-r041-analyse</span></td><td data-astro-cid-sicvmbkj><time datetime="2026-10-14T12:01:37+00:00" data-astro-cid-sicvmbkj>14 Oct 2026, 12:01</time></td><td title="Recorded producing execution time for this stage; excludes upstream runs and import time" data-astro-cid-sicvmbkj>&lt;1s</td><td title="40343 bytes" data-astro-cid-sicvmbkj>40.3 KB</td><td data-astro-cid-sicvmbkj>Local</td></tr><tr data-astro-cid-sicvmbkj><td data-astro-cid-sicvmbkj><span title="compute" data-astro-cid-sicvmbkj>exp124-r040-compute</span></td><td data-astro-cid-sicvmbkj><time datetime="2026-10-14T12:01:21+00:00" data-astro-cid-sicvmbkj>14 Oct 2026, 12:01</time></td><td title="Recorded producing execution time for this stage; excludes upstream runs and import time" data-astro-cid-sicvmbkj>9m 24s</td><td title="6695258 bytes" data-astro-cid-sicvmbkj>6.7 MB</td><td data-astro-cid-sicvmbkj>Local</td></tr><tr data-astro-cid-sicvmbkj><td data-astro-cid-sicvmbkj><span title="analyse" data-astro-cid-sicvmbkj>exp124-r039-analyse</span></td><td data-astro-cid-sicvmbkj><time datetime="2026-10-14T11:56:28+00:00" data-astro-cid-sicvmbkj>14 Oct 2026, 11:56</time></td><td title="Recorded producing execution time for this stage; excludes upstream runs and import time" data-astro-cid-sicvmbkj>&lt;1s</td><td title="40201 bytes" data-astro-cid-sicvmbkj>40.2 KB</td><td data-astro-cid-sicvmbkj>Local</td></tr><tr data-astro-cid-sicvmbkj><td data-astro-cid-sicvmbkj><span title="compute" data-astro-cid-sicvmbkj>exp124-r038-compute</span></td><td data-astro-cid-sicvmbkj><time datetime="2026-10-14T11:56:27+00:00" data-astro-cid-sicvmbkj>14 Oct 2026, 11:56</time></td><td title="Recorded producing execution time for this stage; excludes upstream runs and import time" data-astro-cid-sicvmbkj>4m 4s</td><td title="6742771 bytes" data-astro-cid-sicvmbkj>6.7 MB</td><td data-astro-cid-sicvmbkj>Local</td></tr><tr data-astro-cid-sicvmbkj><td data-astro-cid-sicvmbkj><span title="analyse" data-astro-cid-sicvmbkj>exp124-r037-analyse</span></td><td data-astro-cid-sicvmbkj><time datetime="2026-10-14T11:52:54+00:00" data-astro-cid-sicvmbkj>14 Oct 2026, 11:52</time></td><td title="Recorded producing execution time for this stage; excludes upstream runs and import time" data-astro-cid-sicvmbkj>&lt;1s</td><td title="356571 bytes" data-astro-cid-sicvmbkj>356.6 KB</td><td data-astro-cid-sicvmbkj>Local</td></tr><tr data-astro-cid-sicvmbkj><td data-astro-cid-sicvmbkj><span title="analyse" data-astro-cid-sicvmbkj>exp124-r036-analyse</span></td><td data-astro-cid-sicvmbkj><time datetime="2026-10-14T11:52:54+00:00" data-astro-cid-sicvmbkj>14 Oct 2026, 11:52</time></td><td title="Recorded producing execution time for this stage; excludes upstream runs and import time" data-astro-cid-sicvmbkj>&lt;1s</td><td title="356544 bytes" data-astro-cid-sicvmbkj>356.5 KB</td><td data-astro-cid-sicvmbkj>Local</td></tr><tr data-astro-cid-sicvmbkj><td data-astro-cid-sicvmbkj><span title="analyse" data-astro-cid-sicvmbkj>exp124-r035-analyse</span></td><td data-astro-cid-sicvmbkj><time datetime="2026-10-14T11:52:54+00:00" data-astro-cid-sicvmbkj>14 Oct 2026, 11:52</time></td><td title="Recorded producing execution time for this stage; excludes upstream runs and import time" data-astro-cid-sicvmbkj>&lt;1s</td><td title="356591 bytes" data-astro-cid-sicvmbkj>356.6 KB</td><td data-astro-cid-sicvmbkj>Local</td></tr><tr data-astro-cid-sicvmbkj><td data-astro-cid-sicvmbkj><span title="analyse" data-astro-cid-sicvmbkj>exp124-r034-analyse</span></td><td data-astro-cid-sicvmbkj><time datetime="2026-10-14T11:52:54+00:00" data-astro-cid-sicvmbkj>14 Oct 2026, 11:52</time></td><td title="Recorded producing execution time for this stage; excludes upstream runs and import time" data-astro-cid-sicvmbkj>&lt;1s</td><td title="111096 bytes" data-astro-cid-sicvmbkj>111.1 KB</td><td data-astro-cid-sicvmbkj>Local</td></tr><tr data-astro-cid-sicvmbkj><td data-astro-cid-sicvmbkj><span title="analyse" data-astro-cid-sicvmbkj>exp124-r033-analyse</span></td><td data-astro-cid-sicvmbkj><time datetime="2026-10-14T11:52:54+00:00" data-astro-cid-sicvmbkj>14 Oct 2026, 11:52</time></td><td title="Recorded producing execution time for this stage; excludes upstream runs and import time" data-astro-cid-sicvmbkj>&lt;1s</td><td title="110618 bytes" data-astro-cid-sicvmbkj>110.6 KB</td><td data-astro-cid-sicvmbkj>Local</td></tr><tr data-astro-cid-sicvmbkj><td data-astro-cid-sicvmbkj><span title="analyse" data-astro-cid-sicvmbkj>exp124-r032-analyse</span></td><td data-astro-cid-sicvmbkj><time datetime="2026-10-14T11:52:54+00:00" data-astro-cid-sicvmbkj>14 Oct 2026, 11:52</time></td><td title="Recorded producing execution time for this stage; excludes upstream runs and import time" data-astro-cid-sicvmbkj>&lt;1s</td><td title="55966 bytes" data-astro-cid-sicvmbkj>56 KB</td><td data-astro-cid-sicvmbkj>Local</td></tr><tr data-astro-cid-sicvmbkj><td data-astro-cid-sicvmbkj><span title="analyse" data-astro-cid-sicvmbkj>exp124-r031-analyse</span></td><td data-astro-cid-sicvmbkj><time datetime="2026-10-14T11:52:54+00:00" data-astro-cid-sicvmbkj>14 Oct 2026, 11:52</time></td><td title="Recorded producing execution time for this stage; excludes upstream runs and import time" data-astro-cid-sicvmbkj>&lt;1s</td><td title="56520 bytes" data-astro-cid-sicvmbkj>56.5 KB</td><td data-astro-cid-sicvmbkj>Local</td></tr><tr data-astro-cid-sicvmbkj><td data-astro-cid-sicvmbkj><span title="compute" data-astro-cid-sicvmbkj>exp124-r030-compute</span></td><td data-astro-cid-sicvmbkj><time datetime="2026-10-14T11:51:52+00:00" data-astro-cid-sicvmbkj>14 Oct 2026, 11:51</time></td><td title="Recorded producing execution time for this stage; excludes upstream runs and import time" data-astro-cid-sicvmbkj>4m 16s</td><td title="6740922 bytes" data-astro-cid-sicvmbkj>6.7 MB</td><td data-astro-cid-sicvmbkj>Local</td></tr><tr data-astro-cid-sicvmbkj><td data-astro-cid-sicvmbkj><span title="compute" data-astro-cid-sicvmbkj>exp124-r029-compute</span></td><td data-astro-cid-sicvmbkj><time datetime="2026-10-14T11:47:04+00:00" data-astro-cid-sicvmbkj>14 Oct 2026, 11:47</time></td><td title="Recorded producing execution time for this stage; excludes upstream runs and import time" data-astro-cid-sicvmbkj>4m 47s</td><td title="1537735 bytes" data-astro-cid-sicvmbkj>1.5 MB</td><td data-astro-cid-sicvmbkj>Local</td></tr><tr data-astro-cid-sicvmbkj><td data-astro-cid-sicvmbkj><span title="compute" data-astro-cid-sicvmbkj>exp124-r028-compute</span></td><td data-astro-cid-sicvmbkj><time datetime="2026-10-14T11:42:19+00:00" data-astro-cid-sicvmbkj>14 Oct 2026, 11:42</time></td><td title="Recorded producing execution time for this stage; excludes upstream runs and import time" data-astro-cid-sicvmbkj>4m 27s</td><td title="1504923 bytes" data-astro-cid-sicvmbkj>1.5 MB</td><td data-astro-cid-sicvmbkj>Local</td></tr><tr data-astro-cid-sicvmbkj><td data-astro-cid-sicvmbkj><span title="compute" data-astro-cid-sicvmbkj>exp124-r027-compute</span></td><td data-astro-cid-sicvmbkj><time datetime="2026-10-14T11:37:04+00:00" data-astro-cid-sicvmbkj>14 Oct 2026, 11:37</time></td><td title="Recorded producing execution time for this stage; excludes upstream runs and import time" data-astro-cid-sicvmbkj>4m 45s</td><td title="1509584 bytes" data-astro-cid-sicvmbkj>1.5 MB</td><td data-astro-cid-sicvmbkj>Local</td></tr><tr data-astro-cid-sicvmbkj><td data-astro-cid-sicvmbkj><span title="compute" data-astro-cid-sicvmbkj>exp124-r025-compute</span></td><td data-astro-cid-sicvmbkj><time datetime="2026-10-14T11:33:23+00:00" data-astro-cid-sicvmbkj>14 Oct 2026, 11:33</time></td><td title="Recorded producing execution time for this stage; excludes upstream runs and import time" data-astro-cid-sicvmbkj>1m 31s</td><td title="1376517 bytes" data-astro-cid-sicvmbkj>1.4 MB</td><td data-astro-cid-sicvmbkj>Local</td></tr><tr data-astro-cid-sicvmbkj><td data-astro-cid-sicvmbkj><span title="compute" data-astro-cid-sicvmbkj>exp124-r024-compute</span></td><td data-astro-cid-sicvmbkj><time datetime="2026-10-14T11:31:44+00:00" data-astro-cid-sicvmbkj>14 Oct 2026, 11:31</time></td><td title="Recorded producing execution time for this stage; excludes upstream runs and import time" data-astro-cid-sicvmbkj>1m 38s</td><td title="1394836 bytes" data-astro-cid-sicvmbkj>1.4 MB</td><td data-astro-cid-sicvmbkj>Local</td></tr><tr data-astro-cid-sicvmbkj><td data-astro-cid-sicvmbkj><span title="compute" data-astro-cid-sicvmbkj>exp124-r022-compute</span></td><td data-astro-cid-sicvmbkj><time datetime="2026-10-14T11:28:24+00:00" data-astro-cid-sicvmbkj>14 Oct 2026, 11:28</time></td><td title="Recorded producing execution time for this stage; excludes upstream runs and import time" data-astro-cid-sicvmbkj>1m 36s</td><td title="1338197 bytes" data-astro-cid-sicvmbkj>1.3 MB</td><td data-astro-cid-sicvmbkj>Local</td></tr><tr data-astro-cid-sicvmbkj><td data-astro-cid-sicvmbkj><span title="compute" data-astro-cid-sicvmbkj>exp124-r021-compute</span></td><td data-astro-cid-sicvmbkj><time datetime="2026-10-14T11:25:49+00:00" data-astro-cid-sicvmbkj>14 Oct 2026, 11:25</time></td><td title="Recorded producing execution time for this stage; excludes upstream runs and import time" data-astro-cid-sicvmbkj>1m 45s</td><td title="1396397 bytes" data-astro-cid-sicvmbkj>1.4 MB</td><td data-astro-cid-sicvmbkj>Local</td></tr><tr data-astro-cid-sicvmbkj><td data-astro-cid-sicvmbkj><span title="analyse" data-astro-cid-sicvmbkj>exp124-r018-analyse</span></td><td data-astro-cid-sicvmbkj><time datetime="2026-10-14T10:30:16+00:00" data-astro-cid-sicvmbkj>14 Oct 2026, 10:30</time></td><td title="Recorded producing execution time for this stage; excludes upstream runs and import time" data-astro-cid-sicvmbkj>&lt;1s</td><td title="12084 bytes" data-astro-cid-sicvmbkj>12.1 KB</td><td data-astro-cid-sicvmbkj>Local</td></tr><tr data-astro-cid-sicvmbkj><td data-astro-cid-sicvmbkj><span title="compute" data-astro-cid-sicvmbkj>exp124-r017-compute</span></td><td data-astro-cid-sicvmbkj><time datetime="2026-10-14T10:27:28+00:00" data-astro-cid-sicvmbkj>14 Oct 2026, 10:27</time></td><td title="Recorded producing execution time for this stage; excludes upstream runs and import time" data-astro-cid-sicvmbkj>2m 40s</td><td title="6727675 bytes" data-astro-cid-sicvmbkj>6.7 MB</td><td data-astro-cid-sicvmbkj>Local</td></tr><tr data-astro-cid-sicvmbkj><td data-astro-cid-sicvmbkj><span title="present" data-astro-cid-sicvmbkj>exp124-r016-present</span></td><td data-astro-cid-sicvmbkj><time datetime="2026-10-14T10:21:43+00:00" data-astro-cid-sicvmbkj>14 Oct 2026, 10:21</time></td><td title="Recorded producing execution time for this stage; excludes upstream runs and import time" data-astro-cid-sicvmbkj>&lt;1s</td><td title="719802 bytes" data-astro-cid-sicvmbkj>719.8 KB</td><td data-astro-cid-sicvmbkj>Local</td></tr><tr data-astro-cid-sicvmbkj><td data-astro-cid-sicvmbkj><span title="analyse" data-astro-cid-sicvmbkj>exp124-r015-analyse</span></td><td data-astro-cid-sicvmbkj><time datetime="2026-10-14T10:21:36+00:00" data-astro-cid-sicvmbkj>14 Oct 2026, 10:21</time></td><td title="Recorded producing execution time for this stage; excludes upstream runs and import time" data-astro-cid-sicvmbkj>&lt;1s</td><td title="23956 bytes" data-astro-cid-sicvmbkj>24 KB</td><td data-astro-cid-sicvmbkj>Local</td></tr><tr data-astro-cid-sicvmbkj><td data-astro-cid-sicvmbkj><span title="compute" data-astro-cid-sicvmbkj>exp124-r014-compute</span></td><td data-astro-cid-sicvmbkj><time datetime="2026-10-14T09:57:36+00:00" data-astro-cid-sicvmbkj>14 Oct 2026, 09:57</time></td><td title="Recorded producing execution time for this stage; excludes upstream runs and import time" data-astro-cid-sicvmbkj>23m 38s</td><td title="25288392 bytes" data-astro-cid-sicvmbkj>25.3 MB</td><td data-astro-cid-sicvmbkj>Local</td></tr><tr data-astro-cid-sicvmbkj><td data-astro-cid-sicvmbkj><span title="compute" data-astro-cid-sicvmbkj>exp124-r012-compute</span></td><td data-astro-cid-sicvmbkj><time datetime="2026-10-14T09:38:04+00:00" data-astro-cid-sicvmbkj>14 Oct 2026, 09:38</time></td><td title="Recorded producing execution time for this stage; excludes upstream runs and import time" data-astro-cid-sicvmbkj>8m 6s</td><td title="6792926 bytes" data-astro-cid-sicvmbkj>6.8 MB</td><td data-astro-cid-sicvmbkj>Unknown</td></tr><tr data-astro-cid-sicvmbkj><td data-astro-cid-sicvmbkj><span title="compute" data-astro-cid-sicvmbkj>exp124-r011-compute</span></td><td data-astro-cid-sicvmbkj><time datetime="2026-10-14T09:37:23+00:00" data-astro-cid-sicvmbkj>14 Oct 2026, 09:37</time></td><td title="Recorded producing execution time for this stage; excludes upstream runs and import time" data-astro-cid-sicvmbkj>11m 12s</td><td title="6794524 bytes" data-astro-cid-sicvmbkj>6.8 MB</td><td data-astro-cid-sicvmbkj>Unknown</td></tr><tr data-astro-cid-sicvmbkj><td data-astro-cid-sicvmbkj><span title="present" data-astro-cid-sicvmbkj>exp124-r010-present</span></td><td data-astro-cid-sicvmbkj><time datetime="2026-10-14T09:03:29+00:00" data-astro-cid-sicvmbkj>14 Oct 2026, 09:03</time></td><td title="Recorded producing execution time for this stage; excludes upstream runs and import time" data-astro-cid-sicvmbkj>&lt;1s</td><td title="353084 bytes" data-astro-cid-sicvmbkj>353.1 KB</td><td data-astro-cid-sicvmbkj>Local</td></tr><tr data-astro-cid-sicvmbkj><td data-astro-cid-sicvmbkj><span title="analyse" data-astro-cid-sicvmbkj>exp124-r009-analyse</span></td><td data-astro-cid-sicvmbkj><time datetime="2026-10-14T09:03:20+00:00" data-astro-cid-sicvmbkj>14 Oct 2026, 09:03</time></td><td title="Recorded producing execution time for this stage; excludes upstream runs and import time" data-astro-cid-sicvmbkj>&lt;1s</td><td title="7260 bytes" data-astro-cid-sicvmbkj>7.3 KB</td><td data-astro-cid-sicvmbkj>Local</td></tr><tr data-astro-cid-sicvmbkj><td data-astro-cid-sicvmbkj><span title="present" data-astro-cid-sicvmbkj>exp124-r008-present</span></td><td data-astro-cid-sicvmbkj><time datetime="2026-10-14T08:51:38+00:00" data-astro-cid-sicvmbkj>14 Oct 2026, 08:51</time></td><td title="Recorded producing execution time for this stage; excludes upstream runs and import time" data-astro-cid-sicvmbkj>&lt;1s</td><td title="316981 bytes" data-astro-cid-sicvmbkj>317 KB</td><td data-astro-cid-sicvmbkj>Local</td></tr><tr data-astro-cid-sicvmbkj><td data-astro-cid-sicvmbkj><span title="analyse" data-astro-cid-sicvmbkj>exp124-r007-analyse</span></td><td data-astro-cid-sicvmbkj><time datetime="2026-10-14T08:51:14+00:00" data-astro-cid-sicvmbkj>14 Oct 2026, 08:51</time></td><td title="Recorded producing execution time for this stage; excludes upstream runs and import time" data-astro-cid-sicvmbkj>&lt;1s</td><td title="7260 bytes" data-astro-cid-sicvmbkj>7.3 KB</td><td data-astro-cid-sicvmbkj>Local</td></tr><tr data-astro-cid-sicvmbkj><td data-astro-cid-sicvmbkj><span title="compute" data-astro-cid-sicvmbkj>exp124-r006-compute</span></td><td data-astro-cid-sicvmbkj><time datetime="2026-10-14T08:49:18+00:00" data-astro-cid-sicvmbkj>14 Oct 2026, 08:49</time></td><td title="Recorded producing execution time for this stage; excludes upstream runs and import time" data-astro-cid-sicvmbkj>1m 18s</td><td title="6792827 bytes" data-astro-cid-sicvmbkj>6.8 MB</td><td data-astro-cid-sicvmbkj>Local</td></tr><tr data-astro-cid-sicvmbkj><td data-astro-cid-sicvmbkj><span title="compute" data-astro-cid-sicvmbkj>exp124-r005-compute</span></td><td data-astro-cid-sicvmbkj><time datetime="2026-10-14T08:47:24+00:00" data-astro-cid-sicvmbkj>14 Oct 2026, 08:47</time></td><td title="Recorded producing execution time for this stage; excludes upstream runs and import time" data-astro-cid-sicvmbkj>15m 15s</td><td title="6792871 bytes" data-astro-cid-sicvmbkj>6.8 MB</td><td data-astro-cid-sicvmbkj>Unknown</td></tr><tr data-astro-cid-sicvmbkj><td data-astro-cid-sicvmbkj><span title="compute" data-astro-cid-sicvmbkj>exp124-r004-compute</span></td><td data-astro-cid-sicvmbkj><time datetime="2026-10-14T08:45:59+00:00" data-astro-cid-sicvmbkj>14 Oct 2026, 08:45</time></td><td title="Recorded producing execution time for this stage; excludes upstream runs and import time" data-astro-cid-sicvmbkj>1m 27s</td><td title="6792827 bytes" data-astro-cid-sicvmbkj>6.8 MB</td><td data-astro-cid-sicvmbkj>Local</td></tr></tbody></table></div></section></d-appendix><script type="application/json" class="js-hypothesis-config">
+    {
+      "showHighlights": true,
+      "openSidebar": false
+    }
+  </script><script async src="https://hypothes.is/embed.js"></script></main><script type="module">var e,t,n=document.createElement(`aside`);n.className=`citation-preview`,n.id=`citation-preview`,n.setAttribute(`role`,`tooltip`),n.hidden=!0,document.body.append(n);function r(){clearTimeout(t),n.hidden=!0,e?.removeAttribute(`aria-describedby`),e=void 0}function i(){t=setTimeout(r,180)}function a(r){clearTimeout(t),e?.removeAttribute(`aria-describedby`);let i=document.getElementById(decodeURIComponent(r.hash.slice(1))),a=i?.closest(`li`)??i?.parentElement;if(!a)return;e=r,n.replaceChildren(...Array.from(a.childNodes).map(e=>e.cloneNode(!0))),n.querySelectorAll(`[id]`).forEach(e=>e.removeAttribute(`id`)),n.hidden=!1,r.setAttribute(`aria-describedby`,n.id);let o=r.getBoundingClientRect(),s=n.getBoundingClientRect().width;n.style.left=`${Math.max(12,Math.min(o.left,innerWidth-s-12))}px`,n.style.top=`${Math.min(o.bottom+8,Math.max(12,innerHeight-n.offsetHeight-12))}px`}for(let e of document.querySelectorAll(`d-article a[href^="#ref-"]`))e.addEventListener(`mouseenter`,()=>a(e)),e.addEventListener(`focus`,()=>a(e)),e.addEventListener(`mouseleave`,i),e.addEventListener(`blur`,i);n.addEventListener(`mouseenter`,()=>clearTimeout(t)),n.addEventListener(`mouseleave`,i),n.addEventListener(`focusin`,()=>clearTimeout(t)),n.addEventListener(`focusout`,i),document.addEventListener(`keydown`,e=>{e.key===`Escape`&&r()}),window.addEventListener(`scroll`,r,{passive:!0});</script></body></html>
