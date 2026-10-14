@@ -12,7 +12,8 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
 import numpy as np
 from experiments.exp099 import inputs, recipe
-from experiments.exp099.render import network_diagram, render, render_raster
+from experiments.exp099.browser import circuit_data
+from experiments.exp099.render import network_diagram, render_raster
 from pingstore.contracts import PingstoreError, load_json, write_json_atomic
 from pingstore.stages import stage_run
 from snnlab import lang as snn  # noqa: TID251
@@ -86,25 +87,20 @@ def resolved(identity):
 
 
 def render_outputs(
-    analysis, compute, cfg, results, output, *, preview_only=False, view=None
+    analysis, compute, cfg, results, output, *, view=None
 ):
     recording = Recording(cfg["dt_ms"], inputs.recording(compute))
     with np.load(analysis.export / "measurements.npz", allow_pickle=False) as arrays:
         measurements = dict(arrays)
     with np.load(compute.export / "weights.npz", allow_pickle=False) as arrays:
         weights = dict(arrays)
-    render(
-        recording,
-        weights,
-        measurements,
-        cfg,
-        output,
-        preview_only=preview_only,
-        view=view,
+    write_json_atomic(
+        output / "circuit.json",
+        circuit_data(recording.signals, weights, cfg, view or {
+            "start_ms": cfg["view_start_ms"], "end_ms": cfg["view_end_ms"],
+        }, measurements=measurements),
     )
-    network_diagram(
-        cfg,
-        weights,
+    diagram_metadata = network_diagram(
         output / "network.svg",
         bundle=snn.load_bundle(compute.unit("network.bundle")),
     )
@@ -113,13 +109,14 @@ def render_outputs(
         display_cfg.update(
             view_start_ms=view["start_ms"], view_end_ms=view["end_ms"]
         )
-    render_raster(recording, display_cfg, output / "spike-raster.png")
+    render_raster(recording, display_cfg, output / "spike-raster.svg")
     reference = render_reference(
         REFERENCE_PDF, output / "susin-destexhe-2021-ping.png"
     )
     write_json_atomic(output / "numbers.json", results)
     centre = (cfg["peak_ms"] + cfg["plateau_end_ms"]) / 2
     return {
+        "network_diagram": diagram_metadata,
         "raster": {
             "neurons": "all E and I",
             "interval_ms": [
@@ -127,7 +124,6 @@ def render_outputs(
                 display_cfg["view_end_ms"],
             ],
             "display_time_origin_ms": cfg.get("burn_in_ms", 0.0),
-            "source_video": recipe.VIDEO,
             "closeup_ms": [centre - 50, centre + 50],
             "count_bin_ms": 1.0,
             "count_smoothing": "none",
@@ -141,7 +137,6 @@ def present(identity, *, run_id=None):
     view = {
         "start_ms": cfg["view_start_ms"],
         "end_ms": cfg["view_end_ms"],
-        "frames": 625,
     }
     if not 0 <= view["start_ms"] < view["end_ms"] <= cfg["t_ms"]:
         raise ValueError("presentation interval must lie within the recording")

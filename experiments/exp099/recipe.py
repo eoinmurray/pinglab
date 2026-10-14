@@ -14,7 +14,6 @@ BASELINE_HZ = 0.8
 RECURRENT_SCALE, INHIBITORY_SCALE = 0.08, 5.0
 VIEW_START_MS, VIEW_END_MS = BURN_IN_MS, DURATION_MS
 ONSET_MS, PEAK_MS, PLATEAU_END_MS, OFFSET_MS = 700.0, 750.0, 850.0, 900.0
-VIDEO, POSTER = "private-e-drive.mp4", "private-e-drive.png"
 
 
 def configuration() -> dict:

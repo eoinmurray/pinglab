@@ -14,8 +14,8 @@ const articleSchema = z.object({
 
 const reports = defineCollection({
   loader: glob({
-    base: '../md/experiments',
-    pattern: 'exp*/report.mdx',
+    base: '..',
+    pattern: ['md/experiments/exp*/report.mdx', 'experiments/exp*/report/report.mdx'],
     generateId: ({ data }) => String(data.id),
   }),
   schema: articleSchema.extend({

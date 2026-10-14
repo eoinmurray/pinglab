@@ -14,7 +14,7 @@ export async function getStaticPaths() {
       if (seen.has(run.id)) continue;
       seen.add(run.id);
       for (const file of await readdir(run.exportDirectory)) {
-        if (!/\.(png|svg|mp4|webm|ogv)$/.test(file)) continue;
+        if (!/\.(png|svg|mp4|webm|ogv)$/.test(file) && file !== 'circuit.json') continue;
         paths.push({ params: { run: run.id, file }, props: { path: join(run.exportDirectory, file) } });
       }
     }
@@ -24,6 +24,9 @@ export async function getStaticPaths() {
 
 export const GET: APIRoute = async ({ props }) => {
   const bytes = await readFile(props.path);
-  const type = ({ svg: 'image/svg+xml', png: 'image/png', mp4: 'video/mp4', webm: 'video/webm', ogv: 'video/ogg' } as Record<string, string>)[props.path.split('.').at(-1)];
-  return new Response(new Uint8Array(bytes), { headers: { 'Content-Type': type } });
+  const type = ({ svg: 'image/svg+xml', png: 'image/png', mp4: 'video/mp4', webm: 'video/webm', ogv: 'video/ogg', json: 'application/json' } as Record<string, string>)[props.path.split('.').at(-1)];
+  return new Response(new Uint8Array(bytes), { headers: {
+    'Content-Type': type,
+    'Cache-Control': import.meta.env.DEV ? 'no-store' : 'public, max-age=31536000, immutable',
+  } });
 };

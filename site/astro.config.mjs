@@ -10,6 +10,7 @@ export default defineConfig({
   site: 'https://pinglab.eoinmurray.info',
   server: { port: 3000 },
   devToolbar: { enabled: false },
+  vite: { resolve: { dedupe: ['pixi.js'] } },
   integrations: [mdx(), {
     name: 'pinglab:dev-run-images',
     hooks: {

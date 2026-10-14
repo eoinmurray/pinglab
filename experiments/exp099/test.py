@@ -71,14 +71,10 @@ def test_paper_passive_scale_is_authored_in_graph():
         assert neuron["tau_mem"]["value"] == 15.0
 
 
-def test_visual_grid_and_recording_contract():
+def test_recording_contract():
     import pytest
-    from experiments.exp099.render import frame_grid
     from snnlab.viz import Recording, RecordingError  # noqa: TID251
 
-    grid, response = frame_grid()
-    assert grid.rect("A").height > grid.rect("B").height
-    assert response.rect("D").y > response.rect("E").y
     with pytest.raises(RecordingError):
         Recording(0.1, {"e": np.zeros((10, 2)), "i": np.zeros((9, 1))})
 

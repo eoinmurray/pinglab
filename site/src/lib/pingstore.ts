@@ -55,6 +55,21 @@ export function imageUrl(runId: string, filename: string): string {
   return `/run-images/${encodeURIComponent(runId)}/${encodeURIComponent(filename)}`;
 }
 
+export async function figureUrl(runId: string, filename: string): Promise<string> {
+  if (!/\.(svg|png)$/.test(filename)) return imageUrl(runId, filename);
+  const stem = filename.replace(/\.(svg|png)$/, '');
+  const directory = join(runsRoot, runId, 'export');
+  for (const extension of ['svg', 'png']) {
+    const candidate = `${stem}.${extension}`;
+    try {
+      if ((await stat(join(directory, candidate))).isFile()) return imageUrl(runId, candidate);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+    }
+  }
+  throw new Error(`Missing figure ${filename} in presentation ${runId} (SVG or PNG required)`);
+}
+
 export async function presentationJson(experiment: string, filename: string) {
   const run = await latestPresentation(experiment);
   return JSON.parse(await readFile(join(run.exportDirectory, filename), 'utf8'));

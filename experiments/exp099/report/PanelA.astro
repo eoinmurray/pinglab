@@ -1,0 +1,71 @@
+---
+import { imageUrl } from '../../../site/src/lib/pingstore';
+interface Props { run: string; }
+const { run } = Astro.props;
+---
+<figure class="l-body" id="panel-a">
+  <pixi-ping-circuit data-source={imageUrl(run, 'circuit.json')}>
+    <div class="scene" role="img" aria-label="Recorded circuit activity on the left and four synchronized pistons showing mean conductances onto E and mean E and I population voltages on the right, with the full afferent-rate protocol and a moving current-time bar below.">
+      <p class="status" role="status">Loading recorded circuit…</p>
+    </div>
+    <div class="controls">
+      <input class="scrubber" type="range" data-scrub aria-label="Replay time" min="0" max="600" step="0.1" value="0" disabled />
+      <label class="speed-control">Speed <input type="range" data-speed min="0.25" max="4" step="0.25" value="1" disabled /><output data-speed-value>1×</output></label>
+      <button type="button" data-pause disabled>Pause</button>
+    </div>
+    <noscript>This replay requires JavaScript. The recorded spike raster is available in Figure 2.</noscript>
+  </pixi-ping-circuit>
+  <figcaption>Recorded circuit replay of the seed-7 simulation, looping over displayed time 0–600 ms after the hidden 500 ms baseline. A: E private and I private show recorded aggregate input counts for 160 E-targeted and 40 I-targeted channels, each representing 400 independent afferents to one neuron. E population and I population show the corresponding neurons’ recorded spikes. Blue denotes E-targeted private input and excitatory neurons; rose denotes I-targeted private input and inhibitory neurons. Both private populations provide excitation. Recurrent connections are sampled from the actual nonzero weights; private connections join each channel to its own target. Pulses travel over the recorded 1.5 ms synaptic delay; highlights persist for 3 ms for visibility. Grey pulses show spike transmission. Larger, brighter pulses emphasise recurrent signalling between E and I; private-input pulses are visually subdued. B: The pistons show recorded population means at the same timestep. g<sub>E</sub> is recurrent plus private excitatory conductance onto E neurons; g<sub>I</sub> is inhibitory conductance onto E neurons, both in µS. V<sub>E</sub> and V<sub>I</sub> are mean membrane voltages across all E and I neurons, in mV. The conductance pair shares a zero-based scale; the voltage pair shares a −80 to −50 mV scale. C: The full prescribed per-source afferent-rate protocol is shown for E-targeted input (blue solid) and I-targeted input (rose dashed); the coincident traces are not measured neuron firing rates. The grey bar marks the current replay time. Speed changes playback only; 1× plays the 600 ms recording over 25 seconds. Positions and pulse appearance are display choices.</figcaption>
+</figure>
+
+<script>
+  import { mountCircuit } from './js/panel-a.js';
+  class PixiPingCircuit extends HTMLElement {
+    dispose?: () => void;
+    observer?: IntersectionObserver;
+    connectedCallback() {
+      this.observer = new IntersectionObserver(async (entries) => {
+        if (!entries.some(entry => entry.isIntersecting)) return;
+        this.observer?.disconnect();
+        try {
+          const dispose = await mountCircuit(this);
+          if (this.isConnected) this.dispose = dispose;
+          else dispose();
+        } catch (error) {
+          console.error('Circuit replay could not start', error);
+          const status = this.querySelector('.status');
+          if (status) status.textContent = 'Circuit replay is unavailable. The recorded spike raster is available in Figure 2.';
+        }
+      }, { rootMargin: '200px' });
+      this.observer.observe(this);
+    }
+    disconnectedCallback() { this.observer?.disconnect(); this.dispose?.(); }
+  }
+  if (!customElements.get('pixi-ping-circuit')) customElements.define('pixi-ping-circuit', PixiPingCircuit);
+</script>
+
+<style>
+  pixi-ping-circuit { display: block; box-sizing: border-box; padding: 12px; border: 1px solid #d6dfe7; border-radius: 12px; background: white; }
+  .scene { width: 100%; aspect-ratio: 124 / 54; position: relative; }
+  .scene :global(canvas) { display: block; width: 100%; height: 100%; }
+  .scene :global(.circuit-labels) { position: absolute; inset: 0; pointer-events: none; font-family: system-ui, sans-serif; }
+  .status { position: absolute; inset: 0; display: grid; place-content: center; padding: 24px; margin: 0; text-align: center; }
+  .controls { display: flex; justify-content: flex-end; align-items: center; flex-wrap: wrap; gap: 14px; padding: 0 16px 8px; }
+  .controls label { display: flex; align-items: center; gap: 8px; font: 13px/1.4 system-ui, sans-serif; color: #263343; }
+  input[type="range"] { width: 110px; accent-color: #626b74; }
+  input.scrubber { flex: 1 1 120px; min-width: 100px; width: auto; margin: 0; }
+  .speed-control { flex: 0 0 auto; }
+  .speed-control input { flex: 0 0 110px; }
+  output { display: inline-block; width: 48px; min-width: 48px; flex: 0 0 48px; text-align: right; font-variant-numeric: tabular-nums; }
+  input:focus-visible { outline: 2px solid #176d91; outline-offset: 3px; }
+  button { border: 1px solid #cbd5df; border-radius: 6px; padding: 6px 14px; background: #f5f7f9; color: #263343; font: 13px/1.4 system-ui, sans-serif; cursor: pointer; min-width: 80px; }
+  button:hover { background: #eaf0f4; }
+  button:focus-visible { outline: 2px solid #176d91; outline-offset: 3px; }
+  button:disabled { opacity: 0.5; cursor: default; }
+  figcaption { margin-top: 12px; }
+  @media (min-width: 1180px) {
+    figure { grid-column: text-start / page-end; display: grid; grid-template-columns: subgrid; }
+    pixi-ping-circuit { grid-column: 1 / -1; }
+    figcaption { grid-column: text; }
+  }
+</style>
