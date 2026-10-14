@@ -10,19 +10,19 @@ const dateLabel = (date: string) => new Intl.DateTimeFormat('en-GB', {
 ---
 
 <div class="base-grid">
-  <ol class="posts-list l-page" role="list">
+  <ol class="posts-list article-list listing-width l-page" role="list">
     {posts.map((report) => (
-      <li class="post-preview">
+      <li class="post-preview article-list-row">
         <div class="metadata">
           <a class="experiment-id" href={report.href} aria-label={`Open ${report.data.title}`}>{report.label}</a>
-          <div class="publishedDate"><span>Updated</span><time datetime={report.data.updated_at}>{dateLabel(report.data.updated_at)}</time></div>
-          <div class="collection"><a class="collection-badge" href={collectionUrl(report.collection)}>{collectionLabel(report.collection)}</a></div>
+          <div class="publishedDate"><time datetime={report.data.updated_at}>{dateLabel(report.data.updated_at)}</time></div>
+          <div class="collection">{report.collections.map(collection => <a class="collection-badge" href={collectionUrl(collection)}>{collectionLabel(collection)}</a>)}</div>
         </div>
-        <a class="post-link" href={report.href}>
+        <a class="post-link article-list-content" href={report.href}>
           <div class="description">
-            <h2 class="title">{report.data.title}</h2>
+            <h2 class="title article-list-title">{report.data.title}</h2>
             <p class="authors">{report.data.author}</p>
-            <p class="abstract">{report.data.description}</p>
+            <p class="abstract article-list-description">{report.data.description}</p>
           </div>
         </a>
       </li>
@@ -31,30 +31,22 @@ const dateLabel = (date: string) => new Intl.DateTimeFormat('en-GB', {
   </div>
 
 <style>
-  /* Distill's homepage listing structure, adapted to Astro's v2 grid. */
-  .posts-list { list-style: none; padding: 0; margin: 24px 0; }
-  .post-preview { overflow: hidden; padding: 24px 0; border-bottom: 1px solid rgba(0, 0, 0, .1); }
-  .post-preview:last-child { border-bottom: none; }
+  .post-preview { overflow: hidden; }
   .post-link { color: inherit; text-decoration: none; }
   .post-link:focus-visible { outline: 2px solid #004276; outline-offset: 6px; }
-  .title { margin: 0 0 6px; font-size: 24px; font-weight: 700; line-height: 1.2; }
-  .description p { margin: 0 0 12px; font-size: 16px; line-height: 1.4; }
-  .description .authors { font-size: .875rem; margin-bottom: 1em; color: rgba(0, 0, 0, .67); }
-  .metadata { font-size: 12px; line-height: 1.4; margin-bottom: 18px; }
-  .experiment-id { display: inline-block; margin-right: 1em; color: rgba(0, 0, 0, .8); font-weight: 600; text-decoration: none; }
+  .description .authors { font-size: calc(14px * var(--listing-scale)); margin: 0 0 1em; color: rgba(0, 0, 0, .67); line-height: 1.4; }
+  .metadata { font-size: calc(12px * var(--listing-scale)); line-height: 1.4; margin-bottom: calc(18px * var(--listing-scale)); }
+  .experiment-id { display: inline-block; margin-right: 1em; color: rgba(0, 0, 0, .8); font-size: calc(18px * var(--listing-scale)); font-weight: 600; text-decoration: none; }
   .experiment-id:hover { text-decoration: underline; }
   .publishedDate { display: inline-block; margin-right: 1em; }
-  .publishedDate span { margin-right: .35em; }
-  .collection { display: inline-block; margin-top: 1em; }
+  .collection { display: inline-flex; flex-wrap: wrap; gap: .5em; margin-top: 1em; }
   .collection-badge { color: rgba(0, 0, 0, .67); padding: .3em .5em; border: 1px solid rgba(0, 0, 0, .4); border-radius: 3px; text-transform: uppercase; font-size: 80%; font-weight: 500; text-decoration: none; }
   .collection-badge:hover { color: black; border-color: black; }
   @media (min-width: 768px) {
-    .posts-list { margin-top: 60px; }
-    .post-preview { display: grid; grid-template-columns: 15% 1fr; column-gap: 5%; }
-    .metadata { margin-top: 8px; }
-    .experiment-id { display: block; margin: 0 0 12px; }
-    .publishedDate, .publishedDate span, .collection { display: block; }
-    .title { font-size: 26px; }
-    .description p { line-height: 1.5; }
+    .metadata { margin-top: calc(8px * var(--listing-scale)); margin-bottom: 0; }
+    .experiment-id { display: block; margin: 0 0 calc(12px * var(--listing-scale)); }
+    .publishedDate { display: block; }
+    .collection { display: flex; }
+    .description .authors { line-height: 1.5; }
   }
 </style>

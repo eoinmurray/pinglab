@@ -7,13 +7,13 @@ REFRACTORY_E_MS = 1.2
 REFRACTORY_I_MS = 0.6
 REFRACTORY_POLICY = "exact"
 FIGURES = (
-    "turnon_maps_compound.png",
-    "turnon_compound.png",
-    "grid_maps.png",
-    "grid_rasters.png",
-    "grid_autocorr.png",
-    "rate_invariance.png",
-    "null_autocorr.png",
+    "turnon_maps_compound.svg",
+    "turnon_compound.svg",
+    "grid_maps.svg",
+    "grid_rasters.svg",
+    "grid_autocorr.svg",
+    "rate_invariance.svg",
+    "null_autocorr.svg",
 )
 
 

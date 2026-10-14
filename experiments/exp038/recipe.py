@@ -51,11 +51,11 @@ FI_UNIFORM_RATES_HZ = [
 FIGURES = tuple(
     name + "." + ext
     for name, extensions in (
-        ("rate_rasters__ping", ("png", "pdf")),
+        ("rate_rasters__ping", ("svg", "pdf")),
         ("fi_curve__ping", ("svg", "pdf")),
         ("fi_curve_uniform", ("svg", "pdf")),
-        ("ei_rasters", ("png", "pdf")),
-        ("loop_transfer_compound", ("png", "pdf")),
+        ("ei_rasters", ("svg", "pdf")),
+        ("loop_transfer_compound", ("svg", "pdf")),
     )
     for ext in extensions
 )

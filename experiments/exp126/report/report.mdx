@@ -1,0 +1,134 @@
+---
+id: "exp126"
+title: "Current-based MNIST: snnTorch and snnlab"
+created_at: "2026-10-14"
+updated_at: "2026-10-14"
+description: "Equation-matched snnTorch and snnlab classifiers trained on 10% of MNIST, with agreement diagnostics, learning curves and GPU training and inference timings."
+collection: "demo"
+author: "Eoin Murray"
+tags: ["data", "v36.0.0"]
+inputs: ["exp126"]
+runs: {"exp126": "exp126-r021-present"}
+---
+
+import ReportAvailability from '../../../site/src/components/ReportAvailability.astro';
+import RunFigure from '../../../site/src/components/RunFigure.astro';
+import Table from '../../../site/src/components/Table.astro';
+import { reportData, round } from '../../../site/src/lib/report-data';
+export const evidence = await reportData('exp126', { allowUnavailable: true });
+export const run = evidence?.baseline;
+export const pair = evidence?.pairs[0];
+export const comparisonRows = pair ? [
+  ['Selected epoch', pair.metrics.snntorch.selected_epoch, pair.metrics.snnlab.selected_epoch, '—'],
+  ['Test accuracy (%)', round(100 * pair.metrics.snntorch.test_accuracy, 2), round(100 * pair.metrics.snnlab.test_accuracy, 2), '—'],
+  ...[
+    ['Optimization (s)', 'optimization_seconds', 1],
+    ['Full training protocol (s)', 'training_protocol_seconds', 1],
+    ['Full-test inference median (s)', 'test_inference_seconds', 1],
+    ['Encoding, batch 128 (ms)', 'encoding_seconds', 1000],
+    ['Forward, batch 128 (ms)', 'forward_seconds', 1000],
+    ['Forward + backward, batch 128 (ms)', 'forward_backward_seconds', 1000],
+    ['First Adam step, batch 128 (ms)', 'optimization_step_seconds', 1000],
+  ].map(([label, key, scale]) => [label, round(scale * pair.metrics.snntorch[key], 3), round(scale * pair.metrics.snnlab[key], 3), pair.agreement_passed ? round(1 / pair.speedups[key], 3) : 'Not reported']),
+  ['Test throughput (images/s)', round(pair.metrics.snntorch.test_images_per_second, 1), round(pair.metrics.snnlab.test_images_per_second, 1), '—'],
+  ['Amortized inference (ms/image)', round(pair.metrics.snntorch.test_inference_seconds / 10, 3), round(pair.metrics.snnlab.test_inference_seconds / 10, 3), '—'],
+  ['Peak allocated GPU memory (MiB)', round(pair.metrics.snntorch.peak_allocated_bytes / 1048576, 2), round(pair.metrics.snnlab.peak_allocated_bytes / 1048576, 2), '—'],
+] : [];
+export const timingRows = run ? [
+  ['Device', run.benchmark.device_name],
+  ['Optimization only (s)', round(run.benchmark.timing.optimization_seconds, 3)],
+  ['Full training protocol (s)', round(run.benchmark.timing.training_protocol_seconds, 3)],
+  ['Full test inference median (s)', round(run.benchmark.test_inference_median_seconds, 3)],
+  ['Full test inference min–max (s)', `${round(run.benchmark.test_inference_min_seconds, 3)}–${round(run.benchmark.test_inference_max_seconds, 3)}`],
+  ['Test throughput (images/s)', round(run.benchmark.test_images_per_second, 1)],
+  ['Amortized test time (ms/image)', round(run.benchmark.test_amortized_ms_per_image, 3)],
+] : [];
+
+<ReportAvailability report="exp126" />
+
+## Abstract
+
+We compared current-based spiking classifiers implemented with snnTorch and a custom snnlab graph executor. Their initial states and spikes matched, and parameter gradients agreed within tolerance. Both learned to classify MNIST, but their subsequent training trajectories diverged. snnTorch required less optimization and test inference time in this paired cloud-GPU execution. These measurements characterize the tested executor implementations, without establishing accuracy variability across independent initializations or a speedup over local execution.
+
+## Results
+
+### Earlier baseline learning
+
+In the earlier snnTorch-only baseline, training cross-entropy fell from 25.665 to 0.166 and validation cross-entropy from 26.404 to 0.559. Final training and validation accuracies were 92.8% and 90.1%, respectively ([Fig. 1](#fig-training)). Validation performance fluctuated during training; one replicate does not establish learning stability across initializations. Test images influenced neither these curves nor checkpoint selection.
+
+<RunFigure report="exp126" experiment="exp126" allowUnavailable file="baseline_training_curves.svg" number={1} id="fig-training" alt="Training and validation cross-entropy and accuracy curves, with the selected epoch marked.">
+  **Reused learning measurements from the earlier baseline.** We trained a current-based network on 6,000 class-balanced images and evaluated those images and 1,000 separate validation images before training and after every epoch. (A) Mean per-image cross-entropy. (B) Percentage correctly classified. Black identifies training and red validation; evaluation uses fixed split-specific encoding seeds. A dashed vertical line marks the minimum-validation-loss epoch among epochs 1–30, with the earliest tie selected. The dotted horizontal line in B marks the 10% equal-class chance reference. One training replicate supplies these curves, without uncertainty bands.
+</RunFigure>
+
+### Earlier baseline timing
+
+For the earlier baseline on an NVIDIA A10, optimization took 91.1 seconds and the full training protocol took 122.4 seconds. Five warmed passes over all 10,000 test images took 1.430–1.460 seconds each, with a median of 1.446 seconds ([Fig. 2](#fig-timing)). Median throughput was 6,914 images per second. These measurements exclude cloud startup and result download and establish no speedup over local execution.
+
+<RunFigure report="exp126" experiment="exp126" allowUnavailable file="baseline_timing.svg" number={2} id="fig-timing" alt="Per-epoch optimization and evaluation wall times, and five repeated complete-test-set inference times.">
+  **Reused synchronized wall-time measurements from the earlier NVIDIA A10 baseline.** (A) Optimization time per epoch in black and full training-plus-validation evaluation time in red. Epoch zero has no optimization. (B) Five warmed inference passes over all 10,000 official test images, with individual measurements in black and the median marked by a red dashed line. Each pass resets its encoding seed and uses batches of at most 256 images. CUDA work is synchronized at timing boundaries. Repeats measure execution variation for one fixed model and input protocol; they are not independent training replicates.
+</RunFigure>
+
+{run && <Table headers={['Measurement', 'Value']} rows={timingRows} caption="Table 1. Benchmark summary. Optimization excludes evaluation and checkpoint serialization. The full training protocol includes epoch-zero evaluation, 30 optimization epochs, all training/validation evaluations, checkpoint serialization, and progress printing. Warmed test inference includes input encoding, forward simulation, spike-count decoding, loss/accuracy calculation, and prediction transfer to the CPU. Both exclude dataset loading and initial host-to-device transfer; test inference also excludes checkpoint loading and warmup. Throughput uses the median full-test duration. Amortized time per image is a batch throughput measure, not isolated-image latency. Modal image builds, queueing, container startup, and result download are excluded." />}
+
+### Initial equation agreement
+
+We compared both implementations before training on eight shared validation images. Synaptic currents, membrane states, spikes, class scores and loss agreed exactly; the largest absolute parameter-gradient discrepancy was $3.815 \times 10^{-6}$, within the declared tolerance ([Fig. 3](#fig-agreement)). This establishes agreement for the tested initialization probe, without establishing identical optimization trajectories or all-input equivalence.
+
+<RunFigure report="exp126" experiment="exp126" allowUnavailable file="equation_agreement.svg" number={3} id="fig-agreement" alt="Overlaid initial hidden current and membrane trajectories, paired output spikes, and snnTorch versus snnlab parameter gradients.">
+  **Initialization diagnostics for the paired comparison.** Both models received the same 50-step input events for eight validation images. (A) Synaptic current and (B) membrane state for the first image and its most active hidden neuron, selected by total snnTorch spikes. Black solid lines identify snnTorch and red dashed lines snnlab. (C) Output spikes for the first image; markers have small vertical offsets to separate the implementations. (D) Up to 2,000 evenly spaced entries from the flattened gradients of both weight matrices and both biases, with the red dashed identity line. Agreement checks used every recorded state, spike and gradient entry, rather than only this illustrative subset.
+</RunFigure>
+
+### Paired learning trajectories
+
+With shared initial parameters and encoded inputs, the two classifiers followed different learning trajectories ([Fig. 4](#fig-learning-comparison)). Final training/validation accuracies were 93.90%/91.10% for snnTorch and 94.48%/92.00% for snnlab. Minimum-validation-loss checkpoints occurred at epochs 24 and 19, respectively; their official-test accuracies were 88.04% and 88.74%. The 0.70 percentage-point difference from one paired seed does not establish an accuracy advantage. Initial gradient agreement within tolerance did not imply identical subsequent learning.
+
+<RunFigure report="exp126" experiment="exp126" allowUnavailable file="learning_comparison.svg" number={4} id="fig-learning-comparison" alt="Paired training and validation loss and accuracy curves, validation accuracy against optimization time, and selected-model test accuracies.">
+  **New learning measurements for one paired training seed.** Each implementation trained independently for 30 epochs on 6,000 images, with fixed training and separate validation evaluations before training and after each epoch. (A) Mean per-image cross-entropy and (B) accuracy: black identifies snnTorch, red snnlab, solid lines training and dashed lines validation. (C) Validation accuracy against cumulative optimization time, excluding encoding, input auditing and evaluation. (D) Official-test accuracy of each independently validation-selected checkpoint; the connecting line identifies the shared initialization seed. Curves and points represent one trained model per implementation, without uncertainty bands.
+</RunFigure>
+
+### Paired execution timing
+
+The classifiers ran concurrently on separate NVIDIA L4 GPUs in one allocation. snnTorch optimization took 158.402 seconds versus 277.486 seconds for snnlab, making snnTorch 1.75 times faster. Median inference over all 10,000 test images took 4.767 versus 7.553 seconds, a 1.58-fold snnTorch advantage ([Fig. 5](#fig-timing-comparison)). These results include snnlab's graph-executor and custom-extension overhead. They do not establish performance of its stock current-based neuron or end-to-end cloud turnaround.
+
+<RunFigure report="exp126" experiment="exp126" allowUnavailable file="timing_comparison.svg" number={5} id="fig-timing-comparison" alt="Individual fixed-batch encoding, forward, backward and Adam-step timing measurements, and full-test inference repeats for both implementations.">
+  **New synchronized wall-time measurements on two NVIDIA L4 GPUs.** Black identifies snnTorch and red snnlab. (A) Five timing repetitions per operation on batches of 128 validation images, after three warmups; dots show individual measurements and horizontal bars medians. Encoding includes CPU random generation and host-to-device transfer. Neural operations use preencoded events; forward plus backward includes loss, and the full step includes gradient clipping and the first Adam update. (B) Five warmed full-test passes per implementation, with individual measurements and median bars. Horizontal offsets separate conditions at paired training seed 42. Repeats characterize timing variation for a fixed model and input stream, not independent training replicates.
+</RunFigure>
+
+{pair && <Table headers={['Measurement', 'snnTorch', 'snnlab', 'snnlab / snnTorch time']} rows={comparisonRows} caption="Table 2. Paired L4 comparison. Timing ratios exceed one when snnTorch is faster and are reported only after initialization agreement passes. Fixed-batch and test-inference values are medians of five repetitions; optimization and full-protocol values are totals for one trained model per condition. Optimization excludes encoding, input-checksum auditing, evaluation and checkpoint writing. Full protocol includes those operations and epoch-zero evaluation. Full-test inference includes CPU encoding and transfer of random draws, GPU forward execution, loss, decoding and CPU prediction transfer; it excludes input auditing, loading, initial image upload, checkpoint loading and warmup. MiB means 1,048,576 bytes; peak memory is PyTorch allocated memory across training and test inference, excluding the earlier microbenchmarks, rather than reserved or system-wide GPU memory. Amortized inference time is a batch throughput measure. Queueing, image building, provisioning and result download are excluded." />}
+
+## Earlier baseline evaluation
+
+We evaluated the minimum-validation-loss checkpoint on the official 10,000-image test set. Timing repeats use the same model and encoding seed and do not select a checkpoint or average over different stochastic presentations. This image-level split does not establish generalisation to unseen writers.
+
+{run && <p>The selected epoch was {run.selected_epoch}; test accuracy was {round(100 * run.test.accuracy, 2)}%, with mean cross-entropy {round(run.test.loss, 3)}.</p>}
+
+## Methods
+
+### Original baseline
+
+1. **Select images.** We used the official MNIST split of 60,000 training and 10,000 test images [1]. A NumPy random generator with seed 42 permuted training indices separately within each class. The first 600 images per class supplied exactly 6,000 optimization examples; the next 100 supplied 1,000 disjoint validation examples. The remaining 53,000 training images were unused. Pixel intensities were divided by 255 and flattened into 784 inputs.
+
+2. **Simulate current-based neurons.** The network has 784 inputs, 256 hidden neurons, and ten spiking output neurons. Both neuronal layers use snnTorch's second-order synaptic LIF model [2]: weighted inputs add to a synaptic-current state with decay factor 0.8, which adds to a membrane state with decay factor 0.9. Threshold is one; subtractive reset is delayed by one step. There is no voltage-dependent synaptic driving-force term. Both dense projections and their biases were trainable, with PyTorch's default linear-weight initialization and biases initialized to 0.1. Simulation uses dimensionless states, interpreted at a 1 ms step for 50 steps per image. Each pixel emits independent Bernoulli input spikes with probability equal to normalized brightness times 0.25 per step, corresponding to a maximum rate of 250 Hz. All synaptic and membrane states reset to zero for each image presentation. Output spike counts accumulated across the entire presentation provide the ten class scores; the highest score determines the class, with the lowest class index chosen on ties.
+
+3. **Optimize and select.** We used full backpropagation through the 50-step simulation and a fast-sigmoid surrogate with slope 25 [2]. Adam minimized cross-entropy of output spike counts for 30 epochs, with learning rate 0.001, zero weight decay, minibatches of at most 128 images, and global gradient-norm clipping at one. Seed 42 initialized the model; separate seeds 44 and 45 governed shuffled image order and training encoding. Complete training and validation partitions were evaluated at epoch zero and after each epoch using fixed encoding seeds 52 and 53, respectively. The minimum validation cross-entropy among epochs 1–30 selected the checkpoint; the earliest epoch wins ties. CPU and CUDA random streams may produce different realizations despite equal seeds.
+
+4. **Measure inference and execution.** We loaded the selected checkpoint, warmed inference with three validation minibatches, then timed five full test-set passes using encoding seed 54 for each pass and batches of at most 256. Inputs already resided on the selected device. We calculated test cross-entropy, accuracy, and a confusion matrix from the first pass, and verified that repeated predictions agreed. Synchronized wall clocks measured per-epoch optimization and evaluation, the full training protocol, and each test pass. We summarized inference using its median, minimum, maximum, throughput, and amortized time per image. These measurements describe one model and device execution, exclude cloud startup and transfer overhead, and do not establish isolated-image latency or a CPU-to-GPU speedup without a separate matched execution.
+
+### Paired comparison
+
+5. **Match dynamics and learning.** We used the same network dimensions, partitions, initial parameters, current decay, membrane decay, threshold, delayed subtractive reset and spike-count readout as the original baseline. The snnTorch reference used Synaptic neurons; the snnlab replica used a graph executor with custom neuron and surrogate definitions. Its graph projections supplied instantaneous signed weighted drive, with the custom neuron owning the single synaptic filter. Both implementations evaluated each matrix multiplication and trainable bias separately. The fast-sigmoid surrogate derivative was $1/(1+25|u|)^2$, where $u$ is the dimensionless membrane state minus threshold; the reset decision was detached from differentiation. This compares matched custom execution with snnTorch, rather than snnlab's stock CUBA_LIF reset or surrogate. We used snnTorch 0.9.4, snnlab 0.9.0, PyTorch 2.11.0 with CUDA 12.8 and torchvision 0.26.0.
+
+6. **Check initialization and inputs.** Seed 42 supplied identical initial tensors. We compared all synaptic-current, membrane, spike, class-score, loss and parameter-gradient entries for eight validation images and 50 steps before training. State agreement required absolute and relative tolerances of $10^{-5}$, gradient agreement absolute tolerance $10^{-5}$ and relative tolerance $10^{-4}$, and zero spike disagreements. Every value had to be finite. Deterministic CPU uniform draws, copied to the GPU for Bernoulli thresholding, supplied matching input events. We verified dataset and initial-parameter equality and aggregate checksums over all encoded training and learning-curve evaluation batches. These checks establish the tested input and initialization agreement, without guaranteeing identical subsequent trajectories.
+
+7. **Train the paired conditions.** Both processes started concurrently, each on its own NVIDIA L4 GPU, with four PyTorch threads per process and eight shared host CPUs. Each trained for 30 epochs using the baseline Adam, learning-rate, batch-size and clipping settings. For epoch $e$, the shuffle seed was $42+e+1000$; a training batch beginning at offset $b$ used encoding seed $42+10000e+b$. Complete training and validation evaluations used seeds 142 and 242 plus their batch offsets. We independently selected each minimum-validation-loss checkpoint among epochs 1–30, with the earliest tie selected. One paired seed was executed. Small numerical differences can matter in thresholded dynamics, but these measurements do not identify the cause of the observed training divergence.
+
+8. **Measure paired execution cost.** Fixed-batch benchmarks used 128 validation images, three warmups and five timed repetitions, with initial parameters restored for every repetition. Forward-only execution excluded loss and gradients; forward plus backward included cross-entropy and backward; a complete step also included zeroing gradients, clipping and the first Adam update, including moment allocation. Model and optimizer construction were outside timing. We separately timed encoding and CPU-to-GPU transfer of random draws. Synchronized wall clocks measured optimization, evaluation and the full training protocol, including input auditing and checkpoint writing. Initial probes and microbenchmarks preceded the training-protocol timer. Each selected model received three warmup executions on the first validation batch, followed by five full-test passes with encoding seed 442 plus batch offsets and batches of at most 256 images. Repeated predictions were checked for equality. Test metrics came from the first pass; medians summarize execution times. We computed timing ratios only after the initialization checks passed. Shared-host contention and unmeasured GPU-clock variation limit generalization beyond this allocation.
+
+## Interpretation limits
+
+The original A10 baseline used fused linear projections and GPU random encoding. The L4 comparison used separate matrix and bias operations and CPU-generated random draws with checksum auditing. Its different recipe and device therefore prevent treating the earlier baseline as a timing reference for snnlab. No matched local CPU execution was performed, so CPU-to-GPU speedup remains unmeasured. Neither one paired initialization nor repeated timing passes estimate independent-seed accuracy uncertainty. The official image-level split also does not establish generalization to unseen writers.
+
+## References
+
+1. Torchvision contributors. *MNIST*. [Dataset documentation and official training/test split interface](https://docs.pytorch.org/vision/stable/generated/torchvision.datasets.MNIST.html).
+2. snnTorch contributors. *snn.Synaptic* and *snntorch.surrogate*. [Synaptic neuron documentation](https://snntorch.readthedocs.io/en/latest/snn.neurons_synaptic.html); [surrogate-gradient documentation](https://snntorch.readthedocs.io/en/latest/snntorch.surrogate.html).

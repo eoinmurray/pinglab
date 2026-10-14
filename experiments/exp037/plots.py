@@ -70,7 +70,7 @@ def plot_perturbation_rasters(
     theme.label_panels(axes)
     fig.subplots_adjust(left=0.07, right=0.78, bottom=0.12, top=0.98)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    save_figure(fig, out_path, formats=("png", "pdf"))  # dense raster: PNG + PDF
+    save_figure(fig, out_path, formats=("svg", "pdf"))
     plt.close(fig)
 
 
@@ -297,5 +297,5 @@ def plot_combined_rasters(
                 ax.set_xlabel("Time (ms)", fontsize=9)
             ax.spines[["top", "right"]].set_visible(False)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    save_figure(fig, out_path, formats=("png", "pdf"))
+    save_figure(fig, out_path, formats=("svg", "pdf"))
     plt.close(fig)

@@ -27,9 +27,7 @@ from pingstore.stages import SourceRun, source_run, stage_run
 from helpers import theme
 
 
-def plot_family_curves(
-    family: str, cells: list[dict], out_path: Path
-) -> int:
+def draw_family_curves(family: str, cells: list[dict], ax) -> int:
     """One figure for one family: each cell's validation-accuracy learning curve,
     coloured by the swept value. Returns the number of cells actually drawn."""
     import matplotlib.cm as cm
@@ -38,6 +36,12 @@ def plot_family_curves(
     theme.apply()
     plt.rcParams["savefig.bbox"] = "standard"
     tags = list(dict.fromkeys(c["tag"] for c in cells))  # ordered unique
+    tag_labels = {
+        "frozen_ping": "fixed weights",
+        "trainable_ping_init": "trained: standard init",
+        "trainable_zero_init": "trained: zero init",
+        "trainable_small_init": "trained: small init",
+    }
     # cm.viridis exists at runtime; the matplotlib stub omits it (false positive).
     colours = {
         t: cm.viridis(i / max(1, len(tags) - 1))  # ty: ignore[unresolved-attribute]
@@ -48,7 +52,6 @@ def plot_family_curves(
     linestyle = {"coba": "--", "ping": "-", "ping_init": "-"}
     models = list(dict.fromkeys(c["model"] for c in cells))
 
-    fig, ax = plt.subplots(figsize=(6.5, 3.66))  # H11–H12: column width, 16:9
     n = 0
     for c in cells:
         eps, accs = c["epochs"], c["accuracy_pct"]
@@ -64,7 +67,7 @@ def plot_family_curves(
             n += 1
     handles = [
         Line2D([0], [0], color=colours[t], lw=2.4,
-               label=f"{t} ms" if family == "dt" else t)
+               label=f"{t} ms" if family == "dt" else tag_labels.get(t, t))
         for t in tags
     ]
     leg1 = ax.legend(
@@ -101,14 +104,80 @@ def plot_family_curves(
     for sp in ("top", "right"):
         ax.spines[sp].set_visible(False)
     # H11: no plot title — the Typst caption carries the family + takeaway.
+    return n
+
+
+def plot_family_curves(family: str, cells: list[dict], out_path: Path) -> int:
+    theme.apply()
+    fig, ax = plt.subplots(figsize=(6.5, 3.66))
+    n = draw_family_curves(family, cells, ax)
     fig.tight_layout()
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path)  # H10: line plot → SVG (caller passes .svg); dpi from theme
+    fig.savefig(out_path)
     plt.close(fig)
     return n
 
 
-def _plot_snapshot_raster(snap_path: Path, out_png: Path) -> None:
+TRAINING_OVERVIEW_RASTERS = {
+    "canonical": ("ping__canonical__seed42", "PING · full training pool"),
+    "activity_frontier": ("ping__rt1hz__seed42", "PING · 1 Hz activity ceiling"),
+    "tau_gaba": ("ping__tg6__seed42", "PING · inhibitory decay 6 ms"),
+    "dt": ("ping__dt0p1__seed42", "PING · timestep 0.1 ms"),
+    "init": ("frozen_ping__seed42", "PING · fixed recurrent weights"),
+    "variable_rate": ("ping__variable_rate__seed42", "PING · variable-rate training"),
+    "low_w_in": ("ping__low_w_in__win0p05__seed42", "PING · input coupling 0.05"),
+}
+
+
+def plot_training_overview(family: str, cells: list[dict], raster: Path, destination: Path) -> int:
+    """Draw saved validation histories beside one explicitly selected fixed probe."""
+    from matplotlib.lines import Line2D
+
+    theme.apply()
+    fig, (curves, spikes) = plt.subplots(1, 2, figsize=(9, 5.06))
+    count = draw_family_curves(family, cells, curves)
+    with np.load(raster, allow_pickle=False) as data:
+        ne, ni = int(data["ne"]), int(data["ni"])
+        spikes.scatter(data["e_times"], data["e_cells"], s=1,
+                       c=theme.INK_BLACK, marker="|", linewidths=0.35)
+        spikes.scatter(data["i_times"], data["i_cells"] + ne, s=1,
+                       c=theme.DEEP_RED, marker="|", linewidths=0.35)
+        spikes.axhline(ne, color=theme.MUTED, lw=0.5)
+        spikes.set_xlim(0, float(data["duration_ms"]))
+        spikes.set_ylim(0, ne + ni)
+    spikes.set_xlabel("time (ms)")
+    spikes.set_ylabel("neuron")
+    spikes.set_yticks([0, 512, 1024, 1280])
+    spikes.spines[["top", "right"]].set_visible(False)
+    spikes.legend(handles=[
+        Line2D([0], [0], color=theme.INK_BLACK, marker="|", ls="", label="excitatory"),
+        Line2D([0], [0], color=theme.DEEP_RED, marker="|", ls="", label="inhibitory"),
+    ], loc="lower center", bbox_to_anchor=(0.5, -0.29), ncol=2,
+       frameon=False, fontsize=theme.SIZE_LEGEND)
+    spikes.text(0, 1.04, TRAINING_OVERVIEW_RASTERS[family][1],
+                transform=spikes.transAxes, fontsize=theme.SIZE_ANNOTATION,
+                color=theme.MUTED)
+    # Put condition legends below the curves so they do not cover early epochs.
+    legends = dict.fromkeys(child for child in curves.get_children()
+                            if isinstance(child, matplotlib.legend.Legend))
+    for legend in legends:
+        if legend.get_title().get_text() == "swept value":
+            legend.set_bbox_to_anchor((0.5, -0.17))
+            legend.set_loc("upper center")
+            legend.set_title(None)
+        else:
+            legend.set_bbox_to_anchor((0.5, 1.03))
+            legend.set_loc("lower center")
+            legend.set_title(None)
+            legend.set_ncols(2)
+    theme.label_panels((curves, spikes))
+    fig.subplots_adjust(left=0.09, right=0.98, top=0.84, bottom=0.30, wspace=0.34)
+    fig.savefig(destination)
+    plt.close(fig)
+    return count
+
+
+def _plot_snapshot_raster(snap_path: Path, out_path: Path) -> None:
     """Raster + population rate + I-population PSD (γ peak labelled) for a single
     fixed-image snapshot. The PSD describes the exact raster shown."""
     import numpy as np
@@ -189,8 +258,8 @@ def _plot_snapshot_raster(snap_path: Path, out_png: Path) -> None:
         for sp in ("top", "right"):
             a.spines[sp].set_visible(False)
     theme.label_panels((ax, ax2, ax3))
-    out_png.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_png)  # PNG (dense raster, H10); dpi 240 from theme (H11)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out_path)
     plt.close(fig)
     d.close()
 
@@ -254,6 +323,10 @@ def comparison_rasters(rasters: dict[str, Path], destination: Path) -> None:
 def carry_historical(retained: SourceRun, filename: str, destination: Path) -> dict:
     """Copy a retained image, preserving its lineage through prior presentations."""
     source = retained.presentation / filename
+    if not source.is_file() and source.suffix == ".svg":
+        source = source.with_suffix(".png")
+        filename = source.name
+        destination = destination.with_suffix(".png")
     if not source.is_file():
         raise PingstoreError(f"historical image is missing: {filename}")
     checksum = file_sha256(source)
@@ -286,6 +359,7 @@ def present(
     *,
     retained_presentation: str | None = None,
     run_id: str | None = None,
+    training_overview: bool = False,
 ) -> str:
     root = REPO / ".pingstore"
     analysis = source_run(root, identity, stage="analyse", experiment=recipe.SLUG)
@@ -331,7 +405,7 @@ def present(
         inputs["bank"] = bank
         inputs["retained_presentation"] = retained
     missing = results["missing_raw_rasters"]
-    if missing and retained is None:
+    if missing and retained is None and not training_overview:
         raise PingstoreError(
             "raw raster evidence is missing; explicitly provide --retained-presentation "
             "for the historical import, or run compute.py --source BANK --diagnostics "
@@ -343,59 +417,80 @@ def present(
         "present",
         inputs=inputs,
         run_id=run_id,
-        configuration={"analysis": identity},
+        configuration={"analysis": identity, "training_overview": training_overview,
+                       "representative_rasters": {family: value[0] for family, value in TRAINING_OVERVIEW_RASTERS.items()} if training_overview else None},
     ) as run:
         lineage = []
-        for family in recipe.FAMILY_ORDER:
-            cells = [cell for cell in curves if cell["family"] == family]
-            filename = f"curves__{recipe.FAMILY_ARTIFACT_SLUGS.get(family, family)}.svg"
-            plot_family_curves(family, cells, run.export / filename)
-            lineage.append(
-                {
-                    "file": filename,
-                    "operation": "render",
-                    "source_run": identity,
-                    "source_path": f"{analysis_path}/curves.json",
-                }
-            )
-        for cell in recipe.cells_for_names(row["name"] for row in results["cells"]):
-            if cell["seed"] != 42:
-                continue
-            name = cell["name"]
-            filename = f"rasters__{name}.png"
-            if name in results["rasters"]:
-                _plot_snapshot_raster(
-                    raster_paths[name], run.export / filename
-                )
+        training_figures = {}
+        if training_overview:
+            for family in recipe.FAMILY_ORDER:
+                name, _ = TRAINING_OVERVIEW_RASTERS[family]
+                if name not in raster_paths:
+                    raise PingstoreError(f"training overview requires measured raster: {name}")
+                cells = [cell for cell in curves if cell["family"] == family]
+                training_id = results["training_run_ids"][family]
+                filename = f"training__{training_id}.svg"
+                count = plot_training_overview(family, cells, raster_paths[name], run.export / filename)
+                training_figures[family] = {"file": filename, "raster_cell": name, "curves": count}
+                lineage.append({
+                    "file": filename, "operation": "render", "source_run": identity,
+                    "source_paths": [f"{analysis_path}/curves.json",
+                                     raster_paths[name].relative_to(analysis.directory).as_posix()],
+                    "raster_cell": name,
+                })
+        else:
+            for family in recipe.FAMILY_ORDER:
+                cells = [cell for cell in curves if cell["family"] == family]
+                filename = f"curves__{recipe.FAMILY_ARTIFACT_SLUGS.get(family, family)}.svg"
+                plot_family_curves(family, cells, run.export / filename)
                 lineage.append(
                     {
                         "file": filename,
                         "operation": "render",
                         "source_run": identity,
-                        "source_path": raster_paths[name].relative_to(analysis.directory).as_posix(),
+                        "source_path": f"{analysis_path}/curves.json",
                     }
                 )
-            else:
-                if retained is None:
-                    raise PingstoreError(f"missing raster source for {name}")
+            for cell in recipe.cells_for_names(row["name"] for row in results["cells"]):
+                if cell["seed"] != 42:
+                    continue
+                name = cell["name"]
+                filename = f"rasters__{name}.svg"
+                if name in results["rasters"]:
+                    _plot_snapshot_raster(
+                        raster_paths[name], run.export / filename
+                    )
+                    lineage.append(
+                        {
+                            "file": filename,
+                            "operation": "render",
+                            "source_run": identity,
+                            "source_path": raster_paths[name].relative_to(analysis.directory).as_posix(),
+                        }
+                    )
+                else:
+                    if retained is None:
+                        raise PingstoreError(f"missing raster source for {name}")
+                    lineage.append(
+                        carry_historical(retained, filename, run.export / filename)
+                    )
+            comparison_cells = {
+                "coba__canonical__seed42",
+                "coba__off__seed42",
+                "ping__canonical__seed42",
+                "ping__off__seed42",
+            }
+            filename = "comparison__data_fraction.svg"
+            if comparison_cells <= set(results["rasters"]):
+                comparison_rasters(raster_paths, run.export / filename)
                 lineage.append(
-                    carry_historical(retained, filename, run.export / filename)
+                    {"file": filename, "operation": "render", "source_run": identity}
                 )
-        comparison_cells = {
-            "coba__canonical__seed42",
-            "coba__off__seed42",
-            "ping__canonical__seed42",
-            "ping__off__seed42",
-        }
-        filename = "comparison__data_fraction.png"
-        if comparison_cells <= set(results["rasters"]):
-            comparison_rasters(raster_paths, run.export / filename)
-            lineage.append(
-                {"file": filename, "operation": "render", "source_run": identity}
-            )
-        elif retained is not None:
-            lineage.append(carry_historical(retained, filename, run.export / filename))
+            elif retained is not None:
+                lineage.append(carry_historical(retained, filename, run.export / filename))
         numbers = dict(results)
+        if training_overview:
+            numbers["training_figures"] = training_figures
         numbers["analysis_run_id"] = identity
         numbers["notebook_run_id"] = run.run_id
         numbers["presentation_lineage"] = lineage
@@ -425,11 +520,14 @@ def main() -> None:
         help="original import or prior presentation of the same analysis and bank",
     )
     parser.add_argument("--run-id", help="already reserved present identity")
+    parser.add_argument("--training-overview", action="store_true",
+                        help="render seven paired learning-curve and raster figures")
     args = parser.parse_args()
     present(
         args.source,
         retained_presentation=args.retained_presentation,
         run_id=args.run_id,
+        training_overview=args.training_overview,
     )
 
 

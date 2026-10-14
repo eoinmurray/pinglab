@@ -49,14 +49,14 @@ The circuit contains 1,600 excitatory and 400 inhibitory neurons with recurrent 
 
 ### Private drive strengthens bursting
 
-In the selected configuration, a 50% increase in E- and I-targeted afferent rates strengthened population bursting ([Fig. 2](#loc-9)). Mean E/I firing rates rose from 3.53/3.83 Hz at baseline to 11.51/11.93 Hz during the plateau and were 4.28/4.38 Hz in recovery. Mean E spike-count correlation rose from 0.009 to 0.267.
+In the selected configuration, a 50% increase in E- and I-targeted afferent rates strengthened population bursting ([Fig. 3](#loc-9)). Mean E/I firing rates rose from 3.53/3.83 Hz at baseline to 11.51/11.93 Hz during the plateau and were 4.28/4.38 Hz in recovery. Mean E spike-count correlation rose from 0.009 to 0.267.
 
 <span id="loc-8" />
 
-Excitatory and inhibitory neurons formed aligned bursts during increased drive ([Fig. 2](#loc-9)B). Their plateau spike-count profiles overlap strongly but vary in amplitude and timing ([Fig. 2](#loc-9)C–D); narrow burst bands alternate with dispersed spikes.
+Excitatory and inhibitory neurons formed aligned bursts during increased drive ([Fig. 3](#loc-9)B). Their plateau spike-count profiles overlap strongly but vary in amplitude and timing ([Fig. 3](#loc-9)C–D); narrow burst bands alternate with dispersed spikes.
 
 <PublishedFigure run="exp099-r010-present" file="spike-raster.png" id="loc-9" alt="Four-panel plot showing afferent rates, all E and I spikes over 600 ms, a 250–350 ms raster close-up, and unsmoothed population spike counts in 1 ms bins." >
-  Figure 2: Spike timing in the seed-7 simulation, after the hidden 500 ms baseline. A: coincident E- and I-targeted rates (black solid and red dashed). B: all spikes from 1,600 E neurons (black, lower) and 400 I neurons (red, upper); dotted lines mark the pulse and shading the close-up. C: the 250–350 ms plateau window. D: unsmoothed population-total counts in 1 ms bins over that window; E contains four times as many neurons as I.
+  Figure 3: Spike timing in the seed-7 simulation, after the hidden 500 ms baseline. A: coincident E- and I-targeted rates (black solid and red dashed). B: all spikes from 1,600 E neurons (black, lower) and 400 I neurons (red, upper); dotted lines mark the pulse and shading the close-up. C: the 250–350 ms plateau window. D: unsmoothed population-total counts in 1 ms bins over that window; E contains four times as many neurons as I.
 </PublishedFigure>
 
 **Notes.**
@@ -70,12 +70,12 @@ Excitatory and inhibitory neurons formed aligned bursts during increased drive (
 ### Reference PING network
 
 <PublishedFigure run="exp099-r010-present" file="susin-destexhe-2021-ping.png" id="loc-11" alt="Published PING column from Susin and Destexhe Figure 4, showing panels B and C: external Poisson drive and the spike raster." >
-  Figure 3: Cropped from Figure 4 (left PING column, panels B and C) of Susin and Destexhe (2021).\[[1](#ref-1)\] © 2021 Susin and Destexhe; reproduced under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). B shows external Poisson drive; C shows the spike raster. Original panel labels and colours are retained.
+  Figure 4: Cropped from Figure 4 (left PING column, panels B and C) of Susin and Destexhe (2021).\[[1](#ref-1)\] © 2021 Susin and Destexhe; reproduced under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). B shows external Poisson drive; C shows the spike raster. Original panel labels and colours are retained.
 </PublishedFigure>
 
 The networks share a drive-dependent response but differ in three respects:
 
-1. Increased E/I excitation strengthens collective activity in both; ours has sharper burst bands ([Fig. 3](#loc-11)B–C [Fig. 2](#loc-9)A–B).
+1. Increased E/I excitation strengthens collective activity in both; ours has sharper burst bands ([Fig. 4](#loc-11)B–C [Fig. 3](#loc-9)A–B).
 
 2. Their raster samples 1,000 E and 1,000 I neurons from 25,000; ours shows all 1,600 E and 400 I neurons.
 
@@ -89,7 +89,7 @@ Sharper bursts may reflect our non-adapting LIF neurons, altered thresholds and 
 
 1. **Construct the modified replication.** We replaced the adapting AdEx neurons in the PING network of Susin and Destexhe (2021)\[[1](#ref-1)\] with 1,600 excitatory and 400 inhibitory conductance-based LIF neurons. Recurrent connections, including possible self-connections, were sampled independently with 10% probability. [Table 1](#loc-14) compares the models. We used a 0.1 ms timestep.
 
-2. **Apply the input protocol.** Each neuron received 400 equivalent independent excitatory Poisson afferents, each adding 4 nS of AMPA conductance. We initialized voltages at −65 mV, simulated a 500 ms hidden baseline, then preserved state through the 600 ms display. From displayed time 200 ms, both populations received a 50% rate increase with a 50 ms rise, 100 ms plateau and 50 ms fall ([interactive replay](#panel-a)C).
+2. **Apply the input protocol.** Each neuron received 400 equivalent independent excitatory Poisson afferents, each adding 4 nS of AMPA conductance. We initialized voltages at −65 mV, simulated a 500 ms hidden baseline, then preserved state through the 600 ms display. From displayed time 200 ms, both populations received a 50% rate increase with a 50 ms rise, 100 ms plateau and 50 ms fall ([Fig. 2](#panel-a)C).
 
 3. **Search input and recurrent strengths.** We tested the 27 combinations of baseline afferent rate &#123;0.4, 0.6, 0.8&#125; Hz, recurrent excitatory weight &#123;1.0, 1.25, 1.5&#125; nS and inhibitory weight &#123;2.7, 3.34, 4.0&#125; nS. All combinations used seed 7 and the same recurrent connectivity; those at each input rate shared afferent spike trains.
 

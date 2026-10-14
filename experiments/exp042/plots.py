@@ -160,6 +160,6 @@ def fig_rhythm_compound(
     theme.label_panels(axes.flat)
     fig.tight_layout(rect=(0, 0, 1, 0.92), h_pad=1.5, w_pad=1.8)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    save_figure(fig, out_path, formats=("png",))  # dense rasters: PNG, not SVG
+    save_figure(fig, out_path, formats=("svg",))
     plt.close(fig)
     plt.rcParams["savefig.bbox"] = prev_bbox

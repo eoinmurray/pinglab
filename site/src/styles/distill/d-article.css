@@ -158,8 +158,37 @@ d-article li:last-child {
 }
 
 d-article pre {
+  box-sizing: border-box;
+  min-width: 0;
+  padding: 20px 24px;
+  border: 1px solid #e5e2d9;
+  border-radius: 8px;
+  background: #f7f6f0;
+  color: #24292e;
   font-size: 14px;
+  line-height: 1.65;
+  tab-size: 4;
   margin-bottom: 20px;
+}
+
+d-article pre.astro-code {
+  background-color: #f7f6f0 !important;
+}
+
+d-article pre code {
+  display: block;
+  width: max-content;
+  min-width: 100%;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: inherit;
+  line-height: inherit;
+}
+
+@media (max-width: 767px) {
+  d-article pre {
+    padding: 16px;
+    font-size: 13px;
+  }
 }
 
 d-article hr {

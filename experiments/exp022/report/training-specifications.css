@@ -1,0 +1,49 @@
+.report-appendix .training-specification {
+  margin-top: 3rem;
+  padding-top: 2rem;
+  color: rgba(0, 0, 0, .78);
+}
+
+.report-appendix .training-specification h3 {
+  margin: 0 0 1.25rem;
+  color: #222;
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.report-appendix .training-specification > p {
+  max-width: 75ch;
+  margin: 0 0 1rem;
+  line-height: 1.75;
+}
+
+.report-appendix .training-specification .source-table {
+  margin-top: 1.75rem;
+}
+
+.report-appendix .training-specification table {
+  table-layout: fixed;
+  min-width: 640px;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.report-appendix .training-specification th,
+.report-appendix .training-specification td {
+  padding: .85rem 1rem;
+}
+
+.report-appendix .training-specification th {
+  color: #222;
+  background: rgba(0, 0, 0, .035);
+}
+
+.report-appendix .training-specification :is(th, td):first-child { width: 22%; }
+.report-appendix .training-specification :is(th, td):nth-child(2) { width: 32%; }
+.report-appendix .training-specification :is(th, td):last-child { width: 46%; }
+
+@media (max-width: 767px) {
+  .report-appendix .training-specification { margin-top: 2rem; padding-top: 1.5rem; }
+  .report-appendix .training-specification h3 { font-size: 18px; }
+}

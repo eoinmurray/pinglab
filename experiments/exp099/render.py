@@ -3,7 +3,8 @@
 from importlib.metadata import version
 
 import matplotlib
-from snnlab import lang as snn, viz  # noqa: TID251
+from snnlab import lang as snn  # noqa: TID251
+from snnlab import viz
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt

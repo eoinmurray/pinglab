@@ -4,10 +4,10 @@ import PostsList from '../../components/PostsList.astro';
 import CollectionHeader from '../../components/CollectionHeader.astro';
 import { getPosts } from '../../lib/posts';
 
-const posts = (await getPosts()).filter(post => post.collection === 'notes');
+const posts = (await getPosts()).filter(post => post.collections.includes('notes'));
 ---
 
-<Page title="Notes" description="Project notes and operational guides from Pinglab.">
+<Page title="Notes" description="Project notes and operational guides from Pinglab." compact>
   <CollectionHeader name="Notes" />
   <PostsList posts={posts} />
 </Page>

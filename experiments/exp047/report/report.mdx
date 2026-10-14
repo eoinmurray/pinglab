@@ -1,0 +1,102 @@
+---
+id: "exp047"
+title: "Pool-Size Effects Depend on Synaptic Scaling"
+created_at: "2026-07-14"
+updated_at: "2026-08-31"
+description: "Paired controls separate fixed summed I→E coupling from fixed expected synaptic strength as the inhibitory pool grows."
+collection: "gamma-gated-sparsity"
+author: "Eoin Murray"
+tags: ["data", "v36.0.0"]
+inputs: ["exp047"]
+---
+
+import ReportAvailability from '../../../site/src/components/ReportAvailability.astro';
+import DataBranch from '../../../site/src/components/DataBranch.astro';
+import RunFigure from '../../../site/src/components/RunFigure.astro';
+
+import { reportData, display, round, mean } from '../../../site/src/lib/report-data';
+export const run = await reportData("exp047", { allowUnavailable: true });
+export const cfg = run?.config;
+export const fixedTotal = run?.summary.fixed_total['2'];
+export const fixedSynapse = run?.summary.fixed_synapse['0.0078125'];
+export const gMid = run ? display(cfg.reference_g_ie[1]) : 'unavailable';
+export const reFtLoFmt = run ? display(round(fixedTotal["16"].r_e_hz_mean, 2)) : 'unavailable';
+export const reFtHiFmt = run ? display(round(fixedTotal["256"].r_e_hz_mean, 2)) : 'unavailable';
+export const nLo = run ? display(cfg.n_i_sweep[0]) : 'unavailable';
+export const nHi = run ? display(cfg.n_i_sweep[2]) : 'unavailable';
+export const jMidNs = run ? display(round(cfg.reference_j_ie[1] * 1000, 2)) : 'unavailable';
+export const reFsLoFmt = run ? display(round(fixedSynapse["16"].r_e_hz_mean, 2)) : 'unavailable';
+export const reFsHiFmt = run ? display(round(fixedSynapse["256"].r_e_hz_mean, 2)) : 'unavailable';
+export const riFsLoFmt = run ? display(round(fixedSynapse["16"].r_i_hz_mean, 2)) : 'unavailable';
+export const riFsHiFmt = run ? display(round(fixedSynapse["256"].r_i_hz_mean, 2)) : 'unavailable';
+export const nSeeds = run ? display(cfg.seeds.length) : 'unavailable';
+export const cfgNBatch = run ? display(cfg.n_batch) : 'unavailable';
+export const cfgNE = run ? display(cfg.n_e) : 'unavailable';
+export const nMid = run ? display(cfg.n_i_sweep[1]) : 'unavailable';
+export const gLo = run ? display(cfg.reference_g_ie[0]) : 'unavailable';
+export const gHi = run ? display(cfg.reference_g_ie[2]) : 'unavailable';
+export const jNsAt0 = run ? display(cfg.reference_j_ie.map(value => value * 1000).at(0)) : 'unavailable';
+export const jNsAt1 = run ? display(cfg.reference_j_ie.map(value => value * 1000).at(1)) : 'unavailable';
+export const jNsAt2 = run ? display(cfg.reference_j_ie.map(value => value * 1000).at(2)) : 'unavailable';
+export const cfgNIReference = run ? display(cfg.n_i_reference) : 'unavailable';
+export const cfgGEiTotal = run ? display(cfg.g_ei_total) : 'unavailable';
+export const rRecipeWInMean = run ? display(run.recipe.w_in_mean) : 'unavailable';
+export const initialZeroPercent = run ? display(round(run.recipe.w_in_initial_zero_fraction * 100)) : 'unavailable';
+export const cfgNIn = run ? display(cfg.n_in) : 'unavailable';
+export const cfgInputRateHz = run ? display(cfg.input_rate_hz) : 'unavailable';
+export const cfgDtMs = run ? display(cfg.dt_ms) : 'unavailable';
+export const cfgTMs = run ? display(cfg.t_ms) : 'unavailable';
+export const seeds = run ? display(cfg.seeds.map(String).join(", ")) : 'unavailable';
+export const conditionSeedCount = run ? display(14 * cfg.seeds.length) : 'unavailable';
+
+<ReportAvailability report="exp047" />
+
+<span id="loc-1" />
+
+## Abstract
+
+We asked whether inhibitory population size alters PING activity by adding inhibition or merely redistributing a fixed inhibitory budget. We compared pool-size sweeps that held either summed inhibition or individual synaptic strength fixed.
+
+Firing rates stayed stable under fixed total inhibition but fell as the pool grew when individual synaptic strength was preserved. This supports inverse scaling as a compensation rule for this regime; it does not establish uniqueness or demonstrate gamma rhythmicity.
+
+<span id="loc-2" />
+
+## Results
+
+<span id="loc-3" />
+
+### Pool-size scaling response
+
+At nominal $G_{I \to E} =$ {gMid} μS, E rates changed from {reFtLoFmt} to {reFtHiFmt} Hz across {nLo}–{nHi} I neurons. At $\bar{w}_{I \to E} \approx$ {jMidNs} nS, E rates fell from {reFsLoFmt} to {reFsHiFmt} Hz and I rates from {riFsLoFmt} to {riFsHiFmt} Hz. All tested fixed-mean levels showed this decrease, consistent with stronger summed inhibition and reduced E–I feedback ([Fig. 1](#loc-4)).
+
+<RunFigure report="exp047" experiment="exp047" allowUnavailable file="pool_size_controls.svg" number={1} id="loc-4" alt="Four panels of E and I firing rates for inhibitory pools of 16, 64 and 256 neurons. Fixed summed coupling gives nearly flat rates; fixed expected synaptic strength gives falling rates.">
+  **Reanalysed population firing rates.** **(A)** Excitatory (E) rate with fixed expected summed coupling $G_{I \to E}$; **(B)** E rate with fixed expected synaptic strength $\bar{w}_{I \to E}$; **(C)** inhibitory (I) rate with fixed summed coupling; **(D)** I rate with fixed synaptic strength. Markers are means ±1 sample standard deviation across {nSeeds} seeds, with {cfgNBatch} trials per seed. Shared conditions reused the same simulations.
+</RunFigure>
+
+<span id="loc-5" />
+
+## Methods
+
+We compared two scaling controls using recorded outputs from simulations of untrained, dense recurrent excitatory–inhibitory networks, without additional simulation.
+
+1. **Initialize fan-in-normalized weights.** For an I→E matrix with {cfgNE} excitatory columns and $N_{I}$ inhibitory rows, each weight was $W_{k j}^{I E} = \frac{G_{\text{draw}}}{N_{I}}$, with $G_{\text{draw}} = \max ( 0 , X )$ and $X \sim \mathcal{N} ( \mu_{\text{init}} , \sigma_{\text{init}}^{2} )$ a Gaussian draw of mean $\mu_{\text{init}}$ and standard deviation $\sigma_{\text{init}} = 0.1 \mu_{\text{init}}$, in μS. Defining expected summed coupling $G_{I \to E} = \mathcal{E} [ G_{\text{draw}} ]$ gives
+
+   $$
+   \mathcal{E} [ W_{k j}^{I E} ] = \bar{w}_{I \to E} = \frac{G_{I \to E}}{N_{I}} , \quad \mathcal{E} [ \sum_{k = 1}^{N_{I}} W_{k j}^{I E} ] = G_{I \to E} .
+   \tag{1}
+   $$
+
+   Here $\mathcal{E}$ averages over weight initialization, $k$ indexes inhibitory neurons and $j$ excitatory neurons; $\bar{w}_{I \to E}$ is the expected conductance of one synapse, not an identical realised weight. An inhibitory volley gives
+
+   $$
+   \Delta g_{\text{inh,post=E} , j} = \sum_{k \in \mathcal{I}_{\text{active}}} W_{k j}^{I E} ,
+   \tag{2}
+   $$
+
+   where $\mathcal{I}_{\text{active}}$ is the active inhibitory set and $\Delta g_{\text{inh,post=E} , j}$ the inhibitory conductance increment at E neuron $j$, in μS; both weights and participation therefore enter the increment.
+
+2. **Apply paired pool-size controls.** We swept $N_{I} \in \{${nLo}, {nMid}, {nHi}$\}$. Fixed-summed controls used parent means $\mu_{\text{init}} \in \{${gLo}, {gMid}, {gHi}$\}$ μS, so $\bar{w}_{I \to E} \propto \frac{1}{N_{I}}$; fixed-mean-synapse controls scaled $\mu_{\text{init}}$ with $N_{I}$, giving nominal $\bar{w}_{I \to E} \in \{${jNsAt0}, {jNsAt1}, {jNsAt2}$\}$ nS. Nominal values approximate the post-clamp expectations; the arms coincide at {cfgNIReference} I neurons, with one additional shared condition at {nMid} I neurons and nominal 1 μS summed coupling.
+
+3. **Drive and measure the networks.** Nominal E→I summed coupling stayed at {cfgGEiTotal} μS; input weights used parent mean {rRecipeWInMean} μS, {initialZeroPercent}% initial zeros, compensation for zeroing and fan-in normalization. Each network received {cfgNIn} independent {cfgInputRateHz} Hz input channels, implemented as Bernoulli spikes per {cfgDtMs} ms timestep, for {cfgTMs} ms and {cfgNBatch} trials, with seeds {seeds}. We included all conditions and averaged spike counts over the full duration, trials and neurons within each population; overlapping controls reused measurements, giving {nSeeds} seeds at each of 18 conditions from {conditionSeedCount} distinct simulations. The reanalysis used these rates, not raw spike trains; population rates alone do not establish gamma oscillations \[[1](#ref-1)\].
+
+4. **Display pool-size comparisons.** We displayed the recorded population-rate responses for fixed total and fixed per-synapse coupling with their shared controls and seed aggregation.

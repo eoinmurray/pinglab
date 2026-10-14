@@ -221,11 +221,25 @@ def analyse(identity, *, run_id=None):
 
 def main():
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("--source", required=True)
+    sources = p.add_mutually_exclusive_group(required=True)
+    sources.add_argument("--source")
+    sources.add_argument("--reuse-analysis")
+    p.add_argument("--baseline-bank")
     p.add_argument("--run-id")
     a = p.parse_args()
     try:
-        analyse(a.source, run_id=a.run_id)
+        if a.reuse_analysis:
+            if not a.baseline_bank:
+                p.error("--reuse-analysis requires --baseline-bank")
+            from experiments.exp025.full_mnist_baseline import (
+                analyse as baseline_analyse,
+            )
+
+            baseline_analyse(REPO, a.reuse_analysis, a.baseline_bank, run_id=a.run_id)
+        else:
+            if a.baseline_bank:
+                p.error("--baseline-bank requires --reuse-analysis")
+            analyse(a.source, run_id=a.run_id)
     except (PingstoreError, OSError, KeyError, ValueError) as exc:
         p.exit(1, f"exp025 analyse: {exc}\n")
 

@@ -569,5 +569,5 @@ def fig_results_compound(frontier_stats, curves, npz_coba, npz_ping, out_path):
 
     theme.label_panels((*raster_axes, ax_acc, ax_fr))
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    save_figure(fig, out_path, formats=("png", "pdf"))  # dense rasters: PNG, not SVG
+    save_figure(fig, out_path, formats=("svg", "pdf"))
     plt.close(fig)

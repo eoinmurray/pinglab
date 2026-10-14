@@ -1,5 +1,32 @@
 # exp080 — empirical input-rate calibration
 
+For GPU compute on Modal, use the [shared Modal wrapper](../helpers/MODAL.md)
+with `--experiment exp080`. It downloads a validated compute run to local Pingstore.
+
+## Native production run — 2026-10-14
+
+`exp080-r001-compute` completed on Modal A10G/CUDA in 1 hour 36 minutes
+51 seconds, excluding setup and transfer. Each of seeds 42, 43 and 44 trained
+for 50 epochs on 20,000 MNIST images with 5,000 validation images, followed by
+evaluation on 5,000 held-out images at each of eight rates. The selected epochs
+were 50, 25 and 44. Decoder states were kept in memory through evaluation;
+retained outputs include training histories, held-out correctness, illustrative
+feature samples and scientific metadata.
+
+The wrapper retained the completed compute on its Modal Volume and downloaded
+it to local Pingstore. Local `exp080-r002-analyse` pins that compute;
+`exp080-r003-present` pins both compute and analysis and exports three SVG
+figures, `numbers.json` and `decision.json`. The existing criterion selected
+0.5–25 Hz: every decoder exceeded 50% held-out accuracy at 0.5 Hz, with scores
+62.7–63.88%.
+
+All three v4 layouts, payload checksums, exact lineage, 120,000 held-out
+correctness entries and analysis/presentation decision agreement were validated.
+The three figures were visually checked and read-only discovery lists the
+presentation. The relocated article now carries `data` and references the native
+SVG feature illustration; authored dates and review status were preserved.
+No exp080 temporary run directories remain. No publication or test suite was run.
+
 Local-data update, 2026-10-05: runs unused by the latest exp110 manuscript
 were explicitly deleted. Historical operation and size reports below describe
 the earlier store; they do not establish current local availability.

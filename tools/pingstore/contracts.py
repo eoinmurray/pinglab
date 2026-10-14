@@ -12,12 +12,43 @@ from typing import Any
 
 RUN_SCHEMA = "pingstore.run/v4"
 EXPERIMENT_RE = re.compile(r"^exp[0-9]{3}$")
-STAGE_ID_RE = re.compile(r"^(exp[0-9]{3})-r([0-9]{3,})-(compute|analyse|present)$")
+STAGE_ID_RE = re.compile(
+    r"^(exp[0-9]{3})-r([0-9]{3,})-(compute|analyse|present)(?:(?<=compute)-phase-([a-z][a-z0-9]*(?:-[a-z0-9]+)*))?$"
+)
+PHASE_RE = re.compile(r"[a-z][a-z0-9]*(?:-[a-z0-9]+)*")
 VIEW_RE = re.compile(r"^[a-z0-9][a-z0-9./-]*$")
 
 
 class PingstoreError(ValueError):
     """Raised when the flat store violates its filesystem contract."""
+
+
+def validate_compute_scope(value: dict[str, Any]) -> None:
+    """Validate explicit scopes without rewriting older v4 full-run evidence."""
+    match = STAGE_ID_RE.fullmatch(str(value.get("run_id", "")))
+    if match is None:
+        raise PingstoreError("invalid scoped run identity")
+    suffix = match.group(4)
+    scope, phase = value.get("scope"), value.get("phase")
+    if value.get("stage") != "compute":
+        if suffix is not None or "scope" in value or "phase" in value:
+            raise PingstoreError("only compute runs may declare scope or phase")
+    elif scope == "phase":
+        if (
+            not isinstance(phase, str)
+            or not PHASE_RE.fullmatch(phase)
+            or suffix != phase
+        ):
+            raise PingstoreError("compute phase metadata and identity must agree")
+    elif scope in (None, "full"):
+        if (
+            suffix is not None
+            or "phase" in value
+            or ("scope" in value and scope is None)
+        ):
+            raise PingstoreError("full compute runs must not declare a phase")
+    else:
+        raise PingstoreError("compute scope must be full or phase")
 
 
 def load_json(path: Path) -> dict[str, Any]:
@@ -66,6 +97,7 @@ def validate_run(value: dict[str, Any]) -> dict[str, Any]:
         raise PingstoreError("stage must be compute, analyse or present")
     if match is None or match.group(1) != experiment or match.group(3) != stage:
         raise PingstoreError("run_id must encode experiment, counter and stage")
+    validate_compute_scope(value)
     if not isinstance(value.get("inputs"), dict):
         raise PingstoreError("runs require explicit inputs (empty for new compute)")
     for role, reference in value["inputs"].items():
@@ -73,11 +105,15 @@ def validate_run(value: dict[str, Any]) -> dict[str, Any]:
             raise PingstoreError("invalid input role/reference")
         if set(reference) != {"run_id", "payload_digest"}:
             raise PingstoreError("input pins contain only run_id and payload_digest")
-        if not isinstance(reference.get("run_id"), str) or not STAGE_ID_RE.fullmatch(reference["run_id"]):
+        if not isinstance(reference.get("run_id"), str) or not STAGE_ID_RE.fullmatch(
+            reference["run_id"]
+        ):
             raise PingstoreError("input must name a completed v4 run")
         if reference["run_id"] == run_id:
             raise PingstoreError("run cannot be its own input")
-        if not re.fullmatch(r"sha256:[0-9a-f]{64}", str(reference.get("payload_digest", ""))):
+        if not re.fullmatch(
+            r"sha256:[0-9a-f]{64}", str(reference.get("payload_digest", ""))
+        ):
             raise PingstoreError("input requires a payload checksum")
     for key in ("collection", "origin", "created_at"):
         if not isinstance(value.get(key), str) or not value[key]:
@@ -205,7 +241,9 @@ def validate_run_directory(directory: Path) -> dict[str, Any]:
     if "data_root" in run:
         raise PingstoreError("data_root is obsolete; use export_root beneath export/")
     if "export_root" in run:
-        raise PingstoreError("export_root is obsolete; unit directories live directly under export/")
+        raise PingstoreError(
+            "export_root is obsolete; unit directories live directly under export/"
+        )
     if payload_digest(directory) != run["payload_digest"]:
         raise PingstoreError(f"payload checksum mismatch: {directory}")
     return run

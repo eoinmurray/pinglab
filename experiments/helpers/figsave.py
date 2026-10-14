@@ -1,5 +1,8 @@
 """Emit a figure once, in every format the project consumes.
 
+Plot exports default to **SVG** and **PDF**. PNG is reserved for raster source
+images and video posters, or an explicit caller requirement.
+
 The docs site embeds vector **SVG** (browser-native, themeable, scales without
 the font-shrink you get from rescaling a fixed-size PDF); the LaTeX manuscript
 embeds vector **PDF**. Both come from the same Matplotlib figure object, so the

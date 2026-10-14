@@ -8,7 +8,7 @@ from pingstore.membership import membership, memberships
 
 
 def _report(repo: Path, experiment: str, collection: str) -> None:
-    path = repo / "md" / "experiments" / experiment / "report.mdx"
+    path = repo / "experiments" / experiment / "report" / "report.mdx"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(f'---\nid: {experiment}\ncollection: {collection}\n---\n')
 

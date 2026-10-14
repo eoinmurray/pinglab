@@ -14,6 +14,7 @@ from experiments.exp022 import compute as exp022_compute
 """Synthetic contract tests; never use the workspace store or real inference."""
 
 from types import SimpleNamespace
+from xml.etree import ElementTree
 
 import pytest
 import torch
@@ -28,7 +29,6 @@ from experiments.exp082 import (
     present,
     recipe,
 )
-from PIL import Image
 from pingstore import stages
 from pingstore.contracts import (
     PingstoreError,
@@ -380,7 +380,7 @@ def fake_plots(monkeypatch):
         present,
         "build_continuous_stream_compound",
         lambda hero, summary, output: (
-            output.with_suffix(".png").write_text("figure"),
+            output.with_suffix(".svg").write_text("figure"),
             output.with_suffix(".pdf").write_text("figure"),
         ),
     )
@@ -422,8 +422,9 @@ def test_continuous_stream_compound_preserves_evidence(tmp_path, monkeypatch):
     for line in fig.axes[3].lines[:-1]:
         assert np.ptp(line.get_xdata()) < 5
     assert np.array_equal(shares, np.full((n, 10), 0.1))
-    with Image.open(output.with_suffix(".png")) as compound:
-        assert np.allclose(compound.size, fig.get_size_inches() * 600, atol=1)
+    view_box = ElementTree.parse(output.with_suffix(".svg")).getroot().attrib["viewBox"]
+    _, _, width, height = map(float, view_box.split())
+    assert np.allclose((width, height), fig.get_size_inches() * 72, atol=1)
     assert output.with_suffix(".pdf").stat().st_size > 100
 
 

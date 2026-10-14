@@ -48,15 +48,15 @@ SHOWCASE_TARGETS = {"hero": 5, "alternative": 3}
 SINGLE_TRIAL_TRANSITION_WINDOW_MS = (91.5, 94.5)
 CLASS_PROBABILITY_TICKS = (0.0, 0.25, 0.5, 0.75, 1.0)
 FIGURES = (
-    "hero_stream.png",
-    "alternative_stream.png",
-    "single_trial.png",
-    "single_trial_transition.png",
-    "matched_stream.png",
-    "variable_stream.png",
+    "hero_stream.svg",
+    "alternative_stream.svg",
+    "single_trial.svg",
+    "single_trial_transition.svg",
+    "matched_stream.svg",
+    "variable_stream.svg",
     "psychometric_200ms.svg",
-    "duration_rate_summary.png",
-    "continuous_stream_compound.png",
+    "duration_rate_summary.svg",
+    "continuous_stream_compound.svg",
     "continuous_stream_compound.pdf",
 )
 

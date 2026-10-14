@@ -176,7 +176,7 @@ def _retirement_scope(
     if missing:
         raise PingstoreError(f"retirement experiment has no runs: {', '.join(missing)}")
     for experiment in sorted(retired):
-        writing = repo / "md" / "experiments" / experiment / "report.mdx"
+        writing = repo / "experiments" / experiment / "report" / "report.mdx"
         legacy = repo / "experiments" / f"{experiment}.py"
         staged = repo / "experiments" / experiment
         if writing.is_file():

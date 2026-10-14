@@ -454,7 +454,7 @@ def plot_condition_card(
 
     theme.label_panels((ax_wei, ax_wie, ax_rate, ax_acc, ax_psd, ax_rast))
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    save_figure(fig, out_path, formats=("png", "pdf"))
+    save_figure(fig, out_path, formats=("svg", "pdf"))
     plt.close(fig)
 
 
@@ -1007,5 +1007,5 @@ def fig_training_summary(data, out_path: Path, run_id: str) -> None:
             rotation=25,
             ha="right",
         )
-    save_figure(fig, out_path, formats=("svg", "pdf", "png"))
+    save_figure(fig, out_path, formats=("svg", "pdf"))
     plt.close(fig)

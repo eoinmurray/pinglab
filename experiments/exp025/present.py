@@ -7,36 +7,13 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
 from experiments.exp025 import inputs, plots
-from experiments.exp025.analyse import MEASUREMENT, MEASUREMENT_V1
 from experiments.helpers import theme
-from pingstore.contracts import PingstoreError, load_json, write_json_atomic
+from pingstore.contracts import PingstoreError, write_json_atomic
 
 
 def present(identity, *, run_id=None):
     source = inputs.source(REPO, identity, "analyse")
-    refs = source.record["inputs"]
-    if set(refs) != {"compute", "bank"}:
-        raise PingstoreError("analysis must pin compute and bank")
-    compute = inputs.source(
-        REPO, refs["compute"]["run_id"], "compute", reference=refs["compute"]
-    )
-    cfg, bank, _ = inputs.compute_evidence(REPO, compute)
-    result = load_json(source.export / "results.json")
-    analysis_schema = result.get("schema")
-    expected_measurement = (
-        MEASUREMENT_V1 if analysis_schema == "exp025.analysis/v1" else MEASUREMENT
-    )
-    if (
-        refs["bank"] != bank.reference
-        or analysis_schema not in ("exp025.analysis/v1", "exp025.analysis/v2")
-        or result.get("recipe") != cfg
-        or source.record["execution"].get("configuration") != expected_measurement
-        or (
-            analysis_schema == "exp025.analysis/v1"
-            and result.get("measurement") != MEASUREMENT_V1
-        )
-    ):
-        raise PingstoreError("analysis evidence or bank pin differs")
+    result = inputs.analysis_evidence(REPO, source)
     with inputs.execution(
         REPO,
         "present",

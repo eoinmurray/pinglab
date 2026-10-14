@@ -78,5 +78,5 @@ def plot_feature_images(
         axis.set_xticks([])
         axis.set_yticks([])
     theme.label_panels(axes)
-    fig.savefig(output / "feature_images.png", dpi=240)
+    fig.savefig(output / "feature_images.svg", dpi=240)
     plt.close(fig)

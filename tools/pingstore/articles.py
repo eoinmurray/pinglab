@@ -27,10 +27,7 @@ class _ReportLoader(yaml.SafeLoader):
 
 def articles(repo: Path) -> dict[str, dict[str, Any]]:
     result = {}
-    paths = sorted((repo / "md" / "experiments").glob("exp[0-9][0-9][0-9]/report.mdx"))
-    paths += sorted((repo / "experiments").glob("exp[0-9][0-9][0-9]/report/report.mdx"))
-    for path in paths:
-        experiment = path.parent.parent.name if path.parent.name == "report" else path.parent.name
+    for path in sorted((repo / "experiments").glob("exp[0-9][0-9][0-9]/report/report.mdx")):
         match = re.match(r"\A---\r?\n(.*?)\r?\n---(?:\r?\n|\Z)", path.read_text(), re.S)
         if match is None:
             raise PingstoreError(f"report requires YAML frontmatter: {path}")
@@ -38,7 +35,7 @@ def articles(repo: Path) -> dict[str, dict[str, Any]]:
             value = yaml.load(match[1], Loader=_ReportLoader)
         except yaml.YAMLError as exc:
             raise PingstoreError(f"invalid report frontmatter: {path}") from exc
-        if not isinstance(value, dict) or value.get("id") != experiment:
+        if not isinstance(value, dict) or value.get("id") != path.parent.parent.name:
             raise PingstoreError(f"report ID must match its experiment: {path}")
         inputs = value.get("inputs", [])
         if not isinstance(inputs, list) or any(
@@ -55,5 +52,5 @@ def articles(repo: Path) -> dict[str, dict[str, Any]]:
             raise PingstoreError(f"invalid report presentation pins: {path}")
         value["inputs"] = inputs
         value["runs"] = pins
-        result[experiment] = value
+        result[path.parent.parent.name] = value
     return result

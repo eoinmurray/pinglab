@@ -1,5 +1,7 @@
 ---
 import 'katex/dist/katex.min.css';
+import '../styles/article-list.css';
+import SiteSearch from '../components/SiteSearch.astro';
 import base from '../styles/distill/styles-base.css?raw';
 import layout from '../styles/distill/styles-layout.css?raw';
 import titleStyle from '../styles/distill/d-title.css?raw';
@@ -13,9 +15,10 @@ interface Props {
   title: string;
   description?: string;
   frontMatter?: Record<string, unknown>;
+  compact?: boolean;
 }
 
-const { title, description, frontMatter } = Astro.props;
+const { title, description, frontMatter, compact = false } = Astro.props;
 const canonicalPath = Astro.url.pathname.replace(/\/+$/, '') + '/';
 const canonicalUrl = new URL(canonicalPath, Astro.site);
 const distillStyles = base + layout + titleStyle + byline + article + math + appendix + print;
@@ -36,10 +39,11 @@ const frontMatterJson = JSON.stringify(frontMatter ?? null).replaceAll('<', '\\u
   </head>
   <body distill-prerendered>
     {frontMatter && <d-front-matter><script is:inline type="application/json" set:html={frontMatterJson} /></d-front-matter>}
-    <header class="site-header base-grid">
-      <nav class="l-page" aria-label="Site">
+    <header class:list={['site-header', 'base-grid', { compact }]}>
+      <nav class:list={['l-page', { 'listing-width': compact }]} aria-label="Site">
         <a href="/">Pinglab</a>
         <div class="nav-links">
+          <SiteSearch />
           <a href="/collections">Collections</a>
           <a class="github-link" href="https://github.com/eoinmurray/pinglab" aria-label="Pinglab on GitHub">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false">

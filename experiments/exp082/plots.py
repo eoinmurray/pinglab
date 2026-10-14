@@ -560,6 +560,6 @@ def plot_continuous_stream_compound(
             box = axis.get_position()
             fig.text(0.022 if axis in axes else 0.68, box.y1, label,
                      fontsize=10, weight="bold", va="top")
-        fig.savefig(output_stem.with_suffix(".png"), dpi=600, facecolor="white")
+        fig.savefig(output_stem.with_suffix(".svg"), dpi=600, facecolor="white")
         fig.savefig(output_stem.with_suffix(".pdf"), facecolor="white")
         plt.close(fig)

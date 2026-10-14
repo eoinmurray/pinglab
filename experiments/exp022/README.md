@@ -2,7 +2,7 @@
 
 Exp022 owns a 102-cell COBA/PING training registry used by several downstream
 experiments. Operational execution follows the repository [Experiment Runner
-Guide](../README.md) and requires `pingstore.run/v4`.
+Guide](../../md/notes/experiment-runner-guide.md) and requires `pingstore.run/v4`.
 
 ## Code layout
 
@@ -37,6 +37,14 @@ uv run python experiments/exp022/present.py --source <analyse-run-id>
 Bank-array, import, recovery, and diagnostic modes are explicit operations. Use
 `compute.py --help` and `hpc.py --help` for their arguments. No exp022 command
 schedules other experiments, analyses, presentations, or publication.
+
+For the article's seven paired learning-curve/raster figures, render a completed
+analysis with `present.py --source <analyse-run-id> --training-overview`.
+Each TR family shows every retained validation learning history on the left
+and an explicitly selected seed-42 final-epoch digit-zero probe on the right.
+The chosen raster cells are recorded in execution configuration, figure lineage,
+and `numbers.json`. This mode requires their measured raster arrays and does
+not reconstruct missing recordings or run training or inference.
 
 Completed runs contain exactly `run.json`, `README.md`, and `export/`. The 102
 model cells are direct scientific-unit directories in compute exports. Analysis

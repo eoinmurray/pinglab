@@ -52,7 +52,7 @@ FIGURES = tuple(
         "w_in_scale_sweep_vs_rate",
     )
     for ext in ("svg", "pdf")
-) + tuple(f"results_compound.{ext}" for ext in ("png", "pdf"))
+) + tuple(f"results_compound.{ext}" for ext in ("svg", "pdf"))
 
 
 def refractory_configuration() -> dict:

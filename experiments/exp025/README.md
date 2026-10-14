@@ -25,6 +25,22 @@ controls. Their final-epoch checkpoints and training histories are validated
 before inference or analysis and their complete ancestry is checked again before
 stage completion.
 
+To replace only Figure 1 A–C with the full-MNIST reference classifiers, explicitly
+name the existing endpoint analysis and the completed training bank:
+
+```sh
+uv run python experiments/exp025/analyse.py --reuse-analysis <exp025-analyse-run> --baseline-bank <exp022-compute-run>
+uv run python experiments/exp025/present.py --source <new-exp025-analyse-run>
+```
+
+This analysis measures the six `TR-01` validation histories (54,000 optimization
+and 6,000 validation images) and transforms the retained seed-42 final-checkpoint,
+200-ms digit-0 recordings into rasters. It retains all reduced-pool frontier
+measurements and other analysis values exactly. No training or inference is
+launched. Figure 1 D still uses the separate `TR-02` group (6,300 optimization
+and 700 validation images). Both inputs and their ancestry are validated and
+checksum-pinned; neither existing run is changed.
+
 Production compute executes 98 inference jobs:
 
 - 36 official-test frontier evaluations;

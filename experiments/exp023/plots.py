@@ -216,7 +216,7 @@ def plot_raster_compound(
 
     # Label every row from left to right.
     theme.label_panels((*arch_axes, *raster_axes, *lower_axes))
-    save_figure(fig, out_path, formats=("png", "pdf"))  # dense raster: PNG, not SVG
+    save_figure(fig, out_path, formats=("svg", "pdf"))
     plt.close(fig)
 
 
