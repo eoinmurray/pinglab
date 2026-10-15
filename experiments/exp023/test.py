@@ -309,8 +309,12 @@ def test_old_recipes_are_rejected_before_downstream_run_creation(repo, schema):
 
 @pytest.mark.parametrize("cell", recipe.CELLS)
 def test_graph_matches_independent_kernel_schedule(monkeypatch, cell):
-    from snnlab.sim.execution import GraphExecutor, plan_graph
-    from snnlab.sim.models import fast_sigmoid_spike, lif_step_expeuler
+    from snnlab.sim import (
+        GraphExecutor,
+        fast_sigmoid_spike,
+        lif_step_expeuler,
+        plan_graph,
+    )
 
     cfg = recipe.configuration()
     cfg.update(n_e=16, n_i=4)
@@ -366,7 +370,7 @@ def test_graph_matches_independent_kernel_schedule(monkeypatch, cell):
 
 
 def test_native_sweep_reductions_match_full_raster_counts():
-    from snnlab.sim.execution import simulate
+    from snnlab.sim import simulate
 
     cfg = recipe.configuration()
     cfg.update(n_e=16, n_i=4)
@@ -405,8 +409,9 @@ def test_recipe_v4_records_graph_protocol_without_cli_arguments():
     point = cfg["drive"]["raster_operating_points"]["ping"]
     bundle = recipe.author_network(cfg, point, traces=True)
     populations = {row["id"]: row for row in bundle.graph["populations"]}
-    assert populations["E"]["neuron"]["refractory_steps"] == 12
-    assert populations["I"]["neuron"]["refractory_steps"] == 6
+    assert populations["E"]["neuron"]["refractory"] == {"value": 1.2, "unit": "ms"}
+    assert populations["I"]["neuron"]["refractory"] == {"value": 0.6, "unit": "ms"}
+    assert bundle.graph["refractory_timing"] == "legacy_coba"
     projections = {row["id"]: row for row in bundle.graph["projections"]}
     assert projections["I_to_E"]["synapse"]["tau"] == {"value": 6.0, "unit": "ms"}
     assert all(

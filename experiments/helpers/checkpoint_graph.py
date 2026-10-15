@@ -7,11 +7,10 @@ read-only [source, target] data; this module never constructs a CLI simulator.
 from __future__ import annotations
 
 import torch
-from experiments.helpers.ping import build_ping
+from experiments.helpers.ping import build_ping, compile_legacy_coba
 from pingstore.contracts import PingstoreError
 from snnlab import lang
-from snnlab.sim.execution import GraphExecutor, plan_graph, resolve_device
-from snnlab.sim.timing import refractory_steps
+from snnlab.sim import GraphExecutor, plan_graph, resolve_device
 
 PARAMETERS = {
     "input_to_E.weight": "W_ff.0",
@@ -44,11 +43,7 @@ def author_network(name, training, biophysics, refractory, *, observables=()):
             threshold_mv=biophysics["threshold_mv"],
             reset_mv=biophysics["reset_mv"],
             initial_voltage_mv=biophysics["resting_mv"],
-            refractory_steps=refractory_steps(
-                refractory[f"refractory_{label}_ms"],
-                dt,
-                policy=refractory["refractory_policy"],
-            ),
+            refractory=refractory[f"refractory_{label}_ms"] * lang.ms,
             voltage_grad_dampen=training["v_grad_dampen"],
         )
     circuit = build_ping(
@@ -88,7 +83,7 @@ def author_network(name, training, biophysics, refractory, *, observables=()):
     )
     net.output(
         "class_scores",
-        lang.ops.reduce(
+        lang.reduce(
             output.pre_reset_voltage
             if training.get("readout_mode", "mem-mean") == "mem-mean"
             else output.spikes,
@@ -102,7 +97,7 @@ def author_network(name, training, biophysics, refractory, *, observables=()):
     for label, pop in (("e", circuit.e), ("i", circuit.i)):
         net.output(
             f"spk_{label}_count",
-            lang.ops.reduce(
+            lang.reduce(
                 pop.spikes, operation="sum", over="time", name=f"{label}_counts"
             ),
         )
@@ -117,7 +112,7 @@ def author_network(name, training, biophysics, refractory, *, observables=()):
             "gi_e": circuit.i_to_e.conductance,
         }.items():
             net.expose(value, name=key)
-    return lang.compile(net, target="tools/snnsim")
+    return compile_legacy_coba(net)
 
 
 def checkpoint_tensors(path, training):

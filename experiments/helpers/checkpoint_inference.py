@@ -14,11 +14,14 @@ import torch.nn.functional as F
 from experiments.exp022.checkpoints import resolve_checkpoint
 from experiments.helpers import checkpoint_graph
 from pingstore.contracts import PingstoreError, file_sha256, write_json_atomic
-from snnlab.sim.datasets import load_dataset
-from snnlab.sim.encoders import encode_images_poisson
-from snnlab.sim.execution import resolve_device
-from snnlab.sim.streaming import RecordingSpec, SignalRecording
-from snnlab.sim.timing import duration_steps
+from snnlab.lang import duration_steps
+from snnlab.sim import (
+    RecordingSpec,
+    SignalRecording,
+    encode_images_poisson,
+    load_dataset,
+    resolve_device,
+)
 
 
 def run_inference(

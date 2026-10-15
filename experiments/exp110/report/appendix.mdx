@@ -105,8 +105,6 @@ $$
 
 Here, $c$ indexes output classes. These weights were dimensionless and used no additional Bernoulli zeroing or fan-in normalization. Their parent mean and standard deviation follow Table A1 for TR01–TR05 and the continuous-stream Methods for TR06.
 
-<figure class="table-figure l-body">
-
 <Table
   headers={["Parameter", "Standard value"]}
   rows={[
@@ -130,16 +128,10 @@ Here, $c$ indexes output classes. These weights were dimensionless and used no a
     ["Epochs; minibatch size", "50; 256"],
     ["Weight decay; gradient-norm limit", "0; 1"],
     ["Surrogate slope; voltage-gradient damping", "1; 1,000 (loop-on and loop-off)"],
-  ]}
-/>
-
-<figcaption>
-
-Table A1: **Standard spiking-classifier parameters and exceptions.** Values describe standard classifiers, not the separate mean-field model. [Fig. 1](#loc-5) used input parent mean/SD 1.5/0.3 µS and loop-on recurrent parent means 1.5/3 µS. Coupling strengths, inhibitory decay times and timesteps varied in their respective sweeps. TR06 ([Fig. 10](#loc-17)) used readout parent mean/SD 0.05/0.04 and variable input rates; stream durations varied during evaluation. Readout initialization values are rounded.
-
-</figcaption>
-
-</figure>
+  ]} number="A1"
+>
+  **Standard spiking-classifier parameters and exceptions.** Values describe standard classifiers, not the separate mean-field model. [Fig. 1](#loc-5) used input parent mean/SD 1.5/0.3 µS and loop-on recurrent parent means 1.5/3 µS. Coupling strengths, inhibitory decay times and timesteps varied in their respective sweeps. TR06 ([Fig. 10](#loc-17)) used readout parent mean/SD 0.05/0.04 and variable input rates; stream durations varied during evaluation. Readout initialization values are rounded.
+</Table>
 
 <span id="appendix-b" />
 
@@ -236,8 +228,6 @@ The upward sweep used 25 equally spaced currents from $I_{\text{ext}}^{\ast} - 0
 
 For gain integration, negative dimensionless arguments $u$ used the scaled complementary error function $\text{erfcx} ( - u )$ to avoid cancellation; nonnegative arguments capped $u^{2}$ at 700.
 
-<figure class="table-figure l-body">
-
 <Table
   headers={["Numerical operation", "Method and setting"]}
   rows={[
@@ -248,16 +238,10 @@ For gain integration, negative dimensionless arguments $u$ used the scaled compl
     ["Onset refinement", { markdown: "Brent’s method; absolute current tolerance $10^{- 12}$ nA and relative tolerance $10^{- 12}$; transversality step $10^{- 5}$ nA" }],
     ["Upward/downward integration", { markdown: "LSODA; relative tolerance $10^{- 7}$; scalar absolute tolerance $10^{- 10}$; maximum step 1 ms; no supplied Jacobian" }],
     ["Amplitude sampling", "Peak-to-peak excitatory rate over 1,001 fixed samples spanning the final 500 ms of each 2,000-ms integration"],
-  ]}
-/>
-
-<figcaption>
-
-Table C1: **Numerical settings for mean-field continuation, onset refinement and amplitude sweeps.** Calculations used SciPy 1.15.3. Quadrature tolerances used library defaults. The absolute integration tolerance applied to rates in ${\text{ms}}^{- 1}$ and conductances in µS; relative tolerances were dimensionless. Unlisted solver options retained their defaults.
-
-</figcaption>
-
-</figure>
+  ]} number="C1"
+>
+  **Numerical settings for mean-field continuation, onset refinement and amplitude sweeps.** Calculations used SciPy 1.15.3. Quadrature tolerances used library defaults. The absolute integration tolerance applied to rates in ${\text{ms}}^{- 1}$ and conductances in µS; relative tolerances were dimensionless. Unlisted solver options retained their defaults.
+</Table>
 
 **C3 — Criticality calculation.** We defined the hysteresis gap as the maximum absolute difference between upward and downward peak-to-peak excitatory-rate amplitudes at matched currents. For the amplitude-squared regression, we included all upward-sweep points satisfying $I_{\text{ext}} > I_{\text{ext}}^{\ast} + 10^{- 9}$ nA, where $I_{\text{ext}}^{\ast}$ is the refined onset current. Membership depended only on current, without an amplitude cutoff.
 

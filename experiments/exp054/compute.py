@@ -14,9 +14,8 @@ import numpy as np
 import torch
 from experiments.exp054 import evidence, inputs, recipe
 from pingstore.contracts import PingstoreError, write_json_atomic
-from snnlab.sim.execution import GraphExecutor, plan_graph
-from snnlab.sim.models import poisson_spikes
-from snnlab.sim.timing import duration_steps
+from snnlab.lang import duration_steps
+from snnlab.sim import GraphExecutor, plan_graph, poisson_spikes
 
 
 def simulate_probe(cfg, item, destination, device):

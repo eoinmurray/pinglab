@@ -17,8 +17,8 @@ import torch
 from experiments.exp023 import recipe
 from pingstore.contracts import PingstoreError
 from pingstore.stages import stage_run
-from snnlab.sim.execution import simulate
-from snnlab.sim.timing import duration_steps
+from snnlab.lang import duration_steps
+from snnlab.sim import simulate
 
 
 def recording(result, cfg, point, *, traces):

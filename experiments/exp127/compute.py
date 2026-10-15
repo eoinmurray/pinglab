@@ -13,8 +13,8 @@ import torch
 from experiments.exp127.recipe import CONFIG, SLUG, network
 from pingstore.contracts import write_json_atomic
 from pingstore.stages import stage_run
-from snnlab.sim.checkpoint_selection import CheckpointSelection
-from snnlab.sim.execution import (
+from snnlab.sim import (
+    CheckpointSelection,
     DenseArrayBinding,
     ExecutionSpec,
     ValidationSpec,

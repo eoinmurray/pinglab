@@ -1,0 +1,20 @@
+import Table from '../../../site/src/components/Table.astro';
+
+<Table headers={["Parameter", "Value"]} rows={[
+  ["E / I neurons", "1,600 / 400"],
+  ["Recurrent connection probability", "0.10; between distinct neurons; no autapses"],
+  ["Capacitance / leak", "150 pF / 10 nS"],
+  ["Passive membrane time constant", "15 ms"],
+  ["Initial / resting / reset voltage", "−65 mV"],
+  ["Threshold", "−50 mV"],
+  ["E / I refractory period", "3 / 1.5 ms"],
+  ["AMPA / GABA decay", "1.5 / 7.5 ms"],
+  ["Synaptic delay / timestep", "1.5 / 0.1 ms"],
+  ["Recurrent E / I event conductance", "1 / 3.34 nS"],
+  ["Private afferents per neuron", "400 independent sources"],
+  ["Private event conductance", "4 nS"],
+  ["Theta envelope", "5 Hz; 0.2–3.8 Hz per afferent (2 Hz ±90%)"],
+  ["Constant comparison", "2 Hz per afferent"],
+  ["Burn-in / total simulation", "None / 1,000 ms"],
+  ["Random seed", "8; paired conditions"],
+]} />

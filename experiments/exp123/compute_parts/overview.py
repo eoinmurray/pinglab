@@ -8,8 +8,7 @@ import torch
 from experiments.exp123 import recipe
 from experiments.helpers.checkpoints import pinned_checkpoint
 from pingstore.stages import source_run, stage_run
-from snnlab.sim.encoders import encode_images_poisson
-from snnlab.sim.execution import ExecutionSpec, build
+from snnlab.sim import ExecutionSpec, build, encode_images_poisson
 
 PARAMETERS = {
     "input_to_E.weight": "W_ff.0",

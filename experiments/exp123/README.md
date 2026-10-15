@@ -10,13 +10,14 @@ assumed property. Softmax scores are uncalibrated evidence summaries.
 ## Independent implementation
 
 The experiment owns its recipe, graph definition, computation, measurement and
-presentation code. Its only upstream scientific input is the validated final
-checkpoint in the training bank, supplied explicitly to compute. Shared
+presentation code. Compute explicitly names the validated training checkpoint
+and a source of raw test-image pixels and labels. Earlier image-source spikes
+are not reused. Shared
 maintained PING and checkpoint helpers and public SNNLab interfaces are used.
 No other experiment's implementation or exploratory recordings are imported.
 The checkpoint data are reused; there is no retraining and no comparison model.
 
-## Protocol
+## Protocol of the completed legacy experiment
 
 1. Pin final epoch-50 `ping__tg6__seed42` weights from `exp022-r001-compute`,
    checking the registered checkpoint role and exact SHA-256 in `recipe.py`.
@@ -73,32 +74,83 @@ The checkpoint data are reused; there is no retraining and no comparison model.
    integers, while medians can be fractional. The two rows can use different
    successful-trial subsets; failures have no decision point.
 
-## Independent staged execution
+## Shared dense sweep — current implementation
 
-Each stage creates exactly one run. Compute includes the nine-image trajectory
-sample (100 draws each at 25 Hz) and the 500-image balanced benchmark (three draws
-each at 12.5, 25 and 50 Hz). Both use three inhibitory-decay settings, for 16,200
-presentations total. Baseline 25 Hz benchmark recordings are shared by the
-matched-coordinate and Pareto measurements within the same run.
+The default compute command now defines one uniform sweep: the balanced
+500-image test sample (50 per digit, selection seed 123), ten paired encoding
+identifiers 42–51, and 19 inhibitory decay settings spanning 3–30 ms.
+There are seven logarithmically spaced values in each interval 3–6, 6–12
+and 12–30 ms, with shared endpoints counted once. Exact 3, 6 and 12 ms
+anchors are retained. Every image/encoding is simulated at every decay,
+at 25 Hz maximum pixel rate for 200 ms with 0.1 ms updates: 95,000
+presentations. Each encoding tensor is generated once and reused across decay.
+No extra overview or trajectory presentations are simulated. The previous
+12.5/50 Hz auxiliary probes are not part of this single-rate sweep.
 
-Analyse takes this single compute run and produces all trajectory, decision,
-matched-coordinate accuracy, deadline-cost and Pareto measurements. Present takes
-this analysis run plus an explicit exp123 overview analysis input for the
-inhibitory-decay overview metrics. The main analysis's pinned compute input supplies the
-3, 6 and 12 ms rasters. Present generates the
-overview and the existing exp123 figures. Stages remain
-independent: no stage launches another stage or chooses its input automatically.
+All figures use this shared sample. Nine illustrative images are the first
+nine indices in the balanced selection, not the first nine official test
+images. They have the same ten encodings as every other image. The dynamics
+summary uses all 500 images; the rasters show the first illustrative image.
+The benchmark retains equal image weighting. Individual-image evidence uses
+the nine illustrative images; sustained-decision densities use all 95,000 trials.
 
-Run each stage separately from the repository root, using the exact identity
-printed by the preceding stage.
+Analysis measures all trajectories needed for those illustrations, population
+dynamics, paired-coordinate accuracy and deadline cost from one compute input.
+The analysis CLI defaults to four local processes for independent decay
+settings (`--workers 1` selects serial execution). Results retain deterministic
+condition order and identical within-setting aggregation. Each completed
+setting also has a scientific scalar export. Trials with fewer than two
+interior cycle boundaries have undefined cycle participation, not an error.
+The added network-budget coordinate samples each trial at its first completed
+update reaching the E+I+output spike budget, including simultaneous-event
+overshoot. Budgets are spaced by 100 spikes to 30,000; curves require 80%
+paired coverage across the whole decay sweep. Coverage failures remain gaps.
+Latency at a budget averages the eligible image/draw pairs. Completed-volley
+score traces instead require 80% accepted-draw coverage within each decay setting;
+these conditional per-setting subsets are not matched across decay. This
+prevents one slow or invalid setting from erasing every other setting.
+
+Presentation exports six figures from that one analysis input; the article uses five:
+1. Dynamics versus decay and illustrative rasters.
+2. Nine families of mean true-class score traces against time, coloured by
+   mean I-volley interval frequency; higher frequencies are darker.
+3. Matching frequency-coloured score traces against completed volley count,
+   with an 80% per-setting draw-coverage cutoff.
+4. Pooled sustained-decision densities against I-volley frequency, with elapsed
+   time and completed volleys on the horizontal axes and frequency-bin medians.
+5. The 80% population-accuracy frontier: mean network spikes at first crossing
+   versus elapsed time. House colours encode mean I-volley frequency, with a
+   second nonlinear scale for inhibitory decay. Only frontier points are shown.
+6. Auxiliary accuracy heatmaps against time, cycle position, input count and
+   network budget are retained as exports but omitted from the article.
+
+Run each stage separately, naming the preceding completed run explicitly:
 
 ```sh
-uv run python experiments/exp123/compute.py --source exp022-r001-compute
+uv run python experiments/exp123/compute.py --source exp022-r001-compute --image-source exp123-r068-compute
 uv run python experiments/exp123/analyse.py --source <compute-run-id>
-uv run python experiments/exp123/compute.py --protocol overview --source exp022-r001-compute --image-source <compute-run-id>
-uv run python experiments/exp123/analyse.py --protocol overview --source <overview-compute-run-id>
-uv run python experiments/exp123/present.py --source <analyse-run-id> --overview-source <overview-analyse-run-id>
+uv run python experiments/exp123/present.py --source <analyse-run-id>
 ```
+
+Analysis computes every measurement directly from the named compute run,
+including pooled decisions and the target-accuracy frontier. It also exports
+the three illustrative rasters as sparse event arrays in `overview_rasters.npz`.
+Presentation reads only that analysis run; it does not read compute recordings
+or require any previous analysis run. No exploratory cache is consumed.
+
+The explicit image input reuses only the raw normalized pixels and labels of
+the original balanced test sample, not its encodings, spikes or measurements.
+All ten encodings and network responses are generated afresh. This avoids
+requiring a second local copy of MNIST, which is currently absent. Omitting
+`--image-source` instead requires the official MNIST test files under `data/`.
+
+The completed shared-sweep lineage is `exp123-r068-compute` →
+`exp123-r078-analyse` → `exp123-r079-present`. The article is explicitly
+pinned to this presentation, with updated captions, methods, parameter table
+and claims under Writing Guide 36.0.0. Legacy two-analysis presentations remain
+readable with an explicit `--overview-source`; that argument is not used by
+the shared sweep. Earlier protocol descriptions above and dated history below
+refer to the legacy experiment, not the new default.
 
 ## Historical execution
 
@@ -529,3 +581,177 @@ its four completed runs and the 16 superseded exp123 presentations, including
 those that referenced exp122. The latest exp123 presentation and all compute
 and analysis inputs are retained. Exp122 is a retired identity and must never
 be reused.
+
+## Accuracy, spike cost and latency — 2026-10-15
+
+Figure 6 now plots accuracy against mean cumulative network spikes in one
+panel at 25 Hz encoding, with black/red/cyan curves for 3/6/12 ms decay.
+Dashed connectors join the measured settings at equal elapsed times of
+20, 40, 80, 120 and 200 ms. These are guides between observed points rather
+than fitted latency contours. The existing deadline measurements are reused;
+this is mean spike consumption at a common deadline, not a per-trial fixed
+spike-budget stopping rule. E, I and output spikes are included; input is
+excluded. The caption and figure-local prose follow Writing Guide 36.0.0.
+No simulations or analysis were rerun. `exp123-r066-present` uses explicit inputs
+`exp123-r049-analyse` and `exp123-r063-analyse`; all scientific numbers are
+unchanged from the preceding presentation.
+
+
+## Completed shared sweep and article update — 2026-10-15
+
+`exp123-r068-compute` completed all 95,000 presentations, using raw image pixels
+from `exp123-r040-compute` and the explicitly pinned exp022 trained checkpoint.
+`exp123-r070-analyse` measured this compute input with four local dynamics
+workers; `exp123-r071-present` generated all six figures. Validation covered
+payload digests and complete input ancestry. The article and parameter table
+now describe the uniform 500-image, ten-encoding, 19-decay experiment, including
+conditional volley coverage and the distinction between fixed network budgets
+and mean consumption at a deadline.
+
+At 200 ms, 3/6/12/30 ms decay gave accuracy 91.78/90.82/88.98/84.30% and mean
+network spike counts 25,152/15,933/9,565/4,897 (rounded). The cycle, input and
+network-budget accuracy panels retain only coordinates with at least 80%
+paired coverage across all decay settings. The displayed limits are cycle
+position 2, 350 input spikes and 4,100 network spikes. Individual-image
+completed-volley heatmaps instead use per-setting draw coverage, as stated
+in the revised captions.
+
+The initial compute attempt `exp123-r067-compute` failed before simulations
+because of the changed SNNLab refractory API. Analysis attempt
+`exp123-r069-analyse` failed on a trial with fewer than two interior cycle
+boundaries. The fix treats cycle participation as undefined in that case;
+regression and parallel-versus-serial checks passed before the successful
+analysis. The completed simulation was not rerun. Failed attempts remain hidden
+and are not evidence inputs.
+
+
+## Frequency-coloured evidence traces — 2026-10-15
+
+`exp123-r072-present` reuses `exp123-r070-analyse` to replace every panel in
+Figures 2 and 3 with the approved trace previews. Each trace still groups the
+ten draws at one decay setting. Its colour represents the mean of accepted
+trial frequencies, each calculated as 1,000 divided by its mean successive
+I-volley interval in milliseconds. The linear frequency scale is shared across
+all nine images and both figures; higher frequencies are darker in reversed
+Viridis. The colour mapping is exported as `frequency_colours.json`.
+
+Time traces retain 1 ms sampling and mean-after-softmax scores. Completed-volley
+traces retain the initial score at count zero, integer completion samples,
+and the 80% within-setting draw-coverage cutoff. Frequency colours summarise
+the full presentation, even where a later score averages a smaller subset.
+The article is pinned to the new presentation and its captions and alternative
+text describe the new axes and encodings under Writing Guide 36.0.0. No new
+simulation or analysis was required. The temporary `present.scratch.py` is
+removed after incorporating the previews.
+
+
+## Pooled frequency and decision densities — 2026-10-15
+
+`exp123-r073-analyse` retains the trajectory, accuracy and dynamics measurements
+from explicit input `exp123-r070-analyse`, validates their exact compute
+reference, and measures trial-level sustained decisions and I-volley frequencies
+from all 95,000 presentations in `exp123-r068-compute`. The maintained
+`pooled_decisions.py` exports trial arrays and binned summaries. It checks every
+illustrative decision and completion mapping against the prior analysis.
+
+`exp123-r074-present` replaces Figure 4 with the approved two-panel rectangular
+density plot in house style: elapsed time or completed volleys horizontally,
+I-volley frequency vertically, shared logarithmic counts and median curves in
+5 Hz bins. The panels retain 84,237 and 80,341 trials respectively. The caption
+states exclusions, completion coverage and paired repeats; the article explains
+the retrospective frequency measurement and limits of causal interpretation.
+The other five figures retain their measurements and presentation.
+
+All trial arrays and preview summaries matched the approved scratch version.
+The article is pinned to the new presentation under Writing Guide 36.0.0;
+`present.scratch.py` is removed after validation. No simulation was rerun.
+
+
+## Target-accuracy spike-cost frontier — 2026-10-15
+
+`exp123-r075-analyse` explicitly reuses `exp123-r073-analyse` for the same
+`exp123-r068-compute` payload. It retains existing measurements and derives
+`target_accuracy.json` using maintained `target_accuracy.py`: the first measured
+1 ms deadline reaching 80% population accuracy at each decay setting, mean
+network spikes at that deadline, mean accepted I-interval frequency over the
+full presentation, and a two-objective cost/latency frontier. All 19 settings
+reach the target; 14 are retained on the displayed frontier. The target is
+owned by `recipe.TARGET_ACCURACY_PCT`. No simulation was rerun.
+
+`exp123-r076-present` replaces article Figure 5 with that single panel in house
+colours, connected frontier circles and matched frequency/decay colour bars.
+The input-cost preview panel is omitted. All first-crossing costs and times
+match the approved preview; frequency summaries agree to numerical precision.
+The article distinguishes population target crossing from sustained correct
+decisions, describes frontier selection and the empirical nonlinear colour
+scale, and retains limitations under Writing Guide 36.0.0. The other article
+figures are unchanged. The exploratory `present.scratch.py` is removed.
+
+
+## Larger Figure 5 markers — 2026-10-15
+
+`exp123-r077-present` reuses `exp123-r075-analyse` and increases Figure 5
+marker area from 36 to 56 pt², making its colours easier to read. The article
+is pinned to this presentation; measurements and prose are unchanged.
+
+
+## One compute → analyse → present chain — 2026-10-15
+
+The current report uses `exp123-r068-compute` → `exp123-r078-analyse` →
+`exp123-r079-present`. The compute simulation was retained unchanged. The new
+analysis measured everything directly from its saved spikes, without any
+previous analysis input. It exports the three illustrative rasters as sparse
+events, allowing presentation to consume only the analysis run. The trained
+weights (`exp022-r001-compute`) and original raw image bank
+(`exp123-r040-compute`) remain recorded upstream inputs of compute.
+
+Validation compared all 45 existing scientific exports with
+`exp123-r075-analyse`: JSON content and every NPZ array match exactly, allowing
+only updated source-code hashes. The only additional scientific export is
+`overview_rasters.npz`. All six figure PDFs from `exp123-r079-present` render
+pixel-for-pixel identically to `exp123-r077-present` at the comparison
+resolution. Eight tests pass, including a direct-versus-exported raster
+rendering comparison. Earlier completed runs remain as history.
+
+To repeat analysis and presentation without rerunning simulations:
+
+```sh
+uv run python experiments/exp123/analyse.py --source exp123-r068-compute --workers 4
+uv run python experiments/exp123/present.py --source <new-analyse-run-id>
+```
+
+The article pin changes only after these comparisons. Its wording, equations,
+figures and Writing Guide 36.0.0 tags are preserved.
+
+
+## Pruned superseded runs — 2026-10-15
+
+An exp123-scoped, hash-confirmed Pingstore prune removed 18 superseded completed
+runs (about 0.43 GiB). Two failed local temporary runs, 067 and 069, were removed
+under the exclusive operation lock after confirming their recorded writers had
+exited. The allocation high-watermark remains 079.
+
+Retained exp123 runs are `exp123-r040-compute` (raw image source),
+`exp123-r068-compute`, `exp123-r078-analyse` and `exp123-r079-present`. The full
+current-report ancestry, including `exp022-r001-compute`, validates after pruning.
+Other experiments are unchanged.
+
+
+## Embedded image-source provenance — 2026-10-15
+
+The owner requested a self-contained `exp123-r068-compute` and removal of
+`exp123-r040-compute` without rerunning simulations. Exact comparison confirmed
+that r068 already contains all 500 source pixel arrays and labels, unchanged,
+alongside its own spike recordings. A metadata-only operation moved the old
+`images` input into `provenance.materialized_inputs`, retaining the complete
+historical source record and per-image pixel hashes. Original r068 and r040
+records and READMEs are archived outside operational runs at
+`.pingstore/migration-archives/2026-10-15-exp123-r068-embedded-images/`.
+
+The r068 execution command and original timing remain unchanged; its README
+records the migration explicitly. No export byte, payload digest, analysis
+reference or figure changed. The trained-network dependency remains live. A
+separate hash-confirmed prune removes r040's obsolete recordings. Current
+exp123 runs are exactly r068-compute → r078-analyse → r079-present. A future
+compute can obtain the same raw image bank directly from r068; the current
+compute example above now names it. No simulations or analysis were rerun.

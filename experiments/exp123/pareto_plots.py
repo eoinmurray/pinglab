@@ -21,44 +21,42 @@ def conditions(report, rate, tau):
 
 def plot_tradeoffs(report, destination, save):
     rate = recipe.RATE_HZ
-    fig, axes = plt.subplots(
-        1, 2,
-        figsize=(recipe.FIGURE_SIZE_MM[0] / 25.4, 85 / 25.4),
+    fig, ax = plt.subplots(
+        figsize=(recipe.FIGURE_SIZE_MM[0] / 25.4, 120 / 25.4),
         layout="constrained",
     )
     fig.get_layout_engine().set(w_pad=0.04, h_pad=0.07)
     colours = (theme.INK_BLACK, theme.DEEP_RED, theme.ELECTRIC_CYAN)
     for tau, colour in zip(report["design"]["tau_gaba_ms"], colours):
         rows = conditions(report, rate, tau)
-        t = np.array([r["deadline_ms"] for r in rows])
         a = np.array([r["accuracy"] for r in rows]) * 100
         c = np.array([r["mean_network_spikes"] for r in rows]) / 1000
-        for ax, x, y in zip(axes, (t, c), (c, a)):
-            ax.plot(
-                x, y, color=colour, lw=1.3, marker="o", markersize=3,
-                label=f"GABA {tau:g} ms",
-            )
-    for j, (xlabel, ylabel, title) in enumerate(
-        (
-            ("Elapsed time (ms)", "Network spikes\n(×10³)", "Spike cost"),
-            ("Network spikes\n(×10³)", "Accuracy (%)", "Accuracy / cost"),
+        ax.plot(
+            c, a, color=colour, lw=1.3, marker="o", markersize=4,
+            label=f"GABA {tau:g} ms", zorder=3,
         )
-    ):
-        ax = axes[j]
-        ax.set_title(f"{rate:g} Hz · {title}", fontsize=theme.SIZE_ANNOTATION)
-        ax.set_xlabel(xlabel, fontsize=theme.SIZE_LABEL)
-        ax.set_ylabel(ylabel, fontsize=theme.SIZE_LABEL)
-        if j == 0:
-            ax.set_ylim(bottom=0)
-            ax.set_xlim(0, 205)
-            ax.set_xticks([0, 100, 200])
-        else:
-            ax.set_ylim(0, 100)
-            ax.set_yticks([0, 25, 50, 75, 100])
-            ax.set_xlim(left=0)
-            ax.xaxis.set_major_locator(MaxNLocator(nbins=4))
-    theme.label_panels(axes.flat)
-    handles, labels = axes[0].get_legend_handles_labels()
+    for deadline in report["design"]["deadlines_ms"]:
+        rows = sorted(
+            (r for r in report["rows"]
+             if r["input_rate_hz"] == rate and r["deadline_ms"] == deadline),
+            key=lambda r: r["mean_network_spikes"],
+        )
+        cost = np.array([r["mean_network_spikes"] for r in rows]) / 1000
+        accuracy = np.array([r["accuracy"] for r in rows]) * 100
+        ax.plot(cost, accuracy, color="0.55", ls="--", lw=0.8, zorder=2)
+        ax.annotate(
+            f"{deadline:g} ms", (cost[-1], accuracy[-1]),
+            xytext=(6, 8), textcoords="offset points", va="bottom",
+            fontsize=theme.SIZE_ANNOTATION, color="0.35",
+        )
+    ax.set_xlabel("Mean cumulative network spikes (×10³)", fontsize=theme.SIZE_LABEL)
+    ax.set_ylabel("Accuracy (%)", fontsize=theme.SIZE_LABEL)
+    ax.set_ylim(0, 100)
+    ax.set_yticks([0, 25, 50, 75, 100])
+    ax.set_xlim(0, max(r["mean_network_spikes"] for r in report["rows"]
+                       if r["input_rate_hz"] == rate) / 1000 * 1.15)
+    ax.xaxis.set_major_locator(MaxNLocator(nbins=6))
+    handles, labels = ax.get_legend_handles_labels()
     fig.legend(
         handles, labels, loc="outside upper center", ncols=3, fontsize=theme.SIZE_LEGEND
     )

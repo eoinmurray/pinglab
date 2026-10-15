@@ -10,6 +10,7 @@ from importlib.metadata import version
 from pathlib import Path
 
 import numpy as np
+import snnlab
 import torch
 import torch.nn.functional as F
 from experiments.helpers import ping
@@ -19,12 +20,17 @@ from pingstore.contracts import (
     load_json,
     write_json_atomic,
 )
-from snnlab.sim import encoders, execution, extensions, interventions, models, streaming
-from snnlab.sim.datasets import load_dataset
-from snnlab.sim.execution import GraphExecutor, plan_graph
-from snnlab.sim.interventions import ReplaySpikes, SparseSpikeReplay
-from snnlab.sim.streaming import RecordingSpec, SignalRecording
-from snnlab.sim.timing import duration_steps
+from snnlab.lang import duration_steps
+from snnlab.sim import (
+    GraphExecutor,
+    RecordingSpec,
+    ReplaySpikes,
+    SignalRecording,
+    SparseSpikeReplay,
+    encode_images_poisson,
+    load_dataset,
+    plan_graph,
+)
 
 from . import inputs, recipe, transforms
 
@@ -46,6 +52,7 @@ def _array_digest(*values):
 
 def execution_settings():
     """Resolve runtime identity before any cache or completed-shard reuse."""
+    source_root = Path(snnlab.__file__).parent
     device = torch.device(
         os.environ.get("PINGLAB_DEVICE")
         or (
@@ -73,10 +80,8 @@ def execution_settings():
         "cuda_matmul_tf32": torch.backends.cuda.matmul.allow_tf32,
         "cudnn_tf32": torch.backends.cudnn.allow_tf32,
         "snnlab_source_sha256": {
-            str(path.relative_to(Path(execution.__file__).parents[1])): file_sha256(
-                path
-            )
-            for path in sorted(Path(execution.__file__).parents[1].rglob("*"))
+            str(path.relative_to(source_root)): file_sha256(path)
+            for path in sorted(source_root.rglob("*"))
             if path.is_file() and path.suffix in (".py", ".json")
         },
         "source_sha256": {
@@ -86,12 +91,6 @@ def execution_settings():
                 inputs,
                 transforms,
                 ping,
-                encoders,
-                execution,
-                extensions,
-                interventions,
-                models,
-                streaming,
             )
         },
         "inference_source_sha256": file_sha256(Path(__file__)),
@@ -255,7 +254,7 @@ def infer_batches(model, training, cfg, data, *, recording, rasters=None, sample
     with torch.inference_mode():
         for start in range(0, len(indices), batch_size):
             batch = indices[start : start + batch_size]
-            drive = encoders.encode_images_poisson(
+            drive = encode_images_poisson(
                 torch.from_numpy(pixels[batch]),
                 steps,
                 training["dt"],

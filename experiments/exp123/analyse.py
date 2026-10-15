@@ -57,13 +57,16 @@ def volley_completion_times(spikes, peaks_ms, dt, cfg):
 
 
 def measure_trajectories(source, run, cfg):
+    shared = cfg.get("shared_sweep", False)
     measurement = recipe.measurement()
     dt = cfg["dt_ms"]
     times = np.arange(round(cfg["duration_ms"] / dt) + 1) * dt
     image_reports = []
     rows = []
     for image_index in cfg["image_indices"]:
-        unit = source.unit(recipe.recording_unit(image_index, recipe.RATE_HZ, "trajectories"))
+        unit = source.unit(recipe.recording_unit(
+            image_index, recipe.RATE_HZ, "benchmark" if shared else "trajectories"
+        ))
         with np.load(unit / "input.npz", allow_pickle=False) as data:
             label = int(data["label"])
         all_counts = []
@@ -191,9 +194,12 @@ def measure_trajectories(source, run, cfg):
         all_true = np.asarray(all_true)
         all_max = np.asarray(all_max)
         all_pred = np.asarray(all_pred)
-        available = all(phase_valid)
+        valid_matrix = np.asarray(phase_valid).reshape(len(cfg["tau_gaba_ms"]), -1)
+        available = bool(valid_matrix.any()) if shared else all(phase_valid)
         end = (
-            min(len(p) - 1 for trial in all_peaks for p in trial)
+            (max(len(p) - 1 for ti, trial in enumerate(all_peaks)
+                 for b, p in enumerate(trial) if valid_matrix[ti, b]) if shared else
+             min(len(p) - 1 for trial in all_peaks for p in trial))
             if available
             else 0
         )
@@ -218,11 +224,23 @@ def measure_trajectories(source, run, cfg):
         if available:
             for ti, trial in enumerate(all_peaks):
                 for b, peaks in enumerate(trial):
-                    query_times = np.interp(grid, np.arange(len(peaks)), peaks)
-                    phase[ti, b] = np.interp(query_times, times, all_true[ti, b])
+                    if shared and not valid_matrix[ti, b]:
+                        continue
+                    reach = grid <= len(peaks) - 1
+                    query_times = np.interp(grid[reach], np.arange(len(peaks)), peaks)
+                    phase[ti, b, reach] = np.interp(query_times, times, all_true[ti, b])
                     completions = all_completions[ti][b][:end]
                     indices = np.searchsorted(times, completions, side="right") - 1
-                    volley_scores[ti, b] = all_true[ti, b, indices]
+                    volley_scores[ti, b, :len(indices)] = all_true[ti, b, indices]
+        coverage = np.isfinite(volley_scores).mean(axis=1)
+        if shared:
+            for row in rows:
+                if row["image_index"] != image_index:
+                    continue
+                count = row["sustained_decision_completed_volley_count"]
+                ti = list(cfg["tau_gaba_ms"]).index(row["tau_gaba_ms"])
+                if count is not None and coverage[ti, count - 1] < 0.8:
+                    row["sustained_decision_completed_volley_count"] = None
         destination = run.export / f"image{image_index:05d}"
         destination.mkdir()
         np.savez_compressed(
@@ -236,6 +254,7 @@ def measure_trajectories(source, run, cfg):
             true_score_by_cycle=phase,
             completed_volley_count=volley_grid,
             true_score_by_completed_volley=volley_scores,
+            completed_volley_coverage=coverage,
             image_index=image_index,
             label=label,
             tau_gaba_ms=cfg["tau_gaba_ms"],
@@ -326,17 +345,30 @@ def measure_trajectories(source, run, cfg):
             if key != "script_sha256"
         },
     )
+    if shared:
+        report["measurement"].update(
+            phase_coverage="within each decay setting, available accepted draws only; display completed-volley scores at >=80% draw coverage; no extrapolation",
+            decision_completed_volley_coverage="accepted sequence, in-range completion and >=80% draw coverage at that count within its decay setting",
+        )
     (run.export / "results.json").write_text(
         json.dumps(report, indent=2, allow_nan=False) + "\n"
     )
     return report
 
 
-def analyse(identity):
+def analyse(identity, workers=4, reuse_identity=None):
     source = source_run(
         recipe.REPO / ".pingstore", identity, stage="compute", experiment=recipe.SLUG
     )
     cfg = source.record["execution"]["configuration"]
+    if cfg.get("schema") == "exp123.compute/v3":
+        from experiments.exp123.shared_analysis import analyse_shared
+
+        reuse = source_run(recipe.REPO / ".pingstore", reuse_identity, stage="analyse",
+                           experiment=recipe.SLUG) if reuse_identity is not None else None
+        return analyse_shared(source, workers=workers, reuse=reuse)
+    if reuse_identity is not None:
+        raise ValueError("--reuse-analysis requires a shared-sweep compute input")
     if cfg.get("schema") != "exp123.compute/v2":
         raise ValueError("expected a complete exp123 compute run")
     from experiments.exp123.accuracy import measure_accuracy
@@ -359,10 +391,15 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source", required=True)
     parser.add_argument("--protocol", choices=("main", "overview"), default="main")
+    parser.add_argument("--workers", type=int, default=4,
+                        help="Local workers for independent shared-sweep dynamics settings")
+    parser.add_argument("--reuse-analysis", help="Explicit completed shared analysis of the same compute payload; reuse its existing measurements and add missing pooled decisions plus the target-accuracy frontier")
     args = parser.parse_args()
     if args.protocol == "overview":
         from experiments.exp123.overview_analysis import analyse_overview
 
         analyse_overview(args.source)
     else:
-        analyse(args.source)
+        if args.workers < 1:
+            parser.error("--workers must be positive")
+        analyse(args.source, workers=args.workers, reuse_identity=args.reuse_analysis)

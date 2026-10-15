@@ -15,10 +15,8 @@ import numpy as np
 import torch
 from experiments.exp049 import evidence, inputs, recipe
 from pingstore.contracts import PingstoreError, file_sha256, write_json_atomic
-from snnlab.sim.datasets import load_dataset
-from snnlab.sim.encoders import encode_images_poisson
-from snnlab.sim.execution import GraphExecutor, plan_graph
-from snnlab.sim.timing import duration_steps
+from snnlab.lang import duration_steps
+from snnlab.sim import GraphExecutor, encode_images_poisson, load_dataset, plan_graph
 
 
 def array_digest(*arrays):

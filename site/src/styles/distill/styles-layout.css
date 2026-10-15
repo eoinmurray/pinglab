@@ -172,7 +172,7 @@ d-article aside {
   grid-column: gutter;
   font-size: 12px;
   line-height: 1.6em;
-  color: rgba(0, 0, 0, 0.6)
+  color: rgb(var(--ink) / 0.6)
 }
 
 @media(min-width: 768px) {

@@ -198,8 +198,6 @@ P16
 
 We combined untrained circuit experiments, a mean-field calculation and trained MNIST classifiers to examine how reciprocal excitatory–inhibitory coupling shapes population rhythms, excitatory firing and classification. In untrained circuits, we compared loop-off and loop-on responses across input strengths and mapped the effects of reciprocal coupling strength; the mean-field model examined oscillatory onset and its dependence on inhibitory decay time. Classifier experiments compared accuracy and firing under activity penalties, tested the effects of enabling reciprocal coupling during inference without retraining and of recurrent-weight training, and examined inhibitory timescales and cycle participation. We also measured sensitivity to spike deletion, spike insertion and inhibitory timing perturbations, assessed timestep dependence, and evaluated continuous image streams. [Table 1](#training-groups) summarizes the designs, defines training groups TR01–TR06 and identifies classifier reuse.
 
-<figure class="table-figure l-body" id="training-groups">
-
 <Table
   headers={["Training Group", "Figures", "Description"]}
   rows={[
@@ -215,16 +213,10 @@ We combined untrained circuit experiments, a mean-field calculation and trained 
     ["TR02", {"markdown": "<a href=\"#loc-15\">8</a>"}, "3 × 1 unpenalised loop-on classifiers reused for independent-spike and grouped inhibitory timing shifts, without retraining. Original split: 6,300 optimization / 700 validation images; mean pre-reset-state readout; final checkpoints."],
     [{"markdown": "<span id=\"training-tr04\">TR04</span>"}, {"markdown": "<a href=\"#loc-30\">9</a>"}, "3 × 5 loop-on classifiers at timesteps 0.05, 0.1, 0.2, 0.3, 0.6 ms; no activity penalty. 6,300 optimization / 700 validation images; mean pre-reset-state readout; final checkpoints."],
     [{"markdown": "<span id=\"training-tr06\">TR06</span>"}, {"markdown": "<a href=\"#loc-17\">10</a>"}, "3 × 1 loop-on classifiers; per-presentation maximum-pixel rates sampled from 0.5, 0.75, 1, 1.5, 2, 3, 5, 7.5, 10, 15, 25 Hz; no activity penalty. 6,300 optimization / 700 validation images. Continuous-stream duration/rate sweep; readout: accumulated output spike counts; best-validation checkpoints (epochs 49, 46, 49)."],
-  ]}
-/>
-
-<figcaption>
-
-Table 1: **Experimental design, training groups and classifier reuse.** E/I: excitatory/inhibitory neurons. TR01–TR06 identify groups of training regimes, not individual executions. Classifier counts are three seeds (42–44) × distinct training regimes; the six groups comprise 90 distinct classifiers. All groups completed 50 epochs with nominally 200-ms isolated-image presentations. Unless varied in the table, maximum-pixel input rate was 25 Hz, integration timestep 0.1 ms and inhibitory decay 6 ms; classifier recurrence was fixed at standard strength (E→I and I→E Gaussian parent means of 1 and 2 µS, respectively, before fan-in normalization) in loop-on networks and absent in loop-off networks. Only input and readout weights were trained except in the trainable-recurrence conditions of TR05. Both readout modes used spiking output units. Untrained circuit conditions used one trial with seed 42; mean-field calculations were deterministic. Final: epoch 50. Epoch lists are ordered by seeds 42, 43 and 44. Best validation: lowest mean validation cross-entropy across three encoding draws, with ties resolved by higher accuracy, then earlier epoch. Shared optimization and neuronal parameters are specified below and in [Appendix A](#appendix-a). ¹ Mean-field results. ² Spiking-model results.
-
-</figcaption>
-
-</figure>
+  ]} number="1" id="training-groups"
+>
+  **Experimental design, training groups and classifier reuse.** E/I: excitatory/inhibitory neurons. TR01–TR06 identify groups of training regimes, not individual executions. Classifier counts are three seeds (42–44) × distinct training regimes; the six groups comprise 90 distinct classifiers. All groups completed 50 epochs with nominally 200-ms isolated-image presentations. Unless varied in the table, maximum-pixel input rate was 25 Hz, integration timestep 0.1 ms and inhibitory decay 6 ms; classifier recurrence was fixed at standard strength (E→I and I→E Gaussian parent means of 1 and 2 µS, respectively, before fan-in normalization) in loop-on networks and absent in loop-off networks. Only input and readout weights were trained except in the trainable-recurrence conditions of TR05. Both readout modes used spiking output units. Untrained circuit conditions used one trial with seed 42; mean-field calculations were deterministic. Final: epoch 50. Epoch lists are ordered by seeds 42, 43 and 44. Best validation: lowest mean validation cross-entropy across three encoding draws, with ties resolved by higher accuracy, then earlier epoch. Shared optimization and neuronal parameters are specified below and in [Appendix A](#appendix-a). ¹ Mean-field results. ² Spiking-model results.
+</Table>
 
 <span id="loc-20" />
 

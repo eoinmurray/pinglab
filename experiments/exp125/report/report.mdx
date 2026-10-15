@@ -51,7 +51,9 @@ The minimum-validation-loss checkpoint occurred at epoch {value(selected)}, with
 
 We measured training and full-test-set inference separately on the local Apple M5 CPU using one thread. These are single wall-time measurements from a warmed process; they do not estimate isolated-image latency or variability across executions.
 
-{run && <Table headers={['Operation', 'Wall time (s)']} rows={timingRows} caption="Table 1. Local CPU timings. Training includes the initial evaluation, 50 optimization epochs, full training/validation evaluations after each epoch, and serialization of improved checkpoints. Test inference includes stochastic input encoding, forward simulation, spike-count decoding, and loss/accuracy calculation for all 360 images, in batches of at most 256. Both exclude dataset loading and model initialization; inference also excludes checkpoint loading and prediction serialization. Completion checks are excluded." />}
+{run && <Table headers={['Operation', 'Wall time (s)']} rows={timingRows} number="1">
+  Local CPU timings. Training includes the initial evaluation, 50 optimization epochs, full training/validation evaluations after each epoch, and serialization of improved checkpoints. Test inference includes stochastic input encoding, forward simulation, spike-count decoding, and loss/accuracy calculation for all 360 images, in batches of at most 256. Both exclude dataset loading and model initialization; inference also excludes checkpoint loading and prediction serialization. Completion checks are excluded.
+</Table>}
 
 ## Methods
 

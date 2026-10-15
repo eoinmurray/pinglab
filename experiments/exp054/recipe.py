@@ -132,9 +132,8 @@ BIOPHYSICS = {
 
 
 def author_network(cfg, item):
-    from experiments.helpers.ping import build_ping
+    from experiments.helpers.ping import build_ping, compile_legacy_coba
     from snnlab import lang
-    from snnlab.sim.timing import refractory_steps
 
     b = cfg["biophysics"]
     net = lang.Network("exp054_rhythmicity", dt=cfg["dt_ms"] * lang.ms)
@@ -151,11 +150,7 @@ def author_network(cfg, item):
             resting_mv=b["resting_mv"],
             threshold_mv=b["threshold_mv"],
             reset_mv=b["reset_mv"],
-            refractory_steps=refractory_steps(
-                cfg[f"refractory_{label}_ms"],
-                cfg["dt_ms"],
-                policy=cfg["refractory_policy"],
-            ),
+            refractory=cfg[f"refractory_{label}_ms"] * lang.ms,
             voltage_grad_dampen=80.0,
         )
     build_ping(
@@ -173,7 +168,7 @@ def author_network(cfg, item):
         recurrent_delay=cfg["dt_ms"] * lang.ms,
         initialization_scaling="direct",
     )
-    return lang.compile(net, target="tools/snnsim")
+    return compile_legacy_coba(net)
 
 
 def initial_parameters(cfg, item):
@@ -221,8 +216,8 @@ def initial_parameters(cfg, item):
 
 
 def recording(cfg):
-    from snnlab.sim.streaming import MeasurementWindow, RecordingSpec, SignalRecording
-    from snnlab.sim.timing import duration_steps
+    from snnlab.lang import duration_steps
+    from snnlab.sim import MeasurementWindow, RecordingSpec, SignalRecording
 
     return RecordingSpec(
         signals=tuple(

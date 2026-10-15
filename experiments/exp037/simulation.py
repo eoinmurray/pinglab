@@ -10,7 +10,7 @@ and the readout receive transmitted spikes. No legacy simulator is constructed.
 from dataclasses import replace
 
 import torch
-from snnlab.sim.interventions import DenseSpikeReplay, ReplaySpikes
+from snnlab.sim import DenseSpikeReplay, ReplaySpikes
 
 
 def perturb_forward(generator):

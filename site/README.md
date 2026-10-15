@@ -29,6 +29,13 @@ while data or figure errors remain visible on their own article. Shared article
 appendices load only for the current report. Listings also exclude cached reports
 whose source file has been deleted.
 
+The header theme button sits to the right of GitHub and cycles through system,
+light, and dark modes, with monitor, sun, and moon icons. It follows the system
+by default, including live changes; explicit choices persist in local storage.
+Cycling back to system clears the override. The theme applies before first paint.
+Printed articles always use light colours, and scientific images keep their
+original palettes.
+
 The header's Search button opens a site-wide command palette, also available
 with `Cmd+K` on macOS or `Ctrl+K` elsewhere. Type to filter, use Up/Down to
 select, Enter to navigate, and Escape to close. Home is the first item, so
@@ -100,7 +107,13 @@ All article tables use `Table` with explicit `headers` and `rows` arrays:
 Cells accept strings, finite numbers, `{ math: "..." }` for KaTeX, or
 `{ markdown: "..." }` for authored rich text and mixed text/mathematics.
 Optional `caption`, `id`, and `label` props supply a plain caption, anchor,
-and accessible region name. Header and row widths must match. Plain cells are
+and accessible region name. For Markdown captions, put the caption in the default
+slot instead of the `caption` prop. Captioned tables use the same `figcaption`
+styling as figures, outside the horizontal scroll region; an optional `number`
+prop adds the bold `Table N.` prefix (including appendix labels such as `A1`).
+Pass existing table captions through this API rather than separate paragraphs
+or article-owned `figure`/`figcaption` wrappers. Tables without captions can
+remain self-closing. Header and row widths must match. Plain cells are
 escaped; Markdown cells are trusted authored content, not arbitrary run HTML.
 There is no string-expression parser or per-value rendering component.
 Do not create `math.json` sidecars or embed exported MathML in article sources.

@@ -4,7 +4,7 @@ import numpy as np
 import torch
 from experiments.exp127.analyse import measurements
 from experiments.exp127.recipe import CONFIG, network
-from snnlab.sim.execution import DenseArrayBinding, ExecutionSpec, simulate, train
+from snnlab.sim import DenseArrayBinding, ExecutionSpec, simulate, train
 
 
 def test_latency_requires_both_spike_evidence_and_lead():

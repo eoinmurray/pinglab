@@ -1,7 +1,6 @@
 """A six-weight SNNLab classifier for the introductory learning replay."""
 
 from snnlab import lang
-from snnlab.lang import training
 
 SLUG = "exp127"
 CONFIG = {
@@ -59,7 +58,7 @@ def network():
         constraint=lang.NonNegative(),
         delay=CONFIG["delay_ms"] * lang.ms,
     )
-    counts = lang.ops.reduce(
+    counts = lang.reduce(
         outputs.spikes, operation="sum", over="time", name="spike_counts"
     )
     net.output("scores", counts)
@@ -67,14 +66,14 @@ def network():
     net.expose(outputs.voltage, name="output_voltage")
     net.expose(projection.current, name="output_current")
     spec = lang.TrainSpec(
-        objectives=(training.CrossEntropy(prediction=counts, target="class"),),
+        objectives=(lang.CrossEntropy(prediction=counts, target="class"),),
         parameter_groups=(
-            training.ParameterGroup(
+            lang.ParameterGroup(
                 (projection.weight,), name="synapses", lr=CONFIG["learning_rate"]
             ),
         ),
-        optimizer=training.AdamW(weight_decay=0.0),
-        surrogate=training.FastSigmoid(slope=CONFIG["surrogate_slope"]),
+        optimizer=lang.AdamW(weight_decay=0.0),
+        surrogate=lang.FastSigmoid(slope=CONFIG["surrogate_slope"]),
         gradient_clip=CONFIG["gradient_clip"],
         presentation_duration=CONFIG["duration_ms"] * lang.ms,
     )

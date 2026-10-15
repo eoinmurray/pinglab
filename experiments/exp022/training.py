@@ -17,10 +17,14 @@ from snnlab.analysis import (
     population_spike_count_cv,
     rhythmicity_metrics,
 )
-from snnlab.sim.datasets import load_dataset
-from snnlab.sim.encoders import encode_images_poisson
-from snnlab.sim.execution import GraphExecutor, plan_graph, resolve_device
-from snnlab.sim.timing import duration_steps
+from snnlab.lang import duration_steps
+from snnlab.sim import (
+    GraphExecutor,
+    encode_images_poisson,
+    load_dataset,
+    plan_graph,
+    resolve_device,
+)
 from torch.utils.data import DataLoader, TensorDataset
 
 from . import recipe

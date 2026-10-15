@@ -5,7 +5,7 @@ from typing import Any
 
 from experiments.exp022 import training_run_cell, training_run_values
 from experiments.exp022.checkpoints import checkpoint_policy
-from snnlab.sim.timing import refractory_metadata
+from snnlab.lang import refractory_metadata
 
 SLUG = "exp082"
 REFRACTORY_E_MS = 1.2
@@ -76,7 +76,6 @@ def refractory_execution_configuration(dt_ms: float) -> dict:
         REFRACTORY_E_MS,
         REFRACTORY_I_MS,
         dt_ms,
-        policy=REFRACTORY_POLICY,
     )
 
 

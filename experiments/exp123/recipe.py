@@ -6,7 +6,6 @@ from pathlib import Path
 import numpy as np
 from experiments.helpers.ping import build_ping
 from snnlab import lang
-from snnlab.sim.timing import refractory_steps
 
 REPO = Path(__file__).resolve().parents[2]
 SLUG = "exp123"
@@ -18,10 +17,16 @@ ACCURACY_SELECTION_SEED = 123
 ACCURACY_IMAGES_PER_DIGIT = 50
 ACCURACY_BATCH_IMAGES = 32
 TAUS_MS = (3.0, 6.0, 12.0)
+SWEEP_TAUS_MS = tuple(float(t) for t in np.concatenate((
+    np.geomspace(3, 6, 7), np.geomspace(6, 12, 7)[1:],
+    np.geomspace(12, 30, 7)[1:],
+)))
+SWEEP_SEEDS = tuple(range(42, 52))
 DT_MS = 0.1
 DURATION_MS = 200.0
 STEPS = round(DURATION_MS / DT_MS)
 RATE_HZ = 25.0
+TARGET_ACCURACY_PCT = 80.0
 PARETO_NEW_RATES_HZ = (12.5, 50.0)
 PARETO_RATES_HZ = (12.5, 25.0, 50.0)
 PARETO_DEADLINES_MS = (20.0, 40.0, 80.0, 120.0, 200.0)
@@ -73,6 +78,28 @@ def full_configuration(labels):
         presentations=len(IMAGE_INDICES) * len(SEEDS) * len(TAUS_MS)
         + len(benchmark["image_indices"]) * len(ACCURACY_SEEDS)
         * len(TAUS_MS) * len(PARETO_RATES_HZ),
+    )
+
+
+def shared_configuration(labels):
+    """One balanced sample and paired decay sweep, with no extra simulations."""
+    return shared_configuration_for_images(accuracy_images(labels))
+
+
+def shared_configuration_for_images(image_indices):
+    if len(image_indices) != 500 or len(set(image_indices)) != 500:
+        raise ValueError("shared sweep requires 500 distinct test images")
+    cfg = configuration("benchmark", tuple(image_indices))
+    cfg.update(
+        seeds=SWEEP_SEEDS, tau_gaba_ms=SWEEP_TAUS_MS,
+        input_rates_hz=(RATE_HZ,),
+        execution_batch_images=1,
+    )
+    return dict(
+        schema="exp123.compute/v3", sweep=cfg,
+        illustrative_image_indices=list(cfg["image_indices"][:9]),
+        presentations=len(cfg["image_indices"]) * len(SWEEP_SEEDS) * len(SWEEP_TAUS_MS),
+        sampling="all 500 balanced images have the same ten encodings at every decay; illustrative images are a view of this sample",
     )
 
 
@@ -166,7 +193,7 @@ def network(tau_ms):
             threshold_mv=-50.0,
             initial_voltage_mv=-65.0,
             voltage_grad_dampen=1000.0,
-            refractory_steps=refractory_steps(r, DT_MS, policy="exact"),
+            refractory=r * lang.ms,
         )
         for t, c, g, r in ((20, 1.0, 0.05, 1.2), (5, 0.5, 0.1, 0.6))
     ]

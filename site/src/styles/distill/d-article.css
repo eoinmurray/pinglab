@@ -17,9 +17,9 @@
 d-article {
   contain: layout style;
   overflow-x: hidden;
-  border-top: 1px solid rgba(0, 0, 0, 0.1);
+  border-top: 1px solid rgb(var(--ink) / 0.1);
   padding-top: 2rem;
-  color: rgba(0, 0, 0, 0.8);
+  color: rgb(var(--ink) / 0.8);
 }
 
 d-article > * {
@@ -57,14 +57,14 @@ d-article .marker:hover {
 
 d-article .marker span {
   padding: 0 3px 4px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.2);
+  border-bottom: 1px solid rgb(var(--ink) / 0.2);
   position: relative;
   top: 4px;
 }
 
 d-article .marker:hover span {
-  color: rgba(0, 0, 0, 0.7);
-  border-bottom: 1px solid rgba(0, 0, 0, 0.7);
+  color: rgb(var(--ink) / 0.7);
+  border-bottom: 1px solid rgb(var(--ink) / 0.7);
 }
 
 d-article h2 {
@@ -72,7 +72,7 @@ d-article h2 {
   font-size: 24px;
   line-height: 1.25em;
   margin: 2rem 0 1.5rem 0;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  border-bottom: 1px solid rgb(var(--ink) / 0.1);
   padding-bottom: 1rem;
 }
 
@@ -122,19 +122,19 @@ d-article blockquote {
 }
 
 d-article blockquote {
-  border-left: 2px solid rgba(0, 0, 0, 0.2);
+  border-left: 2px solid rgb(var(--ink) / 0.2);
   padding-left: 2em;
   font-style: italic;
-  color: rgba(0, 0, 0, 0.6);
+  color: rgb(var(--ink) / 0.6);
 }
 
 d-article a {
-  border-bottom: 1px solid rgba(0, 0, 0, 0.4);
+  border-bottom: 1px solid rgb(var(--ink) / 0.4);
   text-decoration: none;
 }
 
 d-article a:hover {
-  border-bottom: 1px solid rgba(0, 0, 0, 0.8);
+  border-bottom: 1px solid rgb(var(--ink) / 0.8);
 }
 
 d-article .link {
@@ -161,10 +161,10 @@ d-article pre {
   box-sizing: border-box;
   min-width: 0;
   padding: 20px 24px;
-  border: 1px solid #e5e2d9;
+  border: 1px solid rgb(var(--ink) / .15);
   border-radius: 8px;
-  background: #f7f6f0;
-  color: #24292e;
+  background: var(--code-background);
+  color: var(--code-foreground);
   font-size: 14px;
   line-height: 1.65;
   tab-size: 4;
@@ -172,7 +172,7 @@ d-article pre {
 }
 
 d-article pre.astro-code {
-  background-color: #f7f6f0 !important;
+  background-color: var(--code-background) !important;
 }
 
 d-article pre code {
@@ -195,7 +195,7 @@ d-article hr {
   grid-column: screen;
   width: 100%;
   border: none;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  border-bottom: 1px solid rgb(var(--ink) / 0.1);
   margin-top: 60px;
   margin-bottom: 60px;
 }
@@ -240,7 +240,7 @@ d-article section > d-math[block]  {
 }
 
 d-article .citation {
-  color: #668;
+  color: var(--link);
   cursor: pointer;
 }
 
@@ -265,15 +265,15 @@ d-figure {
 d-article table {
   border-collapse: collapse;
   margin-bottom: 1.5rem;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.2);
+  border-bottom: 1px solid rgb(var(--ink) / 0.2);
 }
 
 d-article table th {
-  border-bottom: 1px solid rgba(0, 0, 0, 0.2);
+  border-bottom: 1px solid rgb(var(--ink) / 0.2);
 }
 
 d-article table td {
-  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  border-bottom: 1px solid rgb(var(--ink) / 0.05);
 }
 
 d-article table tr:last-of-type td {

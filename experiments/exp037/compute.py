@@ -19,7 +19,7 @@ from pingstore.contracts import (
     write_json_atomic,
 )
 from pingstore.stages import _capture_code, reserve_stage
-from snnlab.sim.execution import resolve_device
+from snnlab.sim import resolve_device
 
 
 def _run_jobs(bank, directory, jobs, contract):
@@ -81,7 +81,7 @@ def _job_inventory(directory, jobs, *, verify_device=True):
                 if path.is_file():
                     files[str(path.relative_to(directory))] = file_sha256(path)
     if verify_device:
-        from snnlab.sim.execution import resolve_device
+        from snnlab.sim import resolve_device
 
         expected_device = resolve_device(os.environ.get("PINGLAB_DEVICE", "auto"))
         for job in jobs:

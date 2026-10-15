@@ -13,6 +13,7 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+import numpy as np
 from experiments.exp124 import recipe
 from matplotlib.ticker import MaxNLocator
 from pingstore.contracts import load_json, write_json_atomic
@@ -103,6 +104,41 @@ def present(identities, reference=None):
     return run.run_id
 
 
+def draw_training_curves(conditions, cfg, export):
+    with plt.rc_context({"font.size": 8, "axes.titlesize": 9, "axes.labelsize": 8,
+                         "xtick.labelsize": 8, "ytick.labelsize": 8}):
+        for condition in recipe.MODELS:
+            rows = conditions[condition]["epochs"]
+            figure, axes = plt.subplots(1, 2, figsize=(7.1, 3.8), constrained_layout=True)
+            for split, color in (("train", "#202020"), ("validation", "#a34d45")):
+                epochs = [row["epoch"] for row in rows]
+                axes[0].plot(epochs, [row[split]["loss"] for row in rows], color=color,
+                             marker="o", markersize=2.5,
+                             label="Online training" if split == "train" and cfg.get("training_measurement") == "online_pre_update_minibatches" else split.capitalize())
+                axes[1].plot(epochs, [accuracy_percent(row, split) for row in rows],
+                             color=color, marker="o", markersize=2.5)
+            axes[0].set(title="A  Classification loss", ylabel="Cross-entropy")
+            maximum = max(accuracy_percent(row, split) for row in rows for split in ("train", "validation") if row[split]["accuracy"] is not None)
+            axes[1].set(title="B  Classification accuracy", ylabel="Accuracy (%)",
+                        ylim=(0, min(100, max(20, maximum * 1.15))))
+            axes[1].axhline(5, linestyle=":", color="#777777", linewidth=1)
+            for axis in axes:
+                axis.set(xlabel="Completed epoch", xlim=(0, cfg["epochs"]))
+                axis.set_box_aspect(3 / 4)
+                axis.xaxis.set_major_locator(MaxNLocator(nbins=5, integer=True))
+                axis.spines[["top", "right"]].set_visible(False)
+            axes[0].legend(frameon=False)
+            figure.suptitle(f"{condition.upper()} — full SHD training, two hidden layers\n"
+                            f"{example_count(cfg, 'train'):,} training / {example_count(cfg, 'validation'):,} validation",
+                            fontsize=10)
+            for extension in ("svg", "png"):
+                filename = f"full_{condition}_training_curves.{extension}"
+                if (export / filename).exists():
+                    raise ValueError(f"retained export collides with {filename}")
+                figure.savefig(export / filename, dpi=180)
+            plt.close(figure)
+
+
 def present_full_training(identity, reference):
     """Add full-data curves while retaining an explicitly validated article input."""
     if not reference:
@@ -125,39 +161,68 @@ def present_full_training(identity, reference):
                 raise ValueError("retained presentation must have flat exports")
             if path.name != "numbers.json":
                 shutil.copyfile(path, run.export / path.name)
-        with plt.rc_context({"font.size": 8, "axes.titlesize": 9, "axes.labelsize": 8,
-                             "xtick.labelsize": 8, "ytick.labelsize": 8}):
-            for condition in recipe.MODELS:
-                rows = conditions[condition]["epochs"]
-                figure, axes = plt.subplots(1, 2, figsize=(7.1, 3.8), constrained_layout=True)
-                for split, color in (("train", "#202020"), ("validation", "#a34d45")):
-                    epochs = [row["epoch"] for row in rows]
-                    axes[0].plot(epochs, [row[split]["loss"] for row in rows], color=color,
-                                 marker="o", markersize=2.5,
-                                 label="Online training" if split == "train" and cfg.get("training_measurement") == "online_pre_update_minibatches" else split.capitalize())
-                    axes[1].plot(epochs, [accuracy_percent(row, split) for row in rows],
-                                 color=color, marker="o", markersize=2.5)
-                axes[0].set(title="A  Classification loss", ylabel="Cross-entropy")
-                maximum = max(accuracy_percent(row, split) for row in rows for split in ("train", "validation") if row[split]["accuracy"] is not None)
-                axes[1].set(title="B  Classification accuracy", ylabel="Accuracy (%)",
-                            ylim=(0, min(100, max(20, maximum * 1.15))))
-                axes[1].axhline(5, linestyle=":", color="#777777", linewidth=1)
-                for axis in axes:
-                    axis.set(xlabel="Completed epoch", xlim=(0, cfg["epochs"]))
-                    axis.set_box_aspect(3 / 4)
-                    axis.xaxis.set_major_locator(MaxNLocator(nbins=5, integer=True))
+        draw_training_curves(conditions, cfg, run.export)
+        write_json_atomic(run.export / "numbers.json", numbers)
+    return run.run_id
+
+
+def present_final(identity, raster_identity=None):
+    training_source = source_run(REPO / ".pingstore", identity, stage="analyse", experiment=recipe.SLUG)
+    if raster_identity is None:
+        if set(training_source.record["inputs"]) != {"compute"}:
+            raise ValueError("single-input final report requires one consolidated compute source")
+        ref = training_source.record["inputs"]["compute"]
+        recording = source_run(REPO / ".pingstore", ref["run_id"], stage="compute", experiment=recipe.SLUG, reference=ref)
+        if "sample_raster_configuration" not in recording.record["execution"]:
+            raise ValueError("compute source does not include matched inference")
+        raster_source = training_source
+        inputs = {"analysis": training_source}
+    else:
+        raster_source = source_run(REPO / ".pingstore", raster_identity, stage="analyse", experiment=recipe.SLUG)
+        ref = raster_source.record["inputs"]["inference"]
+        recording = source_run(REPO / ".pingstore", ref["run_id"], stage="compute", experiment=recipe.SLUG,
+                               phase="sample-raster", reference=ref)
+        for model in recipe.MODELS:
+            if recording.record["inputs"][f"{model}_weights"] != training_source.record["inputs"][f"compute_{model}"]:
+                raise ValueError("raster weights differ from the displayed training runs")
+        inputs = {"training": training_source, "raster_analysis": raster_source, "raster_recording": recording}
+    cfg = training_source.record["execution"]["configuration"]
+    if not cfg.get("full_dataset") or set(cfg["models"]) != set(recipe.MODELS):
+        raise ValueError("final report requires both full-data training conditions")
+    conditions = load_json(training_source.file("results.json"))["conditions"]
+    sample = load_json(raster_source.file("raster_measurements.json"))
+    numbers = {"full_training": {"configuration": cfg, "conditions": conditions,
+                                 **training_source.record["execution"]["source_measurements"]},
+               "sample_raster": sample}
+    with stage_run(REPO, recipe.SLUG, "present", inputs=inputs, configuration=cfg) as run:
+        draw_training_curves(conditions, cfg, run.export)
+        with np.load(recording.file("rasters.npz"), allow_pickle=False) as spikes, plt.rc_context({"font.size": 8, "axes.titlesize": 9}):
+            for model in recipe.MODELS:
+                figure, axes = plt.subplots(2, 1, figsize=(7.1, 4.7), constrained_layout=True, sharex=True)
+                for layer, axis in enumerate(axes, 1):
+                    excitatory = spikes[f"{model}_e{layer}"]
+                    times, neurons = np.nonzero(excitatory)
+                    axis.scatter(times * sample["dt_ms"], neurons, color="#202020", marker="|", s=7,
+                                 linewidths=.5, rasterized=True, label="E")
+                    total = excitatory.shape[1]
+                    if model == "ping":
+                        inhibitory = spikes[f"{model}_i{layer}"]
+                        times, neurons = np.nonzero(inhibitory)
+                        axis.scatter(times * sample["dt_ms"], neurons + total, color="#a34d45", marker="|", s=7,
+                                     linewidths=.5, rasterized=True, label="I")
+                        axis.axhline(total - .5, color="#888888", linewidth=.5)
+                        total += inhibitory.shape[1]
+                    axis.set(title=f"{'AB'[layer-1]}  Layer {layer}", ylabel="Neuron index",
+                             ylim=(-.5, total-.5), xlim=(0,sample["duration_ms"]))
                     axis.spines[["top", "right"]].set_visible(False)
-                axes[0].legend(frameon=False)
-                figure.suptitle(f"{condition.upper()} — full SHD training, two hidden layers\n"
-                                f"{example_count(cfg, 'train'):,} training / {example_count(cfg, 'validation'):,} validation",
-                                fontsize=10)
+                    axis.legend(frameon=False, loc="upper right", markerscale=2)
+                axes[-1].set_xlabel("Time from utterance onset (ms)")
+                figure.suptitle(f"{model.upper()} — trained two-layer response, class {sample['class']}", fontsize=10)
                 for extension in ("svg", "png"):
-                    filename = f"full_{condition}_training_curves.{extension}"
-                    if (run.export / filename).exists():
-                        raise ValueError(f"retained export collides with {filename}")
-                    figure.savefig(run.export / filename, dpi=180)
+                    figure.savefig(run.export / f"{model}_sample_raster.{extension}", dpi=180)
                 plt.close(figure)
         write_json_atomic(run.export / "numbers.json", numbers)
+        recording.check_unchanged()
     return run.run_id
 
 
@@ -273,12 +338,18 @@ if __name__ == "__main__":
     parser.add_argument("--reference-present", help="Explicit earlier smoke presentation to retain alongside new curves")
     parser.add_argument("--diagnostics", action="store_true", help="Compare explicit diagnostic analyses across recipes")
     parser.add_argument("--full-training", action="store_true", help="Add full-data curves while retaining the explicit reference presentation")
+    parser.add_argument("--final-report", action="store_true", help="Only final training curves and matched two-layer rasters")
+    parser.add_argument("--raster-analysis")
     parser.add_argument("--selected-source", help="Explicit diagnostic analysis whose final metrics are highlighted")
     args = parser.parse_args()
-    if args.full_training:
+    if args.final_report:
+        if len(args.source) != 1 or args.reference_present or args.full_training or args.diagnostics or args.selected_source:
+            parser.error("final-report requires one analysis source, without legacy presentation options")
+        print(present_final(args.source[0], args.raster_analysis))
+    elif args.full_training:
         if args.diagnostics or args.selected_source or len(args.source) != 1:
             parser.error("full-training requires one source and cannot be combined with diagnostics")
-        present_full_training(args.source[0], args.reference_present)
+        print(present_full_training(args.source[0], args.reference_present))
     elif args.diagnostics:
         present_diagnostics(args.source, args.reference_present, args.selected_source)
     else:

@@ -9,10 +9,13 @@ interface Props {
   headers: Cell[];
   rows: Cell[][];
   caption?: string;
+  number?: number | string;
   id?: string;
   label?: string;
 }
-const { headers, rows, caption, id, label = 'Report table' } = Astro.props;
+const { headers, rows, caption, number, id, label = 'Report table' } = Astro.props;
+const hasCaption = Astro.slots.has('default') || Boolean(caption);
+const Container = hasCaption ? 'figure' : 'div';
 const validCell = (cell: unknown) => typeof cell === 'string'
   || (typeof cell === 'number' && Number.isFinite(cell))
   || (cell !== null && typeof cell === 'object' && Object.keys(cell).length === 1
@@ -33,16 +36,20 @@ const renderCell = async (cell: Cell) => typeof cell !== 'object' ? cell
 const headings = await Promise.all(headers.map(renderCell));
 const body = await Promise.all(rows.map(row => Promise.all(row.map(renderCell))));
 ---
-<div class="source-table" tabindex="0" role="region" aria-label={label} id={id}>
+<Container class:list={['report-table', { 'l-body': hasCaption }]} id={id}>
+<div class="source-table" tabindex="0" role="region" aria-label={label}>
   <table>
-    {caption && <caption>{caption}</caption>}
     <thead><tr>{headings.map(cell => <th scope="col">{typeof cell === 'object' ? <Fragment set:html={cell.html} /> : cell}</th>)}</tr></thead>
     <tbody>{body.map(row => <tr>{row.map(cell => <td>{typeof cell === 'object' ? <Fragment set:html={cell.html} /> : cell}</td>)}</tr>)}</tbody>
   </table>
 </div>
+{hasCaption && <figcaption>{number !== undefined && <><strong>Table {number}.</strong>{' '}</>}<slot>{caption}</slot></figcaption>}
+</Container>
 <style>
+  .report-table { min-width: 0; }
+  .report-table > figcaption > :global(:first-child) { margin-top: 0; }
+  .report-table > figcaption > :global(:last-child) { margin-bottom: 0; }
   .source-table { min-width: 0; overflow-x: auto; }
   .source-table :global(table) { width: 100%; border-collapse: collapse; font-size: inherit; }
-  .source-table :global(th), .source-table :global(td) { padding: .5em; border-bottom: 1px solid rgba(0, 0, 0, .1); text-align: left; vertical-align: top; }
-  .source-table :global(caption) { caption-side: bottom; text-align: left; padding-top: .5em; }
+  .source-table :global(th), .source-table :global(td) { padding: .5em; border-bottom: 1px solid rgb(var(--ink) / .1); text-align: left; vertical-align: top; }
 </style>

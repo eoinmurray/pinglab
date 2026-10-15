@@ -2,7 +2,7 @@
 
 from experiments.exp022.checkpoints import checkpoint_policy
 from experiments.helpers.datasets import MNIST_REDUCED_EVAL_SAMPLES
-from snnlab.sim.timing import duration_metadata, duration_steps, refractory_metadata
+from snnlab.lang import duration_metadata, duration_steps, refractory_metadata
 
 SLUG = "exp044"
 REFRACTORY_E_MS = 1.2
@@ -49,7 +49,6 @@ def refractory_execution_configuration(dt_ms: float) -> dict:
         REFRACTORY_E_MS,
         REFRACTORY_I_MS,
         dt_ms,
-        policy=REFRACTORY_POLICY,
     )
 
 
@@ -153,9 +152,8 @@ def validate_network_settings(common: dict) -> None:
 
 def author_network(cfg: dict, cell: dict, common: dict, *, traces: bool):
     """Declare the checkpoint-backed circuit and its full-trial measurements."""
-    from experiments.helpers.ping import build_ping
+    from experiments.helpers.ping import build_ping, compile_legacy_coba
     from snnlab import lang
-    from snnlab.sim.timing import refractory_steps
 
     validate_network_settings(common)
     dt, b = cell["dt_ms"], cfg["biophysics"]
@@ -176,11 +174,7 @@ def author_network(cfg: dict, cell: dict, common: dict, *, traces: bool):
             threshold_mv=b["threshold_mV"],
             reset_mv=b["reset_mV"],
             initial_voltage_mv=b["resting_mV"],
-            refractory_steps=refractory_steps(
-                cfg[f"refractory_{label.lower()}_ms"],
-                dt,
-                policy=cfg["refractory_policy"],
-            ),
+            refractory=cfg[f"refractory_{label.lower()}_ms"] * lang.ms,
             voltage_grad_dampen=common["v_grad_dampen"],
         )
     circuit = build_ping(
@@ -220,17 +214,17 @@ def author_network(cfg: dict, cell: dict, common: dict, *, traces: bool):
     )
     net.output(
         "class_scores",
-        lang.ops.reduce(
+        lang.reduce(
             output.pre_reset_voltage, operation="mean", over="time", name="readout_mean"
         ),
     )
     for label, population in (("e", circuit.e), ("i", circuit.i)):
         net.output(
             f"spk_{label}_count",
-            lang.ops.reduce(
+            lang.reduce(
                 population.spikes, operation="sum", over="time", name=f"{label}_counts"
             ),
         )
         if traces:
             net.expose(population.spikes, name=f"spk_{label}")
-    return lang.compile(net, target="tools/snnsim")
+    return compile_legacy_coba(net)

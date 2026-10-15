@@ -12,8 +12,8 @@ import torch
 from experiments.exp047 import evidence, inputs, recipe
 from experiments.helpers.checkpoint_graph import initial_draws
 from pingstore.contracts import PingstoreError, write_json_atomic
-from snnlab.sim.execution import GraphExecutor, plan_graph, resolve_device
-from snnlab.sim.timing import duration_steps
+from snnlab.lang import duration_steps
+from snnlab.sim import GraphExecutor, plan_graph, resolve_device
 
 
 def simulate_probe(cfg, item):

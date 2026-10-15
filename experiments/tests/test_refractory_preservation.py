@@ -25,8 +25,7 @@ from experiments.helpers.checkpoint_graph import (
     bind_model,
     initial_draws,
 )
-from snnlab.sim import models as current_model
-from snnlab.sim.encoders import encode_images_poisson
+from snnlab.sim import encode_images_poisson, init_lif_state
 
 REPO = Path(__file__).resolve().parents[2]
 BASELINE = "255ab3b6e11fe4e92cd5f96c1634a2a58150bb05"
@@ -155,7 +154,7 @@ def _native_forward(model, cfg, spikes):
             for value in group.values():
                 value.zero_()
         for label, size in (("E", cfg["n_hidden"]), ("I", cfg["n_inh"])):
-            voltage, ref = current_model.init_lif_state(
+            voltage, ref = init_lif_state(
                 spikes.shape[1], size, torch.device("cpu"), randomize=True)
             state.voltages[label] = voltage
             state.refractory[label] = ref

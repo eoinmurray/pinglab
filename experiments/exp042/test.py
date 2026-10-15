@@ -24,6 +24,25 @@ from pingstore.contracts import (
 )
 
 
+def test_execution_identity_covers_reorganised_snnlab_sources(monkeypatch):
+    monkeypatch.setenv("PINGLAB_DEVICE", "cpu")
+    settings = simulation.execution_settings()
+    root = Path(simulation.snnlab.__file__).parent
+    hashes = settings["snnlab_source_sha256"]
+    for relative in (
+        "__init__.py",
+        "_shared/timing.py",
+        "sim/graph/executor.py",
+        "sim/inputs/encoders.py",
+        "sim/training/trainer.py",
+    ):
+        assert hashes[relative] == file_sha256(root / relative)
+    assert all(not Path(relative).is_absolute() for relative in hashes)
+    assert settings["source_sha256"][recipe.__name__] == file_sha256(
+        Path(recipe.__file__)
+    )
+
+
 @pytest.fixture
 def lab(tmp_path, monkeypatch):
     for module in (compute, analyse, present):

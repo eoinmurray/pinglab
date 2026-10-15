@@ -244,10 +244,27 @@ def plot_accuracy(report, destination):
     save(fig, destination)
 
 
-def present(identity, overview_identity):
+def present(identity, overview_identity=None):
     source = source_run(
         recipe.REPO / ".pingstore", identity, stage="analyse", experiment=recipe.SLUG
     )
+    if source.record["execution"]["configuration"].get("schema") == "exp123.shared.measurement/v1":
+        if overview_identity is not None:
+            raise ValueError("shared-sweep presentations take one analysis input; omit --overview-source")
+        from experiments.exp123.shared_plots import present_shared
+
+        theme.set_paper_mode(True)
+        theme.apply()
+        plt.rcParams["svg.fonttype"] = "none"
+        with stage_run(recipe.REPO, recipe.SLUG, "present", inputs={"analyse": source},
+                       configuration=dict(schema="exp123.shared.presentation/v1", paper_mode=True,
+                                          figures="six figures from one uniform sweep; evidence traces coloured by mean I-volley interval frequency, higher darker, shared scale across nine panels and both coordinates; pooled sustained decisions in 5 ms / 1 volley by 5 Hz rectangular bins with shared log counts and frequency-bin medians; coverage-limited volleys; 80% population-accuracy first-crossing cost/latency frontier in house colours with matched mean I-frequency and nonlinear GABA-decay colour scales",
+                                          show_uncertainty_estimates=False)) as run:
+            present_shared(source, run, save)
+            result = run.run_id
+        return result
+    if overview_identity is None:
+        raise ValueError("legacy analyses require --overview-source; shared-sweep analyses do not")
     report = json.loads(source.file("results.json").read_text())
     if (
         report.get("schema") != "exp123.analysis/v1"
@@ -300,8 +317,8 @@ def present(identity, overview_identity):
             overview_raster_encoding_seed=42,
             accuracy_layout="one row of three accuracy panels A–C; coverage panels omitted",
             accuracy_figure_size_mm=[recipe.FIGURE_SIZE_MM[0], 70],
-            tradeoff_layout="one row of two panels: spike cost versus elapsed time and accuracy versus spike cost; 25 Hz encoding only",
-            tradeoff_figure_size_mm=[recipe.FIGURE_SIZE_MM[0], 85],
+            tradeoff_layout="accuracy versus mean cumulative network spikes; three decay curves with dashed equal-elapsed-time connectors; 25 Hz encoding only",
+            tradeoff_figure_size_mm=[recipe.FIGURE_SIZE_MM[0], 120],
             accuracy_axis_extent="last coordinate with at least 50% paired-trial coverage plus one grid step",
         ),
     ) as run:
@@ -348,6 +365,6 @@ def present(identity, overview_identity):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source", required=True)
-    parser.add_argument("--overview-source", required=True, help="Explicit exp123 overview analysis for the inhibitory-decay overview")
+    parser.add_argument("--overview-source", help="Required only for legacy analyses with a separate overview")
     args = parser.parse_args()
     present(args.source, args.overview_source)

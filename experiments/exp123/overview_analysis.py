@@ -86,6 +86,8 @@ def dynamics(e, i, cfg):
     boundary = analysis.cycle_boundaries(volleys, len(e), policy="midpoints")["edges"][
         1:-1
     ]
+    if len(boundary) < 2:
+        boundary = np.empty(0, dtype=np.int64)
     e_cycle_counts = analysis.cycle_spike_counts(e, boundary)["counts"]
     i_cycle_counts = analysis.cycle_spike_counts(i, boundary)["counts"]
     cycles = [(int(a), int(b)) for a, b in zip(boundary[:-1], boundary[1:])]

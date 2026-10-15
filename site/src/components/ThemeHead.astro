@@ -1,0 +1,42 @@
+<script is:inline>
+  (() => {
+    const key = 'pinglab-theme';
+    const system = window.matchMedia('(prefers-color-scheme: dark)');
+    const readPreference = () => {
+      try {
+        const saved = localStorage.getItem(key);
+        return saved === 'light' || saved === 'dark' ? saved : 'system';
+      } catch { return 'system'; }
+    };
+    let preference = readPreference();
+    const apply = () => {
+      const theme = preference === 'system' ? (system.matches ? 'dark' : 'light') : preference;
+      document.documentElement.dataset.theme = theme;
+      document.documentElement.dataset.themePreference = preference;
+      const button = document.getElementById('theme-toggle');
+      if (button) {
+        const next = preference === 'system' ? 'light' : preference === 'light' ? 'dark' : 'system';
+        const label = `Theme: ${preference === 'system' ? `system (${theme})` : preference}. Switch to ${next} theme`;
+        button.setAttribute('aria-label', label);
+        button.setAttribute('title', label);
+      }
+    };
+    // Apply in the head so a saved or system dark theme is ready before paint.
+    apply();
+    document.addEventListener('DOMContentLoaded', apply);
+    document.addEventListener('astro:page-load', apply);
+    system.addEventListener('change', () => { if (preference === 'system') apply(); });
+    window.addEventListener('storage', (event) => {
+      if (event.key === key || event.key === null) { preference = readPreference(); apply(); }
+    });
+    document.addEventListener('click', (event) => {
+      if (!(event.target instanceof Element) || !event.target.closest('#theme-toggle')) return;
+      preference = preference === 'system' ? 'light' : preference === 'light' ? 'dark' : 'system';
+      try {
+        if (preference === 'system') localStorage.removeItem(key);
+        else localStorage.setItem(key, preference);
+      } catch { /* The toggle still works when storage is unavailable. */ }
+      apply();
+    });
+  })();
+</script>

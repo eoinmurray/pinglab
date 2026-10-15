@@ -8,6 +8,7 @@ from experiments.exp123.analyse import volley_times
 
 
 def measure_accuracy(source, run, cfg):
+    shared = cfg.get("shared_sweep", False)
     measurement = recipe.measurement()
     measurement.update(
         schema="exp123.accuracy.measurement/v1",
@@ -26,12 +27,23 @@ def measure_accuracy(source, run, cfg):
         "cycles": np.array(measurement["cycle_grid"]),
         "input": np.array(measurement["input_spike_grid"]),
     }
+    if shared:
+        grids["network"] = np.arange(0, 30001, 100, dtype=float)
+        measurement.update(
+            network_spike_grid=grids["network"].tolist(),
+            network_cost="E + I + output spikes; excludes input",
+            network_sampling="first completed update reaching each budget, including simultaneous-spike overshoot; only trials reaching it in every decay setting",
+            latency_aggregation="mean over all eligible image/draw pairs at each network budget",
+        )
     ni, nt, ns = len(cfg["image_indices"]), len(cfg["tau_gaba_ms"]), len(cfg["seeds"])
     correct = {
         key: np.full((ni, nt, ns, len(grid)), np.nan, dtype=np.float32)
         for key, grid in grids.items()
     }
     labels = []
+    time_cost = np.zeros((nt, len(grids["time"])), dtype=float)
+    network_latency_sum = np.zeros((nt, len(grids.get("network", []))), dtype=float)
+    network_latency_count = np.zeros_like(network_latency_sum)
     valid_rows = []
     dt = cfg["dt_ms"]
     for j, image_index in enumerate(cfg["image_indices"]):
@@ -45,22 +57,31 @@ def measure_accuracy(source, run, cfg):
                 )
             )
         labels.append(label)
-        outputs, peaks_all, valid_all = [], [], []
+        outputs, peaks_all, valid_all, network_counts = [], [], [], []
         for ti, tau in enumerate(cfg["tau_gaba_ms"]):
             with np.load(
                 unit / f"tau{tau:g}--spikes.npz", allow_pickle=False
             ) as data:
+                output_spikes, inhibitory_spikes = data["spk_out"], data["spk_i"]
                 cumulative = np.concatenate(
                     (
                         np.zeros((1, ns, 10), dtype=np.int32),
-                        np.cumsum(data["spk_out"], axis=0, dtype=np.int32),
+                        np.cumsum(output_spikes, axis=0, dtype=np.int32),
                     )
                 )
                 outputs.append(cumulative.argmax(axis=-1) == label)
+                if shared:
+                    counts = np.concatenate((
+                        np.zeros((1, ns), dtype=np.int64),
+                        np.cumsum(data["spk_e"].sum(axis=2) + inhibitory_spikes.sum(axis=2)
+                                  + output_spikes.sum(axis=2), axis=0, dtype=np.int64),
+                    ))
+                    network_counts.append(counts)
+                    time_cost[ti] += counts[np.rint(grids["time"] / dt).astype(int)].mean(axis=1)
                 peaks, accepted = [], []
                 for b in range(ns):
                     p, valid, participation = volley_times(
-                        data["spk_i"][:, b], dt, measurement
+                        inhibitory_spikes[:, b], dt, measurement
                     )
                     peaks.append(p)
                     accepted.append(valid)
@@ -77,6 +98,8 @@ def measure_accuracy(source, run, cfg):
                 peaks_all.append(peaks)
                 valid_all.append(accepted)
         for b in range(ns):
+            if shared:
+                reaches_network = grids["network"] <= min(c[-1, b] for c in network_counts)
             reaches_input = grids["input"] <= input_counts[-1, b]
             input_steps = np.searchsorted(
                 input_counts[:, b], grids["input"][reaches_input], side="left"
@@ -91,6 +114,13 @@ def measure_accuracy(source, run, cfg):
                 correct["input"][j, ti, b, reaches_input] = outputs[ti][
                     input_steps, b
                 ]
+                if shared:
+                    network_steps = np.searchsorted(
+                        network_counts[ti][:, b], grids["network"][reaches_network], side="left"
+                    )
+                    correct["network"][j, ti, b, reaches_network] = outputs[ti][network_steps, b]
+                    network_latency_sum[ti, reaches_network] += network_steps * dt
+                    network_latency_count[ti, reaches_network] += 1
                 if cycle_ok:
                     peaks = peaks_all[ti][b]
                     query = np.interp(
@@ -203,6 +233,15 @@ def measure_accuracy(source, run, cfg):
         presentations=ni * nt * ns,
         final_time_accuracy=[c[-1] for c in curves["time"]["accuracy"]],
     )
+    if shared:
+        report["mean_network_spikes_by_time"] = (time_cost / ni).tolist()
+        latency = np.divide(
+            network_latency_sum, network_latency_count,
+            out=np.full_like(network_latency_sum, np.nan), where=network_latency_count > 0,
+        )
+        report["mean_network_budget_latency_ms"] = [
+            [float(v) if np.isfinite(v) else None for v in row] for row in latency
+        ]
     (run.export / "accuracy.json").write_text(
         json.dumps(report, indent=2, allow_nan=False) + "\n"
     )

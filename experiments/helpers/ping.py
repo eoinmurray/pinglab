@@ -7,6 +7,13 @@ from dataclasses import dataclass
 from snnlab import lang
 
 
+def compile_legacy_coba(
+    net: lang.Network, *, target: str | None = "tools/snnsim"
+) -> lang.Bundle:
+    """Compile a fresh replay bundle with historical COBA counter scheduling."""
+    return lang.compile(net, target=target, refractory_timing="legacy_coba")
+
+
 @dataclass(frozen=True)
 class PINGCircuit:
     """Population and projection handles for experiment-specific observables."""

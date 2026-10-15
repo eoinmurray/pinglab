@@ -14,9 +14,14 @@ from pingstore.contracts import (
     load_json,
     write_json_atomic,
 )
-from snnlab.sim.execution import resolve_device
-from snnlab.sim.segments import BoundarySchedule, DecisionSegments, ResetVoltage
-from snnlab.sim.streaming import RecordingSpec, SignalRecording
+from snnlab.sim import (
+    BoundarySchedule,
+    DecisionSegments,
+    RecordingSpec,
+    ResetVoltage,
+    SignalRecording,
+    resolve_device,
+)
 
 from . import recipe
 from .recipe import DT_MS, N_CLASSES, N_INPUT

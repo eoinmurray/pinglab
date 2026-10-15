@@ -13,7 +13,7 @@ import numpy as np
 import torch
 from experiments.exp099 import recipe
 from pingstore.stages import stage_run
-from snnlab.sim.execution import GraphExecutor, plan_graph  # noqa: TID251
+from snnlab.sim import GraphExecutor, plan_graph  # noqa: TID251
 
 
 def build_model(cfg):

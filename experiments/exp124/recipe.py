@@ -1,7 +1,23 @@
 """Directly declared two-layer SHD networks; no simulation on import."""
 
 from snnlab import extensions, lang
-from snnlab.lang import training
+
+
+def equal_class_loss(losses, target, classes):
+    import torch
+    counts = torch.zeros(classes, device=losses.device, dtype=losses.dtype)
+    counts.scatter_add_(0, target, torch.ones_like(target, dtype=losses.dtype))
+    return (losses / counts[target]).sum() / (counts > 0).sum()
+
+
+def class_balanced_cross_entropy(prediction, target, config):
+    import torch
+    losses = torch.nn.functional.cross_entropy(prediction, target.long(), reduction="none")
+    return equal_class_loss(losses, target.long(), config["classes"])
+
+
+extensions.register_objective("exp124.equal_class_cross_entropy/v1", class_balanced_cross_entropy,
+                              classification=True)
 
 
 def rate_normalized_scores(sources, parameters, config):
@@ -34,33 +50,72 @@ def adam_optimizer(groups, config):
 extensions.register_surrogate("exp124.paper_fast_sigmoid/v1", paper_surrogate)
 extensions.register_optimizer("exp124.adam/v1", adam_optimizer)
 
+def centered_readout(shape, config, *, device, dtype):
+    import torch
+    value = torch.randn(shape, device=device, dtype=dtype) * config["std"] + config["mean"]
+    return value - value.mean(dim=0, keepdim=True) if config["center"] else value
+
+
+def identity_gain(shape, config, *, device, dtype):
+    import torch
+    return torch.eye(*shape, device=device, dtype=dtype) * config["gain"]
+
+
+extensions.register_initializer("exp124.centered_readout/v1", centered_readout)
+extensions.register_initializer("exp124.identity_gain/v1", identity_gain)
+
+
 SLUG = "exp124"
 MODELS = ("coba", "ping")
 
 
 TRAINABLE = ("input_to_E1.weight", "E1_to_E2.weight", "readout_projection.weight")
+CALIBRATION_CASES = (
+    {"input": value, "interlayer": 0.09, "ei": 0.05, "ie": 0.05}
+    for value in (0.03, 0.06, 0.09, 0.12)
+)
+CALIBRATION_CASES = tuple(CALIBRATION_CASES) + (
+    {"input": 0.09, "interlayer": 0.03, "ei": 0.05, "ie": 0.05},
+    {"input": 0.09, "interlayer": 0.3, "ei": 0.05, "ie": 0.05},
+)
+PHASES = {"operating-point": {
+    "inputs": {"training_examples": "explicit completed full SHD compute run"},
+    "required_exports": ["operating_points.json"], "optimizer_updates": 0,
+    "examples": "one source training utterance per class; no validation utterances",
+}, "sample-raster": {
+    "inputs": {"coba_weights": "completed full-data COBA training", "ping_weights": "completed full-data PING training"},
+    "required_exports": ["rasters.npz"], "optimizer_updates": 0,
+    "examples": "first validation utterance in the paired training sources; one matched fresh corruption draw",
+}, "gamma-probe": {
+    "inputs": {"trained_network": "explicit completed SHD compute run with final weights"},
+    "required_exports": ["rasters.npz"], "optimizer_updates": 0,
+    "examples": "first two validation utterances per class, in source order",
+    "conditions": "trained network; PING additionally with I-to-E feedback disabled at fixed learned weights",
+    "analysis": "30-90 Hz population spectra, within-trial autocorrelation, 25 ms within-neuron spike-shuffle reference",
+}}
 
 
 def configuration(
-    train_examples=200, validation_examples=100, epochs=5, variant="paper",
+    train_examples=200, validation_examples=100, epochs=5, variant="calibrated",
     seed=42, batch_size=None, learning_rate=None, readout_gain=None, damping=None,
     readout_learning_rate=None, balanced_batches=None, center_readout=None,
     interlayer_strength=None, normalize_readout=None, input_strength=None, models=None,
     full_dataset=False, validation_fraction=0.1,
+    compile_mode=None,
 ):
     models = tuple(MODELS if models is None else models)
     if not models or len(set(models)) != len(models) or any(model not in MODELS for model in models):
         raise ValueError("select unique supported models")
     tuned = variant == "tuned"
-    batch_size = (256 if variant == "paper" else 20 if tuned else 16) if batch_size is None else batch_size
+    batch_size = (256 if variant in ("paper", "calibrated") else 20 if tuned else 16) if batch_size is None else batch_size
     balanced_batches = tuned if balanced_batches is None else balanced_batches
-    center_readout = tuned if center_readout is None else center_readout
-    normalize_readout = tuned if normalize_readout is None else normalize_readout
+    center_readout = (tuned or variant == "calibrated") if center_readout is None else center_readout
+    normalize_readout = (tuned or variant == "calibrated") if normalize_readout is None else normalize_readout
     if any(value < 1 for value in (train_examples, validation_examples, epochs)):
         raise ValueError("example counts and epochs must be positive")
     if train_examples % 20 or validation_examples % 20:
         raise ValueError("class-balanced example counts must be multiples of 20")
-    if variant not in ("baseline", "diverse", "damping", "sum", "gain", "combined", "maximum", "tuned", "paper"):
+    if variant not in ("baseline", "diverse", "damping", "sum", "gain", "combined", "maximum", "tuned", "paper", "calibrated"):
         raise ValueError("unsupported training variant")
     if not 0 < validation_fraction < 1:
         raise ValueError("validation_fraction must be between zero and one")
@@ -82,6 +137,8 @@ def configuration(
         "input_noise_hz": 0.0, "spike_deletion_probability": 0.0,
         "firing_rate_regularization": False,
         "training_measurement": "full_split_evaluation",
+        "class_stratified_batches": False, "class_balanced_loss": False,
+        "merge_short_training_tail": False,
         "projection_mode": "fast", "extension_validation": "structural",
         "compile_mode": None,
         "forward_retention": {"retain_parameters": False, "retain_final_state": False,
@@ -122,13 +179,15 @@ def configuration(
         cfg["readout_gain"] = 20.0
     if variant == "maximum":
         cfg.update(readout_reduction="max", readout_gain=20.0)
-    if variant == "paper":
+    if variant in ("paper", "calibrated"):
         cfg.update(schema="exp124.recipe/v3", dt_ms=1.0,
                    tau_ampa_ms=10.0, tau_gaba_ms=10.0,
                    tau_mem_e_ms=20.0, tau_mem_i_ms=20.0,
                    refractory_e_ms=0.0, refractory_i_ms=0.0,
                    learning_rate=0.001, voltage_gradient_damping=1.0,
                    surrogate_slope=100.0, surrogate_voltage_scale_mv=15.0,
+                   surrogate_gradient_scale=0.01, surrogate_threshold_inclusive=False,
+                   surrogate_implementation="builtin", compile_mode="default",
                    readout_reduction="max", readout_gain=1.0,
                    optimizer="adam", gradient_clip=None,
                    input_noise_hz=1.6, spike_deletion_probability=0.0008,
@@ -138,8 +197,27 @@ def configuration(
                    population_sizes={"coba": {"e": 128, "i": 0}, "ping": {"e": 128, "i": 32}},
                    paper_reference="https://arxiv.org/pdf/1910.07407v1",
                    paper_adaptations="conductance neurons, nonnegative hidden weights, retained conductance initialization and fixed PING loops; batch size 256 and 1 ms steps match GPU timing benchmarks, not the original 2019 curve; stratified 10% validation is an explicit choice")
+    cfg.update(input_learning_rate=cfg["learning_rate"], interlayer_learning_rate=cfg["learning_rate"])
+    if variant == "calibrated":
+        cfg.update(input_weight_mean=0.09, input_weight_sd=0.009,
+                   interlayer_weight_mean=0.09, interlayer_weight_sd=0.009,
+                   interlayer_initial_zero_fraction=0.9,
+                   ei_summed_weight_us=0.05, ie_summed_weight_us=0.05,
+                   input_learning_rate=0.000005, interlayer_learning_rate=0.00002,
+                   readout_reduction="mean", readout_gain=20.0,
+                   class_stratified_batches=True, class_balanced_loss=True,
+                   merge_short_training_tail=True,
+                   batch_order="class-stratified order without replacement; merge tails smaller than 20 examples",
+                   optimization_objective="mean cross entropy per represented class; reported loss is example mean",
+                   calibration_basis="operating-point phase: shared sparse conductances and weaker fixed PING loops",
+                   paper_adaptations="calibrated conductance scales, sparse interlayer, centered rate-normalized mean readout, class-stratified batching/equal-class objective and separate physical-weight learning rates; not a paper reproduction")
     if learning_rate is not None:
         cfg["learning_rate"] = learning_rate
+        cfg["input_learning_rate"] = cfg["interlayer_learning_rate"] = learning_rate
+    if compile_mode is not None:
+        if compile_mode not in ("default", "eager"):
+            raise ValueError("compile_mode must be default or eager")
+        cfg["compile_mode"] = None if compile_mode == "eager" else compile_mode
     if readout_gain is not None:
         cfg["readout_gain"] = readout_gain
     if damping is not None:
@@ -158,7 +236,7 @@ def configuration(
             raise ValueError("input strength must be positive")
         cfg["input_weight_mean"] = input_strength
         cfg["input_weight_sd"] = input_strength / 10
-    cfg["readout_learning_rate"] = (0.01 if tuned else cfg["learning_rate"]) if readout_learning_rate is None else readout_learning_rate
+    cfg["readout_learning_rate"] = (0.01 if tuned or variant == "calibrated" else cfg["learning_rate"]) if readout_learning_rate is None else readout_learning_rate
     if cfg["readout_learning_rate"] <= 0:
         raise ValueError("readout learning rate must be positive")
     cfg["readout"] = f"non-spiking leaky integrator; {cfg['readout_reduction']} voltage over presentation"
@@ -166,6 +244,9 @@ def configuration(
         cfg.update(train_per_class=None, validation_per_class=None,
                    train_examples=None, validation_examples=None,
                    split=f"seeded per-class {validation_fraction:.0%} holdout from official train; all remaining utterances train")
+    cfg.update(training_engine="snnlab.sim.train", initialization_implementation="native",
+               encoding_seed_policy="SNNLab indexed phase/epoch/draw hashing", training_timing=True,
+               activity_measurement="separate inference; native online metrics do not support split population-rate observations")
     return cfg
 
 def author_network(cfg, model):
@@ -186,6 +267,7 @@ def author_network(cfg, model):
             refractory=cfg[f"refractory_{label}_ms"] * lang.ms,
             voltage_grad_dampen=cfg["voltage_gradient_damping"],
         )
+    native = cfg.get("initialization_implementation") == "native"
     source = drive
     learned, fixed, populations = [], [], []
     for index in (1, 2):
@@ -197,15 +279,21 @@ def author_network(cfg, model):
             source, e.excitatory,
             name=f"input_to_E{suffix}" if index == 1 else "E1_to_E2",
             synapse=lang.AMPA(tau=cfg["tau_ampa_ms"] * lang.ms),
-            weight=lang.Constant(0), constraint=lang.NonNegative(),
-            initialization_scaling="direct")
+            weight=(lang.LowerClampedNormal(
+                mean=cfg["input_weight_mean" if index == 1 else "interlayer_weight_mean"],
+                std=cfg["input_weight_sd" if index == 1 else "interlayer_weight_sd"],
+                initial_zero_fraction=cfg["input_initial_zero_fraction" if index == 1 else "interlayer_initial_zero_fraction"])
+                if native else lang.Constant(0)), constraint=lang.NonNegative(),
+            initialization_scaling="fan_in_normalized" if native else "direct")
         learned.append(projection.weight)
         for pre, target, name, synapse in (() if i is None else (
             (e.spikes, i.excitatory, f"E{suffix}_to_I{suffix}", lang.AMPA(tau=cfg["tau_ampa_ms"] * lang.ms)),
             (i.spikes, e.inhibitory, f"I{suffix}_to_E{suffix}", lang.GABA(tau=cfg["tau_gaba_ms"] * lang.ms)),
         )):
             loop = net.connect(pre, target, name=name, synapse=synapse,
-                               weight=lang.Constant(0), constraint=lang.NonNegative(),
+                               weight=lang.Constant((cfg["ei_summed_weight_us"] / cfg["n_e"]
+                                                     if name.startswith("E") else cfg["ie_summed_weight_us"] / cfg["n_i"])
+                                                    if native and model == "ping" else 0), constraint=lang.NonNegative(),
                                connection="recurrent", delay=cfg["dt_ms"] * lang.ms,
                                initialization_scaling="direct")
             fixed.append(loop.weight)
@@ -215,24 +303,26 @@ def author_network(cfg, model):
                             neuron=lang.LeakyIntegrator(tau=cfg["readout_tau_ms"] * lang.ms))
     projection = net.connect(
         source, readout.excitatory, name="readout_projection",
-        synapse=lang.LeakyIntegrator(tau=(cfg["tau_ampa_ms"] if cfg["variant"] == "paper"
+        synapse=lang.LeakyIntegrator(tau=(cfg["tau_ampa_ms"] if cfg["variant"] in ("paper", "calibrated")
                                         else cfg["readout_tau_ms"]) * lang.ms),
-        weight=lang.Constant(0), initialization_scaling="direct",
+        weight=(lang.CustomInitializer("exp124.centered_readout/v1", mean=cfg["readout_weight_mean"],
+                                      std=cfg["readout_weight_sd"], center=cfg["center_readout_initialization"])
+                if native else lang.Constant(0)), initialization_scaling="direct",
     )
     if cfg.get("readout_reduction") == "max":
-        scores = lang.ops.custom("exp124.temporal_max/v1", readout.voltage, name="scores",
+        scores = lang.custom_operation("exp124.temporal_max/v1", readout.voltage, name="scores",
                                 shape=("batch", cfg["classes"]), unit=readout.voltage.unit)
     else:
-        scores = lang.ops.reduce(readout.voltage, operation=cfg.get("readout_reduction", "mean"), over="time", name="scores")
+        scores = lang.reduce(readout.voltage, operation=cfg.get("readout_reduction", "mean"), over="time", name="scores")
     if cfg.get("readout_gain", 1.0) != 1.0:
-        gain = net.parameter("score_gain.weight", shape=(cfg["classes"], cfg["classes"]), initializer=lang.Constant(0))
+        gain = net.parameter("score_gain.weight", shape=(cfg["classes"], cfg["classes"]), initializer=(lang.CustomInitializer("exp124.identity_gain/v1", gain=cfg["readout_gain"]) if native else lang.Constant(0)))
         scores = net.operation("linear", scores, name="scaled_scores", shape=scores.shape,
                                unit=scores.unit, signal_type="continuous", parameters=(gain,),
                                size=cfg["classes"], trainable=False)
         fixed.append(gain)
     if cfg.get("normalize_readout", False):
-        counts = lang.ops.reduce(populations[-1][0].spikes, operation="sum", over="time", name="normalization_counts")
-        scores = lang.ops.custom("exp124.rate_normalize/v1", [scores, counts], name="normalized_scores",
+        counts = lang.reduce(populations[-1][0].spikes, operation="sum", over="time", name="normalization_counts")
+        scores = lang.custom_operation("exp124.rate_normalize/v1", [scores, counts], name="normalized_scores",
                                 shape=scores.shape, unit="1", steps=round(cfg["duration_ms"] / cfg["dt_ms"]),
                                 reference_rate=cfg["readout_reference_rate_per_step"],
                                 minimum_rate=cfg["readout_minimum_rate_per_step"])
@@ -241,24 +331,30 @@ def author_network(cfg, model):
         for label, population in (("e", e), ("i", i)):
             if population is None:
                 continue
-            net.output(f"{label}{index}_counts", lang.ops.reduce(
+            if cfg.get("record_spikes", False):
+                net.output(f"{label}{index}_spikes", population.spikes)
+            net.output(f"{label}{index}_counts", lang.reduce(
                 population.spikes, operation="sum", over="time", name=f"{label}{index}_count_reduction"))
             if index == 2:
-                net.output(f"{label}_counts", lang.ops.reduce(
+                net.output(f"{label}_counts", lang.reduce(
                     population.spikes, operation="sum", over="time", name=f"{label}_count_reduction"))
     spec = lang.TrainSpec(
-        objectives=(training.CrossEntropy(prediction=scores, target="class"),),
-        parameter_groups=(training.ParameterGroup(
-            tuple(learned), name="hidden", lr=cfg["learning_rate"]),
-            training.ParameterGroup((projection.weight,), name="readout", lr=cfg["readout_learning_rate"]),
-            *((training.ParameterGroup(tuple(fixed), name="fixed_loop", lr=0.0, frozen=True),)
+        objectives=((lang.CustomObjective("exp124.equal_class_cross_entropy/v1", prediction=scores,
+                     target="class", classes=cfg["classes"]) if cfg.get("class_balanced_loss", False)
+                     else lang.CrossEntropy(prediction=scores, target="class")),),
+        parameter_groups=(lang.ParameterGroup(
+            (learned[0],), name="input", lr=cfg["input_learning_rate"]),
+            lang.ParameterGroup((learned[1],), name="interlayer", lr=cfg["interlayer_learning_rate"]),
+            lang.ParameterGroup((projection.weight,), name="readout", lr=cfg["readout_learning_rate"]),
+            *((lang.ParameterGroup(tuple(fixed), name="fixed_loop", lr=0.0, frozen=True),)
               if fixed else ())),
-        optimizer=(training.CustomOptimizer("exp124.adam/v1", lr=cfg["learning_rate"],
+        optimizer=(lang.CustomOptimizer("exp124.adam/v1", lr=cfg["learning_rate"],
                    betas=cfg["optimizer_betas"], weight_decay=cfg["weight_decay"])
-                   if cfg["optimizer"] == "adam" else training.AdamW(weight_decay=cfg["weight_decay"])),
-        surrogate=(training.CustomSurrogate("exp124.paper_fast_sigmoid/v1", beta=cfg["surrogate_slope"],
-                   voltage_scale_mv=cfg["surrogate_voltage_scale_mv"])
-                   if cfg["variant"] == "paper" else training.FastSigmoid(slope=cfg["surrogate_slope"])),
+                   if cfg["optimizer"] == "adam" else lang.AdamW(weight_decay=cfg["weight_decay"])),
+        surrogate=(lang.FastSigmoid(slope=cfg["surrogate_slope"] / cfg["surrogate_voltage_scale_mv"],
+                   gradient_scale=cfg["surrogate_gradient_scale"],
+                   threshold_inclusive=cfg["surrogate_threshold_inclusive"])
+                   if cfg["variant"] in ("paper", "calibrated") else lang.FastSigmoid(slope=cfg["surrogate_slope"])),
         gradient_clip=cfg["gradient_clip"],
         epochs=cfg["epochs"],
         presentation_duration=cfg["duration_ms"] * lang.ms,

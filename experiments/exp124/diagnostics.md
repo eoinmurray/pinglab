@@ -1,14 +1,18 @@
-# Two-layer SHD training diagnosis
+# Historical two-layer SHD training diagnosis
+
+Historical development notes: the author requested pruning of these superseded local runs on 14 October 2026. Their IDs below are non-operational history. The current report uses only the final training and matched-raster lineage listed in README.
 
 Historical local scientific checks, 14 October 2026. Both models used two 128 E/32 I
 hidden layers, with network declarations in `recipe.py`. These are reduced
 training experiments, not automated tests or official-test benchmarks.
 
-The newly prepared default `paper` profile has different population counts and
-training settings and has not run. The measurements below establish readiness
-only for the earlier `tuned` profile; see [README](README.md) for the prepared
-full-data Modal configuration. Completed outputs and the article's presentation
-pin retain their original provenance.
+The current default is the GPU `calibrated` profile: COBA has two 128-neuron
+layers without inhibitory populations; PING has two 128 E/32 I layers. Its
+operating-point calibration and measured two-seed readiness checks are recorded
+in [README](README.md#operating-point-correction-and-gpu-readiness).
+The measurements below establish readiness only for the earlier `tuned`
+profile. Completed outputs and the article's presentation pin retain their
+original provenance.
 
 ## What the checks establish
 

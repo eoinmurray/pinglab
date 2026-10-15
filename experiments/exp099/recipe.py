@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import numpy as np
+from experiments.helpers.ping import compile_legacy_coba
 from snnlab import lang as snn  # noqa: TID251
 
 SLUG = "exp099"
@@ -106,9 +107,7 @@ def author_network(cfg=None):
                 resting_mv=-65.0,
                 threshold_mv=-50.0,
                 reset_mv=-65.0,
-                refractory_steps=round(
-                    cfg[f"refractory_{name.lower()}_ms"] / cfg["dt_ms"]
-                ),
+                refractory=cfg[f"refractory_{name.lower()}_ms"] * snn.ms,
                 voltage_grad_dampen=80.0,
                 initial_voltage_mv=cfg["initial_voltage_mv"],
             ),
@@ -155,10 +154,11 @@ def author_network(cfg=None):
                 ),
                 constraint=snn.NonNegative(),
                 connection="recurrent",
+                allow_autapses=True,
                 delay=cfg["delay_ms"] * snn.ms,
             )
             net.expose(projection.conductance, name=f"{projection.id}.conductance")
     for pop in pops.values():
         net.expose(pop.spikes, name=f"{pop.id}.spikes")
         net.expose(pop.voltage, name=f"{pop.id}.voltage")
-    return snn.compile(net, target=None)
+    return compile_legacy_coba(net, target=None)

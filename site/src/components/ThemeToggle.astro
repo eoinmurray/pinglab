@@ -1,0 +1,23 @@
+<button id="theme-toggle" class="theme-toggle" type="button" aria-label="Change colour theme" title="Change colour theme">
+  <svg class="theme-system" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <rect x="3" y="4" width="18" height="13" rx="2" /><path d="M8 21h8M12 17v4" />
+  </svg>
+  <svg class="theme-light" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+    <circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.4 1.4M17.6 17.6 19 19M5 19l1.4-1.4M17.6 6.4 19 5" />
+  </svg>
+  <svg class="theme-dark" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M20.8 13.2A9 9 0 0 1 10.8 3.2a9 9 0 1 0 10 10Z" />
+  </svg>
+</button>
+
+<style is:global>
+  .theme-toggle { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: rgb(var(--ink) / .6); cursor: pointer; }
+  .theme-toggle:hover { color: rgb(var(--ink)); background: rgb(var(--ink) / .06); }
+  .theme-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+  .theme-toggle svg { display: none; }
+  :root[data-theme-preference="system"] .theme-system,
+  :root[data-theme-preference="light"] .theme-light,
+  :root[data-theme-preference="dark"] .theme-dark { display: block; }
+  @media (max-width: 480px) { .site-header .nav-links { gap: .65rem; } .site-header .github-link span { display: none; } }
+  @media print { .theme-toggle { display: none; } }
+</style>

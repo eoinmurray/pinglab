@@ -116,9 +116,8 @@ def trials(*, smoke=False):
 
 def author_network(cfg: dict, point: dict, *, traces: bool):
     """Declare the untrained circuit, with no stimulus or simulator globals."""
-    from experiments.helpers.ping import build_ping
+    from experiments.helpers.ping import build_ping, compile_legacy_coba
     from snnlab import lang
-    from snnlab.sim.timing import refractory_steps
 
     b = cfg["biophysics"]
     net = lang.Network("exp023_ping_fundamentals", dt=point["dt_ms"] * lang.ms)
@@ -138,11 +137,7 @@ def author_network(cfg: dict, point: dict, *, traces: bool):
             threshold_mv=b["threshold_mV"],
             reset_mv=b["reset_mV"],
             initial_voltage_mv=cfg["initial_voltage_mV"],
-            refractory_steps=refractory_steps(
-                b[f"refractory_{label}_ms"],
-                point["dt_ms"],
-                policy=cfg["refractory_policy"],
-            ),
+            refractory=b[f"refractory_{label}_ms"] * lang.ms,
             voltage_grad_dampen=80.0,
         )
     strength = point["ei_strength"]
@@ -180,16 +175,16 @@ def author_network(cfg: dict, point: dict, *, traces: bool):
         }.items():
             net.expose(signal, name=name)
     for label, population in (("E", e), ("I", i)):
-        count = lang.ops.reduce(
+        count = lang.reduce(
             population.spikes, operation="sum", over="time", name=f"{label}_counts"
         )
         net.output(f"spk_{label.lower()}_count", count)
-    return lang.compile(net, target="tools/snnsim")
+    return compile_legacy_coba(net)
 
 
 def execution_request(bundle, point: dict, *, traces: bool):
-    from snnlab.sim.execution import ExecutionSpec, PoissonInputBinding
-    from snnlab.sim.timing import duration_steps
+    from snnlab.lang import duration_steps
+    from snnlab.sim import ExecutionSpec, PoissonInputBinding
 
     return ExecutionSpec(
         kind="simulate",

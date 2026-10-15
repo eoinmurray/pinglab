@@ -19,11 +19,14 @@ def test_physical_weights_and_refractory_durations():
         if p.id.startswith("private"):
             np.testing.assert_allclose(w, np.eye(len(w)) * 0.004)
         else:
+            assert model.plan.autapses[p.id]["allow_autapses"]
             np.testing.assert_allclose(
                 w[w > 0], 0.001 if p.id.startswith("E") else 0.00334
             )
     for row, duration in zip(model.plan.populations, (3.0, 1.5)):
-        assert row["neuron"]["refractory_steps"] * cfg["dt_ms"] == duration
+        assert row["neuron"]["refractory"] == {"value": duration, "unit": "ms"}
+        timing = model.plan.refractory[row["id"]]
+        assert timing["held_steps"] == round(duration / cfg["dt_ms"]) - 1
 
 
 def test_count_superposition_keeps_multiplets_and_independence():

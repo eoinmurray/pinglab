@@ -11,7 +11,7 @@ sys.path[:0] = [str(REPO), str(REPO / "tools")]
 import numpy as np
 from experiments.exp042 import inputs, recipe
 from pingstore.contracts import PingstoreError, load_json, write_json_atomic
-from snnlab.sim.timing import duration_steps
+from snnlab.lang import duration_steps
 
 MEASUREMENT = {
     "schema": "exp042.measurement/v2",

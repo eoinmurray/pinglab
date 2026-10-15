@@ -33,15 +33,15 @@ const dateLabel = (date: string) => new Intl.DateTimeFormat('en-GB', {
 <style>
   .post-preview { overflow: hidden; }
   .post-link { color: inherit; text-decoration: none; }
-  .post-link:focus-visible { outline: 2px solid #004276; outline-offset: 6px; }
-  .description .authors { font-size: calc(14px * var(--listing-scale)); margin: 0 0 1em; color: rgba(0, 0, 0, .67); line-height: 1.4; }
+  .post-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 6px; }
+  .description .authors { font-size: calc(14px * var(--listing-scale)); margin: 0 0 1em; color: var(--listing-muted); line-height: 1.4; }
   .metadata { font-size: calc(12px * var(--listing-scale)); line-height: 1.4; margin-bottom: calc(18px * var(--listing-scale)); }
-  .experiment-id { display: inline-block; margin-right: 1em; color: rgba(0, 0, 0, .8); font-size: calc(18px * var(--listing-scale)); font-weight: 600; text-decoration: none; }
+  .experiment-id { display: inline-block; margin-right: 1em; color: var(--listing-label); font-size: calc(18px * var(--listing-scale)); font-weight: 600; text-decoration: none; }
   .experiment-id:hover { text-decoration: underline; }
   .publishedDate { display: inline-block; margin-right: 1em; }
   .collection { display: inline-flex; flex-wrap: wrap; gap: .5em; margin-top: 1em; }
-  .collection-badge { color: rgba(0, 0, 0, .67); padding: .3em .5em; border: 1px solid rgba(0, 0, 0, .4); border-radius: 3px; text-transform: uppercase; font-size: 80%; font-weight: 500; text-decoration: none; }
-  .collection-badge:hover { color: black; border-color: black; }
+  .collection-badge { color: var(--listing-muted); padding: .3em .5em; border: 1px solid var(--listing-border); border-radius: 3px; text-transform: uppercase; font-size: 80%; font-weight: 500; text-decoration: none; }
+  .collection-badge:hover { color: rgb(var(--ink)); border-color: rgb(var(--ink)); }
   @media (min-width: 768px) {
     .metadata { margin-top: calc(8px * var(--listing-scale)); margin-bottom: 0; }
     .experiment-id { display: block; margin: 0 0 calc(12px * var(--listing-scale)); }

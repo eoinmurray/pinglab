@@ -1,0 +1,98 @@
+---
+id: "exp130"
+title: "Theta nested Gamma"
+created_at: "2026-10-15"
+updated_at: "2026-10-15"
+description: "A 5 Hz afferent-rate envelope compared with constant excitation of the same mean."
+collection: ["theta-gamma"]
+author: "Eoin Murray"
+tags: ["data", "v36.0.0"]
+inputs: ["exp130"]
+runs: {"exp130": "exp130-r026-present"}
+thumbnailRun: "exp130-r026-present"
+thumbnail: "spike-raster.png"
+abstract: "Independent excitatory afferents drive a recurrent excitatory–inhibitory circuit. We compare a 5 Hz sinusoidal rate envelope ranging from 0.2 to 3.8 Hz per afferent with constant 2 Hz input. The connectivity, weights and initial state are paired across conditions."
+---
+
+import PublishedFigure from '../../../site/src/components/PublishedFigure.astro';
+import Table from '../../../site/src/components/Table.astro';
+import { reportData, round } from '../../../site/src/lib/report-data';
+import PanelA from './PanelA.astro';
+
+export const evidence = await reportData('exp130');
+export const results = evidence.results;
+
+## Question
+
+Does a theta-frequency envelope on otherwise independent afferent excitation organise fast population bursting? We extend the circuit in [Susin and Destexhe (2021)](/exp099/) with periodic input and a constant-input comparison. The circuit is a modified conductance-based LIF version of the published PING network.\[[1](#ref-1)\]
+
+Both populations receive excitatory afferents. From the start of the simulation, with no burn-in, the theta condition follows
+
+$$
+\lambda(t)=\lambda_0+A\sin(2\pi f_\theta t).
+\tag{1}
+$$
+
+Here $t$ is time in seconds from initialization, $\lambda(t)$ is the rate of each afferent in spikes/s, $\lambda_0=2$ spikes/s is the mean, $A=1.8$ spikes/s is the modulation amplitude, and $f_\theta=5$ Hz is the envelope frequency. The rate ranges from 0.2 to 3.8 Hz and starts at its rising mean crossing. The comparison remains at 2 Hz. The two conditions therefore have the same prescribed mean over complete cycles; their realised spike counts and neuronal firing rates need not match.
+
+## Circuit
+
+<PublishedFigure run="exp130-r026-present" file="network.svg" id="figure-1" alt="Structural diagram of 1,600 excitatory and 400 inhibitory neurons, all four recurrent pathways, and private excitatory afferents to both populations.">
+  Figure 1: Shared circuit architecture for both conditions. Each E or I neuron receives its own aggregate excitatory input channel, representing 400 independent Poisson afferents. Recurrent excitation uses AMPA synapses and inhibition uses GABA synapses. Only the afferent-rate envelope differs between conditions; the connectivity and weights are identical. Loops on the E and I boxes represent connections between neurons within each population; individual neurons do not connect to themselves.
+</PublishedFigure>
+
+## Recorded activity
+
+<PanelA run="exp130-r026-present" />
+
+## Paired comparison
+
+<PublishedFigure run="exp130-r026-present" file="spike-raster.png" id="figure-3" alt="Paired afferent-rate traces, full E/I rasters, and unsmoothed population spike counts, all spanning one second for theta-modulated and constant input.">
+  Figure 3: Fresh simulations with theta-modulated input on the left and constant input on the right. A/E: prescribed per-afferent rates, black solid for E-targeted and red dashed for I-targeted inputs; the two traces coincide. B/F: all 1,600 E neurons in black below 400 I neurons in red over 5 theta periods. D/H: unsmoothed population spike counts in 1 ms bins. Every panel spans the full 0–1,000 ms recording. E contains four times as many cells as I. Axes share scales across conditions. Time starts at initialization with no burn-in; both conditions use seed 8.
+</PublishedFigure>
+
+We measured activity from 0.2 to 0.8 seconds, spanning three complete theta cycles and excluding 200 ms at each end from measurement. The full simulation, including the initial transient, is shown; no burn-in was simulated. Mean E firing rates were {round(results.theta.e.mean_firing_rate_hz, 2)} Hz with theta input and {round(results.constant.e.mean_firing_rate_hz, 2)} Hz with constant input; mean I rates were {round(results.theta.i.mean_firing_rate_hz, 2)} and {round(results.constant.i.mean_firing_rate_hz, 2)} Hz, respectively.
+
+<Table headers={["Measurement", "Theta input", "Constant input"]} rows={[
+  ["E spectral peak within 30–90 Hz", `${round(results.theta.e.peak_30_90_hz)} Hz`, `${round(results.constant.e.peak_30_90_hz)} Hz`],
+  ["I spectral peak within 30–90 Hz", `${round(results.theta.i.peak_30_90_hz)} Hz`, `${round(results.constant.i.peak_30_90_hz)} Hz`],
+  ["E amplitude-weighted phase concentration", round(results.theta.e.amplitude_weighted_phase_concentration, 3), round(results.constant.e.amplitude_weighted_phase_concentration, 3)],
+  ["I amplitude-weighted phase concentration", round(results.theta.i.amplitude_weighted_phase_concentration, 3), round(results.constant.i.amplitude_weighted_phase_concentration, 3)],
+]} number="1"
+>
+  Descriptive measurements from one paired seed. Spectral peaks are raw frequency-bin maxima in the specified search interval, with 2 Hz bin spacing. Phase concentration measures how strongly the 30–90 Hz amplitude envelope is concentrated at the prescribed theta phase; the same reference clock is assigned to the constant condition. Values range from zero to one. No significance test or surrogate correction was applied.
+</Table>
+
+These observations characterise this circuit under the specified input envelopes. They do not establish a separate gamma oscillator: sharp theta-locked bursts can contribute harmonics to the filtered band, and a maximum at a search boundary is not evidence of an isolated spectral peak. Repeated seeds, spectral-background checks and feedback interventions would be needed for a stronger mechanistic claim.
+
+## Methods
+
+Parameters are shared across conditions except for the afferent-rate envelope.
+
+<Table headers={["Parameter", "Value"]} rows={[
+  ["Neuron model", "Conductance-based leaky integrate-and-fire; no adaptation"],
+  ["Excitatory / inhibitory neurons", "1,600 / 400"],
+  ["Recurrent pathways", "E→E, E→I, I→E, I→I"],
+  ["Connection probability", "10%; between distinct neurons; no autapses"],
+  ["Membrane capacitance", "150 pF"],
+  ["Leak conductance", "10 nS"],
+  ["Passive membrane time constant", "15 ms"],
+  ["Initial / resting / reset voltage", "−65 mV"],
+  ["Spike threshold", "−50 mV"],
+  ["E / I refractory period", "3 / 1.5 ms"],
+  ["AMPA / GABA decay time", "1.5 / 7.5 ms"],
+  ["Synaptic delay", "1.5 ms"],
+  ["Recurrent excitatory / inhibitory event conductance", "1.0 / 3.34 nS"],
+  ["External afferents per neuron", "400 independent excitatory Poisson sources"],
+  ["External event conductance", "4 nS"],
+  ["Theta-condition afferent rate", "Sinusoidal, 0.2–3.8 Hz per source at 5 Hz (2 Hz ±90%)"],
+  ["Constant-condition afferent rate", "2 Hz per source"],
+  ["Input targets", "Both E and I populations"],
+  ["Burn-in", "None"],
+  ["Total simulation / recording", "1 second; 5 theta cycles"],
+  ["Simulation timestep", "0.1 ms"],
+  ["Random seed", "8; connectivity and initial state paired"],
+  ["Learning", "None; fixed weights"],
+]} />
+
+The **5 Hz** value is the modulation frequency; **0.2–3.8 Hz** is each individual afferent’s firing rate.

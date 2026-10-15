@@ -17,9 +17,7 @@ import torch
 import torch.nn.functional as F
 from experiments.exp044 import evidence, inputs, recipe
 from pingstore.contracts import PingstoreError, write_json_atomic
-from snnlab.sim.datasets import load_dataset
-from snnlab.sim.encoders import encode_images_poisson
-from snnlab.sim.execution import GraphExecutor, plan_graph
+from snnlab.sim import GraphExecutor, encode_images_poisson, load_dataset, plan_graph
 
 
 def evaluate_cell(

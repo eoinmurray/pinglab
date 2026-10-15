@@ -43,7 +43,7 @@ export default defineConfig({
     },
   }],
   markdown: {
-    shikiConfig: { theme: 'github-light' },
+    shikiConfig: { themes: { light: 'github-light', dark: 'github-dark' } },
     processor: unified({
       remarkPlugins: [remarkMath],
       rehypePlugins: [[rehypeKatex, { throwOnError: true }]],

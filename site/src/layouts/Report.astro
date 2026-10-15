@@ -99,17 +99,14 @@ const frontMatter = {
 </Page>
 
 <style is:global>
-  d-byline { background: #f6f7f4; }
-  d-appendix { background: #f6f7f4; color: rgba(0, 0, 0, .65); }
+  d-byline { background: var(--surface); }
+  d-appendix { background: var(--surface); color: rgb(var(--ink) / .65); }
   @media print { d-byline, d-appendix { background: white; } }
   d-byline .experiment-id { font-size: 18px; font-weight: 600; }
   d-byline .collection-link:hover { text-decoration: underline; }
   .report-appendix { min-width: 0; margin-bottom: 2rem; }
   d-article > .source-table { grid-column: text; }
   :is(d-article, d-appendix) figcaption { margin-top: 1.25rem; }
-  :is(d-article, d-appendix) .table-figure figcaption > :first-child { margin-top: 0; }
-  :is(d-article, d-appendix) .table-figure figcaption > :last-child { margin-bottom: 0; }
-  d-appendix .source-table caption { padding-top: .65rem; }
   @media (min-width: 768px) { d-byline .byline { grid-template-columns: repeat(3, minmax(0, 1fr)); row-gap: 12px; } }
   @media (min-width: 1180px) { d-byline .byline { grid-template-columns: repeat(var(--byline-columns), minmax(0, 1fr)); } }
   .report-body { position: relative; --report-content-top: 4rem; }
@@ -121,8 +118,8 @@ const frontMatter = {
   .report-toc ol { list-style: none; margin: 0; padding: 0; }
   .report-toc li { margin-bottom: 10px; font-size: 12px; line-height: 1.5; }
   .report-toc .subsection { padding-left: 12px; }
-  .report-toc a { color: rgba(0, 0, 0, .6); text-decoration: none; border-bottom: none; }
-  .report-toc a:hover { color: black; }
+  .report-toc a { color: rgb(var(--ink) / .6); text-decoration: none; border-bottom: none; }
+  .report-toc a:hover { color: rgb(var(--ink)); }
   .report-abstract { grid-column: text; }
   .report-abstract h2 { margin-top: 0; }
   :is(d-article, d-appendix) [id] { scroll-margin-top: 24px; }
@@ -136,7 +133,7 @@ const frontMatter = {
   @media print { .report-toc { display: none; } }
   d-appendix .parameters { min-width: 0; margin-bottom: 2rem; }
   d-appendix .parameters table { width: 100%; border-collapse: collapse; font-size: inherit; line-height: inherit; margin-top: 0; }
-  d-appendix .parameters th, d-appendix .parameters td { text-align: left; padding: .6em .65em; border-bottom: 1px solid rgba(0, 0, 0, .1); vertical-align: top; }
+  d-appendix .parameters th, d-appendix .parameters td { text-align: left; padding: .6em .65em; border-bottom: 1px solid rgb(var(--ink) / .1); vertical-align: top; }
   d-appendix .parameters th:first-child, d-appendix .parameters td:first-child { padding-left: 0; width: 30%; }
   d-appendix .parameters th:last-child, d-appendix .parameters td:last-child { padding-right: 0; }
   @media (max-width: 999px) { d-appendix h3 { grid-column: text; margin-bottom: 1em; } }

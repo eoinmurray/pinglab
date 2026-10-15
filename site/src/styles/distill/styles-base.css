@@ -36,7 +36,7 @@ body {
 }
 
 a {
-  color: #004276;
+  color: var(--link);
 }
 
 figure {
@@ -53,7 +53,7 @@ table th {
 }
 
 table thead {
-  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  border-bottom: 1px solid rgb(var(--ink) / 0.05);
 }
 
 table thead th {
@@ -89,7 +89,7 @@ sub {
 .marker {
   font-size: 15px;
   font-weight: 600;
-  color: rgba(0, 0, 0, 0.5);
+  color: rgb(var(--ink) / 0.5);
 }
 
 
@@ -123,7 +123,7 @@ figure svg tspan {
 
 figcaption,
 .figcaption {
-  color: rgba(0, 0, 0, 0.6);
+  color: rgb(var(--ink) / 0.6);
   font-size: 12px;
   line-height: 1.5em;
 }
@@ -137,18 +137,18 @@ figcaption,
 
 figure.external img {
   background: white;
-  border: 1px solid rgba(0, 0, 0, 0.1);
-  box-shadow: 0 1px 8px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgb(var(--ink) / 0.1);
+  box-shadow: 0 1px 8px rgb(var(--ink) / 0.1);
   padding: 18px;
   box-sizing: border-box;
 }
 
 figcaption a {
-  color: rgba(0, 0, 0, 0.6);
+  color: rgb(var(--ink) / 0.6);
 }
 
 figcaption b,
 figcaption strong, {
   font-weight: 600;
-  color: rgba(0, 0, 0, 1.0);
+  color: rgb(var(--ink) / 1.0);
 }

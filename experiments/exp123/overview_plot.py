@@ -9,7 +9,7 @@ from experiments.exp123 import recipe
 from experiments.helpers import theme
 
 
-def plot_inhibitory_overview(raw, raster_compute, destination, save):
+def plot_inhibitory_overview(raw, raster_compute, destination, save, raster_analysis=None):
     sweep = "tau"
     cfg = raw["design"]
     conditions = [c for c in cfg["conditions"] if c["sweep"] == sweep]
@@ -63,26 +63,30 @@ def plot_inhibitory_overview(raw, raster_compute, destination, save):
             ax.ticklabel_format(axis="y", style="sci", scilimits=(3, 3))
     theme.label_panels(axes.flat)
     axes = [fig.add_subplot(raster_grid[i, 0]) for i in range(3)]
-    raster_cfg = raster_compute.record["execution"]["configuration"]["protocols"]["trajectories"]
-    raster_unit = raster_compute.unit(recipe.recording_unit(0, recipe.RATE_HZ, "trajectories"))
-    for ax, tau in zip(axes, recipe.TAUS_MS):
-        with np.load(
-            raster_unit / f"tau{tau:g}--spikes.npz",
-            allow_pickle=False,
-        ) as data:
-            for key, colour, offset in [
-                ("spk_e", theme.INK_BLACK, 0),
-                ("spk_i", theme.DEEP_RED, 1024),
-            ]:
-                k, neuron = np.nonzero(data[key][:, 0])
-                ax.scatter(
-                    k * raster_cfg["dt_ms"],
-                    neuron + offset,
-                    s=0.22,
-                    color=colour,
-                    linewidths=0,
-                    rasterized=True,
-                )
+    if raster_analysis is not None:
+        with np.load(raster_analysis.file("overview_rasters.npz"), allow_pickle=False) as data:
+            events = {key: data[key].copy() for key in data.files}
+        dt_ms = float(events["dt_ms"])
+    else:
+        definition = raster_compute.record["execution"]["configuration"]
+        shared = definition.get("schema") == "exp123.compute/v3"
+        raster_cfg = definition["sweep"] if shared else definition["protocols"]["trajectories"]
+        image_index = definition["illustrative_image_indices"][0] if shared else 0
+        raster_unit = raster_compute.unit(recipe.recording_unit(
+            image_index, recipe.RATE_HZ, "benchmark" if shared else "trajectories"))
+        dt_ms = raster_cfg["dt_ms"]
+    for j, (ax, tau) in enumerate(zip(axes, recipe.TAUS_MS)):
+        if raster_analysis is None:
+            with np.load(raster_unit / f"tau{tau:g}--spikes.npz", allow_pickle=False) as data:
+                coordinates = {key: np.nonzero(data[key][:, 0]) for key in ("spk_e", "spk_i")}
+        else:
+            coordinates = {key: (events[f"tau{j}--{key}--step"], events[f"tau{j}--{key}--neuron"])
+                           for key in ("spk_e", "spk_i")}
+        for key, colour, offset in [("spk_e", theme.INK_BLACK, 0),
+                                    ("spk_i", theme.DEEP_RED, 1024)]:
+            k, neuron = coordinates[key]
+            ax.scatter(k * dt_ms, neuron + offset, s=0.22, color=colour,
+                       linewidths=0, rasterized=True)
         ax.axhline(1023.5, color=theme.FAINT, lw=0.5)
         ax.set(
             xlim=(0, 200),

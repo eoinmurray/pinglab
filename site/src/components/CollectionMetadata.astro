@@ -12,9 +12,9 @@ const dateLabel = latestDate && new Intl.DateTimeFormat('en-GB', {
 </p>
 
 <style>
-  .collection-metadata { margin: .75rem 0 0; color: rgba(0, 0, 0, .6); font-size: calc(13px * var(--listing-scale)); font-weight: 400; line-height: 1.5; }
+  .collection-metadata { margin: .75rem 0 0; color: rgb(var(--ink) / .6); font-size: calc(13px * var(--listing-scale)); font-weight: 400; line-height: 1.5; }
   .sidebar { display: flex; flex-wrap: wrap; gap: .5em 1em; margin: 0 0 calc(18px * var(--listing-scale)); font-size: calc(12px * var(--listing-scale)); line-height: 1.4; }
-  .sidebar > :first-child { color: rgba(0, 0, 0, .8); font-weight: 600; }
+  .sidebar > :first-child { color: rgb(var(--ink) / .8); font-weight: 600; }
   @media (min-width: 768px) {
     .sidebar { display: block; margin-top: calc(8px * var(--listing-scale)); margin-bottom: 0; }
     .sidebar > span { display: block; }

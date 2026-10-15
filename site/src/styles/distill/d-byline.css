@@ -17,7 +17,7 @@
 d-byline {
   contain: style;
   overflow: hidden;
-  border-top: 1px solid rgba(0, 0, 0, 0.1);
+  border-top: 1px solid rgb(var(--ink) / 0.1);
   font-size: 0.8rem;
   line-height: 1.8em;
   padding: 1.5rem 0;
@@ -51,7 +51,7 @@ d-byline .authors-affiliations {
 d-byline h3 {
   font-size: 0.6rem;
   font-weight: 400;
-  color: rgba(0, 0, 0, 0.5);
+  color: rgb(var(--ink) / 0.5);
   margin: 0;
   text-transform: uppercase;
 }
@@ -62,7 +62,7 @@ d-byline p {
 
 d-byline a,
 d-article d-byline a {
-  color: rgba(0, 0, 0, 0.8);
+  color: rgb(var(--ink) / 0.8);
   text-decoration: none;
   border-bottom: none;
 }

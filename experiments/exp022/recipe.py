@@ -12,7 +12,7 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "experiments"), str(REPO / "tools")]
 
 from experiments.exp022.checkpoints import epoch_metrics
-from snnlab.sim.timing import duration_steps, refractory_metadata
+from snnlab.lang import duration_steps, refractory_metadata
 
 from helpers import theme
 
@@ -93,7 +93,6 @@ def refractory_execution_configuration(dt_ms: float) -> dict:
         REFRACTORY_E_MS,
         REFRACTORY_I_MS,
         dt_ms,
-        policy=REFRACTORY_POLICY,
     )
 
 # Production recipe for the next exp022 bank. COBA and PING share the input,

@@ -1,42 +1,42 @@
 .command-trigger {
   display: inline-flex; align-items: center; gap: .375rem; border: 0;
   border-radius: 0; padding: 0; background: transparent;
-  color: rgba(0, 0, 0, .6); font: inherit; font-size: .875rem; font-weight: 400; cursor: pointer;
+  color: rgb(var(--ink, 0 0 0) / .6); font: inherit; font-size: .875rem; font-weight: 400; cursor: pointer;
 }
 .command-shortcut-icon { flex-shrink: 0; font-size: 15px; line-height: 18px; }
-.command-trigger:hover, .command-trigger:focus-visible { background: transparent; color: black; }
-.command-trigger:focus-visible, .command-close:focus-visible { outline: 2px solid #297761; outline-offset: 3px; }
+.command-trigger:hover, .command-trigger:focus-visible { background: transparent; color: rgb(var(--ink, 0 0 0)); }
+.command-trigger:focus-visible, .command-close:focus-visible { outline: 2px solid var(--accent, #297761); outline-offset: 3px; }
 .command-overlay { position: fixed; inset: 0; z-index: 1000; background: rgb(15 25 20 / 45%); }
 .command-dialog {
   position: fixed; z-index: 1001; top: min(18vh, 120px); left: 50%; transform: translateX(-50%);
   width: min(640px, calc(100vw - 24px)); max-height: calc(100dvh - min(18vh, 120px) - 24px);
   display: flex; flex-direction: column; box-sizing: border-box; overflow: hidden;
-  border: 1px solid #d9ddd5; border-radius: .75rem; background: #fffef9;
-  color: #172d25; box-shadow: 0 20px 80px rgb(0 0 0 / 25%);
+  border: 1px solid var(--command-border, #d9ddd5); border-radius: .75rem; background: var(--page, #fffef9);
+  color: var(--command-foreground, #172d25); box-shadow: 0 20px 80px rgb(0 0 0 / 25%);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 14px; line-height: 1.5;
 }
 .command-dialog [cmdk-root] { display: flex; flex-direction: column; min-height: 0; }
 .command-dialog [cmdk-input] {
-  box-sizing: border-box; flex-shrink: 0; width: 100%; border: 0; border-bottom: 1px solid #d9ddd5;
+  box-sizing: border-box; flex-shrink: 0; width: 100%; border: 0; border-bottom: 1px solid var(--command-border, #d9ddd5);
   border-radius: 0; padding: 1rem 4rem 1rem 1rem; outline: none;
   background: transparent; color: inherit; font: inherit; font-size: 16px;
 }
-.command-dialog [cmdk-input]:focus-visible { box-shadow: inset 0 -2px #297761; }
+.command-dialog [cmdk-input]:focus-visible { box-shadow: inset 0 -2px var(--accent, #297761); }
 .command-dialog [cmdk-list] { overflow-y: auto; overflow-x: hidden; max-height: 55dvh; padding: .5rem; overscroll-behavior: contain; }
 .command-dialog [cmdk-group][hidden] { display: none; }
-.command-dialog [cmdk-group-heading] { padding: .5rem .6rem; font-size: 12px; font-weight: 600; color: #637168; }
+.command-dialog [cmdk-group-heading] { padding: .5rem .6rem; font-size: 12px; font-weight: 600; color: var(--command-muted, #637168); }
 .command-dialog [cmdk-item] {
   display: flex; align-items: center; gap: 1rem; border-radius: .35rem; padding: .7rem .6rem;
   cursor: pointer; scroll-margin-block: .5rem;
 }
-.command-dialog [cmdk-item][data-selected="true"] { background: #e6efe6; color: #163a32; }
+.command-dialog [cmdk-item][data-selected="true"] { background: var(--command-selected, #e6efe6); color: var(--command-selected-foreground, #163a32); }
 .command-item-title { min-width: 0; flex: 1; overflow-wrap: anywhere; }
-.command-item-detail { flex-shrink: 0; font-size: 11px; color: #637168; }
-.command-dialog [cmdk-empty] { padding: 2rem 1rem; text-align: center; color: #637168; }
+.command-item-detail { flex-shrink: 0; font-size: 11px; color: var(--command-muted, #637168); }
+.command-dialog [cmdk-empty] { padding: 2rem 1rem; text-align: center; color: var(--command-muted, #637168); }
 .command-close {
-  position: absolute; top: .85rem; right: .75rem; border: 1px solid #d9ddd5; border-radius: .3rem;
-  padding: .15rem .4rem; background: #fffef9; color: #637168; font: inherit; font-size: 12px; cursor: pointer;
+  position: absolute; top: .85rem; right: .75rem; border: 1px solid var(--command-border, #d9ddd5); border-radius: .3rem;
+  padding: .15rem .4rem; background: var(--page, #fffef9); color: var(--command-muted, #637168); font: inherit; font-size: 12px; cursor: pointer;
 }
-.command-help { padding: .65rem 1rem; border-top: 1px solid #d9ddd5; color: #637168; font-size: 12px; }
+.command-help { padding: .65rem 1rem; border-top: 1px solid var(--command-border, #d9ddd5); color: var(--command-muted, #637168); font-size: 12px; }
 .command-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 @media print { .command-trigger, .command-overlay, .command-dialog { display: none !important; } }

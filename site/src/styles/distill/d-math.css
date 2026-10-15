@@ -22,6 +22,6 @@ span.katex-display {
 
 span.katex {
   -webkit-font-smoothing: antialiased;
-  color: rgba(0, 0, 0, 0.8);
+  color: rgb(var(--ink) / 0.8);
   font-size: 1.18em;
 }

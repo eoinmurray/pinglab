@@ -1967,7 +1967,7 @@ requires-dist = [
     { name = "scikit-learn", specifier = ">=1.7.2" },
     { name = "scipy", specifier = ">=1.15.3" },
     { name = "sh", specifier = ">=2.0.0" },
-    { name = "snnlab", specifier = ">=0.12.1" },
+    { name = "snnlab", specifier = ">=0.16.0" },
     { name = "snntorch", specifier = ">=0.9.4" },
     { name = "torch", marker = "sys_platform != 'linux'", specifier = ">=2.10.0" },
     { name = "torch", marker = "sys_platform == 'linux'", specifier = ">=2.10.0", index = "https://download.pytorch.org/whl/cu128" },
@@ -2644,7 +2644,7 @@ wheels = [
 
 [[package]]
 name = "snnlab"
-version = "0.12.1"
+version = "0.16.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "h5py" },
@@ -2660,9 +2660,9 @@ dependencies = [
     { name = "torchvision", version = "0.26.0", source = { registry = "https://pypi.org/simple" }, marker = "sys_platform != 'linux'" },
     { name = "torchvision", version = "0.26.0+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "sys_platform == 'linux'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/5e/5b/67d8646e8ab1522df8f79454d93114381a32a09aef2a2e0d86676e333adf/snnlab-0.12.1.tar.gz", hash = "sha256:8c233b2f60e58579f02110d3c9043eda9d0782636f58d82275c5d8255768bde4", size = 5491384, upload-time = "2026-10-14T16:44:43.983Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/9d/bc/f96297bb543281e21e1c336fc30b3bd9bb76507fc3332956692a8a82c8e6/snnlab-0.16.0.tar.gz", hash = "sha256:fd5598363728d9f840083a1c1431e4cebd7655f7610d6ad1b45e933076547d36", size = 7346470, upload-time = "2026-10-15T17:48:08.169Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/07/67/077322c4ed16ea9773e7a0d6495c83a418ea1b4333cd1b2caa903b6466fe/snnlab-0.12.1-py3-none-any.whl", hash = "sha256:0c95b3453a8d06c5cdc5375757ea1dfafbb55b1db28ec657573a357c8934949a", size = 179304, upload-time = "2026-10-14T16:44:42.236Z" },
+    { url = "https://files.pythonhosted.org/packages/c0/85/cc50f64d593f92968cd0cf96cc628e984c2251e283ed74046be0f68e36c9/snnlab-0.16.0-py3-none-any.whl", hash = "sha256:2d3be0253c2d0645db0b91480f095ece1a273ed6b75682fc9e4414712b57ba7b", size = 217946, upload-time = "2026-10-15T17:48:06.273Z" },
 ]
 
 [[package]]

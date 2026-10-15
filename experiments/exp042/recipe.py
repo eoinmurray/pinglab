@@ -177,9 +177,8 @@ CHECKPOINT_PARAMETERS = {
 
 def author_network(cfg, training):
     """Own the frozen circuit, readout and observables for each replay mode."""
-    from experiments.helpers.ping import build_ping
+    from experiments.helpers.ping import build_ping, compile_legacy_coba
     from snnlab import lang
-    from snnlab.sim.timing import refractory_steps
 
     dt, b = training["dt"], cfg["biophysics"]
     net = lang.Network("exp042_inhibitory_replay", dt=dt * lang.ms)
@@ -199,11 +198,7 @@ def author_network(cfg, training):
             threshold_mv=b["threshold_mV"],
             reset_mv=b["reset_mV"],
             initial_voltage_mv=b["resting_mV"],
-            refractory_steps=refractory_steps(
-                cfg[f"refractory_{label.lower()}_ms"],
-                dt,
-                policy=cfg["refractory_policy"],
-            ),
+            refractory=cfg[f"refractory_{label.lower()}_ms"] * lang.ms,
             voltage_grad_dampen=training["v_grad_dampen"],
         )
     circuit = build_ping(
@@ -243,7 +238,7 @@ def author_network(cfg, training):
     )
     net.output(
         "class_scores",
-        lang.ops.reduce(
+        lang.reduce(
             output.pre_reset_voltage,
             operation="mean",
             over="time",
@@ -253,7 +248,7 @@ def author_network(cfg, training):
     for label, population in (("e", circuit.e), ("i", circuit.i)):
         net.output(
             f"spk_{label}_count",
-            lang.ops.reduce(
+            lang.reduce(
                 population.spikes,
                 operation="sum",
                 over="time",
@@ -261,11 +256,11 @@ def author_network(cfg, training):
             ),
         )
         net.expose(population.spikes, name=f"spk_{label}")
-    return lang.compile(net, target="tools/snnsim")
+    return compile_legacy_coba(net)
 
 
 def baseline_recording():
-    from snnlab.sim.streaming import RecordingSpec, SignalRecording
+    from snnlab.sim import RecordingSpec, SignalRecording
 
     return RecordingSpec((SignalRecording("I.spikes", kind="spike_events"),))
 

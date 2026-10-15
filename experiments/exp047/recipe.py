@@ -1,6 +1,6 @@
 """Preserved paired pool-size controls, with no execution on import."""
 
-from snnlab.sim.timing import duration_metadata, refractory_metadata
+from snnlab.lang import duration_metadata, refractory_metadata
 
 SLUG = "exp047"
 REFRACTORY_E_MS = 1.2
@@ -34,7 +34,6 @@ def refractory_execution_configuration(dt_ms: float) -> dict:
         REFRACTORY_E_MS,
         REFRACTORY_I_MS,
         dt_ms,
-        policy=REFRACTORY_POLICY,
     )
 
 

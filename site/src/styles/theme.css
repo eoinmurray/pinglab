@@ -1,0 +1,65 @@
+/* Shared reader colours; scientific figures retain their original palettes. */
+:root {
+  color-scheme: light;
+  --ink: 0 0 0;
+  --listing-muted: #545450;
+  --listing-label: #33332f;
+  --listing-border: #999992;
+  --page: #fffef9;
+  --surface: #f6f7f4;
+  --popup: white;
+  --link: #004276;
+  --accent: #297761;
+  --code-background: #f7f6f0;
+  --code-foreground: #24292e;
+  --command-foreground: #172d25;
+  --command-muted: #637168;
+  --command-border: #d9ddd5;
+  --command-selected: #e6efe6;
+  --command-selected-foreground: #163a32;
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ink: 240 241 235;
+  --listing-muted: #b4bab3;
+  --listing-label: #d1d5ce;
+  --listing-border: #70786f;
+  --page: #171b19;
+  --surface: #202622;
+  --popup: #252c27;
+  --link: #9cc9f0;
+  --accent: #8bc9ad;
+  --code-background: #202622;
+  --code-foreground: #e6edf3;
+  --command-foreground: #e6ede8;
+  --command-muted: #acb9af;
+  --command-border: #414c44;
+  --command-selected: #334a3d;
+  --command-selected-foreground: #ecf7ef;
+}
+html, body { background: var(--page); color: rgb(var(--ink) / .9); }
+html[data-theme="dark"] .astro-code,
+html[data-theme="dark"] .astro-code span {
+  color: var(--shiki-dark, var(--code-foreground)) !important;
+  background-color: var(--shiki-dark-bg, var(--code-background)) !important;
+}
+@media print {
+  :root, :root[data-theme="dark"] {
+    color-scheme: light;
+    --ink: 0 0 0;
+    --listing-muted: #545450;
+    --listing-label: #33332f;
+    --listing-border: #999992;
+    --page: white;
+    --surface: white;
+    --popup: white;
+    --link: #004276;
+    --code-background: #f7f6f0;
+    --code-foreground: #24292e;
+  }
+  html[data-theme="dark"] .astro-code,
+  html[data-theme="dark"] .astro-code span {
+    color: var(--shiki-light, var(--code-foreground)) !important;
+    background-color: var(--shiki-light-bg, var(--code-background)) !important;
+  }
+}
