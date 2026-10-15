@@ -1,0 +1,495 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN"
+  "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg xmlns:xlink="http://www.w3.org/1999/xlink" width="510.23622pt" height="340.15748pt" viewBox="0 0 510.23622 340.15748" xmlns="http://www.w3.org/2000/svg" version="1.1">
+ <metadata>
+  <rdf:RDF xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:cc="http://creativecommons.org/ns#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+   <cc:Work>
+    <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/>
+    <dc:date>2026-10-15T17:53:35.579057</dc:date>
+    <dc:format>image/svg+xml</dc:format>
+    <dc:creator>
+     <cc:Agent>
+      <dc:title>Matplotlib v3.10.8, https://matplotlib.org/</dc:title>
+     </cc:Agent>
+    </dc:creator>
+   </cc:Work>
+  </rdf:RDF>
+ </metadata>
+ <defs>
+  <style type="text/css">*{stroke-linejoin: round; stroke-linecap: butt}</style>
+ </defs>
+ <g id="figure_1">
+  <g id="patch_1">
+   <path d="M 0 340.15748 
+L 510.23622 340.15748 
+L 510.23622 0 
+L 0 0 
+z
+" style="fill: #ffffff"/>
+  </g>
+  <g id="axes_1">
+   <g id="patch_2">
+    <path d="M 31.322896 314.737865 
+L 393.748884 314.737865 
+L 393.748884 15.482818 
+L 31.322896 15.482818 
+z
+" style="fill: #ffffff"/>
+   </g>
+   <g id="matplotlib.axis_1">
+    <g id="xtick_1">
+     <g id="line2d_1">
+      <defs>
+       <path id="m3ed5193913" d="M 0 0 
+L 0 -3 
+" style="stroke: #1a1a1a; stroke-width: 0.8"/>
+      </defs>
+      <g>
+       <use xlink:href="#m3ed5193913" x="33.172722" y="314.737865" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_1">
+      <text style="font-size: 7px; font-family: 'JetBrains Mono', 'IBM Plex Mono', 'Menlo', 'Consolas', 'Courier New', 'DejaVu Sans Mono', monospace; text-anchor: middle; fill: #1a1a1a" x="33.172722" y="323.576459" transform="rotate(-0 33.172722 323.576459)">3.6</text>
+     </g>
+    </g>
+    <g id="xtick_2">
+     <g id="line2d_2">
+      <g>
+       <use xlink:href="#m3ed5193913" x="76.894967" y="314.737865" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_2">
+      <text style="font-size: 7px; font-family: 'JetBrains Mono', 'IBM Plex Mono', 'Menlo', 'Consolas', 'Courier New', 'DejaVu Sans Mono', monospace; text-anchor: middle; fill: #1a1a1a" x="76.894967" y="323.576459" transform="rotate(-0 76.894967 323.576459)">3.8</text>
+     </g>
+    </g>
+    <g id="xtick_3">
+     <g id="line2d_3">
+      <g>
+       <use xlink:href="#m3ed5193913" x="120.617213" y="314.737865" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_3">
+      <text style="font-size: 7px; font-family: 'JetBrains Mono', 'IBM Plex Mono', 'Menlo', 'Consolas', 'Courier New', 'DejaVu Sans Mono', monospace; text-anchor: middle; fill: #1a1a1a" x="120.617213" y="323.576459" transform="rotate(-0 120.617213 323.576459)">4.0</text>
+     </g>
+    </g>
+    <g id="xtick_4">
+     <g id="line2d_4">
+      <g>
+       <use xlink:href="#m3ed5193913" x="164.339459" y="314.737865" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_4">
+      <text style="font-size: 7px; font-family: 'JetBrains Mono', 'IBM Plex Mono', 'Menlo', 'Consolas', 'Courier New', 'DejaVu Sans Mono', monospace; text-anchor: middle; fill: #1a1a1a" x="164.339459" y="323.576459" transform="rotate(-0 164.339459 323.576459)">4.2</text>
+     </g>
+    </g>
+    <g id="xtick_5">
+     <g id="line2d_5">
+      <g>
+       <use xlink:href="#m3ed5193913" x="208.061705" y="314.737865" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_5">
+      <text style="font-size: 7px; font-family: 'JetBrains Mono', 'IBM Plex Mono', 'Menlo', 'Consolas', 'Courier New', 'DejaVu Sans Mono', monospace; text-anchor: middle; fill: #1a1a1a" x="208.061705" y="323.576459" transform="rotate(-0 208.061705 323.576459)">4.4</text>
+     </g>
+    </g>
+    <g id="xtick_6">
+     <g id="line2d_6">
+      <g>
+       <use xlink:href="#m3ed5193913" x="251.783951" y="314.737865" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_6">
+      <text style="font-size: 7px; font-family: 'JetBrains Mono', 'IBM Plex Mono', 'Menlo', 'Consolas', 'Courier New', 'DejaVu Sans Mono', monospace; text-anchor: middle; fill: #1a1a1a" x="251.783951" y="323.576459" transform="rotate(-0 251.783951 323.576459)">4.6</text>
+     </g>
+    </g>
+    <g id="xtick_7">
+     <g id="line2d_7">
+      <g>
+       <use xlink:href="#m3ed5193913" x="295.506197" y="314.737865" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_7">
+      <text style="font-size: 7px; font-family: 'JetBrains Mono', 'IBM Plex Mono', 'Menlo', 'Consolas', 'Courier New', 'DejaVu Sans Mono', monospace; text-anchor: middle; fill: #1a1a1a" x="295.506197" y="323.576459" transform="rotate(-0 295.506197 323.576459)">4.8</text>
+     </g>
+    </g>
+    <g id="xtick_8">
+     <g id="line2d_8">
+      <g>
+       <use xlink:href="#m3ed5193913" x="339.228443" y="314.737865" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_8">
+      <text style="font-size: 7px; font-family: 'JetBrains Mono', 'IBM Plex Mono', 'Menlo', 'Consolas', 'Courier New', 'DejaVu Sans Mono', monospace; text-anchor: middle; fill: #1a1a1a" x="339.228443" y="323.576459" transform="rotate(-0 339.228443 323.576459)">5.0</text>
+     </g>
+    </g>
+    <g id="xtick_9">
+     <g id="line2d_9">
+      <g>
+       <use xlink:href="#m3ed5193913" x="382.950689" y="314.737865" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_9">
+      <text style="font-size: 7px; font-family: 'JetBrains Mono', 'IBM Plex Mono', 'Menlo', 'Consolas', 'Courier New', 'DejaVu Sans Mono', monospace; text-anchor: middle; fill: #1a1a1a" x="382.950689" y="323.576459" transform="rotate(-0 382.950689 323.576459)">5.2</text>
+     </g>
+    </g>
+    <g id="text_10">
+     <text style="font-size: 8px; font-family: 'JetBrains Mono', 'IBM Plex Mono', 'Menlo', 'Consolas', 'Courier New', 'DejaVu Sans Mono', monospace; text-anchor: middle; fill: #1a1a1a" x="212.53589" y="335.49349" transform="rotate(-0 212.53589 335.49349)">Mean network spikes needed (×10³)</text>
+    </g>
+   </g>
+   <g id="matplotlib.axis_2">
+    <g id="ytick_1">
+     <g id="line2d_10">
+      <defs>
+       <path id="mfca580c7fe" d="M 0 0 
+L 3 0 
+" style="stroke: #1a1a1a; stroke-width: 0.8"/>
+      </defs>
+      <g>
+       <use xlink:href="#mfca580c7fe" x="31.322896" y="281.224214" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_11">
+      <text style="font-size: 7px; font-family: 'JetBrains Mono', 'IBM Plex Mono', 'Menlo', 'Consolas', 'Courier New', 'DejaVu Sans Mono', monospace; text-anchor: end; fill: #1a1a1a" x="27.822896" y="283.893511" transform="rotate(-0 27.822896 283.893511)">40</text>
+     </g>
+    </g>
+    <g id="ytick_2">
+     <g id="line2d_11">
+      <g>
+       <use xlink:href="#mfca580c7fe" x="31.322896" y="235.689362" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_12">
+      <text style="font-size: 7px; font-family: 'JetBrains Mono', 'IBM Plex Mono', 'Menlo', 'Consolas', 'Courier New', 'DejaVu Sans Mono', monospace; text-anchor: end; fill: #1a1a1a" x="27.822896" y="238.358659" transform="rotate(-0 27.822896 238.358659)">60</text>
+     </g>
+    </g>
+    <g id="ytick_3">
+     <g id="line2d_12">
+      <g>
+       <use xlink:href="#mfca580c7fe" x="31.322896" y="190.15451" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_13">
+      <text style="font-size: 7px; font-family: 'JetBrains Mono', 'IBM Plex Mono', 'Menlo', 'Consolas', 'Courier New', 'DejaVu Sans Mono', monospace; text-anchor: end; fill: #1a1a1a" x="27.822896" y="192.823807" transform="rotate(-0 27.822896 192.823807)">80</text>
+     </g>
+    </g>
+    <g id="ytick_4">
+     <g id="line2d_13">
+      <g>
+       <use xlink:href="#mfca580c7fe" x="31.322896" y="144.619658" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_14">
+      <text style="font-size: 7px; font-family: 'JetBrains Mono', 'IBM Plex Mono', 'Menlo', 'Consolas', 'Courier New', 'DejaVu Sans Mono', monospace; text-anchor: end; fill: #1a1a1a" x="27.822896" y="147.288955" transform="rotate(-0 27.822896 147.288955)">100</text>
+     </g>
+    </g>
+    <g id="ytick_5">
+     <g id="line2d_14">
+      <g>
+       <use xlink:href="#mfca580c7fe" x="31.322896" y="99.084806" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_15">
+      <text style="font-size: 7px; font-family: 'JetBrains Mono', 'IBM Plex Mono', 'Menlo', 'Consolas', 'Courier New', 'DejaVu Sans Mono', monospace; text-anchor: end; fill: #1a1a1a" x="27.822896" y="101.754103" transform="rotate(-0 27.822896 101.754103)">120</text>
+     </g>
+    </g>
+    <g id="ytick_6">
+     <g id="line2d_15">
+      <g>
+       <use xlink:href="#mfca580c7fe" x="31.322896" y="53.549954" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_16">
+      <text style="font-size: 7px; font-family: 'JetBrains Mono', 'IBM Plex Mono', 'Menlo', 'Consolas', 'Courier New', 'DejaVu Sans Mono', monospace; text-anchor: end; fill: #1a1a1a" x="27.822896" y="56.219251" transform="rotate(-0 27.822896 56.219251)">140</text>
+     </g>
+    </g>
+    <g id="text_17">
+     <text style="font-size: 8px; font-family: 'JetBrains Mono', 'IBM Plex Mono', 'Menlo', 'Consolas', 'Courier New', 'DejaVu Sans Mono', monospace; text-anchor: middle; fill: #1a1a1a" x="9.46149" y="165.110342" transform="rotate(-90 9.46149 165.110342)">Time to target accuracy (ms)</text>
+    </g>
+   </g>
+   <g id="line2d_16">
+    <path d="M 56.317792 44.442984 
+L 110.650859 62.656925 
+L 134.830441 89.977836 
+L 164.306405 112.745262 
+L 168.901351 167.387084 
+L 190.781668 185.601025 
+L 192.518141 201.538223 
+L 229.468598 208.368451 
+L 253.038561 242.51959 
+L 279.34029 249.349818 
+L 300.019382 256.180046 
+L 330.733997 269.840501 
+L 352.915255 281.224214 
+L 368.753988 285.777699 
+" clip-path="url(#p8773ea6c60)" style="fill: none; stroke: #1a1a1a; stroke-width: 1.2; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_3">
+    <path d="M 31.322896 314.737865 
+L 31.322896 15.482818 
+" style="fill: none; stroke: #1a1a1a; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square"/>
+   </g>
+   <g id="patch_4">
+    <path d="M 393.748884 314.737865 
+L 393.748884 15.482818 
+" style="fill: none; stroke: #1a1a1a; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square"/>
+   </g>
+   <g id="patch_5">
+    <path d="M 31.322896 314.737865 
+L 393.748884 314.737865 
+" style="fill: none; stroke: #1a1a1a; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square"/>
+   </g>
+   <g id="patch_6">
+    <path d="M 31.322896 15.482818 
+L 393.748884 15.482818 
+" style="fill: none; stroke: #1a1a1a; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square"/>
+   </g>
+   <g id="PathCollection_1">
+    <defs>
+     <path id="C0_0_27c72ae204" d="M 0 3.741657 
+C 0.992299 3.741657 1.94409 3.347413 2.645751 2.645751 
+C 3.347413 1.94409 3.741657 0.992299 3.741657 -0 
+C 3.741657 -0.992299 3.347413 -1.94409 2.645751 -2.645751 
+C 1.94409 -3.347413 0.992299 -3.741657 0 -3.741657 
+C -0.992299 -3.741657 -1.94409 -3.347413 -2.645751 -2.645751 
+C -3.347413 -1.94409 -3.741657 -0.992299 -3.741657 0 
+C -3.741657 0.992299 -3.347413 1.94409 -2.645751 2.645751 
+C -1.94409 3.347413 -0.992299 3.741657 0 3.741657 
+z
+"/>
+    </defs>
+    <g clip-path="url(#p8773ea6c60)">
+     <use xlink:href="#C0_0_27c72ae204" x="56.317792" y="44.442984" style="fill: #f2c7ce; stroke: #1a1a1a; stroke-width: 0.8"/>
+    </g>
+    <g clip-path="url(#p8773ea6c60)">
+     <use xlink:href="#C0_0_27c72ae204" x="110.650859" y="62.656925" style="fill: #efbcc4; stroke: #1a1a1a; stroke-width: 0.8"/>
+    </g>
+    <g clip-path="url(#p8773ea6c60)">
+     <use xlink:href="#C0_0_27c72ae204" x="134.830441" y="89.977836" style="fill: #ecaeb9; stroke: #1a1a1a; stroke-width: 0.8"/>
+    </g>
+    <g clip-path="url(#p8773ea6c60)">
+     <use xlink:href="#C0_0_27c72ae204" x="164.306405" y="112.745262" style="fill: #e99fab; stroke: #1a1a1a; stroke-width: 0.8"/>
+    </g>
+    <g clip-path="url(#p8773ea6c60)">
+     <use xlink:href="#C0_0_27c72ae204" x="168.901351" y="167.387084" style="fill: #e17e8e; stroke: #1a1a1a; stroke-width: 0.8"/>
+    </g>
+    <g clip-path="url(#p8773ea6c60)">
+     <use xlink:href="#C0_0_27c72ae204" x="190.781668" y="185.601025" style="fill: #dc697c; stroke: #1a1a1a; stroke-width: 0.8"/>
+    </g>
+    <g clip-path="url(#p8773ea6c60)">
+     <use xlink:href="#C0_0_27c72ae204" x="192.518141" y="201.538223" style="fill: #d9586d; stroke: #1a1a1a; stroke-width: 0.8"/>
+    </g>
+    <g clip-path="url(#p8773ea6c60)">
+     <use xlink:href="#C0_0_27c72ae204" x="229.468598" y="208.368451" style="fill: #d5475e; stroke: #1a1a1a; stroke-width: 0.8"/>
+    </g>
+    <g clip-path="url(#p8773ea6c60)">
+     <use xlink:href="#C0_0_27c72ae204" x="253.038561" y="242.51959" style="fill: #c0102d; stroke: #1a1a1a; stroke-width: 0.8"/>
+    </g>
+    <g clip-path="url(#p8773ea6c60)">
+     <use xlink:href="#C0_0_27c72ae204" x="279.34029" y="249.349818" style="fill: #af112b; stroke: #1a1a1a; stroke-width: 0.8"/>
+    </g>
+    <g clip-path="url(#p8773ea6c60)">
+     <use xlink:href="#C0_0_27c72ae204" x="300.019382" y="256.180046" style="fill: #9a1329; stroke: #1a1a1a; stroke-width: 0.8"/>
+    </g>
+    <g clip-path="url(#p8773ea6c60)">
+     <use xlink:href="#C0_0_27c72ae204" x="330.733997" y="269.840501" style="fill: #6c1523; stroke: #1a1a1a; stroke-width: 0.8"/>
+    </g>
+    <g clip-path="url(#p8773ea6c60)">
+     <use xlink:href="#C0_0_27c72ae204" x="352.915255" y="281.224214" style="fill: #37181d; stroke: #1a1a1a; stroke-width: 0.8"/>
+    </g>
+    <g clip-path="url(#p8773ea6c60)">
+     <use xlink:href="#C0_0_27c72ae204" x="368.753988" y="285.777699" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 0.8"/>
+    </g>
+   </g>
+   <g id="text_18">
+    <text style="font-weight: 700; font-size: 8.5px; font-family: 'JetBrains Mono', 'IBM Plex Mono', 'Menlo', 'Consolas', 'Courier New', 'DejaVu Sans Mono', monospace; text-anchor: start; fill: #1a1a1a" x="31.322896" y="9.482818" transform="rotate(-0 31.322896 9.482818)">Reach 80% accuracy</text>
+   </g>
+  </g>
+  <g id="axes_2">
+   <g id="patch_7">
+    <path d="M 414.158333 314.737865 
+L 424.30626 314.737865 
+L 424.30626 15.482818 
+L 414.158333 15.482818 
+z
+" style="fill: #ffffff"/>
+   </g>
+   <g id="matplotlib.axis_3"/>
+   <g id="matplotlib.axis_4">
+    <g id="ytick_7">
+     <g id="line2d_17">
+      <defs>
+       <path id="m01494d4671" d="M 0 0 
+L -3 0 
+" style="stroke: #1a1a1a; stroke-width: 0.8"/>
+      </defs>
+      <g>
+       <use xlink:href="#m01494d4671" x="424.30626" y="299.716465" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_19">
+      <text style="font-size: 7px; font-family: 'JetBrains Mono', 'IBM Plex Mono', 'Menlo', 'Consolas', 'Courier New', 'DejaVu Sans Mono', monospace; text-anchor: start; fill: #1a1a1a" x="427.80626" y="302.385762" transform="rotate(-0 427.80626 302.385762)">20</text>
+     </g>
+    </g>
+    <g id="ytick_8">
+     <g id="line2d_18">
+      <g>
+       <use xlink:href="#m01494d4671" x="424.30626" y="234.066134" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_20">
+      <text style="font-size: 7px; font-family: 'JetBrains Mono', 'IBM Plex Mono', 'Menlo', 'Consolas', 'Courier New', 'DejaVu Sans Mono', monospace; text-anchor: start; fill: #1a1a1a" x="427.80626" y="236.73543" transform="rotate(-0 427.80626 236.73543)">40</text>
+     </g>
+    </g>
+    <g id="ytick_9">
+     <g id="line2d_19">
+      <g>
+       <use xlink:href="#m01494d4671" x="424.30626" y="168.415802" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_21">
+      <text style="font-size: 7px; font-family: 'JetBrains Mono', 'IBM Plex Mono', 'Menlo', 'Consolas', 'Courier New', 'DejaVu Sans Mono', monospace; text-anchor: start; fill: #1a1a1a" x="427.80626" y="171.085099" transform="rotate(-0 427.80626 171.085099)">60</text>
+     </g>
+    </g>
+    <g id="ytick_10">
+     <g id="line2d_20">
+      <g>
+       <use xlink:href="#m01494d4671" x="424.30626" y="102.76547" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_22">
+      <text style="font-size: 7px; font-family: 'JetBrains Mono', 'IBM Plex Mono', 'Menlo', 'Consolas', 'Courier New', 'DejaVu Sans Mono', monospace; text-anchor: start; fill: #1a1a1a" x="427.80626" y="105.434767" transform="rotate(-0 427.80626 105.434767)">80</text>
+     </g>
+    </g>
+    <g id="ytick_11">
+     <g id="line2d_21">
+      <g>
+       <use xlink:href="#m01494d4671" x="424.30626" y="37.115138" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_23">
+      <text style="font-size: 7px; font-family: 'JetBrains Mono', 'IBM Plex Mono', 'Menlo', 'Consolas', 'Courier New', 'DejaVu Sans Mono', monospace; text-anchor: start; fill: #1a1a1a" x="427.80626" y="39.784435" transform="rotate(-0 427.80626 39.784435)">100</text>
+     </g>
+    </g>
+    <g id="text_24">
+     <text style="font-size: 8px; font-family: 'JetBrains Mono', 'IBM Plex Mono', 'Menlo', 'Consolas', 'Courier New', 'DejaVu Sans Mono', monospace; text-anchor: middle; fill: #1a1a1a" x="450.910167" y="165.110342" transform="rotate(-90 450.910167 165.110342)">Mean I-volley frequency (Hz)</text>
+    </g>
+   </g>
+   <image xlink:href="data:image/png;base64,
+iVBORw0KGgoAAAANSUhEUgAAACoAAATfCAYAAAB002XiAAAIOUlEQVR4nO3dwW3dSBAA0VKh80/LNwfjADibwh4MGIXuF4GgEv9MD8mvnz+/fj8CJEIiJEIihu+jQCIkQiIkYt6XWJjI/EYlQiIkYm5l2ppeIubd7mlpeomQiOF2T0vTS4REzHs31+9MLxESIRESIRESIRFzc/3W9BIhEXMz09b0EiERc6d5W9NLxNzuaWt6iZCIufv1W9NLhETMrUxb00uERMytTFvTS4RESIRESIRESMRwDxYsTS8REjE3M21NLxESMTczbU0vEXMf+FvTS4REzN2v35peIiRi7kmyreklQiLmVqat6SVCIuZmpq3pJUIiJEIiJEIiJGJ4931PO9NLhETMzUxb00vE3CiyNb1ESMTc/fqt6SVCIuZWpq3pJUIi5lamreklQiLmVqat6SVCIiRCIiRCIiRibmXaml4iJGLe3Qtdml4i5j7wt6aXCImYu1+/Nb1ESMTc2zdb00uERMytTFvTS4REzM1MW9NLhETMbfO2ppcIiZAIiZAIiZgbRbamlwiJmHvdcmt6iZCIuZVpa3qJkIi5Q7Kt6SVCIubevtmaXiIkYm5l2ppeIiRi7mLaml4iJGJum7c1vURIhERIhERIxNzuaWt6iZCIefdvOJemlwiJmHssc2t6iZCIuQcLtqaXCImYW5m2ppcIiZhbmbamlwiJmDvN25peIiRCIiRCIiRibhTZml4iJGJuFNmaXiIkYrh7oUvTS4REzD2WuTW9REjE3CHZ1vQSIRFzM9PW9BIhEXOneVvTS8Tc7mlreomQCImQCImQCImYG0W2ppcIiZgbRbamlwiJmHsvdGt6iZCIuZVpa3qJkIi5mWlreomYO3Heml4iJGJu97Q1vURIhERIhERIhETMjSJb00uERMzNTFvTS4REzL19szW9REjE3HuhW9NLhETMzUxb00vE3Inz1vQSIRFzc/3W9BIhEXNz/db0EiEREiEREiEREjG3zduaXiIkYu6QbGt6iZCIudO8reklQiLm3gvdml4i5kaRreklQiLmdk9b00uERMzN9VvTS4RESIRESIRESMTczLQ1vURIxNxTOlvTS4REzK1MW9NLhETMHUBsTS8Rw3sUSIRESIREzO2etqaXCImYm+u3ppcIiZhbmbamlwiJkAiJkAiJkIi5Q7Kt6SVCIuaeH92aXiLmPvC3ppcIiZib67emlwiJmLsXujW9REjE3DZva3qJkIi5bd7W9BIhEXMPFmxNLxESIRESIRESIRHz7mHspeklYhqvC9D5jUqEREjE3MW0Nb1ESMR8NC4niZAIiZCIaVxKdH6jEiEREjEfDRIhERIhEfN+SJAIiZAIiZAIiZAIiZCIuZlpa3qJmBtFtqaXCImY+8Dfml4iJGLe3b5Zml4iJGJum7c1vURIxNw2b2t6iZCIuYtpa3qJkIi5bd7W9BIhERIhERIhEXO7p63pJUIi5l4Y2JpeIiRibmXaml4iJGLuYtqaXiIkYr57YWBpeomQiLmVaWt6iZCIuYtpa3qJkAiJkAiJkIi5E+et6SVCIuZ2T1vTS4REzF1MW9NLhETMPZa5Nb1ESMTcyrQ1vURIxNzKtDW9REjE3Mq0Nb1EzH2rxtb0EiEREiEREiEREjE3imxNLxESMTeKbE0vERIx9x8GtqaXCImY2+ZtTS8REjG3zduaXiIkYu5ofGt6iZjbPW1NLxESMbd72ppeIiRCIiRCIiRCIua2eVvTS4REzG3ztqaXCImYu5i2ppcIiZj7+o+t6SVi7gN/a3qJkIi5i2lreomQiLlDsq3pJUIiJEIiJEIiJGLuhYGt6SVCIuZmpq3pJUIi5mamreklQiLmXhjYml4i5j7wt6aXCImYG0W2ppcIiZi7mLamlwiJmNvmbU0vERIhERIhERIhEXPbvK3pJUIi5k6ct6aXCImYm5m2ppeIud3T1vQSIRFzj2VuTS8REjG3e9qaXiIkYm6btzW9REiEREiEREiERMxt87amlwiJmLt9szW9REjE3My0Nb1EzO2etqaXCImY+8Dfml4iJGLuYtqaXiIkYm6btzW9REjE3CHZ1vQSIRESIRESIRESMTczbU0vEXOjyNb0EiERcy8MbE0vERIxtzJtTS8REjE3imxNLxESMXfivDW9REjE3DZva3qJkAiJkAiJkAiJmJuZtqaXiLm/0a3pJUIi5kaRreklIvODzq1MW9NLhETMXUxb00uERMxH43KSCImQCImYxqVE5zcqERIhEXMHEFvTS4RESIRESIREzL0wsDW9REjE3CiyNb1ESMTcKLI1vURIxNwLA1vTS4REzG3ztqaXCImY2+ZtTS8REjG3Mm1NLxESMbcybU0vERIhERIhERIxt3vaml4iJGLuxHlreomQiLlRZGt6iZCIuW3e1vQSIRFzF9PW9BIhEfP9kCAREiERcx/4W9NLhERIhERIhERIxNzKtDW9REjE3FfUbE0vERIxtzJtTS8REjF3L3RreomQiLmVaWt6iZCIuYtpa3qJmNs9bU0vERIx94zz1vQSIRESIRESIRESMTeKbE0vERIxNzNtTS8REjH3hdNb00uERMxt87amlwiJmNvmbU0vEXMf+FvTS4REzD3jvDW9REiEREiERNwP+rfdNu9vu7/Rtb/RuZlpa3qJkIi5Q7Kt6SVCIuZWpq3pJWLub3RreomQiLkT563pJUIi5lamreklQiLmLqat6SVCIiRCIiRCIiRi7kvRt6aXCImY2+ZtTS8REjF3L3RreomY+4qareklQiLmdk9b00uERMztnramlwiJmFuZtqaXCImQCImQCInwX/8A/9d/cN+O3EwwNBsAAAAASUVORK5CYII=" id="image968f3ee293" transform="scale(1 -1) translate(0 -299.28)" x="414.24" y="-15.36" width="10.08" height="299.28"/>
+   <g id="LineCollection_1"/>
+   <g id="patch_8">
+    <path d="M 414.158333 314.737865 
+L 419.232296 314.737865 
+L 424.30626 314.737865 
+L 424.30626 15.482818 
+L 419.232296 15.482818 
+L 414.158333 15.482818 
+L 414.158333 314.737865 
+z
+" style="fill: none; stroke: #1a1a1a; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square"/>
+   </g>
+  </g>
+  <g id="axes_3">
+   <g id="patch_9">
+    <path d="M 472.999615 314.737865 
+L 483.147543 314.737865 
+L 483.147543 15.482818 
+L 472.999615 15.482818 
+z
+" style="fill: #ffffff"/>
+   </g>
+   <g id="matplotlib.axis_5"/>
+   <g id="matplotlib.axis_6">
+    <g id="ytick_12">
+     <g id="line2d_22">
+      <g>
+       <use xlink:href="#m01494d4671" x="483.147543" y="314.737865" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_25">
+      <text style="font-size: 7px; font-family: 'JetBrains Mono', 'IBM Plex Mono', 'Menlo', 'Consolas', 'Courier New', 'DejaVu Sans Mono', monospace; text-anchor: start; fill: #1a1a1a" x="486.647543" y="317.407162" transform="rotate(-0 486.647543 317.407162)">30</text>
+     </g>
+    </g>
+    <g id="ytick_13">
+     <g id="line2d_23">
+      <g>
+       <use xlink:href="#m01494d4671" x="483.147543" y="248.822354" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_26">
+      <text style="font-size: 7px; font-family: 'JetBrains Mono', 'IBM Plex Mono', 'Menlo', 'Consolas', 'Courier New', 'DejaVu Sans Mono', monospace; text-anchor: start; fill: #1a1a1a" x="486.647543" y="251.491651" transform="rotate(-0 486.647543 251.491651)">12</text>
+     </g>
+    </g>
+    <g id="ytick_14">
+     <g id="line2d_24">
+      <g>
+       <use xlink:href="#m01494d4671" x="483.147543" y="160.563854" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_27">
+      <text style="font-size: 7px; font-family: 'JetBrains Mono', 'IBM Plex Mono', 'Menlo', 'Consolas', 'Courier New', 'DejaVu Sans Mono', monospace; text-anchor: start; fill: #1a1a1a" x="486.647543" y="163.23315" transform="rotate(-0 486.647543 163.23315)">6</text>
+     </g>
+    </g>
+    <g id="ytick_15">
+     <g id="line2d_25">
+      <g>
+       <use xlink:href="#m01494d4671" x="483.147543" y="15.482818" style="fill: #1a1a1a; stroke: #1a1a1a; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_28">
+      <text style="font-size: 7px; font-family: 'JetBrains Mono', 'IBM Plex Mono', 'Menlo', 'Consolas', 'Courier New', 'DejaVu Sans Mono', monospace; text-anchor: start; fill: #1a1a1a" x="486.647543" y="18.152115" transform="rotate(-0 486.647543 18.152115)">3</text>
+     </g>
+    </g>
+    <g id="text_29">
+     <!-- GABA decay, $\tau_{\mathrm{GABA}}$ (ms) -->
+     <g style="fill: #1a1a1a" transform="translate(505.55598 216.510342) rotate(-90)">
+      <text>
+       <tspan x="0" y="-0.53125" style="font-size: 8px; font-family: 'Menlo'; fill: #1a1a1a">G</tspan>
+       <tspan x="4.816406" y="-0.53125" style="font-size: 8px; font-family: 'Menlo'; fill: #1a1a1a">A</tspan>
+       <tspan x="9.632812" y="-0.53125" style="font-size: 8px; font-family: 'Menlo'; fill: #1a1a1a">B</tspan>
+       <tspan x="14.449219" y="-0.53125" style="font-size: 8px; font-family: 'Menlo'; fill: #1a1a1a">A</tspan>
+       <tspan x="19.265625" y="-0.53125" style="font-size: 8px; font-family: 'Menlo'; fill: #1a1a1a"> </tspan>
+       <tspan x="24.082031" y="-0.53125" style="font-size: 8px; font-family: 'Menlo'; fill: #1a1a1a">d</tspan>
+       <tspan x="28.898438" y="-0.53125" style="font-size: 8px; font-family: 'Menlo'; fill: #1a1a1a">e</tspan>
+       <tspan x="33.714844" y="-0.53125" style="font-size: 8px; font-family: 'Menlo'; fill: #1a1a1a">c</tspan>
+       <tspan x="38.53125" y="-0.53125" style="font-size: 8px; font-family: 'Menlo'; fill: #1a1a1a">a</tspan>
+       <tspan x="43.347656" y="-0.53125" style="font-size: 8px; font-family: 'Menlo'; fill: #1a1a1a">y</tspan>
+       <tspan x="48.164062" y="-0.53125" style="font-size: 8px; font-family: 'Menlo'; fill: #1a1a1a">,</tspan>
+       <tspan x="52.980469" y="-0.53125" style="font-size: 8px; font-family: 'Menlo'; fill: #1a1a1a"> </tspan>
+       <tspan x="78.675" y="-0.53125" style="font-size: 8px; font-family: 'Menlo'; fill: #1a1a1a"> </tspan>
+       <tspan x="83.491406" y="-0.53125" style="font-size: 8px; font-family: 'Menlo'; fill: #1a1a1a">(</tspan>
+       <tspan x="88.307812" y="-0.53125" style="font-size: 8px; font-family: 'Menlo'; fill: #1a1a1a">m</tspan>
+       <tspan x="93.124219" y="-0.53125" style="font-size: 8px; font-family: 'Menlo'; fill: #1a1a1a">s</tspan>
+       <tspan x="97.940625" y="-0.53125" style="font-size: 8px; font-family: 'Menlo'; fill: #1a1a1a">)</tspan>
+       <tspan x="57.796875" y="-0.53125" style="font-style: oblique; font-size: 8px; font-family: 'DejaVu Sans'; fill: #1a1a1a">τ</tspan>
+       <tspan x="62.613281" y="0.78125" style="font-size: 5.6px; font-family: 'DejaVu Sans'; fill: #1a1a1a">G</tspan>
+       <tspan x="66.952734" y="0.78125" style="font-size: 5.6px; font-family: 'DejaVu Sans'; fill: #1a1a1a">A</tspan>
+       <tspan x="70.783594" y="0.78125" style="font-size: 5.6px; font-family: 'DejaVu Sans'; fill: #1a1a1a">B</tspan>
+       <tspan x="74.625391" y="0.78125" style="font-size: 5.6px; font-family: 'DejaVu Sans'; fill: #1a1a1a">A</tspan>
+      </text>
+     </g>
+    </g>
+   </g>
+   <image xlink:href="data:image/png;base64,
+iVBORw0KGgoAAAANSUhEUgAAACoAAATfCAYAAAB002XiAAAIOUlEQVR4nO3dwW3dSBAA0VKh80/LNwfjADibwh4MGIXuF4GgEv9MD8mvnz+/fj8CJEIiJEIihu+jQCIkQiIkYt6XWJjI/EYlQiIkYm5l2ppeIubd7mlpeomQiOF2T0vTS4REzHs31+9MLxESIRESIRESIRFzc/3W9BIhEXMz09b0EiERc6d5W9NLxNzuaWt6iZCIufv1W9NLhETMrUxb00uERMytTFvTS4RESIRESIRESMRwDxYsTS8REjE3M21NLxESMTczbU0vEXMf+FvTS4REzN2v35peIiRi7kmyreklQiLmVqat6SVCIuZmpq3pJUIiJEIiJEIiJGJ4931PO9NLhETMzUxb00vE3CiyNb1ESMTc/fqt6SVCIuZWpq3pJUIi5lamreklQiLmVqat6SVCIiRCIiRCIiRibmXaml4iJGLe3Qtdml4i5j7wt6aXCImYu1+/Nb1ESMTc2zdb00uERMytTFvTS4REzM1MW9NLhETMbfO2ppcIiZAIiZAIiZgbRbamlwiJmHvdcmt6iZCIuZVpa3qJkIi5Q7Kt6SVCIubevtmaXiIkYm5l2ppeIiRi7mLaml4iJGJum7c1vURIhERIhERIxNzuaWt6iZCIefdvOJemlwiJmHssc2t6iZCIuQcLtqaXCImYW5m2ppcIiZhbmbamlwiJmDvN25peIiRCIiRCIiRibhTZml4iJGJuFNmaXiIkYrh7oUvTS4REzD2WuTW9REjE3CHZ1vQSIRFzM9PW9BIhEXOneVvTS8Tc7mlreomQCImQCImQCImYG0W2ppcIiZgbRbamlwiJmHsvdGt6iZCIuZVpa3qJkIi5mWlreomYO3Heml4iJGJu97Q1vURIhERIhERIhETMjSJb00uERMzNTFvTS4REzL19szW9REjE3HuhW9NLhETMzUxb00vE3Inz1vQSIRFzc/3W9BIhEXNz/db0EiEREiEREiEREjG3zduaXiIkYu6QbGt6iZCIudO8reklQiLm3gvdml4i5kaRreklQiLmdk9b00uERMzN9VvTS4RESIRESIRESMTczLQ1vURIxNxTOlvTS4REzK1MW9NLhETMHUBsTS8Rw3sUSIRESIREzO2etqaXCImYm+u3ppcIiZhbmbamlwiJkAiJkAiJkIi5Q7Kt6SVCIuaeH92aXiLmPvC3ppcIiZib67emlwiJmLsXujW9REjE3DZva3qJkIi5bd7W9BIhEXMPFmxNLxESIRESIRESIRHz7mHspeklYhqvC9D5jUqEREjE3MW0Nb1ESMR8NC4niZAIiZCIaVxKdH6jEiEREjEfDRIhERIhEfN+SJAIiZAIiZAIiZAIiZCIuZlpa3qJmBtFtqaXCImY+8Dfml4iJGLe3b5Zml4iJGJum7c1vURIxNw2b2t6iZCIuYtpa3qJkIi5bd7W9BIhERIhERIhEXO7p63pJUIi5l4Y2JpeIiRibmXaml4iJGLuYtqaXiIkYr57YWBpeomQiLmVaWt6iZCIuYtpa3qJkAiJkAiJkIi5E+et6SVCIuZ2T1vTS4REzF1MW9NLhETMPZa5Nb1ESMTcyrQ1vURIxNzKtDW9REjE3Mq0Nb1EzH2rxtb0EiEREiEREiEREjE3imxNLxESMTeKbE0vERIx9x8GtqaXCImY2+ZtTS8REjG3zduaXiIkYu5ofGt6iZjbPW1NLxESMbd72ppeIiRCIiRCIiRCIua2eVvTS4REzG3ztqaXCImYu5i2ppcIiZj7+o+t6SVi7gN/a3qJkIi5i2lreomQiLlDsq3pJUIiJEIiJEIiJGLuhYGt6SVCIuZmpq3pJUIi5mamreklQiLmXhjYml4i5j7wt6aXCImYG0W2ppcIiZi7mLamlwiJmNvmbU0vERIhERIhERIhEXPbvK3pJUIi5k6ct6aXCImYm5m2ppeIud3T1vQSIRFzj2VuTS8REjG3e9qaXiIkYm6btzW9REiEREiEREiERMxt87amlwiJmLt9szW9REjE3My0Nb1EzO2etqaXCImY+8Dfml4iJGLuYtqaXiIkYm6btzW9REjE3CHZ1vQSIRESIRESIRESMTczbU0vEXOjyNb0EiERcy8MbE0vERIxtzJtTS8REjE3imxNLxESMXfivDW9REjE3DZva3qJkAiJkAiJkAiJmJuZtqaXiLm/0a3pJUIi5kaRreklIvODzq1MW9NLhETMXUxb00uERMxH43KSCImQCImYxqVE5zcqERIhEXMHEFvTS4RESIRESIREzL0wsDW9REjE3CiyNb1ESMTcKLI1vURIxNwLA1vTS4REzG3ztqaXCImY2+ZtTS8REjG3Mm1NLxESMbcybU0vERIhERIhERIxt3vaml4iJGLuxHlreomQiLlRZGt6iZCIuW3e1vQSIRFzF9PW9BIhEfP9kCAREiERcx/4W9NLhERIhERIhERIxNzKtDW9REjE3FfUbE0vERIxtzJtTS8REjF3L3RreomQiLmVaWt6iZCIuYtpa3qJmNs9bU0vERIx94zz1vQSIRESIRESIRESMTeKbE0vERIxNzNtTS8REjH3hdNb00uERMxt87amlwiJmNvmbU0vEXMf+FvTS4REzD3jvDW9REiEREiERNwP+rfdNu9vu7/Rtb/RuZlpa3qJkIi5Q7Kt6SVCIuZWpq3pJWLub3RreomQiLkT563pJUIi5lamreklQiLmLqat6SVCIiRCIiRCIiRi7kvRt6aXCImY2+ZtTS8REjF3L3RreomY+4qareklQiLmdk9b00uERMztnramlwiJmFuZtqaXCImQCImQCInwX/8A/9d/cN+O3EwwNBsAAAAASUVORK5CYII=" id="image563da7323f" transform="scale(1 -1) translate(0 -299.28)" x="473.04" y="-15.36" width="10.08" height="299.28"/>
+   <g id="LineCollection_2"/>
+   <g id="patch_10">
+    <path d="M 472.999615 314.737865 
+L 478.073579 314.737865 
+L 483.147543 314.737865 
+L 483.147543 15.482818 
+L 478.073579 15.482818 
+L 472.999615 15.482818 
+L 472.999615 314.737865 
+z
+" style="fill: none; stroke: #1a1a1a; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square"/>
+   </g>
+  </g>
+ </g>
+ <defs>
+  <clipPath id="p8773ea6c60">
+   <rect x="31.322896" y="15.482818" width="362.425988" height="299.255047"/>
+  </clipPath>
+ </defs>
+</svg>
