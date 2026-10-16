@@ -104,7 +104,7 @@ def repo(tmp_path, monkeypatch):
     monkeypatch.setenv("PINGLAB_SMOKE", "1")
     calls = []
 
-    def simulate(cfg, item):
+    def simulate(cfg, item, artifacts):
         calls.append(item)
         _, metrics = fixture_documents(cfg, item)
         return metrics, {"job": item, "graph_digest": "fixture", "device": "cpu"}

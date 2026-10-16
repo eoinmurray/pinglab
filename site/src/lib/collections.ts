@@ -30,6 +30,16 @@ const collections = [
     description: "Technical explanations of the models, methods, and tools used in Pinglab.",
   },
   {
+    id: "animations",
+    label: "Animations",
+    description: "Experiments and guides with interactive PixiJS animations.",
+  },
+  {
+    id: "paper-inspired",
+    label: "Paper-inspired",
+    description: "Experiments inspired by published research papers.",
+  },
+  {
     id: "literature",
     label: "Literature",
     description: "Research papers, reading notes, and discussions of published findings.",

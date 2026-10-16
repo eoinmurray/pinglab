@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
+from .allocation import allocation_watermarks, persist_watermarks
 from .contracts import (
     EXPERIMENT_RE,
     PHASE_RE,
@@ -105,6 +106,12 @@ class SourceRun:
     def file(self, *parts: str | Path) -> Path:
         return canonical_export_file(self.outputs, *parts)
 
+    def restore_bundle(self, prefix: str | Path, destination: Path) -> Path:
+        """Restore a native bundle into caller-owned scratch for authenticated loading."""
+        from .library_artifacts import restore_native
+        return restore_native(self.outputs, self.record["scientific_artifacts"]["native_paths"],
+                              prefix, destination)
+
     @property
     def presentation(self) -> Path:
         files = presentation_directory(self.directory, self.record)
@@ -177,17 +184,10 @@ def _allocate_stage(
         raise PingstoreError("invalid execution origin")
     runs = root / "runs"
     runs.mkdir(parents=True, exist_ok=True)
-    pattern = re.compile(rf"^\.?{experiment}-(?:(?:compute|analyse|present)-)?r(\d+)-")
-    number = max(
-        (
-            int(match.group(1))
-            for path in runs.iterdir()
-            if (match := pattern.match(path.name))
-        ),
-        default=0,
-    )
+    number = allocation_watermarks(root).get(experiment, 0)
     while True:
         number += 1
+        persist_watermarks(root, {experiment: number})
         identity = f"{experiment}-r{number:03d}-{stage}"
         if phase is not None:
             identity += f"-phase-{phase}"

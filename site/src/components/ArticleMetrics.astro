@@ -1,0 +1,26 @@
+---
+import type { ArticleCounts } from '../lib/article-counts';
+interface Props { counts: ArticleCounts; stacked?: boolean; }
+const { counts, stacked = false } = Astro.props;
+const format = new Intl.NumberFormat('en-GB');
+const items = [
+  { value: counts.words, label: 'word', description: 'Main report prose, including the abstract; excludes headings, captions, tables, code, mathematics, metadata, references and appendices.' },
+  { value: counts.figures, label: 'figure', description: 'Main report figures; each multipanel figure counts once. Tables and appendix figures are excluded.' },
+  ...(counts.runs === undefined ? [] : [{ value: counts.runs, label: 'run', description: 'Completed compute, analyse and present runs belonging to this experiment in local Pingstore; upstream and hidden runs are excluded.' }]),
+];
+---
+<span class:list={['article-metrics', { stacked }]} aria-label="Article statistics">
+  {items.map(({ value, label, description }) => <span class="metric" title={description}>
+    <span class="metric-value">{value === null ? '—' : format.format(value)}</span>{' '}{label}{value === 1 ? '' : 's'}
+    {value === null && <span class="metric-unavailable"> (unavailable)</span>}
+  </span>)}
+</span>
+<style>
+  .article-metrics { display: inline-flex; align-items: center; flex-wrap: wrap; gap: .35em .75em; color: var(--listing-muted, rgb(var(--ink) / .6)); font-size: inherit; line-height: 1.5; }
+  .metric { white-space: nowrap; }
+  .metric + .metric::before { content: '·'; margin-right: .75em; color: rgb(var(--ink) / .35); }
+  .metric-value { font-variant-numeric: tabular-nums; }
+  .stacked { display: flex; flex-direction: column; align-items: flex-start; gap: 0; color: inherit; }
+  .stacked .metric + .metric::before { content: none; }
+  .metric-unavailable { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+</style>

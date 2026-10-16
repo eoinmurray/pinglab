@@ -2,18 +2,17 @@
 id: "exp124"
 title: "SHD"
 created_at: "2026-10-14"
-updated_at: "2026-10-15"
+updated_at: "2026-10-16"
 description: "Full-data SHD training curves and matched two-layer inference rasters for COBA and PING."
 collection: "datasets"
 author: "Eoin Murray"
 tags: ["data", "v36.0.0"]
 inputs: ["exp124"]
-runs: {"exp124": "exp124-r151-present"}
+runs: {"exp124": "exp124-r164-present"}
 ---
 
 import ReportAvailability from '../../../site/src/components/ReportAvailability.astro';
 import RunFigure from '../../../site/src/components/RunFigure.astro';
-import Table from '../../../site/src/components/Table.astro';
 import { reportData, display, round } from '../../../site/src/lib/report-data';
 export const run = await reportData('exp124', { allowUnavailable: true });
 export const full = run?.full_training;
@@ -31,6 +30,11 @@ export const target = sample ? display(sample.class) : 'unavailable';
 ## Abstract
 
 We trained two-layer conductance-based networks to recognize spoken digits represented by cochlear spike events. Both COBA and PING learned under the calibrated initialization and optimization recipe, with PING achieving higher development-validation accuracy in the paired replicate. Matched inference rasters show how the trained layers respond to one held-out utterance. This single-seed comparison and illustrative response do not establish competitive test performance or a general benefit from inhibition.
+
+## TODO
+
+1. Use the full utterance time ranges in the next training run (Methods, point 1).
+2. Apply no input corruption in the next training run (Methods, point 2).
 
 ## Results
 
@@ -54,58 +58,52 @@ With fixed reciprocal feedback in both 128 E/32 I layers, online training accura
 
 We replayed the first validation utterance through the final trained weights, without optimizer updates. The true class was {target}, and COBA predicted class {prediction('coba')}. Both layers responded during the utterance ([Fig. 3](#fig-coba-raster)). This fixed example illustrates activity propagation; it was not selected for correct classification or its raster appearance and cannot summarize performance across utterances.
 
-<RunFigure report="exp124" experiment="exp124" allowUnavailable file="coba_sample_raster.svg" number={3} id="fig-coba-raster" alt="Individual excitatory spikes in the first and second trained COBA layers during the same one-second held-out utterance.">
-  **Recorded COBA inference raster.** We presented one held-out SHD utterance with a fresh seeded insertion/deletion draw and fixed final-epoch weights. (A) Layer 1. (B) Layer 2. Each black tick is one spike; horizontal position is elapsed time from utterance onset and vertical position identifies a neuron. Each panel contains 128 excitatory neurons and no inhibitory population. The full one-second presentation is shown, with no smoothing, trial average or transient removal. The same input events were used for PING in Figure 4.
+<RunFigure report="exp124" experiment="exp124" allowUnavailable file="coba_sample_raster.svg" number={3} id="fig-coba-raster" alt="Excitatory spike rasters and population-count autocorrelations for both trained COBA layers during one held-out utterance.">
+  **Recorded COBA inference raster.** We presented one held-out SHD utterance with a fresh seeded insertion/deletion draw and fixed final-epoch weights. (A, C) Layer 1 and layer 2 rasters. Each black tick is one spike; horizontal position is elapsed time from utterance onset and vertical position identifies a neuron. Each raster contains 128 excitatory neurons and no inhibitory population. The full one-second presentation is shown, with no smoothing, trial average or transient removal. The same input events were used for PING in Figure 4. (B, D) Corresponding layer population spike-count autocorrelograms in 1 ms bins. We divided each uncentered lagged product sum by the number of overlapping bins and the squared full-utterance mean count (Equation 2). Black traces show E at positive lags up to 200 ms; zero lag is omitted because of self-pairs. The dotted line at one marks the expected baseline for independent stationary activity. These are population-count correlations, not averages of individual-neuron autocorrelations; each y axis includes the full displayed peak.
 </RunFigure>
 
 ### PING two-layer response
 
 PING predicted class {prediction('ping')} for the same true-class-{target} utterance. The raster shows intermittent excitatory responses and synchronized inhibitory events in both layers ([Fig. 4](#fig-ping-raster)). Identical inhibitory parameters and uniform incoming feedback produce identical inhibitory spike trains within a layer. This response is illustrative; the raster alone does not establish a rhythm's frequency or show why PING trained more accurately.
 
-<RunFigure report="exp124" experiment="exp124" allowUnavailable file="ping_sample_raster.svg" number={4} id="fig-ping-raster" alt="Individual excitatory and inhibitory spikes in both trained PING layers during the matched one-second held-out utterance.">
-  **Recorded PING inference raster.** We used the same utterance and corruption draw as COBA, with final-epoch weights fixed and no optimization. (A) Layer 1. (B) Layer 2. Black ticks identify spikes from 128 excitatory neurons, indexed 0–127; red ticks identify spikes from 32 inhibitory neurons stacked above them, indexed 128–159. Time runs horizontally from utterance onset. The thin horizontal line separates populations. Both panels show the full one-second presentation without smoothing, averaging or removal of the initial transient.
+<RunFigure report="exp124" experiment="exp124" allowUnavailable file="ping_sample_raster.svg" number={4} id="fig-ping-raster" alt="Excitatory and inhibitory spike rasters and population-count autocorrelations for both trained PING layers during the matched held-out utterance.">
+  **Recorded PING inference raster.** We used the same utterance and corruption draw as COBA, with final-epoch weights fixed and no optimization. (A, C) Layer 1 and layer 2 rasters. Black ticks identify spikes from 128 excitatory neurons, indexed 0–127; red ticks identify spikes from 32 inhibitory neurons stacked above them, indexed 128–159. Time runs horizontally from utterance onset. The thin horizontal line separates populations. Both rasters show the full one-second presentation without smoothing, averaging or removal of the initial transient. (B, D) Corresponding population-count autocorrelograms, calculated separately for E (black) and I (red) with the same 1 ms bins, overlap correction and squared-mean normalization as Figure 3 (Equation 2). Positive lags extend to 200 ms, with zero lag omitted and no trial averaging. The dotted line at one marks the independent stationary baseline; each y axis includes both populations’ full displayed peaks. The single stimulus-evoked response includes its changing activity envelope and does not establish a sustained oscillation.
 </RunFigure>
 
 ## Methods
 
-<Table
-  headers={['Configuration', 'COBA', 'PING']}
-  rows={[
-    ['Input', '700 SHD cochlear spike channels [1]', 'Same'],
-    ['Hidden neuron model', 'Conductance-based leaky integrate-and-fire (COBA LIF)', 'Same for both E and I'],
-    ['Synapses onto hidden neurons', 'Exponentially decaying AMPA conductances', 'Exponentially decaying AMPA and GABA conductances'],
-    ['Hidden layer 1', '128 excitatory neurons', '128 excitatory + 32 inhibitory neurons'],
-    ['Hidden layer 2', '128 excitatory neurons', '128 excitatory + 32 inhibitory neurons'],
-    ['Feedforward pathways', 'Input → E1 → E2 → readout', 'Same'],
-    ['Within-layer feedback', 'None', 'Fixed E→I and I→E connections in each layer'],
-    ['Readout', '20 non-spiking leaky-integrator units', 'Same'],
-    ['Readout synapse', 'Signed leaky-integrator filter, 10 ms decay', 'Same'],
-    ['Classification score', '20 × mean readout voltage × 20 Hz / max(mean E2 rate, 1 Hz)', 'Same'],
-    [{ math: 'C_m\\;\\text{(membrane capacitance)}' }, 'E: 1 nF', 'E: 1 nF; I: 0.5 nF'],
-    [{ math: 'g_L\\;\\text{(leak conductance)}' }, 'E: 0.05 μS', 'E: 0.05 μS; I: 0.025 μS'],
-    [{ math: '\\tau_{\\mathrm{passive}}=C_m/g_L' }, '20 ms (derived)', '20 ms for both E and I (derived)'],
-    [{ math: '\\tau_{\\mathrm{AMPA}}' }, '10 ms', '10 ms'],
-    [{ math: '\\tau_{\\mathrm{GABA}}' }, 'Not used', '10 ms'],
-    ['Refractory period', '0 ms', '0 ms'],
-    ['Simulation timestep / presentation', '1 ms / 1 s', 'Same'],
-    ['Learned weights', 'Input→E1, E1→E2, E2→readout', 'Same; inhibitory feedback remains fixed'],
-  ]}
-  number={1}
-  id="architecture-config"
-  label="Architecture and simulation settings"
->
-  **Architecture and simulation settings.** E and I denote excitatory and inhibitory populations; E1 and E2 identify the two hidden excitatory layers. We chose a 20 ms passive time constant and fixed capacitances, then calculated leak conductances as capacitance divided by that time constant. The passive time constant is therefore derived from the configured capacitance and leak conductance, not an additional independent physical parameter. Synaptic conductances change the effective membrane time constant. AMPA and GABA time constants describe conductance decay. Readout voltage and E2 firing rate are averaged over each one-second utterance. Neuronal and synaptic states reset between utterances.
-</Table>
+The architecture and simulation settings are listed in [Table 1](#architecture-config).
 
-1. **Calculate classification scores.** For each utterance, we scored class $c$ as
+1. **Prepare SHD.** We split 8,156 official training utterances [1] (20 classes, 700 channels) into 7,340 training and 816 validation examples using a seed-42 per-class shuffle. Original spike-train lengths varied: last-spike times ranged from 0.233 to 1.369 s. We kept only events before 1 s to fit the simulation, flooring times into binary 1 ms bins. Speakers could overlap between splits; the official test set was unused.
+
+2. **Corrupt inputs.** Per channel and 1 ms bin, we deleted existing spikes with probability 0.0008 and filled empty bins with probability 0.0016 (approximately 1.6 Hz). Both models shared example order and noise draws; validation noise stayed fixed across epochs for consistent comparison. Corruption exposed models to missing and extra spikes, but its benefit was not tested against uncorrupted training.
+
+3. **Initialize hidden weights.** Both models shared seed-42 learned matrices. SNNLab's [LowerClampedNormal](https://snnlab.eoinmurray.info/api/lang/parameters/#lowerclampednormal) used parent mean 0.09 μS and SD 0.009 μS. Input→E1 and E1→E2 initial zero fractions were 0.95 and 0.90, followed by division by retained fan-in (35 and 12.8). Negative draws were clamped; initial zeros remained trainable and weights remained nonnegative.
+
+4. **Initialize readout and feedback.** Signed E2→readout weights had Gaussian mean zero and SD 0.1 μS, centered across source neurons for each class, without sparsification or fan-in scaling. PING feedback was fixed at $0.05/128$ μS per E→I edge and $0.05/32$ μS per I→E edge: 0.05 μS summed incoming conductance in either direction. COBA had no inhibitory feedback.
+
+5. **Score utterances.** We used a custom rate-normalized mean-voltage score:
 
    $$
    z_c=G\,\bar u_c\,\frac{r_{\mathrm{ref}}}{\max(\bar r_{E2},r_{\mathrm{floor}})}. \tag{1}
    $$
 
-   Here $z_c$ is the class score, $\bar u_c$ is the mean voltage of class $c$'s non-spiking readout over the full one-second presentation, and $\bar r_{E2}$ is the firing rate averaged over all 128 E2 neurons and that presentation. We used gain $G=20$, reference rate $r_{\mathrm{ref}}=20\,\mathrm{Hz}$ and denominator floor $r_{\mathrm{floor}}=1\,\mathrm{Hz}$. We predicted the class with the largest score. The common positive scaling leaves that decision unchanged for fixed weights, but affects cross-entropy and its training gradients.
+   Here $z_c$ is the score for class $c$, $\bar u_c$ its mean non-spiking readout voltage, and $\bar r_{E2}$ the per-neuron E2 rate, both over the full second. We used gain $G=20$, reference rate $r_{\mathrm{ref}}=20\,\mathrm{Hz}$ and rate floor $r_{\mathrm{floor}}=1\,\mathrm{Hz}$, predicting the largest score. The positive scaling preserves that choice for fixed weights but changes cross-entropy and training gradients.
 
-2. **Initialize weights.** We used seed 42 and identical initial learned matrices for COBA and PING. Input→E1 and E1→E2 conductances were drawn independently from Gaussian parents with mean 0.09 μS and SD 0.009 μS, with negative draws clamped to zero. We independently zeroed each entry with probability 0.95 for Input→E1 and 0.90 for E1→E2, then divided by the source population size times the retained fraction: $700\times0.05=35$ and $128\times0.10=12.8$, respectively. The parent distribution therefore describes values before sparsification and normalization, not final per-edge conductances. Initial zeros were not permanent connectivity masks, and these matrices remained nonnegative during training. E2→readout weights were drawn from a signed Gaussian with mean zero and SD 0.1 μS, then centered by subtracting the mean across the 128 source neurons separately for each class; no fan-in scaling or initial sparsification was applied. In each PING layer, fixed uniform E→I and I→E weights were $0.05/128=0.000390625\,\mu\mathrm{S}$ and $0.05/32=0.0015625\,\mu\mathrm{S}$ per edge, respectively, giving 0.05 μS summed incoming conductance per target in either direction. COBA had no inhibitory feedback connections.
+6. **Train both models.** We used SNNLab's [train](https://snnlab.eoinmurray.info/api/sim/execution-functions/#train) for 50 epochs with class-stratified batches of 256, merging tails smaller than 20. Custom Adam minimized mean cross-entropy per represented class; input/interlayer/readout learning rates were $5\times10^{-6}/2\times10^{-5}/0.01$, with betas 0.9/0.999 and no weight decay. The [FastSigmoid](https://snnlab.eoinmurray.info/api/lang/training/#fastsigmoid) surrogate used slope $100/15\,\mathrm{mV}^{-1}$ and gradient scale 0.01. States reset per utterance. Reported losses were example means; validation used epoch-end weights, including epoch zero.
+
+7. **Record matched responses.** Using SNNLab's [infer](https://snnlab.eoinmurray.info/api/sim/execution-functions/#infer), we replayed the first validation utterance with final-epoch weights, one shared fresh corruption draw (seed 46) and no updates. Selection did not depend on prediction or spike appearance.
+
+8. **Calculate autocorrelograms.** We applied SNNLab's [spike_autocorrelogram](https://snnlab.eoinmurray.info/api/analysis/#spike_autocorrelogram) separately to each population over the full utterance:
+
+   $$
+   A_{\mathrm{corr},P}[\ell]
+   =\frac{\displaystyle\sum_{k=0}^{N_t-\ell-1}n_P[k]\,n_P[k+\ell]}
+   {(N_t-\ell)\,\bar n_P^{\,2}}.
+   \tag{2}
+   $$
+
+   Here $A_{\mathrm{corr},P}$ is dimensionless autocorrelation for population $P$ (E or I in one layer), $n_P[k]$ its count in bin $k$, and $\bar n_P$ its mean across $N_t=1000$ bins. We used 1 ms bins and integer lags $\ell=1,\ldots,200$ (1–200 ms). Independent stationary activity has baseline one; zero lag is omitted, and silent or too-short recordings give undefined curves. No smoothing, transient removal or trial averaging was applied; the stimulus-evoked activity envelope contributes to the correlation.
 
 ## References
 

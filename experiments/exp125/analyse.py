@@ -45,7 +45,10 @@ def analyse(identity):
             raise ValueError("test accuracy disagrees with predictions")
         confusion = np.zeros((cfg["outputs"], cfg["outputs"]), dtype=np.int64)
         np.add.at(confusion, (test["labels"], test["predictions"]), 1)
-    with np.load(source.file("initial_weights.npz")) as initial, np.load(source.file("selected_weights.npz")) as selected:
+    initial_path = source.file("training", "start", "parameters.npz")
+    if not initial_path.exists():
+        initial_path = source.file("initial_weights.npz")
+    with np.load(initial_path) as initial, np.load(source.file("selected_weights.npz")) as selected:
         changes = {key: float(np.linalg.norm(selected[key] - initial[key])) for key in ("input.weight", "output.weight")}
         if not all(np.isfinite(selected[key]).all() for key in selected.files):
             raise ValueError("nonfinite selected weights")

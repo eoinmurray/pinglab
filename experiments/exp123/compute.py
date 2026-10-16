@@ -15,12 +15,13 @@ import numpy as np
 import torch
 from experiments.exp123 import recipe
 from experiments.helpers.checkpoints import pinned_checkpoint
+from experiments.helpers.network_artifacts import model_execution
 from pingstore.stages import source_run, stage_run
 from snnlab.sim import ExecutionSpec, build, encode_images_poisson
 from torchvision.datasets import MNIST
 
 
-def graph_trial(tau, weights, encoded):
+def graph_trial(tau, weights, encoded, artifacts):
     bundle = recipe.network(tau)
     model = build(
         ExecutionSpec(kind="simulate", graph=bundle.graph, device="cpu", seed=0)
@@ -31,7 +32,8 @@ def graph_trial(tau, weights, encoded):
             if value.shape != target.shape or (value < 0).any():
                 raise ValueError("checkpoint projection shape or polarity mismatch")
             target.copy_(value)
-        result = model({"image": encoded}, diagnostics=True)
+        with model_execution(model, bundle, artifacts, kind="infer", settings={"tau_gaba_ms": tau}):
+            result = model({"image": encoded}, diagnostics=True)
         for name, target in model.parameter_map().items():
             if not torch.equal(target, weights[recipe.PARAMETERS[name]]):
                 raise ValueError("frozen weights changed")
@@ -171,7 +173,7 @@ def compute(identity, image_identity=None):
                         )
                     batch_encoded = torch.cat(encodings, dim=1)
                     for tau in cfg["tau_gaba_ms"]:
-                        signals = graph_trial(tau, weights, batch_encoded)
+                        signals = graph_trial(tau, weights, batch_encoded, run.export / f"{protocol}--rate-{rate:g}--batch-{start}--tau-{tau:g}")
                         for j, image_index in enumerate(batch_indices):
                             unit = run.export / recipe.recording_unit(
                                 image_index, rate, protocol

@@ -14,6 +14,7 @@ sys.path[:0] = [str(REPO), str(REPO / "tools")]
 import numpy as np
 import torch
 from experiments.exp049 import evidence, inputs, recipe
+from experiments.helpers.network_artifacts import model_execution
 from pingstore.contracts import PingstoreError, file_sha256, write_json_atomic
 from snnlab.lang import duration_steps
 from snnlab.sim import GraphExecutor, encode_images_poisson, load_dataset, plan_graph
@@ -246,20 +247,22 @@ def evaluate_cell(train_dir, train, checkpoint, cfg, data, export, device):
             )
             indices = np.empty(0, dtype=np.int64)
         elif job["kind"] == "snapshot":
-            indices, encoded_digest = snapshot(
-                model,
-                train,
-                pixels,
-                labels,
-                job,
-                destination,
-                device,
-                snapshot_generator,
-            )
+            with model_execution(model, bundle, destination / "inference", kind="infer", seed=train["seed"], settings={"recipe": cfg, "job": job}):
+                indices, encoded_digest = snapshot(
+                    model,
+                    train,
+                    pixels,
+                    labels,
+                    job,
+                    destination,
+                    device,
+                    snapshot_generator,
+                )
         else:
-            indices, encoded_digest = inference(
-                model, train, cfg, data, job, checkpoint, destination, device
-            )
+            with model_execution(model, bundle, destination / "inference", kind="infer", seed=train["seed"], settings={"recipe": cfg, "job": job}):
+                indices, encoded_digest = inference(
+                    model, train, cfg, data, job, checkpoint, destination, device
+                )
         evidence.recordings(destination, train, job)
         trials.append(
             {

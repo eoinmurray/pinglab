@@ -11,12 +11,13 @@ sys.path[:0] = [str(REPO), str(REPO / "tools")]
 import torch
 from experiments.exp047 import evidence, inputs, recipe
 from experiments.helpers.checkpoint_graph import initial_draws
+from experiments.helpers.network_artifacts import model_execution
 from pingstore.contracts import PingstoreError, write_json_atomic
 from snnlab.lang import duration_steps
 from snnlab.sim import GraphExecutor, plan_graph, resolve_device
 
 
-def simulate_probe(cfg, item):
+def simulate_probe(cfg, item, artifacts):
     settings = recipe.network_settings(cfg, item)
     bundle = recipe.author_network(cfg, item)
     model = GraphExecutor(plan_graph(bundle.graph), seed=item["seed"])
@@ -36,8 +37,9 @@ def simulate_probe(cfg, item):
         .float()
         .to(device)
     )
-    with torch.inference_mode():
-        result = model({"drive": drive}, diagnostics=False)
+    with model_execution(model, bundle, artifacts, seed=item["seed"], settings={"recipe": cfg, "job": item}):
+        with torch.inference_mode():
+            result = model({"drive": drive}, diagnostics=False)
     rates = {
         key: float(result.outputs[f"spk_{label}_count"].sum())
         / (cfg["n_batch"] * size * steps * cfg["dt_ms"] / 1000)
@@ -79,7 +81,7 @@ def compute(*, run_id=None):
         environment = {"PINGLAB_SMOKE": "1" if cfg["profile"] == "smoke" else "0"}
         run.record["execution"]["environment"] = environment
         for item in recipe.jobs(cfg):
-            metrics, metadata = simulate_probe(cfg, item)
+            metrics, metadata = simulate_probe(cfg, item, run.export / f"{item['id']}--simulation")
             evidence.metric(metrics, cfg, item)
             write_json_atomic(
                 run.export / f"probe--{item['id']}--metrics.json", metrics

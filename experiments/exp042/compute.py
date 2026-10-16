@@ -29,6 +29,21 @@ def _job_path(export, job):
     return export / (job["id"] + "--metrics.json")
 
 
+def _native_inventory(directory, jobs):
+    """Bind this shard's library evidence into its immutable completion record."""
+    if not jobs:
+        return {}
+    files = {}
+    units = [f"{job['id']}--inference" for job in jobs]
+    units += [f"{cell}--{jobs[0]['id']}--baseline" for cell in dict.fromkeys(job["cell"] for job in jobs)]
+    for name in units:
+        unit = directory / "export" / name
+        for path in unit.rglob("*"):
+            if path.is_file():
+                files[path.relative_to(directory).as_posix()] = file_sha256(path)
+    return files
+
+
 def _shard_requests(path):
     envelope = load_json(path)
     requests = envelope.get("requests")
@@ -42,7 +57,7 @@ def _shard_requests(path):
 
 
 def _run_jobs(bank, cfg, data, root, export, jobs, requests):
-    for job, metrics in simulation.evaluate_jobs(bank, cfg, data, root, jobs, requests):
+    for job, metrics in simulation.evaluate_jobs(bank, cfg, data, root, jobs, requests, export):
         record = {"job": job, "metrics": metrics}
         canonical = recipe.replay_job(job)
         if canonical != job:
@@ -90,6 +105,7 @@ def _shard(identity, *, run_id, index, count=recipe.SHARDS):
 
     def inventory():
         return {
+            **_native_inventory(directory, job_list),
             **{
                 job["id"]: file_sha256(_job_path(directory / "export", job))
                 for job in job_list
@@ -189,6 +205,7 @@ def _complete(bank, evidence, cfg, data, root, run_id, collect):
         configuration=lambda: _collection_protocol(directory, cfg, data),
         items_for=lambda index: recipe.jobs(cfg)[index :: recipe.SHARDS],
         inventory_for=lambda index: {
+            **_native_inventory(directory, recipe.jobs(cfg)[index :: recipe.SHARDS]),
             "requests": file_sha256(
                 _shard_paths(REPO, run_id, index, recipe.SHARDS)
                 / ".scratch/shards"
@@ -240,6 +257,7 @@ def _complete(bank, evidence, cfg, data, root, run_id, collect):
                 data,
                 bank.reference,
                 requests,
+                run.export,
             ):
                 np.savez_compressed(run.export / f"{name}.npz", **snapshot)
             run.record["execution"]["requests"] = requests

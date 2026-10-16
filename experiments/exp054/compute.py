@@ -13,6 +13,7 @@ sys.path[:0] = [str(REPO), str(REPO / "tools")]
 import numpy as np
 import torch
 from experiments.exp054 import evidence, inputs, recipe
+from experiments.helpers.network_artifacts import model_execution
 from pingstore.contracts import PingstoreError, write_json_atomic
 from snnlab.lang import duration_steps
 from snnlab.sim import GraphExecutor, plan_graph, poisson_spikes
@@ -41,12 +42,13 @@ def simulate_probe(cfg, item, destination, device):
         device=device,
     )
     started = perf_counter()
-    with torch.inference_mode():
-        # No continuation: each probe resets voltage, conductance, refractory
-        # counters and delay history, including before the unrecorded burn-in.
-        result = model(
-            {"drive": drive}, diagnostics=False, recording=recipe.recording(cfg)
-        )
+    with model_execution(model, bundle, destination.parent / f"{item['id']}--simulation", seed=cfg["seed"], settings={"recipe": cfg, "job": item}):
+        with torch.inference_mode():
+            # No continuation: each probe resets voltage, conductance, refractory
+            # counters and delay history, including before the unrecorded burn-in.
+            result = model(
+                {"drive": drive}, diagnostics=False, recording=recipe.recording(cfg)
+            )
     arrays = {
         "dt": np.float32(cfg["dt_ms"]),
         "T": np.int32(steps),

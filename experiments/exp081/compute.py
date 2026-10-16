@@ -15,6 +15,7 @@ sys.path[:0] = [str(REPO), str(REPO / "experiments"), str(REPO / "tools")]
 
 import numpy as np
 from experiments.exp081 import recipe
+from experiments.helpers.external_artifacts import external_execution
 from pingstore.contracts import write_json_atomic
 from pingstore.stages import stage_run
 
@@ -90,16 +91,18 @@ def compute(*, run_id: str | None = None) -> str:
         }
         run.record["execution"]["environment"] = environment
         rates, probes = np.meshgrid(cfg["input_rate_grid_hz"], cfg["probes_uS"])
-        features = simulate_features(
-            rates, probes, cfg["moment_draws"], cfg["moment_seed"], config=cfg
-        )
-        samples = simulate_features(
-            np.asarray(cfg["distribution_rates_hz"]),
-            np.full(len(cfg["distribution_rates_hz"]), cfg["nominal_probe_uS"]),
-            cfg["distribution_draws"],
-            cfg["distribution_seed"],
-            config=cfg,
-        )
+        with external_execution(run.export / "moment-simulation", backend="local nonspiking membrane", configuration={**cfg, "seed": cfg["moment_seed"]}, parameters=lambda: {"rates_hz": rates, "probes_uS": probes}):
+            features = simulate_features(
+                rates, probes, cfg["moment_draws"], cfg["moment_seed"], config=cfg
+            )
+        with external_execution(run.export / "distribution-simulation", backend="local nonspiking membrane", configuration={**cfg, "seed": cfg["distribution_seed"]}):
+            samples = simulate_features(
+                np.asarray(cfg["distribution_rates_hz"]),
+                np.full(len(cfg["distribution_rates_hz"]), cfg["nominal_probe_uS"]),
+                cfg["distribution_draws"],
+                cfg["distribution_seed"],
+                config=cfg,
+            )
         np.savez_compressed(
             run.export / "feature_samples.npz",
             samples_mV=features,

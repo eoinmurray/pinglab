@@ -85,7 +85,8 @@ def test_independent_stages_pin_v3_and_preserve_measurements(stage_repo, monkeyp
     assert compute_record["schema"] == RUN_SCHEMA
     assert compute_record["inputs"] == {}
     before = payload_digest(upstream)
-    assert sorted(p.name for p in (upstream / "export").iterdir()) == [
+    artifact_units = {Path(p).parts[0] for p in compute_record["scientific_artifacts"]["native_paths"].values()}
+    assert sorted(p.name for p in (upstream / "export").iterdir() if p.name not in artifact_units) == [
         "distribution_samples.npz",
         "feature_samples.npz",
     ]

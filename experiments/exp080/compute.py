@@ -29,6 +29,7 @@ from experiments.exp080.recipe import (
     SEEDS,
     stable_seed,
 )
+from experiments.helpers.external_artifacts import external_execution
 from pingstore.contracts import file_sha256 as sha256_file
 from pingstore.contracts import write_json_atomic
 from pingstore.stages import stage_run
@@ -185,70 +186,71 @@ def train_seed(
     best_state: dict[str, Any] | None = None
     started = time.perf_counter()
 
-    for epoch in range(1, cfg["epochs"] + 1):
-        model.train()
-        train_correct = 0
-        train_seen = 0
-        rate_rng = np.random.default_rng(stable_seed(seed, epoch, 1))
-        generator.manual_seed(stable_seed(seed, epoch, 2))
-        for indices in batches(train_indices, stable_seed(seed, epoch, 3), True):
-            rates = np.asarray(RATES_HZ)[
-                rate_rng.integers(0, len(RATES_HZ), len(indices))
-            ]
-            batch_images = torch.as_tensor(images[indices], device=device)
-            batch_labels = torch.as_tensor(labels[indices], device=device)
-            features = direct_features(
-                batch_images,
-                torch.as_tensor(rates, device=device, dtype=torch.float32),
-                generator,
-            )
-            optimizer.zero_grad(set_to_none=True)
-            logits = model(features)
-            loss = torch.nn.functional.cross_entropy(logits, batch_labels)
-            loss.backward()
-            optimizer.step()
-            train_correct += int((logits.argmax(1) == batch_labels).sum().item())
-            train_seen += len(indices)
-
-        model.eval()
-        validation_correct = 0
-        validation_seen = 0
-        rate_rng = np.random.default_rng(stable_seed(seed, epoch, 4))
-        generator.manual_seed(stable_seed(seed, epoch, 5))
-        with torch.no_grad():
-            for indices in batches(validation_indices, 0, False):
+    with external_execution(output / f"seed-{seed}--training", backend="torch MLP + local nonspiking membrane", configuration={**cfg, "seed": seed, "device": str(device)}, parameters=model.state_dict):
+        for epoch in range(1, cfg["epochs"] + 1):
+            model.train()
+            train_correct = 0
+            train_seen = 0
+            rate_rng = np.random.default_rng(stable_seed(seed, epoch, 1))
+            generator.manual_seed(stable_seed(seed, epoch, 2))
+            for indices in batches(train_indices, stable_seed(seed, epoch, 3), True):
                 rates = np.asarray(RATES_HZ)[
                     rate_rng.integers(0, len(RATES_HZ), len(indices))
                 ]
+                batch_images = torch.as_tensor(images[indices], device=device)
+                batch_labels = torch.as_tensor(labels[indices], device=device)
                 features = direct_features(
-                    torch.as_tensor(images[indices], device=device),
+                    batch_images,
                     torch.as_tensor(rates, device=device, dtype=torch.float32),
                     generator,
                 )
-                batch_labels = torch.as_tensor(labels[indices], device=device)
-                validation_correct += int(
-                    (model(features).argmax(1) == batch_labels).sum().item()
-                )
-                validation_seen += len(indices)
-        validation_accuracy = validation_correct / validation_seen
-        history.append(
-            {
-                "epoch": epoch,
-                "train_accuracy": train_correct / train_seen,
-                "validation_accuracy": validation_accuracy,
-            }
-        )
-        if validation_accuracy > best_accuracy:
-            best_accuracy = validation_accuracy
-            best_epoch = epoch
-            best_state = {
-                name: value.detach().cpu().clone()
-                for name, value in model.state_dict().items()
-            }
-        print(
-            f"exp080 seed={seed} epoch={epoch}/{cfg['epochs']} val={validation_accuracy:.4f}",
-            flush=True,
-        )
+                optimizer.zero_grad(set_to_none=True)
+                logits = model(features)
+                loss = torch.nn.functional.cross_entropy(logits, batch_labels)
+                loss.backward()
+                optimizer.step()
+                train_correct += int((logits.argmax(1) == batch_labels).sum().item())
+                train_seen += len(indices)
+
+            model.eval()
+            validation_correct = 0
+            validation_seen = 0
+            rate_rng = np.random.default_rng(stable_seed(seed, epoch, 4))
+            generator.manual_seed(stable_seed(seed, epoch, 5))
+            with torch.no_grad():
+                for indices in batches(validation_indices, 0, False):
+                    rates = np.asarray(RATES_HZ)[
+                        rate_rng.integers(0, len(RATES_HZ), len(indices))
+                    ]
+                    features = direct_features(
+                        torch.as_tensor(images[indices], device=device),
+                        torch.as_tensor(rates, device=device, dtype=torch.float32),
+                        generator,
+                    )
+                    batch_labels = torch.as_tensor(labels[indices], device=device)
+                    validation_correct += int(
+                        (model(features).argmax(1) == batch_labels).sum().item()
+                    )
+                    validation_seen += len(indices)
+            validation_accuracy = validation_correct / validation_seen
+            history.append(
+                {
+                    "epoch": epoch,
+                    "train_accuracy": train_correct / train_seen,
+                    "validation_accuracy": validation_accuracy,
+                }
+            )
+            if validation_accuracy > best_accuracy:
+                best_accuracy = validation_accuracy
+                best_epoch = epoch
+                best_state = {
+                    name: value.detach().cpu().clone()
+                    for name, value in model.state_dict().items()
+                }
+            print(
+                f"exp080 seed={seed} epoch={epoch}/{cfg['epochs']} val={validation_accuracy:.4f}",
+                flush=True,
+            )
 
     if best_state is None:
         raise RuntimeError("training produced no checkpoint")
@@ -315,25 +317,26 @@ def evaluate(
     )
     labels_tensor = torch.as_tensor(labels, device=device)
     started = time.perf_counter()
-    for rate_index, rate in enumerate(RATES_HZ):
-        for start in range(0, cfg["test_count"], BATCH_SIZE):
-            stop = min(start + BATCH_SIZE, cfg["test_count"])
-            generator = torch.Generator(device=device).manual_seed(
-                stable_seed(9, rate_index, start)
-            )
-            features = direct_features(
-                torch.as_tensor(images[start:stop], device=device),
-                torch.full((stop - start,), rate, device=device),
-                generator,
-            )
-            with torch.no_grad():
-                for seed_index, model in enumerate(models):
-                    correctness[rate_index, seed_index, start:stop] = (
-                        (model(features).argmax(1) == labels_tensor[start:stop])
-                        .cpu()
-                        .numpy()
-                    )
-        print(f"exp080 held-out rate={rate:g} Hz", flush=True)
+    with external_execution(output / "held-out-inference", backend="torch MLP + local nonspiking membrane", configuration={**cfg, "device": str(device)}, parameters=lambda: {f"seed-{seed}.{name}": value for seed, model in zip(SEEDS, models, strict=True) for name, value in model.state_dict().items()}):
+        for rate_index, rate in enumerate(RATES_HZ):
+            for start in range(0, cfg["test_count"], BATCH_SIZE):
+                stop = min(start + BATCH_SIZE, cfg["test_count"])
+                generator = torch.Generator(device=device).manual_seed(
+                    stable_seed(9, rate_index, start)
+                )
+                features = direct_features(
+                    torch.as_tensor(images[start:stop], device=device),
+                    torch.full((stop - start,), rate, device=device),
+                    generator,
+                )
+                with torch.no_grad():
+                    for seed_index, model in enumerate(models):
+                        correctness[rate_index, seed_index, start:stop] = (
+                            (model(features).argmax(1) == labels_tensor[start:stop])
+                            .cpu()
+                            .numpy()
+                        )
+            print(f"exp080 held-out rate={rate:g} Hz", flush=True)
     arrays_path = output / "held_out_correctness.npz"
     np.savez_compressed(
         arrays_path,
@@ -359,15 +362,16 @@ def illustrative_features(images: np.ndarray, output: Path) -> None:
     selected = torch.as_tensor(
         np.repeat(images[[0]], len(rates), axis=0), device=device
     )
-    features = (
-        direct_features(
-            selected,
-            torch.as_tensor(rates, device=device, dtype=torch.float32),
-            generator,
+    with external_execution(output / "illustrative-simulation", backend="local nonspiking membrane", configuration=recipe.configuration(smoke=os.environ.get("PINGLAB_SMOKE") == "1")):
+        features = (
+            direct_features(
+                selected,
+                torch.as_tensor(rates, device=device, dtype=torch.float32),
+                generator,
+            )
+            .cpu()
+            .numpy()
         )
-        .cpu()
-        .numpy()
-    )
     np.savez_compressed(
         output / "feature_samples.npz",
         image=images[0],

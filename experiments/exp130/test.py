@@ -41,11 +41,11 @@ def test_poisson_counts_preserve_multiplicity_and_private_channels():
     )
 
 
-def test_chunked_execution_preserves_delays_and_state():
+def test_chunked_execution_preserves_delays_and_state(tmp_path):
     cfg = recipe.condition_configuration(recipe.configuration(), "theta")
     cfg.update(t_ms=50, burn_in_ms=0, modulation_onset_ms=0, n_e=40, n_i=10)
-    _, chunked, weights = simulate(cfg, chunk_steps=73)
-    _, whole, other = simulate(cfg, chunk_steps=500)
+    _, chunked, weights = simulate(cfg, chunk_steps=73, artifacts=tmp_path / "chunked")
+    _, whole, other = simulate(cfg, chunk_steps=500, artifacts=tmp_path / "whole")
     for name, value in chunked.items():
         np.testing.assert_array_equal(value, whole[name], err_msg=name)
     for name, value in weights.items():

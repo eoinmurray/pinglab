@@ -2,20 +2,45 @@
 import { getReports } from '../lib/reports';
 import { dependencies, downstream } from '../lib/dependencies';
 import { dataset } from '../lib/pingstore';
+import { readdir } from 'node:fs/promises';
+import { resolve } from 'node:path';
+import { isRunAsset, selectAsset } from '../lib/run-assets';
 
 interface Props { experiment: string; selectedRuns?: Record<string, string>; }
 const { experiment, selectedRuns } = Astro.props;
 const inputs: [string, string | undefined][] = selectedRuns ? Object.entries(selectedRuns) : [[experiment, undefined]];
 const datasets = await Promise.all(inputs.map(([id, runId]) => dataset(id, runId)));
-const runs = [...new Map(datasets.flatMap(data => data.runs).map(run => [run.id, run])).values()];
+const runMap = new Map<string, (typeof datasets)[number]['runs'][number]>();
+for (const run of datasets.flatMap(data => data.runs)) {
+  const previous = runMap.get(run.id);
+  runMap.set(run.id, { ...run, selected: run.selected || !!previous?.selected, used: run.used || !!previous?.used });
+}
+const runs = [...runMap.values()].sort((a, b) => Date.parse(b.record.created_at) - Date.parse(a.record.created_at) || b.id.localeCompare(a.id));
 const upstream = [...new Set([...(dependencies[experiment] ?? []), ...datasets.flatMap(data => data.upstream), ...Object.keys(selectedRuns ?? {}).filter(id => id !== experiment)])].sort();
 
-const displayRuns = runs.map(run => ({
+const displayRuns = await Promise.all(runs.map(async run => {
+  let source = 'Local';
+  let sourceDetail = 'Run record and export sizes read from local Pingstore';
+  if (run.selected) {
+    const files = (await readdir(resolve('../.pingstore/runs', run.id, 'export'))).filter(isRunAsset);
+    const assets = await Promise.all(files.map(file => selectAsset(run.id, file, {
+      development: import.meta.env.DEV,
+      origin: import.meta.env.DEV ? Astro.url.origin : undefined,
+    })));
+    const remote = assets.filter(asset => asset.source === 'r2').length;
+    const local = assets.length - remote;
+    source = remote ? local ? `R2 (${remote}) + Local (${local})` : `R2 (${remote})` : assets.length ? `Local (${local})` : 'Local';
+    if (assets.length) sourceDetail = `${remote} report assets from R2; ${local} from local Pingstore${import.meta.env.DEV ? '' : ' bundled with the site'}. Run metadata is read locally.`;
+  }
+  return {
   ...run,
+  source,
+  sourceDetail,
   timing: run.record.scientific_execution ?? run.record.completed_hpc_import?.source_execution
     ?? (run.record.execution.operation?.includes('import') ? undefined : run.record.execution),
   executionOrigin: run.record.scientific_execution?.origin ?? run.record.completed_hpc_import?.source_origin
     ?? (run.record.execution.operation?.includes('import') ? 'unknown' : run.record.origin),
+  };
 }));
 const entries = await getReports();
 const dependents = [...new Set([...downstream(experiment), ...entries.filter(entry => entry.id !== experiment && entry.data.runs?.[experiment]).map(entry => entry.id)])].sort();
@@ -50,18 +75,19 @@ function origin(value: string) {
 
   <h3 id="dataset">Dataset</h3>
   <section class="dataset" aria-labelledby="dataset">
-    <p>{runs.length === 0 ? 'No presentation is selected for this report. ' : ''}{runs.length > 0 && <>Figures use the {selectedRuns ? 'recorded presentation selections' : 'latest presentation run'} and their same-experiment inputs. The table includes completed run history; the presentation used by this report is emphasized. Dates are run creation times in UTC; durations cover each stage separately, and sizes cover its exported files. For imported runs, durations and execution locations refer to the recorded producing execution.</>}</p>
+    {runs.length === 0 && <p>No presentation is selected for this report.</p>}
     <p>Upstream: {upstream.length ? upstream.map((id, index) => <>{index > 0 && ', '}<a href={experimentUrl(id)}>{id}</a> — <a href={experimentUrl(id)}><em>{titles.get(id) ?? id}</em></a></>) : '—'}</p>
     <p>Downstream: {dependents.length ? dependents.map((id, index) => <>{index > 0 && ', '}<a href={experimentUrl(id)}>{id}</a> — <a href={experimentUrl(id)}><em>{titles.get(id) ?? id}</em></a></>) : '—'}</p>
     <div class="table-scroll" tabindex="0" role="region" aria-label="Dataset runs">
       <table>
-        <thead><tr><th scope="col">Run</th><th scope="col">Date</th><th scope="col">Duration</th><th scope="col">Size</th><th scope="col">Ran on</th></tr></thead>
-        <tbody>{displayRuns.map(({ id, record, bytes, selected, timing, executionOrigin }) => <tr>
-          <td><span class:list={{ selected }} title={selected ? 'Presentation used by this report' : record.stage}>{id}</span></td>
+        <thead><tr><th scope="col">Run</th><th scope="col">Date</th><th scope="col">Duration</th><th scope="col">Size</th><th scope="col">Ran on</th><th scope="col">Source</th></tr></thead>
+        <tbody>{displayRuns.map(({ id, record, bytes, selected, used, timing, executionOrigin, source, sourceDetail }) => <tr class:list={{ 'selected-run': used }}>
+          <td><span class:list={{ selected: used }} title={selected ? 'Presentation used by this report' : used ? 'Input run used to generate this report' : record.stage}>{id}</span>{used && <span class="used-label">Used</span>}</td>
           <td><time datetime={record.created_at}>{date.format(new Date(record.created_at))}</time></td>
           <td title="Recorded producing execution time for this stage; excludes upstream runs and import time">{timing ? duration(timing.started_at, timing.completed_at) : '—'}</td>
           <td title={`${bytes} bytes`}>{size(bytes)}</td>
           <td>{origin(executionOrigin)}</td>
+          <td title={sourceDetail}>{selected ? <strong>{source}</strong> : source}</td>
         </tr>)}</tbody>
       </table>
     </div>
@@ -73,7 +99,8 @@ function origin(value: string) {
   .table-scroll { overflow-x: auto; }
   table { width: 100%; border-collapse: collapse; font-size: inherit; line-height: inherit; }
   th, td { text-align: left; padding: .6em .65em; border-bottom: 1px solid rgb(var(--ink) / .1); white-space: nowrap; }
-  th:first-child, td:first-child { padding-left: 0; }
   th:last-child, td:last-child { padding-right: 0; }
   th, .selected { font-weight: 600; }
+  .selected-run { background: rgb(var(--ink) / .05); }
+  .used-label { margin-left: .65em; padding: .15em .4em; border: 1px solid rgb(var(--ink) / .25); border-radius: 3px; font-size: .8em; font-weight: 600; }
 </style>

@@ -1,7 +1,32 @@
 import { readdir, readFile, stat } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
+import { localAssetUrl, selectAsset } from './run-assets';
 
 const runsRoot = resolve('../.pingstore/runs');
+
+async function countCompletedRuns(experiment: string): Promise<number> {
+  let entries;
+  try { entries = await readdir(runsRoot, { withFileTypes: true }); }
+  catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return 0;
+    throw error;
+  }
+  let count = 0;
+  for (const entry of entries) {
+    if (!entry.isDirectory() || !entry.name.startsWith(`${experiment}-`)) continue;
+    const record = JSON.parse(await readFile(join(runsRoot, entry.name, 'run.json'), 'utf8'));
+    if (record.schema === 'pingstore.run/v4' && record.experiment === experiment
+      && ['compute', 'analyse', 'present'].includes(record.stage) && record.execution?.completed_at) count++;
+  }
+  return count;
+}
+
+const runCounts = new Map<string, Promise<number>>();
+export function completedRunCount(experiment: string): Promise<number> {
+  if (import.meta.env.DEV) return countCompletedRuns(experiment);
+  if (!runCounts.has(experiment)) runCounts.set(experiment, countCompletedRuns(experiment));
+  return runCounts.get(experiment)!;
+}
 
 interface Presentation {
   id: string;
@@ -51,8 +76,9 @@ export async function latestPresentation(experiment: string): Promise<Presentati
   return run;
 }
 
-export function imageUrl(runId: string, filename: string): string {
-  return `/run-images/${encodeURIComponent(runId)}/${encodeURIComponent(filename)}`;
+export async function imageUrl(runId: string, filename: string): Promise<string> {
+  if (import.meta.env.DEV) return localAssetUrl(runId, filename);
+  return (await selectAsset(runId, filename)).url;
 }
 
 export async function figureUrl(runId: string, filename: string): Promise<string> {
@@ -104,7 +130,7 @@ async function findDataset(experiment: string, runId?: string) {
   const selected = runId ? { id: runId } : await latestPresentation(experiment);
   const seen = new Set<string>();
   const upstream = new Set<string>();
-  const runs: { id: string; record: RunRecord; bytes: number; selected: boolean }[] = [];
+  const runs: { id: string; record: RunRecord; bytes: number; selected: boolean; used: boolean }[] = [];
 
   async function visit(id: string) {
     if (seen.has(id)) return;
@@ -113,20 +139,19 @@ async function findDataset(experiment: string, runId?: string) {
     const record: RunRecord = JSON.parse(await readFile(join(directory, 'run.json'), 'utf8'));
     if (record.experiment !== experiment) {
       upstream.add(record.experiment);
-      return;
     }
-    runs.push({ id, record, bytes: await exportSize(join(directory, 'export')), selected: id === selected.id });
+    runs.push({ id, record, bytes: await exportSize(join(directory, 'export')), selected: id === selected.id, used: true });
     for (const input of Object.values(record.inputs)) await visit(input.run_id);
   }
 
   await visit(selected.id);
-  // Keep the selected presentation, plus this experiment's completed stage history.
+  // Keep the selected lineage, plus this experiment's completed stage history.
   for (const entry of await readdir(runsRoot, { withFileTypes: true })) {
     if (!entry.isDirectory() || entry.name.startsWith('.') || !entry.name.startsWith(`${experiment}-`) || seen.has(entry.name)) continue;
     const directory = join(runsRoot, entry.name);
     const record: RunRecord = JSON.parse(await readFile(join(directory, 'run.json'), 'utf8'));
     if (record.experiment !== experiment || !['compute', 'analyse', 'present'].includes(record.stage) || !record.execution.completed_at) continue;
-    runs.push({ id: entry.name, record, bytes: await exportSize(join(directory, 'export')), selected: false });
+    runs.push({ id: entry.name, record, bytes: await exportSize(join(directory, 'export')), selected: false, used: false });
   }
   runs.sort((a, b) => Date.parse(b.record.created_at) - Date.parse(a.record.created_at) || b.id.localeCompare(a.id));
   return { runs, upstream: [...upstream].sort() };

@@ -3,11 +3,15 @@ import type { CollectionEntry } from 'astro:content';
 import Page from './Page.astro';
 import { dependencies, downstream } from '../lib/dependencies';
 import Dataset from '../components/Dataset.astro';
+import ArticleMetrics from '../components/ArticleMetrics.astro';
+import { countArticle } from '../lib/article-counts';
+import { completedRunCount } from '../lib/pingstore';
 import { collectionUrl, collectionLabel, collectionMemberships } from '../lib/collections';
 
 const parameterTables = import.meta.glob('../../../experiments/exp*/report/parameters.mdx', { import: 'default' });
 const appendices = import.meta.glob('../../../experiments/exp*/report/appendix.mdx', { import: 'default' });
 const referenceLists = import.meta.glob('../../../experiments/exp*/report/references.mdx', { import: 'default' });
+const networkDiagrams = import.meta.glob('../../../experiments/exp*/report/network.mdx', { import: 'default' });
 
 interface Props {
   report: CollectionEntry<'reports'> | CollectionEntry<'notes'>;
@@ -17,17 +21,21 @@ const { report, headings } = Astro.props;
 const { data } = report;
 const collections = collectionMemberships(data.collection);
 const experiment = report.collection === 'reports' ? report : undefined;
+const mainContent = await Astro.slots.render('default');
+const counts = { ...countArticle(mainContent, data.abstract), runs: experiment ? await completedRunCount(experiment.data.id) : undefined };
 const articleDirectory = experiment ? `../../../experiments/${experiment.data.id}/report` : undefined;
 const Parameters = await parameterTables[`${articleDirectory}/parameters.mdx`]?.() as import('astro').MarkdownInstance<Record<string, unknown>>['Content'] | undefined;
 const References = await referenceLists[`${articleDirectory}/references.mdx`]?.() as import('astro').MarkdownInstance<Record<string, unknown>>['Content'] | undefined;
 const Appendix = await appendices[`${articleDirectory}/appendix.mdx`]?.() as import('astro').MarkdownInstance<Record<string, unknown>>['Content'] | undefined;
+const Network = await networkDiagrams[`${articleDirectory}/network.mdx`]?.() as import('astro').MarkdownInstance<Record<string, unknown>>['Content'] | undefined;
 const hasDataset = experiment && (experiment.data.tags.includes('data') || (dependencies[experiment.data.id]?.length ?? 0) > 0 || downstream(experiment.data.id).length > 0);
 const contents = [
   ...(data.abstract ? [{ slug: 'abstract', text: 'Abstract' }] : []),
   ...headings.filter(heading => heading.depth === 2 || heading.depth === 3),
-  ...(Parameters ? [{ slug: 'parameters', text: 'Parameters' }] : []),
-  ...(hasDataset ? [{ slug: 'dataset', text: 'Dataset' }] : []),
   ...(Appendix ? [{ slug: 'supplementary-details', text: 'Supplementary details' }] : []),
+  ...(Parameters ? [{ slug: 'parameters', text: 'Parameters' }] : []),
+  ...(Network ? [{ slug: 'network', text: 'Network' }] : []),
+  ...(hasDataset ? [{ slug: 'dataset', text: 'Dataset' }] : []),
   ...(References ? [{ slug: 'references', text: 'References' }] : []),
 ];
 const frontMatter = {
@@ -45,7 +53,6 @@ const frontMatter = {
   <d-byline>
     <div class="byline grid" style={`--byline-columns: ${experiment ? 5 : 4}`}>
       {experiment && <div><h3>Experiment</h3><p class="experiment-id">{experiment.data.id}</p></div>}
-      <div><h3>Author</h3><p class="author">{data.author}</p></div>
       <div><h3>Created</h3><p><time datetime={data.created_at}>{data.created_at}</time></p></div>
       <div><h3>Updated</h3><p><time datetime={data.updated_at}>{data.updated_at}</time></p></div>
       <div>
@@ -55,6 +62,7 @@ const frontMatter = {
           <a class="collection-link" href={collectionUrl(collection)}>{collectionLabel(collection)}</a>
         </>)}</p>
       </div>
+      <div class="report-statistics"><h3>Report</h3><ArticleMetrics counts={counts} stacked /></div>
     </div>
   </d-byline>
   <div class="report-body base-grid">
@@ -71,17 +79,21 @@ const frontMatter = {
         <h2 id="abstract">Abstract</h2>
         <p>{data.abstract}</p>
       </section>}
-      <slot />
+      <Fragment set:html={mainContent} />
     </d-article>
   </div>
-  {(Parameters || Appendix || References || hasDataset) && <d-appendix distill-prerendered aria-label="Report appendix">
+  {(Parameters || Appendix || References || Network || hasDataset) && <d-appendix distill-prerendered aria-label="Report appendix">
+    {Appendix && <>
+      <h3 id="supplementary-details">Supplementary details</h3>
+      <section class="report-appendix" aria-labelledby="supplementary-details"><Appendix /></section>
+    </>}
     {Parameters && <>
       <h3 id="parameters">Parameters</h3>
       <section class="parameters" aria-labelledby="parameters"><Parameters /></section>
     </>}
-    {Appendix && <>
-      <h3 id="supplementary-details">Supplementary details</h3>
-      <section class="report-appendix" aria-labelledby="supplementary-details"><Appendix /></section>
+    {Network && <>
+      <h3 id="network">Network</h3>
+      <section class="network" aria-labelledby="network"><Network /></section>
     </>}
     {hasDataset && experiment && <Dataset experiment={experiment.data.id} selectedRuns={experiment.data.tags.includes('data') ? experiment.data.runs : {}} />} 
     {References && <>
@@ -104,6 +116,7 @@ const frontMatter = {
   @media print { d-byline, d-appendix { background: white; } }
   d-byline .experiment-id { font-size: 18px; font-weight: 600; }
   d-byline .collection-link:hover { text-decoration: underline; }
+  d-byline .byline > div { min-width: 0; }
   .report-appendix { min-width: 0; margin-bottom: 2rem; }
   d-article > .source-table { grid-column: text; }
   :is(d-article, d-appendix) figcaption { margin-top: 1.25rem; }

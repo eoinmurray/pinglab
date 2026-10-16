@@ -1,0 +1,8 @@
+import RunFigure from '../../../site/src/components/RunFigure.astro';
+
+<RunFigure report="exp133" experiment="exp133" allowUnavailable panels={[
+  { file: 'network-circuit.svg', alt: 'Reciprocal PING configuration used for the detuning–coupling map' },
+  { file: 'sender-receiver-circuit.svg', alt: 'Reciprocal sender–receiver PING configuration used for coupling onset' },
+]} columns={2} number={4} id="fig-network">
+  Saved circuit diagrams for (A) the coupling map and (B) the sender–receiver run. Each circuit has 80 excitatory cells, 20 inhibitory cells and 1,024 input channels. Both directions switch on at 500 ms. The sender–receiver run uses the selected map weights. Diagrams show base input strengths; simulations apply the 9.2× input gain listed in the parameter table.
+</RunFigure>

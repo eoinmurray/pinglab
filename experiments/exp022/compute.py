@@ -1009,7 +1009,7 @@ def _writable_compute_root(directory: Path) -> None:
 def generate_snapshots(bank: Path, output: Path) -> None:
     """Retain fixed digit-0/sample-0 probes; no plotting or discarded recordings."""
     expected = {cell["name"] for cell in recipe.CANONICAL_CELLS}
-    actual = {path.name for path in bank.iterdir() if path.is_dir()}
+    actual = {path.name for path in bank.iterdir() if path.is_dir() and (path / "config.json").is_file()}
     if actual != expected:
         raise PingstoreError(
             "diagnostics require the current 102-cell bank with the exact-refractory timestep grid; "
@@ -1061,7 +1061,7 @@ def copy_bank(bank: Path, destination: Path) -> list[dict]:
     """Copy scientific evidence without restamping configs or checkpoint roles."""
     from pingstore.contracts import file_sha256
 
-    actual = {path.name for path in bank.iterdir() if path.is_dir()}
+    actual = {path.name for path in bank.iterdir() if path.is_dir() and (path / "config.json").is_file()}
     try:
         cells = recipe.cells_for_names(actual)
     except ValueError as exc:
@@ -1101,6 +1101,20 @@ def copy_bank(bank: Path, destination: Path) -> list[dict]:
                     "size_bytes": target.stat().st_size,
                 }
             )
+    for unit in sorted(bank.iterdir()):
+        if not unit.is_dir() or unit.name in expected:
+            continue
+        if not any(unit.name.startswith(name + "--training--") for name in expected):
+            continue
+        for path in sorted(unit.iterdir()):
+            if not path.is_file() or path.is_symlink():
+                raise PingstoreError(f"invalid native bank artifact: {path}")
+            relative = path.relative_to(bank)
+            target = destination / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(path, target)
+            inventory.append({"path": relative.as_posix(), "sha256": file_sha256(path),
+                              "size_bytes": path.stat().st_size})
     return inventory
 
 
@@ -1182,6 +1196,11 @@ def import_bank(identity: str, *, run_id: str | None = None) -> str:
     ) as run:
         inventory = copy_bank(source.export, run.export / "cells")
         promote_cells(run.export)
+        native = source.record.get("scientific_artifacts", {}).get("native_paths", {})
+        retained = {original: stored for original, stored in native.items()
+                    if (run.export / stored).is_file()}
+        if retained:
+            run.record["scientific_artifacts"] = {"native_paths": retained}
         run.record["execution"]["imported_files"] = len(inventory)
         run.record["execution"]["imported_bytes"] = sum(
             row["size_bytes"] for row in inventory

@@ -4,7 +4,7 @@ interface Props { run: string; }
 const { run } = Astro.props;
 ---
 <figure class="l-body" id="panel-a">
-  <pixi-ping-circuit data-source={imageUrl(run, 'circuit.json')}>
+  <pixi-ping-circuit data-source={await imageUrl(run, 'circuit.json')}>
     <div class="scene" role="img" aria-label="Recorded circuit activity on the left and four synchronized pistons showing mean conductances onto E and mean E and I population voltages on the right, with the full afferent-rate protocol and a moving current-time bar below.">
       <p class="status" role="status">Loading recorded circuit…</p>
     </div>

@@ -4,7 +4,7 @@ interface Props { run: string; }
 const { run } = Astro.props;
 ---
 <figure class="l-body" id="fig-inference">
-  <pixi-learning-classifier data-source={imageUrl(run, 'classifier.json')}>
+  <pixi-learning-classifier data-source={await imageUrl(run, 'classifier.json')}>
     <div class="selectors">
       <div class="mode" role="group" aria-label="Training snapshot"><button type="button" data-mode="before" aria-pressed="true" disabled>Before Training</button><button type="button" data-mode="after" aria-pressed="false" disabled>After Training</button></div>
       <div class="options" role="group" aria-label="Input class"><button type="button" data-example="0" aria-pressed="true" disabled>Class A</button><button type="button" data-example="1" aria-pressed="false" disabled>Class B</button></div>

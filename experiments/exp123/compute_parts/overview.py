@@ -7,6 +7,7 @@ import numpy as np
 import torch
 from experiments.exp123 import recipe
 from experiments.helpers.checkpoints import pinned_checkpoint
+from experiments.helpers.network_artifacts import model_execution
 from pingstore.stages import source_run, stage_run
 from snnlab.sim import ExecutionSpec, build, encode_images_poisson
 
@@ -18,7 +19,7 @@ PARAMETERS = {
 }
 
 
-def graph_trial(tau, weights, encoded):
+def graph_trial(tau, weights, encoded, artifacts):
     bundle = recipe.network(tau)
     model = build(
         ExecutionSpec(kind="simulate", graph=bundle.graph, device="cpu", seed=0)
@@ -31,7 +32,8 @@ def graph_trial(tau, weights, encoded):
             target.copy_(
                 value.clamp(min=0) if PARAMETERS[name].startswith("W_ff") else value
             )
-        result = model({"image": encoded}, diagnostics=True)
+        with model_execution(model, bundle, artifacts, kind="infer", settings={"tau_gaba_ms": tau}):
+            result = model({"image": encoded}, diagnostics=True)
     for name, target in model.parameter_map().items():
         if not torch.equal(target, weights[PARAMETERS[name]]):
             raise ValueError("frozen weights changed")
@@ -145,7 +147,7 @@ def compute_overview(source_id, image_source_id):
             start = perf_counter()
             with torch.inference_mode():
                 result = graph_trial(
-                    tau, weights, encoded
+                    tau, weights, encoded, run.export / f"{condition['condition_id']}--inference"
                 )
             signals = {
                 name: value.cpu().numpy().astype(bool)

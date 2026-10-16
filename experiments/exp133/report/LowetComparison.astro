@@ -1,0 +1,14 @@
+---
+import { Image } from 'astro:assets';
+import panel from './images/lowet-2015-fig2g-arnold-tongue.png';
+---
+<figure class="l-body" id="fig-lowet-comparison">
+  <a class="figure-image" href={panel.src} aria-label="Open Lowet et al. (2015), Figure 2G crop at full size">
+    <Image src={panel} alt="Lowet et al. Figure 2G: a triangular region of high phase-locking value across excitatory-drive difference and coupling strength, with original color scale and conductance-density axes." loading="lazy" />
+  </a>
+  <figcaption><strong>Figure 2.</strong> <slot /></figcaption>
+</figure>
+<style>
+  .figure-image { display: block; max-width: 480px; margin: 0 auto; border-bottom: none; }
+  img { display: block; width: 100%; height: auto; }
+</style>

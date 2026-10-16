@@ -1,0 +1,29 @@
+import Table from '../../../site/src/components/Table.astro';
+
+<Table
+  headers={["Parameter", "Standard value"]}
+  rows={[
+    [{ markdown: "Population sizes $N_{E} , N_{I}$" }, "1,024; 256"],
+    [{ markdown: "Membrane capacitance $C_{m}$, E/I" }, "1/0.5 nF"],
+    [{ markdown: "Leak conductance $g_{L}$, E/I" }, "0.05/0.1 µS"],
+    [{ markdown: "Leak/reset potentials $E_{L} , V_{\\text{reset}}$" }, "−65 mV"],
+    [{ markdown: "Spike threshold $V_{\\text{th}}$" }, "−50 mV"],
+    [{ markdown: "Reversal potentials $E_{E} , E_{I}$" }, "0; −80 mV"],
+    [{ markdown: "Refractory period $\\tau_{\\text{ref}}$, E/I" }, "1.2/0.6 ms"],
+    [{ markdown: "Synaptic decay $\\tau_{\\text{AMPA}} , \\tau_{\\text{GABA}}$" }, "2; 6 ms"],
+    [{ markdown: "Integration timestep $\\Delta t_{\\text{sim}}$" }, "0.1 ms"],
+    [{ markdown: "Input parent mean/SD $\\mu_{\\text{in}} , \\sigma_{\\text{in}}$" }, "0.9/0.09 µS"],
+    ["Recurrent parent mean/SD, E→I", "1/0.1 µS"],
+    ["Recurrent parent mean/SD, I→E", "2/0.2 µS"],
+    [{ markdown: "Input-zeroing probability $q_{\\text{zero}}$" }, "0.95"],
+    ["Readout parent mean/SD (dimensionless)", "1.12/0.835"],
+    ["Output decay time; threshold", "2 ms; 1"],
+    ["Presentation duration; maximum-pixel rate", "200 ms; 25 Hz"],
+    ["Optimizer; learning rate", "AdamW; 0.0004"],
+    ["Epochs; minibatch size", "50; 256"],
+    ["Weight decay; gradient-norm limit", "0; 1"],
+    ["Surrogate slope; voltage-gradient damping", "1; 1,000 (loop-on and loop-off)"],
+  ]} number="A1"
+>
+  **Standard spiking-classifier parameters and exceptions.** Values describe standard classifiers, not the separate mean-field model. [Fig. 1](#loc-5) used input parent mean/SD 1.5/0.3 µS and loop-on recurrent parent means 1.5/3 µS. Coupling strengths, inhibitory decay times and timesteps varied in their respective sweeps. TR06 ([Fig. 10](#loc-17)) used readout parent mean/SD 0.05/0.04 and variable input rates; stream durations varied during evaluation. Readout initialization values are rounded.
+</Table>

@@ -15,6 +15,7 @@ sys.path[:0] = [str(REPO), str(REPO / "tools")]
 import numpy as np
 import torch
 from experiments.exp023 import recipe
+from experiments.helpers.network_artifacts import snapshot_request
 from pingstore.contracts import PingstoreError
 from pingstore.stages import stage_run
 from snnlab.lang import duration_steps
@@ -96,11 +97,12 @@ def compute(*, run_id: str | None = None) -> str:
                 started = perf_counter()
                 with torch.inference_mode():
                     result = simulate(
-                        recipe.execution_request(bundle, point, traces=traces)
+                        snapshot_request(recipe.execution_request(bundle, point, traces=traces),
+                                         bundle, run.export / relative / "simulation")
                     )
                 seconds = perf_counter() - started
                 destination = run.export / relative
-                destination.mkdir(parents=True, exist_ok=False)
+                destination.mkdir(parents=True, exist_ok=True)
                 filename = "recording.npz" if traces else "spikes.npz"
                 np.savez_compressed(
                     destination / filename,

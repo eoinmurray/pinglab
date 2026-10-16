@@ -10,6 +10,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from experiments.helpers.checkpoint_graph import PARAMETERS, initial_draws
+from experiments.helpers.network_artifacts import model_execution
 from pingstore.contracts import file_sha256, write_json_atomic
 from snnlab.analysis import (
     active_fraction,
@@ -166,138 +167,139 @@ def train_cell(cell, directory, samples, epochs):
         device=str(device),
     )
     write_json_atomic(directory / "config.json", cfg)
-    steps = duration_steps(cfg["t_ms"], cfg["dt"])
-    seconds = steps * cfg["dt"] / 1000
-    _, test_pixels, _, test_labels = load_dataset(
-        "mnist", split=True, evaluation_only=True, evaluation_split="test"
-    )
-    index = int(np.flatnonzero(test_labels == 0)[0])
-    torch.manual_seed(recipe.REFERENCE_ENCODER_SEED)
-    reference = encode_images_poisson(
-        torch.from_numpy(test_pixels[index : index + 1]).to(device),
-        steps,
-        cfg["dt"],
-        cfg["input_rate"],
-    )
-    initial_metrics = reference_measurements(model, reference, cfg)
-    optimizer = torch.optim.AdamW(
-        [p for p in model.parameters() if p.requires_grad],
-        lr=cfg["lr"],
-        weight_decay=cfg["weight_decay"],
-    )
-    rates = (
-        torch.tensor(cfg["input_rates"], dtype=torch.float32)
-        if cfg["input_rates"]
-        else None
-    )
-    rate_generator = torch.Generator().manual_seed(
-        cfg["seed"] + recipe.TRAINING_RATE_SEED_OFFSET
-    )
-
-    def sample_rates(batch_size, generator):
-        return (
-            cfg["input_rate"]
-            if rates is None
-            else rates[
-                torch.randint(len(rates), (batch_size,), generator=generator)
-            ].to(device)
+    with model_execution(model, bundle, directory / "training", kind="train", seed=cfg["seed"], settings=cfg):
+        steps = duration_steps(cfg["t_ms"], cfg["dt"])
+        seconds = steps * cfg["dt"] / 1000
+        _, test_pixels, _, test_labels = load_dataset(
+            "mnist", split=True, evaluation_only=True, evaluation_split="test"
         )
-
-    history = []
-    best_loss = float("inf")
-    best_accuracy = 0.0
-    best_epoch = 0
-    best_state = None
-    started = perf_counter()
-    for epoch in range(1, epochs + 1):
-        trained = train_epoch(
-            model,
-            train_loader,
-            optimizer,
-            cfg,
-            device,
+        index = int(np.flatnonzero(test_labels == 0)[0])
+        torch.manual_seed(recipe.REFERENCE_ENCODER_SEED)
+        reference = encode_images_poisson(
+            torch.from_numpy(test_pixels[index : index + 1]).to(device),
             steps,
-            seconds,
-            sample_rates,
-            rate_generator,
+            cfg["dt"],
+            cfg["input_rate"],
         )
-        validated = validate_epoch(
-            model, validation_loader, cfg, device, steps, seconds, sample_rates
+        initial_metrics = reference_measurements(model, reference, cfg)
+        optimizer = torch.optim.AdamW(
+            [p for p in model.parameters() if p.requires_grad],
+            lr=cfg["lr"],
+            weight_decay=cfg["weight_decay"],
         )
-        validation_loss, accuracy = validated["test_loss"], validated["acc"]
-        new_best = validation_loss < best_loss or (
-            validation_loss == best_loss and accuracy > best_accuracy
+        rates = (
+            torch.tensor(cfg["input_rates"], dtype=torch.float32)
+            if cfg["input_rates"]
+            else None
         )
-        if new_best:
-            best_loss = validation_loss
-            best_accuracy = accuracy
-            best_epoch = epoch
-            best_state = export_tensors(model, cfg)
-        record = {
-            "ep": epoch,
-            "lr": cfg["lr"],
-            "new_best": new_best,
-            **trained,
-            **validated,
-            "weight_norms": {
-                PARAMETERS[name]: float(value.detach().norm())
-                for name, value in model.parameter_map().items()
-                if value.requires_grad
-            },
-            **reference_measurements(model, reference, cfg),
+        rate_generator = torch.Generator().manual_seed(
+            cfg["seed"] + recipe.TRAINING_RATE_SEED_OFFSET
+        )
+
+        def sample_rates(batch_size, generator):
+            return (
+                cfg["input_rate"]
+                if rates is None
+                else rates[
+                    torch.randint(len(rates), (batch_size,), generator=generator)
+                ].to(device)
+            )
+
+        history = []
+        best_loss = float("inf")
+        best_accuracy = 0.0
+        best_epoch = 0
+        best_state = None
+        started = perf_counter()
+        for epoch in range(1, epochs + 1):
+            trained = train_epoch(
+                model,
+                train_loader,
+                optimizer,
+                cfg,
+                device,
+                steps,
+                seconds,
+                sample_rates,
+                rate_generator,
+            )
+            validated = validate_epoch(
+                model, validation_loader, cfg, device, steps, seconds, sample_rates
+            )
+            validation_loss, accuracy = validated["test_loss"], validated["acc"]
+            new_best = validation_loss < best_loss or (
+                validation_loss == best_loss and accuracy > best_accuracy
+            )
+            if new_best:
+                best_loss = validation_loss
+                best_accuracy = accuracy
+                best_epoch = epoch
+                best_state = export_tensors(model, cfg)
+            record = {
+                "ep": epoch,
+                "lr": cfg["lr"],
+                "new_best": new_best,
+                **trained,
+                **validated,
+                "weight_norms": {
+                    PARAMETERS[name]: float(value.detach().norm())
+                    for name, value in model.parameter_map().items()
+                    if value.requires_grad
+                },
+                **reference_measurements(model, reference, cfg),
+            }
+            history.append(record)
+            with (directory / "metrics.jsonl").open("a") as handle:
+                handle.write(json.dumps(record, allow_nan=False) + "\n")
+            print(
+                f"{cell['name']} epoch {epoch}/{epochs}: CE={validation_loss:g}, accuracy={accuracy:g}",
+                flush=True,
+            )
+        if best_state is None:
+            raise ValueError("training never produced a selectable checkpoint")
+        final = export_tensors(model, cfg)
+        torch.save(best_state, directory / "weights.pth")
+        torch.save(final, directory / "weights_final.pth")
+        final_roles = {
+            role: final[key]
+            for role, key in {
+                "W_in": "W_ff.0",
+                "W_out": "W_ff.1",
+                "W_EE_1": "W_ee.1",
+                "W_EI_1": "W_ei.1",
+                "W_IE_1": "W_ie.1",
+                "W_II_1": "W_ii.1",
+            }.items()
         }
-        history.append(record)
-        with (directory / "metrics.jsonl").open("a") as handle:
-            handle.write(json.dumps(record, allow_nan=False) + "\n")
-        print(
-            f"{cell['name']} epoch {epoch}/{epochs}: CE={validation_loss:g}, accuracy={accuracy:g}",
-            flush=True,
+        write_json_atomic(
+            directory / "metrics.json",
+            {
+                "config": cfg,
+                "epochs": history,
+                "init": initial_metrics,
+                "end": reference_measurements(model, reference, cfg),
+                "best_acc": best_accuracy,
+                "best_epoch": best_epoch,
+                "best_validation_loss": best_loss,
+                "total_elapsed_s": perf_counter() - started,
+                "weight_final": {
+                    role: weight_statistics(value) for role, value in final_roles.items()
+                },
+                "training_run_id": cell["training_run_id"],
+                "training_cell_name": cell["name"],
+                "checkpoints": {
+                    role: {
+                        "filename": filename,
+                        "epoch": selected_epoch,
+                        "sha256": file_sha256(directory / filename),
+                    }
+                    for role, filename, selected_epoch in (
+                        ("best_validation", "weights.pth", best_epoch),
+                        ("final_epoch", "weights_final.pth", epochs),
+                    )
+                },
+            },
         )
-    if best_state is None:
-        raise ValueError("training never produced a selectable checkpoint")
-    final = export_tensors(model, cfg)
-    torch.save(best_state, directory / "weights.pth")
-    torch.save(final, directory / "weights_final.pth")
-    final_roles = {
-        role: final[key]
-        for role, key in {
-            "W_in": "W_ff.0",
-            "W_out": "W_ff.1",
-            "W_EE_1": "W_ee.1",
-            "W_EI_1": "W_ei.1",
-            "W_IE_1": "W_ie.1",
-            "W_II_1": "W_ii.1",
-        }.items()
-    }
-    write_json_atomic(
-        directory / "metrics.json",
-        {
-            "config": cfg,
-            "epochs": history,
-            "init": initial_metrics,
-            "end": reference_measurements(model, reference, cfg),
-            "best_acc": best_accuracy,
-            "best_epoch": best_epoch,
-            "best_validation_loss": best_loss,
-            "total_elapsed_s": perf_counter() - started,
-            "weight_final": {
-                role: weight_statistics(value) for role, value in final_roles.items()
-            },
-            "training_run_id": cell["training_run_id"],
-            "training_cell_name": cell["name"],
-            "checkpoints": {
-                role: {
-                    "filename": filename,
-                    "epoch": selected_epoch,
-                    "sha256": file_sha256(directory / filename),
-                }
-                for role, filename, selected_epoch in (
-                    ("best_validation", "weights.pth", best_epoch),
-                    ("final_epoch", "weights_final.pth", epochs),
-                )
-            },
-        },
-    )
 
 
 def execution_identity():

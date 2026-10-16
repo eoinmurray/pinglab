@@ -1,7 +1,7 @@
 # Exp024: convergence audit
 
-Uses the [Experiment Runner Guide](../../md/notes/experiment-runner-guide.md), [Pingstore Rules](../../md/notes/pingstore-rules.md),
-and [Writing Guide](../../md/notes/writing-guide.md). No training or inference is performed.
+Uses the [Experiment Runner Guide](../../md/notes/experiment-rules.md), [Pingstore Rules](../../md/notes/pingstore-rules.md),
+and [Writing Guide](../../md/notes/writing-rules.md). No training or inference is performed.
 
 ## Independent stages
 

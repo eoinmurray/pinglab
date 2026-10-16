@@ -1,0 +1,46 @@
+---
+id: "exp133"
+title: "Lowet (2015): Coupled Rhythms"
+author: "Eoin Murray"
+description: "A gamma phase-locking map and coupling-onset demonstration inspired by Lowet et al. (2015)."
+created_at: "2026-10-15"
+updated_at: "2026-10-16"
+collection: ["paper-inspired"]
+tags: ["data", "v36.0.0"]
+inputs: ["exp133"]
+runs: {"exp133": "exp133-r039-present"}
+abstract: "We simulated two circuits with different gamma rhythms. Connecting them in both directions brought their rhythms into step. We mapped how this depended on their frequency difference and connection strength. Each setting uses one trial, so repeatability remains untested."
+---
+
+import RunFigure from '../../../site/src/components/RunFigure.astro';
+import LowetComparison from './LowetComparison.astro';
+import { reportData, round } from '../../../site/src/lib/report-data';
+export const result = await reportData('exp133');
+export const sr = result.sender_receiver;
+export const maxPLV = Math.max(...result.cells.filter(row => row.valid).map(row => row.concentration));
+
+Inspired by [Lowet et al. (2015)](#ref-lowet-2015), we test when two gamma rhythms lock together.
+
+<RunFigure report="exp133" experiment="exp133" allowUnavailable file="arnold-tongue.svg" number={1} id="fig-tongue" alt="PLV across coupling strength, with measured frequency detuning below and input drive difference above.">
+  One simulated circuit pair per rectangle, with 1,024 input channels each. Input rates average 25 Hz per channel across the pair. The bottom axis shows their uncoupled frequency difference; the top shows the input-rate difference. The vertical axis gives coupling strength in both directions. White to red to black means increasing PLV; gray marks unreliable rhythms. Values use 800–5,000 ms from one trial per setting. Cell edges mark sampled settings; full parameters are in the footer.
+</RunFigure>
+
+<LowetComparison>
+  Cropped from [Lowet et al. (2015), Fig. 2G](https://doi.org/10.1371/journal.pcbi.1004072.g002): PLV between two coupled PING networks. Brighter colors mean stronger locking. Their axes use input-drive difference and coupling in mS/cm²; our [Fig. 1](#fig-tongue) uses frequency difference in Hz and coupling in μS. Their neuron model and phase estimate also differ, so this is a qualitative comparison. Original labels and colors retained. © 2015 Lowet et al., [Creative Commons Attribution](https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1004072).
+</LowetComparison>
+
+Our highest PLV was {round(maxPLV, 3)}; {result.n_locked} of {result.n_conditions} settings met the [locking criteria](#parameters). PLV measures how steadily two rhythms hold their phase difference:
+
+$$
+\mathrm{PLV} = \left|\frac{1}{N}\sum_{n=1}^{N} e^{i[\phi_A(n)-\phi_B(n)]}\right|. \tag{1}
+$$
+
+Here, $\phi_A(n)$ and $\phi_B(n)$ are the rhythms' phases in radians, estimated between bursts of excitatory spikes. $n$ indexes the $N$ shared valid time samples; $i$ is the imaginary unit, and the bars give complex magnitude. PLV ranges from zero to one. A value near one means a nearly fixed phase difference, which need not be zero. It does not prove lasting locking.
+
+## Switching on reciprocal coupling
+
+We used the map's −4 Hz input difference and 0.09 μS coupling, keeping its saved weights and connections in both directions. At 500 ms, we switched coupling on. S/R frequencies changed from {round(sr.raster_frequencies.S.first.frequency_hz, 1)}/{round(sr.raster_frequencies.R.first.frequency_hz, 1)} Hz to {round(sr.raster_frequencies.S.last.frequency_hz, 1)}/{round(sr.raster_frequencies.R.last.frequency_hz, 1)} Hz. Relative phase stopped drifting ([Fig. 3](#fig-sender-receiver)); PLV was {round(sr.windows.coupled.concentration, 3)} and phase span was {round(sr.windows.coupled.phase_span_cycles, 3)} cycles over 800–1,500 ms.
+
+<RunFigure report="exp133" experiment="exp133" allowUnavailable file="sender-receiver.svg" number={3} id="fig-sender-receiver" alt="Full sender and receiver spike rasters over 1,500 ms with reciprocal coupling starting at 500 ms and relative phase beneath.">
+  (A) Sender and (B) receiver spikes: 80 excitatory neurons in black and 20 inhibitory neurons in red. Inputs are 23 Hz per channel for S and 27 Hz for R. Dashed lines mark coupling onset at 500 ms, without resetting either circuit. Both directions connect excitatory cells to the other circuit's excitatory and inhibitory cells. Corner values give gamma frequency over the first and last 500 ms, measured from mean intervals between excitatory bursts. (C) S-minus-R phase difference in cycles, shown between detected bursts. PLV uses 800–1,500 ms, allowing 300 ms to settle after coupling. One trial; full settings are in the footer.
+</RunFigure>

@@ -47,6 +47,6 @@ encoding, forward simulation, decoding and loss/accuracy calculation, in batches
 of at most 256. It excludes checkpoint loading and prediction serialization.
 This is a warmed CPU evaluation after training, not a cold-start latency.
 
-Follow the [Experiment Runner Guide](../../md/notes/experiment-runner-guide.md),
+Follow the [Experiment Runner Guide](../../md/notes/experiment-rules.md),
 [Pingstore Rules](../../md/notes/pingstore-rules.md) and
-[Writing Guide](../../md/notes/writing-guide.md).
+[Writing Guide](../../md/notes/writing-rules.md).

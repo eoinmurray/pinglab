@@ -83,28 +83,24 @@ Shared-input examples showed central coincidence without inhibitory feedback; pr
 
 ## Methods
 
-Untrained PING populations tested coupling-dependent temporal structure; uncoupled controls tested the influence of input sharing. No external theory or trained-network measurements entered this experiment.
+1. **Sweep coupling.** We simulated untrained PING networks (1,024 E/256 I neurons) at 11×11 combinations of $W_{E I}=0$–3 µS and $W_{I E}=0$–6 µS. Each E neuron received private 100 Hz Poisson input with identity weight 0.5. Settings were: GABA decay 6 ms; E/I reset holds 1.2/0.6 ms; seed 42; one trial; 0.1 ms steps; 1,000 ms duration, discarding the first 100 ms.
 
-1. **Sweep coupling.** We simulated 1,024 E and 256 I neurons at all 11×11 combinations of $W_{E I} = 0$–3 µS and $W_{I E} = 0$–6 µS. Each E neuron received a private 100 Hz Poisson channel with identity weight 0.5. We used a 6 ms GABA decay constant, seed 42, one trial, 0.1 ms steps and 1,000 ms recordings; we discarded the first 100 ms. E/I reset holds were 1.2/0.6 ms.
+2. **Test input sharing.** With both couplings zero, we scanned private input at 1/2/5/10/20/40/70/100 Hz and shared input at 8/12/16/20/28/40/60/100 Hz. Shared input used 200 channels, weight 0.2 and 95% initial zeros. Reusing the grid's 100 Hz private origin gave 136 unique probes.
 
-2. **Construct uncoupled controls.** We set both coupling strengths to zero. We scanned private input at 1/2/5/10/20/40/70/100 Hz and shared input at 8/12/16/20/28/40/60/100 Hz. Shared input used 200 channels, weight 0.2 and 95% initial zero connections. The 100 Hz private origin was shared with the coupling grid, giving 136 unique probes.
-
-3. **Measure rates and autocorrelation.** We divided each population’s post-burn spike count by neuron count and 0.9 s. We binned E spikes at $\Delta t_{\text{bin}} = 1$ ms, obtaining counts $n_{E [ k ]}$ in $N_{\text{bin}} = 900$ bins. For integer lag $\ell = 1 , \ldots , 100$, we calculated
+3. **Measure rates and autocorrelation.** Per-neuron rates were post-burn spike counts divided by population size and 0.9 s. For E counts $n_{E[k]}$ in $N_{\text{bin}}=900$ bins of width $\Delta t_{\text{bin}}=1$ ms, we calculated
 
    $$
    A_{\text{corr} ( \ell )} = \frac{1}{{\langle n_{E} \rangle}^{2} ( N_{\text{bin}} - \ell )} \sum_{k = 0}^{N_{\text{bin}} - \ell - 1} n_{E [ k ]} n_{E [ k + \ell ]} .
    \tag{1}
    $$
 
-   Here $k$ indexes bins and $\langle n_{E} \rangle$ is their mean count; physical lag is $\ell \Delta t_{\text{bin}}$. Zero-padded FFT correlation, divided by available overlap and mean count squared, gives chance reference 1. We excluded zero lag.
+   Here $A_{\text{corr}(\ell)}$ is normalized autocorrelation, $k$ indexes bins, $\langle n_E\rangle$ is their mean count, and $\ell=1,\ldots,100$ gives lag $\ell\Delta t_{\text{bin}}$. We used zero-padded FFT correlation with overlap and squared-mean normalization: chance reference 1, zero lag excluded.
 
-4. **Locate the lobe and trough.** We smoothed with weights $( 0.25 , 0.5 , 0.25 )$, filling the excluded zero-lag entry from the first lag. We found the first local minimum from lag 2, and the preceding maximum from lag 1. Their smoothed heights define
+4. **Calculate lobe–trough contrast.** After filling zero lag from lag 1, we smoothed with weights $(0.25,0.5,0.25)$. We selected the first local minimum from lag 2 and the preceding maximum from lag 1. Their heights $A_{\text{trough}}$ and $A_{\text{lobe}}$ define
 
    $$
    R_{\text{contrast}} = \frac{A_{\text{lobe}} - A_{\text{trough}}}{A_{\text{lobe}} + A_{\text{trough}}} .
    \tag{2}
    $$
 
-   For $0 \le \text{trough} \le \text{lobe}$ and a positive denominator, this lies in $[ 0 , 1 ]$. A missing trough or invalid denominator leaves the score undefined; no trough floor is imposed on contrast.
-
-5. **Present the retained measurements.** We displayed coupling maps, representative rasters, autocorrelograms and input-sharing controls from the saved exp054 analysis.
+   Contrast $R_{\text{contrast}}$ lies in $[0,1]$ when $0\le A_{\text{trough}}\le A_{\text{lobe}}$ and the denominator is positive. Missing troughs or invalid denominators give undefined scores; no trough floor is applied.

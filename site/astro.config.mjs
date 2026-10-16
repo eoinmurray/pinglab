@@ -9,12 +9,15 @@ import rehypeKatex from 'rehype-katex';
 // https://astro.build/config
 export default defineConfig({
   site: 'https://pinglab.eoinmurray.info',
+  trailingSlash: 'never',
+  build: { format: 'file' },
   server: { port: 3000 },
   devToolbar: { enabled: false },
   // Article scripts live outside site/, but share its Pixi dependency.
   vite: {
     resolve: { dedupe: ['pixi.js'] },
-    optimizeDeps: { include: ['pixi.js'] },
+    // Discovering these only when the search island loads can invalidate its imports.
+    optimizeDeps: { include: ['pixi.js', 'cmdk', '@radix-ui/react-dialog'] },
     plugins: [{
       name: 'pinglab:separate-vite-caches',
       config: (_, { command }) => ({
@@ -31,7 +34,7 @@ export default defineConfig({
           if (!pathname.startsWith('/run-images/')) return next();
           try {
             const module = await server.ssrLoadModule('/src/pages/run-images/[run]/[file].ts');
-            const result = await module.serveRunAsset(pathname);
+            const result = await module.serveRunAsset(pathname, `http://${request.headers.host ?? 'localhost:3000'}`);
             response.statusCode = result.status;
             result.headers.forEach((value, key) => response.setHeader(key, value));
             response.end(request.method === 'HEAD' ? undefined : Buffer.from(await result.arrayBuffer()));

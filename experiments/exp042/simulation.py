@@ -14,6 +14,7 @@ import snnlab
 import torch
 import torch.nn.functional as F
 from experiments.helpers import ping
+from experiments.helpers.network_artifacts import model_execution
 from pingstore.contracts import (
     PingstoreError,
     file_sha256,
@@ -171,7 +172,7 @@ def load_model(train_dir, cfg, protocol, bank_reference):
         "graph_digest": bundle.manifest["graph_digest"],
         **protocol,
     }
-    return model.to(protocol["runtime"]["device"]).eval(), training, identity
+    return model.to(protocol["runtime"]["device"]).eval(), training, identity, bundle
 
 
 def request(identity, *, recording, sample=None, replay=None, job=None):
@@ -465,15 +466,16 @@ def zero_replay(model, training, cfg, data, override, diagnostics, identity, roo
         return metrics
 
 
-def evaluate_jobs(bank, cfg, data, root, jobs, requests):
+def evaluate_jobs(bank, cfg, data, root, jobs, requests, artifacts):
     """One model and baseline per cell; only the two canonical zero arms reuse metrics."""
     for cell in dict.fromkeys(job["cell"] for job in jobs):
-        model, training, identity = load_model(
+        model, training, identity, bundle = load_model(
             bank.unit(cell), cfg, data["protocol"], bank.reference
         )
         base_request = request(identity, recording="inhibitory_events")
         requests.append(base_request)
-        rasters = baseline(model, training, cfg, data, base_request, root)
+        with model_execution(model, bundle, artifacts / f"{cell}--{jobs[0]['id']}--baseline", kind="infer", seed=training["seed"], settings=base_request):
+            rasters = baseline(model, training, cfg, data, base_request, root)
         for job in (job for job in jobs if job["cell"] == cell):
             canonical = recipe.replay_job(job)
             generator = torch.Generator().manual_seed(
@@ -489,27 +491,29 @@ def evaluate_jobs(bank, cfg, data, root, jobs, requests):
                 replay=_array_digest(*(override[k] for k in sorted(override))),
             )
             requests.append(expected)
-            if canonical["condition"] == "jitter_sigma_0":
-                metrics = zero_replay(
-                    model, training, cfg, data, override, diagnostics, expected, root
-                )
-            else:
-                metrics, _ = infer_batches(
-                    model, training, cfg, data, recording="none", rasters=override
-                )
-                metrics["override_transform"] = diagnostics
+            with model_execution(model, bundle, artifacts / f"{job['id']}--inference", kind="infer", seed=training["seed"], settings=expected):
+                if canonical["condition"] == "jitter_sigma_0":
+                    metrics = zero_replay(
+                        model, training, cfg, data, override, diagnostics, expected, root
+                    )
+                else:
+                    metrics, _ = infer_batches(
+                        model, training, cfg, data, recording="none", rasters=override
+                    )
+                    metrics["override_transform"] = diagnostics
             yield job, metrics
 
 
-def recordings(train_dir, cfg, data, bank_reference, requests):
-    model, training, identity = load_model(
+def recordings(train_dir, cfg, data, bank_reference, requests, artifacts):
+    model, training, identity, bundle = load_model(
         train_dir, cfg, data["protocol"], bank_reference
     )
     sample = cfg["raster"]["sample_index"]
     requests.append(request(identity, recording="inhibitory", sample=sample))
-    base = infer_batches(
-        model, training, cfg, data, recording="inhibitory", sample=sample
-    )
+    with model_execution(model, bundle, artifacts / "raster-baseline", kind="infer", seed=training["seed"], settings={"recipe": cfg, "sample": sample}):
+        base = infer_batches(
+            model, training, cfg, data, recording="inhibitory", sample=sample
+        )
     for name, condition, offset in recipe.recording_jobs(cfg):
         generator = torch.Generator().manual_seed(cfg["evaluation_seed"] + 17 + offset)
         override = transforms._build_override(
@@ -536,15 +540,6 @@ def recordings(train_dir, cfg, data, bank_reference, requests):
                 job={"condition": condition, "seed_offset": offset},
             )
         )
-        yield (
-            name,
-            infer_batches(
-                model,
-                training,
-                cfg,
-                data,
-                recording="spikes",
-                rasters=rasters,
-                sample=sample,
-            ),
-        )
+        with model_execution(model, bundle, artifacts / f"{name}--raster-inference", kind="infer", seed=training["seed"], settings=requests[-1]):
+            recording = infer_batches(model, training, cfg, data, recording="spikes", rasters=rasters, sample=sample)
+        yield name, recording

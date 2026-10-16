@@ -1,0 +1,40 @@
+| Parameter | Value |
+| --- | --- |
+| Populations per circuit | 80 excitatory (E), 20 inhibitory (I) |
+| Input channels per circuit | 1,024 in both the map and sender–receiver simulation |
+| Neuron model | Conductance-based leaky integrate-and-fire |
+| Capacitance, E / I | 1 / 0.5 nF |
+| Leak conductance, E / I | 0.05 / 0.1 μS |
+| Membrane time constant, E / I | 20 / 5 ms |
+| Rest, reset and initial voltage | −65 mV |
+| Spike threshold | −50 mV |
+| Refractory period, E / I | 3 / 1.5 ms |
+| Integration timestep | 0.1 ms |
+| Duration / uncoupled prefix / settling after onset | 5,000 / 500 / 300 ms |
+| Analysis window | 800–5,000 ms, restricted to common phase-valid times |
+| Mean input rate in map | 25 Hz per channel, averaged across the pair |
+| Signed input imbalance, A minus B | −10 to +10 Hz in 2 Hz steps; A/B rates are 25 Hz plus/minus half the imbalance, each between 20 and 30 Hz |
+| Input→E initialization mean / SD; decay | 1.84 / 0.276 μS after equal 9.2× native scaling of base 0.2 / 0.03 μS; 2 ms AMPA |
+| Local E→I initialization mean / SD; decay | 0.5 / 0.05 μS; 1 ms AMPA |
+| Local I→E initialization mean / SD; decay | 1 / 0.1 μS; 9 ms GABA |
+| Local recurrent delay | 0.1 ms |
+| Reciprocal E→E and E→I coupling | Equal nominal totals, 0–0.12 μS in 0.01 μS steps; 143 conditions |
+| Cross-network fan-in / decay / delay | Exactly 8 afferents per target / 2 ms AMPA / 2 ms |
+| Cross-network initialization | Base nominal total 0.12 μS, zero SD, exact 90% zero fraction; each request scales to the selected total |
+| Network seed / input seeds A, B | 85 / 8501, 8502 |
+| Repetitions | One network initialization and one paired input realization per condition; input trains reused across coupling |
+| Rate smoothing / minimum volley spacing / prominence | 1 ms Gaussian SD / 15 ms / 10% of maximum smoothed rate |
+| Valid rhythm | At least 20 volleys, 30–80 Hz, inter-volley coefficient of variation ≤0.2; valid uncoupled calibration also required |
+| Diagnostic finite-time locking thresholds | Absolute phase drift &lt;0.25 cycles/s, PLV >0.95, unwrapped relative-phase span &lt;1 cycle |
+| Sender–receiver duration / coupling onset | 1,500 / 500 ms; continuous state, no reset at onset |
+| Sender / receiver drive | 23 / 27 Hz per input channel; A→S and B→R from the selected reciprocal map condition |
+| Sender–receiver input connection gain | Exact copied map input matrices; same summed input strength and 1,024-channel split, with 9.2× input gain |
+| Sender–receiver parameter selection | Reciprocal point with coupling 0.09 μS, input difference −4 Hz, long-window uncoupled detuning −4.00 Hz and PLV 0.972; preserve actual input/local matrices and both cross-network directions |
+| Sender–receiver wiring | Reciprocal S E→R E/I and R E→S E/I |
+| Sender–receiver coupling schedule | Native step gain: zero before 500 ms, one from 500 ms onward; 0.09 μS total per pathway, fan-in 8, decay and delay 2 ms |
+| Sender–receiver PLV window | 800–1,500 ms, restricted to shared phase-valid times; baseline phase metrics use 100–500 ms |
+| Raster frequency labels | First 0–500 ms and last 1,000–1,500 ms; reciprocal mean E-volley interval, no settling exclusion; clear gamma requires at least five volleys, 30–80 Hz and interval coefficient of variation ≤0.2 |
+| Sender–receiver phase | Unwrapped S-minus-R E-volley phase in cycles, shown over all shared valid times |
+
+
+<figcaption>Table 1. Model and analysis settings. Weight means and standard deviations (SD) are nominal totals before division across incoming connections. Each original input channel is split into eight independent channels with one-eighth weight, preserving total input strength. Recurrent weights and cross-network connections are unchanged. The map shows PLV; the stricter locking criteria combine PLV, phase drift and phase span.</figcaption>

@@ -1,4 +1,4 @@
-"""Explicit, hash-bound pruning of superseded operational runs."""
+"""Hash-bound pruning of unused, unprotected operational runs."""
 
 from __future__ import annotations
 
@@ -11,84 +11,22 @@ import shutil
 from collections import defaultdict
 from pathlib import Path
 
-from .articles import articles
+from .allocation import allocation_watermarks, persist_watermarks
 from .contracts import (
     EXPERIMENT_RE,
     PingstoreError,
     file_sha256,
     load_json,
-    validate_collections,
 )
 from .discovery import discover_store
 from .stages import operation_lock
+from .usage import ancestry, report_usage
 
-PLAN_SCHEMA = "pingstore.prune-plan/v4"
-HPC_MARKER = re.compile(r"(?:^|[-_.])(?:slurm|hpc|wilkes|csd3|gpu-q)(?:$|[-_.0-9])")
-PROVENANCE_KEYS = {
-    "host",
-    "host_record",
-    "origin",
-    "producer_host",
-    "producer_origin",
-    "scheduler",
-}
-
-
-def _authoritative_provenance_values(value, key: str = ""):
-    if isinstance(value, dict):
-        for child_key, child in value.items():
-            yield from _authoritative_provenance_values(child, child_key)
-    elif isinstance(value, list):
-        for child in value:
-            yield from _authoritative_provenance_values(child, key)
-    elif key in PROVENANCE_KEYS and isinstance(value, str):
-        yield value
-
-
-def is_hpc_run(record: dict) -> bool:
-    """Recognize recorded HPC execution without treating paths or run names as evidence."""
-    provenance = {
-        "origin": record.get("origin"),
-        "execution": record.get("execution"),
-        "scientific_execution": record.get("scientific_execution"),
-        "historical_import": record.get("historical_import"),
-    }
-    return any(
-        HPC_MARKER.search(value.lower())
-        for value in _authoritative_provenance_values(provenance)
-    )
+PLAN_SCHEMA = "pingstore.prune-plan/v5"
 
 
 def _directory_bytes(directory: Path) -> int:
     return sum(path.stat().st_size for path in directory.rglob("*") if path.is_file())
-
-
-def _add_declared_roots(
-    repo: Path, records: dict[str, dict], reasons: dict[str, set[str]]
-) -> None:
-    collections = repo / ".pingstore/collections.json"
-    if collections.exists():
-        for view, run_ids in validate_collections(load_json(collections)).items():
-            for run_id in run_ids:
-                if run_id not in records:
-                    raise PingstoreError(
-                        f"collection {view!r} names missing run {run_id}"
-                    )
-                reasons[run_id].add(f"named-view:{view}")
-    for article, metadata in articles(repo).items():
-        for experiment, run_id in metadata["runs"].items():
-            if run_id not in records:
-                raise PingstoreError(
-                    f"report pin {article!r} names missing run {run_id}"
-                )
-            if (
-                records[run_id]["experiment"] != experiment
-                or records[run_id]["stage"] != "present"
-            ):
-                raise PingstoreError(
-                    f"report pin {article!r} is not a presentation for {experiment}"
-                )
-            reasons[run_id].add(f"report-pin:{article}")
 
 
 def _hidden_inputs(
@@ -131,13 +69,6 @@ def _hidden_inputs(
     return hidden
 
 
-def _counter(run_id: str) -> int:
-    match = re.search(r"-r([0-9]+)-(?:compute|analyse|present)(?:-|$)", run_id)
-    if match is None:
-        raise PingstoreError(f"cannot read run counter: {run_id}")
-    return int(match.group(1))
-
-
 def _plan_hash(plan: dict) -> str:
     encoded = json.dumps(plan, sort_keys=True, separators=(",", ":")).encode()
     return "sha256:" + hashlib.sha256(encoded).hexdigest()
@@ -162,46 +93,10 @@ def _experiment_scope(
     return scope
 
 
-def _retirement_scope(
-    repo: Path,
-    experiments: list[str] | tuple[str, ...] | set[str] | None,
-    records: dict[str, dict],
-) -> set[str]:
-    retired = set(experiments or ())
-    invalid = sorted(value for value in retired if not EXPERIMENT_RE.fullmatch(value))
-    if invalid:
-        raise PingstoreError(f"invalid retirement experiment: {', '.join(invalid)}")
-    available = {record["experiment"] for record in records.values()}
-    missing = sorted(retired - available)
-    if missing:
-        raise PingstoreError(f"retirement experiment has no runs: {', '.join(missing)}")
-    for experiment in sorted(retired):
-        writing = repo / "experiments" / experiment / "report" / "report.mdx"
-        legacy = repo / "experiments" / f"{experiment}.py"
-        staged = repo / "experiments" / experiment
-        if writing.is_file():
-            raise PingstoreError(
-                f"cannot retire {experiment} while its writing exists: {writing}"
-            )
-        if legacy.is_file() or (
-            staged.is_dir()
-            and any(
-                (staged / f"{stage}.py").is_file()
-                for stage in ("compute", "analyse", "present")
-            )
-        ):
-            raise PingstoreError(
-                f"cannot retire {experiment} while runnable experiment code exists"
-            )
-    return retired
-
-
 def build_plan(
     repo: Path,
     experiments: list[str] | tuple[str, ...] | set[str] | None = None,
-    retire_experiments: list[str] | tuple[str, ...] | set[str] | None = None,
     stages: list[str] | tuple[str, ...] | set[str] | None = None,
-    allow_superseded_hpc_presentations: bool = False,
 ) -> dict:
     repo = repo.resolve()
     runs = repo / ".pingstore/runs"
@@ -212,13 +107,8 @@ def build_plan(
             raise PingstoreError(
                 f"prune does not accept unsupported runs entry: {path}"
             )
-    records, discovered = discover_store(runs)
-    retired = _retirement_scope(repo, retire_experiments, records)
+    records, _ = discover_store(runs)
     scope = _experiment_scope(experiments, records)
-    if retired and scope is None:
-        scope = retired
-    elif not retired.issubset(scope or set()):
-        raise PingstoreError("retirement experiments must be inside the prune scope")
     stage_scope = set(stages) if stages is not None else None
     if stage_scope is not None and (
         not stage_scope or stage_scope - {"compute", "analyse", "present"}
@@ -235,71 +125,26 @@ def build_plan(
             if record["experiment"] not in scope:
                 reasons[run_id].add("out-of-scope")
 
-    latest: dict[str, dict] = {}
-    for row in discovered:
-        if scope is not None and row["experiment"] not in scope:
-            continue
-        if row["experiment"] in retired:
-            continue
-        current = latest.get(row["experiment"])
-        if current is None or (row["created_at"], row["id"]) > (
-            current["created_at"],
-            current["id"],
-        ):
-            latest[row["experiment"]] = row
-    for row in latest.values():
-        reasons[row["id"]].add("latest-visible")
-    if allow_superseded_hpc_presentations and stage_scope != {"present"}:
-        raise PingstoreError("HPC presentation cleanup requires --stage present only")
-    latest_ids = {row["id"] for row in latest.values()}
-    for run_id, record in records.items():
-        superseded_presentation = (
-            allow_superseded_hpc_presentations
-            and record["stage"] == "present"
-            and run_id not in latest_ids
-        )
-        if (
-            (scope is None or record["experiment"] in scope)
-            and is_hpc_run(record)
-            and not superseded_presentation
-        ):
-            reasons[run_id].add("hpc")
-    _add_declared_roots(repo, records, reasons)
+    selections, used_by = report_usage(repo, records)
+    used = set(used_by)
+    for run_id, reports in used_by.items():
+        reasons[run_id].update(f"used-by:{article}" for article in reports)
+    markers = {}
+    for run_id in records:
+        marker = runs / run_id / ".protected"
+        if marker.is_symlink() or (marker.exists() and not marker.is_file()):
+            raise PingstoreError(f"protection marker must be a regular file: {marker}")
+        if marker.exists():
+            markers[run_id] = file_sha256(marker)
+            reasons[run_id].add("protected-marker")
+    protected = ancestry(records, set(markers))
+    for run_id in protected - set(markers):
+        reasons[run_id].add("protected-ancestor")
     hidden = _hidden_inputs(runs, records, reasons)
-
-    keep = set(reasons)
-    # The allocator derives its next counter from directories. Never permit a
-    # deleted identity to become reusable, even for an experiment with no UI run.
-    by_experiment: dict[str, list[str]] = defaultdict(list)
-    for run_id, record in records.items():
-        by_experiment[record["experiment"]].append(run_id)
-    for experiment, run_ids in by_experiment.items():
-        if experiment in retired:
-            continue
-        high = max(run_ids, key=lambda run_id: (_counter(run_id), run_id))
-        if high not in keep:
-            keep.add(high)
-            reasons[high].add("identity-high-watermark")
-
-    # Traverse ancestry only after every retention root has been added.
-    todo = list(keep)
-    while todo:
-        child = todo.pop()
-        for reference in records[child]["inputs"].values():
-            parent = reference["run_id"]
-            if parent not in keep:
-                keep.add(parent)
-                reasons[parent].add("required-ancestor")
-                todo.append(parent)
-
-    retirement_high_watermarks = {
-        experiment: max(
-            _counter(run_id)
-            for run_id, record in records.items()
-            if record["experiment"] == experiment
-        )
-        for experiment in sorted(retired)
-    }
+    keep = ancestry(records, set(reasons))
+    for run_id in keep - set(reasons):
+        reasons[run_id].add("required-ancestor")
+    watermarks = allocation_watermarks(repo / ".pingstore")
 
     rows = []
     for run_id, record in sorted(records.items()):
@@ -309,28 +154,23 @@ def build_plan(
                 "run_id": run_id,
                 "stage": record["stage"],
                 "experiment": record["experiment"],
+                "used": run_id in used,
+                "used_by": sorted(used_by.get(run_id, ())),
+                "protected": run_id in protected,
+                "protected_marker_sha256": markers.get(run_id),
                 "payload_digest": record["payload_digest"],
                 "run_json_sha256": file_sha256(directory / "run.json"),
                 "bytes": _directory_bytes(directory),
-                "reasons": (
-                    sorted(reasons[run_id])
-                    if run_id in keep
-                    else [
-                        "retired-experiment"
-                        if record["experiment"] in retired
-                        else "superseded"
-                    ]
-                ),
+                "reasons": sorted(reasons[run_id]) if run_id in keep else ["unused"],
             }
         )
     plan = {
         "schema": PLAN_SCHEMA,
-        "policy": "keep-hpc-latest-pins-high-watermarks-and-ancestry-with-explicit-retirement",
+        "policy": "keep-report-usage-manual-protection-incomplete-inputs-and-ancestry",
         "experiments": sorted(scope) if scope is not None else None,
-        "retire_experiments": sorted(retired),
         "stages": sorted(stage_scope) if stage_scope is not None else None,
-        "allow_superseded_hpc_presentations": allow_superseded_hpc_presentations,
-        "retirement_high_watermarks": retirement_high_watermarks,
+        "allocation_watermarks": watermarks,
+        "report_selections": selections,
         "hidden": hidden,
         "keep": [row for row in rows if row["run_id"] in keep],
         "prune": [row for row in rows if row["run_id"] not in keep],
@@ -356,13 +196,31 @@ def _validate_survivors(runs: Path, expected: set[str]) -> None:
         raise PingstoreError("pruned store contains an unexpected completed-run set")
 
 
+def _check_controls(repo: Path, runs: Path, plan: dict) -> None:
+    """Detect manual protection or report-selection edits during confirmation."""
+    from .contracts import validate_run
+
+    records = {
+        row["run_id"]: validate_run(load_json(runs / row["run_id"] / "run.json"))
+        for row in plan["keep"] + plan["prune"]
+    }
+    selections, _ = report_usage(repo, records)
+    if selections != plan["report_selections"]:
+        raise PingstoreError("report selections changed during pruning")
+    for row in plan["keep"] + plan["prune"]:
+        marker = runs / row["run_id"] / ".protected"
+        if marker.is_symlink() or (marker.exists() and not marker.is_file()):
+            raise PingstoreError("protection marker changed during pruning")
+        digest = file_sha256(marker) if marker.exists() else None
+        if digest != row["protected_marker_sha256"]:
+            raise PingstoreError("protection marker changed during pruning")
+
+
 def apply_plan(
     repo: Path,
     expected_hash: str,
     experiments: list[str] | tuple[str, ...] | set[str] | None = None,
-    retire_experiments: list[str] | tuple[str, ...] | set[str] | None = None,
     stages: list[str] | tuple[str, ...] | set[str] | None = None,
-    allow_superseded_hpc_presentations: bool = False,
 ) -> dict:
     if not re.fullmatch(r"sha256:[0-9a-f]{64}", expected_hash):
         raise PingstoreError(
@@ -378,9 +236,7 @@ def apply_plan(
             plan = build_plan(
                 repo,
                 experiments,
-                retire_experiments,
                 stages,
-                allow_superseded_hpc_presentations,
             )
             if plan["plan_hash"] != expected_hash:
                 raise PingstoreError(
@@ -400,6 +256,8 @@ def apply_plan(
                 )
 
             keep_ids = {row["run_id"] for row in plan["keep"]}
+            # Persist counters before any run can disappear; dry-runs never write them.
+            persist_watermarks(store, plan["allocation_watermarks"])
             staged.mkdir()
             for path in sorted(runs.iterdir()):
                 if path.name.startswith(".") or path.name in keep_ids:
@@ -415,10 +273,12 @@ def apply_plan(
                             f"unsupported entry in runs directory: {path}"
                         )
             _validate_survivors(staged, keep_ids)
+            _check_controls(repo, runs, plan)
             os.replace(runs, previous)
             try:
                 os.replace(staged, runs)
                 _validate_survivors(runs, keep_ids)
+                _check_controls(repo, previous, plan)
             except BaseException:
                 if runs.exists():
                     os.replace(runs, staged)
@@ -441,58 +301,32 @@ def render_plan(plan: dict) -> str:
             ", ".join(plan["experiments"]) if plan["experiments"] else "all experiments"
         ),
         "Stages: " + (", ".join(plan.get("stages") or []) or "all stages"),
-        "Superseded HPC presentations: "
-        + (
-            "eligible"
-            if plan.get("allow_superseded_hpc_presentations")
-            else "protected"
-        ),
-        "Retire: "
-        + (
-            ", ".join(plan["retire_experiments"])
-            if plan["retire_experiments"]
-            else "none"
-        ),
-        "Retirement high-watermarks: "
-        + (
-            ", ".join(
-                f"{experiment}=r{counter:03d}"
-                for experiment, counter in plan["retirement_high_watermarks"].items()
-            )
-            if plan["retirement_high_watermarks"]
-            else "none"
-        ),
+        "Policy: used report ancestry + manual .protected ancestry + incomplete inputs",
+        f"Used: {sum(row['used'] for row in plan['keep'])} runs",
+        f"Protected: {sum(row['protected'] for row in plan['keep'])} runs",
         f"Keep: {len(plan['keep'])} runs ({keep_bytes / 2**30:.2f} GiB)",
         f"Prune: {len(plan['prune'])} runs ({prune_bytes / 2**30:.2f} GiB)",
         "",
         "KEEP",
     ]
     lines.extend(
-        f"{row['run_id']}\t{row['bytes']}\t{','.join(row['reasons'])}"
+        f"{row['run_id']}\t{row['bytes']}\t{'used' if row['used'] else 'unused'}\t{','.join(row['reasons'])}"
         for row in plan["keep"]
     )
     lines.extend(["", "PRUNE"])
     lines.extend(
-        f"{row['run_id']}\t{row['bytes']}\t{','.join(row['reasons'])}"
+        f"{row['run_id']}\t{row['bytes']}\t{'used' if row['used'] else 'unused'}\t{','.join(row['reasons'])}"
         for row in plan["prune"]
     )
     scope_args = " ".join(
         f"--experiment {shlex.quote(experiment)}"
         for experiment in (plan["experiments"] or [])
     )
-    retirement_args = " ".join(
-        f"--retire-experiment {shlex.quote(experiment)}"
-        for experiment in plan["retire_experiments"]
-    )
     command = "uv run pingstore prune"
     if scope_args:
         command += f" {scope_args}"
-    if retirement_args:
-        command += f" {retirement_args}"
     for stage in plan.get("stages") or []:
         command += f" --stage {shlex.quote(stage)}"
-    if plan.get("allow_superseded_hpc_presentations"):
-        command += " --allow-superseded-hpc-presentations"
     command += f" --confirm {plan['plan_hash']}"
     lines.extend(["", f"Confirm with: {command}"])
     return "\n".join(lines)

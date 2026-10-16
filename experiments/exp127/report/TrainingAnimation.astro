@@ -4,7 +4,7 @@ interface Props { run: string; }
 const { run } = Astro.props;
 ---
 <figure class="l-body" id="fig-training">
-  <pixi-training-loop data-source={imageUrl(run, 'training.json')}>
+  <pixi-training-loop data-source={await imageUrl(run, 'training.json')}>
     <div class="selectors" role="group" aria-label="Displayed training example">
       <button type="button" data-example="0" aria-pressed="true" disabled>Class A</button>
       <button type="button" data-example="1" aria-pressed="false" disabled>Class B</button>

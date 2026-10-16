@@ -1,0 +1,18 @@
+---
+import { getEntry } from 'astro:content';
+import { figureUrl } from '../../../site/src/lib/pingstore';
+
+const entry = await getEntry('reports', 'exp134');
+const run = entry?.data.runs?.exp134;
+const url = run ? await figureUrl(run, 'network.svg') : undefined;
+---
+
+{url && <figure>
+  <a href={url}><img src={url} alt="Shared PING circuit: image inputs drive E neurons, E excites I and the readout, and I inhibits E." loading="lazy" /></a>
+  <figcaption>Shared circuit topology for both parameter sweeps. Leak conductance and capacitance vary as specified in Methods; connectivity and trained weights stay fixed. This native circuit view represents every setting.</figcaption>
+</figure>}
+
+<style>
+  figure { margin: 0 0 2rem; min-width: 0; }
+  img { display: block; width: 100%; height: auto; }
+</style>

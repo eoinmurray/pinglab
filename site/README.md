@@ -62,18 +62,40 @@ Notes and experiments both use `Report.astro`, including its byline, contents
 sidebar, article spacing, and annotations. Optional `abstract` frontmatter is
 supported for both; experiment IDs and Dataset footers require experiment metadata.
 The shared page layout declares each page's canonical URL on
-`https://pinglab.eoinmurray.info`, with a trailing slash and no query or fragment.
+`https://pinglab.eoinmurray.info`, without a trailing slash (except the root),
+`.html` extension, query, or fragment. Astro uses `trailingSlash: 'never'` and
+`build.format: 'file'`, producing `exp130.html` for the public URL `/exp130`.
+GitHub Pages resolves these extensionless URLs. Use Astro preview for local
+static previews; Python's basic HTTP server does not resolve `/exp130` to
+`exp130.html`. Existing bookmarks ending in `/` need host redirects to remain
+compatible with the new file layout.
 Hypothes.is uses this identity to share article annotations between production
 and localhost. Local annotations therefore belong to the production article too.
 The homepage lists reports, notes, and slides with the same article previews.
-Notes and slides appear first, ordered by update date; reports follow in descending
-ID order. `/notes/` and `/collections/<collection>/` use the homepage list with a
+Report and note bylines include a final Report column, stacking word, figure,
+and (for experiments) run counts. Listings show the same counts beside collection
+badges; slide previews retain their presentation metadata. Counts are computed
+from rendered main content, including the abstract and resolved data bindings.
+Words exclude headings, captions, tables, code, mathematics, editorial Meta,
+references, and appendices. Figures count main-content figure elements once,
+including multipanel and unavailable figures, but exclude tables. Run counts
+include completed v4 compute/analyse/present records owned by the experiment in
+local Pingstore, including historical runs, without upstream or hidden runs.
+These are local inventory counts, not a claim that every run informed the report.
+Static builds freeze counts; development recalculates on refresh. A report that
+cannot render shows unavailable word/figure counts in listings rather than taking
+the listing offline. No authored count fields or article date changes are needed.
+All article types sort together by decreasing authored `updated_at`, with article
+ID and then URL ascending to break ties, in both development and static builds.
+`/notes/` and `/collections/<collection>/` use the homepage list with a
 collection header and only that collection's articles. `/collections/` lists
 clickable collection names, including Notes, without article previews. Distill's official
 v2 runtime and styles are self-hosted; the article shell supplies the byline,
 sticky contents, and appendix. Optional `parameters.mdx`, `appendix.mdx`, and
-`references.mdx` files supply footer content. The canonical scientific-writing
-rules are preserved in `../md/notes/writing-guide.md`.
+`references.mdx` files supply footer content. Put each report’s main parameter table in `parameters.mdx`;
+the shared layout renders it under Parameters immediately above Dataset and
+adds Parameters to the table of contents. Supplementary details precede Parameters. The canonical scientific-writing
+rules are preserved in [Writing Rules](../md/notes/writing-rules.md).
 Write mathematics directly in MDX as `$...$` for inline expressions and `$$`
 blocks for displayed equations. The existing remark-math and rehype-katex
 plugins render these with KaTeX. Preserve displayed equation numbers with
@@ -261,7 +283,11 @@ changing the dataset does not automatically rewrite scientific conclusions.
 
 Dataset footers show completed run history, producing execution timing for
 imported runs, and upstream/downstream article dependencies. Bold run IDs mark
-presentations used by the article. Text-only dependent articles retain dependency
+presentations used by the article and every run in their recorded input chains,
+including compute, analyse and upstream-experiment runs. All these rows are
+highlighted and marked “Used”; unrelated historical runs remain unmarked.
+Only selected presentations list report asset counts in Source.
+Text-only dependent articles retain dependency
 links without inventing unavailable data.
 
 Seven articles have no local presentation: exp022, exp024, exp047, exp054,
@@ -270,9 +296,13 @@ equations, captions, specification tables and appendices, are preserved;
 an availability notice distinguishes the account from locally checkable data.
 
 Each report declares its scientific `inputs` in frontmatter. Python execution
-reads its `collection` there; pruning protects explicit frontmatter `runs` pins
-and treats an existing `report.mdx` as an active article. Neither operation
-depends on the historical `writings/` directory.
+reads its `collection` there. Pruning derives global report usage from pinned
+or latest unpinned declared inputs and their complete ancestry, including
+cross-experiment dependencies. Unused runs require a manual `.protected` file
+to retain them and their ancestry, apart from incomplete-input and scope
+safeguards. HPC origin and unselected latest runs do not confer protection.
+See [Pingstore Rules](../md/notes/pingstore-rules.md) for the hash-bound dry-run
+and confirmation workflow. Neither operation depends on historical `writings/`.
 
 ## Publication
 
@@ -280,7 +310,7 @@ See `../tools/publishing/README.md`. Build a frozen local Astro publication with
 
 ```sh
 uv run python tools/publishing/publish.py build
-python -m http.server 3001 --directory .publication/site
+(cd site && bun run astro preview --outDir ../.publication/site --port 3001)
 uv run python tools/publishing/publish.py publish
 ```
 

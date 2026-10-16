@@ -16,6 +16,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from experiments.exp044 import evidence, inputs, recipe
+from experiments.helpers.network_artifacts import model_execution
 from pingstore.contracts import PingstoreError, write_json_atomic
 from snnlab.sim import GraphExecutor, encode_images_poisson, load_dataset, plan_graph
 
@@ -121,91 +122,92 @@ def evaluate_cell(
             cell["seed"] if traces else cfg["evaluation_encoder_seed"]
         )
         started = perf_counter()
-        with torch.inference_mode():
-            if traces:
-                index = cfg["raster"]["sample_index"]
-                spikes = encode_images_poisson(
-                    torch.from_numpy(pixels[index : index + 1]),
-                    steps,
-                    dt,
-                    common["input_rate"],
-                    generator=generator,
-                )
-                result = model({"drive": spikes.to(device)}, diagnostics=True)
-                data = {
-                    name: result.diagnostics[name].detach().cpu().numpy()[:, 0]
-                    for name in ("spk_e", "spk_i")
-                }
-                if any(not np.isin(values, (0, 1)).all() for values in data.values()):
-                    raise PingstoreError("invalid graph raster spikes")
-                np.savez_compressed(
-                    destination / "spikes.npz",
-                    dt=dt,
-                    **{name: values.astype(bool) for name, values in data.items()},
-                )
-                evidence.snapshot(destination / "spikes.npz", dt, common)
-            else:
-                correct, ce_sum, counts = 0, 0.0, {"e": 0.0, "i": 0.0}
-                for start in range(0, samples, cfg["evaluation_batch_size"]):
-                    indices = selected[start : start + cfg["evaluation_batch_size"]]
+        with model_execution(model, bundle, destination / "inference", kind="infer", seed=cell["seed"], settings={"recipe": cfg, "cell": cell, "mode": mode}):
+            with torch.inference_mode():
+                if traces:
+                    index = cfg["raster"]["sample_index"]
                     spikes = encode_images_poisson(
-                        torch.from_numpy(pixels[indices]),
+                        torch.from_numpy(pixels[index : index + 1]),
                         steps,
                         dt,
                         common["input_rate"],
                         generator=generator,
                     )
-                    # Each call starts with reset voltage, conductances, delays
-                    # and readout state. No runtime state is carried between images.
-                    result = model({"drive": spikes.to(device)}, diagnostics=False)
-                    scores = result.outputs["class_scores"]
-                    if (
-                        scores.shape != (len(indices), common["n_out"])
-                        or not torch.isfinite(scores).all()
-                    ):
-                        raise PingstoreError("invalid graph class scores")
-                    targets = torch.from_numpy(labels[indices])
-                    ce_sum += float(
-                        F.cross_entropy(scores, targets.to(device), reduction="sum")
+                    result = model({"drive": spikes.to(device)}, diagnostics=True)
+                    data = {
+                        name: result.diagnostics[name].detach().cpu().numpy()[:, 0]
+                        for name in ("spk_e", "spk_i")
+                    }
+                    if any(not np.isin(values, (0, 1)).all() for values in data.values()):
+                        raise PingstoreError("invalid graph raster spikes")
+                    np.savez_compressed(
+                        destination / "spikes.npz",
+                        dt=dt,
+                        **{name: values.astype(bool) for name, values in data.items()},
                     )
-                    correct += int((scores.argmax(dim=1).cpu() == targets).sum())
-                    for label, size in (("e", n_e), ("i", n_i)):
-                        values = result.outputs[f"spk_{label}_count"]
+                    evidence.snapshot(destination / "spikes.npz", dt, common)
+                else:
+                    correct, ce_sum, counts = 0, 0.0, {"e": 0.0, "i": 0.0}
+                    for start in range(0, samples, cfg["evaluation_batch_size"]):
+                        indices = selected[start : start + cfg["evaluation_batch_size"]]
+                        spikes = encode_images_poisson(
+                            torch.from_numpy(pixels[indices]),
+                            steps,
+                            dt,
+                            common["input_rate"],
+                            generator=generator,
+                        )
+                        # Each call starts with reset voltage, conductances, delays
+                        # and readout state. No runtime state is carried between images.
+                        result = model({"drive": spikes.to(device)}, diagnostics=False)
+                        scores = result.outputs["class_scores"]
                         if (
-                            values.shape != (len(indices), size)
-                            or not torch.isfinite(values).all()
-                            or (values < 0).any()
-                            or (values > steps).any()
-                            or not torch.equal(values, values.floor())
+                            scores.shape != (len(indices), common["n_out"])
+                            or not torch.isfinite(scores).all()
                         ):
-                            raise PingstoreError("invalid graph spike-count reduction")
-                        counts[label] += float(values.sum())
-                write_json_atomic(
-                    destination / "metrics.json",
-                    {
-                        "config": {
-                            "dt": dt,
-                            "t_ms": common["t_ms"],
-                            "dataset": "mnist",
-                            "n_hidden": n_e,
-                            "n_inh": n_i,
-                            "evaluation_partition": "official_mnist_test",
-                            "evaluation_samples": samples,
-                            **cell["execution_dynamics"],
+                            raise PingstoreError("invalid graph class scores")
+                        targets = torch.from_numpy(labels[indices])
+                        ce_sum += float(
+                            F.cross_entropy(scores, targets.to(device), reduction="sum")
+                        )
+                        correct += int((scores.argmax(dim=1).cpu() == targets).sum())
+                        for label, size in (("e", n_e), ("i", n_i)):
+                            values = result.outputs[f"spk_{label}_count"]
+                            if (
+                                values.shape != (len(indices), size)
+                                or not torch.isfinite(values).all()
+                                or (values < 0).any()
+                                or (values > steps).any()
+                                or not torch.equal(values, values.floor())
+                            ):
+                                raise PingstoreError("invalid graph spike-count reduction")
+                            counts[label] += float(values.sum())
+                    write_json_atomic(
+                        destination / "metrics.json",
+                        {
+                            "config": {
+                                "dt": dt,
+                                "t_ms": common["t_ms"],
+                                "dataset": "mnist",
+                                "n_hidden": n_e,
+                                "n_inh": n_i,
+                                "evaluation_partition": "official_mnist_test",
+                                "evaluation_samples": samples,
+                                **cell["execution_dynamics"],
+                            },
+                            "accuracy_pct": 100 * correct / samples,
+                            "cross_entropy": ce_sum / samples,
+                            "n_correct": correct,
+                            "n_total": samples,
+                            "rates_hz": {
+                                "e": counts["e"] / (samples * n_e * duration_s),
+                                "i": counts["i"] / (samples * n_i * duration_s),
+                            },
                         },
-                        "accuracy_pct": 100 * correct / samples,
-                        "cross_entropy": ce_sum / samples,
-                        "n_correct": correct,
-                        "n_total": samples,
-                        "rates_hz": {
-                            "e": counts["e"] / (samples * n_e * duration_s),
-                            "i": counts["i"] / (samples * n_i * duration_s),
-                        },
-                    },
-                )
-                evidence.measurement(
-                    destination / "metrics.json", cell, common, samples
-                )
+                    )
+                    evidence.measurement(
+                        destination / "metrics.json", cell, common, samples
+                    )
         trials.append(
             {
                 "cell": cell["cell_name"],

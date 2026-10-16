@@ -4,12 +4,12 @@ author: Eoin Murray
 collection: notes
 description: Pingstore run layout, provenance, validation, pruning, Cloudflare R2 backup access and recovery.
 created_at: '2026-09-11'
-updated_at: '2026-10-14'
+updated_at: '2026-10-16'
 ---
 
 # Pingstore Rules
 
-Version: **4.11.0**
+Version: **4.13.0**
 
 These rules define Pingstore's filesystem convention. Pingstore is not a
 service, database, catalogue, lifecycle manager, or general management CLI.
@@ -23,19 +23,27 @@ path and does not authorize v2 use.
 
 ## 1. Contract
 
-Every completed operational run uses `pingstore.run/v4` and has exactly:
+Every completed operational run uses `pingstore.run/v4` and has these required entries:
 
 ```text
 .pingstore/runs/<run-id>/
 ├── run.json
 ├── README.md
-└── export/
+├── export/
+└── .protected         # optional manual local retention marker
 ```
 
 - `run.json` is the authoritative machine-readable record.
 - `README.md` is the mandatory human-readable history.
 - `export/` contains only scientific data. Run-wide and single-file unit outputs
   are flat; only genuine multi-file scientific units use a directory.
+- `.protected`, when present, is a regular file manually created beside
+  `run.json`. It may be empty or explain why the run is retained. It protects
+  the run and its complete input ancestry. It is mutable local retention
+  metadata outside the payload digest, not a scientific output or usage flag.
+  Creating or removing it requires no run metadata correction or README edit.
+  Do not edit markers during pruning; coordinate changes with the exclusive
+  Pingstore operation lock. No other optional root entries are permitted.
 
 There is no operational `provenance/` directory. Do not duplicate the command,
 configuration, environment, source revision, or timing in sidecar manifests or
@@ -61,6 +69,31 @@ roles use their standard names; genuinely domain-specific descriptive filenames
 remain permitted. Present exports retain descriptive flat filenames.
 Present exports contain only flat regular files. No other root entries or
 symlinks are allowed in a completed run.
+
+### Compute network evidence
+
+New compute runs retain complete compiled `snnlab.lang` bundles and simulation
+snapshots produced using `snnlab.sim.SnapshotSpec` in `export/`, as required by
+the [Experiment Rules](/notes/experiment-rules#mandatory-network-bundles-and-simulation-snapshots).
+These are scientific definitions and parameter evidence, not prohibited copies
+of Pingstore execution metadata. Preserve library-generated snapshot metadata
+and parameters intact. Both contribute to the ordinary payload digest and
+follow the same immutable backup and retention rules as other scientific data.
+
+Tool-native paths may be deeper while the run is hidden. Shared canonicalization
+still governs completed exports; preserve file bytes and a reversible native
+path mapping for authenticated bundle loading from reconstructed scratch paths.
+Do not relax the one-unit-directory-level contract or modify bundle manifests
+to accommodate flattening. Required bundle and start/end snapshot validation
+belongs in compute completion checks. Existing completed runs are not rewritten
+or invalidated by this new writer requirement.
+
+The explicitly retained external backends in exp080/081/117/125 use local
+`pinglab.external-run-snapshot/v1` records instead of fabricated Lang bundles.
+Their scientific definitions and before/after parameters follow the same
+payload, reversible-path and validation rules. Store the native-to-canonical
+file mapping in `run.json.scientific_artifacts.native_paths`; use
+`SourceRun.restore_bundle(...)` to reconstruct library bundle paths in scratch.
 
 ## 2. `run.json`
 
@@ -165,15 +198,16 @@ directories once they are no longer needed for execution, recovery or transfer.
 Confirm that local and remote workers or queued jobs have stopped, no active
 writer owns the directory, and no checkpoint or pending transfer needs it.
 Perform cleanup under the shared helper's exclusive Pingstore operation lock.
-Preserve the experiment's allocation high-watermark: remove a reservation only
-when a newer allocated identity remains; otherwise retain it until one exists.
+Before removing a reservation, persist its experiment's allocation high-watermark
+using the shared allocation helper under the exclusive operation lock. Never
+reset a counter merely because no run folders remain.
 Do not sweep other tasks' temporary runs or historical v2/v3 reservations.
 Report any temporary runs deliberately retained and why.
 
 ### Assembly of completed compute phases
 
 Assembly is an experiment operation defined by the
-[Experiment Runner Guide](/notes/experiment-runner-guide/), not a Pingstore CLI
+[Experiment Runner Guide](/notes/experiment-rules), not a Pingstore CLI
 operation. There is no generic `pingstore merge` command.
 
 1. An explicitly invoked experiment-local assembler selects phase run IDs and
@@ -200,7 +234,7 @@ operation. There is no generic `pingstore merge` command.
    when the full export contains copied phase outputs.
 5. Phase inputs remain ancestry for retention, backup ordering and transfer.
    Assembly does not authorize their pruning. Compute phases are compute runs
-   for stage filters and HPC retention; they are not directly publishable and
+   for stage filters and report/protected ancestry; they are not directly publishable and
    discovery never lists them as present runs. Preserve all normal allocation
    high-watermark and active-writer protections.
 
@@ -236,29 +270,42 @@ No official or latest selection is inferred.
 
 ## 6. Explicit pruning
 
-`pingstore prune` is the sole command that removes local completed runs. It is a
-narrow garbage-collection operation, not a lifecycle manager or general storage CLI.
-It retains every run whose authoritative execution provenance identifies HPC,
-except superseded HPC presentations explicitly allowed by the option below,
-the newest populated present run for each experiment currently exposed by
-discovery, explicit collection and MDX frontmatter `runs` pins, inputs of incomplete
-runs, and the complete transitive ancestry of those roots. It also retains each
-experiment's highest allocated counter so a removed identity cannot be reused.
+`pingstore prune` is the sole command that removes local completed runs.
+It derives usage from current `experiments/expNNN/report/report.mdx` metadata;
+there is no persisted usage catalogue.
 
-Retirement is an explicit one-shot pruning mode, not persistent repository state.
-`--retire-experiment expNNN` is accepted only when that experiment has completed
-runs but no runnable code or `experiments/expNNN/report/report.mdx`. It limits an otherwise unscoped operation
-to the named experiment and permits its non-HPC newest presentation and identity
-high-watermark to be pruned. The dry-run derives the highest allocated counter
-from the validated run inventory and binds the retirement request into the plan
-hash. Pins, incomplete inputs, out-of-scope descendants, transitive ancestry and
-HPC provenance still take precedence.
+1. **Used** means a presentation selected by any current report, plus every run
+   in its complete recorded input ancestry across experiment boundaries. Explicit
+   frontmatter `runs` pins take precedence; each unpinned declared `inputs` key
+   uses Astro's latest presentation by execution completion time, with run ID
+   breaking ties. Missing unpinned data remains unavailable; missing or invalid
+   explicit pins fail the plan. A newer presentation does not supersede a pin.
+2. **Unused** means every completed run outside that report-use graph.
+3. **Protected** means a run with a manual `.protected` file, or any ancestor
+   required by such a run. Protection does not mark a run used.
+4. **Prunable** means unused and unprotected, subject to scope and execution
+   safeguards. HPC origin, latest status, named collection views and allocation
+   counters provide no automatic retention. Mark historical results that should
+   survive with `.protected`; named collection membership alone does not retain
+   a run and can become dangling after pruning.
 
-Experiment IDs are permanent and must never be reused after removal. Once an
-experiment's last run is explicitly retired and pruned, its old counter does not
-need to remain as live filesystem state because future work must use a new
-experiment ID. An absent experiment directory or writing is not by itself
-permission to prune an experiment's protected runs.
+Inputs of hidden incomplete runs and their complete ancestry remain retained.
+Active writers prevent confirmation. Hidden incomplete directories are never
+pruned by this command. Runs outside an experiment or stage filter remain
+untouched, along with any ancestry they need. Usage and protection are always
+computed globally, so per-experiment pruning preserves dependencies used by
+other reports, including manuscripts with many experiment inputs.
+
+Run IDs must never be reused. Shared allocation stores per-experiment integer
+high-watermarks in `.pingstore/.allocation/expNNN.json`, independently of run
+folders. Reservation uses the maximum of persisted state and all visible/hidden
+run counters and persists the next counter before creating its reservation.
+Confirmation persists all observed high-watermarks before removing any runs.
+A dry-run never creates allocation state or changes the store. These counters
+are allocation bookkeeping, not a run catalogue, retention rule or experiment
+lifecycle registry. Preserve them when transferring a whole store; recovery to
+a new writable store must seed them from all known allocated identities before
+allocating new runs. Experiment numbers remain permanent and cannot be reused.
 
 Pruning requires two separate invocations:
 
@@ -267,54 +314,39 @@ uv run pingstore prune --dry-run
 uv run pingstore prune --confirm <complete-sha256-plan-hash>
 ```
 
-Dry-run validates every visible v4 run and the complete dependency graph, prints
-every retained and proposed run with its reason and byte count, and makes no
-filesystem changes. The plan hash binds the exact run records, payload digests,
-sizes, incomplete-run input state, and candidate set. Confirmation recomputes
-the plan under an exclusive pruning lock and aborts on any difference or active
-writer. A bare confirmation is forbidden.
-
-An explicit `--allow-superseded-hpc-presentations` option, requiring
-`--stage present` only, permits deletion of older HPC presentation runs.
-Latest presentations, explicit pins, incomplete inputs, full ancestry and
-allocation high-watermarks remain protected. HPC compute and analyse retention
-is unchanged. This exception is bound into the plan hash and must be repeated
-at confirmation.
-
-Pruning may be limited to stages with repeatable `--stage compute`,
-`--stage analyse`, or `--stage present`. Runs in other stages remain retention
-roots, including their full ancestry. Stage filters are bound into the plan hash
-and must be repeated at confirmation. For presentation-only cleanup:
+Without filters, pruning considers all experiments; explicit `--all` is equivalent.
+`--all` and `--experiment` are mutually exclusive. Limit deletion with
+repeatable `--experiment` and optionally `--stage` filters:
 
 ```sh
-uv run pingstore prune --stage present --dry-run
-uv run pingstore prune --stage present --confirm <complete-sha256-plan-hash>
-```
-
-Pruning may be limited to one or more experiments with a repeatable filter. All
-runs outside the filter remain untouched, and any filtered run required by an
-out-of-scope descendant remains as ancestry. The same filters are required for
-dry-run and confirmation because the sorted experiment scope is bound into the
-plan hash. Unknown or malformed experiment filters are rejected.
-
-```sh
+uv run pingstore prune --all --dry-run
 uv run pingstore prune --experiment exp099 --dry-run
 uv run pingstore prune --experiment exp099 --confirm <complete-sha256-plan-hash>
 uv run pingstore prune --experiment exp099 --experiment exp110 --dry-run
-uv run pingstore prune --retire-experiment exp114 --dry-run
-uv run pingstore prune --retire-experiment exp114 --confirm <complete-sha256-plan-hash>
+uv run pingstore prune --stage present --dry-run
 ```
 
-Run reservation and execution hold a shared lock at `.pingstore/.operation.lock`;
-confirmation requires the corresponding exclusive lock. The lock coordinates
-processes but does not record lifecycle state or select runs.
+The obsolete `--retire-experiment` and
+`--allow-superseded-hpc-presentations` options are removed. Unused unprotected
+runs are eligible without special retirement or execution-origin exceptions.
+
+Dry-run validates every visible v4 run, its payload checksum and the complete
+input graph. It prints used/unused classifications, protection/retention reasons,
+byte counts, and the exact proposed deletions. The v5 prune-plan hash binds run
+records, payload digests, sizes, report input declarations and resolved selections,
+protection-marker presence and contents, allocation high-watermarks, incomplete
+inputs and deletion scope. Confirmation recomputes that plan under the exclusive
+`.pingstore/.operation.lock` and aborts on drift or an active writer. It rechecks
+manual markers and report selections before swapping trees and before deleting
+the old tree. Repeat the same filters at confirmation; a bare confirmation is
+forbidden.
 
 Confirmation builds and validates a hard-linked retained tree beside `runs/`,
-atomically exchanges it with the original tree, validates it again, and only
-then removes the old tree. Visible run contents are never edited. A separately
-authorized `pingstore backup` may precede confirmation; pruning itself does not
-create archives, catalogues, tombstones, lifecycle states, or publication
-selections. Historical v2/v3 evidence and migration archives are outside this
+swaps it with the original tree and validates again before deleting the old
+runs. Validation failure restores the original tree. Counter advances are never
+rolled back. A separately authorized backup may precede pruning; pruning never
+uploads, changes remote backups, selects new report inputs or modifies scientific
+payloads. Historical v2/v3 evidence and migration archives remain outside this
 operation.
 
 ## 7. Explicit external backups
@@ -329,6 +361,12 @@ pingstore/runs/<run-id>/
     README.md
     export/
 ```
+
+The manual `.protected` marker is local retention metadata and is excluded from
+backup inventories, uploads and immutable remote comparisons. Recovery does not
+restore manual protection automatically; recreate required markers explicitly.
+Allocation counters live outside the per-run backup and must be preserved
+separately when moving a store.
 
 The source is `.pingstore/runs/`. Git continues to hold experiment code;
 `run.json` holds execution provenance and input references. The backup contains
@@ -444,6 +482,16 @@ Migration does not authorize experiment execution, publication, pruning, remote
 store changes, or deletion of the recovery archive.
 
 ## 9. Version history
+
+**4.13.0** — Define report-used ancestry and manual `.protected` retention;
+prune all other completed runs subject to scope and incomplete-input safeguards.
+Replace automatic HPC/latest/view retention with explicit markers and persist
+allocation counters independently of run folders. Bind report selections and
+markers into v5 prune plans; keep markers local and outside backup payloads.
+
+**4.12.0** — Retain complete network bundles and library simulation snapshots as
+compute scientific payloads, with reversible native paths and ordinary digest,
+immutability and backup rules; preserve existing completed evidence.
 
 **4.11.0** — Define completed compute phase scopes and names, explicit phase
 dependencies, and immutable full-run assembly by experiment code using shared

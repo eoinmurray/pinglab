@@ -48,7 +48,7 @@ def local_files(source, identity):
     directory = source / identity
     files = {}
     for path in sorted(directory.rglob("*")):
-        if path.is_file():
+        if path.is_file() and path != directory / ".protected":
             relative = path.relative_to(source).as_posix()
             if "\n" in relative or "\r" in relative:
                 raise PingstoreError("newline in backup file path")
@@ -82,7 +82,7 @@ def build_plan(source, destination):
         remote_files = {
             path: size
             for path, size in remote.items()
-            if path.startswith(identity + "/")
+            if path.startswith(identity + "/") and path != identity + "/.protected"
         }
         for path, size in remote_files.items():
             if path not in files or files[path] != size:
@@ -216,7 +216,7 @@ def apply_plan(source, destination, plan):
             actual = {
                 path: size
                 for path, size in uploaded.items()
-                if path.startswith(identity + "/")
+                if path.startswith(identity + "/") and path != identity + "/.protected"
             }
             expected_payload = {
                 path: size
@@ -256,7 +256,7 @@ def apply_plan(source, destination, plan):
             actual = {
                 path: size
                 for path, size in uploaded.items()
-                if path.startswith(identity + "/")
+                if path.startswith(identity + "/") and path != identity + "/.protected"
             }
             if actual != expected[identity]["files"]:
                 raise PingstoreError("final backup inventory differs: " + identity)

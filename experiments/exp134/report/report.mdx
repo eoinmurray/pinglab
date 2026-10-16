@@ -1,0 +1,118 @@
+---
+id: exp134
+title: Leak and Capacitance Modulation of PING Dynamics
+author: Eoin Murray
+created_at: '2026-10-16'
+updated_at: '2026-10-16'
+description: Paired leak-conductance and membrane-capacitance sweeps in the frozen network used by exp123.
+thumbnail: leak_overview.png
+collection: neuromodulation
+tags: [data, v36.0.0]
+inputs: [exp134]
+runs: {exp134: exp134-r004-present}
+abstract: >-
+  We varied leak conductance and membrane capacitance separately in one trained
+  spiking network with frozen weights. Increasing either parameter raised
+  excitatory firing and cycle participation. Spectral peaks changed more modestly
+  and nonmonotonically, while rhythmicity contrast decreased with leak and
+  increased overall with capacitance. Every trial provided accepted cycles.
+  These descriptive effects concern one trained network and a paired sample of
+  100 images; variation across independently trained networks was not measured.
+---
+
+import RunFigure from '../../../site/src/components/RunFigure.astro';
+import { reportData } from '../../../site/src/lib/report-data';
+
+export const results = await reportData('exp134', { allowUnavailable: true });
+export const coverage = (sweep, key) => {
+  if (!results) return 'pending';
+  const values = results.summaries.filter(row => row.sweep === sweep || row.sweep === 'baseline').map(row => row[key]);
+  const lo = Math.min(...values), hi = Math.max(...values);
+  return lo === hi ? lo.toLocaleString('en-GB') : `${lo.toLocaleString('en-GB')}–${hi.toLocaleString('en-GB')}`;
+};
+
+## Background
+
+This experiment complements
+[exp123](/exp123/) — [*Output Evidence Against Time and Gamma Cycles*](/exp123/).
+We use its trained network and Figure 1 measurements, changing leak conductance
+and membrane capacitance separately while holding inhibitory decay at 6 ms.
+The checkpoint comes from
+[exp022](/exp022/) — [*MNIST*](/exp022/).
+
+## Results
+
+### Leak conductance
+
+<RunFigure report="exp134" experiment="exp134" allowUnavailable file="leak_overview.svg" number={1} id="fig-leak" alt="Four population-dynamics curves across leak multipliers and three illustrative excitatory and inhibitory spike rasters.">
+  A–D show rhythm frequency, the percentage of excitatory neurons active per
+  accepted cycle, total excitatory spikes per second, and rhythm contrast.
+  Each setting uses the same 100 images, ten per digit, with ten paired random
+  encodings per image. Leak conductance scales together in E and I populations;
+  capacitance stays fixed. Frequency is the peak of the mean excitatory power
+  spectrum. Contrast measures an autocorrelation lobe relative to its adjacent
+  trough. Participation averages accepted cycles only. The dashed line marks
+  the training setting, ×1. E–G show image 140 (digit 6), draw 42, at
+  ×0.5, ×1 and ×2; excitatory spikes are black and inhibitory spikes red.
+  All measurements cover 200 ms. No uncertainty estimates are shown.
+</RunFigure>
+
+We varied leak conductance in the excitatory ($E$) and inhibitory ($I$)
+populations using the same dimensionless multiplier $m_j$:
+
+$$
+\begin{aligned}
+(g_{L,E},g_{L,I}) &= m_j\,(0.05,\,0.10)\;\mu\mathrm{S},\\
+m_j &= 0.5\times 4^{j/18},\qquad j=0,\ldots,18.
+\end{aligned}
+\tag{1}
+$$
+
+Here $g_{L,E}$ and $g_{L,I}$ are the per-neuron leak conductances, and $j$
+indexes the 19 logarithmically spaced settings from ×0.5 to ×2; $j=9$ gives
+the shared ×1 baseline. E leak therefore ranges from 0.025 to 0.10 µS and I
+leak from 0.05 to 0.20 µS. Membrane capacitances $C_{m,E}=1$ nF and
+$C_{m,I}=0.5$ nF stay fixed. The passive membrane time constant
+$\tau_{m,P}=C_{m,P}/g_{L,P}$, for population $P\in\{E,I\}$, is therefore
+$\tau_{m,E}=20/m_j$ ms and $\tau_{m,I}=5/m_j$ ms. We held weights, GABA
+decay (6 ms) and all other circuit settings fixed.
+
+Accepted-cycle participation used {coverage('leak', 'accepted_draws')} of
+1,000 trials per setting, representing {coverage('leak', 'participation_images')}
+of 100 images.
+
+### Membrane capacitance
+
+<RunFigure report="exp134" experiment="exp134" allowUnavailable file="capacitance_overview.svg" number={2} id="fig-capacitance" alt="Matching population-dynamics curves across capacitance multipliers and three paired spike rasters.">
+  A–D show the same measurements as Figure 1 across membrane-capacitance
+  multipliers. E and I capacitances scale together; leak conductances stay
+  fixed. The image sample and every encoded spike train match Figure 1.
+  The ×1 condition is the same shared baseline. E–G use the same illustrative
+  image (140, digit 6) and draw 42 at ×0.5, ×1 and ×2, with excitatory spikes black and inhibitory
+  spikes red. Participation includes accepted cycles only; no uncertainty
+  estimates are shown.
+</RunFigure>
+
+We varied membrane capacitance in the excitatory ($E$) and inhibitory ($I$)
+populations using the same dimensionless multiplier $m_j$:
+
+$$
+\begin{aligned}
+(C_{m,E},C_{m,I}) &= m_j\,(1.0,\,0.5)\;\mathrm{nF},\\
+m_j &= 0.5\times 4^{j/18},\qquad j=0,\ldots,18.
+\end{aligned}
+\tag{2}
+$$
+
+Here $C_{m,E}$ and $C_{m,I}$ are the per-neuron membrane capacitances, and $j$
+indexes the 19 logarithmically spaced settings from ×0.5 to ×2; $j=9$ gives
+the shared ×1 baseline. E capacitance therefore ranges from 0.5 to 2 nF and I
+capacitance from 0.25 to 1 nF. Leak conductances $g_{L,E}=0.05$ µS and
+$g_{L,I}=0.10$ µS stay fixed. The passive membrane time constant
+$\tau_{m,P}=C_{m,P}/g_{L,P}$, for population $P\in\{E,I\}$, is therefore
+$\tau_{m,E}=20m_j$ ms and $\tau_{m,I}=5m_j$ ms. We held weights, GABA
+decay (6 ms) and all other circuit settings fixed.
+
+Accepted-cycle participation used {coverage('capacitance', 'accepted_draws')}
+of 1,000 trials per setting, representing
+{coverage('capacitance', 'participation_images')} of 100 images.

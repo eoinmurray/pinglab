@@ -21,28 +21,58 @@ from pingstore.contracts import (
     validate_operational_run_directory,
     write_json_atomic,
 )
-from pingstore.stages import operation_lock, reserve_stage, stage_reservation, utc_now
+from pingstore.stages import (
+    operation_lock,
+    reserve_stage,
+    source_run,
+    stage_reservation,
+    utc_now,
+)
 
 VOLUME = "pinglab-compute-results"
 RECEIPT = Path(".scratch/modal-dispatch.json")
 
 
-def submit(root, experiment, worker, *, options, arguments, app_id):
+def submit(root, experiment, worker, *, options, arguments, app_id, inputs=None):
     """Reserve once, spawn once, persist the call ID, and return without waiting."""
     dispatch = uuid.uuid4().hex
+    inputs = inputs or {}
     with operation_lock(root, exclusive=False):
-        identity = reserve_stage(root, experiment, "compute", origin=f"modal-{dispatch}")
+        for pin in inputs.values():
+            source_run(root, pin["run_id"], reference=pin)
+        identity = reserve_stage(
+            root, experiment, "compute", origin=f"modal-{dispatch}"
+        )
         temporary = root / "runs" / f".{identity}.tmp"
         reservation = stage_reservation(temporary)
-        receipt = {"schema": "pinglab.modal-dispatch/v1", "run_id": identity,
-                   "experiment": experiment, "dispatch": dispatch, "app_id": app_id,
-                   "function_call_id": None, "volume": VOLUME,
-                   "remote_path": f"{dispatch}/.pingstore/runs/{identity}",
-                   "prepared_at": utc_now(), "resources": options}
+        receipt = {
+            "schema": "pinglab.modal-dispatch/v1",
+            "run_id": identity,
+            "experiment": experiment,
+            "dispatch": dispatch,
+            "app_id": app_id,
+            "function_call_id": None,
+            "volume": VOLUME,
+            "remote_path": f"{dispatch}/.pingstore/runs/{identity}",
+            "prepared_at": utc_now(),
+            "resources": options,
+            "inputs": inputs,
+        }
+        if inputs:
+            # Standard incomplete-run input pins protect remote jobs from pruning.
+            write_json_atomic(
+                temporary / "run.json",
+                {
+                    **reservation,
+                    "inputs": inputs,
+                    "execution": {"operation": "modal-dispatch"},
+                },
+            )
         write_json_atomic(temporary / RECEIPT, receipt)
         # Keep the prepared receipt if submission raises: its outcome may be unknown.
         call = worker.with_options(**options).spawn(
-            experiment, reservation, dispatch, **arguments, submission=receipt)
+            experiment, reservation, dispatch, **arguments, submission=receipt
+        )
         receipt.update(function_call_id=call.object_id, submitted_at=utc_now())
         write_json_atomic(temporary / RECEIPT, receipt)
         return receipt
@@ -56,13 +86,16 @@ def pending(root, identity):
     reservation = stage_reservation(directory)
     receipt = load_json(directory / RECEIPT)
     dispatch = receipt.get("dispatch", "")
-    if (receipt.get("schema") != "pinglab.modal-dispatch/v1"
-            or receipt.get("run_id") != identity
-            or receipt.get("experiment") != reservation["experiment"]
-            or reservation["origin"] != f"modal-{dispatch}"
-            or len(dispatch) != 32 or any(c not in "0123456789abcdef" for c in dispatch)
-            or receipt.get("volume") != VOLUME
-            or receipt.get("remote_path") != f"{dispatch}/.pingstore/runs/{identity}"):
+    if (
+        receipt.get("schema") != "pinglab.modal-dispatch/v1"
+        or receipt.get("run_id") != identity
+        or receipt.get("experiment") != reservation["experiment"]
+        or reservation["origin"] != f"modal-{dispatch}"
+        or len(dispatch) != 32
+        or any(c not in "0123456789abcdef" for c in dispatch)
+        or receipt.get("volume") != VOLUME
+        or receipt.get("remote_path") != f"{dispatch}/.pingstore/runs/{identity}"
+    ):
         raise PingstoreError("dispatch receipt does not match reservation")
     return directory, reservation, receipt
 
@@ -70,7 +103,9 @@ def pending(root, identity):
 def completed_files(receipt, volume, call_factory):
     """Prefer durable volume evidence; call results can expire after seven days."""
     try:
-        marker = json.loads(b"".join(volume.read_file(f"{receipt['dispatch']}/completion.json")))
+        marker = json.loads(
+            b"".join(volume.read_file(f"{receipt['dispatch']}/completion.json"))
+        )
     except FileNotFoundError:
         if not receipt["function_call_id"]:
             return None, "submission_unknown"
@@ -79,23 +114,32 @@ def completed_files(receipt, volume, call_factory):
         except TimeoutError:
             return None, "pending"
         return files, "completed"
-    if (marker.get("run_id") != receipt["run_id"]
-            or marker.get("dispatch") != receipt["dispatch"]):
+    if (
+        marker.get("run_id") != receipt["run_id"]
+        or marker.get("dispatch") != receipt["dispatch"]
+    ):
         raise PingstoreError("remote completion marker identifies a different job")
     return marker["files"], "completed"
 
 
 def collect_files(root, identity, receipt, files, volume):
     """Retry interrupted transfers under the same reservation, then validate/rename."""
-    if not isinstance(files, list) or not files or any(not isinstance(f, str) for f in files):
+    if (
+        not isinstance(files, list)
+        or not files
+        or any(not isinstance(f, str) for f in files)
+    ):
         raise PingstoreError("invalid remote file inventory")
     paths = [Path(f) for f in files]
-    if (len(set(paths)) != len(paths)
-            or any(p.is_absolute() or '..' in p.parts or p == Path('.') for p in paths)):
+    if len(set(paths)) != len(paths) or any(
+        p.is_absolute() or ".." in p.parts or p == Path(".") for p in paths
+    ):
         raise PingstoreError("unsafe remote result path")
     temporary, reservation, current = pending(root, identity)
     if current != receipt:
         raise PingstoreError("dispatch receipt changed during collection")
+    for pin in receipt.get("inputs", {}).values():
+        source_run(root, pin["run_id"], reference=pin)
     download = temporary / ".scratch" / identity
     download.mkdir(parents=True, exist_ok=True)
     for relative in paths:
@@ -103,13 +147,20 @@ def collect_files(root, identity, receipt, files, volume):
         target.parent.mkdir(parents=True, exist_ok=True)
         partial = target.with_name(target.name + ".part")
         with partial.open("wb") as handle:
-            for chunk in volume.read_file(f"{receipt['remote_path']}/{relative.as_posix()}"):
+            for chunk in volume.read_file(
+                f"{receipt['remote_path']}/{relative.as_posix()}"
+            ):
                 handle.write(chunk)
         partial.replace(target)
     record = validate_operational_run_directory(download)
-    if (record["run_id"] != identity or record["experiment"] != reservation["experiment"]
-            or record["stage"] != "compute" or record["origin"] != reservation["origin"]
-            or record["inputs"] or record.get("scope") != "full"):
+    if (
+        record["run_id"] != identity
+        or record["experiment"] != reservation["experiment"]
+        or record["stage"] != "compute"
+        or record["origin"] != reservation["origin"]
+        or record["inputs"] != receipt.get("inputs", {})
+        or record.get("scope") != "full"
+    ):
         raise PingstoreError("downloaded result does not match submitted compute")
     record["execution"]["modal"] = receipt
     write_json_atomic(download / "run.json", record)
@@ -151,6 +202,7 @@ def check(root, identity, *, collect=False, volume=None, call_factory=None):
         directory, _, receipt = pending(root, identity)
         if volume is None or call_factory is None:
             import modal
+
             volume = volume if volume is not None else modal.Volume.from_name(VOLUME)
             call_factory = call_factory or modal.FunctionCall.from_id
         with collection_lock(directory):
@@ -158,8 +210,12 @@ def check(root, identity, *, collect=False, volume=None, call_factory=None):
             if status == "completed" and collect:
                 collect_files(root, identity, receipt, files, volume)
                 status = "collected"
-        return {"run_id": identity, "status": status,
-                "app_id": receipt["app_id"], "function_call_id": receipt["function_call_id"]}
+        return {
+            "run_id": identity,
+            "status": status,
+            "app_id": receipt["app_id"],
+            "function_call_id": receipt["function_call_id"],
+        }
 
 
 if __name__ == "__main__":

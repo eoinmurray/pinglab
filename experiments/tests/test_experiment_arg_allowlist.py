@@ -22,10 +22,16 @@ import pytest
 
 EXPERIMENTS = Path(__file__).resolve().parents[1]
 
-from experiments.helpers.cli import ALL_META_FLAGS, parse_meta
-
-# Synced with helpers/cli.py — the closed meta vocabulary (+ legacy wipe/replot).
-ALLOWED_EXACT = set(ALL_META_FLAGS) | {"--no-wipe-dir", "--wipe-dir", "--replot"}
+# Accepted legacy lifecycle flags remain explicit in this runner contract.
+ALLOWED_EXACT = {
+    "--skip-training",
+    "--only-missing",
+    "--plot-only",
+    "--help",
+    "--no-wipe-dir",
+    "--wipe-dir",
+    "--replot",
+}
 
 # Exp022's bank-array workflow controls one explicitly reserved compute run.
 # Keep the exception local so ordinary experiment runners cannot acquire
@@ -93,6 +99,8 @@ STAGE_SPECIFIC_FLAGS = {
     "exp123/compute.py": {"--protocol", "--image-source"},
     "exp123/analyse.py": {"--protocol"},
     "exp123/present.py": {"--overview-source"},
+    "exp134/compute.py": {"--image-source"},
+    "exp134/analyse.py": {"--workers"},
 }
 
 
@@ -125,9 +133,9 @@ def test_runners_exist():
     assert RUNNERS, f"no exp<NNN>.py runners found under {EXPERIMENTS}"
 
 
-def test_retired_modal_flag_is_rejected():
-    with pytest.raises(SystemExit, match="unknown flag '--modal'"):
-        parse_meta(["compute.py", "--modal"])
+@pytest.mark.parametrize("runner", RUNNERS, ids=lambda p: str(p.relative_to(EXPERIMENTS)))
+def test_retired_modal_flag_is_not_exposed(runner):
+    assert "--modal" not in _accepted_flags(runner.read_text())
 
 
 @pytest.mark.parametrize("relative, flags", REMOVED_RUNNER_FLAGS.items())

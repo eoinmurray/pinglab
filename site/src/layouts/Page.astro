@@ -22,7 +22,7 @@ interface Props {
 }
 
 const { title, description, frontMatter, compact = false } = Astro.props;
-const canonicalPath = Astro.url.pathname.replace(/\/+$/, '') + '/';
+const canonicalPath = Astro.url.pathname.replace(/\.html$/, '').replace(/\/+$/, '') || '/';
 const canonicalUrl = new URL(canonicalPath, Astro.site);
 const distillStyles = base + layout + titleStyle + byline + article + math + appendix + print;
 const frontMatterJson = JSON.stringify(frontMatter ?? null).replaceAll('<', '\\u003c');

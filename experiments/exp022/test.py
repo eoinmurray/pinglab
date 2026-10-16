@@ -11,8 +11,8 @@ import torch
 from experiments.exp022 import compute as exp022
 from experiments.exp022 import recipe, reuse, reuse_contract
 from experiments.exp022.analyse import _gamma_psd, bank_composition, measure_snapshot
-from experiments.helpers import rhythmicity as figure_metrics
 from pingstore.contracts import PingstoreError
+from snnlab import analysis as figure_metrics
 
 CONCRETE_TIERS = (
     "standard",

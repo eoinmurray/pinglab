@@ -91,8 +91,10 @@ def test_training_trace_records_loss_gradients_and_weight_updates(tmp_path):
     spikes = np.zeros((200, 2, 3), dtype=np.float32)
     spikes[::10, 0, 0] = 1
     spikes[::10, 1, 1] = 1
+    bundle = network()
     trace = training_trace(
-        network().write(tmp_path / "bundle"), (spikes, np.array([0, 1]), None, None)
+        bundle, bundle.write(tmp_path / "bundle"), (spikes, np.array([0, 1]), None, None),
+        tmp_path / "teaching-train",
     )
     scores = torch.from_numpy(trace["outputs"].sum(axis=1))
     for update, row in enumerate(scores):

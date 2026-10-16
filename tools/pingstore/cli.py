@@ -14,7 +14,7 @@ from .discovery import discover_runs
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="pingstore",
-        description="Validate immutable Pingstore runs, back them up and prune superseded runs.",
+        description="Validate immutable Pingstore runs, back them up and prune unused, unprotected runs.",
     )
     commands = parser.add_subparsers(dest="command", required=True)
     discover = commands.add_parser(
@@ -52,7 +52,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     prune = commands.add_parser(
         "prune",
-        help="remove superseded runs while retaining HPC and latest visible lineages",
+        help="remove unused runs while retaining report and manually protected ancestry",
     )
     prune.add_argument(
         "--root",
@@ -60,7 +60,11 @@ def main(argv: list[str] | None = None) -> int:
         default=Path("."),
         help="lab directory (default: current directory)",
     )
-    prune.add_argument(
+    scope = prune.add_mutually_exclusive_group()
+    scope.add_argument(
+        "--all", action="store_true", help="consider all experiments (the default)",
+    )
+    scope.add_argument(
         "--experiment",
         action="append",
         dest="experiments",
@@ -68,26 +72,11 @@ def main(argv: list[str] | None = None) -> int:
         help="limit pruning to this experiment (repeatable)",
     )
     prune.add_argument(
-        "--retire-experiment",
-        action="append",
-        dest="retire_experiments",
-        metavar="EXPNNN",
-        help=(
-            "explicitly retire an experiment with no code or writing, allowing its "
-            "latest run and allocation high-watermark to be pruned (repeatable)"
-        ),
-    )
-    prune.add_argument(
         "--stage",
         action="append",
         dest="stages",
         choices=("compute", "analyse", "present"),
         help="limit pruning to this stage (repeatable); other stages stay protected",
-    )
-    prune.add_argument(
-        "--allow-superseded-hpc-presentations",
-        action="store_true",
-        help="explicitly allow older HPC presentations to be pruned; requires --stage present",
     )
     action = prune.add_mutually_exclusive_group(required=True)
     action.add_argument(
@@ -119,9 +108,7 @@ def main(argv: list[str] | None = None) -> int:
                         build_plan(
                             args.root,
                             args.experiments,
-                            args.retire_experiments,
                             args.stages,
-                            args.allow_superseded_hpc_presentations,
                         )
                     )
                 )
@@ -130,9 +117,7 @@ def main(argv: list[str] | None = None) -> int:
                     args.root,
                     args.confirm,
                     args.experiments,
-                    args.retire_experiments,
                     args.stages,
-                    args.allow_superseded_hpc_presentations,
                 )
                 reclaimed = sum(row["bytes"] for row in plan["prune"])
                 print(

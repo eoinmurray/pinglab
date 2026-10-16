@@ -1,0 +1,39 @@
+import Table from '../../../site/src/components/Table.astro';
+import './training-specifications.css';
+
+<section class="training-specification" aria-label="Shared production specification">
+
+### Shared production specification
+
+All runs map Poisson-encoded pixels through 1,024 excitatory neurons to ten spiking output LIF neurons. COBA and PING use the same input-weight and readout-weight initialization distributions. COBA disables recurrent E/I coupling; PING adds a $1024 \to 256 \to 1024$ E/I feedback loop and uses stronger backward-pass gradient damping to stabilize training through that recurrent path.
+
+These are specified production settings, not newly measured results. Unless a TR-specific sheet says otherwise, every condition–seed network uses this contract. In the tables, $\mathcal{N} ( \mu_{\text{init}} , \sigma_{\text{init}}^{2} )$ denotes a normal distribution with initialization mean $\mu_{\text{init}}$ and standard deviation $\sigma_{\text{init}}$; $\max ( 0 , x )$ replaces a sampled weight $x$ by zero when negative. LIF means leaky integrate-and-fire.
+
+<Table
+  headers={[{ markdown: "<strong>Parameter</strong>" }, { markdown: "<strong>Default</strong>" }, { markdown: "<strong>Meaning</strong>" }]}
+  rows={[
+    ["Dataset", "MNIST", "784 normalized pixels encoded as independent Poisson channels"],
+    ["Presentation duration", "200 ms nominal", "One static digit; 199.8 ms in the two coarsest timestep conditions"],
+    ["Integration timestep", "0.1 ms", "2,000 recurrent updates per presentation"],
+    ["Epochs", "50", "Training horizon for every production training replicate"],
+    ["Seeds", "42, 43, 44", "Three independently initialized training replicates per configuration"],
+    ["Minibatch", "256", "Presentations per optimization step"],
+    ["Optimizer learning rate", { markdown: "$4 \\times 10^{- 4}$" }, "Shared learning rate"],
+    ["Input population", "784", "One channel per image pixel"],
+    ["Excitatory population", "1,024", "Learned stimulus representation"],
+    ["Inhibitory population", "256", "PING feedback population; silent when E/I coupling is disabled"],
+    [{ markdown: "$\\tau_{\\text{AMPA}}$" }, "2 ms", "Fixed excitatory synaptic decay"],
+    [{ markdown: "$\\tau_{\\text{GABA}}$" }, "6 ms", "Default inhibitory decay at the gamma operating point"],
+    ["Refractory hold, E/I", "1.2/0.6 ms", "Exactly represented by integer timestep counts; hidden neurons only"],
+    ["Input initial-zero fraction", "0.95", "Fraction set to zero at initialization; every entry remains trainable and may regrow"],
+    ["Input summed-coupling parent mean", "0.9", "Parent-Gaussian mean before lower clamping and fan-in normalization; shared by COBA and PING"],
+    ["Readout-weight initialization", { markdown: "$\\max ( 0 , \\mathcal{N} ( 1.1206 , 0.8350^{2} ) )$" }, "A directly stored lower-clamped Gaussian. Its zero-valued entries remain trainable; COBA and PING use the same initializer"],
+    ["E/I loop strength", "COBA: 0; PING: 1", "The forward architectural difference under comparison"],
+    ["Gradient damping", "COBA: 1; PING: 1,000", "Backward-pass stabilization for the recurrent PING loop; it does not change forward dynamics"],
+    ["Surrogate slope", "1", "Spike-gradient surrogate parameter"],
+    ["Default readout", "mean-voltage", { markdown: "A <strong>spiking</strong> $1024 \\to 10$ output-LIF layer. At each timestep its pre-reset voltages enter the temporal mean, then emitted spikes subtract the threshold before the next update. These mean voltages—not spike counts—are the logits" }],
+    ["Stored projection shapes", { markdown: "$784 \\times 1024$; $1024 \\times 256$; $256 \\times 1024$; $1024 \\times 10$" }, "Input→E, E→I, I→E, and E→class, in source-to-destination orientation"],
+  ]}
+/>
+
+</section>

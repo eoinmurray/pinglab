@@ -4,7 +4,7 @@ title: "Theta nested Gamma"
 created_at: "2026-10-15"
 updated_at: "2026-10-15"
 description: "A 5 Hz afferent-rate envelope compared with constant excitation of the same mean."
-collection: ["theta-gamma"]
+collection: ["demo", "animations"]
 author: "Eoin Murray"
 tags: ["data", "v36.0.0"]
 inputs: ["exp130"]
@@ -24,7 +24,7 @@ export const results = evidence.results;
 
 ## Question
 
-Does a theta-frequency envelope on otherwise independent afferent excitation organise fast population bursting? We extend the circuit in [Susin and Destexhe (2021)](/exp099/) with periodic input and a constant-input comparison. The circuit is a modified conductance-based LIF version of the published PING network.\[[1](#ref-1)\]
+Does a theta-frequency envelope on otherwise independent afferent excitation organise fast population bursting? We extend the circuit in [Susin and Destexhe (2021)](/exp099) with periodic input and a constant-input comparison. The circuit is a modified conductance-based LIF version of the published PING network.\[[1](#ref-1)\]
 
 Both populations receive excitatory afferents. From the start of the simulation, with no burn-in, the theta condition follows
 
@@ -67,32 +67,4 @@ These observations characterise this circuit under the specified input envelopes
 
 ## Methods
 
-Parameters are shared across conditions except for the afferent-rate envelope.
-
-<Table headers={["Parameter", "Value"]} rows={[
-  ["Neuron model", "Conductance-based leaky integrate-and-fire; no adaptation"],
-  ["Excitatory / inhibitory neurons", "1,600 / 400"],
-  ["Recurrent pathways", "E→E, E→I, I→E, I→I"],
-  ["Connection probability", "10%; between distinct neurons; no autapses"],
-  ["Membrane capacitance", "150 pF"],
-  ["Leak conductance", "10 nS"],
-  ["Passive membrane time constant", "15 ms"],
-  ["Initial / resting / reset voltage", "−65 mV"],
-  ["Spike threshold", "−50 mV"],
-  ["E / I refractory period", "3 / 1.5 ms"],
-  ["AMPA / GABA decay time", "1.5 / 7.5 ms"],
-  ["Synaptic delay", "1.5 ms"],
-  ["Recurrent excitatory / inhibitory event conductance", "1.0 / 3.34 nS"],
-  ["External afferents per neuron", "400 independent excitatory Poisson sources"],
-  ["External event conductance", "4 nS"],
-  ["Theta-condition afferent rate", "Sinusoidal, 0.2–3.8 Hz per source at 5 Hz (2 Hz ±90%)"],
-  ["Constant-condition afferent rate", "2 Hz per source"],
-  ["Input targets", "Both E and I populations"],
-  ["Burn-in", "None"],
-  ["Total simulation / recording", "1 second; 5 theta cycles"],
-  ["Simulation timestep", "0.1 ms"],
-  ["Random seed", "8; connectivity and initial state paired"],
-  ["Learning", "None; fixed weights"],
-]} />
-
-The **5 Hz** value is the modulation frequency; **0.2–3.8 Hz** is each individual afferent’s firing rate.
+Parameters are shared across conditions except for the afferent-rate envelope; see [Parameters](#parameters).

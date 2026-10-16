@@ -190,9 +190,9 @@ def validate_layout(directory: Path) -> None:
         raise PingstoreError(f"run.json must be a regular file: {manifest}")
     run = validate_run(load_json(manifest))
     names = {p.name for p in directory.iterdir()}
-    if names != {"run.json", "README.md", "export"}:
+    if names - {".protected"} != {"run.json", "README.md", "export"}:
         raise PingstoreError(
-            "v4 run must contain exactly run.json, README.md and export/"
+            "v4 run must contain exactly run.json, README.md and export/ plus optional .protected"
         )
     directories = {"export"}
     flat = directory / "export" if run["stage"] == "present" else None
@@ -200,7 +200,7 @@ def validate_layout(directory: Path) -> None:
         path = directory / name
         if path.is_symlink() or (path.is_dir() != (name in directories)):
             raise PingstoreError(f"invalid run entry: {path}")
-        if name in {"run.json", "README.md"} and not path.is_file():
+        if name in {"run.json", "README.md", ".protected"} and not path.is_file():
             raise PingstoreError(f"run entry must be a regular file: {path}")
     if flat is not None:
         for path in flat.iterdir():

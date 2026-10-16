@@ -11,6 +11,7 @@ import numpy as np
 import snnlab
 import torch
 from experiments.exp127.recipe import CONFIG, SLUG, network
+from experiments.helpers.network_artifacts import model_execution, snapshot_request
 from pingstore.contracts import write_json_atomic
 from pingstore.stages import stage_run
 from snnlab.sim import (
@@ -37,7 +38,7 @@ def dataset(samples, seed):
     return spikes, labels, rates, counts
 
 
-def training_trace(bundle_path, values):
+def training_trace(bundle, bundle_path, values, artifacts):
     """Record a separate fixed-batch teaching loop through the native SNNLab graph."""
     spikes, labels, _, _ = values
     model = build(
@@ -53,21 +54,22 @@ def training_trace(bundle_path, values):
     indices = [int(np.flatnonzero(labels == cls)[0]) for cls in (0, 1)]
     weights = [parameter.detach().numpy().copy()]
     losses, gradients, outputs, voltages = [], [], [], []
-    for _ in range(CONFIG["trace_updates"]):
-        optimizer.zero_grad(set_to_none=True)
-        result = model({"inputs": inputs}, diagnostics=True)
-        loss = torch.nn.functional.cross_entropy(result.outputs["scores"], targets)
-        losses.append(float(loss.detach()))
-        outputs.append(result.diagnostics["output_spikes"][:, indices].detach().numpy())
-        voltages.append(
-            result.diagnostics["output_voltage"][:, indices].detach().numpy()
-        )
-        loss.backward()
-        gradients.append(parameter.grad.detach().numpy().copy())
-        torch.nn.utils.clip_grad_norm_([parameter], CONFIG["gradient_clip"])
-        optimizer.step()
-        model.enforce_constraints()
-        weights.append(parameter.detach().numpy().copy())
+    with model_execution(model, bundle, artifacts, kind="train", seed=CONFIG["seed"], settings=CONFIG):
+        for _ in range(CONFIG["trace_updates"]):
+            optimizer.zero_grad(set_to_none=True)
+            result = model({"inputs": inputs}, diagnostics=True)
+            loss = torch.nn.functional.cross_entropy(result.outputs["scores"], targets)
+            losses.append(float(loss.detach()))
+            outputs.append(result.diagnostics["output_spikes"][:, indices].detach().numpy())
+            voltages.append(
+                result.diagnostics["output_voltage"][:, indices].detach().numpy()
+            )
+            loss.backward()
+            gradients.append(parameter.grad.detach().numpy().copy())
+            torch.nn.utils.clip_grad_norm_([parameter], CONFIG["gradient_clip"])
+            optimizer.step()
+            model.enforce_constraints()
+            weights.append(parameter.detach().numpy().copy())
     return dict(
         losses=np.asarray(losses),
         weights=np.asarray(weights),
@@ -91,10 +93,6 @@ def compute():
     }
     with stage_run(REPO, SLUG, "compute", configuration=CONFIG) as run:
         path = bundle.write(run.export / "classifier.bundle")
-        initial = build(
-            ExecutionSpec(kind="build", bundle=path, seed=CONFIG["seed"], device="cpu")
-        )
-        torch.save(initial.model.state_dict(), run.export / "before.pt")
         np.savez_compressed(
             run.export / "dataset.npz",
             **{
@@ -106,11 +104,11 @@ def compute():
             },
         )
         np.savez_compressed(
-            run.export / "training_trace.npz", **training_trace(path, sets["train"])
+            run.export / "training_trace.npz", **training_trace(bundle, path, sets["train"], run.export / "teaching-train")
         )
         started = time.perf_counter()
         trained = train(
-            ExecutionSpec(
+            snapshot_request(ExecutionSpec(
                 kind="train",
                 bundle=path,
                 input_bindings=(bindings["train"],),
@@ -128,7 +126,7 @@ def compute():
                 checkpoint_selection=CheckpointSelection(include_initial=True),
                 save_final_checkpoint=run.export / "final.checkpoint",
                 save_selected_checkpoint=run.export / "selected.checkpoint",
-            )
+            ), bundle, run.export / "train")
         )
         if trained.selected_checkpoint is None:
             raise ValueError("training did not select a checkpoint")
@@ -143,18 +141,18 @@ def compute():
         recordings = {}
         selected = trained.selected_checkpoint
         for mode, checkpoint in (
-            ("before", run.export / "before.pt"),
+            ("before", None),
             ("after", run.export / "selected.checkpoint"),
         ):
             result = simulate(
-                ExecutionSpec(
+                snapshot_request(ExecutionSpec(
                     kind="simulate",
                     bundle=path,
                     checkpoint=checkpoint,
                     input_bindings=(bindings["test"],),
                     seed=CONFIG["seed"],
                     device="cpu",
-                )
+                ), bundle, run.export / f"{mode}--simulation")
             )
             for name, tensor in (
                 ("scores", result.outputs["scores"]),

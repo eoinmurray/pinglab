@@ -12,6 +12,7 @@ sys.path[:0] = [str(REPO), str(REPO / "tools")]
 import numpy as np
 import torch
 from experiments.exp130 import recipe
+from experiments.helpers.network_artifacts import model_execution
 from pingstore.stages import stage_run
 from snnlab.sim import GraphExecutor, plan_graph  # noqa: TID251
 
@@ -28,7 +29,7 @@ def build_model(cfg):
     return bundle, model
 
 
-def simulate(cfg, *, chunk_steps=1000):
+def simulate(cfg, *, artifacts, chunk_steps=1000):
     torch.set_num_threads(1)
     bundle, model = build_model(cfg)
     counts = recipe.afferent_counts(cfg)
@@ -40,34 +41,35 @@ def simulate(cfg, *, chunk_steps=1000):
     for p in model.plan.projections:
         retained[f"mean_{p.id}"] = np.empty(steps, dtype=np.float32)
     state = None
-    with torch.inference_mode():
-        for start in range(0, steps, chunk_steps):
-            stop = min(start + chunk_steps, steps)
-            result = model(
-                {
-                    k: torch.from_numpy(v[start:stop, None].astype(np.float32))
-                    for k, v in counts.items()
-                },
-                runtime_state=state,
-            )
-            state = result.runtime_state
-            data = result.diagnostics
-            for pop in ("e", "i"):
-                retained[f"spk_{pop}"][start:stop] = (
-                    data[f"{pop.upper()}.spikes"][:, 0].numpy().astype(bool)
+    with model_execution(model, bundle, artifacts, seed=cfg["seed"], settings=cfg):
+        with torch.inference_mode():
+            for start in range(0, steps, chunk_steps):
+                stop = min(start + chunk_steps, steps)
+                result = model(
+                    {
+                        k: torch.from_numpy(v[start:stop, None].astype(np.float32))
+                        for k, v in counts.items()
+                    },
+                    runtime_state=state,
                 )
-                retained[f"mean_v_{pop}"][start:stop] = (
-                    data[f"{pop.upper()}.voltage"][:, 0].mean(1).numpy()
-                )
-            for p in model.plan.projections:
-                retained[f"mean_{p.id}"][start:stop] = (
-                    data[f"{p.id}.conductance"][:, 0].mean(1).numpy()
-                )
-            if start % (chunk_steps * 10) == 0:
-                print(
-                    f"Simulated {stop * cfg['dt_ms']:.0f} / {cfg['t_ms']:.0f} ms",
-                    flush=True,
-                )
+                state = result.runtime_state
+                data = result.diagnostics
+                for pop in ("e", "i"):
+                    retained[f"spk_{pop}"][start:stop] = (
+                        data[f"{pop.upper()}.spikes"][:, 0].numpy().astype(bool)
+                    )
+                    retained[f"mean_v_{pop}"][start:stop] = (
+                        data[f"{pop.upper()}.voltage"][:, 0].mean(1).numpy()
+                    )
+                for p in model.plan.projections:
+                    retained[f"mean_{p.id}"][start:stop] = (
+                        data[f"{p.id}.conductance"][:, 0].mean(1).numpy()
+                    )
+                if start % (chunk_steps * 10) == 0:
+                    print(
+                        f"Simulated {stop * cfg['dt_ms']:.0f} / {cfg['t_ms']:.0f} ms",
+                        flush=True,
+                    )
     weights = {k: v.detach().numpy().copy() for k, v in model.parameter_map().items()}
     return bundle, retained, weights
 
@@ -83,7 +85,7 @@ def compute(*, run_id=None):
             print(f"Condition: {condition}", flush=True)
             condition_cfg = recipe.condition_configuration(cfg, condition)
             simulation_start = perf_counter()
-            bundle, recording, weights = simulate(condition_cfg)
+            bundle, recording, weights = simulate(condition_cfg, artifacts=run.export / f"{condition}--simulation")
             seconds = perf_counter() - simulation_start
             run.record["execution"].setdefault("simulation_seconds", {})[condition] = (
                 seconds

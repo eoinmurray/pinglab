@@ -13,6 +13,7 @@ import sklearn
 import snntorch as snn
 import torch
 from experiments.exp125.recipe import CONFIG, SLUG
+from experiments.helpers.external_artifacts import external_execution
 from pingstore.contracts import write_json_atomic
 from pingstore.stages import stage_run
 from sklearn.datasets import load_digits
@@ -84,51 +85,50 @@ def compute(cpu_threads):
     images = torch.from_numpy(raw.astype(np.float32) / 16)
     labels = torch.from_numpy(target)
     model = Classifier(cfg)
-    initial = weights(model)
     optimizer = torch.optim.Adam(model.parameters(), lr=cfg["learning_rate"], weight_decay=cfg["weight_decay"])
     order_generator = torch.Generator().manual_seed(cfg["seed"] + 2)
     encoding_generator = torch.Generator().manual_seed(cfg["seed"] + 3)
     with stage_run(REPO, SLUG, "compute", configuration=cfg) as run:
         np.savez_compressed(run.export / "dataset.npz", pixels=raw, labels=target,
                             train_indices=train, validation_indices=validation, test_indices=test)
-        np.savez_compressed(run.export / "initial_weights.npz", **initial)
         history, best_loss, selected_epoch = [], float("inf"), 0
         started = time.perf_counter()
-        for epoch in range(cfg["epochs"] + 1):
-            gradient_norms = []
-            if epoch:
-                model.train()
-                permutation = torch.randperm(len(train), generator=order_generator)
-                for positions in permutation.split(cfg["batch_size"]):
-                    part = train[positions.numpy()]
-                    optimizer.zero_grad(set_to_none=True)
-                    scores = model(images[part], encoding_generator)
-                    loss = nn.functional.cross_entropy(scores, labels[part])
-                    if not torch.isfinite(loss):
-                        raise ValueError("nonfinite training loss")
-                    loss.backward()
-                    norm = nn.utils.clip_grad_norm_(model.parameters(), cfg["gradient_clip"], error_if_nonfinite=True)
-                    gradient_norms.append(float(norm))
-                    optimizer.step()
-            row = {"epoch": epoch}
-            for split, selected in (("train", train), ("validation", validation)):
-                row[split], _ = evaluate(model, images, labels, selected,
-                                         cfg["seed"] + (10 if split == "train" else 11), cfg)
-            if gradient_norms:
-                row["gradient_norm_mean"] = float(np.mean(gradient_norms))
-            history.append(row)
-            if row["validation"]["loss"] < best_loss:
-                best_loss = row["validation"]["loss"]
-                selected_epoch = epoch
-                np.savez_compressed(run.export / "selected_weights.npz", **weights(model))
-            print(f"epoch {epoch:02d}: train {row['train']['loss']:.4f} / {100*row['train']['accuracy']:.1f}%; "
-                  f"validation {row['validation']['loss']:.4f} / {100*row['validation']['accuracy']:.1f}%", flush=True)
+        with external_execution(run.export / "training", backend="snntorch.Leaky", configuration=cfg, parameters=model.state_dict):
+            for epoch in range(cfg["epochs"] + 1):
+                gradient_norms = []
+                if epoch:
+                    model.train()
+                    permutation = torch.randperm(len(train), generator=order_generator)
+                    for positions in permutation.split(cfg["batch_size"]):
+                        part = train[positions.numpy()]
+                        optimizer.zero_grad(set_to_none=True)
+                        scores = model(images[part], encoding_generator)
+                        loss = nn.functional.cross_entropy(scores, labels[part])
+                        if not torch.isfinite(loss):
+                            raise ValueError("nonfinite training loss")
+                        loss.backward()
+                        norm = nn.utils.clip_grad_norm_(model.parameters(), cfg["gradient_clip"], error_if_nonfinite=True)
+                        gradient_norms.append(float(norm))
+                        optimizer.step()
+                row = {"epoch": epoch}
+                for split, selected in (("train", train), ("validation", validation)):
+                    row[split], _ = evaluate(model, images, labels, selected,
+                                             cfg["seed"] + (10 if split == "train" else 11), cfg)
+                if gradient_norms:
+                    row["gradient_norm_mean"] = float(np.mean(gradient_norms))
+                history.append(row)
+                if row["validation"]["loss"] < best_loss:
+                    best_loss = row["validation"]["loss"]
+                    selected_epoch = epoch
+                    np.savez_compressed(run.export / "selected_weights.npz", **weights(model))
+                print(f"epoch {epoch:02d}: train {row['train']['loss']:.4f} / {100*row['train']['accuracy']:.1f}%; "
+                      f"validation {row['validation']['loss']:.4f} / {100*row['validation']['accuracy']:.1f}%", flush=True)
         training_seconds = time.perf_counter() - started
-        np.savez_compressed(run.export / "final_weights.npz", **weights(model))
         with np.load(run.export / "selected_weights.npz") as saved:
             model.load_state_dict({name: torch.from_numpy(saved[name].copy()) for name in saved.files})
         inference_started = time.perf_counter()
-        test_metrics, predictions = evaluate(model, images, labels, test, cfg["seed"] + 12, cfg)
+        with external_execution(run.export / "test-inference", backend="snntorch.Leaky", configuration={**cfg, "encoding_seed": cfg["seed"] + 12, "selected_epoch": selected_epoch}, parameters=model.state_dict):
+            test_metrics, predictions = evaluate(model, images, labels, test, cfg["seed"] + 12, cfg)
         test_inference_seconds = time.perf_counter() - inference_started
         np.savez_compressed(run.export / "test_predictions.npz", indices=test, labels=target[test], predictions=predictions)
         write_json_atomic(run.export / "learning.json", {"epochs": history, "selected_epoch": selected_epoch, "test": test_metrics})

@@ -31,10 +31,10 @@ class Worker:
         return SimpleNamespace(object_id='fc-fixture')
 
 
-def submission(root):
+def submission(root, inputs=None):
     worker = Worker(root)
     receipt = jobs.submit(root, 'exp999', worker, options={'gpu': None, 'timeout': 86400},
-                          arguments={'smoke': True}, app_id='ap-fixture')
+                          arguments={'smoke': True}, app_id='ap-fixture', inputs=inputs)
     assert worker.calls == 1
     return receipt
 
@@ -54,14 +54,14 @@ class Volume:
         yield self.files[path]
 
 
-def completed_volume(tmp_path, receipt):
+def completed_volume(tmp_path, receipt, inputs=None):
     source = tmp_path / 'remote' / receipt['run_id']
     initialize_layout(source, receipt['experiment'])
     (source / 'export' / 'result.json').write_text('{"value": 42}')
     record = {'schema': 'pingstore.run/v4', 'run_id': receipt['run_id'],
               'experiment': receipt['experiment'], 'stage': 'compute', 'scope': 'full',
               'collection': 'fixture', 'origin': f"modal-{receipt['dispatch']}",
-              'created_at': '2026-10-15T10:00:00+00:00', 'inputs': {},
+              'created_at': '2026-10-15T10:00:00+00:00', 'inputs': inputs or {},
               'execution': {}, 'provenance': {}}
     record['payload_digest'] = payload_digest(source)
     write_json_atomic(source / 'run.json', record)

@@ -194,7 +194,9 @@ def test_stages_preserve_small_evidence_and_never_run_upstream(lab, monkeypatch)
     for filename in ("cell.npz", "cycle.npz"):
         with np.load(raw.export / filename) as data:
             assert set(data.files) == {"spk_e", "spk_i", "label"}
-    assert {p.name for p in raw.export.iterdir()} == {
+    artifact_units = {Path(path).parts[0] for path in raw.record["scientific_artifacts"]["native_paths"].values()}
+    assert artifact_units
+    assert {p.name for p in raw.export.iterdir()} - artifact_units == {
         *(
             job["id"] + "--metrics.json"
             for job in recipe.jobs(recipe.configuration(smoke=True))
@@ -378,6 +380,7 @@ def test_zero_replay_is_shared_between_concurrent_workers(lab):
                 root / "shared",
                 [jobs[index]],
                 [],
+                root / f"worker-{index}-artifacts",
             )
         )[1]
 
@@ -401,13 +404,13 @@ def test_zero_replay_cache_rejects_recipe_drift(lab):
     scratch = root / "scratch"
     scratch.mkdir()
     data = simulation.load_evaluation(cfg)
-    list(simulation.evaluate_jobs(bank, cfg, data, scratch, [job], []))
+    list(simulation.evaluate_jobs(bank, cfg, data, scratch, [job], [], root / "first-artifacts"))
     path = next(scratch.glob("zero-replay/*/*/result.json"))
     record = load_json(path)
     record["request"]["recipe"]["evaluation_samples"] += 1
     write_json_atomic(path, record)
     with pytest.raises(PingstoreError, match="zero-replay scratch"):
-        list(simulation.evaluate_jobs(bank, cfg, data, scratch, [job], []))
+        list(simulation.evaluate_jobs(bank, cfg, data, scratch, [job], [], root / "retry-artifacts"))
 
 
 def test_shard_does_not_reuse_tampered_metrics(lab):

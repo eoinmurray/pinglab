@@ -135,11 +135,19 @@ def normalize_export_layout(directory: Path, record: dict) -> dict[str, str]:
     export = directory / "export"
     export_root = record.get("export_root", "export")
     files = [path for path in sorted(export.rglob("*")) if path.is_file()]
+    from .library_artifacts import native_artifact_files, validate_native_artifacts
+
+    retained_native = record.get("scientific_artifacts", {}).get("native_paths", {})
+    native = native_artifact_files(export) | set(retained_native.values())
     mapping = canonical_export_mapping(
         [path.relative_to(export) for path in files], export_root=export_root
     )
     if len(set(mapping.values())) != len(mapping):
         raise PingstoreError(f"{directory.name}: canonical export paths collide")
+    protected = {mapping[source] for source in native}
+    native_mapping = {source: mapping[stored] for source, stored in retained_native.items()}
+    native_mapping.update({source: mapping[source] for source in sorted(native)
+                           if source not in retained_native.values()})
     temporary = directory / ".normalized-export.tmp"
     if temporary.exists():
         raise PingstoreError(f"{directory.name}: stale export normalization directory")
@@ -150,6 +158,8 @@ def normalize_export_layout(directory: Path, record: dict) -> dict[str, str]:
             target.parent.mkdir(parents=True, exist_ok=True)
             os.link(source, target)
         for target in temporary.rglob("*.json"):
+            if target.relative_to(temporary).as_posix() in protected:
+                continue
             try:
                 value = json.loads(target.read_text())
             except (UnicodeDecodeError, json.JSONDecodeError):
@@ -157,6 +167,8 @@ def normalize_export_layout(directory: Path, record: dict) -> dict[str, str]:
             revised = _rewrite_paths(value, mapping)
             if revised != value:
                 write_json_atomic(target, revised)
+        if native:
+            validate_native_artifacts(temporary, native_mapping)
         shutil.rmtree(export)
         os.replace(temporary, export)
     finally:
@@ -166,6 +178,8 @@ def normalize_export_layout(directory: Path, record: dict) -> dict[str, str]:
     revised = _rewrite_paths(record, mapping)
     record.clear()
     record.update(revised)
+    if native:
+        record.setdefault("scientific_artifacts", {})["native_paths"] = native_mapping
     return mapping
 
 

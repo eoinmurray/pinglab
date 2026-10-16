@@ -1,0 +1,41 @@
+import Table from '../../../site/src/components/Table.astro';
+import RunFigure from '../../../site/src/components/RunFigure.astro';
+import { reportData } from '../../../site/src/lib/report-data';
+
+export const run = await reportData('exp124', { allowUnavailable: true });
+
+<RunFigure report="exp124" experiment="exp124" allowUnavailable number={5} id="fig-networks" columns={1} panels={[
+  { file: 'coba_network.svg', alt: 'COBA circuit: 700 input channels, two 128-neuron excitatory layers and a 20-unit non-spiking readout.' },
+  { file: 'ping_network.svg', alt: 'PING circuit: the same feedforward path with reciprocal 32-neuron inhibitory populations in both hidden layers.' },
+]}>
+  **Executed network circuits.** (A) COBA. (B) PING. Diagrams were generated from the retained network definitions using SNNLab's [diagram API](https://snnlab.eoinmurray.info/api/lang/compilation/#structural-diagrams). Boxes identify populations and their sizes; arrows show signal direction, with inhibitory connections in red. The circuit view omits measurement reductions and their output boxes; the rate-normalized readout is defined in Equation 1.
+</RunFigure>
+
+<Table
+  headers={['Configuration', 'COBA', 'PING']}
+  rows={run?.parameter_table ?? [
+    ['Input', '700 SHD cochlear spike channels [1]', 'Same'],
+    ['Hidden neuron model', 'Conductance-based leaky integrate-and-fire (COBA LIF)', 'Same for both E and I'],
+    ['Synapses onto hidden neurons', 'Exponentially decaying AMPA conductances', 'Exponentially decaying AMPA and GABA conductances'],
+    ['Hidden layer 1', '128 excitatory neurons', '128 excitatory + 32 inhibitory neurons'],
+    ['Hidden layer 2', '128 excitatory neurons', '128 excitatory + 32 inhibitory neurons'],
+    ['Feedforward pathways', 'Input → E1 → E2 → readout', 'Same'],
+    ['Within-layer feedback', 'None', 'Fixed E→I and I→E connections in each layer'],
+    ['Readout', '20 non-spiking leaky-integrator units', 'Same'],
+    ['Readout synapse', 'Signed leaky-integrator filter, 10 ms decay', 'Same'],
+    ['Classification score', '20 × mean readout voltage × 20 Hz / max(mean E2 rate, 1 Hz)', 'Same'],
+    [{ math: 'C_m\\;\\text{(membrane capacitance)}' }, 'E: 1 nF', 'E: 1 nF; I: 0.5 nF'],
+    [{ math: 'g_L\\;\\text{(leak conductance)}' }, 'E: 0.05 μS', 'E: 0.05 μS; I: 0.025 μS'],
+    [{ math: '\\tau_{\\mathrm{passive}}=C_m/g_L' }, '20 ms (derived)', '20 ms for both E and I (derived)'],
+    [{ math: '\\tau_{\\mathrm{AMPA}}' }, '10 ms', '10 ms'],
+    [{ math: '\\tau_{\\mathrm{GABA}}' }, 'Not used', '10 ms'],
+    ['Refractory period', '0 ms', '0 ms'],
+    ['Simulation timestep / presentation', '1 ms / 1 s', 'Same'],
+    ['Learned weights', 'Input→E1, E1→E2, E2→readout', 'Same; inhibitory feedback remains fixed'],
+  ]}
+  number={1}
+  id="architecture-config"
+  label="Architecture and simulation settings"
+>
+  **Architecture and simulation settings.** E and I denote excitatory and inhibitory populations; E1 and E2 identify the two hidden excitatory layers. We chose a 20 ms passive time constant and fixed capacitances, then calculated leak conductances as capacitance divided by that time constant. The passive time constant is therefore derived from the configured capacitance and leak conductance, not an additional independent physical parameter. Synaptic conductances change the effective membrane time constant. AMPA and GABA time constants describe conductance decay. Readout voltage and E2 firing rate are averaged over each one-second utterance. Neuronal and synaptic states reset between utterances.
+</Table>

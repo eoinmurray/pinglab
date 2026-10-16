@@ -4,15 +4,15 @@ author: Eoin Murray
 collection: notes
 description: Independent compute, analyse and present stages, scientific inputs and execution contracts.
 created_at: "2026-10-14"
-updated_at: "2026-10-14"
+updated_at: "2026-10-16"
 ---
 
 # Experiment Runner Guide
 
-Version: **4.10.0**
+Version: **4.13.0**
 
 This guide defines Pinglab's independent compute, analyse, and present commands.
-The [Pingstore Rules](/notes/pingstore-rules/) owns run layout and validation.
+The [Pingstore Rules](/notes/pingstore-rules) owns run layout and validation.
 
 ## 1. Experiment shape
 
@@ -31,7 +31,7 @@ experiments/expXXX/
 
 Authored articles live in `experiments/expXXX/report/`, with
 `report.mdx` and optional `parameters.mdx`, `appendix.mdx`, and
-`references.mdx`. The [Writing Guide](/notes/writing-guide/) governs them.
+`references.mdx`. The [Writing Guide](/notes/writing-rules) governs them.
 Keep experiment-specific browser JavaScript in `experiments/expXXX/js/`;
 article components can import it from `../js/`. Shared site infrastructure
 remains under `site/src/`. These are authored sources, not run exports.
@@ -93,8 +93,9 @@ not inferred from the suffix.
 
 Experiment IDs are permanent identities. Never reuse the number of a removed
 experiment; assign any successor a fresh `expXXX` number. This keeps old run
-identities unambiguous even after an explicitly retired experiment's final local
-run and allocation high-watermark have been pruned.
+identities unambiguous after unused runs are pruned. Allocation high-watermarks
+persist separately under `.pingstore/.allocation/`; never reset them when a run
+folder is removed.
 
 Failed work remains in its hidden temporary run. Downstream stages do not consume
 it. Rerun with a new identity unless an experiment-specific compute recovery
@@ -227,7 +228,10 @@ and present remain separate explicit stages.
 
 ## 3. Run records
 
-Every completed run contains exactly `run.json`, `README.md`, and `export/`.
+Every completed run contains `run.json`, `README.md`, and `export/`, plus an
+optional manual `.protected` file as defined by the Pingstore Rules. The marker
+is local retention metadata outside the scientific payload; it protects the run
+and its input ancestry without marking them used by a report.
 
 - Put machine-readable execution history in `run.json` once.
 - Put human-readable history in README.
@@ -260,6 +264,79 @@ legacy aliases `snapshot.npz` or `recordings.npz`.
 Present exports remain flat publication inputs and therefore do not use
 `StageRun.evidence`. Presentation lineage belongs in `run.json` or the exported
 `numbers.json` when required.
+
+### Mandatory network bundles and simulation snapshots
+
+Every new compute run must retain the complete compiled `snnlab.lang` bundle
+for every distinct SNNLab network configuration it executes, and use
+`snnlab.sim.SnapshotSpec` to capture every simulation, inference or training
+execution. This applies to local and HPC runs, full runs, phases and chunks.
+Define stable scientific unit IDs in the recipe so each result can be matched
+unambiguously to its bundle and snapshots. A compute run with no network
+execution records that fact in `run.json`; it must not fabricate artifacts.
+
+Preserve the non-SNNLab backends in exp080/081 (local nonspiking membrane
+equations), exp117 (SciPy mean-field continuation/ODEs), and exp125 (snnTorch).
+These use the shared local `external_execution` writer for explicit backend,
+scientific configuration and actual parameter snapshots before and after their
+executions. Do not fabricate Lang bundles or replace these backends to satisfy
+the SNNLab-specific requirement. Local snapshots use
+`pinglab.external-run-snapshot/v1` and are inspection records, not checkpoints.
+
+1. Save bundles through `Bundle.write(...)`, including `manifest.json`,
+   `graph.json`, any `training.json`, and all referenced assets. A graph-only
+   JSON dump or a reference to a local bundle is insufficient. Preserve the
+   complete bundle within the run's scientific `export/` payload.
+2. Pass an explicit `SnapshotSpec(path=..., stage="both", parameters=True)`
+   through `ExecutionSpec(snapshot=..., ...)`. Retain the start and end
+   `snapshot.json` and `parameters.npz` outputs in `export/`. Use distinct paths
+   for repeated executions, conditions, seeds and workers; never overwrite or
+   silently omit snapshots. Capture one scientific training, inference or
+   simulation execution around all its minibatches or continuation chunks;
+   do not duplicate full parameters at every internal timestep or minibatch.
+   Low-level SNNLab execution loops must use the library's
+   snapshot capture/export facilities rather than handwritten configuration or
+   weight serializers; adapt shared integration if the required hook is missing.
+3. Use the shared Pingstore layout mapping for tool-native bundle and snapshot
+   paths. Preserve original file bytes and enough path information to restore
+   a bundle's native layout in scratch before authenticated loading. Validate
+   bundle authentication and required snapshot pairs before completing the run;
+   do not flatten or rename authenticated assets without a reversible mapping.
+4. Treat bundles and snapshots as scientific definitions and parameter evidence.
+   Keep Pingstore command, host, source and timing provenance in `run.json`;
+   do not add parallel experiment-local save/configuration formats. Library
+   snapshot metadata remains intact even where it describes resolved settings.
+5. Snapshots are inspectable records, not resumable checkpoints: they do not
+   retain input data or dynamic, optimizer and RNG state. Retain required inputs
+   and use supported checkpoints separately when continuation is needed.
+
+An assembled full compute run retains the selected phases' required bundles
+and snapshots through its explicit output mapping; assembly does not capture
+new simulations. Existing completed runs remain unchanged. Experiment runners
+use `experiments.helpers.network_artifacts` for SNNLab evidence and
+`experiments.helpers.external_artifacts` for retained external backends.
+Pingstore completion validates snapshot pairs and parameter checksums, preserves
+library-generated bytes and records reversible paths in
+`run.json.scientific_artifacts.native_paths`. `SourceRun.restore_bundle(...)`
+reconstructs native paths in caller-owned scratch for authenticated loading.
+
+### Mandatory SNNLab bundle diagrams in reports
+
+Every SNNLab bundle must have its library-generated diagrams saved with the
+run's scientific outputs and displayed in the experiment report. Use
+`Bundle.write(..., visualise=True)` to retain the circuit, training and expanded
+views in SVG and PNG, or the supported SNNLab diagram API for equivalent saved
+views. Preserve them through the shared Pingstore layout mapping alongside the
+complete bundle; diagrams do not replace the bundle or simulation snapshots.
+
+Present must export report-ready copies of the saved diagrams from its explicit
+source-run lineage. Embed these diagrams in `experiments/expXXX/report/report.mdx`
+or an included report component, using the report's selected present run.
+Cover every distinct network configuration used in the reported work; repeated
+executions of the same configuration may share one displayed set. Identify the
+configuration and diagram view in each caption. Generate diagrams from the
+actual retained bundles, never from a separately reconstructed network or
+unrelated current code. A download link alone does not satisfy report inclusion.
 
 ## 4. Input identity
 
@@ -310,6 +387,16 @@ or verified. If a reusable rule needs improvement, propose exact wording and ask
 before changing the guide outside the requested scope.
 
 ## 8. Version history
+
+**4.13.0** — Align run layout with optional manual `.protected` markers and
+keep allocation high-watermarks independently of prunable run folders.
+
+**4.12.0** — Require saved library-generated SNNLab bundle diagrams and their
+inclusion in experiment reports through explicitly selected present runs.
+
+**4.11.0** — Require complete `snnlab.lang` bundles and library-managed start/end
+parameter snapshots for compute executions, retained as scientific payloads;
+preserve authenticated bundle paths and distinguish snapshots from checkpoints.
 
 **4.10.0** — Define completed named compute phases, explicit dependencies,
 phase-scoped IDs and metadata, and experiment-owned assembly into a new full

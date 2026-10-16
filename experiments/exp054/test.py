@@ -331,7 +331,7 @@ def test_null_lag_label_uses_renderable_mathtext(tmp_path):
 
 
 def test_contrast_can_reach_one_and_silent_data_remain_undefined():
-    from experiments.helpers.rhythmicity import rhythmicity_scalars
+    from snnlab.analysis import rhythmicity_scalars
 
     lags = np.arange(8, dtype=float)
     result = rhythmicity_scalars(lags, [np.nan, 4, 4, 0, 0, 0, 1, 1], [0.5], [1])

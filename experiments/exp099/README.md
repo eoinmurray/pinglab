@@ -1,4 +1,4 @@
-# EXP099: independent afferent excitation
+# exp099 — Susin and Destexhe (2021): Gamma vs Input Drive
 
 Local-data update, 2026-10-05: runs unused by the latest exp110 manuscript
 were explicitly deleted. Historical operation and size reports below describe

@@ -69,6 +69,25 @@ def source_inventory(root):
     return {str(path.relative_to(root)): hashlib.sha256(path.read_bytes()).hexdigest() for path in sorted(files)}
 
 
+def asset_inventory(path, site):
+    """Collect frozen asset choices and verify every bundled fallback."""
+    assets = {}
+    if not path.exists():
+        return assets
+    for line in path.read_text().splitlines():
+        record = json.loads(line)
+        key = f'{record["run"]}/{record["file"]}'
+        if key in assets and assets[key] != record:
+            raise ValueError(f'Asset changed during build: {key}')
+        assets[key] = record
+        if record['source'] == 'local':
+            bundled = site / 'run-images' / record['run'] / record['file']
+            if (bundled.stat().st_size != record['bytes']
+                    or hashlib.sha256(bundled.read_bytes()).hexdigest() != record['sha256']):
+                raise ValueError(f'Bundled asset changed during build: {key}')
+    return assets
+
+
 def build():
     choices = select(ROOT)
     sources = source_inventory(ROOT)
@@ -78,7 +97,9 @@ def build():
         selections = staging / 'selections.json'
         selections.write_text(json.dumps(choices))
         site = staging / 'site'
-        environment = dict(os.environ, PINGLAB_RUN_SELECTIONS=str(selections))
+        asset_receipt = staging / 'assets.jsonl'
+        environment = dict(os.environ, PINGLAB_RUN_SELECTIONS=str(selections),
+                           PINGLAB_ASSET_RECEIPT=str(asset_receipt))
         subprocess.run(['bun', 'run', 'astro', 'build', '--outDir', str(site)],
                        cwd=ROOT / 'site', env=environment, check=True)
         if source_inventory(ROOT) != sources:
@@ -94,6 +115,7 @@ def build():
             'source_commit': run('git', 'rev-parse', 'HEAD'),
             'working_tree_status': run('git', 'status', '--short'),
             'latest_selections': choices,
+            'assets': asset_inventory(asset_receipt, site),
             'source_files': sources,
             'files': inventory(site),
         }
@@ -115,7 +137,9 @@ def build():
         if previous.exists():
             shutil.rmtree(previous)
     print(f'Built {len(receipt["files"])} files, {sum(v["bytes"] for v in receipt["files"].values()) / 1e6:.1f} MB')
-    print(f'Preview: python -m http.server 3001 --directory {OUTPUT / "site"}')
+    remote_assets = sum(asset['source'] == 'r2' for asset in receipt['assets'].values())
+    print(f'Run assets: {remote_assets} R2, {len(receipt["assets"]) - remote_assets} bundled locally')
+    print('Preview: (cd site && bun run astro preview --outDir ../.publication/site --port 3001)')
 
 
 

@@ -8,6 +8,7 @@ import torch
 from experiments.exp022.checkpoints import resolve_checkpoint
 from experiments.helpers import checkpoint_graph
 from experiments.helpers.datasets import load_mnist_split
+from experiments.helpers.network_artifacts import model_execution
 from pingstore.contracts import (
     PingstoreError,
     file_sha256,
@@ -132,14 +133,15 @@ class Inference:
             if output_kind == "rasters"
             else None
         )
-        with torch.inference_mode():
-            result = model(
-                {"drive": spikes.to(device)},
-                diagnostics=False,
-                recording=recording,
-                resets=(ResetVoltage("readout", schedule),),
-                decisions=segments,
-            )
+        with model_execution(model, bundle, self.directory / "export" / attachments.relative_to(self.directory / ".scratch/simulations") / "inference", kind="infer", seed=training["seed"], settings={"recipe": self.cfg, "reset_steps": list(map(int, resets)), "recording": output_kind, "input_array": array_record(spikes.cpu().numpy())}):
+            with torch.inference_mode():
+                result = model(
+                    {"drive": spikes.to(device)},
+                    diagnostics=False,
+                    recording=recording,
+                    resets=(ResetVoltage("readout", schedule),),
+                    decisions=segments,
+                )
         starts, stops = list(resets), [*list(resets)[1:], len(spikes)]
         raw = {
             "dt": np.float32(DT_MS),
@@ -237,7 +239,7 @@ class Inference:
                 values["labels"].append(np.stack(labels))
                 pixels, labels = [], []
         output = self.directory / "export" / job["path"]
-        output.mkdir(parents=True)
+        output.mkdir(parents=True, exist_ok=True)
         np.savez_compressed(
             output / "counts.npz", **{k: np.concatenate(v) for k, v in values.items()}
         )
@@ -275,7 +277,7 @@ class Inference:
             dense[raw[prefix + "_t"][keep], raw[prefix + "_cell"][keep]] = 1
             arrays[key] = dense
         output = self.directory / "export/streams" / name
-        output.mkdir(parents=True)
+        output.mkdir(parents=True, exist_ok=True)
         np.savez_compressed(output / "recording.npz", **arrays)
         write_json_atomic(
             output / "stream.json",

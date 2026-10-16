@@ -2,7 +2,7 @@
 
 Exp022 owns a 102-cell COBA/PING training registry used by several downstream
 experiments. Operational execution follows the repository [Experiment Runner
-Guide](../../md/notes/experiment-runner-guide.md) and requires `pingstore.run/v4`.
+Guide](../../md/notes/experiment-rules.md) and requires `pingstore.run/v4`.
 
 ## Code layout
 
