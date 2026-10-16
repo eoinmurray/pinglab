@@ -82,6 +82,16 @@ def test_dispatch_returns_with_saved_call_id(tmp_path):
     assert load_json(tmp_path / 'runs' / f".{receipt['run_id']}.tmp" / jobs.RECEIPT) == receipt
 
 
+def test_execution_plan_is_persisted_before_spawn(tmp_path):
+    plan = {"configuration": {"models": ["coba", "ping"]}, "resources": {"gpu": "A100-80GB:2"}}
+    worker = Worker(tmp_path)
+    receipt = jobs.submit(tmp_path, 'exp135', worker, options=plan['resources'],
+                          arguments={}, app_id='ap-fixture', plan=plan)
+    assert worker.calls == 1
+    assert receipt['plan'] == plan
+    assert jobs.pending(tmp_path, receipt['run_id'])[2]['plan'] == plan
+
+
 def test_failed_spawn_keeps_prepared_receipt_and_never_retries(tmp_path):
     worker = Worker(tmp_path)
     def failed(*args, **kwargs):
@@ -160,3 +170,20 @@ def test_invalid_download_never_becomes_visible(tmp_path, corruption):
     with pytest.raises(PingstoreError):
         jobs.check(tmp_path, receipt['run_id'], collect=True, volume=volume, call_factory=no_call)
     assert not (tmp_path / 'runs' / receipt['run_id']).exists()
+
+
+def test_collect_phase_preserves_scope(tmp_path):
+    receipt = submission(tmp_path)
+    identity = jobs.reserve_stage(tmp_path, 'exp999', 'compute',
+                                  origin=f"modal-{receipt['dispatch']}", phase='gpu-benchmark')
+    receipt = {**receipt, 'run_id': identity,
+               'remote_path': f"{receipt['dispatch']}/.pingstore/runs/{identity}"}
+    write_json_atomic(tmp_path / 'runs' / f'.{identity}.tmp' / jobs.RECEIPT, receipt)
+    volume = completed_volume(tmp_path, receipt)
+    key = f"{receipt['remote_path']}/run.json"
+    record = json.loads(volume.files[key])
+    record.update(scope='phase', phase='gpu-benchmark')
+    volume.files[key] = json.dumps(record).encode()
+    result = jobs.check(tmp_path, identity, collect=True, volume=volume, call_factory=no_call)
+    assert result['status'] == 'collected'
+    assert load_json(tmp_path / 'runs' / identity / 'run.json')['phase'] == 'gpu-benchmark'

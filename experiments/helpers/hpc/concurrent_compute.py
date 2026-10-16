@@ -99,6 +99,7 @@ def _worker_metadata() -> dict[str, Any]:
             "name": torch.cuda.get_device_name(),
             "torch": torch.__version__,
             "cuda": torch.version.cuda,
+            "visible_devices": os.environ.get("CUDA_VISIBLE_DEVICES"),
         }
         if torch.cuda.is_available()
         else {"type": "cpu", "torch": torch.__version__}

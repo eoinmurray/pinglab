@@ -4,12 +4,12 @@ author: Eoin Murray
 collection: notes
 description: Scientific writing, evidence, terminology and editorial conventions for experiment articles.
 created_at: "2026-10-14"
-updated_at: "2026-10-14"
+updated_at: "2026-10-16"
 ---
 
 # Writing Guide
 
-Version: **36.0.0**
+Version: **37.0.0**
 
 ## Agent responsibilities
 
@@ -24,8 +24,8 @@ relevant article, implementation, execution, Writing Guide or local-data
 changes, including dependent comparisons and syntheses. `X.Y.Z` records the
 latest Writing Guide version applied and must remain current under Writing Guide
 section 3.4. Only the author may add or remove `reviewed`. Follow that section
-for validation and uncertainty handling; metadata-only edits do not change
-dates.
+for validation and uncertainty handling. Every saved article revision refreshes
+`updated_at` under section 3.3, including metadata-only edits.
 
 ## Astro relocation — 13 October 2026
 
@@ -37,7 +37,8 @@ Supporting article files live in the same `report/` directory; experiment-specif
 browser JavaScript lives beside it in `experiments/expXXX/js/`. This source
 relocation preserves guide version 36.0.0, article tags, and authored dates.
 
-The original guide below is retained verbatim for now. References to Typst
+The original guide below is preserved with subsequent versioned amendments.
+References to Typst
 paths, Demolab tags and template APIs describe the former authoring system;
 apply their scientific and editorial meaning to Astro reports rather than
 reintroducing that system. Component-specific writing rules are preserved in
@@ -61,6 +62,10 @@ corrections or clarifications that do not change requirements. Update the versio
 above and add a short entry to the version history when changing the guide.
 
 ### 1.1. Version history
+
+1. **37.0.0** — Require UTC datetimes for every report’s `updated_at`, refresh
+   them after every saved revision, and normalize legacy date-only values to
+   midnight UTC without claiming a known historical edit time.
 
 - **36.0.0** — Standardize every cross-link between experiment articles as the
   separately linked experiment identifier and italicized article title, divided
@@ -417,39 +422,41 @@ the resulting writing, and the author's corrections as evidence.
 - Do not modify the guide or broaden article edits without explicit approval.
   Approved guide changes follow its versioning rules.
 
-### 3.3. Authored update dates
+### 3.3. Authored update datetimes
 
-Apply this rule to future article edits; existing articles do not need a date
-change merely to adopt this guide.
-
-- Set `meta.updated_at` to the author's local calendar date (`YYYY-MM-DD`) when
-  completing and saving a substantive revision. Qualifying changes include
-  revised claims, methods, results, figures, interpretations, meaningful
-  corrections, or explanations that materially improve scientific understanding.
-  A small correction to a consequential number or equation still qualifies.
-- Use completed editing passes as checkpoints, with calendar-day granularity:
-  multiple revisions on the same day share one date. Do not wait for a weekly
-  interval, commit, build, or publication, and do not advance the date merely
-  because time has passed. Unsaved review candidates do not change the article's
-  metadata.
-- Leave `updated_at` unchanged for spelling, punctuation, formatting, link
-  repairs, or source plumbing that do not change scientific meaning, and for
-  rebuilds or deployments alone.
-- Completing a compute, analyse, or present run does not by itself advance the
-  article's date. When a present run is incorporated into the article, set
-  `meta.updated_at` to the date of incorporation if it substantively changes the
-  displayed evidence, figures, or interpolated values—even when the article's
-  prose and other Typst source remain unchanged. Switching to a run with
-  substantively equivalent content does not qualify.
-- Preserve `meta.created_at` (or the existing legacy `meta.date`). An update
-  must not predate creation or move an existing update date backwards; flag a
-  conflicting date rather than silently rewriting it. A new article may omit
-  `updated_at` until its first substantive revision.
-- Dates are explicitly authored metadata. Never infer them from Git,
-  filesystem timestamps, run dates, builds, or deployment dates. Do not backfill
-  unknown historical updates. Updating this field is a necessary dependent
-  edit under section 3.1 when a requested revision qualifies, unless the author
-  explicitly instructs otherwise.
+1. Every `experiments/expXXX/report/report.mdx` must declare `updated_at` in
+   frontmatter as a quoted ISO 8601 UTC datetime with seconds:
+   `YYYY-MM-DDTHH:mm:ssZ`, for example `"2026-10-16T14:35:27Z"`.
+   Date-only values are not permitted. `meta.updated_at` below refers to this
+   frontmatter field in current Astro articles.
+2. Set `updated_at` to the current UTC time when completing and saving each
+   editing pass that changes the report or its supporting article files.
+   This includes scientific revisions, spelling and formatting fixes, link
+   repairs, metadata and tag edits, and Writing Guide conformance changes.
+   Multiple revisions on the same day must record their actual times; do not
+   retain a stale time until a commit, build, or publication. Unsaved candidates
+   and reviews that save no changes do not advance the timestamp.
+3. Incorporating changed figures, evidence, or interpolated values from a
+   present run is an article revision and refreshes `updated_at`, even when
+   the prose is unchanged. Merely completing a compute, analyse, or present
+   run, checking availability without editing metadata, rebuilding, or deploying
+   does not advance it.
+4. Preserve `created_at` (or the existing legacy `meta.date`); creation dates
+   may remain date-only. An update must not predate creation or move an existing
+   update backwards. Flag a conflicting timestamp rather than silently
+   rewriting it. New reports must include an initial `updated_at` datetime.
+5. These are authored timestamps. Use the clock for the current editing pass;
+   never infer historical edit times from Git, filesystem timestamps, run
+   dates, builds, or deployments. When explicitly migrating existing date-only
+   `updated_at` values, preserve the recorded date and append `T00:00:00Z`.
+   Midnight UTC is a normalization convention for unknown historical times,
+   not evidence of when those revisions occurred. The 37.0.0 migration and its
+   associated guide-tag changes use this exception; subsequent saved revisions
+   follow the current-time rule.
+6. Refreshing this field is a necessary dependent edit under section 3.1,
+   unless the author explicitly instructs otherwise. This section supersedes
+   historical instructions to preserve update dates during metadata-only,
+   grammatical, or guide-conformance edits.
 
 ### 3.4. Article tags and local-data availability
 
@@ -498,7 +505,7 @@ preserving `reviewed` unless the author explicitly requests its removal.
   version without applying all requirements introduced through that version.
   Normal tests must reject guide-version tags that differ from the current guide
   version once the repository declares all articles current. A version-only
-  synchronization does not advance `meta.updated_at`.
+  synchronization refreshes `meta.updated_at` under section 3.3.
 - Read the current article's `inputs` and article-scoped bindings, and check
   their agreement with the publishing configuration. Run read-only
   `uv run pingstore discover` against the configured local source. Match the
@@ -527,9 +534,8 @@ preserving `reviewed` unless the author explicitly requests its removal.
   plus that tag; and `◉ REVIEWED` plus `writing_guide: "X.Y.Z"` becomes
   `reviewed`, the current guide-version tag and the separately reassessed
   availability tag. Change only metadata and necessary policy/tests; preserve
-  scientific prose, dates and unrelated edits. Metadata-only changes do not
-  advance `updated_at`; apply section 3.3 only when the underlying change
-  qualifies independently.
+  scientific prose, creation dates and unrelated edits. Refresh `updated_at`
+  for saved metadata changes under section 3.3.
 - An availability check authorizes no execution, input selection, materialization,
   publication, historical inspection, migration or mutation of stored runs.
 
@@ -571,8 +577,8 @@ appendices; choose tense by the sentence's function, not by section alone.
   mathematical symbols and source-code identifiers.
 
 For a tense/person conformance pass, preserve scientific meaning, execution
-status, qualifications and authored dates. A grammatical change alone does not
-advance `meta.updated_at`; a substantive correction follows section 3.3. Check
+status, qualifications and creation dates. Refresh `meta.updated_at` for saved
+grammatical changes under section 3.3. Check
 tense and attribution in context rather than replacing every present-tense verb
 or every occurrence of a pronoun mechanically. Flag uncertain execution or
 authorship rather than guessing.

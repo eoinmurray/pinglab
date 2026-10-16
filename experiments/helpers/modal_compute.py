@@ -1,5 +1,6 @@
 """Dispatch durable compute on Modal; collect later with modal_jobs.py."""
 
+import json
 import os
 import shutil
 import subprocess
@@ -12,7 +13,7 @@ REMOTE = Path("/root/pinglab")
 REPO = Path(__file__).resolve().parents[2] if modal.is_local() else REMOTE
 SOURCE = Path("/root/pinglab-source")
 SOURCE_DIRS = ("experiments", "tools")
-SUPPORTED = ("exp047", "exp080", "exp081", "exp124", "exp134")
+SUPPORTED = ("exp047", "exp080", "exp081", "exp124", "exp134", "exp135")
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
 
 app = modal.App("pinglab-compute")
@@ -30,18 +31,49 @@ if modal.is_local():
         commit = subprocess.check_output(
             ["git", "rev-parse", "HEAD"], cwd=REPO, text=True
         ).strip()
+        source_bundle = os.environ.get("PINGLAB_MODAL_GIT_BUNDLE")
+        baseline = os.environ.get("PINGLAB_MODAL_BASE_COMMIT", commit)
+        if len(baseline) != 40 or any(c not in "0123456789abcdef" for c in baseline):
+            raise ValueError("Modal baseline must be a full Git commit hash")
+        if source_bundle:
+            bundle_heads = subprocess.check_output(
+                ["git", "bundle", "list-heads", source_bundle, "HEAD"],
+                cwd=REPO,
+                text=True,
+            ).split()
+            if bundle_heads != [commit, "HEAD"]:
+                raise ValueError(
+                    "source bundle must contain the exact clean checkout HEAD"
+                )
+        elif baseline != commit:
+            raise ValueError("an alternate baseline requires an explicit source bundle")
         image = (
             modal.Image.debian_slim(python_version="3.12")
             .apt_install(
-                "git", "pkg-config", "libcairo2-dev", "libpango1.0-dev", "ffmpeg"
+                "git",
+                "pkg-config",
+                "libcairo2-dev",
+                "libpango1.0-dev",
+                "ffmpeg",
+                "graphviz",
             )
             .run_commands(
                 f"git init {REMOTE}",
                 f"git -C {REMOTE} remote add origin https://github.com/eoinmurray/pinglab",
-                f"git -C {REMOTE} fetch --depth 1 origin {commit}",
+                f"git -C {REMOTE} fetch --depth 1 origin {baseline}",
                 f"git -C {REMOTE} reset --hard FETCH_HEAD",
             )
-            .uv_sync(str(REPO), extra_options="--no-dev")
+        )
+        if source_bundle:
+            image = image.add_local_file(
+                source_bundle, "/tmp/pinglab-source.bundle", copy=True
+            ).run_commands(
+                f"git -C {REMOTE} fetch /tmp/pinglab-source.bundle HEAD",
+                f"git -C {REMOTE} reset --hard FETCH_HEAD",
+                "rm /tmp/pinglab-source.bundle",
+            )
+        image = (
+            image.uv_sync(str(REPO), extra_options="--no-dev")
             .workdir(str(REMOTE))
             .env({"PYTHONPATH": str(SOURCE)})
         )
@@ -133,6 +165,7 @@ def compute(
         EXP081_DEVICE=device,
         PINGLAB_CPU_THREADS=str(cpu),
         PINGLAB_MODAL_CPU_CORES=str(cpu),
+        PINGLAB_DATASET_CACHE="/modal-output/datasets",
     )
     command = [
         sys.executable,
@@ -153,6 +186,20 @@ def compute(
                 input_refs["images"]["run_id"],
             )
         )
+    if experiment == "exp135":
+        if smoke or input_refs or epochs or batch_size or seed != 42:
+            raise ValueError(
+                "exp135 uses its real-data 5% protocol, without --smoke or source roles"
+            )
+        plan = (submission or {}).get("plan")
+        if not isinstance(plan, dict):
+            raise ValueError("paired dispatch requires a frozen execution plan")
+        if plan.get("resources") != (submission or {}).get("resources"):
+            raise ValueError(
+                "frozen parallel resource plan differs from the submission"
+            )
+        write_json_atomic(temporary / ".scratch/dispatch-plan.json", plan)
+        command.extend(("--download", "--device", device))
     if experiment == "exp124":
         command.extend(("--seed", str(seed)))
         if smoke:
@@ -198,6 +245,36 @@ def compute(
     return files
 
 
+@app.function(
+    image=image,
+    cpu=2,
+    memory=4096,
+    timeout=3600,
+    serialized=True,
+    include_source=False,
+    volumes={"/modal-output": results},
+    retries=0,
+)
+def prepare_gesture_archive():
+    """Authenticate the public dataset on CPU and persist its shared cache."""
+    sys.path[:0] = [str(SOURCE), str(SOURCE / "tools")]
+    from experiments.exp135 import dataset
+
+    results.reload()
+    path = dataset.verified_archive(
+        Path("/modal-output/datasets/ibmGestureTrain.tar.gz"), download=True
+    )
+    rows = dataset.inventory(path)
+    results.commit()
+    summary = {
+        "bytes": path.stat().st_size,
+        "md5": dataset.checksum(path, "md5"),
+        "samples": len(rows),
+    }
+    print(f"Dataset cache verified and committed: {summary}", flush=True)
+    return summary
+
+
 @app.local_entrypoint()
 def main(
     experiment: str,
@@ -210,10 +287,11 @@ def main(
     seed: int = 42,
     source: str = "",
     image_source: str = "",
+    store: str = "",
 ):
     from experiments.helpers.modal_inputs import prepare_inputs, upload_inputs
     from experiments.helpers.modal_jobs import submit
-    from pingstore.stages import operation_lock
+    from pingstore.stages import _capture_code, operation_lock
 
     if "--detach" not in sys.argv:
         raise ValueError("durable dispatch requires: modal run --detach ...")
@@ -229,10 +307,51 @@ def main(
             "epochs and batch size must be positive, or zero to use defaults"
         )
     if (epochs or batch_size or seed != 42) and experiment != "exp124":
-        raise ValueError("training overrides require exp124")
+        raise ValueError(
+            "training overrides require exp124; exp135 uses its committed recipe"
+        )
+    if experiment == "exp135" and smoke:
+        raise ValueError(
+            "exp135 uses its committed real-data protocol; --smoke is unsupported"
+        )
     gpu_resource = None if gpu.lower() == "none" else gpu
     device = "cpu" if gpu_resource is None else "cuda"
-    root = REPO / ".pingstore"
+    root = Path(store).expanduser().absolute() if store else REPO / ".pingstore"
+    plan = None
+    if experiment == "exp135":
+        if gpu_resource is None or gpu_resource.rsplit(":", 1)[-1] != "2" or cpu < 2:
+            raise ValueError(
+                "exp135 requires two GPUs (for example A100-80GB:2) and at least two CPUs"
+            )
+        code = _capture_code(REPO, REPO)
+        if code["dirty"] or code["code_dirty"]:
+            raise ValueError(
+                "paired concurrent compute requires committed, clean source before dispatch"
+            )
+        interpreter = REPO / ".venv/bin/python"
+        if not interpreter.is_file():
+            raise ValueError(
+                "prepare the project environment with uv sync before planning paired compute"
+            )
+        configuration = json.loads(
+            subprocess.check_output(
+                [
+                    str(interpreter),
+                    str(REPO / "experiments/exp135/compute.py"),
+                    "--plan",
+                ],
+                cwd=REPO,
+                text=True,
+            )
+        )
+        if _capture_code(REPO, REPO) != code:
+            raise ValueError("source changed while freezing the paired execution plan")
+        plan = dict(
+            schema="exp135.modal-plan/v1",
+            source=code,
+            configuration=configuration,
+            resources=dict(gpu=gpu_resource, cpu=cpu, memory=32768, timeout=timeout),
+        )
     if experiment == "exp134":
         if device != "cpu" or smoke or not source or not image_source:
             raise ValueError(
@@ -251,7 +370,12 @@ def main(
             experiment,
             compute,
             app_id=app.app_id,
-            options={"gpu": gpu_resource, "cpu": cpu, "timeout": timeout},
+            options={
+                "gpu": gpu_resource,
+                "cpu": cpu,
+                "timeout": timeout,
+                **({"memory": 32768} if experiment == "exp135" else {}),
+            },
             arguments={
                 "smoke": smoke,
                 "device": device,
@@ -263,6 +387,7 @@ def main(
                 "input_runs": [s.reference for s in sources.values()],
             },
             inputs=input_refs,
+            plan=plan,
         )
     print(
         f"Dispatched {receipt['run_id']}; call {receipt['function_call_id']}",
@@ -271,6 +396,7 @@ def main(
     print(
         f"The job is independent of this process. Check/collect later with:\n"
         f"  uv run --no-project --python 3.12 --with 'modal>=1.1,<2' --with PyYAML "
-        f"python experiments/helpers/modal_jobs.py --run-id {receipt['run_id']} --collect",
+        f"python experiments/helpers/modal_jobs.py --run-id {receipt['run_id']} --collect"
+        + (f" --root {str(root)!r}" if store else ""),
         flush=True,
     )

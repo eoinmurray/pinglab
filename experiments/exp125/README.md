@@ -31,7 +31,8 @@ baseline using scikit-learn's bundled 8 × 8 handwritten digits.
 
 ```sh
 uv run python experiments/exp125/compute.py --cpu-threads 1
-uv run python experiments/exp125/analyse.py --source <compute-run-id>
+uv run python experiments/exp125/compute.py --phase sample-raster --source <compute-run-id> --cpu-threads 1
+uv run python experiments/exp125/analyse.py --source <compute-run-id> --raster-source <sample-raster-run-id>
 uv run python experiments/exp125/present.py --source <analyse-run-id>
 ```
 
@@ -46,6 +47,16 @@ Test inference has its own timer around evaluation of all 360 held-out images:
 encoding, forward simulation, decoding and loss/accuracy calculation, in batches
 of at most 256. It excludes checkpoint loading and prediction serialization.
 This is a warmed CPU evaluation after training, not a cold-start latency.
+
+The optional `sample-raster` compute phase reuses the explicitly named training
+run's validation-selected parameters. It records the first validation image
+with a fresh seed-46 encoding draw, zero initial states and no optimization.
+Its before/after external-backend snapshots and raw input/hidden/output spikes
+are new inference evidence; it does not retrain or reevaluate the test split.
+Analysis checks training ancestry, selection and count-based prediction, then
+measures pooled population-count autocorrelograms in 1 ms bins at 1–20 ms lags.
+Present adds the hidden/output raster and autocorrelogram figure to the unchanged
+training curves. Omitting `--raster-source` retains the training-only pipeline.
 
 Follow the [Experiment Runner Guide](../../md/notes/experiment-rules.md),
 [Pingstore Rules](../../md/notes/pingstore-rules.md) and

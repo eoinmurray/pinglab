@@ -1,0 +1,153 @@
+---
+id: "exp136"
+title: "Sustained cues for PING routing"
+author: "Eoin Murray"
+description: "Switching a receiver's timing between two cued senders."
+abstract: "We tested whether cue-selective synchronisation also selects sensory information. A coarse-to-fine search found settings with readable sender signals and an average cue benefit at the receiver. Receiver reconstruction remained weak and varied across fresh trials. Scrambling spike times improved overall reconstruction but removed the average cue preference. These results show a cue-dependent bias, rather than reliable selective information transfer or a clean demonstration of communication through coherence."
+created_at: "2026-10-16"
+updated_at: "2026-10-16T18:56:58Z"
+collection: ["paper-inspired"]
+tags: ["data", "v37.0.0"]
+inputs: ["exp136"]
+runs: {"exp136": "exp136-r082-present"}
+---
+
+import RunFigure from '../../../site/src/components/RunFigure.astro';
+
+## Results
+
+### With coupling
+
+The fixed setting reproduced selective locking in both cue periods.
+Across the measured cue periods, selected-pair PLV was 0.960 for S1 and
+0.961 for S2, versus 0.165 and 0.048 for the other sender. Selected-pair drift
+was below 0.03 cycles/s; the other sender drifted by 4–5 cycles/s.
+Brief high PLV before cueing did not persist across the baseline. In earlier checks without sensory modulations, none of three
+new-input trials passed every criterion: selected-pair PLV ranged from 0.819 to
+0.978, with drift below 0.06 cycles/s. Selection persisted, but phase precision
+was not reliable under the fixed thresholds.
+
+<RunFigure report="exp136" experiment="exp136" allowUnavailable file="continuous-coupled.svg" number={1} id="fig-continuous-coupled" alt="Continuous cue switching with sender-to-receiver connections.">
+  Earlier reference trial: no cue, cue S1, cue S2, then no cue, each for 1 second. Connections
+  stay on. Raster spikes are black for excitatory cells and red for inhibitory
+  cells; numbers give rhythm frequency. Panel D shows PLV: black for S1–R and
+  red for S2–R. Higher values mean steadier timing. Dashed lines mark cue changes.
+</RunFigure>
+
+### Without coupling
+
+Without coupling, R stayed near 53 Hz while each cued sender reached about
+55.5 Hz. Selected-pair PLV fell to 0.124 and 0.209, with drift of 2.96 and
+2.42 cycles/s. Inputs and sender activity matched Figure 1 exactly; R was
+unaffected by the cues.
+
+<RunFigure report="exp136" experiment="exp136" allowUnavailable file="continuous-zero.svg" number={2} id="fig-continuous-zero" alt="The same continuous cue sequence with sender-to-receiver connections set to zero.">
+  The same inputs and cue sequence as Figure 1, with sender-to-R weights zero
+  throughout. Spikes, frequencies and colours use the same display. Both PLV
+  panels use a 0–1 scale and a centred 200 ms window. Dashed lines mark cue changes.
+</RunFigure>
+
+### Cue bias without reliable transfer
+
+The initial weak-signal test gave input $R^2$ scores of 0.597/0.410, sender
+scores of 0.017/−0.144 and cued receiver scores of −0.062/−0.117; cue benefits
+were −0.055/+0.095. After the search, fresh sender scores were 0.517/0.484,
+receiver cue benefits averaged 0.322/0.318, and cued reconstruction was
+0.085/−0.008 (Figure 3B). Scrambling raised cued reconstruction to 0.203/0.148
+but reversed mean cue benefits to −0.091/−0.165. Thus an average cue bias did
+not produce reliable reconstruction in both directions. These descriptive
+scores from three pairs, one wiring and one linear readout cannot exclude
+other codes.
+
+<RunFigure report="exp136" experiment="exp136" allowUnavailable file="routing-search.svg" number={3} id="fig-routing-search" alt="Coarse and fine validation searches, fresh receiver reconstruction scores, and two example signal traces.">
+  A: coarse circles and fine triangles; the star marks the chosen setting and
+  the dashed line marks the sender-readability threshold. B: fresh-trial receiver
+  scores, black for S1 and red for S2; circles are cued, crosses uncued, and short
+  lines are means of three independent pairs. C–D: the first fresh pair in S1→S2
+  cue order; grey is the signal 50 ms before observation and colour is its
+  reconstruction from R. Dashed lines mark the cue switch; excluded samples are
+  left blank. Both signals remain present.
+</RunFigure>
+
+## Methods
+
+1. We used two sender networks, S1 and S2, and one receiver, R, with local
+   settings inherited from [exp133](/exp133) — [*Lowet (2015): Coupled Rhythms*](/exp133).
+   Each had 80 excitatory (E) cells and 20 inhibitory (I) cells. Separate groups of
+   32 cue cells excited their own sender.
+2. The synchrony reference ran continuously for 4 seconds per trial. The same
+   cue input was sent first to S1, then to S2. All weights stayed fixed: sender-to-R
+   connections were active from time zero in Figure 1 and zero throughout Figure 2.
+   Background inputs were 33 Hz/channel for each sender and 35 Hz/channel for R.
+   Coupling was 0.045 μS per pathway and cue strength was 0.06 μS. During each
+   reference trial, only cue inputs changed;
+   all other weights and inputs matched between the coupled and control trials.
+3. We measured timing from repeated bursts of excitatory spikes. Panel D in
+   Figures 1–2 shows
+   phase-locking value (PLV), using a centred 200 ms window every 10 ms:
+
+   $$
+   \mathrm{PLV}_{SR}(t)
+   = \left|\frac{1}{N_t}\sum_{k\in W_t}
+   \exp\!\left(2\pi i[\phi_S(k)-\phi_R(k)]\right)\right|.
+   $$
+
+   Here, $S$ is sender S1 or S2 and $R$ is the receiver. The phases
+   $\phi_S(k)$ and $\phi_R(k)$ are measured in cycles at time sample $k$.
+   $W_t$ contains the samples with valid phases in the 200 ms window centred
+   at time $t$, and $N_t$ is their number. The symbol $i$ is the imaginary unit;
+   the outer bars take the magnitude, giving a value from 0 to 1. Only full
+   windows with at least 90% valid timing were shown. Windows cross cue changes,
+   smoothing transitions. Whole-period PLV and drift numbers exclude 100 ms
+   after each change.
+   Figures 1–2 show the input sequence used for selection.
+
+4. The fixed setting came from an earlier coarse-to-fine search following
+   [ter Wal and Tiesinga (2017)](https://doi.org/10.3389/fncom.2017.00006).
+   The reference pair reused the selected weights and original input sequence;
+   the earlier new-input checks were not repeated.
+5. For the initial signal test, independent slow fluctuations changed each sender’s
+   background input by at most 1.5 Hz/channel. Both signals were always present.
+   Three training and three test input/noise sequences each appeared in both cue
+   orders, with identical sensory spikes across orders. All neural weights stayed
+   fixed. The original reference figures were reused, not rerun with these signals.
+6. Fixed ridge decoders reconstructed each signal from recent E/I population
+   spike counts. Training alone set scaling and weights; one decoder per condition
+   and signal was used across both cues. The same readout also checked inputs and
+   senders. For each test sequence and cue, combining both orders, we measured
+
+   $$
+   R^2 = 1 - \frac{\sum_{k\in\mathcal T}(s_k-\hat{s}_k)^2}
+                    {\sum_{k\in\mathcal T}(s_k-\bar{s})^2}.
+   $$
+
+   Here $\mathcal T$ is the set of test samples, $k$ indexes those samples,
+   $s_k$ is the signal value,
+   $\hat{s}_k$ its prediction, and $\bar{s}$ its mean over that set. A score of
+   one is exact reconstruction; zero matches the constant test mean. Cue benefit
+   compares the same signal when cued and uncued. We required positive local and
+   cued receiver scores, cue benefit in both directions, and improvement over
+   zero coupling before calling the result selective routing.
+7. The signal trials included zero coupling and an artificial timing control.
+   For the latter, native spike replay replaced emitted sender E spikes with
+   independently shuffled times within 50 ms blocks. Every cell’s count in every
+   block was preserved. Scrambling changes both rhythmic timing and coincident
+   input, so it does not isolate phase alone.
+
+8. We started the new search at the Figure 1–2 setting. The coarse search added
+   16 combinations of signal strength, smoothing time, coupling and cue strength;
+   the fine search added 16 combinations within ±35% of the chosen coarse values,
+   plus the centre again. Mean drives and wiring stayed fixed. Each setting used
+   one decoder-training and one validation signal/noise pair, both in both cue
+   orders. Ranking first required both sender scores to reach $R^2\geq0.1$,
+   then preferred positive cued receiver scores in both directions, then
+   maximised the smaller same-signal cue benefit. Validation was reused during refinement.
+9. We tested the chosen setting with three fresh training and three fresh test
+   pairs, again in both cue orders and all three coupling/timing conditions.
+   Search and confirmation readouts used trailing 50 ms population rates at lags
+   0, 25 and 50 ms to predict the signal 50 ms earlier. Training alone set
+   scaling and coefficients. We excluded the first 200 ms of each cue period
+   and averaged scores across test pairs, rather than treating time samples as
+   independent trials. No neural weights were trained. A timing-based
+   interpretation also required readable scrambled sender signals and better
+   cued reconstruction and cue benefit with intact timing.

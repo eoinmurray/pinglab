@@ -1,0 +1,49 @@
+---
+import PostsList from './PostsList.astro';
+import type { Post } from '../lib/posts';
+import { collectionLabel, collectionUrl, compareCollections } from '../lib/collections';
+
+interface Props { posts: Post[]; collection?: string; }
+const { posts, collection } = Astro.props;
+const collections = [...new Set(posts.flatMap(post => post.collections))].sort(compareCollections);
+const visiblePosts = collection ? posts.filter(post => post.collections.includes(collection)) : posts;
+---
+
+  <h1 class="visually-hidden">{collection ? collectionLabel(collection) : 'Articles'}</h1>
+  <div class="base-grid">
+    <div class="article-browser l-page">
+      <aside class="browser-collections">
+        <nav aria-labelledby="collections-heading">
+          <h2 id="collections-heading">Collections</h2>
+          <ol role="list">
+            <li><a href="/" aria-current={!collection ? 'page' : undefined}>All articles</a></li>
+            {collections.map(name => <li><a href={collectionUrl(name)} aria-current={name === collection ? 'page' : undefined}>{collectionLabel(name)}</a></li>)}
+          </ol>
+        </nav>
+      </aside>
+      <div class="browser-articles"><PostsList posts={visiblePosts} /></div>
+    </div>
+  </div>
+
+<style>
+  .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .article-browser, :global(body:has(.article-browser) .site-header nav) { width: min(100%, var(--listing-width)); justify-self: center; min-width: 0; }
+  .browser-collections { min-width: 0; padding-top: 32px; }
+  .browser-collections h2 { font-size: 13px; line-height: 1.5; font-weight: 600; margin: 0 0 12px; }
+  .browser-collections ol { list-style: none; margin: 0; padding: 0; columns: 2; column-gap: 24px; }
+  .browser-collections li { margin-bottom: 10px; font-size: 12px; line-height: 1.5; break-inside: avoid; }
+  .browser-collections a { color: rgb(var(--ink) / .6); text-decoration: none; border-bottom: none; }
+  .browser-collections a[aria-current="page"] { color: rgb(var(--ink)); font-weight: 600; }
+  .browser-collections a:hover { color: rgb(var(--ink)); }
+  .browser-collections a:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+  .browser-articles { min-width: 0; }
+  .browser-articles :global(.base-grid) { display: block; }
+  @media (min-width: 1180px) {
+    .article-browser, :global(body:has(.article-browser) .site-header nav) { width: min(100%, calc(var(--listing-width) + 240px)); }
+    .article-browser { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 40px; }
+    .browser-collections { grid-column: 1; grid-row: 1; padding-top: calc(84px * var(--listing-scale)); }
+    .browser-articles { grid-column: 2; grid-row: 1; }
+    .browser-collections nav { position: sticky; top: 24px; max-height: calc(100vh - 48px); overflow-y: auto; }
+    .browser-collections ol { columns: auto; }
+  }
+</style>

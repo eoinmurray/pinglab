@@ -1,0 +1,219 @@
+---
+id: "exp135"
+title: "DVS Gesture: COBA and PING"
+author: "Eoin Murray"
+description: "Paired COBA and PING training curves and matched two-layer responses on ten percent of DVS Gesture; training is planned."
+created_at: "2026-10-16"
+updated_at: "2026-10-16T18:57:35Z"
+collection: ["datasets"]
+tags: ["txt", "v37.0.0"]
+inputs: ["exp135"]
+---
+
+import ReportAvailability from '../../../site/src/components/ReportAvailability.astro';
+import RunFigure from '../../../site/src/components/RunFigure.astro';
+import { reportData, display, round } from '../../../site/src/lib/report-data';
+export const run = await reportData('exp135', { allowUnavailable: true });
+export const format = (value, digits = 4) => display(round(value, digits));
+export const trainingSummary = model => {
+  if (!run) return model === 'coba'
+    ? 'We plan to train the feedforward COBA baseline for twenty epochs on 108 gesture examples and evaluate 11 examples from separate subjects. Training has not been executed, so learning, weight changes and training time remain unmeasured.'
+    : 'We plan to train the PING candidate on the same examples, initial feedforward/readout weights and shuffled sample schedule as COBA, with a separate GPU for each model. Its inhibitory populations and four additional learned kernels change both population size and parameter count. Training has not been executed; oscillations and any validation advantage remain unverified.';
+  const result = run.models[model];
+  const last = result.epochs.at(-1);
+  const changed = Object.values(result.changed_parameter_elements).filter(value => value > 0).length;
+  return `After ${last.epoch} epochs, online training accuracy was ${format(100 * last.train_accuracy, 1)}% and validation accuracy ${format(100 * last.validation_accuracy, 1)}%. Validation cross-entropy changed from ${format(result.initial_validation_loss)} to ${format(result.final_validation_loss)}. ${changed} of ${Object.keys(result.changed_parameter_elements).length} learned projections changed; final weights were finite. Native training took ${format(result.timing.total_s / 60, 1)} minutes, including ${format(result.timing.training_s / 60, 1)} minutes training and ${format(result.timing.validation_s / 60, 1)} minutes validation. Total time includes native setup and checkpointing, and excludes data acquisition, sample inference and transfer. This is one development-holdout replicate, not an official-test evaluation.`;
+};
+export const responseSummary = model => {
+  if (!run) return model === 'coba'
+    ? 'We will replay the lexicographically first selected validation example through the final COBA weights, without optimizer updates. Selection will not depend on correct classification or raster appearance. No response has yet been measured; one example will illustrate activity propagation rather than summarize performance across gestures.'
+    : 'We will replay the identical validation input through the final PING weights, using the same presentation duration and excitatory-neuron display selection as COBA. The paired response will illustrate the proposed feedback circuit; one presentation cannot establish a mechanism for a training difference or sustained gamma activity.';
+  const sample = run.models[model].sample;
+  const active = Object.values(sample.activity).filter(population => population.spike_count > 0).length;
+  return `We replayed the lexicographically first selected validation example through the final ${model.toUpperCase()} weights, without optimizer updates. The true class was ${sample.label}, and the network predicted class ${sample.prediction}. ${active} of ${Object.keys(sample.activity).length} hidden populations emitted spikes. This fixed example was not selected for correct classification or raster appearance and cannot summarize performance across gestures or establish an oscillatory mechanism.`;
+};
+
+<ReportAvailability report="exp135" />
+
+## Abstract
+
+We plan to compare two-layer conductance-based networks that recognize gestures
+represented by visual spike events. COBA provides the feedforward baseline;
+PING adds local excitatory–inhibitory feedback. Matched training and held-out
+responses will test whether the proposed networks learn and propagate activity.
+{run ? 'The paired development measurements are available below.' : 'Training and response measurements remain unperformed.'}
+A single training seed and small validation set cannot establish competitive
+test performance or a general benefit from inhibition.
+
+## Results
+
+### COBA training
+
+{trainingSummary('coba')}
+
+<RunFigure report="exp135" experiment="exp135" allowUnavailable file="coba-training-curves.svg" number={1} id="fig-coba-training" alt="Two-layer COBA online training and validation cross-entropy and percentage accuracy over completed epochs.">
+  **COBA training curves.** The planned comparison uses 108 training gestures and
+  11 subject-disjoint validation gestures. (A) Example-average classification
+  cross-entropy. (B) Classification accuracy; the dotted line marks approximately
+  9.1% uniform random guessing across 11 classes. Black lines/circles show online
+  pre-update measurements aggregated over each epoch; red lines/circles show
+  complete validation with that epoch's final weights. Epoch zero contains
+  validation only. Each curve represents one seed-42 replicate, without averaging
+  or uncertainty bands. Both models use identical axis limits.
+</RunFigure>
+
+### PING training
+
+{trainingSummary('ping')}
+
+<RunFigure report="exp135" experiment="exp135" allowUnavailable file="ping-training-curves.svg" number={2} id="fig-ping-training" alt="Two-layer PING online training and validation cross-entropy and percentage accuracy over completed epochs.">
+  **PING training curves.** The planned comparison uses the same gestures,
+  initial feedforward/readout weights and sample order as COBA. (A) Example-average
+  classification cross-entropy. (B) Classification accuracy, with approximately
+  9.1% uniform-guessing accuracy dotted. Black lines/circles are online pre-update
+  measurements aggregated over the epoch; red lines/circles are full validation
+  with final epoch weights. Epoch zero contains validation only. Each curve
+  represents one seed-42 replicate, without averaging or uncertainty bands.
+  All seven projections are learned, including the four reciprocal E/I kernels.
+  The official test set is excluded.
+</RunFigure>
+
+### COBA two-layer response
+
+{responseSummary('coba')}
+
+<RunFigure report="exp135" experiment="exp135" allowUnavailable file="coba-sample-raster.svg" number={3} id="fig-coba-raster" alt="Excitatory spike rasters and population-count autocorrelations for both COBA layers during one held-out gesture.">
+  **COBA inference raster.** The planned response uses final-epoch weights,
+  irrespective of the validation-selected epoch. (A, C) Layer 1 and layer 2
+  excitatory spikes, in black. Up to 256 neurons per layer are chosen at evenly
+  spaced flattened indices spanning all feature maps; rows show their display
+  ranks, not the original neuron indices. Time starts at the centred validation crop boundary. (B, D)
+  Population spike autocorrelograms using every neuron, in 1 ms bins through
+  200 ms lag (Equation 2). The dotted independence baseline is one; zero lag
+  is omitted and undefined curves are marked. No temporal-mean subtraction,
+  smoothing, transient removal or trial averaging is applied. Stimulus envelopes
+  and crop boundaries contribute to these single-presentation correlations.
+</RunFigure>
+
+### PING two-layer response
+
+{responseSummary('ping')}
+
+<RunFigure report="exp135" experiment="exp135" allowUnavailable file="ping-sample-raster.svg" number={4} id="fig-ping-raster" alt="Matched excitatory and inhibitory spike rasters and population-count autocorrelations for both PING layers during one held-out gesture.">
+  **PING inference raster.** The planned response uses the identical gesture,
+  500 ms crop duration and final-epoch weight convention as COBA. (A, C)
+  Layer 1 and layer 2 spikes: black for up to 256 excitatory neurons, red for
+  up to 64 inhibitory neurons, selected at evenly spaced flattened indices.
+  Inhibitory rows follow the excitatory rows; the divider separates populations.
+  (B, D) Separate black/red excitatory/inhibitory population spike
+  autocorrelograms calculated from all neurons (Equation 2), with the same
+  binning, normalization and undefined-value convention as Figure 3.
+  The raster is an illustrative single presentation, without smoothing,
+  transient removal or trial averaging.
+</RunFigure>
+
+## Methods
+
+The architecture and simulation settings are listed in
+[Table 1](#architecture-config). We follow the paired training-curve and
+held-out-response design of [exp124](/exp124) — [*SHD*](/exp124), with the
+following gesture-specific protocol. All training and response procedures
+remain planned.
+
+1. **Prepare gesture events.** We will use the training-only Tonic distribution
+   of DVS Gesture [1, 2], containing 1,077 segmented examples with floating-point
+   timestamps in milliseconds. Fractional timestamps are preserved until binning.
+   The two highest-numbered training subjects will supply
+   one validation example per class. Selection seed 135 chooses 108 training
+   examples from the remaining subjects, with ten examples in nine classes and
+   nine in the remaining two classes. The official test set will remain unused.
+
+2. **Encode 500 ms crops.** We retain separate polarities, integer-divide sensor
+   coordinates by four to obtain 32 × 32 resolution, and form binary occupancy
+   in 1 ms bins. Repeated events in a bin collapse to one spike. Complete source
+   event extents are retained in the dataset snapshot. At each training epoch,
+   a seeded random integer-millisecond start selects a 500 ms window within each
+   gesture. Both networks receive matching crops under the same batch schedule.
+   Validation uses a fixed centred 500 ms window per example; examples shorter
+   than 500 ms receive zero-input padding. This development validation does not
+   measure whole-gesture or multi-window accuracy. Crop encoding uses indexed,
+   vectorised event selection through SNNLab's registered encoder interface.
+
+3. **Initialize feedforward weights.** Both networks have 16 excitatory maps at
+   32 × 32 followed by 32 maps at 16 × 16, with 3 × 3 AMPA convolutions and
+   two 2 × 2 average pools. Pooling carries fractional synaptic drive. Initial
+   conductance weights use Gaussian parent mean 0.02 μS and SD 0.004 μS,
+   lower-clamped at zero, without fan-in normalization. Parameter-local draws
+   with training seed 42 make shared kernels identical across models; we will
+   check this equality from the initial weights.
+
+4. **Initialize readout and feedback.** Both models have 11 non-spiking
+   leaky-integrator readouts, with signed Gaussian weights of mean zero and
+   SD 0.1, identically initialized. PING adds 4 and 8 inhibitory maps and learned
+   reciprocal 1 × 1 AMPA/GABA kernels with 1 ms delays. E→I and I→E Gaussian
+   parent means are 0.05 and 0.10 μS, respectively, with SD one fifth of the
+   mean and lower clamping at zero. Excitatory/inhibitory passive time constants
+   are 20/5 ms. These operating weights and timestep remain uncalibrated.
+
+5. **Score each gesture.** Classification uses the mean voltage of each
+   non-spiking readout over the 500 ms crop:
+
+   <span id="eq-class-score" />
+
+   $$
+   z_c=\frac{1}{N_t}\sum_{k=0}^{N_t-1}V_{\mathrm{out},c}[k],
+   \qquad \hat y=\operatorname*{arg\,max}_c z_c .\tag{1}
+   $$
+
+   Here $z_c$ is the score for class $c$, $V_{\mathrm{out},c}[k]$ its readout
+   voltage in mV at simulation step $k$, $N_t$ the number of crop timesteps (500),
+   and $\hat y$ the predicted class. There is no rate normalization, additional
+   score gain or voltage centering. The signed readout is phenomenological
+   rather than a Dale-constrained biophysical projection.
+
+6. **Train the paired networks.** We will train for twenty epochs with the same
+   shuffled example schedule, batch size 54 selected by GPU benchmarking, AdamW, learning rate 0.001,
+   zero weight decay, gradient clipping at 1.0 and fast-sigmoid surrogate
+   slope 1. Native neuron kernels use compilation. All projection weights are trainable; conductance weights remain
+   nonnegative. At batch 54, each epoch contains two optimizer updates; twenty
+   epochs therefore contain forty updates. Hidden, readout and synaptic states
+   reset between crops.
+   Both models use voltage-gradient damping divisor 80 for hidden-neuron
+   voltage updates. Training metrics average pre-update measurements across
+   examples; validation uses fixed epoch-end weights. The earliest completed
+   epoch with minimum example-average validation cross-entropy is selected
+   separately for each model. Training will run concurrently on separate GPUs.
+
+7. **Record matched responses.** We will replay the lexicographically first
+   selected validation example through each final-epoch network, without
+   optimizer updates, and verify identical sample inputs and duration. This
+   prespecified sample does not depend on class, correctness or spike appearance.
+   We will record every hidden neuron's spikes and the class scores. Final
+   weights are used irrespective of the validation-selected epoch.
+
+8. **Calculate population autocorrelograms.** For each hidden population $P$,
+   we will count all spikes as $n_P[k]$ in analysis bin $k$ and use SNNLab's
+   overlap-corrected, uncentered estimator:
+
+   <span id="eq-autocorrelation" />
+
+   $$
+   A_{\mathrm{corr},P}[\ell]
+   =\frac{\sum_{k=0}^{N_b-\ell-1}n_P[k]n_P[k+\ell]}
+   {(N_b-\ell)\,\bar n_P^{\,2}},
+   \qquad
+   \bar n_P=\frac{1}{N_b}\sum_{k=0}^{N_b-1}n_P[k].\tag{2}
+   $$
+
+   Here $A_{\mathrm{corr},P}[\ell]$ is the normalized autocorrelation at integer
+   lag $\ell$, $N_b$ the number of bins, and $\bar n_P$ the mean population
+   count per bin. The analysis-bin width and simulation timestep are both
+   1 ms; physical lag is $\ell$ milliseconds. We will use positive lags through
+   200 ms, omitting zero lag. Silent populations or insufficient overlapping
+   bins give undefined values. A unity baseline describes rate-matched
+   independent stationary activity, rather than demonstrating that process.
+
+## References
+
+1. Amir, A., et al. (2017). [A Low Power, Fully Event-Based Gesture Recognition System](https://openaccess.thecvf.com/content_cvpr_2017/papers/Amir_A_Low_Power_CVPR_2017_paper.pdf). *Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition*, 7243–7252.
+2. Tonic contributors. [DVS Gesture dataset documentation](https://tonic.readthedocs.io/en/develop/generated/tonic.datasets.DVSGesture.html). Segmented event recordings and dataset format.

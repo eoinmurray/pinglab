@@ -20,11 +20,6 @@ const collections = [
       "Training banks, recordings, and other reusable experimental data, with their provenance and diagnostics.",
   },
   {
-    id: "demo",
-    label: "Uncategorized",
-    description: "Articles and experiments without a subject collection.",
-  },
-  {
     id: "guides",
     label: "Guides",
     description: "Technical explanations of the models, methods, and tools used in Pinglab.",
@@ -58,6 +53,11 @@ const collections = [
     id: "slides",
     label: "Slides",
     description: "Talks and journal-club presentations on research and related ideas.",
+  },
+  {
+    id: "demo",
+    label: "Uncategorized",
+    description: "Articles and experiments without a subject collection.",
   },
 ];
 

@@ -95,12 +95,20 @@ REMOVED_RUNNER_FLAGS = {
 # Exp123 selects one of two committed scientific partitions; neither accepts
 # user-defined scientific values. Its extra source flags pin dependency roles.
 STAGE_SPECIFIC_FLAGS = {
+    # Committed exp136 assays/search levels and an explicit analysis dependency.
+    "exp136/compute.py": {"--task", "--selection"},
+    "exp136/analyse.py": {"--task"},
+    "exp125/compute.py": {"--phase", "--cpu-threads"},
+    "exp125/analyse.py": {"--raster-source"},
     "exp082/analyse.py": {"--showcase-source"},
     "exp123/compute.py": {"--protocol", "--image-source"},
     "exp123/analyse.py": {"--protocol"},
     "exp123/present.py": {"--overview-source"},
     "exp134/compute.py": {"--image-source"},
     "exp134/analyse.py": {"--workers"},
+    # Dataset acquisition, hardware, plan and the committed local-check phase.
+    # Epochs, subset sizes, durations and seeds remain in the recipe.
+    "exp135/compute.py": {"--phase", "--dataset-archive", "--download", "--device", "--plan", "--collect"},
 }
 
 

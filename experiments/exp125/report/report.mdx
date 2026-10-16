@@ -2,63 +2,71 @@
 id: "exp125"
 title: "Scikit Digits"
 created_at: "2026-10-14"
-updated_at: "2026-10-14"
-description: "A 64 → 128 → 10 LIF network learns handwritten digits, with training curves and a held-out test evaluation."
+updated_at: "2026-10-16T00:00:00Z"
+description: "A 64 → 128 → 10 LIF network learns handwritten digits, with training curves and a recorded inference raster."
 collection: "datasets"
 author: "Eoin Murray"
-tags: ["data", "v36.0.0"]
+tags: ["data", "v37.0.0"]
 inputs: ["exp125"]
-runs: {"exp125": "exp125-r006-present"}
+runs: {"exp125": "exp125-r012-present"}
 ---
 
 import ReportAvailability from '../../../site/src/components/ReportAvailability.astro';
 import RunFigure from '../../../site/src/components/RunFigure.astro';
-import Table from '../../../site/src/components/Table.astro';
 import { reportData, display, round } from '../../../site/src/lib/report-data';
 export const run = await reportData('exp125', { allowUnavailable: true });
-export const value = number => run ? display(number) : 'unavailable';
 export const loss = (epoch, split) => run ? display(round(run.epochs[epoch][split].loss, 3)) : 'unavailable';
 export const accuracy = (epoch, split) => run ? display(round(100 * run.epochs[epoch][split].accuracy, 1)) : 'unavailable';
-export const selected = run ? run.selected_epoch : 0;
-export const testAccuracy = run ? display(round(100 * run.test.accuracy, 1)) : 'unavailable';
-export const testCorrect = run ? display(run.confusion_matrix.reduce((sum, row, i) => sum + row[i], 0)) : 'unavailable';
-export const timingRows = run ? [
-  ['Training (50 epochs)', round(run.execution.training_seconds, 3)],
-  ['Inference (360 test images)', round(run.execution.test_inference_seconds, 3)],
-] : [];
+export const sample = run?.sample_raster;
+export const sampleValue = key => sample ? display(sample[key]) : 'unavailable';
 
 <ReportAvailability report="exp125" />
 
 ## Abstract
 
-We tested whether a small fully connected spiking network could classify low-resolution handwritten digits using brightness-dependent input spikes. A leaky integrate-and-fire hidden layer and spiking output layer learned through surrogate gradients, reducing training and validation loss. A checkpoint selected by validation loss also classified held-out images accurately. This single training replicate provides a compact supervised baseline; it does not establish robustness across seeds, writers, or input encoding draws.
+We trained a small LIF network to classify handwritten digits encoded as brightness-dependent spikes. Training and validation loss decreased. A newly recorded response shows hidden and output activity in the validation-selected model. One training replicate and one illustrative response do not establish robustness across seeds, writers or encoding draws.
 
 ## Results
 
-### A small LIF network learns digits
+### LIF training
 
-Training cross-entropy fell from {loss(0, 'train')} to {loss(50, 'train')}, while validation cross-entropy fell from {loss(0, 'validation')} to {loss(50, 'validation')}. Final training and validation accuracies were {accuracy(50, 'train')}% and {accuracy(50, 'validation')}%, respectively ([Fig. 1](#fig-training)). Validation performance fluctuated after the initial improvement. These measurements demonstrate learning under one initialization and fixed evaluation encoding draws, without establishing performance variability.
+Training cross-entropy fell from {loss(0, 'train')} to {loss(50, 'train')}; validation loss fell from {loss(0, 'validation')} to {loss(50, 'validation')}. Final accuracies were {accuracy(50, 'train')}% and {accuracy(50, 'validation')}%, respectively ([Fig. 1](#fig-training)). This single replicate demonstrates learning, not its variability.
 
 <RunFigure report="exp125" experiment="exp125" allowUnavailable file="training_curves.svg" number={1} id="fig-training" alt="Training and validation cross-entropy and accuracy across fifty completed epochs, with the validation-selected epoch marked.">
-  **Learning curves from one local training replicate.** We trained on 1,077 images and evaluated the complete training and 360-image validation partitions before optimization and after every epoch. (A) Mean per-image cross-entropy. (B) Percentage of correctly classified images. Black lines identify training and red lines validation. Evaluation reused fixed, split-specific stochastic encoding draws at every epoch; training used fresh draws. The vertical dashed line marks the minimum-validation-loss checkpoint, with the earliest epoch chosen on ties. The horizontal dotted line in B marks the 10% equal-class chance reference. There is no across-seed average or uncertainty band, and test images do not contribute to these curves.
+  **Learning curves.** Full-split evaluations used 1,077 training and 360 validation images at epochs 0–50. (A) Mean per-image cross-entropy. (B) Accuracy. Black denotes training; red, validation. Evaluation encoding draws were fixed across epochs; optimization used fresh draws. The vertical dashed line marks minimum validation loss, choosing the earliest epoch on ties; the dotted line marks 10% chance accuracy. No replicate averaging, uncertainty bands or test images are included.
 </RunFigure>
 
-## Held-out evaluation
+### Hidden and output LIF response
 
-The minimum-validation-loss checkpoint occurred at epoch {value(selected)}, with validation accuracy {accuracy(selected, 'validation')}%. We evaluated that checkpoint once on 360 held-out images: {testCorrect} classifications were correct, giving {testAccuracy}% accuracy. The test partition influenced neither optimization nor checkpoint selection. These image-level partitions do not establish generalisation to unseen writers, and the result uses one encoding draw per test image.
+The first validation image was digit {sampleValue('class')}; the epoch-{sampleValue('selected_epoch')} model predicted {sampleValue('prediction')} ([Fig. 2](#fig-sample-raster)). Both layers spiked. This new inference reused trained weights and was selected independently of correctness or activity. One short response cannot establish sustained rhythmic activity.
 
-## Execution time
-
-We measured training and full-test-set inference separately on the local Apple M5 CPU using one thread. These are single wall-time measurements from a warmed process; they do not estimate isolated-image latency or variability across executions.
-
-{run && <Table headers={['Operation', 'Wall time (s)']} rows={timingRows} number="1">
-  Local CPU timings. Training includes the initial evaluation, 50 optimization epochs, full training/validation evaluations after each epoch, and serialization of improved checkpoints. Test inference includes stochastic input encoding, forward simulation, spike-count decoding, and loss/accuracy calculation for all 360 images, in batches of at most 256. Both exclude dataset loading and model initialization; inference also excludes checkpoint loading and prediction serialization. Completion checks are excluded.
-</Table>}
+<RunFigure report="exp125" experiment="exp125" allowUnavailable file="sample_raster.svg" number={2} id="fig-sample-raster" alt="Hidden and output LIF spike rasters and population-count autocorrelograms during one 50 ms validation-image presentation.">
+  **Recorded LIF response.** One validation image used fresh seed-46 encoding, zero initial states and fixed selected weights. (A, C) Hidden and output spikes: black ticks mark neuron index and update time over the full 50 ms. The 128 hidden neurons and ten digit-indexed outputs are shown. (B, D) Population-count autocorrelograms use 1 ms bins and Equation 1 at 1–20 ms lags. Zero lag is omitted; the dotted baseline is one. Axes include full peaks. No smoothing, transient removal or averaging was applied; onset and finite-window effects remain.
+</RunFigure>
 
 ## Methods
 
-1. **Partition handwritten digits.** We used all 1,797 images from scikit-learn's bundled digits dataset [1], a separate dataset from MNIST. Each image contains 64 intensities on an 8 × 8 grid, with integer values from zero to 16 and a label from zero to nine. A stratified split with seed 42 reserved 360 test images. A second stratified split with seed 43 divided the remaining images into 1,077 training and 360 validation images. We normalized intensities by dividing by 16. Splits were disjoint by image, without writer-group constraints.
-2. **Encode brightness as spikes.** Each image was presented for 50 ms using 50 steps of 1 ms. At each step, every pixel independently generated a Bernoulli event with probability equal to its normalized intensity multiplied by 0.25. The maximum event rate was therefore 250 Hz. This is a discrete rate code; its relatively large maximum per-step probability should not be treated as a fine-grid Poisson approximation. Training used fresh events. Evaluation reset a split-specific random stream for every complete split, holding the encoding draws fixed across epochs. Seeds were 45 for training encoding, 52 for training evaluation, 53 for validation and 54 for test.
-3. **Define the spiking classifier.** We used 64 inputs, 128 hidden LIF neurons and ten output LIF neurons, with two fully connected signed weight matrices. Both LIF layers had dimensionless decay 0.9 and threshold 1, with delayed subtractive reset; no refractory interval or explicit inter-neuron recurrence was added. Dense weights followed the default fan-in-scaled uniform initialization, with both biases initialized to 0.1. Hidden and output states reset at every image boundary. Class scores were output spike counts accumulated across the complete presentation, and prediction selected the largest count, choosing the lowest class index on ties. The decoder therefore knew the presentation boundaries.
-4. **Optimize and select parameters.** With initialization seed 42, we trained both dense weight matrices and biases using cross-entropy on output spike counts, Adam at learning rate 0.001, zero weight decay, minibatches of 64 and 50 epochs. A separate stream with seed 44 shuffled the training images. Backpropagation through time used fast-sigmoid surrogate derivatives of slope 25 [2]; the global gradient norm was clipped at 1. We evaluated complete training and validation partitions at epoch zero and after every epoch, in batches of at most 256. Loss was averaged over images and accuracy was the fraction classified correctly. We selected the lowest validation cross-entropy among epochs zero through 50, choosing the earliest epoch on ties, and evaluated test images once with that checkpoint.
-5. **Measure execution and learning.** We recorded every epoch's split loss and accuracy, checked finite training losses and gradients, and validated finite selected parameters and changed hidden/readout weights. The analysis verified disjoint exhaustive partitions, checkpoint selection and agreement between test accuracy and recorded predictions. One CPU execution and one training seed were used. Neither calibrated probabilities nor uncertainty across independently trained networks was measured.
+Architecture and settings appear in [Figure 3](#fig-network) and [Table 1](#architecture-config).
+
+1. **Partition digits.** We normalized the 1,797 scikit-learn 8 × 8 digit images [1] by dividing intensities by 16. Stratified splits reserved 360 test images (seed 42), then 1,077 training and 360 validation images (seed 43). Partitions were image-disjoint, without writer constraints.
+
+2. **Encode inputs.** Each pixel generated independent Bernoulli spikes with probability normalized intensity × 0.25 per 1 ms step, over 50 ms: a maximum 250 Hz discrete rate code, not a fine-grid Poisson approximation. Optimization used fresh draws (seed 45); full-split evaluations reused fixed streams (training/validation/test seeds 52/53/54).
+
+3. **Define the classifier.** Dense signed projections connected 64 inputs, 128 hidden LIF neurons and ten output LIF neurons. Both layers used decay 0.9, threshold 1, delayed subtractive reset and no explicit recurrence or refractory interval. Weights used default fan-in-scaled uniform initialization; biases started at 0.1. States reset per image. Full-presentation output counts supplied class scores, with the lowest digit winning ties; decoding knew image boundaries.
+
+4. **Train and select.** We used initialization seed 42, shuffle seed 44, 50 epochs, batches of 64 and Adam (learning rate 0.001, no weight decay). Cross-entropy gradients used a slope-25 fast-sigmoid surrogate [2] and norm clipping at 1. Complete training/validation splits were evaluated at epochs 0–50 in batches of at most 256. Loss was the image mean; accuracy was the correct fraction. Minimum validation loss selected parameters, choosing the earliest epoch on ties; test images were evaluated once afterward.
+
+5. **Check learning.** We checked finite losses, gradients and selected parameters, changed learned weights, exhaustive disjoint partitions, checkpoint selection and test predictions. One training seed was used; calibration and across-replicate uncertainty were not measured.
+
+6. **Record a response.** We presented the first validation image through the reused selected model with fresh seed-46 encoding, zero initial states and fixed weights. Selection ignored correctness and activity. We recorded input, hidden and output spikes and checked output counts against class scores and prediction.
+
+7. **Calculate autocorrelograms.** SNNLab's [spike_autocorrelogram](https://snnlab.eoinmurray.info/api/analysis/#spike_autocorrelogram) measured pooled counts separately for each layer:
+
+   $$
+   A_{\mathrm{corr},P}[\ell]
+   =\frac{\displaystyle\sum_{k=0}^{N_t-\ell-1}n_P[k]\,n_P[k+\ell]}
+   {(N_t-\ell)\,\bar n_P^{\,2}}.
+   \tag{1}
+   $$
+
+   Here $P$ identifies hidden or output neurons, $n_P[k]$ is the count in bin $k$, $\bar n_P$ its mean across $N_t=50$ bins, and $A_{\mathrm{corr},P}$ the dimensionless correlation. Bins were 1 ms; integer lags $\ell=1,\ldots,20$ represent 1–20 ms. Independent stationary activity has baseline one. Zero lag was omitted; silent populations give undefined curves. No smoothing, transient removal or trial averaging was applied.

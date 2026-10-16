@@ -24,6 +24,7 @@ const reports = defineCollection({
   }),
   schema: articleSchema.extend({
     id: z.string().regex(/^exp\d{3}$/),
+    updated_at: z.string().datetime({ precision: 0 }),
     inputs: z.array(z.string().regex(/^exp\d{3}$/)).default([]),
     runs: z.record(z.string(), z.string()).optional(),
     tags: z.array(z.string()),

@@ -33,7 +33,7 @@ VOLUME = "pinglab-compute-results"
 RECEIPT = Path(".scratch/modal-dispatch.json")
 
 
-def submit(root, experiment, worker, *, options, arguments, app_id, inputs=None):
+def submit(root, experiment, worker, *, options, arguments, app_id, inputs=None, plan=None):
     """Reserve once, spawn once, persist the call ID, and return without waiting."""
     dispatch = uuid.uuid4().hex
     inputs = inputs or {}
@@ -58,6 +58,8 @@ def submit(root, experiment, worker, *, options, arguments, app_id, inputs=None)
             "resources": options,
             "inputs": inputs,
         }
+        if plan is not None:
+            receipt["plan"] = plan
         if inputs:
             # Standard incomplete-run input pins protect remote jobs from pruning.
             write_json_atomic(
@@ -159,7 +161,8 @@ def collect_files(root, identity, receipt, files, volume):
         or record["stage"] != "compute"
         or record["origin"] != reservation["origin"]
         or record["inputs"] != receipt.get("inputs", {})
-        or record.get("scope") != "full"
+        or record.get("scope") != ("phase" if reservation.get("phase") else "full")
+        or record.get("phase") != reservation.get("phase")
     ):
         raise PingstoreError("downloaded result does not match submitted compute")
     record["execution"]["modal"] = receipt
@@ -222,5 +225,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--run-id", required=True)
     parser.add_argument("--collect", action="store_true")
+    parser.add_argument("--root", type=Path, default=REPO / ".pingstore")
     args = parser.parse_args()
-    print(json.dumps(check(REPO / ".pingstore", args.run_id, collect=args.collect)))
+    print(json.dumps(check(args.root.expanduser().absolute(), args.run_id, collect=args.collect)))

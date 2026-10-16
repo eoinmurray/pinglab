@@ -12,10 +12,10 @@ import numpy as np
 import sklearn
 import snntorch as snn
 import torch
-from experiments.exp125.recipe import CONFIG, SLUG
+from experiments.exp125.recipe import CONFIG, RASTER, SLUG
 from experiments.helpers.external_artifacts import external_execution
-from pingstore.contracts import write_json_atomic
-from pingstore.stages import stage_run
+from pingstore.contracts import load_json, write_json_atomic
+from pingstore.stages import source_run, stage_run
 from sklearn.datasets import load_digits
 from sklearn.model_selection import train_test_split
 from snntorch import surrogate
@@ -36,7 +36,7 @@ class Classifier(nn.Module):
         nn.init.constant_(self.input.bias, 0.1)
         nn.init.constant_(self.output.bias, 0.1)
 
-    def forward(self, images, generator):
+    def forward(self, images, generator, recording=None):
         shape = (len(images),)
         hidden = images.new_zeros((*shape, self.cfg["hidden"]))
         output = images.new_zeros((*shape, self.cfg["outputs"]))
@@ -46,6 +46,9 @@ class Classifier(nn.Module):
             events = (torch.rand(images.shape, generator=generator) < probability).float()
             spikes, hidden = self.hidden_lif(self.input(events), hidden)
             out_spikes, output = self.output_lif(self.output(spikes), output)
+            if recording is not None:
+                for name, values in (("input", events), ("hidden", spikes), ("output", out_spikes)):
+                    recording[name].append(values.detach().cpu().numpy().copy())
             counts = counts + out_spikes
         return counts
 
@@ -142,10 +145,56 @@ def compute(cpu_threads):
     return run.run_id
 
 
+@torch.no_grad()
+def sample_raster(identity, cpu_threads):
+    source = source_run(REPO / ".pingstore", identity, stage="compute", experiment=SLUG)
+    cfg = dict(source.record["execution"]["configuration"])
+    if cfg["schema"] != CONFIG["schema"]:
+        raise ValueError("unsupported scientific recipe")
+    torch.set_num_threads(cpu_threads)
+    learning = load_json(source.file("learning.json"))
+    with np.load(source.file("dataset.npz"), allow_pickle=False) as data:
+        index = int(data["validation_indices"][0])
+        pixels = data["pixels"][index].copy()
+        target = int(data["labels"][index])
+    model = Classifier(cfg).eval()
+    with np.load(source.file("selected_weights.npz"), allow_pickle=False) as saved:
+        if not all(np.isfinite(saved[name]).all() for name in saved.files):
+            raise ValueError("nonfinite selected parameters")
+        model.load_state_dict({name: torch.from_numpy(saved[name].copy()) for name in saved.files})
+    seed = cfg["seed"] + RASTER["encoding_seed_offset"]
+    settings = {**cfg, "raster": {**RASTER, "image_index": index, "class": target,
+                                "encoding_seed": seed, "selected_epoch": learning["selected_epoch"]}}
+    with stage_run(REPO, SLUG, "compute", phase=RASTER["phase"],
+                   inputs={"trained": source}, configuration=settings) as run:
+        recording = {name: [] for name in ("input", "hidden", "output")}
+        with external_execution(run.export / "sample-inference", backend="snntorch.Leaky",
+                                configuration=settings, parameters=model.state_dict):
+            scores = model(torch.from_numpy(pixels.astype(np.float32) / 16)[None],
+                           torch.Generator().manual_seed(seed), recording)
+        np.savez_compressed(run.export / "spikes.npz", pixels=pixels,
+                            **{name: np.stack(values)[:, 0].astype(np.uint8)
+                               for name, values in recording.items()})
+        write_json_atomic(run.export / "sample.json", {**settings["raster"],
+                          "prediction": int(scores.argmax(1)), "scores": scores[0].tolist()})
+        run.record["execution"].update({"device": "cpu", "cpu_threads": cpu_threads,
+                                        "versions": {"torch": torch.__version__, "snntorch": snn.__version__}})
+    return run.run_id
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--cpu-threads", type=int, default=1)
+    parser.add_argument("--phase", choices=("train", "sample-raster"), default="train")
+    parser.add_argument("--source")
     args = parser.parse_args()
     if args.cpu_threads < 1:
         parser.error("--cpu-threads must be positive")
-    compute(args.cpu_threads)
+    if args.phase == "sample-raster":
+        if not args.source:
+            parser.error("--phase sample-raster requires --source")
+        sample_raster(args.source, args.cpu_threads)
+    else:
+        if args.source:
+            parser.error("training does not accept --source")
+        compute(args.cpu_threads)

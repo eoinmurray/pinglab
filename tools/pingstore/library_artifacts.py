@@ -7,13 +7,16 @@ from .contracts import PingstoreError, file_sha256, load_json
 
 
 def native_artifact_files(export):
-    """Find complete bundles and snapshots, without relying on a bundle suffix."""
+    """Find complete bundles, training checkpoints and simulation snapshots."""
     files = set()
     for path in export.rglob("*.json"):
         if path.name not in {"manifest.json", "snapshot.json"}:
             continue
         metadata = load_json(path)
-        if metadata.get("schema") == "snnlang.bundle/v1":
+        if metadata.get("schema") in {
+            "snnlang.bundle/v1",
+            "tools/snnsim.training-checkpoint/v1",
+        }:
             files.update(p for p in path.parent.rglob("*") if p.is_file())
         elif metadata.get("schema") in {
             "snnlab.run-snapshot/v1",
@@ -55,14 +58,16 @@ def restore_native(export, mapping, prefix, destination):
 
 
 def validate_native_artifacts(export, mapping):
-    """Authenticate preserved bundles and require complete start/end snapshots."""
-    bundles, snapshots = [], {}
+    """Authenticate native bundles/checkpoints and complete snapshot pairs."""
+    bundles, checkpoints, snapshots = [], [], {}
     for source, target in mapping.items():
         if Path(source).name not in {"manifest.json", "snapshot.json"}:
             continue
         metadata = load_json(export / target)
         if metadata.get("schema") == "snnlang.bundle/v1":
             bundles.append(Path(source).parent)
+        elif metadata.get("schema") == "tools/snnsim.training-checkpoint/v1":
+            checkpoints.append(Path(source).parent)
         elif metadata.get("schema") in {
             "snnlab.run-snapshot/v1",
             "pinglab.external-run-snapshot/v1",
@@ -92,6 +97,16 @@ def validate_native_artifacts(export, mapping):
         with tempfile.TemporaryDirectory(prefix="pinglab-native-") as temporary:
             for index, prefix in enumerate(bundles):
                 load_bundle(
+                    restore_native(
+                        export, mapping, prefix, Path(temporary) / str(index)
+                    )
+                )
+    if checkpoints:
+        from snnlab.sim import load_training_checkpoint
+
+        with tempfile.TemporaryDirectory(prefix="pinglab-checkpoint-") as temporary:
+            for index, prefix in enumerate(checkpoints):
+                load_training_checkpoint(
                     restore_native(
                         export, mapping, prefix, Path(temporary) / str(index)
                     )

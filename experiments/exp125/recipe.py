@@ -9,3 +9,11 @@ CONFIG = {
     "test_fraction": 0.2, "validation_fraction_of_remainder": 0.25,
     "selection": "minimum validation cross-entropy, earliest epoch on ties",
 }
+
+RASTER = {
+    "phase": "sample-raster",
+    "selection": "first validation image in the recorded partition order",
+    "encoding_seed_offset": 4,
+    "max_lag_ms": 20.0,
+    "bin_ms": 1.0,
+}

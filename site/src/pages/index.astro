@@ -1,16 +1,11 @@
 ---
 import Page from '../layouts/Page.astro';
-import PostsList from '../components/PostsList.astro';
+import ArticleBrowser from '../components/ArticleBrowser.astro';
 import { getPosts } from '../lib/posts';
 
 const posts = await getPosts();
 ---
 
 <Page title="Articles" description="Scientific reports, notes, and slide decks from Pinglab." compact>
-  <h1 class="visually-hidden">Articles</h1>
-  <PostsList posts={posts} />
+  <ArticleBrowser posts={posts} />
 </Page>
-
-<style>
-  .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-</style>

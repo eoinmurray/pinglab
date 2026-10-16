@@ -1,16 +1,15 @@
 ---
 import Page from '../../layouts/Page.astro';
-import PostsList from '../../components/PostsList.astro';
-import CollectionHeader from '../../components/CollectionHeader.astro';
+import ArticleBrowser from '../../components/ArticleBrowser.astro';
 import { getPosts, type Post } from '../../lib/posts';
-import { collectionLabel, collectionDescription, collectionSummary } from '../../lib/collections';
+import { collectionLabel, collectionDescription } from '../../lib/collections';
 
 export async function getStaticPaths() {
   const posts = await getPosts();
   return [...new Set(posts.flatMap(post => post.collections))]
     .map(collection => ({
       params: { collection },
-      props: { collection, posts: posts.filter(post => post.collections.includes(collection)) },
+      props: { collection, posts },
     }));
 }
 
@@ -18,10 +17,8 @@ interface Props { collection: string; posts: Post[]; }
 const { collection, posts } = Astro.props;
 const name = collectionLabel(collection);
 const description = collectionDescription(collection);
-const { count, latestDate } = collectionSummary(posts);
 ---
 
 <Page title={name} description={description} compact>
-  <CollectionHeader name={name} description={description} count={count} latestDate={latestDate} />
-  <PostsList posts={posts} />
+  <ArticleBrowser posts={posts} collection={collection} />
 </Page>

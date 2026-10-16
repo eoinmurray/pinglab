@@ -54,6 +54,11 @@ Articles live in `experiments/expXXX/report/report.mdx`, with supporting MDX,
 CSS, and article components in the same `report/` directory. Experiment-specific
 browser JavaScript lives in `experiments/expXXX/js/`; article components import
 it from `../js/`. Shared site components and scripts remain under `site/src/`.
+Every experiment report requires a quoted UTC `updated_at` datetime with seconds
+(`YYYY-MM-DDTHH:mm:ssZ`). Refresh it after each saved report revision, including
+metadata-only and supporting article changes; see Writing Rules section 3.3.
+Legacy date-only updates are normalized to midnight UTC on their recorded date.
+Experiment `created_at` remains a quoted `YYYY-MM-DD` date.
 Notes live in `md/notes/` as MDX and belong to the Notes collection
 at `/collections/notes/`. Each note requires `title`, `author`, `description`,
 `created_at`, `updated_at`, and `collection` frontmatter including `notes`; dates use quoted `YYYY-MM-DD` strings.
@@ -87,8 +92,10 @@ cannot render shows unavailable word/figure counts in listings rather than takin
 the listing offline. No authored count fields or article date changes are needed.
 All article types sort together by decreasing authored `updated_at`, with article
 ID and then URL ascending to break ties, in both development and static builds.
-`/notes/` and `/collections/<collection>/` use the homepage list with a
-collection header and only that collection's articles. `/collections/` lists
+The homepage, `/notes/`, and `/collections/<collection>/` share the same
+collection sidebar and article layout, including aligned navigation. Collection
+pages show only that collection's articles and highlight its sidebar link.
+`/collections/` lists
 clickable collection names, including Notes, without article previews. Distill's official
 v2 runtime and styles are self-hosted; the article shell supplies the byline,
 sticky contents, and appendix. Optional `parameters.mdx`, `appendix.mdx`, and
@@ -155,7 +162,7 @@ valid. Notes must include `notes`; slides default to `slides` when the field is
 omitted. For experiment runs, the first collection supplies Pingstore's single
 provenance value; completed runs remain unchanged.
 
-The collections index and individual collection headers show the description
+The collections index shows the description
 configured in `src/lib/collections.ts`, a count of distinct article URLs, and
 the latest member article's `updated_at` date. Articles in multiple collections
 count once in each; latest activity describes article edits, not experiment execution.

@@ -9,7 +9,7 @@ const { posts } = Astro.props;
 const previews = await Promise.all(posts.map(async report => ({ report, counts: report.article ? await articleMetrics(report.article) : undefined })));
 const dateLabel = (date: string) => new Intl.DateTimeFormat('en-GB', {
   day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC',
-}).format(new Date(`${date}T00:00:00Z`));
+}).format(new Date(date));
 ---
 
 <div class="base-grid">
