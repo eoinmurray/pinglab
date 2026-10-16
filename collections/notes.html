@@ -1,0 +1,967 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><script>
+  (() => {
+    const key = 'pinglab-theme';
+    const system = window.matchMedia('(prefers-color-scheme: dark)');
+    const readPreference = () => {
+      try {
+        const saved = localStorage.getItem(key);
+        return saved === 'light' || saved === 'dark' ? saved : 'system';
+      } catch { return 'system'; }
+    };
+    let preference = readPreference();
+    const apply = () => {
+      const theme = preference === 'system' ? (system.matches ? 'dark' : 'light') : preference;
+      document.documentElement.dataset.theme = theme;
+      document.documentElement.dataset.themePreference = preference;
+      const button = document.getElementById('theme-toggle');
+      if (button) {
+        const next = preference === 'system' ? 'light' : preference === 'light' ? 'dark' : 'system';
+        const label = `Theme: ${preference === 'system' ? `system (${theme})` : preference}. Switch to ${next} theme`;
+        button.setAttribute('aria-label', label);
+        button.setAttribute('title', label);
+      }
+    };
+    // Apply in the head so a saved or system dark theme is ready before paint.
+    apply();
+    document.addEventListener('DOMContentLoaded', apply);
+    document.addEventListener('astro:page-load', apply);
+    system.addEventListener('change', () => { if (preference === 'system') apply(); });
+    window.addEventListener('storage', (event) => {
+      if (event.key === key || event.key === null) { preference = readPreference(); apply(); }
+    });
+    document.addEventListener('click', (event) => {
+      if (!(event.target instanceof Element) || !event.target.closest('#theme-toggle')) return;
+      preference = preference === 'system' ? 'light' : preference === 'light' ? 'dark' : 'system';
+      try {
+        if (preference === 'system') localStorage.removeItem(key);
+        else localStorage.setItem(key, preference);
+      } catch { /* The toggle still works when storage is unavailable. */ }
+      apply();
+    });
+  })();
+</script><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Practical project notes, infrastructure guidance, and operational workflows."><link rel="canonical" href="https://pinglab.eoinmurray.info/collections/notes"><link rel="icon" type="image/svg+xml" href="/favicon.svg"><title>Notes · Pinglab</title><style id="distill-prerendered-styles">/*
+ * Copyright 2018 The Distill Template Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+html {
+  font-size: 14px;
+	line-height: 1.6em;
+  /* font-family: "Libre Franklin", "Helvetica Neue", sans-serif; */
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Fira Sans", "Droid Sans", "Helvetica Neue", Arial, sans-serif;
+  /*, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";*/
+  text-size-adjust: 100%;
+  -ms-text-size-adjust: 100%;
+  -webkit-text-size-adjust: 100%;
+}
+
+@media(min-width: 768px) {
+  html {
+    font-size: 16px;
+  }
+}
+
+body {
+  margin: 0;
+}
+
+a {
+  color: var(--link);
+}
+
+figure {
+  margin: 0;
+}
+
+table {
+	border-collapse: collapse;
+	border-spacing: 0;
+}
+
+table th {
+	text-align: left;
+}
+
+table thead {
+  border-bottom: 1px solid rgb(var(--ink) / 0.05);
+}
+
+table thead th {
+  padding-bottom: 0.5em;
+}
+
+table tbody :first-child td {
+  padding-top: 0.5em;
+}
+
+pre {
+  overflow: auto;
+  max-width: 100%;
+}
+
+p {
+  margin-top: 0;
+  margin-bottom: 1em;
+}
+
+sup, sub {
+  vertical-align: baseline;
+  position: relative;
+  top: -0.4em;
+  line-height: 1em;
+}
+
+sub {
+  top: 0.4em;
+}
+
+.kicker,
+.marker {
+  font-size: 15px;
+  font-weight: 600;
+  color: rgb(var(--ink) / 0.5);
+}
+
+
+/* Headline */
+
+@media(min-width: 1024px) {
+  d-title h1 span {
+    display: block;
+  }
+}
+
+/* Figure */
+
+figure {
+  position: relative;
+  margin-bottom: 2.5em;
+  margin-top: 1.5em;
+}
+
+figcaption+figure {
+
+}
+
+figure img {
+  width: 100%;
+}
+
+figure svg text,
+figure svg tspan {
+}
+
+figcaption,
+.figcaption {
+  color: rgb(var(--ink) / 0.6);
+  font-size: 12px;
+  line-height: 1.5em;
+}
+
+@media(min-width: 1024px) {
+figcaption,
+.figcaption {
+    font-size: 13px;
+  }
+}
+
+figure.external img {
+  background: white;
+  border: 1px solid rgb(var(--ink) / 0.1);
+  box-shadow: 0 1px 8px rgb(var(--ink) / 0.1);
+  padding: 18px;
+  box-sizing: border-box;
+}
+
+figcaption a {
+  color: rgb(var(--ink) / 0.6);
+}
+
+figcaption b,
+figcaption strong, {
+  font-weight: 600;
+  color: rgb(var(--ink) / 1.0);
+}
+/*
+ * Copyright 2018 The Distill Template Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+@supports not (display: grid) {
+  .base-grid,
+  distill-header,
+  d-title,
+  d-abstract,
+  d-article,
+  d-appendix,
+  distill-appendix,
+  d-byline,
+  d-footnote-list,
+  d-citation-list,
+  distill-footer {
+    display: block;
+    padding: 8px;
+  }
+}
+
+.base-grid,
+distill-header,
+d-title,
+d-abstract,
+d-article,
+d-appendix,
+distill-appendix,
+d-byline,
+d-footnote-list,
+d-citation-list,
+distill-footer {
+  display: grid;
+  justify-items: stretch;
+  grid-template-columns: [screen-start] 8px [page-start kicker-start text-start gutter-start middle-start] 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr [text-end page-end gutter-end kicker-end middle-end] 8px [screen-end];
+  grid-column-gap: 8px;
+}
+
+.grid {
+  display: grid;
+  grid-column-gap: 8px;
+}
+
+@media(min-width: 768px) {
+  .base-grid,
+  distill-header,
+  d-title,
+  d-abstract,
+  d-article,
+  d-appendix,
+  distill-appendix,
+  d-byline,
+  d-footnote-list,
+  d-citation-list,
+  distill-footer {
+    grid-template-columns: [screen-start] 1fr [page-start kicker-start middle-start text-start] 45px 45px 45px 45px 45px 45px 45px 45px [ kicker-end text-end gutter-start] 45px [middle-end] 45px [page-end gutter-end] 1fr [screen-end];
+    grid-column-gap: 16px;
+  }
+
+  .grid {
+    grid-column-gap: 16px;
+  }
+}
+
+@media(min-width: 1000px) {
+  .base-grid,
+  distill-header,
+  d-title,
+  d-abstract,
+  d-article,
+  d-appendix,
+  distill-appendix,
+  d-byline,
+  d-footnote-list,
+  d-citation-list,
+  distill-footer {
+    grid-template-columns: [screen-start] 1fr [page-start kicker-start] 50px [middle-start] 50px [text-start kicker-end] 50px 50px 50px 50px 50px 50px 50px 50px [text-end gutter-start] 50px [middle-end] 50px [page-end gutter-end] 1fr [screen-end];
+    grid-column-gap: 16px;
+  }
+
+  .grid {
+    grid-column-gap: 16px;
+  }
+}
+
+@media(min-width: 1180px) {
+  .base-grid,
+  distill-header,
+  d-title,
+  d-abstract,
+  d-article,
+  d-appendix,
+  distill-appendix,
+  d-byline,
+  d-footnote-list,
+  d-citation-list,
+  distill-footer {
+    grid-template-columns: [screen-start] 1fr [page-start kicker-start] 60px [middle-start] 60px [text-start kicker-end] 60px 60px 60px 60px 60px 60px 60px 60px [text-end gutter-start] 60px [middle-end] 60px [page-end gutter-end] 1fr [screen-end];
+    grid-column-gap: 32px;
+  }
+
+  .grid {
+    grid-column-gap: 32px;
+  }
+}
+
+
+
+
+.base-grid {
+  grid-column: screen;
+}
+
+/* .l-body,
+d-article > *  {
+  grid-column: text;
+}
+
+.l-page,
+d-title > *,
+d-figure {
+  grid-column: page;
+} */
+
+.l-gutter {
+  grid-column: gutter;
+}
+
+.l-text,
+.l-body {
+  grid-column: text;
+}
+
+.l-page {
+  grid-column: page;
+}
+
+.l-body-outset {
+  grid-column: middle;
+}
+
+.l-page-outset {
+  grid-column: page;
+}
+
+.l-screen {
+  grid-column: screen;
+}
+
+.l-screen-inset {
+  grid-column: screen;
+  padding-left: 16px;
+  padding-left: 16px;
+}
+
+
+/* Aside */
+
+d-article aside {
+  grid-column: gutter;
+  font-size: 12px;
+  line-height: 1.6em;
+  color: rgb(var(--ink) / 0.6)
+}
+
+@media(min-width: 768px) {
+  aside {
+    grid-column: gutter;
+  }
+
+  .side {
+    grid-column: gutter;
+  }
+}
+/*
+ * Copyright 2018 The Distill Template Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+d-title {
+  padding: 2rem 0 1.5rem;
+  contain: layout style;
+  overflow-x: hidden;
+}
+
+@media(min-width: 768px) {
+  d-title {
+    padding: 4rem 0 1.5rem;
+  }
+}
+
+d-title h1 {
+  grid-column: text;
+  font-size: 40px;
+  font-weight: 700;
+  line-height: 1.1em;
+  margin: 0 0 0.5rem;
+}
+
+@media(min-width: 768px) {
+  d-title h1 {
+    font-size: 50px;
+  }
+}
+
+d-title p {
+  font-weight: 300;
+  font-size: 1.2rem;
+  line-height: 1.55em;
+  grid-column: text;
+}
+
+d-title .status {
+  margin-top: 0px;
+  font-size: 12px;
+  color: #009688;
+  opacity: 0.8;
+  grid-column: kicker;
+}
+
+d-title .status span {
+  line-height: 1;
+  display: inline-block;
+  padding: 6px 0;
+  border-bottom: 1px solid #80cbc4;
+  font-size: 11px;
+  text-transform: uppercase;
+}
+/*
+ * Copyright 2018 The Distill Template Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+d-byline {
+  contain: style;
+  overflow: hidden;
+  border-top: 1px solid rgb(var(--ink) / 0.1);
+  font-size: 0.8rem;
+  line-height: 1.8em;
+  padding: 1.5rem 0;
+  min-height: 1.8em;
+}
+
+
+d-byline .byline {
+  grid-template-columns: 1fr 1fr;
+  grid-column: text;
+}
+
+@media(min-width: 768px) {
+  d-byline .byline {
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+  }
+}
+
+d-byline .authors-affiliations {
+  grid-column-end: span 2;
+  grid-template-columns: 1fr 1fr;
+  margin-bottom: 1em;
+}
+
+@media(min-width: 768px) {
+  d-byline .authors-affiliations {
+    margin-bottom: 0;
+  }
+}
+
+d-byline h3 {
+  font-size: 0.6rem;
+  font-weight: 400;
+  color: rgb(var(--ink) / 0.5);
+  margin: 0;
+  text-transform: uppercase;
+}
+
+d-byline p {
+  margin: 0;
+}
+
+d-byline a,
+d-article d-byline a {
+  color: rgb(var(--ink) / 0.8);
+  text-decoration: none;
+  border-bottom: none;
+}
+
+d-article d-byline a:hover {
+  text-decoration: underline;
+  border-bottom: none;
+}
+
+d-byline p.author {
+  font-weight: 500;
+}
+
+d-byline .affiliations {
+
+}
+/*
+ * Copyright 2018 The Distill Template Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+d-article {
+  contain: layout style;
+  overflow-x: hidden;
+  border-top: 1px solid rgb(var(--ink) / 0.1);
+  padding-top: 2rem;
+  color: rgb(var(--ink) / 0.8);
+}
+
+d-article > * {
+  grid-column: text;
+}
+
+@media(min-width: 768px) {
+  d-article {
+    font-size: 16px;
+  }
+}
+
+@media(min-width: 1024px) {
+  d-article {
+    font-size: 1.06rem;
+    line-height: 1.7em;
+  }
+}
+
+
+/* H2 */
+
+
+d-article .marker {
+  text-decoration: none;
+  border: none;
+  counter-reset: section;
+  grid-column: kicker;
+  line-height: 1.7em;
+}
+
+d-article .marker:hover {
+  border: none;
+}
+
+d-article .marker span {
+  padding: 0 3px 4px;
+  border-bottom: 1px solid rgb(var(--ink) / 0.2);
+  position: relative;
+  top: 4px;
+}
+
+d-article .marker:hover span {
+  color: rgb(var(--ink) / 0.7);
+  border-bottom: 1px solid rgb(var(--ink) / 0.7);
+}
+
+d-article h2 {
+  font-weight: 600;
+  font-size: 24px;
+  line-height: 1.25em;
+  margin: 2rem 0 1.5rem 0;
+  border-bottom: 1px solid rgb(var(--ink) / 0.1);
+  padding-bottom: 1rem;
+}
+
+@media(min-width: 1024px) {
+  d-article h2 {
+    font-size: 36px;
+  }
+}
+
+/* H3 */
+
+d-article h3 {
+  font-weight: 700;
+  font-size: 18px;
+  line-height: 1.4em;
+  margin-bottom: 1em;
+  margin-top: 2em;
+}
+
+@media(min-width: 1024px) {
+  d-article h3 {
+    font-size: 20px;
+  }
+}
+
+/* H4 */
+
+d-article h4 {
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 14px;
+  line-height: 1.4em;
+}
+
+d-article a {
+  color: inherit;
+}
+
+d-article p,
+d-article ul,
+d-article ol,
+d-article blockquote {
+  margin-top: 0;
+  margin-bottom: 1em;
+  margin-left: 0;
+  margin-right: 0;
+}
+
+d-article blockquote {
+  border-left: 2px solid rgb(var(--ink) / 0.2);
+  padding-left: 2em;
+  font-style: italic;
+  color: rgb(var(--ink) / 0.6);
+}
+
+d-article a {
+  border-bottom: 1px solid rgb(var(--ink) / 0.4);
+  text-decoration: none;
+}
+
+d-article a:hover {
+  border-bottom: 1px solid rgb(var(--ink) / 0.8);
+}
+
+d-article .link {
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+d-article ul,
+d-article ol {
+  padding-left: 24px;
+}
+
+d-article li {
+  margin-bottom: 1em;
+  margin-left: 0;
+  padding-left: 0;
+}
+
+d-article li:last-child {
+  margin-bottom: 0;
+}
+
+d-article pre {
+  box-sizing: border-box;
+  min-width: 0;
+  padding: 20px 24px;
+  border: 1px solid rgb(var(--ink) / .15);
+  border-radius: 8px;
+  background: var(--code-background);
+  color: var(--code-foreground);
+  font-size: 14px;
+  line-height: 1.65;
+  tab-size: 4;
+  margin-bottom: 20px;
+}
+
+d-article pre.astro-code {
+  background-color: var(--code-background) !important;
+}
+
+d-article pre code {
+  display: block;
+  width: max-content;
+  min-width: 100%;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: inherit;
+  line-height: inherit;
+}
+
+@media (max-width: 767px) {
+  d-article pre {
+    padding: 16px;
+    font-size: 13px;
+  }
+}
+
+d-article hr {
+  grid-column: screen;
+  width: 100%;
+  border: none;
+  border-bottom: 1px solid rgb(var(--ink) / 0.1);
+  margin-top: 60px;
+  margin-bottom: 60px;
+}
+
+d-article section {
+  margin-top: 60px;
+  margin-bottom: 60px;
+}
+
+d-article span.equation-mimic {
+  font-family: georgia;
+  font-size: 115%;
+  font-style: italic;
+}
+
+d-article > d-code,
+d-article section > d-code  {
+  display: block;
+}
+
+d-article > d-math[block],
+d-article section > d-math[block]  {
+  display: block;
+}
+
+@media (max-width: 768px) {
+  d-article > d-code,
+  d-article section > d-code,
+  d-article > d-math[block],
+  d-article section > d-math[block] {
+      overflow-x: scroll;
+      -ms-overflow-style: none;  // IE 10+
+      overflow: -moz-scrollbars-none;  // Firefox
+  }
+
+  d-article > d-code::-webkit-scrollbar,
+  d-article section > d-code::-webkit-scrollbar,
+  d-article > d-math[block]::-webkit-scrollbar,
+  d-article section > d-math[block]::-webkit-scrollbar {
+    display: none;  // Safari and Chrome
+  }
+}
+
+d-article .citation {
+  color: var(--link);
+  cursor: pointer;
+}
+
+d-include {
+  width: auto;
+  display: block;
+}
+
+d-figure {
+  contain: layout style;
+}
+
+/* KaTeX */
+
+.katex, .katex-prerendered {
+  contain: style;
+  display: inline-block;
+}
+
+/* Tables */
+
+d-article table {
+  border-collapse: collapse;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid rgb(var(--ink) / 0.2);
+}
+
+d-article table th {
+  border-bottom: 1px solid rgb(var(--ink) / 0.2);
+}
+
+d-article table td {
+  border-bottom: 1px solid rgb(var(--ink) / 0.05);
+}
+
+d-article table tr:last-of-type td {
+  border-bottom: none;
+}
+
+d-article table th,
+d-article table td {
+  font-size: 15px;
+  padding: 2px 8px;
+}
+
+d-article table tbody :first-child td {
+  padding-top: 2px;
+}
+/*
+ * Copyright 2018 The Distill Template Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+span.katex-display {
+  text-align: left;
+  padding: 8px 0 8px 0;
+  margin: 0.5em 0 0.5em 1em;
+}
+
+span.katex {
+  -webkit-font-smoothing: antialiased;
+  color: rgb(var(--ink) / 0.8);
+  font-size: 1.18em;
+}
+/*
+ * Copyright 2018 The Distill Template Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+
+d-appendix {
+  contain: layout style;
+  font-size: 0.8em;
+  line-height: 1.7em;
+  margin-top: 60px;
+  margin-bottom: 0;
+  border-top: 1px solid rgb(var(--ink) / 0.1);
+  color: rgb(var(--ink) / 0.5);
+  padding-top: 60px;
+  padding-bottom: 48px;
+}
+
+d-appendix h3 {
+  grid-column: page-start / text-start;
+  font-size: 15px;
+  font-weight: 500;
+  margin-top: 1em;
+  margin-bottom: 0;
+  color: rgb(var(--ink) / 0.65);
+}
+
+d-appendix h3 + * {
+  margin-top: 1em;
+}
+
+d-appendix ol {
+  padding: 0 0 0 15px;
+}
+
+@media (min-width: 768px) {
+  d-appendix ol {
+    padding: 0 0 0 30px;
+    margin-left: -30px;
+  }
+}
+
+d-appendix li {
+  margin-bottom: 1em;
+}
+
+d-appendix a {
+  color: rgb(var(--ink) / 0.6);
+}
+
+d-appendix > * {
+  grid-column: text;
+}
+
+d-appendix > d-footnote-list,
+d-appendix > d-citation-list,
+d-appendix > distill-appendix {
+  grid-column: screen;
+}
+
+/*
+ * Copyright 2018 The Distill Template Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+@media print {
+
+  @page {
+    size: 8in 11in;
+    @bottom-right {
+      content: counter(page) " of " counter(pages);
+    }
+  }
+
+  html {
+    /* no general margins -- CSS Grid takes care of those */
+  }
+
+  p, code {
+    page-break-inside: avoid;
+  }
+
+  h2, h3 {
+    page-break-after: avoid;
+  }
+
+  d-header {
+    visibility: hidden;
+  }
+
+  d-footer {
+    display: none!important;
+  }
+
+}
+</style><script src="/vendor/distill/template.v2.js"></script><link rel="stylesheet" href="/_astro/SiteSearch.oBoOfAoq.css"><link rel="stylesheet" href="/_astro/Page._sF0_tPy.css"><style>.collection-metadata[data-astro-cid-ayashrkl]{color:rgb(var(--ink) / .6);font-size:calc(13px * var(--listing-scale));margin:.75rem 0 0;font-weight:400;line-height:1.5}.sidebar[data-astro-cid-ayashrkl]{margin:0 0 calc(18px * var(--listing-scale));font-size:calc(12px * var(--listing-scale));flex-wrap:wrap;gap:.5em 1em;line-height:1.4;display:flex}.sidebar[data-astro-cid-ayashrkl]>[data-astro-cid-ayashrkl]:first-child{color:rgb(var(--ink) / .8);font-weight:600}@media (width>=768px){.sidebar[data-astro-cid-ayashrkl]{margin-top:calc(8px * var(--listing-scale));margin-bottom:0;display:block}.sidebar[data-astro-cid-ayashrkl]>span[data-astro-cid-ayashrkl]{display:block}.sidebar[data-astro-cid-ayashrkl]>[data-astro-cid-ayashrkl]:first-child{margin-bottom:calc(12px * var(--listing-scale))}}
+.article-metrics[data-astro-cid-aeanghud]{color:var(--listing-muted,rgb(var(--ink) / .6));font-size:inherit;flex-wrap:wrap;align-items:center;gap:.35em .75em;line-height:1.5;display:inline-flex}.metric[data-astro-cid-aeanghud]{white-space:nowrap}.metric[data-astro-cid-aeanghud]+.metric[data-astro-cid-aeanghud]:before{content:"·";color:rgb(var(--ink) / .35);margin-right:.75em}.metric-value[data-astro-cid-aeanghud]{font-variant-numeric:tabular-nums}.stacked[data-astro-cid-aeanghud]{color:inherit;flex-direction:column;align-items:flex-start;gap:0;display:flex}.stacked[data-astro-cid-aeanghud] .metric[data-astro-cid-aeanghud]+.metric[data-astro-cid-aeanghud]:before{content:none}.metric-unavailable[data-astro-cid-aeanghud]{clip-path:inset(50%);white-space:nowrap;width:1px;height:1px;padding:0;position:absolute;overflow:hidden}
+.collection-header[data-astro-cid-mri2pgs2]{border-bottom:1px solid rgb(var(--ink) / .15);margin-top:2rem;padding-bottom:1rem;scroll-margin-top:24px}h1[data-astro-cid-mri2pgs2],h2[data-astro-cid-mri2pgs2]{font-size:calc(32px * var(--listing-scale));margin:0;line-height:1.2}.collection-description[data-astro-cid-mri2pgs2]{max-width:70ch;font-size:calc(16px * var(--listing-scale));margin:.75rem 0 0;line-height:1.5}a[data-astro-cid-mri2pgs2]{color:inherit;text-decoration:none}a[data-astro-cid-mri2pgs2]:hover{text-decoration:underline}
+.post-preview[data-astro-cid-jcsiju5y]{overflow:hidden}.post-link[data-astro-cid-jcsiju5y]{color:inherit;text-decoration:none;display:block}.post-link[data-astro-cid-jcsiju5y]:focus-visible{outline:2px solid var(--accent);outline-offset:6px}.metadata[data-astro-cid-jcsiju5y]{font-size:calc(12px * var(--listing-scale));margin-bottom:calc(18px * var(--listing-scale));line-height:1.4}.experiment-id[data-astro-cid-jcsiju5y]{color:var(--listing-label);font-size:calc(18px * var(--listing-scale));margin-right:1em;font-weight:600;text-decoration:none;display:inline-block}.experiment-id[data-astro-cid-jcsiju5y]:hover{text-decoration:underline}.publishedDate[data-astro-cid-jcsiju5y]{margin-right:1em;display:inline-block}.collection[data-astro-cid-jcsiju5y]{margin-top:calc(12px * var(--listing-scale));font-size:calc(12px * var(--listing-scale));flex-wrap:wrap;align-items:center;gap:.5em 1em;line-height:1.4;display:flex}.collection-badge[data-astro-cid-jcsiju5y]{color:var(--listing-muted);border:1px solid var(--listing-border);text-transform:uppercase;border-radius:3px;padding:.3em .5em;font-size:80%;font-weight:500;text-decoration:none}.collection-badge[data-astro-cid-jcsiju5y]:hover{color:rgb(var(--ink));border-color:rgb(var(--ink))}@media (width>=768px){.metadata[data-astro-cid-jcsiju5y]{margin-top:calc(8px * var(--listing-scale));margin-bottom:0}.experiment-id[data-astro-cid-jcsiju5y]{margin:0 0 calc(12px * var(--listing-scale));display:block}.publishedDate[data-astro-cid-jcsiju5y]{display:block}}
+</style></head><body distill-prerendered><header class="site-header base-grid compact"><nav class="l-page listing-width" aria-label="Site"><a href="/">Pinglab</a><div class="nav-links"><style>astro-island,astro-slot,astro-static-slot{display:contents}</style><script>(function(){let e=async e=>{await(await e())()};(self.Astro||(self.Astro={})).load=e,window.dispatchEvent(new Event(`astro:load`))})();</script><script>(function(){function e(t){"@babel/helpers - typeof";return e=typeof Symbol==`function`&&typeof Symbol.iterator==`symbol`?function(e){return typeof e}:function(e){return e&&typeof Symbol==`function`&&e.constructor===Symbol&&e!==Symbol.prototype?`symbol`:typeof e},e(t)}function t(t,n){if(e(t)!=`object`||!t)return t;var r=t[Symbol.toPrimitive];if(r!==void 0){var i=r.call(t,n||`default`);if(e(i)!=`object`)return i;throw TypeError(`@@toPrimitive must return a primitive value.`)}return(n===`string`?String:Number)(t)}function n(n){var r=t(n,`string`);return e(r)==`symbol`?r:r+``}function r(e,t,r){return(t=n(t))in e?Object.defineProperty(e,t,{value:r,enumerable:!0,configurable:!0,writable:!0}):e[t]=r,e}let i=/* @__PURE__ */ new Set([`__proto__`,`constructor`,`prototype`]);{let e={0:e=>a(e),1:e=>n(e),2:e=>new RegExp(e),3:e=>new Date(e),4:e=>new Map(n(e)),5:e=>new Set(n(e)),6:e=>BigInt(e),7:e=>new URL(e),8:e=>new Uint8Array(e),9:e=>new Uint16Array(e),10:e=>new Uint32Array(e),11:e=>1/0*e},t=t=>{let[n,r]=t;return n in e?e[n](r):void 0},n=e=>e.map(t),a=e=>typeof e!=`object`||!e?e:Object.fromEntries(Object.entries(e).map(([e,n])=>[e,t(n)]));class o extends HTMLElement{constructor(...e){super(...e),r(this,`Component`,void 0),r(this,`hydrator`,void 0),r(this,`hydrate`,async()=>{var e;if(!this.hydrator||!this.isConnected)return;let t=(e=this.parentElement)==null?void 0:e.closest(`astro-island[ssr]`);if(t){t.addEventListener(`astro:hydrate`,this.hydrate,{once:!0});return}let n=this.querySelectorAll(`astro-slot`),r={},i=this.querySelectorAll(`template[data-astro-template]`);for(let e of i){let t=e.closest(this.tagName);t!=null&&t.isSameNode(this)&&(r[e.getAttribute(`data-astro-template`)||`default`]=e.innerHTML,e.remove())}for(let e of n){let t=e.closest(this.tagName);t!=null&&t.isSameNode(this)&&(r[e.getAttribute(`name`)||`default`]=e.innerHTML)}let o;try{o=this.hasAttribute(`props`)?a(JSON.parse(this.getAttribute(`props`))):{}}catch(e){let t=this.getAttribute(`component-url`)||`<unknown>`,n=this.getAttribute(`component-export`);throw n&&(t+=` (export ${n})`),console.error(`[hydrate] Error parsing props for component ${t}`,this.getAttribute(`props`),e),e}await this.hydrator(this)(this.Component,o,r,{client:this.getAttribute(`client`)}),this.removeAttribute(`ssr`),this.dispatchEvent(new CustomEvent(`astro:hydrate`))}),r(this,`unmount`,()=>{this.isConnected||this.dispatchEvent(new CustomEvent(`astro:unmount`))})}disconnectedCallback(){document.removeEventListener(`astro:after-swap`,this.unmount),document.addEventListener(`astro:after-swap`,this.unmount,{once:!0})}connectedCallback(){if(!this.hasAttribute(`await-children`)||document.readyState===`interactive`||document.readyState===`complete`)this.childrenConnectedCallback();else{let e=()=>{document.removeEventListener(`DOMContentLoaded`,e),t.disconnect(),this.childrenConnectedCallback()},t=new MutationObserver(()=>{var t;((t=this.lastChild)==null?void 0:t.nodeType)===Node.COMMENT_NODE&&this.lastChild.nodeValue===`astro:end`&&(this.lastChild.remove(),e())});t.observe(this,{childList:!0}),document.addEventListener(`DOMContentLoaded`,e)}}async childrenConnectedCallback(){let e=this.getAttribute(`before-hydration-url`);e&&await import(e),this.start()}getRetryImportUrl(e){let t=new URL(e,document.baseURI);return t.searchParams.set(`astro-retry`,Date.now().toString()),t.toString()}async importWithRetry(e){try{return await import(e)}catch(t){return await new Promise(e=>setTimeout(e,1e3)),import(this.getRetryImportUrl(e))}}handleHydrationError(e){let t=this.getAttribute(`component-url`),n=new CustomEvent(`astro:hydration-error`,{cancelable:!0,bubbles:!0,composed:!0,detail:{error:e,componentUrl:t}});this.dispatchEvent(n)&&console.error(`[astro-island] Error hydrating ${t}`,e)}async start(){let e=JSON.parse(this.getAttribute(`opts`)),t=this.getAttribute(`client`);if(Astro[t]===void 0){window.addEventListener(`astro:${t}`,()=>this.start(),{once:!0});return}try{await Astro[t](async()=>{let e=this.getAttribute(`renderer-url`);try{let[t,{default:n}]=await Promise.all([this.importWithRetry(this.getAttribute(`component-url`)),e?this.importWithRetry(e):Promise.resolve({default:()=>()=>{}})]),r=this.getAttribute(`component-export`)||`default`;if(r.includes(`.`)){this.Component=t;for(let e of r.split(`.`)){if(i.has(e)||!this.Component||typeof this.Component!=`object`&&typeof this.Component!=`function`||!Object.hasOwn(this.Component,e))throw Error(`Invalid component export path: ${r}`);this.Component=this.Component[e]}}else{if(i.has(r))throw Error(`Invalid component export path: ${r}`);this.Component=t[r]}return this.hydrator=n,this.hydrate}catch(e){return this.handleHydrationError(e),()=>{}}},e,this)}catch(e){this.handleHydrationError(e)}}attributeChangedCallback(){this.hydrate()}}r(o,`observedAttributes`,[`props`]),customElements.get(`astro-island`)||customElements.define(`astro-island`,o)}})();</script><astro-island uid="1ffXdm" prefix="r1" component-url="/_astro/CommandPalette.Dc7RLcBH.js" component-export="default" renderer-url="/_astro/client.tK5zrQFg.js" props="{&quot;collections&quot;:[1,[[0,{&quot;href&quot;:[0,&quot;/collections/gamma-gated-sparsity&quot;],&quot;title&quot;:[0,&quot;Gamma-gated sparsity&quot;],&quot;detail&quot;:[0,&quot;Collection&quot;],&quot;keywords&quot;:[1,[[0,&quot;gamma-gated-sparsity&quot;],[0,&quot;Experiments on gamma rhythms, sparse neural activity, and learning in spiking networks.&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/collections/neuromodulation&quot;],&quot;title&quot;:[0,&quot;Neuromodulation&quot;],&quot;detail&quot;:[0,&quot;Collection&quot;],&quot;keywords&quot;:[1,[[0,&quot;neuromodulation&quot;],[0,&quot;Experiments on how changes to neural dynamics affect network evidence, accuracy, and activity.&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/collections/datasets&quot;],&quot;title&quot;:[0,&quot;Datasets&quot;],&quot;detail&quot;:[0,&quot;Collection&quot;],&quot;keywords&quot;:[1,[[0,&quot;datasets&quot;],[0,&quot;Training banks, recordings, and other reusable experimental data, with their provenance and diagnostics.&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/collections/demo&quot;],&quot;title&quot;:[0,&quot;Uncategorized&quot;],&quot;detail&quot;:[0,&quot;Collection&quot;],&quot;keywords&quot;:[1,[[0,&quot;demo&quot;],[0,&quot;Articles and experiments without a subject collection.&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/collections/guides&quot;],&quot;title&quot;:[0,&quot;Guides&quot;],&quot;detail&quot;:[0,&quot;Collection&quot;],&quot;keywords&quot;:[1,[[0,&quot;guides&quot;],[0,&quot;Technical explanations of the models, methods, and tools used in Pinglab.&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/collections/animations&quot;],&quot;title&quot;:[0,&quot;Animations&quot;],&quot;detail&quot;:[0,&quot;Collection&quot;],&quot;keywords&quot;:[1,[[0,&quot;animations&quot;],[0,&quot;Experiments and guides with interactive PixiJS animations.&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/collections/paper-inspired&quot;],&quot;title&quot;:[0,&quot;Paper-inspired&quot;],&quot;detail&quot;:[0,&quot;Collection&quot;],&quot;keywords&quot;:[1,[[0,&quot;paper-inspired&quot;],[0,&quot;Experiments inspired by published research papers.&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/collections/notes&quot;],&quot;title&quot;:[0,&quot;Notes&quot;],&quot;detail&quot;:[0,&quot;Collection&quot;],&quot;keywords&quot;:[1,[[0,&quot;notes&quot;],[0,&quot;Practical project notes, infrastructure guidance, and operational workflows.&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/collections/slides&quot;],&quot;title&quot;:[0,&quot;Slides&quot;],&quot;detail&quot;:[0,&quot;Collection&quot;],&quot;keywords&quot;:[1,[[0,&quot;slides&quot;],[0,&quot;Talks and journal-club presentations on research and related ideas.&quot;]]]}]]],&quot;articles&quot;:[1,[[0,{&quot;href&quot;:[0,&quot;/exp099&quot;],&quot;title&quot;:[0,&quot;Susin and Destexhe (2021): Gamma vs Input Drive&quot;],&quot;detail&quot;:[0,&quot;exp099&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp099&quot;],[0,&quot;Independent excitatory afferent drive strengthens population bursting in a calibrated conductance-based E/I network.&quot;],[0,&quot;animations&quot;],[0,&quot;Animations&quot;],[0,&quot;paper-inspired&quot;],[0,&quot;Paper-inspired&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp124&quot;],&quot;title&quot;:[0,&quot;SHD&quot;],&quot;detail&quot;:[0,&quot;exp124&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp124&quot;],[0,&quot;Full-data SHD training curves and matched two-layer inference rasters for COBA and PING.&quot;],[0,&quot;datasets&quot;],[0,&quot;Datasets&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp133&quot;],&quot;title&quot;:[0,&quot;Lowet (2015): Coupled Rhythms&quot;],&quot;detail&quot;:[0,&quot;exp133&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp133&quot;],[0,&quot;A gamma phase-locking map and coupling-onset demonstration inspired by Lowet et al. (2015).&quot;],[0,&quot;paper-inspired&quot;],[0,&quot;Paper-inspired&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp134&quot;],&quot;title&quot;:[0,&quot;Leak and Capacitance Modulation of PING Dynamics&quot;],&quot;detail&quot;:[0,&quot;exp134&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp134&quot;],[0,&quot;Paired leak-conductance and membrane-capacitance sweeps in the frozen network used by exp123.&quot;],[0,&quot;neuromodulation&quot;],[0,&quot;Neuromodulation&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/notes/experiment-rules&quot;],&quot;title&quot;:[0,&quot;Experiment Rules&quot;],&quot;detail&quot;:[0,&quot;Note&quot;],&quot;keywords&quot;:[1,[[0,&quot;experiment-rules&quot;],[0,&quot;Independent compute, analyse and present stages, scientific inputs and execution contracts.&quot;],[0,&quot;notes&quot;],[0,&quot;Notes&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/notes/pingstore-rules&quot;],&quot;title&quot;:[0,&quot;Pingstore Rules&quot;],&quot;detail&quot;:[0,&quot;Note&quot;],&quot;keywords&quot;:[1,[[0,&quot;pingstore-rules&quot;],[0,&quot;Pingstore run layout, provenance, validation, pruning, Cloudflare R2 backup access and recovery.&quot;],[0,&quot;notes&quot;],[0,&quot;Notes&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/notes/compute-rules&quot;],&quot;title&quot;:[0,&quot;Compute Rules&quot;],&quot;detail&quot;:[0,&quot;Note&quot;],&quot;keywords&quot;:[1,[[0,&quot;compute-rules&quot;],[0,&quot;Compute providers, access boundaries, and execution workflows for Pinglab.&quot;],[0,&quot;notes&quot;],[0,&quot;Notes&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp123&quot;],&quot;title&quot;:[0,&quot;Output Evidence Against Time and Gamma Cycles&quot;],&quot;detail&quot;:[0,&quot;exp123&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp123&quot;],[0,&quot;Paired inhibitory-decay probes of output evidence, sustained decisions and network spike cost at a 25 Hz input encoding rate.&quot;],[0,&quot;neuromodulation&quot;],[0,&quot;Neuromodulation&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp130&quot;],&quot;title&quot;:[0,&quot;Theta nested Gamma&quot;],&quot;detail&quot;:[0,&quot;exp130&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp130&quot;],[0,&quot;A 5 Hz afferent-rate envelope compared with constant excitation of the same mean.&quot;],[0,&quot;demo&quot;],[0,&quot;Uncategorized&quot;],[0,&quot;animations&quot;],[0,&quot;Animations&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp022&quot;],&quot;title&quot;:[0,&quot;MNIST&quot;],&quot;detail&quot;:[0,&quot;exp022&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp022&quot;],[0,&quot;Seven controlled training families, their retained checkpoint bank, validation learning curves, and raster diagnostics.&quot;],[0,&quot;gamma-gated-sparsity&quot;],[0,&quot;Gamma-gated sparsity&quot;],[0,&quot;datasets&quot;],[0,&quot;Datasets&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp110&quot;],&quot;title&quot;:[0,&quot;Manuscript&quot;],&quot;detail&quot;:[0,&quot;exp110&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp110&quot;],[0,&quot;A manuscript scaffold connecting PING circuit dynamics, low-rate task performance, cycle participation, perturbation sensitivity and continuous-stream classification.&quot;],[0,&quot;gamma-gated-sparsity&quot;],[0,&quot;Gamma-gated sparsity&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp125&quot;],&quot;title&quot;:[0,&quot;Scikit Digits&quot;],&quot;detail&quot;:[0,&quot;exp125&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp125&quot;],[0,&quot;A 64 → 128 → 10 LIF network learns handwritten digits, with training curves and a held-out test evaluation.&quot;],[0,&quot;datasets&quot;],[0,&quot;Datasets&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp127&quot;],&quot;title&quot;:[0,&quot;Introduction to Spiking Neural Networks&quot;],&quot;detail&quot;:[0,&quot;exp127&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp127&quot;],[0,&quot;A practical introduction to neurons, temporal computation, and learning for machine learning practitioners and software developers.&quot;],[0,&quot;guides&quot;],[0,&quot;Guides&quot;],[0,&quot;animations&quot;],[0,&quot;Animations&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp128&quot;],&quot;title&quot;:[0,&quot;Introduction to Conductance based Synapses&quot;],&quot;detail&quot;:[0,&quot;exp128&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp128&quot;],[0,&quot;Spikes open synaptic channels, which change the voltage of an attached neuron.&quot;],[0,&quot;guides&quot;],[0,&quot;Guides&quot;],[0,&quot;animations&quot;],[0,&quot;Animations&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp129&quot;],&quot;title&quot;:[0,&quot;Introduction to Capacitors&quot;],&quot;detail&quot;:[0,&quot;exp129&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp129&quot;],[0,&quot;Electrons separate onto two plates, creating a voltage and storing energy in an electric field.&quot;],[0,&quot;guides&quot;],[0,&quot;Guides&quot;],[0,&quot;animations&quot;],[0,&quot;Animations&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/notes/writing-rules&quot;],&quot;title&quot;:[0,&quot;Writing Rules&quot;],&quot;detail&quot;:[0,&quot;Note&quot;],&quot;keywords&quot;:[1,[[0,&quot;writing-rules&quot;],[0,&quot;Scientific writing, evidence, terminology and editorial conventions for experiment articles.&quot;],[0,&quot;notes&quot;],[0,&quot;Notes&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp023&quot;],&quot;title&quot;:[0,&quot;Turning the PING Loop On&quot;],&quot;detail&quot;:[0,&quot;exp023&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp023&quot;],[0,&quot;PING stripped to its biophysical fundamentals: free-running activity, population spectra and rate responses with the excitatory–inhibitory loop off and on.&quot;],[0,&quot;gamma-gated-sparsity&quot;],[0,&quot;Gamma-gated sparsity&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp025&quot;],&quot;title&quot;:[0,&quot;Accuracy and Firing Rate With and Without Inhibition&quot;],&quot;detail&quot;:[0,&quot;exp025&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp025&quot;],[0,&quot;Reused MNIST networks compare accuracy and excitatory firing rates with and without an inhibitory loop. Full-MNIST reference classifiers accompany a separate reduced-training-pool activity-ceiling sweep.&quot;],[0,&quot;gamma-gated-sparsity&quot;],[0,&quot;Gamma-gated sparsity&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/slides/journal-club-oct-5th&quot;],&quot;title&quot;:[0,&quot;Journal club — Neural basis of social hierarchy across species&quot;],&quot;detail&quot;:[0,&quot;Slides&quot;],&quot;keywords&quot;:[1,[[0,&quot;journal-club-oct-5th&quot;],[0,&quot;Yan &amp; Lin (2026): territory, fighting, alliances, and interpretations of the neural basis of social hierarchy. Journal club, 5 October 2026.&quot;],[0,&quot;slides&quot;],[0,&quot;Slides&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp113&quot;],&quot;title&quot;:[0,&quot;COBA and PING Dynamics, Discretisation, and Learning&quot;],&quot;detail&quot;:[0,&quot;exp113&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp113&quot;],[0,&quot;A textbook derivation of the conductance-based COBA and PING equations, their discrete simulation, and their training by surrogate-gradient BPTT, voltage-gradient damping, gradient clipping, AdamW, and Dale projection.&quot;],[0,&quot;notes&quot;],[0,&quot;Notes&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp117&quot;],&quot;title&quot;:[0,&quot;Mean-Field Analysis of PING Bifurcations&quot;],&quot;detail&quot;:[0,&quot;exp117&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp117&quot;],[0,&quot;An independent four-variable mean-field analysis identifies a Hopf bifurcation, sampled dynamics consistent with a supercritical transition, and decreasing onset frequency with slower inhibition.&quot;],[0,&quot;gamma-gated-sparsity&quot;],[0,&quot;Gamma-gated sparsity&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp054&quot;],&quot;title&quot;:[0,&quot;Pinglab Rythmicity Metric&quot;],&quot;detail&quot;:[0,&quot;exp054&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp054&quot;],[0,&quot;Lobe–trough contrast across untrained PING coupling strengths, with private- and shared-input null controls.&quot;],[0,&quot;gamma-gated-sparsity&quot;],[0,&quot;Gamma-gated sparsity&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp046&quot;],&quot;title&quot;:[0,&quot;One Spike per Gamma Cycle&quot;],&quot;detail&quot;:[0,&quot;exp046&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp046&quot;],[0,&quot;Pooled and equally weighted network distributions support predominantly one-spike gamma-cycle participation across 18 trained networks, with exceptions.&quot;],[0,&quot;gamma-gated-sparsity&quot;],[0,&quot;Gamma-gated sparsity&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp049&quot;],&quot;title&quot;:[0,&quot;Training Recurrent Weights Weakens PING Rhythmicity&quot;],&quot;detail&quot;:[0,&quot;exp049&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp049&quot;],[0,&quot;Trainable recurrent conductances produced lower reference-image rhythmicity and higher excitatory firing than the frozen PING control; outcomes depended on initialization.&quot;],[0,&quot;gamma-gated-sparsity&quot;],[0,&quot;Gamma-gated sparsity&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp082&quot;],&quot;title&quot;:[0,&quot;Spike-Count Classification in a Continuous Stream&quot;],&quot;detail&quot;:[0,&quot;exp082&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp082&quot;],[0,&quot;A multi-seed study of spike-count classification across input rates and presentation durations.&quot;],[0,&quot;gamma-gated-sparsity&quot;],[0,&quot;Gamma-gated sparsity&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp044&quot;],&quot;title&quot;:[0,&quot;Firing Rate Across the Timestep Sweep&quot;],&quot;detail&quot;:[0,&quot;exp044&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp044&quot;],[0,&quot;Compares final-epoch firing rate, classification accuracy and illustrative rasters across a twelvefold integration-timestep sweep.&quot;],[0,&quot;gamma-gated-sparsity&quot;],[0,&quot;Gamma-gated sparsity&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp037&quot;],&quot;title&quot;:[0,&quot;Dropped Spikes vs Added Noise&quot;],&quot;detail&quot;:[0,&quot;exp037&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp037&quot;],[0,&quot;Both trained networks tolerated substantial spike deletion, but PING accuracy fell more sharply under added spikes. The perturbations changed both recurrent feedback and readout input, so they do not isolate gamma gating.&quot;],[0,&quot;gamma-gated-sparsity&quot;],[0,&quot;Gamma-gated sparsity&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp042&quot;],&quot;title&quot;:[0,&quot;Inhibitory Replay Perturbations Change Excitatory Firing&quot;],&quot;detail&quot;:[0,&quot;exp042&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp042&quot;],[0,&quot;Recorded inhibitory spike streams produced contrasting excitatory responses under independent-spike and fixed-window replay perturbations, but the experiment does not isolate synchrony.&quot;],[0,&quot;gamma-gated-sparsity&quot;],[0,&quot;Gamma-gated sparsity&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp081&quot;],&quot;title&quot;:[0,&quot;How Pixel Features Respond to Input Rate&quot;],&quot;detail&quot;:[0,&quot;exp081&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp081&quot;],[0,&quot;Direct simulations and a simpler theory test how sparse input events become average voltage features.&quot;],[0,&quot;gamma-gated-sparsity&quot;],[0,&quot;Gamma-gated sparsity&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp024&quot;],&quot;title&quot;:[0,&quot;Accuracy Plateaus While Firing Rate Rises&quot;],&quot;detail&quot;:[0,&quot;exp024&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp024&quot;],[0,&quot;Audits validation accuracy and firing-rate stability in unregularised PING and COBA training histories.&quot;],[0,&quot;gamma-gated-sparsity&quot;],[0,&quot;Gamma-gated sparsity&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp038&quot;],&quot;title&quot;:[0,&quot;Switching On the Inhibitory Loop&quot;],&quot;detail&quot;:[0,&quot;exp038&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp038&quot;],[0,&quot;Enabling an inhibitory loop after feedforward training reduced excitatory firing but lowered classification accuracy; the experiment does not isolate a benefit of gamma timing.&quot;],[0,&quot;gamma-gated-sparsity&quot;],[0,&quot;Gamma-gated sparsity&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp041&quot;],&quot;title&quot;:[0,&quot;Firing Rate Tracks Gamma Frequency&quot;],&quot;detail&quot;:[0,&quot;exp041&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp041&quot;],[0,&quot;Across PING networks trained at different inhibitory decay times, compare excitatory firing rate with gamma frequency and test accuracy.&quot;],[0,&quot;gamma-gated-sparsity&quot;],[0,&quot;Gamma-gated sparsity&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp047&quot;],&quot;title&quot;:[0,&quot;Pool-Size Effects Depend on Synaptic Scaling&quot;],&quot;detail&quot;:[0,&quot;exp047&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp047&quot;],[0,&quot;Paired controls separate fixed summed I→E coupling from fixed expected synaptic strength as the inhibitory pool grows.&quot;],[0,&quot;gamma-gated-sparsity&quot;],[0,&quot;Gamma-gated sparsity&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp080&quot;],&quot;title&quot;:[0,&quot;Decoder Accuracy Improves with Input Rate&quot;],&quot;detail&quot;:[0,&quot;exp080&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp080&quot;],[0,&quot;Direct-simulation decoder calibration of the input-rate range for later variable-rate PING training.&quot;],[0,&quot;gamma-gated-sparsity&quot;],[0,&quot;Gamma-gated sparsity&quot;]]]}]]]}" ssr client="load" opts="{&quot;name&quot;:&quot;CommandPalette&quot;,&quot;value&quot;:true}" await-children><button type="button" class="command-trigger" aria-label="Search articles and collections (Ctrl K)" aria-haspopup="dialog" aria-expanded="false" data-state="closed"><span class="command-shortcut-icon" aria-hidden="true">⌘K</span><span>Search</span></button><!--astro:end--></astro-island><a href="/collections">Collections</a><a class="github-link" href="https://github.com/eoinmurray/pinglab" aria-label="Pinglab on GitHub"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false"><path d="M12 .297C5.37.297 0 5.67 0 12.297c0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.043-1.61-4.043-1.61-.546-1.387-1.333-1.756-1.333-1.756-1.09-.745.083-.729.083-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.419-1.305.762-1.605-2.665-.3-5.467-1.334-5.467-5.931 0-1.31.469-2.381 1.236-3.221-.124-.303-.536-1.524.117-3.176 0 0 1.008-.322 3.301 1.23a11.52 11.52 0 0 1 3.003-.404c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.655 1.652.243 2.873.119 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.628-5.479 5.921.43.372.823 1.102.823 2.222 0 1.606-.015 2.898-.015 3.293 0 .322.216.694.825.576C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"></path></svg><span>GitHub</span></a><button id="theme-toggle" class="theme-toggle" type="button" aria-label="Change colour theme" title="Change colour theme"><svg class="theme-system" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"></rect><path d="M8 21h8M12 17v4"></path></svg><svg class="theme-light" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.4 1.4M17.6 17.6 19 19M5 19l1.4-1.4M17.6 6.4 19 5"></path></svg><svg class="theme-dark" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.8 13.2A9 9 0 0 1 10.8 3.2a9 9 0 1 0 10 10Z"></path></svg></button></div></nav></header><main><div class="base-grid" data-astro-cid-mri2pgs2><header class="collection-header listing-width l-page" data-astro-cid-mri2pgs2><h1 data-astro-cid-mri2pgs2="true">Notes</h1><p class="collection-description" data-astro-cid-mri2pgs2>Practical project notes, infrastructure guidance, and operational workflows.</p><p class="collection-metadata" data-astro-cid-ayashrkl><span data-astro-cid-ayashrkl>5 articles</span><span data-astro-cid-ayashrkl> · Latest activity <time datetime="2026-10-16" aria-label="Latest activity: 16 Oct 2026" data-astro-cid-ayashrkl>16 Oct 2026</time></span></p></header></div><div class="base-grid" data-astro-cid-jcsiju5y><ol class="posts-list article-list listing-width l-page" role="list" data-astro-cid-jcsiju5y><li class="post-preview article-list-row" data-astro-cid-jcsiju5y><div class="metadata" data-astro-cid-jcsiju5y><a class="experiment-id" href="/notes/experiment-rules" aria-label="Open Experiment Rules" data-astro-cid-jcsiju5y>Note</a><div class="publishedDate" data-astro-cid-jcsiju5y><time datetime="2026-10-16" data-astro-cid-jcsiju5y>16 Oct 2026</time></div></div><div class="article-list-content" data-astro-cid-jcsiju5y><a class="post-link" href="/notes/experiment-rules" data-astro-cid-jcsiju5y><h2 class="title article-list-title" data-astro-cid-jcsiju5y>Experiment Rules</h2></a><div class="collection" data-astro-cid-jcsiju5y><a class="collection-badge" href="/collections/notes" data-astro-cid-jcsiju5y>Notes</a><span class="article-metrics" aria-label="Article statistics" data-astro-cid-aeanghud><span class="metric" title="Main report prose, including the abstract; excludes headings, captions, tables, code, mathematics, metadata, references and appendices." data-astro-cid-aeanghud><span class="metric-value" data-astro-cid-aeanghud>3,001</span> words</span><span class="metric" title="Main report figures; each multipanel figure counts once. Tables and appendix figures are excluded." data-astro-cid-aeanghud><span class="metric-value" data-astro-cid-aeanghud>0</span> figures</span></span></div></div></li><li class="post-preview article-list-row" data-astro-cid-jcsiju5y><div class="metadata" data-astro-cid-jcsiju5y><a class="experiment-id" href="/notes/pingstore-rules" aria-label="Open Pingstore Rules" data-astro-cid-jcsiju5y>Note</a><div class="publishedDate" data-astro-cid-jcsiju5y><time datetime="2026-10-16" data-astro-cid-jcsiju5y>16 Oct 2026</time></div></div><div class="article-list-content" data-astro-cid-jcsiju5y><a class="post-link" href="/notes/pingstore-rules" data-astro-cid-jcsiju5y><h2 class="title article-list-title" data-astro-cid-jcsiju5y>Pingstore Rules</h2></a><div class="collection" data-astro-cid-jcsiju5y><a class="collection-badge" href="/collections/notes" data-astro-cid-jcsiju5y>Notes</a><span class="article-metrics" aria-label="Article statistics" data-astro-cid-aeanghud><span class="metric" title="Main report prose, including the abstract; excludes headings, captions, tables, code, mathematics, metadata, references and appendices." data-astro-cid-aeanghud><span class="metric-value" data-astro-cid-aeanghud>3,580</span> words</span><span class="metric" title="Main report figures; each multipanel figure counts once. Tables and appendix figures are excluded." data-astro-cid-aeanghud><span class="metric-value" data-astro-cid-aeanghud>0</span> figures</span></span></div></div></li><li class="post-preview article-list-row" data-astro-cid-jcsiju5y><div class="metadata" data-astro-cid-jcsiju5y><a class="experiment-id" href="/notes/compute-rules" aria-label="Open Compute Rules" data-astro-cid-jcsiju5y>Note</a><div class="publishedDate" data-astro-cid-jcsiju5y><time datetime="2026-10-15" data-astro-cid-jcsiju5y>15 Oct 2026</time></div></div><div class="article-list-content" data-astro-cid-jcsiju5y><a class="post-link" href="/notes/compute-rules" data-astro-cid-jcsiju5y><h2 class="title article-list-title" data-astro-cid-jcsiju5y>Compute Rules</h2></a><div class="collection" data-astro-cid-jcsiju5y><a class="collection-badge" href="/collections/notes" data-astro-cid-jcsiju5y>Notes</a><span class="article-metrics" aria-label="Article statistics" data-astro-cid-aeanghud><span class="metric" title="Main report prose, including the abstract; excludes headings, captions, tables, code, mathematics, metadata, references and appendices." data-astro-cid-aeanghud><span class="metric-value" data-astro-cid-aeanghud>1,364</span> words</span><span class="metric" title="Main report figures; each multipanel figure counts once. Tables and appendix figures are excluded." data-astro-cid-aeanghud><span class="metric-value" data-astro-cid-aeanghud>0</span> figures</span></span></div></div></li><li class="post-preview article-list-row" data-astro-cid-jcsiju5y><div class="metadata" data-astro-cid-jcsiju5y><a class="experiment-id" href="/notes/writing-rules" aria-label="Open Writing Rules" data-astro-cid-jcsiju5y>Note</a><div class="publishedDate" data-astro-cid-jcsiju5y><time datetime="2026-10-14" data-astro-cid-jcsiju5y>14 Oct 2026</time></div></div><div class="article-list-content" data-astro-cid-jcsiju5y><a class="post-link" href="/notes/writing-rules" data-astro-cid-jcsiju5y><h2 class="title article-list-title" data-astro-cid-jcsiju5y>Writing Rules</h2></a><div class="collection" data-astro-cid-jcsiju5y><a class="collection-badge" href="/collections/notes" data-astro-cid-jcsiju5y>Notes</a><span class="article-metrics" aria-label="Article statistics" data-astro-cid-aeanghud><span class="metric" title="Main report prose, including the abstract; excludes headings, captions, tables, code, mathematics, metadata, references and appendices." data-astro-cid-aeanghud><span class="metric-value" data-astro-cid-aeanghud>5,928</span> words</span><span class="metric" title="Main report figures; each multipanel figure counts once. Tables and appendix figures are excluded." data-astro-cid-aeanghud><span class="metric-value" data-astro-cid-aeanghud>0</span> figures</span></span></div></div></li><li class="post-preview article-list-row" data-astro-cid-jcsiju5y><div class="metadata" data-astro-cid-jcsiju5y><a class="experiment-id" href="/exp113" aria-label="Open COBA and PING Dynamics, Discretisation, and Learning" data-astro-cid-jcsiju5y>exp113</a><div class="publishedDate" data-astro-cid-jcsiju5y><time datetime="2026-09-19" data-astro-cid-jcsiju5y>19 Sept 2026</time></div></div><div class="article-list-content" data-astro-cid-jcsiju5y><a class="post-link" href="/exp113" data-astro-cid-jcsiju5y><h2 class="title article-list-title" data-astro-cid-jcsiju5y>COBA and PING Dynamics, Discretisation, and Learning</h2></a><div class="collection" data-astro-cid-jcsiju5y><a class="collection-badge" href="/collections/notes" data-astro-cid-jcsiju5y>Notes</a><span class="article-metrics" aria-label="Article statistics" data-astro-cid-aeanghud><span class="metric" title="Main report prose, including the abstract; excludes headings, captions, tables, code, mathematics, metadata, references and appendices." data-astro-cid-aeanghud><span class="metric-value" data-astro-cid-aeanghud>2,134</span> words</span><span class="metric" title="Main report figures; each multipanel figure counts once. Tables and appendix figures are excluded." data-astro-cid-aeanghud><span class="metric-value" data-astro-cid-aeanghud>0</span> figures</span><span class="metric" title="Completed compute, analyse and present runs belonging to this experiment in local Pingstore; upstream and hidden runs are excluded." data-astro-cid-aeanghud><span class="metric-value" data-astro-cid-aeanghud>0</span> runs</span></span></div></div></li></ol></div></main><script type="module">var e,t,n=document.createElement(`aside`);n.className=`citation-preview`,n.id=`citation-preview`,n.setAttribute(`role`,`tooltip`),n.hidden=!0,document.body.append(n);function r(){clearTimeout(t),n.hidden=!0,e?.removeAttribute(`aria-describedby`),e=void 0}function i(){t=setTimeout(r,180)}function a(r){clearTimeout(t),e?.removeAttribute(`aria-describedby`);let i=document.getElementById(decodeURIComponent(r.hash.slice(1))),a=i?.closest(`li`)??i?.parentElement;if(!a)return;e=r,n.replaceChildren(...Array.from(a.childNodes).map(e=>e.cloneNode(!0))),n.querySelectorAll(`[id]`).forEach(e=>e.removeAttribute(`id`)),n.hidden=!1,r.setAttribute(`aria-describedby`,n.id);let o=r.getBoundingClientRect(),s=n.getBoundingClientRect().width;n.style.left=`${Math.max(12,Math.min(o.left,innerWidth-s-12))}px`,n.style.top=`${Math.min(o.bottom+8,Math.max(12,innerHeight-n.offsetHeight-12))}px`}for(let e of document.querySelectorAll(`d-article a[href^="#ref-"]`))e.addEventListener(`mouseenter`,()=>a(e)),e.addEventListener(`focus`,()=>a(e)),e.addEventListener(`mouseleave`,i),e.addEventListener(`blur`,i);n.addEventListener(`mouseenter`,()=>clearTimeout(t)),n.addEventListener(`mouseleave`,i),n.addEventListener(`focusin`,()=>clearTimeout(t)),n.addEventListener(`focusout`,i),document.addEventListener(`keydown`,e=>{e.key===`Escape`&&r()}),window.addEventListener(`scroll`,r,{passive:!0});</script></body></html>

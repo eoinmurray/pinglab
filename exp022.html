@@ -1,0 +1,1045 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><script>
+  (() => {
+    const key = 'pinglab-theme';
+    const system = window.matchMedia('(prefers-color-scheme: dark)');
+    const readPreference = () => {
+      try {
+        const saved = localStorage.getItem(key);
+        return saved === 'light' || saved === 'dark' ? saved : 'system';
+      } catch { return 'system'; }
+    };
+    let preference = readPreference();
+    const apply = () => {
+      const theme = preference === 'system' ? (system.matches ? 'dark' : 'light') : preference;
+      document.documentElement.dataset.theme = theme;
+      document.documentElement.dataset.themePreference = preference;
+      const button = document.getElementById('theme-toggle');
+      if (button) {
+        const next = preference === 'system' ? 'light' : preference === 'light' ? 'dark' : 'system';
+        const label = `Theme: ${preference === 'system' ? `system (${theme})` : preference}. Switch to ${next} theme`;
+        button.setAttribute('aria-label', label);
+        button.setAttribute('title', label);
+      }
+    };
+    // Apply in the head so a saved or system dark theme is ready before paint.
+    apply();
+    document.addEventListener('DOMContentLoaded', apply);
+    document.addEventListener('astro:page-load', apply);
+    system.addEventListener('change', () => { if (preference === 'system') apply(); });
+    window.addEventListener('storage', (event) => {
+      if (event.key === key || event.key === null) { preference = readPreference(); apply(); }
+    });
+    document.addEventListener('click', (event) => {
+      if (!(event.target instanceof Element) || !event.target.closest('#theme-toggle')) return;
+      preference = preference === 'system' ? 'light' : preference === 'light' ? 'dark' : 'system';
+      try {
+        if (preference === 'system') localStorage.removeItem(key);
+        else localStorage.setItem(key, preference);
+      } catch { /* The toggle still works when storage is unavailable. */ }
+      apply();
+    });
+  })();
+</script><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Seven controlled training families, their retained checkpoint bank, validation learning curves, and raster diagnostics."><link rel="canonical" href="https://pinglab.eoinmurray.info/exp022"><link rel="icon" type="image/svg+xml" href="/favicon.svg"><title>MNIST · Pinglab</title><style id="distill-prerendered-styles">/*
+ * Copyright 2018 The Distill Template Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+html {
+  font-size: 14px;
+	line-height: 1.6em;
+  /* font-family: "Libre Franklin", "Helvetica Neue", sans-serif; */
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Fira Sans", "Droid Sans", "Helvetica Neue", Arial, sans-serif;
+  /*, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";*/
+  text-size-adjust: 100%;
+  -ms-text-size-adjust: 100%;
+  -webkit-text-size-adjust: 100%;
+}
+
+@media(min-width: 768px) {
+  html {
+    font-size: 16px;
+  }
+}
+
+body {
+  margin: 0;
+}
+
+a {
+  color: var(--link);
+}
+
+figure {
+  margin: 0;
+}
+
+table {
+	border-collapse: collapse;
+	border-spacing: 0;
+}
+
+table th {
+	text-align: left;
+}
+
+table thead {
+  border-bottom: 1px solid rgb(var(--ink) / 0.05);
+}
+
+table thead th {
+  padding-bottom: 0.5em;
+}
+
+table tbody :first-child td {
+  padding-top: 0.5em;
+}
+
+pre {
+  overflow: auto;
+  max-width: 100%;
+}
+
+p {
+  margin-top: 0;
+  margin-bottom: 1em;
+}
+
+sup, sub {
+  vertical-align: baseline;
+  position: relative;
+  top: -0.4em;
+  line-height: 1em;
+}
+
+sub {
+  top: 0.4em;
+}
+
+.kicker,
+.marker {
+  font-size: 15px;
+  font-weight: 600;
+  color: rgb(var(--ink) / 0.5);
+}
+
+
+/* Headline */
+
+@media(min-width: 1024px) {
+  d-title h1 span {
+    display: block;
+  }
+}
+
+/* Figure */
+
+figure {
+  position: relative;
+  margin-bottom: 2.5em;
+  margin-top: 1.5em;
+}
+
+figcaption+figure {
+
+}
+
+figure img {
+  width: 100%;
+}
+
+figure svg text,
+figure svg tspan {
+}
+
+figcaption,
+.figcaption {
+  color: rgb(var(--ink) / 0.6);
+  font-size: 12px;
+  line-height: 1.5em;
+}
+
+@media(min-width: 1024px) {
+figcaption,
+.figcaption {
+    font-size: 13px;
+  }
+}
+
+figure.external img {
+  background: white;
+  border: 1px solid rgb(var(--ink) / 0.1);
+  box-shadow: 0 1px 8px rgb(var(--ink) / 0.1);
+  padding: 18px;
+  box-sizing: border-box;
+}
+
+figcaption a {
+  color: rgb(var(--ink) / 0.6);
+}
+
+figcaption b,
+figcaption strong, {
+  font-weight: 600;
+  color: rgb(var(--ink) / 1.0);
+}
+/*
+ * Copyright 2018 The Distill Template Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+@supports not (display: grid) {
+  .base-grid,
+  distill-header,
+  d-title,
+  d-abstract,
+  d-article,
+  d-appendix,
+  distill-appendix,
+  d-byline,
+  d-footnote-list,
+  d-citation-list,
+  distill-footer {
+    display: block;
+    padding: 8px;
+  }
+}
+
+.base-grid,
+distill-header,
+d-title,
+d-abstract,
+d-article,
+d-appendix,
+distill-appendix,
+d-byline,
+d-footnote-list,
+d-citation-list,
+distill-footer {
+  display: grid;
+  justify-items: stretch;
+  grid-template-columns: [screen-start] 8px [page-start kicker-start text-start gutter-start middle-start] 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr [text-end page-end gutter-end kicker-end middle-end] 8px [screen-end];
+  grid-column-gap: 8px;
+}
+
+.grid {
+  display: grid;
+  grid-column-gap: 8px;
+}
+
+@media(min-width: 768px) {
+  .base-grid,
+  distill-header,
+  d-title,
+  d-abstract,
+  d-article,
+  d-appendix,
+  distill-appendix,
+  d-byline,
+  d-footnote-list,
+  d-citation-list,
+  distill-footer {
+    grid-template-columns: [screen-start] 1fr [page-start kicker-start middle-start text-start] 45px 45px 45px 45px 45px 45px 45px 45px [ kicker-end text-end gutter-start] 45px [middle-end] 45px [page-end gutter-end] 1fr [screen-end];
+    grid-column-gap: 16px;
+  }
+
+  .grid {
+    grid-column-gap: 16px;
+  }
+}
+
+@media(min-width: 1000px) {
+  .base-grid,
+  distill-header,
+  d-title,
+  d-abstract,
+  d-article,
+  d-appendix,
+  distill-appendix,
+  d-byline,
+  d-footnote-list,
+  d-citation-list,
+  distill-footer {
+    grid-template-columns: [screen-start] 1fr [page-start kicker-start] 50px [middle-start] 50px [text-start kicker-end] 50px 50px 50px 50px 50px 50px 50px 50px [text-end gutter-start] 50px [middle-end] 50px [page-end gutter-end] 1fr [screen-end];
+    grid-column-gap: 16px;
+  }
+
+  .grid {
+    grid-column-gap: 16px;
+  }
+}
+
+@media(min-width: 1180px) {
+  .base-grid,
+  distill-header,
+  d-title,
+  d-abstract,
+  d-article,
+  d-appendix,
+  distill-appendix,
+  d-byline,
+  d-footnote-list,
+  d-citation-list,
+  distill-footer {
+    grid-template-columns: [screen-start] 1fr [page-start kicker-start] 60px [middle-start] 60px [text-start kicker-end] 60px 60px 60px 60px 60px 60px 60px 60px [text-end gutter-start] 60px [middle-end] 60px [page-end gutter-end] 1fr [screen-end];
+    grid-column-gap: 32px;
+  }
+
+  .grid {
+    grid-column-gap: 32px;
+  }
+}
+
+
+
+
+.base-grid {
+  grid-column: screen;
+}
+
+/* .l-body,
+d-article > *  {
+  grid-column: text;
+}
+
+.l-page,
+d-title > *,
+d-figure {
+  grid-column: page;
+} */
+
+.l-gutter {
+  grid-column: gutter;
+}
+
+.l-text,
+.l-body {
+  grid-column: text;
+}
+
+.l-page {
+  grid-column: page;
+}
+
+.l-body-outset {
+  grid-column: middle;
+}
+
+.l-page-outset {
+  grid-column: page;
+}
+
+.l-screen {
+  grid-column: screen;
+}
+
+.l-screen-inset {
+  grid-column: screen;
+  padding-left: 16px;
+  padding-left: 16px;
+}
+
+
+/* Aside */
+
+d-article aside {
+  grid-column: gutter;
+  font-size: 12px;
+  line-height: 1.6em;
+  color: rgb(var(--ink) / 0.6)
+}
+
+@media(min-width: 768px) {
+  aside {
+    grid-column: gutter;
+  }
+
+  .side {
+    grid-column: gutter;
+  }
+}
+/*
+ * Copyright 2018 The Distill Template Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+d-title {
+  padding: 2rem 0 1.5rem;
+  contain: layout style;
+  overflow-x: hidden;
+}
+
+@media(min-width: 768px) {
+  d-title {
+    padding: 4rem 0 1.5rem;
+  }
+}
+
+d-title h1 {
+  grid-column: text;
+  font-size: 40px;
+  font-weight: 700;
+  line-height: 1.1em;
+  margin: 0 0 0.5rem;
+}
+
+@media(min-width: 768px) {
+  d-title h1 {
+    font-size: 50px;
+  }
+}
+
+d-title p {
+  font-weight: 300;
+  font-size: 1.2rem;
+  line-height: 1.55em;
+  grid-column: text;
+}
+
+d-title .status {
+  margin-top: 0px;
+  font-size: 12px;
+  color: #009688;
+  opacity: 0.8;
+  grid-column: kicker;
+}
+
+d-title .status span {
+  line-height: 1;
+  display: inline-block;
+  padding: 6px 0;
+  border-bottom: 1px solid #80cbc4;
+  font-size: 11px;
+  text-transform: uppercase;
+}
+/*
+ * Copyright 2018 The Distill Template Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+d-byline {
+  contain: style;
+  overflow: hidden;
+  border-top: 1px solid rgb(var(--ink) / 0.1);
+  font-size: 0.8rem;
+  line-height: 1.8em;
+  padding: 1.5rem 0;
+  min-height: 1.8em;
+}
+
+
+d-byline .byline {
+  grid-template-columns: 1fr 1fr;
+  grid-column: text;
+}
+
+@media(min-width: 768px) {
+  d-byline .byline {
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+  }
+}
+
+d-byline .authors-affiliations {
+  grid-column-end: span 2;
+  grid-template-columns: 1fr 1fr;
+  margin-bottom: 1em;
+}
+
+@media(min-width: 768px) {
+  d-byline .authors-affiliations {
+    margin-bottom: 0;
+  }
+}
+
+d-byline h3 {
+  font-size: 0.6rem;
+  font-weight: 400;
+  color: rgb(var(--ink) / 0.5);
+  margin: 0;
+  text-transform: uppercase;
+}
+
+d-byline p {
+  margin: 0;
+}
+
+d-byline a,
+d-article d-byline a {
+  color: rgb(var(--ink) / 0.8);
+  text-decoration: none;
+  border-bottom: none;
+}
+
+d-article d-byline a:hover {
+  text-decoration: underline;
+  border-bottom: none;
+}
+
+d-byline p.author {
+  font-weight: 500;
+}
+
+d-byline .affiliations {
+
+}
+/*
+ * Copyright 2018 The Distill Template Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+d-article {
+  contain: layout style;
+  overflow-x: hidden;
+  border-top: 1px solid rgb(var(--ink) / 0.1);
+  padding-top: 2rem;
+  color: rgb(var(--ink) / 0.8);
+}
+
+d-article > * {
+  grid-column: text;
+}
+
+@media(min-width: 768px) {
+  d-article {
+    font-size: 16px;
+  }
+}
+
+@media(min-width: 1024px) {
+  d-article {
+    font-size: 1.06rem;
+    line-height: 1.7em;
+  }
+}
+
+
+/* H2 */
+
+
+d-article .marker {
+  text-decoration: none;
+  border: none;
+  counter-reset: section;
+  grid-column: kicker;
+  line-height: 1.7em;
+}
+
+d-article .marker:hover {
+  border: none;
+}
+
+d-article .marker span {
+  padding: 0 3px 4px;
+  border-bottom: 1px solid rgb(var(--ink) / 0.2);
+  position: relative;
+  top: 4px;
+}
+
+d-article .marker:hover span {
+  color: rgb(var(--ink) / 0.7);
+  border-bottom: 1px solid rgb(var(--ink) / 0.7);
+}
+
+d-article h2 {
+  font-weight: 600;
+  font-size: 24px;
+  line-height: 1.25em;
+  margin: 2rem 0 1.5rem 0;
+  border-bottom: 1px solid rgb(var(--ink) / 0.1);
+  padding-bottom: 1rem;
+}
+
+@media(min-width: 1024px) {
+  d-article h2 {
+    font-size: 36px;
+  }
+}
+
+/* H3 */
+
+d-article h3 {
+  font-weight: 700;
+  font-size: 18px;
+  line-height: 1.4em;
+  margin-bottom: 1em;
+  margin-top: 2em;
+}
+
+@media(min-width: 1024px) {
+  d-article h3 {
+    font-size: 20px;
+  }
+}
+
+/* H4 */
+
+d-article h4 {
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 14px;
+  line-height: 1.4em;
+}
+
+d-article a {
+  color: inherit;
+}
+
+d-article p,
+d-article ul,
+d-article ol,
+d-article blockquote {
+  margin-top: 0;
+  margin-bottom: 1em;
+  margin-left: 0;
+  margin-right: 0;
+}
+
+d-article blockquote {
+  border-left: 2px solid rgb(var(--ink) / 0.2);
+  padding-left: 2em;
+  font-style: italic;
+  color: rgb(var(--ink) / 0.6);
+}
+
+d-article a {
+  border-bottom: 1px solid rgb(var(--ink) / 0.4);
+  text-decoration: none;
+}
+
+d-article a:hover {
+  border-bottom: 1px solid rgb(var(--ink) / 0.8);
+}
+
+d-article .link {
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+d-article ul,
+d-article ol {
+  padding-left: 24px;
+}
+
+d-article li {
+  margin-bottom: 1em;
+  margin-left: 0;
+  padding-left: 0;
+}
+
+d-article li:last-child {
+  margin-bottom: 0;
+}
+
+d-article pre {
+  box-sizing: border-box;
+  min-width: 0;
+  padding: 20px 24px;
+  border: 1px solid rgb(var(--ink) / .15);
+  border-radius: 8px;
+  background: var(--code-background);
+  color: var(--code-foreground);
+  font-size: 14px;
+  line-height: 1.65;
+  tab-size: 4;
+  margin-bottom: 20px;
+}
+
+d-article pre.astro-code {
+  background-color: var(--code-background) !important;
+}
+
+d-article pre code {
+  display: block;
+  width: max-content;
+  min-width: 100%;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: inherit;
+  line-height: inherit;
+}
+
+@media (max-width: 767px) {
+  d-article pre {
+    padding: 16px;
+    font-size: 13px;
+  }
+}
+
+d-article hr {
+  grid-column: screen;
+  width: 100%;
+  border: none;
+  border-bottom: 1px solid rgb(var(--ink) / 0.1);
+  margin-top: 60px;
+  margin-bottom: 60px;
+}
+
+d-article section {
+  margin-top: 60px;
+  margin-bottom: 60px;
+}
+
+d-article span.equation-mimic {
+  font-family: georgia;
+  font-size: 115%;
+  font-style: italic;
+}
+
+d-article > d-code,
+d-article section > d-code  {
+  display: block;
+}
+
+d-article > d-math[block],
+d-article section > d-math[block]  {
+  display: block;
+}
+
+@media (max-width: 768px) {
+  d-article > d-code,
+  d-article section > d-code,
+  d-article > d-math[block],
+  d-article section > d-math[block] {
+      overflow-x: scroll;
+      -ms-overflow-style: none;  // IE 10+
+      overflow: -moz-scrollbars-none;  // Firefox
+  }
+
+  d-article > d-code::-webkit-scrollbar,
+  d-article section > d-code::-webkit-scrollbar,
+  d-article > d-math[block]::-webkit-scrollbar,
+  d-article section > d-math[block]::-webkit-scrollbar {
+    display: none;  // Safari and Chrome
+  }
+}
+
+d-article .citation {
+  color: var(--link);
+  cursor: pointer;
+}
+
+d-include {
+  width: auto;
+  display: block;
+}
+
+d-figure {
+  contain: layout style;
+}
+
+/* KaTeX */
+
+.katex, .katex-prerendered {
+  contain: style;
+  display: inline-block;
+}
+
+/* Tables */
+
+d-article table {
+  border-collapse: collapse;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid rgb(var(--ink) / 0.2);
+}
+
+d-article table th {
+  border-bottom: 1px solid rgb(var(--ink) / 0.2);
+}
+
+d-article table td {
+  border-bottom: 1px solid rgb(var(--ink) / 0.05);
+}
+
+d-article table tr:last-of-type td {
+  border-bottom: none;
+}
+
+d-article table th,
+d-article table td {
+  font-size: 15px;
+  padding: 2px 8px;
+}
+
+d-article table tbody :first-child td {
+  padding-top: 2px;
+}
+/*
+ * Copyright 2018 The Distill Template Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+span.katex-display {
+  text-align: left;
+  padding: 8px 0 8px 0;
+  margin: 0.5em 0 0.5em 1em;
+}
+
+span.katex {
+  -webkit-font-smoothing: antialiased;
+  color: rgb(var(--ink) / 0.8);
+  font-size: 1.18em;
+}
+/*
+ * Copyright 2018 The Distill Template Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+
+d-appendix {
+  contain: layout style;
+  font-size: 0.8em;
+  line-height: 1.7em;
+  margin-top: 60px;
+  margin-bottom: 0;
+  border-top: 1px solid rgb(var(--ink) / 0.1);
+  color: rgb(var(--ink) / 0.5);
+  padding-top: 60px;
+  padding-bottom: 48px;
+}
+
+d-appendix h3 {
+  grid-column: page-start / text-start;
+  font-size: 15px;
+  font-weight: 500;
+  margin-top: 1em;
+  margin-bottom: 0;
+  color: rgb(var(--ink) / 0.65);
+}
+
+d-appendix h3 + * {
+  margin-top: 1em;
+}
+
+d-appendix ol {
+  padding: 0 0 0 15px;
+}
+
+@media (min-width: 768px) {
+  d-appendix ol {
+    padding: 0 0 0 30px;
+    margin-left: -30px;
+  }
+}
+
+d-appendix li {
+  margin-bottom: 1em;
+}
+
+d-appendix a {
+  color: rgb(var(--ink) / 0.6);
+}
+
+d-appendix > * {
+  grid-column: text;
+}
+
+d-appendix > d-footnote-list,
+d-appendix > d-citation-list,
+d-appendix > distill-appendix {
+  grid-column: screen;
+}
+
+/*
+ * Copyright 2018 The Distill Template Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+@media print {
+
+  @page {
+    size: 8in 11in;
+    @bottom-right {
+      content: counter(page) " of " counter(pages);
+    }
+  }
+
+  html {
+    /* no general margins -- CSS Grid takes care of those */
+  }
+
+  p, code {
+    page-break-inside: avoid;
+  }
+
+  h2, h3 {
+    page-break-after: avoid;
+  }
+
+  d-header {
+    visibility: hidden;
+  }
+
+  d-footer {
+    display: none!important;
+  }
+
+}
+</style><script src="/vendor/distill/template.v2.js"></script><link rel="stylesheet" href="/_astro/SiteSearch.oBoOfAoq.css"><link rel="stylesheet" href="/_astro/Page._sF0_tPy.css"><style>.article-metrics[data-astro-cid-aeanghud]{color:var(--listing-muted,rgb(var(--ink) / .6));font-size:inherit;flex-wrap:wrap;align-items:center;gap:.35em .75em;line-height:1.5;display:inline-flex}.metric[data-astro-cid-aeanghud]{white-space:nowrap}.metric[data-astro-cid-aeanghud]+.metric[data-astro-cid-aeanghud]:before{content:"·";color:rgb(var(--ink) / .35);margin-right:.75em}.metric-value[data-astro-cid-aeanghud]{font-variant-numeric:tabular-nums}.stacked[data-astro-cid-aeanghud]{color:inherit;flex-direction:column;align-items:flex-start;gap:0;display:flex}.stacked[data-astro-cid-aeanghud] .metric[data-astro-cid-aeanghud]+.metric[data-astro-cid-aeanghud]:before{content:none}.metric-unavailable[data-astro-cid-aeanghud]{clip-path:inset(50%);white-space:nowrap;width:1px;height:1px;padding:0;position:absolute;overflow:hidden}
+.dataset[data-astro-cid-sicvmbkj]{min-width:0}p[data-astro-cid-sicvmbkj]:first-child{margin-top:0}.table-scroll[data-astro-cid-sicvmbkj]{overflow-x:auto}table[data-astro-cid-sicvmbkj]{border-collapse:collapse;width:100%;font-size:inherit;line-height:inherit}th[data-astro-cid-sicvmbkj],td[data-astro-cid-sicvmbkj]{text-align:left;border-bottom:1px solid rgb(var(--ink) / .1);white-space:nowrap;padding:.6em .65em}th[data-astro-cid-sicvmbkj]:last-child,td[data-astro-cid-sicvmbkj]:last-child{padding-right:0}th[data-astro-cid-sicvmbkj],.selected[data-astro-cid-sicvmbkj]{font-weight:600}.selected-run[data-astro-cid-sicvmbkj]{background:rgb(var(--ink) / .05)}.used-label[data-astro-cid-sicvmbkj]{border:1px solid rgb(var(--ink) / .25);border-radius:3px;margin-left:.65em;padding:.15em .4em;font-size:.8em;font-weight:600}d-byline{background:var(--surface)}d-appendix{background:var(--surface);color:rgb(var(--ink) / .65)}@media print{d-byline,d-appendix{background:#fff}}d-byline .experiment-id{font-size:18px;font-weight:600}d-byline .collection-link:hover{text-decoration:underline}d-byline .byline>div{min-width:0}.report-appendix{min-width:0;margin-bottom:2rem}d-article>.source-table{grid-column:text}:is(d-article,d-appendix) figcaption{margin-top:1.25rem}@media (width>=768px){d-byline .byline{grid-template-columns:repeat(3,minmax(0,1fr));row-gap:12px}}@media (width>=1180px){d-byline .byline{grid-template-columns:repeat(var(--byline-columns), minmax(0, 1fr))}}.report-body{--report-content-top:4rem;position:relative}.report-body>d-article{min-width:0;padding-top:var(--report-content-top);grid-area:1/screen}.report-body>d-article>:first-child{margin-top:0}.report-toc{z-index:1;box-sizing:border-box;width:min(304px,100%);min-width:0;padding:calc(var(--report-content-top) + 1px) 24px 0;grid-area:1/screen-start/auto/text-start;justify-self:end;position:relative}.report-toc d-toc{max-height:calc(100vh - 48px);display:block;position:sticky;top:24px;overflow-y:auto}.report-toc h2{margin:0 0 12px;font-size:13px;font-weight:600;line-height:1.5}.report-toc ol{margin:0;padding:0;list-style:none}.report-toc li{margin-bottom:10px;font-size:12px;line-height:1.5}.report-toc .subsection{padding-left:12px}.report-toc a{color:rgb(var(--ink) / .6);border-bottom:none;text-decoration:none}.report-toc a:hover{color:rgb(var(--ink))}.report-abstract{grid-column:text}.report-abstract h2{margin-top:0}:is(d-article,d-appendix) [id]{scroll-margin-top:24px}@media (width<=1179px){.report-toc{grid-area:1/text;justify-self:stretch;width:auto;padding:32px 0 24px}.report-toc d-toc{max-height:none;position:static}.report-body>d-article{grid-row:2}.report-toc ol{columns:2;column-gap:24px}.report-toc li{break-inside:avoid}}@media print{.report-toc{display:none}}d-appendix .parameters{min-width:0;margin-bottom:2rem}d-appendix .parameters table{border-collapse:collapse;width:100%;font-size:inherit;line-height:inherit;margin-top:0}d-appendix .parameters th,d-appendix .parameters td{text-align:left;border-bottom:1px solid rgb(var(--ink) / .1);vertical-align:top;padding:.6em .65em}d-appendix .parameters th:first-child,d-appendix .parameters td:first-child{width:30%;padding-left:0}d-appendix .parameters th:last-child,d-appendix .parameters td:last-child{padding-right:0}@media (width<=999px){d-appendix h3{grid-column:text;margin-bottom:1em}}
+.availability-notice[data-astro-cid-j6iz5pnm]{background:var(--surface);border-left:3px solid #7c8792;grid-column:text;padding:.75em 1em}
+.report-appendix .training-specification{color:#000000c7;margin-top:3rem;padding-top:2rem}.report-appendix .training-specification h3{color:#222;margin:0 0 1.25rem;font-size:20px;font-weight:600;line-height:1.35}.report-appendix .training-specification>p{max-width:75ch;margin:0 0 1rem;line-height:1.75}.report-appendix .training-specification .source-table{margin-top:1.75rem}.report-appendix .training-specification table{table-layout:fixed;min-width:640px;font-size:14px;line-height:1.6}.report-appendix .training-specification th,.report-appendix .training-specification td{padding:.85rem 1rem}.report-appendix .training-specification th{color:#222;background:#00000009}.report-appendix .training-specification :is(th,td):first-child{width:22%}.report-appendix .training-specification :is(th,td):nth-child(2){width:32%}.report-appendix .training-specification :is(th,td):last-child{width:46%}@media (width<=767px){.report-appendix .training-specification{margin-top:2rem;padding-top:1.5rem}.report-appendix .training-specification h3{font-size:18px}}
+.figure-image[data-astro-cid-3j4ahvms]{border-bottom:none;display:block}img[data-astro-cid-3j4ahvms]{width:100%;height:auto;display:block}.figure-panels[data-astro-cid-3j4ahvms]{grid-template-columns:repeat(var(--panel-columns), minmax(0, 1fr));gap:12px;display:grid}.figure-panel[data-astro-cid-3j4ahvms]{min-width:0}.panel-label[data-astro-cid-3j4ahvms]{color:rgb(var(--ink));margin-bottom:4px;font-size:14px;font-weight:700;line-height:1.2;display:block}@media (width<=600px){.figure-panels[data-astro-cid-3j4ahvms]{grid-template-columns:1fr}}
+.report-table[data-astro-cid-t6mhkqx2]{min-width:0}.report-table[data-astro-cid-t6mhkqx2]>figcaption[data-astro-cid-t6mhkqx2]>:first-child{margin-top:0}.report-table[data-astro-cid-t6mhkqx2]>figcaption[data-astro-cid-t6mhkqx2]>:last-child{margin-bottom:0}.source-table[data-astro-cid-t6mhkqx2]{min-width:0;overflow-x:auto}.source-table[data-astro-cid-t6mhkqx2] table{border-collapse:collapse;width:100%;font-size:inherit}.source-table[data-astro-cid-t6mhkqx2] th,.source-table[data-astro-cid-t6mhkqx2] td{border-bottom:1px solid rgb(var(--ink) / .1);text-align:left;vertical-align:top;padding:.5em}
+.figure-image[data-astro-cid-olutqroj]{border-bottom:none;display:block}img[data-astro-cid-olutqroj],video[data-astro-cid-olutqroj]{width:100%;height:auto;display:block}
+figure[data-astro-cid-yeb4b3qi]{min-width:0;margin:0 0 2rem}img[data-astro-cid-yeb4b3qi]{width:100%;height:auto;display:block}
+</style></head><body distill-prerendered><d-front-matter><script type="application/json">{"title":"MNIST","description":"Seven controlled training families, their retained checkpoint bank, validation learning curves, and raster diagnostics.","authors":[{"author":"Eoin Murray","affiliations":[]}]}</script></d-front-matter><header class="site-header base-grid"><nav class="l-page" aria-label="Site"><a href="/">Pinglab</a><div class="nav-links"><style>astro-island,astro-slot,astro-static-slot{display:contents}</style><script>(function(){let e=async e=>{await(await e())()};(self.Astro||(self.Astro={})).load=e,window.dispatchEvent(new Event(`astro:load`))})();</script><script>(function(){function e(t){"@babel/helpers - typeof";return e=typeof Symbol==`function`&&typeof Symbol.iterator==`symbol`?function(e){return typeof e}:function(e){return e&&typeof Symbol==`function`&&e.constructor===Symbol&&e!==Symbol.prototype?`symbol`:typeof e},e(t)}function t(t,n){if(e(t)!=`object`||!t)return t;var r=t[Symbol.toPrimitive];if(r!==void 0){var i=r.call(t,n||`default`);if(e(i)!=`object`)return i;throw TypeError(`@@toPrimitive must return a primitive value.`)}return(n===`string`?String:Number)(t)}function n(n){var r=t(n,`string`);return e(r)==`symbol`?r:r+``}function r(e,t,r){return(t=n(t))in e?Object.defineProperty(e,t,{value:r,enumerable:!0,configurable:!0,writable:!0}):e[t]=r,e}let i=/* @__PURE__ */ new Set([`__proto__`,`constructor`,`prototype`]);{let e={0:e=>a(e),1:e=>n(e),2:e=>new RegExp(e),3:e=>new Date(e),4:e=>new Map(n(e)),5:e=>new Set(n(e)),6:e=>BigInt(e),7:e=>new URL(e),8:e=>new Uint8Array(e),9:e=>new Uint16Array(e),10:e=>new Uint32Array(e),11:e=>1/0*e},t=t=>{let[n,r]=t;return n in e?e[n](r):void 0},n=e=>e.map(t),a=e=>typeof e!=`object`||!e?e:Object.fromEntries(Object.entries(e).map(([e,n])=>[e,t(n)]));class o extends HTMLElement{constructor(...e){super(...e),r(this,`Component`,void 0),r(this,`hydrator`,void 0),r(this,`hydrate`,async()=>{var e;if(!this.hydrator||!this.isConnected)return;let t=(e=this.parentElement)==null?void 0:e.closest(`astro-island[ssr]`);if(t){t.addEventListener(`astro:hydrate`,this.hydrate,{once:!0});return}let n=this.querySelectorAll(`astro-slot`),r={},i=this.querySelectorAll(`template[data-astro-template]`);for(let e of i){let t=e.closest(this.tagName);t!=null&&t.isSameNode(this)&&(r[e.getAttribute(`data-astro-template`)||`default`]=e.innerHTML,e.remove())}for(let e of n){let t=e.closest(this.tagName);t!=null&&t.isSameNode(this)&&(r[e.getAttribute(`name`)||`default`]=e.innerHTML)}let o;try{o=this.hasAttribute(`props`)?a(JSON.parse(this.getAttribute(`props`))):{}}catch(e){let t=this.getAttribute(`component-url`)||`<unknown>`,n=this.getAttribute(`component-export`);throw n&&(t+=` (export ${n})`),console.error(`[hydrate] Error parsing props for component ${t}`,this.getAttribute(`props`),e),e}await this.hydrator(this)(this.Component,o,r,{client:this.getAttribute(`client`)}),this.removeAttribute(`ssr`),this.dispatchEvent(new CustomEvent(`astro:hydrate`))}),r(this,`unmount`,()=>{this.isConnected||this.dispatchEvent(new CustomEvent(`astro:unmount`))})}disconnectedCallback(){document.removeEventListener(`astro:after-swap`,this.unmount),document.addEventListener(`astro:after-swap`,this.unmount,{once:!0})}connectedCallback(){if(!this.hasAttribute(`await-children`)||document.readyState===`interactive`||document.readyState===`complete`)this.childrenConnectedCallback();else{let e=()=>{document.removeEventListener(`DOMContentLoaded`,e),t.disconnect(),this.childrenConnectedCallback()},t=new MutationObserver(()=>{var t;((t=this.lastChild)==null?void 0:t.nodeType)===Node.COMMENT_NODE&&this.lastChild.nodeValue===`astro:end`&&(this.lastChild.remove(),e())});t.observe(this,{childList:!0}),document.addEventListener(`DOMContentLoaded`,e)}}async childrenConnectedCallback(){let e=this.getAttribute(`before-hydration-url`);e&&await import(e),this.start()}getRetryImportUrl(e){let t=new URL(e,document.baseURI);return t.searchParams.set(`astro-retry`,Date.now().toString()),t.toString()}async importWithRetry(e){try{return await import(e)}catch(t){return await new Promise(e=>setTimeout(e,1e3)),import(this.getRetryImportUrl(e))}}handleHydrationError(e){let t=this.getAttribute(`component-url`),n=new CustomEvent(`astro:hydration-error`,{cancelable:!0,bubbles:!0,composed:!0,detail:{error:e,componentUrl:t}});this.dispatchEvent(n)&&console.error(`[astro-island] Error hydrating ${t}`,e)}async start(){let e=JSON.parse(this.getAttribute(`opts`)),t=this.getAttribute(`client`);if(Astro[t]===void 0){window.addEventListener(`astro:${t}`,()=>this.start(),{once:!0});return}try{await Astro[t](async()=>{let e=this.getAttribute(`renderer-url`);try{let[t,{default:n}]=await Promise.all([this.importWithRetry(this.getAttribute(`component-url`)),e?this.importWithRetry(e):Promise.resolve({default:()=>()=>{}})]),r=this.getAttribute(`component-export`)||`default`;if(r.includes(`.`)){this.Component=t;for(let e of r.split(`.`)){if(i.has(e)||!this.Component||typeof this.Component!=`object`&&typeof this.Component!=`function`||!Object.hasOwn(this.Component,e))throw Error(`Invalid component export path: ${r}`);this.Component=this.Component[e]}}else{if(i.has(r))throw Error(`Invalid component export path: ${r}`);this.Component=t[r]}return this.hydrator=n,this.hydrate}catch(e){return this.handleHydrationError(e),()=>{}}},e,this)}catch(e){this.handleHydrationError(e)}}attributeChangedCallback(){this.hydrate()}}r(o,`observedAttributes`,[`props`]),customElements.get(`astro-island`)||customElements.define(`astro-island`,o)}})();</script><astro-island uid="1ffXdm" prefix="r1" component-url="/_astro/CommandPalette.Dc7RLcBH.js" component-export="default" renderer-url="/_astro/client.tK5zrQFg.js" props="{&quot;collections&quot;:[1,[[0,{&quot;href&quot;:[0,&quot;/collections/gamma-gated-sparsity&quot;],&quot;title&quot;:[0,&quot;Gamma-gated sparsity&quot;],&quot;detail&quot;:[0,&quot;Collection&quot;],&quot;keywords&quot;:[1,[[0,&quot;gamma-gated-sparsity&quot;],[0,&quot;Experiments on gamma rhythms, sparse neural activity, and learning in spiking networks.&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/collections/neuromodulation&quot;],&quot;title&quot;:[0,&quot;Neuromodulation&quot;],&quot;detail&quot;:[0,&quot;Collection&quot;],&quot;keywords&quot;:[1,[[0,&quot;neuromodulation&quot;],[0,&quot;Experiments on how changes to neural dynamics affect network evidence, accuracy, and activity.&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/collections/datasets&quot;],&quot;title&quot;:[0,&quot;Datasets&quot;],&quot;detail&quot;:[0,&quot;Collection&quot;],&quot;keywords&quot;:[1,[[0,&quot;datasets&quot;],[0,&quot;Training banks, recordings, and other reusable experimental data, with their provenance and diagnostics.&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/collections/demo&quot;],&quot;title&quot;:[0,&quot;Uncategorized&quot;],&quot;detail&quot;:[0,&quot;Collection&quot;],&quot;keywords&quot;:[1,[[0,&quot;demo&quot;],[0,&quot;Articles and experiments without a subject collection.&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/collections/guides&quot;],&quot;title&quot;:[0,&quot;Guides&quot;],&quot;detail&quot;:[0,&quot;Collection&quot;],&quot;keywords&quot;:[1,[[0,&quot;guides&quot;],[0,&quot;Technical explanations of the models, methods, and tools used in Pinglab.&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/collections/animations&quot;],&quot;title&quot;:[0,&quot;Animations&quot;],&quot;detail&quot;:[0,&quot;Collection&quot;],&quot;keywords&quot;:[1,[[0,&quot;animations&quot;],[0,&quot;Experiments and guides with interactive PixiJS animations.&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/collections/paper-inspired&quot;],&quot;title&quot;:[0,&quot;Paper-inspired&quot;],&quot;detail&quot;:[0,&quot;Collection&quot;],&quot;keywords&quot;:[1,[[0,&quot;paper-inspired&quot;],[0,&quot;Experiments inspired by published research papers.&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/collections/notes&quot;],&quot;title&quot;:[0,&quot;Notes&quot;],&quot;detail&quot;:[0,&quot;Collection&quot;],&quot;keywords&quot;:[1,[[0,&quot;notes&quot;],[0,&quot;Practical project notes, infrastructure guidance, and operational workflows.&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/collections/slides&quot;],&quot;title&quot;:[0,&quot;Slides&quot;],&quot;detail&quot;:[0,&quot;Collection&quot;],&quot;keywords&quot;:[1,[[0,&quot;slides&quot;],[0,&quot;Talks and journal-club presentations on research and related ideas.&quot;]]]}]]],&quot;articles&quot;:[1,[[0,{&quot;href&quot;:[0,&quot;/exp099&quot;],&quot;title&quot;:[0,&quot;Susin and Destexhe (2021): Gamma vs Input Drive&quot;],&quot;detail&quot;:[0,&quot;exp099&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp099&quot;],[0,&quot;Independent excitatory afferent drive strengthens population bursting in a calibrated conductance-based E/I network.&quot;],[0,&quot;animations&quot;],[0,&quot;Animations&quot;],[0,&quot;paper-inspired&quot;],[0,&quot;Paper-inspired&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp124&quot;],&quot;title&quot;:[0,&quot;SHD&quot;],&quot;detail&quot;:[0,&quot;exp124&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp124&quot;],[0,&quot;Full-data SHD training curves and matched two-layer inference rasters for COBA and PING.&quot;],[0,&quot;datasets&quot;],[0,&quot;Datasets&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp133&quot;],&quot;title&quot;:[0,&quot;Lowet (2015): Coupled Rhythms&quot;],&quot;detail&quot;:[0,&quot;exp133&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp133&quot;],[0,&quot;A gamma phase-locking map and coupling-onset demonstration inspired by Lowet et al. (2015).&quot;],[0,&quot;paper-inspired&quot;],[0,&quot;Paper-inspired&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp134&quot;],&quot;title&quot;:[0,&quot;Leak and Capacitance Modulation of PING Dynamics&quot;],&quot;detail&quot;:[0,&quot;exp134&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp134&quot;],[0,&quot;Paired leak-conductance and membrane-capacitance sweeps in the frozen network used by exp123.&quot;],[0,&quot;neuromodulation&quot;],[0,&quot;Neuromodulation&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/notes/experiment-rules&quot;],&quot;title&quot;:[0,&quot;Experiment Rules&quot;],&quot;detail&quot;:[0,&quot;Note&quot;],&quot;keywords&quot;:[1,[[0,&quot;experiment-rules&quot;],[0,&quot;Independent compute, analyse and present stages, scientific inputs and execution contracts.&quot;],[0,&quot;notes&quot;],[0,&quot;Notes&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/notes/pingstore-rules&quot;],&quot;title&quot;:[0,&quot;Pingstore Rules&quot;],&quot;detail&quot;:[0,&quot;Note&quot;],&quot;keywords&quot;:[1,[[0,&quot;pingstore-rules&quot;],[0,&quot;Pingstore run layout, provenance, validation, pruning, Cloudflare R2 backup access and recovery.&quot;],[0,&quot;notes&quot;],[0,&quot;Notes&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/notes/compute-rules&quot;],&quot;title&quot;:[0,&quot;Compute Rules&quot;],&quot;detail&quot;:[0,&quot;Note&quot;],&quot;keywords&quot;:[1,[[0,&quot;compute-rules&quot;],[0,&quot;Compute providers, access boundaries, and execution workflows for Pinglab.&quot;],[0,&quot;notes&quot;],[0,&quot;Notes&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp123&quot;],&quot;title&quot;:[0,&quot;Output Evidence Against Time and Gamma Cycles&quot;],&quot;detail&quot;:[0,&quot;exp123&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp123&quot;],[0,&quot;Paired inhibitory-decay probes of output evidence, sustained decisions and network spike cost at a 25 Hz input encoding rate.&quot;],[0,&quot;neuromodulation&quot;],[0,&quot;Neuromodulation&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp130&quot;],&quot;title&quot;:[0,&quot;Theta nested Gamma&quot;],&quot;detail&quot;:[0,&quot;exp130&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp130&quot;],[0,&quot;A 5 Hz afferent-rate envelope compared with constant excitation of the same mean.&quot;],[0,&quot;demo&quot;],[0,&quot;Uncategorized&quot;],[0,&quot;animations&quot;],[0,&quot;Animations&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp022&quot;],&quot;title&quot;:[0,&quot;MNIST&quot;],&quot;detail&quot;:[0,&quot;exp022&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp022&quot;],[0,&quot;Seven controlled training families, their retained checkpoint bank, validation learning curves, and raster diagnostics.&quot;],[0,&quot;gamma-gated-sparsity&quot;],[0,&quot;Gamma-gated sparsity&quot;],[0,&quot;datasets&quot;],[0,&quot;Datasets&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp110&quot;],&quot;title&quot;:[0,&quot;Manuscript&quot;],&quot;detail&quot;:[0,&quot;exp110&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp110&quot;],[0,&quot;A manuscript scaffold connecting PING circuit dynamics, low-rate task performance, cycle participation, perturbation sensitivity and continuous-stream classification.&quot;],[0,&quot;gamma-gated-sparsity&quot;],[0,&quot;Gamma-gated sparsity&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp125&quot;],&quot;title&quot;:[0,&quot;Scikit Digits&quot;],&quot;detail&quot;:[0,&quot;exp125&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp125&quot;],[0,&quot;A 64 → 128 → 10 LIF network learns handwritten digits, with training curves and a held-out test evaluation.&quot;],[0,&quot;datasets&quot;],[0,&quot;Datasets&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp127&quot;],&quot;title&quot;:[0,&quot;Introduction to Spiking Neural Networks&quot;],&quot;detail&quot;:[0,&quot;exp127&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp127&quot;],[0,&quot;A practical introduction to neurons, temporal computation, and learning for machine learning practitioners and software developers.&quot;],[0,&quot;guides&quot;],[0,&quot;Guides&quot;],[0,&quot;animations&quot;],[0,&quot;Animations&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp128&quot;],&quot;title&quot;:[0,&quot;Introduction to Conductance based Synapses&quot;],&quot;detail&quot;:[0,&quot;exp128&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp128&quot;],[0,&quot;Spikes open synaptic channels, which change the voltage of an attached neuron.&quot;],[0,&quot;guides&quot;],[0,&quot;Guides&quot;],[0,&quot;animations&quot;],[0,&quot;Animations&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp129&quot;],&quot;title&quot;:[0,&quot;Introduction to Capacitors&quot;],&quot;detail&quot;:[0,&quot;exp129&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp129&quot;],[0,&quot;Electrons separate onto two plates, creating a voltage and storing energy in an electric field.&quot;],[0,&quot;guides&quot;],[0,&quot;Guides&quot;],[0,&quot;animations&quot;],[0,&quot;Animations&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/notes/writing-rules&quot;],&quot;title&quot;:[0,&quot;Writing Rules&quot;],&quot;detail&quot;:[0,&quot;Note&quot;],&quot;keywords&quot;:[1,[[0,&quot;writing-rules&quot;],[0,&quot;Scientific writing, evidence, terminology and editorial conventions for experiment articles.&quot;],[0,&quot;notes&quot;],[0,&quot;Notes&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp023&quot;],&quot;title&quot;:[0,&quot;Turning the PING Loop On&quot;],&quot;detail&quot;:[0,&quot;exp023&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp023&quot;],[0,&quot;PING stripped to its biophysical fundamentals: free-running activity, population spectra and rate responses with the excitatory–inhibitory loop off and on.&quot;],[0,&quot;gamma-gated-sparsity&quot;],[0,&quot;Gamma-gated sparsity&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp025&quot;],&quot;title&quot;:[0,&quot;Accuracy and Firing Rate With and Without Inhibition&quot;],&quot;detail&quot;:[0,&quot;exp025&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp025&quot;],[0,&quot;Reused MNIST networks compare accuracy and excitatory firing rates with and without an inhibitory loop. Full-MNIST reference classifiers accompany a separate reduced-training-pool activity-ceiling sweep.&quot;],[0,&quot;gamma-gated-sparsity&quot;],[0,&quot;Gamma-gated sparsity&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/slides/journal-club-oct-5th&quot;],&quot;title&quot;:[0,&quot;Journal club — Neural basis of social hierarchy across species&quot;],&quot;detail&quot;:[0,&quot;Slides&quot;],&quot;keywords&quot;:[1,[[0,&quot;journal-club-oct-5th&quot;],[0,&quot;Yan &amp; Lin (2026): territory, fighting, alliances, and interpretations of the neural basis of social hierarchy. Journal club, 5 October 2026.&quot;],[0,&quot;slides&quot;],[0,&quot;Slides&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp113&quot;],&quot;title&quot;:[0,&quot;COBA and PING Dynamics, Discretisation, and Learning&quot;],&quot;detail&quot;:[0,&quot;exp113&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp113&quot;],[0,&quot;A textbook derivation of the conductance-based COBA and PING equations, their discrete simulation, and their training by surrogate-gradient BPTT, voltage-gradient damping, gradient clipping, AdamW, and Dale projection.&quot;],[0,&quot;notes&quot;],[0,&quot;Notes&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp117&quot;],&quot;title&quot;:[0,&quot;Mean-Field Analysis of PING Bifurcations&quot;],&quot;detail&quot;:[0,&quot;exp117&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp117&quot;],[0,&quot;An independent four-variable mean-field analysis identifies a Hopf bifurcation, sampled dynamics consistent with a supercritical transition, and decreasing onset frequency with slower inhibition.&quot;],[0,&quot;gamma-gated-sparsity&quot;],[0,&quot;Gamma-gated sparsity&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp054&quot;],&quot;title&quot;:[0,&quot;Pinglab Rythmicity Metric&quot;],&quot;detail&quot;:[0,&quot;exp054&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp054&quot;],[0,&quot;Lobe–trough contrast across untrained PING coupling strengths, with private- and shared-input null controls.&quot;],[0,&quot;gamma-gated-sparsity&quot;],[0,&quot;Gamma-gated sparsity&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp046&quot;],&quot;title&quot;:[0,&quot;One Spike per Gamma Cycle&quot;],&quot;detail&quot;:[0,&quot;exp046&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp046&quot;],[0,&quot;Pooled and equally weighted network distributions support predominantly one-spike gamma-cycle participation across 18 trained networks, with exceptions.&quot;],[0,&quot;gamma-gated-sparsity&quot;],[0,&quot;Gamma-gated sparsity&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp049&quot;],&quot;title&quot;:[0,&quot;Training Recurrent Weights Weakens PING Rhythmicity&quot;],&quot;detail&quot;:[0,&quot;exp049&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp049&quot;],[0,&quot;Trainable recurrent conductances produced lower reference-image rhythmicity and higher excitatory firing than the frozen PING control; outcomes depended on initialization.&quot;],[0,&quot;gamma-gated-sparsity&quot;],[0,&quot;Gamma-gated sparsity&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp082&quot;],&quot;title&quot;:[0,&quot;Spike-Count Classification in a Continuous Stream&quot;],&quot;detail&quot;:[0,&quot;exp082&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp082&quot;],[0,&quot;A multi-seed study of spike-count classification across input rates and presentation durations.&quot;],[0,&quot;gamma-gated-sparsity&quot;],[0,&quot;Gamma-gated sparsity&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp044&quot;],&quot;title&quot;:[0,&quot;Firing Rate Across the Timestep Sweep&quot;],&quot;detail&quot;:[0,&quot;exp044&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp044&quot;],[0,&quot;Compares final-epoch firing rate, classification accuracy and illustrative rasters across a twelvefold integration-timestep sweep.&quot;],[0,&quot;gamma-gated-sparsity&quot;],[0,&quot;Gamma-gated sparsity&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp037&quot;],&quot;title&quot;:[0,&quot;Dropped Spikes vs Added Noise&quot;],&quot;detail&quot;:[0,&quot;exp037&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp037&quot;],[0,&quot;Both trained networks tolerated substantial spike deletion, but PING accuracy fell more sharply under added spikes. The perturbations changed both recurrent feedback and readout input, so they do not isolate gamma gating.&quot;],[0,&quot;gamma-gated-sparsity&quot;],[0,&quot;Gamma-gated sparsity&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp042&quot;],&quot;title&quot;:[0,&quot;Inhibitory Replay Perturbations Change Excitatory Firing&quot;],&quot;detail&quot;:[0,&quot;exp042&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp042&quot;],[0,&quot;Recorded inhibitory spike streams produced contrasting excitatory responses under independent-spike and fixed-window replay perturbations, but the experiment does not isolate synchrony.&quot;],[0,&quot;gamma-gated-sparsity&quot;],[0,&quot;Gamma-gated sparsity&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp081&quot;],&quot;title&quot;:[0,&quot;How Pixel Features Respond to Input Rate&quot;],&quot;detail&quot;:[0,&quot;exp081&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp081&quot;],[0,&quot;Direct simulations and a simpler theory test how sparse input events become average voltage features.&quot;],[0,&quot;gamma-gated-sparsity&quot;],[0,&quot;Gamma-gated sparsity&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp024&quot;],&quot;title&quot;:[0,&quot;Accuracy Plateaus While Firing Rate Rises&quot;],&quot;detail&quot;:[0,&quot;exp024&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp024&quot;],[0,&quot;Audits validation accuracy and firing-rate stability in unregularised PING and COBA training histories.&quot;],[0,&quot;gamma-gated-sparsity&quot;],[0,&quot;Gamma-gated sparsity&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp038&quot;],&quot;title&quot;:[0,&quot;Switching On the Inhibitory Loop&quot;],&quot;detail&quot;:[0,&quot;exp038&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp038&quot;],[0,&quot;Enabling an inhibitory loop after feedforward training reduced excitatory firing but lowered classification accuracy; the experiment does not isolate a benefit of gamma timing.&quot;],[0,&quot;gamma-gated-sparsity&quot;],[0,&quot;Gamma-gated sparsity&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp041&quot;],&quot;title&quot;:[0,&quot;Firing Rate Tracks Gamma Frequency&quot;],&quot;detail&quot;:[0,&quot;exp041&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp041&quot;],[0,&quot;Across PING networks trained at different inhibitory decay times, compare excitatory firing rate with gamma frequency and test accuracy.&quot;],[0,&quot;gamma-gated-sparsity&quot;],[0,&quot;Gamma-gated sparsity&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp047&quot;],&quot;title&quot;:[0,&quot;Pool-Size Effects Depend on Synaptic Scaling&quot;],&quot;detail&quot;:[0,&quot;exp047&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp047&quot;],[0,&quot;Paired controls separate fixed summed I→E coupling from fixed expected synaptic strength as the inhibitory pool grows.&quot;],[0,&quot;gamma-gated-sparsity&quot;],[0,&quot;Gamma-gated sparsity&quot;]]]}],[0,{&quot;href&quot;:[0,&quot;/exp080&quot;],&quot;title&quot;:[0,&quot;Decoder Accuracy Improves with Input Rate&quot;],&quot;detail&quot;:[0,&quot;exp080&quot;],&quot;keywords&quot;:[1,[[0,&quot;exp080&quot;],[0,&quot;Direct-simulation decoder calibration of the input-rate range for later variable-rate PING training.&quot;],[0,&quot;gamma-gated-sparsity&quot;],[0,&quot;Gamma-gated sparsity&quot;]]]}]]]}" ssr client="load" opts="{&quot;name&quot;:&quot;CommandPalette&quot;,&quot;value&quot;:true}" await-children><button type="button" class="command-trigger" aria-label="Search articles and collections (Ctrl K)" aria-haspopup="dialog" aria-expanded="false" data-state="closed"><span class="command-shortcut-icon" aria-hidden="true">⌘K</span><span>Search</span></button><!--astro:end--></astro-island><a href="/collections">Collections</a><a class="github-link" href="https://github.com/eoinmurray/pinglab" aria-label="Pinglab on GitHub"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false"><path d="M12 .297C5.37.297 0 5.67 0 12.297c0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.043-1.61-4.043-1.61-.546-1.387-1.333-1.756-1.333-1.756-1.09-.745.083-.729.083-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.419-1.305.762-1.605-2.665-.3-5.467-1.334-5.467-5.931 0-1.31.469-2.381 1.236-3.221-.124-.303-.536-1.524.117-3.176 0 0 1.008-.322 3.301 1.23a11.52 11.52 0 0 1 3.003-.404c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.655 1.652.243 2.873.119 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.628-5.479 5.921.43.372.823 1.102.823 2.222 0 1.606-.015 2.898-.015 3.293 0 .322.216.694.825.576C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"></path></svg><span>GitHub</span></a><button id="theme-toggle" class="theme-toggle" type="button" aria-label="Change colour theme" title="Change colour theme"><svg class="theme-system" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"></rect><path d="M8 21h8M12 17v4"></path></svg><svg class="theme-light" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.4 1.4M17.6 17.6 19 19M5 19l1.4-1.4M17.6 6.4 19 5"></path></svg><svg class="theme-dark" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.8 13.2A9 9 0 0 1 10.8 3.2a9 9 0 1 0 10 10Z"></path></svg></button></div></nav></header><main><d-title><h1>MNIST</h1><p>Seven controlled training families, their retained checkpoint bank, validation learning curves, and raster diagnostics.</p></d-title><d-byline><div class="byline grid" style="--byline-columns: 5"><div><h3>Experiment</h3><p class="experiment-id">exp022</p></div><div><h3>Created</h3><p><time datetime="2026-08-11">2026-08-11</time></p></div><div><h3>Updated</h3><p><time datetime="2026-10-14">2026-10-14</time></p></div><div><h3>Collections</h3><p><a class="collection-link" href="/collections/gamma-gated-sparsity">Gamma-gated sparsity</a><br><a class="collection-link" href="/collections/datasets">Datasets</a></p></div><div class="report-statistics"><h3>Report</h3><span class="article-metrics stacked" aria-label="Article statistics" data-astro-cid-aeanghud><span class="metric" title="Main report prose, including the abstract; excludes headings, captions, tables, code, mathematics, metadata, references and appendices." data-astro-cid-aeanghud><span class="metric-value" data-astro-cid-aeanghud>726</span> words</span><span class="metric" title="Main report figures; each multipanel figure counts once. Tables and appendix figures are excluded." data-astro-cid-aeanghud><span class="metric-value" data-astro-cid-aeanghud>7</span> figures</span><span class="metric" title="Completed compute, analyse and present runs belonging to this experiment in local Pingstore; upstream and hidden runs are excluded." data-astro-cid-aeanghud><span class="metric-value" data-astro-cid-aeanghud>5</span> runs</span></span></div></div></d-byline><div class="report-body base-grid"><aside class="report-toc"><d-toc prerendered="true"><nav aria-label="Table of contents"><h2>Contents</h2><ol><li><a href="#abstract">Abstract</a></li><li><a href="#training-run-overview">Training-run overview</a></li><li><a href="#results">Results</a></li><li class="subsection"><a href="#tr01--full-data-baseline">TR01 — Full-data baseline</a></li><li class="subsection"><a href="#tr02--activity-limits">TR02 — Activity limits</a></li><li class="subsection"><a href="#tr03--inhibitory-decay">TR03 — Inhibitory decay</a></li><li class="subsection"><a href="#tr04--timestep">TR04 — Timestep</a></li><li class="subsection"><a href="#tr05--recurrent-connections">TR05 — Recurrent connections</a></li><li class="subsection"><a href="#tr06--variable-input-rate">TR06 — Variable input rate</a></li><li class="subsection"><a href="#tr07--input-strength">TR07 — Input strength</a></li><li><a href="#methods">Methods</a></li><li><a href="#supplementary-details">Supplementary details</a></li><li><a href="#parameters">Parameters</a></li><li><a href="#dataset">Dataset</a></li><li><a href="#references">References</a></li></ol></nav></d-toc></aside><d-article role="article" aria-label="MNIST">
+<h2 id="abstract">Abstract</h2>
+<p>We assembled 102 trained spiking networks to recognise handwritten MNIST digits. Seven training groups compare network types, activity limits, timing, connection settings, and input rates. Their saved models and learning histories provide a reusable bank for later experiments.</p>
+<h2 id="training-run-overview">Training-run overview</h2>
+<p>The retained bank groups 102 trained models into seven training families, each with initialization seeds 42–44. The table lists each family once; the model count includes all conditions and seeds within it. Dataset sizes refer to distinct images in the pool, followed by the optimizer-training and held-out validation split.</p>
+<div id="training-run-summary" data-astro-cid-t6mhkqx2="true" class="report-table"><div class="source-table" tabindex="0" role="region" aria-label="Training families, dataset sizes, readouts, and input representations" data-astro-cid-t6mhkqx2><table data-astro-cid-t6mhkqx2><thead data-astro-cid-t6mhkqx2><tr data-astro-cid-t6mhkqx2><th scope="col" data-astro-cid-t6mhkqx2>Training family</th><th scope="col" data-astro-cid-t6mhkqx2>Trained models</th><th scope="col" data-astro-cid-t6mhkqx2>Image pool (train / validation)</th><th scope="col" data-astro-cid-t6mhkqx2>Readout</th><th scope="col" data-astro-cid-t6mhkqx2>Input</th></tr></thead><tbody data-astro-cid-t6mhkqx2><tr data-astro-cid-t6mhkqx2><td data-astro-cid-t6mhkqx2>TR01 — Full-data COBA/PING baseline</td><td data-astro-cid-t6mhkqx2>6</td><td data-astro-cid-t6mhkqx2>60,000 (54,000 train / 6,000 validation)</td><td data-astro-cid-t6mhkqx2>Mean pre-reset output voltage</td><td data-astro-cid-t6mhkqx2>MNIST pixels; Poisson spikes at a fixed 25 Hz peak rate</td></tr><tr data-astro-cid-t6mhkqx2><td data-astro-cid-t6mhkqx2>TR02 — COBA/PING activity-ceiling sweep</td><td data-astro-cid-t6mhkqx2>36</td><td data-astro-cid-t6mhkqx2>7,000 (6,300 train / 700 validation)</td><td data-astro-cid-t6mhkqx2>Mean pre-reset output voltage</td><td data-astro-cid-t6mhkqx2>MNIST pixels; Poisson spikes at a fixed 25 Hz peak rate</td></tr><tr data-astro-cid-t6mhkqx2><td data-astro-cid-t6mhkqx2>TR03 — PING inhibitory-decay sweep</td><td data-astro-cid-t6mhkqx2>18</td><td data-astro-cid-t6mhkqx2>7,000 (6,300 train / 700 validation)</td><td data-astro-cid-t6mhkqx2>Mean pre-reset output voltage</td><td data-astro-cid-t6mhkqx2>MNIST pixels; Poisson spikes at a fixed 25 Hz peak rate</td></tr><tr data-astro-cid-t6mhkqx2><td data-astro-cid-t6mhkqx2>TR04 — PING timestep sweep</td><td data-astro-cid-t6mhkqx2>15</td><td data-astro-cid-t6mhkqx2>7,000 (6,300 train / 700 validation)</td><td data-astro-cid-t6mhkqx2>Mean pre-reset output voltage</td><td data-astro-cid-t6mhkqx2>MNIST pixels; Poisson spikes at a fixed 25 Hz peak rate</td></tr><tr data-astro-cid-t6mhkqx2><td data-astro-cid-t6mhkqx2>TR05 — Recurrent initialization/trainability sweep</td><td data-astro-cid-t6mhkqx2>12</td><td data-astro-cid-t6mhkqx2>7,000 (6,300 train / 700 validation)</td><td data-astro-cid-t6mhkqx2>Mean pre-reset output voltage</td><td data-astro-cid-t6mhkqx2>MNIST pixels; Poisson spikes at a fixed 25 Hz peak rate</td></tr><tr data-astro-cid-t6mhkqx2><td data-astro-cid-t6mhkqx2>TR06 — Variable-rate PING</td><td data-astro-cid-t6mhkqx2>3</td><td data-astro-cid-t6mhkqx2>7,000 (6,300 train / 700 validation)</td><td data-astro-cid-t6mhkqx2>Cumulative output spike count</td><td data-astro-cid-t6mhkqx2>MNIST pixels; Poisson spikes with the peak rate sampled independently per presentation from 11 values spanning 0.5–25 Hz</td></tr><tr data-astro-cid-t6mhkqx2><td data-astro-cid-t6mhkqx2>TR07 — PING low-input recruitment sweep</td><td data-astro-cid-t6mhkqx2>12</td><td data-astro-cid-t6mhkqx2>7,000 (6,300 train / 700 validation)</td><td data-astro-cid-t6mhkqx2>Mean pre-reset output voltage</td><td data-astro-cid-t6mhkqx2>MNIST pixels; Poisson spikes at a fixed 25 Hz peak rate</td></tr></tbody></table></div></div>
+<p>All families used the original 28 × 28 MNIST pixel intensities, scaled to [0, 1] and flattened into 784 input channels, without extracted or variable feature sets. “Variable-rate” means changing the Poisson encoding rate of those same pixels. For TR06, the readout sums output spikes over the presentation—the final cumulative spike count, not a cumulative sum of voltages. The official 10,000-image test partition was excluded from training and checkpoint selection. All families trained for 50 epochs; <a href="#sec-training-run-specification-sheets">Training-run specification sheets</a> gives the detailed conditions.</p>
+<h2 id="results">Results</h2>
+<p>The seven figures pair each training family’s learning history with one example of its network activity. Learning curves use validation images; each raster is a separate fixed digit-zero probe of a final-epoch model.</p>
+<h3 id="tr01--full-data-baseline">TR01 — Full-data baseline</h3>
+<figure id="fig-tr-01" class="l-body" data-astro-cid-3j4ahvms><a class="figure-image" href="/run-images/exp022-r019-present/training__TR-01.png" aria-label="Open Figure 1 at full size" data-astro-cid-3j4ahvms><img src="/run-images/exp022-r019-present/training__TR-01.png" alt="TR01: validation learning curves on the left and a seed-42 excitatory/inhibitory spike raster on the right." loading="lazy" decoding="async" data-astro-cid-3j4ahvms></a><figcaption data-astro-cid-3j4ahvms><strong data-astro-cid-3j4ahvms>Figure 1.</strong> <p>(A) 6 individual validation learning curves across conditions and seeds 42–44. Colours identify the full-data condition; dashed lines are COBA and solid lines are PING. (B) PING baseline, full training pool, 25 Hz peak input rate, seed 42, on one digit-zero presentation. Black marks are excitatory spikes; red marks are inhibitory spikes. Both panels use retained data; no across-seed average or uncertainty band is shown, and the raster is one example rather than a family-wide estimate.</p></figcaption></figure>
+<h3 id="tr02--activity-limits">TR02 — Activity limits</h3>
+<figure id="fig-tr-02" class="l-body" data-astro-cid-3j4ahvms><a class="figure-image" href="/run-images/exp022-r019-present/training__TR-02.png" aria-label="Open Figure 2 at full size" data-astro-cid-3j4ahvms><img src="/run-images/exp022-r019-present/training__TR-02.png" alt="TR02: validation learning curves on the left and a seed-42 excitatory/inhibitory spike raster on the right." loading="lazy" decoding="async" data-astro-cid-3j4ahvms></a><figcaption data-astro-cid-3j4ahvms><strong data-astro-cid-3j4ahvms>Figure 2.</strong> <p>(A) 36 individual validation learning curves across conditions and seeds 42–44. Colours identify the activity ceilings; dashed lines are COBA and solid lines are PING. (B) PING with a 1 Hz activity ceiling, 25 Hz peak input rate, seed 42, on one digit-zero presentation. Black marks are excitatory spikes; red marks are inhibitory spikes. Both panels use retained data; no across-seed average or uncertainty band is shown, and the raster is one example rather than a family-wide estimate.</p></figcaption></figure>
+<h3 id="tr03--inhibitory-decay">TR03 — Inhibitory decay</h3>
+<figure id="fig-tr-03" class="l-body" data-astro-cid-3j4ahvms><a class="figure-image" href="/run-images/exp022-r019-present/training__TR-03.png" aria-label="Open Figure 3 at full size" data-astro-cid-3j4ahvms><img src="/run-images/exp022-r019-present/training__TR-03.png" alt="TR03: validation learning curves on the left and a seed-42 excitatory/inhibitory spike raster on the right." loading="lazy" decoding="async" data-astro-cid-3j4ahvms></a><figcaption data-astro-cid-3j4ahvms><strong data-astro-cid-3j4ahvms>Figure 3.</strong> <p>(A) 18 individual validation learning curves across conditions and seeds 42–44. Colours identify the inhibitory decay times. (B) PING with 6 ms inhibitory decay, 25 Hz peak input rate, seed 42, on one digit-zero presentation. Black marks are excitatory spikes; red marks are inhibitory spikes. Both panels use retained data; no across-seed average or uncertainty band is shown, and the raster is one example rather than a family-wide estimate.</p></figcaption></figure>
+<h3 id="tr04--timestep">TR04 — Timestep</h3>
+<figure id="fig-tr-04" class="l-body" data-astro-cid-3j4ahvms><a class="figure-image" href="/run-images/exp022-r019-present/training__TR-04.png" aria-label="Open Figure 4 at full size" data-astro-cid-3j4ahvms><img src="/run-images/exp022-r019-present/training__TR-04.png" alt="TR04: validation learning curves on the left and a seed-42 excitatory/inhibitory spike raster on the right." loading="lazy" decoding="async" data-astro-cid-3j4ahvms></a><figcaption data-astro-cid-3j4ahvms><strong data-astro-cid-3j4ahvms>Figure 4.</strong> <p>(A) 15 individual validation learning curves across conditions and seeds 42–44. Colours identify the simulation timesteps. (B) PING with a 0.1 ms timestep, 25 Hz peak input rate, seed 42, on one digit-zero presentation. Black marks are excitatory spikes; red marks are inhibitory spikes. Both panels use retained data; no across-seed average or uncertainty band is shown, and the raster is one example rather than a family-wide estimate.</p></figcaption></figure>
+<h3 id="tr05--recurrent-connections">TR05 — Recurrent connections</h3>
+<figure id="fig-tr-05" class="l-body" data-astro-cid-3j4ahvms><a class="figure-image" href="/run-images/exp022-r019-present/training__TR-05.png" aria-label="Open Figure 5 at full size" data-astro-cid-3j4ahvms><img src="/run-images/exp022-r019-present/training__TR-05.png" alt="TR05: validation learning curves on the left and a seed-42 excitatory/inhibitory spike raster on the right." loading="lazy" decoding="async" data-astro-cid-3j4ahvms></a><figcaption data-astro-cid-3j4ahvms><strong data-astro-cid-3j4ahvms>Figure 5.</strong> <p>(A) 12 individual validation learning curves across conditions and seeds 42–44. Colours identify the recurrent initialization and trainability conditions. (B) PING with fixed recurrent connections, 25 Hz peak input rate, seed 42, on one digit-zero presentation. Black marks are excitatory spikes; red marks are inhibitory spikes. Both panels use retained data; no across-seed average or uncertainty band is shown, and the raster is one example rather than a family-wide estimate.</p></figcaption></figure>
+<h3 id="tr06--variable-input-rate">TR06 — Variable input rate</h3>
+<figure id="fig-tr-06" class="l-body" data-astro-cid-3j4ahvms><a class="figure-image" href="/run-images/exp022-r019-present/training__TR-06.png" aria-label="Open Figure 6 at full size" data-astro-cid-3j4ahvms><img src="/run-images/exp022-r019-present/training__TR-06.png" alt="TR06: validation learning curves on the left and a seed-42 excitatory/inhibitory spike raster on the right." loading="lazy" decoding="async" data-astro-cid-3j4ahvms></a><figcaption data-astro-cid-3j4ahvms><strong data-astro-cid-3j4ahvms>Figure 6.</strong> <p>(A) 3 individual validation learning curves across conditions and seeds 42–44. All three curves use the same variable-rate training recipe. (B) variable-rate-trained PING, probed at a 5 Hz peak input rate, seed 42, on one digit-zero presentation. Black marks are excitatory spikes; red marks are inhibitory spikes. Both panels use retained data; no across-seed average or uncertainty band is shown, and the raster is one example rather than a family-wide estimate.</p></figcaption></figure>
+<h3 id="tr07--input-strength">TR07 — Input strength</h3>
+<figure id="fig-tr-07" class="l-body" data-astro-cid-3j4ahvms><a class="figure-image" href="/run-images/exp022-r019-present/training__TR-07.png" aria-label="Open Figure 7 at full size" data-astro-cid-3j4ahvms><img src="/run-images/exp022-r019-present/training__TR-07.png" alt="TR07: validation learning curves on the left and a seed-42 excitatory/inhibitory spike raster on the right." loading="lazy" decoding="async" data-astro-cid-3j4ahvms></a><figcaption data-astro-cid-3j4ahvms><strong data-astro-cid-3j4ahvms>Figure 7.</strong> <p>(A) 12 individual validation learning curves across conditions and seeds 42–44. Colours identify the initial input-coupling settings. (B) PING with input-coupling parent mean 0.05 and a 1 Hz activity ceiling, 25 Hz peak input rate, seed 42, on one digit-zero presentation. Black marks are excitatory spikes; red marks are inhibitory spikes. Both panels use retained data; no across-seed average or uncertainty band is shown, and the raster is one example rather than a family-wide estimate.</p></figcaption></figure>
+<span id="loc-20"></span>
+<h2 id="methods">Methods</h2>
+<p>The completed bank contains 102 models: 90 reused models with unchanged weights and histories, plus twelve newly trained timestep models. The three existing 0.1-ms timestep models were reused after execution-equivalence checks. We analysed these histories and generated 34 final-epoch seed-42 diagnostic recordings.</p>
+<ol>
+<li>
+<p><strong>Prepare the data.</strong> Stratified MNIST splits provided 54,000 training and 6,000 validation images for the baseline, and 6,300 and 700 for sweeps. The split seed was 42; the official test set was excluded from training and model selection.</p>
+</li>
+<li>
+<p><strong>Build the networks.</strong> Each network contained 1,024 excitatory neurons and ten spiking leaky integrate-and-fire outputs. Recurrent networks added feedback through 256 inhibitory neurons; feedforward controls disabled it. Input and output projections were trained, while recurrent projections were fixed except in designated conditions. Weights retained their excitatory or inhibitory sign. Hidden E/I neurons used 1.2/0.6-ms absolute refractory holds; these were already the effective durations in the reused 0.1-ms executions.</p>
+</li>
+<li>
+<p><strong>Vary the conditions.</strong> Seven families covered the baseline, activity ceilings, inhibitory decay, timestep, recurrent initialization and trainability, and input drive. Each condition used initialization seeds 42–44; <a href="#sec-training-run-specification-sheets">Training-run specification sheets</a> lists the grids and shared settings.</p>
+</li>
+<li>
+<p><strong>Present the images.</strong> Pixels generated Poisson spikes over nominally 200 ms, normally with a maximum-pixel rate of 25 Hz and a 0.1 ms timestep. Variable-rate training sampled uniformly from eleven rates between 0.5 and 25 Hz. Timestep conditions ranged from 0.05 to 0.6 ms; whole-step presentations lasted 199.8 ms at 0.3/0.6 ms and 200 ms otherwise. Firing rates used realised durations.</p>
+</li>
+<li>
+<p><strong>Calculate class scores.</strong> Most networks used mean pre-reset output voltage. Variable-rate training used spike counts and smaller initial readout weights.</p>
+<span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mtable width="100%"><mtr><mtd width="50%"></mtd><mtd><mrow><msub><mi>z</mi><mtext>voltage</mtext></msub><mo>=</mo><mfrac><mn>1</mn><msub><mi>N</mi><mi>t</mi></msub></mfrac><munderover><mo>∑</mo><mrow><mi>k</mi><mo>=</mo><mn>1</mn></mrow><msub><mi>N</mi><mi>t</mi></msub></munderover><msub><mi>u</mi><mrow><mtext>out</mtext><mo stretchy="false">[</mo><mi>k</mi><mo stretchy="false">]</mo></mrow></msub><mo separator="true">,</mo><mspace width="1em"></mspace><msub><mi>z</mi><mtext>count</mtext></msub><mo>=</mo><munderover><mo>∑</mo><mrow><mi>k</mi><mo>=</mo><mn>1</mn></mrow><msub><mi>N</mi><mi>t</mi></msub></munderover><msub><mi>s</mi><mrow><mtext>out</mtext><mo stretchy="false">[</mo><mi>k</mi><mo stretchy="false">]</mo></mrow></msub><mi mathvariant="normal">.</mi></mrow></mtd><mtd width="50%"></mtd><mtd><mtext>(1)</mtext></mtd></mtr></mtable><annotation encoding="application/x-tex">z_{\text{voltage}} = \frac{1}{N_{t}} \sum_{k = 1}^{N_{t}} u_{\text{out} [ k ]} , \quad z_{\text{count}} = \sum_{k = 1}^{N_{t}} s_{\text{out} [ k ]} .
+\tag{1}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.7167em;vertical-align:-0.2861em"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.044em">z</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em"><span style="top:-2.55em;margin-left:-0.044em;margin-right:0.05em"><span class="pstrut" style="height:2.7em"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">voltage</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2861em"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em"></span></span><span class="base"><span class="strut" style="height:3.1415em;vertical-align:-1.3021em"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.3214em"><span style="top:-2.314em"><span class="pstrut" style="height:3em"></span><span class="mord"><span class="mord"><span class="mord mathnormal" style="margin-right:0.109em">N</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2806em"><span style="top:-2.55em;margin-left:-0.109em;margin-right:0.05em"><span class="pstrut" style="height:2.7em"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">t</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em"><span></span></span></span></span></span></span></span></span><span style="top:-3.23em"><span class="pstrut" style="height:3em"></span><span class="frac-line" style="border-bottom-width:0.04em"></span></span><span style="top:-3.677em"><span class="pstrut" style="height:3em"></span><span class="mord"><span class="mord">1</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.836em"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span><span class="mspace" style="margin-right:0.1667em"></span><span class="mop op-limits"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.8394em"><span style="top:-1.8479em;margin-left:0em"><span class="pstrut" style="height:3.05em"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.0315em">k</span><span class="mrel mtight">=</span><span class="mord mtight">1</span></span></span></span><span style="top:-3.05em"><span class="pstrut" style="height:3.05em"></span><span><span class="mop op-symbol large-op">∑</span></span></span><span style="top:-4.3111em;margin-left:0em"><span class="pstrut" style="height:3.05em"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.109em">N</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2963em"><span style="top:-2.357em;margin-left:-0.109em;margin-right:0.0714em"><span class="pstrut" style="height:2.5em"></span><span class="sizing reset-size3 size1 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">t</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.143em"><span></span></span></span></span></span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:1.3021em"><span></span></span></span></span></span><span class="mspace" style="margin-right:0.1667em"></span><span class="mord"><span class="mord mathnormal">u</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3448em"><span style="top:-2.5198em;margin-left:0em;margin-right:0.05em"><span class="pstrut" style="height:2.7em"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">out</span></span><span class="mopen mtight">[</span><span class="mord mathnormal mtight" style="margin-right:0.0315em">k</span><span class="mclose mtight">]</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.3552em"><span></span></span></span></span></span></span><span class="mpunct">,</span><span class="mspace" style="margin-right:1em"></span><span class="mspace" style="margin-right:0.1667em"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.044em">z</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2806em"><span style="top:-2.55em;margin-left:-0.044em;margin-right:0.05em"><span class="pstrut" style="height:2.7em"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">count</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em"></span></span><span class="base"><span class="strut" style="height:3.1415em;vertical-align:-1.3021em"></span><span class="mop op-limits"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.8394em"><span style="top:-1.8479em;margin-left:0em"><span class="pstrut" style="height:3.05em"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.0315em">k</span><span class="mrel mtight">=</span><span class="mord mtight">1</span></span></span></span><span style="top:-3.05em"><span class="pstrut" style="height:3.05em"></span><span><span class="mop op-symbol large-op">∑</span></span></span><span style="top:-4.3111em;margin-left:0em"><span class="pstrut" style="height:3.05em"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.109em">N</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2963em"><span style="top:-2.357em;margin-left:-0.109em;margin-right:0.0714em"><span class="pstrut" style="height:2.5em"></span><span class="sizing reset-size3 size1 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">t</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.143em"><span></span></span></span></span></span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:1.3021em"><span></span></span></span></span></span><span class="mspace" style="margin-right:0.1667em"></span><span class="mord"><span class="mord mathnormal">s</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3448em"><span style="top:-2.5198em;margin-left:0em;margin-right:0.05em"><span class="pstrut" style="height:2.7em"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">out</span></span><span class="mopen mtight">[</span><span class="mord mathnormal mtight" style="margin-right:0.0315em">k</span><span class="mclose mtight">]</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.3552em"><span></span></span></span></span></span></span><span class="mord">.</span></span><span class="tag"><span class="strut" style="height:3.1415em;vertical-align:-1.3021em"></span><span class="mord text"><span class="mord">(</span><span class="mord"><span class="mord">1</span></span><span class="mord">)</span></span></span></span></span></span>
+<p>Each score applies to one output neuron and presentation. Here <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>k</mi></mrow><annotation encoding="application/x-tex">k</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6944em"></span><span class="mord mathnormal" style="margin-right:0.0315em">k</span></span></span></span> indexes the <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>N</mi><mi>t</mi></msub></mrow><annotation encoding="application/x-tex">N_{t}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8333em;vertical-align:-0.15em"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.109em">N</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2806em"><span style="top:-2.55em;margin-left:-0.109em;margin-right:0.05em"><span class="pstrut" style="height:2.7em"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">t</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em"><span></span></span></span></span></span></span></span></span></span> timesteps, <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>u</mi><mrow><mtext>out</mtext><mo stretchy="false">[</mo><mi>k</mi><mo stretchy="false">]</mo></mrow></msub></mrow><annotation encoding="application/x-tex">u_{\text{out} [ k ]}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.7858em;vertical-align:-0.3552em"></span><span class="mord"><span class="mord mathnormal">u</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3448em"><span style="top:-2.5198em;margin-left:0em;margin-right:0.05em"><span class="pstrut" style="height:2.7em"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">out</span></span><span class="mopen mtight">[</span><span class="mord mathnormal mtight" style="margin-right:0.0315em">k</span><span class="mclose mtight">]</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.3552em"><span></span></span></span></span></span></span></span></span></span> is dimensionless pre-reset output state, and <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>s</mi><mrow><mtext>out</mtext><mo stretchy="false">[</mo><mi>k</mi><mo stretchy="false">]</mo></mrow></msub></mrow><annotation encoding="application/x-tex">s_{\text{out} [ k ]}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.7858em;vertical-align:-0.3552em"></span><span class="mord"><span class="mord mathnormal">s</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3448em"><span style="top:-2.5198em;margin-left:0em;margin-right:0.05em"><span class="pstrut" style="height:2.7em"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">out</span></span><span class="mopen mtight">[</span><span class="mord mathnormal mtight" style="margin-right:0.0315em">k</span><span class="mclose mtight">]</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.3552em"><span></span></span></span></span></span></span></span></span></span> is a dimensionless binary output spike; both scores are dimensionless.</p>
+</li>
+<li>
+<p><strong>Train the networks.</strong> Training used 50 epochs of AdamW, learning rate 0.0004, batches of 256, zero weight decay, and gradient clipping at 1. Surrogate gradients approximated spike derivatives[<a href="#ref-1">1</a>] voltage-gradient damping was 1,000 for recurrent networks and 1 for controls. Activity-constrained conditions minimized</p>
+<span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mtable width="100%"><mtr><mtd width="50%"></mtd><mtd><mrow><msub><mi>L</mi><mtext>total</mtext></msub><mo>=</mo><msub><mi>L</mi><mtext>CE</mtext></msub><mo>+</mo><msub><mi>λ</mi><mtext>rate</mtext></msub><msub><mrow><mo stretchy="false">⟨</mo><msup><mrow><mi>max</mi><mo>⁡</mo><mo stretchy="false">(</mo><mn>0</mn><mo separator="true">,</mo><msub><mi>r</mi><mi>E</mi></msub><mo>−</mo><msub><mi>r</mi><mrow><mi>E</mi><mo separator="true">,</mo><mtext>ceil</mtext></mrow></msub><mo stretchy="false">)</mo></mrow><mn>2</mn></msup><mo stretchy="false">⟩</mo></mrow><mtext>batch</mtext></msub><mi mathvariant="normal">.</mi></mrow></mtd><mtd width="50%"></mtd><mtd><mtext>(2)</mtext></mtd></mtr></mtable><annotation encoding="application/x-tex">L_{\text{total}} = L_{\text{CE}} + \lambda_{\text{rate}} {\langle {\max ( 0 , r_{E} - r_{E , \text{ceil}} )}^{2} \rangle}_{\text{batch}} .
+\tag{2}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8333em;vertical-align:-0.15em"></span><span class="mord"><span class="mord mathnormal">L</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em"><span class="pstrut" style="height:2.7em"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">total</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em"></span></span><span class="base"><span class="strut" style="height:0.8333em;vertical-align:-0.15em"></span><span class="mord"><span class="mord mathnormal">L</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3283em"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em"><span class="pstrut" style="height:2.7em"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">CE</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222em"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em"></span></span><span class="base"><span class="strut" style="height:1.2898em;vertical-align:-0.3358em"></span><span class="mord"><span class="mord mathnormal">λ</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2806em"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em"><span class="pstrut" style="height:2.7em"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">rate</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em"><span></span></span></span></span></span></span><span class="mord"><span class="mord"><span class="mopen">⟨</span><span class="mord"><span class="mord"><span class="mop">max</span><span class="mopen">(</span><span class="mord">0</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0278em">r</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3283em"><span style="top:-2.55em;margin-left:-0.0278em;margin-right:0.05em"><span class="pstrut" style="height:2.7em"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.0576em">E</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222em"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0278em">r</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em"><span style="top:-2.55em;margin-left:-0.0278em;margin-right:0.05em"><span class="pstrut" style="height:2.7em"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.0576em">E</span><span class="mpunct mtight">,</span><span class="mord text mtight"><span class="mord mtight">ceil</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2861em"><span></span></span></span></span></span></span><span class="mclose">)</span></span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.954em"><span style="top:-3.2029em;margin-right:0.05em"><span class="pstrut" style="height:2.7em"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span></span><span class="mclose">⟩</span></span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.1503em"><span style="top:-2.3642em;margin-right:0.05em"><span class="pstrut" style="height:2.7em"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">batch</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.3358em"><span></span></span></span></span></span></span><span class="mord">.</span></span><span class="tag"><span class="strut" style="height:1.2898em;vertical-align:-0.3358em"></span><span class="mord text"><span class="mord">(</span><span class="mord"><span class="mord">2</span></span><span class="mord">)</span></span></span></span></span></span>
+<p><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>L</mi><mtext>total</mtext></msub></mrow><annotation encoding="application/x-tex">L_{\text{total}}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8333em;vertical-align:-0.15em"></span><span class="mord"><span class="mord mathnormal">L</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em"><span class="pstrut" style="height:2.7em"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">total</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em"><span></span></span></span></span></span></span></span></span></span> is total loss and <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>L</mi><mtext>CE</mtext></msub></mrow><annotation encoding="application/x-tex">L_{\text{CE}}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8333em;vertical-align:-0.15em"></span><span class="mord"><span class="mord mathnormal">L</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3283em"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em"><span class="pstrut" style="height:2.7em"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">CE</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em"><span></span></span></span></span></span></span></span></span></span> is mean cross-entropy. Each presentation’s mean excitatory firing rate <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>r</mi><mi>E</mi></msub></mrow><annotation encoding="application/x-tex">r_{E}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.5806em;vertical-align:-0.15em"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0278em">r</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3283em"><span style="top:-2.55em;margin-left:-0.0278em;margin-right:0.05em"><span class="pstrut" style="height:2.7em"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.0576em">E</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em"><span></span></span></span></span></span></span></span></span></span> and ceiling <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>r</mi><mrow><mi>E</mi><mo separator="true">,</mo><mtext>ceil</mtext></mrow></msub></mrow><annotation encoding="application/x-tex">r_{E , \text{ceil}}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.7167em;vertical-align:-0.2861em"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0278em">r</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em"><span style="top:-2.55em;margin-left:-0.0278em;margin-right:0.05em"><span class="pstrut" style="height:2.7em"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.0576em">E</span><span class="mpunct mtight">,</span><span class="mord text mtight"><span class="mord mtight">ceil</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2861em"><span></span></span></span></span></span></span></span></span></span> are in hertz. Brackets average the individual penalties across the minibatch; <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>λ</mi><mtext>rate</mtext></msub><mo>=</mo><mn>0.041</mn></mrow><annotation encoding="application/x-tex">\lambda_{\text{rate}} = 0.041</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8444em;vertical-align:-0.15em"></span><span class="mord"><span class="mord mathnormal">λ</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.2806em"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em"><span class="pstrut" style="height:2.7em"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">rate</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em"></span></span><span class="base"><span class="strut" style="height:0.6444em"></span><span class="mord">0.041</span></span></span></span> with rates in hertz, or zero when disabled.</p>
+</li>
+<li>
+<p><strong>Select models.</strong> Validation averaged three fixed Poisson encoding draws. Selection minimized mean cross-entropy, breaking ties by higher accuracy and then earlier epoch. Selected and final-epoch models were retained.</p>
+</li>
+<li>
+<p><strong>Measure activity and retain models.</strong> Accuracy used selected models, whereas firing rates averaged final-epoch validation measurements across images and encoding draws. Retained models and histories support subsequent experiments. Learning curves show individual validation histories; baseline summaries average three seeds. The 34 new seed-42 digit-zero recordings covered every condition, including reused networks; their rasters are individual probes, not across-seed estimates. Spectra used the realised analysis-bin duration: grouping approximately 1 ms of simulation steps gave 0.9-ms bins at the 0.3-ms timestep and 1.2-ms bins at 0.6 ms.</p>
+</li>
+</ol></d-article></div><d-appendix distill-prerendered="true" aria-label="Report appendix"><h3 id="supplementary-details">Supplementary details</h3><section class="report-appendix" aria-labelledby="supplementary-details"><span id="sec-training-run-specification-sheets"></span>
+<h2 id="appendix-training-run-specification-sheets">Appendix: Training-run specification sheets</h2>
+<p>The <a href="#parameters">shared production specification</a> and all seven TR sheets below specify the controlled recipes and their intended uses. The observed learning curves and diagnostic plots are in Results.</p>
+<section class="training-specification" aria-label="TR01 specification"><h3 id="specification-tr01--canonical-full-data-reference">Specification: TR01 — Canonical full-data reference</h3><p>The full-data COBA and PING condition–seed networks are used for headline accuracy. They use the official MNIST training partition with no spike-budget penalty, so the comparison is not affected by the smaller dataset or regularization used in the sweeps. Ten percent of that partition is reserved for checkpoint selection; the official test partition remains untouched during training. This experiment reports their validation learning histories; independent official-test evaluation belongs to the downstream experiments.</p><div data-astro-cid-t6mhkqx2="true" class="report-table"><div class="source-table" tabindex="0" role="region" aria-label="Report table" data-astro-cid-t6mhkqx2><table data-astro-cid-t6mhkqx2><thead data-astro-cid-t6mhkqx2><tr data-astro-cid-t6mhkqx2><th scope="col" data-astro-cid-t6mhkqx2><strong>Key parameter</strong></th><th scope="col" data-astro-cid-t6mhkqx2><strong>Value</strong></th><th scope="col" data-astro-cid-t6mhkqx2><strong>Why it differs</strong></th></tr></thead><tbody data-astro-cid-t6mhkqx2><tr data-astro-cid-t6mhkqx2><td data-astro-cid-t6mhkqx2>Architectures</td><td data-astro-cid-t6mhkqx2>COBA and PING</td><td data-astro-cid-t6mhkqx2>Provides a feedforward control and recurrent E/I model</td></tr><tr data-astro-cid-t6mhkqx2><td data-astro-cid-t6mhkqx2>Training pool</td><td data-astro-cid-t6mhkqx2>60,000 official training samples</td><td data-astro-cid-t6mhkqx2>54,000 optimizer-training and 6,000 validation samples</td></tr><tr data-astro-cid-t6mhkqx2><td data-astro-cid-t6mhkqx2>Input rate</td><td data-astro-cid-t6mhkqx2>25 Hz maximum-pixel rate</td><td data-astro-cid-t6mhkqx2>Fixed-rate collection baseline</td></tr><tr data-astro-cid-t6mhkqx2><td data-astro-cid-t6mhkqx2>Spike budget</td><td data-astro-cid-t6mhkqx2>Off</td><td data-astro-cid-t6mhkqx2>Measures unconstrained capacity</td></tr><tr data-astro-cid-t6mhkqx2><td data-astro-cid-t6mhkqx2>Training replicates</td><td data-astro-cid-t6mhkqx2>2 architectures × 3 seeds = 6</td><td data-astro-cid-t6mhkqx2>Across-seed comparison for both models</td></tr><tr data-astro-cid-t6mhkqx2><td data-astro-cid-t6mhkqx2>Readout shape</td><td data-astro-cid-t6mhkqx2><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1024</mn><mo>→</mo><mn>10</mn></mrow><annotation encoding="application/x-tex">1024 \to 10</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">1024</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">→</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">10</span></span></span></span> spiking LIF outputs</td><td data-astro-cid-t6mhkqx2>mean-voltage: mean membrane voltage supplies the logits</td></tr></tbody></table></div></div></section>
+<section class="training-specification" aria-label="TR02 specification"><h3 id="specification-tr02--activity-ceiling-sweep">Specification: TR02 — Activity-ceiling sweep</h3><p>This run measures the trade-off between accuracy and firing rate as the activity ceiling is tightened. For each presentation, the loss computes the population-mean hidden-E firing rate, applies a one-sided quadratic penalty above the target, then averages the penalties across the minibatch. Quiet presentations therefore cannot offset active presentations. Expressing the target in hertz and normalising over samples, neurons, duration, and hidden layers makes the intervention comparable across those dimensions. A smaller training pool keeps the multi-seed sweep manageable; only the activity target changes across conditions. Comparisons with the full-data training replicates also change training-pool size and cannot isolate the penalty alone. The resulting checkpoints are used by <a href="/exp024">exp024</a> — <a href="/exp024"><em>Accuracy Plateaus While Firing Rate Rises</em></a>, <a href="/exp025">exp025</a> — <a href="/exp025"><em>Accuracy and Firing Rate With and Without Inhibition</em></a>, <a href="/exp037">exp037</a> — <a href="/exp037"><em>Dropped Spikes vs Added Noise</em></a>, <a href="/exp038">exp038</a> — <a href="/exp038"><em>Switching On the Inhibitory Loop</em></a>.</p><div data-astro-cid-t6mhkqx2="true" class="report-table"><div class="source-table" tabindex="0" role="region" aria-label="Report table" data-astro-cid-t6mhkqx2><table data-astro-cid-t6mhkqx2><thead data-astro-cid-t6mhkqx2><tr data-astro-cid-t6mhkqx2><th scope="col" data-astro-cid-t6mhkqx2><strong>Key parameter</strong></th><th scope="col" data-astro-cid-t6mhkqx2><strong>Value</strong></th><th scope="col" data-astro-cid-t6mhkqx2><strong>Why it differs</strong></th></tr></thead><tbody data-astro-cid-t6mhkqx2><tr data-astro-cid-t6mhkqx2><td data-astro-cid-t6mhkqx2>Architectures</td><td data-astro-cid-t6mhkqx2>COBA and PING</td><td data-astro-cid-t6mhkqx2>Direct architecture comparison</td></tr><tr data-astro-cid-t6mhkqx2><td data-astro-cid-t6mhkqx2>Training pool</td><td data-astro-cid-t6mhkqx2>7,000 official training samples</td><td data-astro-cid-t6mhkqx2>6,300 optimizer-training and 700 validation samples</td></tr><tr data-astro-cid-t6mhkqx2><td data-astro-cid-t6mhkqx2>Hidden-E rate ceiling <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>r</mi><mrow><mi>E</mi><mo separator="true">,</mo><mtext>ceil</mtext></mrow></msub></mrow><annotation encoding="application/x-tex">r_{E , \text{ceil}}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.7167em;vertical-align:-0.2861em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0278em;">r</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0278em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.0576em;">E</span><span class="mpunct mtight">,</span><span class="mord text mtight"><span class="mord mtight">ceil</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2861em;"><span></span></span></span></span></span></span></span></span></span></td><td data-astro-cid-t6mhkqx2>off, 25, 10, 5, 2.5, 1 Hz</td><td data-astro-cid-t6mhkqx2>Spans unconstrained through severe sparsity</td></tr><tr data-astro-cid-t6mhkqx2><td data-astro-cid-t6mhkqx2>Penalty strength</td><td data-astro-cid-t6mhkqx2><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>0.041</mn></mrow><annotation encoding="application/x-tex">0.041</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">0.041</span></span></span></span> when enabled</td><td data-astro-cid-t6mhkqx2>Calibrated for the sample-wise, population-normalized Hz objective</td></tr><tr data-astro-cid-t6mhkqx2><td data-astro-cid-t6mhkqx2>Training replicates</td><td data-astro-cid-t6mhkqx2>2 × 6 settings × 3 seeds = 36</td><td data-astro-cid-t6mhkqx2>Error bars at every frontier point</td></tr><tr data-astro-cid-t6mhkqx2><td data-astro-cid-t6mhkqx2>Readout shape</td><td data-astro-cid-t6mhkqx2><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1024</mn><mo>→</mo><mn>10</mn></mrow><annotation encoding="application/x-tex">1024 \to 10</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">1024</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">→</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">10</span></span></span></span> spiking LIF outputs</td><td data-astro-cid-t6mhkqx2>mean-voltage: mean membrane voltage supplies the logits</td></tr></tbody></table></div></div></section>
+<section class="training-specification" aria-label="TR03 specification"><h3 id="specification-tr03--inhibitory-timescale-sweep">Specification: TR03 — Inhibitory-timescale sweep</h3><p>This run changes <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>τ</mi><mtext>GABA</mtext></msub></mrow><annotation encoding="application/x-tex">\tau_{\text{GABA}}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.5806em;vertical-align:-0.15em"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.1132em">τ</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3283em"><span style="top:-2.55em;margin-left:-0.1132em;margin-right:0.05em"><span class="pstrut" style="height:2.7em"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">GABA</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em"><span></span></span></span></span></span></span></span></span></span> to test how the inhibitory timescale affects gamma frequency, firing rate, and accuracy. All other scientific settings are held fixed, with 6 ms as the standard condition. The resulting checkpoints are used by <a href="/exp041">exp041</a> — <a href="/exp041"><em>Firing Rate Tracks Gamma Frequency</em></a>, <a href="/exp042">exp042</a> — <a href="/exp042"><em>Inhibitory Replay Perturbations Change Excitatory Firing</em></a>, <a href="/exp046">exp046</a> — <a href="/exp046"><em>One Spike per Gamma Cycle</em></a>.</p><div data-astro-cid-t6mhkqx2="true" class="report-table"><div class="source-table" tabindex="0" role="region" aria-label="Report table" data-astro-cid-t6mhkqx2><table data-astro-cid-t6mhkqx2><thead data-astro-cid-t6mhkqx2><tr data-astro-cid-t6mhkqx2><th scope="col" data-astro-cid-t6mhkqx2><strong>Key parameter</strong></th><th scope="col" data-astro-cid-t6mhkqx2><strong>Value</strong></th><th scope="col" data-astro-cid-t6mhkqx2><strong>Why it differs</strong></th></tr></thead><tbody data-astro-cid-t6mhkqx2><tr data-astro-cid-t6mhkqx2><td data-astro-cid-t6mhkqx2>Architecture</td><td data-astro-cid-t6mhkqx2>PING</td><td data-astro-cid-t6mhkqx2>The manipulated quantity belongs to the recurrent inhibitory loop</td></tr><tr data-astro-cid-t6mhkqx2><td data-astro-cid-t6mhkqx2>Training pool</td><td data-astro-cid-t6mhkqx2>7,000 samples</td><td data-astro-cid-t6mhkqx2>Sweep-scale default</td></tr><tr data-astro-cid-t6mhkqx2><td data-astro-cid-t6mhkqx2><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>τ</mi><mtext>GABA</mtext></msub></mrow><annotation encoding="application/x-tex">\tau_{\text{GABA}}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.5806em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.1132em;">τ</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3283em;"><span style="top:-2.55em;margin-left:-0.1132em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">GABA</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span></td><td data-astro-cid-t6mhkqx2>4.5, 6, 9, 12, 18, 27 ms</td><td data-astro-cid-t6mhkqx2>Moves the inhibitory rhythm across a broad timescale range</td></tr><tr data-astro-cid-t6mhkqx2><td data-astro-cid-t6mhkqx2>Training replicates</td><td data-astro-cid-t6mhkqx2>6 settings × 3 seeds = 18</td><td data-astro-cid-t6mhkqx2>Across-seed estimate at each decay</td></tr><tr data-astro-cid-t6mhkqx2><td data-astro-cid-t6mhkqx2>Readout shape</td><td data-astro-cid-t6mhkqx2><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1024</mn><mo>→</mo><mn>10</mn></mrow><annotation encoding="application/x-tex">1024 \to 10</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">1024</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">→</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">10</span></span></span></span> spiking LIF outputs</td><td data-astro-cid-t6mhkqx2>mean-voltage: mean membrane voltage supplies the logits</td></tr></tbody></table></div></div></section>
+<section class="training-specification" aria-label="TR04 specification"><h3 id="specification-tr04--integration-timestep-sweep">Specification: TR04 — Integration-timestep sweep</h3><p>This run changes the integration timestep while keeping E/I refractory holds at 1.2/0.6 ms. Presentations last nominally 200 ms and contain whole simulation steps. It tests whether the learned operating regime depends on numerical resolution; separately trained networks do not establish fixed-weight numerical convergence. The finest timestep requires the longest unrolled training trajectories. The resulting checkpoints are used by <a href="/exp044">exp044</a> — <a href="/exp044"><em>Firing Rate Across the Timestep Sweep</em></a>.</p><div data-astro-cid-t6mhkqx2="true" class="report-table"><div class="source-table" tabindex="0" role="region" aria-label="Report table" data-astro-cid-t6mhkqx2><table data-astro-cid-t6mhkqx2><thead data-astro-cid-t6mhkqx2><tr data-astro-cid-t6mhkqx2><th scope="col" data-astro-cid-t6mhkqx2><strong>Key parameter</strong></th><th scope="col" data-astro-cid-t6mhkqx2><strong>Value</strong></th><th scope="col" data-astro-cid-t6mhkqx2><strong>Why it differs</strong></th></tr></thead><tbody data-astro-cid-t6mhkqx2><tr data-astro-cid-t6mhkqx2><td data-astro-cid-t6mhkqx2>Architecture</td><td data-astro-cid-t6mhkqx2>PING</td><td data-astro-cid-t6mhkqx2>Tests the recurrent reference model</td></tr><tr data-astro-cid-t6mhkqx2><td data-astro-cid-t6mhkqx2>Training pool</td><td data-astro-cid-t6mhkqx2>7,000 samples</td><td data-astro-cid-t6mhkqx2>Sweep-scale default</td></tr><tr data-astro-cid-t6mhkqx2><td data-astro-cid-t6mhkqx2><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi mathvariant="normal">Δ</mi><msub><mi>t</mi><mtext>sim</mtext></msub></mrow><annotation encoding="application/x-tex">\Delta t_{\text{sim}}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8333em;vertical-align:-0.15em;"></span><span class="mord">Δ</span><span class="mord"><span class="mord mathnormal">t</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3175em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">sim</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span></td><td data-astro-cid-t6mhkqx2>0.05, 0.1, 0.2, 0.3, 0.6 ms</td><td data-astro-cid-t6mhkqx2>Twelvefold resolution range at fixed physical refractory holds</td></tr><tr data-astro-cid-t6mhkqx2><td data-astro-cid-t6mhkqx2>Steps/presentation</td><td data-astro-cid-t6mhkqx2>4,000; 2,000; 1,000; 666; 333</td><td data-astro-cid-t6mhkqx2>200; 200; 200; 199.8; 199.8 ms realised durations</td></tr><tr data-astro-cid-t6mhkqx2><td data-astro-cid-t6mhkqx2>Training replicates</td><td data-astro-cid-t6mhkqx2>5 settings × 3 seeds = 15</td><td data-astro-cid-t6mhkqx2>Across-seed stability check</td></tr><tr data-astro-cid-t6mhkqx2><td data-astro-cid-t6mhkqx2>Readout shape</td><td data-astro-cid-t6mhkqx2><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1024</mn><mo>→</mo><mn>10</mn></mrow><annotation encoding="application/x-tex">1024 \to 10</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">1024</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">→</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">10</span></span></span></span> spiking LIF outputs</td><td data-astro-cid-t6mhkqx2>mean-voltage: mean membrane voltage supplies the logits</td></tr></tbody></table></div></div></section>
+<section class="training-specification" aria-label="TR05 specification"><h3 id="specification-tr05--recurrent-initialization-sweep">Specification: TR05 — Recurrent-initialization sweep</h3><p>This run tests whether training preserves the PING loop or learns a useful loop from weaker initial conditions. Recurrent initialization and trainability change together, while the feedforward network and classifier remain fixed to the PING recipe. The resulting checkpoints are used by <a href="/exp049">exp049</a> — <a href="/exp049"><em>Training Recurrent Weights Weakens PING Rhythmicity</em></a>.</p><div data-astro-cid-t6mhkqx2="true" class="report-table"><div class="source-table" tabindex="0" role="region" aria-label="Report table" data-astro-cid-t6mhkqx2><table data-astro-cid-t6mhkqx2><thead data-astro-cid-t6mhkqx2><tr data-astro-cid-t6mhkqx2><th scope="col" data-astro-cid-t6mhkqx2><strong>Key parameter</strong></th><th scope="col" data-astro-cid-t6mhkqx2><strong>Value</strong></th><th scope="col" data-astro-cid-t6mhkqx2><strong>Why it differs</strong></th></tr></thead><tbody data-astro-cid-t6mhkqx2><tr data-astro-cid-t6mhkqx2><td data-astro-cid-t6mhkqx2>Architecture</td><td data-astro-cid-t6mhkqx2>PING</td><td data-astro-cid-t6mhkqx2>Manipulates the recurrent loop directly</td></tr><tr data-astro-cid-t6mhkqx2><td data-astro-cid-t6mhkqx2>Training pool</td><td data-astro-cid-t6mhkqx2>7,000 samples</td><td data-astro-cid-t6mhkqx2>Sweep-scale default</td></tr><tr data-astro-cid-t6mhkqx2><td data-astro-cid-t6mhkqx2>Loop conditions</td><td data-astro-cid-t6mhkqx2>frozen PING; trainable PING init; trainable zero init; trainable 0.1 init</td><td data-astro-cid-t6mhkqx2>Separates built-in dynamics from recurrence learned during task training</td></tr><tr data-astro-cid-t6mhkqx2><td data-astro-cid-t6mhkqx2>Trainable projections</td><td data-astro-cid-t6mhkqx2><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>W</mi><mtext>EI</mtext></msub></mrow><annotation encoding="application/x-tex">W_{\text{EI}}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.1389em;">W</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3283em;"><span style="top:-2.55em;margin-left:-0.1389em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">EI</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span> and <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>W</mi><mtext>IE</mtext></msub></mrow><annotation encoding="application/x-tex">W_{\text{IE}}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.1389em;">W</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3283em;"><span style="top:-2.55em;margin-left:-0.1389em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">IE</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span> only in trainable conditions</td><td data-astro-cid-t6mhkqx2>The frozen condition is the mechanistic control</td></tr><tr data-astro-cid-t6mhkqx2><td data-astro-cid-t6mhkqx2>Training replicates</td><td data-astro-cid-t6mhkqx2>4 conditions × 3 seeds = 12</td><td data-astro-cid-t6mhkqx2>Across-seed comparison</td></tr><tr data-astro-cid-t6mhkqx2><td data-astro-cid-t6mhkqx2>Readout shape</td><td data-astro-cid-t6mhkqx2><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1024</mn><mo>→</mo><mn>10</mn></mrow><annotation encoding="application/x-tex">1024 \to 10</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">1024</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">→</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">10</span></span></span></span> spiking LIF outputs</td><td data-astro-cid-t6mhkqx2>mean-voltage: mean membrane voltage supplies the logits</td></tr></tbody></table></div></div></section>
+<section class="training-specification" aria-label="TR06 specification"><h3 id="specification-tr06--variable-rate-streaming-bank">Specification: TR06 — Variable-rate streaming bank</h3><p>This condition trains PING across the input rates used by the continuous-stream classification study. One rate is sampled uniformly for each presentation, and the ten output LIF neurons produce class logits from their total spike counts rather than their mean membrane voltages. This keeps the cross-entropy logits dimensionless and gives one additional output spike the same logit increment. The readout weights use a small Gaussian initialization, <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi mathvariant="script">N</mi><mo stretchy="false">(</mo><mn>0.05</mn><mo separator="true">,</mo><msup><mn>0.04</mn><mn>2</mn></msup><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">\mathcal{N} ( 0.05 , 0.04^{2} )</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.0641em;vertical-align:-0.25em"></span><span class="mord mathcal" style="margin-right:0.1474em">N</span><span class="mopen">(</span><span class="mord">0.05</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em"></span><span class="mord">0.0</span><span class="mord"><span class="mord">4</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141em"><span style="top:-3.063em;margin-right:0.05em"><span class="pstrut" style="height:2.7em"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span></span><span class="mclose">)</span></span></span></span>, lower-clamped at zero and governed by the shared non-negative constraint.</p><p>The recorded design rationale for this smaller initializer was to avoid saturation at the mean-voltage scale and silence at the generic fan-in-normalized scale. The present bank retains the chosen <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi mathvariant="script">N</mi><mo stretchy="false">(</mo><mn>0.05</mn><mo separator="true">,</mo><msup><mn>0.04</mn><mn>2</mn></msup><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">\mathcal{N} ( 0.05 , 0.04^{2} )</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.0641em;vertical-align:-0.25em"></span><span class="mord mathcal" style="margin-right:0.1474em">N</span><span class="mopen">(</span><span class="mord">0.05</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em"></span><span class="mord">0.0</span><span class="mord"><span class="mord">4</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141em"><span style="top:-3.063em;margin-right:0.05em"><span class="pstrut" style="height:2.7em"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span></span><span class="mclose">)</span></span></span></span> setting; its learning curves do not independently establish those earlier calibration comparisons. This is a specified spike-count recipe, not a claim that the initializer is uniquely optimal.</p><p>Output firing rates may still be reported as activity measurements. During streaming inference, the output neurons reset at digit boundaries while the hidden PING state continues. The resulting checkpoints are used by <a href="/exp082">exp082</a> — <a href="/exp082"><em>Spike-Count Classification in a Continuous Stream</em></a>.</p><div data-astro-cid-t6mhkqx2="true" class="report-table"><div class="source-table" tabindex="0" role="region" aria-label="Report table" data-astro-cid-t6mhkqx2><table data-astro-cid-t6mhkqx2><thead data-astro-cid-t6mhkqx2><tr data-astro-cid-t6mhkqx2><th scope="col" data-astro-cid-t6mhkqx2><strong>Key parameter</strong></th><th scope="col" data-astro-cid-t6mhkqx2><strong>Value</strong></th><th scope="col" data-astro-cid-t6mhkqx2><strong>Why it differs</strong></th></tr></thead><tbody data-astro-cid-t6mhkqx2><tr data-astro-cid-t6mhkqx2><td data-astro-cid-t6mhkqx2>Architecture</td><td data-astro-cid-t6mhkqx2>PING</td><td data-astro-cid-t6mhkqx2>Target model for streaming inference</td></tr><tr data-astro-cid-t6mhkqx2><td data-astro-cid-t6mhkqx2>Training pool</td><td data-astro-cid-t6mhkqx2>7,000 samples</td><td data-astro-cid-t6mhkqx2>Uses the shared sweep-scale training set</td></tr><tr data-astro-cid-t6mhkqx2><td data-astro-cid-t6mhkqx2>Input-rate set</td><td data-astro-cid-t6mhkqx2>0.5, 0.75, 1, 1.5, 2, 3, 5, 7.5, 10, 15, 25 Hz</td><td data-astro-cid-t6mhkqx2>Denser sampling within the interval selected by the input-rate calibration study</td></tr><tr data-astro-cid-t6mhkqx2><td data-astro-cid-t6mhkqx2>Sampling rule</td><td data-astro-cid-t6mhkqx2>Uniform categorical, independently per presentation</td><td data-astro-cid-t6mhkqx2>Makes rate variation part of the training distribution</td></tr><tr data-astro-cid-t6mhkqx2><td data-astro-cid-t6mhkqx2>Readout</td><td data-astro-cid-t6mhkqx2>spike-count</td><td data-astro-cid-t6mhkqx2>Hidden E spikes drive ten spiking LIF class neurons; each logit is that class neuron’s total spikes over the presentation</td></tr><tr data-astro-cid-t6mhkqx2><td data-astro-cid-t6mhkqx2>Readout initialization</td><td data-astro-cid-t6mhkqx2><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi mathvariant="script">N</mi><mo stretchy="false">(</mo><mn>0.05</mn><mo separator="true">,</mo><msup><mn>0.04</mn><mn>2</mn></msup><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">\mathcal{N} ( 0.05 , 0.04^{2} )</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.0641em;vertical-align:-0.25em;"></span><span class="mord mathcal" style="margin-right:0.1474em;">N</span><span class="mopen">(</span><span class="mord">0.05</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord">0.0</span><span class="mord"><span class="mord">4</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span></span><span class="mclose">)</span></span></span></span>, constrained non-negative</td><td data-astro-cid-t6mhkqx2>Keeps the spiking outputs near threshold at high training rates without the saturation caused by the default mean-voltage scale</td></tr><tr data-astro-cid-t6mhkqx2><td data-astro-cid-t6mhkqx2>Readout shape</td><td data-astro-cid-t6mhkqx2><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1024</mn><mo>→</mo><mn>10</mn></mrow><annotation encoding="application/x-tex">1024 \to 10</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">1024</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">→</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">10</span></span></span></span> spiking LIF outputs</td><td data-astro-cid-t6mhkqx2>Ten class neurons emit and reset throughout the presentation</td></tr><tr data-astro-cid-t6mhkqx2><td data-astro-cid-t6mhkqx2>Training replicates</td><td data-astro-cid-t6mhkqx2>1 recipe × 3 seeds = 3</td><td data-astro-cid-t6mhkqx2>Models for continuous-stream classification</td></tr></tbody></table></div></div></section>
+<section class="training-specification" aria-label="TR07 specification"><h3 id="specification-tr07--low-input-recruitment-sweep">Specification: TR07 — Low-input recruitment sweep</h3><p>TR02 asks how changing the activity ceiling affects networks initialized at the standard input coupling. TR07 asks the complementary question: with the strictest TR02 ceiling fixed at 1 Hz from the first epoch, can PING recruit its inhibitory loop when the feedforward projection starts weak? It varies the parent mean used to initialize expected summed input coupling, before lower clamping and fan-in normalization; it does not directly set the mean of the stored synaptic matrix. The training pool, optimizer, recurrent loop, and mean-voltage readout remain at the reduced-sweep defaults. This bank retains all twelve models, and <a href="/exp025">exp025</a> — <a href="/exp025"><em>Accuracy and Firing Rate With and Without Inhibition</em></a> aggregates the three seeds at each setting to test recruitment and path dependence.</p><div data-astro-cid-t6mhkqx2="true" class="report-table"><div class="source-table" tabindex="0" role="region" aria-label="Report table" data-astro-cid-t6mhkqx2><table data-astro-cid-t6mhkqx2><thead data-astro-cid-t6mhkqx2><tr data-astro-cid-t6mhkqx2><th scope="col" data-astro-cid-t6mhkqx2><strong>Key parameter</strong></th><th scope="col" data-astro-cid-t6mhkqx2><strong>Value</strong></th><th scope="col" data-astro-cid-t6mhkqx2><strong>Why it differs</strong></th></tr></thead><tbody data-astro-cid-t6mhkqx2><tr data-astro-cid-t6mhkqx2><td data-astro-cid-t6mhkqx2>Architecture</td><td data-astro-cid-t6mhkqx2>PING</td><td data-astro-cid-t6mhkqx2>Tests recruitment of the recurrent inhibitory loop</td></tr><tr data-astro-cid-t6mhkqx2><td data-astro-cid-t6mhkqx2>Training pool</td><td data-astro-cid-t6mhkqx2>7,000 samples</td><td data-astro-cid-t6mhkqx2>6,300 optimizer-training and 700 validation samples</td></tr><tr data-astro-cid-t6mhkqx2><td data-astro-cid-t6mhkqx2>Epochs</td><td data-astro-cid-t6mhkqx2>50</td><td data-astro-cid-t6mhkqx2>Matches the reduced production standard</td></tr><tr data-astro-cid-t6mhkqx2><td data-astro-cid-t6mhkqx2>Input summed-coupling parent mean</td><td data-astro-cid-t6mhkqx2>0.05, 0.1, 0.3, 0.9</td><td data-astro-cid-t6mhkqx2>Varies initial feedforward drive from weak coupling to the shared 0.9 standard before clamping and fan-in normalization</td></tr><tr data-astro-cid-t6mhkqx2><td data-astro-cid-t6mhkqx2>Hidden-E rate target</td><td data-astro-cid-t6mhkqx2>1 Hz</td><td data-astro-cid-t6mhkqx2>Applies the strictest TR02 activity ceiling from epoch 0</td></tr><tr data-astro-cid-t6mhkqx2><td data-astro-cid-t6mhkqx2>Parameters held fixed</td><td data-astro-cid-t6mhkqx2>PING loop, optimizer, dataset split, and mean-voltage readout</td><td data-astro-cid-t6mhkqx2>Isolates initial feedforward recruitment from the activity-ceiling sweep</td></tr><tr data-astro-cid-t6mhkqx2><td data-astro-cid-t6mhkqx2>Training replicates</td><td data-astro-cid-t6mhkqx2>4 settings × 3 seeds = 12</td><td data-astro-cid-t6mhkqx2>Across-seed estimate for every condition</td></tr><tr data-astro-cid-t6mhkqx2><td data-astro-cid-t6mhkqx2>Readout shape</td><td data-astro-cid-t6mhkqx2><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1024</mn><mo>→</mo><mn>10</mn></mrow><annotation encoding="application/x-tex">1024 \to 10</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">1024</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">→</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">10</span></span></span></span> spiking LIF outputs</td><td data-astro-cid-t6mhkqx2>mean-voltage: mean membrane voltage supplies the logits</td></tr></tbody></table></div></div></section></section><h3 id="parameters">Parameters</h3><section class="parameters" aria-labelledby="parameters"><section class="training-specification" aria-label="Shared production specification"><h3 id="shared-production-specification">Shared production specification</h3><p>All runs map Poisson-encoded pixels through 1,024 excitatory neurons to ten spiking output LIF neurons. COBA and PING use the same input-weight and readout-weight initialization distributions. COBA disables recurrent E/I coupling; PING adds a <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1024</mn><mo>→</mo><mn>256</mn><mo>→</mo><mn>1024</mn></mrow><annotation encoding="application/x-tex">1024 \to 256 \to 1024</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6444em"></span><span class="mord">1024</span><span class="mspace" style="margin-right:0.2778em"></span><span class="mrel">→</span><span class="mspace" style="margin-right:0.2778em"></span></span><span class="base"><span class="strut" style="height:0.6444em"></span><span class="mord">256</span><span class="mspace" style="margin-right:0.2778em"></span><span class="mrel">→</span><span class="mspace" style="margin-right:0.2778em"></span></span><span class="base"><span class="strut" style="height:0.6444em"></span><span class="mord">1024</span></span></span></span> E/I feedback loop and uses stronger backward-pass gradient damping to stabilize training through that recurrent path.</p><p>These are specified production settings, not newly measured results. Unless a TR-specific sheet says otherwise, every condition–seed network uses this contract. In the tables, <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi mathvariant="script">N</mi><mo stretchy="false">(</mo><msub><mi>μ</mi><mtext>init</mtext></msub><mo separator="true">,</mo><msubsup><mi>σ</mi><mtext>init</mtext><mn>2</mn></msubsup><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">\mathcal{N} ( \mu_{\text{init}} , \sigma_{\text{init}}^{2} )</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.0786em;vertical-align:-0.2645em"></span><span class="mord mathcal" style="margin-right:0.1474em">N</span><span class="mopen">(</span><span class="mord"><span class="mord mathnormal">μ</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3175em"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em"><span class="pstrut" style="height:2.7em"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">init</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em"><span></span></span></span></span></span></span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0359em">σ</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.8141em"><span style="top:-2.4355em;margin-left:-0.0359em;margin-right:0.05em"><span class="pstrut" style="height:2.7em"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">init</span></span></span></span></span><span style="top:-3.063em;margin-right:0.05em"><span class="pstrut" style="height:2.7em"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">2</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2645em"><span></span></span></span></span></span></span><span class="mclose">)</span></span></span></span> denotes a normal distribution with initialization mean <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>μ</mi><mtext>init</mtext></msub></mrow><annotation encoding="application/x-tex">\mu_{\text{init}}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.625em;vertical-align:-0.1944em"></span><span class="mord"><span class="mord mathnormal">μ</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3175em"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em"><span class="pstrut" style="height:2.7em"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">init</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em"><span></span></span></span></span></span></span></span></span></span> and standard deviation <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>σ</mi><mtext>init</mtext></msub></mrow><annotation encoding="application/x-tex">\sigma_{\text{init}}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.5806em;vertical-align:-0.15em"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0359em">σ</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3175em"><span style="top:-2.55em;margin-left:-0.0359em;margin-right:0.05em"><span class="pstrut" style="height:2.7em"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">init</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em"><span></span></span></span></span></span></span></span></span></span>; <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>max</mi><mo>⁡</mo><mo stretchy="false">(</mo><mn>0</mn><mo separator="true">,</mo><mi>x</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">\max ( 0 , x )</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em"></span><span class="mop">max</span><span class="mopen">(</span><span class="mord">0</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em"></span><span class="mord mathnormal">x</span><span class="mclose">)</span></span></span></span> replaces a sampled weight <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>x</mi></mrow><annotation encoding="application/x-tex">x</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.4306em"></span><span class="mord mathnormal">x</span></span></span></span> by zero when negative. LIF means leaky integrate-and-fire.</p><div data-astro-cid-t6mhkqx2="true" class="report-table"><div class="source-table" tabindex="0" role="region" aria-label="Report table" data-astro-cid-t6mhkqx2><table data-astro-cid-t6mhkqx2><thead data-astro-cid-t6mhkqx2><tr data-astro-cid-t6mhkqx2><th scope="col" data-astro-cid-t6mhkqx2><strong>Parameter</strong></th><th scope="col" data-astro-cid-t6mhkqx2><strong>Default</strong></th><th scope="col" data-astro-cid-t6mhkqx2><strong>Meaning</strong></th></tr></thead><tbody data-astro-cid-t6mhkqx2><tr data-astro-cid-t6mhkqx2><td data-astro-cid-t6mhkqx2>Dataset</td><td data-astro-cid-t6mhkqx2>MNIST</td><td data-astro-cid-t6mhkqx2>784 normalized pixels encoded as independent Poisson channels</td></tr><tr data-astro-cid-t6mhkqx2><td data-astro-cid-t6mhkqx2>Presentation duration</td><td data-astro-cid-t6mhkqx2>200 ms nominal</td><td data-astro-cid-t6mhkqx2>One static digit; 199.8 ms in the two coarsest timestep conditions</td></tr><tr data-astro-cid-t6mhkqx2><td data-astro-cid-t6mhkqx2>Integration timestep</td><td data-astro-cid-t6mhkqx2>0.1 ms</td><td data-astro-cid-t6mhkqx2>2,000 recurrent updates per presentation</td></tr><tr data-astro-cid-t6mhkqx2><td data-astro-cid-t6mhkqx2>Epochs</td><td data-astro-cid-t6mhkqx2>50</td><td data-astro-cid-t6mhkqx2>Training horizon for every production training replicate</td></tr><tr data-astro-cid-t6mhkqx2><td data-astro-cid-t6mhkqx2>Seeds</td><td data-astro-cid-t6mhkqx2>42, 43, 44</td><td data-astro-cid-t6mhkqx2>Three independently initialized training replicates per configuration</td></tr><tr data-astro-cid-t6mhkqx2><td data-astro-cid-t6mhkqx2>Minibatch</td><td data-astro-cid-t6mhkqx2>256</td><td data-astro-cid-t6mhkqx2>Presentations per optimization step</td></tr><tr data-astro-cid-t6mhkqx2><td data-astro-cid-t6mhkqx2>Optimizer learning rate</td><td data-astro-cid-t6mhkqx2><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>4</mn><mo>×</mo><msup><mn>10</mn><mrow><mo>−</mo><mn>4</mn></mrow></msup></mrow><annotation encoding="application/x-tex">4 \times 10^{- 4}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.7278em;vertical-align:-0.0833em;"></span><span class="mord">4</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.8141em;"></span><span class="mord">1</span><span class="mord"><span class="mord">0</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">−</span><span class="mord mtight">4</span></span></span></span></span></span></span></span></span></span></span></span></td><td data-astro-cid-t6mhkqx2>Shared learning rate</td></tr><tr data-astro-cid-t6mhkqx2><td data-astro-cid-t6mhkqx2>Input population</td><td data-astro-cid-t6mhkqx2>784</td><td data-astro-cid-t6mhkqx2>One channel per image pixel</td></tr><tr data-astro-cid-t6mhkqx2><td data-astro-cid-t6mhkqx2>Excitatory population</td><td data-astro-cid-t6mhkqx2>1,024</td><td data-astro-cid-t6mhkqx2>Learned stimulus representation</td></tr><tr data-astro-cid-t6mhkqx2><td data-astro-cid-t6mhkqx2>Inhibitory population</td><td data-astro-cid-t6mhkqx2>256</td><td data-astro-cid-t6mhkqx2>PING feedback population; silent when E/I coupling is disabled</td></tr><tr data-astro-cid-t6mhkqx2><td data-astro-cid-t6mhkqx2><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>τ</mi><mtext>AMPA</mtext></msub></mrow><annotation encoding="application/x-tex">\tau_{\text{AMPA}}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.5806em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.1132em;">τ</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3283em;"><span style="top:-2.55em;margin-left:-0.1132em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">AMPA</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span></td><td data-astro-cid-t6mhkqx2>2 ms</td><td data-astro-cid-t6mhkqx2>Fixed excitatory synaptic decay</td></tr><tr data-astro-cid-t6mhkqx2><td data-astro-cid-t6mhkqx2><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>τ</mi><mtext>GABA</mtext></msub></mrow><annotation encoding="application/x-tex">\tau_{\text{GABA}}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.5806em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.1132em;">τ</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3283em;"><span style="top:-2.55em;margin-left:-0.1132em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord text mtight"><span class="mord mtight">GABA</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span></td><td data-astro-cid-t6mhkqx2>6 ms</td><td data-astro-cid-t6mhkqx2>Default inhibitory decay at the gamma operating point</td></tr><tr data-astro-cid-t6mhkqx2><td data-astro-cid-t6mhkqx2>Refractory hold, E/I</td><td data-astro-cid-t6mhkqx2>1.2/0.6 ms</td><td data-astro-cid-t6mhkqx2>Exactly represented by integer timestep counts; hidden neurons only</td></tr><tr data-astro-cid-t6mhkqx2><td data-astro-cid-t6mhkqx2>Input initial-zero fraction</td><td data-astro-cid-t6mhkqx2>0.95</td><td data-astro-cid-t6mhkqx2>Fraction set to zero at initialization; every entry remains trainable and may regrow</td></tr><tr data-astro-cid-t6mhkqx2><td data-astro-cid-t6mhkqx2>Input summed-coupling parent mean</td><td data-astro-cid-t6mhkqx2>0.9</td><td data-astro-cid-t6mhkqx2>Parent-Gaussian mean before lower clamping and fan-in normalization; shared by COBA and PING</td></tr><tr data-astro-cid-t6mhkqx2><td data-astro-cid-t6mhkqx2>Readout-weight initialization</td><td data-astro-cid-t6mhkqx2><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>max</mi><mo>⁡</mo><mo stretchy="false">(</mo><mn>0</mn><mo separator="true">,</mo><mi mathvariant="script">N</mi><mo stretchy="false">(</mo><mn>1.1206</mn><mo separator="true">,</mo><msup><mn>0.8350</mn><mn>2</mn></msup><mo stretchy="false">)</mo><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">\max ( 0 , \mathcal{N} ( 1.1206 , 0.8350^{2} ) )</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.0641em;vertical-align:-0.25em;"></span><span class="mop">max</span><span class="mopen">(</span><span class="mord">0</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathcal" style="margin-right:0.1474em;">N</span><span class="mopen">(</span><span class="mord">1.1206</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord">0.835</span><span class="mord"><span class="mord">0</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span></span><span class="mclose">))</span></span></span></span></td><td data-astro-cid-t6mhkqx2>A directly stored lower-clamped Gaussian. Its zero-valued entries remain trainable; COBA and PING use the same initializer</td></tr><tr data-astro-cid-t6mhkqx2><td data-astro-cid-t6mhkqx2>E/I loop strength</td><td data-astro-cid-t6mhkqx2>COBA: 0; PING: 1</td><td data-astro-cid-t6mhkqx2>The forward architectural difference under comparison</td></tr><tr data-astro-cid-t6mhkqx2><td data-astro-cid-t6mhkqx2>Gradient damping</td><td data-astro-cid-t6mhkqx2>COBA: 1; PING: 1,000</td><td data-astro-cid-t6mhkqx2>Backward-pass stabilization for the recurrent PING loop; it does not change forward dynamics</td></tr><tr data-astro-cid-t6mhkqx2><td data-astro-cid-t6mhkqx2>Surrogate slope</td><td data-astro-cid-t6mhkqx2>1</td><td data-astro-cid-t6mhkqx2>Spike-gradient surrogate parameter</td></tr><tr data-astro-cid-t6mhkqx2><td data-astro-cid-t6mhkqx2>Default readout</td><td data-astro-cid-t6mhkqx2>mean-voltage</td><td data-astro-cid-t6mhkqx2>A <strong>spiking</strong> <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1024</mn><mo>→</mo><mn>10</mn></mrow><annotation encoding="application/x-tex">1024 \to 10</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">1024</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">→</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">10</span></span></span></span> output-LIF layer. At each timestep its pre-reset voltages enter the temporal mean, then emitted spikes subtract the threshold before the next update. These mean voltages—not spike counts—are the logits</td></tr><tr data-astro-cid-t6mhkqx2><td data-astro-cid-t6mhkqx2>Stored projection shapes</td><td data-astro-cid-t6mhkqx2><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>784</mn><mo>×</mo><mn>1024</mn></mrow><annotation encoding="application/x-tex">784 \times 1024</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.7278em;vertical-align:-0.0833em;"></span><span class="mord">784</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">1024</span></span></span></span>; <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1024</mn><mo>×</mo><mn>256</mn></mrow><annotation encoding="application/x-tex">1024 \times 256</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.7278em;vertical-align:-0.0833em;"></span><span class="mord">1024</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">256</span></span></span></span>; <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>256</mn><mo>×</mo><mn>1024</mn></mrow><annotation encoding="application/x-tex">256 \times 1024</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.7278em;vertical-align:-0.0833em;"></span><span class="mord">256</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">1024</span></span></span></span>; <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1024</mn><mo>×</mo><mn>10</mn></mrow><annotation encoding="application/x-tex">1024 \times 10</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.7278em;vertical-align:-0.0833em;"></span><span class="mord">1024</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">10</span></span></span></span></td><td data-astro-cid-t6mhkqx2>Input→E, E→I, I→E, and E→class, in source-to-destination orientation</td></tr></tbody></table></div></div></section></section><h3 id="dataset" data-astro-cid-sicvmbkj>Dataset</h3><section class="dataset" aria-labelledby="dataset" data-astro-cid-sicvmbkj><p data-astro-cid-sicvmbkj>Upstream: —</p><p data-astro-cid-sicvmbkj>Downstream: <a href="/exp024" data-astro-cid-sicvmbkj>exp024</a> — <a href="/exp024" data-astro-cid-sicvmbkj><em data-astro-cid-sicvmbkj>Accuracy Plateaus While Firing Rate Rises</em></a>, <a href="/exp025" data-astro-cid-sicvmbkj>exp025</a> — <a href="/exp025" data-astro-cid-sicvmbkj><em data-astro-cid-sicvmbkj>Accuracy and Firing Rate With and Without Inhibition</em></a>, <a href="/exp037" data-astro-cid-sicvmbkj>exp037</a> — <a href="/exp037" data-astro-cid-sicvmbkj><em data-astro-cid-sicvmbkj>Dropped Spikes vs Added Noise</em></a>, <a href="/exp038" data-astro-cid-sicvmbkj>exp038</a> — <a href="/exp038" data-astro-cid-sicvmbkj><em data-astro-cid-sicvmbkj>Switching On the Inhibitory Loop</em></a>, <a href="/exp041" data-astro-cid-sicvmbkj>exp041</a> — <a href="/exp041" data-astro-cid-sicvmbkj><em data-astro-cid-sicvmbkj>Firing Rate Tracks Gamma Frequency</em></a>, <a href="/exp042" data-astro-cid-sicvmbkj>exp042</a> — <a href="/exp042" data-astro-cid-sicvmbkj><em data-astro-cid-sicvmbkj>Inhibitory Replay Perturbations Change Excitatory Firing</em></a>, <a href="/exp044" data-astro-cid-sicvmbkj>exp044</a> — <a href="/exp044" data-astro-cid-sicvmbkj><em data-astro-cid-sicvmbkj>Firing Rate Across the Timestep Sweep</em></a>, <a href="/exp046" data-astro-cid-sicvmbkj>exp046</a> — <a href="/exp046" data-astro-cid-sicvmbkj><em data-astro-cid-sicvmbkj>One Spike per Gamma Cycle</em></a>, <a href="/exp049" data-astro-cid-sicvmbkj>exp049</a> — <a href="/exp049" data-astro-cid-sicvmbkj><em data-astro-cid-sicvmbkj>Training Recurrent Weights Weakens PING Rhythmicity</em></a>, <a href="/exp082" data-astro-cid-sicvmbkj>exp082</a> — <a href="/exp082" data-astro-cid-sicvmbkj><em data-astro-cid-sicvmbkj>Spike-Count Classification in a Continuous Stream</em></a>, <a href="/exp123" data-astro-cid-sicvmbkj>exp123</a> — <a href="/exp123" data-astro-cid-sicvmbkj><em data-astro-cid-sicvmbkj>Output Evidence Against Time and Gamma Cycles</em></a>, <a href="/exp134" data-astro-cid-sicvmbkj>exp134</a> — <a href="/exp134" data-astro-cid-sicvmbkj><em data-astro-cid-sicvmbkj>Leak and Capacitance Modulation of PING Dynamics</em></a></p><div class="table-scroll" tabindex="0" role="region" aria-label="Dataset runs" data-astro-cid-sicvmbkj><table data-astro-cid-sicvmbkj><thead data-astro-cid-sicvmbkj><tr data-astro-cid-sicvmbkj><th scope="col" data-astro-cid-sicvmbkj>Run</th><th scope="col" data-astro-cid-sicvmbkj>Date</th><th scope="col" data-astro-cid-sicvmbkj>Duration</th><th scope="col" data-astro-cid-sicvmbkj>Size</th><th scope="col" data-astro-cid-sicvmbkj>Ran on</th><th scope="col" data-astro-cid-sicvmbkj>Source</th></tr></thead><tbody data-astro-cid-sicvmbkj><tr class="selected-run" data-astro-cid-sicvmbkj><td data-astro-cid-sicvmbkj><span class="selected" title="Presentation used by this report" data-astro-cid-sicvmbkj>exp022-r019-present</span><span class="used-label" data-astro-cid-sicvmbkj>Used</span></td><td data-astro-cid-sicvmbkj><time datetime="2026-10-14T08:23:42+00:00" data-astro-cid-sicvmbkj>14 Oct 2026, 08:23</time></td><td title="Recorded producing execution time for this stage; excludes upstream runs and import time" data-astro-cid-sicvmbkj>1s</td><td title="1330700 bytes" data-astro-cid-sicvmbkj>1.3 MB</td><td data-astro-cid-sicvmbkj>Local</td><td title="0 report assets from R2; 7 from local Pingstore bundled with the site. Run metadata is read locally." data-astro-cid-sicvmbkj><strong data-astro-cid-sicvmbkj>Local (7)</strong></td></tr><tr class="selected-run" data-astro-cid-sicvmbkj><td data-astro-cid-sicvmbkj><span class="selected" title="Input run used to generate this report" data-astro-cid-sicvmbkj>exp022-r016-analyse</span><span class="used-label" data-astro-cid-sicvmbkj>Used</span></td><td data-astro-cid-sicvmbkj><time datetime="2026-10-13T21:22:51+00:00" data-astro-cid-sicvmbkj>13 Oct 2026, 21:22</time></td><td title="Recorded producing execution time for this stage; excludes upstream runs and import time" data-astro-cid-sicvmbkj>3s</td><td title="2547062 bytes" data-astro-cid-sicvmbkj>2.5 MB</td><td data-astro-cid-sicvmbkj>Local</td><td title="Run record and export sizes read from local Pingstore" data-astro-cid-sicvmbkj>Local</td></tr><tr data-astro-cid-sicvmbkj><td data-astro-cid-sicvmbkj><span title="compute" data-astro-cid-sicvmbkj>exp022-r015-compute</span></td><td data-astro-cid-sicvmbkj><time datetime="2026-09-14T10:52:52+00:00" data-astro-cid-sicvmbkj>14 Sept 2026, 10:52</time></td><td title="Recorded producing execution time for this stage; excludes upstream runs and import time" data-astro-cid-sicvmbkj>12h 58m 52s</td><td title="3578440487 bytes" data-astro-cid-sicvmbkj>3.6 GB</td><td data-astro-cid-sicvmbkj>HPC</td><td title="Run record and export sizes read from local Pingstore" data-astro-cid-sicvmbkj>Local</td></tr><tr class="selected-run" data-astro-cid-sicvmbkj><td data-astro-cid-sicvmbkj><span class="selected" title="Input run used to generate this report" data-astro-cid-sicvmbkj>exp022-r007-compute</span><span class="used-label" data-astro-cid-sicvmbkj>Used</span></td><td data-astro-cid-sicvmbkj><time datetime="2026-09-08T18:56:30+00:00" data-astro-cid-sicvmbkj>8 Sept 2026, 18:56</time></td><td title="Recorded producing execution time for this stage; excludes upstream runs and import time" data-astro-cid-sicvmbkj>11h 16m 8s</td><td title="3578615807 bytes" data-astro-cid-sicvmbkj>3.6 GB</td><td data-astro-cid-sicvmbkj>HPC</td><td title="Run record and export sizes read from local Pingstore" data-astro-cid-sicvmbkj>Local</td></tr><tr class="selected-run" data-astro-cid-sicvmbkj><td data-astro-cid-sicvmbkj><span class="selected" title="Input run used to generate this report" data-astro-cid-sicvmbkj>exp022-r001-compute</span><span class="used-label" data-astro-cid-sicvmbkj>Used</span></td><td data-astro-cid-sicvmbkj><time datetime="2026-08-27T09:29:36+00:00" data-astro-cid-sicvmbkj>27 Aug 2026, 09:29</time></td><td title="Recorded producing execution time for this stage; excludes upstream runs and import time" data-astro-cid-sicvmbkj>2d 7h 4m 16s</td><td title="2017164932 bytes" data-astro-cid-sicvmbkj>2 GB</td><td data-astro-cid-sicvmbkj>HPC</td><td title="Run record and export sizes read from local Pingstore" data-astro-cid-sicvmbkj>Local</td></tr></tbody></table></div></section><h3 id="references">References</h3><section class="references" aria-labelledby="references"><span id="loc-21"></span>
+<ol>
+<li><span id="ref-1"></span> E. O. Neftci, H. Mostafa, and F. Zenke. “Surrogate Gradient Learning in Spiking Neural Networks: Bringing the Power of Gradient-Based Optimization to Spiking Neural Networks.” <em>IEEE Signal Processing Magazine</em> 36(6), 51–63 (2019). <a href="https://doi.org/10.1109/MSP.2019.2931595">doi:10.1109/MSP.2019.2931595</a></li>
+</ol></section></d-appendix><script type="application/json" class="js-hypothesis-config">
+    {
+      "showHighlights": true,
+      "openSidebar": false
+    }
+  </script><script async src="https://hypothes.is/embed.js"></script></main><script type="module">var e,t,n=document.createElement(`aside`);n.className=`citation-preview`,n.id=`citation-preview`,n.setAttribute(`role`,`tooltip`),n.hidden=!0,document.body.append(n);function r(){clearTimeout(t),n.hidden=!0,e?.removeAttribute(`aria-describedby`),e=void 0}function i(){t=setTimeout(r,180)}function a(r){clearTimeout(t),e?.removeAttribute(`aria-describedby`);let i=document.getElementById(decodeURIComponent(r.hash.slice(1))),a=i?.closest(`li`)??i?.parentElement;if(!a)return;e=r,n.replaceChildren(...Array.from(a.childNodes).map(e=>e.cloneNode(!0))),n.querySelectorAll(`[id]`).forEach(e=>e.removeAttribute(`id`)),n.hidden=!1,r.setAttribute(`aria-describedby`,n.id);let o=r.getBoundingClientRect(),s=n.getBoundingClientRect().width;n.style.left=`${Math.max(12,Math.min(o.left,innerWidth-s-12))}px`,n.style.top=`${Math.min(o.bottom+8,Math.max(12,innerHeight-n.offsetHeight-12))}px`}for(let e of document.querySelectorAll(`d-article a[href^="#ref-"]`))e.addEventListener(`mouseenter`,()=>a(e)),e.addEventListener(`focus`,()=>a(e)),e.addEventListener(`mouseleave`,i),e.addEventListener(`blur`,i);n.addEventListener(`mouseenter`,()=>clearTimeout(t)),n.addEventListener(`mouseleave`,i),n.addEventListener(`focusin`,()=>clearTimeout(t)),n.addEventListener(`focusout`,i),document.addEventListener(`keydown`,e=>{e.key===`Escape`&&r()}),window.addEventListener(`scroll`,r,{passive:!0});</script></body></html>
