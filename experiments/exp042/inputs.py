@@ -2,9 +2,9 @@
 
 import math
 from contextlib import contextmanager
+from pathlib import Path
 
-from experiments.helpers.checkpoints import pinned_checkpoint
-from pingstore.contracts import PingstoreError, load_json
+from pingstore.contracts import PingstoreError, file_sha256, load_json
 from pingstore.stages import source_run, stage_run
 
 from . import recipe
@@ -158,12 +158,12 @@ def final_checkpoint(directory, training):
         or any(char not in "0123456789abcdef" for char in digest)
     ):
         raise PingstoreError("invalid checkpoint SHA-256")
-    path = pinned_checkpoint(
-        directory,
-        role=recipe.CHECKPOINT_ROLE,
-        filename=row["filename"],
-        sha256=digest,
-    )
+    filename = row["filename"]
+    if Path(filename).name != filename:
+        raise ValueError("Checkpoint filename must be a single path component")
+    path = directory / filename
+    if file_sha256(path) != digest:
+        raise ValueError(f"Checkpoint identity mismatch: {path}")
     return path, {
         "training_cell": directory.name,
         "role": recipe.CHECKPOINT_ROLE,

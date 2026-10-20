@@ -1,0 +1,74 @@
+---
+import Table from '../../../site/src/components/Table.astro';
+import { reportData, reportSnapshots } from '../../../site/src/lib/report-data';
+
+const evidence = await reportSnapshots('exp099', {
+  snapshots: { selected: 'simulation/start/snapshot.json' }, allowUnavailable: true,
+});
+const data = await reportData('exp099');
+const snapshot = evidence?.snapshots.selected;
+const cfg = evidence?.configuration;
+const value = (item, unit = '') => item == null ? 'Unavailable'
+  : `${typeof item === 'object' ? JSON.stringify(item) : item}${unit ? ` ${unit}` : ''}`;
+const graph = snapshot?.network;
+const populations = graph?.populations ?? [];
+const hidden = populations.filter(pop => ['E', 'I'].includes(pop.id));
+const cells = hidden.length ? hidden : populations;
+const paired = (key, unit = '') => cells.length ? cells.map(pop => value(pop.neuron[key]?.value ?? pop.neuron[key])).join(' / ') + (unit ? ` ${unit}` : '') : 'Unavailable';
+const labels = {input_to_E: 'Input→E', E_to_I: 'E→I', I_to_E: 'I→E', readout_projection: 'E→Output', input_to_output: 'Input→Output'};
+const groups = [
+  { label: 'Network', rows: [
+    ['Native parameter snapshot', snapshot ? `${snapshot.kind}, ${snapshot.stage}` : 'Unavailable'],
+    ['Input channels', graph ? graph.inputs.map(input => `${input.id} ${input.shape.at(-1)}`).join('; ') : 'Unavailable'],
+    ['Populations', graph ? populations.map(pop => `${pop.id} ${pop.size}`).join('; ') : 'Unavailable'],
+    ['Membrane model', cells.length ? cells.map(pop => pop.neuron.kind).join(' / ') : 'Unavailable'],
+  ] },
+  { label: 'Neurons', rows: [
+    ['Membrane capacitance', paired('capacitance_nf', 'nF')],
+    ['Leak conductance', paired('leak_us', 'µS')],
+    ['Resting potential', paired('resting_mv', 'mV')],
+    ['Reset potential', paired('reset_mv', 'mV')],
+    ['Threshold', paired('threshold_mv', 'mV')],
+    ['Refractory period', paired('refractory', 'ms')],
+    ['Membrane time constant', paired('tau_mem', 'ms')],
+  ] },
+  { label: 'Synapses and weights', rows: graph ? [
+    ...graph.projections.flatMap(projection => {
+      const label = labels[projection.id] ?? projection.id.replaceAll('_', ' ');
+      return [
+        [`${label} synapse / decay`, `${projection.synapse.kind} / ${value(projection.synapse.tau?.value, 'ms')}`],
+        [`${label} delay`, value(projection.delay?.value, 'ms')],
+        [`${label} saved matrix shape`, value(snapshot.parameters[projection.parameters[0]]?.shape)],
+      ];
+    }),
+    ['Saved parameter payload SHA-256', value(snapshot.parameter_file_sha256)],
+  ] : [['Native synapse and weight parameters', 'Unavailable']] },
+  { label: 'Input and simulation', rows: [
+      ['External afferents per neuron', value(cfg?.external_afferents_per_neuron, '')],
+      ['Baseline E source rate', value(cfg?.baseline_e_hz, 'Hz')],
+      ['Baseline I source rate', value(cfg?.baseline_i_hz, 'Hz')],
+      ['Stimulus E source rate', value(cfg?.stimulus_e_hz, 'Hz')],
+      ['Stimulus I source rate', value(cfg?.stimulus_i_hz, 'Hz')],
+      ['Seed', value(cfg?.seed, '')],
+      ['Timestep', value(cfg?.dt_ms, 'ms')],
+      ['Duration', value(cfg?.t_ms, 'ms')],
+      ['Hidden baseline', value(cfg?.burn_in_ms, 'ms')],
+      ['Pulse onset', value(cfg?.onset_ms, 'ms')],
+      ['Pulse peak', value(cfg?.peak_ms, 'ms')],
+      ['Plateau end', value(cfg?.plateau_end_ms, 'ms')],
+      ['Pulse offset', value(cfg?.offset_ms, 'ms')],
+  ] },
+
+  { label: 'Analysis', rows: Object.entries(data.measurements ?? {}).filter(([key]) => key !== 'script_sha256').map(([key, item]) => [key.replaceAll('_', ' '), value(item)]).length
+    ? Object.entries(data.measurements).filter(([key]) => key !== 'script_sha256').map(([key, item]) => [key.replaceAll('_', ' '), value(item)])
+    : [['Recorded analysis settings', 'Unavailable']] },
+];
+---
+
+<Table headers={['Parameter', 'Recorded value']} groups={groups} number="A1" id="recorded-parameters">
+  Model parameters follow the pinned presentation to its original compute's native
+  snapshot; input and protocol settings come from that compute's recorded configuration.
+  Paired neuron values follow {cells.map(pop => pop.id).join(' / ') || 'E / I'} order.
+  Missing snapshots or fields are unavailable. Historical figures retain their
+  original evidence; current recipe defaults are never substituted.
+</Table>

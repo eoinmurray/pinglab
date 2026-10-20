@@ -12,12 +12,14 @@ uv run python tools/publishing/publish.py publish
 The builder freezes latest presentation selections for reports using latest,
 while frontmatter `runs` pins remain authoritative for pinned reports. Astro
 reads the selected exports directly and calculates bound numerical prose in
-TypeScript. The Pingstore lookup remains intentionally simple, without schema,
-payload-checksum or ancestry validation. No scientific outputs are copied to a
+TypeScript. Ordinary number and figure lookups remain simple, without full payload
+validation. Parameter tables read original native snapshots through the pinned
+presentation ancestry; the snapshot loader checks record identities and input
+digest references but does not audit complete payloads. No scientific outputs are copied to a
 persistent article directory.
 
 Authored-source fingerprints cover `site/`, each experiment's `report/` and
-`js/` directories, `md/notes/`, and `md/slides/`, including supporting assets.
+`js/` directories, `md/notes/`, `md/slides/`, and `papers/`, including supporting assets.
 Fingerprints before and after the build detect concurrent
 edits. Static output and a receipt live in disposable `.publication/`; the
 receipt records latest selections, source fingerprints/status and output

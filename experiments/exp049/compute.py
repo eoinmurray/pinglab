@@ -14,7 +14,7 @@ sys.path[:0] = [str(REPO), str(REPO / "tools")]
 import numpy as np
 import torch
 from experiments.exp049 import evidence, inputs, recipe
-from experiments.helpers.network_artifacts import model_execution
+from experiments.exp049.custom.network_artifacts import model_execution
 from pingstore.contracts import PingstoreError, file_sha256, write_json_atomic
 from snnlab.lang import duration_steps
 from snnlab.sim import GraphExecutor, encode_images_poisson, load_dataset, plan_graph

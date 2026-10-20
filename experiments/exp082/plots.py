@@ -5,7 +5,7 @@ from typing import Any
 
 import matplotlib.pyplot as plt
 import numpy as np
-from experiments.helpers import theme
+from experiments import theme
 from matplotlib.patches import Rectangle
 
 from .recipe import (

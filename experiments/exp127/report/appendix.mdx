@@ -1,0 +1,14 @@
+import RunFigure from '../../../site/src/components/RunFigure.astro';
+import ParameterTable from './ParameterTable.astro';
+
+## Network diagrams
+
+<RunFigure report="exp127" experiment="exp127" file="circuit.svg" number="A1" id="fig-classifier-network" alt="Three spike-input channels connect through six nonnegative synapses to two spiking output neurons.">
+  Circuit view rendered from the original compute's saved classifier bundle.
+  The teaching loop and validation-selected classifier share this architecture;
+  their learned weights differ. The presentation reuses the original recordings.
+</RunFigure>
+
+## Parameters
+
+<ParameterTable />

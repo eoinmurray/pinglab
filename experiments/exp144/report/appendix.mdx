@@ -1,0 +1,119 @@
+import { getEntry } from 'astro:content';
+import Table from '../../../site/src/components/Table.astro';
+import RunFigure from '../../../site/src/components/RunFigure.astro';
+import { reportSnapshots } from '../../../site/src/lib/report-data';
+
+export const article = await getEntry('reports', 'exp144');
+export const evidence = article?.data.runs?.exp144
+  ? await reportSnapshots('exp144', {
+      snapshots: {
+        dense: 'win3-i0/seed-42/simulation/start/snapshot.json',
+        sparse5: 'win3-i5/seed-42/simulation/start/snapshot.json',
+        sparse10: 'win3-i10/seed-42/simulation/start/snapshot.json',
+      },
+      allowUnavailable: true,
+    })
+  : undefined;
+export const parameterGroups = (() => {
+  if (!evidence) return [{ label: 'Network', rows: [['Native snapshot evidence', 'Unavailable; no pinned presentation']] }];
+  const cfg = evidence.configuration;
+  const snapshot = evidence.snapshots.dense;
+  const graph = snapshot?.network;
+  const population = name => graph?.populations?.find(row => row.id === name);
+  const projection = name => graph?.projections?.find(row => row.id === name);
+  const initializer = name => graph?.parameters?.find(row => row.id === `${name}.weight`)?.initializer;
+  const show = value => {
+    const scalar = value?.value ?? value;
+    if (scalar === undefined || scalar === null) return 'Unavailable';
+    return typeof scalar === 'number' ? String(Number(scalar.toPrecision(6))) : String(scalar);
+  };
+  const pair = key => ['E', 'I'].map(name => show(population(name)?.neuron?.[key])).join(' / ');
+  const parent = name => {
+    const spec = initializer(name);
+    return `${show(spec?.mean)} / ${show(spec?.std)}`;
+  };
+  const cases = cfg.cases?.filter(row => cfg.presentation?.cases?.includes(row.id));
+  const densities = ['dense', 'sparse5', 'sparse10'].map(name => {
+    const spec = evidence.snapshots[name]?.network?.parameters?.find(row => row.id === 'E_to_I.weight')?.initializer;
+    return spec?.initial_zero_fraction === undefined ? 'Unavailable' : show(1 - spec.initial_zero_fraction);
+  }).join(' / ');
+  return [
+    { label: 'Network', rows: [
+      ['Pixel inputs', show(graph?.inputs?.find(row => row.id === 'image')?.shape?.at(-1))],
+      ['E / I neurons', ['E', 'I'].map(name => show(population(name)?.size)).join(' / ')],
+      ['Output neurons', show(population('readout')?.size)],
+      ['E→I density, dense / sparse 5 Hz / sparse 10 Hz', densities],
+    ] },
+    { label: 'Neurons', rows: [
+      ['Capacitance, E / I (nF)', pair('capacitance_nf')],
+      ['Leak conductance, E / I (µS)', pair('leak_us')],
+      ['Rest / reset / threshold (mV)', ['resting_mv', 'reset_mv', 'threshold_mv'].map(key => show(population('E')?.neuron?.[key])).join(' / ')],
+      ['Refractory duration, E / I (ms)', pair('refractory')],
+      ['Refractory scheduling', show(graph?.refractory_timing)],
+      ['AMPA / GABA decay (ms)', ['E_to_I', 'I_to_E'].map(name => show(projection(name)?.synapse?.tau)).join(' / ')],
+    ] },
+    { label: 'Synapses and weights', rows: [
+      ['Input→E parent mean / SD (µS)', parent('input_to_E')],
+      ['Input→E initial zero fraction', show(initializer('input_to_E')?.initial_zero_fraction)],
+      ['E→I parent mean / SD (µS)', parent('E_to_I')],
+      ['I→E parent mean / SD (µS)', parent('I_to_E')],
+      ['Recurrent delay (ms)', show(projection('E_to_I')?.delay)],
+      ['Background→I initializer', show(initializer('background_to_I')?.definition)],
+      ['Background→I event jump (µS)', show(initializer('background_to_I')?.config?.jump_us)],
+      ['E→Output parent mean / SD (µS)', parent('readout_projection')],
+    ] },
+    { label: 'Input and simulation', rows: [
+      ['Dataset / original index / label', [cfg.dataset, cfg.sample_index, cfg.sample_label].map(show).join(' / ')],
+      ['Pixel encoding', show(cfg.encoding)],
+      ['Maximum pixel rate (Hz)', show(cfg.max_pixel_rate_hz)],
+      ['I background rates (Hz)', cases?.map(row => show(row.i_rate_hz)).join(' / ') ?? 'Unavailable'],
+      ['Timestep / duration / burn-in (ms)', [snapshot?.execution?.timestep_ms, snapshot?.execution?.duration_ms, cfg.burn_in_ms].map(show).join(' / ')],
+      ['Seeds', cfg.seeds?.map(show).join(', ') ?? 'Unavailable'],
+      ['Native recording block length (steps)', show(cfg.recording_block_steps)],
+      ['Execution device', show(snapshot?.execution?.device_resolved)],
+    ] },
+    { label: 'Readout', rows: [
+      ['Class score', 'Readout spike count; no loss or backward pass'],
+      ['Training', show(cfg.training)],
+    ] },
+    { label: 'Analysis', rows: [
+      ['ISI CV minimum spike count', show(cfg.analysis?.min_cv_spikes)],
+      ['Count correlation cells per population', show(cfg.analysis?.correlation_cells)],
+      ['Count bins (ms)', cfg.analysis?.correlation_bins_ms?.map(show).join(', ') ?? 'Unavailable'],
+      ['Population-rate bins (ms)', show(cfg.analysis?.rate_bin_ms)],
+      ['Maximum spectral segment length (bins)', show(cfg.analysis?.psd_max_segment_bins)],
+      ['Onset window (ms)', show(cfg.analysis?.onset_ms)],
+      ['Presentation seed', show(cfg.presentation?.seed)],
+    ] },
+  ];
+})();
+
+## Network diagrams
+
+The architecture is 784 pixel inputs → 1,024 excitatory (E) cells → ten spiking
+readout cells, with 256 inhibitory (I) cells in an E→I→E feedback loop. There is
+no E→E or I→I recurrence and no private E background. Each I cell receives its
+own fixed excitatory background through a diagonal projection declared in the
+bundle. Figure 2 comes from the compiled bundle used for this run.
+
+<RunFigure report="exp144" experiment="exp144" file="circuit.svg" number={2} id="fig-circuit" alt="Compiled SNNLab circuit with pixel input to E, reciprocal E/I feedback, private background input to I, and a ten-neuron spiking readout.">
+  Shared architecture for all three conditions. Connection density and background
+  rate vary between conditions; E→E and I→I recurrence are absent. The diagonal
+  background projection pairs each I cell with its own input stream.
+</RunFigure>
+
+## Parameters
+
+The table reads original native simulation-start snapshots and the recorded
+configuration through the report's pinned presentation and compute ancestry.
+Missing snapshots or fields remain unavailable; current recipe defaults are
+never used as replacement evidence.
+
+Paired neuron values are E / I. Weight-parent means are divided by fan-in;
+initial zeroing uses survivor compensation. All weights stay fixed during
+simulation. Recording blocks contain 1,000 steps by default; SNNLab advances
+each condition in one continuous execution. ISI CV means interspike-interval
+coefficient of variation, reported over cells with enough spikes. Correlations
+use evenly spaced cells and exclude pairs with constant spike counts.
+
+<Table headers={["Parameter", "Saved value"]} groups={parameterGroups} />

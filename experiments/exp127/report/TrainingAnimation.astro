@@ -25,7 +25,7 @@ const { run } = Astro.props;
   <figcaption>Figure 3: Recorded training on 128 examples. The graph shows all 48 updates; the shaded stretch is replayed slowly. Dots show spikes moving forward and gradients moving back; line thickness and numbers show the changing weights. The pink bar shows batch loss. Backward motion and weight transitions are illustrative.</figcaption>
 </figure>
 <script>
-  import { mountTraining } from '../js/training.js';
+  import { mountTraining } from './js/training.js';
   class PixiTrainingLoop extends HTMLElement {
     dispose?: () => void;
     observer?: IntersectionObserver;

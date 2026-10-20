@@ -1,4 +1,9 @@
-"""Simulate all trajectory, accuracy and encoding-rate probes in one run."""
+"""Simulate the uniform paired inhibitory-decay sweep in one run.
+
+Invoke this stage independently through its CLI; it records configuration,
+provenance and scientific outputs in Pingstore. Importing the module does not
+launch computation or another stage.
+"""
 
 import argparse
 import hashlib
@@ -14,25 +19,38 @@ sys.path[:0] = [
 import numpy as np
 import torch
 from experiments.exp123 import recipe
-from experiments.helpers.checkpoints import pinned_checkpoint
-from experiments.helpers.network_artifacts import model_execution
+from experiments.exp123.custom.network_artifacts import model_execution
+from pingstore.contracts import file_sha256, load_json
 from pingstore.stages import source_run, stage_run
-from snnlab.sim import ExecutionSpec, build, encode_images_poisson
+from snnlab.sim import Performance, build, encode_images_poisson
 from torchvision.datasets import MNIST
 
 
-def graph_trial(tau, weights, encoded, artifacts):
-    bundle = recipe.network(tau)
-    model = build(
-        ExecutionSpec(kind="simulate", graph=bundle.graph, device="cpu", seed=0)
-    ).model
+def graph_trial(tau, weights, encoded, artifacts, cfg, execution=None):
+    bundle = recipe.author_network(tau, cfg)
+    built = build(
+        graph=bundle.graph,
+        device=cfg["device"],
+        seed=cfg["model_seed"],
+        performance=Performance(**cfg["performance"]),
+    )
+    model = built.model
+    if execution is not None:
+        execution["performance"] = built.metrics["performance"]
     with torch.inference_mode():
         for name, target in model.parameter_map().items():
             value = weights[recipe.PARAMETERS[name]]
             if value.shape != target.shape or (value < 0).any():
                 raise ValueError("checkpoint projection shape or polarity mismatch")
             target.copy_(value)
-        with model_execution(model, bundle, artifacts, kind="infer", settings={"tau_gaba_ms": tau}):
+        with model_execution(
+            model,
+            bundle,
+            artifacts,
+            kind="simulate",
+            seed=cfg["model_seed"],
+            settings={**cfg, "tau_gaba_ms": tau},
+        ):
             result = model({"image": encoded}, diagnostics=True)
         for name, target in model.parameter_map().items():
             if not torch.equal(target, weights[recipe.PARAMETERS[name]]):
@@ -52,34 +70,59 @@ def image_bank(source):
         cfg = definition["protocols"]["benchmark"]
     else:
         raise ValueError("image source must contain the balanced exp123 benchmark")
-    if (cfg["partition"] != "official_mnist_test" or cfg["image_selection_seed"] != recipe.ACCURACY_SELECTION_SEED):
+    if (
+        cfg["partition"] != "official_mnist_test"
+        or cfg["image_selection_seed"] != recipe.ACCURACY_SELECTION_SEED
+    ):
         raise ValueError("image source has an incompatible test selection")
     images = {}
     for index in cfg["image_indices"]:
-        with np.load(source.unit(recipe.recording_unit(index, recipe.RATE_HZ, "benchmark")) / "input.npz",
-                     allow_pickle=False) as data:
+        with np.load(
+            source.unit(recipe.recording_unit(index, recipe.RATE_HZ, "benchmark"))
+            / "input.npz",
+            allow_pickle=False,
+        ) as data:
             pixels, label = data["pixels"].copy(), int(data["label"])
-        if (pixels.shape != (28, 28) or not np.isfinite(pixels).all()
-                or pixels.min() < 0 or pixels.max() > 1 or not 0 <= label < 10):
+        if (
+            pixels.shape != (28, 28)
+            or not np.isfinite(pixels).all()
+            or pixels.min() < 0
+            or pixels.max() > 1
+            or not 0 <= label < 10
+        ):
             raise ValueError("invalid normalized MNIST image")
         images[index] = (torch.from_numpy(pixels).reshape(1, 784).float(), label)
-    if len(images) != 500 or not np.array_equal(np.bincount([v[1] for v in images.values()], minlength=10), [50] * 10):
+    if len(images) != 500 or not np.array_equal(
+        np.bincount([v[1] for v in images.values()], minlength=10), [50] * 10
+    ):
         raise ValueError("image source must have 50 distinct test images per digit")
     return images
 
 
-def compute(identity, image_identity=None):
+def compute(identity, image_identity=None, *, run_id=None):
     torch.set_num_threads(1)
     bank = source_run(
         recipe.REPO / ".pingstore", identity, stage="compute", experiment="exp022"
     )
     unit = bank.unit(recipe.UNIT)
-    checkpoint = pinned_checkpoint(
-        unit,
-        role=recipe.CHECKPOINT_ROLE,
-        filename=recipe.CHECKPOINT_FILE,
-        sha256=recipe.CHECKPOINT_SHA256,
+    record = (
+        load_json(unit / "metrics.json")
+        .get("checkpoints", {})
+        .get(recipe.CHECKPOINT_ROLE)
     )
+    filename = recipe.CHECKPOINT_FILE
+    if not isinstance(record, dict) or record.get("filename") != filename:
+        raise ValueError(
+            f"Checkpoint role {recipe.CHECKPOINT_ROLE!r} does not name {filename!r}"
+        )
+    if Path(filename).name != filename:
+        raise ValueError("Checkpoint filename must be a single path component")
+    checkpoint = unit / filename
+    if (
+        record.get("sha256") != recipe.CHECKPOINT_SHA256
+        or file_sha256(checkpoint) != recipe.CHECKPOINT_SHA256
+    ):
+        raise ValueError(f"Checkpoint identity mismatch: {checkpoint}")
     config = json.loads((unit / "config.json").read_text())
     expected = dict(
         dt=0.1,
@@ -109,32 +152,49 @@ def compute(identity, image_identity=None):
         raise ValueError("same-population recurrence must be absent")
     inputs = {"trained_network": bank}
     if image_identity is not None:
-        images_source = source_run(recipe.REPO / ".pingstore", image_identity, stage="compute", experiment=recipe.SLUG)
+        images_source = source_run(
+            recipe.REPO / ".pingstore",
+            image_identity,
+            stage="compute",
+            experiment=recipe.SLUG,
+        )
         images = image_bank(images_source)
         cfg = recipe.shared_configuration_for_images(sorted(images))
         inputs["images"] = images_source
     else:
         dataset = MNIST(str(recipe.REPO / "data"), train=False, download=False)
         cfg = recipe.shared_configuration(dataset.targets.numpy())
-        images = {index: (dataset.data[index].reshape(1, 784).float() / 255,
-                          int(dataset.targets[index])) for index in cfg["sweep"]["image_indices"]}
+        images = {
+            index: (
+                dataset.data[index].reshape(1, 784).float() / 255,
+                int(dataset.targets[index]),
+            )
+            for index in cfg["sweep"]["image_indices"]
+        }
     with stage_run(
         recipe.REPO,
         recipe.SLUG,
         "compute",
         inputs=inputs,
         configuration=cfg,
+        run_id=run_id,
     ) as run:
         run.record["execution"]["software"] = {
             "snnlab": version("snnlab"),
             "torch": torch.__version__,
         }
+        run.record["scientific_artifacts"] = {"snapshot_stages": {}}
+        recipe.author_network(cfg["sweep"]["tau_gaba_ms"][0], cfg["sweep"]).visualise(
+            run.export / "network.svg", view="circuit"
+        )
         hashes = {}
         for protocol, cfg in {"benchmark": cfg["sweep"]}.items():
             indices, seeds = cfg["image_indices"], cfg["seeds"]
             for rate in cfg["input_rates_hz"]:
                 for start in range(0, len(indices), cfg["execution_batch_images"]):
-                    batch_indices = indices[start : start + cfg["execution_batch_images"]]
+                    batch_indices = indices[
+                        start : start + cfg["execution_batch_images"]
+                    ]
                     encodings = []
                     for image_index in batch_indices:
                         unit = run.export / recipe.recording_unit(
@@ -173,7 +233,20 @@ def compute(identity, image_identity=None):
                         )
                     batch_encoded = torch.cat(encodings, dim=1)
                     for tau in cfg["tau_gaba_ms"]:
-                        signals = graph_trial(tau, weights, batch_encoded, run.export / f"{protocol}--rate-{rate:g}--batch-{start}--tau-{tau:g}")
+                        execution_name = (
+                            f"{protocol}--rate-{rate:g}--batch-{start}--tau-{tau:g}"
+                        )
+                        run.record["scientific_artifacts"]["snapshot_stages"][
+                            execution_name
+                        ] = ["start"]
+                        signals = graph_trial(
+                            tau,
+                            weights,
+                            batch_encoded,
+                            run.export / execution_name,
+                            cfg,
+                            run.record["execution"],
+                        )
                         for j, image_index in enumerate(batch_indices):
                             unit = run.export / recipe.recording_unit(
                                 image_index, rate, protocol
@@ -210,15 +283,11 @@ def compute(identity, image_identity=None):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--run-id", help="identity reserved before remote dispatch")
     parser.add_argument("--source", required=True)
-    parser.add_argument("--protocol", choices=("main", "overview"), default="main")
-    parser.add_argument("--image-source", help="Explicit exp123 compute run supplying raw image pixels instead of local MNIST files; required for legacy overview")
+    parser.add_argument(
+        "--image-source",
+        help="Validated image bank, otherwise local official MNIST test set",
+    )
     args = parser.parse_args()
-    if args.protocol == "overview":
-        from experiments.exp123.compute_parts.overview import compute_overview
-
-        if not args.image_source:
-            parser.error("--protocol overview requires --image-source")
-        compute_overview(args.source, args.image_source)
-    else:
-        compute(args.source, args.image_source)
+    print(compute(args.source, args.image_source, run_id=args.run_id))

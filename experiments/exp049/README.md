@@ -243,8 +243,8 @@ passed 6 tests, Ruff passed, and the regenerated figure was visually inspected.
 
 ### 2026-10-06 — native graph implementation migration
 
-Future compute uses recipe-authored `snnlab.lang` graphs and the shared
-`experiments.helpers.ping.build_ping`, without extending that helper.
+Future compute uses `snnlab.lang` graphs with E/I topology declared directly
+in the recipe.
 `GraphExecutor` binds the four active matrices in stored `[source, target]`
 orientation, clamps feedforward matrices as before, and rejects extra tensors,
 non-float32/nonfinite matrices, negative recurrent weights and nonzero EE/II

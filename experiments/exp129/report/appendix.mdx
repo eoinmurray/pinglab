@@ -1,0 +1,34 @@
+import Table from '../../../site/src/components/Table.astro';
+import { DT, REVERSALS, SYNAPTIC_DECAY, SPIKE_DELAY, SPIKE_INTERVAL } from './js/membrane.js';
+
+## Parameters
+
+<Table headers={['Parameter', 'Illustrative setting']} groups={[
+  { label: 'Ideal capacitor circuit', rows: [
+    ['Governing relation', 'Charge equals capacitance times voltage'],
+    ['Charge / discharge update', 'Exact exponential towards battery voltage / zero'],
+    ['Hold', 'Disconnected ideal capacitor; constant voltage'],
+    ['Time constant (derived)', 'Resistance multiplied by capacitance'],
+  ] },
+  { label: 'Hodgkin–Huxley membrane', rows: [
+    ['Initial capacitance density', '1 μF/cm²'],
+    ['Maximum sodium / potassium conductance densities', '120 / 36 mS/cm² before channel-fraction scaling'],
+    ['Leak conductance density', '0.3 mS/cm²'],
+    ['Sodium / potassium / leak reversals', `${REVERSALS.na} / ${REVERSALS.k} / ${REVERSALS.leak} mV`],
+    ['Rate convention', 'Classical squid axon at 6.3 °C; inside-minus-outside voltage'],
+    ['Initial voltage / preparation', '−65 mV; gates at their voltage-dependent steady state, then 200 ms without input'],
+  ] },
+  { label: 'Added synapse and integration', rows: [
+    ['Initial weight / reversal', '0.2 mS/cm² / 0 mV'],
+    ['Conductance decay time', `${SYNAPTIC_DECAY} ms`],
+    ['Prescribed first arrival / subsequent interval', `5 / ${SPIKE_INTERVAL} ms`],
+    ['Schematic travel time', `${SPIKE_DELAY} ms`],
+    ['Integrator / timestep', `Fourth-order Runge–Kutta / ${DT} ms`],
+    ['Conductance within each step', 'Exponential values at the start, midpoint and end'],
+  ] },
+]} number="A1" id="illustrative-parameters">
+  The membrane equations and temperature convention follow the cited classical
+  model; the added synapse, timings and slider settings are demonstration choices.
+  Timing and reversal constants are imported from the animation script. These
+  interactive examples do not depend on a scientific run or saved snapshots.
+</Table>

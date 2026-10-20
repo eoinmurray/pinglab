@@ -1,0 +1,136 @@
+---
+import Table from '../../../site/src/components/Table.astro';
+import type { SnapshotEvidence } from '../../../site/src/lib/snapshot-data';
+
+interface Props { evidence?: SnapshotEvidence; }
+const { evidence } = Astro.props;
+const models = ['coba', 'ping'];
+const cfg = evidence?.configuration;
+const snapshots = evidence?.snapshots ?? {};
+for (const snapshot of Object.values(snapshots)) {
+  if (snapshot && (snapshot.kind !== 'train' || snapshot.stage !== 'end' || !snapshot.training)) {
+    throw new Error('exp124 parameters require native final-training snapshots');
+  }
+}
+// These are report bindings to the original saved metadata, not a second
+// parameter payload emitted by analysis or presentation.
+const graph = mode => snapshots[mode].network;
+const population = (mode, name) => graph(mode).populations.find(item => item.id === name);
+const projection = (mode, name) => graph(mode).projections.find(item => item.id === name);
+const parameter = (mode, name) => graph(mode).parameters.find(item => item.id === name);
+const normalization = mode => graph(mode).operations.find(item => item.id === 'normalized_scores').config.settings;
+const n = value => {
+  if (typeof value !== 'number' || !Number.isFinite(value)) throw new Error('Missing or invalid saved numeric parameter');
+  return Number(value.toPrecision(6)).toString();
+};
+const value = value => {
+  if (value === undefined || value === null) throw new Error('Missing saved parameter');
+  return String(value);
+};
+const row = (label, read) => [label, ...models.map(mode => snapshots[mode] ? read(mode) : 'Unavailable')];
+const setting = (label, read) => [label, ...models.map(() => cfg ? read(cfg) : 'Unavailable')];
+const pair = (mode, read, unit = '') => ['E1', 'I1'].map(name => {
+  const item = population(mode, name);
+  return item ? n(read(item.neuron)) : '—';
+}).join(' / ') + (unit ? ` ${unit}` : '');
+const initial = (mode, name) => parameter(mode, `${name}.weight`).initializer;
+const hiddenProjections = ['input_to_E1', 'E1_to_E2'];
+const learned = mode => snapshots[mode].execution.parameter_membership?.trainable
+  ?? snapshots[mode].training.resolved_parameters.trainable;
+const groups = evidence ? [
+  { label: 'Network', rows: [
+    row('Input channels', mode => value(graph(mode).inputs[0].shape.at(-1))),
+    ...[1, 2].map(layer => row(`Hidden layer ${layer} neurons, E / I`, mode =>
+      ['E', 'I'].map(kind => {
+        const item = population(mode, `${kind}${layer}`);
+        return item ? n(item.size) : '—';
+      }).join(' / '))),
+    row('Neuron model, E / I', mode => ['E1', 'I1'].map(name => {
+      const item = population(mode, name);
+      return item ? value(item.neuron.kind) : '—';
+    }).join(' / ')),
+  ] },
+  { label: 'Neurons', rows: [
+    row('Membrane capacitance, E / I', mode => pair(mode, neuron => neuron.capacitance_nf, 'nF')),
+    row('Leak conductance, E / I', mode => pair(mode, neuron => neuron.leak_us, 'µS')),
+    row('Passive time constant, E / I (derived)', mode => pair(mode, neuron => neuron.capacitance_nf / neuron.leak_us, 'ms')),
+    ...[
+      ['Resting potential', 'resting_mv'], ['Reset potential', 'reset_mv'], ['Spike threshold', 'threshold_mv'],
+    ].map(([label, key]) => row(`${label}, E / I`, mode => pair(mode, neuron => neuron[key], 'mV'))),
+    row('Refractory period, E / I', mode => pair(mode, neuron => neuron.refractory.value, 'ms')),
+  ] },
+  { label: 'Synapses and weights', rows: [
+    ...hiddenProjections.map(name => row(`${name === 'input_to_E1' ? 'Input→E1' : 'E1→E2'} synapse / decay`, mode => {
+      const synapse = projection(mode, name).synapse;
+      return `${value(synapse.kind)} / ${n(synapse.tau.value)} ms`;
+    })),
+    row('E→I / I→E synapse decay', mode => population(mode, 'I1')
+      ? `${n(projection(mode, 'E1_to_I1').synapse.tau.value)} / ${n(projection(mode, 'I1_to_E1').synapse.tau.value)} ms`
+      : 'Not applicable'),
+    row('E→I / I→E feedback delay', mode => population(mode, 'I1')
+      ? `${n(projection(mode, 'E1_to_I1').delay.value)} / ${n(projection(mode, 'I1_to_E1').delay.value)} ms`
+      : 'Not applicable'),
+    ...hiddenProjections.map(name => row(`${name === 'input_to_E1' ? 'Input→E1' : 'E1→E2'} initial Gaussian parent mean / SD`, mode =>
+      `${n(initial(mode, name).mean)} / ${n(initial(mode, name).std)} µS`)),
+    row('Input→E1 / E1→E2 initial zero fraction', mode => hiddenProjections.map(name => n(initial(mode, name).initial_zero_fraction)).join(' / ')),
+    row('Input→E1 / E1→E2 initialization scaling', mode => hiddenProjections.map(name => value(parameter(mode, `${name}.weight`).initialization_scaling)).join(' / ')),
+    row('Initial summed feedback, E→I / I→E (derived)', mode => population(mode, 'I1')
+      ? `${n(initial(mode, 'E1_to_I1').value * population(mode, 'E1').size)} / ${n(initial(mode, 'I1_to_E1').value * population(mode, 'I1').size)} µS`
+      : 'Not applicable'),
+    row('Trainable matrices', mode => value(learned(mode).join(', '))),
+  ] },
+  { label: 'Input and simulation', rows: [
+    setting('Dataset source', () => evidence.dataset?.url ?? evidence.dataset?.source ?? 'Unavailable'),
+    setting('Official test evaluated', () => evidence.dataset?.official_test_accessed === undefined ? 'Unavailable' : evidence.dataset.official_test_accessed ? 'Yes' : 'No'),
+    setting('Training / validation utterances', cfg => `${n(cfg.train_examples)} / ${n(cfg.validation_examples)}`),
+    setting('Validation holdout fraction / split seed', cfg => `${n(cfg.validation_fraction)} / ${n(cfg.seed)}`),
+    setting('Timestep / presentation', cfg => `${n(cfg.dt_ms)} / ${n(cfg.duration_ms)} ms`),
+    setting('Input insertion rate / spike deletion probability', cfg => `${n(cfg.input_noise_hz)} Hz per channel / ${n(cfg.spike_deletion_probability)}`),
+  ] },
+  { label: 'Readout', rows: [
+    row('Output neurons / spiking', mode => `${n(population(mode, 'readout').size)} / ${population(mode, 'readout').spiking ? 'yes' : 'no'}`),
+    row('Readout membrane / synapse decay', mode => `${n(population(mode, 'readout').neuron.tau.value)} / ${n(projection(mode, 'readout_projection').synapse.tau.value)} ms`),
+    row('E2→readout initial Gaussian mean / SD', mode => {
+      const init = initial(mode, 'readout_projection').config;
+      return `${n(init.mean)} / ${n(init.std)} µS; ${init.center ? 'source-centered' : 'uncentered'}`;
+    }),
+    row('Fixed score-gain initializer', mode => n(parameter(mode, 'score_gain.weight').initializer.config.gain)),
+    row('Score reference rate / rate floor', mode => {
+      const scale = 1000 / graph(mode).timebase.dt.value;
+      const norm = normalization(mode);
+      return `${n(norm.reference_rate * scale)} / ${n(norm.minimum_rate * scale)} Hz`;
+    }),
+    row('Classification score', () => 'Rate-normalized mean readout voltage (Equation 1)'),
+  ] },
+  { label: 'Training', rows: [
+    setting('Epochs / batch size / seed', cfg => `${n(cfg.epochs)} / ${n(cfg.batch_size)} / ${n(cfg.seed)}`),
+    row('Optimizer / objective', mode => {
+      const training = snapshots[mode].training;
+      const objective = training.objectives[0];
+      const name = objective.definition === 'exp124.equal_class_cross_entropy/v1' ? 'equal-class cross-entropy' : value(objective.kind);
+      return `${value(training.optimizer.kind)} / ${name}`;
+    }),
+    setting('Learning rates, input / interlayer / readout', cfg => cfg.learning_rates
+      ? ['input', 'interlayer', 'readout'].map(name => n(cfg.learning_rates[name])).join(' / ') : 'Unavailable'),
+    setting('Adam betas / epsilon / weight decay', cfg => cfg.optimizer
+      ? `${cfg.optimizer.betas.map(n).join(', ')} / ${n(cfg.optimizer.eps)} / ${n(cfg.optimizer.weight_decay)}` : 'Unavailable'),
+    setting('Surrogate slope / gradient scale', cfg => cfg.surrogate_slope_per_mv === undefined ? 'Unavailable'
+      : `${n(cfg.surrogate_slope_per_mv)} mV⁻¹ / ${n(cfg.surrogate_gradient_scale)}`),
+    setting('Training measurement', cfg => cfg.training_measurement === undefined ? 'Unavailable' : value(cfg.training_measurement)),
+  ] },
+  { label: 'Analysis', rows: [
+    setting('Autocorrelogram bin / maximum lag', cfg => cfg.autocorrelation_bin_ms === undefined ? 'Unavailable'
+      : `${n(cfg.autocorrelation_bin_ms)} / ${n(cfg.autocorrelation_max_lag_ms)} ms`),
+    setting('Diagnostic counting window', cfg => `0–${n(cfg.duration_ms)} ms; full presentation`),
+  ] },
+] : [{ label: 'Evidence', rows: [['Pinned snapshots and configuration', 'Unavailable', 'Unavailable']] }];
+---
+
+<Table headers={['Parameter', 'COBA', 'PING']} groups={groups} number={1} id="architecture-config" label="Executed architecture and simulation settings">
+  <strong>Executed architecture and simulation settings.</strong>
+  {evidence ? <>Model and native training-specification values are read from the saved final-training snapshots in <code>{evidence.compute.run_id}</code>; execution settings come from that run's recorded configuration. </> : <>The pinned snapshot evidence is unavailable. </>}
+  E / I pairs list excitatory then inhibitory values; an em dash means that population is absent.
+  The passive time constant is capacitance divided by leak conductance. Initializer statistics describe initial draws, not the final learned weight distribution; initial summed feedback is the per-edge constant times the source population size.
+  Readout voltage and E2 rate are averaged over the full presentation; states reset between utterances.
+  Missing native snapshots are shown as unavailable, without substituting recipe defaults or previously exported table rows.
+</Table>

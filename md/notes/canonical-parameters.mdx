@@ -1,0 +1,67 @@
+---
+title: Canonical Parameters
+author: Eoin Murray
+collection: notes
+description: Canonical network and training parameters for COBA and PING behaviour.
+created_at: "2026-10-20T11:04:45Z"
+updated_at: "2026-10-20T11:04:45Z"
+---
+
+import Table from '../../site/src/components/Table.astro';
+
+These are canonical parameters for decent conductance-based (COBA) and
+pyramidal–interneuron gamma (PING) behaviour, following the shared TR01/TR02
+recipe in [exp022](/exp022). E and I denote excitatory and inhibitory neurons;
+paired values below are E / I. LIF means leaky integrate-and-fire.
+
+<Table
+  label="Canonical COBA and PING parameters"
+  headers={["Parameter", "Canonical value"]}
+  groups={[
+    { label: "Network and input", rows: [
+      ["Input / hidden E / hidden I / output neurons", "784 / 1,024 / 256 / 10"],
+      ["Input encoding", "Independent Poisson pixel channels; 25 Hz at maximum pixel brightness"],
+      ["Presentation / timestep", "200 / 0.1 ms; 2,000 updates per presentation"],
+      ["State between presentations", "Reset"],
+      ["E→I→E loop strength", "COBA: 0; PING: 1"],
+      ["E→E / I→I recurrence", "Absent"],
+      ["Recurrent connection delay", "One timestep (0.1 ms)"],
+    ] },
+    { label: "Neuron and synapse dynamics", rows: [
+      ["Hidden neurons", "Conductance-based LIF"],
+      ["Membrane capacitance, E / I", "1.0 / 0.5 nF"],
+      ["Leak conductance, E / I", "0.05 / 0.10 µS"],
+      ["Membrane time constant, E / I", "20 / 5 ms (capacitance divided by leak conductance)"],
+      ["Resting / reset / threshold voltage", "−65 / −65 / −50 mV"],
+      ["Refractory hold, E / I", "1.2 / 0.6 ms"],
+      ["AMPA / GABA synaptic decay", "2 / 6 ms"],
+      ["Readout", "Ten spiking LIF neurons; temporal mean of pre-reset voltage supplies class logits"],
+      ["Readout time constant / soft-reset threshold", "2 ms / 1 (dimensionless threshold)"],
+    ] },
+    { label: "Weights and learning", rows: [
+      ["Input-weight initialization", "Normal parent mean 0.9, standard deviation 0.09; clamp negatives to zero, randomly zero 95%, then divide by (0.05 × 784)"],
+      ["PING E→I initialization", "Normal mean 1, standard deviation 0.1; clamp negatives to zero and divide by 1,024"],
+      ["PING I→E initialization", "Normal mean 2, standard deviation 0.2; clamp negatives to zero and divide by 256"],
+      ["COBA recurrent weights", "Zero"],
+      ["Readout-weight initialization", "Normal mean 1.12060546875, standard deviation 0.8349609375; clamp negatives to zero; no further fan-in normalization"],
+      ["Trainable projections", "Input→E and E→readout; recurrent weights fixed. Initial input and readout zeros can regrow"],
+      ["Weight constraints / readout bias", "Nonnegative weights, inhibitory action through I→E; no readout bias"],
+      ["Optimizer / learning rate", "AdamW / 0.0004"],
+      ["Weight decay / gradient-norm clip", "0 / 1"],
+      ["Voltage-gradient damping / surrogate slope", "1,000 / 1 for both COBA and PING"],
+      ["Adaptive threshold / learned leak / state clamping", "Disabled"],
+    ] },
+    { label: "TR01 and TR02 training", rows: [
+      ["Dataset", "MNIST; official test partition excluded from optimization and checkpoint selection"],
+      ["Epochs / minibatch / seeds", "50 / 256 / 42, 43, 44"],
+      ["TR01 training / validation samples", "54,000 / 6,000; 60,000-sample pool"],
+      ["TR01 activity penalty", "Off"],
+      ["TR02 training / validation samples", "6,300 / 700; 7,000-sample pool"],
+      ["TR02 hidden-E activity ceiling", "Off, 25, 10, 5, 2.5 or 1 Hz"],
+      ["TR02 penalty when enabled", "0.041 × mean squared excess above the ceiling; compute each presentation’s population-mean E rate in Hz before applying the penalty"],
+    ] },
+  ]}
+/>
+
+Source: exp022’s [recipe and network](https://github.com/eoinmurray/pinglab/blob/main/experiments/exp022/recipe.py)
+and [weight initialization and training loop](https://github.com/eoinmurray/pinglab/blob/main/experiments/exp022/training.py).

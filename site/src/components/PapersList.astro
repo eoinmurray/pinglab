@@ -1,0 +1,59 @@
+---
+import { paperCollectionLabel, paperCollectionUrl, type Paper } from '../lib/papers';
+interface Props { papers: Paper[]; }
+const { papers } = Astro.props;
+const surname = (author: string) => {
+  const parts = author.trim().split(/\s+/);
+  let start = parts.length - 1;
+  const particles = new Set(['van', 'von', 'de', 'del', 'der', 'den', 'ter', 'ten', 'da', 'dos', 'di', 'la', 'le']);
+  while (start > 0 && particles.has(parts[start - 1].toLowerCase())) start--;
+  return parts.slice(start).join(' ');
+};
+---
+  <div class="base-grid">
+    <ol class="papers-list article-list listing-width l-page" role="list" aria-label="Papers">
+      {papers.map(paper => <li class="article-list-row">
+        <div class="metadata">
+          {paper.metadata && <>
+            <a class="paper-year" href={paper.href} aria-label={`Open ${paper.metadata.id}: ${paper.metadata.title}`}>{paper.metadata.year}</a>
+            <span class="paper-id">{paper.metadata.id}</span>
+          </>}
+        </div>
+        <div class="article-list-content">
+          <a class="paper-link" href={paper.href}>
+            <h2 class="article-list-title">{paper.metadata?.title ?? paper.file}</h2>
+          </a>
+          {paper.metadata && <>
+            <p class="paper-citation">
+              {paper.metadata.authors.map(surname).join(', ')} ({paper.metadata.year}).
+              {paper.metadata.venue && <> <cite>{paper.metadata.venue}</cite>.</>}
+              {paper.metadata.doi && <> <a href={`https://doi.org/${paper.metadata.doi}`}>DOI</a></>}
+            </p>
+          </>}
+          <div class="collection">{paper.collections.map(collection => <a class="collection-badge" href={paperCollectionUrl(collection)}>{paperCollectionLabel(collection)}</a>)}</div>
+        </div>
+      </li>)}
+    </ol>
+    {papers.length === 0 && <p class="listing-width l-page">No papers available yet.</p>}
+  </div>
+
+<style>
+  .article-list-row { overflow: hidden; }
+  .paper-link { display: block; color: inherit; text-decoration: none; overflow-wrap: anywhere; }
+  .paper-link:hover h2 { text-decoration: underline; }
+  a:focus-visible { outline: 2px solid var(--accent); outline-offset: 6px; }
+  .metadata { font-size: calc(12px * var(--listing-scale)); line-height: 1.4; margin-bottom: calc(18px * var(--listing-scale)); }
+  .paper-year { display: inline-block; margin-right: 1em; color: var(--listing-label); font-size: calc(18px * var(--listing-scale)); font-weight: 600; text-decoration: none; }
+  .paper-year:hover { text-decoration: underline; }
+  .paper-id { display: inline-block; margin-right: 1em; }
+  .paper-citation { margin: .5rem 0 .75rem; font-size: calc(13px * var(--listing-scale)); line-height: 1.5; color: var(--listing-muted); }
+  .paper-citation a { color: inherit; }
+  .collection { display: flex; align-items: center; flex-wrap: wrap; gap: .5em 1em; margin-top: calc(12px * var(--listing-scale)); font-size: calc(12px * var(--listing-scale)); line-height: 1.4; }
+  .collection-badge { color: var(--listing-muted); padding: .3em .5em; border: 1px solid var(--listing-border); border-radius: 3px; text-transform: uppercase; font-size: 80%; font-weight: 500; text-decoration: none; }
+  .collection-badge:hover { color: rgb(var(--ink)); border-color: rgb(var(--ink)); }
+  @media (min-width: 768px) {
+    .metadata { margin-top: calc(8px * var(--listing-scale)); margin-bottom: 0; }
+    .paper-year { display: block; margin: 0 0 calc(12px * var(--listing-scale)); }
+    .paper-id { display: block; }
+  }
+</style>

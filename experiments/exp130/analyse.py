@@ -1,4 +1,9 @@
-"""Measure both explicitly paired recordings; no simulation or rendering."""
+"""Measure both explicitly paired recordings; no simulation or rendering.
+
+The CLI requires an explicit completed compute run. It validates the retained
+recordings and writes measurements to a new analysis run, without simulating
+or launching presentation.
+"""
 
 from __future__ import annotations
 
@@ -9,7 +14,8 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
 import numpy as np
-from experiments.exp130 import inputs, recipe
+from experiments.exp130 import recipe, dataset
+from experiments.exp130.custom import inputs
 from pingstore.contracts import write_json_atomic
 from pingstore.stages import stage_run
 from scipy.signal import butter, hilbert, sosfiltfilt, welch
@@ -18,7 +24,7 @@ from scipy.signal import butter, hilbert, sosfiltfilt, welch
 def measure(data, cfg):
     dt = cfg["dt_ms"]
     times = np.arange(len(data["spk_e"])) * dt
-    rates = recipe.source_rates(times, cfg)
+    rates = dataset.source_rates(times, cfg)
     arrays = dict(
         time_ms=times,
         rate_private_e=rates[0],

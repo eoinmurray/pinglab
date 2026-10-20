@@ -336,7 +336,7 @@ publication was performed for this cleanup.
 
 ## Native graph migration (2026-10-06)
 
-New compute uses recipe v8, `snnlab.lang`, the maintained `build_ping`, and
+New compute uses recipe v8, direct `snnlab.lang` circuit declarations, and
 `GraphExecutor(plan_graph(...))`. No CLI, subprocess, legacy model builder or
 compatibility adapter remains. Each probe starts at resting voltage with zero
 conductances, refractory counters and delay history. Reciprocal transmission
@@ -376,7 +376,7 @@ existing tags were not guessed.
 
 ## Migration completion audit — 2026-10-06
 
-Existing native build_ping execution retained without a compute rewrite. Burn-in sparse recording, ordered CPU initialization including discarded draws, independent encoding seed, private/shared controls, matching public rhythmicity analysis functions and v7 read-only input support were audited.
+Existing native E/I circuit execution retained without a compute rewrite. Burn-in sparse recording, ordered CPU initialization including discarded draws, independent encoding seed, private/shared controls, matching public rhythmicity analysis functions and v7 read-only input support were audited.
 
 Implementation migration is complete under static verification only. Python parsing,
 lint, diff review and read-only Pingstore discovery were performed. Existing

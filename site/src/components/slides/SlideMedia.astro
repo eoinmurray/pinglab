@@ -5,8 +5,9 @@ interface Props {
   image: ImageMetadata | string;
   alt: string;
   crop?: { top: number; bottom: number };
+  align?: 'left' | 'center';
 }
-const { image, alt, crop } = Astro.props;
+const { image, alt, crop, align = 'center' } = Astro.props;
 const metadata = typeof image === 'string' ? undefined : image;
 const src = typeof image === 'string' ? image : image.src;
 if (crop && (!metadata || !Number.isFinite(crop.top) || !Number.isFinite(crop.bottom) || crop.top < 0 || crop.bottom < 0 || crop.top + crop.bottom >= 100)) {
@@ -16,9 +17,9 @@ const y = metadata && crop ? metadata.height * crop.top / 100 : 0;
 const height = metadata ? metadata.height * (1 - ((crop?.top ?? 0) + (crop?.bottom ?? 0)) / 100) : undefined;
 const aspect = metadata ? metadata.width / height! : 16 / 9;
 ---
-<div class="slide-media" style={`--figure-aspect: ${aspect}`}>
+<div class="slide-media" style={`--figure-aspect: ${aspect}; --figure-position: ${align === 'left' ? 'left center' : 'center'}`}>
   {crop && metadata ? (
-    <svg viewBox={`0 ${y} ${metadata.width} ${height}`} role="img" aria-label={alt} preserveAspectRatio="xMidYMid meet">
+    <svg viewBox={`0 ${y} ${metadata.width} ${height}`} role="img" aria-label={alt} preserveAspectRatio={align === 'left' ? 'xMinYMid meet' : 'xMidYMid meet'}>
       <image href={src} width={metadata.width} height={metadata.height} />
     </svg>
   ) : (

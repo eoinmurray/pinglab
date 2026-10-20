@@ -4,7 +4,6 @@ import numpy as np
 from experiments.exp022 import FR_STRENGTH_UPPER as FR_STRENGTH_UPPER
 from experiments.exp022 import training_run_cell, training_run_values
 from experiments.exp022.checkpoints import checkpoint_policy
-from experiments.helpers.datasets import MNIST_REDUCED_EVAL_SAMPLES
 
 SLUG = "exp038"
 REFRACTORY_E_MS = 1.2
@@ -16,7 +15,8 @@ CHECKPOINT_ROLE = CHECKPOINT_POLICY["role"]
 MODELS = list(training_run_values("TR-02", "model"))
 SEEDS_BASELINE = list(training_run_values("TR-02", "seed"))
 RATE_TARGET_GRID_HZ = list(training_run_values("TR-02", "rate_target_hz"))
-EVAL_MAX_SAMPLES = MNIST_REDUCED_EVAL_SAMPLES
+# Evaluate 10% of the untouched 10,000-image official MNIST test partition.
+EVAL_MAX_SAMPLES = 1_000
 EI_RASTER_N_E_PLOT, EI_RASTER_N_I_PLOT = 200, 64
 EI_SWEEP = [round(0.1 * i, 1) for i in range(11)]
 EI_RASTER = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]
@@ -67,7 +67,6 @@ def refractory_configuration() -> dict:
         "refractory_i_ms": REFRACTORY_I_MS,
         "refractory_policy": REFRACTORY_POLICY,
     }
-
 
 
 
@@ -177,7 +176,6 @@ def jobs(cfg):
 
 
 
-
 BIOPHYSICS = {
     "capacitance_e_nf": 1.0, "capacitance_i_nf": 0.5,
     "leak_e_us": 0.05, "leak_i_us": 0.10,
@@ -187,10 +185,137 @@ BIOPHYSICS = {
 
 
 def author_network(training, *, observables=()):
-    from experiments.helpers.checkpoint_graph import author_network as author
+    """Compile this experiment's E/I classifier and requested observables."""
+    from types import SimpleNamespace
 
-    return author(
-        SLUG, training, BIOPHYSICS, refractory_configuration(), observables=observables
+    from snnlab import lang
+
+    biophysics = BIOPHYSICS
+    refractory = refractory_configuration()
+    dt = training["dt"]
+    net = lang.Network(SLUG, dt=dt * lang.ms)
+    drive = net.input(
+        "drive",
+        shape=("time", "batch", training["n_in"]),
+        signal_type="spikes",
+        unit="spike",
+    )
+    neurons = {}
+    for label in ("e", "i"):
+        capacitance, leak = (
+            biophysics[f"capacitance_{label}_nf"],
+            biophysics[f"leak_{label}_us"],
+        )
+        neurons[label] = lang.COBA_LIF(
+            tau_mem=capacitance / leak * lang.ms,
+            capacitance_nf=capacitance,
+            leak_us=leak,
+            resting_mv=biophysics["resting_mv"],
+            threshold_mv=biophysics["threshold_mv"],
+            reset_mv=biophysics["reset_mv"],
+            initial_voltage_mv=biophysics["resting_mv"],
+            refractory=refractory[f"refractory_{label}_ms"] * lang.ms,
+            voltage_grad_dampen=training["v_grad_dampen"],
+        )
+    # Reciprocal E/I loop with excitatory drive to E only.
+    ping_ampa = lang.AMPA(tau=training["tau_ampa_ms"] * lang.ms)
+    ping_gaba = lang.GABA(tau=training["tau_gaba_ms"] * lang.ms)
+    ping_recurrent_delay = dt * lang.ms
+    ping_e = net.population("E", size=training["n_hidden"], neuron=neurons["e"])
+    ping_i = net.population("I", size=training["n_inh"], neuron=neurons["i"])
+    ping_input_to_e = net.connect(
+        drive,
+        ping_e.excitatory,
+        name="input_to_E",
+        synapse=ping_ampa,
+        weight=lang.Constant(0),
+        constraint=lang.NonNegative(),
+        initialization_scaling="direct",
+    )
+    ping_e_to_i = net.connect(
+        ping_e.spikes,
+        ping_i.excitatory,
+        name="E_to_I",
+        synapse=ping_ampa,
+        weight=lang.Constant(0),
+        constraint=lang.NonNegative(),
+        connection="recurrent",
+        delay=ping_recurrent_delay,
+        initialization_scaling="direct",
+    )
+    ping_i_to_e = net.connect(
+        ping_i.spikes,
+        ping_e.inhibitory,
+        name="I_to_E",
+        synapse=ping_gaba,
+        weight=lang.Constant(0),
+        constraint=lang.NonNegative(),
+        connection="recurrent",
+        delay=ping_recurrent_delay,
+        initialization_scaling="direct",
+    )
+    circuit = SimpleNamespace(
+        e=ping_e,
+        i=ping_i,
+        input_to_e=ping_input_to_e,
+        e_to_i=ping_e_to_i,
+        i_to_e=ping_i_to_e,
+    )
+    output = net.population(
+        "readout",
+        size=training["n_out"],
+        spiking=True,
+        neuron=lang.LeakyIntegrator(
+            tau=biophysics["readout_tau_ms"] * lang.ms,
+            soft_reset_threshold=biophysics["readout_threshold"],
+            initial_voltage=0,
+            surrogate_slope=training["surrogate_slope"],
+        ),
+    )
+    net.connect(
+        circuit.e.spikes,
+        output.excitatory,
+        name="readout_projection",
+        synapse=lang.LeakyIntegrator(tau=biophysics["readout_tau_ms"] * lang.ms),
+        weight=lang.Constant(0),
+        constraint=lang.NonNegative(),
+        initialization_scaling="direct",
+    )
+    net.output(
+        "class_scores",
+        lang.reduce(
+            output.pre_reset_voltage
+            if training.get("readout_mode", "mem-mean") == "mem-mean"
+            else output.spikes,
+            operation="mean"
+            if training.get("readout_mode", "mem-mean") == "mem-mean"
+            else "sum",
+            over="time",
+            name="readout_reduction",
+        ),
+    )
+    for label, pop in (("e", circuit.e), ("i", circuit.i)):
+        net.output(
+            f"spk_{label}_count",
+            lang.reduce(
+                pop.spikes, operation="sum", over="time", name=f"{label}_counts"
+            ),
+        )
+        if "spikes" in observables:
+            net.expose(pop.spikes, name=f"spk_{label}")
+    if "traces" in observables:
+        for key, value in {
+            "v_e": circuit.e.voltage,
+            "v_i": circuit.i.voltage,
+            "ge_e": circuit.input_to_e.conductance,
+            "ge_i": circuit.e_to_i.conductance,
+            "gi_e": circuit.i_to_e.conductance,
+        }.items():
+            net.expose(value, name=key)
+    return lang.compile(
+        net,
+        target="tools/snnsim",
+        refractory_timing="legacy_coba",
     )
 
 

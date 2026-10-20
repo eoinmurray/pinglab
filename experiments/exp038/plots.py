@@ -4,8 +4,8 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
-from experiments.helpers import theme
-from experiments.helpers.figsave import save_figure
+from experiments import theme
+from experiments.exp038.custom.figures import save_figure
 
 from .recipe import EI_RASTER_N_E_PLOT, EI_RASTER_N_I_PLOT, MODELS
 

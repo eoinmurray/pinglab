@@ -10,9 +10,17 @@ sys.path[:0] = [str(REPO), str(REPO / "tools")]
 
 import numpy as np
 from experiments.exp041 import inputs, plots
-from experiments.helpers import theme
-from experiments.helpers.fmt import format_duration
+from experiments import theme
 from pingstore.contracts import PingstoreError, load_json, write_json_atomic
+
+
+def format_duration(seconds: float) -> str:
+    s = int(round(seconds))
+    if s < 60:
+        return f"{s}s"
+    if s < 3600:
+        return f"{s // 60}m {s % 60:02d}s"
+    return f"{s // 3600}h {(s % 3600) // 60:02d}m"
 
 
 def present(identity: str, *, run_id: str | None = None) -> str:

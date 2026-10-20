@@ -4,8 +4,8 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
-from experiments.helpers import theme
-from experiments.helpers.figsave import save_figure
+from experiments import theme
+from experiments.exp041.custom.figures import save_figure
 
 from .recipe import F_GAMMA_BAND_HZ, TAU_GABA_REFERENCE_MS
 

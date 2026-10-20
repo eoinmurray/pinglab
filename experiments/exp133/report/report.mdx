@@ -4,12 +4,12 @@ title: "Lowet (2015): Coupled Rhythms"
 author: "Eoin Murray"
 description: "A gamma phase-locking map and coupling-onset demonstration inspired by Lowet et al. (2015)."
 created_at: "2026-10-15"
-updated_at: "2026-10-16T00:00:00Z"
-collection: ["paper-inspired"]
+updated_at: "2026-10-20T13:42:58Z"
+collection: ["paper-inspired", "experiments"]
 tags: ["data", "v37.0.0"]
 inputs: ["exp133"]
 runs: {"exp133": "exp133-r039-present"}
-abstract: "We simulated two circuits with different gamma rhythms. Connecting them in both directions brought their rhythms into step. We mapped how this depended on their frequency difference and connection strength. Each setting uses one trial, so repeatability remains untested."
+abstract: "We tested whether reciprocal excitation synchronizes two conductance-based gamma circuits across 143 combinations of input imbalance and coupling strength, with 1,024 input channels per circuit and mean input 25 Hz per channel. Thirteen settings met finite-time locking criteria; maximum valid phase-locking value (PLV) was 0.990. A selected coupling-onset diagnostic also reached PLV 0.990 over 800–1,500 ms. These results describe one network initialization and paired input realization, without testing repeatability across seeds or lasting locking."
 ---
 
 import RunFigure from '../../../site/src/components/RunFigure.astro';
@@ -19,28 +19,45 @@ export const result = await reportData('exp133');
 export const sr = result.sender_receiver;
 export const maxPLV = Math.max(...result.cells.filter(row => row.valid).map(row => row.concentration));
 
-Inspired by [Lowet et al. (2015)](#ref-lowet-2015), we test when two gamma rhythms lock together.
+## Results
+
+### Reciprocal coupling and phase locking
+
+Inspired by [Lowet et al. (2015)](#ref-lowet-2015), we tested when two gamma rhythms hold a steady phase difference. Across {result.n_conditions} settings, {result.n_valid} had valid rhythms and {result.n_locked} met all [finite-time locking criteria](#methods); maximum valid PLV was {round(maxPLV, 3)} ([Fig. 1](#fig-tongue)). PLV measures consistency of relative phase, from zero to one; a value near one need not mean zero phase difference. This sampled map describes one realization and does not establish a continuous locking boundary or robustness across seeds.
 
 <RunFigure report="exp133" experiment="exp133" allowUnavailable file="arnold-tongue.svg" number={1} id="fig-tongue" alt="PLV across coupling strength, with measured frequency detuning below and input drive difference above.">
-  One simulated circuit pair per rectangle, with 1,024 input channels each. Input rates average 25 Hz per channel across the pair. The bottom axis shows their uncoupled frequency difference; the top shows the input-rate difference. The vertical axis gives coupling strength in both directions. White to red to black means increasing PLV; gray marks unreliable rhythms. Values use 800–5,000 ms from one trial per setting. Cell edges mark sampled settings; full parameters are in the footer.
+  Each rectangle is one sampled setting. Bottom: uncoupled A-minus-B frequency difference (Hz); top: A-minus-B input-rate difference (Hz per channel). Vertical axis: equal nominal total coupling per pathway (μS). White–red–black indicates increasing PLV; gray marks invalid rhythms. Values use common phase-valid samples within 800–5,000 ms. Cell edges delimit sampled settings, not inferred boundaries.
 </RunFigure>
+
+Lowet et al.'s published map provides a qualitative comparison ([Fig. 2](#fig-lowet-comparison)). Their conductance-density coupling, Hodgkin–Huxley neurons and signal-based phase estimate differ from our conductance-LIF model and excitatory-volley phase, so the displays do not provide a quantitative replication.
 
 <LowetComparison>
-  Cropped from [Lowet et al. (2015), Fig. 2G](https://doi.org/10.1371/journal.pcbi.1004072.g002): PLV between two coupled PING networks. Brighter colors mean stronger locking. Their axes use input-drive difference and coupling in mS/cm²; our [Fig. 1](#fig-tongue) uses frequency difference in Hz and coupling in μS. Their neuron model and phase estimate also differ, so this is a qualitative comparison. Original labels and colors retained. © 2015 Lowet et al., [Creative Commons Attribution](https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1004072).
+  Crop of [Lowet et al. (2015), Fig. 2G](https://doi.org/10.1371/journal.pcbi.1004072.g002). Brighter colors indicate stronger PLV. Axes show input-drive difference and coupling in mS/cm²; Fig. 1 uses measured frequency difference in Hz and coupling in μS. Original labels and colors retained. © 2015 Lowet et al., [Creative Commons Attribution](https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1004072).
 </LowetComparison>
 
-Our highest PLV was {round(maxPLV, 3)}; {result.n_locked} of {result.n_conditions} settings met the [locking criteria](#parameters). PLV measures how steadily two rhythms hold their phase difference:
+### Switching on reciprocal coupling
 
-$$
-\mathrm{PLV} = \left|\frac{1}{N}\sum_{n=1}^{N} e^{i[\phi_A(n)-\phi_B(n)]}\right|. \tag{1}
-$$
+We used the map's −4 Hz input difference and 0.09 μS coupling, keeping its saved weights and connections in both directions. At 500 ms, we switched coupling on. S/R frequencies changed from {round(sr.raster_frequencies.S.first.frequency_hz, 1)}/{round(sr.raster_frequencies.R.first.frequency_hz, 1)} Hz to {round(sr.raster_frequencies.S.last.frequency_hz, 1)}/{round(sr.raster_frequencies.R.last.frequency_hz, 1)} Hz. Relative phase became nearly steady ([Fig. 3](#fig-sender-receiver)); PLV was {round(sr.windows.coupled.concentration, 3)}, fitted drift was {round(sr.windows.coupled.drift_hz, 4)} cycles/s and phase span was {round(sr.windows.coupled.phase_span_cycles, 3)} cycles over 800–1,500 ms.
 
-Here, $\phi_A(n)$ and $\phi_B(n)$ are the rhythms' phases in radians, estimated between bursts of excitatory spikes. $n$ indexes the $N$ shared valid time samples; $i$ is the imaginary unit, and the bars give complex magnitude. PLV ranges from zero to one. A value near one means a nearly fixed phase difference, which need not be zero. It does not prove lasting locking.
-
-## Switching on reciprocal coupling
-
-We used the map's −4 Hz input difference and 0.09 μS coupling, keeping its saved weights and connections in both directions. At 500 ms, we switched coupling on. S/R frequencies changed from {round(sr.raster_frequencies.S.first.frequency_hz, 1)}/{round(sr.raster_frequencies.R.first.frequency_hz, 1)} Hz to {round(sr.raster_frequencies.S.last.frequency_hz, 1)}/{round(sr.raster_frequencies.R.last.frequency_hz, 1)} Hz. Relative phase stopped drifting ([Fig. 3](#fig-sender-receiver)); PLV was {round(sr.windows.coupled.concentration, 3)} and phase span was {round(sr.windows.coupled.phase_span_cycles, 3)} cycles over 800–1,500 ms.
+This diagnostic reuses the selected map matrices and input realization; its spikes match that map trajectory over the displayed interval. It illustrates the onset of finite-time locking and is not an independent evaluation or evidence of lasting locking.
 
 <RunFigure report="exp133" experiment="exp133" allowUnavailable file="sender-receiver.svg" number={3} id="fig-sender-receiver" alt="Full sender and receiver spike rasters over 1,500 ms with reciprocal coupling starting at 500 ms and relative phase beneath.">
-  (A) Sender and (B) receiver spikes: 80 excitatory neurons in black and 20 inhibitory neurons in red. Inputs are 23 Hz per channel for S and 27 Hz for R. Dashed lines mark coupling onset at 500 ms, without resetting either circuit. Both directions connect excitatory cells to the other circuit's excitatory and inhibitory cells. Corner values give gamma frequency over the first and last 500 ms, measured from mean intervals between excitatory bursts. (C) S-minus-R phase difference in cycles, shown between detected bursts. PLV uses 800–1,500 ms, allowing 300 ms to settle after coupling. One trial; full settings are in the footer.
+  (A) Sender S and (B) receiver R spikes: excitatory neurons in black, inhibitory neurons in red. Input rates are 23/27 Hz per channel for S/R. Dashed lines mark coupling onset at 500 ms. Corner values give frequency over 0–500 ms and 1,000–1,500 ms. (C) Unwrapped S-minus-R phase difference in cycles, shown between detected excitatory volleys. Phase metrics use shared valid times within 800–1,500 ms.
 </RunFigure>
+
+
+## Methods
+
+1. **Construct the paired circuits.** Use the saved conductance-based leaky integrate-and-fire (conductance-LIF) networks in [Fig. A1](#fig-network), with parameters in [Table A1](#parameters). Binary input spikes are drawn independently per channel and timestep, with probability equal to input rate times timestep in seconds. Split each original input afferent into eight channels with one-eighth weight, preserving summed input strength and recurrent matrices. No weights are trained.
+
+2. **Sweep reciprocal coupling (Fig. 1).** Cross 11 input differences (−10 to +10 Hz per channel, step 2 Hz) with 13 coupling strengths (0–0.12 μS, step 0.01 μS). Mean input stays 25 Hz per channel. Copy a shared 500 ms uncoupled prefix into each coupling condition, then simulate to 5,000 ms without resetting state. Reuse inputs across coupling strengths and underlying random draws across input differences. Exclude 300 ms after coupling onset. The zero-coupling condition supplies measured frequency detuning. Batched settings are conditions, not replicates.
+
+3. **Measure relative phase (Figs. 1 and 3).** Smooth excitatory population rate with a Gaussian of 1 ms standard deviation; detect peaks separated by at least 15 ms with prominence at least 10% of the maximum smoothed rate. Interpolate phase linearly between consecutive volleys, advancing by $2\pi$ radians per interval; omit samples outside observed volleys. Compute
+
+   $$
+   \mathrm{PLV} = \left|\frac{1}{N}\sum_{n=1}^{N} e^{i[\phi_A(n)-\phi_B(n)]}\right|. \tag{1}
+   $$
+
+   Here $\phi_A(n)$ and $\phi_B(n)$ are circuit phases in radians at shared valid sample $n$, $N$ is the number of those samples, $i$ is the imaginary unit, and bars denote complex magnitude. Use S/R in place of A/B for Fig. 3. Estimate frequency as the reciprocal mean inter-volley interval, drift as the least-squares slope of unwrapped relative phase in cycles against seconds, and span as its maximum minus minimum. For the map, each rhythm needs at least 20 volleys, frequency 30–80 Hz and interval coefficient of variation (standard deviation divided by mean) ≤0.2; its uncoupled calibration must also pass. Valid pairs meet the diagnostic locking criteria when absolute drift &lt;0.25 cycles/s, PLV >0.95 and span &lt;1 cycle. These thresholds describe finite windows.
+
+4. **Inspect coupling onset (Fig. 3).** Transfer the selected map's input, local and both cross-network matrices with A→S and B→R, retaining the same inputs. Apply native step gain, zero before 500 ms and one thereafter, for a continuous 1,500 ms trajectory. Phase metrics use 100–500 ms before coupling and 800–1,500 ms after coupling. Raster frequencies use the first and last 500 ms; each window requires at least five volleys and the same frequency and interval-regularity checks. Retained-evidence checks compare transferred matrices, eight-afferent masks, scheduled gains and unchanged parameters; exact spike agreement with the map checks transfer consistency, not independent reproducibility.

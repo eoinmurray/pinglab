@@ -9,7 +9,7 @@ sys.path[:0] = [str(REPO), str(REPO / "tools")]
 
 import numpy as np
 from experiments.exp042 import inputs, plots, recipe
-from experiments.helpers import theme
+from experiments import theme
 from pingstore.contracts import PingstoreError, load_json, write_json_atomic
 
 

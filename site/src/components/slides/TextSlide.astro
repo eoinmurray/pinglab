@@ -1,9 +1,12 @@
 ---
 import Slide from './Slide.astro';
-interface Props { title: string; density?: 'default' | 'compact'; }
-const { title, density = 'default' } = Astro.props;
+import { textSlideDensity } from '../../lib/text-slide-density';
+interface Props { title: string; eyebrow?: string; density?: 'default' | 'compact'; }
+const { title, eyebrow, density = 'default' } = Astro.props;
+const body = await Astro.slots.render('default');
+const contentDensity = textSlideDensity(body);
 ---
-<Slide title={title} density={density} layout="text">
-  <div class="text-slide-body"><slot /></div>
+<Slide title={title} eyebrow={eyebrow} density={density} layout="text">
+  <div class:list={['text-slide-body', `text-slide-body--${contentDensity}`]} set:html={body} />
   {Astro.slots.has('source') && <footer class="slide-source"><slot name="source" /></footer>}
 </Slide>

@@ -6,7 +6,8 @@ import json
 from pathlib import Path
 from typing import Iterable
 
-from pingstore.contracts import file_sha256
+import torch
+from pingstore.contracts import PingstoreError, file_sha256
 
 ROLES = {
     "best_validation": "weights.pth",
@@ -17,6 +18,57 @@ PURPOSE_ROLES = {
     "deployment_performance": "best_validation",
     "endpoint_dynamics": "final_epoch",
 }
+
+
+def checkpoint_tensors(path, training):
+    n_in, n_e, n_i, n_out = (
+        training[k] for k in ("n_in", "n_hidden", "n_inh", "n_out")
+    )
+    for key in (
+        "adaptive_threshold",
+        "train_leak",
+        "signed_readout",
+        "readout_bias",
+        "state_clamp",
+        "trainable_w_ee",
+        "trainable_w_ii",
+    ):
+        if training.get(key, False) is not False:
+            raise PingstoreError(f"unsupported checkpoint dynamics: {key}")
+    if training.get("dales_law") is not True:
+        raise PingstoreError("requires Dale-constrained bank weights")
+    if training.get("hidden_sizes", [n_e]) != [n_e] or training["readout_mode"] not in (
+        "mem-mean",
+        "spike-count",
+    ):
+        raise PingstoreError(
+            "requires one E/I layer with mean pre-reset voltage readout"
+        )
+    shapes = {
+        "W_ff.0": (n_in, n_e),
+        "W_ff.1": (n_e, n_out),
+        "W_ee.1": (n_e, n_e),
+        "W_ei.1": (n_e, n_i),
+        "W_ie.1": (n_i, n_e),
+        "W_ii.1": (n_i, n_i),
+    }
+    state = torch.load(path, map_location="cpu", weights_only=True)
+    if not isinstance(state, dict) or set(state) != set(shapes):
+        raise PingstoreError("checkpoint must contain exactly six matrices")
+    for key, shape in shapes.items():
+        value = state[key]
+        if (
+            not isinstance(value, torch.Tensor)
+            or value.dtype != torch.float32
+            or tuple(value.shape) != shape
+            or not torch.isfinite(value).all()
+        ):
+            raise PingstoreError(f"invalid checkpoint tensor: {key}")
+        if key in ("W_ee.1", "W_ii.1") and torch.count_nonzero(value):
+            raise PingstoreError(f"unsupported same-population recurrence: {key}")
+        if key in ("W_ei.1", "W_ie.1") and (value < 0).any():
+            raise PingstoreError(f"negative recurrent weight: {key}")
+    return state
 
 
 def epoch_metrics(train_dir: Path) -> list[dict]:

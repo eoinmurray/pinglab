@@ -116,7 +116,6 @@ def trials(*, smoke=False):
 
 def author_network(cfg: dict, point: dict, *, traces: bool):
     """Declare the untrained circuit, with no stimulus or simulator globals."""
-    from experiments.helpers.ping import build_ping, compile_legacy_coba
     from snnlab import lang
 
     b = cfg["biophysics"]
@@ -142,36 +141,58 @@ def author_network(cfg: dict, point: dict, *, traces: bool):
         )
     strength = point["ei_strength"]
     ie_strength = strength * cfg["ei_ratio"]
-    circuit = build_ping(
-        net,
-        source=drive,
-        n_e=cfg["n_e"],
-        n_i=cfg["n_i"],
-        neuron_e=neurons["E"],
-        neuron_i=neurons["I"],
-        ampa=lang.AMPA(tau=b["tau_ampa_ms"] * lang.ms),
-        gaba=lang.GABA(tau=b["tau_gaba_ms"] * lang.ms),
-        input_weight=lang.LowerClampedNormal(
+    # Reciprocal E/I loop with excitatory drive to E only.
+    ping_ampa = lang.AMPA(tau=b["tau_ampa_ms"] * lang.ms)
+    ping_gaba = lang.GABA(tau=b["tau_gaba_ms"] * lang.ms)
+    ping_recurrent_delay = point["dt_ms"] * lang.ms
+    ping_e = net.population("E", size=cfg["n_e"], neuron=neurons["E"])
+    ping_i = net.population("I", size=cfg["n_i"], neuron=neurons["I"])
+    ping_input_to_e = net.connect(
+        drive,
+        ping_e.excitatory,
+        name="input_to_E",
+        synapse=ping_ampa,
+        weight=lang.LowerClampedNormal(
             cfg["input_weight_parent_mean"],
             cfg["input_weight_parent_sd"],
             initial_zero_fraction=cfg["input_initial_zero_fraction"],
             zeroing="bernoulli",
         ),
-        ei_weight=lang.LowerClampedNormal(strength, strength * 0.1),
-        ie_weight=lang.LowerClampedNormal(ie_strength, ie_strength * 0.1),
-        recurrent_delay=point["dt_ms"] * lang.ms,
+        constraint=lang.NonNegative(),
         initialization_scaling="fan_in_normalized",
     )
-    e, i = circuit.e, circuit.i
+    ping_e_to_i = net.connect(
+        ping_e.spikes,
+        ping_i.excitatory,
+        name="E_to_I",
+        synapse=ping_ampa,
+        weight=lang.LowerClampedNormal(strength, strength * 0.1),
+        constraint=lang.NonNegative(),
+        connection="recurrent",
+        delay=ping_recurrent_delay,
+        initialization_scaling="fan_in_normalized",
+    )
+    ping_i_to_e = net.connect(
+        ping_i.spikes,
+        ping_e.inhibitory,
+        name="I_to_E",
+        synapse=ping_gaba,
+        weight=lang.LowerClampedNormal(ie_strength, ie_strength * 0.1),
+        constraint=lang.NonNegative(),
+        connection="recurrent",
+        delay=ping_recurrent_delay,
+        initialization_scaling="fan_in_normalized",
+    )
+    e, i = ping_e, ping_i
     if traces:
         for name, signal in {
             "spk_e": e.spikes,
             "spk_i": i.spikes,
             "v_e": e.voltage,
             "v_i": i.voltage,
-            "ge_e": circuit.input_to_e.conductance,
-            "ge_i": circuit.e_to_i.conductance,
-            "gi_e": circuit.i_to_e.conductance,
+            "ge_e": ping_input_to_e.conductance,
+            "ge_i": ping_e_to_i.conductance,
+            "gi_e": ping_i_to_e.conductance,
         }.items():
             net.expose(signal, name=name)
     for label, population in (("E", e), ("I", i)):
@@ -179,7 +200,7 @@ def author_network(cfg: dict, point: dict, *, traces: bool):
             population.spikes, operation="sum", over="time", name=f"{label}_counts"
         )
         net.output(f"spk_{label.lower()}_count", count)
-    return compile_legacy_coba(net)
+    return lang.compile(net, target="tools/snnsim", refractory_timing="legacy_coba")
 
 
 def execution_request(bundle, point: dict, *, traces: bool):

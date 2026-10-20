@@ -1,4 +1,9 @@
-"""Validate recordings and measure the before/after classifier comparison."""
+"""Validate recordings and measure the before/after classifier comparison.
+
+The CLI requires an explicit completed compute run. It validates the retained
+recordings and writes measurements to a new analysis run, without simulating
+or launching presentation.
+"""
 
 import argparse
 import sys
@@ -8,7 +13,7 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
 
 import numpy as np
-from experiments.exp127.recipe import CONFIG, SLUG
+from experiments.exp127.recipe import SLUG
 from pingstore.contracts import load_json, write_json_atomic
 from pingstore.stages import source_run, stage_run
 
@@ -41,8 +46,8 @@ def measurements(spikes, labels, cfg):
 def analyse(identity):
     source = source_run(REPO / ".pingstore", identity, stage="compute", experiment=SLUG)
     cfg = source.record["execution"]["configuration"]
-    if cfg != CONFIG:
-        raise ValueError("compute recipe differs from the declared learning experiment")
+    if cfg.get("schema") != "exp127.learning/v1":
+        raise ValueError("unsupported recorded learning protocol")
     learning = load_json(source.file("learning.json"))
     epochs = learning["epochs"]
     if [row["epoch"] for row in epochs] != list(range(cfg["epochs"] + 1)):

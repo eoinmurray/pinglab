@@ -7,7 +7,7 @@ requires-python = ">=3.10"
 license = { text = "MIT" }
 authors = [{ name = "Eoin Murray" }]
 dependencies = [
-    "snnlab>=0.19.1",
+    "snnlab>=0.23.0",
     "demolab-cli>=5.5.1",
     "PyYAML>=6.0.3",
     "numpy>=2.2.6",
@@ -48,14 +48,14 @@ url = "https://download.pytorch.org/whl/cu128"
 explicit = true
 
 [tool.uv.sources]
-snnlab = { git = "https://github.com/eoinmurray/snnlab.git", rev = "b9aef3ce6d3b90566ba9da639ab801a6ec53752e" }
+snnlab = { git = "https://github.com/eoinmurray/snnlab.git", rev = "2065f13b149de939220be4658c7aa72d1bd577e0" }
 torch = [{ index = "pytorch-cu128", marker = "sys_platform == 'linux'" }]
 torchvision = [{ index = "pytorch-cu128", marker = "sys_platform == 'linux'" }]
 
 [tool.pytest.ini_options]
 # Portable engine tests live in snnlab; Pinglab retains integration coverage.
 addopts = ["--import-mode=importlib"]
-testpaths = ["tools/pingstore/tests", "experiments"]
+testpaths = ["tools/pingstore/tests", "tools/modal_dispatcher/tests", "experiments"]
 python_files = ["test.py", "test_*.py", "*_test.py"]
 pythonpath = ["."]
 markers = [

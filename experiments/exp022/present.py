@@ -24,7 +24,7 @@ from pingstore.contracts import (
 )
 from pingstore.stages import SourceRun, source_run, stage_run
 
-from helpers import theme
+from experiments import theme
 
 
 def draw_family_curves(family: str, cells: list[dict], ax) -> int:

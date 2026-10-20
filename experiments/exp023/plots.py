@@ -7,8 +7,8 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
-from experiments.helpers import theme
-from experiments.helpers.figsave import save_figure
+from experiments import theme
+from experiments.exp023.custom.figures import save_figure
 from matplotlib.patches import FancyArrowPatch, Rectangle
 
 

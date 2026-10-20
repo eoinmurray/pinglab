@@ -11,8 +11,8 @@ const articleSchema = z.object({
   author: z.string(),
   description: z.string(),
   abstract: z.string().optional(),
-  created_at: z.string().date(),
-  updated_at: z.string().date(),
+  created_at: z.union([z.string().datetime({ precision: 0 }), z.string().date()]),
+  updated_at: z.string().datetime({ precision: 0 }),
   collection: collectionSchema,
 });
 
@@ -24,7 +24,6 @@ const reports = defineCollection({
   }),
   schema: articleSchema.extend({
     id: z.string().regex(/^exp\d{3}$/),
-    updated_at: z.string().datetime({ precision: 0 }),
     inputs: z.array(z.string().regex(/^exp\d{3}$/)).default([]),
     runs: z.record(z.string(), z.string()).optional(),
     tags: z.array(z.string()),

@@ -1,4 +1,8 @@
-"""Execute the complete signed-detuning × coupling grid as batched SNNLab requests."""
+"""Execute the reported reciprocal-coupling map or its onset diagnostic.
+
+Run this CLI with an explicit parameter source when transferring saved weights.
+Each invocation writes one Pingstore compute run with binary inputs and spikes,
+one circuit diagram and native start snapshots; it launches no later stage."""
 
 import argparse
 import sys
@@ -9,10 +13,11 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
 import numpy as np
 import torch
-from experiments.exp133 import evidence, inputs, recipe, sender_receiver
+from experiments.exp133 import recipe
+from experiments.exp133.custom import evidence, inputs, sender_receiver
 from snnlab.sim import (
     DenseArrayBinding,
-    ExecutionSpec,
+    Performance,
     SnapshotSpec,
     build,
     save_runtime_state,
@@ -21,26 +26,25 @@ from snnlab.sim import (
 
 
 def execute(run, bundle, drives, k, name, state=None, *, checkpoint=None):
+    run.record.setdefault("scientific_artifacts", {}).setdefault("snapshot_stages", {})[
+        f"{name}-execution"
+    ] = ["start"]
     started = perf_counter()
     result = simulate(
-        ExecutionSpec(
-            kind="simulate",
-            graph=bundle.graph,
-            seed=recipe.NETWORK_SEED,
-            device="cpu",
-            checkpoint=checkpoint,
-            input_bindings=tuple(
-                DenseArrayBinding(key, torch.from_numpy(value).float())
-                for key, value in drives.items()
-            ),
-            options={
-                "inference_overrides": {"projection_scales": recipe.coupling_scales(k)}
-            },
-            snapshot=SnapshotSpec(
-                run.export / f"{name}-execution", stage="both", parameters=True
-            ),
+        graph=bundle.graph,
+        seed=recipe.NETWORK_SEED,
+        device="cpu",
+        checkpoint=checkpoint,
+        input_bindings=tuple(
+            DenseArrayBinding(key, torch.from_numpy(value).float())
+            for key, value in drives.items()
+        ),
+        inference_overrides={"projection_scales": recipe.coupling_scales(k)},
+        snapshot=SnapshotSpec(
+            run.export / f"{name}-execution" / "start", stage="start", parameters=True
         ),
         runtime_state=state,
+        performance=Performance(compile_mode=None),
     )
     np.savez_compressed(
         run.export / f"{name}--spikes.npz",
@@ -64,9 +68,10 @@ def comparison_checkpoint(run, bundle, reference):
     """Split each original afferent into eight independent, weaker afferents."""
     original = evidence.parameter_reference(reference)
     model = build(
-        ExecutionSpec(
-            kind="build", graph=bundle.graph, seed=recipe.NETWORK_SEED, device="cpu"
-        )
+        graph=bundle.graph,
+        seed=recipe.NETWORK_SEED,
+        device="cpu",
+        performance=Performance(compile_mode=None),
     ).model
     with torch.no_grad():
         for key, parameter in model.parameter_map().items():
@@ -86,7 +91,10 @@ def comparison_checkpoint(run, bundle, reference):
 
 def acquire(run, parameter_reference=None):
     bundle = recipe.author_network()
-    bundle.write(run.export / "paired-ping.bundle", visualise=True)
+    bundle.write(run.export / "paired-ping.bundle", visualise=False)
+    bundle.visualise(
+        run.export / "paired-ping.bundle" / "reports" / "circuit.svg", view="circuit"
+    )
     checkpoint = (
         comparison_checkpoint(run, bundle, parameter_reference)
         if parameter_reference
@@ -122,9 +130,10 @@ def acquire(run, parameter_reference=None):
 def sender_receiver_checkpoint(run, bundle, reference):
     values = sender_receiver.transferred_parameters(reference)
     model = build(
-        ExecutionSpec(
-            kind="build", graph=bundle.graph, seed=recipe.NETWORK_SEED, device="cpu"
-        )
+        graph=bundle.graph,
+        seed=recipe.NETWORK_SEED,
+        device="cpu",
+        performance=Performance(compile_mode=None),
     ).model
     with torch.no_grad():
         for key, parameter in model.parameter_map().items():
@@ -137,39 +146,36 @@ def sender_receiver_checkpoint(run, bundle, reference):
     return path
 
 
-def acquire_sender_receiver(run, *, calibration=False, reference=None):
-    bundle = sender_receiver.author_network(calibration=calibration)
-    bundle.write(run.export / "sender-receiver.bundle", visualise=True)
-    checkpoint = (
-        sender_receiver_checkpoint(run, bundle, reference) if reference else None
+def acquire_sender_receiver(run, reference):
+    bundle = sender_receiver.author_network()
+    bundle.write(run.export / "sender-receiver.bundle", visualise=False)
+    bundle.visualise(
+        run.export / "sender-receiver.bundle" / "reports" / "circuit.svg",
+        view="circuit",
     )
-    drives = (
-        sender_receiver.calibration_inputs()
-        if calibration
-        else sender_receiver.make_inputs()
-    )
+    checkpoint = sender_receiver_checkpoint(run, bundle, reference)
+    drives = sender_receiver.make_inputs()
     np.savez_compressed(run.export / "inputs.npz", **drives)
+    run.record["scientific_artifacts"] = {
+        "snapshot_stages": {"sender-receiver-execution": ["start"]}
+    }
     started = perf_counter()
     result = simulate(
-        ExecutionSpec(
-            kind="simulate",
-            graph=bundle.graph,
-            seed=recipe.NETWORK_SEED,
-            device="cpu",
-            checkpoint=checkpoint,
-            input_bindings=tuple(
-                DenseArrayBinding(key, torch.from_numpy(value).float())
-                for key, value in drives.items()
-            ),
-            options={
-                "inference_overrides": {
-                    "projection_scales": sender_receiver.input_scales()
-                }
-            },
-            snapshot=SnapshotSpec(
-                run.export / "sender-receiver-execution", stage="both", parameters=True
-            ),
-        )
+        graph=bundle.graph,
+        seed=recipe.NETWORK_SEED,
+        device="cpu",
+        checkpoint=checkpoint,
+        input_bindings=tuple(
+            DenseArrayBinding(key, torch.from_numpy(value).float())
+            for key, value in drives.items()
+        ),
+        inference_overrides={"projection_scales": sender_receiver.input_scales()},
+        snapshot=SnapshotSpec(
+            run.export / "sender-receiver-execution" / "start",
+            stage="start",
+            parameters=True,
+        ),
+        performance=Performance(compile_mode=None),
     )
     np.savez_compressed(
         run.export / "sender-receiver--spikes.npz",
@@ -183,13 +189,11 @@ def acquire_sender_receiver(run, *, calibration=False, reference=None):
 
 def compute(*, run_id=None, protocol="grid", parameter_source=None):
     torch.set_num_threads(1)
-    if protocol not in ("grid", "sender-receiver", "sender-receiver-calibration"):
+    if protocol not in ("grid", "sender-receiver"):
         raise ValueError("unknown protocol")
     cfg = (
         recipe.configuration()
         if protocol == "grid"
-        else sender_receiver.calibration_configuration()
-        if protocol == "sender-receiver-calibration"
         else sender_receiver.configuration()
     )
     reference = None
@@ -197,10 +201,8 @@ def compute(*, run_id=None, protocol="grid", parameter_source=None):
         reference = inputs.source(REPO, parameter_source, "compute")
         if protocol == "grid":
             evidence.parameter_reference(reference)
-        elif protocol == "sender-receiver":
-            sender_receiver.transferred_parameters(reference)
         else:
-            raise ValueError("calibration does not consume a parameter reference")
+            sender_receiver.transferred_parameters(reference)
     elif protocol == "sender-receiver":
         raise ValueError("sender–receiver requires an explicit grid --parameter-source")
     sources = {"parameter_reference": reference} if reference else {}
@@ -210,11 +212,7 @@ def compute(*, run_id=None, protocol="grid", parameter_source=None):
         if protocol == "grid":
             acquire(run, reference)
         else:
-            acquire_sender_receiver(
-                run,
-                calibration=protocol == "sender-receiver-calibration",
-                reference=reference,
-            )
+            acquire_sender_receiver(run, reference)
     return run.run_id
 
 
@@ -227,7 +225,7 @@ def main():
     )
     parser.add_argument(
         "--protocol",
-        choices=("grid", "sender-receiver", "sender-receiver-calibration"),
+        choices=("grid", "sender-receiver"),
         default="grid",
     )
     args = parser.parse_args()

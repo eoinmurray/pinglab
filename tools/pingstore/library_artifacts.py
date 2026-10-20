@@ -57,8 +57,26 @@ def restore_native(export, mapping, prefix, destination):
     return destination
 
 
-def validate_native_artifacts(export, mapping):
-    """Authenticate native bundles/checkpoints and complete snapshot pairs."""
+def validate_native_artifacts(export, mapping, *, snapshot_stages=None):
+    """Authenticate native evidence, requiring pairs unless retention is explicit.
+
+    snapshot_stages maps original execution directories to retained native stages.
+    Store this policy in run.json so an intentionally single-stage capture remains
+    distinguishable from a broken start/end pair.
+    """
+    expected = {}
+    for root, stages in (snapshot_stages or {}).items():
+        path = Path(root)
+        if (
+            path.is_absolute()
+            or ".." in path.parts
+            or not isinstance(stages, list)
+            or not stages
+            or any(stage not in {"start", "end"} for stage in stages)
+            or len(set(stages)) != len(stages)
+        ):
+            raise PingstoreError(f"invalid snapshot retention policy: {root}")
+        expected[path] = set(stages)
     bundles, checkpoints, snapshots = [], [], {}
     for source, target in mapping.items():
         if Path(source).name not in {"manifest.json", "snapshot.json"}:
@@ -88,8 +106,14 @@ def validate_native_artifacts(export, mapping):
                     raise PingstoreError(
                         f"snapshot parameter checksum mismatch: {source}"
                     )
-    for root, stages in snapshots.items():
-        if stages != {"start", "end"}:
+    for root in snapshots.keys() | expected.keys():
+        stages = snapshots.get(root, set())
+        if root in expected:
+            if stages != expected[root]:
+                raise PingstoreError(
+                    f"snapshot stages differ from retention policy: {root}"
+                )
+        elif stages != {"start", "end"}:
             raise PingstoreError(f"missing start/end snapshot pair: {root}")
     if bundles:
         from snnlab.lang import load_bundle

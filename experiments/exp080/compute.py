@@ -29,7 +29,7 @@ from experiments.exp080.recipe import (
     SEEDS,
     stable_seed,
 )
-from experiments.helpers.external_artifacts import external_execution
+from experiments.exp080.custom.external_artifacts import external_execution
 from pingstore.contracts import file_sha256 as sha256_file
 from pingstore.contracts import write_json_atomic
 from pingstore.stages import stage_run

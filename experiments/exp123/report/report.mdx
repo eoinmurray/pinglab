@@ -4,7 +4,7 @@ title: Output Evidence Against Time and Gamma Cycles
 author: Eoin Murray
 thumbnail: confidence_time.png
 created_at: '2026-10-06'
-updated_at: '2026-10-15T00:00:00Z'
+updated_at: "2026-10-20T14:09:16Z"
 description: Paired inhibitory-decay probes of output evidence, sustained decisions and network spike cost at a 25 Hz input encoding rate.
 abstract: >-
   We examined how inhibitory decay changes activity and decision-making in a
@@ -13,8 +13,9 @@ abstract: >-
   correct decisions and reduced spike consumption, while lowering accuracy
   at a fixed deadline. Decision timing varied by image, and comparisons at
   later completed-volley counts depended on trial coverage. These results
-  show a trade-off between speed, accuracy and spike use in one trained network.
-collection: neuromodulation
+  show a trade-off in one trained network: reaching 80% accuracy took 38 ms and
+  5,135 mean network spikes at 3 ms decay, versus 144 ms and 3,706 spikes at 30 ms.
+collection: ["neuromodulation", "experiments"]
 tags: [data, v37.0.0]
 inputs: ["exp123"]
 runs: {exp123: exp123-r079-present}
@@ -25,11 +26,13 @@ import RunFigure from '../../../site/src/components/RunFigure.astro';
 ## Background
 
 We imported the trained PING network from
-[exp022](https://pl.eoinmurray.info/exp022/) — [*MNIST*](https://pl.eoinmurray.info/exp022/)
+[exp022](/exp022) — [*MNIST*](/exp022)
 and kept its weights fixed. The [parameter table](#parameters)
 lists the network and simulation settings.
 
-## Inhibitory decay and network dynamics
+## Results
+
+### Inhibitory decay and network dynamics
 
 We tested one trained network on 500 MNIST test images, 50 per digit, with
 ten random spike encodings per image. We reused each encoding at 19 inhibitory
@@ -38,6 +41,13 @@ decay settings, $\tau_{\mathrm{GABA}}$, from 3 to 30 ms. Each presentation laste
 this shared sweep of 95,000 presentations. Sampling seeds, encoding rates and
 simulation settings are listed in the [parameter table](#parameters).
 No uncertainty estimates are shown.
+
+Longer inhibitory decay slowed the rhythm and reduced firing
+([Figure 1](#fig-overview), A and C). From 3 to 30 ms decay, the spectral peak
+fell from 100.2 to 17.7 Hz and excitatory firing fell from 26,589 to 5,377
+spikes/s. The fraction of excitatory neurons active per accepted cycle stayed
+between 20.9% and 24.5% (B). Spectral peaks can select harmonics; these results
+come from one trained network.
 
 <RunFigure experiment="exp123" file="inhibitory_overview.png" number={1} id="fig-overview" alt="Four curves summarise network dynamics across 19 inhibitory decay settings from 3 to 30 ms; three rasters show an example at 3, 6 and 12 ms.">
   A–D show rhythm frequency, the percentage of excitatory neurons active per
@@ -50,14 +60,11 @@ No uncertainty estimates are shown.
   black and inhibitory spikes red. All measurements cover 200 ms.
 </RunFigure>
 
-Longer inhibitory decay slowed the rhythm and reduced firing
-([Figure 1](#fig-overview), A and C). From 3 to 30 ms decay, the spectral peak
-fell from 100.2 to 17.7 Hz and excitatory firing fell from 26,589 to 5,377
-spikes/s. The fraction of excitatory neurons active per accepted cycle stayed
-between 20.9% and 24.5% (B). Spectral peaks can select harmonics; these results
-come from one trained network.
+### Evidence across time
 
-## Evidence across time
+Higher-frequency groups generally developed high correct-digit scores sooner
+([Figure 2](#fig-time)). The pattern varied by image; image 115 (F) kept much
+lower scores than most examples.
 
 <RunFigure experiment="exp123" file="confidence_time.png" number={2} id="fig-time" alt="Nine panels show families of mean true-class softmax traces against elapsed time, coloured by mean inhibitory-volley frequency; higher frequencies are darker.">
   Each panel shows one example image. Each line shows the correct digit's
@@ -88,11 +95,12 @@ We applied softmax before averaging the correct digit's score across ten
 encodings. All scores start at 0.1. The network was trained using mean voltage;
 this spike-count readout was not retrained or calibrated.
 
-Higher-frequency groups generally developed high correct-digit scores sooner
-([Figure 2](#fig-time)). The pattern varied by image; image 115 (F) kept much
-lower scores than most examples.
+### Evidence per completed volley
 
-## Evidence per completed volley
+Several images reached high scores within a few completed volleys
+([Figure 3](#fig-cycles)). The traces do not align exactly: early scores vary
+with decay, image 115 remains distinct, and later counts use different trial
+subsets. Score saturation can also make traces look aligned.
 
 <RunFigure experiment="exp123" file="confidence_cycles.png" number={3} id="fig-cycles" alt="Nine panels show mean true-class softmax traces against completed inhibitory volley count, coloured by mean I-volley frequency with higher frequencies darker; traces stop below 80 percent draw coverage.">
   The same images, scores and colours as <a href="#fig-time">Figure 2</a>,
@@ -110,12 +118,15 @@ at least 50% mean inhibitory participation. A volley ended at the trough
 between its peak and the next; we sampled the accumulated output score there.
 We did not extend traces beyond the last bounded completion.
 
-Several images reached high scores within a few completed volleys
-([Figure 3](#fig-cycles)). The traces do not align exactly: early scores vary
-with decay, image 115 remains distinct, and later counts use different trial
-subsets. Score saturation can also make traces look aligned.
+### Sustained correct decisions
 
-## Sustained correct decisions
+Higher frequencies generally accompanied shorter decision times, while median
+volley counts stayed near one or two over much of the range
+([Figure 4](#fig-decisions)). Decisions before the first trough count as one;
+this does not mean a whole volley was necessary. These plots include only
+eligible successful trials. Frequency uses the full 200 ms, including activity
+after the decision, so the association does not show that frequency alone
+sets classification speed.
 
 <RunFigure experiment="exp123" file="sustained_decisions.png" number={4} id="fig-decisions" alt="Two pooled density plots show sustained-correct decision time and completed-volley count on horizontal axes against I-volley frequency on a shared vertical axis, with median curves.">
   A: time to a lasting correct decision. B: the first completed-volley count
@@ -136,15 +147,12 @@ decision no later than the final bounded completion and at
 least eight of ten encodings with enough completed volleys at that count,
 leaving 80,341 trials.
 
-Higher frequencies generally accompanied shorter decision times, while median
-volley counts stayed near one or two over much of the range
-([Figure 4](#fig-decisions)). Decisions before the first trough count as one;
-this does not mean a whole volley was necessary. These plots include only
-eligible successful trials. Frequency uses the full 200 ms, including activity
-after the decision, so the association does not show that frequency alone
-sets classification speed.
+### Spike cost at 80% accuracy
 
-## Spike cost at 80% accuracy
+Slower settings saved spikes at the cost of time ([Figure 5](#fig-tradeoffs)).
+At 3 ms decay, reaching 80% accuracy took 38 ms and 5,135 mean network spikes.
+At 30 ms decay, it took 144 ms and 3,706 spikes: 28% fewer spikes, but
+3.8 times longer. Mean I-volley frequencies were about 107 and 15 Hz.
 
 <RunFigure experiment="exp123" file="deadline_tradeoffs.png" number={5} id="fig-tradeoffs" alt="Time to first reach 80 percent accuracy versus mean network spikes consumed, showing 14 frontier settings connected by a black line, coloured from pale pink to black with matched frequency and inhibitory-decay scales.">
   Time and mean network spikes needed to first reach 80% accuracy, checked
@@ -156,11 +164,6 @@ sets classification speed.
   I-volley frequency over 200 ms. The second colour bar shows the corresponding
   decay settings; its spacing follows their measured frequencies.
 </RunFigure>
-
-Slower settings saved spikes at the cost of time ([Figure 5](#fig-tradeoffs)).
-At 3 ms decay, reaching 80% accuracy took 38 ms and 5,135 mean network spikes.
-At 30 ms decay, it took 144 ms and 3,706 spikes: 28% fewer spikes, but
-3.8 times longer. Mean I-volley frequencies were about 107 and 15 Hz.
 
 For each setting, predictions used the largest accumulated output spike count;
 the lowest digit won ties. All 19 settings reached 80%.

@@ -1,0 +1,125 @@
+import RunFigure from '../../../site/src/components/RunFigure.astro';
+import Table from '../../../site/src/components/Table.astro';
+import { reportData, reportSnapshots } from '../../../site/src/lib/report-data';
+
+export const data = await reportData('exp134', { allowUnavailable: true });
+export const evidence = await reportSnapshots('exp134', {
+  snapshots: Object.fromEntries((data?.design.conditions ?? []).map(condition => [
+    condition.condition_id, `${condition.condition_id}-execution/start/snapshot.json`,
+  ])),
+  allowUnavailable: true,
+});
+export const parameterGroups = (() => {
+  const baseline = evidence?.snapshots.baseline;
+  if (!baseline) return [{ label: 'Network', rows: [['Native simulation-start snapshot', 'Unavailable']] }];
+  if (baseline.stage !== 'start' || !['infer', 'simulate'].includes(baseline.kind)) {
+    throw new Error('Expected the frozen simulation-start snapshot');
+  }
+  const cfg = evidence.configuration;
+  const graph = baseline.network;
+  const populations = Object.fromEntries(graph.populations.map(p => [p.id, p]));
+  const paired = (key, units='') => `${['E', 'I'].map(id => {
+    const value = populations[id]?.neuron[key];
+    return value?.value ?? value ?? 'Unavailable';
+  }).join(' / ')}${units ? ` ${units}` : ''}`;
+  const sweepRange = (sweep, key, units) => ['E', 'I'].map(id => {
+    const snapshots = (cfg.conditions ?? []).filter(c => c.sweep === sweep || c.sweep === 'baseline').map(c => evidence.snapshots[c.condition_id]);
+    if (!snapshots.length || snapshots.some(s => !s)) return 'Unavailable';
+    const values = snapshots.map(s => s.network.populations.find(p => p.id === id)?.neuron[key]);
+    if (values.some(v => !Number.isFinite(v))) return 'Unavailable';
+    return `${Math.min(...values)}–${Math.max(...values)}`;
+  }).join(' / ') + ` ${units}`;
+  const output = populations.readout;
+  const labels = {input_to_E: 'Input→E', E_to_I: 'E→I', I_to_E: 'I→E', readout_projection: 'E→Output'};
+  const synapses = graph.projections.flatMap(projection => {
+    const parameter = baseline.parameters[projection.parameters[0]];
+    return [
+      [`${labels[projection.id]} synapse / decay`, `${projection.synapse.kind} / ${projection.synapse.tau.value} ms`],
+      [`${labels[projection.id]} delay`, `${projection.delay?.value ?? 0} ms`],
+      [`${labels[projection.id]} saved matrix shape`, parameter?.shape?.join(' × ') ?? 'Unavailable'],
+    ];
+  });
+  const measurement = data?.measurement;
+  const value = (item, units='') => item == null ? 'Unavailable' : `${Array.isArray(item) ? item.join('–') : item}${units ? ` ${units}` : ''}`;
+  return [
+    { label: 'Network', rows: [
+      ['Input channels', graph.inputs[0].shape.at(-1)],
+      ['E / I neurons', `${populations.E.size} / ${populations.I.size}`],
+      ['E / I membrane model', `${populations.E.neuron.kind} / ${populations.I.neuron.kind}`],
+      ['Same-population recurrence', 'Absent'],
+    ] },
+    { label: 'Neurons', rows: [
+      ['Baseline capacitance, E / I', paired('capacitance_nf', 'nF')],
+      ['Baseline leak conductance, E / I', paired('leak_us', 'µS')],
+      ['Baseline passive time constant, E / I (derived)', `${['E', 'I'].map(id => populations[id].neuron.capacitance_nf / populations[id].neuron.leak_us).join(' / ')} ms`],
+      ['Leak-sweep conductance range, E / I', sweepRange('leak', 'leak_us', 'µS')],
+      ['Capacitance-sweep range, E / I', sweepRange('capacitance', 'capacitance_nf', 'nF')],
+      ['Resting potential, E / I', paired('resting_mv', 'mV')],
+      ['Reset potential, E / I', paired('reset_mv', 'mV')],
+      ['Threshold, E / I', paired('threshold_mv', 'mV')],
+      ['Initial voltage, E / I', paired('initial_voltage_mv', 'mV')],
+      ['Refractory period, E / I', paired('refractory', 'ms')],
+      ['Refractory timing', graph.refractory_timing],
+      ['Voltage sampling', graph.voltage_sampling],
+      ['Voltage-gradient damping, E / I', paired('voltage_grad_dampen')],
+    ] },
+    { label: 'Synapses and weights', rows: [
+      ...synapses,
+      ['Weights', 'All restored from the identified final-epoch checkpoint and frozen'],
+      ['Checkpoint SHA-256', cfg.checkpoint_sha256],
+      ['Native parameter payload SHA-256 (baseline)', baseline.parameter_file_sha256],
+    ] },
+    { label: 'Input and simulation', rows: [
+      ['Partition', cfg.partition],
+      ['Image selection', cfg.image_selection],
+      ['Images / selection seed', `${cfg.image_indices.length} / ${cfg.image_selection_seed}`],
+      ['Encoding', 'Pixel-scaled Poisson spikes, discretized as Bernoulli events'],
+      ['Maximum pixel rate', value(cfg.input_rate_hz, 'Hz')],
+      ['Encoding identifiers', cfg.seeds.join(', ')],
+      ['Generator seed rule', cfg.generator_seed_rule],
+      ['Timestep / duration / burn-in', `${cfg.dt_ms} / ${cfg.duration_ms} / ${cfg.burn_in_ms} ms`],
+      ['Image batch size', cfg.batch_images],
+      ['Conditions / presentations', `${cfg.conditions.length} / ${cfg.presentations}`],
+      ['Build seed', baseline.execution.seed],
+      ['SNNLab version', baseline.snnlab_version],
+    ] },
+    { label: 'Readout', rows: [
+      ['Output neurons', output.size],
+      ['Output model', output.neuron.kind],
+      ['Output time constant', value(output.neuron.tau.value, 'ms')],
+      ['Output soft-reset threshold (dimensionless)', output.neuron.soft_reset_threshold],
+      ['Output initial voltage (dimensionless)', output.neuron.initial_voltage],
+      ['Output surrogate slope', output.neuron.surrogate_slope],
+      ['Classification evaluation', 'Not performed in this experiment'],
+    ] },
+    { label: 'Analysis', rows: [
+      ['Population bin width', value(measurement?.population_bin_ms, 'ms')],
+      ['Frequency search', value(measurement?.frequency_search_hz, 'Hz')],
+      ['Volley smoothing / minimum spacing', `${value(measurement?.volley_smoothing_ms)} / ${value(measurement?.volley_minimum_spacing_ms)} ms`],
+      ['Volley prominence, relative / absolute', `${value(measurement?.volley_relative_prominence)} / ${value(measurement?.volley_minimum_prominence_spikes)} spikes`],
+      ['Minimum cycles / mean I participation', `${value(measurement?.minimum_cycles)} / ${value(measurement?.minimum_mean_i_participation_pct)}%`],
+      ['Aggregation', measurement?.aggregation ?? 'Unavailable'],
+      ['Uncertainty estimates', measurement?.show_uncertainty_estimates === false ? 'None' : 'Unavailable'],
+    ] },
+  ];
+})();
+
+### Network diagrams
+
+<RunFigure report="exp134" experiment="exp134" allowUnavailable file="network.svg" number="A1" id="fig-network" alt="Shared PING circuit: image input excites E, E excites I and output neurons, and I inhibits E.">
+  Native circuit view from the pinned compute bundle. Both sweeps share this
+  topology and frozen checkpoint weights; only E/I membrane parameters vary.
+</RunFigure>
+
+### Parameters
+
+<Table headers={['Parameter', 'Recorded value']} groups={parameterGroups} number="A1" id="model-parameters" label="Recorded membrane-sweep parameters">
+  Native start snapshots follow the pinned presentation's compute ancestry;
+  input settings come from its recorded configuration and analysis settings from
+  its retained measurements. Paired values follow E / I order. Baseline passive
+  time constants are capacitance divided by leak conductance. Matrix shapes use
+  source × target order from the saved parameter payload, not graph initializer
+  shapes. Zero-valued graph initializers are placeholders replaced by checkpoint
+  weights before snapshot capture. Missing evidence is unavailable; current recipe
+  defaults are never substituted. No training is performed in this experiment.
+</Table>

@@ -2,9 +2,9 @@
 id: "exp110"
 title: "Manuscript"
 created_at: "2026-09-02"
-updated_at: "2026-10-14T00:00:00Z"
+updated_at: "2026-10-18T15:38:29Z"
 description: "A manuscript scaffold connecting PING circuit dynamics, low-rate task performance, cycle participation, perturbation sensitivity and continuous-stream classification."
-collection: "gamma-gated-sparsity"
+collection: ["gamma-gated-sparsity", "experiments"]
 author: "Eoin Murray"
 tags: ["data", "v37.0.0"]
 runs: {"exp023": "exp023-r026-present", "exp025": "exp025-r014-present", "exp037": "exp037-r020-present", "exp038": "exp038-r011-present", "exp042": "exp042-r020-present", "exp044": "exp044-r009-present", "exp046": "exp046-r010-present", "exp049": "exp049-r015-present", "exp110": "exp110-r031-present", "exp082": "exp082-r033-present"}
@@ -548,10 +548,15 @@ $$
 
 Here, $n_{c [ k ]}$ counts class-$c$ output spikes through step $k$ since the supplied boundary; $q_{c [ k ]}$ is its dimensionless share, with $d$ indexing classes. These uncalibrated shares visualize evidence; the 0.5 line is not a decision threshold.
 
-### Software
+### Software and hardware
 
 P45
 
 The study software was developed iteratively with AI coding agents (OpenAI Codex and Claude Code) under the lead author’s direction. The lead author specified the scientific models and experimental protocols, directed implementation and revisions, and retained responsibility for software acceptance and its scientific use. Verification included automated unit, integration and numerical-regression testing. Simulator tests cover neuronal and synaptic dynamics, spike and refractory timing, surrogate gradients, checkpoint restoration and training continuation. Numerical checks include analytical solutions, preserved reference outputs, and comparisons with independent Brian2 implementations of conductance-based dynamics and snnTorch implementations of current-based dynamics under matched conditions. Experiment-level tests cover checkpoint selection, spike perturbations, analysis outputs and data provenance. The implementations and test suites are publicly available for inspection and reuse.
 
-The experiment code is maintained in the [Pinglab experiments repository](https://github.com/eoinmurray/pinglab), and the spiking neural network (SNN) simulator is maintained in the [SNNLab simulator repository](https://github.com/eoinmurray/snnlab). Spiking simulation, training and evaluation used custom Python/PyTorch code; all 90 classifiers were trained with PyTorch 2.11.0+cu128 on CUDA devices. Mean-field calculations used Python 3.10.19, NumPy 2.2.6 and SciPy 1.15.3. Experiment records retain stage-specific parameters, seeds, software/source revisions and original provenance for reused classifiers.
+The experiment code is maintained in the [Pinglab experiments repository](https://github.com/eoinmurray/pinglab), and the spiking neural network (SNN) simulator is maintained in the [SNNLab simulator repository](https://github.com/eoinmurray/snnlab). Spiking simulation, training and evaluation used custom Python/PyTorch code; all 90 classifiers were trained with PyTorch 2.11.0+cu128 on NVIDIA A100-SXM4 GPUs with 80 GB of device memory, using one CUDA device per classifier. Mean-field calculations used Python 3.10.19, NumPy 2.2.6 and SciPy 1.15.3. For TR01, mean training-loop and validation times over 50 epochs were 402 and 158 min for loop-off and 429 and 161 min for loop-on, respectively, averaged across three seeds per architecture. Mean epoch times, including training and validation, were 11.2 min for loop-off and 11.8 min for loop-on over epochs 2–50, excluding first-epoch warm-up, reference-image diagnostics and subsequent logging or checkpoint-file writes.
+
+{/* TR01 timing provenance: exp022-r015-compute, canonical classifiers,
+    seeds 42–44. Training/validation totals sum epochs[].train_compute_s/eval_s
+    over all 50 epochs; epoch times average elapsed_s over epochs 2–50.
+    All reported values are means across the three networks per architecture. */}

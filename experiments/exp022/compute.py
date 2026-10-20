@@ -350,7 +350,7 @@ def validate_cell(
             if record.get("sha256") != sha256_file(path):
                 reasons.append(f"{role} checkpoint hash mismatch")
             try:
-                from experiments.helpers.checkpoint_graph import checkpoint_tensors
+                from experiments.exp022.checkpoints import checkpoint_tensors
 
                 checkpoint_tensors(path, config)
             except Exception as exc:  # noqa: BLE001
@@ -1023,7 +1023,7 @@ def generate_snapshots(bank: Path, output: Path) -> None:
         destination = output / cell["name"]
         if destination.exists():
             raise PingstoreError(f"probe output already exists: {destination}")
-        from experiments.helpers.checkpoint_inference import run_inference
+        from experiments.exp022.custom.inference import run_inference
 
         training = json.loads((trained / "config.json").read_text())
         request = recipe.diagnostic_request(training, cell)

@@ -1,8 +1,11 @@
-"""Theta-modulated private-afferent protocol; no execution on import."""
+"""Theta-modulated private-afferent protocol; no execution on import.
+
+The configuration resolves scientific settings and the authoring functions compile
+the network. Data loading, simulation and run storage belong to the execution stages.
+"""
 
 from __future__ import annotations
 
-import numpy as np
 from snnlab import lang as snn  # noqa: TID251
 
 SLUG = "exp130"
@@ -18,85 +21,59 @@ VIEW_START_MS, VIEW_END_MS = BURN_IN_MS, DURATION_MS
 
 
 def configuration() -> dict:
-    return {
-        "schema": "exp130.recipe/v1",
-        "conditions": list(CONDITIONS),
-        "theta_hz": THETA_HZ,
-        "modulation_hz": MODULATION_HZ,
-        "modulation_onset_ms": BURN_IN_MS,
-        "analysis_start_ms": 200.0,
-        "analysis_end_ms": 800.0,
-        "phase_convention": "sine; phase zero is the rising mean crossing at modulation onset",
-        "pairing": "same seed, initial state and graph; same private RNG streams; Poisson samples differ after onset",
-        "dt_ms": DT_MS,
-        "t_ms": DURATION_MS,
-        "burn_in_ms": BURN_IN_MS,
-        "seed": SEED,
-        "n_e": N_E,
-        "n_i": N_I,
-        "connection_probability": 0.1,
-        "external_afferents_per_neuron": 400,
-        "baseline_e_hz": BASELINE_HZ,
-        "baseline_i_hz": BASELINE_HZ,
-        "capacitance_nf": CAPACITANCE_NF,
-        "leak_us": LEAK_US,
-        "external_weight_us": 0.004,
-        "recurrent_e_weight_us": 0.0125 * RECURRENT_SCALE,
-        "recurrent_i_weight_us": 0.00835 * RECURRENT_SCALE * INHIBITORY_SCALE,
-        "tau_ampa_ms": 1.5,
-        "tau_gaba_ms": 7.5,
-        "delay_ms": 1.5,
-        "refractory_e_ms": 3.0,
-        "refractory_i_ms": 1.5,
-        "view_start_ms": VIEW_START_MS,
-        "view_end_ms": VIEW_END_MS,
-        "initial_voltage_mv": -65.0,
-        "external_representation": "independent Poisson counts per target; exact superposition of 400 sources; diagonal 4 nS projection",
-        "recurrent_topology": "independent Bernoulli edges between distinct neurons; autapses disabled",
-        "weight_initialization": "graph fan-in/sparsity normalization compensated in initializer; external matrices replaced by diagonal physical weights",
-        "recording_policy": "all output spikes and afferent counts at dt; population mean voltages and projection conductances at dt",
-        "reference": "https://doi.org/10.1371/journal.pcbi.1009416",
-    }
+    return dict(
+        schema="exp130.recipe/v1",
+        conditions=list(CONDITIONS),
+        theta_hz=THETA_HZ,
+        modulation_hz=MODULATION_HZ,
+        modulation_onset_ms=BURN_IN_MS,
+        analysis_start_ms=200.0,
+        analysis_end_ms=800.0,
+        phase_convention="sine; phase zero is the rising mean crossing at modulation onset",
+        pairing="same seed, initial state and graph; same private RNG streams; Poisson samples differ after onset",
+        dt_ms=DT_MS,
+        t_ms=DURATION_MS,
+        burn_in_ms=BURN_IN_MS,
+        seed=SEED,
+        n_e=N_E,
+        n_i=N_I,
+        connection_probability=0.1,
+        external_afferents_per_neuron=400,
+        baseline_e_hz=BASELINE_HZ,
+        baseline_i_hz=BASELINE_HZ,
+        capacitance_nf=CAPACITANCE_NF,
+        leak_us=LEAK_US,
+        external_weight_us=0.004,
+        recurrent_e_weight_us=0.0125 * RECURRENT_SCALE,
+        recurrent_i_weight_us=0.00835 * RECURRENT_SCALE * INHIBITORY_SCALE,
+        tau_ampa_ms=1.5,
+        tau_gaba_ms=7.5,
+        delay_ms=1.5,
+        refractory_e_ms=3.0,
+        refractory_i_ms=1.5,
+        view_start_ms=VIEW_START_MS,
+        view_end_ms=VIEW_END_MS,
+        initial_voltage_mv=-65.0,
+        resting_mv=-65.0,
+        reset_mv=-65.0,
+        threshold_mv=-50.0,
+        voltage_grad_dampen=80.0,
+        refractory_timing="legacy_coba",
+        device="cpu",
+        torch_threads=1,
+        performance=dict(compile_mode=None),
+        external_representation="independent Poisson counts per target; exact superposition of 400 sources; diagonal 4 nS projection",
+        recurrent_topology="independent Bernoulli edges between distinct neurons; autapses disabled",
+        weight_initialization="graph fan-in/sparsity normalization compensated in initializer; external matrices replaced by diagonal physical weights",
+        recording_policy="all output spikes and afferent counts at dt; population mean voltages and projection conductances at dt",
+        reference="https://doi.org/10.1371/journal.pcbi.1009416",
+    )
 
 
 def condition_configuration(cfg, condition):
-    if condition not in CONDITIONS:
+    if condition not in cfg["conditions"]:
         raise ValueError(f"unsupported condition: {condition}")
     return {**cfg, "condition": condition}
-
-
-def source_rates(times_ms, cfg):
-    """Per-afferent rate; both targets share only the deterministic envelope."""
-    times_ms = np.asarray(times_ms)
-    condition = cfg["condition"]
-    if condition not in CONDITIONS:
-        raise ValueError(condition)
-    phase = 2 * np.pi * cfg["theta_hz"] * (times_ms - cfg["modulation_onset_ms"]) / 1000
-    oscillation = (
-        cfg["modulation_hz"] * np.sin(phase)
-        if condition == "theta"
-        else np.zeros_like(times_ms)
-    )
-    oscillation = np.where(times_ms >= cfg["modulation_onset_ms"], oscillation, 0)
-    return tuple(cfg[f"baseline_{pop}_hz"] + oscillation for pop in ("e", "i"))
-
-
-def afferent_counts(cfg):
-    """Independent across cells and populations; counts greater than one survive."""
-    times = np.arange(round(cfg["t_ms"] / cfg["dt_ms"])) * cfg["dt_ms"]
-    rngs = [
-        np.random.default_rng(s) for s in np.random.SeedSequence(cfg["seed"]).spawn(2)
-    ]
-    result = {}
-    for pop, rates, rng in zip(("e", "i"), source_rates(times, cfg), rngs):
-        lam = (
-            rates[:, None] * cfg["external_afferents_per_neuron"] * cfg["dt_ms"] / 1000
-        )
-        counts = rng.poisson(lam, size=(len(times), cfg[f"n_{pop}"]))
-        if counts.max() > 255:
-            raise ValueError("afferent counts exceed recording capacity")
-        result[f"private_{pop}"] = counts.astype(np.uint8)
-    return result
 
 
 def author_network(cfg=None):
@@ -113,11 +90,11 @@ def author_network(cfg=None):
                 tau_mem=tau * snn.ms,
                 capacitance_nf=cap,
                 leak_us=leak,
-                resting_mv=-65.0,
-                threshold_mv=-50.0,
-                reset_mv=-65.0,
+                resting_mv=cfg["resting_mv"],
+                threshold_mv=cfg["threshold_mv"],
+                reset_mv=cfg["reset_mv"],
                 refractory=cfg[f"refractory_{name.lower()}_ms"] * snn.ms,
-                voltage_grad_dampen=80.0,
+                voltage_grad_dampen=cfg["voltage_grad_dampen"],
                 initial_voltage_mv=cfg["initial_voltage_mv"],
             ),
         )

@@ -1,4 +1,7 @@
-"""Measure intrinsic detuning and finite-time 1:1 locking from the explicit grid."""
+"""Measure frequency detuning and finite-time locking in the reported protocols.
+
+Run with --source identifying a completed compute run. Validate its retained
+inputs and parameters, then save the map metrics or onset phase trace for present.py."""
 
 import argparse
 import sys
@@ -7,7 +10,8 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
 import numpy as np
-from experiments.exp133 import evidence, inputs, recipe, sender_receiver
+from experiments.exp133 import recipe
+from experiments.exp133.custom import evidence, inputs, sender_receiver
 from pingstore.contracts import write_json_atomic
 from scipy.ndimage import gaussian_filter1d
 from scipy.signal import find_peaks
@@ -53,7 +57,6 @@ def phase_metrics(time_ms, difference, *, valid_rhythm=True):
     """Descriptive finite-window criteria; concentration alone cannot establish locking."""
     drift = float(np.polyfit(time_ms / 1000, difference / (2 * np.pi), 1)[0])
     concentration = float(abs(np.mean(np.exp(1j * difference))))
-    net_cycles = float((difference[-1] - difference[0]) / (2 * np.pi))
     span = float(np.ptp(difference) / (2 * np.pi))
     locked = (
         valid_rhythm
@@ -65,8 +68,6 @@ def phase_metrics(time_ms, difference, *, valid_rhythm=True):
         valid=bool(valid_rhythm),
         drift_hz=drift,
         concentration=concentration,
-        net_cycles=net_cycles,
-        whole_net_windings=int(np.floor(abs(net_cycles) + 1e-9)),
         phase_span_cycles=span,
         locked=bool(locked),
     )
@@ -85,8 +86,6 @@ def measure_pair(a, b):
             valid=False,
             drift_hz=None,
             concentration=None,
-            net_cycles=None,
-            whole_net_windings=None,
             phase_span_cycles=None,
             locked=False,
         )
@@ -103,10 +102,7 @@ def measure_pair(a, b):
 def measure(compute):
     steps = round((recipe.T_MS - recipe.COUPLING_ONSET_MS) / recipe.DT_MS)
     shape = (len(recipe.K_VALUES_US), len(recipe.INPUT_DIFFERENCES_HZ))
-    arrays = {
-        key: np.full(shape, np.nan)
-        for key in ("drift_hz", "concentration", "net_cycles", "phase_span_cycles")
-    }
+    arrays = {key: np.full(shape, np.nan) for key in ("concentration",)}
     arrays.update(valid=np.zeros(shape, dtype=bool), locked=np.zeros(shape, dtype=bool))
     summaries = []
     frequencies = np.full((2, shape[1]), np.nan)
@@ -175,37 +171,6 @@ def raster_frequency_windows(spikes):
     return result
 
 
-def analyse_calibration(compute, *, run_id=None):
-    cfg = sender_receiver.compute_contract(compute, calibration=True)
-    with np.load(
-        compute.export / "sender-receiver--spikes.npz", allow_pickle=False
-    ) as raw:
-        spikes = dict(raw)
-    rows = []
-    for column, drive in enumerate(sender_receiver.CALIBRATION_DRIVE_HZ):
-        measured = {}
-        for name in ("S", "R"):
-            _, summary = rhythm(spikes[f"{name}_E"][:, column], settling_ms=100)
-            summary.pop("valid")
-            summary["first500_frequency_hz"] = rhythm(
-                spikes[f"{name}_E"][:, column], settling_ms=0
-            )[1]["frequency_hz"]
-            measured[name] = summary
-        rows.append(dict(sender_drive_hz=float(drive), **measured))
-    with inputs.execution(
-        REPO, "analyse", sources={"compute": compute}, run_id=run_id, configuration=cfg
-    ) as run:
-        write_json_atomic(
-            run.export / "results.json",
-            dict(
-                schema="exp133.sender-receiver-calibration-analysis/v1",
-                configuration=cfg,
-                candidates=rows,
-            ),
-        )
-    return run.run_id
-
-
 def analyse_sender_receiver(compute, *, run_id=None):
     cfg = sender_receiver.compute_contract(compute)
     spikes = sender_receiver.recording(compute)
@@ -264,11 +229,6 @@ def analyse_sender_receiver(compute, *, run_id=None):
 
 def analyse(identity, *, run_id=None):
     compute = inputs.source(REPO, identity, "compute")
-    if (
-        compute.record["execution"]["configuration"].get("schema")
-        == "exp133.sender-receiver-calibration/v1"
-    ):
-        return analyse_calibration(compute, run_id=run_id)
     if (
         compute.record["execution"]["configuration"].get("schema")
         == sender_receiver.SCHEMA

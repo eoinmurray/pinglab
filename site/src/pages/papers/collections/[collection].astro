@@ -1,0 +1,19 @@
+---
+import Page from '../../../layouts/Page.astro';
+import PaperBrowser from '../../../components/PaperBrowser.astro';
+import { getPapers, getPaperCollections, paperCollectionLabel, type Paper } from '../../../lib/papers';
+// Track metadata edits so development refreshes the cached collection routes.
+import '../../../../../papers/index.yaml?raw';
+
+export async function getStaticPaths() {
+  const papers = await getPapers();
+  return getPaperCollections(papers).map(collection => ({ params: { collection }, props: { collection, papers } }));
+}
+
+interface Props { collection: string; papers: Paper[]; }
+const { collection, papers } = Astro.props;
+const label = paperCollectionLabel(collection);
+---
+<Page title={`${label} · Papers`} description={`Research papers in ${label}.`} compact>
+  <PaperBrowser papers={papers} collection={collection} />
+</Page>

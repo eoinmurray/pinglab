@@ -9,7 +9,7 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
 
 from experiments.exp046 import evidence, inputs, recipe
-from experiments.helpers.checkpoint_inference import run_inference
+from experiments.exp046.custom.inference import run_inference
 from pingstore.contracts import PingstoreError, write_json_atomic
 
 

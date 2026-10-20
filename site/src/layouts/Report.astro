@@ -4,12 +4,13 @@ import Page from './Page.astro';
 import { dependencies, downstream } from '../lib/dependencies';
 import Dataset from '../components/Dataset.astro';
 import ArticleMetrics from '../components/ArticleMetrics.astro';
+import ArticleDate from '../components/ArticleDate.astro';
 import { countArticle } from '../lib/article-counts';
 import { completedRunCount } from '../lib/pingstore';
 import { collectionUrl, collectionLabel, collectionMemberships } from '../lib/collections';
 
 const parameterTables = import.meta.glob('../../../experiments/exp*/report/parameters.mdx', { import: 'default' });
-const appendices = import.meta.glob('../../../experiments/exp*/report/appendix.mdx', { import: 'default' });
+const appendices = import.meta.glob<import('astro').MDXInstance<Record<string, unknown>>>('../../../experiments/exp*/report/appendix.mdx');
 const referenceLists = import.meta.glob('../../../experiments/exp*/report/references.mdx', { import: 'default' });
 const networkDiagrams = import.meta.glob('../../../experiments/exp*/report/network.mdx', { import: 'default' });
 
@@ -26,13 +27,16 @@ const counts = { ...countArticle(mainContent, data.abstract), runs: experiment ?
 const articleDirectory = experiment ? `../../../experiments/${experiment.data.id}/report` : undefined;
 const Parameters = await parameterTables[`${articleDirectory}/parameters.mdx`]?.() as import('astro').MarkdownInstance<Record<string, unknown>>['Content'] | undefined;
 const References = await referenceLists[`${articleDirectory}/references.mdx`]?.() as import('astro').MarkdownInstance<Record<string, unknown>>['Content'] | undefined;
-const Appendix = await appendices[`${articleDirectory}/appendix.mdx`]?.() as import('astro').MarkdownInstance<Record<string, unknown>>['Content'] | undefined;
+const appendix = await appendices[`${articleDirectory}/appendix.mdx`]?.();
+const Appendix = appendix?.default;
+const appendixHeadings = (await appendix?.getHeadings() ?? []).filter(heading => heading.depth === 2 || heading.depth === 3);
+const appendixDepth = Math.min(3, ...appendixHeadings.map(heading => heading.depth));
 const Network = await networkDiagrams[`${articleDirectory}/network.mdx`]?.() as import('astro').MarkdownInstance<Record<string, unknown>>['Content'] | undefined;
 const hasDataset = experiment && (experiment.data.tags.includes('data') || (dependencies[experiment.data.id]?.length ?? 0) > 0 || downstream(experiment.data.id).length > 0);
 const contents = [
   ...(data.abstract ? [{ slug: 'abstract', text: 'Abstract' }] : []),
   ...headings.filter(heading => heading.depth === 2 || heading.depth === 3),
-  ...(Appendix ? [{ slug: 'supplementary-details', text: 'Supplementary details' }] : []),
+  ...appendixHeadings.map(heading => ({ ...heading, depth: heading.depth - appendixDepth + 2 })),
   ...(Parameters ? [{ slug: 'parameters', text: 'Parameters' }] : []),
   ...(Network ? [{ slug: 'network', text: 'Network' }] : []),
   ...(hasDataset ? [{ slug: 'dataset', text: 'Dataset' }] : []),
@@ -53,8 +57,8 @@ const frontMatter = {
   <d-byline>
     <div class="byline grid" style={`--byline-columns: ${experiment ? 5 : 4}`}>
       {experiment && <div><h3>Experiment</h3><p class="experiment-id">{experiment.data.id}</p></div>}
-      <div><h3>Created</h3><p><time datetime={data.created_at}>{data.created_at}</time></p></div>
-      <div><h3>Updated</h3><p><time datetime={data.updated_at}>{data.updated_at}</time></p></div>
+      <div><h3>Created</h3><p><ArticleDate date={data.created_at} /></p></div>
+      <div><h3>Updated</h3><p><ArticleDate date={data.updated_at} /></p></div>
       <div>
         <h3>{collections.length === 1 ? 'Collection' : 'Collections'}</h3>
         <p>{collections.map((collection, index) => <>
@@ -83,10 +87,7 @@ const frontMatter = {
     </d-article>
   </div>
   {(Parameters || Appendix || References || Network || hasDataset) && <d-appendix distill-prerendered aria-label="Report appendix">
-    {Appendix && <>
-      <h3 id="supplementary-details">Supplementary details</h3>
-      <section class="report-appendix" aria-labelledby="supplementary-details"><Appendix /></section>
-    </>}
+    {Appendix && <div class="report-appendix" data-heading-depth={appendixDepth}><Appendix /></div>}
     {Parameters && <>
       <h3 id="parameters">Parameters</h3>
       <section class="parameters" aria-labelledby="parameters"><Parameters /></section>
@@ -117,9 +118,21 @@ const frontMatter = {
   d-byline .experiment-id { font-size: 18px; font-weight: 600; }
   d-byline .collection-link:hover { text-decoration: underline; }
   d-byline .byline > div { min-width: 0; }
-  .report-appendix { min-width: 0; margin-bottom: 2rem; }
+  .report-appendix { display: contents; }
+  .report-appendix > * { grid-column: text; min-width: 0; }
+  .report-appendix > :is(h2, h3) { grid-column: text; }
+  .report-appendix[data-heading-depth="2"] > h2,
+  .report-appendix[data-heading-depth="3"] > h3 {
+    grid-column: page-start / text-start;
+    font-size: 15px;
+    font-weight: 500;
+    margin-top: 1em;
+    margin-bottom: 0;
+    color: rgb(var(--ink) / .65);
+  }
   d-article > .source-table { grid-column: text; }
   :is(d-article, d-appendix) figcaption { margin-top: 1.25rem; }
+  :is(d-article, d-appendix) figcaption > p:first-of-type { display: inline; margin: 0; }
   @media (min-width: 768px) { d-byline .byline { grid-template-columns: repeat(3, minmax(0, 1fr)); row-gap: 12px; } }
   @media (min-width: 1180px) { d-byline .byline { grid-template-columns: repeat(var(--byline-columns), minmax(0, 1fr)); } }
   .report-body { position: relative; --report-content-top: 4rem; }
@@ -149,5 +162,9 @@ const frontMatter = {
   d-appendix .parameters th, d-appendix .parameters td { text-align: left; padding: .6em .65em; border-bottom: 1px solid rgb(var(--ink) / .1); vertical-align: top; }
   d-appendix .parameters th:first-child, d-appendix .parameters td:first-child { padding-left: 0; width: 30%; }
   d-appendix .parameters th:last-child, d-appendix .parameters td:last-child { padding-right: 0; }
-  @media (max-width: 999px) { d-appendix h3 { grid-column: text; margin-bottom: 1em; } }
+  @media (max-width: 999px) {
+    d-appendix h3,
+    .report-appendix[data-heading-depth="2"] > h2,
+    .report-appendix[data-heading-depth="3"] > h3 { grid-column: text; margin-bottom: 1em; }
+  }
 </style>

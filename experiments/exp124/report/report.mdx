@@ -2,19 +2,19 @@
 id: "exp124"
 title: "SHD"
 created_at: "2026-10-14"
-updated_at: "2026-10-16T00:00:00Z"
+updated_at: "2026-10-20T12:19:51Z"
 description: "Full-data SHD training curves and matched two-layer inference rasters for COBA and PING."
-collection: "datasets"
+collection: ["datasets", "experiments"]
 author: "Eoin Murray"
-tags: ["data", "v37.0.0"]
+tags: ["no-data", "v37.0.0"]
 inputs: ["exp124"]
 runs: {"exp124": "exp124-r164-present"}
 ---
 
-import ReportAvailability from '../../../site/src/components/ReportAvailability.astro';
-import RunFigure from '../../../site/src/components/RunFigure.astro';
-import { reportData, display, round } from '../../../site/src/lib/report-data';
-export const run = await reportData('exp124', { allowUnavailable: true });
+import RunFigure from './EvidenceFigure.astro';
+import { display, round } from '../../../site/src/lib/report-data';
+import { evidence } from './evidence';
+export const run = await evidence();
 export const full = run?.full_training;
 export const sample = run?.sample_raster;
 export const accuracy = (model, split) => full ? display(round(100 * full.conditions[model].epochs.at(-1)[split].accuracy, 1)) : 'unavailable';
@@ -25,16 +25,13 @@ export const phaseMinutes = (model, phase) => full ? display(round(full.models[m
 export const prediction = model => sample ? display(sample.models[model].prediction) : 'unavailable';
 export const target = sample ? display(sample.class) : 'unavailable';
 
-<ReportAvailability report="exp124" />
+{!run && <p>The pinned presentation payload is unavailable locally. Numerical bindings and figures cannot currently be checked; the <a href="/recovered/exp124/published.html">archived publication</a> retains the previously published account.</p>}
 
 ## Abstract
 
-We trained two-layer conductance-based networks to recognize spoken digits represented by cochlear spike events. Both COBA and PING learned under the calibrated initialization and optimization recipe, with PING achieving higher development-validation accuracy in the paired replicate. Matched inference rasters show how the trained layers respond to one held-out utterance. This single-seed comparison and illustrative response do not establish competitive test performance or a general benefit from inhibition.
+We compared two-layer conductance-based classifiers on 20 spoken-digit classes, using one seed, one-second inputs and the same corrupted training and validation utterances. {full ? `After ${epochs} epochs, development-validation accuracy was ${accuracy('coba', 'validation')}% for COBA and ${accuracy('ping', 'validation')}% for PING.` : 'The archived publication reports 82.6% validation accuracy for COBA and 84.4% for PING after 50 epochs; the underlying payload is unavailable for verification.'} One preselected validation utterance illustrates the final weights' activity. This paired replicate does not establish official-test performance or a general benefit from inhibition.
 
-## TODO
-
-1. Use the full utterance time ranges in the next training run (Methods, point 1).
-2. Apply no input corruption in the next training run (Methods, point 2).
+The figures and numerical bindings remain pinned to the historical presentation `exp124-r164-present`, from compute `exp124-r149-compute`. The [archived publication](/recovered/exp124/published.html) preserves the earlier account, but cannot validate raw spikes or weights without that payload. The current recipe uses SNNLab 0.23's native `train` and `simulate` APIs, native snapshots and zero-decay AdamW in place of custom Adam. It retains the historical one-second truncation and input corruption. The API migration has not been evaluated with a new full-data training run.
 
 ## Results
 
@@ -56,7 +53,7 @@ With fixed reciprocal feedback in both 128 E/32 I layers, online training accura
 
 ### COBA two-layer response
 
-We replayed the first validation utterance through the final trained weights, without optimizer updates. The true class was {target}, and COBA predicted class {prediction('coba')}. Both layers responded during the utterance ([Fig. 3](#fig-coba-raster)). This fixed example illustrates activity propagation; it was not selected for correct classification or its raster appearance and cannot summarize performance across utterances.
+We replayed the first utterance in the validation split through the final trained weights, without optimizer updates. The true class was {target}, and COBA predicted class {prediction('coba')}. Both layers responded during the utterance ([Fig. 3](#fig-coba-raster)). This fixed example illustrates activity propagation; it was not selected for correct classification or its raster appearance and cannot summarize performance across utterances.
 
 <RunFigure report="exp124" experiment="exp124" allowUnavailable file="coba_sample_raster.svg" number={3} id="fig-coba-raster" alt="Excitatory spike rasters and population-count autocorrelations for both trained COBA layers during one held-out utterance.">
   **Recorded COBA inference raster.** We presented one held-out SHD utterance with a fresh seeded insertion/deletion draw and fixed final-epoch weights. (A, C) Layer 1 and layer 2 rasters. Each black tick is one spike; horizontal position is elapsed time from utterance onset and vertical position identifies a neuron. Each raster contains 128 excitatory neurons and no inhibitory population. The full one-second presentation is shown, with no smoothing, trial average or transient removal. The same input events were used for PING in Figure 4. (B, D) Corresponding layer population spike-count autocorrelograms in 1 ms bins. We divided each uncentered lagged product sum by the number of overlapping bins and the squared full-utterance mean count (Equation 2). Black traces show E at positive lags up to 200 ms; zero lag is omitted because of self-pairs. The dotted line at one marks the expected baseline for independent stationary activity. These are population-count correlations, not averages of individual-neuron autocorrelations; each y axis includes the full displayed peak.
@@ -72,7 +69,7 @@ PING predicted class {prediction('ping')} for the same true-class-{target} utter
 
 ## Methods
 
-The architecture and simulation settings are listed in [Table 1](#architecture-config).
+The historical architecture and simulation settings are listed in [Table 1](#architecture-config). The parameter table reads saved final-training snapshots and that compute run's recorded configuration, following the same pinned ancestry as the figures. Missing snapshots are shown as unavailable; current recipe settings and old exported table rows are not substituted.
 
 1. **Prepare SHD.** We split 8,156 official training utterances [1] (20 classes, 700 channels) into 7,340 training and 816 validation examples using a seed-42 per-class shuffle. Original spike-train lengths varied: last-spike times ranged from 0.233 to 1.369 s. We kept only events before 1 s to fit the simulation, flooring times into binary 1 ms bins. Speakers could overlap between splits; the official test set was unused.
 
@@ -92,7 +89,7 @@ The architecture and simulation settings are listed in [Table 1](#architecture-c
 
 6. **Train both models.** We used SNNLab's [train](https://snnlab.eoinmurray.info/api/sim/execution-functions/#train) for 50 epochs with class-stratified batches of 256, merging tails smaller than 20. Custom Adam minimized mean cross-entropy per represented class; input/interlayer/readout learning rates were $5\times10^{-6}/2\times10^{-5}/0.01$, with betas 0.9/0.999 and no weight decay. The [FastSigmoid](https://snnlab.eoinmurray.info/api/lang/training/#fastsigmoid) surrogate used slope $100/15\,\mathrm{mV}^{-1}$ and gradient scale 0.01. States reset per utterance. Reported losses were example means; validation used epoch-end weights, including epoch zero.
 
-7. **Record matched responses.** Using SNNLab's [infer](https://snnlab.eoinmurray.info/api/sim/execution-functions/#infer), we replayed the first validation utterance with final-epoch weights, one shared fresh corruption draw (seed 46) and no updates. Selection did not depend on prediction or spike appearance.
+7. **Record matched responses.** Using SNNLab's historical inference entry point (now [simulate](https://snnlab.eoinmurray.info/api/sim/execution-functions/#simulate)), we replayed the first validation utterance with final-epoch weights, one shared fresh corruption draw (seed 46) and no updates. Selection used validation split order, not original dataset index, prediction or spike appearance.
 
 8. **Calculate autocorrelograms.** We applied SNNLab's [spike_autocorrelogram](https://snnlab.eoinmurray.info/api/analysis/#spike_autocorrelogram) separately to each population over the full utterance:
 

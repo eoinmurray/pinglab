@@ -1,10 +1,13 @@
-"""Frozen-network confidence trajectories in physical time and volley position."""
+"""Frozen-network confidence trajectories in physical time and volley position.
+
+The configuration resolves scientific settings and the authoring functions compile
+the network. Data loading, simulation and run storage belong to the execution stages.
+"""
 
 import hashlib
 from pathlib import Path
 
 import numpy as np
-from experiments.helpers.ping import build_ping
 from snnlab import lang
 
 REPO = Path(__file__).resolve().parents[2]
@@ -17,19 +20,22 @@ ACCURACY_SELECTION_SEED = 123
 ACCURACY_IMAGES_PER_DIGIT = 50
 ACCURACY_BATCH_IMAGES = 32
 TAUS_MS = (3.0, 6.0, 12.0)
-SWEEP_TAUS_MS = tuple(float(t) for t in np.concatenate((
-    np.geomspace(3, 6, 7), np.geomspace(6, 12, 7)[1:],
-    np.geomspace(12, 30, 7)[1:],
-)))
+SWEEP_TAUS_MS = tuple(
+    float(t)
+    for t in np.concatenate(
+        (
+            np.geomspace(3, 6, 7),
+            np.geomspace(6, 12, 7)[1:],
+            np.geomspace(12, 30, 7)[1:],
+        )
+    )
+)
 SWEEP_SEEDS = tuple(range(42, 52))
 DT_MS = 0.1
 DURATION_MS = 200.0
 STEPS = round(DURATION_MS / DT_MS)
 RATE_HZ = 25.0
 TARGET_ACCURACY_PCT = 80.0
-PARETO_NEW_RATES_HZ = (12.5, 50.0)
-PARETO_RATES_HZ = (12.5, 25.0, 50.0)
-PARETO_DEADLINES_MS = (20.0, 40.0, 80.0, 120.0, 200.0)
 UNIT = "ping__tg6__seed42"
 CHECKPOINT_ROLE = "final_epoch"
 CHECKPOINT_FILE = "weights_final.pth"
@@ -68,19 +74,6 @@ def recording_unit(image_index, rate, protocol):
     return f"image{image_index:05d}{suffix}"
 
 
-def full_configuration(labels):
-    trajectories = configuration("trajectories", IMAGE_INDICES)
-    benchmark = configuration("benchmark", accuracy_images(labels))
-    benchmark["input_rates_hz"] = PARETO_RATES_HZ
-    return dict(
-        schema="exp123.compute/v2",
-        protocols={"trajectories": trajectories, "benchmark": benchmark},
-        presentations=len(IMAGE_INDICES) * len(SEEDS) * len(TAUS_MS)
-        + len(benchmark["image_indices"]) * len(ACCURACY_SEEDS)
-        * len(TAUS_MS) * len(PARETO_RATES_HZ),
-    )
-
-
 def shared_configuration(labels):
     """One balanced sample and paired decay sweep, with no extra simulations."""
     return shared_configuration_for_images(accuracy_images(labels))
@@ -91,19 +84,23 @@ def shared_configuration_for_images(image_indices):
         raise ValueError("shared sweep requires 500 distinct test images")
     cfg = configuration("benchmark", tuple(image_indices))
     cfg.update(
-        seeds=SWEEP_SEEDS, tau_gaba_ms=SWEEP_TAUS_MS,
+        seeds=SWEEP_SEEDS,
+        tau_gaba_ms=SWEEP_TAUS_MS,
         input_rates_hz=(RATE_HZ,),
         execution_batch_images=1,
     )
     return dict(
-        schema="exp123.compute/v3", sweep=cfg,
+        schema="exp123.compute/v3",
+        sweep=cfg,
         illustrative_image_indices=list(cfg["image_indices"][:9]),
         presentations=len(cfg["image_indices"]) * len(SWEEP_SEEDS) * len(SWEEP_TAUS_MS),
         sampling="all 500 balanced images have the same ten encodings at every decay; illustrative images are a view of this sample",
     )
 
 
-def configuration(protocol="trajectories", image_indices=None):
+def configuration(protocol="benchmark", image_indices=None):
+    if protocol not in ("benchmark", "trajectories"):
+        raise ValueError("unsupported sampling protocol")
     return dict(
         schema="exp123.compute/v1",
         protocol=protocol,
@@ -115,6 +112,14 @@ def configuration(protocol="trajectories", image_indices=None):
         if protocol == "trajectories"
         else ACCURACY_SELECTION_SEED,
         partition="official_mnist_test",
+        n_input=784,
+        n_e=1024,
+        n_i=256,
+        n_output=10,
+        model_seed=0,
+        device="cpu",
+        torch_threads=1,
+        performance=dict(compile_mode=None),
         seeds=SEEDS if protocol == "trajectories" else ACCURACY_SEEDS,
         execution_batch_images=1
         if protocol == "trajectories"
@@ -124,8 +129,8 @@ def configuration(protocol="trajectories", image_indices=None):
         dt_ms=DT_MS,
         duration_ms=DURATION_MS,
         burn_in_ms=0.0,
-        input_rate_hz=None if protocol == "pareto" else RATE_HZ,
-        input_rates_hz=PARETO_NEW_RATES_HZ if protocol == "pareto" else (RATE_HZ,),
+        input_rate_hz=RATE_HZ,
+        input_rates_hz=(RATE_HZ,),
         cross_rate_pairing="same per-image/draw random uniforms thresholded at each rate",
         checkpoint_unit=UNIT,
         checkpoint_role=CHECKPOINT_ROLE,
@@ -144,8 +149,10 @@ def configuration(protocol="trajectories", image_indices=None):
             output_tau_ms=2.0,
             output_threshold=1.0,
         ),
-        script_sha256={p.name: sha256(p) for p in Path(__file__).parent.glob("*.py")},
-        ping_helper_sha256=sha256(REPO / "experiments/helpers/ping.py"),
+        script_sha256={
+            str(p.relative_to(Path(__file__).parent)): sha256(p)
+            for p in Path(__file__).parent.rglob("*.py")
+        },
     )
 
 
@@ -174,135 +181,116 @@ def measurement():
         decision_rule="earliest unique true-class cumulative-count winner sustained through the final update; ties are failures",
         decision_cycle_mapping="interpolate within each accepted I-volley sequence only; no extrapolation",
         decision_summary="median and quartiles among successful trials; cycle summaries require an in-range accepted cycle coordinate",
-        script_sha256={p.name: sha256(p) for p in Path(__file__).parent.glob("*.py")},
+        script_sha256={
+            str(p.relative_to(Path(__file__).parent)): sha256(p)
+            for p in Path(__file__).parent.rglob("*.py")
+        },
     )
 
 
-def network(tau_ms):
-    net = lang.Network("exp123_evidence", dt=DT_MS * lang.ms)
+def author_network(tau_ms, cfg=None):
+    cfg = configuration() if cfg is None else cfg
+    if not np.isfinite(tau_ms) or tau_ms <= 0:
+        raise ValueError("inhibitory decay must be positive and finite")
+    net = lang.Network("exp123_evidence", dt=cfg["dt_ms"] * lang.ms)
     drive = net.input(
-        "image", shape=("time", "batch", 784), signal_type="spikes", unit="spike"
+        "image",
+        shape=("time", "batch", cfg["n_input"]),
+        signal_type="spikes",
+        unit="spike",
     )
+    biology = cfg["biological_defaults"]
     neurons = [
         lang.COBA_LIF(
-            tau_mem=t * lang.ms,
+            tau_mem=(c / g) * lang.ms,
             capacitance_nf=c,
             leak_us=g,
-            resting_mv=-65.0,
-            reset_mv=-65.0,
-            threshold_mv=-50.0,
-            initial_voltage_mv=-65.0,
-            voltage_grad_dampen=1000.0,
+            resting_mv=biology["resting_mv"],
+            reset_mv=biology["reset_mv"],
+            threshold_mv=biology["threshold_mv"],
+            initial_voltage_mv=biology["resting_mv"],
+            voltage_grad_dampen=biology["voltage_grad_dampen"],
             refractory=r * lang.ms,
         )
-        for t, c, g, r in ((20, 1.0, 0.05, 1.2), (5, 0.5, 0.1, 0.6))
+        for c, g, r in zip(
+            biology["capacitance_nf"],
+            biology["leak_us"],
+            biology["refractory_ms"],
+            strict=True,
+        )
     ]
-    circuit = build_ping(
-        net,
-        source=drive,
-        n_e=1024,
-        n_i=256,
-        neuron_e=neurons[0],
-        neuron_i=neurons[1],
-        ampa=lang.AMPA(tau=2 * lang.ms),
-        gaba=lang.GABA(tau=tau_ms * lang.ms),
-        input_weight=lang.Constant(0.0),
-        ei_weight=lang.Constant(0.0),
-        ie_weight=lang.Constant(0.0),
-        recurrent_delay=DT_MS * lang.ms,
+    # Reciprocal E/I loop with excitatory drive to E only.
+    ping_ampa = lang.AMPA(tau=biology["tau_ampa_ms"] * lang.ms)
+    ping_gaba = lang.GABA(tau=tau_ms * lang.ms)
+    ping_recurrent_delay = cfg["dt_ms"] * lang.ms
+    ping_e = net.population("E", size=cfg["n_e"], neuron=neurons[0])
+    ping_i = net.population("I", size=cfg["n_i"], neuron=neurons[1])
+    net.connect(
+        drive,
+        ping_e.excitatory,
+        name="input_to_E",
+        synapse=ping_ampa,
+        weight=lang.Constant(0.0),
+        constraint=lang.NonNegative(),
+        initialization_scaling="direct",
+    )
+    net.connect(
+        ping_e.spikes,
+        ping_i.excitatory,
+        name="E_to_I",
+        synapse=ping_ampa,
+        weight=lang.Constant(0.0),
+        constraint=lang.NonNegative(),
+        connection="recurrent",
+        delay=ping_recurrent_delay,
+        initialization_scaling="direct",
+    )
+    net.connect(
+        ping_i.spikes,
+        ping_e.inhibitory,
+        name="I_to_E",
+        synapse=ping_gaba,
+        weight=lang.Constant(0.0),
+        constraint=lang.NonNegative(),
+        connection="recurrent",
+        delay=ping_recurrent_delay,
         initialization_scaling="direct",
     )
     output = net.population(
         "readout",
-        size=10,
+        size=cfg["n_output"],
         spiking=True,
         neuron=lang.LeakyIntegrator(
-            tau=2 * lang.ms,
-            soft_reset_threshold=1.0,
+            tau=biology["output_tau_ms"] * lang.ms,
+            soft_reset_threshold=biology["output_threshold"],
             surrogate_slope=1.0,
             initial_voltage=0.0,
         ),
     )
     net.connect(
-        circuit.e.spikes,
+        ping_e.spikes,
         output.excitatory,
         name="readout_projection",
-        synapse=lang.LeakyIntegrator(tau=2 * lang.ms),
+        synapse=lang.LeakyIntegrator(tau=biology["output_tau_ms"] * lang.ms),
         weight=lang.Constant(0.0),
         constraint=lang.NonNegative(),
         initialization_scaling="direct",
     )
     for signal, name in (
-        (circuit.e.spikes, "spk_e"),
-        (circuit.i.spikes, "spk_i"),
+        (ping_e.spikes, "spk_e"),
+        (ping_i.spikes, "spk_i"),
         (output.spikes, "spk_out"),
     ):
         net.expose(signal, name=name)
-    return lang.compile(net, target="tools/snnsim")
+    return lang.compile(net, target=None)
 
 
-OVERVIEW_SEEDS = tuple(range(42, 52))
-OVERVIEW_TAUS_MS = tuple(float(x) for x in np.geomspace(3, 30, 10))
-
-
-def overview_conditions():
-    return [
-        dict(
-            condition_id=f"tau{j:02d}", sweep="tau", condition_index=j,
-            axis_value=tau, tau_gaba_ms=tau, leak_scale=1.0,
-            capacitance_scale=1.0, capacitance_e_nf=1.0, capacitance_i_nf=0.5,
-            leak_e_us=0.05, leak_i_us=0.1,
-        )
-        for j, tau in enumerate(OVERVIEW_TAUS_MS)
-    ]
-
-
-def overview_configuration():
-    return dict(
-        schema="exp123.overview.compute/v1",
-        image_index=0,
-        partition="official_mnist_test",
-        seeds=OVERVIEW_SEEDS,
-        tau_gaba_ms=OVERVIEW_TAUS_MS,
-        conditions=overview_conditions(),
-        dt_ms=DT_MS,
-        duration_ms=DURATION_MS,
-        transient_ms=0.0,
-        population_bin_ms=1.0,
-        frequency_search_hz=(5.0, 150.0),
-        training_source="exp022-r001-compute",
-        training_unit=UNIT,
-        checkpoint_role=CHECKPOINT_ROLE,
-        checkpoint_sha256=CHECKPOINT_SHA256,
-        biological_defaults=dict(
-            capacitance_nf=[1.0, 0.5],
-            leak_us=[0.05, 0.1],
-            resting_mv=-65.0,
-            threshold_mv=-50.0,
-            reset_mv=-65.0,
-            refractory_ms=[1.2, 0.6],
-            voltage_grad_dampen=1000.0,
-            synapse_tau_ampa_ms=2.0,
-            readout_tau_ms=2.0,
-            readout_threshold=1.0,
-            initial_voltage_mv=-65.0,
-            recurrent_delay_ms=DT_MS,
-        ),
-        biological_default_basis="literal working protocol from exp022/exp041/exp044; paired with exp041's trained 6 ms cell",
-        script_sha256={p.name: sha256(p) for p in Path(__file__).parent.glob("*.py")},
-        helper_sha256=sha256(REPO / "experiments/helpers/ping.py"),
+def dynamics_configuration(source_configuration=None):
+    """Resolve the native spectrum and cycle measurements for the shared sweep."""
+    cfg = dict(
+        configuration() if source_configuration is None else source_configuration
     )
-
-
-def overview_analysis_configuration(source_configuration):
-    cfg = dict(source_configuration)
-    for key in (
-        "minimum_ac_peak",
-        "minimum_ac_prominence",
-        "maximum_cycle_interval_cv",
-        "cycle_interval_period_ratio_bounds",
-    ):
-        cfg.pop(key, None)
+    cfg.update(population_bin_ms=1.0, transient_ms=0.0)
     cfg.update(
         frequency_search_hz=[5.0, 150.0],
         estimator_version="snnlab-analysis-v1",
@@ -331,7 +319,8 @@ def overview_analysis_configuration(source_configuration):
             clamp_band=False,
         ),
         analysis_script_sha256={
-            p.name: sha256(p) for p in Path(__file__).parent.glob("*.py")
+            str(p.relative_to(Path(__file__).parent)): sha256(p)
+            for p in Path(__file__).parent.rglob("*.py")
         },
     )
     return cfg

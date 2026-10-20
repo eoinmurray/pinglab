@@ -1,0 +1,36 @@
+---
+interface Props { date: string; compact?: boolean; }
+const { date, compact = false } = Astro.props;
+const dateLabel = new Intl.DateTimeFormat('en-GB', {
+  day: 'numeric', month: 'short', year: '2-digit', timeZone: 'UTC',
+}).format(new Date(date));
+---
+
+<time data-local-date data-compact={compact || undefined} class:list={{ compact }} datetime={date}><span data-date-time></span><span data-date-label>{dateLabel}</span></time>
+
+<script>
+  function localizeArticleDates() {
+    const monthLabel = new Intl.DateTimeFormat('en-GB', { month: 'short' });
+    document.querySelectorAll<HTMLTimeElement>('time[data-local-date]').forEach(time => {
+      const date = new Date(time.dateTime);
+      if (Number.isNaN(date.getTime())) return;
+      const day = date.getDate();
+      const suffix = day % 100 >= 11 && day % 100 <= 13
+        ? 'th'
+        : (['th', 'st', 'nd', 'rd'][day % 10] ?? 'th');
+      const hours = date.getHours();
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      time.querySelector('[data-date-time]')!.textContent = `${hours % 12 || 12}:${minutes}${hours < 12 ? 'am' : 'pm'}`;
+      const year = String(date.getFullYear()).slice(-2);
+      time.querySelector('[data-date-label]')!.textContent = `${day}${suffix} ${monthLabel.format(date)} ${year}`;
+    });
+  }
+
+  localizeArticleDates();
+  document.addEventListener('astro:page-load', localizeArticleDates);
+</script>
+
+<style>
+  span { display: block; white-space: nowrap; }
+  .compact { display: inline-flex; gap: .35em; white-space: nowrap; }
+</style>

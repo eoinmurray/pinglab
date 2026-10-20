@@ -1,6 +1,6 @@
 # exp047 — inhibitory pool-size controls
 
-For GPU compute on Modal, use the [shared Modal wrapper](../helpers/MODAL.md)
+For GPU compute on Modal, use the [Modal dispatcher](../../tools/modal_dispatcher/README.md)
 with `--experiment exp047`. It downloads a validated compute run to local Pingstore.
 
 ## Native production run — 2026-10-14

@@ -2,6 +2,11 @@ import type { Post } from "./posts";
 
 const collections = [
   {
+    id: "experiments",
+    label: "Experiments",
+    description: "All experiment reports in Pinglab.",
+  },
+  {
     id: "gamma-gated-sparsity",
     label: "Gamma-gated sparsity",
     description:

@@ -1,0 +1,162 @@
+# Keys are PDF paths relative to this directory.
+# Citation details describe the saved version, including preprints.
+
+aitchison-lengyel-2016.pdf:
+  id: P09
+  title: "The Hamiltonian Brain: Efficient Probabilistic Inference with Excitatory-Inhibitory Neural Circuit Dynamics"
+  authors: [Laurence Aitchison, Máté Lengyel]
+  year: 2016
+  collection: [probabilistic-coding]
+  venue: PLOS Computational Biology
+  doi: 10.1371/journal.pcbi.1005186
+
+borgers-kopell-2003.pdf:
+  id: P03
+  title: "Synchronization in Networks of Excitatory and Inhibitory Neurons with Sparse, Random Connectivity"
+  authors: [Christoph Börgers, Nancy Kopell]
+  year: 2003
+  collection: [ping, spiking]
+  venue: Neural Computation
+
+bosman-et-al-2012.pdf:
+  id: P06
+  title: Attentional Stimulus Selection through Selective Synchronization between Monkey Visual Areas
+  authors: [Conrado A. Bosman, Jan-Mathijs Schoffelen, Nicolas Brunet, Robert Oostenveld, Andre M. Bastos, Thilo Womelsdorf, Birthe Rubehn, Thomas Stieglitz, Peter De Weerd, Pascal Fries]
+  year: 2012
+  collection: [uncategorized, gamma-synchronisation]
+  venue: Neuron
+  doi: 10.1016/j.neuron.2012.06.037
+
+confavreux-et-al-2025.pdf:
+  id: P17
+  title: "Memory by a thousand rules: Automated discovery of multi-type plasticity rules reveals variety & degeneracy at the heart of learning"
+  authors: [Basile Confavreux, Zoe P. M. Harrington, Maciej Kania, Poornima Ramesh, Anastasia N. Krouglova, Panos A. Bozelos, Jakob H. Macke, Andrew M. Saxe, Pedro J. Gonçalves, Tim P. Vogels]
+  year: 2025
+  collection: [spiking]
+  venue: "bioRxiv:2025.05.28.656584v2"
+  doi: 10.1101/2025.05.28.656584
+
+echeveste-et-al-2020.pdf:
+  id: P12
+  title: Cortical-like dynamics in recurrent circuits optimized for sampling-based probabilistic inference
+  authors: [Rodrigo Echeveste, Laurence Aitchison, Guillaume Hennequin, Máté Lengyel]
+  year: 2020
+  collection: [probabilistic-coding, ping]
+  venue: Nature Neuroscience
+  doi: 10.1038/s41593-020-0671-1
+
+eshraghian-et-al-2023.pdf:
+  id: P15
+  title: Training Spiking Neural Networks Using Lessons From Deep Learning
+  authors: [Jason K. Eshraghian, Max Ward, Emre Neftci, Xinxin Wang, Gregor Lenz, Girish Dwivedi, Mohammed Bennamoun, Doo Seok Jeong, Wei D. Lu]
+  year: 2023
+  collection: [spiking]
+  venue: "arXiv:2109.12894v6"
+
+fiser-et-al-2010.pdf:
+  id: P05
+  title: "Statistically optimal perception and learning: from behavior to neural representations"
+  authors: [József Fiser, Pietro Berkes, Gergő Orbán, Máté Lengyel]
+  year: 2010
+  collection: [probabilistic-coding]
+  venue: Trends in Cognitive Sciences
+  doi: 10.1016/j.tics.2010.01.003
+
+kania-et-al-2026.pdf:
+  id: P18
+  title: "Learning to play with spikes: characterizing, predicting, and engineering unsupervised plasticity rules for spiking reservoir computing"
+  authors: [Maciej Kania, Basile Confavreux, Tim P. Vogels]
+  year: 2026
+  collection: [spiking]
+  venue: "bioRxiv:2026.09.15.751573v1"
+  doi: 10.64898/2026.09.15.751573
+
+lowet-et-al-2015.pdf:
+  id: P07
+  title: Input-Dependent Frequency Modulation of Cortical Gamma Oscillations Shapes Spatial Synchronization and Enables Phase Coding
+  authors: [Eric Lowet, Mark Roberts, Avgis Hadjipapas, Alina Peter, Jan van der Eerden, Peter De Weerd]
+  year: 2015
+  collection: [ping, spiking, gamma-synchronisation]
+  venue: PLOS Computational Biology
+  doi: 10.1371/journal.pcbi.1004072
+
+lowet-et-al-2017.pdf:
+  id: P10
+  title: A quantitative theory of gamma synchronization in macaque V1
+  authors: [Eric Lowet, Mark J. Roberts, Alina Peter, Bart Gips, Peter De Weerd]
+  year: 2017
+  collection: [ping, spiking, gamma-synchronisation]
+  venue: eLife
+  doi: 10.7554/eLife.26642
+
+ma-et-al-2006.pdf:
+  id: P04
+  title: Bayesian inference with probabilistic population codes
+  authors: [Wei Ji Ma, Jeffrey M. Beck, Peter E. Latham, Alexandre Pouget]
+  year: 2006
+  collection: [probabilistic-coding, spiking]
+  venue: Nature Neuroscience
+  doi: 10.1038/nn1790
+
+orban-et-al-2016.pdf:
+  id: P08
+  title: Neural Variability and Sampling-Based Probabilistic Representations in the Visual Cortex
+  authors: [Gergő Orbán, Pietro Berkes, József Fiser, Máté Lengyel]
+  year: 2016
+  collection: [probabilistic-coding]
+  venue: Neuron
+  doi: 10.1016/j.neuron.2016.09.038
+
+padamsey-et-al-2022.pdf:
+  id: P14
+  title: Neocortex saves energy by reducing coding precision during food scarcity
+  authors: [Zahid Padamsey, Danai Katsanevaki, Nathalie Dupuy, Nathalie L. Rochefort]
+  year: 2022
+  collection: [spiking]
+  venue: Neuron
+  doi: 10.1016/j.neuron.2021.10.024
+
+pfeifer-scheier-1999-chapter-8.pdf:
+  id: P01
+  title: Artificial Evolution and Artificial Life
+  authors: [Rolf Pfeifer, Christian Scheier]
+  year: 1999
+  collection: [uncategorized]
+  venue: "Understanding Intelligence, chapter 8 · MIT Press"
+  doi: 10.7551/mitpress/6979.001.0001
+
+pouget-et-al-2003.pdf:
+  id: P02
+  title: Inference and Computation with Population Codes
+  authors: [Alexandre Pouget, Peter Dayan, Richard S. Zemel]
+  year: 2003
+  collection: [probabilistic-coding]
+  venue: Annual Review of Neuroscience
+  doi: 10.1146/annurev.neuro.26.041002.131112
+
+susin-destexhe-2021.pdf:
+  id: P13
+  title: Integration, coincidence detection and resonance in networks of spiking neurons expressing Gamma oscillations and asynchronous states
+  authors: [Eduarda Susin, Alain Destexhe]
+  year: 2021
+  collection: [ping, spiking]
+  venue: PLOS Computational Biology
+  doi: 10.1371/journal.pcbi.1009416
+
+ter-wal-tiesinga-2017.pdf:
+  id: P11
+  title: Phase Difference between Model Cortical Areas Determines Level of Information Transfer
+  authors: [Marije ter Wal, Paul H. Tiesinga]
+  year: 2017
+  collection: [ping, spiking, gamma-synchronisation]
+  venue: Frontiers in Computational Neuroscience
+  doi: 10.3389/fncom.2017.00006
+
+yan-lin-2026.pdf:
+  id: P16
+  title: Neural basis of social hierarchy across species
+  authors: [Rongzhen Yan, Dayu Lin]
+  year: 2026
+  collection: [journal-club]
+  venue: Nature Reviews Neuroscience
+  doi: 10.1038/s41583-026-01047-z

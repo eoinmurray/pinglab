@@ -1,4 +1,9 @@
-"""Execute the private-afferent protocol with SNNSIM's delayed graph executor."""
+"""Execute the private-afferent protocol with SNNSIM's delayed graph executor.
+
+Invoke this stage independently through its CLI; it records configuration,
+provenance and scientific outputs in Pingstore. Importing the module does not
+launch computation or another stage.
+"""
 
 from __future__ import annotations
 
@@ -11,15 +16,23 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
 import numpy as np
 import torch
-from experiments.exp099 import recipe
-from experiments.helpers.network_artifacts import model_execution
+from experiments.exp099 import recipe, dataset
+from experiments.exp099.custom.network_artifacts import model_execution
 from pingstore.stages import stage_run
-from snnlab.sim import GraphExecutor, plan_graph  # noqa: TID251
+from snnlab.sim import Performance, build  # noqa: TID251
 
 
-def build_model(cfg):
+def build_model(cfg, execution=None):
     bundle = recipe.author_network(cfg)
-    model = GraphExecutor(plan_graph(bundle.graph), seed=cfg["seed"])
+    built = build(
+        bundle=bundle,
+        seed=cfg["seed"],
+        device=cfg["device"],
+        performance=Performance(**cfg["performance"]),
+    )
+    model = built.model
+    if execution is not None:
+        execution["performance"] = built.metrics["performance"]
     # Each aggregate channel belongs to exactly one postsynaptic cell.
     with torch.no_grad():
         for pop in ("e", "i"):
@@ -29,10 +42,10 @@ def build_model(cfg):
     return bundle, model
 
 
-def simulate(cfg, *, artifacts, chunk_steps=1000):
-    torch.set_num_threads(1)
-    bundle, model = build_model(cfg)
-    counts = recipe.afferent_counts(cfg)
+def simulate(cfg, *, artifacts, chunk_steps=1000, execution=None):
+    torch.set_num_threads(cfg["torch_threads"])
+    bundle, model = build_model(cfg, execution)
+    counts = dataset.afferent_counts(cfg)
     retained = {**counts}
     steps = len(counts["private_e"])
     for pop in ("e", "i"):
@@ -79,12 +92,19 @@ def compute(*, run_id=None):
     with stage_run(
         REPO, recipe.SLUG, "compute", run_id=run_id, configuration=cfg
     ) as run:
+        run.record["scientific_artifacts"] = {
+            "snapshot_stages": {"simulation": ["start"]}
+        }
+        bundle = recipe.author_network(cfg)
+        bundle.visualise(run.export / "network.svg", view="circuit")
         simulation_start = perf_counter()
-        bundle, recording, weights = simulate(cfg, artifacts=run.export / "simulation")
+        bundle, recording, weights = simulate(
+            cfg, artifacts=run.export / "simulation", execution=run.record["execution"]
+        )
         simulation_seconds = perf_counter() - simulation_start
         run.record["execution"]["simulation_seconds"] = simulation_seconds
         print(f"Simulation wall time: {simulation_seconds:.3f} s", flush=True)
-        bundle.write(run.export / "network.bundle")
+        bundle.write(run.export / "network.bundle", visualise=False)
         np.savez_compressed(run.export / "recording.npz", **recording)
         np.savez_compressed(run.export / "weights.npz", **weights)
         run.record["execution"]["executor"] = "snnsim.GraphExecutor"

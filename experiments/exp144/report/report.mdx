@@ -1,0 +1,83 @@
+---
+id: exp144
+title: "MNIST-driven E/I activity"
+author: "Eoin Murray"
+created_at: "2026-10-20T11:59:54Z"
+updated_at: "2026-10-20T14:05:30Z"
+description: "A 500 ms comparison of dense feedback and sparse feedback with private inhibitory background under one MNIST image."
+collection: ["gamma-gated-sparsity", "experiments"]
+tags: ["data", "v1.3.0"]
+inputs: ["exp144"]
+runs: {exp144: exp144-r004-present}
+thumbnail: mnist_ai.png
+---
+
+import RunFigure from '../../../site/src/components/RunFigure.astro';
+import Table from '../../../site/src/components/Table.astro';
+import { reportData, round } from '../../../site/src/lib/report-data';
+
+export const data = await reportData('exp144');
+export const rows = Object.fromEntries(data.rows.map(row => [row.case.id, row]));
+export const rate = (condition, population) => round(rows[condition].populations[population].rate_hz, 2);
+export const correlation = (condition, population) => round(rows[condition].populations[population].correlation['10.0'], 3);
+export const maxEligibleE = Math.max(...data.rows.map(row => row.populations.E.cv_eligible));
+export const eligibleI = data.rows.reduce((sum, row) => sum + row.populations.I.cv_eligible, 0);
+export const comparisonRows = data.rows.map(row => [
+  row.case.recurrence_density === 1 ? 'Dense; no I background' : `10% recurrence; I background ${row.case.i_rate_hz} Hz`,
+  `${round(row.populations.E.rate_hz, 2)} / ${round(row.populations.I.rate_hz, 2)}`,
+  round(row.populations.I.correlation['10.0'], 3),
+]);
+
+## Abstract
+
+We compared dense excitatory–inhibitory feedback without background input to
+two conditions with 10% reciprocal connectivity and private inhibitory (I)
+background excitation at 5 or 10 Hz. Each received the same MNIST image and pixel
+spikes for 500 ms from rest at seed 42, with fixed weights and no burn-in.
+With 10 Hz background, mean I activity was {rate('win3-i10', 'I')} Hz and mean
+10 ms spike-count correlation was {correlation('win3-i10', 'I')}, compared with
+{rate('win3-i0', 'I')} Hz and {correlation('win3-i0', 'I')} in the dense control.
+This single-image diagnostic shows reduced population synchrony; it does not
+establish sustained asynchronous, irregular (AI) activity or classifier performance.
+
+## Results
+
+### Sparse feedback with private I input reduced synchrony
+
+The dense control showed repeated synchronous I bursts. The sparse conditions
+had much lower within-I spike-count correlations over the same full 500 ms
+window ([Figure 1](#fig-mnist-ai)). Mean excitatory (E) activity was
+{rate('win3-i0', 'E')} Hz in the dense control, {rate('win3-i5', 'E')} Hz with
+5 Hz I background, and {rate('win3-i10', 'E')} Hz with 10 Hz background.
+These comparisons change recurrence and I background together; they do not
+isolate the effect of either change.
+
+<Table headers={["Condition", "E / I mean rate (Hz)", "I count correlation (10 ms)"]} rows={comparisonRows} number={1}>
+  Rates average all cells in each population. Correlation is the mean over valid
+  pairs among 200 evenly spaced I cells; constant-count cells are excluded.
+</Table>
+
+<RunFigure report="exp144" experiment="exp144" file="mnist_ai.svg" number={1} id="fig-mnist-ai" alt="The first MNIST training image, its shared pixel input and initial input-weight pattern, followed by dense and sparse E/I rasters, population rates, power spectra and count correlations.">
+  A: official MNIST training sample 0, digit 5. B: its Poisson pixel spikes,
+  with maximum rate 25 Hz. C: positive entries of the initial pixel-to-E matrix.
+  D–F: all E spikes in black and I spikes in red, with I cells above E cells;
+  columns compare dense feedback, sparse feedback with 5 Hz I background, and
+  sparse feedback with 10 Hz background. G–I: per-neuron population rates in
+  1 ms bins. J–L: power spectral density (PSD) of the centered rate, with 2 Hz
+  frequency spacing. M–O: mean within-population spike-count correlation at
+  5, 10 and 50 ms bin widths, using 200 evenly spaced cells per population and
+  excluding constant-count pairs. All measurements cover the full 500 ms.
+</RunFigure>
+
+### Scope of this diagnostic
+
+All three conditions used identical pixel spikes and initial input weights.
+No weights were updated. The image is one original training example, not a
+held-out evaluation, and only seed 42 was run.
+
+Across the three conditions, {eligibleI} I cells and at most {maxEligibleE} E cell
+per condition met the 20-spike requirement for interspike-interval coefficient
+of variation (ISI CV). These short recordings therefore provide little evidence
+about individual-neuron irregularity. Near-zero count correlation alone does
+not establish AI activity. The screen and long protocols were not run, and
+historical scratch outputs were not imported as exp144 evidence.

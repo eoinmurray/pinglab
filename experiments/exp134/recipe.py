@@ -1,23 +1,20 @@
-"""Paired leak and capacitance interventions in a frozen trained PING circuit."""
+"""Define paired membrane interventions in a frozen trained PING circuit.
 
-import hashlib
-from pathlib import Path
+configuration() resolves the sampling, numerical, network and recording settings.
+Each call returns fresh values; image pixels are loaded separately by compute.
+
+author_network() compiles the reciprocal E/I circuit for one intervention.
+The trained checkpoint supplies all weights; this module neither loads artifacts
+nor runs simulations. The two sweeps share one baseline and identical inputs.
+"""
+
+from dataclasses import asdict
 
 import numpy as np
-from experiments.helpers.ping import build_ping
 from snnlab import lang
+from snnlab.sim import Performance
 
-REPO = Path(__file__).resolve().parents[2]
 SLUG = "exp134"
-DT_MS = 0.1
-DURATION_MS = 200.0
-STEPS = round(DURATION_MS / DT_MS)
-RATE_HZ = 25.0
-SEEDS = tuple(range(42, 52))
-SELECTION_SEED = 134
-IMAGES_PER_DIGIT = 50
-BATCH_IMAGES = 5
-MULTIPLIERS = tuple(float(x) for x in np.geomspace(0.5, 2.0, 19))
 UNIT = "ping__tg6__seed42"
 CHECKPOINT_ROLE = "final_epoch"
 CHECKPOINT_FILE = "weights_final.pth"
@@ -30,22 +27,19 @@ PARAMETERS = {
 }
 
 
-def sha256(path):
-    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
-
-
-def conditions():
+def conditions(cfg=None):
+    cfg = configuration() if cfg is None else cfg
     rows = [
         dict(
             condition_id="baseline",
             sweep="baseline",
             multiplier=1.0,
-            capacitance_nf=[1.0, 0.5],
-            leak_us=[0.05, 0.1],
+            capacitance_nf=list(cfg["capacitance_nf"]),
+            leak_us=list(cfg["leak_us"]),
         )
     ]
     for sweep in ("leak", "capacitance"):
-        for index, factor in enumerate(MULTIPLIERS):
+        for index, factor in enumerate(cfg["multipliers"]):
             if factor == 1.0:
                 continue
             rows.append(
@@ -55,67 +49,113 @@ def conditions():
                     multiplier=factor,
                     capacitance_nf=[
                         c * (factor if sweep == "capacitance" else 1)
-                        for c in (1.0, 0.5)
+                        for c in cfg["capacitance_nf"]
                     ],
                     leak_us=[
-                        g * (factor if sweep == "leak" else 1) for g in (0.05, 0.1)
+                        g * (factor if sweep == "leak" else 1) for g in cfg["leak_us"]
                     ],
                 )
             )
     return rows
 
 
-def sweep_conditions(sweep):
-    if sweep not in ("leak", "capacitance"):
-        raise ValueError("unknown modulation sweep")
-    return sorted(
-        (c for c in conditions() if c["sweep"] in (sweep, "baseline")),
-        key=lambda c: c["multiplier"],
-    )
-
-
-def select_images(images):
-    rng = np.random.default_rng(SELECTION_SEED)
+def select_images(images, cfg):
+    rng = np.random.default_rng(cfg["image_selection_seed"])
     return sorted(
         int(i)
         for digit in range(10)
         for i in rng.choice(
             sorted(k for k, (_, label) in images.items() if label == digit),
-            IMAGES_PER_DIGIT,
+            cfg["images_per_digit"],
             replace=False,
         )
     )
 
 
-def configuration(images):
-    indices = select_images(images)
-    return dict(
+def configuration(images=None, *, images_per_digit=None, batch_images=None):
+    images_per_digit = 50 if images_per_digit is None else images_per_digit
+    batch_images = 5 if batch_images is None else batch_images
+    if not isinstance(images_per_digit, int) or not 1 <= images_per_digit <= 50:
+        raise ValueError("images_per_digit must be an integer from 1 to 50")
+    if not isinstance(batch_images, int) or batch_images < 1:
+        raise ValueError("batch_images must be a positive integer")
+    cfg = dict(
         schema="exp134.compute/v1",
-        conditions=conditions(),
-        image_indices=indices,
-        seeds=SEEDS,
+        seeds=list(range(42, 52)),
         partition="official_mnist_test",
-        image_selection="all 50 per digit from exp123's balanced 500-image bank",
-        image_selection_seed=SELECTION_SEED,
-        dt_ms=DT_MS,
-        duration_ms=DURATION_MS,
-        input_rate_hz=RATE_HZ,
+        image_selection="balanced sample without replacement from the validated 500-image bank",
+        image_selection_seed=134,
+        images_per_digit=images_per_digit,
+        dt_ms=0.1,
+        duration_ms=200.0,
+        input_rate_hz=25.0,
+        n_input=784,
+        n_excitatory=1024,
+        n_inhibitory=256,
+        n_output=10,
+        capacitance_nf=[1.0, 0.5],
+        leak_us=[0.05, 0.1],
+        refractory_ms=[1.2, 0.6],
+        resting_mv=-65.0,
+        reset_mv=-65.0,
+        threshold_mv=-50.0,
+        voltage_grad_dampen=1000.0,
+        tau_ampa_ms=2.0,
         tau_gaba_ms=6.0,
+        readout_tau_ms=2.0,
+        readout_threshold=1.0,
+        readout_initial_voltage=0.0,
+        readout_surrogate_slope=1.0,
         burn_in_ms=0.0,
-        batch_images=BATCH_IMAGES,
+        batch_images=batch_images,
+        torch_threads=1,
+        model_seed=0,
+        performance=asdict(Performance(compile_mode=None)),
+        recording_signals=["spk_e", "spk_i"],
+        multipliers=[float(x) for x in np.geomspace(0.5, 2.0, 19)],
+        checkpoint_unit=UNIT,
+        checkpoint_role=CHECKPOINT_ROLE,
+        checkpoint_file=CHECKPOINT_FILE,
         checkpoint_sha256=CHECKPOINT_SHA256,
+        parameter_mapping=dict(PARAMETERS),
+        device="cpu",
+        checkpoint_contract=dict(
+            dt=0.1,
+            input_rate=25.0,
+            t_ms=200.0,
+            tau_gaba_ms=6.0,
+            tau_ampa_ms=2.0,
+            n_in=784,
+            n_hidden=1024,
+            n_inh=256,
+            n_out=10,
+            train_leak=False,
+            adaptive_threshold=False,
+            input_rate_sampling="fixed",
+            v_grad_dampen=1000.0,
+            surrogate_slope=1.0,
+            state_clamp=False,
+            readout_mode="mem-mean",
+            signed_readout=False,
+            readout_bias=False,
+        ),
         generator_seed_rule="1000 * image_index + draw identifier",
         baseline_shared_between_sweeps=True,
-        presentations=len(indices) * len(SEEDS) * len(conditions()),
-        script_sha256={p.name: sha256(p) for p in Path(__file__).parent.glob("*.py")},
-        helper_sha256=sha256(REPO / "experiments/helpers/ping.py"),
     )
+    cfg["conditions"] = conditions(cfg)
+    if images is not None:
+        cfg["image_indices"] = select_images(images, cfg)
+    cfg["presentations"] = (
+        10 * images_per_digit * len(cfg["seeds"]) * len(cfg["conditions"])
+    )
+    return cfg
 
 
 def measurement():
     return dict(
         schema="exp134.analysis/v1",
         population_bin_ms=1.0,
+        rhythmicity_max_lag_ms=100.0,
         frequency_search_hz=[5.0, 150.0],
         minimum_cycles=1,
         volley_smoothing_ms=1.0,
@@ -128,66 +168,94 @@ def measurement():
     )
 
 
-def network(condition):
-    net = lang.Network("exp134_membrane_modulation", dt=DT_MS * lang.ms)
+def author_network(condition, cfg=None):
+    cfg = configuration() if cfg is None else cfg
+    net = lang.Network("exp134_membrane_modulation", dt=cfg["dt_ms"] * lang.ms)
     drive = net.input(
-        "image", shape=("time", "batch", 784), signal_type="spikes", unit="spike"
+        "image",
+        shape=("time", "batch", cfg["n_input"]),
+        signal_type="spikes",
+        unit="spike",
     )
     neurons = [
         lang.COBA_LIF(
             tau_mem=(c / g) * lang.ms,
             capacitance_nf=c,
             leak_us=g,
-            resting_mv=-65.0,
-            reset_mv=-65.0,
-            threshold_mv=-50.0,
-            initial_voltage_mv=-65.0,
-            voltage_grad_dampen=1000.0,
+            resting_mv=cfg["resting_mv"],
+            reset_mv=cfg["reset_mv"],
+            threshold_mv=cfg["threshold_mv"],
+            initial_voltage_mv=cfg["resting_mv"],
+            voltage_grad_dampen=cfg["voltage_grad_dampen"],
             refractory=r * lang.ms,
         )
         for c, g, r in zip(
-            condition["capacitance_nf"], condition["leak_us"], (1.2, 0.6), strict=True
+            condition["capacitance_nf"],
+            condition["leak_us"],
+            cfg["refractory_ms"],
+            strict=True,
         )
     ]
-    circuit = build_ping(
-        net,
-        source=drive,
-        n_e=1024,
-        n_i=256,
-        neuron_e=neurons[0],
-        neuron_i=neurons[1],
-        ampa=lang.AMPA(tau=2 * lang.ms),
-        gaba=lang.GABA(tau=6.0 * lang.ms),
-        input_weight=lang.Constant(0.0),
-        ei_weight=lang.Constant(0.0),
-        ie_weight=lang.Constant(0.0),
-        recurrent_delay=DT_MS * lang.ms,
+    # Reciprocal E/I loop with excitatory drive to E only.
+    ping_ampa = lang.AMPA(tau=cfg["tau_ampa_ms"] * lang.ms)
+    ping_gaba = lang.GABA(tau=cfg["tau_gaba_ms"] * lang.ms)
+    ping_recurrent_delay = cfg["dt_ms"] * lang.ms
+    ping_e = net.population("E", size=cfg["n_excitatory"], neuron=neurons[0])
+    ping_i = net.population("I", size=cfg["n_inhibitory"], neuron=neurons[1])
+    net.connect(
+        drive,
+        ping_e.excitatory,
+        name="input_to_E",
+        synapse=ping_ampa,
+        weight=lang.Constant(0.0),
+        constraint=lang.NonNegative(),
+        initialization_scaling="direct",
+    )
+    net.connect(
+        ping_e.spikes,
+        ping_i.excitatory,
+        name="E_to_I",
+        synapse=ping_ampa,
+        weight=lang.Constant(0.0),
+        constraint=lang.NonNegative(),
+        connection="recurrent",
+        delay=ping_recurrent_delay,
+        initialization_scaling="direct",
+    )
+    net.connect(
+        ping_i.spikes,
+        ping_e.inhibitory,
+        name="I_to_E",
+        synapse=ping_gaba,
+        weight=lang.Constant(0.0),
+        constraint=lang.NonNegative(),
+        connection="recurrent",
+        delay=ping_recurrent_delay,
         initialization_scaling="direct",
     )
     output = net.population(
         "readout",
-        size=10,
+        size=cfg["n_output"],
         spiking=True,
         neuron=lang.LeakyIntegrator(
-            tau=2 * lang.ms,
-            soft_reset_threshold=1.0,
-            surrogate_slope=1.0,
-            initial_voltage=0.0,
+            tau=cfg["readout_tau_ms"] * lang.ms,
+            soft_reset_threshold=cfg["readout_threshold"],
+            surrogate_slope=cfg["readout_surrogate_slope"],
+            initial_voltage=cfg["readout_initial_voltage"],
         ),
     )
     net.connect(
-        circuit.e.spikes,
+        ping_e.spikes,
         output.excitatory,
         name="readout_projection",
-        synapse=lang.LeakyIntegrator(tau=2 * lang.ms),
+        synapse=lang.LeakyIntegrator(tau=cfg["readout_tau_ms"] * lang.ms),
         weight=lang.Constant(0.0),
         constraint=lang.NonNegative(),
         initialization_scaling="direct",
     )
     for signal, name in (
-        (circuit.e.spikes, "spk_e"),
-        (circuit.i.spikes, "spk_i"),
-        (output.spikes, "spk_out"),
+        (ping_e.spikes, "spk_e"),
+        (ping_i.spikes, "spk_i"),
     ):
         net.expose(signal, name=name)
     return lang.compile(net, target="tools/snnsim")

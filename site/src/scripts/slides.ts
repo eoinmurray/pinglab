@@ -63,7 +63,8 @@ if (deck) {
       if (document.fullscreenElement) await document.exitFullscreen();
       else await document.documentElement.requestFullscreen();
     } catch {
-      fullscreen.textContent = 'Fullscreen unavailable';
+      fullscreen.setAttribute('aria-label', 'Fullscreen unavailable');
+      fullscreen.title = 'Fullscreen unavailable';
     }
   }
 
@@ -78,7 +79,11 @@ if (deck) {
     window.addEventListener('hashchange', fromHash);
     window.addEventListener('popstate', fromHash);
     document.addEventListener('fullscreenchange', () => {
-      fullscreen.textContent = document.fullscreenElement ? 'Exit fullscreen' : 'Fullscreen';
+      const active = Boolean(document.fullscreenElement);
+      const label = active ? 'Exit fullscreen' : 'Enter fullscreen';
+      fullscreen.setAttribute('aria-label', label);
+      fullscreen.title = label;
+      fullscreen.setAttribute('aria-pressed', String(active));
     });
 
     document.addEventListener('keydown', event => {

@@ -1,7 +1,12 @@
-"""Scientific protocol and execution-continuity checks."""
+"""Scientific protocol and execution-continuity checks.
+
+Run with pytest from the repository root. Small synthetic inputs check the
+scientific invariants and native runtime integration without replacing the
+report's pinned historical evidence.
+"""
 
 import numpy as np
-from experiments.exp130 import recipe
+from experiments.exp130 import recipe, dataset
 from experiments.exp130.compute import simulate
 
 
@@ -10,7 +15,7 @@ def test_envelope_bounds_mean_and_burn_in():
     assert cfg["t_ms"] == 1000.0 and cfg["burn_in_ms"] == 0.0
     assert cfg["modulation_onset_ms"] == 0.0
     times = np.arange(round(cfg["t_ms"] / cfg["dt_ms"])) * cfg["dt_ms"]
-    e, i = recipe.source_rates(times, cfg)
+    e, i = dataset.source_rates(times, cfg)
     np.testing.assert_array_equal(e, i)
     np.testing.assert_array_equal(e[times < cfg["burn_in_ms"]], 2.0)
     visible = e[times >= cfg["burn_in_ms"]]
@@ -18,18 +23,18 @@ def test_envelope_bounds_mean_and_burn_in():
     assert visible.max() <= 3.8 + 1e-14
     assert abs(visible.mean() - 2.0) < 1e-14
     for offset, expected in ((0, 2), (50, 3.8), (150, 0.2)):
-        value = recipe.source_rates(np.array([cfg["burn_in_ms"] + offset]), cfg)[0][0]
+        value = dataset.source_rates(np.array([cfg["burn_in_ms"] + offset]), cfg)[0][0]
         assert abs(value - expected) < 1e-14
     constant = recipe.condition_configuration(cfg, "constant")
     np.testing.assert_array_equal(
-        recipe.source_rates(times, constant)[0], np.full(len(times), 2.0)
+        dataset.source_rates(times, constant)[0], np.full(len(times), 2.0)
     )
 
 
 def test_poisson_counts_preserve_multiplicity_and_private_channels():
     cfg = recipe.condition_configuration(recipe.configuration(), "constant")
     cfg.update(t_ms=100, n_e=100, n_i=25)
-    counts = recipe.afferent_counts(cfg)
+    counts = dataset.afferent_counts(cfg)
     expected = 2.0 * 400 * cfg["dt_ms"] / 1000
     assert counts["private_e"].max() > 1
     assert abs(counts["private_e"].mean() - expected) < 5 * np.sqrt(
@@ -37,7 +42,7 @@ def test_poisson_counts_preserve_multiplicity_and_private_channels():
     )
     assert not np.array_equal(counts["private_e"][:, 0], counts["private_e"][:, 1])
     np.testing.assert_array_equal(
-        counts["private_e"], recipe.afferent_counts(cfg)["private_e"]
+        counts["private_e"], dataset.afferent_counts(cfg)["private_e"]
     )
 
 

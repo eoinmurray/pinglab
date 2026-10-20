@@ -6,10 +6,9 @@ Recipe v4 authors the untrained circuit with `snnlab.lang` and executes typed
 `ExecutionSpec` requests through snnlab 0.3.0's `GraphExecutor`. Compute does not
 invoke the simulator CLI or mutate simulator globals.
 
-Circuit topology is shared through `experiments.helpers.ping.build_ping`.
-This recipe supplies all neuron, synapse, weight and delay definitions and owns
-the observables and compilation. The helper preserves population/projection
-names and declaration order; it does not execute or record activity.
+The recipe declares the E/I topology directly with `snnlab.lang`, including
+neuron, synapse, weight and delay definitions, observables and compilation.
+Population/projection names and declaration order are preserved.
 
 Each stage is explicit:
 

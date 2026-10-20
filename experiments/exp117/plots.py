@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import matplotlib.pyplot as plt
 import numpy as np
-from experiments.helpers import theme
+from experiments import theme
 from matplotlib.gridspec import GridSpec
 
 

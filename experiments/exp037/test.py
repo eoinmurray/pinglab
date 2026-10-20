@@ -708,3 +708,28 @@ def test_hpc_review_is_read_only_and_dependencies_require_live(lab, monkeypatch)
         assert "--gres=gpu:1" not in cmd
     with pytest.raises(PingstoreError, match="already attempted"):
         hpc.review(Namespace(plan=path, live=True, test_only=False))
+
+
+
+def test_shard_identity_tracks_local_inference_and_nested_source(tmp_path):
+    from types import SimpleNamespace
+
+    from experiments.exp037.custom import sharding
+
+    recipe_path = tmp_path / "recipe.py"
+    recipe_path.write_text("SEED = 42\n")
+    implementation = tmp_path / "custom" / "inference.py"
+    implementation.parent.mkdir()
+    implementation.write_text("VERSION = 1\n")
+    bank = SimpleNamespace(reference={"run_id": "fixture", "payload_digest": "fixture"})
+    recipe_module = SimpleNamespace(__file__=str(recipe_path))
+    dataset = (np.zeros((2, 4), dtype=np.float32), np.array([0, 1]))
+    before = sharding.shard_identity({}, bank, recipe_module, dataset=dataset)
+    assert before["inference_source"] == file_sha256(Path(sharding.inference.__file__))
+    assert before["experiment_source"][str(implementation)] == file_sha256(implementation)
+
+    implementation.write_text("VERSION = 2\n")
+    after = sharding.shard_identity({}, bank, recipe_module, dataset=dataset)
+    assert after["experiment_source"] != before["experiment_source"]
+    assert after["dataset"] == before["dataset"]
+    assert after["bank"] == before["bank"]

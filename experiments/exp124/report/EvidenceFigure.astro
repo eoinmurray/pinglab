@@ -1,0 +1,11 @@
+---
+import RunFigure from '../../../site/src/components/RunFigure.astro';
+import { evidence } from './evidence';
+const run = await evidence();
+const { id, number } = Astro.props;
+---
+
+{run ? <RunFigure {...Astro.props}><slot /></RunFigure> : <figure id={id} class="l-body">
+  <p>Figure unavailable: the pinned presentation payload is missing. See the <a href="/recovered/exp124/published.html">archived publication</a>.</p>
+  <figcaption><strong>Figure {number}.</strong> <slot /></figcaption>
+</figure>}

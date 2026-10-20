@@ -1,0 +1,31 @@
+import Table from '../../../site/src/components/Table.astro';
+import { DT, DELAY, INTERVAL, CAPACITANCE, LEAK, REST, RESET, THRESHOLD } from './js/synapse.js';
+
+## Parameters
+
+<Table headers={['Parameter', 'Illustrative setting']} groups={[
+  { label: 'Neurons', rows: [
+    ['Membrane capacitance', `${CAPACITANCE} pF`],
+    ['Leak conductance', `${LEAK} nS`],
+    ['Rest / reset / threshold', `${REST} / ${RESET} / ${THRESHOLD} mV`],
+    ['Passive time constant (derived)', `${CAPACITANCE / LEAK} ms`],
+    ['Refractory interval', 'None'],
+  ] },
+  { label: 'Synapses and weights', rows: [
+    ['Single-input initial weight / decay / reversal', '8 nS / 12 ms / 0 mV'],
+    ['Dual E / I initial weights', '8 / 4 nS'],
+    ['Dual E / I decay times', '12 / 20 ms'],
+    ['Dual E / I initial reversals', '0 / −75 mV'],
+  ] },
+  { label: 'Input and simulation', rows: [
+    ['Timestep / schematic delay', `${DT} / ${DELAY} ms`],
+    ['Prescribed single-input spike interval', `${INTERVAL} ms`],
+    ['Membrane update', 'Exact passive update with conductances held constant during the step'],
+    ['Conductance update', 'Exponential decay and event increments'],
+  ] },
+]} number="A1" id="illustrative-parameters">
+  These are browser-model choices, not fitted values or run evidence.
+  Membrane and timing constants are imported from the same script as the animation;
+  slider defaults are the authored initial settings. Sliders change the live state.
+  The passive time constant is capacitance divided by leak conductance.
+</Table>

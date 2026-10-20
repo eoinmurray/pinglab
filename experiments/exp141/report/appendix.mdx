@@ -1,0 +1,192 @@
+import RunFigure from '../../../site/src/components/RunFigure.astro';
+import Table from '../../../site/src/components/Table.astro';
+import { reportData, reportSnapshots } from '../../../site/src/lib/report-data';
+
+export const data = await reportData('exp141', { allowUnavailable: true });
+export const modes = ['coba', 'ping'];
+export const evidence = await reportSnapshots('exp141', {
+  snapshots: {
+    coba: 'coba/best-validation/start/snapshot.json',
+    ping: 'ping/best-validation/start/snapshot.json',
+    cobaTraining: 'coba/final/end/snapshot.json',
+    pingTraining: 'ping/final/end/snapshot.json',
+  },
+  allowUnavailable: true,
+});
+export const snapshotRows = mode => {
+  const snapshot = evidence?.snapshots[mode];
+  if (!snapshot) return [['Native SNNLab snapshot', 'Unavailable']];
+  const trained = evidence?.snapshots[`${mode}Training`];
+  if (!trained) return [['Native training snapshot', 'Unavailable']];
+  if (!['simulate', 'infer'].includes(snapshot.kind) || snapshot.stage !== 'start'
+      || trained.kind !== 'train' || trained.stage !== 'end' || !trained.training) {
+    throw new Error('Expected selected-weight simulation and final-training snapshots');
+  }
+  const { network } = snapshot;
+  const { execution, training } = trained;
+  const rows = [
+    ['Seed', execution.seed],
+    ['Timestep (ms)', execution.timestep_ms],
+    ['Presentation (ms)', execution.duration_ms],
+    ['Epochs', training.epochs],
+    ['Batch size', execution.batch_size],
+    ['Optimizer', training.optimizer.kind],
+    ['Learning rate', training.optimizer.config.lr],
+    ['Weight decay', training.optimizer.config.weight_decay],
+    ['Gradient clipping', training.gradient_clip],
+    ['Surrogate', `${training.surrogate.kind}; slope ${training.surrogate.slope}`],
+    ['Regularizers', training.regularizers.length ? JSON.stringify(training.regularizers) : 'None'],
+  ];
+  for (const population of network.populations) {
+    const neuron = population.neuron;
+    const name = population.id;
+    rows.push(
+      [`${name}: neurons`, population.size],
+      [`${name}: membrane model`, neuron.kind],
+      [`${name}: capacitance (nF)`, neuron.capacitance_nf],
+      [`${name}: leak (µS)`, neuron.leak_us],
+      [`${name}: membrane time constant (ms)`, neuron.capacitance_nf / neuron.leak_us],
+      [`${name}: rest / reset / threshold (mV)`, `${neuron.resting_mv} / ${neuron.reset_mv} / ${neuron.threshold_mv}`],
+      [`${name}: refractory period (ms)`, neuron.refractory.value],
+      [`${name}: voltage gradient dampening`, neuron.voltage_grad_dampen],
+    );
+  }
+  for (const projection of network.projections) {
+    const name = projection.id;
+    const parameter = network.parameters.find(item => item.id === projection.parameters[0]);
+    const initializer = parameter.initializer;
+    const shape = snapshot.parameters[parameter.id].shape;
+    rows.push(
+      [`${name}: synapse / decay (ms)`, `${projection.synapse.kind} / ${projection.synapse.tau.value}`],
+      [`${name}: delay (ms)`, projection.delay?.value ?? 0],
+      [`${name}: matrix shape`, shape.join(' × ')],
+      [`${name}: normal mean / SD (µS)`, `${Number(initializer.mean.toPrecision(6))} / ${Number(initializer.std.toPrecision(6))}; clamped nonnegative`],
+      [`${name}: weights`, training.resolved_parameters.trainable.includes(parameter.id) ? 'learned' : 'fixed'],
+    );
+  }
+  return rows;
+};
+export const groupFor = key => {
+  if (key.endsWith(': voltage gradient dampening')) return 'Training';
+  if (key.startsWith('readout:')) return 'Readout';
+  if (key.endsWith(': neurons') || key.endsWith(': membrane model')) return 'Network';
+  if (/^(E|I):/.test(key)) return 'Neurons';
+  if (key.includes(':')) return 'Synapses and weights';
+  if (['Seed', 'Timestep (ms)', 'Presentation (ms)', 'Maximum pixel rate (Hz)'].includes(key)) return 'Input and simulation';
+  return 'Training';
+};
+export const parameterLabel = key => key
+  .replace('Maximum pixel rate (Hz)', 'Input encoding rate, maximum (Hz per pixel)')
+  .replace('Seed', 'Network / training seed')
+  .replace('membrane time constant (ms)', 'passive time constant (ms; derived)')
+  .replace('normal mean / SD (µS)', 'initial per-connection mean / SD (µS)')
+  .replace('readout_projection:', 'E→readout:')
+  .replace('input_to_E:', 'Input→E:')
+  .replace('E_to_I:', 'E→I:')
+  .replace('I_to_E:', 'I→E:')
+  .replace('readout:', 'Output:')
+  .replace(/:\s*/g, ' ');
+export const shared = (parameter, value) => [parameter, value, value];
+export const parameterGroups = (() => {
+  if (!data || !evidence) return [{ label: 'Network', rows: [shared('Native SNNLab snapshot', 'Unavailable')] }];
+  const cfg = evidence.configuration;
+  const values = Object.fromEntries(modes.map(mode => [mode, new Map(snapshotRows(mode))]));
+  const keys = [...new Set(modes.flatMap(mode => snapshotRows(mode).map(([key]) => key)))];
+  const pairedLabels = {
+    neurons: ['Population size', ''],
+    'membrane model': ['Membrane model', ''],
+    'capacitance (nF)': ['Membrane capacitance', 'nF'],
+    'leak (µS)': ['Leak conductance', 'µS'],
+    'membrane time constant (ms)': ['Passive time constant (derived)', 'ms'],
+    'refractory period (ms)': ['Refractory period', 'ms'],
+    'voltage gradient dampening': ['Voltage-gradient damping', ''],
+  };
+  const pairedRow = (label, suffix, unit, component) => [
+    `${label}, E / I`,
+    ...modes.map(mode => `${['E', 'I'].map(population => {
+      const key = `${population}: ${suffix}`;
+      if (!values[mode].has(key)) return '—';
+      const value = values[mode].get(key);
+      return component === undefined ? value : String(value).split(/\s*\/\s*/)[component];
+    }).join(' / ')}${unit ? ` ${unit}` : ''}`),
+  ];
+  const entries = keys.flatMap(key => {
+    if (key.startsWith('I:') && keys.includes(key.replace(/^I:/, 'E:'))) return [];
+    const suffix = key.slice(3);
+    const group = groupFor(key);
+    if (key.startsWith('E:') && suffix === 'rest / reset / threshold (mV)') {
+      return ['Resting potential', 'Reset potential', 'Spike threshold'].map((label, component) => ({
+        group, row: pairedRow(label, suffix, 'mV', component),
+      }));
+    }
+    if (key.startsWith('E:') && pairedLabels[suffix]) {
+      const [label, unit] = pairedLabels[suffix];
+      return [{ group, row: pairedRow(label, suffix, unit) }];
+    }
+    return [{ group, row: [
+      parameterLabel(key), ...modes.map(mode => values[mode].has(key) ? values[mode].get(key) : 'Not applicable'),
+    ] }];
+  });
+  const additions = {
+    Network: [shared('Input channels', cfg.n_input)],
+    'Input and simulation': [
+      shared('Input encoding', 'Pixel-scaled Poisson spikes, discretized as Bernoulli events'),
+      shared('Pixel normalization', `Intensity divided by ${data.dataset.pixel_scale}`),
+      shared('Maximum pixel rate (Hz)', cfg.input_rate_hz),
+      shared('Diagnostic encoding seed', cfg.sample_encoder_seed),
+    ],
+    Readout: [
+      shared('Class score', 'Output spike count over the full presentation'),
+      shared('Decision / ties', 'Largest spike count / lowest digit index'),
+    ],
+    Analysis: [
+      shared('Dataset', data.dataset.source),
+      shared('Training / validation / test examples', `${evidence.dataset.train_samples} / ${evidence.dataset.validation_samples} / ${evidence.dataset.test_samples}`),
+      shared('Loss / accuracy', 'Cross-entropy / fraction correct'),
+      shared('Training curve measurement', 'Online pre-update minibatch metrics'),
+      shared('Validation measurement', 'Fixed epoch-end weights'),
+      shared('Test / raster checkpoint', 'Minimum validation cross-entropy'),
+      ['Selected epoch', ...modes.map(mode => data.test[mode].epoch)],
+      shared('Test measurement', 'One fixed-weight evaluation on the held-out test partition'),
+      shared('Raster counting window (ms)', `0–${cfg.duration_ms}`),
+      shared('Diagnostic sample', `Original index ${data.sample.index}; digit ${data.sample.label}; ${data.sample.partition} partition`),
+      shared('Training seeds reported', 1),
+    ],
+  };
+  return ['Network', 'Neurons', 'Synapses and weights', 'Input and simulation', 'Readout', 'Training', 'Analysis'].map(label => ({
+    label,
+    rows: [
+      ...entries.filter(entry => entry.group === label).map(entry => entry.row),
+      ...(additions[label] ?? []),
+    ],
+  })).filter(group => group.rows.length);
+})();
+
+### Network diagrams
+
+<RunFigure report="exp141" experiment="exp141" allowUnavailable file="coba--circuit.svg" number={5} id="fig-coba-network" alt="Executed COBA circuit: pixel input to excitatory hidden population to spiking digit readout.">
+  COBA circuit generated from the executed SNNLab bundle. The input and readout
+  projections are learned; all neurons are conductance-based leaky integrate-and-fire.
+</RunFigure>
+
+<RunFigure report="exp141" experiment="exp141" allowUnavailable file="ping--circuit.svg" number={6} id="fig-ping-network" alt="Executed PING circuit with an additional fixed excitatory–inhibitory feedback loop.">
+  PING adds excitatory input to inhibitory neurons and inhibitory feedback to
+  the hidden excitatory population. Both feedback matrices remain fixed.
+</RunFigure>
+
+### Parameters
+
+<Table headers={['Parameter', 'COBA', 'PING']} groups={parameterGroups} number="A1" id="model-parameters" label="Grouped COBA and PING parameters">
+  **Model, training and analysis settings.** Neural and training parameters come
+  from native best-validation start snapshots and final-training end snapshots
+  reached through the pinned presentation; input and analysis settings describe that same run. E and I
+  denote excitatory and inhibitory hidden neurons. Paired values follow E / I
+  order; an em dash marks an absent population. The output has one neuron per
+  digit. Initial weight means and standard deviations (SD) are per-connection
+  parent-distribution values after fan-in scaling, with negative draws clamped to zero.
+  Initializer statistics describe initial draws, not the final learned distribution. Passive time
+  constants are derived as capacitance divided by leak conductance. Matrix shapes
+  list source × target units. Test scores and diagnostic rasters use the validation-selected weights;
+  model settings and matrix shapes above use those same selected-weight snapshots.
+  Optimizer and training settings use the final-training snapshots.
+</Table>

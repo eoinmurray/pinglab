@@ -8,6 +8,7 @@ import rehypeKatex from 'rehype-katex';
 
 // https://astro.build/config
 export default defineConfig({
+  logger: { entrypoint: './src/logger.mjs' },
   site: 'https://pinglab.eoinmurray.info',
   trailingSlash: 'never',
   build: { format: 'file' },

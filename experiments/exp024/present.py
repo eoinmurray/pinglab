@@ -19,7 +19,7 @@ from experiments.exp024 import recipe
 from pingstore.contracts import PingstoreError, load_json, write_json_atomic
 from pingstore.stages import source_run, stage_run
 
-from helpers import theme
+from experiments import theme
 
 SEEDS = recipe.SEEDS
 MODEL_COLORS = {"coba": theme.DEEP_RED, "ping": theme.INK_BLACK}

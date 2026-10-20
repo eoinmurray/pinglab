@@ -13,7 +13,7 @@ sys.path[:0] = [str(REPO), str(REPO / "tools")]
 import numpy as np
 import scipy
 from experiments.exp117 import inputs, numerics, recipe
-from experiments.helpers.external_artifacts import external_execution
+from experiments.exp117.custom.external_artifacts import external_execution
 from pingstore.contracts import write_json_atomic
 
 

@@ -1,0 +1,174 @@
+---
+id: exp142
+title: Continuous Time Scikit Digits
+author: Eoin Murray
+created_at: '2026-10-19'
+updated_at: '2026-10-20T13:37:56Z'
+description: Frozen scikit digits classifiers replayed at 100 Hz with matching discrete output timesteps and a continuous COBA-LIF output layer.
+collection: ["gamma-gated-sparsity", "experiments"]
+tags: [data, v4.0.1]
+inputs: [exp142]
+runs: {exp142: exp142-r026-present}
+thumbnail: classification.png
+
+---
+
+import RunFigure from '../../../site/src/components/RunFigure.astro';
+import { reportData, nullableRound } from '../../../site/src/lib/report-data';
+
+export const data = await reportData('exp142', { allowUnavailable: true });
+export const label = data?.input.true_label ?? 'unavailable';
+export const eventCount = data?.input.event_count ?? 'unavailable';
+export const inputRate = data?.configuration.input_rate_hz ?? 'unavailable';
+export const sourceRate = data?.configuration.source_input_rate_hz ?? 'unavailable';
+export const executionCount = data ? Object.keys(data.input.cases).length : 'unavailable';
+export const prediction = mode => data?.models[mode].continuous.classification.prediction ?? 'unavailable';
+export const voltageError = (mode, caseId, pop = 'E') => data ? nullableRound(data.models[mode][caseId].populations[pop].median_voltage_mae_mv, 2) : 'unavailable';
+export const continuousSpikes = mode => data?.plots.models[mode].cases.at(-1).spike_count ?? 'unavailable';
+export const refinementShift = data ? Math.max(...Object.values(data.checks.refinement).map(row => row.max_spike_shift_ms)).toExponential(2) : 'unavailable';
+
+## Abstract
+
+We compared frozen conductance-based leaky integrate-and-fire (COBA-LIF) digit
+classifiers with and without pyramidal–interneuron gamma (PING) inhibitory
+feedback, using one training image
+and identical 100 Hz maximum-rate pixel input. Across discrete timesteps from
+0.1 to 0.0125 ms and adaptive continuous-time inference, both selected digit
+{label}. Median hidden excitatory voltage error relative to continuous time
+changed from {voltageError('coba', 'dt0p1')} to {voltageError('coba', 'dt0p0125')}
+mV for COBA and from {voltageError('ping', 'dt0p1')} to
+{voltageError('ping', 'dt0p0125')} mV for PING. Continuous refinement preserved
+all neuronal and class counts. This single training-image diagnostic does not
+estimate held-out accuracy or establish trajectory equivalence.
+
+## Results
+
+### One image, one shared input
+
+We compared discrete and continuous-time inference using the frozen scikit-learn
+digits classifiers from [exp141](/exp141), frozen at their minimum-validation-loss
+checkpoints.
+Original image 0 has label {label} and belongs to the
+training split. Only one training seed and one diagnostic image were tested.
+We increased the maximum input rate from {sourceRate} to
+{inputRate} Hz per fully bright pixel, scaling darker pixels linearly.
+
+SNNLab generated one encoding with seed 0 on a fixed 0.2 ms grid. All
+{executionCount} comparison executions replayed its {eventCount} saved spikes
+([Figure 1](#fig-input)). Every arrival is exactly representable at all four
+timesteps; the input audit found zero timing shifts. The weights stayed frozen
+at their original {sourceRate} Hz training values.
+
+<RunFigure report="exp142" experiment="exp142" allowUnavailable file="input_equivalence.svg" number={1} id="fig-input" alt="Original eight-by-eight scikit digit zero and its saved input spike schedule across 64 pixel channels.">
+  A: original image and label, displayed with inverted grayscale. B: its saved
+  200 ms encoding across 64 pixel channels. The annotation reports the input
+  audit and maximum pixel rate. Arrivals retain the fixed 0.2 ms encoding grid.
+</RunFigure>
+
+### COBA
+
+COBA's median E-neuron voltage difference outside spike windows fell from
+{voltageError('coba', 'dt0p1')} to {voltageError('coba', 'dt0p0125')} mV between
+0.1 and 0.0125 ms ([Figure 2E](#fig-coba)). The continuous network emitted
+{continuousSpikes('coba')} hidden E spikes. COBA has no inhibitory population.
+
+<RunFigure report="exp142" experiment="exp142" allowUnavailable file="coba_comparison.svg" number={2} id="fig-coba" alt="COBA conductance, post-reset voltage and spikes for E neuron 0, with per-neuron receptor errors, voltage errors and ordinal spike shifts in a six-panel comparison layout.">
+  A–C: preselected E neuron 0. Continuous is red; AMPA is solid and GABA dashed.
+  D–E: per-neuron receptor and voltage MAE outside inclusive ±2 ms windows
+  around either train's spikes. Circles are E; hollow D markers are GABA.
+  F: signed median ordinal shifts for equal nonzero counts; labels give E above
+  I eligibility counts. Black bars are population medians. Retained sample
+  fractions appear below the panels. MAE means mean absolute error.
+</RunFigure>
+
+### PING
+
+PING's median E-neuron voltage difference changed from
+{voltageError('ping', 'dt0p1')} to {voltageError('ping', 'dt0p0125')} mV
+([Figure 3E](#fig-ping)); refinement of the discrete timestep did not reduce
+this error. At the finest timestep, the median I-neuron difference
+was {voltageError('ping', 'dt0p0125', 'I')} mV. The continuous network emitted
+{continuousSpikes('ping')} E/I spikes.
+
+<RunFigure report="exp142" experiment="exp142" allowUnavailable file="ping_comparison.svg" number={3} id="fig-ping" alt="PING E-neuron conductance, voltage and spikes, with separate excitatory and inhibitory per-neuron error markers and timing eligibility counts.">
+  Same measurements as Figure 2, with active E→I→E feedback and a physical
+  0.2 ms recurrent delay. Triangles are I neurons. F excludes count mismatches
+  and silence; equal counts alone do not establish spike identity. Output
+  neurons do not enter these E/I error distributions.
+</RunFigure>
+
+### Classification with matching output dynamics
+
+Each discrete COBA-LIF output layer used its own network's timestep: 0.1, 0.05,
+0.025 or 0.0125 ms. In the continuous case, the output neurons evolved
+continuously alongside E/I. The saved native graph snapshots verify each
+discrete output clock; the continuous solver retains output threshold roots.
+
+Both models selected the true digit in every condition
+([Figure 4](#fig-classification)). Continuous COBA predicted
+{prediction('coba')}; continuous PING predicted {prediction('ping')}. Class
+counts and ranks changed even though the winning digit did not. Total output
+spikes remain exp141's trained class score.
+
+Two separate {sourceRate} Hz source controls reproduced every saved exp141
+spike and class score exactly. They are retained as validation evidence; all
+conditions in Figure 4, including the native 0.2 ms cases, use {inputRate} Hz.
+Continuous refinement preserved every neuron's count and all ten class counts;
+the largest root shift was {refinementShift} ms. This is one training image,
+not a test-accuracy estimate or evidence of equivalent trajectories.
+
+<RunFigure report="exp142" experiment="exp142" allowUnavailable file="classification.svg" number={4} id="fig-classification" alt="COBA and PING cumulative output spike counts, final class counts and class-score ranks for native-clock cases, four discrete timesteps and continuous inference, in a six-panel classification layout.">
+  A–B: cumulative true-class output spikes, sampled at 0.1 ms for the sweep
+  and continuous case; the native case retains its 0.2 ms clock. All use
+  the same 100 Hz input encoding.
+  C–D: all final class counts. E–F: class ranks, with cyan boxes marking the
+  prediction. Rows include native 0.2 ms inference, four discrete cases and CT
+  (continuous time). The listed winner margin is a spike-count difference.
+  Exact ties select the lowest class index and receive an asterisk. Counts
+  and margins are not calibrated probabilities.
+</RunFigure>
+
+## Methods
+
+1. **Select and verify the source ([Figure 1](#fig-input)).** Pin `exp141-r012-compute` by its payload digest. Load its native
+   best-validation simulation-start parameter snapshots, rather than final-epoch
+   weights. Replay the original saved
+   {sourceRate} Hz input in separate controls and verify every hidden,
+   inhibitory and output spike and score against the saved original. Encode
+   the same image once at {inputRate} Hz with the native SNNLab rate encoder.
+2. **Match physical arrivals ([Figures 2–4](#fig-coba)).** Use a 0.1, 0.05, 0.025 and 0.0125 ms sweep. Replay the same saved
+   integer-nanosecond arrivals without rounding or resampling, including each graph's spiking
+   output layer at that same timestep. Preserve a physical 0.2 ms E–I delay
+   and zero additional E-to-output delay. Retain native 0.2 ms inference
+   separately because its slot timing differs.
+3. **Integrate continuous dynamics ([Figures 2–4](#fig-coba)).** Integrate every continuous COBA-LIF voltage adaptively, with analytic receptor
+   decay, full-weight arrivals, upward threshold roots, hard resets and exact
+   refractory clamps. Retain all unrounded spikes and common 0.1 ms samples.
+   Native-clock inference remains at 0.2 ms and uses the same 100 Hz input.
+   See [Appendix A](#appendix-a--recording-and-clock-conventions) for recording
+   and arrival-clock conventions.
+4. **Check numerical refinement ([Figure 4](#fig-classification)).** Tighten the tolerances and halve the maximum integration step. Require equal
+   per-neuron and class counts, maximum root shift below 0.001 ms and maximum
+   per-neuron guarded voltage MAE below 0.001 mV. Both models passed.
+
+The input image, trained weights and spike-count scoring come from exp141.
+Inference uses a 100 Hz maximum pixel rate without retraining. Output dynamics
+follow the discrete or continuous condition being compared.
+
+### Continuous membrane equation
+
+For membrane voltage $V$ in millivolts and time $t$ in milliseconds, all hidden,
+inhibitory and output neurons follow
+
+$$
+C\frac{dV}{dt}=g_L(E_L-V)+g_A(E_A-V)+g_G(E_G-V).
+$$
+
+$C$ is capacitance in nanofarads; $g_L$, $g_A$ and $g_G$ are leak, AMPA and GABA
+conductances in microsiemens. Their reversal potentials $E_L$, $E_A$ and $E_G$ are in millivolts. Receptors decay exponentially between arrivals. Each arrival adds its
+frozen weight to the appropriate conductance. Upward threshold crossings emit
+spikes, reset voltage and begin a physical refractory clamp; conductances keep
+evolving. Output neurons receive AMPA only and have the hidden E-cell physics.
+DOP853 integrates voltage between arrivals and threshold events. The parameter
+table records nominal and refined tolerances and step limits; recording times
+are independent of adaptive integration steps.

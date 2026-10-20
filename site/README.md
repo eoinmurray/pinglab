@@ -22,6 +22,17 @@ write the error page at the affected URL and log the failure. Static hosting
 serves that generated file with its normal success status. Compiler, import-resolution,
 and content-schema errors can still prevent a build before rendering begins.
 
+Exp124 renders its current authored report even when its historical pinned
+payload is missing. Its report-local evidence loader returns unavailable only
+for an absent pinned payload; it never selects a newer diagnostic run, and invalid
+existing JSON still fails. Figures depend on the original presentation payload.
+Parameter tables independently follow that same pin's ancestry to the original
+compute snapshots; absent native snapshots remain explicitly unavailable.
+The earlier published HTML is separately
+labelled at `/recovered/exp124/published.html`, with assets under
+`public/recovered/exp124/`. It is an archive, not a recovered Pingstore run;
+its historical Dataset inventory is not a current local inventory.
+
 Development run assets are read directly from the requested presentation export;
 they do not scan every article's runs. Missing assets return HTTP 404. During a
 static build, unavailable run exports are logged and skipped in asset enumeration,
@@ -52,16 +63,15 @@ Dialog; `styles/command.css` supplies Pinglab styling without Tailwind.
 
 Articles live in `experiments/expXXX/report/report.mdx`, with supporting MDX,
 CSS, and article components in the same `report/` directory. Experiment-specific
-browser JavaScript lives in `experiments/expXXX/js/`; article components import
-it from `../js/`. Shared site components and scripts remain under `site/src/`.
-Every experiment report requires a quoted UTC `updated_at` datetime with seconds
-(`YYYY-MM-DDTHH:mm:ssZ`). Refresh it after each saved report revision, including
-metadata-only and supporting article changes; see Writing Rules section 3.3.
-Legacy date-only updates are normalized to midnight UTC on their recorded date.
-Experiment `created_at` remains a quoted `YYYY-MM-DD` date.
+browser JavaScript lives in `experiments/expXXX/report/js/`; article components import
+it from `./js/`. Shared site components and scripts remain under `site/src/`.
+For experiment reports and notes, set `created_at` once at creation and refresh
+`updated_at` when prose or figures change. Use quoted UTC datetimes with seconds
+(`YYYY-MM-DDTHH:mm:ssZ`); see Writing Rules' “Editing and dates”.
+Existing date-only `created_at` values remain supported.
 Notes live in `md/notes/` as MDX and belong to the Notes collection
 at `/collections/notes/`. Each note requires `title`, `author`, `description`,
-`created_at`, `updated_at`, and `collection` frontmatter including `notes`; dates use quoted `YYYY-MM-DD` strings.
+`created_at`, `updated_at`, and `collection` frontmatter including `notes`.
 The filename determines the URL, for example `/notes/compute-options/`.
 Notes and experiments both use `Report.astro`, including its byline, contents
 sidebar, article spacing, and annotations. Optional `abstract` frontmatter is
@@ -98,10 +108,13 @@ pages show only that collection's articles and highlight its sidebar link.
 `/collections/` lists
 clickable collection names, including Notes, without article previews. Distill's official
 v2 runtime and styles are self-hosted; the article shell supplies the byline,
-sticky contents, and appendix. Optional `parameters.mdx`, `appendix.mdx`, and
-`references.mdx` files supply footer content. Put each report’s main parameter table in `parameters.mdx`;
-the shared layout renders it under Parameters immediately above Dataset and
-adds Parameters to the table of contents. Supplementary details precede Parameters. The canonical scientific-writing
+sticky contents, and appendix. Optional `appendix.mdx` and `references.mdx` files
+supply footer content. Put network diagrams first in `appendix.mdx`, followed by
+the main parameter table and supporting detail. The appendix's own section headings
+appear to the left of their content on desktop and above it on smaller screens,
+and are included in the table of contents. Existing `parameters.mdx` files
+remain supported by the shared layout under Parameters immediately above Dataset,
+with a Parameters entry in the table of contents. The canonical scientific-writing
 rules are preserved in [Writing Rules](../md/notes/writing-rules.md).
 Write mathematics directly in MDX as `$...$` for inline expressions and `$$`
 blocks for displayed equations. The existing remark-math and rehype-katex
@@ -132,6 +145,26 @@ All article tables use `Table` with explicit `headers` and `rows` arrays:
 ```mdx
 <Table headers={["Parameter", "Value"]} rows={[["Epochs", epochs]]} />
 ```
+
+For grouped tables, pass `groups` instead of `rows`. Each group has a `label`
+and nonempty `rows`; `headers` describes the data columns. Each group label
+appears in a full-width heading row above its data, without adding a column:
+
+```mdx
+<Table headers={["Parameter", "Value"]} groups={[
+  { label: "Network", rows: [["E / I neurons", "1,024 / 256"]] },
+  { label: "Input and simulation", rows: [
+    ["Input encoding", "Poisson pixel encoding"],
+    ["Input encoding rate", "Maximum 25 Hz per input channel"],
+    ["Timestep / presentation", "0.1 / 200 ms"],
+  ] },
+  { label: "Analysis", rows: [["Analysis window", "50–200 ms"]] },
+]} />
+```
+
+Use custom groups and rows as needed. Additional data columns (for example,
+`["Parameter", "COBA", "PING"]`) work in either format. Each group renders as a separate table body with an
+accessible row-group heading; group labels support the same rich cells as data.
 
 Cells accept strings, finite numbers, `{ math: "..." }` for KaTeX, or
 `{ markdown: "..." }` for authored rich text and mixed text/mathematics.
@@ -173,6 +206,45 @@ navigate to references. Report and note pages embed Hypothes.is with highlights 
 and the sidebar closed by default. Readers can open it from the Hypothesis
 toolbar or by clicking a highlight. The homepage and collection pages do not
 load the annotation client. Interactive run selectors are absent.
+
+## Papers
+
+`/papers` lists PDFs from the repository's `papers/` directory, including
+subfolders, newest publication year first, then alphabetically by title, with
+unindexed PDFs last and direct PDF links. The left column
+shows the publication year in the article list's experiment-ID style, followed
+by the permanent paper ID in the smaller date style underneath on desktop.
+Hidden files and symlinks are excluded. The homepage and paper pages share
+Articles and Literature sidebar lists; the search palette also links to
+the library. Development reads the directory on refresh; static builds emit
+the PDFs under `/papers/`, so additions and removals need a rebuild to publish.
+
+`papers/index.yaml` holds citation metadata keyed by relative PDF filename.
+Each entry requires a unique `id` such as `P01`, `title`, a nonempty `authors`
+list, and integer `year`; `venue` and `doi` are optional.
+The page displays this metadata with the PDF link, falling back to the filename
+for unindexed PDFs. Invalid metadata fails rendering/building; entries without
+matching PDFs produce warnings. An absent index is allowed. The index is tracked
+in Git; PDFs remain local ignored files. No extraction or external lookups run
+during page rendering. Preprint metadata identifies the saved version.
+
+Paper IDs are permanent, authored identifiers, never generated from list position.
+The initial 16 papers were assigned `P01`–`P16` by increasing publication year,
+then title alphabetically within each year. Give the next addition `P17`, then
+increment on each addition regardless of publication year. Never renumber or
+reuse an assigned ID, including after removing a paper. IDs use at least two
+digits (`P01` through `P99`, then `P100` onwards). The page still sorts newest
+publication years first.
+
+Paper collections use the same sidebar layout and collection badges as article
+lists, with separate pages at `/papers/collections/<slug>`. Set `collection` on
+each index entry to a lowercase hyphenated slug or a nonempty list of unique
+slugs, for example `collection: [probabilistic-coding, gamma-oscillations]`.
+Labels are derived from the slugs. New collections appear automatically on
+refresh in development or after rebuilding the static site. Missing membership
+defaults to `uncategorized`, including PDFs without metadata. Current topic
+collections include `probabilistic-coding`, `ping` (displayed as PING), and
+`spiking`; papers without a matching topic retain `[uncategorized]`.
 
 ## Slides
 
@@ -220,20 +292,37 @@ Use `density="compact"` for existing decks with longer text or figure legends.
 `SlideColumns` accepts `equal`, `wide-left`, or `wide-right` for `ratio`, with
 `left` and `right` slots.
 
-Five reusable templates live beside `Slide` in `src/components/slides/`:
+Six reusable templates live beside `Slide` in `src/components/slides/`:
 
-1. `TitleSlide`: `title`, optional `subtitle`, `presenter`, `date`, and cover
+1. `TitleSlide`: `title`, optional `eyebrow`, `subtitle`, `presenter`, `date`, and cover
    `image`, `alt`, and `imageLink`. The default slot holds extra introduction.
 2. `SectionSlide`: `title`, optional `eyebrow`, and a framing sentence in the
    default slot. Uses the dark green background.
-3. `TextSlide`: `title`, optional `density`, Markdown in the default slot, and
+3. `TextSlide`: `title`, optional `eyebrow` and `density`, Markdown in the default slot, and
    an optional named `source` slot.
-4. `FigureSlide`: optional `title`, required `image` and `alt`, and optional
-   `caption` and `source` strings. The figure fills the available slide area.
-5. `FigureTextSlide`: `title`, `image`, `alt`, and explanatory Markdown in the
+   Short prose/lists automatically get larger body type and roomier list spacing;
+   medium-length text gets a smaller increase, while dense content retains its
+   existing size. This uses visible text length and block count, not just bullet
+   count. Slides containing tables or embedded media keep their existing layout.
+   Headers and source notes do not scale. Small/short screens and print retain
+   the original sizing; no deck markup changes are needed.
+4. `FigureSlide`: optional `title` and `eyebrow`, required `image` and `alt`, and optional
+   `caption` and `source` strings. The figure fits the available slide area,
+   aligned left and vertically centred, including cropped figures.
+5. `FigureTextSlide`: `title`, optional `eyebrow`, `image`, `alt`, and explanatory Markdown in the
    default slot. `figureSide` is `left` or `right`; `balance` is `figure-wide`
    (default), `equal`, or `text-wide`. Also accepts `density`, `caption`, and
    `source`.
+
+6. `HeroTextSlide`: required `title` and optional `eyebrow`. A text-only slide
+   with no body, using the normal cream background and shared top-aligned header.
+
+The optional `eyebrow` displays a small section heading above the slide title;
+use it to repeat the current numbered section throughout a deck.
+All templates share the figure-slide header position, title size, eyebrow size,
+and spacing, independently of body density. Title, section, and hero-text slides
+also use this top-aligned header rather than centering it. Contrast slides retain
+their light header text on the dark background.
 
 Figure images retain their proportions and all labels. Import PNG/JPEG assets
 normally; import SVG image URLs with `?url`. Templates accept the imported
@@ -249,7 +338,7 @@ import figure from './images/figure.png';
 <FigureSlide title="A result" image={figure} alt="Describe what the figure shows." />
 ```
 
-`md/slides/journal-club-oct-5th/slides.mdx` uses all five templates.
+`md/slides/journal-club-oct-5th/slides.mdx` includes text, hero-text, and figure slides.
 Keep slides at the top level; put deck content inside them.
 Plain Markdown or MDX without slide components starts a new slide at
 each `##` heading; introductory content becomes its own slide. This grouping
@@ -257,6 +346,8 @@ happens in the browser. Without JavaScript the complete content stays readable.
 
 The viewer provides buttons, arrow keys, Space/Shift+Space, Home/End,
 Page Up/Down, horizontal touch swipes, and fullscreen (`F`).
+The header shows only the deck title. Navigation and the slide counter sit at
+the bottom right, with an icon-only fullscreen toggle and accessible state labels.
 The current slide is linked in the URL as `#slide-3`; browser history restores
 slide selection. Hidden slides cannot receive keyboard focus. Large content
 scrolls within the presentation rather than being clipped; columns stack on
@@ -265,9 +356,38 @@ support handles `$...$` and `$$` mathematics in decks too.
 
 ## Data and values
 
+SNNLab parameter tables use `reportSnapshots` from `src/lib/report-data.ts` to
+read the original saved native snapshots at render time. Supply explicit
+snapshot paths and an article frontmatter presentation pin:
+
+```mdx
+import { reportSnapshots } from '../../../site/src/lib/report-data';
+
+export const modelEvidence = await reportSnapshots('exp124', {
+  snapshots: {
+    coba: 'coba/train/end/snapshot.json',
+    ping: 'ping/train/end/snapshot.json',
+  },
+  allowUnavailable: true,
+});
+```
+
+The loader follows the pinned presentation's analysis and compute references,
+checks recorded identities and input digests, and uses Pingstore's `native_paths`
+mapping to read original snapshot JSON. It returns unmodified snapshot metadata,
+the compute configuration and dataset provenance, and the compute reference.
+It does not audit the complete payload or read weight arrays. Row selection,
+units, labels and display-only derivations belong in the report layer, using the
+shared `Table` component. Do not export table rows or separately serialized snapshot metadata through
+`numbers.json`. Missing ancestors or snapshots may be shown as
+unavailable; malformed records, mismatched pins and broken declared files fail.
+There is no fallback to another run, current recipe defaults or old table rows.
+
+
 The simple TypeScript Pingstore reader resolves a latest presentation once per
 build/dev session, or uses an article's explicit frontmatter `runs` selections.
-It does not perform schema/checksum/ancestry validation. Restart the dev server
+The ordinary numbers and figure readers do not audit schema, checksums or
+ancestry; the snapshot loader performs the metadata checks described above. Restart the dev server
 to pick up newly completed runs. Figures/media come directly from selected
 exports; only disposable builds copy them.
 

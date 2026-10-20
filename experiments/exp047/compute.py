@@ -10,11 +10,57 @@ sys.path[:0] = [str(REPO), str(REPO / "tools")]
 
 import torch
 from experiments.exp047 import evidence, inputs, recipe
-from experiments.helpers.checkpoint_graph import initial_draws
-from experiments.helpers.network_artifacts import model_execution
+from experiments.exp047.custom.network_artifacts import model_execution
 from pingstore.contracts import PingstoreError, write_json_atomic
 from snnlab.lang import duration_steps
 from snnlab.sim import GraphExecutor, plan_graph, resolve_device
+
+
+def initial_draws(training, *, ei_strength=None):
+    """Ordered CPU weight draws, including unused zero recurrence.
+
+    Return the generator cursor needed for CPU snapshots and the fresh loop
+    needed for transfer probes. No model is rebuilt to recover these draws.
+    """
+    generator = torch.Generator().manual_seed(training["seed"])
+    n_in, n_e, n_i, n_out = (
+        training[k] for k in ("n_in", "n_hidden", "n_inh", "n_out")
+    )
+
+    def normal(shape, mean, sd, zero=0, scale=True):
+        value = (
+            torch.randn(*shape, generator=generator).mul_(sd).add_(mean).clamp_(min=0)
+        )
+        if zero:
+            value *= (torch.rand(*shape, generator=generator) > zero).float()
+            value /= 1 - zero
+        return value / shape[0] if scale else value
+
+    mean, sd = training["w_in"]
+    external = normal((n_in, n_e), mean, sd, training["w_in_initial_zero_fraction"])
+    if training.get("readout_w_init_mean") is not None:
+        readout = normal(
+            (n_e, n_out),
+            training["readout_w_init_mean"],
+            training["readout_w_init_std"],
+            scale=False,
+        )
+    else:
+        readout = normal((n_e, n_out), 5.1, 3.8) * training.get(
+            "readout_w_out_scale", 225.0
+        )
+    normal((n_e, n_e), 0, 0)
+    strength = training["ei_strength"] if ei_strength is None else ei_strength
+    ei = normal((n_e, n_i), strength, strength * 0.1)
+    ie_strength = strength * training["ei_ratio"]
+    ie = normal((n_i, n_e), ie_strength, ie_strength * 0.1)
+    normal((n_i, n_i), 0, 0)
+    return generator, {
+        "input_to_E.weight": external,
+        "readout_projection.weight": readout,
+        "E_to_I.weight": ei,
+        "I_to_E.weight": ie,
+    }
 
 
 def simulate_probe(cfg, item, artifacts):

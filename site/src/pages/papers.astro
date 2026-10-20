@@ -1,0 +1,9 @@
+---
+import Page from '../layouts/Page.astro';
+import PaperBrowser from '../components/PaperBrowser.astro';
+import { getPapers } from '../lib/papers';
+const papers = await getPapers();
+---
+<Page title="Papers" description="Research papers in the Pinglab library." compact>
+  <PaperBrowser papers={papers} />
+</Page>

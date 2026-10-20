@@ -1,4 +1,12 @@
-"""Generate paired frozen-network recordings for leak and capacitance sweeps."""
+"""Generate paired recordings for frozen-network membrane interventions.
+
+Run compute.py --source TRAINING_RUN --image-source IMAGE_RUN, optionally
+setting --images-per-digit, --batch-images and --run-id. Inputs are validated
+Pingstore runs; the recipe resolves all scientific settings before execution.
+
+A custom batched loop reuses encodings and frozen weights across conditions.
+The run retains recordings, one circuit diagram, bundles and native start
+snapshots. Analysis and presentation are independently invoked stages."""
 
 import argparse
 import hashlib
@@ -6,49 +14,40 @@ import json
 import sys
 from importlib.metadata import version
 from pathlib import Path
-from time import perf_counter
 
 REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
 import numpy as np
 import torch
 from experiments.exp134 import recipe
-from experiments.helpers.checkpoints import pinned_checkpoint
-from experiments.helpers.network_artifacts import model_execution
+from pingstore.contracts import file_sha256, load_json
 from pingstore.stages import source_run, stage_run
-from snnlab.sim import ExecutionSpec, build, encode_images_poisson
+from snnlab.sim import Performance, build, encode_images_poisson
+from experiments.exp134.custom.snapshots import snapshot_start
 
 
-def training_input(source):
-    unit = source.unit(recipe.UNIT)
-    checkpoint = pinned_checkpoint(
-        unit,
-        role=recipe.CHECKPOINT_ROLE,
-        filename=recipe.CHECKPOINT_FILE,
-        sha256=recipe.CHECKPOINT_SHA256,
+def training_input(source, cfg):
+    unit = source.unit(cfg["checkpoint_unit"])
+    record = (
+        load_json(unit / "metrics.json")
+        .get("checkpoints", {})
+        .get(cfg["checkpoint_role"])
     )
+    filename = cfg["checkpoint_file"]
+    if not isinstance(record, dict) or record.get("filename") != filename:
+        raise ValueError(
+            f"Checkpoint role {cfg['checkpoint_role']!r} does not name {filename!r}"
+        )
+    if Path(filename).name != filename:
+        raise ValueError("Checkpoint filename must be a single path component")
+    checkpoint = unit / filename
+    if (
+        record.get("sha256") != cfg["checkpoint_sha256"]
+        or file_sha256(checkpoint) != cfg["checkpoint_sha256"]
+    ):
+        raise ValueError(f"Checkpoint identity mismatch: {checkpoint}")
     config = json.loads((unit / "config.json").read_text())
-    expected = dict(
-        dt=0.1,
-        input_rate=25.0,
-        t_ms=200.0,
-        tau_gaba_ms=6.0,
-        tau_ampa_ms=2.0,
-        n_in=784,
-        n_hidden=1024,
-        n_inh=256,
-        n_out=10,
-        train_leak=False,
-        adaptive_threshold=False,
-        input_rate_sampling="fixed",
-        v_grad_dampen=1000.0,
-        surrogate_slope=1.0,
-        state_clamp=False,
-        readout_mode="mem-mean",
-        signed_readout=False,
-        readout_bias=False,
-    )
-    for key, value in expected.items():
+    for key, value in cfg["checkpoint_contract"].items():
         if config.get(key) != value:
             raise ValueError(f"unsupported checkpoint setting: {key}")
     weights = torch.load(checkpoint, map_location="cpu", weights_only=True)
@@ -86,56 +85,71 @@ def image_bank(source):
     return images
 
 
-def encode(pixels, index):
-    pixels = torch.from_numpy(pixels).reshape(1, 784).float()
+def encode(pixels, index, cfg):
+    pixels = torch.from_numpy(pixels).reshape(1, cfg["n_input"]).float()
     return torch.cat(
         [
             encode_images_poisson(
                 pixels,
-                recipe.STEPS,
-                recipe.DT_MS,
-                recipe.RATE_HZ,
+                round(cfg["duration_ms"] / cfg["dt_ms"]),
+                cfg["dt_ms"],
+                cfg["input_rate_hz"],
                 generator=torch.Generator().manual_seed(1000 * index + seed),
             )
-            for seed in recipe.SEEDS
+            for seed in cfg["seeds"]
         ],
         dim=1,
     )
 
 
-def frozen_model(condition, weights):
-    bundle = recipe.network(condition)
-    model = build(
-        ExecutionSpec(kind="simulate", graph=bundle.graph, device="cpu", seed=0)
-    ).model
+def frozen_model(condition, weights, cfg):
+    bundle = recipe.author_network(condition, cfg)
+    built = build(
+        bundle=bundle,
+        device=cfg["device"],
+        seed=cfg["model_seed"],
+        performance=Performance(**cfg["performance"]),
+    )
+    model = built.model
     with torch.inference_mode():
         for name, target in model.parameter_map().items():
-            value = weights[recipe.PARAMETERS[name]]
-            if value.shape != target.shape or (value < 0).any():
+            value = weights[cfg["parameter_mapping"][name]]
+            if (
+                value.shape != target.shape
+                or not torch.isfinite(value).all()
+                or (value < 0).any()
+            ):
                 raise ValueError("checkpoint shape or polarity mismatch")
             target.copy_(value)
-    return bundle, model
+    return bundle, model, built.metrics["performance"]
 
 
-def check_weights(model, weights):
+def check_weights(model, weights, cfg):
     if any(
-        not torch.equal(value, weights[recipe.PARAMETERS[name]])
+        not torch.equal(value, weights[cfg["parameter_mapping"][name]])
         for name, value in model.parameter_map().items()
     ):
         raise ValueError("frozen weights changed")
 
 
-def compute(identity, image_identity, *, run_id=None):
-    torch.set_num_threads(1)
+def compute(
+    identity, image_identity, *, run_id=None, images_per_digit=None, batch_images=None
+):
+    cfg = recipe.configuration(
+        images_per_digit=images_per_digit, batch_images=batch_images
+    )
     bank = source_run(
         REPO / ".pingstore", identity, stage="compute", experiment="exp022"
     )
     image_source = source_run(
         REPO / ".pingstore", image_identity, stage="compute", experiment="exp123"
     )
-    weights, checkpoint = training_input(bank)
+    weights, checkpoint = training_input(bank, cfg)
     images = image_bank(image_source)
-    cfg = recipe.configuration(images)
+    cfg = recipe.configuration(
+        images, images_per_digit=images_per_digit, batch_images=batch_images
+    )
+    torch.set_num_threads(cfg["torch_threads"])
     with stage_run(
         REPO,
         recipe.SLUG,
@@ -150,57 +164,46 @@ def compute(identity, image_identity, *, run_id=None):
         encoded = {}
         hashes = {}
         for index in cfg["image_indices"]:
-            pixels, label = images[index]
-            spikes = encode(pixels, index)
+            pixels, _ = images[index]
+            spikes = encode(pixels, index, cfg)
             encoded[index] = spikes.numpy().astype(bool)
             hashes[str(index)] = {
                 str(seed): hashlib.sha256(spikes[:, b].numpy().tobytes()).hexdigest()
-                for b, seed in enumerate(recipe.SEEDS)
+                for b, seed in enumerate(cfg["seeds"])
             }
             # Encodings are generated once, then reused for every intervention.
             unit = run.export / f"image{index:05d}"
             unit.mkdir()
-            np.savez_compressed(
-                unit / "input.npz",
-                pixels=pixels,
-                label=label,
-                spikes=encoded[index],
-                seeds=recipe.SEEDS,
-                generator_seeds=[1000 * index + s for s in recipe.SEEDS],
-            )
-        timings = {}
-        for condition in cfg["conditions"]:
+        run.record["scientific_artifacts"] = {
+            "snapshot_stages": {
+                f"{condition['condition_id']}-execution": ["start"]
+                for condition in cfg["conditions"]
+            }
+        }
+        performance = {}
+        for condition_number, condition in enumerate(cfg["conditions"], start=1):
             name = condition["condition_id"]
-            started = perf_counter()
-            bundle, model = frozen_model(condition, weights)
-            bundle.write(run.export / f"{name}.bundle")
+            bundle, model, performance[name] = frozen_model(condition, weights, cfg)
+            bundle.write(run.export / f"{name}.bundle", visualise=False)
             # Parameter sweeps share one circuit topology.
             if name == "baseline":
                 bundle.visualise(run.export / "network.svg", view="circuit")
-            with (
-                torch.inference_mode(),
-                model_execution(
-                    model,
-                    bundle,
-                    run.export / f"{name}-execution",
-                    kind="infer",
-                    settings=condition,
-                ),
-            ):
-                for start in range(0, len(cfg["image_indices"]), recipe.BATCH_IMAGES):
-                    indices = cfg["image_indices"][start : start + recipe.BATCH_IMAGES]
+            snapshot_start(model, bundle, run.export / f"{name}-execution", cfg)
+            with torch.inference_mode():
+                for start in range(0, len(cfg["image_indices"]), cfg["batch_images"]):
+                    indices = cfg["image_indices"][start : start + cfg["batch_images"]]
                     batch = torch.from_numpy(
                         np.concatenate([encoded[i] for i in indices], axis=1)
                     ).float()
                     # A fresh call resets all dynamic state; batch lanes are independent.
                     result = model({"image": batch}, diagnostics=True)
                     signals = {
-                        key: value.cpu().numpy().astype(bool)
-                        for key, value in result.diagnostics.items()
+                        key: result.diagnostics[key].cpu().numpy().astype(bool)
+                        for key in cfg["recording_signals"]
                     }
                     for j, index in enumerate(indices):
                         selection = slice(
-                            j * len(recipe.SEEDS), (j + 1) * len(recipe.SEEDS)
+                            j * len(cfg["seeds"]), (j + 1) * len(cfg["seeds"])
                         )
                         np.savez_compressed(
                             run.export / f"image{index:05d}" / f"{name}--spikes.npz",
@@ -208,23 +211,22 @@ def compute(identity, image_identity, *, run_id=None):
                                 key: value[:, selection]
                                 for key, value in signals.items()
                             },
-                            dt_ms=recipe.DT_MS,
+                            dt_ms=cfg["dt_ms"],
                             image_index=index,
-                            seeds=recipe.SEEDS,
+                            seeds=cfg["seeds"],
                         )
                     del result, signals, batch
-                check_weights(model, weights)
-            timings[name] = perf_counter() - started
+                check_weights(model, weights, cfg)
             print(
-                f"{name}: {len(cfg['image_indices']) * len(recipe.SEEDS)} presentations in {timings[name]:.1f}s ({len(timings)}/{len(cfg['conditions'])} conditions)",
+                f"{name}: complete ({condition_number}/{len(cfg['conditions'])} conditions)",
                 flush=True,
             )
             del model, bundle
-        if recipe.sha256(checkpoint) != recipe.CHECKPOINT_SHA256:
+        if file_sha256(checkpoint) != cfg["checkpoint_sha256"]:
             raise ValueError("checkpoint changed")
         run.record["execution"].update(
             encoding_sha256=hashes,
-            condition_seconds=timings,
+            performance=performance,
             observations=dict(
                 presentations=cfg["presentations"],
                 weights_frozen=True,
@@ -241,5 +243,13 @@ if __name__ == "__main__":
     parser.add_argument("--source", required=True)
     parser.add_argument("--image-source", required=True)
     parser.add_argument("--run-id")
+    parser.add_argument("--images-per-digit", type=int)
+    parser.add_argument("--batch-images", type=int)
     args = parser.parse_args()
-    compute(args.source, args.image_source, run_id=args.run_id)
+    compute(
+        args.source,
+        args.image_source,
+        run_id=args.run_id,
+        images_per_digit=args.images_per_digit,
+        batch_images=args.batch_images,
+    )

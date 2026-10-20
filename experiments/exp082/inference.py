@@ -6,9 +6,8 @@ import os
 import numpy as np
 import torch
 from experiments.exp022.checkpoints import resolve_checkpoint
-from experiments.helpers import checkpoint_graph
-from experiments.helpers.datasets import load_mnist_split
-from experiments.helpers.network_artifacts import model_execution
+from experiments.exp082.custom.datasets import load_mnist_split
+from experiments.exp082.custom.network_artifacts import model_execution
 from pingstore.contracts import (
     PingstoreError,
     file_sha256,
@@ -16,6 +15,8 @@ from pingstore.contracts import (
     write_json_atomic,
 )
 from snnlab.sim import (
+    GraphExecutor,
+    plan_graph,
     BoundarySchedule,
     DecisionSegments,
     RecordingSpec,
@@ -26,6 +27,87 @@ from snnlab.sim import (
 
 from . import recipe
 from .recipe import DT_MS, N_CLASSES, N_INPUT
+
+
+PARAMETERS = {
+    "input_to_E.weight": "W_ff.0",
+    "readout_projection.weight": "W_ff.1",
+    "E_to_I.weight": "W_ei.1",
+    "I_to_E.weight": "W_ie.1",
+}
+
+
+def checkpoint_tensors(path, training):
+    n_in, n_e, n_i, n_out = (
+        training[k] for k in ("n_in", "n_hidden", "n_inh", "n_out")
+    )
+    for key in (
+        "adaptive_threshold",
+        "train_leak",
+        "signed_readout",
+        "readout_bias",
+        "state_clamp",
+        "trainable_w_ee",
+        "trainable_w_ii",
+    ):
+        if training.get(key, False) is not False:
+            raise PingstoreError(f"unsupported checkpoint dynamics: {key}")
+    if training.get("dales_law") is not True:
+        raise PingstoreError("requires Dale-constrained bank weights")
+    if training.get("hidden_sizes", [n_e]) != [n_e] or training["readout_mode"] not in (
+        "mem-mean",
+        "spike-count",
+    ):
+        raise PingstoreError(
+            "requires one E/I layer with mean pre-reset voltage readout"
+        )
+    shapes = {
+        "W_ff.0": (n_in, n_e),
+        "W_ff.1": (n_e, n_out),
+        "W_ee.1": (n_e, n_e),
+        "W_ei.1": (n_e, n_i),
+        "W_ie.1": (n_i, n_e),
+        "W_ii.1": (n_i, n_i),
+    }
+    state = torch.load(path, map_location="cpu", weights_only=True)
+    if not isinstance(state, dict) or set(state) != set(shapes):
+        raise PingstoreError("checkpoint must contain exactly six matrices")
+    for key, shape in shapes.items():
+        value = state[key]
+        if (
+            not isinstance(value, torch.Tensor)
+            or value.dtype != torch.float32
+            or tuple(value.shape) != shape
+            or not torch.isfinite(value).all()
+        ):
+            raise PingstoreError(f"invalid checkpoint tensor: {key}")
+        if key in ("W_ee.1", "W_ii.1") and torch.count_nonzero(value):
+            raise PingstoreError(f"unsupported same-population recurrence: {key}")
+        if key in ("W_ei.1", "W_ie.1") and (value < 0).any():
+            raise PingstoreError(f"negative recurrent weight: {key}")
+    return state
+
+
+def bind_model(bundle, training, state, *, scale=1.0, fresh_loop=None, device=None):
+    model = GraphExecutor(
+        plan_graph(bundle.graph),
+        seed=training["seed"],
+        surrogate_slope=training["surrogate_slope"],
+    )
+    parameters = model.parameter_map()
+    if set(parameters) != set(PARAMETERS):
+        raise PingstoreError("graph parameter roles differ from checkpoint contract")
+    with torch.no_grad():
+        for name, key in PARAMETERS.items():
+            value = state[key].clamp(min=0) if key.startswith("W_ff") else state[key]
+            if fresh_loop is not None and name in ("E_to_I.weight", "I_to_E.weight"):
+                value = fresh_loop[name]
+            if name == "input_to_E.weight":
+                value = value * scale
+            if parameters[name].shape != value.shape:
+                raise PingstoreError(f"graph/checkpoint shape mismatch: {name}")
+            parameters[name].copy_(value)
+    return model.to(device or resolve_device("auto")).eval()
 
 
 def encode_segment(
@@ -112,10 +194,10 @@ class Inference:
         attachments.mkdir(parents=True)
         training = load_json(train / "config.json")
         checkpoint = resolve_checkpoint(train, recipe.CHECKPOINT_ROLE)
-        state = checkpoint_graph.checkpoint_tensors(checkpoint["path"], training)
+        state = checkpoint_tensors(checkpoint["path"], training)
         bundle = recipe.author_network(training)
         device = resolve_device(os.environ.get("PINGLAB_DEVICE", "auto"))
-        model = checkpoint_graph.bind_model(bundle, training, state, device=device)
+        model = bind_model(bundle, training, state, device=device)
         schedule = BoundarySchedule(tuple(map(int, resets)))
         segments = DecisionSegments(
             schedule,

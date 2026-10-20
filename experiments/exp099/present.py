@@ -1,4 +1,9 @@
-"""Render an explicit analysis and pinned compute source; never publish."""
+"""Render an explicit analysis and pinned compute source; never publish.
+
+The CLI requires explicit completed analysis evidence. Figures and browser
+replays are written to a new presentation run; upstream execution is never
+launched automatically.
+"""
 
 from __future__ import annotations
 
@@ -11,9 +16,10 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
 import numpy as np
-from experiments.exp099 import inputs, recipe
-from experiments.exp099.browser import circuit_data
-from experiments.exp099.render import network_diagram, render_raster
+from experiments.exp099 import recipe
+from experiments.exp099.custom import inputs
+from experiments.exp099.custom.browser import circuit_data
+from experiments.exp099.custom.render import network_diagram, render_raster
 from pingstore.contracts import PingstoreError, load_json, write_json_atomic
 from pingstore.stages import stage_run
 from snnlab import lang as snn  # noqa: TID251
@@ -86,9 +92,7 @@ def resolved(identity):
     return analysis, compute, cfg, results
 
 
-def render_outputs(
-    analysis, compute, cfg, results, output, *, view=None
-):
+def render_outputs(analysis, compute, cfg, results, output, *, scratch, view=None):
     recording = Recording(cfg["dt_ms"], inputs.recording(compute))
     with np.load(analysis.export / "measurements.npz", allow_pickle=False) as arrays:
         measurements = dict(arrays)
@@ -96,23 +100,32 @@ def render_outputs(
         weights = dict(arrays)
     write_json_atomic(
         output / "circuit.json",
-        circuit_data(recording.signals, weights, cfg, view or {
-            "start_ms": cfg["view_start_ms"], "end_ms": cfg["view_end_ms"],
-        }, measurements=measurements),
+        circuit_data(
+            recording.signals,
+            weights,
+            cfg,
+            view
+            or {
+                "start_ms": cfg["view_start_ms"],
+                "end_ms": cfg["view_end_ms"],
+            },
+            measurements=measurements,
+        ),
+    )
+    bundle_path = (
+        compute.restore_bundle("network.bundle", scratch / "network.bundle")
+        if compute.record.get("scientific_artifacts", {}).get("native_paths")
+        else compute.unit("network.bundle")
     )
     diagram_metadata = network_diagram(
         output / "network.svg",
-        bundle=snn.load_bundle(compute.unit("network.bundle")),
+        bundle=snn.load_bundle(bundle_path),
     )
     display_cfg = dict(cfg)
     if view is not None:
-        display_cfg.update(
-            view_start_ms=view["start_ms"], view_end_ms=view["end_ms"]
-        )
+        display_cfg.update(view_start_ms=view["start_ms"], view_end_ms=view["end_ms"])
     render_raster(recording, display_cfg, output / "spike-raster.svg")
-    reference = render_reference(
-        REFERENCE_PDF, output / "susin-destexhe-2021-ping.png"
-    )
+    reference = render_reference(REFERENCE_PDF, output / "susin-destexhe-2021-ping.png")
     write_json_atomic(output / "numbers.json", results)
     centre = (cfg["peak_ms"] + cfg["plateau_end_ms"]) / 2
     return {
@@ -150,7 +163,15 @@ def present(identity, *, run_id=None):
     ) as run:
         run.record["execution"]["presentation"] = view
         run.record["execution"].update(
-            render_outputs(analysis, compute, cfg, results, run.export, view=view)
+            render_outputs(
+                analysis,
+                compute,
+                cfg,
+                results,
+                run.export,
+                scratch=run.scratch,
+                view=view,
+            )
         )
     return run.run_id
 

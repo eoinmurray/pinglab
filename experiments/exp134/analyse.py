@@ -1,4 +1,12 @@
-"""Measure population dynamics of the two paired membrane sweeps."""
+"""Measure population dynamics of the two paired membrane sweeps.
+
+Run analyse.py --source COMPUTE_RUN [--workers N]. Read validated recordings
+and the original compute configuration, then export metrics and raster events
+to a new Pingstore analysis run. No upstream execution is launched.
+
+Native SNNLab estimators supply spectra, cycle counts and rhythm contrast.
+Participation gives equal weight to eligible images after averaging accepted
+draws within each image; coverage is retained alongside every estimate."""
 
 import argparse
 import json
@@ -11,7 +19,7 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
 import numpy as np
 from experiments.exp134 import recipe
-from experiments.exp134.dynamics import dynamics
+from experiments.exp134.custom.dynamics import dynamics
 from pingstore.stages import source_run, stage_run
 from snnlab import analysis
 
@@ -29,7 +37,6 @@ def measure_condition(condition, cfg, units):
     }
     accepted = 0
     power_sum = None
-    image_coverage = []
     for index in cfg["image_indices"]:
         participation = []
         with np.load(
@@ -54,9 +61,6 @@ def measure_condition(condition, cfg, units):
                     power_sum = np.zeros_like(power)
                 power_sum += power
                 frequency = diagnostic["frequency_hz"]
-        image_coverage.append(
-            dict(image_index=index, accepted_draws=len(participation))
-        )
         if participation:
             samples["participation_e_pct"].append(float(np.mean(participation)))
     peak = analysis.spectral_peak(
@@ -73,11 +77,9 @@ def measure_condition(condition, cfg, units):
         accepted_draws=accepted,
         total_draws=len(cfg["image_indices"]) * len(cfg["seeds"]),
         participation_images=len(samples["participation_e_pct"]),
-        image_coverage=image_coverage,
     )
     for key, values in samples.items():
         summary[key] = float(np.mean(values)) if values else None
-        summary[f"{key}_n"] = len(values)
     return summary
 
 
@@ -105,9 +107,6 @@ def analyse(identity, workers=4):
         def retain(summary):
             name = summary["condition_id"]
             measured[name] = summary
-            (run.export / f"dynamics-{name}.json").write_text(
-                json.dumps(summary, indent=2, allow_nan=False) + "\n"
-            )
             print(
                 f"Measured {name} ({len(measured)}/{len(cfg['conditions'])})",
                 flush=True,
@@ -142,7 +141,7 @@ def analyse(identity, workers=4):
             json.dumps(report, indent=2, allow_nan=False) + "\n"
         )
         # Raster events are measured here so present never reads compute activity.
-        events = dict(dt_ms=cfg["dt_ms"])
+        events = {}
         for condition in cfg["conditions"]:
             if condition["multiplier"] not in (0.5, 1.0, 2.0):
                 continue

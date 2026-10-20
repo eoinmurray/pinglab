@@ -1,4 +1,8 @@
-"""Committed Arnold-tongue grid and native SNNLab authoring; no execution."""
+"""Committed Arnold-tongue grid and native SNNLab authoring; no execution.
+
+The configuration resolves scientific settings and the authoring functions compile
+the network. Data loading, simulation and run storage belong to the execution stages.
+"""
 
 from dataclasses import dataclass
 

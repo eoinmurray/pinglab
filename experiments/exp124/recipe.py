@@ -1,126 +1,158 @@
-"""Directly declared two-layer SHD networks; no simulation on import."""
+"""Define the calibrated two-layer SHD classifiers and resolved settings.
 
-from snnlab import extensions, lang
+COBA learns a feedforward excitatory path; PING adds fixed reciprocal inhibitory
+feedback in each hidden layer. Both learn the same three matrices and classify
+20 spoken digits using a rate-normalized, non-spiking readout. One-second binary
+inputs retain the historical insertion/deletion corruption protocol.
+
+configuration() resolves full or local-check settings without loading data.
+author_network() returns a compiled SNNLab bundle, without running it. The few
+registered extensions preserve scientific operations absent from the native API;
+execution, optimization, recording and snapshots use native SNNLab facilities.
+"""
+
+from dataclasses import asdict
+
+from experiments.exp124.custom import extensions  # noqa: F401
+from snnlab import lang
+from snnlab.sim import CheckpointSelection, Performance, TrainingMetrics
 
 
-def equal_class_loss(losses, target, classes):
-    import torch
-
-    counts = torch.zeros(classes, device=losses.device, dtype=losses.dtype)
-    counts.scatter_add_(0, target, torch.ones_like(target, dtype=losses.dtype))
-    return (losses / counts[target]).sum() / (counts > 0).sum()
-
-
-def class_balanced_cross_entropy(prediction, target, config):
-    import torch
-
-    losses = torch.nn.functional.cross_entropy(
-        prediction, target.long(), reduction="none"
+def configuration(
+    protocol="full",
+    *,
+    epochs=None,
+    seed=42,
+    batch_size=None,
+    train_class_counts=None,
+    validation_class_counts=None,
+):
+    if protocol not in ("full", "local-check"):
+        raise ValueError(f"unknown protocol: {protocol}")
+    local = protocol == "local-check"
+    epochs = (1 if local else 50) if epochs is None else epochs
+    batch_size = (20 if local else 256) if batch_size is None else batch_size
+    if any(type(value) is not int or value < 1 for value in (epochs, batch_size)):
+        raise ValueError("epochs and batch size must be positive integers")
+    if type(seed) is not int or not 0 <= seed < 2**32 - 4:
+        raise ValueError("seed must permit nonnegative 32-bit noise seeds")
+    # All scientific defaults and requested execution policies live here.
+    cfg = dict(
+        experiment="exp124",
+        schema="exp124.recipe/v5",
+        protocol=protocol,
+        models=["coba", "ping"],
+        epochs=epochs,
+        seed=seed,
+        batch_size=batch_size,
+        full_dataset=not local,
+        validation_fraction=0.1,
+        n_input=700,
+        n_excitatory=128,
+        n_inhibitory=32,
+        n_classes=20,
+        hidden_layers=2,
+        dt_ms=1.0,
+        duration_ms=1000.0,
+        input_noise_hz=1.6,
+        spike_deletion_probability=0.0008,
+        tau_mem_ms=20.0,
+        tau_synapse_ms=10.0,
+        capacitance_e_nf=1.0,
+        capacitance_i_nf=0.5,
+        leak_e_us=0.05,
+        leak_i_us=0.025,
+        resting_mv=-65.0,
+        reset_mv=-65.0,
+        threshold_mv=-50.0,
+        refractory_ms=0.0,
+        voltage_grad_dampen=1.0,
+        hidden_weight_mean_us=0.09,
+        hidden_weight_std_us=0.009,
+        initial_zero_fractions=[0.95, 0.90],
+        feedback_sum_us=0.05,
+        readout_weight_mean_us=0.0,
+        readout_weight_std_us=0.1,
+        score_gain=20.0,
+        reference_rate_hz=20.0,
+        minimum_rate_hz=1.0,
+        learning_rates=dict(input=0.000005, interlayer=0.00002, readout=0.01),
+        # With zero decay, native AdamW implements the existing Adam update.
+        optimizer=dict(lr=0.001, betas=[0.9, 0.999], eps=1e-8, weight_decay=0.0),
+        surrogate_slope_per_mv=100.0 / 15.0,
+        surrogate_gradient_scale=0.01,
+        performance=asdict(Performance()),
+        training_metrics=TrainingMetrics(test="none").to_dict(),
+        batching=dict(
+            order="stratified",
+            stratify_by="class",
+            remainder="merge_small",
+            min_batch_size=min(20, batch_size),
+        ),
+        checkpoint_selection="final_epoch",
+        best_checkpoint_selection=CheckpointSelection().to_dict(),
+        training_measurement="online_pre_update_minibatches",
+        sample_selection="first validation utterance in split order",
+        sample_device="cpu",
+        recording=dict(
+            coba=["e1", "e2"],
+            ping=["e1", "e2", "i1", "i2"],
+        ),
+        autocorrelation_bin_ms=1.0,
+        autocorrelation_max_lag_ms=200.0,
     )
-    return equal_class_loss(losses, target.long(), config["classes"])
-
-
-extensions.register_objective(
-    "exp124.equal_class_cross_entropy/v1",
-    class_balanced_cross_entropy,
-    classification=True,
-)
-
-
-def rate_normalized_scores(sources, parameters, config):
-    """Rescale each presentation by its mean final-layer spike rate."""
-    scores, counts = sources
-    rate = counts.mean(dim=-1, keepdim=True) / config["steps"]
-    return scores * config["reference_rate"] / rate.clamp_min(config["minimum_rate"])
-
-
-extensions.register_operation("exp124.rate_normalize/v1", rate_normalized_scores)
-
-
-def adam_optimizer(groups, config):
-    import torch
-
-    return torch.optim.Adam(groups, **config)
-
-
-extensions.register_optimizer("exp124.adam/v1", adam_optimizer)
-
-
-def centered_readout(shape, config, *, device, dtype):
-    import torch
-
-    value = (
-        torch.randn(shape, device=device, dtype=dtype) * config["std"] + config["mean"]
-    )
-    return value - value.mean(dim=0, keepdim=True) if config["center"] else value
-
-
-def identity_gain(shape, config, *, device, dtype):
-    import torch
-
-    return torch.eye(*shape, device=device, dtype=dtype) * config["gain"]
-
-
-extensions.register_initializer("exp124.centered_readout/v1", centered_readout)
-extensions.register_initializer("exp124.identity_gain/v1", identity_gain)
-
-
-SLUG = "exp124"
-MODELS = ("coba", "ping")
-TRAINABLE = ("input_to_E1.weight", "E1_to_E2.weight", "readout_projection.weight")
-POPULATIONS = {"coba": ("e1", "e2"), "ping": ("e1", "e2", "i1", "i2")}
-
-
-def configuration(*, epochs=50, seed=42, batch_size=256, smoke=False):
-    if epochs < 1 or batch_size < 1:
-        raise ValueError("epochs and batch size must be positive")
-    return {
-        "schema": "exp124.recipe/v4",
-        "models": list(MODELS),
-        "epochs": epochs,
-        "seed": seed,
-        "batch_size": batch_size,
-        "full_dataset": not smoke,
-        "validation_fraction": 0.1,
-        "dt_ms": 1.0,
-        "duration_ms": 1000.0,
-        "input_noise_hz": 1.6,
-        "spike_deletion_probability": 0.0008,
-        "training_measurement": "online_pre_update_minibatches",
-    }
+    if (train_class_counts is None) != (validation_class_counts is None):
+        raise ValueError("training and validation counts must be supplied together")
+    if train_class_counts is not None:
+        for split, counts in (
+            ("train", train_class_counts),
+            ("validation", validation_class_counts),
+        ):
+            if len(counts) != cfg["n_classes"] or any(
+                type(count) is not int or count < 1 for count in counts
+            ):
+                raise ValueError("each class needs a positive integer example count")
+            cfg[f"{split}_class_counts"] = list(counts)
+            cfg[f"{split}_examples"] = sum(counts)
+    return cfg
 
 
 def author_network(cfg, model):
     """The calibrated scientific recipe, shared by training and inference."""
-    if model not in MODELS:
+    if model not in cfg["models"]:
         raise ValueError(model)
-    net = lang.Network(f"{SLUG}_{model}", dt=cfg["dt_ms"] * lang.ms)
+    net = lang.Network(f"{cfg['experiment']}_{model}", dt=cfg["dt_ms"] * lang.ms)
     source = net.input(
-        "drive", shape=("time", "batch", 700), signal_type="spikes", unit="spike"
+        "drive",
+        shape=("time", "batch", cfg["n_input"]),
+        signal_type="spikes",
+        unit="spike",
     )
     learned, fixed = [], []
-    for layer in (1, 2):
+    for layer in range(1, cfg["hidden_layers"] + 1):
         e = net.population(
             f"E{layer}",
-            size=128,
+            size=cfg["n_excitatory"],
             neuron=lang.COBA_LIF(
-                tau_mem=20 * lang.ms,
-                capacitance_nf=1.0,
-                leak_us=0.05,
-                resting_mv=-65.0,
-                reset_mv=-65.0,
-                threshold_mv=-50.0,
-                refractory=0 * lang.ms,
-                voltage_grad_dampen=1.0,
+                tau_mem=cfg["tau_mem_ms"] * lang.ms,
+                capacitance_nf=cfg["capacitance_e_nf"],
+                leak_us=cfg["leak_e_us"],
+                resting_mv=cfg["resting_mv"],
+                reset_mv=cfg["reset_mv"],
+                threshold_mv=cfg["threshold_mv"],
+                refractory=cfg["refractory_ms"] * lang.ms,
+                voltage_grad_dampen=cfg["voltage_grad_dampen"],
             ),
         )
         projection = net.connect(
             source,
             e.excitatory,
             name="input_to_E1" if layer == 1 else "E1_to_E2",
-            synapse=lang.AMPA(tau=10 * lang.ms),
+            synapse=lang.AMPA(tau=cfg["tau_synapse_ms"] * lang.ms),
             weight=lang.LowerClampedNormal(
-                mean=0.09, std=0.009, initial_zero_fraction=0.95 if layer == 1 else 0.90
+                mean=cfg["hidden_weight_mean_us"],
+                std=cfg["hidden_weight_std_us"],
+                initial_zero_fraction=cfg["initial_zero_fractions"][layer - 1],
             ),
             constraint=lang.NonNegative(),
             initialization_scaling="fan_in_normalized",
@@ -129,16 +161,16 @@ def author_network(cfg, model):
         if model == "ping":
             i = net.population(
                 f"I{layer}",
-                size=32,
+                size=cfg["n_inhibitory"],
                 neuron=lang.COBA_LIF(
-                    tau_mem=20 * lang.ms,
-                    capacitance_nf=0.5,
-                    leak_us=0.025,
-                    resting_mv=-65.0,
-                    reset_mv=-65.0,
-                    threshold_mv=-50.0,
-                    refractory=0 * lang.ms,
-                    voltage_grad_dampen=1.0,
+                    tau_mem=cfg["tau_mem_ms"] * lang.ms,
+                    capacitance_nf=cfg["capacitance_i_nf"],
+                    leak_us=cfg["leak_i_us"],
+                    resting_mv=cfg["resting_mv"],
+                    reset_mv=cfg["reset_mv"],
+                    threshold_mv=cfg["threshold_mv"],
+                    refractory=cfg["refractory_ms"] * lang.ms,
+                    voltage_grad_dampen=cfg["voltage_grad_dampen"],
                 ),
             )
             for pre, target, name, synapse, weight in (
@@ -146,15 +178,15 @@ def author_network(cfg, model):
                     e.spikes,
                     i.excitatory,
                     f"E{layer}_to_I{layer}",
-                    lang.AMPA(tau=10 * lang.ms),
-                    0.05 / 128,
+                    lang.AMPA(tau=cfg["tau_synapse_ms"] * lang.ms),
+                    cfg["feedback_sum_us"] / cfg["n_excitatory"],
                 ),
                 (
                     i.spikes,
                     e.inhibitory,
                     f"I{layer}_to_E{layer}",
-                    lang.GABA(tau=10 * lang.ms),
-                    0.05 / 32,
+                    lang.GABA(tau=cfg["tau_synapse_ms"] * lang.ms),
+                    cfg["feedback_sum_us"] / cfg["n_inhibitory"],
                 ),
             ):
                 loop = net.connect(
@@ -171,23 +203,31 @@ def author_network(cfg, model):
                 fixed.append(loop.weight)
         source = e.spikes
     readout = net.population(
-        "readout", size=20, spiking=False, neuron=lang.LeakyIntegrator(tau=20 * lang.ms)
+        "readout",
+        size=cfg["n_classes"],
+        spiking=False,
+        neuron=lang.LeakyIntegrator(tau=cfg["tau_mem_ms"] * lang.ms),
     )
     projection = net.connect(
         source,
         readout.excitatory,
         name="readout_projection",
-        synapse=lang.LeakyIntegrator(tau=10 * lang.ms),
+        synapse=lang.LeakyIntegrator(tau=cfg["tau_synapse_ms"] * lang.ms),
         weight=lang.CustomInitializer(
-            "exp124.centered_readout/v1", mean=0.0, std=0.1, center=True
+            "exp124.centered_readout/v1",
+            mean=cfg["readout_weight_mean_us"],
+            std=cfg["readout_weight_std_us"],
+            center=True,
         ),
         initialization_scaling="direct",
     )
     scores = lang.reduce(readout.voltage, operation="mean", over="time", name="scores")
     gain = net.parameter(
         "score_gain.weight",
-        shape=(20, 20),
-        initializer=lang.CustomInitializer("exp124.identity_gain/v1", gain=20.0),
+        shape=(cfg["n_classes"], cfg["n_classes"]),
+        initializer=lang.CustomInitializer(
+            "exp124.identity_gain/v1", gain=cfg["score_gain"]
+        ),
     )
     scores = net.operation(
         "linear",
@@ -197,7 +237,7 @@ def author_network(cfg, model):
         unit=scores.unit,
         signal_type="continuous",
         parameters=(gain,),
-        size=20,
+        size=cfg["n_classes"],
         trainable=False,
     )
     counts = lang.reduce(
@@ -210,8 +250,8 @@ def author_network(cfg, model):
         shape=scores.shape,
         unit="1",
         steps=round(cfg["duration_ms"] / cfg["dt_ms"]),
-        reference_rate=0.02,
-        minimum_rate=0.001,
+        reference_rate=cfg["reference_rate_hz"] * cfg["dt_ms"] / 1000,
+        minimum_rate=cfg["minimum_rate_hz"] * cfg["dt_ms"] / 1000,
     )
     net.output("class_scores", scores)
     training = lang.TrainSpec(
@@ -220,22 +260,30 @@ def author_network(cfg, model):
                 "exp124.equal_class_cross_entropy/v1",
                 prediction=scores,
                 target="class",
-                classes=20,
+                classes=cfg["n_classes"],
             ),
         ),
         parameter_groups=(
-            lang.ParameterGroup((learned[0],), name="input", lr=0.000005),
-            lang.ParameterGroup((learned[1],), name="interlayer", lr=0.00002),
-            lang.ParameterGroup((projection.weight,), name="readout", lr=0.01),
+            lang.ParameterGroup(
+                (learned[0],), name="input", lr=cfg["learning_rates"]["input"]
+            ),
+            lang.ParameterGroup(
+                (learned[1],), name="interlayer", lr=cfg["learning_rates"]["interlayer"]
+            ),
+            lang.ParameterGroup(
+                (projection.weight,),
+                name="readout",
+                lr=cfg["learning_rates"]["readout"],
+            ),
             lang.ParameterGroup(
                 tuple(fixed) + (gain,), name="fixed_loop", lr=0.0, frozen=True
             ),
         ),
-        optimizer=lang.CustomOptimizer(
-            "exp124.adam/v1", lr=0.001, betas=[0.9, 0.999], weight_decay=0.0
-        ),
+        optimizer=lang.AdamW(**cfg["optimizer"]),
         surrogate=lang.FastSigmoid(
-            slope=100.0 / 15.0, gradient_scale=0.01, threshold_inclusive=False
+            slope=cfg["surrogate_slope_per_mv"],
+            gradient_scale=cfg["surrogate_gradient_scale"],
+            threshold_inclusive=False,
         ),
         epochs=cfg["epochs"],
         presentation_duration=cfg["duration_ms"] * lang.ms,

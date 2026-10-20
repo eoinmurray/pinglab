@@ -1,4 +1,9 @@
-"""Prepare a recorded classifier replay from explicitly selected SNNLab evidence."""
+"""Prepare a recorded classifier replay from explicitly selected SNNLab evidence.
+
+The CLI requires explicit completed analysis evidence. Figures and browser
+replays are written to a new presentation run; upstream execution is never
+launched automatically.
+"""
 
 import argparse
 import sys
@@ -11,6 +16,7 @@ import numpy as np
 from experiments.exp127.recipe import SLUG
 from pingstore.contracts import load_json, write_json_atomic
 from pingstore.stages import source_run, stage_run
+from snnlab import lang
 
 
 def events(array, dt):
@@ -131,6 +137,15 @@ def present(identity):
         inputs={"analyse": source, "compute": compute},
         configuration=cfg,
     ) as run:
+        if compute.record.get("scientific_artifacts", {}).get("native_paths"):
+            bundle_path = compute.restore_bundle(
+                "classifier.bundle", run.scratch / "classifier.bundle"
+            )
+        else:
+            bundle_path = compute.unit("classifier.bundle")
+        lang.load_bundle(bundle_path).visualise(
+            run.export / "circuit.svg", view="circuit"
+        )
         write_json_atomic(run.export / "numbers.json", numbers)
         write_json_atomic(run.export / "classifier.json", replay)
         write_json_atomic(run.export / "training.json", teaching)

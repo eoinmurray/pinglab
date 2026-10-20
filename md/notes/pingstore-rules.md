@@ -1,542 +1,65 @@
 ---
-title: Pingstore Rules
+title: Pingstore Guide
 author: Eoin Murray
 collection: notes
-description: Pingstore run layout, provenance, validation, pruning, Cloudflare R2 backup access and recovery.
-created_at: '2026-09-11'
-updated_at: '2026-10-16'
+description: Where Pingstore runs live, basic CLI usage and safe handling of experiment outputs.
+created_at: "2026-09-11"
+updated_at: "2026-10-20T11:22:49Z"
 ---
 
-# Pingstore Rules
+# Pingstore Guide
 
-Version: **4.13.0**
+Pingstore holds Pinglab’s experiment runs. Code lives in Git; scientific outputs and execution records live in `.pingstore/`.
 
-These rules define Pingstore's filesystem convention. Pingstore is not a
-service, database, catalogue, lifecycle manager, or general management CLI.
+## Locations
 
-Do not reintroduce collection/experiment directory nesting, catalogues,
-lifecycle states, automatic official selections, preview overrides, archive
-bundles, or a general Pingstore management CLI. The narrow discovery and
-hash-bound backup and prune commands below are the only operational CLI
-exceptions. The historical v2 migration utility is not a conforming upgrade
-path and does not authorize v2 use.
+- **Local runs:** `.pingstore/runs/`, relative to the repository root.
+- **External backup:** `r2:pinglab/pingstore/runs`, accessed through rclone.
+- **Implementation:** `tools/pingstore/`.
 
-## 1. Contract
-
-Every completed operational run uses `pingstore.run/v4` and has these required entries:
+A completed run contains:
 
 ```text
 .pingstore/runs/<run-id>/
-├── run.json
-├── README.md
-├── export/
-└── .protected         # optional manual local retention marker
+├── run.json       # execution, provenance and input references
+├── README.md      # human-readable run history
+└── export/        # scientific outputs
 ```
 
-- `run.json` is the authoritative machine-readable record.
-- `README.md` is the mandatory human-readable history.
-- `export/` contains only scientific data. Run-wide and single-file unit outputs
-  are flat; only genuine multi-file scientific units use a directory.
-- `.protected`, when present, is a regular file manually created beside
-  `run.json`. It may be empty or explain why the run is retained. It protects
-  the run and its complete input ancestry. It is mutable local retention
-  metadata outside the payload digest, not a scientific output or usage flag.
-  Creating or removing it requires no run metadata correction or README edit.
-  Do not edit markers during pruning; coordinate changes with the exclusive
-  Pingstore operation lock. No other optional root entries are permitted.
+An optional `.protected` file beside `run.json` retains the run and its input ancestry during local pruning. It is not backed up.
 
-There is no operational `provenance/` directory. Do not duplicate the command,
-configuration, environment, source revision, or timing in sidecar manifests or
-replay scripts. Record them once in `run.json`. Historical migration material
-belongs in a recoverable migration archive outside `.pingstore/runs/`.
+## Using the tool
 
-Execution logs, commands, execution configurations, environment captures,
-timing, import mappings, and copied source records are metadata: keep them in
-`run.json`, not `export/`. A per-unit scientific definition may remain as a role
-file when it is data needed to interpret that unit; it must not duplicate the
-run's execution metadata. Writers may use `.scratch/` inside a hidden incomplete
-run, but completion discards it. Compute and analyse exports permit exactly one
-unit-directory level. A unit directory must contain at least two scientifically
-related files. A single-file unit is named `<unit-id>--<role-file>` directly
-under `export/`. Unit IDs are canonical scientific identities, not generic
-containers such as `data`, `jobs`, `cells`, or `misc`; role filenames are short
-and repeatable.
-
-Use `recording.npz` for raw multimodal simulation time series, `spikes.npz` for
-raw spike-only output, and `rasters.npz` only for transformed raster/event data.
-The ambiguous aliases `snapshot.npz` and `recordings.npz` are forbidden. Common
-roles use their standard names; genuinely domain-specific descriptive filenames
-remain permitted. Present exports retain descriptive flat filenames.
-Present exports contain only flat regular files. No other root entries or
-symlinks are allowed in a completed run.
-
-### Compute network evidence
-
-New compute runs retain complete compiled `snnlab.lang` bundles and simulation
-snapshots produced using `snnlab.sim.SnapshotSpec` in `export/`, as required by
-the [Experiment Rules](/notes/experiment-rules#mandatory-network-bundles-and-simulation-snapshots).
-These are scientific definitions and parameter evidence, not prohibited copies
-of Pingstore execution metadata. Preserve library-generated snapshot metadata
-and parameters intact. Both contribute to the ordinary payload digest and
-follow the same immutable backup and retention rules as other scientific data.
-
-Tool-native paths may be deeper while the run is hidden. Shared canonicalization
-still governs completed exports; preserve file bytes and a reversible native
-path mapping for authenticated bundle loading from reconstructed scratch paths.
-Do not relax the one-unit-directory-level contract or modify bundle manifests
-to accommodate flattening. Required bundle and start/end snapshot validation
-belongs in compute completion checks. Existing completed runs are not rewritten
-or invalidated by this new writer requirement.
-
-The explicitly retained external backends in exp080/081/117/125 use local
-`pinglab.external-run-snapshot/v1` records instead of fabricated Lang bundles.
-Their scientific definitions and before/after parameters follow the same
-payload, reversible-path and validation rules. Store the native-to-canonical
-file mapping in `run.json.scientific_artifacts.native_paths`; use
-`SourceRun.restore_bundle(...)` to reconstruct library bundle paths in scratch.
-
-## 2. `run.json`
-
-Reports may declare `collection` as a single slug or a nonempty list of unique
-slugs. For new runs, the first listed collection supplies the single
-`run.json` provenance value. Additional memberships are site navigation metadata;
-changing report membership does not rewrite completed runs.
-
-A v4 record includes:
-
-- `schema`, `run_id`, `experiment`, `collection`, `stage`, `origin`, and
-  `created_at`;
-- `inputs`, mapping roles to `{run_id, payload_digest}`;
-- `execution`, containing the actual command, working directory, host,
-  configuration, environment when relevant, and start/completion times;
-- `provenance`, containing compact source identity such as the Git commit,
-  dirty flags, and lockfile checksum;
-- `payload_digest`, the digest of `export/` only;
-- optional experiment-specific scientific metadata.
-
-New compute records declare `scope` as `"full"` or `"phase"`. Phase records
-also require a descriptive lowercase hyphen-separated `phase` name, such as
-`"train"`, `"evaluate"` or `"diagnostics"`; full records omit `phase`. Scope
-describes scientific coverage, not execution success or lifecycle state. Every
-visible phase run is complete for its declared phase and satisfies the same v4
-layout, checksum and immutability requirements as a full run. Failed or unfinished
-work stays hidden and must never be labelled a completed phase.
-
-Existing completed v4 compute records without `scope` retain their existing
-declared scientific coverage; do not rewrite them or infer a phase from their
-contents. Consumers still validate recipe-defined completeness, including any
-existing partition semantics; absent scope is not proof of an unpartitioned
-full result.
-New phase-aware writers and validators must enforce the explicit scope contract
-and reject contradictory scope, phase and ID combinations. This does not relax
-the prohibition on operational v2/v3 inputs.
-
-Do not retain generated replay scripts in `export/`. Do not pin the bytes of an
-upstream `run.json`. An input is scientifically fixed
-by its run identity and immutable export digest. This permits corrections to
-metadata or README history without invalidating every descendant.
-
-`payload_digest` is SHA-256 of UTF-8 compact, sorted-key JSON describing the
-lexicographically sorted export inventory. Each row contains `path`,
-`size_bytes`, and the file SHA-256. `run.json` and `README.md` are not payload
-bytes. Changing anything under `export/` changes scientific identity.
-
-## 3. README history
-
-Every writer creates the README before execution and appends successful
-completion. It states the run, stage, explicit inputs, source revision, origin,
-and dated history. Imports and migrations append what changed, what did not run,
-and where the recoverable original is stored.
-
-README and `run.json` metadata may be corrected only by an explicit operation
-that appends the correction to the README. Export bytes remain immutable.
-
-## 4. Writing and validation
-
-Use shared validated v4 layout helpers, not hardcoded consumer paths. Local and
-HPC execution use the same run-folder contract. Allocate HPC run IDs before
-submission so concurrent jobs cannot claim the same identity. Keep complete
-execution provenance in `run.json`; do not infer provenance from filesystem
-timestamps or the run ID alone. Treat visible run directories as immutable.
-
-Reserve a new identity before local or scheduler execution. New IDs use
-`<experiment>-rNNN-<stage>`, such as `exp022-r001-compute`; execution location
-belongs in `origin` and `execution`, not the ID.
-For a completed compute phase, use
-`<experiment>-rNNN-compute-phase-<name>`, such as
-`expXXX-r001-compute-phase-train`. A full compute result, whether executed
-together or explicitly assembled, uses `<experiment>-rNNN-compute`. Phase names
-are descriptive scientific names, not `stage-1` numbering. Do not use `-partial`
-or `-partial-stage-X`: a phase result has completed its declared work. Phase and
-full runs share the same experiment-wide allocation counter; never reuse a
-counter for another phase. `stage` remains `compute`; scope and phase belong in
-`run.json` and are never inferred as provenance from folder names.
-
-Build the run under `.pingstore/runs/.<run-id>.tmp/`. Hidden working directories
-may contain temporary reservation and writer-lock files. Remove those files,
-finish `run.json`, README, and export, validate the exact layout and digest, then
-atomically rename the directory to its visible identity. Failed work remains
-hidden and is not operational evidence.
-
-Readers must validate v4 layout and the export digest before consumption.
-Compute starts with empty inputs unless its scientific definition explicitly
-requires completed source runs, including dependencies between named compute
-phases or phase assembly. Every stage names every input explicitly; it never
-selects “latest”, launches upstream work, or silently substitutes a run. Input
-references remain `{run_id, payload_digest}` pairs, validated before consumption
-and again before completion. Consumers requiring a full compute result reject
-phase scope unless they explicitly support that particular phase.
-
-`export_root` is obsolete. Readers use the whole export and resolve explicit
-unit IDs. Hidden writers may temporarily use deeper tool-native paths, but the
-shared completion helper canonicalizes them before validation and visibility.
-
-### Task-owned temporary-run cleanup
-
-At task completion, remove task-owned v4 `.pingstore/runs/.<run-id>.tmp/`
-directories once they are no longer needed for execution, recovery or transfer.
-Confirm that local and remote workers or queued jobs have stopped, no active
-writer owns the directory, and no checkpoint or pending transfer needs it.
-Perform cleanup under the shared helper's exclusive Pingstore operation lock.
-Before removing a reservation, persist its experiment's allocation high-watermark
-using the shared allocation helper under the exclusive operation lock. Never
-reset a counter merely because no run folders remain.
-Do not sweep other tasks' temporary runs or historical v2/v3 reservations.
-Report any temporary runs deliberately retained and why.
-
-### Assembly of completed compute phases
-
-Assembly is an experiment operation defined by the
-[Experiment Runner Guide](/notes/experiment-rules), not a Pingstore CLI
-operation. There is no generic `pingstore merge` command.
-
-1. An explicitly invoked experiment-local assembler selects phase run IDs and
-   verifies their scientific coverage, compatibility and recorded dependencies.
-   Shared Pingstore helpers validate v4 layouts, digests, references, allocation,
-   locking and completion. Never choose phases by recency: a dependent phase
-   must agree with the exact upstream identity and digest selected for assembly.
-2. Reserve a new full compute identity, copy the required scientific output bytes
-   into its hidden temporary export using an explicit deterministic mapping,
-   reject unexpected collisions, and validate the full export contract. This is
-   a narrow allowance for copying phase outputs into a full scientific result,
-   not publication materialization or another output store. Do not move, edit,
-   rename, hard-link or delete source payloads as part of assembly.
-3. Set `stage: "compute"`, `scope: "full"` and
-   `execution.operation: "assemble"`. Record every selected phase input under a
-   stable role, its run ID and export digest, the actual assembly command, output
-   mapping, configuration, source identity, origin and timing in `run.json`.
-   README records the assembly history. Source execution details remain in the
-   referenced phase records; assembly must not claim it reran their computation.
-4. Hold the shared operation lock throughout input use and writing, revalidate
-   inputs before completion, calculate the new payload digest and atomically
-   finalise the full run. Assembly executes no missing computation and never
-   extends an already completed run. Its input graph remains authoritative even
-   when the full export contains copied phase outputs.
-5. Phase inputs remain ancestry for retention, backup ordering and transfer.
-   Assembly does not authorize their pruning. Compute phases are compute runs
-   for stage filters and report/protected ancestry; they are not directly publishable and
-   discovery never lists them as present runs. Preserve all normal allocation
-   high-watermark and active-writer protections.
-
-These rules specify phase-aware storage support; they do not claim that current
-helpers already implement it. Implement and validate shared allocation and
-scope-aware readers before writing new phase runs. Do not silently reinterpret
-or migrate historical records.
-
-## 5. Discovery and publication
-
-`pingstore discover` is the read-only integration command. It validates visible
-completed v4 runs and emits Demolab discovery JSON for populated present runs.
-It does not select, mutate, materialize, upload, prune, or persist a catalogue.
+Run commands from the repository root. Discover available commands and options through CLI help:
 
 ```sh
-uv run pingstore discover
-uv run pingstore discover --source .pingstore/runs
+uv run pingstore --help
+uv run pingstore discover --help
+uv run pingstore backup --help
+uv run pingstore prune --help
 ```
 
-Preview and publication read selected present runs directly from their validated
-`export/`. Do not create `.artifacts/` or another per-experiment copy of run
-outputs. Publishing compute or analyse runs is rejected. Presentation metadata
-is read from `run.json`; exports do not contain compatibility manifests.
+- **`discover`** validates completed runs and reports available presentation data.
+- **`backup`** appends completed runs to the external backup.
+- **`prune`** removes unused, unprotected local runs while retaining required ancestry.
 
-The [local publisher](https://github.com/eoinmurray/pinglab/blob/main/tools/publishing/README.md) freezes complete selected present
-runs in a disposable build workspace under `.demolab/`, validates the copies,
-and emits a static site. These build inputs retain the run-folder contract;
-they do not form another persistent scientific store. Collection execution keeps
-run-ID and payload-digest references instead of copying presentation exports.
+Backup and prune use separate dry-run and confirmation invocations. Inspect the plan, then confirm using its complete hash and the same scope options. Neither operation runs automatically.
 
-`collections.json`, when present, maps named views to explicit run-ID arrays.
-No official or latest selection is inferred.
+Limit pruning to one experiment with `prune --experiment exp141 --dry-run`.
+Runs outside that scope and their full input ancestry are retained. Report usage
+is still checked across all experiments, but missing report pins outside the
+selected experiment do not block scoped pruning. Missing pins that declare or
+name the selected experiment still fail; pruning all experiments requires every
+explicit report pin to resolve. Existing runs and their input ancestry remain
+validated in either mode.
 
-## 6. Explicit pruning
+Rclone credentials belong in its local configuration, never in the repository. Check available remotes with `rclone listremotes`.
 
-`pingstore prune` is the sole command that removes local completed runs.
-It derives usage from current `experiments/expNNN/report/report.mdx` metadata;
-there is no persisted usage catalogue.
+## Working safely
 
-1. **Used** means a presentation selected by any current report, plus every run
-   in its complete recorded input ancestry across experiment boundaries. Explicit
-   frontmatter `runs` pins take precedence; each unpinned declared `inputs` key
-   uses Astro's latest presentation by execution completion time, with run ID
-   breaking ties. Missing unpinned data remains unavailable; missing or invalid
-   explicit pins fail the plan. A newer presentation does not supersede a pin.
-2. **Unused** means every completed run outside that report-use graph.
-3. **Protected** means a run with a manual `.protected` file, or any ancestor
-   required by such a run. Protection does not mark a run used.
-4. **Prunable** means unused and unprotected, subject to scope and execution
-   safeguards. HPC origin, latest status, named collection views and allocation
-   counters provide no automatic retention. Mark historical results that should
-   survive with `.protected`; named collection membership alone does not retain
-   a run and can become dangling after pruning.
-
-Inputs of hidden incomplete runs and their complete ancestry remain retained.
-Active writers prevent confirmation. Hidden incomplete directories are never
-pruned by this command. Runs outside an experiment or stage filter remain
-untouched, along with any ancestry they need. Usage and protection are always
-computed globally, so per-experiment pruning preserves dependencies used by
-other reports, including manuscripts with many experiment inputs.
-
-Run IDs must never be reused. Shared allocation stores per-experiment integer
-high-watermarks in `.pingstore/.allocation/expNNN.json`, independently of run
-folders. Reservation uses the maximum of persisted state and all visible/hidden
-run counters and persists the next counter before creating its reservation.
-Confirmation persists all observed high-watermarks before removing any runs.
-A dry-run never creates allocation state or changes the store. These counters
-are allocation bookkeeping, not a run catalogue, retention rule or experiment
-lifecycle registry. Preserve them when transferring a whole store; recovery to
-a new writable store must seed them from all known allocated identities before
-allocating new runs. Experiment numbers remain permanent and cannot be reused.
-
-Pruning requires two separate invocations:
-
-```sh
-uv run pingstore prune --dry-run
-uv run pingstore prune --confirm <complete-sha256-plan-hash>
-```
-
-Without filters, pruning considers all experiments; explicit `--all` is equivalent.
-`--all` and `--experiment` are mutually exclusive. Limit deletion with
-repeatable `--experiment` and optionally `--stage` filters:
-
-```sh
-uv run pingstore prune --all --dry-run
-uv run pingstore prune --experiment exp099 --dry-run
-uv run pingstore prune --experiment exp099 --confirm <complete-sha256-plan-hash>
-uv run pingstore prune --experiment exp099 --experiment exp110 --dry-run
-uv run pingstore prune --stage present --dry-run
-```
-
-The obsolete `--retire-experiment` and
-`--allow-superseded-hpc-presentations` options are removed. Unused unprotected
-runs are eligible without special retirement or execution-origin exceptions.
-
-Dry-run validates every visible v4 run, its payload checksum and the complete
-input graph. It prints used/unused classifications, protection/retention reasons,
-byte counts, and the exact proposed deletions. The v5 prune-plan hash binds run
-records, payload digests, sizes, report input declarations and resolved selections,
-protection-marker presence and contents, allocation high-watermarks, incomplete
-inputs and deletion scope. Confirmation recomputes that plan under the exclusive
-`.pingstore/.operation.lock` and aborts on drift or an active writer. It rechecks
-manual markers and report selections before swapping trees and before deleting
-the old tree. Repeat the same filters at confirmation; a bare confirmation is
-forbidden.
-
-Confirmation builds and validates a hard-linked retained tree beside `runs/`,
-swaps it with the original tree and validates again before deleting the old
-runs. Validation failure restores the original tree. Counter advances are never
-rolled back. A separately authorized backup may precede pruning; pruning never
-uploads, changes remote backups, selects new report inputs or modifies scientific
-payloads. Historical v2/v3 evidence and migration archives remain outside this
-operation.
-
-## 7. Explicit external backups
-
-The append-only backup lives in the existing `pinglab` R2 bucket at
-`r2:pinglab/pingstore/runs`. Each completed local run is copied with its complete
-v4 layout:
-
-```text
-pingstore/runs/<run-id>/
-    run.json
-    README.md
-    export/
-```
-
-The manual `.protected` marker is local retention metadata and is excluded from
-backup inventories, uploads and immutable remote comparisons. Recovery does not
-restore manual protection automatically; recreate required markers explicitly.
-Allocation counters live outside the per-run backup and must be preserved
-separately when moving a store.
-
-The source is `.pingstore/runs/`. Git continues to hold experiment code;
-`run.json` holds execution provenance and input references. The backup contains
-scientific exports and their authoritative records, rather than payload-only
-campaign snapshots or a generated catalogue.
-
-### Back up new runs
-
-`pingstore backup` appends completed v4 runs to an external R2 backup using
-rclone. It validates every visible completed local run, its exact layout,
-scientific payload checksum and complete input graph. Hidden incomplete runs
-are excluded. Backup is independently invoked; pruning, experiment execution
-and publication never launch it automatically.
-
-```sh
-uv run pingstore backup --dry-run
-uv run pingstore backup --confirm <complete-sha256-plan-hash>
-```
-
-Replace `<complete-sha256-plan-hash>` with the full `sha256:...` value printed
-by the dry-run. The plan names every new run and reports its total bytes.
-
-The source defaults to `.pingstore/runs` in the current working directory;
-`--source` accepts an explicit runs directory. The destination defaults to
-`r2:pinglab/pingstore/runs`, with `PINGLAB_R2_REMOTE`, `PINGLAB_R2_BUCKET` or
-`--destination` overrides. The destination must be an rclone remote ending in
-`/pingstore/runs`. Authentication stays in rclone's configuration outside this
-repository.
-
-Dry-run performs local validation and remote inspection without uploading.
-Its complete SHA-256 plan hash binds the destination, local run records,
-payload digests and file inventories, and remote inventory. Confirmation
-rebuilds the plan and aborts on drift. A shared Pingstore operation lock prevents
-pruning from removing local sources during either invocation.
-
-Uploads preserve each complete run folder and refuse conflicting remote
-objects. Scientific files and README upload first and are verified by download
-comparison using `rclone check --download`. The local runs and remote inventory
-are revalidated before
-`run.json` completion records upload last in input-ancestry order, followed by
-another download comparison. An upload without `run.json` is incomplete and
-must never be consumed; a later backup can resume an interrupted upload if
-existing objects match. Existing completed backups are checked against local
-file inventories and exact manifest and README bytes; their scientific files
-are not downloaded again on routine incremental backups. Recovery must
-independently validate the recorded payload checksums.
-
-Backup never deletes remote files or edits visible local runs. Local pruning
-does not remove earlier backups. A corrected local manifest or README conflicts
-with its previous backup and requires a separately authorized update operation.
-The first backup copies the local store; subsequent backups add completed run IDs.
-
-### Access and destination
-
-The existing local rclone configuration provides remote `r2` and bucket `pinglab`.
-Check configuration availability without printing credentials:
-
-```sh
-rclone listremotes
-rclone lsf r2:pinglab/pingstore/runs --dirs-only
-```
-
-Authentication is supplied by rclone's local configuration; credentials are
-never stored in this repository. An explicit `--source` must name a validated
-local runs directory.
-
-For a new machine, follow Cloudflare's [rclone setup guide](https://developers.cloudflare.com/r2/examples/rclone/)
-with a bucket-scoped credential. Do not infer access from another machine's
-configuration or an SSH alias.
-
-### Recovery and historical archives
-
-Restore explicitly selected completed runs and their full input ancestry into a
-separate recovery directory. Validate every v4 root layout, scientific payload
-checksum and input reference under these rules before activation or consumption.
-A remote `run.json` marks completion by this backup workflow; it does not replace validation on recovery. Partial uploads
-must not become operational runs.
-
-Older campaign archives remain separate historical evidence. Their payload-only
-layout is not a complete v4 run backup. This workflow neither migrates nor changes
-those archives, and does not restore, publish, or execute experiments.
-
-The [implementation](https://github.com/eoinmurray/pinglab/blob/main/tools/pingstore/backup.py) uses [rclone copy](https://rclone.org/commands/rclone_copy/)
-with immutable checks and [download verification](https://rclone.org/commands/rclone_check/).
-
-## 8. Historical schemas and migration
-
-V2 and v3 runs are historical evidence, not operational inputs. They may be
-inspected by explicit migration/recovery tooling but not consumed, discovered,
-materialized, completed, or silently relabelled.
-
-Require v4 for writers, readers, stage inputs, discovery and publication.
-Reject v2/v3, including legacy capture and completion of old reservations; there
-is no compatibility exception for flat runners or historical presentations.
-Preserve historical runs and reservations unchanged as non-operational evidence.
-Historical inspection for migration/recovery and migration itself require
-separate explicit authorization; never silently rewrite or reactivate them.
-
-A migration to v4 must:
-
-1. validate every source run under its original schema;
-2. create a recoverable archive of original manifests, README files, and root
-   provenance trees;
-3. preserve scientific export bytes and archive provenance or metadata rather
-   than moving it into `export/`;
-4. generate or append the human-readable README history;
-5. replace manifest-byte pins with run-ID and export-digest pins;
-6. validate every completed v4 run and the complete dependency graph before
-   activation; and
-7. leave hidden incomplete reservations unchanged as historical failed work.
-
-Migration does not authorize experiment execution, publication, pruning, remote
-store changes, or deletion of the recovery archive.
-
-## 9. Version history
-
-**4.13.0** — Define report-used ancestry and manual `.protected` retention;
-prune all other completed runs subject to scope and incomplete-input safeguards.
-Replace automatic HPC/latest/view retention with explicit markers and persist
-allocation counters independently of run folders. Bind report selections and
-markers into v5 prune plans; keep markers local and outside backup payloads.
-
-**4.12.0** — Retain complete network bundles and library simulation snapshots as
-compute scientific payloads, with reversible native paths and ordinary digest,
-immutability and backup rules; preserve existing completed evidence.
-
-**4.11.0** — Define completed compute phase scopes and names, explicit phase
-dependencies, and immutable full-run assembly by experiment code using shared
-storage helpers; retain ordinary lineage, backup and pruning protections.
-
-- **4.10.4** — Read article metadata, pins, and retirement protection from
-  `experiments/expNNN/report/report.mdx`.
-
-- **4.10.3** — Accept multiple report collections, using the first for new run provenance.
-
-- **4.10.2** — Read article metadata and retirement protection from
-  `md/experiments/expNNN/report.mdx` after separating articles from code.
-
-- **4.10.1** — Read experiment collection metadata and explicit presentation
-  pins from Astro report frontmatter; recognize `report.mdx` in retirement
-  checks instead of depending on the historical writings directory.
-
-- **4.10.0** — Integrate the append-only R2 backup into the narrow Pingstore CLI;
-  retain explicit hash-bound confirmation, immutable uploads and download verification.
-
-- **4.9.0** — Add hash-bound stage filters and an explicit superseded HPC presentation exception; preserve other stages and full ancestry.
-
-- **4.8.0** — Replace the persistent experiment-history registry with explicit,
-  hash-bound one-shot retirement; make experiment IDs permanently single-use.
-- **4.7.0** — Permit explicitly retired experiments to prune their local latest
-  presentation and run high-watermark after recording that counter in experiment
-  history; all stronger retention roots remain in force.
-- **4.6.0** — Retire artifact materialization; preview and publication consume
-  validated present exports directly, with complete run copies confined to
-  disposable publication workspaces.
-- **4.5.0** — Add hash-bound, repeatable experiment filters to pruning while
-  retaining all out-of-scope runs and cross-scope ancestry.
-- **4.4.0** — Add hash-bound pruning that retains HPC work, each experiment's
-  newest visible presentation, explicit pins, incomplete inputs, ancestry and
-  allocation high-watermarks.
-- **4.3.0** — Flatten singleton scientific units, require at least two files for
-  unit directories, and standardize simulation recording role names.
-- **4.2.0** — Standardize compute/analyse exports as run-wide root files plus
-  `export/<scientific-unit-id>/<artifact-role>`, with no deeper nesting.
-- **4.1.0** — Make exports scientific-data-only, prefer flat descriptive files,
-  discard writer scratch space, and remove export evidence/metadata sidecars.
-- **4.0.0** — Make README mandatory; reduce completed roots to `run.json`,
-  `README.md`, and `export/`; digest only immutable export bytes; remove manifest
-  byte pins and operational provenance sidecars; archive v3 provenance outside
-  operational runs.
-- **3.0.0** — Introduced source-neutral staged IDs.
-- **2.0.0** — Required v3 for operational paths.
-- **1.0.0** — Versioned the storage guide.
+- Use the shared Pingstore helpers to create and consume runs; let them enforce layout, checksums, allocation and locking.
+- Completed scientific outputs are immutable. Produce a new run rather than modifying `export/`. Record explicit metadata corrections in the run’s README history.
+- Select stage inputs explicitly by run ID and payload digest; never silently substitute the latest run.
+- Hidden temporary runs are unfinished work, not usable evidence. Historical v2/v3 runs require separately authorized recovery or migration.
+- Use `prune` rather than manually deleting completed runs. Protect results that must survive even when no current report uses them.
+- Restore backups into a separate recovery directory and validate selected runs and their full input ancestry before use.

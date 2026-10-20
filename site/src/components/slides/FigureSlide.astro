@@ -4,17 +4,18 @@ import Slide from './Slide.astro';
 import SlideMedia from './SlideMedia.astro';
 interface Props {
   title?: string;
+  eyebrow?: string;
   image: ImageMetadata | string;
   alt: string;
   caption?: string;
   source?: string;
   crop?: { top: number; bottom: number };
 }
-const { title, image, alt, caption, source, crop } = Astro.props;
+const { title, eyebrow, image, alt, caption, source, crop } = Astro.props;
 ---
-<Slide title={title} density="compact" layout="figure">
+<Slide title={title} eyebrow={eyebrow} density="compact" layout="figure">
   <figure class="slide-figure">
-    <SlideMedia image={image} alt={alt} crop={crop} />
+    <SlideMedia image={image} alt={alt} crop={crop} align="left" />
     {(caption || source) && <figcaption>{caption}{caption && source && <br />}{source && <span class="slide-source">{source}</span>}</figcaption>}
   </figure>
 </Slide>

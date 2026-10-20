@@ -1,0 +1,93 @@
+---
+import Table from '../../../site/src/components/Table.astro';
+import { reportSnapshots } from '../../../site/src/lib/report-data';
+
+const protocols = [
+  { branch: 'analysis', path: 'coupling-090-execution/start/snapshot.json', names: ['A', 'B'] },
+  { branch: 'sender_receiver_analysis', path: 'sender-receiver-execution/start/snapshot.json', names: ['S', 'R'] },
+];
+const evidence = await Promise.all(protocols.map(protocol => reportSnapshots('exp133', {
+  analysisInput: protocol.branch, snapshots: { selected: protocol.path }, allowUnavailable: true,
+})));
+const n = value => {
+  if (typeof value !== 'number' || !Number.isFinite(value)) throw new Error('Missing saved exp133 numeric parameter');
+  return Number(value.toPrecision(6)).toString();
+};
+const text = value => {
+  if (value === undefined || value === null) throw new Error('Missing saved exp133 parameter');
+  return String(value);
+};
+const snapshot = index => evidence[index]?.snapshots.selected;
+const graph = index => snapshot(index).network;
+const pop = (index, kind) => graph(index).populations.find(item => item.id === `PING_${protocols[index].names[0]}_${kind}`);
+const proj = (index, suffix) => graph(index).projections.find(item => item.id === `PING_${protocols[index].names[0]}_${suffix}`);
+const cross = index => graph(index).projections.find(item => item.source === `PING_${protocols[index].names[0]}_E.spikes`
+  && item.target === `PING_${protocols[index].names[1]}_E.excitatory`);
+const init = (index, projection) => graph(index).parameters.find(item => item.id === projection.parameters[0]).initializer;
+const pair = (index, read, unit) => ['E', 'I'].map(kind => n(read(pop(index, kind).neuron))).join(' / ') + ` ${unit}`;
+const row = (label, read) => [label, ...protocols.map((_, index) => snapshot(index) ? read(index) : 'Unavailable')];
+const setting = (label, read) => [label, ...evidence.map((item, index) => item ? read(item.configuration, index) : 'Unavailable')];
+const stats = (index, suffix, gain = 1) => {
+  const original = init(index, proj(index, suffix));
+  return `${n(original.mean * gain)} / ${n(original.std * gain)} µS`;
+};
+const groups = [
+  { label: 'Network', rows: [
+    row('Neurons per circuit, E / I', index => ['E', 'I'].map(kind => n(pop(index, kind).size)).join(' / ')),
+    row('Input channels per circuit', index => n(graph(index).inputs[0].shape.at(-1))),
+    row('Neuron model', index => pop(index, 'E').neuron.kind === 'coba_lif' ? 'Conductance-LIF' : text(pop(index, 'E').neuron.kind)),
+    setting('Reciprocal pathways', (_, index) => index === 0 ? 'A E→B E/I and B E→A E/I' : 'S E→R E/I and R E→S E/I'),
+  ] },
+  { label: 'Neurons', rows: [
+    row('Capacitance, E / I', index => pair(index, neuron => neuron.capacitance_nf, 'nF')),
+    row('Leak conductance, E / I', index => pair(index, neuron => neuron.leak_us, 'µS')),
+    row('Passive time constant, E / I (derived)', index => pair(index, neuron => neuron.capacitance_nf / neuron.leak_us, 'ms')),
+    ...[['Resting voltage', 'resting_mv'], ['Reset voltage', 'reset_mv'], ['Initial voltage', 'initial_voltage_mv'], ['Spike threshold', 'threshold_mv']]
+      .map(([label, key]) => row(`${label}, E / I`, index => pair(index, neuron => neuron[key], 'mV'))),
+    row('Refractory period, E / I', index => pair(index, neuron => neuron.refractory.value, 'ms')),
+  ] },
+  { label: 'Synapses and weights', rows: [
+    row('Input→E base initializer mean / SD', index => stats(index, 'input_to_E')),
+    setting('Input→E request gain', cfg => n(cfg.input_projection_gain)),
+    row('Input→E nominal mean / SD after gain (derived)', index => stats(index, 'input_to_E', evidence[index].configuration.input_projection_gain)),
+    row('E→I initializer mean / SD', index => stats(index, 'E_to_I')),
+    row('I→E initializer mean / SD', index => stats(index, 'I_to_E')),
+    ...[['Input→E', 'input_to_E'], ['E→I', 'E_to_I'], ['I→E', 'I_to_E']].map(([label, suffix]) =>
+      row(`${label} synapse / decay`, index => `${text(proj(index, suffix).synapse.kind).toUpperCase()} / ${n(proj(index, suffix).synapse.tau.value)} ms`)),
+    row('Local E→I / I→E delay', index => `${n(proj(index, 'E_to_I').delay.value)} / ${n(proj(index, 'I_to_E').delay.value)} ms`),
+    setting('Cross-network nominal total per pathway', (cfg, index) => index === 0 ? `${cfg.coupling_us.map(n).join(', ')} µS` : `${n(cfg.coupling_us)} µS`),
+    row('Cross-network fan-in (derived) / zero fraction', index => `${n(pop(index, 'E').size * (1 - init(index, cross(index)).initial_zero_fraction))} / ${n(init(index, cross(index)).initial_zero_fraction)}`),
+    row('Cross-network zeroing / initializer SD', index => `${init(index, cross(index)).zeroing === 'exact_k' ? 'Exact fan-in' : text(init(index, cross(index)).zeroing)} / ${n(init(index, cross(index)).std)} µS`),
+    row('Cross-network synapse / decay / delay', index => `${text(cross(index).synapse.kind).toUpperCase()} / ${n(cross(index).synapse.tau.value)} / ${n(cross(index).delay.value)} ms`),
+    row('Cross-network gain before / after onset', index => `${n(cross(index).modulation.before)} / ${n(cross(index).modulation.after)}`),
+  ] },
+  { label: 'Input and simulation', rows: [
+    setting('Timestep / total duration', cfg => `${n(cfg.dt_ms)} / ${n(cfg.duration_ms)} ms`),
+    setting('Coupling onset', cfg => `${n(cfg.onset_ms)} ms; continuous state`),
+    setting('Input rates per channel', (cfg, index) => index === 0
+      ? `A: ${cfg.input_rates_hz.drive_A.map(n).join(', ')}; B: ${cfg.input_rates_hz.drive_B.map(n).join(', ')} Hz`
+      : `S / R: ${n(cfg.input_rates_hz.S)} / ${n(cfg.input_rates_hz.R)} Hz`),
+    setting('Signed input difference', (cfg, index) => index === 0 ? `${cfg.input_differences_hz.map(n).join(', ')} Hz` : `${n(cfg.input_rates_hz.S - cfg.input_rates_hz.R)} Hz`),
+    setting('Network seed / input seeds', cfg => `${n(cfg.network_seed)} / ${cfg.input_seeds.map(n).join(', ')}`),
+    setting('Input pairing', (cfg, index) => index === 0 ? text(cfg.input_pairing) : 'Same input realization as selected map point'),
+  ] },
+  { label: 'Analysis', rows: [
+    setting('Rate smoothing SD / minimum volley spacing', cfg => cfg.rate_smoothing_ms === undefined ? 'Unavailable in recorded configuration' : `${n(cfg.rate_smoothing_ms)} / ${n(cfg.volley_distance_ms)} ms`),
+    setting('Peak prominence fraction', cfg => cfg.volley_prominence_fraction === undefined ? 'Unavailable in recorded configuration' : n(cfg.volley_prominence_fraction)),
+    setting('Settling after onset', cfg => cfg.settling_ms === undefined ? 'Unavailable in recorded configuration' : `${n(cfg.settling_ms)} ms`),
+    setting('Minimum volleys / gamma band / maximum interval CV', cfg => cfg.min_volleys === undefined ? 'Unavailable in recorded configuration' : `${n(cfg.min_volleys)} / ${cfg.gamma_band_hz.map(n).join('–')} Hz / ${n(cfg.max_iei_cv)}`),
+    setting('Strict finite-time locking thresholds', cfg => cfg.classification === undefined ? 'Not classified for this diagnostic' : `|drift| < ${n(cfg.classification.max_abs_drift_hz)} cycles/s; PLV > ${n(cfg.classification.min_concentration)}; span < ${n(cfg.classification.max_phase_span_cycles)} cycle`),
+  ] },
+];
+---
+
+<Table headers={['Parameter', 'Coupling map', 'Onset diagnostic']} groups={groups} number="A1" id="saved-model-parameters" label="Saved model and execution parameters">
+  Values follow the article's pinned presentation to its separate map and onset compute runs:
+  {evidence.map((item, index) => <span>{index ? '; ' : ''}{item ? item.compute.run_id : 'Unavailable'}</span>)}.
+  Native start snapshots describe the selected 0.09 µS map condition and the transferred diagnostic; sweep and input settings come from each compute configuration.
+  E / I means excitatory / inhibitory; SD is standard deviation and CV is interval standard deviation divided by its mean. AMPA and GABA denote excitatory and inhibitory conductance kernels.
+  Passive time constants are capacitance divided by leak conductance. Initializer statistics are nominal totals before fan-in normalization, not measured matrix statistics.
+  Input weights were transferred by splitting each of 128 original afferents into eight channels of one-eighth weight, then applying the recorded gain once.
+  Fan-in is the excitatory population size times one minus the exact zero fraction.
+  Missing recorded fields are unavailable; analysis conventions verified in source are described in Methods.
+</Table>

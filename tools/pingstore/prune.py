@@ -125,7 +125,7 @@ def build_plan(
             if record["experiment"] not in scope:
                 reasons[run_id].add("out-of-scope")
 
-    selections, used_by = report_usage(repo, records)
+    selections, used_by = report_usage(repo, records, experiments=scope)
     used = set(used_by)
     for run_id, reports in used_by.items():
         reasons[run_id].update(f"used-by:{article}" for article in reports)
@@ -204,7 +204,8 @@ def _check_controls(repo: Path, runs: Path, plan: dict) -> None:
         row["run_id"]: validate_run(load_json(runs / row["run_id"] / "run.json"))
         for row in plan["keep"] + plan["prune"]
     }
-    selections, _ = report_usage(repo, records)
+    scope = set(plan["experiments"]) if plan["experiments"] is not None else None
+    selections, _ = report_usage(repo, records, experiments=scope)
     if selections != plan["report_selections"]:
         raise PingstoreError("report selections changed during pruning")
     for row in plan["keep"] + plan["prune"]:

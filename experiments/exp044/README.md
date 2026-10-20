@@ -180,9 +180,8 @@ remain separate work; no training, materialization or push occurred.
 
 ## Native graph migration — 2026-10-06
 
-Compute declares the circuit with `snnlab.lang`, reuses
-`experiments.helpers.ping.build_ping` unchanged, and executes `GraphExecutor`
-directly. No removed PING component, CLI builder, subprocess, legacy model or
+The recipe declares the circuit directly with `snnlab.lang`, and compute
+executes `GraphExecutor` directly. No removed PING component, CLI builder, subprocess, legacy model or
 parameter-interchange adapter is used. Scientific settings and checkpoint
 parameter roles belong to the recipe. Compute/analyse/present remain independent.
 

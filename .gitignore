@@ -10,7 +10,8 @@ NOTES.md
 .Python
 *.pt
 *.pth
-papers
+/papers/*
+!/papers/index.yaml
 
 .env
 worktrees/

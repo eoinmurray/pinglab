@@ -3,8 +3,8 @@
 import matplotlib.pyplot as plt
 import numpy as np
 from experiments.exp054 import plots as exp054_plots
-from experiments.helpers import theme
-from experiments.helpers.figsave import save_figure
+from experiments import theme
+from experiments.exp110.custom.figures import save_figure
 from matplotlib.gridspec import GridSpec
 
 

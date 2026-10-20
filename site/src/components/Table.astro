@@ -5,15 +5,19 @@ import rehypeKatex from 'rehype-katex';
 import { renderToString } from 'katex';
 
 type Cell = string | number | { math: string } | { markdown: string };
-interface Props {
+interface TableProps {
   headers: Cell[];
-  rows: Cell[][];
   caption?: string;
   number?: number | string;
   id?: string;
   label?: string;
 }
-const { headers, rows, caption, number, id, label = 'Report table' } = Astro.props;
+type Group = { label: Cell; rows: Cell[][] };
+type Props = TableProps & (
+  | { rows: Cell[][]; groups?: never }
+  | { groups: Group[]; rows?: never }
+);
+const { headers, rows, groups, caption, number, id, label = 'Report table' } = Astro.props;
 const hasCaption = Astro.slots.has('default') || Boolean(caption);
 const Container = hasCaption ? 'figure' : 'div';
 const validCell = (cell: unknown) => typeof cell === 'string'
@@ -21,10 +25,16 @@ const validCell = (cell: unknown) => typeof cell === 'string'
   || (cell !== null && typeof cell === 'object' && Object.keys(cell).length === 1
     && (('math' in cell && typeof cell.math === 'string')
       || ('markdown' in cell && typeof cell.markdown === 'string')));
+const validRows = (value: unknown): value is Cell[][] => Array.isArray(value) && value.length > 0
+  && value.every(row => Array.isArray(row) && row.length === headers.length && row.every(validCell));
+const grouped = groups !== undefined;
 if (!Array.isArray(headers) || headers.length < 2 || !headers.every(validCell)
-  || !Array.isArray(rows) || !rows.length
-  || !rows.every(row => Array.isArray(row) && row.length === headers.length && row.every(validCell))) {
-  throw new Error('Table requires headers and nonempty rows of matching width, with valid cells');
+  || (grouped
+    ? rows !== undefined || !Array.isArray(groups) || !groups.length
+      || !groups.every(group => group !== null && typeof group === 'object'
+        && validCell(group.label) && validRows(group.rows))
+    : !validRows(rows))) {
+  throw new Error('Table requires valid headers and either nonempty rows or nonempty groups with labels and rows; row widths must match headers');
 }
 const processor = unified({
   remarkPlugins: [remarkMath], rehypePlugins: [[rehypeKatex, { throwOnError: true }]], smartypants: false,
@@ -34,13 +44,25 @@ const renderCell = async (cell: Cell) => typeof cell !== 'object' ? cell
   : 'math' in cell ? { html: renderToString(cell.math, { throwOnError: true }) }
   : { html: (await (await processor).render(cell.markdown)).code.replace(/^<p>([\s\S]*)<\/p>\s*$/, '$1') };
 const headings = await Promise.all(headers.map(renderCell));
-const body = await Promise.all(rows.map(row => Promise.all(row.map(renderCell))));
+const sections = await Promise.all((groups ?? [{ rows: rows! }]).map(async group => ({
+  label: 'label' in group ? await renderCell(group.label) : undefined,
+  rows: await Promise.all(group.rows.map(row => Promise.all(row.map(renderCell)))),
+})));
 ---
 <Container class:list={['report-table', { 'l-body': hasCaption }]} id={id}>
 <div class="source-table" tabindex="0" role="region" aria-label={label}>
   <table>
     <thead><tr>{headings.map(cell => <th scope="col">{typeof cell === 'object' ? <Fragment set:html={cell.html} /> : cell}</th>)}</tr></thead>
-    <tbody>{body.map(row => <tr>{row.map(cell => <td>{typeof cell === 'object' ? <Fragment set:html={cell.html} /> : cell}</td>)}</tr>)}</tbody>
+    {sections.map(section => <tbody class:list={{ 'table-group': grouped }}>
+      {grouped && <tr class="group-heading">
+        <th scope="rowgroup" colspan={headers.length}>
+          {typeof section.label === 'object' ? <Fragment set:html={section.label.html} /> : section.label}
+        </th>
+      </tr>}
+      {section.rows.map(row => <tr>
+        {row.map(cell => <td>{typeof cell === 'object' ? <Fragment set:html={cell.html} /> : cell}</td>)}
+      </tr>)}
+    </tbody>)}
   </table>
 </div>
 {hasCaption && <figcaption>{number !== undefined && <><strong>Table {number}.</strong>{' '}</>}<slot>{caption}</slot></figcaption>}
@@ -52,4 +74,9 @@ const body = await Promise.all(rows.map(row => Promise.all(row.map(renderCell)))
   .source-table { min-width: 0; overflow-x: auto; }
   .source-table :global(table) { width: 100%; border-collapse: collapse; font-size: inherit; }
   .source-table :global(th), .source-table :global(td) { padding: .5em; border-bottom: 1px solid rgb(var(--ink) / .1); text-align: left; vertical-align: top; }
+  .source-table :global(tr > th:not(:first-child)), .source-table :global(tr > td:not(:first-child)) { text-align: right; }
+  .table-group:not(:last-child) > tr:last-child > td { border-bottom: 0; }
+  .table-group + .table-group > .group-heading > th { padding-top: 2em; }
+  .group-heading { break-after: avoid; }
+  .group-heading > th { padding-top: .85em; }
 </style>

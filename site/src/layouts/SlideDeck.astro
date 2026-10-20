@@ -2,7 +2,7 @@
 import 'katex/dist/katex.min.css';
 import '../styles/slides.css';
 import '../styles/slide-templates.css';
-import SiteSearch from '../components/SiteSearch.astro';
+
 interface Props { title: string; author: string; description: string; }
 const { title, author, description } = Astro.props;
 ---
@@ -18,18 +18,19 @@ const { title, author, description } = Astro.props;
   </head>
   <body class="deck-page">
     <header class="deck-header">
-      <a href="/">← Pinglab</a>
       <h1>{title}</h1>
-      <SiteSearch />
-      <span>{author}</span>
     </header>
     <main class="deck" aria-label={title}><slot /></main>
     <footer class="deck-controls" hidden>
       <button type="button" data-previous aria-label="Previous slide">←</button>
       <output data-counter aria-live="polite" aria-atomic="true"></output>
       <button type="button" data-next aria-label="Next slide">→</button>
-      <button type="button" data-fullscreen>Fullscreen</button>
-      <span class="deck-hint">← → / Space · F fullscreen</span>
+      <button type="button" data-fullscreen aria-label="Enter fullscreen" title="Enter fullscreen" aria-pressed="false">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path class="fullscreen-enter" d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5" />
+          <path class="fullscreen-exit" d="M3 8h5V3m8 0v5h5M8 21v-5H3m18 0h-5v5" />
+        </svg>
+      </button>
     </footer>
     <noscript><p class="deck-noscript">All slides are shown. Enable JavaScript for presentation controls.</p></noscript>
     <script>import '../scripts/slides';</script>

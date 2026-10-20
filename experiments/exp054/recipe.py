@@ -132,7 +132,6 @@ BIOPHYSICS = {
 
 
 def author_network(cfg, item):
-    from experiments.helpers.ping import build_ping, compile_legacy_coba
     from snnlab import lang
 
     b = cfg["biophysics"]
@@ -153,22 +152,44 @@ def author_network(cfg, item):
             refractory=cfg[f"refractory_{label}_ms"] * lang.ms,
             voltage_grad_dampen=80.0,
         )
-    build_ping(
-        net,
-        source=drive,
-        n_e=cfg["n_e"],
-        n_i=cfg["n_i"],
-        neuron_e=neurons["e"],
-        neuron_i=neurons["i"],
-        ampa=lang.AMPA(tau=b["tau_ampa_ms"] * lang.ms),
-        gaba=lang.GABA(tau=cfg["tau_gaba_ms"] * lang.ms),
-        input_weight=lang.Constant(0.0),
-        ei_weight=lang.Constant(0.0),
-        ie_weight=lang.Constant(0.0),
-        recurrent_delay=cfg["dt_ms"] * lang.ms,
+    # Reciprocal E/I loop with excitatory drive to E only.
+    ping_ampa = lang.AMPA(tau=b["tau_ampa_ms"] * lang.ms)
+    ping_gaba = lang.GABA(tau=cfg["tau_gaba_ms"] * lang.ms)
+    ping_recurrent_delay = cfg["dt_ms"] * lang.ms
+    ping_e = net.population("E", size=cfg["n_e"], neuron=neurons["e"])
+    ping_i = net.population("I", size=cfg["n_i"], neuron=neurons["i"])
+    net.connect(
+        drive,
+        ping_e.excitatory,
+        name="input_to_E",
+        synapse=ping_ampa,
+        weight=lang.Constant(0.0),
+        constraint=lang.NonNegative(),
         initialization_scaling="direct",
     )
-    return compile_legacy_coba(net)
+    net.connect(
+        ping_e.spikes,
+        ping_i.excitatory,
+        name="E_to_I",
+        synapse=ping_ampa,
+        weight=lang.Constant(0.0),
+        constraint=lang.NonNegative(),
+        connection="recurrent",
+        delay=ping_recurrent_delay,
+        initialization_scaling="direct",
+    )
+    net.connect(
+        ping_i.spikes,
+        ping_e.inhibitory,
+        name="I_to_E",
+        synapse=ping_gaba,
+        weight=lang.Constant(0.0),
+        constraint=lang.NonNegative(),
+        connection="recurrent",
+        delay=ping_recurrent_delay,
+        initialization_scaling="direct",
+    )
+    return lang.compile(net, target="tools/snnsim", refractory_timing="legacy_coba")
 
 
 def initial_parameters(cfg, item):

@@ -15,7 +15,7 @@ sys.path[:0] = [str(REPO), str(REPO / "tools")]
 
 import numpy as np
 from experiments.exp042 import inputs, recipe, simulation
-from experiments.helpers.hpc import concurrent_compute
+from tools.hpc import concurrent_compute
 from pingstore.contracts import (
     PingstoreError,
     file_sha256,

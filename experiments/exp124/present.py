@@ -1,9 +1,20 @@
-"""Render training curves, sample rasters, executed network circuits and numbers."""
+"""Render validated SHD training curves, diagnostic rasters and report numbers.
+
+Run `uv run python experiments/exp124/present.py --source <analyse-run-id>`.
+The selected analysis pins its compute ancestor and payload digest. Curves and
+numeric summaries come from that analysis, while rasters and architecture
+figures come from the same executed compute evidence.
+
+New runs reuse their saved native circuit diagrams; historical compiled graph
+and training definitions support older inputs. Presentation writes a separate
+immutable Pingstore run with six SVGs and numbers.json. It never changes an
+article pin or launches an upstream stage.
+"""
 
 import argparse
 import os
+import shutil
 import sys
-from dataclasses import replace
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
@@ -15,41 +26,35 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 from experiments.exp124 import recipe
-from experiments.exp124.analyse import network_definition, parameter_table
-from matplotlib.ticker import MaxNLocator
+from experiments.exp124.analyse import (
+    network_definition,
+    recorded_populations,
+)
+from matplotlib.ticker import MaxNLocator, PercentFormatter
 from pingstore.contracts import load_json, write_json_atomic
 from pingstore.stages import source_run, stage_run
-from snnlab import lang, viz
+from snnlab import lang
+from snnlab.sim import RecordingData, SignalInfo, TrainingHistory
+from snnlab.viz import plot_learning_curves, plot_raster
 
 
 def draw_networks(recording, export):
     """Project the executed definitions, including historical pre-bundle evidence."""
-    for model in recipe.MODELS:
+    for model in recording.record["execution"]["configuration"]["models"]:
+        saved = recording.file(model, "circuit.svg")
+        if saved.exists():
+            shutil.copyfile(saved, export / f"{model}_network.svg")
+            continue
         bundle = lang.Bundle(
             graph=network_definition(recording, model, "graph.json"),
             training=network_definition(recording, model, "training.json"),
             manifest={},
             diagnostics=[],
         )
-        diagram = lang.diagram(bundle, view="circuit")
-        # Circuit views omit reductions; omit their disconnected output boxes too.
-        connected = {
-            endpoint
-            for edge in diagram.edges
-            for endpoint in (edge.source, edge.target)
-        }
-        diagram = replace(
-            diagram, nodes=tuple(node for node in diagram.nodes if node.id in connected)
-        )
-        viz.render_diagram(diagram, export / f"{model}_network.svg")
+        bundle.visualise(export / f"{model}_network.svg", view="circuit")
 
 
-def accuracy_percent(row, split):
-    value = row[split]["accuracy"]
-    return float("nan") if value is None else 100 * value
-
-
-def draw_training_curves(conditions, cfg, export):
+def draw_training_curves(conditions, native_metrics, cfg, export):
     with plt.rc_context(
         {
             "font.size": 8,
@@ -59,35 +64,23 @@ def draw_training_curves(conditions, cfg, export):
             "ytick.labelsize": 8,
         }
     ):
-        for condition in recipe.MODELS:
+        for condition in cfg["models"]:
             rows = conditions[condition]["epochs"]
             figure, axes = plt.subplots(
                 1, 2, figsize=(7.1, 3.8), constrained_layout=True
             )
-            for split, color in (("train", "#202020"), ("validation", "#a34d45")):
-                epochs = [row["epoch"] for row in rows]
-                axes[0].plot(
-                    epochs,
-                    [row[split]["loss"] for row in rows],
-                    color=color,
-                    marker="o",
-                    markersize=2.5,
-                    label="Online training"
-                    if split == "train"
-                    and cfg.get("training_measurement")
-                    == "online_pre_update_minibatches"
-                    else split.capitalize(),
-                )
-                axes[1].plot(
-                    epochs,
-                    [accuracy_percent(row, split) for row in rows],
-                    color=color,
-                    marker="o",
-                    markersize=2.5,
-                )
+            artists = plot_learning_curves(
+                {"cross_entropy": axes[0], "accuracy": axes[1]},
+                TrainingHistory.from_metrics(native_metrics[condition]),
+                metrics=("cross_entropy", "accuracy"),
+                colors={"train": "#202020", "validation": "#a34d45"},
+                labels={"train": "Online training", "validation": "Validation"},
+                marker="o",
+                markersize=2.5,
+            )
             axes[0].set(title="A  Classification loss", ylabel="Cross-entropy")
             maximum = max(
-                accuracy_percent(row, split)
+                row[split]["accuracy"]
                 for row in rows
                 for split in ("train", "validation")
                 if row[split]["accuracy"] is not None
@@ -95,25 +88,29 @@ def draw_training_curves(conditions, cfg, export):
             axes[1].set(
                 title="B  Classification accuracy",
                 ylabel="Accuracy (%)",
-                ylim=(0, min(100, max(20, maximum * 1.15))),
+                ylim=(0, min(1, max(0.2, maximum * 1.15))),
             )
-            axes[1].axhline(5, linestyle=":", color="#777777", linewidth=1)
+            axes[1].yaxis.set_major_formatter(PercentFormatter(1, symbol=""))
+            axes[1].axhline(0.05, linestyle=":", color="#777777", linewidth=1)
             for axis in axes:
                 axis.set(xlabel="Completed epoch", xlim=(0, cfg["epochs"]))
                 axis.set_box_aspect(3 / 4)
                 axis.xaxis.set_major_locator(MaxNLocator(nbins=5, integer=True))
                 axis.spines[["top", "right"]].set_visible(False)
-            axes[0].legend(frameon=False)
+            axes[0].legend(
+                handles=[
+                    artists[split, "cross_entropy"][0]
+                    for split in ("train", "validation")
+                ],
+                labels=("Online training", "Validation"),
+                frameon=False,
+            )
             figure.suptitle(
                 f"{condition.upper()} — {'full SHD' if cfg['full_dataset'] else 'reduced-data'} training, two hidden layers\n"
                 f"{cfg['train_examples']:,} training / {cfg['validation_examples']:,} validation",
                 fontsize=10,
             )
-            for extension in ("svg",):
-                filename = f"full_{condition}_training_curves.{extension}"
-                if (export / filename).exists():
-                    raise ValueError(f"retained export collides with {filename}")
-                figure.savefig(export / filename, dpi=180)
+            figure.savefig(export / f"full_{condition}_training_curves.svg", dpi=180)
             plt.close(figure)
 
 
@@ -129,9 +126,8 @@ def render(source, recording, export):
             **source.record["execution"]["source_measurements"],
         },
         "sample_raster": sample,
-        "parameter_table": results.get("parameter_table") or parameter_table(recording),
     }
-    draw_training_curves(conditions, cfg, export)
+    draw_training_curves(conditions, results["training_metrics"], cfg, export)
     draw_networks(recording, export)
     filename = (
         "recording.npz" if recording.file("recording.npz").exists() else "rasters.npz"
@@ -140,7 +136,29 @@ def render(source, recording, export):
         np.load(recording.file(filename), allow_pickle=False) as spikes,
         plt.rc_context({"font.size": 8, "axes.titlesize": 9}),
     ):
-        for model in recipe.MODELS:
+        for model, populations in recorded_populations(recording).items():
+            signals = {pop: spikes[f"{model}_{pop}"] for pop in populations}
+            saved_info = (
+                recording.record["execution"].get("recording_info", {}).get(model)
+            )
+            # Historical dense rasters predate native coordinate exports; their
+            # contiguous cells and full-window steps are explicit in the source.
+            info = {
+                pop: SignalInfo(**saved_info[f"{pop.upper()}.spikes"])
+                if saved_info
+                else SignalInfo(
+                    axes=("time", "cell"),
+                    unit="spike",
+                    dt_ms=sample["dt_ms"],
+                    cell_ids=tuple(range(values.shape[1])),
+                    step_indices=tuple(range(values.shape[0])),
+                    start_step=0,
+                    end_step=values.shape[0],
+                    array_dtype=str(values.dtype),
+                )
+                for pop, values in signals.items()
+            }
+            native_recording = RecordingData(signals, info)
             figure, axes = plt.subplots(
                 4,
                 1,
@@ -151,10 +169,10 @@ def render(source, recording, export):
             for layer in (1, 2):
                 axis, correlation_axis = axes[2 * (layer - 1) : 2 * layer]
                 excitatory = spikes[f"{model}_e{layer}"]
-                times, neurons = np.nonzero(excitatory)
-                axis.scatter(
-                    times * sample["dt_ms"],
-                    neurons,
+                plot_raster(
+                    axis,
+                    native_recording,
+                    signal=f"e{layer}",
                     color="#202020",
                     marker="|",
                     s=7,
@@ -165,10 +183,11 @@ def render(source, recording, export):
                 total = excitatory.shape[1]
                 if model == "ping":
                     inhibitory = spikes[f"{model}_i{layer}"]
-                    times, neurons = np.nonzero(inhibitory)
-                    axis.scatter(
-                        times * sample["dt_ms"],
-                        neurons + total,
+                    plot_raster(
+                        axis,
+                        native_recording,
+                        signal=f"i{layer}",
+                        offset=total,
                         color="#a34d45",
                         marker="|",
                         s=7,
@@ -235,27 +254,29 @@ def render(source, recording, export):
                 f"{model.upper()} — trained two-layer response, class {sample['class']}",
                 fontsize=10,
             )
-            for extension in ("svg",):
-                figure.savefig(export / f"{model}_sample_raster.{extension}", dpi=180)
+            figure.savefig(export / f"{model}_sample_raster.svg", dpi=180)
             plt.close(figure)
     write_json_atomic(export / "numbers.json", numbers)
 
 
 def present(identity):
     source = source_run(
-        REPO / ".pingstore", identity, stage="analyse", experiment=recipe.SLUG
+        REPO / ".pingstore",
+        identity,
+        stage="analyse",
+        experiment=recipe.configuration()["experiment"],
     )
     ref = source.record["inputs"]["compute"]
     recording = source_run(
         REPO / ".pingstore",
         ref["run_id"],
         stage="compute",
-        experiment=recipe.SLUG,
+        experiment=source.record["experiment"],
         reference=ref,
     )
     with stage_run(
         REPO,
-        recipe.SLUG,
+        source.record["experiment"],
         "present",
         inputs={"analysis": source},
         configuration=source.record["execution"]["configuration"],

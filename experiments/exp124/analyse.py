@@ -1,4 +1,16 @@
-"""Measure paired SHD training, report parameters and one matched response."""
+"""Validate paired SHD measurements and extract the executed model settings.
+
+Run `uv run python experiments/exp124/analyse.py --source <compute-run-id>`
+against an explicit, validated Pingstore compute run. Split inventories, matched
+initialization, finite learned weights and unchanged feedback are checked before
+interpreting native epoch measurements and one held-out diagnostic response.
+
+Native snapshots identify the learned and fixed parameters; historical v3/v4
+evidence retains its original bundle/NPZ readers. Analysis saves measurements
+and raster autocorrelograms in a new immutable run. The report reads model
+settings directly from the compute snapshots; this stage does not format tables,
+acquire data, train models or invoke presentation.
+"""
 
 import argparse
 import sys
@@ -8,15 +20,19 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
 import numpy as np
 from experiments.exp124 import recipe
-from experiments.helpers.network_artifacts import snapshot_parameters
 from pingstore.contracts import load_json, write_json_atomic
 from pingstore.stages import source_run, stage_run
 from snnlab.analysis import spike_autocorrelogram
+from snnlab.sim import NetworkSnapshot, TrainingHistory
 
 
 def parameters(source, model, stage):
-    if source.file(model, "train", stage, "snapshot.json").exists():
-        return snapshot_parameters(source, model, "train", stage)
+    snapshot_path = source.file(model, "train", stage, "snapshot.json")
+    if snapshot_path.exists():
+        snapshot = NetworkSnapshot.read(snapshot_path)
+        return {
+            name: value.numpy() for name, value in snapshot.load_parameters().items()
+        }
     # The report's immutable r149 compute predates native snapshot retention.
     filename = "initial_weights.npz" if stage == "start" else "final_weights.npz"
     with np.load(source.file(model, filename), allow_pickle=False) as arrays:
@@ -24,167 +40,58 @@ def parameters(source, model, stage):
 
 
 def network_definition(source, model, role):
+    snapshot_path = source.file(model, "train", "end", "snapshot.json")
+    if snapshot_path.exists():
+        snapshot = NetworkSnapshot.read(snapshot_path)
+        if snapshot.stage != "end" or snapshot.execution.kind != "train":
+            raise ValueError("expected a native final-training snapshot")
+        metadata = load_json(snapshot_path)
+        return metadata["network" if role == "graph.json" else "training"]
     native = source.file(model, "train", "network.bundle", role)
     return load_json(native if native.exists() else source.file(model, role))
 
 
-def parameter_table(source):
-    """Read the executed graph/training definitions, never today's recipe defaults."""
+def recorded_populations(source):
+    """Use saved recording choices, or the executed spiking graph for older runs."""
     cfg = source.record["execution"]["configuration"]
-    graph = network_definition(source, "ping", "graph.json")
-    coba = network_definition(source, "coba", "graph.json")
-    training = network_definition(source, "ping", "training.json")
-    populations = {p["id"]: p for p in graph["populations"]}
-    projections = {p["id"]: p for p in graph["projections"]}
-    pars = {p["id"]: p for p in graph["parameters"]}
-    operations = {p["id"]: p for p in graph["operations"]}
-    e, i = (populations[key]["neuron"] for key in ("E1", "I1"))
-    normalization = operations["normalized_scores"]["config"]["settings"]
-    dt = graph["timebase"]["dt"]["value"]
-    duration = training["presentation_duration"]["value"]
-    gain = pars["score_gain.weight"]["initializer"]["config"]["gain"]
-    ne, ni = populations["E1"]["size"], populations["I1"]["size"]
-    coba_sizes = {p["id"]: p["size"] for p in coba["populations"]}
-    groups = {g["id"]: g for g in training["parameter_groups"]}
-
-    def number(value):
-        return f"{value:g}"
-
-    rows = [
-        [
-            "Input",
-            f"{graph['inputs'][0]['shape'][-1]} SHD cochlear spike channels [1]",
-            "Same",
-        ],
-        [
-            "Hidden neuron model",
-            "Conductance-based leaky integrate-and-fire (COBA LIF)",
-            "Same for both E and I",
-        ],
-        [
-            "Synapses onto hidden neurons",
-            "Exponentially decaying AMPA conductances",
-            "Exponentially decaying AMPA and GABA conductances",
-        ],
-        *[
-            [
-                f"Hidden layer {layer}",
-                f"{coba_sizes[f'E{layer}']} excitatory neurons",
-                f"{populations[f'E{layer}']['size']} excitatory + {populations[f'I{layer}']['size']} inhibitory neurons",
+    if "recording" in cfg:
+        return {model: cfg["recording"][model] for model in cfg["models"]}
+    return {
+        model: [
+            population["id"].lower()
+            for population in network_definition(source, model, "graph.json")[
+                "populations"
             ]
-            for layer in (1, 2)
-        ],
-        ["Feedforward pathways", "Input → E1 → E2 → readout", "Same"],
-        [
-            "Within-layer feedback",
-            "None",
-            "Fixed E→I and I→E connections in each layer",
-        ],
-        [
-            "Readout",
-            f"{populations['readout']['size']} non-spiking leaky-integrator units",
-            "Same",
-        ],
-        [
-            "Readout synapse",
-            f"Signed leaky-integrator filter, {number(projections['readout_projection']['synapse']['tau']['value'])} ms decay",
-            "Same",
-        ],
-        [
-            "Classification score",
-            f"{number(gain)} × mean readout voltage × {number(normalization['reference_rate'] * 1000 / dt)} Hz / max(mean E2 rate, {number(normalization['minimum_rate'] * 1000 / dt)} Hz)",
-            "Same",
-        ],
-        [
-            {"math": r"C_m\;\text{(membrane capacitance)}"},
-            f"E: {number(e['capacitance_nf'])} nF",
-            f"E: {number(e['capacitance_nf'])} nF; I: {number(i['capacitance_nf'])} nF",
-        ],
-        [
-            {"math": r"g_L\;\text{(leak conductance)}"},
-            f"E: {number(e['leak_us'])} μS",
-            f"E: {number(e['leak_us'])} μS; I: {number(i['leak_us'])} μS",
-        ],
-        [
-            {"math": r"\tau_{\mathrm{passive}}=C_m/g_L"},
-            f"{number(e['capacitance_nf'] / e['leak_us'])} ms (derived)",
-            f"{number(i['capacitance_nf'] / i['leak_us'])} ms for both E and I (derived)",
-        ],
-        [
-            {"math": r"\tau_{\mathrm{AMPA}}"},
-            f"{number(projections['input_to_E1']['synapse']['tau']['value'])} ms",
-            "Same",
-        ],
-        [
-            {"math": r"\tau_{\mathrm{GABA}}"},
-            "Not used",
-            f"{number(projections['I1_to_E1']['synapse']['tau']['value'])} ms",
-        ],
-        [
-            "Refractory period",
-            f"{number(e['refractory']['value'])} ms",
-            f"{number(i['refractory']['value'])} ms",
-        ],
-        [
-            "Simulation timestep / presentation",
-            f"{number(dt)} ms / {number(duration / 1000)} s",
-            "Same",
-        ],
-        [
-            "Learned weights",
-            "Input→E1, E1→E2, E2→readout",
-            "Same; inhibitory feedback remains fixed",
-        ],
-        [
-            "Training / validation utterances",
-            f"{cfg['train_examples']:,} / {cfg['validation_examples']:,}",
-            "Same",
-        ],
-        [
-            "Epochs / batch size / seed",
-            f"{cfg['epochs']} / {cfg['batch_size']} / {cfg['seed']}",
-            "Same",
-        ],
-        ["Optimizer / objective", "Adam / equal-class cross-entropy", "Same"],
-        [
-            "Learning rates: input / interlayer / readout",
-            " / ".join(
-                number(groups[name]["lr"])
-                for name in ("input", "interlayer", "readout")
-            ),
-            "Same",
-        ],
-        [
-            "Input insertion / deletion",
-            f"{number(cfg['input_noise_hz'])} Hz per channel / {number(cfg['spike_deletion_probability'])} probability",
-            "Same",
-        ],
-        [
-            "Initial hidden weights: Gaussian parent mean / SD",
-            f"{number(pars['input_to_E1.weight']['initializer']['mean'])} / {number(pars['input_to_E1.weight']['initializer']['std'])} μS",
-            "Same",
-        ],
-        [
-            "Initial zero fractions: input / interlayer",
-            " / ".join(
-                number(pars[key]["initializer"]["initial_zero_fraction"])
-                for key in ("input_to_E1.weight", "E1_to_E2.weight")
-            ),
-            "Same",
-        ],
-        [
-            "Fixed summed feedback: E→I / I→E",
-            "None",
-            f"{number(pars['E1_to_I1.weight']['initializer']['value'] * ne)} / {number(pars['I1_to_E1.weight']['initializer']['value'] * ni)} μS",
-        ],
-    ]
-    return rows
+            if population["spiking"]
+        ]
+        for model in cfg["models"]
+    }
 
 
-def spike_autocorrelation(spikes, dt_ms, max_lag_ms=200):
+def trainable_parameters(source, model):
+    """Read native resolved membership instead of maintaining a second inventory."""
+    path = source.file(model, "train", "end", "snapshot.json")
+    if path.exists():
+        info = NetworkSnapshot.read(path).parameter_info
+        if any(parameter.trainable is None for parameter in info.values()):
+            raise ValueError("snapshot lacks resolved trainable parameter membership")
+        return {name for name, parameter in info.items() if parameter.trainable}
+    # Pre-snapshot evidence retains the original compiled training specification.
+    training = network_definition(source, model, "training.json")
+    if "resolved_parameters" in training:
+        return set(training["resolved_parameters"]["trainable"])
+    return {
+        name
+        for group in training["parameter_groups"]
+        if not group["frozen"]
+        for name in group["parameters"]
+    }
+
+
+def spike_autocorrelation(spikes, dt_ms, *, max_lag_ms=200, bin_ms=1.0):
     """Serialize SNNLab's population autocorrelogram; undefined bins are null."""
     lags, values = spike_autocorrelogram(
-        spikes, dt_ms, max_lag_ms=max_lag_ms, bin_ms=1.0
+        spikes, dt_ms, max_lag_ms=max_lag_ms, bin_ms=bin_ms
     )
     return {
         "lag_ms": lags.tolist(),
@@ -196,6 +103,7 @@ def spike_autocorrelation(spikes, dt_ms, max_lag_ms=200):
 
 def raster_measurements(source):
     cfg = source.record["execution"]["sample_raster_configuration"]
+    settings = source.record["execution"]["configuration"]
     measured = {
         "selection": cfg["sample_selection"],
         "class": cfg["sample_class"],
@@ -210,29 +118,30 @@ def raster_measurements(source):
     )
     with np.load(source.file(filename), allow_pickle=False) as arrays:
         steps = round(cfg["duration_ms"] / cfg["dt_ms"])
-        for model, populations in recipe.POPULATIONS.items():
+        for model, populations in recorded_populations(source).items():
+            graph = network_definition(source, model, "graph.json")
+            sizes = {p["id"].lower(): p["size"] for p in graph["populations"]}
             scores = arrays[f"{model}_scores"]
-            if scores.shape != (20,) or not np.isfinite(scores).all():
+            if scores.shape != (sizes["readout"],) or not np.isfinite(scores).all():
                 raise ValueError("invalid sample scores")
-            counts, autocorrelations = {}, {}
+            autocorrelations = {}
             for pop in populations:
                 spikes = arrays[f"{model}_{pop}"]
                 if (
-                    spikes.shape != (steps, 32 if pop.startswith("i") else 128)
+                    spikes.shape != (steps, sizes[pop])
                     or not np.isin(spikes, (0, 1)).all()
                 ):
                     raise ValueError("invalid sample spikes")
-                counts[pop] = {
-                    "neurons": spikes.shape[1],
-                    "spikes": int(spikes.sum()),
-                    "rate_hz": float(spikes.mean() * 1000 / cfg["dt_ms"]),
-                }
-                autocorrelations[pop] = spike_autocorrelation(spikes, cfg["dt_ms"])
+                autocorrelations[pop] = spike_autocorrelation(
+                    spikes,
+                    cfg["dt_ms"],
+                    bin_ms=settings.get("autocorrelation_bin_ms", 1.0),
+                    max_lag_ms=settings.get("autocorrelation_max_lag_ms", 200.0),
+                )
             prediction = int(scores.argmax())
             measured["models"][model] = {
                 "prediction": prediction,
                 "correct": prediction == cfg["sample_class"],
-                "populations": counts,
                 "autocorrelations": autocorrelations,
             }
     return measured
@@ -240,9 +149,16 @@ def raster_measurements(source):
 
 def measurements(source):
     cfg = source.record["execution"]["configuration"]
-    if cfg.get("schema") not in ("exp124.recipe/v3", "exp124.recipe/v4") or cfg[
-        "models"
-    ] != list(recipe.MODELS):
+    if (
+        cfg.get("schema")
+        not in (
+            "exp124.recipe/v3",
+            "exp124.recipe/v4",
+            "exp124.recipe/v5",
+        )
+        or len(cfg["models"]) != 2
+        or len(set(cfg["models"])) != 2
+    ):
         raise ValueError("expected complete paired calibrated SHD training")
     selection = (
         "selection.npz" if source.file("selection.npz").exists() else "spikes.npz"
@@ -274,8 +190,8 @@ def measurements(source):
             labels[first],
         ):
             raise ValueError("raster is not the first validation utterance")
-    conditions, initial = {}, {}
-    for model in recipe.MODELS:
+    conditions, initial, native_metrics, trainable = {}, {}, {}, {}
+    for model in cfg["models"]:
         start, end = (
             parameters(source, model, "start"),
             parameters(source, model, "end"),
@@ -284,14 +200,17 @@ def measurements(source):
             not np.isfinite(v).all() for v in end.values()
         ):
             raise ValueError("invalid final parameter inventory")
+        trainable[model] = trainable_parameters(source, model)
+        if not trainable[model] or not trainable[model] <= start.keys():
+            raise ValueError("trainable parameter membership differs from saved arrays")
         changes = {
             key: float(np.linalg.norm(end[key] - start[key]))
-            for key in recipe.TRAINABLE
+            for key in sorted(trainable[model])
         }
         if not all(changes.values()) or any(
             not np.array_equal(start[key], end[key])
             for key in start
-            if key not in recipe.TRAINABLE
+            if key not in trainable[model]
         ):
             raise ValueError(
                 "learned weights did not change or fixed parameters changed"
@@ -302,24 +221,30 @@ def measurements(source):
             if source.file(model, "metrics.json").exists()
             else "native_metrics.json"
         )
-        epochs = load_json(source.file(model, filename))["epochs"]
-        if [row["epoch"] for row in epochs] != list(range(cfg["epochs"] + 1)):
+        metrics = load_json(source.file(model, filename))
+        history = TrainingHistory.from_metrics(metrics)
+        history.validate(expected_epochs=cfg["epochs"], require_complete=True)
+        native_metrics[model] = metrics
+        if [epoch.epoch for epoch in history.epochs] != list(range(cfg["epochs"] + 1)):
             raise ValueError("incomplete epoch history")
+        curves = history.curves(metrics=("cross_entropy", "accuracy"))
         rows = [
             {
-                "epoch": row["epoch"],
+                "epoch": epoch.epoch,
                 **{
                     split: {
-                        "loss": next(
-                            iter((row.get(f"{split}_cross_entropies") or {}).values()),
-                            None,
-                        ),
-                        "accuracy": row.get(f"{split}_accuracy"),
+                        name: float(curves[split, metric].values[index])
+                        if np.isfinite(curves[split, metric].values[index])
+                        else None
+                        for name, metric in (
+                            ("loss", "cross_entropy"),
+                            ("accuracy", "accuracy"),
+                        )
                     }
                     for split in ("train", "validation")
                 },
             }
-            for row in epochs
+            for index, epoch in enumerate(history.epochs)
         ]
         for row in rows:
             for split in ("train", "validation"):
@@ -336,36 +261,41 @@ def measurements(source):
         conditions[model] = {
             "epochs": rows,
             "weight_change_l2": changes,
-            "learned_weight_changes": {
-                key: value > 0 for key, value in changes.items()
-            },
         }
-    if any(
-        not np.array_equal(initial["coba"][key], initial["ping"][key])
-        for key in recipe.TRAINABLE
-    ):
-        raise ValueError("paired initial learned weights differ")
-    return {"conditions": conditions, "parameter_table": parameter_table(source)}
+    baseline = cfg["models"][0]
+    for model in cfg["models"][1:]:
+        if trainable[model] != trainable[baseline]:
+            raise ValueError("paired trainable parameter memberships differ")
+        if any(
+            not np.array_equal(initial[baseline][key], initial[model][key])
+            for key in trainable[baseline]
+        ):
+            raise ValueError("paired initial learned weights differ")
+    return {
+        "conditions": conditions,
+        "training_metrics": native_metrics,
+    }
 
 
 def analyse(identity):
     source = source_run(
-        REPO / ".pingstore", identity, stage="compute", experiment=recipe.SLUG
+        REPO / ".pingstore",
+        identity,
+        stage="compute",
+        experiment=recipe.configuration()["experiment"],
     )
     results, sample = measurements(source), raster_measurements(source)
     execution = source.record["execution"]
     with stage_run(
         REPO,
-        recipe.SLUG,
+        source.record["experiment"],
         "analyse",
         inputs={"compute": source},
         configuration=execution["configuration"],
     ) as run:
         write_json_atomic(run.export / "results.json", results)
         write_json_atomic(run.export / "raster_measurements.json", sample)
-        run.record["execution"]["source_measurements"] = {
-            key: execution[key] for key in ("models", "dataset", "snnlab_version")
-        }
+        run.record["execution"]["source_measurements"] = {"models": execution["models"]}
     return run.run_id
 
 

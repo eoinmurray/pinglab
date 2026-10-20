@@ -4,6 +4,7 @@ import Slide from './Slide.astro';
 import SlideMedia from './SlideMedia.astro';
 interface Props {
   title: string;
+  eyebrow?: string;
   image: ImageMetadata | string;
   alt: string;
   figureSide?: 'left' | 'right';
@@ -13,9 +14,9 @@ interface Props {
   density?: 'default' | 'compact';
   crop?: { top: number; bottom: number };
 }
-const { title, image, alt, figureSide = 'left', balance = 'figure-wide', caption, source, density = 'compact', crop } = Astro.props;
+const { title, eyebrow, image, alt, figureSide = 'left', balance = 'figure-wide', caption, source, density = 'compact', crop } = Astro.props;
 ---
-<Slide title={title} density={density} layout="figure-text">
+<Slide title={title} eyebrow={eyebrow} density={density} layout="figure-text">
   <div class:list={['figure-text-body', `figure-text--${balance}`, { 'figure-text--right': figureSide === 'right' }]}>
     <figure class="slide-figure">
       <SlideMedia image={image} alt={alt} crop={crop} />

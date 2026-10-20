@@ -1,0 +1,163 @@
+import RunFigure from '../../../site/src/components/RunFigure.astro';
+import Table from '../../../site/src/components/Table.astro';
+import { reportData, reportSnapshots } from '../../../site/src/lib/report-data';
+
+export const data = await reportData('exp142', { allowUnavailable: true });
+export const retained = (row, pop) => row.populations[pop] ? `${(100 * row.populations[pop].median_voltage_fraction).toFixed(1)}%` : 'absent';
+export const outputClockRows = data ? ['native', ...data.configuration.cases.map(row => row.id), 'continuous'].map(caseId => {
+  const clock = data.output_clocks.coba[caseId];
+  const value = clock.network_dt_ns === null ? 'continuous' : clock.network_dt_ns / 1e6;
+  return [caseId === 'native' ? 'Native inference' : caseId === 'continuous' ? 'CT' : `${value} ms`, value, value];
+}) : [['Unavailable', '', '']];
+export const coverageRows = data ? data.configuration.models.flatMap(mode => data.configuration.cases.map(condition => {
+  const row = data.models[mode][condition.id];
+  return [mode.toUpperCase(), condition.dt_ns / 1e6, retained(row, 'E'), retained(row, 'I'), retained(row, 'readout')];
+})) : [['Unavailable', '', '', '', '']];
+
+export const evidence = await reportSnapshots('exp142', {
+  snapshots: {
+    coba: 'coba-native/start/snapshot.json',
+    ping: 'ping-native/start/snapshot.json',
+  },
+  allowUnavailable: true,
+});
+export const modes = ['coba', 'ping'];
+export const neurons = (mode, name) => evidence?.snapshots[mode]?.network.populations.find(row => row.id === name);
+export const shared = (name, value) => [name, value, value];
+export const paired = (name, getter, unit = '') => [name, ...modes.map(mode => ['E', 'I'].map(id => {
+  const population = neurons(mode, id);
+  return population ? getter(population) : '—';
+}).join(' / ') + (unit ? ` ${unit}` : ''))];
+export const groups = evidence && modes.every(mode => evidence.snapshots[mode]) && data ? [
+  { label: 'Network', rows: [['Input channels', ...modes.map(mode => evidence.snapshots[mode].network.inputs[0].shape.at(-1))], paired('Population size, E / I', p => p.size), ['Output neurons', ...modes.map(mode => neurons(mode, 'readout').size)]] },
+  { label: 'Neurons', rows: [
+    paired('Membrane model, E / I', p => p.neuron.kind),
+    paired('Initial voltage, E / I', p => p.neuron.initial_voltage_mv, 'mV'),
+    paired('Passive time constant, E / I (derived)', p => p.neuron.capacitance_nf / p.neuron.leak_us, 'ms'),
+    paired('Capacitance, E / I', p => p.neuron.capacitance_nf, 'nF'),
+    paired('Leak conductance, E / I', p => p.neuron.leak_us, 'µS'),
+    paired('Resting potential, E / I', p => p.neuron.resting_mv, 'mV'),
+    paired('Reset potential, E / I', p => p.neuron.reset_mv, 'mV'),
+    paired('Spike threshold, E / I', p => p.neuron.threshold_mv, 'mV'),
+    paired('Refractory period, E / I', p => p.neuron.refractory.value, 'ms'),
+  ] },
+  { label: 'Synapses and weights', rows: [...new Set(modes.flatMap(mode => evidence.snapshots[mode].network.projections.map(p => p.id)))].flatMap(id => {
+    const values = getter => modes.map(mode => {
+      const snapshot = evidence.snapshots[mode];
+      const projection = snapshot.network.projections.find(row => row.id === id);
+      return projection ? getter(projection, snapshot) : 'Not applicable';
+    });
+    const label = ({input_to_E: 'Input→E', readout_projection: 'E→output', E_to_I: 'E→I', I_to_E: 'I→E'})[id];
+    return [
+      [`${label} receptor / decay (ms)`, ...values(p => `${p.synapse.kind} / ${p.synapse.tau.value}`)],
+      [`${label} native declared delay (ms)`, ...values(p => p.delay?.value ?? 0)],
+      [`${label} weight matrix shape`, ...values((p, snapshot) => snapshot.parameters[p.parameters[0]].shape.join(' × '))],
+      [`${label} weights`, ...values(() => 'Frozen validation-selected parameters')],
+    ];
+  }) },
+  { label: 'Input and simulation', rows: [
+    shared('Maximum pixel input rate (Hz)', evidence.configuration.input_rate_hz),
+    shared('Training input rate (Hz)', evidence.configuration.source_input_rate_hz),
+    shared('Encoding seed', evidence.configuration.input_seed),
+    shared('Input grid (ms)', evidence.configuration.input_grid_ns / 1e6),
+    shared('Recording interval (ms)', evidence.configuration.sample_dt_ns / 1e6),
+    shared('Presentation (ms)', evidence.configuration.duration_ns / 1e6),
+    shared('Discrete timesteps (ms)', evidence.configuration.cases.map(row => row.dt_ns / 1e6).join(' / ')),
+    shared('DOP853 relative / absolute tolerance', `${evidence.configuration.solver.rtol} / ${evidence.configuration.solver.atol}`),
+    shared('DOP853 maximum step (ms)', evidence.configuration.solver.max_step_ms),
+    shared('Refined relative / absolute tolerance', `${evidence.configuration.refinement.rtol} / ${evidence.configuration.refinement.atol}`),
+    shared('Refined maximum step (ms)', evidence.configuration.refinement.max_step_ms),
+  ] },
+  { label: 'Readout', rows: [shared('Class score', 'Total output spikes; lowest index wins ties'), shared('Frozen checkpoint', evidence.configuration.source_checkpoint)] },
+  { label: 'Training', rows: [shared('Training in this experiment', 'None; frozen inference'), shared('Source compute', evidence.configuration.source.run_id)] },
+  { label: 'Analysis', rows: [
+    shared('Spike exclusion window (ms)', `±${evidence.configuration.guard_ms}, inclusive`),
+    shared('Reference', 'Continuous, nominal tolerances'),
+    shared('Ordinal timing eligibility', 'Equal nonzero per-neuron counts'),
+    shared('Refinement maximum root shift (ms)', evidence.configuration.refinement_acceptance.max_spike_shift_ms),
+    shared('Refinement maximum guarded voltage MAE (mV)', evidence.configuration.refinement_acceptance.max_guarded_voltage_mae_mv),
+  ] },
+] : [{ label: 'Network', rows: [shared('Native parameter snapshot', 'Unavailable')] }];
+
+
+## Appendix A — Recording and clock conventions
+
+### A1 — Output clock
+
+Both architectures use a discrete COBA-LIF output layer on the same graph clock
+as their hidden neurons, or a continuous COBA-LIF output population. Native
+clock values below are verified against the executed SNNLab snapshots; CT
+means continuous time. Output spike counts remain the class score throughout.
+
+<Table headers={['Condition', 'Network timestep (ms)', 'Output timestep (ms)']} rows={outputClockRows} />
+
+### A2 — Input alignment and recording
+
+The sweep uses 0.1, 0.05, 0.025 and 0.0125 ms timesteps. SNNLab
+generates one encoding at a 100 Hz maximum pixel rate on a fixed 0.2 ms grid,
+so every arrival lies exactly on every numerical clock. We compare the resolved
+input coordinates against the saved schedule and retain their checksum and zero
+timing error for every execution. Input spikes are neither regenerated nor
+rounded when changing the timestep. A separate replay of the saved 25 Hz
+encoding validates the original trained model and does not enter these plots.
+
+Sweep and continuous states share a 0.1 ms recording clock. Native-clock
+inference retains its 0.2 ms clock and the same 100 Hz encoding. Its error
+statistics select the
+continuous reference's exact existing 0.2 ms sample times, without interpolation.
+All spike timestamps retain their original resolution.
+
+### A3 — Arrival clocks
+
+SNNLab labels conductance by the start of a slot and voltage/spikes by its end.
+A recurrent projection with declared delay $d$ therefore has end-clock lag
+$d-h$, where $h$ is the numerical timestep. Matched E–I edges declare
+$0.2\,\mathrm{ms}+h$. The matched hidden-to-output edge uses one slot, giving
+zero additional physical lag. The native 100 Hz case preserves the trained
+graph's
+same-slot readout and one-slot E–I edges; its E–I end-clock lag is zero and its
+readout starts within the same integration slot as the hidden spike. These
+native timings are retained separately from the physical-delay comparison.
+The original 25 Hz reproduction controls remain separate validation evidence.
+Refractory timing retains the source's native
+`following_steps` convention in discrete executions.
+
+The continuous reference implements the physical-delay convention. Its
+numerical refinement establishes local solver stability for this input; it
+does not establish convergence of the discrete recurrent trajectories.
+
+### A4 — Retained voltage samples
+
+For each neuron, the voltage-error calculation excludes inclusive ±2 ms
+windows around either train's spikes. Entries below are the median retained
+sample fraction across each population. Error medians describe these retained
+samples; they are not full-waveform errors.
+
+<Table headers={['Model', 'Timestep (ms)', 'E retained', 'I retained', 'Readout retained']} rows={coverageRows} />
+
+## Network diagrams
+
+The diagrams come from the actual matched 0.1 ms SNNLab bundles. Delay changes
+reuse each architecture's diagram; the readout is a COBA-LIF population in both.
+
+<RunFigure report="exp142" experiment="exp142" allowUnavailable columns={1} number={5} id="fig-network" panels={[
+  { file: 'coba-circuit.svg', alt: 'Frozen COBA circuit: 64 pixel inputs, 128 excitatory hidden neurons and ten COBA-LIF output neurons.' },
+  { file: 'ping-circuit.svg', alt: 'Frozen PING circuit with the same feed-forward layers and an additional 32-neuron inhibitory feedback population.' },
+]}>
+  A: COBA. B: PING. The native circuit views retain each model's own trained
+  input and output weights. The output population shares its graph's timestep.
+  Matched recurrent declarations add one timestep to the physical 0.2 ms
+  delay; the E-to-output declaration gives zero additional physical lag.
+</RunFigure>
+
+## Parameters
+
+Parameters are read directly from the native simulation-start snapshots in the
+pinned compute run. E / I means excitatory / inhibitory; — denotes an absent
+population. Output cells use the E-cell membrane settings. Passive time constants
+are derived as capacitance divided by leak conductance. AMPA and GABA denote
+excitatory and inhibitory receptors. Matrix shapes come from the saved parameter
+inventory. Native delays refer to the 0.2 ms case; matched declarations are
+specified in [A3](#a3--arrival-clocks).
+
+<Table headers={['Parameter', 'COBA', 'PING']} groups={groups} />

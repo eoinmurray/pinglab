@@ -24,8 +24,14 @@ def ancestry(records: dict[str, dict], roots: set[str]) -> set[str]:
     return seen
 
 
-def report_usage(repo: Path, records: dict[str, dict]) -> tuple[dict, dict[str, set[str]]]:
-    """Use explicit pins, otherwise Astro's latest completed presentation per input."""
+def report_usage(
+    repo: Path, records: dict[str, dict], *, experiments: set[str] | None = None,
+) -> tuple[dict, dict[str, set[str]]]:
+    """Resolve all reports, allowing missing out-of-scope pins for scoped pruning.
+
+    Keep unavailable pins in the selections so confirmation still detects edits.
+    Existing selections and their ancestry remain validated across experiments.
+    """
     latest = {}
     for identity, record in records.items():
         completed = record["execution"].get("completed_at")
@@ -42,13 +48,20 @@ def report_usage(repo: Path, records: dict[str, dict]) -> tuple[dict, dict[str, 
         for experiment in metadata["inputs"]:
             if experiment not in selected and experiment in latest:
                 selected[experiment] = latest[experiment][1]
+        roots = set()
         for experiment, identity in selected.items():
             record = records.get(identity)
             if record is None:
+                # Check both the declared input and the run ID: a mismatched
+                # pin must not hide a missing reference to the pruning scope.
+                if (experiments is not None and experiment not in experiments
+                        and identity.split("-", 1)[0] not in experiments):
+                    continue
                 raise PingstoreError(f"report {article!r} names missing run {identity}")
             if record["experiment"] != experiment or record["stage"] != "present":
                 raise PingstoreError(f"report {article!r} pin is not a presentation for {experiment}")
+            roots.add(identity)
         selections[article] = {"inputs": metadata["inputs"], "runs": selected}
-        for identity in ancestry(records, set(selected.values())):
+        for identity in ancestry(records, roots):
             used_by[identity].add(article)
     return selections, dict(used_by)

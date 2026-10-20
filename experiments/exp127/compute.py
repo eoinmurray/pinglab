@@ -1,5 +1,11 @@
-"""Train and record the introductory classifier using SNNLab lang and sim."""
+"""Train and record the introductory classifier using SNNLab lang and sim.
 
+Invoke this stage independently through its CLI; it records configuration,
+provenance and scientific outputs in Pingstore. Importing the module does not
+launch computation or another stage.
+"""
+
+import argparse
 import sys
 import time
 from pathlib import Path
@@ -10,89 +16,45 @@ sys.path[:0] = [str(REPO), str(REPO / "tools")]
 import numpy as np
 import snnlab
 import torch
-from experiments.exp127.recipe import CONFIG, SLUG, network
-from experiments.helpers.network_artifacts import model_execution, snapshot_request
+from experiments.exp127.recipe import SLUG, configuration, author_network
+from experiments.exp127.custom.teaching import training_trace
+from experiments.exp127.dataset import dataset
 from pingstore.contracts import write_json_atomic
 from pingstore.stages import stage_run
 from snnlab.sim import (
     CheckpointSelection,
     DenseArrayBinding,
-    ExecutionSpec,
+    Performance,
+    SnapshotSpec,
     ValidationSpec,
-    build,
     simulate,
     train,
 )
 
 
-def dataset(samples, seed):
-    rng = np.random.default_rng(seed)
-    labels = np.arange(samples, dtype=np.int64) % 2
-    rng.shuffle(labels)
-    rates = np.asarray(CONFIG["rate_patterns_hz"])[labels] * rng.uniform(
-        *CONFIG["rate_jitter"], size=(samples, 3)
-    )
-    steps = round(CONFIG["duration_ms"] / CONFIG["dt_ms"])
-    counts = rng.poisson(rates * CONFIG["dt_ms"] / 1000, size=(steps, samples, 3))
-    spikes = (counts > 0).astype(np.float32)
-    return spikes, labels, rates, counts
-
-
-def training_trace(bundle, bundle_path, values, artifacts):
-    """Record a separate fixed-batch teaching loop through the native SNNLab graph."""
-    spikes, labels, _, _ = values
-    model = build(
-        ExecutionSpec(
-            kind="train", bundle=bundle_path, seed=CONFIG["seed"], device="cpu"
-        )
-    ).model
-    parameter = next(iter(model.parameter_map().values()))
-    optimizer = torch.optim.AdamW(
-        [parameter], lr=CONFIG["learning_rate"], weight_decay=0
-    )
-    inputs, targets = torch.from_numpy(spikes), torch.from_numpy(labels)
-    indices = [int(np.flatnonzero(labels == cls)[0]) for cls in (0, 1)]
-    weights = [parameter.detach().numpy().copy()]
-    losses, gradients, outputs, voltages = [], [], [], []
-    with model_execution(model, bundle, artifacts, kind="train", seed=CONFIG["seed"], settings=CONFIG):
-        for _ in range(CONFIG["trace_updates"]):
-            optimizer.zero_grad(set_to_none=True)
-            result = model({"inputs": inputs}, diagnostics=True)
-            loss = torch.nn.functional.cross_entropy(result.outputs["scores"], targets)
-            losses.append(float(loss.detach()))
-            outputs.append(result.diagnostics["output_spikes"][:, indices].detach().numpy())
-            voltages.append(
-                result.diagnostics["output_voltage"][:, indices].detach().numpy()
-            )
-            loss.backward()
-            gradients.append(parameter.grad.detach().numpy().copy())
-            torch.nn.utils.clip_grad_norm_([parameter], CONFIG["gradient_clip"])
-            optimizer.step()
-            model.enforce_constraints()
-            weights.append(parameter.detach().numpy().copy())
-    return dict(
-        losses=np.asarray(losses),
-        weights=np.asarray(weights),
-        gradients=np.asarray(gradients),
-        outputs=np.asarray(outputs),
-        voltages=np.asarray(voltages),
-        indices=np.asarray(indices),
-    )
-
-
-def compute():
-    torch.set_num_threads(1)
-    bundle = network()
+def compute(*, run_id=None):
+    cfg = configuration()
+    torch.set_num_threads(cfg["torch_threads"])
+    bundle = author_network(cfg)
     sets = {
-        name: dataset(CONFIG[f"{name}_samples"], CONFIG["seed"] + i + 1)
+        name: dataset(cfg[f"{name}_samples"], cfg["seed"] + i + 1, cfg)
         for i, name in enumerate(("train", "validation", "test"))
     }
     bindings = {
         name: DenseArrayBinding("inputs", torch.from_numpy(values[0]))
         for name, values in sets.items()
     }
-    with stage_run(REPO, SLUG, "compute", configuration=CONFIG) as run:
-        path = bundle.write(run.export / "classifier.bundle")
+    with stage_run(REPO, SLUG, "compute", configuration=cfg, run_id=run_id) as run:
+        path = bundle.write(run.export / "classifier.bundle", visualise=False)
+        bundle.visualise(run.export / "circuit.svg", view="circuit")
+        run.record["scientific_artifacts"] = {
+            "snapshot_stages": {
+                "teaching-train": ["end"],
+                "train": ["end"],
+                "before--simulation": ["start"],
+                "after--simulation": ["start"],
+            }
+        }
         np.savez_compressed(
             run.export / "dataset.npz",
             **{
@@ -104,29 +66,33 @@ def compute():
             },
         )
         np.savez_compressed(
-            run.export / "training_trace.npz", **training_trace(bundle, path, sets["train"], run.export / "teaching-train")
+            run.export / "training_trace.npz",
+            **training_trace(
+                bundle, path, sets["train"], run.export / "teaching-train", cfg
+            ),
         )
         started = time.perf_counter()
         trained = train(
-            snapshot_request(ExecutionSpec(
-                kind="train",
-                bundle=path,
-                input_bindings=(bindings["train"],),
-                targets={"class": torch.from_numpy(sets["train"][1])},
-                validation=ValidationSpec(
-                    input_bindings=(bindings["validation"],),
-                    targets={"class": torch.from_numpy(sets["validation"][1])},
-                ),
-                epochs=CONFIG["epochs"],
-                batch_size=CONFIG["batch_size"],
-                shuffle=True,
-                diagnostics=False,
-                seed=CONFIG["seed"],
-                device="cpu",
-                checkpoint_selection=CheckpointSelection(include_initial=True),
-                save_final_checkpoint=run.export / "final.checkpoint",
-                save_selected_checkpoint=run.export / "selected.checkpoint",
-            ), bundle, run.export / "train")
+            bundle=path,
+            input_bindings=(bindings["train"],),
+            targets={"class": torch.from_numpy(sets["train"][1])},
+            validation=ValidationSpec(
+                input_bindings=(bindings["validation"],),
+                targets={"class": torch.from_numpy(sets["validation"][1])},
+            ),
+            epochs=cfg["epochs"],
+            batch_size=cfg["batch_size"],
+            shuffle=True,
+            diagnostics=False,
+            seed=cfg["seed"],
+            device=cfg["device"],
+            checkpoint_selection=CheckpointSelection(include_initial=True),
+            save_final_checkpoint=run.export / "final.checkpoint",
+            save_selected_checkpoint=run.export / "selected.checkpoint",
+            performance=Performance(**cfg["performance"]),
+            snapshot=SnapshotSpec(
+                path=run.export / "train" / "end", stage="end", parameters=True
+            ),
         )
         if trained.selected_checkpoint is None:
             raise ValueError("training did not select a checkpoint")
@@ -145,14 +111,17 @@ def compute():
             ("after", run.export / "selected.checkpoint"),
         ):
             result = simulate(
-                snapshot_request(ExecutionSpec(
-                    kind="simulate",
-                    bundle=path,
-                    checkpoint=checkpoint,
-                    input_bindings=(bindings["test"],),
-                    seed=CONFIG["seed"],
-                    device="cpu",
-                ), bundle, run.export / f"{mode}--simulation")
+                bundle=path,
+                checkpoint=checkpoint,
+                input_bindings=(bindings["test"],),
+                seed=cfg["seed"],
+                device=cfg["device"],
+                performance=Performance(**cfg["performance"]),
+                snapshot=SnapshotSpec(
+                    path=run.export / f"{mode}--simulation" / "start",
+                    stage="start",
+                    parameters=True,
+                ),
             )
             for name, tensor in (
                 ("scores", result.outputs["scores"]),
@@ -196,4 +165,6 @@ def compute():
 
 
 if __name__ == "__main__":
-    compute()
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--run-id", help="identity reserved before remote dispatch")
+    compute(**vars(parser.parse_args()))

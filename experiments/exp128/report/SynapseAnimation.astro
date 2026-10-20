@@ -28,7 +28,7 @@ const { dual = false } = Astro.props;
 </figure>
 
 <script>
-  import { mountSynapse } from '../js/synapse.js';
+  import { mountSynapse } from './js/synapse.js';
   class ConductanceSynapse extends HTMLElement {
     dispose?: () => void;
     observer?: IntersectionObserver;

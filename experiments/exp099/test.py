@@ -1,8 +1,13 @@
-"""Physical weights, independent counts and delayed chunked execution."""
+"""Physical weights, independent counts and delayed chunked execution.
+
+Run with pytest from the repository root. Small synthetic inputs check the
+scientific invariants and native runtime integration without replacing the
+report's pinned historical evidence.
+"""
 
 import numpy as np
 import torch
-from experiments.exp099 import recipe
+from experiments.exp099 import recipe, dataset
 from experiments.exp099.compute import build_model
 
 
@@ -31,7 +36,7 @@ def test_physical_weights_and_refractory_durations():
 
 def test_count_superposition_keeps_multiplets_and_independence():
     cfg = {**small_cfg(), "t_ms": 1000.0, "stimulus_e_hz": 0.8, "stimulus_i_hz": 0.8}
-    counts = recipe.afferent_counts(cfg)
+    counts = dataset.afferent_counts(cfg)
     for array in counts.values():
         assert array.max() >= 2
         assert abs(array.mean() - 0.032) < 0.002
@@ -86,11 +91,13 @@ def test_pulse_schedule_and_epochs():
     from experiments.exp099.analyse import measure
 
     cfg = {**small_cfg(), "t_ms": recipe.DURATION_MS}
-    e, i = recipe.source_rates(np.array([0, 700, 725, 750, 850, 875, 900, 1099.9]), cfg)
+    e, i = dataset.source_rates(
+        np.array([0, 700, 725, 750, 850, 875, 900, 1099.9]), cfg
+    )
     np.testing.assert_allclose(e, [0.8, 0.8, 1.0, 1.2, 1.2, 1.0, 0.8, 0.8])
     np.testing.assert_allclose(i, e)
     old = {k: v for k, v in cfg.items() if k != "stimulus_i_hz"}
-    _, old_i = recipe.source_rates(np.array([0, 500, 1000, 1499.9]), old)
+    _, old_i = dataset.source_rates(np.array([0, 500, 1000, 1499.9]), old)
     np.testing.assert_allclose(old_i, 0.8)
     steps = round(cfg["t_ms"] / cfg["dt_ms"])
     data = {f"spk_{p}": np.zeros((steps, cfg[f"n_{p}"]), bool) for p in ("e", "i")}

@@ -4,6 +4,7 @@ import Slide from './Slide.astro';
 import SlideMedia from './SlideMedia.astro';
 interface Props {
   title: string;
+  eyebrow?: string;
   subtitle?: string;
   presenter?: string;
   date?: string;
@@ -11,9 +12,9 @@ interface Props {
   alt?: string;
   imageLink?: string;
 }
-const { title, subtitle, presenter, date, image, alt = '', imageLink } = Astro.props;
+const { title, eyebrow, subtitle, presenter, date, image, alt = '', imageLink } = Astro.props;
 ---
-<Slide title={title} layout="title" density="compact">
+<Slide title={title} eyebrow={eyebrow} layout="title" density="compact">
   <div class="title-slide-body">
     {subtitle && <p class="title-slide-subtitle">{subtitle}</p>}
     {image && (imageLink ? <a class="title-slide-cover" href={imageLink}><SlideMedia image={image} alt={alt} /></a> : <div class="title-slide-cover"><SlideMedia image={image} alt={alt} /></div>)}

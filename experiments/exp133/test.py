@@ -1,31 +1,32 @@
-"""Scientific diagnostics and native paired-grid execution invariants."""
+"""Scientific diagnostics and native paired-grid execution invariants.
+
+Run with pytest from the repository root. Small synthetic inputs check the
+scientific invariants and native runtime integration without replacing the
+report's pinned historical evidence.
+"""
 
 import numpy as np
 import pytest
 import torch
 from experiments.exp133 import analyse, recipe
 from experiments.exp133.present import edges
-from snnlab.sim import DenseArrayBinding, ExecutionSpec, simulate
+from snnlab.sim import DenseArrayBinding, NetworkSnapshot, Performance, simulate
 
 
 def native(bundle, drives, coupling, state=None):
     return simulate(
-        ExecutionSpec(
-            kind="simulate",
-            graph=bundle.graph,
-            seed=recipe.NETWORK_SEED,
-            device="cpu",
-            input_bindings=tuple(
+        graph=bundle.graph,
+        seed=recipe.NETWORK_SEED,
+        device="cpu",
+        input_bindings=tuple(
+            (
                 DenseArrayBinding(k, torch.from_numpy(v).float())
-                for k, v in drives.items()
-            ),
-            options={
-                "inference_overrides": {
-                    "projection_scales": recipe.coupling_scales(coupling)
-                }
-            },
+                for (k, v) in drives.items()
+            )
         ),
+        inference_overrides={"projection_scales": recipe.coupling_scales(coupling)},
         runtime_state=state,
+        performance=Performance(compile_mode=None),
     )
 
 
@@ -132,7 +133,8 @@ def test_native_grid_survives_v4_storage_and_checks_actual_pairing(
     import subprocess
     from dataclasses import replace
 
-    from experiments.exp133 import compute, evidence
+    from experiments.exp133 import compute
+    from experiments.exp133.custom import evidence
     from pingstore.contracts import PingstoreError
     from pingstore.stages import source_run
 
@@ -168,8 +170,17 @@ def test_native_grid_survives_v4_storage_and_checks_actual_pairing(
     with pytest.raises(PingstoreError, match="coverage"):
         evidence.compute_contract(replace(source, record=corrupted))
     mapping = source.record["scientific_artifacts"]["native_paths"]
+    assert [key for key in mapping if key.endswith(".svg")] == [
+        "paired-ping.bundle/reports/circuit.svg"
+    ]
+    assert not any("/end/" in key for key in mapping)
     path = source.export / mapping["coupling-060-execution/start/snapshot.json"]
     metadata = json.loads(path.read_text())
+    corrupted = copy.deepcopy(metadata)
+    corrupted["parameter_file_sha256"] = "0" * 64
+    path.write_text(json.dumps(corrupted))
+    with pytest.raises(ValueError, match="parameter file digest mismatch"):
+        evidence.compute_contract(source)
     metadata["request"]["input_bindings"][0]["value"]["sha256"] = "0" * 64
     path.write_text(json.dumps(metadata))
     with pytest.raises(PingstoreError, match="paired inputs"):
@@ -177,7 +188,7 @@ def test_native_grid_survives_v4_storage_and_checks_actual_pairing(
 
 
 def test_sender_receiver_reciprocal_coupling_switches_without_reset(monkeypatch):
-    from experiments.exp133 import sender_receiver
+    from experiments.exp133.custom import sender_receiver
 
     torch.set_num_threads(1)
     monkeypatch.setattr(sender_receiver, "ONSET_MS", 10.0)
@@ -191,15 +202,13 @@ def test_sender_receiver_reciprocal_coupling_switches_without_reset(monkeypatch)
 
     def run(bundle):
         return simulate(
-            ExecutionSpec(
-                kind="simulate",
-                graph=bundle.graph,
-                seed=recipe.NETWORK_SEED,
-                device="cpu",
-                input_bindings=tuple(
-                    DenseArrayBinding(key, value) for key, value in drives.items()
-                ),
-            )
+            graph=bundle.graph,
+            seed=recipe.NETWORK_SEED,
+            device="cpu",
+            input_bindings=tuple(
+                (DenseArrayBinding(key, value) for (key, value) in drives.items())
+            ),
+            performance=Performance(compile_mode=None),
         )
 
     enabled, control = run(coupled), run(uncoupled)
@@ -248,8 +257,8 @@ def test_input_expansion_preserves_recurrent_weights_and_summed_drive(
 ):
     import subprocess
 
-    from experiments.exp133 import compute, evidence
-    from experiments.helpers.network_artifacts import snapshot_parameters
+    from experiments.exp133 import compute
+    from experiments.exp133.custom import evidence
     from pingstore.stages import source_run
 
     monkeypatch.setattr(recipe, "INPUT_DIFFERENCES_HZ", np.array([-4.0, 4.0]))
@@ -285,7 +294,14 @@ def test_input_expansion_preserves_recurrent_weights_and_summed_drive(
     expanded = compute.compute(parameter_source=baseline)
     current = source_run(tmp_path / ".pingstore", expanded)
     evidence.compute_contract(current)
-    values = snapshot_parameters(current, "coupling-120-execution", "start")
+    values = {
+        name: tensor.numpy()
+        for name, tensor in NetworkSnapshot.read(
+            current.file("coupling-120-execution", "start", "snapshot.json")
+        )
+        .load_parameters()
+        .items()
+    }
     for key, value in original.items():
         if "input_to_E" in key:
             assert values[key].shape == (1024, recipe.N_E)
@@ -297,13 +313,20 @@ def test_input_expansion_preserves_recurrent_weights_and_summed_drive(
         else:
             np.testing.assert_array_equal(values[key], value)
 
-    from experiments.exp133 import sender_receiver
+    from experiments.exp133.custom import sender_receiver
 
     monkeypatch.setattr(sender_receiver, "DURATION_MS", 10.0)
     transferred = compute.compute(protocol="sender-receiver", parameter_source=expanded)
     sr = source_run(tmp_path / ".pingstore", transferred)
     sender_receiver.compute_contract(sr)
-    actual = snapshot_parameters(sr, "sender-receiver-execution", "start")
+    actual = {
+        name: tensor.numpy()
+        for name, tensor in NetworkSnapshot.read(
+            sr.file("sender-receiver-execution", "start", "snapshot.json")
+        )
+        .load_parameters()
+        .items()
+    }
     expected = sender_receiver.transferred_parameters(current)
     assert set(actual) == set(expected)
     for key in expected:

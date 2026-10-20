@@ -1,0 +1,61 @@
+---
+interface Props {
+  title: string;
+  allHref: string;
+  allLabel: string;
+  collections: { href: string; label: string; active: boolean }[];
+  filtered?: boolean;
+  heading?: string;
+  literature?: { href: string; label: string; active?: boolean }[];
+  allPapersActive?: boolean;
+}
+const { title, allHref, allLabel, collections, filtered = false, heading = 'Collections', literature, allPapersActive = false } = Astro.props;
+---
+<h1 class="visually-hidden">{title}</h1>
+<div class="base-grid">
+  <div class="article-browser l-page">
+    <aside class="browser-collections">
+      <div class="browser-navigation">
+      <nav aria-labelledby="collections-heading">
+        <h2 id="collections-heading">{heading}</h2>
+        <ol role="list">
+          <li><a href={allHref} aria-current={!filtered ? 'page' : undefined}>{allLabel}</a></li>
+          {collections.map(collection => <li><a href={collection.href} aria-current={collection.active ? 'page' : undefined}>{collection.label}</a></li>)}
+        </ol>
+      </nav>
+      {literature && <nav aria-labelledby="literature-heading">
+        <h2 id="literature-heading">Literature</h2>
+        <ol role="list">
+          <li><a href="/papers" aria-current={allPapersActive ? 'page' : undefined}>All papers</a></li>
+          {literature.map(collection => <li><a href={collection.href} aria-current={collection.active ? 'page' : undefined}>{collection.label}</a></li>)}
+        </ol>
+      </nav>}
+      </div>
+    </aside>
+    <div class="browser-articles"><slot /></div>
+  </div>
+</div>
+
+<style>
+  .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .article-browser, :global(body:has(.article-browser) .site-header nav) { width: min(100%, var(--listing-width)); justify-self: center; min-width: 0; }
+  .browser-collections { min-width: 0; padding-top: 32px; }
+  .browser-collections nav + nav { margin-top: 28px; }
+  .browser-collections h2 { font-size: 13px; line-height: 1.5; font-weight: 600; margin: 0 0 12px; }
+  .browser-collections ol { list-style: none; margin: 0; padding: 0; columns: 2; column-gap: 24px; }
+  .browser-collections li { margin-bottom: 10px; font-size: 12px; line-height: 1.5; break-inside: avoid; }
+  .browser-collections a { color: rgb(var(--ink) / .6); text-decoration: none; border-bottom: none; }
+  .browser-collections a[aria-current="page"] { color: rgb(var(--ink)); font-weight: 600; }
+  .browser-collections a:hover { color: rgb(var(--ink)); }
+  .browser-collections a:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+  .browser-articles { min-width: 0; }
+  .browser-articles :global(.base-grid) { display: block; }
+  @media (min-width: 1180px) {
+    .article-browser, :global(body:has(.article-browser) .site-header nav) { width: min(100%, calc(var(--listing-width) + 240px)); }
+    .article-browser { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 40px; }
+    .browser-collections { grid-column: 1; grid-row: 1; padding-top: calc(84px * var(--listing-scale)); }
+    .browser-articles { grid-column: 2; grid-row: 1; }
+    .browser-navigation { position: sticky; top: 24px; max-height: calc(100vh - 48px); overflow-y: auto; }
+    .browser-collections ol { columns: auto; }
+  }
+</style>

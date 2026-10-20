@@ -2,6 +2,7 @@ import { getEntry } from 'astro:content';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { optionalPresentation } from './pingstore';
+import { readSnapshotEvidence, type SnapshotOptions } from './snapshot-data';
 
 const payloads = new Map<string, Promise<any>>();
 
@@ -25,6 +26,16 @@ export async function reportData(report: string, { experiment = report, allowUna
     payloads.set(run, readFile(resolve('../.pingstore/runs', run, 'export/numbers.json'), 'utf8').then(JSON.parse));
   }
   return payloads.get(run)!;
+}
+
+// Tables follow the authored pin to the original compute snapshots, independently
+// of presentation numbers.json. Missing native evidence never selects latest.
+export async function reportSnapshots(report: string, options: Omit<SnapshotOptions, 'experiment'> & { experiment?: string }) {
+  const experiment = options.experiment ?? report;
+  const entry = await getEntry('reports', report);
+  const pin = entry?.data.runs?.[experiment];
+  if (!pin) throw new Error(`Snapshot tables require an explicit presentation pin: ${report}/${experiment}`);
+  return readSnapshotEvidence(pin, { ...options, experiment });
 }
 
 export function display(value: unknown): string {

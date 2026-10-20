@@ -36,9 +36,8 @@ deferred under the original static-only scope.
 This implementation migration follows Experiment Runner Guide 4.9.0 and Storage
 Guide 4.9.0, with the narrowly scoped article edits described below.
 
-Recipe v6 authors the circuit with `snnlab.lang` and the maintained
-`experiments.helpers.ping.build_ping`; `snnlab.sim.GraphExecutor` executes it
-in process. The helper needs no extension. There is no simulator CLI builder,
+Recipe v6 authors the circuit directly with `snnlab.lang`;
+`snnlab.sim.GraphExecutor` executes it in process. There is no simulator CLI builder,
 subprocess inference, reconstructed simulator configuration, legacy adapter,
 or import of another experiment's implementation.
 

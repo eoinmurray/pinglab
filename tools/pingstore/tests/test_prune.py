@@ -139,6 +139,63 @@ def test_scoped_plan_only_prunes_selected_experiment(tmp_path):
     assert "out-of-scope" in kept[paths["exp2_latest"].name]
 
 
+def test_scoped_prune_allows_unrelated_missing_report_pin(tmp_path):
+    paths = fixture_store(tmp_path)
+    missing = "exp124-r164-present"
+    report(tmp_path, "exp124", ["exp124"], {"exp124": missing})
+
+    with pytest.raises(PingstoreError, match="names missing run"):
+        build_plan(tmp_path)
+    plan = build_plan(tmp_path, ["exp001"])
+    assert plan["report_selections"]["exp124"]["runs"] == {"exp124": missing}
+    assert {row["run_id"] for row in plan["prune"]} == {
+        paths["old_compute"].name, paths["old_present"].name,
+    }
+
+    apply_plan(tmp_path, plan["plan_hash"], ["exp001"])
+    assert not paths["old_compute"].exists()
+    assert not paths["old_present"].exists()
+    assert paths["latest"].exists()
+    assert paths["superseded"].exists()
+
+
+def test_scoped_plan_keeps_shared_report_inputs_despite_unrelated_missing_pin(tmp_path):
+    paths = fixture_store(tmp_path)
+    report(tmp_path, "exp110", ["exp001", "exp124"], {
+        "exp001": paths["old_present"].name,
+        "exp124": "exp124-r164-present",
+    })
+
+    plan = build_plan(tmp_path, ["exp001"])
+    kept = {row["run_id"]: row for row in plan["keep"]}
+    for name in ("old_compute", "old_present"):
+        assert "exp110" in kept[paths[name].name]["used_by"]
+    assert not plan["prune"]
+
+
+@pytest.mark.parametrize("experiment,target", [
+    ("exp001", "exp999-r001-present"),
+    ("exp999", "exp001-r999-present"),
+])
+def test_scoped_plan_rejects_missing_pin_declaring_or_naming_scoped_experiment(
+    tmp_path, experiment, target,
+):
+    fixture_store(tmp_path)
+    report(tmp_path, "exp110", [experiment], {experiment: target})
+    with pytest.raises(PingstoreError, match="names missing run"):
+        build_plan(tmp_path, ["exp001"])
+
+
+def test_scoped_confirm_detects_changes_to_unrelated_missing_pins(tmp_path):
+    paths = fixture_store(tmp_path)
+    report(tmp_path, "exp124", ["exp124"], {"exp124": "exp124-r164-present"})
+    plan = build_plan(tmp_path, ["exp001"])
+    report(tmp_path, "exp124", ["exp124"], {"exp124": "exp124-r165-present"})
+    with pytest.raises(PingstoreError, match="plan changed"):
+        apply_plan(tmp_path, plan["plan_hash"], ["exp001"])
+    assert paths["old_present"].exists()
+
+
 def test_scoped_plan_keeps_selected_ancestor_of_out_of_scope_run(tmp_path):
     selected_parent = make_run(
         tmp_path,
@@ -360,11 +417,12 @@ def test_report_pin_changes_invalidate_confirmation(tmp_path):
 
 
 @pytest.mark.parametrize("target", ["exp999-r001-present", "exp001-r001-compute", "exp002-r002-present"])
-def test_missing_wrong_stage_or_wrong_experiment_pins_fail_closed(tmp_path, target):
+@pytest.mark.parametrize("experiments", [None, ["exp001"]])
+def test_missing_wrong_stage_or_wrong_experiment_pins_fail_closed(tmp_path, target, experiments):
     fixture_store(tmp_path)
     report(tmp_path, "exp001", ["exp001"], {"exp001": target})
     with pytest.raises(PingstoreError, match="report"):
-        build_plan(tmp_path)
+        build_plan(tmp_path, experiments)
 
 
 def test_unpinned_report_uses_completion_time_and_can_have_unavailable_inputs(tmp_path):

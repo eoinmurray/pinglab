@@ -717,7 +717,7 @@ def test_hpc_array_uses_frozen_cells_and_shared_wrapper(tmp_path: Path) -> None:
     }
     command = hpc.command(plan, tmp_path / "plan.json", "compute")
     assert "--array=0-2%2" in command
-    assert str(exp022.REPO / "experiments/helpers/hpc/slurm-stage.sbatch") in command
+    assert str(exp022.REPO / "tools/hpc/slurm-stage.sbatch") in command
     assert command[-1] == "exp022"
 
 
@@ -727,7 +727,7 @@ def test_mnist_link_helper_accepts_existing_concurrent_and_stale_links(
     cache = tmp_path / "cache"
     (cache / "MNIST").mkdir(parents=True)
     link = tmp_path / "mnist"
-    helper = exp022.REPO / "experiments" / "helpers" / "hpc" / "ensure-mnist-link.sh"
+    helper = exp022.REPO / "tools" / "hpc" / "ensure-mnist-link.sh"
     commands = [[str(helper), str(cache), str(link)] for _ in range(2)]
     processes = [subprocess.Popen(command) for command in commands]
     assert [process.wait() for process in processes] == [0, 0]
@@ -755,7 +755,7 @@ def test_wilkes_modules_load_in_sanitized_environment(tmp_path: Path) -> None:
         'module() { printf "%s\\n" "$*" >> "$EXP022_MODULE_CALLS"; }\n'
     )
     helper = (
-        exp022.REPO / "experiments" / "helpers" / "hpc" / "load-wilkes-modules.sh"
+        exp022.REPO / "tools" / "hpc" / "load-wilkes-modules.sh"
     )
     subprocess.run(
         [

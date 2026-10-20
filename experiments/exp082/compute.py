@@ -8,9 +8,8 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
 from experiments.exp082 import evidence, illustrate, inputs, recipe
+from experiments.exp082.custom.sharding import shard_identity
 from experiments.exp082.inference import Inference
-from experiments.helpers.checkpoint_inference import shard_identity
-from experiments.helpers.hpc import concurrent_compute
 from pingstore.contracts import (
     PingstoreError,
     file_sha256,
@@ -18,6 +17,7 @@ from pingstore.contracts import (
     write_json_atomic,
 )
 from pingstore.stages import _capture_code, reserve_stage
+from tools.hpc import concurrent_compute
 
 
 def _run_jobs(bank, directory, jobs, contract):

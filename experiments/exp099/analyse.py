@@ -1,4 +1,9 @@
-"""Measure explicit compute evidence; never simulate or render."""
+"""Measure explicit compute evidence; never simulate or render.
+
+The CLI requires an explicit completed compute run. It validates the retained
+recordings and writes measurements to a new analysis run, without simulating
+or launching presentation.
+"""
 
 from __future__ import annotations
 
@@ -9,7 +14,8 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
 import numpy as np
-from experiments.exp099 import inputs, recipe
+from experiments.exp099 import recipe, dataset
+from experiments.exp099.custom import inputs
 from pingstore.contracts import write_json_atomic
 from pingstore.stages import stage_run
 from scipy.signal import welch
@@ -67,7 +73,9 @@ def measure(data, cfg):
         "mean_v_e": data["mean_v_e"],
         "mean_v_i": data["mean_v_i"],
     }
-    arrays["rate_private_e"], arrays["rate_private_i"] = recipe.source_rates(times, cfg)
+    arrays["rate_private_e"], arrays["rate_private_i"] = dataset.source_rates(
+        times, cfg
+    )
     width = round(20 / dt)
     for pop in ("e", "i"):
         raw = data[f"spk_{pop}"].mean(1) * 1000 / dt

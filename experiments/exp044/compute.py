@@ -16,7 +16,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from experiments.exp044 import evidence, inputs, recipe
-from experiments.helpers.network_artifacts import model_execution
+from experiments.exp044.custom.network_artifacts import model_execution
 from pingstore.contracts import PingstoreError, write_json_atomic
 from snnlab.sim import GraphExecutor, encode_images_poisson, load_dataset, plan_graph
 

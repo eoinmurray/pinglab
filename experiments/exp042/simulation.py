@@ -13,8 +13,7 @@ import numpy as np
 import snnlab
 import torch
 import torch.nn.functional as F
-from experiments.helpers import ping
-from experiments.helpers.network_artifacts import model_execution
+from experiments.exp042.custom.network_artifacts import model_execution
 from pingstore.contracts import (
     PingstoreError,
     file_sha256,
@@ -91,7 +90,6 @@ def execution_settings():
                 recipe,
                 inputs,
                 transforms,
-                ping,
             )
         },
         "inference_source_sha256": file_sha256(Path(__file__)),

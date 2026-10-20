@@ -5,7 +5,7 @@ from typing import Any
 
 import matplotlib.pyplot as plt
 import numpy as np
-from experiments.helpers import theme
+from experiments import theme
 
 
 def plot_training(records: list[dict[str, Any]], output: Path) -> None:

@@ -1,0 +1,96 @@
+---
+id: "exp141"
+title: "Scikit-learn digits"
+created_at: "2026-10-19"
+updated_at: "2026-10-20T14:09:16Z"
+description: "Two spiking digit classifiers, with and without inhibitory feedback."
+collection: ["datasets", "experiments"]
+author: "Eoin Murray"
+tags: ["data", "v4.0.1"]
+inputs: ["exp141"]
+runs: {"exp141": "exp141-r014-present"}
+---
+
+import RunFigure from '../../../site/src/components/RunFigure.astro';
+import { reportData, percent, round } from '../../../site/src/lib/report-data';
+
+export const data = await reportData('exp141', { allowUnavailable: true });
+export const trainingSummary = mode => {
+  if (!data) return 'Local presentation data is unavailable.';
+  const rows = data.curves[mode];
+  const first = rows[0];
+  const last = rows.at(-1);
+  const best = Math.max(...rows.map(row => row.validation.accuracy));
+  const training = last.train;
+  const test = data.test[mode];
+  return `After ${last.epoch} epochs, online training accuracy was ${percent(training.accuracy)} and validation accuracy was ${percent(last.validation.accuracy)}. Best validation accuracy was ${percent(best)}. Validation cross-entropy changed from ${round(first.validation.loss, 3)} to ${round(last.validation.loss, 3)}. The checkpoint selected by minimum validation loss was epoch ${test.epoch}; its held-out test accuracy was ${percent(test.accuracy)} on ${test.examples} images. The black curve shows online pre-update minibatch metrics; the red curve uses fixed epoch-end weights. Epoch zero shows untrained validation only. Crosses mark the selected-checkpoint test measurements.`;
+};
+export const rasterSummary = mode => {
+  if (!data) return 'The response will be recorded after training from the validation-selected checkpoint.';
+  const sample = data.sample;
+  const result = sample.modes[mode];
+  return `Original sample ${sample.index} is digit ${sample.label}; the validation-selected model (epoch ${result.epoch}) predicted ${result.prediction}. This image belongs to the ${sample.partition} partition. It is a single-example diagnostic, not an independent test result.`;
+};
+
+## Abstract
+
+We compare two spiking networks on small handwritten digits. Both use
+conductance-based leaky integrate-and-fire neurons and choose a digit by counting
+spikes from ten output neurons. The PING model adds a fixed inhibitory feedback
+loop to the feed-forward COBA model. Both use the same training, validation and test partitions,
+one random seed and classification loss without spike penalties. With 200 ms
+presentations and 30 epochs, validation-selected COBA and PING checkpoints
+reached {data ? percent(data.test.coba.accuracy) : 'unavailable'} and
+{data ? percent(data.test.ping.accuracy) : 'unavailable'} held-out test accuracy,
+respectively. Adding feedback did not improve classification in this run;
+variation across training seeds was not tested.
+
+## Results
+
+Recipe v9 ran locally on CPU with SNNLab 0.23.0 and autocast disabled.
+The dataset contained {data ? data.dataset.train_samples : 'unavailable'} training,
+{data ? data.dataset.validation_samples : 'unavailable'} validation and
+{data ? data.dataset.test_samples : 'unavailable'} held-out test images.
+Each model trained for 30 epochs; minimum validation cross-entropy selected
+one checkpoint for a single held-out test evaluation. The rasters replay one
+training image through those selected checkpoints.
+
+### COBA training curves
+
+{trainingSummary('coba')}
+
+<RunFigure report="exp141" experiment="exp141" allowUnavailable file="coba.svg" number={1} id="fig-coba-training" alt="COBA cross-entropy and accuracy over training epochs, with training in black and validation in red.">
+  COBA classification loss (left) and accuracy (right). Black denotes training;
+  red denotes validation. Crosses show the held-out test at the selected epoch.
+  Accuracy is shown as a fraction.
+</RunFigure>
+
+### PING training curves
+
+{trainingSummary('ping')}
+
+<RunFigure report="exp141" experiment="exp141" allowUnavailable file="ping.svg" number={2} id="fig-ping-training" alt="PING cross-entropy and accuracy over training epochs, with training in black and validation in red.">
+  The same measurements for PING, with a fixed excitatory–inhibitory feedback loop.
+  Crosses mark the held-out test measurements at the selected epoch.
+</RunFigure>
+
+### COBA raster
+
+{rasterSummary('coba')}
+
+<RunFigure report="exp141" experiment="exp141" allowUnavailable file="coba--sample-raster.svg" number={3} id="fig-coba-raster" alt="Original digit image, shared Poisson input, COBA hidden-neuron raster and ten-neuron readout raster after training.">
+  From left: the original 8 × 8 image, its Poisson input spikes, all hidden
+  excitatory spikes, and readout spikes indexed by digit. Each tick is one spike;
+  time is in milliseconds. The output neuron with the largest count selects the
+  digit; ties select the lowest digit index.
+</RunFigure>
+
+### PING raster
+
+{rasterSummary('ping')}
+
+<RunFigure report="exp141" experiment="exp141" allowUnavailable file="ping--sample-raster.svg" number={4} id="fig-ping-raster" alt="The same digit image and input spikes, PING excitatory and inhibitory hidden-neuron rasters, and the spiking digit readout after training.">
+  The same image and exact input spikes as Figure 3, replayed through PING's
+  validation-selected weights from fresh membrane state. Hidden excitatory neurons are black;
+  inhibitory neurons are red and placed above them. The readout uses black ticks.
+</RunFigure>

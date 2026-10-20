@@ -62,7 +62,10 @@ export default function CommandPalette({ collections, articles }: Props) {
       <CommandList label="Matching articles and collections">
         <CommandEmpty>No articles or collections found.</CommandEmpty>
         <CommandGroup heading="Navigation">
-          {items([{ href: '/', title: 'Home', detail: 'Homepage', keywords: ['home', 'homepage', 'Pinglab'] }])}
+          {items([
+            { href: '/', title: 'Home', detail: 'Homepage', keywords: ['home', 'homepage', 'Pinglab'] },
+            { href: '/papers', title: 'Papers', detail: 'PDF library', keywords: ['papers', 'pdf', 'library', 'research'] },
+          ])}
         </CommandGroup>
         <CommandGroup heading="Collections">{items(collections)}</CommandGroup>
         <CommandGroup heading="Articles">{items(articles)}</CommandGroup>

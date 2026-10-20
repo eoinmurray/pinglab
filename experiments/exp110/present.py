@@ -20,8 +20,8 @@ from experiments.exp054 import plots as exp054_plots
 from experiments.exp054 import recipe as exp054_recipe
 from experiments.exp110 import plots, recipe
 from experiments.exp117 import recipe as exp117_recipe
-from experiments.helpers import theme
-from experiments.helpers.figsave import save_figure
+from experiments import theme
+from experiments.exp110.custom.figures import save_figure
 from pingstore.contracts import PingstoreError, load_json
 from pingstore.stages import source_run, stage_run
 

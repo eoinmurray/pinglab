@@ -2,14 +2,12 @@
 import type { Post } from '../lib/posts';
 import { collectionUrl, collectionLabel } from '../lib/collections';
 import ArticleMetrics from './ArticleMetrics.astro';
+import ArticleDate from './ArticleDate.astro';
 import { articleMetrics } from '../lib/article-metrics';
 
 interface Props { posts: Post[]; }
 const { posts } = Astro.props;
 const previews = await Promise.all(posts.map(async report => ({ report, counts: report.article ? await articleMetrics(report.article) : undefined })));
-const dateLabel = (date: string) => new Intl.DateTimeFormat('en-GB', {
-  day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC',
-}).format(new Date(date));
 ---
 
 <div class="base-grid">
@@ -18,7 +16,7 @@ const dateLabel = (date: string) => new Intl.DateTimeFormat('en-GB', {
       <li class="post-preview article-list-row">
         <div class="metadata">
           <a class="experiment-id" href={report.href} aria-label={`Open ${report.data.title}`}>{report.label}</a>
-          <div class="publishedDate"><time datetime={report.data.updated_at}>{dateLabel(report.data.updated_at)}</time></div>
+          <div class="publishedDate"><ArticleDate date={report.data.updated_at} compact /></div>
         </div>
         <div class="article-list-content">
           <a class="post-link" href={report.href}>

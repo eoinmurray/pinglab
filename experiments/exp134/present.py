@@ -1,4 +1,11 @@
-"""Render matched dynamics figures and retained native network diagrams."""
+"""Render paired membrane-sweep dynamics for the article.
+
+Run present.py --source ANALYSIS_RUN. Read validated analysis metrics and raster
+events, then save PNG and SVG figures plus numerical summaries in a new
+presentation run. The compute ancestor supplies the single circuit diagram.
+
+Presentation does not simulate or measure activity. Parameter tables belong
+in the report and read original native snapshots through its pinned ancestry."""
 
 import argparse
 import json
@@ -13,8 +20,8 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
+from experiments import theme
 from experiments.exp134 import recipe
-from experiments.helpers import theme
 from pingstore.stages import source_run, stage_run
 
 
@@ -87,7 +94,7 @@ def plot_overview(report, events, sweep, destination):
         ax.set_xticks([0, 100, 200])
     theme.label_panels(axes, labels=["E", "F", "G"])
     with plt.rc_context({"savefig.bbox": None}):
-        for extension in ("png", "svg", "pdf"):
+        for extension in ("png", "svg"):
             fig.savefig(destination.with_suffix("." + extension), dpi=300)
     plt.close(fig)
 

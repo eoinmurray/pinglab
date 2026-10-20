@@ -2,227 +2,104 @@
 title: Compute Rules
 author: Eoin Murray
 collection: notes
-description: Compute providers, access boundaries, and execution workflows for Pinglab.
+description: Our usual compute options and basic operating commands.
 created_at: '2026-09-11'
-updated_at: '2026-10-15'
+updated_at: '2026-10-20T12:53:22Z'
 ---
 
-This is the operational map for pinglab compute. It separates the persistent control plane from the machines that perform numerical work, and records the authentication boundary for each provider. Prices, balances, queues, and GPU stock change. Host aliases, hardware, accounts, and service names below are the recorded project configuration, not a live availability report. Check the relevant machine and provider before launch; an edit date is not evidence that credentials or capacity were revalidated.
+# Compute
 
-Never place a password, TOTP seed, private SSH key, or Modal token in this repository. Authentication commands either use an encrypted local key or open the provider’s own interactive login flow.
+Our usual compute options and the commands needed to operate them. Run local commands from the repository root; remote commands after connecting to the host.
 
-## Execution workflow
+## Local Mac — development and analysis
 
-Choose the stage before choosing the machine. From the repository root, these commands show the independent training-run entry points:
-
-```sh
-uv run python experiments/exp022/compute.py --help
-uv run python experiments/exp022/analyse.py --help
-uv run python experiments/exp022/present.py --help
-```
-
-The execution pattern is:
-
-```sh
-uv run python experiments/exp022/compute.py
-uv run python experiments/exp022/analyse.py --source <compute-run-id>
-uv run python experiments/exp022/present.py --source <analysis-run-id>
-```
-
-Replace each placeholder with the exact completed run ID printed by the preceding stage. The first command can perform substantial work: inspect the recipe and backend plan before running it. Analyse and present do not launch upstream work or automatically publish. Do not assume a command is a dry run merely because it lacks `--live`; that gate belongs to specific remote dispatch interfaces.
-
-Each completed stage produces an immutable v3 run with `run.json` and `export/`. Hidden temporary directories are incomplete, not usable evidence. Preview selects a present run without changing retained evidence; materialization and deployment are separate operations. See the versioned [Experiment Runner Guide](https://github.com/eoinmurray/pinglab/blob/main/md/notes/experiment-rules.md) and [Pingstore Rules](https://github.com/eoinmurray/pinglab/blob/main/md/notes/pingstore-rules.md).
-
-Every new compute run must save its complete compiled `snnlab.lang` network
-bundles and use `snnlab.sim.SnapshotSpec` for start/end simulation parameter
-snapshots, retaining both in the Pingstore scientific payload. Follow the
-[Experiment Rules](/notes/experiment-rules#mandatory-network-bundles-and-simulation-snapshots)
-for coverage, paths and validation. Use library serialization rather than
-experiment-local network configuration and weight-saving code. Snapshots do
-not replace resumable checkpoints.
-SNNLab bundle diagrams must also be saved and included in the experiment report;
-follow the [bundle diagram rule](/notes/experiment-rules#mandatory-snnlab-bundle-diagrams-in-reports).
-The retained external backends in exp080/081/117/125 use local snapshot writers
-as specified in the Experiment Rules.
-
-## Local Mac
-
-**When to use.** Use the Mac for editing, Demolab preview, plotting, analysis of collected results, dry-run dispatch plans, and plumbing-scale tests. It is the shortest feedback loop. It is not a CUDA training machine.
-
-**Provider overview.** This is the local development workstation. It has no scheduler and no marginal compute charge. The working checkout is `/Users/eoin/pinglab`.
-
-**How to use.** Local access requires the macOS user session rather than a separate infrastructure login.
+Use for editing, small tests, plotting and analysis. Not for CUDA training.
 
 ```sh
 cd /Users/eoin/pinglab
 uv sync --dev
-
-# Inspect a stage before deciding whether to execute it.
 uv run python experiments/exp022/compute.py --help
-
-# Preview the Demolab collection.
-uv run demolab dev
 ```
 
-Keep cloud commands in dry-run mode until spending has been explicitly authorised.
+## Hetzner — persistent control host
 
-## Hetzner control plane
-
-**When to use.** Use Hetzner for the persistent Codex session, orchestration, monitoring, result collection, and the public development preview. Do not use its small CPU and memory allocation for substantial numerical experiments.
-
-**Provider overview.** Hetzner supplies the always-on Linux host named `pinglab-codex`. Caddy terminates HTTPS for `pl-hetzner.eoinmurray.info` and proxies to the Demolab development server on port `3000`. The server is a control plane, not a GPU worker.
-
-**How to use.** The Mac alias `hetzner` authenticates as `eoin` with the dedicated Ed25519 identity configured in `~/.ssh/config`. The private key remains on the Mac. The Hetzner host has its own dedicated key for Olorin.
+`pinglab-codex` is our always-on host for persistent sessions, orchestration and monitoring, not heavy numerical work.
 
 ```sh
 ssh hetzner
-
-# Inspect the persistent session and preview service.
 tmux list-sessions
-# Attach only after choosing the session from the list.
 tmux attach -t <session-name>
-systemctl --user status demolab-dev.service
 
-# Reach Olorin from the control plane.
-ssh olorin 'hostname; whoami'
+# Olorin is also accessible from Hetzner.
+ssh olorin
 ```
 
-## Olorin
+## Olorin — shared, large-memory GPUs
 
-**When to use.** Use Olorin for large single-GPU or multi-GPU work when a GPU is visibly idle and the Division F fair-use policy permits the allocation. Its large VRAM makes it the first choice for workloads that do not fit on consumer GPUs.
-
-**Provider overview.** Olorin is a shared Division F machine with four NVIDIA RTX PRO 6000 Blackwell Server Edition GPUs, each with approximately 96 GB of VRAM. It currently has no Slurm scheduler. Availability is therefore manual and may change between inspection and launch.
-
-**How to use.** The Mac alias `olorin` connects through `gate.eng.cam.ac.uk` using `~/.ssh/olorin_codex`. Hetzner has a separate dedicated key. Passwords are not stored. Check utilization immediately before every launch, select only an idle GPU, and keep heavy files under `/scratch/em586`.
+Shared machine with four RTX PRO 6000 Blackwell GPUs, approximately 96 GB VRAM each. No Slurm: check availability and select an idle GPU explicitly. Keep heavy files under `/scratch/em586`.
 
 ```sh
 ssh olorin
 nvidia-smi
-
-# Inspect utilization without opening an interactive shell.
-ssh olorin \
-  'nvidia-smi --query-gpu=index,utilization.gpu,memory.used,memory.total \
-  --format=csv,noheader'
-
-# On Olorin, after confirming that GPU N is idle:
 cd /scratch/em586/pinglab
+
+# Replace N with an idle GPU index.
 CUDA_VISIBLE_DEVICES=N uv run python experiments/exp022/compute.py
 ```
 
-Never launch on all four GPUs merely because the machine accepts the command. Shared infrastructure without a scheduler requires more restraint, not less.
+## CSD3 / Wilkes3 — queued A100 jobs
 
-## CSD3 / Dawn / Zenith resource etiquette
+We often refer to CSD3 / Wilkes3 as “hpc”. This is shorthand for this compute option, not a separate provider or SSH alias.
 
-1. Login nodes are shared. Never run production workloads there.
-   Parallel tests must last only seconds and use no more than four
-   CPUs and 20 GB memory per run. Do not multiply concurrent tests
-   to bypass these limits.
-2. Run substantial tests, analysis, model validation, diagnostic
-   generation and bulk checksum scans through Slurm, using an
-   interactive allocation when appropriate.
-3. Avoid excessive process spawning and unnecessary shared-filesystem
-   IO, including repeated recursive scans or log polling.
-4. Keep recurring Slurm requests at least 120 seconds apart.
-   This applies within an agent turn as well as between scheduled
-   runs. Coordinate agents and monitors so they do not independently
-   poll the same jobs.
-5. Batch status queries for all relevant job IDs into one request.
-   Reuse the latest result rather than requerying for each job.
-6. Submit large sets of similar jobs as job arrays, never as loops
-   of individual sbatch calls. Pace automated submission sequences
-   at least 120 seconds apart.
-7. Apply these rules to scripts and automation we create or modify.
-   A monitor's schedule alone does not enforce request spacing.
+Connect with `ssh csd3`; authentication requires the CSD3 login token. Submit prepared Slurm scripts using the appropriate service level:
 
-## CSD3 Wilkes3, Service Level 2
-
-**When to use.** Use SL2 for planned production runs where queued execution is acceptable. It is the scheduled backend for planned A100 jobs. Confirm the allocation balance, account permission, and queue before committing work.
-
-**Provider overview.** Wilkes3 is Cambridge’s Slurm-managed A100 cluster. The SL2 GPU account is `OLEARY-SL2-GPU`; the Ampere partition uses QOS `gpu1`. Account balance and scheduler estimates are live administrative state and must be queried at submission time.
-
-**How to use.** Connect as Cambridge user `em586`. SSH requires the Raven/UIS password plus the six-digit token labelled `CSD3: SSH Login`. The `csd3` alias uses `ControlMaster` so subsequent commands reuse the authenticated connection. An SSH key can replace the password factor, but mandatory TOTP remains unless Research Computing Services arranges an automation-specific solution.
+| Service | Account | Partition | QOS | Use |
+|---|---|---|---|---|
+| SL2 | `OLEARY-SL2-GPU` | `ampere` | `gpu1` | Planned production |
+| SL3 | `OLEARY-SL3-GPU` | `ampere` | `gpu2` | Lower-priority work that can wait |
 
 ```sh
-# Establish or reuse the multiplexed connection.
 ssh csd3
+mybalance
 
-# Inspect purchased hours and account associations.
-ssh csd3 mybalance
-ssh csd3 'sacctmgr show assoc user="$USER" format=Account,Partition,QOS'
+# Submit using one of these:
+sbatch --account=OLEARY-SL2-GPU --partition=ampere --qos=gpu1 --gres=gpu:1 job.slurm
+sbatch --account=OLEARY-SL3-GPU --partition=ampere --qos=gpu2 --gres=gpu:1 job.slurm
 
-# On CSD3, submit a prepared job script with a reserved run identity.
-sbatch \
-  --account=OLEARY-SL2-GPU \
-  --partition=ampere \
-  --qos=gpu1 \
-  --gres=gpu:1 \
-  job.slurm
-
-# On CSD3, ask Slurm for an estimate without submitting.
-sbatch --test-only \
-  --account=OLEARY-SL2-GPU --qos=gpu1 job.slurm
-```
-
-Command-line `sbatch` options override matching `#SBATCH` lines, so one job script can target either service level.
-
-## CSD3 Wilkes3, Service Level 3
-
-**When to use.** Use SL3 for non-urgent work that can wait for lower-priority capacity, for overflow, or for jobs submitted well before their results are needed. It is a poor interactive backend.
-
-**Provider overview.** SL3 uses the same recorded Wilkes3 A100 hardware and Ampere partition with a lower-priority service level; no queue-time guarantee is implied. The GPU account is `OLEARY-SL3-GPU` and its QOS is `gpu2`.
-
-**How to use.** Authentication is identical to SL2. Toggle the account and QOS at submission time:
-
-```sh
-sbatch \
-  --account=OLEARY-SL3-GPU \
-  --partition=ampere \
-  --qos=gpu2 \
-  --gres=gpu:1 \
-  job.slurm
-
-sbatch --test-only \
-  --account=OLEARY-SL3-GPU --qos=gpu2 job.slurm
-
+# Monitor, inspect and cancel.
 squeue -u "$USER"
+scontrol show job <job-id>
+scancel <job-id>
 ```
 
-The names are easy to invert: SL2 maps to `gpu1`, while SL3 maps to `gpu2`.
+Run substantial work inside Slurm allocations, never on login nodes. Batch status checks and leave at least 120 seconds between recurring Slurm requests; use job arrays for large batches.
 
-## Modal
+## Modal — managed cloud execution
 
-**When to use.** Use Modal when managed function execution and reduced infrastructure management fit the workload; compare current cost and startup behaviour rather than assuming a fixed premium or guaranteed startup time. Only runners with an implemented Modal backend can use it.
-
-**Provider overview.** Modal runs containerized functions and bills GPU, CPU, and memory by execution time. It provides managed scheduling rather than a persistent SSH host, so backend support must be confirmed in the selected runner.
-
-**How to use.** `modal setup` opens Modal’s authentication flow and stores a local token. Never commit token values. For a runner implementing the project remote-dispatch contract, `--live` gates paid work. The low-level SNNSIM tool’s `--modal` is a different interface; do not assume it shares that gate.
+Use the repository-wide [Modal dispatcher](../../tools/modal_dispatcher/README.md)
+for experiment compute stages. It discovers `experiments/expXXX/compute.py` and
+supplies a reserved Pingstore run ID; there is no per-experiment allowlist.
+The experiment must implement the standard `--run-id` contract and have compatible
+Linux dependencies and explicit source inputs. Choose resources for its recipe.
 
 ```sh
-# One-time interactive authentication.
-uv run modal setup
-
-# Replace <runner> with a runner confirmed to support Modal.
-uv run python experiments/<runner>.py --help
-
-# For a confirmed compatible runner: plan, then authorised dispatch.
-uv run python experiments/<runner>.py --modal
-uv run python experiments/<runner>.py --modal --live
+uvx --from 'modal>=1.1,<2' modal setup
+uv run --no-project --python 3.12 --with 'modal>=1.1,<2' --with PyYAML \
+  python -m tools.modal_dispatcher dispatch --experiment exp141 --gpu H100
+uv run --no-project --python 3.12 --with 'modal>=1.1,<2' --with PyYAML \
+  python -m tools.modal_dispatcher check --run-id COMPUTE_ID --collect
 ```
 
-Modal is not a drop-in flag for every experiment. If a runner does not expose `--modal`, adding a backend is implementation work rather than a command-line choice.
+`dispatch` starts paid work using detached asynchronous invocation. Arguments
+after `--` go to the experiment's own compute CLI. Declare source runs with
+`--input ROLE=RUN_ID`; inputs and their ancestry are validated and transferred.
+Checks and collection do not start workers. Save the printed run/call IDs and
+investigate ambiguous submissions before dispatching again. Analysis and
+presentation remain separate stages.
 
-## Completion checklist
+## Basics
 
-1.  **Before launch:** inspect the recipe, supported backend flags, resource request, output destination, and reserved run identity. Confirm shared-machine permission or paid-work approval.
-
-2.  **During execution:** retain scheduler or job IDs, inspect logs and progress, and distinguish retries from a new scientific condition.
-
-3.  **After execution:** require the stage’s completed run and validation, not just a successful scheduler exit or a directory containing files. Keep partial outputs hidden.
-
-4.  **Before downstream work:** pass explicit validated v3 inputs. A new measurement needs analyse; a new rendering needs present. Neither should rerun compute implicitly.
-
-5.  **Before leaving paid infrastructure:** verify collection and termination for this dispatch’s resources. Backup and recovery are described in [Pingstore Rules](/notes/pingstore-rules#recovery-and-historical-archives).
-
-## Decision order
-
-Use the smallest adequate option. Develop locally; orchestrate from Hetzner; use an available Olorin GPU when shared-machine policy permits; submit planned production to Wilkes3 SL2; choose Modal when managed execution fits the task and current cost; and leave SL3 for work that can wait. See [Pingstore Rules](/notes/pingstore-rules#recovery-and-historical-archives).
+- Inspect the experiment and resource request before launching; confirm approval for paid work.
+- Keep job IDs and logs. Collect and validate completed outputs before cleaning up or stopping resources.
+- Experiment stages and scientific outputs follow [Experiment Rules](/notes/experiment-rules); storage and recovery follow [Pingstore Rules](/notes/pingstore-rules).
+- Keep credentials out of the repository.

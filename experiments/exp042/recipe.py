@@ -2,7 +2,6 @@
 
 import re
 
-from experiments.helpers.datasets import MNIST_REDUCED_EVAL_SAMPLES
 
 SLUG = "exp042"
 TRAINING_RUN = "TR-02"
@@ -19,7 +18,8 @@ REFRACTORY_I_MS = 0.6
 REFRACTORY_POLICY = "exact"
 JITTER_BOUNDARY_POLICY = "reflect_in_range/v1"
 JITTER_COLLISION_POLICY = "nearest_free_bounded_alternating/v1"
-EVAL_MAX_SAMPLES = MNIST_REDUCED_EVAL_SAMPLES
+# Evaluate 10% of the untouched 10,000-image official MNIST test partition.
+EVAL_MAX_SAMPLES = 1_000
 SMOKE_MAX_SAMPLES = 100
 RASTER_SAMPLE_IDX = 0
 RASTER_N_E_PLOT = 200
@@ -177,7 +177,6 @@ CHECKPOINT_PARAMETERS = {
 
 def author_network(cfg, training):
     """Own the frozen circuit, readout and observables for each replay mode."""
-    from experiments.helpers.ping import build_ping, compile_legacy_coba
     from snnlab import lang
 
     dt, b = training["dt"], cfg["biophysics"]
@@ -201,19 +200,41 @@ def author_network(cfg, training):
             refractory=cfg[f"refractory_{label.lower()}_ms"] * lang.ms,
             voltage_grad_dampen=training["v_grad_dampen"],
         )
-    circuit = build_ping(
-        net,
-        source=drive,
-        n_e=training["n_hidden"],
-        n_i=training["n_inh"],
-        neuron_e=neurons["E"],
-        neuron_i=neurons["I"],
-        ampa=lang.AMPA(tau=training["tau_ampa_ms"] * lang.ms),
-        gaba=lang.GABA(tau=training["tau_gaba_ms"] * lang.ms),
-        input_weight=lang.Constant(0.0),
-        ei_weight=lang.Constant(0.0),
-        ie_weight=lang.Constant(0.0),
-        recurrent_delay=dt * lang.ms,
+    # Reciprocal E/I loop with excitatory drive to E only.
+    ping_ampa = lang.AMPA(tau=training["tau_ampa_ms"] * lang.ms)
+    ping_gaba = lang.GABA(tau=training["tau_gaba_ms"] * lang.ms)
+    ping_recurrent_delay = dt * lang.ms
+    ping_e = net.population("E", size=training["n_hidden"], neuron=neurons["E"])
+    ping_i = net.population("I", size=training["n_inh"], neuron=neurons["I"])
+    net.connect(
+        drive,
+        ping_e.excitatory,
+        name="input_to_E",
+        synapse=ping_ampa,
+        weight=lang.Constant(0.0),
+        constraint=lang.NonNegative(),
+        initialization_scaling="direct",
+    )
+    net.connect(
+        ping_e.spikes,
+        ping_i.excitatory,
+        name="E_to_I",
+        synapse=ping_ampa,
+        weight=lang.Constant(0.0),
+        constraint=lang.NonNegative(),
+        connection="recurrent",
+        delay=ping_recurrent_delay,
+        initialization_scaling="direct",
+    )
+    net.connect(
+        ping_i.spikes,
+        ping_e.inhibitory,
+        name="I_to_E",
+        synapse=ping_gaba,
+        weight=lang.Constant(0.0),
+        constraint=lang.NonNegative(),
+        connection="recurrent",
+        delay=ping_recurrent_delay,
         initialization_scaling="direct",
     )
     output = net.population(
@@ -228,7 +249,7 @@ def author_network(cfg, training):
         ),
     )
     net.connect(
-        circuit.e.spikes,
+        ping_e.spikes,
         output.excitatory,
         name="readout_projection",
         synapse=lang.LeakyIntegrator(tau=b["readout_tau_ms"] * lang.ms),
@@ -245,7 +266,7 @@ def author_network(cfg, training):
             name="readout_mean",
         ),
     )
-    for label, population in (("e", circuit.e), ("i", circuit.i)):
+    for label, population in (("e", ping_e), ("i", ping_i)):
         net.output(
             f"spk_{label}_count",
             lang.reduce(
@@ -256,7 +277,7 @@ def author_network(cfg, training):
             ),
         )
         net.expose(population.spikes, name=f"spk_{label}")
-    return compile_legacy_coba(net)
+    return lang.compile(net, target="tools/snnsim", refractory_timing="legacy_coba")
 
 
 def baseline_recording():

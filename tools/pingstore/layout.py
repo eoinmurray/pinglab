@@ -137,7 +137,9 @@ def normalize_export_layout(directory: Path, record: dict) -> dict[str, str]:
     files = [path for path in sorted(export.rglob("*")) if path.is_file()]
     from .library_artifacts import native_artifact_files, validate_native_artifacts
 
-    retained_native = record.get("scientific_artifacts", {}).get("native_paths", {})
+    artifacts = record.get("scientific_artifacts", {})
+    retained_native = artifacts.get("native_paths", {})
+    snapshot_stages = artifacts.get("snapshot_stages")
     native = native_artifact_files(export) | set(retained_native.values())
     mapping = canonical_export_mapping(
         [path.relative_to(export) for path in files], export_root=export_root
@@ -167,8 +169,12 @@ def normalize_export_layout(directory: Path, record: dict) -> dict[str, str]:
             revised = _rewrite_paths(value, mapping)
             if revised != value:
                 write_json_atomic(target, revised)
-        if native:
-            validate_native_artifacts(temporary, native_mapping)
+        if native or snapshot_stages:
+            validate_native_artifacts(
+                temporary,
+                native_mapping,
+                snapshot_stages=snapshot_stages,
+            )
         shutil.rmtree(export)
         os.replace(temporary, export)
     finally:

@@ -1,0 +1,16 @@
+import RunFigure from './EvidenceFigure.astro';
+import ParameterTable from './ParameterTable.astro';
+import { snapshotEvidence } from './evidence';
+
+## Network diagrams
+
+<RunFigure report="exp124" experiment="exp124" allowUnavailable number={5} id="fig-networks" columns={1} panels={[
+  { file: 'coba_network.svg', alt: 'COBA circuit: 700 input channels, two 128-neuron excitatory layers and a 20-unit non-spiking readout.' },
+  { file: 'ping_network.svg', alt: 'PING circuit: the same feedforward path with reciprocal 32-neuron inhibitory populations in both hidden layers.' },
+]}>
+  **Executed network circuits.** (A) COBA. (B) PING. Boxes identify populations and their sizes; arrows show signal direction, with inhibitory connections in red. The historical diagrams came from retained compiled graph and training definitions. New runs save one circuit per topology through SNNLab's [Bundle.visualise](https://snnlab.eoinmurray.info/api/lang/compilation/) and presentation reuses it. Historical circuit views omit measurement reductions; Equation 1 defines the score.
+</RunFigure>
+
+## Parameters
+
+<ParameterTable evidence={await snapshotEvidence()} />

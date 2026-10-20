@@ -1,4 +1,7 @@
-"""Render measured Arnold-tongue maps without simulation or estimator changes."""
+"""Render the map and coupling-onset figures used by the article.
+
+Require explicit map and onset analysis IDs. Save SVG figures, retained circuit
+diagrams and measured numerical summaries in one Pingstore presentation run."""
 
 import argparse
 import shutil
@@ -9,8 +12,9 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
 import matplotlib.pyplot as plt
 import numpy as np
-from experiments.exp133 import evidence, inputs, recipe, sender_receiver
-from experiments.helpers import theme
+from experiments import theme
+from experiments.exp133 import recipe
+from experiments.exp133.custom import evidence, inputs, sender_receiver
 from pingstore.contracts import PingstoreError, load_json, write_json_atomic
 
 
@@ -151,7 +155,7 @@ def sender_receiver_sources(identity):
     return analysis, compute, result
 
 
-def present(identity, *, run_id=None, sender_receiver_analysis=None):
+def present(identity, *, sender_receiver_analysis, run_id=None):
     analysis = inputs.source(REPO, identity, "analyse")
     evidence.configuration(analysis)
     if set(analysis.record["inputs"]) != {"compute"}:
@@ -168,44 +172,37 @@ def present(identity, *, run_id=None, sender_receiver_analysis=None):
     with np.load(analysis.export / "metrics.npz", allow_pickle=False) as raw:
         data = dict(raw)
     sources = {"analysis": analysis, "compute": compute}
-    sr = None
-    if sender_receiver_analysis is not None:
-        sr_analysis, sr_compute, sr_result = sender_receiver_sources(
-            sender_receiver_analysis
-        )
-        sources.update(
-            sender_receiver_analysis=sr_analysis, sender_receiver_compute=sr_compute
-        )
-        result["sender_receiver"] = sr_result
-        with np.load(
-            sr_analysis.export / "relative-phase.npz", allow_pickle=False
-        ) as raw:
-            phase = dict(raw)
-        sr = (
-            sender_receiver.recording(sr_compute),
-            phase,
-            sr_result["raster_frequencies"],
-        )
+    sr_analysis, sr_compute, sr_result = sender_receiver_sources(
+        sender_receiver_analysis
+    )
+    sources.update(
+        sender_receiver_analysis=sr_analysis, sender_receiver_compute=sr_compute
+    )
+    result["sender_receiver"] = sr_result
+    with np.load(sr_analysis.export / "relative-phase.npz", allow_pickle=False) as raw:
+        phase = dict(raw)
+    sr = (
+        sender_receiver.recording(sr_compute),
+        phase,
+        sr_result["raster_frequencies"],
+    )
     with inputs.execution(
         REPO,
         "present",
         sources=sources,
         run_id=run_id,
     ) as run:
-        plot_map(data, run.export / "arnold-tongue.png")
         plot_map(data, run.export / "arnold-tongue.svg")
         mapping = compute.record["scientific_artifacts"]["native_paths"]
         native = "paired-ping.bundle/reports/circuit.svg"
         shutil.copyfile(
             compute.export / mapping[native], run.export / "network-circuit.svg"
         )
-        if sr is not None:
-            for extension in ("png", "svg"):
-                plot_sender_receiver(*sr, run.export / f"sender-receiver.{extension}")
-            shutil.copyfile(
-                sr_compute.file("sender-receiver.bundle", "reports", "circuit.svg"),
-                run.export / "sender-receiver-circuit.svg",
-            )
+        plot_sender_receiver(*sr, run.export / "sender-receiver.svg")
+        shutil.copyfile(
+            sr_compute.file("sender-receiver.bundle", "reports", "circuit.svg"),
+            run.export / "sender-receiver-circuit.svg",
+        )
         write_json_atomic(run.export / "numbers.json", result)
     return run.run_id
 
@@ -215,7 +212,7 @@ def main():
     parser.add_argument("--source", required=True)
     parser.add_argument("--run-id")
     parser.add_argument(
-        "--sender-receiver", help="Explicit sender–receiver analyse run"
+        "--sender-receiver", required=True, help="Explicit sender–receiver analyse run"
     )
     args = parser.parse_args()
     present(

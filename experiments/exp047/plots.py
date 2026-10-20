@@ -6,8 +6,8 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-from experiments.helpers import theme
-from experiments.helpers.figsave import save_figure
+from experiments import theme
+from experiments.exp047.custom.figures import save_figure
 
 
 def plot_controls(summary: dict, cfg: dict, out_path: Path) -> None:

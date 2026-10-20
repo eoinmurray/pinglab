@@ -4,8 +4,8 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
-from experiments.helpers import theme
-from experiments.helpers.figsave import save_figure
+from experiments import theme
+from experiments.exp037.custom.figures import save_figure
 from matplotlib.patches import Patch
 
 from .recipe import EI_RASTER_N_E_PLOT, EI_RASTER_N_I_PLOT, MODELS

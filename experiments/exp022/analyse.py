@@ -17,7 +17,14 @@ from experiments.exp022.checkpoints import checkpoint_provenance, epoch_metrics
 from pingstore.contracts import PingstoreError, load_json, write_json_atomic
 from pingstore.stages import source_run, stage_run
 
-from helpers.fmt import format_duration
+
+def format_duration(seconds: float) -> str:
+    s = int(round(seconds))
+    if s < 60:
+        return f"{s}s"
+    if s < 3600:
+        return f"{s // 60}m {s % 60:02d}s"
+    return f"{s // 3600}h {(s % 3600) // 60:02d}m"
 
 
 def _gamma_psd(spk_i, dt):
@@ -49,7 +56,6 @@ def _gamma_psd(spk_i, dt):
     fpk = float(fr[band][np.argmax(P[band])])
     prom = P[band].max() / (np.median(P[band]) + 1e-9)
     return fr, P, (fpk if prom > 2.5 else None)
-
 
 
 def measure_snapshot(source: Path, destination: Path) -> None:

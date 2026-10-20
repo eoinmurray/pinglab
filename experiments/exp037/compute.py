@@ -9,9 +9,9 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
 import torch
 from experiments.exp037 import evidence, inputs, recipe
+from experiments.exp037.custom.inference import run_inference
+from experiments.exp037.custom.sharding import shard_identity
 from experiments.exp037.simulation import perturb_forward
-from experiments.helpers.checkpoint_inference import run_inference, shard_identity
-from experiments.helpers.hpc import concurrent_compute
 from pingstore.contracts import (
     PingstoreError,
     file_sha256,
@@ -20,6 +20,7 @@ from pingstore.contracts import (
 )
 from pingstore.stages import _capture_code, reserve_stage
 from snnlab.sim import resolve_device
+from tools.hpc import concurrent_compute
 
 
 def _run_jobs(bank, directory, jobs, contract):
