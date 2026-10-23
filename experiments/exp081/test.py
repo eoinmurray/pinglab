@@ -1,4 +1,8 @@
-"""Focused unit tests for the standalone EXP081 analytical runner."""
+"""Focused unit tests for the standalone EXP081 analytical runner.
+
+Run with `uv run pytest experiments/exp081/test.py`. Fixtures use temporary stores;
+bounded native checks validate numerical behavior without production runs.
+"""
 
 from __future__ import annotations
 
@@ -85,8 +89,13 @@ def test_independent_stages_pin_v3_and_preserve_measurements(stage_repo, monkeyp
     assert compute_record["schema"] == RUN_SCHEMA
     assert compute_record["inputs"] == {}
     before = payload_digest(upstream)
-    artifact_units = {Path(p).parts[0] for p in compute_record["scientific_artifacts"]["native_paths"].values()}
-    assert sorted(p.name for p in (upstream / "export").iterdir() if p.name not in artifact_units) == [
+    artifact_units = {
+        Path(p).parts[0]
+        for p in compute_record["scientific_artifacts"]["native_paths"].values()
+    }
+    assert sorted(
+        p.name for p in (upstream / "export").iterdir() if p.name not in artifact_units
+    ) == [
         "distribution_samples.npz",
         "feature_samples.npz",
     ]
@@ -223,15 +232,3 @@ def test_stage_cli_help_and_explicit_sources(tmp_path, name):
         )
         assert result.returncode != 0 and "--source" in result.stderr
     assert not (tmp_path / ".pingstore").exists()
-
-
-def test_retired_entrypoints_fail_without_execution(tmp_path):
-    root = Path(__file__).resolve().parents[2]
-    result = subprocess.run(
-        [sys.executable, "-m", "experiments.exp081"],
-        cwd=root,
-        capture_output=True,
-        text=True,
-    )
-    assert result.returncode != 0
-    assert "requires independent stages" in result.stderr

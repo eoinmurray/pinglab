@@ -62,7 +62,9 @@ def main(argv: list[str] | None = None) -> int:
     )
     scope = prune.add_mutually_exclusive_group()
     scope.add_argument(
-        "--all", action="store_true", help="consider all experiments (the default)",
+        "--all",
+        action="store_true",
+        help="consider all experiments (the default)",
     )
     scope.add_argument(
         "--experiment",
@@ -85,7 +87,74 @@ def main(argv: list[str] | None = None) -> int:
     action.add_argument(
         "--confirm", metavar="PLAN_HASH", help="apply an unchanged dry-run plan"
     )
+    papers = commands.add_parser(
+        "backup-papers", help="archive the public PDF library and its catalog"
+    )
+    papers.add_argument("--source", type=Path, default=Path("papers"))
+    papers.add_argument("--destination", default=f"{remote}:{bucket}/papers")
+    paper_action = papers.add_mutually_exclusive_group(required=True)
+    paper_action.add_argument("--dry-run", action="store_true")
+    paper_action.add_argument("--confirm", metavar="PLAN_HASH")
+    evict = commands.add_parser(
+        "evict", help="remove verified local backup copies, including report-used runs"
+    )
+    evict.add_argument("--root", type=Path, default=Path("."))
+    evict.add_argument("--destination", default=f"{remote}:{bucket}/pingstore/runs")
+    evict.add_argument("--asset-base", default="https://assets.eoinmurray.info")
+    evict_scope = evict.add_mutually_exclusive_group(required=True)
+    evict_scope.add_argument("--all", action="store_true")
+    evict_scope.add_argument("--run", action="append", dest="run_ids")
+    evict_action = evict.add_mutually_exclusive_group(required=True)
+    evict_action.add_argument("--dry-run", action="store_true")
+    evict_action.add_argument("--confirm", metavar="PLAN_HASH")
     args = parser.parse_args(argv)
+    if args.command == "evict":
+        import subprocess
+
+        from .evict import apply_plan as apply_eviction
+        from .evict import build_plan as plan_eviction
+        from .evict import render_plan as render_eviction
+
+        try:
+            if args.dry_run:
+                print(
+                    render_eviction(
+                        plan_eviction(
+                            args.root, args.destination, args.run_ids, args.asset_base
+                        )
+                    )
+                )
+            else:
+                result = apply_eviction(
+                    args.root,
+                    args.destination,
+                    args.confirm,
+                    args.run_ids,
+                    args.asset_base,
+                )
+                print(
+                    f"Evicted {len(result['evict'])} local copies; R2 backups retained."
+                )
+            return 0
+        except (OSError, ValueError, subprocess.CalledProcessError) as exc:
+            print(f"pingstore evict: {exc}", file=sys.stderr)
+            return 1
+    if args.command == "backup-papers":
+        import subprocess
+
+        from .papers import apply_plan as apply_papers
+        from .papers import build_plan as plan_papers
+
+        try:
+            if args.dry_run:
+                print(json.dumps(plan_papers(args.source, args.destination), indent=2))
+            else:
+                result = apply_papers(args.source, args.destination, args.confirm)
+                print(f"Archived and verified {len(result['files'])} PDFs.")
+            return 0
+        except (OSError, ValueError, subprocess.CalledProcessError) as exc:
+            print(f"pingstore backup-papers: {exc}", file=sys.stderr)
+            return 1
     if args.command == "backup":
         from .backup import backup_runs
 
@@ -94,7 +163,9 @@ def main(argv: list[str] | None = None) -> int:
             backup.error("source must be an existing Pingstore runs directory")
         destination = args.destination.rstrip("/")
         if ":" not in destination or not destination.endswith("/pingstore/runs"):
-            backup.error("destination must be an rclone remote ending in /pingstore/runs")
+            backup.error(
+                "destination must be an rclone remote ending in /pingstore/runs"
+            )
         return backup_runs(
             source, destination, dry_run=args.dry_run, confirm=args.confirm
         )

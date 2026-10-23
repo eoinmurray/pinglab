@@ -1,0 +1,86 @@
+import RunFigure from '../../../site/src/components/RunFigure.astro';
+import Table from '../../../site/src/components/Table.astro';
+import { reportSnapshots, reportData } from '../../../site/src/lib/report-data';
+
+export const nativePresentation = await reportData('exp023', { experiment: 'exp023', allowUnavailable: true });
+export const nativeCircuits = nativePresentation?.circuit_files ?? [];
+
+export const nativeColumns = ["Loop off", "Loop on"];
+export const nativeEvidence = await reportSnapshots('exp023', { snapshots: {"Loop off": "scope/coba/simulation/start/snapshot.json", "Loop on": "scope/ping/simulation/start/snapshot.json"}, allowUnavailable: true });
+export const nativeValue = value => {
+  if (value === undefined || value === null) return 'Unavailable';
+  if (Array.isArray(value)) return value.map(nativeValue).join(' / ');
+  if (typeof value === 'object') return value.value === undefined ? JSON.stringify(value) : `${nativeValue(value.value)} ${value.unit ?? ''}`.trim();
+  return String(value);
+};
+export const nativePopulation = (name, id) => nativeEvidence?.snapshots[name]?.network?.populations?.find(row => row.id === id);
+export const nativeProjection = (name, id) => nativeEvidence?.snapshots[name]?.network?.projections?.find(row => row.id === id);
+export const nativeRow = (label, select) => [label, ...nativeColumns.map(name => nativeValue(select(name)))];
+export const nativePair = (name, key) => ['E', 'I'].map(id => nativeEvidence?.snapshots[name] && !nativePopulation(name, id) ? 'Not applicable' : nativePopulation(name, id)?.neuron?.[key]);
+export const nativeConfig = nativeEvidence?.configuration;
+export const recordedSetting = (...paths) => {
+  for (const path of paths) {
+    const value = path.split('.').reduce((object, key) => object?.[key], nativeConfig);
+    if (value !== undefined) return value;
+  }
+  return undefined;
+};
+export const nativeGroups = [
+  { label: 'Network', rows: [
+    nativeRow('E / I neurons', name => ['E', 'I'].map(id => nativePopulation(name, id)?.size ?? (nativeEvidence?.snapshots[name] ? 'Absent' : undefined))),
+    nativeRow('Output neurons', name => nativePopulation(name, 'readout')?.size ?? (nativeEvidence?.snapshots[name] ? 'Absent' : undefined)),
+  ] },
+  { label: 'Neurons', rows: [
+    nativeRow('Capacitance, E / I (nF)', name => nativePair(name, 'capacitance_nf')),
+    nativeRow('Leak conductance, E / I (µS)', name => nativePair(name, 'leak_us')),
+    nativeRow('Resting voltage, E / I (mV)', name => nativePair(name, 'resting_mv')),
+    nativeRow('Threshold, E / I (mV)', name => nativePair(name, 'threshold_mv')),
+    nativeRow('Reset, E / I (mV)', name => nativePair(name, 'reset_mv')),
+    nativeRow('Refractory period, E / I', name => nativePair(name, 'refractory')),
+  ] },
+  { label: 'Synapses and weights', rows: [
+    ...['input_to_E', 'E_to_I', 'I_to_E', 'readout_projection'].map(id => nativeRow(`${id.replaceAll('_to_', '→').replace('input', 'Input').replace('readout_projection', 'E→Output')} synapse`, name => [nativeProjection(name, id)?.synapse?.kind, nativeProjection(name, id)?.synapse?.tau])),
+    ...['input_to_E', 'E_to_I', 'I_to_E', 'readout_projection'].map(id => nativeRow(`${id.replaceAll('_to_', '→').replace('input', 'Input').replace('readout_projection', 'E→Output')} initializer parent mean / SD`, name => { const spec = nativeEvidence?.snapshots[name]?.network?.parameters?.find(row => row.id === `${id}.weight`)?.initializer; return [spec?.mean, spec?.std]; })),
+    nativeRow('Native parameter stage', name => nativeEvidence?.snapshots[name]?.stage),
+  ] },
+  { label: 'Input and simulation', rows: [
+    nativeRow('Timestep (ms)', name => nativeEvidence?.snapshots[name]?.execution?.timestep_ms),
+    nativeRow('Duration (ms)', () => recordedSetting('t_ms', 'sim_ms', 'trial_duration.nominal_ms')),
+    nativeRow('Evaluation samples', () => recordedSetting('evaluation_samples', 'evaluation_samples_per_seed')),
+    nativeRow('Seeds', () => recordedSetting('seeds', 'seed')),
+    nativeRow('Input rate (Hz)', () => recordedSetting('input_rate_hz', 'input_rate')),
+    nativeRow('Post-burn exclusion (ms)', () => recordedSetting('burn_ms')),
+  ] },
+  { label: 'Readout and training', rows: [
+    nativeRow('Output neuron model', name => nativePopulation(name, 'readout')?.neuron?.kind),
+    nativeRow('Epochs', name => nativeEvidence?.snapshots[name]?.training?.epochs ?? nativeEvidence?.snapshots[name]?.request?.options?.epochs),
+    nativeRow('Checkpoint role', () => recordedSetting('checkpoint_policy.role')),
+    nativeRow('Checkpoint purpose', () => recordedSetting('checkpoint_policy.purpose')),
+  ] },
+  { label: 'Analysis', rows: [
+    nativeRow('Frequency search (Hz)', () => recordedSetting('f_gamma_band_hz')),
+    nativeRow('Count-bin width (ms)', () => recordedSetting('bin_ms')),
+    nativeRow('Autocorrelation maximum lag (ms)', () => recordedSetting('max_lag_ms')),
+  ] },
+];
+
+
+
+## Network diagrams
+
+{nativeCircuits.length ? nativeCircuits.map((file, index) => <RunFigure report="exp023" experiment="exp023" file={file} number={index + 1} alt="Circuit diagram from the compiled execution bundle.">Executed network architecture; parameters and seeds reuse this layout.</RunFigure>) : <p>The pinned historical computation does not retain a native compiled circuit figure for this appendix. Its architecture is described in Methods; a new execution is required to supply the executed bundle's diagram.</p>}
+
+<span id="parameters" />
+
+## Parameters
+
+Model values are read from original native snapshots through the pinned
+presentation's compute ancestry. Paired values are E / I. Initializer parent means and SDs describe the original
+weight distributions, in µS for conductance projections and dimensionless for
+the current-based readout; they are not measured trained-weight statistics. Missing snapshots
+or fields are unavailable; current recipes and historical copied tables are
+not substituted. The recorded configuration identifies the input, numerical
+and analysis choices of that computation; it does not establish a separate
+upstream training protocol.
+
+<Table headers={['Parameter', ...nativeColumns]} groups={nativeGroups} />

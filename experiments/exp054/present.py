@@ -1,4 +1,8 @@
-"""Draw saved analysis coordinates; never simulate, remeasure or publish."""
+"""Draw saved analysis coordinates; never simulate, remeasure or publish.
+
+Invoke this stage explicitly from the repository root. Scientific outputs
+and input provenance belong to its independently completed Pingstore run.
+"""
 
 import argparse
 import sys
@@ -7,7 +11,10 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
 
-from experiments.exp054 import evidence, inputs, plots, recipe
+from experiments.exp054.custom.network_artifacts import copy_circuits
+
+from experiments.exp054.custom import evidence, inputs, plots
+from experiments.exp054 import recipe
 from pingstore.contracts import PingstoreError, load_json, write_json_atomic
 
 
@@ -61,7 +68,11 @@ def present(identity, *, run_id=None):
         if not all((run.export / name).is_file() for name in recipe.FIGURES):
             raise PingstoreError("incomplete exp054 presentation")
         write_json_atomic(
-            run.export / "numbers.json", {**numbers, "run_id": run.run_id}
+            run.export / "numbers.json",
+            {
+                **({**numbers, "run_id": run.run_id}),
+                "circuit_files": copy_circuits(run),
+            },
         )
     return run.run_id
 

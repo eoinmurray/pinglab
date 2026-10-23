@@ -4,18 +4,18 @@ author: Eoin Murray
 collection: notes
 description: Where Pingstore runs live, basic CLI usage and safe handling of experiment outputs.
 created_at: "2026-09-11"
-updated_at: "2026-10-20T11:22:49Z"
+updated_at: "2026-10-23T13:54:47Z"
 ---
 
 # Pingstore Guide
 
-Pingstore holds Pinglab’s experiment runs. Code lives in Git; scientific outputs and execution records live in `.pingstore/`.
+Pingstore holds Pinglab’s experiment runs. Code lives in Git; scientific outputs and execution records live in local `.pingstore/` and verified R2 backups. The website can read completed backups without a local run copy.
 
 ## Locations
 
-- **Local runs:** `.pingstore/runs/`, relative to the repository root.
-- **External backup:** `r2:pinglab/pingstore/runs`, accessed through rclone.
-- **Implementation:** `tools/pingstore/`.
+1. **Local runs:** `.pingstore/runs/`, relative to the repository root.
+2. **External backup:** `r2:pinglab/pingstore/runs`, accessed through rclone.
+3. **Implementation:** `tools/pingstore/`.
 
 A completed run contains:
 
@@ -26,7 +26,7 @@ A completed run contains:
 └── export/        # scientific outputs
 ```
 
-An optional `.protected` file beside `run.json` retains the run and its input ancestry during local pruning. It is not backed up.
+An optional `.protected` file beside `run.json` retains the run and its input ancestry during local pruning and eviction. It is not backed up.
 
 ## Using the tool
 
@@ -37,21 +37,52 @@ uv run pingstore --help
 uv run pingstore discover --help
 uv run pingstore backup --help
 uv run pingstore prune --help
+uv run pingstore evict --help
+uv run pingstore backup-papers --help
 ```
 
-- **`discover`** validates completed runs and reports available presentation data.
-- **`backup`** appends completed runs to the external backup.
-- **`prune`** removes unused, unprotected local runs while retaining required ancestry.
+1. **`discover`** validates completed runs and reports available presentation data.
+2. **`backup`** appends completed runs to R2, verifies their bytes and publishes the public checksummed run catalog. Existing uncataloged backups are verified before catalog publication.
+3. **`prune`** removes unused, unprotected local runs while retaining required ancestry.
 
-Backup and prune use separate dry-run and confirmation invocations. Inspect the plan, then confirm using its complete hash and the same scope options. Neither operation runs automatically.
+Backup, prune, eviction and PDF backup use separate dry-run and confirmation invocations. Inspect the plan, then confirm using its complete hash and the same scope options. None runs automatically.
+
+4. **`evict`** removes verified local backup copies, including runs used by reports. It preserves R2 history, local protections, unfinished-work inputs and allocation counters. Confirmation downloads and compares selected remote files before removing local directories.
+5. **`backup-papers`** archives the public PDF library and publishes its discovery catalog for builds without local PDFs.
+
+To reclaim space without removing scientific history, prefer eviction:
+
+```sh
+uv run pingstore evict --all --dry-run
+uv run pingstore evict --all --confirm PLAN_HASH
+# Or limit the operation to explicit IDs, repeating --run when needed:
+uv run pingstore evict --run exp141-r001-compute --dry-run
+```
+
+The plan requires matching public and authenticated catalogs, matching local
+file checksums, and complete digest-matched remote ancestry. Runs absent from
+the catalog stay local. Existing-but-changed copies fail rather than being
+silently discarded. Do not manually remove run directories or allocation state.
+Eviction does not make Python compute stages read remote inputs; restore their
+explicit inputs and full ancestry into a recovery directory and validate them
+before scientific execution. Backup can use cataloged remote-only ancestors.
+
+The public website catalog is `https://assets.eoinmurray.info/pingstore/catalog.json`.
+It embeds completed records and per-file SHA-256 checksums. The server-side Astro
+reader checks downloaded files against those checksums. Localhost prefers local
+copies and otherwise reads R2; production builds read R2 exclusively. Explicit
+report pins retain priority over latest selection. Browser animation JSON needs
+public GET/HEAD CORS. Deployments use the normal GitHub Actions Pages workflow;
+new run backups appear in static report text only after another site build.
 
 Limit pruning to one experiment with `prune --experiment exp141 --dry-run`.
 Runs outside that scope and their full input ancestry are retained. Report usage
 is still checked across all experiments, but missing report pins outside the
 selected experiment do not block scoped pruning. Missing pins that declare or
 name the selected experiment still fail; pruning all experiments requires every
-explicit report pin to resolve. Existing runs and their input ancestry remain
-validated in either mode.
+explicit report pin to resolve. Every existing run’s payload remains validated in either mode. Retained runs
+must also have complete, digest-matched input ancestry; an unused run being
+pruned may reference a missing or changed historical input.
 
 Rclone credentials belong in its local configuration, never in the repository. Check available remotes with `rclone listremotes`.
 
@@ -61,5 +92,5 @@ Rclone credentials belong in its local configuration, never in the repository. C
 - Completed scientific outputs are immutable. Produce a new run rather than modifying `export/`. Record explicit metadata corrections in the run’s README history.
 - Select stage inputs explicitly by run ID and payload digest; never silently substitute the latest run.
 - Hidden temporary runs are unfinished work, not usable evidence. Historical v2/v3 runs require separately authorized recovery or migration.
-- Use `prune` rather than manually deleting completed runs. Protect results that must survive even when no current report uses them.
+- Use `evict` for verified backup copies and `prune` for unused local history rather than manually deleting completed runs. Protect results that must remain local.
 - Restore backups into a separate recovery directory and validate selected runs and their full input ancestry before use.

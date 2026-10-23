@@ -1,3 +1,67 @@
+import { reportSnapshots, reportData } from '../../../site/src/lib/report-data';
+
+export const nativePresentation = await reportData('exp022', { experiment: 'exp022', allowUnavailable: true });
+export const nativeCircuits = nativePresentation?.circuit_files ?? [];
+
+export const nativeColumns = ["COBA", "PING"];
+export const nativeEvidence = await reportSnapshots('exp022', { snapshots: {"COBA": "coba__canonical__seed42/training/end/snapshot.json", "PING": "ping__canonical__seed42/training/end/snapshot.json"}, allowUnavailable: true });
+export const nativeValue = value => {
+  if (value === undefined || value === null) return 'Unavailable';
+  if (Array.isArray(value)) return value.map(nativeValue).join(' / ');
+  if (typeof value === 'object') return value.value === undefined ? JSON.stringify(value) : `${nativeValue(value.value)} ${value.unit ?? ''}`.trim();
+  return String(value);
+};
+export const nativePopulation = (name, id) => nativeEvidence?.snapshots[name]?.network?.populations?.find(row => row.id === id);
+export const nativeProjection = (name, id) => nativeEvidence?.snapshots[name]?.network?.projections?.find(row => row.id === id);
+export const nativeRow = (label, select) => [label, ...nativeColumns.map(name => nativeValue(select(name)))];
+export const nativePair = (name, key) => ['E', 'I'].map(id => nativeEvidence?.snapshots[name] && !nativePopulation(name, id) ? 'Not applicable' : nativePopulation(name, id)?.neuron?.[key]);
+export const nativeConfig = nativeEvidence?.configuration;
+export const recordedSetting = (...paths) => {
+  for (const path of paths) {
+    const value = path.split('.').reduce((object, key) => object?.[key], nativeConfig);
+    if (value !== undefined) return value;
+  }
+  return undefined;
+};
+export const nativeGroups = [
+  { label: 'Network', rows: [
+    nativeRow('E / I neurons', name => ['E', 'I'].map(id => nativePopulation(name, id)?.size ?? (nativeEvidence?.snapshots[name] ? 'Absent' : undefined))),
+    nativeRow('Output neurons', name => nativePopulation(name, 'readout')?.size ?? (nativeEvidence?.snapshots[name] ? 'Absent' : undefined)),
+  ] },
+  { label: 'Neurons', rows: [
+    nativeRow('Capacitance, E / I (nF)', name => nativePair(name, 'capacitance_nf')),
+    nativeRow('Leak conductance, E / I (µS)', name => nativePair(name, 'leak_us')),
+    nativeRow('Resting voltage, E / I (mV)', name => nativePair(name, 'resting_mv')),
+    nativeRow('Threshold, E / I (mV)', name => nativePair(name, 'threshold_mv')),
+    nativeRow('Reset, E / I (mV)', name => nativePair(name, 'reset_mv')),
+    nativeRow('Refractory period, E / I', name => nativePair(name, 'refractory')),
+  ] },
+  { label: 'Synapses and weights', rows: [
+    ...['input_to_E', 'E_to_I', 'I_to_E', 'readout_projection'].map(id => nativeRow(`${id.replaceAll('_to_', '→').replace('input', 'Input').replace('readout_projection', 'E→Output')} synapse`, name => [nativeProjection(name, id)?.synapse?.kind, nativeProjection(name, id)?.synapse?.tau])),
+    ...['input_to_E', 'E_to_I', 'I_to_E', 'readout_projection'].map(id => nativeRow(`${id.replaceAll('_to_', '→').replace('input', 'Input').replace('readout_projection', 'E→Output')} initializer parent mean / SD`, name => { const spec = nativeEvidence?.snapshots[name]?.network?.parameters?.find(row => row.id === `${id}.weight`)?.initializer; return [spec?.mean, spec?.std]; })),
+    nativeRow('Native parameter stage', name => nativeEvidence?.snapshots[name]?.stage),
+  ] },
+  { label: 'Input and simulation', rows: [
+    nativeRow('Timestep (ms)', name => nativeEvidence?.snapshots[name]?.execution?.timestep_ms),
+    nativeRow('Duration (ms)', () => recordedSetting('t_ms', 'sim_ms', 'trial_duration.nominal_ms')),
+    nativeRow('Evaluation samples', () => recordedSetting('evaluation_samples', 'evaluation_samples_per_seed')),
+    nativeRow('Seeds', () => recordedSetting('seeds', 'seed')),
+    nativeRow('Input rate (Hz)', () => recordedSetting('input_rate_hz', 'input_rate')),
+    nativeRow('Post-burn exclusion (ms)', () => recordedSetting('burn_ms')),
+  ] },
+  { label: 'Readout and training', rows: [
+    nativeRow('Output neuron model', name => nativePopulation(name, 'readout')?.neuron?.kind),
+    nativeRow('Epochs', name => nativeEvidence?.snapshots[name]?.training?.epochs ?? nativeEvidence?.snapshots[name]?.request?.options?.epochs),
+    nativeRow('Checkpoint role', () => recordedSetting('checkpoint_policy.role')),
+    nativeRow('Checkpoint purpose', () => recordedSetting('checkpoint_policy.purpose')),
+  ] },
+  { label: 'Analysis', rows: [
+    nativeRow('Frequency search (Hz)', () => recordedSetting('f_gamma_band_hz')),
+    nativeRow('Count-bin width (ms)', () => recordedSetting('bin_ms')),
+    nativeRow('Autocorrelation maximum lag (ms)', () => recordedSetting('max_lag_ms')),
+  ] },
+];
+
 import ReportAvailability from '../../../site/src/components/ReportAvailability.astro';
 import DataBranch from '../../../site/src/components/DataBranch.astro';
 import RunFigure from '../../../site/src/components/RunFigure.astro';
@@ -6,9 +70,9 @@ import './training-specifications.css';
 
 <span id="sec-training-run-specification-sheets" />
 
-## Appendix: Training-run specification sheets
+## Appendix A — Training-family protocols
 
-The [shared production specification](#parameters) and all seven TR sheets below specify the controlled recipes and their intended uses. The observed learning curves and diagnostic plots are in Results.
+The seven training-family descriptions below explain the intended comparisons. The parameter table at the end independently identifies which original model settings can be verified from saved snapshots. The observed learning curves and diagnostic plots are in Results.
 
 <section class="training-specification" aria-label="TR01 specification">
 
@@ -16,17 +80,7 @@ The [shared production specification](#parameters) and all seven TR sheets below
 
 The full-data COBA and PING condition–seed networks are used for headline accuracy. They use the official MNIST training partition with no spike-budget penalty, so the comparison is not affected by the smaller dataset or regularization used in the sweeps. Ten percent of that partition is reserved for checkpoint selection; the official test partition remains untouched during training. This experiment reports their validation learning histories; independent official-test evaluation belongs to the downstream experiments.
 
-<Table
-  headers={[{ markdown: "<strong>Key parameter</strong>" }, { markdown: "<strong>Value</strong>" }, { markdown: "<strong>Why it differs</strong>" }]}
-  rows={[
-    ["Architectures", "COBA and PING", "Provides a feedforward control and recurrent E/I model"],
-    ["Training pool", "60,000 official training samples", "54,000 optimizer-training and 6,000 validation samples"],
-    ["Input rate", "25 Hz maximum-pixel rate", "Fixed-rate collection baseline"],
-    ["Spike budget", "Off", "Measures unconstrained capacity"],
-    ["Training replicates", "2 architectures × 3 seeds = 6", "Across-seed comparison for both models"],
-    ["Readout shape", { markdown: "$1024 \\to 10$ spiking LIF outputs" }, "mean-voltage: mean membrane voltage supplies the logits"],
-  ]}
-/>
+
 
 
 </section>
@@ -37,17 +91,7 @@ The full-data COBA and PING condition–seed networks are used for headline accu
 
 This run measures the trade-off between accuracy and firing rate as the activity ceiling is tightened. For each presentation, the loss computes the population-mean hidden-E firing rate, applies a one-sided quadratic penalty above the target, then averages the penalties across the minibatch. Quiet presentations therefore cannot offset active presentations. Expressing the target in hertz and normalising over samples, neurons, duration, and hidden layers makes the intervention comparable across those dimensions. A smaller training pool keeps the multi-seed sweep manageable; only the activity target changes across conditions. Comparisons with the full-data training replicates also change training-pool size and cannot isolate the penalty alone. The resulting checkpoints are used by [exp024](/exp024) — [*Accuracy Plateaus While Firing Rate Rises*](/exp024), [exp025](/exp025) — [*Accuracy and Firing Rate With and Without Inhibition*](/exp025), [exp037](/exp037) — [*Dropped Spikes vs Added Noise*](/exp037), [exp038](/exp038) — [*Switching On the Inhibitory Loop*](/exp038).
 
-<Table
-  headers={[{ markdown: "<strong>Key parameter</strong>" }, { markdown: "<strong>Value</strong>" }, { markdown: "<strong>Why it differs</strong>" }]}
-  rows={[
-    ["Architectures", "COBA and PING", "Direct architecture comparison"],
-    ["Training pool", "7,000 official training samples", "6,300 optimizer-training and 700 validation samples"],
-    [{ markdown: "Hidden-E rate ceiling $r_{E , \\text{ceil}}$" }, "off, 25, 10, 5, 2.5, 1 Hz", "Spans unconstrained through severe sparsity"],
-    ["Penalty strength", { markdown: "$0.041$ when enabled" }, "Calibrated for the sample-wise, population-normalized Hz objective"],
-    ["Training replicates", "2 × 6 settings × 3 seeds = 36", "Error bars at every frontier point"],
-    ["Readout shape", { markdown: "$1024 \\to 10$ spiking LIF outputs" }, "mean-voltage: mean membrane voltage supplies the logits"],
-  ]}
-/>
+
 
 
 </section>
@@ -58,16 +102,7 @@ This run measures the trade-off between accuracy and firing rate as the activity
 
 This run changes $\tau_{\text{GABA}}$ to test how the inhibitory timescale affects gamma frequency, firing rate, and accuracy. All other scientific settings are held fixed, with 6 ms as the standard condition. The resulting checkpoints are used by [exp041](/exp041) — [*Firing Rate Tracks Gamma Frequency*](/exp041), [exp042](/exp042) — [*Inhibitory Replay Perturbations Change Excitatory Firing*](/exp042), [exp046](/exp046) — [*One Spike per Gamma Cycle*](/exp046).
 
-<Table
-  headers={[{ markdown: "<strong>Key parameter</strong>" }, { markdown: "<strong>Value</strong>" }, { markdown: "<strong>Why it differs</strong>" }]}
-  rows={[
-    ["Architecture", "PING", "The manipulated quantity belongs to the recurrent inhibitory loop"],
-    ["Training pool", "7,000 samples", "Sweep-scale default"],
-    [{ markdown: "$\\tau_{\\text{GABA}}$" }, "4.5, 6, 9, 12, 18, 27 ms", "Moves the inhibitory rhythm across a broad timescale range"],
-    ["Training replicates", "6 settings × 3 seeds = 18", "Across-seed estimate at each decay"],
-    ["Readout shape", { markdown: "$1024 \\to 10$ spiking LIF outputs" }, "mean-voltage: mean membrane voltage supplies the logits"],
-  ]}
-/>
+
 
 
 </section>
@@ -78,17 +113,7 @@ This run changes $\tau_{\text{GABA}}$ to test how the inhibitory timescale affec
 
 This run changes the integration timestep while keeping E/I refractory holds at 1.2/0.6 ms. Presentations last nominally 200 ms and contain whole simulation steps. It tests whether the learned operating regime depends on numerical resolution; separately trained networks do not establish fixed-weight numerical convergence. The finest timestep requires the longest unrolled training trajectories. The resulting checkpoints are used by [exp044](/exp044) — [*Firing Rate Across the Timestep Sweep*](/exp044).
 
-<Table
-  headers={[{ markdown: "<strong>Key parameter</strong>" }, { markdown: "<strong>Value</strong>" }, { markdown: "<strong>Why it differs</strong>" }]}
-  rows={[
-    ["Architecture", "PING", "Tests the recurrent reference model"],
-    ["Training pool", "7,000 samples", "Sweep-scale default"],
-    [{ markdown: "$\\Delta t_{\\text{sim}}$" }, "0.05, 0.1, 0.2, 0.3, 0.6 ms", "Twelvefold resolution range at fixed physical refractory holds"],
-    ["Steps/presentation", "4,000; 2,000; 1,000; 666; 333", "200; 200; 200; 199.8; 199.8 ms realised durations"],
-    ["Training replicates", "5 settings × 3 seeds = 15", "Across-seed stability check"],
-    ["Readout shape", { markdown: "$1024 \\to 10$ spiking LIF outputs" }, "mean-voltage: mean membrane voltage supplies the logits"],
-  ]}
-/>
+
 
 
 </section>
@@ -99,17 +124,7 @@ This run changes the integration timestep while keeping E/I refractory holds at 
 
 This run tests whether training preserves the PING loop or learns a useful loop from weaker initial conditions. Recurrent initialization and trainability change together, while the feedforward network and classifier remain fixed to the PING recipe. The resulting checkpoints are used by [exp049](/exp049) — [*Training Recurrent Weights Weakens PING Rhythmicity*](/exp049).
 
-<Table
-  headers={[{ markdown: "<strong>Key parameter</strong>" }, { markdown: "<strong>Value</strong>" }, { markdown: "<strong>Why it differs</strong>" }]}
-  rows={[
-    ["Architecture", "PING", "Manipulates the recurrent loop directly"],
-    ["Training pool", "7,000 samples", "Sweep-scale default"],
-    ["Loop conditions", "frozen PING; trainable PING init; trainable zero init; trainable 0.1 init", "Separates built-in dynamics from recurrence learned during task training"],
-    ["Trainable projections", { markdown: "$W_{\\text{EI}}$ and $W_{\\text{IE}}$ only in trainable conditions" }, "The frozen condition is the mechanistic control"],
-    ["Training replicates", "4 conditions × 3 seeds = 12", "Across-seed comparison"],
-    ["Readout shape", { markdown: "$1024 \\to 10$ spiking LIF outputs" }, "mean-voltage: mean membrane voltage supplies the logits"],
-  ]}
-/>
+
 
 
 </section>
@@ -124,19 +139,7 @@ The recorded design rationale for this smaller initializer was to avoid saturati
 
 Output firing rates may still be reported as activity measurements. During streaming inference, the output neurons reset at digit boundaries while the hidden PING state continues. The resulting checkpoints are used by [exp082](/exp082) — [*Spike-Count Classification in a Continuous Stream*](/exp082).
 
-<Table
-  headers={[{ markdown: "<strong>Key parameter</strong>" }, { markdown: "<strong>Value</strong>" }, { markdown: "<strong>Why it differs</strong>" }]}
-  rows={[
-    ["Architecture", "PING", "Target model for streaming inference"],
-    ["Training pool", "7,000 samples", "Uses the shared sweep-scale training set"],
-    ["Input-rate set", "0.5, 0.75, 1, 1.5, 2, 3, 5, 7.5, 10, 15, 25 Hz", "Denser sampling within the interval selected by the input-rate calibration study"],
-    ["Sampling rule", "Uniform categorical, independently per presentation", "Makes rate variation part of the training distribution"],
-    ["Readout", "spike-count", "Hidden E spikes drive ten spiking LIF class neurons; each logit is that class neuron’s total spikes over the presentation"],
-    ["Readout initialization", { markdown: "$\\mathcal{N} ( 0.05 , 0.04^{2} )$, constrained non-negative" }, "Keeps the spiking outputs near threshold at high training rates without the saturation caused by the default mean-voltage scale"],
-    ["Readout shape", { markdown: "$1024 \\to 10$ spiking LIF outputs" }, "Ten class neurons emit and reset throughout the presentation"],
-    ["Training replicates", "1 recipe × 3 seeds = 3", "Models for continuous-stream classification"],
-  ]}
-/>
+
 
 
 </section>
@@ -147,18 +150,26 @@ Output firing rates may still be reported as activity measurements. During strea
 
 TR02 asks how changing the activity ceiling affects networks initialized at the standard input coupling. TR07 asks the complementary question: with the strictest TR02 ceiling fixed at 1 Hz from the first epoch, can PING recruit its inhibitory loop when the feedforward projection starts weak? It varies the parent mean used to initialize expected summed input coupling, before lower clamping and fan-in normalization; it does not directly set the mean of the stored synaptic matrix. The training pool, optimizer, recurrent loop, and mean-voltage readout remain at the reduced-sweep defaults. This bank retains all twelve models, and [exp025](/exp025) — [*Accuracy and Firing Rate With and Without Inhibition*](/exp025) aggregates the three seeds at each setting to test recruitment and path dependence.
 
-<Table
-  headers={[{ markdown: "<strong>Key parameter</strong>" }, { markdown: "<strong>Value</strong>" }, { markdown: "<strong>Why it differs</strong>" }]}
-  rows={[
-    ["Architecture", "PING", "Tests recruitment of the recurrent inhibitory loop"],
-    ["Training pool", "7,000 samples", "6,300 optimizer-training and 700 validation samples"],
-    ["Epochs", "50", "Matches the reduced production standard"],
-    ["Input summed-coupling parent mean", "0.05, 0.1, 0.3, 0.9", "Varies initial feedforward drive from weak coupling to the shared 0.9 standard before clamping and fan-in normalization"],
-    ["Hidden-E rate target", "1 Hz", "Applies the strictest TR02 activity ceiling from epoch 0"],
-    ["Parameters held fixed", "PING loop, optimizer, dataset split, and mean-voltage readout", "Isolates initial feedforward recruitment from the activity-ceiling sweep"],
-    ["Training replicates", "4 settings × 3 seeds = 12", "Across-seed estimate for every condition"],
-    ["Readout shape", { markdown: "$1024 \\to 10$ spiking LIF outputs" }, "mean-voltage: mean membrane voltage supplies the logits"],
-  ]}
-/>
+
 
 </section>
+
+
+## Network diagrams
+
+{nativeCircuits.length ? nativeCircuits.map((file, index) => <RunFigure report="exp022" experiment="exp022" file={file} number={index + 1} alt="Circuit diagram from the compiled execution bundle.">Executed network architecture; parameters and seeds reuse this layout.</RunFigure>) : <p>The pinned historical computation does not retain a native compiled circuit figure for this appendix. Its architecture is described in Methods; a new execution is required to supply the executed bundle's diagram.</p>}
+
+<span id="parameters" />
+
+## Parameters
+
+Model values are read from original native snapshots through the pinned
+presentation's compute ancestry. Paired values are E / I. Initializer parent means and SDs describe the original
+weight distributions, in µS for conductance projections and dimensionless for
+the current-based readout; they are not measured trained-weight statistics. Missing snapshots
+or fields are unavailable; current recipes and historical copied tables are
+not substituted. The recorded configuration identifies the input, numerical
+and analysis choices of that computation; it does not establish a separate
+upstream training protocol.
+
+<Table headers={['Parameter', ...nativeColumns]} groups={nativeGroups} />

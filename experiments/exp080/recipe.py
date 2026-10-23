@@ -1,6 +1,12 @@
-"""Committed exp080 calibration recipe; importing it performs no execution."""
+"""Committed exp080 calibration recipe; importing it performs no execution.
+
+configuration() resolves fresh scientific settings before execution. Network
+authoring and analysis definitions do not load data or launch a stage on import.
+"""
 
 from __future__ import annotations
+
+from copy import deepcopy
 
 import hashlib
 import math
@@ -76,36 +82,40 @@ def validate_simulator() -> dict[str, Any]:
 
 
 def configuration(*, smoke: bool = False) -> dict:
-    return {
-        "schema": "exp080.recipe/v1",
-        "profile": "smoke" if smoke else "production",
-        "presentation_ms": PRESENTATION_MS,
-        "dt_ms": DT_MS,
-        "probe_uS": PROBE_US,
-        "rates_hz": list(RATES_HZ),
-        "seeds": list(SEEDS),
-        "train_count": 100 if smoke else TRAIN_COUNT,
-        "validation_count": 50 if smoke else VALIDATION_COUNT,
-        "test_count": 50 if smoke else TEST_COUNT,
-        "epochs": 2 if smoke else EPOCHS_STANDARD,
-        "batch_size": BATCH_SIZE,
-        "hidden_units": HIDDEN_UNITS,
-        "learning_rate": LEARNING_RATE,
-        "chance_accuracy": CHANCE_ACCURACY,
-        "useful_accuracy": USEFUL_ACCURACY,
-        "membrane": dict(PARAMETERS),
-        "illustration_rates_hz": [0.5, 5.0, 25.0],
-        "illustration_seed": stable_seed(11),
-        "illustration_training_index": 0,
-        "dtype": "float32",
-        "encoder": "bernoulli_per_timestep",
-        "voltage_update": "exact_frozen_conductance_after_decay_then_event",
-        "feature": "mean_post_update_voltage_minus_rest",
-        "checkpoint_role": "first_maximum_mixed_rate_validation_accuracy",
-        "test_features": "shared_across_decoders_per_image_and_rate",
-        "seed_schedule": "sha256_80_parts_first8_little_endian_63bit",
-        "selection": "lowest_tested_rate_all_decoders_at_least_useful_accuracy",
-    }
+    if type(smoke) is not bool:
+        raise ValueError("smoke must be boolean")
+    return deepcopy(
+        dict(
+            schema="exp080.recipe/v1",
+            profile="smoke" if smoke else "production",
+            presentation_ms=PRESENTATION_MS,
+            dt_ms=DT_MS,
+            probe_uS=PROBE_US,
+            rates_hz=list(RATES_HZ),
+            seeds=list(SEEDS),
+            train_count=100 if smoke else TRAIN_COUNT,
+            validation_count=50 if smoke else VALIDATION_COUNT,
+            test_count=50 if smoke else TEST_COUNT,
+            epochs=2 if smoke else EPOCHS_STANDARD,
+            batch_size=BATCH_SIZE,
+            hidden_units=HIDDEN_UNITS,
+            learning_rate=LEARNING_RATE,
+            chance_accuracy=CHANCE_ACCURACY,
+            useful_accuracy=USEFUL_ACCURACY,
+            membrane=dict(PARAMETERS),
+            illustration_rates_hz=[0.5, 5.0, 25.0],
+            illustration_seed=stable_seed(11),
+            illustration_training_index=0,
+            dtype="float32",
+            encoder="bernoulli_per_timestep",
+            voltage_update="exact_frozen_conductance_after_decay_then_event",
+            feature="mean_post_update_voltage_minus_rest",
+            checkpoint_role="first_maximum_mixed_rate_validation_accuracy",
+            test_features="shared_across_decoders_per_image_and_rate",
+            seed_schedule="sha256_80_parts_first8_little_endian_63bit",
+            selection="lowest_tested_rate_all_decoders_at_least_useful_accuracy",
+        )
+    )
 
 
 def reported_parameters(cfg: dict) -> dict:

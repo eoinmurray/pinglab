@@ -1,17 +1,14 @@
-"""Exp022 scientific registry and read-only shared bank interface."""
+"""Define the seven MNIST training families and compiled SNNLab specifications.
+
+configuration() resolves fresh scientific settings before execution. Network
+authoring and analysis definitions do not load data or launch a stage on import.
+"""
 
 from __future__ import annotations
 
 import copy
-import json
 import os
-import sys
-from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[2]
-sys.path[:0] = [str(REPO), str(REPO / "experiments"), str(REPO / "tools")]
-
-from experiments.exp022.checkpoints import epoch_metrics
 from snnlab.lang import duration_steps, refractory_metadata
 
 from experiments import theme
@@ -20,31 +17,23 @@ SLUG = "exp022"
 RESULT_CHECKPOINT_ROLE = "final_epoch"
 
 
-def _display_path(path: Path) -> Path:
-    try:
-        return path.relative_to(REPO)
-    except ValueError:
-        return path
-
-
-# ── Canonical training registry (the hub the collection reuses) ──────
-# Analysis notebooks import `load_cell` / `cell_dir` from this module rather
-# than retraining; this entry is the single producer of the shared cells.
-# PINGLAB_TRAINING_ROOT optionally selects a dedicated external working root.
-# Normal staged execution installs its reserved export directory explicitly;
-# there is deliberately no unreserved import-time Pingstore fallback.
-TRAINING_ROOT: Path | None = (
-    Path(os.environ["PINGLAB_TRAINING_ROOT"])
-    if os.environ.get("PINGLAB_TRAINING_ROOT")
-    else None
-)
-
+# Scientific bank identities and production defaults.
 EPOCHS_STANDARD = 50
 DT_MS = 0.1
 T_MS = 200.0
 SEEDS_BASELINE = [42, 43, 44]
 VARIABLE_RATE_TRAINING_RATES_HZ = (
-    0.5, 0.75, 1.0, 1.5, 2.0, 3.0, 5.0, 7.5, 10.0, 15.0, 25.0,
+    0.5,
+    0.75,
+    1.0,
+    1.5,
+    2.0,
+    3.0,
+    5.0,
+    7.5,
+    10.0,
+    15.0,
+    25.0,
 )
 VARIABLE_RATE_CONSUMER = "exp082"
 RATE_TARGET_GRID_HZ: list[float | None] = [None, 25.0, 10.0, 5.0, 2.5, 1.0]
@@ -54,7 +43,7 @@ RATE_TARGET_GRID_HZ: list[float | None] = [None, 25.0, 10.0, 5.0, 2.5, 1.0]
 # {0.004, 0.016, 0.041, 0.1} selected this measured elbow (PR #159).
 FR_STRENGTH_UPPER = 0.041
 LOW_W_IN_VALUES = (0.05, 0.1, 0.3, 0.9)
-TAU_AMPA_MS = 2.0          # AMPA decay — fixed across the collection (no CLI knob)
+TAU_AMPA_MS = 2.0  # AMPA decay — fixed across the collection (no CLI knob)
 INPUT_RATE_HZ = 25.0
 N_INPUT = 784
 N_EXCITATORY = 1024
@@ -86,14 +75,13 @@ def refractory_configuration() -> dict:
     }
 
 
-
-
 def refractory_execution_configuration(dt_ms: float) -> dict:
     return refractory_metadata(
         REFRACTORY_E_MS,
         REFRACTORY_I_MS,
         dt_ms,
     )
+
 
 # Production recipe for the next exp022 bank. COBA and PING share the input,
 # readout initialization distributions and backward voltage-gradient damping
@@ -122,16 +110,16 @@ INIT_CONDITIONS: dict[str, tuple] = {
 }
 
 
-TAU_GABA_SWEEP = (4.5, 6.0, 9.0, 12.0, 18.0, 27.0)   # exp041
+TAU_GABA_SWEEP = (4.5, 6.0, 9.0, 12.0, 18.0, 27.0)  # exp041
 LEGACY_DT_SWEEP_MS = (0.05, 0.1, 0.25, 0.5, 1.0)
 DT_SWEEP_MS = (0.05, 0.1, 0.2, 0.3, 0.6)  # exp044 (the dt exception)
-MNIST_TRAIN_SAMPLES = 60000                           # official training partition
-MNIST_TEST_SAMPLES = 10000                            # untouched official test partition
-CANONICAL_MAX_SAMPLES = MNIST_TRAIN_SAMPLES           # all official training data
-SUBSET_MAX_SAMPLES = 7000                             # reduced sweep training pool
-MAX_SAMPLES = 100                                     # plumbing cap on every cell
-EPOCHS = 2                                            # plumbing depth on every cell
-BATCH_SIZE = 256                                      # fixed across every recipe
+MNIST_TRAIN_SAMPLES = 60000  # official training partition
+MNIST_TEST_SAMPLES = 10000  # untouched official test partition
+CANONICAL_MAX_SAMPLES = MNIST_TRAIN_SAMPLES  # all official training data
+SUBSET_MAX_SAMPLES = 7000  # reduced sweep training pool
+MAX_SAMPLES = 100  # plumbing cap on every cell
+EPOCHS = 2  # plumbing depth on every cell
+BATCH_SIZE = 256  # fixed across every recipe
 
 
 def rate_target_label(target_hz: float | None) -> str:
@@ -308,8 +296,14 @@ def _low_w_in_cells() -> list[dict]:
 
 
 PLANNED_VARIABLE_RATE_CELLS = _planned_variable_rate_cells()
-BASE_CELLS = (_canonical_cells() + _activity_frontier_cells() + _tau_gaba_cells()
-              + _dt_cells() + _init_cells() + _low_w_in_cells())
+BASE_CELLS = (
+    _canonical_cells()
+    + _activity_frontier_cells()
+    + _tau_gaba_cells()
+    + _dt_cells()
+    + _init_cells()
+    + _low_w_in_cells()
+)
 CANONICAL_CELLS = BASE_CELLS + PLANNED_VARIABLE_RATE_CELLS
 for _cell in CANONICAL_CELLS:
     _cell["training_run_id"] = TRAINING_RUN_IDS[_cell["family"]]
@@ -501,34 +495,6 @@ SCALE = {
 }
 
 
-def training_root() -> Path:
-    if TRAINING_ROOT is None:
-        raise RuntimeError(
-            "exp022 training root is not configured; use staged execution or set "
-            "PINGLAB_TRAINING_ROOT explicitly"
-        )
-    return TRAINING_ROOT
-
-
-def cell_dir(name: str) -> Path:
-    """Shared per-cell artifact directory."""
-    return training_root() / name
-
-
-def load_cell(name: str) -> Path:
-    """Return a trained cell's directory, or fail loudly if this notebook has
-    not been run. Analysis notebooks call this instead of training."""
-    d = cell_dir(name)
-    if not (d / "weights.pth").exists() or not (d / "weights_final.pth").exists():
-        raise SystemExit(
-            f"missing trained cell '{name}' at {_display_path(d)}; "
-            "select an explicit retained compute bank or run exp022/compute.py."
-        )
-    return d
-
-
-
-
 # ── Runner ───────────────────────────────────────────────────────────
 
 # This runner trains at the full per-family standard: the canonical reference
@@ -564,37 +530,6 @@ def _json_safe(o):
     return o
 
 
-def load_metrics(d: Path) -> dict:
-    p = d / "metrics.json"
-    return json.loads(p.read_text()) if p.exists() else {}
-
-
-def load_config(d: Path) -> dict:
-    """A cell's config.json — carries git_sha / torch_version / device, which
-    metrics.json's own `config` block does NOT (its git_sha is null). The
-    manifest reads provenance from here."""
-    p = d / "config.json"
-    return json.loads(p.read_text()) if p.exists() else {}
-
-
-def training_root_provenance(root: Path) -> dict[str, str]:
-    resolved = root.resolve()
-    try:
-        return {"location": "repository", "path": str(resolved.relative_to(REPO))}
-    except ValueError:
-        return {"location": "external", "path": str(resolved)}
-
-
-def final_rates(d: Path) -> tuple[float, float]:
-    """Last-epoch E / I rate (Hz) from the retained epoch record."""
-    rows = epoch_metrics(d)
-    if not rows:
-        return float("nan"), float("nan")
-    row = rows[-1]
-    return (float(row.get("test_rate_e", row.get("rate_e", float("nan")))),
-            float(row.get("test_rate_i", row.get("rate_i", float("nan")))))
-
-
 FAMILY_COLORS = {
     "canonical": theme.GREY_DARK,
     "activity_frontier": theme.INK_BLACK,
@@ -607,19 +542,14 @@ FAMILY_COLORS = {
 }
 
 
-def training_curve(d: Path) -> tuple[list[int], list[float]]:
-    """Per-epoch (epoch, validation accuracy) from the retained epoch record."""
-    eps, accs = [], []
-    for r in epoch_metrics(d):
-        if "ep" in r and "acc" in r:
-            eps.append(int(r["ep"]))
-            accs.append(float(r["acc"]))
-    return eps, accs
-
-
 FAMILY_ORDER = [
-    "canonical", "activity_frontier", "tau_gaba", "dt", "init",
-    "variable_rate", "low_w_in",
+    "canonical",
+    "activity_frontier",
+    "tau_gaba",
+    "dt",
+    "init",
+    "variable_rate",
+    "low_w_in",
 ]
 FAMILY_LABELS = {
     "canonical": "Canonical reference",
@@ -637,13 +567,21 @@ FAMILY_ARTIFACT_SLUGS = {
 }
 
 
-BIOPHYSICS = {"capacitance_e_nf":1.0,"capacitance_i_nf":0.5,
-    "leak_e_us":0.05,"leak_i_us":0.10,"resting_mv":-65.0,"threshold_mv":-50.0,
-    "reset_mv":-65.0,"readout_tau_ms":2.0,"readout_threshold":1.0}
+BIOPHYSICS = {
+    "capacitance_e_nf": 1.0,
+    "capacitance_i_nf": 0.5,
+    "leak_e_us": 0.05,
+    "leak_i_us": 0.10,
+    "resting_mv": -65.0,
+    "threshold_mv": -50.0,
+    "reset_mv": -65.0,
+    "readout_tau_ms": 2.0,
+    "readout_threshold": 1.0,
+}
 TRAINING_RATE_SEED_OFFSET = 82001
 REFERENCE_ENCODER_SEED = 0
-VALIDATION_ENCODER_SEEDS = (20260415,20260416,20260417)
-VALIDATION_RATE_SEEDS = (20270415,20270416,20270417)
+VALIDATION_ENCODER_SEEDS = (20260415, 20260416, 20260417)
+VALIDATION_RATE_SEEDS = (20270415, 20270416, 20270417)
 
 
 def training_settings(cell, max_samples, epochs):
@@ -749,31 +687,41 @@ def author_network(training, *, observables=()):
         ping_e.excitatory,
         name="input_to_E",
         synapse=ping_ampa,
-        weight=lang.Constant(0),
+        weight=lang.LowerClampedNormal(
+            training["w_in"][0],
+            training["w_in"][1],
+            initial_zero_fraction=training["w_in_initial_zero_fraction"],
+            zeroing="bernoulli",
+        ),
         constraint=lang.NonNegative(),
-        initialization_scaling="direct",
+        initialization_scaling="fan_in_normalized",
     )
     ping_e_to_i = net.connect(
         ping_e.spikes,
         ping_i.excitatory,
         name="E_to_I",
         synapse=ping_ampa,
-        weight=lang.Constant(0),
+        weight=lang.LowerClampedNormal(
+            training["ei_strength"], training["ei_strength"] * 0.1
+        ),
         constraint=lang.NonNegative(),
         connection="recurrent",
         delay=ping_recurrent_delay,
-        initialization_scaling="direct",
+        initialization_scaling="fan_in_normalized",
     )
     ping_i_to_e = net.connect(
         ping_i.spikes,
         ping_e.inhibitory,
         name="I_to_E",
         synapse=ping_gaba,
-        weight=lang.Constant(0),
+        weight=lang.LowerClampedNormal(
+            training["ei_strength"] * training["ei_ratio"],
+            training["ei_strength"] * training["ei_ratio"] * 0.1,
+        ),
         constraint=lang.NonNegative(),
         connection="recurrent",
         delay=ping_recurrent_delay,
-        initialization_scaling="direct",
+        initialization_scaling="fan_in_normalized",
     )
     circuit = SimpleNamespace(
         e=ping_e,
@@ -798,23 +746,23 @@ def author_network(training, *, observables=()):
         output.excitatory,
         name="readout_projection",
         synapse=lang.LeakyIntegrator(tau=biophysics["readout_tau_ms"] * lang.ms),
-        weight=lang.Constant(0),
+        weight=lang.LowerClampedNormal(
+            training["readout_w_init_mean"], training["readout_w_init_std"]
+        ),
         constraint=lang.NonNegative(),
         initialization_scaling="direct",
     )
-    net.output(
-        "class_scores",
-        lang.reduce(
-            output.pre_reset_voltage
-            if training.get("readout_mode", "mem-mean") == "mem-mean"
-            else output.spikes,
-            operation="mean"
-            if training.get("readout_mode", "mem-mean") == "mem-mean"
-            else "sum",
-            over="time",
-            name="readout_reduction",
-        ),
+    scores = lang.reduce(
+        output.pre_reset_voltage
+        if training.get("readout_mode", "mem-mean") == "mem-mean"
+        else output.spikes,
+        operation="mean"
+        if training.get("readout_mode", "mem-mean") == "mem-mean"
+        else "sum",
+        over="time",
+        name="readout_reduction",
     )
+    net.output("class_scores", scores)
     for label, pop in (("e", circuit.e), ("i", circuit.i)):
         net.output(
             f"spk_{label}_count",
@@ -833,8 +781,38 @@ def author_network(training, *, observables=()):
             "gi_e": circuit.i_to_e.conductance,
         }.items():
             net.expose(value, name=key)
+    learned = ["input_to_E.weight", "readout_projection.weight"]
+    frozen = []
+    for name, enabled in [
+        ("E_to_I.weight", training["trainable_w_ei"]),
+        ("I_to_E.weight", training["trainable_w_ie"]),
+    ]:
+        (learned if enabled else frozen).append(name)
+    groups = [lang.ParameterGroup(learned, name="learned", lr=training["lr"])]
+    if frozen:
+        groups.append(lang.ParameterGroup(frozen, name="feedback", lr=0.0, frozen=True))
+    regularizers = ()
+    if training["fr_reg_upper_strength"]:
+        regularizers = (
+            lang.SpikeBudgetPenalty(
+                signals=(circuit.e.spikes,),
+                ceiling_hz=training["fr_reg_upper_target_hz"],
+                strength=training["fr_reg_upper_strength"],
+            ),
+        )
+    specification = lang.TrainSpec(
+        objectives=(lang.CrossEntropy(prediction=scores, target="digit"),),
+        parameter_groups=groups,
+        optimizer=lang.AdamW(lr=training["lr"], weight_decay=training["weight_decay"]),
+        regularizers=regularizers,
+        gradient_clip=training["grad_clip"],
+        surrogate=lang.FastSigmoid(slope=training["surrogate_slope"]),
+        epochs=training["epochs"],
+        presentation_duration=training["t_ms"] * lang.ms,
+    )
     return lang.compile(
         net,
+        training=specification,
         target="tools/snnsim",
         refractory_timing="legacy_coba",
     )
@@ -856,3 +834,31 @@ def diagnostic_request(training, cell):
         "observables": ["spikes", "traces"],
         "products": [],
     }
+
+
+def configuration(*, plumbing=False):
+    """Resolve every bank cell's scientific settings before execution.
+
+    Production uses each family's recorded sample count and fifty epochs.
+    The explicit plumbing profile caps every family, including full-data cells.
+    """
+    if type(plumbing) is not bool:
+        raise ValueError("plumbing must be boolean")
+    cfg = dict(
+        schema="exp022.recipe/v5",
+        profile="plumbing" if plumbing else "production",
+        cells=[],
+    )
+    for cell in CANONICAL_CELLS:
+        samples = (
+            MAX_SAMPLES if plumbing else cell.get("max_samples") or SUBSET_MAX_SAMPLES
+        )
+        epochs = EPOCHS if plumbing else EPOCHS_STANDARD
+        cfg["cells"].append(
+            dict(
+                name=cell["name"],
+                training_run_id=cell["training_run_id"],
+                settings=training_settings(cell, samples, epochs),
+            )
+        )
+    return copy.deepcopy(cfg)

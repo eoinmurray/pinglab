@@ -1,0 +1,199 @@
+"""Read-only contract for the exp110 COBA damping replacement bank.
+
+The owning experiment calls these local definitions from its explicit stages.
+Inputs and outputs retain that stage’s validated scientific contract; importing
+this module does not start computation or select a scientific run.
+"""
+
+from __future__ import annotations
+
+import copy
+import json
+from pathlib import Path
+
+from experiments.exp022.custom import execution as compute
+from experiments.exp022 import recipe
+from experiments.exp022.custom.checkpoints import (
+    ROLES,
+    public_provenance,
+    resolve_checkpoint,
+)
+from pingstore.contracts import PingstoreError, file_sha256
+from pingstore.stages import SourceRun, source_run
+
+SOURCE_REFERENCE = {
+    "run_id": "exp022-r007-compute",
+    "payload_digest": "sha256:6bfeda8ce5e32bb35748f335338ee6af29bedf76ac606babc9823a466da640c0",
+}
+CELL_FILES = ("config.json", "metrics.json", "weights.pth", "weights_final.pth")
+
+
+def replacement_cells() -> list[dict]:
+    """Every COBA training cell required by exp110's matched-damping bank."""
+    cells = [
+        copy.deepcopy(cell)
+        for cell in recipe.CANONICAL_CELLS
+        if cell["model"] == "coba"
+    ]
+    names = {cell["name"] for cell in cells}
+    expected = {f"coba__canonical__seed{seed}" for seed in recipe.SEEDS_BASELINE} | {
+        recipe.cell_name("coba", target, seed)
+        for target in recipe.RATE_TARGET_GRID_HZ
+        for seed in recipe.SEEDS_BASELINE
+    }
+    if len(cells) != 21 or names != expected:
+        raise PingstoreError("registry drift: expected all 21 COBA cells")
+    for cell in cells:
+        settings = recipe.training_settings(cell, *recipe.cell_samples_epochs(cell))
+        if settings["v_grad_dampen"] != 1000.0 or settings["ei_strength"] != 0.0:
+            raise PingstoreError(f"replacement COBA settings changed: {cell['name']}")
+    return cells
+
+
+def _load_object(path: Path) -> dict:
+    try:
+        value = json.loads(path.read_text())
+    except (OSError, ValueError) as exc:
+        raise PingstoreError(f"cannot read retained cell metadata: {path}") from exc
+    if not isinstance(value, dict):
+        raise PingstoreError(f"retained cell metadata must be an object: {path}")
+    return value
+
+
+def _current_parameters(cell: dict) -> dict:
+    samples, epochs = recipe.cell_samples_epochs(cell)
+    return compute.resolved_parameters(
+        cell,
+        recipe.training_settings(cell, samples, epochs),
+        samples,
+        epochs,
+        scientific_contract=recipe.scientific_contract(cell, samples, epochs),
+    )
+
+
+def _inspect_reused_cell(source: SourceRun, cell: dict) -> dict:
+    name = cell["name"]
+    unit = source.unit(name)
+    files = list(unit.iterdir())
+    if {path.name for path in files} != set(CELL_FILES) or any(
+        path.is_symlink() or not path.is_file() for path in files
+    ):
+        raise PingstoreError(
+            f"{name}: expected exactly the four operational checkpoint-role files"
+        )
+    config = _load_object(unit / "config.json")
+    metrics = _load_object(unit / "metrics.json")
+    nested = metrics.get("config")
+    if not isinstance(nested, dict):
+        raise PingstoreError(f"{name}: missing metrics configuration")
+    for payload, label in ((config, "config"), (metrics, "metrics")):
+        if payload.get("training_cell_name") != name:
+            raise PingstoreError(f"{name}: {label} cell identity mismatch")
+        if payload.get("training_run_id") != cell["training_run_id"]:
+            raise PingstoreError(f"{name}: {label} training-run identity mismatch")
+    expected = compute._expected_config({"parameters": _current_parameters(cell)})
+    for key, wanted in expected.items():
+        actual = config.get(key, nested.get(key))
+        if actual is None and key in {
+            "refractory_e_ms",
+            "refractory_i_ms",
+            "refractory_policy",
+        }:
+            interpretation = (
+                source.record.get("bank_reuse", {})
+                .get("cell_provenance", {})
+                .get(name, {})
+                .get("refractory_interpretation")
+            )
+            if (
+                isinstance(interpretation, dict)
+                and compute._same(interpretation.get("e_ms"), 1.2)
+                and compute._same(interpretation.get("i_ms"), 0.6)
+                and interpretation.get("reuse_validation")
+            ):
+                continue
+        if not compute._same(actual, wanted):
+            raise PingstoreError(
+                f"{name}: saved {key}={actual!r} disagrees with {wanted!r}"
+            )
+    epochs = metrics.get("epochs")
+    expected_epochs = recipe.cell_samples_epochs(cell)[1]
+    if (
+        not isinstance(epochs, list)
+        or len(epochs) != expected_epochs
+        or any(
+            not isinstance(row, dict) or row.get("ep") != index
+            for index, row in enumerate(epochs, 1)
+        )
+    ):
+        raise PingstoreError(f"{name}: incomplete retained training history")
+    try:
+        checkpoints = {
+            role: public_provenance(resolve_checkpoint(unit, role)) for role in ROLES
+        }
+    except (RuntimeError, TypeError, ValueError, KeyError) as exc:
+        raise PingstoreError(
+            f"{name}: invalid retained checkpoint roles: {exc}"
+        ) from exc
+    return {
+        "source_cell": name,
+        "training_run_id": cell["training_run_id"],
+        "checkpoint_roles": checkpoints,
+        "files": {
+            filename: {
+                "sha256": file_sha256(unit / filename),
+                "size_bytes": (unit / filename).stat().st_size,
+            }
+            for filename in CELL_FILES
+        },
+    }
+
+
+def inspect_source(repo: Path) -> tuple[SourceRun, dict]:
+    """Validate the pinned bank and return the exact 81/21 assembly plan."""
+    current = {cell["name"]: cell for cell in recipe.CANONICAL_CELLS}
+    if len(current) != 102:
+        raise PingstoreError("current exp022 registry must contain 102 unique cells")
+    replacements = {cell["name"] for cell in replacement_cells()}
+    reused = sorted(set(current) - replacements)
+    new = sorted(replacements)
+    diagnostics = sorted(name for name, cell in current.items() if cell["seed"] == 42)
+    if len(reused) != 81 or len(new) != 21 or len(diagnostics) != 34:
+        raise PingstoreError("registry drift: expected 81 reused, 21 new and 34 probes")
+    source = source_run(
+        Path(repo) / ".pingstore",
+        SOURCE_REFERENCE["run_id"],
+        stage="compute",
+        experiment="exp022",
+        reference=SOURCE_REFERENCE,
+    )
+    entries = list(source.export.iterdir())
+    units = [entry for entry in entries if entry.is_dir()]
+    snapshots = [entry for entry in entries if entry.is_file()]
+    expected_snapshots = {f"snapshots--{name}--recording.npz" for name in diagnostics}
+    if (
+        {unit.name for unit in units} != set(current)
+        or {snapshot.name for snapshot in snapshots} != expected_snapshots
+        or any(entry.is_symlink() for entry in entries)
+    ):
+        raise PingstoreError(
+            "retained bank must contain exactly 102 cells and 34 diagnostic snapshots"
+        )
+    records = {name: _inspect_reused_cell(source, current[name]) for name in reused}
+    plan = {
+        "schema": "exp022.bank-reuse/v3",
+        "purpose": "exp110_coba_gradient_damping_alignment",
+        "source": dict(SOURCE_REFERENCE),
+        "reused_cells": reused,
+        "new_cells": new,
+        "replaced_cells": new,
+        "diagnostics": diagnostics,
+        "diagnostic_policy": "regenerate_all_34_seed42_final_epoch_snapshots",
+        "per_cell": records,
+        "source_operation": {
+            "origin": source.record["origin"],
+            "operation": source.record["execution"].get("operation"),
+        },
+    }
+    source.check_unchanged()
+    return source, plan

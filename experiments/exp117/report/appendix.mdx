@@ -1,3 +1,59 @@
+
+import Table from '../../../site/src/components/Table.astro';
+import { reportSnapshots } from '../../../site/src/lib/report-data';
+
+export const analyticalEvidence = await reportSnapshots('exp117', { snapshots: {}, allowUnavailable: true });
+export const analyticalConfig = analyticalEvidence?.configuration;
+export const analyticalShow = value => value === undefined ? 'Unavailable' : Array.isArray(value) ? value.map(analyticalShow).join(' / ') : String(value);
+export const imported = analyticalConfig?.imported_parameters;
+export const closure = analyticalConfig?.mean_field_choices;
+export const numerical = analyticalConfig?.numerical_protocol;
+export const paired = (source, first = 'E', second = 'I') => [source?.[first], source?.[second]];
+export const derivedTau = population => imported?.capacitance_nF?.[population] !== undefined && imported?.leak_conductance_uS?.[population] > 0 ? imported.capacitance_nF[population] / imported.leak_conductance_uS[population] : undefined;
+export const analyticalRow = (label, value) => [label, analyticalShow(value)];
+export const analyticalGroups = [
+  { label: 'Network: imported reference sizes', rows: [
+    analyticalRow('E / I neurons', paired(imported?.population_sizes, 'N_E', 'N_I')),
+  ] },
+  { label: 'Neurons: imported reference physics', rows: [
+    analyticalRow('Capacitance, E / I (nF)', paired(imported?.capacitance_nF)),
+    analyticalRow('Leak conductance, E / I (µS)', paired(imported?.leak_conductance_uS)),
+    analyticalRow('Membrane time constant, E / I (ms; capacitance / leak)', ['E', 'I'].map(derivedTau)),
+    analyticalRow('Rest / reset / threshold (mV)', [imported?.rest_mV, imported?.reset_mV, imported?.threshold_mV]),
+    analyticalRow('Excitatory / inhibitory reversal (mV)', paired(imported?.reversal_mV, 'excitatory', 'inhibitory')),
+    analyticalRow('Refractory period, E / I (ms)', paired(imported?.refractory_ms)),
+  ] },
+  { label: 'Synapses: imported reference coupling', rows: [
+    analyticalRow('AMPA / reference GABA decay (ms)', [imported?.tau_AMPA_ms, imported?.tau_GABA_reference_ms]),
+    analyticalRow('E→I / I→E summed coupling (µS)', paired(imported?.summed_coupling_uS, 'E_to_I', 'I_to_E')),
+  ] },
+  { label: 'Closure assumptions and experimental choices', rows: [
+    analyticalRow('Rate relaxation, E / I (ms)', paired(closure?.rate_relaxation_ms)),
+    analyticalRow('Effective voltage noise (mV)', closure?.effective_voltage_noise_mV),
+    analyticalRow('Driving-force reference', closure?.driving_force_reference),
+    analyticalRow('External drive minimum / maximum (nA)', paired(closure?.external_drive_nA, 'minimum', 'maximum')),
+    analyticalRow('GABA-decay sweep (ms)', closure?.tau_GABA_sweep_ms),
+  ] },
+  { label: 'Numerical analysis', rows: [
+    analyticalRow('Drive-grid minimum / maximum (nA) / point count', numerical?.drive_grid_nA),
+    analyticalRow('Equilibrium solver', numerical?.equilibrium_root?.method),
+    analyticalRow('Equilibrium absolute / relative tolerances', [numerical?.equilibrium_root?.xtol, numerical?.equilibrium_root?.rtol]),
+    analyticalRow('Equilibrium residual tolerance (per ms)', numerical?.equilibrium_root?.residual_tolerance_per_ms),
+    analyticalRow('Complex-pair imaginary threshold (per ms)', numerical?.complex_eigenvalue_threshold_per_ms),
+    analyticalRow('Hopf solver / absolute tolerance (nA)', [numerical?.hopf_refinement?.method, numerical?.hopf_refinement?.xtol_nA]),
+    analyticalRow('Hopf relative tolerance / transversality step (nA)', [numerical?.hopf_refinement?.rtol, numerical?.hopf_refinement?.transversality_step_nA]),
+    analyticalRow('Ramp relative-drive endpoints (nA)', numerical?.criticality_ramp?.span_relative_to_hopf_nA),
+    analyticalRow('Ramp points / duration (ms)', [numerical?.criticality_ramp?.points, numerical?.criticality_ramp?.duration_ms]),
+    analyticalRow('Ramp measurement start (ms) / samples', [numerical?.criticality_ramp?.measurement_start_ms, numerical?.criticality_ramp?.measurement_samples]),
+    analyticalRow('Initial E-rate perturbation (per ms)', numerical?.criticality_ramp?.initial_rate_perturbation_per_ms),
+    analyticalRow('Amplitude / branch-gap thresholds (per ms)', [numerical?.criticality_ramp?.amplitude_threshold_per_ms, numerical?.criticality_ramp?.maximum_branch_gap_per_ms]),
+    analyticalRow('Minimum amplitude-squared fit R²', numerical?.criticality_ramp?.minimum_amplitude_squared_r2),
+    analyticalRow('Ramp solver', numerical?.criticality_ramp?.solver),
+    analyticalRow('Ramp relative / absolute tolerances', [numerical?.criticality_ramp?.rtol, numerical?.criticality_ramp?.atol]),
+    analyticalRow('Maximum integration step (ms)', numerical?.criticality_ramp?.max_step_ms),
+  ] },
+];
+
 import ReportAvailability from '../../../site/src/components/ReportAvailability.astro';
 import DataBranch from '../../../site/src/components/DataBranch.astro';
 import RunFigure from '../../../site/src/components/RunFigure.astro';
@@ -8,11 +64,11 @@ import RunFigure from '../../../site/src/components/RunFigure.astro';
 
 ### A1 — Conductance-based neuron system
 
-The system contains excitatory and inhibitory leaky integrate-and-fire populations. For neuron $j$ in population $P \in \{ E , I \}$, membrane voltage $V_{m , P , j}$ obeys
+The system contains excitatory and inhibitory leaky integrate-and-fire populations. Time is in ms, voltage in mV, conductance and event weights in µS, capacitance in nF, current in nA and population rates in spikes per neuron per ms. For neuron $j$ in population $P \in \{ E , I \}$, membrane voltage $V_{m , P , j}$ obeys
 
 $$
 C_{m , P} \dot{V}_{m , P , j} = - g_{L , P} ( V_{m , P , j} - E_{L} ) - g_{e , P , j} ( V_{m , P , j} - E_{e} ) - g_{i , P , j} ( V_{m , P , j} - E_{i} ) .
-\tag{2}
+\tag{A1}
 $$
 
 Here $C_{m , P}$ is capacitance, $g_{L , P}$ is leak conductance, $E_{L}$ is the leak potential, $E_{e}$ and $E_{i}$ are excitatory and inhibitory reversal potentials, and $g_{e}$ and $g_{i}$ are total AMPA and GABA conductances. A neuron emits a spike when its candidate voltage crosses $V_{\text{th}}$, resets to $V_{\text{reset}}$, and remains refractory for $\tau_{\text{ref} , P}$.
@@ -21,21 +77,21 @@ The recurrent architecture contains E→I excitation and I→E inhibition, with 
 
 ### A2 — Replace spiking input with tonic current
 
-Let external presynaptic neuron $j$ emit spike train $s_{j}^{X ( t )}$ and produce conductance increment $W_{j k}^{X \to E}$ in excitatory neuron $k$. Its external conductance obeys
+Let external presynaptic neuron $j$ emit spike train $s_j^X(t)$ and produce conductance increment $W_{j k}^{X \to E}$ in excitatory neuron $k$. Its external conductance obeys
 
 $$
-\dot{g}_{X , k}^{E} = - \frac{g_{X , k}^{E}}{\tau_{\text{AMPA}}} + \sum_{j} W_{j k}^{X \to E} s_{j}^{X ( t )} .
-\tag{3}
+\dot{g}_{X , k}^{E} = - \frac{g_{X , k}^{E}}{\tau_{\text{AMPA}}} + \sum_{j} W_{j k}^{X \to E} s_j^X(t) .
+\tag{A2}
 $$
 
-The corresponding fluctuating current is $- g_{X , k}^{E ( V_{m , E , k} - E_{e} )}$. Under stationary external spiking, we replace this term by a constant tonic current $I_{\text{ext}}$. The population-specific membrane equations used for the closure are therefore
+The corresponding fluctuating current is $- g_{X,k}^{E}(V_{m,E,k}-E_e)$. Under stationary external spiking, we replace this term by a constant tonic current $I_{\text{ext}}$. The population-specific membrane equations used for the closure are therefore
 
 $$
 \begin{aligned}
-C_{m , E} \dot{V}_{m , E} & = - g_{L , E} ( V_{m , E} - E_{L} ) - g_{i}^{E ( V_{m , E} - E_{i} )} + I_{\text{ext}} , \\
-C_{m , I} \dot{V}_{m , I} & = - g_{L , I} ( V_{m , I} - E_{L} ) - g_{e}^{I ( V_{m , I} - E_{e} )} .
+C_{m , E} \dot{V}_{m , E} & = - g_{L , E} ( V_{m , E} - E_{L} ) - g_i^E(V_{m,E}-E_i) + I_{\text{ext}} , \\
+C_{m , I} \dot{V}_{m , I} & = - g_{L , I} ( V_{m , I} - E_{L} ) - g_e^I(V_{m,I}-E_e) .
 \end{aligned}
-\tag{4}
+\tag{A3}
 $$
 
 The tonic-current substitution defines a control parameter; it does not map a particular current to an empirical input rate.
@@ -45,22 +101,22 @@ The tonic-current substitution defines a control parameter; it does not map a pa
 Let the continuous spike train of presynaptic neuron $j$ in population $P$ be
 
 $$
-s_{j}^{P ( t )} = \sum_{n} \delta ( t - t_{j , n}^{P} ) ,
-\tag{5}
+s_j^P(t) = \sum_{n} \delta ( t - t_{j , n}^{P} ) ,
+\tag{A4}
 $$
 
 where $t_{j , n}^{P}$ is spike time $n$ and $\delta$ is the Dirac impulse. A recurrent conductance onto neuron $k$ in population $Q$ satisfies
 
 $$
-\dot{g}_{P \to Q , k} = - \frac{g_{P \to Q , k}}{\tau_{P \to Q}} + \sum_{j = 1}^{N_{P}} W_{j k}^{P \to Q} s_{j}^{P ( t )} .
-\tag{6}
+\dot{g}_{P \to Q , k} = - \frac{g_{P \to Q , k}}{\tau_{P \to Q}} + \sum_{j = 1}^{N_{P}} W_{j k}^{P \to Q} s_j^P(t) .
+\tag{A5}
 $$
 
 Define the smooth per-neuron population rate and mean event weight by
 
 $$
-r_{P ( t )} = \frac{1}{N_{P}} \sum_{j = 1}^{N_{P}} \mathbb{E} [ s_{j}^{P ( t )} ] , \quad G_{P \to Q} = N_{P} \bar{w}_{P \to Q} .
-\tag{7}
+r_P(t) = \frac{1}{N_{P}} \sum_{j = 1}^{N_{P}} \mathbb{E} [ s_j^P(t) ] , \quad G_{P \to Q} = N_{P} \bar{w}_{P \to Q} .
+\tag{A6}
 $$
 
 Here $\mathbb{E}$ denotes the mean-field expectation that replaces each finite impulse train by its smooth rate. Replacing individual event weights by their population mean then gives
@@ -72,7 +128,7 @@ $$
 \dot{g}_{e}^{I} & = - \frac{g_{e}^{I}}{\tau_{\text{AMPA}}} + G_{E \to I} r_{E} , \\
 \dot{g}_{i}^{E} & = - \frac{g_{i}^{E}}{\tau_{\text{GABA}}} + G_{I \to E} r_{I} .
 \end{aligned}
-\tag{8}
+\tag{A7}
 $$
 
 This homogeneous approximation removes weight heterogeneity, finite-size fluctuations and spike correlations.
@@ -83,7 +139,7 @@ A synaptic conductance contributes current $- g ( V_{m} - E_{\text{rev}} )$. We 
 
 $$
 \Delta V_{\text{exc}} = E_{e} - E_{L} = 65 \: \text{mV} , \quad \Delta V_{\text{inh}} = E_{L} - E_{i} = 15 \: \text{mV} .
-\tag{9}
+\tag{A8}
 $$
 
 The effective currents seen by the excitatory and inhibitory populations are
@@ -92,7 +148,7 @@ The effective currents seen by the excitatory and inhibitory populations are
 
 $$
 I_{E} = I_{\text{ext}} - \Delta V_{\text{inh}} g_{i}^{E} , \quad I_{I} = \Delta V_{\text{exc}} g_{e}^{I} .
-\tag{10}
+\tag{A9}
 $$
 
 Freezing these driving forces removes the multiplicative $g V_{m}$ term. It therefore omits conductance-dependent shunting and changes in the effective membrane time constant; it is a mean-field assumption rather than an exact reduction.
@@ -105,15 +161,15 @@ For population $P$, let the stationary noisy-LIF gain be\[[1](#ref-1)\]
 
 $$
 \begin{aligned}
-\Phi_{P} ( I ) & = {\tau_{\text{ref} , P} + \tau_{m , P} \sqrt{\pi} \int_{a_{P ( I )}}^{b_{P ( I )}} e^{u^{2}} ( 1 + \operatorname{erf} ( u ) ) \, \mathrm{d} u}^{- 1} , \\
-a_{P ( I )} & = \frac{V_{\text{reset}} - \mu_{V , P} ( I )}{\sigma_{V}} , \\
-b_{P ( I )} & = \frac{V_{\text{th}} - \mu_{V , P} ( I )}{\sigma_{V}} , \\
+\Phi_P(I) & = \left[\tau_{\text{ref},P}+\tau_{m,P}\sqrt{\pi}\int_{a_P(I)}^{b_P(I)}e^{u^2}(1+\operatorname{erf}(u))\,\mathrm{d}u\right]^{-1} , \\
+a_P(I) & = \frac{V_{\text{reset}} - \mu_{V , P} ( I )}{\sigma_{V}} , \\
+b_P(I) & = \frac{V_{\text{th}} - \mu_{V , P} ( I )}{\sigma_{V}} , \\
 \mu_{V , P} ( I ) & = E_{L} + \frac{I}{g_{L , P}} .
 \end{aligned}
-\tag{11}
+\tag{A10}
 $$
 
-Here $I$ is mean current in nA, $\mu_{V , P}$ is its equivalent mean voltage, $\sigma_{V}$ is the chosen effective voltage-noise scale, and $\Phi_{P}$ is a per-neuron rate. The fixed $\sigma_{V}$ is not calculated self-consistently from network fluctuations.
+Here $u$ is a dimensionless integration variable, $\operatorname{erf}$ is the error function, and $I$ is mean current in nA, $\mu_{V , P}$ is its equivalent mean voltage, $\sigma_{V}$ is the chosen effective voltage-noise scale, and $\Phi_{P}$ is a per-neuron rate. The fixed $\sigma_{V}$ is not calculated self-consistently from network fluctuations.
 
 Rather than imposing the stationary gain instantaneously, introduce rate relaxation with time constant $\tau_{r , P}$:
 
@@ -121,14 +177,14 @@ Rather than imposing the stationary gain instantaneously, introduce rate relaxat
 
 $$
 \tau_{r , P} \dot{r}_{P} = - r_{P} + \Phi_{P} ( I_{P} ) .
-\tag{12}
+\tag{A11}
 $$
 
 This relaxation law supplies dynamical population rates and is an explicit closure assumption.
 
 ### A6 — Four-variable mean-field model
 
-Choose the state $x = ( r_{E} , r_{I} , g_{e}^{I} , g_{i}^{E} )$. Substituting the effective currents from [Equation 10](#loc-10) into [Equation 12](#loc-12) and adjoining the two conductance filters [Equation 8](#loc-9) gives
+Choose the state $x = ( r_{E} , r_{I} , g_{e}^{I} , g_{i}^{E} )$. Substituting the effective currents from [Equation A9](#loc-10) into [Equation A11](#loc-12) and adjoining the two conductance filters [Equation A7](#loc-9) gives
 
 <span id="loc-13" />
 
@@ -139,55 +195,55 @@ $$
 \dot{g}_{e}^{I} & = - \frac{g_{e}^{I}}{\tau_{\text{AMPA}}} + G_{E \to I} r_{E} , \\
 \dot{g}_{i}^{E} & = - \frac{g_{i}^{E}}{\tau_{\text{GABA}}} + G_{I \to E} r_{I} .
 \end{aligned}
-\tag{13}
+\tag{A12}
 $$
 
 These four equations define the mean-field model. They combine established single-neuron and exponential-synapse relations with four stated closure operations: homogeneous population averaging, tonic external drive, fixed synaptic driving forces, and phenomenological rate relaxation with an effective noise scale.
 
 ### A7 — Analytical flow Jacobian
 
-Write the right-hand side of [Equation 13](#loc-13) as $\dot{x} = F ( x ; I_{\text{ext}} )$. In the state ordering $x = ( r_{E} , r_{I} , g_{e}^{I} , g_{i}^{E} )$, its continuous-time flow Jacobian is
+Write the right-hand side of [Equation A12](#loc-13) as $\dot{x} = F ( x ; I_{\text{ext}} )$. In the state ordering $x = ( r_{E} , r_{I} , g_{e}^{I} , g_{i}^{E} )$, its continuous-time flow Jacobian is
 
 <span id="loc-14" />
 
 $$
-J_{\text{flow} ( x ; I_{\text{ext}} )} = \frac{\partial F}{\partial x} = \left( \begin{matrix}
-- \frac{1}{\tau_{r , E}} & 0 & 0 & - \Delta V_{\text{inh}} \frac{\Phi_{E ( I_{E} )}^{\prime}}{\tau_{r , E}} \\
-0 & - \frac{1}{\tau_{r , I}} & \Delta V_{\text{exc}} \frac{\Phi_{I ( I_{I} )}^{\prime}}{\tau_{r , I}} & 0 \\
+J_{\text{flow}}(x;I_{\text{ext}}) = \frac{\partial F}{\partial x} = \left( \begin{matrix}
+- \frac{1}{\tau_{r , E}} & 0 & 0 & - \Delta V_{\text{inh}} \frac{\Phi_E^{\prime}(I_E)}{\tau_{r , E}} \\
+0 & - \frac{1}{\tau_{r , I}} & \Delta V_{\text{exc}} \frac{\Phi_I^{\prime}(I_I)}{\tau_{r , I}} & 0 \\
 G_{E \to I} & 0 & - \frac{1}{\tau_{\text{AMPA}}} & 0 \\
 0 & G_{I \to E} & 0 & - \frac{1}{\tau_{\text{GABA}}}
 \end{matrix} \right) ,
-\tag{14}
+\tag{A13}
 $$
 
 where $I_{E} = I_{\text{ext}} - \Delta V_{\text{inh}} g_{i}^{E}$ and $I_{I} = \Delta V_{\text{exc}} g_{e}^{I}$. The gain derivatives can also be written analytically. Defining
 
 $$
 h ( u ) = e^{u^{2}} ( 1 + \operatorname{erf} ( u ) ) ,
-\tag{15}
+\tag{A14}
 $$
 
-differentiation of [Equation 11](#loc-11) by the Leibniz rule gives
+differentiation of [Equation A10](#loc-11) by the Leibniz rule gives
 
 $$
-\Phi_{P ( I )}^{\prime} = \frac{\tau_{m , P} \sqrt{\pi}}{g_{L , P} \sigma_{V}} \Phi_{P ( I )}^{2} h ( b_{P ( I )} ) - h ( a_{P ( I )} ) .
-\tag{16}
+\Phi_P^{\prime}(I) = \frac{\tau_{m,P}\sqrt{\pi}}{g_{L,P}\sigma_V}\Phi_P(I)^2\left[h(b_P(I))-h(a_P(I))\right].
+\tag{A15}
 $$
 
-For an equilibrium $x^{\ast}$, local stability is determined by the eigenvalues $\lambda_{J}$ of $J_{\text{flow} ( x^{\ast} ; I_{\text{ext}} )}$. A Hopf candidate requires a complex-conjugate pair to cross the imaginary axis at nonzero angular frequency while the other eigenvalues remain in the left half-plane.
+For an equilibrium $x^{\ast}$, local stability is determined by the eigenvalues $\lambda_{J}$ of $J_{\text{flow}}(x^{\ast};I_{\text{ext}})$. A Hopf candidate requires a complex-conjugate pair to cross the imaginary axis at nonzero angular frequency while the other eigenvalues remain in the left half-plane.
 
 ### A8 — Equilibrium equations
 
-An equilibrium $x^{\ast} = ( r_{E}^{\ast} , r_{I}^{\ast} , {( g_{e}^{I} )}^{\ast} , {( g_{i}^{E} )}^{\ast} )$ is a state that does not change with time. Setting all four time derivatives in [Equation 13](#loc-13) to zero gives the four equilibrium conditions
+An equilibrium $x^{\ast} = ( r_{E}^{\ast} , r_{I}^{\ast} , {( g_{e}^{I} )}^{\ast} , {( g_{i}^{E} )}^{\ast} )$ is a state that does not change with time. Setting all four time derivatives in [Equation A12](#loc-13) to zero gives the four equilibrium conditions
 
 $$
 \begin{aligned}
-0 & = - r_{E}^{\ast} + \Phi_{E} ( I_{\text{ext}} - \Delta V_{\text{inh} ( g_{i}^{E} )}^{\ast} ) , \\
-0 & = - r_{I}^{\ast} + \Phi_{I} ( \Delta V_{\text{exc} ( g_{e}^{I} )}^{\ast} ) , \\
+0 & = - r_{E}^{\ast} + \Phi_{E} ( I_{\text{ext}} - \Delta V_{\text{inh}}(g_i^E)^{\ast} ) , \\
+0 & = - r_{I}^{\ast} + \Phi_{I} ( \Delta V_{\text{exc}}(g_e^I)^{\ast} ) , \\
 0 & = - \frac{{( g_{e}^{I} )}^{\ast}}{\tau_{\text{AMPA}}} + G_{E \to I} r_{E}^{\ast} , \\
 0 & = - \frac{{( g_{i}^{E} )}^{\ast}}{\tau_{\text{GABA}}} + G_{I \to E} r_{I}^{\ast} .
 \end{aligned}
-\tag{17}
+\tag{A16}
 $$
 
 The last two equations can be solved directly for the equilibrium conductances,
@@ -197,7 +253,7 @@ $$
 {( g_{e}^{I} )}^{\ast} & = \tau_{\text{AMPA}} G_{E \to I} r_{E}^{\ast} , \\
 {( g_{i}^{E} )}^{\ast} & = \tau_{\text{GABA}} G_{I \to E} r_{I}^{\ast} .
 \end{aligned}
-\tag{18}
+\tag{A17}
 $$
 
 Substituting these expressions into the first two conditions leaves two coupled self-consistency equations for the equilibrium firing rates,
@@ -209,7 +265,19 @@ $$
 r_{E}^{\ast} & = \Phi_{E} ( I_{\text{ext}} - \Delta V_{\text{inh}} \tau_{\text{GABA}} G_{I \to E} r_{I}^{\ast} ) , \\
 r_{I}^{\ast} & = \Phi_{I} ( \Delta V_{\text{exc}} \tau_{\text{AMPA}} G_{E \to I} r_{E}^{\ast} ) .
 \end{aligned}
-\tag{19}
+\tag{A18}
 $$
 
-We reduced these two nonlinear equations to the scalar residual in [Equation 1](#loc-7) and solved it for each tested value of $I_{\text{ext}}$. Objective 2 then evaluated the analytical Jacobian and its eigenvalues at each recovered equilibrium. The separate nonlinear ramp test then evaluated whether the sampled oscillation onset was reversible and continuous. Repeating the equilibrium and eigenvalue calculation across the prescribed inhibitory-decay constants supplied the frequency comparison.
+We reduced these two nonlinear equations to the scalar residual in [Equation 1](#loc-7) and solved it for each tested value of $I_{\text{ext}}$. Method 2 then evaluated the analytical Jacobian and its eigenvalues at each recovered equilibrium. The separate nonlinear ramp test then evaluated whether the sampled oscillation onset was reversible and continuous. Repeating the equilibrium and eigenvalue calculation across the prescribed inhibitory-decay constants supplied the frequency comparison.
+
+<span id="loc-8" />
+<span id="parameters" />
+
+## Parameters
+
+This is an analytical population model, so a compiled spiking-network diagram
+and SNNLab parameter snapshot do not apply. Imported model constants, closure
+assumptions and numerical choices below come from the pinned computation's
+recorded configuration. Missing evidence is unavailable.
+
+<Table headers={['Parameter', 'Recorded value']} groups={analyticalGroups} />

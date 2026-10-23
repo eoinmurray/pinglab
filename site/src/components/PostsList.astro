@@ -15,7 +15,7 @@ const previews = await Promise.all(posts.map(async report => ({ report, counts: 
     {previews.map(({ report, counts }) => (
       <li class="post-preview article-list-row">
         <div class="metadata">
-          <a class="experiment-id" href={report.href} aria-label={`Open ${report.data.title}`}>{report.label}</a>
+          <span class="experiment-id">{report.label}</span>
           <div class="publishedDate"><ArticleDate date={report.data.updated_at} compact /></div>
         </div>
         <div class="article-list-content">
@@ -35,7 +35,6 @@ const previews = await Promise.all(posts.map(async report => ({ report, counts: 
   .post-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 6px; }
   .metadata { font-size: calc(12px * var(--listing-scale)); line-height: 1.4; margin-bottom: calc(18px * var(--listing-scale)); }
   .experiment-id { display: inline-block; margin-right: 1em; color: var(--listing-label); font-size: calc(18px * var(--listing-scale)); font-weight: 600; text-decoration: none; }
-  .experiment-id:hover { text-decoration: underline; }
   .publishedDate { display: inline-block; margin-right: 1em; }
   .collection { display: flex; align-items: center; flex-wrap: wrap; gap: .5em 1em; margin-top: calc(12px * var(--listing-scale)); font-size: calc(12px * var(--listing-scale)); line-height: 1.4; }
   .collection-badge { color: var(--listing-muted); padding: .3em .5em; border: 1px solid var(--listing-border); border-radius: 3px; text-transform: uppercase; font-size: 80%; font-weight: 500; text-decoration: none; }

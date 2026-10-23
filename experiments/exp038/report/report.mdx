@@ -2,7 +2,7 @@
 id: "exp038"
 title: "Switching On the Inhibitory Loop"
 created_at: "2026-05-30"
-updated_at: "2026-08-31T00:00:00Z"
+updated_at: "2026-10-20T17:13:36Z"
 description: "Enabling an inhibitory loop after feedforward training reduced excitatory firing but lowered classification accuracy; the experiment does not isolate a benefit of gamma timing."
 collection: ["gamma-gated-sparsity", "experiments"]
 author: "Eoin Murray"
@@ -10,7 +10,6 @@ tags: ["data", "v37.0.0"]
 runs: {"exp038": "exp038-r011-present"}
 thumbnailRun: "exp038-r011-present"
 thumbnail: "loop_transfer_compound.png"
-abstract: "We asked what happens when reciprocal inhibition is added after a feedforward classifier has already been trained. We kept the learned input and readout weights fixed while progressively enabling bidirectional excitatory–inhibitory coupling during inference. Stronger coupling grouped activity into bursts and sharply suppressed excitatory firing, but also reduced classification accuracy. This demonstrates post-training rate suppression, not a benefit of gamma timing or evidence that retraining would recover the lost accuracy."
 inputs: ["exp038"]
 ---
 
@@ -29,6 +28,10 @@ export const evalN = display(run.config.evaluation_samples_per_seed[0]);
 export const evalPool = display(run.config.evaluation_pool_samples);
 
 <span id="loc-2" />
+
+## Abstract
+
+We asked what happens when reciprocal inhibition is enabled after feedforward training. We held the learned input and readout weights fixed and varied bidirectional E↔I coupling in three MNIST classifiers. At full loop strength, mean E rate fell from {rateOff} to {rateOn} Hz, while test accuracy fell by {accCost} percentage points. This demonstrates post-training rate suppression under these conditions, without isolating a benefit of gamma timing or testing whether retraining could recover accuracy.
 
 ## Results
 

@@ -14,6 +14,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
       status: response.status, statusText: response.statusText, headers: response.headers,
     });
   } catch (error) {
+    if (import.meta.env.PROD) throw error;
     console.error(`[page-error] ${context.url.pathname}:`, error);
     const message = error instanceof Error ? error.message : String(error);
     return new Response(`<!doctype html><html lang="en"><head><meta charset="utf-8">

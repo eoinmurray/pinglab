@@ -1,4 +1,8 @@
-"""Count cycles from retained spikes and explicit exp041 frequencies; never simulate."""
+"""Count cycles from retained spikes and explicit exp041 frequencies; never simulate.
+
+Invoke this stage explicitly from the repository root. Scientific outputs
+and input provenance belong to its independently completed Pingstore run.
+"""
 
 import argparse
 import sys
@@ -7,7 +11,8 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
 
-from experiments.exp046 import evidence, inputs, measurements, recipe
+from experiments.exp046.custom import evidence, inputs, measurements
+from experiments.exp046 import recipe
 from pingstore.contracts import PingstoreError, write_json_atomic
 
 

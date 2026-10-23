@@ -2,7 +2,7 @@
 id: "exp044"
 title: "Firing Rate Across the Timestep Sweep"
 created_at: "2026-06-02"
-updated_at: "2026-09-09T00:00:00Z"
+updated_at: "2026-10-20T17:13:36Z"
 description: "Compares final-epoch firing rate, classification accuracy and illustrative rasters across a twelvefold integration-timestep sweep."
 collection: ["gamma-gated-sparsity", "experiments"]
 author: "Eoin Murray"
@@ -10,7 +10,6 @@ tags: ["data", "v37.0.0"]
 runs: {"exp044": "exp044-r009-present"}
 thumbnailRun: "exp044-r009-present"
 thumbnail: "dt_sweep.svg"
-abstract: "We asked how integration timestep affects the activity and accuracy of PING classifiers. We compared separately trained networks at matched training and evaluation timesteps, with fixed physical refractory periods, and evaluated their MNIST performance. Excitatory firing and accuracy varied across the sweep, showing that the timestep is part of the learned operating regime rather than a neutral solver setting. The comparison tests pipelines rather than holding weights fixed; the rasters do not establish invariance relative to the gamma period."
 inputs: ["exp044"]
 ---
 
@@ -47,6 +46,10 @@ export const cLr = display(c.lr);
 
 <span id="loc-2" />
 
+## Abstract
+
+We compared fifteen PING classifiers trained and evaluated at five matching integration timesteps from 0.05 to 0.6 ms, with fixed physical refractory periods and three seeds per condition. Test accuracy spanned {numberSummaryAccMinPct}–{numberSummaryAccMaxPct}%, while mean E firing ranged from {numberSummaryERateMinHz} to {numberSummaryERateMaxHz} Hz. Timestep therefore affected these learned operating regimes. Because weights were trained separately, this tests complete training–evaluation pipelines rather than numerical convergence at fixed weights.
+
 ## Results
 
 
@@ -65,7 +68,11 @@ Mean test accuracy ranged from {numberSummaryAccMinPct}% to {numberSummaryAccMax
 
 ### Timestep spike rasters
 
-<PublishedFigure run="exp044-r009-present" file="raster_strip.png" id="" alt="Single-trial excitatory and inhibitory spike rasters at five integration timesteps, plotted against physical time." >
+The same image produced distinct E/I spike patterns across the separately
+trained timesteps. These single-seed illustrations do not establish invariance
+of the gamma period.
+
+<PublishedFigure run="exp044-r009-present" file="raster_strip.png" alt="Single-trial excitatory and inhibitory spike rasters at five integration timesteps, plotted against physical time." >
   Figure 2: E (black) and I (red) rasters for the same official-test image, seed {cfgRasterSeed}, at timesteps **(A–E)** 0.05, 0.1, 0.2, 0.3 and 0.6 ms, respectively. Panels display {cfgRasterNEPlot} E and {cfgRasterNIPlot} I neurons over the first {cfgRasterWindowMs} ms. These illustrative probes support visual cadence inspection, not a population estimate of gamma-period invariance.
 </PublishedFigure>
 
@@ -73,7 +80,11 @@ Mean test accuracy ranged from {numberSummaryAccMinPct}% to {numberSummaryAccMax
 
 ### Training-timestep response
 
-<PublishedFigure run="exp044-r009-present" file="training_curves.svg" id="" alt="Per-network validation accuracy and excitatory firing rate versus epoch, coloured by integration timestep." >
+The endpoint E-rate differences above persisted after the same finite training
+horizon. Validation trajectories show each network separately; they do not
+establish an asymptotic firing-rate ceiling.
+
+<PublishedFigure run="exp044-r009-present" file="training_curves.svg" alt="Per-network validation accuracy and excitatory firing rate versus epoch, coloured by integration timestep." >
   Figure 3: Recorded training histories: **(A)** validation accuracy and **(B)** E rate, one line per timestep and seed. Each epoch averaged {cValidationEncoderDrawsCount} encoder draws per validation image. The final-epoch comparison is a finite-training snapshot, not an established fixed-point ceiling.
 </PublishedFigure>
 

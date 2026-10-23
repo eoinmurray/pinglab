@@ -1,0 +1,15 @@
+import Table from '../../../site/src/components/Table.astro';
+import { reportData } from '../../../site/src/lib/report-data';
+
+export const auditEvidence = await reportData('exp024', { allowUnavailable: true });
+export const auditRows = Object.entries(auditEvidence?.measurement ?? { 'Recorded audit configuration': 'Unavailable' }).map(([name, value]) => [name.replaceAll('_', ' '), typeof value === 'object' ? JSON.stringify(value) : String(value)]);
+
+## Parameters
+
+This experiment audits recorded learning histories without simulating a new
+network. The original training models belong to [exp022](/exp022). Their native
+snapshots are unavailable in the historical evidence; current recipe settings
+are not replacement model evidence. These analysis settings come from the
+same pinned audit as the figures.
+
+<Table headers={['Analysis setting', 'Recorded value']} groups={[{ label: 'History audit', rows: auditRows }]} />

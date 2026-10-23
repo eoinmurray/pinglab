@@ -11,8 +11,8 @@ import os
 import numpy as np
 import torch
 import torch.nn.functional as F
-from experiments.exp022.checkpoints import checkpoint_tensors, resolve_checkpoint
-from experiments.exp022.training import initial_draws
+from experiments.exp022.custom.checkpoints import checkpoint_tensors, resolve_checkpoint
+from experiments.exp022.custom.training import initial_draws
 from experiments.exp022.custom.network_artifacts import model_execution
 from pingstore.contracts import PingstoreError, file_sha256, write_json_atomic
 from snnlab.lang import duration_steps

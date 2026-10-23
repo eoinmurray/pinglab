@@ -1,7 +1,11 @@
-"""EXP080 independent stages; compatibility exports are pure recipe helpers."""
+"""EXP080 independent stages; compatibility exports are pure recipe helpers.
 
-from .measurements import analyze
-from .recipe import (
+This package exposes local scientific definitions for its independent stages.
+Importing it does not create runs, load scientific artifacts or launch execution.
+"""
+
+from experiments.exp080.custom.measurements import analyze
+from experiments.exp080.recipe import (
     EPOCHS_STANDARD,
     RATES_HZ,
     SEEDS,

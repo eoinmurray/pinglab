@@ -1,6 +1,12 @@
-"""The retained timestep audit recipe; training remains owned by exp022."""
+"""The retained timestep audit recipe; training remains owned by exp022.
 
-from experiments.exp022.checkpoints import checkpoint_policy
+configuration() resolves fresh scientific settings before execution. Network
+authoring and analysis definitions do not load data or launch a stage on import.
+"""
+
+from copy import deepcopy
+
+from experiments.exp044.custom.source_exp022_custom_checkpoints import checkpoint_policy
 from snnlab.lang import duration_metadata, duration_steps, refractory_metadata
 
 SLUG = "exp044"
@@ -85,41 +91,45 @@ CHECKPOINT_PARAMETERS = {
 
 
 def configuration(*, smoke: bool = False) -> dict:
-    return {
-        "schema": "exp044.recipe/v3",
-        **refractory_configuration(),
-        "profile": "smoke" if smoke else "production",
-        "dt_sweep_ms": list(DT_SWEEP_MS),
-        "trial_duration": {
-            "nominal_ms": T_MS,
-            "policy": "whole_steps_floor_with_integer_tolerance",
-            "conditions": [
-                {
-                    "dt_ms": dt,
-                    "steps": duration_steps(T_MS, dt),
-                    "realized_ms": duration_steps(T_MS, dt) * dt,
-                }
-                for dt in DT_SWEEP_MS
-            ],
-        },
-        "seeds": list(SEEDS),
-        "evaluation_samples": SMOKE_MAX_SAMPLES if smoke else EVAL_MAX_SAMPLES,
-        "checkpoint_policy": CHECKPOINT_POLICY,
-        "executor": "snnlab.sim.GraphExecutor",
-        "evaluation_batch_size": 64,
-        "evaluation_subset_seed": 42,
-        "evaluation_encoder_seed": 20260415,
-        "snapshot_encoder_stream": "native graph seed; distinct from historical CLI initialization draws",
-        "biophysics": dict(BIOPHYSICS),
-        "raster": {
-            "seed": SEEDS[0],
-            "sample_index": RASTER_SAMPLE_IDX,
-            "n_e_plot": RASTER_N_E_PLOT,
-            "n_i_plot": RASTER_N_I_PLOT,
-            "selection_seed": 0,
-            "window_ms": RASTER_T_WINDOW_MS,
-        },
-    }
+    if type(smoke) is not bool:
+        raise ValueError("smoke must be boolean")
+    return deepcopy(
+        dict(
+            schema="exp044.recipe/v3",
+            **refractory_configuration(),
+            profile="smoke" if smoke else "production",
+            dt_sweep_ms=list(DT_SWEEP_MS),
+            trial_duration=dict(
+                nominal_ms=T_MS,
+                policy="whole_steps_floor_with_integer_tolerance",
+                conditions=[
+                    dict(
+                        dt_ms=dt,
+                        steps=duration_steps(T_MS, dt),
+                        realized_ms=duration_steps(T_MS, dt) * dt,
+                    )
+                    for dt in DT_SWEEP_MS
+                ],
+            ),
+            seeds=list(SEEDS),
+            evaluation_samples=SMOKE_MAX_SAMPLES if smoke else EVAL_MAX_SAMPLES,
+            checkpoint_policy=CHECKPOINT_POLICY,
+            executor="snnlab.sim.GraphExecutor",
+            evaluation_batch_size=64,
+            evaluation_subset_seed=42,
+            evaluation_encoder_seed=20260415,
+            snapshot_encoder_stream="native graph seed; distinct from historical CLI initialization draws",
+            biophysics=dict(BIOPHYSICS),
+            raster=dict(
+                seed=SEEDS[0],
+                sample_index=RASTER_SAMPLE_IDX,
+                n_e_plot=RASTER_N_E_PLOT,
+                n_i_plot=RASTER_N_I_PLOT,
+                selection_seed=0,
+                window_ms=RASTER_T_WINDOW_MS,
+            ),
+        )
+    )
 
 
 def validate_network_settings(common: dict) -> None:

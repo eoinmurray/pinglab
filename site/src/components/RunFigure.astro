@@ -42,7 +42,7 @@ const resolvedPanels = run && panels ? await Promise.all(panels.map(async panel 
     })}
   </div> : <a class="figure-image" href={url} aria-label={`Open Figure ${number} at full size`}>
     <img src={url} alt={alt} loading="lazy" decoding="async" />
-  </a> : <p class="figure-unavailable">Figure unavailable: no local presentation data.</p>}
+  </a> : <p class="figure-unavailable">Figure unavailable: no presentation data locally or in R2.</p>}
   <figcaption><strong>Figure {number}.</strong> <slot /></figcaption>
 </figure>
 

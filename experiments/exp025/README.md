@@ -1,133 +1,15 @@
-# exp025 — accuracy–rate frontier
+# exp025
 
-Local-data update, 2026-10-05: runs unused by the latest exp110 manuscript
-were explicitly deleted. Historical operation and size reports below describe
-the earlier store; they do not establish current local availability.
+Compare held-out accuracy and firing rate across COBA/PING activity ceilings, then test cycle participation and sensitivity to input coupling.
 
-`exp025` reuses an explicitly selected, completed `exp022` model-bank compute
-run. It evaluates the retained COBA and PING networks, measures the resulting
-accuracy/rate behaviour, and renders the article inputs.
+## CLI
 
-## Independent stages
+Run each stage independently from the repository root with `uv run python`.
 
-```sh
-uv run python experiments/exp025/compute.py --source <exp022-compute-run>
-uv run python experiments/exp025/analyse.py --source <exp025-compute-run>
-uv run python experiments/exp025/present.py --source <exp025-analyse-run>
-```
+1. `compute.py`: `--source` (required), `--run-id` (optional).
+2. `analyse.py`: `--source` (optional), `--reuse-analysis` (optional), `--baseline-bank` (optional), `--run-id` (optional).
+3. `present.py`: `--source` (required), `--run-id` (optional).
+4. `custom/hpc.py`: `--source` (required), `--plan` (required), `--account` (required), `--cpu-account` (required), `--mnist-cache` (required), `--profile` (optional; default production), `--walltime` (optional; default 02:00:00), `plan` (required), `--live` (optional), `--test-only` (optional), `stage` (required).
+5. `test.py`: `uv run pytest experiments/exp025/test.py`; optional pytest arguments.
 
-Each command creates exactly one immutable `pingstore.run/v4` run. Every source
-is explicit and checksum-pinned. No stage selects a latest run, launches another
-stage, publishes, or writes `.artifacts/`.
-
-The bank supplies 36 `TR-02` frontier cells and 12 `TR-07` low-input-weight
-controls. Their final-epoch checkpoints and training histories are validated
-before inference or analysis and their complete ancestry is checked again before
-stage completion.
-
-To replace only Figure 1 A–C with the full-MNIST reference classifiers, explicitly
-name the existing endpoint analysis and the completed training bank:
-
-```sh
-uv run python experiments/exp025/analyse.py --reuse-analysis <exp025-analyse-run> --baseline-bank <exp022-compute-run>
-uv run python experiments/exp025/present.py --source <new-exp025-analyse-run>
-```
-
-This analysis measures the six `TR-01` validation histories (54,000 optimization
-and 6,000 validation images) and transforms the retained seed-42 final-checkpoint,
-200-ms digit-0 recordings into rasters. It retains all reduced-pool frontier
-measurements and other analysis values exactly. No training or inference is
-launched. Figure 1 D still uses the separate `TR-02` group (6,300 optimization
-and 700 validation images). Both inputs and their ancestry are validated and
-checksum-pinned; neither existing run is changed.
-
-Production compute executes 98 inference jobs:
-
-- 36 official-test frontier evaluations;
-- 12 representative-seed PFG evaluations;
-- 48 input-weight-scale evaluations; and
-- two digit-0/sample-0, 400 ms raster snapshots.
-
-Quantitative evaluations use all 1,000 selected official MNIST test images.
-`PINGLAB_SMOKE=1` uses 100 images, three scale factors, and seed 42 for the
-low-input-weight history summary, while still requiring the complete trained
-bank.
-
-## Stage ownership
-
-- Compute retains raw metrics, PING population traces and sparse E/I events,
-  scale-sweep sample-wise E rates, and E/I illustrative recordings.
-- Analyse owns frontier means and SEMs, Welch frequency, inhibitory-cycle
-  participation, sample-wise rate penalties, history summaries, scale-crossing
-  midpoint, and raster coordinates.
-- Present renders five figures in their required vector or raster formats plus
-  `numbers.json`. It does not remeasure the analysis.
-
-Compute execution configuration, commands, environment, checkpoint pins and
-timing belong in `run.json` or discarded writer scratch space. New compute runs
-therefore do not export a parallel metadata envelope. The historical
-historical compute payloads included `evidence.json`; readers
-validate that immutable legacy v4 file when it is present but do not require it
-from new runs.
-
-## Scientific scope
-
-COBA PFG rows contain accuracy and firing rates only; frequency and cycle
-participation remain undefined. PING frequency uses Welch spectra of retained E
-population traces, and participation counts active E cell-cycle pairs using
-inhibitory burst peaks. The participation-frequency product is an approximation.
-The input-scale crossing is the midpoint of the first sampled pair crossing
-0.05 Hz I rate, not a fitted bifurcation.
-
-New runs require gradient damping 1000 for both COBA and PING. The retained
-historical lineage below used damping 1 for COBA and 1000 for PING, which limits
-causal attribution in those old results. Low-input-weight curves are validation
-histories; frontier endpoints are final-epoch official-test evaluations.
-
-## CSD3 preparation and launch
-
-Prepare from a clean frozen checkout containing the completed replacement bank:
-
-```sh
-uv run --frozen python -m experiments.exp025.hpc prepare \
-  --source exp022-r011-compute \
-  --plan .scratch/exp025-exp110-d1000/production.json \
-  --account OLEARY-SL2-GPU --cpu-account OLEARY-SL3-CPU \
-  --mnist-cache /rds/user/em586/hpc-work/datasets/torch
-uv run --frozen python -m experiments.exp025.hpc review \
-  .scratch/exp025-exp110-d1000/production.json
-uv run --frozen python -m experiments.exp025.hpc review \
-  .scratch/exp025-exp110-d1000/production.json --test-only
-```
-
-Only the explicit `--live` review submits the single-GPU compute followed by
-CPU analysis and presentation with `afterok` dependencies. No stage publishes.
-
-## Retained historical lineage
-
-The original Gold-2 import was an explicit offline historical operation. It did
-not train, simulate, publish, or modify the source archive. The former local
-lineage comprised the earlier exp025 compute run → `exp025-r002-analyse` →
-`exp025-r007-present`, pinned to `exp022-r001-compute`. Its source identities,
-operation history and checksums remain in the run records and README histories.
-
-Existing immutable runs and external archives are not rewritten by source-code
-cleanup. The retained `r007` presentation still contains its historical
-standalone raster figures; future presentations omit those unused duplicates
-because the article and synthesis consume the rasters through
-`results_compound`.
-
-
-## Migration completion audit — 2026-10-06
-
-Native official-test evaluations, PFG sparse E/I events and population traces, input-weight scaling, per-sample rates and 400-ms digit-0 snapshots. Final-epoch selection and historical bank/history/metric readers remain. No inference cache is introduced.
-
-Implementation migration is complete under static verification only. Python parsing,
-lint, diff review and read-only Pingstore discovery were performed. Existing
-synthetic fixtures were adapted where their CLI seams became obsolete; none
-were executed. No experiment stage, new run, regenerated result, commit or push
-was performed. Numerical parity, backend execution, performance and rendering
-remain unverified. The implementation marker and article title suffix were
-removed; authored prose/results/dates and review decisions were preserved.
-Writing Guide 36.0.0 availability/version tags were applied using validated local
-presentation discovery.
+Optional environment: `PINGLAB_SMOKE=1` selects the bounded smoke profile; `SNNLAB_DEVICE` (or the legacy `PINGLAB_DEVICE`) selects the execution device.

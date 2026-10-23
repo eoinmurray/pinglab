@@ -6,7 +6,7 @@ const format = new Intl.NumberFormat('en-GB');
 const items = [
   { value: counts.words, label: 'word', description: 'Main report prose, including the abstract; excludes headings, captions, tables, code, mathematics, metadata, references and appendices.' },
   { value: counts.figures, label: 'figure', description: 'Main report figures; each multipanel figure counts once. Tables and appendix figures are excluded.' },
-  ...(counts.runs === undefined ? [] : [{ value: counts.runs, label: 'run', description: 'Completed compute, analyse and present runs belonging to this experiment in local Pingstore; upstream and hidden runs are excluded.' }]),
+  ...(counts.runs === undefined ? [] : [{ value: counts.runs, label: 'run', description: 'Completed compute, analyse and present runs belonging to this experiment in the available local/R2 inventory; upstream and hidden runs are excluded.' }]),
 ];
 ---
 <span class:list={['article-metrics', { stacked }]} aria-label="Article statistics">

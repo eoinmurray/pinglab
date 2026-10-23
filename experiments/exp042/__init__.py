@@ -1,6 +1,10 @@
-"""Scientific recipe only; invoke compute, analyse and present explicitly."""
+"""Scientific recipe only; invoke compute, analyse and present explicitly.
 
-from .recipe import (
+This package exposes local scientific definitions for its independent stages.
+Importing it does not create runs, load scientific artifacts or launch execution.
+"""
+
+from experiments.exp042.recipe import (
     ANALYSIS_PURPOSE,
     CELL_JITTER_SIGMAS_MS,
     CHECKPOINT_POLICY,

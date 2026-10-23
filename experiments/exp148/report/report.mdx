@@ -1,0 +1,60 @@
+---
+id: exp148
+title: "From Irregular Activity to Gamma Oscillations"
+author: "Eoin Murray"
+created_at: "2026-10-23T14:51:26Z"
+updated_at: "2026-10-23T15:03:34Z"
+description: "Reducing external excitation of inhibitory neurons produces population oscillations in an exp145-equivalent conductance network."
+collection: ["gamma-gated-sparsity", "experiments"]
+tags: ["data"]
+inputs: ["exp148"]
+runs: {exp148: exp148-r003-present}
+thumbnail: transition.png
+---
+
+import RunFigure from '../../../site/src/components/RunFigure.astro';
+import Table from '../../../site/src/components/Table.astro';
+import { reportData } from '../../../site/src/lib/report-data';
+
+export const data = await reportData('exp148', { allowUnavailable: true });
+export const show = value => typeof value === 'number' ? value.toFixed(2) : 'Unavailable';
+
+## Abstract
+
+We reduce direct external excitation of inhibitory neurons in the shared-input
+conductance network used in [exp145](/exp145). The circuit runs continuously
+through a baseline, a reduction in external-to-I weights, and a final hold.
+Population activity becomes strongly rhythmic during the reduction. This
+single-seed observation is consistent with a PING-like transition, but does not
+establish the oscillation's mechanism or robustness.
+
+## Results
+
+### Population rhythm emerges as direct I drive falls
+
+The 4,000 excitatory and 1,000 inhibitory neurons retain the six pathways of
+exp145, including recurrent excitation and inhibition within each population.
+After 50 ms burn-in, the first 500 ms retains baseline input. Over the next
+500 ms, X→I weights fall from their initial values to zero. The final 500 ms
+holds them at zero. The X→E weights and shared external spike train remain unchanged.
+
+<RunFigure report="exp148" experiment="exp148" file="transition.png" number={1} id="fig-transition" alt="A full E/I raster develops rhythmic population bursts as external-to-I weights decrease; the lower panel shows the weight schedule." allowUnavailable={true}>
+  A: spikes from all excitatory neurons in black and inhibitory neurons in red.
+  Dashed boundaries separate the baseline, ramp and hold windows. B: X→I weight
+  multiplier in red and unchanged X→E multiplier in dashed black, each expressed
+  as a percentage of its own baseline. Both panels exclude the 50 ms burn-in.
+  The weight ramp updates every 1 ms; existing synaptic conductance decays
+  continuously. No dynamical state is reset at the boundaries.
+</RunFigure>
+
+{data ? <p>In the final hold, the median interval between excitatory population-count peaks corresponds to {show(data.hold_cycles.E.frequency_hz)} Hz. The inhibitory estimate is {show(data.hold_cycles.I.frequency_hz)} Hz. These are population-cycle estimates, rather than individual-neuron firing rates.</p> : <p>Run evidence is unavailable.</p>}
+
+<Table
+  headers={["Window", "Mean E firing rate (Hz)", "Mean I firing rate (Hz)"]}
+  rows={data ? data.windows.map(row => [row.window, show(row.E_rate_hz), show(row.I_rate_hz)]) : [["Unavailable", "Unavailable", "Unavailable"]]}
+  number={1}
+  label="Mean neuron firing rates by protocol window"
+>
+  Rates count every recorded spike within each half-open 500 ms window and
+  divide by population size and window duration; silent neurons are included.
+</Table>

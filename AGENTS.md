@@ -40,6 +40,9 @@ by treating it as hypothetical.
 - Adjust general site styling: site instructions, not all scientific guides.
   Add Writing Rules if changing shared article components or metadata behavior.
 
+The explanatory [COBA and PING dynamics note](md/notes/coba-ping-dynamics.mdx)
+(formerly exp113) covers model and training derivations; it is not a rules guide.
+
 ## Additional instructions
 
 Before editing a Notes article itself, read that article and its versioning or
@@ -47,7 +50,6 @@ change-control instructions. When notes are added, renamed, or removed, update
 this router and affected documentation links in the same task.
 
 For Astro setup, content APIs, and localhost behavior, also read
-[site/README.md](site/README.md). Before building or deploying published run
-assets, also read [Publishing](tools/publishing/README.md).
+[site/README.md](site/README.md).
 
 Follow any additional `AGENTS.md` in the directory you work in.

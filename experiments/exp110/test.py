@@ -1,11 +1,19 @@
+"""Validate exp110 scientific and execution contracts.
+
+Run with `uv run pytest experiments/exp110/test.py`. Fixtures use temporary stores;
+bounded native checks validate numerical behavior without production runs.
+"""
+
 from pathlib import Path
 from xml.etree import ElementTree
 
 import pytest
-from experiments.exp054 import plots as exp054_plots
-from experiments.exp054 import recipe as exp054_recipe
-from experiments.exp110 import plots, present, recipe
-from experiments.exp117 import recipe as exp117_recipe
+from experiments.exp110.custom import source_exp054_custom_plots as exp054_plots
+from experiments.exp110.custom import source_exp054_recipe as exp054_recipe
+from experiments.exp110.custom import plots
+from experiments.exp110.custom import presentation as present
+from experiments.exp110 import recipe
+from experiments.exp110.custom import source_exp117_recipe as exp117_recipe
 from PIL import Image
 from pingstore import stages
 from pingstore.contracts import write_json_atomic
@@ -49,8 +57,10 @@ def test_present_records_exp054_analysis_and_exports_only_the_bundle(
     with stages.stage_run(tmp_path, "exp054", "analyse") as exp054_run:
         (exp054_run.export / "fixture.json").write_text("{}")
     exp054_analysis = source_run(
-        tmp_path / ".pingstore", exp054_run.run_id,
-        stage="analyse", experiment="exp054",
+        tmp_path / ".pingstore",
+        exp054_run.run_id,
+        stage="analyse",
+        experiment="exp054",
     )
     exp117_cfg = exp117_recipe.configuration()
     with stages.stage_run(
@@ -58,8 +68,10 @@ def test_present_records_exp054_analysis_and_exports_only_the_bundle(
     ) as exp117_compute_run:
         (exp117_compute_run.export / "continuation.json").write_text("{}")
     exp117_compute = source_run(
-        tmp_path / ".pingstore", exp117_compute_run.run_id,
-        stage="compute", experiment="exp117",
+        tmp_path / ".pingstore",
+        exp117_compute_run.run_id,
+        stage="compute",
+        experiment="exp117",
     )
     with stages.stage_run(
         tmp_path,
@@ -81,8 +93,10 @@ def test_present_records_exp054_analysis_and_exports_only_the_bundle(
             {"schema": "exp117.plot-coordinates/v4"},
         )
     exp117_analysis = source_run(
-        tmp_path / ".pingstore", exp117_run.run_id,
-        stage="analyse", experiment="exp117",
+        tmp_path / ".pingstore",
+        exp117_run.run_id,
+        stage="analyse",
+        experiment="exp117",
     )
     presentations = {}
     source_analyses = {}
@@ -110,9 +124,13 @@ def test_present_records_exp054_analysis_and_exports_only_the_bundle(
                         ],
                     }
                 write_json_atomic(saved.export / "results.json", document)
-            source_analyses[experiment] = source_run(tmp_path / ".pingstore", saved.run_id)
+            source_analyses[experiment] = source_run(
+                tmp_path / ".pingstore", saved.run_id
+            )
             sources["analysis"] = source_analyses[experiment]
-        with stages.stage_run(tmp_path, experiment, "present", inputs=sources) as source:
+        with stages.stage_run(
+            tmp_path, experiment, "present", inputs=sources
+        ) as source:
             path = source.export / name
             if path.suffix == ".svg":
                 path.write_text('<svg xmlns="http://www.w3.org/2000/svg"/>')
@@ -135,7 +153,10 @@ def test_present_records_exp054_analysis_and_exports_only_the_bundle(
             {
                 "I_ext_nA": drive,
                 "eigenvalues_per_ms": [
-                    [-0.1, 0.2], [-0.1, -0.2], [-0.4, 0.1], [-0.4, -0.1]
+                    [-0.1, 0.2],
+                    [-0.1, -0.2],
+                    [-0.4, 0.1],
+                    [-0.4, -0.1],
                 ],
             }
             for drive in (0.0, 4.0)
@@ -150,8 +171,7 @@ def test_present_records_exp054_analysis_and_exports_only_the_bundle(
             "amplitude_down_Hz": [0.0, 2.0],
         },
         "frequency_vs_tau_GABA": [
-            {"tau_GABA_ms": tau, "f_Hopf_Hz": 100 / tau}
-            for tau in reversed(taus)
+            {"tau_GABA_ms": tau, "f_Hopf_Hz": 100 / tau} for tau in reversed(taus)
         ],
     }
     exp117_numbers = {
@@ -168,13 +188,18 @@ def test_present_records_exp054_analysis_and_exports_only_the_bundle(
     assert loaded_coordinates["schema"] == "exp117.plot-coordinates/v4"
     assert loaded_numbers["schema"] == "exp117.analysis/v3"
     monkeypatch.setattr(
-        present, "_exp054_analysis",
+        present,
+        "_exp054_analysis",
         lambda identity: (exp054_analysis, exp054_cfg, exp054_coordinates),
     )
     monkeypatch.setattr(
-        present, "_exp117_analysis",
+        present,
+        "_exp117_analysis",
         lambda identity: (
-            exp117_analysis, exp117_cfg, exp117_coordinates, exp117_numbers,
+            exp117_analysis,
+            exp117_cfg,
+            exp117_coordinates,
+            exp117_numbers,
         ),
     )
 
@@ -185,13 +210,9 @@ def test_present_records_exp054_analysis_and_exports_only_the_bundle(
         assert [row["amp"] for row in sweep["up"]] == pytest.approx([0.0, 0.002])
         assert sweep["down"] == sweep["up"]
         assert [row["tau_gaba_ms"] for row in mean_field] == taus
-        assert [row["f_star_Hz"] for row in mean_field] == [
-            100 / tau for tau in taus
-        ]
+        assert [row["f_star_Hz"] for row in mean_field] == [100 / tau for tau in taus]
         assert list(measured) == taus
-        assert [measured[tau] for tau in taus] == [
-            100 / tau + 1 for tau in taus
-        ]
+        assert [measured[tau] for tau in taus] == [100 / tau + 1 for tau in taus]
         destination.with_suffix(".svg").write_bytes(b"svg")
         destination.with_suffix(".pdf").write_bytes(b"pdf")
 
@@ -240,32 +261,60 @@ def test_present_records_exp054_analysis_and_exports_only_the_bundle(
         "exp117": exp117_cfg,
     }
 
+
 def test_cycle_participation_uses_equal_network_means(tmp_path, monkeypatch):
     import pytest
 
     rate = tmp_path / "rate.json"
     cycles = tmp_path / "cycles.json"
     taus = (4.5, 6, 9, 12, 18, 27)
-    write_json_atomic(rate, {
-        "schema": "exp041.analysis/v1",
-        "aggregate": [
-            {"tau_gaba_ms": tau, **{
-                key: {"mean": value, "sem": 0.5}
-                for key, value in (("f_gamma_hz", 100 / tau), ("e_rate_hz", 20 / tau), ("acc", 90))
-            }} for tau in taus
-        ],
-        "fit": {"p_affine": 0.2, "a_affine": 0, "r2_affine": 1},
-    })
-    write_json_atomic(cycles, {
-        "schema": "exp046.analysis/v2",
-        "per_tau": {f"tau_{tau:g}": {
-            "frac_zero": 0.8, "frac_one": 0.18, "frac_two": 0.015, "frac_three_plus": 0.005,
-        } for tau in taus},
-        "per_tau_equal_network": {f"tau_{tau:g}": {
-            "frac_zero": 0.7, "frac_one": 0.28, "frac_two": 0.015, "frac_three_plus": 0.005,
-        } for tau in taus},
-    })
+    write_json_atomic(
+        rate,
+        {
+            "schema": "exp041.analysis/v1",
+            "aggregate": [
+                {
+                    "tau_gaba_ms": tau,
+                    **{
+                        key: {"mean": value, "sem": 0.5}
+                        for key, value in (
+                            ("f_gamma_hz", 100 / tau),
+                            ("e_rate_hz", 20 / tau),
+                            ("acc", 90),
+                        )
+                    },
+                }
+                for tau in taus
+            ],
+            "fit": {"p_affine": 0.2, "a_affine": 0, "r2_affine": 1},
+        },
+    )
+    write_json_atomic(
+        cycles,
+        {
+            "schema": "exp046.analysis/v2",
+            "per_tau": {
+                f"tau_{tau:g}": {
+                    "frac_zero": 0.8,
+                    "frac_one": 0.18,
+                    "frac_two": 0.015,
+                    "frac_three_plus": 0.005,
+                }
+                for tau in taus
+            },
+            "per_tau_equal_network": {
+                f"tau_{tau:g}": {
+                    "frac_zero": 0.7,
+                    "frac_one": 0.28,
+                    "frac_two": 0.015,
+                    "frac_three_plus": 0.005,
+                }
+                for tau in taus
+            },
+        },
+    )
     save = present.save_figure
+
     def inspect(fig, stem, **kwargs):
         a, b, *bottom = fig.axes
         assert a.get_position().width == pytest.approx(b.get_position().width)
@@ -273,10 +322,13 @@ def test_cycle_participation_uses_equal_network_means(tmp_path, monkeypatch):
         assert a.get_xlim() == b.get_xlim()
         assert [text.get_text() for ax in bottom for text in ax.texts] == list("CDEFGH")
         for ax in bottom:
-            assert [bar.get_height() for bar in ax.patches] == pytest.approx([0.7, 0.28, 0.015, 0.005])
+            assert [bar.get_height() for bar in ax.patches] == pytest.approx(
+                [0.7, 0.28, 0.015, 0.005]
+            )
             assert not ax.collections
             assert all(bar.get_facecolor() == (0, 0, 0, 1) for bar in ax.patches)
         save(fig, stem, **kwargs)
+
     monkeypatch.setattr(present, "save_figure", inspect)
     present.build_cycle_participation_compound(rate, cycles, tmp_path / "combined")
     assert (tmp_path / "combined.svg").is_file()
@@ -285,7 +337,9 @@ def test_cycle_participation_uses_equal_network_means(tmp_path, monkeypatch):
 
 @pytest.mark.parametrize("relative", [False, True])
 def test_robustness_composite_uses_equal_width_row_panels(
-    tmp_path: Path, monkeypatch, relative,
+    tmp_path: Path,
+    monkeypatch,
+    relative,
 ) -> None:
     perturbation = tmp_path / "perturbation.json"
     timestep = tmp_path / "timestep.json"
@@ -303,7 +357,13 @@ def test_robustness_composite_uses_equal_width_row_panels(
                 "use_pct": True,
                 "relative_test_baseline": relative,
                 "panels": {
-                    mode: {model: {**curve, "x": [0.0, 200.0] if mode == "add" else curve["x"]} for model in ("coba", "ping")}
+                    mode: {
+                        model: {
+                            **curve,
+                            "x": [0.0, 200.0] if mode == "add" else curve["x"],
+                        }
+                        for model in ("coba", "ping")
+                    }
                     for mode in ("drop", "add")
                 },
             },
@@ -324,16 +384,20 @@ def test_robustness_composite_uses_equal_width_row_panels(
         },
     )
     save = present.save_figure
+
     def inspect(fig, stem, **kwargs):
         drop, add, rate, accuracy = fig.axes
         assert list(rate.lines[0].get_xdata()) == [0.05, 0.1, 0.2, 0.3, 0.6]
         assert list(accuracy.lines[0].get_xdata()) == [0.05, 0.1, 0.2, 0.3, 0.6]
         assert list(add.lines[0].get_xdata()) == [0.0, 200.0]
         assert add.get_xlim()[1] > 200
-        assert ("baseline E rate" if relative else "reference E rate") in add.get_xlabel()
+        assert (
+            "baseline E rate" if relative else "reference E rate"
+        ) in add.get_xlabel()
         assert "Spike insertion" in add.get_title(loc="left")
         assert "±1 SD band" in [text.get_text() for text in fig.legends[0].get_texts()]
         save(fig, stem, **kwargs)
+
     monkeypatch.setattr(present, "save_figure", inspect)
     present.build_robustness_compound(perturbation, timestep, tmp_path / "combined")
     view_box = ElementTree.parse(tmp_path / "combined.svg").getroot().attrib["viewBox"]

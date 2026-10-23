@@ -1,7 +1,18 @@
-"""The retained exp025 recipe and explicit inference jobs; no storage access."""
+"""The retained exp025 recipe and explicit inference jobs; no storage access.
 
-from experiments.exp022 import FR_STRENGTH_UPPER as FR_STRENGTH_UPPER
-from experiments.exp022 import training_run_cell, training_run_values
+configuration() resolves fresh scientific settings before execution. Network
+authoring and analysis definitions do not load data or launch a stage on import.
+"""
+
+from copy import deepcopy
+
+from experiments.exp025.custom.bank_contract import (
+    FR_STRENGTH_UPPER as FR_STRENGTH_UPPER,
+)
+from experiments.exp025.custom.bank_contract import (
+    training_run_cell,
+    training_run_values,
+)
 
 SLUG = "exp025"
 REFRACTORY_E_MS = 1.2
@@ -63,7 +74,6 @@ def refractory_configuration() -> dict:
     }
 
 
-
 def cell_name(model, rate_target_hz, seed):
     return training_run_cell(
         "TR-02", model=model, rate_target_hz=rate_target_hz, seed=seed
@@ -106,18 +116,22 @@ def bank_cells():
 
 
 def configuration(*, smoke=False, version=2):
+    if type(smoke) is not bool:
+        raise ValueError("smoke must be boolean")
     if version not in (1, 2):
         raise ValueError("unsupported exp025 recipe version")
-    return {
-        "schema": f"exp025.recipe/v{version}",
-        **(refractory_configuration() if version >= 2 else {}),
-        "profile": "smoke" if smoke else "production",
-        "evaluation_samples": 100 if smoke else EVAL_MAX_SAMPLES,
-        "pfg_samples": 100 if smoke else min(256 * 5, EVAL_MAX_SAMPLES),
-        "low_w_in_seeds": [42] if smoke else list(SEEDS),
-        "scales": [0.5, 1.0, 3.0] if smoke else list(W_IN_SCALE_VALUES),
-        "checkpoint_policy": CHECKPOINT_POLICY,
-    }
+    return deepcopy(
+        dict(
+            schema=f"exp025.recipe/v{version}",
+            **(refractory_configuration() if version >= 2 else dict()),
+            profile="smoke" if smoke else "production",
+            evaluation_samples=100 if smoke else EVAL_MAX_SAMPLES,
+            pfg_samples=100 if smoke else min(256 * 5, EVAL_MAX_SAMPLES),
+            low_w_in_seeds=[42] if smoke else list(SEEDS),
+            scales=[0.5, 1.0, 3.0] if smoke else list(W_IN_SCALE_VALUES),
+            checkpoint_policy=CHECKPOINT_POLICY,
+        )
+    )
 
 
 def jobs(cfg):
@@ -164,12 +178,16 @@ def jobs(cfg):
     return rows
 
 
-
 BIOPHYSICS = {
-    "capacitance_e_nf": 1.0, "capacitance_i_nf": 0.5,
-    "leak_e_us": 0.05, "leak_i_us": 0.10,
-    "resting_mv": -65.0, "threshold_mv": -50.0, "reset_mv": -65.0,
-    "readout_tau_ms": 2.0, "readout_threshold": 1.0,
+    "capacitance_e_nf": 1.0,
+    "capacitance_i_nf": 0.5,
+    "leak_e_us": 0.05,
+    "leak_i_us": 0.10,
+    "resting_mv": -65.0,
+    "threshold_mv": -50.0,
+    "reset_mv": -65.0,
+    "readout_tau_ms": 2.0,
+    "readout_threshold": 1.0,
 }
 
 

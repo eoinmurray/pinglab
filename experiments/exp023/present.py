@@ -1,4 +1,8 @@
-"""Render completed exp023 measurements and pinned rasters; never simulate."""
+"""Render completed exp023 measurements and pinned rasters; never simulate.
+
+Invoke this stage explicitly from the repository root. Scientific outputs
+and input provenance belong to its independently completed Pingstore run.
+"""
 
 from __future__ import annotations
 
@@ -10,8 +14,11 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
 
+from experiments.exp023.custom.network_artifacts import copy_circuits
+
 import numpy as np
-from experiments.exp023 import inputs, plots, recipe
+from experiments.exp023.custom import inputs, plots
+from experiments.exp023 import recipe
 from experiments import theme
 from pingstore.contracts import PingstoreError, load_json, write_json_atomic
 from pingstore.stages import stage_run
@@ -99,11 +106,16 @@ def present(identity: str, *, run_id: str | None = None) -> str:
         write_json_atomic(
             run.export / "numbers.json",
             {
-                **results,
-                "config": cfg,
-                "run_id": run.run_id,
-                "duration_s": time.monotonic() - started,
-                "git_sha": run.record["provenance"]["git_commit"],
+                **(
+                    {
+                        **results,
+                        "config": cfg,
+                        "run_id": run.run_id,
+                        "duration_s": time.monotonic() - started,
+                        "git_sha": run.record["provenance"]["git_commit"],
+                    }
+                ),
+                "circuit_files": copy_circuits(run),
             },
         )
     return run.run_id

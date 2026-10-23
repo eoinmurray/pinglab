@@ -1,4 +1,8 @@
-"""Measure explicit full recordings; never simulate or publish."""
+"""Measure explicit full recordings; never simulate or publish.
+
+Invoke this stage explicitly from the repository root. Scientific outputs
+and input provenance belong to its independently completed Pingstore run.
+"""
 
 import argparse
 import sys
@@ -7,7 +11,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
 
-from experiments.exp054 import evidence, inputs, measurements
+from experiments.exp054.custom import evidence, inputs, measurements
 from pingstore.contracts import PingstoreError, write_json_atomic
 
 

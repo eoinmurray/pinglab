@@ -1,24 +1,8 @@
-import { readdir, readFile, stat } from 'node:fs/promises';
-import { join, resolve } from 'node:path';
+import { runStore } from './run-store.ts';
 import { localAssetUrl, selectAsset } from './run-assets';
 
-const runsRoot = resolve('../.pingstore/runs');
-
 async function countCompletedRuns(experiment: string): Promise<number> {
-  let entries;
-  try { entries = await readdir(runsRoot, { withFileTypes: true }); }
-  catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return 0;
-    throw error;
-  }
-  let count = 0;
-  for (const entry of entries) {
-    if (!entry.isDirectory() || !entry.name.startsWith(`${experiment}-`)) continue;
-    const record = JSON.parse(await readFile(join(runsRoot, entry.name, 'run.json'), 'utf8'));
-    if (record.schema === 'pingstore.run/v4' && record.experiment === experiment
-      && ['compute', 'analyse', 'present'].includes(record.stage) && record.execution?.completed_at) count++;
-  }
-  return count;
+  return (await runStore.ids(experiment)).length;
 }
 
 const runCounts = new Map<string, Promise<number>>();
@@ -30,42 +14,20 @@ export function completedRunCount(experiment: string): Promise<number> {
 
 interface Presentation {
   id: string;
-  exportDirectory: string;
   completedAt: number;
 }
 
 const selections = new Map<string, Promise<Presentation | undefined>>();
 
-const frozenSelections = process.env.PINGLAB_RUN_SELECTIONS
-  ? readFile(process.env.PINGLAB_RUN_SELECTIONS, 'utf8').then(text => JSON.parse(text) as Record<string, string>)
-  : undefined;
-
 async function findLatestPresentation(experiment: string): Promise<Presentation | undefined> {
-  if (frozenSelections) {
-    const id = (await frozenSelections)[experiment];
-    if (!id) return undefined;
-    const record = JSON.parse(await readFile(join(runsRoot, id, 'run.json'), 'utf8'));
-    return { id, exportDirectory: join(runsRoot, id, 'export'), completedAt: Date.parse(record.execution.completed_at) };
-  }
-  const candidates: Presentation[] = [];
-  for (const entry of await readdir(runsRoot, { withFileTypes: true })) {
-    if (!entry.isDirectory() || entry.name.startsWith('.') || !entry.name.startsWith(`${experiment}-`)) continue;
-    const directory = join(runsRoot, entry.name);
-    const record = JSON.parse(await readFile(join(directory, 'run.json'), 'utf8'));
-    if (record.experiment !== experiment || record.stage !== 'present') continue;
-    candidates.push({
-      id: entry.name,
-      exportDirectory: join(directory, 'export'),
-      completedAt: Date.parse(record.execution.completed_at),
-    });
-  }
-  candidates.sort((a, b) => b.completedAt - a.completedAt || b.id.localeCompare(a.id));
-  return candidates[0];
+  const id = await runStore.latest(experiment);
+  if (!id) return undefined;
+  const record = await runStore.json(id);
+  return { id, completedAt: Date.parse(record.execution.completed_at) };
 }
 
-// Freeze build selections; development refreshes discover new presentations.
+// Freeze unpinned selections for the build/dev session, matching MDX module bindings.
 export function optionalPresentation(experiment: string): Promise<Presentation | undefined> {
-  if (import.meta.env.DEV) return findLatestPresentation(experiment);
   if (!selections.has(experiment)) selections.set(experiment, findLatestPresentation(experiment));
   return selections.get(experiment)!;
 }
@@ -84,21 +46,16 @@ export async function imageUrl(runId: string, filename: string): Promise<string>
 export async function figureUrl(runId: string, filename: string): Promise<string> {
   if (!/\.(svg|png)$/.test(filename)) return imageUrl(runId, filename);
   const stem = filename.replace(/\.(svg|png)$/, '');
-  const directory = join(runsRoot, runId, 'export');
   for (const extension of ['svg', 'png']) {
     const candidate = `${stem}.${extension}`;
-    try {
-      if ((await stat(join(directory, candidate))).isFile()) return imageUrl(runId, candidate);
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
-    }
+    if (await runStore.has(runId, `export/${candidate}`)) return imageUrl(runId, candidate);
   }
   throw new Error(`Missing figure ${filename} in presentation ${runId} (SVG or PNG required)`);
 }
 
 export async function presentationJson(experiment: string, filename: string) {
   const run = await latestPresentation(experiment);
-  return JSON.parse(await readFile(join(run.exportDirectory, filename), 'utf8'));
+  return runStore.json(run.id, `export/${filename}`);
 }
 
 interface RunRecord {
@@ -115,19 +72,12 @@ interface RunRecord {
   };
 }
 
-async function exportSize(directory: string): Promise<number> {
-  let bytes = 0;
-  // Walk only the selected lineage's exports; keep filesystem IO bounded.
-  for (const entry of await readdir(directory, { withFileTypes: true })) {
-    const path = join(directory, entry.name);
-    if (entry.isDirectory()) bytes += await exportSize(path);
-    else if (entry.isFile()) bytes += (await stat(path)).size;
-  }
-  return bytes;
+async function exportSize(id: string): Promise<number> {
+  return [...(await runStore.files(id)).values()].reduce((sum, bytes) => sum + bytes, 0);
 }
 
 async function findDataset(experiment: string, runId?: string) {
-  const selected = runId ? { id: runId } : await latestPresentation(experiment);
+  const selected = runId ? { id: runId } : await optionalPresentation(experiment);
   const seen = new Set<string>();
   const upstream = new Set<string>();
   const runs: { id: string; record: RunRecord; bytes: number; selected: boolean; used: boolean }[] = [];
@@ -135,23 +85,20 @@ async function findDataset(experiment: string, runId?: string) {
   async function visit(id: string) {
     if (seen.has(id)) return;
     seen.add(id);
-    const directory = join(runsRoot, id);
-    const record: RunRecord = JSON.parse(await readFile(join(directory, 'run.json'), 'utf8'));
+    const record: RunRecord = await runStore.json(id);
     if (record.experiment !== experiment) {
       upstream.add(record.experiment);
     }
-    runs.push({ id, record, bytes: await exportSize(join(directory, 'export')), selected: id === selected.id, used: true });
+    runs.push({ id, record, bytes: await exportSize(id), selected: id === selected?.id, used: true });
     for (const input of Object.values(record.inputs)) await visit(input.run_id);
   }
 
-  await visit(selected.id);
+  if (selected) await visit(selected.id);
   // Keep the selected lineage, plus this experiment's completed stage history.
-  for (const entry of await readdir(runsRoot, { withFileTypes: true })) {
-    if (!entry.isDirectory() || entry.name.startsWith('.') || !entry.name.startsWith(`${experiment}-`) || seen.has(entry.name)) continue;
-    const directory = join(runsRoot, entry.name);
-    const record: RunRecord = JSON.parse(await readFile(join(directory, 'run.json'), 'utf8'));
-    if (record.experiment !== experiment || !['compute', 'analyse', 'present'].includes(record.stage) || !record.execution.completed_at) continue;
-    runs.push({ id: entry.name, record, bytes: await exportSize(join(directory, 'export')), selected: false, used: false });
+  for (const id of await runStore.ids(experiment)) {
+    if (seen.has(id)) continue;
+    const record: RunRecord = await runStore.json(id);
+    runs.push({ id, record, bytes: await exportSize(id), selected: false, used: false });
   }
   runs.sort((a, b) => Date.parse(b.record.created_at) - Date.parse(a.record.created_at) || b.id.localeCompare(a.id));
   return { runs, upstream: [...upstream].sort() };

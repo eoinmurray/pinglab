@@ -1,107 +1,14 @@
-# Exp023 — PING fundamentals
+# exp023
 
-## Current independent stages
+Compare untrained excitatory–inhibitory circuits with reciprocal feedback disabled or enabled. Measure rasters, population spectra and firing-rate responses to matched Poisson drive.
 
-Recipe v4 authors the untrained circuit with `snnlab.lang` and executes typed
-`ExecutionSpec` requests through snnlab 0.3.0's `GraphExecutor`. Compute does not
-invoke the simulator CLI or mutate simulator globals.
+## CLI
 
-The recipe declares the E/I topology directly with `snnlab.lang`, including
-neuron, synapse, weight and delay definitions, observables and compilation.
-Population/projection names and declaration order are preserved.
+Run each stage independently from the repository root with `uv run python`.
 
-Each stage is explicit:
+1. `compute.py`: `--run-id` (optional).
+2. `analyse.py`: `--source` (required), `--run-id` (optional).
+3. `present.py`: `--source` (required), `--run-id` (optional).
+4. `test.py`: `uv run pytest experiments/exp023/test.py`; optional pytest arguments.
 
-```sh
-uv run python experiments/exp023/compute.py
-uv run python experiments/exp023/analyse.py --source <native-compute-run>
-uv run python experiments/exp023/present.py --source <native-analyse-run>
-```
-
-Analysis and presentation accept only completed v4 evidence with the exact
-unified recipe v4. Older recipe v1/v2/v3 computations cannot be reprocessed by these
-entry points. Their stored runs, provenance and completed presentations remain
-unchanged and viewable. There are no historical recording fallbacks, reporting
-corrections or unused-readout drawing branches in the operational pipeline.
-The retired combined launcher only explains the three independent commands.
-
-## Scientific protocol
-
-The circuit contains 1,024 E and 256 I neurons, with reciprocal loop strengths
-0/1.5 and an I→E parent mean twice E→I. Input drives E only; same-population
-recurrence and a classification readout are absent. Parent input weights have
-mean/SD 1.5/0.3, lower-clamped Gaussian draws, 95% Bernoulli initialization
-zeroing and survivor rescaling followed by fan-in normalization. Recurrent
-parent SD is 10% of its mean, without initial zeroing.
-
-Two scope trials use 1,024 input channels at 5/45 Hz. Fourteen matched-drive
-f–I trials use the same 1,024 channels at 2, 5, 10, 20, 40, 70 and 100 Hz for both loop
-conditions. Each trial uses seed 42, a 0.1-ms timestep, 400-ms production duration
-(200 ms with `PINGLAB_SMOKE=1`), 2/6-ms AMPA/GABA decay and exact 1.2/0.6-ms E/I
-refractory periods. Reciprocal synapses have explicit one-step delays.
-Graph initialization has a different random-draw order from the historical CLI;
-seed equality does not establish equality of realized recurrent matrices.
-
-Analysis preserves full-trial rates, demeaned Welch density with one full-trial
-window, the 5–150-Hz peak search and half-bin-clamped parabolic interpolation.
-Traces select the first maximum spike-count neuron, E index zero when silent,
-and omit silent I traces. A peak is reported only with I spiking; it is not a
-rhythmicity significance test or evidence of measured gamma absence in COBA.
-
-## Evidence and storage
-
-Two scientific network units retain compiled graphs and realized weights, one
-per loop condition. Each compiled graph serves both scope and f–I trials.
-Spectra are measured from the exact scope recordings displayed as rasters.
-Scope exports retain compact multimodal `recording.npz`; f–I exports retain
-`spikes.npz` with online population counts. Graph digests, resolved Poisson
-protocols, initialization metadata and per-trial timing live in `run.json`.
-All raster and sweep trials must realize identical weights within each condition.
-
-Every stage uses the v4 atomic run contract, explicit input pins and independent
-completion. Presentation uses the measured spectra, traces and compute rasters;
-it does not select neurons again, simulate, recompute spectra or publish.
-Preview selects a completed present run separately. Publication needs its own
-authorization. Current targets are Runner Guide **4.9.0**, Storage Guide
-**4.9.0** and Writing Guide **36.0.0**.
-
-## Validation and completed native execution
-
-On 2026-10-09, the unified 1,024-input production chain completed as
-`exp023-r023-compute` → `exp023-r024-analyse` → `exp023-r025-present`.
-All 16 trials shared one graph and identical realized weights per loop condition.
-C/D rasters and E/G spectra use the same recordings; F/H vary input rate on
-those same networks. The article default selects this presentation.
-Tests were not run, following the repository rule requiring commit and push first.
-
-The earlier results below used separate 1,024-input scope and 784-input sweep
-networks and are preserved as prior execution evidence.
-
-The shared-builder extraction on 2026-10-06 received static checks only; tests
-and experiment stages were not rerun. The results below precede that extraction.
-
-The 400-ms production chain is `exp023-r017-compute` → `exp023-r018-analyse` →
-`exp023-r020-present`. Its PING raster peak is 55.8505 Hz, E/I rates are
-8.4326/75.0977 Hz, and COBA E rate is 23.8599 Hz. The native schematic omits
-unused-readout arrows. These are new initialized results, not byte-identical
-replacements of historical measurements. The `.legacy` marker is removed.
-
-**19 focused checks passed** after native-only cleanup. They cover the independent
-pipeline, checksum/pin validation,
-rejection of old recipes and dense recording layouts, compact trace/count
-measurements, graph/legacy conformance with identical weights and drive,
-6-ms GABA decay and online reduction equivalence. Legacy executor use is
-confined to numerical comparison tests, not production processing.
-
-The cleanup was also checked against the native production data: reanalysis
-`exp023-r021-analyse` and presentation `exp023-r022-present` completed without
-simulation. Scientific JSON values and measured arrays match the original
-native chain exactly. PNG bytes match; SVGs differ only in render timestamps
-and generated identifiers. Historical stored runs were not modified.
-
-```sh
-uv run pytest experiments/exp023/test.py
-```
-
-Earlier execution, migration and correction accounts are preserved in
-[HISTORY.md](HISTORY.md); their version and collection instructions are historical.
+Optional environment: `PINGLAB_SMOKE=1` selects the bounded smoke profile.

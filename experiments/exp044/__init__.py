@@ -1,6 +1,10 @@
-"""Scientific identities only; execute the three stages explicitly."""
+"""Scientific identities only; execute the three stages explicitly.
 
-from .recipe import (
+This package exposes local scientific definitions for its independent stages.
+Importing it does not create runs, load scientific artifacts or launch execution.
+"""
+
+from experiments.exp044.recipe import (
     ANALYSIS_PURPOSE,
     CHECKPOINT_POLICY,
     CHECKPOINT_ROLE,

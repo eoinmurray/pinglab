@@ -1,13 +1,17 @@
-"""Pure exp082 definitions; invoke compute, analyse or present explicitly."""
+"""Pure exp082 definitions; invoke compute, analyse or present explicitly.
 
-from .measurements import (
+This package exposes local scientific definitions for its independent stages.
+Importing it does not create runs, load scientific artifacts or launch execution.
+"""
+
+from experiments.exp082.custom.measurements import (
     first_correct_trial_from_stream,
     grid_output_preflight,
     output_activity_summary,
     single_trial_from_stream,
     spike_count_logits,
 )
-from .recipe import (
+from experiments.exp082.recipe import (
     ANALYSIS_PURPOSE,
     CHECKPOINT_POLICY,
     CHECKPOINT_ROLE,

@@ -1,4 +1,8 @@
-"""Compute exp037 perturbations from a pinned v4 bank; includes six-shard execution."""
+"""Compute exp037 perturbations from a pinned v4 bank; includes six-shard execution.
+
+Invoke this stage explicitly from the repository root. Scientific outputs
+and input provenance belong to its independently completed Pingstore run.
+"""
 
 import argparse
 import os
@@ -8,10 +12,11 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
 import torch
-from experiments.exp037 import evidence, inputs, recipe
+from experiments.exp037.custom import evidence, inputs
+from experiments.exp037 import recipe
 from experiments.exp037.custom.inference import run_inference
 from experiments.exp037.custom.sharding import shard_identity
-from experiments.exp037.simulation import perturb_forward
+from experiments.exp037.custom.simulation import perturb_forward
 from pingstore.contracts import (
     PingstoreError,
     file_sha256,
@@ -66,7 +71,7 @@ def _run_jobs(bank, directory, jobs, contract):
             recipe.author_network,
             forward=perturb_forward(generator),
         )
-        evidence.recordings(output,cfg,job)
+        evidence.recordings(output, cfg, job)
 
 
 def _job_inventory(directory, jobs, *, verify_device=True):

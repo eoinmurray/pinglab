@@ -1,4 +1,8 @@
-"""Run explicit exp025 inference from an exp022 bank; never analyse or publish."""
+"""Run explicit exp025 inference from an exp022 bank; never analyse or publish.
+
+Invoke this stage explicitly from the repository root. Scientific outputs
+and input provenance belong to its independently completed Pingstore run.
+"""
 
 import argparse
 import os
@@ -7,7 +11,8 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
-from experiments.exp025 import evidence, inputs, recipe
+from experiments.exp025.custom import evidence, inputs
+from experiments.exp025 import recipe
 from experiments.exp025.custom.inference import run_inference
 from pingstore.contracts import PingstoreError
 

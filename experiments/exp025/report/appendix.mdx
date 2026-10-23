@@ -1,0 +1,114 @@
+import RunFigure from '../../../site/src/components/RunFigure.astro';
+import Table from '../../../site/src/components/Table.astro';
+import { reportSnapshots, reportData } from '../../../site/src/lib/report-data';
+
+export const nativePresentation = await reportData('exp025', { experiment: 'exp025', allowUnavailable: true });
+export const nativeCircuits = nativePresentation?.circuit_files ?? [];
+
+export const nativeColumns = ["COBA", "PING"];
+export const nativeEvidence = await reportSnapshots('exp025', { snapshots: {"COBA": "frontier/coba__off__seed42/inference/start/snapshot.json", "PING": "frontier/ping__off__seed42/inference/start/snapshot.json"}, allowUnavailable: true });
+export const nativeValue = value => {
+  if (value === undefined || value === null) return 'Unavailable';
+  if (Array.isArray(value)) return value.map(nativeValue).join(' / ');
+  if (typeof value === 'object') return value.value === undefined ? JSON.stringify(value) : `${nativeValue(value.value)} ${value.unit ?? ''}`.trim();
+  return String(value);
+};
+export const nativePopulation = (name, id) => nativeEvidence?.snapshots[name]?.network?.populations?.find(row => row.id === id);
+export const nativeProjection = (name, id) => nativeEvidence?.snapshots[name]?.network?.projections?.find(row => row.id === id);
+export const nativeRow = (label, select) => [label, ...nativeColumns.map(name => nativeValue(select(name)))];
+export const nativePair = (name, key) => ['E', 'I'].map(id => nativeEvidence?.snapshots[name] && !nativePopulation(name, id) ? 'Not applicable' : nativePopulation(name, id)?.neuron?.[key]);
+export const nativeConfig = nativeEvidence?.configuration;
+export const recordedSetting = (...paths) => {
+  for (const path of paths) {
+    const value = path.split('.').reduce((object, key) => object?.[key], nativeConfig);
+    if (value !== undefined) return value;
+  }
+  return undefined;
+};
+export const nativeGroups = [
+  { label: 'Network', rows: [
+    nativeRow('E / I neurons', name => ['E', 'I'].map(id => nativePopulation(name, id)?.size ?? (nativeEvidence?.snapshots[name] ? 'Absent' : undefined))),
+    nativeRow('Output neurons', name => nativePopulation(name, 'readout')?.size ?? (nativeEvidence?.snapshots[name] ? 'Absent' : undefined)),
+  ] },
+  { label: 'Neurons', rows: [
+    nativeRow('Capacitance, E / I (nF)', name => nativePair(name, 'capacitance_nf')),
+    nativeRow('Leak conductance, E / I (µS)', name => nativePair(name, 'leak_us')),
+    nativeRow('Resting voltage, E / I (mV)', name => nativePair(name, 'resting_mv')),
+    nativeRow('Threshold, E / I (mV)', name => nativePair(name, 'threshold_mv')),
+    nativeRow('Reset, E / I (mV)', name => nativePair(name, 'reset_mv')),
+    nativeRow('Refractory period, E / I', name => nativePair(name, 'refractory')),
+  ] },
+  { label: 'Synapses and weights', rows: [
+    ...['input_to_E', 'E_to_I', 'I_to_E', 'readout_projection'].map(id => nativeRow(`${id.replaceAll('_to_', '→').replace('input', 'Input').replace('readout_projection', 'E→Output')} synapse`, name => [nativeProjection(name, id)?.synapse?.kind, nativeProjection(name, id)?.synapse?.tau])),
+    ...['input_to_E', 'E_to_I', 'I_to_E', 'readout_projection'].map(id => nativeRow(`${id.replaceAll('_to_', '→').replace('input', 'Input').replace('readout_projection', 'E→Output')} initializer parent mean / SD`, name => { const spec = nativeEvidence?.snapshots[name]?.network?.parameters?.find(row => row.id === `${id}.weight`)?.initializer; return [spec?.mean, spec?.std]; })),
+    nativeRow('Native parameter stage', name => nativeEvidence?.snapshots[name]?.stage),
+  ] },
+  { label: 'Input and simulation', rows: [
+    nativeRow('Timestep (ms)', name => nativeEvidence?.snapshots[name]?.execution?.timestep_ms),
+    nativeRow('Duration (ms)', () => recordedSetting('t_ms', 'sim_ms', 'trial_duration.nominal_ms')),
+    nativeRow('Evaluation samples', () => recordedSetting('evaluation_samples', 'evaluation_samples_per_seed')),
+    nativeRow('Seeds', () => recordedSetting('seeds', 'seed')),
+    nativeRow('Input rate (Hz)', () => recordedSetting('input_rate_hz', 'input_rate')),
+    nativeRow('Post-burn exclusion (ms)', () => recordedSetting('burn_ms')),
+  ] },
+  { label: 'Readout and training', rows: [
+    nativeRow('Output neuron model', name => nativePopulation(name, 'readout')?.neuron?.kind),
+    nativeRow('Epochs', name => nativeEvidence?.snapshots[name]?.training?.epochs ?? nativeEvidence?.snapshots[name]?.request?.options?.epochs),
+    nativeRow('Checkpoint role', () => recordedSetting('checkpoint_policy.role')),
+    nativeRow('Checkpoint purpose', () => recordedSetting('checkpoint_policy.purpose')),
+  ] },
+  { label: 'Analysis', rows: [
+    nativeRow('Frequency search (Hz)', () => recordedSetting('f_gamma_band_hz')),
+    nativeRow('Count-bin width (ms)', () => recordedSetting('bin_ms')),
+    nativeRow('Autocorrelation maximum lag (ms)', () => recordedSetting('max_lag_ms')),
+  ] },
+];
+
+
+
+<span id="measurement-details" />
+
+
+## Appendix A — Measurement details
+
+Welch spectra used each full 200 ms demeaned E-population trace with a Hann
+window; constant traces were excluded. Spectra were averaged before selecting
+the 5–150 Hz peak, refined by three-bin parabolic interpolation capped at half
+a frequency bin. The symbol $f_\gamma$ denotes this estimator even when its
+peak falls below the usual gamma range.
+
+For participation, I-population activity was smoothed with a 1 ms Gaussian.
+Peaks required 5% of the trial maximum and at least half a cycle of separation,
+using that trial's E spectral peak. Cycle boundaries lay midway between I
+peaks, with the trial endpoints closing the first and last cycles. Trials with
+no usable frequency or I peak were omitted from participation; active
+neuron/cycle pairs were pooled across accepted trials. This extends the
+[exp041](https://pl.eoinmurray.info/exp041/) — [*Firing Rate Tracks Gamma Frequency*](https://pl.eoinmurray.info/exp041/) using the
+[exp046](https://pl.eoinmurray.info/exp046/) — [*One Spike per Gamma Cycle.*](https://pl.eoinmurray.info/exp046/)
+
+Input-scale values were 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45,
+0.5, 0.55, 0.6, 0.65, 0.7, 0.8, 0.9, 1, 1.15, 1.3, 1.5, 1.75, 2, 2.5,
+and 3. The crossing marker is the midpoint of the first adjacent pair whose
+mean I rates cross 0.05 Hz. The inference objective adds cross-entropy to
+Equation 1's sample-wise penalty; its quadratic excess-rate dependence does
+not imply a quadratic dependence on input scale.
+
+
+## Network diagrams
+
+{nativeCircuits.length ? nativeCircuits.map((file, index) => <RunFigure report="exp025" experiment="exp025" file={file} number={index + 1} alt="Circuit diagram from the compiled execution bundle.">Executed network architecture; parameters and seeds reuse this layout.</RunFigure>) : <p>The pinned historical computation does not retain a native compiled circuit figure for this appendix. Its architecture is described in Methods; a new execution is required to supply the executed bundle's diagram.</p>}
+
+<span id="parameters" />
+
+## Parameters
+
+Model values are read from original native snapshots through the pinned
+presentation's compute ancestry. Paired values are E / I. Initializer parent means and SDs describe the original
+weight distributions, in µS for conductance projections and dimensionless for
+the current-based readout; they are not measured trained-weight statistics. Missing snapshots
+or fields are unavailable; current recipes and historical copied tables are
+not substituted. The recorded configuration identifies the input, numerical
+and analysis choices of that computation; it does not establish a separate
+upstream training protocol.
+
+<Table headers={['Parameter', ...nativeColumns]} groups={nativeGroups} />

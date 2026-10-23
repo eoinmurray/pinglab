@@ -25,6 +25,10 @@ const collections = [
       "Training banks, recordings, and other reusable experimental data, with their provenance and diagnostics.",
   },
   {
+    id: "neuromorphic-toolbox",
+    label: "Neuromorphic Toolbox",
+  },
+  {
     id: "guides",
     label: "Guides",
     description: "Technical explanations of the models, methods, and tools used in Pinglab.",
@@ -36,7 +40,7 @@ const collections = [
   },
   {
     id: "paper-inspired",
-    label: "Paper-inspired",
+    label: "Paper Inspired",
     description: "Experiments inspired by published research papers.",
   },
   {

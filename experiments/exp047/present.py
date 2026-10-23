@@ -1,4 +1,8 @@
-"""Draw saved exp047 analysis; never simulate, aggregate or publish."""
+"""Draw saved exp047 analysis; never simulate, aggregate or publish.
+
+Invoke this stage explicitly from the repository root. Scientific outputs
+and input provenance belong to its independently completed Pingstore run.
+"""
 
 import argparse
 import sys
@@ -8,7 +12,10 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
 
-from experiments.exp047 import evidence, inputs, plots, recipe
+from experiments.exp047.custom.network_artifacts import copy_circuits
+
+from experiments.exp047.custom import evidence, inputs, plots
+from experiments.exp047 import recipe
 from experiments import theme
 from pingstore.contracts import PingstoreError, load_json, write_json_atomic
 
@@ -57,11 +64,16 @@ def present(identity, *, run_id=None):
         write_json_atomic(
             run.export / "numbers.json",
             {
-                **result,
-                "run_id": run.run_id,
-                "duration_s": duration,
-                "duration": format_duration(duration),
-                "git_sha": run.record["provenance"]["git_commit"],
+                **(
+                    {
+                        **result,
+                        "run_id": run.run_id,
+                        "duration_s": duration,
+                        "duration": format_duration(duration),
+                        "git_sha": run.record["provenance"]["git_commit"],
+                    }
+                ),
+                "circuit_files": copy_circuits(run),
             },
         )
     return run.run_id

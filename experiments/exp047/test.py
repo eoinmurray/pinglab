@@ -1,4 +1,8 @@
-"""Exp047 contract regressions using synthetic metrics, never simulation."""
+"""Exp047 contract regressions using synthetic metrics, never simulation.
+
+Run with `uv run pytest experiments/exp047/test.py`. Fixtures use temporary stores;
+bounded native checks validate numerical behavior without production runs.
+"""
 
 import json
 import subprocess
@@ -7,15 +11,8 @@ from functools import partial
 from pathlib import Path
 
 import pytest
-from experiments.exp047 import (
-    analyse,
-    compute,
-    evidence,
-    inputs,
-    measurements,
-    present,
-    recipe,
-)
+from experiments.exp047 import analyse, compute, present, recipe
+from experiments.exp047.custom import evidence, inputs, measurements
 from pingstore import stages
 from pingstore.contracts import (
     PingstoreError,
@@ -335,18 +332,6 @@ def test_analysis_grid_validation_does_not_accept_invented_or_missing_rows(repo)
     resign(source.directory)
     with pytest.raises(PingstoreError, match="shared simulation rows disagree"):
         present.present(identity)
-
-
-def test_retired_runner_fails_before_any_output(tmp_path):
-    root = Path(__file__).resolve().parents[2]
-    result = subprocess.run(
-        [sys.executable, "-m", "experiments.exp047", "--plot-only"],
-        cwd=root,
-        capture_output=True,
-        text=True,
-    )
-    assert result.returncode != 0
-    assert "independent stages" in result.stderr
 
 
 def test_package_import_is_inert():

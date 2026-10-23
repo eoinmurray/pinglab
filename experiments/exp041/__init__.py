@@ -1,6 +1,10 @@
-"""Recipe exports only; stages require explicit invocation and source identities."""
+"""Recipe exports only; stages require explicit invocation and source identities.
 
-from .recipe import (
+This package exposes local scientific definitions for its independent stages.
+Importing it does not create runs, load scientific artifacts or launch execution.
+"""
+
+from experiments.exp041.recipe import (
     ANALYSIS_PURPOSE,
     CHECKPOINT_POLICY,
     CHECKPOINT_ROLE,

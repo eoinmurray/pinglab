@@ -1,4 +1,8 @@
-"""Draw explicit retained analysis and illustrations; never simulate or aggregate."""
+"""Draw explicit retained analysis and illustrations; never simulate or aggregate.
+
+Invoke this stage explicitly from the repository root. Scientific outputs
+and input provenance belong to its independently completed Pingstore run.
+"""
 
 import argparse
 import shutil
@@ -9,7 +13,8 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
 
 import numpy as np
-from experiments.exp080 import evidence, inputs, plots, recipe
+from experiments.exp080.custom import evidence, inputs, plots
+from experiments.exp080 import recipe
 from pingstore.contracts import PingstoreError, load_json, write_json_atomic
 
 

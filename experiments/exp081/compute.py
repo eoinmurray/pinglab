@@ -1,4 +1,8 @@
-"""Generate independent finite-window samples; never analyse, draw or publish."""
+"""Generate independent finite-window samples; never analyse, draw or publish.
+
+Invoke this stage explicitly from the repository root. Scientific outputs
+and input provenance belong to its independently completed Pingstore run.
+"""
 
 from __future__ import annotations
 
@@ -91,11 +95,20 @@ def compute(*, run_id: str | None = None) -> str:
         }
         run.record["execution"]["environment"] = environment
         rates, probes = np.meshgrid(cfg["input_rate_grid_hz"], cfg["probes_uS"])
-        with external_execution(run.export / "moment-simulation", backend="local nonspiking membrane", configuration={**cfg, "seed": cfg["moment_seed"]}, parameters=lambda: {"rates_hz": rates, "probes_uS": probes}):
+        with external_execution(
+            run.export / "moment-simulation",
+            backend="local nonspiking membrane",
+            configuration={**cfg, "seed": cfg["moment_seed"]},
+            parameters=lambda: {"rates_hz": rates, "probes_uS": probes},
+        ):
             features = simulate_features(
                 rates, probes, cfg["moment_draws"], cfg["moment_seed"], config=cfg
             )
-        with external_execution(run.export / "distribution-simulation", backend="local nonspiking membrane", configuration={**cfg, "seed": cfg["distribution_seed"]}):
+        with external_execution(
+            run.export / "distribution-simulation",
+            backend="local nonspiking membrane",
+            configuration={**cfg, "seed": cfg["distribution_seed"]},
+        ):
             samples = simulate_features(
                 np.asarray(cfg["distribution_rates_hz"]),
                 np.full(len(cfg["distribution_rates_hz"]), cfg["nominal_probe_uS"]),

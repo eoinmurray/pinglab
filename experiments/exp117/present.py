@@ -1,4 +1,8 @@
-"""Render exp117 analysis evidence into flat article presentation files."""
+"""Render exp117 analysis evidence into flat article presentation files.
+
+Invoke this stage explicitly from the repository root. Scientific outputs
+and input provenance belong to its independently completed Pingstore run.
+"""
 
 from __future__ import annotations
 
@@ -9,7 +13,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
 
-from experiments.exp117 import inputs, plots
+from experiments.exp117.custom import inputs, plots
 from pingstore.contracts import PingstoreError, load_json, write_json_atomic
 
 
@@ -33,9 +37,7 @@ def present(identity, *, run_id=None):
         run_id=run_id,
         configuration=cfg,
     ) as run:
-        plots.bifurcation_compound(
-            coordinates, run.export / "bifurcation_compound.svg"
-        )
+        plots.bifurcation_compound(coordinates, run.export / "bifurcation_compound.svg")
         write_json_atomic(run.export / "numbers.json", results)
     return run.run_id
 

@@ -1,4 +1,8 @@
-"""Evaluate an explicit trained bank through native graphs; never train or publish."""
+"""Evaluate an explicit trained bank through native graphs; never train or publish.
+
+Invoke this stage explicitly from the repository root. Scientific outputs
+and input provenance belong to its independently completed Pingstore run.
+"""
 
 from __future__ import annotations
 
@@ -15,7 +19,8 @@ sys.path[:0] = [str(REPO), str(REPO / "tools")]
 import numpy as np
 import torch
 import torch.nn.functional as F
-from experiments.exp044 import evidence, inputs, recipe
+from experiments.exp044.custom import evidence, inputs
+from experiments.exp044 import recipe
 from experiments.exp044.custom.network_artifacts import model_execution
 from pingstore.contracts import PingstoreError, write_json_atomic
 from snnlab.sim import GraphExecutor, encode_images_poisson, load_dataset, plan_graph
@@ -122,7 +127,14 @@ def evaluate_cell(
             cell["seed"] if traces else cfg["evaluation_encoder_seed"]
         )
         started = perf_counter()
-        with model_execution(model, bundle, destination / "inference", kind="infer", seed=cell["seed"], settings={"recipe": cfg, "cell": cell, "mode": mode}):
+        with model_execution(
+            model,
+            bundle,
+            destination / "inference",
+            kind="infer",
+            seed=cell["seed"],
+            settings={"recipe": cfg, "cell": cell, "mode": mode},
+        ):
             with torch.inference_mode():
                 if traces:
                     index = cfg["raster"]["sample_index"]
@@ -138,7 +150,9 @@ def evaluate_cell(
                         name: result.diagnostics[name].detach().cpu().numpy()[:, 0]
                         for name in ("spk_e", "spk_i")
                     }
-                    if any(not np.isin(values, (0, 1)).all() for values in data.values()):
+                    if any(
+                        not np.isin(values, (0, 1)).all() for values in data.values()
+                    ):
                         raise PingstoreError("invalid graph raster spikes")
                     np.savez_compressed(
                         destination / "spikes.npz",
@@ -180,7 +194,9 @@ def evaluate_cell(
                                 or (values > steps).any()
                                 or not torch.equal(values, values.floor())
                             ):
-                                raise PingstoreError("invalid graph spike-count reduction")
+                                raise PingstoreError(
+                                    "invalid graph spike-count reduction"
+                                )
                             counts[label] += float(values.sum())
                     write_json_atomic(
                         destination / "metrics.json",

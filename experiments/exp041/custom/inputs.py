@@ -1,0 +1,82 @@
+"""Strict v4 inputs and complete pinned lineage, without historical fallbacks.
+
+The owning experiment calls these local definitions from its explicit stages.
+Inputs and outputs retain that stage’s validated scientific contract; importing
+this module does not start computation or select a scientific run.
+"""
+
+from contextlib import contextmanager
+
+from pingstore.contracts import PingstoreError
+from pingstore.stages import source_run, stage_run
+
+from experiments.exp041 import recipe
+
+
+def lineage(repo, identity, reference=None):
+    found, visiting = {}, set()
+
+    def visit(name, pin):
+        if name in visiting:
+            raise PingstoreError("exp041 input lineage contains a cycle")
+        if name in found:
+            if pin is not None and found[name].reference != pin:
+                raise PingstoreError("conflicting exp041 input pins")
+            return
+        run = source_run(repo / ".pingstore", name, reference=pin)
+        visiting.add(name)
+        for upstream in run.record["inputs"].values():
+            visit(upstream["run_id"], upstream)
+        visiting.remove(name)
+        found[name] = run
+
+    visit(identity, reference)
+    return found
+
+
+def source(repo, identity, stage, *, experiment=recipe.SLUG, reference=None):
+    run = lineage(repo, identity, reference)[identity]
+    if run.record["stage"] != stage or run.record["experiment"] != experiment:
+        raise PingstoreError(f"{identity} is not a {experiment} {stage} run")
+    return run
+
+
+@contextmanager
+def execution(repo, stage, *, sources, run_id=None, configuration=None):
+    ancestors = {}
+    for run in sources.values():
+        ancestors.update(lineage(repo, run.record["run_id"], run.reference))
+    with stage_run(
+        repo,
+        recipe.SLUG,
+        stage,
+        inputs=sources,
+        run_id=run_id,
+        configuration=configuration,
+    ) as run:
+        yield run
+        if stage == "compute":
+            from experiments.exp041.custom.network_artifacts import (
+                record_snapshot_policy,
+            )
+
+            record_snapshot_policy(run)
+        for ancestor in ancestors.values():
+            ancestor.check_unchanged()
+
+
+def configuration(run):
+    cfg = run.record["execution"].get("configuration")
+    if (
+        not isinstance(cfg, dict)
+        or cfg.get("schema") not in ("exp041.recipe/v1", "exp041.recipe/v2")
+        or cfg.get("profile") not in ("smoke", "production")
+        or cfg
+        != recipe.configuration(
+            smoke=cfg["profile"] == "smoke",
+            version=int(cfg["schema"].rsplit("v", 1)[1]),
+        )
+        or set(run.record["inputs"]) != {"bank"}
+    ):
+        raise PingstoreError("inconsistent exp041 compute recipe or bank input")
+    return cfg

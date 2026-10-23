@@ -1,6 +1,11 @@
-"""Exp022 analysis: read completed computation, retain numbers and plot-ready arrays."""
+"""Exp022 analysis: read completed computation, retain numbers and plot-ready arrays.
+
+Invoke this stage explicitly from the repository root. Scientific outputs
+and input provenance belong to its independently completed Pingstore run.
+"""
 
 from __future__ import annotations
+
 
 import argparse
 import sys
@@ -12,8 +17,10 @@ import numpy as np
 REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "experiments"), str(REPO / "tools")]
 
+from experiments.exp022.custom import bank as bank_io
+
 from experiments.exp022 import recipe
-from experiments.exp022.checkpoints import checkpoint_provenance, epoch_metrics
+from experiments.exp022.custom.checkpoints import checkpoint_provenance, epoch_metrics
 from pingstore.contracts import PingstoreError, load_json, write_json_atomic
 from pingstore.stages import source_run, stage_run
 
@@ -43,7 +50,7 @@ def _gamma_psd(spk_i, dt):
     bin_ms = spm * dt
     nb = T // spm
     b = spk_i[: nb * spm].reshape(nb, spm, ni).sum(axis=(1, 2)).astype(float)
-    if b.sum() < 50:                       # essentially silent (e.g. COBA I pop)
+    if b.sum() < 50:  # essentially silent (e.g. COBA I pop)
         return None, None, None
     sigma_bins = 3.0 / bin_ms
     radius = int(np.ceil(5 * sigma_bins))
@@ -88,11 +95,22 @@ def measure_snapshot(source: Path, destination: Path) -> None:
             normalized_power = np.clip(power[selected] / norm, 0, 1.3)
         destination.parent.mkdir(parents=True, exist_ok=True)
         np.savez_compressed(
-            destination, e_times=e_times, e_cells=ec, i_times=i_times, i_cells=ic,
-            ne=ne, ni=ni, duration_ms=duration, e_hz=e_hz, i_hz=i_hz,
-            bin_centres=(bins[:-1] + bins[1:]) / 2, bin_widths_ms=bin_widths,
-            e_rate=e_rate, i_rate=i_rate,
-            frequencies=plot_frequencies, normalized_power=normalized_power,
+            destination,
+            e_times=e_times,
+            e_cells=ec,
+            i_times=i_times,
+            i_cells=ic,
+            ne=ne,
+            ni=ni,
+            duration_ms=duration,
+            e_hz=e_hz,
+            i_hz=i_hz,
+            bin_centres=(bins[:-1] + bins[1:]) / 2,
+            bin_widths_ms=bin_widths,
+            e_rate=e_rate,
+            i_rate=i_rate,
+            frequencies=plot_frequencies,
+            normalized_power=normalized_power,
             gamma_hz=peak if peak is not None else np.nan,
         )
 
@@ -107,8 +125,10 @@ def bank_composition(record: dict, names: set[str]) -> dict | None:
     if reused & new or reused | new != names:
         raise PingstoreError("bank reuse partition does not match the measured cells")
     return {
-        "reused_cells": len(reused), "new_cells": len(new),
-        "reused_cell_names": sorted(reused), "new_cell_names": sorted(new),
+        "reused_cells": len(reused),
+        "new_cells": len(new),
+        "reused_cell_names": sorted(reused),
+        "new_cell_names": sorted(new),
         "retained_bank": record["inputs"]["retained_bank"],
         "description": f"{len(reused)} retained models reused unchanged; {len(new)} newly trained models",
         "diagnostic_policy": plan["diagnostic_policy"],
@@ -122,8 +142,13 @@ def analyse(identity: str, *, run_id: str | None = None) -> str:
     bank = compute
     if "bank" in compute.record["inputs"]:
         reference = compute.record["inputs"]["bank"]
-        bank = source_run(root, reference["run_id"], stage="compute",
-                          experiment=recipe.SLUG, reference=reference)
+        bank = source_run(
+            root,
+            reference["run_id"],
+            stage="compute",
+            experiment=recipe.SLUG,
+            reference=reference,
+        )
         inputs["bank"] = bank
     actual = {path.name for path in bank.export.iterdir() if path.is_dir()}
     try:
@@ -131,14 +156,20 @@ def analyse(identity: str, *, run_id: str | None = None) -> str:
     except ValueError as exc:
         raise PingstoreError(str(exc)) from exc
     started = time.monotonic()
-    with stage_run(REPO, recipe.SLUG, "analyse", inputs=inputs, run_id=run_id,
-                   configuration={
-                       "measurement": "retained epoch curves and fixed-probe diagnostics",
-                       "schema": "exp022.measurement/v3",
-                       "spectral_timebase": "realized_bin_duration_ms",
-                       "spectral_smoothing_sigma_ms": 3.0,
-                       "population_rate_bins": "1 ms, final partial bin normalized by its actual width",
-                   }) as run:
+    with stage_run(
+        REPO,
+        recipe.SLUG,
+        "analyse",
+        inputs=inputs,
+        run_id=run_id,
+        configuration={
+            "measurement": "retained epoch curves and fixed-probe diagnostics",
+            "schema": "exp022.measurement/v3",
+            "spectral_timebase": "realized_bin_duration_ms",
+            "spectral_smoothing_sigma_ms": 3.0,
+            "population_rate_bins": "1 ms, final partial bin normalized by its actual width",
+        },
+    ) as run:
         rows, plots, configurations = [], [], {}
         snapshots = []
         raster_files = {}
@@ -150,18 +181,32 @@ def analyse(identity: str, *, run_id: str | None = None) -> str:
             history = epoch_metrics(directory)
             if not history:
                 raise PingstoreError(f"no retained epoch history: {cell['name']}")
-            e_rate, i_rate = recipe.final_rates(directory)
-            rows.append({
-                "name": cell["name"], "model": cell["model"], "family": cell["family"],
-                "training_run_id": cell["training_run_id"], "tag": cell["tag"],
-                "seed": cell["seed"], "acc": metrics["best_acc"],
-                "best_epoch": metrics["best_epoch"], "rate_e": e_rate, "rate_i": i_rate,
-            })
-            epochs, accuracy = recipe.training_curve(directory)
-            plots.append({
-                "name": cell["name"], "family": cell["family"], "tag": cell["tag"],
-                "model": cell["model"], "epochs": epochs, "accuracy_pct": accuracy,
-            })
+            e_rate, i_rate = bank_io.final_rates(directory)
+            rows.append(
+                {
+                    "name": cell["name"],
+                    "model": cell["model"],
+                    "family": cell["family"],
+                    "training_run_id": cell["training_run_id"],
+                    "tag": cell["tag"],
+                    "seed": cell["seed"],
+                    "acc": metrics["best_acc"],
+                    "best_epoch": metrics["best_epoch"],
+                    "rate_e": e_rate,
+                    "rate_i": i_rate,
+                }
+            )
+            epochs, accuracy = bank_io.training_curve(directory)
+            plots.append(
+                {
+                    "name": cell["name"],
+                    "family": cell["family"],
+                    "tag": cell["tag"],
+                    "model": cell["model"],
+                    "epochs": epochs,
+                    "accuracy_pct": accuracy,
+                }
+            )
             configurations[cell["name"]] = config
             if cell["seed"] == 42:
                 snapshot = compute.file("snapshots", cell["name"], "recording.npz")
@@ -180,42 +225,66 @@ def analyse(identity: str, *, run_id: str | None = None) -> str:
         elapsed = time.monotonic() - started
         common = {}
         for field in ("dataset", "epochs", "t_ms", "dt", "batch_size"):
-            values = list(dict.fromkeys(config.get(field) for config in configurations.values()))
-            common["dt_ms" if field == "dt" else field] = values[0] if len(values) == 1 else values
-        common["max_samples_canonical"] = sorted({
-            configurations[cell["name"]]["max_samples"] for cell in cells
-            if cell["family"] == "canonical"
-        })
-        common["max_samples_sweeps"] = sorted({
-            configurations[cell["name"]]["max_samples"] for cell in cells
-            if cell["family"] != "canonical"
-        })
+            values = list(
+                dict.fromkeys(config.get(field) for config in configurations.values())
+            )
+            common["dt_ms" if field == "dt" else field] = (
+                values[0] if len(values) == 1 else values
+            )
+        common["max_samples_canonical"] = sorted(
+            {
+                configurations[cell["name"]]["max_samples"]
+                for cell in cells
+                if cell["family"] == "canonical"
+            }
+        )
+        common["max_samples_sweeps"] = sorted(
+            {
+                configurations[cell["name"]]["max_samples"]
+                for cell in cells
+                if cell["family"] != "canonical"
+            }
+        )
         summary = {
-            "notebook_run_id": run.run_id, "compute_run_id": identity,
+            "notebook_run_id": run.run_id,
+            "compute_run_id": identity,
             "bank_run_id": bank.record["run_id"],
             "git_sha": run.record["provenance"]["git_commit"],
-            "duration_s": round(elapsed, 1), "duration": format_duration(elapsed),
+            "duration_s": round(elapsed, 1),
+            "duration": format_duration(elapsed),
             "standard": common,
-            "training_root": {"run_id": bank.record["run_id"],
-                              "path": bank.export.relative_to(bank.directory).as_posix()},
-            "result_checkpoint_provenance": checkpoint_records[recipe.RESULT_CHECKPOINT_ROLE],
+            "training_root": {
+                "run_id": bank.record["run_id"],
+                "path": bank.export.relative_to(bank.directory).as_posix(),
+            },
+            "result_checkpoint_provenance": checkpoint_records[
+                recipe.RESULT_CHECKPOINT_ROLE
+            ],
             "checkpoint_provenance": checkpoint_records,
-            "families": recipe.FAMILY_ORDER, "training_run_ids": recipe.TRAINING_RUN_IDS,
+            "families": recipe.FAMILY_ORDER,
+            "training_run_ids": recipe.TRAINING_RUN_IDS,
             "family_status": {
-                family: {"cells": sum(row["family"] == family for row in rows),
-                         "trained": sum(row["family"] == family for row in rows)}
+                family: {
+                    "cells": sum(row["family"] == family for row in rows),
+                    "trained": sum(row["family"] == family for row in rows),
+                }
                 for family in recipe.FAMILY_ORDER
             },
-            "n_cells": len(rows), "cells": rows,
+            "n_cells": len(rows),
+            "cells": rows,
             "bank_composition": bank_composition(bank.record, actual),
             "timestep_sweep": {
-                "values_ms": sorted({cell["dt_ms"] for cell in cells if cell["family"] == "dt"}),
+                "values_ms": sorted(
+                    {cell["dt_ms"] for cell in cells if cell["family"] == "dt"}
+                ),
                 "range_ratio": round(
                     max(cell["dt_ms"] for cell in cells if cell["family"] == "dt")
-                    / min(cell["dt_ms"] for cell in cells if cell["family"] == "dt"), 12
+                    / min(cell["dt_ms"] for cell in cells if cell["family"] == "dt"),
+                    12,
                 ),
             },
-            "rasters": snapshots, "missing_raw_rasters": missing_snapshots,
+            "rasters": snapshots,
+            "missing_raw_rasters": missing_snapshots,
             "raster_files": raster_files,
             "measurement_notes": {
                 "accuracy": "metrics.best_acc; selected epoch defined by retained checkpoint policy",
@@ -242,7 +311,9 @@ def analyse(identity: str, *, run_id: str | None = None) -> str:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--source", required=True, help="completed exp022 compute run ID")
+    parser.add_argument(
+        "--source", required=True, help="completed exp022 compute run ID"
+    )
     parser.add_argument("--run-id", help="already reserved analyse identity")
     args = parser.parse_args()
     analyse(args.source, run_id=args.run_id)

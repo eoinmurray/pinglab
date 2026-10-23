@@ -4,6 +4,8 @@ configuration() returns independent scientific and execution settings, including
 an explicit source pin. author_network() compiles each discrete clock variant;
 it neither reads source artifacts nor launches simulation or training."""
 
+from copy import deepcopy
+
 from dataclasses import asdict
 from math import isfinite
 
@@ -22,62 +24,64 @@ def configuration(*, input_rate_hz=None):
         raise ValueError(
             "input_rate_hz must be positive, finite and supported by the 0.2 ms grid"
         )
-    return dict(
-        schema="exp142.recipe/v5",
-        experiment="exp142",
-        source={
-            "run_id": "exp141-r012-compute",
-            "payload_digest": "sha256:45238b946b7b75cd34cdc05c944f2ee3860d46631f07835147e294f49c195bcd",
-        },
-        seed=42,
-        cpu_threads=1,
-        performance=asdict(Performance()),
-        voltage_grad_dampen=1000.0,
-        models=["coba", "ping"],
-        n_input=64,
-        n_e=128,
-        n_i=32,
-        n_output=10,
-        duration_ns=200_000_000,
-        sample_dt_ns=100_000,
-        input_grid_ns=200_000,
-        native_sample_dt_ns=200_000,
-        input_rate_hz=float(input_rate_hz),
-        source_input_rate_hz=25.0,
-        input_seed=0,
-        sample_index=0,
-        physics=dict(
-            capacitance_e_nf=1.0,
-            capacitance_i_nf=0.5,
-            leak_e_us=0.05,
-            leak_i_us=0.1,
-            resting_mv=-65.0,
-            reset_mv=-65.0,
-            threshold_mv=-50.0,
-            excitatory_reversal_mv=0.0,
-            inhibitory_reversal_mv=-80.0,
-            tau_ampa_ms=2.0,
-            tau_gaba_ms=6.0,
-            refractory_e_ms=1.2,
-            refractory_i_ms=0.6,
-            recurrent_delay_ms=0.2,
-        ),
-        cases=[
-            dict(id="dt0p1", dt_ns=100_000),
-            dict(id="dt0p05", dt_ns=50_000),
-            dict(id="dt0p025", dt_ns=25_000),
-            dict(id="dt0p0125", dt_ns=12_500),
-        ],
-        solver=dict(rtol=1e-8, atol=1e-9, max_step_ms=0.05),
-        refinement=dict(rtol=1e-10, atol=1e-11, max_step_ms=0.025),
-        refinement_acceptance=dict(
-            max_spike_shift_ms=1e-3, max_guarded_voltage_mae_mv=1e-3
-        ),
-        guard_ms=2.0,
-        target_e=0,
-        target_output=0,
-        training=False,
-        source_checkpoint="validation_selected",
+    return deepcopy(
+        dict(
+            schema="exp142.recipe/v5",
+            experiment="exp142",
+            source=dict(
+                run_id="exp141-r012-compute",
+                payload_digest="sha256:45238b946b7b75cd34cdc05c944f2ee3860d46631f07835147e294f49c195bcd",
+            ),
+            seed=42,
+            cpu_threads=1,
+            performance=asdict(Performance()),
+            voltage_grad_dampen=1000.0,
+            models=["coba", "ping"],
+            n_input=64,
+            n_e=128,
+            n_i=32,
+            n_output=10,
+            duration_ns=200_000_000,
+            sample_dt_ns=100_000,
+            input_grid_ns=200_000,
+            native_sample_dt_ns=200_000,
+            input_rate_hz=float(input_rate_hz),
+            source_input_rate_hz=25.0,
+            input_seed=0,
+            sample_index=0,
+            physics=dict(
+                capacitance_e_nf=1.0,
+                capacitance_i_nf=0.5,
+                leak_e_us=0.05,
+                leak_i_us=0.1,
+                resting_mv=-65.0,
+                reset_mv=-65.0,
+                threshold_mv=-50.0,
+                excitatory_reversal_mv=0.0,
+                inhibitory_reversal_mv=-80.0,
+                tau_ampa_ms=2.0,
+                tau_gaba_ms=6.0,
+                refractory_e_ms=1.2,
+                refractory_i_ms=0.6,
+                recurrent_delay_ms=0.2,
+            ),
+            cases=[
+                dict(id="dt0p1", dt_ns=100_000),
+                dict(id="dt0p05", dt_ns=50_000),
+                dict(id="dt0p025", dt_ns=25_000),
+                dict(id="dt0p0125", dt_ns=12_500),
+            ],
+            solver=dict(rtol=1e-8, atol=1e-9, max_step_ms=0.05),
+            refinement=dict(rtol=1e-10, atol=1e-11, max_step_ms=0.025),
+            refinement_acceptance=dict(
+                max_spike_shift_ms=1e-3, max_guarded_voltage_mae_mv=1e-3
+            ),
+            guard_ms=2.0,
+            target_e=0,
+            target_output=0,
+            training=False,
+            source_checkpoint="validation_selected",
+        )
     )
 
 

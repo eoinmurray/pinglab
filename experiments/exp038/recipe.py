@@ -1,9 +1,20 @@
-"""The retained exp038 inference recipe; training is owned by exp022."""
+"""The retained exp038 inference recipe; training is owned by exp022.
+
+configuration() resolves fresh scientific settings before execution. Network
+authoring and analysis definitions do not load data or launch a stage on import.
+"""
+
+from copy import deepcopy
 
 import numpy as np
-from experiments.exp022 import FR_STRENGTH_UPPER as FR_STRENGTH_UPPER
-from experiments.exp022 import training_run_cell, training_run_values
-from experiments.exp022.checkpoints import checkpoint_policy
+from experiments.exp038.custom.bank_contract import (
+    FR_STRENGTH_UPPER as FR_STRENGTH_UPPER,
+)
+from experiments.exp038.custom.bank_contract import (
+    training_run_cell,
+    training_run_values,
+)
+from experiments.exp038.custom.source_exp022_custom_checkpoints import checkpoint_policy
 
 SLUG = "exp038"
 REFRACTORY_E_MS = 1.2
@@ -69,7 +80,6 @@ def refractory_configuration() -> dict:
     }
 
 
-
 def cell_name(model: str, rate_target_hz: float | None, seed: int) -> str:
     return training_run_cell(
         "TR-02", model=model, rate_target_hz=rate_target_hz, seed=seed
@@ -104,25 +114,29 @@ def bank_cells():
 
 
 def configuration(*, smoke=False, version=2):
+    if type(smoke) is not bool:
+        raise ValueError("smoke must be boolean")
     if version not in (1, 2):
         raise ValueError("unsupported exp038 recipe version")
-    return {
-        "schema": f"exp038.recipe/v{version}",
-        **(refractory_configuration() if version >= 2 else {}),
-        "profile": "smoke" if smoke else "production",
-        "checkpoint_policy": CHECKPOINT_POLICY,
-        "evaluation_samples": 100 if smoke else EVAL_MAX_SAMPLES,
-        "seeds": SEEDS_BASELINE,
-        "illustrative_seed": 42,
-        "sample_index": 0,
-        "ei_strengths": [0.0, 0.5, 1.0] if smoke else EI_SWEEP,
-        "ei_rasters": [0.0, 1.0] if smoke else EI_RASTER,
-        "rate_rasters": [0.0, 10.0, 100.0]
-        if smoke
-        else np.linspace(0.0, 100.0, 40)[:10].tolist(),
-        "uniform_rates": [0.0, 10.0, 100.0] if smoke else FI_UNIFORM_RATES_HZ,
-        "uniform_trials": 2 if smoke else 32,
-    }
+    return deepcopy(
+        dict(
+            schema=f"exp038.recipe/v{version}",
+            **(refractory_configuration() if version >= 2 else dict()),
+            profile="smoke" if smoke else "production",
+            checkpoint_policy=CHECKPOINT_POLICY,
+            evaluation_samples=100 if smoke else EVAL_MAX_SAMPLES,
+            seeds=SEEDS_BASELINE,
+            illustrative_seed=42,
+            sample_index=0,
+            ei_strengths=[0.0, 0.5, 1.0] if smoke else EI_SWEEP,
+            ei_rasters=[0.0, 1.0] if smoke else EI_RASTER,
+            rate_rasters=[0.0, 10.0, 100.0]
+            if smoke
+            else np.linspace(0.0, 100.0, 40)[:10].tolist(),
+            uniform_rates=[0.0, 10.0, 100.0] if smoke else FI_UNIFORM_RATES_HZ,
+            uniform_trials=2 if smoke else 32,
+        )
+    )
 
 
 def jobs(cfg):
@@ -175,12 +189,16 @@ def jobs(cfg):
     return result
 
 
-
 BIOPHYSICS = {
-    "capacitance_e_nf": 1.0, "capacitance_i_nf": 0.5,
-    "leak_e_us": 0.05, "leak_i_us": 0.10,
-    "resting_mv": -65.0, "threshold_mv": -50.0, "reset_mv": -65.0,
-    "readout_tau_ms": 2.0, "readout_threshold": 1.0,
+    "capacitance_e_nf": 1.0,
+    "capacitance_i_nf": 0.5,
+    "leak_e_us": 0.05,
+    "leak_i_us": 0.10,
+    "resting_mv": -65.0,
+    "threshold_mv": -50.0,
+    "reset_mv": -65.0,
+    "readout_tau_ms": 2.0,
+    "readout_threshold": 1.0,
 }
 
 

@@ -2,7 +2,7 @@
 id: "exp054"
 title: "Pinglab Rythmicity Metric"
 created_at: "2026-06-15"
-updated_at: "2026-09-18T00:00:00Z"
+updated_at: "2026-10-20T17:13:36Z"
 description: "Lobe–trough contrast across untrained PING coupling strengths, with private- and shared-input null controls."
 collection: ["gamma-gated-sparsity", "experiments"]
 author: "Eoin Murray"
@@ -21,9 +21,7 @@ import RunFigure from '../../../site/src/components/RunFigure.astro';
 
 ## Abstract
 
-We asked where rhythmic activity appears as reciprocal PING coupling activates across the coupling map. We swept coupling directions in a network and compared autocorrelation structure with private- and shared-input controls.
-
-Rhythmic contrast was weak on uncoupled edges and stronger inside the coupled map; shared input imitated contrast without a recurrent loop. This supports the private-input control, but does not establish rate invariance or the spiking transition’s bifurcation type.
+We swept an 11×11 reciprocal-coupling grid in an untrained PING circuit and compared autocorrelation contrast with private- and shared-input null controls. At seed 42, selected diagonal conditions had lobe–trough contrasts 0.000301, 0.268 and 0.989. Coupled conditions generally showed stronger temporal structure, but shared input could also produce elevated contrast without feedback. These single-seed observations do not establish rate invariance or the spiking transition's bifurcation type.
 
 <span id="loc-2" />
 

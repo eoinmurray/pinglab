@@ -1,4 +1,8 @@
-"""Measure retained exp025 evidence and prepare plot data; never simulate."""
+"""Measure retained exp025 evidence and prepare plot data; never simulate.
+
+Invoke this stage explicitly from the repository root. Scientific outputs
+and input provenance belong to its independently completed Pingstore run.
+"""
 
 import argparse
 import sys
@@ -8,7 +12,8 @@ import numpy as np
 
 REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
-from experiments.exp025 import evidence, inputs, measurements, recipe
+from experiments.exp025.custom import evidence, inputs, measurements
+from experiments.exp025 import recipe
 from pingstore.contracts import PingstoreError, write_json_atomic
 
 MEASUREMENT_V1 = {
@@ -231,7 +236,7 @@ def main():
         if a.reuse_analysis:
             if not a.baseline_bank:
                 p.error("--reuse-analysis requires --baseline-bank")
-            from experiments.exp025.full_mnist_baseline import (
+            from experiments.exp025.custom.full_mnist_baseline import (
                 analyse as baseline_analyse,
             )
 

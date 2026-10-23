@@ -1,4 +1,8 @@
-"""Render saved exp038 analysis; never simulate, aggregate or publish."""
+"""Render saved exp038 analysis; never simulate, aggregate or publish.
+
+Invoke this stage explicitly from the repository root. Scientific outputs
+and input provenance belong to its independently completed Pingstore run.
+"""
 
 import argparse
 import sys
@@ -9,7 +13,10 @@ import numpy as np
 
 REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
-from experiments.exp038 import inputs, plots, recipe
+
+from experiments.exp038.custom.network_artifacts import copy_circuits
+from experiments.exp038.custom import inputs, plots
+from experiments.exp038 import recipe
 from experiments.exp038.analyse import MEASUREMENT
 from experiments import theme
 from pingstore.contracts import PingstoreError, load_json, write_json_atomic
@@ -95,15 +102,24 @@ def present(identity, *, run_id=None):
         write_json_atomic(
             out / "numbers.json",
             {
-                **{key: value for key, value in result.items() if key != "rasters"},
-                "illustrative_labels": {
-                    "rate_rasters": [sample["label"] for sample in rates],
-                    "ei_rasters": [sample["label"] for sample in ei],
-                },
-                "run_id": rid,
-                "duration_s": duration,
-                "duration": format_duration(duration),
-                "git_sha": run.record["provenance"]["git_commit"],
+                **(
+                    {
+                        **{
+                            key: value
+                            for key, value in result.items()
+                            if key != "rasters"
+                        },
+                        "illustrative_labels": {
+                            "rate_rasters": [sample["label"] for sample in rates],
+                            "ei_rasters": [sample["label"] for sample in ei],
+                        },
+                        "run_id": rid,
+                        "duration_s": duration,
+                        "duration": format_duration(duration),
+                        "git_sha": run.record["provenance"]["git_commit"],
+                    }
+                ),
+                "circuit_files": copy_circuits(run),
             },
         )
     return run.run_id

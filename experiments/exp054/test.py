@@ -1,19 +1,15 @@
-"""Exp054 stage contracts with synthetic recordings, never production simulation."""
+"""Exp054 stage contracts with synthetic recordings, never production simulation.
+
+Run with `uv run pytest experiments/exp054/test.py`. Fixtures use temporary stores;
+bounded native checks validate numerical behavior without production runs.
+"""
 
 from functools import partial
 
 import numpy as np
 import pytest
-from experiments.exp054 import (
-    analyse,
-    compute,
-    evidence,
-    inputs,
-    measurements,
-    plots,
-    present,
-    recipe,
-)
+from experiments.exp054 import analyse, compute, present, recipe
+from experiments.exp054.custom import evidence, inputs, measurements, plots
 from pingstore import stages
 from pingstore.contracts import (
     PingstoreError,

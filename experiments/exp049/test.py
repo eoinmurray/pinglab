@@ -1,3 +1,9 @@
+"""Validate exp049 scientific and execution contracts.
+
+Run with `uv run pytest experiments/exp049/test.py`. Fixtures use temporary stores;
+bounded native checks validate numerical behavior without production runs.
+"""
+
 import numpy as np
 from experiments import exp049
 
@@ -9,15 +15,9 @@ import sys
 from pathlib import Path
 
 import pytest
-from experiments.exp049 import (
-    analyse,
-    compute,
-    inputs,
-    measurements,
-    plots,
-    present,
-    recipe,
-)
+from experiments.exp049 import analyse, present, recipe
+from experiments.exp049.custom import execution as compute
+from experiments.exp049.custom import inputs, measurements, plots
 from pingstore import stages
 from pingstore.contracts import (
     PingstoreError,
@@ -238,29 +238,6 @@ def test_failed_simulation_never_completes(lab, monkeypatch):
         compute.compute(bank)
     assert not list((root / ".pingstore/runs").glob("exp049-*-compute"))
     assert list((root / ".pingstore/runs").glob(".exp049-*-compute.tmp"))
-
-
-def test_retired_entrypoints_and_import_side_effects(tmp_path):
-    root = Path(__file__).resolve().parents[2]
-    code = (
-        "from experiments import exp049; assert exp049.CHECKPOINT_ROLE == 'final_epoch'"
-    )
-    result = subprocess.run(
-        [sys.executable, "-c", code],
-        cwd=tmp_path,
-        env={**os.environ, "PYTHONPATH": str(root)},
-        capture_output=True,
-        text=True,
-    )
-    assert result.returncode == 0, result.stderr
-    assert not list(tmp_path.iterdir())
-    result = subprocess.run(
-        [sys.executable, "-m", "experiments.exp049"],
-        cwd=root,
-        capture_output=True,
-        text=True,
-    )
-    assert result.returncode != 0 and "explicit" in result.stderr
 
 
 def test_v2_and_wrong_stage_inputs_are_rejected(lab):

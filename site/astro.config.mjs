@@ -11,6 +11,7 @@ export default defineConfig({
   logger: { entrypoint: './src/logger.mjs' },
   site: 'https://pinglab.eoinmurray.info',
   trailingSlash: 'never',
+  redirects: { '/exp113': '/notes/coba-ping-dynamics' },
   build: { format: 'file' },
   server: { port: 3000 },
   devToolbar: { enabled: false },
@@ -22,7 +23,7 @@ export default defineConfig({
     plugins: [{
       name: 'pinglab:separate-vite-caches',
       config: (_, { command }) => ({
-        cacheDir: `node_modules/.vite/${command === 'serve' ? 'dev' : 'build'}`,
+        cacheDir: `node_modules/.vite/${command === 'build' || process.env.NODE_ENV === 'production' ? 'build' : 'dev'}`,
       }),
     }],
   },

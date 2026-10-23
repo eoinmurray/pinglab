@@ -1,4 +1,8 @@
-"""Render saved exp025 analysis; never simulate, aggregate or publish."""
+"""Render saved exp025 analysis; never simulate, aggregate or publish.
+
+Invoke this stage explicitly from the repository root. Scientific outputs
+and input provenance belong to its independently completed Pingstore run.
+"""
 
 import argparse
 import sys
@@ -6,7 +10,9 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
-from experiments.exp025 import inputs, plots
+
+from experiments.exp025.custom.network_artifacts import copy_circuits
+from experiments.exp025.custom import inputs, plots
 from experiments import theme
 from pingstore.contracts import PingstoreError, write_json_atomic
 
@@ -49,7 +55,9 @@ def present(identity, *, run_id=None):
         plots.plot_w_in_scale_sweep_vs_rate(
             result["w_in_scale_sweep"], out / "w_in_scale_sweep_vs_rate"
         )
-        write_json_atomic(out / "numbers.json", result)
+        write_json_atomic(
+            out / "numbers.json", {**(result), "circuit_files": copy_circuits(run)}
+        )
     return run.run_id
 
 

@@ -31,13 +31,13 @@ def model_execution(
     seed=0,
     protocol=None,
     settings=None,
-    snapshot_stages=("start", "end"),
+    snapshot_stages=("start",),
 ):
     """Snapshot one scientific execution, including all its batches or time chunks.
 
-    Use SNNLab's internal SnapshotSession for this experiment's custom loop;
-    leave metadata and parameter serialization to the library. Callers may retain
-    only start or end evidence; existing callers keep the start/end pair.
+    Use SNNLab's native lifecycle for this experiment's custom loop. Simulation
+    retains start evidence only; training explicitly requests end evidence.
+    SNNLab owns metadata and parameter serialization.
     """
     from snnlab.sim.requests.spec import ExecutionSpec
 
@@ -74,3 +74,87 @@ def model_execution(
     yield session
     if "end" in snapshot_stages:
         session.capture("end")
+
+
+def record_snapshot_policy(run):
+    """Declare native retention before Pingstore validates this stage's export."""
+    import json
+
+    policies = run.record.setdefault("scientific_artifacts", {}).setdefault(
+        "snapshot_stages", {}
+    )
+    for path in run.export.rglob("snapshot.json"):
+        metadata = json.loads(path.read_text())
+        if metadata.get("schema") != "snnlab.run-snapshot/v1":
+            continue
+        root = path.parent.parent.relative_to(run.export).as_posix()
+        policies[root] = ["end"] if metadata["kind"] == "train" else ["start"]
+    save_circuits(run)
+
+
+def copy_circuits(run):
+    """Copy only circuit assets from this presentation's explicit compute ancestry."""
+    import shutil
+    from pingstore.stages import source_run
+
+    seen = set()
+    files = set()
+
+    def visit(reference):
+        identity = reference["run_id"]
+        if identity in seen:
+            return
+        seen.add(identity)
+        source = source_run(run.directory.parents[1], identity, reference=reference)
+        if source.record["experiment"] != run.record["experiment"]:
+            return
+        if source.record["stage"] == "compute":
+            for path in source.export.glob("circuit*.svg"):
+                target = run.export / path.name
+                if target.exists() and target.read_bytes() != path.read_bytes():
+                    raise ValueError(f"conflicting pinned circuit: {path.name}")
+                shutil.copyfile(path, target)
+                files.add(path.name)
+        else:
+            for parent in source.record["inputs"].values():
+                visit(parent)
+
+    for reference in run.record["inputs"].values():
+        visit(reference)
+    return sorted(files)
+
+
+def save_circuits(run):
+    """Render once per topology from the saved compiled execution bundles."""
+    import hashlib
+    import json
+
+    layouts = set()
+    for path in sorted(run.export.rglob("manifest.json")):
+        metadata = json.loads(path.read_text())
+        if metadata.get("schema") != "snnlang.bundle/v1":
+            continue
+        bundle = lang.load_bundle(path.parent)
+        graph = bundle.graph
+        topology = dict(
+            inputs=[(row["id"], row["shape"]) for row in graph["inputs"]],
+            populations=[
+                (row["id"], row["size"], row["neuron"]["kind"])
+                for row in graph["populations"]
+            ],
+            projections=[
+                (
+                    row["source"],
+                    row["target"],
+                    row["synapse"]["kind"],
+                    row["connection"],
+                )
+                for row in graph["projections"]
+            ],
+        )
+        identity = hashlib.sha256(
+            json.dumps(topology, sort_keys=True).encode()
+        ).hexdigest()[:12]
+        if identity not in layouts:
+            bundle.visualise(run.export / f"circuit-{identity}.svg", view="circuit")
+            layouts.add(identity)

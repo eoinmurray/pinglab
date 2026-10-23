@@ -1,4 +1,8 @@
-"""Render completed exp081 analysis; never simulate, analyse or materialize."""
+"""Render completed exp081 analysis; never simulate, analyse or materialize.
+
+Invoke this stage explicitly from the repository root. Scientific outputs
+and input provenance belong to its independently completed Pingstore run.
+"""
 
 from __future__ import annotations
 
@@ -14,7 +18,8 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
-from experiments.exp081 import inputs, recipe
+from experiments.exp081.custom import inputs
+from experiments.exp081 import recipe
 from pingstore.contracts import PingstoreError, load_json, write_json_atomic
 from pingstore.stages import stage_run
 

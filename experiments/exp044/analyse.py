@@ -1,4 +1,8 @@
-"""Prepare measurements, seed summaries and raster samples from retained evidence."""
+"""Prepare measurements, seed summaries and raster samples from retained evidence.
+
+Invoke this stage explicitly from the repository root. Scientific outputs
+and input provenance belong to its independently completed Pingstore run.
+"""
 
 import argparse
 import sys
@@ -9,7 +13,8 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
 
 import numpy as np
-from experiments.exp044 import evidence, inputs, recipe
+from experiments.exp044.custom import evidence, inputs
+from experiments.exp044 import recipe
 from pingstore.contracts import PingstoreError, load_json, write_json_atomic
 
 MEASUREMENT = {

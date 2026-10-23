@@ -1,4 +1,10 @@
-"""Preserved paired pool-size controls, with no execution on import."""
+"""Preserved paired pool-size controls, with no execution on import.
+
+configuration() resolves fresh scientific settings before execution. Network
+authoring and analysis definitions do not load data or launch a stage on import.
+"""
+
+from copy import deepcopy
 
 from snnlab.lang import duration_metadata, refractory_metadata
 
@@ -23,8 +29,6 @@ def refractory_configuration() -> dict:
     }
 
 
-
-
 def duration_configuration(duration_ms: float, dt_ms: float) -> dict:
     return duration_metadata(duration_ms, dt_ms)
 
@@ -38,27 +42,31 @@ def refractory_execution_configuration(dt_ms: float) -> dict:
 
 
 def configuration(*, smoke=False, version=2):
+    if type(smoke) is not bool:
+        raise ValueError("smoke must be boolean")
     if version not in (1, 2):
         raise ValueError("unsupported exp047 recipe version")
-    return {
-        "schema": f"exp047.recipe/v{version}",
-        **(refractory_configuration() if version >= 2 else {}),
-        "profile": "smoke" if smoke else "production",
-        "n_e": 1024,
-        "n_in": 784,
-        "n_i_sweep": [16, 64, 256],
-        "n_i_reference": 256,
-        "reference_g_ie": [1.0, 2.0, 4.0],
-        "reference_j_ie": [1.0 / 256, 2.0 / 256, 4.0 / 256],
-        "g_ei_total": 1.0,
-        "input_rate_hz": 25.0,
-        "t_ms": 200.0 if smoke else 500.0,
-        "dt_ms": 0.1,
-        "n_batch": 2 if smoke else 8,
-        "seeds": [40, 41] if smoke else [40, 41, 42],
-        "w_in_mean": 1.2,
-        "w_in_initial_zero_fraction": 0.95,
-    }
+    return deepcopy(
+        dict(
+            schema=f"exp047.recipe/v{version}",
+            **(refractory_configuration() if version >= 2 else dict()),
+            profile="smoke" if smoke else "production",
+            n_e=1024,
+            n_in=784,
+            n_i_sweep=[16, 64, 256],
+            n_i_reference=256,
+            reference_g_ie=[1.0, 2.0, 4.0],
+            reference_j_ie=[1.0 / 256, 2.0 / 256, 4.0 / 256],
+            g_ei_total=1.0,
+            input_rate_hz=25.0,
+            t_ms=200.0 if smoke else 500.0,
+            dt_ms=0.1,
+            n_batch=2 if smoke else 8,
+            seeds=[40, 41] if smoke else [40, 41, 42],
+            w_in_mean=1.2,
+            w_in_initial_zero_fraction=0.95,
+        )
+    )
 
 
 def report_config(cfg):
@@ -101,11 +109,17 @@ def jobs(cfg):
     return result
 
 
-
-
-BIOPHYSICS = {"capacitance_e_nf":1.0,"capacitance_i_nf":0.5,
-    "leak_e_us":0.05,"leak_i_us":0.10,"resting_mv":-65.0,"threshold_mv":-50.0,
-    "reset_mv":-65.0,"readout_tau_ms":2.0,"readout_threshold":1.0}
+BIOPHYSICS = {
+    "capacitance_e_nf": 1.0,
+    "capacitance_i_nf": 0.5,
+    "leak_e_us": 0.05,
+    "leak_i_us": 0.10,
+    "resting_mv": -65.0,
+    "threshold_mv": -50.0,
+    "reset_mv": -65.0,
+    "readout_tau_ms": 2.0,
+    "readout_threshold": 1.0,
+}
 
 
 def network_settings(cfg, item):

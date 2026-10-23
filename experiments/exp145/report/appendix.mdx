@@ -1,0 +1,427 @@
+import Table from '../../../site/src/components/Table.astro';
+import RunFigure from '../../../site/src/components/RunFigure.astro';
+import { reportData, reportSnapshots } from '../../../site/src/lib/report-data';
+
+export const diagnosticData = await reportData('exp145');
+
+export const evidence = await reportSnapshots('exp145', {
+  snapshots: { simulation: 'simulation/start/snapshot.json' },
+  allowUnavailable: true,
+});
+export const parameterGroups = (() => {
+  if (!evidence) return [{ label: 'Network', rows: [['Native snapshot evidence', 'Unavailable']] }];
+  const cfg = evidence.configuration;
+  const snapshot = evidence.snapshots.simulation;
+  const graph = snapshot?.network;
+  const population = name => graph?.populations?.find(row => row.id === name);
+  const projection = name => graph?.projections?.find(row => row.id === name);
+  const parameter = name => graph?.parameters?.find(row => row.id === `${name}.weight`);
+  const show = value => {
+    const scalar = value?.value ?? value;
+    if (scalar === undefined || scalar === null) return 'Unavailable';
+    return typeof scalar === 'number' ? String(Number(scalar.toPrecision(6))) : String(scalar);
+  };
+  const pair = key => ['E', 'I'].map(name => show(population(name)?.neuron?.[key])).join(' / ');
+  const names = ['E_to_E', 'E_to_I', 'I_to_E', 'I_to_I', 'X_to_E', 'X_to_I'];
+  const label = name => name.replace('_to_', '→');
+  const density = name => {
+    const zero = snapshot?.execution?.initialization?.[`${name}.weight`]?.statistics?.zero_fraction;
+    return zero === undefined ? 'Unavailable' : show(1 - zero);
+  };
+  return [
+    { label: 'Network', rows: [
+      ['E / I neurons', ['E', 'I'].map(name => show(population(name)?.size)).join(' / ')],
+      ['Shared external X sources', show(graph?.inputs?.find(row => row.id === 'X')?.shape?.at(-1))],
+      ...names.map(name => [`${label(name)} autapses allowed`, show(projection(name)?.allow_autapses)]),
+    ] },
+    { label: 'Neurons', rows: [
+      ['Neuron model, E / I', pair('kind')],
+      ['Capacitance, E / I (nF)', pair('capacitance_nf')],
+      ['Leak conductance, E / I (µS)', pair('leak_us')],
+      ['Derived time constants, E / I (ms)', pair('tau_mem')],
+      ['Resting potential, E / I (mV)', pair('resting_mv')],
+      ['Initial voltage, E / I (mV)', pair('initial_voltage_mv')],
+      ['Reset potential, E / I (mV)', pair('reset_mv')],
+      ['Spike threshold, E / I (mV)', pair('threshold_mv')],
+      ['Excitatory reversal, E / I (mV)', pair('excitatory_reversal_mv')],
+      ['Inhibitory reversal, E / I (mV)', pair('inhibitory_reversal_mv')],
+      ['Refractory duration, E / I (ms)', pair('refractory')],
+      ['Refractory scheduling', show(graph?.refractory_timing)],
+    ] },
+    { label: 'Synapses and weights', rows: names.flatMap(name => {
+      const spec = parameter(name);
+      const init = spec?.initializer;
+      const stats = snapshot?.execution?.initialization?.[`${name}.weight`]?.statistics;
+      return [
+        [`${label(name)} synapse / decay / delay (ms)`, [projection(name)?.synapse?.kind, projection(name)?.synapse?.tau, projection(name)?.delay].map(show).join(' / ')],
+        [`${label(name)} initializer / scaling`, [init?.kind, spec?.initialization_scaling].map(show).join(' / ')],
+        [`${label(name)} compensated initializer mean / SD (µS)`, [init?.mean, init?.std].map(show).join(' / ')],
+        [`${label(name)} connected Gaussian parent mean / SD (µS)`, init && typeof init.initial_zero_fraction === 'number' ? [init.mean / (1 - init.initial_zero_fraction), init.std / (1 - init.initial_zero_fraction)].map(show).join(' / ') : 'Unavailable'],
+        [`${label(name)} realised nonzero mean (µS)`, stats && stats.zero_fraction < 1 ? show(stats.mean / (1 - stats.zero_fraction)) : 'Unavailable'],
+        [`${label(name)} initial zero fraction / realised nonzero fraction`, [show(init?.initial_zero_fraction), density(name)].join(' / ')],
+        [`${label(name)} realised mean / SD including zeros (µS)`, [stats?.mean, stats?.std].map(show).join(' / ')],
+      ];
+    }) },
+    { label: 'Input and simulation', rows: [
+      ['External input', 'One Poisson raster shared by X→E and X→I'],
+      ['External rate per source (Hz)', show(cfg.external_rate_hz)],
+      ['External seed offset', show(cfg.external_seed_offset)],
+      ['Timestep / duration (ms)', [snapshot?.execution?.timestep_ms, snapshot?.execution?.duration_ms].map(show).join(' / ')],
+      ['Execution seed', show(snapshot?.execution?.seed)],
+      ['Execution device', show(snapshot?.execution?.device_resolved)],
+      ['Spikes recorded', 'All E and I neurons; raw recording includes burn-in'],
+      ['Excluded burn-in (ms)', show(cfg.burn_in_ms)],
+      ['Measurement window (ms)', show(cfg.duration_ms - cfg.burn_in_ms)],
+      ['Voltage and conductance sample cells per population', show(cfg.recording_cells)],
+      ['Recording block length (steps)', show(cfg.recording_block_steps)],
+      ['Training', snapshot?.execution?.parameter_membership?.trainable?.length === 0 ? 'None; all weights frozen' : 'Unavailable'],
+    ] },
+    { label: 'Analysis', rows: [
+      ['ISI CV minimum spike count', show(cfg.analysis?.min_cv_spikes)],
+      ['Count correlation cells per population', show(cfg.analysis?.correlation_cells)],
+      ['Sliding count-window widths (ms)', cfg.analysis?.correlation_bins_ms?.map(show).join(' / ') ?? 'Unavailable'],
+      ['Sliding-window step (ms)', show(diagnosticData.correlation_step_ms)],
+      ['Population-scaling count window (ms)', show(cfg.analysis?.scaling_bin_ms)],
+      ['Requested group sizes; full population also included', cfg.analysis?.group_sizes?.map(show).join(' / ') ?? 'Unavailable'],
+      ['Random groups per size / seed offset', [cfg.analysis?.subsample_repeats, cfg.analysis?.subsample_seed_offset].map(show).join(' / ')],
+      ['Current-covariance target population', show(cfg.analysis?.current_population)],
+      ['Current-covariance maximum lag / filter (ms)', [cfg.analysis?.current_max_lag_ms, cfg.analysis?.current_filter_ms].map(show).join(' / ')],
+    ] },
+  ];
+})();
+
+The following appendices document each panel of [Figure 2](#fig-ai-diagnostics).
+They adapt the diagnostics discussed by
+[Renart et al. (2010)](https://doi.org/10.1126/science.1179850) to this simulation.
+All panels use the {diagnosticData.window_ms / 1000}-second recording after
+{diagnosticData.burn_in_ms} ms burn-in. Cell selection, counting windows and
+plotting choices below describe this implementation, rather than an exact copy
+of the paper.
+
+<a id="panel-a-methods"></a>
+
+## Appendix A — Panel A: irregular firing
+
+### A1. Select neurons and measure intervals
+
+Use all recorded E and I spike trains after burn-in. Keep cells with at least
+20 spikes. For each retained neuron, measure gaps between consecutive spikes;
+do not include gaps crossing the start or end of the measurement period.
+
+<a id="eq-a1"></a>
+
+$$
+d_{i,k}=t_{i,k+1}-t_{i,k},\qquad k=1,\ldots,m_i. \tag{A1}
+$$
+
+Here $i$ identifies a neuron, $t_{i,k}$ is its $k$th spike time in ms,
+$d_{i,k}$ is an interspike interval, and $m_i$ is its number of intervals
+(one fewer than its spike count).
+
+### A2. Calculate variability
+
+Calculate each neuron's mean interval and standard deviation, then divide them
+to obtain its coefficient of variation (CV). The implementation uses the
+population standard deviation, dividing by $m_i$ rather than $m_i-1$.
+
+<a id="eq-a2"></a>
+
+$$
+\mu_i=\frac{1}{m_i}\sum_{k=1}^{m_i}d_{i,k},\qquad
+\sigma_i=\sqrt{\frac{1}{m_i}\sum_{k=1}^{m_i}(d_{i,k}-\mu_i)^2},\qquad
+\mathrm{CV}_i=\frac{\sigma_i}{\mu_i}. \tag{A2}
+$$
+
+Here $\mu_i$ and $\sigma_i$ are in ms, so CV has no units. Cells without a
+finite CV are excluded from the histogram. No smoothing or fitted distribution
+is applied.
+
+### A3. Plot the distributions
+
+Use 25 equal-width bins shared by E and I. They run from zero to the larger of
+2.5 or 1.05 times the largest eligible CV. Plot each population as a separately
+normalised density histogram:
+
+<a id="eq-a3"></a>
+
+$$
+H_p(b)=\frac{N_p(b)}{M_p h}. \tag{A3}
+$$
+
+Here $p$ denotes E or I, $b$ identifies a histogram bin, $N_p(b)$ counts eligible
+neurons in that bin, $M_p$ is the population's total number of eligible neurons,
+and $h$ is the bin width in CV units. Thus each histogram has area one.
+The **x-axis is CV** and the **y-axis is density**, not a neuron count. Black
+shows E and red shows I. Annotations give medians and eligibility counts; the
+vertical dashed line marks CV = 1. Values near zero indicate regular firing;
+values near one support irregular firing, without proving a Poisson process.
+
+<a id="panel-b-methods"></a>
+
+## Appendix B — Panel B: weak average synchrony
+
+### B1. Choose cells and slide the counting window
+
+Select up to 200 evenly spaced neuron indices from each population. This
+selection is fixed, rather than randomly redrawn. Count spikes in complete
+5, 20 and 50 ms windows, each advanced by {diagnosticData.correlation_step_ms} ms.
+No window extends into burn-in or beyond the recording.
+
+<a id="eq-b1"></a>
+
+$$
+n_i^{\Delta}(m)=\sum_k
+\mathbf{1}\!\left[m\delta\leq t_{i,k}<m\delta+\Delta\right]. \tag{B1}
+$$
+
+Here $n_i^{\Delta}(m)$ is neuron $i$'s count in window $m$, $t_{i,k}$ is a
+post-burn-in spike time, $\Delta$ is the window width, $\delta$ is the slide step
+(all times in ms), and $\mathbf{1}$ is one when its condition holds and zero
+otherwise. The sum runs over that neuron's spikes. Windows start at $m\delta$
+for nonnegative integers $m$ satisfying $m\delta+\Delta\leq T$, where $T$ is the
+measurement duration. The code bins at the slide step and uses cumulative sums
+to obtain these same counts efficiently.
+
+### B2. Calculate each pair's correlation
+
+For each window width, subtract each cell's mean count across windows and
+calculate Pearson correlation. Exclude cells whose counts have zero variance
+at that width; the 20-spike threshold from Panel A does not apply here.
+
+<a id="eq-b2"></a>
+
+$$
+x_i(m)=n_i^{\Delta}(m)-\bar n_i^{\Delta},\qquad
+r_{ij}(\Delta)=\frac{\sum_m x_i(m)x_j(m)}
+{\sqrt{\sum_m x_i(m)^2\sum_m x_j(m)^2}}. \tag{B2}
+$$
+
+Here $\bar n_i^{\Delta}$ is the mean count over complete windows, $x_i(m)$ is its
+centred count, $i,j$ identify distinct neurons, and the sums cover the same
+windows for both cells. Correlation $r_{ij}$ has no units and lies between −1
+and +1. It measures same-window association, rather than a lagged correlation.
+
+### B3. Plot means and pairwise spread
+
+Collect each distinct E–E and I–I pair once, and every selected E–I pair.
+For each pair type and window width, plot its mean correlation and shade one
+standard deviation on either side:
+
+<a id="eq-b3"></a>
+
+$$
+\bar r=\frac{1}{P}\sum_{p=1}^{P}r_p,\qquad
+s_r=\sqrt{\frac{1}{P}\sum_{p=1}^{P}(r_p-\bar r)^2}. \tag{B3}
+$$
+
+Here $P$ is the number of valid neuron pairs, $r_p$ is one pair's correlation,
+$\bar r$ is the plotted mean, and $s_r$ is the pairwise standard deviation.
+The **x-axis is counting-window width in ms**, not elapsed recording time.
+The **y-axis is mean Pearson correlation**. Black shows E–E, red I–I and cyan
+E–I; the horizontal dashed line marks zero. Connecting lines join the three
+measured widths. Shading is spread between pairs, not a confidence interval.
+Overlapping windows and pairs sharing neurons are not independent observations.
+
+<a id="panel-c-methods"></a>
+
+## Appendix C — Panel C: population averaging
+
+### C1. Count spikes and choose groups
+
+Count all E and I spikes in **disjoint 20 ms bins**, separately for each
+population. Unlike Panel B, these bins do not slide. Include low-rate and silent
+neurons. Test group sizes 4, 8, 16, and successive powers of two through 2,048,
+capped at the population size; also include the full population and remove
+duplicate sizes. For each size, draw 50 groups without replacement within each
+group. Different groups may overlap and need not be nested. Selection uses
+fixed random seeds, separately for E and I.
+
+### C2. Measure how much averaging reduces fluctuations
+
+For each group, average its counts in each bin, then compare the variance of
+this average with the mean individual variance:
+
+<a id="eq-c1"></a>
+
+$$
+\bar n_G(m)=\frac{1}{K}\sum_{i\in G}n_i(m),\qquad
+Q_G(K)=\frac{\operatorname{Var}_m[\bar n_G(m)]}
+{K^{-1}\sum_{i\in G}\operatorname{Var}_m[n_i(m)]}. \tag{C1}
+$$
+
+Here $G$ is a selected group of $K$ neurons, $i$ identifies a member, $m$ indexes
+20 ms bins, $n_i(m)$ is its spike count, and $\bar n_G(m)$ is the group average.
+Variance is calculated across bins, using division by the number of bins.
+The ratio $Q_G$ has no units. Exclude groups whose denominator is zero.
+For uncorrelated count fluctuations, the reference is
+
+<a id="eq-c2"></a>
+
+$$
+Q_G(K)=\frac{1}{K}. \tag{C2}
+$$
+
+This reference does not require Poisson firing. Positive shared fluctuations
+can keep the ratio above it and produce a plateau at large group sizes.
+
+### C3. Plot groups and fit the slope
+
+The **x-axis is group size $K$** and the **y-axis is normalised variance $Q$**;
+both axes are logarithmic. Black shows E and red shows I. At each size, plot the
+median across valid groups and shade their 5th–95th percentiles. The grey dashed
+line is the independent-neuron reference. Fit a straight line to all finite,
+positive median points in log–log coordinates:
+
+<a id="eq-c3"></a>
+
+$$
+\log Q_{\mathrm{median}}(K)\approx a+b\log K. \tag{C3}
+$$
+
+Here $Q_{\mathrm{median}}$ is the median group ratio, $a$ is a fitted intercept,
+and $b$ is the slope shown in the legend. Each group size receives equal weight;
+the reference slope is −1. Shading describes group selection, not uncertainty
+across time or network seeds. At full population size, every draw contains the
+same neurons. This is a pooling test within one network, not a network-size sweep.
+
+<a id="panel-d-methods"></a>
+
+## Appendix D — Panel D: current covariance cancellation
+
+### D1. Reconstruct signed currents
+
+Use the 32 evenly spaced E target neurons with recorded voltages and
+conductances. Combine recurrent and external excitation. At each raw simulation
+step, reconstruct currents using that step's conductances and the preceding
+voltage, matching the simulator's held-conductance update:
+
+<a id="eq-d1"></a>
+
+$$
+I_i^E[q]=(g_i^E[q]+g_i^X[q])(E_E-V_i[q-1]),\qquad
+I_i^I[q]=g_i^I[q](E_I-V_i[q-1]). \tag{D1}
+$$
+
+Here $q$ indexes raw simulation steps, $i$ identifies a sampled target,
+$g_i^E,g_i^X,g_i^I$ are recurrent excitatory, external excitatory and inhibitory
+conductances in µS, $E_E,E_I$ are reversal potentials in mV, and $V_i$ is membrane
+voltage in mV. Signed currents $I_i^E,I_i^I$ are in nA. The first raw step uses
+the resting voltage; reconstruction precedes burn-in removal, so the first
+measured step uses the final burn-in voltage. Excitation is generally positive
+and inhibition negative in this voltage range.
+
+### D2. Average covariance over time and distinct target pairs
+
+Remove burn-in and subtract each current trace's mean over the entire remaining
+recording. At each lag, average products of these centred currents over every
+valid time sample and every ordered pair of different target neurons:
+
+<a id="eq-d2"></a>
+
+$$
+\delta I_i^a[n]=I_i^a[n]-\frac{1}{N}\sum_{u=0}^{N-1}I_i^a[u],
+$$
+
+$$
+C_{ab}(\ell\,\mathrm{d}t)=
+\frac{\displaystyle\sum_{i\ne j}\sum_{n\in\mathcal O_\ell}
+\delta I_i^a[n]\,\delta I_j^b[n+\ell]}
+{M(M-1)(N-|\ell|)}. \tag{D2}
+$$
+
+Here $a,b$ denote E or I current, $M$ is the number of sampled targets, $N$ is
+the number of post-burn-in samples, $n,u$ index those samples, $\ell$ is an
+integer lag, and $\mathrm{d}t$ is the simulation timestep. The overlap set
+$\mathcal O_\ell$ contains indices for which both $n$ and $n+\ell$ are inside
+the recording. Thus positive lag compares the first current with a later value
+of the second. The denominator uses the actual overlap length; means remain
+global rather than being recalculated at each lag.
+
+With 32 targets there are 992 ordered distinct-cell pairs. Same-cell terms are
+excluded. An FFT computes these sums efficiently with padding to prevent
+circular wraparound; it does not smooth the curves. All components use the same
+pair set and normalisation.
+
+### D3. Sum components and calculate cancellation
+
+Compute the four components and their sum, and separately check that the sum
+matches covariance calculated from the total current:
+
+<a id="eq-d3"></a>
+
+$$
+C_{\mathrm{tot}}(\tau)=C_{EE}(\tau)+C_{II}(\tau)+C_{EI}(\tau)+C_{IE}(\tau). \tag{D3}
+$$
+
+Here $\tau=\ell\,\mathrm{d}t$ is lag in ms and $C_{\mathrm{tot}}$ is the
+between-cell covariance of summed E and I current. The cancellation percentage
+at zero lag is
+
+<a id="eq-d4"></a>
+
+$$
+100\left[1-\frac{C_{\mathrm{tot}}(0)}{C_{EE}(0)+C_{II}(0)}\right]\%. \tag{D4}
+$$
+
+This compares the total with the sum of same-type components; it is reported
+when that denominator is positive. The in-plot annotation gives the ratio inside
+the subtraction, rather than the percentage. This decomposition describes
+coordinated fluctuations, not just a balance of mean currents.
+
+### D4. Filter only the additional total-current trace
+
+For the grey dotted trace, first apply a causal 20 ms exponential filter to each
+cell's total current, then calculate its covariance using the same procedure:
+
+<a id="eq-d5"></a>
+
+$$
+J_i[q]=I_i^E[q]+I_i^I[q],\qquad
+\widetilde J_i[q]=\alpha\widetilde J_i[q-1]+(1-\alpha)J_i[q],\qquad
+\alpha=e^{-\mathrm{d}t/\tau_f}. \tag{D5}
+$$
+
+Here $J_i$ is total current, $\widetilde J_i$ is filtered total current,
+$\tau_f=20$ ms is the filter time constant, and $\alpha$ is its decay factor.
+Initialise the filter at zero before the first raw step and filter the full
+record before removing burn-in. This is covariance **of filtered currents**,
+not smoothing applied to the plotted covariance curve.
+
+### D5. Read the axes and traces
+
+The **x-axis is lag in ms**, from −50 to +50, at the simulation timestep.
+The **y-axis is mean between-cell covariance in nA²**, not correlation bounded
+by −1 and +1. Dashed black shows EE, solid red II, solid cyan EI and dashed
+amber IE. Solid black is their total; the grey dotted line shows the filtered total's
+covariance. E and I label current types here: every target neuron is E.
+
+Negative cross-type components oppose positive same-type components, reducing
+the black total around zero lag. The main curves receive no extra smoothing
+or fitted shape. They look smooth because synaptic currents have finite decay
+times and covariance is averaged over time and many pairs. Neither the pairs
+nor neighbouring lag points are independent, and no confidence band is shown.
+
+## Network diagram
+
+<RunFigure report="exp145" experiment="exp145" file="circuit.svg" number={3} id="fig-circuit" alt="Compiled conductance-network circuit: shared external X input to E and I, E→E and I→I recurrence, and reciprocal E/I connections.">
+  Circuit exported from the compiled bundle used for the displayed simulation.
+  Excitatory (E) and inhibitory (I) populations receive the same external (X)
+  spike raster through separate projections. All four recurrent E/I projections
+  are present; same-population autapses are excluded.
+</RunFigure>
+
+## Parameters
+
+The table uses the saved starting network and settings behind the displayed
+figures. Paired values are E / I. Synapses use a single decay time and fixed
+delays, approximating the paper's model. Weight sampling compensates for SNNLab's
+sparse rescaling; clamping negative samples slightly increases the surviving
+mean. The table distinguishes these weight definitions and includes zeros in
+overall statistics.
+
+All measurements exclude burn-in. Count windows slide by {diagnosticData.correlation_step_ms} ms.
+Signed currents are reconstructed from conductances and the preceding voltage;
+current covariances compare distinct cells. Excitation includes recurrent and
+external input.
+
+<Table headers={["Parameter", "Saved value"]} groups={parameterGroups} />

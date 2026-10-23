@@ -1,10 +1,16 @@
+"""Validate exp044 scientific and execution contracts.
+
+Run with `uv run pytest experiments/exp044/test.py`. Fixtures use temporary stores;
+bounded native checks validate numerical behavior without production runs.
+"""
+
 from __future__ import annotations
 
 import json
 from pathlib import Path
 
 import pytest
-from experiments.exp044 import evidence
+from experiments.exp044.custom import evidence
 from experiments.exp044 import recipe as exp044
 from experiments.exp044.recipe import (
     duration_configuration,
@@ -19,13 +25,8 @@ import subprocess
 import sys
 
 import numpy as np
-from experiments.exp044 import (
-    analyse,
-    compute,
-    inputs,
-    present,
-    recipe,
-)
+from experiments.exp044 import analyse, compute, present, recipe
+from experiments.exp044.custom import inputs
 from pingstore import stages
 from pingstore.contracts import (
     PingstoreError,
@@ -379,19 +380,6 @@ def test_missing_measurements_never_become_zeros(lab, damage):
     with pytest.raises(PingstoreError):
         analyse.analyse(compute_id)
     assert len(calls) == 20
-
-
-@pytest.mark.parametrize("flag", [[], ["--plot-only"], ["--skip-training"]])
-def test_combined_launchers_are_retired(flag):
-    root = Path(__file__).resolve().parents[2]
-    result = subprocess.run(
-        [sys.executable, "-m", "experiments.exp044", *flag],
-        cwd=root,
-        capture_output=True,
-        text=True,
-    )
-    assert result.returncode != 0
-    assert "independent stages" in result.stderr
 
 
 def _common_config() -> dict:

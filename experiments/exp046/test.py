@@ -1,4 +1,8 @@
-"""Synthetic cycle evidence; no training, production inference or historical import."""
+"""Synthetic cycle evidence; no training, production inference or historical import.
+
+Run with `uv run pytest experiments/exp046/test.py`. Fixtures use temporary stores;
+bounded native checks validate numerical behavior without production runs.
+"""
 
 import subprocess
 import sys
@@ -6,19 +10,83 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-from experiments.exp041 import analyse as upstream_analyse
-from experiments.exp041 import compute as upstream_compute
-from experiments.exp041 import test as upstream_tests
-from experiments.exp046 import (
-    analyse,
-    compute,
-    inputs,
-    measurements,
-    plots,
-    present,
-    recipe,
-)
+from experiments.exp046 import analyse, compute, present, recipe
+from experiments.exp046.custom import inputs, measurements, plots
 from pingstore import stages
+from experiments.exp046.custom import source_exp041_recipe as frequency_recipe
+from experiments.exp046.custom.source_exp041_analyse import MEASUREMENT
+from experiments.exp046.custom.source_exp041_custom_evidence import (
+    training_contract,
+    checkpoints,
+)
+from pingstore.stages import source_run
+from pingstore.contracts import file_sha256
+
+from experiments.exp046.recipe import refractory_configuration
+
+
+def _common_config() -> dict:
+    return {
+        **refractory_configuration(),
+        "model": "ping",
+        "dataset": "mnist",
+        "max_samples": 7000,
+        "epochs": 50,
+        "t_ms": 200.0,
+        "tau_ampa_ms": 2.0,
+        "tau_gaba_ms": 6.0,
+        "input_rate": 25.0,
+        "input_rate_sampling": "fixed",
+        "hidden_sizes": [1024],
+        "n_in": 784,
+        "n_hidden": 1024,
+        "n_inh": 256,
+        "n_out": 10,
+        "ei_strength": 1.0,
+        "ei_ratio": 2.0,
+        "w_in": [0.9, 0.09],
+        "w_in_initial_zero_fraction": 0.95,
+        "recurrent_initial_zero_fraction": 0.0,
+        "readout_w_init_mean": 1.12060546875,
+        "readout_w_init_std": 0.8349609375,
+        "weight_decay": 0.0,
+        "grad_clip": 1.0,
+        "trainable_w_ei": False,
+        "trainable_w_ie": False,
+        "trainable_w_ee": False,
+        "trainable_w_ii": False,
+        "fr_reg_upper_strength": 0.0,
+        "fr_reg_upper_target_hz": 0.0,
+        "readout_mode": "mem-mean",
+        "surrogate_slope": 1.0,
+        "lr": 0.0004,
+        "batch_size": 256,
+        "v_grad_dampen": 1000.0,
+        "dales_law": True,
+        "dataset_split": {
+            "optimizer_train_samples": 6300,
+            "validation_samples": 700,
+            "official_test_samples": 10000,
+            "checkpoint_selection_partition": "validation",
+            "official_test_used_during_training": False,
+            "source_train_partition": "official_mnist_train",
+            "source_test_partition": "official_mnist_test",
+            "split_seed": 42,
+            "validation_fraction": 0.1,
+        },
+        "validation_encoder_draws": {
+            "count": 3,
+            "encoder_seeds": [1, 2, 3],
+            "input_rate_seeds": [4, 5, 6],
+        },
+        "adaptive_threshold": False,
+        "train_leak": False,
+        "signed_readout": False,
+        "readout_bias": False,
+        "state_clamp": False,
+    }
+
+
 from pingstore.contracts import (
     PingstoreError,
     load_json,
@@ -29,7 +97,63 @@ from pingstore.contracts import (
 
 @pytest.fixture
 def lab(tmp_path, monkeypatch):
-    return upstream_tests.lab.__wrapped__(tmp_path, monkeypatch)
+    monkeypatch.setattr(
+        stages,
+        "memberships",
+        lambda _: {"exp022": "demo", "exp041": "demo", "exp046": "demo"},
+    )
+    monkeypatch.setattr(
+        stages, "_capture_code", lambda *args: {"git_commit": "fixture", "dirty": False}
+    )
+    monkeypatch.setattr(frequency_recipe, "RASTER_N_E_PLOT", 2)
+    monkeypatch.setattr(frequency_recipe, "RASTER_N_I_PLOT", 1)
+    monkeypatch.setenv("PINGLAB_SMOKE", "1")
+    with stages.stage_run(tmp_path, "exp022", "compute") as bank:
+        for tau in frequency_recipe.TAU_GABA_SWEEP:
+            for seed in frequency_recipe.SEEDS:
+                name = frequency_recipe.cell_name(tau, seed)
+                cell = bank.export / name
+                cell.mkdir(parents=True)
+                cfg = {
+                    **_common_config(),
+                    "dt": frequency_recipe.DT_TRAIN,
+                    "tau_gaba_ms": tau,
+                    "seed": seed,
+                    "n_hidden": 4,
+                    "n_inh": 2,
+                    "hidden_sizes": [4],
+                }
+                write_json_atomic(cell / "config.json", cfg)
+                checkpoints = {}
+                for role, filename in (
+                    ("final_epoch", "weights_final.pth"),
+                    ("best_validation", "weights.pth"),
+                ):
+                    path = cell / filename
+                    path.write_bytes(role.encode())
+                    checkpoints[role] = {
+                        "filename": filename,
+                        "epoch": frequency_recipe.EPOCHS,
+                        "sha256": file_sha256(path),
+                    }
+                write_json_atomic(
+                    cell / "metrics.json",
+                    {
+                        "config": cfg,
+                        "training_cell_name": name,
+                        "best_epoch": frequency_recipe.EPOCHS,
+                        "checkpoints": checkpoints,
+                        "epochs": [
+                            {
+                                "ep": ep,
+                                "acc": 80.0 + ep / 10,
+                                "test_rate_e": ep / 2 + tau,
+                            }
+                            for ep in range(1, frequency_recipe.EPOCHS + 1)
+                        ],
+                    },
+                )
+    return tmp_path, bank.run_id, []
 
 
 @pytest.fixture
@@ -40,8 +164,37 @@ def cycle_lab(lab, monkeypatch):
         "memberships",
         lambda _: {"exp022": "demo", "exp041": "demo", "exp046": "demo"},
     )
-    upstream_compute_id = upstream_compute.compute(bank_id)
-    frequency_id = upstream_analyse.analyse(upstream_compute_id)
+    bank = source_run(
+        root / ".pingstore", bank_id, stage="compute", experiment="exp022"
+    )
+    cfg = frequency_recipe.configuration(smoke=True)
+    contract = training_contract(bank.export)
+    with stages.stage_run(
+        root, "exp041", "compute", inputs={"bank": bank}, configuration=cfg
+    ) as upstream:
+        write_json_atomic(upstream.export / "fixture.json", {"synthetic": True})
+    upstream = source_run(root / ".pingstore", upstream.run_id)
+    with stages.stage_run(
+        root,
+        "exp041",
+        "analyse",
+        inputs={"compute": upstream, "bank": bank},
+        configuration=MEASUREMENT,
+    ) as frequencies:
+        write_json_atomic(
+            frequencies.export / "results.json",
+            {
+                "schema": "exp041.analysis/v1",
+                "recipe": cfg,
+                "measurement": MEASUREMENT,
+                "checkpoint_provenance": checkpoints(bank.export, contract),
+                "results": [
+                    {**cell, "n_total": cfg["evaluation_samples"], "f_gamma_hz": 50.0}
+                    for cell in contract["cells"]
+                ],
+            },
+        )
+    frequency_id = frequencies.run_id
     for module in (compute, analyse, present):
         monkeypatch.setattr(module, "REPO", root)
     calls = []
@@ -249,6 +402,7 @@ def test_equal_network_plot_shows_black_means_without_markers(tmp_path, monkeypa
             "frac_three_plus": 0,
         }
     }
+
     def inspect(fig, _path):
         ax = fig.axes[0]
         assert [bar.get_height() for bar in ax.patches] == pytest.approx(
@@ -372,15 +526,3 @@ def test_ancestor_readme_amendment_during_analysis_is_allowed(cycle_lab, monkeyp
     monkeypatch.setattr(measurements, "measure", changed)
     analysis_id = analyse.analyse(identity, frequency_id)
     assert (root / ".pingstore/runs" / analysis_id).is_dir()
-
-
-def test_retired_entrypoints_fail_without_outputs(tmp_path):
-    root = Path(__file__).resolve().parents[2]
-    result = subprocess.run(
-        [sys.executable, "-m", "experiments.exp046"],
-        cwd=root,
-        capture_output=True,
-        text=True,
-    )
-    assert result.returncode != 0
-    assert "explicit" in result.stderr

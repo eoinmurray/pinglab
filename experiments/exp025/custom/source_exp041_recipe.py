@@ -1,0 +1,51 @@
+"""The retained inhibitory-decay sweep recipe; training remains owned by exp022.
+
+The owning experiment calls these local definitions from its explicit stages.
+Inputs and outputs retain that stage’s validated scientific contract; importing
+this module does not start computation or select a scientific run.
+"""
+
+TRAINING_COMMON_FIELDS = (
+    "model",
+    "dataset",
+    "max_samples",
+    "epochs",
+    "t_ms",
+    "tau_ampa_ms",
+    "dt",
+    "input_rate",
+    "input_rate_sampling",
+    "hidden_sizes",
+    "n_in",
+    "n_hidden",
+    "n_inh",
+    "n_out",
+    "ei_strength",
+    "ei_ratio",
+    "w_in",
+    "w_in_initial_zero_fraction",
+    "recurrent_initial_zero_fraction",
+    "readout_mode",
+    "readout_w_init_mean",
+    "readout_w_init_std",
+    "surrogate_slope",
+    "lr",
+    "batch_size",
+    "weight_decay",
+    "grad_clip",
+    "v_grad_dampen",
+    "dales_law",
+    "trainable_w_ei",
+    "trainable_w_ie",
+    "dataset_split",
+    "validation_encoder_draws",
+    "fr_reg_upper_strength",
+    "fr_reg_upper_target_hz",
+    "adaptive_threshold",
+    "train_leak",
+    "signed_readout",
+    "readout_bias",
+    "trainable_w_ee",
+    "trainable_w_ii",
+    "state_clamp",
+)

@@ -33,13 +33,13 @@ def model_execution(
     seed=0,
     protocol=None,
     settings=None,
-    snapshot_stages=("start", "end"),
+    snapshot_stages=("start",),
 ):
     """Snapshot one scientific execution, including all its batches or time chunks.
 
-    Use SNNLab's internal SnapshotSession for this experiment's custom loop;
-    leave metadata and parameter serialization to the library. Callers may retain
-    only start or end evidence; existing callers keep the start/end pair.
+    Use SNNLab's native lifecycle for this experiment's custom loop. Simulation
+    retains start evidence only; training explicitly requests end evidence.
+    SNNLab owns metadata and parameter serialization.
     """
     from snnlab.sim.requests.spec import ExecutionSpec
 

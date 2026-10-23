@@ -1,3 +1,9 @@
+"""Validate exp082 scientific and execution contracts.
+
+Run with `uv run pytest experiments/exp082/test.py`. Fixtures use temporary stores;
+bounded native checks validate numerical behavior without production runs.
+"""
+
 from __future__ import annotations
 
 import json
@@ -8,8 +14,7 @@ import sys
 from pathlib import Path
 
 import numpy as np
-from experiments import exp022, exp082
-from experiments.exp022 import compute as exp022_compute
+from experiments import exp082
 
 """Synthetic contract tests; never use the workspace store or real inference."""
 
@@ -18,16 +23,13 @@ from xml.etree import ElementTree
 
 import pytest
 import torch
-from experiments.exp082 import (
-    analyse,
-    compute,
+from experiments.exp082 import analyse, compute, present, recipe
+from experiments.exp082.custom import (
     evidence,
     illustrate,
     inference,
     inputs,
     measurements,
-    present,
-    recipe,
 )
 from pingstore import stages
 from pingstore.contracts import (
@@ -537,7 +539,7 @@ def test_six_shards_reuse_collect_and_no_reexecution(lab):
 
 
 def test_hpc_pipeline_uses_reviewed_six_shard_array(tmp_path):
-    from experiments.exp082 import hpc
+    from experiments.exp082.custom import hpc
 
     plan = {
         "account": "gpu",
@@ -747,91 +749,6 @@ def test_dirty_shards_fail_without_scientific_work(lab, monkeypatch):
     with pytest.raises(PingstoreError, match="committed"):
         compute.shard(bank, run_id=identity, index=0)
     assert calls == []
-
-
-
-
-def test_exp022_planned_bank_targets_exp082() -> None:
-    cells = exp022.PLANNED_VARIABLE_RATE_CELLS
-    assert [cell["name"] for cell in cells] == [
-        "ping__variable_rate__seed42",
-        "ping__variable_rate__seed43",
-        "ping__variable_rate__seed44",
-    ]
-    assert all(cell["consumer"] == "exp082" for cell in cells)
-    assert all(cell["readout"] == "spike-count" for cell in cells)
-    assert all(cell["status"] == "ready_to_train" for cell in cells)
-    assert all(cell["training_run_id"] == "TR-06" for cell in cells)
-    assert all(
-        tuple(cell["input_rates_hz"]) == exp082.TRAINING_RATES_HZ for cell in cells
-    )
-    assert all(cell in exp022.CANONICAL_CELLS for cell in cells)
-
-
-def test_exp022_variable_rate_settings():
-    cell = exp022.PLANNED_VARIABLE_RATE_CELLS[0]
-    cfg = exp022.training_settings(cell, 7000, 50)
-    assert cfg['readout_mode']=='spike-count' and tuple(cfg['input_rates'])==recipe.TRAINING_RATES_HZ
-
-
-
-def test_exp022_wilkes_resource_tiers_partition_registry() -> None:
-    expected = {
-        "standard": 90,
-        "fine_dt": 3,
-        "canonical_coba": 3,
-        "canonical_ping": 3,
-        "variable_rate": 3,
-    }
-    tiered_names = []
-    for tier, count in expected.items():
-        cells = exp022.cells_in_resource_tier(tier)
-        assert len(cells) == count
-        assert all(exp022.cell_resource_tier(cell) == tier for cell in cells)
-        tiered_names.extend(cell["name"] for cell in cells)
-
-    assert sorted(tiered_names) == sorted(
-        cell["name"] for cell in exp022.CANONICAL_CELLS
-    )
-
-
-def test_training_run_ids_match_documented_families() -> None:
-    by_family = {
-        family: {
-            cell["training_run_id"]
-            for cell in exp022.CANONICAL_CELLS
-            if cell["family"] == family
-        }
-        for family in exp022.TRAINING_RUN_IDS
-    }
-    assert by_family == {
-        family: {run_id} for family, run_id in exp022.TRAINING_RUN_IDS.items()
-    }
-
-
-def test_completed_cell_artifacts_are_stamped_with_training_run_id(
-    tmp_path,
-    monkeypatch,
-) -> None:
-    cell = exp022.PLANNED_VARIABLE_RATE_CELLS[0]
-    directory = tmp_path / cell["name"]
-    directory.mkdir()
-    (directory / "config.json").write_text('{"mode": "train"}\n')
-    (directory / "metrics.json").write_text('{"config": {"epochs": 50}}\n')
-    monkeypatch.setitem(
-        exp022_compute._stamp_training_run_identity.__globals__,
-        "cell_dir",
-        lambda _name: directory,
-    )
-
-    exp022_compute._stamp_training_run_identity(cell)
-
-    config = exp022_compute.json.loads((directory / "config.json").read_text())
-    metrics = exp022_compute.json.loads((directory / "metrics.json").read_text())
-    assert config["training_run_id"] == "TR-06"
-    assert config["training_cell_name"] == cell["name"]
-    assert metrics["training_run_id"] == "TR-06"
-    assert metrics["config"]["training_run_id"] == "TR-06"
 
 
 def test_spike_count_logits_use_only_matched_window() -> None:
@@ -1068,7 +985,6 @@ def test_combined_compute_rejects_changed_showcase_configuration(lab):
         analyse.analyse(identity)
 
 
-
 def test_shard_identity_tracks_local_inference_and_nested_source(tmp_path):
     from types import SimpleNamespace
 
@@ -1084,7 +1000,9 @@ def test_shard_identity_tracks_local_inference_and_nested_source(tmp_path):
     dataset = (np.zeros((2, 4), dtype=np.float32), np.array([0, 1]))
     before = sharding.shard_identity({}, bank, recipe_module, dataset=dataset)
     assert before["inference_source"] == file_sha256(Path(sharding.inference.__file__))
-    assert before["experiment_source"][str(implementation)] == file_sha256(implementation)
+    assert before["experiment_source"][str(implementation)] == file_sha256(
+        implementation
+    )
 
     implementation.write_text("VERSION = 2\n")
     after = sharding.shard_identity({}, bank, recipe_module, dataset=dataset)

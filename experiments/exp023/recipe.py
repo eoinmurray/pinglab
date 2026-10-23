@@ -1,4 +1,10 @@
-"""PING fundamentals: one network setup across raster, spectrum and drive response."""
+"""PING fundamentals: one network setup across raster, spectrum and drive response.
+
+configuration() resolves fresh scientific settings before execution. Network
+authoring and analysis definitions do not load data or launch a stage on import.
+"""
+
+from copy import deepcopy
 
 SLUG = "exp023"
 DT_MS = 0.1
@@ -38,30 +44,41 @@ def refractory_configuration() -> dict:
     }
 
 
-def configuration(*, smoke: bool = False) -> dict:
-    return {
-        "schema": "exp023.recipe/v4",
+def configuration(*, smoke: bool = False, version: int = 5) -> dict:
+    if type(version) is not int or version not in (4, 5):
+        raise ValueError("unsupported exp023 recipe version")
+    if type(smoke) is not bool:
+        raise ValueError("smoke must be boolean")
+    cfg = dict(
+        schema=f"exp023.recipe/v{version}",
         **refractory_configuration(),
-        "profile": "smoke" if smoke else "production",
-        "model": "ping",
-        "cells": list(CELLS),
-        "n_e": N_E,
-        "n_i": N_I,
-        "seed": SEED,
-        "trials_per_condition": 1,
-        "initial_voltage_mV": -65.0,
-        "initial_conductance_uS": 0.0,
-        "input_weight_parent_mean": 1.5,
-        "input_weight_parent_sd": 0.3,
-        "input_initial_zero_fraction": 0.95,
-        "recurrent_initial_zero_fraction": 0.0,
-        "ei_ratio": 2.0,
-        "integration": "exponential_euler",
-        "drive": graph_drive(smoke=smoke),
-        "executor": "snnlab.sim.GraphExecutor",
-        "initialization_stream": "native graph parameter order; distinct from the historical CLI stream",
-        "biophysics": dict(BIOPHYSICS),
-    }
+        profile="smoke" if smoke else "production",
+        model="ping",
+        cells=list(CELLS),
+        n_e=N_E,
+        n_i=N_I,
+        seed=SEED,
+        trials_per_condition=1,
+        initial_voltage_mV=-65.0,
+        initial_conductance_uS=0.0,
+        input_weight_parent_mean=1.5,
+        input_weight_parent_sd=0.3,
+        input_initial_zero_fraction=0.95,
+        recurrent_initial_zero_fraction=0.0,
+        ei_ratio=2.0,
+        integration="exponential_euler",
+        drive=graph_drive(smoke=smoke),
+        executor="snnlab.sim.GraphExecutor",
+        initialization_stream="native graph parameter order; distinct from the historical CLI stream",
+        biophysics=dict(BIOPHYSICS),
+    )
+
+    if version >= 5:
+        from dataclasses import asdict
+        from snnlab.sim import Performance
+
+        cfg["performance"] = asdict(Performance())
+    return deepcopy(cfg)
 
 
 def operating_point(cell: str, rate_hz: int, n_in: int, *, smoke=False) -> dict:
@@ -201,26 +218,3 @@ def author_network(cfg: dict, point: dict, *, traces: bool):
         )
         net.output(f"spk_{label.lower()}_count", count)
     return lang.compile(net, target="tools/snnsim", refractory_timing="legacy_coba")
-
-
-def execution_request(bundle, point: dict, *, traces: bool):
-    from snnlab.lang import duration_steps
-    from snnlab.sim import ExecutionSpec, PoissonInputBinding
-
-    return ExecutionSpec(
-        kind="simulate",
-        executor="graph",
-        graph=bundle.graph,
-        seed=point["seed"],
-        device="cpu",
-        diagnostics=traces,
-        input_bindings=(
-            PoissonInputBinding(
-                input_id="drive",
-                steps_count=duration_steps(point["t_ms"], point["dt_ms"]),
-                batch_size=1,
-                rates_hz=(point["input_rate_hz"],),
-                seed=point["seed"],
-            ),
-        ),
-    )

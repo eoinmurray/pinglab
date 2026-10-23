@@ -9,7 +9,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from .contracts import PingstoreError, file_sha256
+from .contracts import PingstoreError, file_sha256, validate_operational_run_directory
 from .discovery import discover_store
 from .stages import operation_lock
 
@@ -73,8 +73,39 @@ def manifest_levels(records, new_ids):
     return levels
 
 
+def records_for_backup(source, destination):
+    records = {
+        path.name: validate_operational_run_directory(path)
+        for path in sorted(source.iterdir())
+        if not path.name.startswith(".")
+    }
+    missing_inputs = {
+        reference["run_id"]
+        for record in records.values()
+        for reference in record["inputs"].values()
+    } - records.keys()
+    if not missing_inputs:
+        return discover_store(source)[0]
+    from .catalog import read_catalog
+
+    remote = read_catalog(destination)
+    combined = {identity: entry["record"] for identity, entry in remote["runs"].items()}
+    combined.update(records)
+    for identity, record in records.items():
+        for reference in record["inputs"].values():
+            parent = combined.get(reference["run_id"])
+            if (
+                parent is None
+                or parent["payload_digest"] != reference["payload_digest"]
+            ):
+                raise PingstoreError(
+                    f"{identity}: missing or changed cataloged input {reference['run_id']}"
+                )
+    return records
+
+
 def build_plan(source, destination):
-    records, _ = discover_store(source)
+    records = records_for_backup(source, destination)
     remote = inventory(destination)
     rows, new_ids, existing_ids = [], [], []
     for identity, record in sorted(records.items()):
@@ -147,9 +178,9 @@ def copy_files(source, destination, paths):
         "--checksum",
         "--no-update-modtime",
         "--transfers",
-        "4",
+        "16",
         "--checkers",
-        "4",
+        "16",
         "--stats",
         "30s",
         "--stats-one-line",
@@ -193,14 +224,14 @@ def apply_plan(source, destination, plan):
             paths,
             "--download",
             "--checkers",
-            "4",
+            "16",
             "--stats",
             "30s",
             "--stats-one-line",
             "--log-level",
             "INFO",
         )
-        records, _ = discover_store(source)
+        records = records_for_backup(source, destination)
         for identity in plan["new_runs"]:
             row = expected[identity]
             if (
@@ -247,7 +278,7 @@ def apply_plan(source, destination, plan):
             manifests,
             "--download",
             "--checkers",
-            "4",
+            "16",
             "--log-level",
             "INFO",
         )
@@ -290,6 +321,9 @@ def backup_runs(
                 if plan["plan_hash"] != confirm:
                     raise PingstoreError("backup plan changed; run --dry-run again")
                 apply_plan(source, destination, plan)
+                from .catalog import publish_catalog
+
+                publish_catalog(source, destination, plan)
         return 0
     except (OSError, ValueError, subprocess.CalledProcessError) as exc:
         print(f"pingstore backup: {exc}", file=sys.stderr)

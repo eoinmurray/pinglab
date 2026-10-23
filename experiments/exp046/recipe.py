@@ -1,15 +1,19 @@
-"""The retained 18-network cycle-counting recipe; no storage side effects."""
+"""The retained 18-network cycle-counting recipe; no storage side effects.
 
-from experiments.exp041.recipe import (
-    ANALYSIS_PURPOSE,
-    CHECKPOINT_POLICY,
-    CHECKPOINT_ROLE,
-    EVAL_MAX_SAMPLES,
-    SEEDS,
-    SMOKE_MAX_SAMPLES,
-    TAU_GABA_SWEEP,
-    cell_name,
-)
+configuration() resolves fresh scientific settings before execution. Network
+authoring and analysis definitions do not load data or launch a stage on import.
+"""
+
+from copy import deepcopy
+
+from experiments.exp046.custom.source_exp041_recipe import ANALYSIS_PURPOSE
+from experiments.exp046.custom.source_exp041_recipe import CHECKPOINT_POLICY
+from experiments.exp046.custom.source_exp041_recipe import CHECKPOINT_ROLE
+from experiments.exp046.custom.source_exp041_recipe import EVAL_MAX_SAMPLES
+from experiments.exp046.custom.source_exp041_recipe import SEEDS
+from experiments.exp046.custom.source_exp041_recipe import SMOKE_MAX_SAMPLES
+from experiments.exp046.custom.source_exp041_recipe import TAU_GABA_SWEEP
+from experiments.exp046.custom.source_exp041_recipe import cell_name
 
 SLUG = "exp046"
 REFRACTORY_E_MS = 1.2
@@ -23,8 +27,7 @@ FIGURES = tuple(
     for ext in ("svg", "pdf")
 )
 FIGURES += tuple(
-    "spikes_per_cycle_distribution_equal_network." + ext
-    for ext in ("svg", "pdf")
+    "spikes_per_cycle_distribution_equal_network." + ext for ext in ("svg", "pdf")
 )
 
 
@@ -36,29 +39,34 @@ def refractory_configuration() -> dict:
     }
 
 
-
-
 def configuration(*, smoke=False, version=2):
+    if type(smoke) is not bool:
+        raise ValueError("smoke must be boolean")
     if version not in (1, 2):
         raise ValueError("unsupported exp046 recipe version")
-    return {
-        "schema": f"exp046.recipe/v{version}",
-        **(refractory_configuration() if version >= 2 else {}),
-        "profile": "smoke" if smoke else "production",
-        "tau_gaba_sweep_ms": list(TAU_GABA_SWEEP_MS),
-        "seeds": list(SEEDS),
-        "evaluation_samples": SMOKE_MAX_SAMPLES if smoke else EVAL_MAX_SAMPLES,
-        "checkpoint_policy": CHECKPOINT_POLICY,
-    }
-
-
+    return deepcopy(
+        dict(
+            schema=f"exp046.recipe/v{version}",
+            **(refractory_configuration() if version >= 2 else dict()),
+            profile="smoke" if smoke else "production",
+            tau_gaba_sweep_ms=list(TAU_GABA_SWEEP_MS),
+            seeds=list(SEEDS),
+            evaluation_samples=SMOKE_MAX_SAMPLES if smoke else EVAL_MAX_SAMPLES,
+            checkpoint_policy=CHECKPOINT_POLICY,
+        )
+    )
 
 
 BIOPHYSICS = {
-    "capacitance_e_nf": 1.0, "capacitance_i_nf": 0.5,
-    "leak_e_us": 0.05, "leak_i_us": 0.10,
-    "resting_mv": -65.0, "threshold_mv": -50.0, "reset_mv": -65.0,
-    "readout_tau_ms": 2.0, "readout_threshold": 1.0,
+    "capacitance_e_nf": 1.0,
+    "capacitance_i_nf": 0.5,
+    "leak_e_us": 0.05,
+    "leak_i_us": 0.10,
+    "resting_mv": -65.0,
+    "threshold_mv": -50.0,
+    "reset_mv": -65.0,
+    "readout_tau_ms": 2.0,
+    "readout_threshold": 1.0,
 }
 
 

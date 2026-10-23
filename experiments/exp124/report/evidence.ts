@@ -1,6 +1,5 @@
 import { getEntry } from 'astro:content';
-import { stat } from 'node:fs/promises';
-import { resolve } from 'node:path';
+import { runStore } from '../../../site/src/lib/run-store';
 import { reportData, reportSnapshots } from '../../../site/src/lib/report-data';
 
 // Missing historical evidence is explicit for this report. Never replace its
@@ -10,7 +9,7 @@ export async function evidence() {
   const pin = article?.data.runs?.exp124;
   if (!pin || !/^exp124-r\d+-present$/.test(pin)) throw new Error('exp124 requires an explicit presentation pin');
   try {
-    await stat(resolve('../.pingstore/runs', pin, 'export/numbers.json'));
+    if (!await runStore.has(pin, 'export/numbers.json')) return undefined;
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined;
     throw error;

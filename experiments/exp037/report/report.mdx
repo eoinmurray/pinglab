@@ -2,7 +2,7 @@
 id: "exp037"
 title: "Dropped Spikes vs Added Noise"
 created_at: "2026-05-30"
-updated_at: "2026-09-07T00:00:00Z"
+updated_at: "2026-10-20T17:13:36Z"
 description: "Both trained networks tolerated substantial spike deletion, but PING accuracy fell more sharply under added spikes. The perturbations changed both recurrent feedback and readout input, so they do not isolate gamma gating."
 collection: ["gamma-gated-sparsity", "experiments"]
 author: "Eoin Murray"
@@ -10,7 +10,6 @@ tags: ["data", "v37.0.0"]
 runs: {"exp037": "exp037-r020-present"}
 thumbnailRun: "exp037-r020-present"
 thumbnail: "perturbation_curves.svg"
-abstract: "We asked whether trained COBA and PING classifiers fail differently when hidden spikes are removed or spurious spikes are inserted during inference. We replayed validation-selected networks under matched deletion and insertion perturbations without retraining them. We compared insertion at equal fractions of each network’s unperturbed excitatory firing rate. The accuracy curves measure tolerance to deletion and relative insertion; they do not isolate recurrent timing from firing-rate and readout effects."
 inputs: ["exp037"]
 ---
 
@@ -45,6 +44,10 @@ export const cfgDt = display(cfg.dt);
 
 <span id="loc-2" />
 
+## Abstract
+
+We tested deletion and insertion of transmitted hidden spikes in validation-selected COBA and PING classifiers, using three training seeds and matched MNIST test inputs without retraining. At 80% deletion, mean accuracy was {accCobaDrop08}% for COBA and {accPingDrop08}% for PING. Insertion at 100% of each network's unperturbed E rate gave {accCobaAdd100}% and {accPingAdd100}%, respectively. The interventions changed both recurrent feedback and readout input, so the difference does not isolate gamma timing.
+
 ## Results
 
 1. **Both networks tolerated substantial spike deletion.** At 80% deletion, COBA/PING retained {accCobaDrop08}%/{accPingDrop08}% accuracy. At 90%, accuracy fell to {accCobaDrop09}% and {accPingDrop09}%, respectively. Complete deletion reduced both to {accPingDrop1}% ([Fig. 1](#loc-3)A).
@@ -67,7 +70,7 @@ export const cfgDt = display(cfg.dt);
 
 ## Methods
 
-1. **Evaluate trained classifiers.** Validation-selected COBA and PING checkpoints from seeds 42–44 were tested on the same {evalN} MNIST images without retraining. The reused training pool contained 6,300 optimization and 700 validation images. We selected the minimum-validation-loss epoch from {epochs} epochs in the unregularized conditions. Networks had 1,024 E and 256 I neurons, with E→I→E coupling enabled for PING and disabled for COBA; recurrent weights were fixed, while input and readout weights were learned. Training voltage-increment gradients were divided by 1,000 for PING and 1 for COBA, so these are different trained recipes, not an isolated loop control. Trials lasted {cfgTMs} ms at {cfgDt} ms resolution, with no warm-up. Pixel intensity set Poisson input rates up to 25 Hz; an independent perturbation generator preserved the input-encoding stream across conditions. Prediction selected the largest time-averaged output membrane potential. The wider activity-penalty comparison is described in [exp025](/exp025) — [*Accuracy and Firing Rate With and Without Inhibition.*](/exp025)
+1. **Evaluate trained classifiers.** Validation-selected COBA and PING checkpoints from seeds 42–44 were tested on the same {evalN} MNIST images without retraining. The reused training pool contained 6,300 optimization and 700 validation images. We selected the minimum-validation-loss epoch from {epochs} epochs in the unregularized conditions. Networks had 1,024 E and 256 I neurons, with E→I→E coupling enabled for PING and disabled for COBA; recurrent weights were fixed, while input and readout weights were learned. Training voltage-increment gradients were divided by 1,000 for both PING and COBA in the pinned replacement bank. The comparison still changes the architecture and learned weights, rather than isolating gamma timing. Trials lasted {cfgTMs} ms at {cfgDt} ms resolution, with no warm-up. Pixel intensity set Poisson input rates up to 25 Hz; an independent perturbation generator preserved the input-encoding stream across conditions. Prediction selected the largest time-averaged output membrane potential. The wider activity-penalty comparison is described in [exp025](/exp025) — [*Accuracy and Firing Rate With and Without Inhibition.*](/exp025)
 
 2. **Delete spikes after neuronal spike generation.** At each timestep, conductances were updated using the preceding timestep’s transmitted spikes. Membrane integration and threshold/reset operations then generated natural spikes. Immediately afterward, before recording or readout input, each emitted E/I spike was independently removed with probability 0–100%, in 10-percentage-point steps. Surviving spikes entered the current readout update and the next timestep’s recurrent feedback. Deletion did not undo the membrane reset associated with a removed spike ([Fig. 1](#loc-3)A [Fig. 2](#loc-4)A, C).
 

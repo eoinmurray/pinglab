@@ -1,10 +1,21 @@
-"""Explicit absolute-rate and baseline-relative perturbation recipes."""
+"""Explicit absolute-rate and baseline-relative perturbation recipes.
+
+configuration() resolves fresh scientific settings before execution. Network
+authoring and analysis definitions do not load data or launch a stage on import.
+"""
+
+from copy import deepcopy
 
 import math
 
-from experiments.exp022 import FR_STRENGTH_UPPER as FR_STRENGTH_UPPER
-from experiments.exp022 import training_run_cell, training_run_values
-from experiments.exp022.checkpoints import checkpoint_policy
+from experiments.exp037.custom.bank_contract import (
+    FR_STRENGTH_UPPER as FR_STRENGTH_UPPER,
+)
+from experiments.exp037.custom.bank_contract import (
+    training_run_cell,
+    training_run_values,
+)
+from experiments.exp037.custom.source_exp022_custom_checkpoints import checkpoint_policy
 
 SLUG = "exp037"
 REFRACTORY_E_MS = 1.2
@@ -45,7 +56,6 @@ def refractory_configuration() -> dict:
         "refractory_i_ms": REFRACTORY_I_MS,
         "refractory_policy": REFRACTORY_POLICY,
     }
-
 
 
 def cell_name(model: str, rate_target_hz: float | None, seed: int) -> str:
@@ -96,22 +106,24 @@ def bank_cells():
 
 
 def configuration(*, smoke=False, version=3):
+    if type(smoke) is not bool:
+        raise ValueError("smoke must be boolean")
     if version not in (1, 2, 3):
         raise ValueError("unsupported exp037 recipe version")
-    cfg = {
-        "schema": f"exp037.recipe/v{version}",
-        **(refractory_configuration() if version >= 3 else {}),
-        "profile": "smoke" if smoke else "production",
-        "checkpoint_policy": CHECKPOINT_POLICY,
-        "evaluation_samples": 100 if smoke else EVAL_MAX_SAMPLES,
-        "seeds": SEEDS_BASELINE,
-        "illustrative_seed": SEEDS_BASELINE[0],
-        "sample_index": 0,
-        "drop_levels": [0.0, 0.5, 0.8, 1.0] if smoke else PERTURB_DROP_LEVELS,
-        "add_levels": [0.0, 20.0, 40.0] if smoke else PERTURB_ADD_LEVELS,
-        "raster_drop_levels": PERTURB_RASTER_DROP_LEVELS,
-        "raster_add_levels": PERTURB_RASTER_ADD_LEVELS,
-    }
+    cfg = dict(
+        schema=f"exp037.recipe/v{version}",
+        **(refractory_configuration() if version >= 3 else dict()),
+        profile="smoke" if smoke else "production",
+        checkpoint_policy=CHECKPOINT_POLICY,
+        evaluation_samples=100 if smoke else EVAL_MAX_SAMPLES,
+        seeds=SEEDS_BASELINE,
+        illustrative_seed=SEEDS_BASELINE[0],
+        sample_index=0,
+        drop_levels=[0.0, 0.5, 0.8, 1.0] if smoke else PERTURB_DROP_LEVELS,
+        add_levels=[0.0, 20.0, 40.0] if smoke else PERTURB_ADD_LEVELS,
+        raster_drop_levels=PERTURB_RASTER_DROP_LEVELS,
+        raster_add_levels=PERTURB_RASTER_ADD_LEVELS,
+    )
     if version >= 2:
         cfg.update(
             add_levels=[0.0, 100.0, 200.0]
@@ -122,7 +134,7 @@ def configuration(*, smoke=False, version=3):
             calibration="unperturbed selected checkpoint, same evaluation images and encoding stream",
             shard_partition="one_model_seed",
         )
-    return cfg
+    return deepcopy(cfg)
 
 
 def relative(cfg):
@@ -217,12 +229,16 @@ def infer_jobs():
     ]
 
 
-
 BIOPHYSICS = {
-    "capacitance_e_nf": 1.0, "capacitance_i_nf": 0.5,
-    "leak_e_us": 0.05, "leak_i_us": 0.10,
-    "resting_mv": -65.0, "threshold_mv": -50.0, "reset_mv": -65.0,
-    "readout_tau_ms": 2.0, "readout_threshold": 1.0,
+    "capacitance_e_nf": 1.0,
+    "capacitance_i_nf": 0.5,
+    "leak_e_us": 0.05,
+    "leak_i_us": 0.10,
+    "resting_mv": -65.0,
+    "threshold_mv": -50.0,
+    "reset_mv": -65.0,
+    "readout_tau_ms": 2.0,
+    "readout_threshold": 1.0,
 }
 
 

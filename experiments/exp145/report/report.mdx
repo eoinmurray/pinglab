@@ -1,0 +1,219 @@
+---
+id: exp145
+title: "Renart (2010): Asynchronous Irregular State"
+author: "Eoin Murray"
+created_at: "2026-10-21T11:02:42Z"
+updated_at: "2026-10-23T13:46:19Z"
+description: "Irregular firing and asynchronous population activity in a shared-input conductance network, measured for 30 seconds after 50 ms burn-in."
+collection: ["paper-inspired", "experiments"]
+tags: ["data"]
+inputs: ["exp145"]
+runs: {exp145: exp145-r021-present}
+thumbnail: ai-diagnostics.png
+---
+
+import RunFigure from '../../../site/src/components/RunFigure.astro';
+import Table from '../../../site/src/components/Table.astro';
+import { reportData, reportSnapshots, round } from '../../../site/src/lib/report-data';
+
+export const data = await reportData('exp145');
+export const populations = data.populations;
+export const cancellation = data.current_cancellation;
+
+export const comparisonEvidence = await reportSnapshots('exp145', {
+  snapshots: { simulation: 'simulation/start/snapshot.json' },
+});
+export const comparisonRows = (() => {
+  const cfg = comparisonEvidence.configuration;
+  const graph = comparisonEvidence.snapshots.simulation.network;
+  const population = name => graph.populations.find(row => row.id === name);
+  const projection = name => graph.projections.find(row => row.id === name);
+  const scalar = field => {
+    const value = field?.value ?? field;
+    if (typeof value !== 'number' || !Number.isFinite(value)) throw new Error('Missing comparison parameter');
+    return round(value, 2);
+  };
+  const pair = key => ['E', 'I'].map(name => scalar(population(name).neuron[key])).join(' / ');
+  return [
+    ['E / I neurons', ['E', 'I'].map(name => population(name).size.toLocaleString('en-GB')).join(' / '), '1,024 / 256, plus 10 outputs'],
+    ['External sources', `${cfg.n_external.toLocaleString('en-GB')}; each at ${cfg.external_rate_hz} Hz`, '784 pixels; up to 25 Hz each'],
+    ['External input targets', 'Both E and I', 'E only'],
+    ['Recurrent pathways', 'E→E, E→I, I→E, I→I', 'E→I and I→E'],
+    ['Connectivity', `${100 * cfg.connection_probability}% on all pathways`, '5% input connectivity; dense E↔I'],
+    ['Derived time constants, E / I (ms)', pair('tau_mem'), '20 / 5'],
+    ['Excitatory / inhibitory synaptic decay (ms)', `${cfg.tau_synapse_ms} / ${cfg.tau_synapse_ms}`, '2 / 6'],
+    ['Excitatory / inhibitory recurrent delay (ms)', ['E_to_I', 'I_to_E'].map(name => scalar(projection(name).delay)).join(' / '), '0.1 / 0.1'],
+    ['Rest / reset voltage (mV)', `${scalar(population('E').neuron.resting_mv)} / ${scalar(population('E').neuron.reset_mv)}`, '−65 / −65'],
+    ['Execution', `${(cfg.duration_ms - cfg.burn_in_ms) / 1000}-second measurement; fixed weights`, '200 ms per image; input and readout weights trained'],
+  ];
+})();
+
+## Abstract
+
+Inspired by [Renart et al. (2010)](https://doi.org/10.1126/science.1179850),
+we simulated 4,000 excitatory and 1,000 inhibitory neurons receiving shared input.
+Over {data.window_ms / 1000} seconds, neurons fired irregularly while their
+collective activity stayed weakly correlated. Opposing excitatory and inhibitory
+currents partly cancelled shared fluctuations. This supports an asynchronous
+irregular (AI) state in this network. Other seeds and input conditions remain
+untested, and the slowest neurons are poorly sampled.
+
+## Results
+
+### Raster
+
+Each dot is a spike: excitatory (E) neurons are black and inhibitory (I) neurons
+are red. Their mean firing rates are {round(populations.E.rate_hz, 2)} and
+{round(populations.I.rate_hz, 2)} Hz. We measure {data.window_ms / 1000} seconds
+after excluding the first {data.burn_in_ms} ms, allowing activity to settle.
+
+<RunFigure report="exp145" experiment="exp145" file="onset.png" number={1} id="fig-onset" alt="Full post-burn-in E/I spike raster and a detail showing its first 200 ms.">
+  A: all E and I spikes during the {data.window_ms / 1000}-second measurement.
+  B: the first 200 ms of the same raster. E is black and I is red. Both panels
+  show all 5,000 neurons at seed 42, without training; time starts after the
+  {data.burn_in_ms} ms burn-in.
+</RunFigure>
+
+### Verifying AI state
+
+We check irregular firing, weak correlations, population averaging and opposing
+current fluctuations. Together these support the AI interpretation; no single
+panel is a pass/fail test.
+
+<RunFigure report="exp145" experiment="exp145" file="ai-diagnostics.png" number={2} id="fig-ai-diagnostics" alt="Four panels show ISI variability, pairwise count correlations, population-fluctuation scaling and cancellation of signed-current cross-covariances.">
+  A: firing-interval variability; the dashed line marks CV = 1. E is black and I
+  is red. B: mean correlations in sliding 5, 20 and 50 ms windows, advanced by
+  {data.correlation_step_ms} ms, among up to
+  200 cells per population; shading is ±1 pairwise standard deviation. Cells
+  with constant counts are excluded. C: normalised population variance; shading
+  spans the 5th–95th percentiles across 50 random groups, not confidence intervals.
+  D: current covariances across {cancellation.cells} sampled E cells. Black is
+  the total; grey dots show the total after 20 ms exponential filtering. All
+  current curves share one scale. All panels use the same recording as Figure 1.
+</RunFigure>
+
+We now check whether this network is in an asynchronous irregular (AI) state.
+Following [Renart et al. (2010)](https://doi.org/10.1126/science.1179850), we use
+irregular firing, weak pairwise correlations, population averaging and current
+cancellation as complementary checks. These metrics are adapted to our simulation;
+together they assess the AI interpretation rather than provide a single pass/fail test.
+
+**Panel A — Irregular firing.**
+
+This plot shows how unevenly individual neurons space their spikes. Values near
+one indicate irregular firing; values near zero indicate regular firing. Our
+neurons mostly fire irregularly.
+
+$$
+\mathrm{CV}_i = \frac{\sigma(\mathrm{ISI}_i)}{\langle\mathrm{ISI}_i\rangle}.
+$$
+
+For neuron $i$, $\mathrm{ISI}_i$ contains the gaps between spikes; $\sigma$ is
+their standard deviation and angle brackets give their mean.
+
+We look for CV
+near one rather than near zero, which would mean regular firing. Our medians
+are {round(populations.E.median_cv, 2)} for E and
+{round(populations.I.median_cv, 2)} for I, supporting irregular firing.
+
+**Panel B — Weak average synchrony.**
+
+This plot asks whether neurons tend to fire more or less at the same time. The
+averages stay near zero, meaning little shared fluctuation on average, although
+individual pairs can still be correlated.
+
+$$
+r_{ij}(\Delta)=\frac{\operatorname{Cov}_t(n_i^\Delta,n_j^\Delta)}
+{\sqrt{\operatorname{Var}_t(n_i^\Delta)\operatorname{Var}_t(n_j^\Delta)}}.
+$$
+
+Here $n_i^\Delta$ and $n_j^\Delta$ count spikes from neurons $i,j$ in windows of
+length $\Delta$. Covariance and variance measure joint and individual fluctuations
+across windows $t$.
+
+We look for mean correlations $r_{ij}$ near zero. All three
+pair types stay close to zero, supporting weak average synchrony. Individual pairs
+can still be correlated; the shaded spread includes noise from the short recording.
+Windows advance by {data.correlation_step_ms} ms, following Renart's sliding-window
+approach. Overlapping windows do not provide independent samples.
+
+**Panel C — Fluctuations average away.**
+
+This plot shows whether averaging more neurons makes population activity
+steadier. Our curves fall close to the independent-neuron reference, suggesting
+that individual fluctuations largely cancel rather than form a strong collective
+fluctuation.
+
+$$
+Q(K)=\frac{\operatorname{Var}_t\left(K^{-1}\sum_{i\in G_K}n_i\right)}
+{K^{-1}\sum_{i\in G_K}\operatorname{Var}_t(n_i)}.
+$$
+
+Here $G_K$ contains $K$ neurons and $n_i$ is neuron $i$'s count in each 20 ms bin.
+The ratio $Q$ compares the variance of their average with their mean individual
+variance, across bins $t$. Independent neurons give
+
+$$
+Q(K)=\frac{1}{K}.
+$$
+
+We look for a decline along this reference rather than a plateau. Our slopes
+are {round(populations.E.scaling.loglog_slope, 2)} for E and
+{round(populations.I.scaling.loglog_slope, 2)} for I, close to −1. Fluctuations
+therefore largely average away. This compares groups within one network,
+not networks of different sizes.
+
+**Panel D — Opposing current fluctuations.**
+
+This plot shows how excitatory and inhibitory current fluctuations counteract
+each other. Their opposing contributions leave a smaller total fluctuation
+shared between neurons, consistent with a mechanism that helps keep the network
+asynchronous.
+
+$$
+C_{\mathrm{tot}}(\tau)=C_{EE}(\tau)+C_{II}(\tau)+C_{EI}(\tau)+C_{IE}(\tau),
+$$
+
+with
+
+$$
+C_{ab}(\tau)=\left\langle\operatorname{Cov}_t[I_i^a(t),I_j^b(t+\tau)]\right\rangle_{i\ne j}.
+$$
+
+Here $I_i^a(t)$ is signed current into neuron $i$ at time $t$; $a,b$ label
+excitatory (E) or inhibitory (I) current, and $\tau$ is the time lag. Each $C$
+is a covariance averaged over distinct sampled target pairs $i,j$, in nA²;
+excitation includes external input.
+
+We look for negative cross-type curves
+opposing positive same-type curves, leaving a smaller black total. This cancels
+{round(100 * (1 - cancellation.total_to_same_type_zero_lag), 1)}% of the
+same-type covariance at zero lag.
+
+## Methods
+
+### Figure 2 calculations
+
+1. [Panel A](#panel-a-methods): spike-interval variability ([Equation A2](#eq-a2)).
+2. [Panel B](#panel-b-methods): sliding-window correlation ([Equation B2](#eq-b2)).
+3. [Panel C](#panel-c-methods): population averaging ([Equation C1](#eq-c1)).
+4. [Panel D](#panel-d-methods): current covariance ([Equation D2](#eq-d2)).
+
+### Comparison with the canonical network
+
+Both networks use conductance-based LIF neurons. The canonical column describes
+our [reference PING network](/notes/canonical-parameters); its COBA variant
+switches off the E↔I loop. Values for this network come from the displayed run's saved
+network and settings.
+
+<Table
+  headers={["Feature", "This network", "Canonical PING"]}
+  rows={comparisonRows}
+  label="Renart-inspired and canonical PING network comparison"
+/>
+
+- **Size:** This network is roughly four times larger. Both networks have the same 4:1 E:I ratio.
+- **Input:** This network drives both E and I directly with uniform Poisson input. Canonical PING drives E alone with pixel-dependent input.
+- **Recurrence:** This network includes all four E/I pathways at 20% connectivity. Canonical PING has only the E↔I loop, with dense connections.
+- **Response times:** This network has equal derived E/I time constants and equal synaptic decay times, with longer delays. Canonical PING has faster inhibitory neurons and faster excitation. Derived constants use capacitance divided by leak conductance, excluding synaptic conductance.
+- **Weights:** This network uses physical conductance strengths; canonical weights use fan-in normalisation. Input rates alone therefore do not compare total drive.

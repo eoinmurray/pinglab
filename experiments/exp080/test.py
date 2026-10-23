@@ -1,4 +1,8 @@
-"""Focused unit tests for the standalone EXP080 empirical runner."""
+"""Focused unit tests for the standalone EXP080 empirical runner.
+
+Run with `uv run pytest experiments/exp080/test.py`. Fixtures use temporary stores;
+bounded native checks validate numerical behavior without production runs.
+"""
 
 from __future__ import annotations
 
@@ -10,14 +14,9 @@ from pathlib import Path
 import numpy as np
 import pytest
 from experiments import exp080
-from experiments.exp080 import (
-    analyse,
-    compute,
-    inputs,
-    measurements,
-    present,
-    recipe,
-)
+from experiments.exp080 import analyse, present, recipe
+from experiments.exp080.custom import execution as compute
+from experiments.exp080.custom import inputs, measurements
 from pingstore import stages
 from pingstore.contracts import (
     PingstoreError,
@@ -403,26 +402,6 @@ def test_cpu_checkpoint_keeps_selected_epoch_weights(
     assert result["selected_epoch"] == 1
     assert torch.equal(checkpoint["state_dict"]["logits"], model.snapshots[0])
     assert not torch.equal(checkpoint["state_dict"]["logits"], model.snapshots[1])
-
-
-def test_cli_help_and_legacy_entrypoint_do_not_execute():
-    root = Path(__file__).resolve().parents[2]
-    for stage in ("compute", "analyse", "present"):
-        result = subprocess.run(
-            [sys.executable, "-m", f"experiments.exp080.{stage}", "--help"],
-            cwd=root,
-            text=True,
-            capture_output=True,
-        )
-        assert result.returncode == 0, result.stderr
-    result = subprocess.run(
-        [sys.executable, "-m", "experiments.exp080"],
-        cwd=root,
-        text=True,
-        capture_output=True,
-    )
-    assert result.returncode != 0
-    assert "independent stages" in result.stderr
 
 
 def test_atomic_rename_only_exposes_a_valid_complete_run(repo, monkeypatch):

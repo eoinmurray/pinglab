@@ -8,7 +8,13 @@ import { getPapers, getPaperCollections, paperCollectionLabel, paperCollectionUr
 interface Props { posts: Post[]; collection?: string; papers?: Paper[]; }
 const { posts, collection, papers = await getPapers() } = Astro.props;
 const collections = [...new Set(posts.flatMap(post => post.collections))].sort(compareCollections);
-const visiblePosts = collection ? posts.filter(post => post.collections.includes(collection)) : posts;
+const visiblePosts = collection ? posts.filter(post => post.collections.includes(collection)) : [...posts];
+visiblePosts.sort((a, b) => {
+  const aExperiment = a.collections.includes('experiments');
+  const bExperiment = b.collections.includes('experiments');
+  return Number(bExperiment) - Number(aExperiment)
+    || (aExperiment && bExperiment ? b.id.localeCompare(a.id, 'en', { numeric: true }) : 0);
+});
 ---
 <CollectionBrowser title={collection ? collectionLabel(collection) : 'Articles'} allHref="/" allLabel="All articles"
   heading="Articles"

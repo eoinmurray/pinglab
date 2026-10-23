@@ -1,6 +1,5 @@
 /** Read original native snapshots through one explicitly pinned stage lineage. */
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
+import { RunStore, runStore } from './run-store.ts';
 
 interface Reference { run_id: string; payload_digest: string; }
 interface RunRecord extends Reference {
@@ -33,6 +32,7 @@ export interface SnapshotOptions {
   /** Select a named analysis branch when a presentation combines protocols. */
   analysisInput?: string;
   runsRoot?: string;
+  store?: RunStore;
   allowUnavailable?: boolean;
 }
 
@@ -45,11 +45,11 @@ function relativePath(path: string): string {
 export async function readSnapshotEvidence(presentation: string, options: SnapshotOptions): Promise<SnapshotEvidence | undefined> {
   const { experiment, snapshots, allowUnavailable = false } = options;
   if (!/^exp\d{3}$/.test(experiment)) throw new Error('Invalid snapshot experiment');
-  const root = resolve(options.runsRoot ?? '../.pingstore/runs');
+  const store = options.store ?? (options.runsRoot ? new RunStore({ runsRoot: options.runsRoot }) : runStore);
   const readRun = async (identity: string, stage: RunRecord['stage'], reference?: Reference) => {
     if (!new RegExp(`^${experiment}-r\\d+-${stage}$`).test(identity)) throw new Error(`Invalid ${stage} identity: ${identity}`);
     let record: RunRecord;
-    try { record = JSON.parse(await readFile(resolve(root, identity, 'run.json'), 'utf8')); }
+    try { record = await store.json(identity); }
     catch (error) {
       if (allowUnavailable && (error as NodeJS.ErrnoException).code === 'ENOENT') return undefined;
       throw error;
@@ -69,8 +69,18 @@ export async function readSnapshotEvidence(presentation: string, options: Snapsh
   };
   const selected = await readRun(presentation, 'present');
   if (!selected) return undefined;
-  const analysis = await readInput(selected, 'analyse', options.analysisInput);
+  let analysis = await readInput(selected, 'analyse', options.analysisInput);
   if (!analysis) return undefined;
+  // Reanalysis may retain an earlier analysis rather than directly pin compute.
+  // Follow only a unique recorded branch, authenticating each reference.
+  const visited = new Set([selected.run_id]);
+  while (!Object.values(analysis.inputs).some(reference =>
+    new RegExp(`^${experiment}-r\\d+-compute$`).test(reference.run_id))) {
+    if (visited.has(analysis.run_id)) throw new Error(`Cyclic analysis lineage: ${analysis.run_id}`);
+    visited.add(analysis.run_id);
+    analysis = await readInput(analysis, 'analyse');
+    if (!analysis) return undefined;
+  }
   const compute = await readInput(analysis, 'compute');
   if (!compute) return undefined;
   const loaded = await Promise.all(Object.entries(snapshots).map(async ([name, original]) => {
@@ -82,7 +92,7 @@ export async function readSnapshotEvidence(presentation: string, options: Snapsh
     }
     // Pingstore records the original-to-canonical mapping. Do not invent another
     // serializer, copy metadata into numbers.json, or guess flattened filenames.
-    const snapshot: SavedSnapshot = JSON.parse(await readFile(resolve(root, compute.run_id, 'export', relativePath(retained)), 'utf8'));
+    const snapshot: SavedSnapshot = await store.json(compute.run_id, `export/${relativePath(retained)}`);
     if (snapshot.schema !== 'snnlab.run-snapshot/v1' || !snapshot.parameters_included
         || snapshot.stage !== original.split('/').at(-2)
         || !['train', 'simulate', 'infer'].includes(snapshot.kind)

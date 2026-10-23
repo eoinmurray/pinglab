@@ -1,6 +1,8 @@
 import { readdir, readFile, stat } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { parse } from 'yaml';
+import { retryRead } from './remote-http.ts';
+import { assetBase, safePath, type Fingerprint } from './remote-catalog.ts';
 
 const papersDirectory = resolve('../papers');
 
@@ -17,6 +19,8 @@ interface PaperMetadata {
 export interface Paper {
   file: string;
   path: string;
+  remote?: boolean;
+  sha256?: string;
   href: string;
   bytes: number;
   metadata?: PaperMetadata;
@@ -93,10 +97,22 @@ export async function getPapers(directory = papersDirectory) {
       }
     }
   }
+  const source = process.env.PINGLAB_RUN_SOURCE ?? (process.env.NODE_ENV === 'production' ? 'remote' : 'auto');
   try {
-    await visit(directory);
+    if (directory !== papersDirectory || source !== 'remote') await visit(directory);
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+  }
+  if (directory === papersDirectory && source !== 'local') {
+    const catalog = await paperCatalog();
+    for (const [file, fingerprint] of Object.entries(catalog.files)) {
+      if (papers.some(paper => paper.file === file)) continue;
+      const metadata = index[file];
+      const collection = metadata?.collection ?? 'uncategorized';
+      papers.push({ file, path: '', remote: true, sha256: fingerprint.sha256, bytes: fingerprint.bytes,
+        href: `${assetBase()}/papers/${file.split('/').map(encodeURIComponent).join('/')}`,
+        metadata, collections: typeof collection === 'string' ? [collection] : collection });
+    }
   }
   const files = new Set(papers.map(paper => paper.file));
   for (const file of Object.keys(index)) {
@@ -105,4 +121,23 @@ export async function getPapers(directory = papersDirectory) {
   return papers.sort((a, b) => (b.metadata?.year ?? 0) - (a.metadata?.year ?? 0)
     || (a.metadata?.title ?? a.file).localeCompare(b.metadata?.title ?? b.file, 'en')
     || a.file.localeCompare(b.file, 'en'));
+}
+
+let remotePapers: { expires: number; value: Promise<{ files: Record<string, Fingerprint> }> } | undefined;
+async function paperCatalog() {
+  if (remotePapers && remotePapers.expires > Date.now()) return remotePapers.value;
+  const value = retryRead('R2 paper catalog', async () => {
+    const response = await fetch(`${assetBase()}/papers/catalog.json`, { signal: AbortSignal.timeout(30_000) });
+    if (!response.ok) throw new Error(`R2 paper catalog: HTTP ${response.status}`);
+    const catalog = await response.json();
+    if (catalog.schema !== 'pinglab.papers/v1' || !catalog.files) throw new Error('Invalid paper catalog');
+    for (const [path, file] of Object.entries(catalog.files) as [string, Fingerprint][]) {
+      if (!safePath(path) || !/\.pdf$/i.test(path) || !Number.isSafeInteger(file.bytes) || file.bytes < 0
+          || !/^[a-f0-9]{64}$/.test(file.sha256)) throw new Error('Invalid paper catalog file');
+    }
+    return catalog as { files: Record<string, Fingerprint> };
+  });
+  remotePapers = { expires: process.env.NODE_ENV === 'production' ? Infinity : Date.now() + 30_000, value };
+  value.catch(() => { remotePapers = undefined; });
+  return value;
 }

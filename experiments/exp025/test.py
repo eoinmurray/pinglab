@@ -1,4 +1,8 @@
-"""Synthetic v4 stage fixtures; no production simulations or archive imports."""
+"""Synthetic v4 stage fixtures; no production simulations or archive imports.
+
+Run with `uv run pytest experiments/exp025/test.py`. Fixtures use temporary stores;
+bounded native checks validate numerical behavior without production runs.
+"""
 
 from __future__ import annotations
 
@@ -6,21 +10,78 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-from experiments import exp022
-from experiments.exp025 import (
-    analyse,
-    compute,
-    evidence,
-    inputs,
-    measurements,
-    present,
-    recipe,
-)
-from experiments.exp025.measurements import (
+from experiments.exp025.custom import bank_contract as exp022
+from experiments.exp025 import analyse, compute, present, recipe
+from experiments.exp025.custom import evidence, inputs, measurements
+from experiments.exp025.custom.measurements import (
     aggregate_frontier,
     aggregate_low_w_in_seed_rows,
 )
-from experiments.exp044.test import _common_config
+from experiments.exp025.recipe import refractory_configuration
+
+
+def _common_config() -> dict:
+    return {
+        **refractory_configuration(),
+        "model": "ping",
+        "dataset": "mnist",
+        "max_samples": 7000,
+        "epochs": 50,
+        "t_ms": 200.0,
+        "tau_ampa_ms": 2.0,
+        "tau_gaba_ms": 6.0,
+        "input_rate": 25.0,
+        "input_rate_sampling": "fixed",
+        "hidden_sizes": [1024],
+        "n_in": 784,
+        "n_hidden": 1024,
+        "n_inh": 256,
+        "n_out": 10,
+        "ei_strength": 1.0,
+        "ei_ratio": 2.0,
+        "w_in": [0.9, 0.09],
+        "w_in_initial_zero_fraction": 0.95,
+        "recurrent_initial_zero_fraction": 0.0,
+        "readout_w_init_mean": 1.12060546875,
+        "readout_w_init_std": 0.8349609375,
+        "weight_decay": 0.0,
+        "grad_clip": 1.0,
+        "trainable_w_ei": False,
+        "trainable_w_ie": False,
+        "trainable_w_ee": False,
+        "trainable_w_ii": False,
+        "fr_reg_upper_strength": 0.0,
+        "fr_reg_upper_target_hz": 0.0,
+        "readout_mode": "mem-mean",
+        "surrogate_slope": 1.0,
+        "lr": 0.0004,
+        "batch_size": 256,
+        "v_grad_dampen": 1000.0,
+        "dales_law": True,
+        "dataset_split": {
+            "optimizer_train_samples": 6300,
+            "validation_samples": 700,
+            "official_test_samples": 10000,
+            "checkpoint_selection_partition": "validation",
+            "official_test_used_during_training": False,
+            "source_train_partition": "official_mnist_train",
+            "source_test_partition": "official_mnist_test",
+            "split_seed": 42,
+            "validation_fraction": 0.1,
+        },
+        "validation_encoder_draws": {
+            "count": 3,
+            "encoder_seeds": [1, 2, 3],
+            "input_rate_seeds": [4, 5, 6],
+        },
+        "adaptive_threshold": False,
+        "train_leak": False,
+        "signed_readout": False,
+        "readout_bias": False,
+        "state_clamp": False,
+    }
+
+
 from pingstore import stages
 from pingstore.contracts import (
     PingstoreError,
@@ -208,7 +269,7 @@ def test_independent_stages_preserve_bank_and_do_not_publish(lab, monkeypatch):
         )
     shown = inputs.source(root, present.present(measured_id), "present")
     numbers = load_json(shown.export / "numbers.json")
-    assert numbers == data
+    assert numbers == {**data, "circuit_files": []}
     assert all((shown.export / name).is_file() for name in recipe.FIGURES)
     assert not list(shown.export.glob("raster__*"))
     assert not (root / ".artifacts").exists()
@@ -436,17 +497,19 @@ def test_low_w_in_aggregation_reports_mean_and_sem() -> None:
 
 
 def test_hpc_commands_use_gpu_then_dependent_cpu(tmp_path):
-    from experiments.exp025 import hpc
+    from experiments.exp025.custom import hpc
 
     plan = {
-        "account": "gpu-account", "cpu_account": "cpu-account",
-        "partition": "ampere", "cpu_partition": "icelake",
-        "walltime": "02:00:00", "cpus": 4, "memory_gb": 32,
+        "account": "gpu-account",
+        "cpu_account": "cpu-account",
+        "partition": "ampere",
+        "cpu_partition": "icelake",
+        "walltime": "02:00:00",
+        "cpus": 4,
+        "memory_gb": 32,
     }
     compute_cmd = hpc.command(plan, tmp_path / "plan.json", "compute")
-    analyse_cmd = hpc.command(
-        plan, tmp_path / "plan.json", "analyse", dependency="123"
-    )
+    analyse_cmd = hpc.command(plan, tmp_path / "plan.json", "analyse", dependency="123")
     assert "--account=gpu-account" in compute_cmd
     assert "--gres=gpu:1" in compute_cmd
     assert "--account=cpu-account" in analyse_cmd

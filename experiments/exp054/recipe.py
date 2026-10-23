@@ -1,4 +1,10 @@
-"""Committed coupling-grid and null-control recipe; no execution on import."""
+"""Committed coupling-grid and null-control recipe; no execution on import.
+
+configuration() resolves fresh scientific settings before execution. Network
+authoring and analysis definitions do not load data or launch a stage on import.
+"""
+
+from copy import deepcopy
 
 import numpy as np
 
@@ -26,49 +32,51 @@ def refractory_configuration() -> dict:
 
 
 def configuration(*, smoke=False, version=8):
+    if type(smoke) is not bool:
+        raise ValueError("smoke must be boolean")
     if version not in (7, 8):
         raise ValueError("unsupported exp054 recipe version")
-    cfg = {
-        "schema": f"exp054.recipe/v{version}",
+    cfg = dict(
+        schema=f"exp054.recipe/v{version}",
         **refractory_configuration(),
-        "profile": "smoke" if smoke else "production",
-        "dt_ms": 0.1,
-        "tau_gaba_ms": 6.0,
-        "sim_ms": 400.0 if smoke else 1000.0,
-        "burn_ms": 100.0,
-        "n_e": 1024,
-        "n_i": 256,
-        "seed": 42,
-        "input_rate_hz": 100.0,
-        "private_w_in": 0.5,
-        "shared_n_in": 200,
-        "shared_w_in": 0.2,
-        "shared_zero_fraction": 0.95,
-        "max_lag_ms": 100.0,
-        "bin_ms": 1.0,
-        "wei_mean": [round(v, 3) for v in np.linspace(0, 3, 6 if smoke else 11)],
-        "wie_mean": [round(v, 3) for v in np.linspace(0, 6, 6 if smoke else 11)],
-        "private_null_hz": [1.0, 2.0, 5.0, 10.0, 20.0, 40.0, 70.0, 100.0],
-        "shared_null_hz": [8.0, 12.0, 16.0, 20.0, 28.0, 40.0, 60.0, 100.0],
-        "display_window_ms": 200.0,
-        "display_e": 160,
-        "display_i": 48,
-        "display_stride": 1 if smoke else 2,
-    }
+        profile="smoke" if smoke else "production",
+        dt_ms=0.1,
+        tau_gaba_ms=6.0,
+        sim_ms=400.0 if smoke else 1000.0,
+        burn_ms=100.0,
+        n_e=1024,
+        n_i=256,
+        seed=42,
+        input_rate_hz=100.0,
+        private_w_in=0.5,
+        shared_n_in=200,
+        shared_w_in=0.2,
+        shared_zero_fraction=0.95,
+        max_lag_ms=100.0,
+        bin_ms=1.0,
+        wei_mean=[round(v, 3) for v in np.linspace(0, 3, 6 if smoke else 11)],
+        wie_mean=[round(v, 3) for v in np.linspace(0, 6, 6 if smoke else 11)],
+        private_null_hz=[1.0, 2.0, 5.0, 10.0, 20.0, 40.0, 70.0, 100.0],
+        shared_null_hz=[8.0, 12.0, 16.0, 20.0, 28.0, 40.0, 60.0, 100.0],
+        display_window_ms=200.0,
+        display_e=160,
+        display_i=48,
+        display_stride=1 if smoke else 2,
+    )
     if version == 8:
         cfg.update(
             executor="snnlab.sim.GraphExecutor",
             biophysics=dict(BIOPHYSICS),
             initialization_stream="exp054 ordered CPU draws/v1",
             encoder_seed=43,
-            weight_initialization={
-                "relative_sd": 0.1,
-                "discarded_readout": {"width": 10, "mean": 5.1, "sd": 3.8},
-                "discarded_ee": {"mean": 0.0, "sd": 0.0},
-            },
+            weight_initialization=dict(
+                relative_sd=0.1,
+                discarded_readout=dict(width=10, mean=5.1, sd=3.8),
+                discarded_ee=dict(mean=0.0, sd=0.0),
+            ),
             reset="fresh state per probe; resting voltage; zero conductances and refractory",
         )
-    return cfg
+    return deepcopy(cfg)
 
 
 def validate(cfg):

@@ -1,4 +1,8 @@
-"""Render saved analysis only; no simulation, measurement or publication."""
+"""Render saved analysis only; no simulation, measurement or publication.
+
+Invoke this stage explicitly from the repository root. Scientific outputs
+and input provenance belong to its independently completed Pingstore run.
+"""
 
 import argparse
 import sys
@@ -8,8 +12,10 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
 
+from experiments.exp044.custom.network_artifacts import copy_circuits
+
 import numpy as np
-from experiments.exp044 import inputs, plots
+from experiments.exp044.custom import inputs, plots
 from experiments import theme
 from pingstore.contracts import PingstoreError, load_json, write_json_atomic
 
@@ -83,11 +89,16 @@ def present(identity: str, *, run_id: str | None = None) -> str:
         write_json_atomic(
             run.export / "numbers.json",
             {
-                **result,
-                "run_id": run.run_id,
-                "duration_s": time.monotonic() - started,
-                "duration": format_duration(time.monotonic() - started),
-                "git_sha": run.record["provenance"]["git_commit"],
+                **(
+                    {
+                        **result,
+                        "run_id": run.run_id,
+                        "duration_s": time.monotonic() - started,
+                        "duration": format_duration(time.monotonic() - started),
+                        "git_sha": run.record["provenance"]["git_commit"],
+                    }
+                ),
+                "circuit_files": copy_circuits(run),
             },
         )
     return run.run_id

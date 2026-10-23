@@ -7,6 +7,7 @@ import '../styles/command.css';
 interface Props {
   collections: NavigationEntry[];
   articles: NavigationEntry[];
+  papers: NavigationEntry[];
 }
 
 function navigationFilter(_value: string, search: string, keywords: string[] = []) {
@@ -26,7 +27,7 @@ function navigationFilter(_value: string, search: string, keywords: string[] = [
   return query.split(/\s+/).every(word => description.includes(word)) ? .2 : 0;
 }
 
-export default function CommandPalette({ collections, articles }: Props) {
+export default function CommandPalette({ collections, articles, papers }: Props) {
   const [open, setOpen] = useState(false);
   const [shortcut, setShortcut] = useState('Ctrl K');
   useEffect(() => {
@@ -45,7 +46,10 @@ export default function CommandPalette({ collections, articles }: Props) {
     return entries.map(entry => (
       <CommandItem key={entry.href} value={entry.href} keywords={[entry.title, ...entry.keywords]}
         onSelect={() => { setOpen(false); window.location.assign(entry.href); }}>
-        <span className="command-item-title">{entry.title}</span>
+        <span className="command-item-title">
+          {entry.title}
+          {entry.subtitle && <span className="command-item-subtitle">{entry.subtitle}</span>}
+        </span>
         <span className="command-item-detail">{entry.detail}</span>
       </CommandItem>
     ));
@@ -53,22 +57,24 @@ export default function CommandPalette({ collections, articles }: Props) {
 
   return (
     <CommandDialog open={open} onOpenChange={setOpen} filter={navigationFilter} trigger={
-        <button type="button" className="command-trigger" aria-label={`Search articles and collections (${shortcut})`}>
+        <button type="button" className="command-trigger" aria-label={`Search articles, papers and collections (${shortcut})`}>
           <span className="command-shortcut-icon" aria-hidden="true">⌘K</span>
           <span>Search</span>
         </button>
       }>
-      <CommandInput autoFocus placeholder="Search articles and collections…" aria-label="Search articles and collections" />
-      <CommandList label="Matching articles and collections">
-        <CommandEmpty>No articles or collections found.</CommandEmpty>
+      <CommandInput autoFocus placeholder="Search articles, papers and collections…" aria-label="Search articles, papers and collections" />
+      <CommandList label="Matching articles, papers and collections">
+        <CommandEmpty>No articles, papers or collections found.</CommandEmpty>
         <CommandGroup heading="Navigation">
           {items([
             { href: '/', title: 'Home', detail: 'Homepage', keywords: ['home', 'homepage', 'Pinglab'] },
             { href: '/papers', title: 'Papers', detail: 'PDF library', keywords: ['papers', 'pdf', 'library', 'research'] },
+            { href: '/pingstore', title: 'Pingstore', detail: 'Experiment datasets', keywords: ['pingstore', 'datasets', 'runs', 'storage'] },
           ])}
         </CommandGroup>
         <CommandGroup heading="Collections">{items(collections)}</CommandGroup>
         <CommandGroup heading="Articles">{items(articles)}</CommandGroup>
+        <CommandGroup heading="Papers">{items(papers)}</CommandGroup>
       </CommandList>
     </CommandDialog>
   );

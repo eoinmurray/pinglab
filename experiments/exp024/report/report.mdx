@@ -2,7 +2,7 @@
 id: "exp024"
 title: "Accuracy Plateaus While Firing Rate Rises"
 created_at: "2026-06-02"
-updated_at: "2026-08-31T00:00:00Z"
+updated_at: "2026-10-20T17:13:36Z"
 description: "Audits validation accuracy and firing-rate stability in unregularised PING and COBA training histories."
 collection: ["gamma-gated-sparsity", "experiments"]
 author: "Eoin Murray"
@@ -59,9 +59,7 @@ export const rMeasurementRateThresholdHzPerEpoch = run ? display(run.measurement
 
 ## Abstract
 
-We asked whether classification accuracy and neuronal firing rate converge together during training. We audited the retained learning histories of unregularised COBA and PING classifiers, applying separate plateau criteria to performance and activity.
-
-Accuracy could settle while excitatory firing continued to change, and rate stability differed across architectures and training replicates. Training convergence therefore needs separate accuracy and activity checks; a low firing rate alone does not demonstrate a fixed-rate attractor.
+We asked whether validation accuracy and firing rate settle together during training. We audited unregularised COBA and PING learning histories across seeds {seeds}, using separate final-window stability criteria. Final mean E rates were {valueCobaFinalERateHz} Hz for COBA and {valuePingFinalERateHz} Hz for PING; {countCobaAccuracyConvergedCount}/{n} COBA seeds met the accuracy criterion, versus {countCobaERateConvergedCount}/{n} for E rate. Accuracy and activity therefore require separate convergence checks; these finite histories do not establish asymptotic stability.
 
 <span id="loc-2" />
 

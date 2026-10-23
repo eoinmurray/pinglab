@@ -2,11 +2,12 @@
 id: "exp081"
 title: "How Pixel Features Respond to Input Rate"
 created_at: "2026-08-10"
-updated_at: "2026-09-01T00:00:00Z"
+updated_at: "2026-10-20T17:13:36Z"
 description: "Direct simulations and a simpler theory test how sparse input events become average voltage features."
 collection: ["gamma-gated-sparsity", "experiments"]
 author: "Eoin Murray"
 tags: ["data", "v37.0.0"]
+runs: {exp081: exp081-r004-present}
 inputs: ["exp081"]
 ---
 
@@ -44,9 +45,7 @@ export const pHistogramBins = run ? display(p.histogram_bins) : 'unavailable';
 
 ## Abstract
 
-We asked how the spike rate produced by a fully active pixel determines the average voltage feature passed to downstream classifiers. We compared direct membrane simulations with a simpler theory that treats the system as steady and approximately linear.
-
-The theory reproduced the general filtering pattern and mean-response shape, but predicted responses that were too large and failed to capture variation between presentations. Accurately predicting voltage averaged over one presentation therefore still requires direct simulation of individual event counts and timings in this system.
+We compared finite-window membrane simulations with a stationary, linearized model of how pixel-event rate determines mean voltage features. Across the tested rates and event strengths, predicted and simulated mean responses had Pearson correlation {meanCorrelation}, but predicted means were too large by a median factor of {medianMeanRatio}; SD correlation was {standardDeviationCorrelation}. The approximation explains the broad filtering pattern, but not variation across finite presentations beginning from rest.
 
 <span id="loc-2" />
 
@@ -98,13 +97,15 @@ The model responds similarly to slow changes, but increasingly suppresses change
 
 The simpler theory replaces each random conductance history with its mean steady state, then assumes that the remaining fluctuations are small ([Fig. 4](#loc-10)).
 
+Predicted means preserved the broad curvature and event-strength ordering (Pearson correlation {meanCorrelation}), but were too large by a median factor of {medianMeanRatio}. The predicted and simulated SDs agreed poorly (Pearson correlation {standardDeviationCorrelation}), especially for the largest event strength. The theory therefore explains the general filtering pattern, but not the amount of variation across finite presentations.
+
 <RunFigure report="exp081" experiment="exp081" allowUnavailable file="analytical_empirical.svg" number={4} id="loc-10" alt="Two panels compare theoretical curves with simulated points for mean voltage and standard deviation across input rates.">
   Steady-state predictions (solid curves) and simulated estimates (points) of **(A)** mean feature and **(B)** sample SD, in mV. Each estimate uses {pMomentDraws} presentations per rate. Black, red and cyan denote {probeConductances} μS added per event.
 </RunFigure>
 
 If quantitatively accurate, this approximation would reproduce the simulated mean and SD curves.
 
-Predicted means preserved the broad curvature and event-strength ordering (Pearson correlation {meanCorrelation}), but were too large by a median factor of {medianMeanRatio}. The predicted and simulated SDs agreed poorly (Pearson correlation {standardDeviationCorrelation}), especially for the largest event strength. The theory therefore explains the general filtering pattern, but not the amount of variation across finite presentations.
+
 
 <span id="loc-11" />
 
@@ -112,7 +113,7 @@ Predicted means preserved the broad curvature and event-strength ordering (Pears
 
 1. **Set the conditions.** We used a fully active pixel and varied its input rate from {pInputRateGridHzFirst} to {pInputRateGridHzLast} spikes/s across {pInputRateGridHzLen} conditions. We also varied the conductance added by each event across {probeConductances} μS. Each condition used {pMomentDraws} independent encoding draws of a {pPresentationMs} ms presentation. Separate distribution measurements used {pDistributionDraws} draws at {distributionRates} spikes/s and {pNominalProbeUs} μS.
 
-2. **Generate input events.** At each simulation step $k$, we made an independent yes-or-no event draw with probability $p_{\text{event}} = r_{\text{input}} \Delta \frac{t_{\text{sim}}}{1000}$, where $r_{\text{input}}$ is input rate in spikes/s and $\Delta t_{\text{sim}} =$ {pDtMs} ms. Physical time was $t_{k} = k \Delta t_{\text{sim}}$ and $N_{t} = \frac{T_{\text{present}}}{\Delta} t_{\text{sim}}$ steps formed one presentation. We used separate reproducible random streams for the moment and distribution measurements. Every presentation began with zero conductance and the membrane at its resting voltage.
+2. **Generate input events.** At each simulation step $k$, we made an independent yes-or-no event draw with probability $p_{\text{event}} = \frac{r_{\text{input}}\Delta t_{\text{sim}}}{1000}$, where $r_{\text{input}}$ is input rate in spikes/s and $\Delta t_{\text{sim}} =$ {pDtMs} ms. Physical time was $t_{k} = k \Delta t_{\text{sim}}$ and $N_{t} = \frac{T_{\text{present}}}{\Delta t_{\text{sim}}}$ steps formed one presentation. We used separate reproducible random streams for the moment and distribution measurements. Every presentation began with zero conductance and the membrane at its resting voltage.
 
 3. **Integrate conductance and voltage.** AMPA conductance decayed with time constant $\tau_{\text{AMPA}} =$ {pMembraneTauAmpaMs} ms, and each event then added its assigned conductance. Membrane voltage obeyed
 
@@ -126,7 +127,7 @@ Predicted means preserved the broad curvature and event-strength ordering (Pears
 4. **Measure the voltage feature.** For each encoding draw, we approximated
 
    $$
-   z_{\text{feature}} = \frac{1}{T_{\text{present}}} \int_{0}^{T_{\text{present}}} ( V_{m ( t )} - E_{L} ) \, \mathrm{d} t .
+   z_{\text{feature}} = \frac{1}{T_{\text{present}}} \int_{0}^{T_{\text{present}}} ( V_m(t) - E_{L} ) \, \mathrm{d} t .
    \tag{2}
    $$
 
@@ -134,10 +135,10 @@ Predicted means preserved the broad curvature and event-strength ordering (Pears
 
 5. **Summarize the simulated responses.** For every rate–strength condition, we calculated the mean and sample SD across encoding draws; the SD used the usual $n - 1$ variance denominator. For the distribution measurements, we used {pHistogramBins} equal-width bins from zero to the largest response rounded up to the next 5 mV, then divided each bin count by the number of draws.
 
-6. **Calculate the steady-state prediction.** For each condition, we calculated the mean conductance and its equilibrium voltage. We then assumed that small fluctuations around this steady state followed a linear synaptic and membrane response. Averaging across the presentation gave $H_{r ( \omega )}$, the predicted mapping from input fluctuations to the voltage feature at angular frequency $\omega$ in rad/ms, with predicted variance
+6. **Calculate the steady-state prediction.** For each condition, we calculated the mean conductance and its equilibrium voltage. We then assumed that small fluctuations around this steady state followed a linear synaptic and membrane response. Averaging across the presentation gave $H_r(\omega)$, the predicted mapping from input fluctuations to the voltage feature at angular frequency $\omega$ in rad/ms, with predicted variance
 
    $$
-   \text{Var} ( z_{\text{feature}} ) = \frac{1}{2 \pi} \int_{- \infty}^{\infty} {\vert H_{r ( \omega )} \vert}^{2} ( \frac{r_{\text{input}}}{1000} ) \, \mathrm{d} \omega .
+   \text{Var} ( z_{\text{feature}} ) = \frac{1}{2 \pi} \int_{- \infty}^{\infty} {\vert H_r(\omega) \vert}^{2} ( \frac{r_{\text{input}}}{1000} ) \, \mathrm{d} \omega .
    \tag{3}
    $$
 

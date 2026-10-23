@@ -1,1 +1,5 @@
-"""EXP081 independent compute, analyse and present stages."""
+"""EXP081 independent compute, analyse and present stages.
+
+This package exposes local scientific definitions for its independent stages.
+Importing it does not create runs, load scientific artifacts or launch execution.
+"""

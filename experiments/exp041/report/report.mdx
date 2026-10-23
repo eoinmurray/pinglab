@@ -2,7 +2,7 @@
 id: "exp041"
 title: "Firing Rate Tracks Gamma Frequency"
 created_at: "2026-06-02"
-updated_at: "2026-08-31T00:00:00Z"
+updated_at: "2026-10-20T17:13:36Z"
 description: "Across PING networks trained at different inhibitory decay times, compare excitatory firing rate with gamma frequency and test accuracy."
 collection: ["gamma-gated-sparsity", "experiments"]
 author: "Eoin Murray"
@@ -10,7 +10,6 @@ tags: ["data", "v37.0.0"]
 runs: {"exp041": "exp041-r005-present"}
 thumbnailRun: "exp041-r005-present"
 thumbnail: "training_curves.svg"
-abstract: "We asked whether the excitatory firing rate of trained PING classifiers changes systematically with their gamma frequency. We reused networks trained with different inhibitory decay times and measured their final population rhythms, activity and MNIST performance. Slower rhythms accompanied lower excitatory firing while useful classification persisted across the sweep. The association supports a cycle-participation account, but does not prove constant participation or identify a physical non-rhythmic baseline."
 inputs: ["exp041"]
 ---
 
@@ -36,13 +35,21 @@ export const cfgEvaluationSamples = display(cfg.evaluation_samples);
 
 <span id="loc-2" />
 
+## Abstract
+
+We tested whether excitatory firing tracks spectral-peak frequency in eighteen PING classifiers trained at six inhibitory decay times, with three seeds per condition. Across individual networks, frequencies spanned approximately {fgLo}–{fgHi} Hz, E rates {erLo}–{erHi} Hz and test accuracy {accLo}–{accHi}%. Slower rhythms accompanied lower E firing while useful classification persisted. The association is consistent with cycle participation, but does not establish constant participation or identify a physical non-rhythmic baseline.
+
 ## Results
 
 <span id="loc-3" />
 
 ### Inhibitory-timescale training response
 
-<PublishedFigure run="exp041-r005-present" file="training_curves.svg" id="" alt="Validation accuracy and excitatory firing rate over training across the inhibitory-decay sweep." >
+Final test accuracies spanned {accLo}–{accHi}% across the trained networks.
+The retained histories show the preceding {epochs} validation epochs;
+these endpoint comparisons use final weights, not accuracy-selected epochs.
+
+<PublishedFigure run="exp041-r005-present" file="training_curves.svg" alt="Validation accuracy and excitatory firing rate over training across the inhibitory-decay sweep." >
   Figure 1: **(A)** Reused validation accuracy and **(B)** excitatory rate, one line per trained network across {epochs} epochs. Subsequent test measurements used final-epoch weights; accuracy convergence did not select the epoch.
 </PublishedFigure>
 
@@ -60,7 +67,7 @@ Per-network interpolated frequencies spanned approximately {fgLo}–{fgHi} Hz ac
 
 ### Inhibitory-timescale rasters
 
-<PublishedFigure run="exp041-r005-present" file="raster_strip.png" id="" alt="One MNIST trial through each τ_GABA network; the gamma cycle period lengthens with τ_GABA." >
+<PublishedFigure run="exp041-r005-present" file="raster_strip.png" alt="One MNIST trial through each τ_GABA network; the gamma cycle period lengthens with τ_GABA." >
   Figure 3: The same illustrative MNIST image at inhibitory decay times **(A–F)** 4.5, 6, 9, 12, 18 and 27 ms, respectively, using seed 42. Each panel shows 200 excitatory and 64 inhibitory neurons during the first 100 ms; displayed rates use the full populations and 200 ms trial. These probes illustrate timing, not the population frequency estimate.
 </PublishedFigure>
 

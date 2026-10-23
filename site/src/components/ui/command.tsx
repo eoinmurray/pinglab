@@ -15,9 +15,9 @@ export function CommandDialog({ children, trigger, filter, ...props }: Component
         <Dialog.Content className="command-dialog">
           <Dialog.Title className="command-sr-only">Navigate Pinglab</Dialog.Title>
           <Dialog.Description className="command-sr-only">
-            Search articles and collections. Use the arrow keys to select and Enter to open.
+            Search articles, papers and collections. Use the arrow keys to select and Enter to open.
           </Dialog.Description>
-          <CommandPrimitive label="Articles and collections" filter={filter} loop vimBindings={false}>
+          <CommandPrimitive label="Articles, papers and collections" filter={filter} loop vimBindings={false}>
             {children}
           </CommandPrimitive>
           <Dialog.Close className="command-close" aria-label="Close search">Esc</Dialog.Close>

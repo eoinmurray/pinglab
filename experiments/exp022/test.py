@@ -1,4 +1,13 @@
+"""Validate exp022 scientific and execution contracts.
+
+Run with `uv run pytest experiments/exp022/test.py`. Fixtures use temporary stores;
+bounded native checks validate numerical behavior without production runs.
+"""
+
 from __future__ import annotations
+
+from experiments.exp022.custom import bank as bank_io
+
 
 import json
 import subprocess
@@ -8,8 +17,9 @@ from pathlib import Path
 import numpy as np
 import pytest
 import torch
-from experiments.exp022 import compute as exp022
-from experiments.exp022 import recipe, reuse, reuse_contract
+from experiments.exp022.custom import execution as exp022
+from experiments.exp022 import recipe
+from experiments.exp022.custom import reuse, reuse_contract
 from experiments.exp022.analyse import _gamma_psd, bank_composition, measure_snapshot
 from pingstore.contracts import PingstoreError
 from snnlab import analysis as figure_metrics
@@ -46,8 +56,8 @@ def test_compact_epoch_records_feed_training_summaries(tmp_path):
         },
     ]
     (tmp_path / "metrics.json").write_text(json.dumps({"epochs": rows}))
-    assert recipe.training_curve(tmp_path) == ([1, 2], [80.0, 90.0])
-    assert recipe.final_rates(tmp_path) == (6.0, 21.0)
+    assert bank_io.training_curve(tmp_path) == ([1, 2], [80.0, 90.0])
+    assert bank_io.final_rates(tmp_path) == (6.0, 21.0)
 
 
 def test_tr02_registry_uses_explicit_hz_targets() -> None:
@@ -65,7 +75,9 @@ def test_tr02_registry_uses_explicit_hz_targets() -> None:
     for cell in cells:
         cfg = recipe.training_settings(cell, 7000, 50)
         assert cfg["fr_reg_upper_target_hz"] == (cell["rate_target_hz"] or 0)
-        assert cfg['fr_reg_upper_strength']==(0 if cell['rate_target_hz'] is None else .041)
+        assert cfg["fr_reg_upper_strength"] == (
+            0 if cell["rate_target_hz"] is None else 0.041
+        )
 
 
 def test_exp110_coba_damping_scope_includes_every_coba_cell() -> None:
@@ -107,21 +119,29 @@ def test_replacement_projection_retains_science_and_moves_execution_metadata(
     for directory in (trained, target):
         (directory / "weights.pth").write_bytes(b"best")
         (directory / "weights_final.pth").write_bytes(b"final")
-    (target / "config.json").write_text(json.dumps({
-        "v_grad_dampen": 1000,
-        "ei_strength": 0,
-        "bank_id": "working",
-        "device": "cuda",
-    }))
-    (target / "metrics.json").write_text(json.dumps({
-        "config": {
-            "v_grad_dampen": 1000,
-            "ei_strength": 0,
-            "bank_manifest_sha256": "digest",
-        },
-        "checkpoints": {},
-        "total_elapsed_s": 1.0,
-    }))
+    (target / "config.json").write_text(
+        json.dumps(
+            {
+                "v_grad_dampen": 1000,
+                "ei_strength": 0,
+                "bank_id": "working",
+                "device": "cuda",
+            }
+        )
+    )
+    (target / "metrics.json").write_text(
+        json.dumps(
+            {
+                "config": {
+                    "v_grad_dampen": 1000,
+                    "ei_strength": 0,
+                    "bank_manifest_sha256": "digest",
+                },
+                "checkpoints": {},
+                "total_elapsed_s": 1.0,
+            }
+        )
+    )
     metadata = reuse._project_new_cell(trained, target)
     config = json.loads((target / "config.json").read_text())
     metrics = json.loads((target / "metrics.json").read_text())
@@ -174,13 +194,13 @@ def test_bank_python_identity_normalizes_parent_alias(
 
 def test_exp022_display_path_accepts_external_bank_root(tmp_path: Path) -> None:
     external = tmp_path / "bank" / "derived"
-    assert recipe._display_path(external) == external
+    assert bank_io._display_path(external) == external
 
 
 def test_training_root_must_be_explicit(monkeypatch) -> None:
-    monkeypatch.setattr(recipe, "TRAINING_ROOT", None)
+    monkeypatch.setattr(bank_io, "TRAINING_ROOT", None)
     with pytest.raises(RuntimeError, match="training root is not configured"):
-        recipe.training_root()
+        bank_io.training_root()
 
 
 @pytest.mark.parametrize("family,run_id", recipe.TRAINING_RUN_IDS.items())
@@ -196,8 +216,9 @@ def test_tr07_low_input_controls_use_production_contract():
     for cell in cells:
         cfg = recipe.training_settings(cell, 7000, 50)
         assert cfg["w_in"] == [cell["w_in"], cell["w_in"] * 0.1]
-        assert cfg['fr_reg_upper_target_hz']==1 and cfg['fr_reg_upper_strength']==.041
-
+        assert (
+            cfg["fr_reg_upper_target_hz"] == 1 and cfg["fr_reg_upper_strength"] == 0.041
+        )
 
 
 def test_all_resolved_settings_keep_family_contract():
@@ -214,8 +235,7 @@ def test_all_resolved_settings_keep_family_contract():
             assert cfg["ei_strength"] == 0
         if cell["family"] == "variable_rate":
             assert cfg["readout_mode"] == "spike-count"
-            assert tuple(cfg['input_rates'])==recipe.VARIABLE_RATE_TRAINING_RATES_HZ
-
+            assert tuple(cfg["input_rates"]) == recipe.VARIABLE_RATE_TRAINING_RATES_HZ
 
 
 def test_all_resolved_cells_have_complete_scientific_contract(tmp_path: Path) -> None:
@@ -280,10 +300,6 @@ def test_every_production_setting_has_a_saved_scientific_projection(
         assert expected
 
 
-
-
-
-
 def test_validator_rejects_each_resolved_scientific_config_mismatch(
     tmp_path: Path,
 ) -> None:
@@ -334,7 +350,6 @@ def _manifest_cell(tmp_path, *, epochs=2, samples=100):
             cell, recipe.training_settings(cell, samples, epochs), samples, epochs
         ),
     }
-
 
 
 def _write_valid_cell(row: dict) -> Path:
@@ -587,7 +602,7 @@ def test_stale_attempt_requires_explicit_recovery(tmp_path: Path) -> None:
 
 
 def test_failed_native_training_without_metrics_records_failure(tmp_path, monkeypatch):
-    from experiments.exp022 import training
+    from experiments.exp022.custom import training
 
     row = _manifest_cell(tmp_path)
     manifest = _attempt_manifest(tmp_path, row)
@@ -600,8 +615,12 @@ def test_failed_native_training_without_metrics_records_failure(tmp_path, monkey
     monkeypatch.setattr(training, "train_cell", fail)
     with pytest.raises(RuntimeError, match="native training failed"):
         exp022._train_bank_cell(tmp_path / "bank.json", row["name"])
-    assert json.loads((Path(row['output_directory'])/'attempt.json').read_text())['state']=='failed'
-
+    assert (
+        json.loads((Path(row["output_directory"]) / "attempt.json").read_text())[
+            "state"
+        ]
+        == "failed"
+    )
 
 
 def test_preserve_partial_avoids_timestamp_collision(
@@ -611,9 +630,7 @@ def test_preserve_partial_avoids_timestamp_collision(
     directory = Path(row["output_directory"])
     directory.mkdir(parents=True)
     (directory / "evidence").write_text("new")
-    monkeypatch.setattr(
-        exp022, "utc_now", lambda: "2026-08-11T00:00:00+00:00"
-    )
+    monkeypatch.setattr(exp022, "utc_now", lambda: "2026-08-11T00:00:00+00:00")
     occupied = tmp_path / "failed" / row["name"] / "2026-08-11T00-00-00+00-00"
     occupied.mkdir(parents=True)
     preserved = exp022.preserve_partial(directory)
@@ -631,7 +648,7 @@ def _write_checked_manifest(
         "lock_identity",
         lambda _repo: {"path": "uv.lock", "sha256": "lock"},
     )
-    from experiments.exp022 import training
+    from experiments.exp022.custom import training
 
     monkeypatch.setattr(training, "execution_identity", lambda: {"fixture": True})
     cells = recipe.cells_in_resource_tier(tier)
@@ -687,7 +704,9 @@ def test_checked_manifest_rejects_rehashed_executable_mutations(
         exp022._checked_bank_manifest(path)
 
 
-def test_bank_creation_refuses_existing_destination(tmp_path: Path, monkeypatch) -> None:
+def test_bank_creation_refuses_existing_destination(
+    tmp_path: Path, monkeypatch
+) -> None:
     root = tmp_path / "bank"
     root.mkdir()
     evidence = root / "keep.txt"
@@ -703,7 +722,7 @@ def test_bank_creation_refuses_existing_destination(tmp_path: Path, monkeypatch)
 
 
 def test_hpc_array_uses_frozen_cells_and_shared_wrapper(tmp_path: Path) -> None:
-    from experiments.exp022 import hpc
+    from experiments.exp022.custom import hpc
 
     plan = {
         "account": "gpu-account",
@@ -754,9 +773,7 @@ def test_wilkes_modules_load_in_sanitized_environment(tmp_path: Path) -> None:
     initializer.write_text(
         'module() { printf "%s\\n" "$*" >> "$EXP022_MODULE_CALLS"; }\n'
     )
-    helper = (
-        exp022.REPO / "tools" / "hpc" / "load-wilkes-modules.sh"
-    )
+    helper = exp022.REPO / "tools" / "hpc" / "load-wilkes-modules.sh"
     subprocess.run(
         [
             "env",
@@ -830,7 +847,9 @@ def test_autocorrelation_lags_and_scalar_lookup_use_physical_time(dt):
 
 
 @pytest.mark.parametrize("dt,steps", [(0.1, 2000), (0.3, 666), (0.6, 333)])
-def test_snapshot_rate_integral_preserves_spike_counts_in_partial_bin(tmp_path, dt, steps):
+def test_snapshot_rate_integral_preserves_spike_counts_in_partial_bin(
+    tmp_path, dt, steps
+):
     spikes = np.zeros((steps, 2), dtype=bool)
     spikes[-1] = True
     source, destination = tmp_path / "recording.npz", tmp_path / "rasters.npz"
@@ -841,7 +860,10 @@ def test_snapshot_rate_integral_preserves_spike_counts_in_partial_bin(tmp_path, 
         assert len(measured["bin_widths_ms"]) == 200
         assert measured["bin_widths_ms"][-1] == pytest.approx(1.0 if dt == 0.1 else 0.8)
         for population in ("e", "i"):
-            integrated = np.sum(measured[f"{population}_rate"] * measured["bin_widths_ms"]) / 1000
+            integrated = (
+                np.sum(measured[f"{population}_rate"] * measured["bin_widths_ms"])
+                / 1000
+            )
             assert integrated == pytest.approx(1.0)
             assert measured[f"{population}_hz"] == pytest.approx(1000 / (steps * dt))
 
@@ -849,10 +871,13 @@ def test_snapshot_rate_integral_preserves_spike_counts_in_partial_bin(tmp_path, 
 def test_bank_composition_rejects_overlap_or_missing_cells():
     record = {
         "inputs": {"retained_bank": {"run_id": "source", "payload_digest": "digest"}},
-        "bank_reuse": {"plan": {
-            "reused_cells": ["old"], "new_cells": ["new"],
-            "diagnostic_policy": "regenerate_all",
-        }},
+        "bank_reuse": {
+            "plan": {
+                "reused_cells": ["old"],
+                "new_cells": ["new"],
+                "diagnostic_policy": "regenerate_all",
+            }
+        },
     }
     result = bank_composition(record, {"old", "new"})
     assert result["reused_cells"] == result["new_cells"] == 1
@@ -861,3 +886,138 @@ def test_bank_composition_rejects_overlap_or_missing_cells():
     record["bank_reuse"]["plan"]["new_cells"].append("old")
     with pytest.raises(PingstoreError, match="partition"):
         bank_composition(record, {"old", "new"})
+
+
+from experiments import exp022 as bank_recipe
+from experiments.exp022.custom import execution as exp022_compute
+
+
+def test_exp022_planned_bank_targets_exp082() -> None:
+    cells = bank_recipe.PLANNED_VARIABLE_RATE_CELLS
+    assert [cell["name"] for cell in cells] == [
+        "ping__variable_rate__seed42",
+        "ping__variable_rate__seed43",
+        "ping__variable_rate__seed44",
+    ]
+    assert all(cell["consumer"] == "exp082" for cell in cells)
+    assert all(cell["readout"] == "spike-count" for cell in cells)
+    assert all(cell["status"] == "ready_to_train" for cell in cells)
+    assert all(cell["training_run_id"] == "TR-06" for cell in cells)
+    assert all(
+        tuple(cell["input_rates_hz"]) == bank_recipe.VARIABLE_RATE_TRAINING_RATES_HZ
+        for cell in cells
+    )
+    assert all(cell in bank_recipe.CANONICAL_CELLS for cell in cells)
+
+
+def test_exp022_variable_rate_settings():
+    cell = bank_recipe.PLANNED_VARIABLE_RATE_CELLS[0]
+    cfg = bank_recipe.training_settings(cell, 7000, 50)
+    assert (
+        cfg["readout_mode"] == "spike-count"
+        and tuple(cfg["input_rates"]) == recipe.VARIABLE_RATE_TRAINING_RATES_HZ
+    )
+
+
+def test_exp022_wilkes_resource_tiers_partition_registry() -> None:
+    expected = {
+        "standard": 90,
+        "fine_dt": 3,
+        "canonical_coba": 3,
+        "canonical_ping": 3,
+        "variable_rate": 3,
+    }
+    tiered_names = []
+    for tier, count in expected.items():
+        cells = bank_recipe.cells_in_resource_tier(tier)
+        assert len(cells) == count
+        assert all(bank_recipe.cell_resource_tier(cell) == tier for cell in cells)
+        tiered_names.extend(cell["name"] for cell in cells)
+
+    assert sorted(tiered_names) == sorted(
+        cell["name"] for cell in bank_recipe.CANONICAL_CELLS
+    )
+
+
+def test_training_run_ids_match_documented_families() -> None:
+    by_family = {
+        family: {
+            cell["training_run_id"]
+            for cell in bank_recipe.CANONICAL_CELLS
+            if cell["family"] == family
+        }
+        for family in bank_recipe.TRAINING_RUN_IDS
+    }
+    assert by_family == {
+        family: {run_id} for family, run_id in bank_recipe.TRAINING_RUN_IDS.items()
+    }
+
+
+def test_completed_cell_artifacts_are_stamped_with_training_run_id(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    cell = bank_recipe.PLANNED_VARIABLE_RATE_CELLS[0]
+    directory = tmp_path / cell["name"]
+    directory.mkdir()
+    (directory / "config.json").write_text('{"mode": "train"}\n')
+    (directory / "metrics.json").write_text('{"config": {"epochs": 50}}\n')
+    monkeypatch.setitem(
+        exp022_compute._stamp_training_run_identity.__globals__,
+        "cell_dir",
+        lambda _name: directory,
+    )
+
+    exp022_compute._stamp_training_run_identity(cell)
+
+    config = exp022_compute.json.loads((directory / "config.json").read_text())
+    metrics = exp022_compute.json.loads((directory / "metrics.json").read_text())
+    assert config["training_run_id"] == "TR-06"
+    assert config["training_cell_name"] == cell["name"]
+    assert metrics["training_run_id"] == "TR-06"
+    assert metrics["config"]["training_run_id"] == "TR-06"
+
+
+def test_native_training_snapshots_capture_final_and_selected_weights(
+    tmp_path, monkeypatch
+):
+    from experiments.exp022.custom import training
+
+    cell = recipe.CANONICAL_CELLS[0]
+    cfg = recipe.training_settings(cell, 4, 2)
+    cfg.update(n_in=2, n_hidden=4, n_inh=2, hidden_sizes=[4], t_ms=2.0, batch_size=2)
+    monkeypatch.setattr(recipe, "training_settings", lambda *args: dict(cfg))
+    monkeypatch.setattr(training, "execution_identity", lambda: {"fixture": True})
+    pixels = np.zeros((4, 2), dtype=np.float32)
+    labels = np.zeros(4, dtype=np.int64)
+    monkeypatch.setattr(
+        training,
+        "load_dataset",
+        lambda *args, **kwargs: (pixels, pixels, labels, labels),
+    )
+    monkeypatch.setattr(training, "reference_measurements", lambda *args: {})
+    epochs = []
+
+    def train_epoch(model, *args):
+        epochs.append(len(epochs) + 1)
+        with torch.no_grad():
+            for value in model.parameter_map().values():
+                value.fill_(epochs[-1])
+        return {"loss": 1.0}
+
+    monkeypatch.setattr(training, "train_epoch", train_epoch)
+    monkeypatch.setattr(
+        training,
+        "validate_epoch",
+        lambda *args: {"test_loss": float(len(epochs)), "acc": 90.0},
+    )
+    directory = tmp_path / "native-training"
+    training.train_cell(cell, directory, 4, 2)
+    for prefix, expected in [("training", 2), ("best-validation", 1)]:
+        snapshot = directory / prefix / "end"
+        metadata = json.loads((snapshot / "snapshot.json").read_text())
+        assert metadata["stage"] == "end"
+        assert not (directory / prefix / "start").exists()
+        with np.load(snapshot / "parameters.npz") as arrays:
+            for spec in metadata["parameters"].values():
+                np.testing.assert_array_equal(arrays[spec["key"]], expected)

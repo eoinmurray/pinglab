@@ -66,6 +66,18 @@ test('missing snapshots remain unavailable instead of using old parameter rows',
   assert.equal(await readSnapshotEvidence('exp124-r998-present', f.options), undefined);
 }));
 
+test('reanalysis follows its authenticated earlier analysis and rejects cycles', async () => fixture(async f => {
+  const earlier = { ...f.records.analyse, run_id: 'exp124-r004-analyse' };
+  await mkdir(join(f.root, earlier.run_id));
+  await writeFile(join(f.root, earlier.run_id, 'run.json'), JSON.stringify(earlier));
+  f.records.analyse.inputs = { earlier: { run_id: earlier.run_id, payload_digest: earlier.payload_digest } };
+  await f.writeRecord('analyse');
+  assert.equal((await readSnapshotEvidence(f.ids.present, f.options)).compute.run_id, f.ids.compute);
+  earlier.inputs = { cycle: { run_id: f.ids.analyse, payload_digest: f.records.analyse.payload_digest } };
+  await writeFile(join(f.root, earlier.run_id, 'run.json'), JSON.stringify(earlier));
+  await assert.rejects(readSnapshotEvidence(f.ids.present, f.options), /Cyclic analysis lineage/);
+}));
+
 test('a missing pinned ancestor never selects a different run', async () => fixture(async f => {
   await rm(join(f.root, f.ids.compute), { recursive: true });
   assert.equal(await readSnapshotEvidence(f.ids.present, f.options), undefined);

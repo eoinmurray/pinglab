@@ -1,7 +1,16 @@
-"""Retained TR-05 endpoint recipe; all training belongs to exp022."""
+"""Retained TR-05 endpoint recipe; all training belongs to exp022.
 
-from experiments.exp022.checkpoints import checkpoint_policy
-from experiments.exp022.recipe import training_run_cell, training_run_values
+configuration() resolves fresh scientific settings before execution. Network
+authoring and analysis definitions do not load data or launch a stage on import.
+"""
+
+from copy import deepcopy
+
+from experiments.exp049.custom.source_exp022_custom_checkpoints import checkpoint_policy
+from experiments.exp049.custom.bank_contract import (
+    training_run_cell,
+    training_run_values,
+)
 
 SLUG = "exp049"
 REFRACTORY_E_MS = 1.2
@@ -127,19 +136,21 @@ def bank_cells():
 
 
 def configuration(*, smoke=False, version=3):
+    if type(smoke) is not bool:
+        raise ValueError("smoke must be boolean")
     if version not in (1, 2, 3):
         raise ValueError("unsupported exp049 recipe version")
-    cfg = {
-        "schema": f"exp049.recipe/v{version}",
-        **(refractory_configuration() if version >= 2 else {}),
-        "profile": "smoke" if smoke else "production",
-        "checkpoint_policy": CHECKPOINT_POLICY,
-        "evaluation_samples": 100 if smoke else EVAL_MAX_SAMPLES,
-        "seeds": SEEDS,
-        "conditions": COND_ORDER,
-        "snapshot_seed": SEEDS[0],
-        "sample_index": 0,
-    }
+    cfg = dict(
+        schema=f"exp049.recipe/v{version}",
+        **(refractory_configuration() if version >= 2 else dict()),
+        profile="smoke" if smoke else "production",
+        checkpoint_policy=CHECKPOINT_POLICY,
+        evaluation_samples=100 if smoke else EVAL_MAX_SAMPLES,
+        seeds=SEEDS,
+        conditions=COND_ORDER,
+        snapshot_seed=SEEDS[0],
+        sample_index=0,
+    )
 
     if version == 3:
         cfg.update(
@@ -151,13 +162,13 @@ def configuration(*, smoke=False, version=3):
             reset_boundary="fresh neuronal, synaptic, refractory, delay and readout state per presentation",
             biophysics=dict(BIOPHYSICS),
             initialization=dict(INITIALIZATION),
-            recording={
-                "infer": "full-trial E spike events and E/I online counts",
-                "snapshot": "full-trial E/I spike events",
-            },
+            recording=dict(
+                infer="full-trial E spike events and E/I online counts",
+                snapshot="full-trial E/I spike events",
+            ),
             interventions=[],
         )
-    return cfg
+    return deepcopy(cfg)
 
 
 def jobs(cfg):

@@ -2,19 +2,13 @@
 id: exp023
 title: "Turning the PING Loop On"
 created_at: "2026-05-13"
-updated_at: "2026-10-13T00:00:00Z"
+updated_at: "2026-10-20T17:13:36Z"
 description: "PING stripped to its biophysical fundamentals: free-running activity, population spectra and rate responses with the excitatory–inhibitory loop off and on."
 collection: ["gamma-gated-sparsity", "experiments"]
 author: Eoin Murray
 thumbnail: overview_compound.png
 tags: [data, v37.0.0]
-abstract: >-
-  We asked what the recurrent PING loop does before introducing training, classification
-  or a learned readout. We compared the same Poisson-driven excitatory–inhibitory
-  architecture with reciprocal feedback disabled and enabled. Enabling the loop produced
-  rhythmic population activity and strongly suppressed excitatory firing across the
-  matched-drive sweep. This establishes the circuit's basic operating behaviour, but the
-  limited simulations do not show that gamma timing itself caused the suppression.
+runs: {exp023: exp023-r026-present}
 inputs: ["exp023"]
 ---
 
@@ -28,17 +22,29 @@ export const b = c.biophysics;
 export const points = c.drive.raster_operating_points;
 export const sweep = c.drive.fi_sweep;
 
+## Abstract
+
+We compared untrained excitatory–inhibitory circuits with reciprocal feedback disabled or enabled, using one seed and a matched Poisson-drive sweep. In the separate illustrative trials, loop-off E firing was {r.raster.coba.e_rate_hz.toFixed(2)} Hz at {points.coba.input_rate_hz} Hz input, versus {r.raster.ping.e_rate_hz.toFixed(2)} Hz at {points.ping.input_rate_hz} Hz input with feedback. The matched-drive sweep showed suppression under reciprocal coupling. These observations establish this circuit's operating behaviour, but do not isolate a causal contribution of gamma timing.
+
 ## Results
 
 ### Architecture, spectra and rates
 
-<RunFigure experiment="exp023" file="overview_compound.png" number={1} id="fig-1" alt="Loop-off and loop-on schematics above population rasters, spectra and firing-rate curves.">
+Reciprocal coupling produced recurring E/I volleys and suppressed E firing
+across the matched-drive sweep. The illustrative raster trials used different
+drive rates, so their rates alone do not isolate the effect of the loop.
+
+<RunFigure report="exp023" experiment="exp023" file="overview_compound.png" number={1} id="fig-1" alt="Loop-off and loop-on schematics above population rasters, spectra and firing-rate curves.">
   (A–B) COBA and PING schematics; (C–D) E/I rasters; (E, G) E-population spectra on the same vertical scale; (F, H) firing-rate–input curves. COBA occupies A, C, E and F; PING occupies B, D, G and H. E spikes are black and I spikes red. C–H use the same {sweep.n_in}-input network setup, with fixed weights within each loop condition. E/G are spectra of the exact recordings shown in C/D. Rasters and spectra show {points.coba.t_ms} ms at {points.coba.input_rate_hz} and {points.ping.input_rate_hz} Hz input, respectively. Rate curves show one-trial population means over the matched-drive sweep, without error bars; F/H vertical scales differ. The dashed marker is the analysis-selected spectral peak, not a rhythmicity significance test. Schematics describe the model, not a measurement.
 </RunFigure>
 
 ### COBA excitatory-neuron dynamics
 
-<RunFigure experiment="exp023" number={2} id="fig-2" columns={3} panels={[
+The selected loop-off E neuron received input excitation and leak without
+inhibitory feedback. Its voltage and reconstructed currents illustrate a
+single active neuron rather than a population-average response.
+
+<RunFigure report="exp023" experiment="exp023" number={2} id="fig-2" columns={3} panels={[
   { file: "traces__coba__v_e.svg", alt: "Loop-off excitatory membrane voltage." },
   { file: "traces__coba__g_e.svg", alt: "Loop-off excitatory and leak conductances." },
   { file: "traces__coba__i_e.svg", alt: "Loop-off signed excitatory and leak currents." },
@@ -51,7 +57,7 @@ export const sweep = c.drive.fi_sweep;
 These cellular traces illustrate reciprocal E→I→E feedback (Fig. 3A–F); they do not
 measure population-wide phase locking or spikes per cycle.
 
-<RunFigure experiment="exp023" number={3} id="fig-3" columns={3} panels={[
+<RunFigure report="exp023" experiment="exp023" number={3} id="fig-3" columns={3} panels={[
   { file: "traces__ping__v_e.svg", alt: "PING excitatory membrane voltage." },
   { file: "traces__ping__g_e.svg", alt: "PING excitatory-neuron excitatory, inhibitory and leak conductances." },
   { file: "traces__ping__i_e.svg", alt: "PING excitatory-neuron signed currents." },

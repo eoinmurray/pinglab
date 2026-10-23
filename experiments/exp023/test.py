@@ -1,3 +1,9 @@
+"""Validate exp023 scientific and execution contracts.
+
+Run with `uv run pytest experiments/exp023/test.py`. Fixtures use temporary stores;
+bounded native checks validate numerical behavior without production runs.
+"""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -11,7 +17,8 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 import torch
-from experiments.exp023 import analyse, compute, inputs, present, recipe
+from experiments.exp023 import analyse, compute, present, recipe
+from experiments.exp023.custom import inputs
 from pingstore import stages
 from pingstore.contracts import (
     PingstoreError,
@@ -36,8 +43,22 @@ def repo(tmp_path, monkeypatch):
     monkeypatch.setenv("PINGLAB_SMOKE", "1")
     calls = []
 
-    def simulate(spec):
+    def simulate(**kwargs):
+        spec = SimpleNamespace(graph=kwargs["bundle"].graph, **kwargs)
         calls.append(spec)
+        from snnlab.sim import build
+        from snnlab.sim.artifacts.snapshots import SnapshotSession
+        from snnlab.sim.requests.spec import ExecutionSpec
+
+        built = build(bundle=spec.bundle, device="cpu", seed=spec.seed)
+        session = SnapshotSession(
+            ExecutionSpec(kind="simulate", graph=spec.graph, snapshot=spec.snapshot),
+            built.model,
+            kind="simulate",
+            protocol={},
+            device_resolved="cpu",
+        )
+        session.capture("start")
         point = spec.input_bindings[0]
         steps = point.steps_count
         e = torch.zeros(steps, 1, recipe.N_E)
@@ -194,19 +215,6 @@ def test_unsupported_schema_is_rejected_before_scientific_consumption(repo):
         analyse.analyse(identity)
 
 
-@pytest.mark.parametrize("flag", [[], ["--plot-only"], ["--skip-training"]])
-def test_retired_launcher_rejects_all_combined_modes(flag):
-    root = Path(__file__).resolve().parents[2]
-    result = subprocess.run(
-        [sys.executable, "-m", "experiments.exp023", *flag],
-        cwd=root,
-        capture_output=True,
-        text=True,
-    )
-    assert result.returncode != 0
-    assert "independent stages" in result.stderr
-
-
 def test_spectrum_and_selection_preserve_original_rules():
     spikes = np.zeros((4000, 4), dtype=bool)
     spikes[::250, :] = True
@@ -277,10 +285,8 @@ def test_geometry_and_duration_are_explicit_in_graph_requests():
         assert {point["n_in"] for _, _, point, traces in trials if not traces} == {1024}
         for _, _, point, traces in trials:
             bundle = recipe.author_network(cfg, point, traces=traces)
-            request = recipe.execution_request(bundle, point, traces=traces)
-            assert request.executor == "graph"
-            assert request.input_bindings[0].steps_count == duration * 10
-            assert request.input_bindings[0].rates_hz == (point["input_rate_hz"],)
+            assert bundle.graph["timebase"]["dt"]["value"] == point["dt_ms"]
+            assert point["t_ms"] == duration
         assert {
             point["input_rate_hz"] for _, _, point, traces in trials if not traces
         } == set(recipe.FI_RATES_HZ)
@@ -326,10 +332,15 @@ def test_graph_matches_independent_kernel_schedule(monkeypatch, cell):
     drive = torch.zeros(600, 1, 24)
     drive[::2] = 1
     voltage_e, voltage_i = torch.full((1, 16), -65.0), torch.full((1, 4), -65.0)
-    ref_e, ref_i = torch.zeros((1, 16), dtype=torch.long), torch.zeros((1, 4), dtype=torch.long)
+    ref_e, ref_i = (
+        torch.zeros((1, 16), dtype=torch.long),
+        torch.zeros((1, 4), dtype=torch.long),
+    )
     spikes_e, spikes_i = torch.zeros(1, 16), torch.zeros(1, 4)
     ge_e, ge_i, gi_e = torch.zeros(1, 16), torch.zeros(1, 4), torch.zeros(1, 16)
-    histories = {name: [] for name in ("spk_e", "spk_i", "v_e", "v_i", "ge_e", "ge_i", "gi_e")}
+    histories = {
+        name: [] for name in ("spk_e", "spk_i", "v_e", "v_i", "ge_e", "ge_i", "gi_e")
+    }
     ampa, gaba = np.exp(-0.1 / 2.0), np.exp(-0.1 / 6.0)
 
     def spike(voltage):
@@ -344,29 +355,57 @@ def test_graph_matches_independent_kernel_schedule(monkeypatch, cell):
             ge_i = ge_i * ampa + spikes_e @ parameters["E_to_I.weight"]
             gi_e = gi_e * gaba + spikes_i @ parameters["I_to_E.weight"]
             voltage_e, spikes_e, ref_e = lif_step_expeuler(
-                voltage_e, ref_e, ge_e, gi_e, 1.0, 0.05, 12, spike,
-                v_grad_dampen=cfg.get("v_grad_dampen", 80.0), dt_override=0.1,
+                voltage_e,
+                ref_e,
+                ge_e,
+                gi_e,
+                1.0,
+                0.05,
+                12,
+                spike,
+                v_grad_dampen=cfg.get("v_grad_dampen", 80.0),
+                dt_override=0.1,
             )
             voltage_i, spikes_i, ref_i = lif_step_expeuler(
-                voltage_i, ref_i, ge_i, None, 0.5, 0.1, 6, spike,
-                v_grad_dampen=cfg.get("v_grad_dampen", 80.0), dt_override=0.1,
+                voltage_i,
+                ref_i,
+                ge_i,
+                None,
+                0.5,
+                0.1,
+                6,
+                spike,
+                v_grad_dampen=cfg.get("v_grad_dampen", 80.0),
+                dt_override=0.1,
             )
             for name, value in {
-                "spk_e": spikes_e, "spk_i": spikes_i,
-                "v_e": voltage_e, "v_i": voltage_i,
-                "ge_e": ge_e, "ge_i": ge_i, "gi_e": gi_e,
+                "spk_e": spikes_e,
+                "spk_i": spikes_i,
+                "v_e": voltage_e,
+                "v_i": voltage_i,
+                "ge_e": ge_e,
+                "ge_i": ge_i,
+                "gi_e": gi_e,
             }.items():
                 histories[name].append(value.clone())
     for name, values in histories.items():
-        torch.testing.assert_close(native.diagnostics[name], torch.stack(values),
-            rtol=0, atol=0 if name.startswith("spk") else 2e-5)
+        torch.testing.assert_close(
+            native.diagnostics[name],
+            torch.stack(values),
+            rtol=0,
+            atol=0 if name.startswith("spk") else 2e-5,
+        )
     assert native.diagnostics["spk_e"].any()
     assert bool(native.diagnostics["spk_i"].any()) == (cell == "ping")
     if cell == "ping":
         conductance = native.diagnostics["gi_e"][:, 0]
         silent_previous_i = ~native.diagnostics["spk_i"][:-1, 0].any(1).bool()
-        torch.testing.assert_close(conductance[1:][silent_previous_i],
-            conductance[:-1][silent_previous_i] * gaba, rtol=0, atol=1e-7)
+        torch.testing.assert_close(
+            conductance[1:][silent_previous_i],
+            conductance[:-1][silent_previous_i] * gaba,
+            rtol=0,
+            atol=1e-7,
+        )
 
 
 def test_native_sweep_reductions_match_full_raster_counts():
@@ -376,16 +415,33 @@ def test_native_sweep_reductions_match_full_raster_counts():
     cfg.update(n_e=16, n_i=4)
     point = recipe.operating_point("ping", 100, 24)
     point["t_ms"] = 20
+    from snnlab.lang import duration_steps
+    from snnlab.sim import PoissonInputBinding, Performance
+
+    bundle = recipe.author_network(cfg, point, traces=True)
+    binding = PoissonInputBinding(
+        input_id="drive",
+        steps_count=duration_steps(point["t_ms"], point["dt_ms"]),
+        batch_size=1,
+        rates_hz=(point["input_rate_hz"],),
+        seed=point["seed"],
+    )
     with torch.inference_mode():
         scope = simulate(
-            recipe.execution_request(
-                recipe.author_network(cfg, point, traces=True), point, traces=True
-            )
+            bundle=bundle,
+            input_bindings=(binding,),
+            seed=point["seed"],
+            device="cpu",
+            diagnostics=True,
+            performance=Performance(),
         )
         sweep = simulate(
-            recipe.execution_request(
-                recipe.author_network(cfg, point, traces=True), point, traces=False
-            )
+            bundle=bundle,
+            input_bindings=(binding,),
+            seed=point["seed"],
+            device="cpu",
+            diagnostics=False,
+            performance=Performance(),
         )
     full = compute.recording(scope, cfg, point, traces=True)
     reduced = compute.recording(sweep, cfg, point, traces=False)
@@ -400,7 +456,7 @@ def test_native_sweep_reductions_match_full_raster_counts():
 
 def test_recipe_v4_records_graph_protocol_without_cli_arguments():
     cfg = recipe.configuration()
-    assert cfg["schema"] == "exp023.recipe/v4"
+    assert cfg["schema"] == "exp023.recipe/v5"
     assert len(list(recipe.trials())) == 16
     assert all(
         "scientific_args" not in point

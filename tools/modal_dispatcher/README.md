@@ -33,14 +33,6 @@ Arguments after `--` go directly to the experiment's compute CLI, without a shel
 Scientific configuration stays in the recipe; this tool adds no training knobs.
 `--smoke` sets `PINGLAB_SMOKE` for experiments declaring that profile in their
 compute entrypoint or recipe; others reject the request before dispatch.
-For example, an experiment's committed protocol can be selected explicitly:
-
-```sh
-uv run --no-project --python 3.12 --with 'modal>=1.1,<2' --with PyYAML \
-  python -m tools.modal_dispatcher dispatch --experiment exp144 --gpu H100 \
-  -- --protocol screen
-```
-
 Check the experiment's help for its actual protocol names and supported arguments.
 
 ## Source runs

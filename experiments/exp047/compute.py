@@ -1,4 +1,8 @@
-"""Simulate each unique pool-size control; never aggregate, draw or publish."""
+"""Simulate each unique pool-size control; never aggregate, draw or publish.
+
+Invoke this stage explicitly from the repository root. Scientific outputs
+and input provenance belong to its independently completed Pingstore run.
+"""
 
 import argparse
 import os
@@ -9,7 +13,8 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
 
 import torch
-from experiments.exp047 import evidence, inputs, recipe
+from experiments.exp047.custom import evidence, inputs
+from experiments.exp047 import recipe
 from experiments.exp047.custom.network_artifacts import model_execution
 from pingstore.contracts import PingstoreError, write_json_atomic
 from snnlab.lang import duration_steps
@@ -83,7 +88,13 @@ def simulate_probe(cfg, item, artifacts):
         .float()
         .to(device)
     )
-    with model_execution(model, bundle, artifacts, seed=item["seed"], settings={"recipe": cfg, "job": item}):
+    with model_execution(
+        model,
+        bundle,
+        artifacts,
+        seed=item["seed"],
+        settings={"recipe": cfg, "job": item},
+    ):
         with torch.inference_mode():
             result = model({"drive": drive}, diagnostics=False)
     rates = {
@@ -116,7 +127,11 @@ def simulate_probe(cfg, item, artifacts):
         "rate_e_hz": rates["hid"],
         "rate_i_hz": rates["inh"],
     }
-    return metrics, {'job':item,'graph_digest':bundle.manifest['graph_digest'],'device':device}
+    return metrics, {
+        "job": item,
+        "graph_digest": bundle.manifest["graph_digest"],
+        "device": device,
+    }
 
 
 def compute(*, run_id=None):
@@ -127,7 +142,9 @@ def compute(*, run_id=None):
         environment = {"PINGLAB_SMOKE": "1" if cfg["profile"] == "smoke" else "0"}
         run.record["execution"]["environment"] = environment
         for item in recipe.jobs(cfg):
-            metrics, metadata = simulate_probe(cfg, item, run.export / f"{item['id']}--simulation")
+            metrics, metadata = simulate_probe(
+                cfg, item, run.export / f"{item['id']}--simulation"
+            )
             evidence.metric(metrics, cfg, item)
             write_json_atomic(
                 run.export / f"probe--{item['id']}--metrics.json", metrics

@@ -1,4 +1,8 @@
-"""Measure retained inhibitory-decay sweep evidence; never run inference or plot."""
+"""Measure retained inhibitory-decay sweep evidence; never run inference or plot.
+
+Invoke this stage explicitly from the repository root. Scientific outputs
+and input provenance belong to its independently completed Pingstore run.
+"""
 
 import argparse
 import sys
@@ -8,7 +12,8 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
 
 import numpy as np
-from experiments.exp041 import evidence, inputs, measurements, recipe
+from experiments.exp041.custom import evidence, inputs, measurements
+from experiments.exp041 import recipe
 from pingstore.contracts import PingstoreError, load_json, write_json_atomic
 
 MEASUREMENT = {

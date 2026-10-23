@@ -1,4 +1,8 @@
-"""Exp024 contract and measurement checks using tiny retained histories, no simulation."""
+"""Exp024 contract and measurement checks using tiny retained histories, no simulation.
+
+Run with `uv run pytest experiments/exp024/test.py`. Fixtures use temporary stores;
+bounded native checks validate numerical behavior without production runs.
+"""
 
 import subprocess
 import sys

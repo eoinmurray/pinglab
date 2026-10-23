@@ -1,4 +1,8 @@
-"""Execute two raster trials and fourteen f–I trials through native graphs."""
+"""Execute two raster trials and fourteen f–I trials through native graphs.
+
+Invoke this stage explicitly from the repository root. Scientific outputs
+and input provenance belong to its independently completed Pingstore run.
+"""
 
 from __future__ import annotations
 
@@ -15,11 +19,10 @@ sys.path[:0] = [str(REPO), str(REPO / "tools")]
 import numpy as np
 import torch
 from experiments.exp023 import recipe
-from experiments.exp023.custom.network_artifacts import snapshot_request
 from pingstore.contracts import PingstoreError
 from pingstore.stages import stage_run
 from snnlab.lang import duration_steps
-from snnlab.sim import simulate
+from snnlab.sim import Performance, PoissonInputBinding, SnapshotSpec, simulate
 
 
 def recording(result, cfg, point, *, traces):
@@ -78,6 +81,7 @@ def compute(*, run_id: str | None = None) -> str:
             snnlab_version=version("snnlab"),
             trials=[],
         )
+        run.record["scientific_artifacts"] = {"snapshot_stages": {}}
         networks = {}
         previous_threads = torch.get_num_threads()
         torch.set_num_threads(1)
@@ -87,18 +91,42 @@ def compute(*, run_id: str | None = None) -> str:
                 if key not in networks:
                     bundle = recipe.author_network(cfg, point, traces=True)
                     directory = run.export / key
-                    bundle.write(directory)
+                    bundle.write(directory, visualise=False)
+                    if not networks:
+                        bundle.visualise(run.export / "circuit.svg", view="circuit")
                     (directory / "reports" / "summary.md").rename(
                         directory / "summary.md"
                     )
                     (directory / "reports").rmdir()
                     networks[key] = bundle
                 bundle = networks[key]
+                run.record["scientific_artifacts"]["snapshot_stages"][
+                    f"{relative}/simulation"
+                ] = ["start"]
                 started = perf_counter()
                 with torch.inference_mode():
                     result = simulate(
-                        snapshot_request(recipe.execution_request(bundle, point, traces=traces),
-                                         bundle, run.export / relative / "simulation")
+                        bundle=bundle,
+                        seed=point["seed"],
+                        device="cpu",
+                        diagnostics=traces,
+                        input_bindings=(
+                            PoissonInputBinding(
+                                input_id="drive",
+                                steps_count=duration_steps(
+                                    point["t_ms"], point["dt_ms"]
+                                ),
+                                batch_size=1,
+                                rates_hz=(point["input_rate_hz"],),
+                                seed=point["seed"],
+                            ),
+                        ),
+                        performance=Performance(**cfg["performance"]),
+                        snapshot=SnapshotSpec(
+                            run.export / relative / "simulation" / "start",
+                            stage="start",
+                            parameters=True,
+                        ),
                     )
                 seconds = perf_counter() - started
                 destination = run.export / relative

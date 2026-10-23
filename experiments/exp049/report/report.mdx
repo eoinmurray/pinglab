@@ -2,7 +2,7 @@
 id: "exp049"
 title: "Training Recurrent Weights Weakens PING Rhythmicity"
 created_at: "2026-06-09"
-updated_at: "2026-09-10T00:00:00Z"
+updated_at: "2026-10-20T17:13:36Z"
 description: "Trainable recurrent conductances produced lower reference-image rhythmicity and higher excitatory firing than the frozen PING control; outcomes depended on initialization."
 collection: ["gamma-gated-sparsity", "experiments"]
 author: "Eoin Murray"
@@ -10,7 +10,6 @@ tags: ["data", "v37.0.0"]
 runs: {"exp049": "exp049-r015-present"}
 thumbnailRun: "exp049-r015-present"
 thumbnail: "training_summary.svg"
-abstract: "We asked whether surrogate-gradient training preserves PING rhythmicity when recurrent excitatory–inhibitory conductances can change. We compared trainable recurrent loops across initializations with a control whose recurrent PING weights remained frozen. Recurrent training weakened rhythmicity early and did not recover the rhythmic control, while activity and accuracy changed by condition. This constrains these learning recipes, but does not show that recurrent learning must always destroy gamma or that the compared conditions are accuracy-equivalent."
 inputs: ["exp049"]
 ---
 
@@ -24,6 +23,10 @@ export const contrastLow = display(round(run.rhythmicity.final_contrast_trainabl
 export const contrastHigh = display(round(run.rhythmicity.final_contrast_trainable_max, 3));
 
 <span id="loc-2" />
+
+## Abstract
+
+We compared fixed and trainable reciprocal PING conductances across four initialization conditions, with three MNIST training seeds per condition. Trainable recurrence had mean reference-image contrast {contrastFirst} after epoch 1 and ended at {contrastLow}–{contrastHigh}, below the fixed-recurrence control. E→I pruning accompanied increased E firing, but the comparison does not isolate pruning as the cause or establish equivalent accuracy. The single-image rhythmicity diagnostic does not show that recurrent learning must always destroy gamma.
 
 ## Results
 

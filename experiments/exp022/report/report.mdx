@@ -2,7 +2,7 @@
 id: "exp022"
 title: "MNIST"
 created_at: "2026-08-11"
-updated_at: "2026-10-14T00:00:00Z"
+updated_at: "2026-10-20T17:13:36Z"
 description: "Seven controlled training families, their retained checkpoint bank, validation learning curves, and raster diagnostics."
 collection: ["gamma-gated-sparsity", "datasets", "experiments"]
 author: "Eoin Murray"
@@ -28,6 +28,7 @@ export const trainingPoolLabel = family => {
   return `${format(pool)} (${format(training)} train / ${format(pool - training)} validation)`;
 };
 export const trainingFamilyCount = family => run ? display(run.family_status[family].trained) : 'unavailable';
+export const familyValidationRange = family => { if (!run) return 'unavailable'; const values = run.cells.filter(cell => cell.family === family).map(cell => cell.acc); return `${Math.min(...values).toFixed(2)}–${Math.max(...values).toFixed(2)}`; };
 
 <ReportAvailability report="exp022" />
 
@@ -62,11 +63,19 @@ The seven figures pair each training family's learning history with one example 
 
 ### TR01 — Full-data baseline
 
+Best-validation accuracy ranged from {familyValidationRange('canonical')}%
+across this family's conditions and seeds. The accompanying raster is one
+final-checkpoint diagnostic, rather than an estimate of the family mean.
+
 <RunFigure report="exp022" experiment="exp022" allowUnavailable file="training__TR-01.png" number={1} id="fig-tr-01" alt="TR01: validation learning curves on the left and a seed-42 excitatory/inhibitory spike raster on the right.">
   (A) {trainingFamilyCount('canonical')} individual validation learning curves across conditions and seeds 42–44. Colours identify the full-data condition; dashed lines are COBA and solid lines are PING. (B) PING baseline, full training pool, 25 Hz peak input rate, seed 42, on one digit-zero presentation. Black marks are excitatory spikes; red marks are inhibitory spikes. Both panels use retained data; no across-seed average or uncertainty band is shown, and the raster is one example rather than a family-wide estimate.
 </RunFigure>
 
 ### TR02 — Activity limits
+
+Best-validation accuracy ranged from {familyValidationRange('activity_frontier')}%
+across this family's conditions and seeds. The accompanying raster is one
+final-checkpoint diagnostic, rather than an estimate of the family mean.
 
 <RunFigure report="exp022" experiment="exp022" allowUnavailable file="training__TR-02.png" number={2} id="fig-tr-02" alt="TR02: validation learning curves on the left and a seed-42 excitatory/inhibitory spike raster on the right.">
   (A) {trainingFamilyCount('activity_frontier')} individual validation learning curves across conditions and seeds 42–44. Colours identify the activity ceilings; dashed lines are COBA and solid lines are PING. (B) PING with a 1 Hz activity ceiling, 25 Hz peak input rate, seed 42, on one digit-zero presentation. Black marks are excitatory spikes; red marks are inhibitory spikes. Both panels use retained data; no across-seed average or uncertainty band is shown, and the raster is one example rather than a family-wide estimate.
@@ -74,11 +83,19 @@ The seven figures pair each training family's learning history with one example 
 
 ### TR03 — Inhibitory decay
 
+Best-validation accuracy ranged from {familyValidationRange('tau_gaba')}%
+across this family's conditions and seeds. The accompanying raster is one
+final-checkpoint diagnostic, rather than an estimate of the family mean.
+
 <RunFigure report="exp022" experiment="exp022" allowUnavailable file="training__TR-03.png" number={3} id="fig-tr-03" alt="TR03: validation learning curves on the left and a seed-42 excitatory/inhibitory spike raster on the right.">
   (A) {trainingFamilyCount('tau_gaba')} individual validation learning curves across conditions and seeds 42–44. Colours identify the inhibitory decay times. (B) PING with 6 ms inhibitory decay, 25 Hz peak input rate, seed 42, on one digit-zero presentation. Black marks are excitatory spikes; red marks are inhibitory spikes. Both panels use retained data; no across-seed average or uncertainty band is shown, and the raster is one example rather than a family-wide estimate.
 </RunFigure>
 
 ### TR04 — Timestep
+
+Best-validation accuracy ranged from {familyValidationRange('dt')}%
+across this family's conditions and seeds. The accompanying raster is one
+final-checkpoint diagnostic, rather than an estimate of the family mean.
 
 <RunFigure report="exp022" experiment="exp022" allowUnavailable file="training__TR-04.png" number={4} id="fig-tr-04" alt="TR04: validation learning curves on the left and a seed-42 excitatory/inhibitory spike raster on the right.">
   (A) {trainingFamilyCount('dt')} individual validation learning curves across conditions and seeds 42–44. Colours identify the simulation timesteps. (B) PING with a 0.1 ms timestep, 25 Hz peak input rate, seed 42, on one digit-zero presentation. Black marks are excitatory spikes; red marks are inhibitory spikes. Both panels use retained data; no across-seed average or uncertainty band is shown, and the raster is one example rather than a family-wide estimate.
@@ -86,17 +103,29 @@ The seven figures pair each training family's learning history with one example 
 
 ### TR05 — Recurrent connections
 
+Best-validation accuracy ranged from {familyValidationRange('init')}%
+across this family's conditions and seeds. The accompanying raster is one
+final-checkpoint diagnostic, rather than an estimate of the family mean.
+
 <RunFigure report="exp022" experiment="exp022" allowUnavailable file="training__TR-05.png" number={5} id="fig-tr-05" alt="TR05: validation learning curves on the left and a seed-42 excitatory/inhibitory spike raster on the right.">
   (A) {trainingFamilyCount('init')} individual validation learning curves across conditions and seeds 42–44. Colours identify the recurrent initialization and trainability conditions. (B) PING with fixed recurrent connections, 25 Hz peak input rate, seed 42, on one digit-zero presentation. Black marks are excitatory spikes; red marks are inhibitory spikes. Both panels use retained data; no across-seed average or uncertainty band is shown, and the raster is one example rather than a family-wide estimate.
 </RunFigure>
 
 ### TR06 — Variable input rate
 
+Best-validation accuracy ranged from {familyValidationRange('variable_rate')}%
+across this family's conditions and seeds. The accompanying raster is one
+final-checkpoint diagnostic, rather than an estimate of the family mean.
+
 <RunFigure report="exp022" experiment="exp022" allowUnavailable file="training__TR-06.png" number={6} id="fig-tr-06" alt="TR06: validation learning curves on the left and a seed-42 excitatory/inhibitory spike raster on the right.">
   (A) {trainingFamilyCount('variable_rate')} individual validation learning curves across conditions and seeds 42–44. All three curves use the same variable-rate training recipe. (B) variable-rate-trained PING, probed at a 5 Hz peak input rate, seed 42, on one digit-zero presentation. Black marks are excitatory spikes; red marks are inhibitory spikes. Both panels use retained data; no across-seed average or uncertainty band is shown, and the raster is one example rather than a family-wide estimate.
 </RunFigure>
 
 ### TR07 — Input strength
+
+Best-validation accuracy ranged from {familyValidationRange('low_w_in')}%
+across this family's conditions and seeds. The accompanying raster is one
+final-checkpoint diagnostic, rather than an estimate of the family mean.
 
 <RunFigure report="exp022" experiment="exp022" allowUnavailable file="training__TR-07.png" number={7} id="fig-tr-07" alt="TR07: validation learning curves on the left and a seed-42 excitatory/inhibitory spike raster on the right.">
   (A) {trainingFamilyCount('low_w_in')} individual validation learning curves across conditions and seeds 42–44. Colours identify the initial input-coupling settings. (B) PING with input-coupling parent mean 0.05 and a 1 Hz activity ceiling, 25 Hz peak input rate, seed 42, on one digit-zero presentation. Black marks are excitatory spikes; red marks are inhibitory spikes. Both panels use retained data; no across-seed average or uncertainty band is shown, and the raster is one example rather than a family-wide estimate.
@@ -125,7 +154,7 @@ The completed bank contains 102 models: 90 reused models with unchanged weights 
 
    Each score applies to one output neuron and presentation. Here $k$ indexes the $N_{t}$ timesteps, $u_{\text{out} [ k ]}$ is dimensionless pre-reset output state, and $s_{\text{out} [ k ]}$ is a dimensionless binary output spike; both scores are dimensionless.
 
-6. **Train the networks.** Training used {rStandardEpochs} epochs of AdamW, learning rate 0.0004, batches of {rStandardBatchSize}, zero weight decay, and gradient clipping at 1. Surrogate gradients approximated spike derivatives\[[1](#ref-1)\] voltage-gradient damping was 1,000 for recurrent networks and 1 for controls. Activity-constrained conditions minimized
+6. **Train the networks.** Training used {rStandardEpochs} epochs of AdamW, learning rate 0.0004, batches of {rStandardBatchSize}, zero weight decay, and gradient clipping at 1. Surrogate gradients approximated spike derivatives\[[1](#ref-1)\]; voltage-gradient damping was 1,000 for recurrent networks and 1 for controls. Activity-constrained conditions minimized
 
    $$
    L_{\text{total}} = L_{\text{CE}} + \lambda_{\text{rate}} {\langle {\max ( 0 , r_{E} - r_{E , \text{ceil}} )}^{2} \rangle}_{\text{batch}} .
@@ -133,6 +162,10 @@ The completed bank contains 102 models: 90 reused models with unchanged weights 
    $$
 
    $L_{\text{total}}$ is total loss and $L_{\text{CE}}$ is mean cross-entropy. Each presentation’s mean excitatory firing rate $r_{E}$ and ceiling $r_{E , \text{ceil}}$ are in hertz. Brackets average the individual penalties across the minibatch; $\lambda_{\text{rate}} = 0.041$ with rates in hertz, or zero when disabled.
+
+The pinned historical bank predates the current recipe’s common voltage-gradient
+damping of 1,000 for COBA and PING. Its displayed settings and outcomes remain
+bound to that historical evidence.
 
 7. **Select models.** Validation averaged three fixed Poisson encoding draws. Selection minimized mean cross-entropy, breaking ties by higher accuracy and then earlier epoch. Selected and final-epoch models were retained.
 

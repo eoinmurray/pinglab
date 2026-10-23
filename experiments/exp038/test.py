@@ -1,4 +1,8 @@
-"""Synthetic staged probes; no production simulations or historical imports."""
+"""Synthetic staged probes; no production simulations or historical imports.
+
+Run with `uv run pytest experiments/exp038/test.py`. Fixtures use temporary stores;
+bounded native checks validate numerical behavior without production runs.
+"""
 
 import os
 import subprocess
@@ -7,16 +11,74 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-from experiments import exp022
-from experiments.exp038 import (
-    analyse,
-    compute,
-    inputs,
-    measurements,
-    present,
-    recipe,
-)
-from experiments.exp044.test import _common_config
+from experiments.exp038.custom import bank_contract as exp022
+from experiments.exp038 import analyse, compute, present, recipe
+from experiments.exp038.custom import inputs, measurements
+from experiments.exp038.recipe import refractory_configuration
+
+
+def _common_config() -> dict:
+    return {
+        **refractory_configuration(),
+        "model": "ping",
+        "dataset": "mnist",
+        "max_samples": 7000,
+        "epochs": 50,
+        "t_ms": 200.0,
+        "tau_ampa_ms": 2.0,
+        "tau_gaba_ms": 6.0,
+        "input_rate": 25.0,
+        "input_rate_sampling": "fixed",
+        "hidden_sizes": [1024],
+        "n_in": 784,
+        "n_hidden": 1024,
+        "n_inh": 256,
+        "n_out": 10,
+        "ei_strength": 1.0,
+        "ei_ratio": 2.0,
+        "w_in": [0.9, 0.09],
+        "w_in_initial_zero_fraction": 0.95,
+        "recurrent_initial_zero_fraction": 0.0,
+        "readout_w_init_mean": 1.12060546875,
+        "readout_w_init_std": 0.8349609375,
+        "weight_decay": 0.0,
+        "grad_clip": 1.0,
+        "trainable_w_ei": False,
+        "trainable_w_ie": False,
+        "trainable_w_ee": False,
+        "trainable_w_ii": False,
+        "fr_reg_upper_strength": 0.0,
+        "fr_reg_upper_target_hz": 0.0,
+        "readout_mode": "mem-mean",
+        "surrogate_slope": 1.0,
+        "lr": 0.0004,
+        "batch_size": 256,
+        "v_grad_dampen": 1000.0,
+        "dales_law": True,
+        "dataset_split": {
+            "optimizer_train_samples": 6300,
+            "validation_samples": 700,
+            "official_test_samples": 10000,
+            "checkpoint_selection_partition": "validation",
+            "official_test_used_during_training": False,
+            "source_train_partition": "official_mnist_train",
+            "source_test_partition": "official_mnist_test",
+            "split_seed": 42,
+            "validation_fraction": 0.1,
+        },
+        "validation_encoder_draws": {
+            "count": 3,
+            "encoder_seeds": [1, 2, 3],
+            "input_rate_seeds": [4, 5, 6],
+        },
+        "adaptive_threshold": False,
+        "train_leak": False,
+        "signed_readout": False,
+        "readout_bias": False,
+        "state_clamp": False,
+    }
+
+
 from pingstore import stages
 from pingstore.contracts import (
     PingstoreError,
@@ -226,9 +288,7 @@ def test_recipe_retains_full_production_grid():
 
 def test_frontier_registry_and_ei_summary_are_multiseed(tmp_path):
     expected = {
-        cell["name"]
-        for cell in exp022.CANONICAL_CELLS
-        if cell["training_run_id"] == "TR-02"
+        cell["name"] for cell in exp022.CELLS if cell["training_run_id"] == "TR-02"
     }
     observed = {
         recipe.cell_name(model, target, seed)
@@ -334,27 +394,6 @@ def test_failed_simulation_never_completes(lab, monkeypatch):
     assert list((root / ".pingstore/runs").glob(".exp038-*-compute.tmp"))
 
 
-def test_retired_entrypoints_and_import_side_effects(tmp_path):
-    root = Path(__file__).resolve().parents[2]
-    code = "from experiments import exp038; assert exp038.CHECKPOINT_ROLE == 'best_validation'"
-    result = subprocess.run(
-        [sys.executable, "-c", code],
-        cwd=tmp_path,
-        env={**os.environ, "PYTHONPATH": str(root)},
-        capture_output=True,
-        text=True,
-    )
-    assert result.returncode == 0, result.stderr
-    assert not list(tmp_path.iterdir())
-    result = subprocess.run(
-        [sys.executable, "-m", "experiments.exp038"],
-        cwd=root,
-        capture_output=True,
-        text=True,
-    )
-    assert result.returncode != 0 and "explicit" in result.stderr
-
-
 def test_v2_and_wrong_stage_inputs_are_rejected(lab):
     root, bank_id, _ = lab
     cid = compute.compute(bank_id)
@@ -398,7 +437,7 @@ def test_present_rejects_resigned_incomplete_analysis(lab):
 
 
 def test_raster_labels_use_recorded_class_and_do_not_overlap(tmp_path, monkeypatch):
-    from experiments.exp038 import plots
+    from experiments.exp038.custom import plots
 
     samples = [
         {
@@ -428,17 +467,19 @@ def test_raster_labels_use_recorded_class_and_do_not_overlap(tmp_path, monkeypat
 
 
 def test_hpc_commands_use_gpu_then_dependent_cpu(tmp_path):
-    from experiments.exp038 import hpc
+    from experiments.exp038.custom import hpc
 
     plan = {
-        "account": "gpu-account", "cpu_account": "cpu-account",
-        "partition": "ampere", "cpu_partition": "icelake",
-        "walltime": "02:00:00", "cpus": 4, "memory_gb": 32,
+        "account": "gpu-account",
+        "cpu_account": "cpu-account",
+        "partition": "ampere",
+        "cpu_partition": "icelake",
+        "walltime": "02:00:00",
+        "cpus": 4,
+        "memory_gb": 32,
     }
     compute_cmd = hpc.command(plan, tmp_path / "plan.json", "compute")
-    present_cmd = hpc.command(
-        plan, tmp_path / "plan.json", "present", dependency="456"
-    )
+    present_cmd = hpc.command(plan, tmp_path / "plan.json", "present", dependency="456")
     assert "--account=gpu-account" in compute_cmd
     assert "--gres=gpu:1" in compute_cmd
     assert "--account=cpu-account" in present_cmd

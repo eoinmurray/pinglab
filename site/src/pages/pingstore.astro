@@ -1,0 +1,87 @@
+---
+import { readdir } from 'node:fs/promises';
+import { runStore } from '../lib/run-store';
+import Page from '../layouts/Page.astro';
+import Dataset from '../components/Dataset.astro';
+import Table from '../components/Table.astro';
+import { Code } from 'astro:components';
+import { getReports } from '../lib/reports';
+import { dataset } from '../lib/pingstore';
+
+const reports = new Map((await getReports()).map(report => [report.data.id, report]));
+const experiments = (await readdir('../experiments', { withFileTypes: true }))
+  .filter(entry => entry.isDirectory() && /^exp\d+$/.test(entry.name))
+  .map(entry => entry.name)
+  .sort((a, b) => b.localeCompare(a, 'en', { numeric: true }));
+const inventories = await Promise.all(experiments.map(async experiment => {
+  const report = reports.get(experiment);
+  const selectedRuns = report?.data.runs;
+  const inputs: [string, string | undefined][] = selectedRuns ? Object.entries(selectedRuns) : [[experiment, undefined]];
+  try {
+    let datasets = await Promise.all(inputs.map(([id, run]) => dataset(id, run)));
+    // A report without data does not claim these historical runs as evidence.
+    if (!report?.data.tags.includes('data')) {
+      datasets = datasets.map(data => ({ ...data,
+        runs: data.runs.map(run => ({ ...run, selected: false, used: false })),
+      }));
+    }
+    return { experiment, report, selectedRuns, datasets, error: undefined };
+  } catch (error) {
+    return { experiment, report, selectedRuns, datasets: undefined,
+      error: (error as NodeJS.ErrnoException).code === 'ENOENT'
+        ? 'A selected run or recorded input is missing from local Pingstore and R2.'
+        : 'The run inventory could not be read. Check the run records.' };
+  }
+}));
+const uniqueRuns = new Map<string, boolean>();
+for (const inventory of inventories) {
+  for (const run of inventory.datasets?.flatMap(data => data.runs) ?? []) {
+    uniqueRuns.set(run.id, run.used || !!uniqueRuns.get(run.id));
+  }
+}
+const completedRuns = await runStore.ids();
+const usedRuns = completedRuns.filter(id => uniqueRuns.get(id)).length;
+const unavailableExperiments = inventories.filter(inventory => inventory.error).length;
+const pruneCommands = `uv run pingstore evict --all --dry-run
+
+# After reviewing the plan, replace PLAN_HASH with its complete sha256 hash.
+uv run pingstore evict --all --confirm PLAN_HASH`;
+---
+
+<Page title="Pingstore" description="Dataset tables for Pinglab experiments." noindex>
+  <d-title>
+    <h1>Pingstore</h1>
+  </d-title>
+  <d-article role="article" aria-label="Pingstore">
+    <p>The appendix lists the available local and R2 run inventory for each experiment, newest experiment first. “Used” marks runs in the report’s selected evidence chains.</p>
+    <Table headers={['Total runs', 'Used', 'Unused']}
+      rows={[[completedRuns.length, unavailableExperiments ? `≥ ${usedRuns}` : usedRuns,
+        unavailableExperiments ? `≤ ${completedRuns.length - usedRuns}` : completedRuns.length - usedRuns]]} label="Run totals" />
+    <p>Counts include each completed run once.
+      {unavailableExperiments > 0 && <> Evidence for {unavailableExperiments} {unavailableExperiments === 1 ? 'experiment' : 'experiments'} is unavailable, so used is a lower bound and unused is an upper bound.</>}
+    </p>
+    <p>To free local disk space, evict verified backup copies with these commands from the repository root. Review the dry-run plan before confirming. Report-used runs remain readable from R2; protected runs and inputs needed by unfinished work stay local. Confirmation verifies remote bytes before deleting any local copies.</p>
+    <Code code={pruneCommands} lang="sh" />
+  </d-article>
+  <d-appendix distill-prerendered aria-label="Pingstore appendix">
+    {inventories.map(({ experiment, report, selectedRuns, datasets, error }) => <>
+      <h2 id={experiment}>
+        {report ? <a href={`/${experiment}`}>{experiment} — {report.data.title}</a> : experiment}
+      </h2>
+      <!-- Missing pinned evidence stays unavailable; never substitute another run. -->
+      {error ? <>
+        <h3 id={`${experiment}-dataset`}>Dataset</h3>
+        <section aria-labelledby={`${experiment}-dataset`}><p role="status">Dataset unavailable: {error}</p></section>
+      </> : <Dataset experiment={experiment} selectedRuns={selectedRuns} datasets={datasets} headingId={`${experiment}-dataset`} />}
+    </>)}
+    {experiments.length === 0 && <p>No experiments are available.</p>}
+  </d-appendix>
+</Page>
+
+<style>
+  d-appendix { background: var(--surface); color: rgb(var(--ink) / .65); }
+  d-appendix h2 { font-size: 18px; line-height: 1.5; margin: 2rem 0 0; scroll-margin-top: 24px; }
+  d-appendix h2:first-child { margin-top: 0; }
+  d-appendix section { min-width: 0; }
+  @media print { d-appendix { background: white; } }
+</style>

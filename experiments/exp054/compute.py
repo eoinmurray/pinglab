@@ -1,4 +1,8 @@
-"""Retain untrained-network native sparse rasters; never analyse or plot."""
+"""Retain untrained-network native sparse rasters; never analyse or plot.
+
+Invoke this stage explicitly from the repository root. Scientific outputs
+and input provenance belong to its independently completed Pingstore run.
+"""
 
 import argparse
 import os
@@ -12,7 +16,8 @@ sys.path[:0] = [str(REPO), str(REPO / "tools")]
 
 import numpy as np
 import torch
-from experiments.exp054 import evidence, inputs, recipe
+from experiments.exp054.custom import evidence, inputs
+from experiments.exp054 import recipe
 from experiments.exp054.custom.network_artifacts import model_execution
 from pingstore.contracts import PingstoreError, write_json_atomic
 from snnlab.lang import duration_steps
@@ -42,7 +47,13 @@ def simulate_probe(cfg, item, destination, device):
         device=device,
     )
     started = perf_counter()
-    with model_execution(model, bundle, destination.parent / f"{item['id']}--simulation", seed=cfg["seed"], settings={"recipe": cfg, "job": item}):
+    with model_execution(
+        model,
+        bundle,
+        destination.parent / f"{item['id']}--simulation",
+        seed=cfg["seed"],
+        settings={"recipe": cfg, "job": item},
+    ):
         with torch.inference_mode():
             # No continuation: each probe resets voltage, conductance, refractory
             # counters and delay history, including before the unrecorded burn-in.

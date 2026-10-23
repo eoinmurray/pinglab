@@ -1,4 +1,8 @@
-"""Render saved exp046 measurements; never count, fit, simulate or publish."""
+"""Render saved exp046 measurements; never count, fit, simulate or publish.
+
+Invoke this stage explicitly from the repository root. Scientific outputs
+and input provenance belong to its independently completed Pingstore run.
+"""
 
 import argparse
 import sys
@@ -8,7 +12,9 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
 
-from experiments.exp046 import inputs, measurements, plots
+from experiments.exp046.custom.network_artifacts import copy_circuits
+
+from experiments.exp046.custom import inputs, measurements, plots
 from experiments import theme
 from pingstore.contracts import PingstoreError, load_json, write_json_atomic
 
@@ -80,12 +86,17 @@ def present(identity, *, run_id=None):
         write_json_atomic(
             run.export / "numbers.json",
             {
-                **result,
-                "run_id": run.run_id,
-                "notebook_run_id": run.run_id,
-                "duration_s": duration,
-                "duration": format_duration(duration),
-                "git_sha": run.record["provenance"]["git_commit"],
+                **(
+                    {
+                        **result,
+                        "run_id": run.run_id,
+                        "notebook_run_id": run.run_id,
+                        "duration_s": duration,
+                        "duration": format_duration(duration),
+                        "git_sha": run.record["provenance"]["git_commit"],
+                    }
+                ),
+                "circuit_files": copy_circuits(run),
             },
         )
     return run.run_id

@@ -1,7 +1,11 @@
-"""Pure recipe and numerical exports; execute an explicit stage."""
+"""Pure recipe and numerical exports; execute an explicit stage.
 
-from .measurements import summarize_ei_points
-from .recipe import (
+This package exposes local scientific definitions for its independent stages.
+Importing it does not create runs, load scientific artifacts or launch execution.
+"""
+
+from experiments.exp038.custom.measurements import summarize_ei_points
+from experiments.exp038.recipe import (
     ANALYSIS_PURPOSE,
     CHECKPOINT_POLICY,
     CHECKPOINT_ROLE,

@@ -1,4 +1,8 @@
-"""Analyse explicit exp049 recordings and pinned TR-05 histories."""
+"""Analyse explicit exp049 recordings and pinned TR-05 histories.
+
+Invoke this stage explicitly from the repository root. Scientific outputs
+and input provenance belong to its independently completed Pingstore run.
+"""
 
 import argparse
 import sys
@@ -8,7 +12,8 @@ import numpy as np
 
 REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
-from experiments.exp049 import evidence, inputs, measurements, recipe
+from experiments.exp049.custom import evidence, inputs, measurements
+from experiments.exp049 import recipe
 from pingstore.contracts import PingstoreError, load_json, write_json_atomic
 
 MEASUREMENT = {

@@ -2,11 +2,12 @@
 id: "exp047"
 title: "Pool-Size Effects Depend on Synaptic Scaling"
 created_at: "2026-07-14"
-updated_at: "2026-08-31T00:00:00Z"
+updated_at: "2026-10-20T17:13:36Z"
 description: "Paired controls separate fixed summed I→E coupling from fixed expected synaptic strength as the inhibitory pool grows."
 collection: ["gamma-gated-sparsity", "experiments"]
 author: "Eoin Murray"
 tags: ["data", "v37.0.0"]
+runs: {exp047: exp047-r003-present}
 inputs: ["exp047"]
 ---
 
@@ -55,9 +56,7 @@ export const conditionSeedCount = run ? display(14 * cfg.seeds.length) : 'unavai
 
 ## Abstract
 
-We asked whether inhibitory population size alters PING activity by adding inhibition or merely redistributing a fixed inhibitory budget. We compared pool-size sweeps that held either summed inhibition or individual synaptic strength fixed.
-
-Firing rates stayed stable under fixed total inhibition but fell as the pool grew when individual synaptic strength was preserved. This supports inverse scaling as a compensation rule for this regime; it does not establish uniqueness or demonstrate gamma rhythmicity.
+We tested inhibitory pool size under two controls: fixed summed inhibition and fixed expected per-synapse strength. Across {nSeeds} seeds, increasing I size from {nLo} to {nHi} changed mean E firing from {reFtLoFmt} to {reFtHiFmt} Hz at fixed summed coupling, versus {reFsLoFmt} to {reFsHiFmt} Hz at fixed synaptic strength. Pool-size effects depended on scaling. These untrained-network rates do not by themselves establish gamma oscillations.
 
 <span id="loc-2" />
 

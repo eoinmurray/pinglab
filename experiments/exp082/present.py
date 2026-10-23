@@ -1,4 +1,8 @@
-"""Render explicit saved analysis and its pinned recordings; no upstream execution."""
+"""Render explicit saved analysis and its pinned recordings; no upstream execution.
+
+Invoke this stage explicitly from the repository root. Scientific outputs
+and input provenance belong to its independently completed Pingstore run.
+"""
 
 import argparse
 import sys
@@ -8,7 +12,10 @@ import numpy as np
 
 REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
-from experiments.exp082 import evidence, inputs, plots, recipe
+
+from experiments.exp082.custom.network_artifacts import copy_circuits
+from experiments.exp082.custom import evidence, inputs, plots
+from experiments.exp082 import recipe
 from pingstore.contracts import PingstoreError, load_json, write_json_atomic
 
 
@@ -123,7 +130,10 @@ def present(identity, *, run_id=None):
             result["plot_data"],
             out / "continuous_stream_compound",
         )
-        write_json_atomic(out / "numbers.json", {**result, "run_id": rid})
+        write_json_atomic(
+            out / "numbers.json",
+            {**({**result, "run_id": rid}), "circuit_files": copy_circuits(run)},
+        )
     return run.run_id
 
 

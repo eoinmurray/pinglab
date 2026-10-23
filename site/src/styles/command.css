@@ -31,6 +31,7 @@
 }
 .command-dialog [cmdk-item][data-selected="true"] { background: var(--command-selected, #e6efe6); color: var(--command-selected-foreground, #163a32); }
 .command-item-title { min-width: 0; flex: 1; overflow-wrap: anywhere; }
+.command-item-subtitle { display: block; margin-top: .2rem; font-size: 12px; color: var(--command-muted, #637168); }
 .command-item-detail { flex-shrink: 0; font-size: 11px; color: var(--command-muted, #637168); }
 .command-dialog [cmdk-empty] { padding: 2rem 1rem; text-align: center; color: var(--command-muted, #637168); }
 .command-close {

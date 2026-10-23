@@ -2,7 +2,7 @@
 id: "exp117"
 title: "Mean-Field Analysis of PING Bifurcations"
 created_at: "2026-09-19"
-updated_at: "2026-09-19T00:00:00Z"
+updated_at: "2026-10-20T17:13:36Z"
 description: "An independent four-variable mean-field analysis identifies a Hopf bifurcation, sampled dynamics consistent with a supercritical transition, and decreasing onset frequency with slower inhibition."
 collection: ["gamma-gated-sparsity", "experiments"]
 author: "Eoin Murray"
@@ -35,19 +35,6 @@ export const remaining = run ? display(round(result.remaining_max_real_per_ms, 3
 
 We derived an independent four-variable population-rate closure of the conductance-based excitatory–inhibitory circuit. Analytical-Jacobian continuation identified a Hopf bifurcation at {istar} nA with onset frequency {fstar} Hz. Ascending and descending near-onset integrations produced coincident sampled branches and continuous amplitude growth consistent with a supercritical transition. This numerical criterion does not exclude a narrower bistable interval or unstable cycle. Hopf frequency decreased as inhibitory decay lengthened.
 
-<span id="loc-2" />
-
-## Meta
-
-**Objectives**
-
-1. ✓ Derive a mean-field model of our system. **(Completed.)**
-
-2. ✓ Find out whether it has a Hopf bifurcation and at what frequency it occurs. **(Completed.)**
-
-3. ✓ Test the criticality numerically. **(Completed: consistent with a supercritical transition under the sampled criteria.)**
-
-4. ✓ Plot frequency against $\tau_{\text{GABA}}$. **(Completed.)**
 
 <span id="loc-3" />
 
@@ -71,18 +58,18 @@ At $I_{\text{ext}} =$ {istar} nA, a complex-conjugate eigenvalue pair crossed th
 
 2. **Hopf bifurcation and onset frequency.** At the reference inhibitory decay time of 6 ms, we evaluated the equilibrium over 401 equally spaced external drives from 0 to 4 nA.
 
-   **2.1 — Solve for the equilibrium.** We analytically eliminated the two conductances and the inhibitory rate from [Equation 19](#loc-15). For each drive, the remaining excitatory rate solved the scalar residual
+   **2.1 — Solve for the equilibrium.** We analytically eliminated the two conductances and the inhibitory rate from [Equation A18](#loc-15). For each drive, the remaining excitatory rate solved the scalar residual
 
    <span id="loc-7" />
 
    $$
-   H ( r_{E} ) = r_{E} - \Phi_{E} I_{\text{ext}} - \Delta V_{\text{inh}} \tau_{\text{GABA}} G_{I \to E} \Phi_{I} \Delta V_{\text{exc}} \tau_{\text{AMPA}} G_{E \to I} r_{E} = 0 .
+   H(r_E) = r_E - \Phi_E\!\left(I_{\text{ext}} - \Delta V_{\text{inh}}\tau_{\text{GABA}}G_{I\to E}\Phi_I\!\left(\Delta V_{\text{exc}}\tau_{\text{AMPA}}G_{E\to I}r_E\right)\right) = 0 .
    \tag{1}
    $$
 
    Brent’s bracketed method searched $0 \le r_{E} \le \frac{1}{\tau_{\text{ref} , E}}$ with absolute tolerance $10^{- 13}$ ${\text{ms}}^{- 1}$ and relative tolerance $10^{- 12}$. We recovered $r_{I}$, $g_{e}^{I}$ and $g_{i}^{E}$ by substitution and required an absolute residual below $10^{- 11}$ ${\text{ms}}^{- 1}$.
 
-   **2.2 — Calculate local stability.** At every equilibrium, we evaluated the analytical $J_{\text{flow}}$ in [Equation 14](#loc-14) and numerically calculated its four eigenvalues. Eigenvalues with positive imaginary part greater than $10^{- 8}$ ${\text{ms}}^{- 1}$ were eligible for the leading complex pair. We plotted all four eigenvalues in the complex plane and coloured them by external drive; negative and positive real parts denoted local decay and growth, respectively ([Fig. 1](#loc-5)A).
+   **2.2 — Calculate local stability.** At every equilibrium, we evaluated the analytical $J_{\text{flow}}$ in [Equation A13](#loc-14) and numerically calculated its four eigenvalues. Eigenvalues with positive imaginary part greater than $10^{- 8}$ ${\text{ms}}^{- 1}$ were eligible for the leading complex pair. We plotted all four eigenvalues in the complex plane and coloured them by external drive; negative and positive real parts denoted local decay and growth, respectively ([Fig. 1](#loc-5)A).
 
    **2.3 — Identify and verify the crossing.** The first change of the leading complex pair from negative to nonnegative real part supplied a coarse drive bracket. Brent’s method refined the zero to absolute drive tolerance $10^{- 12}$ nA and relative tolerance $10^{- 12}$, recomputing the equilibrium and analytical Jacobian at every trial drive. We confirmed nonzero imaginary part, negative real parts for the remaining modes, and positive transversality by a centred difference with $10^{- 5}$ nA half-step. The recorded crossing slope was {slope} ${\text{ms}}^{- 1} {\text{nA}}^{- 1}$ and the largest remaining real part was {remaining} ${\text{ms}}^{- 1}$.
 

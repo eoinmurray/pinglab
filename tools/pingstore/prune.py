@@ -17,8 +17,9 @@ from .contracts import (
     PingstoreError,
     file_sha256,
     load_json,
+    validate_operational_run_directory,
 )
-from .discovery import discover_store
+from .discovery import discover_store, validated_run_graph
 from .stages import operation_lock
 from .usage import ancestry, report_usage
 
@@ -107,7 +108,13 @@ def build_plan(
             raise PingstoreError(
                 f"prune does not accept unsupported runs entry: {path}"
             )
-    records, _ = discover_store(runs)
+    # Unused runs can have missing historical inputs. Validate every payload,
+    # then require complete, digest-matched ancestry for everything we retain.
+    records = {
+        path.name: validate_operational_run_directory(path)
+        for path in sorted(runs.iterdir())
+        if not path.name.startswith(".")
+    }
     scope = _experiment_scope(experiments, records)
     stage_scope = set(stages) if stages is not None else None
     if stage_scope is not None and (
@@ -142,6 +149,7 @@ def build_plan(
         reasons[run_id].add("protected-ancestor")
     hidden = _hidden_inputs(runs, records, reasons)
     keep = ancestry(records, set(reasons))
+    validated_run_graph(runs, keep)
     for run_id in keep - set(reasons):
         reasons[run_id].add("required-ancestor")
     watermarks = allocation_watermarks(repo / ".pingstore")

@@ -1,4 +1,8 @@
-"""Render the retained compound figure from analysis only; never launch upstream work."""
+"""Render the retained compound figure from analysis only; never launch upstream work.
+
+Invoke this stage explicitly from the repository root. Scientific outputs
+and input provenance belong to its independently completed Pingstore run.
+"""
 
 import argparse
 import sys
@@ -7,8 +11,11 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
 
+from experiments.exp042.custom.network_artifacts import copy_circuits
+
 import numpy as np
-from experiments.exp042 import inputs, plots, recipe
+from experiments.exp042.custom import inputs, plots
+from experiments.exp042 import recipe
 from experiments import theme
 from pingstore.contracts import PingstoreError, load_json, write_json_atomic
 
@@ -51,7 +58,10 @@ def present(identity, *, run_id=None):
         plots.fig_rhythm_compound(
             cyc, cell, samples["cycle"], samples["cell"], run.export / "rhythm_compound"
         )
-        write_json_atomic(run.export / "numbers.json", {**data, "run_id": run.run_id})
+        write_json_atomic(
+            run.export / "numbers.json",
+            {**({**data, "run_id": run.run_id}), "circuit_files": copy_circuits(run)},
+        )
         run.record["presentation_lineage"] = {
             "analysis": analysis.reference,
             "operation": "render saved summaries and illustrative spikes",

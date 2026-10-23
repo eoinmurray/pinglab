@@ -1,6 +1,5 @@
 import { getEntry } from 'astro:content';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
+import { runStore } from './run-store.ts';
 import { optionalPresentation } from './pingstore';
 import { readSnapshotEvidence, type SnapshotOptions } from './snapshot-data';
 
@@ -22,8 +21,9 @@ export async function reportData(report: string, { experiment = report, allowUna
     throw new Error(`No presentation data for ${report}/${experiment}`);
   }
   if (!/^exp\d{3}-r\d+-present$/.test(run)) throw new Error(`Invalid presentation ID: ${run}`);
+  if (import.meta.env.DEV) return runStore.json(run, 'export/numbers.json');
   if (!payloads.has(run)) {
-    payloads.set(run, readFile(resolve('../.pingstore/runs', run, 'export/numbers.json'), 'utf8').then(JSON.parse));
+    payloads.set(run, runStore.json(run, 'export/numbers.json'));
   }
   return payloads.get(run)!;
 }

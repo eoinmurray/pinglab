@@ -58,7 +58,10 @@ def present(identity, *, run_id=None):
             shutil.copyfile(
                 source.file(f"{mode}-circuit.svg"), run.export / f"{mode}-circuit.svg"
             )
-        write_json_atomic(run.export / "numbers.json", numbers)
+        write_json_atomic(
+            run.export / "numbers.json",
+            numbers,
+        )
     return run.run_id
 
 

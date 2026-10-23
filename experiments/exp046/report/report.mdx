@@ -2,7 +2,7 @@
 id: "exp046"
 title: "One Spike per Gamma Cycle"
 created_at: "2026-06-04"
-updated_at: "2026-09-14T00:00:00Z"
+updated_at: "2026-10-20T17:13:36Z"
 description: "Pooled and equally weighted network distributions support predominantly one-spike gamma-cycle participation across 18 trained networks, with exceptions."
 collection: ["gamma-gated-sparsity", "experiments"]
 author: "Eoin Murray"
@@ -10,13 +10,20 @@ tags: ["data", "v37.0.0"]
 runs: {"exp046": "exp046-r010-present"}
 thumbnailRun: "exp046-r010-present"
 thumbnail: "spikes_per_cycle_distribution_equal_network.svg"
-abstract: "We asked whether excitatory firing reflects participation in gamma cycles without repeated spikes. We reused the inhibitory-timescale sweep’s spike recordings, comparing pooled observations with equally weighted network distributions. Excitatory neurons were usually silent within a cycle and, when active, predominantly emitted a single spike. Both averages support this approximation across the sweep. Repeated spikes and above-reference firing rates preclude a strict one-spike ceiling in these measurements; no universal participation law is established."
 inputs: ["exp046"]
 ---
 
 import PublishedFigure from '../../../site/src/components/PublishedFigure.astro';
+import { reportData, round } from '../../../site/src/lib/report-data';
+
+export const cycleEvidence = await reportData('exp046');
+export const cyclePercent = bucket => round(100 * cycleEvidence.global_equal_network_fracs[bucket], 2);
 
 <span id="loc-2" />
+
+## Abstract
+
+We measured excitatory spikes per inhibitory-burst cycle in eighteen trained PING networks, comparing opportunity pooling with equal-network averaging across six decay conditions. The equal-network mean assigned {cyclePercent('zero')}% of neuron–cycle pairs to silence and {cyclePercent('one')}% to one spike. Single-spike participation predominated among active pairs, but repeated spikes and above-reference firing rates preclude a strict one-spike ceiling. These measurements do not establish a universal participation law.
 
 ## Results
 

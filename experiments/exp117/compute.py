@@ -1,4 +1,8 @@
-"""Compute exp117 stability continuation and near-onset nonlinear ramps."""
+"""Compute exp117 stability continuation and near-onset nonlinear ramps.
+
+Invoke this stage explicitly from the repository root. Scientific outputs
+and input provenance belong to its independently completed Pingstore run.
+"""
 
 from __future__ import annotations
 
@@ -12,7 +16,8 @@ sys.path[:0] = [str(REPO), str(REPO / "tools")]
 
 import numpy as np
 import scipy
-from experiments.exp117 import inputs, numerics, recipe
+from experiments.exp117.custom import inputs, numerics
+from experiments.exp117 import recipe
 from experiments.exp117.custom.external_artifacts import external_execution
 from pingstore.contracts import write_json_atomic
 
@@ -20,7 +25,11 @@ from pingstore.contracts import write_json_atomic
 def compute(*, run_id=None):
     with inputs.execution(REPO, "compute", sources={}, run_id=run_id) as run:
         cfg = recipe.validate(run.record["execution"]["configuration"])
-        with external_execution(run.export / "mean-field-simulation", backend="scipy mean-field continuation and nonlinear ODE", configuration=cfg):
+        with external_execution(
+            run.export / "mean-field-simulation",
+            backend="scipy mean-field continuation and nonlinear ODE",
+            configuration=cfg,
+        ):
             rows = numerics.continuation(cfg)
             hopf = numerics.refine_hopf(rows, cfg)
             ramps = numerics.criticality_ramps(hopf, cfg)
@@ -30,9 +39,7 @@ def compute(*, run_id=None):
                 if tau_gaba_ms == reference_tau:
                     sweep_rows, sweep_hopf = rows, hopf
                 else:
-                    sweep_rows = numerics.continuation(
-                        cfg, tau_gaba_ms=tau_gaba_ms
-                    )
+                    sweep_rows = numerics.continuation(cfg, tau_gaba_ms=tau_gaba_ms)
                     sweep_hopf = numerics.refine_hopf(
                         sweep_rows, cfg, tau_gaba_ms=tau_gaba_ms
                     )

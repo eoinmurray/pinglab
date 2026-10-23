@@ -2,7 +2,7 @@
 id: "exp042"
 title: "Inhibitory Replay Perturbations Change Excitatory Firing"
 created_at: "2026-06-02"
-updated_at: "2026-09-07T00:00:00Z"
+updated_at: "2026-10-20T17:13:36Z"
 description: "Recorded inhibitory spike streams produced contrasting excitatory responses under independent-spike and fixed-window replay perturbations, but the experiment does not isolate synchrony."
 collection: ["gamma-gated-sparsity", "experiments"]
 author: "Eoin Murray"
@@ -10,13 +10,20 @@ tags: ["data", "v37.0.0"]
 runs: {"exp042": "exp042-r020-present"}
 thumbnailRun: "exp042-r020-present"
 thumbnail: "rhythm_compound.png"
-abstract: "We asked how perturbing inhibitory spike timing changes trained PING classifiers. We reused three frozen MNIST classifiers and their retained inhibitory-spike recordings. We replayed each stream after either shifting every spike independently or shifting all spikes originating in the same fixed clock window together. Independent-spike jitter nearly silenced excitatory neurons, whereas fixed-window shifts increased their firing. Accuracy declined under both perturbations despite preservation of each inhibitory neuron’s spike count. Replay interrupted responsive feedback, so these measurements do not isolate synchrony or a gamma-specific mechanism."
 inputs: ["exp042"]
 ---
 
 import PublishedFigure from '../../../site/src/components/PublishedFigure.astro';
+import { reportData, round } from '../../../site/src/lib/report-data';
+
+export const replayEvidence = await reportData('exp042');
+export const replayRate = group => round(replayEvidence.aggregate[group].find(row => row.sigma_ms === 14).e_rate_hz.mean, 3);
 
 <span id="loc-2" />
+
+## Abstract
+
+We replayed inhibitory spike recordings from three frozen MNIST PING classifiers after either independent-spike jitter or shared shifts within fixed clock windows. At 14 ms jitter, mean E rates were {replayRate('cell_jitter_sweep')} Hz under independent shifts and {replayRate('jitter_sweep')} Hz under window shifts, with each I neuron's spike count preserved. Accuracy declined under both interventions. Replay interrupted responsive feedback, so these measurements do not isolate synchrony or a gamma-specific mechanism.
 
 ## Results
 
@@ -24,7 +31,12 @@ import PublishedFigure from '../../../site/src/components/PublishedFigure.astro'
 
 ### Replay perturbations diverge
 
-<PublishedFigure run="exp042-r020-present" file="rhythm_compound.png" id="" alt="Independent-spike jitter suppresses excitatory firing, whereas fixed-window group shifts increase it. Replayed inhibitory spike rates remain constant across both sweeps." >
+At 14 ms jitter, independent shifts reduced mean E firing to
+{replayRate('cell_jitter_sweep')} Hz, whereas fixed-window shifts gave
+{replayRate('jitter_sweep')} Hz. The three reused networks retained their
+I-spike counts, but replay prevented inhibition from responding to E activity.
+
+<PublishedFigure run="exp042-r020-present" file="rhythm_compound.png" alt="Independent-spike jitter suppresses excitatory firing, whereas fixed-window group shifts increase it. Replayed inhibitory spike rates remain constant across both sweeps." >
   Figure 1: **(A)** Independent-spike and **(B)** fixed-window group jitter for the illustrative first test presentation from the training replicate initialized with seed 42 at $\sigma = 14$ ms; 200 of 1,024 E neurons and 64 of 256 I neurons are displayed over the 200 ms presentation. **(C)** Independent-spike and **(D)** fixed-window sweep summaries show per-neuron E rate, realised I-spike rate and test-accuracy means across three training replicates. Retained SEM across training replicates is not displayed.
 </PublishedFigure>
 

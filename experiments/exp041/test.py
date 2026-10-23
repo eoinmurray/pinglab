@@ -1,4 +1,8 @@
-"""Temporary synthetic banks and mocked inference; never run scientific experiments."""
+"""Temporary synthetic banks and mocked inference; never run scientific experiments.
+
+Run with `uv run pytest experiments/exp041/test.py`. Fixtures use temporary stores;
+bounded native checks validate numerical behavior without production runs.
+"""
 
 import subprocess
 import sys
@@ -6,15 +10,73 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-from experiments.exp041 import (
-    analyse,
-    compute,
-    evidence,
-    inputs,
-    present,
-    recipe,
-)
-from experiments.exp044.test import _common_config
+from experiments.exp041 import analyse, compute, present, recipe
+from experiments.exp041.custom import evidence, inputs
+from experiments.exp041.recipe import refractory_configuration
+
+
+def _common_config() -> dict:
+    return {
+        **refractory_configuration(),
+        "model": "ping",
+        "dataset": "mnist",
+        "max_samples": 7000,
+        "epochs": 50,
+        "t_ms": 200.0,
+        "tau_ampa_ms": 2.0,
+        "tau_gaba_ms": 6.0,
+        "input_rate": 25.0,
+        "input_rate_sampling": "fixed",
+        "hidden_sizes": [1024],
+        "n_in": 784,
+        "n_hidden": 1024,
+        "n_inh": 256,
+        "n_out": 10,
+        "ei_strength": 1.0,
+        "ei_ratio": 2.0,
+        "w_in": [0.9, 0.09],
+        "w_in_initial_zero_fraction": 0.95,
+        "recurrent_initial_zero_fraction": 0.0,
+        "readout_w_init_mean": 1.12060546875,
+        "readout_w_init_std": 0.8349609375,
+        "weight_decay": 0.0,
+        "grad_clip": 1.0,
+        "trainable_w_ei": False,
+        "trainable_w_ie": False,
+        "trainable_w_ee": False,
+        "trainable_w_ii": False,
+        "fr_reg_upper_strength": 0.0,
+        "fr_reg_upper_target_hz": 0.0,
+        "readout_mode": "mem-mean",
+        "surrogate_slope": 1.0,
+        "lr": 0.0004,
+        "batch_size": 256,
+        "v_grad_dampen": 1000.0,
+        "dales_law": True,
+        "dataset_split": {
+            "optimizer_train_samples": 6300,
+            "validation_samples": 700,
+            "official_test_samples": 10000,
+            "checkpoint_selection_partition": "validation",
+            "official_test_used_during_training": False,
+            "source_train_partition": "official_mnist_train",
+            "source_test_partition": "official_mnist_test",
+            "split_seed": 42,
+            "validation_fraction": 0.1,
+        },
+        "validation_encoder_draws": {
+            "count": 3,
+            "encoder_seeds": [1, 2, 3],
+            "input_rate_seeds": [4, 5, 6],
+        },
+        "adaptive_threshold": False,
+        "train_leak": False,
+        "signed_readout": False,
+        "readout_bias": False,
+        "state_clamp": False,
+    }
+
+
 from pingstore import stages
 from pingstore.contracts import (
     PingstoreError,
@@ -219,7 +281,7 @@ def test_missing_measurements_never_become_zeros(lab, damage):
 
 
 def test_independent_stages_retain_science_and_never_publish(lab, monkeypatch):
-    from experiments.exp041 import measurements
+    from experiments.exp041.custom import measurements
 
     root, bank_id, calls = lab
     bank = inputs.source(root, bank_id, "compute", experiment="exp022")
@@ -284,7 +346,7 @@ def test_independent_stages_retain_science_and_never_publish(lab, monkeypatch):
 
 
 def test_mean_psd_peak_not_median_of_trial_peaks():
-    from experiments.exp041 import measurements
+    from experiments.exp041.custom import measurements
 
     t = np.arange(2000) * 0.0001
     traces = np.array(
@@ -302,7 +364,7 @@ def test_mean_psd_peak_not_median_of_trial_peaks():
 
 
 def test_affine_and_origin_fits_use_six_condition_means():
-    from experiments.exp041 import measurements
+    from experiments.exp041.custom import measurements
 
     rows = []
     for tau in recipe.TAU_GABA_SWEEP:

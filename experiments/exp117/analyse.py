@@ -1,4 +1,8 @@
-"""Validate the exp117 Hopf crossing and sampled nonlinear criticality."""
+"""Validate the exp117 Hopf crossing and sampled nonlinear criticality.
+
+Invoke this stage explicitly from the repository root. Scientific outputs
+and input provenance belong to its independently completed Pingstore run.
+"""
 
 from __future__ import annotations
 
@@ -10,7 +14,7 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
 
 import numpy as np
-from experiments.exp117 import inputs
+from experiments.exp117.custom import inputs
 from pingstore.contracts import PingstoreError, load_json, write_json_atomic
 
 
@@ -94,9 +98,7 @@ def analyse(identity, *, run_id=None):
     ss_total = float(np.sum((amplitude_squared - amplitude_squared.mean()) ** 2))
     r_squared = 1.0 - ss_residual / ss_total if ss_total > 0 else 0.0
     criticality_checks = {
-        "branches_coincide": bool(
-            branch_gap < ramp_cfg["maximum_branch_gap_per_ms"]
-        ),
+        "branches_coincide": bool(branch_gap < ramp_cfg["maximum_branch_gap_per_ms"]),
         "positive_amplitude_squared_slope": bool(slope > 0),
         "amplitude_squared_fit_passes": bool(
             r_squared > ramp_cfg["minimum_amplitude_squared_r2"]

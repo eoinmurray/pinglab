@@ -11,15 +11,15 @@ bun run build                # disposable dist/
 
 Pixi is prebundled when development starts, including animation scripts outside
 `site/`. Development and builds use separate Vite caches under
-`node_modules/.vite/dev` and `node_modules/.vite/build`, so a build cannot replace
+`node_modules/.vite/dev` and `node_modules/.vite/build`, so production SSR optimization also stays out of the development cache and cannot replace
 the dependency URLs used by a running preview.
 
 Page rendering errors are isolated by `src/middleware.ts`. The affected URL
 shows “An error occurred.” and the error message with a link back to the articles;
 other pages continue rendering. HTML is buffered so component errors cannot
 leave a partially rendered page. Development returns HTTP 500; static builds
-write the error page at the affected URL and log the failure. Static hosting
-serves that generated file with its normal success status. Compiler, import-resolution,
+fail on rendering errors so incomplete evidence cannot be deployed as a success
+page. Compiler, import-resolution,
 and content-schema errors can still prevent a build before rendering begins.
 
 Exp124 renders its current authored report even when its historical pinned
@@ -33,10 +33,10 @@ labelled at `/recovered/exp124/published.html`, with assets under
 `public/recovered/exp124/`. It is an archive, not a recovered Pingstore run;
 its historical Dataset inventory is not a current local inventory.
 
-Development run assets are read directly from the requested presentation export;
+Development run assets use the exact local presentation when available, otherwise the verified R2 catalog;
 they do not scan every article's runs. Missing assets return HTTP 404. During a
 static build, unavailable run exports are logged and skipped in asset enumeration,
-while data or figure errors remain visible on their own article. Shared article
+while data or figure errors fail the build. Shared article
 appendices load only for the current report. Listings also exclude cached reports
 whose source file has been deleted.
 
@@ -56,6 +56,21 @@ as the article lists. Titles, descriptions, article IDs, and collection names
 are searchable. Experiment numbers also work without the `exp` prefix, with or
 without leading zeros (for example, `082` or `82`). New content appears
 automatically on the next content sync/build.
+The unlisted `/pingstore` page is available as Pingstore in the command palette,
+but has no homepage or sidebar entry. It shows the shared Dataset table for each
+experiment in the normal report appendix layout, newest experiment first,
+preserving report pins and usage markers. The report body contains only a title
+and a short introduction, a deduplicated completed-run summary, and the
+all-run eviction dry-run/confirmation commands. Usage counts are shown as
+bounds when an experiment’s evidence cannot be resolved.
+Experiments without a selected presentation show any completed available history.
+The page requests search-engine exclusion with `noindex`. It is publicly
+accessible by URL; it is not access-controlled. Missing pinned evidence is
+shown as unavailable for that experiment without blocking the other tables.
+
+Individual papers appear in a Papers group with titles and authors, linking
+directly to their PDFs. Paper titles, authors, permanent IDs, filenames, years,
+venues, DOIs, and collection names are searchable; unindexed PDFs use filenames.
 
 `SiteSearch.astro` supplies the navigation data to a React island. The local
 `ui/command.tsx` adapts shadcn/ui's Command composition with `cmdk` and Radix
@@ -95,13 +110,15 @@ Words exclude headings, captions, tables, code, mathematics, editorial Meta,
 references, and appendices. Figures count main-content figure elements once,
 including multipanel and unavailable figures, but exclude tables. Run counts
 include completed v4 compute/analyse/present records owned by the experiment in
-local Pingstore, including historical runs, without upstream or hidden runs.
-These are local inventory counts, not a claim that every run informed the report.
+the local/R2 union in development and the R2 catalog in production, including historical runs, without upstream or hidden runs.
+These are available-run inventory counts, not a claim that every run informed the report.
 Static builds freeze counts; development recalculates on refresh. A report that
 cannot render shows unavailable word/figure counts in listings rather than taking
 the listing offline. No authored count fields or article date changes are needed.
-All article types sort together by decreasing authored `updated_at`, with article
-ID and then URL ascending to break ties, in both development and static builds.
+All article lists, including every collection, show experiments first, sorted by
+descending numeric experiment ID, then other articles by decreasing authored
+`updated_at`, with article ID and URL ascending to break ties. This order applies
+in development and static builds.
 The homepage, `/notes/`, and `/collections/<collection>/` share the same
 collection sidebar and article layout, including aligned navigation. Collection
 pages show only that collection's articles and highlight its sidebar link.
@@ -209,15 +226,16 @@ load the annotation client. Interactive run selectors are absent.
 
 ## Papers
 
-`/papers` lists PDFs from the repository's `papers/` directory, including
-subfolders, newest publication year first, then alphabetically by title, with
+`/papers` lists PDFs from the R2 paper catalog in production and prefers the
+repository's `papers/` directory during development, including subfolders, newest publication year first, then alphabetically by title, with
 unindexed PDFs last and direct PDF links. The left column
 shows the publication year in the article list's experiment-ID style, followed
 by the permanent paper ID in the smaller date style underneath on desktop.
 Hidden files and symlinks are excluded. The homepage and paper pages share
 Articles and Literature sidebar lists; the search palette also links to
-the library. Development reads the directory on refresh; static builds emit
-the PDFs under `/papers/`, so additions and removals need a rebuild to publish.
+the library. Development reads the directory on refresh; static builds verify
+R2 PDFs and emit compatibility copies under `/papers/`. Production listings link
+directly to R2. Additions and removals need a backup and rebuild to publish.
 
 `papers/index.yaml` holds citation metadata keyed by relative PDF filename.
 Each entry requires a unique `id` such as `P01`, `title`, a nonempty `authors`
@@ -373,7 +391,8 @@ export const modelEvidence = await reportSnapshots('exp124', {
 ```
 
 The loader follows the pinned presentation's analysis and compute references,
-checks recorded identities and input digests, and uses Pingstore's `native_paths`
+checks recorded identities and input digests (including chains of reanalysis),
+and uses Pingstore's `native_paths`
 mapping to read original snapshot JSON. It returns unmodified snapshot metadata,
 the compute configuration and dataset provenance, and the compute reference.
 It does not audit the complete payload or read weight arrays. Row selection,
@@ -384,12 +403,25 @@ unavailable; malformed records, mismatched pins and broken declared files fail.
 There is no fallback to another run, current recipe defaults or old table rows.
 
 
-The simple TypeScript Pingstore reader resolves a latest presentation once per
-build/dev session, or uses an article's explicit frontmatter `runs` selections.
-The ordinary numbers and figure readers do not audit schema, checksums or
-ancestry; the snapshot loader performs the metadata checks described above. Restart the dev server
-to pick up newly completed runs. Figures/media come directly from selected
-exports; only disposable builds copy them.
+The shared TypeScript run reader uses the public `pingstore/catalog.json` on
+`https://assets.eoinmurray.info`. The catalog embeds completed run records, exact
+input pins, and per-file sizes and SHA-256 checksums. JSON and media are fetched
+on demand and verified; full scientific arrays are not restored for rendering.
+Development uses local copies when present and otherwise reads R2. An unpinned
+report uses its latest local presentation if any, otherwise the latest remote
+presentation. Explicit report pins always win. Unpinned selections freeze for the
+build/development session so MDX values and figures stay on the same evidence;
+restart the development server to select newly completed runs. An existing but broken local run
+fails rather than being silently replaced by R2.
+
+Production builds use R2 exclusively and freeze catalog/selection reads for the
+build. Set `PINGLAB_RUN_SOURCE=remote` to test without local evidence, `auto` for
+the development union, or `local` for an offline local build. Set
+`PINGLAB_RUNS_ROOT` to override the local runs directory and
+`PINGLAB_ASSET_BASE_URL` to use another catalog/asset origin. Empty origin is
+supported only in local mode. Browser animation JSON uses public GET/HEAD CORS.
+Figures and videos use direct R2 URLs in production. Local development routes
+serve local exports, proxy verified remote animation JSON, and redirect remote images/video to R2.
 
 `RunFigure` and `PublishedFigure` resolve a figure by its filename stem within
 the selected presentation: prefer `.svg`, then fall back to `.png`, regardless
@@ -413,14 +445,19 @@ imported runs, and upstream/downstream article dependencies. Bold run IDs mark
 presentations used by the article and every run in their recorded input chains,
 including compute, analyse and upstream-experiment runs. All these rows are
 highlighted and marked “Used”; unrelated historical runs remain unmarked.
-Only selected presentations list report asset counts in Source.
+The R2 backup column reads the public, checksummed backup catalog. Yes means a byte-verified backup is cataloged. For local runs, the display also
+compares file paths and sizes; it does not rehash local bytes on every render.
+Remote-only runs need no local copy. No means the run is not cataloged, Partial
+means paths or sizes differ, and Unknown means the catalog could not be read.
+The catalog refreshes every thirty seconds in development and is frozen per build.
 Text-only dependent articles retain dependency
 links without inventing unavailable data.
 
-Seven articles have no local presentation: exp022, exp024, exp047, exp054,
-exp080, exp081, and exp117. Their complete authored accounts, including
-equations, captions, specification tables and appendices, are preserved;
-an availability notice distinguishes the account from locally checkable data.
+Gamma-gated-sparsity reports pin their presentation evidence explicitly. Their
+appendices read original native snapshots and recorded configurations; historical
+runs without snapshots show unavailable model values. Analytical and history-only
+studies identify their different evidence requirements. No current recipe defaults
+or copied parameter tables replace missing execution evidence.
 
 Each report declares its scientific `inputs` in frontmatter. Python execution
 reads its `collection` there. Pruning derives global report usage from pinned
@@ -433,14 +470,37 @@ and confirmation workflow. Neither operation depends on historical `writings/`.
 
 ## Publication
 
-See `../tools/publishing/README.md`. Build a frozen local Astro publication with:
+`.github/workflows/pages.yml` builds Astro on pushes to `main`, manual dispatch,
+and a `repository_dispatch` event of type `pingstore-updated`. It installs only
+the site dependencies, runs the reader tests, and builds from the public R2
+catalog with `PINGLAB_RUN_SOURCE=remote`. `actions/upload-pages-artifact` and
+`actions/deploy-pages` deploy `site/dist` directly. There is no publishing script
+or maintained `gh-pages` branch. Pages must use **GitHub Actions** as its source;
+the custom domain remains configured in repository Pages settings.
 
 ```sh
-uv run python tools/publishing/publish.py build
-(cd site && bun run astro preview --outDir ../.publication/site --port 3001)
-uv run python tools/publishing/publish.py publish
+cd site
+bun install --frozen-lockfile
+bun run build
+bun run preview --port 3001
 ```
 
-Run those commands from the repository root. The publisher retains a build
-receipt, checks the exact static output before pushing it to `gh-pages`, and
-preserves the remote CNAME and existing PR previews.
+Report HTML, bound values and inventory tables are build-time snapshots. New
+backups need another Actions run to appear; backup does not publish code or
+trigger deployment automatically. Assets already referenced by deployed pages
+load directly from immutable R2 run paths.
+
+`pingstore backup` publishes a new checksummed catalog only after verifying run
+bytes and complete ancestry. Bootstrap also verifies existing remote backups;
+remote-only historical runs remain in the catalog. Use its separate dry-run and
+hash-confirmation invocations. Do not remove local runs until they are cataloged
+and a remote-only build succeeds. Scientific execution still requires local
+inputs; restore selected runs and their ancestry before running new stages.
+
+The Git-ignored PDF library is archived separately with
+`uv run pingstore backup-papers --dry-run`, followed by `--confirm PLAN_HASH`.
+Production paper links point directly to R2; development prefers local PDFs.
+Builds also verify and emit the PDFs at their existing `/papers/` paths to
+preserve bookmarks. These copies live only in disposable build output.
+The authored `papers/index.yaml` remains in Git. PDFs are verified before their
+public discovery catalog is replaced.

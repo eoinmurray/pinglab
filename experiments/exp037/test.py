@@ -1,4 +1,8 @@
-"""Synthetic staged probes; no production simulations or historical imports."""
+"""Synthetic staged probes; no production simulations or historical imports.
+
+Run with `uv run pytest experiments/exp037/test.py`. Fixtures use temporary stores;
+bounded native checks validate numerical behavior without production runs.
+"""
 
 import os
 import subprocess
@@ -7,16 +11,74 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-from experiments import exp022
-from experiments.exp037 import (
-    analyse,
-    compute,
-    inputs,
-    measurements,
-    present,
-    recipe,
-)
-from experiments.exp044.test import _common_config
+from experiments.exp037.custom import bank_contract as exp022
+from experiments.exp037 import analyse, compute, present, recipe
+from experiments.exp037.custom import inputs, measurements
+from experiments.exp037.recipe import refractory_configuration
+
+
+def _common_config() -> dict:
+    return {
+        **refractory_configuration(),
+        "model": "ping",
+        "dataset": "mnist",
+        "max_samples": 7000,
+        "epochs": 50,
+        "t_ms": 200.0,
+        "tau_ampa_ms": 2.0,
+        "tau_gaba_ms": 6.0,
+        "input_rate": 25.0,
+        "input_rate_sampling": "fixed",
+        "hidden_sizes": [1024],
+        "n_in": 784,
+        "n_hidden": 1024,
+        "n_inh": 256,
+        "n_out": 10,
+        "ei_strength": 1.0,
+        "ei_ratio": 2.0,
+        "w_in": [0.9, 0.09],
+        "w_in_initial_zero_fraction": 0.95,
+        "recurrent_initial_zero_fraction": 0.0,
+        "readout_w_init_mean": 1.12060546875,
+        "readout_w_init_std": 0.8349609375,
+        "weight_decay": 0.0,
+        "grad_clip": 1.0,
+        "trainable_w_ei": False,
+        "trainable_w_ie": False,
+        "trainable_w_ee": False,
+        "trainable_w_ii": False,
+        "fr_reg_upper_strength": 0.0,
+        "fr_reg_upper_target_hz": 0.0,
+        "readout_mode": "mem-mean",
+        "surrogate_slope": 1.0,
+        "lr": 0.0004,
+        "batch_size": 256,
+        "v_grad_dampen": 1000.0,
+        "dales_law": True,
+        "dataset_split": {
+            "optimizer_train_samples": 6300,
+            "validation_samples": 700,
+            "official_test_samples": 10000,
+            "checkpoint_selection_partition": "validation",
+            "official_test_used_during_training": False,
+            "source_train_partition": "official_mnist_train",
+            "source_test_partition": "official_mnist_test",
+            "split_seed": 42,
+            "validation_fraction": 0.1,
+        },
+        "validation_encoder_draws": {
+            "count": 3,
+            "encoder_seeds": [1, 2, 3],
+            "input_rate_seeds": [4, 5, 6],
+        },
+        "adaptive_threshold": False,
+        "train_leak": False,
+        "signed_readout": False,
+        "readout_bias": False,
+        "state_clamp": False,
+    }
+
+
 from pingstore import stages
 from pingstore.contracts import (
     PingstoreError,
@@ -259,27 +321,6 @@ def test_failed_simulation_never_completes(lab, monkeypatch):
     assert list((root / ".pingstore/runs").glob(".exp037-*-compute.tmp"))
 
 
-def test_retired_entrypoints_and_import_side_effects(tmp_path):
-    root = Path(__file__).resolve().parents[2]
-    code = "from experiments import exp037; assert exp037.CHECKPOINT_ROLE == 'best_validation'"
-    result = subprocess.run(
-        [sys.executable, "-c", code],
-        cwd=tmp_path,
-        env={**os.environ, "PYTHONPATH": str(root)},
-        capture_output=True,
-        text=True,
-    )
-    assert result.returncode == 0, result.stderr
-    assert not list(tmp_path.iterdir())
-    result = subprocess.run(
-        [sys.executable, "-m", "experiments.exp037"],
-        cwd=root,
-        capture_output=True,
-        text=True,
-    )
-    assert result.returncode != 0 and "explicit" in result.stderr
-
-
 def test_v2_and_wrong_stage_inputs_are_rejected(lab):
     root, bank_id, _ = lab
     cid = compute.compute(bank_id)
@@ -379,9 +420,7 @@ def test_recipe_preserves_production_and_smoke_grids():
 
 def test_frontier_registry_and_multiseed_summaries_are_complete(tmp_path):
     expected = {
-        cell["name"]
-        for cell in exp022.CANONICAL_CELLS
-        if cell["training_run_id"] == "TR-02"
+        cell["name"] for cell in exp022.CELLS if cell["training_run_id"] == "TR-02"
     }
     observed = {
         recipe.cell_name(model, target, seed)
@@ -435,21 +474,21 @@ def test_perturbation_summary_retains_seed_and_sample_provenance():
             "e_rate_hz": rate,
             "n_total": 1400,
         }
-        for seed, acc, rate in zip(
-            recipe.SEEDS_BASELINE, (70, 80, 90), (8, 9, 10)
-        )
+        for seed, acc, rate in zip(recipe.SEEDS_BASELINE, (70, 80, 90), (8, 9, 10))
     ]
-    assert measurements.summarize_perturbation_rows(rows) == [{
-        "model": "ping",
-        "mode": "drop",
-        "level": 0.5,
-        "acc": 80.0,
-        "acc_sd": 10.0,
-        "e_rate_hz": 9.0,
-        "e_rate_hz_sd": 1.0,
-        "seeds": [42, 43, 44],
-        "n_total_per_seed": [1400, 1400, 1400],
-    }]
+    assert measurements.summarize_perturbation_rows(rows) == [
+        {
+            "model": "ping",
+            "mode": "drop",
+            "level": 0.5,
+            "acc": 80.0,
+            "acc_sd": 10.0,
+            "e_rate_hz": 9.0,
+            "e_rate_hz_sd": 1.0,
+            "seeds": [42, 43, 44],
+            "n_total_per_seed": [1400, 1400, 1400],
+        }
+    ]
 
 
 def test_writeup_anchor_levels_remain_in_the_recipe():
@@ -547,7 +586,7 @@ def test_collect_rejects_missing_shards_and_busy_reservation(lab, monkeypatch):
 def test_reviewed_figures_keep_coordinates_show_full_range_and_omit_run_ids(
     tmp_path, monkeypatch
 ):
-    from experiments.exp037 import plots
+    from experiments.exp037.custom import plots
 
     captured = []
     monkeypatch.setattr(plots, "save_figure", lambda fig, *a, **k: captured.append(fig))
@@ -657,7 +696,7 @@ def test_analysis_rejects_resigned_calibration_drift(lab):
 def test_hpc_review_is_read_only_and_dependencies_require_live(lab, monkeypatch):
     from argparse import Namespace
 
-    from experiments.exp037 import hpc
+    from experiments.exp037.custom import hpc
 
     root, bank, _ = lab
     monkeypatch.setattr(hpc, "REPO", root)
@@ -710,7 +749,6 @@ def test_hpc_review_is_read_only_and_dependencies_require_live(lab, monkeypatch)
         hpc.review(Namespace(plan=path, live=True, test_only=False))
 
 
-
 def test_shard_identity_tracks_local_inference_and_nested_source(tmp_path):
     from types import SimpleNamespace
 
@@ -726,7 +764,9 @@ def test_shard_identity_tracks_local_inference_and_nested_source(tmp_path):
     dataset = (np.zeros((2, 4), dtype=np.float32), np.array([0, 1]))
     before = sharding.shard_identity({}, bank, recipe_module, dataset=dataset)
     assert before["inference_source"] == file_sha256(Path(sharding.inference.__file__))
-    assert before["experiment_source"][str(implementation)] == file_sha256(implementation)
+    assert before["experiment_source"][str(implementation)] == file_sha256(
+        implementation
+    )
 
     implementation.write_text("VERSION = 2\n")
     after = sharding.shard_identity({}, bank, recipe_module, dataset=dataset)

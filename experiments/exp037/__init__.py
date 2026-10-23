@@ -1,11 +1,15 @@
-"""Pure recipe/measurement exports; execute an explicit stage."""
+"""Pure recipe/measurement exports; execute an explicit stage.
 
-from .measurements import (
+This package exposes local scientific definitions for its independent stages.
+Importing it does not create runs, load scientific artifacts or launch execution.
+"""
+
+from experiments.exp037.custom.measurements import (
     summarize_accuracy,
     summarize_frontier,
     summarize_perturbation_rows,
 )
-from .recipe import (
+from experiments.exp037.recipe import (
     ANALYSIS_PURPOSE,
     CHECKPOINT_POLICY,
     CHECKPOINT_ROLE,

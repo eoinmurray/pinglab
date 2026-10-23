@@ -1,4 +1,8 @@
-"""Synthetic fixtures only: no historical import, dataset download or scientific run."""
+"""Synthetic fixtures only: no historical import, dataset download or scientific run.
+
+Run with `uv run pytest experiments/exp042/test.py`. Fixtures use temporary stores;
+bounded native checks validate numerical behavior without production runs.
+"""
 
 import subprocess
 import sys
@@ -6,15 +10,8 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-from experiments.exp042 import (
-    analyse,
-    compute,
-    inputs,
-    present,
-    recipe,
-    simulation,
-    transforms,
-)
+from experiments.exp042 import analyse, compute, present, recipe
+from experiments.exp042.custom import inputs, simulation, transforms
 from pingstore import stages
 from pingstore.contracts import (
     PingstoreError,
@@ -194,9 +191,14 @@ def test_stages_preserve_small_evidence_and_never_run_upstream(lab, monkeypatch)
     for filename in ("cell.npz", "cycle.npz"):
         with np.load(raw.export / filename) as data:
             assert set(data.files) == {"spk_e", "spk_i", "label"}
-    artifact_units = {Path(path).parts[0] for path in raw.record["scientific_artifacts"]["native_paths"].values()}
+    artifact_units = {
+        Path(path).parts[0]
+        for path in raw.record["scientific_artifacts"]["native_paths"].values()
+    }
     assert artifact_units
-    assert {p.name for p in raw.export.iterdir()} - artifact_units == {
+    assert {
+        p.name for p in raw.export.iterdir() if not p.name.startswith("circuit-")
+    } - artifact_units == {
         *(
             job["id"] + "--metrics.json"
             for job in recipe.jobs(recipe.configuration(smoke=True))
@@ -226,7 +228,11 @@ def test_stages_preserve_small_evidence_and_never_run_upstream(lab, monkeypatch)
     presentation = inputs.source(root, presentation_id, "present")
     assert presentation.record["inputs"] == {"analysis": analysis.reference}
     assert all(path.is_file() for path in presentation.export.iterdir())
-    assert {p.name for p in presentation.export.iterdir()} == {
+    assert {
+        p.name
+        for p in presentation.export.iterdir()
+        if not p.name.startswith("circuit-")
+    } == {
         *recipe.FIGURES,
         "numbers.json",
     }
@@ -317,14 +323,16 @@ def test_shards_are_pinned_resumable_and_collect_without_repeating_sweeps(lab):
     assert len(list(output.export.glob("eval__*--metrics.json"))) == 30
     assert output.record["origin"] == "slurm-wilkes"
     assert output.record["execution"]["requests"]
-    assert all(isinstance(request, dict) for request in output.record["execution"]["requests"])
+    assert all(
+        isinstance(request, dict) for request in output.record["execution"]["requests"]
+    )
     assert not (output.directory / ".baseline-scratch").exists()
     with pytest.raises((PingstoreError, OSError)):
         compute.shard(bank_id, run_id=identity, index=0)
 
 
 def test_hpc_pipeline_uses_reviewed_eight_shard_array(tmp_path):
-    from experiments.exp042 import hpc
+    from experiments.exp042.custom import hpc
 
     plan = {
         "account": "gpu",
@@ -404,13 +412,21 @@ def test_zero_replay_cache_rejects_recipe_drift(lab):
     scratch = root / "scratch"
     scratch.mkdir()
     data = simulation.load_evaluation(cfg)
-    list(simulation.evaluate_jobs(bank, cfg, data, scratch, [job], [], root / "first-artifacts"))
+    list(
+        simulation.evaluate_jobs(
+            bank, cfg, data, scratch, [job], [], root / "first-artifacts"
+        )
+    )
     path = next(scratch.glob("zero-replay/*/*/result.json"))
     record = load_json(path)
     record["request"]["recipe"]["evaluation_samples"] += 1
     write_json_atomic(path, record)
     with pytest.raises(PingstoreError, match="zero-replay scratch"):
-        list(simulation.evaluate_jobs(bank, cfg, data, scratch, [job], [], root / "retry-artifacts"))
+        list(
+            simulation.evaluate_jobs(
+                bank, cfg, data, scratch, [job], [], root / "retry-artifacts"
+            )
+        )
 
 
 def test_shard_does_not_reuse_tampered_metrics(lab):
@@ -661,14 +677,3 @@ def test_ancestor_metadata_amendment_does_not_change_payload_identity(lab):
     record["execution"] = {**record["execution"], "note": "fixture manifest change"}
     write_json_atomic(bank.directory / "run.json", record)
     assert analyse.analyse(compute_id).endswith("-analyse")
-
-
-def test_combined_runner_is_retired():
-    result = subprocess.run(
-        [sys.executable, "-m", "experiments.exp042", "--skip-training"],
-        cwd=Path(__file__).resolve().parents[2],
-        capture_output=True,
-        text=True,
-    )
-    assert result.returncode != 0
-    assert "independent stages" in result.stderr

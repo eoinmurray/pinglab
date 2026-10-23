@@ -1,4 +1,10 @@
-"""The reduced timing intervention recipe; no execution or data selection on import."""
+"""The reduced timing intervention recipe; no execution or data selection on import.
+
+configuration() resolves fresh scientific settings before execution. Network
+authoring and analysis definitions do not load data or launch a stage on import.
+"""
+
+from copy import deepcopy
 
 import re
 
@@ -75,40 +81,44 @@ def cell_name(seed):
 
 
 def configuration(*, smoke=False):
-    return {
-        "schema": "exp042.recipe/v7",
-        **refractory_configuration(),
-        "executor": "snnlab.sim.GraphExecutor",
-        "evaluation_batch_size": 64,
-        "evaluation_subset_seed": 42,
-        "snapshot_encoder_stream": "explicit training seed; no obsolete model-initialization draws",
-        "reset_boundary": "all neuronal, synaptic, delay and readout state per presentation",
-        "biophysics": dict(BIOPHYSICS),
-        "profile": "smoke" if smoke else "production",
-        "seeds": list(SEEDS),
-        "jitter_sigmas_ms": list((0.0, 14.0, 100.0) if smoke else JITTER_SIGMAS_MS),
-        "cell_jitter_sigmas_ms": list(
-            (0.0, 0.5, 1.0, 2.0, 5.0, 9.0, 14.0) if smoke else CELL_JITTER_SIGMAS_MS
-        ),
-        "evaluation_samples": SMOKE_MAX_SAMPLES if smoke else EVAL_MAX_SAMPLES,
-        "evaluation_partition": "official_mnist_test",
-        "evaluation_seed": EVAL_SEED,
-        "checkpoint_policy": CHECKPOINT_POLICY,
-        "f_gamma_reference_hz": F_GAMMA_REFERENCE_HZ,
-        "jitter_policy": {
-            "boundary": JITTER_BOUNDARY_POLICY,
-            "collision": JITTER_COLLISION_POLICY,
-            "invariant": "exact_per_trial_per_cell_spike_count",
-        },
-        "raster": {
-            "seed": SEEDS[0],
-            "sample_index": RASTER_SAMPLE_IDX,
-            "sigma_ms": COMPOUND_SIGMA_MS,
-            "selection_seed": 0,
-            "n_e_plot": RASTER_N_E_PLOT,
-            "n_i_plot": RASTER_N_I_PLOT,
-        },
-    }
+    if type(smoke) is not bool:
+        raise ValueError("smoke must be boolean")
+    return deepcopy(
+        dict(
+            schema="exp042.recipe/v7",
+            **refractory_configuration(),
+            executor="snnlab.sim.GraphExecutor",
+            evaluation_batch_size=64,
+            evaluation_subset_seed=42,
+            snapshot_encoder_stream="explicit training seed; no obsolete model-initialization draws",
+            reset_boundary="all neuronal, synaptic, delay and readout state per presentation",
+            biophysics=dict(BIOPHYSICS),
+            profile="smoke" if smoke else "production",
+            seeds=list(SEEDS),
+            jitter_sigmas_ms=list((0.0, 14.0, 100.0) if smoke else JITTER_SIGMAS_MS),
+            cell_jitter_sigmas_ms=list(
+                (0.0, 0.5, 1.0, 2.0, 5.0, 9.0, 14.0) if smoke else CELL_JITTER_SIGMAS_MS
+            ),
+            evaluation_samples=SMOKE_MAX_SAMPLES if smoke else EVAL_MAX_SAMPLES,
+            evaluation_partition="official_mnist_test",
+            evaluation_seed=EVAL_SEED,
+            checkpoint_policy=CHECKPOINT_POLICY,
+            f_gamma_reference_hz=F_GAMMA_REFERENCE_HZ,
+            jitter_policy=dict(
+                boundary=JITTER_BOUNDARY_POLICY,
+                collision=JITTER_COLLISION_POLICY,
+                invariant="exact_per_trial_per_cell_spike_count",
+            ),
+            raster=dict(
+                seed=SEEDS[0],
+                sample_index=RASTER_SAMPLE_IDX,
+                sigma_ms=COMPOUND_SIGMA_MS,
+                selection_seed=0,
+                n_e_plot=RASTER_N_E_PLOT,
+                n_i_plot=RASTER_N_I_PLOT,
+            ),
+        )
+    )
 
 
 def jobs(cfg):

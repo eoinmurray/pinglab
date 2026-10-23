@@ -1,0 +1,107 @@
+import Table from '../../../site/src/components/Table.astro';
+import RunFigure from '../../../site/src/components/RunFigure.astro';
+import { reportSnapshots } from '../../../site/src/lib/report-data';
+
+export const evidence = await reportSnapshots('exp148', {
+  snapshots: { simulation: 'simulation/start/snapshot.json' },
+  allowUnavailable: true,
+});
+export const parameterGroups = (() => {
+  if (!evidence) return [{ label: 'Network', rows: [['Native snapshot evidence', 'Unavailable']] }];
+  const cfg = evidence.configuration;
+  const snapshot = evidence.snapshots.simulation;
+  const graph = snapshot?.network;
+  const population = name => graph?.populations?.find(row => row.id === name);
+  const projection = name => graph?.projections?.find(row => row.id === name);
+  const parameter = name => graph?.parameters?.find(row => row.id === `${name}.weight`);
+  const show = value => {
+    const scalar = value?.value ?? value;
+    if (scalar === undefined || scalar === null) return 'Unavailable';
+    return typeof scalar === 'number' ? String(Number(scalar.toPrecision(6))) : String(scalar);
+  };
+  const pair = key => ['E', 'I'].map(name => show(population(name)?.neuron?.[key])).join(' / ');
+  const names = ['E_to_E', 'E_to_I', 'I_to_E', 'I_to_I', 'X_to_E', 'X_to_I'];
+  const label = name => name.replace('_to_', '→');
+  const density = name => {
+    const zero = snapshot?.execution?.initialization?.[`${name}.weight`]?.statistics?.zero_fraction;
+    return zero === undefined ? 'Unavailable' : show(1 - zero);
+  };
+  return [
+    { label: 'Network', rows: [
+      ['E / I neurons', ['E', 'I'].map(name => show(population(name)?.size)).join(' / ')],
+      ['Shared external X sources', show(graph?.inputs?.find(row => row.id === 'X')?.shape?.at(-1))],
+      ...names.map(name => [`${label(name)} autapses allowed`, show(projection(name)?.allow_autapses)]),
+    ] },
+    { label: 'Neurons', rows: [
+      ['Neuron model, E / I', pair('kind')],
+      ['Capacitance, E / I (nF)', pair('capacitance_nf')],
+      ['Leak conductance, E / I (µS)', pair('leak_us')],
+      ['Derived time constants, E / I (ms)', pair('tau_mem')],
+      ['Resting potential, E / I (mV)', pair('resting_mv')],
+      ['Initial voltage, E / I (mV)', pair('initial_voltage_mv')],
+      ['Reset potential, E / I (mV)', pair('reset_mv')],
+      ['Spike threshold, E / I (mV)', pair('threshold_mv')],
+      ['Excitatory reversal, E / I (mV)', pair('excitatory_reversal_mv')],
+      ['Inhibitory reversal, E / I (mV)', pair('inhibitory_reversal_mv')],
+      ['Refractory duration, E / I (ms)', pair('refractory')],
+      ['Refractory scheduling', show(graph?.refractory_timing)],
+    ] },
+    { label: 'Synapses and weights', rows: names.flatMap(name => {
+      const spec = parameter(name);
+      const init = spec?.initializer;
+      const stats = snapshot?.execution?.initialization?.[`${name}.weight`]?.statistics;
+      return [
+        [`${label(name)} synapse / decay / delay (ms)`, [projection(name)?.synapse?.kind, projection(name)?.synapse?.tau, projection(name)?.delay].map(show).join(' / ')],
+        [`${label(name)} initializer / scaling`, [init?.kind, spec?.initialization_scaling].map(show).join(' / ')],
+        [`${label(name)} compensated initializer mean / SD (µS)`, [init?.mean, init?.std].map(show).join(' / ')],
+        [`${label(name)} connected Gaussian parent mean / SD (µS)`, init && typeof init.initial_zero_fraction === 'number' ? [init.mean / (1 - init.initial_zero_fraction), init.std / (1 - init.initial_zero_fraction)].map(show).join(' / ') : 'Unavailable'],
+        [`${label(name)} realised nonzero mean (µS)`, stats && stats.zero_fraction < 1 ? show(stats.mean / (1 - stats.zero_fraction)) : 'Unavailable'],
+        [`${label(name)} initial zero fraction / realised nonzero fraction`, [show(init?.initial_zero_fraction), density(name)].join(' / ')],
+        [`${label(name)} realised mean / SD including zeros (µS)`, [stats?.mean, stats?.std].map(show).join(' / ')],
+      ];
+    }) },
+    { label: 'Input and simulation', rows: [
+      ['External input', 'One Poisson raster shared by X→E and X→I'],
+      ['External rate per source (Hz)', show(cfg.external_rate_hz)],
+      ['External seed offset', show(cfg.external_seed_offset)],
+      ['Timestep / duration (ms)', [snapshot?.execution?.timestep_ms, cfg.duration_ms].map(show).join(' / ')],
+      ['Execution seed', show(snapshot?.execution?.seed)],
+      ['Execution device', show(snapshot?.execution?.device_resolved)],
+      ['Spikes recorded', 'All E and I neurons; raw recording includes burn-in'],
+      ['Excluded burn-in (ms)', show(cfg.burn_in_ms)],
+      ['Measurement window (ms)', show(cfg.duration_ms - cfg.burn_in_ms)],
+      ['Input-generation block length (steps)', show(cfg.recording_block_steps)],
+      ['Training', snapshot?.execution?.parameter_membership?.trainable?.length === 0 ? 'None; X→I weights follow the prescribed control' : 'Unavailable'],
+    ] },
+    { label: 'Control protocol', rows: [
+      ['Scheduled parameter', show(cfg.control?.parameter)],
+      ['Baseline / final gain', [cfg.control?.baseline_gain, cfg.control?.final_gain].map(show).join(' / ')],
+      ['Absolute ramp start / end (ms)', [cfg.control?.ramp_start_ms, cfg.control?.ramp_end_ms].map(show).join(' / ')],
+      ['Gain update interval (ms)', show(cfg.control?.update_ms)],
+      ['Baseline / ramp / hold (ms)', [cfg.baseline_ms, cfg.ramp_ms, cfg.hold_ms].map(show).join(' / ')],
+    ] },
+    { label: 'Analysis', rows: [
+      ['Population-count bin width (ms)', show(cfg.analysis?.population_bin_ms)],
+      ['Minimum peak separation (ms)', show(cfg.analysis?.peak_separation_ms)],
+      ['Prominence fraction of maximum bin count', show(cfg.analysis?.peak_prominence_fraction)],
+    ] },
+  ];
+})();
+
+## A. Network
+
+<RunFigure report="exp148" experiment="exp148" file="circuit.svg" number="A1" id="fig-circuit" alt="The executed graph contains shared X input to E and I, and all four recurrent E/I pathways." allowUnavailable={true}>
+  Native circuit diagram from the compiled graph used for this run. The
+  intervention scales X→I weights while preserving its connection mask.
+</RunFigure>
+
+## B. Parameters
+
+<Table headers={["Parameter", "Value"]} groups={parameterGroups} number="A1" label="Executed network and control protocol">
+  E/I pairs are listed in that order. Network values and initial weight
+  statistics come from the native simulation-start snapshot. Protocol and
+  analysis values come from the same compute run's recorded configuration.
+  X→I statistics describe initial weights before the control ramp. Gaussian
+  parent moments differ from realised moments because of lower clamping and
+  excluded autapses. A final zero gain leaves no active X→I weights.
+</Table>

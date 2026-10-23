@@ -2,7 +2,7 @@
 id: "exp082"
 title: "Spike-Count Classification in a Continuous Stream"
 created_at: "2026-08-10"
-updated_at: "2026-09-10T00:00:00Z"
+updated_at: "2026-10-20T17:13:36Z"
 description: "A multi-seed study of spike-count classification across input rates and presentation durations."
 collection: ["gamma-gated-sparsity", "experiments"]
 author: "Eoin Murray"
@@ -10,7 +10,6 @@ tags: ["data", "v37.0.0"]
 runs: {"exp082": "exp082-r033-present"}
 thumbnailRun: "exp082-r033-present"
 thumbnail: "continuous_stream_compound.png"
-abstract: "Input calibration in exp080 — Decoder Accuracy Improves with Input Rate motivated the rate range used to train a variable rate PING classifier in exp022 — MNIST. We tested whether these networks could classify continuous digit streams while retaining hidden state. With image sequences matched across conditions, longer, stronger inputs improved accuracy. One network classified five successive digits correctly despite changing durations and rates. Weak inputs exposed silent and incorrect responses. Decisions required supplied digit boundaries, and the selected successful example does not estimate reliability."
 inputs: ["exp082"]
 ---
 
@@ -29,6 +28,10 @@ export const correctStreamDigits = display(run.variable_stream.correct.reduce((s
 export const showcaseConditions = display(joinLast(run.showcase_selection.configuration.conditions.map(pair => `(${pair[0]} ms, ${pair[1]} Hz)`)));
 
 <span id="loc-2" />
+
+## Abstract
+
+We tested three frozen variable-rate PING classifiers on one matched bank of MNIST digit streams, preserving hidden state and supplying digit boundaries. At 25 Hz maximum-pixel input, increasing presentation duration from 25 to 200 ms raised mean accuracy from {accuracy2525} to {accuracy20025}. A separately selected network classified five successive digits correctly under varying duration and rate. The selected success does not estimate reliability; the quantitative comparison does not test autonomous segmentation or isolate gamma timing.
 
 ## Results
 

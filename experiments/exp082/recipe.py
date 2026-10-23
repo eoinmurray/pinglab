@@ -1,10 +1,19 @@
-"""Frozen streaming-inference recipe; no execution or storage on import."""
+"""Frozen streaming-inference recipe; no execution or storage on import.
+
+configuration() resolves fresh scientific settings before execution. Network
+authoring and analysis definitions do not load data or launch a stage on import.
+"""
+
+from copy import deepcopy
 
 from pathlib import Path
 from typing import Any
 
-from experiments.exp022 import training_run_cell, training_run_values
-from experiments.exp022.checkpoints import checkpoint_policy
+from experiments.exp082.custom.bank_contract import (
+    training_run_cell,
+    training_run_values,
+)
+from experiments.exp082.custom.source_exp022_custom_checkpoints import checkpoint_policy
 from snnlab.lang import refractory_metadata
 
 SLUG = "exp082"
@@ -69,8 +78,6 @@ def refractory_configuration() -> dict:
     }
 
 
-
-
 def refractory_execution_configuration(dt_ms: float) -> dict:
     return refractory_metadata(
         REFRACTORY_E_MS,
@@ -89,40 +96,42 @@ def training_dir(seed):
 
 
 def configuration(*, smoke=False, streams=None, digits=None, batch=None, version=3):
+    if type(smoke) is not bool:
+        raise ValueError("smoke must be boolean")
     if version not in (1, 2, 3):
         raise ValueError("unsupported exp082 recipe version")
     pilot = any(v is not None for v in (streams, digits))
-    cfg: dict[str, Any] = {
-        "schema": f"exp082.recipe/v{version}",
-        **(refractory_configuration() if version >= 2 else {}),
-        "profile": "smoke" if smoke else "pilot" if pilot else "production",
-        "checkpoint_policy": CHECKPOINT_POLICY,
-        "seeds": list(SEEDS),
-        "training_rates_hz": list(TRAINING_RATES_HZ),
-        "psychometric_rates_hz": [0.5, 5.0, 25.0] if smoke else list(TRAINING_RATES_HZ),
-        "durations_ms": [50.0, 200.0] if smoke else list(DURATIONS_MS),
-        "matched_duration_ms": MATCHED_DURATION_MS,
-        "matched_rate_hz": MATCHED_RATE_HZ,
-        "streams_per_cell": streams if streams is not None else 1 if smoke else 40,
-        "digits_per_stream": digits if digits is not None else 3 if smoke else 5,
-        "stream_batch_size": batch if batch is not None else 1 if smoke else 5,
-        "dt_ms": DT_MS,
+    cfg: dict[str, Any] = dict(
+        schema=f"exp082.recipe/v{version}",
+        **(refractory_configuration() if version >= 2 else dict()),
+        profile="smoke" if smoke else "pilot" if pilot else "production",
+        checkpoint_policy=CHECKPOINT_POLICY,
+        seeds=list(SEEDS),
+        training_rates_hz=list(TRAINING_RATES_HZ),
+        psychometric_rates_hz=[0.5, 5.0, 25.0] if smoke else list(TRAINING_RATES_HZ),
+        durations_ms=[50.0, 200.0] if smoke else list(DURATIONS_MS),
+        matched_duration_ms=MATCHED_DURATION_MS,
+        matched_rate_hz=MATCHED_RATE_HZ,
+        streams_per_cell=streams if streams is not None else 1 if smoke else 40,
+        digits_per_stream=digits if digits is not None else 3 if smoke else 5,
+        stream_batch_size=batch if batch is not None else 1 if smoke else 5,
+        dt_ms=DT_MS,
         **(
-            {
-                "image_stream_policy": IMAGE_STREAM_POLICY,
-                "image_sampling_seed": IMAGE_SAMPLING_SEED,
-                "encoding_seed_policy": ENCODING_SEED_POLICY,
-                "encoding_seed_base": ENCODING_SEED_BASE,
-            }
+            dict(
+                image_stream_policy=IMAGE_STREAM_POLICY,
+                image_sampling_seed=IMAGE_SAMPLING_SEED,
+                encoding_seed_policy=ENCODING_SEED_POLICY,
+                encoding_seed_base=ENCODING_SEED_BASE,
+            )
             if version >= 3
-            else {}
+            else dict()
         ),
-    }
+    )
     for k in ("streams_per_cell", "digits_per_stream", "stream_batch_size"):
         if type(cfg[k]) is not int or cfg[k] < 1:
             raise ValueError(f"{k} must be a positive integer")
     cfg["digits_per_seed_cell"] = cfg["streams_per_cell"] * cfg["digits_per_stream"]
-    return cfg
+    return deepcopy(cfg)
 
 
 def environment_configuration():
@@ -238,10 +247,15 @@ def infer_jobs():
 
 
 BIOPHYSICS = {
-    "capacitance_e_nf": 1.0, "capacitance_i_nf": 0.5,
-    "leak_e_us": 0.05, "leak_i_us": 0.10,
-    "resting_mv": -65.0, "threshold_mv": -50.0, "reset_mv": -65.0,
-    "readout_tau_ms": 2.0, "readout_threshold": 1.0,
+    "capacitance_e_nf": 1.0,
+    "capacitance_i_nf": 0.5,
+    "leak_e_us": 0.05,
+    "leak_i_us": 0.10,
+    "resting_mv": -65.0,
+    "threshold_mv": -50.0,
+    "reset_mv": -65.0,
+    "readout_tau_ms": 2.0,
+    "readout_threshold": 1.0,
 }
 
 

@@ -1,4 +1,8 @@
-"""Compute the reduced interventions from an explicit v4 bank; never analyse or present."""
+"""Compute the reduced interventions from an explicit v4 bank; never analyse or present.
+
+Invoke this stage explicitly from the repository root. Scientific outputs
+and input provenance belong to its independently completed Pingstore run.
+"""
 
 import argparse
 import os
@@ -14,7 +18,8 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
 
 import numpy as np
-from experiments.exp042 import inputs, recipe, simulation
+from experiments.exp042.custom import inputs, simulation
+from experiments.exp042 import recipe
 from tools.hpc import concurrent_compute
 from pingstore.contracts import (
     PingstoreError,
@@ -35,7 +40,10 @@ def _native_inventory(directory, jobs):
         return {}
     files = {}
     units = [f"{job['id']}--inference" for job in jobs]
-    units += [f"{cell}--{jobs[0]['id']}--baseline" for cell in dict.fromkeys(job["cell"] for job in jobs)]
+    units += [
+        f"{cell}--{jobs[0]['id']}--baseline"
+        for cell in dict.fromkeys(job["cell"] for job in jobs)
+    ]
     for name in units:
         unit = directory / "export" / name
         for path in unit.rglob("*"):
@@ -57,7 +65,9 @@ def _shard_requests(path):
 
 
 def _run_jobs(bank, cfg, data, root, export, jobs, requests):
-    for job, metrics in simulation.evaluate_jobs(bank, cfg, data, root, jobs, requests, export):
+    for job, metrics in simulation.evaluate_jobs(
+        bank, cfg, data, root, jobs, requests, export
+    ):
         record = {"job": job, "metrics": metrics}
         canonical = recipe.replay_job(job)
         if canonical != job:
@@ -246,7 +256,9 @@ def _complete(bank, evidence, cfg, data, root, run_id, collect):
             if collect:
                 for index in range(recipe.SHARDS):
                     requests.extend(
-                        _shard_requests(run.scratch / "shards" / str(index) / "requests.json")
+                        _shard_requests(
+                            run.scratch / "shards" / str(index) / "requests.json"
+                        )
                     )
             if not collect:
                 _run_jobs(bank, cfg, data, root, run.export, recipe.jobs(cfg), requests)

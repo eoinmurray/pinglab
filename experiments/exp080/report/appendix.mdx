@@ -1,3 +1,20 @@
+
+import Table from '../../../site/src/components/Table.astro';
+import { reportSnapshots } from '../../../site/src/lib/report-data';
+
+export const configurationEvidence = await reportSnapshots('exp080', { snapshots: {}, allowUnavailable: true });
+export const savedConfiguration = configurationEvidence?.configuration;
+export const savedValue = value => value === undefined ? 'Unavailable' : Array.isArray(value) ? value.join(' / ') : String(value);
+export const settingsGroup = (label, fields, source = savedConfiguration) => ({ label, rows: (source ? fields.filter(([, key]) => key in source) : fields).map(([name, key]) => [name, savedValue(source?.[key])]) });
+export const allSettingsGroups = [
+  settingsGroup('Nonspiking membrane', [['Capacitance (nF)', 'C_m_nF'], ['Leak conductance (µS)', 'g_L_uS'], ['Leak reversal (mV)', 'E_L_mV'], ['Excitatory reversal (mV)', 'E_e_mV'], ['AMPA decay (ms)', 'tau_ampa_ms']], savedConfiguration?.membrane),
+  settingsGroup('Input and simulation', [['Timestep (ms)', 'dt_ms'], ['Presentation (ms)', 'presentation_ms'], ['Event strengths (µS)', 'probes_uS'], ['Single event strength (µS)', 'probe_uS'], ['Input rates (Hz)', 'rates_hz'], ['Numerical precision', 'dtype']]),
+  settingsGroup('Readout and training', [['Hidden decoder units', 'hidden_units'], ['Training images', 'train_count'], ['Validation images', 'validation_count'], ['Test images', 'test_count'], ['Epochs', 'epochs'], ['Seeds', 'seeds'], ['Checkpoint selection', 'checkpoint_role']]),
+  settingsGroup('Analysis', [['Moment draws', 'moment_draws'], ['Distribution draws', 'distribution_draws'], ['Sample-SD divisor', 'sd_ddof'], ['Histogram bins', 'histogram_bins'], ['Fine integration grid points', 'fine_grid_points'], ['Coarse integration grid points', 'coarse_grid_points']]),
+];
+
+export const settingsGroups = allSettingsGroups.filter(group => group.rows.length);
+
 import ReportAvailability from '../../../site/src/components/ReportAvailability.astro';
 import DataBranch from '../../../site/src/components/DataBranch.astro';
 import RunFigure from '../../../site/src/components/RunFigure.astro';
@@ -6,8 +23,19 @@ import RunFigure from '../../../site/src/components/RunFigure.astro';
 
 ## Appendix: Finite-window filtering and interpretation
 
-The Bernoulli input events form *shot noise*: each produces a discrete conductance jump followed by exponential AMPA decay. These pulses change both the voltage toward which the membrane moves and how quickly it moves there. A spike’s An event’s effect therefore depends on the voltage and conductance left by earlier events, rather than adding a fixed voltage increment.
+The Bernoulli input events form *shot noise*: each produces a discrete conductance jump followed by exponential AMPA decay. These pulses change both the voltage toward which the membrane moves and how quickly it moves there. An event’s effect therefore depends on the voltage and conductance left by earlier events, rather than adding a fixed voltage increment.
 
 At low input rates, a finite presentation may contain no events, one event, or a few arriving at different times. Response statistics can change during the presentation (*nonstationary*), and their distribution can be asymmetric or concentrated around a few outcomes (*non-Gaussian*)\[[1](#ref-1)\]. Direct simulation retained these count and timing effects rather than replacing them with a steady, bell-shaped approximation.
 
 Neural decoding measures information accessible to a specified readout, not absolute information content or the mechanism by which a biological population uses it\[[2](#ref-2)\]. The criterion therefore selects a practical interval for this representation and decoder. Transfer to a PING network requires a separate evaluation; decoding accuracy here does not establish gamma timing benefits.
+
+
+<span id="parameters" />
+
+## Parameters
+
+This experiment uses an independent nonspiking membrane model. SNNLab
+spiking-network snapshots and circuit diagrams do not apply. The table reads
+the pinned computation's recorded configuration; absent evidence stays unavailable.
+
+<Table headers={['Parameter', 'Recorded value']} groups={settingsGroups} />

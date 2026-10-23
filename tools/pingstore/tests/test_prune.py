@@ -553,3 +553,24 @@ def test_backup_ignores_local_and_remote_protection_markers(tmp_path, monkeypatc
     plan = backup.build_plan(source, 'remote:pingstore/runs')
     assert not plan['new_runs']
     assert len(plan['existing_runs']) == len(records)
+
+
+@pytest.mark.parametrize('broken', ['missing', 'changed'])
+def test_unused_broken_input_can_be_pruned_but_retained_input_must_validate(tmp_path, broken):
+    paths = fixture_store(tmp_path)
+    parent = reference(paths['old_compute'])
+    if broken == 'missing':
+        parent['run_id'] = 'exp001-r999-compute'
+    else:
+        parent['payload_digest'] = 'sha256:' + '0' * 64
+    orphan = make_run(tmp_path, 'exp001-r004-compute', stage='compute',
+                      created_at='2026-01-04T00:00:00Z', inputs={'source': parent})
+    plan = build_plan(tmp_path)
+    assert orphan.name in {row['run_id'] for row in plan['prune']}
+    (orphan / '.protected').touch()
+    with pytest.raises(PingstoreError, match='missing|changed'):
+        build_plan(tmp_path)
+    (orphan / '.protected').unlink()
+    apply_plan(tmp_path, plan['plan_hash'])
+    assert not orphan.exists()
+    assert paths['latest'].exists()

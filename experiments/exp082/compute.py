@@ -1,4 +1,8 @@
-"""Compute exp082 streaming inference from a pinned v4 bank, with six shards."""
+"""Compute exp082 streaming inference from a pinned v4 bank, with six shards.
+
+Invoke this stage explicitly from the repository root. Scientific outputs
+and input provenance belong to its independently completed Pingstore run.
+"""
 
 import argparse
 import os
@@ -7,9 +11,10 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
-from experiments.exp082 import evidence, illustrate, inputs, recipe
+from experiments.exp082.custom import evidence, illustrate, inputs
+from experiments.exp082 import recipe
 from experiments.exp082.custom.sharding import shard_identity
-from experiments.exp082.inference import Inference
+from experiments.exp082.custom.inference import Inference
 from pingstore.contracts import (
     PingstoreError,
     file_sha256,

@@ -1,4 +1,8 @@
-"""Exp024 presentation: draw completed analysis without reading training cells."""
+"""Exp024 presentation: draw completed analysis without reading training cells.
+
+Invoke this stage explicitly from the repository root. Scientific outputs
+and input provenance belong to its independently completed Pingstore run.
+"""
 
 from __future__ import annotations
 
@@ -176,44 +180,84 @@ def plot_confidence_inflation(cells: dict, conv_ep: dict, out_path: Path) -> Non
 
 
 def present(identity: str, *, run_id: str | None = None) -> str:
-    analysis = source_run(REPO / ".pingstore", identity, stage="analyse", experiment=recipe.SLUG)
+    analysis = source_run(
+        REPO / ".pingstore", identity, stage="analyse", experiment=recipe.SLUG
+    )
     results = load_json(analysis.export / "results.json")
     curves = load_json(analysis.export / "curves.json")
-    if results.get("schema") != "exp024.analysis/v1" or curves.get("schema") != "exp024.curves/v1":
+    if (
+        results.get("schema") != "exp024.analysis/v1"
+        or curves.get("schema") != "exp024.curves/v1"
+    ):
         raise PingstoreError("unsupported exp024 analysis payload")
     inputs = {"analysis": analysis}
     for role, ref in analysis.record["inputs"].items():
-        inputs[role] = source_run(REPO / ".pingstore", ref["run_id"], stage="compute",
-                                  experiment="exp022", reference=ref)
+        inputs[role] = source_run(
+            REPO / ".pingstore",
+            ref["run_id"],
+            stage="compute",
+            experiment="exp022",
+            reference=ref,
+        )
     if "compute" not in inputs:
         raise PingstoreError("exp024 analysis must pin its exp022 computation")
     cells = {(cell["model"], cell["seed"]): cell for cell in curves["cells"]}
     expected = {(model, seed) for model in recipe.MODELS for seed in recipe.SEEDS}
     if set(cells) != expected or len(curves["cells"]) != len(expected):
         raise PingstoreError("presentation requires all six analysed baselines")
-    markers = {model: results["models"][model]["accuracy_marker_epoch_mean"]
-               for model in recipe.MODELS}
+    markers = {
+        model: results["models"][model]["accuracy_marker_epoch_mean"]
+        for model in recipe.MODELS
+    }
     started = time.monotonic()
-    with stage_run(REPO, recipe.SLUG, "present", inputs=inputs, run_id=run_id,
-                   configuration=results["config"]) as run:
+    with stage_run(
+        REPO,
+        recipe.SLUG,
+        "present",
+        inputs=inputs,
+        run_id=run_id,
+        configuration=results["config"],
+    ) as run:
         for model in recipe.MODELS:
             plot_model_curves(cells, model, run.export / f"{model}_curves.svg")
-        plot_confidence_inflation(cells, markers, run.export / "confidence_inflation.svg")
-        lineage = [{"file": name, "operation": "render", "source_run": identity,
-                    "source_paths": ["curves.json", "results.json"]} for name in recipe.FIGURES]
+        plot_confidence_inflation(
+            cells, markers, run.export / "confidence_inflation.svg"
+        )
+        lineage = [
+            {
+                "file": name,
+                "operation": "render",
+                "source_run": identity,
+                "source_paths": ["curves.json", "results.json"],
+            }
+            for name in recipe.FIGURES
+        ]
         run.record["presentation_lineage"] = lineage
-        write_json_atomic(run.export / "numbers.json", {
-            **results, "run_id": run.run_id, "git_sha": run.record["provenance"]["git_commit"],
-            "duration_s": time.monotonic() - started,
-            "final": {row["name"]: {"acc": row["final_acc"], "rate_e": row["final_e_rate_hz"],
-                                      "rate_i": row["final_i_rate_hz"]} for row in results["cells"]},
-        })
+        write_json_atomic(
+            run.export / "numbers.json",
+            {
+                **results,
+                "run_id": run.run_id,
+                "git_sha": run.record["provenance"]["git_commit"],
+                "duration_s": time.monotonic() - started,
+                "final": {
+                    row["name"]: {
+                        "acc": row["final_acc"],
+                        "rate_e": row["final_e_rate_hz"],
+                        "rate_i": row["final_i_rate_hz"],
+                    }
+                    for row in results["cells"]
+                },
+            },
+        )
     return run.run_id
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--source", required=True, help="completed exp024 analyse run ID")
+    parser.add_argument(
+        "--source", required=True, help="completed exp024 analyse run ID"
+    )
     parser.add_argument("--run-id", help="unused identity reserved before dispatch")
     args = parser.parse_args()
     present(args.source, run_id=args.run_id)

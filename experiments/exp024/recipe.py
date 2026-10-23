@@ -1,6 +1,15 @@
-"""Convergence audit definitions; training identities remain owned by exp022."""
+"""Convergence audit definitions; training identities remain owned by exp022.
 
-from experiments.exp022.recipe import training_run_cell, training_run_values
+configuration() resolves fresh scientific settings before execution. Network
+authoring and analysis definitions do not load data or launch a stage on import.
+"""
+
+from copy import deepcopy
+
+from experiments.exp024.custom.bank_contract import (
+    training_run_cell,
+    training_run_values,
+)
 
 SLUG = "exp024"
 TRAINING_RUN = "TR-02"
@@ -16,8 +25,9 @@ FIGURES = ("coba_curves.svg", "ping_curves.svg", "confidence_inflation.svg")
 
 
 def cell_name(model: str, seed: int) -> str:
-    return training_run_cell(TRAINING_RUN, model=model, rate_target_hz=None,
-                             seed=seed)["name"]
+    return training_run_cell(TRAINING_RUN, model=model, rate_target_hz=None, seed=seed)[
+        "name"
+    ]
 
 
 def slope_last_n(values: list[float], n: int = WINDOW) -> float:
@@ -32,5 +42,23 @@ def accuracy_marker(values: list[float]) -> int | None:
     """First epoch reaching 99% of final accuracy; not sustained convergence."""
     if values[-1] <= 0:
         return None
-    return next(i + 1 for i, value in enumerate(values)
-                if value >= ACCURACY_FRACTION * values[-1])
+    return next(
+        i + 1
+        for i, value in enumerate(values)
+        if value >= ACCURACY_FRACTION * values[-1]
+    )
+
+
+def configuration():
+    """Resolve the history audit without importing the bank producer."""
+    return deepcopy(
+        dict(
+            training_run=TRAINING_RUN,
+            window_epochs=WINDOW,
+            accuracy_threshold_pp_per_epoch=ACCURACY_THRESHOLD,
+            rate_threshold_hz_per_epoch=RATE_THRESHOLD,
+            accuracy_marker_fraction=ACCURACY_FRACTION,
+            slope_estimator="endpoint_secant",
+            threshold_rule="absolute_slope_strictly_below",
+        )
+    )

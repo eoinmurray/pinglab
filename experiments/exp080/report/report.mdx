@@ -2,11 +2,12 @@
 id: "exp080"
 title: "Decoder Accuracy Improves with Input Rate"
 created_at: "2026-08-10"
-updated_at: "2026-08-31T00:00:00Z"
+updated_at: "2026-10-20T17:13:36Z"
 description: "Direct-simulation decoder calibration of the input-rate range for later variable-rate PING training."
 collection: ["gamma-gated-sparsity", "experiments"]
 author: "Eoin Murray"
 tags: ["data", "v37.0.0"]
+runs: {exp080: exp080-r003-present}
 inputs: ["exp080"]
 ---
 
@@ -50,9 +51,7 @@ export const seeds = run ? display(p.seeds.map(String).join(", ")) : 'unavailabl
 
 ## Abstract
 
-This experiment asked which input rates preserve enough information in synaptically and membrane-filtered MNIST images for classification. In the retained calibration, nonlinear decoders were trained across the tested rates and evaluated on held-out digits.
-
-Decoder accuracy improved with input rate, yielding a practical tested range for later variable-rate PING experiments. The result calibrates the filtering and decoding pipeline; it does not measure PING-network accuracy or predict performance between tested rates.
+We asked which input rates preserve enough information in filtered MNIST pixel events for nonlinear decoding. We trained {seedCount} decoders on finite-window, nonspiking membrane features and evaluated held-out digits. Mean accuracy increased from {pctDRowsFirstAccuracy} at {dRowsFirstRateHz} Hz to {pctDRowsLastAccuracy} at {dRowsLastRateHz} Hz. The tested range calibrates this representation and decoder; it does not establish PING-network accuracy or predict performance between tested rates.
 
 <span id="loc-2" />
 
@@ -135,7 +134,7 @@ The resulting interval is a decoder-relative calibration without interpolation; 
 
    Here $i$ indexes pixels, $k$ is the simulation-step index, $p_{\text{event} , i}$ is event probability, and $r_{\text{input,max}}$ is maximum-pixel encoding rate in spikes/s; 1000 converts milliseconds to seconds.
 
-4. **Filter synaptic conductance.** Excitatory conductance $g_{i [ k ]}$, in μS, decayed each step by $\exp ( - \Delta \frac{t_{\text{sim}}}{\tau_{\text{AMPA}}} )$ before an event added $w_{\text{event}}$. The AMPA time constant was $\tau_{\text{AMPA}} = 2$ ms and event strength was $w_{\text{event}} =$ {pProbeUs} μS.
+4. **Filter synaptic conductance.** Excitatory conductance $g_{i [ k ]}$, in μS, decayed each step by $\exp(-\Delta t_{\text{sim}}/\tau_{\text{AMPA}})$ before an event added $w_{\text{event}}$. The AMPA time constant was $\tau_{\text{AMPA}} = 2$ ms and event strength was $w_{\text{event}} =$ {pProbeUs} μS.
 
 5. **Integrate membrane voltage.** During simulation step $k$, the updated conductance $g_{i [ k ]}$ was held fixed while each non-spiking membrane voltage $V_{m , i} ( t )$ obeyed
 
@@ -153,11 +152,9 @@ The resulting interval is a decoder-relative calibration without interpolation; 
    \tag{3}
    $$
 
-   Here $T_{\text{present}} =$ {pPresentationMs} ms, $N_{t} = \frac{T_{\text{present}}}{\Delta} t_{\text{sim}}$ is the timestep count, and physical time at step $k$ is $t_{k} = k \Delta t_{\text{sim}}$. Fresh encoding draws retained finite-window shot-noise effects without a stationary Gaussian approximation\[[1](#ref-1)\].
+   Here $T_{\text{present}} =$ {pPresentationMs} ms, $N_{t} = \frac{T_{\text{present}}}{\Delta t_{\text{sim}}}$ is the timestep count, and physical time at step $k$ is $t_{k} = k \Delta t_{\text{sim}}$. Fresh encoding draws retained finite-window shot-noise effects without a stationary Gaussian approximation\[[1](#ref-1)\].
 
-7. **Train mixed-rate decoders.** At every epoch, we sampled the input rate for each training and validation presentation uniformly from {inputRates} Hz and generated a fresh encoding draw. Each 784–1024–10 ReLU decoder was trained for {epochs} epochs using cross-entropy, Adam with learning rate 0.001, no weight decay and batch size
-
-   1.
+7. **Train mixed-rate decoders.** At every epoch, we sampled the input rate for each training and validation presentation uniformly from {inputRates} Hz and generated a fresh encoding draw. Each 784–1024–10 ReLU decoder was trained for {epochs} epochs using cross-entropy, Adam with learning rate 0.001, no weight decay and batch size 1.
 
 8. **Independent training replicates.** Stochastic-stream identifiers {seeds} defined independent model initializations, rate assignments and encoding draws.
 

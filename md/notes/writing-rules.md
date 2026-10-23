@@ -4,7 +4,7 @@ author: Eoin Murray
 collection: notes
 description: Brief, plain-English writing grounded in code and data.
 created_at: "2026-10-14"
-updated_at: "2026-10-20T13:56:46Z"
+updated_at: "2026-10-22T10:31:33Z"
 ---
 
 # Writing Rules
@@ -90,8 +90,10 @@ updated_at: "2026-10-20T13:56:46Z"
 
 ## 5. Appendix
 
-1. Order `appendix.mdx` as supporting methods and derivations, network diagrams,
-   then one grouped parameter table. Start with diagrams when no supporting text is needed.
+1. Every report must include a network diagram and a parameter table in
+   `appendix.mdx`; both are always required. Order the appendix as supporting
+   methods and derivations, network diagrams, then one grouped parameter table.
+   Start with diagrams when no supporting text is needed.
 2. Use named, lettered appendices for substantial topics, with numbered subsections
    such as A1 and A2. Develop derivations in order and define symbols and units.
 3. Distinguish exact algebra, approximations and closure assumptions; state what

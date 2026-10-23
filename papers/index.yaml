@@ -27,6 +27,15 @@ bosman-et-al-2012.pdf:
   venue: Neuron
   doi: 10.1016/j.neuron.2012.06.037
 
+brunel-2000.pdf:
+  id: P19
+  title: Dynamics of Sparsely Connected Networks of Excitatory and Inhibitory Spiking Neurons
+  authors: [Nicolas Brunel]
+  year: 2000
+  collection: [spiking]
+  venue: Journal of Computational Neuroscience
+  doi: 10.1023/A:1008925309027
+
 confavreux-et-al-2025.pdf:
   id: P17
   title: "Memory by a thousand rules: Automated discovery of multi-type plasticity rules reveals variety & degeneracy at the heart of learning"
@@ -106,6 +115,15 @@ ma-et-al-2006.pdf:
   venue: Nature Neuroscience
   doi: 10.1038/nn1790
 
+nandi-et-al-2024.pdf:
+  id: P21
+  title: Bursting gamma oscillations in neural mass models
+  authors: [Manoj Kumar Nandi, Michele Valla, Matteo di Volo]
+  year: 2024
+  collection: [ping, spiking, gamma-synchronisation]
+  venue: Frontiers in Computational Neuroscience
+  doi: 10.3389/fncom.2024.1422159
+
 orban-et-al-2016.pdf:
   id: P08
   title: Neural Variability and Sampling-Based Probabilistic Representations in the Visual Cortex
@@ -141,6 +159,24 @@ pouget-et-al-2003.pdf:
   collection: [probabilistic-coding]
   venue: Annual Review of Neuroscience
   doi: 10.1146/annurev.neuro.26.041002.131112
+
+renart-et-al-2010-supplemental.pdf:
+  id: P22
+  title: "The Asynchronous State in Cortical Circuits: Supporting Online Material"
+  authors: [Alfonso Renart, Jaime de la Rocha, Peter Bartho, Liad Hollender, Néstor Parga, Alex Reyes, Kenneth D. Harris]
+  year: 2010
+  collection: [spiking]
+  venue: Science
+  doi: 10.1126/science.1179850
+
+renart-et-al-2010.pdf:
+  id: P20
+  title: The Asynchronous State in Cortical Circuits
+  authors: [Alfonso Renart, Jaime de la Rocha, Peter Bartho, Liad Hollender, Néstor Parga, Alex Reyes, Kenneth D. Harris]
+  year: 2010
+  collection: [spiking]
+  venue: Science
+  doi: 10.1126/science.1179850
 
 susin-destexhe-2021.pdf:
   id: P13

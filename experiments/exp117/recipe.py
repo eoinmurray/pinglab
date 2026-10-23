@@ -1,6 +1,12 @@
-"""Self-contained scientific definition for exp117; no execution on import."""
+"""Self-contained scientific definition for exp117; no execution on import.
+
+configuration() resolves fresh scientific settings before execution. Network
+authoring and analysis definitions do not load data or launch a stage on import.
+"""
 
 from __future__ import annotations
+
+from copy import deepcopy
 
 SLUG = "exp117"
 SCHEMA = "exp117.recipe/v3"
@@ -66,38 +72,42 @@ NUMERICAL_PROTOCOL = {
 
 def configuration() -> dict:
     """Return the complete independent model definition."""
-    return {
-        "schema": SCHEMA,
-        "imported_parameters": {
-            key: dict(value) if isinstance(value, dict) else value
-            for key, value in IMPORTED_PARAMETERS.items()
-        },
-        "mean_field_choices": {
-            key: dict(value) if isinstance(value, dict) else list(value)
-            if isinstance(value, tuple)
-            else value
-            for key, value in MEAN_FIELD_CHOICES.items()
-        },
-        "numerical_protocol": {
-            "drive_grid_nA": list(NUMERICAL_PROTOCOL["drive_grid_nA"]),
-            "equilibrium_root": dict(NUMERICAL_PROTOCOL["equilibrium_root"]),
-            "complex_eigenvalue_threshold_per_ms": NUMERICAL_PROTOCOL[
-                "complex_eigenvalue_threshold_per_ms"
-            ],
-            "hopf_refinement": dict(NUMERICAL_PROTOCOL["hopf_refinement"]),
-            "criticality_ramp": {
-                key: list(value) if isinstance(value, tuple) else value
-                for key, value in NUMERICAL_PROTOCOL["criticality_ramp"].items()
+    return deepcopy(
+        dict(
+            schema=SCHEMA,
+            imported_parameters={
+                key: dict(value) if isinstance(value, dict) else value
+                for key, value in IMPORTED_PARAMETERS.items()
             },
-        },
-        "runtime_dependencies": [],
-        "planned_outputs": {
-            "hopf_location": True,
-            "hopf_frequency_Hz": True,
-            "criticality": ["supercritical", "subcritical", "unresolved"],
-            "frequency_vs_tau_GABA": True,
-        },
-    }
+            mean_field_choices={
+                key: dict(value)
+                if isinstance(value, dict)
+                else list(value)
+                if isinstance(value, tuple)
+                else value
+                for key, value in MEAN_FIELD_CHOICES.items()
+            },
+            numerical_protocol=dict(
+                drive_grid_nA=list(NUMERICAL_PROTOCOL["drive_grid_nA"]),
+                equilibrium_root=dict(NUMERICAL_PROTOCOL["equilibrium_root"]),
+                complex_eigenvalue_threshold_per_ms=NUMERICAL_PROTOCOL[
+                    "complex_eigenvalue_threshold_per_ms"
+                ],
+                hopf_refinement=dict(NUMERICAL_PROTOCOL["hopf_refinement"]),
+                criticality_ramp={
+                    key: list(value) if isinstance(value, tuple) else value
+                    for key, value in NUMERICAL_PROTOCOL["criticality_ramp"].items()
+                },
+            ),
+            runtime_dependencies=[],
+            planned_outputs=dict(
+                hopf_location=True,
+                hopf_frequency_Hz=True,
+                criticality=["supercritical", "subcritical", "unresolved"],
+                frequency_vs_tau_GABA=True,
+            ),
+        )
+    )
 
 
 def validate(candidate: dict) -> dict:

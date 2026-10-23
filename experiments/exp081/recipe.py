@@ -1,6 +1,12 @@
-"""Committed physical definitions and analytical filter; no execution on import."""
+"""Committed physical definitions and analytical filter; no execution on import.
+
+configuration() resolves fresh scientific settings before execution. Network
+authoring and analysis definitions do not load data or launch a stage on import.
+"""
 
 from __future__ import annotations
+
+from copy import deepcopy
 
 import hashlib
 
@@ -41,35 +47,39 @@ def stable_seed(*parts: int) -> int:
 
 def configuration(*, smoke: bool = False) -> dict:
     """Snapshot the committed recipe, including the explicit smoke profile."""
-    return {
-        "schema": "exp081.recipe/v1",
-        "profile": "smoke" if smoke else "full",
-        "presentation_ms": PRESENTATION_MS,
-        "dt_ms": DT_MS,
-        "probes_uS": list(PROBES_US),
-        "input_rate_grid_hz": INPUT_RATES_HZ.tolist(),
-        "pixel_intensity": 1.0,
-        "distribution_rates_hz": list(DISTRIBUTION_RATES_HZ),
-        "frequency_response_rates_hz": list(FREQUENCY_RESPONSE_RATES_HZ),
-        "frequency_plot_bounds_hz": list(FREQUENCY_PLOT_BOUNDS_HZ),
-        "frequency_plot_points": 1400,
-        "nominal_probe_uS": NOMINAL_PROBE_US,
-        "moment_draws": 32 if smoke else MOMENT_DRAWS,
-        "distribution_draws": 128 if smoke else DISTRIBUTION_DRAWS,
-        "frequency_bounds_hz": list(FREQUENCY_BOUNDS_HZ),
-        "fine_grid_points": 1025 if smoke else FREQUENCY_GRID_POINTS,
-        "coarse_grid_points": 513 if smoke else COARSE_GRID_POINTS,
-        "membrane": dict(PARAMETERS),
-        "seed": SEED,
-        "moment_seed": stable_seed(1),
-        "distribution_seed": stable_seed(2),
-        "sd_ddof": 1,
-        "histogram_bins": 60,
-        "encoder": "bernoulli_per_timestep",
-        "dtype": "float32",
-        "voltage_update": "exact_frozen_conductance_after_event",
-        "feature": "mean_post_update_voltage_minus_rest",
-    }
+    if type(smoke) is not bool:
+        raise ValueError("smoke must be boolean")
+    return deepcopy(
+        dict(
+            schema="exp081.recipe/v1",
+            profile="smoke" if smoke else "full",
+            presentation_ms=PRESENTATION_MS,
+            dt_ms=DT_MS,
+            probes_uS=list(PROBES_US),
+            input_rate_grid_hz=INPUT_RATES_HZ.tolist(),
+            pixel_intensity=1.0,
+            distribution_rates_hz=list(DISTRIBUTION_RATES_HZ),
+            frequency_response_rates_hz=list(FREQUENCY_RESPONSE_RATES_HZ),
+            frequency_plot_bounds_hz=list(FREQUENCY_PLOT_BOUNDS_HZ),
+            frequency_plot_points=1400,
+            nominal_probe_uS=NOMINAL_PROBE_US,
+            moment_draws=32 if smoke else MOMENT_DRAWS,
+            distribution_draws=128 if smoke else DISTRIBUTION_DRAWS,
+            frequency_bounds_hz=list(FREQUENCY_BOUNDS_HZ),
+            fine_grid_points=1025 if smoke else FREQUENCY_GRID_POINTS,
+            coarse_grid_points=513 if smoke else COARSE_GRID_POINTS,
+            membrane=dict(PARAMETERS),
+            seed=SEED,
+            moment_seed=stable_seed(1),
+            distribution_seed=stable_seed(2),
+            sd_ddof=1,
+            histogram_bins=60,
+            encoder="bernoulli_per_timestep",
+            dtype="float32",
+            voltage_update="exact_frozen_conductance_after_event",
+            feature="mean_post_update_voltage_minus_rest",
+        )
+    )
 
 
 def linear_operating_point(
