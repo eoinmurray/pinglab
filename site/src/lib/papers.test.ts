@@ -108,3 +108,41 @@ test('requires unique permanent paper IDs and preserves them independently of ye
     assert.equal((await readPaperIndex(directory))['old.pdf'].id, 'P100');
   } finally { await rm(directory, { recursive: true, force: true }); }
 });
+
+
+test('publication uses index source links without PDFs or network access; local links stay local', async (t) => {
+  const directory = await mkdtemp(join(tmpdir(), 'paper-publication-'));
+  t.mock.method(globalThis, 'fetch', () => { throw new Error('Publication must not fetch PDFs or a catalog'); });
+  try {
+    await writeFile(join(directory, 'index.yaml'), `doi.pdf:
+  id: P01
+  title: DOI paper
+  authors: [A. Author]
+  year: 2026
+  doi: 10.1234/example
+source.pdf:
+  id: P02
+  title: Repository paper
+  authors: [B. Author]
+  year: 2025
+  doi: 10.1234/other
+  url: https://arxiv.org/abs/2109.12894v6
+private.pdf:
+  id: P03
+  title: Private proposal
+  authors: [C. Author]
+  year: 2024
+`);
+    const published = await getPapers(directory, { published: true });
+    assert.equal(published.length, 3);
+    assert.deepEqual(published.map(paper => paper.href),
+      ['https://doi.org/10.1234/example', 'https://arxiv.org/abs/2109.12894v6', undefined]);
+    assert.ok(published.every(paper => paper.path === ''));
+    await writeFile(join(directory, 'doi.pdf'), '%PDF-1.7');
+    assert.equal((await getPapers(directory, { published: false }))[0].href, '/papers/doi.pdf');
+    for (const url of ['http://example.com/paper', 'javascript:alert(1)', '/papers/local.pdf']) {
+      await writeFile(join(directory, 'index.yaml'), `a.pdf:\n  id: P01\n  title: Paper\n  authors: [A]\n  year: 2026\n  url: ${url}\n`);
+      await assert.rejects(readPaperIndex(directory), /HTTPS source URL/);
+    }
+  } finally { await rm(directory, { recursive: true, force: true }); }
+});

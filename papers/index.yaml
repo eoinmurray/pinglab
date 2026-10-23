@@ -17,6 +17,7 @@ borgers-kopell-2003.pdf:
   year: 2003
   collection: [ping, spiking]
   venue: Neural Computation
+  doi: 10.1162/089976603321192059
 
 bosman-et-al-2012.pdf:
   id: P06
@@ -69,6 +70,7 @@ eshraghian-et-al-2023.pdf:
   year: 2023
   collection: [spiking]
   venue: "arXiv:2109.12894v6"
+  url: https://arxiv.org/abs/2109.12894v6
 
 fiser-et-al-2010.pdf:
   id: P05

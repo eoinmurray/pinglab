@@ -69,7 +69,7 @@ accessible by URL; it is not access-controlled. Missing pinned evidence is
 shown as unavailable for that experiment without blocking the other tables.
 
 Individual papers appear in a Papers group with titles and authors, linking
-directly to their PDFs. Paper titles, authors, permanent IDs, filenames, years,
+to publisher/repository sources in production and local PDFs in development. Paper titles, authors, permanent IDs, filenames, years,
 venues, DOIs, and collection names are searchable; unindexed PDFs use filenames.
 
 `SiteSearch.astro` supplies the navigation data to a React island. The local
@@ -226,23 +226,23 @@ load the annotation client. Interactive run selectors are absent.
 
 ## Papers
 
-`/papers` lists PDFs from the R2 paper catalog in production and prefers the
-repository's `papers/` directory during development, including subfolders, newest publication year first, then alphabetically by title, with
-unindexed PDFs last and direct PDF links. The left column
-shows the publication year in the article list's experiment-ID style, followed
-by the permanent paper ID in the smaller date style underneath on desktop.
-Hidden files and symlinks are excluded. The homepage and paper pages share
-Articles and Literature sidebar lists; the search palette also links to
-the library. Development reads the directory on refresh; static builds verify
-R2 PDFs and emit compatibility copies under `/papers/`. Production listings link
-directly to R2. Additions and removals need a backup and rebuild to publish.
+`/papers` lists the citation index in production, linking to each entry's DOI or
+optional HTTPS `url` (publisher or authorised repository). Entries without a
+public source remain visible without a download link. Production does not read
+the R2 paper catalog, download PDFs, or emit `/papers/*.pdf` compatibility copies.
+
+Development continues to list and serve local PDFs from `papers/`, including
+subfolders, with unindexed PDFs shown by filename. Hidden files and symlinks are
+excluded. Listings sort by newest publication year, then title. The left column
+shows publication year and permanent paper ID. Development reads the directory
+on refresh; no public PDF archive is needed.
 
 `papers/index.yaml` holds citation metadata keyed by relative PDF filename.
 Each entry requires a unique `id` such as `P01`, `title`, a nonempty `authors`
-list, and integer `year`; `venue` and `doi` are optional.
+list, and integer `year`; `venue`, `doi`, and an HTTPS source `url` are optional.
 The page displays this metadata with the PDF link, falling back to the filename
-for unindexed PDFs. Invalid metadata fails rendering/building; entries without
-matching PDFs produce warnings. An absent index is allowed. The index is tracked
+for unindexed PDFs. Invalid metadata fails rendering/building; development entries without
+matching PDFs produce warnings. Production needs only the index. An absent index is allowed. The index is tracked
 in Git; PDFs remain local ignored files. No extraction or external lookups run
 during page rendering. Preprint metadata identifies the saved version.
 
@@ -497,10 +497,6 @@ hash-confirmation invocations. Do not remove local runs until they are cataloged
 and a remote-only build succeeds. Scientific execution still requires local
 inputs; restore selected runs and their ancestry before running new stages.
 
-The Git-ignored PDF library is archived separately with
-`uv run pingstore backup-papers --dry-run`, followed by `--confirm PLAN_HASH`.
-Production paper links point directly to R2; development prefers local PDFs.
-Builds also verify and emit the PDFs at their existing `/papers/` paths to
-preserve bookmarks. These copies live only in disposable build output.
-The authored `papers/index.yaml` remains in Git. PDFs are verified before their
-public discovery catalog is replaced.
+The Git-ignored PDF library stays local. The legacy `pingstore backup-papers`
+upload is disabled; do not upload the library to the public assets bucket.
+Production paper links come from the tracked `papers/index.yaml` citation index.

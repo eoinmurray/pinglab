@@ -1,8 +1,6 @@
 import { readdir, readFile, stat } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { parse } from 'yaml';
-import { retryRead } from './remote-http.ts';
-import { assetBase, safePath, type Fingerprint } from './remote-catalog.ts';
 
 const papersDirectory = resolve('../papers');
 
@@ -13,15 +11,14 @@ interface PaperMetadata {
   year: number;
   venue?: string;
   doi?: string;
+  url?: string;
   collection?: string | string[];
 }
 
 export interface Paper {
   file: string;
   path: string;
-  remote?: boolean;
-  sha256?: string;
-  href: string;
+  href?: string;
   bytes: number;
   metadata?: PaperMetadata;
   collections: string[];
@@ -70,9 +67,10 @@ export async function readPaperIndex(directory: string): Promise<Record<string, 
       || !Array.isArray(entry.authors) || entry.authors.length === 0 || !entry.authors.every(nonempty)
       || !Number.isInteger(entry.year) || Number(entry.year) < 1
       || (entry.venue !== undefined && !nonempty(entry.venue))
+      || (entry.url !== undefined && (!nonempty(entry.url) || !/^https:\/\/[^\s]+$/.test(entry.url)))
       || (entry.collection !== undefined && !validCollections(entry.collection))
       || (entry.doi !== undefined && (!nonempty(entry.doi) || !/^10\.\d{4,9}\/\S+$/.test(entry.doi)))) {
-      throw new Error(`Invalid papers/index.yaml entry for ${file}: a P01-style id, title, authors and year are required; collection must be a slug or a nonempty list of unique slugs; venue and DOI are optional.`);
+      throw new Error(`Invalid papers/index.yaml entry for ${file}: a P01-style id, title, authors and year are required; collection must be a slug or a nonempty list of unique slugs; venue, DOI and an HTTPS source URL are optional.`);
     }
     if (ids.has(entry.id)) throw new Error(`Duplicate paper ID ${entry.id} in papers/index.yaml (${file}).`);
     ids.add(entry.id);
@@ -80,9 +78,18 @@ export async function readPaperIndex(directory: string): Promise<Record<string, 
   return index as unknown as Record<string, PaperMetadata>;
 }
 
-export async function getPapers(directory = papersDirectory) {
+export async function getPapers(directory = papersDirectory, { published = process.env.NODE_ENV === 'production' } = {}) {
   const index = await readPaperIndex(directory);
   const papers: Paper[] = [];
+  if (published) {
+    // Public discovery must never depend on local PDFs or a public PDF archive.
+    for (const [file, metadata] of Object.entries(index)) {
+      const collection = metadata.collection ?? 'uncategorized';
+      papers.push({ file, path: '', bytes: 0,
+        href: metadata.url ?? (metadata.doi ? `https://doi.org/${metadata.doi}` : undefined),
+        metadata, collections: typeof collection === 'string' ? [collection] : collection });
+    }
+  }
   async function visit(directory: string, prefix = '') {
     for (const entry of await readdir(directory, { withFileTypes: true })) {
       if (entry.name.startsWith('.')) continue;
@@ -97,47 +104,17 @@ export async function getPapers(directory = papersDirectory) {
       }
     }
   }
-  const source = process.env.PINGLAB_RUN_SOURCE ?? (process.env.NODE_ENV === 'production' ? 'remote' : 'auto');
-  try {
-    if (directory !== papersDirectory || source !== 'remote') await visit(directory);
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
-  }
-  if (directory === papersDirectory && source !== 'local') {
-    const catalog = await paperCatalog();
-    for (const [file, fingerprint] of Object.entries(catalog.files)) {
-      if (papers.some(paper => paper.file === file)) continue;
-      const metadata = index[file];
-      const collection = metadata?.collection ?? 'uncategorized';
-      papers.push({ file, path: '', remote: true, sha256: fingerprint.sha256, bytes: fingerprint.bytes,
-        href: `${assetBase()}/papers/${file.split('/').map(encodeURIComponent).join('/')}`,
-        metadata, collections: typeof collection === 'string' ? [collection] : collection });
+  if (!published) {
+    try { await visit(directory); }
+    catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
     }
-  }
-  const files = new Set(papers.map(paper => paper.file));
-  for (const file of Object.keys(index)) {
-    if (!files.has(file)) console.warn(`[papers] Metadata has no matching PDF: ${file}`);
+    const files = new Set(papers.map(paper => paper.file));
+    for (const file of Object.keys(index)) {
+      if (!files.has(file)) console.warn(`[papers] Metadata has no matching PDF: ${file}`);
+    }
   }
   return papers.sort((a, b) => (b.metadata?.year ?? 0) - (a.metadata?.year ?? 0)
     || (a.metadata?.title ?? a.file).localeCompare(b.metadata?.title ?? b.file, 'en')
     || a.file.localeCompare(b.file, 'en'));
-}
-
-let remotePapers: { expires: number; value: Promise<{ files: Record<string, Fingerprint> }> } | undefined;
-async function paperCatalog() {
-  if (remotePapers && remotePapers.expires > Date.now()) return remotePapers.value;
-  const value = retryRead('R2 paper catalog', async () => {
-    const response = await fetch(`${assetBase()}/papers/catalog.json`, { signal: AbortSignal.timeout(30_000) });
-    if (!response.ok) throw new Error(`R2 paper catalog: HTTP ${response.status}`);
-    const catalog = await response.json();
-    if (catalog.schema !== 'pinglab.papers/v1' || !catalog.files) throw new Error('Invalid paper catalog');
-    for (const [path, file] of Object.entries(catalog.files) as [string, Fingerprint][]) {
-      if (!safePath(path) || !/\.pdf$/i.test(path) || !Number.isSafeInteger(file.bytes) || file.bytes < 0
-          || !/^[a-f0-9]{64}$/.test(file.sha256)) throw new Error('Invalid paper catalog file');
-    }
-    return catalog as { files: Record<string, Fingerprint> };
-  });
-  remotePapers = { expires: process.env.NODE_ENV === 'production' ? Infinity : Date.now() + 30_000, value };
-  value.catch(() => { remotePapers = undefined; });
-  return value;
 }

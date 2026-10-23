@@ -1,13 +1,11 @@
-"""Archive the already-public PDF library for clean-checkout Astro builds."""
+"""Legacy PDF backup planning; public PDF uploads are disabled."""
 
 from __future__ import annotations
 
 import hashlib
 import json
-import tempfile
 from pathlib import Path
 
-from .backup import copy_files, file_list, rclone
 from .contracts import PingstoreError, file_sha256
 
 
@@ -43,37 +41,6 @@ def build_plan(source: Path, destination: str):
 
 
 def apply_plan(source: Path, destination: str, expected_hash: str):
-    plan = build_plan(source, destination)
-    if plan["plan_hash"] != expected_hash:
-        raise PingstoreError("PDF backup plan changed; run --dry-run again")
-    with tempfile.TemporaryDirectory(prefix="pinglab-papers-") as temporary:
-        scratch = Path(temporary)
-        files = file_list(scratch, "files.txt", plan["files"])
-        copy_files(source, destination, files)
-        rclone(
-            "check",
-            source,
-            destination,
-            "--files-from-raw",
-            files,
-            "--download",
-            "--checkers",
-            "4",
-        )
-        if build_plan(source, destination) != plan:
-            raise PingstoreError("PDF library changed during backup")
-        catalog = scratch / "catalog.json"
-        catalog.write_text(
-            json.dumps(
-                {"schema": "pinglab.papers/v1", "files": plan["files"]}, sort_keys=True
-            )
-            + "\n"
-        )
-        rclone(
-            "copyto",
-            catalog,
-            destination + "/catalog.json",
-            "--header-upload",
-            "Cache-Control: no-cache",
-        )
-    return plan
+    raise PingstoreError(
+        "Public PDF uploads are disabled. Keep PDFs local and publish source links instead."
+    )

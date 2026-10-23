@@ -22,7 +22,7 @@ export async function getNavigation() {
     keywords: [post.id, post.data.description, ...post.collections.flatMap(id => [id, collectionLabel(id)])],
   }));
   const papers: NavigationEntry[] = library.map(paper => ({
-    href: paper.href,
+    href: paper.href ?? '/papers',
     title: paper.metadata?.title ?? paper.file,
     subtitle: paper.metadata?.authors.join(', '),
     detail: paper.metadata ? `${paper.metadata.id} · ${paper.metadata.year}` : 'PDF',

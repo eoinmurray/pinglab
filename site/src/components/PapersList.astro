@@ -15,14 +15,16 @@ const surname = (author: string) => {
       {papers.map(paper => <li class="article-list-row">
         <div class="metadata">
           {paper.metadata && <>
-            <a class="paper-year" href={paper.href} aria-label={`Open ${paper.metadata.id}: ${paper.metadata.title}`}>{paper.metadata.year}</a>
+            {paper.href ? <a class="paper-year" href={paper.href} aria-label={`Open ${paper.metadata.id}: ${paper.metadata.title}`}>{paper.metadata.year}</a>
+              : <span class="paper-year">{paper.metadata.year}</span>}
             <span class="paper-id">{paper.metadata.id}</span>
           </>}
         </div>
         <div class="article-list-content">
-          <a class="paper-link" href={paper.href}>
+          {paper.href ? <a class="paper-link" href={paper.href}>
             <h2 class="article-list-title">{paper.metadata?.title ?? paper.file}</h2>
-          </a>
+          </a> : <h2 class="article-list-title">{paper.metadata?.title ?? paper.file}</h2>}
+          {!paper.href && <p class="paper-citation">No public source link available.</p>}
           {paper.metadata && <>
             <p class="paper-citation">
               {paper.metadata.authors.map(surname).join(', ')} ({paper.metadata.year}).

@@ -88,7 +88,7 @@ def main(argv: list[str] | None = None) -> int:
         "--confirm", metavar="PLAN_HASH", help="apply an unchanged dry-run plan"
     )
     papers = commands.add_parser(
-        "backup-papers", help="archive the public PDF library and its catalog"
+        "backup-papers", help="retired: public PDF uploads are disabled"
     )
     papers.add_argument("--source", type=Path, default=Path("papers"))
     papers.add_argument("--destination", default=f"{remote}:{bucket}/papers")

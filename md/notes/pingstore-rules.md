@@ -4,7 +4,7 @@ author: Eoin Murray
 collection: notes
 description: Where Pingstore runs live, basic CLI usage and safe handling of experiment outputs.
 created_at: "2026-09-11"
-updated_at: "2026-10-23T13:54:47Z"
+updated_at: "2026-10-23T17:06:00Z"
 ---
 
 # Pingstore Guide
@@ -45,10 +45,10 @@ uv run pingstore backup-papers --help
 2. **`backup`** appends completed runs to R2, verifies their bytes and publishes the public checksummed run catalog. Existing uncataloged backups are verified before catalog publication.
 3. **`prune`** removes unused, unprotected local runs while retaining required ancestry.
 
-Backup, prune, eviction and PDF backup use separate dry-run and confirmation invocations. Inspect the plan, then confirm using its complete hash and the same scope options. None runs automatically.
+Backup, prune and eviction use separate dry-run and confirmation invocations. Inspect the plan, then confirm using its complete hash and the same scope options. None runs automatically.
 
 4. **`evict`** removes verified local backup copies, including runs used by reports. It preserves R2 history, local protections, unfinished-work inputs and allocation counters. Confirmation downloads and compares selected remote files before removing local directories.
-5. **`backup-papers`** archives the public PDF library and publishes its discovery catalog for builds without local PDFs.
+5. **`backup-papers`** is retired: public PDF uploads are disabled. Papers stay local for localhost; production uses publisher or authorised repository links from `papers/index.yaml`.
 
 To reclaim space without removing scientific history, prefer eviction:
 
