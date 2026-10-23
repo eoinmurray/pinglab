@@ -1,0 +1,61 @@
+import Table from '../../../site/src/components/Table.astro';
+import RunFigure from '../../../site/src/components/RunFigure.astro';
+import { reportSnapshots } from '../../../site/src/lib/report-data';
+
+export const evidence = await reportSnapshots('exp146', {
+  snapshots: { simulation: 'simulation/start/snapshot.json' },
+  allowUnavailable: true,
+});
+export const cfg = evidence?.configuration;
+export const snapshot = evidence?.snapshots.simulation;
+export const neuron = snapshot?.network?.populations?.find(row => row.id === 'cell')?.neuron?.config;
+export const show = value => value === undefined || value === null ? 'Unavailable' : String(value);
+export const pair = (a, b) => `${show(a)} / ${show(b)}`;
+export const groups = [
+  { label: 'Network', rows: [
+    ['Neurons', show(snapshot?.network?.populations?.find(row => row.id === 'cell')?.size)],
+    ['Injected-current weight', show(snapshot?.network?.parameters?.find(row => row.id === 'injection.weight')?.initializer?.value)],
+    ['Synapse', 'Memoryless pass-through current'],
+  ] },
+  { label: 'Neuron', rows: [
+    ['Capacitance (nF)', show(neuron?.capacitance_nf)],
+    ['Leak conductance (µS) / reversal (mV)', pair(neuron?.leak_us, neuron?.leak_reversal_mv)],
+    ['Na / K maximum conductance (µS)', pair(neuron?.g_na_us, neuron?.g_k_us)],
+    ['Na / K reversal (mV)', pair(neuron?.e_na_mv, neuron?.e_k_mv)],
+    ['Na / K gate time constant (ms)', pair(neuron?.tau_na_ms, neuron?.tau_k_ms)],
+    ['Na / K sigmoid slope (mV⁻¹)', pair(neuron?.gamma_na_per_mv, neuron?.gamma_k_per_mv)],
+    ['Na / K sigmoid midpoint (mV)', pair(neuron?.bias_na_mv, neuron?.bias_k_mv)],
+    ['Initial membrane and gate voltages (mV)', show(neuron?.initial_voltage_mv)],
+    ['Observed upward-crossing threshold (mV)', show(neuron?.spike_threshold_mv)],
+  ] },
+  { label: 'Input and simulation', rows: [
+    ['Integration', show(cfg?.integration)],
+    ['Timestep / duration (ms)', pair(cfg?.dt_ms, cfg?.duration_ms)],
+    ['Pulse onset (ms) / amplitude (nA)', pair(cfg?.pulse_start_ms, cfg?.pulse_current_na)],
+    ['Device / dtype', pair(snapshot?.execution?.device_resolved, snapshot?.execution?.dtype)],
+    ['Unit convention', show(cfg?.unit_convention)],
+  ] },
+  { label: 'Validation', rows: [
+    ['Voltage tolerance (mV)', show(cfg?.validation?.voltage_atol_mv)],
+    ['Spike-time tolerance (ms)', show(cfg?.validation?.spike_atol_ms)],
+    ['Toolbox reference', show(cfg?.reference_status)],
+  ] },
+];
+
+## Network diagram
+
+<RunFigure report="exp146" experiment="exp146" file="circuit.svg" number={2} id="fig-circuit" alt="Compiled SNNLab circuit with continuous external current driving one custom neuron.">
+  Circuit exported from the executed compiled bundle. Sodium and potassium
+  dynamics live inside the custom neuron; the input projection passes injected
+  current without decay. No recurrent graph connection or spike reset is used.
+</RunFigure>
+
+## Parameters
+
+Values come from the native simulation-start snapshot and its recorded compute
+configuration. Na / K pairs refer to sodium / potassium. The proposal's gate
+voltages are filtered membrane voltages. Each step advances both gates from
+the preceding voltage, evaluates their sigmoid conductances, then advances the
+membrane voltage with those new conductances and the current interval's input.
+
+<Table headers={["Parameter", "Saved value"]} groups={groups} />

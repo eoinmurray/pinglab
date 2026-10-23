@@ -1,0 +1,71 @@
+import Table from '../../../site/src/components/Table.astro';
+import RunFigure from '../../../site/src/components/RunFigure.astro';
+import { reportSnapshots } from '../../../site/src/lib/report-data';
+
+export const evidence = await reportSnapshots('exp147', {
+  snapshots: { simulation: 'simulation/start/snapshot.json' },
+  allowUnavailable: true,
+});
+export const cfg = evidence?.configuration;
+export const snapshot = evidence?.snapshots.simulation;
+export const graph = snapshot?.network;
+export const neuron = graph?.populations?.find(row => row.id === 'n1')?.neuron?.config;
+export const synapse = graph?.projections?.find(row => row.id === 'n1_to_n2')?.synapse?.config;
+export const show = value => value === undefined || value === null ? 'Unavailable' : String(value);
+export const pair = (a, b) => `${show(a)} / ${show(b)}`;
+export const groups = [
+  { label: 'Network', rows: [
+    ['Neurons / reciprocal synapses', pair(graph?.populations?.length, graph?.projections?.length)],
+    ['HCOs executed together', show(cfg?.batch_size)],
+    ['Voltage-drive projection weight', show(graph?.parameters?.find(row => row.id === 'n1_to_n2.weight')?.initializer?.value)],
+    ['Added projection delay (ms)', show(graph?.projections?.find(row => row.id === 'n1_to_n2')?.delay?.value)],
+  ] },
+  { label: 'Neurons', rows: [
+    ['Capacitance (nF)', show(neuron?.capacitance_nf)],
+    ['Leak conductance (µS) / reversal (mV)', pair(neuron?.leak_us, neuron?.leak_reversal_mv)],
+    ['Na / K maximum conductance (µS)', pair(neuron?.g_na_us, neuron?.g_k_us)],
+    ['Na / K reversal (mV)', pair(neuron?.e_na_mv, neuron?.e_k_mv)],
+    ['Na / K gate time constant (ms)', pair(neuron?.tau_na_ms, neuron?.tau_k_ms)],
+    ['Na / K sigmoid slope (mV⁻¹)', pair(neuron?.gamma_na_per_mv, neuron?.gamma_k_per_mv)],
+    ['Na / K sigmoid midpoint (mV)', pair(neuron?.bias_na_mv, neuron?.bias_k_mv)],
+    ['Initial membrane and ionic gate voltages (mV)', show(neuron?.initial_voltage_mv)],
+    ['Observed upward-crossing threshold (mV)', show(neuron?.spike_threshold_mv)],
+  ] },
+  { label: 'Synapses', rows: [
+    ['Maximum conductance (µS)', show(synapse?.g_max_us)],
+    ['Inhibitory reversal potential (mV)', show(neuron?.synapse_reversal_mv)],
+    ['Gate time constant (ms)', show(synapse?.tau_ms)],
+    ['Sigmoid slope (mV⁻¹) / midpoint (mV)', pair(synapse?.gamma_per_mv, synapse?.bias_mv)],
+    ['Initial gate voltage (mV)', show(synapse?.initial_gate_mv)],
+  ] },
+  { label: 'Input and simulation', rows: [
+    ['Integration', show(cfg?.integration)],
+    ['Timestep / duration (ms)', pair(cfg?.dt_ms, cfg?.duration_ms)],
+    ['n1 kick onset / stop (ms)', pair(cfg?.currents?.n1?.kick_start_ms, cfg?.currents?.n1?.kick_stop_ms)],
+    ['n1 kick amplitude (nA)', show(cfg?.currents?.n1?.kick_na)],
+    ['Equal drive onset (ms) / amplitude (nA)', pair(cfg?.currents?.n1?.drive_start_ms, cfg?.currents?.n1?.drive_na)],
+    ['Device / dtype', pair(snapshot?.execution?.device_resolved, snapshot?.execution?.dtype)],
+    ['Unit convention', show(cfg?.unit_convention)],
+  ] },
+  { label: 'Validation', rows: [
+    ['Voltage tolerance (mV)', show(cfg?.validation?.voltage_atol_mv)],
+    ['Spike-time tolerance (ms)', show(cfg?.validation?.spike_atol_ms)],
+    ['Toolbox reference', show(cfg?.reference_status)],
+  ] },
+];
+
+## Network diagram
+
+<RunFigure report="exp147" experiment="exp147" file="circuit.svg" number={2} id="fig-circuit" alt="Compiled native graph with two ionic neurons connected by reciprocal graded inhibition." allowUnavailable={true}>
+  The two voltage-driven projections are explicit graph edges. The unconnected
+  clock input supplies execution axes; fixed current schedules are part of each
+  custom neuron. The circuit is exported from the executed compiled bundle.
+</RunFigure>
+
+## Parameters
+
+Both cells share the listed ionic settings, and both synapses share the listed
+gate settings. Values come from the original native simulation-start snapshot
+and recorded compute configuration. Na / K denotes sodium / potassium.
+
+<Table headers={["Parameter", "Saved value"]} groups={groups} />

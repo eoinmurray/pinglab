@@ -1,0 +1,134 @@
+---
+id: exp147
+title: "NMT Half-Centre Oscillator"
+author: "Eoin Murray"
+created_at: "2026-10-23T12:21:53Z"
+updated_at: "2026-10-23T12:26:16Z"
+description: "Two ionic neurons with reciprocal voltage-driven inhibition, implementing Task 2 of the Neuromorphic Toolbox proposal."
+collection: ["neuromorphic-toolbox", "experiments"]
+tags: ["data"]
+inputs: ["exp147"]
+runs: {exp147: exp147-r003-present}
+thumbnail: hco.png
+---
+
+import RunFigure from '../../../site/src/components/RunFigure.astro';
+import { reportData } from '../../../site/src/lib/report-data';
+import { Code } from 'astro:components';
+import dynamicsSource from '../custom/dynamics.py?raw';
+
+export const data = await reportData('exp147', { allowUnavailable: true });
+export const extensionCode = dynamicsSource.slice(dynamicsSource.indexOf('import torch'));
+
+## Abstract
+
+Task 2 of the [Neuromorphic Toolbox proposal (P23)](/papers/diegobro-2026.pdf)
+asks us to couple two sodium/potassium neurons through reciprocal graded
+inhibition, apply an asymmetric current onset and compare their voltages and
+spike times with Toolbox reference traces.
+
+## Results
+
+### Response to asymmetric current onset
+
+{data ? <p>Neuron 1 produces {data.neurons.n1.spike_count} spikes and neuron 2 produces {data.neurons.n2.spike_count} spikes during the 200 ms recording. {data.alternating_after_10ms ? 'After equal drive begins at 10 ms, their recorded spike events alternate.' : 'After equal drive begins at 10 ms, their recorded spike events do not alternate strictly.'} Figure 1 shows the voltages, reciprocal inhibition and joint voltage trajectory.</p> : <p>Simulation evidence is unavailable.</p>}
+
+<RunFigure report="exp147" experiment="exp147" file="hco.png" number={1} id="fig-hco" alt="Four panels show both HCO membrane voltages, directional inhibitory conductances, a voltage phase portrait and the prescribed injected currents." allowUnavailable={true}>
+  A: membrane voltage and sampled upward −20 mV crossings for n1 in black and
+  n2 in red. B: inhibitory conductance n1→n2 in black and n2→n1 in red; colour
+  identifies the source neuron. C: n2 voltage against n1 voltage over the same
+  200 ms, in grey, with direction arrows, a black start dot and a red end square.
+  D: injected currents, n1 solid black and n2 dashed red; equal currents overlap
+  after 10 ms. Dotted lines mark the 5 ms kick onset and 10 ms equal-drive onset.
+  States are sampled after each 0.001 ms step; initial values are added at zero
+  for display. nF/µS/nA are a consistent unit convention for the proposal's
+  numerical values, whose capacitance, conductance and current units are unstated.
+</RunFigure>
+
+## Methods
+
+### 1. Couple the proposal's ionic neurons with graded inhibition
+
+Each cell uses the [Task 1 ionic model](/exp146). For neuron index
+$i\in\{1,2\}$ and channel $x\in\{\mathrm{Na},\mathrm{K}\}$,
+
+$$
+\frac{\mathrm{d}z_{x,i}}{\mathrm{d}t}
+=\frac{V_i-z_{x,i}}{\tau_x},
+\qquad g_{x,i}=\bar g_x\,\sigma\!\left(\gamma_x(z_{x,i}-b_x)\right),
+\qquad \sigma(u)=\frac{1}{1+\exp(-u)}.
+$$
+
+Here $t$ is time in ms, $V_i$ is membrane voltage in mV, $z_{x,i}$ is filtered
+voltage in mV, $\tau_x$ is the channel time constant in ms, $g_{x,i}$ and
+$\bar g_x$ are channel and maximum conductance in µS, $\gamma_x$ is the sigmoid
+slope in mV$^{-1}$, and $b_x$ is its midpoint in mV. The argument $u$ is
+dimensionless.
+
+For the graded synapse from neuron $j$ to neuron $i$, with $j\ne i$,
+
+$$
+\frac{\mathrm{d}z_{j\to i}}{\mathrm{d}t}
+=\frac{V_j-z_{j\to i}}{\tau_s},
+\qquad g_{j\to i}=\bar g_s\,\sigma\!\left(\gamma_s(z_{j\to i}-b_s)\right).
+$$
+
+Here $z_{j\to i}$ is the synaptic gate voltage in mV, $\tau_s$ its time
+constant in ms, $g_{j\to i}$ and $\bar g_s$ the synaptic and maximum
+conductance in µS, $\gamma_s$ the slope in mV$^{-1}$ and $b_s$ the midpoint in mV.
+The membrane equation gains the inhibitory conductance term:
+
+$$
+C\frac{\mathrm{d}V_i}{\mathrm{d}t}
+= I_i-g_L(V_i-V_L)
+-g_{\mathrm{Na},i}(V_i-E_{\mathrm{Na}})
+-g_{\mathrm{K},i}(V_i-E_{\mathrm{K}})
+-g_{j\to i}(V_i-E_s).
+$$
+
+Here $C$ is capacitance in nF, $I_i$ injected current in nA, $g_L$ leak
+conductance in µS, and $V_L$, $E_{\mathrm{Na}}$, $E_{\mathrm{K}}$ and $E_s$
+are leak, sodium, potassium and inhibitory reversal potentials in mV.
+These units preserve the proposal's numerical equations; its C/g/I units
+require confirmation against the Toolbox.
+
+At every step of length $\Delta t=0.001$ ms, all ionic and synaptic gates
+advance by forward Euler using the preceding membrane voltages. New gate
+values determine conductances; both membranes then advance using those new
+conductances and the old voltages. The cells have no voltage reset.
+
+### 2. Represent both synapses as native graph connections
+
+SNNLab 0.24 lets a custom synapse declare `input_unit="mV"` and
+`output_unit="uS"`. Each projection reads `pre.voltage` at the beginning of
+the timestep and delivers the newly updated conductance to `post.inhibitory`.
+Dimensionless projection weights are one; the physical maximum conductance
+belongs inside the synapse, after the nonlinear gate. Zero added delay avoids
+shifting the proposal's coupling by an extra timestep.
+
+The following callback implementation is loaded directly from this experiment:
+
+<Code code={extensionCode} lang="python" themes={{ light: 'github-light', dark: 'github-dark' }} />
+
+Each neuron declares conductance input ports. Because native custom neuron
+ports share one input unit, its prescribed injected current is calculated
+inside the neuron callback from saved schedule parameters and an integer step
+counter. The counter is retained in native continuation state. This implements
+the fixed offline protocol; it does not provide an interactive current input.
+
+### 3. Run one HCO and validate its saved trajectory
+
+Both membrane voltages and every gate start at −70 mV. Neuron 1 receives
+1.0 nA for $5\leq t<10$ ms, then 0.8 nA; neuron 2 receives 0.8 nA for
+$10\leq t<200$ ms. All other input intervals have zero current. One HCO runs
+for 200 ms in float64 on CPU; no batch benchmark is performed.
+Spikes are sampled upward −20 mV crossings, timed at the end of the crossing
+timestep without interpolation. Strict alternation after 10 ms means every
+consecutive event belongs to the other cell, with no simultaneous events.
+
+{data ? <p>Against independent forward-Euler equations, maximum voltage differences are {data.neurons.n1.max_voltage_difference_mv.toExponential(2)} mV for n1 and {data.neurons.n2.max_voltage_difference_mv.toExponential(2)} mV for n2. Both cells have matching reference spike counts.</p> : null}
+
+The proposal's thresholds are maximum voltage difference below 0.1 mV,
+spike-time difference below 0.05 ms and identical counts for each neuron.
+Toolbox reference traces have not been supplied, so this comparison establishes
+agreement with the written equations only.

@@ -36,6 +36,14 @@ confavreux-et-al-2025.pdf:
   venue: "bioRxiv:2025.05.28.656584v2"
   doi: 10.1101/2025.05.28.656584
 
+diegobro-2026.pdf:
+  id: P23
+  title: "Proposal: Simulating Neuromorphic Toolbox nodes with snnlab"
+  authors: [Diegobro]
+  year: 2026
+  collection: [spiking]
+  venue: Proposal
+
 echeveste-et-al-2020.pdf:
   id: P12
   title: Cortical-like dynamics in recurrent circuits optimized for sampling-based probabilistic inference

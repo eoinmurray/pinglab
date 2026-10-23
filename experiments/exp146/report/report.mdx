@@ -1,0 +1,165 @@
+---
+id: exp146
+title: "NMT Single-Neuron Compatibility"
+author: "Eoin Murray"
+created_at: "2026-10-23T11:58:40Z"
+updated_at: "2026-10-23T12:02:58Z"
+description: "SNNLab implementation of the Neuromorphic Toolbox's sigmoid-gated sodium/potassium neuron."
+collection: ["neuromorphic-toolbox", "experiments"]
+tags: ["data"]
+inputs: ["exp146"]
+runs: {exp146: exp146-r003-present}
+thumbnail: single-neuron.png
+---
+
+import RunFigure from '../../../site/src/components/RunFigure.astro';
+import { reportData, round } from '../../../site/src/lib/report-data';
+import { Code } from 'astro:components';
+import dynamicsSource from '../custom/dynamics.py?raw';
+
+export const data = await reportData('exp146', { allowUnavailable: true });
+export const extensionCode = dynamicsSource.slice(dynamicsSource.indexOf('import torch'));
+
+## Abstract
+
+Task 1 of the [Neuromorphic Toolbox proposal (P23)](/papers/diegobro-2026.pdf)
+asks us to reproduce a single sodium/potassium spiking neuron's response to a
+current step in SNNLab, then compare its voltage and spike times with Toolbox
+reference traces.
+
+## Results
+
+### Single-neuron current response
+
+{data ? <p>The current step produces {data.spike_count} spikes. The sodium gate
+responds faster than the potassium gate; the delayed rise in potassium
+conductance accompanies repolarisation and the voltage undershoot after each
+spike (Figure 1).</p> : <p>Simulation evidence is unavailable.</p>}
+
+<RunFigure report="exp146" experiment="exp146" file="single-neuron.png" number={1} id="fig-single-neuron" alt="Four panels show membrane voltage, sodium and potassium gate voltages, ionic conductances and injected current over 50 ms.">
+  A: membrane voltage in black; red dots mark sampled upward −20 mV crossings.
+  B: sodium gate voltage in black and potassium gate voltage in red; these are
+  filtered voltages, not gate probabilities. C: corresponding sodium and
+  potassium conductances, with the same colours. D: injected current, held
+  constant over each input interval. All panels share the same time axis;
+  the dashed line marks current onset at 10 ms. States are sampled after each
+  timestep, with initial values added at zero for display. Capacitance,
+  conductance and current use the consistent nF/µS/nA convention; the proposal
+  does not specify their units explicitly.
+</RunFigure>
+
+## Methods
+
+### 1. Implement the proposal's equations
+
+The proposal defines a leaky membrane with sodium and potassium currents. For
+each channel $x \in \{\mathrm{Na},\mathrm{K}\}$, the gate voltage $z_x$ follows
+membrane voltage $V$ with time constant $\tau_x$:
+
+$$
+\frac{\mathrm{d}z_x}{\mathrm{d}t}
+= \frac{V-z_x}{\tau_x},
+\qquad
+g_x = \bar g_x\,\sigma\!\left(\gamma_x(z_x-b_x)\right),
+\qquad
+\sigma(u)=\frac{1}{1+\exp(-u)}.
+$$
+
+Here $t$ is time in ms, $V$ and $z_x$ are in mV, $\tau_x$ is in ms,
+$g_x$ is the channel conductance, $\bar g_x$ is its maximum conductance,
+$\gamma_x$ is the sigmoid slope in mV$^{-1}$, and $b_x$ is its midpoint in mV.
+The sigmoid $\sigma$ maps the dimensionless argument $u$ to a value between
+zero and one; $z_x$ itself is a voltage, not a probability.
+
+The membrane equation is
+
+$$
+C\frac{\mathrm{d}V}{\mathrm{d}t}
+= I_{\mathrm{ext}}-g_L(V-V_L)
+-g_{\mathrm{Na}}(V-E_{\mathrm{Na}})
+-g_{\mathrm{K}}(V-E_{\mathrm{K}}).
+$$
+
+Here $C$ is membrane capacitance, $I_{\mathrm{ext}}$ is injected current,
+$g_L$ is leak conductance, $V_L$ is the leak reversal potential, and
+$E_{\mathrm{Na}}$ and $E_{\mathrm{K}}$ are the sodium and potassium reversal
+potentials. We embed the proposal's numerical values in nF, µS and nA, which
+are consistent with mV and ms; the proposal does not explicitly label the
+capacitance, conductance or current units. Saved values appear in the appendix.
+
+Forward Euler must advance the gates before the membrane. At timestep index
+$n$, with step length $\Delta t$, we compute
+
+$$
+z_x^{n+1}=z_x^n+\frac{\Delta t}{\tau_x}(V^n-z_x^n),
+\qquad
+g_x^{n+1}=\bar g_x\,\sigma\!\left(\gamma_x(z_x^{n+1}-b_x)\right),
+$$
+
+$$
+V^{n+1}=V^n+\frac{\Delta t}{C}\left[
+I_{\mathrm{ext}}^n-g_L(V^n-V_L)
+-g_{\mathrm{Na}}^{n+1}(V^n-E_{\mathrm{Na}})
+-g_{\mathrm{K}}^{n+1}(V^n-E_{\mathrm{K}})
+\right].
+$$
+
+Superscripts denote sampled timesteps; $I_{\mathrm{ext}}^n$ applies over
+$[n\Delta t,(n+1)\Delta t)$. The gate and conductance updates produce panels B
+and C, and the membrane update produces panel A. There is no voltage reset.
+
+### 2. Express the dynamics as SNNLab extensions
+
+The implementation below is loaded directly from this experiment's
+`custom/dynamics.py`. SNNLab supplies the previous tensor state, timestep,
+configuration and incoming currents through `NeuronContext`. The callback
+returns the new state and binary upward-crossing events. The initializer
+sets voltage and both gates to −70 mV; the synapse passes current unchanged.
+
+<Code code={extensionCode} lang="python" themes={{ light: 'github-light', dark: 'github-dark' }} />
+
+The recipe registers these importable callbacks once per process, then uses
+`CustomNeuron` and `CustomSynapse` in the authored network. This registration
+excerpt exposes the gate voltages and conductances as named state ports:
+
+```python
+from snnlab import extensions, lang
+from experiments.exp146.custom import dynamics
+
+extensions.register_neuron(
+    "pinglab.exp146.toolbox_ei/v1",
+    dynamics.step,
+    initialize=dynamics.initial_state,
+    input_unit="nA",
+    state_units={"z_na": "mV", "z_k": "mV", "g_na": "uS", "g_k": "uS"},
+    capture_safe=True,
+)
+extensions.register_synapse(
+    "pinglab.exp146.injected_current/v1",
+    dynamics.inject_current,
+    output_unit="nA",
+    capture_safe=True,
+)
+```
+
+The network contains one custom neuron and a continuous input connected to its
+excitatory port through the current extension at unit weight, with direct
+initialization scaling. The recipe passes the saved neuron settings as the
+custom neuron's configuration. Native graph outputs retain voltage, gates,
+conductances, injected current and crossing events.
+
+### 3. Run the current-step protocol and check the traces
+
+Voltage and both gates start at −70 mV. We execute 50,000 steps of
+$\Delta t=0.001$ ms, for a total of 50 ms, with float64 arithmetic on CPU.
+Injected current is zero before 10 ms and 0.8 nA from 10 ms to the end
+(panel D). An upward crossing satisfies $V^n<-20$ mV and $V^{n+1}\geq-20$ mV;
+its recorded time is $(n+1)\Delta t$, without interpolation.
+
+An independent scalar Euler implementation checks the saved trajectory.
+{data ? <p>The maximum voltage difference was {data.max_voltage_difference_mv.toExponential(2)} mV, with identical spike counts and a maximum crossing-time difference of {round(data.spike_time_difference_ms, 4)} ms.</p> : null}
+
+The proposed acceptance thresholds are a maximum voltage error below 0.1 mV,
+crossing-time error below 0.05 ms and identical spike counts. Passing the
+independent numerical comparison does not establish agreement with the Toolbox:
+its reference traces have not been supplied.
