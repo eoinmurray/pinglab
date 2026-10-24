@@ -4,7 +4,7 @@ This package exposes local scientific definitions for its independent stages.
 Importing it does not create runs, load scientific artifacts or launch execution.
 """
 
-from experiments.exp082.custom.measurements import (
+from experiments.exp082.analyse import (
     first_correct_trial_from_stream,
     grid_output_preflight,
     output_activity_summary,

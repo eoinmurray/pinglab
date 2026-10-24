@@ -5,12 +5,13 @@ recordings and writes measurements to a new analysis run, without simulating
 or launching presentation.
 """
 
-import argparse
 import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
+
+import argparse
 
 import numpy as np
 from experiments.exp127.recipe import SLUG

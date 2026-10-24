@@ -9,18 +9,20 @@ from copy import deepcopy
 import matplotlib.pyplot as plt
 import numpy as np
 import pytest
+from experiments.exp142 import present as figures
 from experiments.exp142 import recipe
-from experiments.exp142.custom import physical_time_figures as figures
-from experiments.exp142.custom.continuous import simulate_continuous
-from experiments.exp142.custom.inputs import encode_sample, event_digest
-from experiments.exp142.custom.metrics import (
+from experiments.exp142.analyse import (
+    add_model,
     check_anchor,
     compare,
     decision,
+    figure_summary,
+    output_clock,
     refinement_check,
     validate,
 )
-from experiments.exp142.custom.plot_data import add_model, figure_summary, output_clock
+from experiments.exp142.custom.continuous import simulate_continuous
+from experiments.exp142.custom.inputs import encode_sample, event_digest
 from scipy.integrate import quad
 
 
@@ -131,8 +133,8 @@ def test_configuration_is_independent():
 def test_native_delays_weights_and_snapshots(mode, tmp_path):
     import json
 
+    from experiments.exp142.analyse import validate
     from experiments.exp142.custom.discrete import execute
-    from experiments.exp142.custom.metrics import validate
 
     cfg = recipe.configuration()
     cfg.update(n_input=1, n_e=1, n_i=1, n_output=1, duration_ns=8_000_000)
@@ -211,8 +213,8 @@ def test_physical_input_arrivals_are_identical_across_the_sweep(dt_ns, tmp_path)
 
 
 def test_native_anchor_retains_its_own_recording_clock(tmp_path):
+    from experiments.exp142.analyse import validate
     from experiments.exp142.custom.discrete import execute
-    from experiments.exp142.custom.metrics import validate
 
     cfg = recipe.configuration()
     cfg.update(n_input=1, n_e=1, n_output=1, duration_ns=2_000_000)

@@ -12,7 +12,9 @@ from pathlib import Path
 
 import pytest
 from experiments.exp047 import analyse, compute, present, recipe
-from experiments.exp047.custom import evidence, inputs, measurements
+from experiments.exp047 import analyse as measurements
+from experiments.exp047 import present as plots
+from experiments.exp047.custom import evidence, inputs
 from pingstore import stages
 from pingstore.contracts import (
     PingstoreError,
@@ -209,7 +211,7 @@ def test_stage_failures_remain_hidden(repo, monkeypatch, mode):
             command = partial(analyse.analyse, compute_id)
         else:
             analysis_id = analyse.analyse(compute_id)
-            monkeypatch.setattr(present.plots, "plot_controls", fail)
+            monkeypatch.setattr(plots, "plot_controls", fail)
             command = partial(present.present, analysis_id)
     before = (
         {p.name for p in (root / ".pingstore/runs").glob("exp047-*")}
@@ -315,7 +317,7 @@ def test_ancestor_metadata_changes_during_stage_are_allowed(repo, monkeypatch, s
             record["execution"]["note"] = "changed ancestor during plotting"
             write_json_atomic(source.directory / "run.json", record)
 
-        monkeypatch.setattr(present.plots, "plot_controls", changed)
+        monkeypatch.setattr(plots, "plot_controls", changed)
         command, identity = present.present, analysis_id
     result = command(identity)
     assert (root / ".pingstore/runs" / result).is_dir()

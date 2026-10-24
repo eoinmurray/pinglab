@@ -14,9 +14,9 @@ import torch
 
 REPO = Path(__file__).resolve().parents[3]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
-from experiments.exp082.custom import evidence, inputs
 from experiments.exp082 import recipe
-from experiments.exp082.custom.inference import Inference, encode_stream, pick_digits
+from experiments.exp082.compute import Inference, encode_stream, pick_digits
+from experiments.exp082.custom import evidence, inputs
 from pingstore.contracts import PingstoreError, write_json_atomic
 
 

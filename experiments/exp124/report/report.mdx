@@ -2,13 +2,12 @@
 id: "exp124"
 title: "SHD"
 created_at: "2026-10-14"
-updated_at: "2026-10-20T12:19:51Z"
+updated_at: "2026-10-23T16:29:18Z"
 description: "Full-data SHD training curves and matched two-layer inference rasters for COBA and PING."
 collection: ["datasets", "experiments"]
 author: "Eoin Murray"
-tags: ["no-data", "v37.0.0"]
+tags: ["data", "v0.24.0"]
 inputs: ["exp124"]
-runs: {"exp124": "exp124-r164-present"}
 ---
 
 import RunFigure from './EvidenceFigure.astro';
@@ -25,13 +24,13 @@ export const phaseMinutes = (model, phase) => full ? display(round(full.models[m
 export const prediction = model => sample ? display(sample.models[model].prediction) : 'unavailable';
 export const target = sample ? display(sample.class) : 'unavailable';
 
-{!run && <p>The pinned presentation payload is unavailable locally. Numerical bindings and figures cannot currently be checked; the <a href="/recovered/exp124/published.html">archived publication</a> retains the previously published account.</p>}
+{!run && <p>No completed presentation is available from the selected run store. Numerical bindings and figures cannot currently be checked; the <a href="/recovered/exp124/published.html">archived publication</a> retains the previously published account.</p>}
 
 ## Abstract
 
-We compared two-layer conductance-based classifiers on 20 spoken-digit classes, using one seed, one-second inputs and the same corrupted training and validation utterances. {full ? `After ${epochs} epochs, development-validation accuracy was ${accuracy('coba', 'validation')}% for COBA and ${accuracy('ping', 'validation')}% for PING.` : 'The archived publication reports 82.6% validation accuracy for COBA and 84.4% for PING after 50 epochs; the underlying payload is unavailable for verification.'} One preselected validation utterance illustrates the final weights' activity. This paired replicate does not establish official-test performance or a general benefit from inhibition.
+We compared two-layer conductance-based classifiers on 20 spoken-digit classes, using one seed, one-second inputs and the same corrupted training and validation utterances. {full ? `After ${epochs} epochs, development-validation accuracy was ${accuracy('coba', 'validation')}% for COBA and ${accuracy('ping', 'validation')}% for PING.` : 'No completed presentation is available to report validation accuracy.'} One preselected validation utterance illustrates the final weights' activity. This paired replicate does not establish official-test performance or a general benefit from inhibition.
 
-The figures and numerical bindings remain pinned to the historical presentation `exp124-r164-present`, from compute `exp124-r149-compute`. The [archived publication](/recovered/exp124/published.html) preserves the earlier account, but cannot validate raw spikes or weights without that payload. The current recipe uses SNNLab 0.23's native `train` and `simulate` APIs, native snapshots and zero-decay AdamW in place of custom Adam. It retains the historical one-second truncation and input corruption. The API migration has not been evaluated with a new full-data training run.
+The report selects the latest completed presentation available from the run store. Figures, numerical summaries and native parameter snapshots follow that presentation's recorded analysis and compute ancestry. The full-data run uses SNNLab's native `train` and `simulate` APIs, native snapshots and zero-decay AdamW, retaining the one-second truncation and input corruption. The [archived publication](/recovered/exp124/published.html) preserves the earlier account.
 
 ## Results
 
@@ -45,7 +44,7 @@ After {epochs} epochs, online training accuracy was {accuracy('coba', 'train')}%
 
 ### PING training
 
-With fixed reciprocal feedback in both 128 E/32 I layers, online training accuracy was {accuracy('ping', 'train')}% and validation accuracy {accuracy('ping', 'validation')}% ([Fig. 2B](#fig-ping-training)). Validation cross-entropy fell from {loss('ping', 0)} to {loss('ping')} ([Fig. 2A](#fig-ping-training)). All three learned matrices changed and final weights were finite. The condition took {minutes('ping')} minutes, including {phaseMinutes('ping', 'training_s')} minutes training and {phaseMinutes('ping', 'validation_s')} minutes validation. It ran after COBA had completed. Higher validation accuracy in this pair does not establish a general inhibitory advantage or its mechanism.
+With fixed reciprocal feedback in both 128 E/32 I layers, online training accuracy was {accuracy('ping', 'train')}% and validation accuracy {accuracy('ping', 'validation')}% ([Fig. 2B](#fig-ping-training)). Validation cross-entropy fell from {loss('ping', 0)} to {loss('ping')} ([Fig. 2A](#fig-ping-training)). All three learned matrices changed and final weights were finite. The condition took {minutes('ping')} minutes, including {phaseMinutes('ping', 'training_s')} minutes training and {phaseMinutes('ping', 'validation_s')} minutes validation. The two conditions ran concurrently on separate H100 GPUs. Higher validation accuracy in this pair does not establish a general inhibitory advantage or its mechanism.
 
 <RunFigure report="exp124" experiment="exp124" allowUnavailable file="full_ping_training_curves.svg" number={2} id="fig-ping-training" alt="Two-layer PING online training and validation loss and accuracy over the recorded epochs.">
   **Recorded PING training curves.** We used the same training/validation utterances, initial learned matrices, sample order and corruption streams as COBA. (A) Example-average classification cross-entropy. (B) Classification accuracy, with 5% uniform-guessing accuracy dotted. Black lines/circles are online pre-update measurements aggregated over the epoch; red lines/circles are full validation with final epoch weights. Epoch zero contains validation only. Each curve is one seed-42 replicate, without averaging or uncertainty bands. The official test set was not evaluated.
@@ -69,7 +68,7 @@ PING predicted class {prediction('ping')} for the same true-class-{target} utter
 
 ## Methods
 
-The historical architecture and simulation settings are listed in [Table 1](#architecture-config). The parameter table reads saved final-training snapshots and that compute run's recorded configuration, following the same pinned ancestry as the figures. Missing snapshots are shown as unavailable; current recipe settings and old exported table rows are not substituted.
+The executed architecture and simulation settings are listed in [Table 1](#architecture-config). The parameter table reads saved final-training snapshots and that compute run's recorded configuration, following the same selected presentation ancestry as the figures. Missing snapshots are shown as unavailable; current recipe settings and old exported table rows are not substituted.
 
 1. **Prepare SHD.** We split 8,156 official training utterances [1] (20 classes, 700 channels) into 7,340 training and 816 validation examples using a seed-42 per-class shuffle. Original spike-train lengths varied: last-spike times ranged from 0.233 to 1.369 s. We kept only events before 1 s to fit the simulation, flooring times into binary 1 ms bins. Speakers could overlap between splits; the official test set was unused.
 
@@ -87,9 +86,9 @@ The historical architecture and simulation settings are listed in [Table 1](#arc
 
    Here $z_c$ is the score for class $c$, $\bar u_c$ its mean non-spiking readout voltage, and $\bar r_{E2}$ the per-neuron E2 rate, both over the full second. We used gain $G=20$, reference rate $r_{\mathrm{ref}}=20\,\mathrm{Hz}$ and rate floor $r_{\mathrm{floor}}=1\,\mathrm{Hz}$, predicting the largest score. The positive scaling preserves that choice for fixed weights but changes cross-entropy and training gradients.
 
-6. **Train both models.** We used SNNLab's [train](https://snnlab.eoinmurray.info/api/sim/execution-functions/#train) for 50 epochs with class-stratified batches of 256, merging tails smaller than 20. Custom Adam minimized mean cross-entropy per represented class; input/interlayer/readout learning rates were $5\times10^{-6}/2\times10^{-5}/0.01$, with betas 0.9/0.999 and no weight decay. The [FastSigmoid](https://snnlab.eoinmurray.info/api/lang/training/#fastsigmoid) surrogate used slope $100/15\,\mathrm{mV}^{-1}$ and gradient scale 0.01. States reset per utterance. Reported losses were example means; validation used epoch-end weights, including epoch zero.
+6. **Train both models.** We used SNNLab's [train](https://snnlab.eoinmurray.info/api/sim/execution-functions/#train) for 50 epochs with class-stratified batches of 256, merging tails smaller than 20. AdamW with zero weight decay minimized mean cross-entropy per represented class; input/interlayer/readout learning rates were $5\times10^{-6}/2\times10^{-5}/0.01$, with betas 0.9/0.999 and no weight decay. The [FastSigmoid](https://snnlab.eoinmurray.info/api/lang/training/#fastsigmoid) surrogate used slope $100/15\,\mathrm{mV}^{-1}$ and gradient scale 0.01. States reset per utterance. Reported losses were example means; validation used epoch-end weights, including epoch zero.
 
-7. **Record matched responses.** Using SNNLab's historical inference entry point (now [simulate](https://snnlab.eoinmurray.info/api/sim/execution-functions/#simulate)), we replayed the first validation utterance with final-epoch weights, one shared fresh corruption draw (seed 46) and no updates. Selection used validation split order, not original dataset index, prediction or spike appearance.
+7. **Record matched responses.** Using SNNLab's [simulate](https://snnlab.eoinmurray.info/api/sim/execution-functions/#simulate), we replayed the first validation utterance with final-epoch weights, one shared fresh corruption draw (seed 46) and no updates. Selection used validation split order, not original dataset index, prediction or spike appearance.
 
 8. **Calculate autocorrelograms.** We applied SNNLab's [spike_autocorrelogram](https://snnlab.eoinmurray.info/api/analysis/#spike_autocorrelogram) separately to each population over the full utterance:
 

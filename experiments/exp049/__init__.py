@@ -4,7 +4,7 @@ This package exposes local scientific definitions for its independent stages.
 Importing it does not create runs, load scientific artifacts or launch execution.
 """
 
-from experiments.exp049.custom.measurements import weight_summary
+from experiments.exp049.analyse import weight_summary
 from experiments.exp049.recipe import (
     ANALYSIS_PURPOSE,
     CHECKPOINT_POLICY,

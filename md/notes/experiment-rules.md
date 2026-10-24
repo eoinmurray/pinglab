@@ -4,7 +4,7 @@ author: Eoin Murray
 collection: notes
 description: Experiment layout, identities, shared helpers, Pingstore and SNNLab evidence.
 created_at: "2026-10-14"
-updated_at: "2026-10-20T13:56:46Z"
+updated_at: "2026-10-24T06:26:47Z"
 ---
 
 # Experiment Rules
@@ -24,15 +24,20 @@ updated_at: "2026-10-20T13:56:46Z"
        analyse.py         # validation, measurements and estimators
        present.py         # figures, tables and report-ready outputs
        test.py            # all experiment-specific tests
-       custom/            # additional implementation modules
+       custom/            # extensions and necessary execution adapters
        report/
            report.mdx
            …              # supporting article files and authored assets
    ```
 
-2. Keep entry points small, scientific settings in `recipe.py`, and imports free
-   of execution side effects.
-3. Limit root-level Python files to those above; put additional modules in `custom/`.
+2. Keep CLI entry points small, scientific settings in `recipe.py`, and imports
+   free of execution side effects. The canonical stage files own their stage's
+   implementation, including simulation, measurements and plotting helpers.
+3. Limit root-level Python files to those above. Minimise `custom/`: retain genuine
+   extensions, native lifecycle adapters and necessary execution support there.
+   Do not split ordinary recipe, compute, analyse or present code into `custom/`
+   merely to shorten the canonical files. Put data loading and preprocessing in
+   `dataset.py` where applicable.
 4. Keep all experiment tests in one `test.py`, not separate `test_*.py` files.
 5. Limit `README.md` to brief goals and CLI files with required and optional arguments.
 

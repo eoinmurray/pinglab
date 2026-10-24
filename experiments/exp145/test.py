@@ -165,7 +165,7 @@ def test_stage_pipeline_in_isolated_store(tmp_path, monkeypatch):
 
 
 def test_pair_covariance_matches_direct_lagged_pairs():
-    from experiments.exp145.custom.metrics import pair_covariance
+    from experiments.exp145.analyse import pair_covariance
 
     rng = np.random.default_rng(7)
     a = rng.normal(size=(40, 4))
@@ -192,7 +192,7 @@ def test_pair_covariance_matches_direct_lagged_pairs():
 
 def test_sliding_correlations_match_direct_window_sums():
     """Check overlap, window endpoints and exclusion of constant-count cells."""
-    from experiments.exp145.custom.metrics import pair_correlations
+    from experiments.exp145.analyse import pair_correlations
 
     cfg = recipe.configuration(n_e=3, n_i=2, n_external=4)
     cfg["analysis"]["correlation_bins_ms"] = [0.2, 0.4, 0.6]
@@ -232,10 +232,7 @@ def test_sliding_correlations_match_direct_window_sums():
 
 
 def test_current_reconstruction_and_exact_cancellation():
-    from experiments.exp145.custom.metrics import (
-        current_cancellation,
-        reconstruct_currents,
-    )
+    from experiments.exp145.analyse import current_cancellation, reconstruct_currents
 
     cfg = recipe.configuration(n_e=4, n_i=2, n_external=4)
     steps = round(cfg["duration_ms"] / cfg["dt_ms"])
@@ -266,7 +263,7 @@ def test_current_reconstruction_and_exact_cancellation():
 
 
 def test_population_scaling_independent_and_shared_activity():
-    from experiments.exp145.custom.metrics import population_scaling
+    from experiments.exp145.analyse import population_scaling
     from scipy.linalg import hadamard
 
     cfg = recipe.configuration(n_e=32, n_i=8, n_external=16)

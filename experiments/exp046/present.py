@@ -4,19 +4,45 @@ Invoke this stage explicitly from the repository root. Scientific outputs
 and input provenance belong to its independently completed Pingstore run.
 """
 
-import argparse
+from __future__ import annotations
+
 import sys
-import time
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
 
-from experiments.exp046.custom.network_artifacts import copy_circuits
+import argparse
+import time
 
-from experiments.exp046.custom import inputs, measurements, plots
+import matplotlib.pyplot as plt
+import numpy as np
 from experiments import theme
+from experiments.exp046 import analyse as measurements
+from experiments.exp046.custom import inputs
+from experiments.exp046.custom.network_artifacts import copy_circuits
 from pingstore.contracts import PingstoreError, load_json, write_json_atomic
+
+DEFAULT_FORMATS = ("svg", "pdf")
+
+
+def save_figure(fig, stem, formats=DEFAULT_FORMATS) -> list[Path]:
+    """Write *fig* to <stem>.<ext> for each ext in *formats*.
+
+    *stem* is a path without an extension (a trailing .png/.pdf/.svg is
+    stripped, so existing call sites that pass "foo.png" keep working).
+    Format is inferred from the extension; rcParams (dpi, bbox, fonttype)
+    come from the active theme profile.
+    """
+    stem = Path(stem)
+    if stem.suffix:
+        stem = stem.with_suffix("")
+    out: list[Path] = []
+    for ext in formats:
+        p = stem.with_suffix(f".{ext}")
+        fig.savefig(p)
+        out.append(p)
+    return out
 
 
 def format_duration(seconds: float) -> str:
@@ -29,6 +55,7 @@ def format_duration(seconds: float) -> str:
 
 
 def present(identity, *, run_id=None):
+
     analysis = inputs.source(REPO, identity, "analyse")
     refs = analysis.record["inputs"]
     if set(refs) != {"compute", "bank", "frequencies"}:
@@ -72,16 +99,14 @@ def present(identity, *, run_id=None):
         },
     ) as run:
         theme.set_paper_mode(True)
-        plots.plot_distribution(
+        plot_distribution(
             result["per_tau"], run.export / "spikes_per_cycle_distribution"
         )
-        plots.plot_equal_network_distribution(
+        plot_equal_network_distribution(
             result["per_tau_equal_network"],
             run.export / "spikes_per_cycle_distribution_equal_network",
         )
-        plots.plot_ceiling_vs_fgamma(
-            result["results"], run.export / "ceiling_vs_fgamma"
-        )
+        plot_ceiling_vs_fgamma(result["results"], run.export / "ceiling_vs_fgamma")
         duration = time.monotonic() - started
         write_json_atomic(
             run.export / "numbers.json",
@@ -111,6 +136,207 @@ def main():
         present(args.source, run_id=args.run_id)
     except (PingstoreError, OSError, ValueError, KeyError) as exc:
         parser.exit(1, f"exp046 present: {exc}\n")
+
+
+def plot_distribution(
+    per_tau: dict, out_path: Path, *, axes=None, percentages=True, panel_labels=None
+) -> None:
+    """Bar plot of P(spikes/cell/cycle = k) per τ_GABA, k ∈ {0, 1, 2, ≥3}."""
+    theme.apply()
+    taus_sorted = sorted(float(k.removeprefix("tau_")) for k in per_tau)
+    n = len(taus_sorted)
+    standalone = axes is None
+    if standalone:
+        fig, axes = plt.subplots(
+            1, n, figsize=(6.9, 4.5 * 6.9 / (2.4 * n)), sharey=True
+        )
+        if n == 1:
+            axes = [axes]
+    fig = axes[0].figure
+    labels = ["0", "1", "2", "≥3"]
+    cmap = plt.get_cmap("viridis")
+    for i, tau in enumerate(taus_sorted):
+        values = per_tau[f"tau_{tau:g}"]
+        frac = [
+            values[k] for k in ("frac_zero", "frac_one", "frac_two", "frac_three_plus")
+        ]
+        ax = axes[i]
+        color = cmap(i / max(1, n - 1))
+        ax.bar(labels, frac, color=color, edgecolor=theme.GREY_MID, lw=0.5)
+        if percentages:
+            for k, v in enumerate(frac):
+                ax.text(
+                    k,
+                    v + 0.01,
+                    f"{v * 100:.1f}%",
+                    ha="center",
+                    va="bottom",
+                    fontsize=theme.SIZE_ANNOTATION,
+                    color=theme.INK,
+                )
+        ax.set_title(f"τ_GABA = {tau:g} ms", fontsize=theme.SIZE_LABEL)
+        if i == 0:
+            ax.set_ylabel("P(spikes per E cell per cycle)", fontsize=theme.SIZE_LABEL)
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+        ax.set_ylim(0, 1.05)
+        ax.grid(True, axis="y", alpha=0.15, lw=0.4)
+    theme.label_panels(axes, panel_labels)
+    if standalone:
+        fig.supxlabel("spikes / (cell · cycle)", fontsize=theme.SIZE_LABEL)
+        fig.tight_layout()
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        save_figure(fig, out_path)  # bar chart: SVG + PDF
+        plt.close(fig)
+
+
+def plot_equal_network_distribution(
+    per_tau: dict, out_path: Path, *, axes=None, panel_labels=None
+) -> None:
+    """Plot equal-network means in one monochrome row."""
+    theme.apply()
+    taus_sorted = sorted(float(k.removeprefix("tau_")) for k in per_tau)
+    standalone = axes is None
+    if standalone:
+        fig, grid = plt.subplots(
+            1,
+            len(taus_sorted),
+            figsize=(6.9, 2.15),
+            sharey=True,
+            squeeze=False,
+            layout="constrained",
+        )
+        axes = grid.ravel()
+    axes = list(axes)
+    labels_for_panels = (
+        list(panel_labels)
+        if panel_labels is not None
+        else [chr(ord("A") + i) for i in range(len(taus_sorted))]
+    )
+    if len(axes) != len(taus_sorted) or len(labels_for_panels) != len(taus_sorted):
+        raise ValueError("one axis and panel label are required per decay condition")
+    fig = axes[0].figure
+    labels = ["0", "1", "2", "≥3"]
+    keys = ("frac_zero", "frac_one", "frac_two", "frac_three_plus")
+    for i, tau in enumerate(taus_sorted):
+        ax = axes[i]
+        means = [per_tau[f"tau_{tau:g}"][key] for key in keys]
+        ax.bar(labels, means, color="black", edgecolor="black", lw=0.5)
+        ax.set_title(
+            "$\\tau_{\\mathrm{GABA}}$\n" + f"{tau:g} ms",
+            fontsize=theme.SIZE_TITLE,
+            color="black",
+            loc="center",
+            pad=8,
+        )
+        ax.text(
+            0.03,
+            0.97,
+            labels_for_panels[i],
+            transform=ax.transAxes,
+            ha="left",
+            va="top",
+            fontsize=theme.SIZE_PANEL,
+            fontweight="bold",
+            color="black",
+        )
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+        for spine in ax.spines.values():
+            spine.set_color("black")
+        ax.tick_params(colors="black", labelsize=theme.SIZE_LABEL)
+        ax.set_ylim(0, 1.05)
+        ax.set_yticks([0, 0.25, 0.5, 0.75, 1], ["0", "0.25", "0.5", "0.75", "1"])
+        ax.grid(False)
+    if standalone:
+        fig.supxlabel(
+            "Spikes per neuron–cycle", fontsize=theme.SIZE_LABEL, color="black"
+        )
+        fig.supylabel(
+            "Equal-network\nmean fraction", fontsize=theme.SIZE_LABEL, color="black"
+        )
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        save_figure(fig, out_path)
+        plt.close(fig)
+
+
+def plot_ceiling_vs_fgamma(rows: list[dict], out_path: Path) -> None:
+    """Per-cell max E rate vs f_γ. y = f_γ line is the 1-spike/cycle ceiling."""
+    theme.apply()
+    fig, ax = plt.subplots(figsize=(5.6, 3.15))
+
+    # Aggregate by τ_GABA.
+    by_tau: dict[float, list[dict]] = {}
+    for r in rows:
+        by_tau.setdefault(r["tau_gaba_ms"], []).append(r)
+    taus_sorted = sorted(by_tau.keys())
+    cmap = plt.get_cmap("viridis")
+
+    f_gammas: list[float] = []
+    for i, tau in enumerate(taus_sorted):
+        group = by_tau[tau]
+        color = cmap(i / max(1, len(taus_sorted) - 1))
+        for r in group:
+            f_gammas.append(r["f_gamma_hz"])
+        # Plot the group: scatter.
+        xs = [r["f_gamma_hz"] for r in group]
+        ys_max = [r["per_cell_max_rate_hz"] for r in group]
+        ys_med = [r["per_cell_median_rate_hz"] for r in group]
+        ax.scatter(
+            xs,
+            ys_max,
+            marker="^",
+            s=60,
+            color=color,
+            edgecolor=theme.INK,
+            lw=0.5,
+            label=f"τ_GABA = {tau:g} ms — max cell" if i == 0 else None,
+        )
+        ax.scatter(
+            xs,
+            ys_med,
+            marker="o",
+            s=40,
+            color=color,
+            edgecolor=theme.INK,
+            lw=0.5,
+            label=f"τ_GABA = {tau:g} ms — median cell" if i == 0 else None,
+        )
+
+    f_arr = np.array(f_gammas)
+    fmax = float(f_arr.max()) * 1.05
+    rate_max = max(r["per_cell_max_rate_hz"] for r in rows)
+    ymax = max(fmax, 1.05 * rate_max)
+    xs = np.linspace(0, fmax, 100)
+    ax.plot(
+        xs,
+        xs,
+        color=theme.GREY_MID,
+        lw=1.0,
+        ls="--",
+        label="y = f_γ (1 spike / cycle ceiling)",
+    )
+    ax.plot(
+        xs,
+        0.20 * xs,
+        color=theme.MUTED,
+        lw=1.0,
+        ls=":",
+        label="y = 0.20 · f_γ (exp041 slope p)",
+    )
+
+    ax.set_xlim(0, fmax)
+    ax.set_ylim(0, ymax)
+    ax.set_xlabel("Measured f_γ (Hz)", fontsize=theme.SIZE_LABEL)
+    ax.set_ylabel("Per-cell E rate (Hz)", fontsize=theme.SIZE_LABEL)
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    ax.grid(True, alpha=0.15, lw=0.4)
+    ax.legend(fontsize=theme.SIZE_LEGEND, frameon=False, loc="upper left")
+    fig.tight_layout()
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    save_figure(fig, out_path)  # sparse scatter + line overlays: SVG + PDF
+    plt.close(fig)
 
 
 if __name__ == "__main__":

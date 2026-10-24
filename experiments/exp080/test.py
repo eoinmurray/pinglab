@@ -15,8 +15,9 @@ import numpy as np
 import pytest
 from experiments import exp080
 from experiments.exp080 import analyse, present, recipe
-from experiments.exp080.custom import execution as compute
-from experiments.exp080.custom import inputs, measurements
+from experiments.exp080 import analyse as measurements
+from experiments.exp080 import compute as compute
+from experiments.exp080.custom import inputs
 from pingstore import stages
 from pingstore.contracts import (
     PingstoreError,
@@ -252,7 +253,7 @@ def test_failure_remains_hidden_and_preserves_prior_runs(repo, monkeypatch, stag
     module, function = {
         "compute": (compute, "train_seed"),
         "analyse": (measurements, "analyze"),
-        "present": (present.plots, "plot_training"),
+        "present": (present, "plot_training"),
     }[stage]
     monkeypatch.setattr(module, function, fail)
     with pytest.raises(RuntimeError, match="injected"):
@@ -331,7 +332,7 @@ def test_presentation_allows_transitive_metadata_amendment_during_execution(
     compute_id = compute.compute()
     analysis_id = analyse.analyse(compute_id)
     source = inputs.source(root, compute_id, "compute")
-    original = present.plots.plot_training
+    original = present.plot_training
 
     def mutate(*args):
         original(*args)
@@ -339,7 +340,7 @@ def test_presentation_allows_transitive_metadata_amendment_during_execution(
         record["execution"]["command"] = ["changed"]
         write_json_atomic(source.directory / "run.json", record)
 
-    monkeypatch.setattr(present.plots, "plot_training", mutate)
+    monkeypatch.setattr(present, "plot_training", mutate)
     presentation_id = present.present(analysis_id)
     assert (root / ".pingstore/runs" / presentation_id).is_dir()
 
@@ -483,7 +484,7 @@ def test_historical_illustration_is_carried_without_simulation(repo, monkeypatch
     write_json_atomic(source.directory / "run.json", record)
     resign(source.directory)
     monkeypatch.setattr(compute, "direct_features", forbidden)
-    monkeypatch.setattr(present.plots, "plot_feature_images", forbidden)
+    monkeypatch.setattr(present, "plot_feature_images", forbidden)
     analysis_id = analyse.analyse(identity)
     presentation_id = present.present(analysis_id)
     presentation = inputs.source(root, presentation_id, "present")

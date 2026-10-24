@@ -123,12 +123,12 @@ const groups = evidence ? [
       : `${n(cfg.autocorrelation_bin_ms)} / ${n(cfg.autocorrelation_max_lag_ms)} ms`),
     setting('Diagnostic counting window', cfg => `0–${n(cfg.duration_ms)} ms; full presentation`),
   ] },
-] : [{ label: 'Evidence', rows: [['Pinned snapshots and configuration', 'Unavailable', 'Unavailable']] }];
+] : [{ label: 'Evidence', rows: [['Selected snapshots and configuration', 'Unavailable', 'Unavailable']] }];
 ---
 
 <Table headers={['Parameter', 'COBA', 'PING']} groups={groups} number={1} id="architecture-config" label="Executed architecture and simulation settings">
   <strong>Executed architecture and simulation settings.</strong>
-  {evidence ? <>Model and native training-specification values are read from the saved final-training snapshots in <code>{evidence.compute.run_id}</code>; execution settings come from that run's recorded configuration. </> : <>The pinned snapshot evidence is unavailable. </>}
+  {evidence ? <>Model and native training-specification values are read from the saved final-training snapshots in <code>{evidence.compute.run_id}</code>; execution settings come from that run's recorded configuration. </> : <>The selected snapshot evidence is unavailable. </>}
   E / I pairs list excitatory then inhibitory values; an em dash means that population is absent.
   The passive time constant is capacitance divided by leak conductance. Initializer statistics describe initial draws, not the final learned weight distribution; initial summed feedback is the per-edge constant times the source population size.
   Readout voltage and E2 rate are averaged over the full presentation; states reset between utterances.

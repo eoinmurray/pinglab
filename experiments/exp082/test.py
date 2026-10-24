@@ -24,13 +24,9 @@ from xml.etree import ElementTree
 import pytest
 import torch
 from experiments.exp082 import analyse, compute, present, recipe
-from experiments.exp082.custom import (
-    evidence,
-    illustrate,
-    inference,
-    inputs,
-    measurements,
-)
+from experiments.exp082 import analyse as measurements
+from experiments.exp082 import compute as inference
+from experiments.exp082.custom import evidence, illustrate, inputs
 from pingstore import stages
 from pingstore.contracts import (
     PingstoreError,
@@ -293,7 +289,7 @@ def test_compact_rate_ticks_do_not_overlap(tmp_path, monkeypatch):
     rows = [{**j, "accuracy": 0.5} for j in recipe.jobs(cfg)]
     saved = []
     monkeypatch.setattr(plt, "close", lambda fig: saved.append(fig))
-    present.plots.plot_duration_rate_summary(
+    present.plot_duration_rate_summary(
         measurements.plot_data(rows, cfg), tmp_path / "grid.png", "review"
     )
     fig = saved[-1]
@@ -314,7 +310,7 @@ def test_duration_rate_map_matches_exp048_figure_2a_style(tmp_path, monkeypatch)
     rows = [{**j, "accuracy": 0.5} for j in recipe.jobs(cfg)]
     saved = []
     monkeypatch.setattr(plt, "close", lambda fig: saved.append(fig))
-    present.plots.plot_duration_rate_summary(
+    present.plot_duration_rate_summary(
         measurements.plot_data(rows, cfg), tmp_path / "grid.png", "review"
     )
     fig = saved[-1]
@@ -354,7 +350,7 @@ def test_variable_stream_uses_exp048_segment_band_thumbnails(tmp_path, monkeypat
     }
     saved = []
     monkeypatch.setattr(plt, "close", lambda fig: saved.append(fig))
-    present.plots.plot_variable_headline(result, tmp_path / "stream.png", "review")
+    present.plot_variable_headline(result, tmp_path / "stream.png", "review")
     figure = saved[-1]
     image_axes = [axis for axis in figure.axes if axis.images]
     widths = np.array([axis.get_position().width for axis in image_axes])
@@ -376,7 +372,7 @@ def fake_plots(monkeypatch):
         "plot_duration_rate_summary",
     ):
         monkeypatch.setattr(
-            present.plots, name, lambda data, path, rid: path.write_text("figure")
+            present, name, lambda data, path, rid: path.write_text("figure")
         )
     monkeypatch.setattr(
         present,
@@ -705,7 +701,7 @@ def test_plot_failure_preserves_sources_and_stays_hidden(lab, monkeypatch):
         for p in (repo / ".pingstore/runs").iterdir()
     }
     monkeypatch.setattr(
-        present.plots,
+        present,
         "plot_single_trial",
         lambda *a: (_ for _ in ()).throw(RuntimeError("plot failure")),
     )
@@ -999,7 +995,7 @@ def test_shard_identity_tracks_local_inference_and_nested_source(tmp_path):
     recipe_module = SimpleNamespace(__file__=str(recipe_path))
     dataset = (np.zeros((2, 4), dtype=np.float32), np.array([0, 1]))
     before = sharding.shard_identity({}, bank, recipe_module, dataset=dataset)
-    assert before["inference_source"] == file_sha256(Path(sharding.inference.__file__))
+    assert before["inference_source"] == file_sha256(Path(compute.__file__))
     assert before["experiment_source"][str(implementation)] == file_sha256(
         implementation
     )

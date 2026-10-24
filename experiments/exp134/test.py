@@ -11,7 +11,7 @@ weighting when participation draws are missing."""
 import numpy as np
 import torch
 from experiments.exp134 import compute, recipe
-from experiments.exp134.custom.dynamics import dynamics
+from experiments.exp134.analyse import dynamics
 from snnlab.sim import Performance, build
 
 

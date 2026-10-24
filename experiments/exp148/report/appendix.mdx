@@ -3,6 +3,8 @@ import RunFigure from '../../../site/src/components/RunFigure.astro';
 import { reportSnapshots } from '../../../site/src/lib/report-data';
 
 export const evidence = await reportSnapshots('exp148', {
+  analysisInput: 'analyse',
+  computeInput: 'compute',
   snapshots: { simulation: 'simulation/start/snapshot.json' },
   allowUnavailable: true,
 });
@@ -21,7 +23,7 @@ export const parameterGroups = (() => {
   };
   const pair = key => ['E', 'I'].map(name => show(population(name)?.neuron?.[key])).join(' / ');
   const names = ['E_to_E', 'E_to_I', 'I_to_E', 'I_to_I', 'X_to_E', 'X_to_I'];
-  const label = name => name.replace('_to_', '→');
+  const label = name => name.replace(/^X_to_/, 'Input→').replace('_to_', '→').replace('.weight', ' weight');
   const density = name => {
     const zero = snapshot?.execution?.initialization?.[`${name}.weight`]?.statistics?.zero_fraction;
     return zero === undefined ? 'Unavailable' : show(1 - zero);
@@ -29,7 +31,7 @@ export const parameterGroups = (() => {
   return [
     { label: 'Network', rows: [
       ['E / I neurons', ['E', 'I'].map(name => show(population(name)?.size)).join(' / ')],
-      ['Shared external X sources', show(graph?.inputs?.find(row => row.id === 'X')?.shape?.at(-1))],
+      ['Shared Input sources', show(graph?.inputs?.find(row => row.id === 'X')?.shape?.at(-1))],
       ...names.map(name => [`${label(name)} autapses allowed`, show(projection(name)?.allow_autapses)]),
     ] },
     { label: 'Neurons', rows: [
@@ -52,6 +54,7 @@ export const parameterGroups = (() => {
       const stats = snapshot?.execution?.initialization?.[`${name}.weight`]?.statistics;
       return [
         [`${label(name)} synapse / decay / delay (ms)`, [projection(name)?.synapse?.kind, projection(name)?.synapse?.tau, projection(name)?.delay].map(show).join(' / ')],
+        [`${label(name)} modulation`, projection(name)?.modulation?.kind ?? 'None'],
         [`${label(name)} initializer / scaling`, [init?.kind, spec?.initialization_scaling].map(show).join(' / ')],
         [`${label(name)} compensated initializer mean / SD (µS)`, [init?.mean, init?.std].map(show).join(' / ')],
         [`${label(name)} connected Gaussian parent mean / SD (µS)`, init && typeof init.initial_zero_fraction === 'number' ? [init.mean / (1 - init.initial_zero_fraction), init.std / (1 - init.initial_zero_fraction)].map(show).join(' / ') : 'Unavailable'],
@@ -61,23 +64,26 @@ export const parameterGroups = (() => {
       ];
     }) },
     { label: 'Input and simulation', rows: [
-      ['External input', 'One Poisson raster shared by X→E and X→I'],
-      ['External rate per source (Hz)', show(cfg.external_rate_hz)],
+      ['External input', 'One Poisson raster shared by Input→E and Input→I'],
+      ['Fixed Input / recurrent connection probability', [cfg.input_connection_probability, cfg.connection_probability].map(show).join(' / ')],
+      ['Constant rate per Input source (Hz)', show(cfg.external_rate_hz)],
       ['External seed offset', show(cfg.external_seed_offset)],
       ['Timestep / duration (ms)', [snapshot?.execution?.timestep_ms, cfg.duration_ms].map(show).join(' / ')],
       ['Execution seed', show(snapshot?.execution?.seed)],
       ['Execution device', show(snapshot?.execution?.device_resolved)],
+      ['Requested compilation mode', cfg.performance?.compile_mode ?? 'Off'],
+      ['CPU threads', show(cfg.torch_threads)],
       ['Spikes recorded', 'All E and I neurons; raw recording includes burn-in'],
       ['Excluded burn-in (ms)', show(cfg.burn_in_ms)],
       ['Measurement window (ms)', show(cfg.duration_ms - cfg.burn_in_ms)],
       ['Input-generation block length (steps)', show(cfg.recording_block_steps)],
-      ['Training', snapshot?.execution?.parameter_membership?.trainable?.length === 0 ? 'None; X→I weights follow the prescribed control' : 'Unavailable'],
+      ['Training', snapshot?.execution?.parameter_membership?.trainable?.length === 0 ? 'None; gains follow prescribed native modulation' : 'Unavailable'],
     ] },
     { label: 'Control protocol', rows: [
-      ['Scheduled parameter', show(cfg.control?.parameter)],
+      ['Scheduled parameter', label(cfg.control?.parameter ?? 'Unavailable')],
       ['Baseline / final gain', [cfg.control?.baseline_gain, cfg.control?.final_gain].map(show).join(' / ')],
       ['Absolute ramp start / end (ms)', [cfg.control?.ramp_start_ms, cfg.control?.ramp_end_ms].map(show).join(' / ')],
-      ['Gain update interval (ms)', show(cfg.control?.update_ms)],
+      ['Native gain sampling interval (ms)', show(cfg.control?.update_ms)],
       ['Baseline / ramp / hold (ms)', [cfg.baseline_ms, cfg.ramp_ms, cfg.hold_ms].map(show).join(' / ')],
     ] },
     { label: 'Analysis', rows: [
@@ -85,23 +91,96 @@ export const parameterGroups = (() => {
       ['Minimum peak separation (ms)', show(cfg.analysis?.peak_separation_ms)],
       ['Prominence fraction of maximum bin count', show(cfg.analysis?.peak_prominence_fraction)],
     ] },
+
   ];
 })();
 
 ## A. Network
 
-<RunFigure report="exp148" experiment="exp148" file="circuit.svg" number="A1" id="fig-circuit" alt="The executed graph contains shared X input to E and I, and all four recurrent E/I pathways." allowUnavailable={true}>
+<RunFigure report="exp148" experiment="exp148" file="circuit.svg" number="A1" id="fig-circuit" alt="The executed graph contains shared Input projections to E and I, and all four recurrent E/I pathways." allowUnavailable={true}>
   Native circuit diagram from the compiled graph used for this run. The
-  intervention scales X→I weights while preserving its connection mask.
+  native gain schedule scales only new Input→I drive. Input→E and all four
+  recurrent pathways retain their reference weights from initialization. The same input pool, sampled weight matrices and
+  connection masks are used throughout.
 </RunFigure>
 
 ## B. Parameters
 
 <Table headers={["Parameter", "Value"]} groups={parameterGroups} number="A1" label="Executed network and control protocol">
-  E/I pairs are listed in that order. Network values and initial weight
+  E/I pairs are listed in that order. Network values and sampled reference-weight
   statistics come from the native simulation-start snapshot. Protocol and
   analysis values come from the same compute run's recorded configuration.
-  X→I statistics describe initial weights before the control ramp. Gaussian
-  parent moments differ from realised moments because of lower clamping and
-  excluded autapses. A final zero gain leaves no active X→I weights.
+  Initialization statistics describe the sampled target weights before scheduled
+  multipliers. Stored parameter arrays remain at these reference values;
+  all recurrent pathways are fully active from initialization.
+  Input jumps are scaled to preserve expected total input conductance at the
+  selected fixed input sparsity. Gaussian parent moments differ from realised moments because of lower clamping and
+  excluded autapses. A final zero Input→I gain stops new external drive to I;
+  accumulated conductance continues to decay.
 </Table>
+
+## C. Hold-window analysis
+
+Pulse timing is measured independently in consecutive 100 ms intervals using
+0.5 ms population-count bins, a minimum peak separation of 6 ms and prominence
+of 12% of the largest count in each interval. This local threshold retains
+small early volleys that the full-hold threshold can miss. Intervals crossing
+100 ms boundaries are omitted. The last interval is shorter when the hold
+duration is not a multiple of 100 ms. These descriptive measurements do not establish
+a PING mechanism. Native recordings also retain population mean voltage and mean
+conductance for each pathway. This runset contains no pathway-ablation controls.
+
+<span id="mean-field-model" />
+
+## D. Four-state mean-field extension
+
+The model in the main text is an adapted extension of [exp117](/exp117), using
+its population-rate and conductance variables. It is a population closure, not
+an exact reduction of the spiking network. No exp117 numerical results are used
+as scientific inputs. All six couplings are calculated from exp148's explicitly
+referenced native parameter snapshot, not from initializer means.
+
+The stationary gain uses exp148's capacitance, leak, resting/reset/threshold
+voltages and refractory periods. The 4 mV voltage-noise scale and 20/5 ms
+E/I rate-relaxation times are unchanged exp117 assumptions. The gain's Siegert
+integral and derivative are given in [exp117, Equations A10 and A15](/exp117#loc-11),
+following [Kreutz-Delgado (2015)](https://doi.org/10.48550/arXiv.1501.04032).
+The original ms-based rate is multiplied by 1,000 to obtain Hz.
+
+E→E excitation and E→I excitation share one presynaptic population and decay
+constant, as do I→I and I→E inhibition. Their homogeneous mean conductances are
+therefore proportional when initialized consistently, as at the equilibrium
+used here. This permits the two self-coupling conductances to be reconstructed
+from the two cross-population conductance states. It does not assert exact
+proportionality between conductances of individual neurons in the sparse
+spiking circuit. Different decay constants or independent initial conductance
+components would require additional states.
+
+External input is replaced by its instantaneous stationary mean. The changing
+external drive's 5 ms filtering lag and the shared pool's covariance are omitted.
+Fixed resting-voltage driving forces omit shunting; weight heterogeneity and
+explicit synaptic transmission delays are also omitted.
+
+Equilibria are continued through 201 multipliers from one to zero using bounded
+least squares, requiring a maximum rate residual below $10^{-7}$ Hz. This follows
+one numerically found branch and does not establish global uniqueness. Gain
+integrals use 48-point Gauss–Legendre quadrature. The analytical four-by-four
+conductance-state Jacobian is checked against finite differences, with step sizes
+scaled to each state variable's units. A direct change-of-coordinates check
+preserves the flow and Jacobian of the earlier filtered-rate formulation.
+Brent refinement locates a zero of the largest eigenvalue real part. At the
+reported crossing, the critical pair has nonzero imaginary part, the remaining
+pair stays stable, and the real part changes with the multiplier. These are
+local Hopf conditions, not a determination of bifurcation criticality. Doubling
+the quadrature resolution to 96 points preserves the crossing's eigenvalues
+to numerical precision.
+
+The matched protocol uses the recorded 50 ms burn-in and three 750 ms windows.
+Its initial state is the full-drive equilibrium with a 0.001 Hz E-rate
+perturbation. LSODA uses relative tolerance $10^{-8}$ and absolute rate tolerance
+$10^{-10}$ Hz. Each conductance's absolute tolerance is the rate tolerance
+multiplied by its equilibrium conductance-per-rate factor,
+$\tau_sG_{E\to I}/1000$ or $\tau_sG_{I\to E}/1000$ in µS/Hz. This rescales the
+previous error controls without changing the model. Maximum step and output
+sampling interval are both 0.5 ms. Neither closure constants nor coupling
+strengths are fitted to the observed transition.

@@ -6,6 +6,6 @@ const { id, number } = Astro.props;
 ---
 
 {run ? <RunFigure {...Astro.props}><slot /></RunFigure> : <figure id={id} class="l-body">
-  <p>Figure unavailable: the pinned presentation payload is missing. See the <a href="/recovered/exp124/published.html">archived publication</a>.</p>
+  <p>Figure unavailable: no completed presentation is available. See the <a href="/recovered/exp124/published.html">archived publication</a>.</p>
   <figcaption><strong>Figure {number}.</strong> <slot /></figcaption>
 </figure>}

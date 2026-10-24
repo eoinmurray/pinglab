@@ -4,7 +4,7 @@ This package exposes local scientific definitions for its independent stages.
 Importing it does not create runs, load scientific artifacts or launch execution.
 """
 
-from experiments.exp037.custom.measurements import (
+from experiments.exp037.analyse import (
     summarize_accuracy,
     summarize_frontier,
     summarize_perturbation_rows,

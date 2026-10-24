@@ -281,7 +281,7 @@ def test_missing_measurements_never_become_zeros(lab, damage):
 
 
 def test_independent_stages_retain_science_and_never_publish(lab, monkeypatch):
-    from experiments.exp041.custom import measurements
+    from experiments.exp041 import analyse as measurements
 
     root, bank_id, calls = lab
     bank = inputs.source(root, bank_id, "compute", experiment="exp022")
@@ -346,7 +346,7 @@ def test_independent_stages_retain_science_and_never_publish(lab, monkeypatch):
 
 
 def test_mean_psd_peak_not_median_of_trial_peaks():
-    from experiments.exp041.custom import measurements
+    from experiments.exp041 import analyse as measurements
 
     t = np.arange(2000) * 0.0001
     traces = np.array(
@@ -364,7 +364,7 @@ def test_mean_psd_peak_not_median_of_trial_peaks():
 
 
 def test_affine_and_origin_fits_use_six_condition_means():
-    from experiments.exp041.custom import measurements
+    from experiments.exp041 import analyse as measurements
 
     rows = []
     for tau in recipe.TAU_GABA_SWEEP:

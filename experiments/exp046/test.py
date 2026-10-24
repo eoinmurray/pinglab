@@ -11,18 +11,19 @@ from pathlib import Path
 import numpy as np
 import pytest
 from experiments.exp046 import analyse, compute, present, recipe
-from experiments.exp046.custom import inputs, measurements, plots
-from pingstore import stages
+from experiments.exp046 import analyse as measurements
+from experiments.exp046 import present as plots
+from experiments.exp046.custom import inputs
 from experiments.exp046.custom import source_exp041_recipe as frequency_recipe
 from experiments.exp046.custom.source_exp041_analyse import MEASUREMENT
 from experiments.exp046.custom.source_exp041_custom_evidence import (
-    training_contract,
     checkpoints,
+    training_contract,
 )
-from pingstore.stages import source_run
-from pingstore.contracts import file_sha256
-
 from experiments.exp046.recipe import refractory_configuration
+from pingstore import stages
+from pingstore.contracts import file_sha256
+from pingstore.stages import source_run
 
 
 def _common_config() -> dict:

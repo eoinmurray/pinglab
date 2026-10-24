@@ -15,6 +15,8 @@ and adds the figure filenames for downstream consumers. The input run is
 explicit and its recipe is checked before plotting; this stage does not
 load a dataset, execute a network or dispatch either upstream stage."""
 
+from __future__ import annotations
+
 import argparse
 import os
 import shutil
@@ -26,13 +28,33 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
 
 import numpy as np
-from experiments.exp141.recipe import configuration
 from experiments import theme
-from experiments.exp141.custom.figures import save_figure
+from experiments.exp141.recipe import configuration
 from pingstore.contracts import load_json, write_json_atomic
 from pingstore.stages import source_run, stage_run
 from snnlab.sim import RecordingData, SignalInfo, TrainingHistory
 from snnlab.viz import plot_learning_curves, plot_raster
+
+DEFAULT_FORMATS = ("svg", "pdf")
+
+
+def save_figure(fig, stem, formats=DEFAULT_FORMATS) -> list[Path]:
+    """Write *fig* to <stem>.<ext> for each ext in *formats*.
+
+    *stem* is a path without an extension (a trailing .png/.pdf/.svg is
+    stripped, so existing call sites that pass "foo.png" keep working).
+    Format is inferred from the extension; rcParams (dpi, bbox, fonttype)
+    come from the active theme profile.
+    """
+    stem = Path(stem)
+    if stem.suffix:
+        stem = stem.with_suffix("")
+    out: list[Path] = []
+    for ext in formats:
+        p = stem.with_suffix(f".{ext}")
+        fig.savefig(p)
+        out.append(p)
+    return out
 
 
 def sample_raster(mode, pixels, recording, sample, cfg, export):

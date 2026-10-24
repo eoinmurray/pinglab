@@ -11,9 +11,10 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-from experiments.exp037.custom import bank_contract as exp022
 from experiments.exp037 import analyse, compute, present, recipe
-from experiments.exp037.custom import inputs, measurements
+from experiments.exp037 import analyse as measurements
+from experiments.exp037 import recipe as exp022
+from experiments.exp037.custom import inputs
 from experiments.exp037.recipe import refractory_configuration
 
 
@@ -586,7 +587,7 @@ def test_collect_rejects_missing_shards_and_busy_reservation(lab, monkeypatch):
 def test_reviewed_figures_keep_coordinates_show_full_range_and_omit_run_ids(
     tmp_path, monkeypatch
 ):
-    from experiments.exp037.custom import plots
+    from experiments.exp037 import present as plots
 
     captured = []
     monkeypatch.setattr(plots, "save_figure", lambda fig, *a, **k: captured.append(fig))
@@ -763,7 +764,7 @@ def test_shard_identity_tracks_local_inference_and_nested_source(tmp_path):
     recipe_module = SimpleNamespace(__file__=str(recipe_path))
     dataset = (np.zeros((2, 4), dtype=np.float32), np.array([0, 1]))
     before = sharding.shard_identity({}, bank, recipe_module, dataset=dataset)
-    assert before["inference_source"] == file_sha256(Path(sharding.inference.__file__))
+    assert before["inference_source"] == file_sha256(Path(compute.__file__))
     assert before["experiment_source"][str(implementation)] == file_sha256(
         implementation
     )

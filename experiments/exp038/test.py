@@ -11,9 +11,10 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-from experiments.exp038.custom import bank_contract as exp022
 from experiments.exp038 import analyse, compute, present, recipe
-from experiments.exp038.custom import inputs, measurements
+from experiments.exp038 import analyse as measurements
+from experiments.exp038 import recipe as exp022
+from experiments.exp038.custom import inputs
 from experiments.exp038.recipe import refractory_configuration
 
 
@@ -437,7 +438,7 @@ def test_present_rejects_resigned_incomplete_analysis(lab):
 
 
 def test_raster_labels_use_recorded_class_and_do_not_overlap(tmp_path, monkeypatch):
-    from experiments.exp038.custom import plots
+    from experiments.exp038 import present as plots
 
     samples = [
         {

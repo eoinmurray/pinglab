@@ -8,8 +8,7 @@ this module does not start computation or select a scientific run.
 import argparse
 from pathlib import Path
 
-from experiments.exp022.custom.execution import _cell_by_name, _writable_compute_root
-from experiments.exp022.custom.training import train_cell
+from experiments.exp022.compute import _cell_by_name, _writable_compute_root, train_cell
 
 
 def main():

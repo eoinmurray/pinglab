@@ -1,25 +1,17 @@
-import { getEntry } from 'astro:content';
-import { runStore } from '../../../site/src/lib/run-store';
-import { reportData, reportSnapshots } from '../../../site/src/lib/report-data';
+import { reportData } from '../../../site/src/lib/report-data';
+import { optionalPresentation } from '../../../site/src/lib/pingstore';
+import { readSnapshotEvidence } from '../../../site/src/lib/snapshot-data';
 
-// Missing historical evidence is explicit for this report. Never replace its
-// pin with a newer diagnostic run; existing but invalid payloads still fail.
+// Numbers, figures and snapshots share the session's latest presentation selection.
 export async function evidence() {
-  const article = await getEntry('reports', 'exp124');
-  const pin = article?.data.runs?.exp124;
-  if (!pin || !/^exp124-r\d+-present$/.test(pin)) throw new Error('exp124 requires an explicit presentation pin');
-  try {
-    if (!await runStore.has(pin, 'export/numbers.json')) return undefined;
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined;
-    throw error;
-  }
-  return reportData('exp124');
+  return reportData('exp124', { allowUnavailable: true });
 }
 
-
 export async function snapshotEvidence() {
-  return reportSnapshots('exp124', {
+  const selected = await optionalPresentation('exp124');
+  if (!selected) return undefined;
+  return readSnapshotEvidence(selected.id, {
+    experiment: 'exp124',
     snapshots: {
       coba: 'coba/train/end/snapshot.json',
       ping: 'ping/train/end/snapshot.json',

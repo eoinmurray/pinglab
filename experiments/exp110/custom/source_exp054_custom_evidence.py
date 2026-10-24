@@ -8,7 +8,6 @@ this module does not start computation or select a scientific run.
 import math
 
 import numpy as np
-
 from pingstore.contracts import PingstoreError, load_json, write_json_atomic
 
 

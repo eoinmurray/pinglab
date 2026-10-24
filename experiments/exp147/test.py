@@ -11,8 +11,8 @@ import numpy as np
 import pytest
 import torch
 from experiments.exp147 import recipe
+from experiments.exp147.analyse import validate_and_measure
 from experiments.exp147.custom.execution import execute, executor
-from experiments.exp147.custom.validation import validate_and_measure
 from scipy.special import expit
 from snnlab.sim import NetworkSnapshot, plan_graph
 

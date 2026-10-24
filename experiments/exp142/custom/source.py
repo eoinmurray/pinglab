@@ -7,7 +7,7 @@ network. The source is a validated Pingstore run; no exp141 code is imported.
 import json
 
 import numpy as np
-from experiments.exp142.custom.metrics import arrays
+from experiments.exp142.analyse import arrays
 from experiments.exp142.custom.network_artifacts import snapshot_parameters
 
 

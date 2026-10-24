@@ -9,7 +9,9 @@ from functools import partial
 import numpy as np
 import pytest
 from experiments.exp054 import analyse, compute, present, recipe
-from experiments.exp054.custom import evidence, inputs, measurements, plots
+from experiments.exp054 import analyse as measurements
+from experiments.exp054 import present as plots
+from experiments.exp054.custom import evidence, inputs
 from pingstore import stages
 from pingstore.contracts import (
     PingstoreError,

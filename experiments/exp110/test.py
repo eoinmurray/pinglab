@@ -8,12 +8,12 @@ from pathlib import Path
 from xml.etree import ElementTree
 
 import pytest
-from experiments.exp110.custom import source_exp054_custom_plots as exp054_plots
-from experiments.exp110.custom import source_exp054_recipe as exp054_recipe
-from experiments.exp110.custom import plots
-from experiments.exp110.custom import presentation as present
+from experiments.exp110 import present as exp054_plots
+from experiments.exp110 import present as plots
+from experiments.exp110 import present as present
 from experiments.exp110 import recipe
-from experiments.exp110.custom import source_exp117_recipe as exp117_recipe
+from experiments.exp110 import recipe as exp054_recipe
+from experiments.exp110 import recipe as exp117_recipe
 from PIL import Image
 from pingstore import stages
 from pingstore.contracts import write_json_atomic
@@ -22,7 +22,7 @@ from pingstore.stages import source_run
 
 def test_figure_ownership_has_moved_from_exp054() -> None:
     assert not hasattr(exp054_plots, "build_super_compound")
-    assert "onset_super_compound.svg" not in exp054_recipe.FIGURES
+    assert "onset_super_compound.svg" not in exp054_recipe.source_exp054_recipe_FIGURES
     assert recipe.FIGURES == (
         "onset_super_compound.svg",
         "onset_super_compound.pdf",
@@ -62,7 +62,7 @@ def test_present_records_exp054_analysis_and_exports_only_the_bundle(
         stage="analyse",
         experiment="exp054",
     )
-    exp117_cfg = exp117_recipe.configuration()
+    exp117_cfg = exp117_recipe.source_exp117_recipe_configuration()
     with stages.stage_run(
         tmp_path, "exp117", "compute", configuration=exp117_cfg
     ) as exp117_compute_run:
@@ -144,7 +144,7 @@ def test_present_records_exp054_analysis_and_exports_only_the_bundle(
             stage="present",
             experiment=experiment,
         )
-    exp054_cfg = exp054_recipe.configuration(smoke=True)
+    exp054_cfg = exp054_recipe.source_exp054_recipe_configuration(smoke=True)
     exp054_coordinates = {"grid": []}
     taus = present.SHARED_TAU_GRID_MS
     exp117_coordinates = {

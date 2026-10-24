@@ -11,9 +11,9 @@ import numpy as np
 import pytest
 import torch
 from experiments.exp146 import recipe
+from experiments.exp146.analyse import compare_reference, validate_traces
 from experiments.exp146.custom import dynamics
 from experiments.exp146.custom.execution import execute
-from experiments.exp146.custom.validation import compare_reference, validate_traces
 from snnlab.extensions import NeuronContext, StateContext
 from snnlab.sim import GraphExecutor, NetworkSnapshot, plan_graph
 

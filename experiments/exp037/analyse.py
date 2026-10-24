@@ -4,16 +4,19 @@ Invoke this stage explicitly from the repository root. Scientific outputs
 and input provenance belong to its independently completed Pingstore run.
 """
 
-import argparse
 import sys
 from pathlib import Path
 
-import numpy as np
-
 REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
-from experiments.exp037.custom import evidence, inputs, measurements
+
+import argparse
+from collections import defaultdict
+from math import sqrt
+
+import numpy as np
 from experiments.exp037 import recipe
+from experiments.exp037.custom import evidence, inputs
 from pingstore.contracts import PingstoreError, write_json_atomic
 
 MEASUREMENT = {
@@ -40,7 +43,7 @@ def analyse(identity, *, run_id=None):
     source = inputs.source(REPO, identity, "compute")
     cfg, bank, contract = inputs.compute_evidence(REPO, source)
     histories = evidence.histories(bank.export, contract)
-    rows = measurements.baseline_rows(histories)
+    rows = baseline_rows(histories)
     perturb = []
     rasters = []
     baselines = []
@@ -60,11 +63,11 @@ def analyse(identity, *, run_id=None):
             artifact = source.file(job["path"], role)
             m = evidence.recordings(artifact, train, job)
             if job["kind"] == "calibration":
-                baselines.append(measurements.perturbation_row(m, job))
+                baselines.append(perturbation_row(m, job))
             elif job["kind"] == "sweep":
-                perturb.append(measurements.perturbation_row(m, job))
+                perturb.append(perturbation_row(m, job))
             else:
-                data = measurements.raster(artifact, train, job)
+                data = raster(artifact, train, job)
                 filename = f"raster-{len(rasters):03d}.npz"
                 np.savez_compressed(run.export / filename, **data)
                 rasters.append({"job": job, "file": filename})
@@ -105,12 +108,10 @@ def analyse(identity, *, run_id=None):
                 "addition_axis": "per_seed_test_baseline_percent"
                 if recipe.relative(cfg)
                 else "reference_image_percent",
-                "frontier_summary": measurements.summarize_frontier(rows),
+                "frontier_summary": summarize_frontier(rows),
                 "perturbation": perturb,
-                "perturbation_summary": measurements.summarize_perturbation_rows(
-                    perturb
-                ),
-                "plot_data": measurements.plot_data(rows, perturb, baselines=baselines),
+                "perturbation_summary": summarize_perturbation_rows(perturb),
+                "plot_data": plot_data(rows, perturb, baselines=baselines),
                 "rasters": rasters,
             },
         )
@@ -126,6 +127,223 @@ def main():
         analyse(a.source, run_id=a.run_id)
     except (PingstoreError, OSError, KeyError, ValueError) as exc:
         p.exit(1, f"exp037 analyse: {exc}\n")
+
+
+def summarize_frontier(rows: list[dict]) -> list[dict]:
+    """Aggregate retained training histories at each model x rate target."""
+    grouped: dict[tuple[str, float | None], list[dict]] = defaultdict(list)
+    for row in rows:
+        grouped[(row["model"], row["rate_target_hz"])].append(row)
+
+    summary = []
+    for (model, rate_target_hz), points in grouped.items():
+        points = sorted(points, key=lambda point: point["seed"])
+        item = {
+            "model": model,
+            "rate_target_hz": rate_target_hz,
+            "rate_target_display": points[0]["rate_target_display"],
+            "seeds": [point["seed"] for point in points],
+            "n_seeds": len(points),
+            "cell_names": [point["cell_name"] for point in points],
+            "statistic": "mean_across_independent_seeds",
+            "uncertainty": "sem_across_independent_seeds",
+        }
+        for field in ("best_acc", "final_acc", "rate_e"):
+            values = np.asarray([point[field] for point in points], dtype=float)
+            item[field] = float(values.mean())
+            item[f"{field}_sem"] = (
+                float(values.std(ddof=1) / sqrt(len(values)))
+                if len(values) > 1
+                else 0.0
+            )
+        summary.append(item)
+    return summary
+
+
+def summarize_accuracy(rows: list[dict], x_key: str) -> tuple[np.ndarray, ...]:
+    """Return x, across-seed mean accuracy, and sample SD for a curve."""
+    xs = sorted({float(row[x_key]) for row in rows})
+    means = []
+    sds = []
+    for x in xs:
+        values = [float(row["acc"]) for row in rows if float(row[x_key]) == x]
+        means.append(float(np.mean(values)))
+        sds.append(float(np.std(values, ddof=1)) if len(values) > 1 else 0.0)
+    return np.asarray(xs), np.asarray(means), np.asarray(sds)
+
+
+def summarize_perturbation_rows(rows: list[dict]) -> list[dict]:
+    """Create publication rows from the per-seed perturbation measurements."""
+    summary = []
+    keys = sorted({(row["model"], row["mode"], float(row["level"])) for row in rows})
+    for model, mode, level in keys:
+        selected = [
+            row
+            for row in rows
+            if row["model"] == model
+            and row["mode"] == mode
+            and float(row["level"]) == level
+        ]
+        acc = np.asarray([float(row["acc"]) for row in selected])
+        rate = np.asarray([float(row["e_rate_hz"]) for row in selected])
+        summary.append(
+            {
+                "model": model,
+                "mode": mode,
+                "level": level,
+                "acc": float(acc.mean()),
+                "acc_sd": float(acc.std(ddof=1)) if len(acc) > 1 else 0.0,
+                "e_rate_hz": float(rate.mean()),
+                "e_rate_hz_sd": float(rate.std(ddof=1)) if len(rate) > 1 else 0.0,
+                "seeds": [int(row["seed"]) for row in selected],
+                "n_total_per_seed": [int(row["n_total"]) for row in selected],
+            }
+        )
+        if "applied_level" in selected[0]:
+            summary[-1].update(
+                level_units=selected[0]["level_units"],
+                applied_hz_per_seed=[r["applied_level"] for r in selected],
+                baseline_e_hz_per_seed=[r["baseline_e_rate_hz"] for r in selected],
+            )
+    return summary
+
+
+def baseline_rows(histories):
+    rows = []
+    for cell in recipe.bank_cells():
+        name = cell["cell_name"]
+        m = histories[name]
+        last = m["epochs"][-1]
+        rows.append(
+            {
+                "cell_name": name,
+                "model": cell["model"],
+                "rate_target_display": recipe.rate_target_display(
+                    cell["rate_target_hz"]
+                ),
+                "rate_target_hz": cell["rate_target_hz"],
+                "seed": cell["seed"],
+                "best_acc": float(m["best_acc"]),
+                "best_epoch": int(m["best_epoch"]),
+                "final_acc": float(last["acc"]),
+                "rate_e": float(last.get("rate_e") or 0.0),
+            }
+        )
+    return rows
+
+
+def perturbation_row(metrics, job):
+    rates = metrics.get("rates_hz", {})
+    hid = max((k for k in rates if k.startswith("hid")), default=None)
+    row = {
+        "mode": job["mode"],
+        "level": job["level"],
+        "acc": float(metrics["best_acc"]),
+        "e_rate_hz": float(rates.get(hid, 0.0)) if hid else 0.0,
+        "n_total": int(metrics.get("n_total", 0)),
+        "model": job["model"],
+        "seed": job["seed"],
+    }
+    for key in ("applied_level", "level_units", "baseline_e_rate_hz"):
+        if key in job:
+            row[key] = job[key]
+    if "perturbation" in metrics:
+        row["i_rate_hz"] = float(rates["inh"])
+        row["perturbation"] = metrics["perturbation"]
+        row["successful_insertion_hz"] = {
+            population: counts["inserted_spikes"]
+            / (counts["slots"] * metrics["perturbation"]["dt_ms"] / 1000)
+            for population, counts in metrics["perturbation"]["populations"].items()
+        }
+    return row
+
+
+def plot_data(rows, points, *, baselines=None):
+    base = {}
+    for model in recipe.MODELS:
+        rs = (
+            [r["e_rate_hz"] for r in baselines if r["model"] == model]
+            if baselines
+            else [
+                r["rate_e"]
+                for r in rows
+                if r["model"] == model and r["rate_target_hz"] is None
+            ]
+        )
+        base[model] = sum(rs) / len(rs) if rs else 0.0
+    add = [
+        {
+            "model": r["model"],
+            "pct": r["level"] / 100 if baselines else r["level"] / base[r["model"]],
+            "acc": r["acc"],
+        }
+        for r in points
+        if r["mode"] == "add" and base.get(r["model"], 0.0) > 0
+    ]
+    use_pct = bool(add)
+    panels = {}
+    for mode in ("drop", "add"):
+        panel = {}
+        for model in recipe.MODELS:
+            rs = [
+                r
+                for r in (add if mode == "add" and use_pct else points)
+                if r["model"] == model and ("mode" not in r or r["mode"] == mode)
+            ]
+            xs, means, sds = summarize_accuracy(
+                rs, "pct" if mode == "add" and use_pct else "level"
+            )
+            if mode == "drop" or use_pct:
+                xs = xs * 100
+            panel[model] = {
+                "x": xs.tolist(),
+                "mean": means.tolist(),
+                "lo": (means - sds).tolist(),
+                "hi": (means + sds).tolist(),
+            }
+        panels[mode] = panel
+    return {
+        "baseline_e_rate_hz": base,
+        "add_pct_rows": add,
+        "use_pct": use_pct,
+        "relative_test_baseline": bool(baselines),
+        "panels": panels,
+    }
+
+
+def raster(directory, train, job):
+    path = directory if directory.is_file() else directory / "recording.npz"
+    with np.load(path, allow_pickle=False) as d:
+        e_full, i_full = d["spk_e"], d["spk_i"]
+        if e_full.ndim == 3:
+            e_full = e_full[:, 0, :]
+        if i_full.ndim == 3:
+            i_full = i_full[:, 0, :]
+        rate = float(e_full.sum() / (e_full.shape[1] * (float(train["t_ms"]) / 1000.0)))
+        rng = np.random.default_rng(0)
+        ei = np.sort(
+            rng.choice(e_full.shape[1], recipe.EI_RASTER_N_E_PLOT, replace=False)
+        )
+        ii = np.sort(
+            rng.choice(i_full.shape[1], recipe.EI_RASTER_N_I_PLOT, replace=False)
+        )
+        et, en = np.where(e_full[:, ei].astype(bool))
+        it, inn = np.where(i_full[:, ii].astype(bool))
+        t = np.arange(e_full.shape[0]) * float(train["dt"])
+        return {
+            "model": job["model"],
+            "seed": job["seed"],
+            "mode": job["mode"],
+            "level": float(job["level"]),
+            "e_rate_hz": rate,
+            "label": int(d["label"]),
+            "dt": float(train["dt"]),
+            "t_ms": float(train["t_ms"]),
+            "e_t": t[et],
+            "e_n": en,
+            "i_t": t[it],
+            "i_n": inn + recipe.EI_RASTER_N_E_PLOT + 6,
+        }
 
 
 if __name__ == "__main__":

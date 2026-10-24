@@ -12,7 +12,7 @@ Main documentation lives in [`md/notes/`](md/notes/):
 3. [Pingstore Rules](md/notes/pingstore-rules.md): run storage, provenance, validation, backups and pruning.
 4. [Writing Rules](md/notes/writing-rules.md): scientific writing, article metadata and editorial conventions.
 5. [Canonical Parameters](md/notes/canonical-parameters.mdx): reference network and training settings for COBA and PING.
-6. [COBA and PING Dynamics, Discretisation, and Learning](md/notes/coba-ping-dynamics.mdx): model and training derivations (formerly exp113).
+6. [COBA and PING: Dynamics and Learning](md/notes/coba-ping-dynamics.mdx): model and training derivations (formerly exp113).
 
 See [Astro setup and GitHub Pages deployment](site/README.md)
 for site development and deployment. Coding agents must read

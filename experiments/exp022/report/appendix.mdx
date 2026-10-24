@@ -89,7 +89,7 @@ The full-data COBA and PING condition–seed networks are used for headline accu
 
 ### Specification: TR02 — Activity-ceiling sweep
 
-This run measures the trade-off between accuracy and firing rate as the activity ceiling is tightened. For each presentation, the loss computes the population-mean hidden-E firing rate, applies a one-sided quadratic penalty above the target, then averages the penalties across the minibatch. Quiet presentations therefore cannot offset active presentations. Expressing the target in hertz and normalising over samples, neurons, duration, and hidden layers makes the intervention comparable across those dimensions. A smaller training pool keeps the multi-seed sweep manageable; only the activity target changes across conditions. Comparisons with the full-data training replicates also change training-pool size and cannot isolate the penalty alone. The resulting checkpoints are used by [exp024](/exp024) — [*Accuracy Plateaus While Firing Rate Rises*](/exp024), [exp025](/exp025) — [*Accuracy and Firing Rate With and Without Inhibition*](/exp025), [exp037](/exp037) — [*Dropped Spikes vs Added Noise*](/exp037), [exp038](/exp038) — [*Switching On the Inhibitory Loop*](/exp038).
+This run measures the trade-off between accuracy and firing rate as the activity ceiling is tightened. For each presentation, the loss computes the population-mean hidden-E firing rate, applies a one-sided quadratic penalty above the target, then averages the penalties across the minibatch. Quiet presentations therefore cannot offset active presentations. Expressing the target in hertz and normalising over samples, neurons, duration, and hidden layers makes the intervention comparable across those dimensions. A smaller training pool keeps the multi-seed sweep manageable; only the activity target changes across conditions. Comparisons with the full-data training replicates also change training-pool size and cannot isolate the penalty alone. The resulting checkpoints are used by [exp024](/exp024) — [*Accuracy Plateaus While Firing Rate Rises*](/exp024), [exp025](/exp025) — [*Inhibition, Accuracy and Firing*](/exp025), [exp037](/exp037) — [*Dropped Spikes vs Added Noise*](/exp037), [exp038](/exp038) — [*Switching On the Inhibitory Loop*](/exp038).
 
 
 
@@ -100,7 +100,7 @@ This run measures the trade-off between accuracy and firing rate as the activity
 
 ### Specification: TR03 — Inhibitory-timescale sweep
 
-This run changes $\tau_{\text{GABA}}$ to test how the inhibitory timescale affects gamma frequency, firing rate, and accuracy. All other scientific settings are held fixed, with 6 ms as the standard condition. The resulting checkpoints are used by [exp041](/exp041) — [*Firing Rate Tracks Gamma Frequency*](/exp041), [exp042](/exp042) — [*Inhibitory Replay Perturbations Change Excitatory Firing*](/exp042), [exp046](/exp046) — [*One Spike per Gamma Cycle*](/exp046).
+This run changes $\tau_{\text{GABA}}$ to test how the inhibitory timescale affects gamma frequency, firing rate, and accuracy. All other scientific settings are held fixed, with 6 ms as the standard condition. The resulting checkpoints are used by [exp041](/exp041) — [*Firing Rate Tracks Gamma Frequency*](/exp041), [exp042](/exp042) — [*Inhibitory Replay and E Firing*](/exp042), [exp046](/exp046) — [*One Spike per Gamma Cycle*](/exp046).
 
 
 
@@ -122,7 +122,7 @@ This run changes the integration timestep while keeping E/I refractory holds at 
 
 ### Specification: TR05 — Recurrent-initialization sweep
 
-This run tests whether training preserves the PING loop or learns a useful loop from weaker initial conditions. Recurrent initialization and trainability change together, while the feedforward network and classifier remain fixed to the PING recipe. The resulting checkpoints are used by [exp049](/exp049) — [*Training Recurrent Weights Weakens PING Rhythmicity*](/exp049).
+This run tests whether training preserves the PING loop or learns a useful loop from weaker initial conditions. Recurrent initialization and trainability change together, while the feedforward network and classifier remain fixed to the PING recipe. The resulting checkpoints are used by [exp049](/exp049) — [*Recurrent Learning Weakens Rhythmicity*](/exp049).
 
 
 
@@ -137,7 +137,7 @@ This condition trains PING across the input rates used by the continuous-stream 
 
 The recorded design rationale for this smaller initializer was to avoid saturation at the mean-voltage scale and silence at the generic fan-in-normalized scale. The present bank retains the chosen $\mathcal{N} ( 0.05 , 0.04^{2} )$ setting; its learning curves do not independently establish those earlier calibration comparisons. This is a specified spike-count recipe, not a claim that the initializer is uniquely optimal.
 
-Output firing rates may still be reported as activity measurements. During streaming inference, the output neurons reset at digit boundaries while the hidden PING state continues. The resulting checkpoints are used by [exp082](/exp082) — [*Spike-Count Classification in a Continuous Stream*](/exp082).
+Output firing rates may still be reported as activity measurements. During streaming inference, the output neurons reset at digit boundaries while the hidden PING state continues. The resulting checkpoints are used by [exp082](/exp082) — [*Spike-Count Stream Classification*](/exp082).
 
 
 
@@ -148,7 +148,7 @@ Output firing rates may still be reported as activity measurements. During strea
 
 ### Specification: TR07 — Low-input recruitment sweep
 
-TR02 asks how changing the activity ceiling affects networks initialized at the standard input coupling. TR07 asks the complementary question: with the strictest TR02 ceiling fixed at 1 Hz from the first epoch, can PING recruit its inhibitory loop when the feedforward projection starts weak? It varies the parent mean used to initialize expected summed input coupling, before lower clamping and fan-in normalization; it does not directly set the mean of the stored synaptic matrix. The training pool, optimizer, recurrent loop, and mean-voltage readout remain at the reduced-sweep defaults. This bank retains all twelve models, and [exp025](/exp025) — [*Accuracy and Firing Rate With and Without Inhibition*](/exp025) aggregates the three seeds at each setting to test recruitment and path dependence.
+TR02 asks how changing the activity ceiling affects networks initialized at the standard input coupling. TR07 asks the complementary question: with the strictest TR02 ceiling fixed at 1 Hz from the first epoch, can PING recruit its inhibitory loop when the feedforward projection starts weak? It varies the parent mean used to initialize expected summed input coupling, before lower clamping and fan-in normalization; it does not directly set the mean of the stored synaptic matrix. The training pool, optimizer, recurrent loop, and mean-voltage readout remain at the reduced-sweep defaults. This bank retains all twelve models, and [exp025](/exp025) — [*Inhibition, Accuracy and Firing*](/exp025) aggregates the three seeds at each setting to test recruitment and path dependence.
 
 
 

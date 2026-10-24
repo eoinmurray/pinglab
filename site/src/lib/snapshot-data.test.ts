@@ -113,3 +113,15 @@ test('rejects native path traversal and ambiguous compute lineage', async () => 
   await f.writeRecord('analyse');
   await assert.rejects(readSnapshotEvidence(f.ids.present, f.options), /Expected one compute input/);
 }));
+
+test('combined computations require an explicit compute role and authenticate it', async () => fixture(async f => {
+  f.records.analyse.inputs.model = { run_id: 'exp124-r004-compute', payload_digest: f.records.compute.payload_digest };
+  await f.writeRecord('analyse');
+  await assert.rejects(readSnapshotEvidence(f.ids.present, f.options), /Expected one compute input/);
+  const options = { ...f.options, computeInput: 'source' };
+  assert.equal((await readSnapshotEvidence(f.ids.present, options)).compute.run_id, f.ids.compute);
+  await assert.rejects(readSnapshotEvidence(f.ids.present, { ...options, computeInput: 'missing' }), /Expected one compute input/);
+  f.records.analyse.inputs.source.payload_digest = `sha256:${'b'.repeat(64)}`;
+  await f.writeRecord('analyse');
+  await assert.rejects(readSnapshotEvidence(f.ids.present, options), /Pinned input digest differs/);
+}));

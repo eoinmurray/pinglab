@@ -16,8 +16,10 @@ from pathlib import Path
 
 import pytest
 from experiments.exp049 import analyse, present, recipe
-from experiments.exp049.custom import execution as compute
-from experiments.exp049.custom import inputs, measurements, plots
+from experiments.exp049 import analyse as measurements
+from experiments.exp049 import compute as compute
+from experiments.exp049 import present as plots
+from experiments.exp049.custom import inputs
 from pingstore import stages
 from pingstore.contracts import (
     PingstoreError,

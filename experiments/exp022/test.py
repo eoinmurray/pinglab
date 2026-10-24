@@ -6,9 +6,6 @@ bounded native checks validate numerical behavior without production runs.
 
 from __future__ import annotations
 
-from experiments.exp022.custom import bank as bank_io
-
-
 import json
 import subprocess
 import sys
@@ -17,10 +14,11 @@ from pathlib import Path
 import numpy as np
 import pytest
 import torch
-from experiments.exp022.custom import execution as exp022
+from experiments.exp022 import compute as exp022
 from experiments.exp022 import recipe
-from experiments.exp022.custom import reuse, reuse_contract
 from experiments.exp022.analyse import _gamma_psd, bank_composition, measure_snapshot
+from experiments.exp022.custom import bank as bank_io
+from experiments.exp022.custom import reuse, reuse_contract
 from pingstore.contracts import PingstoreError
 from snnlab import analysis as figure_metrics
 
@@ -602,7 +600,7 @@ def test_stale_attempt_requires_explicit_recovery(tmp_path: Path) -> None:
 
 
 def test_failed_native_training_without_metrics_records_failure(tmp_path, monkeypatch):
-    from experiments.exp022.custom import training
+    from experiments.exp022 import compute as training
 
     row = _manifest_cell(tmp_path)
     manifest = _attempt_manifest(tmp_path, row)
@@ -648,7 +646,7 @@ def _write_checked_manifest(
         "lock_identity",
         lambda _repo: {"path": "uv.lock", "sha256": "lock"},
     )
-    from experiments.exp022.custom import training
+    from experiments.exp022 import compute as training
 
     monkeypatch.setattr(training, "execution_identity", lambda: {"fixture": True})
     cells = recipe.cells_in_resource_tier(tier)
@@ -889,7 +887,7 @@ def test_bank_composition_rejects_overlap_or_missing_cells():
 
 
 from experiments import exp022 as bank_recipe
-from experiments.exp022.custom import execution as exp022_compute
+from experiments.exp022 import compute as exp022_compute
 
 
 def test_exp022_planned_bank_targets_exp082() -> None:
@@ -981,7 +979,7 @@ def test_completed_cell_artifacts_are_stamped_with_training_run_id(
 def test_native_training_snapshots_capture_final_and_selected_weights(
     tmp_path, monkeypatch
 ):
-    from experiments.exp022.custom import training
+    from experiments.exp022 import compute as training
 
     cell = recipe.CANONICAL_CELLS[0]
     cfg = recipe.training_settings(cell, 4, 2)

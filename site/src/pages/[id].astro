@@ -1,5 +1,5 @@
 ---
-import { render, type CollectionEntry } from 'astro:content';
+import { getEntry, render, type CollectionEntry } from 'astro:content';
 import { getReports } from '../lib/reports';
 import Report from '../layouts/Report.astro';
 
@@ -11,7 +11,11 @@ export async function getStaticPaths() {
 }
 
 interface Props { report: CollectionEntry<'reports'>; }
-const { report } = Astro.props;
+// Development can retain getStaticPaths props after the source metadata changes.
+const report = import.meta.env.DEV
+  ? await getEntry('reports', Astro.params.id!)
+  : Astro.props.report;
+if (!report) throw new Error(`Missing report: ${Astro.params.id}`);
 const { Content, headings } = await render(report);
 ---
 

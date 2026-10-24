@@ -8,7 +8,7 @@ report's pinned historical evidence.
 import numpy as np
 import torch
 from experiments.exp127.analyse import measurements
-from experiments.exp127.recipe import configuration, author_network
+from experiments.exp127.recipe import author_network, configuration
 
 CONFIG = configuration()
 from snnlab.sim import DenseArrayBinding, simulate, train
@@ -83,7 +83,7 @@ def test_snnlab_training_changes_spiking_graph_weights(tmp_path):
 
 
 def test_training_trace_records_loss_gradients_and_weight_updates(tmp_path):
-    from experiments.exp127.custom.teaching import training_trace
+    from experiments.exp127.compute import training_trace
 
     torch.set_num_threads(1)
     spikes = np.zeros((200, 2, 3), dtype=np.float32)

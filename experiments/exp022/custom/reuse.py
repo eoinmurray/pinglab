@@ -16,7 +16,7 @@ import sys
 from contextlib import contextmanager
 from pathlib import Path
 
-from experiments.exp022.custom import execution as campaign
+from experiments.exp022 import compute as campaign
 from experiments.exp022 import recipe
 from experiments.exp022.custom.checkpoints import public_provenance, resolve_checkpoint
 from experiments.exp022.custom.reuse_contract import inspect_source, replacement_cells
@@ -94,7 +94,7 @@ def reserve(
     A supplied identity must already have been allocated with ``reserve_stage``;
     this permits copying that exact reservation into the frozen HPC checkout.
     """
-    from experiments.exp022.custom import execution as compute
+    from experiments.exp022 import compute as compute
 
     with _bank_lock(repo, exclusive=True):
         source, plan = inspect_source(repo)
@@ -239,7 +239,7 @@ def _load(repo: Path, run_id: str):
         path = directory / ".scratch/reuse/bank.json"
         if campaign.load_manifest(path) != manifest:
             raise PingstoreError("working campaign differs from the reserved contract")
-        from experiments.exp022.custom import execution as compute
+        from experiments.exp022 import compute as compute
 
         manifest = compute._checked_bank_manifest(path)
     return directory, record, source, plan, manifest
@@ -266,7 +266,7 @@ def status(repo: Path, run_id: str) -> dict:
 def train_cell(
     repo: Path, run_id: str, name: str, *, recover_stale: bool = False
 ) -> int:
-    from experiments.exp022.custom import execution as compute
+    from experiments.exp022 import compute as compute
 
     with _bank_lock(repo, exclusive=False):
         directory, record, source, plan, manifest = _load(repo, run_id)
@@ -412,7 +412,7 @@ def _project_new_cell(trained: Path, target: Path) -> dict:
 def _assemble(
     directory: Path, record: dict, source, plan: dict, manifest: dict
 ) -> None:
-    from experiments.exp022.custom import execution as compute
+    from experiments.exp022 import compute as compute
 
     root = directory / ".scratch/reuse"
     cells = root / "cells"

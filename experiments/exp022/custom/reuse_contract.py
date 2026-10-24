@@ -11,7 +11,7 @@ import copy
 import json
 from pathlib import Path
 
-from experiments.exp022.custom import execution as compute
+from experiments.exp022 import compute as compute
 from experiments.exp022 import recipe
 from experiments.exp022.custom.checkpoints import (
     ROLES,

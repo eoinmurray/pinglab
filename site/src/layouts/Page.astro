@@ -4,6 +4,7 @@ import '../styles/article-list.css';
 import SiteSearch from '../components/SiteSearch.astro';
 import ThemeHead from '../components/ThemeHead.astro';
 import ThemeToggle from '../components/ThemeToggle.astro';
+import FigureLightbox from '../components/FigureLightbox.astro';
 import '../styles/theme.css';
 import base from '../styles/distill/styles-base.css?raw';
 import layout from '../styles/distill/styles-layout.css?raw';
@@ -61,6 +62,7 @@ const frontMatterJson = JSON.stringify(frontMatter ?? null).replaceAll('<', '\\u
       </nav>
     </header>
     <main><slot /></main>
+    <FigureLightbox />
     <script>import '../scripts/citations';</script>
   </body>
 </html>

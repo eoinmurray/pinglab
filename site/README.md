@@ -21,15 +21,16 @@ leave a partially rendered page. Development returns HTTP 500; static builds
 fail on rendering errors so incomplete evidence cannot be deployed as a success
 page. Compiler, import-resolution,
 and content-schema errors can still prevent a build before rendering begins.
+Development report routes read current collection metadata on each request so
+edited evidence pins reach the layout and Dataset footer even when Astro retains
+older static-path props.
 
-Exp124 renders its current authored report even when its historical pinned
-payload is missing. Its report-local evidence loader returns unavailable only
-for an absent pinned payload; it never selects a newer diagnostic run, and invalid
-existing JSON still fails. Figures depend on the original presentation payload.
-Parameter tables independently follow that same pin's ancestry to the original
-compute snapshots; absent native snapshots remain explicitly unavailable.
-The earlier published HTML is separately
-labelled at `/recovered/exp124/published.html`, with assets under
+Exp124 uses the latest completed presentation, with one frozen selection per
+build/development session for figures, numbers and native parameter snapshots.
+Its report-local snapshot loader follows that presentation's recorded ancestry;
+missing native snapshots remain explicitly unavailable and invalid evidence fails.
+The earlier published HTML is separately labelled at
+`/recovered/exp124/published.html`, with assets under
 `public/recovered/exp124/`. It is an archive, not a recovered Pingstore run;
 its historical Dataset inventory is not a current local inventory.
 
@@ -395,6 +396,8 @@ checks recorded identities and input digests (including chains of reanalysis),
 and uses Pingstore's `native_paths`
 mapping to read original snapshot JSON. It returns unmodified snapshot metadata,
 the compute configuration and dataset provenance, and the compute reference.
+When an analysis combines multiple compute runs, set `computeInput` to the
+recorded input role supplying the native snapshots; ambiguous selections fail.
 It does not audit the complete payload or read weight arrays. Row selection,
 units, labels and display-only derivations belong in the report layer, using the
 shared `Table` component. Do not export table rows or separately serialized snapshot metadata through
@@ -425,7 +428,10 @@ serve local exports, proxy verified remote animation JSON, and redirect remote i
 
 `RunFigure` and `PublishedFigure` resolve a figure by its filename stem within
 the selected presentation: prefer `.svg`, then fall back to `.png`, regardless
-of which extension the article supplies. Links open the same resolved file.
+of which extension the article supplies. Clicking a linked figure opens that
+same resolved image in a near-fullscreen overlay with a translucent dark
+backdrop. Click again anywhere or press Escape to close it and return focus
+to the figure. Modified clicks retain the raw-image link behaviour.
 If neither exists, rendering fails; video filenames are used unchanged. Older
 PNG-only runs therefore remain usable when new presentations emit SVG.
 

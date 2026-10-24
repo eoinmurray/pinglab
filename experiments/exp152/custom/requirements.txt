@@ -1,0 +1,7 @@
+snnlab @ git+https://github.com/eoinmurray/snnlab.git@3551f5a7a1a628808ef67de55253cb30bba2b752
+setuptools==84.2.1
+numpy==2.2.6
+matplotlib==3.10.8
+PyYAML==6.0.3
+pytest==9.0.2
+scipy==1.15.3

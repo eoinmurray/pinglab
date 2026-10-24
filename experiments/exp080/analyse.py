@@ -4,15 +4,18 @@ Invoke this stage explicitly from the repository root. Scientific outputs
 and input provenance belong to its independently completed Pingstore run.
 """
 
-import argparse
 import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
 
-from experiments.exp080.custom import evidence, inputs, measurements
+import argparse
+from typing import Any
+
+import numpy as np
 from experiments.exp080 import recipe
+from experiments.exp080.custom import evidence, inputs
 from pingstore.contracts import write_json_atomic
 
 
@@ -31,7 +34,7 @@ def analyse(identity: str, *, run_id: str | None = None) -> str:
         document, correctness = evidence.validate(
             compute.export, cfg, historical=historical
         )
-        decision = measurements.analyze(correctness, cfg)
+        decision = analyze(correctness, cfg)
         result = {
             "schema": "exp080.analysis/v1",
             "recipe": cfg,
@@ -67,6 +70,44 @@ def main():
     )
     args = parser.parse_args()
     analyse(args.source, run_id=args.run_id)
+
+
+def analyze(correctness: np.ndarray, cfg: dict | None = None) -> dict[str, Any]:
+    cfg = recipe.configuration() if cfg is None else cfg
+    if (
+        correctness.dtype != np.bool_
+        or correctness.ndim != 3
+        or correctness.shape[:2] != (len(cfg["rates_hz"]), len(cfg["seeds"]))
+        or correctness.shape[2] == 0
+    ):
+        raise ValueError("expected nonempty boolean rate/seed/image correctness array")
+    rows = []
+    for rate_index, rate in enumerate(cfg["rates_hz"]):
+        per_seed = correctness[rate_index].mean(axis=1)
+        rows.append(
+            {
+                "rate_hz": rate,
+                "accuracy": float(per_seed.mean()),
+                "minimum_seed_accuracy": float(per_seed.min()),
+                "maximum_seed_accuracy": float(per_seed.max()),
+                "per_seed_accuracy": per_seed.tolist(),
+            }
+        )
+    floor = next(
+        (
+            row["rate_hz"]
+            for row in rows
+            if row["minimum_seed_accuracy"] >= cfg["useful_accuracy"]
+        ),
+        None,
+    )
+    decision = {
+        "criterion_crossed": floor is not None,
+        "r_train_hz": floor,
+        "recommendation": {"floor_hz": floor, "ceiling_hz": max(cfg["rates_hz"])},
+        "rows": rows,
+    }
+    return decision
 
 
 if __name__ == "__main__":

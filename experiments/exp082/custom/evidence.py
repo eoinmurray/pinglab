@@ -9,14 +9,13 @@ import math
 from typing import Any, cast
 
 import numpy as np
-from experiments.exp082.custom.source_exp022_custom_checkpoints import public_provenance
+from experiments.exp082 import recipe
 from experiments.exp082.custom.source_exp022_custom_checkpoints import (
+    public_provenance,
     resolve_checkpoint,
 )
 from pingstore.contracts import PingstoreError, load_json
 from pingstore.layout import canonical_export_file, canonical_export_unit
-
-from experiments.exp082 import recipe
 
 RETAINED_SCHEMA = "exp082.gold2-import/v1"
 RETAINED_PRODUCER = "73f0883edc14aa634f5a6d55e4f4123fbfeb7508"
@@ -455,7 +454,7 @@ def showcase_evidence(repo, run):
 
 
 def condition(root, job, cfg):
-    from experiments.exp082.custom import measurements
+    from experiments.exp082 import analyse as measurements
 
     kind = load_json(_root(root) / "evidence.json").get("condition_evidence")
     if kind == "historical-aggregate/v1":

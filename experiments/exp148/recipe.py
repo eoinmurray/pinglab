@@ -1,8 +1,8 @@
-"""Author an exp145-equivalent circuit with a scheduled external-I drive reduction.
+"""Author the three-window AI-target to PING-target protocol.
 
-configuration() resolves the three measurement windows and the conductance-weight
-schedule. author_network() compiles the six-projection COBA-LIF graph with spike
-observations; neither function executes the protocol.
+The full recurrent COBA-LIF circuit is active from initialization. After burn-in,
+only direct external input to I changes; source rate and all other gains are fixed.
+This recipe defines settings and the native graph without executing a simulation.
 """
 
 import math
@@ -20,15 +20,20 @@ def configuration(
     n_e=4000,
     n_i=1000,
     n_external=4000,
-    baseline_ms=500.0,
-    ramp_ms=500.0,
-    hold_ms=500.0,
+    baseline_ms=750.0,
+    ramp_ms=750.0,
+    hold_ms=750.0,
     final_i_gain=0.0,
+    input_connection_probability=0.05,
+    compile_mode="off",
+    record_state=False,
 ):
     if any(type(n) is not int or n <= 0 for n in (n_e, n_i, n_external)):
         raise ValueError("population sizes must be positive integers")
     if type(seed) is not int or seed < 0:
         raise ValueError("seed must be a nonnegative integer")
+    if compile_mode not in {"off", "default"}:
+        raise ValueError("unknown compile mode")
     for name, value in (
         ("baseline_ms", baseline_ms),
         ("ramp_ms", ramp_ms),
@@ -44,7 +49,14 @@ def configuration(
             )
     if not math.isfinite(final_i_gain) or not 0 <= final_i_gain <= 1:
         raise ValueError("final_i_gain must be finite and between zero and one")
+    if (
+        not math.isfinite(input_connection_probability)
+        or not 0 < input_connection_probability <= 1
+    ):
+        raise ValueError("input_connection_probability must be finite and in (0, 1]")
     cfg = dict(
+        protocol="ai-to-ping",
+        record_state=record_state,
         n_e=n_e,
         n_i=n_i,
         n_external=n_external,
@@ -56,19 +68,19 @@ def configuration(
         baseline_ms=baseline_ms,
         ramp_ms=ramp_ms,
         hold_ms=hold_ms,
-        execution_block_ms=50.0,
         control=dict(
             parameter="X_to_I.weight",
             baseline_gain=1.0,
             final_gain=final_i_gain,
             ramp_start_ms=50.0 + baseline_ms,
             ramp_end_ms=50.0 + baseline_ms + ramp_ms,
-            update_ms=1.0,
+            update_ms=0.05,
         ),
         burn_in_ms=50.0,
         external_rate_hz=2.5,
         external_seed_offset=10000,
         connection_probability=0.2,
+        input_connection_probability=input_connection_probability,
         weight_relative_sd=0.5,
         capacitance_nf=0.25,
         leak_us=0.0167,
@@ -98,7 +110,11 @@ def configuration(
             peak_prominence_fraction=0.2,
         ),
         performance=asdict(
-            Performance(compile_mode=None, precision="highest", cuda_graphs="off")
+            Performance(
+                compile_mode=None if compile_mode == "off" else compile_mode,
+                precision="highest",
+                cuda_graphs="off",
+            )
         ),
     )
     # Reference coefficients multiply kernels of area 1 ms, not unit-peak jumps.
@@ -106,10 +122,20 @@ def configuration(
         name: value * 1e-3 * cfg["reference_area_time_ms"] / cfg["tau_synapse_ms"]
         for name, value in cfg["reference_coefficients_ns"].items()
     }
+    # Keep expected total input conductance fixed as input sparsity changes.
+    for name in ("X_to_E", "X_to_I"):
+        cfg["jump_means_us"][name] *= (
+            cfg["connection_probability"] / cfg["input_connection_probability"]
+        )
     # Native Bernoulli sparsification divides retained weights by p. Compensate
     # its parent distribution so physical jumps do not grow as connectivity falls.
     cfg["initializer_parent_means_us"] = {
-        name: jump * cfg["connection_probability"]
+        name: jump
+        * (
+            cfg["input_connection_probability"]
+            if name.startswith("X_")
+            else cfg["connection_probability"]
+        )
         for name, jump in cfg["jump_means_us"].items()
     }
     return cfg
@@ -155,7 +181,12 @@ def author_network(cfg):
             weight=lang.LowerClampedNormal(
                 mean,
                 mean * cfg["weight_relative_sd"],
-                initial_zero_fraction=1.0 - cfg["connection_probability"],
+                initial_zero_fraction=1.0
+                - (
+                    cfg["input_connection_probability"]
+                    if source == "X"
+                    else cfg["connection_probability"]
+                ),
             ),
             constraint=lang.NonNegative(),
             initialization_scaling="direct",
@@ -163,6 +194,16 @@ def author_network(cfg):
             delay=cfg["inhibitory_delay_ms" if inhibitory else "excitatory_delay_ms"]
             * lang.ms,
             allow_autapses=False,
+            modulation=(
+                lang.RampGain(
+                    start=cfg["control"]["ramp_start_ms"] * lang.ms,
+                    end=cfg["control"]["ramp_end_ms"] * lang.ms,
+                    before=cfg["control"]["baseline_gain"],
+                    after=cfg["control"]["final_gain"],
+                )
+                if name == "X_to_I"
+                else None
+            ),
         )
     for name in ("E", "I"):
         net.output(name + "_spikes", populations[name].spikes)
@@ -170,42 +211,77 @@ def author_network(cfg):
 
 
 def drive_gain(time_ms, cfg):
-    """Return the target X→I gain; execution holds it for each update interval."""
-    schedule = cfg["control"]
+    """Scheduled multiplier on new external excitation of I; existing input decays."""
+    control = cfg["control"]
     fraction = np.clip(
-        (np.asarray(time_ms) - schedule["ramp_start_ms"])
-        / (schedule["ramp_end_ms"] - schedule["ramp_start_ms"]),
+        (np.asarray(time_ms) - control["ramp_start_ms"])
+        / (control["ramp_end_ms"] - control["ramp_start_ms"]),
         0,
         1,
     )
-    return schedule["baseline_gain"] + fraction * (
-        schedule["final_gain"] - schedule["baseline_gain"]
+    return control["baseline_gain"] + fraction * (
+        control["final_gain"] - control["baseline_gain"]
     )
 
 
 def windows(cfg):
-    """Return absolute simulation intervals, excluding the initial burn-in."""
-    burn = cfg["burn_in_ms"]
-    start = cfg["control"]["ramp_start_ms"]
-    end = cfg["control"]["ramp_end_ms"]
+    """Absolute half-open measurement windows, excluding the 50 ms burn-in."""
     return (
-        ("baseline", burn, start),
-        ("ramp", start, end),
-        ("hold", end, cfg["duration_ms"]),
+        ("baseline", cfg["burn_in_ms"], cfg["control"]["ramp_start_ms"]),
+        ("ramp", cfg["control"]["ramp_start_ms"], cfg["control"]["ramp_end_ms"]),
+        ("hold", cfg["control"]["ramp_end_ms"], cfg["duration_ms"]),
     )
 
 
-def execution_bounds(cfg):
-    """Split constant windows into blocks and the ramp into one-ms updates."""
-    dt = cfg["dt_ms"]
-    ramp_start = round(cfg["control"]["ramp_start_ms"] / dt)
-    ramp_end = round(cfg["control"]["ramp_end_ms"] / dt)
-    steps = round(cfg["duration_ms"] / dt)
-    block = round(cfg["execution_block_ms"] / dt)
-    update = round(cfg["control"]["update_ms"] / dt)
-    return [
-        *range(0, ramp_start, block),
-        *range(ramp_start, ramp_end, update),
-        *range(ramp_end, steps, block),
-        steps,
+def hold_analysis_configuration():
+    """Local pulse detection avoids a late large volley hiding early small ones."""
+    return dict(
+        interval_ms=100.0,
+        bin_ms=0.5,
+        minimum_separation_ms=6.0,
+        prominence_fraction=0.12,
+    )
+
+
+def mean_field_configuration(spiking_configuration, summed_weights_us):
+    """Four-state extension of exp117, with unfitted closure choices retained.
+
+    Matrices are reduced to average incoming weight per target, including zeros.
+    The shared pool supplies two mean drives; spike covariance is not retained.
+    """
+    scales = [
+        spiking_configuration["tau_synapse_ms"] * summed_weights_us[path] / 1000
+        for path in ("E_to_I", "I_to_E")
     ]
+    if any(value <= 0 for value in scales):
+        raise ValueError(
+            "the four-state conductance basis requires positive E→I and I→E coupling"
+        )
+    return dict(
+        model="four-state-mean-field/v2",
+        state_variables=["r_E_hz", "r_I_hz", "g_e_I_us", "g_i_E_us"],
+        conductance_per_hz=scales,
+        spiking_configuration=spiking_configuration,
+        summed_weights_us=summed_weights_us,
+        rate_relaxation_ms=[20.0, 5.0],
+        voltage_noise_mv=4.0,
+        closure_origin="exp117 fixed-resting-driving-force noisy-LIF closure; no fitted parameters",
+        omitted_effects=[
+            "shared-input covariance",
+            "weight heterogeneity",
+            "shunting",
+            "axonal delays",
+        ],
+        alpha_points=201,
+        gain_quadrature_nodes=48,
+        equilibrium_tolerance_hz=1e-7,
+        eigenvalue_tolerance_per_ms=1e-8,
+        initial_e_perturbation_hz=0.001,
+        solver=dict(
+            method="LSODA",
+            rtol=1e-8,
+            atol=[1e-10, 1e-10, *[1e-10 * scale for scale in scales]],
+            max_step_ms=0.5,
+        ),
+        sample_interval_ms=0.5,
+    )

@@ -10,8 +10,8 @@ from types import SimpleNamespace
 
 import numpy as np
 import pytest
+from experiments.exp123 import analyse as accuracy
 from experiments.exp123 import recipe
-from experiments.exp123.custom import accuracy
 
 
 def test_shared_sample_is_uniform_and_anchor_decays_are_exact():
@@ -30,7 +30,7 @@ def test_shared_sample_is_uniform_and_anchor_decays_are_exact():
 
 
 def test_reused_measurements_require_the_exact_compute_payload():
-    from experiments.exp123.custom.shared_analysis import analyse_shared
+    from experiments.exp123.analyse import analyse_shared
 
     source = SimpleNamespace(
         reference={"run_id": "compute", "digest": "new"},
@@ -109,8 +109,9 @@ def test_one_source_supplies_all_analysis_and_six_figures(tmp_path, monkeypatch)
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-    from experiments.exp123.custom import shared_analysis, shared_plots
     from experiments import theme
+    from experiments.exp123 import analyse as shared_analysis
+    from experiments.exp123 import present as shared_plots
 
     theme.set_paper_mode(True)
     theme.apply()
@@ -182,7 +183,7 @@ def test_one_source_supplies_all_analysis_and_six_figures(tmp_path, monkeypatch)
     assert np.allclose(colours["mean_frequency_hz_by_image"]["1"], 1000 / 6)
     assert all(p.stat().st_size > 1000 for p in figures.glob("*.png"))
     # Moving raster events into analysis must preserve the rendered overview.
-    from experiments.exp123.custom.overview_plot import plot_inhibitory_overview
+    from experiments.exp123.present import plot_inhibitory_overview
 
     dynamics_report = json.loads((export / "metrics.json").read_text())
     plot_inhibitory_overview(
@@ -251,7 +252,7 @@ def test_installed_runtime_builds_the_frozen_network():
 
 
 def test_two_volleys_without_complete_interior_cycle_are_undefined():
-    from experiments.exp123.custom.overview_analysis import dynamics
+    from experiments.exp123.analyse import dynamics
 
     settings = recipe.dynamics_configuration()
     e = np.zeros((2000, 1024), dtype=bool)
@@ -266,7 +267,7 @@ def test_two_volleys_without_complete_interior_cycle_are_undefined():
 
 
 def test_target_frontier_uses_first_crossing_and_two_cost_dominance():
-    from experiments.exp123.custom.target_accuracy import measure_target_accuracy
+    from experiments.exp123.analyse import measure_target_accuracy
 
     def row(tau, time, cost, accuracy):
         return dict(

@@ -8,7 +8,6 @@ from pathlib import Path
 
 import numpy as np
 import torch
-from experiments.exp082.custom import inference
 from pingstore.contracts import file_sha256
 from snnlab.sim import load_dataset
 
@@ -25,6 +24,7 @@ def shard_identity(cfg, bank, recipe_module, *, dataset=None):
     from importlib.metadata import version
 
     import snnlab
+    from experiments.exp082 import compute as inference
 
     if dataset is None:
         _, pixels, _, labels = load_dataset(

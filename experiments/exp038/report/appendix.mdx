@@ -70,7 +70,7 @@ export const nativeGroups = [
 
 Training and probe settings are listed in [Parameters](#parameters).
 
-The broader activity frontier contains 36 classifiers: two network configurations, three seeds, and six activity conditions (penalty off or ceilings of 25, 10, 5, 2.5 and 1 Hz). Its summaries preserve selected and final-epoch validation accuracy, final-epoch training E rate, and across-seed means and SEM; these are distinct from the inference measurements above. The loop-transfer comparison used only the three unpenalised feedforward classifiers. The [exp025](/exp025) — [*Accuracy and Firing Rate With and Without Inhibition*](/exp025) describes the broader training design.
+The broader activity frontier contains 36 classifiers: two network configurations, three seeds, and six activity conditions (penalty off or ceilings of 25, 10, 5, 2.5 and 1 Hz). Its summaries preserve selected and final-epoch validation accuracy, final-epoch training E rate, and across-seed means and SEM; these are distinct from the inference measurements above. The loop-transfer comparison used only the three unpenalised feedforward classifiers. The [exp025](/exp025) — [*Inhibition, Accuracy and Firing*](/exp025) describes the broader training design.
 
 Feedforward and loop-enabled training used voltage-gradient damping of 1 and 1,000 respectively; this difference affects the auxiliary between-model comparisons, not the within-classifier inference intervention. Dale’s law was enforced, adaptive thresholds were disabled, and membrane time constants were not trained.
 

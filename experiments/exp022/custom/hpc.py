@@ -15,12 +15,12 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[3]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
 
-from experiments.exp022.custom import execution as compute
+from experiments.exp022 import compute as compute
 from experiments.exp022 import recipe
 from experiments.exp022.custom import reuse
-from tools.hpc.slurm_submit import submit_pipeline
 from pingstore.contracts import PingstoreError, load_json, write_json_atomic
 from pingstore.stages import _capture_code
+from tools.hpc.slurm_submit import submit_pipeline
 
 
 def check_plan(plan):

@@ -31,6 +31,8 @@ export interface SnapshotOptions {
   snapshots: Record<string, string>;
   /** Select a named analysis branch when a presentation combines protocols. */
   analysisInput?: string;
+  /** Select the compute input whose native snapshots define this table. */
+  computeInput?: string;
   runsRoot?: string;
   store?: RunStore;
   allowUnavailable?: boolean;
@@ -81,7 +83,7 @@ export async function readSnapshotEvidence(presentation: string, options: Snapsh
     analysis = await readInput(analysis, 'analyse');
     if (!analysis) return undefined;
   }
-  const compute = await readInput(analysis, 'compute');
+  const compute = await readInput(analysis, 'compute', options.computeInput);
   if (!compute) return undefined;
   const loaded = await Promise.all(Object.entries(snapshots).map(async ([name, original]) => {
     relativePath(original);

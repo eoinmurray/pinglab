@@ -1,0 +1,215 @@
+---
+id: exp152
+title: "Streaming Control of a Rotary Joint"
+author: "Eoin Murray"
+created_at: "2026-10-24T06:35:43Z"
+updated_at: "2026-10-24T11:54:29Z"
+description: "Near-real-time joint control with Hodgkin–Huxley neurons in SNNLab, running in connected ROS2 Humble nodes."
+collection: ["experiments", "animations"]
+tags: ["data"]
+runs: {exp152: exp152-r061-present}
+inputs: ["exp152"]
+---
+
+import { reportData } from '../../../site/src/lib/report-data';
+import Replay from './Replay.astro';
+
+export const evidence = await reportData('exp152', { allowUnavailable: true });
+
+## Abstract
+
+This experiment demonstrates near-real-time control of a simulated rotary joint
+using Hodgkin–Huxley neurons defined in SNNLab. Two ROS2 Humble nodes run neural
+controllers that activate opposing virtual muscles, while a third simulates the
+joint and returns sensory feedback. All three run in Docker on separate CPUs,
+with a 1 ms update target. The animation replays recorded neuron activity, joint
+motion and callback timings. The joint oscillates, but some updates finish late,
+so the implementation still needs timing work.
+
+## Results
+
+{evidence && <Replay run="exp152" />}
+
+## Neuron Model
+
+The motor and inhibitory cells use a Hodgkin–Huxley model with sodium,
+potassium and leak currents. It is custom-defined in SNNLab. The channel equations follow
+[Hodgkin and Huxley (1952)](https://doi.org/10.1113/jphysiol.1952.sp004764),
+with excitatory and inhibitory conductance inputs:
+
+$$
+\begin{aligned}
+C\frac{dV}{dt} ={}& g_e(E_e-V)+g_i(E_i-V) -\bar g_{\mathrm{Na}}m^3h(V-E_{\mathrm{Na}}) \\
+&-\bar g_{\mathrm{K}}n^4(V-E_{\mathrm{K}})-g_L(V-E_L).
+\end{aligned}
+$$
+
+Here $V$ is membrane voltage and $t$ is time; $C$ is membrane capacitance.
+The maximum sodium and potassium conductances are $\bar g_{\mathrm{Na}}$
+and $\bar g_{\mathrm{K}}$, and $g_L$ is leak conductance.
+Their reversal potentials are $E_{\mathrm{Na}}$, $E_{\mathrm{K}}$ and $E_L$.
+The total excitatory and inhibitory input conductances are $g_e$ and $g_i$,
+with reversal potentials $E_e$ and $E_i$; $g_e$ includes the local tonic input.
+Voltage is measured in mV, time in ms, capacitance in nF, conductance in µS
+and current in nA.
+
+The dimensionless gates $m$, $h$ and $n$ describe sodium activation, sodium
+inactivation and potassium activation, respectively. Each gate $x$ evolves as
+
+$$
+\frac{dx}{dt}=\alpha_x(V)(1-x)-\beta_x(V)x,
+\qquad x\in\{m,h,n\}.
+$$
+
+The voltage-dependent opening and closing rates $\alpha_x$ and $\beta_x$
+are in ms$^{-1}$. With $V$ expressed numerically in mV, the implemented rates are
+
+$$
+\begin{aligned}
+\alpha_m(V)&=\frac{0.1(V+40)}{1-\exp[-(V+40)/10]},
+&\beta_m(V)&=4\exp[-(V+65)/18],\\
+\alpha_h(V)&=0.07\exp[-(V+65)/20],
+&\beta_h(V)&=\frac{1}{1+\exp[-(V+35)/10]},\\
+\alpha_n(V)&=\frac{0.01(V+55)}{1-\exp[-(V+55)/10]},
+&\beta_n(V)&=0.125\exp[-(V+65)/80].
+\end{aligned}
+$$
+
+The removable singularities use their continuous limits:
+$\alpha_m(-40)=1$ ms$^{-1}$ and $\alpha_n(-55)=0.1$ ms$^{-1}$.
+At the initial voltage $V_0$, each gate starts at
+$x_0=\alpha_x(V_0)/[\alpha_x(V_0)+\beta_x(V_0)]$.
+
+A spike is reported when $V$ crosses 0 mV upwards during an update; the membrane
+voltage is not reset. Both populations advance by 1 ms per update, with unscaled
+channel kinetics. A native CPU kernel integrates each interval using RK4 steps
+of at most 0.025 ms. The inhibitory cell has twice the motor cell's membrane
+capacitance; the recorded values are listed in Parameters.
+
+## Architecture Pseudocode
+
+The experiment runs three connected ROS2 Humble nodes in Docker: flexor,
+extensor and joint dynamics. The two neural controller nodes use SNNLab
+internally; the joint dynamics node uses custom Python mechanics. ROS2 topics
+carry motor and sensory spikes between them.
+
+### Controller network
+
+Abbreviated `snnlab.lang` pseudocode; connection parameters are omitted.
+
+```python
+from snnlab import lang
+from experiments.exp152.custom.hodgkin_huxley import DEFINITION, register
+
+register()
+
+def controller(name):
+    net = lang.Network(name, dt=1 * lang.ms)
+
+    motor = net.population(
+        "motor", size=1,
+        neuron=lang.CustomNeuron(DEFINITION, capacitance_nf=0.01, ...),
+    )
+    slow = net.population(
+        "slow", size=1,
+        neuron=lang.CustomNeuron(DEFINITION, capacitance_nf=0.02, ...),
+    )
+
+    tonic = net.input("tonic", signal_type="continuous", ...)
+    sensory = net.input("sensory", signal_type="spikes", ...)
+    peer = net.input("peer", signal_type="spikes", ...)
+
+    net.connect(tonic, motor.excitatory, synapse=lang.AMPA(...), ...)
+    net.connect(sensory, motor.excitatory, synapse=lang.AMPA(...), ...)
+    net.connect(peer, motor.inhibitory, synapse=lang.GABA(...), ...)
+    net.connect(motor.spikes, slow.excitatory, synapse=lang.AMPA(...), ...)
+    net.connect(slow.spikes, motor.inhibitory, synapse=lang.GABA(...), ...)
+
+    net.output("motor_spikes", motor.spikes)
+    return lang.compile(net)
+
+flexor = controller("flexor")
+extensor = controller("extensor")
+```
+
+ROS2 supplies each controller's sensory and peer inputs and distributes its motor spikes.
+
+Simplified pseudocode: each node updates every 1 ms. Each controller contains
+motor and slow inhibitory neurons.
+
+### Flexor ROS2 Node
+
+```python
+def tick():
+    # ROS2: receive spikes.
+    sensory = take_spikes("sensory/flexor")
+    peer = take_spikes("motor/extensor")
+
+    # SNNLab: advance the motor and inhibitory neurons.
+    spikes = flexor.advance(
+        tonic=True,
+        excitation=sensory,
+        inhibition=peer,
+        duration_ms=1,
+    )
+
+    # ROS2: send motor spikes to joint dynamics and extensor.
+    publish("motor/flexor", spikes)
+```
+
+### Extensor ROS2 Node
+
+```python
+def tick():
+    # ROS2: receive spikes.
+    sensory = take_spikes("sensory/extensor")
+    peer = take_spikes("motor/flexor")
+
+    # SNNLab: advance the motor and inhibitory neurons.
+    spikes = extensor.advance(
+        tonic=True,
+        excitation=sensory,
+        inhibition=peer,
+        duration_ms=1,
+    )
+
+    # ROS2: send motor spikes to joint dynamics and flexor.
+    publish("motor/extensor", spikes)
+```
+
+### Joint Dynamics ROS2 Node
+
+```python
+def tick():
+    # ROS2: receive motor spikes.
+    motor = [
+        take_spikes("motor/flexor"),
+        take_spikes("motor/extensor"),
+    ]
+
+    for step in substeps(duration_ms=1):
+        # Custom Python: encode joint angle as sensory spikes.
+        sensory = joint.encode()
+
+        # ROS2: send sensory spikes to the controllers.
+        publish("sensory/flexor", sensory[0])
+        publish("sensory/extensor", sensory[1])
+
+        # Custom Python: update muscle activation and mechanics.
+        joint.advance(motor, dt=0.001)
+        motor = [0, 0]  # Apply received spikes once.
+```
+
+The joint dynamics node contains no SNNLab code.
+
+## Timings
+
+A **callback** is one execution of a node's update routine: it advances the
+neurons or joint and publishes the resulting outputs. A **deadline** is the time
+by which that update must finish—here, 1 ms after its scheduled start. An update
+can miss its deadline because it starts late, takes too long, or both.
+
+{evidence && <p>In this recording, the flexor missed <strong>{evidence.step_deadline_misses.flexor} of {evidence.full_callback_ms.flexor.n.toLocaleString('en-GB')}</strong> deadlines, the extensor missed <strong>{evidence.step_deadline_misses.extensor} of {evidence.full_callback_ms.extensor.n.toLocaleString('en-GB')}</strong>, and the joint dynamics node missed <strong>{evidence.step_deadline_misses.plant} of {evidence.full_callback_ms.plant.n.toLocaleString('en-GB')}</strong>.</p>}
+
+Timing still needs work: completing the simulation does not mean the nodes
+reliably met their 1 ms deadlines.
