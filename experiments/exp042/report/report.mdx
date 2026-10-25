@@ -7,8 +7,6 @@ description: "Recorded inhibitory spike streams produced contrasting excitatory 
 collection: ["gamma-gated-sparsity", "experiments"]
 author: "Eoin Murray"
 tags: ["data", "v37.0.0"]
-runs: {"exp042": "exp042-r020-present"}
-thumbnailRun: "exp042-r020-present"
 thumbnail: "rhythm_compound.png"
 inputs: ["exp042"]
 ---
@@ -36,7 +34,7 @@ At 14 ms jitter, independent shifts reduced mean E firing to
 {replayRate('jitter_sweep')} Hz. The three reused networks retained their
 I-spike counts, but replay prevented inhibition from responding to E activity.
 
-<PublishedFigure run="exp042-r020-present" file="rhythm_compound.png" alt="Independent-spike jitter suppresses excitatory firing, whereas fixed-window group shifts increase it. Replayed inhibitory spike rates remain constant across both sweeps." >
+<PublishedFigure experiment="exp042" file="rhythm_compound.png" alt="Independent-spike jitter suppresses excitatory firing, whereas fixed-window group shifts increase it. Replayed inhibitory spike rates remain constant across both sweeps." >
   Figure 1: **(A)** Independent-spike and **(B)** fixed-window group jitter for the illustrative first test presentation from the training replicate initialized with seed 42 at $\sigma = 14$ ms; 200 of 1,024 E neurons and 64 of 256 I neurons are displayed over the 200 ms presentation. **(C)** Independent-spike and **(D)** fixed-window sweep summaries show per-neuron E rate, realised I-spike rate and test-accuracy means across three training replicates. Retained SEM across training replicates is not displayed.
 </PublishedFigure>
 

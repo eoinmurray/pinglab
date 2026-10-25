@@ -9,7 +9,6 @@ thumbnail: leak_overview.png
 collection: ["neuromodulation", "experiments"]
 tags: [data, v37.0.0]
 inputs: [exp134]
-runs: {exp134: exp134-r004-present}
 abstract: >-
   We varied leak conductance and membrane capacitance separately from ×0.5 to ×2
   in one frozen trained PING network, using 100 test images and ten paired
@@ -38,7 +37,7 @@ sweep. The figures describe 37,000 presentations from one checkpoint: 100 test
 images, ten per digit, with ten paired encodings each. They do not establish
 variation across trained networks or classification performance.
 
-The pinned presentation is `exp134-r004-present`, derived from
+The historical presentation `exp134-r004-present` was derived from
 `exp134-r002-analyse` and `exp134-r001-compute`. It used SNNLab 0.18.0 and
 100 images. The current recipe defaults to 500 images and the current SNNLab API;
 those changes have not produced the displayed evidence.

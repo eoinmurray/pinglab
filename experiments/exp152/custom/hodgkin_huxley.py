@@ -4,23 +4,18 @@ Adapted from snnlab/examples/hodgkin-huxley/example.py. Retains its ionic
 channels, steady-state gates, RK4 and upward zero-crossing spike detection.
 AMPA/GABA conductances drive reversal-potential currents at every RK4 stage;
 both populations use physical milliseconds without clock scaling.
-A native CPU kernel executes the same RK4 updates with steps <= 0.025 ms.
+The registered SNNLab callback uses PyTorch tensors for RK4 updates with
+steps <= 0.025 ms, following the SNNLab custom-neuron example.
 """
 
-import hashlib
 import math
-import os
-import platform
-import subprocess
-import tempfile
 from functools import lru_cache
-from pathlib import Path
 
 import torch
 from snnlab import extensions
 
 MAX_STEP_MS = 0.025
-DEFINITION = "pinglab.exp152.hodgkin_huxley/v2"
+DEFINITION = "pinglab.exp152.hodgkin_huxley/v3"
 PARAMETERS = (
     "capacitance_nf",
     "g_na_us",
@@ -78,7 +73,8 @@ def _derivative(values, excitatory, inhibitory, parameters):
     return ((current - ionic) / capacitance, *gates)
 
 
-def reference_step(context):
+def step(context):
+    """Advance membrane/gates and report any upward zero crossing, without reset."""
     keys = ("voltage", "m", "h", "n")
     values = tuple(context.state[key] for key in keys)
     excitatory = context.excitatory.to(values[0].dtype)
@@ -120,93 +116,7 @@ def reference_step(context):
 
 
 @lru_cache(maxsize=1)
-def register_operation():
-    """Build and load a Torch CPU operator before control starts, never in a tick."""
-    source = Path(__file__).with_name("hh_kernel.c")
-    bridge = source.with_name("hh_operator.cpp")
-    identity = (
-        source.read_bytes()
-        + bridge.read_bytes()
-        + (platform.platform() + torch.__version__).encode()
-    )
-    digest = hashlib.sha256(identity).hexdigest()[:20]
-    directory = Path(tempfile.gettempdir()) / "pinglab-exp152-hh" / digest
-    directory.mkdir(parents=True, exist_ok=True)
-    library = directory / "hh_kernel.so"
-    if not library.exists():
-        temporary = library.with_name(f"hh_kernel.{os.getpid()}.so")
-        object_file = directory / f"kernel.{os.getpid()}.o"
-        torch_root = Path(torch.__file__).resolve().parent
-        subprocess.run(
-            [
-                "cc",
-                "-O3",
-                "-std=c99",
-                "-fPIC",
-                "-c",
-                str(source),
-                "-o",
-                str(object_file),
-            ],
-            check=True,
-            capture_output=True,
-            text=True,
-        )
-        try:
-            subprocess.run(
-                [
-                    "c++",
-                    "-O3",
-                    "-std=c++17",
-                    "-fPIC",
-                    "-dynamiclib" if platform.system() == "Darwin" else "-shared",
-                    str(bridge),
-                    str(object_file),
-                    "-I" + str(torch_root / "include"),
-                    "-L" + str(torch_root / "lib"),
-                    "-Wl,-rpath," + str(torch_root / "lib"),
-                    "-D_GLIBCXX_USE_CXX11_ABI="
-                    + str(int(torch._C._GLIBCXX_USE_CXX11_ABI)),
-                    "-ltorch_cpu",
-                    "-ltorch",
-                    "-lc10",
-                    "-o",
-                    str(temporary),
-                ],
-                check=True,
-                capture_output=True,
-                text=True,
-            )
-            os.replace(temporary, library)
-        finally:
-            object_file.unlink(missing_ok=True)
-    torch.ops.load_library(str(library))
-
-    @torch.library.register_fake("pinglab_exp152::hh_advance")
-    def fake(voltage, m, h, n, excitatory, inhibitory, dt_ms, parameters):
-        return voltage.new_empty((5, *voltage.shape))
-
-
-def step(context):
-    keys = ("voltage", "m", "h", "n")
-    parameters = [
-        context.config.get(key, value)
-        for key, value in zip(PARAMETERS, DEFAULT_PARAMETERS)
-    ]
-    result = torch.ops.pinglab_exp152.hh_advance(
-        *(context.state[key] for key in keys),
-        context.excitatory,
-        context.inhibitory,
-        float(context.dt_ms),
-        parameters,
-    )
-    voltage, m, h, n, spikes = result.unbind(0)
-    return {**context.state, **dict(zip(keys, (voltage, m, h, n)))}, spikes
-
-
-@lru_cache(maxsize=1)
 def register():
-    register_operation()
     extensions.register_neuron(
         DEFINITION,
         step,

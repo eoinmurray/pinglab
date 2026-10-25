@@ -451,37 +451,54 @@ def test_one_ms_protocol_has_no_neuron_clock_scaling():
         assert "time_scale" not in population["neuron"]["config"]
 
 
-def test_native_hh_preserves_python_rk4_with_internal_parameter_changes():
+@pytest.mark.parametrize("dtype_name", ["float32", "float64"])
+def test_hh_tensor_callback_preserves_batched_state_and_parameter_overrides(dtype_name):
+    """Tensor callbacks must preserve the extension contract across shapes/dtypes."""
     import torch
-    from experiments.exp152.custom.hodgkin_huxley import (
-        initial_state,
-        reference_step,
-        register,
-        step,
-    )
+    from experiments.exp152.custom.hodgkin_huxley import initial_state, step
 
-    register()
+    dtype = getattr(torch, dtype_name)
     config = dict(capacitance_nf=0.02, g_k_us=0.45, g_na_us=1.1)
     state = initial_state(
-        SimpleNamespace(shape=(2, 3), device="cpu", dtype=torch.float64, config=config)
+        SimpleNamespace(shape=(2, 3), device="cpu", dtype=dtype, config=config)
     )
-    expected = {key: value.clone() for key, value in state.items()}
-    for tick in range(40):
-        ge = torch.full((2, 3), 0.005 if tick < 25 else 0.0, dtype=torch.float64)
-        gi = torch.full((2, 3), 0.001 if tick > 15 else 0.0, dtype=torch.float64)
-        state, spikes = step(
-            SimpleNamespace(
-                state=state, dt_ms=1.0, config=config, excitatory=ge, inhibitory=gi
+    # Different drives detect accidental mixing of batch or neuron axes.
+    ge = torch.tensor([[0.005, 0.01, 0], [0.002, 0.004, 0.008]], dtype=dtype)
+    gi = torch.tensor([[0.001, 0, 0.002], [0, 0.001, 0.003]], dtype=dtype)
+    original = {key: value.clone() for key, value in state.items()}
+    context = SimpleNamespace(
+        state=state, dt_ms=1.0, config=config, excitatory=ge, inhibitory=gi
+    )
+    actual, spikes = step(context)
+    for key in state:
+        torch.testing.assert_close(state[key], original[key], atol=0, rtol=0)
+        assert actual[key].shape == (2, 3)
+        assert actual[key].dtype == dtype
+        assert actual[key].device == state[key].device
+        assert torch.isfinite(actual[key]).all()
+    assert set(actual) == set(state) == {"voltage", "m", "h", "n"}
+    assert spikes.dtype == dtype
+    assert spikes.shape == (2, 3)
+    assert ((spikes == 0) | (spikes == 1)).all()
+    for batch in range(2):
+        for neuron in range(3):
+            cell, cell_spikes = step(
+                SimpleNamespace(
+                    state={
+                        k: v[batch : batch + 1, neuron : neuron + 1]
+                        for k, v in state.items()
+                    },
+                    dt_ms=1.0,
+                    config=config,
+                    excitatory=ge[batch : batch + 1, neuron : neuron + 1],
+                    inhibitory=gi[batch : batch + 1, neuron : neuron + 1],
+                )
             )
-        )
-        expected, reference_spikes = reference_step(
-            SimpleNamespace(
-                state=expected, dt_ms=1.0, config=config, excitatory=ge, inhibitory=gi
-            )
-        )
-        for key in state:
-            torch.testing.assert_close(state[key], expected[key], atol=1e-7, rtol=1e-9)
-        torch.testing.assert_close(spikes, reference_spikes, atol=0, rtol=0)
+            for key in actual:
+                torch.testing.assert_close(
+                    actual[key][batch, neuron], cell[key].squeeze()
+                )
+            torch.testing.assert_close(spikes[batch, neuron], cell_spikes.squeeze())
 
 
 def test_startup_estimator_distinguishes_stationary_onset_from_settling():

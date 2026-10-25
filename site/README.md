@@ -22,7 +22,7 @@ fail on rendering errors so incomplete evidence cannot be deployed as a success
 page. Compiler, import-resolution,
 and content-schema errors can still prevent a build before rendering begins.
 Development report routes read current collection metadata on each request so
-edited evidence pins reach the layout and Dataset footer even when Astro retains
+edited evidence metadata reaches the layout and Dataset footer even when Astro retains
 older static-path props.
 
 Exp124 uses the latest completed presentation, with one frozen selection per
@@ -60,13 +60,13 @@ automatically on the next content sync/build.
 The unlisted `/pingstore` page is available as Pingstore in the command palette,
 but has no homepage or sidebar entry. It shows the shared Dataset table for each
 experiment in the normal report appendix layout, newest experiment first,
-preserving report pins and usage markers. The report body contains only a title
+preserving selected evidence and usage markers. The report body contains only a title
 and a short introduction, a deduplicated completed-run summary, and the
 all-run eviction dry-run/confirmation commands. Usage counts are shown as
 bounds when an experiment’s evidence cannot be resolved.
 Experiments without a selected presentation show any completed available history.
 The page requests search-engine exclusion with `noindex`. It is publicly
-accessible by URL; it is not access-controlled. Missing pinned evidence is
+accessible by URL; it is not access-controlled. Missing selected evidence is
 shown as unavailable for that experiment without blocking the other tables.
 
 Individual papers appear in a Papers group with titles and authors, linking
@@ -149,8 +149,8 @@ export const epochs = display(run.config.training_contract.common.epochs);
 We trained for {epochs} epochs.
 ```
 
-`reportData` honors the article's frontmatter `runs` pins and otherwise uses
-this build/session's frozen latest selection. Pass `{ experiment: 'exp082' }`
+`reportData` uses this build/session's frozen latest completed presentation.
+Report frontmatter must not contain `runs` or `thumbnailRun` pins. Pass `{ experiment: 'exp082' }`
 for a declared upstream input, or `{ allowUnavailable: true }` for an article
 whose data may be absent. The latter returns `undefined` only when there is no
 presentation; missing or invalid selected JSON still fails. Guard calculations
@@ -377,7 +377,7 @@ support handles `$...$` and `$$` mathematics in decks too.
 
 SNNLab parameter tables use `reportSnapshots` from `src/lib/report-data.ts` to
 read the original saved native snapshots at render time. Supply explicit
-snapshot paths and an article frontmatter presentation pin:
+snapshot paths; the loader uses the same selected presentation as figures and numbers:
 
 ```mdx
 import { reportSnapshots } from '../../../site/src/lib/report-data';
@@ -391,7 +391,7 @@ export const modelEvidence = await reportSnapshots('exp124', {
 });
 ```
 
-The loader follows the pinned presentation's analysis and compute references,
+The loader follows the selected presentation's analysis and compute references,
 checks recorded identities and input digests (including chains of reanalysis),
 and uses Pingstore's `native_paths`
 mapping to read original snapshot JSON. It returns unmodified snapshot metadata,
@@ -410,9 +410,9 @@ The shared TypeScript run reader uses the public `pingstore/catalog.json` on
 `https://assets.eoinmurray.info`. The catalog embeds completed run records, exact
 input pins, and per-file sizes and SHA-256 checksums. JSON and media are fetched
 on demand and verified; full scientific arrays are not restored for rendering.
-Development uses local copies when present and otherwise reads R2. An unpinned
+Development uses local copies when present and otherwise reads R2. A
 report uses its latest local presentation if any, otherwise the latest remote
-presentation. Explicit report pins always win. Unpinned selections freeze for the
+presentation. Selections freeze for the
 build/development session so MDX values and figures stay on the same evidence;
 restart the development server to select newly completed runs. An existing but broken local run
 fails rather than being silently replaced by R2.
@@ -436,7 +436,7 @@ If neither exists, rendering fails; video filenames are used unchanged. Older
 PNG-only runs therefore remain usable when new presentations emit SVG.
 
 Native MDX bindings read the selected JSON through `src/lib/report-data.ts`,
-using the same run pins as the figures. Bound
+using the same frozen presentation selection as the figures. Bound
 numbers and complex-table values update during rendering when selections change.
 Authored calculations use ordinary JavaScript. Missing values or nonfinite results fail
 rather than becoming fabricated numbers. Migrated articles without a local
@@ -459,15 +459,15 @@ The catalog refreshes every thirty seconds in development and is frozen per buil
 Text-only dependent articles retain dependency
 links without inventing unavailable data.
 
-Gamma-gated-sparsity reports pin their presentation evidence explicitly. Their
+Experiment reports select the latest completed presentation. Their
 appendices read original native snapshots and recorded configurations; historical
 runs without snapshots show unavailable model values. Analytical and history-only
 studies identify their different evidence requirements. No current recipe defaults
 or copied parameter tables replace missing execution evidence.
 
 Each report declares its scientific `inputs` in frontmatter. Python execution
-reads its `collection` there. Pruning derives global report usage from pinned
-or latest unpinned declared inputs and their complete ancestry, including
+reads its `collection` there. Pruning derives global report usage from the
+latest completed presentations for declared inputs and their complete ancestry, including
 cross-experiment dependencies. Unused runs require a manual `.protected` file
 to retain them and their ancestry, apart from incomplete-input and scope
 safeguards. HPC origin and unselected latest runs do not confer protection.

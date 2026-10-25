@@ -1,0 +1,15 @@
+---
+import { renderToString } from 'katex';
+
+interface Props {
+  latex: string;
+}
+const { latex } = Astro.props;
+const html = renderToString(latex, { displayMode: true, throwOnError: true });
+---
+
+<div class="display-math" set:html={html} />
+
+<style>
+  .display-math { overflow-x: auto; }
+</style>

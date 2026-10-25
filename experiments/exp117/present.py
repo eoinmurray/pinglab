@@ -13,6 +13,7 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
 
 import argparse
+import shutil
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -42,6 +43,13 @@ def present(identity, *, run_id=None):
         run_id=run_id,
         configuration=cfg,
     ) as run:
+        if cfg["schema"] == "exp117.recipe/v4":
+            reference = analysis.record["inputs"]["compute"]
+            computed = inputs.source(
+                REPO, reference["run_id"], "compute", reference=reference
+            )
+            for filename in ("circuit.svg", "mean-field-model.json"):
+                shutil.copyfile(computed.file(filename), run.export / filename)
         bifurcation_compound(coordinates, run.export / "bifurcation_compound.svg")
         write_json_atomic(run.export / "numbers.json", results)
     return run.run_id

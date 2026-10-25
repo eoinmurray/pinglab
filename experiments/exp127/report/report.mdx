@@ -8,7 +8,6 @@ collection: ["guides", "animations", "experiments"]
 author: "Eoin Murray"
 tags: ["data", "v37.0.0"]
 inputs: ["exp127"]
-runs: {"exp127": "exp127-r015-present"}
 abstract: "An introduction to spiking neural networks for machine learning practitioners and software developers. Interactive demonstrations explore how a neuron accumulates input and fires, how synaptic weights combine inputs, and how supervised learning changes a small classifier. In one run, validation-selected held-out accuracy rose from 50% to 100% on 128 examples. A training replay highlights a short stretch of the full loss curve. The examples use a synthetic two-class task."
 ---
 
@@ -75,7 +74,7 @@ Training follows a loop: run the inputs forward, compare the output spike counts
 
 The animation uses a separate teaching run: 48 updates on the same batch of 128 training examples. The full graph shows the batch loss, while the network shows one example from that batch. Eight consecutive updates from the stretch with the largest loss decrease are replayed slowly. Weight changes and gradients are recorded; their motion is illustrative.
 
-<TrainingAnimation run="exp127-r015-present" />
+<TrainingAnimation experiment="exp127" />
 
 ### Inference
 
@@ -83,4 +82,4 @@ Once trained, the classifier runs inputs forward with fixed weights to make a pr
 
 Training used 128 examples, with 64 separate validation examples selecting the checkpoint. On 128 held-out examples, accuracy increased from 50% to 100%. Toggle **Before Training / After Training** to compare the same recorded input. Before training, both outputs respond equally and fail to discriminate; training changes their relative responses. This is one training run on a synthetic task.
 
-<ClassifierAnimation run="exp127-r015-present" />
+<ClassifierAnimation experiment="exp127" />

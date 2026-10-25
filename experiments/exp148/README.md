@@ -1,5 +1,8 @@
 # exp148 — External-I-drive transition
 
+See the [pedagogical mean-field note](../../md/notes/mean-field-model.mdx) for the
+exp117/exp148 closures and the proposed matrix and shared/private-input extensions.
+
 Test whether reducing only direct external excitation of inhibitory neurons
 produces population oscillations in a shared-input COBA network derived from
 exp145. The 4,000 E / 1,000 I network has full recurrence and full Input→E/I
@@ -19,8 +22,10 @@ targets; state classification and the oscillation mechanism remain unestablished
    `SNNLAB_DEVICE` overrides `--device`. `--record-state` additionally saves
    native population mean voltage and mean conductance for each pathway.
    Alternatively, `--mean-field-source SPIKING_COMPUTE_ID` runs the four-state
-   exp117 extension using that run's recorded protocol and sampled matrices;
+   SNNLab rate–conductance reduction using that run's authenticated graph, recorded protocol and sampled matrices;
    it reuses the immutable spiking evidence without rerunning the network.
+   SNNLab exports the symbolic model and performs continuation, crossing
+   refinement and controlled integration in the matched-decay four-state basis.
 2. `analyse.py`: `--source COMPUTE_ID` (required), `--run-id` (optional).
    Add `--mean-field MODEL_COMPUTE_ID` to include a model tied to the same source.
    Validate the trajectory and measure all three windows plus local hold timing.

@@ -21,9 +21,8 @@ import torch
 from experiments.exp148 import dataset, recipe
 from pingstore.contracts import load_json, write_json_atomic
 from pingstore.stages import source_run, stage_run
-from scipy.integrate import solve_ivp
-from scipy.optimize import brentq, least_squares
-from scipy.special import erfcx
+from snnlab import lang
+from snnlab import meanfield as mf
 from snnlab.sim import (
     DenseArrayBinding,
     Performance,
@@ -145,146 +144,8 @@ def compute(
     return run.run_id
 
 
-def mean_field_current_map(cfg):
-    """Map the recurrent conductances in µS to currents in nA."""
-    net = cfg["spiking_configuration"]
-    weights = cfg["summed_weights_us"]
-    tau = net["tau_synapse_ms"]
-    excitatory_force = net["excitatory_reversal_mv"] - net["resting_mv"]
-    inhibitory_force = net["resting_mv"] - net["inhibitory_reversal_mv"]
-    recurrent = (
-        tau
-        / 1000
-        * np.array(
-            [
-                [
-                    excitatory_force * weights["E_to_E"],
-                    -inhibitory_force * weights["I_to_E"],
-                ],
-                [
-                    excitatory_force * weights["E_to_I"],
-                    -inhibitory_force * weights["I_to_I"],
-                ],
-            ]
-        )
-    )
-    external = (
-        tau
-        / 1000
-        * excitatory_force
-        * net["external_rate_hz"]
-        * np.array([weights["X_to_E"], weights["X_to_I"]])
-    )
-    return recurrent / np.asarray(cfg["conductance_per_hz"]), external
-
-
-def mean_field_gain(current_na, cfg, quadrature):
-    """Siegert noisy-LIF gain and its derivative, in Hz and Hz/nA.
-
-    Fixed Gaussian voltage noise and fixed resting driving forces follow exp117.
-    Gauss-Legendre quadrature integrates erfcx(-u), avoiding exp(u²) cancellation.
-    """
-    net = cfg["spiking_configuration"]
-    sigma = cfg["voltage_noise_mv"]
-    leak = net["leak_us"]
-    tau_m = net["capacitance_nf"] / leak
-    mean_voltage = net["resting_mv"] + np.asarray(current_na) / leak
-    lower = (net["reset_mv"] - mean_voltage) / sigma
-    upper = (net["threshold_mv"] - mean_voltage) / sigma
-    nodes, weights = quadrature
-    rates, derivatives = [], []
-    for index, (a, b) in enumerate(zip(lower, upper)):
-        # Beyond this bound both gain and derivative are negligible in float64.
-        if b > 26:
-            rates.append(0.0)
-            derivatives.append(0.0)
-            continue
-        points = (a + b) / 2 + (b - a) / 2 * nodes
-        integral = (b - a) / 2 * np.dot(weights, erfcx(-points))
-        refractory = net["refractory_e_ms" if index == 0 else "refractory_i_ms"]
-        rate_per_ms = 1 / (refractory + tau_m * np.sqrt(np.pi) * integral)
-        derivative = (
-            tau_m
-            * np.sqrt(np.pi)
-            * rate_per_ms**2
-            * (erfcx(-b) - erfcx(-a))
-            / (leak * sigma)
-        )
-        rates.append(1000 * rate_per_ms)
-        derivatives.append(1000 * derivative)
-    return np.array(rates), np.array(derivatives)
-
-
-def mean_field_flow(state, alpha, cfg, quadrature):
-    recurrent, external = mean_field_current_map(cfg)
-    target, _ = mean_field_gain(
-        recurrent @ state[2:] + external * [1, alpha], cfg, quadrature
-    )
-    return np.concatenate(
-        [
-            (target - state[:2]) / cfg["rate_relaxation_ms"],
-            (state[:2] * cfg["conductance_per_hz"] - state[2:])
-            / cfg["spiking_configuration"]["tau_synapse_ms"],
-        ]
-    )
-
-
-def mean_field_jacobian(state, alpha, cfg, quadrature):
-    recurrent, external = mean_field_current_map(cfg)
-    _, slope = mean_field_gain(
-        recurrent @ state[2:] + external * [1, alpha], cfg, quadrature
-    )
-    relaxation = np.asarray(cfg["rate_relaxation_ms"])
-    tau = cfg["spiking_configuration"]["tau_synapse_ms"]
-    return np.block(
-        [
-            [-np.diag(1 / relaxation), np.diag(slope / relaxation) @ recurrent],
-            [np.diag(cfg["conductance_per_hz"]) / tau, -np.eye(2) / tau],
-        ]
-    )
-
-
-def mean_field_equilibrium(alpha, guess, cfg, quadrature):
-    recurrent, external = mean_field_current_map(cfg)
-
-    def residual(rates):
-        predicted, _ = mean_field_gain(
-            recurrent @ (rates * cfg["conductance_per_hz"]) + external * [1, alpha],
-            cfg,
-            quadrature,
-        )
-        return rates - predicted
-
-    def jacobian(rates):
-        _, slope = mean_field_gain(
-            recurrent @ (rates * cfg["conductance_per_hz"]) + external * [1, alpha],
-            cfg,
-            quadrature,
-        )
-        return np.eye(2) - np.diag(slope) @ recurrent @ np.diag(
-            cfg["conductance_per_hz"]
-        )
-
-    net = cfg["spiking_configuration"]
-    maximum = 1000 / np.array([net["refractory_e_ms"], net["refractory_i_ms"]])
-    for initial in (guess, [2, 6], [20, 40], [100, 150]):
-        solution = least_squares(
-            residual,
-            initial,
-            jac=jacobian,
-            bounds=(0, maximum),
-            xtol=1e-12,
-            ftol=1e-12,
-            gtol=1e-12,
-            max_nfev=1000,
-        )
-        if np.max(np.abs(residual(solution.x))) < cfg["equilibrium_tolerance_hz"]:
-            return np.concatenate([solution.x, solution.x * cfg["conductance_per_hz"]])
-    raise RuntimeError(f"No validated mean-field equilibrium at alpha={alpha}")
-
-
 def compute_mean_field(source, *, run_id=None):
-    """Run the independent closure against explicit, unchanged spiking evidence."""
+    """Reduce explicit spiking evidence and execute SNNLab mean-field analysis."""
     spiking = source_run(
         REPO / ".pingstore", source, experiment="exp148", stage="compute"
     )
@@ -299,7 +160,6 @@ def compute_mean_field(source, *, run_id=None):
             for name, info in snapshot["parameters"].items()
         }
     cfg = recipe.mean_field_configuration(net, sums)
-    quadrature = np.polynomial.legendre.leggauss(cfg["gain_quadrature_nodes"])
     with stage_run(
         REPO,
         "exp148",
@@ -308,84 +168,72 @@ def compute_mean_field(source, *, run_id=None):
         configuration=cfg,
         run_id=run_id,
     ) as run:
-        rows = []
-        state = np.array([2.0, 6.0, 0.0, 0.0])
-        for alpha in np.linspace(1, 0, cfg["alpha_points"]):
-            state = mean_field_equilibrium(alpha, state[:2], cfg, quadrature)
-            eigenvalues = np.linalg.eigvals(
-                mean_field_jacobian(state, alpha, cfg, quadrature)
+        bundle = lang.load_bundle(
+            spiking.restore_bundle(
+                "simulation/network.bundle", run.scratch / "spiking.bundle"
             )
-            rows.append(
-                dict(
-                    alpha=float(alpha),
-                    state=state.tolist(),
-                    eigenvalues_real=eigenvalues.real.tolist(),
-                    eigenvalues_imag=eigenvalues.imag.tolist(),
-                    max_real_per_ms=float(eigenvalues.real.max()),
-                )
-            )
-        crossings = []
-        for left, right in zip(rows[:-1], rows[1:]):
-            if left["max_real_per_ms"] * right["max_real_per_ms"] >= 0:
-                continue
-
-            def leading(alpha):
-                equilibrium = mean_field_equilibrium(
-                    alpha, left["state"][:2], cfg, quadrature
-                )
-                return np.linalg.eigvals(
-                    mean_field_jacobian(equilibrium, alpha, cfg, quadrature)
-                ).real.max()
-
-            alpha = brentq(leading, right["alpha"], left["alpha"], xtol=1e-10)
-            equilibrium = mean_field_equilibrium(
-                alpha, left["state"][:2], cfg, quadrature
-            )
-            eigenvalues = np.linalg.eigvals(
-                mean_field_jacobian(equilibrium, alpha, cfg, quadrature)
-            )
-            critical = eigenvalues[np.argmax(eigenvalues.real)]
-            crossings.append(
-                dict(
-                    alpha=float(alpha),
-                    frequency_hz=float(abs(critical.imag) * 1000 / (2 * np.pi)),
-                    oscillatory=bool(
-                        abs(critical.imag) > cfg["eigenvalue_tolerance_per_ms"]
-                    ),
-                    destabilizes_as_alpha_decreases=left["max_real_per_ms"] < 0,
-                )
-            )
-        initial = np.asarray(rows[0]["state"]).copy()
-        initial[0] += cfg["initial_e_perturbation_hz"]
-        times = np.arange(
-            0,
-            net["duration_ms"] + cfg["sample_interval_ms"] / 2,
-            cfg["sample_interval_ms"],
         )
-        solution = solve_ivp(
-            lambda time, value: mean_field_flow(
-                value, recipe.drive_gain(time, net), cfg, quadrature
-            ),
-            (0, net["duration_ms"]),
-            initial,
-            t_eval=times,
+        model = recipe.mean_field_model(cfg, bundle)
+        model.write(run.export / "mean-field-model.json")
+        branch = mf.continuation(
+            model,
+            "X_to_I.gain",
+            np.linspace(1, 0, cfg["alpha_points"]),
+            guess=cfg["equilibrium_guess"],
+        )
+        rows = [
+            dict(
+                alpha=alpha,
+                state=list(equilibrium.state.values()),
+                eigenvalues_real=stability.eigenvalues.real.tolist(),
+                eigenvalues_imag=stability.eigenvalues.imag.tolist(),
+                max_real_per_ms=stability.max_real,
+            )
+            for alpha, equilibrium, stability in branch
+        ]
+        crossings = [
+            dict(
+                alpha=crossing.value,
+                frequency_hz=crossing.frequency_hz,
+                oscillatory=crossing.oscillatory,
+                destabilizes_as_alpha_decreases=crossing.stable_before is True
+                and crossing.stable_after is False,
+            )
+            for crossing in mf.find_stability_crossings(
+                model,
+                "X_to_I.gain",
+                branch,
+                tolerance=cfg["crossing_tolerance"],
+                eigenvalue_tolerance=cfg["eigenvalue_tolerance_per_ms"],
+            )
+        ]
+        initial = dict(branch[0][1].state)
+        initial["E.rate"] += cfg["initial_e_perturbation_hz"]
+        solution = mf.integrate(
+            model,
+            duration=net["duration_ms"],
+            initial=initial,
+            controls={"X_to_I.gain": recipe.mean_field_control(cfg)},
+            sample_interval=cfg["sample_interval_ms"],
             method=cfg["solver"]["method"],
             rtol=cfg["solver"]["rtol"],
             atol=cfg["solver"]["atol"],
             max_step=cfg["solver"]["max_step_ms"],
         )
-        if not solution.success or not np.isfinite(solution.y).all():
-            raise RuntimeError(f"Mean-field integration failed: {solution.message}")
         write_json_atomic(
             run.export / "mean-field.json",
             dict(configuration=cfg, continuation=rows, crossings=crossings),
         )
         np.savez_compressed(
-            run.export / "mean-field.npz", time_ms=solution.t, state=solution.y.T
+            run.export / "mean-field.npz",
+            time_ms=solution.time_ms,
+            state=np.array(list(solution.state.values())).T,
         )
         run.record["execution"]["backend"] = (
-            "SciPy deterministic four-state ODE and analytical-Jacobian continuation"
+            "snnlab.meanfield four-state rate-conductance ODE"
         )
+        run.record["execution"]["snnlab_version"] = version("snnlab")
+        spiking.check_unchanged()
     print(run.run_id, flush=True)
     return run.run_id
 

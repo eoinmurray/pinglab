@@ -1,41 +1,40 @@
-import { getEntry } from 'astro:content';
 import { runStore } from './run-store.ts';
-import { optionalPresentation } from './pingstore';
-import { readSnapshotEvidence, type SnapshotOptions } from './snapshot-data';
+import { optionalPresentation } from './pingstore.ts';
+import { readSnapshotEvidence, type SnapshotOptions } from './snapshot-data.ts';
 
 const payloads = new Map<string, Promise<any>>();
 
 interface Options { experiment?: string; allowUnavailable?: boolean; }
 
 export async function reportHasData(report: string, experiment = report): Promise<boolean> {
-  const entry = await getEntry('reports', report);
-  return Boolean(entry?.data.runs?.[experiment] || await optionalPresentation(experiment));
+  return Boolean(await optionalPresentation(experiment));
 }
 
-// Use the article's explicit pin, otherwise the session's frozen presentation selection.
+// Numbers, figures and snapshots share the session's frozen presentation selection.
 export async function reportData(report: string, { experiment = report, allowUnavailable = false }: Options = {}): Promise<any> {
-  const entry = await getEntry('reports', report);
-  const run = entry?.data.runs?.[experiment] ?? (await optionalPresentation(experiment))?.id;
+  const run = (await optionalPresentation(experiment))?.id;
   if (!run) {
     if (allowUnavailable) return undefined;
     throw new Error(`No presentation data for ${report}/${experiment}`);
   }
   if (!/^exp\d{3}-r\d+-present$/.test(run)) throw new Error(`Invalid presentation ID: ${run}`);
-  if (import.meta.env.DEV) return runStore.json(run, 'export/numbers.json');
+  if (import.meta.env?.DEV) return runStore.json(run, 'export/numbers.json');
   if (!payloads.has(run)) {
     payloads.set(run, runStore.json(run, 'export/numbers.json'));
   }
   return payloads.get(run)!;
 }
 
-// Tables follow the authored pin to the original compute snapshots, independently
-// of presentation numbers.json. Missing native evidence never selects latest.
+// Follow the selected presentation to its original compute snapshots.
+// Missing native evidence never substitutes another lineage.
 export async function reportSnapshots(report: string, options: Omit<SnapshotOptions, 'experiment'> & { experiment?: string }) {
   const experiment = options.experiment ?? report;
-  const entry = await getEntry('reports', report);
-  const pin = entry?.data.runs?.[experiment];
-  if (!pin) throw new Error(`Snapshot tables require an explicit presentation pin: ${report}/${experiment}`);
-  return readSnapshotEvidence(pin, { ...options, experiment });
+  const selected = await optionalPresentation(experiment);
+  if (!selected) {
+    if (options.allowUnavailable) return undefined;
+    throw new Error(`No presentation data for ${report}/${experiment}`);
+  }
+  return readSnapshotEvidence(selected.id, { ...options, experiment });
 }
 
 export function display(value: unknown): string {

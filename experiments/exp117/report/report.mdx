@@ -2,12 +2,11 @@
 id: "exp117"
 title: "Mean-Field Analysis of PING Bifurcations"
 created_at: "2026-09-19"
-updated_at: "2026-10-20T17:13:36Z"
+updated_at: "2026-10-25T08:46:16Z"
 description: "An independent four-variable mean-field analysis identifies a Hopf bifurcation, sampled dynamics consistent with a supercritical transition, and decreasing onset frequency with slower inhibition."
 collection: ["gamma-gated-sparsity", "experiments"]
 author: "Eoin Murray"
 tags: ["data", "v37.0.0"]
-runs: {"exp117": "exp117-r025-present"}
 inputs: ["exp117"]
 ---
 
@@ -18,6 +17,7 @@ import RunFigure from '../../../site/src/components/RunFigure.astro';
 import { reportData, display, round, mean } from '../../../site/src/lib/report-data';
 export const run = await reportData("exp117", { allowUnavailable: true });
 export const result = run?.result;
+export const nativeMeanField = run?.configuration?.schema === "exp117.recipe/v4";
 export const istar = run ? display(round(result.I_ext_star_nA, 6)) : 'unavailable';
 export const fstar = run ? display(round(result.f_Hopf_Hz, 2)) : 'unavailable';
 export const branchGap = run ? display(round(1000 * result.criticality.branch_gap_per_ms, 5)) : 'unavailable';
@@ -33,7 +33,7 @@ export const remaining = run ? display(round(result.remaining_max_real_per_ms, 3
 
 ## Abstract
 
-We derived an independent four-variable population-rate closure of the conductance-based excitatory–inhibitory circuit. Analytical-Jacobian continuation identified a Hopf bifurcation at {istar} nA with onset frequency {fstar} Hz. Ascending and descending near-onset integrations produced coincident sampled branches and continuous amplitude growth consistent with a supercritical transition. This numerical criterion does not exclude a narrower bistable interval or unstable cycle. Hopf frequency decreased as inhibitory decay lengthened.
+We analysed the four-state E→I→E specialisation of the [mean-field model](/notes/mean-field-model). Analytical-Jacobian continuation identified a Hopf bifurcation at {istar} nA with onset frequency {fstar} Hz. Ascending and descending near-onset integrations produced coincident sampled branches and continuous amplitude growth consistent with a supercritical transition. This numerical criterion does not exclude a narrower bistable interval or unstable cycle. Hopf frequency decreased as inhibitory decay lengthened.
 
 
 <span id="loc-3" />
@@ -44,39 +44,66 @@ We derived an independent four-variable population-rate closure of the conductan
 
 ### A reversible Hopf onset slows
 
-At $I_{\text{ext}} =$ {istar} nA, a complex-conjugate eigenvalue pair crossed the imaginary axis at $f_{\text{Hopf}} =$ {fstar} Hz ([Fig. 1](#loc-5)A). The sampled amplitude branches differed by at most {branchGap} Hz and had $R_{\text{fit}}^{2} =$ {amplitudeR2}, consistent with a supercritical transition ([Fig. 1](#loc-5)B). Across the inhibitory-decay sweep, $f_{\text{Hopf}}$ decreased from {fastFrequency} to {slowFrequency} Hz ([Fig. 1](#loc-5)C). Finite spacing cannot exclude narrower bistability or an unstable periodic orbit.
+At $I_{\mathrm{ext},E} =$ {istar} nA, a complex-conjugate eigenvalue pair crossed the imaginary axis at $f_{\text{Hopf}} =$ {fstar} Hz ([Fig. 1](#loc-5)A). The sampled amplitude branches differed by at most {branchGap} Hz and had $R_{\text{fit}}^{2} =$ {amplitudeR2}, consistent with a supercritical transition ([Fig. 1](#loc-5)B). Across the inhibitory-decay sweep, $f_{\text{Hopf}}$ decreased from {fastFrequency} to {slowFrequency} Hz ([Fig. 1](#loc-5)C). Finite spacing cannot exclude narrower bistability or an unstable periodic orbit.
 
 <RunFigure report="exp117" experiment="exp117" allowUnavailable file="bifurcation_compound.svg" number={1} id="loc-5" alt="Eigenvalue crossing, reversible oscillation-amplitude onset, and Hopf frequency across inhibitory decay constants.">
-  **Mean-field Hopf bifurcation.** (A) All four $J_{\text{flow}}$ eigenvalues, coloured by external drive; open markers identify the refined Hopf pair. (B) Peak-to-peak excitatory-rate amplitude over the final 500 ms of each ascending or descending drive condition, relative to the refined Hopf drive. (C) Refined Hopf frequency at $\tau_{\text{GABA}} = 4.5 , 6 , 9 , 12 , 18$ and $27$ ms, with all other model parameters fixed. These deterministic calculations have no statistical uncertainty intervals.
+  **Mean-field Hopf bifurcation.** (A) All four $J_{\mathrm{flow}}$ eigenvalues, coloured by external drive; open markers identify the refined Hopf pair. (B) Peak-to-peak excitatory-rate amplitude over the final 500 ms of each ascending or descending drive condition, relative to the refined Hopf drive. (C) Refined Hopf frequency at $\tau_{I\to E} = 4.5 , 6 , 9 , 12 , 18$ and $27$ ms, with all other model parameters fixed. These deterministic calculations have no statistical uncertainty intervals.
 </RunFigure>
 
 <span id="loc-6" />
 
 ## Methods
 
-1. **Derivation of the model.** See [Appendix A](#exp117-appendix-a).
+{nativeMeanField
+  ? 'The selected calculation uses SNNLab’s native rate–conductance closure. The model equations and numerical settings are saved with its compute run.'
+  : 'The selected results precede the SNNLab 0.27 migration. They retain their original solver settings; the current recipe has not regenerated these displayed results.'}
 
-2. **Hopf bifurcation and onset frequency.** At the reference inhibitory decay time of 6 ms, we evaluated the equilibrium over 401 equally spaced external drives from 0 to 4 nA.
+1. **Model.** The [mean-field note](/notes/mean-field-model#derivation) supplies the shared derivation; [Appendix A](#exp117-appendix-a) records this experiment's specialisation.
 
-   **2.1 — Solve for the equilibrium.** We analytically eliminated the two conductances and the inhibitory rate from [Equation A18](#loc-15). For each drive, the remaining excitatory rate solved the scalar residual
+2. **Hopf bifurcation and onset frequency.** At the reference inhibitory-pathway decay $\tau_{I\to E}=6$ ms, we evaluated the equilibrium over 401 equally spaced external drives from 0 to 4 nA.
 
    <span id="loc-7" />
 
-   $$
-   H(r_E) = r_E - \Phi_E\!\left(I_{\text{ext}} - \Delta V_{\text{inh}}\tau_{\text{GABA}}G_{I\to E}\Phi_I\!\left(\Delta V_{\text{exc}}\tau_{\text{AMPA}}G_{E\to I}r_E\right)\right) = 0 .
-   \tag{1}
-   $$
+   **2.1 — Solve for the equilibrium.**
 
-   Brent’s bracketed method searched $0 \le r_{E} \le \frac{1}{\tau_{\text{ref} , E}}$ with absolute tolerance $10^{- 13}$ ${\text{ms}}^{- 1}$ and relative tolerance $10^{- 12}$. We recovered $r_{I}$, $g_{e}^{I}$ and $g_{i}^{E}$ by substitution and required an absolute residual below $10^{- 11}$ ${\text{ms}}^{- 1}$.
+   <DataBranch available={Boolean(run)} selected={nativeMeanField}>
+     SNNLab solves the four stationary equations by bounded least squares and
+     continues the preceding equilibrium along the current grid. Its maximum
+     scaled derivative residual must be below $10^{-9}$: conductance derivatives
+     are divided by 0.01 µS and rate derivatives by 1 Hz. Native rates use Hz;
+     exports convert them to spikes/neuron/ms for the existing analysis.
+   </DataBranch>
 
-   **2.2 — Calculate local stability.** At every equilibrium, we evaluated the analytical $J_{\text{flow}}$ in [Equation A13](#loc-14) and numerically calculated its four eigenvalues. Eigenvalues with positive imaginary part greater than $10^{- 8}$ ${\text{ms}}^{- 1}$ were eligible for the leading complex pair. We plotted all four eigenvalues in the complex plane and coloured them by external drive; negative and positive real parts denoted local decay and growth, respectively ([Fig. 1](#loc-5)A).
+   <DataBranch available={Boolean(run)} selected={!nativeMeanField}>
+     Set the two recurrent conductance derivatives to zero in the [note's equations](/notes/mean-field-model#model-recurrence), apply the [experimental specialisation](#exp117-appendix-a), and substitute the inhibitory equilibrium rate into the excitatory equation. The scalar residual is the excitatory rate minus its predicted gain.
 
-   **2.3 — Identify and verify the crossing.** The first change of the leading complex pair from negative to nonnegative real part supplied a coarse drive bracket. Brent’s method refined the zero to absolute drive tolerance $10^{- 12}$ nA and relative tolerance $10^{- 12}$, recomputing the equilibrium and analytical Jacobian at every trial drive. We confirmed nonzero imaginary part, negative real parts for the remaining modes, and positive transversality by a centred difference with $10^{- 5}$ nA half-step. The recorded crossing slope was {slope} ${\text{ms}}^{- 1} {\text{nA}}^{- 1}$ and the largest remaining real part was {remaining} ${\text{ms}}^{- 1}$.
+   Brent’s bracketed method searched $0 \le r_{E} \le \frac{1}{\tau_{\mathrm{ref},E}}$ with absolute tolerance $10^{- 13}$ ${\text{ms}}^{- 1}$ and relative tolerance $10^{- 12}$. We recovered $r_{I}$, $g_{e}^{I}$ and $g_{i}^{E}$ by substitution and required an absolute residual below $10^{- 11}$ ${\text{ms}}^{- 1}$.
+
+   </DataBranch>
+
+   **2.2 — Calculate local stability.** At every equilibrium, we evaluated the [analytical reduced Jacobian](/notes/mean-field-model#stability-four-state-jacobian) and numerically calculated its four eigenvalues. Eigenvalues with positive imaginary part greater than $10^{- 8}$ ${\text{ms}}^{- 1}$ were eligible for the leading complex pair. We plotted all four eigenvalues in the complex plane and coloured them by external drive; negative and positive real parts denoted local decay and growth, respectively ([Fig. 1](#loc-5)A).
+
+   **2.3 — Identify and verify the crossing.**
+
+   <DataBranch available={Boolean(run)} selected={nativeMeanField}>
+     SNNLab refines sign changes in the largest eigenvalue real part using
+     Brent’s method with $10^{-12}$ nA absolute tolerance. We select the first
+     oscillatory loss of stability, require stable remaining modes and measure
+     transversality with a centred $10^{-5}$ nA half-step. The recorded slope is
+     {slope} ms$^{-1}$ nA$^{-1}$ and the largest remaining real part is
+     {remaining} ms$^{-1}$. This identifies local onset; the nonlinear test below
+     assesses sampled criticality separately.
+   </DataBranch>
+
+   <DataBranch available={Boolean(run)} selected={!nativeMeanField}>
+     The first change of the leading complex pair from negative to nonnegative real part supplied a coarse drive bracket. Brent’s method refined the zero to absolute drive tolerance $10^{- 12}$ nA and relative tolerance $10^{- 12}$, recomputing the equilibrium and analytical Jacobian at every trial drive. We confirmed nonzero imaginary part, negative real parts for the remaining modes, and positive transversality by a centred difference with $10^{- 5}$ nA half-step. The recorded crossing slope was {slope} ${\text{ms}}^{- 1} {\text{nA}}^{- 1}$ and the largest remaining real part was {remaining} ${\text{ms}}^{- 1}$.
+
+   </DataBranch>
 
    **2.4 — Calculate the onset frequency.** At the refined crossing, $\omega_{\text{Hopf}}$ was the magnitude of the critical pair’s imaginary part in radians per millisecond. We converted it to hertz using $f_{\text{Hopf}} = 1000 \frac{\omega_{\text{Hopf}}}{2 \pi}$ ([Fig. 1](#loc-5)A).
 
 3. **Numerical criticality test.** We integrated 25 equally spaced drives from 0.1 nA below to 0.55 nA above the refined Hopf point, first in ascending and then in descending order. The initial state was the lowest-drive equilibrium with an added $10^{- 3}$ ${\text{ms}}^{- 1}$ excitatory-rate perturbation; each subsequent condition began from the preceding endpoint. LSODA integrated each condition for 2,000 ms with relative tolerance $10^{- 7}$, absolute tolerance $10^{- 10}$ and maximum step 1 ms.
 
-   For each drive, peak-to-peak excitatory-rate amplitude $A_{\text{pp}}$ was measured over the final 500 ms. We classified the sampled dynamics as consistent with a supercritical transition when the maximum difference between ascending and descending amplitudes was below $10^{- 4}$ ${\text{ms}}^{- 1}$, and ordinary least-squares regression of $A_{\text{pp}}^{2}$ on $I_{\text{ext}} - I^{\ast}$ above onset had positive slope and $R_{\text{fit}}^{2} > 0.9$. This finite numerical criterion tests reversible, continuous onset; it does not detect an unstable cycle or prove the absence of narrower bistability.\[[2](#ref-2)\]
+   For each drive, peak-to-peak excitatory-rate amplitude $A_{\text{pp}}$ was measured over the final 500 ms. We classified the sampled dynamics as consistent with a supercritical transition when the maximum difference between ascending and descending amplitudes was below $10^{- 4}$ ${\text{ms}}^{- 1}$, and ordinary least-squares regression of $A_{\text{pp}}^{2}$ on $I_{\mathrm{ext},E} - I^{\ast}$ above onset had positive slope and $R_{\text{fit}}^{2} > 0.9$. This finite numerical criterion tests reversible, continuous onset; it does not detect an unstable cycle or prove the absence of narrower bistability.\[[1](#ref-1)\]
 
-4. **Inhibitory-decay sweep.** We repeated the equilibrium continuation and refined complex-pair crossing at $\tau_{\text{GABA}} = 4.5 , 6 , 9 , 12 , 18$ and $27$ ms while holding all other model parameters fixed. At every decay constant, we applied the same nonzero-frequency, remaining-mode stability and transversality checks used at the 6-ms reference condition, then converted the critical angular frequency to $f_{\text{Hopf}}$ in hertz.
+4. **Inhibitory-decay sweep.** We repeated the equilibrium continuation and refined complex-pair crossing at $\tau_{I\to E} = 4.5 , 6 , 9 , 12 , 18$ and $27$ ms while holding all other model parameters fixed. At every decay constant, we applied the same nonzero-frequency, remaining-mode stability and transversality checks used at the 6-ms reference condition, then converted the critical angular frequency to $f_{\text{Hopf}}$ in hertz.

@@ -9,10 +9,9 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 
+from experiments.exp117 import recipe
 from pingstore.contracts import PingstoreError
 from pingstore.stages import source_run, stage_run
-
-from experiments.exp117 import recipe
 
 
 def lineage(repo, identity, reference=None):
@@ -53,7 +52,9 @@ def execution(repo, stage, *, sources, run_id=None, configuration=None):
             if name in ancestors and ancestors[name].reference != ancestor.reference:
                 raise PingstoreError("conflicting exp117 input ancestry")
             ancestors[name] = ancestor
-    cfg = recipe.validate(configuration or recipe.configuration())
+    cfg = recipe.validate(
+        configuration or recipe.configuration(), historical=stage != "compute"
+    )
     with stage_run(
         repo,
         recipe.SLUG,
@@ -68,4 +69,4 @@ def execution(repo, stage, *, sources, run_id=None, configuration=None):
 
 
 def configuration(run):
-    return recipe.validate(run.record["execution"]["configuration"])
+    return recipe.validate(run.record["execution"]["configuration"], historical=True)

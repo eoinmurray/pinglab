@@ -3,12 +3,11 @@ id: exp148
 title: "AI to PING transition"
 author: "Eoin Murray"
 created_at: "2026-10-23T14:51:26Z"
-updated_at: "2026-10-24T11:46:35Z"
+updated_at: "2026-10-25T08:46:16Z"
 description: "Reducing external excitation of inhibitory neurons produces population oscillations in a conductance network derived from exp145 with fixed sparse input connectivity."
 collection: ["gamma-gated-sparsity", "experiments"]
 tags: ["data"]
 inputs: ["exp148"]
-runs: {exp148: exp148-r102-present}
 thumbnail: transition.png
 ---
 
@@ -18,6 +17,7 @@ import { reportData } from '../../../site/src/lib/report-data';
 export const data = await reportData('exp148', { allowUnavailable: true });
 export const holdIntervals = data?.hold_dynamics?.intervals;
 export const meanField = data?.mean_field;
+export const nativeMeanField = meanField?.configuration?.model === "snnlab-rate-conductance/v3";
 export const meanFieldCrossing = meanField?.crossings.find(row => row.oscillatory && row.destabilizes_as_alpha_decreases);
 export const meanFieldAlpha = meanFieldCrossing ? meanFieldCrossing.alpha.toFixed(3) : 'Unavailable';
 export const meanFieldFrequency = meanFieldCrossing ? meanFieldCrossing.frequency_hz.toFixed(1) : 'Unavailable';
@@ -58,6 +58,10 @@ using locally detected peaks. The full-window spectrum combines this evolution.
 
 ### Four-variable mean-field prediction
 
+{nativeMeanField
+  ? 'The selected calculation uses SNNLab’s native closure and matched-decay reduction, with its symbolic model saved in the compute run.'
+  : 'The displayed mean-field evidence precedes the SNNLab 0.27 migration. The current native implementation has not regenerated this trajectory; long onset trajectories can differ in phase with numerical tolerances.'}
+
 <RunFigure report="exp148" experiment="exp148" file="mean-field.png" number={2} id="fig-mean-field" alt="Mean-field equilibrium rates, oscillatory stability crossing, and predicted rates during the same three-window input-weight protocol." allowUnavailable={true}>
   A: equilibrium E/I rates continued along decreasing Input→I weight multiplier.
   B: largest real part of the four flow-Jacobian eigenvalues; negative values
@@ -70,115 +74,56 @@ using locally detected peaks. The full-window spectrum combines this evolution.
   a fitted frequency of the finite-amplitude oscillation.
 </RunFigure>
 
-#### Updated model
+#### Model specialisation
 
-The [exp117 closure](/exp117) is extended with E→E and I→I coupling and two
-external projections from the same input pool. It retains exp117's four state
-variables: population firing rates $r_E,r_I$ in Hz, recurrent excitatory
-conductance onto I, $g_e^I$, and recurrent inhibitory conductance onto E,
-$g_i^E$, both in µS. With time in ms,
+We use the [general mean-field model](/notes/mean-field-model#the-model) with
+all four recurrent pathways, shared input at $r_X=0.0025$ spikes/source/ms (2.5 Hz/source) and no private
+input. All synaptic decays are 5 ms. Equilibrium-compatible initial conductances
+permit the note's [matched-decay four-state reduction](/notes/mean-field-model#four-state-reductions),
+retaining $(r_E,r_I,g_e^I,g_i^E)$ despite nonzero self-coupling.
 
-$$
-\begin{aligned}
-\tau_{r,E}\dot r_E&=-r_E+\Phi_E(I_E),\\
-\tau_{r,I}\dot r_I&=-r_I+\Phi_I(I_I),\\
-\dot g_e^I&=-\frac{g_e^I}{\tau_s}+\frac{G_{E\to I}r_E}{1000},\\
-\dot g_i^E&=-\frac{g_i^E}{\tau_s}+\frac{G_{I\to E}r_I}{1000}.
-\end{aligned}
-$$
-
-Here $\tau_{r,E}=20$ ms and $\tau_{r,I}=5$ ms are the rate-relaxation times,
-$\tau_s=5$ ms is the common synaptic decay, and $\Phi_P$ is the stationary
-noisy-LIF response in Hz for population $P\in\{E,I\}$. The gain uses exp148's
-recorded neuron parameters with exp117's fixed 4 mV voltage-noise scale; its
-integral is given in [exp117, Equation A10](/exp117#loc-11). Rates are expressed
-in Hz here rather than spikes/ms, accounting for the factors of 1,000.
-
-For source population $P$ and target $Q$, define the summed incoming weight
-in µS by
-
-$$
-G_{P\to Q}=\frac{1}{N_Q}\sum_{j=1}^{N_P}\sum_{k=1}^{N_Q}W^{P\to Q}_{jk}.
-$$
-
-Here $N_P$ and $N_Q$ are source and target population sizes, and
-$W^{P\to Q}_{jk}$ is the sampled reference weight from source neuron $j$ to
-target neuron $k$. These sums use the six recorded matrices, including their
-zeros and excluded autapses.
-
-Within this homogeneous closure, identical outgoing decay times and consistent
-initial conductances allow E→E and I→I conductances to be reconstructed without
-adding states:
-
-$$
-g_e^E=\frac{G_{E\to E}}{G_{E\to I}}g_e^I,
-\qquad
-g_i^I=\frac{G_{I\to I}}{G_{I\to E}}g_i^E.
-$$
-
-Here $g_e^E$ is recurrent excitation onto E and $g_i^I$ is recurrent inhibition
-onto I. The cross-population couplings in the denominators are nonzero. The
-external pool $X$ supplies stationary mean conductances
-
-$$
-\bar g_X^P=\frac{\tau_s G_{X\to P}\nu_X}{1000},\qquad \nu_X=2.5\text{ Hz/source}.
-$$
-
-The source rate is $\nu_X$. Only the external Input→I weight multiplier $\alpha$
-changes, giving effective currents $I_E,I_I$ in nA:
-
-$$
-I_E=\Delta V_e(g_e^E+\bar g_X^E)-\Delta V_i g_i^E,
-\qquad
-I_I=\Delta V_e(g_e^I+\alpha\bar g_X^I)-\Delta V_i g_i^I.
-$$
-
-The excitatory and inhibitory driving forces are $\Delta V_e=70$ mV and
-$\Delta V_i=10$ mV, fixed at the resting voltage. This unfitted closure retains
-both external mean drives but discards shared-input covariance, shunting,
-weight heterogeneity, explicit transmission delays and external filtering lag.
-Equilibrium and stability calculations use these four population-rate and
-conductance states.
+Only the Input→I matrix is multiplied by the scheduled gain $\alpha$;
+Input→E and recurrence remain fixed. The model replaces changing external input
+by its instantaneous stationary mean, so the ramp's filtering lag is omitted.
+[Appendix D](#mean-field-model) records the experiment-specific parameters,
+units, coupling provenance and numerical checks. The common conductance,
+current and gain derivations are in the note.
 
 #### Calculations for Figure 2
 
 1. **Panel A — equilibrium rates.** At 201 equally spaced multipliers from
-   $\alpha=1$ to zero, set all four time derivatives to zero. Substitute
-   $(g_e^I)^*=\tau_sG_{E\to I}r_E^*/1000$ and
-   $(g_i^E)^*=\tau_sG_{I\to E}r_I^*/1000$, where the asterisk denotes an
-   equilibrium value. Solve the resulting two rate equations
-   $r_P^*=\Phi_P(I_P^*)$ by bounded least squares,
-   using the preceding equilibrium as the next initial guess. Require a maximum
-   rate residual below $10^{-7}$ Hz. Plot the resulting E/I rates against
+   $\alpha=1$ to zero, set all four time derivatives to zero and eliminate
+   the recurrent conductances using the [stationary filter relation](/notes/mean-field-model#derivation-mean-conductance).
+   A star denotes equilibrium. Bounded least squares solves the stationary
+   equations, using the preceding equilibrium as the next initial guess.
+   {nativeMeanField
+     ? 'SNNLab solves all four equations and requires a maximum scaled derivative residual below 1e-9, scaling conductance derivatives by 0.01 µS and rate derivatives by 1 Hz.'
+     : 'The earlier implementation eliminated conductances and required a maximum two-rate residual below 1e-7 Hz.'}
+   Plot the resulting E/I rates against
    $\alpha$; this continues one numerically found branch without establishing
    its global uniqueness.
 
 2. **Panel B — local stability.** Write the four equations as
    $\dot x=F(x;\alpha)$, where $x=(r_E,r_I,g_e^I,g_i^E)$ and $F$ is the vector of
    time derivatives. Evaluate the analytical flow Jacobian
-   $J=\partial F/\partial x$ at each equilibrium and plot
-   $\max_j\operatorname{Re}(\lambda_j)$, where $\lambda_j$ are its four
+   $J_{\mathrm{flow}}=\partial F/\partial x$ at each equilibrium and plot
+   $\max_j\operatorname{Re}(\lambda_{J,j})$, where $\lambda_{J,j}$ are its four
    eigenvalues in ms$^{-1}$. Negative values indicate local stability.
    Brent refinement locates the zero at $\alpha=${meanFieldAlpha}. A complex
    pair crosses there while the other pair remains stable. Its linear onset
-   frequency is $f=1000|\operatorname{Im}(\lambda)|/(2\pi)=${meanFieldFrequency}
+   frequency is $f_{\mathrm{Hopf}}=1000|\operatorname{Im}(\lambda_J)|/(2\pi)=${meanFieldFrequency}
    Hz, converting the critical eigenvalue's imaginary part from radians/ms.
    This tests oscillatory onset without determining Hopf criticality.
 
 3. **Panel C — protocol integration.** Start from the $\alpha=1$ equilibrium,
-   add 0.001 Hz to $r_E$, and integrate the four equations through 50 ms burn-in
+   add $10^{-6}$ spikes/neuron/ms to $r_E$, and integrate the four equations through 50 ms burn-in
    and three 750 ms windows. Hold $\alpha=1$, decrease it linearly to zero in
-   the middle window, then hold zero. LSODA uses relative tolerance $10^{-8}$,
-   absolute rate tolerance $10^{-10}$ Hz and proportionally scaled conductance
-   tolerances, preserving the previous error controls under the change of units.
-   Use a maximum step of 0.5 ms; sample the solid model
-   rate curves every 0.5 ms. For each dashed spiking mean, count spikes within
+   the middle window, then hold zero. Sample model rates every 0.5 ms; solver
+   settings are in [Appendix D](#mean-field-model). For each dashed spiking mean, count spikes within
    that window and divide by population size and its 0.75 s duration. These
    means are comparisons, not fitting targets.
 
-The gain integrals use 48-point Gauss–Legendre quadrature. Independent adaptive
-quadrature, finite differences of the flow and a 96-point quadrature check
-validate the gain, analytical Jacobian and crossing. Full assumptions and
-numerical details are retained in [Appendix D](#mean-field-model). The closure's
+Numerical settings and validation checks are recorded once in
+[Appendix D](#mean-field-model). The closure's
 oscillatory onset does not establish microscopic AI firing or the spiking
 network's PING mechanism.

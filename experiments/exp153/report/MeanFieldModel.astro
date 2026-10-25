@@ -1,0 +1,155 @@
+---
+import Table from "../../../site/src/components/Table.astro";
+import Math from "../../../site/src/components/Math.astro";
+import EquationBox from "../../../md/notes/components/EquationBox.astro";
+import { optionalPresentation } from "../../../site/src/lib/pingstore";
+import { runStore } from "../../../site/src/lib/run-store";
+
+const selected = await optionalPresentation("exp153");
+const model = selected
+  ? await runStore.json(selected.id, "export/meanfield-model.json")
+  : undefined;
+if (model && model.schema !== "snnlab.meanfield.model/v1")
+  throw new Error("Unsupported mean-field model export");
+// Display aliases change notation only; every equation remains the native export.
+const aliases = new Map<string, string>();
+const add = (name: string, label: string) => {
+  const native = model?.symbols[name]?.latex;
+  if (native) aliases.set(native, label);
+};
+for (const c of ["A", "B"]) {
+  for (const p of ["E", "I"]) {
+    const name = `PING_${c}_${p}`;
+    add(`${name}.rate`, `r_{${p}}^{${c}}`);
+    add(`${name}.tau_rate`, `\\tau_{r,${p}}^{${c}}`);
+    add(`${name}.applied_current`, `I_{\\mathrm{ext},${p}}^{${c}}`);
+    add(`${name}.effective_current`, `I_{${p}}^{${c}}`);
+    for (const [kind, label] of [
+      ["exc", "e"],
+      ["inh", "i"],
+    ]) {
+      add(`${name}.driving_force_${kind}`, `\\Delta V_{${label},${p}}^{${c}}`);
+    }
+    aliases.set(`\\Phi_{PING ${c} ${p}}`, `\\Phi_{${p}}^{${c}}`);
+  }
+  add(`drive_${c}.rate`, `\\nu^{${c}}`);
+}
+for (const projection of Object.keys(model?.delays.projections_ms ?? {})) {
+  const internal = projection.match(/^PING_([AB])_([EI])_to_([EI])$/);
+  const cross = projection.match(/^PING_([AB])_([EI])_to_PING_([AB])_([EI])_K_E[EI]$/);
+  const input = projection.match(/^PING_([AB])_input_to_([EI])$/);
+  const path = internal
+    ? `${internal[1]}${internal[2]}\\to ${internal[1]}${internal[3]}`
+    : cross
+      ? `${cross[1]}${cross[2]}\\to ${cross[3]}${cross[4]}`
+      : input
+        ? `x${input[1]}\\to ${input[1]}${input[2]}`
+        : undefined;
+  if (!path) throw new Error(`Unknown model pathway ${projection}`);
+  for (const [field, symbol] of [
+    ["conductance", "g"],
+    ["tau", "\\tau"],
+    ["coupling", "C"],
+    ["gain", "a"],
+  ]) {
+    add(`${projection}.${field}`, `${symbol}_{${path}}`);
+  }
+}
+// Match complete original labels once, avoiding substitutions inside new labels.
+const labels = [...aliases.keys()].sort((a, b) => b.length - a.length);
+const tex = (value: string) => {
+  let result = "";
+  for (let i = 0; i < value.length;) {
+    const label = labels.find((label) => value.startsWith(label, i));
+    result += label ? aliases.get(label)! : value[i];
+    i += label ? label.length : 1;
+  }
+  return result;
+};
+const equations =
+  model?.equation_order.map((name: string) => ({ name, ...model.equations[name] })) ?? [];
+const groups = [
+  {
+    title: "Population-rate functions",
+    rows: equations.filter((row: any) => row.kind === "differential" && row.name.endsWith(".rate")),
+  },
+  {
+    title: "Conductance-filter functions",
+    rows: equations.filter(
+      (row: any) => row.kind === "differential" && row.name.endsWith(".conductance"),
+    ),
+  },
+  {
+    title: "Effective currents",
+    rows: equations.filter(
+      (row: any) => row.kind === "definition" && row.name.endsWith(".effective_current"),
+    ),
+  },
+];
+const functions = Object.entries(model?.model_definition.functions ?? {}) as [
+  string,
+  Record<string, any>,
+][];
+const gains = functions.filter(([, definition]) => definition.kind === "noisy_lif");
+const fields = [...new Set(gains.flatMap(([, definition]) => Object.keys(definition)))];
+const functionRows = fields.map((field) => [
+  field,
+  ...gains.map(([, definition]) => String(definition[field] ?? "—")),
+]);
+const slopes = functions.filter(([, definition]) => definition.kind === "derivative");
+const symbols = Object.entries(model?.symbols ?? {}) as [string, Record<string, any>][];
+const symbolRows = symbols
+  .filter(([, symbol]) => symbol.kind !== "function")
+  .map(([name, symbol]) => [
+    name,
+    symbol.description ??
+      (symbol.kind === "delayed_dependency"
+        ? `${symbol.source} at t − ${symbol.delay_ms} ms`
+        : symbol.kind),
+    symbol.unit ?? "—",
+    symbol.value === undefined ? "—" : String(symbol.value),
+  ]);
+---
+
+{model ? (
+  <div class="native-model">
+    <p>
+      Circuits are superscripts A/B; E/I denote excitatory/inhibitory populations. For a pathway
+      such as AE → BI, the first pair identifies its source and the second its target; xA/xB denote
+      external inputs. All 14 dynamical equations and their current definitions are shown below.
+    </p>
+    {groups.map((group) => (
+      <section>
+        <h3>{group.title}</h3>
+        <EquationBox label={group.title}>
+          <Math
+            latex={
+              "\\begin{aligned}" +
+              group.rows
+                .map((row: any) => tex(row.lhs_latex) + " &= " + tex(row.rhs_latex))
+                .join(" \\\\ ") +
+              "\\end{aligned}"
+            }
+          />
+        </EquationBox>
+      </section>
+    ))}
+    <p>
+      Time is in ms; dots denote time derivatives. Symbols: <var>r</var>, rate (Hz);
+      <var>g</var>, conductance (µS); <var>I</var>, current (nA); <var>τ</var>, relaxation or decay
+      time (ms); <var>C</var>, mean incoming weight (µS); <var>a</var>, dimensionless delivery-time
+      gain; Δ<var>V</var>, fixed driving force (mV); Φ, noisy-LIF current-to-rate function; ν,
+      external input rate (Hz). Subscript ext denotes applied current; e/i denote
+      excitatory/inhibitory driving forces. Cross-circuit gains switch from zero to one at 500 ms;
+      other gains are constant. The factor 1/1000 converts Hz to events per ms.
+    </p>
+  </div>
+) : (
+  <p>Native mean-field model unavailable: no presentation selected.</p>
+)}
+
+<style>
+  summary {
+    cursor: pointer;
+  }
+</style>

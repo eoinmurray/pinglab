@@ -1,7 +1,8 @@
 ---
-import { imageUrl } from '../../../site/src/lib/pingstore';
-interface Props { run: string; }
-const { run } = Astro.props;
+import { imageUrl, latestPresentation } from '../../../site/src/lib/pingstore';
+interface Props { experiment: string; }
+const { experiment } = Astro.props;
+const run = (await latestPresentation(experiment)).id;
 ---
 <figure class="l-body" id="panel-a">
   <pixi-ping-circuit data-source={await imageUrl(run, 'circuit.json')}>

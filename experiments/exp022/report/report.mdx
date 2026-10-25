@@ -7,7 +7,6 @@ description: "Seven controlled training families, their retained checkpoint bank
 collection: ["gamma-gated-sparsity", "datasets", "experiments"]
 author: "Eoin Murray"
 tags: ["data", "v37.0.0"]
-runs: {"exp022": "exp022-r019-present"}
 inputs: ["exp022"]
 ---
 
@@ -163,7 +162,7 @@ The completed bank contains 102 models: 90 reused models with unchanged weights 
 
    $L_{\text{total}}$ is total loss and $L_{\text{CE}}$ is mean cross-entropy. Each presentation’s mean excitatory firing rate $r_{E}$ and ceiling $r_{E , \text{ceil}}$ are in hertz. Brackets average the individual penalties across the minibatch; $\lambda_{\text{rate}} = 0.041$ with rates in hertz, or zero when disabled.
 
-The pinned historical bank predates the current recipe’s common voltage-gradient
+The selected historical bank predates the current recipe’s common voltage-gradient
 damping of 1,000 for COBA and PING. Its displayed settings and outcomes remain
 bound to that historical evidence.
 

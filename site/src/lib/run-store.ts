@@ -143,7 +143,7 @@ export class RunStore {
     catch (error) { if (absent(error)) return false; throw error; }
   }
   async latest(experiment: string): Promise<string | undefined> {
-    // In development, local latest wins. Authored pins bypass this selection.
+    // In development, the latest local presentation wins.
     const local = (await this.localIds(experiment)).filter(id => id.endsWith('-present'));
     const ids = local.length ? local : (await this.ids(experiment)).filter(id => id.endsWith('-present'));
     const candidates = await Promise.all(ids.map(async id => ({ id, completed: Date.parse((await this.json(id)).execution.completed_at) })));

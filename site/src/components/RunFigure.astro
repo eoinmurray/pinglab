@@ -1,5 +1,4 @@
 ---
-import { getEntry } from 'astro:content';
 import { figureUrl, latestPresentation, optionalPresentation } from '../lib/pingstore';
 
 interface Panel {
@@ -23,8 +22,7 @@ const { experiment, file, alt, panels, columns = 2, number, id, report, allowUna
 if (panels ? file || panels.length < 2 || panels.length > 26 : !file || !alt) {
   throw new Error('RunFigure requires one file and alt text, or 2–26 lettered panels.');
 }
-const pin = report ? (await getEntry('reports', report))?.data.runs?.[experiment] : undefined;
-const run = pin ? { id: pin } : await (allowUnavailable ? optionalPresentation(experiment) : latestPresentation(experiment));
+const run = await (allowUnavailable ? optionalPresentation(experiment) : latestPresentation(experiment));
 const url = run && file ? await figureUrl(run.id, file) : undefined;
 const resolvedPanels = run && panels ? await Promise.all(panels.map(async panel => ({
   ...panel, url: await figureUrl(run.id, panel.file),

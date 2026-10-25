@@ -82,7 +82,7 @@ const groups = [
 ---
 
 <Table headers={['Parameter', 'Coupling map', 'Onset diagnostic']} groups={groups} number="A1" id="saved-model-parameters" label="Saved model and execution parameters">
-  Values follow the article's pinned presentation to its separate map and onset compute runs:
+  Values follow the article's selected presentation to its separate map and onset compute runs:
   {evidence.map((item, index) => <span>{index ? '; ' : ''}{item ? item.compute.run_id : 'Unavailable'}</span>)}.
   Native start snapshots describe the selected 0.09 µS map condition and the transferred diagnostic; sweep and input settings come from each compute configuration.
   E / I means excitatory / inhibitory; SD is standard deviation and CV is interval standard deviation divided by its mean. AMPA and GABA denote excitatory and inhibitory conductance kernels.

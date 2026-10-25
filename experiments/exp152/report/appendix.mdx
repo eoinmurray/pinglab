@@ -1,10 +1,9 @@
-import { getEntry } from 'astro:content';
 import Table from '../../../site/src/components/Table.astro';
-import { imageUrl } from '../../../site/src/lib/pingstore';
+import { imageUrl, optionalPresentation } from '../../../site/src/lib/pingstore';
 import { reportSnapshots } from '../../../site/src/lib/report-data';
 
-export const entry = await getEntry('reports', 'exp152');
-export const native = entry?.data.runs?.exp152 ? await reportSnapshots('exp152', {
+export const selected = await optionalPresentation('exp152');
+export const native = selected ? await reportSnapshots('exp152', {
   analysisInput: 'analyse',
   snapshots: { controller: 'flexor/start/snapshot.json' },
   allowUnavailable: true,
@@ -52,7 +51,7 @@ export const groups = [
 
 ## Network diagram
 
-{native && <div style="min-width: 0; align-self: start; margin-bottom: 24px;"><img style="display: block; width: 100%; height: auto;" src={await imageUrl(entry.data.runs.exp152, 'circuit.svg')} alt="Native motor and slow inhibitory controller circuit" /></div>}
+{native && <div style="min-width: 0; align-self: start; margin-bottom: 24px;"><img style="display: block; width: 100%; height: auto;" src={await imageUrl(selected.id, 'circuit.svg')} alt="Native motor and slow inhibitory controller circuit" /></div>}
 
 ## Parameters
 

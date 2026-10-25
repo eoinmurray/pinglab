@@ -25,10 +25,10 @@ const reports = defineCollection({
   schema: articleSchema.extend({
     id: z.string().regex(/^exp\d{3}$/),
     inputs: z.array(z.string().regex(/^exp\d{3}$/)).default([]),
-    runs: z.record(z.string(), z.string()).optional(),
+    runs: z.never().optional(),
     tags: z.array(z.string()),
     thumbnail: z.string().optional(),
-    thumbnailRun: z.string().optional(),
+    thumbnailRun: z.never().optional(),
   }),
 });
 

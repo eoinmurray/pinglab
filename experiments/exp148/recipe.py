@@ -6,10 +6,13 @@ This recipe defines settings and the native graph without executing a simulation
 """
 
 import math
+from copy import deepcopy
 from dataclasses import asdict
 
 import numpy as np
 from snnlab import lang
+from snnlab import meanfield as mf
+from snnlab.meanfield import closures
 from snnlab.sim import Performance
 
 
@@ -244,7 +247,7 @@ def hold_analysis_configuration():
 
 
 def mean_field_configuration(spiking_configuration, summed_weights_us):
-    """Four-state extension of exp117, with unfitted closure choices retained.
+    """Native four-state rate–conductance closure with unfitted choices retained.
 
     Matrices are reduced to average incoming weight per target, including zeros.
     The shared pool supplies two mean drives; spike covariance is not retained.
@@ -258,7 +261,7 @@ def mean_field_configuration(spiking_configuration, summed_weights_us):
             "the four-state conductance basis requires positive E→I and I→E coupling"
         )
     return dict(
-        model="four-state-mean-field/v2",
+        model="snnlab-rate-conductance/v3",
         state_variables=["r_E_hz", "r_I_hz", "g_e_I_us", "g_i_E_us"],
         conductance_per_hz=scales,
         spiking_configuration=spiking_configuration,
@@ -274,7 +277,9 @@ def mean_field_configuration(spiking_configuration, summed_weights_us):
         ],
         alpha_points=201,
         gain_quadrature_nodes=48,
-        equilibrium_tolerance_hz=1e-7,
+        equilibrium_scaled_derivative_tolerance=1e-9,
+        equilibrium_guess=[0.0, 0.0, 0.0, 0.0],
+        crossing_tolerance=1e-10,
         eigenvalue_tolerance_per_ms=1e-8,
         initial_e_perturbation_hz=0.001,
         solver=dict(
@@ -284,4 +289,58 @@ def mean_field_configuration(spiking_configuration, summed_weights_us):
             max_step_ms=0.5,
         ),
         sample_interval_ms=0.5,
+    )
+
+
+def mean_field_model(cfg, bundle):
+    """Reduce recorded graph dynamics with explicit closure approximations.
+
+    Only the Input→I ramp is translated to a numerical control. The source
+    graph stays unchanged; unexpected modulation is rejected rather than lost.
+    """
+    net = cfg["spiking_configuration"]
+    control = net["control"]
+    expected = dict(
+        kind="ramp_gain",
+        before=control["baseline_gain"],
+        after=control["final_gain"],
+        start_ms=control["ramp_start_ms"],
+        end_ms=control["ramp_end_ms"],
+    )
+    reduced_bundle = deepcopy(bundle)
+    for projection in reduced_bundle.graph["projections"]:
+        if projection["id"] == "X_to_I":
+            if projection.get("modulation") != expected:
+                raise ValueError(
+                    "recorded Input→I modulation disagrees with its protocol"
+                )
+            projection["modulation"] = None
+        elif projection.get("modulation"):
+            raise ValueError("mean-field protocol supports only Input→I modulation")
+    model = mf.reduce(
+        reduced_bundle,
+        closure=closures.RateConductance(
+            gain=closures.NoisyLIF(
+                sigma=cfg["voltage_noise_mv"],
+                quadrature_nodes=cfg["gain_quadrature_nodes"],
+            ),
+            tau_rate=dict(zip(("E", "I"), cfg["rate_relaxation_ms"])),
+        ),
+        weights=mf.MeanIncomingWeights(
+            cfg["summed_weights_us"],
+            provenance="effective sampled matrices from explicit source native start snapshot, sum(W)/N_target including zero edges",
+        ),
+        inputs={"X": mf.StationaryRate(net["external_rate_hz"])},
+        external_filters="quasistatic",
+        delays="omit",
+    )
+    return mf.reduce_states(model, retain=["E_to_I.conductance", "I_to_E.conductance"])
+
+
+def mean_field_control(cfg):
+    """Translate the recorded spiking ramp to SNNLab's numerical parameter gain."""
+    control = cfg["spiking_configuration"]["control"]
+    return mf.PiecewiseLinear(
+        times=[control["ramp_start_ms"], control["ramp_end_ms"]],
+        values=[control["baseline_gain"], control["final_gain"]],
     )

@@ -13,6 +13,7 @@ Main documentation lives in [`md/notes/`](md/notes/):
 4. [Writing Rules](md/notes/writing-rules.md): scientific writing, article metadata and editorial conventions.
 5. [Canonical Parameters](md/notes/canonical-parameters.mdx): reference network and training settings for COBA and PING.
 6. [COBA and PING: Dynamics and Learning](md/notes/coba-ping-dynamics.mdx): model and training derivations (formerly exp113).
+7. [Mean-field E/I dynamics](md/notes/mean-field-model.mdx): exp117/exp148 closures, four recurrent pathways, shared input and private drive.
 
 See [Astro setup and GitHub Pages deployment](site/README.md)
 for site development and deployment. Coding agents must read

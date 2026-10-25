@@ -72,7 +72,7 @@ class Controller:
         self.cfg = cfg
         bundle = author_network(cfg)
         # Preparation privately owns the model/state and caches fixed graph metadata.
-        # Keep float64 CPU dynamics; the native HH operator integrates each step.
+        # Keep float64 CPU dynamics; the tensor HH callback integrates each step.
         started = time.perf_counter()
         self.stream = prepare_stream(
             bundle,

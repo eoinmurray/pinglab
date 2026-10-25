@@ -1,6 +1,11 @@
 # exp117
 
-Locate and numerically characterize oscillatory onset in an independent four-variable mean-field closure, including an inhibitory-decay sweep.
+Locate and numerically characterize oscillatory onset in a four-variable SNNLab mean-field closure, including an inhibitory-decay sweep. SNNLab owns the gain, symbolic equations,
+equilibrium search, stability crossings and integration. Native model documents
+and the authored circuit are exported; article payloads retain spikes/ms rates.
+
+See the [pedagogical mean-field note](../../md/notes/mean-field-model.mdx) for the
+derivation, exp148 extension, and general shared/private-input formulation.
 
 ## CLI
 

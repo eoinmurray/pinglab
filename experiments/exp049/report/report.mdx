@@ -7,8 +7,6 @@ description: "Trainable recurrent conductances produced lower reference-image rh
 collection: ["gamma-gated-sparsity", "experiments"]
 author: "Eoin Murray"
 tags: ["data", "v37.0.0"]
-runs: {"exp049": "exp049-r015-present"}
-thumbnailRun: "exp049-r015-present"
 thumbnail: "training_summary.svg"
 inputs: ["exp049"]
 ---
@@ -36,7 +34,7 @@ We compared fixed and trainable reciprocal PING conductances across four initial
 
 In all three networks in each condition, training from standard and 10%-standard recurrence drove most E→I weights to zero, while most I→E weights remained positive and their mean across all entries grew. Both conditions ended with lower reference-image contrast and higher E rates than frozen recurrence. Zero-initialized recurrence remained zero ([Fig. 1](#loc-4)). This pattern across three training replicates per condition remains descriptive: it does not isolate pruning as the cause of reduced contrast or establish equivalent accuracy.
 
-<PublishedFigure run="exp049-r015-present" file="training_summary.svg" id="loc-4" alt="Final accuracy, E/I rates and reference-image contrast across four conditions, with initial and final recurrent nonzero fractions and mean weights." >
+<PublishedFigure experiment="exp049" file="training_summary.svg" id="loc-4" alt="Final accuracy, E/I rates and reference-image contrast across four conditions, with initial and final recurrent nonzero fractions and mean weights." >
   Figure 1: Final checkpoints: **(A)** official-test accuracy, **(B)** per-neuron E/I firing rates over the same {evalN} test images and **(C)** unsmoothed reference-image contrast $R = R_{\text{contrast}}$. Bars and error bars in A–C show means ±1 standard error of the mean (SEM) across three independently trained networks (sample standard deviation divided by $\sqrt{3}$). In B, black denotes E and red I. Frozen denotes fixed standard recurrence; Std., 10% and Zero denote trainable recurrence initialized at standard, 10%-standard and zero weights. **(D, E)** Positive-weight fractions for E→I and I→E; **(F, G)** corresponding per-edge means including zeros, in model conductance units scaled by $10^{- 3}$. For each direction, condition and time point, weight statistics pool 786,432 entries from three equal-sized matrices, giving each network equal weight. Wide grey bars show initialization and narrow red bars show epoch 50. Error bars show ±1 SEM across the three per-network statistics, calculated separately before and after training; they do not describe uncertainty in the paired change. Individual weights are not independent training replicates. Black arrows connect pooled values before and after when the relative change is at least 5%; this is a display threshold, not a statistical-significance test.
 </PublishedFigure>
 
@@ -46,7 +44,7 @@ In all three networks in each condition, training from standard and 10%-standard
 
 The unsmoothed trainable contrast averaged {contrastFirst} after epoch 1 and ended at {contrastLow}–{contrastHigh}. Because there is no epoch-0 observation, these histories cannot resolve the intervening transition ([Fig. 2](#loc-6)).
 
-<PublishedFigure run="exp049-r015-present" file="training_curves.svg" id="loc-6" alt="Validation accuracy and E/I rates over 50 epochs, alongside reference-image rhythmicity; frozen recurrence retains high contrast while trainable recurrence has low contrast." >
+<PublishedFigure experiment="exp049" file="training_curves.svg" id="loc-6" alt="Validation accuracy and E/I rates over 50 epochs, alongside reference-image rhythmicity; frozen recurrence retains high contrast while trainable recurrence has low contrast." >
   Figure 2: Recorded histories: **(A)** validation accuracy, **(B)** E rate, **(C)** I rate and **(D)** contrast from a fixed reference-image diagnostic. Lines show three-seed means; shading spans seed minima and maxima. Each series is smoothed with a five-epoch edge-padded moving average, not a confidence interval.
 </PublishedFigure>
 

@@ -107,14 +107,14 @@ export const parameterGroups = (() => {
 ### Network diagrams
 
 <RunFigure report="exp134" experiment="exp134" allowUnavailable file="network.svg" number="A1" id="fig-network" alt="Shared PING circuit: image input excites E, E excites I and output neurons, and I inhibits E.">
-  Native circuit view from the pinned compute bundle. Both sweeps share this
+  Native circuit view from the selected compute bundle. Both sweeps share this
   topology and frozen checkpoint weights; only E/I membrane parameters vary.
 </RunFigure>
 
 ### Parameters
 
 <Table headers={['Parameter', 'Recorded value']} groups={parameterGroups} number="A1" id="model-parameters" label="Recorded membrane-sweep parameters">
-  Native start snapshots follow the pinned presentation's compute ancestry;
+  Native start snapshots follow the selected presentation's compute ancestry;
   input settings come from its recorded configuration and analysis settings from
   its retained measurements. Paired values follow E / I order. Baseline passive
   time constants are capacitance divided by leak conductance. Matrix shapes use

@@ -15,19 +15,18 @@ const experiments = (await readdir('../experiments', { withFileTypes: true }))
   .sort((a, b) => b.localeCompare(a, 'en', { numeric: true }));
 const inventories = await Promise.all(experiments.map(async experiment => {
   const report = reports.get(experiment);
-  const selectedRuns = report?.data.runs;
-  const inputs: [string, string | undefined][] = selectedRuns ? Object.entries(selectedRuns) : [[experiment, undefined]];
+  const inputs = [...new Set([experiment, ...(report?.data.inputs ?? [])])];
   try {
-    let datasets = await Promise.all(inputs.map(([id, run]) => dataset(id, run)));
+    let datasets = await Promise.all(inputs.map(id => dataset(id)));
     // A report without data does not claim these historical runs as evidence.
     if (!report?.data.tags.includes('data')) {
       datasets = datasets.map(data => ({ ...data,
         runs: data.runs.map(run => ({ ...run, selected: false, used: false })),
       }));
     }
-    return { experiment, report, selectedRuns, datasets, error: undefined };
+    return { experiment, report, datasets, error: undefined };
   } catch (error) {
-    return { experiment, report, selectedRuns, datasets: undefined,
+    return { experiment, report, datasets: undefined,
       error: (error as NodeJS.ErrnoException).code === 'ENOENT'
         ? 'A selected run or recorded input is missing from local Pingstore and R2.'
         : 'The run inventory could not be read. Check the run records.' };
@@ -64,15 +63,15 @@ uv run pingstore evict --all --confirm PLAN_HASH`;
     <Code code={pruneCommands} lang="sh" />
   </d-article>
   <d-appendix distill-prerendered aria-label="Pingstore appendix">
-    {inventories.map(({ experiment, report, selectedRuns, datasets, error }) => <>
+    {inventories.map(({ experiment, report, datasets, error }) => <>
       <h2 id={experiment}>
         {report ? <a href={`/${experiment}`}>{experiment} — {report.data.title}</a> : experiment}
       </h2>
-      <!-- Missing pinned evidence stays unavailable; never substitute another run. -->
+      <!-- Missing selected evidence stays unavailable; never substitute another run. -->
       {error ? <>
         <h3 id={`${experiment}-dataset`}>Dataset</h3>
         <section aria-labelledby={`${experiment}-dataset`}><p role="status">Dataset unavailable: {error}</p></section>
-      </> : <Dataset experiment={experiment} selectedRuns={selectedRuns} datasets={datasets} headingId={`${experiment}-dataset`} />}
+      </> : <Dataset experiment={experiment} datasets={datasets} headingId={`${experiment}-dataset`} />}
     </>)}
     {experiments.length === 0 && <p>No experiments are available.</p>}
   </d-appendix>

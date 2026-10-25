@@ -96,7 +96,7 @@ const frontMatter = {
       <h3 id="network">Network</h3>
       <section class="network" aria-labelledby="network"><Network /></section>
     </>}
-    {hasDataset && experiment && <Dataset experiment={experiment.data.id} selectedRuns={experiment.data.tags.includes('data') ? experiment.data.runs : {}} />} 
+    {hasDataset && experiment && <Dataset experiment={experiment.data.id} includeEvidence={experiment.data.tags.includes('data')} />}
     {References && <>
       <h3 id="references">References</h3>
       <section class="references" aria-labelledby="references"><References /></section>

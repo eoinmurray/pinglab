@@ -125,10 +125,7 @@ def configuration(
                 initial_voltage_mv=-65.0,
             ),
         ),
-        hh_native_source_sha256=hashlib.sha256(
-            (Path(__file__).parent / "custom/hh_kernel.c").read_bytes()
-            + (Path(__file__).parent / "custom/hh_operator.cpp").read_bytes()
-        ).hexdigest(),
+        hh_implementation="snnlab_custom_neuron_torch_rk4",
         hh_reference_example_sha256="aa9d12ee5a620892a3a6653b55c45fe45b07ee275074d01e3ea7ec09443aeb90",
         hh_source_sha256=hashlib.sha256(
             (Path(__file__).parent / "custom/hodgkin_huxley.py").read_bytes()

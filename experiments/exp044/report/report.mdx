@@ -7,8 +7,6 @@ description: "Compares final-epoch firing rate, classification accuracy and illu
 collection: ["gamma-gated-sparsity", "experiments"]
 author: "Eoin Murray"
 tags: ["data", "v37.0.0"]
-runs: {"exp044": "exp044-r009-present"}
-thumbnailRun: "exp044-r009-present"
 thumbnail: "dt_sweep.svg"
 inputs: ["exp044"]
 ---
@@ -60,7 +58,7 @@ We compared fifteen PING classifiers trained and evaluated at five matching inte
 
 Mean test accuracy ranged from {numberSummaryAccMinPct}% to {numberSummaryAccMaxPct}%, spanning {numberSummaryAccSpanPp} percentage points. Mean E rate ranged from {numberSummaryERateMinHz} to {numberSummaryERateMaxHz} Hz. Accuracy persisted across the tested resolutions, while firing remained timestep-dependent ([Figure 1](#loc-4)).
 
-<PublishedFigure run="exp044-r009-present" file="dt_sweep.svg" id="loc-4" alt="Hidden excitatory firing rate and test accuracy against integration timestep, with uncertainty across training seeds." >
+<PublishedFigure experiment="exp044" file="dt_sweep.svg" id="loc-4" alt="Hidden excitatory firing rate and test accuracy against integration timestep, with uncertainty across training seeds." >
   Figure 1: Hidden E rate (black) and test accuracy (red) across the twelvefold timestep sweep. Markers show means over {n} seeds; bars show ±1 standard error of the mean. Each network was evaluated on {cfgEvaluationSamples} official-test images at its training timestep.
 </PublishedFigure>
 
@@ -72,7 +70,7 @@ The same image produced distinct E/I spike patterns across the separately
 trained timesteps. These single-seed illustrations do not establish invariance
 of the gamma period.
 
-<PublishedFigure run="exp044-r009-present" file="raster_strip.png" alt="Single-trial excitatory and inhibitory spike rasters at five integration timesteps, plotted against physical time." >
+<PublishedFigure experiment="exp044" file="raster_strip.png" alt="Single-trial excitatory and inhibitory spike rasters at five integration timesteps, plotted against physical time." >
   Figure 2: E (black) and I (red) rasters for the same official-test image, seed {cfgRasterSeed}, at timesteps **(A–E)** 0.05, 0.1, 0.2, 0.3 and 0.6 ms, respectively. Panels display {cfgRasterNEPlot} E and {cfgRasterNIPlot} I neurons over the first {cfgRasterWindowMs} ms. These illustrative probes support visual cadence inspection, not a population estimate of gamma-period invariance.
 </PublishedFigure>
 
@@ -84,7 +82,7 @@ The endpoint E-rate differences above persisted after the same finite training
 horizon. Validation trajectories show each network separately; they do not
 establish an asymptotic firing-rate ceiling.
 
-<PublishedFigure run="exp044-r009-present" file="training_curves.svg" alt="Per-network validation accuracy and excitatory firing rate versus epoch, coloured by integration timestep." >
+<PublishedFigure experiment="exp044" file="training_curves.svg" alt="Per-network validation accuracy and excitatory firing rate versus epoch, coloured by integration timestep." >
   Figure 3: Recorded training histories: **(A)** validation accuracy and **(B)** E rate, one line per timestep and seed. Each epoch averaged {cValidationEncoderDrawsCount} encoder draws per validation image. The final-epoch comparison is a finite-training snapshot, not an established fixed-point ceiling.
 </PublishedFigure>
 

@@ -4,17 +4,18 @@ import { dependencies, downstream } from '../lib/dependencies';
 import { dataset } from '../lib/pingstore';
 import { backupInventory, runBackupStatus } from '../lib/backup-status';
 
-interface Props { experiment: string; selectedRuns?: Record<string, string>; headingId?: string; datasets?: Awaited<ReturnType<typeof dataset>>[]; }
-const { experiment, selectedRuns, headingId = 'dataset' } = Astro.props;
-const inputs: [string, string | undefined][] = selectedRuns ? Object.entries(selectedRuns) : [[experiment, undefined]];
-const datasets = Astro.props.datasets ?? await Promise.all(inputs.map(([id, runId]) => dataset(id, runId)));
+interface Props { experiment: string; includeEvidence?: boolean; headingId?: string; datasets?: Awaited<ReturnType<typeof dataset>>[]; }
+const { experiment, includeEvidence = true, headingId = 'dataset' } = Astro.props;
+const entries = await getReports();
+const sourceExperiments = [...new Set([experiment, ...(entries.find(entry => entry.id === experiment)?.data.inputs ?? [])])];
+const datasets = Astro.props.datasets ?? (includeEvidence ? await Promise.all(sourceExperiments.map(id => dataset(id))) : []);
 const runMap = new Map<string, (typeof datasets)[number]['runs'][number]>();
 for (const run of datasets.flatMap(data => data.runs)) {
   const previous = runMap.get(run.id);
   runMap.set(run.id, { ...run, selected: run.selected || !!previous?.selected, used: run.used || !!previous?.used });
 }
 const runs = [...runMap.values()].sort((a, b) => Date.parse(b.record.created_at) - Date.parse(a.record.created_at) || b.id.localeCompare(a.id));
-const upstream = [...new Set([...(dependencies[experiment] ?? []), ...datasets.flatMap(data => data.upstream), ...Object.keys(selectedRuns ?? {}).filter(id => id !== experiment)])].sort();
+const upstream = [...new Set([...(dependencies[experiment] ?? []), ...datasets.flatMap(data => data.upstream), ...sourceExperiments.filter(id => id !== experiment)])].sort();
 
 const backup = runs.length ? await backupInventory() : undefined;
 const displayRuns = await Promise.all(runs.map(async run => {
@@ -27,8 +28,7 @@ const displayRuns = await Promise.all(runs.map(async run => {
     ?? (run.record.execution.operation?.includes('import') ? 'unknown' : run.record.origin),
   };
 }));
-const entries = await getReports();
-const dependents = [...new Set([...downstream(experiment), ...entries.filter(entry => entry.id !== experiment && entry.data.runs?.[experiment]).map(entry => entry.id)])].sort();
+const dependents = [...new Set([...downstream(experiment), ...entries.filter(entry => entry.id !== experiment && entry.data.inputs.includes(experiment)).map(entry => entry.id)])].sort();
 const reports = new Set(entries.map(report => report.id));
 const titles = new Map(entries.map(report => [report.id, report.data.title]));
 const experimentUrl = (id: string) => reports.has(id) ? `/${id}` : `https://pl.eoinmurray.info/${id}/`;

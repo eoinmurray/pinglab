@@ -7,8 +7,6 @@ description: "Across PING networks trained at different inhibitory decay times, 
 collection: ["gamma-gated-sparsity", "experiments"]
 author: "Eoin Murray"
 tags: ["data", "v37.0.0"]
-runs: {"exp041": "exp041-r005-present"}
-thumbnailRun: "exp041-r005-present"
 thumbnail: "training_curves.svg"
 inputs: ["exp041"]
 ---
@@ -49,7 +47,7 @@ Final test accuracies spanned {accLo}–{accHi}% across the trained networks.
 The retained histories show the preceding {epochs} validation epochs;
 these endpoint comparisons use final weights, not accuracy-selected epochs.
 
-<PublishedFigure run="exp041-r005-present" file="training_curves.svg" alt="Validation accuracy and excitatory firing rate over training across the inhibitory-decay sweep." >
+<PublishedFigure experiment="exp041" file="training_curves.svg" alt="Validation accuracy and excitatory firing rate over training across the inhibitory-decay sweep." >
   Figure 1: **(A)** Reused validation accuracy and **(B)** excitatory rate, one line per trained network across {epochs} epochs. Subsequent test measurements used final-epoch weights; accuracy convergence did not select the epoch.
 </PublishedFigure>
 
@@ -59,7 +57,7 @@ these endpoint comparisons use final weights, not accuracy-selected epochs.
 
 Per-network interpolated frequencies spanned approximately {fgLo}–{fgHi} Hz across the inhibitory-decay sweep ([Fig. 2](#loc-5)).
 
-<PublishedFigure run="exp041-r005-present" file="psds.svg" id="loc-5" alt="Population-E power spectra by τ_GABA, gamma peak shifting with the inhibitory time constant." >
+<PublishedFigure experiment="exp041" file="psds.svg" id="loc-5" alt="Population-E power spectra by τ_GABA, gamma peak shifting with the inhibitory time constant." >
   Figure 2: Population-E power spectral densities (PSDs), averaged across trials and then seeds at each inhibitory decay time. Dots mark binned peaks of these displayed means.
 </PublishedFigure>
 
@@ -67,7 +65,7 @@ Per-network interpolated frequencies spanned approximately {fgLo}–{fgHi} Hz ac
 
 ### Inhibitory-timescale rasters
 
-<PublishedFigure run="exp041-r005-present" file="raster_strip.png" alt="One MNIST trial through each τ_GABA network; the gamma cycle period lengthens with τ_GABA." >
+<PublishedFigure experiment="exp041" file="raster_strip.png" alt="One MNIST trial through each τ_GABA network; the gamma cycle period lengthens with τ_GABA." >
   Figure 3: The same illustrative MNIST image at inhibitory decay times **(A–F)** 4.5, 6, 9, 12, 18 and 27 ms, respectively, using seed 42. Each panel shows 200 excitatory and 64 inhibitory neurons during the first 100 ms; displayed rates use the full populations and 200 ms trial. These probes illustrate timing, not the population frequency estimate.
 </PublishedFigure>
 
@@ -77,7 +75,7 @@ Per-network interpolated frequencies spanned approximately {fgLo}–{fgHi} Hz ac
 
 Individual network rates spanned {erLo}–{erHi} Hz and accuracies {accLo}–{accHi}% across the six inhibitory-decay conditions ([Fig. 4](#loc-8)).
 
-<PublishedFigure run="exp041-r005-present" file="rate_vs_fgamma.svg" id="loc-8" alt="Post-training E rate against gamma frequency; points lie on the affine fit line." >
+<PublishedFigure experiment="exp041" file="rate_vs_fgamma.svg" id="loc-8" alt="Post-training E rate against gamma frequency; points lie on the affine fit line." >
   Figure 4: **(A)** Final-epoch excitatory rate and **(B)** test accuracy against gamma frequency. Each point is a mean over three seeds; error bars show ±1 standard error. The affine line fits six condition means.
 </PublishedFigure>
 

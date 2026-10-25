@@ -132,55 +132,47 @@ conductance for each pathway. This runset contains no pathway-ablation controls.
 
 <span id="mean-field-model" />
 
-## D. Four-state mean-field extension
+## D. Mean-field parameters and numerical checks
 
-The model in the main text is an adapted extension of [exp117](/exp117), using
-its population-rate and conductance variables. It is a population closure, not
-an exact reduction of the spiking network. No exp117 numerical results are used
-as scientific inputs. All six couplings are calculated from exp148's explicitly
-referenced native parameter snapshot, not from initializer means.
+The [mean-field note](/notes/mean-field-model) gives the model, gain,
+[analytical gain slope](/notes/mean-field-model#derivation-gain-slope) and
+[four-state reduction](/notes/mean-field-model#four-state-reductions).
+The [main-text specialisation](#model-specialisation) defines exp148's pathways
+and Input→I gain schedule. No exp117 numerical results are scientific inputs.
 
-The stationary gain uses exp148's capacitance, leak, resting/reset/threshold
-voltages and refractory periods. The 4 mV voltage-noise scale and 20/5 ms
-E/I rate-relaxation times are unchanged exp117 assumptions. The gain's Siegert
-integral and derivative are given in [exp117, Equations A10 and A15](/exp117#loc-11),
-following [Kreutz-Delgado (2015)](https://doi.org/10.48550/arXiv.1501.04032).
-The original ms-based rate is multiplied by 1,000 to obtain Hz.
+All six matrix sums use the referenced native parameter snapshot, including
+zeros and excluded autapses; initializer means are not substituted. The gain
+uses exp148's recorded capacitance, leak, reset/threshold voltages and refractory
+periods. Its fixed noise scale is $\sigma_{V,Q}=4$ mV and rate-relaxation times
+are $\tau_{r,E}=20$ ms and $\tau_{r,I}=5$ ms. For both target populations,
+$\Delta V_{\mathrm{exc},Q}=70$ mV and $\Delta V_{\mathrm{inh},Q}=10$ mV.
+These closure choices and couplings are not fitted to the observed transition.
+Explicit transmission delays and weight heterogeneity are omitted; the note
+describes the shared-input covariance and shunting approximations.
 
-E→E excitation and E→I excitation share one presynaptic population and decay
-constant, as do I→I and I→E inhibition. Their homogeneous mean conductances are
-therefore proportional when initialized consistently, as at the equilibrium
-used here. This permits the two self-coupling conductances to be reconstructed
-from the two cross-population conductance states. It does not assert exact
-proportionality between conductances of individual neurons in the sparse
-spiking circuit. Different decay constants or independent initial conductance
-components would require additional states.
+The note's equations use spikes/neuron/ms. Exp148's implementation and rate
+figures use Hz: rates and gains are multiplied by 1,000, and rate inputs to
+conductance filters are divided by 1,000. Solver tolerances below are stated
+in the implementation's Hz units. The scheduled matrix gain $\alpha$ acts on
+new external input; substituting its instantaneous stationary mean omits the
+5 ms input-filtering lag during the ramp.
 
-External input is replaced by its instantaneous stationary mean. The changing
-external drive's 5 ms filtering lag and the shared pool's covariance are omitted.
-Fixed resting-voltage driving forces omit shunting; weight heterogeneity and
-explicit synaptic transmission delays are also omitted.
+The current recipe uses SNNLab's native `NoisyLIF` gain with 48-point
+Gauss–Legendre quadrature, symbolic Jacobian, bounded equilibrium continuation
+and Brent stability-crossing refinement. Its matched-decay reduction retains
+$g_e^I$ and $g_i^E$; reconstructed self-pathway conductances must satisfy the
+native model's constraints. The recorded graph is copied before translating
+only its Input→I modulation into an explicit numerical control. The original
+spiking evidence remains unchanged.
 
-Equilibria are continued through 201 multipliers from one to zero using bounded
-least squares, requiring a maximum rate residual below $10^{-7}$ Hz. This follows
-one numerically found branch and does not establish global uniqueness. Gain
-integrals use 48-point Gauss–Legendre quadrature. The analytical four-by-four
-conductance-state Jacobian is checked against finite differences, with step sizes
-scaled to each state variable's units. A direct change-of-coordinates check
-preserves the flow and Jacobian of the earlier filtered-rate formulation.
-Brent refinement locates a zero of the largest eigenvalue real part. At the
-reported crossing, the critical pair has nonzero imaginary part, the remaining
-pair stays stable, and the real part changes with the multiplier. These are
-local Hopf conditions, not a determination of bifurcation criticality. Doubling
-the quadrature resolution to 96 points preserves the crossing's eigenvalues
-to numerical precision.
+The selected figure retains the numerical implementation recorded in its run.
+Earlier figures used the experiment's local gain and Jacobian; those duplicate
+implementations and comparison references have been removed. Protocol tests
+now cover native model construction, modulation handling and exported units.
+A complex crossing is an onset candidate; it does not determine criticality.
 
-The matched protocol uses the recorded 50 ms burn-in and three 750 ms windows.
-Its initial state is the full-drive equilibrium with a 0.001 Hz E-rate
-perturbation. LSODA uses relative tolerance $10^{-8}$ and absolute rate tolerance
-$10^{-10}$ Hz. Each conductance's absolute tolerance is the rate tolerance
-multiplied by its equilibrium conductance-per-rate factor,
-$\tau_sG_{E\to I}/1000$ or $\tau_sG_{I\to E}/1000$ in µS/Hz. This rescales the
-previous error controls without changing the model. Maximum step and output
-sampling interval are both 0.5 ms. Neither closure constants nor coupling
-strengths are fitted to the observed transition.
+LSODA uses relative tolerance $10^{-8}$ and native absolute
+rate tolerance $10^{-10}$ Hz. Conductance absolute tolerances multiply that rate
+tolerance by $\tau_{E\to I}\sum_{j,k}\mathbf W^{E\to I}_{jk}/(1000N_I)$ or
+$\tau_{I\to E}\sum_{j,k}\mathbf W^{I\to E}_{jk}/(1000N_E)$, respectively, in
+µS/Hz. The maximum integration step is 0.5 ms.

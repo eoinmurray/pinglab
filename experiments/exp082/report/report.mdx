@@ -7,8 +7,6 @@ description: "A multi-seed study of spike-count classification across input rate
 collection: ["gamma-gated-sparsity", "experiments"]
 author: "Eoin Murray"
 tags: ["data", "v37.0.0"]
-runs: {"exp082": "exp082-r033-present"}
-thumbnailRun: "exp082-r033-present"
 thumbnail: "continuous_stream_compound.png"
 inputs: ["exp082"]
 ---
@@ -43,7 +41,7 @@ One frozen PING network correctly classified five successive digits with varying
 
 At 25 Hz, increasing presentation duration from 25 to 200 ms raised mean accuracy from {accuracy2525} to {accuracy20025} ([Fig. 1](#loc-4)E–F). At 200 ms, increasing input rate from 0.5 to 25 Hz raised accuracy from {accuracy20005} to {accuracy20025}. These comparisons used the same ordered images; variation from spike encoding and the small, fixed image sample remains.
 
-<PublishedFigure run="exp082-r033-present" file="continuous_stream_compound.png" id="loc-4" alt="Five correctly classified digits with varying durations and input rates, alongside mean accuracy across presentation duration and input rate and the 200-ms rate–accuracy curve." >
+<PublishedFigure experiment="exp082" file="continuous_stream_compound.png" id="loc-4" alt="Five correctly classified digits with varying durations and input rates, alongside mean accuracy across presentation duration and input rate and the 200-ms rate–accuracy curve." >
   Figure 1: Seed-42 network presented with digits {heroDigits}. Each segment is labelled with its duration and maximum-pixel input rate. **(A)** Input thumbnails with true→predicted labels. **(B)** Spikes from the first 200 excitatory neurons; **(C)** spikes from the first 64 inhibitory neurons; **(D)** softmax-normalized output-count shares. Red traces identify the true classes. Panels A–D reuse the selected illustrative recording, independently of the quantitative evaluation in E–F. **(E)** Accuracy across presentation duration and maximum-pixel input rate; **(F)** the 200-ms rate–accuracy curve. Values are means across three independently trained networks, each evaluated on {digitsPerCondition} digit presentations per condition. The same 40 ordered five-image streams were used for every network and condition, with separate encoding draws. E has no uncertainty intervals; F shows SEM across networks.
 </PublishedFigure>
 
@@ -53,7 +51,7 @@ At 25 Hz, increasing presentation duration from 25 to 200 ms raised mean accurac
 
 By the presentation’s end, the true class, digit {exampleDigit}, had accumulated the largest output-spike count ([Fig. 2](#loc-6)). Intermediate leaders did not determine the decision.
 
-<PublishedFigure run="exp082-r033-present" file="single_trial.png" id="loc-6" alt="A correctly classified digit with excitatory and inhibitory rasters and ten softmax count-share trajectories." >
+<PublishedFigure experiment="exp082" file="single_trial.png" id="loc-6" alt="A correctly classified digit with excitatory and inhibitory rasters and ten softmax count-share trajectories." >
   Figure 2: First correct digit in the seed-42 network’s matched 200-ms, 5-Hz stream. **(A)** Spikes from the first 200 excitatory neurons; **(B)** spikes from the first 64 inhibitory neurons; **(C)** softmax-normalized output-count shares. Red identifies the true class. These shares are not calibrated probabilities. The predicted digit is the class with the largest share at the presentation’s end.
 </PublishedFigure>
 
@@ -63,7 +61,7 @@ By the presentation’s end, the true class, digit {exampleDigit}, had accumulat
 
 Output counts stepped upward at spikes and remained constant between them ([Fig. 3](#loc-8)). Softmax normalization changed the displayed class shares at these increments; abrupt share changes need not reflect abrupt changes in the underlying network state.
 
-<PublishedFigure run="exp082-r033-present" file="single_trial_transition.png" id="loc-8" alt="Output spikes, cumulative class counts and softmax count shares from 91.5 to 94.5 ms in the same digit presentation." >
+<PublishedFigure experiment="exp082" file="single_trial_transition.png" id="loc-8" alt="Output spikes, cumulative class counts and softmax count shares from 91.5 to 94.5 ms in the same digit presentation." >
   Figure 3: Post-hoc enlargement of 91.5–94.5 ms from the digit-4 presentation. **(A)** Output spikes; **(B)** cumulative class counts; **(C)** softmax-normalized count shares. Red identifies the true class.
 </PublishedFigure>
 
@@ -73,7 +71,7 @@ Output counts stepped upward at spikes and remained constant between them ([Fig.
 
 A stream with varying durations and input rates produced {correctStreamDigits} correct decisions ([Fig. 4](#loc-10)). The 200-ms, 0.5-Hz presentation produced no output spikes, whereas the 100-ms, 2-Hz presentation was misclassified despite output activity.
 
-<PublishedFigure run="exp082-r033-present" file="variable_stream.png" id="loc-10" alt="Five digits with changing rates and durations: three correct predictions, a silent 0.5 Hz failure and a non-silent 2 Hz failure." >
+<PublishedFigure experiment="exp082" file="variable_stream.png" id="loc-10" alt="Five digits with changing rates and durations: three correct predictions, a silent 0.5 Hz failure and a non-silent 2 Hz failure." >
   Figure 4: Seed-42 network under the duration–rate conditions labelled above each segment. **(A)** Input thumbnails; **(B)** excitatory spikes; **(C)** inhibitory spikes; **(D)** softmax-normalized output-count shares. Badges show true→predicted labels. Thumbnail opacity indicates relative input rate; population sampling matches Figure 1.
 </PublishedFigure>
 

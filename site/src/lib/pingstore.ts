@@ -1,5 +1,5 @@
 import { runStore } from './run-store.ts';
-import { localAssetUrl, selectAsset } from './run-assets';
+import { localAssetUrl, selectAsset } from './run-assets.ts';
 
 async function countCompletedRuns(experiment: string): Promise<number> {
   return (await runStore.ids(experiment)).length;
@@ -7,7 +7,7 @@ async function countCompletedRuns(experiment: string): Promise<number> {
 
 const runCounts = new Map<string, Promise<number>>();
 export function completedRunCount(experiment: string): Promise<number> {
-  if (import.meta.env.DEV) return countCompletedRuns(experiment);
+  if (import.meta.env?.DEV) return countCompletedRuns(experiment);
   if (!runCounts.has(experiment)) runCounts.set(experiment, countCompletedRuns(experiment));
   return runCounts.get(experiment)!;
 }
@@ -26,7 +26,7 @@ async function findLatestPresentation(experiment: string): Promise<Presentation 
   return { id, completedAt: Date.parse(record.execution.completed_at) };
 }
 
-// Freeze unpinned selections for the build/dev session, matching MDX module bindings.
+// Freeze presentation selections for the build/dev session, matching MDX module bindings.
 export function optionalPresentation(experiment: string): Promise<Presentation | undefined> {
   if (!selections.has(experiment)) selections.set(experiment, findLatestPresentation(experiment));
   return selections.get(experiment)!;
@@ -39,7 +39,7 @@ export async function latestPresentation(experiment: string): Promise<Presentati
 }
 
 export async function imageUrl(runId: string, filename: string): Promise<string> {
-  if (import.meta.env.DEV) return localAssetUrl(runId, filename);
+  if (import.meta.env?.DEV) return localAssetUrl(runId, filename);
   return (await selectAsset(runId, filename)).url;
 }
 
@@ -107,7 +107,7 @@ async function findDataset(experiment: string, runId?: string) {
 const datasets = new Map<string, ReturnType<typeof findDataset>>();
 
 export function dataset(experiment: string, runId?: string) {
-  if (import.meta.env.DEV) return findDataset(experiment, runId);
+  if (import.meta.env?.DEV) return findDataset(experiment, runId);
   const key = runId ?? experiment;
   if (!datasets.has(key)) datasets.set(key, findDataset(experiment, runId));
   return datasets.get(key)!;

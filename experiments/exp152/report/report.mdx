@@ -7,7 +7,6 @@ updated_at: "2026-10-25T18:49:54Z"
 description: "Near-real-time joint control with Hodgkin–Huxley neurons in SNNLab, running in connected ROS2 Humble nodes."
 collection: ["experiments", "animations"]
 tags: ["data"]
-runs: {exp152: exp152-r061-present}
 inputs: ["exp152"]
 ---
 
@@ -28,7 +27,12 @@ so the implementation still needs timing work.
 
 ## Results
 
-{evidence && <Replay run="exp152" />}
+The replay records the PyTorch tensor HH callback registered through SNNLab's
+custom-neuron API, with SNNLab compilation enabled. All three nodes completed
+the eight-second protocol. Behaviour checks passed, but the 1 ms deadline checks
+failed. Earlier recordings used a C/C++ HH operator and remain separate evidence.
+
+{evidence && <Replay experiment="exp152" />}
 
 ## Neuron Model
 
@@ -82,9 +86,11 @@ $x_0=\alpha_x(V_0)/[\alpha_x(V_0)+\beta_x(V_0)]$.
 
 A spike is reported when $V$ crosses 0 mV upwards during an update; the membrane
 voltage is not reset. Both populations advance by 1 ms per update, with unscaled
-channel kinetics. A native CPU kernel integrates each interval using RK4 steps
-of at most 0.025 ms. The inhibitory cell has twice the motor cell's membrane
-capacitance; the recorded values are listed in Parameters.
+channel kinetics. The current SNNLab custom-neuron callback integrates each
+interval using PyTorch tensor operations and RK4 steps of at most 0.025 ms.
+SNNLab compiles this callback before the shared ROS start; compilation and warm-up
+are excluded from the callback timings. The inhibitory cell has twice the motor
+cell's membrane capacitance; the recorded values are listed in Parameters.
 
 ## Joint Dynamics Model
 

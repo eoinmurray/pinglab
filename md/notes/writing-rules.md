@@ -4,7 +4,7 @@ author: Eoin Murray
 collection: notes
 description: Brief, plain-English writing grounded in code and data.
 created_at: "2026-10-14"
-updated_at: "2026-10-22T10:31:33Z"
+updated_at: "2026-10-24T12:45:31Z"
 ---
 
 # Writing Rules
@@ -113,14 +113,14 @@ updated_at: "2026-10-22T10:31:33Z"
 
 ### 5.1. Parameter-table data binding
 
-1. Render SNNLab parameter tables from saved native snapshots, following the pinned
+1. Render SNNLab parameter tables from saved native snapshots, following the selected
    presentation's recorded compute ancestry. Select snapshots for the weights shown,
    such as final-training or best-validation weights.
 2. Read input, training and analysis settings from the same run's recorded configuration.
 3. Keep row selection, labels, grouping, units and display-only derivations in reports.
    Do not use separate `parameter_table` payloads, preformatted rows or copied
    parameter dictionaries from analysis or presentation outputs.
-4. Shared report loaders may resolve pinned lineage and read native snapshots;
+4. Shared report loaders may resolve selected lineage and read native snapshots;
    they must not replace native serialization or silently select another run.
 5. Show missing snapshots or fields as unavailable, or fail explicitly. Never
    fall back to current recipe defaults or old table rows.
@@ -131,7 +131,9 @@ updated_at: "2026-10-22T10:31:33Z"
 
 1. Ground scientific claims in code and displayed data. Omit unsupported claims
    and unperformed work.
-2. Bind figures, numerical summaries and parameters to the same pinned evidence.
+2. Bind figures, numerical summaries and parameters to the same selected evidence.
+   Select the latest completed presentation once per build or development session;
+   do not pin run IDs in report metadata, figures, thumbnails or animations.
    Prefer data-bound numerical summaries where supported.
 3. For SNNLab simulations, read model parameters from exported `SnapshotSpec`
    evidence and input, training and analysis settings from recorded configuration.

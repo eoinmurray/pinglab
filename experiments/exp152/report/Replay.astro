@@ -1,13 +1,11 @@
 ---
-import { getEntry } from 'astro:content';
 import { latestPresentation, imageUrl } from '../../../site/src/lib/pingstore';
-interface Props { run: string }
-const { run } = Astro.props;
-const pin = (await getEntry('reports', run))?.data.runs?.[run];
-const identity = pin ?? (await latestPresentation(run)).id;
+interface Props { experiment: string }
+const { experiment } = Astro.props;
+const run = (await latestPresentation(experiment)).id;
 ---
 <figure class="l-body" id="joint-replay">
-  <joint-replay class="joint-recording" data-source={await imageUrl(identity, 'circuit.json')}>
+  <joint-replay class="joint-recording" data-source={await imageUrl(run, 'circuit.json')}>
     <div data-id="error" role="alert" hidden></div>
     <section class="panel" aria-label="Recorded circuit and callback replay">
       <div class="replay-visuals">

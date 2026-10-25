@@ -11,7 +11,7 @@ export async function getStaticPaths() {
     if (!report.data.tags.includes('data')) continue;
     let selections;
     try {
-      selections = report.data.runs ? Object.values(report.data.runs).map(id => ({ id })) : [await latestPresentation(report.id)];
+      selections = await Promise.all([...new Set([report.id, ...report.data.inputs])].map(id => latestPresentation(id)));
     } catch (error) {
       console.error(`[run-images] ${report.id}:`, error);
       continue;

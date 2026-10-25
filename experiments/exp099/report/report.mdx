@@ -7,8 +7,6 @@ description: "Independent excitatory afferent drive strengthens population burst
 collection: ["animations", "paper-inspired", "experiments"]
 author: "Eoin Murray"
 tags: ["data", "v37.0.0"]
-runs: {"exp099": "exp099-r010-present"}
-thumbnailRun: "exp099-r010-present"
 thumbnail: "network.svg"
 abstract: "We tested whether increased nonrhythmic afferent excitation recruits collective oscillations in a modified replication of Susin and Destexhe’s (2021) PING network. We searched afferent rates and recurrent weights in a smaller conductance-based LIF network for weak baseline correlations and stimulus-dependent bursting. Increased excitation onto both populations raised mean E firing from 3.53 to 11.51 Hz and strengthened bursting in the selected simulation. This single-seed exploratory search characterizes one selected configuration."
 inputs: ["exp099"]
@@ -35,7 +33,7 @@ Our 2,000-neuron network is smaller and denser but gives each neuron fewer recur
 
 ### Recorded circuit
 
-<PanelA run="exp099-r010-present" />
+<PanelA experiment="exp099" />
 
 <span id="loc-6" />
 
@@ -47,7 +45,7 @@ In the selected configuration, a 50% increase in E- and I-targeted afferent rate
 
 Excitatory and inhibitory neurons formed aligned bursts during increased drive ([Fig. 3](#loc-9)B). Their plateau spike-count profiles overlap strongly but vary in amplitude and timing ([Fig. 3](#loc-9)C–D); narrow burst bands alternate with dispersed spikes.
 
-<PublishedFigure run="exp099-r010-present" file="spike-raster.png" id="loc-9" alt="Four-panel plot showing afferent rates, all E and I spikes over 600 ms, a 250–350 ms raster close-up, and unsmoothed population spike counts in 1 ms bins." >
+<PublishedFigure experiment="exp099" file="spike-raster.png" id="loc-9" alt="Four-panel plot showing afferent rates, all E and I spikes over 600 ms, a 250–350 ms raster close-up, and unsmoothed population spike counts in 1 ms bins." >
   Figure 3: Spike timing in the seed-7 simulation, after the hidden 500 ms baseline. A: coincident E- and I-targeted rates (black solid and red dashed). B: all spikes from 1,600 E neurons (black, lower) and 400 I neurons (red, upper); dotted lines mark the pulse and shading the close-up. C: the 250–350 ms plateau window. D: unsmoothed population-total counts in 1 ms bins over that window; E contains four times as many neurons as I.
 </PublishedFigure>
 
@@ -55,7 +53,7 @@ Excitatory and inhibitory neurons formed aligned bursts during increased drive (
 
 ### Reference PING network
 
-<PublishedFigure run="exp099-r010-present" file="susin-destexhe-2021-ping.png" id="loc-11" alt="Published PING column from Susin and Destexhe Figure 4, showing panels B and C: external Poisson drive and the spike raster." >
+<PublishedFigure experiment="exp099" file="susin-destexhe-2021-ping.png" id="loc-11" alt="Published PING column from Susin and Destexhe Figure 4, showing panels B and C: external Poisson drive and the spike raster." >
   Figure 4: Cropped from Figure 4 (left PING column, panels B and C) of Susin and Destexhe (2021).\[[1](#ref-1)\] © 2021 Susin and Destexhe; reproduced under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). B shows external Poisson drive; C shows the spike raster. Original panel labels and colours are retained.
 </PublishedFigure>
 

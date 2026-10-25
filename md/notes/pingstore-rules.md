@@ -4,7 +4,7 @@ author: Eoin Murray
 collection: notes
 description: Where Pingstore runs live, basic CLI usage and safe handling of experiment outputs.
 created_at: "2026-09-11"
-updated_at: "2026-10-23T17:06:00Z"
+updated_at: "2026-10-24T12:45:31Z"
 ---
 
 # Pingstore Guide
@@ -70,17 +70,17 @@ before scientific execution. Backup can use cataloged remote-only ancestors.
 The public website catalog is `https://assets.eoinmurray.info/pingstore/catalog.json`.
 It embeds completed records and per-file SHA-256 checksums. The server-side Astro
 reader checks downloaded files against those checksums. Localhost prefers local
-copies and otherwise reads R2; production builds read R2 exclusively. Explicit
-report pins retain priority over latest selection. Browser animation JSON needs
+copies and otherwise reads R2; production builds read R2 exclusively. Reports
+select the latest completed presentation once per build or development session,
+sharing that selection across figures, numbers and native snapshots. Browser animation JSON needs
 public GET/HEAD CORS. Deployments use the normal GitHub Actions Pages workflow;
 new run backups appear in static report text only after another site build.
 
 Limit pruning to one experiment with `prune --experiment exp141 --dry-run`.
 Runs outside that scope and their full input ancestry are retained. Report usage
-is still checked across all experiments, but missing report pins outside the
-selected experiment do not block scoped pruning. Missing pins that declare or
-name the selected experiment still fail; pruning all experiments requires every
-explicit report pin to resolve. Every existing run’s payload remains validated in either mode. Retained runs
+is checked across all experiments using their latest completed presentations.
+Reports declare source experiments through `inputs`, without pinning run IDs.
+Every existing run’s payload remains validated. Retained runs
 must also have complete, digest-matched input ancestry; an unused run being
 pruned may reference a missing or changed historical input.
 

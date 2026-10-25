@@ -327,13 +327,13 @@ Once destinations were in range and unique, we reconstructed binary streams pres
 
 ## Network diagrams
 
-{nativeCircuits.length ? nativeCircuits.map((file, index) => <RunFigure report="exp110" experiment="exp025" file={file} number={index + 1} alt="Circuit diagram from the compiled execution bundle.">Executed network architecture; parameters and seeds reuse this layout.</RunFigure>) : <p>The pinned historical computation does not retain a native compiled circuit figure for this appendix. Its architecture is described in Methods; a new execution is required to supply the executed bundle's diagram.</p>}
+{nativeCircuits.length ? nativeCircuits.map((file, index) => <RunFigure report="exp110" experiment="exp025" file={file} number={index + 1} alt="Circuit diagram from the compiled execution bundle.">Executed network architecture; parameters and seeds reuse this layout.</RunFigure>) : <p>The selected historical computation does not retain a native compiled circuit figure for this appendix. Its architecture is described in Methods; a new execution is required to supply the executed bundle's diagram.</p>}
 
 <span id="parameters" />
 
 ## Parameters
 
-Model values are read from original native snapshots through the pinned
+Model values are read from original native snapshots through the selected
 presentation's compute ancestry. Paired values are E / I. Initializer parent means and SDs describe the original
 weight distributions, in µS for conductance projections and dimensionless for
 the current-based readout; they are not measured trained-weight statistics. Missing snapshots

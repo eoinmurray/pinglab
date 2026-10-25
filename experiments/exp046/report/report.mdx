@@ -7,8 +7,6 @@ description: "Pooled and equally weighted network distributions support predomin
 collection: ["gamma-gated-sparsity", "experiments"]
 author: "Eoin Murray"
 tags: ["data", "v37.0.0"]
-runs: {"exp046": "exp046-r010-present"}
-thumbnailRun: "exp046-r010-present"
 thumbnail: "spikes_per_cycle_distribution_equal_network.svg"
 inputs: ["exp046"]
 ---
@@ -33,7 +31,7 @@ We measured excitatory spikes per inhibitory-burst cycle in eighteen trained PIN
 
 Across the balanced 18-network design, the equal-network mean assigned 76.35% of pairs to zero spikes, 22.09% to one spike and 1.56% to two or more spikes. Thus, 98.44% contained at most one spike ([Fig. 1](#loc-4)).
 
-<PublishedFigure run="exp046-r010-present" file="spikes_per_cycle_distribution_equal_network.svg" id="loc-4" alt="Six black bar charts in one row, one per τ_GABA, showing equal-network mean fractions for 0, 1, 2, or ≥3 excitatory spikes per neuron and gamma cycle." >
+<PublishedFigure experiment="exp046" file="spikes_per_cycle_distribution_equal_network.svg" id="loc-4" alt="Six black bar charts in one row, one per τ_GABA, showing equal-network mean fractions for 0, 1, 2, or ≥3 excitatory spikes per neuron and gamma cycle." >
   Figure 1: Equal-network distributions of excitatory spikes per neuron–cycle at $\tau_{\text{GABA}}$ values **(A–F)** 4.5, 6, 9, 12, 18 and 27 ms. Each separately trained network’s counts of pairs with 0, 1, 2 or ≥3 spikes were normalized to sum to one; black bars are arithmetic means across the three networks per condition, irrespective of their detected cycle totals. These distributions reuse epoch-50 spike recordings from the inhibitory-timescale sweep. Presentations without detected inhibitory bursts are excluded; no uncertainty interval is shown.
 </PublishedFigure>
 
@@ -47,7 +45,7 @@ Giving each trained network equal weight within its decay condition changed each
 
 Maximum per-neuron excitatory firing rate, $r_{E , \text{max}}$, scaled with spectral-peak frequency, $f_{\gamma}$, with through-origin fit $r_{E , \text{max}} = 0.977 f_{\gamma}$ and coefficient of determination $R_{\text{fit}}^{2} = 0.915$ ([Fig. 2](#loc-6)). Both rates are in hertz. Four of the 18 network maxima exceeded the one-spike-per-cycle reference, including 80.97 Hz at 67.21 Hz. Proximity of the fitted slope to one therefore does not establish a strict ceiling.
 
-<PublishedFigure run="exp046-r010-present" file="ceiling_vs_fgamma.svg" id="loc-6" alt="Maximum and median excitatory firing rates against spectral-peak frequency for 18 networks, including four maxima above the one-spike-per-cycle reference." >
+<PublishedFigure experiment="exp046" file="ceiling_vs_fgamma.svg" id="loc-6" alt="Maximum and median excitatory firing rates against spectral-peak frequency for 18 networks, including four maxima above the one-spike-per-cycle reference." >
   Figure 2: Per-neuron E rate versus measured gamma frequency $f_{\gamma}$ across the $\tau_{\text{GABA}}$ sweep. Triangles and circles show each network’s maximum and median neuron rates, respectively, averaged over all test presentations; colours group decay conditions. The dashed line is $r_{E} = f_{\gamma}$, where $r_{E}$ is per-neuron E rate. The dotted $0.20 f_{\gamma}$ line is a fixed visual reference, not a fitted participation estimate. Neither line is the fitted maximum-rate model.
 </PublishedFigure>
 

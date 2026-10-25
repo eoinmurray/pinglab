@@ -252,7 +252,12 @@ def test_no_cross_experiment_or_scratch_dependency():
                 for name in names
             )
         if path.name != "test.py":
-            assert ".scratch" not in path.read_text()
+            assert not any(
+                isinstance(node, ast.Constant)
+                and isinstance(node.value, str)
+                and ".scratch" in node.value
+                for node in ast.walk(ast.parse(path.read_text()))
+            )
 
 
 def mean_field_test_configuration():
@@ -262,137 +267,103 @@ def mean_field_test_configuration():
     )
 
 
-def test_mean_field_gain_matches_adaptive_quadrature_and_derivative():
-    from experiments.exp148.compute import mean_field_gain
-    from scipy.integrate import quad
-    from scipy.special import erfcx
+def test_native_mean_field_protocol_and_state_basis():
+    from snnlab import meanfield as mf
 
     cfg = mean_field_test_configuration()
-    nodes = np.polynomial.legendre.leggauss(cfg["gain_quadrature_nodes"])
     net = cfg["spiking_configuration"]
-    for current in (0.1, 0.25, 0.6, 2.0):
-        rates, derivatives = mean_field_gain([current, current], cfg, nodes)
-        a = (net["reset_mv"] - net["resting_mv"] - current / net["leak_us"]) / cfg[
-            "voltage_noise_mv"
-        ]
-        b = (net["threshold_mv"] - net["resting_mv"] - current / net["leak_us"]) / cfg[
-            "voltage_noise_mv"
-        ]
-        integral = quad(lambda u: erfcx(-u), a, b, epsabs=1e-10, epsrel=1e-10)[0]
-        for p, ref in enumerate([2.0, 1.0]):
-            reference = 1000 / (
-                ref + net["capacitance_nf"] / net["leak_us"] * np.sqrt(np.pi) * integral
-            )
-            assert rates[p] == pytest.approx(reference, rel=1e-9)
-        epsilon = 1e-6
-        plus = mean_field_gain([current + epsilon] * 2, cfg, nodes)[0]
-        minus = mean_field_gain([current - epsilon] * 2, cfg, nodes)[0]
-        np.testing.assert_allclose(
-            derivatives, (plus - minus) / (2 * epsilon), rtol=1e-6, atol=1e-8
+    bundle = recipe.author_network(net)
+    model = recipe.mean_field_model(cfg, bundle)
+    assert list(model.states) == [
+        "E.rate",
+        "I.rate",
+        "E_to_I.conductance",
+        "I_to_E.conductance",
+    ]
+    assert set(model.reconstructions) == {"E_to_E.conductance", "I_to_I.conductance"}
+    assert bundle.graph["projections"][-1]["modulation"] is not None
+    assert any(
+        "quasistatic" in value and "omit" in value for value in model.assumptions
+    )
+    control = recipe.mean_field_control(cfg)
+    for time in (0, 800, 1175, 1550, 2300):
+        assert control(time) == recipe.drive_gain(time, net)
+    branch = mf.continuation(
+        model, "X_to_I.gain", np.linspace(1, 0, 21), guess=[2, 6, 0.01, 0.02]
+    )
+    assert branch[0][2].max_real < 0 < branch[-1][2].max_real
+    crossings = mf.find_stability_crossings(model, "X_to_I.gain", branch)
+    assert len(crossings) == 1 and crossings[0].oscillatory
+    assert crossings[0].stable_before and crossings[0].stable_after is False
+    # Reconstruction ratios cannot vary during a four-state protocol.
+    with pytest.raises(ValueError, match="reconstruction"):
+        mf.integrate(
+            model,
+            duration=1,
+            initial=branch[0][1].state,
+            controls={"E_to_E.gain": lambda time: 1},
         )
 
 
-def test_mean_field_jacobian_and_equilibrium():
-    from experiments.exp148.compute import (
-        mean_field_current_map,
-        mean_field_equilibrium,
-        mean_field_flow,
-        mean_field_jacobian,
-    )
-
+def test_mean_field_rejects_unhandled_graph_modulation():
     cfg = mean_field_test_configuration()
-    nodes = np.polynomial.legendre.leggauss(cfg["gain_quadrature_nodes"])
-    state = mean_field_equilibrium(0.7, [2, 8], cfg, nodes)
-    np.testing.assert_allclose(mean_field_flow(state, 0.7, cfg, nodes), 0, atol=1e-8)
-    steps = 1e-5 * np.array([1, 1, *cfg["conductance_per_hz"]])
-    finite = np.column_stack(
-        [
-            (
-                mean_field_flow(state + np.eye(4)[i] * step, 0.7, cfg, nodes)
-                - mean_field_flow(state - np.eye(4)[i] * step, 0.7, cfg, nodes)
-            )
-            / (2 * step)
-            for i, step in enumerate(steps)
-        ]
-    )
-    np.testing.assert_allclose(
-        mean_field_jacobian(state, 0.7, cfg, nodes), finite, rtol=1e-6, atol=1e-8
-    )
-    recurrent, external = mean_field_current_map(cfg)
-    assert np.all(recurrent[:, 0] > 0) and np.all(recurrent[:, 1] < 0)
-    delta = mean_field_flow(state, 1, cfg, nodes) - mean_field_flow(
-        state, 0, cfg, nodes
-    )
-    assert delta[0] == 0 and delta[1] > 0
-    assert np.all(delta[2:] == 0)
-    assert np.all(external > 0)
+    bundle = recipe.author_network(cfg["spiking_configuration"])
+    bundle.graph["projections"][0]["modulation"] = dict(kind="unexpected")
+    with pytest.raises(ValueError, match="only Input"):
+        recipe.mean_field_model(cfg, bundle)
+    bundle = recipe.author_network(cfg["spiking_configuration"])
+    bundle.graph["projections"][-1]["modulation"]["after"] = 0.5
+    with pytest.raises(ValueError, match="disagrees"):
+        recipe.mean_field_model(cfg, bundle)
 
 
-def test_mean_field_oscillatory_crossing_and_quadrature_convergence():
-    from experiments.exp148.compute import mean_field_equilibrium, mean_field_jacobian
-    from scipy.optimize import brentq
+def test_mean_field_stage_uses_native_source_and_preserves_outputs(
+    tmp_path, monkeypatch
+):
+    from experiments.exp148 import compute
+    from pingstore import stages
+    from pingstore.contracts import load_json
+    from pingstore.stages import source_run, stage_run
 
-    cfg = mean_field_test_configuration()
-    nodes = np.polynomial.legendre.leggauss(cfg["gain_quadrature_nodes"])
-
-    def eigenvalues(alpha, quadrature=nodes):
-        state = mean_field_equilibrium(alpha, [3, 12], cfg, quadrature)
-        return np.linalg.eigvals(mean_field_jacobian(state, alpha, cfg, quadrature))
-
-    assert eigenvalues(1).real.max() < 0
-    assert eigenvalues(0).real.max() > 0
-    crossing = brentq(lambda alpha: eigenvalues(alpha).real.max(), 0, 1)
-    values = eigenvalues(crossing)
-    critical = np.argsort(np.abs(values.real))[:2]
-    assert np.all(np.abs(values[critical].imag) > 1e-3)
-    assert np.max(np.delete(values.real, critical)) < 0
-    fine = eigenvalues(crossing, np.polynomial.legendre.leggauss(96))
-    np.testing.assert_allclose(
-        np.sort_complex(values), np.sort_complex(fine), atol=1e-10
+    monkeypatch.setattr(stages, "memberships", lambda repo: {"exp148": "experiments"})
+    monkeypatch.setattr(
+        stages,
+        "_capture_code",
+        lambda repo, directory: {
+            "git_commit": "0" * 40,
+            "dirty": False,
+            "code_dirty": False,
+        },
     )
 
-
-def test_conductance_states_preserve_filtered_rate_flow_and_eigenvalues():
-    from experiments.exp148.compute import (
-        mean_field_current_map,
-        mean_field_flow,
-        mean_field_gain,
-        mean_field_jacobian,
-    )
-
-    cfg = mean_field_test_configuration()
-    nodes = np.polynomial.legendre.leggauss(cfg["gain_quadrature_nodes"])
-    tau = cfg["spiking_configuration"]["tau_synapse_ms"]
-    scale = np.array([1, 1, *cfg["conductance_per_hz"]])
-    filtered_state = np.array([3.0, 12.0, 2.0, 5.0])
-    state = filtered_state * scale
-    current, external = mean_field_current_map(cfg)
-    rate_coupling = current @ np.diag(cfg["conductance_per_hz"])
-    for alpha in (1, 0.5, 0):
-        target, slope = mean_field_gain(
-            rate_coupling @ filtered_state[2:] + external * [1, alpha], cfg, nodes
+    monkeypatch.setattr(compute, "REPO", tmp_path)
+    cfg = small_configuration()
+    with stage_run(tmp_path, "exp148", "compute", configuration=cfg) as run:
+        run.record["scientific_artifacts"] = dict(
+            snapshot_stages={"simulation": ["start"]}
         )
-        reference_flow = np.concatenate(
-            [
-                (target - filtered_state[:2]) / cfg["rate_relaxation_ms"],
-                (filtered_state[:2] - filtered_state[2:]) / tau,
-            ]
-        )
+        execute(cfg, run.export / "simulation")
+    identity = compute.compute_mean_field(run.run_id)
+    model_run = source_run(tmp_path / ".pingstore", identity)
+    assert model_run.record["inputs"]["spiking"]["run_id"] == run.run_id
+    assert model_run.record["execution"]["snnlab_version"]
+    saved = load_json(model_run.file("mean-field-model.json"))
+    assert saved["state_order"] == [
+        "E.rate",
+        "I.rate",
+        "E_to_I.conductance",
+        "I_to_E.conductance",
+    ]
+    results = load_json(model_run.file("mean-field.json"))
+    assert len(results["continuation"]) == 201
+    assert results["continuation"][0]["alpha"] == 1
+    assert results["continuation"][-1]["alpha"] == 0
+    with np.load(model_run.file("mean-field.npz")) as data:
+        assert data["state"].shape == (len(data["time_ms"]), 4)
+        assert np.isfinite(data["state"]).all()
+        assert data["time_ms"][0] == 0
+        assert data["time_ms"][-1] == cfg["duration_ms"]
         np.testing.assert_allclose(
-            mean_field_flow(state, alpha, cfg, nodes),
-            reference_flow * scale,
-            atol=1e-12,
-        )
-        reference_jacobian = np.block(
-            [
-                [
-                    -np.diag(1 / np.array(cfg["rate_relaxation_ms"])),
-                    np.diag(slope / cfg["rate_relaxation_ms"]) @ rate_coupling,
-                ],
-                [np.eye(2) / tau, -np.eye(2) / tau],
-            ]
-        )
-        transformed = np.diag(scale) @ reference_jacobian @ np.diag(1 / scale)
-        np.testing.assert_allclose(
-            mean_field_jacobian(state, alpha, cfg, nodes), transformed, atol=1e-10
+            data["state"][0, :2],
+            np.array(results["continuation"][0]["state"][:2]) + [0.001, 0],
         )
