@@ -3,7 +3,7 @@ id: exp152
 title: "Streaming Control of a Rotary Joint"
 author: "Eoin Murray"
 created_at: "2026-10-24T06:35:43Z"
-updated_at: "2026-10-24T11:54:29Z"
+updated_at: "2026-10-25T18:49:54Z"
 description: "Near-real-time joint control with Hodgkin–Huxley neurons in SNNLab, running in connected ROS2 Humble nodes."
 collection: ["experiments", "animations"]
 tags: ["data"]
@@ -85,6 +85,44 @@ voltage is not reset. Both populations advance by 1 ms per update, with unscaled
 channel kinetics. A native CPU kernel integrates each interval using RK4 steps
 of at most 0.025 ms. The inhibitory cell has twice the motor cell's membrane
 capacitance; the recorded values are listed in Parameters.
+
+## Joint Dynamics Model
+
+Two spike-driven virtual muscles act on a damped rotary joint with a restoring spring:
+
+$$
+J\ddot{\theta}+b\dot{\theta}+k\theta
+=\tau_{\max}(a_f-a_e).
+$$
+
+Here $\theta$ is angle (rad), dots denote time derivatives in seconds, $J$ is
+rotational inertia (kg m$^2$), $b$ is damping (N m s/rad), and $k$ is stiffness
+(N m/rad). The dimensionless flexor/extensor activations are $a_f,a_e\in[0,1]$;
+$\tau_{\max}$ is maximum muscle torque (N m).
+
+At mechanical step $n$, each muscle $i\in\{f,e\}$ updates its activation as
+
+$$
+a_{i,n+1}=\min\!\left(1,
+a_{i,n}\exp[-\Delta t/\tau_a]+q\,s_{i,n}\right).
+$$
+
+Here $\Delta t$ is the timestep and $\tau_a$ the activation decay time, both in
+seconds; $q$ is a dimensionless increment. The input $s_{i,n}$ is the accepted
+motor spike count divided by that population's neuron count. Counts accumulate
+between plant callbacks and enter only the first mechanical step of the next
+callback; subsequent steps receive zero. Activation decays before spikes are
+added and capped at one. Spike increments are not multiplied by $\Delta t$.
+
+The updated activations determine torque. Semi-implicit Euler then updates
+velocity using the old angle and velocity, followed by angle using the new
+velocity. Angle, velocity and activations start at zero; exceeding a hard stop
+clamps the angle and sets velocity to zero.
+
+Before each mechanical update, sensory spikes go to the flexor while
+$\theta<-\theta_s$ and the extensor while $\theta>\theta_s$, where $\theta_s$
+is the sensory threshold (rad). Each channel enforces its own minimum interspike
+interval, producing repeated spikes beyond threshold. Recorded settings are in Parameters.
 
 ## Architecture Pseudocode
 
