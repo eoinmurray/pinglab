@@ -15,12 +15,14 @@ import numpy as np
 import rclpy
 from experiments.exp152.custom.models import (
     Controller,
+    SpikeWindowInbox,
     finish_measurement,
     start_measurement,
 )
-from experiments.exp152.recipe import SIDES, window_steps
+from experiments.exp152.recipe import SIDES, controller_settings, window_steps
 from rclpy.executors import SingleThreadedExecutor
 from rclpy.node import Node
+from rclpy.qos import HistoryPolicy, QoSProfile, ReliabilityPolicy
 from std_msgs.msg import Int64MultiArray, String
 
 
@@ -73,11 +75,53 @@ class RuntimeNode(Node):
         self.deliveries = []
         self.sequences = {}
         self.received_sequences = {}
-        self.diagnostics = self.create_publisher(String, "/diagnostics/" + name, 100)
+        self.diagnostics = self.create_publisher(
+            String,
+            "/diagnostics/" + name,
+            QoSProfile(
+                history=HistoryPolicy.KEEP_ALL, reliability=ReliabilityPolicy.RELIABLE
+            ),
+        )
+        self.spike_transport = json.loads(os.environ["EXP152_CONFIGURATION"])[
+            "spike_transport"
+        ]
+        self.frame_wait_ms = np.zeros(self.capacity)
+        if self.spike_transport == "logical":
+            sources = [node for node in (*SIDES, "plant") if node != name]
+            self.frame_inbox = SpikeWindowInbox(sources, self.substeps)
+            self.frame_publisher = self.create_publisher(
+                Int64MultiArray, "/frames/" + name, 1000
+            )
+            self.frame_subscriptions = [
+                self.create_subscription(
+                    Int64MultiArray,
+                    "/frames/" + source,
+                    lambda msg, source=source: self.frame_inbox.receive(
+                        source, msg.data
+                    ),
+                    1000,
+                )
+                for source in sources
+            ]
         self.finished = False
         self.stop_reason = "not_started"
         self.clock = self.get_clock()
         self.period_ns = round(self.timer_ms * 1e6)
+
+    def wait_for_frames(self, executor, release):
+        waiting = time.perf_counter_ns()
+        now = waiting
+        self.incoming_frames = self.frame_inbox.take(self.updates - 1)
+        while (
+            self.incoming_frames is None
+            and rclpy.ok()
+            and now - release <= self.max_lag_ms * 1e6
+        ):
+            executor.spin_once(timeout_sec=self.timer_ms / 1000)
+            now = time.perf_counter_ns()
+            self.incoming_frames = self.frame_inbox.take(self.updates - 1)
+        self.frame_wait_ms[self.updates] = (time.perf_counter_ns() - waiting) / 1e6
+        return now
 
     def execute(self):
         """Service ROS while waiting for fixed releases; never shift the origin."""
@@ -116,11 +160,13 @@ class RuntimeNode(Node):
                     timeout_sec=min((release - now) / 1e9, self.timer_ms / 1000)
                 )
                 now = time.perf_counter_ns()
+            if self.spike_transport == "logical":
+                now = self.wait_for_frames(executor, release)
+            if now >= end and self.spike_transport == "arrival":
+                self.stop_reason = "wall_window_ended"
+                break
             if not rclpy.ok():
                 self.stop_reason = "interrupted"
-                break
-            if now >= end:
-                self.stop_reason = "wall_window_ended"
                 break
             if now - release > self.max_lag_ms * 1e6:
                 self.stop_reason = "excessive_lag"
@@ -138,7 +184,22 @@ class RuntimeNode(Node):
                 wall_start - (started + sampled) // 2 - initial_offset
             ) / 1e6
             self.clock_sample_span[index] = (sampled - started) / 1e6
+            self.frame_events = []
             compute_ms = self.tick()
+            if self.spike_transport == "logical":
+                self.frame_publisher.publish(
+                    Int64MultiArray(
+                        data=[
+                            self.updates,
+                            self.substeps,
+                            *[
+                                int(value)
+                                for event in self.frame_events
+                                for value in event
+                            ],
+                        ]
+                    )
+                )
             self.steps += self.substeps
             self.stamps[index] = self.clock.now().nanoseconds
             self.timing[index, 0] = (started - release) / 1e6
@@ -222,6 +283,7 @@ class RuntimeNode(Node):
                     clock_offset_change_ms=self.clock_offset_change[index],
                     clock_sample_span_ms=self.clock_sample_span[index],
                     model_time_s=model_time,
+                    input_frame_wait_ms=self.frame_wait_ms[index],
                     wall_lag_ms=lag,  # Legacy field name; lag uses the monotonic release.
                     compute_ms=compute,
                     callback_ms=callback,
@@ -282,25 +344,19 @@ class ControllerNode(RuntimeNode):
     def __init__(self, side):
         super().__init__(side)
         self.side = side
+        cfg = json.loads(os.environ["EXP152_CONFIGURATION"])
         self.model = Controller(
             side,
             self.dt_ms,
             self.neurons,
             warm_steps=self.substeps,
-            compile_mode=json.loads(os.environ["EXP152_CONFIGURATION"])["compile_mode"],
+            compile_mode=cfg["compile_mode"],
             profile_timing=self.profile_timing,
             evidence_dir=Path(os.environ["EXP152_EXPORT"]) / side,
-            configuration_overrides={
-                key: json.loads(os.environ["EXP152_CONFIGURATION"])[key]
-                for key in (
-                    "flexor_bias_ms",
-                    "flexor_initial_us",
-                    "extensor_initial_us",
-                )
-            },
+            configuration_overrides=controller_settings(cfg),
         )
-        self.voltage = np.zeros((self.capacity, self.substeps, 2))
-        self.spikes = np.zeros((self.capacity, self.substeps, 2), dtype=int)
+        self.voltage = np.zeros((self.capacity, self.substeps, 1))
+        self.spikes = np.zeros((self.capacity, self.substeps, 1), dtype=int)
         self.pending_sensory, self.pending_peer = 0, 0
         self.publisher = self.create_publisher(Int64MultiArray, "/motor/" + side, 1000)
         self.sensory_topic = "/sensory/" + side
@@ -312,19 +368,27 @@ class ControllerNode(RuntimeNode):
             self.create_subscription(Int64MultiArray, self.peer_topic, self.peer, 1000),
         ]
         self.get_logger().info(
-            f"Ready: {2 * self.neurons} neurons; CPU {self.cpu_affinity}; {self.model.info}"
+            f"Ready: {self.neurons} neurons; CPU {self.cpu_affinity}; {self.model.info}"
         )
 
     def sensory(self, msg):
-        if self.receive(msg, self.sensory_topic):
+        if self.receive(msg, self.sensory_topic) and self.spike_transport == "arrival":
             self.pending_sensory += 1
 
     def peer(self, msg):
-        if self.receive(msg, self.peer_topic):
+        if self.receive(msg, self.peer_topic) and self.spike_transport == "arrival":
             self.pending_peer += 1
 
     def tick(self):
         tick = time.perf_counter_ns()
+        if self.spike_transport == "logical":
+            self.pending_sensory = sum(
+                unit == SIDES.index(self.side)
+                for _, unit in self.incoming_frames["plant"]
+            )
+            self.pending_peer = len(
+                self.incoming_frames[SIDES[1 - SIDES.index(self.side)]]
+            )
         voltage, spikes, events = self.model.window(
             self.substeps, self.pending_sensory, self.pending_peer
         )
@@ -336,6 +400,7 @@ class ControllerNode(RuntimeNode):
             finish_measurement(measured, self.stage_timing[self.updates, 3])
             self.stage_timing[self.updates, :3] = self.model.stage_timing
         compute_ms = (time.perf_counter_ns() - tick) / 1e6
+        self.frame_events = events
         self.voltage[self.updates] = voltage
         self.spikes[self.updates] = spikes
         return compute_ms

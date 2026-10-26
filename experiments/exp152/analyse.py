@@ -14,7 +14,7 @@ import numpy as np
 
 REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
-from experiments.exp152.recipe import SIDES, SNNLAB_REF
+from experiments.exp152.recipe import SIDES
 from pingstore.contracts import load_json, write_json_atomic
 from pingstore.stages import source_run, stage_run
 
@@ -148,6 +148,8 @@ def collect(records, spikes, start_ns, args, ready, error):
     def relative(stamp):
         return (stamp - start_ns) / 1e9
 
+    populations = getattr(args, "controller_populations", ["motor", "slow"])
+    channels = len(populations)
     values = {}
     for name, rows in ticks.items():
         values[name + "_time_s"] = np.array(
@@ -166,16 +168,16 @@ def collect(records, spikes, start_ns, args, ready, error):
         values[name + "_lag_ms"] = np.array([r["wall_lag_ms"] for r in rows])
         if name in SIDES:
             values[name + "_voltage"] = np.array([r["voltage"] for r in rows]).reshape(
-                -1, 2
+                -1, channels
             )
             values[name + "_substep_voltage"] = np.array(
                 [r["substep_voltage"] for r in rows]
-            ).reshape(-1, args.substeps, 2)
+            ).reshape(-1, args.substeps, channels)
             values[name + "_substep_spikes"] = np.array(
                 [r["substep_spikes"] for r in rows]
-            ).reshape(-1, args.substeps, 2)
+            ).reshape(-1, args.substeps, channels)
             values[name + "_spikes"] = np.array([r["spikes"] for r in rows]).reshape(
-                -1, 2
+                -1, channels
             )
         rows = deliveries[name]
         values[name + "_delivery_time_s"] = np.array(
@@ -185,6 +187,8 @@ def collect(records, spikes, start_ns, args, ready, error):
     plant = ticks["plant"]
     for key in ("angle", "velocity", "torque"):
         values[key] = np.array([r[key] for r in plant])
+    if plant and all("gravity_torque" in row for row in plant):
+        values["gravity_torque"] = np.array([row["gravity_torque"] for row in plant])
     values["activation"] = np.array([r["activation"] for r in plant]).reshape(-1, 2)
     for topic, rows in spikes.items():
         key = topic.strip("/").replace("/", "_")
@@ -247,6 +251,18 @@ def collect(records, spikes, start_ns, args, ready, error):
             for info in execution.values()
         ),
         no_process_error=error is None,
+        complete_diagnostic_sequence=all(
+            len(values[name + "_model_time_s"]) > 0
+            and np.allclose(
+                values[name + "_model_time_s"],
+                np.arange(1, len(values[name + "_model_time_s"]) + 1)
+                * args.timer_ms
+                / 1000,
+                rtol=0,
+                atol=1e-9,
+            )
+            for name in NODES
+        ),
         diagnostics_exported=all(
             reason != "missing" for reason in stop_reasons.values()
         ),
@@ -264,6 +280,11 @@ def collect(records, spikes, start_ns, args, ready, error):
         no_mechanical_stops=limit_hits == 0,
         no_detected_spike_loss=not any(missing.values()),
     )
+    if getattr(args, "joint", {}).get("angle_convention"):
+        checks["both_late_sensory_streams"] = all(
+            np.any(values["sensory_" + s + "_model_time_s"] >= args.duration / 2)
+            for s in SIDES
+        )
     timing_checks = dict(
         full_model_progress=all(len(rows) >= expected - 1 for rows in ticks.values()),
         callback_within_budget=not any(callback_overruns.values()),
@@ -276,8 +297,17 @@ def collect(records, spikes, start_ns, args, ready, error):
         if args.profile_timing
         else {"enabled": False}
     )
+    wall_seconds = max(
+        (
+            float(values[name + "_time_s"][-1])
+            for name in NODES
+            if len(values[name + "_time_s"])
+        ),
+        default=0,
+    )
     return values, dict(
         mode="ros2",
+        observed_wall_seconds=wall_seconds,
         timing_profile=profiling,
         passed=all(checks.values()),
         checks=checks,
@@ -289,17 +319,26 @@ def collect(records, spikes, start_ns, args, ready, error):
         timer_ms=args.timer_ms,
         substeps_per_update=args.substeps,
         neurons_per_population=args.neurons,
-        total_neurons=4 * args.neurons,
-        snnlab_ref=SNNLAB_REF,
+        total_neurons=2 * channels * args.neurons,
+        controller_populations=populations,
+        snnlab_ref=args.snnlab_ref,
         cpu_allocation=args.cpu_allocation,
         observed_cpu_affinity=observed_affinity,
         controller_execution=execution,
         model_seconds_per_node=progress,
-        simulated_seconds_per_wall_second=min(progress.values()) / args.duration,
+        simulated_seconds_per_wall_second=min(progress.values()) / wall_seconds
+        if wall_seconds
+        else 0,
         joint_direction_reversals=reversals,
         mechanical_stop_hits=limit_hits,
         angle_range_rad=[float(values["angle"].min()), float(values["angle"].max())]
         if len(plant)
+        else None,
+        gravity_torque_nm=stats(values.get("gravity_torque", [])),
+        mean_activation={
+            s: float(values["activation"][:, i].mean()) for i, s in enumerate(SIDES)
+        }
+        if plant
         else None,
         motor_spikes={s: len(spikes["/motor/" + s]) for s in SIDES},
         sensory_spikes={s: len(spikes["/sensory/" + s]) for s in SIDES},
@@ -335,7 +374,177 @@ def collect(records, spikes, start_ns, args, ready, error):
     )
 
 
-def startup_metrics(angle, *, dt_s=0.001):
+def cycle_metrics(
+    angle, velocity, *, dt_s=0.001, reference_angle=0.0, settings=None, times=None
+):
+    """Assess final complete Poincare cycles, without selecting a favourable window.
+
+    Upward crossings of the reference angle delimit cycles. Turning-point errors
+    and angle RMS waveform errors are normalized by median peak-to-peak excursion;
+    velocity RMS errors by the median waveform's peak-to-peak velocity. All errors
+    compare each of the final ten cycles against their pointwise median.
+    """
+    settings = settings or dict(
+        cycle_count=10,
+        cycle_tolerance=0.01,
+        cycle_burn_in_s=5.0,
+        cycle_phase_samples=128,
+    )
+    angle, velocity = np.asarray(angle), np.asarray(velocity)
+    time = np.arange(1, len(angle) + 1) * dt_s if times is None else np.asarray(times)
+    count, tolerance = settings["cycle_count"], settings["cycle_tolerance"]
+    failed = dict(
+        passed=False,
+        complete_cycles=0,
+        period_relative_error=None,
+        turning_angle_relative_error=None,
+        angle_waveform_relative_error=None,
+        velocity_waveform_relative_error=None,
+        mean_period_s=None,
+        upper_angle_deg=None,
+        lower_angle_deg=None,
+        cycle_start_s=None,
+    )
+    if (
+        len(angle) < 3
+        or not np.isfinite(angle).all()
+        or not np.isfinite(velocity).all()
+    ):
+        return failed
+    indices = np.flatnonzero(
+        (angle[:-1] <= reference_angle) & (angle[1:] > reference_angle)
+    )
+    crossing = (
+        time[indices]
+        + (reference_angle - angle[indices])
+        / (angle[indices + 1] - angle[indices])
+        * np.diff(time)[indices]
+    )
+    crossing = crossing[crossing >= settings["cycle_burn_in_s"]]
+    failed["complete_cycles"] = max(0, len(crossing) - 1)
+    if len(crossing) < count + 1:
+        return failed
+    crossing = crossing[-count - 1 :]
+    periods = np.diff(crossing)
+    phases = np.linspace(0, 1, settings["cycle_phase_samples"], endpoint=False)
+    query = crossing[:-1, None] + periods[:, None] * phases
+    waves = np.stack(
+        [np.interp(query, time, signal) for signal in (angle, velocity)], axis=-1
+    )
+    upper, lower = [], []
+    for start, end in zip(crossing[:-1], crossing[1:], strict=True):
+        samples = angle[(time >= start) & (time <= end)]
+        upper.append(float(samples.max()))
+        lower.append(float(samples.min()))
+    upper, lower = np.asarray(upper), np.asarray(lower)
+    excursion = float(np.median(upper - lower))
+    reference = np.median(waves, axis=0)
+    velocity_scale = float(np.ptp(reference[:, 1]))
+    if excursion <= 0 or velocity_scale <= 0:
+        return failed
+    period_error = float(np.max(np.abs(periods / np.median(periods) - 1)))
+    turning_error = float(
+        max(
+            np.max(np.abs(upper - np.median(upper))),
+            np.max(np.abs(lower - np.median(lower))),
+        )
+        / excursion
+    )
+    rms = np.sqrt(np.mean((waves - reference) ** 2, axis=1))
+    angle_error, velocity_error = np.max(rms, axis=0) / [excursion, velocity_scale]
+    return dict(
+        passed=bool(
+            max(period_error, turning_error, angle_error, velocity_error) < tolerance
+        ),
+        complete_cycles=failed["complete_cycles"],
+        assessed_cycles=count,
+        cycle_start_s=crossing.tolist(),
+        periods_s=periods.tolist(),
+        mean_period_s=float(periods.mean()),
+        period_relative_error=period_error,
+        turning_angle_relative_error=turning_error,
+        angle_waveform_relative_error=float(angle_error),
+        velocity_waveform_relative_error=float(velocity_error),
+        upper_angle_deg=np.rad2deg(upper).tolist(),
+        lower_angle_deg=np.rad2deg(lower).tolist(),
+        minimum_excursion_rad=float((upper - lower).min()),
+        phase=phases.tolist(),
+        median_waveform=reference.tolist(),
+        waveform=waves.tolist(),
+    )
+
+
+def analyse_cycles(upstream, cfg, run_id):
+    rows = []
+    for index, condition in enumerate(cfg["conditions"]):
+        with np.load(upstream.file(f"condition-{index}.npz")) as data:
+            trace = data["trace"]
+        metadata = load_json(upstream.file(f"condition-{index}.json"))
+        metrics = cycle_metrics(
+            trace[:, 0],
+            trace[:, 1],
+            reference_angle=metadata["joint"]["reference_angle"],
+            settings=cfg["analysis"],
+        )
+        metrics.update(
+            condition=condition,
+            limit_hits=metadata["limit_hits"],
+            late_sensory_counts=trace[len(trace) // 2 :, 6:8]
+            .sum(0)
+            .astype(int)
+            .tolist(),
+            motor_counts=trace[:, 4:6].sum(0).astype(int).tolist(),
+        )
+        centre, threshold = (
+            metadata["joint"]["reference_angle"],
+            metadata["joint"]["sensory_limit"],
+        )
+        metrics["passed"] = bool(
+            metrics["passed"]
+            and metadata["limit_hits"] == 0
+            and all(metrics["late_sensory_counts"])
+            and min(metrics["upper_angle_deg"]) > np.rad2deg(centre + threshold)
+            and max(metrics["lower_angle_deg"]) < np.rad2deg(centre - threshold)
+        )
+        rows.append(metrics)
+    with stage_run(
+        REPO,
+        "exp152",
+        "analyse",
+        inputs={"compute": upstream},
+        run_id=run_id,
+        configuration=cfg,
+    ) as run:
+        write_json_atomic(
+            run.export / "cycles.json",
+            dict(
+                conditions=rows,
+                definition="Final ten complete upward reference crossings after 5 s; maximum period and turning-point errors and normalized angle/velocity RMS waveform errors below 1%; both late sensory channels; no stops.",
+            ),
+        )
+    keys = (
+        "period_relative_error",
+        "turning_angle_relative_error",
+        "angle_waveform_relative_error",
+        "velocity_waveform_relative_error",
+    )
+    for index, row in sorted(
+        enumerate(rows),
+        key=lambda item: max(
+            item[1][key] if item[1][key] is not None else 1e9 for key in keys
+        ),
+    )[:12]:
+        print(
+            index,
+            row["condition"],
+            "PASS" if row["passed"] else "FAIL",
+            {key: row[key] for key in keys},
+            flush=True,
+        )
+    return run.run_id
+
+
+def startup_metrics(angle, *, dt_s=0.001, reference_angle=0.0):
     """Compare extrema against late-run positive/negative amplitudes and periods.
 
     Settling is the earliest extremum after which all measured extrema and
@@ -344,7 +553,7 @@ def startup_metrics(angle, *, dt_s=0.001):
     """
     from scipy.signal import find_peaks
 
-    angle = np.asarray(angle)
+    angle = np.asarray(angle) - reference_angle
     extrema = np.sort(
         np.concatenate(
             [
@@ -417,11 +626,39 @@ def analyse_startup(upstream, cfg, run_id):
     for index, condition in enumerate(cfg["conditions"]):
         with np.load(upstream.file(f"condition-{index}.npz")) as data:
             trace = data["trace"]
-        metrics = startup_metrics(trace[:, 0])
+        metrics = startup_metrics(
+            trace[:, 0], reference_angle=cfg["joint"].get("reference_angle", 0.0)
+        )
+        metadata_path = upstream.file(f"condition-{index}.json")
+        metadata = load_json(metadata_path) if metadata_path.is_file() else {}
+        moving = np.sign(
+            trace[:, 1][
+                np.abs(trace[:, 1])
+                > cfg["analysis"]["movement_velocity_threshold_rad_s"]
+            ]
+        )
         metrics.update(
+            joint=metadata.get("joint"),
+            limit_hits=metadata.get("limit_hits"),
+            direction_reversals=int(np.count_nonzero(np.diff(moving))),
+            angle_range_deg=np.rad2deg([trace[:, 0].min(), trace[:, 0].max()]).tolist(),
+            motor_counts=trace[:, 4:6].sum(axis=0).astype(int).tolist(),
+            mean_activation=trace[:, 2:4].mean(axis=0).tolist(),
             sensory_counts=trace[:, 6:8].sum(axis=0).astype(int).tolist(),
+            late_sensory_counts=trace[len(trace) // 2 :, 6:8]
+            .sum(axis=0)
+            .astype(int)
+            .tolist(),
+            late_motor_counts=trace[len(trace) // 2 :, 4:6]
+            .sum(axis=0)
+            .astype(int)
+            .tolist(),
             first_250ms_maximum_angle_deg=float(
-                np.rad2deg(np.abs(trace[:250, 0]).max())
+                np.rad2deg(
+                    np.abs(
+                        trace[:250, 0] - cfg["joint"].get("reference_angle", 0.0)
+                    ).max()
+                )
             ),
             first_250ms_maximum_speed_deg_s=float(
                 np.rad2deg(np.abs(trace[:250, 1]).max())
@@ -441,7 +678,7 @@ def analyse_startup(upstream, cfg, run_id):
             run.export / "startup.json",
             dict(
                 conditions=rows,
-                definition="Extrema and full periods within 20% of late-run medians; deterministic 1 ms transport; centred stationary plant",
+                definition="Extrema and full periods within 20% of late-run medians; deterministic 1 ms transport; stationary plant at its recorded reference angle",
             ),
         )
     for index, row in enumerate(rows):
@@ -451,10 +688,10 @@ def analyse_startup(upstream, cfg, run_id):
             "settle",
             row["settling_s"],
             "early amplitude error",
-            round(row["early_mean_amplitude_error"], 3),
+            row["early_mean_amplitude_error"],
             "first",
             row["first_extremum_s"],
-            round(row["first_extremum_deg"], 2),
+            row["first_extremum_deg"],
         )
     print(run.run_id)
     return run.run_id
@@ -465,7 +702,9 @@ def analyse(source, *, run_id=None, baseline_source=None):
         REPO / ".pingstore", source, stage="compute", experiment="exp152"
     )
     cfg = upstream.record["execution"]["configuration"]
-    if cfg.get("protocol") == "startup_sweep":
+    if cfg.get("protocol") in {"cycle_sweep", "cycle_check"}:
+        return analyse_cycles(upstream, cfg, run_id)
+    if cfg.get("protocol") in {"startup_sweep", "load_sweep"}:
         return analyse_startup(upstream, cfg, run_id)
     raw = load_json(upstream.file("diagnostics.json"))
     args = argparse.Namespace(
@@ -476,8 +715,101 @@ def analyse(source, *, run_id=None, baseline_source=None):
     values, summary = collect(
         raw["records"], raw["spikes"], raw["start_ns"], args, raw["ready"], raw["error"]
     )
-    summary["startup"] = startup_metrics(values["angle"], dt_s=cfg["timer_ms"] / 1000)
+    summary["startup"] = startup_metrics(
+        values["angle"],
+        dt_s=cfg["timer_ms"] / 1000,
+        reference_angle=cfg["joint"].get("reference_angle", 0.0),
+    )
+    summary["cycles"] = cycle_metrics(
+        values["angle"],
+        values["velocity"],
+        times=values["plant_model_time_s"],
+        reference_angle=cfg["joint"].get("reference_angle", 0.0),
+        settings=cfg["analysis"] if "cycle_count" in cfg["analysis"] else None,
+    )
+    summary["wall_cycles"] = cycle_metrics(
+        values["angle"],
+        values["velocity"],
+        times=values["plant_time_s"],
+        reference_angle=cfg["joint"].get("reference_angle", 0.0),
+        settings=cfg["analysis"] if "cycle_count" in cfg["analysis"] else None,
+    )
+    if "cycle_count" in cfg["analysis"]:
+        summary["checks"]["repeatable_cycles"] = summary["cycles"]["passed"]
+        summary["checks"]["repeatable_wall_cycles"] = summary["wall_cycles"]["passed"]
+        peaks = summary["cycles"].get("upper_angle_deg")
+        troughs = summary["cycles"].get("lower_angle_deg")
+        centre, threshold = (
+            cfg["joint"]["reference_angle"],
+            cfg["joint"]["sensory_limit"],
+        )
+        summary["checks"]["cycles_reach_both_thresholds"] = bool(
+            peaks
+            and troughs
+            and min(peaks) > np.rad2deg(centre + threshold)
+            and max(troughs) < np.rad2deg(centre - threshold)
+        )
+        summary["passed"] = all(summary["checks"].values())
     inputs = {"compute": upstream}
+    if "cycle_validation" in upstream.record["inputs"]:
+        reference = upstream.record["inputs"]["cycle_validation"]
+        validation = source_run(
+            REPO / ".pingstore",
+            reference["run_id"],
+            stage="analyse",
+            experiment="exp152",
+            reference=reference,
+        )
+        summary["deterministic_cycles"] = load_json(validation.file("cycles.json"))[
+            "conditions"
+        ][0]
+        summary["deterministic_validation_run"] = reference["run_id"]
+        summary["deterministic_duration_seconds"] = validation.record["execution"][
+            "configuration"
+        ]["duration"]
+        native_reference = validation.record["inputs"]["compute"]
+        native = source_run(
+            REPO / ".pingstore",
+            native_reference["run_id"],
+            stage="compute",
+            experiment="exp152",
+            reference=native_reference,
+        )
+        with np.load(native.file("condition-0.npz")) as data:
+            expected_trace = data["trace"]
+        compared = min(
+            len(expected_trace),
+            len(values["angle"]),
+            *(len(values[name + "_spikes"]) for name in SIDES),
+        )
+        actual_joint = np.column_stack(
+            (
+                values["angle"][:compared],
+                values["velocity"][:compared],
+                values["activation"][:compared],
+            )
+        )
+        actual_motor = np.column_stack(
+            [values[name + "_spikes"][:compared, 0] for name in SIDES]
+        )
+        summary["native_trace_comparison"] = dict(
+            steps=compared,
+            source_run=native_reference["run_id"],
+            exact_joint_state=bool(
+                compared and np.array_equal(actual_joint, expected_trace[:compared, :4])
+            ),
+            exact_motor_spikes=bool(
+                compared
+                and np.array_equal(actual_motor, expected_trace[:compared, 4:6])
+            ),
+            maximum_joint_absolute_error=float(
+                np.max(np.abs(actual_joint - expected_trace[:compared, :4]))
+            )
+            if compared
+            else None,
+        )
+        inputs["deterministic_compute"] = native
+        inputs["cycle_validation"] = validation
     if baseline_source is not None:
         baseline = source_run(
             REPO / ".pingstore", baseline_source, stage="analyse", experiment="exp152"
@@ -485,7 +817,9 @@ def analyse(source, *, run_id=None, baseline_source=None):
         baseline_cfg = baseline.record["execution"]["configuration"]
         with np.load(baseline.file("traces.npz")) as data:
             reference = startup_metrics(
-                data["angle"], dt_s=baseline_cfg["timer_ms"] / 1000
+                data["angle"],
+                dt_s=baseline_cfg["timer_ms"] / 1000,
+                reference_angle=baseline_cfg["joint"].get("reference_angle", 0.0),
             )
         summary["startup_comparison"] = dict(
             baseline_run=baseline_source,

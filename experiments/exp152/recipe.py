@@ -29,17 +29,29 @@ def window_steps(dt_ms, timer_ms):
 
 def configuration(
     *,
-    duration=8.0,
+    duration=30.0,
     dt_ms=1.0,
     timer_ms=1.0,
     neurons=1,
     max_lag_ms=20.0,
     max_spike_age_ms=5.0,
     profile_timing=False,
-    flexor_bias_ms=200.0,
-    flexor_initial_us=0.02,
-    extensor_initial_us=0.005,
+    controller_warmup_ms=1000.0,
+    flexor_bias_ms=20.0,
+    flexor_initial_us=0.5,
+    extensor_initial_us=0.0,
     compile_mode=None,
+    initial_angle_deg=90.0,
+    tip_mass_kg=0.002,
+    arm_length_m=0.2,
+    gravity_m_s2=9.81,
+    tonic_us=0.04,
+    sensory_drive_us=0.035,
+    peer_inhibition_us=0.2,
+    sensory_tau_ms=10.0,
+    peer_tau_ms=50.0,
+    activation_increment=0.003,
+    spike_transport="logical",
 ):
     """Resolve numerical, scheduling, mechanical and recording settings."""
     if not math.isfinite(duration) or duration < 2:
@@ -49,10 +61,17 @@ def configuration(
     for value in (max_lag_ms, max_spike_age_ms):
         if not math.isfinite(value) or value <= 0:
             raise ValueError("Timing budgets must be positive and finite")
-    if compile_mode not in (None, "default"):
-        raise ValueError("Choose default compilation or eager execution")
+    if spike_transport not in ("arrival", "logical") or compile_mode not in (
+        None,
+        "default",
+    ):
+        raise ValueError(
+            "Choose arrival/logical transport and default compilation/eager execution"
+        )
     if type(profile_timing) is not bool:
         raise ValueError("profile_timing must be boolean")
+    if not math.isfinite(controller_warmup_ms) or controller_warmup_ms <= 0:
+        raise ValueError("Controller warmup must be positive and finite")
     if not math.isfinite(flexor_bias_ms) or flexor_bias_ms < 0:
         raise ValueError("Startup duration must be finite and nonnegative")
     if any(
@@ -60,6 +79,25 @@ def configuration(
         for value in (flexor_initial_us, extensor_initial_us)
     ):
         raise ValueError("Startup conductance must be finite and nonnegative")
+    if not math.isfinite(initial_angle_deg):
+        raise ValueError("Initial angle must be finite")
+    if any(not math.isfinite(v) or v < 0 for v in (tip_mass_kg, gravity_m_s2)):
+        raise ValueError("Tip mass and gravity must be finite and nonnegative")
+    if not math.isfinite(arm_length_m) or arm_length_m <= 0:
+        raise ValueError("Arm length must be finite and positive")
+    if any(
+        not math.isfinite(v) or v < 0
+        for v in (tonic_us, sensory_drive_us, peer_inhibition_us)
+    ):
+        raise ValueError("Neural conductances must be finite and nonnegative")
+    if any(
+        not math.isfinite(v) or v <= 0
+        for v in (sensory_tau_ms, peer_tau_ms, activation_increment)
+    ):
+        raise ValueError(
+            "Synaptic timescales and muscle increment must be finite and positive"
+        )
+    reference = math.radians(initial_angle_deg)
     return dict(
         experiment="exp152",
         duration=duration,
@@ -69,11 +107,13 @@ def configuration(
         max_lag_ms=max_lag_ms,
         max_spike_age_ms=max_spike_age_ms,
         profile_timing=profile_timing,
+        controller_warmup_ms=controller_warmup_ms,
         substeps=window_steps(dt_ms, timer_ms),
         seed=0,
         device="cpu",
         dtype="float64",
         compile_mode=compile_mode,
+        spike_transport=spike_transport,
         snnlab_ref=SNNLAB_REF,
         adaptation="snnlab-ros2 three-process spike-only joint controller",
         source_revision="901d5b624c85aa4858aa0a0007e479d64e60e0ea",
@@ -88,6 +128,14 @@ def configuration(
         },
         joint=dict(
             inertia=0.005,
+            tip_mass_kg=tip_mass_kg,
+            arm_length_m=arm_length_m,
+            gravity_m_s2=gravity_m_s2,
+            total_inertia=0.005 + tip_mass_kg * arm_length_m**2,
+            initial_angle=reference,
+            reference_angle=reference,
+            spring_rest_angle=reference,
+            angle_convention="zero_downward_positive_right",
             damping=0.02,
             stiffness=0.02,
             max_torque=0.8,
@@ -95,75 +143,78 @@ def configuration(
             sensory_limit=0.25,
             hard_limit=1.0,
             sensory_interval=0.01,
-            activation_increment=0.08,
+            activation_increment=activation_increment,
         ),
-        neuron_model="hodgkin_huxley",
-        hh=dict(
-            rk4_max_step_ms=0.025,
-            motor=dict(
-                capacitance_nf=0.01,
-                g_na_us=1.2,
-                g_k_us=0.36,
-                g_leak_us=0.003,
-                e_na_mv=50.0,
-                e_k_mv=-77.0,
-                e_leak_mv=-54.387,
-                excitatory_reversal_mv=0.0,
-                inhibitory_reversal_mv=-80.0,
-                initial_voltage_mv=-65.0,
-            ),
-            slow=dict(
-                capacitance_nf=0.02,
-                g_na_us=1.2,
-                g_k_us=0.36,
-                g_leak_us=0.003,
-                e_na_mv=50.0,
-                e_k_mv=-77.0,
-                e_leak_mv=-54.387,
-                excitatory_reversal_mv=0.0,
-                inhibitory_reversal_mv=-80.0,
-                initial_voltage_mv=-65.0,
-            ),
+        neuron_model="elevate",
+        controller_populations=["motor"],
+        neuron=dict(
+            capacitance_nf=1.0,
+            g_na_us=100.0,
+            g_k_us=65.0,
+            g_ca_us=2.0,
+            g_kca_us=10.0,
+            g_leak_us=2.0,
+            e_na_mv=40.0,
+            e_k_mv=-90.0,
+            e_ca_mv=120.0,
+            e_leak_mv=-50.0,
+            excitatory_reversal_mv=0.0,
+            inhibitory_reversal_mv=-80.0,
+            tau_na_activation_ms=0.1,
+            tau_na_inactivation_ms=1.0,
+            tau_k_ms=1.0,
+            tau_ca_ms=1.0,
+            tau_kca_ms=75.0,
+            initial_voltage_mv=-60.0,
+            current_na=-5.0,
+            max_step_ms=0.025,
         ),
-        hh_implementation="snnlab_custom_neuron_torch_rk4",
-        hh_reference_example_sha256="aa9d12ee5a620892a3a6653b55c45fe45b07ee275074d01e3ea7ec09443aeb90",
-        hh_source_sha256=hashlib.sha256(
-            (Path(__file__).parent / "custom/hodgkin_huxley.py").read_bytes()
+        neuron_implementation="snnlab_custom_neuron_torch_exponential_split",
+        neuron_source_sha256=hashlib.sha256(
+            (Path(__file__).parent / "custom/elevate.py").read_bytes()
         ).hexdigest(),
+        cycle_selection_source=dict(
+            run_id="exp152-r104-analyse",
+            role="native-weight cycle validation of default settings",
+        ),
+        load_selection_source=dict(
+            run_id="exp152-r091-analyse",
+            role="tip-mass operating point selection; overrides are exploratory",
+        ),
+        feasibility_source=dict(
+            run_id="exp152-r072-analyse",
+            role="parameter selection only; new executions use experiment-local code",
+        ),
         weights=dict(
-            sensory_drive=0.003,
-            peer_inhibition=0.01,
-            recruit_slow=0.002,
-            adaptation=0.003,
+            sensory_drive=sensory_drive_us, peer_inhibition=peer_inhibition_us
         ),
-        synapse_tau_ms=dict(
-            local_bias=0.001,
-            sensory_drive=10,
-            peer_inhibition=50,
-            recruit_slow=160,
-            adaptation=250,
-        ),
-        tonic_us=0.005,
+        synapse_tau_ms=dict(sensory_drive=sensory_tau_ms, peer_inhibition=peer_tau_ms),
+        tonic_us=tonic_us,
         flexor_initial_us=flexor_initial_us,
         extensor_initial_us=extensor_initial_us,
         flexor_bias_ms=flexor_bias_ms,
-        analysis=dict(movement_velocity_threshold_rad_s=0.05, minimum_reversals=4),
+        analysis=dict(
+            movement_velocity_threshold_rad_s=0.05,
+            minimum_reversals=4,
+            cycle_count=10,
+            cycle_tolerance=0.01,
+            cycle_burn_in_s=5.0,
+            cycle_phase_samples=128,
+        ),
         recording="All callback diagnostics, substep population means/counts, topic events and node logs",
         interpretation="Synchronized cell replicas increase load; simulated plant, no hard real-time guarantee",
     )
 
 
 def author_network(cfg):
-    """Compile one shared motor/slow architecture for both controller sides."""
-    from experiments.exp152.custom.hodgkin_huxley import DEFINITION, register
+    """Compile one motor neuron population, shared by both controller sides."""
+    from experiments.exp152.custom.elevate import DEFINITION, register
 
     register()
     dt_ms, neurons = cfg["dt_ms"], cfg["neurons"]
     net = lang.Network("joint_controller", dt=dt_ms * lang.ms)
 
-    def connect(
-        source, target, name, weight, tau, *, inhibitory=False, recurrent=False
-    ):
+    def connect(source, target, name, weight, tau, *, inhibitory=False):
         return net.connect(
             source,
             target,
@@ -172,22 +223,12 @@ def author_network(cfg):
             weight=lang.Constant(weight),
             initialization_scaling="direct",
             constraint=lang.NonNegative(),
-            **(
-                {"connection": "recurrent", "delay": dt_ms * lang.ms}
-                if recurrent
-                else {}
-            ),
         )
 
     motor = net.population(
         "motor",
         size=neurons,
-        neuron=lang.CustomNeuron(DEFINITION, **cfg["hh"]["motor"]),
-    )
-    slow = net.population(
-        "slow",
-        size=neurons,
-        neuron=lang.CustomNeuron(DEFINITION, **cfg["hh"]["slow"]),
+        neuron=lang.CustomNeuron(DEFINITION, **cfg["neuron"]),
     )
     tonic = net.input(
         "tonic", shape=("time", "batch", 1), signal_type="continuous", unit="uS"
@@ -198,8 +239,14 @@ def author_network(cfg):
     peer = net.input(
         "peer", shape=("time", "batch", 1), signal_type="spikes", unit="spike"
     )
-    connect(
-        tonic, motor.excitatory, "local_bias", 1, cfg["synapse_tau_ms"]["local_bias"]
+    # The validated startup conductance is direct, with no additional filter.
+    net.connect(
+        tonic,
+        motor.excitatory,
+        name="local_bias",
+        synapse=lang.CustomSynapse("pinglab.exp152.direct_conductance/v1"),
+        weight=lang.Constant(1.0),
+        initialization_scaling="direct",
     )
     connect(
         sensory,
@@ -216,46 +263,74 @@ def author_network(cfg):
         cfg["synapse_tau_ms"]["peer_inhibition"],
         inhibitory=True,
     )
-    connect(
-        motor.spikes,
-        slow.excitatory,
-        "recruit_slow",
-        cfg["weights"]["recruit_slow"] / neurons,
-        cfg["synapse_tau_ms"]["recruit_slow"],
-        recurrent=True,
-    )
-    connect(
-        slow.spikes,
-        motor.inhibitory,
-        "adaptation",
-        cfg["weights"]["adaptation"] / neurons,
-        cfg["synapse_tau_ms"]["adaptation"],
-        inhibitory=True,
-        recurrent=True,
-    )
-    for name, cell in [("motor", motor), ("slow", slow)]:
-        net.output(name + "_voltage", cell.voltage)
-        net.output(name + "_spikes", cell.spikes)
+    net.output("motor_voltage", motor.voltage)
+    net.output("motor_spikes", motor.spikes)
     return lang.compile(net)
 
 
 def startup_conditions():
-    """Compare selected excitatory pulse with brief opposing-drive suppression."""
+    """Compare bounded startup pulses for the single-neuron architecture."""
+    return [
+        dict(flexor_bias_ms=duration, flexor_initial_us=drive, extensor_initial_us=0.0)
+        for duration, drive in ((10, 0.5), (20, 0.5), (50, 0.5), (20, 0.25))
+    ]
+
+
+def cycle_conditions(grid="synaptic"):
+    """Bounded search; each row is an independent paired-controller condition."""
+    if grid == "actuation":
+        return [
+            dict(
+                tonic_us=tonic,
+                peer_inhibition_us=0.2,
+                sensory_drive_us=sensory,
+                peer_tau_ms=50.0,
+                activation_increment=gain,
+            )
+            for tonic in (0.04, 0.05, 0.06)
+            for sensory in (0.01, 0.02, 0.025, 0.035, 0.05, 0.075, 0.1)
+            for gain in (0.003, 0.004, 0.005, 0.006, 0.007, 0.008, 0.009)
+        ]
     return [
         dict(
-            flexor_bias_ms=duration,
-            flexor_initial_us=flexor,
-            extensor_initial_us=extensor,
+            tonic_us=tonic,
+            peer_inhibition_us=inhibition,
+            sensory_drive_us=sensory,
+            peer_tau_ms=tau,
         )
-        for duration, flexor, extensor in (
-            (20, 0.01, 0.005),
-            (200, 0.02, 0.005),
-            (20, 0.01, 0),
-            (50, 0.01, 0),
-            (100, 0.01, 0),
-            (200, 0.01, 0),
-            (100, 0.005, 0),
-            (100, 0.01, 0.0025),
-            (200, 0.01, 0.0025),
-        )
+        for tau in (50.0, 150.0)
+        for tonic in (0.0, 0.005, 0.01, 0.025, 0.05, 0.1, 0.2)
+        for inhibition in (0.2, 0.5, 1.0)
+        for sensory in (0.025, 0.005)
     ]
+
+
+def controller_settings(cfg):
+    """Flatten recorded settings for the controller adapter without live defaults."""
+    return {
+        **{
+            key: cfg[key]
+            for key in (
+                "duration",
+                "flexor_bias_ms",
+                "flexor_initial_us",
+                "extensor_initial_us",
+                "controller_warmup_ms",
+                "tonic_us",
+            )
+        },
+        "sensory_drive_us": cfg["weights"]["sensory_drive"],
+        "peer_inhibition_us": cfg["weights"]["peer_inhibition"],
+        "sensory_tau_ms": cfg["synapse_tau_ms"]["sensory_drive"],
+        "peer_tau_ms": cfg["synapse_tau_ms"]["peer_inhibition"],
+        "initial_angle_deg": math.degrees(cfg["joint"]["initial_angle"]),
+        **{
+            key: cfg["joint"][key]
+            for key in (
+                "tip_mass_kg",
+                "arm_length_m",
+                "gravity_m_s2",
+                "activation_increment",
+            )
+        },
+    }

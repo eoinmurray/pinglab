@@ -4,6 +4,8 @@ Run as a module inside the local experiment container. This adapter applies
 received motor events once per window and buffers mechanical state.
 """
 
+import json
+import os
 import time
 
 import numpy as np
@@ -28,7 +30,7 @@ class PlantNode(RuntimeNode):
 
     def __init__(self):
         super().__init__("plant")
-        self.plant = Joint()
+        self.plant = Joint(json.loads(os.environ["EXP152_CONFIGURATION"])["joint"])
         self.pending = np.zeros(2)
         self.publishers_ = [
             self.create_publisher(Int64MultiArray, "/sensory/" + s, 1000) for s in SIDES
@@ -42,18 +44,23 @@ class PlantNode(RuntimeNode):
             )
             for i, s in enumerate(SIDES)
         ]
-        self.state_buffer = np.zeros((self.capacity, 6))
+        self.state_buffer = np.zeros((self.capacity, 7))
         self.motor_buffer = np.zeros(2)
         self.get_logger().info(
             f"Ready: mechanical joint, CPU {self.cpu_affinity}, no neurons"
         )
 
     def motor(self, i, msg):
-        if self.receive(msg, "/motor/" + SIDES[i]):
+        if (
+            self.receive(msg, "/motor/" + SIDES[i])
+            and self.spike_transport == "arrival"
+        ):
             self.pending[i] += 1
 
     def tick(self):
         tick = time.perf_counter_ns()
+        if self.spike_transport == "logical":
+            self.pending[:] = [len(self.incoming_frames[side]) for side in SIDES]
         measured = start_measurement() if self.profile_timing else None
         events = []
         np.divide(self.pending, self.neurons, out=self.motor_buffer)
@@ -67,7 +74,9 @@ class PlantNode(RuntimeNode):
             for i, count in enumerate(sensory):
                 if count:
                     events.append((i, model_ms))
+                    self.frame_events.append((substep, i))
             # Received motor events enter once, before the first decay/update.
+            gravity_torque = self.plant.gravity_torque(self.plant.angle)
             torque = self.plant.advance(self.motor_buffer, self.dt_ms / 1000)
             self.motor_buffer.fill(0)
         if measured is not None:
@@ -84,16 +93,20 @@ class PlantNode(RuntimeNode):
             *self.plant.activation,
             torque,
             self.plant.limit_hits,
+            gravity_torque,
         )
         return compute_ms
 
     def diagnostic_values(self, index):
-        angle, velocity, flexor, extensor, torque, hits = self.state_buffer[index]
+        angle, velocity, flexor, extensor, torque, hits, gravity_torque = (
+            self.state_buffer[index]
+        )
         return dict(
             angle=angle,
             velocity=velocity,
             activation=[flexor, extensor],
             torque=torque,
+            gravity_torque=gravity_torque,
             limit_hits=int(hits),
         )
 

@@ -22,6 +22,10 @@ NODES = ("flexor", "extensor", "plant")
 
 def recording(values, summary):
     """Keep every timing sample and expose controller states when callbacks finish."""
+    cfg = summary.get("configuration", {})
+    populations = summary.get(
+        "controller_populations", cfg.get("controller_populations", ["motor", "slow"])
+    )
     nodes = {}
     for name in NODES:
         prefix = name + "_"
@@ -49,28 +53,48 @@ def recording(values, summary):
                 velocity=np.asarray(values["velocity"]).tolist(),
                 activation=np.asarray(values["activation"]).tolist(),
             )
+            if "gravity_torque" in values:
+                row["gravity_torque"] = np.asarray(values["gravity_torque"]).tolist()
         for field, samples in row.items():
             if not isinstance(samples, list):
                 continue
             array = np.asarray(samples)
             if len(array) != len(times) or not np.isfinite(array).all():
                 raise ValueError(f"Invalid callback field for {name}: {field}")
+        if (
+            name != "plant"
+            and len(times)
+            and (
+                np.asarray(row["voltage"]).shape != (len(times), len(populations))
+                or np.asarray(row["spikes"]).shape != (len(times), len(populations))
+            )
+        ):
+            raise ValueError(f"Invalid population channels for {name}")
         if name != "plant" and (np.asarray(row["spikes"]) < 0).any():
             raise ValueError(f"Negative spike count for {name}")
         nodes[name] = row
     return dict(
-        schema="pinglab.exp152.replay/v1",
+        schema="pinglab.exp152.replay/v2",
+        controller_populations=populations,
+        mechanics=cfg.get("joint", {}),
         duration_ms=summary["duration_seconds"] * 1000,
         period_ms=summary["timer_ms"],
         neuron_model=summary.get("configuration", {}).get("neuron_model", "coba_lif"),
         voltage_range_mv=[-80, 40]
-        if summary.get("configuration", {}).get("neuron_model") == "hodgkin_huxley"
+        if summary.get("configuration", {}).get("neuron_model")
+        in {"hodgkin_huxley", "elevate"}
         else [-75, -45],
         neurons_per_population=summary["neurons_per_population"],
         snnlab_ref=summary["snnlab_ref"],
         behaviour_passed=summary["passed"],
         timing_passed=summary["timing_passed"],
         clock="Monotonic callback completion time relative to each node's mapped shared start",
+        sensory_time_ms={
+            side: (
+                np.asarray(values.get("sensory_" + side + "_time_s", [])) * 1000
+            ).tolist()
+            for side in ("flexor", "extensor")
+        },
         nodes=nodes,
     )
 

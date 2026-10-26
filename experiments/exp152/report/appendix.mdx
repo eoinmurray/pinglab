@@ -5,6 +5,7 @@ import { reportSnapshots } from '../../../site/src/lib/report-data';
 export const selected = await optionalPresentation('exp152');
 export const native = selected ? await reportSnapshots('exp152', {
   analysisInput: 'analyse',
+  computeInput: 'compute',
   snapshots: { controller: 'flexor/start/snapshot.json' },
   allowUnavailable: true,
 }) : undefined;
@@ -12,47 +13,73 @@ export const graph = native?.snapshots.controller?.network;
 export const cfg = native?.configuration;
 export const show = value => value === undefined ? 'Unavailable' : typeof value === 'object' && value !== null && 'value' in value ? show(value.value) : String(value);
 export const motor = graph?.populations?.find(row => row.id === 'motor');
-export const slow = graph?.populations?.find(row => row.id === 'slow');
+
+export const mechanicalLabels = {
+  inertia: 'Base inertia (kg m²)', total_inertia: 'Total inertia including tip mass (kg m²)',
+  tip_mass_kg: 'Tip point mass (kg)', arm_length_m: 'Arm length (m)',
+  gravity_m_s2: 'Gravity (m/s²)', initial_angle: 'Initial angle (rad)',
+  reference_angle: 'Sensory and stop centre (rad)', spring_rest_angle: 'Spring rest angle (rad)',
+  damping: 'Damping (N m s/rad)', stiffness: 'Stiffness (N m/rad)',
+  max_torque: 'Maximum muscle torque (N m)', activation_tau: 'Activation decay (s)',
+  sensory_limit: 'Sensory threshold relative to centre (rad)', hard_limit: 'Hard stop relative to centre (rad)',
+  sensory_interval: 'Minimum sensory interval (s)', activation_increment: 'Activation increment per normalized spike',
+  angle_convention: 'Angle convention',
+};
+
 export const groups = [
   { label: 'Network', rows: [
-    ['Motor / slow cells per controller', `${show(motor?.size)} / ${show(slow?.size)}`],
+    ['Motor cells per controller', show(motor?.size)],
+    ['Controller populations', show(graph?.populations?.map(row => row.id).join(', '))],
     ['Neuron model', show(cfg?.neuron_model)],
 
 
   ] },
   { label: 'Ionic membrane dynamics', rows: [
     ...[
-      ['capacitance_nf', 'Motor / slow capacitance (nF)'],
-      ['g_na_us', 'Motor / slow sodium conductance (µS)'],
-      ['g_k_us', 'Motor / slow potassium conductance (µS)'],
-      ['g_leak_us', 'Motor / slow leak conductance (µS)'],
-      ['e_na_mv', 'Motor / slow sodium reversal (mV)'],
-      ['e_k_mv', 'Motor / slow potassium reversal (mV)'],
-      ['e_leak_mv', 'Motor / slow leak reversal (mV)'],
-      ['excitatory_reversal_mv', 'Motor / slow excitation reversal (mV)'],
-      ['inhibitory_reversal_mv', 'Motor / slow inhibition reversal (mV)'],
-      ['initial_voltage_mv', 'Motor / slow initial voltage (mV)'],
-    ].map(([name, label]) => [label, `${show(motor?.neuron?.config?.[name])} / ${show(slow?.neuron?.config?.[name])}`]),
-    ['RK4 maximum internal step (ms)', show(cfg?.hh?.rk4_max_step_ms)],
+      ['capacitance_nf', 'Capacitance (nF)'],
+      ['g_na_us', 'Sodium conductance (µS)'],
+      ['g_k_us', 'Potassium conductance (µS)'],
+      ['g_ca_us', 'Calcium conductance (µS)'],
+      ['g_kca_us', 'Slow potassium conductance (µS)'],
+      ['g_leak_us', 'Leak conductance (µS)'],
+      ['e_na_mv', 'Sodium reversal (mV)'],
+      ['e_k_mv', 'Potassium reversal (mV)'],
+      ['e_ca_mv', 'Calcium reversal (mV)'],
+      ['e_leak_mv', 'Leak reversal (mV)'],
+      ['excitatory_reversal_mv', 'Excitation reversal (mV)'],
+      ['inhibitory_reversal_mv', 'Inhibition reversal (mV)'],
+      ['initial_voltage_mv', 'Initial voltage (mV)'],
+      ['current_na', 'Constant applied current (nA)'],
+      ['tau_na_activation_ms', 'Sodium activation filter (ms)'],
+      ['tau_na_inactivation_ms', 'Sodium inactivation filter (ms)'],
+      ['tau_k_ms', 'Potassium activation filter (ms)'],
+      ['tau_ca_ms', 'Calcium activation filter (ms)'],
+      ['tau_kca_ms', 'Slow potassium activation filter (ms)'],
+      ['max_step_ms', 'Maximum internal step (ms)'],
+    ].map(([name, label]) => [label, show(motor?.neuron?.config?.[name])]),
   ] },
-  { label: 'Synaptic decay (ms)', rows: (graph?.projections ?? []).map(projection => [projection.id, show(projection.synapse?.tau)]) },
+  { label: 'Synaptic decay (ms)', rows: (graph?.projections ?? []).map(projection => [projection.id, projection.synapse?.kind === 'custom_synapse' ? 'Direct conductance' : show(projection.synapse?.tau)]) },
   { label: 'Synapses and weights', rows: graph?.projections?.length ? graph.projections.map(projection => [projection.id, show(graph.parameters?.find(row => row.id === `${projection.id}.weight`)?.initializer?.value)]) : [['Snapshot evidence', 'Unavailable']] },
   { label: 'Input and simulation', rows: [
     ['Duration (s)', show(cfg?.duration)], ['Numerical timestep (ms)', show(cfg?.dt_ms)],
     ['Control period (ms)', show(cfg?.timer_ms)], ['Seed', show(cfg?.seed)],
+    ['Controller warm-up simulated duration (ms)', show(cfg?.controller_warmup_ms)],
     ['Starting pulse duration (ms)', show(cfg?.flexor_bias_ms)],
     ['Starting flexor / extensor drive (µS)', `${show(cfg?.flexor_initial_us)} / ${show(cfg?.extensor_initial_us)}`],
     ['Ongoing tonic drive (µS)', show(cfg?.tonic_us)],
+    ['Spike transport', show(cfg?.spike_transport)],
     ['SNNLab execution', cfg?.compile_mode === null ? 'Eager' : show(cfg?.compile_mode)],
     ['Lag stop / delivery budget (ms)', `${show(cfg?.max_lag_ms)} / ${show(cfg?.max_spike_age_ms)}`],
   ] },
-  { label: 'Joint mechanics', rows: Object.entries(cfg?.joint ?? { evidence: 'Unavailable' }).map(([name, value]) => [name, show(value)]) },
+  { label: 'Joint mechanics', rows: Object.entries(cfg?.joint ?? { evidence: 'Unavailable' }).map(([name, value]) => [mechanicalLabels[name] ?? name, show(value)]) },
 ];
 
 ## Network diagram
 
-{native && <div style="min-width: 0; align-self: start; margin-bottom: 24px;"><img style="display: block; width: 100%; height: auto;" src={await imageUrl(selected.id, 'circuit.svg')} alt="Native motor and slow inhibitory controller circuit" /></div>}
+{native && <div style="min-width: 0; align-self: start; margin-bottom: 24px;"><img style="display: block; width: 100%; height: auto;" src={await imageUrl(selected.id, 'circuit.svg')} alt="Native recorded controller circuit" /></div>}
 
 ## Parameters
+
+Values come from the selected recording’s native snapshot and configuration.
 
 <Table headers={['Parameter', 'Recorded value']} groups={groups} />

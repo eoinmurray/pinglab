@@ -1,4 +1,4 @@
-"""Extensor ROS node: its own motor and slow inhibitory SNNLab populations.
+"""Extensor ROS node: its own single Elevate motor SNNLab population.
 
 Run as a module inside the local experiment container. Reuse the flexor node
 lifecycle with the extensor side and its own persistent neural state.

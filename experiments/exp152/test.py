@@ -27,8 +27,8 @@ class ReplayTests(unittest.TestCase):
                 lag_ms=[0.9, 0.9],
                 lateness_ms=[0.1, 0.2],
                 model_time_s=[0.001, 0.002],
-                voltage=[[-65, -64], [-63, -62]],
-                spikes=[[1, 0], [0, 1]],
+                voltage=[[-65], [-63]],
+                spikes=[[1], [0]],
             ).items():
                 values[name + "_" + field] = np.asarray(array)
         values.update(
@@ -38,6 +38,7 @@ class ReplayTests(unittest.TestCase):
         )
         summary = dict(
             mode="ros2",
+            controller_populations=["motor"],
             duration_seconds=8,
             timer_ms=1,
             neurons_per_population=1,
@@ -51,7 +52,12 @@ class ReplayTests(unittest.TestCase):
 
     def test_completion_times_and_short_but_late_callbacks_are_preserved(self):
         values, summary = self.fixture()
+        values["sensory_flexor_time_s"] = np.asarray([0.0015])
+        values["sensory_extensor_time_s"] = np.asarray([0.0025, 0.0035, 0.0045])
         payload = recording(values, summary)
+        self.assertEqual(
+            payload["sensory_time_ms"], dict(flexor=[1.5], extensor=[2.5, 3.5, 4.5])
+        )
         for name in NODES:
             node = payload["nodes"][name]
             np.testing.assert_allclose(node["time_ms"], [1.1, 3.2])
@@ -59,6 +65,9 @@ class ReplayTests(unittest.TestCase):
             self.assertTrue(all(v < payload["period_ms"] for v in node["callback_ms"]))
             self.assertEqual(node["model_s"][-1], 0.002)
         self.assertEqual(payload["duration_ms"], 8000)
+        self.assertEqual(payload["controller_populations"], ["motor"])
+        self.assertEqual(payload["schema"], "pinglab.exp152.replay/v2")
+        self.assertEqual(len(payload["nodes"]["flexor"]["voltage"][0]), 1)
         self.assertEqual(payload["nodes"]["plant"]["angle"], [0.1, 0.2])
 
     def test_rejects_unsorted_completion_times(self):
@@ -96,6 +105,8 @@ class ClockTests(unittest.TestCase):
                 self.substeps = 10
                 self.max_lag_ms = 20
                 self.updates = self.steps = 0
+                self.spike_transport = "arrival"
+                self.frame_wait_ms = np.zeros(4)
                 self.profile_timing = profile
                 self.stage_timing = np.zeros((4, 1, 2)) if profile else None
                 self.timing = np.zeros((4, 5))
@@ -169,6 +180,8 @@ class ClockTests(unittest.TestCase):
         dict(duration=float("nan")),
         dict(neurons=1.5),
         dict(max_lag_ms=0),
+        dict(controller_warmup_ms=0),
+        dict(controller_warmup_ms=float("nan")),
     ],
 )
 def test_invalid_protocol(settings):
@@ -196,12 +209,86 @@ def test_native_continuation_and_reset():
     controller.stream.close()
 
 
+def test_long_warmup_resets_state_inputs_and_simulation_clock():
+    controllers = [
+        Controller(
+            "flexor",
+            profile_timing=True,
+            configuration_overrides={"controller_warmup_ms": duration},
+        )
+        for duration in (2.0, 1000.0)
+    ]
+    try:
+        for controller, windows in zip(controllers, (2, 1000), strict=True):
+            assert controller.steps == 0
+            assert controller.info["warmup_windows"] == windows
+            assert controller.info["warmup_state_reset"] is True
+            assert controller.info["warmup_model_ms"] == windows
+            assert not controller.stage_timing.any()
+            assert all(not value.any().item() for value in controller.inputs.values())
+        for tick in range(40):
+            inputs = dict(sensory=int(tick % 11 == 0), peer=int(tick % 19 == 0))
+            short, long = [controller.window(1, **inputs) for controller in controllers]
+            np.testing.assert_array_equal(short[0], long[0])
+            np.testing.assert_array_equal(short[1], long[1])
+            assert short[2] == long[2]
+    finally:
+        for controller in controllers:
+            controller.stream.close()
+
+
+@pytest.mark.parametrize(
+    "neurons,length,firing",
+    [(1, 1, False), (1, 1, True), (1, 5, True), (3, 1, True), (3, 5, True)],
+)
+def test_output_extraction_preserves_values_events_and_array_ownership(
+    neurons, length, firing
+):
+    """Compare the fast path with the former reduction and reused native outputs."""
+    import torch
+
+    voltage = np.arange(length * neurons, dtype=float).reshape(length, neurons) - 65
+    spikes = (
+        (np.arange(length * neurons).reshape(length, neurons) % 3 == 0) & firing
+    ).astype(float)
+    expected_voltage = np.column_stack(
+        [voltage[:, 0] if neurons == 1 else voltage.mean(axis=1)]
+    )
+    expected_spikes = np.column_stack(
+        [spikes[:, 0] if neurons == 1 else spikes.sum(axis=1)]
+    ).astype(int)
+    expected_events = np.argwhere(spikes != 0).tolist()
+    outputs = dict(
+        motor_voltage=torch.tensor(voltage[:, None]),
+        motor_spikes=torch.tensor(spikes[:, None]),
+    )
+    controller = object.__new__(Controller)
+    controller.torch, controller.steps, controller.neurons = torch, 0, neurons
+    controller.profile_timing, controller.inputs = False, {}
+    controller.stream = SimpleNamespace(
+        advance=lambda _inputs: SimpleNamespace(outputs=outputs)
+    )
+    actual_voltage, actual_spikes, actual_events = controller._execute(length)
+    np.testing.assert_array_equal(actual_voltage, expected_voltage)
+    np.testing.assert_array_equal(actual_spikes, expected_spikes)
+    assert actual_events == expected_events
+    assert controller.steps == length
+    # Simulate streaming reusing its output tensors on a subsequent advance.
+    outputs["motor_voltage"].fill_(999)
+    outputs["motor_spikes"].fill_(0)
+    np.testing.assert_array_equal(actual_voltage, expected_voltage)
+    np.testing.assert_array_equal(actual_spikes, expected_spikes)
+
+
 def test_joint_order_and_normalized_impulse():
     joint = Joint()
     torque = joint.advance([1, 0], 0.0001)
-    assert torque == pytest.approx(0.064)
-    assert joint.velocity == pytest.approx(0.00128)
-    assert joint.angle == pytest.approx(1.28e-7)
+    assert torque == pytest.approx(
+        0.8 * configuration()["joint"]["activation_increment"]
+    )
+    acceleration = (torque - 0.002 * 9.81 * 0.2) / 0.00508
+    assert joint.velocity == pytest.approx(0.0001 * acceleration)
+    assert joint.angle == pytest.approx(np.pi / 2 + 1e-8 * acceleration)
 
 
 def test_native_start_snapshot(tmp_path):
@@ -223,7 +310,6 @@ def test_native_start_snapshot(tmp_path):
     assert snapshot["stage"] == "start"
     assert {row["id"] for row in snapshot["network"]["populations"]} == {
         "motor",
-        "slow",
     }
     assert (tmp_path / "flexor/circuit.svg").is_file()
     stream.close()
@@ -248,9 +334,10 @@ def test_empty_failed_acquisition_retains_verdicts():
         False,
         "startup failure",
     )
+    assert summary["total_neurons"] == 2
     assert not summary["passed"]
     assert not summary["timing_passed"]
-    assert values["flexor_substep_spikes"].shape == (0, cfg["substeps"], 2)
+    assert values["flexor_substep_spikes"].shape == (0, cfg["substeps"], 1)
     assert recording(values, summary)["nodes"]["plant"]["time_ms"] == []
 
 
@@ -268,8 +355,19 @@ def test_browser_pulses_reach_targets_without_reset_and_playback_loops():
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 const code = readFileSync(process.argv[1], 'utf8');
-const {pulseSamples, routePoint, loopTime, toDegrees, voltageFraction, peerInhibitionRoutes, arrowHead} = await import(
+const {pulseSamples, routePoint, loopTime, toDegrees, voltageFraction, peerInhibitionRoutes, sensoryExcitationRoutes, controllerPopulations, arrowHead} = await import(
   'data:text/javascript;base64,' + Buffer.from(code).toString('base64'));
+assert.deepEqual(controllerPopulations({schema:'pinglab.exp152.replay/v2', controller_populations:['motor']}), ['motor']);
+assert.deepEqual(controllerPopulations({schema:'pinglab.exp152.replay/v1'}), ['motor','slow']);
+assert.throws(() => controllerPopulations({schema:'pinglab.exp152.replay/v2'}));
+assert.equal(sensoryExcitationRoutes().length, 2);
+for (const route of sensoryExcitationRoutes()) {
+  assert.equal(route.inhibitory, false);
+  assert.equal(route.sensory, true);
+  const center = route.name === 'flexor' ? [205,240] : [1035,240];
+  const end = route.points.at(-1);
+  assert.ok(Math.hypot(end[0]-center[0],end[1]-center[1]) > 27);
+}
 const [forward, backward] = peerInhibitionRoutes();
 for (const route of [forward, backward]) {
   const end = route.points.at(-1);
@@ -312,94 +410,89 @@ assert.equal(loopTime(0, -.1, 1, 8000), 0);
     )
 
 
-@pytest.mark.parametrize("capacitance, dt_ms", [(0.01, 0.1), (0.01, 1.0), (0.02, 1.0)])
-def test_hh_conductance_drive_matches_independent_scipy_solution(capacitance, dt_ms):
-    """Validate ionic dynamics and conductance reversal currents independently."""
+def test_elevate_converges_to_independent_scipy_ode():
+    """Check the complete six-state continuous model with an adaptive solver."""
     import torch
-    from experiments.exp152.custom.hodgkin_huxley import initial_state, register, step
+    from experiments.exp152.custom.elevate import KEYS, initialize, step
     from scipy.integrate import solve_ivp
-    from scipy.special import exprel
+    from scipy.special import expit
 
-    def derivative(t, state):
-        v, m, h, n = state
-        alpha = np.array(
-            [
-                1 / exprel(-(v + 40) / 10),
-                0.07 * np.exp(-(v + 65) / 20),
-                0.1 / exprel(-(v + 55) / 10),
-            ]
-        )
-        beta = np.array(
-            [
-                4 * np.exp(-(v + 65) / 18),
-                1 / (1 + np.exp(-(v + 35) / 10)),
-                0.125 * np.exp(-(v + 65) / 80),
-            ]
-        )
-        ionic = (
-            1.2 * m**3 * h * (v - 50) + 0.36 * n**4 * (v + 77) + 0.003 * (v + 54.387)
-        )
-        current = 0.005 * (0 - v) + 0.001 * (-80 - v)
-        return np.r_[
-            (current - ionic) / capacitance, alpha * (1 - state[1:]) - beta * state[1:]
-        ]
+    cfg = configuration()["neuron"]
 
-    state = initial_state(
-        SimpleNamespace(shape=(1, 1), device="cpu", dtype=torch.float64)
-    )
-    keys = ("voltage", "m", "h", "n")
-    initial = np.array([state[k].item() for k in keys])
-    register()
-    duration_ms = 35
-    times = np.arange(1, round(duration_ms / dt_ms) + 1) * dt_ms
-    reference = solve_ivp(
+    def derivative(_time, state):
+        v, filtered = state[0], state[1:]
+        m, h, n, ca, kca = expit(
+            (filtered + [25, 40, 15, 45, 30]) * [0.2, -0.1, 0.1, 0.2, 0.1]
+        )
+        current = (
+            100 * m * h * (40 - v)
+            + (65 * n + 10 * kca) * (-90 - v)
+            + 2 * ca * (120 - v)
+            + 2 * (-50 - v)
+            - 5
+        )
+        return np.r_[current, (v - filtered) / [0.1, 1, 1, 1, 75]]
+
+    truth = solve_ivp(
         derivative,
-        (0, duration_ms),
-        initial,
-        t_eval=times,
+        (0, 2),
+        np.full(6, -60.0),
         method="DOP853",
-        rtol=1e-10,
+        rtol=1e-11,
         atol=1e-12,
-    )
-    actual = []
-    for _ in times:
-        state, spikes = step(
-            SimpleNamespace(
-                state=state,
-                dt_ms=dt_ms,
-                excitatory=torch.tensor([[0.005]], dtype=torch.float64),
-                inhibitory=torch.tensor([[0.001]], dtype=torch.float64),
-                config={"capacitance_nf": capacitance},
-            )
+        max_step=0.001,
+    ).y[:, -1]
+    errors = []
+    for dt in [0.04, 0.02, 0.01, 0.005]:
+        state = initialize(
+            SimpleNamespace(shape=(1, 1), device="cpu", dtype=torch.float64, config=cfg)
         )
-        actual.append([state[k].item() for k in keys])
-        assert spikes.item() in (0, 1)
-    np.testing.assert_allclose(
-        np.asarray(actual)[:, 0], reference.y[0], atol=0.05, rtol=0
-    )
-    np.testing.assert_allclose(
-        np.asarray(actual)[:, 1:], reference.y[1:].T, atol=0.001, rtol=0
-    )
+        for _ in range(round(2 / dt)):
+            state, spikes = step(
+                SimpleNamespace(
+                    state=state,
+                    dt_ms=dt,
+                    config={**cfg, "max_step_ms": dt},
+                    excitatory=torch.zeros((1, 1), dtype=torch.float64),
+                    inhibitory=torch.zeros((1, 1), dtype=torch.float64),
+                )
+            )
+            assert spikes.item() in (0, 1)
+        errors.append(
+            np.linalg.norm(np.array([state[key].item() for key in KEYS]) - truth)
+        )
+    assert all(b < 0.7 * a for a, b in zip(errors, errors[1:], strict=False)), errors
+    assert errors[-1] < 0.03
 
 
-def test_hh_definition_has_conductance_ports_and_gate_state():
+def test_elevate_definition_has_conductance_ports_and_gate_state():
     cfg = configuration()
     bundle = author_network(cfg)
-    assert cfg["neuron_model"] == "hodgkin_huxley"
+    assert cfg["neuron_model"] == "elevate"
     populations = bundle.graph["populations"]
-    assert all(row["neuron"]["kind"] == "custom_neuron" for row in populations)
+    assert len(populations) == 1
+    assert populations[0]["id"] == "motor"
+    assert populations[0]["size"] == 1
+    assert populations[0]["neuron"]["kind"] == "custom_neuron"
+    assert {row["id"] for row in bundle.graph["projections"]} == {
+        "local_bias",
+        "sensory_drive",
+        "peer_inhibition",
+    }
 
 
-def test_hh_compiled_controller_matches_eager_with_spike_inputs():
+def test_elevate_compiled_controller_matches_eager_with_spike_inputs():
     """Compilation must preserve voltage, spikes and their within-window offsets."""
     eager = Controller("flexor", dt_ms=1.0, warm_steps=1, compile_mode=None)
     compiled = Controller("flexor", dt_ms=1.0, warm_steps=1, compile_mode="default")
     try:
-        for tick in range(120):
+        for tick in range(500):
             inputs = dict(sensory=int(tick % 17 == 0), peer=int(tick % 29 == 0))
             expected = eager.window(1, **inputs)
             actual = compiled.window(1, **inputs)
-            np.testing.assert_allclose(actual[0], expected[0], atol=1e-7, rtol=1e-8)
+            # Kernel fusion changes floating-point operation order. Keep voltage
+            # agreement below 0.001 mV and require exact event identity/offsets.
+            np.testing.assert_allclose(actual[0], expected[0], atol=1e-3, rtol=0)
             np.testing.assert_array_equal(actual[1], expected[1])
             assert actual[2] == expected[2]
     finally:
@@ -407,9 +500,9 @@ def test_hh_compiled_controller_matches_eager_with_spike_inputs():
         compiled.stream.close()
 
 
-def test_hh_closed_loop_reaches_both_sensors_without_joint_stops():
+def test_elevate_closed_loop_reaches_both_sensors_without_joint_stops():
     """A deterministic one-window transport delay isolates the neural controller."""
-    cfg = configuration()
+    cfg = configuration(duration=30)
     controllers = [
         Controller(side, dt_ms=cfg["dt_ms"], warm_steps=cfg["substeps"])
         for side in ("flexor", "extensor")
@@ -417,6 +510,7 @@ def test_hh_closed_loop_reaches_both_sensors_without_joint_stops():
     joint = Joint()
     motor, sensory = np.zeros(2), np.zeros(2, dtype=int)
     sensory_counts = np.zeros(2, dtype=int)
+    late_sensory_counts = np.zeros(2, dtype=int)
     velocities, angles = [], []
     try:
         for tick in range(round(cfg["duration"] * 1000 / cfg["timer_ms"])):
@@ -430,6 +524,8 @@ def test_hh_closed_loop_reaches_both_sensors_without_joint_stops():
                 now = (tick * cfg["timer_ms"] + substep * cfg["dt_ms"]) / 1000
                 sensory = joint.encode(now)
                 sensory_counts += sensory
+                if now >= cfg["duration"] / 2:
+                    late_sensory_counts += sensory
                 joint.advance(motor if substep == 0 else [0, 0], cfg["dt_ms"] / 1000)
             motor = np.array([row[1][:, 0].sum() for row in output])
             angles.append(joint.angle)
@@ -437,7 +533,19 @@ def test_hh_closed_loop_reaches_both_sensors_without_joint_stops():
         moving = np.sign(np.asarray(velocities)[np.abs(velocities) > 0.05])
         assert np.isfinite(angles).all()
         assert joint.limit_hits == 0
+        # The unchanged cells must repeatedly drive both sides under gravity.
+        tail = np.asarray(angles)[4000:]
+        assert np.ptp(tail) > 2 * cfg["joint"]["sensory_limit"]
         assert (sensory_counts > 0).all(), (sensory_counts, min(angles), max(angles))
+        assert (late_sensory_counts > 0).all(), late_sensory_counts
+        from experiments.exp152.analyse import cycle_metrics
+
+        assert cycle_metrics(
+            angles,
+            velocities,
+            reference_angle=cfg["joint"]["reference_angle"],
+            settings=cfg["analysis"],
+        )["passed"]
         assert np.count_nonzero(np.diff(moving)) >= cfg["analysis"]["minimum_reversals"]
     finally:
         for controller in controllers:
@@ -452,14 +560,18 @@ def test_one_ms_protocol_has_no_neuron_clock_scaling():
 
 
 @pytest.mark.parametrize("dtype_name", ["float32", "float64"])
-def test_hh_tensor_callback_preserves_batched_state_and_parameter_overrides(dtype_name):
+def test_elevate_tensor_callback_preserves_batched_state_and_parameter_overrides(
+    dtype_name,
+):
     """Tensor callbacks must preserve the extension contract across shapes/dtypes."""
     import torch
-    from experiments.exp152.custom.hodgkin_huxley import initial_state, step
+    from experiments.exp152.custom.elevate import initialize, step
 
     dtype = getattr(torch, dtype_name)
-    config = dict(capacitance_nf=0.02, g_k_us=0.45, g_na_us=1.1)
-    state = initial_state(
+    config = dict(
+        configuration()["neuron"], capacitance_nf=1.2, g_k_us=60.0, g_na_us=95.0
+    )
+    state = initialize(
         SimpleNamespace(shape=(2, 3), device="cpu", dtype=dtype, config=config)
     )
     # Different drives detect accidental mixing of batch or neuron axes.
@@ -476,7 +588,7 @@ def test_hh_tensor_callback_preserves_batched_state_and_parameter_overrides(dtyp
         assert actual[key].dtype == dtype
         assert actual[key].device == state[key].device
         assert torch.isfinite(actual[key]).all()
-    assert set(actual) == set(state) == {"voltage", "m", "h", "n"}
+    assert set(actual) == set(state) == {"voltage", "vna", "vh", "vk", "vca", "vkca"}
     assert spikes.dtype == dtype
     assert spikes.shape == (2, 3)
     assert ((spikes == 0) | (spikes == 1)).all()
@@ -516,13 +628,14 @@ def test_startup_estimator_distinguishes_stationary_onset_from_settling():
 
 @pytest.mark.parametrize("side", ["flexor", "extensor"])
 def test_starting_pulse_preserves_rest_state_and_window_equivalence(side):
-    options = dict(flexor_bias_ms=50, flexor_initial_us=0.02, extensor_initial_us=0)
+    options = dict(flexor_bias_ms=50, flexor_initial_us=0.5, extensor_initial_us=0)
     controllers = [
         Controller(side, compile_mode=None, configuration_overrides=options)
         for _ in range(2)
     ]
     joint = Joint()
-    assert joint.angle == joint.velocity == 0
+    assert joint.angle == np.pi / 2
+    assert joint.velocity == 0
     np.testing.assert_array_equal(joint.activation, [0, 0])
     try:
         for tick in range(60):
@@ -549,3 +662,248 @@ def test_startup_estimator_preserves_empty_and_stationary_failures():
     time = np.arange(4000) * 0.002
     metrics = startup_metrics(0.28 * np.sin(2 * np.pi * time / 0.8), dt_s=0.002)
     assert metrics["first_extremum_s"] == pytest.approx(0.2)
+
+
+def test_loaded_joint_physics_against_independent_ode():
+    from scipy.integrate import solve_ivp
+
+    settings = configuration()["joint"]
+    assert settings["total_inertia"] == pytest.approx(0.00508)
+    joint = Joint(settings)
+    assert joint.gravity_torque(np.pi / 2) == pytest.approx(-0.003924)
+    assert joint.gravity_torque(0) == 0
+    assert joint.gravity_torque(-np.pi / 2) == pytest.approx(0.003924)
+
+    def rhs(time, state):
+        angle, velocity = state
+        return [
+            velocity,
+            (-0.003924 * np.sin(angle) - 0.02 * velocity - 0.02 * (angle - np.pi / 2))
+            / 0.00508,
+        ]
+
+    expected = solve_ivp(rhs, [0, 0.1], [np.pi / 2, 0], rtol=1e-11, atol=1e-13)
+    for _ in range(1000):
+        joint.advance([0, 0], 0.0001)
+    np.testing.assert_allclose(
+        [joint.angle, joint.velocity], expected.y[:, -1], atol=5e-5
+    )
+    assert joint.limit_hits == 0
+    # Equal opposing activation has unequal acceleration about the horizontal.
+    raised, lowered = (
+        Joint(dict(settings, activation_increment=0.01)),
+        Joint(dict(settings, activation_increment=0.01)),
+    )
+    raised.advance([20, 0], 0.001)
+    lowered.advance([0, 20], 0.001)
+    assert raised.velocity > 0 > lowered.velocity
+    assert abs(lowered.velocity) > abs(raised.velocity)
+
+
+def test_joint_configuration_and_relative_sensors():
+    cfg = configuration(initial_angle_deg=70, tip_mass_kg=0.1, arm_length_m=0.3)
+    joint = Joint(cfg["joint"])
+    assert joint.angle == pytest.approx(np.deg2rad(70))
+    assert joint.total_inertia == pytest.approx(0.014)
+    np.testing.assert_array_equal(joint.encode(0), [0, 0])
+    joint.angle -= 0.26
+    np.testing.assert_array_equal(joint.encode(0), [1, 0])
+    joint.angle += 0.52
+    np.testing.assert_array_equal(joint.encode(0.01), [0, 1])
+    with pytest.raises(ValueError):
+        configuration(tip_mass_kg=-1)
+    with pytest.raises(ValueError):
+        configuration(arm_length_m=0)
+    with pytest.raises(ValueError):
+        Joint(dict(cfg["joint"], initial_angle=10))
+
+
+def test_startup_metrics_uses_recorded_reference():
+    from experiments.exp152.analyse import startup_metrics
+
+    time = np.arange(8000) / 1000
+    angles = 0.3 * np.sin(2 * np.pi * time)
+    original = startup_metrics(angles)
+    loaded = startup_metrics(angles + np.pi / 2, reference_angle=np.pi / 2)
+    np.testing.assert_allclose(original["extrema_deg"], loaded["extrema_deg"])
+    assert original["settling_s"] == loaded["settling_s"]
+
+
+def test_replay_preserves_loaded_mechanics_and_historical_metadata():
+    values, summary = ReplayTests().fixture()
+    assert recording(values, summary)["mechanics"] == {}
+    settings = configuration()["joint"]
+    summary["configuration"] = dict(joint=settings)
+    values["gravity_torque"] = np.array([-0.003, -0.004])
+    payload = recording(values, summary)
+    assert payload["mechanics"] == settings
+    assert payload["mechanics"]["initial_angle"] == np.pi / 2
+    assert payload["nodes"]["plant"]["gravity_torque"] == [-0.003, -0.004]
+
+
+def test_cycle_metrics_accepts_periodic_asymmetry_and_rejects_drift():
+    from experiments.exp152.analyse import cycle_metrics
+
+    time = np.arange(1, 20001) / 1000
+    phase = 2 * np.pi * time
+    reference = np.pi / 2
+    angle = reference + 0.3 * np.sin(phase) + 0.03 * (np.cos(2 * phase) - 1)
+    velocity = 2 * np.pi * (0.3 * np.cos(phase) - 0.06 * np.sin(2 * phase))
+    result = cycle_metrics(angle, velocity, reference_angle=reference)
+    assert result["passed"]
+    assert result["assessed_cycles"] == 10
+    assert result["mean_period_s"] == pytest.approx(1, abs=1e-5)
+    assert not cycle_metrics(
+        np.full_like(time, reference), np.zeros_like(time), reference_angle=reference
+    )["passed"]
+    drift = reference + (0.3 + 0.01 * time) * np.sin(phase)
+    assert not cycle_metrics(drift, velocity, reference_angle=reference)["passed"]
+    assert not cycle_metrics(angle[:6000], velocity[:6000], reference_angle=reference)[
+        "passed"
+    ]
+
+
+def test_native_batch_gain_screen_matches_individual_projection_weights():
+    import torch
+    from snnlab.sim import Performance, prepare_stream
+
+    base = configuration(sensory_drive_us=0.025)
+    bundle = author_network(base)
+    batch = prepare_stream(
+        bundle,
+        window_steps=1,
+        batch_size=2,
+        device="cpu",
+        dtype=torch.float64,
+        performance=Performance(compile_mode=None, projection_mode="fast"),
+    )
+    candidates = [
+        dict(tonic_us=0.025, sensory_drive_us=0.025, peer_inhibition_us=0.2),
+        dict(tonic_us=0.05, sensory_drive_us=0.005, peer_inhibition_us=0.5),
+    ]
+    individual = [
+        Controller("flexor", configuration_overrides=options) for options in candidates
+    ]
+    inputs = {
+        key: torch.zeros(1, 2, 1, dtype=torch.float64)
+        for key in ("tonic", "sensory", "peer")
+    }
+    try:
+        batch.reset()
+        with torch.inference_mode():
+            for tick in range(150):
+                sensory, peer = int(tick % 11 == 0), int(tick % 17 == 0)
+                for j, options in enumerate(candidates):
+                    inputs["tonic"][0, j, 0] = (
+                        base["flexor_initial_us"]
+                        if tick < base["flexor_bias_ms"]
+                        else options["tonic_us"]
+                    )
+                    inputs["sensory"][0, j, 0] = (
+                        sensory
+                        * float(np.float32(options["sensory_drive_us"]))
+                        / float(np.float32(base["weights"]["sensory_drive"]))
+                    )
+                    inputs["peer"][0, j, 0] = (
+                        peer
+                        * float(np.float32(options["peer_inhibition_us"]))
+                        / float(np.float32(base["weights"]["peer_inhibition"]))
+                    )
+                result = batch.advance(inputs)
+                for j, controller in enumerate(individual):
+                    voltage, spikes, _ = controller.window(
+                        1, sensory=sensory, peer=peer
+                    )
+                    assert result.outputs["motor_voltage"][
+                        0, j, 0
+                    ].item() == pytest.approx(voltage[0, 0], abs=1e-8)
+                    assert (
+                        result.outputs["motor_spikes"][0, j, 0].item() == spikes[0, 0]
+                    )
+    finally:
+        batch.close()
+        for controller in individual:
+            controller.stream.close()
+
+
+def test_recorded_controller_settings_survive_runtime_adapter():
+    from experiments.exp152.recipe import controller_settings
+
+    cfg = configuration(
+        duration=40,
+        tonic_us=0.06,
+        sensory_drive_us=0.075,
+        peer_inhibition_us=0.3,
+        peer_tau_ms=150,
+        activation_increment=0.004,
+    )
+    restored = configuration(**controller_settings(cfg))
+    for key in ("duration", "tonic_us", "weights", "synapse_tau_ms", "joint"):
+        assert restored[key] == cfg[key]
+
+
+def test_spike_windows_wait_for_silence_and_apply_only_the_requested_step():
+    from experiments.exp152.custom.models import SpikeWindowInbox
+
+    inbox = SpikeWindowInbox(["peer", "plant"], 1)
+    assert inbox.take(-1) == dict(peer=[], plant=[])
+    inbox.receive("peer", [1, 1, 0, 0])
+    inbox.receive("plant", [0, 1])
+    assert inbox.take(0) is None
+    inbox.receive("peer", [0, 1, 0, 0])
+    assert inbox.take(0) == dict(peer=[(0, 0)], plant=[])
+    assert inbox.take(1) is None
+    inbox.receive("plant", [1, 1, 0, 1])
+    assert inbox.take(1) == dict(peer=[(0, 0)], plant=[(0, 1)])
+    inbox.receive("peer", [0, 1, 0, 0])
+    assert not inbox.pending["peer"]
+    with pytest.raises(ValueError):
+        inbox.receive("peer", [2, 1, 1, 0])
+
+
+def test_reliable_diagnostics_keep_all_batches_beyond_previous_history_depth():
+    import time
+
+    rclpy = pytest.importorskip("rclpy")
+    from experiments.exp152.compute import _recorder_type
+    from rclpy.node import Node
+    from rclpy.qos import HistoryPolicy, QoSProfile, ReliabilityPolicy
+    from std_msgs.msg import Int64MultiArray, String
+
+    qos = QoSProfile(
+        history=HistoryPolicy.KEEP_ALL, reliability=ReliabilityPolicy.RELIABLE
+    )
+    rclpy.init()
+    recorder = _recorder_type(
+        Node=Node, String=String, Int64MultiArray=Int64MultiArray, diagnostic_qos=qos
+    )()
+    sender = Node("test_diagnostic_export")
+    publisher = sender.create_publisher(String, "/diagnostics/flexor", qos)
+    try:
+        until = time.monotonic() + 10
+        while publisher.get_subscription_count() == 0 and time.monotonic() < until:
+            rclpy.spin_once(recorder, timeout_sec=0.01)
+        assert publisher.get_subscription_count() > 0
+        for index in range(400):
+            publisher.publish(String(data=json.dumps([dict(index=index)])))
+        while len(recorder.records["flexor"]) < 400 and time.monotonic() < until:
+            rclpy.spin_once(recorder, timeout_sec=0.01)
+        assert recorder.records["flexor"] == [dict(index=i) for i in range(400)]
+    finally:
+        sender.destroy_node()
+        recorder.destroy_node()
+        rclpy.shutdown()
+
+
+def test_cycle_metrics_keeps_model_and_wall_clock_variation_separate():
+    from experiments.exp152.analyse import cycle_metrics
+
+    time = np.arange(1, 20001) / 1000
+    angle, velocity = (
+        0.3 * np.sin(2 * np.pi * time),
+        0.6 * np.pi * np.cos(2 * np.pi * time),
+    )
+    assert cycle_metrics(angle, velocity)["passed"]
+    irregular_wall_time = time + 0.1 * np.sin(2.4 * time)
+    assert np.all(np.diff(irregular_wall_time) > 0)
+    assert not cycle_metrics(angle, velocity, times=irregular_wall_time)["passed"]

@@ -128,6 +128,15 @@ All article lists, including every collection, show experiments first, sorted by
 descending numeric experiment ID, then other articles by decreasing authored
 `updated_at`, with article ID and URL ascending to break ties. This order applies
 in development and static builds.
+The homepage has a compact Sort by control above the articles. Default order
+uses that ordering; Recently updated sorts all articles by descending authored
+`updated_at`. The selection persists across refreshes in browser local storage.
+Press `s` to switch orders; the `[s]` hint beside Sort by can be clicked to
+disable or re-enable this shortcut, and that preference also persists. The
+shortcut ignores typing in editable fields, native selects, open dialogs,
+modified keys, composition and held-key repeats.
+If storage is unavailable, sorting still works for the current page. Without
+JavaScript, the default order remains available and the control is hidden.
 The homepage, `/notes/`, and `/collections/<collection>/` share the same
 collection sidebar and article layout, including aligned navigation. Collection
 pages show only that collection's articles and highlight its sidebar link.

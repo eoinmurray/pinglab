@@ -3,8 +3,8 @@ id: exp152
 title: "Streaming Control of a Rotary Joint"
 author: "Eoin Murray"
 created_at: "2026-10-24T06:35:43Z"
-updated_at: "2026-10-25T18:49:54Z"
-description: "Near-real-time joint control with Hodgkin–Huxley neurons in SNNLab, running in connected ROS2 Humble nodes."
+updated_at: "2026-10-26T19:04:02Z"
+description: "Joint control with one Elevate neuron per controller, reciprocal inhibition and excitatory sensory feedback in ROS2 Humble."
 collection: ["experiments", "animations"]
 tags: ["data"]
 inputs: ["exp152"]
@@ -14,136 +14,129 @@ import { reportData } from '../../../site/src/lib/report-data';
 import Replay from './Replay.astro';
 
 export const evidence = await reportData('exp152', { allowUnavailable: true });
+export const currentModel = evidence?.configuration?.neuron_model === 'elevate';
+export const loadedJoint = evidence?.configuration?.joint?.angle_convention === 'zero_downward_positive_right';
 
 ## Abstract
 
-This experiment demonstrates near-real-time control of a simulated rotary joint
-using Hodgkin–Huxley neurons defined in SNNLab. Two ROS2 Humble nodes run neural
-controllers that activate opposing virtual muscles, while a third simulates the
-joint and returns sensory feedback. All three run in Docker on separate CPUs,
-with a 1 ms update target. The animation replays recorded neuron activity, joint
-motion and callback timings. The joint oscillates, but some updates finish late,
-so the implementation still needs timing work.
+Two SNNLab controllers, each containing one Elevate neuron, drive opposing
+muscles on a rotary joint. Motor spikes activate muscles and inhibit the peer
+controller; joint-angle feedback excites each neuron. Three ROS2 Humble nodes
+run in Docker on separate CPUs with a 1 ms control period. A tip mass under
+gravity makes flexion and extension asymmetric.
 
 ## Results
 
-The replay records the PyTorch tensor HH callback registered through SNNLab's
-custom-neuron API, with SNNLab compilation enabled. All three nodes completed
-the eight-second protocol. Behaviour checks passed, but the 1 ms deadline checks
-failed. Earlier recordings used a C/C++ HH operator and remain separate evidence.
+{evidence && !currentModel && <p>The selected recording uses {evidence.configuration?.neuron_model}; it does not validate the Elevate model described here.</p>}
 
-{evidence && <Replay experiment="exp152" />}
+{currentModel && !loadedJoint && <p>The selected recording does not validate the loaded-joint model described here.</p>}
+
+{loadedJoint && !evidence.checks.no_safety_stop && <p>Execution was incomplete. Flexor, extensor and joint completed {evidence.model_seconds_per_node.flexor.toFixed(3)}, {evidence.model_seconds_per_node.extensor.toFixed(3)} and {evidence.model_seconds_per_node.plant.toFixed(3)} model seconds. Controller stop reasons: {evidence.stop_reasons.flexor} / {evidence.stop_reasons.extensor}.</p>}
+
+{currentModel && <Replay experiment="exp152" />}
 
 ## Neuron Model
 
-The motor and inhibitory cells use a Hodgkin–Huxley model with sodium,
-potassium and leak currents. It is custom-defined in SNNLab. The channel equations follow
-[Hodgkin and Huxley (1952)](https://doi.org/10.1113/jphysiol.1952.sp004764),
-with excitatory and inhibitory conductance inputs:
+Elevate is a phenomenological conductance-based neuron with sodium, potassium,
+calcium, slow potassium and leak currents:
 
 $$
-\begin{aligned}
-C\frac{dV}{dt} ={}& g_e(E_e-V)+g_i(E_i-V) -\bar g_{\mathrm{Na}}m^3h(V-E_{\mathrm{Na}}) \\
-&-\bar g_{\mathrm{K}}n^4(V-E_{\mathrm{K}})-g_L(V-E_L).
-\end{aligned}
+C\frac{dV}{dt}=I_0+g_e(E_e-V)+g_i(E_i-V)
++\sum_{k\in\{\mathrm{Na},\mathrm{K},\mathrm{Ca},\mathrm{KCa},L\}}g_k(E_k-V).
 $$
 
-Here $V$ is membrane voltage and $t$ is time; $C$ is membrane capacitance.
-The maximum sodium and potassium conductances are $\bar g_{\mathrm{Na}}$
-and $\bar g_{\mathrm{K}}$, and $g_L$ is leak conductance.
-Their reversal potentials are $E_{\mathrm{Na}}$, $E_{\mathrm{K}}$ and $E_L$.
-The total excitatory and inhibitory input conductances are $g_e$ and $g_i$,
-with reversal potentials $E_e$ and $E_i$; $g_e$ includes the local tonic input.
-Voltage is measured in mV, time in ms, capacitance in nF, conductance in µS
-and current in nA.
+$V$ is membrane voltage, $t$ time, $C$ capacitance and $I_0$ constant applied
+current. Excitatory and inhibitory conductances $g_e,g_i$ have reversals
+$E_e,E_i$; intrinsic conductance $g_k$ has reversal $E_k$. Units are mV, ms,
+nF, µS and nA; no biological cell-area calibration is assumed.
 
-The dimensionless gates $m$, $h$ and $n$ describe sodium activation, sodium
-inactivation and potassium activation, respectively. Each gate $x$ evolves as
+For gate index $j\in\{m,h,n,c,q\}$,
 
 $$
-\frac{dx}{dt}=\alpha_x(V)(1-x)-\beta_x(V)x,
-\qquad x\in\{m,h,n\}.
+\tau_j\frac{dU_j}{dt}=V-U_j,\qquad
+x_j=\sigma\!\left[a_j(U_j-b_j)\right],\qquad
+\sigma(z)=\frac{1}{1+\exp(-z)}.
 $$
 
-The voltage-dependent opening and closing rates $\alpha_x$ and $\beta_x$
-are in ms$^{-1}$. With $V$ expressed numerically in mV, the implemented rates are
+$U_j$ is filtered voltage (mV), $\tau_j$ its timescale (ms), $x_j$ a
+dimensionless gate, $a_j$ sigmoid slope (mV$^{-1}$), $b_j$ midpoint (mV),
+and $z$ the dimensionless sigmoid argument. In order $m,h,n,c,q$, slopes are
+$(0.2,-0.1,0.1,0.2,0.1)$ and midpoints $(-25,-40,-15,-45,-30)$ mV.
+These gates control sodium activation/inactivation, potassium activation,
+calcium activation and slow potassium activation:
 
 $$
-\begin{aligned}
-\alpha_m(V)&=\frac{0.1(V+40)}{1-\exp[-(V+40)/10]},
-&\beta_m(V)&=4\exp[-(V+65)/18],\\
-\alpha_h(V)&=0.07\exp[-(V+65)/20],
-&\beta_h(V)&=\frac{1}{1+\exp[-(V+35)/10]},\\
-\alpha_n(V)&=\frac{0.01(V+55)}{1-\exp[-(V+55)/10]},
-&\beta_n(V)&=0.125\exp[-(V+65)/80].
-\end{aligned}
+g_{\mathrm{Na}}=\bar g_{\mathrm{Na}}x_mx_h,\quad
+g_{\mathrm{K}}=\bar g_{\mathrm{K}}x_n,\quad
+g_{\mathrm{Ca}}=\bar g_{\mathrm{Ca}}x_c,\quad
+g_{\mathrm{KCa}}=\bar g_{\mathrm{KCa}}x_q,\quad g_L=\bar g_L.
 $$
 
-The removable singularities use their continuous limits:
-$\alpha_m(-40)=1$ ms$^{-1}$ and $\alpha_n(-55)=0.1$ ms$^{-1}$.
-At the initial voltage $V_0$, each gate starts at
-$x_0=\alpha_x(V_0)/[\alpha_x(V_0)+\beta_x(V_0)]$.
-
-A spike is reported when $V$ crosses 0 mV upwards during an update; the membrane
-voltage is not reset. Both populations advance by 1 ms per update, with unscaled
-channel kinetics. The current SNNLab custom-neuron callback integrates each
-interval using PyTorch tensor operations and RK4 steps of at most 0.025 ms.
-SNNLab compiles this callback before the shared ROS start; compilation and warm-up
-are excluded from the callback timings. The inhibitory cell has twice the motor
-cell's membrane capacitance; the recorded values are listed in Parameters.
+$\bar g_k$ is maximum conductance. Both potassium currents use the potassium
+reversal. KCa depends on filtered voltage; there is no calcium-concentration state.
 
 ## Joint Dynamics Model
 
-Two spike-driven virtual muscles act on a damped rotary joint with a restoring spring:
+Two muscles drive a damped rotary joint with a restoring spring and tip mass.
+The arm contributes inertia but no gravitational mass. Zero points downward;
+positive angles point right. Pendulum torque balance gives
 
 $$
-J\ddot{\theta}+b\dot{\theta}+k\theta
+(J_0+mL^2)\ddot{\theta}+b\dot{\theta}+k(\theta-\theta_r)+mgL\sin\theta
 =\tau_{\max}(a_f-a_e).
 $$
 
-Here $\theta$ is angle (rad), dots denote time derivatives in seconds, $J$ is
-rotational inertia (kg m$^2$), $b$ is damping (N m s/rad), and $k$ is stiffness
-(N m/rad). The dimensionless flexor/extensor activations are $a_f,a_e\in[0,1]$;
-$\tau_{\max}$ is maximum muscle torque (N m).
+$\theta$ is angle (rad); dots denote derivatives in seconds. $J_0$ is base
+inertia (kg m$^2$), $m$ tip mass (kg), $L$ arm length (m), $g$ gravity
+(m/s$^2$), and $\theta_r$ spring rest angle (rad). Total inertia is $J_0+mL^2$;
+$b$ is damping (N m s/rad), $k$ stiffness (N m/rad), $a_f,a_e\in[0,1]$
+flexor/extensor activation, and $\tau_{\max}$ maximum muscle torque (N m).
 
-At mechanical step $n$, each muscle $i\in\{f,e\}$ updates its activation as
+At mechanical step $n$, muscle $i\in\{f,e\}$ updates as
 
 $$
 a_{i,n+1}=\min\!\left(1,
 a_{i,n}\exp[-\Delta t/\tau_a]+q\,s_{i,n}\right).
 $$
 
-Here $\Delta t$ is the timestep and $\tau_a$ the activation decay time, both in
-seconds; $q$ is a dimensionless increment. The input $s_{i,n}$ is the accepted
-motor spike count divided by that population's neuron count. Counts accumulate
-between plant callbacks and enter only the first mechanical step of the next
-callback; subsequent steps receive zero. Activation decays before spikes are
-added and capped at one. Spike increments are not multiplied by $\Delta t$.
+$\Delta t$ is timestep and $\tau_a$ activation decay time (seconds); $q$ is a
+dimensionless increment. $s_{i,n}$ is accepted motor spike count divided by neuron
+count. Spikes accumulated between callbacks enter the first mechanical step;
+subsequent steps receive zero. Activation decays before spikes are added and is
+capped at one. Spike increments are not multiplied by $\Delta t$.
 
-The updated activations determine torque. Semi-implicit Euler then updates
-velocity using the old angle and velocity, followed by angle using the new
-velocity. Angle, velocity and activations start at zero; exceeding a hard stop
-clamps the angle and sets velocity to zero.
+Updated activations set torque. Semi-implicit Euler updates velocity from the
+old angle and velocity, then angle from the new velocity. Initial angle is
+$\theta_r=\pi/2$ (90°); velocity and activations start at zero. Stops at
+$\theta_r\pm1$ rad clamp angle and zero velocity. Spring rest and sensory centre
+equal $\theta_r$.
 
-Before each mechanical update, sensory spikes go to the flexor while
-$\theta<-\theta_s$ and the extensor while $\theta>\theta_s$, where $\theta_s$
-is the sensory threshold (rad). Each channel enforces its own minimum interspike
-interval, producing repeated spikes beyond threshold. Recorded settings are in Parameters.
+Flexor torque raises the mass against gravity; extensor torque lowers it.
+Initial gravitational torque is $-0.003924$ N m and total inertia is
+$0.00508$ kg m$^2$. Gravity makes the two muscles' mechanical effects asymmetric.
+
+Before each mechanical update, sensory spikes excite the flexor when
+$\theta<\theta_r-\theta_s$ and extensor when $\theta>\theta_r+\theta_s$.
+$\theta_s$ is the sensory threshold (rad). Each channel enforces a minimum
+interspike interval and fires repeatedly beyond threshold.
 
 ## Architecture Pseudocode
 
-The experiment runs three connected ROS2 Humble nodes in Docker: flexor,
-extensor and joint dynamics. The two neural controller nodes use SNNLab
-internally; the joint dynamics node uses custom Python mechanics. ROS2 topics
-carry motor and sensory spikes between them.
+Three ROS2 nodes implement flexor, extensor and joint dynamics. The controllers
+use SNNLab; the joint uses Python mechanics. Each update advances 1 ms of model time.
+
+Logical transport exchanges indexed spike windows, including empty windows.
+Each node waits for both inputs from the preceding step, fixing the coupling
+delay at one step. Waiting contributes to wall-clock lag and deadline misses;
+there is no hard-real-time guarantee.
 
 ### Controller network
 
-Abbreviated `snnlab.lang` pseudocode; connection parameters are omitted.
+`snnlab.lang` pseudocode; connection parameters are omitted.
 
 ```python
 from snnlab import lang
-from experiments.exp152.custom.hodgkin_huxley import DEFINITION, register
+from experiments.exp152.custom.elevate import DEFINITION, register
 
 register()
 
@@ -152,22 +145,15 @@ def controller(name):
 
     motor = net.population(
         "motor", size=1,
-        neuron=lang.CustomNeuron(DEFINITION, capacitance_nf=0.01, ...),
+        neuron=lang.CustomNeuron(DEFINITION, ...),
     )
-    slow = net.population(
-        "slow", size=1,
-        neuron=lang.CustomNeuron(DEFINITION, capacitance_nf=0.02, ...),
-    )
-
     tonic = net.input("tonic", signal_type="continuous", ...)
     sensory = net.input("sensory", signal_type="spikes", ...)
     peer = net.input("peer", signal_type="spikes", ...)
 
-    net.connect(tonic, motor.excitatory, synapse=lang.AMPA(...), ...)
+    net.connect(tonic, motor.excitatory, synapse=lang.CustomSynapse(...), ...)
     net.connect(sensory, motor.excitatory, synapse=lang.AMPA(...), ...)
     net.connect(peer, motor.inhibitory, synapse=lang.GABA(...), ...)
-    net.connect(motor.spikes, slow.excitatory, synapse=lang.AMPA(...), ...)
-    net.connect(slow.spikes, motor.inhibitory, synapse=lang.GABA(...), ...)
 
     net.output("motor_spikes", motor.spikes)
     return lang.compile(net)
@@ -175,11 +161,6 @@ def controller(name):
 flexor = controller("flexor")
 extensor = controller("extensor")
 ```
-
-ROS2 supplies each controller's sensory and peer inputs and distributes its motor spikes.
-
-Simplified pseudocode: each node updates every 1 ms. Each controller contains
-motor and slow inhibitory neurons.
 
 ### Flexor ROS2 Node
 
@@ -189,9 +170,9 @@ def tick():
     sensory = take_spikes("sensory/flexor")
     peer = take_spikes("motor/extensor")
 
-    # SNNLab: advance the motor and inhibitory neurons.
+    # SNNLab: advance the Elevate neuron.
     spikes = flexor.advance(
-        tonic=True,
+        startup_excitation=local_startup_pulse(),
         excitation=sensory,
         inhibition=peer,
         duration_ms=1,
@@ -209,9 +190,9 @@ def tick():
     sensory = take_spikes("sensory/extensor")
     peer = take_spikes("motor/flexor")
 
-    # SNNLab: advance the motor and inhibitory neurons.
+    # SNNLab: advance the Elevate neuron.
     spikes = extensor.advance(
-        tonic=True,
+        startup_excitation=local_startup_pulse(),
         excitation=sensory,
         inhibition=peer,
         duration_ms=1,
@@ -244,16 +225,9 @@ def tick():
         motor = [0, 0]  # Apply received spikes once.
 ```
 
-The joint dynamics node contains no SNNLab code.
-
 ## Timings
 
-A **callback** is one execution of a node's update routine: it advances the
-neurons or joint and publishes the resulting outputs. A **deadline** is the time
-by which that update must finish—here, 1 ms after its scheduled start. An update
-can miss its deadline because it starts late, takes too long, or both.
+A **callback** advances one node and publishes its outputs. Its **deadline** is
+1 ms after the scheduled start. Late starts and long callbacks can cause misses.
 
-{evidence && <p>In this recording, the flexor missed <strong>{evidence.step_deadline_misses.flexor} of {evidence.full_callback_ms.flexor.n.toLocaleString('en-GB')}</strong> deadlines, the extensor missed <strong>{evidence.step_deadline_misses.extensor} of {evidence.full_callback_ms.extensor.n.toLocaleString('en-GB')}</strong>, and the joint dynamics node missed <strong>{evidence.step_deadline_misses.plant} of {evidence.full_callback_ms.plant.n.toLocaleString('en-GB')}</strong>.</p>}
-
-Timing still needs work: completing the simulation does not mean the nodes
-reliably met their 1 ms deadlines.
+{currentModel && <p>Missed deadlines: flexor <strong>{evidence.step_deadline_misses.flexor} / {evidence.full_callback_ms.flexor.n.toLocaleString('en-GB')}</strong>; extensor <strong>{evidence.step_deadline_misses.extensor} / {evidence.full_callback_ms.extensor.n.toLocaleString('en-GB')}</strong>; joint <strong>{evidence.step_deadline_misses.plant} / {evidence.full_callback_ms.plant.n.toLocaleString('en-GB')}</strong>.</p>}

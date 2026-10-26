@@ -1,7 +1,8 @@
 """Adapt the prepared-stream lifecycle and mechanical plant to ROS callbacks.
 
-The network is authored in recipe.py; ionic equations live in the HH extension. Timing probes, input buffering
-and the spike-driven mechanical integrator retain the source update order.
+The network is authored in recipe.py; ionic equations live in the Elevate
+extension. Timing probes, input buffering and the spike-driven mechanical
+integrator retain the source update order.
 """
 
 import json
@@ -26,10 +27,42 @@ def finish_measurement(start, target):
     target[1] = (cpu - start[1]) / 1e6
 
 
-class Controller:
-    """Motor and slow inhibitory populations, preserving SNNLab state each step.
+class SpikeWindowInbox:
+    """Buffer complete sparse spike windows; empty frames make silence explicit."""
 
-    Population size one gives two neurons per controller. Larger populations
+    def __init__(self, sources, substeps):
+        self.pending = {source: {} for source in sources}
+        self.substeps = substeps
+        self.consumed = -1
+
+    def receive(self, source, payload):
+        if (
+            len(payload) < 2
+            or payload[0] < 0
+            or payload[1] != self.substeps
+            or (len(payload) - 2) % 2
+        ):
+            raise ValueError("Invalid spike window header or sparse event pairs")
+        index = payload[0]
+        events = list(zip(payload[2::2], payload[3::2], strict=True))
+        if any(not 0 <= step < self.substeps or unit < 0 for step, unit in events):
+            raise ValueError("Invalid spike window event")
+        if index > self.consumed:
+            self.pending[source][index] = events
+
+    def take(self, index):
+        if index < 0:
+            return {source: [] for source in self.pending}
+        if not all(index in rows for rows in self.pending.values()):
+            return None
+        self.consumed = index
+        return {source: rows.pop(index) for source, rows in self.pending.items()}
+
+
+class Controller:
+    """One motor population, preserving SNNLab state each step.
+
+    Population size one gives one neuron per controller. Larger populations
     replicate identical cells with normalized dense connectivity: a load test,
     not a claim of additional biological complexity. Only spike events connect
     this model to its peer and the plant. Tonic excitation is local.
@@ -72,7 +105,7 @@ class Controller:
         self.cfg = cfg
         bundle = author_network(cfg)
         # Preparation privately owns the model/state and caches fixed graph metadata.
-        # Keep float64 CPU dynamics; the tensor HH callback integrates each step.
+        # Keep float64 CPU dynamics; the tensor Elevate callback integrates each step.
         started = time.perf_counter()
         self.stream = prepare_stream(
             bundle,
@@ -88,13 +121,6 @@ class Controller:
                 projection_mode="fast",
             ),
         )
-        if evidence_dir is not None:
-            capture_start(
-                self.stream,
-                bundle,
-                evidence_dir,
-                json.loads(os.environ["EXP152_CONFIGURATION"]),
-            )
         self.inputs = {
             name: torch.zeros(warm_steps, 1, 1, dtype=torch.float64)
             for name in ("tonic", "sensory", "peer")
@@ -115,14 +141,35 @@ class Controller:
             warmup_seconds=time.perf_counter() - started,
             torch_version=torch.__version__,
         )
-        # Warm input preparation and output extraction too, then reset all model state.
+        # Exercise quiet, sensory and peer-input windows before the common ROS epoch.
+        warmup_windows = max(
+            2, math.ceil(cfg["controller_warmup_ms"] / (warm_steps * dt_ms))
+        )
         self.stream.reset()
         self.steps = 0
-        self.window(warm_steps, sensory=1, peer=1)
-        self.window(warm_steps, sensory=1, peer=1)
-        self.info["warmup_seconds"] = time.perf_counter() - started
+        for index in range(warmup_windows):
+            self.window(
+                warm_steps, sensory=int(index % 17 == 0), peer=int(index % 29 == 0)
+            )
+        # Warm-up must never become a scientific burn-in or emit ROS spikes.
         self.stream.reset()
         self.steps = 0
+        for values in self.inputs.values():
+            values.zero_()
+        self.stage_timing.fill(0)
+        self.info.update(
+            warmup_seconds=time.perf_counter() - started,
+            warmup_windows=warmup_windows,
+            warmup_model_ms=warmup_windows * warm_steps * dt_ms,
+            warmup_state_reset=True,
+        )
+        if evidence_dir is not None:
+            capture_start(
+                self.stream,
+                bundle,
+                evidence_dir,
+                json.loads(os.environ["EXP152_CONFIGURATION"]),
+            )
 
     def advance(self, sensory, peer):
         """Execute a window in one SNNLab call; inputs are counts per substep."""
@@ -160,24 +207,21 @@ class Controller:
                 finish_measurement(measured, self.stage_timing[1])
             measured = start_measurement() if self.profile_timing else None
             self.steps += length
-            # Outputs are CPU tensors. Reduce these tiny diagnostic arrays in NumPy
-            # rather than dispatching four extra Torch operations every window.
-            voltages = [
-                result.outputs[name + "_voltage"][:, 0].numpy()
-                for name in ("motor", "slow")
-            ]
-            spike_arrays = [
-                result.outputs[name + "_spikes"][:, 0].numpy()
-                for name in ("motor", "slow")
-            ]
-            voltage = np.column_stack(
-                [v[:, 0] if self.neurons == 1 else v.mean(axis=1) for v in voltages]
-            )
-            spikes = np.column_stack(
-                [v[:, 0] if self.neurons == 1 else v.sum(axis=1) for v in spike_arrays]
-            ).astype(int)
-            # Each pair preserves its substep index and neuron identity.
-            motor_events = np.argwhere(spike_arrays[0] != 0).tolist()
+            voltages = result.outputs["motor_voltage"][:, 0].numpy()
+            spike_array = result.outputs["motor_spikes"][:, 0].numpy()
+            if self.neurons == 1:
+                # Returned diagnostics own their arrays even if streaming reuses outputs.
+                voltage = voltages.copy()
+                spikes = spike_array.astype(int)
+                if length == 1:
+                    motor_events = [[0, 0]] if spikes[0, 0] else []
+                else:
+                    motor_events = [[int(i), 0] for i in np.flatnonzero(spikes[:, 0])]
+            else:
+                voltage = voltages.mean(axis=1, keepdims=True)
+                spikes = spike_array.sum(axis=1, keepdims=True).astype(int)
+                # Retain every substep index and neuron identity in load tests.
+                motor_events = np.argwhere(spike_array != 0).tolist()
             if measured is not None:
                 finish_measurement(measured, self.stage_timing[2])
         return voltage, spikes, motor_events
@@ -212,19 +256,31 @@ class Controller:
 class Joint:
     """Damped rotary joint with opposing spike-driven virtual muscles."""
 
-    def __init__(self):
-        for name, value in configuration()["joint"].items():
+    def __init__(self, settings=None):
+        for name, value in (
+            configuration()["joint"] if settings is None else settings
+        ).items():
             setattr(self, name, value)
-        self.angle, self.velocity = 0.0, 0.0
+        self.angle, self.velocity = self.initial_angle, 0.0
         self.activation = np.zeros(2)
         self.next_sensory = np.zeros(2)
         self.limit_hits = 0
+        if abs(self.angle - self.reference_angle) > self.hard_limit:
+            raise ValueError("Initial angle lies outside the mechanical stops")
+
+    def gravity_torque(self, angle):
+        return (
+            -self.tip_mass_kg * self.gravity_m_s2 * self.arm_length_m * math.sin(angle)
+        )
 
     def encode(self, now, feedback=True):
         spikes = np.zeros(2, dtype=int)
         if feedback:
             for i, active in enumerate(
-                (self.angle < -self.sensory_limit, self.angle > self.sensory_limit)
+                (
+                    self.angle < self.reference_angle - self.sensory_limit,
+                    self.angle > self.reference_angle + self.sensory_limit,
+                )
             ):
                 if active and now + 1e-12 >= self.next_sensory[i]:
                     spikes[i] = 1
@@ -240,12 +296,21 @@ class Joint:
         )
         torque = self.max_torque * (self.activation[0] - self.activation[1])
         acceleration = (
-            torque - self.damping * self.velocity - self.stiffness * self.angle
-        ) / self.inertia
+            torque
+            + self.gravity_torque(self.angle)
+            - self.damping * self.velocity
+            - self.stiffness * (self.angle - self.spring_rest_angle)
+        ) / self.total_inertia
         self.velocity += dt * acceleration
         self.angle += dt * self.velocity
-        if abs(self.angle) > self.hard_limit:
+        if abs(self.angle - self.reference_angle) > self.hard_limit:
             self.limit_hits += 1
-            self.angle = float(np.clip(self.angle, -self.hard_limit, self.hard_limit))
+            self.angle = float(
+                np.clip(
+                    self.angle,
+                    self.reference_angle - self.hard_limit,
+                    self.reference_angle + self.hard_limit,
+                )
+            )
             self.velocity = 0.0
         return torque

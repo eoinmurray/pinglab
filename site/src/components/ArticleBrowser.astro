@@ -5,8 +5,8 @@ import type { Post } from '../lib/posts';
 import { collectionLabel, collectionUrl, compareCollections } from '../lib/collections';
 import { getPapers, getPaperCollections, paperCollectionLabel, paperCollectionUrl, type Paper } from '../lib/papers';
 
-interface Props { posts: Post[]; collection?: string; papers?: Paper[]; }
-const { posts, collection, papers = await getPapers() } = Astro.props;
+interface Props { posts: Post[]; collection?: string; papers?: Paper[]; sortable?: boolean; }
+const { posts, collection, papers = await getPapers(), sortable = false } = Astro.props;
 const collections = [...new Set(posts.flatMap(post => post.collections))].sort(compareCollections);
 const visiblePosts = collection ? posts.filter(post => post.collections.includes(collection)) : [...posts];
 visiblePosts.sort((a, b) => {
@@ -20,5 +20,5 @@ visiblePosts.sort((a, b) => {
   heading="Articles"
   literature={getPaperCollections(papers).map(name => ({ href: paperCollectionUrl(name), label: paperCollectionLabel(name) }))}
   filtered={!!collection} collections={collections.map(name => ({ href: collectionUrl(name), label: collectionLabel(name), active: name === collection }))}>
-  <PostsList posts={visiblePosts} />
+  <PostsList posts={visiblePosts} sortable={sortable} />
 </CollectionBrowser>

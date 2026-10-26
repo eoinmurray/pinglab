@@ -5,15 +5,30 @@ import ArticleMetrics from './ArticleMetrics.astro';
 import ArticleDate from './ArticleDate.astro';
 import { articleMetrics } from '../lib/article-metrics';
 
-interface Props { posts: Post[]; }
-const { posts } = Astro.props;
+interface Props { posts: Post[]; sortable?: boolean; }
+const { posts, sortable = false } = Astro.props;
 const previews = await Promise.all(posts.map(async report => ({ report, counts: report.article ? await articleMetrics(report.article) : undefined })));
 ---
 
 <div class="base-grid">
-  <ol class="posts-list article-list listing-width l-page" role="list">
+  {sortable && <div class="posts-list-sort listing-width l-page" hidden>
+    <span class="sort-label">
+      <label for="article-sort">Sort by</label>
+      <button class="sort-shortcut" type="button" aria-label="S sorting shortcut" aria-pressed="true" title="Press S to change order. Click to disable this shortcut."><kbd>[s]</kbd></button>
+    </span>
+    <span class="sort-selection">
+      <span class="sort-selection-value" aria-hidden="true">Default order</span>
+      <select id="article-sort" aria-controls="homepage-articles" aria-keyshortcuts="s">
+        <option value="default" title="Experiments by descending ID, then other articles by latest update">Default order</option>
+        <option value="updated">Recently updated</option>
+      </select>
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="m3 4.5 3 3 3-3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" /></svg>
+    </span>
+    <span class="sort-status" role="status"></span>
+  </div>}
+  <ol id={sortable ? 'homepage-articles' : undefined} class="posts-list article-list listing-width l-page" role="list">
     {previews.map(({ report, counts }) => (
-      <li class="post-preview article-list-row">
+      <li class="post-preview article-list-row" data-updated-at={sortable ? Date.parse(report.data.updated_at) : undefined}>
         <div class="metadata">
           <span class="experiment-id">{report.label}</span>
           <div class="publishedDate"><ArticleDate date={report.data.updated_at} compact /></div>
@@ -27,9 +42,81 @@ const previews = await Promise.all(posts.map(async report => ({ report, counts: 
       </li>
     ))}
   </ol>
-  </div>
+  {sortable && <script is:inline>
+    (() => {
+      const container = document.currentScript.parentElement;
+      const toolbar = container.querySelector('.posts-list-sort');
+      const select = toolbar.querySelector('select');
+      const shortcut = toolbar.querySelector('.sort-shortcut');
+      const list = container.querySelector('.posts-list');
+      const rows = Array.from(list.children);
+      const key = 'pinglab-article-sort';
+      let shortcutEnabled = true;
+      const updateShortcut = () => {
+        shortcut.setAttribute('aria-pressed', String(shortcutEnabled));
+        shortcut.title = shortcutEnabled
+          ? 'Press S to change order. Click to disable this shortcut.'
+          : 'S shortcut disabled. Click to enable it.';
+        if (shortcutEnabled) select.setAttribute('aria-keyshortcuts', 's');
+        else select.removeAttribute('aria-keyshortcuts');
+      };
+      const apply = () => {
+        toolbar.querySelector('.sort-selection-value').textContent = select.selectedOptions[0].textContent;
+        const ordered = [...rows];
+        if (select.value === 'updated') {
+          ordered.sort((a, b) => Number(b.dataset.updatedAt) - Number(a.dataset.updatedAt));
+        }
+        list.append(...ordered);
+      };
+      try {
+        if (localStorage.getItem(key) === 'updated') select.value = 'updated';
+        shortcutEnabled = localStorage.getItem(`${key}-shortcut`) !== 'off';
+      } catch { /* Sorting still works when browser storage is unavailable. */ }
+      apply();
+      updateShortcut();
+      toolbar.hidden = false;
+      select.addEventListener('change', () => {
+        apply();
+        try { localStorage.setItem(key, select.value); } catch {}
+      });
+      shortcut.addEventListener('click', () => {
+        shortcutEnabled = !shortcutEnabled;
+        updateShortcut();
+        try { localStorage.setItem(`${key}-shortcut`, shortcutEnabled ? 'on' : 'off'); } catch {}
+      });
+      document.addEventListener('keydown', event => {
+        if (!shortcutEnabled || event.defaultPrevented || event.repeat || event.isComposing
+          || event.ctrlKey || event.metaKey || event.altKey || event.shiftKey || event.key !== 's') return;
+        const target = event.target;
+        if (target instanceof HTMLElement && (target.isContentEditable
+          || target.closest('input, textarea, select, [role="textbox"]'))) return;
+        if (!container.isConnected || document.querySelector('[role="dialog"][data-state="open"], dialog[open]')) return;
+        event.preventDefault();
+        select.value = select.value === 'default' ? 'updated' : 'default';
+        select.dispatchEvent(new Event('change', { bubbles: true }));
+        toolbar.querySelector('.sort-status').textContent = `Sort order: ${select.selectedOptions[0].textContent}`;
+      });
+    })();
+  </script>}
+</div>
 
 <style>
+  .posts-list-sort:not([hidden]) { display: flex; align-items: center; justify-content: flex-end; gap: 5px; margin-top: 24px; }
+  .posts-list-sort label { color: var(--listing-muted); font-size: 12px; }
+  .sort-label { display: inline-flex; align-items: center; gap: 5px; }
+  .sort-shortcut { padding: 4px 0; border: 0; background: transparent; color: var(--listing-muted); cursor: pointer; }
+  .sort-shortcut kbd { font: inherit; font-size: 11px; }
+  .sort-shortcut:hover { color: rgb(var(--ink)); }
+  .sort-shortcut:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .sort-shortcut[aria-pressed="false"] kbd { opacity: .55; text-decoration: line-through; }
+  .sort-status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .sort-selection { position: relative; color: rgb(var(--ink) / .85); font-size: 12px; line-height: 1.4; }
+  .sort-selection-value { display: block; padding: 6px 18px 6px 0; visibility: hidden; white-space: nowrap; }
+  .sort-selection svg { position: absolute; right: 0; top: 50%; transform: translateY(-50%); pointer-events: none; }
+  .posts-list-sort select { position: absolute; inset: 0; width: 100%; padding: 6px 18px 6px 0; appearance: none; border: 0; border-bottom: 1px solid rgb(var(--ink) / .3); border-radius: 0; background: transparent; color: inherit; font: inherit; cursor: pointer; }
+  .posts-list-sort select:hover { border-color: var(--listing-border); }
+  .posts-list-sort select:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+  .posts-list-sort:not([hidden]) + .posts-list { margin-top: 4px; }
   .post-preview { overflow: hidden; }
   .post-link { display: block; color: inherit; text-decoration: none; }
   .post-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 6px; }
@@ -44,4 +131,5 @@ const previews = await Promise.all(posts.map(async report => ({ report, counts: 
     .experiment-id { display: block; margin: 0 0 calc(12px * var(--listing-scale)); }
     .publishedDate { display: block; }
   }
+  @media print { .posts-list-sort:not([hidden]) { display: none; } }
 </style>
