@@ -98,3 +98,51 @@ def compute_evidence(repo, run):
     if load_json(run.export / "evidence.json") != expected:
         raise PingstoreError("compute evidence differs from the pinned bank/recipe")
     return cfg, bank, contract
+
+
+def paired_evidence(repo, run, compute, bank):
+    """Require a complete matched-input diagnostic pinned to these endpoints."""
+    import numpy as np
+    from experiments.exp049.custom import evidence
+
+    cfg = recipe.raster_configuration()
+    if run.record["execution"].get("configuration") != cfg or run.record["inputs"] != {
+        "endpoints": compute.reference,
+        "bank": bank.reference,
+    }:
+        raise PingstoreError("paired raster recipe or endpoint ancestry differs")
+    saved = load_json(run.export / "paired-rasters.json")
+    if saved.get("config") != cfg:
+        raise PingstoreError("paired raster configuration differs")
+    expected = [(cond, stage) for cond in recipe.COND_ORDER for stage in cfg["stages"]]
+    entries = saved.get("entries", [])
+    if [(r.get("condition"), r.get("stage")) for r in entries] != expected:
+        raise PingstoreError("paired raster grid incomplete")
+    _, _, contract = compute_evidence(repo, compute)
+    checkpoints = {r["training_cell"]: r for r in contract["checkpoints"]}
+    with np.load(run.export / "input.npz", allow_pickle=False) as raw:
+        # Use the same content digest as the producer without importing compute.
+        import hashlib
+
+        array = np.ascontiguousarray(raw["spikes"])
+        digest = hashlib.sha256()
+        digest.update(str((array.dtype.str, array.shape)).encode())
+        digest.update(array.tobytes())
+        encoded_digest = digest.hexdigest()
+        label = int(raw["label"])
+    for entry in entries:
+        name = recipe.cell_name(entry["condition"], cfg["seed"])
+        path = run.file(entry["stage"], name, "recording.npz")
+        relative = path.relative_to(run.export).as_posix()
+        if (
+            entry.get("file") != relative
+            or entry.get("encoded_spikes_sha256") != encoded_digest
+            or entry.get("checkpoint")
+            != (checkpoints[name] if entry["stage"] == "after" else None)
+        ):
+            raise PingstoreError("paired raster input or checkpoint differs")
+        evidence.recordings(path, contract["configs"][name], {"kind": "snapshot"})
+        with np.load(path, allow_pickle=False) as raw:
+            if int(raw["label"]) != label:
+                raise PingstoreError("paired raster image labels differ")
+    return saved

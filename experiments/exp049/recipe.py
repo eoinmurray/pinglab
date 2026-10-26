@@ -451,6 +451,59 @@ def initial_recurrence(train):
     return {"W_ei_1_init": ei.numpy(), "W_ie_1_init": ie.numpy()}, generator
 
 
+def raster_configuration():
+    """Resolve the bounded, matched-input initialization/epoch-50 diagnostic."""
+    return dict(
+        schema="exp049.paired-raster/v1",
+        network=configuration(),
+        seed=SEEDS[0],
+        sample_index=0,
+        partition="official_mnist_test",
+        encoder_seed=42,
+        stages=["before", "after"],
+        initialization="reconstructed ordered CPU feedforward training draws; retained initial recurrent matrices after agreement within 4 float32 eps relative tolerance",
+        input="one CPU Poisson realization shared across all conditions and both stages",
+        reset="fresh GraphExecutor state on every presentation",
+    )
+
+
+def initial_parameters(train):
+    """Reconstruct the recorded training initializer, including input sparsity.
+
+    These are reconstructed parameters, not a retained epoch-0 checkpoint.
+    The readout uses the explicit training initializer rather than the endpoint
+    producer's discarded readout; both consume the same number of RNG draws.
+    """
+    import torch
+
+    generator = torch.Generator().manual_seed(train["seed"])
+    ne = train["n_hidden"]
+    mean, sd = train["w_in"]
+    external = (
+        torch.randn(train["n_in"], ne, generator=generator)
+        .mul_(sd)
+        .add_(mean)
+        .clamp_(min=0)
+    )
+    zero = train["w_in_initial_zero_fraction"]
+    external *= (torch.rand(train["n_in"], ne, generator=generator) > zero).float()
+    external /= 1 - zero
+    external /= train["n_in"]
+    readout = (
+        torch.randn(ne, train["n_out"], generator=generator)
+        .mul_(train["readout_w_init_std"])
+        .add_(train["readout_w_init_mean"])
+        .clamp_(min=0)
+    )
+    recurrence, _ = initial_recurrence(train)
+    return {
+        "input_to_E.weight": external,
+        "readout_projection.weight": readout,
+        "E_to_I.weight": torch.from_numpy(recurrence["W_ei_1_init"]),
+        "I_to_E.weight": torch.from_numpy(recurrence["W_ie_1_init"]),
+    }
+
+
 def author_network(cfg, train):
     from snnlab import lang
 

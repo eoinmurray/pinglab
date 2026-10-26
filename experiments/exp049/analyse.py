@@ -33,14 +33,19 @@ MEASUREMENT = {
 }
 
 
-def analyse(identity, *, run_id=None):
+def analyse(identity, *, run_id=None, raster_source=None):
     source = inputs.source(REPO, identity, "compute")
     cfg, bank, contract = inputs.compute_evidence(REPO, source)
     histories = evidence.histories(bank.export, contract)
+    sources = {"compute": source, "bank": bank}
+    paired = None
+    if raster_source is not None:
+        sources["paired"] = inputs.source(REPO, raster_source, "compute")
+        paired = inputs.paired_evidence(REPO, sources["paired"], source, bank)
     with inputs.execution(
         REPO,
         "analyse",
-        sources={"compute": source, "bank": bank},
+        sources=sources,
         run_id=run_id,
         configuration=MEASUREMENT,
     ) as run:
@@ -113,6 +118,27 @@ def analyse(identity, *, run_id=None):
                 ),
             )
             rasters.append({"condition": cond, "file": filename})
+        paired_rasters = []
+        if paired is not None:
+            for entry in paired["entries"]:
+                name = recipe.cell_name(entry["condition"], paired["config"]["seed"])
+                filename = f"raster-{entry['stage']}-{entry['condition']}.npz"
+                np.savez_compressed(
+                    run.export / filename,
+                    **raster(
+                        sources["paired"].export / entry["file"],
+                        contract["configs"][name],
+                    ),
+                )
+                paired_rasters.append({**entry, "file": filename})
+            with np.load(
+                sources["paired"].export / "input.npz", allow_pickle=False
+            ) as raw:
+                np.savez_compressed(
+                    run.export / "raster-input.npz",
+                    pixels=raw["pixels"],
+                    label=raw["label"],
+                )
         write_json_atomic(
             run.export / "results.json",
             clean(
@@ -142,6 +168,14 @@ def analyse(identity, *, run_id=None):
                         "last_epoch": max(max(c["ep"]) for c in curves.values()),
                     },
                     "rasters": rasters,
+                    **(
+                        {
+                            "paired_rasters": paired_rasters,
+                            "raster_protocol": paired["config"],
+                        }
+                        if paired is not None
+                        else {}
+                    ),
                 }
             ),
         )
@@ -152,9 +186,10 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source", required=True)
     parser.add_argument("--run-id")
+    parser.add_argument("--raster-source", help="Explicit paired-raster compute run")
     args = parser.parse_args()
     try:
-        analyse(args.source, run_id=args.run_id)
+        analyse(args.source, run_id=args.run_id, raster_source=args.raster_source)
     except (PingstoreError, OSError, KeyError, ValueError) as exc:
         parser.exit(1, f"exp049 analyse: {exc}\n")
 

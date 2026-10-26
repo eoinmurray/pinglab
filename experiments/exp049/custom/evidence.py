@@ -77,6 +77,10 @@ def training_contract(bank):
             if not _same(cfg.get(k), v):
                 raise PingstoreError(f"{name}: training {k} disagrees with recipe")
         for key, value in recipe.RUNTIME_REQUIREMENTS.items():
+            if key == "w_ee" and cfg.get(key) is None:
+                # Historical TR-05 configs omitted this inactive pathway;
+                # authenticate its zero matrices from the final checkpoint below.
+                continue
             if not _same(cfg.get(key), value):
                 raise PingstoreError(f"{name}: unsupported runtime setting {key}")
         for key in ("input_rate", "surrogate_slope", "v_grad_dampen"):
@@ -103,6 +107,8 @@ def training_contract(bank):
         checkpoint = public_provenance(
             resolve_checkpoint(bank / name, recipe.CHECKPOINT_ROLE)
         )
+        if cfg.get("w_ee") is None:
+            checkpoint_tensors(bank / name / checkpoint["filename"], cfg)
         if checkpoint["epoch"] != cfg["epochs"] or checkpoint["training_cell"] != name:
             raise PingstoreError("checkpoint identity differs")
         if cfg["n_in"] != 784 or cfg["n_out"] != 10:

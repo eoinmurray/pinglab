@@ -562,3 +562,215 @@ def test_final_outcomes_uses_sample_sem_and_raw_final_contrast():
     assert result["contrast"]["mean"] == pytest.approx(0.2)
     assert result["contrast"]["sem"] == pytest.approx(0.1 / np.sqrt(3))
     assert result["i_rate_hz"]["sem"] == 0
+
+
+def test_reconstructed_initial_parameters_preserve_rng_and_condition_scaling():
+    import torch
+
+    train = {
+        **recipe.training_settings(recipe.bank_cells()[0]),
+        "n_in": 784,
+        "n_out": 10,
+        "ei_ratio": 2.0,
+        "n_hidden": 12,
+        "n_inh": 4,
+    }
+    state = torch.get_rng_state().clone()
+    initial = recipe.initial_parameters(train)
+    assert torch.equal(state, torch.get_rng_state())
+    small = recipe.initial_parameters({**train, "ei_strength": 0.1})
+    zero = recipe.initial_parameters({**train, "ei_strength": 0.0})
+    for name in ("input_to_E.weight", "readout_projection.weight"):
+        assert torch.equal(initial[name], small[name])
+        assert torch.equal(initial[name], zero[name])
+    for name in ("E_to_I.weight", "I_to_E.weight"):
+        torch.testing.assert_close(small[name], initial[name] * 0.1)
+        assert not torch.count_nonzero(zero[name])
+    assert (initial["input_to_E.weight"] == 0).float().mean().item() == pytest.approx(
+        0.95, abs=0.01
+    )
+
+
+@pytest.mark.parametrize("missing", [True, False])
+def test_historical_unspecified_ee_requires_zero_checkpoint(lab, missing):
+    from experiments.exp049.custom import evidence
+
+    root, bank_id, _ = lab
+    bank = inputs.source(root, bank_id, "compute", experiment="exp022")
+    directory = bank.export / recipe.bank_cells()[0]["cell_name"]
+    cfg = load_json(directory / "config.json")
+    if missing:
+        cfg.pop("w_ee")
+    else:
+        cfg["w_ee"] = None
+    write_json_atomic(directory / "config.json", cfg)
+    evidence.training_contract(bank.export)
+    import torch
+
+    path = directory / "weights_final.pth"
+    state = torch.load(path, weights_only=True)
+    state["W_ee.1"][0, 0] = 0.1
+    torch.save(state, path)
+    metrics = load_json(directory / "metrics.json")
+    metrics["checkpoints"]["final_epoch"]["sha256"] = file_sha256(path)
+    write_json_atomic(directory / "metrics.json", metrics)
+    with pytest.raises(PingstoreError, match="same-population"):
+        evidence.training_contract(bank.export)
+
+
+def test_paired_rasters_preserve_stage_inputs_and_reject_unmatched_drive(
+    lab, monkeypatch
+):
+    import shutil
+
+    root, bank_id, _ = lab
+    cid = compute.compute(bank_id)
+    source = inputs.source(root, cid, "compute")
+    _, bank, contract = inputs.compute_evidence(root, source)
+    cfg = recipe.raster_configuration()
+    drive = np.zeros((2000, 1, 784), np.float32)
+    with inputs.execution(
+        root,
+        "compute",
+        sources={"endpoints": source, "bank": bank},
+        configuration=cfg,
+    ) as paired:
+        np.savez_compressed(
+            paired.export / "input.npz",
+            pixels=np.zeros((28, 28)),
+            label=7,
+            spikes=drive,
+        )
+        entries = []
+        for cond in recipe.COND_ORDER:
+            name = recipe.cell_name(cond, cfg["seed"])
+            checkpoint = next(
+                r for r in contract["checkpoints"] if r["training_cell"] == name
+            )
+            for stage in cfg["stages"]:
+                filename = f"{stage}/{name}/recording.npz"
+                path = paired.export / filename
+                path.parent.mkdir(parents=True)
+                shutil.copyfile(source.file("snapshot", name, "recording.npz"), path)
+                entries.append(
+                    dict(
+                        condition=cond,
+                        stage=stage,
+                        file=filename,
+                        checkpoint=checkpoint if stage == "after" else None,
+                        encoded_spikes_sha256=compute.array_digest(drive),
+                    )
+                )
+        write_json_atomic(
+            paired.export / "paired-rasters.json", dict(config=cfg, entries=entries)
+        )
+    aid = analyse.analyse(cid, raster_source=paired.run_id)
+    analysis = inputs.source(root, aid, "analyse")
+    result = load_json(analysis.export / "results.json")
+    assert len(result["paired_rasters"]) == 8
+    assert analysis.record["inputs"]["paired"]["run_id"] == paired.run_id
+    monkeypatch.setattr(
+        measurements,
+        "raster",
+        lambda *a: pytest.fail("presentation simulation/measurement"),
+    )
+    captured = []
+    original = plots.save_figure
+
+    def inspect(fig, path, **kwargs):
+        if path.name == "before_after_rasters":
+            captured.append(fig)
+            assert len(fig.axes) == 9  # Eight rasters and one image.
+            for left, right in zip(fig.axes[:8:2], fig.axes[1:8:2], strict=True):
+                assert left.get_xlim() == right.get_xlim() == (0, 200)
+                assert left.get_ylim() == right.get_ylim()
+                for a, b in zip(left.collections, right.collections, strict=True):
+                    np.testing.assert_array_equal(a.get_offsets(), b.get_offsets())
+        original(fig, path, **kwargs)
+
+    monkeypatch.setattr(plots, "save_figure", inspect)
+    pid = present.present(aid)
+    presentation = inputs.source(root, pid, "present")
+    assert captured
+    for suffix in ("svg", "pdf", "png"):
+        assert presentation.file(f"before_after_rasters.{suffix}").is_file()
+    path = paired.export / "paired-rasters.json"
+    saved = load_json(path)
+    saved["entries"][0]["encoded_spikes_sha256"] = "0" * 64
+    write_json_atomic(path, saved)
+    resign(paired.directory)
+    with pytest.raises(PingstoreError, match="input or checkpoint"):
+        analyse.analyse(cid, raster_source=paired.run_id)
+
+
+def test_native_paired_replay_resets_state_between_columns(tmp_path):
+    from pathlib import Path
+    from types import SimpleNamespace
+
+    import torch
+
+    cond = "frozen_ping"
+    name = recipe.cell_name(cond, 42)
+    train = {
+        **recipe.training_settings(recipe.bank_cells()[0]),
+        **recipe.RUNTIME_REQUIREMENTS,
+        "n_in": 784,
+        "n_out": 10,
+        "n_hidden": 12,
+        "n_inh": 4,
+        "t_ms": 5.0,
+    }
+    initial = recipe.initial_parameters(train)
+    checkpoint_dir = tmp_path / "bank" / name
+    checkpoint_dir.mkdir(parents=True)
+    checkpoint_path = checkpoint_dir / "weights_final.pth"
+    torch.save(
+        {
+            **{
+                key: initial[param]
+                for param, key in recipe.CHECKPOINT_PARAMETERS.items()
+            },
+            "W_ee.1": torch.zeros((12, 12)),
+            "W_ii.1": torch.zeros((4, 4)),
+        },
+        checkpoint_path,
+    )
+    saved = tmp_path / "source" / "weights_dump" / name
+    saved.mkdir(parents=True)
+    np.savez_compressed(
+        saved / "weights_dump.npz", **recipe.initial_recurrence(train)[0]
+    )
+    contract = dict(
+        configs={name: train},
+        checkpoints=[
+            dict(
+                training_cell=name,
+                filename="weights_final.pth",
+                sha256=file_sha256(checkpoint_path),
+            )
+        ],
+    )
+    source = SimpleNamespace(file=lambda *parts: tmp_path / "source" / Path(*parts))
+    bank = SimpleNamespace(file=lambda *parts: tmp_path / "bank" / Path(*parts))
+    run = SimpleNamespace(export=tmp_path / "export")
+    run.export.mkdir()
+    pixels = np.ones((1, 784), np.float32)
+    drive = torch.ones((50, 1, 784))
+    compute.paired_raster_cell(
+        source,
+        bank,
+        contract,
+        recipe.raster_configuration(),
+        pixels,
+        np.array([7]),
+        drive,
+        run,
+        cond,
+    )
+    with (
+        np.load(run.export / "before" / name / "recording.npz") as before,
+        np.load(run.export / "after" / name / "recording.npz") as after,
+    ):
+        assert before["spk_e"].any()
+        for key in ("spk_e", "spk_i"):
+            np.testing.assert_array_equal(before[key], after[key])

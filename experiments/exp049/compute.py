@@ -372,13 +372,153 @@ def compute(identity, *, run_id=None):
     return run.run_id
 
 
+def paired_raster_cell(source, bank, contract, cfg, pixels, labels, drive, run, cond):
+    """Replay one condition's reconstructed and final parameters on one input."""
+    name = recipe.cell_name(cond, cfg["seed"])
+    train = contract["configs"][name]
+    checkpoint = next(
+        row for row in contract["checkpoints"] if row["training_cell"] == name
+    )
+    path = bank.file(name, checkpoint["filename"])
+    final = evidence.checkpoint_tensors(path, train)
+    initial = recipe.initial_parameters(train)
+    with np.load(
+        source.file("weights_dump", name, "weights_dump.npz"), allow_pickle=False
+    ) as saved:
+        for parameter, key in (
+            ("E_to_I.weight", "W_ei_1_init"),
+            ("I_to_E.weight", "W_ie_1_init"),
+        ):
+            # Historical GPU arithmetic can differ by a few float32 ULPs.
+            # Check the reconstruction, then bind the retained bytes exactly.
+            if not np.allclose(
+                initial[parameter].numpy(),
+                saved[key],
+                rtol=4 * np.finfo(np.float32).eps,
+                atol=0,
+            ):
+                raise PingstoreError("reconstructed initial recurrence differs")
+            initial[parameter] = torch.from_numpy(saved[key].copy())
+    bundle = recipe.author_network(cfg["network"], train)
+    model = GraphExecutor(plan_graph(bundle.graph), seed=train["seed"]).eval()
+    parameters = model.parameter_map()
+    entries = []
+    for stage in cfg["stages"]:
+        with torch.no_grad():
+            for parameter, key in recipe.CHECKPOINT_PARAMETERS.items():
+                value = initial[parameter] if stage == "before" else final[key]
+                parameters[parameter].copy_(value.clamp(min=0))
+        destination = run.export / stage / name
+        destination.mkdir(parents=True)
+        with (
+            model_execution(
+                model,
+                bundle,
+                destination / "inference",
+                kind="infer",
+                seed=train["seed"],
+                settings={"protocol": cfg, "condition": cond, "stage": stage},
+            ),
+            torch.inference_mode(),
+        ):
+            result = model(
+                {"drive": drive},
+                diagnostics=False,
+                recording=recipe.recording(snapshot=True),
+            )
+        arrays = {}
+        for label, size in (("e", train["n_hidden"]), ("i", train["n_inh"])):
+            events = result.recorded_signals[f"{label.upper()}.spikes"].numpy()
+            spikes = np.zeros((drive.shape[0], size), dtype=bool)
+            spikes[events[:, 0], events[:, 2]] = True
+            arrays[f"spk_{label}"] = spikes
+        np.savez_compressed(
+            destination / "recording.npz",
+            **arrays,
+            dt=np.float32(train["dt"]),
+            n_e=np.int32(train["n_hidden"]),
+            n_i=np.int32(train["n_inh"]),
+            label=np.int32(labels[cfg["sample_index"]]),
+        )
+        evidence.recordings(destination, train, {"kind": "snapshot"})
+        entries.append(
+            dict(
+                condition=cond,
+                stage=stage,
+                file=f"{stage}/{name}/recording.npz",
+                checkpoint=checkpoint if stage == "after" else None,
+                encoded_spikes_sha256=array_digest(drive.numpy()),
+                input_sha256=array_digest(pixels[[cfg["sample_index"]]]),
+            )
+        )
+        print(f"[paired raster] {cond} {stage}", flush=True)
+    return entries
+
+
+def compute_rasters(identity, *, run_id=None):
+    """Run eight CPU presentations; retain the historical endpoint evidence."""
+    source = inputs.source(REPO, identity, "compute")
+    _, bank, contract = inputs.compute_evidence(REPO, source)
+    cfg = recipe.raster_configuration()
+    pixels, labels, _ = evaluation(cfg["network"])
+    train = contract["configs"][recipe.cell_name(recipe.COND_ORDER[0], cfg["seed"])]
+    drive = encode_images_poisson(
+        torch.from_numpy(pixels[[cfg["sample_index"]]]),
+        duration_steps(train["t_ms"], train["dt"]),
+        train["dt"],
+        train["input_rate"],
+        generator=torch.Generator().manual_seed(cfg["encoder_seed"]),
+    )
+    previous_threads = torch.get_num_threads()
+    try:
+        torch.set_num_threads(1)
+        with inputs.execution(
+            REPO,
+            "compute",
+            sources={"endpoints": source, "bank": bank},
+            run_id=run_id,
+            configuration=cfg,
+        ) as run:
+            run.record["execution"].update(
+                device="cpu",
+                snnlab_version=version("snnlab"),
+                torch_version=str(torch.__version__),
+                numpy_version=np.__version__,
+            )
+            np.savez_compressed(
+                run.export / "input.npz",
+                pixels=pixels[cfg["sample_index"]].reshape(28, 28),
+                label=np.int32(labels[cfg["sample_index"]]),
+                spikes=drive.numpy(),
+            )
+            entries = []
+            for cond in recipe.COND_ORDER:
+                entries.extend(
+                    paired_raster_cell(
+                        source, bank, contract, cfg, pixels, labels, drive, run, cond
+                    )
+                )
+            write_json_atomic(
+                run.export / "paired-rasters.json", dict(config=cfg, entries=entries)
+            )
+    finally:
+        torch.set_num_threads(previous_threads)
+    return run.run_id
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source", required=True)
     parser.add_argument("--run-id")
+    parser.add_argument(
+        "--rasters-only",
+        action="store_true",
+        help="Replay initialization and epoch 50; --source is an existing exp049 compute run",
+    )
     args = parser.parse_args()
     try:
-        compute(args.source, run_id=args.run_id)
+        operation = compute_rasters if args.rasters_only else compute
+        operation(args.source, run_id=args.run_id)
     except (PingstoreError, OSError, KeyError, ValueError) as exc:
         parser.exit(1, f"exp049 compute: {exc}\n")
 

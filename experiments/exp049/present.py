@@ -60,7 +60,7 @@ def present(identity, *, run_id=None):
 
     source = inputs.source(REPO, identity, "analyse")
     refs = source.record["inputs"]
-    if set(refs) != {"compute", "bank"}:
+    if set(refs) not in ({"compute", "bank"}, {"compute", "bank", "paired"}):
         raise PingstoreError("analysis must pin compute and bank")
     compute = inputs.source(
         REPO, refs["compute"]["run_id"], "compute", reference=refs["compute"]
@@ -99,6 +99,31 @@ def present(identity, *, run_id=None):
             rasters[entry["condition"]] = {
                 k: np.array(raw[k]) if raw[k].ndim else raw[k].item() for k in raw.files
             }
+    paired_rasters = {}
+    image = None
+    if "paired" in refs:
+        paired_source = inputs.source(
+            REPO, refs["paired"]["run_id"], "compute", reference=refs["paired"]
+        )
+        paired = inputs.paired_evidence(REPO, paired_source, compute, bank)
+        expected_pairs = [
+            {**entry, "file": f"raster-{entry['stage']}-{entry['condition']}.npz"}
+            for entry in paired["entries"]
+        ]
+        if (
+            result.get("paired_rasters") != expected_pairs
+            or result.get("raster_protocol") != paired["config"]
+        ):
+            raise PingstoreError("analysis paired raster evidence differs")
+        for entry in expected_pairs:
+            with np.load(source.export / entry["file"], allow_pickle=False) as raw:
+                paired_rasters[entry["condition"], entry["stage"]] = {
+                    k: raw[k].copy() for k in raw.files
+                }
+        with np.load(source.export / "raster-input.npz", allow_pickle=False) as raw:
+            image = raw["pixels"].copy()
+    elif "paired_rasters" in result:
+        raise PingstoreError("paired rasters require a pinned diagnostic source")
     started = time.monotonic()
     with inputs.execution(
         REPO,
@@ -121,6 +146,8 @@ def present(identity, *, run_id=None):
                 cond, data["weights"][cond], out / ("weights__" + cond), rid
             )
         fig_training_summary(data, out / "training_summary", rid)
+        if paired_rasters:
+            fig_paired_rasters(paired_rasters, image, out / "before_after_rasters")
         fig_attractor(data["attractor"], out / "attractor_ei", rid)
         fig_training_curves(data, out / "training_curves", rid)
         fig_phase_portrait(data, out / "phase_portrait", rid)
@@ -138,6 +165,72 @@ def present(identity, *, run_id=None):
             },
         )
     return run.run_id
+
+
+def fig_paired_rasters(rasters, image, out_path):
+    """Four matched E/I raster pairs, with a single shared digit preview."""
+    theme.set_paper_mode(True)
+    theme.apply()
+    order = [
+        "frozen_ping",
+        "trainable_ping_init",
+        "trainable_small_init",
+        "trainable_zero_init",
+    ]
+    labels = [
+        "Frozen recurrence",
+        "Trainable: standard init",
+        "Trainable: 10% init",
+        "Trainable: zero init",
+    ]
+    fig, axes = plt.subplots(4, 2, figsize=(7.1, 8.0), sharex=True, sharey=True)
+    fig.subplots_adjust(
+        left=0.12, right=0.98, bottom=0.08, top=0.83, hspace=0.62, wspace=0.15
+    )
+    preview = fig.add_axes((0.12, 0.90, 0.085, 0.085))
+    preview.imshow(image, cmap="gray_r", vmin=0, vmax=1, interpolation="nearest")
+    preview.set_axis_off()
+    reference = rasters[order[0], "before"]
+    fig.text(
+        0.24,
+        0.95,
+        f"First test sample · digit {int(reference['label'])} · seed 42",
+        fontsize=theme.SIZE_LABEL,
+        weight="semibold",
+    )
+    fig.text(
+        0.24,
+        0.92,
+        "Identical input spikes in all eight panels",
+        fontsize=theme.SIZE_CAPTION,
+    )
+    for row, (cond, label) in enumerate(zip(order, labels, strict=True)):
+        for column, stage in enumerate(("before", "after")):
+            ax = axes[row, column]
+            raster = rasters[cond, stage]
+            _plot_condition_raster(ax_rast=ax, raster=raster)
+            ax.set_xlim(0, float(raster["t_ms"]))
+            ax.set_yticklabels(
+                [f"E ({int(raster['n_e_plot'])})", f"I ({int(raster['n_i_plot'])})"]
+            )
+            ax.set_title(
+                label if column == 0 else "",
+                loc="left",
+                fontsize=theme.SIZE_LABEL,
+                pad=6,
+            )
+            ax.set_xlabel("Time (ms)" if row == 3 else "")
+            ax.tick_params(labelleft=column == 0)
+    fig.text(
+        0.32,
+        0.875,
+        "Before · reconstructed initialization",
+        ha="center",
+        fontsize=theme.SIZE_LABEL,
+    )
+    fig.text(0.78, 0.875, "After · epoch 50", ha="center", fontsize=theme.SIZE_LABEL)
+    save_figure(fig, out_path, formats=("svg", "pdf", "png"))
+    plt.close(fig)
 
 
 def main():

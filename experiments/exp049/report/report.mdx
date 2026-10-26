@@ -2,7 +2,7 @@
 id: "exp049"
 title: "Recurrent Learning Weakens Rhythmicity"
 created_at: "2026-06-09"
-updated_at: "2026-10-20T17:13:36Z"
+updated_at: "2026-10-26T17:24:31Z"
 description: "Trainable recurrent conductances produced lower reference-image rhythmicity and higher excitatory firing than the frozen PING control; outcomes depended on initialization."
 collection: ["gamma-gated-sparsity", "experiments"]
 author: "Eoin Murray"
@@ -42,17 +42,25 @@ In all three networks in each condition, training from standard and 10%-standard
 
 ### Rhythmicity starts low
 
-The unsmoothed trainable contrast averaged {contrastFirst} after epoch 1 and ended at {contrastLow}–{contrastHigh}. Because there is no epoch-0 observation, these histories cannot resolve the intervening transition ([Fig. 2](#loc-6)).
+The unsmoothed trainable contrast averaged {contrastFirst} after epoch 1 and ended at {contrastLow}–{contrastHigh}. Because these histories have no epoch-0 observation, they cannot resolve the intervening transition ([Fig. 2](#loc-6)).
 
 <PublishedFigure experiment="exp049" file="training_curves.svg" id="loc-6" alt="Validation accuracy and E/I rates over 50 epochs, alongside reference-image rhythmicity; frozen recurrence retains high contrast while trainable recurrence has low contrast." >
   Figure 2: Recorded histories: **(A)** validation accuracy, **(B)** E rate, **(C)** I rate and **(D)** contrast from a fixed reference-image diagnostic. Lines show three-seed means; shading spans seed minima and maxima. Each series is smoothed with a five-epoch edge-padded moving average, not a confidence interval.
+</PublishedFigure>
+
+### The first digit before and after training
+
+We replayed the first official-test image, a digit 7, through each condition at initialization and epoch 50 ([Fig. 3](#loc-rasters)). The sampled E cells fire sparsely at initialization. At epoch 50, the frozen-recurrence example shows repeated E/I volleys, whereas the trainable examples show denser, less visibly synchronous E activity. These seed-42 examples use identical input spikes across all eight panels. They illustrate individual responses; they do not estimate variability across images or training seeds. The initial feedforward weights are reconstructed from the recorded training initializer, because no epoch-0 checkpoint was retained.
+
+<PublishedFigure experiment="exp049" file="before_after_rasters.svg" id="loc-rasters" alt="Four rows of matched before-and-after spike rasters for the first MNIST test image, a digit 7: frozen, standard, 10% and zero recurrent initialization." >
+  Figure 3: **Matched single-image replay.** Rows show frozen standard recurrence, trainable standard recurrence, trainable 10%-standard recurrence and trainable zero recurrence. Left: reconstructed initialization with the retained initial E→I/I→E matrices. Right: the retained epoch-50 checkpoint. The inset shows official-test image 0 (digit 7). Every panel receives the same seed-42 Poisson spike realization for 200 ms at 0.1 ms resolution, with fresh neuronal and synaptic state. Black ticks show 200 of 1,024 E cells; red ticks show 50 of 256 I cells. Cells were sampled without replacement with NumPy RNG seed 42 and retain the same display order throughout. Both columns share time and neuron scales. Fixed recurrence still permits changes in the trained input and readout weights. These new CPU diagnostic simulations use a shared input realization distinct from the historical reference-image diagnostic; the left column is not a recovered historical epoch-0 recording.
 </PublishedFigure>
 
 <span id="loc-7" />
 
 ## Methods
 
-We reused networks from the [exp022](/exp022) — [*MNIST*](/exp022) (legacy) and reanalysed recorded observations. No new training or simulation was performed.
+We reused networks from the [exp022](/exp022) — [*MNIST*](/exp022) (legacy) and reanalysed recorded observations for Figures 1–2. Figure 3 adds matched CPU diagnostic simulations of reconstructed initialization and the retained final checkpoints. No new training was performed.
 
 1. **Compare recurrent trainability.** Twelve conductance-based leaky-integrate-and-fire classifiers had 784 Poisson input channels, 1,024 excitatory (E), 256 inhibitory (I) and 10 output neurons. With three training replicates per condition, we compared frozen canonical recurrence with trainable canonical, zero and 10%-canonical E→I/I→E conductances; E→E and I→I coupling stayed zero. Canonical initializer means were $\frac{1}{1024}$ and $\frac{2}{256}$, respectively, with standard deviations one tenth of each mean and negative draws clamped to zero.
 
@@ -74,3 +82,5 @@ We reused networks from the [exp022](/exp022) — [*MNIST*](/exp022) (legacy) an
 6. **Summarize recurrent weights.** We reanalysed the initial and epoch-50 E→I and I→E matrices. For each direction and condition, we calculated the strictly positive fraction and arithmetic mean including zeros, both per network and over the three pooled matrices. Equal matrix sizes gave each network equal weight. Separately at each time point, we calculated SEM as the sample standard deviation of the three network summaries divided by $\sqrt{3}$. The independently trained network was the unit of replication; jointly trained weights were not additional replicates. These descriptive summaries did not test the significance of training-induced changes.
 
 7. **Expose retained training evidence.** We displayed retained validation, activity and temporal-contrast measurements with their distinct training-replicate and illustrative-probe roles.
+
+8. **Replay a matched before/after example.** For seed 42, we reconstructed the input and readout matrices using the recorded CPU initialization seed, distribution, sparsity mask and draw order. Reconstructed recurrent matrices agreed with the retained initial matrices within four float32 machine epsilons of relative error; we then used the retained matrices themselves. Each epoch-50 replay used its authenticated final checkpoint. We encoded official-test image 0 once with CPU Poisson encoder seed 42 and passed the same spike tensor to all four conditions at both time points. SNNLab's GraphExecutor reset state on every presentation. The compute run retains the image, encoded input, full E/I recordings, native parameter snapshots and explicit endpoint ancestry. This reconstructed diagnostic does not add an epoch-0 observation to the historical training curves.
