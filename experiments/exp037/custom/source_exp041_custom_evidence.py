@@ -8,8 +8,7 @@ this module does not start computation or select a scientific run.
 import math
 
 import numpy as np
-
-from pingstore.contracts import PingstoreError, load_json
+from pingstore.contracts import PingstoreError
 
 
 def finite(value, label: str, *, minimum=0.0, maximum=None) -> float:
@@ -31,7 +30,7 @@ def _same(actual, expected) -> bool:
         return bool(np.isclose(actual, expected))
     if isinstance(actual, list) and isinstance(expected, list):
         return len(actual) == len(expected) and all(
-            _same(a, b) for a, b in zip(actual, expected)
+            _same(a, b) for a, b in zip(actual, expected, strict=True)
         )
     if isinstance(actual, dict) and isinstance(expected, dict):
         return actual.keys() == expected.keys() and all(

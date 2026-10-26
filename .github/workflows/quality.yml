@@ -76,6 +76,9 @@ jobs:
       - name: Ruff
         run: uv run ruff check --output-format=github
 
+      - name: Ruff formatting
+        run: uv run ruff format --check
+
       - name: Experiment tool-import boundary
         run: uv run ruff check experiments --select TID --output-format=github
 

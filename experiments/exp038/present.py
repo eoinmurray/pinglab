@@ -128,23 +128,15 @@ def present(identity, *, run_id=None):
         write_json_atomic(
             out / "numbers.json",
             {
-                **(
-                    {
-                        **{
-                            key: value
-                            for key, value in result.items()
-                            if key != "rasters"
-                        },
-                        "illustrative_labels": {
-                            "rate_rasters": [sample["label"] for sample in rates],
-                            "ei_rasters": [sample["label"] for sample in ei],
-                        },
-                        "run_id": rid,
-                        "duration_s": duration,
-                        "duration": format_duration(duration),
-                        "git_sha": run.record["provenance"]["git_commit"],
-                    }
-                ),
+                **{key: value for key, value in result.items() if key != "rasters"},
+                "illustrative_labels": {
+                    "rate_rasters": [sample["label"] for sample in rates],
+                    "ei_rasters": [sample["label"] for sample in ei],
+                },
+                "run_id": rid,
+                "duration_s": duration,
+                "duration": format_duration(duration),
+                "git_sha": run.record["provenance"]["git_commit"],
                 "circuit_files": copy_circuits(run),
             },
         )
@@ -179,7 +171,7 @@ def plot_rate_rasters(samples: list[dict], out_path: Path, run_id: str) -> None:
     )
     if n == 1:
         axes = [axes]
-    for i, (ax, s) in enumerate(zip(axes, samples)):
+    for i, (ax, s) in enumerate(zip(axes, samples, strict=True)):
         T = s["e"].shape[0]
         t_axis = np.arange(T) * s["dt"]
         e_t, e_n = np.where(s["e"])
@@ -250,7 +242,7 @@ def plot_fi_curve_uniform(
         fig, axes = plt.subplots(2, 2, figsize=(5.6, 4.2))
         top_axes = list(axes[0])
     titles = {"ping": "PING (I-loop active)", "coba": "COBA (no I-loop)"}
-    for ax, model in zip(top_axes, MODELS):
+    for ax, model in zip(top_axes, MODELS, strict=True):
         msel = sorted(
             [r for r in rows if r["model"] == model],
             key=lambda r: r["input_rate_hz"],
@@ -294,7 +286,7 @@ def plot_fi_curve_uniform(
     if zoom_rows is not None:
         # Bottom row: zoom 0-10 Hz, one panel per model, same scheme
         # as the top row.
-        for ax, model in zip(axes[1], MODELS):
+        for ax, model in zip(axes[1], MODELS, strict=True):
             msel = sorted(
                 [r for r in zoom_rows if r["model"] == model],
                 key=lambda r: r["input_rate_hz"],
@@ -374,7 +366,7 @@ def plot_ei_rasters(samples: list[dict], out_path: Path, run_id: str) -> None:
     )
     if n == 1:
         axes = [axes]
-    for i, (ax, s) in enumerate(zip(axes, samples)):
+    for i, (ax, s) in enumerate(zip(axes, samples, strict=True)):
         T = s["e"].shape[0]
         t_axis = np.arange(T) * s["dt"]
         e_t, e_n = np.where(s["e"])

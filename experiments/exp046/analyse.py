@@ -239,12 +239,9 @@ def summarize(rows):
     for row in rows:
         global_buckets += np.array(row["bucket_counts"], dtype=np.int64)
     total = int(global_buckets.sum())
-    global_fracs = {
-        name: value
-        for name, value in zip(
-            BUCKET_NAMES, bucket_fractions(global_buckets).values(), strict=True
-        )
-    }
+    global_fracs = dict(
+        zip(BUCKET_NAMES, bucket_fractions(global_buckets).values(), strict=True)
+    )
     all_network_fractions = np.asarray(
         [list(bucket_fractions(row["bucket_counts"]).values()) for row in rows]
     )

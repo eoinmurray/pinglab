@@ -8,9 +8,8 @@ this module does not start computation or select a scientific run.
 import math
 
 import numpy as np
-from pingstore.contracts import PingstoreError, load_json, write_json_atomic
-
 from experiments.exp054 import recipe
+from pingstore.contracts import PingstoreError, load_json, write_json_atomic
 
 
 def write(directory, document):
@@ -116,7 +115,9 @@ def raster(path, cfg):
             or (width is not None and np.any(cells >= width))
         ):
             raise PingstoreError("exp054 spike index outside recording")
-        if len(set(zip(trial.tolist(), times.tolist(), cells.tolist()))) != len(times):
+        if len(
+            set(zip(trial.tolist(), times.tolist(), cells.tolist(), strict=True))
+        ) != len(times):
             raise PingstoreError("duplicate exp054 spike index")
     return data
 

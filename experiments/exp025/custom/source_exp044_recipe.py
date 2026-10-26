@@ -5,4 +5,4 @@ Inputs and outputs retain that stage’s validated scientific contract; importin
 this module does not start computation or select a scientific run.
 """
 
-from snnlab.lang import duration_metadata, duration_steps, refractory_metadata
+from snnlab.lang import duration_steps as duration_steps

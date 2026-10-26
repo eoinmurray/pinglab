@@ -81,51 +81,8 @@ def write_json_atomic(path: Path, value: dict[str, Any]) -> None:
         temporary.unlink(missing_ok=True)
 
 
-def validate_run_manifest(value: dict[str, Any]) -> dict[str, Any]:
-    if value.get("contract_version") != CONTRACT_VERSION:
-        raise ContractError(f"run.json contract_version must be {CONTRACT_VERSION!r}")
-    _require_string(value.get("run_id"), "run.json run_id")
-    if value.get("kind") not in KINDS:
-        raise ContractError(f"run.json kind must be one of {sorted(KINDS)}")
-    if value.get("status") not in STATUSES:
-        raise ContractError(f"run.json status must be one of {sorted(STATUSES)}")
-    _require_utc_timestamp(value.get("created_at_utc"), "run.json created_at_utc")
-
-    source = _require_mapping(value.get("source"), "run.json source")
-    commit = source.get("git_commit")
-    if commit is not None and (
-        not isinstance(commit, str) or not re.fullmatch(r"[0-9a-f]{40}", commit)
-    ):
-        raise ContractError(
-            "run.json source.git_commit must be 40 lowercase hex chars or null"
-        )
-    if source.get("git_clean") is not None and not isinstance(
-        source.get("git_clean"), bool
-    ):
-        raise ContractError("run.json source.git_clean must be boolean or null")
-    lockfile = source.get("lockfile")
-    if lockfile is not None:
-        lock = _require_mapping(lockfile, "run.json source.lockfile")
-        validate_relative_path(lock.get("path"), "run.json source.lockfile.path")
-        _require_sha256(lock.get("sha256"), "run.json source.lockfile.sha256")
-    versions = source.get("tool_versions")
-    if versions is not None:
-        version_map = _require_mapping(versions, "run.json source.tool_versions")
-        if set(version_map) != {"snnlang", "snnsim", "snnviz"}:
-            raise ContractError(
-                "run.json source.tool_versions must identify snnlang, snnsim, and snnviz"
-            )
-        semver = re.compile(
-            r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)"
-            r"(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?"
-            r"(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$"
-        )
-        for name, version in version_map.items():
-            if not isinstance(version, str) or not semver.fullmatch(version):
-                raise ContractError(
-                    f"run.json source.tool_versions.{name} must be SemVer"
-                )
-
+def _validate_manifest_execution(*, value):
+    """Validate execution identity, command and graph provenance."""
     execution = _require_mapping(value.get("execution"), "run.json execution")
     experiment = execution.get("experiment")
     collection = execution.get("collection")
@@ -164,6 +121,59 @@ def validate_run_manifest(value: dict[str, Any]) -> dict[str, Any]:
         graph_digest is not None or training_digest is not None
     ):
         raise ContractError("legacy execution cannot record graph/training digests")
+
+
+def _validate_manifest_source(*, value):
+    """Validate source revision, lockfile and native tool versions."""
+    source = _require_mapping(value.get("source"), "run.json source")
+    commit = source.get("git_commit")
+    if commit is not None and (
+        not isinstance(commit, str) or not re.fullmatch(r"[0-9a-f]{40}", commit)
+    ):
+        raise ContractError(
+            "run.json source.git_commit must be 40 lowercase hex chars or null"
+        )
+    if source.get("git_clean") is not None and not isinstance(
+        source.get("git_clean"), bool
+    ):
+        raise ContractError("run.json source.git_clean must be boolean or null")
+    lockfile = source.get("lockfile")
+    if lockfile is not None:
+        lock = _require_mapping(lockfile, "run.json source.lockfile")
+        validate_relative_path(lock.get("path"), "run.json source.lockfile.path")
+        _require_sha256(lock.get("sha256"), "run.json source.lockfile.sha256")
+    versions = source.get("tool_versions")
+    if versions is not None:
+        version_map = _require_mapping(versions, "run.json source.tool_versions")
+        if set(version_map) != {"snnlang", "snnsim", "snnviz"}:
+            raise ContractError(
+                "run.json source.tool_versions must identify snnlang, snnsim, and snnviz"
+            )
+        semver = re.compile(
+            r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)"
+            r"(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?"
+            r"(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$"
+        )
+        for name, version in version_map.items():
+            if not isinstance(version, str) or not semver.fullmatch(version):
+                raise ContractError(
+                    f"run.json source.tool_versions.{name} must be SemVer"
+                )
+
+
+def validate_run_manifest(value: dict[str, Any]) -> dict[str, Any]:
+    if value.get("contract_version") != CONTRACT_VERSION:
+        raise ContractError(f"run.json contract_version must be {CONTRACT_VERSION!r}")
+    _require_string(value.get("run_id"), "run.json run_id")
+    if value.get("kind") not in KINDS:
+        raise ContractError(f"run.json kind must be one of {sorted(KINDS)}")
+    if value.get("status") not in STATUSES:
+        raise ContractError(f"run.json status must be one of {sorted(STATUSES)}")
+    _require_utc_timestamp(value.get("created_at_utc"), "run.json created_at_utc")
+
+    _validate_manifest_source(value=value)
+
+    _validate_manifest_execution(value=value)
 
     if not isinstance(value.get("upstream"), list):
         raise ContractError("run.json upstream must be an array")

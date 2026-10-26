@@ -21,7 +21,10 @@ from snnlab import lang
 
 def events(array, dt):
     steps, channels = np.nonzero(array)
-    return [[float(step * dt), int(channel)] for step, channel in zip(steps, channels)]
+    return [
+        [float(step * dt), int(channel)]
+        for step, channel in zip(steps, channels, strict=True)
+    ]
 
 
 def present(identity):

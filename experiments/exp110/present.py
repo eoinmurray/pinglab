@@ -1140,7 +1140,7 @@ def draw_turnon_map(
         labels = (
             mark_labels if mark_labels is not None else [p[0] for p in TURNON_POINTS]
         )
-        for (_, wei_i, wie_i), disp in zip(TURNON_POINTS, labels):
+        for (_, wei_i, wie_i), disp in zip(TURNON_POINTS, labels, strict=True):
             ax.text(
                 wei_i,
                 wie_i,

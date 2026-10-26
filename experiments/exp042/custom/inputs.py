@@ -9,10 +9,9 @@ import math
 from contextlib import contextmanager
 from pathlib import Path
 
+from experiments.exp042 import recipe
 from pingstore.contracts import PingstoreError, file_sha256, load_json
 from pingstore.stages import source_run, stage_run
-
-from experiments.exp042 import recipe
 
 
 def lineage(repo, identity, reference=None):

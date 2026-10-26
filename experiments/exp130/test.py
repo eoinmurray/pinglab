@@ -6,7 +6,7 @@ report's pinned historical evidence.
 """
 
 import numpy as np
-from experiments.exp130 import recipe, dataset
+from experiments.exp130 import dataset, recipe
 from experiments.exp130.compute import simulate
 
 

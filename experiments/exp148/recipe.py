@@ -324,7 +324,7 @@ def mean_field_model(cfg, bundle):
                 sigma=cfg["voltage_noise_mv"],
                 quadrature_nodes=cfg["gain_quadrature_nodes"],
             ),
-            tau_rate=dict(zip(("E", "I"), cfg["rate_relaxation_ms"])),
+            tau_rate=dict(zip(("E", "I"), cfg["rate_relaxation_ms"], strict=True)),
         ),
         weights=mf.MeanIncomingWeights(
             cfg["summed_weights_us"],

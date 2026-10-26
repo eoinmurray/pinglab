@@ -9,9 +9,8 @@ from __future__ import annotations
 import copy
 import os
 
-from snnlab.lang import duration_steps, refractory_metadata
-
 from experiments import theme
+from snnlab.lang import duration_steps, refractory_metadata
 
 SLUG = "exp022"
 RESULT_CHECKPOINT_ROLE = "final_epoch"

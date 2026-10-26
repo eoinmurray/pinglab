@@ -6,12 +6,8 @@ bounded native checks validate numerical behavior without production runs.
 
 from __future__ import annotations
 
-from pathlib import Path
-
 """Pipeline fixtures and bounded graph/kernel numerical conformance checks."""
 
-import subprocess
-import sys
 from types import SimpleNamespace
 
 import numpy as np
@@ -416,7 +412,7 @@ def test_native_sweep_reductions_match_full_raster_counts():
     point = recipe.operating_point("ping", 100, 24)
     point["t_ms"] = 20
     from snnlab.lang import duration_steps
-    from snnlab.sim import PoissonInputBinding, Performance
+    from snnlab.sim import Performance, PoissonInputBinding
 
     bundle = recipe.author_network(cfg, point, traces=True)
     binding = PoissonInputBinding(

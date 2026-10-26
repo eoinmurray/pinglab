@@ -18,9 +18,9 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
 
 import numpy as np
-from experiments.exp042.custom import inputs, simulation
 from experiments.exp042 import recipe
-from tools.hpc import concurrent_compute
+from experiments.exp042.custom import inputs, simulation
+from hpc import concurrent_compute
 from pingstore.contracts import (
     PingstoreError,
     file_sha256,
@@ -206,86 +206,91 @@ def _collection_protocol(directory, cfg, data):
 
 def _complete(bank, evidence, cfg, data, root, run_id, collect):
     directory = _shard_paths(REPO, run_id, 0, recipe.SHARDS)
-    with concurrent_compute.collect_shards(
-        repo=REPO,
-        experiment=recipe.SLUG,
-        run_id=run_id,
-        count=recipe.SHARDS,
-        inputs={"bank": bank.reference},
-        configuration=lambda: _collection_protocol(directory, cfg, data),
-        items_for=lambda index: recipe.jobs(cfg)[index :: recipe.SHARDS],
-        inventory_for=lambda index: {
-            **_native_inventory(directory, recipe.jobs(cfg)[index :: recipe.SHARDS]),
-            "requests": file_sha256(
-                _shard_paths(REPO, run_id, index, recipe.SHARDS)
-                / ".scratch/shards"
-                / str(index)
-                / "requests.json"
-            ),
-            **{
-                job["id"]: file_sha256(
-                    _job_path(
-                        _shard_paths(REPO, run_id, index, recipe.SHARDS) / "export", job
-                    )
-                )
-                for job in recipe.jobs(cfg)[index :: recipe.SHARDS]
-            },
-        },
-        collect=collect,
-    ) as (_directory, shard_records):
-        with inputs.execution(
-            REPO, "compute", sources={"bank": bank}, run_id=run_id, configuration=cfg
-        ) as run:
-            if collect:
-                concurrent_compute.retain_worker_provenance(run, shard_records)
-            environment = {
-                "PINGLAB_SMOKE": "1" if cfg["profile"] == "smoke" else "0",
-                **(
-                    {"PINGLAB_DEVICE": os.environ["PINGLAB_DEVICE"]}
-                    if os.environ.get("PINGLAB_DEVICE")
-                    else {}
+    with (
+        concurrent_compute.collect_shards(
+            repo=REPO,
+            experiment=recipe.SLUG,
+            run_id=run_id,
+            count=recipe.SHARDS,
+            inputs={"bank": bank.reference},
+            configuration=lambda: _collection_protocol(directory, cfg, data),
+            items_for=lambda index: recipe.jobs(cfg)[index :: recipe.SHARDS],
+            inventory_for=lambda index: {
+                **_native_inventory(
+                    directory, recipe.jobs(cfg)[index :: recipe.SHARDS]
                 ),
-            }
-            run.record["execution"]["environment"] = environment
-            run.record["execution"].update(
-                executor=cfg["executor"],
-                **data["protocol"],
-                parameter_binding=dict(recipe.CHECKPOINT_PARAMETERS),
-            )
-            requests = []
-            if collect:
-                for index in range(recipe.SHARDS):
-                    requests.extend(
-                        _shard_requests(
-                            run.scratch / "shards" / str(index) / "requests.json"
+                "requests": file_sha256(
+                    _shard_paths(REPO, run_id, index, recipe.SHARDS)
+                    / ".scratch/shards"
+                    / str(index)
+                    / "requests.json"
+                ),
+                **{
+                    job["id"]: file_sha256(
+                        _job_path(
+                            _shard_paths(REPO, run_id, index, recipe.SHARDS) / "export",
+                            job,
                         )
                     )
-            if not collect:
-                _run_jobs(bank, cfg, data, root, run.export, recipe.jobs(cfg), requests)
-            train_dir = bank.unit(recipe.cell_name(cfg["raster"]["seed"]))
-            for name, snapshot in simulation.recordings(
-                train_dir,
-                cfg,
-                data,
-                bank.reference,
-                requests,
-                run.export,
-            ):
-                np.savez_compressed(run.export / f"{name}.npz", **snapshot)
-            run.record["execution"]["requests"] = requests
-            shared_baseline = run.directory / ".baseline-scratch"
-            if shared_baseline.exists():
-                shutil.rmtree(shared_baseline)
-            write_json_atomic(
-                run.export / "evidence.json",
-                {
-                    "schema": "exp042.compute/v4",
-                    "recipe": cfg,
-                    "bank_evidence": evidence,
-                    "jobs": recipe.jobs(cfg),
-                    "recordings": ["cycle.npz", "cell.npz"],
+                    for job in recipe.jobs(cfg)[index :: recipe.SHARDS]
                 },
-            )
+            },
+            collect=collect,
+        ) as (_directory, shard_records),
+        inputs.execution(
+            REPO, "compute", sources={"bank": bank}, run_id=run_id, configuration=cfg
+        ) as run,
+    ):
+        if collect:
+            concurrent_compute.retain_worker_provenance(run, shard_records)
+        environment = {
+            "PINGLAB_SMOKE": "1" if cfg["profile"] == "smoke" else "0",
+            **(
+                {"PINGLAB_DEVICE": os.environ["PINGLAB_DEVICE"]}
+                if os.environ.get("PINGLAB_DEVICE")
+                else {}
+            ),
+        }
+        run.record["execution"]["environment"] = environment
+        run.record["execution"].update(
+            executor=cfg["executor"],
+            **data["protocol"],
+            parameter_binding=dict(recipe.CHECKPOINT_PARAMETERS),
+        )
+        requests = []
+        if collect:
+            for index in range(recipe.SHARDS):
+                requests.extend(
+                    _shard_requests(
+                        run.scratch / "shards" / str(index) / "requests.json"
+                    )
+                )
+        if not collect:
+            _run_jobs(bank, cfg, data, root, run.export, recipe.jobs(cfg), requests)
+        train_dir = bank.unit(recipe.cell_name(cfg["raster"]["seed"]))
+        for name, snapshot in simulation.recordings(
+            train_dir,
+            cfg,
+            data,
+            bank.reference,
+            requests,
+            run.export,
+        ):
+            np.savez_compressed(run.export / f"{name}.npz", **snapshot)
+        run.record["execution"]["requests"] = requests
+        shared_baseline = run.directory / ".baseline-scratch"
+        if shared_baseline.exists():
+            shutil.rmtree(shared_baseline)
+        write_json_atomic(
+            run.export / "evidence.json",
+            {
+                "schema": "exp042.compute/v4",
+                "recipe": cfg,
+                "bank_evidence": evidence,
+                "jobs": recipe.jobs(cfg),
+                "recordings": ["cycle.npz", "cell.npz"],
+            },
+        )
     return run.run_id
 
 

@@ -8,10 +8,8 @@ this module does not start computation or select a scientific run.
 from pathlib import Path
 
 import numpy as np
-
-from pingstore.contracts import PingstoreError, load_json
-
 from experiments.exp025.custom.source_exp044_recipe import duration_steps
+from pingstore.contracts import PingstoreError
 
 
 def snapshot(path: Path, dt: float, common: dict) -> dict:

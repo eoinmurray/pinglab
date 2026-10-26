@@ -95,6 +95,7 @@ def record_snapshot_policy(run):
 def copy_circuits(run):
     """Copy only circuit assets from this presentation's explicit compute ancestry."""
     import shutil
+
     from pingstore.stages import source_run
 
     seen = set()

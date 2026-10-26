@@ -72,7 +72,7 @@ def figure(data, cfg):
         ylim=(-0.05, 1.0),
         xlim=(0, cfg["duration_ms"]),
     )
-    for letter, ax in zip("ABCD", axes):
+    for letter, ax in zip("ABCD", axes, strict=True):
         ax.text(
             -0.09,
             1.0,

@@ -220,7 +220,7 @@ def render_raster(recordings, cfg, path):
         rates = dataset.source_rates(
             t + origin, recipe.condition_configuration(cfg, condition)
         )
-        for pop, rate, linestyle in zip(("e", "i"), rates, ("-", "--")):
+        for pop, rate, linestyle in zip(("e", "i"), rates, ("-", "--"), strict=True):
             drive.plot(
                 t,
                 rate,

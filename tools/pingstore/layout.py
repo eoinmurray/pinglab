@@ -53,7 +53,11 @@ def canonical_export_relative(relative: Path, *, export_root: str = "export") ->
     """Map a scientific file to a root file or candidate unit/role path."""
     parts = relative.parts
     prefix = Path(export_root).parts
-    if prefix and prefix[0] == "export" and tuple(parts[: len(prefix) - 1]) == prefix[1:]:
+    if (
+        prefix
+        and prefix[0] == "export"
+        and tuple(parts[: len(prefix) - 1]) == prefix[1:]
+    ):
         parts = parts[len(prefix) - 1 :]
     if len(parts) <= 1:
         return Path(canonical_role_name(parts[0]))
@@ -147,9 +151,16 @@ def normalize_export_layout(directory: Path, record: dict) -> dict[str, str]:
     if len(set(mapping.values())) != len(mapping):
         raise PingstoreError(f"{directory.name}: canonical export paths collide")
     protected = {mapping[source] for source in native}
-    native_mapping = {source: mapping[stored] for source, stored in retained_native.items()}
-    native_mapping.update({source: mapping[source] for source in sorted(native)
-                           if source not in retained_native.values()})
+    native_mapping = {
+        source: mapping[stored] for source, stored in retained_native.items()
+    }
+    native_mapping.update(
+        {
+            source: mapping[source]
+            for source in sorted(native)
+            if source not in retained_native.values()
+        }
+    )
     temporary = directory / ".normalized-export.tmp"
     if temporary.exists():
         raise PingstoreError(f"{directory.name}: stale export normalization directory")
@@ -195,5 +206,7 @@ def presentation_directory(root: Path, run: dict) -> Path | None:
 
 
 def has_presentation_content(directory: Path) -> bool:
-    return any(path.name not in RECORD_NAMES and path.stat().st_size > 0
-               for path in directory.iterdir())
+    return any(
+        path.name not in RECORD_NAMES and path.stat().st_size > 0
+        for path in directory.iterdir()
+    )

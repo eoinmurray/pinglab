@@ -233,7 +233,7 @@ def test_diagnostics_use_endpoint_secant_absolute_threshold_and_first_crossing()
                 "test_rate_i": 1,
                 "loss": 1,
                 "test_loss": 1,
-                "weight_norms": {key: 1 for key in recipe.PARAMETERS},
+                "weight_norms": dict.fromkeys(recipe.PARAMETERS, 1),
             }
             for i in range(10)
         ],

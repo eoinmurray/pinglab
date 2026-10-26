@@ -191,7 +191,7 @@ def test_native_continuation_and_reset():
     controller.stream.reset(state)
     controller.steps = step
     second = controller.window(10, peer=1)
-    for left, right in zip(first, second):
+    for left, right in zip(first, second, strict=True):
         np.testing.assert_array_equal(left, right)
     controller.stream.close()
 

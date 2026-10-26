@@ -4,10 +4,8 @@ configuration() resolves fresh scientific settings before execution. Network
 authoring and analysis definitions do not load data or launch a stage on import.
 """
 
-from copy import deepcopy
-
 import re
-
+from copy import deepcopy
 
 SLUG = "exp042"
 TRAINING_RUN = "TR-02"

@@ -153,21 +153,13 @@ def present(identity, *, run_id=None):
         write_json_atomic(
             out / "numbers.json",
             {
-                **(
-                    {
-                        **{
-                            key: value
-                            for key, value in result.items()
-                            if key != "rasters"
-                        },
-                        "illustrative_labels": [r["label"] for r in rasters],
-                        "notebook_run_id": rid,
-                        "run_id": rid,
-                        "duration_s": duration,
-                        "duration": format_duration(duration),
-                        "git_sha": run.record["provenance"]["git_commit"],
-                    }
-                ),
+                **{key: value for key, value in result.items() if key != "rasters"},
+                "illustrative_labels": [r["label"] for r in rasters],
+                "notebook_run_id": rid,
+                "run_id": rid,
+                "duration_s": duration,
+                "duration": format_duration(duration),
+                "git_sha": run.record["provenance"]["git_commit"],
                 "circuit_files": copy_circuits(run),
             },
         )
@@ -207,7 +199,7 @@ def plot_perturbation_rasters(
     )
     if n == 1:
         axes = [axes]
-    for i, (ax, s) in enumerate(zip(axes, samples)):
+    for i, (ax, s) in enumerate(zip(axes, samples, strict=True)):
         ax.scatter(
             s["e_t"],
             s["e_n"],

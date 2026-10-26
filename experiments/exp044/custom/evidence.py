@@ -9,19 +9,18 @@ import math
 from pathlib import Path
 
 import numpy as np
-from experiments.exp044.custom.source_exp022_custom_checkpoints import public_provenance
+from experiments.exp044 import recipe
 from experiments.exp044.custom.source_exp022_custom_checkpoints import (
+    public_provenance,
     resolve_checkpoint,
 )
-from pingstore.contracts import PingstoreError, load_json
-
-from experiments.exp044 import recipe
 from experiments.exp044.recipe import (
     duration_configuration,
     duration_steps,
     refractory_configuration,
     refractory_execution_configuration,
 )
+from pingstore.contracts import PingstoreError, load_json
 
 
 def finite(value, label: str, *, minimum=0.0, maximum=None) -> float:
@@ -43,7 +42,7 @@ def _same(actual, expected) -> bool:
         return bool(np.isclose(actual, expected))
     if isinstance(actual, list) and isinstance(expected, list):
         return len(actual) == len(expected) and all(
-            _same(a, b) for a, b in zip(actual, expected)
+            _same(a, b) for a, b in zip(actual, expected, strict=True)
         )
     if isinstance(actual, dict) and isinstance(expected, dict):
         return actual.keys() == expected.keys() and all(
@@ -106,6 +105,53 @@ def bank_science(config: dict, name: str) -> dict:
         ) from exc
 
 
+def _validate_common_training(*, common):
+    """Check common scientific settings and the retained validation split."""
+    for key, value in {
+        "model": "ping",
+        "dataset": "mnist",
+        "t_ms": recipe.T_MS,
+        "epochs": recipe.EPOCHS,
+        "max_samples": recipe.MAX_SAMPLES,
+    }.items():
+        if common[key] != value:
+            raise PingstoreError(f"training recipe requires {key}={value}")
+    for key in ("n_in", "n_hidden", "n_inh", "n_out", "batch_size"):
+        if type(common[key]) is not int or common[key] <= 0:
+            raise PingstoreError(f"invalid training {key}")
+    if (
+        common["n_hidden"] < recipe.RASTER_N_E_PLOT
+        or common["n_inh"] < recipe.RASTER_N_I_PLOT
+    ):
+        raise PingstoreError("training populations are smaller than the raster sample")
+    recipe.validate_network_settings(common)
+    split = common["dataset_split"]
+    expected_split = {
+        "optimizer_train_samples": 6300,
+        "validation_samples": 700,
+        "official_test_samples": 10000,
+        "checkpoint_selection_partition": "validation",
+        "official_test_used_during_training": False,
+        "source_train_partition": "official_mnist_train",
+        "source_test_partition": "official_mnist_test",
+    }
+    if not isinstance(split, dict) or any(
+        split.get(k) != v for k, v in expected_split.items()
+    ):
+        raise PingstoreError(
+            "training requires the retained MNIST train/validation/test split"
+        )
+    draws = common["validation_encoder_draws"]
+    if (
+        not isinstance(draws, dict)
+        or type(draws.get("count")) is not int
+        or draws["count"] < 1
+        or len(draws.get("encoder_seeds", [])) != draws["count"]
+        or len(draws.get("input_rate_seeds", [])) != draws["count"]
+    ):
+        raise PingstoreError("missing validation encoder-draw contract")
+
+
 def training_contract(bank: Path, cfg: dict | None = None) -> dict:
     cfg = recipe.configuration() if cfg is None else cfg
     dts = cfg["dt_sweep_ms"]
@@ -154,49 +200,7 @@ def training_contract(bank: Path, cfg: dict | None = None) -> dict:
                 },
             }
             cells.append(row)
-    for key, value in {
-        "model": "ping",
-        "dataset": "mnist",
-        "t_ms": recipe.T_MS,
-        "epochs": recipe.EPOCHS,
-        "max_samples": recipe.MAX_SAMPLES,
-    }.items():
-        if common[key] != value:
-            raise PingstoreError(f"training recipe requires {key}={value}")
-    for key in ("n_in", "n_hidden", "n_inh", "n_out", "batch_size"):
-        if type(common[key]) is not int or common[key] <= 0:
-            raise PingstoreError(f"invalid training {key}")
-    if (
-        common["n_hidden"] < recipe.RASTER_N_E_PLOT
-        or common["n_inh"] < recipe.RASTER_N_I_PLOT
-    ):
-        raise PingstoreError("training populations are smaller than the raster sample")
-    recipe.validate_network_settings(common)
-    split = common["dataset_split"]
-    expected_split = {
-        "optimizer_train_samples": 6300,
-        "validation_samples": 700,
-        "official_test_samples": 10000,
-        "checkpoint_selection_partition": "validation",
-        "official_test_used_during_training": False,
-        "source_train_partition": "official_mnist_train",
-        "source_test_partition": "official_mnist_test",
-    }
-    if not isinstance(split, dict) or any(
-        split.get(k) != v for k, v in expected_split.items()
-    ):
-        raise PingstoreError(
-            "training requires the retained MNIST train/validation/test split"
-        )
-    draws = common["validation_encoder_draws"]
-    if (
-        not isinstance(draws, dict)
-        or type(draws.get("count")) is not int
-        or draws["count"] < 1
-        or len(draws.get("encoder_seeds", [])) != draws["count"]
-        or len(draws.get("input_rate_seeds", [])) != draws["count"]
-    ):
-        raise PingstoreError("missing validation encoder-draw contract")
+    _validate_common_training(common=common)
     return {
         "common": common,
         "cells": cells,

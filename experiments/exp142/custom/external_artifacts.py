@@ -43,7 +43,7 @@ def _write(directory, stage, backend, configuration, parameters):
 
 
 @contextmanager
-def external_execution(directory, *, backend, configuration, parameters=lambda: {}):
+def external_execution(directory, *, backend, configuration, parameters=dict):
     """Save actual backend definitions/parameters around one complete execution."""
     _write(directory, "start", backend, configuration, parameters())
     yield

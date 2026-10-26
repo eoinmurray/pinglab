@@ -28,15 +28,22 @@ def make_run(store, stage="present", *, number=1):
     directory = store / "runs" / identity
     initialize_layout(directory, "exp001")
     record = {
-        "schema": RUN_SCHEMA, "run_id": identity, "experiment": "exp001",
-        "collection": "demo", "origin": "local",
+        "schema": RUN_SCHEMA,
+        "run_id": identity,
+        "experiment": "exp001",
+        "collection": "demo",
+        "origin": "local",
         "created_at": "2026-08-27T12:00:00+00:00",
-        "execution": {}, "provenance": {},
-        "stage": stage, "inputs": {},
+        "execution": {},
+        "provenance": {},
+        "stage": stage,
+        "inputs": {},
     }
     output = directory / "export"
     (output / "numbers.json").write_text('{"value": 1}\n')
-    write_json_atomic(directory / "run.json", {**record, "payload_digest": "sha256:" + "0" * 64})
+    write_json_atomic(
+        directory / "run.json", {**record, "payload_digest": "sha256:" + "0" * 64}
+    )
     record["payload_digest"] = payload_digest(directory)
     write_json_atomic(directory / "run.json", record)
     return directory
@@ -111,15 +118,17 @@ def test_stage_completion_rejects_canonical_path_collisions(tmp_path, monkeypatc
         "_capture_code",
         lambda repo, directory: {"git_commit": "fixture", "dirty": False},
     )
-    with pytest.raises(PingstoreError, match="canonical export paths collide"):
-        with stages.stage_run(tmp_path, "exp001", "compute") as run:
-            for relative in (
-                "jobs/condition-a/result.json",
-                "jobs--condition-a/result.json",
-            ):
-                target = run.export / relative
-                target.parent.mkdir(parents=True, exist_ok=True)
-                target.write_text("{}")
+    with (
+        pytest.raises(PingstoreError, match="canonical export paths collide"),
+        stages.stage_run(tmp_path, "exp001", "compute") as run,
+    ):
+        for relative in (
+            "jobs/condition-a/result.json",
+            "jobs--condition-a/result.json",
+        ):
+            target = run.export / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text("{}")
 
 
 def test_bundle_internal_paths_become_role_names():
@@ -130,7 +139,11 @@ def test_bundle_internal_paths_become_role_names():
 
 def test_singleton_units_flatten_and_standardize_recording_name():
     mapping = canonical_export_mapping(
-        [Path("fi/ping-r2/recording.npz"), Path("bundle/metrics.json"), Path("bundle/config.json")]
+        [
+            Path("fi/ping-r2/recording.npz"),
+            Path("bundle/metrics.json"),
+            Path("bundle/config.json"),
+        ]
     )
     assert mapping == {
         "fi/ping-r2/recording.npz": "fi--ping-r2--recording.npz",
@@ -182,7 +195,9 @@ def test_v4_requires_stage_and_counter_first_id(tmp_path):
         validate_run_directory(directory)
 
 
-@pytest.mark.parametrize("relative", ["export/data--nested--value.json", "export/value.bin"])
+@pytest.mark.parametrize(
+    "relative", ["export/data--nested--value.json", "export/value.bin"]
+)
 def test_export_data_is_checksummed(tmp_path, relative):
     directory = make_run(tmp_path, "compute")
     evidence = directory / relative
@@ -242,12 +257,21 @@ def test_non_v4_evidence_is_rejected_by_operational_readers(tmp_path):
 
 
 @pytest.mark.parametrize("origin", ["local", "slurm-wilkes", "slurm-zenith"])
-def test_stage_writer_finishes_v4_with_readme_and_no_provenance(tmp_path, monkeypatch, origin):
+def test_stage_writer_finishes_v4_with_readme_and_no_provenance(
+    tmp_path, monkeypatch, origin
+):
     monkeypatch.setattr(stages, "memberships", lambda repo: {"exp001": "demo"})
-    monkeypatch.setattr(stages, "_capture_code", lambda repo, directory: {
-        "git_commit": "fixture", "dirty": False,
-    })
-    identity = stages.reserve_stage(tmp_path / ".pingstore", "exp001", "present", origin=origin)
+    monkeypatch.setattr(
+        stages,
+        "_capture_code",
+        lambda repo, directory: {
+            "git_commit": "fixture",
+            "dirty": False,
+        },
+    )
+    identity = stages.reserve_stage(
+        tmp_path / ".pingstore", "exp001", "present", origin=origin
+    )
     assert identity == "exp001-r001-present"
     temporary = tmp_path / ".pingstore/runs" / f".{identity}.tmp"
     assert stages.stage_reservation(temporary)["schema"] == RUN_SCHEMA
@@ -260,7 +284,11 @@ def test_stage_writer_finishes_v4_with_readme_and_no_provenance(tmp_path, monkey
     assert {path.name for path in run.export.iterdir()} == {"numbers.json"}
     assert (run.directory / "README.md").is_file()
     assert not (run.directory / "provenance").exists()
-    assert {path.name for path in run.directory.iterdir()} == {"run.json", "README.md", "export"}
+    assert {path.name for path in run.directory.iterdir()} == {
+        "run.json",
+        "README.md",
+        "export",
+    }
     assert not (run.directory / "presentation").exists()
 
 
@@ -274,7 +302,9 @@ def test_legacy_reservation_is_not_rewritten(tmp_path):
     assert not (tmp_path / "provenance").exists()
 
 
-def test_source_neutral_reservations_keep_origin_and_avoid_cross_origin_collisions(tmp_path):
+def test_source_neutral_reservations_keep_origin_and_avoid_cross_origin_collisions(
+    tmp_path,
+):
     runs = tmp_path / "runs"
     # All earlier formats occupy their counters, including incomplete evidence.
     (runs / "exp001-r007-compute-local").mkdir(parents=True)
@@ -282,10 +312,16 @@ def test_source_neutral_reservations_keep_origin_and_avoid_cross_origin_collisio
     (runs / "exp001-r009-present").mkdir()
     origins = ["local", "slurm-wilkes", "slurm-zenith"] * 4
     with ThreadPoolExecutor(max_workers=6) as pool:
-        identities = list(pool.map(lambda origin: stages.reserve_stage(
-            tmp_path, "exp001", "compute", origin=origin), origins))
+        identities = list(
+            pool.map(
+                lambda origin: stages.reserve_stage(
+                    tmp_path, "exp001", "compute", origin=origin
+                ),
+                origins,
+            )
+        )
     assert len(set(identities)) == len(origins)
-    for origin, identity in zip(origins, identities):
+    for origin, identity in zip(origins, identities, strict=True):
         assert identity.endswith("-compute")
         assert int(identity.split("-")[1][1:]) >= 10
         reservation = stages.stage_reservation(runs / f".{identity}.tmp")
@@ -295,9 +331,16 @@ def test_source_neutral_reservations_keep_origin_and_avoid_cross_origin_collisio
 def test_suffixed_reservation_cannot_be_completed(tmp_path):
     path = tmp_path / "runs/.exp001-r001-compute-local.tmp"
     reservation = path / ".reservation.json"
-    write_json_atomic(reservation, {"schema": RUN_SCHEMA,
-        "run_id": "exp001-r001-compute-local", "experiment": "exp001",
-        "stage": "compute", "origin": "local"})
+    write_json_atomic(
+        reservation,
+        {
+            "schema": RUN_SCHEMA,
+            "run_id": "exp001-r001-compute-local",
+            "experiment": "exp001",
+            "stage": "compute",
+            "origin": "local",
+        },
+    )
     before = reservation.read_bytes()
     with pytest.raises(PingstoreError, match="source-neutral reservation"):
         stages.stage_reservation(path)

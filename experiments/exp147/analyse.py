@@ -6,6 +6,7 @@ from the immutable source. Toolbox reference agreement remains untested.
 """
 
 import sys
+from itertools import pairwise
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
@@ -159,12 +160,12 @@ def validate_and_measure(data, cfg):
         events.extend((float(time), name) for time in times if time >= 10.0)
     events.sort()
     labels = [name for _, name in events]
-    simultaneous = any(a[0] == b[0] for a, b in zip(events, events[1:]))
+    simultaneous = any(a[0] == b[0] for a, b in pairwise(events))
     summary.update(
         independent_euler_passed=True,
         alternating_after_10ms=len(labels) >= 2
         and not simultaneous
-        and all(a != b for a, b in zip(labels, labels[1:])),
+        and all(a != b for a, b in pairwise(labels)),
         events_after_10ms=len(labels),
         duration_ms=cfg["duration_ms"],
         dt_ms=cfg["dt_ms"],

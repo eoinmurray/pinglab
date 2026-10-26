@@ -75,6 +75,7 @@ def configuration(*, smoke: bool = False, version: int = 5) -> dict:
 
     if version >= 5:
         from dataclasses import asdict
+
         from snnlab.sim import Performance
 
         cfg["performance"] = asdict(Performance())

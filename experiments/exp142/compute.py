@@ -173,7 +173,7 @@ def simulate_models(run, source, models, source_events, cfg, audit, label):
                     directory,
                     backend="SciPy DOP853 hybrid COBA-LIF (E/I/readout)",
                     configuration={"physics": cfg["physics"], "solver": solver},
-                    parameters=lambda: promoted,
+                    parameters=lambda promoted=promoted: promoted,
                 ):
                     recording, diagnostics = simulate_continuous(
                         replay,

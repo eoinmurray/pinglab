@@ -6,19 +6,17 @@ this module does not start computation or select a scientific run.
 """
 
 import numpy as np
-from experiments.exp025.custom.source_exp022_custom_checkpoints import public_provenance
+from experiments.exp025 import recipe
 from experiments.exp025.custom.source_exp022_custom_checkpoints import (
+    public_provenance,
     resolve_checkpoint,
 )
-from experiments.exp025.custom.source_exp041_custom_evidence import _same
-from experiments.exp025.custom.source_exp041_custom_evidence import finite
+from experiments.exp025.custom.source_exp041_custom_evidence import _same, finite
 from experiments.exp025.custom.source_exp041_recipe import TRAINING_COMMON_FIELDS
 from experiments.exp025.custom.source_exp044_custom_evidence import (
     snapshot as validate_snapshot,
 )
 from pingstore.contracts import PingstoreError, load_json
-
-from experiments.exp025 import recipe
 
 
 def training_contract(bank):
@@ -147,8 +145,7 @@ def metric(path, cfg, job):
 def recordings(directory, cfg, job):
     if job["kind"] == "snapshot":
         path = directory if directory.is_file() else directory / "recording.npz"
-        data = validate_snapshot(path, cfg["dt"], {**cfg, "t_ms": 400.0})
-        return data
+        return validate_snapshot(path, cfg["dt"], {**cfg, "t_ms": 400.0})
     metrics = directory if directory.is_file() else directory / "metrics.json"
     metric(metrics, cfg, job)
     if job["kind"] == "scale":
@@ -161,7 +158,7 @@ def recordings(directory, cfg, job):
         ):
             raise PingstoreError("invalid sample-wise rates")
     if job["kind"] != "pfg" or not job["is_ping"]:
-        return
+        return None
     with np.load(directory / "pop_traces.npz", allow_pickle=False) as data:
         p = data["pop_e"]
         if (
@@ -198,3 +195,4 @@ def recordings(directory, cfg, job):
             linear = (tr * p.shape[1] + ts) * pop + cell
             if np.unique(linear).size != linear.size:
                 raise PingstoreError("duplicate sparse spikes")
+    return None

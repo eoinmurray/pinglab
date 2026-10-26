@@ -5,6 +5,7 @@ SNNLab owns snapshot metadata and parameter serialization.
 """
 
 from pathlib import Path
+
 from snnlab.sim import SnapshotSpec
 from snnlab.sim.artifacts.snapshots import SnapshotSession
 from snnlab.sim.requests.spec import ExecutionSpec

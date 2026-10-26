@@ -63,7 +63,7 @@ def compute(*, run_id=None):
                 f"{name}_{field}": value
                 for name, values in sets.items()
                 for field, value in zip(
-                    ("spikes", "labels", "rates", "poisson_counts"), values
+                    ("spikes", "labels", "rates", "poisson_counts"), values, strict=True
                 )
             },
         )

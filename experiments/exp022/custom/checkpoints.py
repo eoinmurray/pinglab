@@ -8,8 +8,8 @@ this module does not start computation or select a scientific run.
 from __future__ import annotations
 
 import json
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Iterable
 
 import torch
 from pingstore.contracts import PingstoreError, file_sha256

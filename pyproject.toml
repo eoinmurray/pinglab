@@ -85,4 +85,5 @@ dev = [
     # 2.9 is the latest Brian2 line supporting the project's Python >=3.10;
     # Brian2 2.10 requires Python >=3.12.
     "brian2>=2.9,<2.10",
+    "pre-commit>=4.3,<5",
 ]

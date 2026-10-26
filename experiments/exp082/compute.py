@@ -25,6 +25,7 @@ from experiments.exp082.custom.source_exp022_custom_checkpoints import (
     resolve_checkpoint,
 )
 from experiments.exp082.recipe import DT_MS, N_CLASSES, N_INPUT
+from hpc import concurrent_compute
 from pingstore.contracts import (
     PingstoreError,
     file_sha256,
@@ -42,7 +43,6 @@ from snnlab.sim import (
     plan_graph,
     resolve_device,
 )
-from tools.hpc import concurrent_compute
 
 
 def _run_jobs(bank, directory, jobs, contract):
@@ -145,74 +145,72 @@ def compute(identity, *, run_id=None, collect=False):
     if collect and not run_id:
         raise PingstoreError("collection requires an explicit compute reservation")
     run_id = run_id or reserve_stage(REPO / ".pingstore", recipe.SLUG, "compute")
-    with concurrent_compute.collect_shards(
-        repo=REPO,
-        experiment=recipe.SLUG,
-        run_id=run_id,
-        count=recipe.SHARDS,
-        inputs={"bank": bank.reference},
-        configuration=shard_identity(cfg, bank, recipe),
-        items_for=lambda index: recipe.jobs(cfg)[index :: recipe.SHARDS],
-        inventory_for=lambda index: _job_inventory(
-            _shard_paths(REPO, run_id, index, recipe.SHARDS),
-            recipe.jobs(cfg)[index :: recipe.SHARDS],
-            verify_device=False,
-        ),
-        collect=collect,
-    ) as (_directory, shard_records):
-        with inputs.execution(
+    with (
+        concurrent_compute.collect_shards(
+            repo=REPO,
+            experiment=recipe.SLUG,
+            run_id=run_id,
+            count=recipe.SHARDS,
+            inputs={"bank": bank.reference},
+            configuration=shard_identity(cfg, bank, recipe),
+            items_for=lambda index: recipe.jobs(cfg)[index :: recipe.SHARDS],
+            inventory_for=lambda index: _job_inventory(
+                _shard_paths(REPO, run_id, index, recipe.SHARDS),
+                recipe.jobs(cfg)[index :: recipe.SHARDS],
+                verify_device=False,
+            ),
+            collect=collect,
+        ) as (_directory, shard_records),
+        inputs.execution(
             REPO, "compute", sources={"bank": bank}, run_id=run_id, configuration=cfg
-        ) as run:
-            if collect:
-                concurrent_compute.retain_worker_provenance(run, shard_records)
-            environment = {
-                "PINGLAB_SMOKE": "1" if cfg["profile"] == "smoke" else "0",
-                **{
-                    k: os.environ[k]
-                    for k in (
-                        "PINGLAB_EXP082_STREAMS_PER_CELL",
-                        "PINGLAB_EXP082_DIGITS_PER_STREAM",
-                        "PINGLAB_EXP082_STREAM_BATCH_SIZE",
-                    )
-                    if k in os.environ
-                },
-            }
-            run.record["execution"]["environment"] = environment
-            if not collect:
-                _run_jobs(bank, run.directory, recipe.jobs(cfg), contract)
-            worker = Inference(bank, run.directory, cfg)
-            for job in recipe.jobs(cfg):
-                if (
-                    load_json(
-                        run.scratch / "simulations" / job["path"] / "dataset.json"
-                    )
-                    != worker.dataset
-                ):
-                    raise PingstoreError(
-                        "inference workers used different dataset bytes"
-                    )
-            for name in ("matched", "variable"):
-                worker.stream(name)
-            write_json_atomic(run.scratch / "dataset.json", worker.dataset)
-            from experiments.exp082.custom import illustrate
+        ) as run,
+    ):
+        if collect:
+            concurrent_compute.retain_worker_provenance(run, shard_records)
+        environment = {
+            "PINGLAB_SMOKE": "1" if cfg["profile"] == "smoke" else "0",
+            **{
+                k: os.environ[k]
+                for k in (
+                    "PINGLAB_EXP082_STREAMS_PER_CELL",
+                    "PINGLAB_EXP082_DIGITS_PER_STREAM",
+                    "PINGLAB_EXP082_STREAM_BATCH_SIZE",
+                )
+                if k in os.environ
+            },
+        }
+        run.record["execution"]["environment"] = environment
+        if not collect:
+            _run_jobs(bank, run.directory, recipe.jobs(cfg), contract)
+        worker = Inference(bank, run.directory, cfg)
+        for job in recipe.jobs(cfg):
+            if (
+                load_json(run.scratch / "simulations" / job["path"] / "dataset.json")
+                != worker.dataset
+            ):
+                raise PingstoreError("inference workers used different dataset bytes")
+        for name in ("matched", "variable"):
+            worker.stream(name)
+        write_json_atomic(run.scratch / "dataset.json", worker.dataset)
+        from experiments.exp082.custom import illustrate
 
-            showcase = illustrate.write_showcase(
-                bank, run, contract, inference_configuration=cfg
-            )
-            run.record["showcase_configuration"] = showcase["configuration"]
-            write_json_atomic(
-                run.export / "evidence.json",
-                {
-                    "schema": "exp082.compute/v3",
-                    "recipe": cfg,
-                    "training_contract": contract,
-                    "jobs": recipe.jobs(cfg),
-                    "image_stream_bank": worker.image_stream_bank,
-                    "showcase": showcase,
-                },
-            )
-            evidence.validate_compute(run.export, cfg)
-            evidence.validate_showcase(run.export)
+        showcase = illustrate.write_showcase(
+            bank, run, contract, inference_configuration=cfg
+        )
+        run.record["showcase_configuration"] = showcase["configuration"]
+        write_json_atomic(
+            run.export / "evidence.json",
+            {
+                "schema": "exp082.compute/v3",
+                "recipe": cfg,
+                "training_contract": contract,
+                "jobs": recipe.jobs(cfg),
+                "image_stream_bank": worker.image_stream_bank,
+                "showcase": showcase,
+            },
+        )
+        evidence.validate_compute(run.export, cfg)
+        evidence.validate_showcase(run.export)
     return run.run_id
 
 
@@ -423,30 +421,32 @@ class Inference:
             if output_kind == "rasters"
             else None
         )
-        with model_execution(
-            model,
-            bundle,
-            self.directory
-            / "export"
-            / attachments.relative_to(self.directory / ".scratch/simulations")
-            / "inference",
-            kind="infer",
-            seed=training["seed"],
-            settings={
-                "recipe": self.cfg,
-                "reset_steps": list(map(int, resets)),
-                "recording": output_kind,
-                "input_array": array_record(spikes.cpu().numpy()),
-            },
+        with (
+            model_execution(
+                model,
+                bundle,
+                self.directory
+                / "export"
+                / attachments.relative_to(self.directory / ".scratch/simulations")
+                / "inference",
+                kind="infer",
+                seed=training["seed"],
+                settings={
+                    "recipe": self.cfg,
+                    "reset_steps": list(map(int, resets)),
+                    "recording": output_kind,
+                    "input_array": array_record(spikes.cpu().numpy()),
+                },
+            ),
+            torch.inference_mode(),
         ):
-            with torch.inference_mode():
-                result = model(
-                    {"drive": spikes.to(device)},
-                    diagnostics=False,
-                    recording=recording,
-                    resets=(ResetVoltage("readout", schedule),),
-                    decisions=segments,
-                )
+            result = model(
+                {"drive": spikes.to(device)},
+                diagnostics=False,
+                recording=recording,
+                resets=(ResetVoltage("readout", schedule),),
+                decisions=segments,
+            )
         starts, stops = list(resets), [*list(resets)[1:], len(spikes)]
         raw = {
             "dt": np.float32(DT_MS),

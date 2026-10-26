@@ -20,10 +20,10 @@ sys.path[:0] = [str(REPO), str(REPO / "tools")]
 import numpy as np
 import torch
 from experiments.exp134 import recipe
+from experiments.exp134.custom.snapshots import snapshot_start
 from pingstore.contracts import file_sha256, load_json
 from pingstore.stages import source_run, stage_run
 from snnlab.sim import Performance, build, encode_images_poisson
-from experiments.exp134.custom.snapshots import snapshot_start
 
 
 def training_input(source, cfg):

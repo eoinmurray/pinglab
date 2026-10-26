@@ -119,19 +119,15 @@ def present(identity: str, *, run_id: str | None = None) -> str:
         write_json_atomic(
             run.export / "numbers.json",
             {
-                **(
-                    {
-                        **{
-                            k: v
-                            for k, v in result.items()
-                            if k not in ("aggregate", "rasters", "curves")
-                        },
-                        "run_id": run.run_id,
-                        "duration_s": time.monotonic() - started,
-                        "duration": format_duration(time.monotonic() - started),
-                        "git_sha": run.record["provenance"]["git_commit"],
-                    }
-                ),
+                **{
+                    k: v
+                    for k, v in result.items()
+                    if k not in ("aggregate", "rasters", "curves")
+                },
+                "run_id": run.run_id,
+                "duration_s": time.monotonic() - started,
+                "duration": format_duration(time.monotonic() - started),
+                "git_sha": run.record["provenance"]["git_commit"],
                 "circuit_files": copy_circuits(run),
             },
         )
@@ -367,7 +363,7 @@ def plot_per_trial_peaks(
     )
     if n_taus == 1:
         axes = [axes]
-    for ax, row in zip(axes, rows):
+    for ax, row in zip(axes, rows, strict=True):
         tau = row["tau_gaba_ms"]
         stats = row["trial_peaks"]
         color = cmap(taus_sorted.index(tau) / max(1, n_taus - 1))
@@ -440,7 +436,7 @@ def plot_raster_strip(
     )
     if n == 1:
         axes = [axes]
-    for i, (ax, s) in enumerate(zip(axes, samples)):
+    for i, (ax, s) in enumerate(zip(axes, samples, strict=True)):
         T = s["e"].shape[0]
         t_axis = np.arange(T) * s["dt_ms"]
         mask = t_axis <= t_window_ms

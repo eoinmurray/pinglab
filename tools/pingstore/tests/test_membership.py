@@ -10,7 +10,7 @@ from pingstore.membership import membership, memberships
 def _report(repo: Path, experiment: str, collection: str) -> None:
     path = repo / "experiments" / experiment / "report" / "report.mdx"
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(f'---\nid: {experiment}\ncollection: {collection}\n---\n')
+    path.write_text(f"---\nid: {experiment}\ncollection: {collection}\n---\n")
 
 
 def test_memberships_come_from_report_metadata(tmp_path: Path) -> None:

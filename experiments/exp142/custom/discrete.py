@@ -10,8 +10,8 @@ from pathlib import Path
 import numpy as np
 import torch
 from experiments.exp142.custom.inputs import event_digest
-from experiments.exp142.recipe import author_network
 from experiments.exp142.custom.network_artifacts import model_execution
+from experiments.exp142.recipe import author_network
 from snnlab.sim import (
     EventStreamBinding,
     Performance,
@@ -140,7 +140,7 @@ def execute(events, weights, mode, cfg, dt_ns, directory, *, matched, diagram=Fa
         sample_dt_ns=sample,
         matched_physical_arrivals=matched,
         input_event_sha256=event_digest(
-            dict(zip(("time_ns", "batches", "channels"), actual.T))
+            dict(zip(("time_ns", "batches", "channels"), actual.T, strict=True))
         ),
         max_input_time_error_ns=0,
         projection_delay_steps={

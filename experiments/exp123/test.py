@@ -64,7 +64,7 @@ def test_network_budget_samples_first_crossing_and_preserves_latency(
         np.savez_compressed(
             unit / "input.npz", label=1, spikes=np.ones((2000, 2, 1), dtype=bool)
         )
-        for tau, width in zip(cfg["tau_gaba_ms"], (10, 20, 40)):
+        for tau, width in zip(cfg["tau_gaba_ms"], (10, 20, 40), strict=True):
             output = np.zeros((2000, 2, 10), dtype=bool)
             output[9, :, 1] = True
             np.savez_compressed(

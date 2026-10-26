@@ -14,9 +14,9 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
-from experiments.exp038.custom import evidence, inputs
 from experiments.exp038 import recipe
-from tools.hpc.slurm_submit import submit_pipeline
+from experiments.exp038.custom import evidence, inputs
+from hpc.slurm_submit import submit_pipeline
 from pingstore.contracts import PingstoreError, load_json, write_json_atomic
 from pingstore.stages import _capture_code, reserve_stage, stage_reservation
 
@@ -77,7 +77,7 @@ def prepare(args):
         for stage in STAGES
     }
     plan["runs"] = identities
-    for stage, identity in identities.items():
+    for _stage, identity in identities.items():
         path = REPO / ".pingstore/runs" / f".{identity}.tmp/.reservation.json"
         record = load_json(path)
         record["inputs"] = {"bank": source.reference}

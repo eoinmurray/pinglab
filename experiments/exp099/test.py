@@ -7,7 +7,7 @@ report's pinned historical evidence.
 
 import numpy as np
 import torch
-from experiments.exp099 import recipe, dataset
+from experiments.exp099 import dataset, recipe
 from experiments.exp099.compute import build_model
 
 
@@ -28,7 +28,7 @@ def test_physical_weights_and_refractory_durations():
             np.testing.assert_allclose(
                 w[w > 0], 0.001 if p.id.startswith("E") else 0.00334
             )
-    for row, duration in zip(model.plan.populations, (3.0, 1.5)):
+    for row, duration in zip(model.plan.populations, (3.0, 1.5), strict=True):
         assert row["neuron"]["refractory"] == {"value": duration, "unit": "ms"}
         timing = model.plan.refractory[row["id"]]
         assert timing["held_steps"] == round(duration / cfg["dt_ms"]) - 1

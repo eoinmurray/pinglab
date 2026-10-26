@@ -4,8 +4,6 @@ Run with `uv run pytest experiments/exp042/test.py`. Fixtures use temporary stor
 bounded native checks validate numerical behavior without production runs.
 """
 
-import subprocess
-import sys
 from pathlib import Path
 
 import numpy as np
@@ -655,9 +653,11 @@ def test_active_worker_blocks_collection(lab):
     root, bank_id, _ = lab
     identity = stages.reserve_stage(root / ".pingstore", "exp042", "compute")
     directory = root / ".pingstore/runs" / f".{identity}.tmp"
-    with compute._compute_lock(directory, exclusive=False):
-        with pytest.raises(PingstoreError, match="busy"):
-            compute.compute(bank_id, run_id=identity, collect=True)
+    with (
+        compute._compute_lock(directory, exclusive=False),
+        pytest.raises(PingstoreError, match="busy"),
+    ):
+        compute.compute(bank_id, run_id=identity, collect=True)
     assert not (directory / "run.json").exists()
 
 

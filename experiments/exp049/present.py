@@ -129,19 +129,11 @@ def present(identity, *, run_id=None):
         write_json_atomic(
             out / "numbers.json",
             {
-                **(
-                    {
-                        **{
-                            key: value
-                            for key, value in result.items()
-                            if key != "rasters"
-                        },
-                        "run_id": rid,
-                        "duration_s": duration,
-                        "duration": format_duration(duration),
-                        "git_sha": run.record["provenance"]["git_commit"],
-                    }
-                ),
+                **{key: value for key, value in result.items() if key != "rasters"},
+                "run_id": rid,
+                "duration_s": duration,
+                "duration": format_duration(duration),
+                "git_sha": run.record["provenance"]["git_commit"],
                 "circuit_files": copy_circuits(run),
             },
         )
@@ -334,6 +326,49 @@ def plot_weight_matrices(
     out_path.parent.mkdir(parents=True, exist_ok=True)
     save_figure(fig, out_path, formats=("svg", "pdf"))
     plt.close(fig)
+
+
+def _plot_condition_raster(*, ax_rast, raster):
+    """Draw the diagnostic raster using the existing display coordinates."""
+    if raster is not None:
+        n_e, n_i = raster["n_e"], raster["n_i"]
+        n_e_plot, n_i_plot = raster["n_e_plot"], raster["n_i_plot"]
+        ax_rast.scatter(
+            raster["e_t"],
+            raster["e_n"],
+            s=1.6,
+            c=theme.INK_BLACK,
+            marker="|",
+            linewidths=0.35,
+        )
+        if n_i > 0:
+            divider_y = n_e_plot + 4
+            ax_rast.axhline(divider_y, color=theme.GREY_MID, lw=0.5, alpha=0.5)
+            ax_rast.scatter(
+                raster["i_t"],
+                raster["i_n"] + divider_y + 4,
+                s=1.6,
+                c=theme.DEEP_RED,
+                marker="|",
+                linewidths=0.35,
+            )
+            ax_rast.set_ylim(-2, divider_y + 4 + n_i_plot + 2)
+            ax_rast.set_yticks([n_e_plot / 2, divider_y + 4 + n_i_plot / 2])
+            ax_rast.set_yticklabels(
+                [f"E ({n_e})", f"I ({n_i})"],
+                fontsize=theme.SIZE_LABEL - 1,
+            )
+        else:
+            ax_rast.set_ylim(-2, n_e_plot + 2)
+            ax_rast.set_yticks([n_e_plot / 2])
+            ax_rast.set_yticklabels([f"E ({n_e})"], fontsize=theme.SIZE_LABEL - 1)
+    ax_rast.set_xlabel("Time (ms)", fontsize=theme.SIZE_LABEL)
+    ax_rast.spines["top"].set_visible(False)
+    ax_rast.spines["right"].set_visible(False)
+    ax_rast.tick_params(labelsize=theme.SIZE_LABEL - 1, direction="out", length=3)
+    ax_rast.set_title(
+        "Single-trial raster (seed 42)", fontsize=theme.SIZE_LABEL, loc="left", pad=4
+    )
 
 
 def plot_condition_card(
@@ -562,45 +597,7 @@ def plot_condition_card(
     )
 
     # --- single-trial raster ---
-    if raster is not None:
-        n_e, n_i = raster["n_e"], raster["n_i"]
-        n_e_plot, n_i_plot = raster["n_e_plot"], raster["n_i_plot"]
-        ax_rast.scatter(
-            raster["e_t"],
-            raster["e_n"],
-            s=1.6,
-            c=theme.INK_BLACK,
-            marker="|",
-            linewidths=0.35,
-        )
-        if n_i > 0:
-            divider_y = n_e_plot + 4
-            ax_rast.axhline(divider_y, color=theme.GREY_MID, lw=0.5, alpha=0.5)
-            ax_rast.scatter(
-                raster["i_t"],
-                raster["i_n"] + divider_y + 4,
-                s=1.6,
-                c=theme.DEEP_RED,
-                marker="|",
-                linewidths=0.35,
-            )
-            ax_rast.set_ylim(-2, divider_y + 4 + n_i_plot + 2)
-            ax_rast.set_yticks([n_e_plot / 2, divider_y + 4 + n_i_plot / 2])
-            ax_rast.set_yticklabels(
-                [f"E ({n_e})", f"I ({n_i})"],
-                fontsize=theme.SIZE_LABEL - 1,
-            )
-        else:
-            ax_rast.set_ylim(-2, n_e_plot + 2)
-            ax_rast.set_yticks([n_e_plot / 2])
-            ax_rast.set_yticklabels([f"E ({n_e})"], fontsize=theme.SIZE_LABEL - 1)
-    ax_rast.set_xlabel("Time (ms)", fontsize=theme.SIZE_LABEL)
-    ax_rast.spines["top"].set_visible(False)
-    ax_rast.spines["right"].set_visible(False)
-    ax_rast.tick_params(labelsize=theme.SIZE_LABEL - 1, direction="out", length=3)
-    ax_rast.set_title(
-        "Single-trial raster (seed 42)", fontsize=theme.SIZE_LABEL, loc="left", pad=4
-    )
+    _plot_condition_raster(ax_rast=ax_rast, raster=raster)
 
     theme.label_panels((ax_wei, ax_wie, ax_rate, ax_acc, ax_psd, ax_rast))
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -663,7 +660,7 @@ def fig_training_curves(data, out_path: Path, run_id: str) -> None:
         gridspec_kw={"hspace": 0.38, "wspace": 0.38},
     )
     axes = axes.ravel()
-    for k, (letter, ylabel, key, ylim) in enumerate(panels):
+    for k, (_letter, ylabel, key, ylim) in enumerate(panels):
         ax = axes[k]
         for cond in COND_ORDER:
             entry = data["trajectories"][cond]["panels"].get(key)
@@ -985,6 +982,7 @@ def fig_training_summary(data, out_path: Path, run_id: str) -> None:
             "I→E mean",
         ],
         "ABCDEFG",
+        strict=True,
     ):
         ax.set_title(
             title, fontsize=theme.SIZE_LABEL, fontweight="semibold", loc="left", pad=6
@@ -1096,7 +1094,9 @@ def fig_training_summary(data, out_path: Path, run_id: str) -> None:
             linewidth=0,
             zorder=3,
         )
-        for xx, rows, pooled_before, pooled_after in zip(x, per_network, before, after):
+        for xx, rows, pooled_before, pooled_after in zip(
+            x, per_network, before, after, strict=True
+        ):
             network_before = np.asarray([row[0] for row in rows], dtype=float)
             network_after = np.asarray([row[1] for row in rows], dtype=float)
             sem_before = network_before.std(ddof=1) / np.sqrt(network_before.size)
@@ -1131,7 +1131,7 @@ def fig_training_summary(data, out_path: Path, run_id: str) -> None:
             ax.set_ylim(0, 1.22 if dr == "ei" else 11.4)
             ax.set_ylabel("Mean weight (×10⁻³)")
             ax.set_yticks([0, 0.5, 1] if dr == "ei" else [0, 5, 10])
-        for xx, v0, v1 in zip(x, before, after):
+        for xx, v0, v1 in zip(x, before, after, strict=True):
             if abs(v1 - v0) >= 0.05 * abs(v0) and not np.isclose(
                 v0, v1, rtol=1e-7, atol=1e-12
             ):

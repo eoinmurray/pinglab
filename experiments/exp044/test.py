@@ -10,8 +10,8 @@ import json
 from pathlib import Path
 
 import pytest
-from experiments.exp044.custom import evidence
 from experiments.exp044 import recipe as exp044
+from experiments.exp044.custom import evidence
 from experiments.exp044.recipe import (
     duration_configuration,
     duration_steps,

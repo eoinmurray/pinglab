@@ -60,8 +60,7 @@ def present(identity):
             ),
         ) as run:
             present_shared(source, run, save)
-            result = run.run_id
-        return result
+            return run.run_id
     raise ValueError("expected shared-sweep analysis")
 
 
@@ -87,7 +86,7 @@ def plot_inhibitory_overview(
         ("e_spikes_per_second", "E spike rate", "E spikes/s"),
         ("rhythmicity_contrast", "Rhythmicity", "Lobe–trough contrast"),
     ]
-    for ax, (key, title, ylabel) in zip(axes.flat, specs):
+    for ax, (key, title, ylabel) in zip(axes.flat, specs, strict=False):
         ax.plot(
             values,
             [r[key] for r in summaries],
@@ -142,7 +141,7 @@ def plot_inhibitory_overview(
             )
         )
         dt_ms = raster_cfg["dt_ms"]
-    for j, (ax, tau) in enumerate(zip(axes, recipe.TAUS_MS)):
+    for j, (ax, tau) in enumerate(zip(axes, recipe.TAUS_MS, strict=True)):
         if raster_analysis is None:
             with np.load(
                 raster_unit / f"tau{tau:g}--spikes.npz", allow_pickle=False
@@ -241,7 +240,9 @@ def plot_evidence(report, source, destination, coordinate, save, frequencies=Non
     fig, axes = plt.subplots(
         3, 3, figsize=(180 / 25.4, 140 / 25.4), layout="constrained"
     )
-    for j, (ax, image) in enumerate(zip(axes.flat, report["image_reports"])):
+    for j, (ax, image) in enumerate(
+        zip(axes.flat, report["image_reports"], strict=False)
+    ):
         with np.load(
             source.unit(f"image{image['image_index']:05d}") / "trajectories.npz"
         ) as data:
@@ -306,7 +307,7 @@ def plot_matched_accuracy(report, destination, save):
         ("input", "Cumulative input spikes"),
         ("network", "Network-spike budget"),
     ]
-    for ax, (key, xlabel) in zip(axes.flat, specifications):
+    for ax, (key, xlabel) in zip(axes.flat, specifications, strict=False):
         curve = report["curves"][key]
         grid = np.asarray(curve["grid"])
         values = np.asarray(curve["accuracy"], dtype=float) * 100

@@ -256,8 +256,10 @@ def test_native_encoder_is_repeatable_and_keeps_physical_grid(tmp_path):
     repeated, _ = encode_sample(graph, path, cfg, max_rate_hz=cfg["input_rate_hz"])
     assert cfg["input_rate_hz"] == 100 and cfg["source_input_rate_hz"] == 25
     assert event_digest(higher) == event_digest(repeated)
-    original_coordinates = set(zip(original["time_ns"], original["channels"]))
-    higher_coordinates = set(zip(higher["time_ns"], higher["channels"]))
+    original_coordinates = set(
+        zip(original["time_ns"], original["channels"], strict=True)
+    )
+    higher_coordinates = set(zip(higher["time_ns"], higher["channels"], strict=True))
     assert original_coordinates < higher_coordinates
     assert np.all(higher["channels"] != 0)  # black pixels remain silent
     for case in cfg["cases"]:

@@ -19,7 +19,10 @@ class _ReportLoader(yaml.SafeLoader):
             key = self.construct_object(key_node, deep=deep)
             if not isinstance(key, str) or key in keys:
                 raise yaml.constructor.ConstructorError(
-                    None, None, "report metadata keys must be unique strings", key_node.start_mark
+                    None,
+                    None,
+                    "report metadata keys must be unique strings",
+                    key_node.start_mark,
                 )
             keys.add(key)
         return super().construct_mapping(node, deep=deep)
@@ -27,7 +30,9 @@ class _ReportLoader(yaml.SafeLoader):
 
 def articles(repo: Path) -> dict[str, dict[str, Any]]:
     result = {}
-    for path in sorted((repo / "experiments").glob("exp[0-9][0-9][0-9]/report/report.mdx")):
+    for path in sorted(
+        (repo / "experiments").glob("exp[0-9][0-9][0-9]/report/report.mdx")
+    ):
         match = re.match(r"\A---\r?\n(.*?)\r?\n---(?:\r?\n|\Z)", path.read_text(), re.S)
         if match is None:
             raise PingstoreError(f"report requires YAML frontmatter: {path}")
@@ -38,15 +43,22 @@ def articles(repo: Path) -> dict[str, dict[str, Any]]:
         if not isinstance(value, dict) or value.get("id") != path.parent.parent.name:
             raise PingstoreError(f"report ID must match its experiment: {path}")
         inputs = value.get("inputs", [])
-        if not isinstance(inputs, list) or any(
-            not isinstance(key, str) or not re.fullmatch(r"exp[0-9]{3}", key)
-            for key in inputs
-        ) or len(set(inputs)) != len(inputs):
+        if (
+            not isinstance(inputs, list)
+            or any(
+                not isinstance(key, str) or not re.fullmatch(r"exp[0-9]{3}", key)
+                for key in inputs
+            )
+            or len(set(inputs)) != len(inputs)
+        ):
             raise PingstoreError(f"invalid report inputs: {path}")
         pins = value.get("runs", {})
         if not isinstance(pins, dict) or any(
-            key not in inputs or not isinstance(run_id, str)
-            or not re.fullmatch(r"exp[0-9]{3}-r[0-9]+-(compute|analyse|present)", run_id)
+            key not in inputs
+            or not isinstance(run_id, str)
+            or not re.fullmatch(
+                r"exp[0-9]{3}-r[0-9]+-(compute|analyse|present)", run_id
+            )
             for key, run_id in pins.items()
         ):
             raise PingstoreError(f"invalid report presentation pins: {path}")

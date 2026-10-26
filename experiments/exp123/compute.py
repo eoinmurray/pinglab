@@ -188,12 +188,17 @@ def compute(identity, image_identity=None, *, run_id=None):
             run.export / "network.svg", view="circuit"
         )
         hashes = {}
-        for protocol, cfg in {"benchmark": cfg["sweep"]}.items():
-            indices, seeds = cfg["image_indices"], cfg["seeds"]
-            for rate in cfg["input_rates_hz"]:
-                for start in range(0, len(indices), cfg["execution_batch_images"]):
+        for protocol, sweep_configuration in {"benchmark": cfg["sweep"]}.items():
+            indices, seeds = (
+                sweep_configuration["image_indices"],
+                sweep_configuration["seeds"],
+            )
+            for rate in sweep_configuration["input_rates_hz"]:
+                for start in range(
+                    0, len(indices), sweep_configuration["execution_batch_images"]
+                ):
                     batch_indices = indices[
-                        start : start + cfg["execution_batch_images"]
+                        start : start + sweep_configuration["execution_batch_images"]
                     ]
                     encodings = []
                     for image_index in batch_indices:
@@ -232,7 +237,7 @@ def compute(identity, image_identity=None, *, run_id=None):
                             generator_seeds=generator_seeds,
                         )
                     batch_encoded = torch.cat(encodings, dim=1)
-                    for tau in cfg["tau_gaba_ms"]:
+                    for tau in sweep_configuration["tau_gaba_ms"]:
                         execution_name = (
                             f"{protocol}--rate-{rate:g}--batch-{start}--tau-{tau:g}"
                         )
@@ -244,7 +249,7 @@ def compute(identity, image_identity=None, *, run_id=None):
                             weights,
                             batch_encoded,
                             run.export / execution_name,
-                            cfg,
+                            sweep_configuration,
                             run.record["execution"],
                         )
                         for j, image_index in enumerate(batch_indices):
@@ -266,7 +271,7 @@ def compute(identity, image_identity=None, *, run_id=None):
                             )
                     print(
                         f"rate {rate:g} Hz: {start + len(batch_indices)}/{len(indices)} images completed "
-                        f"({len(seeds) * len(cfg['tau_gaba_ms'])} paired presentations per image)",
+                        f"({len(seeds) * len(sweep_configuration['tau_gaba_ms'])} paired presentations per image)",
                         flush=True,
                     )
         if recipe.sha256(checkpoint) != recipe.CHECKPOINT_SHA256:
@@ -277,8 +282,7 @@ def compute(identity, image_identity=None, *, run_id=None):
             "weights_frozen": True,
             "inputs_paired_across_tau": True,
         }
-        result = run.run_id
-    return result
+        return run.run_id
 
 
 if __name__ == "__main__":

@@ -72,7 +72,8 @@ def present(identity, *, run_id=None):
         write_json_atomic(
             run.export / "numbers.json",
             {
-                **({**numbers, "run_id": run.run_id}),
+                **numbers,
+                "run_id": run.run_id,
                 "circuit_files": copy_circuits(run),
             },
         )
@@ -580,7 +581,7 @@ def draw_turnon_map(
         labels = (
             mark_labels if mark_labels is not None else [p[0] for p in TURNON_POINTS]
         )
-        for (_, wei_i, wie_i), disp in zip(TURNON_POINTS, labels):
+        for (_, wei_i, wie_i), disp in zip(TURNON_POINTS, labels, strict=True):
             ax.text(
                 wei_i,
                 wie_i,

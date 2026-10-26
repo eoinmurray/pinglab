@@ -5,9 +5,8 @@ Inputs and outputs retain that stage’s validated scientific contract; importin
 this module does not start computation or select a scientific run.
 """
 
-from pingstore.contracts import PingstoreError
-
 from experiments.exp046.custom import source_exp041_recipe as recipe
+from pingstore.contracts import PingstoreError
 
 
 def configuration(run):

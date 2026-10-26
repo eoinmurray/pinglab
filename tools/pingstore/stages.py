@@ -109,8 +109,13 @@ class SourceRun:
     def restore_bundle(self, prefix: str | Path, destination: Path) -> Path:
         """Restore a native bundle into caller-owned scratch for authenticated loading."""
         from .library_artifacts import restore_native
-        return restore_native(self.outputs, self.record["scientific_artifacts"]["native_paths"],
-                              prefix, destination)
+
+        return restore_native(
+            self.outputs,
+            self.record["scientific_artifacts"]["native_paths"],
+            prefix,
+            destination,
+        )
 
     @property
     def presentation(self) -> Path:
@@ -440,8 +445,9 @@ def stage_run(
     operation: str = "execute",
     phase: str | None = None,
 ):
-    with operation_lock(repo / ".pingstore", exclusive=False):
-        with _stage_run(
+    with (
+        operation_lock(repo / ".pingstore", exclusive=False),
+        _stage_run(
             repo,
             experiment,
             stage,
@@ -450,5 +456,6 @@ def stage_run(
             configuration=configuration,
             operation=operation,
             phase=phase,
-        ) as run:
-            yield run
+        ) as run,
+    ):
+        yield run

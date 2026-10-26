@@ -80,6 +80,27 @@ def write_json_atomic(path: Path, value: dict[str, Any]) -> None:
         temporary.unlink(missing_ok=True)
 
 
+def _validate_input_references(*, value, run_id):
+    """Validate explicit input identities and payload digests."""
+    if not isinstance(value.get("inputs"), dict):
+        raise PingstoreError("runs require explicit inputs (empty for new compute)")
+    for role, reference in value["inputs"].items():
+        if not isinstance(role, str) or not role or not isinstance(reference, dict):
+            raise PingstoreError("invalid input role/reference")
+        if set(reference) != {"run_id", "payload_digest"}:
+            raise PingstoreError("input pins contain only run_id and payload_digest")
+        if not isinstance(reference.get("run_id"), str) or not STAGE_ID_RE.fullmatch(
+            reference["run_id"]
+        ):
+            raise PingstoreError("input must name a completed v4 run")
+        if reference["run_id"] == run_id:
+            raise PingstoreError("run cannot be its own input")
+        if not re.fullmatch(
+            r"sha256:[0-9a-f]{64}", str(reference.get("payload_digest", ""))
+        ):
+            raise PingstoreError("input requires a payload checksum")
+
+
 def validate_run(value: dict[str, Any]) -> dict[str, Any]:
     if value.get("schema") != RUN_SCHEMA:
         raise PingstoreError(f"operational run schema must be {RUN_SCHEMA}")
@@ -98,23 +119,7 @@ def validate_run(value: dict[str, Any]) -> dict[str, Any]:
     if match is None or match.group(1) != experiment or match.group(3) != stage:
         raise PingstoreError("run_id must encode experiment, counter and stage")
     validate_compute_scope(value)
-    if not isinstance(value.get("inputs"), dict):
-        raise PingstoreError("runs require explicit inputs (empty for new compute)")
-    for role, reference in value["inputs"].items():
-        if not isinstance(role, str) or not role or not isinstance(reference, dict):
-            raise PingstoreError("invalid input role/reference")
-        if set(reference) != {"run_id", "payload_digest"}:
-            raise PingstoreError("input pins contain only run_id and payload_digest")
-        if not isinstance(reference.get("run_id"), str) or not STAGE_ID_RE.fullmatch(
-            reference["run_id"]
-        ):
-            raise PingstoreError("input must name a completed v4 run")
-        if reference["run_id"] == run_id:
-            raise PingstoreError("run cannot be its own input")
-        if not re.fullmatch(
-            r"sha256:[0-9a-f]{64}", str(reference.get("payload_digest", ""))
-        ):
-            raise PingstoreError("input requires a payload checksum")
+    _validate_input_references(value=value, run_id=run_id)
     for key in ("collection", "origin", "created_at"):
         if not isinstance(value.get(key), str) or not value[key]:
             raise PingstoreError(f"{key} must be a non-empty string")
@@ -182,26 +187,8 @@ def payload_digest(directory: Path) -> str:
     return "sha256:" + hashlib.sha256(encoded).hexdigest()
 
 
-def validate_layout(directory: Path) -> None:
-    if directory.is_symlink() or not directory.is_dir():
-        raise PingstoreError(f"run must be a real directory: {directory}")
-    manifest = directory / "run.json"
-    if manifest.is_symlink() or not manifest.is_file():
-        raise PingstoreError(f"run.json must be a regular file: {manifest}")
-    run = validate_run(load_json(manifest))
-    names = {p.name for p in directory.iterdir()}
-    if names - {".protected"} != {"run.json", "README.md", "export"}:
-        raise PingstoreError(
-            "v4 run must contain exactly run.json, README.md and export/ plus optional .protected"
-        )
-    directories = {"export"}
-    flat = directory / "export" if run["stage"] == "present" else None
-    for name in names:
-        path = directory / name
-        if path.is_symlink() or (path.is_dir() != (name in directories)):
-            raise PingstoreError(f"invalid run entry: {path}")
-        if name in {"run.json", "README.md", ".protected"} and not path.is_file():
-            raise PingstoreError(f"run entry must be a regular file: {path}")
+def _validate_flat_exports(*, flat, directory):
+    """Reject ambiguous or unsafe paths in a presentation export."""
     if flat is not None:
         for path in flat.iterdir():
             if path.is_symlink() or not path.is_file():
@@ -226,6 +213,29 @@ def validate_layout(directory: Path) -> None:
                 raise PingstoreError(
                     f"scientific unit directories require at least two files: {unit}"
                 )
+
+
+def validate_layout(directory: Path) -> None:
+    if directory.is_symlink() or not directory.is_dir():
+        raise PingstoreError(f"run must be a real directory: {directory}")
+    manifest = directory / "run.json"
+    if manifest.is_symlink() or not manifest.is_file():
+        raise PingstoreError(f"run.json must be a regular file: {manifest}")
+    run = validate_run(load_json(manifest))
+    names = {p.name for p in directory.iterdir()}
+    if names - {".protected"} != {"run.json", "README.md", "export"}:
+        raise PingstoreError(
+            "v4 run must contain exactly run.json, README.md and export/ plus optional .protected"
+        )
+    directories = {"export"}
+    flat = directory / "export" if run["stage"] == "present" else None
+    for name in names:
+        path = directory / name
+        if path.is_symlink() or (path.is_dir() != (name in directories)):
+            raise PingstoreError(f"invalid run entry: {path}")
+        if name in {"run.json", "README.md", ".protected"} and not path.is_file():
+            raise PingstoreError(f"run entry must be a regular file: {path}")
+    _validate_flat_exports(flat=flat, directory=directory)
     for name in directories & names:
         for path in (directory / name).rglob("*"):
             if path.is_symlink() or not (path.is_file() or path.is_dir()):

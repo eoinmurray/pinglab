@@ -14,7 +14,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
 import numpy as np
-from experiments.exp130 import recipe, dataset
+from experiments.exp130 import dataset, recipe
 from experiments.exp130.custom import inputs
 from pingstore.contracts import write_json_atomic
 from pingstore.stages import stage_run

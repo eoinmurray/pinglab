@@ -62,9 +62,9 @@ def test_baseline_architecture_and_units():
     assert [n["refractory"]["value"] for n in neurons[:2]] == [1.2, 0.6]
     assert neurons[2]["kind"] == "leaky_integrator"
     projections = {item["id"]: item for item in graph["projections"]}
-    assert set(projections) == set(
+    assert set(projections) == {
         name.removesuffix(".weight") for name in recipe.PARAMETERS
-    )
+    }
     for name in ("E_to_I", "I_to_E"):
         assert projections[name]["connection"] == "recurrent"
         assert projections[name]["delay"] == {"value": 0.1, "unit": "ms"}

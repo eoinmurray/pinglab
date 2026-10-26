@@ -51,6 +51,150 @@ def _threshold_slope_boundary(ge, gi, leak, active, horizon, p):
     return float(np.min(hi))
 
 
+def _ordered_input_events(*, events, duration, nin):
+    """Validate and order integer event coordinates without rescaling weights."""
+    arrays = [np.asarray(events[key]) for key in ("time_ns", "batches", "channels")]
+    if (
+        any(x.ndim != 1 or not np.issubdtype(x.dtype, np.integer) for x in arrays)
+        or len({x.size for x in arrays}) != 1
+    ):
+        raise ValueError(
+            "event coordinates must be equal-length one-dimensional integer arrays"
+        )
+    time_ns, batches, channels = arrays
+    if (
+        np.any(time_ns < 0)
+        or np.any(time_ns >= duration * NS_PER_MS)
+        or np.any(batches != 0)
+        or np.any(channels < 0)
+        or np.any(channels >= nin)
+    ):
+        raise ValueError("events outside half-open time, batch or channel bounds")
+    order = np.lexsort((channels, time_ns))
+    input_times = time_ns[order].astype(np.float64) / NS_PER_MS
+    channels = channels[order]
+    return input_times, channels
+
+
+def _promoted_weight_arrays(*, weights):
+    """Validate float32 pathway shapes and promote their exact stored values."""
+    if set(weights) != set(WEIGHT_KEYS):
+        raise ValueError(f"weights must have exactly keys {WEIGHT_KEYS}")
+    w = [np.asarray(weights[key]) for key in WEIGHT_KEYS]
+    if any(
+        x.ndim != 2
+        or x.dtype != np.float32
+        or not np.isfinite(x).all()
+        or np.any(x < 0)
+        for x in w
+    ):
+        raise ValueError("weights must be finite nonnegative float32 matrices")
+    nin, ne = w[0].shape
+    ni, nout = w[1].shape[1], w[3].shape[1]
+    if (
+        nin < 1
+        or ne < 1
+        or nout < 1
+        or w[1].shape != (ne, ni)
+        or w[2].shape != (ni, ne)
+        or w[3].shape != (ne, nout)
+    ):
+        raise ValueError("incompatible weight shapes")
+    win, wei, wie, wout = [x.astype(np.float64) for x in w]
+    return nin, ne, ni, nout, win, wei, wie, wout
+
+
+def _physical_parameters(*, defaults, parameters):
+    """Resolve physical overrides and validate COBA threshold and reversal ordering."""
+    p = dict(defaults or {})
+    if not p:
+        raise ValueError("explicit physical defaults are required")
+    if parameters is not None:
+        if set(parameters) - set(p):
+            raise ValueError("unknown physics parameter")
+        p.update(parameters)
+    p = {key: float(value) for key, value in p.items()}
+    if not all(np.isfinite(value) for value in p.values()):
+        raise ValueError("physics must be finite")
+    positive = (
+        "capacitance_e_nf",
+        "capacitance_i_nf",
+        "tau_ampa_ms",
+        "tau_gaba_ms",
+        "refractory_e_ms",
+        "refractory_i_ms",
+        "recurrent_delay_ms",
+    )
+    if any(p[key] <= 0 for key in positive):
+        raise ValueError(
+            "capacitances, time constants, thresholds and delays must be positive"
+        )
+    if (
+        min(p["leak_e_us"], p["leak_i_us"]) < 0
+        or p["tau_ampa_ms"] > p["tau_gaba_ms"]
+        or not p["inhibitory_reversal_mv"]
+        <= p["resting_mv"]
+        < p["threshold_mv"]
+        < p["excitatory_reversal_mv"]
+        or p["reset_mv"] >= p["threshold_mv"]
+    ):
+        raise ValueError("invalid COBA threshold-slope/reversal parameter ordering")
+    return p
+
+
+def _segment_callbacks(
+    *, origin, initial_ge, initial_gi, active, leak, p, cap, tau_e, tau_i, threshold
+):
+    """Bind the fixed initial conditions for one continuous integration segment."""
+
+    def derivative(time, state):
+        s = time - origin
+        e, i = initial_ge * np.exp(-s / tau_e), initial_gi * np.exp(-s / tau_i)
+        result = (
+            leak * (p["resting_mv"] - state)
+            + e * (p["excitatory_reversal_mv"] - state)
+            + i * (p["inhibitory_reversal_mv"] - state)
+        ) / cap
+        result[~active] = 0
+        return result
+
+    # One global earliest root, rather than one Python callback per cell.
+    def crossing(_time, state):
+        return float(np.max(state[active] - threshold)) if np.any(active) else -1.0
+
+    crossing.terminal = True
+    crossing.direction = 1
+    return derivative, crossing
+
+
+def _constant_voltage(voltage):
+    """Return the resting segment interpolator with its voltage array bound."""
+
+    def dense(times):
+        return np.broadcast_to(voltage[:, None], (len(voltage), np.size(times)))
+
+    return dense
+
+
+def _schedule_recurrent_arrivals(
+    *, now, p, duration, hit, ne, ni, wei, wie, heap, sequence
+):
+    """Queue delayed recurrent conductance jumps in their original order."""
+    arrival = now + p["recurrent_delay_ms"]
+    if arrival <= now:
+        raise RuntimeError("recurrent delay cannot advance floating-point time")
+    if arrival < duration:
+        e, i = hit[hit < ne], hit[(hit >= ne) & (hit < ne + ni)] - ne
+        for kind, kick in (
+            ("exc", wei[e].sum(axis=0)),
+            ("inh", wie[i].sum(axis=0)),
+        ):
+            if np.any(kick):
+                heapq.heappush(heap, (arrival, sequence, kind, kick))
+                sequence += 1
+    return sequence
+
+
 def simulate_continuous(
     events,
     weights,
@@ -99,82 +243,11 @@ def simulate_continuous(
         raise ValueError(
             "sample_dt_ms, tolerances and max_step_ms must be positive finite"
         )
-    p = dict(defaults or {})
-    if not p:
-        raise ValueError("explicit physical defaults are required")
-    if parameters is not None:
-        if set(parameters) - set(p):
-            raise ValueError("unknown physics parameter")
-        p.update(parameters)
-    p = {key: float(value) for key, value in p.items()}
-    if not all(np.isfinite(value) for value in p.values()):
-        raise ValueError("physics must be finite")
-    positive = (
-        "capacitance_e_nf",
-        "capacitance_i_nf",
-        "tau_ampa_ms",
-        "tau_gaba_ms",
-        "refractory_e_ms",
-        "refractory_i_ms",
-        "recurrent_delay_ms",
+    p = _physical_parameters(defaults=defaults, parameters=parameters)
+    nin, ne, ni, nout, win, wei, wie, wout = _promoted_weight_arrays(weights=weights)
+    input_times, channels = _ordered_input_events(
+        events=events, duration=duration, nin=nin
     )
-    if any(p[key] <= 0 for key in positive):
-        raise ValueError(
-            "capacitances, time constants, thresholds and delays must be positive"
-        )
-    if (
-        min(p["leak_e_us"], p["leak_i_us"]) < 0
-        or p["tau_ampa_ms"] > p["tau_gaba_ms"]
-        or not p["inhibitory_reversal_mv"]
-        <= p["resting_mv"]
-        < p["threshold_mv"]
-        < p["excitatory_reversal_mv"]
-        or p["reset_mv"] >= p["threshold_mv"]
-    ):
-        raise ValueError("invalid COBA threshold-slope/reversal parameter ordering")
-    if set(weights) != set(WEIGHT_KEYS):
-        raise ValueError(f"weights must have exactly keys {WEIGHT_KEYS}")
-    w = [np.asarray(weights[key]) for key in WEIGHT_KEYS]
-    if any(
-        x.ndim != 2
-        or x.dtype != np.float32
-        or not np.isfinite(x).all()
-        or np.any(x < 0)
-        for x in w
-    ):
-        raise ValueError("weights must be finite nonnegative float32 matrices")
-    nin, ne = w[0].shape
-    ni, nout = w[1].shape[1], w[3].shape[1]
-    if (
-        nin < 1
-        or ne < 1
-        or nout < 1
-        or w[1].shape != (ne, ni)
-        or w[2].shape != (ni, ne)
-        or w[3].shape != (ne, nout)
-    ):
-        raise ValueError("incompatible weight shapes")
-    win, wei, wie, wout = [x.astype(np.float64) for x in w]
-    arrays = [np.asarray(events[key]) for key in ("time_ns", "batches", "channels")]
-    if (
-        any(x.ndim != 1 or not np.issubdtype(x.dtype, np.integer) for x in arrays)
-        or len({x.size for x in arrays}) != 1
-    ):
-        raise ValueError(
-            "event coordinates must be equal-length one-dimensional integer arrays"
-        )
-    time_ns, batches, channels = arrays
-    if (
-        np.any(time_ns < 0)
-        or np.any(time_ns >= duration * NS_PER_MS)
-        or np.any(batches != 0)
-        or np.any(channels < 0)
-        or np.any(channels >= nin)
-    ):
-        raise ValueError("events outside half-open time, batch or channel bounds")
-    order = np.lexsort((channels, time_ns))
-    input_times = time_ns[order].astype(np.float64) / NS_PER_MS
-    channels = channels[order]
     # Build labels first to avoid dropping a nominally exact endpoint in ms.
     count = int(np.ceil(duration / dt))
     labels = np.arange(count + 1, dtype=np.float64) * (dt * NS_PER_MS)
@@ -250,28 +323,21 @@ def simulate_continuous(
             stats["threshold_slope_splits"] += 1
         origin, initial_ge, initial_gi = now, ge.copy(), gi.copy()
 
-        def derivative(time, state):
-            s = time - origin
-            e, i = initial_ge * np.exp(-s / tau_e), initial_gi * np.exp(-s / tau_i)
-            result = (
-                leak * (p["resting_mv"] - state)
-                + e * (p["excitatory_reversal_mv"] - state)
-                + i * (p["inhibitory_reversal_mv"] - state)
-            ) / cap
-            result[~active] = 0
-            return result
-
-        # One global earliest root, rather than one Python callback per cell.
-        def crossing(_time, state):
-            return float(np.max(state[active] - threshold)) if np.any(active) else -1.0
-
-        setattr(crossing, "terminal", True)
-        setattr(crossing, "direction", 1)
+        derivative, crossing = _segment_callbacks(
+            origin=origin,
+            initial_ge=initial_ge,
+            initial_gi=initial_gi,
+            active=active,
+            leak=leak,
+            p=p,
+            cap=cap,
+            tau_e=tau_e,
+            tau_i=tau_i,
+            threshold=threshold,
+        )
         root = False
         if not np.any(ge) and not np.any(gi) and np.all(v[active] == p["resting_mv"]):
-
-            def dense(times):
-                return np.broadcast_to(v[:, None], (n, np.size(times)))
+            dense = _constant_voltage(v)
         else:
             solution = solve_ivp(
                 derivative,
@@ -329,18 +395,18 @@ def simulate_continuous(
             # their voltages remain continuous until a physical threshold root.
             e = hit[hit < ne]
             ge[ne + ni :] += wout[e].sum(axis=0)
-            arrival = now + p["recurrent_delay_ms"]
-            if arrival <= now:
-                raise RuntimeError("recurrent delay cannot advance floating-point time")
-            if arrival < duration:
-                e, i = hit[hit < ne], hit[(hit >= ne) & (hit < ne + ni)] - ne
-                for kind, kick in (
-                    ("exc", wei[e].sum(axis=0)),
-                    ("inh", wie[i].sum(axis=0)),
-                ):
-                    if np.any(kick):
-                        heapq.heappush(heap, (arrival, sequence, kind, kick))
-                        sequence += 1
+            sequence = _schedule_recurrent_arrivals(
+                now=now,
+                p=p,
+                duration=duration,
+                hit=hit,
+                ne=ne,
+                ni=ni,
+                wei=wei,
+                wie=wie,
+                heap=heap,
+                sequence=sequence,
+            )
     voltage[vs:] = v
     spike_ms = np.asarray(spike_times, dtype=np.float64)
     neurons = np.asarray(spike_ids, dtype=np.int64)
@@ -386,7 +452,7 @@ def simulate_continuous(
         "n_e": ne,
         "n_i": ni,
         "n_output": nout,
-        "input_event_count": int(time_ns.size),
+        "input_event_count": int(input_times.size),
         "spike_count": int(neurons.size),
         "e_spike_count": int(np.count_nonzero(neurons < ne)),
         "i_spike_count": int(np.count_nonzero((neurons >= ne) & (neurons < ne + ni))),

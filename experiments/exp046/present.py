@@ -111,16 +111,12 @@ def present(identity, *, run_id=None):
         write_json_atomic(
             run.export / "numbers.json",
             {
-                **(
-                    {
-                        **result,
-                        "run_id": run.run_id,
-                        "notebook_run_id": run.run_id,
-                        "duration_s": duration,
-                        "duration": format_duration(duration),
-                        "git_sha": run.record["provenance"]["git_commit"],
-                    }
-                ),
+                **result,
+                "run_id": run.run_id,
+                "notebook_run_id": run.run_id,
+                "duration_s": duration,
+                "duration": format_duration(duration),
+                "git_sha": run.record["provenance"]["git_commit"],
                 "circuit_files": copy_circuits(run),
             },
         )

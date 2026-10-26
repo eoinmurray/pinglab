@@ -50,7 +50,10 @@ def validated_run_graph(
     for child, record in records.items():
         for reference in record["inputs"].values():
             parent = records.get(reference["run_id"])
-            if parent is None or parent["payload_digest"] != reference["payload_digest"]:
+            if (
+                parent is None
+                or parent["payload_digest"] != reference["payload_digest"]
+            ):
                 raise PingstoreError(
                     f"{child}: missing or changed input {reference['run_id']}"
                 )

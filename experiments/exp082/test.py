@@ -11,6 +11,7 @@ import os
 import shutil
 import subprocess
 import sys
+from itertools import pairwise
 from pathlib import Path
 
 import numpy as np
@@ -300,7 +301,7 @@ def test_compact_rate_ticks_do_not_overlap(tmp_path, monkeypatch):
         f"{r:g}" for r in cfg["psychometric_rates_hz"]
     ]
     boxes = [t.get_window_extent() for t in labels]
-    assert all(a.x1 < b.x0 for a, b in zip(boxes, boxes[1:]))
+    assert all(a.x1 < b.x0 for a, b in pairwise(boxes))
 
 
 def test_duration_rate_map_matches_exp048_figure_2a_style(tmp_path, monkeypatch):
@@ -733,9 +734,11 @@ def test_compute_lock_excludes_collector(lab):
     repo, bank, _, _ = lab
     identity = stages.reserve_stage(repo / ".pingstore", "exp082", "compute")
     directory = repo / ".pingstore/runs" / f".{identity}.tmp"
-    with compute._compute_lock(directory, exclusive=False):
-        with pytest.raises(PingstoreError, match="busy"):
-            compute.compute(bank, run_id=identity, collect=True)
+    with (
+        compute._compute_lock(directory, exclusive=False),
+        pytest.raises(PingstoreError, match="busy"),
+    ):
+        compute.compute(bank, run_id=identity, collect=True)
 
 
 def test_dirty_shards_fail_without_scientific_work(lab, monkeypatch):

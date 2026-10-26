@@ -19,11 +19,10 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
+from experiments import theme
 from experiments.exp024 import recipe
 from pingstore.contracts import PingstoreError, load_json, write_json_atomic
 from pingstore.stages import source_run, stage_run
-
-from experiments import theme
 
 SEEDS = recipe.SEEDS
 MODEL_COLORS = {"coba": theme.DEEP_RED, "ping": theme.INK_BLACK}
@@ -42,7 +41,7 @@ def plot_model_curves(cells: dict, model: str, out_path: Path) -> None:
     # Column-width three-panel row (H11): built at the ~6.9 in column so the fonts
     # and line weights match the rest of the collection, not 2x-shrunk on display.
     fig, (axL, axA, axR) = plt.subplots(1, 3, figsize=(6.9, 2.5), dpi=150)
-    for (_, seed), met in sorted(cells.items()):
+    for (_, _seed), met in sorted(cells.items()):
         eps = np.array([e["ep"] for e in met["epochs"]])
         axL.plot(
             eps,

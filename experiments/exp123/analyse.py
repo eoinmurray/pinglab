@@ -6,6 +6,7 @@ in a new Pingstore analysis run; inputs are validated by identity and digest.
 """
 
 import sys
+from itertools import pairwise
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
@@ -42,6 +43,91 @@ def analyse(identity, workers=1, reuse_identity=None):
         else None
     )
     return analyse_shared(source, workers=workers, reuse=reuse)
+
+
+def _bootstrap_accuracy_curves(
+    *,
+    labels,
+    measurement,
+    ni,
+    nt,
+    ns,
+    grids,
+    correct,
+    cfg,
+):
+    """Summarise the retained decisions with the registered bootstrap draws."""
+    labels = np.asarray(labels)
+    rng = np.random.default_rng(measurement["bootstrap_seed"])
+    weights = np.zeros((1000, ni), dtype=float)
+    for digit in range(10):
+        positions = np.flatnonzero(labels == digit)
+        draws = rng.choice(positions, (1000, len(positions)), replace=True)
+        for b in range(1000):
+            weights[b] += np.bincount(draws[b], minlength=ni)
+    curves = {}
+    arrays = dict(
+        image_indices=cfg["image_indices"],
+        labels=labels,
+        seeds=cfg["seeds"],
+        tau_gaba_ms=cfg["tau_gaba_ms"],
+    )
+    for key, grid in grids.items():
+        values = correct[key]
+        count = np.isfinite(values).sum(axis=2)
+        per_image = np.divide(
+            np.nansum(values, axis=2),
+            count,
+            out=np.full((ni, nt, len(grid)), np.nan),
+            where=count > 0,
+        )
+        means, lows, highs = [], [], []
+        for ti in range(nt):
+            available = np.isfinite(per_image[:, ti])
+            denominator = available.sum(axis=0)
+            mean = np.divide(
+                np.nansum(per_image[:, ti], axis=0),
+                denominator,
+                out=np.full(len(grid), np.nan),
+                where=denominator > 0,
+            )
+            numer = np.einsum(
+                "bi,ig->bg",
+                weights,
+                np.nan_to_num(per_image[:, ti]),
+                optimize=False,
+            )
+            denom = np.einsum(
+                "bi,ig->bg", weights, available.astype(float), optimize=False
+            )
+            bootstrap = np.divide(
+                numer, denom, out=np.full_like(numer, np.nan), where=denom > 0
+            )
+            low, high = np.full(len(grid), np.nan), np.full(len(grid), np.nan)
+            for g in np.flatnonzero(denominator):
+                low[g], high[g] = np.nanquantile(bootstrap[:, g], [0.025, 0.975])
+            means.append(mean)
+            lows.append(low)
+            highs.append(high)
+        coverage = np.isfinite(values[:, 0]).sum(axis=(0, 1)) / (ni * ns)
+        curves[key] = dict(
+            grid=grid.tolist(),
+            accuracy=[
+                [float(v) if np.isfinite(v) else None for v in row] for row in means
+            ],
+            ci_low=[
+                [float(v) if np.isfinite(v) else None for v in row] for row in lows
+            ],
+            ci_high=[
+                [float(v) if np.isfinite(v) else None for v in row] for row in highs
+            ],
+            trial_coverage=coverage.tolist(),
+            images_available=np.isfinite(per_image[:, 0]).sum(axis=0).tolist(),
+        )
+        arrays[f"{key}_grid"] = grid
+        arrays[f"{key}_correct"] = values
+        arrays[f"{key}_per_image_accuracy"] = per_image
+    return curves, arrays
 
 
 def measure_accuracy(source, run, cfg):
@@ -180,76 +266,16 @@ def measure_accuracy(source, run, cfg):
                     correct["cycles"][j, ti, b, reaches_cycle] = outputs[ti][steps, b]
         if (j + 1) % 100 == 0:
             print(f"Accuracy measured for {j + 1}/{ni} images", flush=True)
-    labels = np.asarray(labels)
-    rng = np.random.default_rng(measurement["bootstrap_seed"])
-    weights = np.zeros((1000, ni), dtype=float)
-    for digit in range(10):
-        positions = np.flatnonzero(labels == digit)
-        draws = rng.choice(positions, (1000, len(positions)), replace=True)
-        for b in range(1000):
-            weights[b] += np.bincount(draws[b], minlength=ni)
-    curves = {}
-    arrays = dict(
-        image_indices=cfg["image_indices"],
+    curves, arrays = _bootstrap_accuracy_curves(
         labels=labels,
-        seeds=cfg["seeds"],
-        tau_gaba_ms=cfg["tau_gaba_ms"],
+        measurement=measurement,
+        ni=ni,
+        nt=nt,
+        ns=ns,
+        grids=grids,
+        correct=correct,
+        cfg=cfg,
     )
-    for key, grid in grids.items():
-        values = correct[key]
-        count = np.isfinite(values).sum(axis=2)
-        per_image = np.divide(
-            np.nansum(values, axis=2),
-            count,
-            out=np.full((ni, nt, len(grid)), np.nan),
-            where=count > 0,
-        )
-        means, lows, highs = [], [], []
-        for ti in range(nt):
-            available = np.isfinite(per_image[:, ti])
-            denominator = available.sum(axis=0)
-            mean = np.divide(
-                np.nansum(per_image[:, ti], axis=0),
-                denominator,
-                out=np.full(len(grid), np.nan),
-                where=denominator > 0,
-            )
-            numer = np.einsum(
-                "bi,ig->bg",
-                weights,
-                np.nan_to_num(per_image[:, ti]),
-                optimize=False,
-            )
-            denom = np.einsum(
-                "bi,ig->bg", weights, available.astype(float), optimize=False
-            )
-            bootstrap = np.divide(
-                numer, denom, out=np.full_like(numer, np.nan), where=denom > 0
-            )
-            low, high = np.full(len(grid), np.nan), np.full(len(grid), np.nan)
-            for g in np.flatnonzero(denominator):
-                low[g], high[g] = np.nanquantile(bootstrap[:, g], [0.025, 0.975])
-            means.append(mean)
-            lows.append(low)
-            highs.append(high)
-        coverage = np.isfinite(values[:, 0]).sum(axis=(0, 1)) / (ni * ns)
-        curves[key] = dict(
-            grid=grid.tolist(),
-            accuracy=[
-                [float(v) if np.isfinite(v) else None for v in row] for row in means
-            ],
-            ci_low=[
-                [float(v) if np.isfinite(v) else None for v in row] for row in lows
-            ],
-            ci_high=[
-                [float(v) if np.isfinite(v) else None for v in row] for row in highs
-            ],
-            trial_coverage=coverage.tolist(),
-            images_available=np.isfinite(per_image[:, 0]).sum(axis=0).tolist(),
-        )
-        arrays[f"{key}_grid"] = grid
-        arrays[f"{key}_correct"] = values
-        arrays[f"{key}_per_image_accuracy"] = per_image
     np.savez_compressed(run.export / "accuracy.npz", **arrays)
     report = dict(
         schema="exp123.accuracy.analysis/v1",
@@ -375,7 +401,7 @@ def dynamics(e, i, cfg):
         boundary = np.empty(0, dtype=np.int64)
     e_cycle_counts = analysis.cycle_spike_counts(e, boundary)["counts"]
     i_cycle_counts = analysis.cycle_spike_counts(i, boundary)["counts"]
-    cycles = [(int(a), int(b)) for a, b in zip(boundary[:-1], boundary[1:])]
+    cycles = [(int(a), int(b)) for a, b in pairwise(boundary)]
     intervals = np.diff(volleys) * dt
     cv = (
         float(intervals.std() / intervals.mean())
@@ -521,7 +547,7 @@ def measure_image(image_index, directory, cfg, measurement):
                 coverage = (
                     sum(
                         v and len(c) >= count
-                        for v, c in zip(valid_all, completions_all)
+                        for v, c in zip(valid_all, completions_all, strict=True)
                     )
                     / ns
                 )
@@ -602,7 +628,12 @@ def validate_illustrations(arrays, report):
     lookup = {
         (int(i), int(seed), tau): j
         for j, (i, seed, tau) in enumerate(
-            zip(arrays["image_index"], arrays["seed"], arrays["tau_gaba_ms"])
+            zip(
+                arrays["image_index"],
+                arrays["seed"],
+                arrays["tau_gaba_ms"],
+                strict=True,
+            )
         )
     }
     for row in report["rows"]:
@@ -907,8 +938,7 @@ def analyse_shared(source, workers=1, reuse=None):
             json.dumps(target, indent=2, allow_nan=False) + "\n"
         )
         measure_overview_rasters(source, run, definition)
-        identity = run.run_id
-    return identity
+        return run.run_id
 
 
 def measure_target_accuracy(tradeoffs, trials, target_pct):
@@ -1013,18 +1043,142 @@ def volley_completion_times(spikes, peaks_ms, dt, cfg):
     peaks = np.rint(peaks_ms / dt).astype(int) - 1
     troughs = [
         left + 1 + int(np.argmin(smoothed[left + 1 : right]))
-        for left, right in zip(peaks[:-1], peaks[1:])
+        for left, right in pairwise(peaks)
     ]
     return (np.asarray(troughs, dtype=int) + 1) * dt
 
 
-def measure_trajectories(source, run, cfg):
-    shared = cfg.get("shared_sweep", False)
-    measurement = recipe.measurement()
-    dt = cfg["dt_ms"]
-    times = np.arange(round(cfg["duration_ms"] / dt) + 1) * dt
-    image_reports = []
-    rows = []
+def _record_trajectory_trials(
+    *,
+    cfg,
+    unit,
+    measurement,
+    dt,
+    label,
+    all_counts,
+    all_true,
+    all_max,
+    all_pred,
+    phase_valid,
+    diagnostic,
+    times,
+    rows,
+    image_index,
+    all_peaks,
+    all_completions,
+):
+    """Accumulate per-seed scores, volley timings and spectral diagnostics."""
+    for ti, tau in enumerate(cfg["tau_gaba_ms"]):
+        with np.load(unit / f"tau{tau:g}--spikes.npz", allow_pickle=False) as data:
+            i, out, e = [data[key].copy() for key in ("spk_i", "spk_out", "spk_e")]
+        cumulative = np.concatenate(
+            (
+                np.zeros((1, out.shape[1], out.shape[2]), dtype=np.int32),
+                np.cumsum(out, axis=0, dtype=np.int32),
+            ),
+            axis=0,
+        )
+        scores = softmax(cumulative / measurement["softmax_temperature"], axis=-1)
+        all_counts.append(cumulative.transpose(1, 0, 2))
+        all_true.append(scores[:, :, label].T)
+        all_max.append(scores.max(axis=-1).T)
+        all_pred.append(cumulative.argmax(axis=-1).T.astype(np.uint8))
+        trial_peaks = []
+        trial_completions = []
+        powers = []
+        for b, seed in enumerate(cfg["seeds"]):
+            peaks, valid, participation = volley_times(i[:, b], dt, measurement)
+            trial_peaks.append(peaks)
+            completions = volley_completion_times(i[:, b], peaks, dt, measurement)
+            trial_completions.append(completions)
+            phase_valid.append(valid)
+            rivals = np.delete(cumulative[:, b], label, axis=-1).max(axis=-1)
+            unique_correct = cumulative[:, b, label] > rivals
+            failures = np.flatnonzero(~unique_correct)
+            decision_index = int(failures[-1] + 1)
+            decision_ms = (
+                float(times[decision_index]) if decision_index < len(times) else None
+            )
+            decision_cycles = None
+            decision_volley_count = None
+            decision_completed_volley_count = None
+            if (
+                decision_ms is not None
+                and valid
+                and len(completions)
+                and decision_ms <= completions[-1]
+            ):
+                decision_completed_volley_count = int(
+                    np.searchsorted(completions, decision_ms, side="left") + 1
+                )
+            if (
+                decision_ms is not None
+                and valid
+                and peaks[0] <= decision_ms <= peaks[-1]
+            ):
+                decision_cycles = float(
+                    np.interp(decision_ms, peaks, np.arange(len(peaks)))
+                )
+                decision_volley_count = int(
+                    np.searchsorted(peaks, decision_ms, side="right")
+                )
+            diagnostic[f"tau{ti}-seed{seed}--volley_times_ms"] = peaks
+            diagnostic[f"tau{ti}-seed{seed}--volley_completion_times_ms"] = completions
+            spectrum = analysis.power_spectrum(
+                e[:, b].sum(axis=1),
+                dt,
+                center=True,
+                detrend=False,
+                nperseg=len(e),
+                window="hann",
+                scaling="density",
+            )
+            powers.append(spectrum["power"])
+            f = analysis.spectral_peak(
+                spectrum["frequencies_hz"],
+                spectrum["power"],
+                [5.0, 150.0],
+                interpolation="parabolic",
+                interpolation_boundary="spectrum",
+                clamp_band=False,
+            )
+            hits = np.flatnonzero(
+                scores[:, b].max(axis=-1) >= measurement["saturation_threshold"]
+            )
+            rows.append(
+                dict(
+                    image_index=image_index,
+                    label=label,
+                    tau_gaba_ms=tau,
+                    seed=seed,
+                    sustained_decision_ms=decision_ms,
+                    sustained_decision_cycles=decision_cycles,
+                    sustained_decision_volley_count=decision_volley_count,
+                    sustained_decision_completed_volley_count=decision_completed_volley_count,
+                    final_prediction=int(cumulative[-1, b].argmax()),
+                    final_correct=bool(cumulative[-1, b].argmax() == label),
+                    final_true_score=float(scores[-1, b, label]),
+                    final_max_score=float(scores[-1, b].max()),
+                    first_max_score_099_ms=float(times[hits[0]]) if len(hits) else None,
+                    score_099_before_first_volley=bool(
+                        len(hits) and len(peaks) and times[hits[0]] < peaks[0]
+                    ),
+                    volleys=len(peaks),
+                    valid_cycle_coordinate=valid,
+                    i_participation_pct=participation,
+                    psd_frequency_hz=f["frequency_hz"],
+                )
+            )
+        all_peaks.append(trial_peaks)
+        all_completions.append(trial_completions)
+        diagnostic[f"tau{ti}--mean_psd"] = np.mean(powers, axis=0)
+        diagnostic["psd_frequencies_hz"] = spectrum["frequencies_hz"]
+
+
+def _measure_image_trajectories(
+    *, source, run, cfg, shared, measurement, dt, times, image_reports, rows
+):
+    """Measure one image across the registered time constants and seeds."""
     for image_index in cfg["image_indices"]:
         unit = source.unit(
             recipe.recording_unit(
@@ -1041,117 +1195,24 @@ def measure_trajectories(source, run, cfg):
         all_completions = []
         phase_valid = []
         diagnostic = {}
-        for ti, tau in enumerate(cfg["tau_gaba_ms"]):
-            with np.load(unit / f"tau{tau:g}--spikes.npz", allow_pickle=False) as data:
-                i, out, e = [data[key].copy() for key in ("spk_i", "spk_out", "spk_e")]
-            cumulative = np.concatenate(
-                (
-                    np.zeros((1, out.shape[1], out.shape[2]), dtype=np.int32),
-                    np.cumsum(out, axis=0, dtype=np.int32),
-                ),
-                axis=0,
-            )
-            scores = softmax(cumulative / measurement["softmax_temperature"], axis=-1)
-            all_counts.append(cumulative.transpose(1, 0, 2))
-            all_true.append(scores[:, :, label].T)
-            all_max.append(scores.max(axis=-1).T)
-            all_pred.append(cumulative.argmax(axis=-1).T.astype(np.uint8))
-            trial_peaks = []
-            trial_completions = []
-            powers = []
-            for b, seed in enumerate(cfg["seeds"]):
-                peaks, valid, participation = volley_times(i[:, b], dt, measurement)
-                trial_peaks.append(peaks)
-                completions = volley_completion_times(i[:, b], peaks, dt, measurement)
-                trial_completions.append(completions)
-                phase_valid.append(valid)
-                rivals = np.delete(cumulative[:, b], label, axis=-1).max(axis=-1)
-                unique_correct = cumulative[:, b, label] > rivals
-                failures = np.flatnonzero(~unique_correct)
-                decision_index = int(failures[-1] + 1)
-                decision_ms = (
-                    float(times[decision_index])
-                    if decision_index < len(times)
-                    else None
-                )
-                decision_cycles = None
-                decision_volley_count = None
-                decision_completed_volley_count = None
-                if (
-                    decision_ms is not None
-                    and valid
-                    and len(completions)
-                    and decision_ms <= completions[-1]
-                ):
-                    decision_completed_volley_count = int(
-                        np.searchsorted(completions, decision_ms, side="left") + 1
-                    )
-                if (
-                    decision_ms is not None
-                    and valid
-                    and peaks[0] <= decision_ms <= peaks[-1]
-                ):
-                    decision_cycles = float(
-                        np.interp(decision_ms, peaks, np.arange(len(peaks)))
-                    )
-                    decision_volley_count = int(
-                        np.searchsorted(peaks, decision_ms, side="right")
-                    )
-                diagnostic[f"tau{ti}-seed{seed}--volley_times_ms"] = peaks
-                diagnostic[f"tau{ti}-seed{seed}--volley_completion_times_ms"] = (
-                    completions
-                )
-                spectrum = analysis.power_spectrum(
-                    e[:, b].sum(axis=1),
-                    dt,
-                    center=True,
-                    detrend=False,
-                    nperseg=len(e),
-                    window="hann",
-                    scaling="density",
-                )
-                powers.append(spectrum["power"])
-                f = analysis.spectral_peak(
-                    spectrum["frequencies_hz"],
-                    spectrum["power"],
-                    [5.0, 150.0],
-                    interpolation="parabolic",
-                    interpolation_boundary="spectrum",
-                    clamp_band=False,
-                )
-                hits = np.flatnonzero(
-                    scores[:, b].max(axis=-1) >= measurement["saturation_threshold"]
-                )
-                rows.append(
-                    dict(
-                        image_index=image_index,
-                        label=label,
-                        tau_gaba_ms=tau,
-                        seed=seed,
-                        sustained_decision_ms=decision_ms,
-                        sustained_decision_cycles=decision_cycles,
-                        sustained_decision_volley_count=decision_volley_count,
-                        sustained_decision_completed_volley_count=decision_completed_volley_count,
-                        final_prediction=int(cumulative[-1, b].argmax()),
-                        final_correct=bool(cumulative[-1, b].argmax() == label),
-                        final_true_score=float(scores[-1, b, label]),
-                        final_max_score=float(scores[-1, b].max()),
-                        first_max_score_099_ms=float(times[hits[0]])
-                        if len(hits)
-                        else None,
-                        score_099_before_first_volley=bool(
-                            len(hits) and len(peaks) and times[hits[0]] < peaks[0]
-                        ),
-                        volleys=len(peaks),
-                        valid_cycle_coordinate=valid,
-                        i_participation_pct=participation,
-                        psd_frequency_hz=f["frequency_hz"],
-                    )
-                )
-            all_peaks.append(trial_peaks)
-            all_completions.append(trial_completions)
-            diagnostic[f"tau{ti}--mean_psd"] = np.mean(powers, axis=0)
-            diagnostic["psd_frequencies_hz"] = spectrum["frequencies_hz"]
+        _record_trajectory_trials(
+            cfg=cfg,
+            unit=unit,
+            measurement=measurement,
+            dt=dt,
+            label=label,
+            all_counts=all_counts,
+            all_true=all_true,
+            all_max=all_max,
+            all_pred=all_pred,
+            phase_valid=phase_valid,
+            diagnostic=diagnostic,
+            times=times,
+            rows=rows,
+            image_index=image_index,
+            all_peaks=all_peaks,
+            all_completions=all_completions,
+        )
         all_counts = np.asarray(all_counts)
         all_true = np.asarray(all_true)
         all_max = np.asarray(all_max)
@@ -1236,6 +1297,26 @@ def measure_trajectories(source, run, cfg):
                 common_complete_intervals=end if available else None,
             )
         )
+
+
+def measure_trajectories(source, run, cfg):
+    shared = cfg.get("shared_sweep", False)
+    measurement = recipe.measurement()
+    dt = cfg["dt_ms"]
+    times = np.arange(round(cfg["duration_ms"] / dt) + 1) * dt
+    image_reports = []
+    rows = []
+    _measure_image_trajectories(
+        source=source,
+        run=run,
+        cfg=cfg,
+        shared=shared,
+        measurement=measurement,
+        dt=dt,
+        times=times,
+        image_reports=image_reports,
+        rows=rows,
+    )
     aggregate = []
     for tau in cfg["tau_gaba_ms"]:
         selected = [r for r in rows if r["tau_gaba_ms"] == tau]

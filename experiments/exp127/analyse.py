@@ -44,6 +44,52 @@ def measurements(spikes, labels, cfg):
     }
 
 
+def _measure_training_trace(*, source, cfg):
+    """Measure training activity from the retained native trace."""
+    with np.load(source.file("training_trace.npz")) as trace:
+        losses, weights, gradients = (
+            trace["losses"],
+            trace["weights"],
+            trace["gradients"],
+        )
+        updates = cfg["trace_updates"]
+        if (
+            losses.shape != (updates,)
+            or weights.shape != (updates + 1, 3, 2)
+            or gradients.shape != (updates, 3, 2)
+        ):
+            raise ValueError("invalid training trace axes")
+        if not all(
+            np.isfinite(value).all()
+            for value in (losses, weights, gradients, trace["voltages"])
+        ):
+            raise ValueError("nonfinite training trace")
+        if (
+            (weights < 0).any()
+            or not np.count_nonzero(gradients)
+            or losses[-1] >= losses[0]
+        ):
+            raise ValueError("teaching loop did not learn")
+        if (
+            trace["outputs"].shape != (updates, 200, 2, 2)
+            or not np.isin(trace["outputs"], [0, 1]).all()
+        ):
+            raise ValueError("invalid training output spikes")
+        with np.load(source.file("dataset.npz")) as dataset:
+            targets = dataset["train_labels"][trace["indices"]]
+            if not np.array_equal(targets, [0, 1]):
+                raise ValueError("training examples must cover both classes")
+        window = cfg["trace_window"]
+        start = int(np.argmax(losses[: -window + 1] - losses[window - 1 :]))
+        return {
+            "losses": losses.tolist(),
+            "window_start": start,
+            "window_length": window,
+            "samples": cfg["train_samples"],
+            "protocol": "separate fixed-batch SNNLab teaching loop",
+        }
+
+
 def analyse(identity):
     source = source_run(REPO / ".pingstore", identity, stage="compute", experiment=SLUG)
     cfg = source.record["execution"]["configuration"]
@@ -96,48 +142,7 @@ def analyse(identity):
         if change == 0:
             raise ValueError("no synaptic weights learned")
         examples = [int(np.flatnonzero(labels == cls)[0]) for cls in (0, 1)]
-    with np.load(source.file("training_trace.npz")) as trace:
-        losses, weights, gradients = (
-            trace["losses"],
-            trace["weights"],
-            trace["gradients"],
-        )
-        updates = cfg["trace_updates"]
-        if (
-            losses.shape != (updates,)
-            or weights.shape != (updates + 1, 3, 2)
-            or gradients.shape != (updates, 3, 2)
-        ):
-            raise ValueError("invalid training trace axes")
-        if not all(
-            np.isfinite(value).all()
-            for value in (losses, weights, gradients, trace["voltages"])
-        ):
-            raise ValueError("nonfinite training trace")
-        if (
-            (weights < 0).any()
-            or not np.count_nonzero(gradients)
-            or losses[-1] >= losses[0]
-        ):
-            raise ValueError("teaching loop did not learn")
-        if (
-            trace["outputs"].shape != (updates, 200, 2, 2)
-            or not np.isin(trace["outputs"], [0, 1]).all()
-        ):
-            raise ValueError("invalid training output spikes")
-        with np.load(source.file("dataset.npz")) as dataset:
-            targets = dataset["train_labels"][trace["indices"]]
-            if not np.array_equal(targets, [0, 1]):
-                raise ValueError("training examples must cover both classes")
-        window = cfg["trace_window"]
-        start = int(np.argmax(losses[: -window + 1] - losses[window - 1 :]))
-        training_summary = {
-            "losses": losses.tolist(),
-            "window_start": start,
-            "window_length": window,
-            "samples": cfg["train_samples"],
-            "protocol": "separate fixed-batch SNNLab teaching loop",
-        }
+    training_summary = _measure_training_trace(source=source, cfg=cfg)
     numbers = {
         "schema": "exp127.learning-metrics/v1",
         "configuration": cfg,

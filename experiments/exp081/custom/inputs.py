@@ -7,10 +7,9 @@ this module does not start computation or select a scientific run.
 
 from pathlib import Path
 
+from experiments.exp081 import recipe
 from pingstore.contracts import RUN_SCHEMA, PingstoreError
 from pingstore.stages import SourceRun, source_run
-
-from experiments.exp081 import recipe
 
 
 def source(

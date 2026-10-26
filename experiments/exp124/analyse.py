@@ -147,19 +147,8 @@ def raster_measurements(source):
     return measured
 
 
-def measurements(source):
-    cfg = source.record["execution"]["configuration"]
-    if (
-        cfg.get("schema")
-        not in (
-            "exp124.recipe/v3",
-            "exp124.recipe/v4",
-            "exp124.recipe/v5",
-        )
-        or len(cfg["models"]) != 2
-        or len(set(cfg["models"])) != 2
-    ):
-        raise ValueError("expected complete paired calibrated SHD training")
+def _validate_dataset_selection(*, source, cfg):
+    """Validate the retained dataset partitions and raster selection."""
     selection = (
         "selection.npz" if source.file("selection.npz").exists() else "spikes.npz"
     )
@@ -190,6 +179,22 @@ def measurements(source):
             labels[first],
         ):
             raise ValueError("raster is not the first validation utterance")
+
+
+def measurements(source):
+    cfg = source.record["execution"]["configuration"]
+    if (
+        cfg.get("schema")
+        not in (
+            "exp124.recipe/v3",
+            "exp124.recipe/v4",
+            "exp124.recipe/v5",
+        )
+        or len(cfg["models"]) != 2
+        or len(set(cfg["models"])) != 2
+    ):
+        raise ValueError("expected complete paired calibrated SHD training")
+    _validate_dataset_selection(source=source, cfg=cfg)
     conditions, initial, native_metrics, trainable = {}, {}, {}, {}
     for model in cfg["models"]:
         start, end = (

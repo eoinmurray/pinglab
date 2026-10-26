@@ -34,7 +34,9 @@ def make_run(source: Path, run_id: str = "exp001-r001-present", **overrides) -> 
         "payload_digest": payload_digest(directory),
         **overrides,
     }
-    (directory / "run.json").write_text(json.dumps({**record, "payload_digest": "sha256:" + "0" * 64}))
+    (directory / "run.json").write_text(
+        json.dumps({**record, "payload_digest": "sha256:" + "0" * 64})
+    )
     record["payload_digest"] = payload_digest(directory)
     (directory / "run.json").write_text(json.dumps(record))
     return directory

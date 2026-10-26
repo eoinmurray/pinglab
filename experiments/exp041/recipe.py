@@ -492,7 +492,7 @@ def author_network(training, *, observables=()):
 
 
 def inference_request(training, cfg, *, snapshot=False):
-    request = {
+    return {
         "checkpoint_role": CHECKPOINT_ROLE,
         "input": "snapshot" if snapshot else "dataset",
         "t_ms": training["t_ms"],
@@ -505,4 +505,3 @@ def inference_request(training, cfg, *, snapshot=False):
         "observables": ["spikes"] if snapshot else [],
         "products": [] if snapshot else ["population"],
     }
-    return request

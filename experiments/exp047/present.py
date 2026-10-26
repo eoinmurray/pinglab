@@ -92,15 +92,11 @@ def present(identity, *, run_id=None):
         write_json_atomic(
             run.export / "numbers.json",
             {
-                **(
-                    {
-                        **result,
-                        "run_id": run.run_id,
-                        "duration_s": duration,
-                        "duration": format_duration(duration),
-                        "git_sha": run.record["provenance"]["git_commit"],
-                    }
-                ),
+                **result,
+                "run_id": run.run_id,
+                "duration_s": duration,
+                "duration": format_duration(duration),
+                "git_sha": run.record["provenance"]["git_commit"],
                 "circuit_files": copy_circuits(run),
             },
         )
@@ -132,7 +128,7 @@ def plot_controls(summary: dict, cfg: dict, out_path: Path) -> None:
     ]
     for col, (control, title, levels) in enumerate(controls):
         axes[0, col].set_title(title, fontsize=theme.SIZE_TITLE)
-        for level, color, marker in zip(levels, colors, markers):
+        for level, color, marker in zip(levels, colors, markers, strict=True):
             cells = [
                 summary[control][f"{level:.12g}"][str(n)] for n in cfg["n_i_sweep"]
             ]

@@ -94,6 +94,45 @@ def _experiment_scope(
     return scope
 
 
+def _prune_rows(*, records, runs, keep, reasons, used_by, used, protected, markers):
+    """Describe each retained or removable run without modifying storage."""
+    rows = []
+    for run_id, record in sorted(records.items()):
+        directory = runs / run_id
+        rows.append(
+            {
+                "run_id": run_id,
+                "stage": record["stage"],
+                "experiment": record["experiment"],
+                "used": run_id in used,
+                "used_by": sorted(used_by.get(run_id, ())),
+                "protected": run_id in protected,
+                "protected_marker_sha256": markers.get(run_id),
+                "payload_digest": record["payload_digest"],
+                "run_json_sha256": file_sha256(directory / "run.json"),
+                "bytes": _directory_bytes(directory),
+                "reasons": sorted(reasons[run_id]) if run_id in keep else ["unused"],
+            }
+        )
+    return rows
+
+
+def _protected_runs(*, runs, records, reasons):
+    """Authenticate protection markers and retain their complete ancestry."""
+    markers = {}
+    for run_id in records:
+        marker = runs / run_id / ".protected"
+        if marker.is_symlink() or (marker.exists() and not marker.is_file()):
+            raise PingstoreError(f"protection marker must be a regular file: {marker}")
+        if marker.exists():
+            markers[run_id] = file_sha256(marker)
+            reasons[run_id].add("protected-marker")
+    protected = ancestry(records, set(markers))
+    for run_id in protected - set(markers):
+        reasons[run_id].add("protected-ancestor")
+    return markers, protected
+
+
 def build_plan(
     repo: Path,
     experiments: list[str] | tuple[str, ...] | set[str] | None = None,
@@ -136,17 +175,7 @@ def build_plan(
     used = set(used_by)
     for run_id, reports in used_by.items():
         reasons[run_id].update(f"used-by:{article}" for article in reports)
-    markers = {}
-    for run_id in records:
-        marker = runs / run_id / ".protected"
-        if marker.is_symlink() or (marker.exists() and not marker.is_file()):
-            raise PingstoreError(f"protection marker must be a regular file: {marker}")
-        if marker.exists():
-            markers[run_id] = file_sha256(marker)
-            reasons[run_id].add("protected-marker")
-    protected = ancestry(records, set(markers))
-    for run_id in protected - set(markers):
-        reasons[run_id].add("protected-ancestor")
+    markers, protected = _protected_runs(runs=runs, records=records, reasons=reasons)
     hidden = _hidden_inputs(runs, records, reasons)
     keep = ancestry(records, set(reasons))
     validated_run_graph(runs, keep)
@@ -154,24 +183,16 @@ def build_plan(
         reasons[run_id].add("required-ancestor")
     watermarks = allocation_watermarks(repo / ".pingstore")
 
-    rows = []
-    for run_id, record in sorted(records.items()):
-        directory = runs / run_id
-        rows.append(
-            {
-                "run_id": run_id,
-                "stage": record["stage"],
-                "experiment": record["experiment"],
-                "used": run_id in used,
-                "used_by": sorted(used_by.get(run_id, ())),
-                "protected": run_id in protected,
-                "protected_marker_sha256": markers.get(run_id),
-                "payload_digest": record["payload_digest"],
-                "run_json_sha256": file_sha256(directory / "run.json"),
-                "bytes": _directory_bytes(directory),
-                "reasons": sorted(reasons[run_id]) if run_id in keep else ["unused"],
-            }
-        )
+    rows = _prune_rows(
+        records=records,
+        runs=runs,
+        keep=keep,
+        reasons=reasons,
+        used_by=used_by,
+        used=used,
+        protected=protected,
+        markers=markers,
+    )
     plan = {
         "schema": PLAN_SCHEMA,
         "policy": "keep-report-usage-manual-protection-incomplete-inputs-and-ancestry",

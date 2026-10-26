@@ -77,6 +77,7 @@ def test_existing_backups_are_download_verified_before_catalog_publication(
             uploaded.append(args[1].read_bytes())
         if args[0] == "cat":
             return uploaded[-1]
+        return None
 
     monkeypatch.setattr(backup, "rclone", remote)
     catalog.publish_catalog(tmp_path, "r2:bucket/pingstore/runs", plan)
@@ -194,6 +195,7 @@ def test_catalog_preserves_previous_remote_only_history(tmp_path, monkeypatch):
             conditions.append(args[-1])
         if args[0] == "cat":
             return uploaded[-1] if uploaded else old_bytes
+        return None
 
     monkeypatch.setattr(backup, "rclone", remote)
     catalog.publish_catalog(

@@ -214,7 +214,7 @@ def present(source, *, run_id=None):
                 frameon=False,
                 fontsize=8,
             )
-            for axis, label in zip(axes, ("Cross-entropy", "Accuracy")):
+            for axis, label in zip(axes, ("Cross-entropy", "Accuracy"), strict=True):
                 axis.set(
                     xlabel="Epoch",
                     ylabel=label,

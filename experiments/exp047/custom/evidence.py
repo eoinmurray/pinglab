@@ -7,14 +7,13 @@ this module does not start computation or select a scientific run.
 
 import math
 
-from pingstore.contracts import PingstoreError, load_json
-from pingstore.layout import canonical_export_file
-
 from experiments.exp047 import recipe
 from experiments.exp047.recipe import (
     duration_configuration,
     refractory_execution_configuration,
 )
+from pingstore.contracts import PingstoreError, load_json
+from pingstore.layout import canonical_export_file
 
 
 def configuration(cfg):

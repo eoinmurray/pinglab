@@ -417,7 +417,7 @@ def test_compute_analyse_present_preserve_selected_test(
     }
     from snnlab import lang
 
-    for mode, result in zip(cfg["models"], trained):
+    for mode, result in zip(cfg["models"], trained, strict=True):
         restored = computation.restore_bundle(
             f"{mode}.bundle", tmp_path / f"{mode}.bundle"
         )

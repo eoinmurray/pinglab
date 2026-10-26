@@ -4,10 +4,7 @@ Run with `uv run pytest experiments/exp038/test.py`. Fixtures use temporary stor
 bounded native checks validate numerical behavior without production runs.
 """
 
-import os
-import subprocess
-import sys
-from pathlib import Path
+from itertools import pairwise
 
 import numpy as np
 import pytest
@@ -155,7 +152,8 @@ def lab(tmp_path, monkeypatch):
             )
     calls = []
 
-    def simulate(train_dir, out, attachments, training, request, author, **kwargs):
+    def simulate(*, train, output, attachments, training, request, author, **kwargs):
+        out = output
         calls.append(request)
         out.mkdir(parents=True)
         attachments.mkdir(parents=True, exist_ok=True)
@@ -312,7 +310,7 @@ def test_frontier_registry_and_ei_summary_are_multiseed(tmp_path):
             (0.0, (88, 90, 92), (120, 130, 140)),
             (1.0, (50, 55, 60), (8, 9, 10)),
         )
-        for seed, acc, rate in zip(recipe.SEEDS_BASELINE, accs, rates)
+        for seed, acc, rate in zip(recipe.SEEDS_BASELINE, accs, rates, strict=True)
     ]
     summary = measurements.summarize_ei_points(points)
     assert [row["ei_strength"] for row in summary] == [0.0, 1.0]
@@ -461,7 +459,7 @@ def test_raster_labels_use_recorded_class_and_do_not_overlap(tmp_path, monkeypat
     raster.canvas.draw()
     renderer = raster.canvas.get_renderer()
     boxes = [ax.texts[0].get_window_extent(renderer) for ax in raster.axes]
-    assert all(a.y0 > b.y1 for a, b in zip(boxes, boxes[1:]))
+    assert all(a.y0 > b.y1 for a, b in pairwise(boxes))
     assert all(box.x1 < raster.bbox.x1 and box.y0 > 0 for box in boxes)
     assert "label 7" in raster.axes[0].get_title(loc="left")
     assert "label 7" in curve._suptitle.get_text()

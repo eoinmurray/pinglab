@@ -6,10 +6,9 @@ authoring and analysis definitions do not load data or launch a stage on import.
 
 from __future__ import annotations
 
-from copy import deepcopy
-
 import hashlib
 import math
+from copy import deepcopy
 from typing import Any
 
 SLUG = "exp080"

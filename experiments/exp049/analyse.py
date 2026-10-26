@@ -244,7 +244,9 @@ def rhythmicity(curves) -> dict:
     fin_tr: list[float] = []
     fin_fz: list[float] = []
     for c in curves.values():
-        pairs = sorted((e, v) for e, v in zip(c["ep"], c["contrast"]) if v is not None)
+        pairs = sorted(
+            (e, v) for e, v in zip(c["ep"], c["contrast"], strict=True) if v is not None
+        )
         if not pairs:
             continue
         if c["cond"] in trainable:

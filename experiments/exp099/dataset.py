@@ -29,7 +29,7 @@ def afferent_counts(cfg):
         np.random.default_rng(s) for s in np.random.SeedSequence(cfg["seed"]).spawn(2)
     ]
     result = {}
-    for pop, rates, rng in zip(("e", "i"), source_rates(times, cfg), rngs):
+    for pop, rates, rng in zip(("e", "i"), source_rates(times, cfg), rngs, strict=True):
         lam = (
             rates[:, None] * cfg["external_afferents_per_neuron"] * cfg["dt_ms"] / 1000
         )

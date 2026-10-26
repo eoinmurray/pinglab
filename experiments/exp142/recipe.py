@@ -5,7 +5,6 @@ an explicit source pin. author_network() compiles each discrete clock variant;
 it neither reads source artifacts nor launches simulation or training."""
 
 from copy import deepcopy
-
 from dataclasses import asdict
 from math import isfinite
 

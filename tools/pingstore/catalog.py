@@ -35,9 +35,8 @@ def read_catalog(destination):
     return value
 
 
-def validate_catalog(value):
-    if value.get("schema") != SCHEMA or not isinstance(value.get("runs"), dict):
-        raise PingstoreError("invalid R2 catalog")
+def _check_catalog_entries(*, value):
+    """Authenticate each catalog record and its declared payload inventory."""
     for identity, entry in value["runs"].items():
         record = validate_run(entry["record"])
         if record["run_id"] != identity or not record["execution"].get("completed_at"):
@@ -78,6 +77,12 @@ def validate_catalog(value):
                 or parent["record"]["payload_digest"] != reference["payload_digest"]
             ):
                 raise PingstoreError(f"catalog missing or changed ancestor: {identity}")
+
+
+def validate_catalog(value):
+    if value.get("schema") != SCHEMA or not isinstance(value.get("runs"), dict):
+        raise PingstoreError("invalid R2 catalog")
+    _check_catalog_entries(value=value)
 
     visiting, visited = set(), set()
 

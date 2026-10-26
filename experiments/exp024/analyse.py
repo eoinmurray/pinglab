@@ -30,9 +30,8 @@ def finite(value: object, label: str) -> float:
     return float(value)
 
 
-def read_cell(directory: Path, model: str, seed: int) -> tuple[dict, dict]:
-    config = load_json(directory / "config.json")
-    metrics = load_json(directory / "metrics.json")
+def _check_training_configuration(*, config, model, seed, directory):
+    """Validate training settings before examining epoch convergence."""
     for key, expected in (
         ("training_cell_name", recipe.cell_name(model, seed)),
         ("training_run_id", recipe.TRAINING_RUN),
@@ -76,6 +75,14 @@ def read_cell(directory: Path, model: str, seed: int) -> tuple[dict, dict]:
     draws = config.get("validation_encoder_draws", {})
     if finite(draws.get("count"), "validation draw count") < 1:
         raise PingstoreError("validation draw count must be positive")
+
+
+def read_cell(directory: Path, model: str, seed: int) -> tuple[dict, dict]:
+    config = load_json(directory / "config.json")
+    metrics = load_json(directory / "metrics.json")
+    _check_training_configuration(
+        config=config, model=model, seed=seed, directory=directory
+    )
     epochs = metrics.get("epochs")
     if (
         not isinstance(epochs, list)

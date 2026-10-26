@@ -14,8 +14,8 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "experiments"), str(REPO / "tools")]
 
 import numpy as np
-from experiments.exp081.custom import inputs
 from experiments.exp081 import recipe
+from experiments.exp081.custom import inputs
 from pingstore.contracts import PingstoreError, write_json_atomic
 from pingstore.stages import stage_run
 

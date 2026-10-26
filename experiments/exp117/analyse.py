@@ -71,7 +71,7 @@ def analyse(identity, *, run_id=None):
     onset_up = next(
         (
             float(drive)
-            for drive, amplitude in zip(drives, amplitude_up)
+            for drive, amplitude in zip(drives, amplitude_up, strict=True)
             if amplitude > threshold
         ),
         None,
@@ -79,7 +79,7 @@ def analyse(identity, *, run_id=None):
     onset_down = next(
         (
             float(drive)
-            for drive, amplitude in zip(drives, amplitude_down)
+            for drive, amplitude in zip(drives, amplitude_down, strict=True)
             if amplitude > threshold
         ),
         None,

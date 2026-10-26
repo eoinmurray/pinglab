@@ -101,13 +101,12 @@ def analyze(correctness: np.ndarray, cfg: dict | None = None) -> dict[str, Any]:
         ),
         None,
     )
-    decision = {
+    return {
         "criterion_crossed": floor is not None,
         "r_train_hz": floor,
         "recommendation": {"floor_hz": floor, "ceiling_hz": max(cfg["rates_hz"])},
         "rows": rows,
     }
-    return decision
 
 
 if __name__ == "__main__":

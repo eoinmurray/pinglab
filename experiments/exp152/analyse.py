@@ -388,7 +388,7 @@ def startup_metrics(angle, *, dt_s=0.001):
         reference_period = float(np.median(periods[late]))
         period_rows.extend(
             (float(t), float(p), float(abs(p / reference_period - 1)))
-            for t, p in zip(side_times[1:], periods)
+            for t, p in zip(side_times[1:], periods, strict=True)
         )
     bad_times = list(times[amplitude_error > 0.2])
     bad_times += [t for t, _, error in period_rows if error > 0.2]

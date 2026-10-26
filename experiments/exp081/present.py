@@ -18,12 +18,11 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
-from experiments.exp081.custom import inputs
+from experiments import theme
 from experiments.exp081 import recipe
+from experiments.exp081.custom import inputs
 from pingstore.contracts import PingstoreError, load_json, write_json_atomic
 from pingstore.stages import stage_run
-
-from experiments import theme
 
 
 def plot_moments(

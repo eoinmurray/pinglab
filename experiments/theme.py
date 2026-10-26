@@ -8,6 +8,8 @@ identical token names and values.
 """
 
 # Ink ramp — text hierarchy from strongest to faintest.
+import contextlib
+
 INK_STRONG = "#1a1a1a"
 INK = "#222"
 INK_SOFT = "#333"
@@ -36,7 +38,7 @@ DANGER = "#cc4444"
 # any one- or two-series plot (ink for the first/control, red for the
 # second/contrast); reach for the accents below only for a 3rd+ series.
 INK_BLACK = "#1a1a1a"  # ink — near-black, the default series colour
-DEEP_RED = "#c8102e"   # signal red — the contrast series colour
+DEEP_RED = "#c8102e"  # signal red — the contrast series colour
 DEEP_RED_LIGHT = "#e0566a"
 ELECTRIC_CYAN = "#00b4d8"
 AMBER = "#e89400"
@@ -59,14 +61,14 @@ CYCLE = [INK_BLACK, DEEP_RED, ELECTRIC_CYAN, AMBER, GREY_DARK, GREY_MID]
 # Typography sizes (pt). Tokens, not magic numbers — every figure picks
 # from this ladder so cross-figure comparisons line up visually. Stay
 # disciplined: prefer reusing one of these over inventing a new size.
-SIZE_BASE = 10.5      # default text
-SIZE_TITLE = 11       # plot title (bold)
-SIZE_PANEL = 13       # panel letters (bold; must survive final figure scaling)
-SIZE_LABEL = 10       # axis labels
-SIZE_TICK = 9         # tick labels
-SIZE_LEGEND = 9       # legend body
-SIZE_ANNOTATION = 8   # in-plot annotations, secondary text
-SIZE_CAPTION = 8      # figure captions / footers
+SIZE_BASE = 10.5  # default text
+SIZE_TITLE = 11  # plot title (bold)
+SIZE_PANEL = 13  # panel letters (bold; must survive final figure scaling)
+SIZE_LABEL = 10  # axis labels
+SIZE_TICK = 9  # tick labels
+SIZE_LEGEND = 9  # legend body
+SIZE_ANNOTATION = 8  # in-plot annotations, secondary text
+SIZE_CAPTION = 8  # figure captions / footers
 
 # Paper / print profile. When PAPER_MODE is on, figures are rendered for
 # a LaTeX manuscript (eLife class): smaller absolute fonts so type lands
@@ -75,10 +77,19 @@ SIZE_CAPTION = 8      # figure captions / footers
 # plotting code runs — it reassigns the SIZE_* ladder above (which the
 # notebook plot functions read directly) and flips apply() into print rc.
 PAPER_MODE = False
-_SCREEN_SIZES = dict(BASE=10.5, TITLE=11, PANEL=13, LABEL=10, TICK=9,
-                     LEGEND=9, ANNOTATION=8, CAPTION=8)
-_PAPER_SIZES = dict(BASE=8.0, TITLE=8.5, PANEL=10.0, LABEL=8.0, TICK=7.0,
-                    LEGEND=7.0, ANNOTATION=6.5, CAPTION=6.5)
+_SCREEN_SIZES = dict(
+    BASE=10.5, TITLE=11, PANEL=13, LABEL=10, TICK=9, LEGEND=9, ANNOTATION=8, CAPTION=8
+)
+_PAPER_SIZES = dict(
+    BASE=8.0,
+    TITLE=8.5,
+    PANEL=10.0,
+    LABEL=8.0,
+    TICK=7.0,
+    LEGEND=7.0,
+    ANNOTATION=6.5,
+    CAPTION=6.5,
+)
 
 
 def set_paper_mode(on: bool = True) -> None:
@@ -90,7 +101,10 @@ def set_paper_mode(on: bool = True) -> None:
     PAPER_MODE = on
     s = _PAPER_SIZES if on else _SCREEN_SIZES
     SIZE_BASE, SIZE_TITLE, SIZE_PANEL, SIZE_LABEL = (
-        s["BASE"], s["TITLE"], s["PANEL"], s["LABEL"]
+        s["BASE"],
+        s["TITLE"],
+        s["PANEL"],
+        s["LABEL"],
     )
     SIZE_TICK, SIZE_LEGEND = s["TICK"], s["LEGEND"]
     SIZE_ANNOTATION, SIZE_CAPTION = s["ANNOTATION"], s["CAPTION"]
@@ -114,109 +128,105 @@ def apply() -> None:
         cmap_brand = LinearSegmentedColormap.from_list(
             "pinglab_brand", [PAPER, DEEP_RED, INK_BLACK]
         )
-        try:
+        with contextlib.suppress(Exception):
             mpl.colormaps.register(cmap_brand)
-        except Exception:
-            pass
 
-    mpl.rcParams.update({
-        "font.family": "monospace",
-        "font.monospace": [
-            "JetBrains Mono", "IBM Plex Mono", "Menlo", "Consolas",
-            "Courier New", "DejaVu Sans Mono",
-        ],
-        "font.size": SIZE_BASE,
-        "font.weight": "normal",
-
-        "axes.titlesize": SIZE_TITLE,
-        "axes.titleweight": "bold",
-        "axes.titlelocation": "left",
-        "axes.titlepad": 10,
-        "axes.titlecolor": INK_BLACK,
-        "axes.labelsize": SIZE_LABEL,
-        "axes.labelcolor": INK_BLACK,
-        "axes.labelweight": "normal",
-
-        "axes.edgecolor": INK_BLACK,
-        "axes.linewidth": 1.4,
-        "axes.spines.top": True,
-        "axes.spines.right": True,
-        "axes.spines.bottom": True,
-        "axes.spines.left": True,
-        "axes.facecolor": PAPER,
-        "figure.facecolor": PAPER,
-
-        "axes.prop_cycle": cycler(color=CYCLE),
-
-        "xtick.color": INK_BLACK,
-        "ytick.color": INK_BLACK,
-        "xtick.labelcolor": INK_BLACK,
-        "ytick.labelcolor": INK_BLACK,
-        "xtick.labelsize": SIZE_TICK,
-        "ytick.labelsize": SIZE_TICK,
-        "xtick.major.size": 4,
-        "ytick.major.size": 4,
-        "xtick.major.width": 1.0,
-        "ytick.major.width": 1.0,
-        "xtick.direction": "in",
-        "ytick.direction": "in",
-
-        "grid.color": INK_BLACK,
-        "grid.linewidth": 0.4,
-        "grid.alpha": 0.15,
-        "axes.grid": False,
-        "axes.axisbelow": True,
-
-        "legend.frameon": True,
-        "legend.edgecolor": INK_BLACK,
-        "legend.facecolor": PAPER,
-        "legend.fancybox": False,
-        "legend.framealpha": 1.0,
-        "legend.borderpad": 0.5,
-        "legend.fontsize": SIZE_LEGEND,
-        "legend.labelcolor": INK_BLACK,
-
-        "lines.linewidth": 2.0,
-        "lines.solid_capstyle": "butt",
-        "lines.solid_joinstyle": "miter",
-
-        "patch.edgecolor": INK_BLACK,
-        "patch.linewidth": 1.0,
-        "patch.force_edgecolor": True,
-
-        "image.cmap": "pinglab_brand",
-
-        "savefig.facecolor": PAPER,
-        "savefig.dpi": 240,       # H11: ≥200 floor for crisp retina + print
-        "savefig.bbox": "tight",
-    })
+    mpl.rcParams.update(
+        {
+            "font.family": "monospace",
+            "font.monospace": [
+                "JetBrains Mono",
+                "IBM Plex Mono",
+                "Menlo",
+                "Consolas",
+                "Courier New",
+                "DejaVu Sans Mono",
+            ],
+            "font.size": SIZE_BASE,
+            "font.weight": "normal",
+            "axes.titlesize": SIZE_TITLE,
+            "axes.titleweight": "bold",
+            "axes.titlelocation": "left",
+            "axes.titlepad": 10,
+            "axes.titlecolor": INK_BLACK,
+            "axes.labelsize": SIZE_LABEL,
+            "axes.labelcolor": INK_BLACK,
+            "axes.labelweight": "normal",
+            "axes.edgecolor": INK_BLACK,
+            "axes.linewidth": 1.4,
+            "axes.spines.top": True,
+            "axes.spines.right": True,
+            "axes.spines.bottom": True,
+            "axes.spines.left": True,
+            "axes.facecolor": PAPER,
+            "figure.facecolor": PAPER,
+            "axes.prop_cycle": cycler(color=CYCLE),
+            "xtick.color": INK_BLACK,
+            "ytick.color": INK_BLACK,
+            "xtick.labelcolor": INK_BLACK,
+            "ytick.labelcolor": INK_BLACK,
+            "xtick.labelsize": SIZE_TICK,
+            "ytick.labelsize": SIZE_TICK,
+            "xtick.major.size": 4,
+            "ytick.major.size": 4,
+            "xtick.major.width": 1.0,
+            "ytick.major.width": 1.0,
+            "xtick.direction": "in",
+            "ytick.direction": "in",
+            "grid.color": INK_BLACK,
+            "grid.linewidth": 0.4,
+            "grid.alpha": 0.15,
+            "axes.grid": False,
+            "axes.axisbelow": True,
+            "legend.frameon": True,
+            "legend.edgecolor": INK_BLACK,
+            "legend.facecolor": PAPER,
+            "legend.fancybox": False,
+            "legend.framealpha": 1.0,
+            "legend.borderpad": 0.5,
+            "legend.fontsize": SIZE_LEGEND,
+            "legend.labelcolor": INK_BLACK,
+            "lines.linewidth": 2.0,
+            "lines.solid_capstyle": "butt",
+            "lines.solid_joinstyle": "miter",
+            "patch.edgecolor": INK_BLACK,
+            "patch.linewidth": 1.0,
+            "patch.force_edgecolor": True,
+            "image.cmap": "pinglab_brand",
+            "savefig.facecolor": PAPER,
+            "savefig.dpi": 240,  # H11: ≥200 floor for crisp retina + print
+            "savefig.bbox": "tight",
+        }
+    )
 
     if PAPER_MODE:
         # Print refinements: lighter rules so they don't bloat at small
         # scale, vector PDF with embedded editable text, generous DPI for
         # any rasterised inset (scatter clouds, images).
-        mpl.rcParams.update({
-            "font.size": SIZE_BASE,
-            "axes.titlesize": SIZE_TITLE,
-            "axes.labelsize": SIZE_LABEL,
-            "xtick.labelsize": SIZE_TICK,
-            "ytick.labelsize": SIZE_TICK,
-            "legend.fontsize": SIZE_LEGEND,
-            "axes.linewidth": 0.8,
-            "axes.titlepad": 6,
-            "xtick.major.width": 0.8,
-            "ytick.major.width": 0.8,
-            "xtick.major.size": 3,
-            "ytick.major.size": 3,
-            "lines.linewidth": 1.3,
-            "patch.linewidth": 0.8,
-            "legend.borderpad": 0.4,
-            "legend.handlelength": 1.6,
-            "savefig.dpi": 300,
-            "savefig.pad_inches": 0.02,
-            "pdf.fonttype": 42,
-            "ps.fonttype": 42,
-        })
+        mpl.rcParams.update(
+            {
+                "font.size": SIZE_BASE,
+                "axes.titlesize": SIZE_TITLE,
+                "axes.labelsize": SIZE_LABEL,
+                "xtick.labelsize": SIZE_TICK,
+                "ytick.labelsize": SIZE_TICK,
+                "legend.fontsize": SIZE_LEGEND,
+                "axes.linewidth": 0.8,
+                "axes.titlepad": 6,
+                "xtick.major.width": 0.8,
+                "ytick.major.width": 0.8,
+                "xtick.major.size": 3,
+                "ytick.major.size": 3,
+                "lines.linewidth": 1.3,
+                "patch.linewidth": 0.8,
+                "legend.borderpad": 0.4,
+                "legend.handlelength": 1.6,
+                "savefig.dpi": 300,
+                "savefig.pad_inches": 0.02,
+                "pdf.fonttype": 42,
+                "ps.fonttype": 42,
+            }
+        )
 
 
 def label_panel(ax, label: str, *, x: float = -0.08, y: float = 1.04):
@@ -242,6 +252,7 @@ def label_panels(axes, labels=None) -> list:
     """Label a flat, row-major sequence of scientific panel axes."""
     axes = list(axes)
     if labels is None:
+
         def automatic_label(index: int) -> str:
             label = ""
             index += 1
@@ -256,7 +267,7 @@ def label_panels(axes, labels=None) -> list:
     if len(axes) != len(labels):
         raise ValueError("panel axes and labels must have the same length")
     artists = []
-    for ax, label in zip(axes, labels):
+    for ax, label in zip(axes, labels, strict=True):
         if len(label) == 1:
             artists.append(label_panel(ax, label))
         else:

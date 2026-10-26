@@ -14,8 +14,8 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
 
 import numpy as np
-from experiments.exp023.custom import inputs
 from experiments.exp023 import recipe
+from experiments.exp023.custom import inputs
 from pingstore.contracts import PingstoreError, write_json_atomic
 from pingstore.stages import stage_run
 
@@ -48,6 +48,35 @@ def population_psd(spk_2d: np.ndarray, dt_ms: float, band_hz):
     df = float(freqs[1] - freqs[0]) if len(freqs) > 1 else 0.0
     f_peak = float(freqs[abs_idx] + delta * df)
     return freqs, psd, f_peak
+
+
+def _validate_snapshot_traces(*, traces, data, steps, path):
+    """Validate selected traces and their conductance availability."""
+    if traces:
+        for population in ("e", "i"):
+            index = pick_active(data[f"spk_{population}"])
+            expected_index = index if index is not None else 0
+            if (
+                np.asarray(data.get(f"{population}_trace_index")).shape != ()
+                or data.get(f"{population}_trace_index") != expected_index
+            ):
+                raise PingstoreError(
+                    f"{path}: trace selection differs from spike counts"
+                )
+            signals = ("v", "ge", "gi") if population == "e" else ("v", "ge")
+            for signal in signals:
+                value = data.get(f"{signal}_{population}_selected")
+                if (
+                    value is None
+                    or value.shape != (steps,)
+                    or not np.isfinite(value).all()
+                ):
+                    raise PingstoreError(f"{path}: missing or invalid selected trace")
+                if signal.startswith("g") and (value < 0).any():
+                    raise PingstoreError(f"{path}: negative conductance")
+        flag = data.get("has_gi_e")
+        if flag is None or flag.shape != () or flag.dtype.kind != "b":
+            raise PingstoreError(f"{path}: invalid inhibitory conductance flag")
 
 
 def snapshot(path: Path, cfg: dict, point: dict, *, traces: bool = False) -> dict:
@@ -100,31 +129,7 @@ def snapshot(path: Path, cfg: dict, point: dict, *, traces: bool = False) -> dic
         spikes = data[key]
         if spikes.shape != (steps, n) or not np.isin(spikes, [0, 1]).all():
             raise PingstoreError(f"{path}: invalid {key} geometry or spikes")
-    if traces:
-        for population in ("e", "i"):
-            index = pick_active(data[f"spk_{population}"])
-            expected_index = index if index is not None else 0
-            if (
-                np.asarray(data.get(f"{population}_trace_index")).shape != ()
-                or data.get(f"{population}_trace_index") != expected_index
-            ):
-                raise PingstoreError(
-                    f"{path}: trace selection differs from spike counts"
-                )
-            signals = ("v", "ge", "gi") if population == "e" else ("v", "ge")
-            for signal in signals:
-                value = data.get(f"{signal}_{population}_selected")
-                if (
-                    value is None
-                    or value.shape != (steps,)
-                    or not np.isfinite(value).all()
-                ):
-                    raise PingstoreError(f"{path}: missing or invalid selected trace")
-                if signal.startswith("g") and (value < 0).any():
-                    raise PingstoreError(f"{path}: negative conductance")
-        flag = data.get("has_gi_e")
-        if flag is None or flag.shape != () or flag.dtype.kind != "b":
-            raise PingstoreError(f"{path}: invalid inhibitory conductance flag")
+    _validate_snapshot_traces(traces=traces, data=data, steps=steps, path=path)
     data["dt"] = dt
     return data
 
@@ -153,7 +158,7 @@ def select_traces(data: dict, biophysics: dict) -> tuple[dict, dict]:
         if index is None:
             continue
 
-        def trace(signal):
+        def trace(signal, population=population):
             return data[f"{signal}_{population}_selected"]
 
         v, ge = trace("v"), trace("ge")

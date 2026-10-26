@@ -391,9 +391,7 @@ def _project_new_cell(trained: Path, target: Path) -> dict:
             metadata = {
                 key: value.pop(key)
                 for key in list(value)
-                if key in operational
-                or key.startswith("campaign_")
-                or key.startswith("bank_")
+                if key in operational or key.startswith(("campaign_", "bank_"))
             }
             if metadata:
                 captures[label] = metadata
@@ -409,18 +407,8 @@ def _project_new_cell(trained: Path, target: Path) -> dict:
     return removed
 
 
-def _assemble(
-    directory: Path, record: dict, source, plan: dict, manifest: dict
-) -> None:
-    from experiments.exp022 import compute as compute
-
-    root = directory / ".scratch/reuse"
-    cells = root / "cells"
-    actual = {p.name for p in cells.iterdir()} if cells.exists() else set()
-    if actual != set(plan["new_cells"]):
-        raise PingstoreError(
-            "training directories do not exactly match the 21 replacement cells"
-        )
+def _check_replacement_cells(*, manifest):
+    """Require complete replacement attempts before assembling their evidence."""
     for row in manifest["cells"]:
         if campaign.lock_path(manifest, row["name"]).exists():
             raise PingstoreError(
@@ -442,6 +430,21 @@ def _assemble(
             or status_record.get("cell_name") != row["name"]
         ):
             raise PingstoreError(f"training execution record mismatch: {row['name']}")
+
+
+def _assemble(
+    directory: Path, record: dict, source, plan: dict, manifest: dict
+) -> None:
+    from experiments.exp022 import compute as compute
+
+    root = directory / ".scratch/reuse"
+    cells = root / "cells"
+    actual = {p.name for p in cells.iterdir()} if cells.exists() else set()
+    if actual != set(plan["new_cells"]):
+        raise PingstoreError(
+            "training directories do not exactly match the 21 replacement cells"
+        )
+    _check_replacement_cells(manifest=manifest)
     export = directory / "export"
     normalization = directory / ".normalized-export.tmp"
     if normalization.exists():

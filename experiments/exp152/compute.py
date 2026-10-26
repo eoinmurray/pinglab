@@ -18,6 +18,8 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
+import contextlib
+
 from experiments.exp152.recipe import SIDES, author_network, configuration
 from pingstore.contracts import write_json_atomic
 from pingstore.stages import source_run, stage_run
@@ -31,10 +33,8 @@ TOPICS = tuple(
 def stop(children):
     for child in children:
         if child.poll() is None:
-            try:
+            with contextlib.suppress(ProcessLookupError):
                 os.killpg(child.pid, signal.SIGINT)
-            except ProcessLookupError:
-                pass
     for child in children:
         try:
             child.wait(timeout=5)
@@ -43,20 +43,8 @@ def stop(children):
             child.wait()
 
 
-def run_ros(args):
-    available_cpus = sorted(os.sched_getaffinity(0))
-    if len(available_cpus) < 4:
-        raise RuntimeError(
-            "Need four allowed CPUs: one each for flexor, extensor, plant and recorder"
-        )
-    args.cpu_allocation = dict(zip((*NODES, "recorder"), available_cpus[:4]))
-    # Set affinity before ROS starts threads. taskset assigns each child its own CPU.
-    os.sched_setaffinity(0, {args.cpu_allocation["recorder"]})
-    import rclpy
-    from rcl_interfaces.srv import SetParameters
-    from rclpy.node import Node
-    from rclpy.parameter import Parameter
-    from std_msgs.msg import Int64MultiArray, String
+def _recorder_type(*, Node, String, Int64MultiArray):
+    """Build the recorder node after optional ROS types have been imported."""
 
     class Recorder(Node):
         def __init__(self):
@@ -84,6 +72,69 @@ def run_ros(args):
                 for topic in TOPICS
             )
 
+    return Recorder
+
+
+def _launch_ros_nodes(*, args, output, children, logs):
+    """Launch the assigned node processes while retaining cleanup ownership."""
+    for name in NODES:
+        log = (output / f"node_{name}.log").open("w")
+        logs.append(log)
+        children.append(
+            subprocess.Popen(
+                [
+                    "taskset",
+                    "--cpu-list",
+                    str(args.cpu_allocation[name]),
+                    sys.executable,
+                    "-m",
+                    "experiments.exp152.custom.node_" + name,
+                    "--ros-args",
+                    "-p",
+                    f"dt_ms:={float(args.dt_ms)}",
+                    "-p",
+                    f"timer_ms:={float(args.timer_ms)}",
+                    "-p",
+                    f"duration:={float(args.duration)}",
+                    "-p",
+                    f"neurons:={args.neurons}",
+                    "-p",
+                    f"max_lag_ms:={float(args.max_lag_ms)}",
+                    "-p",
+                    f"profile_timing:={str(args.profile_timing).lower()}",
+                ],
+                cwd=REPO,
+                env={
+                    **os.environ,
+                    "EXP152_EXPORT": str(output),
+                    "EXP152_CONFIGURATION": json.dumps(vars(args), default=str),
+                },
+                stdout=log,
+                stderr=subprocess.STDOUT,
+                start_new_session=True,
+            )
+        )
+
+
+def run_ros(args):
+    available_cpus = sorted(os.sched_getaffinity(0))
+    if len(available_cpus) < 4:
+        raise RuntimeError(
+            "Need four allowed CPUs: one each for flexor, extensor, plant and recorder"
+        )
+    args.cpu_allocation = dict(
+        zip((*NODES, "recorder"), available_cpus[:4], strict=True)
+    )
+    # Set affinity before ROS starts threads. taskset assigns each child its own CPU.
+    os.sched_setaffinity(0, {args.cpu_allocation["recorder"]})
+    import rclpy
+    from rcl_interfaces.srv import SetParameters
+    from rclpy.node import Node
+    from rclpy.parameter import Parameter
+    from std_msgs.msg import Int64MultiArray, String
+
+    Recorder = _recorder_type(Node=Node, String=String, Int64MultiArray=Int64MultiArray)
+
     output = args.output_dir
     output.mkdir(parents=True, exist_ok=True)
     rclpy.init()
@@ -91,43 +142,7 @@ def run_ros(args):
     children, logs = [], []
     error, ready, start_ns = None, False, 0
     try:
-        for name in NODES:
-            log = (output / f"node_{name}.log").open("w")
-            logs.append(log)
-            children.append(
-                subprocess.Popen(
-                    [
-                        "taskset",
-                        "--cpu-list",
-                        str(args.cpu_allocation[name]),
-                        sys.executable,
-                        "-m",
-                        "experiments.exp152.custom.node_" + name,
-                        "--ros-args",
-                        "-p",
-                        f"dt_ms:={float(args.dt_ms)}",
-                        "-p",
-                        f"timer_ms:={float(args.timer_ms)}",
-                        "-p",
-                        f"duration:={float(args.duration)}",
-                        "-p",
-                        f"neurons:={args.neurons}",
-                        "-p",
-                        f"max_lag_ms:={float(args.max_lag_ms)}",
-                        "-p",
-                        f"profile_timing:={str(args.profile_timing).lower()}",
-                    ],
-                    cwd=REPO,
-                    env={
-                        **os.environ,
-                        "EXP152_EXPORT": str(output),
-                        "EXP152_CONFIGURATION": json.dumps(vars(args), default=str),
-                    },
-                    stdout=log,
-                    stderr=subprocess.STDOUT,
-                    start_new_session=True,
-                )
-            )
+        _launch_ros_nodes(args=args, output=output, children=children, logs=logs)
         clients = {
             name: recorder.create_client(SetParameters, f"/{name}/set_parameters")
             for name in NODES
@@ -280,7 +295,7 @@ def startup_sweep(*, run_id=None, **overrides):
             try:
                 from experiments.exp152.custom.snapshot import capture_start
 
-                for side, controller in zip(SIDES, controllers):
+                for side, controller in zip(SIDES, controllers, strict=True):
                     capture_start(
                         controller.stream,
                         author_network(controller.cfg),

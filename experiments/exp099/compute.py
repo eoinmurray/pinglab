@@ -16,7 +16,7 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
 import numpy as np
 import torch
-from experiments.exp099 import recipe, dataset
+from experiments.exp099 import dataset, recipe
 from experiments.exp099.custom.network_artifacts import model_execution
 from pingstore.stages import stage_run
 from snnlab.sim import Performance, build  # noqa: TID251
@@ -54,35 +54,37 @@ def simulate(cfg, *, artifacts, chunk_steps=1000, execution=None):
     for p in model.plan.projections:
         retained[f"mean_{p.id}"] = np.empty(steps, dtype=np.float32)
     state = None
-    with model_execution(model, bundle, artifacts, seed=cfg["seed"], settings=cfg):
-        with torch.inference_mode():
-            for start in range(0, steps, chunk_steps):
-                stop = min(start + chunk_steps, steps)
-                result = model(
-                    {
-                        k: torch.from_numpy(v[start:stop, None].astype(np.float32))
-                        for k, v in counts.items()
-                    },
-                    runtime_state=state,
+    with (
+        model_execution(model, bundle, artifacts, seed=cfg["seed"], settings=cfg),
+        torch.inference_mode(),
+    ):
+        for start in range(0, steps, chunk_steps):
+            stop = min(start + chunk_steps, steps)
+            result = model(
+                {
+                    k: torch.from_numpy(v[start:stop, None].astype(np.float32))
+                    for k, v in counts.items()
+                },
+                runtime_state=state,
+            )
+            state = result.runtime_state
+            data = result.diagnostics
+            for pop in ("e", "i"):
+                retained[f"spk_{pop}"][start:stop] = (
+                    data[f"{pop.upper()}.spikes"][:, 0].numpy().astype(bool)
                 )
-                state = result.runtime_state
-                data = result.diagnostics
-                for pop in ("e", "i"):
-                    retained[f"spk_{pop}"][start:stop] = (
-                        data[f"{pop.upper()}.spikes"][:, 0].numpy().astype(bool)
-                    )
-                    retained[f"mean_v_{pop}"][start:stop] = (
-                        data[f"{pop.upper()}.voltage"][:, 0].mean(1).numpy()
-                    )
-                for p in model.plan.projections:
-                    retained[f"mean_{p.id}"][start:stop] = (
-                        data[f"{p.id}.conductance"][:, 0].mean(1).numpy()
-                    )
-                if start % (chunk_steps * 10) == 0:
-                    print(
-                        f"Simulated {stop * cfg['dt_ms']:.0f} / {cfg['t_ms']:.0f} ms",
-                        flush=True,
-                    )
+                retained[f"mean_v_{pop}"][start:stop] = (
+                    data[f"{pop.upper()}.voltage"][:, 0].mean(1).numpy()
+                )
+            for p in model.plan.projections:
+                retained[f"mean_{p.id}"][start:stop] = (
+                    data[f"{p.id}.conductance"][:, 0].mean(1).numpy()
+                )
+            if start % (chunk_steps * 10) == 0:
+                print(
+                    f"Simulated {stop * cfg['dt_ms']:.0f} / {cfg['t_ms']:.0f} ms",
+                    flush=True,
+                )
     weights = {k: v.detach().numpy().copy() for k, v in model.parameter_map().items()}
     return bundle, retained, weights
 

@@ -9,13 +9,12 @@ import math
 from pathlib import PurePosixPath
 
 import numpy as np
-from experiments.exp049.custom.source_exp022_custom_checkpoints import public_provenance
+from experiments.exp049 import recipe
 from experiments.exp049.custom.source_exp022_custom_checkpoints import (
+    public_provenance,
     resolve_checkpoint,
 )
 from pingstore.contracts import PingstoreError, load_json
-
-from experiments.exp049 import recipe
 
 
 def finite(value, label, *, minimum=0.0, maximum=None):
@@ -37,7 +36,7 @@ def _same(actual, expected):
         return bool(np.isclose(actual, expected))
     if isinstance(actual, list) and isinstance(expected, list):
         return len(actual) == len(expected) and all(
-            _same(a, b) for a, b in zip(actual, expected)
+            _same(a, b) for a, b in zip(actual, expected, strict=True)
         )
     return actual == expected
 
@@ -238,3 +237,4 @@ def recordings(directory, train, job):
             or not 0 <= int(label) < train["n_out"]
         ):
             raise PingstoreError("invalid snapshot label")
+    return None

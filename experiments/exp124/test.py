@@ -85,7 +85,7 @@ def test_native_zero_decay_adamw_preserves_adam_updates():
         torch.optim.AdamW([native], **groups),
     )
     for step in range(3):
-        for parameter, optimizer in zip((adam, native), optimizers):
+        for parameter, optimizer in zip((adam, native), optimizers, strict=True):
             parameter.grad = torch.tensor([0.5, -0.2, 1.0]) * (step + 1)
             optimizer.step()
         torch.testing.assert_close(adam, native, rtol=0, atol=0)
@@ -461,11 +461,13 @@ def test_parallel_worker_failure_does_not_publish_partial_run(tmp_path, monkeypa
     monkeypatch.setattr(compute, "condition_worker", failing_condition_worker)
     cfg = recipe.configuration("local-check")
     items = [{"id": model, "device": "cpu"} for model in cfg["models"]]
-    with pytest.raises(RuntimeError, match="concurrent worker .* failed"):
-        with stages.stage_run(tmp_path, "exp124", "compute", configuration=cfg) as run:
-            snapshot = run.scratch / "dataset.npz"
-            np.savez(snapshot, labels=np.array([0]))
-            compute.run_conditions(run, cfg, snapshot, None, items, 1, True)
+    with (
+        pytest.raises(RuntimeError, match="concurrent worker .* failed"),
+        stages.stage_run(tmp_path, "exp124", "compute", configuration=cfg) as run,
+    ):
+        snapshot = run.scratch / "dataset.npz"
+        np.savez(snapshot, labels=np.array([0]))
+        compute.run_conditions(run, cfg, snapshot, None, items, 1, True)
     runs = tmp_path / ".pingstore/runs"
     assert not list(runs.glob("exp124-*-compute"))
     assert not list(runs.glob(".*/export/recording.npz"))

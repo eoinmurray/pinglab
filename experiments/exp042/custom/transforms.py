@@ -20,13 +20,13 @@ if TYPE_CHECKING:
 
 
 def _build_override(
-    s_i_base: "torch.Tensor",
+    s_i_base: torch.Tensor,
     condition: str,
     generator,
     dt_ms: float = 0.1,
     *,
     return_diagnostics: bool = False,
-) -> "torch.Tensor | tuple[torch.Tensor, dict]":
+) -> torch.Tensor | tuple[torch.Tensor, dict]:
     """Construct the I-spike override tensor for one batch.
 
     s_i_base: (T, B, N_I) baseline recorded I-spikes.
@@ -156,11 +156,11 @@ def _unchanged(s_i_base):
 
 
 def _jitter_i_stream(
-    s_i_base: "torch.Tensor",
+    s_i_base: torch.Tensor,
     sigma_ms: float,
     dt_ms: float,
     generator,
-) -> tuple["torch.Tensor", dict]:
+) -> tuple[torch.Tensor, dict]:
     """Fixed-window group jitter on the I-spike stream.
 
     Bins the original timeline into fixed windows of duration
@@ -217,11 +217,11 @@ def _jitter_i_stream(
 
 
 def _cell_jitter_i_stream(
-    s_i_base: "torch.Tensor",
+    s_i_base: torch.Tensor,
     sigma_ms: float,
     dt_ms: float,
     generator,
-) -> tuple["torch.Tensor", dict]:
+) -> tuple[torch.Tensor, dict]:
     """Independent-spike Gaussian jitter on the I-spike stream.
 
     Each spike gets its own independent Gaussian offset Δ ~ 𝒩(0, σ²).

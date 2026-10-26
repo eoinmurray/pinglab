@@ -52,7 +52,7 @@ def initial_state(context):
         dtype=context.dtype,
     )
     state = {"voltage": voltage}
-    for gate, (alpha, beta) in zip(("m", "h", "n"), rates(voltage)):
+    for gate, (alpha, beta) in zip(("m", "h", "n"), rates(voltage), strict=True):
         state[gate] = alpha / (alpha + beta)
     return state
 
@@ -67,7 +67,7 @@ def _derivative(values, excitatory, inhibitory, parameters):
     )
     gates = tuple(
         alpha * (1 - gate) - beta * gate
-        for gate, (alpha, beta) in zip((m, h, n), rates(voltage))
+        for gate, (alpha, beta) in zip((m, h, n), rates(voltage), strict=True)
     )
     current = excitatory * (e_exc - voltage) + inhibitory * (e_inh - voltage)
     return ((current - ionic) / capacitance, *gates)
@@ -81,7 +81,7 @@ def step(context):
     inhibitory = context.inhibitory.to(values[0].dtype)
     parameters = tuple(
         context.config.get(key, value)
-        for key, value in zip(PARAMETERS, DEFAULT_PARAMETERS)
+        for key, value in zip(PARAMETERS, DEFAULT_PARAMETERS, strict=True)
     )
     substeps = max(1, math.ceil(context.dt_ms / MAX_STEP_MS))
     dt = context.dt_ms / substeps
@@ -89,30 +89,32 @@ def step(context):
     for _ in range(substeps):
         k1 = _derivative(values, excitatory, inhibitory, parameters)
         k2 = _derivative(
-            tuple(y + dt / 2 * k for y, k in zip(values, k1)),
+            tuple(y + dt / 2 * k for y, k in zip(values, k1, strict=True)),
             excitatory,
             inhibitory,
             parameters,
         )
         k3 = _derivative(
-            tuple(y + dt / 2 * k for y, k in zip(values, k2)),
+            tuple(y + dt / 2 * k for y, k in zip(values, k2, strict=True)),
             excitatory,
             inhibitory,
             parameters,
         )
         k4 = _derivative(
-            tuple(y + dt * k for y, k in zip(values, k3)),
+            tuple(y + dt * k for y, k in zip(values, k3, strict=True)),
             excitatory,
             inhibitory,
             parameters,
         )
         updated = tuple(
             y + dt / 6 * (a + 2 * b + 2 * c + d)
-            for y, a, b, c, d in zip(values, k1, k2, k3, k4)
+            for y, a, b, c, d in zip(values, k1, k2, k3, k4, strict=True)
         )
         crossed = crossed | ((values[0] < 0) & (updated[0] >= 0))
         values = updated
-    return {**context.state, **dict(zip(keys, values))}, crossed.to(values[0].dtype)
+    return {**context.state, **dict(zip(keys, values, strict=True))}, crossed.to(
+        values[0].dtype
+    )
 
 
 @lru_cache(maxsize=1)

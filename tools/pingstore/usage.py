@@ -25,7 +25,10 @@ def ancestry(records: dict[str, dict], roots: set[str]) -> set[str]:
 
 
 def report_usage(
-    repo: Path, records: dict[str, dict], *, experiments: set[str] | None = None,
+    repo: Path,
+    records: dict[str, dict],
+    *,
+    experiments: set[str] | None = None,
 ) -> tuple[dict, dict[str, set[str]]]:
     """Resolve all reports, allowing missing out-of-scope pins for scoped pruning.
 
@@ -37,7 +40,10 @@ def report_usage(
         completed = record["execution"].get("completed_at")
         if record["stage"] != "present" or not completed:
             continue
-        key = (datetime.fromisoformat(completed.replace("Z", "+00:00")).timestamp(), identity)
+        key = (
+            datetime.fromisoformat(completed.replace("Z", "+00:00")).timestamp(),
+            identity,
+        )
         experiment = record["experiment"]
         if experiment not in latest or key > latest[experiment]:
             latest[experiment] = key
@@ -54,12 +60,17 @@ def report_usage(
             if record is None:
                 # Check both the declared input and the run ID: a mismatched
                 # pin must not hide a missing reference to the pruning scope.
-                if (experiments is not None and experiment not in experiments
-                        and identity.split("-", 1)[0] not in experiments):
+                if (
+                    experiments is not None
+                    and experiment not in experiments
+                    and identity.split("-", 1)[0] not in experiments
+                ):
                     continue
                 raise PingstoreError(f"report {article!r} names missing run {identity}")
             if record["experiment"] != experiment or record["stage"] != "present":
-                raise PingstoreError(f"report {article!r} pin is not a presentation for {experiment}")
+                raise PingstoreError(
+                    f"report {article!r} pin is not a presentation for {experiment}"
+                )
             roots.add(identity)
         selections[article] = {"inputs": metadata["inputs"], "runs": selected}
         for identity in ancestry(records, roots):

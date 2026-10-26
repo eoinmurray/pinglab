@@ -9,10 +9,6 @@ from experiments import exp049
 
 """Synthetic staged probes; no production simulations or historical imports."""
 
-import os
-import subprocess
-import sys
-from pathlib import Path
 
 import pytest
 from experiments.exp049 import analyse, present, recipe

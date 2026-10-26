@@ -81,13 +81,13 @@ def analyse(identity, *, run_id=None):
             )
             clock = output_clock(source, mode, case, cfg)
             output_clocks[mode][case] = clock
-            if clock["network_dt_ns"] is not None:
-                if recording["spike_time_ns"].dtype.kind not in "iu" or np.any(
-                    recording["spike_time_ns"] % clock["network_dt_ns"]
-                ):
-                    raise ValueError(
-                        "discrete spikes do not use the declared network/output clock"
-                    )
+            if clock["network_dt_ns"] is not None and (
+                recording["spike_time_ns"].dtype.kind not in "iu"
+                or np.any(recording["spike_time_ns"] % clock["network_dt_ns"])
+            ):
+                raise ValueError(
+                    "discrete spikes do not use the declared network/output clock"
+                )
         refinements = refinement_check(
             recordings["continuous"], recordings["continuous-refined"], cfg, ni
         )

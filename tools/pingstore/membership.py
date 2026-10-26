@@ -20,8 +20,12 @@ def memberships(repo: Path) -> dict[str, str]:
         collection = metadata.get("collection")
         collections = [collection] if isinstance(collection, str) else collection
         if (
-            not isinstance(collections, list) or not collections
-            or any(not isinstance(item, str) or not COLLECTION_RE.fullmatch(item) for item in collections)
+            not isinstance(collections, list)
+            or not collections
+            or any(
+                not isinstance(item, str) or not COLLECTION_RE.fullmatch(item)
+                for item in collections
+            )
             or len(set(collections)) != len(collections)
         ):
             raise PingstoreError(f"invalid collection for {experiment}: {collection}")

@@ -14,15 +14,19 @@ extend-exclude = [
 ]
 
 [lint]
-# Lean set: pyflakes (real bugs), pycodestyle errors, and import sorting.
-select = ["E", "F", "I"]
-# Two pycodestyle rules are noise for this codebase, so they are ignored while
-# pyflakes (F*) stays strict — it catches real dead code and bugs:
+# Correctness, consistent imports, modern syntax, and readable control flow.
+select = ["E", "F", "I", "UP", "SIM", "C4", "RET", "B", "C901", "PIE"]
+# Preserve scientific naming and the experiment configuration convention:
 #   E501 (line too long) — code wrapping is `ruff format`'s job; the remaining
 #         long lines are help-text strings and comment tables that don't wrap.
 #   E741 (ambiguous name l/I/O) — `I` is inhibitory and `E` excitatory here;
 #         the single-letter E/I vocabulary is deliberate, not ambiguous.
-ignore = ["E501", "E741"]
+#   C408 (unnecessary dict call) — Experiment Rules require readable
+#         dict(key=value, ...) blocks for resolved scientific defaults.
+ignore = ["E501", "E741", "C408"]
+
+[lint.mccabe]
+max-complexity = 15
 
 [lint.per-file-ignores]
 # Experiment runners set sys.path before importing local modules (helpers +
@@ -31,5 +35,9 @@ ignore = ["E501", "E741"]
 "experiments/*" = ["E402"]
 
 [format]
+# Keep short signatures on one line; when they exceed line-length, Ruff puts
+# each parameter on its own indented line. A trailing comma preserves that
+# expanded layout even when the signature could fit on one line.
+skip-magic-trailing-comma = false
 quote-style = "double"
 indent-style = "space"

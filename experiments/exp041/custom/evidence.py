@@ -9,13 +9,12 @@ import math
 from pathlib import Path
 
 import numpy as np
-from experiments.exp041.custom.source_exp022_custom_checkpoints import public_provenance
+from experiments.exp041 import recipe
 from experiments.exp041.custom.source_exp022_custom_checkpoints import (
+    public_provenance,
     resolve_checkpoint,
 )
 from pingstore.contracts import PingstoreError, load_json
-
-from experiments.exp041 import recipe
 
 
 def finite(value, label: str, *, minimum=0.0, maximum=None) -> float:
@@ -37,7 +36,7 @@ def _same(actual, expected) -> bool:
         return bool(np.isclose(actual, expected))
     if isinstance(actual, list) and isinstance(expected, list):
         return len(actual) == len(expected) and all(
-            _same(a, b) for a, b in zip(actual, expected)
+            _same(a, b) for a, b in zip(actual, expected, strict=True)
         )
     if isinstance(actual, dict) and isinstance(expected, dict):
         return actual.keys() == expected.keys() and all(
@@ -46,36 +45,8 @@ def _same(actual, expected) -> bool:
     return actual == expected
 
 
-def training_contract(bank: Path) -> dict:
-    common = None
-    cells = []
-    for tau in recipe.TAU_GABA_SWEEP:
-        for seed in recipe.SEEDS:
-            name = recipe.cell_name(tau, seed)
-            cfg = load_json(bank / name / "config.json")
-            if not _same(cfg.get("tau_gaba_ms"), tau):
-                raise PingstoreError(
-                    f"{name}: config tau_gaba_ms does not match registered {tau}"
-                )
-            if type(cfg.get("seed")) is not int or cfg["seed"] != seed:
-                raise PingstoreError(
-                    f"{name}: config seed does not match registered {seed}"
-                )
-            try:
-                selected = {k: cfg[k] for k in recipe.TRAINING_COMMON_FIELDS}
-            except KeyError as exc:
-                raise PingstoreError(
-                    f"{name}: missing training config field {exc.args[0]}"
-                ) from exc
-            if common is None:
-                common = selected
-            else:
-                for key, expected in common.items():
-                    if not _same(selected[key], expected):
-                        raise PingstoreError(
-                            f"{name}: config {key}={selected[key]!r} disagrees with common value {expected!r}"
-                        )
-            cells.append({"cell_name": name, "tau_gaba_ms": tau, "seed": seed})
+def _validate_common_training(*, common):
+    """Check common scientific settings and the retained validation split."""
     for key, value in {
         "model": "ping",
         "dataset": "mnist",
@@ -121,6 +92,39 @@ def training_contract(bank: Path) -> dict:
         or len(draws.get("input_rate_seeds", [])) != draws["count"]
     ):
         raise PingstoreError("missing validation encoder-draw contract")
+
+
+def training_contract(bank: Path) -> dict:
+    common = None
+    cells = []
+    for tau in recipe.TAU_GABA_SWEEP:
+        for seed in recipe.SEEDS:
+            name = recipe.cell_name(tau, seed)
+            cfg = load_json(bank / name / "config.json")
+            if not _same(cfg.get("tau_gaba_ms"), tau):
+                raise PingstoreError(
+                    f"{name}: config tau_gaba_ms does not match registered {tau}"
+                )
+            if type(cfg.get("seed")) is not int or cfg["seed"] != seed:
+                raise PingstoreError(
+                    f"{name}: config seed does not match registered {seed}"
+                )
+            try:
+                selected = {k: cfg[k] for k in recipe.TRAINING_COMMON_FIELDS}
+            except KeyError as exc:
+                raise PingstoreError(
+                    f"{name}: missing training config field {exc.args[0]}"
+                ) from exc
+            if common is None:
+                common = selected
+            else:
+                for key, expected in common.items():
+                    if not _same(selected[key], expected):
+                        raise PingstoreError(
+                            f"{name}: config {key}={selected[key]!r} disagrees with common value {expected!r}"
+                        )
+            cells.append({"cell_name": name, "tau_gaba_ms": tau, "seed": seed})
+    _validate_common_training(common=common)
     return {
         "common": common,
         "cells": cells,

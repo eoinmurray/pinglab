@@ -24,9 +24,10 @@ import socket
 import subprocess
 import time
 import uuid
+from collections.abc import Callable
 from datetime import datetime, timezone
 from time import perf_counter
-from typing import Any, Callable
+from typing import Any
 
 import numpy as np
 import torch
@@ -283,6 +284,76 @@ def _expected_config(cell):
     return dict(cell["parameters"]["settings"])
 
 
+def _check_cell_checkpoints(
+    *, directory, metrics, epochs, config, reasons, load_checkpoint
+):
+    """Authenticate both checkpoint roles without changing their selection."""
+    if load_checkpoint:
+        checkpoint_specs = {
+            "best_validation": ("weights.pth", metrics.get("best_epoch")),
+            "final_epoch": ("weights_final.pth", epochs),
+        }
+        recorded_checkpoints = metrics.get("checkpoints", {})
+        for role, (filename, expected_epoch) in checkpoint_specs.items():
+            record = recorded_checkpoints.get(role)
+            if not isinstance(record, dict):
+                reasons.append(f"missing {role} checkpoint metadata")
+                continue
+            if record.get("filename") != filename:
+                reasons.append(f"{role} checkpoint filename mismatch")
+            if record.get("epoch") != expected_epoch:
+                reasons.append(f"{role} checkpoint epoch mismatch")
+            path = directory / filename
+            if record.get("sha256") != sha256_file(path):
+                reasons.append(f"{role} checkpoint hash mismatch")
+            try:
+                from experiments.exp022.custom.checkpoints import checkpoint_tensors
+
+                checkpoint_tensors(path, config)
+            except Exception as exc:  # noqa: BLE001
+                reasons.append(
+                    f"{role} checkpoint load failed: {type(exc).__name__}: {exc}"
+                )
+
+
+def _check_cell_weight_provenance(*, config, nested, metrics, expected, reasons):
+    """Validate initial and final weight provenance for every registered role."""
+    initialization = config.get("weight_initialization")
+    metrics_initialization = nested.get("weight_initialization")
+    required_roles = {"W_in", "W_out", "W_EE_1", "W_EI_1", "W_IE_1", "W_II_1"}
+    if not isinstance(initialization, dict) or not required_roles <= set(
+        initialization
+    ):
+        reasons.append("config missing complete weight initialization provenance")
+    elif initialization != metrics_initialization:
+        reasons.append("config/metrics weight initialization provenance mismatch")
+    else:
+        for role, record in initialization.items():
+            if record.get("zeros_remain_trainable") is not True:
+                reasons.append(
+                    f"{role} does not declare trainable initialization zeros"
+                )
+            if record.get("distribution") not in {
+                "lower_clamped_normal",
+                "signed_normal",
+                "kaiming_uniform_signed",
+                "uniform",
+                "constant",
+                "zeros",
+            }:
+                reasons.append(f"{role} has unknown initialization distribution")
+            if not isinstance(record.get("statistics"), dict):
+                reasons.append(f"{role} missing initialization statistics")
+        if not _same(
+            initialization["W_in"].get("requested_initial_zero_fraction"),
+            expected.get("w_in_initial_zero_fraction", 0.0),
+        ):
+            reasons.append("W_in initial-zero fraction mismatch")
+    final_weights = metrics.get("weight_final")
+    if not isinstance(final_weights, dict) or not required_roles <= set(final_weights):
+        reasons.append("metrics missing final weight/regrowth provenance")
+
+
 def validate_cell(
     cell: dict[str, Any], *, load_checkpoint: bool = True
 ) -> dict[str, Any]:
@@ -326,40 +397,13 @@ def validate_cell(
         actual = config.get(key, nested.get(key))
         if not _same(actual, wanted):
             reasons.append(f"config {key} mismatch: {actual!r} != {wanted!r}")
-    initialization = config.get("weight_initialization")
-    metrics_initialization = nested.get("weight_initialization")
-    required_roles = {"W_in", "W_out", "W_EE_1", "W_EI_1", "W_IE_1", "W_II_1"}
-    if not isinstance(initialization, dict) or not required_roles <= set(
-        initialization
-    ):
-        reasons.append("config missing complete weight initialization provenance")
-    elif initialization != metrics_initialization:
-        reasons.append("config/metrics weight initialization provenance mismatch")
-    else:
-        for role, record in initialization.items():
-            if record.get("zeros_remain_trainable") is not True:
-                reasons.append(
-                    f"{role} does not declare trainable initialization zeros"
-                )
-            if record.get("distribution") not in {
-                "lower_clamped_normal",
-                "signed_normal",
-                "kaiming_uniform_signed",
-                "uniform",
-                "constant",
-                "zeros",
-            }:
-                reasons.append(f"{role} has unknown initialization distribution")
-            if not isinstance(record.get("statistics"), dict):
-                reasons.append(f"{role} missing initialization statistics")
-        if not _same(
-            initialization["W_in"].get("requested_initial_zero_fraction"),
-            expected.get("w_in_initial_zero_fraction", 0.0),
-        ):
-            reasons.append("W_in initial-zero fraction mismatch")
-    final_weights = metrics.get("weight_final")
-    if not isinstance(final_weights, dict) or not required_roles <= set(final_weights):
-        reasons.append("metrics missing final weight/regrowth provenance")
+    _check_cell_weight_provenance(
+        config=config,
+        nested=nested,
+        metrics=metrics,
+        expected=expected,
+        reasons=reasons,
+    )
     epochs = int(cell["parameters"]["epochs"])
     samples = int(cell["parameters"]["max_samples"])
     if len(history) < epochs or int(history[-1].get("ep", -1)) < epochs:
@@ -375,32 +419,14 @@ def validate_cell(
             f"history does not record {expected_train_samples} training samples "
             f"for each of {epochs} epochs"
         )
-    if load_checkpoint:
-        checkpoint_specs = {
-            "best_validation": ("weights.pth", metrics.get("best_epoch")),
-            "final_epoch": ("weights_final.pth", epochs),
-        }
-        recorded_checkpoints = metrics.get("checkpoints", {})
-        for role, (filename, expected_epoch) in checkpoint_specs.items():
-            record = recorded_checkpoints.get(role)
-            if not isinstance(record, dict):
-                reasons.append(f"missing {role} checkpoint metadata")
-                continue
-            if record.get("filename") != filename:
-                reasons.append(f"{role} checkpoint filename mismatch")
-            if record.get("epoch") != expected_epoch:
-                reasons.append(f"{role} checkpoint epoch mismatch")
-            path = directory / filename
-            if record.get("sha256") != sha256_file(path):
-                reasons.append(f"{role} checkpoint hash mismatch")
-            try:
-                from experiments.exp022.custom.checkpoints import checkpoint_tensors
-
-                checkpoint_tensors(path, config)
-            except Exception as exc:  # noqa: BLE001
-                reasons.append(
-                    f"{role} checkpoint load failed: {type(exc).__name__}: {exc}"
-                )
+    _check_cell_checkpoints(
+        directory=directory,
+        metrics=metrics,
+        epochs=epochs,
+        config=config,
+        reasons=reasons,
+        load_checkpoint=load_checkpoint,
+    )
     return {
         "valid": not reasons,
         "state": "complete" if not reasons else "invalid",
@@ -510,21 +536,23 @@ def acquire_attempt(
         record["attempt_id"] = attempt_id
         try:
             descriptor = os.open(lock, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-        except FileExistsError:
+        except FileExistsError as exc:
             prior = _json(record_file) if record_file.exists() else {}
             active = attempt_is_active(prior)
             if active is True:
-                raise RuntimeError(f"cell {cell['name']} is owned by an active attempt")
+                raise RuntimeError(
+                    f"cell {cell['name']} is owned by an active attempt"
+                ) from exc
             if not recover_stale:
                 state = "stale" if active is False else "unconfirmed"
                 raise RuntimeError(
                     f"cell {cell['name']} has a {state} attempt lock; "
                     "use --recover-stale only after confirming its job is inactive"
-                )
+                ) from exc
             if active is not False:
                 raise RuntimeError(
                     f"cannot confirm that the prior attempt for {cell['name']} is inactive"
-                )
+                ) from exc
             recovery = lock.with_suffix(".recovery")
             try:
                 recovery_fd = os.open(
@@ -720,44 +748,8 @@ def _bank_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _checked_bank_manifest(path: Path) -> dict:
-    manifest_path = path.resolve()
-    manifest = load_manifest(manifest_path)
-    root = Path(manifest["bank_root"])
-    if not root.is_absolute() or root.resolve() != root:
-        raise SystemExit("bank working root must be an absolute resolved path")
-    if manifest_path != root / "bank.json":
-        raise SystemExit("bank manifest must be <working-root>/bank.json")
-    commit, dirty = git_identity(REPO)
-    if dirty:
-        raise SystemExit("bank execution requires a clean source worktree")
-    if manifest["repository"] != {"commit": commit, "dirty": False}:
-        raise SystemExit(
-            "bank manifest does not match the clean checked-out commit: "
-            f"manifest={manifest['repository']['commit']} checkout={commit}"
-        )
-    if manifest.get("environment", {}).get("lockfile") != lock_identity(REPO):
-        raise SystemExit("bank lockfile identity does not match the checkout")
-
-    native_identity = execution_identity()
-    if manifest["environment"].get("native_identity") != native_identity:
-        raise SystemExit("training data, execution request or runtime source changed")
-    tier = manifest.get("selection", {}).get("tier")
-    try:
-        if tier == "exp110-coba-damping-replacement":
-            from experiments.exp022.custom.reuse_contract import replacement_cells
-
-            selected_cells = replacement_cells()
-        else:
-            selected_cells = recipe.cells_in_resource_tier(tier)
-    except ValueError as exc:
-        raise SystemExit(str(exc)) from exc
-    manifest_names_list = [row.get("name") for row in manifest.get("cells", [])]
-    if len(manifest_names_list) != len(set(manifest_names_list)):
-        raise SystemExit("bank manifest contains duplicate cell names")
-    expected_names_list = [cell["name"] for cell in selected_cells]
-    if manifest_names_list != expected_names_list:
-        raise SystemExit("bank cell list does not exactly match its declared selection")
+def _bank_runtime_commands(*, manifest, root, native_identity):
+    """Rebuild frozen commands under the requested plumbing environment."""
     previous_plumbing = os.environ.get("PINGLAB_NB022_PLUMBING")
     runtime_commands = {}
     try:
@@ -821,6 +813,50 @@ def _checked_bank_manifest(path: Path) -> dict:
         else:
             os.environ["PINGLAB_NB022_PLUMBING"] = previous_plumbing
     manifest["_runtime_commands"] = runtime_commands
+    return runtime_commands
+
+
+def _checked_bank_manifest(path: Path) -> dict:
+    manifest_path = path.resolve()
+    manifest = load_manifest(manifest_path)
+    root = Path(manifest["bank_root"])
+    if not root.is_absolute() or root.resolve() != root:
+        raise SystemExit("bank working root must be an absolute resolved path")
+    if manifest_path != root / "bank.json":
+        raise SystemExit("bank manifest must be <working-root>/bank.json")
+    commit, dirty = git_identity(REPO)
+    if dirty:
+        raise SystemExit("bank execution requires a clean source worktree")
+    if manifest["repository"] != {"commit": commit, "dirty": False}:
+        raise SystemExit(
+            "bank manifest does not match the clean checked-out commit: "
+            f"manifest={manifest['repository']['commit']} checkout={commit}"
+        )
+    if manifest.get("environment", {}).get("lockfile") != lock_identity(REPO):
+        raise SystemExit("bank lockfile identity does not match the checkout")
+
+    native_identity = execution_identity()
+    if manifest["environment"].get("native_identity") != native_identity:
+        raise SystemExit("training data, execution request or runtime source changed")
+    tier = manifest.get("selection", {}).get("tier")
+    try:
+        if tier == "exp110-coba-damping-replacement":
+            from experiments.exp022.custom.reuse_contract import replacement_cells
+
+            selected_cells = replacement_cells()
+        else:
+            selected_cells = recipe.cells_in_resource_tier(tier)
+    except ValueError as exc:
+        raise SystemExit(str(exc)) from exc
+    manifest_names_list = [row.get("name") for row in manifest.get("cells", [])]
+    if len(manifest_names_list) != len(set(manifest_names_list)):
+        raise SystemExit("bank manifest contains duplicate cell names")
+    expected_names_list = [cell["name"] for cell in selected_cells]
+    if manifest_names_list != expected_names_list:
+        raise SystemExit("bank cell list does not exactly match its declared selection")
+    _bank_runtime_commands(
+        manifest=manifest, root=root, native_identity=native_identity
+    )
     return manifest
 
 
@@ -1104,12 +1140,12 @@ def generate_snapshots(bank: Path, output: Path) -> None:
         training = json.loads((trained / "config.json").read_text())
         request = recipe.diagnostic_request(training, cell)
         run_inference(
-            trained,
-            destination,
-            output.parent / ".scratch/diagnostic-requests" / cell["name"],
-            training,
-            request,
-            recipe.author_network,
+            train=trained,
+            output=destination,
+            attachments=output.parent / ".scratch/diagnostic-requests" / cell["name"],
+            training=training,
+            request=request,
+            author=recipe.author_network,
         )
         write_json_atomic(
             destination / "probe-command.json",
@@ -1131,6 +1167,31 @@ def promote_cells(export: Path) -> None:
             raise PingstoreError(f"cell export already exists: {target}")
         source.rename(target)
     cells.rmdir()
+
+
+def _copy_native_bank_units(*, bank, destination, expected, inventory):
+    """Retain the native training units associated with selected cells."""
+    from pingstore.contracts import file_sha256
+
+    for unit in sorted(bank.iterdir()):
+        if not unit.is_dir() or unit.name in expected:
+            continue
+        if not any(unit.name.startswith(name + "--training--") for name in expected):
+            continue
+        for path in sorted(unit.iterdir()):
+            if not path.is_file() or path.is_symlink():
+                raise PingstoreError(f"invalid native bank artifact: {path}")
+            relative = path.relative_to(bank)
+            target = destination / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(path, target)
+            inventory.append(
+                {
+                    "path": relative.as_posix(),
+                    "sha256": file_sha256(path),
+                    "size_bytes": path.stat().st_size,
+                }
+            )
 
 
 def copy_bank(bank: Path, destination: Path) -> list[dict]:
@@ -1181,25 +1242,9 @@ def copy_bank(bank: Path, destination: Path) -> list[dict]:
                     "size_bytes": target.stat().st_size,
                 }
             )
-    for unit in sorted(bank.iterdir()):
-        if not unit.is_dir() or unit.name in expected:
-            continue
-        if not any(unit.name.startswith(name + "--training--") for name in expected):
-            continue
-        for path in sorted(unit.iterdir()):
-            if not path.is_file() or path.is_symlink():
-                raise PingstoreError(f"invalid native bank artifact: {path}")
-            relative = path.relative_to(bank)
-            target = destination / relative
-            target.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(path, target)
-            inventory.append(
-                {
-                    "path": relative.as_posix(),
-                    "sha256": file_sha256(path),
-                    "size_bytes": path.stat().st_size,
-                }
-            )
+    _copy_native_bank_units(
+        bank=bank, destination=destination, expected=expected, inventory=inventory
+    )
     return inventory
 
 
@@ -1423,8 +1468,168 @@ def bind_model(bundle, training, state, *, scale=1.0, fresh_loop=None, device=No
     return model.to(device or resolve_device("auto")).eval()
 
 
+def _run_inference_batches(
+    *,
+    model,
+    training,
+    request,
+    device,
+    selected,
+    generator,
+    synthetic,
+    snapshot,
+    steps,
+    pixels,
+    labels,
+    recording,
+    forward,
+    output,
+):
+    """Run fresh-state batches and collect population counts and task metrics."""
+    counts = {"e": [], "i": []}
+    events = {"e": [], "i": []}
+    correct = 0
+    ce_sum = 0.0
+    perturb = {}
+    with torch.inference_mode():
+        for start in range(0, len(selected), request["batch_size"]):
+            indices = selected[start : start + request["batch_size"]]
+            if synthetic:
+                probability = request["input_rate_hz"] * training["dt"] / 1000
+                drive = (
+                    (
+                        torch.rand(
+                            steps,
+                            len(indices),
+                            training["n_in"],
+                            generator=generator,
+                        )
+                        < probability
+                    )
+                    .float()
+                    .to(device)
+                )
+            else:
+                images = (
+                    torch.from_numpy(pixels[indices]).to(device)
+                    if snapshot
+                    else torch.from_numpy(pixels[indices])
+                )
+                drive = encode_images_poisson(
+                    images,
+                    steps,
+                    training["dt"],
+                    request["input_rate_hz"],
+                    generator=generator,
+                ).to(device)
+            if forward:
+                result, accounting = forward(model, drive, request)
+                for key, row in accounting.items():
+                    saved = perturb.setdefault(key, dict.fromkeys(row, 0))
+                    for field, value in row.items():
+                        saved[field] += value
+            else:
+                result = model(
+                    {"drive": drive},
+                    diagnostics=snapshot,
+                    recording=recording,
+                    batch_offset=start,
+                )
+            for label in ("e", "i"):
+                value = result.outputs[f"spk_{label}_count"]
+                population = training["n_hidden" if label == "e" else "n_inh"]
+                if (
+                    value.shape != (len(indices), population)
+                    or not torch.isfinite(value).all()
+                    or (value < 0).any()
+                    or (value > steps).any()
+                    or not torch.equal(value, value.floor())
+                ):
+                    raise PingstoreError("invalid population count reduction")
+                counts[label].append(
+                    result.outputs[f"spk_{label}_count"].detach().cpu().numpy()
+                )
+                if recording:
+                    events[label].append(
+                        result.recorded_signals[f"{label.upper()}.spikes"].cpu().numpy()
+                    )
+            if snapshot:
+                raw = {
+                    k: v.detach().cpu().numpy()[:, 0]
+                    for k, v in result.diagnostics.items()
+                }
+                np.savez_compressed(
+                    output / "recording.npz",
+                    dt=np.float32(training["dt"]),
+                    n_e=np.int32(training["n_hidden"]),
+                    n_i=np.int32(training["n_inh"]),
+                    label=np.int64(labels[indices[0]]),
+                    **raw,
+                )
+            elif not synthetic:
+                scores = result.outputs["class_scores"]
+                if (
+                    scores.shape != (len(indices), training["n_out"])
+                    or not torch.isfinite(scores).all()
+                ):
+                    raise PingstoreError("invalid class score reduction")
+                targets = torch.from_numpy(labels[indices]).to(device)
+                correct += int((scores.argmax(1) == targets).sum())
+                ce_sum += float(F.cross_entropy(scores, targets, reduction="sum"))
+    return counts, events, correct, ce_sum, perturb
+
+
+def _select_inference_inputs(*, training, request, cursor, device):
+    """Resolve input selection and random streams before executing batches."""
+    steps = duration_steps(request["t_ms"], training["dt"])
+    snapshot = request["input"] == "snapshot"
+    synthetic = request["input"] == "synthetic"
+    if synthetic:
+        pixels, labels = None, None
+        selected = np.arange(request["trials"])
+        generator = torch.Generator().manual_seed(training["seed"] + 1)
+    else:
+        _, pixels, _, labels = load_dataset(
+            "mnist", split=True, evaluation_only=True, evaluation_split="test"
+        )
+        if (
+            pixels.shape != (10000, training["n_in"])
+            or labels.shape != (10000,)
+            or not np.isfinite(pixels).all()
+            or (pixels < 0).any()
+            or (pixels > 1).any()
+        ):
+            raise PingstoreError("invalid official MNIST test partition")
+        if snapshot:
+            index = request.get("sample_index")
+            if index is None:
+                indices = np.flatnonzero(labels == request["digit"])
+                index = int(indices[request["sample"]])
+            if not 0 <= index < len(labels):
+                raise PingstoreError("snapshot index out of range")
+            selected = np.array([index])
+            # Historical snapshots encode on the device stream after CPU
+            # initialization; non-CPU initialization consumes no device draws.
+            generator = (
+                cursor
+                if device.type == "cpu"
+                else torch.Generator(device=device).manual_seed(training["seed"])
+            )
+        else:
+            samples = request["samples"]
+            selected = (
+                np.random.RandomState(request["subset_seed"]).choice(
+                    len(labels), samples, replace=False
+                )
+                if samples < len(labels)
+                else np.arange(len(labels))
+            )
+            generator = torch.Generator().manual_seed(request["encoder_seed"])
+    return steps, snapshot, synthetic, pixels, labels, selected, generator
+
+
 def run_inference(
-    train, output, attachments, training, request, author, *, forward=None
+    *, train, output, attachments, training, request, author, forward=None
 ):
     """Each batch begins with fresh state; input and checkpoint order are explicit."""
     checkpoint = resolve_checkpoint(train, request["checkpoint_role"])
@@ -1452,50 +1657,11 @@ def run_inference(
         seed=training["seed"],
         settings=request,
     ):
-        steps = duration_steps(request["t_ms"], training["dt"])
-        snapshot = request["input"] == "snapshot"
-        synthetic = request["input"] == "synthetic"
-        if synthetic:
-            pixels, labels = None, None
-            selected = np.arange(request["trials"])
-            generator = torch.Generator().manual_seed(training["seed"] + 1)
-        else:
-            _, pixels, _, labels = load_dataset(
-                "mnist", split=True, evaluation_only=True, evaluation_split="test"
+        steps, snapshot, synthetic, pixels, labels, selected, generator = (
+            _select_inference_inputs(
+                training=training, request=request, cursor=cursor, device=device
             )
-            if (
-                pixels.shape != (10000, training["n_in"])
-                or labels.shape != (10000,)
-                or not np.isfinite(pixels).all()
-                or (pixels < 0).any()
-                or (pixels > 1).any()
-            ):
-                raise PingstoreError("invalid official MNIST test partition")
-            if snapshot:
-                index = request.get("sample_index")
-                if index is None:
-                    indices = np.flatnonzero(labels == request["digit"])
-                    index = int(indices[request["sample"]])
-                if not 0 <= index < len(labels):
-                    raise PingstoreError("snapshot index out of range")
-                selected = np.array([index])
-                # Historical snapshots encode on the device stream after CPU
-                # initialization; non-CPU initialization consumes no device draws.
-                generator = (
-                    cursor
-                    if device.type == "cpu"
-                    else torch.Generator(device=device).manual_seed(training["seed"])
-                )
-            else:
-                samples = request["samples"]
-                selected = (
-                    np.random.RandomState(request["subset_seed"]).choice(
-                        len(labels), samples, replace=False
-                    )
-                    if samples < len(labels)
-                    else np.arange(len(labels))
-                )
-                generator = torch.Generator().manual_seed(request["encoder_seed"])
+        )
         recording = (
             RecordingSpec(
                 tuple(
@@ -1506,98 +1672,22 @@ def run_inference(
             if any(k in request["products"] for k in ("rasters", "population"))
             else None
         )
-        counts = {"e": [], "i": []}
-        events = {"e": [], "i": []}
-        correct = 0
-        ce_sum = 0.0
-        perturb = {}
-        with torch.inference_mode():
-            for start in range(0, len(selected), request["batch_size"]):
-                indices = selected[start : start + request["batch_size"]]
-                if synthetic:
-                    probability = request["input_rate_hz"] * training["dt"] / 1000
-                    drive = (
-                        (
-                            torch.rand(
-                                steps,
-                                len(indices),
-                                training["n_in"],
-                                generator=generator,
-                            )
-                            < probability
-                        )
-                        .float()
-                        .to(device)
-                    )
-                else:
-                    images = (
-                        torch.from_numpy(pixels[indices]).to(device)
-                        if snapshot
-                        else torch.from_numpy(pixels[indices])
-                    )
-                    drive = encode_images_poisson(
-                        images,
-                        steps,
-                        training["dt"],
-                        request["input_rate_hz"],
-                        generator=generator,
-                    ).to(device)
-                if forward:
-                    result, accounting = forward(model, drive, request)
-                    for key, row in accounting.items():
-                        saved = perturb.setdefault(key, {field: 0 for field in row})
-                        for field, value in row.items():
-                            saved[field] += value
-                else:
-                    result = model(
-                        {"drive": drive},
-                        diagnostics=snapshot,
-                        recording=recording,
-                        batch_offset=start,
-                    )
-                for label in ("e", "i"):
-                    value = result.outputs[f"spk_{label}_count"]
-                    population = training["n_hidden" if label == "e" else "n_inh"]
-                    if (
-                        value.shape != (len(indices), population)
-                        or not torch.isfinite(value).all()
-                        or (value < 0).any()
-                        or (value > steps).any()
-                        or not torch.equal(value, value.floor())
-                    ):
-                        raise PingstoreError("invalid population count reduction")
-                    counts[label].append(
-                        result.outputs[f"spk_{label}_count"].detach().cpu().numpy()
-                    )
-                    if recording:
-                        events[label].append(
-                            result.recorded_signals[f"{label.upper()}.spikes"]
-                            .cpu()
-                            .numpy()
-                        )
-                if snapshot:
-                    raw = {
-                        k: v.detach().cpu().numpy()[:, 0]
-                        for k, v in result.diagnostics.items()
-                    }
-                    np.savez_compressed(
-                        output / "recording.npz",
-                        dt=np.float32(training["dt"]),
-                        n_e=np.int32(training["n_hidden"]),
-                        n_i=np.int32(training["n_inh"]),
-                        label=np.int64(labels[indices[0]]),
-                        **raw,
-                    )
-                elif not synthetic:
-                    scores = result.outputs["class_scores"]
-                    if (
-                        scores.shape != (len(indices), training["n_out"])
-                        or not torch.isfinite(scores).all()
-                    ):
-                        raise PingstoreError("invalid class score reduction")
-                    targets = torch.from_numpy(labels[indices]).to(device)
-                    correct += int((scores.argmax(1) == targets).sum())
-                    ce_sum += float(F.cross_entropy(scores, targets, reduction="sum"))
+        counts, events, correct, ce_sum, perturb = _run_inference_batches(
+            model=model,
+            training=training,
+            request=request,
+            device=device,
+            selected=selected,
+            generator=generator,
+            synthetic=synthetic,
+            snapshot=snapshot,
+            steps=steps,
+            pixels=pixels,
+            labels=labels,
+            recording=recording,
+            forward=forward,
+            output=output,
+        )
         count = {k: np.concatenate(v) for k, v in counts.items()}
         seconds = steps * training["dt"] / 1000
         rates = {

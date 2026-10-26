@@ -147,7 +147,8 @@ def lab(tmp_path, monkeypatch):
                 )
     calls = []
 
-    def simulate(train_dir, out, attachments, training, request, author, **kwargs):
+    def simulate(*, train, output, attachments, training, request, author, **kwargs):
+        out = output
         calls.append(request)
         out.mkdir(parents=True)
         attachments.mkdir(parents=True, exist_ok=True)

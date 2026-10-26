@@ -19,10 +19,8 @@ def native(bundle, drives, coupling, state=None):
         seed=recipe.NETWORK_SEED,
         device="cpu",
         input_bindings=tuple(
-            (
-                DenseArrayBinding(k, torch.from_numpy(v).float())
-                for (k, v) in drives.items()
-            )
+            DenseArrayBinding(k, torch.from_numpy(v).float())
+            for (k, v) in drives.items()
         ),
         inference_overrides={"projection_scales": recipe.coupling_scales(coupling)},
         runtime_state=state,
@@ -206,7 +204,7 @@ def test_sender_receiver_reciprocal_coupling_switches_without_reset(monkeypatch)
             seed=recipe.NETWORK_SEED,
             device="cpu",
             input_bindings=tuple(
-                (DenseArrayBinding(key, value) for (key, value) in drives.items())
+                DenseArrayBinding(key, value) for (key, value) in drives.items()
             ),
             performance=Performance(compile_mode=None),
         )

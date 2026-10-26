@@ -4,10 +4,6 @@ Run with `uv run pytest experiments/exp046/test.py`. Fixtures use temporary stor
 bounded native checks validate numerical behavior without production runs.
 """
 
-import subprocess
-import sys
-from pathlib import Path
-
 import numpy as np
 import pytest
 from experiments.exp046 import analyse, compute, present, recipe
@@ -200,7 +196,8 @@ def cycle_lab(lab, monkeypatch):
         monkeypatch.setattr(module, "REPO", root)
     calls = []
 
-    def simulate(train_dir, out, attachments, training, request, author, **kwargs):
+    def simulate(*, train, output, attachments, training, request, author, **kwargs):
+        out = output
         calls.append(request)
         out.mkdir(parents=True)
         attachments.mkdir(parents=True, exist_ok=True)

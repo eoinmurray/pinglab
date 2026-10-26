@@ -17,16 +17,16 @@ def perturb_forward(generator):
     def forward(model, drive, request):
         state = None
         totals = {
-            key: {
-                field: 0
-                for field in (
+            key: dict.fromkeys(
+                (
                     "raw_spikes",
                     "transmitted_spikes",
                     "inserted_spikes",
                     "deleted_spikes",
                     "slots",
-                )
-            }
+                ),
+                0,
+            )
             for key in ("e1", "i1")
         }
         counts = {}

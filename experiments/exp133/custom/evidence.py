@@ -68,27 +68,30 @@ def recording(source, name, steps):
     return values
 
 
-def compute_contract(source):
-    cfg = configuration(source)
-    pins = source.record["inputs"]
-    if set(pins) not in (set(), {"parameter_reference"}):
-        raise PingstoreError("unexpected grid compute inputs")
-    preserved = None
-    if pins:
-        pin = pins["parameter_reference"]
-        reference = inputs.source(
-            source.directory.parents[2], pin["run_id"], "compute", reference=pin
-        )
-        preserved = parameter_reference(reference)
-    mapping = source.record["scientific_artifacts"]["native_paths"]
-    manifest = load_json(source.export / mapping["paired-ping.bundle/manifest.json"])
-    if manifest["graph_digest"] != cfg["bundle_digest"]:
-        raise PingstoreError("retained network differs from recipe")
-    onset = round(recipe.COUPLING_ONSET_MS / recipe.DT_MS)
-    state = load_runtime_state(source.unit("prefix-state"))
-    if state.completed_steps != onset:
-        raise PingstoreError("branch point has incorrect duration")
-    recording(source, "prefix", onset)
+def _check_reference_parameters(*, preserved, cross_names, k, values):
+    """Require native weights to preserve the pinned scientific reference."""
+    if preserved is not None:
+        for key, original in preserved.items():
+            if key in cross_names:
+                if k > 0 and not np.array_equal(values[key] != 0, original != 0):
+                    raise PingstoreError("cross-network mask differs from reference")
+            elif key in {f"PING_{n}_input_to_E.weight" for n in ("A", "B")}:
+                factor = recipe.N_INPUT // original.shape[0]
+                target = np.tile(original, (factor, 1)) / factor
+                if values[key].shape != target.shape or not np.allclose(
+                    values[key], target, atol=1e-9, rtol=1e-6
+                ):
+                    raise PingstoreError(
+                        "input weights do not preserve reference summed drive"
+                    )
+            elif not np.array_equal(values[key], original):
+                raise PingstoreError(
+                    "recurrent weights differ from parameter reference"
+                )
+
+
+def _retained_input_descriptors(*, source, onset):
+    """Authenticate retained input trains and describe their prefix and suffix."""
     input_descriptors = {"prefix": {}, "suffix": {}}
     with np.load(source.export / "inputs.npz", allow_pickle=False) as raw:
         if set(raw.files) != set(recipe.rates()):
@@ -121,6 +124,12 @@ def compute_contract(source):
                     dtype="float32",
                     sha256=digest.hexdigest(),
                 )
+    return input_descriptors, shape
+
+
+def _check_paired_couplings(*, source, mapping, onset, preserved):
+    """Validate retained inputs and native parameters for every coupled execution."""
+    input_descriptors, shape = _retained_input_descriptors(source=source, onset=onset)
     expected = {"prefix", *(recipe.label(k) for k in recipe.K_VALUES_US)}
     executions = source.record["execution"].get("simulations", {})
     if set(executions) != expected:
@@ -171,26 +180,9 @@ def compute_contract(source):
             .items()
         }
         cross_names = {f"{cross}.weight" for cross in recipe.cross_ids()}
-        if preserved is not None:
-            for key, original in preserved.items():
-                if key in cross_names:
-                    if k > 0 and not np.array_equal(values[key] != 0, original != 0):
-                        raise PingstoreError(
-                            "cross-network mask differs from reference"
-                        )
-                elif key in {f"PING_{n}_input_to_E.weight" for n in ("A", "B")}:
-                    factor = recipe.N_INPUT // original.shape[0]
-                    target = np.tile(original, (factor, 1)) / factor
-                    if values[key].shape != target.shape or not np.allclose(
-                        values[key], target, atol=1e-9, rtol=1e-6
-                    ):
-                        raise PingstoreError(
-                            "input weights do not preserve reference summed drive"
-                        )
-                elif not np.array_equal(values[key], original):
-                    raise PingstoreError(
-                        "recurrent weights differ from parameter reference"
-                    )
+        _check_reference_parameters(
+            preserved=preserved, cross_names=cross_names, k=k, values=values
+        )
         local = {key: value for key, value in values.items() if key not in cross_names}
         if reference_local is None:
             reference_local = local
@@ -220,4 +212,30 @@ def compute_contract(source):
                 raise PingstoreError(
                     "cross-network connectivity changed between requests"
                 )
+
+
+def compute_contract(source):
+    cfg = configuration(source)
+    pins = source.record["inputs"]
+    if set(pins) not in (set(), {"parameter_reference"}):
+        raise PingstoreError("unexpected grid compute inputs")
+    preserved = None
+    if pins:
+        pin = pins["parameter_reference"]
+        reference = inputs.source(
+            source.directory.parents[2], pin["run_id"], "compute", reference=pin
+        )
+        preserved = parameter_reference(reference)
+    mapping = source.record["scientific_artifacts"]["native_paths"]
+    manifest = load_json(source.export / mapping["paired-ping.bundle/manifest.json"])
+    if manifest["graph_digest"] != cfg["bundle_digest"]:
+        raise PingstoreError("retained network differs from recipe")
+    onset = round(recipe.COUPLING_ONSET_MS / recipe.DT_MS)
+    state = load_runtime_state(source.unit("prefix-state"))
+    if state.completed_steps != onset:
+        raise PingstoreError("branch point has incorrect duration")
+    recording(source, "prefix", onset)
+    _check_paired_couplings(
+        source=source, mapping=mapping, onset=onset, preserved=preserved
+    )
     return cfg

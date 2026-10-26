@@ -6,14 +6,16 @@ authoring and analysis definitions do not load data or launch a stage on import.
 
 from copy import deepcopy
 
-from experiments.exp046.custom.source_exp041_recipe import ANALYSIS_PURPOSE
-from experiments.exp046.custom.source_exp041_recipe import CHECKPOINT_POLICY
-from experiments.exp046.custom.source_exp041_recipe import CHECKPOINT_ROLE
-from experiments.exp046.custom.source_exp041_recipe import EVAL_MAX_SAMPLES
-from experiments.exp046.custom.source_exp041_recipe import SEEDS
-from experiments.exp046.custom.source_exp041_recipe import SMOKE_MAX_SAMPLES
-from experiments.exp046.custom.source_exp041_recipe import TAU_GABA_SWEEP
-from experiments.exp046.custom.source_exp041_recipe import cell_name
+from experiments.exp046.custom.source_exp041_recipe import (
+    ANALYSIS_PURPOSE,
+    CHECKPOINT_POLICY,
+    CHECKPOINT_ROLE,
+    EVAL_MAX_SAMPLES,
+    SEEDS,
+    SMOKE_MAX_SAMPLES,
+    TAU_GABA_SWEEP,
+    cell_name,
+)
 
 SLUG = "exp046"
 REFRACTORY_E_MS = 1.2

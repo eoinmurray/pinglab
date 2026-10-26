@@ -8,10 +8,9 @@ this module does not start computation or select a scientific run.
 from contextlib import contextmanager
 from pathlib import Path
 
+from experiments.exp044 import recipe
 from pingstore.contracts import RUN_SCHEMA, PingstoreError, load_json, run_root
 from pingstore.stages import source_run, stage_run
-
-from experiments.exp044 import recipe
 
 SOURCE_POLICY = "selected-v4-training-bank"
 

@@ -7,6 +7,7 @@ and input provenance belong to its independently completed Pingstore run.
 from __future__ import annotations
 
 import sys
+from itertools import pairwise
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
@@ -206,7 +207,7 @@ def analyse(identity, *, run_id=None):
         crossing = next(
             (
                 0.5 * (a["scale"] + b["scale"])
-                for a, b in zip(ping, ping[1:])
+                for a, b in pairwise(ping)
                 if a["rate_i"] < 0.05 <= b["rate_i"]
             ),
             None,

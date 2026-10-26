@@ -216,7 +216,7 @@ def _comparison_figure(summary, arrays, model):
     figure, axes = plt.subplots(
         2, 3, figsize=(WIDTH_IN, 132 / 25.4), layout="constrained"
     )
-    for index, (case, color) in enumerate(zip(cases, colors)):
+    for index, (case, color) in enumerate(zip(cases, colors, strict=True)):
         stem = f"{model}__{case['id']}__"
         g_clock, v_clock = (
             arrays[stem + key] / NS_PER_MS for key in ("g_time_ns", "v_time_ns")
@@ -289,6 +289,7 @@ def _comparison_figure(summary, arrays, model):
         axes[1],
         ("Receptor error", "Reset-aware voltage error", "Ordinal spike shift"),
         ("Mean |Δg| (nS)", "Mean |ΔV| (mV)", "Signed shift (ms)"),
+        strict=True,
     ):
         ax.set(
             title=title,
@@ -408,7 +409,7 @@ def _score_classification_figure(
             (color, "-") for color in _colors()
         ]
         winner = cases[-1][decision_key]["prediction"]
-        for case, (color, style) in zip(display_cases, styles):
+        for case, (color, style) in zip(display_cases, styles, strict=True):
             stem = f"{model}__{case['id']}__"
             time = arrays[stem + array_prefix + "v_time_ns"] / NS_PER_MS
             scores = arrays[stem + array_prefix + "readout_scores"]
@@ -478,7 +479,9 @@ def _score_classification_figure(
             yticklabels=display_labels,
         )
         lines = []
-        for index, (case, dt) in enumerate(zip(display_cases, display_labels)):
+        for index, (case, dt) in enumerate(
+            zip(display_cases, display_labels, strict=True)
+        ):
             decision = case[decision_key]
             predicted = decision["prediction"]
             ax.plot(
@@ -584,7 +587,7 @@ def _classification_figure(summary, arrays, *, label):
         if not 0 <= label < n_output:
             raise ValueError("true label is outside the recorded output classes")
         winner = cases[-1]["classification"]["prediction"]
-        for case, color in zip(cases, colors):
+        for case, color in zip(cases, colors, strict=True):
             stem = f"{model}__{case['id']}__"
             time = arrays[stem + "v_time_ns"] / NS_PER_MS
             axes[0, column].plot(
@@ -661,7 +664,7 @@ def _classification_figure(summary, arrays, *, label):
         colorbar = figure.colorbar(heat, ax=axes[1, column], fraction=0.035, pad=0.02)
         colorbar.set_ticks([1, n_output])
         lines = []
-        for case, dt in zip(display_cases, display_labels):
+        for case, dt in zip(display_cases, display_labels, strict=True):
             decision = case["classification"]
             common = case["common_clock_classification"]
             margin = decision["margin"]

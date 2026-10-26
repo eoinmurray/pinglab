@@ -18,6 +18,8 @@ import numpy as np
 import snnlab
 import torch
 import torch.nn.functional as F
+from experiments.exp042 import recipe
+from experiments.exp042.custom import inputs, transforms
 from experiments.exp042.custom.network_artifacts import model_execution
 from pingstore.contracts import (
     PingstoreError,
@@ -36,9 +38,6 @@ from snnlab.sim import (
     load_dataset,
     plan_graph,
 )
-
-from experiments.exp042.custom import inputs, transforms
-from experiments.exp042 import recipe
 
 
 def _digest(value):

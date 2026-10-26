@@ -8,10 +8,9 @@ this module does not start computation or select a scientific run.
 from __future__ import annotations
 
 import json
-
 from pathlib import Path
 
-from pingstore.contracts import PingstoreError, file_sha256
+from pingstore.contracts import file_sha256
 
 ROLES = {
     "best_validation": "weights.pth",

@@ -95,7 +95,9 @@ def figure(data, cfg):
     conductance_ax.set(ylabel="Inhibitory g (µS)")
     current_ax.set(ylabel="Current (nA)", xlabel="Time (ms)", ylim=(-0.08, 1.15))
     phase_ax.set(xlabel="n1 voltage (mV)", ylabel="n2 voltage (mV)", aspect="equal")
-    for letter, ax in zip("ABCD", (voltage_ax, conductance_ax, phase_ax, current_ax)):
+    for letter, ax in zip(
+        "ABCD", (voltage_ax, conductance_ax, phase_ax, current_ax), strict=True
+    ):
         ax.text(
             -0.1 if ax != phase_ax else -0.18,
             1.04,

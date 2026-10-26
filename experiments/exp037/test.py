@@ -4,9 +4,7 @@ Run with `uv run pytest experiments/exp037/test.py`. Fixtures use temporary stor
 bounded native checks validate numerical behavior without production runs.
 """
 
-import os
 import subprocess
-import sys
 from pathlib import Path
 
 import numpy as np
@@ -161,7 +159,8 @@ def lab(tmp_path, monkeypatch):
     )
     calls = []
 
-    def simulate(train_dir, out, attachments, training, request, author, **kwargs):
+    def simulate(*, train, output, attachments, training, request, author, **kwargs):
+        train_dir, out = train, output
         calls.append(request)
         out.mkdir(parents=True)
         attachments.mkdir(parents=True, exist_ok=True)
@@ -441,7 +440,7 @@ def test_frontier_registry_and_multiseed_summaries_are_complete(tmp_path):
             "final_acc": value,
             "rate_e": value / 10,
         }
-        for seed, value in zip((42, 43, 44), (80.0, 82.0, 84.0))
+        for seed, value in zip((42, 43, 44), (80.0, 82.0, 84.0), strict=True)
     ]
     point = measurements.summarize_frontier(rows)[0]
     assert point["seeds"] == [42, 43, 44]
@@ -454,7 +453,7 @@ def test_frontier_registry_and_multiseed_summaries_are_complete(tmp_path):
     summary_rows = [
         {"level": level, "seed": seed, "acc": value}
         for level, values in ((0.0, (80, 82, 84)), (0.5, (40, 50, 60)))
-        for seed, value in zip(recipe.SEEDS_BASELINE, values)
+        for seed, value in zip(recipe.SEEDS_BASELINE, values, strict=True)
     ]
     xs, means, sds = measurements.summarize_accuracy(summary_rows, "level")
     np.testing.assert_allclose(xs, [0.0, 0.5])
@@ -475,7 +474,9 @@ def test_perturbation_summary_retains_seed_and_sample_provenance():
             "e_rate_hz": rate,
             "n_total": 1400,
         }
-        for seed, acc, rate in zip(recipe.SEEDS_BASELINE, (70, 80, 90), (8, 9, 10))
+        for seed, acc, rate in zip(
+            recipe.SEEDS_BASELINE, (70, 80, 90), (8, 9, 10), strict=True
+        )
     ]
     assert measurements.summarize_perturbation_rows(rows) == [
         {
@@ -579,9 +580,11 @@ def test_collect_rejects_missing_shards_and_busy_reservation(lab, monkeypatch):
     with pytest.raises((OSError, PingstoreError)):
         compute.compute(bank, run_id=rid, collect=True)
     directory = root / ".pingstore/runs" / f".{rid}.tmp"
-    with compute._compute_lock(directory, exclusive=False):
-        with pytest.raises(PingstoreError, match="busy"):
-            compute.compute(bank, run_id=rid)
+    with (
+        compute._compute_lock(directory, exclusive=False),
+        pytest.raises(PingstoreError, match="busy"),
+    ):
+        compute.compute(bank, run_id=rid)
 
 
 def test_reviewed_figures_keep_coordinates_show_full_range_and_omit_run_ids(
@@ -605,8 +608,8 @@ def test_reviewed_figures_keep_coordinates_show_full_range_and_omit_run_ids(
     plots.plot_perturbation_curves(data, tmp_path / "curves", "exp037-r999-present")
     figure = captured[0]
     assert not figure.texts
-    for axis, mode in zip(figure.axes, ("drop", "add")):
-        for line, model in zip(axis.lines[:2], recipe.MODELS):
+    for axis, mode in zip(figure.axes, ("drop", "add"), strict=True):
+        for line, model in zip(axis.lines[:2], recipe.MODELS, strict=True):
             np.testing.assert_array_equal(
                 line.get_xdata(), data["panels"][mode][model]["x"]
             )
@@ -657,7 +660,7 @@ def test_unusable_calibration_rejected(baseline):
 def test_analysis_groups_by_percentage_not_applied_hz():
     points, baselines = [], []
     for model in recipe.MODELS:
-        for seed, baseline in zip((42, 43, 44), (20.0, 100.0, 150.0)):
+        for seed, baseline in zip((42, 43, 44), (20.0, 100.0, 150.0), strict=True):
             baselines.append({"model": model, "seed": seed, "e_rate_hz": baseline})
             for mode, levels in [("drop", (0.0, 1.0)), ("add", (0.0, 100.0, 200.0))]:
                 for level in levels:

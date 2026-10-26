@@ -13,8 +13,8 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
 
 import torch
-from experiments.exp047.custom import evidence, inputs
 from experiments.exp047 import recipe
+from experiments.exp047.custom import evidence, inputs
 from experiments.exp047.custom.network_artifacts import model_execution
 from pingstore.contracts import PingstoreError, write_json_atomic
 from snnlab.lang import duration_steps
@@ -88,15 +88,17 @@ def simulate_probe(cfg, item, artifacts):
         .float()
         .to(device)
     )
-    with model_execution(
-        model,
-        bundle,
-        artifacts,
-        seed=item["seed"],
-        settings={"recipe": cfg, "job": item},
+    with (
+        model_execution(
+            model,
+            bundle,
+            artifacts,
+            seed=item["seed"],
+            settings={"recipe": cfg, "job": item},
+        ),
+        torch.inference_mode(),
     ):
-        with torch.inference_mode():
-            result = model({"drive": drive}, diagnostics=False)
+        result = model({"drive": drive}, diagnostics=False)
     rates = {
         key: float(result.outputs[f"spk_{label}_count"].sum())
         / (cfg["n_batch"] * size * steps * cfg["dt_ms"] / 1000)

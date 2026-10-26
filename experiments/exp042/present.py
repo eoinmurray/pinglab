@@ -85,7 +85,7 @@ def present(identity, *, run_id=None):
         )
         write_json_atomic(
             run.export / "numbers.json",
-            {**({**data, "run_id": run.run_id}), "circuit_files": copy_circuits(run)},
+            {**data, "run_id": run.run_id, "circuit_files": copy_circuits(run)},
         )
         run.record["presentation_lineage"] = {
             "analysis": analysis.reference,

@@ -8,16 +8,14 @@ this module does not start computation or select a scientific run.
 from pathlib import PurePosixPath
 
 import numpy as np
-from experiments.exp037.custom.source_exp022_custom_checkpoints import public_provenance
+from experiments.exp037 import recipe
 from experiments.exp037.custom.source_exp022_custom_checkpoints import (
+    public_provenance,
     resolve_checkpoint,
 )
-from experiments.exp037.custom.source_exp041_custom_evidence import _same
-from experiments.exp037.custom.source_exp041_custom_evidence import finite
+from experiments.exp037.custom.source_exp041_custom_evidence import _same, finite
 from experiments.exp037.custom.source_exp041_recipe import TRAINING_COMMON_FIELDS
 from pingstore.contracts import PingstoreError, load_json
-
-from experiments.exp037 import recipe
 
 
 def training_contract(bank):
@@ -264,3 +262,4 @@ def recordings(directory, train, job):
             or not 0 <= int(label) < train["n_out"]
         ):
             raise PingstoreError("invalid snapshot label")
+    return None

@@ -243,7 +243,9 @@ def collect_shards(
             if list(shard_root.glob("*/writer.lock")):
                 raise PingstoreError("compute shards are still running")
             # Resolve frozen worker configuration only while collectors exclude workers.
-            configuration = configuration() if callable(configuration) else configuration
+            configuration = (
+                configuration() if callable(configuration) else configuration
+            )
             allocated: set[str] = set()
             for index in range(count):
                 record = load_json(shard_root / str(index) / "completed.json")
@@ -358,7 +360,9 @@ def run_active_workers(*, run, items, worker, arguments=(), inventory):
         or not (directory / ".writer.lock").is_file()
         or (directory / ".scratch/shards").exists()
     ):
-        raise PingstoreError("workers require a fresh active coordinator-owned compute stage")
+        raise PingstoreError(
+            "workers require a fresh active coordinator-owned compute stage"
+        )
     frozen = {
         "run_id": run.run_id,
         "experiment": active["experiment"],
@@ -373,7 +377,16 @@ def run_active_workers(*, run, items, worker, arguments=(), inventory):
             process = context.Process(
                 name=f"{run.run_id}-{item['id']}",
                 target=_active_worker,
-                args=(directory, item, index, len(items), worker, arguments, inventory, frozen),
+                args=(
+                    directory,
+                    item,
+                    index,
+                    len(items),
+                    worker,
+                    arguments,
+                    inventory,
+                    frozen,
+                ),
             )
             process.start()
             processes.append(process)
@@ -383,7 +396,9 @@ def run_active_workers(*, run, items, worker, arguments=(), inventory):
                 process = pending.pop(sentinel)
                 process.join()
                 if process.exitcode != 0:
-                    raise RuntimeError(f"concurrent worker {process.name} failed with exit code {process.exitcode}")
+                    raise RuntimeError(
+                        f"concurrent worker {process.name} failed with exit code {process.exitcode}"
+                    )
     finally:
         # This also handles spawn failures, KeyboardInterrupt and failed children.
         for process in processes:
@@ -402,23 +417,45 @@ def run_active_workers(*, run, items, worker, arguments=(), inventory):
                 raise PingstoreError("worker exited without releasing its writer lock")
             record = load_json(folder / "completed.json")
             expected = {
-                **frozen, "schema": SHARD_SCHEMA, "index": index,
-                "count": len(items), "work_items": [item["id"]],
+                **frozen,
+                "schema": SHARD_SCHEMA,
+                "index": index,
+                "count": len(items),
+                "work_items": [item["id"]],
                 "allocation": dict(item),
             }
             if any(record.get(key) != value for key, value in expected.items()):
-                raise PingstoreError("worker completion does not match the active compute allocation")
+                raise PingstoreError(
+                    "worker completion does not match the active compute allocation"
+                )
             files = dict(inventory(directory, item, index))
-            if not files or record.get("files") != files or occupied.intersection(files):
-                raise PingstoreError("worker payload is missing, changed or overlaps another worker")
+            if (
+                not files
+                or record.get("files") != files
+                or occupied.intersection(files)
+            ):
+                raise PingstoreError(
+                    "worker payload is missing, changed or overlaps another worker"
+                )
             occupied.update(files)
             records.append(record)
     # Only the coordinator updates authoritative provenance; no finalization here.
     run.record["execution"]["workers"] = [
-        {key: record[key] for key in (
-            "index", "work_items", "started_at", "completed_at", "host",
-            "device", "scheduler", "command", "allocation", "worker_pid",
-        )}
+        {
+            key: record[key]
+            for key in (
+                "index",
+                "work_items",
+                "started_at",
+                "completed_at",
+                "host",
+                "device",
+                "scheduler",
+                "command",
+                "allocation",
+                "worker_pid",
+            )
+        }
         for record in records
     ]
     return records

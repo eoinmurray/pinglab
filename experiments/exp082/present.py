@@ -138,7 +138,7 @@ def present(identity, *, run_id=None):
         )
         write_json_atomic(
             out / "numbers.json",
-            {**({**result, "run_id": rid}), "circuit_files": copy_circuits(run)},
+            {**result, "run_id": rid, "circuit_files": copy_circuits(run)},
         )
     return run.run_id
 

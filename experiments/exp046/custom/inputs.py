@@ -7,10 +7,9 @@ this module does not start computation or select a scientific run.
 
 from contextlib import contextmanager
 
+from experiments.exp046 import recipe
 from pingstore.contracts import PingstoreError, load_json
 from pingstore.stages import source_run, stage_run
-
-from experiments.exp046 import recipe
 
 
 def lineage(repo, identity, reference=None):
@@ -109,9 +108,8 @@ def compute_evidence(repo, compute):
 
 def frequency_evidence(repo, frequencies, bank, cfg, checkpoints):
     from experiments.exp046.custom import source_exp041_custom_inputs as upstream_inputs
-    from experiments.exp046.custom.source_exp041_analyse import MEASUREMENT
-
     from experiments.exp046.custom.evidence import finite
+    from experiments.exp046.custom.source_exp041_analyse import MEASUREMENT
 
     refs = frequencies.record["inputs"]
     if set(refs) != {"compute", "bank"} or refs["bank"] != bank.reference:

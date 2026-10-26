@@ -114,15 +114,11 @@ def present(identity: str, *, run_id: str | None = None) -> str:
         write_json_atomic(
             run.export / "numbers.json",
             {
-                **(
-                    {
-                        **result,
-                        "run_id": run.run_id,
-                        "duration_s": time.monotonic() - started,
-                        "duration": format_duration(time.monotonic() - started),
-                        "git_sha": run.record["provenance"]["git_commit"],
-                    }
-                ),
+                **result,
+                "run_id": run.run_id,
+                "duration_s": time.monotonic() - started,
+                "duration": format_duration(time.monotonic() - started),
+                "git_sha": run.record["provenance"]["git_commit"],
                 "circuit_files": copy_circuits(run),
             },
         )
@@ -219,7 +215,7 @@ def plot_raster_strip(
     )
     if n == 1:
         axes = [axes]
-    for i, (ax, s) in enumerate(zip(axes, samples)):
+    for i, (ax, s) in enumerate(zip(axes, samples, strict=True)):
         T = s["e"].shape[0]
         t_axis = np.arange(T) * s["dt_ms"]
         # Truncate display to the first t_window_ms ms so cycles are visible.
