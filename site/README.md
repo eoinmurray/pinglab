@@ -14,6 +14,12 @@ Pixi is prebundled when development starts, including animation scripts outside
 `node_modules/.vite/dev` and `node_modules/.vite/build`, so production SSR optimization also stays out of the development cache and cannot replace
 the dependency URLs used by a running preview.
 
+Distill's runtime is already self-hosted at `/vendor/distill/template.v2.js`.
+Only report and note pages load it, with `defer` so it does not block HTML
+parsing. Listing pages use the same prerendered styles without the runtime.
+Search renders its button on the server and downloads React, cmdk and Radix only
+on the first click or Cmd/Ctrl+K activation; that first activation opens the dialog.
+
 Page rendering errors are isolated by `src/middleware.ts`. The affected URL
 shows “An error occurred.” and the error message with a link back to the articles;
 other pages continue rendering. HTML is buffered so component errors cannot
@@ -113,7 +119,9 @@ including multipanel and unavailable figures, but exclude tables. Run counts
 include completed v4 compute/analyse/present records owned by the experiment in
 the local/R2 union in development and the R2 catalog in production, including historical runs, without upstream or hidden runs.
 These are available-run inventory counts, not a claim that every run informed the report.
-Static builds freeze counts; development recalculates on refresh. A report that
+Static builds freeze counts; development caches rendered word/figure counts until
+an experiment, note, slide or shared site source changes, while refreshing run counts
+on every request. Presentation selections remain frozen until restart. A report that
 cannot render shows unavailable word/figure counts in listings rather than taking
 the listing offline. No authored count fields or article date changes are needed.
 All article lists, including every collection, show experiments first, sorted by

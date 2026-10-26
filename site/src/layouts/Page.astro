@@ -21,9 +21,10 @@ interface Props {
   frontMatter?: Record<string, unknown>;
   compact?: boolean;
   noindex?: boolean;
+  distill?: boolean;
 }
 
-const { title, description, frontMatter, compact = false, noindex = false } = Astro.props;
+const { title, description, frontMatter, compact = false, noindex = false, distill = false } = Astro.props;
 const canonicalPath = Astro.url.pathname.replace(/\.html$/, '').replace(/\/+$/, '') || '/';
 const canonicalUrl = new URL(canonicalPath, Astro.site);
 const distillStyles = base + layout + titleStyle + byline + article + math + appendix + print;
@@ -42,7 +43,7 @@ const frontMatterJson = JSON.stringify(frontMatter ?? null).replaceAll('<', '\\u
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>{title} · Pinglab</title>
     <style is:inline id="distill-prerendered-styles" set:html={distillStyles} />
-    <script is:inline src="/vendor/distill/template.v2.js"></script>
+    {distill && <script is:inline defer src="/vendor/distill/template.v2.js"></script>}
   </head>
   <body distill-prerendered>
     {frontMatter && <d-front-matter><script is:inline type="application/json" set:html={frontMatterJson} /></d-front-matter>}

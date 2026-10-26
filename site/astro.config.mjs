@@ -25,11 +25,28 @@ export default defineConfig({
       config: (_, { command }) => ({
         cacheDir: `node_modules/.vite/${command === 'build' || process.env.NODE_ENV === 'production' ? 'build' : 'dev'}`,
       }),
+    }, {
+      name: 'pinglab:invalidate-article-metrics',
+      configureServer(server) {
+        const metrics = new URL('./src/lib/article-metrics.ts', import.meta.url).pathname;
+        const roots = ['../experiments/', '../md/', './src/'].map(path => new URL(path, import.meta.url).pathname);
+        const invalidate = (_event, path) => {
+          if (!roots.some(root => path.startsWith(root))) return;
+          for (const module of server.moduleGraph.getModulesByFile(metrics) ?? []) {
+            server.moduleGraph.invalidateModule(module);
+          }
+        };
+        server.watcher.on('all', invalidate);
+        server.httpServer?.once('close', () => server.watcher.off('all', invalidate));
+      },
     }],
   },
   integrations: [mdx(), react(), {
     name: 'pinglab:dev-run-images',
     hooks: {
+      'astro:config:setup': ({ addClientDirective }) => {
+        addClientDirective({ name: 'search', entrypoint: './src/scripts/search-hydration.ts' });
+      },
       'astro:server:setup': ({ server }) => {
         server.middlewares.use(async (request, response, next) => {
           const pathname = new URL(request.url, 'http://localhost').pathname;
