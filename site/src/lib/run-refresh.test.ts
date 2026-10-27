@@ -76,3 +76,21 @@ test('request context freezes remote metadata until reload', async () => {
   });
   await withRunContext(async () => assert.equal((await store.catalog()).updated_at, '3'));
 });
+
+test('production reads one catalog snapshot throughout the build', async () => {
+  const { RunStore } = await import('./run-store.ts');
+  const previous = process.env.NODE_ENV;
+  process.env.NODE_ENV = 'production';
+  let calls = 0;
+  try {
+    const store = new RunStore({ source: 'remote', catalog: async () => ({
+      schema: 'pingstore.catalog/v1', updated_at: String(++calls), runs: {},
+    }) });
+    assert.equal((await store.catalog()).updated_at, '1');
+    await withRunContext(async () => assert.equal((await store.catalog()).updated_at, '1'));
+    assert.equal(calls, 1);
+  } finally {
+    if (previous === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = previous;
+  }
+});

@@ -39,6 +39,7 @@ export class RunStore {
   readonly control: () => Promise<any>;
   private warned = false;
   private buildIndex?: Promise<RunIndex>;
+  private buildCatalog?: Promise<Catalog>;
   private indexKey = Symbol('run-index');
   private catalogKey = Symbol('run-catalog');
   private controlKey = Symbol('run-control');
@@ -53,7 +54,9 @@ export class RunStore {
     const loadCatalog = options.catalog ?? (async () => process.env.PINGLAB_CATALOG_PATH
       ? validateCatalog(JSON.parse(await readFile(process.env.PINGLAB_CATALOG_PATH, 'utf8')))
       : remoteCatalog(this.base, process.env.NODE_ENV !== 'production'));
-    this.catalog = () => requestValue(this.catalogKey, loadCatalog);
+    this.catalog = () => process.env.NODE_ENV === 'production'
+      ? this.buildCatalog ??= loadCatalog()
+      : requestValue(this.catalogKey, loadCatalog);
     this.control = () => requestValue(this.controlKey, options.control ?? (() => remoteControl(this.base)));
   }
   path(run: string, file: string) {
