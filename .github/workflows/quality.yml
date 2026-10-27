@@ -78,6 +78,15 @@ jobs:
         with:
           node-version: 24
 
+      - name: Setup Bun for reporting dependencies
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install reporting dependencies
+        run: bun install --frozen-lockfile
+        working-directory: site
+
       - name: Ruff
         run: uv run ruff check --output-format=github
 
