@@ -1,15 +1,18 @@
 /** Resolve exact run identities locally in development, otherwise from R2. */
 import { createHash } from 'node:crypto';
+import { resolveRunIndex, validateRunIndex, type RunIndex } from './run-index.ts';
+import { requestValue } from './run-context.ts';
 import { retryRead } from './remote-http.ts';
 import { readdir, readFile, stat } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
-import { assetBase, remoteCatalog, runPattern, safePath, type Catalog } from './remote-catalog.ts';
+import { assetBase, remoteCatalog, remoteControl, validateCatalog, runPattern, safePath, type Catalog } from './remote-catalog.ts';
 
 export interface StoreOptions {
   runsRoot?: string;
   baseUrl?: string;
   source?: 'auto' | 'local' | 'remote';
   catalog?: () => Promise<Catalog>;
+  control?: () => Promise<any>;
 }
 export const absent = (error: unknown) => (error as NodeJS.ErrnoException).code === 'ENOENT';
 function missing(path: string): Error {
@@ -33,7 +36,13 @@ export class RunStore {
   readonly base: string;
   readonly source: 'auto' | 'local' | 'remote';
   readonly catalog: () => Promise<Catalog>;
+  readonly control: () => Promise<any>;
   private warned = false;
+  private buildIndex?: Promise<RunIndex>;
+  private buildCatalog?: Promise<Catalog>;
+  private indexKey = Symbol('run-index');
+  private catalogKey = Symbol('run-catalog');
+  private controlKey = Symbol('run-control');
   private reads = new Map<string, { expires: number; value: Promise<Buffer> }>();
   constructor(options: StoreOptions = {}) {
     this.root = resolve(options.runsRoot ?? process.env.PINGLAB_RUNS_ROOT ?? '../.pingstore/runs');
@@ -42,7 +51,13 @@ export class RunStore {
       ?? (process.env.NODE_ENV === 'production' ? 'remote' : 'auto'));
     if (!['auto', 'local', 'remote'].includes(source)) throw new Error(`Invalid run source: ${source}`);
     this.source = source as StoreOptions['source'] & string;
-    this.catalog = options.catalog ?? (() => remoteCatalog(this.base));
+    const loadCatalog = options.catalog ?? (async () => process.env.PINGLAB_CATALOG_PATH
+      ? validateCatalog(JSON.parse(await readFile(process.env.PINGLAB_CATALOG_PATH, 'utf8')))
+      : remoteCatalog(this.base, process.env.NODE_ENV !== 'production'));
+    this.catalog = () => process.env.NODE_ENV === 'production'
+      ? this.buildCatalog ??= loadCatalog()
+      : requestValue(this.catalogKey, loadCatalog);
+    this.control = () => requestValue(this.controlKey, options.control ?? (() => remoteControl(this.base)));
   }
   path(run: string, file: string) {
     if (!runPattern.test(run) || !safePath(file)) throw new Error('Invalid run file');
@@ -89,7 +104,22 @@ export class RunStore {
   async read(run: string, file: string): Promise<Buffer> {
     const path = this.path(run, file);
     // An existing local run is authoritative, including errors in its files.
-    if (await this.local(run) || this.source === 'local') return readFile(path);
+    if (await this.local(run) || this.source === 'local') {
+      const bytes = await readFile(path);
+      if (this.source !== 'local') {
+        let catalog: Catalog | undefined;
+        try { catalog = await this.catalog(); } catch { /* Index reports the unresolved R2 inventory. */ }
+        const entry = catalog?.runs[run];
+        if (entry) {
+          const fingerprint = entry.files[file];
+          if (!fingerprint || fingerprint.bytes !== bytes.length
+              || createHash('sha256').update(bytes).digest('hex') !== fingerprint.sha256) {
+            throw new Error(`Local checksum mismatch against verified catalog: ${run}/${file}`);
+          }
+        }
+      }
+      return bytes;
+    }
     const entry = await this.entry(run);
     const fingerprint = entry.files[file];
     if (!fingerprint) throw missing(`${run}/${file}`);
@@ -142,14 +172,32 @@ export class RunStore {
     try { return !!(await this.entry(run)).files[file]; }
     catch (error) { if (absent(error)) return false; throw error; }
   }
+  async index(): Promise<RunIndex> {
+    const load = async () => {
+      if (process.env.PINGLAB_REPORT_INDEX_PATH) {
+        const index = validateRunIndex(JSON.parse(await readFile(process.env.PINGLAB_REPORT_INDEX_PATH, 'utf8')));
+        if (this.source !== 'remote' || index.source !== 'remote') throw new Error('Frozen publication indexes require remote-only rendering');
+        return index;
+      }
+      let catalog: Catalog | undefined;
+      if (this.source !== 'local') {
+        try { catalog = await this.catalog(); }
+        catch (error) {
+          if (this.source === 'remote') throw error;
+          if (!this.warned) console.warn('[Pingstore] R2 inventory unavailable; showing local runs only.', error);
+          this.warned = true;
+        }
+      }
+      const control = this.source === 'local' ? undefined : await this.control();
+      return resolveRunIndex({ root: this.root, source: this.source, catalog, control });
+    };
+    if (process.env.NODE_ENV === 'production') return this.buildIndex ??= load();
+    return requestValue(this.indexKey, load);
+  }
   async latest(experiment: string): Promise<string | undefined> {
-    // In development, the latest local presentation wins.
-    const local = (await this.localIds(experiment)).filter(id => id.endsWith('-present'));
-    const ids = local.length ? local : (await this.ids(experiment)).filter(id => id.endsWith('-present'));
-    const candidates = await Promise.all(ids.map(async id => ({ id, completed: Date.parse((await this.json(id)).execution.completed_at) })));
-    if (candidates.some(run => !Number.isFinite(run.completed))) throw new Error('Invalid run completion date');
-    candidates.sort((a, b) => b.completed - a.completed || b.id.localeCompare(a.id));
-    return candidates[0]?.id;
+    const index = await this.index();
+    if (index.selection_errors[experiment]) throw new Error(`Unresolved runset for ${experiment}: ${index.selection_errors[experiment]}`);
+    return index.selections[experiment];
   }
 }
 export const runStore = new RunStore();

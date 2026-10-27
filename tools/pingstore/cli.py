@@ -23,6 +23,34 @@ def _parser() -> argparse.ArgumentParser:
         description="Validate immutable Pingstore runs, back them up and prune unused, unprotected runs.",
     )
     commands = parser.add_subparsers(dest="command", required=True)
+    status = commands.add_parser("status", help="explain current runsets and storage")
+    status.add_argument("--root", type=Path, default=Path("."))
+    status.add_argument("--runs-root", type=Path)
+    status.add_argument("--source", choices=("auto", "local", "remote"), default="auto")
+    status.add_argument("--asset-base", default="https://assets.eoinmurray.info")
+    status.add_argument("--json", action="store_true")
+    status.add_argument(
+        "--inventory",
+        action="store_true",
+        help="refresh authenticated R2 object inventory",
+    )
+    status.add_argument(
+        "--destination",
+        default=os.environ.get("PINGLAB_R2_REMOTE", "r2")
+        + ":"
+        + os.environ.get("PINGLAB_R2_BUCKET", "pinglab")
+        + "/pingstore/runs",
+    )
+    status.add_argument(
+        "--verify",
+        action="store_true",
+        help="validate local payload bytes before indexing",
+    )
+    status.add_argument(
+        "--index-path", type=Path, help="save a rebuildable versioned JSON index"
+    )
+    status.add_argument("--catalog-stdin", action="store_true", help=argparse.SUPPRESS)
+    status.set_defaults(handler=_status)
     discover = commands.add_parser(
         "discover", help="emit validated runs as Demolab discovery JSON"
     )
@@ -66,11 +94,11 @@ def _parser() -> argparse.ArgumentParser:
         default=Path("."),
         help="lab directory (default: current directory)",
     )
-    scope = prune.add_mutually_exclusive_group()
+    scope = prune.add_mutually_exclusive_group(required=True)
     scope.add_argument(
         "--all",
         action="store_true",
-        help="consider all experiments (the default)",
+        help="consider all experiments",
     )
     scope.add_argument(
         "--experiment",
@@ -86,6 +114,16 @@ def _parser() -> argparse.ArgumentParser:
         choices=("compute", "analyse", "present"),
         help="limit pruning to this stage (repeatable); other stages stay protected",
     )
+    prune.add_argument("--storage", choices=("local", "r2", "both"), default="both")
+    prune.add_argument("--destination", default=f"{remote}:{bucket}/pingstore/runs")
+    prune.add_argument("--asset-base", default="https://assets.eoinmurray.info")
+    prune.add_argument("--json", action="store_true")
+    prune.add_argument(
+        "--malformed-run",
+        action="append",
+        dest="malformed_runs",
+        help="explicit bounded malformed holding to remove (repeatable)",
+    )
     action = prune.add_mutually_exclusive_group(required=True)
     action.add_argument(
         "--dry-run", action="store_true", help="print the exact immutable prune plan"
@@ -93,14 +131,6 @@ def _parser() -> argparse.ArgumentParser:
     action.add_argument(
         "--confirm", metavar="PLAN_HASH", help="apply an unchanged dry-run plan"
     )
-    papers = commands.add_parser(
-        "backup-papers", help="retired: public PDF uploads are disabled"
-    )
-    papers.add_argument("--source", type=Path, default=Path("papers"))
-    papers.add_argument("--destination", default=f"{remote}:{bucket}/papers")
-    paper_action = papers.add_mutually_exclusive_group(required=True)
-    paper_action.add_argument("--dry-run", action="store_true")
-    paper_action.add_argument("--confirm", metavar="PLAN_HASH")
     evict = commands.add_parser(
         "evict", help="remove verified local backup copies, including report-used runs"
     )
@@ -113,25 +143,10 @@ def _parser() -> argparse.ArgumentParser:
     evict_action = evict.add_mutually_exclusive_group(required=True)
     evict_action.add_argument("--dry-run", action="store_true")
     evict_action.add_argument("--confirm", metavar="PLAN_HASH")
-    remote_prune = commands.add_parser(
-        "prune-remote", help="delete unused R2 runs after current evidence is backed up"
-    )
-    remote_prune.add_argument("--root", type=Path, default=Path("."))
-    remote_prune.add_argument(
-        "--destination", default=f"{remote}:{bucket}/pingstore/runs"
-    )
-    remote_prune.add_argument(
-        "--experiment", action="append", dest="experiments", required=True
-    )
-    remote_action = remote_prune.add_mutually_exclusive_group(required=True)
-    remote_action.add_argument("--dry-run", action="store_true")
-    remote_action.add_argument("--confirm", metavar="PLAN_HASH")
     discover.set_defaults(handler=_discover)
     backup.set_defaults(handler=_backup, argument_error=backup.error)
     prune.set_defaults(handler=_prune)
-    papers.set_defaults(handler=_papers)
     evict.set_defaults(handler=_evict)
-    remote_prune.set_defaults(handler=_prune_remote)
     return parser
 
 
@@ -142,6 +157,73 @@ def _discover(args) -> int:
     records = core.discover_runs(source)
     # A single JSON document, only after all candidates passed. No partial output.
     print(json.dumps(records, ensure_ascii=False))
+    return 0
+
+
+def _status(args) -> int:
+    catalog, remote_known = None, args.source != "local"
+    publications = None
+    operation = None
+    if args.source != "local":
+        if args.catalog_stdin:
+            supplied = json.load(sys.stdin)
+            if isinstance(supplied, dict) and "catalog" in supplied:
+                catalog = supplied["catalog"]
+                publications = (supplied.get("control") or {}).get("publications")
+                operation = (supplied.get("control") or {}).get("operation")
+            else:
+                catalog = supplied
+            remote_known = catalog is not None
+        else:
+            try:
+                request = core.Request(
+                    args.asset_base.rstrip("/") + "/pingstore/catalog.json",
+                    headers={"User-Agent": "Pinglab-Pingstore/1.0"},
+                )
+                with core.urlopen(request, timeout=30) as response:
+                    catalog = json.load(response)
+                try:
+                    control = core.public_json(
+                        args.asset_base.rstrip("/") + "/pingstore/control.json"
+                    )
+                    publications = control["publications"]
+                    operation = control.get("operation")
+                except OSError:
+                    publications = core.empty_publications()
+            except (OSError, ValueError) as exc:
+                if args.source == "remote":
+                    raise core.PingstoreError(
+                        f"R2 inventory unavailable: {exc}"
+                    ) from exc
+                remote_known = False
+    inventory_state = None
+    if args.inventory:
+        if args.source == "local":
+            raise core.PingstoreError("--inventory requires auto or remote source mode")
+        snapshot = core._maintenance_remote_snapshot(
+            args.destination, args.root.resolve()
+        )
+        catalog = {**snapshot["catalog"], "runs": snapshot["valid"]}
+        inventory_state = core.inventory_projection(
+            snapshot["objects"], snapshot["valid"]
+        )
+        publications = snapshot["control"]["publications"]
+        operation = snapshot["control"]["operation"]
+        remote_known = True
+    index = core.reporting_index(
+        args.root,
+        runs=args.runs_root,
+        catalog=catalog,
+        source=args.source,
+        remote_known=remote_known,
+        verify=args.verify,
+        publications=publications,
+        operation=operation,
+        inventory_state=inventory_state,
+    )
+    if args.index_path:
+        core.write_json_atomic(args.index_path, index)
+    print(json.dumps(index, sort_keys=True) if args.json else core.render_status(index))
     return 0
 
 
@@ -160,27 +242,34 @@ def _backup(args) -> int:
 
 
 def _prune(args) -> int:
+    options = dict(
+        storage=args.storage,
+        destination=args.destination,
+        malformed_runs=args.malformed_runs,
+    )
+    if args.storage == "local":
+        options["remote_snapshot"] = core.public_maintenance_snapshot(args.asset_base)
     if args.dry_run:
+        plan = core.unified_prune_plan(
+            args.root, args.experiments, args.stages, **options
+        )
         print(
-            core.render_prune_plan(
-                core.prune_plan(args.root, args.experiments, args.stages)
+            json.dumps(plan, sort_keys=True)
+            if args.json
+            else core.render_unified_prune_plan(plan)
+        )
+    else:
+        result = core.apply_unified_prune(
+            args.root, args.confirm, args.experiments, args.stages, **options
+        )
+        plan = result["plan"]
+        print(
+            f"Cleanup {result['phase']}: "
+            + "; ".join(
+                f"{target}: {len(objects)} objects, {sum(row['bytes'] for row in objects.values())} bytes"
+                for target, objects in plan["objects"].items()
             )
         )
-    else:
-        plan = core.apply_prune(args.root, args.confirm, args.experiments, args.stages)
-        reclaimed = sum(row["bytes"] for row in plan["prune"])
-        print(f"Pruned {len(plan['prune'])} runs ({reclaimed / 2**30:.2f} GiB).")
-    return 0
-
-
-def _papers(args) -> int:
-    if args.dry_run:
-        print(
-            json.dumps(core.paper_backup_plan(args.source, args.destination), indent=2)
-        )
-    else:
-        result = core.apply_paper_backup(args.source, args.destination, args.confirm)
-        print(f"Archived and verified {len(result['files'])} PDFs.")
     return 0
 
 
@@ -198,21 +287,6 @@ def _evict(args) -> int:
             args.root, args.destination, args.confirm, args.run_ids, args.asset_base
         )
         print(f"Evicted {len(result['evict'])} local copies; R2 backups retained.")
-    return 0
-
-
-def _prune_remote(args) -> int:
-    if args.dry_run:
-        print(
-            core.render_remote_prune_plan(
-                core.remote_prune_plan(args.root, args.destination, args.experiments)
-            )
-        )
-    else:
-        result = core.apply_remote_prune(
-            args.root, args.destination, args.experiments, args.confirm
-        )
-        print(f"Pruned {len(result['prune'])} unused remote runs.")
     return 0
 
 

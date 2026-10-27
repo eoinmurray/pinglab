@@ -42,14 +42,8 @@ def test_library_exports_the_shared_core_objects():
     [
         (["discover"], "discover_runs", []),
         (["backup", "--dry-run"], "backup_runs", 0),
-        (["prune", "--dry-run"], "prune_plan", {}),
+        (["prune", "--all", "--dry-run"], "unified_prune_plan", {}),
         (["evict", "--all", "--dry-run"], "eviction_plan", {}),
-        (["backup-papers", "--dry-run"], "paper_backup_plan", {}),
-        (
-            ["prune-remote", "--experiment", "exp001", "--dry-run"],
-            "remote_prune_plan",
-            {},
-        ),
     ],
 )
 def test_cli_dispatches_to_core(arguments, operation, result, tmp_path, monkeypatch):
@@ -63,9 +57,8 @@ def test_cli_dispatches_to_core(arguments, operation, result, tmp_path, monkeypa
 
     monkeypatch.setattr(core, operation, run)
     for name in (
-        "render_prune_plan",
+        "render_unified_prune_plan",
         "render_eviction_plan",
-        "render_remote_prune_plan",
     ):
         monkeypatch.setattr(core, name, lambda plan: json.dumps(plan))
     assert cli.main(arguments) == 0
@@ -80,5 +73,7 @@ def test_module_entrypoint_works_outside_the_repository(tmp_path):
         text=True,
         check=True,
     )
-    assert "prune-remote" in completed.stdout
+    assert "prune-remote" not in completed.stdout
+    assert "backup-papers" not in completed.stdout
+    assert "status" in completed.stdout
     assert "discover" in completed.stdout

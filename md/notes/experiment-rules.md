@@ -4,7 +4,7 @@ author: Eoin Murray
 collection: notes
 description: Experiment layout, identities, shared helpers, Pingstore and SNNLab evidence.
 created_at: "2026-10-14"
-updated_at: "2026-10-24T06:26:47Z"
+updated_at: "2026-10-27T15:56:26Z"
 ---
 
 # Experiment Rules
@@ -193,3 +193,18 @@ updated_at: "2026-10-24T06:26:47Z"
 5. Invoke compute, analyse and present independently. Never select “latest” or
    automatically launch an upstream stage.
 6. Treat completed runs as immutable; changed results require a new run.
+7. Completed presentations become current through the shared reporting resolver.
+   Reports follow their exact input ancestry; this does not change scientific
+   input selection. Inspect `pingstore status` for current evidence and retention
+   reasons. Stage completion never implicitly prunes history.
+
+8. For future exports, retain the native bundle, final-training and best-validation
+   parameter snapshots (or simulation-start snapshots), and consolidated data
+   required by downstream analysis and reproduction. Keep temporary datasets,
+   duplicate bundles and unneeded intermediate diagnostics in scratch. Retain
+   additional snapshots or optimizer/RNG state only for an explicit scientific
+   consumer or continuation requirement; existing completed runs stay immutable.
+9. The normal lifecycle is compute → analyse → present → validate → back up →
+   publish → prune. Backup and publication are distinct. Cleanup defaults to both
+   stores and requires an inspected, hash-bound plan; interrupted operations
+   resume their original journal. See Pingstore Rules for deployment retention.

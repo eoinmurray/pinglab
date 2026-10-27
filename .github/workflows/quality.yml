@@ -68,10 +68,24 @@ jobs:
       - name: Install rendering system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install --yes libcairo2-dev libpango1.0-dev pkg-config
+          sudo apt-get install --yes libcairo2-dev libpango1.0-dev pkg-config graphviz
 
       - name: Install project
         run: uv sync --dev
+
+      - name: Setup Node for reporting integration tests
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Setup Bun for reporting dependencies
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install reporting dependencies
+        run: bun install --frozen-lockfile
+        working-directory: site
 
       - name: Ruff
         run: uv run ruff check --output-format=github

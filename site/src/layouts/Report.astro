@@ -17,22 +17,24 @@ const networkDiagrams = import.meta.glob('../../../experiments/exp*/report/netwo
 interface Props {
   report: CollectionEntry<'reports'> | CollectionEntry<'notes'>;
   headings: { depth: number; slug: string; text: string }[];
+  evidenceUnavailable?: string[];
 }
-const { report, headings } = Astro.props;
-const { data } = report;
+const { report, headings, evidenceUnavailable = [] } = Astro.props;
+const unavailable = evidenceUnavailable.length > 0;
+const data = unavailable ? { ...report.data, abstract: undefined } : report.data;
 const collections = collectionMemberships(data.collection);
 const experiment = report.collection === 'reports' ? report : undefined;
 const mainContent = await Astro.slots.render('default');
 const counts = { ...countArticle(mainContent, data.abstract), runs: experiment ? await completedRunCount(experiment.data.id) : undefined };
 const articleDirectory = experiment ? `../../../experiments/${experiment.data.id}/report` : undefined;
-const Parameters = await parameterTables[`${articleDirectory}/parameters.mdx`]?.() as import('astro').MarkdownInstance<Record<string, unknown>>['Content'] | undefined;
-const References = await referenceLists[`${articleDirectory}/references.mdx`]?.() as import('astro').MarkdownInstance<Record<string, unknown>>['Content'] | undefined;
-const appendix = await appendices[`${articleDirectory}/appendix.mdx`]?.();
+const Parameters = unavailable ? undefined : await parameterTables[`${articleDirectory}/parameters.mdx`]?.() as import('astro').MarkdownInstance<Record<string, unknown>>['Content'] | undefined;
+const References = unavailable ? undefined : await referenceLists[`${articleDirectory}/references.mdx`]?.() as import('astro').MarkdownInstance<Record<string, unknown>>['Content'] | undefined;
+const appendix = unavailable ? undefined : await appendices[`${articleDirectory}/appendix.mdx`]?.();
 const Appendix = appendix?.default;
 const appendixHeadings = (await appendix?.getHeadings() ?? []).filter(heading => heading.depth === 2 || heading.depth === 3);
 const appendixDepth = Math.min(3, ...appendixHeadings.map(heading => heading.depth));
-const Network = await networkDiagrams[`${articleDirectory}/network.mdx`]?.() as import('astro').MarkdownInstance<Record<string, unknown>>['Content'] | undefined;
-const hasDataset = experiment && (experiment.data.tags.includes('data') || (dependencies[experiment.data.id]?.length ?? 0) > 0 || downstream(experiment.data.id).length > 0);
+const Network = unavailable ? undefined : await networkDiagrams[`${articleDirectory}/network.mdx`]?.() as import('astro').MarkdownInstance<Record<string, unknown>>['Content'] | undefined;
+const hasDataset = experiment && (unavailable || experiment.data.tags.includes('data') || (dependencies[experiment.data.id]?.length ?? 0) > 0 || downstream(experiment.data.id).length > 0);
 const contents = [
   ...(data.abstract ? [{ slug: 'abstract', text: 'Abstract' }] : []),
   ...headings.filter(heading => heading.depth === 2 || heading.depth === 3),

@@ -5,6 +5,7 @@ import { createServer } from 'node:http';
 import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { saveLocalRun } from './run-fixtures.ts';
 import { RunStore } from './run-store.ts';
 import { validateCatalog, pathCompare, type Catalog } from './remote-catalog.ts';
 import { selectAsset } from './run-assets.ts';
@@ -23,7 +24,7 @@ export async function remoteFixture(callback) {
     const payload = Object.entries(exports).sort(([a], [b]) => pathCompare(a, b))
       .map(([path, value]) => ({ path: `export/${path}`, sha256: hash(value), size_bytes: Buffer.byteLength(value) }));
     const stage = id.split('-').at(-1);
-    const record = { schema: 'pingstore.run/v4', run_id: id, experiment: 'exp124', stage,
+    const record = { collection: 'fixture', origin: 'local', provenance: {}, schema: 'pingstore.run/v4', run_id: id, experiment: 'exp124', stage,
       payload_digest: `sha256:${hash(JSON.stringify(payload))}`, created_at: '2026-10-23T00:00:00Z',
       execution: { completed_at: '2026-10-23T00:00:00Z', configuration: { duration_ms: 777 } },
       inputs: parent ? { source: { run_id: parent, payload_digest: catalog.runs[parent].record.payload_digest } } : {},
@@ -69,20 +70,19 @@ test('empty local store resolves catalog, exact numbers, figures and mapped snap
   assert.equal((await selectAsset(f.ids.present, 'training.json', { store: f.store })).source, 'r2');
 }));
 
-test('local exact runs and local latest override remote only in auto mode; corrupt local files fail', async () => remoteFixture(async f => {
-  await mkdir(join(f.root, f.ids.present, 'export'), { recursive: true });
-  await writeFile(join(f.root, f.ids.present, 'run.json'), JSON.stringify(f.catalog.runs[f.ids.present].record));
-  await writeFile(join(f.root, f.ids.present, 'export/numbers.json'), '{"score":7}');
-  await writeFile(join(f.root, f.ids.present, 'export/figure.svg'), '<local/>');
-  assert.equal(await f.store.latest('exp124'), f.ids.present);
-  assert.equal((await f.store.json(f.ids.present, 'export/numbers.json')).score, 7);
-  assert.equal((await selectAsset(f.ids.present, 'figure.svg', { store: f.store })).source, 'local');
+test('local current overrides newer R2 evidence; corrupt local copies fail without fallback', async () => remoteFixture(async f => {
+  const localId = 'exp124-r004-present';
+  await saveLocalRun(f.root, localId, { 'numbers.json': '{"score":7}', 'figure.svg': '<local/>' });
+  assert.equal(await f.store.latest('exp124'), localId);
+  assert.equal((await f.store.json(localId, 'export/numbers.json')).score, 7);
+  assert.equal((await selectAsset(localId, 'figure.svg', { store: f.store })).source, 'local');
   const remote = new RunStore({ runsRoot: f.root, baseUrl: f.base, source: 'remote' });
   assert.equal(await remote.latest('exp124'), 'exp124-r999-present');
   assert.equal((await remote.json(f.ids.present, 'export/numbers.json')).score, 42);
-  await writeFile(join(f.root, f.ids.present, 'export/numbers.json'), '{');
-  await assert.rejects(f.store.json(f.ids.present, 'export/numbers.json'), SyntaxError);
-  await assert.rejects(f.store.read(f.ids.present, 'export/training.json'), /ENOENT/);
+  await writeFile(join(f.root, localId, 'export/numbers.json'), '{');
+  await assert.rejects(f.store.latest('exp124'), /Unresolved runset.*changed/);
+  await assert.rejects(f.store.json(localId, 'export/numbers.json'), SyntaxError);
+  await assert.rejects(f.store.read(localId, 'export/training.json'), /ENOENT/);
 }));
 
 test('rejects changed remote bytes, missing pins, invalid catalog ancestry and unsafe paths', async () => remoteFixture(async f => {
@@ -116,8 +116,7 @@ test('browser animation JSON requires CORS even though server-side reads do not'
 
 test('auto mode can list local history during an R2 outage; remote mode fails explicitly', async t => remoteFixture(async f => {
   t.mock.method(console, 'warn', () => {});
-  await mkdir(join(f.root, f.ids.present, 'export'), { recursive: true });
-  await writeFile(join(f.root, f.ids.present, 'run.json'), JSON.stringify(f.catalog.runs[f.ids.present].record));
+  await saveLocalRun(f.root, f.ids.present);
   const catalog = async () => { throw new Error('R2 unavailable'); };
   const auto = new RunStore({ runsRoot: f.root, source: 'auto', catalog });
   assert.deepEqual(await auto.ids('exp124'), [f.ids.present]);
