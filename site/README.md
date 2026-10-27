@@ -510,8 +510,12 @@ remote catalog/index for rendering. `PINGLAB_CATALOG_PATH`,
 `PINGLAB_REPORT_INDEX_PATH` and `PINGLAB_EVIDENCE_PATH` bind the build to those
 prepared files. The rendered manifest must match the incoming registration.
 Every deployment attempt registers that frozen manifest again before deploying,
-including a retry of the deploy job alone. Failure cleanup uses the artifact's
-original build identity, which may precede the current workflow attempt.
+including a retry of the deploy job alone. A deployment failure keeps its
+incoming evidence protected because Pages may already have received the artifact.
+Activation runs in a following job after the Pages environment job succeeds;
+GitHub cannot report that deployment successful while its own job is still running.
+A verified replacement releases completed incoming attempts while keeping the
+inputs of other pending workflows.
 
 The private `PINGLAB_RCLONE_CONFIG` repository Actions secret supplies the existing
 R2 remote. The workflow installs rclone, PyYAML and boto3 without the scientific

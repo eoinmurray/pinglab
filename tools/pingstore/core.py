@@ -4082,8 +4082,14 @@ def publication_activate(repo: Path, destination, manifest):
     if deployed != manifest:
         raise PingstoreError("the replacement evidence manifest is not deployed")
     previous = read_control(destination)["publications"]
-    incoming = dict(previous["incoming"])
-    incoming.pop(manifest["build"]["id"], None)
+    # A verified replacement also supersedes completed failed attempts. Pending
+    # workflows keep their roots; deploy-only retries register them again first.
+    pending = set(state["pending"]) - {active["run_id"]}
+    incoming = {
+        identity: evidence
+        for identity, evidence in previous["incoming"].items()
+        if identity.split("/")[0] in pending
+    }
     revised = dict(previous, known=True, active=manifest, incoming=incoming)
     update_publications(destination, previous, revised)
     return revised

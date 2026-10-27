@@ -242,3 +242,58 @@ def test_legacy_bootstrap_refuses_missing_raw_evidence(stores, monkeypatch):
     with pytest.raises(core.PingstoreError, match="unavailable evidence"):
         core.bootstrap_publication(repo, DESTINATION, repo / "bootstrap.json")
     assert state["control"] == before
+
+
+def test_verified_replacement_releases_completed_incoming_but_keeps_pending(
+    stores, monkeypatch
+):
+    repo, paths, state = stores
+    new = prepare(stores, monkeypatch)
+    records = {
+        identity: entry["record"]
+        for identity, entry in state["catalog"]["runs"].items()
+    }
+    completed = manifest_for(records, [paths["old_present"].name], "123/1")
+    pending = manifest_for(records, [paths["old_present"].name], "999/1")
+    state["control"]["publications"]["incoming"].update(
+        {"123/1": completed, "999/1": pending}
+    )
+    monkeypatch.setattr(
+        core,
+        "github_pages_state",
+        lambda _: dict(
+            active=dict(run_id="456", revision="a" * 40, url="https://site.test"),
+            pending=["456", "999"],
+        ),
+    )
+    monkeypatch.setattr(core, "public_json", lambda _: new)
+    core.publication_activate(repo, DESTINATION, new)
+    assert state["control"]["publications"]["active"] == new
+    assert state["control"]["publications"]["incoming"] == {"999/1": pending}
+
+
+def test_pages_activation_waits_for_the_environment_job_and_retries_retain_inputs():
+    import yaml
+
+    jobs = yaml.safe_load(
+        (
+            Path(__file__).resolve().parents[3] / ".github/workflows/pages.yml"
+        ).read_text()
+    )["jobs"]
+    assert jobs["activate"]["needs"] == "deploy"
+    assert "environment" not in jobs["activate"]
+    deploy_steps = jobs["deploy"]["steps"]
+    deploy_index = next(
+        i
+        for i, step in enumerate(deploy_steps)
+        if step.get("uses") == "actions/deploy-pages@v4"
+    )
+    assert any(
+        "publication_retain(" in step.get("run", "")
+        for step in deploy_steps[:deploy_index]
+    )
+    assert not any(
+        "publication_activate(" in step.get("run", "")
+        or "publication_failed(" in step.get("run", "")
+        for step in deploy_steps
+    )
