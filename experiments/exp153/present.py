@@ -18,8 +18,7 @@ import matplotlib.pyplot as plt
 from experiments import theme
 from experiments.exp153 import recipe
 from experiments.exp153.compute import ancestry
-from pingstore.contracts import load_json, write_json_atomic
-from pingstore.stages import stage_run
+from pingstore.library import load_json, stage_run, write_json_atomic
 
 
 def phase_trace_figure(trace, selection):

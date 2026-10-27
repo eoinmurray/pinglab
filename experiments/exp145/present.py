@@ -22,7 +22,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from experiments import theme
 from experiments.exp145.custom.recording import read_recording
-from pingstore.stages import source_run, stage_run
+from pingstore.library import source_run, stage_run
 
 
 def style_circuit(source, target):

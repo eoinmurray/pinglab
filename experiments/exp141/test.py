@@ -17,7 +17,7 @@ from experiments.exp141 import dataset, recipe
 from experiments.exp141.analyse import training_history
 from experiments.exp141.compute import record_sample
 from experiments.exp141.custom.network_artifacts import snapshot_parameters
-from pingstore.contracts import load_json
+from pingstore.library import load_json
 from snnlab.sim import (
     CheckpointSelection,
     DatasetPartition,
@@ -366,7 +366,7 @@ def test_compute_analyse_present_preserve_selected_test(
     digits_case, tmp_path, monkeypatch
 ):
     from experiments.exp141 import analyse, compute, present
-    from pingstore import stages
+    from pingstore import core
 
     cfg, digits = digits_case
     repo = tmp_path / "repo"
@@ -375,7 +375,7 @@ def test_compute_analyse_present_preserve_selected_test(
     report.write_text("---\nid: exp141\ncollection: datasets\n---\n")
     # Source-control capture is separate from the native artifacts and real
     # Pingstore lifecycle exercised here; no test run enters the working store.
-    monkeypatch.setattr(stages, "_capture_code", lambda *_: {"git_commit": "test"})
+    monkeypatch.setattr(core, "capture_code", lambda *_: {"git_commit": "test"})
     for module in (compute, analyse, present):
         monkeypatch.setattr(module, "REPO", repo)
     monkeypatch.setattr(recipe, "configuration", lambda: cfg)
@@ -399,7 +399,7 @@ def test_compute_analyse_present_preserve_selected_test(
 
     monkeypatch.setattr(compute, "train", retain_training_result)
     computed = compute.compute()
-    computation = stages.source_run(repo / ".pingstore", computed, stage="compute")
+    computation = core.source_run(repo / ".pingstore", computed, stage="compute")
     assert not (computation.directory / ".scratch").exists()
     assert {path.name for path in computation.export.iterdir()} == {
         "results.json",
@@ -434,7 +434,7 @@ def test_compute_analyse_present_preserve_selected_test(
                 np.testing.assert_array_equal(saved[name], parameter.numpy())
     analysed = analyse.analyse(computed)
     presented = present.present(analysed)
-    source = stages.source_run(repo / ".pingstore", presented, stage="present")
+    source = core.source_run(repo / ".pingstore", presented, stage="present")
     numbers = load_json(source.file("numbers.json"))
     assert numbers["configuration"] == cfg
     assert "final_training" not in numbers

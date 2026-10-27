@@ -19,7 +19,7 @@ from experiments import theme
 from experiments.exp054 import recipe
 from experiments.exp054.custom import evidence, inputs
 from experiments.exp054.custom.network_artifacts import copy_circuits
-from pingstore.contracts import PingstoreError, load_json, write_json_atomic
+from pingstore.library import PingstoreError, load_json, write_json_atomic
 
 
 def analysis_source(repo, identity, reference=None):

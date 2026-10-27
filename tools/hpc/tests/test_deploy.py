@@ -201,14 +201,14 @@ def test_worker_refuses_login_node(tmp_path, monkeypatch):
 
 
 def test_live_transfers_validated_input_ancestry(deployment, monkeypatch):
-    from pingstore import stages
+    from pingstore import core
 
     repo, args = deployment
-    monkeypatch.setattr(stages, "memberships", lambda _: {"exp999": "fixture"})
-    with stages.stage_run(repo, "exp999", "compute") as compute:
+    monkeypatch.setattr(core, "memberships", lambda _: {"exp999": "fixture"})
+    with core.stage_run(repo, "exp999", "compute") as compute:
         (compute.export / "result.json").write_text('{"value": 1}\n')
-    source = stages.source_run(repo / ".pingstore", compute.run_id)
-    with stages.stage_run(
+    source = core.source_run(repo / ".pingstore", compute.run_id)
+    with core.stage_run(
         repo, "exp999", "analyse", inputs={"compute": source}
     ) as analyse:
         (analyse.export / "numbers.json").write_text('{"value": 2}\n')
@@ -218,10 +218,8 @@ def test_live_transfers_validated_input_ancestry(deployment, monkeypatch):
     hpc.deploy(args, repo)
     remote_store = Path(args.remote_dir) / "repo/.pingstore"
     for identity in (compute.run_id, analyse.run_id):
-        original = stages.source_run(repo / ".pingstore", identity)
-        restored = stages.source_run(
-            remote_store, identity, reference=original.reference
-        )
+        original = core.source_run(repo / ".pingstore", identity)
+        restored = core.source_run(remote_store, identity, reference=original.reference)
         assert restored.reference == original.reference
         assert (restored.directory / "run.json").read_bytes() == (
             original.directory / "run.json"
@@ -229,12 +227,12 @@ def test_live_transfers_validated_input_ancestry(deployment, monkeypatch):
 
 
 def test_corrupt_input_blocks_upload_before_receipt(deployment, monkeypatch):
-    from pingstore import stages
-    from pingstore.contracts import PingstoreError
+    from pingstore import core
+    from pingstore.library import PingstoreError
 
     repo, args = deployment
-    monkeypatch.setattr(stages, "memberships", lambda _: {"exp999": "fixture"})
-    with stages.stage_run(repo, "exp999", "compute") as compute:
+    monkeypatch.setattr(core, "memberships", lambda _: {"exp999": "fixture"})
+    with core.stage_run(repo, "exp999", "compute") as compute:
         (compute.export / "result.json").write_text('{"value": 1}\n')
     (compute.directory / "export/result.json").write_text('{"value": 999}\n')
     args.input = [compute.run_id]

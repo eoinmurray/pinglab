@@ -162,9 +162,26 @@ const frontMatter = {
   d-appendix .parameters th, d-appendix .parameters td { text-align: left; padding: .6em .65em; border-bottom: 1px solid rgb(var(--ink) / .1); vertical-align: top; }
   d-appendix .parameters th:first-child, d-appendix .parameters td:first-child { padding-left: 0; width: 30%; }
   d-appendix .parameters th:last-child, d-appendix .parameters td:last-child { padding-right: 0; }
+  @media (min-width: 1000px) {
+    .report-appendix[data-heading-depth="2"] > h2,
+    .report-appendix[data-heading-depth="2"] > h2 + *,
+    .report-appendix[data-heading-depth="3"] > h3,
+    .report-appendix[data-heading-depth="3"] > h3 + * { margin-top: 0; }
+  }
   @media (max-width: 999px) {
     d-appendix h3,
     .report-appendix[data-heading-depth="2"] > h2,
     .report-appendix[data-heading-depth="3"] > h3 { grid-column: text; margin-bottom: 1em; }
+  }
+  .report-appendix[data-heading-depth="2"] > h2:not(:first-child),
+  .report-appendix[data-heading-depth="3"] > h3:not(:first-child) {
+    margin-top: var(--appendix-section-gap);
+  }
+  .report-appendix[data-heading-depth="2"] > h3 { margin-top: 2rem; }
+  @media (min-width: 1000px) {
+    .report-appendix[data-heading-depth="2"] > h2:not(:first-child) + *,
+    .report-appendix[data-heading-depth="3"] > h3:not(:first-child) + * {
+      margin-top: var(--appendix-section-gap);
+    }
   }
 </style>

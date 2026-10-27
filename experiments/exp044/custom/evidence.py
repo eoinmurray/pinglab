@@ -20,7 +20,7 @@ from experiments.exp044.recipe import (
     refractory_configuration,
     refractory_execution_configuration,
 )
-from pingstore.contracts import PingstoreError, load_json
+from pingstore.library import PingstoreError, load_json
 
 
 def finite(value, label: str, *, minimum=0.0, maximum=None) -> float:

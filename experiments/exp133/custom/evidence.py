@@ -7,7 +7,7 @@ import hashlib
 
 import numpy as np
 from experiments.exp133 import recipe
-from pingstore.contracts import PingstoreError, load_json
+from pingstore.library import PingstoreError, load_json
 from snnlab.sim import NetworkSnapshot, load_runtime_state
 
 from . import inputs

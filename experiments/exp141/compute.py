@@ -26,8 +26,7 @@ sys.path[:0] = [str(REPO), str(REPO / "tools")]
 
 import numpy as np
 from experiments.exp141 import dataset, recipe
-from pingstore.contracts import write_json_atomic
-from pingstore.stages import stage_run
+from pingstore.library import stage_run, write_json_atomic
 from snnlab.sim import (
     CheckpointSelection,
     DenseArrayBinding,

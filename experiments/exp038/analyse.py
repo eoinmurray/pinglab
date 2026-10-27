@@ -17,7 +17,7 @@ from math import sqrt
 import numpy as np
 from experiments.exp038 import recipe
 from experiments.exp038.custom import evidence, inputs
-from pingstore.contracts import PingstoreError, write_json_atomic
+from pingstore.library import PingstoreError, write_json_atomic
 
 MEASUREMENT = {
     "schema": "exp038.measurement/v1",

@@ -19,8 +19,7 @@ import torch
 from experiments.exp127.custom.network_artifacts import model_execution
 from experiments.exp127.dataset import dataset
 from experiments.exp127.recipe import SLUG, author_network, configuration
-from pingstore.contracts import write_json_atomic
-from pingstore.stages import stage_run
+from pingstore.library import stage_run, write_json_atomic
 from snnlab.sim import (
     CheckpointSelection,
     DenseArrayBinding,

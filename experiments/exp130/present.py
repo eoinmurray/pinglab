@@ -24,8 +24,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from experiments.exp130 import dataset, recipe
 from experiments.exp130.custom import inputs
-from pingstore.contracts import PingstoreError, load_json, write_json_atomic
-from pingstore.stages import stage_run
+from pingstore.library import PingstoreError, load_json, stage_run, write_json_atomic
 from snnlab import lang
 from snnlab.viz import Theme
 

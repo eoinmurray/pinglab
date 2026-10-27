@@ -35,9 +35,13 @@ class ReplayTests(unittest.TestCase):
             angle=np.asarray([0.1, 0.2]),
             velocity=np.asarray([0.2, 0.3]),
             activation=np.asarray([[0.1, 0.2], [0.3, 0.4]]),
+            gravity_torque=np.asarray([-0.003, -0.004]),
+            sensory_flexor_time_s=np.asarray([]),
+            sensory_extensor_time_s=np.asarray([]),
         )
         summary = dict(
             mode="ros2",
+            configuration=configuration(duration=8),
             controller_populations=["motor"],
             duration_seconds=8,
             timer_ms=1,
@@ -78,7 +82,7 @@ class ReplayTests(unittest.TestCase):
 
 
 class ClockTests(unittest.TestCase):
-    def run_schedule(self, jump_ns, profile):
+    def run_schedule(self, jump_ns):
         pytest.importorskip("rclpy")
         from experiments.exp152.custom import node_flexor as runtime
 
@@ -101,21 +105,22 @@ class ClockTests(unittest.TestCase):
                 self.capacity = 4
                 self.period_ns = 1_000_000
                 self.timer_ms = 1
-                self.dt_ms = 0.1
-                self.substeps = 10
+                self.dt_ms = 1.0
+                self.substeps = 1
                 self.max_lag_ms = 20
                 self.updates = self.steps = 0
-                self.spike_transport = "arrival"
                 self.frame_wait_ms = np.zeros(4)
-                self.profile_timing = profile
-                self.stage_timing = np.zeros((4, 1, 2)) if profile else None
+                self.frame_inbox = runtime.SpikeWindowInbox(["peer", "plant"], 1)
+                for index in range(3):
+                    for source in ("peer", "plant"):
+                        self.frame_inbox.receive(source, [index, 1])
+                self.frame_publisher = SimpleNamespace(publish=lambda msg: None)
                 self.timing = np.zeros((4, 5))
                 self.stamps = np.zeros(4, dtype=np.int64)
                 self.schedule_time = np.zeros(4)
                 self.clock_offset_change = np.zeros(4)
                 self.clock_sample_span = np.zeros(4)
                 self.clock = SimpleNamespace(now=self.ros_now)
-                self.clock_probe = {}
                 self.cpu_affinity = [0]
                 self.finished = False
                 self.deliveries = []
@@ -146,7 +151,7 @@ class ClockTests(unittest.TestCase):
         ):
             node.execute()
         self.assertEqual(node.stop_reason, "completed")
-        self.assertEqual(node.steps, 40)
+        self.assertEqual(node.steps, 4)
         self.assertEqual(len(records), 5)
         ticks = records[:-1]
         np.testing.assert_allclose([r["wall_lag_ms"] for r in ticks], [0, 0, 0.2, 0])
@@ -163,13 +168,10 @@ class ClockTests(unittest.TestCase):
         return node.timing
 
     def test_ros_clock_jumps_do_not_change_schedule_or_deadlines(self):
-        for profile in (False, True):
-            baseline = self.run_schedule(0, profile)
-            for jump in (-108_000_000, 108_000_000):
-                with self.subTest(profile=profile, jump=jump):
-                    np.testing.assert_array_equal(
-                        self.run_schedule(jump, profile), baseline
-                    )
+        baseline = self.run_schedule(0)
+        for jump in (-108_000_000, 108_000_000):
+            with self.subTest(jump=jump):
+                np.testing.assert_array_equal(self.run_schedule(jump), baseline)
 
 
 @pytest.mark.parametrize(
@@ -179,6 +181,9 @@ class ClockTests(unittest.TestCase):
         dict(timer_ms=0.15),
         dict(duration=float("nan")),
         dict(neurons=1.5),
+        dict(neurons=2),
+        dict(dt_ms=0.5),
+        dict(timer_ms=2),
         dict(max_lag_ms=0),
         dict(controller_warmup_ms=0),
         dict(controller_warmup_ms=float("nan")),
@@ -196,14 +201,14 @@ def test_fresh_configuration():
 
 
 def test_native_continuation_and_reset():
-    controller = Controller("flexor", warm_steps=10, compile_mode=None)
-    controller.window(10, sensory=1)
+    controller = Controller("flexor", compile_mode=None)
+    controller.window(1, sensory=1)
     state = controller.stream.export_state()
     step = controller.steps
-    first = controller.window(10, peer=1)
+    first = controller.window(1, peer=1)
     controller.stream.reset(state)
     controller.steps = step
-    second = controller.window(10, peer=1)
+    second = controller.window(1, peer=1)
     for left, right in zip(first, second, strict=True):
         np.testing.assert_array_equal(left, right)
     controller.stream.close()
@@ -213,7 +218,6 @@ def test_long_warmup_resets_state_inputs_and_simulation_clock():
     controllers = [
         Controller(
             "flexor",
-            profile_timing=True,
             configuration_overrides={"controller_warmup_ms": duration},
         )
         for duration in (2.0, 1000.0)
@@ -224,7 +228,6 @@ def test_long_warmup_resets_state_inputs_and_simulation_clock():
             assert controller.info["warmup_windows"] == windows
             assert controller.info["warmup_state_reset"] is True
             assert controller.info["warmup_model_ms"] == windows
-            assert not controller.stage_timing.any()
             assert all(not value.any().item() for value in controller.inputs.values())
         for tick in range(40):
             inputs = dict(sensory=int(tick % 11 == 0), peer=int(tick % 19 == 0))
@@ -239,7 +242,7 @@ def test_long_warmup_resets_state_inputs_and_simulation_clock():
 
 @pytest.mark.parametrize(
     "neurons,length,firing",
-    [(1, 1, False), (1, 1, True), (1, 5, True), (3, 1, True), (3, 5, True)],
+    [(1, 1, False), (1, 1, True)],
 )
 def test_output_extraction_preserves_values_events_and_array_ownership(
     neurons, length, firing
@@ -264,7 +267,7 @@ def test_output_extraction_preserves_values_events_and_array_ownership(
     )
     controller = object.__new__(Controller)
     controller.torch, controller.steps, controller.neurons = torch, 0, neurons
-    controller.profile_timing, controller.inputs = False, {}
+    controller.inputs = {}
     controller.stream = SimpleNamespace(
         advance=lambda _inputs: SimpleNamespace(outputs=outputs)
     )
@@ -300,7 +303,7 @@ def test_native_start_snapshot(tmp_path):
     bundle = author_network(cfg)
     stream = prepare_stream(
         bundle,
-        window_steps=10,
+        window_steps=1,
         dtype=torch.float64,
         device="cpu",
         performance=Performance(compile_mode=None),
@@ -338,7 +341,12 @@ def test_empty_failed_acquisition_retains_verdicts():
     assert not summary["passed"]
     assert not summary["timing_passed"]
     assert values["flexor_substep_spikes"].shape == (0, cfg["substeps"], 1)
-    assert recording(values, summary)["nodes"]["plant"]["time_ms"] == []
+    assert (
+        recording(values, dict(configuration=cfg, **summary))["nodes"]["plant"][
+            "time_ms"
+        ]
+        == []
+    )
 
 
 def test_browser_pulses_reach_targets_without_reset_and_playback_loops():
@@ -357,8 +365,8 @@ import { readFileSync } from 'node:fs';
 const code = readFileSync(process.argv[1], 'utf8');
 const {pulseSamples, routePoint, loopTime, toDegrees, voltageFraction, peerInhibitionRoutes, sensoryExcitationRoutes, controllerPopulations, arrowHead} = await import(
   'data:text/javascript;base64,' + Buffer.from(code).toString('base64'));
-assert.deepEqual(controllerPopulations({schema:'pinglab.exp152.replay/v2', controller_populations:['motor']}), ['motor']);
-assert.deepEqual(controllerPopulations({schema:'pinglab.exp152.replay/v1'}), ['motor','slow']);
+assert.deepEqual(controllerPopulations({schema:'pinglab.exp152.replay/v2', controller_populations:['motor'], neuron_model:'elevate', neurons_per_population:1, mechanics:{angle_convention:'zero_downward_positive_right'}}), ['motor']);
+assert.throws(() => controllerPopulations({schema:'pinglab.exp152.replay/v1'}));
 assert.throws(() => controllerPopulations({schema:'pinglab.exp152.replay/v2'}));
 assert.equal(sensoryExcitationRoutes().length, 2);
 for (const route of sensoryExcitationRoutes()) {
@@ -384,7 +392,7 @@ for (let step = 0; step <= 100; step++) {
 }
 assert.equal(toDegrees(Math.PI), 180);
 assert.equal(toDegrees(Math.PI / 2), 90);
-assert.deepEqual([-100, -75, -60, -45, 0, null].map(v => voltageFraction(v)), [0, 0, .5, 1, 1, 0]);
+assert.deepEqual([-80, -20, 40, null].map(v => voltageFraction(v)), [0, .5, 1, 0]);
 assert.deepEqual([-80, -20, 40].map(v => voltageFraction(v, -80, 40)), [0, .5, 1]);
 const pulses = pulseSamples([0, 10, 20], 29);
 assert.equal(pulses.length, 3);
@@ -559,109 +567,25 @@ def test_one_ms_protocol_has_no_neuron_clock_scaling():
         assert "time_scale" not in population["neuron"]["config"]
 
 
-@pytest.mark.parametrize("dtype_name", ["float32", "float64"])
-def test_elevate_tensor_callback_preserves_batched_state_and_parameter_overrides(
-    dtype_name,
-):
-    """Tensor callbacks must preserve the extension contract across shapes/dtypes."""
-    import torch
-    from experiments.exp152.custom.elevate import initialize, step
-
-    dtype = getattr(torch, dtype_name)
-    config = dict(
-        configuration()["neuron"], capacitance_nf=1.2, g_k_us=60.0, g_na_us=95.0
-    )
-    state = initialize(
-        SimpleNamespace(shape=(2, 3), device="cpu", dtype=dtype, config=config)
-    )
-    # Different drives detect accidental mixing of batch or neuron axes.
-    ge = torch.tensor([[0.005, 0.01, 0], [0.002, 0.004, 0.008]], dtype=dtype)
-    gi = torch.tensor([[0.001, 0, 0.002], [0, 0.001, 0.003]], dtype=dtype)
-    original = {key: value.clone() for key, value in state.items()}
-    context = SimpleNamespace(
-        state=state, dt_ms=1.0, config=config, excitatory=ge, inhibitory=gi
-    )
-    actual, spikes = step(context)
-    for key in state:
-        torch.testing.assert_close(state[key], original[key], atol=0, rtol=0)
-        assert actual[key].shape == (2, 3)
-        assert actual[key].dtype == dtype
-        assert actual[key].device == state[key].device
-        assert torch.isfinite(actual[key]).all()
-    assert set(actual) == set(state) == {"voltage", "vna", "vh", "vk", "vca", "vkca"}
-    assert spikes.dtype == dtype
-    assert spikes.shape == (2, 3)
-    assert ((spikes == 0) | (spikes == 1)).all()
-    for batch in range(2):
-        for neuron in range(3):
-            cell, cell_spikes = step(
-                SimpleNamespace(
-                    state={
-                        k: v[batch : batch + 1, neuron : neuron + 1]
-                        for k, v in state.items()
-                    },
-                    dt_ms=1.0,
-                    config=config,
-                    excitatory=ge[batch : batch + 1, neuron : neuron + 1],
-                    inhibitory=gi[batch : batch + 1, neuron : neuron + 1],
-                )
-            )
-            for key in actual:
-                torch.testing.assert_close(
-                    actual[key][batch, neuron], cell[key].squeeze()
-                )
-            torch.testing.assert_close(spikes[batch, neuron], cell_spikes.squeeze())
-
-
-def test_startup_estimator_distinguishes_stationary_onset_from_settling():
-    from experiments.exp152.analyse import startup_metrics
-
-    time = np.arange(8000) / 1000
-    regular = 0.28 * np.sin(2 * np.pi * time / 0.8)
-    ramped = regular * np.minimum(1, time / 3)
-    steady = startup_metrics(regular)
-    transient = startup_metrics(ramped)
-    assert transient["settling_s"] > steady["settling_s"] + 1
-    assert transient["early_mean_amplitude_error"] > 0.2
-    assert steady["early_mean_amplitude_error"] < 0.01
-
-
 @pytest.mark.parametrize("side", ["flexor", "extensor"])
-def test_starting_pulse_preserves_rest_state_and_window_equivalence(side):
-    options = dict(flexor_bias_ms=50, flexor_initial_us=0.5, extensor_initial_us=0)
-    controllers = [
-        Controller(side, compile_mode=None, configuration_overrides=options)
-        for _ in range(2)
-    ]
+def test_starting_pulse_replaces_tonic_then_restores_it(side):
+    options = dict(flexor_bias_ms=20, flexor_initial_us=0.5, extensor_initial_us=0)
+    controller = Controller(side, compile_mode=None, configuration_overrides=options)
     joint = Joint()
     assert joint.angle == np.pi / 2
     assert joint.velocity == 0
     np.testing.assert_array_equal(joint.activation, [0, 0])
     try:
-        for tick in range(60):
-            a = controllers[0].window(1)
-            b = controllers[1].advance([0], [0])
-            np.testing.assert_array_equal(a[0], b[0])
-            np.testing.assert_array_equal(a[1], b[1])
+        for tick in range(30):
+            controller.window(1)
             expected = (
                 options[side + "_initial_us"]
-                if tick < 50
+                if tick < 20
                 else configuration()["tonic_us"]
             )
-            assert controllers[0].inputs["tonic"].item() == expected
+            assert controller.inputs["tonic"].item() == expected
     finally:
-        for controller in controllers:
-            controller.stream.close()
-
-
-def test_startup_estimator_preserves_empty_and_stationary_failures():
-    from experiments.exp152.analyse import startup_metrics
-
-    assert startup_metrics([])["settling_s"] is None
-    assert startup_metrics(np.zeros(8000))["settling_s"] is None
-    time = np.arange(4000) * 0.002
-    metrics = startup_metrics(0.28 * np.sin(2 * np.pi * time / 0.8), dt_s=0.002)
-    assert metrics["first_extremum_s"] == pytest.approx(0.2)
+        controller.stream.close()
 
 
 def test_loaded_joint_physics_against_independent_ode():
@@ -718,27 +642,17 @@ def test_joint_configuration_and_relative_sensors():
         Joint(dict(cfg["joint"], initial_angle=10))
 
 
-def test_startup_metrics_uses_recorded_reference():
-    from experiments.exp152.analyse import startup_metrics
-
-    time = np.arange(8000) / 1000
-    angles = 0.3 * np.sin(2 * np.pi * time)
-    original = startup_metrics(angles)
-    loaded = startup_metrics(angles + np.pi / 2, reference_angle=np.pi / 2)
-    np.testing.assert_allclose(original["extrema_deg"], loaded["extrema_deg"])
-    assert original["settling_s"] == loaded["settling_s"]
-
-
-def test_replay_preserves_loaded_mechanics_and_historical_metadata():
+def test_replay_preserves_loaded_mechanics_and_rejects_other_models():
     values, summary = ReplayTests().fixture()
-    assert recording(values, summary)["mechanics"] == {}
-    settings = configuration()["joint"]
-    summary["configuration"] = dict(joint=settings)
+    settings = summary["configuration"]["joint"]
     values["gravity_torque"] = np.array([-0.003, -0.004])
     payload = recording(values, summary)
     assert payload["mechanics"] == settings
     assert payload["mechanics"]["initial_angle"] == np.pi / 2
     assert payload["nodes"]["plant"]["gravity_torque"] == [-0.003, -0.004]
+    summary["configuration"]["neuron_model"] = "unsupported"
+    with pytest.raises(ValueError, match="single-cell Elevate"):
+        recording(values, summary)
 
 
 def test_cycle_metrics_accepts_periodic_asymmetry_and_rejects_drift():
@@ -761,69 +675,6 @@ def test_cycle_metrics_accepts_periodic_asymmetry_and_rejects_drift():
     assert not cycle_metrics(angle[:6000], velocity[:6000], reference_angle=reference)[
         "passed"
     ]
-
-
-def test_native_batch_gain_screen_matches_individual_projection_weights():
-    import torch
-    from snnlab.sim import Performance, prepare_stream
-
-    base = configuration(sensory_drive_us=0.025)
-    bundle = author_network(base)
-    batch = prepare_stream(
-        bundle,
-        window_steps=1,
-        batch_size=2,
-        device="cpu",
-        dtype=torch.float64,
-        performance=Performance(compile_mode=None, projection_mode="fast"),
-    )
-    candidates = [
-        dict(tonic_us=0.025, sensory_drive_us=0.025, peer_inhibition_us=0.2),
-        dict(tonic_us=0.05, sensory_drive_us=0.005, peer_inhibition_us=0.5),
-    ]
-    individual = [
-        Controller("flexor", configuration_overrides=options) for options in candidates
-    ]
-    inputs = {
-        key: torch.zeros(1, 2, 1, dtype=torch.float64)
-        for key in ("tonic", "sensory", "peer")
-    }
-    try:
-        batch.reset()
-        with torch.inference_mode():
-            for tick in range(150):
-                sensory, peer = int(tick % 11 == 0), int(tick % 17 == 0)
-                for j, options in enumerate(candidates):
-                    inputs["tonic"][0, j, 0] = (
-                        base["flexor_initial_us"]
-                        if tick < base["flexor_bias_ms"]
-                        else options["tonic_us"]
-                    )
-                    inputs["sensory"][0, j, 0] = (
-                        sensory
-                        * float(np.float32(options["sensory_drive_us"]))
-                        / float(np.float32(base["weights"]["sensory_drive"]))
-                    )
-                    inputs["peer"][0, j, 0] = (
-                        peer
-                        * float(np.float32(options["peer_inhibition_us"]))
-                        / float(np.float32(base["weights"]["peer_inhibition"]))
-                    )
-                result = batch.advance(inputs)
-                for j, controller in enumerate(individual):
-                    voltage, spikes, _ = controller.window(
-                        1, sensory=sensory, peer=peer
-                    )
-                    assert result.outputs["motor_voltage"][
-                        0, j, 0
-                    ].item() == pytest.approx(voltage[0, 0], abs=1e-8)
-                    assert (
-                        result.outputs["motor_spikes"][0, j, 0].item() == spikes[0, 0]
-                    )
-    finally:
-        batch.close()
-        for controller in individual:
-            controller.stream.close()
 
 
 def test_recorded_controller_settings_survive_runtime_adapter():

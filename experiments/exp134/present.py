@@ -22,7 +22,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from experiments import theme
 from experiments.exp134 import recipe
-from pingstore.stages import source_run, stage_run
+from pingstore.library import source_run, stage_run
 
 
 def plot_overview(report, events, sweep, destination):

@@ -26,7 +26,7 @@ from experiments.exp082.recipe import (
     SINGLE_TRIAL_TRANSITION_WINDOW_MS,
 )
 from matplotlib.patches import Rectangle
-from pingstore.contracts import PingstoreError, load_json, write_json_atomic
+from pingstore.library import PingstoreError, load_json, write_json_atomic
 
 
 def build_continuous_stream_compound(stream, summary, output_stem: Path) -> None:

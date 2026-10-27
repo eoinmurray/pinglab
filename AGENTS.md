@@ -46,6 +46,10 @@ The [mean-field model note](md/notes/mean-field-model.mdx) derives the exp117 an
 exp148 closures and their generalisation to four recurrent pathways, shared
 input matrices and private neuronal drive; it is also explanatory, not a rules guide.
 
+The [EI Weight Lifecycle note](md/notes/ei-weight-lifecycle.mdx) outlines a proposed
+model-organism study of evolution, development and experience in E/I synaptic
+strengths. It is a study proposal, not a rules guide or a report of completed work.
+
 ## Additional instructions
 
 Before editing a Notes article itself, read that article and its versioning or

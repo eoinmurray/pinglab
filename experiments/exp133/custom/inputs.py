@@ -6,8 +6,7 @@ and check that source runs remain unchanged while a dependent stage executes."""
 from contextlib import contextmanager
 
 from experiments.exp133 import recipe
-from pingstore.contracts import PingstoreError
-from pingstore.stages import source_run, stage_run
+from pingstore.library import PingstoreError, source_run, stage_run
 
 
 def lineage(repo, identity, reference=None):

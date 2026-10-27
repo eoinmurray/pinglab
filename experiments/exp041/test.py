@@ -77,8 +77,8 @@ def _common_config() -> dict:
     }
 
 
-from pingstore import stages
-from pingstore.contracts import (
+from pingstore import core
+from pingstore.library import (
     PingstoreError,
     file_sha256,
     load_json,
@@ -92,15 +92,15 @@ def lab(tmp_path, monkeypatch):
     for module in (compute, analyse, present):
         monkeypatch.setattr(module, "REPO", tmp_path)
     monkeypatch.setattr(
-        stages, "memberships", lambda _: {"exp022": "demo", "exp041": "demo"}
+        core, "memberships", lambda _: {"exp022": "demo", "exp041": "demo"}
     )
     monkeypatch.setattr(
-        stages, "_capture_code", lambda *args: {"git_commit": "fixture", "dirty": False}
+        core, "capture_code", lambda *args: {"git_commit": "fixture", "dirty": False}
     )
     monkeypatch.setattr(recipe, "RASTER_N_E_PLOT", 2)
     monkeypatch.setattr(recipe, "RASTER_N_I_PLOT", 1)
     monkeypatch.setenv("PINGLAB_SMOKE", "1")
-    with stages.stage_run(tmp_path, "exp022", "compute") as bank:
+    with core.stage_run(tmp_path, "exp022", "compute") as bank:
         for tau in recipe.TAU_GABA_SWEEP:
             for seed in recipe.SEEDS:
                 name = recipe.cell_name(tau, seed)
@@ -234,7 +234,7 @@ def test_changed_authoritative_ancestor_metadata_is_allowed(lab):
 
 def test_failure_stays_hidden_and_reservations_cannot_be_reused(lab, monkeypatch):
     root, bank_id, _ = lab
-    identity = stages.reserve_stage(root / ".pingstore", recipe.SLUG, "compute")
+    identity = core.reserve_stage(root / ".pingstore", recipe.SLUG, "compute")
 
     def fail(*a, **k):
         raise RuntimeError("fixture failure")

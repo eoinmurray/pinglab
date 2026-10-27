@@ -5,10 +5,14 @@ import shutil
 from collections import defaultdict
 
 import pytest
-from pingstore.contracts import PingstoreError, payload_digest, write_json_atomic
-from pingstore.layout import initialize_layout
-from pingstore.prune import _hidden_inputs
-from pingstore.stages import source_run
+from pingstore.core import _hidden_inputs
+from pingstore.library import (
+    PingstoreError,
+    initialize_layout,
+    payload_digest,
+    source_run,
+    write_json_atomic,
+)
 
 from tools.modal_dispatcher import inputs as modal_inputs
 from tools.modal_dispatcher import jobs as modal_jobs

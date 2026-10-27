@@ -1,0 +1,184 @@
+---
+id: exp154
+title: "EI Weight Lifecycle"
+author: "Eoin Murray"
+created_at: "2026-10-26T14:33:53Z"
+updated_at: "2026-10-26T19:33:31Z"
+description: "One inherited E/I circuit develops through prenatal activity, juvenile food learning and slower adult learning."
+collection: [experiments, animations]
+tags: [data, v0.28.1]
+inputs: [exp154]
+---
+
+import Lifecycle from './Lifecycle.astro';
+import RunFigure from '../../../site/src/components/RunFigure.astro';
+import { reportData, display, percent } from '../../../site/src/lib/report-data';
+
+export const lifetime = (await reportData('exp154')).lifetime;
+export const lifeSummary = lifetime.conditions[0];
+export const genome = lifetime.configuration.genome;
+
+## Abstract
+
+Can changes in E→I and I→E strengths alone teach a small circuit which objects to consume?
+One initially unbiased inherited circuit (seed 7) undergoes internally driven prenatal
+development, juvenile food learning and slower adult learning under a fixed cue–energy mapping.
+Food outcomes teach the agent only after consumption. Death restarts development
+from the same inherited weights; acquired weights are not passed on.
+This run contains {display(lifeSummary.deaths)} deaths
+across {display(lifetime.configuration.lifetime_presentations)} encounters.
+The phases are a reduced modelling choice; evolution and nature–nurture comparisons remain untested.
+
+## Results
+
+<Lifecycle experiment="exp154" />
+
+<RunFigure experiment="exp154" file="learning.svg" number={2} id="fig-learning" alt="Three aligned panels show prediction RMSE, E-to-I and I-to-E weight L2 norms, and their norm ratio over prenatal, juvenile and adult lifecycle steps.">
+After each lifecycle step: (A) prediction RMSE on fixed diagnostic food cues, omitted prenatally;
+(B) L2 norms of the flattened E→I and I→E weight matrices (square root of summed
+squared weights); (C) E→I norm divided by I→E norm. Grey, amber and white backgrounds
+mark prenatal, juvenile and adult phases; dashed lines mark births. Steps count prenatal
+windows and food encounters, not biological age. The norm ratio is not a measure of current balance.
+</RunFigure>
+
+## Inheritance and developmental phases
+
+The abstract genome sets initial recurrent-weight ranges, weight bounds, the internal-drive
+scale, the activity target, phase durations and learning rates. It represents an inherited
+programme, rather than specific genes. The architecture, sensory wiring and readout form
+a fixed scaffold. There is one genome, with no selection or mutation.
+
+Each conception restores the same raw weights. During
+{display(genome.prenatal_windows)} prenatal windows, three internally generated pulsing
+channels drive the circuit with sensory input switched off. Only E→I and I→E weights adapt
+toward a normalized activity target of {display(genome.homeostatic_target_rate)};
+there are no food outcomes or energy costs. Prenatal plasticity can introduce small cue
+preferences into the initially unbiased circuit. Birth starts the food task and energy reserve.
+The first {display(genome.juvenile_encounters)} encounters of each life are juvenile;
+later encounters are adult. These durations are illustrative, not biological estimates.
+
+## Energy and renewal
+
+To expose repeated lives in this demonstration, each encounter costs
+{display(lifetime.configuration.metabolic_cost)} energy units, with
+{display(lifetime.configuration.initial_energy)} units available at birth.
+Consumed food adds its energy change. Energy at or below zero causes death;
+the next life restores inherited weights, repeats prenatal development and starts a fresh
+food-learning optimizer and energy reserve at birth. The recorded run has
+{display(lifeSummary.deaths)} deaths and {display(lifeSummary.births)} births,
+including the initial birth.
+
+## Neuron dynamics
+
+Each neuron's normalized activity $r_i(t)\in[0,1]$ relaxes toward a sigmoid of its net input:
+
+$$
+\tau_i\frac{dr_i}{dt}
+=-r_i+\sigma\!\left(\frac{I_i^E-I_i^I-b_i}{s}\right),
+\qquad \sigma(z)=\frac{1}{1+e^{-z}}.
+$$
+
+Here $i$ labels the neuron, $t$ is time, and $\tau_i$ sets its response time.
+$I_i^E$ and $I_i^I$ are the summed excitatory and inhibitory currents, including
+external drive in $I_i^E$; $b_i$ is a bias current and $s$ a current scale.
+The sigmoid maps dimensionless input $z$ to activity between zero and one.
+E cells provide excitation and I cells provide inhibition.
+
+The input currents are weighted sums:
+
+$$
+\begin{aligned}
+I_i^E(t)&=g\left[\sum_{j\in\mathcal E}w_{ji}r_j(t)
++\sum_{k=1}^{3}a_{ki}u_k(t)+\sum_{k=1}^{3}d_{ki}h_k(t)\right],\\
+I_i^I(t)&=g\sum_{j\in\mathcal I}w_{ji}r_j(t).
+\end{aligned}
+$$
+
+Here $\mathcal E$ and $\mathcal I$ are the E- and I-cell sets; $j$ indexes source
+cells and $k$ indexes sensory channels. The nonnegative weights $w_{ji}$ connect
+source cell $j$ to target cell $i$, while $a_{ki}$ connects sensory channel $k$
+to that cell. The sensory values $u_k(t)$ are defined below and are zero prenatally.
+The internal values $h_k(t)$ are prenatal pulses and are zero after birth;
+$d_{ki}$ is their fixed connection weight to cell $i$.
+The scale $g=1\,\mathrm{nA}$
+converts dimensionless weighted activity into current. Inhibition enters through
+the subtraction of $I_i^I$ in the neuron equation.
+
+For E cells, the recurrent pathways are
+EE (E→E) and IE (I→E); for I cells, they are EI (E→I) and II (I→I).
+Pathway names put the source first. IE directly suppresses E activity;
+II suppresses I activity and can indirectly release E cells from inhibition.
+Each 40 ms window starts from the same neuronal activity state; weights carry forward
+within a life. This model does not simulate continuous activity between windows.
+
+## Food and sensory input
+
+Each object has a cue $x\in[0,1]$ and a hidden energy change
+$\Delta E=2x-1\in[-1,1]$. The controller receives the cue through three channels:
+
+$$
+\mathbf u(t)=\begin{pmatrix}x\\1-x\\1\end{pmatrix}.
+$$
+
+The first two channels support opposite cue preferences; the third supplies
+constant drive. Fixed sensory weights project these channels to both E and I
+cells, producing the sensory term in $I_i^E$. The cue stays constant throughout
+each presentation. Only consumption reveals $\Delta E$ to the learner;
+rejected objects provide no outcome feedback.
+
+## Readout
+
+The predicted energy change is a fixed difference between two E-cell groups:
+
+$$
+\hat V(x)=G\left[
+\frac{1}{n}\sum_{i=1}^{n}\bar r_i(x)
+-\frac{1}{n}\sum_{i=n+1}^{2n}\bar r_i(x)
+\right].
+$$
+
+Here $\bar r_i(x)$ is E cell $i$'s mean activity over the final
+{display(lifetime.configuration.readout_tail_ms)} ms of the presentation,
+$n$ is {display(lifetime.configuration.e_cells / 2)} cells per group,
+and the fixed readout gain $G$ is {display(lifetime.configuration.readout_gain)}.
+The two displayed readout nodes represent these averaging operations.
+The agent consumes if $\hat V(x)>\varepsilon$, where the numerical tolerance
+$\varepsilon$ is {display(lifetime.configuration.decision_threshold)}.
+Otherwise, it consumes with exploration probability
+{percent(lifetime.configuration.exploration_probability)} and rejects the rest.
+
+## Learning rule
+
+Prenatal learning minimizes a homeostatic objective:
+
+$$
+\mathcal L_{\mathrm{pre}}=\frac12\left[
+\frac{1}{N_E}\sum_{i\in\mathcal E}(\langle r_i\rangle-\rho)^2+
+\frac{1}{N_I}\sum_{i\in\mathcal I}(\langle r_i\rangle-\rho)^2\right].
+$$
+
+Here $N_E$ and $N_I$ are the numbers of E and I cells, $\langle r_i\rangle$
+is cell $i$'s mean activity over the entire prenatal window, and $\rho$ is the
+inherited activity target. The two populations contribute equally. The prenatal
+activity meter shows instantaneous population means in blue (E) and purple (I),
+with a line at the target. This objective is an engineering homeostasis rule.
+
+After consumption, the revealed energy change supplies a squared-error loss:
+
+$$
+\mathcal L=\left[\hat V(x)-\Delta E\right]^2.
+$$
+
+Here $\mathcal L$ measures the prediction error. Automatic differentiation through
+the neural presentation supplies gradients for the E→I and I→E weight matrices,
+$W_{EI}$ and $W_{IE}$. Only these weights learn, in all phases. AdamW takes one step
+per prenatal window or consumed object, with no weight decay. Its learning rate is
+{display(genome.prenatal_learning_rate)} prenatally,
+{display(genome.juvenile_learning_rate)} during juvenile learning and
+{display(genome.adult_learning_rate)} in adulthood;
+the gradient norm is clipped at {display(lifetime.configuration.gradient_clip)}.
+Weights are then clipped to the range zero–{display(lifetime.configuration.weight_upper)}.
+Sensory weights, E→E and I→I weights, biases and readout stay fixed.
+Rejected objects trigger no update.
+The food optimizer starts afresh at birth and retains its moments when the learning
+rate drops at adulthood. These gradient-based rules do not claim a biological mechanism.

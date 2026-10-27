@@ -7,8 +7,7 @@ SNNLab owns the numerical model; no second gain, flow or Jacobian is retained.
 import numpy as np
 import pytest
 from experiments.exp117 import analyse, compute, present, recipe
-from pingstore.contracts import load_json
-from pingstore.stages import source_run
+from pingstore.library import load_json, source_run
 from snnlab import meanfield as mf
 
 
@@ -44,12 +43,12 @@ def test_native_decay_sweep_and_export_units(tau):
 
 
 def test_native_compute_analyse_present_chain(tmp_path, monkeypatch):
-    from pingstore import stages
+    from pingstore import core
 
-    monkeypatch.setattr(stages, "memberships", lambda repo: {"exp117": "experiments"})
+    monkeypatch.setattr(core, "memberships", lambda repo: {"exp117": "experiments"})
     monkeypatch.setattr(
-        stages,
-        "_capture_code",
+        core,
+        "capture_code",
         lambda repo, directory: {
             "git_commit": "0" * 40,
             "dirty": False,

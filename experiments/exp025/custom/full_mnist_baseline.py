@@ -15,7 +15,7 @@ from experiments.exp025.custom.source_exp022_custom_checkpoints import (
     resolve_checkpoint,
 )
 from experiments.exp025.custom.source_exp044_custom_evidence import snapshot
-from pingstore.contracts import PingstoreError, load_json, write_json_atomic
+from pingstore.library import PingstoreError, load_json, write_json_atomic
 
 MEASUREMENT = {
     "schema": "exp025.full-mnist-baseline/v1",

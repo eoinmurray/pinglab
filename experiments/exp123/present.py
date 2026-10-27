@@ -26,7 +26,7 @@ from experiments import theme
 from experiments.exp123 import recipe
 from matplotlib.colors import LinearSegmentedColormap, LogNorm, Normalize
 from matplotlib.ticker import MaxNLocator
-from pingstore.stages import source_run, stage_run
+from pingstore.library import source_run, stage_run
 
 
 def save(fig, destination):

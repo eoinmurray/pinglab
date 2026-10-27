@@ -15,7 +15,7 @@ import argparse
 import numpy as np
 from experiments.exp054 import recipe
 from experiments.exp054.custom import evidence, inputs
-from pingstore.contracts import PingstoreError, write_json_atomic
+from pingstore.library import PingstoreError, write_json_atomic
 from snnlab.analysis import (
     iei_histogram,
     population_event_times,

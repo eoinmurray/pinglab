@@ -78,8 +78,8 @@ def _common_config() -> dict:
     }
 
 
-from pingstore import stages
-from pingstore.contracts import (
+from pingstore import core
+from pingstore.library import (
     PingstoreError,
     file_sha256,
     load_json,
@@ -93,13 +93,13 @@ def lab(tmp_path, monkeypatch):
     for module in (compute, analyse, present):
         monkeypatch.setattr(module, "REPO", tmp_path)
     monkeypatch.setattr(
-        stages, "memberships", lambda _: {"exp022": "demo", "exp037": "demo"}
+        core, "memberships", lambda _: {"exp022": "demo", "exp037": "demo"}
     )
     monkeypatch.setattr(
-        stages, "_capture_code", lambda *a: {"git_commit": "fixture", "dirty": False}
+        core, "capture_code", lambda *a: {"git_commit": "fixture", "dirty": False}
     )
     monkeypatch.setenv("PINGLAB_SMOKE", "1")
-    with stages.stage_run(tmp_path, "exp022", "compute") as run:
+    with core.stage_run(tmp_path, "exp022", "compute") as run:
         for cell in recipe.bank_cells():
             directory = run.export / cell["cell_name"]
             directory.mkdir(parents=True)
@@ -523,9 +523,9 @@ def test_raster_selection_preserves_dtype_sum_and_rng(tmp_path):
 def test_shards_collect_without_reexecuting_and_resume_verified_work(lab, monkeypatch):
     root, bank, calls = lab
     monkeypatch.setattr(
-        compute, "_capture_code", lambda *a: {"git_commit": "fixture", "dirty": False}
+        compute, "capture_code", lambda *a: {"git_commit": "fixture", "dirty": False}
     )
-    rid = stages.reserve_stage(root / ".pingstore", "exp037", "compute")
+    rid = core.reserve_stage(root / ".pingstore", "exp037", "compute")
     for index in range(6):
         compute.shard(bank, run_id=rid, index=index)
     assert len(calls) == 60
@@ -555,9 +555,9 @@ def test_shards_collect_without_reexecuting_and_resume_verified_work(lab, monkey
 def test_shard_resume_rejects_changed_evidence(lab, monkeypatch, fault):
     root, bank, _ = lab
     monkeypatch.setattr(
-        compute, "_capture_code", lambda *a: {"git_commit": "fixture", "dirty": False}
+        compute, "capture_code", lambda *a: {"git_commit": "fixture", "dirty": False}
     )
-    rid = stages.reserve_stage(root / ".pingstore", "exp037", "compute")
+    rid = core.reserve_stage(root / ".pingstore", "exp037", "compute")
     compute.shard(bank, run_id=rid, index=0)
     directory = root / ".pingstore/runs" / f".{rid}.tmp"
     if fault == "profile":
@@ -576,7 +576,7 @@ def test_shard_resume_rejects_changed_evidence(lab, monkeypatch, fault):
 
 def test_collect_rejects_missing_shards_and_busy_reservation(lab, monkeypatch):
     root, bank, _ = lab
-    rid = stages.reserve_stage(root / ".pingstore", "exp037", "compute")
+    rid = core.reserve_stage(root / ".pingstore", "exp037", "compute")
     with pytest.raises((OSError, PingstoreError)):
         compute.compute(bank, run_id=rid, collect=True)
     directory = root / ".pingstore/runs" / f".{rid}.tmp"
@@ -707,7 +707,7 @@ def test_hpc_review_is_read_only_and_dependencies_require_live(lab, monkeypatch)
     monkeypatch.setattr(hpc, "check_plan", lambda _: None)
     source = inputs.source(root, bank, "compute", experiment="exp022")
     identities = {
-        stage: stages.reserve_stage(root / ".pingstore", "exp037", stage)
+        stage: core.reserve_stage(root / ".pingstore", "exp037", stage)
         for stage in hpc.STAGES
     }
     for identity in identities.values():

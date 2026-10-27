@@ -321,14 +321,13 @@ def test_mean_field_stage_uses_native_source_and_preserves_outputs(
     tmp_path, monkeypatch
 ):
     from experiments.exp148 import compute
-    from pingstore import stages
-    from pingstore.contracts import load_json
-    from pingstore.stages import source_run, stage_run
+    from pingstore import core
+    from pingstore.library import load_json, source_run, stage_run
 
-    monkeypatch.setattr(stages, "memberships", lambda repo: {"exp148": "experiments"})
+    monkeypatch.setattr(core, "memberships", lambda repo: {"exp148": "experiments"})
     monkeypatch.setattr(
-        stages,
-        "_capture_code",
+        core,
+        "capture_code",
         lambda repo, directory: {
             "git_commit": "0" * 40,
             "dirty": False,

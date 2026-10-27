@@ -9,7 +9,7 @@ import math
 
 import numpy as np
 from experiments.exp054 import recipe
-from pingstore.contracts import PingstoreError, load_json, write_json_atomic
+from pingstore.library import PingstoreError, load_json, write_json_atomic
 
 
 def write(directory, document):

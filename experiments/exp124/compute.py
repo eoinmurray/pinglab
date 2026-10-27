@@ -29,8 +29,7 @@ import numpy as np
 import torch
 from experiments.exp124 import dataset, recipe
 from hpc.concurrent_compute import run_active_workers
-from pingstore.contracts import file_sha256, write_json_atomic
-from pingstore.stages import stage_run
+from pingstore.library import file_sha256, stage_run, write_json_atomic
 from snnlab.sim import (
     Batching,
     CheckpointSelection,

@@ -21,7 +21,7 @@ from experiments import theme
 from experiments.exp041.custom import inputs
 from experiments.exp041.custom.network_artifacts import copy_circuits
 from experiments.exp041.recipe import F_GAMMA_BAND_HZ, TAU_GABA_REFERENCE_MS
-from pingstore.contracts import PingstoreError, load_json, write_json_atomic
+from pingstore.library import PingstoreError, load_json, write_json_atomic
 
 DEFAULT_FORMATS = ("svg", "pdf")
 

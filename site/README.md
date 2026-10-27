@@ -146,8 +146,9 @@ v2 runtime and styles are self-hosted; the article shell supplies the byline,
 sticky contents, and appendix. Optional `appendix.mdx` and `references.mdx` files
 supply footer content. Put network diagrams first in `appendix.mdx`, followed by
 the main parameter table and supporting detail. The appendix's own section headings
-appear to the left of their content on desktop and above it on smaller screens,
-and are included in the table of contents. Existing `parameters.mdx` files
+appear to the left of their content on desktop, aligned with the top of each
+section, and above it on smaller screens. They are included in the table of
+contents. Existing `parameters.mdx` files
 remain supported by the shared layout under Parameters immediately above Dataset,
 with a Parameters entry in the table of contents. The canonical scientific-writing
 rules are preserved in [Writing Rules](../md/notes/writing-rules.md).

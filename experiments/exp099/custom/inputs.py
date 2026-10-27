@@ -9,8 +9,7 @@ from pathlib import Path
 
 import numpy as np
 from experiments.exp099 import recipe
-from pingstore.contracts import PingstoreError
-from pingstore.stages import source_run
+from pingstore.library import PingstoreError, source_run
 
 
 def source(repo: Path, identity: str, stage: str, *, reference=None):

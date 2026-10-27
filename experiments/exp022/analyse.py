@@ -19,8 +19,13 @@ sys.path[:0] = [str(REPO), str(REPO / "experiments"), str(REPO / "tools")]
 from experiments.exp022 import recipe
 from experiments.exp022.custom import bank as bank_io
 from experiments.exp022.custom.checkpoints import checkpoint_provenance, epoch_metrics
-from pingstore.contracts import PingstoreError, load_json, write_json_atomic
-from pingstore.stages import source_run, stage_run
+from pingstore.library import (
+    PingstoreError,
+    load_json,
+    source_run,
+    stage_run,
+    write_json_atomic,
+)
 
 
 def format_duration(seconds: float) -> str:

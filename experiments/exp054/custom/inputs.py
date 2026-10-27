@@ -9,8 +9,7 @@ import os
 from contextlib import contextmanager
 
 from experiments.exp054 import recipe
-from pingstore.contracts import PingstoreError
-from pingstore.stages import source_run, stage_run
+from pingstore.library import PingstoreError, source_run, stage_run
 
 
 def lineage(repo, identity, reference=None):

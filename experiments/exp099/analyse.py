@@ -16,8 +16,7 @@ sys.path[:0] = [str(REPO), str(REPO / "tools")]
 import numpy as np
 from experiments.exp099 import dataset, recipe
 from experiments.exp099.custom import inputs
-from pingstore.contracts import write_json_atomic
-from pingstore.stages import stage_run
+from pingstore.library import stage_run, write_json_atomic
 from scipy.signal import welch
 from snnlab.analysis import rhythmicity_metrics  # noqa: TID251
 

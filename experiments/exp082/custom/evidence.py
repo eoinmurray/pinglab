@@ -14,8 +14,12 @@ from experiments.exp082.custom.source_exp022_custom_checkpoints import (
     public_provenance,
     resolve_checkpoint,
 )
-from pingstore.contracts import PingstoreError, load_json
-from pingstore.layout import canonical_export_file, canonical_export_unit
+from pingstore.library import (
+    PingstoreError,
+    canonical_export_file,
+    canonical_export_unit,
+    load_json,
+)
 
 RETAINED_SCHEMA = "exp082.gold2-import/v1"
 RETAINED_PRODUCER = "73f0883edc14aa634f5a6d55e4f4123fbfeb7508"

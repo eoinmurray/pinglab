@@ -8,7 +8,7 @@ this module does not start computation or select a scientific run.
 import math
 
 import numpy as np
-from pingstore.contracts import PingstoreError
+from pingstore.library import PingstoreError
 
 
 def finite(value, label: str, *, minimum=0.0, maximum=None) -> float:

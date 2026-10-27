@@ -136,7 +136,7 @@ def validate_network_settings(common: dict) -> None:
     """Validate the scientific quantities used by the native graph."""
     import math
 
-    from pingstore.contracts import PingstoreError
+    from pingstore.library import PingstoreError
 
     for name in ("n_in", "n_hidden", "n_inh", "n_out"):
         if type(common[name]) is not int or common[name] <= 0:

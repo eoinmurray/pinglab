@@ -4,13 +4,13 @@ import json
 from types import SimpleNamespace
 
 import pytest
-from pingstore.contracts import (
+from pingstore.library import (
     PingstoreError,
+    initialize_layout,
     load_json,
     payload_digest,
     write_json_atomic,
 )
-from pingstore.layout import initialize_layout
 
 from tools.modal_dispatcher import jobs
 

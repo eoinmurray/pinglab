@@ -1,7 +1,8 @@
 """Define the paired spiking controllers and the rotary-joint protocol.
 
-Adapted from snnlab-ros2 at the source revision recorded in configuration.
-This module authors the native bundle; execution and ROS imports live elsewhere.
+The report protocol uses single-cell Elevate controllers and 1 ms logical
+coupling. This module owns settings and native network authoring; execution
+and ROS imports live in the compute stage and custom adapters.
 """
 
 import hashlib
@@ -11,20 +12,14 @@ from pathlib import Path
 from snnlab import lang
 
 SIDES = ("flexor", "extensor")
-DT_CHOICES = (0.1, 0.25, 0.5, 1.0, 2.0)
 SNNLAB_REF = "3551f5a7a1a628808ef67de55253cb30bba2b752"
 
 
 def window_steps(dt_ms, timer_ms):
-    """Require a whole number of numerical steps in each callback window."""
-    if dt_ms not in DT_CHOICES or not math.isfinite(timer_ms) or timer_ms <= 0:
-        raise ValueError("Choose a supported dt and a positive, finite timer period")
-    ratio = timer_ms / dt_ms
-    if ratio < 1 or not math.isclose(ratio, round(ratio), rel_tol=0, abs_tol=1e-9):
-        raise ValueError(
-            "Timer period must be an integer multiple of the simulation step"
-        )
-    return round(ratio)
+    """Retain the report's single 1 ms model step per callback window."""
+    if dt_ms != 1.0 or timer_ms != 1.0:
+        raise ValueError("The report protocol requires 1 ms model and control steps")
+    return 1
 
 
 def configuration(
@@ -35,7 +30,6 @@ def configuration(
     neurons=1,
     max_lag_ms=20.0,
     max_spike_age_ms=5.0,
-    profile_timing=False,
     controller_warmup_ms=1000.0,
     flexor_bias_ms=20.0,
     flexor_initial_us=0.5,
@@ -51,25 +45,17 @@ def configuration(
     sensory_tau_ms=10.0,
     peer_tau_ms=50.0,
     activation_increment=0.003,
-    spike_transport="logical",
 ):
     """Resolve numerical, scheduling, mechanical and recording settings."""
     if not math.isfinite(duration) or duration < 2:
         raise ValueError("Use duration >= 2 seconds")
-    if type(neurons) is not int or neurons < 1:
-        raise ValueError("Use an integer neurons >= 1")
+    if type(neurons) is not int or neurons != 1:
+        raise ValueError("The report protocol requires one neuron per controller")
     for value in (max_lag_ms, max_spike_age_ms):
         if not math.isfinite(value) or value <= 0:
             raise ValueError("Timing budgets must be positive and finite")
-    if spike_transport not in ("arrival", "logical") or compile_mode not in (
-        None,
-        "default",
-    ):
-        raise ValueError(
-            "Choose arrival/logical transport and default compilation/eager execution"
-        )
-    if type(profile_timing) is not bool:
-        raise ValueError("profile_timing must be boolean")
+    if compile_mode not in (None, "default"):
+        raise ValueError("Choose default compilation or eager execution")
     if not math.isfinite(controller_warmup_ms) or controller_warmup_ms <= 0:
         raise ValueError("Controller warmup must be positive and finite")
     if not math.isfinite(flexor_bias_ms) or flexor_bias_ms < 0:
@@ -106,26 +92,15 @@ def configuration(
         neurons=neurons,
         max_lag_ms=max_lag_ms,
         max_spike_age_ms=max_spike_age_ms,
-        profile_timing=profile_timing,
         controller_warmup_ms=controller_warmup_ms,
         substeps=window_steps(dt_ms, timer_ms),
         seed=0,
         device="cpu",
         dtype="float64",
         compile_mode=compile_mode,
-        spike_transport=spike_transport,
+        spike_transport="logical",
         snnlab_ref=SNNLAB_REF,
         adaptation="snnlab-ros2 three-process spike-only joint controller",
-        source_revision="901d5b624c85aa4858aa0a0007e479d64e60e0ea",
-        source_worktree_dirty=True,
-        source_file_sha256={
-            "recipe.py": "8ca23269bd2c9fa44d074aad6d9ddfa092f38c43b5640f41a542cd0c115519c9",
-            "node_flexor.py": "86a327a44e1f96bb1286d795d77f6b6ddd5a0ba08115ed98f028c5c2459090c7",
-            "node_extensor.py": "e6394e0a441197a70bb4a081f3a85e41b341fafb787b7c796b3ec41884d0545f",
-            "node_plant.py": "ed986bb51b633a6b63416b1efbabc7fd8afb6ce76f0c64546c91904ee969881a",
-            "test.py": "662f4d6eb88e4afc8bd1867ac3c365c0c3456b207d6a2b30e6b4da48e260ac5c",
-            "replay.py": "c99210c0159b4995ec4411538b62c4572995f857d92b9e0e3f8223dd2176b541",
-        },
         joint=dict(
             inertia=0.005,
             tip_mass_kg=tip_mass_kg,
@@ -173,18 +148,6 @@ def configuration(
         neuron_source_sha256=hashlib.sha256(
             (Path(__file__).parent / "custom/elevate.py").read_bytes()
         ).hexdigest(),
-        cycle_selection_source=dict(
-            run_id="exp152-r104-analyse",
-            role="native-weight cycle validation of default settings",
-        ),
-        load_selection_source=dict(
-            run_id="exp152-r091-analyse",
-            role="tip-mass operating point selection; overrides are exploratory",
-        ),
-        feasibility_source=dict(
-            run_id="exp152-r072-analyse",
-            role="parameter selection only; new executions use experiment-local code",
-        ),
         weights=dict(
             sensory_drive=sensory_drive_us, peer_inhibition=peer_inhibition_us
         ),
@@ -202,7 +165,7 @@ def configuration(
             cycle_phase_samples=128,
         ),
         recording="All callback diagnostics, substep population means/counts, topic events and node logs",
-        interpretation="Synchronized cell replicas increase load; simulated plant, no hard real-time guarantee",
+        interpretation="Simulated loaded joint; no hard-real-time guarantee",
     )
 
 
@@ -266,43 +229,6 @@ def author_network(cfg):
     net.output("motor_voltage", motor.voltage)
     net.output("motor_spikes", motor.spikes)
     return lang.compile(net)
-
-
-def startup_conditions():
-    """Compare bounded startup pulses for the single-neuron architecture."""
-    return [
-        dict(flexor_bias_ms=duration, flexor_initial_us=drive, extensor_initial_us=0.0)
-        for duration, drive in ((10, 0.5), (20, 0.5), (50, 0.5), (20, 0.25))
-    ]
-
-
-def cycle_conditions(grid="synaptic"):
-    """Bounded search; each row is an independent paired-controller condition."""
-    if grid == "actuation":
-        return [
-            dict(
-                tonic_us=tonic,
-                peer_inhibition_us=0.2,
-                sensory_drive_us=sensory,
-                peer_tau_ms=50.0,
-                activation_increment=gain,
-            )
-            for tonic in (0.04, 0.05, 0.06)
-            for sensory in (0.01, 0.02, 0.025, 0.035, 0.05, 0.075, 0.1)
-            for gain in (0.003, 0.004, 0.005, 0.006, 0.007, 0.008, 0.009)
-        ]
-    return [
-        dict(
-            tonic_us=tonic,
-            peer_inhibition_us=inhibition,
-            sensory_drive_us=sensory,
-            peer_tau_ms=tau,
-        )
-        for tau in (50.0, 150.0)
-        for tonic in (0.0, 0.005, 0.01, 0.025, 0.05, 0.1, 0.2)
-        for inhibition in (0.2, 0.5, 1.0)
-        for sensory in (0.025, 0.005)
-    ]
 
 
 def controller_settings(cfg):

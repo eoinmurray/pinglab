@@ -14,6 +14,7 @@ Main documentation lives in [`md/notes/`](md/notes/):
 5. [Canonical Parameters](md/notes/canonical-parameters.mdx): reference network and training settings for COBA and PING.
 6. [COBA and PING: Dynamics and Learning](md/notes/coba-ping-dynamics.mdx): model and training derivations (formerly exp113).
 7. [Mean-field E/I dynamics](md/notes/mean-field-model.mdx): exp117/exp148 closures, four recurrent pathways, shared input and private drive.
+8. [EI Weight Lifecycle](md/notes/ei-weight-lifecycle.mdx): proposed model-organism study of evolution, development and experience in E/I synaptic strengths.
 
 See [Astro setup and GitHub Pages deployment](site/README.md)
 for site development and deployment. Coding agents must read
@@ -21,6 +22,12 @@ for site development and deployment. Coding agents must read
 
 Use the [Modal dispatcher](tools/modal_dispatcher/README.md) to launch experiment
 compute on Modal and collect validated Pingstore results.
+
+Pingstore has three source modules: [`core.py`](tools/pingstore/core.py) owns the
+storage implementation, [`library.py`](tools/pingstore/library.py) exposes the
+experiment API, and [`cli.py`](tools/pingstore/cli.py) provides the commands.
+Import experiment helpers from `pingstore.library`; run commands with
+`uv run pingstore` or `uv run python -m pingstore.cli`.
 
 For generic CSD3 / Wilkes3 experiment deployment, see [HPC deployment](tools/hpc/README.md).
 

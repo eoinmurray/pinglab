@@ -1,8 +1,8 @@
 """Adapt the prepared-stream lifecycle and mechanical plant to ROS callbacks.
 
 The network is authored in recipe.py; ionic equations live in the Elevate
-extension. Timing probes, input buffering and the spike-driven mechanical
-integrator retain the source update order.
+extension. Input buffering and the spike-driven mechanical integrator retain
+the recorded update order.
 """
 
 import json
@@ -12,19 +12,7 @@ import time
 
 import numpy as np
 from experiments.exp152.custom.snapshot import capture_start
-from experiments.exp152.recipe import DT_CHOICES, SIDES, author_network, configuration
-
-
-def start_measurement():
-    """Pair elapsed wall time with CPU time consumed by this calling thread."""
-    return time.perf_counter_ns(), time.thread_time_ns()
-
-
-def finish_measurement(start, target):
-    cpu = time.thread_time_ns()
-    wall = time.perf_counter_ns()
-    target[0] = (wall - start[0]) / 1e6
-    target[1] = (cpu - start[1]) / 1e6
+from experiments.exp152.recipe import SIDES, author_network, configuration
 
 
 class SpikeWindowInbox:
@@ -62,10 +50,8 @@ class SpikeWindowInbox:
 class Controller:
     """One motor population, preserving SNNLab state each step.
 
-    Population size one gives one neuron per controller. Larger populations
-    replicate identical cells with normalized dense connectivity: a load test,
-    not a claim of additional biological complexity. Only spike events connect
-    this model to its peer and the plant. Tonic excitation is local.
+    Each controller has one Elevate neuron. Only spike events connect it to
+    its peer and the plant; tonic excitation is local.
     """
 
     def __init__(
@@ -76,24 +62,16 @@ class Controller:
         *,
         warm_steps=1,
         compile_mode=None,
-        profile_timing=False,
         evidence_dir=None,
         configuration_overrides=None,
     ):
         import torch
         from snnlab.sim import Performance, prepare_stream
 
-        if (
-            side not in SIDES
-            or dt_ms not in DT_CHOICES
-            or neurons < 1
-            or warm_steps < 1
-        ):
+        if side not in SIDES or dt_ms != 1.0 or neurons != 1 or warm_steps != 1:
             raise ValueError("Invalid side, timestep or population size")
         torch.set_num_threads(1)
         self.side, self.dt_ms, self.neurons = side, dt_ms, neurons
-        self.profile_timing = profile_timing
-        self.stage_timing = np.zeros((3, 2))
         self.torch, self.steps = torch, 0
         cfg = configuration(
             dt_ms=dt_ms,
@@ -156,7 +134,6 @@ class Controller:
         self.steps = 0
         for values in self.inputs.values():
             values.zero_()
-        self.stage_timing.fill(0)
         self.info.update(
             warmup_seconds=time.perf_counter() - started,
             warmup_windows=warmup_windows,
@@ -171,68 +148,20 @@ class Controller:
                 json.loads(os.environ["EXP152_CONFIGURATION"]),
             )
 
-    def advance(self, sensory, peer):
-        """Execute a window in one SNNLab call; inputs are counts per substep."""
-        length = len(sensory)
-        if length < 1 or len(peer) != length:
-            raise ValueError("Input windows must have the same positive length")
-        with self.torch.inference_mode():
-            if self.inputs["tonic"].shape[0] != length:
-                raise ValueError("Input window must match the prepared stream shape")
-            self.inputs["tonic"].fill_(self.cfg["tonic_us"])
-            if self.steps < round(self.cfg["flexor_bias_ms"] / self.dt_ms):
-                bias_steps = max(
-                    0,
-                    min(
-                        length,
-                        round(self.cfg["flexor_bias_ms"] / self.dt_ms) - self.steps,
-                    ),
-                )
-                self.inputs["tonic"][:bias_steps] += (
-                    self.cfg[self.side + "_initial_us"] - self.cfg["tonic_us"]
-                )
-            for name, values in [("sensory", sensory), ("peer", peer)]:
-                self.inputs[name].copy_(
-                    self.torch.as_tensor(values, dtype=self.torch.float64).reshape(
-                        length, 1, 1
-                    )
-                )
-            return self._execute(length)
-
     def _execute(self, length):
         with self.torch.inference_mode():
-            measured = start_measurement() if self.profile_timing else None
             result = self.stream.advance(self.inputs)
-            if measured is not None:
-                finish_measurement(measured, self.stage_timing[1])
-            measured = start_measurement() if self.profile_timing else None
             self.steps += length
             voltages = result.outputs["motor_voltage"][:, 0].numpy()
             spike_array = result.outputs["motor_spikes"][:, 0].numpy()
-            if self.neurons == 1:
-                # Returned diagnostics own their arrays even if streaming reuses outputs.
-                voltage = voltages.copy()
-                spikes = spike_array.astype(int)
-                if length == 1:
-                    motor_events = [[0, 0]] if spikes[0, 0] else []
-                else:
-                    motor_events = [[int(i), 0] for i in np.flatnonzero(spikes[:, 0])]
-            else:
-                voltage = voltages.mean(axis=1, keepdims=True)
-                spikes = spike_array.sum(axis=1, keepdims=True).astype(int)
-                # Retain every substep index and neuron identity in load tests.
-                motor_events = np.argwhere(spike_array != 0).tolist()
-            if measured is not None:
-                finish_measurement(measured, self.stage_timing[2])
+            # Returned diagnostics own their arrays even if streaming reuses outputs.
+            voltage = voltages.copy()
+            spikes = spike_array.astype(int)
+            motor_events = [[0, 0]] if spikes[0, 0] else []
         return voltage, spikes, motor_events
-
-    def step(self, sensory=0, peer=0):
-        voltage, spikes, events = self.advance([sensory], [peer])
-        return voltage[0], spikes[0], [neuron for _, neuron in events]
 
     def window(self, steps, sensory=0, peer=0):
         # ROS uses a fixed shape: reuse tensors and avoid NumPy-to-Torch conversion.
-        measured = start_measurement() if self.profile_timing else None
         if steps != self.inputs["tonic"].shape[0]:
             raise ValueError("Window must match the warmed callback shape")
         with self.torch.inference_mode():
@@ -248,8 +177,6 @@ class Controller:
             self.inputs["peer"].zero_()
             self.inputs["sensory"][0, 0, 0] = sensory
             self.inputs["peer"][0, 0, 0] = peer
-            if measured is not None:
-                finish_measurement(measured, self.stage_timing[0])
             return self._execute(steps)
 
 

@@ -21,7 +21,7 @@ from experiments import theme
 from experiments.exp046 import analyse as measurements
 from experiments.exp046.custom import inputs
 from experiments.exp046.custom.network_artifacts import copy_circuits
-from pingstore.contracts import PingstoreError, load_json, write_json_atomic
+from pingstore.library import PingstoreError, load_json, write_json_atomic
 
 DEFAULT_FORMATS = ("svg", "pdf")
 

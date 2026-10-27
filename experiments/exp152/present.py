@@ -14,18 +14,23 @@ import numpy as np
 
 REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
-from pingstore.contracts import load_json, write_json_atomic
-from pingstore.stages import source_run, stage_run
+from pingstore.library import load_json, source_run, stage_run, write_json_atomic
 
 NODES = ("flexor", "extensor", "plant")
 
 
 def recording(values, summary):
     """Keep every timing sample and expose controller states when callbacks finish."""
-    cfg = summary.get("configuration", {})
-    populations = summary.get(
-        "controller_populations", cfg.get("controller_populations", ["motor", "slow"])
-    )
+    cfg = summary["configuration"]
+    populations = cfg["controller_populations"]
+    if (
+        cfg["neuron_model"] != "elevate"
+        or populations != ["motor"]
+        or cfg["neurons"] != 1
+        or cfg["spike_transport"] != "logical"
+        or cfg["joint"]["angle_convention"] != "zero_downward_positive_right"
+    ):
+        raise ValueError("Replay requires the single-cell Elevate logical joint model")
     nodes = {}
     for name in NODES:
         prefix = name + "_"
@@ -53,8 +58,7 @@ def recording(values, summary):
                 velocity=np.asarray(values["velocity"]).tolist(),
                 activation=np.asarray(values["activation"]).tolist(),
             )
-            if "gravity_torque" in values:
-                row["gravity_torque"] = np.asarray(values["gravity_torque"]).tolist()
+            row["gravity_torque"] = np.asarray(values["gravity_torque"]).tolist()
         for field, samples in row.items():
             if not isinstance(samples, list):
                 continue
@@ -76,23 +80,18 @@ def recording(values, summary):
     return dict(
         schema="pinglab.exp152.replay/v2",
         controller_populations=populations,
-        mechanics=cfg.get("joint", {}),
+        mechanics=cfg["joint"],
         duration_ms=summary["duration_seconds"] * 1000,
         period_ms=summary["timer_ms"],
-        neuron_model=summary.get("configuration", {}).get("neuron_model", "coba_lif"),
-        voltage_range_mv=[-80, 40]
-        if summary.get("configuration", {}).get("neuron_model")
-        in {"hodgkin_huxley", "elevate"}
-        else [-75, -45],
+        neuron_model=cfg["neuron_model"],
+        voltage_range_mv=[-80, 40],
         neurons_per_population=summary["neurons_per_population"],
         snnlab_ref=summary["snnlab_ref"],
         behaviour_passed=summary["passed"],
         timing_passed=summary["timing_passed"],
         clock="Monotonic callback completion time relative to each node's mapped shared start",
         sensory_time_ms={
-            side: (
-                np.asarray(values.get("sensory_" + side + "_time_s", [])) * 1000
-            ).tolist()
+            side: (np.asarray(values["sensory_" + side + "_time_s"]) * 1000).tolist()
             for side in ("flexor", "extensor")
         },
         nodes=nodes,
@@ -128,8 +127,7 @@ def present(source, *, run_id=None):
     ) as run:
         write_json_atomic(run.export / "circuit.json", payload)
         circuit = compute.file("flexor", "circuit.svg")
-        if circuit.is_file():
-            shutil.copyfile(circuit, run.export / "circuit.svg")
+        shutil.copyfile(circuit, run.export / "circuit.svg")
         write_json_atomic(run.export / "numbers.json", numbers)
     return run.run_id
 

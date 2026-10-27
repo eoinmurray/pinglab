@@ -4,22 +4,20 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import pytest
-from pingstore import stages
-from pingstore.contracts import (
+from pingstore import core
+from pingstore.library import (
     RUN_SCHEMA,
     PingstoreError,
-    load_json,
-    payload_digest,
-    validate_run_directory,
-    write_json_atomic,
-)
-from pingstore.discovery import discover_runs
-from pingstore.layout import (
     canonical_export_mapping,
     canonical_export_relative,
+    discover_runs,
     export_directory,
     initialize_layout,
+    load_json,
+    payload_digest,
     presentation_directory,
+    validate_run_directory,
+    write_json_atomic,
 )
 
 
@@ -93,13 +91,13 @@ def test_compute_and_analyse_reject_deeper_than_one_unit_directory(tmp_path):
 def test_stage_completion_normalizes_tool_native_paths_and_references(
     tmp_path, monkeypatch
 ):
-    monkeypatch.setattr(stages, "memberships", lambda repo: {"exp001": "demo"})
+    monkeypatch.setattr(core, "memberships", lambda repo: {"exp001": "demo"})
     monkeypatch.setattr(
-        stages,
-        "_capture_code",
+        core,
+        "capture_code",
         lambda repo, directory: {"git_commit": "fixture", "dirty": False},
     )
-    with stages.stage_run(tmp_path, "exp001", "compute") as run:
+    with core.stage_run(tmp_path, "exp001", "compute") as run:
         artifact = run.export / "jobs/condition-a/result.json"
         artifact.parent.mkdir(parents=True)
         write_json_atomic(artifact, {"path": "jobs/condition-a/result.json"})
@@ -112,15 +110,15 @@ def test_stage_completion_normalizes_tool_native_paths_and_references(
 
 
 def test_stage_completion_rejects_canonical_path_collisions(tmp_path, monkeypatch):
-    monkeypatch.setattr(stages, "memberships", lambda repo: {"exp001": "demo"})
+    monkeypatch.setattr(core, "memberships", lambda repo: {"exp001": "demo"})
     monkeypatch.setattr(
-        stages,
-        "_capture_code",
+        core,
+        "capture_code",
         lambda repo, directory: {"git_commit": "fixture", "dirty": False},
     )
     with (
         pytest.raises(PingstoreError, match="canonical export paths collide"),
-        stages.stage_run(tmp_path, "exp001", "compute") as run,
+        core.stage_run(tmp_path, "exp001", "compute") as run,
     ):
         for relative in (
             "jobs/condition-a/result.json",
@@ -250,7 +248,7 @@ def test_non_v4_evidence_is_rejected_by_operational_readers(tmp_path):
     write_json_atomic(directory / "run.json", record)
     before = (directory / "run.json").read_bytes(), payload_digest(directory)
     with pytest.raises(PingstoreError, match="operational run schema"):
-        stages.source_run(tmp_path, directory.name)
+        core.source_run(tmp_path, directory.name)
     with pytest.raises(PingstoreError, match="operational run schema"):
         discover_runs(tmp_path / "runs")
     assert before == ((directory / "run.json").read_bytes(), payload_digest(directory))
@@ -260,22 +258,22 @@ def test_non_v4_evidence_is_rejected_by_operational_readers(tmp_path):
 def test_stage_writer_finishes_v4_with_readme_and_no_provenance(
     tmp_path, monkeypatch, origin
 ):
-    monkeypatch.setattr(stages, "memberships", lambda repo: {"exp001": "demo"})
+    monkeypatch.setattr(core, "memberships", lambda repo: {"exp001": "demo"})
     monkeypatch.setattr(
-        stages,
-        "_capture_code",
+        core,
+        "capture_code",
         lambda repo, directory: {
             "git_commit": "fixture",
             "dirty": False,
         },
     )
-    identity = stages.reserve_stage(
+    identity = core.reserve_stage(
         tmp_path / ".pingstore", "exp001", "present", origin=origin
     )
     assert identity == "exp001-r001-present"
     temporary = tmp_path / ".pingstore/runs" / f".{identity}.tmp"
-    assert stages.stage_reservation(temporary)["schema"] == RUN_SCHEMA
-    with stages.stage_run(tmp_path, "exp001", "present", run_id=identity) as run:
+    assert core.stage_reservation(temporary)["schema"] == RUN_SCHEMA
+    with core.stage_run(tmp_path, "exp001", "present", run_id=identity) as run:
         (run.export / "numbers.json").write_text("{}")
     assert not temporary.exists()
     record = validate_run_directory(run.directory)
@@ -297,7 +295,7 @@ def test_legacy_reservation_is_not_rewritten(tmp_path):
     write_json_atomic(old, {"run_id": "exp001-r001-compute-local"})
     before = old.read_bytes()
     with pytest.raises(PingstoreError, match="legacy v2/v3 reservation"):
-        stages.stage_reservation(tmp_path)
+        core.stage_reservation(tmp_path)
     assert old.read_bytes() == before
     assert not (tmp_path / "provenance").exists()
 
@@ -314,7 +312,7 @@ def test_source_neutral_reservations_keep_origin_and_avoid_cross_origin_collisio
     with ThreadPoolExecutor(max_workers=6) as pool:
         identities = list(
             pool.map(
-                lambda origin: stages.reserve_stage(
+                lambda origin: core.reserve_stage(
                     tmp_path, "exp001", "compute", origin=origin
                 ),
                 origins,
@@ -324,7 +322,7 @@ def test_source_neutral_reservations_keep_origin_and_avoid_cross_origin_collisio
     for origin, identity in zip(origins, identities, strict=True):
         assert identity.endswith("-compute")
         assert int(identity.split("-")[1][1:]) >= 10
-        reservation = stages.stage_reservation(runs / f".{identity}.tmp")
+        reservation = core.stage_reservation(runs / f".{identity}.tmp")
         assert reservation["origin"] == origin
 
 
@@ -343,5 +341,5 @@ def test_suffixed_reservation_cannot_be_completed(tmp_path):
     )
     before = reservation.read_bytes()
     with pytest.raises(PingstoreError, match="source-neutral reservation"):
-        stages.stage_reservation(path)
+        core.stage_reservation(path)
     assert reservation.read_bytes() == before

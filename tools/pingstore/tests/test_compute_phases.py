@@ -3,8 +3,8 @@
 from concurrent.futures import ThreadPoolExecutor
 
 import pytest
-from pingstore import stages
-from pingstore.contracts import STAGE_ID_RE, PingstoreError, validate_compute_scope
+from pingstore import core
+from pingstore.library import STAGE_ID_RE, PingstoreError, validate_compute_scope
 
 
 def test_phase_counter_is_shared_with_all_other_stages(tmp_path):
@@ -17,7 +17,7 @@ def test_phase_counter_is_shared_with_all_other_stages(tmp_path):
     with ThreadPoolExecutor(max_workers=4) as pool:
         identities = list(
             pool.map(
-                lambda row: stages.reserve_stage(
+                lambda row: core.reserve_stage(
                     tmp_path, "exp999", row[0], phase=row[1]
                 ),
                 requests,
@@ -28,7 +28,7 @@ def test_phase_counter_is_shared_with_all_other_stages(tmp_path):
     ]
     assert len(set(counters)) == len(requests)
     for identity, (stage, phase) in zip(identities, requests, strict=True):
-        reservation = stages.stage_reservation(tmp_path / "runs" / f".{identity}.tmp")
+        reservation = core.stage_reservation(tmp_path / "runs" / f".{identity}.tmp")
         assert reservation.get("phase") == phase
         if stage == "compute":
             assert reservation["scope"] == ("phase" if phase else "full")
@@ -77,11 +77,11 @@ def test_ordinary_consumer_rejects_phase(tmp_path, monkeypatch):
         "scope": "phase",
         "phase": "snntorch",
     }
-    monkeypatch.setattr(stages, "validate_operational_run_directory", lambda _: record)
+    monkeypatch.setattr(core, "validate_operational_run_directory", lambda _: record)
     with pytest.raises(PingstoreError, match="phase-aware consumer"):
-        stages.source_run(tmp_path, record["run_id"], stage="compute")
+        core.source_run(tmp_path, record["run_id"], stage="compute")
     assert (
-        stages.source_run(
+        core.source_run(
             tmp_path, record["run_id"], stage="compute", phase="snntorch"
         ).record
         == record

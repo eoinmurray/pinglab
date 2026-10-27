@@ -25,8 +25,7 @@ from experiments.exp023 import recipe
 from experiments.exp023.custom import inputs
 from experiments.exp023.custom.network_artifacts import copy_circuits
 from matplotlib.patches import FancyArrowPatch, Rectangle
-from pingstore.contracts import PingstoreError, load_json, write_json_atomic
-from pingstore.stages import stage_run
+from pingstore.library import PingstoreError, load_json, stage_run, write_json_atomic
 
 DEFAULT_FORMATS = ("svg", "pdf")
 

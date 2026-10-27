@@ -8,7 +8,7 @@ from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
-from pingstore.contracts import PingstoreError, write_json_atomic
+from pingstore.library import PingstoreError, write_json_atomic
 
 
 def submit_pipeline(

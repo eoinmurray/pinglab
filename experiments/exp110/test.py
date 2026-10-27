@@ -15,9 +15,8 @@ from experiments.exp110 import recipe
 from experiments.exp110 import recipe as exp054_recipe
 from experiments.exp110 import recipe as exp117_recipe
 from PIL import Image
-from pingstore import stages
-from pingstore.contracts import write_json_atomic
-from pingstore.stages import source_run
+from pingstore import core
+from pingstore.library import source_run, write_json_atomic
 
 
 def test_figure_ownership_has_moved_from_exp054() -> None:
@@ -37,7 +36,7 @@ def test_present_records_exp054_analysis_and_exports_only_the_bundle(
     tmp_path: Path, monkeypatch
 ) -> None:
     monkeypatch.setattr(
-        stages,
+        core,
         "memberships",
         lambda _: {
             "exp025": "test",
@@ -52,9 +51,9 @@ def test_present_records_exp054_analysis_and_exports_only_the_bundle(
         },
     )
     monkeypatch.setattr(
-        stages, "_capture_code", lambda *args: {"git_commit": "fixture", "dirty": False}
+        core, "capture_code", lambda *args: {"git_commit": "fixture", "dirty": False}
     )
-    with stages.stage_run(tmp_path, "exp054", "analyse") as exp054_run:
+    with core.stage_run(tmp_path, "exp054", "analyse") as exp054_run:
         (exp054_run.export / "fixture.json").write_text("{}")
     exp054_analysis = source_run(
         tmp_path / ".pingstore",
@@ -63,7 +62,7 @@ def test_present_records_exp054_analysis_and_exports_only_the_bundle(
         experiment="exp054",
     )
     exp117_cfg = exp117_recipe.source_exp117_recipe_configuration()
-    with stages.stage_run(
+    with core.stage_run(
         tmp_path, "exp117", "compute", configuration=exp117_cfg
     ) as exp117_compute_run:
         (exp117_compute_run.export / "continuation.json").write_text("{}")
@@ -73,7 +72,7 @@ def test_present_records_exp054_analysis_and_exports_only_the_bundle(
         stage="compute",
         experiment="exp117",
     )
-    with stages.stage_run(
+    with core.stage_run(
         tmp_path,
         "exp117",
         "analyse",
@@ -108,7 +107,7 @@ def test_present_records_exp054_analysis_and_exports_only_the_bundle(
     ):
         sources = {}
         if experiment in ("exp041", "exp046"):
-            with stages.stage_run(tmp_path, experiment, "analyse") as saved:
+            with core.stage_run(tmp_path, experiment, "analyse") as saved:
                 document = {}
                 if experiment == "exp041":
                     document = {
@@ -128,9 +127,7 @@ def test_present_records_exp054_analysis_and_exports_only_the_bundle(
                 tmp_path / ".pingstore", saved.run_id
             )
             sources["analysis"] = source_analyses[experiment]
-        with stages.stage_run(
-            tmp_path, experiment, "present", inputs=sources
-        ) as source:
+        with core.stage_run(tmp_path, experiment, "present", inputs=sources) as source:
             path = source.export / name
             if path.suffix == ".svg":
                 path.write_text('<svg xmlns="http://www.w3.org/2000/svg"/>')

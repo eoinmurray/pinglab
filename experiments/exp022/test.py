@@ -19,7 +19,7 @@ from experiments.exp022 import recipe
 from experiments.exp022.analyse import _gamma_psd, bank_composition, measure_snapshot
 from experiments.exp022.custom import bank as bank_io
 from experiments.exp022.custom import reuse, reuse_contract
-from pingstore.contracts import PingstoreError
+from pingstore.library import PingstoreError
 from snnlab import analysis as figure_metrics
 
 CONCRETE_TIERS = (

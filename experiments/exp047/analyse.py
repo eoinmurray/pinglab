@@ -15,7 +15,7 @@ import argparse
 import numpy as np
 from experiments.exp047 import recipe
 from experiments.exp047.custom import evidence, inputs
-from pingstore.contracts import PingstoreError, write_json_atomic
+from pingstore.library import PingstoreError, write_json_atomic
 
 
 def analyse(identity, *, run_id=None):

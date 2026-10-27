@@ -21,7 +21,7 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 
 import numpy as np
 from experiments.exp134 import recipe
-from pingstore.stages import source_run, stage_run
+from pingstore.library import source_run, stage_run
 from scipy.ndimage import gaussian_filter1d
 from scipy.signal import find_peaks
 from snnlab import analysis

@@ -19,14 +19,13 @@ from experiments.exp022 import compute as compute
 from experiments.exp022 import recipe
 from experiments.exp022.custom import reuse
 from hpc.slurm_submit import submit_pipeline
-from pingstore.contracts import PingstoreError, load_json, write_json_atomic
-from pingstore.stages import _capture_code
+from pingstore.library import PingstoreError, capture_code, load_json, write_json_atomic
 
 
 def check_plan(plan):
     if plan.get("schema") != "exp022.hpc/v1" or plan.get("repo") != str(REPO):
         raise PingstoreError("plan belongs to another schema or checkout")
-    code = _capture_code(REPO, REPO)
+    code = capture_code(REPO, REPO)
     if code.get("code_dirty") or code != plan["code"]:
         raise PingstoreError("HPC execution requires the exact frozen plan source")
     manifest_path = Path(plan["manifest"])
@@ -58,7 +57,7 @@ def prepare(args):
         raise PingstoreError("plan already exists; review it instead of overwriting")
     if args.root.exists():
         raise PingstoreError("bank working root already exists")
-    code = _capture_code(REPO, REPO)
+    code = capture_code(REPO, REPO)
     if code.get("code_dirty"):
         raise PingstoreError("commit execution code before preparing HPC work")
     args.root.mkdir(parents=True)

@@ -21,12 +21,7 @@ import torch.nn.functional as F
 from experiments.exp042 import recipe
 from experiments.exp042.custom import inputs, transforms
 from experiments.exp042.custom.network_artifacts import model_execution
-from pingstore.contracts import (
-    PingstoreError,
-    file_sha256,
-    load_json,
-    write_json_atomic,
-)
+from pingstore.library import PingstoreError, file_sha256, load_json, write_json_atomic
 from snnlab.lang import duration_steps
 from snnlab.sim import (
     GraphExecutor,

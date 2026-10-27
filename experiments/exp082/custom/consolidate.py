@@ -13,12 +13,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[3]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
 from experiments.exp082.custom import evidence, inputs
-from pingstore.contracts import (
-    PingstoreError,
-    file_sha256,
-    load_json,
-    write_json_atomic,
-)
+from pingstore.library import PingstoreError, file_sha256, load_json, write_json_atomic
 
 
 def consolidate(evaluation_identity, showcase_identity, *, run_id=None):

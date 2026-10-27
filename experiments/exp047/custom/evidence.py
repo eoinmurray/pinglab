@@ -12,8 +12,7 @@ from experiments.exp047.recipe import (
     duration_configuration,
     refractory_execution_configuration,
 )
-from pingstore.contracts import PingstoreError, load_json
-from pingstore.layout import canonical_export_file
+from pingstore.library import PingstoreError, canonical_export_file, load_json
 
 
 def configuration(cfg):

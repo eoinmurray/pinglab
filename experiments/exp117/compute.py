@@ -20,7 +20,7 @@ import numpy as np
 import scipy
 from experiments.exp117 import recipe
 from experiments.exp117.custom import inputs
-from pingstore.contracts import write_json_atomic
+from pingstore.library import write_json_atomic
 from snnlab import meanfield as mf
 
 # The article/analysis payload uses spikes/ms; SNNLab's numerical states use Hz.

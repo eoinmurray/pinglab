@@ -31,8 +31,7 @@ from experiments.exp124.analyse import (
     recorded_populations,
 )
 from matplotlib.ticker import MaxNLocator, PercentFormatter
-from pingstore.contracts import load_json, write_json_atomic
-from pingstore.stages import source_run, stage_run
+from pingstore.library import load_json, source_run, stage_run, write_json_atomic
 from snnlab import lang
 from snnlab.sim import RecordingData, SignalInfo, TrainingHistory
 from snnlab.viz import plot_learning_curves, plot_raster

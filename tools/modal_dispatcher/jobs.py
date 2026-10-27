@@ -10,19 +10,17 @@ import uuid
 from contextlib import contextmanager
 from pathlib import Path
 
-from pingstore.contracts import (
+from pingstore.library import (
     STAGE_ID_RE,
     PingstoreError,
     load_json,
-    validate_operational_run_directory,
-    write_json_atomic,
-)
-from pingstore.stages import (
     operation_lock,
     reserve_stage,
     source_run,
     stage_reservation,
     utc_now,
+    validate_operational_run_directory,
+    write_json_atomic,
 )
 
 VOLUME = "pinglab-compute-results"

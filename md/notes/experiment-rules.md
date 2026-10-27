@@ -187,7 +187,7 @@ updated_at: "2026-10-24T06:26:47Z"
 
 1. Use Pingstore for scientific runs, provenance and outputs; follow
    [Pingstore Rules](/notes/pingstore-rules) (`md/notes/pingstore-rules.md`).
-2. Create runs with `pingstore.stages.stage_run`; validate explicit inputs with `source_run`.
+2. Create runs with `pingstore.library.stage_run`; validate explicit inputs with `source_run`.
 3. Export scientific outputs through `StageRun.export`; use `StageRun.scratch` for temporary work.
 4. Record configuration and input provenance in the run record, not parallel manifests.
 5. Invoke compute, analyse and present independently. Never select “latest” or

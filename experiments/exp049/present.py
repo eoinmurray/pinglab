@@ -23,7 +23,7 @@ from experiments.exp049.analyse import MEASUREMENT
 from experiments.exp049.custom import inputs
 from experiments.exp049.custom.network_artifacts import copy_circuits
 from experiments.exp049.recipe import COND_ORDER, CONDITIONS, F_GAMMA_BAND_HZ
-from pingstore.contracts import PingstoreError, load_json, write_json_atomic
+from pingstore.library import PingstoreError, load_json, write_json_atomic
 
 DEFAULT_FORMATS = ("svg", "pdf")
 

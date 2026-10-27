@@ -4,8 +4,7 @@ import json
 import shutil
 from pathlib import Path
 
-from pingstore.contracts import STAGE_ID_RE, PingstoreError
-from pingstore.stages import source_run
+from pingstore.library import STAGE_ID_RE, PingstoreError, source_run
 
 
 def input_path(reference):
@@ -76,7 +75,7 @@ def restore_inputs(root, volume_root, references):
             if staging.exists():
                 raise PingstoreError(f"incomplete Modal input restoration: {identity}")
             shutil.copytree(volume_root / path, staging)
-            from pingstore.contracts import validate_operational_run_directory
+            from pingstore.library import validate_operational_run_directory
 
             record = validate_operational_run_directory(staging)
             if (

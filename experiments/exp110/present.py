@@ -27,8 +27,7 @@ from experiments.exp110.custom import source_exp054_custom_evidence as exp054_ev
 from experiments.exp110.recipe import MODELS, TAU_GABA_REFERENCE_MS
 from matplotlib.gridspec import GridSpec
 from matplotlib.patches import Patch
-from pingstore.contracts import PingstoreError, load_json
-from pingstore.stages import source_run, stage_run
+from pingstore.library import PingstoreError, load_json, source_run, stage_run
 
 DEFAULT_FORMATS = ("svg", "pdf")
 

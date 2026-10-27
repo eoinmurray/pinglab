@@ -10,13 +10,8 @@ import numpy as np
 import pytest
 from experiments.exp042 import analyse, compute, present, recipe
 from experiments.exp042.custom import inputs, simulation, transforms
-from pingstore import stages
-from pingstore.contracts import (
-    PingstoreError,
-    file_sha256,
-    load_json,
-    write_json_atomic,
-)
+from pingstore import core
+from pingstore.library import PingstoreError, file_sha256, load_json, write_json_atomic
 
 
 def test_execution_identity_covers_reorganised_snnlab_sources(monkeypatch):
@@ -43,18 +38,18 @@ def lab(tmp_path, monkeypatch):
     for module in (compute, analyse, present):
         monkeypatch.setattr(module, "REPO", tmp_path)
     monkeypatch.setattr(
-        stages, "memberships", lambda _: {"exp022": "demo", "exp042": "demo"}
+        core, "memberships", lambda _: {"exp022": "demo", "exp042": "demo"}
     )
 
     def code(*args):
         return {"git_commit": "fixture", "dirty": False, "code_dirty": False}
 
-    monkeypatch.setattr(stages, "_capture_code", code)
-    monkeypatch.setattr(compute, "_capture_code", code)
+    monkeypatch.setattr(core, "capture_code", code)
+    monkeypatch.setattr(compute, "capture_code", code)
     monkeypatch.setattr(recipe, "RASTER_N_E_PLOT", 2)
     monkeypatch.setattr(recipe, "RASTER_N_I_PLOT", 1)
     monkeypatch.setenv("PINGLAB_SMOKE", "1")
-    with stages.stage_run(tmp_path, "exp022", "compute") as bank:
+    with core.stage_run(tmp_path, "exp022", "compute") as bank:
         for seed in recipe.SEEDS:
             cell = bank.export / recipe.cell_name(seed)
             cell.mkdir(parents=True)
@@ -302,7 +297,7 @@ def test_failure_is_hidden_and_source_immutable(lab, monkeypatch):
 
 def test_shards_are_pinned_resumable_and_collect_without_repeating_sweeps(lab):
     root, bank_id, calls = lab
-    identity = stages.reserve_stage(
+    identity = core.reserve_stage(
         root / ".pingstore", "exp042", "compute", origin="slurm-wilkes"
     )
     with pytest.raises((PingstoreError, OSError)):
@@ -429,7 +424,7 @@ def test_zero_replay_cache_rejects_recipe_drift(lab):
 
 def test_shard_does_not_reuse_tampered_metrics(lab):
     root, bank_id, _ = lab
-    identity = stages.reserve_stage(root / ".pingstore", "exp042", "compute")
+    identity = core.reserve_stage(root / ".pingstore", "exp042", "compute")
     record = compute.shard(bank_id, run_id=identity, index=0)
     directory = root / ".pingstore/runs" / f".{identity}.tmp"
     assert record["schema"] == "pinglab.concurrent-shard/v1"
@@ -651,7 +646,7 @@ def test_analysis_rejects_missing_or_false_count_invariant():
 
 def test_active_worker_blocks_collection(lab):
     root, bank_id, _ = lab
-    identity = stages.reserve_stage(root / ".pingstore", "exp042", "compute")
+    identity = core.reserve_stage(root / ".pingstore", "exp042", "compute")
     directory = root / ".pingstore/runs" / f".{identity}.tmp"
     with (
         compute._compute_lock(directory, exclusive=False),

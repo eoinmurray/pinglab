@@ -19,8 +19,7 @@ sys.path[:0] = [str(REPO), str(REPO / "tools")]
 import numpy as np
 import torch
 from experiments.exp148 import dataset, recipe
-from pingstore.contracts import load_json, write_json_atomic
-from pingstore.stages import source_run, stage_run
+from pingstore.library import load_json, source_run, stage_run, write_json_atomic
 from snnlab import lang
 from snnlab import meanfield as mf
 from snnlab.sim import (

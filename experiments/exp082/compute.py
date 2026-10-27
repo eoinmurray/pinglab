@@ -26,13 +26,14 @@ from experiments.exp082.custom.source_exp022_custom_checkpoints import (
 )
 from experiments.exp082.recipe import DT_MS, N_CLASSES, N_INPUT
 from hpc import concurrent_compute
-from pingstore.contracts import (
+from pingstore.library import (
     PingstoreError,
+    capture_code,
     file_sha256,
     load_json,
+    reserve_stage,
     write_json_atomic,
 )
-from pingstore.stages import _capture_code, reserve_stage
 from snnlab.sim import (
     BoundarySchedule,
     DecisionSegments,
@@ -134,7 +135,7 @@ def shard(identity, *, run_id, index, count=recipe.SHARDS):
         run_items=lambda: _run_jobs(bank, directory, job_list, contract),
         inventory=lambda: _job_inventory(directory, job_list),
         check_inputs=check_inputs,
-        capture_code=_capture_code,
+        capture_code=capture_code,
     )
 
 

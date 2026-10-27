@@ -16,8 +16,13 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "experiments"), str(REPO / "tools")]
 
 from experiments.exp024 import recipe
-from pingstore.contracts import PingstoreError, load_json, write_json_atomic
-from pingstore.stages import source_run, stage_run
+from pingstore.library import (
+    PingstoreError,
+    load_json,
+    source_run,
+    stage_run,
+    write_json_atomic,
+)
 
 
 def finite(value: object, label: str) -> float:

@@ -8,7 +8,7 @@ export const assetTypes: Record<string, string> = {
 };
 export function isRunAsset(file: string): boolean {
   return /^[a-zA-Z0-9_.-]+$/.test(file) &&
-    (/\.(png|svg|mp4|webm|ogv)$/.test(file) || ['circuit.json', 'classifier.json', 'training.json'].includes(file));
+    (/\.(png|svg|mp4|webm|ogv)$/.test(file) || ['circuit.json', 'classifier.json', 'training.json', 'lifecycle.json'].includes(file));
 }
 export function localAssetUrl(run: string, file: string): string {
   return `/run-images/${encodeURIComponent(run)}/${encodeURIComponent(file)}`;

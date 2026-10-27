@@ -16,7 +16,7 @@ import numpy as np
 from experiments.exp041 import recipe
 from experiments.exp041.custom import evidence, inputs
 from experiments.exp041.recipe import F_GAMMA_BAND_HZ
-from pingstore.contracts import PingstoreError, load_json, write_json_atomic
+from pingstore.library import PingstoreError, load_json, write_json_atomic
 from scipy import signal as sp_signal
 
 MEASUREMENT = {

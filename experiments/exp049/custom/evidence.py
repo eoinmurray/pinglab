@@ -14,7 +14,7 @@ from experiments.exp049.custom.source_exp022_custom_checkpoints import (
     public_provenance,
     resolve_checkpoint,
 )
-from pingstore.contracts import PingstoreError, load_json
+from pingstore.library import PingstoreError, load_json
 
 
 def finite(value, label, *, minimum=0.0, maximum=None):

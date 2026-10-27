@@ -14,8 +14,7 @@ import argparse
 
 import numpy as np
 from experiments.exp142.custom.inputs import event_digest
-from pingstore.contracts import load_json, write_json_atomic
-from pingstore.stages import source_run, stage_run
+from pingstore.library import load_json, source_run, stage_run, write_json_atomic
 
 
 def analyse(identity, *, run_id=None):
@@ -378,7 +377,7 @@ def check_anchor(recording, original, cfg, ni):
 
 def output_clock(source, mode, case, cfg):
     """Read the actual native graph clock; all COBA-LIF populations share it."""
-    from pingstore.contracts import load_json
+    from pingstore.library import load_json
 
     if case.startswith("continuous"):
         diagnostics = source.record["execution"]["cases"][f"{mode}-{case}"]

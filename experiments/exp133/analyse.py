@@ -12,7 +12,7 @@ sys.path[:0] = [str(REPO), str(REPO / "tools")]
 import numpy as np
 from experiments.exp133 import recipe
 from experiments.exp133.custom import evidence, inputs, sender_receiver
-from pingstore.contracts import write_json_atomic
+from pingstore.library import write_json_atomic
 from scipy.ndimage import gaussian_filter1d
 from scipy.signal import find_peaks
 

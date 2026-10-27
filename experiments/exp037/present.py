@@ -25,7 +25,7 @@ from experiments.exp037.custom import evidence, inputs
 from experiments.exp037.custom.network_artifacts import copy_circuits
 from experiments.exp037.recipe import EI_RASTER_N_E_PLOT, EI_RASTER_N_I_PLOT, MODELS
 from matplotlib.patches import Patch
-from pingstore.contracts import PingstoreError, load_json, write_json_atomic
+from pingstore.library import PingstoreError, load_json, write_json_atomic
 
 DEFAULT_FORMATS = ("svg", "pdf")
 

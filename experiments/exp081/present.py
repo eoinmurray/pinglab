@@ -21,8 +21,7 @@ import numpy as np
 from experiments import theme
 from experiments.exp081 import recipe
 from experiments.exp081.custom import inputs
-from pingstore.contracts import PingstoreError, load_json, write_json_atomic
-from pingstore.stages import stage_run
+from pingstore.library import PingstoreError, load_json, stage_run, write_json_atomic
 
 
 def plot_moments(

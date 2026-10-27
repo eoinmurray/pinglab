@@ -15,8 +15,8 @@ import pytest
 import torch
 from experiments.exp124 import analyse, compute, dataset, present, recipe
 from experiments.exp124.custom.extensions import class_balanced_cross_entropy
-from pingstore import stages
-from pingstore.contracts import load_json
+from pingstore import core
+from pingstore.library import load_json
 from snnlab.analysis import spike_autocorrelogram
 from snnlab.sim import NetworkSnapshot, load_training_checkpoint
 
@@ -197,9 +197,9 @@ def test_native_pipeline_retains_evidence_and_validates_sources(
         return resolved
 
     monkeypatch.setattr(recipe, "configuration", fixture_configuration)
-    monkeypatch.setattr(stages, "memberships", lambda repo: {"exp124": "datasets"})
+    monkeypatch.setattr(core, "memberships", lambda repo: {"exp124": "datasets"})
     monkeypatch.setattr(
-        stages, "_capture_code", lambda *args: {"git_commit": "synthetic-fixture"}
+        core, "capture_code", lambda *args: {"git_commit": "synthetic-fixture"}
     )
     for module in (compute, analyse, present):
         monkeypatch.setattr(module, "REPO", tmp_path)
@@ -255,7 +255,7 @@ def test_native_pipeline_retains_evidence_and_validates_sources(
         )
     entrypoint = compute.compute_parallel if parallel else compute.compute
     identity = entrypoint(protocol="local-check")
-    source = stages.source_run(tmp_path / ".pingstore", identity)
+    source = core.source_run(tmp_path / ".pingstore", identity)
     execution = source.record["execution"]
     assert execution["concurrency"]["mode"] == (
         "spawned_processes" if parallel else "sequential"
@@ -303,11 +303,11 @@ def test_native_pipeline_retains_evidence_and_validates_sources(
     )
     analysis_id = analyse.analyse(identity)
     presentation_id = present.present(analysis_id)
-    output = stages.source_run(tmp_path / ".pingstore", presentation_id)
+    output = core.source_run(tmp_path / ".pingstore", presentation_id)
     numbers = load_json(output.file("numbers.json"))
     assert numbers["full_training"]["configuration"]["protocol"] == "local-check"
     assert "parameter_table" not in numbers
-    analysis = stages.source_run(tmp_path / ".pingstore", analysis_id)
+    analysis = core.source_run(tmp_path / ".pingstore", analysis_id)
     assert "parameter_table" not in load_json(analysis.file("results.json"))
     sample = load_json(analysis.file("raster_measurements.json"))
     for model in cfg["models"]:
@@ -454,16 +454,16 @@ def failing_condition_worker(directory, item, index, *arguments):
 
 
 def test_parallel_worker_failure_does_not_publish_partial_run(tmp_path, monkeypatch):
-    monkeypatch.setattr(stages, "memberships", lambda repo: {"exp124": "datasets"})
+    monkeypatch.setattr(core, "memberships", lambda repo: {"exp124": "datasets"})
     monkeypatch.setattr(
-        stages, "_capture_code", lambda *args: {"git_commit": "synthetic-fixture"}
+        core, "capture_code", lambda *args: {"git_commit": "synthetic-fixture"}
     )
     monkeypatch.setattr(compute, "condition_worker", failing_condition_worker)
     cfg = recipe.configuration("local-check")
     items = [{"id": model, "device": "cpu"} for model in cfg["models"]]
     with (
         pytest.raises(RuntimeError, match="concurrent worker .* failed"),
-        stages.stage_run(tmp_path, "exp124", "compute", configuration=cfg) as run,
+        core.stage_run(tmp_path, "exp124", "compute", configuration=cfg) as run,
     ):
         snapshot = run.scratch / "dataset.npz"
         np.savez(snapshot, labels=np.array([0]))

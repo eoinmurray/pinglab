@@ -16,7 +16,7 @@ import torch
 from experiments.exp047 import recipe
 from experiments.exp047.custom import evidence, inputs
 from experiments.exp047.custom.network_artifacts import model_execution
-from pingstore.contracts import PingstoreError, write_json_atomic
+from pingstore.library import PingstoreError, write_json_atomic
 from snnlab.lang import duration_steps
 from snnlab.sim import GraphExecutor, plan_graph, resolve_device
 

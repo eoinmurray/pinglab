@@ -9,7 +9,7 @@ from pathlib import Path
 
 import numpy as np
 from experiments.exp025.custom.source_exp044_recipe import duration_steps
-from pingstore.contracts import PingstoreError
+from pingstore.library import PingstoreError
 
 
 def snapshot(path: Path, dt: float, common: dict) -> dict:

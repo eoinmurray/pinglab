@@ -20,7 +20,7 @@ import numpy as np
 from experiments import theme
 from experiments.exp117.custom import inputs
 from matplotlib.gridspec import GridSpec
-from pingstore.contracts import PingstoreError, load_json, write_json_atomic
+from pingstore.library import PingstoreError, load_json, write_json_atomic
 
 
 def present(identity, *, run_id=None):

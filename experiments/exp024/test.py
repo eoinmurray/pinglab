@@ -10,17 +10,17 @@ from pathlib import Path
 
 import pytest
 from experiments.exp024 import analyse, present, recipe
-from pingstore import stages
-from pingstore.contracts import (
+from pingstore import core
+from pingstore.library import (
     RUN_SCHEMA,
     PingstoreError,
+    discover_runs,
+    initialize_layout,
     load_json,
     payload_digest,
     validate_run_directory,
     write_json_atomic,
 )
-from pingstore.discovery import discover_runs
-from pingstore.layout import initialize_layout
 
 
 @pytest.fixture
@@ -28,10 +28,10 @@ def repo(tmp_path, monkeypatch):
     monkeypatch.setattr(analyse, "REPO", tmp_path)
     monkeypatch.setattr(present, "REPO", tmp_path)
     monkeypatch.setattr(
-        stages, "memberships", lambda repo: {"exp022": "demo", "exp024": "demo"}
+        core, "memberships", lambda repo: {"exp022": "demo", "exp024": "demo"}
     )
     monkeypatch.setattr(
-        stages, "_capture_code", lambda *args: {"git_commit": "fixture", "dirty": False}
+        core, "capture_code", lambda *args: {"git_commit": "fixture", "dirty": False}
     )
     return tmp_path
 

@@ -15,14 +15,14 @@ from experiments.exp047 import analyse, compute, present, recipe
 from experiments.exp047 import analyse as measurements
 from experiments.exp047 import present as plots
 from experiments.exp047.custom import evidence, inputs
-from pingstore import stages
-from pingstore.contracts import (
+from pingstore import core
+from pingstore.library import (
     PingstoreError,
+    discover_runs,
     load_json,
     payload_digest,
     write_json_atomic,
 )
-from pingstore.discovery import discover_runs
 
 
 def fixture_documents(cfg, item):
@@ -96,9 +96,9 @@ def fixture_documents(cfg, item):
 def repo(tmp_path, monkeypatch):
     for module in (compute, analyse, present):
         monkeypatch.setattr(module, "REPO", tmp_path)
-    monkeypatch.setattr(stages, "memberships", lambda _: {"exp047": "demo"})
+    monkeypatch.setattr(core, "memberships", lambda _: {"exp047": "demo"})
     monkeypatch.setattr(
-        stages, "_capture_code", lambda *a: {"git_commit": "fixture", "dirty": False}
+        core, "capture_code", lambda *a: {"git_commit": "fixture", "dirty": False}
     )
     monkeypatch.setenv("PINGLAB_SMOKE", "1")
     calls = []

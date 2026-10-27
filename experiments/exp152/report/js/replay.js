@@ -33,7 +33,7 @@ export function loopTime(time, elapsed, speed, duration) {
 }
 
 export const toDegrees = radians => radians * 180 / Math.PI;
-export const voltageFraction = (voltage, minimum = -75, maximum = -45) => Number.isFinite(voltage)
+export const voltageFraction = (voltage, minimum = -80, maximum = 40) => Number.isFinite(voltage)
   ? Math.max(0, Math.min(1, (voltage - minimum) / (maximum - minimum))) : 0;
 
 export function peerInhibitionRoutes() {
@@ -46,24 +46,20 @@ export function peerInhibitionRoutes() {
 }
 
 export function controllerPopulations(data) {
-  if (data.schema === "pinglab.exp152.replay/v1") return ["motor", "slow"];
-  if (data.schema !== "pinglab.exp152.replay/v2" || !Array.isArray(data.controller_populations)
-      || !data.controller_populations.length) throw new Error("No supported controller population metadata.");
+  if (data.schema !== "pinglab.exp152.replay/v2" || data.neuron_model !== "elevate"
+      || data.controller_populations?.length !== 1 || data.controller_populations[0] !== "motor"
+      || data.neurons_per_population !== 1
+      || data.mechanics?.angle_convention !== "zero_downward_positive_right")
+    throw new Error("Replay requires the single-cell Elevate loaded-joint recording.");
   return data.controller_populations;
 }
 
-export function sensoryExcitationRoutes(loaded = false) {
-  if (loaded) return [
+export function sensoryExcitationRoutes() {
+  return [
     {name: "flexor", pop: 0, sensory: true, inhibitory: false,
       points: [[465, 412], [335, 490], [265, 485], [225, 270]]},
     {name: "extensor", pop: 0, sensory: true, inhibitory: false,
       points: [[775, 412], [905, 490], [975, 485], [1015, 270]]},
-  ];
-  return [
-    {name: "flexor", pop: 0, sensory: true, inhibitory: false,
-      points: [[600, 340], [450, 420], [300, 420], [225, 270]]},
-    {name: "extensor", pop: 0, sensory: true, inhibitory: false,
-      points: [[640, 340], [790, 420], [940, 420], [1015, 270]]},
   ];
 }
 
@@ -76,7 +72,7 @@ export function arrowHead(points) {
     base[0] - across[0], base[1] - across[1]];
 }
 
-// Adapted from snnlab-ros2/site/replay.js; replay the pinned Pingstore payload.
+// Replay the report-selected immutable Pingstore payload.
 export async function mountReplay(host) {
   const $ = id => host.querySelector(`[data-id="${id}"]`);
   const apps = [], observers = [], removers = [];
@@ -105,7 +101,10 @@ export async function mountReplay(host) {
     if (!response.ok) throw new Error(`Replay HTTP ${response.status}`);
     const data = await response.json();
     const populations = controllerPopulations(data);
-    const loaded = data.mechanics?.angle_convention === "zero_downward_positive_right";
+    // Use one fixed scale for both muscles throughout the complete recording.
+    const peakActivation = data.nodes.plant.activation.reduce(
+      (peak, row) => Math.max(peak, ...row), 0);
+    const activationScale = Math.max(.01, Math.ceil(peakActivation * 100) / 100);
     const period = data.period_ms;
     const endTime = Math.max(data.duration_ms, ...names.map((name) => last(data.nodes[name].time_ms)));
     for (const name of ["flexor", "extensor"]) {
@@ -134,7 +133,7 @@ export async function mountReplay(host) {
       }
       return { host, app, label };
     }
-    const circuitHeight = loaded ? 560 : 450;
+    const circuitHeight = 560;
     const circuit = await surface("circuit", circuitHeight, 0);
     circuit.host.style.aspectRatio = `1240 / ${circuitHeight}`;
     const graphic = new Graphics(); circuit.app.stage.addChild(graphic);
@@ -143,39 +142,31 @@ export async function mountReplay(host) {
     circuit.label("Flexor → extensor inhibition", 620, 43, 12, colors.muted, "center");
     circuit.label("Extensor → flexor inhibition", 620, 128, 12, colors.muted, "center");
     const sides = [
-      { name: "flexor", motor: [205, 240], slow: [205, 365], anchor: loaded ? [465, 300] : [475, 360], frame: 24 },
-      { name: "extensor", motor: [1035, 240], slow: [1035, 365], anchor: loaded ? [775, 300] : [765, 360], frame: 840 },
+      { name: "flexor", motor: [205, 240], anchor: [465, 300], frame: 24 },
+      { name: "extensor", motor: [1035, 240], anchor: [775, 300], frame: 840 },
     ];
-    const routes = [...peerInhibitionRoutes(), ...sensoryExcitationRoutes(loaded)];
+    const routes = [...peerInhibitionRoutes(), ...sensoryExcitationRoutes()];
     for (const side of sides) {
       const color = colors[side.name], x = side.motor[0];
       circuit.label("startup E", x + (side.name === "flexor" ? -100 : 100), 218, 11, colors.muted, "center");
-      circuit.label(data.neuron_model === "elevate" ? "Elevate" : "Motor", x, 195, 14, color, "center");
-      if (populations.length > 1) {
-        circuit.label("I", x, 308, 14, color, "center");
-        circuit.label("AMPA", x - 80, 298, 11, colors.muted, "center");
-        circuit.label("GABA", x + 80, 298, 11, colors.muted, "center");
-        routes.push({name: side.name, pop: 0, points: [
-          [x - 24, 264], [x - 75, 280], [x - 75, 325], [x - 24, 341]], inhibitory: false});
-        routes.push({name: side.name, pop: 1, points: [
-          [x + 24, 341], [x + 75, 325], [x + 75, 280], [x + 24, 264]], inhibitory: true});
-      } else {
-        circuit.label("one neuron", x + (side.name === "flexor" ? -70 : 70), 282, 12, colors.muted, "center");
-      }
-      circuit.label("E · sensory feedback", side.name === "flexor" ? 330 : 910, loaded ? 495 : 403, 12, color, "center");
-      circuit.label("E · muscle activation", side.name === "flexor" ? 320 : 920, loaded ? 235 : 260, 11, color, "center");
-      if (loaded) circuit.label(side.name === "flexor" ? "+ torque" : "− torque", side.anchor[0], 272, 12, color, "center");
+      circuit.label("Elevate", x, 195, 14, color, "center");
+      circuit.label("one neuron", x + (side.name === "flexor" ? -70 : 70), 282, 12, colors.muted, "center");
+      circuit.label("E · sensory feedback", side.name === "flexor" ? 330 : 910, 495, 12, color, "center");
+      circuit.label("E · muscle activation", side.name === "flexor" ? 320 : 920, 235, 11, color, "center");
+      circuit.label(side.name === "flexor" ? "+ torque" : "− torque", side.anchor[0], 272, 12, color, "center");
+      const scaleX = side.anchor[0] + (side.name === "flexor" ? 22 : -22);
+      const scaleAnchor = side.name === "flexor" ? "left" : "right";
+      circuit.label(`${(100 * activationScale).toFixed(0)}%`, scaleX, 317, 11, color, scaleAnchor);
+      circuit.label("0%", scaleX, 393, 11, color, scaleAnchor);
       const exit = [x + (side.name === "flexor" ? 35 : -35), 245];
       const distance = Math.hypot(exit[0] - side.anchor[0], exit[1] - side.anchor[1]);
       const approach = side.anchor.map((value, axis) => value + (exit[axis] - value) * 14 / distance);
       routes.push({name: side.name, pop: 0, points: [exit, approach], inhibitory: false});
     }
-    const angleLabel = circuit.label("Awaiting joint", 620, loaded ? 446 : 400, loaded ? 22 : 19, colors.ink, "center");
-    if (loaded) {
-      circuit.label(`JOINT · ${fmt(data.mechanics.tip_mass_kg * 1000, 0)} g at ${fmt(data.mechanics.arm_length_m * 100, 0)} cm`, 620, 196, 13, colors.muted, "center");
-      circuit.label("0°", 550, 493, 11, colors.muted, "center");
-    }
-    const velocityLabel = circuit.label("", 620, loaded ? 478 : 427, 13, colors.muted, "center");
+    const angleLabel = circuit.label("Awaiting joint", 620, 446, 22, colors.ink, "center");
+    circuit.label(`JOINT · ${fmt(data.mechanics.tip_mass_kg * 1000, 0)} g at ${fmt(data.mechanics.arm_length_m * 100, 0)} cm`, 620, 196, 13, colors.muted, "center");
+    circuit.label("0°", 550, 493, 11, colors.muted, "center");
+    const velocityLabel = circuit.label("", 620, 478, 13, colors.muted, "center");
     const line = (g, a, b, color, width = 1.5, alpha = 1) =>
       g.moveTo(...a).lineTo(...b).stroke({ color, width, alpha });
     function terminal(g, route, color) {
@@ -184,7 +175,7 @@ export async function mountReplay(host) {
 
     function cell(point, voltage, color) {
       const [x, y] = point, radius = 27;
-      const fraction = voltageFraction(voltage, ...(data.voltage_range_mv ?? [-75, -45]));
+      const fraction = voltageFraction(voltage, ...data.voltage_range_mv);
       graphic.circle(x, y, radius).fill(0xffffff);
       if (fraction > 0) {
         // Fill the circular segment below the voltage level, rather than
@@ -201,13 +192,13 @@ export async function mountReplay(host) {
       graphic.clear();
       for (const side of sides) {
         const color = colors[side.name];
-        graphic.roundRect(side.frame, 98, 376, loaded ? 430 : 320, 12)
+        graphic.roundRect(side.frame, 98, 376, 430, 12)
           .fill({ color, alpha: .018 }).stroke({ color: colors.grid, width: 1 });
         const inputSign = side.name === "flexor" ? -1 : 1;
         const tonic = {points: [[side.motor[0] + inputSign * 145, 240], [side.motor[0] + inputSign * 35, 240]], inhibitory: false};
         line(graphic, ...tonic.points, color, 1.3, .7); terminal(graphic, tonic, color);
       }
-      if (loaded) graphic.roundRect(440, 180, 360, 340, 12)
+      graphic.roundRect(440, 180, 360, 340, 12)
         .fill({color: 0xffffff, alpha: 1}).stroke({color: colors.grid, width: 1});
       // Paths and particles share exactly the same coordinates and endpoints.
       for (const route of routes) {
@@ -220,15 +211,13 @@ export async function mountReplay(host) {
       }
       for (const side of sides) {
         const node = data.nodes[side.name], index = sampleIndex(node.time_ms, time);
-        for (const [pop, point] of (populations.length === 1 ? [side.motor] : [side.motor, side.slow]).entries()) {
-          cell(point, index >= 0 ? node.voltage[index][pop] : null, colors[side.name]);
-        }
+        cell(side.motor, index >= 0 ? node.voltage[index][0] : null, colors[side.name]);
       }
       // Render ALL in-flight events. New spikes never reset earlier particles.
       // Opacity remains full until arrival, followed by an 8 ms endpoint fade.
       for (const route of routes) {
         const color = colors[route.name];
-        for (const pulse of pulseSamples(route.sensory ? (data.sensory_time_ms?.[route.name] ?? []) : data.nodes[route.name].spikeTimes[route.pop], time)) {
+        for (const pulse of pulseSamples(route.sensory ? data.sensory_time_ms[route.name] : data.nodes[route.name].spikeTimes[route.pop], time)) {
           const point = routePoint(route.points, pulse.progress);
           graphic.circle(...point, 7).fill({color, alpha: pulse.opacity * .14});
           graphic.circle(...point, 3).fill({color, alpha: pulse.opacity});
@@ -236,32 +225,28 @@ export async function mountReplay(host) {
         }
       }
       const plant = data.nodes.plant, index = sampleIndex(plant.time_ms, time);
-      const angle = index >= 0 ? plant.angle[index] : (data.mechanics?.initial_angle ?? 0);
+      const angle = index >= 0 ? plant.angle[index] : data.mechanics.initial_angle;
       const activation = index >= 0 ? plant.activation[index] : [0, 0];
-      const pivot = loaded ? [550, 340] : [620, 322], length = loaded ? 130 : 120;
+      const pivot = [550, 340], length = 130;
       const tip = [pivot[0] + Math.sin(angle) * length,
-        pivot[1] + (loaded ? 1 : -1) * Math.cos(angle) * length];
+        pivot[1] + Math.cos(angle) * length];
       for (const [sideIndex, side] of sides.entries()) {
-        if (loaded) {
-          const width = 24, height = 76, x = side.anchor[0] - width / 2, y = 322;
-          graphic.roundRect(x, y, width, height, 6).fill({color: colors[side.name], alpha: .12});
-          const filled = height * clamp(activation[sideIndex], 0, 1);
-          if (filled > 0) graphic.rect(x, y + height - filled, width, filled).fill(colors[side.name]);
-        } else {
-          line(graphic, side.anchor, tip, colors[side.name], 4 + activation[sideIndex] * 15, .2 + activation[sideIndex] * .75);
-        }
-        graphic.circle(...side.anchor, loaded ? 6 : 5).fill(colors[side.name]);
+        const width = 24, height = 76, x = side.anchor[0] - width / 2, y = 322;
+        graphic.roundRect(x, y, width, height, 6).fill({color: colors[side.name], alpha: .12});
+        const filled = height * clamp(activation[sideIndex] / activationScale, 0, 1);
+        if (filled > 0) graphic.rect(x, y + height - filled, width, filled).fill(colors[side.name]);
+        for (const tickY of [y, y + height])
+          line(graphic, [x - 3, tickY], [x + width + 3, tickY], colors[side.name], 1, .6);
+        graphic.circle(...side.anchor, 6).fill(colors[side.name]);
       }
-      if (loaded) {
-        // Keep the fixed downward reference clear of the moving arm.
-        for (let y = pivot[1] + 23; y < 484; y += 12)
-          line(graphic, [pivot[0], y], [pivot[0], y + 5], colors.muted, 1, .45);
-      } else line(graphic, pivot, [620, 398], colors.ink, 12, .2);
+      // Keep the fixed downward reference clear of the moving arm.
+      for (let y = pivot[1] + 23; y < 484; y += 12)
+        line(graphic, [pivot[0], y], [pivot[0], y + 5], colors.muted, 1, .45);
       line(graphic, pivot, tip, colors.ink, 10);
-      graphic.circle(...tip, loaded && data.mechanics.tip_mass_kg > 0 ? 13 : 7).fill(colors.ink);
-      graphic.circle(...pivot, loaded ? 16 : 20).fill(0xffffff).stroke({color: colors.ink, width: 2});
+      graphic.circle(...tip, data.mechanics.tip_mass_kg > 0 ? 13 : 7).fill(colors.ink);
+      graphic.circle(...pivot, 16).fill(0xffffff).stroke({color: colors.ink, width: 2});
       graphic.circle(...pivot, 6).fill(colors.ink);
-      angleLabel.textContent = index < 0 && !loaded ? "Awaiting joint" : `${fmt(toDegrees(angle), 1)}°${index < 0 ? " · initial" : ""}`;
+      angleLabel.textContent = `${fmt(toDegrees(angle), 1)}°${index < 0 ? " · initial" : ""}`;
       velocityLabel.textContent = index < 0 ? "" : `${fmt(toDegrees(plant.velocity[index]), 1)}°/s` +
         (time > last(plant.time_ms) + period ? " · recording ended" : "");
       // Draw terminals last so neuron fills, muscle strokes and arriving
@@ -318,8 +303,7 @@ export async function mountReplay(host) {
       chart.tickLabels.forEach((el, i) => el.textContent = `${fmt((start + (end - start) * i / 4) / 1000)} s`);
     }
     drawChart(overview, 0, endTime);
-    const voltageRows = ["flexor", "extensor"].flatMap(side => populations.map((population, pop) => ({side, pop,
-      name: population === "slow" ? "I" : data.neuron_model === "elevate" ? "Elevate" : "Motor"})));
+    const voltageRows = ["flexor", "extensor"].map(side => ({side, pop: 0, name: "Elevate"}));
     const dynamicsHeight = 142 + voltageRows.length * 78 + 42;
     const dynamics = await surface("dynamics", dynamicsHeight);
     dynamics.host.style.aspectRatio = `1240 / ${dynamicsHeight}`;
@@ -328,8 +312,8 @@ export async function mountReplay(host) {
     dynamics.overlay = angleOverlay;
     const plant = data.nodes.plant;
     const angles = plant.angle.map(toDegrees);
-    const angleMin = Math.floor(angles.reduce((low, value) => Math.min(low, value), toDegrees(data.mechanics?.initial_angle ?? 0)) / 10) * 10;
-    const angleMax = Math.max(angleMin + 10, Math.ceil(angles.reduce((high, value) => Math.max(high, value), toDegrees(data.mechanics?.initial_angle ?? 0)) / 10) * 10);
+    const angleMin = Math.floor(angles.reduce((low, value) => Math.min(low, value), toDegrees(data.mechanics.initial_angle)) / 10) * 10;
+    const angleMax = Math.max(angleMin + 10, Math.ceil(angles.reduce((high, value) => Math.max(high, value), toDegrees(data.mechanics.initial_angle)) / 10) * 10);
     const angleTop = 24, angleHeight = 86;
     const angleX = value => chartStart + value / endTime * chartWidth;
     const angleY = value => angleTop + (angleMax - value) / (angleMax - angleMin) * angleHeight;

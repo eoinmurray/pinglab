@@ -12,7 +12,7 @@ from experiments.exp046.custom.source_exp041_custom_evidence import (
     measurement,
     training_contract,
 )
-from pingstore.contracts import PingstoreError
+from pingstore.library import PingstoreError
 
 __all__ = ["checkpoints", "finite", "measurement", "training_contract", "recordings"]
 

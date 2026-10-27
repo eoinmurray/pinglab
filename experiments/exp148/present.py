@@ -23,8 +23,7 @@ import numpy as np
 from experiments import theme
 from experiments.exp148.analyse import validate_events, window_spectra
 from experiments.exp148.recipe import drive_gain, windows
-from pingstore.contracts import load_json, write_json_atomic
-from pingstore.stages import source_run, stage_run
+from pingstore.library import load_json, source_run, stage_run, write_json_atomic
 from snnlab import lang
 from snnlab.viz import render_diagram
 

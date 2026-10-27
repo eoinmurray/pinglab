@@ -15,8 +15,7 @@ import numpy as np
 REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
 from experiments.exp152.recipe import SIDES
-from pingstore.contracts import load_json, write_json_atomic
-from pingstore.stages import source_run, stage_run
+from pingstore.library import load_json, source_run, stage_run, write_json_atomic
 
 NODES = ("flexor", "extensor", "plant")
 TOPICS = tuple(
@@ -60,82 +59,6 @@ def run_summary(summary):
     return "\n".join(lines)
 
 
-def profile_summary(values, ticks, period_ms):
-    """Keep CPU work and non-CPU elapsed time distinct; neither establishes causality."""
-    nodes = {}
-
-    def span_stats(samples):
-        if not len(samples):
-            return None
-        return {
-            key: dict(
-                stats(data), mean=float(np.mean(data)), minimum=float(np.min(data))
-            )
-            for key, data in (
-                ("wall_ms", samples[:, 0]),
-                ("thread_cpu_ms", samples[:, 1]),
-                ("wall_minus_thread_cpu_ms", samples[:, 0] - samples[:, 1]),
-            )
-        }
-
-    for name, rows in ticks.items():
-        names = next((r["profile_stages"] for r in rows if "profile_stages" in r), [])
-        if not names:
-            continue
-        samples = np.array([r["stage_timing_ms"] for r in rows])
-        values[name + "_stage_wall_ms"] = samples[:, :, 0]
-        values[name + "_stage_cpu_ms"] = samples[:, :, 1]
-        late = values[name + "_lateness_ms"] > 0
-        callback = samples[:, -1]
-        lag = values[name + "_lag_ms"]
-        already_late = lag >= period_ms
-        cpu_exceeds_remaining = lag + callback[:, 1] > period_ms
-        stages = {}
-        for index, stage in enumerate(names):
-            stages[stage] = dict(
-                all_updates=span_stats(samples[:, index]),
-                missed_deadlines=span_stats(samples[late, index]),
-                callback_cpu_share_percent=float(
-                    100 * samples[:, index, 1].sum() / callback[:, 1].sum()
-                )
-                if callback[:, 1].sum()
-                else None,
-            )
-        other = callback - samples[:, :-1].sum(axis=1)
-        stages["callback_other"] = dict(
-            all_updates=span_stats(other),
-            missed_deadlines=span_stats(other[late]),
-            callback_cpu_share_percent=float(
-                100 * other[:, 1].sum() / callback[:, 1].sum()
-            )
-            if callback[:, 1].sum()
-            else None,
-        )
-        nodes[name] = dict(
-            stage_order=names,
-            clock_probe=next(r["clock_probe"] for r in rows if "clock_probe" in r),
-            stages=stages,
-            missed_deadline_breakdown=dict(
-                total=int(late.sum()),
-                already_past_deadline_at_start=int((late & already_late).sum()),
-                start_lag_plus_thread_cpu_exceeds_budget=int(
-                    (late & ~already_late & cpu_exceeds_remaining).sum()
-                ),
-                elapsed_callback_gap_pushes_over_deadline=int(
-                    (late & ~already_late & ~cpu_exceeds_remaining).sum()
-                ),
-            ),
-        )
-    return dict(
-        enabled=bool(nodes),
-        nodes=nodes,
-        units="milliseconds",
-        method="perf_counter_ns elapsed wall time; thread_time_ns CPU time of the calling thread",
-        interpretation="Wall minus thread CPU is a signed estimate of blocking/descheduling plus clock-probe error. It excludes CPU consumed on other threads and cannot identify a causal library or OS layer. Executor spans include SNNLab, Python, PyTorch and compiled kernels. Start lag is measured separately, before callback entry. Deadline categories are arithmetic conditions at the measured start time, not causal attributions.",
-        instrumentation="Optional --profile-timing; measurements include clock-read and storage overhead. Empty-span probes are reported, not subtracted. Profiling can change timing and spike arrival order. callback_other is the full span minus measured inner spans, including profiling overhead and diagnostic-buffer writes.",
-    )
-
-
 def collect(records, spikes, start_ns, args, ready, error):
     ticks = {
         name: [r for r in rows if r["kind"] == "tick"] for name, rows in records.items()
@@ -148,7 +71,7 @@ def collect(records, spikes, start_ns, args, ready, error):
     def relative(stamp):
         return (stamp - start_ns) / 1e9
 
-    populations = getattr(args, "controller_populations", ["motor", "slow"])
+    populations = args.controller_populations
     channels = len(populations)
     values = {}
     for name, rows in ticks.items():
@@ -185,10 +108,8 @@ def collect(records, spikes, start_ns, args, ready, error):
         )
         values[name + "_delivery_ms"] = np.array([r["age_ms"] for r in rows])
     plant = ticks["plant"]
-    for key in ("angle", "velocity", "torque"):
+    for key in ("angle", "velocity", "torque", "gravity_torque"):
         values[key] = np.array([r[key] for r in plant])
-    if plant and all("gravity_torque" in row for row in plant):
-        values["gravity_torque"] = np.array([row["gravity_torque"] for row in plant])
     values["activation"] = np.array([r["activation"] for r in plant]).reshape(-1, 2)
     for topic, rows in spikes.items():
         key = topic.strip("/").replace("/", "_")
@@ -292,11 +213,6 @@ def collect(records, spikes, start_ns, args, ready, error):
         steps_completed_by_deadline=not any(step_late.values()),
         spike_delivery_within_budget=not any(age_failures.values()),
     )
-    profiling = (
-        profile_summary(values, ticks, args.timer_ms)
-        if args.profile_timing
-        else {"enabled": False}
-    )
     wall_seconds = max(
         (
             float(values[name + "_time_s"][-1])
@@ -308,7 +224,7 @@ def collect(records, spikes, start_ns, args, ready, error):
     return values, dict(
         mode="ros2",
         observed_wall_seconds=wall_seconds,
-        timing_profile=profiling,
+        timing_profile=dict(enabled=False),
         passed=all(checks.values()),
         checks=checks,
         error=error,
@@ -528,12 +444,7 @@ def analyse_cycles(upstream, cfg, run_id):
         "angle_waveform_relative_error",
         "velocity_waveform_relative_error",
     )
-    for index, row in sorted(
-        enumerate(rows),
-        key=lambda item: max(
-            item[1][key] if item[1][key] is not None else 1e9 for key in keys
-        ),
-    )[:12]:
+    for index, row in enumerate(rows):
         print(
             index,
             row["condition"],
@@ -544,168 +455,13 @@ def analyse_cycles(upstream, cfg, run_id):
     return run.run_id
 
 
-def startup_metrics(angle, *, dt_s=0.001, reference_angle=0.0):
-    """Compare extrema against late-run positive/negative amplitudes and periods.
-
-    Settling is the earliest extremum after which all measured extrema and
-    same-direction periods stay within 20% of their late-run medians. The first
-    150 ms is excluded from extrema detection to avoid tiny onset ripples.
-    """
-    from scipy.signal import find_peaks
-
-    angle = np.asarray(angle) - reference_angle
-    extrema = np.sort(
-        np.concatenate(
-            [
-                find_peaks(angle, prominence=0.08, distance=max(1, round(0.15 / dt_s)))[
-                    0
-                ],
-                find_peaks(
-                    -angle, prominence=0.08, distance=max(1, round(0.15 / dt_s))
-                )[0],
-            ]
-        )
-    )
-    extrema = extrema[extrema * dt_s >= 0.15]
-    times, peaks = extrema * dt_s, angle[extrema]
-    tail = times >= len(angle) * dt_s / 2
-    if len(peaks) < 4 or not all(
-        np.count_nonzero(tail & (peaks * sign > 0)) >= 2 for sign in (1, -1)
-    ):
-        return dict(
-            settling_s=None,
-            early_mean_amplitude_error=None,
-            first_extremum_s=None,
-            first_extremum_deg=None,
-            extrema_time_s=times.tolist(),
-            extrema_deg=np.rad2deg(peaks).tolist(),
-            late_amplitude_deg=None,
-            amplitude_relative_error=[],
-            periods=[],
-            maximum_angle_deg=float(np.rad2deg(np.abs(angle).max()))
-            if len(angle)
-            else None,
-        )
-    targets = [float(np.median(peaks[tail & (peaks * sign > 0)])) for sign in (1, -1)]
-    reference = np.where(peaks > 0, targets[0], targets[1])
-    amplitude_error = np.abs(peaks - reference) / np.abs(reference)
-    period_rows = []
-    for sign in (1, -1):
-        side_times = times[peaks * sign > 0]
-        periods = np.diff(side_times)
-        late = side_times[1:] >= len(angle) * dt_s / 2
-        reference_period = float(np.median(periods[late]))
-        period_rows.extend(
-            (float(t), float(p), float(abs(p / reference_period - 1)))
-            for t, p in zip(side_times[1:], periods, strict=True)
-        )
-    bad_times = list(times[amplitude_error > 0.2])
-    bad_times += [t for t, _, error in period_rows if error > 0.2]
-    settled = times[(times > max(bad_times, default=-1)) & (times <= times[-3])]
-    # Require two full-period observations after the proposed settling point.
-    settled = [t for t in settled if sum(end >= t for end, _, _ in period_rows) >= 2]
-    early = times < 3
-    return dict(
-        extrema_time_s=times.tolist(),
-        extrema_deg=np.rad2deg(peaks).tolist(),
-        late_amplitude_deg=np.rad2deg(targets).tolist(),
-        amplitude_relative_error=amplitude_error.tolist(),
-        early_mean_amplitude_error=float(np.mean(amplitude_error[early]))
-        if np.any(early)
-        else None,
-        first_extremum_s=float(times[0]) if len(times) else None,
-        first_extremum_deg=float(np.rad2deg(peaks[0])) if len(peaks) else None,
-        settling_s=float(settled[0]) if len(settled) else None,
-        periods=period_rows,
-        maximum_angle_deg=float(np.rad2deg(np.abs(angle).max())),
-    )
-
-
-def analyse_startup(upstream, cfg, run_id):
-    rows = []
-    for index, condition in enumerate(cfg["conditions"]):
-        with np.load(upstream.file(f"condition-{index}.npz")) as data:
-            trace = data["trace"]
-        metrics = startup_metrics(
-            trace[:, 0], reference_angle=cfg["joint"].get("reference_angle", 0.0)
-        )
-        metadata_path = upstream.file(f"condition-{index}.json")
-        metadata = load_json(metadata_path) if metadata_path.is_file() else {}
-        moving = np.sign(
-            trace[:, 1][
-                np.abs(trace[:, 1])
-                > cfg["analysis"]["movement_velocity_threshold_rad_s"]
-            ]
-        )
-        metrics.update(
-            joint=metadata.get("joint"),
-            limit_hits=metadata.get("limit_hits"),
-            direction_reversals=int(np.count_nonzero(np.diff(moving))),
-            angle_range_deg=np.rad2deg([trace[:, 0].min(), trace[:, 0].max()]).tolist(),
-            motor_counts=trace[:, 4:6].sum(axis=0).astype(int).tolist(),
-            mean_activation=trace[:, 2:4].mean(axis=0).tolist(),
-            sensory_counts=trace[:, 6:8].sum(axis=0).astype(int).tolist(),
-            late_sensory_counts=trace[len(trace) // 2 :, 6:8]
-            .sum(axis=0)
-            .astype(int)
-            .tolist(),
-            late_motor_counts=trace[len(trace) // 2 :, 4:6]
-            .sum(axis=0)
-            .astype(int)
-            .tolist(),
-            first_250ms_maximum_angle_deg=float(
-                np.rad2deg(
-                    np.abs(
-                        trace[:250, 0] - cfg["joint"].get("reference_angle", 0.0)
-                    ).max()
-                )
-            ),
-            first_250ms_maximum_speed_deg_s=float(
-                np.rad2deg(np.abs(trace[:250, 1]).max())
-            ),
-        )
-        rows.append(dict(condition=condition, **metrics))
-    inputs = {"compute": upstream}
-    with stage_run(
-        REPO,
-        "exp152",
-        "analyse",
-        inputs=inputs,
-        run_id=run_id,
-        configuration=cfg,
-    ) as run:
-        write_json_atomic(
-            run.export / "startup.json",
-            dict(
-                conditions=rows,
-                definition="Extrema and full periods within 20% of late-run medians; deterministic 1 ms transport; stationary plant at its recorded reference angle",
-            ),
-        )
-    for index, row in enumerate(rows):
-        print(
-            index,
-            row["condition"],
-            "settle",
-            row["settling_s"],
-            "early amplitude error",
-            row["early_mean_amplitude_error"],
-            "first",
-            row["first_extremum_s"],
-            row["first_extremum_deg"],
-        )
-    print(run.run_id)
-    return run.run_id
-
-
-def analyse(source, *, run_id=None, baseline_source=None):
+def analyse(source, *, run_id=None):
     upstream = source_run(
         REPO / ".pingstore", source, stage="compute", experiment="exp152"
     )
     cfg = upstream.record["execution"]["configuration"]
-    if cfg.get("protocol") in {"cycle_sweep", "cycle_check"}:
+    if cfg.get("protocol") == "cycle_check":
         return analyse_cycles(upstream, cfg, run_id)
-    if cfg.get("protocol") in {"startup_sweep", "load_sweep"}:
-        return analyse_startup(upstream, cfg, run_id)
     raw = load_json(upstream.file("diagnostics.json"))
     args = argparse.Namespace(
         **cfg,
@@ -714,11 +470,6 @@ def analyse(source, *, run_id=None, baseline_source=None):
     )
     values, summary = collect(
         raw["records"], raw["spikes"], raw["start_ns"], args, raw["ready"], raw["error"]
-    )
-    summary["startup"] = startup_metrics(
-        values["angle"],
-        dt_s=cfg["timer_ms"] / 1000,
-        reference_angle=cfg["joint"].get("reference_angle", 0.0),
     )
     summary["cycles"] = cycle_metrics(
         values["angle"],
@@ -810,23 +561,6 @@ def analyse(source, *, run_id=None, baseline_source=None):
         )
         inputs["deterministic_compute"] = native
         inputs["cycle_validation"] = validation
-    if baseline_source is not None:
-        baseline = source_run(
-            REPO / ".pingstore", baseline_source, stage="analyse", experiment="exp152"
-        )
-        baseline_cfg = baseline.record["execution"]["configuration"]
-        with np.load(baseline.file("traces.npz")) as data:
-            reference = startup_metrics(
-                data["angle"],
-                dt_s=baseline_cfg["timer_ms"] / 1000,
-                reference_angle=baseline_cfg["joint"].get("reference_angle", 0.0),
-            )
-        summary["startup_comparison"] = dict(
-            baseline_run=baseline_source,
-            baseline=reference,
-            candidate=summary["startup"],
-        )
-        inputs["baseline"] = baseline
     with stage_run(
         REPO,
         "exp152",
@@ -846,6 +580,5 @@ def analyse(source, *, run_id=None, baseline_source=None):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source", required=True)
-    parser.add_argument("--baseline-source")
     parser.add_argument("--run-id")
     analyse(**vars(parser.parse_args()))

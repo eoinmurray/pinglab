@@ -1,86 +1,59 @@
 # exp152 — Spiking control of a rotary joint
 
-Use one Elevate neuron per flexor/extensor controller, reciprocal inhibitory
-spike connections and excitatory joint feedback. The third ROS2 node simulates
-a rotary joint with gravity and a tip point mass. The validated neuron and synaptic settings use
-0.025 ms internal exponential steps, a 20 ms starting E pulse and muscle spike
-increment 0.003, ongoing E conductance 0.04 µS and sensory increments 0.035 µS. Default external updates remain 1 ms, from a stationary
-90° joint (zero downward). A 2 g mass at 20 cm adds 0.00008 kg m² inertia and
-0.003924 N m peak gravity torque; sensory centre, spring rest and ±1 rad stops
-are relative to 90°. Flexor raises against gravity, extensor lowers with it. Require ten repeatable cycles after startup; record cycle, behaviour and timing verdicts independently. Historical HH callback
-code remains available for loading immutable historical native bundles.
+One Elevate neuron per flexor/extensor controller drives a simulated rotary
+joint with a 2 g tip mass at 20 cm. Reciprocal inhibition and excitatory sensory
+feedback couple three ROS2 Humble processes through complete logical spike
+windows. Model and control steps are 1 ms; intrinsic neural steps are 0.025 ms.
+The report separates repeatable movement from wall-clock timing success.
 
-1. `bash experiments/exp152/custom/run.sh`: build the local Dockerfile and run
-   compute with four CPUs in `colima-snnlab-ros2`. Override the context with
-   `SNNLAB_DOCKER_CONTEXT`. Optional arguments: `--duration` (30 s, minimum 2),
-   `--dt-ms` (1), `--timer-ms` (1), `--neurons` (1 per node, 2 total; larger
-   values replicate the single population for load testing), `--max-lag-ms`
-   (20), `--max-spike-age-ms` (5), `--flexor-bias-ms` (20),
-   `--flexor-initial-us` (0.5), `--extensor-initial-us` (0), `--compile`,
-   `--startup-source ANALYSE_ID`, `--controller-warmup-ms` (1000 ms simulated
-   before arming ROS, then all controller state and inputs reset),
-   `--profile-timing`, `--initial-angle-deg` (90; also sets the spring/sensory
-   reference), `--tip-mass-kg` (0.002), `--arm-length-m` (0.2),
-   `--gravity-m-s2` (9.81), `--run-id`.
-   Start Docker/Colima first. Parameter-selection ancestry is an explicit,
-   validated Pingstore input; execution imports only experiment-local source.
-2. `uv run python experiments/exp152/analyse.py --source COMPUTE_ID`: analyse
-   one explicit acquisition; optional `--run-id`, `--baseline-source ANALYSE_ID`.
-   A completed acquisition may contain safety stops or failed timing checks.
-3. `uv run python experiments/exp152/present.py --source ANALYSE_ID`: export
-   the recorded circuit replay, native circuit SVG and numbers; optional
-   `--run-id`. Full-resolution traces remain in its analysis ancestry.
-4. `uv run pytest experiments/exp152/test.py -q`: native dynamics, continuity,
-   snapshot, closed-loop, compiled/eager fidelity and animation checks.
-5. Run the same tests inside the built image for ROS clock coverage:
-   `docker --context colima-snnlab-ros2 run --rm -e PYTEST_DISABLE_PLUGIN_AUTOLOAD=1
-   -v "$PWD:/workspace" --entrypoint /bin/bash pinglab-exp152:local -c
-   'source /opt/ros/humble/setup.bash && /opt/venv/bin/python -m pytest
-   experiments/exp152/test.py -q'`.
-6. `cd site && bun run dev --background`: open `/exp152`. Restart the server
-   after a new presentation. The replay shows one cell per side, reciprocal I,
-   muscle activation, sensory E events, two voltage traces and all callback timings.
-7. `uv run python experiments/exp152/compute.py --startup-sweep`: compare four
-   bounded starting pulses with deterministic 1 ms spike transport; requires
-   one cell per node and 1 ms updates. Analyse its explicit compute ID separately.
-8. To inspect timing failures over a longer acquisition, an explicit
-   `--max-lag-ms` override can retain more diagnostics. It is recorded in the
-   configuration and does not change releases, deadlines or the timing verdict.
-   Such a diagnostic recording must not be presented as meeting the default
-   20 ms lag stop or completing all requested model windows.
+1. `bash experiments/exp152/custom/run.sh --compile --max-lag-ms 8000` builds
+   the local image and acquires ROS data with the report's execution settings.
+   Requires Docker/Colima with four CPUs. The recipe's ordinary lag stop remains
+   20 ms; the displayed recording used 8000 ms and failed its timing checks.
+   Optional arguments: `--duration` (30 s, minimum 2), `--max-lag-ms` (20),
+   `--compile` / `--eager`, `--cycle-validation-source ANALYSE_ID`, `--run-id`.
+   Set `SNNLAB_DOCKER_CONTEXT` to override `colima-snnlab-ros2`.
+2. `uv run python experiments/exp152/compute.py --native --duration 40 --compile`
+   reproduces the deterministic native validation from the fixed recipe, without
+   requiring historical tuning runs. Separate controller states and fixed 1 ms
+   transport are preserved. To select a recorded condition instead, replace
+   `--native` with `--cycle-source ANALYSE_ID --condition-index INDEX`.
+   Analyse the native compute, then pass its analysis to the ROS acquisition as
+   `--cycle-validation-source ANALYSE_ID` for an exact trace comparison.
+3. `uv run python experiments/exp152/analyse.py --source COMPUTE_ID` measures
+   the explicit ROS acquisition or native validation. Optional: `--run-id`.
+4. `uv run python experiments/exp152/present.py --source ANALYSE_ID` exports
+   the animation data, native circuit diagram and report numbers from one ROS
+   analysis. Optional: `--run-id`. Raw diagnostics, traces and native snapshots
+   stay in the recorded ancestry.
+5. `uv run pytest experiments/exp152/test.py -q` validates neural dynamics,
+   mechanics, stream reset/continuation, cycle analysis and animation geometry.
+   Run inside the image for ROS clock and reliable diagnostic-export coverage:
 
-9. `uv run python experiments/exp152/compute.py --load-sweep`: compare tip
-   masses 1, 2, 5, 10 and 50 g at the recorded arm length and gravity, with
-   identical neural settings and deterministic 1 ms transport. Analyse the
-   explicit compute ID separately; `startup.json` contains each condition's
-   recorded mechanics, stops, extrema, spike counts and direction reversals.
+   ```sh
+   docker --context colima-snnlab-ros2 run --rm \
+     -e PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 -v "$PWD:/workspace" \
+     --entrypoint /bin/bash pinglab-exp152:local -c \
+     'source /opt/ros/humble/setup.bash && /opt/venv/bin/python -m pytest experiments/exp152/test.py -q'
+   ```
 
-10. `uv run python experiments/exp152/compute.py --cycle-sweep --cycle-grid synaptic --duration 30`:
-    screen 84 paired-controller conditions in independent native SNNLab batches.
-    The `actuation` grid screens 147 conditions around the periodic operating point.
-    Input gains represent linear synaptic weight changes, including the native
-    initializer's float32 constants before float64 execution. These are screening
-    runs; a chosen condition requires individual native-weight validation.
-11. `uv run python experiments/exp152/compute.py --cycle-source ANALYSE_ID --condition-index INDEX --duration 40`:
-    validate one explicitly selected cycle condition with two separate native
-    controllers and fixed 1 ms delivery. Add `--compile` to validate the compiled
-    execution used by ROS. Analyse its compute ID independently.
-    Success requires the final ten complete upward reference-angle crossings
-    after 5 s to have <1% period and turning-point variation and <1% normalized
-    angle/velocity RMS waveform error, both late sensory streams, excursion
-    beyond both thresholds, and zero mechanical stop hits.
-12. Neural and actuator overrides: `--tonic-us` (0.04), `--sensory-drive-us`
-    (0.035), `--peer-inhibition-us` (0.2), `--sensory-tau-ms` (10),
-    `--peer-tau-ms` (50), `--activation-increment` (0.003).
-    `--cycle-validation-source ANALYSE_ID` requires matching settings from a
-    passing individual validation. The default recipe names its validation;
-    exploratory overrides retain selection ancestry without inheriting its pass.
-
-13. `--spike-transport logical` (default) exchanges complete sparse spike windows,
-    including silence, and applies the preceding window to each model step.
-    Nodes wait for missing windows while nominal 1 ms wall-clock deadlines keep
-    running. The model may finish later than its requested simulation duration;
-    lag still stops execution at the recorded budget. `arrival` preserves the
-    earlier callback-arrival semantics. Ordinary spike topics retain delivery
-    diagnostics in both modes. Post-run diagnostic batches use reliable KEEP_ALL
-    queues; sequence validation fails incomplete diagnostic exports.
+6. `cd site && bun run dev --background` serves `/exp152`. Restart after a new
+   presentation so the report, animation and parameter table select it together.
+7. `uv run python experiments/exp152/compute.py --consolidate-source COMPUTE_ID`
+   imports explicit fixed evidence without simulation. It preserves raw bytes,
+   native snapshots and original execution timing, and embeds original lineage
+   records, inventories and tuning summaries instead of retaining the historical
+   runs as operational dependencies. First import and analyse the native compute;
+   then import the ROS compute with `--cycle-validation-source NEW_ANALYSE_ID`
+   and `--archive-source OLD_PRESENT_ID`. The replacement validation must match
+   the original cycle results and native trace exactly. Analyse and present the
+   imported ROS compute independently before pruning.
+8. `uv run pingstore prune --experiment exp152 --dry-run` plans local cleanup;
+   apply its exact plan with `--confirm PLAN_HASH`. The latest presentation's
+   complete input ancestry is retained. Consolidation leaves five required runs:
+   native compute/analysis and ROS compute/analysis/presentation.
+   This does not delete R2 backups or rewrite completed runs.
+9. `uv run pingstore prune-remote --experiment exp152 --dry-run` plans removal
+   of unused R2 history after the current runset is backed up. Apply its exact
+   plan with `--confirm PLAN_HASH`; required ancestry and other experiments are
+   retained. Refresh any deployed report to the current presentation first.

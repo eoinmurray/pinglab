@@ -1,17 +1,23 @@
-"""Narrow Pingstore discovery, backup and pruning commands."""
+"""Command interface for Pingstore's core storage operations.
+
+Run ``pingstore --help`` for commands. Mutating maintenance commands require a
+separate dry-run and its complete confirmation hash; experiment execution uses
+``pingstore.library`` instead.
+"""
 
 from __future__ import annotations
 
 import argparse
 import json
 import os
+import subprocess
 import sys
 from pathlib import Path
 
-from .discovery import discover_runs
+from . import core
 
 
-def main(argv: list[str] | None = None) -> int:
+def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="pingstore",
         description="Validate immutable Pingstore runs, back them up and prune unused, unprotected runs.",
@@ -107,105 +113,117 @@ def main(argv: list[str] | None = None) -> int:
     evict_action = evict.add_mutually_exclusive_group(required=True)
     evict_action.add_argument("--dry-run", action="store_true")
     evict_action.add_argument("--confirm", metavar="PLAN_HASH")
-    args = parser.parse_args(argv)
-    if args.command == "evict":
-        import subprocess
+    remote_prune = commands.add_parser(
+        "prune-remote", help="delete unused R2 runs after current evidence is backed up"
+    )
+    remote_prune.add_argument("--root", type=Path, default=Path("."))
+    remote_prune.add_argument(
+        "--destination", default=f"{remote}:{bucket}/pingstore/runs"
+    )
+    remote_prune.add_argument(
+        "--experiment", action="append", dest="experiments", required=True
+    )
+    remote_action = remote_prune.add_mutually_exclusive_group(required=True)
+    remote_action.add_argument("--dry-run", action="store_true")
+    remote_action.add_argument("--confirm", metavar="PLAN_HASH")
+    discover.set_defaults(handler=_discover)
+    backup.set_defaults(handler=_backup, argument_error=backup.error)
+    prune.set_defaults(handler=_prune)
+    papers.set_defaults(handler=_papers)
+    evict.set_defaults(handler=_evict)
+    remote_prune.set_defaults(handler=_prune_remote)
+    return parser
 
-        from .evict import apply_plan as apply_eviction
-        from .evict import build_plan as plan_eviction
-        from .evict import render_plan as render_eviction
 
-        try:
-            if args.dry_run:
-                print(
-                    render_eviction(
-                        plan_eviction(
-                            args.root, args.destination, args.run_ids, args.asset_base
-                        )
-                    )
-                )
-            else:
-                result = apply_eviction(
-                    args.root,
-                    args.destination,
-                    args.confirm,
-                    args.run_ids,
-                    args.asset_base,
-                )
-                print(
-                    f"Evicted {len(result['evict'])} local copies; R2 backups retained."
-                )
-            return 0
-        except (OSError, ValueError, subprocess.CalledProcessError) as exc:
-            print(f"pingstore evict: {exc}", file=sys.stderr)
-            return 1
-    if args.command == "backup-papers":
-        import subprocess
-
-        from .papers import apply_plan as apply_papers
-        from .papers import build_plan as plan_papers
-
-        try:
-            if args.dry_run:
-                print(json.dumps(plan_papers(args.source, args.destination), indent=2))
-            else:
-                result = apply_papers(args.source, args.destination, args.confirm)
-                print(f"Archived and verified {len(result['files'])} PDFs.")
-            return 0
-        except (OSError, ValueError, subprocess.CalledProcessError) as exc:
-            print(f"pingstore backup-papers: {exc}", file=sys.stderr)
-            return 1
-    if args.command == "backup":
-        from .backup import backup_runs
-
-        source = args.source.expanduser().absolute()
-        if not source.is_dir():
-            backup.error("source must be an existing Pingstore runs directory")
-        destination = args.destination.rstrip("/")
-        if ":" not in destination or not destination.endswith("/pingstore/runs"):
-            backup.error(
-                "destination must be an rclone remote ending in /pingstore/runs"
-            )
-        return backup_runs(
-            source, destination, dry_run=args.dry_run, confirm=args.confirm
-        )
-    if args.command == "prune":
-        from .prune import apply_plan, build_plan, render_plan
-
-        try:
-            if args.dry_run:
-                print(
-                    render_plan(
-                        build_plan(
-                            args.root,
-                            args.experiments,
-                            args.stages,
-                        )
-                    )
-                )
-            else:
-                plan = apply_plan(
-                    args.root,
-                    args.confirm,
-                    args.experiments,
-                    args.stages,
-                )
-                reclaimed = sum(row["bytes"] for row in plan["prune"])
-                print(
-                    f"Pruned {len(plan['prune'])} runs ({reclaimed / 2**30:.2f} GiB)."
-                )
-            return 0
-        except (OSError, ValueError) as exc:
-            print(f"pingstore prune: {exc}", file=sys.stderr)
-            return 1
+def _discover(args) -> int:
     source = args.source or Path(
         os.environ.get("DEMOLAB_PREVIEW_SOURCE") or ".pingstore/runs"
     )
-    try:
-        records = discover_runs(source)
-    except (OSError, ValueError) as exc:
-        print(f"pingstore discover: {exc}", file=sys.stderr)
-        return 1
+    records = core.discover_runs(source)
     # A single JSON document, only after all candidates passed. No partial output.
     print(json.dumps(records, ensure_ascii=False))
     return 0
+
+
+def _backup(args) -> int:
+    source = args.source.expanduser().absolute()
+    if not source.is_dir():
+        args.argument_error("source must be an existing Pingstore runs directory")
+    destination = args.destination.rstrip("/")
+    if ":" not in destination or not destination.endswith("/pingstore/runs"):
+        args.argument_error(
+            "destination must be an rclone remote ending in /pingstore/runs"
+        )
+    return core.backup_runs(
+        source, destination, dry_run=args.dry_run, confirm=args.confirm
+    )
+
+
+def _prune(args) -> int:
+    if args.dry_run:
+        print(
+            core.render_prune_plan(
+                core.prune_plan(args.root, args.experiments, args.stages)
+            )
+        )
+    else:
+        plan = core.apply_prune(args.root, args.confirm, args.experiments, args.stages)
+        reclaimed = sum(row["bytes"] for row in plan["prune"])
+        print(f"Pruned {len(plan['prune'])} runs ({reclaimed / 2**30:.2f} GiB).")
+    return 0
+
+
+def _papers(args) -> int:
+    if args.dry_run:
+        print(
+            json.dumps(core.paper_backup_plan(args.source, args.destination), indent=2)
+        )
+    else:
+        result = core.apply_paper_backup(args.source, args.destination, args.confirm)
+        print(f"Archived and verified {len(result['files'])} PDFs.")
+    return 0
+
+
+def _evict(args) -> int:
+    if args.dry_run:
+        print(
+            core.render_eviction_plan(
+                core.eviction_plan(
+                    args.root, args.destination, args.run_ids, args.asset_base
+                )
+            )
+        )
+    else:
+        result = core.apply_eviction(
+            args.root, args.destination, args.confirm, args.run_ids, args.asset_base
+        )
+        print(f"Evicted {len(result['evict'])} local copies; R2 backups retained.")
+    return 0
+
+
+def _prune_remote(args) -> int:
+    if args.dry_run:
+        print(
+            core.render_remote_prune_plan(
+                core.remote_prune_plan(args.root, args.destination, args.experiments)
+            )
+        )
+    else:
+        result = core.apply_remote_prune(
+            args.root, args.destination, args.experiments, args.confirm
+        )
+        print(f"Pruned {len(result['prune'])} unused remote runs.")
+    return 0
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = _parser().parse_args(argv)
+    try:
+        return args.handler(args)
+    except (OSError, ValueError, subprocess.CalledProcessError) as exc:
+        print(f"pingstore {args.command}: {exc}", file=sys.stderr)
+        return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

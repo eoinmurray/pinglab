@@ -16,8 +16,7 @@ import shutil
 
 import numpy as np
 from experiments.exp146.recipe import validate_configuration
-from pingstore.contracts import load_json, write_json_atomic
-from pingstore.stages import source_run, stage_run
+from pingstore.library import load_json, source_run, stage_run, write_json_atomic
 from scipy.special import expit
 
 

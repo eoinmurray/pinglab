@@ -8,8 +8,12 @@ from pathlib import Path
 
 import pytest
 from pingstore.cli import main
-from pingstore.contracts import PingstoreError, payload_digest, payload_inventory
-from pingstore.discovery import discover_runs
+from pingstore.library import (
+    PingstoreError,
+    discover_runs,
+    payload_digest,
+    payload_inventory,
+)
 
 
 def make_run(source: Path, run_id: str = "exp001-r001-present", **overrides) -> Path:
@@ -219,7 +223,7 @@ def test_missing_or_file_source_fails_without_creating_it(
 def test_module_entry_point_and_environment_protocol(tmp_path):
     make_run(tmp_path)
     result = subprocess.run(
-        [sys.executable, "-m", "pingstore", "discover"],
+        [sys.executable, "-m", "pingstore.cli", "discover"],
         env={**os.environ, "DEMOLAB_PREVIEW_SOURCE": str(tmp_path)},
         capture_output=True,
         text=True,

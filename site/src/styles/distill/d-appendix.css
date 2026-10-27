@@ -16,6 +16,7 @@
 
 
 d-appendix {
+  --appendix-section-gap: 3rem;
   contain: layout style;
   font-size: 0.8em;
   line-height: 1.7em;
@@ -38,6 +39,21 @@ d-appendix h3 {
 
 d-appendix h3 + * {
   margin-top: 1em;
+}
+
+d-appendix > h3:not(:first-child) {
+  margin-top: var(--appendix-section-gap);
+}
+
+@media (min-width: 1000px) {
+  d-appendix > h3,
+  d-appendix > h3 + * {
+    margin-top: 0;
+  }
+
+  d-appendix > h3:not(:first-child) + * {
+    margin-top: var(--appendix-section-gap);
+  }
 }
 
 d-appendix ol {

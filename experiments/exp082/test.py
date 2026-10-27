@@ -28,8 +28,8 @@ from experiments.exp082 import analyse, compute, present, recipe
 from experiments.exp082 import analyse as measurements
 from experiments.exp082 import compute as inference
 from experiments.exp082.custom import evidence, illustrate, inputs
-from pingstore import stages
-from pingstore.contracts import (
+from pingstore import core
+from pingstore.library import (
     PingstoreError,
     file_sha256,
     load_json,
@@ -43,18 +43,18 @@ def lab(tmp_path, monkeypatch):
     for module in (compute, analyse, present):
         monkeypatch.setattr(module, "REPO", tmp_path)
     monkeypatch.setattr(
-        stages, "memberships", lambda _: {"exp022": "demo", "exp082": "demo"}
+        core, "memberships", lambda _: {"exp022": "demo", "exp082": "demo"}
     )
 
     def code(*args):
         return {"git_commit": "fixture", "dirty": False, "code_dirty": False}
 
-    monkeypatch.setattr(stages, "_capture_code", code)
-    monkeypatch.setattr(compute, "_capture_code", code)
+    monkeypatch.setattr(core, "capture_code", code)
+    monkeypatch.setattr(compute, "capture_code", code)
     monkeypatch.setenv("PINGLAB_SMOKE", "1")
     for key in ("STREAMS_PER_CELL", "DIGITS_PER_STREAM", "STREAM_BATCH_SIZE"):
         monkeypatch.delenv("PINGLAB_EXP082_" + key, raising=False)
-    with stages.stage_run(tmp_path, "exp022", "compute") as run:
+    with core.stage_run(tmp_path, "exp022", "compute") as run:
         for seed in recipe.SEEDS:
             name = recipe.training_cell_name(seed)
             folder = run.export / name
@@ -189,7 +189,7 @@ def lab(tmp_path, monkeypatch):
     candidates = []
     conditions = [list(value) for value in recipe.SHOWCASE_CONDITIONS]
     bounds = np.cumsum([0, *[int(d / 0.1) for d, _ in conditions]]).tolist()
-    with stages.stage_run(
+    with core.stage_run(
         tmp_path,
         "exp082",
         "compute",
@@ -523,7 +523,7 @@ def test_input_change_during_compute_stays_hidden(lab, monkeypatch):
 
 def test_six_shards_reuse_collect_and_no_reexecution(lab):
     repo, bank, calls, _ = lab
-    identity = stages.reserve_stage(repo / ".pingstore", "exp082", "compute")
+    identity = core.reserve_stage(repo / ".pingstore", "exp082", "compute")
     with pytest.raises((OSError, PingstoreError)):
         compute.compute(bank, run_id=identity, collect=True)
     for index in range(6):
@@ -559,7 +559,7 @@ def test_hpc_pipeline_uses_reviewed_six_shard_array(tmp_path):
 
 def test_shard_rejects_changed_payload(lab):
     repo, bank, _, _ = lab
-    identity = stages.reserve_stage(repo / ".pingstore", "exp082", "compute")
+    identity = core.reserve_stage(repo / ".pingstore", "exp082", "compute")
     compute.shard(bank, run_id=identity, index=0)
     folder = repo / ".pingstore/runs" / f".{identity}.tmp"
     next((folder / "export/jobs").glob("*/counts.npz")).write_bytes(b"broken")
@@ -732,7 +732,7 @@ def test_all_saved_figures_render_without_inference(lab, monkeypatch):
 
 def test_compute_lock_excludes_collector(lab):
     repo, bank, _, _ = lab
-    identity = stages.reserve_stage(repo / ".pingstore", "exp082", "compute")
+    identity = core.reserve_stage(repo / ".pingstore", "exp082", "compute")
     directory = repo / ".pingstore/runs" / f".{identity}.tmp"
     with (
         compute._compute_lock(directory, exclusive=False),
@@ -743,8 +743,8 @@ def test_compute_lock_excludes_collector(lab):
 
 def test_dirty_shards_fail_without_scientific_work(lab, monkeypatch):
     repo, bank, calls, _ = lab
-    identity = stages.reserve_stage(repo / ".pingstore", "exp082", "compute")
-    monkeypatch.setattr(compute, "_capture_code", lambda *a: {"code_dirty": True})
+    identity = core.reserve_stage(repo / ".pingstore", "exp082", "compute")
+    monkeypatch.setattr(compute, "capture_code", lambda *a: {"code_dirty": True})
     with pytest.raises(PingstoreError, match="committed"):
         compute.shard(bank, run_id=identity, index=0)
     assert calls == []

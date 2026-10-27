@@ -12,14 +12,14 @@ from experiments.exp054 import analyse, compute, present, recipe
 from experiments.exp054 import analyse as measurements
 from experiments.exp054 import present as plots
 from experiments.exp054.custom import evidence, inputs
-from pingstore import stages
-from pingstore.contracts import (
+from pingstore import core
+from pingstore.library import (
     PingstoreError,
+    discover_runs,
     load_json,
     payload_digest,
     write_json_atomic,
 )
-from pingstore.discovery import discover_runs
 
 
 def recording(cfg):
@@ -48,12 +48,12 @@ def lab(tmp_path, monkeypatch):
     for module in (compute, analyse, present):
         monkeypatch.setattr(module, "REPO", tmp_path)
     monkeypatch.setattr(
-        stages,
+        core,
         "memberships",
         lambda _: {"exp054": "test"},
     )
     monkeypatch.setattr(
-        stages, "_capture_code", lambda *a: {"git_commit": "fixture", "dirty": False}
+        core, "capture_code", lambda *a: {"git_commit": "fixture", "dirty": False}
     )
     monkeypatch.setenv("PINGLAB_SMOKE", "1")
     monkeypatch.delenv("SLURM_JOB_ID", raising=False)
@@ -300,7 +300,7 @@ def test_hpc_requires_prior_reservation(lab, monkeypatch):
     with pytest.raises(PingstoreError, match="reserved before"):
         compute.compute()
     assert not calls
-    identity = stages.reserve_stage(
+    identity = core.reserve_stage(
         root / ".pingstore", "exp054", "compute", origin="slurm"
     )
     assert compute.compute(run_id=identity) == identity

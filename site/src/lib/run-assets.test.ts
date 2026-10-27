@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { RunStore } from './run-store.ts';
-import { selectAsset } from './run-assets.ts';
+import { isRunAsset, selectAsset } from './run-assets.ts';
 
 test('asset validation rejects invalid run identifiers and arbitrary exported files', async () => {
   const store = new RunStore({ source: 'local' });
@@ -9,4 +9,10 @@ test('asset validation rejects invalid run identifiers and arbitrary exported fi
     ['exp001-r001-present', '../run.json'], ['exp001-r001-present', 'numbers.json']]) {
     await assert.rejects(selectAsset(run, file, { store }), /Invalid run asset/);
   }
+});
+
+test('lifecycle replay is served without exposing other scientific JSON', () => {
+  assert.equal(isRunAsset('lifecycle.json'), true);
+  assert.equal(isRunAsset('events.json'), false);
+  assert.equal(isRunAsset('../lifecycle.json'), false);
 });

@@ -18,7 +18,7 @@ import numpy as np
 import torch
 from experiments.exp099 import dataset, recipe
 from experiments.exp099.custom.network_artifacts import model_execution
-from pingstore.stages import stage_run
+from pingstore.library import stage_run
 from snnlab.sim import Performance, build  # noqa: TID251
 
 

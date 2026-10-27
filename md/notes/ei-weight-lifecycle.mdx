@@ -1,0 +1,128 @@
+---
+title: "EI Weight Lifecycle"
+author: Eoin Murray
+collection: notes
+description: "A proposed model-organism study of how evolution, development and experience shape E/I synaptic strengths across the lifecycle."
+created_at: "2026-10-26T10:13:58Z"
+updated_at: "2026-10-26T19:33:31Z"
+---
+
+## Goal
+
+The full lifecycle remains a proposed reduced-model study. [Exp154](/exp154)
+implements capacity and consumption-only lifetime tests, plus one fixed abstract
+genome, internally driven prenatal development, juvenile food learning and slower
+adult learning. Its animation replays the phases, native neural activity, choices,
+energy, deaths and births; the accompanying plot tracks prediction error and pathway
+weight norms. Evolution, viable weight-space mapping and genetic–environmental
+comparisons remain proposed. The current demonstration uses one seed and one fixed
+cue–energy mapping; the broader comparisons below are future work.
+
+Investigate how evolution, development and experience jointly shape
+excitatory-to-inhibitory (E→I) and inhibitory-to-excitatory (I→E) synaptic
+strengths in a simple model organism receiving repeated object exposures.
+Identify how the region of weights compatible with stable, effective behaviour
+changes across the lifecycle, and how inherited rules and individual experience
+guide trajectories through that region.
+
+## Methods
+
+1. **Model organism and environment.** Present a sequence of objects to a model
+   organism that decides whether to consume or reject each object. Each object
+   has one observable scalar sensory cue and a separate, hidden food energy
+   change between −1 and +1 in normalised energy units, before metabolic costs.
+   The cue predicts the energy change without directly revealing it. For the
+   initial test, draw cues $x_t$ uniformly from $[0,1]$ and set
+
+   $$
+   \Delta E_t=s(2x_t-1),\qquad s\in\{-1,+1\}.
+   $$
+
+   Here $t$ indexes object exposures, $x_t$ is the observed scalar cue and
+   $\Delta E_t$ is the hidden food energy change. The mapping sign $s$ is fixed
+   within each lifetime; test both signs across lifetimes. Reveal the food energy
+   change only through consumption; rejection reveals no outcome. Track an
+   organism-level energy reserve outside the neural network:
+
+   $$
+   E_{t+1}=E_t-c+a_t\Delta E_t.
+   $$
+
+   $E_t$ is the reserve before exposure $t$, $c>0$ is the metabolic cost per
+   exposure, and $a_t=1$ means consume while $a_t=0$ means reject. Start with a
+   positive reserve $E_0$ and terminate the lifetime when it reaches zero or below.
+   Choose the cost and initial budget so that rejecting everything cannot sustain
+   the organism, while informed food selection can sustain it on average.
+   Initially, the reserve is not an additional sensory input; a hunger signal is
+   a possible later extension.
+
+2. **Neural controller.** Use a small recurrent network containing excitatory and
+   inhibitory rate neurons, initially around 16 excitatory and 4 inhibitory cells,
+   to learn $V(x)$, the expected food energy change given observed scalar cue $x$.
+   Consume when
+   the prediction is positive, with occasional exploratory consumption. Fix
+   sensory connections, the value readout and E→E/I→I weights within each lifetime;
+   initially adapt only E→I and I→E strengths, with bounded, sign-preserving
+   updates driven by prediction error after consumption. Gradients through the
+   rate dynamics provide an initial engineering implementation, not a claim of
+   biological plasticity. This makes adaptation of inhibitory feedback causally
+   relevant rather than allowing a trainable readout to solve the task alone.
+
+   [Inhibitory homeostatic plasticity](https://doi.org/10.1126/science.1211095)
+   is a related modelling precedent; the proposed gradient-based learner does
+   not establish that biological mechanism.
+
+3. **Inheritance and development.** Represent the genome as inherited parameters
+   controlling initial connectivity, synaptic strength distributions, plasticity
+   and maturation timing. This is an abstract genetic representation rather than
+   a simulation of specific genes. Simulate a prenatal analogue dominated by
+   internally generated activity, postnatal development incorporating sensory
+   experience, and adulthood with continued learning.
+
+   Exp154 now implements a reduced version: restore inherited weights at conception,
+   run 12 internal-drive windows minimizing per-cell activity error around 0.25,
+   then learn from consumed food for 20 juvenile encounters before reducing the
+   adult learning rate. Only E→I and I→E weights adapt. Each birth starts a fresh
+   food optimizer and energy reserve; acquired weights are not inherited.
+
+4. **Evolution across generations.** Evaluate each genotype across multiple
+   lifetimes and environments. Select and mutate inherited parameters according
+   to energy acquisition, survival and neural activity costs, without prescribing
+   a preferred E/I ratio. Offspring develop afresh without inheriting acquired
+   synaptic weights.
+
+5. **Lifecycle weight-space mapping.** At developmental checkpoints,
+   systematically vary E→I and I→E coupling strengths to identify regions
+   supporting stable activity and stage-appropriate function. Distinguish
+   immediate tolerance with plasticity frozen from recovery with plasticity
+   active, and overlay naturally developed trajectories. Measure per-neuron
+   excitatory and inhibitory inputs, their cancellation, prediction accuracy and
+   firing stability: the E→I/I→E weight ratio is not itself E/I balance. Show the
+   changing regions and trajectories in a lifecycle plot with phases marked.
+   Define viability criteria before execution; sampled weight distributions are
+   not themselves bounds on viable weights.
+
+6. **Genetic and environmental comparisons.** Cross genotypes, experience
+   histories and developmental random seeds to estimate their contributions and
+   interactions. Include controls freezing plasticity in either pathway or
+   disabling developmental activity. Restricted plasticity tests whether E/I
+   adaptation can support learning; later allow other connections to learn to
+   test whether evolution favours this solution when alternatives are available.
+   Interpret the resulting contributions within the model and its sampled
+   environments, rather than as a universal genetic–environmental percentage.
+
+## Expanded validation still proposed
+
+The implemented single-mapping demonstration does not establish performance
+across conditions. Before adding evolution, test whether the restricted
+E/I controller can represent and learn both cue–energy mappings. Run separate
+lifetimes for each mapping sign with multiple initialisations, comparing the
+learning controller against the same network with plasticity disabled and an
+oracle that consumes only positive-energy objects. Match object sequences,
+initial energy and metabolic cost across comparisons. Log prediction error,
+energy, firing activity and pathway strengths. Evaluate prediction error across
+all presented cues using outcomes available to the simulator, while exposing
+outcomes to the learner only after consumption. Require improved performance
+across both mappings without unstable neural activity before making broader
+learning claims; failure first calls for checking representational capacity and
+the learning rule.

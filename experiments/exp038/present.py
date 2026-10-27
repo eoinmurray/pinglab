@@ -23,7 +23,7 @@ from experiments.exp038.analyse import MEASUREMENT
 from experiments.exp038.custom import inputs
 from experiments.exp038.custom.network_artifacts import copy_circuits
 from experiments.exp038.recipe import EI_RASTER_N_E_PLOT, EI_RASTER_N_I_PLOT, MODELS
-from pingstore.contracts import PingstoreError, load_json, write_json_atomic
+from pingstore.library import PingstoreError, load_json, write_json_atomic
 
 DEFAULT_FORMATS = ("svg", "pdf")
 

@@ -19,7 +19,7 @@ import numpy as np
 from experiments import theme
 from experiments.exp080 import recipe
 from experiments.exp080.custom import evidence, inputs
-from pingstore.contracts import PingstoreError, load_json, write_json_atomic
+from pingstore.library import PingstoreError, load_json, write_json_atomic
 
 
 def present(identity: str, *, run_id: str | None = None) -> str:

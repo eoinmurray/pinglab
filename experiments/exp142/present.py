@@ -21,8 +21,7 @@ import numpy as np
 from experiments import theme
 from experiments.exp142.analyse import arrays
 from matplotlib.lines import Line2D
-from pingstore.contracts import load_json, write_json_atomic
-from pingstore.stages import source_run, stage_run
+from pingstore.library import load_json, source_run, stage_run, write_json_atomic
 
 
 def present(identity, *, run_id=None):

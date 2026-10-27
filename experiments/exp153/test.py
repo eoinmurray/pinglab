@@ -253,7 +253,7 @@ def test_qualitative_rhythms_need_not_match_exp133_gamma(fixture):
 
 
 def test_parallel_conditions_match_serial_native_integration(fixture, tmp_path):
-    from pingstore.contracts import write_json_atomic
+    from pingstore.library import write_json_atomic
 
     bundle, cfg = fixture
     cfg["duration_ms"] = 3

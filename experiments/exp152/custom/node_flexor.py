@@ -13,12 +13,7 @@ from pathlib import Path
 
 import numpy as np
 import rclpy
-from experiments.exp152.custom.models import (
-    Controller,
-    SpikeWindowInbox,
-    finish_measurement,
-    start_measurement,
-)
+from experiments.exp152.custom.models import Controller, SpikeWindowInbox
 from experiments.exp152.recipe import SIDES, controller_settings, window_steps
 from rclpy.executors import SingleThreadedExecutor
 from rclpy.node import Node
@@ -29,21 +24,16 @@ from std_msgs.msg import Int64MultiArray, String
 class RuntimeNode(Node):
     """Absolute release schedule and buffered diagnostics, exported after control."""
 
-    PROFILE_STAGES = ("callback",)
-
     def __init__(self, name):
         super().__init__(name)
         self.dt_ms = float(self.declare_parameter("dt_ms", 1.0).value)
         self.timer_ms = float(self.declare_parameter("timer_ms", 1.0).value)
         self.substeps = window_steps(self.dt_ms, self.timer_ms)
-        self.duration = float(self.declare_parameter("duration", 8.0).value)
+        self.duration = float(self.declare_parameter("duration", 30.0).value)
         self.neurons = int(self.declare_parameter("neurons", 1).value)
         self.max_lag_ms = float(self.declare_parameter("max_lag_ms", 20.0).value)
-        self.profile_timing = bool(
-            self.declare_parameter("profile_timing", False).value
-        )
         self.declare_parameter("start_ns", 0)
-        if self.duration <= 0 or self.neurons < 1 or self.max_lag_ms <= 0:
+        if self.duration <= 0 or self.neurons != 1 or self.max_lag_ms <= 0:
             raise ValueError("Invalid duration, population size or maximum lag")
         self.cpu_affinity = sorted(os.sched_getaffinity(0))
         self.steps = 0
@@ -55,23 +45,6 @@ class RuntimeNode(Node):
         self.schedule_time = np.zeros(self.capacity)
         self.clock_offset_change = np.zeros(self.capacity)
         self.clock_sample_span = np.zeros(self.capacity)
-        self.stage_timing = (
-            np.zeros((self.capacity, len(self.PROFILE_STAGES), 2))
-            if self.profile_timing
-            else None
-        )
-        self.clock_probe = None
-        if self.profile_timing:
-            probe = np.zeros((1000, 2))
-            for row in probe:
-                measured = start_measurement()
-                finish_measurement(measured, row)
-            self.clock_probe = dict(
-                samples=len(probe),
-                empty_span_wall_ms_median=float(np.median(probe[:, 0])),
-                empty_span_wall_ms_p95=float(np.percentile(probe[:, 0], 95)),
-                empty_span_cpu_ms_median=float(np.median(probe[:, 1])),
-            )
         self.deliveries = []
         self.sequences = {}
         self.received_sequences = {}
@@ -82,27 +55,21 @@ class RuntimeNode(Node):
                 history=HistoryPolicy.KEEP_ALL, reliability=ReliabilityPolicy.RELIABLE
             ),
         )
-        self.spike_transport = json.loads(os.environ["EXP152_CONFIGURATION"])[
-            "spike_transport"
-        ]
         self.frame_wait_ms = np.zeros(self.capacity)
-        if self.spike_transport == "logical":
-            sources = [node for node in (*SIDES, "plant") if node != name]
-            self.frame_inbox = SpikeWindowInbox(sources, self.substeps)
-            self.frame_publisher = self.create_publisher(
-                Int64MultiArray, "/frames/" + name, 1000
+        sources = [node for node in (*SIDES, "plant") if node != name]
+        self.frame_inbox = SpikeWindowInbox(sources, self.substeps)
+        self.frame_publisher = self.create_publisher(
+            Int64MultiArray, "/frames/" + name, 1000
+        )
+        self.frame_subscriptions = [
+            self.create_subscription(
+                Int64MultiArray,
+                "/frames/" + source,
+                lambda msg, source=source: self.frame_inbox.receive(source, msg.data),
+                1000,
             )
-            self.frame_subscriptions = [
-                self.create_subscription(
-                    Int64MultiArray,
-                    "/frames/" + source,
-                    lambda msg, source=source: self.frame_inbox.receive(
-                        source, msg.data
-                    ),
-                    1000,
-                )
-                for source in sources
-            ]
+            for source in sources
+        ]
         self.finished = False
         self.stop_reason = "not_started"
         self.clock = self.get_clock()
@@ -160,11 +127,7 @@ class RuntimeNode(Node):
                     timeout_sec=min((release - now) / 1e9, self.timer_ms / 1000)
                 )
                 now = time.perf_counter_ns()
-            if self.spike_transport == "logical":
-                now = self.wait_for_frames(executor, release)
-            if now >= end and self.spike_transport == "arrival":
-                self.stop_reason = "wall_window_ended"
-                break
+            now = self.wait_for_frames(executor, release)
             if not rclpy.ok():
                 self.stop_reason = "interrupted"
                 break
@@ -175,8 +138,7 @@ class RuntimeNode(Node):
             # Catch up immediately, but service queued spikes between late windows.
             if now - release >= self.period_ns:
                 executor.spin_once(timeout_sec=0)
-            measured = start_measurement() if self.profile_timing else None
-            started = measured[0] if measured is not None else time.perf_counter_ns()
+            started = time.perf_counter_ns()
             wall_start = self.clock.now().nanoseconds
             sampled = time.perf_counter_ns()
             index = self.updates
@@ -186,31 +148,22 @@ class RuntimeNode(Node):
             self.clock_sample_span[index] = (sampled - started) / 1e6
             self.frame_events = []
             compute_ms = self.tick()
-            if self.spike_transport == "logical":
-                self.frame_publisher.publish(
-                    Int64MultiArray(
-                        data=[
-                            self.updates,
-                            self.substeps,
-                            *[
-                                int(value)
-                                for event in self.frame_events
-                                for value in event
-                            ],
-                        ]
-                    )
+            self.frame_publisher.publish(
+                Int64MultiArray(
+                    data=[
+                        self.updates,
+                        self.substeps,
+                        *[int(value) for event in self.frame_events for value in event],
+                    ]
                 )
+            )
             self.steps += self.substeps
             self.stamps[index] = self.clock.now().nanoseconds
             self.timing[index, 0] = (started - release) / 1e6
             self.timing[index, 1] = compute_ms
             self.timing[index, 2] = self.steps * self.dt_ms / 1000
             # Include model work, spike publication and writes to diagnostic buffers.
-            if measured is not None:
-                finish_measurement(measured, self.stage_timing[index, -1])
-                self.timing[index, 3] = self.stage_timing[index, -1, 0]
-            else:
-                self.timing[index, 3] = (time.perf_counter_ns() - started) / 1e6
+            self.timing[index, 3] = (time.perf_counter_ns() - started) / 1e6
             self.timing[index, 4] = (
                 self.timing[index, 0] + self.timing[index, 3] - self.timer_ms
             )
@@ -290,19 +243,6 @@ class RuntimeNode(Node):
                     deadline_lateness_ms=lateness,
                     **self.diagnostic_values(index),
                     **(
-                        {"stage_timing_ms": self.stage_timing[index].tolist()}
-                        if self.profile_timing
-                        else {}
-                    ),
-                    **(
-                        {
-                            "profile_stages": self.PROFILE_STAGES,
-                            "clock_probe": self.clock_probe,
-                        }
-                        if self.profile_timing and index == 0
-                        else {}
-                    ),
-                    **(
                         {
                             "cpu_affinity": self.cpu_affinity,
                             "clock_mapping": self.clock_mapping,
@@ -333,14 +273,6 @@ class RuntimeNode(Node):
 
 
 class ControllerNode(RuntimeNode):
-    PROFILE_STAGES = (
-        "input_preparation",
-        "snnlab_executor",
-        "output_extraction",
-        "spike_publication",
-        "callback",
-    )
-
     def __init__(self, side):
         super().__init__(side)
         self.side = side
@@ -351,13 +283,11 @@ class ControllerNode(RuntimeNode):
             self.neurons,
             warm_steps=self.substeps,
             compile_mode=cfg["compile_mode"],
-            profile_timing=self.profile_timing,
             evidence_dir=Path(os.environ["EXP152_EXPORT"]) / side,
             configuration_overrides=controller_settings(cfg),
         )
         self.voltage = np.zeros((self.capacity, self.substeps, 1))
         self.spikes = np.zeros((self.capacity, self.substeps, 1), dtype=int)
-        self.pending_sensory, self.pending_peer = 0, 0
         self.publisher = self.create_publisher(Int64MultiArray, "/motor/" + side, 1000)
         self.sensory_topic = "/sensory/" + side
         self.peer_topic = "/motor/" + SIDES[1 - SIDES.index(side)]
@@ -372,33 +302,20 @@ class ControllerNode(RuntimeNode):
         )
 
     def sensory(self, msg):
-        if self.receive(msg, self.sensory_topic) and self.spike_transport == "arrival":
-            self.pending_sensory += 1
+        self.receive(msg, self.sensory_topic)
 
     def peer(self, msg):
-        if self.receive(msg, self.peer_topic) and self.spike_transport == "arrival":
-            self.pending_peer += 1
+        self.receive(msg, self.peer_topic)
 
     def tick(self):
         tick = time.perf_counter_ns()
-        if self.spike_transport == "logical":
-            self.pending_sensory = sum(
-                unit == SIDES.index(self.side)
-                for _, unit in self.incoming_frames["plant"]
-            )
-            self.pending_peer = len(
-                self.incoming_frames[SIDES[1 - SIDES.index(self.side)]]
-            )
-        voltage, spikes, events = self.model.window(
-            self.substeps, self.pending_sensory, self.pending_peer
+        sensory = sum(
+            unit == SIDES.index(self.side) for _, unit in self.incoming_frames["plant"]
         )
-        self.pending_sensory, self.pending_peer = 0, 0
-        measured = start_measurement() if self.profile_timing else None
+        peer = len(self.incoming_frames[SIDES[1 - SIDES.index(self.side)]])
+        voltage, spikes, events = self.model.window(self.substeps, sensory, peer)
         for offset, neuron_id in events:
             self.emit(self.publisher, neuron_id, (self.steps + offset + 1) * self.dt_ms)
-        if measured is not None:
-            finish_measurement(measured, self.stage_timing[self.updates, 3])
-            self.stage_timing[self.updates, :3] = self.model.stage_timing
         compute_ms = (time.perf_counter_ns() - tick) / 1e6
         self.frame_events = events
         self.voltage[self.updates] = voltage

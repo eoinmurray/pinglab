@@ -1,7 +1,7 @@
 import subprocess
 
 import pytest
-from pingstore.contracts import PingstoreError, load_json
+from pingstore.library import PingstoreError, load_json
 
 from tools.hpc.slurm_submit import submit_pipeline
 

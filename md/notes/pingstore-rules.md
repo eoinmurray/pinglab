@@ -4,7 +4,7 @@ author: Eoin Murray
 collection: notes
 description: Where Pingstore runs live, basic CLI usage and safe handling of experiment outputs.
 created_at: "2026-09-11"
-updated_at: "2026-10-24T12:45:31Z"
+updated_at: "2026-10-27T12:17:06Z"
 ---
 
 # Pingstore Guide
@@ -16,6 +16,22 @@ Pingstore holds Pinglab’s experiment runs. Code lives in Git; scientific outpu
 1. **Local runs:** `.pingstore/runs/`, relative to the repository root.
 2. **External backup:** `r2:pinglab/pingstore/runs`, accessed through rclone.
 3. **Implementation:** `tools/pingstore/`.
+
+The implementation has three Python source files. `core.py` owns validation,
+run creation, allocation, provenance, artifact handling and storage maintenance.
+`library.py` exports the experiment-facing API from core; `cli.py` implements
+the command interface using the same core. Experiments and execution adapters
+import from `pingstore.library`; there are no compatibility modules for the old
+import paths. Tests remain in `tools/pingstore/tests/`.
+
+```python
+from pingstore.library import source_run, stage_run
+
+source = source_run(repo / ".pingstore", compute_id, stage="compute")
+with stage_run(repo, "exp141", "analyse", inputs={"compute": source}) as run:
+    # Write scientific outputs beneath run.export.
+    pass
+```
 
 A completed run contains:
 
@@ -30,13 +46,17 @@ An optional `.protected` file beside `run.json` retains the run and its input an
 
 ## Using the tool
 
-Run commands from the repository root. Discover available commands and options through CLI help:
+Run commands from the repository root. Use the installed `pingstore` entry point
+below, or `python -m pingstore.cli`
+with the same arguments. The package is a namespace containing exactly the three
+source modules; `python -m pingstore` is no longer an entry point.
 
 ```sh
 uv run pingstore --help
 uv run pingstore discover --help
 uv run pingstore backup --help
 uv run pingstore prune --help
+uv run pingstore prune-remote --help
 uv run pingstore evict --help
 uv run pingstore backup-papers --help
 ```
@@ -49,6 +69,13 @@ Backup, prune and eviction use separate dry-run and confirmation invocations. In
 
 4. **`evict`** removes verified local backup copies, including runs used by reports. It preserves R2 history, local protections, unfinished-work inputs and allocation counters. Confirmation downloads and compares selected remote files before removing local directories.
 5. **`backup-papers`** is retired: public PDF uploads are disabled. Papers stay local for localhost; production uses publisher or authorised repository links from `papers/index.yaml`.
+6. **`prune-remote`** removes unused R2 runs for explicit, repeatable
+   `--experiment` selections. It requires the current selected evidence to be
+   backed up, retains protected runs and required ancestry, and conditionally
+   replaces the catalog before deleting the planned objects. Use separate
+   `--dry-run` and `--confirm PLAN_HASH` invocations with the same scope.
+   Refresh deployed reports to the retained presentation before removing assets
+   referenced by an earlier deployment.
 
 To reclaim space without removing scientific history, prefer eviction:
 

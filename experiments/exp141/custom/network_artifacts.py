@@ -4,7 +4,7 @@ Retain only the bundle, snapshot lifecycle and parameter readers used by this
 experiment. SNNLab owns snapshot metadata and parameter serialization."""
 
 import numpy as np
-from pingstore.contracts import PingstoreError, file_sha256, load_json
+from pingstore.library import PingstoreError, file_sha256, load_json
 
 
 def snapshot_parameters(source, *parts):

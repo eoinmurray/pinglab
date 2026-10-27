@@ -208,7 +208,7 @@ def test_remote_worker_subprocess_and_collector_round_trip(
 import json, os, sys
 from pathlib import Path
 sys.path.insert(0, {str(REPO / "tools")!r})
-from pingstore.contracts import payload_digest, write_json_atomic
+from pingstore.library import payload_digest, write_json_atomic
 args = parser.parse_args()
 directory = Path(".pingstore/runs") / ("." + args.run_id + ".tmp")
 reservation = json.loads((directory / ".reservation.json").read_text())

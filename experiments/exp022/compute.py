@@ -39,8 +39,14 @@ from experiments.exp022.custom.network_artifacts import (
     model_execution,
     record_snapshot_policy,
 )
-from pingstore.contracts import PingstoreError, file_sha256, write_json_atomic
-from pingstore.stages import reserve_stage, source_run, stage_run
+from pingstore.library import (
+    PingstoreError,
+    file_sha256,
+    reserve_stage,
+    source_run,
+    stage_run,
+    write_json_atomic,
+)
 from snnlab.analysis import (
     active_fraction,
     firing_rate,
@@ -1171,7 +1177,7 @@ def promote_cells(export: Path) -> None:
 
 def _copy_native_bank_units(*, bank, destination, expected, inventory):
     """Retain the native training units associated with selected cells."""
-    from pingstore.contracts import file_sha256
+    from pingstore.library import file_sha256
 
     for unit in sorted(bank.iterdir()):
         if not unit.is_dir() or unit.name in expected:
@@ -1196,7 +1202,7 @@ def _copy_native_bank_units(*, bank, destination, expected, inventory):
 
 def copy_bank(bank: Path, destination: Path) -> list[dict]:
     """Copy scientific evidence without restamping configs or checkpoint roles."""
-    from pingstore.contracts import file_sha256
+    from pingstore.library import file_sha256
 
     actual = {
         path.name

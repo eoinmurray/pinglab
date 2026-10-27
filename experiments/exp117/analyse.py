@@ -15,7 +15,7 @@ sys.path[:0] = [str(REPO), str(REPO / "tools")]
 
 import numpy as np
 from experiments.exp117.custom import inputs
-from pingstore.contracts import PingstoreError, load_json, write_json_atomic
+from pingstore.library import PingstoreError, load_json, write_json_atomic
 
 
 def analyse(identity, *, run_id=None):

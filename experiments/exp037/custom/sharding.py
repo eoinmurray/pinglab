@@ -8,7 +8,7 @@ from pathlib import Path
 
 import numpy as np
 import torch
-from pingstore.contracts import file_sha256
+from pingstore.library import file_sha256
 from snnlab.sim import load_dataset
 
 

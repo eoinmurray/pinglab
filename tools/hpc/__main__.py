@@ -16,8 +16,7 @@ import tarfile
 import tempfile
 from pathlib import Path, PurePosixPath
 
-from pingstore.contracts import PingstoreError, load_json, write_json_atomic
-from pingstore.stages import source_run
+from pingstore.library import PingstoreError, load_json, source_run, write_json_atomic
 
 REPO = Path(__file__).resolve().parents[2]
 

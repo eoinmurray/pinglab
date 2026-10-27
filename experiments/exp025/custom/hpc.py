@@ -17,8 +17,14 @@ sys.path[:0] = [str(REPO), str(REPO / "tools")]
 from experiments.exp025 import recipe
 from experiments.exp025.custom import evidence, inputs
 from hpc.slurm_submit import submit_pipeline
-from pingstore.contracts import PingstoreError, load_json, write_json_atomic
-from pingstore.stages import _capture_code, reserve_stage, stage_reservation
+from pingstore.library import (
+    PingstoreError,
+    capture_code,
+    load_json,
+    reserve_stage,
+    stage_reservation,
+    write_json_atomic,
+)
 
 STAGES = ("compute", "analyse", "present")
 
@@ -26,7 +32,7 @@ STAGES = ("compute", "analyse", "present")
 def check_plan(plan):
     if plan.get("schema") != "exp025.hpc/v1" or plan.get("repo") != str(REPO):
         raise PingstoreError("plan belongs to another schema or checkout")
-    code = _capture_code(REPO, REPO)
+    code = capture_code(REPO, REPO)
     if code.get("code_dirty") or code != plan["code"]:
         raise PingstoreError("HPC execution requires the exact frozen plan source")
     cfg = recipe.configuration(smoke=plan["profile"] == "smoke")
@@ -49,7 +55,7 @@ def check_plan(plan):
 def prepare(args):
     if args.plan.exists():
         raise PingstoreError("plan already exists; review it instead of overwriting")
-    code = _capture_code(REPO, REPO)
+    code = capture_code(REPO, REPO)
     if code.get("code_dirty"):
         raise PingstoreError("commit execution code before preparing HPC work")
     source = inputs.source(REPO, args.source, "compute", experiment="exp022")

@@ -85,7 +85,7 @@ def validate(cfg):
         for smoke in (False, True)
         for version in (7, 8)
     ):
-        from pingstore.contracts import PingstoreError
+        from pingstore.library import PingstoreError
 
         raise PingstoreError("inconsistent exp054 recipe")
     return cfg

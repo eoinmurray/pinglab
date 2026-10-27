@@ -77,8 +77,8 @@ def _common_config() -> dict:
     }
 
 
-from pingstore import stages
-from pingstore.contracts import (
+from pingstore import core
+from pingstore.library import (
     PingstoreError,
     file_sha256,
     load_json,
@@ -92,13 +92,13 @@ def lab(tmp_path, monkeypatch):
     for module in (compute, analyse, present):
         monkeypatch.setattr(module, "REPO", tmp_path)
     monkeypatch.setattr(
-        stages, "memberships", lambda _: {"exp022": "demo", "exp038": "demo"}
+        core, "memberships", lambda _: {"exp022": "demo", "exp038": "demo"}
     )
     monkeypatch.setattr(
-        stages, "_capture_code", lambda *a: {"git_commit": "fixture", "dirty": False}
+        core, "capture_code", lambda *a: {"git_commit": "fixture", "dirty": False}
     )
     monkeypatch.setenv("PINGLAB_SMOKE", "1")
-    with stages.stage_run(tmp_path, "exp022", "compute") as run:
+    with core.stage_run(tmp_path, "exp022", "compute") as run:
         for cell in recipe.bank_cells():
             directory = run.export / cell["cell_name"]
             directory.mkdir(parents=True)

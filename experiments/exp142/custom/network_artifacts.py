@@ -7,7 +7,7 @@ from contextlib import contextmanager
 from pathlib import Path
 
 import numpy as np
-from pingstore.contracts import PingstoreError, file_sha256, load_json
+from pingstore.library import PingstoreError, file_sha256, load_json
 from snnlab import lang
 from snnlab.sim import SnapshotSpec
 from snnlab.sim.artifacts.snapshots import SnapshotSession

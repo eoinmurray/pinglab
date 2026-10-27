@@ -15,8 +15,7 @@ sys.path[:0] = [str(REPO), str(REPO / "tools")]
 import numpy as np
 from experiments.exp153 import recipe
 from experiments.exp153.compute import ancestry
-from pingstore.contracts import load_json, write_json_atomic
-from pingstore.stages import stage_run
+from pingstore.library import load_json, stage_run, write_json_atomic
 from scipy.signal import find_peaks
 
 

@@ -18,8 +18,7 @@ sys.path[:0] = [str(REPO), str(REPO / "tools")]
 import numpy as np
 from experiments.exp153 import recipe
 from hpc.concurrent_compute import run_active_workers
-from pingstore.contracts import file_sha256, write_json_atomic
-from pingstore.stages import source_run, stage_run
+from pingstore.library import file_sha256, source_run, stage_run, write_json_atomic
 from snnlab import lang
 from snnlab import meanfield as mf
 from snnlab.sim import NetworkSnapshot

@@ -15,7 +15,7 @@ import numpy as np
 from experiments import theme
 from experiments.exp133 import recipe
 from experiments.exp133.custom import evidence, inputs, sender_receiver
-from pingstore.contracts import PingstoreError, load_json, write_json_atomic
+from pingstore.library import PingstoreError, load_json, write_json_atomic
 
 
 def edges(centres):

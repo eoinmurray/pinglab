@@ -8,8 +8,7 @@ this module does not start computation or select a scientific run.
 from contextlib import contextmanager
 
 from experiments.exp046 import recipe
-from pingstore.contracts import PingstoreError, load_json
-from pingstore.stages import source_run, stage_run
+from pingstore.library import PingstoreError, load_json, source_run, stage_run
 
 
 def lineage(repo, identity, reference=None):

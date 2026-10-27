@@ -19,6 +19,8 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
 import contextlib
+import copy
+import shutil
 
 from experiments.exp152.recipe import (
     SIDES,
@@ -26,8 +28,15 @@ from experiments.exp152.recipe import (
     configuration,
     controller_settings,
 )
-from pingstore.contracts import load_json, write_json_atomic
-from pingstore.stages import source_run, stage_run
+from pingstore.library import (
+    file_sha256,
+    load_json,
+    payload_inventory,
+    source_run,
+    stage_run,
+    validated_run_graph,
+    write_json_atomic,
+)
 
 NODES = ("flexor", "extensor", "plant")
 TOPICS = tuple(
@@ -105,8 +114,6 @@ def _launch_ros_nodes(*, args, output, children, logs):
                     f"neurons:={args.neurons}",
                     "-p",
                     f"max_lag_ms:={float(args.max_lag_ms)}",
-                    "-p",
-                    f"profile_timing:={str(args.profile_timing).lower()}",
                 ],
                 cwd=REPO,
                 env={
@@ -174,13 +181,10 @@ def run_ros(args):
                     >= (3 if "/motor/" in topic else 2)
                     for topic in TOPICS
                 )
-                and (
-                    args.spike_transport != "logical"
-                    or all(
-                        recorder.count_publishers("/frames/" + name) == 1
-                        and recorder.count_subscribers("/frames/" + name) == 2
-                        for name in NODES
-                    )
+                and all(
+                    recorder.count_publishers("/frames/" + name) == 1
+                    and recorder.count_subscribers("/frames/" + name) == 2
+                    for name in NODES
                 )
             )
             if time.monotonic() > deadline:
@@ -246,27 +250,10 @@ def run_ros(args):
     return error
 
 
-def compute(
-    *, run_id=None, startup_source=None, cycle_validation_source=None, **overrides
-):
+def compute(*, run_id=None, cycle_validation_source=None, **overrides):
     cfg = configuration(**overrides)
-    inputs = {
-        "feasibility": source_run(
-            REPO / ".pingstore",
-            cfg["feasibility_source"]["run_id"],
-            stage="analyse",
-            experiment="exp152",
-        )
-    }
-    inputs["load_selection"] = source_run(
-        REPO / ".pingstore",
-        cfg["load_selection_source"]["run_id"],
-        stage="analyse",
-        experiment="exp152",
-    )
-    validation_id = cycle_validation_source or cfg.get(
-        "cycle_selection_source", {}
-    ).get("run_id")
+    inputs = {}
+    validation_id = cycle_validation_source
     if validation_id is not None:
         validation = source_run(
             REPO / ".pingstore", validation_id, stage="analyse", experiment="exp152"
@@ -311,20 +298,6 @@ def compute(
         inputs["cycle_selection"] = validation
         if matches:
             inputs["cycle_validation"] = validation
-    if startup_source is not None:
-        selection = source_run(
-            REPO / ".pingstore", startup_source, stage="analyse", experiment="exp152"
-        )
-        conditions = selection.record["execution"]["configuration"].get(
-            "conditions", []
-        )
-        if not any(
-            all(cfg[key] == value for key, value in row.items()) for row in conditions
-        ):
-            raise ValueError(
-                "Starting pulse must match a condition in the selected sweep"
-            )
-        inputs["startup"] = selection
     with stage_run(
         REPO, "exp152", "compute", run_id=run_id, configuration=cfg, inputs=inputs
     ) as run:
@@ -340,223 +313,38 @@ def compute(
     return run.run_id
 
 
-def cycle_sweep(*, run_id=None, cycle_grid="synaptic", **overrides):
-    """Screen independent native SNNLab batches with explicit linear input gains.
+def cycle_check(source=None, *, condition_index=None, run_id=None, **overrides):
+    """Validate one selected condition with separate native controller states.
 
-    AMPA/GABA filters and projection weights are linear in spike amplitude.
-    Scaling each batch's event drive therefore screens different weights with a
-    shared graph. Selected conditions must be checked again using actual weights.
+    This is the deterministic 1 ms reference used by the report's ROS trace
+    comparison. It makes no wall-clock timing claim and performs no search.
     """
     import numpy as np
-    import torch
-    from experiments.exp152.custom.models import Joint
-    from experiments.exp152.custom.snapshot import capture_start
-    from experiments.exp152.recipe import cycle_conditions
-    from snnlab.sim import Performance, prepare_stream
-
-    cfg = configuration(**{**overrides, "compile_mode": None})
-    if cfg["dt_ms"] != 1 or cfg["timer_ms"] != 1 or cfg["neurons"] != 1:
-        raise ValueError("Cycle screen requires 1 ms updates and one cell per node")
-    conditions = cycle_conditions(cycle_grid)
-    protocol = dict(
-        cfg,
-        protocol="cycle_sweep",
-        cycle_grid=cycle_grid,
-        screening_weight_precision="float32 initializer constants, then float64 executor",
-        conditions=conditions,
-        transport_delay_ms=1.0,
-        screening="Independent batch pairs; input event amplitudes scaled by candidate/base projection weight; selected condition requires native-weight validation",
-        screening_warmup_windows=2,
-    )
-    inputs = {
-        role: source_run(
-            REPO / ".pingstore",
-            cfg[key]["run_id"],
-            stage="analyse",
-            experiment="exp152",
-        )
-        for role, key in (
-            ("feasibility", "feasibility_source"),
-            ("load_selection", "load_selection_source"),
-        )
-    }
-    torch.set_num_threads(1)
-    with stage_run(
-        REPO, "exp152", "compute", run_id=run_id, configuration=protocol, inputs=inputs
-    ) as run:
-        for tau in sorted({row["peer_tau_ms"] for row in conditions}):
-            indices = [
-                i for i, row in enumerate(conditions) if row["peer_tau_ms"] == tau
-            ]
-            rows = [conditions[i] for i in indices]
-            base = configuration(
-                **{
-                    **overrides,
-                    "compile_mode": None,
-                    "peer_tau_ms": tau,
-                    "sensory_drive_us": 0.025,
-                    "peer_inhibition_us": 0.2,
-                }
-            )
-            bundle = author_network(base)
-            stream = prepare_stream(
-                bundle,
-                window_steps=1,
-                batch_size=2 * len(rows),
-                device="cpu",
-                dtype=torch.float64,
-                performance=Performance(compile_mode=None, projection_mode="fast"),
-            )
-            values = {
-                key: torch.zeros(1, 2 * len(rows), 1, dtype=torch.float64)
-                for key in ("tonic", "sensory", "peer")
-            }
-            try:
-                for _ in range(2):
-                    stream.advance(values)
-                stream.reset()
-                capture_start(
-                    stream,
-                    bundle,
-                    run.export / f"batch-{int(tau)}" / "flexor",
-                    base,
-                    diagram=tau == 50,
-                )
-                joints = [
-                    Joint(configuration(**{**overrides, **row})["joint"])
-                    for row in rows
-                ]
-                motor, sensory = np.zeros((len(rows), 2)), np.zeros((len(rows), 2))
-                trace = np.zeros((round(cfg["duration"] * 1000), len(rows), 10))
-                sensory_gain = np.repeat(
-                    [
-                        float(np.float32(row["sensory_drive_us"]))
-                        / float(np.float32(base["weights"]["sensory_drive"]))
-                        for row in rows
-                    ],
-                    2,
-                )
-                peer_gain = np.repeat(
-                    [
-                        float(np.float32(row["peer_inhibition_us"]))
-                        / float(np.float32(base["weights"]["peer_inhibition"]))
-                        for row in rows
-                    ],
-                    2,
-                )
-                tonic = np.repeat([row["tonic_us"] for row in rows], 2)
-                startup = np.tile(
-                    [cfg["flexor_initial_us"], cfg["extensor_initial_us"]], len(rows)
-                )
-                with torch.inference_mode():
-                    for tick in range(len(trace)):
-                        values["tonic"][0, :, 0] = torch.from_numpy(
-                            startup if tick < round(cfg["flexor_bias_ms"]) else tonic
-                        )
-                        values["sensory"][0, :, 0] = torch.from_numpy(
-                            sensory.ravel() * sensory_gain
-                        )
-                        values["peer"][0, :, 0] = torch.from_numpy(
-                            motor[:, ::-1].ravel() * peer_gain
-                        )
-                        result = stream.advance(values)
-                        new_motor = (
-                            result.outputs["motor_spikes"][0, :, 0]
-                            .numpy()
-                            .reshape(-1, 2)
-                            .copy()
-                        )
-                        voltages = (
-                            result.outputs["motor_voltage"][0, :, 0]
-                            .numpy()
-                            .reshape(-1, 2)
-                        )
-                        for j, joint in enumerate(joints):
-                            sensory[j] = joint.encode(tick / 1000)
-                            joint.advance(motor[j], 0.001)
-                            trace[tick, j] = [
-                                joint.angle,
-                                joint.velocity,
-                                *joint.activation,
-                                *new_motor[j],
-                                *sensory[j],
-                                *voltages[j],
-                            ]
-                        motor = new_motor
-                        if (tick + 1) % 5000 == 0:
-                            print(
-                                "tau",
-                                tau,
-                                "model seconds",
-                                (tick + 1) / 1000,
-                                "conditions",
-                                len(rows),
-                                flush=True,
-                            )
-                for j, index in enumerate(indices):
-                    np.savez_compressed(
-                        run.export / f"condition-{index}.npz", trace=trace[:, j]
-                    )
-                    write_json_atomic(
-                        run.export / f"condition-{index}.json",
-                        dict(
-                            joint=configuration(**{**overrides, **rows[j]})["joint"],
-                            limit_hits=joints[j].limit_hits,
-                        ),
-                    )
-            finally:
-                stream.close()
-        run.record.setdefault("scientific_artifacts", {})["snapshot_stages"] = {
-            path.parent.parent.relative_to(run.export).as_posix(): ["start"]
-            for path in run.export.rglob("snapshot.json")
-        }
-    return run.run_id
-
-
-def startup_sweep(
-    *,
-    run_id=None,
-    load_sweep=False,
-    cycle_source=None,
-    condition_index=None,
-    **overrides,
-):
-    """Record deterministic coupled trajectories; no ROS timing claims apply."""
-    import numpy as np
     from experiments.exp152.custom.models import Controller, Joint
-    from experiments.exp152.recipe import startup_conditions
+    from experiments.exp152.custom.snapshot import capture_start
 
-    mode = overrides.get("compile_mode") if cycle_source is not None else None
-    cfg = configuration(**{**overrides, "compile_mode": mode})
-    if cfg["dt_ms"] != 1 or cfg["timer_ms"] != 1 or cfg["neurons"] != 1:
-        raise ValueError(
-            "Startup sweep requires one cell per population and 1 ms updates"
-        )
-    conditions = (
-        [dict(tip_mass_kg=mass) for mass in (0.001, 0.002, 0.005, 0.01, 0.05)]
-        if load_sweep
-        else startup_conditions()
-    )
-    selection = None
-    if cycle_source is not None:
+    inputs = {}
+    condition = {}
+    if source is not None:
         selection = source_run(
-            REPO / ".pingstore", cycle_source, stage="analyse", experiment="exp152"
+            REPO / ".pingstore", source, stage="analyse", experiment="exp152"
         )
-        selected = load_json(selection.file("cycles.json"))["conditions"][
+        condition = load_json(selection.file("cycles.json"))["conditions"][
             condition_index
-        ]
-        conditions = [selected["condition"]]
-        cfg = configuration(
-            **{**overrides, **selected["condition"], "compile_mode": mode}
-        )
+        ]["condition"]
+        inputs["cycle_selection"] = selection
+    cfg = configuration(**{**overrides, **condition})
+    condition = dict(
+        activation_increment=cfg["joint"]["activation_increment"],
+        peer_inhibition_us=cfg["weights"]["peer_inhibition"],
+        peer_tau_ms=cfg["synapse_tau_ms"]["peer_inhibition"],
+        sensory_drive_us=cfg["weights"]["sensory_drive"],
+        tonic_us=cfg["tonic_us"],
+    )
     protocol = dict(
         cfg,
-        protocol="cycle_check"
-        if selection is not None
-        else "load_sweep"
-        if load_sweep
-        else "startup_sweep",
-        conditions=conditions,
+        protocol="cycle_check",
+        conditions=[condition],
         transport_delay_ms=1.0,
         initial_angle_rad=cfg["joint"]["initial_angle"],
         initial_velocity_rad_s=0.0,
@@ -567,172 +355,242 @@ def startup_sweep(
         "compute",
         run_id=run_id,
         configuration=protocol,
-        inputs={
-            **({"cycle_selection": selection} if selection is not None else {}),
-            "feasibility": source_run(
-                REPO / ".pingstore",
-                cfg["feasibility_source"]["run_id"],
-                stage="analyse",
-                experiment="exp152",
-            ),
-        },
+        inputs=inputs,
     ) as run:
-        for index, condition in enumerate(conditions):
-            controllers = [
-                Controller(
+        controllers = []
+        try:
+            for side in SIDES:
+                controller = Controller(
                     side,
                     compile_mode=cfg["compile_mode"],
-                    configuration_overrides={**controller_settings(cfg), **condition},
+                    configuration_overrides=controller_settings(cfg),
                 )
-                for side in SIDES
-            ]
-            joint = Joint(controllers[0].cfg["joint"])
+                controllers.append(controller)
+                capture_start(
+                    controller.stream,
+                    author_network(controller.cfg),
+                    run.export / "condition-0" / side,
+                    controller.cfg,
+                )
+            joint = Joint(cfg["joint"])
             motor, sensory = np.zeros(2), np.zeros(2, dtype=int)
             trace = np.zeros((round(cfg["duration"] * 1000), 8))
-            try:
-                from experiments.exp152.custom.snapshot import capture_start
-
-                for side, controller in zip(SIDES, controllers, strict=True):
-                    capture_start(
-                        controller.stream,
-                        author_network(controller.cfg),
-                        run.export / f"condition-{index}" / side,
-                        controller.cfg,
-                        diagram=index == 0,
+            for tick in range(len(trace)):
+                output = [
+                    controller.window(
+                        1, sensory=int(sensory[i]), peer=int(motor[1 - i])
                     )
-                for tick in range(len(trace)):
-                    output = [
-                        controller.window(
-                            1, sensory=int(sensory[i]), peer=int(motor[1 - i])
-                        )
-                        for i, controller in enumerate(controllers)
-                    ]
-                    sensory = joint.encode(tick / 1000)
-                    joint.advance(motor, 0.001)
-                    motor = np.array([row[1][0, 0] for row in output])
-                    trace[tick] = [
-                        joint.angle,
-                        joint.velocity,
-                        *joint.activation,
-                        *motor,
-                        *sensory,
-                    ]
-                np.savez_compressed(run.export / f"condition-{index}.npz", trace=trace)
-                write_json_atomic(
-                    run.export / f"condition-{index}.json",
-                    dict(
-                        joint=controllers[0].cfg["joint"],
-                        limit_hits=joint.limit_hits,
-                    ),
-                )
-                print(
-                    index,
-                    condition,
-                    "range",
-                    trace[:, 0].min(),
-                    trace[:, 0].max(),
-                    "stops",
-                    joint.limit_hits,
-                    flush=True,
-                )
-            finally:
-                for controller in controllers:
-                    controller.stream.close()
+                    for i, controller in enumerate(controllers)
+                ]
+                sensory = joint.encode(tick / 1000)
+                joint.advance(motor, 0.001)
+                motor = np.array([row[1][0, 0] for row in output])
+                trace[tick] = [
+                    joint.angle,
+                    joint.velocity,
+                    *joint.activation,
+                    *motor,
+                    *sensory,
+                ]
+            np.savez_compressed(run.export / "condition-0.npz", trace=trace)
+            write_json_atomic(
+                run.export / "condition-0.json",
+                dict(joint=cfg["joint"], limit_hits=joint.limit_hits),
+            )
+        finally:
+            for controller in controllers:
+                controller.stream.close()
         run.record.setdefault("scientific_artifacts", {})["snapshot_stages"] = {
             path.parent.parent.relative_to(run.export).as_posix(): ["start"]
             for path in run.export.rglob("snapshot.json")
         }
-    print(run.run_id, flush=True)
+    return run.run_id
+
+
+def consolidate_compute(
+    source, *, cycle_validation_source=None, archive_source=None, run_id=None
+):
+    """Import fixed evidence with archived lineage, without rerunning acquisition.
+
+    Original records and inventories replace operational dependencies on tuning
+    history. Raw outputs and native snapshots remain byte-identical; a replacement
+    validation must itself contain exactly the original validation results.
+    """
+    upstream = source_run(
+        REPO / ".pingstore", source, stage="compute", experiment="exp152"
+    )
+    records = validated_run_graph(REPO / ".pingstore/runs", {archive_source or source})
+    if source not in records:
+        raise ValueError(
+            "Archive source must include the imported compute in its ancestry"
+        )
+    inputs = {}
+    original_validation = upstream.record["inputs"].get("cycle_validation")
+    if bool(original_validation) != bool(cycle_validation_source):
+        raise ValueError(
+            "Supply replacement validation exactly when the source has one"
+        )
+    if original_validation:
+        validation = source_run(
+            REPO / ".pingstore",
+            cycle_validation_source,
+            stage="analyse",
+            experiment="exp152",
+        )
+        original = source_run(
+            REPO / ".pingstore",
+            original_validation["run_id"],
+            reference=original_validation,
+        )
+        if file_sha256(validation.file("cycles.json")) != file_sha256(
+            original.file("cycles.json")
+        ):
+            raise ValueError(
+                "Replacement validation must preserve the original results"
+            )
+        original_native = source_run(
+            REPO / ".pingstore",
+            original.record["inputs"]["compute"]["run_id"],
+            reference=original.record["inputs"]["compute"],
+        )
+        replacement_native = source_run(
+            REPO / ".pingstore",
+            validation.record["inputs"]["compute"]["run_id"],
+            reference=validation.record["inputs"]["compute"],
+        )
+        if file_sha256(original_native.file("condition-0.npz")) != file_sha256(
+            replacement_native.file("condition-0.npz")
+        ):
+            raise ValueError("Replacement validation must preserve the native trace")
+        inputs = {"cycle_validation": validation, "cycle_selection": validation}
+    archive = {
+        identity: dict(
+            record=record,
+            inventory=payload_inventory(REPO / ".pingstore/runs" / identity),
+            readme=(REPO / ".pingstore/runs" / identity / "README.md").read_text(),
+        )
+        for identity, record in records.items()
+    }
+    with stage_run(
+        REPO,
+        "exp152",
+        "compute",
+        inputs=inputs,
+        run_id=run_id,
+        configuration=upstream.record["execution"]["configuration"],
+        operation="import-self-contained-evidence",
+    ) as run:
+        shutil.copytree(upstream.outputs, run.export, dirs_exist_ok=True)
+        if payload_inventory(run.directory) != payload_inventory(upstream.directory):
+            raise ValueError("Consolidation changed source bytes")
+        run.record["scientific_artifacts"] = copy.deepcopy(
+            upstream.record.get("scientific_artifacts", {})
+        )
+        run.record["scientific_execution"] = dict(
+            upstream.record["execution"], origin=upstream.record["origin"]
+        )
+        run.record["consolidated_source"] = dict(
+            **upstream.reference,
+            archived_lineage="source-records.json",
+            note="Byte-preserving import; original input records and checksums are embedded, not live run dependencies. No simulation was executed.",
+        )
+        write_json_atomic(run.export / "source-records.json", archive)
+        # Retain the parameter-screen conclusions supporting the report's tuning account.
+        tuning = {}
+        for identity, record in records.items():
+            if record["stage"] != "analyse":
+                continue
+            evidence = source_run(
+                REPO / ".pingstore",
+                identity,
+                reference={
+                    "run_id": identity,
+                    "payload_digest": record["payload_digest"],
+                },
+            )
+            for name in ("cycles.json", "startup.json", "metrics.json"):
+                path = evidence.file(name)
+                if path.exists():
+                    data = load_json(path)
+                    if "conditions" in data:
+                        data["conditions"] = [
+                            {
+                                key: value
+                                for key, value in row.items()
+                                if key not in {"phase", "waveform", "median_waveform"}
+                            }
+                            for row in data["conditions"]
+                        ]
+                    tuning[identity] = dict(
+                        source_file=name, source_sha256=file_sha256(path), summary=data
+                    )
+        write_json_atomic(run.export / "selection-history.json", tuning)
+        for identity, record in records.items():
+            source_run(
+                REPO / ".pingstore",
+                identity,
+                reference={
+                    "run_id": identity,
+                    "payload_digest": record["payload_digest"],
+                },
+                phase=record.get("phase"),
+            ).check_unchanged()
     return run.run_id
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    modes = parser.add_mutually_exclusive_group()
-    modes.add_argument("--startup-sweep", action="store_true")
-    modes.add_argument("--load-sweep", action="store_true")
-    modes.add_argument("--cycle-sweep", action="store_true")
+    defaults = configuration()
+    parser.add_argument("--duration", type=float, default=defaults["duration"])
+    parser.add_argument("--max-lag-ms", type=float, default=defaults["max_lag_ms"])
+    execution = parser.add_mutually_exclusive_group()
+    execution.add_argument(
+        "--compile", dest="compile_mode", action="store_const", const="default"
+    )
+    execution.add_argument(
+        "--eager", dest="compile_mode", action="store_const", const=None
+    )
     parser.add_argument(
-        "--cycle-grid", choices=("synaptic", "actuation"), default="synaptic"
+        "--native",
+        action="store_true",
+        help="Validate the fixed recipe without a search input",
+    )
+    parser.add_argument(
+        "--consolidate-source",
+        help="Import explicit compute evidence with archived lineage",
+    )
+    parser.add_argument(
+        "--archive-source",
+        help="Explicit report presentation whose lineage is embedded on import",
     )
     parser.add_argument("--cycle-source")
     parser.add_argument("--condition-index", type=int)
-    parser.add_argument("--duration", type=float, default=configuration()["duration"])
-    parser.add_argument("--dt-ms", type=float, default=1.0)
-    parser.add_argument("--timer-ms", type=float, default=1.0)
-    parser.add_argument("--neurons", type=int, default=1)
-    parser.add_argument("--max-lag-ms", type=float, default=20.0)
-    parser.add_argument("--max-spike-age-ms", type=float, default=5.0)
-    parser.add_argument("--profile-timing", action="store_true")
-    parser.add_argument(
-        "--controller-warmup-ms",
-        type=float,
-        default=configuration()["controller_warmup_ms"],
-    )
-    parser.add_argument(
-        "--flexor-bias-ms", type=float, default=configuration()["flexor_bias_ms"]
-    )
-    parser.add_argument(
-        "--flexor-initial-us", type=float, default=configuration()["flexor_initial_us"]
-    )
-    parser.add_argument(
-        "--extensor-initial-us",
-        type=float,
-        default=configuration()["extensor_initial_us"],
-    )
-    parser.add_argument(
-        "--eager", dest="compile_mode", action="store_const", const=None, default=None
-    )
-    parser.add_argument(
-        "--compile", dest="compile_mode", action="store_const", const="default"
-    )
-    parser.add_argument("--initial-angle-deg", type=float, default=90.0)
-    parser.add_argument("--tip-mass-kg", type=float, default=0.002)
-    parser.add_argument("--arm-length-m", type=float, default=0.2)
-    parser.add_argument("--gravity-m-s2", type=float, default=9.81)
-    parser.add_argument("--tonic-us", type=float, default=configuration()["tonic_us"])
-    parser.add_argument(
-        "--sensory-drive-us",
-        type=float,
-        default=configuration()["weights"]["sensory_drive"],
-    )
-    parser.add_argument("--peer-inhibition-us", type=float, default=0.2)
-    parser.add_argument("--sensory-tau-ms", type=float, default=10.0)
-    parser.add_argument("--peer-tau-ms", type=float, default=50.0)
-    parser.add_argument(
-        "--activation-increment",
-        type=float,
-        default=configuration()["joint"]["activation_increment"],
-    )
-    parser.add_argument(
-        "--spike-transport",
-        choices=("arrival", "logical"),
-        default=configuration()["spike_transport"],
-    )
     parser.add_argument("--cycle-validation-source")
-    parser.add_argument("--startup-source")
     parser.add_argument("--run-id")
     arguments = vars(parser.parse_args())
-    cycle_grid = arguments.pop("cycle_grid")
-    screen = arguments.pop("cycle_sweep")
-    cycle_source = arguments.pop("cycle_source")
-    condition_index = arguments.pop("condition_index")
-    load_sweep = arguments.pop("load_sweep")
-    sweep = arguments.pop("startup_sweep") or load_sweep or cycle_source is not None
-    if (cycle_source is None) != (condition_index is None):
+    archive = arguments.pop("archive_source")
+    native = arguments.pop("native")
+    consolidate = arguments.pop("consolidate_source")
+    source = arguments.pop("cycle_source")
+    index = arguments.pop("condition_index")
+    validation = arguments.pop("cycle_validation_source")
+    if archive is not None and consolidate is None:
+        parser.error("--archive-source applies only to consolidation")
+    if (source is None) != (index is None):
         parser.error("Use --cycle-source and --condition-index together")
-    if sweep or screen:
-        arguments.pop("startup_source")
-        arguments.pop("cycle_validation_source")
-    if screen:
-        arguments["cycle_grid"] = cycle_grid
-    if sweep:
-        arguments.update(
-            load_sweep=load_sweep,
-            cycle_source=cycle_source,
-            condition_index=condition_index,
+    if consolidate is not None:
+        if native or source is not None:
+            parser.error("Consolidation cannot execute a native simulation")
+        run_id = consolidate_compute(
+            consolidate,
+            cycle_validation_source=validation,
+            archive_source=archive,
+            run_id=arguments["run_id"],
         )
-    print(
-        (cycle_sweep if screen else startup_sweep if sweep else compute)(**arguments),
-        flush=True,
-    )
+    elif native or source is not None:
+        if validation is not None:
+            parser.error("--cycle-validation-source applies only to ROS acquisition")
+        run_id = cycle_check(source, condition_index=index, **arguments)
+    else:
+        run_id = compute(cycle_validation_source=validation, **arguments)
+    print(run_id, flush=True)

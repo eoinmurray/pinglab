@@ -17,8 +17,7 @@ import numpy as np
 import torch
 from experiments.exp146 import recipe
 from experiments.exp146.custom.execution import execute
-from pingstore.contracts import write_json_atomic
-from pingstore.stages import stage_run
+from pingstore.library import stage_run, write_json_atomic
 
 
 def compute(*, run_id=None):

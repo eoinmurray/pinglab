@@ -15,7 +15,7 @@ from experiments.exp037.custom.source_exp022_custom_checkpoints import (
 )
 from experiments.exp037.custom.source_exp041_custom_evidence import _same, finite
 from experiments.exp037.custom.source_exp041_recipe import TRAINING_COMMON_FIELDS
-from pingstore.contracts import PingstoreError, load_json
+from pingstore.library import PingstoreError, load_json
 
 
 def training_contract(bank):

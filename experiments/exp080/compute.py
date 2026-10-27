@@ -35,9 +35,8 @@ from experiments.exp080.recipe import (
     SEEDS,
     stable_seed,
 )
-from pingstore.contracts import file_sha256 as sha256_file
-from pingstore.contracts import write_json_atomic
-from pingstore.stages import stage_run
+from pingstore.library import file_sha256 as sha256_file
+from pingstore.library import stage_run, write_json_atomic
 
 
 def torch_device() -> Any:

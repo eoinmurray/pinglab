@@ -157,7 +157,7 @@ d-article li:last-child {
   margin-bottom: 0;
 }
 
-d-article pre {
+:is(d-article, d-appendix) pre {
   box-sizing: border-box;
   min-width: 0;
   padding: 20px 24px;
@@ -171,11 +171,11 @@ d-article pre {
   margin-bottom: 20px;
 }
 
-d-article pre.astro-code {
+:is(d-article, d-appendix) pre.astro-code {
   background-color: var(--code-background) !important;
 }
 
-d-article pre code {
+:is(d-article, d-appendix) pre code {
   display: block;
   width: max-content;
   min-width: 100%;
@@ -185,7 +185,7 @@ d-article pre code {
 }
 
 @media (max-width: 767px) {
-  d-article pre {
+  :is(d-article, d-appendix) pre {
     padding: 16px;
     font-size: 13px;
   }

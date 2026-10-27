@@ -19,8 +19,7 @@ sys.path[:0] = [str(REPO), str(REPO / "tools")]
 import numpy as np
 import torch
 from experiments.exp023 import recipe
-from pingstore.contracts import PingstoreError
-from pingstore.stages import stage_run
+from pingstore.library import PingstoreError, stage_run
 from snnlab.lang import duration_steps
 from snnlab.sim import Performance, PoissonInputBinding, SnapshotSpec, simulate
 

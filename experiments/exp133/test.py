@@ -133,8 +133,7 @@ def test_native_grid_survives_v4_storage_and_checks_actual_pairing(
 
     from experiments.exp133 import compute
     from experiments.exp133.custom import evidence
-    from pingstore.contracts import PingstoreError
-    from pingstore.stages import source_run
+    from pingstore.library import PingstoreError, source_run
 
     monkeypatch.setattr(recipe, "INPUT_DIFFERENCES_HZ", np.array([-20.0, 20.0]))
     monkeypatch.setattr(recipe, "K_VALUES_US", np.array([0.0, 0.06]))
@@ -142,7 +141,7 @@ def test_native_grid_survives_v4_storage_and_checks_actual_pairing(
     monkeypatch.setattr(recipe, "T_MS", 10.0)
     monkeypatch.setattr(compute, "REPO", tmp_path)
     monkeypatch.setattr(
-        "pingstore.stages.memberships", lambda repo: {recipe.SLUG: "demo"}
+        "pingstore.core.memberships", lambda repo: {recipe.SLUG: "demo"}
     )
     subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
     subprocess.run(
@@ -257,7 +256,7 @@ def test_input_expansion_preserves_recurrent_weights_and_summed_drive(
 
     from experiments.exp133 import compute
     from experiments.exp133.custom import evidence
-    from pingstore.stages import source_run
+    from pingstore.library import source_run
 
     monkeypatch.setattr(recipe, "INPUT_DIFFERENCES_HZ", np.array([-4.0, 4.0]))
     monkeypatch.setattr(recipe, "K_VALUES_US", np.array([0.0, 0.09, 0.12]))
@@ -266,7 +265,7 @@ def test_input_expansion_preserves_recurrent_weights_and_summed_drive(
     monkeypatch.setattr(recipe, "N_INPUT", 128)
     monkeypatch.setattr(compute, "REPO", tmp_path)
     monkeypatch.setattr(
-        "pingstore.stages.memberships", lambda repo: {recipe.SLUG: "demo"}
+        "pingstore.core.memberships", lambda repo: {recipe.SLUG: "demo"}
     )
     subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
     subprocess.run(

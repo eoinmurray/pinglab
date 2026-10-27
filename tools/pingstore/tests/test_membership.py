@@ -3,8 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from pingstore.contracts import PingstoreError
-from pingstore.membership import membership, memberships
+from pingstore.library import PingstoreError, membership, memberships
 
 
 def _report(repo: Path, experiment: str, collection: str) -> None:

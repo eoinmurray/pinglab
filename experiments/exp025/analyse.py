@@ -20,7 +20,7 @@ import numpy as np
 from experiments.exp025 import recipe
 from experiments.exp025.custom import evidence, inputs
 from experiments.exp025.recipe import F_GAMMA_BAND_HZ, MODELS, RATE_TARGET_GRID_HZ
-from pingstore.contracts import PingstoreError, write_json_atomic
+from pingstore.library import PingstoreError, write_json_atomic
 
 MEASUREMENT_V1 = {
     "schema": "exp025.measurement/v1",

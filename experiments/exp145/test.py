@@ -114,14 +114,14 @@ def test_stage_pipeline_in_isolated_store(tmp_path, monkeypatch):
     from shutil import copyfile
 
     from experiments.exp145 import analyse, compute, present
-    from pingstore import stages
+    from pingstore import core
 
     cfg = recipe.configuration(n_e=4, n_i=2, n_external=4)
     report = tmp_path / "experiments" / "exp145" / "report" / "report.mdx"
     report.parent.mkdir(parents=True)
     copyfile(Path(__file__).parent / "report" / "report.mdx", report)
     monkeypatch.setattr(
-        stages, "_capture_code", lambda *args: dict(git_commit="fixture", dirty=False)
+        core, "capture_code", lambda *args: dict(git_commit="fixture", dirty=False)
     )
     for module in (compute, analyse, present):
         monkeypatch.setattr(module, "REPO", tmp_path)
@@ -131,7 +131,7 @@ def test_stage_pipeline_in_isolated_store(tmp_path, monkeypatch):
     )
     analysis_id = analyse.analyse(Namespace(source=compute_id, run_id=None))
     present_id = present.present(Namespace(source=analysis_id, run_id=None))
-    output = stages.source_run(
+    output = core.source_run(
         tmp_path / ".pingstore", present_id, experiment="exp145", stage="present"
     )
     assert output.file("onset.png").is_file()
@@ -140,7 +140,7 @@ def test_stage_pipeline_in_isolated_store(tmp_path, monkeypatch):
     import xml.etree.ElementTree as ET
 
     original = ET.parse(
-        stages.source_run(
+        core.source_run(
             tmp_path / ".pingstore", compute_id, experiment="exp145", stage="compute"
         ).file("circuit.svg")
     )

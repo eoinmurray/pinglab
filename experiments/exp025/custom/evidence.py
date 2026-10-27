@@ -16,7 +16,7 @@ from experiments.exp025.custom.source_exp041_recipe import TRAINING_COMMON_FIELD
 from experiments.exp025.custom.source_exp044_custom_evidence import (
     snapshot as validate_snapshot,
 )
-from pingstore.contracts import PingstoreError, load_json
+from pingstore.library import PingstoreError, load_json
 
 
 def training_contract(bank):

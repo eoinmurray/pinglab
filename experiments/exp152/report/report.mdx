@@ -3,245 +3,84 @@ id: exp152
 title: "Streaming Control of a Rotary Joint"
 author: "Eoin Murray"
 created_at: "2026-10-24T06:35:43Z"
-updated_at: "2026-10-26T20:14:12Z"
+updated_at: "2026-10-27T11:45:46Z"
 description: "Joint control with one Elevate neuron per controller, reciprocal inhibition and excitatory sensory feedback in ROS2 Humble."
 collection: ["experiments", "animations"]
 tags: ["data"]
 inputs: ["exp152"]
 ---
 
-import { reportData } from '../../../site/src/lib/report-data';
+import { reportData, reportSnapshots } from '../../../site/src/lib/report-data';
 import Table from '../../../site/src/components/Table.astro';
 import Replay from './Replay.astro';
 
 export const evidence = await reportData('exp152', { allowUnavailable: true });
 export const cfg = evidence?.configuration;
 export const currentModel = cfg?.neuron_model === 'elevate';
-export const loadedJoint = cfg?.joint?.angle_convention === 'zero_downward_positive_right';
-export const currentRecording = currentModel && loadedJoint;
-export const cycles = evidence?.cycles;
-export const comparison = evidence?.native_trace_comparison;
-export const pct = value => value === null || value === undefined ? 'Unavailable' : `${(100 * value).toFixed(3)}%`;
+export const timingSnapshot = currentModel ? await reportSnapshots('exp152', {
+  analysisInput: 'analyse',
+  computeInput: 'compute',
+  snapshots: { controller: 'flexor/start/snapshot.json' },
+  allowUnavailable: true,
+}) : undefined;
+export const internalStepMs = timingSnapshot?.snapshots.controller?.network?.populations?.find(row => row.id === 'motor')?.neuron?.config?.max_step_ms;
+export const callbacks = evidence?.full_callback_ms;
+export const timingAvailable = currentModel && ['flexor', 'extensor', 'plant'].every(node => callbacks?.[node]?.n > 0);
+export const count = value => value.toLocaleString('en-GB');
+export const controllerStat = field => {
+  const flexor = callbacks.flexor[field].toFixed(3);
+  const extensor = callbacks.extensor[field].toFixed(3);
+  return flexor === extensor ? flexor : `${flexor} / ${extensor}`;
+};
+export const missPercent = node => (100 * evidence.step_deadline_misses[node] / callbacks[node].n).toFixed(2);
+export const equalCallbackCounts = timingAvailable && ['extensor', 'plant'].every(node => callbacks[node].n === callbacks.flexor.n);
 
 ## Abstract
 
 Two single-neuron Elevate controllers drive opposing muscles on a rotary joint
 with a 2 g tip mass under gravity. Motor spikes activate muscles and inhibit the
-peer controller; angle feedback excites each neuron. Three ROS2 Humble nodes
-exchange complete spike windows at a nominal 1 ms period in Docker on separate
-CPUs. {currentRecording && cycles?.assessed_cycles && <>The selected recording's final {cycles.assessed_cycles} complete cycles have a mean model-time period of {cycles.mean_period_s.toFixed(3)} s; the cycle test {cycles.passed ? 'passes' : 'fails'} and the timing test {evidence.timing_passed ? 'passes' : 'fails'}.</>}
+peer; angle feedback excites each controller. Three ROS2 Humble nodes exchange
+1 ms spike windows in Docker on separate CPUs.
 
 ## Results
 
-{!evidence && <p>No presentation is available. The architecture below describes the current model; numerical results are unavailable.</p>}
-
-{evidence && !currentModel && <p>The selected recording uses {cfg.neuron_model}; it does not validate the Elevate model described here.</p>}
-
-{currentModel && !loadedJoint && <p>The selected recording does not validate the loaded-joint model described here.</p>}
-
-{currentRecording && <p>The selected acquisition uses {cfg.neurons} neuron per controller, {cfg.compile_mode ? 'compiled' : 'eager'} SNNLab execution and {cfg.spike_transport} spike transport. Flexor, extensor and joint completed {evidence.model_seconds_per_node.flexor.toFixed(3)}, {evidence.model_seconds_per_node.extensor.toFixed(3)} and {evidence.model_seconds_per_node.plant.toFixed(3)} model seconds of the requested {cfg.duration} s. Behaviour {evidence.passed ? 'passes' : 'fails'}; mechanical stop hits: {evidence.mechanical_stop_hits}. {evidence.checks.no_safety_stop ? 'No safety stop occurred.' : `Execution stopped early: flexor ${evidence.stop_reasons.flexor}, extensor ${evidence.stop_reasons.extensor}, joint ${evidence.stop_reasons.plant}.`}</p>}
-
-### Repeatable joint cycles
-
-Cycles run between upward crossings of the 90° reference after 5 s of model
-time. Analysis uses the final ten complete cycles, requiring less than 1%
-period variation, turning-point variation and normalized angle/velocity RMS
-waveform error. Both sensory channels must remain active late in the run,
-cycles must cross both sensory thresholds, and the joint must avoid its stops.
-Period error is relative to the median period; turning-point and angle waveform
-errors are normalized by median excursion, and velocity error by the range of
-the median velocity waveform. Waveforms use 128 equally spaced cycle phases.
-
-{currentRecording && cycles?.assessed_cycles && <p>Across the assessed cycles, turning angles span {Math.min(...cycles.lower_angle_deg).toFixed(2)}°–{Math.max(...cycles.upper_angle_deg).toFixed(2)}°. The table separates model-time repeatability from repeatability measured at recorded callback completion times.</p>}
-
-{currentRecording && cycles && <Table headers={['Cycle measure', 'Model time', 'Wall time']} rows={[
-  ['Cycle test', cycles.passed ? 'Pass' : 'Fail', evidence.wall_cycles ? (evidence.wall_cycles.passed ? 'Pass' : 'Fail') : 'Unavailable'],
-  ['Mean period (s)', cycles.mean_period_s?.toFixed(3) ?? 'Unavailable', evidence.wall_cycles?.mean_period_s?.toFixed(3) ?? 'Unavailable'],
-  ['Maximum relative period error', pct(cycles.period_relative_error), pct(evidence.wall_cycles?.period_relative_error)],
-  ['Maximum normalized turning-point error', pct(cycles.turning_angle_relative_error), pct(evidence.wall_cycles?.turning_angle_relative_error)],
-  ['Maximum normalized angle RMS error', pct(cycles.angle_waveform_relative_error), pct(evidence.wall_cycles?.angle_waveform_relative_error)],
-  ['Maximum normalized velocity RMS error', pct(cycles.velocity_waveform_relative_error), pct(evidence.wall_cycles?.velocity_waveform_relative_error)],
-]} />}
-
-{currentRecording && comparison && <p>Over {comparison.steps.toLocaleString('en-GB')} compared steps, motor spikes {comparison.exact_motor_spikes ? 'match' : 'differ from'} the separate native-controller validation and joint angle, velocity and muscle activation {comparison.exact_joint_state ? 'match exactly' : 'differ'}. This is one acquisition with seed {cfg.seed}; it does not establish robustness across seeds or other loads.</p>}
+{!evidence && <p>No recording is available; the model below describes the current protocol.</p>}
 
 {currentModel && <Replay experiment="exp152" />}
 
-### Timing and execution limits
+## Control Approach
 
-A callback advances one node and publishes its outputs. Its deadline is one
-control period after its scheduled release. A short callback can still miss
-its deadline if it starts late. Waiting for input windows contributes to lag
-and deadline misses, but is excluded from the plotted callback duration.
+The current tuning came from an empirical parameter scan: we varied the neurons’
+background excitation, sensory feedback strength and muscle response per spike,
+then selected a combination that produced stable, repeatable oscillation without
+hitting the joint limits. It currently runs at about **0.57 Hz with a 63°
+peak-to-peak excursion**.
 
-{currentRecording && <p>The timing verdict is <strong>{evidence.timing_passed ? 'Pass' : 'Fail'}</strong>. The selected acquisition used a {cfg.max_lag_ms} ms lag stop and a {cfg.max_spike_age_ms} ms spike-delivery budget. The current recipe's default lag stop is 20 ms; a recording with a larger allowance does not establish completion under that default.</p>}
+To formalise this, we could add an online adaptive controller that measures each
+cycle’s frequency and amplitude, compares them with the desired values, and
+gradually adjusts the parameters to reduce both errors. Small parameter
+perturbations could reveal their effects during operation, allowing adaptation
+to account for their coupling. Updates would need bounds and a slower timescale
+than the oscillation to preserve stability; achievable targets and convergence
+would require validation.
 
-{currentRecording && <Table headers={['ROS2 node', 'Callbacks', 'Callback p95 (ms)', 'Callbacks over period', 'Missed deadlines']} rows={['flexor', 'extensor', 'plant'].map(node => [
-  node === 'plant' ? 'Joint' : node === 'flexor' ? 'Flexor' : 'Extensor',
-  evidence.full_callback_ms[node].n.toLocaleString('en-GB'),
-  evidence.full_callback_ms[node].p95.toFixed(3),
-  evidence.callback_overruns[node].toLocaleString('en-GB'),
-  evidence.step_deadline_misses[node].toLocaleString('en-GB'),
-])} />}
+## Timings Summary
 
-Logical coupling fixes the model delay even when a node runs late. Completing
-all model windows and passing the cycle test therefore do not imply meeting
-wall-clock deadlines. This Docker/Colima acquisition provides no hard-real-time
-guarantee or physical-hardware validation.
+{currentModel && <Table headers={['Quantity', 'Value', 'Meaning']} rows={[
+  ['Internal integration step', internalStepMs === undefined ? 'Unavailable' : `${internalStepMs} ms`, 'Integrates neuron equations and detects upward voltage crossings.'],
+  ['External simulation step', `${cfg.dt_ms} ms model time`, `${internalStepMs === undefined ? 'Internal step count unavailable.' : `${Math.ceil(cfg.dt_ms / internalStepMs)} internal steps;`} fixed input conductances.`],
+  ['Exported spike flag', `0 or 1 per neuron per ${cfg.dt_ms} ms`, 'Any upward crossing sets the flag; multiple crossings collapse to one. Finer spike times are discarded.'],
+  ['Mechanical step', `${cfg.dt_ms} ms model time`, 'Updates muscle activation, velocity and angle.'],
+  ['Model window', `${cfg.timer_ms} ms model time`, 'Model time advanced per callback.'],
+  ['Callback', 'One node update', 'Advances the model, publishes outputs and records diagnostics.'],
+  ['Callback duration', 'Variable wall time', 'Execution time, excluding input waiting.'],
+  ['Control period', `${cfg.timer_ms} ms wall time`, 'Interval between scheduled releases.'],
+  ['Deadline', `Scheduled release + ${cfg.timer_ms} ms`, 'Required finish time, even after a late start.'],
+  ['Logical transport delay', `${cfg.timer_ms} ms model time`, { markdown: "Window $n$'s spikes enter window $n+1$." }],
+]} />}
 
-## Architecture Pseudocode
+{timingAvailable && <p>Mean callback duration (95th percentile): flexor/extensor <strong>{controllerStat('mean')} ms ({controllerStat('p95')} ms)</strong>; joint <strong>{callbacks.plant.mean.toFixed(3)} ms ({callbacks.plant.p95.toFixed(3)} ms)</strong>.</p>}
 
-The pseudocode shows the current single-cell, 1 ms logical-transport protocol.
-ROS helpers are schematic; the network and streaming calls follow SNNLab.
-The [appendix](#a-elevate-neuron-model) gives the neuron and mechanics equations.
+{timingAvailable && <p>{equalCallbackCounts ? <>Of <strong>{count(callbacks.flexor.n)} callbacks per node</strong>, </> : <>Across recorded callbacks, </>}deadline misses were <strong>{count(evidence.step_deadline_misses.flexor)} flexor ({missPercent('flexor')}%)</strong>, <strong>{count(evidence.step_deadline_misses.extensor)} extensor ({missPercent('extensor')}%)</strong> and <strong>{count(evidence.step_deadline_misses.plant)} joint ({missPercent('plant')}%)</strong>. Callbacks over {cfg.timer_ms} ms: {count(evidence.callback_overruns.flexor)} flexor, {count(evidence.callback_overruns.extensor)} extensor, {count(evidence.callback_overruns.plant)} joint. <strong>Short callbacks can miss deadlines through late starts.</strong></p>}
 
-### Controller network and preparation
-
-Both sides instantiate the same network with separate state. `cfg` denotes the
-recorded configuration, including the Elevate parameters, synaptic weights and
-decay times shown in the appendix.
-
-```python
-import torch
-from snnlab import lang
-from snnlab.sim import Performance, prepare_stream
-from experiments.exp152.custom.elevate import DEFINITION, register
-
-register()
-
-def controller_bundle(cfg):
-    net = lang.Network("joint_controller", dt=cfg["dt_ms"] * lang.ms)
-    motor = net.population(
-        "motor", size=1,
-        neuron=lang.CustomNeuron(DEFINITION, **cfg["neuron"]),
-    )
-    tonic = net.input(
-        "tonic", shape=("time", "batch", 1),
-        signal_type="continuous", unit="uS",
-    )
-    sensory = net.input(
-        "sensory", shape=("time", "batch", 1),
-        signal_type="spikes", unit="spike",
-    )
-    peer = net.input(
-        "peer", shape=("time", "batch", 1),
-        signal_type="spikes", unit="spike",
-    )
-    net.connect(
-        tonic, motor.excitatory, name="local_bias",
-        synapse=lang.CustomSynapse("pinglab.exp152.direct_conductance/v1"),
-        weight=lang.Constant(1.0), initialization_scaling="direct",
-    )
-    for source, target, name, synapse in (
-        (sensory, motor.excitatory, "sensory_drive", lang.AMPA),
-        (peer, motor.inhibitory, "peer_inhibition", lang.GABA),
-    ):
-        net.connect(
-            source, target, name=name,
-            synapse=synapse(tau=cfg["synapse_tau_ms"][name] * lang.ms),
-            weight=lang.Constant(cfg["weights"][name]),
-            initialization_scaling="direct", constraint=lang.NonNegative(),
-        )
-    net.output("motor_voltage", motor.voltage)
-    net.output("motor_spikes", motor.spikes)
-    return lang.compile(net)
-
-# Each controller process prepares its own stream and fixed input tensors.
-stream = prepare_stream(
-    controller_bundle(cfg), window_steps=1, batch_size=1,
-    device="cpu", dtype=torch.float64,
-    performance=Performance(compile_mode=cfg["compile_mode"]),
-)
-inputs = {name: torch.zeros(1, 1, 1, dtype=torch.float64)
-          for name in ("tonic", "sensory", "peer")}
-warm_up_with_quiet_sensory_and_peer_windows(stream, inputs, model_ms=1000)
-stream.reset()
-for values in inputs.values():
-    values.zero_()
-# Reset the local model counter before arming the shared ROS start epoch.
-```
-
-Warm-up exercises execution before ROS control starts. Its state, inputs and
-model counter are reset, so it is not a scientific burn-in. During control,
-`advance` preserves the neuron's six states and the synaptic states between
-windows; the model is not rebuilt or reset per callback.
-
-### Shared ROS2 scheduling
-
-All three nodes publish `/frames/<node>` messages containing a window index,
-step count and sparse `(step, unit)` events. Empty messages explicitly represent
-silence. Window zero receives empty inputs; each later update consumes both
-other nodes' complete preceding windows. Ordinary `/motor/<side>` and
-`/sensory/<side>` messages remain available for delivery diagnostics; logical
-frames supply the model inputs.
-
-```python
-def execute_node(name, sources, tick):
-    origin = map_shared_ros_start_to_monotonic_time()
-    for k in range(number_of_requested_windows):
-        release = origin + k * period
-        service_ros_until(release)
-        # k == 0 receives empty frames; later windows wait for both sources.
-        frames = wait_for_complete_windows(k - 1, sources, release, max_lag)
-        if monotonic_time() - release > max_lag:
-            stop("excessive_lag")
-            break
-        started = monotonic_time()
-        events = tick(k, frames)
-        publish_window("/frames/" + name, k, substeps=1, events=events)
-        record_callback_and_deadline(started, deadline=release + period)
-        # Preserve the release schedule and every model window when late.
-```
-
-`wait_for_complete_windows` services ROS subscriptions and checks the lag stop
-while waiting. The nominal releases and deadlines never shift. Logical mode
-finishes the requested number of model windows unless stopped; it can take
-longer than the requested model duration in wall time.
-
-### Flexor and extensor ROS2 nodes
-
-The same callback runs in each controller process. The joint frame uses unit
-zero for flexor sensory events and unit one for extensor sensory events. Peer
-frames carry the other motor neuron's spikes. Inputs enter the first external
-step of the callback; with this protocol each callback contains one step.
-
-```python
-def controller_tick(side, k, frames):
-    peer_side = "extensor" if side == "flexor" else "flexor"
-    sensory_unit = 0 if side == "flexor" else 1
-    sensory_count = sum(unit == sensory_unit for step, unit in frames["plant"])
-    peer_count = len(frames[peer_side])
-    tonic = (cfg[side + "_initial_us"]
-             if k * cfg["dt_ms"] < cfg["flexor_bias_ms"]
-             else cfg["tonic_us"])
-    inputs["tonic"].fill_(tonic)
-    inputs["sensory"].fill_(sensory_count)
-    inputs["peer"].fill_(peer_count)
-    result = stream.advance(inputs)
-    events = sparse_motor_events(result.outputs["motor_spikes"])
-    publish_motor_diagnostics("/motor/" + side, events)
-    return events  # Scheduler publishes this window even when events is empty.
-```
-
-### Joint dynamics ROS2 node
-
-The joint encodes its old angle before updating muscles and mechanics. Received
-motor spikes are divided by population size and applied once. Muscle activation
-decays before the spike increment; the updated activation sets torque. Velocity
-updates first, then angle, followed by hard-stop enforcement.
-
-```python
-import numpy as np
-from experiments.exp152.custom.models import Joint
-
-joint = Joint(cfg["joint"])
-
-def joint_tick(k, frames):
-    motor = np.array([len(frames["flexor"]), len(frames["extensor"])])
-    motor = motor / cfg["neurons"]
-    sensory = joint.encode(now=k * cfg["dt_ms"] / 1000)
-    joint.advance(motor, dt=cfg["dt_ms"] / 1000)
-    events = [(0, side) for side, count in enumerate(sensory) if count]
-    publish_sensory_diagnostics(events)
-    return events  # Controllers consume these sensory events in window k + 1.
-```
+{!timingAvailable && <p>Callback timing statistics are unavailable.</p>}

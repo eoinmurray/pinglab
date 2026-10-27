@@ -16,7 +16,7 @@ from typing import Any
 import numpy as np
 from experiments.exp082 import recipe
 from experiments.exp082.custom import evidence, inputs
-from pingstore.contracts import PingstoreError, load_json, write_json_atomic
+from pingstore.library import PingstoreError, load_json, write_json_atomic
 
 
 def analyse(identity, showcase_identity=None, *, run_id=None):

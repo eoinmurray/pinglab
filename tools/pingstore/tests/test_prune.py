@@ -5,13 +5,10 @@ import os
 from pathlib import Path
 
 import pytest
-from pingstore import prune as prune_module
-from pingstore import stages
-from pingstore.allocation import allocation_watermarks
+from pingstore import core
 from pingstore.cli import main
-from pingstore.contracts import PingstoreError, payload_digest
-from pingstore.prune import apply_plan, build_plan
-from pingstore.stages import operation_lock
+from pingstore.core import allocation_watermarks, apply_prune, prune_plan
+from pingstore.library import PingstoreError, operation_lock, payload_digest
 
 
 def report(repo, article, inputs, pins=None):
@@ -112,7 +109,7 @@ def fixture_store(repo: Path) -> dict[str, Path]:
 
 def test_plan_keeps_used_and_incomplete_inputs_but_not_unused_hpc(tmp_path):
     paths = fixture_store(tmp_path)
-    plan = build_plan(tmp_path)
+    plan = prune_plan(tmp_path)
     kept = {row["run_id"]: row["reasons"] for row in plan["keep"]}
     pruned = {row["run_id"] for row in plan["prune"]}
 
@@ -132,7 +129,7 @@ def test_plan_keeps_used_and_incomplete_inputs_but_not_unused_hpc(tmp_path):
 
 def test_scoped_plan_only_prunes_selected_experiment(tmp_path):
     paths = fixture_store(tmp_path)
-    plan = build_plan(tmp_path, ["exp001"])
+    plan = prune_plan(tmp_path, ["exp001"])
     kept = {row["run_id"]: row["reasons"] for row in plan["keep"]}
     pruned = {row["run_id"] for row in plan["prune"]}
 
@@ -149,15 +146,15 @@ def test_scoped_prune_allows_unrelated_missing_report_pin(tmp_path):
     report(tmp_path, "exp124", ["exp124"], {"exp124": missing})
 
     with pytest.raises(PingstoreError, match="names missing run"):
-        build_plan(tmp_path)
-    plan = build_plan(tmp_path, ["exp001"])
+        prune_plan(tmp_path)
+    plan = prune_plan(tmp_path, ["exp001"])
     assert plan["report_selections"]["exp124"]["runs"] == {"exp124": missing}
     assert {row["run_id"] for row in plan["prune"]} == {
         paths["old_compute"].name,
         paths["old_present"].name,
     }
 
-    apply_plan(tmp_path, plan["plan_hash"], ["exp001"])
+    apply_prune(tmp_path, plan["plan_hash"], ["exp001"])
     assert not paths["old_compute"].exists()
     assert not paths["old_present"].exists()
     assert paths["latest"].exists()
@@ -176,7 +173,7 @@ def test_scoped_plan_keeps_shared_report_inputs_despite_unrelated_missing_pin(tm
         },
     )
 
-    plan = build_plan(tmp_path, ["exp001"])
+    plan = prune_plan(tmp_path, ["exp001"])
     kept = {row["run_id"]: row for row in plan["keep"]}
     for name in ("old_compute", "old_present"):
         assert "exp110" in kept[paths[name].name]["used_by"]
@@ -198,16 +195,16 @@ def test_scoped_plan_rejects_missing_pin_declaring_or_naming_scoped_experiment(
     fixture_store(tmp_path)
     report(tmp_path, "exp110", [experiment], {experiment: target})
     with pytest.raises(PingstoreError, match="names missing run"):
-        build_plan(tmp_path, ["exp001"])
+        prune_plan(tmp_path, ["exp001"])
 
 
 def test_scoped_confirm_detects_changes_to_unrelated_missing_pins(tmp_path):
     paths = fixture_store(tmp_path)
     report(tmp_path, "exp124", ["exp124"], {"exp124": "exp124-r164-present"})
-    plan = build_plan(tmp_path, ["exp001"])
+    plan = prune_plan(tmp_path, ["exp001"])
     report(tmp_path, "exp124", ["exp124"], {"exp124": "exp124-r165-present"})
     with pytest.raises(PingstoreError, match="plan changed"):
-        apply_plan(tmp_path, plan["plan_hash"], ["exp001"])
+        apply_prune(tmp_path, plan["plan_hash"], ["exp001"])
     assert paths["old_present"].exists()
 
 
@@ -232,7 +229,7 @@ def test_scoped_plan_keeps_selected_ancestor_of_out_of_scope_run(tmp_path):
         inputs={"shared": reference(selected_parent)},
     )
 
-    plan = build_plan(tmp_path, ["exp001"])
+    plan = prune_plan(tmp_path, ["exp001"])
     kept = {row["run_id"]: row["reasons"] for row in plan["keep"]}
 
     assert "required-ancestor" in kept[selected_parent.name]
@@ -243,15 +240,15 @@ def test_scoped_plan_rejects_unknown_or_invalid_experiment(tmp_path):
     fixture_store(tmp_path)
 
     with pytest.raises(PingstoreError, match="invalid experiment filter"):
-        build_plan(tmp_path, ["experiment-one"])
+        prune_plan(tmp_path, ["experiment-one"])
     with pytest.raises(PingstoreError, match="experiment filter has no runs"):
-        build_plan(tmp_path, ["exp999"])
+        prune_plan(tmp_path, ["exp999"])
 
 
 def test_confirm_applies_exact_plan_and_preserves_hidden_directory(tmp_path):
     paths = fixture_store(tmp_path)
-    plan = build_plan(tmp_path)
-    applied = apply_plan(tmp_path, plan["plan_hash"])
+    plan = prune_plan(tmp_path)
+    applied = apply_prune(tmp_path, plan["plan_hash"])
 
     assert applied == plan
     assert not paths["old_compute"].exists()
@@ -263,11 +260,11 @@ def test_confirm_applies_exact_plan_and_preserves_hidden_directory(tmp_path):
 
 def test_scoped_confirm_applies_only_matching_scoped_plan(tmp_path):
     paths = fixture_store(tmp_path)
-    plan = build_plan(tmp_path, ["exp001"])
+    plan = prune_plan(tmp_path, ["exp001"])
 
     with pytest.raises(PingstoreError, match="plan changed"):
-        apply_plan(tmp_path, plan["plan_hash"])
-    applied = apply_plan(tmp_path, plan["plan_hash"], ["exp001"])
+        apply_prune(tmp_path, plan["plan_hash"])
+    applied = apply_prune(tmp_path, plan["plan_hash"], ["exp001"])
 
     assert applied == plan
     assert not paths["old_compute"].exists()
@@ -277,7 +274,7 @@ def test_scoped_confirm_applies_only_matching_scoped_plan(tmp_path):
 
 def test_confirm_rejects_plan_drift_without_removing_runs(tmp_path):
     paths = fixture_store(tmp_path)
-    plan = build_plan(tmp_path)
+    plan = prune_plan(tmp_path)
     make_run(
         tmp_path,
         "exp006-r001-present",
@@ -286,7 +283,7 @@ def test_confirm_rejects_plan_drift_without_removing_runs(tmp_path):
     )
 
     with pytest.raises(PingstoreError, match="plan changed"):
-        apply_plan(tmp_path, plan["plan_hash"])
+        apply_prune(tmp_path, plan["plan_hash"])
     assert paths["old_present"].exists()
 
 
@@ -294,16 +291,16 @@ def test_confirm_rejects_active_writer(tmp_path):
     fixture_store(tmp_path)
     hidden = tmp_path / ".pingstore/runs/.exp005-r003-analyse.tmp"
     (hidden / ".writer.lock").write_text(f"{os.getpid()}\n")
-    plan = build_plan(tmp_path)
+    plan = prune_plan(tmp_path)
 
     with pytest.raises(PingstoreError, match="active writer"):
-        apply_plan(tmp_path, plan["plan_hash"])
+        apply_prune(tmp_path, plan["plan_hash"])
 
 
 def test_failed_post_swap_validation_restores_original_store(tmp_path, monkeypatch):
     paths = fixture_store(tmp_path)
-    plan = build_plan(tmp_path)
-    validate = prune_module._validate_survivors
+    plan = prune_plan(tmp_path)
+    validate = core._validate_survivors
     calls = 0
 
     def fail_after_swap(runs, expected):
@@ -313,9 +310,9 @@ def test_failed_post_swap_validation_restores_original_store(tmp_path, monkeypat
             raise PingstoreError("post-swap failure")
         return validate(runs, expected)
 
-    monkeypatch.setattr(prune_module, "_validate_survivors", fail_after_swap)
+    monkeypatch.setattr(core, "_validate_survivors", fail_after_swap)
     with pytest.raises(PingstoreError, match="post-swap failure"):
-        apply_plan(tmp_path, plan["plan_hash"])
+        apply_prune(tmp_path, plan["plan_hash"])
     assert paths["old_compute"].exists()
     assert paths["old_present"].exists()
     assert paths["latest"].exists()
@@ -362,13 +359,13 @@ def test_cli_renders_repeatable_experiment_scope_in_confirmation(tmp_path, capsy
 
 def test_prune_lock_blocks_reservation_and_execution(tmp_path):
     store = tmp_path / ".pingstore"
-    identity = stages.reserve_stage(store, "exp001", "compute")
+    identity = core.reserve_stage(store, "exp001", "compute")
     with operation_lock(store, exclusive=True):
         with pytest.raises(PingstoreError, match="another Pingstore operation"):
-            stages.reserve_stage(store, "exp001", "compute")
+            core.reserve_stage(store, "exp001", "compute")
         with (
             pytest.raises(PingstoreError, match="another Pingstore operation"),
-            stages.stage_run(tmp_path, "exp001", "compute", run_id=identity),
+            core.stage_run(tmp_path, "exp001", "compute", run_id=identity),
         ):
             pass
 
@@ -377,7 +374,7 @@ def test_used_is_transitive_global_and_independent_of_manual_protection(tmp_path
     paths = fixture_store(tmp_path)
     report(tmp_path, "exp110", ["exp001"], {"exp001": paths["old_present"].name})
     (paths["exp2_latest"] / ".protected").write_text("Keep this historical result\n")
-    plan = build_plan(tmp_path, ["exp001"])
+    plan = prune_plan(tmp_path, ["exp001"])
     kept = {row["run_id"]: row for row in plan["keep"]}
     assert "exp110" in kept[paths["old_compute"].name]["used_by"]
     assert kept[paths["old_present"].name]["used"]
@@ -388,12 +385,12 @@ def test_used_is_transitive_global_and_independent_of_manual_protection(tmp_path
 def test_manual_protection_retains_ancestry_without_marking_used(tmp_path):
     paths = fixture_store(tmp_path)
     (paths["old_present"] / ".protected").touch()
-    plan = build_plan(tmp_path)
+    plan = prune_plan(tmp_path)
     kept = {row["run_id"]: row for row in plan["keep"]}
     for name in ("old_compute", "old_present"):
         assert kept[paths[name].name]["protected"]
         assert not kept[paths[name].name]["used"]
-    apply_plan(tmp_path, plan["plan_hash"])
+    apply_prune(tmp_path, plan["plan_hash"])
     assert (paths["old_present"] / ".protected").is_file()
 
 
@@ -403,13 +400,13 @@ def test_protection_changes_invalidate_confirmation(tmp_path, change):
     marker = paths["old_present"] / ".protected"
     if change != "add":
         marker.write_text("Keep\n")
-    plan = build_plan(tmp_path)
+    plan = prune_plan(tmp_path)
     if change == "remove":
         marker.unlink()
     else:
         marker.write_text("Revised\n")
     with pytest.raises(PingstoreError, match="plan changed"):
-        apply_plan(tmp_path, plan["plan_hash"])
+        apply_prune(tmp_path, plan["plan_hash"])
     assert paths["old_present"].exists()
 
 
@@ -422,15 +419,15 @@ def test_invalid_protection_marker_fails_closed(tmp_path, kind):
     else:
         marker.symlink_to("README.md" if kind == "symlink" else "missing")
     with pytest.raises(PingstoreError):
-        build_plan(tmp_path)
+        prune_plan(tmp_path)
 
 
 def test_report_pin_changes_invalidate_confirmation(tmp_path):
     paths = fixture_store(tmp_path)
-    plan = build_plan(tmp_path)
+    plan = prune_plan(tmp_path)
     report(tmp_path, "exp001", ["exp001"], {"exp001": paths["old_present"].name})
     with pytest.raises(PingstoreError, match="plan changed"):
-        apply_plan(tmp_path, plan["plan_hash"])
+        apply_prune(tmp_path, plan["plan_hash"])
 
 
 @pytest.mark.parametrize(
@@ -443,7 +440,7 @@ def test_missing_wrong_stage_or_wrong_experiment_pins_fail_closed(
     fixture_store(tmp_path)
     report(tmp_path, "exp001", ["exp001"], {"exp001": target})
     with pytest.raises(PingstoreError, match="report"):
-        build_plan(tmp_path, experiments)
+        prune_plan(tmp_path, experiments)
 
 
 def test_unpinned_report_uses_completion_time_and_can_have_unavailable_inputs(tmp_path):
@@ -453,7 +450,7 @@ def test_unpinned_report_uses_completion_time_and_can_have_unavailable_inputs(tm
     record["execution"]["completed_at"] = "2026-02-01T00:00:00Z"
     record_path.write_text(json.dumps(record))
     report(tmp_path, "exp001", ["exp001", "exp999"])
-    plan = build_plan(tmp_path)
+    plan = prune_plan(tmp_path)
     assert plan["report_selections"]["exp001"]["runs"] == {
         "exp001": paths["old_present"].name
     }
@@ -471,13 +468,13 @@ def test_prune_all_unused_keeps_counters_outside_runs_and_dry_run_is_read_only(
         phase="train",
         created_at="2026-01-01T00:00:00Z",
     )
-    plan = build_plan(tmp_path)
+    plan = prune_plan(tmp_path)
     assert not plan["keep"]
     assert not (tmp_path / ".pingstore/.allocation").exists()
-    apply_plan(tmp_path, plan["plan_hash"])
+    apply_prune(tmp_path, plan["plan_hash"])
     assert not run.exists()
     assert (
-        stages.reserve_stage(tmp_path / ".pingstore", "exp006", "analyse")
+        core.reserve_stage(tmp_path / ".pingstore", "exp006", "analyse")
         == "exp006-r100-analyse"
     )
     assert allocation_watermarks(tmp_path / ".pingstore")["exp006"] == 100
@@ -487,17 +484,17 @@ def test_reservation_counter_survives_removal_of_last_hidden_run(tmp_path):
     import shutil
 
     store = tmp_path / ".pingstore"
-    identity = stages.reserve_stage(store, "exp006", "compute")
+    identity = core.reserve_stage(store, "exp006", "compute")
     shutil.rmtree(store / "runs" / f".{identity}.tmp")
     assert (
-        stages.reserve_stage(store, "exp006", "compute", phase="train")
+        core.reserve_stage(store, "exp006", "compute", phase="train")
         == "exp006-r002-compute-phase-train"
     )
 
 
 def test_stage_scope_retains_dependencies_of_runs_outside_stage_scope(tmp_path):
     paths = fixture_store(tmp_path)
-    plan = build_plan(tmp_path, stages=["compute"])
+    plan = prune_plan(tmp_path, stages=["compute"])
     assert paths["old_compute"].name in {row["run_id"] for row in plan["keep"]}
     assert all(row["stage"] == "compute" for row in plan["prune"])
 
@@ -512,7 +509,7 @@ def test_named_collection_and_latest_unreported_runs_are_not_automatic_roots(tmp
     (tmp_path / ".pingstore/collections.json").write_text(
         json.dumps({"views": [run.name]})
     )
-    plan = build_plan(tmp_path)
+    plan = prune_plan(tmp_path)
     assert not plan["keep"]
     assert [row["run_id"] for row in plan["prune"]] == [run.name]
 
@@ -520,16 +517,16 @@ def test_named_collection_and_latest_unreported_runs_are_not_automatic_roots(tmp
 def test_protection_marker_does_not_change_payload_or_backup_inventory(
     tmp_path, monkeypatch
 ):
-    from pingstore import backup
-    from pingstore.contracts import validate_operational_run_directory
+    from pingstore import core
+    from pingstore.library import validate_operational_run_directory
 
     paths = fixture_store(tmp_path)
     run = paths["old_present"]
     before = validate_operational_run_directory(run)["payload_digest"]
-    files = backup.local_files(run.parent, run.name)
+    files = core.local_files(run.parent, run.name)
     (run / ".protected").write_text("Historical evidence\n")
     assert validate_operational_run_directory(run)["payload_digest"] == before
-    assert backup.local_files(run.parent, run.name) == files
+    assert core.local_files(run.parent, run.name) == files
 
 
 @pytest.mark.parametrize("value", [-1, True, "99", None])
@@ -539,23 +536,23 @@ def test_corrupt_allocation_state_blocks_prune_and_reservation(tmp_path, value):
     state.parent.mkdir()
     state.write_text(json.dumps({"high_watermark": value}))
     with pytest.raises(PingstoreError, match="allocation counter"):
-        build_plan(tmp_path)
+        prune_plan(tmp_path)
     with pytest.raises(PingstoreError, match="allocation counter"):
-        stages.reserve_stage(tmp_path / ".pingstore", "exp001", "compute")
+        core.reserve_stage(tmp_path / ".pingstore", "exp001", "compute")
 
 
 def test_protection_added_during_confirmation_prevents_deletion(tmp_path, monkeypatch):
     paths = fixture_store(tmp_path)
-    plan = build_plan(tmp_path)
-    validate = prune_module._validate_survivors
+    plan = prune_plan(tmp_path)
+    validate = core._validate_survivors
 
     def add_marker(runs, expected):
         validate(runs, expected)
         (paths["old_present"] / ".protected").touch()
 
-    monkeypatch.setattr(prune_module, "_validate_survivors", add_marker)
+    monkeypatch.setattr(core, "_validate_survivors", add_marker)
     with pytest.raises(PingstoreError, match="protection marker changed"):
-        apply_plan(tmp_path, plan["plan_hash"])
+        apply_prune(tmp_path, plan["plan_hash"])
     assert paths["old_present"].exists()
     assert paths["old_compute"].exists()
 
@@ -568,7 +565,7 @@ def test_manuscript_uses_all_selected_experiments_and_shared_ancestors(tmp_path)
         ["exp001", "exp002"],
         {"exp001": paths["old_present"].name, "exp002": paths["exp2_latest"].name},
     )
-    plan = build_plan(tmp_path, ["exp001"])
+    plan = prune_plan(tmp_path, ["exp001"])
     manuscript = {row["run_id"] for row in plan["keep"] if "exp110" in row["used_by"]}
     assert manuscript == {
         paths[name].name for name in ("old_present", "old_compute", "exp2_latest")
@@ -587,25 +584,25 @@ def test_cli_all_matches_default_and_rejects_experiment_combination(tmp_path, ca
 
 
 def test_backup_ignores_local_and_remote_protection_markers(tmp_path, monkeypatch):
-    from pingstore import backup
+    from pingstore import core
 
     fixture_store(tmp_path)
     source = tmp_path / ".pingstore/runs"
-    records, _ = prune_module.discover_store(source)
+    records, _ = core.discover_store(source)
     remote = {}
     for identity in records:
-        remote.update(backup.local_files(source, identity))
+        remote.update(core.local_files(source, identity))
     remote["exp001-r003-present/.protected"] = 99
     (source / "exp001-r002-present/.protected").touch()
-    monkeypatch.setattr(backup, "inventory", lambda _: remote)
+    monkeypatch.setattr(core, "inventory", lambda _: remote)
 
     def remote_cat(*args, **kwargs):
         assert args[0] == "cat"
         identity, filename = args[1].split("/")[-2:]
         return (source / identity / filename).read_bytes()
 
-    monkeypatch.setattr(backup, "rclone", remote_cat)
-    plan = backup.build_plan(source, "remote:pingstore/runs")
+    monkeypatch.setattr(core, "rclone", remote_cat)
+    plan = core.backup_plan(source, "remote:pingstore/runs")
     assert not plan["new_runs"]
     assert len(plan["existing_runs"]) == len(records)
 
@@ -627,12 +624,12 @@ def test_unused_broken_input_can_be_pruned_but_retained_input_must_validate(
         created_at="2026-01-04T00:00:00Z",
         inputs={"source": parent},
     )
-    plan = build_plan(tmp_path)
+    plan = prune_plan(tmp_path)
     assert orphan.name in {row["run_id"] for row in plan["prune"]}
     (orphan / ".protected").touch()
     with pytest.raises(PingstoreError, match="missing|changed"):
-        build_plan(tmp_path)
+        prune_plan(tmp_path)
     (orphan / ".protected").unlink()
-    apply_plan(tmp_path, plan["plan_hash"])
+    apply_prune(tmp_path, plan["plan_hash"])
     assert not orphan.exists()
     assert paths["latest"].exists()

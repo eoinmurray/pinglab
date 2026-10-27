@@ -12,7 +12,7 @@ from collections.abc import Iterable
 from pathlib import Path
 
 import torch
-from pingstore.contracts import PingstoreError, file_sha256
+from pingstore.library import PingstoreError, file_sha256
 
 ROLES = {
     "best_validation": "weights.pth",

@@ -133,11 +133,11 @@ def compute(
             f"worker SNNLab {version('snnlab')} does not match submitted lock {expected_snnlab}"
         )
     sys.path[:0] = [str(REMOTE), str(REMOTE / "tools")]
-    from pingstore.contracts import (
+    from pingstore.library import (
+        initialize_layout,
         validate_operational_run_directory,
         write_json_atomic,
     )
-    from pingstore.layout import initialize_layout
 
     if reservation["experiment"] != experiment:
         raise ValueError("unsupported experiment or mismatched reservation")
@@ -151,7 +151,7 @@ def compute(
     plan = (submission or {}).get("plan", {})
     if plan.get("arguments") != arguments or plan.get("environment") != environment:
         raise ValueError("worker command differs from dispatch receipt")
-    from pingstore.stages import source_run
+    from pingstore.library import source_run
 
     results.reload()
     restore_inputs(REMOTE / ".pingstore", OUTPUT, input_runs or [])

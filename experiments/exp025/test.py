@@ -80,13 +80,8 @@ def _common_config() -> dict:
     }
 
 
-from pingstore import stages
-from pingstore.contracts import (
-    PingstoreError,
-    file_sha256,
-    load_json,
-    write_json_atomic,
-)
+from pingstore import core
+from pingstore.library import PingstoreError, file_sha256, load_json, write_json_atomic
 
 
 @pytest.fixture
@@ -94,13 +89,13 @@ def lab(tmp_path, monkeypatch):
     for module in (compute, analyse, present):
         monkeypatch.setattr(module, "REPO", tmp_path)
     monkeypatch.setattr(
-        stages, "memberships", lambda _: {"exp022": "demo", "exp025": "demo"}
+        core, "memberships", lambda _: {"exp022": "demo", "exp025": "demo"}
     )
     monkeypatch.setattr(
-        stages, "_capture_code", lambda *a: {"git_commit": "fixture", "dirty": False}
+        core, "capture_code", lambda *a: {"git_commit": "fixture", "dirty": False}
     )
     monkeypatch.setenv("PINGLAB_SMOKE", "1")
-    with stages.stage_run(tmp_path, "exp022", "compute") as run:
+    with core.stage_run(tmp_path, "exp022", "compute") as run:
         for cell in recipe.bank_cells():
             name = cell["cell_name"]
             directory = run.export / name
@@ -360,7 +355,7 @@ def test_low_curve_preserves_zero_test_rates() -> None:
 
 @pytest.mark.parametrize("fault", ["duplicate", "shape", "nan", "samples"])
 def test_recording_semantics_reject_corrupt_but_resigned_payload(lab, fault):
-    from pingstore.contracts import payload_digest
+    from pingstore.library import payload_digest
 
     root, bank_id, _ = lab
     identity = compute.compute(bank_id)

@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from pingstore.contracts import file_sha256
+from pingstore.library import file_sha256
 
 ROLES = {
     "best_validation": "weights.pth",

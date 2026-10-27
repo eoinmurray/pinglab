@@ -79,23 +79,22 @@ export const groups = [
   { label: 'Joint mechanics', rows: Object.entries(cfg?.joint ?? { evidence: 'Unavailable' }).map(([name, value]) => [mechanicalLabels[name] ?? name, show(value)]) },
 ];
 
-## A. Elevate neuron model
+## Neuron model
 
-The experiment-local Elevate implementation is a six-state phenomenological
-conductance-based neuron with sodium, potassium, calcium, slow potassium and
-leak currents:
+Elevate is a phenomenological model with sodium, potassium, calcium, slow
+potassium and leak currents:
 
 $$
 C\frac{dV}{dt}=I_0+g_e(E_e-V)+g_i(E_i-V)
 +\sum_{k\in\{\mathrm{Na},\mathrm{K},\mathrm{Ca},\mathrm{KCa},L\}}g_k(E_k-V).
 $$
 
-$V$ is membrane voltage, $t$ time, $C$ capacitance and $I_0$ constant applied
-current. Excitatory and inhibitory conductances $g_e,g_i$ have reversals
-$E_e,E_i$; intrinsic conductance $g_k$ has reversal $E_k$. Units are mV, ms,
-nF, µS and nA; no biological cell-area calibration is assumed.
+$V,t,C,I_0$ denote voltage, time, capacitance and applied current. Excitatory and
+inhibitory conductances $g_e,g_i$ have reversals $E_e,E_i$; intrinsic conductance
+$g_k$ has reversal $E_k$. Units are mV, ms, nF, µS and nA; no cell-area
+calibration is assumed.
 
-For gate index $j\in\{m,h,n,c,q\}$,
+For gates $j\in\{m,h,n,c,q\}$,
 
 $$
 \tau_j\frac{dU_j}{dt}=V-U_j,\qquad
@@ -103,12 +102,10 @@ x_j=\sigma\!\left[a_j(U_j-b_j)\right],\qquad
 \sigma(z)=\frac{1}{1+\exp(-z)}.
 $$
 
-$U_j$ is filtered voltage (mV), $\tau_j$ its timescale (ms), $x_j$ a
-dimensionless gate, $a_j$ sigmoid slope (mV$^{-1}$), $b_j$ midpoint (mV),
-and $z$ the dimensionless sigmoid argument. In order $m,h,n,c,q$, slopes are
-$(0.2,-0.1,0.1,0.2,0.1)$ and midpoints $(-25,-40,-15,-45,-30)$ mV.
-These gates control sodium activation/inactivation, potassium activation,
-calcium activation and slow potassium activation:
+$U_j$ is filtered voltage (mV), $\tau_j$ its timescale (ms), $x_j$ a dimensionless
+gate, $a_j$ the slope (mV$^{-1}$), $b_j$ the midpoint (mV), and $z$ the
+dimensionless sigmoid argument. In that order, slopes are
+$(0.2,-0.1,0.1,0.2,0.1)$ and midpoints $(-25,-40,-15,-45,-30)$ mV:
 
 $$
 g_{\mathrm{Na}}=\bar g_{\mathrm{Na}}x_mx_h,\quad
@@ -117,25 +114,21 @@ g_{\mathrm{Ca}}=\bar g_{\mathrm{Ca}}x_c,\quad
 g_{\mathrm{KCa}}=\bar g_{\mathrm{KCa}}x_q,\quad g_L=\bar g_L.
 $$
 
-$\bar g_k$ is maximum conductance. Both potassium currents use the potassium
-reversal. KCa depends on filtered voltage; there is no calcium-concentration state.
-The six states are $V$ and the five filtered voltages $U_j$; all start at
-$-60$ mV. This is the supplied Elevate formulation, rather than a fitted
-Hodgkin–Huxley channel model.
+$\bar g_k$ is maximum conductance. Both potassium currents use $E_{\mathrm K}$.
+KCa depends on filtered voltage, with no calcium-concentration state. All six
+states, $V$ and the five $U_j$, start at $-60$ mV.
 
-### A1. Numerical update and spike output
+### Numerical update and spike output
 
-The external neural step is 1 ms. Within it, excitation and inhibition are held
-fixed while 40 exponential split steps of $h=0.025$ ms resolve the intrinsic
-dynamics. Each internal step first updates the voltage filters:
+Each 1 ms step uses 40 split substeps of $h=0.025$ ms with fixed input
+conductances. First update the filters using the old voltage:
 
 $$
 U_j^+=V+(U_j-V)\exp(-h/\tau_j).
 $$
 
-The superscript $+$ denotes the updated value; $V$ on the right is the old
-membrane voltage. Gates and intrinsic conductances are then evaluated from
-$U_j^+$. With these conductances frozen, the membrane update is
+The superscript $+$ denotes an updated value. Evaluate gates and conductances
+from $U_j^+$, then update the membrane with conductances frozen:
 
 $$
 G=g_e+g_i+\sum_k g_k,\qquad
@@ -144,31 +137,61 @@ V_\infty=\frac{I_0+g_eE_e+g_iE_i+\sum_k g_kE_k}{G},
 V^+=V_\infty+(V-V_\infty)\exp(-hG/C).
 $$
 
-$G$ is total conductance (µS) and $V_\infty$ its frozen-conductance equilibrium
-voltage (mV); $k$ runs over the five intrinsic currents defined above. Each
-sub-update solves its frozen equation exactly; their split composition
-approximates the coupled dynamics.
+$G$ is total conductance (µS), $V_\infty$ the equilibrium voltage (mV), and $k$
+indexes the five intrinsic currents. Each frozen sub-update is exact; their
+composition approximates the coupled dynamics. A crossing $V\leq0<V^+$ mV sets
+the window's spike flag without resetting state.
 
-An upward crossing from $V\leq0$ to $V^+>0$ mV sets the external spike flag.
-Multiple internal crossings are combined into one binary flag per neuron per
-external step. A spike does not reset voltage or the filters.
+### Synaptic and local drive
 
-### A2. Synaptic and local drive
+Let $r\in\{f,e\}$ denote flexor or extensor, $\bar r$ its peer, and
+$n=0,1,\ldots$ the control window. Synapses decay, then receive spike increments:
 
-Sensory spikes drive an AMPA conductance with a 10 ms decay and native weight
-0.035 µS. Peer motor spikes drive a GABA conductance with a 50 ms decay and
-native weight 0.2 µS for the single-cell controller. Local excitation enters
-through a direct-conductance custom synapse, without another decay filter.
-For the first 20 ms it is 0.5 µS in the flexor and zero in the extensor;
-afterwards both receive 0.04 µS continuously. The startup values replace the
-ongoing tonic conductance during that interval. These are the selected
-recording's settings; the table below reads their original native snapshot.
+$$
+\begin{aligned}
+g_{\mathrm{s},r}^{n}
+&=e^{-\Delta t/\tau_{\mathrm{s}}}g_{\mathrm{s},r}^{n-1}
++w_{\mathrm{s}}S_r^{n-1},\\
+g_{\mathrm{p},r}^{n}
+&=e^{-\Delta t/\tau_{\mathrm{p}}}g_{\mathrm{p},r}^{n-1}
++w_{\mathrm{p}}M_{\bar r}^{n-1}.
+\end{aligned}
+$$
 
-## B. Joint dynamics model
+$g_{\mathrm{s},r}$ and $g_{\mathrm{p},r}$ are sensory AMPA and peer GABA
+conductances (µS). $S_r^{n-1}$ and $M_{\bar r}^{n-1}$ count the preceding
+window's sensory and peer motor spikes. With $\Delta t=1$ ms, decay times are
+$(\tau_{\mathrm{s}},\tau_{\mathrm{p}})=(10,50)$ ms and per-spike weights are
+$(w_{\mathrm{s}},w_{\mathrm{p}})=(0.035,0.2)$ µS. Initial conductances and input
+counts are zero; increments are added in full, without timestep scaling.
 
-Two muscles drive a damped rotary joint with a restoring spring and tip mass.
-The arm contributes inertia but no gravitational mass. Zero points downward;
-positive angles point right. Pendulum torque balance gives
+Unfiltered local excitation switches from starting to tonic drive:
+
+$$
+g_{\mathrm{local},r}(t)=
+\begin{cases}
+g_{\mathrm{start},r}, & 0\leq t<T_{\mathrm{start}},\\
+g_{\mathrm{tonic}}, & t\geq T_{\mathrm{start}}.
+\end{cases}
+$$
+
+$t$ is model time from startup, $T_{\mathrm{start}}=20$ ms,
+$(g_{\mathrm{start},f},g_{\mathrm{start},e})=(0.5,0)$ µS and
+$g_{\mathrm{tonic}}=0.04$ µS. At $t_n=n\Delta t$, the membrane inputs are
+
+$$
+g_{e,r}^{n}=g_{\mathrm{local},r}(t_n)+g_{\mathrm{s},r}^{n},
+\qquad
+g_{i,r}^{n}=g_{\mathrm{p},r}^{n}.
+$$
+
+$g_{e,r}^{n}$ and $g_{i,r}^{n}$ are total excitatory and inhibitory conductances.
+Recorded settings appear in the [parameter table](#parameters).
+
+## Joint dynamics model
+
+Two muscles drive a spring-damped joint. Zero points downward; positive angles
+point right. Only the tip mass contributes gravity:
 
 $$
 (J_0+mL^2)\ddot{\theta}+b\dot{\theta}+k(\theta-\theta_r)+mgL\sin\theta
@@ -177,9 +200,9 @@ $$
 
 $\theta$ is angle (rad); dots denote derivatives in seconds. $J_0$ is base
 inertia (kg m$^2$), $m$ tip mass (kg), $L$ arm length (m), $g$ gravity
-(m/s$^2$), and $\theta_r$ spring rest angle (rad). Total inertia is $J_0+mL^2$;
-$b$ is damping (N m s/rad), $k$ stiffness (N m/rad), $a_f,a_e\in[0,1]$
-flexor/extensor activation, and $\tau_{\max}$ maximum muscle torque (N m).
+(m/s$^2$), $\theta_r$ spring rest angle (rad), $b$ damping (N m s/rad), and
+$k$ stiffness (N m/rad). $a_f,a_e\in[0,1]$ are flexor/extensor activations;
+$\tau_{\max}$ is maximum muscle torque (N m).
 
 At mechanical step $n$, muscle $i\in\{f,e\}$ updates as
 
@@ -188,35 +211,79 @@ a_{i,n+1}=\min\!\left(1,
 a_{i,n}\exp[-\Delta t/\tau_a]+q\,s_{i,n}\right).
 $$
 
-$\Delta t$ is timestep and $\tau_a$ activation decay time (seconds); $q$ is a
-dimensionless increment. $s_{i,n}$ is accepted motor spike count divided by neuron
-count. Motor counts from the preceding logical window enter the first
-mechanical step; any subsequent steps in that callback receive zero. Activation
-decays before spikes are added and is capped at one. Spike increments are not
-multiplied by $\Delta t$.
+Here $\Delta t=0.001$ s, $\tau_a$ is activation decay time (s), $q$ the
+dimensionless spike increment, and $s_{i,n}$ the preceding window's motor spike
+count per neuron. Updated activations set torque. Semi-implicit Euler updates
+velocity, then angle; stops at $\theta_r\pm1$ rad clamp angle and zero velocity.
 
-Updated activations set torque. Semi-implicit Euler updates velocity from the
-old angle and velocity, then angle from the new velocity. Initial angle is
-$\theta_r=\pi/2$ (90°); velocity and activations start at zero. Stops at
-$\theta_r\pm1$ rad clamp angle and zero velocity. Spring rest and sensory centre
-equal $\theta_r$.
+The joint starts at $\theta_r=\pi/2$ (90°), with zero velocity and activation.
+Total inertia is $0.00508$ kg m$^2$; initial gravity torque is $-0.003924$ N m.
+Flexor raises the mass against gravity; extensor lowers it.
 
-Flexor torque raises the mass against gravity; extensor torque lowers it.
-Initial gravitational torque is $-0.003924$ N m and total inertia is
-$0.00508$ kg m$^2$. Gravity makes the two muscles' mechanical effects asymmetric.
+Before each update, sensory spikes excite flexor for
+$\theta<\theta_r-\theta_s$ and extensor for $\theta>\theta_r+\theta_s$.
+The sensory centre is $\theta_r$, threshold $\theta_s=0.25$ rad, and minimum
+interspike interval 10 ms. Each channel repeats while beyond threshold.
 
-Before each mechanical update, sensory spikes excite the flexor when
-$\theta<\theta_r-\theta_s$ and extensor when $\theta>\theta_r+\theta_s$.
-$\theta_s$ is the sensory threshold (rad). Each channel enforces a minimum
-interspike interval of 10 ms and fires repeatedly beyond the 0.25 rad threshold.
-These events are published in the current window and reach the controllers in
-the next one. Both thresholds are relative to the 90° reference, not to zero.
+## Architecture Pseudocode
 
-## C. Network diagram
+Each node retains state. These Python-like helpers summarize execution.
+
+### Setup
+
+```python
+dt = 1 * ms
+controllers = paired_controllers(neuron="Elevate")
+joint = loaded_joint(initial_angle=90 * degrees)
+
+warm_up_then_reset(controllers)
+start_together(*controllers, joint)
+```
+
+Warm-up resets controller states, inputs and model clocks before execution.
+
+### Each control window
+
+Each node waits for its release and both preceding input windows, servicing
+messages and enforcing its lag limit. Startup inputs are empty; silence is
+published explicitly.
+
+```python
+def run(node):
+    for window in fixed_schedule(period=dt):
+        inputs = receive_previous_window(window)
+        outputs = node.update(inputs)
+        publish_window(window, outputs)  # Include windows with no spikes.
+        record_timing(deadline=window.release + dt)
+```
+
+Late nodes catch up without dropping windows or shifting deadlines.
+
+### Controller and joint updates
+
+Controllers share this update but receive different starting excitation.
+
+```python
+def update_controller(controller, sensory_spikes, peer_spikes, time):
+    drive = starting_drive(controller) if time < 20 * ms else tonic_drive
+    controller.excite(local_drive=drive, sensory_spikes=sensory_spikes)
+    controller.inhibit(peer_spikes)
+    return controller.advance(dt).spikes
+
+
+def update_joint(joint, motor_spikes, time):
+    sensory_spikes = sense_angle(joint, time)
+    activation = decay_then_activate(joint.muscles, motor_spikes)
+    torque = opposing_muscle_torque(activation)
+    advance_mechanics(joint, torque, dt)
+    return sensory_spikes
+```
+
+## Network diagram
 
 {native && <div style="min-width: 0; align-self: start; margin-bottom: 24px;"><img style="display: block; width: 100%; height: auto;" src={await imageUrl(selected.id, 'circuit.svg')} alt="Native recorded controller circuit" /></div>}
 
-## D. Parameters
+## Parameters
 
 Values come from the selected recording’s native snapshot and configuration.
 

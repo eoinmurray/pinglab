@@ -19,8 +19,17 @@ from multiprocessing.connection import wait
 from pathlib import Path
 from typing import Any
 
-from pingstore.contracts import PingstoreError, load_json, run_root, write_json_atomic
-from pingstore.stages import _capture_code, stage_reservation, utc_now
+from pingstore.library import (
+    PingstoreError,
+    load_json,
+    run_root,
+    stage_reservation,
+    utc_now,
+    write_json_atomic,
+)
+from pingstore.library import (
+    capture_code as capture_run_code,
+)
 
 SHARD_SCHEMA = "pinglab.concurrent-shard/v1"
 SCHEDULER_KEYS = ("SLURM_JOB_ID", "SLURM_ARRAY_JOB_ID", "SLURM_ARRAY_TASK_ID")
@@ -130,7 +139,7 @@ def execute_shard(
     run_items: Callable[[], None],
     inventory: Callable[[], Inventory],
     check_inputs: Callable[[], None],
-    capture_code: Callable[[Path, Path], Mapping[str, Any]] = _capture_code,
+    capture_code: Callable[[Path, Path], Mapping[str, Any]] = capture_run_code,
 ) -> dict[str, Any]:
     """Run or verify one frozen shard of an incomplete compute reservation."""
     directory = working_directory(

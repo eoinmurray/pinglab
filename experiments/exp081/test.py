@@ -14,17 +14,17 @@ import numpy as np
 import pytest
 from experiments.exp081 import analyse, compute, present
 from experiments.exp081 import recipe as exp081
-from pingstore import stages
-from pingstore.contracts import (
+from pingstore import core
+from pingstore.library import (
     RUN_SCHEMA,
     PingstoreError,
+    discover_runs,
+    initialize_layout,
     load_json,
     payload_digest,
     validate_run_directory,
     write_json_atomic,
 )
-from pingstore.discovery import discover_runs
-from pingstore.layout import initialize_layout
 
 
 def test_zero_drive_has_zero_operating_point_and_variance() -> None:
@@ -54,9 +54,9 @@ def stage_repo(tmp_path, monkeypatch):
     for module in (compute, analyse, present):
         monkeypatch.setattr(module, "REPO", tmp_path)
     monkeypatch.setenv("EXP081_DEVICE", "cpu")
-    monkeypatch.setattr(stages, "memberships", lambda repo: {"exp081": "demo"})
+    monkeypatch.setattr(core, "memberships", lambda repo: {"exp081": "demo"})
     monkeypatch.setattr(
-        stages, "_capture_code", lambda *args: {"git_commit": "fixture", "dirty": False}
+        core, "capture_code", lambda *args: {"git_commit": "fixture", "dirty": False}
     )
     cfg = exp081.configuration(smoke=True)
     cfg.update(

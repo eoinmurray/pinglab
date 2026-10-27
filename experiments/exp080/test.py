@@ -18,17 +18,17 @@ from experiments.exp080 import analyse, present, recipe
 from experiments.exp080 import analyse as measurements
 from experiments.exp080 import compute as compute
 from experiments.exp080.custom import inputs
-from pingstore import stages
-from pingstore.contracts import (
+from pingstore import core
+from pingstore.library import (
     PingstoreError,
+    canonical_export_file,
+    discover_runs,
     file_sha256,
     load_json,
     payload_digest,
     validate_operational_run_directory,
     write_json_atomic,
 )
-from pingstore.discovery import discover_runs
-from pingstore.layout import canonical_export_file
 
 
 def test_registered_simulator_validations_pass() -> None:
@@ -109,9 +109,9 @@ def dataset_record(count, prefix):
 def repo(tmp_path, monkeypatch):
     for module in (compute, analyse, present):
         monkeypatch.setattr(module, "REPO", tmp_path)
-    monkeypatch.setattr(stages, "memberships", lambda _: {"exp080": "test"})
+    monkeypatch.setattr(core, "memberships", lambda _: {"exp080": "test"})
     monkeypatch.setattr(
-        stages, "_capture_code", lambda *a: {"git_commit": "fixture", "dirty": False}
+        core, "capture_code", lambda *a: {"git_commit": "fixture", "dirty": False}
     )
     monkeypatch.setenv("PINGLAB_SMOKE", "1")
     monkeypatch.setenv("EXP080_DEVICE", "cpu")
@@ -347,7 +347,7 @@ def test_presentation_allows_transitive_metadata_amendment_during_execution(
 
 def test_reservations_are_source_neutral_atomic_and_not_reusable(repo):
     root, _ = repo
-    identity = stages.reserve_stage(
+    identity = core.reserve_stage(
         root / ".pingstore", "exp080", "compute", origin="slurm"
     )
     assert identity == "exp080-r001-compute"
@@ -419,7 +419,7 @@ def test_atomic_rename_only_exposes_a_valid_complete_run(repo, monkeypatch):
             seen.append(record["run_id"])
         return rename(source, destination)
 
-    monkeypatch.setattr(stages.os, "rename", checked_rename)
+    monkeypatch.setattr(core.os, "rename", checked_rename)
     identity = compute.compute()
     assert seen == [identity]
     assert (root / ".pingstore/runs" / identity).is_dir()

@@ -30,7 +30,6 @@ button:disabled { opacity: .35; cursor: default; }
 .slide-columns > div { min-width: 0; }
 .slide img, .slide video, .slide svg { display: block; max-width: 100%; max-height: 50vh; object-fit: contain; }
 .slide pre { font-size: .65em; padding: 1.2rem; overflow: auto; max-width: 100%; border-radius: .4rem; }
-.slide :not(pre) > code { font-size: .8em; background: #e7eee7; color: #163a32; padding: .12em .25em; border-radius: .2em; }
 .slide blockquote { margin: 1em 0; border-left: 4px solid #297761; padding-left: 1em; }
 .slide table { border-collapse: collapse; width: 100%; font-size: .8em; overflow-wrap: normal; }
 .slide th, .slide td { text-align: left; border-bottom: 1px solid #b4c0be; padding: .5em; }

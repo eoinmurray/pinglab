@@ -7,7 +7,7 @@ from contextlib import contextmanager
 from pathlib import Path
 
 import numpy as np
-from pingstore.contracts import file_sha256, write_json_atomic
+from pingstore.library import file_sha256, write_json_atomic
 
 SCHEMA = "pinglab.external-run-snapshot/v1"
 

@@ -21,13 +21,14 @@ import numpy as np
 from experiments.exp042 import recipe
 from experiments.exp042.custom import inputs, simulation
 from hpc import concurrent_compute
-from pingstore.contracts import (
+from pingstore.library import (
     PingstoreError,
+    capture_code,
     file_sha256,
     load_json,
+    reserve_stage,
     write_json_atomic,
 )
-from pingstore.stages import _capture_code, reserve_stage
 
 
 def _job_path(export, job):
@@ -140,7 +141,7 @@ def _shard(identity, *, run_id, index, count=recipe.SHARDS):
         run_items=run_items,
         inventory=inventory,
         check_inputs=check_inputs,
-        capture_code=_capture_code,
+        capture_code=capture_code,
     )
 
 

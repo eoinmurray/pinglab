@@ -23,13 +23,15 @@ import numpy as np
 from experiments import theme
 from experiments.exp022 import recipe
 from experiments.exp022.custom.network_artifacts import copy_circuits
-from pingstore.contracts import (
+from pingstore.library import (
     PingstoreError,
+    SourceRun,
     file_sha256,
     load_json,
+    source_run,
+    stage_run,
     write_json_atomic,
 )
-from pingstore.stages import SourceRun, source_run, stage_run
 
 
 def draw_family_curves(family: str, cells: list[dict], ax) -> int:

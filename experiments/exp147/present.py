@@ -20,8 +20,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from experiments import theme
 from experiments.exp147.recipe import validate_configuration
-from pingstore.contracts import load_json
-from pingstore.stages import source_run, stage_run
+from pingstore.library import load_json, source_run, stage_run
 
 
 def figure(data, cfg):

@@ -9,8 +9,14 @@ from contextlib import contextmanager
 from pathlib import Path
 
 from experiments.exp044 import recipe
-from pingstore.contracts import RUN_SCHEMA, PingstoreError, load_json, run_root
-from pingstore.stages import source_run, stage_run
+from pingstore.library import (
+    RUN_SCHEMA,
+    PingstoreError,
+    load_json,
+    run_root,
+    source_run,
+    stage_run,
+)
 
 SOURCE_POLICY = "selected-v4-training-bank"
 

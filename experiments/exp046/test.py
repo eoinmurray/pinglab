@@ -17,9 +17,8 @@ from experiments.exp046.custom.source_exp041_custom_evidence import (
     training_contract,
 )
 from experiments.exp046.recipe import refractory_configuration
-from pingstore import stages
-from pingstore.contracts import file_sha256
-from pingstore.stages import source_run
+from pingstore import core
+from pingstore.library import file_sha256, source_run
 
 
 def _common_config() -> dict:
@@ -84,7 +83,7 @@ def _common_config() -> dict:
     }
 
 
-from pingstore.contracts import (
+from pingstore.library import (
     PingstoreError,
     load_json,
     payload_digest,
@@ -95,17 +94,17 @@ from pingstore.contracts import (
 @pytest.fixture
 def lab(tmp_path, monkeypatch):
     monkeypatch.setattr(
-        stages,
+        core,
         "memberships",
         lambda _: {"exp022": "demo", "exp041": "demo", "exp046": "demo"},
     )
     monkeypatch.setattr(
-        stages, "_capture_code", lambda *args: {"git_commit": "fixture", "dirty": False}
+        core, "capture_code", lambda *args: {"git_commit": "fixture", "dirty": False}
     )
     monkeypatch.setattr(frequency_recipe, "RASTER_N_E_PLOT", 2)
     monkeypatch.setattr(frequency_recipe, "RASTER_N_I_PLOT", 1)
     monkeypatch.setenv("PINGLAB_SMOKE", "1")
-    with stages.stage_run(tmp_path, "exp022", "compute") as bank:
+    with core.stage_run(tmp_path, "exp022", "compute") as bank:
         for tau in frequency_recipe.TAU_GABA_SWEEP:
             for seed in frequency_recipe.SEEDS:
                 name = frequency_recipe.cell_name(tau, seed)
@@ -157,7 +156,7 @@ def lab(tmp_path, monkeypatch):
 def cycle_lab(lab, monkeypatch):
     root, bank_id, _ = lab
     monkeypatch.setattr(
-        stages,
+        core,
         "memberships",
         lambda _: {"exp022": "demo", "exp041": "demo", "exp046": "demo"},
     )
@@ -166,12 +165,12 @@ def cycle_lab(lab, monkeypatch):
     )
     cfg = frequency_recipe.configuration(smoke=True)
     contract = training_contract(bank.export)
-    with stages.stage_run(
+    with core.stage_run(
         root, "exp041", "compute", inputs={"bank": bank}, configuration=cfg
     ) as upstream:
         write_json_atomic(upstream.export / "fixture.json", {"synthetic": True})
     upstream = source_run(root / ".pingstore", upstream.run_id)
-    with stages.stage_run(
+    with core.stage_run(
         root,
         "exp041",
         "analyse",

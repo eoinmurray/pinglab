@@ -18,8 +18,7 @@ from experiments.exp022.custom.checkpoints import (
     public_provenance,
     resolve_checkpoint,
 )
-from pingstore.contracts import PingstoreError, file_sha256
-from pingstore.stages import SourceRun, source_run
+from pingstore.library import PingstoreError, SourceRun, file_sha256, source_run
 
 SOURCE_REFERENCE = {
     "run_id": "exp022-r007-compute",
