@@ -2865,7 +2865,7 @@ def remote_prune_plan(repo: Path, destination: str, experiments: list[str]) -> d
     selected = {
         identity for identity in used if records[identity]["experiment"] in scope
     }
-    if not selected or selected - catalog["runs"].keys():
+    if selected - catalog["runs"].keys():
         raise PingstoreError(
             "back up the complete current report runset before remote pruning"
         )

@@ -4,7 +4,7 @@ author: Eoin Murray
 collection: notes
 description: Where Pingstore runs live, basic CLI usage and safe handling of experiment outputs.
 created_at: "2026-09-11"
-updated_at: "2026-10-27T12:17:06Z"
+updated_at: "2026-10-27T15:37:18Z"
 ---
 
 # Pingstore Guide
@@ -71,11 +71,13 @@ Backup, prune and eviction use separate dry-run and confirmation invocations. In
 5. **`backup-papers`** is retired: public PDF uploads are disabled. Papers stay local for localhost; production uses publisher or authorised repository links from `papers/index.yaml`.
 6. **`prune-remote`** removes unused R2 runs for explicit, repeatable
    `--experiment` selections. It requires the current selected evidence to be
-   backed up, retains protected runs and required ancestry, and conditionally
+   backed up when any evidence is selected, retains protected runs and required ancestry, and conditionally
    replaces the catalog before deleting the planned objects. Use separate
    `--dry-run` and `--confirm PLAN_HASH` invocations with the same scope.
    Refresh deployed reports to the retained presentation before removing assets
-   referenced by an earlier deployment.
+   referenced by an earlier deployment. For an explicitly requested complete reset,
+   retire the report input and data bindings first; a scope with no selected evidence
+   can then prune all unprotected runs without backing up a replacement runset.
 
 To reclaim space without removing scientific history, prefer eviction:
 

@@ -57,3 +57,15 @@ The report separates repeatable movement from wall-clock timing success.
    of unused R2 history after the current runset is backed up. Apply its exact
    plan with `--confirm PLAN_HASH`; required ancestry and other experiments are
    retained. Refresh any deployed report to the current presentation first.
+10. `uv run python experiments/exp152/compute.py --adapt --compile` tests bounded
+    online adaptation of tonic excitation and sensory weight in the native loop.
+    Optional: `--target-frequency-hz` (0.65), `--target-excursion-deg` (60,
+    peak-to-peak), `--adaptation-iterations` (16), `--eager`, `--run-id`.
+    Baseline and signed probes start at 26 s, discard the first 15 s and require
+    five repeatable cycles before their errors can guide updates. Unsettled
+    segments extend in 5 s increments to 60 s; an unsettled baseline skips its
+    update. Initial, frozen and fresh-reset validations each last 60 s.
+    This makes no ROS timing claim.
+    Analyse the explicit compute with `analyse.py --source COMPUTE_ID`, then
+    use `present.py --source ANALYSE_ID --reference-present ROS_PRESENT_ID` to
+    add the figures while retaining that explicit ROS replay and its snapshots.

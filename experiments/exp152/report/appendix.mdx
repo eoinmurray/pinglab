@@ -56,7 +56,7 @@ export const groups = [
       ['max_step_ms', 'Maximum internal step (ms)'],
     ].map(([name, label]) => [label, show(motor?.neuron?.config?.[name])]),
   ] },
-  { label: 'Synaptic decay (ms)', rows: (graph?.projections ?? []).map(projection => [projection.id, projection.synapse?.kind === 'custom_synapse' ? 'Direct conductance' : show(projection.synapse?.tau)]) },
+  { label: 'Synaptic decay (ms)', rows: graph?.projections?.length ? graph.projections.map(projection => [projection.id, projection.synapse?.kind === 'custom_synapse' ? 'Direct conductance' : show(projection.synapse?.tau)]) : [['Snapshot evidence', 'Unavailable']] },
   { label: 'Synapses and weights', rows: graph?.projections?.length ? graph.projections.map(projection => [projection.id, show(graph.parameters?.find(row => row.id === `${projection.id}.weight`)?.initializer?.value)]) : [['Snapshot evidence', 'Unavailable']] },
   { label: 'Input and simulation', rows: [
     ['Duration (s)', show(cfg?.duration)], ['Numerical timestep (ms)', show(cfg?.dt_ms)],
@@ -118,7 +118,7 @@ $\bar g_k$ is maximum conductance. Both potassium currents use $E_{\mathrm K}$.
 KCa depends on filtered voltage, with no calcium-concentration state. All six
 states, $V$ and the five $U_j$, start at $-60$ mV.
 
-### Numerical update and spike output
+## Numerical update and spike output
 
 Each 1 ms step uses 40 split substeps of $h=0.025$ ms with fixed input
 conductances. First update the filters using the old voltage:
@@ -142,7 +142,7 @@ indexes the five intrinsic currents. Each frozen sub-update is exact; their
 composition approximates the coupled dynamics. A crossing $V\leq0<V^+$ mV sets
 the window's spike flag without resetting state.
 
-### Synaptic and local drive
+## Synaptic and local drive
 
 Let $r\in\{f,e\}$ denote flexor or extensor, $\bar r$ its peer, and
 $n=0,1,\ldots$ the control window. Synapses decay, then receive spike increments:
@@ -224,6 +224,59 @@ Before each update, sensory spikes excite flexor for
 $\theta<\theta_r-\theta_s$ and extensor for $\theta>\theta_r+\theta_s$.
 The sensory centre is $\theta_r$, threshold $\theta_s=0.25$ rad, and minimum
 interspike interval 10 ms. Each channel repeats while beyond threshold.
+
+## Learning rule
+
+The separate native adaptation protocol uses bounded coordinate search to adjust
+tonic excitation $g_{\mathrm{tonic}}$ and sensory synaptic strength $w_{\mathrm s}$,
+symmetrically across flexor and extensor. Reciprocal inhibition and mechanics
+remain fixed. This is a model-specific application of
+[derivative-free direct search](https://doi.org/10.1137/S003614450242889), using
+global movement errors:
+
+$$
+\mathcal L=
+\left(\frac{f-f_\star}{f_\star}\right)^2+
+\left(\frac{A-A_\star}{A_\star}\right)^2.
+$$
+
+$\mathcal L$ is dimensionless loss. Frequency $f$ (Hz) is the reciprocal of mean
+cycle period; excursion $A$ (rad) is the mean peak-to-peak angle across measured
+cycles. Positive targets $f_\star,A_\star$ default to 0.65 Hz and $\pi/3$ rad
+(60° peak-to-peak).
+The two relative errors receive equal weight.
+
+Alternate between the two conductances. For the selected coordinate $j$, test
+both proposals
+
+$$
+p'_j=\operatorname{clip}\!\left((1+d\rho_j)p_j,\;0.01,\;0.10\right),
+\qquad d\in\{-1,+1\}.
+$$
+
+$p_j$ is the current conductance and $p'_j$ a proposal, both in µS; $d$ chooses
+decrease or increase, $\rho_j$ is that coordinate's fractional probe size, and
+$\operatorname{clip}$ bounds conductance to 0.01–0.10 µS. Keep the baseline unless
+an eligible proposal lowers $\mathcal L$ by more than $10^{-6}$; choose the better
+eligible proposal. Probe sizes start at 10% and halve after an unsuccessful
+comparison, down to 1.25%.
+
+Each baseline or probe lasts at least 26 s of model time. Discard the first 15 s
+and measure the final five complete cycles, delimited by upward crossings of
+$\theta_r$. Eligibility requires no stop hits and all cycle-repeatability errors
+below 1%: maximum relative period and turning-point errors, and worst-cycle
+normalized root-mean-square errors for angle and velocity. Period errors use
+the median period; turning-point and angle errors use median excursion, and
+velocity errors use the median waveform's velocity range. Unsettled segments
+extend in 5 s increments up to 60 s. Unsettled probes
+are excluded; an unsettled baseline skips its update without shrinking the
+probe size.
+
+Neural, synaptic, muscle and pending spike states continue between probes.
+After 16 coordinate attempts, freeze the parameters and validate for 60 s both
+continuously and from a fresh reset, assessing the final ten complete cycles
+after settling. Local repeatability alone does not guarantee target acquisition
+or repeatability after reset.
 
 ## Architecture Pseudocode
 

@@ -1,4 +1,4 @@
-"""Author a small E/I value controller and resolve both study protocols.
+"""Author the E/I controller, inherited genomes and resolved study protocols.
 
 The capacity protocol supplies all targets. The lifetime protocol reveals targets
 only after consumption; the simulator maintains energy and renews dead agents.
@@ -10,6 +10,7 @@ import copy
 import numpy as np
 import torch
 from experiments.exp154.custom.dynamics import register_extensions
+from scipy.stats import truncnorm
 from snnlab import lang
 from snnlab.sim import GraphExecutor, plan_graph
 
@@ -33,7 +34,7 @@ def inherited_genome(overrides=None):
         adult_learning_rate=0.008,
     )
     if overrides:
-        if set(overrides) - set(genome):
+        if set(overrides) - {*genome, "recurrent_normal"}:
             raise ValueError("unknown inherited genome parameter")
         genome.update(copy.deepcopy(overrides))
     for key in ("prenatal_windows", "juvenile_encounters"):
@@ -51,20 +52,260 @@ def inherited_genome(overrides=None):
     if not 0 < genome["homeostatic_target_rate"] < 1:
         raise ValueError("homeostatic target must lie between zero and one")
     ranges = genome["recurrent_ranges"]
-    if set(ranges) != {"EE", "EI", "IE", "II"} or any(
+    normal = genome.get("recurrent_normal")
+    expected = {"EE", "II"} if normal is not None else {"EE", "EI", "IE", "II"}
+    if set(ranges) != expected or any(
         not 0 <= low < high <= genome["weight_upper"] for low, high in ranges.values()
     ):
         raise ValueError("invalid inherited weight ranges")
+    if normal is not None:
+        validate_normal_weights(normal, genome["weight_upper"])
     return genome
+
+
+def validate_normal_weights(distributions, upper):
+    if set(distributions) != {"EI", "IE"}:
+        raise ValueError("normal initial weights require EI and IE distributions")
+    for distribution in distributions.values():
+        if (
+            set(distribution) != {"mean", "std"}
+            or not np.isfinite(list(distribution.values())).all()
+            or not 0 < distribution["mean"] <= upper
+            or distribution["std"] <= 0
+        ):
+            raise ValueError("invalid normal initial weight mean or standard deviation")
+
+
+def evolution_genome(overrides=None):
+    """Evolve normal centres; fixed spreads match the former uniform variances."""
+    genome = inherited_genome()
+    genome.update(
+        identity="development-g0/normal-v1",
+        recurrent_normal={
+            name: dict(mean=(low + high) / 2, std=float((high - low) / np.sqrt(12)))
+            for name, (low, high) in genome["recurrent_ranges"].items()
+            if name in {"EI", "IE"}
+        },
+        recurrent_ranges={
+            name: genome["recurrent_ranges"][name] for name in ("EE", "II")
+        },
+    )
+    if overrides:
+        genome.update(copy.deepcopy(overrides))
+    return inherited_genome(genome)
+
+
+def evolution_settings(profile):
+    """Keep the smoke search small while exercising selection and fresh seeds."""
+    return dict(
+        seed=154,
+        population=16 if profile == "pilot" else 4,
+        generations=10 if profile == "pilot" else 2,
+        elites=4 if profile == "pilot" else 1,
+        search_seeds=[7, 8, 9] if profile == "pilot" else [9],
+        fresh_seeds=list(range(10, 15)) if profile == "pilot" else [10, 11],
+        horizon=300,
+        reproduction=dict(
+            minimum_age_encounters=25,
+            reserve_energy=0.5,
+            cost_per_offspring=0.5,
+            maximum_offspring=3,
+            events_per_life=1,
+            timing="after food energy and learning; adult and alive; total age since birth",
+        ),
+        population_policy="up to population genomes; retain up to elites unchanged; admit actual offspring of retained parents across evaluated lives, uniformly capped at free slots; stop if no offspring",
+        log_mutation_std=0.1,
+        target_mutation=0.02,
+        duration_mutation=2,
+        mean_bounds=[1e-5, 1.0],
+        weight_sampling="normal conditioned on 0 < weight < weight_upper; shared uniform quantiles",
+        standard_deviation_policy="fixed per pathway; describes the underlying normal before truncation",
+        learning_rate_bounds=[1e-5, 0.1],
+        target_bounds=[0.05, 0.95],
+        prenatal_bounds=[0, 50],
+        juvenile_bounds=[0, 100],
+        fitness="mean offspring per life; then mean food encounters until death or horizon; then mean nonnegative remaining energy; then ascending candidate ID",
+    )
+
+
+def mutate_genome(parent, rng, settings):
+    """Propose inherited settings only; acquired synaptic weights never enter."""
+    child = copy.deepcopy(parent)
+    mutate_initial_strengths(child, parent, rng, settings)
+    for phase in ("prenatal", "juvenile", "adult"):
+        name = phase + "_learning_rate"
+        child[name] = float(
+            np.clip(
+                parent[name] * np.exp(rng.normal(0, settings["log_mutation_std"])),
+                *settings["learning_rate_bounds"],
+            )
+        )
+    child["adult_learning_rate"] = min(
+        child["adult_learning_rate"], child["juvenile_learning_rate"]
+    )
+    child["homeostatic_target_rate"] = float(
+        np.clip(
+            parent["homeostatic_target_rate"]
+            + rng.uniform(-settings["target_mutation"], settings["target_mutation"]),
+            *settings["target_bounds"],
+        )
+    )
+    for name, bounds in (
+        ("prenatal_windows", "prenatal_bounds"),
+        ("juvenile_encounters", "juvenile_bounds"),
+    ):
+        change = rng.integers(
+            -settings["duration_mutation"], settings["duration_mutation"] + 1
+        )
+        child[name] = int(np.clip(parent[name] + change, *settings[bounds]))
+    return inherited_genome(child)
+
+
+def mutate_initial_strengths(child, parent, rng, settings):
+    """Retain the recorded uniform law for reproducible historical run analysis."""
+    for name in ("EI", "IE"):
+        if "recurrent_normal" in parent:
+            child["recurrent_normal"][name]["mean"] = float(
+                np.clip(
+                    parent["recurrent_normal"][name]["mean"]
+                    * np.exp(rng.normal(0, settings["log_mutation_std"])),
+                    *settings["mean_bounds"],
+                )
+            )
+            continue
+        while True:
+            values = np.sort(
+                np.asarray(parent["recurrent_ranges"][name])
+                * np.exp(rng.normal(0, settings["log_mutation_std"], 2))
+            )
+            low, high = settings["range_bounds"]
+            if low <= values[0] < values[1] <= high:
+                child["recurrent_ranges"][name] = values.tolist()
+                break
+
+
+def validate_evolution_genome(genome, settings):
+    """Reject unsupported search settings before a potentially unbounded proposal."""
+    for name in ("EI", "IE"):
+        if "recurrent_normal" in genome:
+            mean = genome["recurrent_normal"][name]["mean"]
+            if not settings["mean_bounds"][0] <= mean <= settings["mean_bounds"][1]:
+                raise ValueError("evolution weight mean outside search bounds")
+        else:
+            low, high = genome["recurrent_ranges"][name]
+            if (
+                not settings["range_bounds"][0]
+                <= low
+                < high
+                <= settings["range_bounds"][1]
+            ):
+                raise ValueError("evolution weight range outside search bounds")
+    for phase in ("prenatal", "juvenile", "adult"):
+        if (
+            not settings["learning_rate_bounds"][0]
+            <= genome[phase + "_learning_rate"]
+            <= settings["learning_rate_bounds"][1]
+        ):
+            raise ValueError("evolution learning rate outside search bounds")
+    if genome["adult_learning_rate"] > genome["juvenile_learning_rate"]:
+        raise ValueError("adult evolution learning rate exceeds juvenile rate")
+    for name, bounds in (
+        ("homeostatic_target_rate", "target_bounds"),
+        ("prenatal_windows", "prenatal_bounds"),
+        ("juvenile_encounters", "juvenile_bounds"),
+    ):
+        if not settings[bounds][0] <= genome[name] <= settings[bounds][1]:
+            raise ValueError("evolution developmental setting outside search bounds")
+
+
+def rank_candidates(scores):
+    """Rank reproductive output before survival; preserve historical survival runs."""
+    return sorted(
+        scores,
+        key=lambda row: (
+            -row.get("mean_offspring", 0.0),
+            -row["mean_survival"],
+            -row["mean_energy"],
+            row["candidate"],
+        ),
+    )
+
+
+def next_population(parents, settings, rng, generation):
+    """Bootstrap a search, or replay historical fixed-quota generations."""
+    if generation > 1 and "reproduction" in settings:
+        raise ValueError("reproductive generations require actual offspring")
+    population = copy.deepcopy(parents)
+    for index in range(settings["population"] - len(parents)):
+        parent = parents[index % len(parents)]
+        identity = f"g{generation:03d}-c{len(population):03d}"
+        genome = mutate_genome(parent["genome"], rng, settings)
+        genome["identity"] = identity
+        population.append(
+            dict(
+                candidate=identity,
+                parent=parent["candidate"],
+                created_generation=generation,
+                genome=genome,
+            )
+        )
+    return population
+
+
+def reproductive_population(
+    population, ranked, lives, settings, rng, generation, *, admit
+):
+    """Mutate each actual newborn once; capacity limits admission, never births."""
+    individuals = {row["candidate"]: row for row in population}
+    parents = [individuals[row["candidate"]] for row in ranked[: settings["elites"]]]
+    retained = {row["candidate"] for row in parents}
+    offspring = []
+    for life in lives:
+        parent = individuals[life["candidate"]]
+        for sibling in range(life["offspring"]):
+            identity = f"g{generation + 1:03d}-c{len(offspring):03d}"
+            genome = mutate_genome(parent["genome"], rng, settings)
+            genome["identity"] = identity
+            offspring.append(
+                dict(
+                    candidate=identity,
+                    parent=parent["candidate"],
+                    created_generation=generation + 1,
+                    parent_generation=generation,
+                    parent_seed=life["seed"],
+                    parent_trial=life["reproduction_age"],
+                    sibling=sibling + 1,
+                    genome=genome,
+                    admitted=False,
+                )
+            )
+    eligible = [
+        index for index, child in enumerate(offspring) if child["parent"] in retained
+    ]
+    slots = settings["population"] - len(parents)
+    selected = (
+        sorted(
+            rng.choice(eligible, size=min(slots, len(eligible)), replace=False).tolist()
+        )
+        if admit and eligible
+        else []
+    )
+    for index in selected:
+        offspring[index]["admitted"] = True
+    return copy.deepcopy(parents + [offspring[index] for index in selected]), offspring
 
 
 def configuration(profile="pilot", protocol="lifetime", *, genome=None):
     if profile not in {"pilot", "smoke"}:
         raise ValueError("profile must be pilot or smoke")
-    if protocol not in {"capacity", "lifetime"}:
-        raise ValueError("protocol must be capacity or lifetime")
-    genome = inherited_genome(genome)
-    return dict(
+    if protocol not in {"capacity", "lifetime", "evolution"}:
+        raise ValueError("protocol must be capacity, lifetime or evolution")
+    genome = (
+        evolution_genome(genome)
+        if protocol == "evolution"
+        else inherited_genome(genome)
+    )
+    cfg = dict(
         genome=genome,
         protocol=protocol,
         initial_energy=2.5,
@@ -138,6 +379,31 @@ def configuration(profile="pilot", protocol="lifetime", *, genome=None):
         required_seeds_per_sign=1,
         stability_step_rate_per_ms=1e-4,
     )
+    if protocol == "evolution":
+        settings = evolution_settings(profile)
+        validate_evolution_genome(genome, settings)
+        cfg.update(
+            schema="exp154/evolution-v3",
+            evolution=settings,
+            seeds=settings["search_seeds"],
+            lifetime_presentations=settings["horizon"],
+            stop_at_death=True,
+            birth_policy="one independently conceived organism; stop at death; no acquired-weight inheritance",
+        )
+    return cfg
+
+
+def individual_configuration(recorded, genome, seed):
+    """Resolve a life from its recorded protocol, including historical weight laws."""
+    cfg = copy.deepcopy(recorded)
+    cfg.pop("evaluated_genomes", None)
+    cfg.update(
+        genome=inherited_genome(genome),
+        initial_recurrent_weights=copy.deepcopy(genome["recurrent_ranges"]),
+        lifetime_learning_rate=genome["juvenile_learning_rate"],
+        seeds=[seed],
+    )
+    return cfg
 
 
 def _initializer(values):
@@ -167,6 +433,26 @@ def paired_columns(values):
     half = values.shape[-1] // 2
     values[..., half:] = values[..., :half]
     return values
+
+
+def initial_weights(cfg, rng, name, shape):
+    """Sample bounded normals with shared quantiles and paired native initializers.
+
+    Native Normal/LowerClampedNormal do not implement this conditional law.
+    Inverse-CDF sampling avoids candidate-dependent rejection-draw counts, which
+    would otherwise alter fixed-pathway weights later in the same random stream.
+    """
+    normal = cfg["genome"].get("recurrent_normal", {})
+    if name not in normal:
+        return rng.uniform(*cfg["initial_recurrent_weights"][name], shape)
+    mean, std = normal[name]["mean"], normal[name]["std"]
+    return truncnorm.ppf(
+        rng.uniform(size=shape),
+        -mean / std,
+        (cfg["weight_upper"] - mean) / std,
+        loc=mean,
+        scale=std,
+    )
 
 
 def author_network(cfg, seed):
@@ -228,10 +514,10 @@ def author_network(cfg, seed):
                 name=name + "_mean_activity",
             ),
         )
-    for name, (low, high) in cfg["initial_recurrent_weights"].items():
+    for name in ("EE", "EI", "IE", "II"):
         source, target = name
         pre, post = populations[source], populations[target]
-        weights = rng.uniform(low, high, (pre.size, post.size))
+        weights = initial_weights(cfg, rng, name, (pre.size, post.size))
         if target == "E":
             weights = paired_columns(weights)
         if name == "EE":

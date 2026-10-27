@@ -260,3 +260,46 @@ def controller_settings(cfg):
             )
         },
     }
+
+
+def adaptation_configuration(
+    *,
+    target_frequency_hz=0.65,
+    target_excursion_deg=60.0,
+    iterations=16,
+    compile_mode="default",
+):
+    """Resolve a small deterministic coordinate-search diagnostic, not ROS tuning."""
+    if any(
+        not math.isfinite(value) or value <= 0
+        for value in (target_frequency_hz, target_excursion_deg)
+    ):
+        raise ValueError("Adaptation targets must be positive and finite")
+    if type(iterations) is not int or iterations < 1:
+        raise ValueError("Adaptation iterations must be a positive integer")
+    cfg = configuration(duration=60.0, compile_mode=compile_mode)
+    cfg.update(
+        protocol="adaptation_check",
+        adaptation=dict(
+            target_frequency_hz=target_frequency_hz,
+            target_excursion_rad=math.radians(target_excursion_deg),
+            iterations=iterations,
+            parameters=["tonic_us", "sensory_drive_us"],
+            bounds_us=dict(tonic_us=[0.01, 0.10], sensory_drive_us=[0.01, 0.10]),
+            initial_relative_step=0.10,
+            minimum_relative_step=0.0125,
+            step_decay=0.5,
+            segment_duration_s=26.0,
+            maximum_segment_duration_s=60.0,
+            measurement_extension_s=5.0,
+            settling_s=15.0,
+            measurement_cycles=5,
+            require_repeatable_cycles=True,
+            validation_duration_s=60.0,
+            target_relative_tolerance=0.05,
+            minimum_loss_improvement=1e-6,
+            loss="sum of squared relative frequency and peak-to-peak excursion errors",
+            state_policy="Continuous neural, synaptic, muscle and transport state during adaptation; final parameters also tested from a fresh reset",
+        ),
+    )
+    return cfg

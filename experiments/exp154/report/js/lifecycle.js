@@ -1,4 +1,16 @@
 /** Replay native rate recordings. Moving strokes are continuous flow, not spikes. */
+const developmentalPhases = ['prenatal', 'juvenile', 'adult'];
+
+export function phaseProgress(event, fraction, genome, adultEncounters) {
+  const current = developmentalPhases.indexOf(event.phase);
+  const durations = [genome.prenatal_windows, genome.juvenile_encounters, adultEncounters];
+  return developmentalPhases.map((name, stage) => {
+    const total = durations[stage];
+    const completed = stage < current ? total : stage === current ? Math.max(0, event.phase_age - 1 + fraction) : 0;
+    return { name, total, completed: Math.min(total, completed), fraction: total > 0 ? Math.min(1, completed / total) : stage < current ? 1 : 0 };
+  });
+}
+
 export async function mountLifecycle(host) {
   const [{ Application, Graphics }, response] = await Promise.all([import('pixi.js'), fetch(host.dataset.source)]);
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -22,6 +34,11 @@ export async function mountLifecycle(host) {
   const readoutStart = arrivalPhase + .75*(processingEnd-arrivalPhase);
   let maxEnergy = data.initial_energy, energyRanges = [];
   const condition = data.conditions[0], network = data.network;
+  const phaseNodes = [...host.querySelectorAll('[data-stage]')];
+  const adultCounts = new Map();
+  for (const event of condition.events) {
+    if (event.phase === 'adult') adultCounts.set(event.life, (adultCounts.get(event.life) ?? 0) + 1);
+  }
   const outputRange = Math.max(1,Math.ceil(Math.max(...condition.events.filter(e=>e.phase!=='prenatal').map(e=>Math.abs(e.prediction)))));
   const pathways = new Map(), flowSelections = new WeakMap();
   for (const edge of network.edges) {
@@ -96,9 +113,11 @@ export async function mountLifecycle(host) {
     drawEnergyBand(x,0,energy,blue);
     if (revealed) {
       const gain = e.accepted ? Math.max(0,e.delta) : 0, poison = e.accepted ? Math.max(0,-e.delta) : 0;
-      drawEnergyBand(x,energy-gain,energy,green);
-      drawEnergyBand(x,energy,energy+poison,red);
-      drawEnergyBand(x,energy+poison,energy+poison+data.metabolic_cost,amber);
+      const cost = e.reproduction_cost ?? 0, foodEnergy = energy + cost;
+      drawEnergyBand(x,foodEnergy-gain,foodEnergy,green);
+      drawEnergyBand(x,foodEnergy,foodEnergy+poison,red);
+      drawEnergyBand(x,foodEnergy+poison,foodEnergy+poison+data.metabolic_cost,amber);
+      drawEnergyBand(x,energy,foodEnergy,purple);
     }
     g.roundRect(x-7,barTop,14,barHeight,4).stroke({color:line,width:1});
   }
@@ -229,6 +248,7 @@ export async function mountLifecycle(host) {
       text.outputValue.textContent = revealed ? signed(e.prediction) : '…';
       text.outputChoice.textContent = revealed ? (e.accepted ? 'Consume' : 'Reject') : phase>=processingEnd ? 'Readout' : phase>=arrivalPhase ? 'Processing' : 'Awaiting';
       text.exploration.textContent = revealed && e.explored ? 'Exploration' : `η ${e.learning_rate}`;
+      if (revealed && e.reproduced) text.exploration.textContent = `${e.offspring} offspring · cost ${e.reproduction_cost}`;
     }
     g.roundRect(x-7,barTop,14,barHeight,4).stroke({color:line,width:1});
   }
@@ -248,11 +268,15 @@ export async function mountLifecycle(host) {
     const completed = condition.events.slice(0,index+(revealed ? 1 : 0));
     get('encounter').textContent = `${e.trial} / ${data.food_encounters}`;
     get('phase').textContent = e.phase[0].toUpperCase()+e.phase.slice(1);
-    const phases = ['prenatal','juvenile','adult'];
-    for (const node of host.querySelectorAll('[data-stage]')) {
-      const current = phases.indexOf(e.phase), stage = phases.indexOf(node.dataset.stage);
+    const progressByPhase = phaseProgress(e, phase, data.genome, adultCounts.get(e.life) ?? 0);
+    for (const [stage, node] of phaseNodes.entries()) {
+      const current = developmentalPhases.indexOf(e.phase), progress = progressByPhase[stage];
       node.dataset.state = stage===current ? 'active' : stage<current ? 'done' : 'upcoming';
       node.setAttribute('aria-current',String(stage===current));
+      node.style.setProperty('--phase-progress', `${progress.fraction * 100}%`);
+      node.setAttribute('aria-valuenow', (progress.fraction * 100).toFixed(1));
+      const unit = progress.name === 'prenatal' ? 'prenatal windows' : progress.name === 'adult' ? 'recorded adult encounters' : 'juvenile encounters';
+      node.setAttribute('aria-valuetext', `${progress.completed.toFixed(1)} of ${progress.total} ${unit}`);
     }
     get('life').textContent = String(e.life); get('age').textContent = prenatal ? `${e.phase_age}/${data.genome.prenatal_windows}` : String(e.age);
     get('energy').textContent = prenatal ? '—' : energy.toFixed(2); get('energy').style.color = dead ? '#bc3b43' : '#263343';
@@ -308,7 +332,7 @@ export function validateRecording(data) {
   if (network.edges.some(e=>!Number.isInteger(e.source) || e.source<0 || e.source>25 || e.target<0 || e.target>19 || !Number.isFinite(e.weight))) throw new Error('Invalid native topology');
   for (const c of data.conditions) {
     if (c.sign !== 1) throw new Error('Invalid cue mapping');
-    let foodTrial = 0;
+    let foodTrial = 0, reproduced = false;
     for (const [i,e] of c.events.entries()) {
       if (e.step!==i+1 || !['prenatal','juvenile','adult'].includes(e.phase) || !Number.isFinite(e.learning_rate)) throw new Error('Invalid phase timeline');
       if (e.phase==='prenatal') {
@@ -316,6 +340,13 @@ export function validateRecording(data) {
       } else {
         foodTrial++;
         if (e.updated !== e.accepted || e.trial!==foodTrial || ![e.energy_before,e.energy_after,e.cue,e.delta,e.prediction].every(Number.isFinite)) throw new Error('Invalid encounter values');
+        if (data.reproduction) {
+          if (e.birth) reproduced = false;
+          const p = data.reproduction, foodEnergy = e.energy_before-data.metabolic_cost+(e.accepted ? e.delta : 0);
+          const count = !reproduced && e.phase==='adult' && e.age>=p.minimum_age_encounters && foodEnergy>0 ? Math.min(p.maximum_offspring,Math.max(0,Math.floor((foodEnergy-p.reserve_energy)/p.cost_per_offspring))) : 0;
+          if (!Number.isInteger(e.offspring) || e.offspring!==count || e.reproduced!==(count>0) || e.reproduction_cost!==count*p.cost_per_offspring || !Number.isFinite(e.energy_before_reproduction) || Math.abs(e.energy_before_reproduction-foodEnergy)>1e-10 || Math.abs(e.energy_after-(foodEnergy-e.reproduction_cost))>1e-10) throw new Error('Invalid reproduction event');
+          reproduced ||= count>0;
+        }
       }
       if (e.rates.length !== steps+1 || e.rates.some(row=>row.length !== 20 || row.some(v=>!Number.isFinite(v) || v<0 || v>1)) || [e.weights,e.weights_after].some(weights=>weights.length !== 2 || weights.some(row=>row.length !== 64 || row.some(v=>!Number.isFinite(v) || v<0 || v>data.genome.weight_upper)))) throw new Error('Invalid native neural recording');
       if (e.drives.length!==steps+1 || e.drives.some(row=>row.length!==6 || row.some(v=>!Number.isFinite(v)||v<0||v>1))) throw new Error('Invalid drive recording');

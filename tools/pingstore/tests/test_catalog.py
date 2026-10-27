@@ -269,6 +269,39 @@ def test_remote_prune_refuses_unbacked_current_evidence(tmp_path, monkeypatch):
         core.remote_prune_plan(tmp_path, "r2:bucket/pingstore/runs", ["exp001"])
 
 
+def test_remote_prune_can_retire_all_unreferenced_runs_in_one_scope(
+    tmp_path, monkeypatch
+):
+    old, new, other, state = remote_prune_fixture(tmp_path, monkeypatch)
+    monkeypatch.setattr(core, "report_usage", lambda *args: ({}, {}))
+    plan = core.remote_prune_plan(tmp_path, "r2:bucket/pingstore/runs", ["exp001"])
+    assert plan["prune"] == [old.name, new.name]
+    assert plan["keep"] == []
+    other_objects = {
+        path: size
+        for path, size in state["objects"].items()
+        if path.startswith(other.name + "/")
+    }
+
+    def publish(destination, previous, revised):
+        core.validate_catalog(revised)
+        assert set(revised["runs"]) == {other.name}
+        state["catalog"] = revised
+
+    def delete(*args):
+        assert set(state["catalog"]["runs"]) == {other.name}
+        for path in args[-1].read_text().splitlines():
+            assert path.split("/", 1)[0] in {old.name, new.name}
+            del state["objects"][path]
+
+    monkeypatch.setattr(core, "replace_catalog", publish)
+    monkeypatch.setattr(core, "rclone", delete)
+    core.apply_remote_prune(
+        tmp_path, "r2:bucket/pingstore/runs", ["exp001"], plan["plan_hash"]
+    )
+    assert state["objects"] == other_objects
+
+
 def test_remote_prune_retains_protected_and_cross_experiment_ancestry(
     tmp_path, monkeypatch
 ):

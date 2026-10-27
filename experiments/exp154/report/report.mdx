@@ -3,7 +3,7 @@ id: exp154
 title: "EI Weight Lifecycle"
 author: "Eoin Murray"
 created_at: "2026-10-26T14:33:53Z"
-updated_at: "2026-10-26T19:33:31Z"
+updated_at: "2026-10-27T17:06:23Z"
 description: "One inherited E/I circuit develops through prenatal activity, juvenile food learning and slower adult learning."
 collection: [experiments, animations]
 tags: [data, v0.28.1]
@@ -12,11 +12,15 @@ inputs: [exp154]
 
 import Lifecycle from './Lifecycle.astro';
 import RunFigure from '../../../site/src/components/RunFigure.astro';
+import Table from '../../../site/src/components/Table.astro';
 import { reportData, display, percent } from '../../../site/src/lib/report-data';
 
-export const lifetime = (await reportData('exp154')).lifetime;
+export const results = await reportData('exp154');
+export const lifetime = results.lifetime;
 export const lifeSummary = lifetime.conditions[0];
 export const genome = lifetime.configuration.genome;
+export const evolutionGenome = results.evolution.configuration.genome;
+export const evolutionSettings = results.evolution.configuration.evolution;
 
 ## Abstract
 
@@ -27,7 +31,8 @@ Food outcomes teach the agent only after consumption. Death restarts development
 from the same inherited weights; acquired weights are not passed on.
 This run contains {display(lifeSummary.deaths)} deaths
 across {display(lifetime.configuration.lifetime_presentations)} encounters.
-The phases are a reduced modelling choice; evolution and nature–nurture comparisons remain untested.
+The phases are a reduced modelling choice; this replay does not test evolutionary
+improvement or nature–nurture comparisons.
 
 ## Results
 
@@ -37,36 +42,11 @@ The phases are a reduced modelling choice; evolution and nature–nurture compar
 After each lifecycle step: (A) prediction RMSE on fixed diagnostic food cues, omitted prenatally;
 (B) L2 norms of the flattened E→I and I→E weight matrices (square root of summed
 squared weights); (C) E→I norm divided by I→E norm. Grey, amber and white backgrounds
-mark prenatal, juvenile and adult phases; dashed lines mark births. Steps count prenatal
+mark prenatal, juvenile and adult phases; vertical dashed lines mark conception. Horizontal
+dashed lines in (B) and (C) mark inherited values restored at conception, before prenatal
+learning. Traces show post-update values, omitting the exact pre-update reset state. Steps count prenatal
 windows and food encounters, not biological age. The norm ratio is not a measure of current balance.
 </RunFigure>
-
-## Inheritance and developmental phases
-
-The abstract genome sets initial recurrent-weight ranges, weight bounds, the internal-drive
-scale, the activity target, phase durations and learning rates. It represents an inherited
-programme, rather than specific genes. The architecture, sensory wiring and readout form
-a fixed scaffold. There is one genome, with no selection or mutation.
-
-Each conception restores the same raw weights. During
-{display(genome.prenatal_windows)} prenatal windows, three internally generated pulsing
-channels drive the circuit with sensory input switched off. Only E→I and I→E weights adapt
-toward a normalized activity target of {display(genome.homeostatic_target_rate)};
-there are no food outcomes or energy costs. Prenatal plasticity can introduce small cue
-preferences into the initially unbiased circuit. Birth starts the food task and energy reserve.
-The first {display(genome.juvenile_encounters)} encounters of each life are juvenile;
-later encounters are adult. These durations are illustrative, not biological estimates.
-
-## Energy and renewal
-
-To expose repeated lives in this demonstration, each encounter costs
-{display(lifetime.configuration.metabolic_cost)} energy units, with
-{display(lifetime.configuration.initial_energy)} units available at birth.
-Consumed food adds its energy change. Energy at or below zero causes death;
-the next life restores inherited weights, repeats prenatal development and starts a fresh
-food-learning optimizer and energy reserve at birth. The recorded run has
-{display(lifeSummary.deaths)} deaths and {display(lifeSummary.births)} births,
-including the initial birth.
 
 ## Neuron dynamics
 
@@ -111,7 +91,156 @@ II suppresses I activity and can indirectly release E cells from inhibition.
 Each 40 ms window starts from the same neuronal activity state; weights carry forward
 within a life. This model does not simulate continuous activity between windows.
 
-## Food and sensory input
+## Evolution
+
+Eight inherited parameters mutate in the evolution pilot. The values below belong
+to the fixed genome displayed in the lifetime replay. Mutation changes inherited
+settings; learned synaptic weights are not passed to offspring.
+
+<Table headers={["Inherited parameter", "Report value", "Mutates?"]} rows={[
+  ["Initial E→E weights", `Uniform ${genome.recurrent_ranges.EE.map(display).join('–')}`, "No"],
+  ["Initial E→I weights", `Uniform ${genome.recurrent_ranges.EI.map(display).join('–')}`, { markdown: "**Mean only¹**" }],
+  ["Initial I→E weights", `Uniform ${genome.recurrent_ranges.IE.map(display).join('–')}`, { markdown: "**Mean only¹**" }],
+  ["Initial I→I weights", `Uniform ${genome.recurrent_ranges.II.map(display).join('–')}`, "No"],
+  ["Weight upper bound", display(genome.weight_upper), "No"],
+  ["Prenatal duration", `${display(genome.prenatal_windows)} windows`, { markdown: "**Yes**" }],
+  ["Prenatal learning rate", display(genome.prenatal_learning_rate), { markdown: "**Yes**" }],
+  ["Prenatal activity target", display(genome.homeostatic_target_rate), { markdown: "**Yes**" }],
+  ["Internal drive scale", `${display(genome.internal_drive_na)} nA`, "No"],
+  ["Juvenile duration", `${display(genome.juvenile_encounters)} encounters`, { markdown: "**Yes**" }],
+  ["Juvenile learning rate", display(genome.juvenile_learning_rate), { markdown: "**Yes**" }],
+  ["Adult learning rate", display(genome.adult_learning_rate), { markdown: "**Yes**" }],
+]} />
+
+¹ The replay uses the original uniform initialisation. Evolution instead samples
+normal distributions conditioned on weights lying between zero and the weight
+upper bound. The founding E→I distribution has mean
+{display(evolutionGenome.recurrent_normal.EI.mean)} and standard deviation
+{evolutionGenome.recurrent_normal.EI.std.toFixed(5)}; I→E has mean
+{display(evolutionGenome.recurrent_normal.IE.mean)} and standard deviation
+{evolutionGenome.recurrent_normal.IE.std.toFixed(5)}. These describe the underlying
+normals before truncation. Only their means mutate; standard deviations remain fixed.
+
+### Reproduction and selection
+
+The updated protocol selects **inherited settings that produce more offspring**,
+while learning adjusts weights within each life. This replaces the earlier
+survival-only search; a full reproduction pilot has not yet been run. The replay
+above remains the original fixed-genome run.
+
+A living adult becomes eligible to reproduce from age 25, measured in total food
+encounters since birth. After each food outcome and learning update, its available
+energy determines litter size:
+
+$$
+n=\min\!\left(3,\max\!\left(0,\left\lfloor\frac{E-E_{\mathrm{reserve}}}{C}\right\rfloor\right)\right).
+$$
+
+Here $n$ is the number of offspring, $E$ is energy after the food outcome and
+metabolic cost, $E_{\mathrm{reserve}}=0.5$ is the energy retained by the parent,
+and $C=0.5$ is the cost per offspring. At the first eligible encounter with enough
+energy, the parent produces one to three offspring and pays $nC$ energy. Each life
+permits one reproductive event; an adult without sufficient energy can try again
+after a later encounter. These thresholds and costs are fixed modelling choices.
+
+1. **Create the initial population.** Start with the founding genome and
+   {display(evolutionSettings.population - 1)} mutated copies, giving
+   **{display(evolutionSettings.population)} candidates**.
+
+2. **Evaluate each candidate in {display(evolutionSettings.search_seeds.length)}
+   independent lives.** Candidates receive matched food sequences and random inputs.
+   Each life starts with freshly instantiated inherited weights, develops prenatally,
+   then encounters food until death or **{display(evolutionSettings.horizon)}
+   encounters**. There is no rebirth during evaluation.
+
+3. **Rank candidates** by mean offspring produced per life, then mean encounters
+   survived, then mean remaining energy, with dead agents assigned zero. Exact ties
+   use candidate ID. Prediction accuracy and E/I ratio do not directly influence selection.
+
+4. **Retain up to {display(evolutionSettings.elites)} elite genomes unchanged.**
+   Their evaluated lives supply the actual offspring available for the next generation.
+   Each offspring has one parent and an independently mutated genome, without its
+   parent's learned weights. Admit offspring into the remaining places, sampling
+   uniformly if they exceed the population cap of {display(evolutionSettings.population)}.
+   Empty places stay empty, so the population can shrink. Retained elites are genomes
+   re-evaluated in fresh independent lives, not continuing parental organisms.
+
+5. **Mutate the eight marked parameters.** Weight-distribution means and learning
+   rates receive multiplicative perturbations with log-scale standard deviation
+   {display(evolutionSettings.log_mutation_std)}. The activity target changes uniformly
+   by up to ±{display(evolutionSettings.target_mutation)}; phase durations change by an
+   integer from −{display(evolutionSettings.duration_mutation)} to
+   +{display(evolutionSettings.duration_mutation)}. Bounds apply, and adult learning
+   cannot exceed juvenile learning.
+
+6. **Repeat for up to {display(evolutionSettings.generations)} generations**, counting the
+   initial population as generation one. Stop early if the selected parents supply
+   no offspring for admission. Finally, compare the winner and founder
+   across {display(evolutionSettings.fresh_seeds.length)} additional matched life
+   conditions that were excluded from selection.
+
+The full pilot evaluates **up to {display(evolutionSettings.population * evolutionSettings.generations * evolutionSettings.search_seeds.length)}
+search lives plus {display(2 * evolutionSettings.fresh_seeds.length)} additional
+evaluation lives**. The final comparison tests whether any improvement extends
+beyond the conditions used during evolution.
+
+## Prenatal Phase
+
+Before encountering food, the inherited circuit develops through internally generated
+activity. In the displayed run, this lasts {display(genome.prenatal_windows)} windows
+of {display(lifetime.configuration.presentation_ms)} ms each. Sensory input is zero,
+and there are no food outcomes or energy costs.
+
+### Internal activity
+
+Three internal channels generate positive pulses:
+
+$$
+h_k(t)=A_k\max\!\left[0,\sin\!\left(\frac{2\pi t}{T}+\phi_k\right)\right].
+$$
+
+Here $h_k(t)$ is the dimensionless drive on channel $k\in\{1,2,3\}$, $t$ is
+time within a window, and $T$ is the window duration,
+{display(lifetime.configuration.presentation_ms)} ms. Each window independently
+samples amplitude $A_k$ uniformly from 0.3–1 and phase $\phi_k$ uniformly from
+zero–$2\pi$. Fixed connections deliver these pulses to both neuronal populations.
+
+### Homeostatic learning
+
+The circuit adjusts its E→I and I→E weights to bring each neuron's average
+activity toward an inherited target:
+
+$$
+\bar r_i=\frac{1}{M}\sum_{m=1}^{M}r_i(t_m),
+\qquad
+\mathcal L_{\mathrm{pre}}=\frac12\left[
+\frac{1}{N_E}\sum_{i\in\mathcal E}(\bar r_i-\rho)^2+
+\frac{1}{N_I}\sum_{i\in\mathcal I}(\bar r_i-\rho)^2\right].
+$$
+
+Here $r_i(t_m)$ is neuron $i$'s normalized activity at timestep $m$; $M$ counts
+timesteps in the window. The sets $\mathcal E$ and $\mathcal I$ contain
+$N_E$ excitatory and $N_I$ inhibitory neurons, respectively
+{display(lifetime.configuration.e_cells)} and {display(lifetime.configuration.i_cells)}
+in this run. The target is $\rho$, set to {display(genome.homeostatic_target_rate)}.
+Both populations contribute equally. The prenatal activity meter shows
+instantaneous population means in blue (E) and purple (I), with a line at the
+target; the loss instead uses each neuron's average over the whole window.
+
+After each window, automatic differentiation supplies gradients for one AdamW
+update, using learning rate {display(genome.prenatal_learning_rate)}, no weight
+decay and gradient-norm clipping at {display(lifetime.configuration.gradient_clip)}.
+Updated weights are clipped to the range zero–{display(lifetime.configuration.weight_upper)};
+all other parameters remain fixed.
+
+Neuronal activity restarts from the same state each window, while learned weights
+carry forward into subsequent windows and juvenile life. At birth, internal
+pulses stop and a fresh optimizer begins food learning. This homeostatic objective
+is an engineering modelling choice, not a claimed biological learning mechanism.
+
+## Juvenile Phase
+
+### Food and sensory input
 
 Each object has a cue $x\in[0,1]$ and a hidden energy change
 $\Delta E=2x-1\in[-1,1]$. The controller receives the cue through three channels:
@@ -126,7 +255,7 @@ cells, producing the sensory term in $I_i^E$. The cue stays constant throughout
 each presentation. Only consumption reveals $\Delta E$ to the learner;
 rejected objects provide no outcome feedback.
 
-## Readout
+### Readout
 
 The predicted energy change is a fixed difference between two E-cell groups:
 
@@ -147,21 +276,7 @@ $\varepsilon$ is {display(lifetime.configuration.decision_threshold)}.
 Otherwise, it consumes with exploration probability
 {percent(lifetime.configuration.exploration_probability)} and rejects the rest.
 
-## Learning rule
-
-Prenatal learning minimizes a homeostatic objective:
-
-$$
-\mathcal L_{\mathrm{pre}}=\frac12\left[
-\frac{1}{N_E}\sum_{i\in\mathcal E}(\langle r_i\rangle-\rho)^2+
-\frac{1}{N_I}\sum_{i\in\mathcal I}(\langle r_i\rangle-\rho)^2\right].
-$$
-
-Here $N_E$ and $N_I$ are the numbers of E and I cells, $\langle r_i\rangle$
-is cell $i$'s mean activity over the entire prenatal window, and $\rho$ is the
-inherited activity target. The two populations contribute equally. The prenatal
-activity meter shows instantaneous population means in blue (E) and purple (I),
-with a line at the target. This objective is an engineering homeostasis rule.
+### Learning rule
 
 After consumption, the revealed energy change supplies a squared-error loss:
 
@@ -172,8 +287,7 @@ $$
 Here $\mathcal L$ measures the prediction error. Automatic differentiation through
 the neural presentation supplies gradients for the E→I and I→E weight matrices,
 $W_{EI}$ and $W_{IE}$. Only these weights learn, in all phases. AdamW takes one step
-per prenatal window or consumed object, with no weight decay. Its learning rate is
-{display(genome.prenatal_learning_rate)} prenatally,
+per consumed object, with no weight decay. Its learning rate is
 {display(genome.juvenile_learning_rate)} during juvenile learning and
 {display(genome.adult_learning_rate)} in adulthood;
 the gradient norm is clipped at {display(lifetime.configuration.gradient_clip)}.

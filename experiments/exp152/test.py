@@ -567,6 +567,159 @@ def test_one_ms_protocol_has_no_neuron_clock_scaling():
         assert "time_scale" not in population["neuron"]["config"]
 
 
+def test_adaptation_measurement_uses_relative_errors_and_rejects_missing_cycles():
+    from experiments.exp152.analyse import adaptation_measure
+    from experiments.exp152.recipe import adaptation_configuration
+
+    cfg = adaptation_configuration(target_frequency_hz=1.0, target_excursion_deg=60)
+    time = np.arange(1, 30001) / 1000
+    centre = cfg["joint"]["reference_angle"]
+    amplitude = np.deg2rad(30)
+    trace = np.zeros((len(time), 8))
+    trace[:, 0] = centre + amplitude * np.sin(2 * np.pi * time)
+    trace[:, 1] = amplitude * 2 * np.pi * np.cos(2 * np.pi * time)
+    measured = adaptation_measure(trace, cfg)
+    assert measured["valid"]
+    assert measured["eligible"]
+    assert measured["frequency_hz"] == pytest.approx(1.0, abs=1e-12)
+    assert measured["excursion_rad"] == pytest.approx(2 * amplitude, abs=1e-12)
+    assert measured["loss"] < 1e-20
+    assert not adaptation_measure(trace, cfg, limit_hits=1)["valid"]
+    trace[:, 0] = centre + amplitude * (1 + 0.015 * time) * np.sin(2 * np.pi * time)
+    trace[:, 1] = np.gradient(trace[:, 0], 0.001)
+    drifting = adaptation_measure(trace, cfg)
+    assert drifting["valid"]
+    assert not drifting["eligible"]
+    legacy = {**cfg, "adaptation": dict(cfg["adaptation"])}
+    legacy["adaptation"].pop("require_repeatable_cycles")
+    assert adaptation_measure(trace, legacy)["eligible"]
+    trace[:, 0] = centre
+    trace[:, 1] = 0
+    assert not adaptation_measure(trace, cfg)["valid"]
+
+
+def test_adaptation_does_not_accept_lower_error_from_unsettled_probe():
+    from experiments.exp152.compute import _adaptation_round
+    from experiments.exp152.recipe import adaptation_configuration
+
+    cfg = adaptation_configuration()
+    parameters = dict(tonic_us=0.04, sensory_drive_us=0.035)
+    steps = dict.fromkeys(parameters, 0.1)
+    candidates = [
+        parameters,
+        {**parameters, "tonic_us": 0.036},
+        {**parameters, "tonic_us": 0.044},
+    ]
+    rows = [
+        dict(
+            parameters=p,
+            online_measurement=dict(valid=True, eligible=eligible, loss=loss),
+        )
+        for p, eligible, loss in zip(
+            candidates, [True, False, True], [0.2, 0.0, 0.1], strict=True
+        )
+    ]
+    with patch("experiments.exp152.compute._adaptation_segment", side_effect=rows):
+        updated, _, decision = _adaptation_round(None, parameters, steps, 0, None, cfg)
+    assert updated == candidates[2]
+    assert decision["accepted"]
+    with patch(
+        "experiments.exp152.compute._adaptation_segment", return_value=rows[1]
+    ) as segment:
+        updated, _, decision = _adaptation_round(None, parameters, steps, 1, None, cfg)
+    assert updated == parameters
+    assert not decision["accepted"]
+    assert segment.call_count == 1
+    assert steps == dict.fromkeys(parameters, 0.1)
+
+
+def test_adaptation_waits_for_repeatability_without_resetting_state(tmp_path):
+    from experiments.exp152.compute import _adaptation_segment
+    from experiments.exp152.recipe import adaptation_configuration
+
+    cfg = adaptation_configuration(target_frequency_hz=1.0)
+    time = np.arange(1, 60001) / 1000
+    trace = np.zeros((len(time), 8))
+    trace[:, 0] = cfg["joint"]["reference_angle"] + 0.3 * (
+        1 + 0.03 * np.minimum(time, 28)
+    ) * np.sin(2 * np.pi * time)
+    trace[:, 1] = np.gradient(trace[:, 0], 0.001)
+
+    class Simulation:
+        segment_index = 0
+        tick = 0
+        joint = SimpleNamespace(limit_hits=0)
+
+        def configure(self, _parameters, directory):
+            directory.mkdir()
+
+        def advance(self, seconds):
+            start = self.tick
+            self.tick += round(seconds * 1000)
+            return trace[start : self.tick]
+
+    simulation = Simulation()
+    row = _adaptation_segment(
+        simulation, {}, "probe", SimpleNamespace(export=tmp_path), cfg
+    )
+    assert row["duration_s"] > cfg["adaptation"]["segment_duration_s"]
+    assert row["online_measurement"]["eligible"]
+    assert not row["measurement_checks"][0]["measurement"]["eligible"]
+    assert simulation.tick == round(row["duration_s"] * 1000)
+    with np.load(tmp_path / row["trace_file"]) as saved:
+        np.testing.assert_array_equal(saved["trace"], trace[: simulation.tick])
+    trace[:, 0] = cfg["joint"]["reference_angle"] + 0.3 * (1 + 0.03 * time) * np.sin(
+        2 * np.pi * time
+    )
+    trace[:, 1] = np.gradient(trace[:, 0], 0.001)
+    unsettled = Simulation()
+    unsettled.segment_index = 1
+    row = _adaptation_segment(
+        unsettled, {}, "probe", SimpleNamespace(export=tmp_path), cfg
+    )
+    assert row["duration_s"] == cfg["adaptation"]["maximum_segment_duration_s"]
+    assert row["measurement_status"] == "timeout"
+    assert not row["online_measurement"]["eligible"]
+
+
+def test_native_adaptation_session_replacement_preserves_complete_trajectory(tmp_path):
+    from experiments.exp152.compute import AdaptiveJointSimulation
+
+    cfg = configuration(controller_warmup_ms=2.0)
+    parameters = dict(
+        tonic_us=cfg["tonic_us"], sensory_drive_us=cfg["weights"]["sensory_drive"]
+    )
+    uninterrupted, continued = (
+        AdaptiveJointSimulation(cfg),
+        AdaptiveJointSimulation(cfg),
+    )
+    try:
+        uninterrupted.configure(parameters, tmp_path / "uninterrupted")
+        continued.configure(parameters, tmp_path / "continued")
+        expected = uninterrupted.advance(0.15)
+        first = continued.advance(0.075)
+        continued.configure(parameters, tmp_path / "replacement")
+        second = continued.advance(0.075)
+        np.testing.assert_array_equal(np.concatenate([first, second]), expected)
+        assert continued.tick == 150
+        assert all(c.steps == 150 for c in continued.controllers)
+        updated = {
+            **parameters,
+            "sensory_drive_us": parameters["sensory_drive_us"] * 0.9,
+        }
+        continued.configure(updated, tmp_path / "changed-weight")
+        assert continued.tick == 150
+        assert all(c.steps == 150 for c in continued.controllers)
+        assert all(
+            c.cfg["weights"]["sensory_drive"] == updated["sensory_drive_us"]
+            for c in continued.controllers
+        )
+        assert np.isfinite(continued.advance(0.025)).all()
+    finally:
+        uninterrupted.close()
+        continued.close()
+
+
 @pytest.mark.parametrize("side", ["flexor", "extensor"])
 def test_starting_pulse_replaces_tonic_then_restores_it(side):
     options = dict(flexor_bias_ms=20, flexor_initial_us=0.5, extensor_initial_us=0)

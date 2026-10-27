@@ -17,9 +17,9 @@ const selected = await optionalPresentation(experiment);
         <div><span>Deaths</span><strong data-id="deaths">—</strong></div>
       </div>
       <div class="phases" aria-label="Developmental stages">
-        <span data-stage="prenatal">Prenatal <small>internal activity</small></span>
-        <span data-stage="juvenile">Juvenile <small>food learning</small></span>
-        <span data-stage="adult">Adult <small>slower learning</small></span>
+        <span data-stage="prenatal" role="progressbar" aria-label="Prenatal phase progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">Prenatal <small>internal activity</small></span>
+        <span data-stage="juvenile" role="progressbar" aria-label="Juvenile phase progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">Juvenile <small>food learning</small></span>
+        <span data-stage="adult" role="progressbar" aria-label="Recorded adult phase progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" title="Progress through the recorded adult portion of this life">Adult <small>slower learning</small></span>
       </div>
       <div class="scene-frame"><div data-id="scene" class="scene" role="img" aria-label="Recorded activity of sixteen E cells and four I cells. Prenatal internal drive precedes birth and food encounters. An activity target replaces the food readout before birth; afterwards readout nodes project to predicted energy, with an energy reserve on the right."></div></div>
       <div class="energy-legend" aria-label="Energy bar colours">
@@ -32,7 +32,7 @@ const selected = await optionalPresentation(experiment);
         <button data-id="play" class="primary" disabled>Pause</button>
         <button data-id="restart" disabled>Restart</button>
         <label class="scrub-label"><span class="sr-only">Lifecycle playback position</span><input data-id="scrub" type="range" min="0" max="300" step="0.01" value="0" disabled /></label>
-        <label>Speed <select data-id="speed" disabled><option value="0.25">0.25×</option><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option><option value="5">5×</option></select></label>
+        <label>Speed <select data-id="speed" disabled><option value="1">1×</option><option value="2">2×</option><option value="3" selected>3×</option><option value="4">4×</option><option value="5">5×</option></select></label>
       </div>
     </section>
   </ei-lifecycle> : <p>Replay data unavailable.</p>}
@@ -80,10 +80,13 @@ const selected = await optionalPresentation(experiment);
   .stats span { font-size: 10px; color: var(--muted); }
   .stats strong { font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
   .phases { display: flex; gap: 4px; padding: 6px 16px 2px; }
-  .phases > span { flex: 1; padding: 4px 8px; border-bottom: 2px solid var(--line); font-size: 11px; color: var(--muted); }
+  .phases > span { position: relative; flex: 1; padding: 4px 8px 6px; font-size: 11px; color: var(--muted); }
+  .phases > span::before, .phases > span::after { content: ''; position: absolute; bottom: 0; left: 0; height: 2px; }
+  .phases > span::before { width: 100%; background: var(--line); }
+  .phases > span::after { width: var(--phase-progress, 0%); background: var(--blue); }
   .phases small { margin-left: 5px; font-size: 10px; font-weight: 400; }
-  .phases [data-state="active"] { color: var(--blue); border-color: var(--blue); background: #edf5f8; font-weight: 600; }
-  .phases [data-state="done"] { border-color: #9eafb9; }
+  .phases [data-state="active"] { color: var(--blue); background: #edf5f8; font-weight: 600; }
+  .phases [data-state="done"]::after { background: #9eafb9; }
   .scene-frame { padding: 4px 24px; }
   .scene { position: relative; width: 100%; aspect-ratio: 760 / 320; }
   .scene canvas { display: block; width: 100%; height: 100%; }

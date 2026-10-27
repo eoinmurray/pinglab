@@ -13,7 +13,15 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "tools")]
 import numpy as np
-from experiments.exp154.recipe import SLUG
+from experiments.exp154.recipe import (
+    SLUG,
+    author_network,
+    individual_configuration,
+    make_model,
+    next_population,
+    rank_candidates,
+    reproductive_population,
+)
 from pingstore.library import source_run, stage_run, write_json_atomic
 from snnlab.sim import NetworkSnapshot
 
@@ -274,6 +282,61 @@ def development_summary(source, directory, initial, cfg, food_events):
     ), developed
 
 
+def reproduction_checks(events, cfg):
+    """Independently reconstruct eligibility, litter size and its energy charge."""
+    policy = cfg.get("evolution", {}).get("reproduction")
+    if policy is None:
+        return None
+    passed, reproduced, offspring, cost = True, False, 0, 0.0
+    reproduction_age = None
+    for event in events:
+        if event["birth"]:
+            reproduced = False
+        food_energy = (
+            event["energy_before"]
+            - cfg["metabolic_cost"]
+            + event["accepted"] * event["delta"]
+        )
+        count = 0
+        if (
+            not reproduced
+            and event["age"] > cfg["genome"]["juvenile_encounters"]
+            and event["age"] >= policy["minimum_age_encounters"]
+            and food_energy > 0
+        ):
+            affordable = np.floor(
+                (food_energy - policy["reserve_energy"]) / policy["cost_per_offspring"]
+            )
+            count = int(np.clip(affordable, 0, policy["maximum_offspring"]))
+        charge = count * policy["cost_per_offspring"]
+        passed &= (
+            type(event.get("offspring")) is int
+            and event["offspring"] == count
+            and event.get("reproduced") == bool(count)
+            and event.get("reproduction_cost") == charge
+            and np.isclose(
+                event.get("energy_before_reproduction", np.nan),
+                food_energy,
+                rtol=0,
+                atol=1e-12,
+            )
+            and np.isclose(
+                event["energy_after"], food_energy - charge, rtol=0, atol=1e-12
+            )
+        )
+        if count:
+            reproduction_age = event["age"]
+        reproduced |= count > 0
+        offspring += count
+        cost += charge
+    return dict(
+        passed=bool(passed),
+        offspring=offspring,
+        reproduction_age=reproduction_age,
+        reproduction_energy_cost=cost,
+    )
+
+
 def lifetime_summary(source, row, cfg):
     directory = Path(row["directory"])
     events = json.loads(source.file(directory / "events.json").read_text())
@@ -291,7 +354,12 @@ def lifetime_summary(source, row, cfg):
     )
     pre, post = data["weights_pre"], data["weights_post"]
     if (
-        len(events) != cfg["lifetime_presentations"]
+        not events
+        or (
+            len(events) > cfg["lifetime_presentations"]
+            if cfg.get("stop_at_death")
+            else len(events) != cfg["lifetime_presentations"]
+        )
         or pre.shape != post.shape
         or pre.shape != (len(events), 2, cfg["e_cells"] * cfg["i_cells"])
     ):
@@ -305,6 +373,20 @@ def lifetime_summary(source, row, cfg):
         rejection_freeze=True,
         phases=True,
     )
+    reproductive = reproduction_checks(events, cfg)
+    if reproductive is not None:
+        checks["reproduction"] = (
+            reproductive["passed"]
+            and row.get("offspring") == reproductive["offspring"]
+            and row.get("reproduction_age") == reproductive["reproduction_age"]
+        )
+    if cfg.get("stop_at_death"):
+        checks["single_life"] = bool(
+            not any(event["death"] for event in events[:-1])
+            and (events[-1]["death"] or len(events) == cfg["lifetime_presentations"])
+            and row["survival"] == len(events)
+            and row["remaining_energy"] == max(0.0, events[-1]["energy_after"])
+        )
     # Neutrality is an inherited initial condition. Prenatal plasticity can
     # break the paired readout symmetry before any food has been experienced.
     if (
@@ -319,6 +401,8 @@ def lifetime_summary(source, row, cfg):
         age = 1 if birth else age + 1
         before = cfg["initial_energy"] if birth else events[index - 1]["energy_after"]
         expected = before - cfg["metabolic_cost"] + event["accepted"] * event["delta"]
+        if reproductive is not None:
+            expected -= event.get("reproduction_cost", 0)
         checks["energy"] &= bool(
             np.isclose(event["energy_before"], before, rtol=0, atol=1e-12)
             and np.isclose(event["energy_after"], expected, rtol=0, atol=1e-12)
@@ -379,7 +463,14 @@ def lifetime_summary(source, row, cfg):
     neural = activity_checks(data, initial, cfg, events)
     ages = [e["age"] for e in events if e["death"]]
     return dict(
-        **row,
+        **(
+            row
+            | (
+                {key: value for key, value in reproductive.items() if key != "passed"}
+                if reproductive is not None
+                else {}
+            )
+        ),
         checks=checks,
         frozen_unchanged=fixed,
         weights_bounded=bounded,
@@ -419,10 +510,246 @@ def lifetime_summary(source, row, cfg):
     )
 
 
+def evolution_life_summary(source, row, cfg, individual):
+    """Authenticate matched random inputs and fresh native initialization."""
+    resolved = individual_configuration(cfg, individual["genome"], row["seed"])
+    directory = Path(row["directory"])
+    rng = np.random.default_rng(row["seed"] + cfg["training_seed_offset"])
+    cues = rng.uniform(size=cfg["lifetime_presentations"])
+    draws = rng.uniform(size=len(cues))
+    with np.load(source.file(directory / "data.npz")) as data:
+        count = len(data["cues"])
+        matched = np.array_equal(data["cues"], cues[:count]) and np.array_equal(
+            data["exploration"], draws[:count]
+        )
+    saved = NetworkSnapshot.read(
+        source.file(directory.parent / "snapshot-initial/start/snapshot.json")
+    ).load_parameters()
+    expected = make_model(author_network(resolved, row["seed"]), resolved, row["seed"])
+    inherited = all(
+        np.array_equal(saved[name], value.detach().cpu().numpy())
+        for name, value in expected.parameter_map().items()
+    )
+    summary = lifetime_summary(source, row, resolved)
+    summary.update(matched_inputs=matched, fresh_inherited_parameters=inherited)
+    summary["integrity_pass"] &= bool(matched and inherited and row["sign"] == 1)
+    return summary
+
+
+def evolution_scores(conditions, members):
+    """Recompute fitness from validated terminal events, never diagnostic MSE."""
+    scores = []
+    for candidate in members:
+        lives = [row for row in conditions if row["candidate"] == candidate]
+        scores.append(
+            dict(
+                candidate=candidate,
+                mean_survival=float(
+                    np.mean([row["longest_observed_lifetime"] for row in lives])
+                ),
+                mean_energy=float(
+                    np.mean([max(0.0, row["final_energy"]) for row in lives])
+                ),
+            )
+        )
+        if lives and "offspring" in lives[0]:
+            scores[-1]["mean_offspring"] = float(
+                np.mean([row["offspring"] for row in lives])
+            )
+    return rank_candidates(scores)
+
+
+def evolution_inputs(source, rows, cfg):
+    """Validate generation coverage and unique recorded evaluation identities."""
+    recorded = json.loads(source.file("evolution.json").read_text())
+    settings = cfg["evolution"]
+    reproduction = "reproduction" in settings
+    if (
+        recorded["schema"]
+        != ("exp154.evolution/v2" if reproduction else "exp154.evolution/v1")
+        or not 1 <= len(recorded["generations"]) <= settings["generations"]
+        or (
+            not reproduction and len(recorded["generations"]) != settings["generations"]
+        )
+    ):
+        raise ValueError("invalid evolution generation coverage")
+    individuals = {row["candidate"]: row for row in recorded["individuals"]}
+    if len(individuals) != len(recorded["individuals"]):
+        raise ValueError("duplicate evolution candidate")
+    if cfg["evaluated_genomes"] != {
+        key: row["genome"] for key, row in individuals.items()
+    }:
+        raise ValueError("evolution genomes differ from recorded configuration")
+    indexed = {
+        (
+            row["cohort"],
+            row["generation"],
+            row["role"],
+            row["candidate"],
+            row["seed"],
+        ): row
+        for row in rows
+    }
+    if len(indexed) != len(rows):
+        raise ValueError("duplicate evolution evaluation")
+    return recorded, individuals, indexed
+
+
+def evolution_summary(source, rows, cfg):
+    """Replay genealogy and selection with an independent fitness reconstruction."""
+    recorded, individuals, indexed = evolution_inputs(source, rows, cfg)
+    settings = cfg["evolution"]
+    reproduction = "reproduction" in settings
+    founder = dict(
+        candidate="g001-c000", parent=None, created_generation=1, genome=cfg["genome"]
+    )
+    rng = np.random.default_rng(settings["seed"])
+    parents, observed, generations, conditions = [founder], {}, [], []
+    population = next_population(parents, settings, rng, 1)
+    offspring, termination = [], "generation_limit"
+    for number, generation in enumerate(recorded["generations"], 1):
+        if number > 1 and not reproduction:
+            population = next_population(parents, settings, rng, number)
+        members = [row["candidate"] for row in population]
+        if generation["generation"] != number or generation["members"] != members:
+            raise ValueError("invalid evolution population/elite retention")
+        if any(individuals.get(row["candidate"]) != row for row in population):
+            raise ValueError("invalid inherited genome mutation or parentage")
+        observed.update({row["candidate"]: row for row in population})
+        evaluated = evolution_evaluations(
+            source,
+            indexed,
+            cfg,
+            population,
+            cohort="search",
+            generation=number,
+            roles=["candidate"],
+            seeds=settings["search_seeds"],
+        )
+        ranked = evolution_scores(evaluated, members)
+        if ranked != generation["ranked"]:
+            raise ValueError("recorded evolution ranking differs from fitness")
+        conditions.extend(evaluated)
+        generations.append(dict(generation=number, members=members, ranked=ranked))
+        parents = [
+            individuals[row["candidate"]] for row in ranked[: settings["elites"]]
+        ]
+        if reproduction:
+            population, newborns = reproductive_population(
+                population,
+                ranked,
+                evaluated,
+                settings,
+                rng,
+                number,
+                admit=number < settings["generations"],
+            )
+            offspring.extend(newborns)
+            if number < settings["generations"] and not any(
+                child["admitted"] for child in newborns
+            ):
+                termination = "no_offspring"
+                if number != len(recorded["generations"]):
+                    raise ValueError("evolution continued without offspring")
+    if reproduction and (
+        recorded.get("offspring") != offspring
+        or recorded.get("termination") != termination
+        or (
+            termination == "generation_limit"
+            and len(generations) != settings["generations"]
+        )
+    ):
+        raise ValueError("invalid reproductive offspring or termination")
+    winner = generations[-1]["ranked"][0]["candidate"]
+    if (
+        observed != individuals
+        or recorded["winner"] != winner
+        or recorded["founder"] != founder["candidate"]
+    ):
+        raise ValueError("invalid evolution winner or candidate coverage")
+    fresh = []
+    for role, individual in (("winner", individuals[winner]), ("founder", founder)):
+        fresh.extend(
+            evolution_evaluations(
+                source,
+                indexed,
+                cfg,
+                [individual],
+                cohort="fresh",
+                generation=generations[-1]["generation"],
+                roles=[role],
+                seeds=settings["fresh_seeds"],
+            )
+        )
+    if indexed:
+        raise ValueError("unexpected evolution evaluations")
+    conditions.extend(fresh)
+    return dict(
+        **recorded,
+        conditions=conditions,
+        fresh=[
+            dict(
+                role=role,
+                **evolution_scores(
+                    [row for row in fresh if row["role"] == role], [candidate]
+                )[0],
+            )
+            for role, candidate in (
+                ("winner", winner),
+                ("founder", founder["candidate"]),
+            )
+        ],
+        integrity_pass=all(row["integrity_pass"] for row in conditions),
+    )
+
+
+def evolution_evaluations(
+    source, indexed, cfg, population, *, cohort, generation, roles, seeds
+):
+    summaries = []
+    for individual in population:
+        for role in roles:
+            for seed in seeds:
+                key = (cohort, generation, role, individual["candidate"], seed)
+                if key not in indexed:
+                    raise ValueError("missing evolution evaluation")
+                summaries.append(
+                    evolution_life_summary(source, indexed.pop(key), cfg, individual)
+                )
+    return summaries
+
+
 def analyse(*, source, run_id=None):
     computed = source_run(REPO / ".pingstore", source, stage="compute", experiment=SLUG)
     cfg = computed.record["execution"]["configuration"]
     rows = json.loads(computed.file("conditions.json").read_text())
+    if cfg["protocol"] == "evolution":
+        result = evolution_summary(computed, rows, cfg)
+        result.update(
+            configuration=cfg,
+            scope=(
+                "Evolution pilot on the positive mapping. Age- and energy-gated reproduction, actual offspring admission, reproductive-output selection and fresh-seed evaluation; no frozen/oracle controls or neural activity cost."
+                if "reproduction" in cfg["evolution"]
+                else "Evolution pilot on the positive mapping. Independent lives, survival selection and fresh-seed evaluation; no frozen/oracle controls or neural activity cost."
+            ),
+        )
+    else:
+        result = standard_summary(computed, rows, cfg)
+    with stage_run(
+        REPO,
+        SLUG,
+        "analyse",
+        inputs=dict(compute=computed),
+        configuration=cfg,
+        run_id=run_id,
+    ) as run:
+        write_json_atomic(run.export / "results.json", result)
+        computed.check_unchanged()
+    print(f"Analysis: {run.run_id}", flush=True)
+    return run.run_id
+
+
+def standard_summary(computed, rows, cfg):
     expected = {(seed, sign) for seed in cfg["seeds"] for sign in cfg["mapping_signs"]}
     if (
         len(rows) != len(expected)
@@ -456,18 +783,7 @@ def analyse(*, source, run_id=None):
         configuration=cfg,
         scope="One fixed abstract genome; prenatal homeostasis, juvenile food learning and reduced adult plasticity. No evolution or selection. Validation snapshots never control behaviour.",
     )
-    with stage_run(
-        REPO,
-        SLUG,
-        "analyse",
-        inputs=dict(compute=computed),
-        configuration=cfg,
-        run_id=run_id,
-    ) as run:
-        write_json_atomic(run.export / "results.json", result)
-        computed.check_unchanged()
-    print(f"Analysis: {run.run_id}", flush=True)
-    return run.run_id
+    return result
 
 
 if __name__ == "__main__":

@@ -3,7 +3,7 @@ id: exp152
 title: "Streaming Control of a Rotary Joint"
 author: "Eoin Murray"
 created_at: "2026-10-24T06:35:43Z"
-updated_at: "2026-10-27T11:45:46Z"
+updated_at: "2026-10-27T17:12:28Z"
 description: "Joint control with one Elevate neuron per controller, reciprocal inhibition and excitatory sensory feedback in ROS2 Humble."
 collection: ["experiments", "animations"]
 tags: ["data"]
@@ -48,13 +48,16 @@ peer; angle feedback excites each controller. Three ROS2 Humble nodes exchange
 
 {currentModel && <Replay experiment="exp152" />}
 
+{currentModel && <p>The recording covers <strong>{evidence.duration_seconds} s of model time</strong> over <strong>{evidence.observed_wall_seconds.toFixed(2)} s of wall time</strong>. All three nodes completed {count(callbacks.plant.n)} updates each; mechanical stop hits: <strong>{evidence.mechanical_stop_hits}</strong>. Timing verdict: <strong>{evidence.timing_passed ? 'pass' : 'fail'}</strong>. {evidence.cycles.complete_cycles < cfg.analysis.cycle_count && <>This short recording contains {evidence.cycles.complete_cycles} complete cycle(s) after the {cfg.analysis.cycle_burn_in_s} s burn-in, insufficient for the existing {cfg.analysis.cycle_count}-cycle repeatability check. Its failed behaviour verdict does not establish loss of oscillation.</>}</p>}
+
 ## Control Approach
 
 The current tuning came from an empirical parameter scan: we varied the neurons’
 background excitation, sensory feedback strength and muscle response per spike,
 then selected a combination that produced stable, repeatable oscillation without
-hitting the joint limits. It currently runs at about **0.57 Hz with a 63°
-peak-to-peak excursion**.
+hitting the joint limits. The retired recordings were reported at about
+**0.57 Hz with a 63° peak-to-peak excursion**; those measurements are no longer
+available for inspection here.
 
 To formalise this, we could add an online adaptive controller that measures each
 cycle’s frequency and amplitude, compares them with the desired values, and

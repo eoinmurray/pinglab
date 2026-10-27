@@ -24,6 +24,7 @@ import shutil
 
 from experiments.exp152.recipe import (
     SIDES,
+    adaptation_configuration,
     author_network,
     configuration,
     controller_settings,
@@ -407,6 +408,287 @@ def cycle_check(source=None, *, condition_index=None, run_id=None, **overrides):
     return run.run_id
 
 
+class AdaptiveJointSimulation:
+    """Retain neural, mechanical and one-window transport state between probes."""
+
+    def __init__(self, cfg):
+        import numpy as np
+        from experiments.exp152.custom.models import Joint
+
+        self.cfg = cfg
+        self.controllers = []
+        self.joint = Joint(cfg["joint"])
+        self.motor, self.sensory = np.zeros(2), np.zeros(2, dtype=int)
+        self.tick = 0
+        self.segment_index = 0
+
+    def configure(self, parameters, directory):
+        from experiments.exp152.custom.models import Controller
+        from experiments.exp152.custom.snapshot import capture_start
+
+        states = [c.stream.export_state() for c in self.controllers]
+        replacement = []
+        try:
+            for index, side in enumerate(SIDES):
+                controller = Controller(
+                    side,
+                    compile_mode=self.cfg["compile_mode"],
+                    configuration_overrides={
+                        **controller_settings(self.cfg),
+                        **parameters,
+                    },
+                )
+                replacement.append(controller)
+                if states:
+                    controller.stream.reset(states[index])
+                    controller.steps = states[index].completed_steps
+                capture_start(
+                    controller.stream,
+                    author_network(controller.cfg),
+                    directory / side,
+                    controller.cfg,
+                    diagram=directory.name == "segment-000",
+                )
+        except BaseException:
+            for controller in replacement:
+                controller.stream.close()
+            raise
+        self.close()
+        self.controllers = replacement
+
+    def advance(self, seconds):
+        import numpy as np
+
+        trace = np.zeros((round(seconds * 1000), 8))
+        for row in trace:
+            output = [
+                controller.window(
+                    1, sensory=int(self.sensory[i]), peer=int(self.motor[1 - i])
+                )
+                for i, controller in enumerate(self.controllers)
+            ]
+            self.sensory = self.joint.encode(self.tick / 1000)
+            self.joint.advance(self.motor, 0.001)
+            self.motor = np.array([value[1][0, 0] for value in output])
+            row[:] = [
+                self.joint.angle,
+                self.joint.velocity,
+                *self.joint.activation,
+                *self.motor,
+                *self.sensory,
+            ]
+            self.tick += 1
+        return trace
+
+    def close(self):
+        for controller in self.controllers:
+            controller.stream.close()
+        self.controllers = []
+
+
+def _adaptation_segment(simulation, parameters, kind, run, cfg, *, validation=False):
+    import numpy as np
+    from experiments.exp152.analyse import adaptation_measure
+
+    directory = run.export / f"segment-{simulation.segment_index:03d}"
+    simulation.segment_index += 1
+    simulation.configure(parameters, directory)
+    start_tick, start_hits = simulation.tick, simulation.joint.limit_hits
+    duration = cfg["adaptation"][
+        "validation_duration_s" if validation else "segment_duration_s"
+    ]
+    trace = simulation.advance(duration)
+    hits = simulation.joint.limit_hits - start_hits
+    measurement = adaptation_measure(trace, cfg, validation=validation, limit_hits=hits)
+    measurements = [dict(duration_s=duration, measurement=measurement)]
+    maximum_duration = cfg["adaptation"].get("maximum_segment_duration_s", duration)
+    while (
+        not validation
+        and not hits
+        and not measurement["eligible"]
+        and duration < maximum_duration
+    ):
+        extension = min(
+            cfg["adaptation"]["measurement_extension_s"], maximum_duration - duration
+        )
+        trace = np.concatenate([trace, simulation.advance(extension)])
+        duration += extension
+        hits = simulation.joint.limit_hits - start_hits
+        measurement = adaptation_measure(trace, cfg, limit_hits=hits)
+        measurements.append(dict(duration_s=duration, measurement=measurement))
+    np.savez_compressed(directory / "trace.npz", trace=trace)
+    row = dict(
+        kind=kind,
+        parameters=dict(parameters),
+        validation=validation,
+        start_time_s=start_tick / 1000,
+        duration_s=duration,
+        limit_hits=hits,
+        trace_file=str((directory / "trace.npz").relative_to(run.export)),
+        online_measurement=measurement,
+        measurement_checks=measurements,
+        measurement_status=(
+            "settled"
+            if measurement["eligible"]
+            else "timeout"
+            if not hits
+            else "limit_hit"
+        ),
+    )
+    print(
+        json.dumps(
+            dict(
+                segment=simulation.segment_index - 1,
+                kind=kind,
+                parameters=parameters,
+                frequency_hz=measurement["frequency_hz"],
+                excursion_deg=(
+                    float(np.rad2deg(measurement["excursion_rad"]))
+                    if measurement["valid"]
+                    else None
+                ),
+                loss=measurement["loss"],
+                eligible=measurement["eligible"],
+                duration_s=duration,
+                limit_hits=hits,
+            )
+        ),
+        flush=True,
+    )
+    return row
+
+
+def _adaptation_round(simulation, parameters, steps, iteration, run, cfg):
+    """Compare a baseline with both bounded probes; accept only lower valid loss."""
+    name = cfg["adaptation"]["parameters"][iteration % len(parameters)]
+    lower, upper = cfg["adaptation"]["bounds_us"][name]
+    rows = [_adaptation_segment(simulation, parameters, "baseline", run, cfg)]
+    rows[0]["iteration"] = iteration
+    if not rows[0]["online_measurement"]["eligible"]:
+        decision = dict(
+            iteration=iteration,
+            parameter=name,
+            before=dict(parameters),
+            after=dict(parameters),
+            accepted=False,
+            relative_step=steps[name],
+            reason="baseline_not_settled",
+        )
+        print(json.dumps(decision), flush=True)
+        return dict(parameters), rows, decision
+    # Reverse probe order on successive visits to the same coordinate.
+    directions = (-1, 1) if (iteration // len(parameters)) % 2 == 0 else (1, -1)
+    for direction in directions:
+        candidate = dict(parameters)
+        candidate[name] = min(
+            upper, max(lower, parameters[name] * (1 + direction * steps[name]))
+        )
+        row = _adaptation_segment(simulation, candidate, "probe", run, cfg)
+        row["iteration"] = iteration
+        rows.append(row)
+    valid = [row for row in rows if row["online_measurement"]["eligible"]]
+    best = (
+        min(valid, key=lambda row: row["online_measurement"]["loss"])
+        if valid
+        else rows[0]
+    )
+    baseline_loss = rows[0]["online_measurement"]["loss"]
+    improvement = (
+        best is not rows[0]
+        and best["online_measurement"]["eligible"]
+        and (
+            baseline_loss is None
+            or baseline_loss - best["online_measurement"]["loss"]
+            > cfg["adaptation"]["minimum_loss_improvement"]
+        )
+    )
+    updated = dict(best["parameters"] if improvement else parameters)
+    decision = dict(
+        iteration=iteration,
+        parameter=name,
+        before=dict(parameters),
+        after=updated,
+        accepted=bool(improvement),
+        relative_step=steps[name],
+        reason="lower_settled_loss" if improvement else "no_settled_improvement",
+    )
+    if not improvement:
+        steps[name] = max(
+            cfg["adaptation"]["minimum_relative_step"],
+            steps[name] * cfg["adaptation"]["step_decay"],
+        )
+    print(json.dumps(decision), flush=True)
+    return updated, rows, decision
+
+
+def adaptation_check(*, run_id=None, **overrides):
+    """Test bounded online coordinate adaptation and an independent fresh restart."""
+    cfg = adaptation_configuration(**overrides)
+    parameters = dict(
+        tonic_us=cfg["tonic_us"], sensory_drive_us=cfg["weights"]["sensory_drive"]
+    )
+    steps = dict.fromkeys(parameters, cfg["adaptation"]["initial_relative_step"])
+    segments, decisions = [], []
+    with stage_run(REPO, "exp152", "compute", run_id=run_id, configuration=cfg) as run:
+        simulation = AdaptiveJointSimulation(cfg)
+        try:
+            segments.append(
+                _adaptation_segment(
+                    simulation,
+                    parameters,
+                    "initial_validation",
+                    run,
+                    cfg,
+                    validation=True,
+                )
+            )
+            for iteration in range(cfg["adaptation"]["iterations"]):
+                parameters, rows, decision = _adaptation_round(
+                    simulation, parameters, steps, iteration, run, cfg
+                )
+                segments.extend(rows)
+                decisions.append(decision)
+            segments.append(
+                _adaptation_segment(
+                    simulation,
+                    parameters,
+                    "frozen_validation",
+                    run,
+                    cfg,
+                    validation=True,
+                )
+            )
+            next_index = simulation.segment_index
+            simulation.close()
+            simulation = AdaptiveJointSimulation(cfg)
+            simulation.segment_index = next_index
+            segments.append(
+                _adaptation_segment(
+                    simulation,
+                    parameters,
+                    "reset_validation",
+                    run,
+                    cfg,
+                    validation=True,
+                )
+            )
+        finally:
+            simulation.close()
+        write_json_atomic(
+            run.export / "adaptation.json",
+            dict(
+                segments=segments,
+                decisions=decisions,
+                final_parameters=parameters,
+            ),
+        )
+        run.record.setdefault("scientific_artifacts", {})["snapshot_stages"] = {
+            path.parent.parent.relative_to(run.export).as_posix(): ["start"]
+            for path in run.export.rglob("snapshot.json")
+        }
+    return run.run_id
+
+
 def consolidate_compute(
     source, *, cycle_validation_source=None, archive_source=None, run_id=None
 ):
@@ -566,6 +848,14 @@ if __name__ == "__main__":
     parser.add_argument("--cycle-source")
     parser.add_argument("--condition-index", type=int)
     parser.add_argument("--cycle-validation-source")
+    parser.add_argument(
+        "--adapt",
+        action="store_true",
+        help="Test native online adaptation with frozen and reset validation",
+    )
+    parser.add_argument("--target-frequency-hz", type=float)
+    parser.add_argument("--target-excursion-deg", type=float)
+    parser.add_argument("--adaptation-iterations", type=int)
     parser.add_argument("--run-id")
     arguments = vars(parser.parse_args())
     archive = arguments.pop("archive_source")
@@ -574,11 +864,45 @@ if __name__ == "__main__":
     source = arguments.pop("cycle_source")
     index = arguments.pop("condition_index")
     validation = arguments.pop("cycle_validation_source")
+    adaptive = arguments.pop("adapt")
+    adaptation_arguments = dict(
+        target_frequency_hz=arguments.pop("target_frequency_hz"),
+        target_excursion_deg=arguments.pop("target_excursion_deg"),
+        iterations=arguments.pop("adaptation_iterations"),
+    )
+    if not adaptive and any(
+        value is not None for value in adaptation_arguments.values()
+    ):
+        parser.error("Adaptation settings require --adapt")
     if archive is not None and consolidate is None:
         parser.error("--archive-source applies only to consolidation")
     if (source is None) != (index is None):
         parser.error("Use --cycle-source and --condition-index together")
-    if consolidate is not None:
+    if adaptive:
+        if (
+            native
+            or source is not None
+            or consolidate is not None
+            or validation is not None
+        ):
+            parser.error("--adapt is a separate native protocol")
+        if (
+            arguments["duration"] != defaults["duration"]
+            or arguments["max_lag_ms"] != defaults["max_lag_ms"]
+        ):
+            parser.error(
+                "--adapt uses fixed measurement durations and no ROS lag budget"
+            )
+        run_id = adaptation_check(
+            run_id=arguments["run_id"],
+            compile_mode=arguments["compile_mode"],
+            **{
+                key: value
+                for key, value in adaptation_arguments.items()
+                if value is not None
+            },
+        )
+    elif consolidate is not None:
         if native or source is not None:
             parser.error("Consolidation cannot execute a native simulation")
         run_id = consolidate_compute(

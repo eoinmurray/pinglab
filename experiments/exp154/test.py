@@ -542,7 +542,550 @@ def test_lifecycle_replay_preserves_phase_order_and_isolates_inputs(tmp_path):
         np.asarray([row["weights_after"] for row in timeline]),
     )
     prenatal = np.array([row["phase"] == "prenatal" for row in timeline])
+    np.testing.assert_array_equal(
+        history["conceptions"],
+        [row["step"] - 0.5 for row in timeline if row["conception"]],
+    )
+    np.testing.assert_array_equal(history["births"] - history["conceptions"], 2)
     assert np.isnan(history["rmse"][prenatal]).all()
     np.testing.assert_allclose(
         history["rmse"][~prenatal], np.sqrt([row["validation_mse"] for row in food])
     )
+
+
+def test_evolution_configuration_and_reproducible_bounded_mutations():
+    import copy
+
+    from experiments.exp154.recipe import (
+        mutate_genome,
+        next_population,
+        validate_evolution_genome,
+    )
+
+    pilot = configuration("pilot", "evolution")
+    settings = pilot["evolution"]
+    assert (settings["population"], settings["generations"], settings["elites"]) == (
+        16,
+        10,
+        4,
+    )
+    assert settings["search_seeds"] == [7, 8, 9]
+    assert settings["fresh_seeds"] == [10, 11, 12, 13, 14]
+    assert set(settings["search_seeds"]).isdisjoint(settings["fresh_seeds"])
+    assert pilot["lifetime_presentations"] == 300 and pilot["stop_at_death"]
+    original = copy.deepcopy(pilot["genome"])
+    a, b = np.random.default_rng(154), np.random.default_rng(154)
+    genome = original
+    for _ in range(100):
+        child = mutate_genome(genome, a, settings)
+        assert child == mutate_genome(genome, b, settings)
+        validate_evolution_genome(child, settings)
+        for pathway in ("EE", "II"):
+            assert (
+                child["recurrent_ranges"][pathway]
+                == original["recurrent_ranges"][pathway]
+            )
+        for pathway in ("EI", "IE"):
+            assert (
+                child["recurrent_normal"][pathway]["std"]
+                == original["recurrent_normal"][pathway]["std"]
+            )
+        assert child["weight_upper"] == original["weight_upper"]
+        assert child["internal_drive_na"] == original["internal_drive_na"]
+        genome = child
+    assert pilot["genome"] == original
+    assert (
+        genome["recurrent_normal"]["EI"]["mean"]
+        != original["recurrent_normal"]["EI"]["mean"]
+    )
+    assert set(original["recurrent_ranges"]) == {"EE", "II"}
+    assert pilot["schema"] == "exp154/evolution-v3"
+    assert settings["reproduction"]["minimum_age_encounters"] == 25
+    founder = dict(
+        candidate="g001-c000", parent=None, created_generation=1, genome=original
+    )
+    first = next_population([founder], settings, a, 1)
+    elites = first[:4]
+    historical = {
+        key: value for key, value in settings.items() if key != "reproduction"
+    }
+    second = next_population(elites, historical, a, 2)
+    assert second[:4] == elites
+    assert len(second) == 16
+    assert all(
+        sum(row["parent"] == elite["candidate"] for row in second[4:]) == 3
+        for elite in elites
+    )
+    with pytest.raises(ValueError, match="weight range"):
+        configuration(
+            "smoke",
+            "evolution",
+            genome={
+                "recurrent_ranges": {
+                    **original["recurrent_ranges"],
+                    "EI": [0, 0.05],
+                }
+            },
+        )
+
+
+def test_evolution_fitness_uses_survival_energy_and_identity():
+    from experiments.exp154.recipe import rank_candidates
+
+    rows = [
+        dict(candidate="c", mean_survival=20, mean_energy=1, diagnostic_mse=0),
+        dict(candidate="b", mean_survival=20, mean_energy=2, diagnostic_mse=999),
+        dict(candidate="a", mean_survival=20, mean_energy=2, diagnostic_mse=1000),
+        dict(candidate="z", mean_survival=21, mean_energy=0, diagnostic_mse=2000),
+    ]
+    assert [row["candidate"] for row in rank_candidates(rows)] == ["z", "a", "b", "c"]
+
+
+def test_reproduction_is_primary_fitness_and_diagnostics_do_not_select():
+    from experiments.exp154.compute import fitness_scores
+
+    rows = [
+        dict(candidate="long", survival=100, remaining_energy=10, offspring=0),
+        dict(candidate="fertile", survival=30, remaining_energy=0, offspring=2),
+        dict(candidate="fertile", survival=40, remaining_energy=1, offspring=1),
+    ]
+    scores = fitness_scores(rows, [dict(candidate="long"), dict(candidate="fertile")])
+    assert [row["candidate"] for row in scores] == ["fertile", "long"]
+    assert scores[0]["mean_offspring"] == 1.5
+
+
+@pytest.mark.parametrize(
+    "energy,age,phase,reproduced,expected",
+    [
+        (2.0, 24, "adult", False, 0),
+        (2.0, 25, "juvenile", False, 0),
+        (-0.1, 25, "adult", False, 0),
+        (0.99, 25, "adult", False, 0),
+        (1.0, 25, "adult", False, 1),
+        (1.5, 25, "adult", False, 2),
+        (2.0, 25, "adult", False, 3),
+        (10.0, 25, "adult", False, 3),
+        (2.0, 26, "adult", True, 0),
+    ],
+)
+def test_reproduction_age_energy_cost_and_single_litter(
+    energy, age, phase, reproduced, expected
+):
+    from experiments.exp154.compute import reproduction_after
+
+    policy = configuration("pilot", "evolution")["evolution"]["reproduction"]
+    after, event = reproduction_after(energy, age, phase, reproduced, policy)
+    assert event["offspring"] == expected
+    assert event["reproduced"] == bool(expected)
+    assert after == energy - 0.5 * expected
+    if expected:
+        assert after >= policy["reserve_energy"]
+
+
+def test_reproduction_charge_does_not_change_neural_learning_or_juvenile_timing():
+    import copy
+
+    from experiments.exp154.analyse import reproduction_checks
+    from experiments.exp154.compute import run_lifetime
+
+    cfg = configuration(
+        "smoke", "evolution", genome={"prenatal_windows": 0, "juvenile_encounters": 0}
+    )
+    cfg.update(initial_energy=4.0, metabolic_cost=0.0, exploration_probability=1.0)
+    bundle = author_network(cfg, 7)
+    events, pre, post, _, _ = run_lifetime(
+        make_model(bundle, cfg, 7), cfg, 1, np.ones(40), np.zeros(40)
+    )
+    reproduction = [event for event in events if event["reproduced"]]
+    assert len(reproduction) == 1 and reproduction[0]["age"] == 25
+    assert reproduction[0]["offspring"] == 3
+    assert reproduction_checks(events, cfg)["passed"]
+    historical = copy.deepcopy(cfg)
+    historical["evolution"].pop("reproduction")
+    old_events, old_pre, old_post, _, _ = run_lifetime(
+        make_model(bundle, historical, 7), historical, 1, np.ones(40), np.zeros(40)
+    )
+    np.testing.assert_array_equal(pre, old_pre)
+    np.testing.assert_array_equal(post, old_post)
+    assert events[-1]["energy_after"] == old_events[-1]["energy_after"] - 1.5
+    tampered = copy.deepcopy(events)
+    tampered[24]["offspring"] = 2
+    assert not reproduction_checks(tampered, cfg)["passed"]
+
+
+def test_actual_offspring_limit_admission_and_record_each_mutated_genome():
+    import copy
+
+    from experiments.exp154.recipe import next_population, reproductive_population
+
+    cfg = configuration("pilot", "evolution")
+    settings = {**cfg["evolution"], "population": 6, "elites": 2}
+    founder = dict(
+        candidate="g001-c000", parent=None, created_generation=1, genome=cfg["genome"]
+    )
+    population = next_population([founder], settings, np.random.default_rng(154), 1)
+    ranked = [dict(candidate=row["candidate"]) for row in population]
+    lives = [
+        dict(
+            candidate=row["candidate"],
+            seed=7,
+            offspring=2 if index == 0 else 0,
+            reproduction_age=25 if index == 0 else None,
+        )
+        for index, row in enumerate(population)
+    ]
+    original = copy.deepcopy(population)
+    next_a, children_a = reproductive_population(
+        population, ranked, lives, settings, np.random.default_rng(154), 1, admit=True
+    )
+    next_b, children_b = reproductive_population(
+        population, ranked, lives, settings, np.random.default_rng(154), 1, admit=True
+    )
+    assert (next_a, children_a) == (next_b, children_b)
+    assert population == original
+    assert len(next_a) == 4 and len(children_a) == 2
+    assert next_a[:2] == population[:2]
+    assert all(
+        row["parent"] == founder["candidate"]
+        and row["parent_trial"] == 25
+        and row["admitted"]
+        for row in children_a
+    )
+    assert children_a[0]["genome"] != children_a[1]["genome"]
+    assert all(set(row["genome"]) == set(cfg["genome"]) for row in children_a)
+    for life in lives:
+        life["offspring"] = 3
+        life["reproduction_age"] = 25
+    capped, all_children = reproductive_population(
+        population, ranked, lives, settings, np.random.default_rng(154), 1, admit=True
+    )
+    assert len(capped) == 6 and len(all_children) == 18
+    assert sum(child["admitted"] for child in all_children) == 4
+    assert all(
+        child["parent"] in {row["candidate"] for row in population[:2]}
+        for child in all_children
+        if child["admitted"]
+    )
+    for life in lives:
+        life["offspring"] = 0
+        life["reproduction_age"] = None
+    stalled, children = reproductive_population(
+        population, ranked, lives, settings, np.random.default_rng(154), 1, admit=True
+    )
+    assert stalled == population[:2] and not children
+
+
+def test_evolution_life_stops_at_death_and_records_terminal_update(controller):
+    from experiments.exp154.compute import run_lifetime
+
+    cfg, _, model = controller
+    cfg = {**cfg, "initial_energy": 0.1, "metabolic_cost": 2, "stop_at_death": True}
+    events, pre, post, _, _ = run_lifetime(
+        model, cfg, 1, np.full(12, 0.1), np.zeros(12)
+    )
+    assert len(events) == 1
+    assert events[0]["birth"] and events[0]["death"] and events[0]["updated"]
+    assert events[0]["energy_after"] < 0
+    assert not np.array_equal(pre[0], post[0])
+
+
+def test_evolution_smoke_genealogy_inputs_native_inheritance_and_replay(tmp_path):
+    import json
+    from types import SimpleNamespace
+
+    from experiments.exp154.analyse import evolution_summary
+    from experiments.exp154.compute import compute_evolution
+    from experiments.exp154.present import evolution_reproduction_figure, replay_payload
+
+    torch.set_num_threads(1)
+    cfg = configuration("smoke", "evolution")
+    compute_evolution(
+        SimpleNamespace(
+            export=tmp_path, record=dict(execution=dict(configuration=cfg))
+        ),
+        cfg,
+    )
+    source = SimpleNamespace(
+        file=lambda path: tmp_path / path, reference={"run_id": "test"}
+    )
+    rows = json.loads((tmp_path / "conditions.json").read_text())
+    result = evolution_summary(source, rows, cfg)
+    assert result["integrity_pass"]
+    search = [row for row in result["conditions"] if row["cohort"] == "search"]
+    assert len(search) == sum(len(row["members"]) for row in result["generations"])
+    assert 1 <= len(result["generations"]) <= 2
+    assert result["termination"] in {"generation_limit", "no_offspring"}
+    assert all(0 <= row["offspring"] <= 3 for row in result["conditions"])
+    assert any(row["offspring"] > 0 for row in search)
+    assert len(result["fresh"]) == 2
+    assert all(
+        row["births"] == 1
+        and row["matched_inputs"]
+        and row["fresh_inherited_parameters"]
+        for row in result["conditions"]
+    )
+    result["configuration"] = cfg
+    figure = evolution_reproduction_figure(result)
+    assert all(ax.get_ylabel() == "Offspring per life" for ax in figure.axes)
+    np.testing.assert_allclose(
+        figure.axes[0].lines[1].get_ydata(),
+        [
+            np.mean([row["mean_offspring"] for row in generation["ranked"]])
+            for generation in result["generations"]
+        ],
+    )
+    figure.savefig(tmp_path / "reproduction-qa.png", dpi=120)
+    import matplotlib.pyplot as plt
+
+    plt.close(figure)
+    winner = next(
+        row for row in result["individuals"] if row["candidate"] == result["winner"]
+    )
+    life = next(
+        row
+        for row in result["conditions"]
+        if row["cohort"] == "fresh" and row["role"] == "winner"
+    )
+    resolved = configuration("smoke", "evolution", genome=winner["genome"])
+    payload = replay_payload(
+        source, dict(configuration=resolved, conditions=[life], scope="smoke")
+    )
+    events = payload["conditions"][0]["events"]
+    assert payload["food_encounters"] == life["survival"]
+    assert sum(e["birth"] for e in events) == 1
+    assert sum(e["conception"] for e in events) == int(
+        resolved["genome"]["prenatal_windows"] > 0
+    )
+    assert payload["reproduction"] == cfg["evolution"]["reproduction"]
+    reproductive_life = next(row for row in search if row["offspring"])
+    individual = next(
+        row
+        for row in result["individuals"]
+        if row["candidate"] == reproductive_life["candidate"]
+    )
+    from experiments.exp154.recipe import individual_configuration
+
+    replay = replay_payload(
+        source,
+        dict(
+            configuration=individual_configuration(
+                cfg, individual["genome"], reproductive_life["seed"]
+            ),
+            conditions=[reproductive_life],
+            scope="reproduction test",
+        ),
+    )
+    (tmp_path / "reproduction-qa.json").write_text(json.dumps(replay))
+    # Selection records are evidence, not trusted instructions for analysis.
+    path = tmp_path / "evolution.json"
+    saved = json.loads(path.read_text())
+    saved["generations"][0]["ranked"][0]["mean_survival"] += 1
+    path.write_text(json.dumps(saved))
+    with pytest.raises(ValueError, match="ranking"):
+        evolution_summary(source, rows, cfg)
+
+
+def test_reproductive_search_stops_without_fabricating_offspring(tmp_path):
+    import json
+    from types import SimpleNamespace
+
+    from experiments.exp154.analyse import evolution_summary
+    from experiments.exp154.compute import compute_evolution
+
+    cfg = configuration("smoke", "evolution", genome={"prenatal_windows": 0})
+    cfg.update(initial_energy=0.1, metabolic_cost=2.0)
+    compute_evolution(
+        SimpleNamespace(
+            export=tmp_path, record=dict(execution=dict(configuration=cfg))
+        ),
+        cfg,
+    )
+    source = SimpleNamespace(
+        file=lambda path: tmp_path / path, reference={"run_id": "test"}
+    )
+    rows = json.loads((tmp_path / "conditions.json").read_text())
+    result = evolution_summary(source, rows, cfg)
+    assert result["integrity_pass"]
+    assert result["termination"] == "no_offspring"
+    assert len(result["generations"]) == 1
+    assert result["offspring"] == []
+    assert all(
+        row["offspring"] == 0 and row["survival"] == 1 for row in result["conditions"]
+    )
+    saved = json.loads((tmp_path / "evolution.json").read_text())
+    saved["termination"] = "generation_limit"
+    (tmp_path / "evolution.json").write_text(json.dumps(saved))
+    with pytest.raises(ValueError, match="termination"):
+        evolution_summary(source, rows, cfg)
+
+
+def test_evolution_allows_zero_prenatal_and_juvenile_durations(tmp_path):
+    from types import SimpleNamespace
+
+    from experiments.exp154.analyse import evolution_life_summary
+    from experiments.exp154.compute import evolution_life
+    from experiments.exp154.present import replay_payload
+
+    torch.set_num_threads(1)
+    cfg = configuration(
+        "smoke", "evolution", genome={"prenatal_windows": 0, "juvenile_encounters": 0}
+    )
+    individual = dict(candidate="zero-phases", genome=cfg["genome"])
+    row = evolution_life(
+        SimpleNamespace(export=tmp_path),
+        cfg,
+        individual,
+        7,
+        cohort="search",
+        generation=1,
+        role="candidate",
+    )
+    source = SimpleNamespace(
+        file=lambda path: tmp_path / path, reference={"run_id": "test"}
+    )
+    result = evolution_life_summary(source, row, cfg, individual)
+    assert result["integrity_pass"]
+    assert result["development"]["windows"] == 0
+    assert result["phase_counts"]["juvenile"] == 0
+    payload = replay_payload(
+        source, dict(configuration=cfg, conditions=[row], scope="zero-phase test")
+    )
+    events = payload["conditions"][0]["events"]
+    assert all(event["phase"] == "adult" for event in events)
+    assert events[0]["conception"] and events[0]["birth"]
+
+
+@pytest.mark.parametrize("mean", [0.0002, 0.9998])
+def test_normal_initial_weights_are_conditioned_not_clipped(mean):
+    from experiments.exp154.recipe import initial_weights
+    from scipy.special import ndtr
+
+    cfg = configuration("smoke", "evolution")
+    std = 0.01
+    cfg["genome"]["recurrent_normal"]["EI"] = dict(mean=mean, std=std)
+    values = initial_weights(cfg, np.random.default_rng(42), "EI", (100_000,))
+    assert np.all((values > 0) & (values < cfg["weight_upper"]))
+    a, b = -mean / std, (cfg["weight_upper"] - mean) / std
+    phi_a, phi_b = np.exp(-(np.array([a, b]) ** 2) / 2) / np.sqrt(2 * np.pi)
+    mass = ndtr(b) - ndtr(a)
+    shift = (phi_a - phi_b) / mass
+    expected_mean = mean + std * shift
+    expected_variance = std**2 * (1 + (a * phi_a - b * phi_b) / mass - shift**2)
+    assert abs(values.mean() - expected_mean) < 5 * np.sqrt(
+        expected_variance / len(values)
+    )
+    assert abs(values.var() / expected_variance - 1) < 0.02
+
+
+def test_evolved_means_preserve_fixed_parameters_and_paired_readout():
+    from experiments.exp154.recipe import individual_configuration
+
+    cfg = configuration("smoke", "evolution")
+    changed = configuration("smoke", "evolution")
+    changed["genome"]["recurrent_normal"]["EI"]["mean"] = 0.2
+    changed["genome"]["recurrent_normal"]["IE"]["mean"] = 0.8
+    first = make_model(author_network(cfg, 7), cfg, 7)
+    second = make_model(author_network(changed, 7), changed, 7)
+    legacy_cfg = configuration("smoke", "lifetime")
+    legacy = make_model(author_network(legacy_cfg, 7), legacy_cfg, 7)
+    for name, value in first.parameter_map().items():
+        other = second.parameter_map()[name]
+        if name in {"EI.weight", "IE.weight"}:
+            assert not torch.equal(value, other)
+        else:
+            assert torch.equal(value, other), name
+            assert torch.equal(value, legacy.parameter_map()[name]), name
+    for model in (first, second):
+        output = model(encode([0.1, 0.5, 0.9], cfg), diagnostics=False).outputs[
+            "prediction"
+        ]
+        assert torch.max(torch.abs(output)) <= cfg["decision_threshold"]
+    # Resolve execution choices from the recorded run rather than today's defaults.
+    cfg["metabolic_cost"] = 0.123
+    cfg["evolution"]["horizon"] = 99
+    resolved = individual_configuration(cfg, changed["genome"], 11)
+    assert resolved["metabolic_cost"] == 0.123
+    assert resolved["evolution"]["horizon"] == 99
+    assert resolved["seeds"] == [11]
+    assert cfg["seeds"] == cfg["evolution"]["search_seeds"] == [9]
+
+
+@pytest.mark.parametrize(
+    "distribution",
+    [
+        dict(mean=0.03, std=0),
+        dict(mean=0.03, std=-0.01),
+        dict(mean=0.03, std=float("nan")),
+        dict(mean=-0.03, std=0.01),
+        dict(mean=1.1, std=0.01),
+        dict(mean=1e-6, std=0.01),
+    ],
+)
+def test_invalid_normal_initial_weight_settings_are_rejected(distribution):
+    cfg = configuration("smoke", "evolution")
+    with pytest.raises(ValueError, match="weight mean|normal initial"):
+        configuration(
+            "smoke",
+            "evolution",
+            genome={
+                "recurrent_normal": {
+                    **cfg["genome"]["recurrent_normal"],
+                    "EI": distribution,
+                },
+            },
+        )
+
+
+def test_evolution_overview_averages_the_population_instead_of_the_winner():
+    import copy
+
+    import matplotlib.pyplot as plt
+    from experiments.exp154.present import evolution_overview_figure
+
+    cfg = configuration("smoke", "evolution")
+    cfg["evolution"]["population"] = 2
+    founder = copy.deepcopy(cfg["genome"])
+    second, third = copy.deepcopy(founder), copy.deepcopy(founder)
+    second["recurrent_normal"]["EI"]["mean"] = 0.09
+    third["recurrent_normal"]["EI"]["mean"] = 0.15
+    result = dict(
+        configuration=cfg,
+        founder="a",
+        individuals=[
+            dict(candidate=key, genome=genome)
+            for key, genome in zip(
+                ("a", "b", "c"),
+                (founder, second, third),
+                strict=True,
+            )
+        ],
+        generations=[
+            dict(
+                generation=1,
+                members=["a", "b"],
+                ranked=[
+                    dict(candidate="b", mean_survival=10),
+                    dict(candidate="a", mean_survival=2),
+                ],
+            ),
+            dict(
+                generation=2,
+                members=["b", "c"],
+                ranked=[
+                    dict(candidate="c", mean_survival=14),
+                    dict(candidate="b", mean_survival=10),
+                ],
+            ),
+        ],
+    )
+    figure = evolution_overview_figure(result)
+    try:
+        assert len(figure.axes) == 9
+        np.testing.assert_allclose(figure.axes[0].lines[0].get_ydata(), [6, 12])
+        np.testing.assert_allclose(figure.axes[1].lines[0].get_ydata(), [0.06, 0.12])
+        np.testing.assert_allclose(figure.axes[0].lines[1].get_ydata(), [2, 2])
+        assert "mean" in figure.axes[1].get_title(loc="left")
+        assert "fixed σ" in figure.axes[1].get_title(loc="left")
+        assert figure.axes[-1].get_xlabel() == "Generation"
+    finally:
+        plt.close(figure)
