@@ -68,7 +68,7 @@ jobs:
       - name: Install rendering system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install --yes libcairo2-dev libpango1.0-dev pkg-config
+          sudo apt-get install --yes libcairo2-dev libpango1.0-dev pkg-config graphviz
 
       - name: Install project
         run: uv sync --dev

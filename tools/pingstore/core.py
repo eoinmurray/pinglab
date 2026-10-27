@@ -4047,8 +4047,20 @@ def publication_prepare(repo: Path, destination, output: Path, *, build_id, revi
     write_json_atomic(output / "catalog.json", catalog)
     write_json_atomic(output / "index.json", index)
     write_json_atomic(output / "evidence.json", manifest)
-    previous = control["publications"]
-    revised = dict(previous, incoming={**previous["incoming"], build_id: manifest})
+    publication_retain(destination, manifest)
+    return manifest
+
+
+def publication_retain(destination, manifest):
+    """Retain frozen evidence again before a deployment, including job retries."""
+    catalog = read_catalog(destination)
+    records = {identity: entry["record"] for identity, entry in catalog["runs"].items()}
+    validate_evidence_manifest(manifest, records)
+    previous = read_control(destination)["publications"]
+    revised = dict(
+        previous,
+        incoming={**previous["incoming"], manifest["build"]["id"]: manifest},
+    )
     update_publications(destination, previous, revised)
     return manifest
 
@@ -4070,8 +4082,14 @@ def publication_activate(repo: Path, destination, manifest):
     if deployed != manifest:
         raise PingstoreError("the replacement evidence manifest is not deployed")
     previous = read_control(destination)["publications"]
-    incoming = dict(previous["incoming"])
-    incoming.pop(manifest["build"]["id"], None)
+    # A verified replacement also supersedes completed failed attempts. Pending
+    # workflows keep their roots; deploy-only retries register them again first.
+    pending = set(state["pending"]) - {active["run_id"]}
+    incoming = {
+        identity: evidence
+        for identity, evidence in previous["incoming"].items()
+        if identity.split("/")[0] in pending
+    }
     revised = dict(previous, known=True, active=manifest, incoming=incoming)
     update_publications(destination, previous, revised)
     return revised

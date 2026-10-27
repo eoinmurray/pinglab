@@ -4,7 +4,7 @@ author: Eoin Murray
 collection: notes
 description: Current scientific runsets, validated storage, publication and inspected cleanup.
 created_at: "2026-09-11"
-updated_at: "2026-10-27T15:56:26Z"
+updated_at: "2026-10-27T16:26:41Z"
 ---
 
 # Pingstore Guide
@@ -176,6 +176,12 @@ successful deployment and the deployed manifest bytes match. A failed build or
 deployment cannot release the previous active evidence. Pruning independently
 rechecks the deployment proof. Missing or unreconciled publication state retains
 potentially referenced data and names the unresolved state.
+
+Each deployment attempt registers its frozen evidence again, including a retry
+of only the deploy job. Activation runs in a following job, after the Pages
+environment job succeeds. An uncertain deployment keeps its incoming evidence;
+a verified replacement releases completed incoming attempts and preserves the
+roots of other pending workflows.
 
 Legacy publication bootstrap uses the authenticated artifact of the active
 successful Pages run and validates its declared run ancestry against the store.
