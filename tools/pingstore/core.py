@@ -1415,6 +1415,452 @@ def report_usage(
     return selections, dict(used_by)
 
 
+# Current runsets and the derived reporting contract. Scientific input selection
+# continues using source_run; none of these reporting policies changes input pins.
+
+INDEX_SCHEMA = "pingstore.index/v1"
+
+
+def _completed_time(record):
+    completed = record["execution"].get("completed_at")
+    if not completed:
+        return None
+    try:
+        timestamp = datetime.fromisoformat(completed.replace("Z", "+00:00"))
+        if timestamp.utcoffset() is None:
+            raise ValueError("timezone missing")
+        return timestamp.timestamp()
+    except (AttributeError, ValueError) as exc:
+        raise PingstoreError(f"invalid completion date: {record['run_id']}") from exc
+
+
+def _runset(records, identity):
+    """Validate only this root's exact ancestry, including cycles and pin digests."""
+    visiting, visited = set(), set()
+
+    def visit(run_id):
+        if run_id in visiting:
+            raise PingstoreError(f"input cycle at {run_id}")
+        if run_id in visited:
+            return
+        record = records.get(run_id)
+        if record is None:
+            raise PingstoreError(f"missing input {run_id}")
+        visiting.add(run_id)
+        for reference in record["inputs"].values():
+            parent = records.get(reference["run_id"])
+            if (
+                parent is None
+                or parent["payload_digest"] != reference["payload_digest"]
+            ):
+                raise PingstoreError(
+                    f"{run_id}: missing or changed input {reference['run_id']}"
+                )
+            visit(reference["run_id"])
+        visiting.remove(run_id)
+        visited.add(run_id)
+
+    visit(identity)
+    return sorted(visited)
+
+
+def _select_runsets(*, records, local, errors, completed):
+    selections, runsets, selection_errors = {}, {}, {}
+    experiments = sorted({identity.split("-", 1)[0] for identity in records | errors})
+    for experiment in experiments:
+        # A malformed local presentation blocks fallback even when no valid local
+        # presentation is left. Hidden unfinished stages are not candidates.
+        broken = [
+            identity
+            for identity in errors
+            if identity.startswith(experiment + "-") and identity.endswith("-present")
+        ]
+        if broken:
+            selection_errors[experiment] = "; ".join(
+                f"{identity}: {errors[identity]}" for identity in sorted(broken)
+            )
+            continue
+        candidates = [
+            identity
+            for identity, record in records.items()
+            if record["experiment"] == experiment and record["stage"] == "present"
+        ]
+        local_candidates = [identity for identity in candidates if identity in local]
+        if local_candidates:
+            candidates = local_candidates
+        if not candidates:
+            continue
+        identity = max(candidates, key=lambda run_id: (completed[run_id], run_id))
+        try:
+            members = _runset(records, identity)
+            invalid = set(members) & errors.keys()
+            if invalid:
+                raise PingstoreError(
+                    "invalid local evidence: " + ", ".join(sorted(invalid))
+                )
+        except PingstoreError as exc:
+            selection_errors[experiment] = str(exc)
+            continue
+        selections[experiment] = identity
+        runsets[experiment] = members
+    return selections, runsets, selection_errors
+
+
+def _report_record(record):
+    """Keep the derived index small; scientific configuration stays in run.json."""
+    if record is None:
+        return None
+    result = {
+        key: record[key]
+        for key in (
+            "schema",
+            "run_id",
+            "experiment",
+            "stage",
+            "collection",
+            "origin",
+            "created_at",
+            "inputs",
+            "payload_digest",
+        )
+    }
+    result["execution"] = {
+        key: value
+        for key, value in record["execution"].items()
+        if key in {"started_at", "completed_at", "operation"}
+    }
+    if "scientific_execution" in record:
+        result["scientific_execution"] = {
+            key: value
+            for key, value in record["scientific_execution"].items()
+            if key in {"started_at", "completed_at", "origin"}
+        }
+    if "completed_hpc_import" in record:
+        imported = record["completed_hpc_import"]
+        result["completed_hpc_import"] = {
+            "source_origin": imported["source_origin"],
+            "source_execution": {
+                key: value
+                for key, value in imported["source_execution"].items()
+                if key in {"started_at", "completed_at"}
+            },
+        }
+    return result
+
+
+def _index_rows(
+    *,
+    records,
+    errors,
+    local,
+    remote,
+    reasons,
+    remote_known,
+    source,
+    local_errors,
+    verified_local,
+):
+    local_holdings = local.keys() | local_errors.keys()
+    rows = {}
+    for identity in sorted(records.keys() | errors.keys()):
+        record = records.get(identity)
+        current = sorted(
+            reason[8:] for reason in reasons[identity] if reason.startswith("current:")
+        )
+        row_reasons = sorted(reasons[identity])
+        unresolved = []
+        if identity in errors:
+            unresolved.append(errors[identity])
+        if not remote_known and source != "local":
+            unresolved.append("R2 inventory unavailable")
+        # Surviving deployed pages are not proved by backup presence or recency.
+        unresolved.append("active and incoming publication evidence not established")
+        status = (
+            "Current"
+            if current and identity not in errors
+            else "Required"
+            if row_reasons and identity not in errors
+            else "Unresolved"
+        )
+        rows[identity] = dict(
+            record=_report_record(record),
+            current=current,
+            status=status,
+            reasons=row_reasons,
+            unresolved=unresolved,
+            storage="Both"
+            if identity in local_holdings and identity in remote
+            else "R2"
+            if identity in remote
+            else "Local",
+            verification=dict(
+                local="byte-verified"
+                if identity in verified_local and identity not in errors
+                else "metadata-validated"
+                if identity in local and identity not in errors
+                else "invalid"
+                if identity in local_holdings and identity in errors
+                else "absent",
+                r2="catalog-verified"
+                if identity in remote
+                else "absent"
+                if remote_known
+                else "unknown",
+            ),
+        )
+    return rows
+
+
+def _index_record_set(*, local, remote, errors):
+    records = {**remote, **local}
+    for identity, record in records.items():
+        validate_run(record)
+        if record["run_id"] != identity:
+            raise PingstoreError(f"record identity mismatch: {identity}")
+        if (
+            identity in local
+            and identity in remote
+            and local[identity] != remote[identity]
+        ):
+            errors[identity] = "local and R2 records differ"
+    completed = {}
+    for identity, record in records.items():
+        timestamp = _completed_time(record)
+        if timestamp is not None:
+            completed[identity] = timestamp
+    records = {
+        identity: record
+        for identity, record in records.items()
+        if identity in completed
+    }
+    return records, completed
+
+
+def resolve_run_index(
+    local: dict[str, dict],
+    remote: dict[str, dict],
+    *,
+    source="auto",
+    reports=None,
+    protections=None,
+    unfinished=None,
+    remote_known=True,
+    local_errors=None,
+    verified_local=None,
+):
+    """Resolve deterministic current runsets and explain retention from metadata.
+
+    Callers authenticate payloads/catalogs before supplying records. Broken local
+    copies are never replaced by remote evidence. Publication retention remains
+    unresolved until a later cutover establishes active/incoming deployments;
+    this reporting index is deliberately not a deletion authorization.
+    """
+    if source not in {"auto", "local", "remote"}:
+        raise PingstoreError(f"invalid run source: {source}")
+    reports = reports or {}
+    protections = protections or {}
+    unfinished = unfinished or {}
+    local_errors = local_errors or {}
+    remote_known = remote_known and source != "local"
+    local = {} if source == "remote" else local
+    remote = {} if source == "local" else remote
+    local_errors = {} if source == "remote" else local_errors
+    errors = dict(local_errors)
+    records, completed = _index_record_set(local=local, remote=remote, errors=errors)
+    selections, runsets, selection_errors = _select_runsets(
+        records=records, local=local, errors=errors, completed=completed
+    )
+    reasons = defaultdict(set)
+    for experiment, members in runsets.items():
+        for member in members:
+            reasons[member].add(f"current:{experiment}")
+    report_selections = {}
+    for article, metadata in sorted(reports.items()):
+        # Current reporting never follows historical manual pins. Existing pins
+        # remain visible for migration, and the legacy prune path still retains them.
+        selected = {
+            experiment: selections[experiment]
+            for experiment in metadata["inputs"]
+            if experiment in selections
+        }
+        report_selections[article] = selected
+        for experiment in selected:
+            for member in runsets[experiment]:
+                reasons[member].add(f"report:{article}")
+    for label, roots in (("protection", protections), ("unfinished", unfinished)):
+        for identity, detail in sorted(roots.items()):
+            try:
+                members = _runset(records, identity)
+            except PingstoreError as exc:
+                errors[identity] = str(exc)
+                continue
+            for member in members:
+                reasons[member].add(f"{label}:{detail}")
+    rows = _index_rows(
+        records=records,
+        errors=errors,
+        local=local,
+        remote=remote,
+        reasons=reasons,
+        local_errors=local_errors,
+        verified_local=set(verified_local or ()),
+        remote_known=remote_known,
+        source=source,
+    )
+    value = dict(
+        schema=INDEX_SCHEMA,
+        source=source,
+        remote_known=remote_known,
+        selections=selections,
+        runsets=runsets,
+        selection_errors=selection_errors,
+        report_selections=report_selections,
+        legacy_pins={
+            article: metadata["runs"]
+            for article, metadata in sorted(reports.items())
+            if metadata.get("runs")
+        },
+        publication="unresolved",
+        runs=rows,
+    )
+    return {**value, "generation": _plan_hash(value)}
+
+
+def _local_index_records(runs, cache, *, verify):
+    """Index metadata without reading arrays; explicit verification authenticates bytes."""
+    records, errors, revised = {}, {}, {}
+    if not runs.exists():
+        return records, errors, revised
+    if runs.is_symlink() or not runs.is_dir():
+        raise PingstoreError(f"runs must be a real directory: {runs}")
+    for directory in sorted(runs.iterdir()):
+        identity = directory.name
+        if identity.startswith("."):
+            continue
+        if not STAGE_ID_RE.fullmatch(identity):
+            errors[identity] = "unsupported run identity"
+            continue
+        try:
+            validate_layout(directory)
+            signature = {}
+            for path in sorted(directory.rglob("*")):
+                if path.name == ".protected":
+                    continue
+                stat = path.stat()
+                signature[path.relative_to(directory).as_posix()] = [
+                    stat.st_size,
+                    stat.st_mtime_ns,
+                    stat.st_ctime_ns,
+                    stat.st_ino,
+                    stat.st_dev,
+                ]
+            previous = cache.get(identity, {})
+            unchanged = signature == previous.get("signature")
+            record = load_json(directory / "run.json")
+            if (
+                record["run_id"] != identity
+                or "data_root" in record
+                or "export_root" in record
+            ):
+                raise PingstoreError(
+                    f"invalid operational run identity/layout: {identity}"
+                )
+            if previous and not unchanged and not verify:
+                raise PingstoreError(
+                    "local files changed since indexing; inspect with status --verify"
+                )
+            verified = unchanged and previous.get("verified", False)
+            if verify and not verified:
+                record = validate_operational_run_directory(directory)
+                verified = True
+            records[identity] = record
+            revised[identity] = dict(
+                signature=signature, record=record, verified=verified
+            )
+        except (OSError, ValueError) as exc:
+            errors[identity] = str(exc)
+            if identity in cache:
+                revised[identity] = cache[identity]
+    return records, errors, revised
+
+
+def reporting_index(
+    repo: Path,
+    *,
+    runs=None,
+    catalog=None,
+    source="auto",
+    remote_known=True,
+    verify=False,
+):
+    """Build reporting metadata; byte verification is an explicit offline operation."""
+    repo = repo.resolve()
+    runs = (runs or repo / ".pingstore/runs").absolute()
+    if source == "remote" and catalog is None:
+        raise PingstoreError("remote reporting requires a verified catalog")
+    namespace = hashlib.sha256(str(runs).encode()).hexdigest()[:12]
+    cache_path = runs.parent / f".report-index-cache-{namespace}.json"
+    try:
+        cache = load_json(cache_path)
+    except (OSError, ValueError):
+        cache = {}
+    local, errors, revised = (
+        ({}, {}, {})
+        if source == "remote"
+        else _local_index_records(runs, cache, verify=verify)
+    )
+    if source != "remote" and revised != cache:
+        write_json_atomic(cache_path, revised)
+    remote = {}
+    if source != "local" and catalog is not None:
+        validate_catalog(catalog)
+        remote = {
+            identity: entry["record"] for identity, entry in catalog["runs"].items()
+        }
+    protections = {}
+    for identity in local:
+        marker = runs / identity / ".protected"
+        if marker.exists():
+            protections[identity] = identity
+    pending = defaultdict(set)
+    if source != "remote" and runs.is_dir():
+        _hidden_inputs(runs, {**remote, **local}, pending)
+    return resolve_run_index(
+        local,
+        remote,
+        source=source,
+        reports=articles(repo),
+        protections=protections,
+        unfinished={
+            identity: ",".join(sorted(details)) for identity, details in pending.items()
+        },
+        remote_known=remote_known,
+        local_errors=errors,
+        verified_local={
+            identity for identity, row in revised.items() if row.get("verified")
+        },
+    )
+
+
+def render_status(index):
+    lines = [
+        f"Generation: {index['generation']}",
+        f"Source: {index['source']}",
+        "Run\tEvidence\tStorage\tVerification\tReasons / unresolved",
+    ]
+    for identity, row in index["runs"].items():
+        reasons = row["reasons"] + row["unresolved"]
+        verification = ", ".join(
+            f"{key}: {value}" for key, value in row["verification"].items()
+        )
+        lines.append(
+            f"{identity}\t{row['status']}\t{row['storage']}\t{verification}\t{'; '.join(reasons)}"
+        )
+    for experiment, error in index["selection_errors"].items():
+        lines.append(f"{experiment}\tUnresolved selection: {error}")
+    return "\n".join(lines)
+
+
 # Hash-bound local pruning
 
 PLAN_SCHEMA = "pingstore.prune-plan/v5"
@@ -1527,6 +1973,17 @@ def _protected_runs(*, runs, records, reasons):
     return markers, protected
 
 
+def _retain_current_runsets(records, reasons):
+    current = resolve_run_index(records, {}, source="local")
+    if current["selection_errors"]:
+        raise PingstoreError(
+            f"unresolved current runsets: {current['selection_errors']}"
+        )
+    for experiment, members in current["runsets"].items():
+        for identity in members:
+            reasons[identity].add(f"current:{experiment}")
+
+
 def prune_plan(
     repo: Path,
     experiments: list[str] | tuple[str, ...] | set[str] | None = None,
@@ -1566,6 +2023,7 @@ def prune_plan(
                 reasons[run_id].add("out-of-scope")
 
     selections, used_by = report_usage(repo, records, experiments=scope)
+    _retain_current_runsets(records, reasons)
     used = set(used_by)
     for run_id, reports in used_by.items():
         reasons[run_id].update(f"used-by:{article}" for article in reports)
@@ -1589,7 +2047,7 @@ def prune_plan(
     )
     plan = {
         "schema": PLAN_SCHEMA,
-        "policy": "keep-report-usage-manual-protection-incomplete-inputs-and-ancestry",
+        "policy": "keep-current-runsets-report-usage-protection-incomplete-inputs-and-ancestry",
         "experiments": sorted(scope) if scope is not None else None,
         "stages": sorted(stage_scope) if stage_scope is not None else None,
         "allocation_watermarks": watermarks,
@@ -1724,7 +2182,7 @@ def render_prune_plan(plan: dict) -> str:
             ", ".join(plan["experiments"]) if plan["experiments"] else "all experiments"
         ),
         "Stages: " + (", ".join(plan.get("stages") or []) or "all stages"),
-        "Policy: used report ancestry + manual .protected ancestry + incomplete inputs",
+        "Policy: current runsets + legacy report ancestry + .protected ancestry + incomplete inputs",
         f"Used: {sum(row['used'] for row in plan['keep'])} runs",
         f"Protected: {sum(row['protected'] for row in plan['keep'])} runs",
         f"Keep: {len(plan['keep'])} runs ({keep_bytes / 2**30:.2f} GiB)",
@@ -2278,6 +2736,12 @@ def publish_catalog(source: Path, destination: str, plan: dict):
             "updated_at": datetime.now(timezone.utc).isoformat(),
             "runs": entries,
         }
+        value["report_index"] = resolve_run_index(
+            {},
+            {identity: entry["record"] for identity, entry in entries.items()},
+            source="remote",
+            reports=articles(source.parent.parent),
+        )
         replace_catalog(destination, previous, value)
     print(f"Published checksummed catalog for {len(entries)} runs.", flush=True)
 
@@ -2883,6 +3347,23 @@ def remote_prune_plan(repo: Path, destination: str, experiments: list[str]) -> d
         if record["experiment"] not in scope
     }
     keep = ancestry(records, used | protected | set(pending) | outside)
+    # Preserve both reporting contexts during this staged cutover. The unified
+    # publication-aware planner replaces this legacy command in a later phase.
+    for context in (
+        resolve_run_index(local, {}, source="local"),
+        resolve_run_index(
+            {},
+            {key: item["record"] for key, item in catalog["runs"].items()},
+            source="remote",
+        ),
+    ):
+        if context["selection_errors"]:
+            raise PingstoreError(
+                f"unresolved current runsets: {context['selection_errors']}"
+            )
+        keep.update(
+            member for members in context["runsets"].values() for member in members
+        )
     candidates = {
         identity
         for identity, entry in catalog["runs"].items()
@@ -2942,6 +3423,12 @@ def apply_remote_prune(
                 for identity, entry in previous["runs"].items()
                 if identity not in removed
             },
+        )
+        revised["report_index"] = resolve_run_index(
+            {},
+            {identity: entry["record"] for identity, entry in revised["runs"].items()},
+            source="remote",
+            reports=articles(repo.resolve()),
         )
         replace_catalog(destination, previous, revised)
         paths = {

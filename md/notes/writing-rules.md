@@ -4,7 +4,7 @@ author: Eoin Murray
 collection: notes
 description: Brief, plain-English writing grounded in code and data.
 created_at: "2026-10-14"
-updated_at: "2026-10-24T12:45:31Z"
+updated_at: "2026-10-27T14:36:26Z"
 ---
 
 # Writing Rules
@@ -132,8 +132,8 @@ updated_at: "2026-10-24T12:45:31Z"
 1. Ground scientific claims in code and displayed data. Omit unsupported claims
    and unperformed work.
 2. Bind figures, numerical summaries and parameters to the same selected evidence.
-   Select the latest completed presentation once per build or development session;
-   do not pin run IDs in report metadata, figures, thumbnails or animations.
+   Use core’s resolved current runset once per production build or development
+   page request; do not pin run IDs in report metadata, figures, thumbnails or animations.
    Prefer data-bound numerical summaries where supported.
 3. For SNNLab simulations, read model parameters from exported `SnapshotSpec`
    evidence and input, training and analysis settings from recorded configuration.

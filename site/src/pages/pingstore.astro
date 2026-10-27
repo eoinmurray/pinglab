@@ -8,6 +8,7 @@ import { Code } from 'astro:components';
 import { getReports } from '../lib/reports';
 import { dataset } from '../lib/pingstore';
 
+const index = await runStore.index();
 const reports = new Map((await getReports()).map(report => [report.data.id, report]));
 const experiments = (await readdir('../experiments', { withFileTypes: true }))
   .filter(entry => entry.isDirectory() && /^exp\d+$/.test(entry.name))
@@ -32,14 +33,10 @@ const inventories = await Promise.all(experiments.map(async experiment => {
         : 'The run inventory could not be read. Check the run records.' };
   }
 }));
-const uniqueRuns = new Map<string, boolean>();
-for (const inventory of inventories) {
-  for (const run of inventory.datasets?.flatMap(data => data.runs) ?? []) {
-    uniqueRuns.set(run.id, run.used || !!uniqueRuns.get(run.id));
-  }
-}
-const completedRuns = await runStore.ids();
-const usedRuns = completedRuns.filter(id => uniqueRuns.get(id)).length;
+const completedRuns = Object.keys(index.runs);
+const currentRuns = completedRuns.filter(id => index.runs[id].status === 'Current').length;
+const requiredRuns = completedRuns.filter(id => index.runs[id].status === 'Required').length;
+const unresolvedRuns = completedRuns.filter(id => index.runs[id].status === 'Unresolved').length;
 const unavailableExperiments = inventories.filter(inventory => inventory.error).length;
 const pruneCommands = `uv run pingstore evict --all --dry-run
 
@@ -52,13 +49,13 @@ uv run pingstore evict --all --confirm PLAN_HASH`;
     <h1>Pingstore</h1>
   </d-title>
   <d-article role="article" aria-label="Pingstore">
-    <p>The appendix lists the available local and R2 run inventory for each experiment, newest experiment first. “Used” marks runs in the report’s selected evidence chains.</p>
-    <Table headers={['Total runs', 'Used', 'Unused']}
-      rows={[[completedRuns.length, unavailableExperiments ? `≥ ${usedRuns}` : usedRuns,
-        unavailableExperiments ? `≤ ${completedRuns.length - usedRuns}` : completedRuns.length - usedRuns]]} label="Run totals" />
-    <p>Counts include each completed run once.
-      {unavailableExperiments > 0 && <> Evidence for {unavailableExperiments} {unavailableExperiments === 1 ? 'experiment' : 'experiments'} is unavailable, so used is a lower bound and unused is an upper bound.</>}
+    <p>The appendix lists the available local and R2 run inventory for each experiment, newest experiment first. “Current” marks the current presentation and its exact input ancestry. Storage is separate from the machine where a run executed. Historical holdings remain unresolved until active publication evidence has been established.</p>
+    <Table headers={['Total holdings', 'Current', 'Required', 'Unresolved']}
+      rows={[[completedRuns.length, currentRuns, requiredRuns, unresolvedRuns]]} label="Run totals" />
+    <p>Counts include each holding once. Unresolved holdings are not classified as unused.
+      {unavailableExperiments > 0 && <> Dataset details for {unavailableExperiments} experiments could not be resolved.</>}
     </p>
+    {completedRuns.filter(id => !index.runs[id].record).map(id => <p role="status">{id}: {index.runs[id].unresolved.join('; ')}</p>)}
     <p>To free local disk space, evict verified backup copies with these commands from the repository root. Review the dry-run plan before confirming. Report-used runs remain readable from R2; protected runs and inputs needed by unfinished work stay local. Confirmation verifies remote bytes before deleting any local copies.</p>
     <Code code={pruneCommands} lang="sh" />
   </d-article>

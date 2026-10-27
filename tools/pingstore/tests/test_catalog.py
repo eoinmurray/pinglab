@@ -304,6 +304,8 @@ def test_remote_prune_publishes_valid_index_before_scoped_deletion(
     def publish(destination, previous, revised):
         core.validate_catalog(revised)
         assert old.name not in revised["runs"]
+        assert old.name not in revised["report_index"]["runs"]
+        assert revised["report_index"]["selections"]["exp001"] == new.name
         assert {new.name, other.name} <= revised["runs"].keys()
         state["catalog"] = revised
         calls.append("publish")

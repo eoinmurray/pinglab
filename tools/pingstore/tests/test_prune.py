@@ -232,8 +232,8 @@ def test_scoped_plan_keeps_selected_ancestor_of_out_of_scope_run(tmp_path):
     plan = prune_plan(tmp_path, ["exp001"])
     kept = {row["run_id"]: row["reasons"] for row in plan["keep"]}
 
-    assert "required-ancestor" in kept[selected_parent.name]
-    assert {row["run_id"] for row in plan["prune"]} == {"exp001-r002-present"}
+    assert "current:exp002" in kept[selected_parent.name]
+    assert not plan["prune"]
 
 
 def test_scoped_plan_rejects_unknown_or_invalid_experiment(tmp_path):
@@ -499,7 +499,9 @@ def test_stage_scope_retains_dependencies_of_runs_outside_stage_scope(tmp_path):
     assert all(row["stage"] == "compute" for row in plan["prune"])
 
 
-def test_named_collection_and_latest_unreported_runs_are_not_automatic_roots(tmp_path):
+def test_latest_unreported_presentation_is_current_without_collection_promotion(
+    tmp_path,
+):
     run = make_run(
         tmp_path,
         "exp006-r001-present",
@@ -510,8 +512,9 @@ def test_named_collection_and_latest_unreported_runs_are_not_automatic_roots(tmp
         json.dumps({"views": [run.name]})
     )
     plan = prune_plan(tmp_path)
-    assert not plan["keep"]
-    assert [row["run_id"] for row in plan["prune"]] == [run.name]
+    assert not plan["prune"]
+    assert [row["run_id"] for row in plan["keep"]] == [run.name]
+    assert plan["keep"][0]["reasons"] == ["current:exp006"]
 
 
 def test_protection_marker_does_not_change_payload_or_backup_inventory(

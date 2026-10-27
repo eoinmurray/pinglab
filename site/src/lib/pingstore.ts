@@ -2,12 +2,13 @@ import { runStore } from './run-store.ts';
 import { localAssetUrl, selectAsset } from './run-assets.ts';
 
 async function countCompletedRuns(experiment: string): Promise<number> {
-  return (await runStore.ids(experiment)).length;
+  const index = await runStore.index();
+  return Object.values(index.runs).filter(row => row.record?.experiment === experiment).length;
 }
 
 const runCounts = new Map<string, Promise<number>>();
 export function completedRunCount(experiment: string): Promise<number> {
-  if (import.meta.env?.DEV) return countCompletedRuns(experiment);
+  if (process.env.NODE_ENV !== 'production') return countCompletedRuns(experiment);
   if (!runCounts.has(experiment)) runCounts.set(experiment, countCompletedRuns(experiment));
   return runCounts.get(experiment)!;
 }
@@ -26,8 +27,9 @@ async function findLatestPresentation(experiment: string): Promise<Presentation 
   return { id, completedAt: Date.parse(record.execution.completed_at) };
 }
 
-// Freeze presentation selections for the build/dev session, matching MDX module bindings.
+// Freeze builds; development shares the current request’s core selection.
 export function optionalPresentation(experiment: string): Promise<Presentation | undefined> {
+  if (process.env.NODE_ENV !== 'production') return findLatestPresentation(experiment);
   if (!selections.has(experiment)) selections.set(experiment, findLatestPresentation(experiment));
   return selections.get(experiment)!;
 }
@@ -39,7 +41,7 @@ export async function latestPresentation(experiment: string): Promise<Presentati
 }
 
 export async function imageUrl(runId: string, filename: string): Promise<string> {
-  if (import.meta.env?.DEV) return localAssetUrl(runId, filename);
+  if (process.env.NODE_ENV !== 'production') return localAssetUrl(runId, filename);
   return (await selectAsset(runId, filename)).url;
 }
 
@@ -78,9 +80,10 @@ async function exportSize(id: string): Promise<number> {
 
 async function findDataset(experiment: string, runId?: string) {
   const selected = runId ? { id: runId } : await optionalPresentation(experiment);
+  const index = await runStore.index();
   const seen = new Set<string>();
   const upstream = new Set<string>();
-  const runs: { id: string; record: RunRecord; bytes: number; selected: boolean; used: boolean }[] = [];
+  const runs: { id: string; record: RunRecord; bytes: number; selected: boolean; used: boolean; evidence: import('./run-index.ts').IndexRun }[] = [];
 
   async function visit(id: string) {
     if (seen.has(id)) return;
@@ -89,16 +92,17 @@ async function findDataset(experiment: string, runId?: string) {
     if (record.experiment !== experiment) {
       upstream.add(record.experiment);
     }
-    runs.push({ id, record, bytes: await exportSize(id), selected: id === selected?.id, used: true });
+    runs.push({ id, record, bytes: await exportSize(id), selected: id === selected?.id, used: true, evidence: index.runs[id] });
     for (const input of Object.values(record.inputs)) await visit(input.run_id);
   }
 
   if (selected) await visit(selected.id);
   // Keep the selected lineage, plus this experiment's completed stage history.
-  for (const id of await runStore.ids(experiment)) {
+  for (const id of Object.keys(index.runs).filter(id => id.startsWith(`${experiment}-`))) {
     if (seen.has(id)) continue;
-    const record: RunRecord = await runStore.json(id);
-    runs.push({ id, record, bytes: await exportSize(id), selected: false, used: false });
+    const record: RunRecord = index.runs[id].record;
+    if (!record) continue;
+    runs.push({ id, record, bytes: await exportSize(id), selected: false, used: false, evidence: index.runs[id] });
   }
   runs.sort((a, b) => Date.parse(b.record.created_at) - Date.parse(a.record.created_at) || b.id.localeCompare(a.id));
   return { runs, upstream: [...upstream].sort() };
@@ -107,7 +111,7 @@ async function findDataset(experiment: string, runId?: string) {
 const datasets = new Map<string, ReturnType<typeof findDataset>>();
 
 export function dataset(experiment: string, runId?: string) {
-  if (import.meta.env?.DEV) return findDataset(experiment, runId);
+  if (process.env.NODE_ENV !== 'production') return findDataset(experiment, runId);
   const key = runId ?? experiment;
   if (!datasets.has(key)) datasets.set(key, findDataset(experiment, runId));
   return datasets.get(key)!;

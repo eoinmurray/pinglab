@@ -4,7 +4,7 @@ author: Eoin Murray
 collection: notes
 description: Experiment layout, identities, shared helpers, Pingstore and SNNLab evidence.
 created_at: "2026-10-14"
-updated_at: "2026-10-24T06:26:47Z"
+updated_at: "2026-10-27T14:36:26Z"
 ---
 
 # Experiment Rules
@@ -193,3 +193,7 @@ updated_at: "2026-10-24T06:26:47Z"
 5. Invoke compute, analyse and present independently. Never select “latest” or
    automatically launch an upstream stage.
 6. Treat completed runs as immutable; changed results require a new run.
+7. Completed presentations become current through the shared reporting resolver.
+   Reports follow their exact input ancestry; this does not change scientific
+   input selection. Inspect `pingstore status` for current evidence and retention
+   reasons. Stage completion never implicitly prunes history.

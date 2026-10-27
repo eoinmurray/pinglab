@@ -23,6 +23,22 @@ def _parser() -> argparse.ArgumentParser:
         description="Validate immutable Pingstore runs, back them up and prune unused, unprotected runs.",
     )
     commands = parser.add_subparsers(dest="command", required=True)
+    status = commands.add_parser("status", help="explain current runsets and storage")
+    status.add_argument("--root", type=Path, default=Path("."))
+    status.add_argument("--runs-root", type=Path)
+    status.add_argument("--source", choices=("auto", "local", "remote"), default="auto")
+    status.add_argument("--asset-base", default="https://assets.eoinmurray.info")
+    status.add_argument("--json", action="store_true")
+    status.add_argument(
+        "--verify",
+        action="store_true",
+        help="validate local payload bytes before indexing",
+    )
+    status.add_argument(
+        "--index-path", type=Path, help="save a rebuildable versioned JSON index"
+    )
+    status.add_argument("--catalog-stdin", action="store_true", help=argparse.SUPPRESS)
+    status.set_defaults(handler=_status)
     discover = commands.add_parser(
         "discover", help="emit validated runs as Demolab discovery JSON"
     )
@@ -142,6 +158,40 @@ def _discover(args) -> int:
     records = core.discover_runs(source)
     # A single JSON document, only after all candidates passed. No partial output.
     print(json.dumps(records, ensure_ascii=False))
+    return 0
+
+
+def _status(args) -> int:
+    catalog, remote_known = None, args.source != "local"
+    if args.source != "local":
+        if args.catalog_stdin:
+            catalog = json.load(sys.stdin)
+            remote_known = catalog is not None
+        else:
+            try:
+                request = core.Request(
+                    args.asset_base.rstrip("/") + "/pingstore/catalog.json",
+                    headers={"User-Agent": "Pinglab-Pingstore/1.0"},
+                )
+                with core.urlopen(request, timeout=30) as response:
+                    catalog = json.load(response)
+            except (OSError, ValueError) as exc:
+                if args.source == "remote":
+                    raise core.PingstoreError(
+                        f"R2 inventory unavailable: {exc}"
+                    ) from exc
+                remote_known = False
+    index = core.reporting_index(
+        args.root,
+        runs=args.runs_root,
+        catalog=catalog,
+        source=args.source,
+        remote_known=remote_known,
+        verify=args.verify,
+    )
+    if args.index_path:
+        core.write_json_atomic(args.index_path, index)
+    print(json.dumps(index, sort_keys=True) if args.json else core.render_status(index))
     return 0
 
 
