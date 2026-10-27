@@ -4047,8 +4047,20 @@ def publication_prepare(repo: Path, destination, output: Path, *, build_id, revi
     write_json_atomic(output / "catalog.json", catalog)
     write_json_atomic(output / "index.json", index)
     write_json_atomic(output / "evidence.json", manifest)
-    previous = control["publications"]
-    revised = dict(previous, incoming={**previous["incoming"], build_id: manifest})
+    publication_retain(destination, manifest)
+    return manifest
+
+
+def publication_retain(destination, manifest):
+    """Retain frozen evidence again before a deployment, including job retries."""
+    catalog = read_catalog(destination)
+    records = {identity: entry["record"] for identity, entry in catalog["runs"].items()}
+    validate_evidence_manifest(manifest, records)
+    previous = read_control(destination)["publications"]
+    revised = dict(
+        previous,
+        incoming={**previous["incoming"], manifest["build"]["id"]: manifest},
+    )
     update_publications(destination, previous, revised)
     return manifest
 

@@ -154,6 +154,33 @@ def test_failed_incoming_build_never_releases_previous_successful_deployment(
     assert not core.unified_prune_plan(repo, ["exp001"])["prune"]
 
 
+def test_deploy_only_retry_registers_frozen_evidence_again(stores, monkeypatch):
+    repo, paths, state = stores
+    records = {
+        identity: entry["record"]
+        for identity, entry in state["catalog"]["runs"].items()
+    }
+    frozen = manifest_for(records, [paths["old_present"].name], "456/1")
+    monkeypatch.setattr(
+        core, "github_pages_state", lambda _: dict(active=None, pending=[])
+    )
+    core.publication_retain(DESTINATION, frozen)
+    core.publication_failed(repo, DESTINATION, "456/1")
+    assert "456/1" not in state["control"]["publications"]["incoming"]
+    assert paths["old_present"].name in {
+        row["run_id"] for row in core.unified_prune_plan(repo, ["exp001"])["prune"]
+    }
+    core.publication_retain(DESTINATION, frozen)
+    plan = core.unified_prune_plan(repo, ["exp001"])
+    retained = next(
+        row for row in plan["keep"] if row["run_id"] == paths["old_present"].name
+    )
+    assert "incoming:456/1" in retained["reasons"]
+    state["control"]["operation"] = dict(kind="prune", plan_hash="held")
+    with pytest.raises(core.PingstoreError, match="storage maintenance is active"):
+        core.publication_retain(DESTINATION, frozen)
+
+
 def test_a_deployed_build_cannot_be_released_as_failed(stores, monkeypatch):
     repo, paths, state = stores
     prepare(stores, monkeypatch)

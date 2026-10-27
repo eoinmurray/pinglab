@@ -136,6 +136,19 @@ jobs:
         with:
           name: pingstore-evidence
           path: evidence
+      - name: Retain frozen evidence before deployment or retry
+        env:
+          PYTHONPATH: tools
+        run: |
+          python - <<'PY'
+          import os
+          from pathlib import Path
+          from pingstore.core import load_json, publication_retain
+          manifest = load_json(Path('evidence/pingstore-evidence.json'))
+          assert manifest['build']['id'].split('/')[0] == os.environ['GITHUB_RUN_ID']
+          assert manifest['build']['revision'] == os.environ['GITHUB_SHA']
+          publication_retain(os.environ['PINGLAB_R2_DESTINATION'], manifest)
+          PY
       - name: Deploy
         id: deployment
         uses: actions/deploy-pages@v4
@@ -168,7 +181,10 @@ jobs:
           python - <<'PY'
           import os
           from pathlib import Path
-          from pingstore.core import publication_failed
+          from pingstore.core import load_json, publication_failed
+          evidence = Path('evidence/pingstore-evidence.json')
+          build_id = (load_json(evidence)['build']['id'] if evidence.exists()
+                      else f"{os.environ['GITHUB_RUN_ID']}/{os.environ['GITHUB_RUN_ATTEMPT']}")
           publication_failed(Path('.'), os.environ['PINGLAB_R2_DESTINATION'],
-                             f"{os.environ['GITHUB_RUN_ID']}/{os.environ['GITHUB_RUN_ATTEMPT']}")
+                             build_id)
           PY
