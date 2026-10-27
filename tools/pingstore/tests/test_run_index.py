@@ -79,6 +79,7 @@ def test_exact_cross_experiment_graph_and_visible_reasons(tmp_path):
         "protection:control",
         "report:exp142",
         "unfinished:.pending",
+        "unresolved-publication",
     ]
     assert result["report_selections"]["exp142"] == {"exp142": present.name}
 
@@ -263,3 +264,34 @@ def test_failed_verification_stays_unresolved_until_repaired(tmp_path):
         == "byte-verified"
     )
     assert not repaired["selection_errors"]
+
+
+def test_inventory_uncertainty_and_remote_operations_never_mark_history_unused(
+    tmp_path,
+):
+    paths = fixture_store(tmp_path)
+    records = {
+        p.name: record(p)
+        for p in paths.values()
+        if core.STAGE_ID_RE.fullmatch(p.name) and (p / "run.json").is_file()
+    }
+    known = core.empty_publications() | {"known": True}
+    inventory = dict(known=True, present=sorted(records), unresolved={}, protected=[])
+    clear = core.resolve_run_index(
+        {}, records, publications=known, inventory_state=inventory
+    )
+    assert clear["runs"][paths["old_present"].name]["status"] == "Unused"
+    operation = dict(kind="prune", plan_hash="sha256:" + "a" * 64, run_ids=[])
+    busy = core.resolve_run_index(
+        {}, records, publications=known, inventory_state=inventory, operation=operation
+    )
+    assert busy["runs"][paths["old_present"].name]["status"] == "Required"
+    assert any(
+        "unfinished-operation:prune:" in r
+        for r in busy["runs"][paths["old_present"].name]["reasons"]
+    )
+    uncertain = core.resolve_run_index(
+        {}, records, publications=known, inventory_state=dict(inventory, known=False)
+    )
+    assert uncertain["runs"][paths["old_present"].name]["status"] == "Unresolved"
+    assert len({clear["generation"], busy["generation"], uncertain["generation"]}) == 3

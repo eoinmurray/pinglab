@@ -8,8 +8,8 @@ import { runPattern, type Catalog } from './remote-catalog.ts';
 export interface IndexRun {
   record: any;
   current: string[];
-  status: 'Current' | 'Required' | 'Unresolved';
-  storage: 'Local' | 'R2' | 'Both';
+  status: 'Current' | 'Required' | 'Unused' | 'Unresolved';
+  storage: 'Local' | 'R2' | 'Both' | 'Unknown' | 'Unavailable';
   verification: { local: string; r2: string };
   reasons: string[];
   unresolved: string[];
@@ -23,7 +23,11 @@ export interface RunIndex {
   runsets: Record<string, string[]>;
   selection_errors: Record<string, string>;
   report_selections: Record<string, Record<string, string>>;
-  publication: 'unresolved';
+  report_inputs: Record<string, string[]>;
+  operation?: { kind: string; plan_hash: string; run_ids?: string[] } | null;
+  publication_unavailable?: string[];
+  inventory_generation?: string | null;
+  publication: 'known' | 'unresolved';
   runs: Record<string, IndexRun>;
 }
 export function validateRunIndex(value: any): RunIndex {
@@ -32,13 +36,13 @@ export function validateRunIndex(value: any): RunIndex {
   if (value?.schema !== 'pingstore.index/v1' || !/^sha256:[a-f0-9]{64}$/.test(value.generation)
       || !['auto', 'local', 'remote'].includes(value.source) || typeof value.remote_known !== 'boolean'
       || !mapping(value.selections) || !mapping(value.runsets) || !mapping(value.runs)
-      || !mapping(value.selection_errors) || !mapping(value.report_selections) || value.publication !== 'unresolved') {
+      || !mapping(value.selection_errors) || !mapping(value.report_selections) || !['known', 'unresolved'].includes(value.publication)) {
     throw new Error('Invalid Pingstore index');
   }
   for (const [id, row] of Object.entries(value.runs) as [string, IndexRun][]) {
     // Unresolved malformed holdings have no trustworthy scientific record.
-    if (!mapping(row) || !['Current', 'Required', 'Unresolved'].includes(row.status)
-        || !['Local', 'R2', 'Both'].includes(row.storage) || !strings(row.reasons) || !strings(row.unresolved)
+    if (!mapping(row) || !['Current', 'Required', 'Unused', 'Unresolved'].includes(row.status)
+        || !['Local', 'R2', 'Both', 'Unknown', 'Unavailable'].includes(row.storage) || !strings(row.reasons) || !strings(row.unresolved)
         || !strings(row.current) || !mapping(row.verification)) throw new Error(`Invalid index row: ${id}`);
     if (row.record && (!runPattern.test(id) || row.record.run_id !== id || row.record.schema !== 'pingstore.run/v4')) {
       throw new Error(`Invalid index identity: ${id}`);
@@ -72,7 +76,7 @@ export function validateRunIndex(value: any): RunIndex {
 }
 
 const repository = fileURLToPath(new URL('../../../', import.meta.url));
-export async function resolveRunIndex(options: { root: string; source: string; catalog?: Catalog; repository?: string }): Promise<RunIndex> {
+export async function resolveRunIndex(options: { root: string; source: string; catalog?: Catalog; control?: any; repository?: string }): Promise<RunIndex> {
   const repo = resolve(options.repository ?? process.env.PINGLAB_REPOSITORY_ROOT ?? repository);
   const venv = join(repo, '.venv/bin/python');
   const python = process.env.PINGLAB_PYTHON ?? (existsSync(venv) ? venv : 'python3');
@@ -93,6 +97,6 @@ export async function resolveRunIndex(options: { root: string; source: string; c
       try { done(validateRunIndex(JSON.parse(Buffer.concat(stdout).toString()))); }
       catch (error) { reject(error); }
     });
-    child.stdin.end(JSON.stringify(options.catalog ?? null));
+    child.stdin.end(JSON.stringify({ catalog: options.catalog ?? null, control: options.control ?? null }));
   });
 }

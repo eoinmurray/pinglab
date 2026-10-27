@@ -76,3 +76,20 @@ export function remoteCatalog(base = assetBase(), refresh = false): Promise<Cata
   value.catch(() => cached.delete(base));
   return value;
 }
+
+
+export async function remoteControl(base = assetBase()) {
+  const unknown = { schema: 'pingstore.control/v1', revision: 0, operation: null, tombstones: {},
+    publications: { schema: 'pingstore.publications/v1', known: false, active: null, incoming: {} } };
+  try {
+    const response = await fetch(`${base}/pingstore/control.json`, { signal: AbortSignal.timeout(30_000), cache: 'no-store' });
+    if (response.status === 404) return unknown;
+    if (!response.ok) throw new Error(`R2 publication state: HTTP ${response.status}`);
+    const control = await response.json();
+    if (control?.schema !== 'pingstore.control/v1') throw new Error('Invalid R2 coordination document');
+    return control;
+  } catch (error) {
+    console.warn('[Pingstore] Publication state unavailable; history remains unresolved.', error);
+    return unknown;
+  }
+}

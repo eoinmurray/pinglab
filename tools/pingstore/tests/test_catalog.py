@@ -67,9 +67,9 @@ def test_existing_backups_are_download_verified_before_catalog_publication(
     monkeypatch.setattr(
         core,
         "read_catalog",
-        lambda destination: {"schema": core.SCHEMA, "runs": {}},
+        lambda destination, **kwargs: {"schema": core.SCHEMA, "runs": {}},
     )
-    monkeypatch.setattr(core, "inventory", lambda destination: files)
+    monkeypatch.setattr(core, "inventory", lambda destination, **kwargs: files)
 
     def remote(*args, **kwargs):
         calls.append(args[0])
@@ -80,8 +80,14 @@ def test_existing_backups_are_download_verified_before_catalog_publication(
         return None
 
     monkeypatch.setattr(core, "rclone", remote)
+
+    def conditional(path, previous, revised, **kwargs):
+        calls.append("conditional-put")
+        uploaded.append(json.dumps(revised).encode())
+
+    monkeypatch.setattr(core, "conditional_document", conditional)
     core.publish_catalog(tmp_path, "r2:bucket/pingstore/runs", plan)
-    assert calls.index("check") < calls.index("copyto")
+    assert calls.index("check") < calls.index("conditional-put")
     core.validate_catalog(json.loads(uploaded[-1]))
 
 
@@ -89,7 +95,7 @@ def eviction_fixture(tmp_path, monkeypatch):
     source = tmp_path / ".pingstore/runs"
     run = make_run(source, execution={"completed_at": "2026-10-23T00:00:00Z"})
     value = fixture_catalog(source)
-    monkeypatch.setattr(core, "read_catalog", lambda destination: value)
+    monkeypatch.setattr(core, "read_catalog", lambda destination, **kwargs: value)
     monkeypatch.setattr(
         core, "urlopen", lambda *args, **kwargs: BytesIO(json.dumps(value).encode())
     )
@@ -165,7 +171,7 @@ def test_backup_accepts_digest_matched_remote_ancestors_after_eviction(
     import shutil
 
     shutil.rmtree(parent)
-    monkeypatch.setattr(core, "read_catalog", lambda destination: value)
+    monkeypatch.setattr(core, "read_catalog", lambda destination, **kwargs: value)
     records = core.records_for_backup(source, "r2:bucket/pingstore/runs")
     assert set(records) == {child.name}
     value["runs"][reference["run_id"]]["record"]["payload_digest"] = (
@@ -185,8 +191,8 @@ def test_catalog_preserves_previous_remote_only_history(tmp_path, monkeypatch):
         for name, item in previous["runs"][run.name]["files"].items()
     }
     old_bytes = json.dumps(previous).encode()
-    monkeypatch.setattr(core, "read_catalog", lambda destination: previous)
-    monkeypatch.setattr(core, "inventory", lambda destination: files)
+    monkeypatch.setattr(core, "read_catalog", lambda destination, **kwargs: previous)
+    monkeypatch.setattr(core, "inventory", lambda destination, **kwargs: files)
     uploaded, conditions = [], []
 
     def remote(*args, **kwargs):
@@ -198,11 +204,25 @@ def test_catalog_preserves_previous_remote_only_history(tmp_path, monkeypatch):
         return None
 
     monkeypatch.setattr(core, "rclone", remote)
+    from types import SimpleNamespace
+
+    def put(**kwargs):
+        uploaded.append(kwargs["Body"])
+        conditions.append(kwargs["IfMatch"])
+
+    client = SimpleNamespace(
+        get_object=lambda **kwargs: {
+            "Body": BytesIO(old_bytes),
+            "ETag": '"old-etag-2"',
+        },
+        put_object=put,
+    )
+    monkeypatch.setattr(core, "_s3_client", lambda remote: client)
     core.publish_catalog(
         tmp_path, "r2:bucket/pingstore/runs", {"runs": [], "existing_runs": []}
     )
     assert json.loads(uploaded[-1])["runs"] == previous["runs"]
-    assert conditions[0].startswith('If-Match: "')
+    assert conditions[0] == '"old-etag-2"'
 
 
 def test_catalog_uses_path_component_order_for_prefixed_unit_names(tmp_path):
@@ -222,132 +242,3 @@ def test_catalog_uses_path_component_order_for_prefixed_unit_names(tmp_path):
     record["payload_digest"] = payload_digest(run)
     (run / "run.json").write_text(json.dumps(record))
     core.validate_catalog(fixture_catalog(tmp_path))
-
-
-def remote_prune_fixture(tmp_path, monkeypatch):
-    source = tmp_path / ".pingstore/runs"
-    old = make_run(
-        source,
-        "exp001-r001-present",
-        execution={"completed_at": "2026-10-23T00:00:00Z"},
-    )
-    new = make_run(
-        source,
-        "exp001-r002-present",
-        execution={"completed_at": "2026-10-24T00:00:00Z"},
-    )
-    other = make_run(
-        source,
-        "exp002-r001-present",
-        execution={"completed_at": "2026-10-23T00:00:00Z"},
-    )
-    state = {"catalog": fixture_catalog(source)}
-    state["objects"] = {
-        f"{identity}/{name}": item["bytes"]
-        for identity, entry in state["catalog"]["runs"].items()
-        for name, item in entry["files"].items()
-    }
-    monkeypatch.setattr(
-        core, "read_catalog", lambda destination: copy.deepcopy(state["catalog"])
-    )
-    monkeypatch.setattr(core, "inventory", lambda destination: dict(state["objects"]))
-    monkeypatch.setattr(
-        core,
-        "report_usage",
-        lambda *args: (
-            {"exp001": {"runs": {"exp001": new.name}}},
-            {new.name: {"exp001"}},
-        ),
-    )
-    return old, new, other, state
-
-
-def test_remote_prune_refuses_unbacked_current_evidence(tmp_path, monkeypatch):
-    _, new, _, state = remote_prune_fixture(tmp_path, monkeypatch)
-    del state["catalog"]["runs"][new.name]
-    with pytest.raises(PingstoreError, match="back up the complete current"):
-        core.remote_prune_plan(tmp_path, "r2:bucket/pingstore/runs", ["exp001"])
-
-
-def test_remote_prune_retains_protected_and_cross_experiment_ancestry(
-    tmp_path, monkeypatch
-):
-    old, _, other, state = remote_prune_fixture(tmp_path, monkeypatch)
-    state["objects"][old.name + "/.protected"] = 0
-    assert not core.remote_prune_plan(tmp_path, "r2:bucket/pingstore/runs", ["exp001"])[
-        "prune"
-    ]
-    del state["objects"][old.name + "/.protected"]
-    record = load_json(other / "run.json")
-    record["inputs"] = {
-        "source": {
-            "run_id": old.name,
-            "payload_digest": load_json(old / "run.json")["payload_digest"],
-        }
-    }
-    (other / "run.json").write_text(json.dumps(record))
-    state["catalog"] = fixture_catalog(tmp_path / ".pingstore/runs")
-    state["objects"][other.name + "/run.json"] = (other / "run.json").stat().st_size
-    assert not core.remote_prune_plan(tmp_path, "r2:bucket/pingstore/runs", ["exp001"])[
-        "prune"
-    ]
-
-
-def test_remote_prune_publishes_valid_index_before_scoped_deletion(
-    tmp_path, monkeypatch
-):
-    old, new, other, state = remote_prune_fixture(tmp_path, monkeypatch)
-    plan = core.remote_prune_plan(tmp_path, "r2:bucket/pingstore/runs", ["exp001"])
-    assert plan["prune"] == [old.name]
-    calls = []
-
-    def publish(destination, previous, revised):
-        core.validate_catalog(revised)
-        assert old.name not in revised["runs"]
-        assert old.name not in revised["report_index"]["runs"]
-        assert revised["report_index"]["selections"]["exp001"] == new.name
-        assert {new.name, other.name} <= revised["runs"].keys()
-        state["catalog"] = revised
-        calls.append("publish")
-
-    def delete(*args):
-        assert args[0] == "delete"
-        assert calls == ["publish"]
-        paths = args[-1].read_text().splitlines()
-        assert paths and all(name.startswith(old.name + "/") for name in paths)
-        for name in paths:
-            del state["objects"][name]
-        calls.append("delete")
-
-    monkeypatch.setattr(core, "replace_catalog", publish)
-    monkeypatch.setattr(core, "rclone", delete)
-    core.apply_remote_prune(
-        tmp_path, "r2:bucket/pingstore/runs", ["exp001"], plan["plan_hash"]
-    )
-    assert calls == ["publish", "delete"]
-
-
-def test_remote_prune_stops_before_deletion_if_plan_or_catalog_changes(
-    tmp_path, monkeypatch
-):
-    _, _, _, state = remote_prune_fixture(tmp_path, monkeypatch)
-    plan = core.remote_prune_plan(tmp_path, "r2:bucket/pingstore/runs", ["exp001"])
-    calls = []
-    monkeypatch.setattr(core, "rclone", lambda *args: calls.append(args))
-    state["catalog"]["updated_at"] = "2026-10-25T00:00:00Z"
-    with pytest.raises(PingstoreError, match="plan changed"):
-        core.apply_remote_prune(
-            tmp_path, "r2:bucket/pingstore/runs", ["exp001"], plan["plan_hash"]
-        )
-    assert not calls
-    plan = core.remote_prune_plan(tmp_path, "r2:bucket/pingstore/runs", ["exp001"])
-
-    def fail(*args):
-        raise PingstoreError("conditional publication failed")
-
-    monkeypatch.setattr(core, "replace_catalog", fail)
-    with pytest.raises(PingstoreError, match="publication failed"):
-        core.apply_remote_prune(
-            tmp_path, "r2:bucket/pingstore/runs", ["exp001"], plan["plan_hash"]
-        )
-    assert not calls

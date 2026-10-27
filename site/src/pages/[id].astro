@@ -1,6 +1,7 @@
 ---
 import { getEntry, render, type CollectionEntry } from 'astro:content';
 import { getReports } from '../lib/reports';
+import { unavailableReportInputs } from '../lib/report-data';
 import Report from '../layouts/Report.astro';
 
 export async function getStaticPaths() {
@@ -16,7 +17,15 @@ const report = import.meta.env.DEV
   ? await getEntry('reports', Astro.params.id!)
   : Astro.props.report;
 if (!report) throw new Error(`Missing report: ${Astro.params.id}`);
-const { Content, headings } = await render(report);
+const missing = await unavailableReportInputs(report.data.inputs, report.data.tags.includes('data'));
+const rendered = missing.length ? undefined : await render(report);
+const Content = rendered?.Content;
+const headings = rendered?.headings ?? [];
 ---
 
-<Report report={report} headings={headings}><Content /></Report>
+<Report report={report} headings={headings} evidenceUnavailable={missing}>
+  {Content ? <Content /> : <section role="status" aria-labelledby="evidence-unavailable">
+    <h2 id="evidence-unavailable">Evidence unavailable</h2>
+    <p>No completed runset is available for {missing.join(', ')} in this view. Results and model parameters will appear when validated evidence is available.</p>
+  </section>}
+</Report>

@@ -10,6 +10,13 @@ export async function reportHasData(report: string, experiment = report): Promis
   return Boolean(await optionalPresentation(experiment));
 }
 
+// Absence is distinct from malformed selected evidence, which still throws.
+export async function unavailableReportInputs(inputs: string[], requiresEvidence: boolean): Promise<string[]> {
+  if (!requiresEvidence) return [];
+  const available = await Promise.all(inputs.map(async experiment => ({ experiment, run: await optionalPresentation(experiment) })));
+  return available.filter(value => !value.run).map(value => value.experiment);
+}
+
 // Numbers, figures and snapshots share the request or build selection.
 export async function reportData(report: string, { experiment = report, allowUnavailable = false }: Options = {}): Promise<any> {
   const run = (await optionalPresentation(experiment))?.id;

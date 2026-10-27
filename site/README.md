@@ -3,7 +3,7 @@
 The reporting resolver also requires Python 3.10+ and PyYAML. A normal
 `uv sync --dev` supplies them. The site uses `.venv/bin/python` when available,
 otherwise `python3`; `PINGLAB_PYTHON` can select an explicit interpreter.
-Pages installs the resolver dependency without installing scientific packages.
+Pages installs the resolver/S3 dependencies and rclone without installing scientific packages.
 
 Run the site with Bun from `site/`:
 
@@ -464,11 +464,12 @@ Native MDX bindings read the selected JSON through `src/lib/report-data.ts`,
 using the same frozen presentation selection as the figures. Bound
 numbers and complex-table values update during rendering when selections change.
 Authored calculations use ordinary JavaScript. Missing values or nonfinite results fail
-rather than becoming fabricated numbers. Migrated articles without a local
-presentation retain their authored text and calculations, with explicit
-unavailable-value and unavailable-figure markers. If a presentation exists,
-missing or invalid fields still fail. Existing direct MDX calculations also
-remain active. Authored literal numbers and interpretations remain authored;
+rather than becoming fabricated numbers. A data report whose declared input has
+no completed runset in the selected source shows an explicit Evidence unavailable
+page before evaluating its MDX bindings or appendix. Its Dataset table still
+explains the available inventory. If a presentation exists, missing or invalid
+fields still fail. Existing direct MDX calculations remain active when evidence
+is available. Authored literal numbers and interpretations remain authored;
 changing the dataset does not automatically rewrite scientific conclusions.
 
 Dataset footers and `/pingstore` use core's shared evidence classifications.
@@ -493,21 +494,29 @@ or copied parameter tables replace missing execution evidence.
 Each report declares its scientific `inputs` in frontmatter. Python execution
 reads its `collection` there. Pruning derives global report usage from the
 latest completed presentations for declared inputs and their complete ancestry, including
-cross-experiment dependencies. Both legacy prune paths retain current runsets as well as manual `.protected`
-ancestry, incomplete-input and scope safeguards. Publication-aware unified pruning
-is pending under #178; status does not authorize deletion. HPC origin and unselected latest runs do not confer protection.
+cross-experiment dependencies. Unified `prune --storage` defaults to both stores
+and retains current runsets, manual protection, unfinished work, shared inputs and
+active/incoming deployment evidence. Status does not authorize deletion; each
+cleanup requires its inspected, unchanged plan hash.
 See [Pingstore Rules](../md/notes/pingstore-rules.md) for the hash-bound dry-run
 and confirmation workflow. Neither operation depends on historical `writings/`.
 
 ## Publication
 
-`.github/workflows/pages.yml` builds Astro on pushes to `main`, manual dispatch,
-and a `repository_dispatch` event of type `pingstore-updated`. It installs only
-the site dependencies, runs the reader tests, and builds from the public R2
-catalog with `PINGLAB_RUN_SOURCE=remote`. `actions/upload-pages-artifact` and
-`actions/deploy-pages` deploy `site/dist` directly. There is no publishing script
-or maintained `gh-pages` branch. Pages must use **GitHub Actions** as its source;
-the custom domain remains configured in repository Pages settings.
+`.github/workflows/pages.yml` runs on pushes to `main`, manual dispatch and
+`repository_dispatch` of type `pingstore-updated`. It tests the readers, registers
+incoming evidence in the shared R2 coordination record and freezes the exact
+remote catalog/index for rendering. `PINGLAB_CATALOG_PATH`,
+`PINGLAB_REPORT_INDEX_PATH` and `PINGLAB_EVIDENCE_PATH` bind the build to those
+prepared files. The rendered manifest must match the incoming registration.
+
+The private `PINGLAB_RCLONE_CONFIG` repository Actions secret supplies the existing
+R2 remote. The workflow installs rclone, PyYAML and boto3 without the scientific
+runtime. `actions/upload-pages-artifact` and `actions/deploy-pages` deploy `site/dist`
+directly. After deployment, GitHub's successful active deployment and the deployed
+manifest must agree before previous evidence is released. Failed/incomplete work
+keeps the previous deployment protected. An unresolved outcome keeps both roots.
+There is no manual `gh-pages` branch or separate publishing framework.
 
 ```sh
 cd site
@@ -528,12 +537,19 @@ hash-confirmation invocations. Do not remove local runs until they are cataloged
 and a remote-only build succeeds. Scientific execution still requires local
 inputs; restore selected runs and their ancestry before running new stages.
 
-The Git-ignored PDF library stays local. The legacy `pingstore backup-papers`
-upload is disabled; do not upload the library to the public assets bucket.
+The Git-ignored PDF library stays local; do not upload the library to the public assets bucket.
 Production paper links come from the tracked `papers/index.yaml` citation index.
 
 Every build also includes `/pingstore-evidence.json`, containing the build and
 revision identity, index generation, selections and exact payload/input digests.
 It ships through the existing Pages workflow. The manifest records build evidence;
-it does not itself establish which deployment succeeded. Active/incoming deployment
-reconciliation and legacy-publication bootstrap remain part of #178.
+it does not itself prove successful deployment. Core checks the actual active
+Pages deployment and its manifest before pruning. Legacy bootstrap uses the exact
+authenticated successful Pages artifact; the self-contained recovered exp124 text
+archive does not promote its historical Dataset labels into live run roots.
+
+A data report with no completed runset shows “Evidence unavailable” and skips its
+MDX results, parameter tables and appendices. Its missing inputs are explicit in
+the build manifest. Invalid selected evidence still fails rendering; it is never
+hidden by this absence handling. Listings show unavailable metrics until evidence
+is available. No scientific results are invented or replaced with recipe defaults.
