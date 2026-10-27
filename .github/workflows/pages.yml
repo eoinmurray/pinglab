@@ -14,17 +14,39 @@ concurrency:
   group: pages
   cancel-in-progress: false
 
+env:
+  PINGLAB_R2_DESTINATION: r2:pinglab/pingstore/runs
+
 jobs:
   build:
     permissions:
       contents: read
       pages: read
+      actions: read
+      deployments: read
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install reporting and storage dependencies
+        run: |
+          python -m pip install PyYAML==6.0.3 boto3==1.43.119
+          sudo apt-get update -qq
+          sudo apt-get install --yes rclone
+      - name: Configure authenticated evidence storage
+        env:
+          PINGLAB_RCLONE_CONFIG: ${{ secrets.PINGLAB_RCLONE_CONFIG }}
+        run: |
+          test -n "$PINGLAB_RCLONE_CONFIG" || { echo 'PINGLAB_RCLONE_CONFIG is required to coordinate publication with pruning.'; exit 1; }
+          config="$RUNNER_TEMP/pinglab-rclone.conf"
+          umask 077
+          printf '%s' "$PINGLAB_RCLONE_CONFIG" > "$config"
+          echo "RCLONE_CONFIG=$config" >> "$GITHUB_ENV"
       - uses: actions/setup-node@v4
         with:
           node-version: 24
@@ -35,24 +57,118 @@ jobs:
       - name: Test site readers
         run: bun run test
         working-directory: site
-      - name: Build entirely from R2
+      - name: Freeze and retain incoming evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PYTHONPATH: tools
+        run: |
+          python - <<'PY'
+          import os
+          from pathlib import Path
+          from pingstore.core import publication_prepare
+          output = Path(os.environ['RUNNER_TEMP']) / 'pingstore-build'
+          publication_prepare(Path('.'), os.environ['PINGLAB_R2_DESTINATION'], output,
+                              build_id=f"{os.environ['GITHUB_RUN_ID']}/{os.environ['GITHUB_RUN_ATTEMPT']}",
+                              revision=os.environ['GITHUB_SHA'])
+          with open(os.environ['GITHUB_ENV'], 'a') as handle:
+              for variable, filename in [('PINGLAB_CATALOG_PATH', 'catalog.json'),
+                                         ('PINGLAB_REPORT_INDEX_PATH', 'index.json'),
+                                         ('PINGLAB_EVIDENCE_PATH', 'evidence.json')]:
+                  handle.write(f'{variable}={output / filename}\n')
+          PY
+      - name: Build entirely from frozen R2 evidence
         env:
           PINGLAB_RUN_SOURCE: remote
         run: bun run build
         working-directory: site
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pingstore-evidence
+          path: site/dist/pingstore-evidence.json
       - uses: actions/upload-pages-artifact@v4
         with:
           path: site/dist
+      - name: Release a failed build's incoming marker
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PYTHONPATH: tools
+        run: |
+          python - <<'PY'
+          import os
+          from pathlib import Path
+          from pingstore.core import publication_failed
+          publication_failed(Path('.'), os.environ['PINGLAB_R2_DESTINATION'],
+                             f"{os.environ['GITHUB_RUN_ID']}/{os.environ['GITHUB_RUN_ATTEMPT']}")
+          PY
   deploy:
     needs: build
     runs-on: ubuntu-latest
     permissions:
+      contents: read
+      actions: read
+      deployments: read
       pages: write
       id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install publication dependencies
+        run: |
+          python -m pip install PyYAML==6.0.3 boto3==1.43.119
+          sudo apt-get update -qq
+          sudo apt-get install --yes rclone
+      - name: Configure authenticated evidence storage
+        env:
+          PINGLAB_RCLONE_CONFIG: ${{ secrets.PINGLAB_RCLONE_CONFIG }}
+        run: |
+          test -n "$PINGLAB_RCLONE_CONFIG"
+          config="$RUNNER_TEMP/pinglab-rclone.conf"
+          umask 077
+          printf '%s' "$PINGLAB_RCLONE_CONFIG" > "$config"
+          echo "RCLONE_CONFIG=$config" >> "$GITHUB_ENV"
+      - uses: actions/download-artifact@v4
+        with:
+          name: pingstore-evidence
+          path: evidence
       - name: Deploy
         id: deployment
         uses: actions/deploy-pages@v4
+      - name: Confirm active deployed evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PYTHONPATH: tools
+        run: |
+          python - <<'PY'
+          import os
+          import time
+          from pathlib import Path
+          from pingstore.core import PingstoreError, load_json, publication_activate
+          manifest = load_json(Path('evidence/pingstore-evidence.json'))
+          for attempt in range(24):
+              try:
+                  publication_activate(Path('.'), os.environ['PINGLAB_R2_DESTINATION'], manifest)
+                  break
+              except PingstoreError:
+                  if attempt == 23:
+                      raise
+                  time.sleep(10)
+          PY
+      - name: Preserve active evidence and release a failed incoming deployment
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PYTHONPATH: tools
+        run: |
+          python - <<'PY'
+          import os
+          from pathlib import Path
+          from pingstore.core import publication_failed
+          publication_failed(Path('.'), os.environ['PINGLAB_R2_DESTINATION'],
+                             f"{os.environ['GITHUB_RUN_ID']}/{os.environ['GITHUB_RUN_ATTEMPT']}")
+          PY

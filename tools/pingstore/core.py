@@ -24,7 +24,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from http.client import HTTPException
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 from typing import Any
 from urllib.request import Request, urlopen
 
@@ -850,6 +850,8 @@ def execution_origin(host: str | None = None) -> str:
 @contextlib.contextmanager
 def operation_lock(root: Path, *, exclusive: bool):
     """Coordinate v4 writers with exclusive pruning."""
+    if any(path.is_symlink() for path in (root, *root.parents)):
+        raise PingstoreError("Pingstore operation paths must not use symlinks")
     root.mkdir(parents=True, exist_ok=True)
     descriptor = os.open(root / LOCK_NAME, os.O_RDWR | os.O_CREAT, 0o600)
     mode = fcntl.LOCK_EX if exclusive else fcntl.LOCK_SH
@@ -1361,67 +1363,577 @@ def ancestry(records: dict[str, dict], roots: set[str]) -> set[str]:
     return seen
 
 
-def report_usage(
-    repo: Path,
-    records: dict[str, dict],
-    *,
-    experiments: set[str] | None = None,
-) -> tuple[dict, dict[str, set[str]]]:
-    """Resolve all reports, allowing missing out-of-scope pins for scoped pruning.
+# Current runsets and the derived reporting contract. Scientific input selection
+# continues using source_run; none of these reporting policies changes input pins.
 
-    Keep unavailable pins in the selections so confirmation still detects edits.
-    Existing selections and their ancestry remain validated across experiments.
-    """
-    latest = {}
-    for identity, record in records.items():
-        completed = record["execution"].get("completed_at")
-        if record["stage"] != "present" or not completed:
-            continue
-        key = (
-            datetime.fromisoformat(completed.replace("Z", "+00:00")).timestamp(),
-            identity,
-        )
-        experiment = record["experiment"]
-        if experiment not in latest or key > latest[experiment]:
-            latest[experiment] = key
-    selections = {}
-    used_by = defaultdict(set)
-    for article, metadata in articles(repo).items():
-        selected = dict(metadata["runs"])
-        for experiment in metadata["inputs"]:
-            if experiment not in selected and experiment in latest:
-                selected[experiment] = latest[experiment][1]
-        roots = set()
-        for experiment, identity in selected.items():
-            record = records.get(identity)
-            if record is None:
-                # Check both the declared input and the run ID: a mismatched
-                # pin must not hide a missing reference to the pruning scope.
-                if (
-                    experiments is not None
-                    and experiment not in experiments
-                    and identity.split("-", 1)[0] not in experiments
-                ):
-                    continue
-                raise PingstoreError(f"report {article!r} names missing run {identity}")
-            if record["experiment"] != experiment or record["stage"] != "present":
+INDEX_SCHEMA = "pingstore.index/v1"
+
+
+def _completed_time(record):
+    completed = record["execution"].get("completed_at")
+    if not completed:
+        return None
+    try:
+        timestamp = datetime.fromisoformat(completed.replace("Z", "+00:00"))
+        if timestamp.utcoffset() is None:
+            raise ValueError("timezone missing")
+        return timestamp.timestamp()
+    except (AttributeError, ValueError) as exc:
+        raise PingstoreError(f"invalid completion date: {record['run_id']}") from exc
+
+
+def _runset(records, identity):
+    """Validate only this root's exact ancestry, including cycles and pin digests."""
+    visiting, visited = set(), set()
+
+    def visit(run_id):
+        if run_id in visiting:
+            raise PingstoreError(f"input cycle at {run_id}")
+        if run_id in visited:
+            return
+        record = records.get(run_id)
+        if record is None:
+            raise PingstoreError(f"missing input {run_id}")
+        visiting.add(run_id)
+        for reference in record["inputs"].values():
+            parent = records.get(reference["run_id"])
+            if (
+                parent is None
+                or parent["payload_digest"] != reference["payload_digest"]
+            ):
                 raise PingstoreError(
-                    f"report {article!r} pin is not a presentation for {experiment}"
+                    f"{run_id}: missing or changed input {reference['run_id']}"
                 )
-            roots.add(identity)
-        selections[article] = {"inputs": metadata["inputs"], "runs": selected}
-        for identity in ancestry(records, roots):
-            used_by[identity].add(article)
-    return selections, dict(used_by)
+            visit(reference["run_id"])
+        visiting.remove(run_id)
+        visited.add(run_id)
+
+    visit(identity)
+    return sorted(visited)
 
 
-# Hash-bound local pruning
+def _select_runsets(*, records, local, errors, completed):
+    selections, runsets, selection_errors = {}, {}, {}
+    experiments = sorted({identity.split("-", 1)[0] for identity in records | errors})
+    for experiment in experiments:
+        # A malformed local presentation blocks fallback even when no valid local
+        # presentation is left. Hidden unfinished stages are not candidates.
+        broken = [
+            identity
+            for identity in errors
+            if identity.startswith(experiment + "-") and identity.endswith("-present")
+        ]
+        if broken:
+            selection_errors[experiment] = "; ".join(
+                f"{identity}: {errors[identity]}" for identity in sorted(broken)
+            )
+            continue
+        candidates = [
+            identity
+            for identity, record in records.items()
+            if record["experiment"] == experiment and record["stage"] == "present"
+        ]
+        local_candidates = [identity for identity in candidates if identity in local]
+        if local_candidates:
+            candidates = local_candidates
+        if not candidates:
+            continue
+        identity = max(candidates, key=lambda run_id: (completed[run_id], run_id))
+        try:
+            members = _runset(records, identity)
+            invalid = set(members) & errors.keys()
+            if invalid:
+                raise PingstoreError(
+                    "invalid local evidence: " + ", ".join(sorted(invalid))
+                )
+        except PingstoreError as exc:
+            selection_errors[experiment] = str(exc)
+            continue
+        selections[experiment] = identity
+        runsets[experiment] = members
+    return selections, runsets, selection_errors
 
-PLAN_SCHEMA = "pingstore.prune-plan/v5"
+
+def _report_record(record):
+    """Keep the derived index small; scientific configuration stays in run.json."""
+    if record is None:
+        return None
+    result = {
+        key: record[key]
+        for key in (
+            "schema",
+            "run_id",
+            "experiment",
+            "stage",
+            "collection",
+            "origin",
+            "created_at",
+            "inputs",
+            "payload_digest",
+        )
+    }
+    result["execution"] = {
+        key: value
+        for key, value in record["execution"].items()
+        if key in {"started_at", "completed_at", "operation"}
+    }
+    if "scientific_execution" in record:
+        result["scientific_execution"] = {
+            key: value
+            for key, value in record["scientific_execution"].items()
+            if key in {"started_at", "completed_at", "origin"}
+        }
+    if "completed_hpc_import" in record:
+        imported = record["completed_hpc_import"]
+        result["completed_hpc_import"] = {
+            "source_origin": imported["source_origin"],
+            "source_execution": {
+                key: value
+                for key, value in imported["source_execution"].items()
+                if key in {"started_at", "completed_at"}
+            },
+        }
+    return result
 
 
-def _directory_bytes(directory: Path) -> int:
-    return sum(path.stat().st_size for path in directory.rglob("*") if path.is_file())
+def _index_rows(
+    *,
+    records,
+    errors,
+    local,
+    remote,
+    reasons,
+    remote_known,
+    source,
+    local_errors,
+    verified_local,
+    publication_known,
+    inventory_known,
+    remote_errors,
+    remote_present,
+):
+    local_holdings = local.keys() | local_errors.keys()
+    rows = {}
+    for identity in sorted(records.keys() | errors.keys()):
+        record = records.get(identity)
+        current = sorted(
+            reason[8:] for reason in reasons[identity] if reason.startswith("current:")
+        )
+        row_reasons = sorted(reasons[identity])
+        unresolved = []
+        if identity in errors:
+            unresolved.append(errors[identity])
+        if not remote_known and source != "local":
+            unresolved.append("R2 inventory unavailable")
+        # Surviving deployed pages are not proved by backup presence or recency.
+        if not publication_known:
+            unresolved.append(
+                "active and incoming publication evidence not established"
+            )
+        if source != "local" and not inventory_known:
+            unresolved.append("authenticated R2 inventory snapshot not established")
+        status = (
+            "Current"
+            if current and identity not in errors
+            else "Required"
+            if any(not reason.startswith("unresolved-") for reason in row_reasons)
+            and identity not in errors
+            else "Unused"
+            if publication_known
+            and inventory_known
+            and remote_known
+            and identity not in errors
+            else "Unresolved"
+        )
+        rows[identity] = dict(
+            record=_report_record(record),
+            current=current,
+            status=status,
+            reasons=row_reasons,
+            unresolved=unresolved,
+            storage="Both"
+            if identity in local_holdings and identity in remote_present
+            else "R2"
+            if identity in remote_present
+            else "Local"
+            if identity in local_holdings
+            else "Unavailable"
+            if inventory_known and identity in remote
+            else "Unknown",
+            verification=dict(
+                local="byte-verified"
+                if identity in verified_local and identity not in errors
+                else "metadata-validated"
+                if identity in local and identity not in errors
+                else "invalid"
+                if identity in local_holdings and identity in errors
+                else "absent",
+                r2="missing"
+                if identity in remote_errors and identity not in remote_present
+                else "inventory-unresolved"
+                if identity in remote_errors
+                else "catalog-verified"
+                if identity in remote
+                else "unknown"
+                if identity in errors and identity not in local_holdings
+                else "absent"
+                if remote_known
+                else "unknown",
+            ),
+        )
+    return rows
+
+
+def _index_record_set(*, local, remote, errors):
+    records = {**remote, **local}
+    for identity, record in records.items():
+        validate_run(record)
+        if record["run_id"] != identity:
+            raise PingstoreError(f"record identity mismatch: {identity}")
+        if (
+            identity in local
+            and identity in remote
+            and local[identity] != remote[identity]
+        ):
+            errors[identity] = "local and R2 records differ"
+    completed = {}
+    for identity, record in records.items():
+        timestamp = _completed_time(record)
+        if timestamp is not None:
+            completed[identity] = timestamp
+    records = {
+        identity: record
+        for identity, record in records.items()
+        if identity in completed
+    }
+    return records, completed
+
+
+def _index_inventory_roots(
+    *,
+    inventory_state,
+    operation,
+    source,
+    local,
+    records,
+    runsets,
+    selection_errors,
+    reasons,
+    errors,
+):
+    inventory_state = inventory_state or dict(known=True, unresolved={}, protected=[])
+    remote_errors = (
+        dict(inventory_state.get("unresolved", {})) if source != "local" else {}
+    )
+    for experiment, members in runsets.items():
+        invalid = (set(members) & remote_errors.keys()) - local.keys()
+        if invalid:
+            selection_errors[experiment] = (
+                f"R2 inventory unresolved for {sorted(invalid)}"
+            )
+    for identity in inventory_state.get("protected", []):
+        if identity in records:
+            for member in _runset(records, identity):
+                reasons[member].add(f"protection:r2:{identity}")
+    if remote_errors:
+        for identity in records:
+            reasons[identity].add("unresolved-remote-holdings")
+        errors.update(
+            {
+                identity: error
+                for identity, error in remote_errors.items()
+                if identity not in local
+            }
+        )
+    if operation:
+        label = f"unfinished-operation:{operation['kind']}:{operation['plan_hash']}"
+        for identity in records:
+            reasons[identity].add(label)
+        for identity in operation.get("run_ids", []):
+            if identity not in records:
+                errors[identity] = label + "; copy presence is unresolved"
+    return inventory_state, remote_errors
+
+
+def resolve_run_index(
+    local: dict[str, dict],
+    remote: dict[str, dict],
+    *,
+    source="auto",
+    reports=None,
+    protections=None,
+    unfinished=None,
+    remote_known=True,
+    local_errors=None,
+    verified_local=None,
+    publications=None,
+    inventory_state=None,
+    operation=None,
+):
+    """Resolve deterministic current runsets and explain retention from metadata.
+
+    Callers authenticate payloads/catalogs before supplying records. Broken local
+    copies are never replaced by remote evidence. Publication retention remains
+    unresolved until verified active/incoming deployments are established;
+    this reporting index is deliberately not a deletion authorization.
+    """
+    if source not in {"auto", "local", "remote"}:
+        raise PingstoreError(f"invalid run source: {source}")
+    reports = reports or {}
+    protections = protections or {}
+    unfinished = unfinished or {}
+    local_errors = local_errors or {}
+    remote_known = remote_known and source != "local"
+    local = {} if source == "remote" else local
+    remote = {} if source == "local" else remote
+    local_errors = {} if source == "remote" else local_errors
+    errors = dict(local_errors)
+    records, completed = _index_record_set(local=local, remote=remote, errors=errors)
+    selections, runsets, selection_errors = _select_runsets(
+        records=records, local=local, errors=errors, completed=completed
+    )
+    reasons = defaultdict(set)
+    for experiment, members in runsets.items():
+        for member in members:
+            reasons[member].add(f"current:{experiment}")
+    report_selections = {}
+    for article, metadata in sorted(reports.items()):
+        # Current reporting never follows historical manual pins. Existing pins
+        # remain visible for migration without selecting historical evidence.
+        selected = {
+            experiment: selections[experiment]
+            for experiment in metadata["inputs"]
+            if experiment in selections
+        }
+        report_selections[article] = selected
+        for experiment in selected:
+            for member in runsets[experiment]:
+                reasons[member].add(f"report:{article}")
+    for label, roots in (("protection", protections), ("unfinished", unfinished)):
+        for identity, detail in sorted(roots.items()):
+            try:
+                members = _runset(records, identity)
+            except PingstoreError as exc:
+                errors[identity] = str(exc)
+                continue
+            for member in members:
+                reasons[member].add(f"{label}:{detail}")
+    publications = publications or empty_publications()
+    _publication_reasons(publications, records, reasons, complete=False)
+    inventory_state, remote_errors = _index_inventory_roots(
+        inventory_state=inventory_state,
+        operation=operation,
+        source=source,
+        local=local,
+        records=records,
+        runsets=runsets,
+        selection_errors=selection_errors,
+        reasons=reasons,
+        errors=errors,
+    )
+    rows = _index_rows(
+        records=records,
+        errors=errors,
+        local=local,
+        remote=remote,
+        reasons=reasons,
+        local_errors=local_errors,
+        verified_local=set(verified_local or ()),
+        publication_known=publications["known"],
+        inventory_known=inventory_state.get("known", False),
+        remote_errors=remote_errors,
+        remote_present=set(inventory_state.get("present", remote.keys())),
+        remote_known=remote_known,
+        source=source,
+    )
+    value = dict(
+        schema=INDEX_SCHEMA,
+        source=source,
+        remote_known=remote_known,
+        selections=selections,
+        runsets=runsets,
+        selection_errors=selection_errors,
+        report_selections=report_selections,
+        report_inputs={
+            article: metadata["inputs"] for article, metadata in sorted(reports.items())
+        },
+        legacy_pins={
+            article: metadata["runs"]
+            for article, metadata in sorted(reports.items())
+            if metadata.get("runs")
+        },
+        publication="known" if publications["known"] else "unresolved",
+        publications=publications,
+        operation={
+            key: operation[key]
+            for key in ("kind", "plan_hash", "run_ids")
+            if key in operation
+        }
+        if operation
+        else None,
+        inventory_generation=inventory_state.get("generation"),
+        publication_unavailable=sorted(
+            {
+                identity
+                for manifest in (
+                    [publications["active"]] if publications.get("active") else []
+                )
+                + list(publications["incoming"].values())
+                for identity in manifest["runs"]
+                if identity not in records
+            }
+        ),
+        runs=rows,
+    )
+    return {**value, "generation": _plan_hash(value)}
+
+
+def _local_index_records(runs, cache, *, verify):
+    """Index metadata without reading arrays; explicit verification authenticates bytes."""
+    records, errors, revised = {}, {}, {}
+    if not runs.exists():
+        return records, errors, revised
+    if runs.is_symlink() or not runs.is_dir():
+        raise PingstoreError(f"runs must be a real directory: {runs}")
+    for directory in sorted(runs.iterdir()):
+        identity = directory.name
+        if identity.startswith("."):
+            continue
+        if not STAGE_ID_RE.fullmatch(identity):
+            errors[identity] = "unsupported run identity"
+            continue
+        try:
+            validate_layout(directory)
+            signature = {}
+            for path in sorted(directory.rglob("*")):
+                if path.name == ".protected":
+                    continue
+                stat = path.stat()
+                signature[path.relative_to(directory).as_posix()] = [
+                    stat.st_size,
+                    stat.st_mtime_ns,
+                    stat.st_ctime_ns,
+                    stat.st_ino,
+                    stat.st_dev,
+                ]
+            previous = cache.get(identity, {})
+            unchanged = signature == previous.get("signature")
+            record = load_json(directory / "run.json")
+            if (
+                record["run_id"] != identity
+                or "data_root" in record
+                or "export_root" in record
+            ):
+                raise PingstoreError(
+                    f"invalid operational run identity/layout: {identity}"
+                )
+            if previous and not unchanged and not verify:
+                raise PingstoreError(
+                    "local files changed since indexing; inspect with status --verify"
+                )
+            verified = unchanged and previous.get("verified", False)
+            if verify and not verified:
+                record = validate_operational_run_directory(directory)
+                verified = True
+            records[identity] = record
+            revised[identity] = dict(
+                signature=signature, record=record, verified=verified
+            )
+        except (OSError, ValueError) as exc:
+            errors[identity] = str(exc)
+            if identity in cache:
+                revised[identity] = cache[identity]
+    return records, errors, revised
+
+
+def reporting_index(
+    repo: Path,
+    *,
+    runs=None,
+    catalog=None,
+    source="auto",
+    remote_known=True,
+    verify=False,
+    publications=None,
+    operation=None,
+    inventory_state=None,
+):
+    """Build reporting metadata; byte verification is an explicit offline operation."""
+    repo = repo.resolve()
+    runs = (runs or repo / ".pingstore/runs").absolute()
+    if source == "remote" and catalog is None:
+        raise PingstoreError("remote reporting requires a verified catalog")
+    namespace = hashlib.sha256(str(runs).encode()).hexdigest()[:12]
+    cache_path = runs.parent / f".report-index-cache-{namespace}.json"
+    try:
+        cache = load_json(cache_path)
+    except (OSError, ValueError):
+        cache = {}
+    local, errors, revised = (
+        ({}, {}, {})
+        if source == "remote"
+        else _local_index_records(runs, cache, verify=verify)
+    )
+    if source != "remote" and revised != cache:
+        write_json_atomic(cache_path, revised)
+    remote = {}
+    if source != "local" and catalog is not None:
+        validate_catalog(catalog, complete=False)
+        remote = {
+            identity: entry["record"] for identity, entry in catalog["runs"].items()
+        }
+    protections = {}
+    for identity in local:
+        marker = runs / identity / ".protected"
+        if marker.exists():
+            protections[identity] = identity
+    pending = defaultdict(set)
+    if source != "remote" and runs.is_dir():
+        _hidden_inputs(runs, {**remote, **local}, pending)
+    return resolve_run_index(
+        local,
+        remote,
+        source=source,
+        reports=articles(repo),
+        protections=protections,
+        unfinished={
+            identity: ",".join(sorted(details)) for identity, details in pending.items()
+        },
+        remote_known=remote_known,
+        local_errors=errors,
+        verified_local={
+            identity for identity, row in revised.items() if row.get("verified")
+        },
+        publications=publications,
+        operation=operation,
+        inventory_state=inventory_state
+        or (catalog.get("inventory") if catalog else None)
+        or dict(known=False, unresolved={}, protected=[]),
+    )
+
+
+def render_status(index):
+    lines = [
+        f"Generation: {index['generation']}",
+        f"Source: {index['source']}",
+        f"Inventory generation: {index['inventory_generation'] or 'unresolved'}",
+        f"Publication: {index['publication']}",
+        "Run\tEvidence\tStorage\tVerification\tReasons / unresolved",
+    ]
+    for identity, row in index["runs"].items():
+        reasons = row["reasons"] + row["unresolved"]
+        verification = ", ".join(
+            f"{key}: {value}" for key, value in row["verification"].items()
+        )
+        lines.append(
+            f"{identity}\t{row['status']}\t{row['storage']}\t{verification}\t{'; '.join(reasons)}"
+        )
+    for experiment, error in index["selection_errors"].items():
+        lines.append(f"{experiment}\tUnresolved selection: {error}")
+    return "\n".join(lines)
+
+
+# Shared maintenance controls
 
 
 def _hidden_inputs(
@@ -1488,119 +2000,6 @@ def _experiment_scope(
     return scope
 
 
-def _prune_rows(*, records, runs, keep, reasons, used_by, used, protected, markers):
-    """Describe each retained or removable run without modifying storage."""
-    rows = []
-    for run_id, record in sorted(records.items()):
-        directory = runs / run_id
-        rows.append(
-            {
-                "run_id": run_id,
-                "stage": record["stage"],
-                "experiment": record["experiment"],
-                "used": run_id in used,
-                "used_by": sorted(used_by.get(run_id, ())),
-                "protected": run_id in protected,
-                "protected_marker_sha256": markers.get(run_id),
-                "payload_digest": record["payload_digest"],
-                "run_json_sha256": file_sha256(directory / "run.json"),
-                "bytes": _directory_bytes(directory),
-                "reasons": sorted(reasons[run_id]) if run_id in keep else ["unused"],
-            }
-        )
-    return rows
-
-
-def _protected_runs(*, runs, records, reasons):
-    """Authenticate protection markers and retain their complete ancestry."""
-    markers = {}
-    for run_id in records:
-        marker = runs / run_id / ".protected"
-        if marker.is_symlink() or (marker.exists() and not marker.is_file()):
-            raise PingstoreError(f"protection marker must be a regular file: {marker}")
-        if marker.exists():
-            markers[run_id] = file_sha256(marker)
-            reasons[run_id].add("protected-marker")
-    protected = ancestry(records, set(markers))
-    for run_id in protected - set(markers):
-        reasons[run_id].add("protected-ancestor")
-    return markers, protected
-
-
-def prune_plan(
-    repo: Path,
-    experiments: list[str] | tuple[str, ...] | set[str] | None = None,
-    stages: list[str] | tuple[str, ...] | set[str] | None = None,
-) -> dict:
-    repo = repo.resolve()
-    runs = repo / ".pingstore/runs"
-    if not runs.is_dir() or runs.is_symlink():
-        raise PingstoreError(f"prune requires a real runs directory: {runs}")
-    for path in runs.iterdir():
-        if path.is_symlink() or not path.is_dir():
-            raise PingstoreError(
-                f"prune does not accept unsupported runs entry: {path}"
-            )
-    # Unused runs can have missing historical inputs. Validate every payload,
-    # then require complete, digest-matched ancestry for everything we retain.
-    records = {
-        path.name: validate_operational_run_directory(path)
-        for path in sorted(runs.iterdir())
-        if not path.name.startswith(".")
-    }
-    scope = _experiment_scope(experiments, records)
-    stage_scope = set(stages) if stages is not None else None
-    if stage_scope is not None and (
-        not stage_scope or stage_scope - {"compute", "analyse", "present"}
-    ):
-        raise PingstoreError("invalid or empty stage filter")
-    reasons: dict[str, set[str]] = defaultdict(set)
-    if stage_scope is not None:
-        for run_id, record in records.items():
-            if record["stage"] not in stage_scope:
-                reasons[run_id].add("out-of-stage-scope")
-
-    if scope is not None:
-        for run_id, record in records.items():
-            if record["experiment"] not in scope:
-                reasons[run_id].add("out-of-scope")
-
-    selections, used_by = report_usage(repo, records, experiments=scope)
-    used = set(used_by)
-    for run_id, reports in used_by.items():
-        reasons[run_id].update(f"used-by:{article}" for article in reports)
-    markers, protected = _protected_runs(runs=runs, records=records, reasons=reasons)
-    hidden = _hidden_inputs(runs, records, reasons)
-    keep = ancestry(records, set(reasons))
-    validated_run_graph(runs, keep)
-    for run_id in keep - set(reasons):
-        reasons[run_id].add("required-ancestor")
-    watermarks = allocation_watermarks(repo / ".pingstore")
-
-    rows = _prune_rows(
-        records=records,
-        runs=runs,
-        keep=keep,
-        reasons=reasons,
-        used_by=used_by,
-        used=used,
-        protected=protected,
-        markers=markers,
-    )
-    plan = {
-        "schema": PLAN_SCHEMA,
-        "policy": "keep-report-usage-manual-protection-incomplete-inputs-and-ancestry",
-        "experiments": sorted(scope) if scope is not None else None,
-        "stages": sorted(stage_scope) if stage_scope is not None else None,
-        "allocation_watermarks": watermarks,
-        "report_selections": selections,
-        "hidden": hidden,
-        "keep": [row for row in rows if row["run_id"] in keep],
-        "prune": [row for row in rows if row["run_id"] not in keep],
-    }
-    return {**plan, "plan_hash": _plan_hash(plan)}
-
-
 def _live_writer(directory: Path) -> bool:
     lock = directory / ".writer.lock"
     if not lock.is_file():
@@ -1611,148 +2010,6 @@ def _live_writer(directory: Path) -> bool:
     except (OSError, ValueError):
         return False
     return True
-
-
-def _validate_survivors(runs: Path, expected: set[str]) -> None:
-    records, _ = discover_store(runs)
-    if set(records) != expected:
-        raise PingstoreError("pruned store contains an unexpected completed-run set")
-
-
-def _check_controls(repo: Path, runs: Path, plan: dict) -> None:
-    """Detect manual protection or report-selection edits during confirmation."""
-
-    records = {
-        row["run_id"]: validate_run(load_json(runs / row["run_id"] / "run.json"))
-        for row in plan["keep"] + plan["prune"]
-    }
-    scope = set(plan["experiments"]) if plan["experiments"] is not None else None
-    selections, _ = report_usage(repo, records, experiments=scope)
-    if selections != plan["report_selections"]:
-        raise PingstoreError("report selections changed during pruning")
-    for row in plan["keep"] + plan["prune"]:
-        marker = runs / row["run_id"] / ".protected"
-        if marker.is_symlink() or (marker.exists() and not marker.is_file()):
-            raise PingstoreError("protection marker changed during pruning")
-        digest = file_sha256(marker) if marker.exists() else None
-        if digest != row["protected_marker_sha256"]:
-            raise PingstoreError("protection marker changed during pruning")
-
-
-def apply_prune(
-    repo: Path,
-    expected_hash: str,
-    experiments: list[str] | tuple[str, ...] | set[str] | None = None,
-    stages: list[str] | tuple[str, ...] | set[str] | None = None,
-) -> dict:
-    if not re.fullmatch(r"sha256:[0-9a-f]{64}", expected_hash):
-        raise PingstoreError(
-            "--confirm requires the complete sha256 plan hash from --dry-run"
-        )
-    repo = repo.resolve()
-    store = repo / ".pingstore"
-    runs = store / "runs"
-    staged = store / f".prune-{expected_hash[7:19]}-runs.tmp"
-    previous = store / f".prune-{expected_hash[7:19]}-runs.old"
-    with operation_lock(store, exclusive=True):
-        try:
-            plan = prune_plan(
-                repo,
-                experiments,
-                stages,
-            )
-            if plan["plan_hash"] != expected_hash:
-                raise PingstoreError(
-                    f"prune plan changed: expected {expected_hash}, now {plan['plan_hash']}"
-                )
-            for state in plan["hidden"]:
-                directory = runs / state["name"]
-                if _live_writer(directory):
-                    raise PingstoreError(
-                        f"active writer prevents pruning: {directory.name}"
-                    )
-            if not plan["prune"]:
-                return plan
-            if staged.exists() or previous.exists():
-                raise PingstoreError(
-                    "unfinished prune staging directory requires recovery"
-                )
-
-            keep_ids = {row["run_id"] for row in plan["keep"]}
-            # Persist counters before any run can disappear; dry-runs never write them.
-            persist_watermarks(store, plan["allocation_watermarks"])
-            staged.mkdir()
-            for path in sorted(runs.iterdir()):
-                if path.name.startswith(".") or path.name in keep_ids:
-                    if path.is_dir() and not path.is_symlink():
-                        shutil.copytree(
-                            path,
-                            staged / path.name,
-                            copy_function=os.link,
-                            symlinks=True,
-                        )
-                    else:
-                        raise PingstoreError(
-                            f"unsupported entry in runs directory: {path}"
-                        )
-            _validate_survivors(staged, keep_ids)
-            _check_controls(repo, runs, plan)
-            os.replace(runs, previous)
-            try:
-                os.replace(staged, runs)
-                _validate_survivors(runs, keep_ids)
-                _check_controls(repo, previous, plan)
-            except BaseException:
-                if runs.exists():
-                    os.replace(runs, staged)
-                os.replace(previous, runs)
-                raise
-            shutil.rmtree(previous)
-            return plan
-        finally:
-            if staged.exists() and runs.exists():
-                shutil.rmtree(staged)
-
-
-def render_prune_plan(plan: dict) -> str:
-    keep_bytes = sum(row["bytes"] for row in plan["keep"])
-    prune_bytes = sum(row["bytes"] for row in plan["prune"])
-    lines = [
-        f"Plan: {plan['plan_hash']}",
-        "Scope: "
-        + (
-            ", ".join(plan["experiments"]) if plan["experiments"] else "all experiments"
-        ),
-        "Stages: " + (", ".join(plan.get("stages") or []) or "all stages"),
-        "Policy: used report ancestry + manual .protected ancestry + incomplete inputs",
-        f"Used: {sum(row['used'] for row in plan['keep'])} runs",
-        f"Protected: {sum(row['protected'] for row in plan['keep'])} runs",
-        f"Keep: {len(plan['keep'])} runs ({keep_bytes / 2**30:.2f} GiB)",
-        f"Prune: {len(plan['prune'])} runs ({prune_bytes / 2**30:.2f} GiB)",
-        "",
-        "KEEP",
-    ]
-    lines.extend(
-        f"{row['run_id']}\t{row['bytes']}\t{'used' if row['used'] else 'unused'}\t{','.join(row['reasons'])}"
-        for row in plan["keep"]
-    )
-    lines.extend(["", "PRUNE"])
-    lines.extend(
-        f"{row['run_id']}\t{row['bytes']}\t{'used' if row['used'] else 'unused'}\t{','.join(row['reasons'])}"
-        for row in plan["prune"]
-    )
-    scope_args = " ".join(
-        f"--experiment {shlex.quote(experiment)}"
-        for experiment in (plan["experiments"] or [])
-    )
-    command = "uv run pingstore prune"
-    if scope_args:
-        command += f" {scope_args}"
-    for stage in plan.get("stages") or []:
-        command += f" --stage {shlex.quote(stage)}"
-    command += f" --confirm {plan['plan_hash']}"
-    lines.extend(["", f"Confirm with: {command}"])
-    return "\n".join(lines)
 
 
 # Verified R2 backups
@@ -1817,11 +2074,12 @@ def manifest_levels(records, new_ids):
     return levels
 
 
-def records_for_backup(source, destination):
+def records_for_backup(source, destination, selected_ids=None):
     records = {
         path.name: validate_operational_run_directory(path)
         for path in sorted(source.iterdir())
         if not path.name.startswith(".")
+        and (selected_ids is None or path.name in selected_ids)
     }
     missing_inputs = {
         reference["run_id"]
@@ -1829,7 +2087,9 @@ def records_for_backup(source, destination):
         for reference in record["inputs"].values()
     } - records.keys()
     if not missing_inputs:
-        return discover_store(source)[0]
+        for identity in records:
+            _runset(records, identity)
+        return records
 
     remote = read_catalog(destination)
     combined = {identity: entry["record"] for identity, entry in remote["runs"].items()}
@@ -1847,8 +2107,8 @@ def records_for_backup(source, destination):
     return records
 
 
-def backup_plan(source, destination):
-    records = records_for_backup(source, destination)
+def backup_plan(source, destination, selected_ids=None):
+    records = records_for_backup(source, destination, selected_ids)
     remote = inventory(destination)
     rows, new_ids, existing_ids = [], [], []
     for identity, record in sorted(records.items()):
@@ -1974,7 +2234,9 @@ def apply_backup(source, destination, plan):
             "--log-level",
             "INFO",
         )
-        records = records_for_backup(source, destination)
+        records = records_for_backup(
+            source, destination, {row["run_id"] for row in plan["runs"]}
+        )
         for identity in plan["new_runs"]:
             row = expected[identity]
             if (
@@ -2042,31 +2304,8 @@ def apply_backup(source, destination, plan):
 def backup_runs(
     source: Path, destination: str, *, dry_run: bool, confirm: str | None
 ) -> int:
-    """Inspect a backup plan or apply an explicitly confirmed, unchanged plan."""
     try:
-        with operation_lock(source.parent, exclusive=False):
-            plan = backup_plan(source, destination)
-            if dry_run:
-                print(f"Destination: {destination}")
-                print(
-                    f"New runs: {len(plan['new_runs'])}; matching existing runs: {len(plan['existing_runs'])}"
-                )
-                size = sum(
-                    sum(row["files"].values())
-                    for row in plan["runs"]
-                    if row["run_id"] in plan["new_runs"]
-                )
-                print(f"New-run bytes: {size} ({size / 2**30:.2f} GiB)")
-                for identity in plan["new_runs"]:
-                    print(identity)
-                print(f"Plan: {plan['plan_hash']}")
-            else:
-                if plan["plan_hash"] != confirm:
-                    raise PingstoreError("backup plan changed; run --dry-run again")
-                apply_backup(source, destination, plan)
-
-                publish_catalog(source, destination, plan)
-        return 0
+        return coordinated_backup(source, destination, dry_run=dry_run, confirm=confirm)
     except (OSError, ValueError, subprocess.CalledProcessError) as exc:
         print(f"pingstore backup: {exc}", file=sys.stderr)
         return 1
@@ -2081,7 +2320,7 @@ def catalog_path(destination):
     return destination.rsplit("/", 1)[0] + "/catalog.json"
 
 
-def read_catalog(destination):
+def read_catalog(destination, *, complete=True, allow_malformed=False):
 
     # Missing is allowed only when listing confirms this is the first catalog.
     parent = destination.rsplit("/", 1)[0]
@@ -2089,11 +2328,15 @@ def read_catalog(destination):
     if not any(row["Path"] == "catalog.json" for row in names):
         return {"schema": SCHEMA, "runs": {}}
     value = json.loads(rclone("cat", catalog_path(destination), capture=True))
-    validate_catalog(value)
+    if allow_malformed:
+        if value.get("schema") != SCHEMA or not isinstance(value.get("runs"), dict):
+            raise PingstoreError("invalid R2 catalog envelope")
+    else:
+        validate_catalog(value, complete=complete)
     return value
 
 
-def _check_catalog_entries(*, value):
+def _check_catalog_entries(*, value, complete=True):
     """Authenticate each catalog record and its declared payload inventory."""
     for identity, entry in value["runs"].items():
         record = validate_run(entry["record"])
@@ -2128,7 +2371,7 @@ def _check_catalog_entries(*, value):
         ).hexdigest()
         if record["payload_digest"] != "sha256:" + digest:
             raise PingstoreError(f"catalog payload inventory mismatch: {identity}")
-        for reference in record["inputs"].values():
+        for reference in record["inputs"].values() if complete else ():
             parent = value["runs"].get(reference["run_id"])
             if (
                 parent is None
@@ -2137,10 +2380,12 @@ def _check_catalog_entries(*, value):
                 raise PingstoreError(f"catalog missing or changed ancestor: {identity}")
 
 
-def validate_catalog(value):
+def validate_catalog(value, *, complete=True):
     if value.get("schema") != SCHEMA or not isinstance(value.get("runs"), dict):
         raise PingstoreError("invalid R2 catalog")
-    _check_catalog_entries(value=value)
+    _check_catalog_entries(value=value, complete=complete)
+    if not complete:
+        return
 
     visiting, visited = set(), set()
 
@@ -2163,31 +2408,50 @@ def replace_catalog(destination, previous, value):
     """Conditionally replace the mutable index, preserving concurrent publications."""
 
     validate_catalog(value)
-    with tempfile.TemporaryDirectory(prefix="pingstore-catalog-publish-") as temporary:
-        path = Path(temporary) / "catalog.json"
-        path.write_text(json.dumps(value, sort_keys=True, separators=(",", ":")) + "\n")
-        # Re-read before replacing the one mutable index. Immutable runs are never overwritten.
-        if read_catalog(destination) != previous:
-            raise PingstoreError("catalog changed concurrently; retry backup")
-        condition = "If-None-Match: *"
-        if "updated_at" in previous:
-            old_bytes = rclone("cat", catalog_path(destination), capture=True)
-            if json.loads(old_bytes) != previous:
-                raise PingstoreError("catalog changed concurrently; retry backup")
-            # R2's ETag for this small, single-PUT JSON object is its MD5.
-            etag = hashlib.md5(old_bytes, usedforsecurity=False).hexdigest()
-            condition = f'If-Match: "{etag}"'
-        rclone(
-            "copyto",
-            path,
-            catalog_path(destination),
-            "--header-upload",
-            "Cache-Control: no-cache",
-            "--header-upload",
-            condition,
+    if read_catalog(destination, complete=False) != previous:
+        raise PingstoreError("catalog changed concurrently; retry backup")
+    conditional_document(
+        catalog_path(destination), previous, value, exists="updated_at" in previous
+    )
+
+
+def inventory_projection(objects, entries):
+    expected = {
+        f"{identity}/{name}": row["bytes"]
+        for identity, entry in entries.items()
+        for name, row in entry["files"].items()
+    }
+    protected = sorted(
+        {name.split("/")[0] for name in objects if name.endswith("/.protected")}
+    )
+    unresolved = {}
+    for name in objects.keys() | expected.keys():
+        if name.endswith("/.protected"):
+            continue
+        if objects.get(name) != expected.get(name):
+            unresolved[name.split("/")[0]] = (
+                "authenticated object inventory differs from the catalog"
+            )
+    return dict(
+        schema="pingstore.inventory/v1",
+        known=True,
+        generation=_plan_hash(objects),
+        protected=protected,
+        present=sorted({name.split("/")[0] for name in objects}),
+        unresolved=unresolved,
+    )
+
+
+def _catalog_watermarks(source, previous, entries):
+    counters = dict(previous.get("allocation_watermarks", {}))
+    for experiment, number in allocation_watermarks(source.parent).items():
+        counters[experiment] = max(counters.get(experiment, 0), number)
+    for identity in entries:
+        match = STAGE_ID_RE.fullmatch(identity)
+        counters[match.group(1)] = max(
+            counters.get(match.group(1), 0), int(match.group(2))
         )
-        if rclone("cat", catalog_path(destination), capture=True) != path.read_bytes():
-            raise PingstoreError("catalog publication verification failed")
+    return counters
 
 
 def publish_catalog(source: Path, destination: str, plan: dict):
@@ -2244,6 +2508,10 @@ def publish_catalog(source: Path, destination: str, plan: dict):
             name.split("/")[0] for name in remote if name.endswith("/run.json")
         }
         for identity in sorted(remote_ids - entries.keys()):
+            if identity in plan.get("tombstones", {}):
+                raise PingstoreError(
+                    f"uncataloged objects would resurrect pruned evidence: {identity}"
+                )
             directory = scratch / identity
             print(
                 f"Validating remote-only historical run {identity} for catalog.",
@@ -2273,11 +2541,22 @@ def publish_catalog(source: Path, destination: str, plan: dict):
             }
             if expected != actual:
                 raise PingstoreError(f"catalog remote inventory changed: {identity}")
+        counters = _catalog_watermarks(source, previous, entries)
         value = {
             "schema": SCHEMA,
             "updated_at": datetime.now(timezone.utc).isoformat(),
             "runs": entries,
+            "allocation_watermarks": counters,
+            "inventory": inventory_projection(remote, entries),
         }
+        value["report_index"] = resolve_run_index(
+            {},
+            {identity: entry["record"] for identity, entry in entries.items()},
+            source="remote",
+            reports=articles(source.parent.parent),
+            publications=plan.get("publications"),
+            inventory_state=value["inventory"],
+        )
         replace_catalog(destination, previous, value)
     print(f"Published checksummed catalog for {len(entries)} runs.", flush=True)
 
@@ -2454,532 +2733,1707 @@ def render_eviction_plan(plan):
 # Retired PDF backup interface
 
 
-def paper_backup_plan(source: Path, destination: str):
-    if not source.is_dir() or source.is_symlink():
-        raise PingstoreError("PDF source must be an existing real directory")
-    if ":" not in destination or not destination.endswith("/papers"):
-        raise PingstoreError(
-            "PDF destination must be an rclone remote ending in /papers"
+# Coordinated remote maintenance. A lease never expires automatically: a stopped
+# writer must resume its original journal, rather than racing a newer operation.
+
+CONTROL_SCHEMA = "pingstore.control/v1"
+UNIFIED_PLAN_SCHEMA = "pingstore.prune-plan/v6"
+PUBLICATION_SCHEMA = "pingstore.publications/v1"
+
+
+def empty_publications():
+    return dict(schema=PUBLICATION_SCHEMA, known=False, active=None, incoming={})
+
+
+def control_path(destination):
+    return destination.rsplit("/", 1)[0] + "/control.json"
+
+
+def read_control(destination):
+    parent = destination.rsplit("/", 1)[0]
+    names = json.loads(rclone("lsjson", parent, "--files-only", capture=True))
+    if not any(row["Path"] == "control.json" for row in names):
+        return dict(
+            schema=CONTROL_SCHEMA,
+            revision=0,
+            operation=None,
+            publications=empty_publications(),
+            tombstones={},
         )
-    files = {
-        path.relative_to(source).as_posix(): {
-            "bytes": path.stat().st_size,
-            "sha256": file_sha256(path),
-        }
-        for path in sorted(source.rglob("*"))
-        if path.is_file()
-        and path.suffix.lower() == ".pdf"
-        and not path.is_symlink()
-        and not any(part.startswith(".") for part in path.relative_to(source).parts)
-    }
-    if any(
-        any(c in path for c in "\\\r\n\0")
-        or any(part in ("", ".", "..") for part in path.split("/"))
-        for path in files
-    ):
-        raise PingstoreError("invalid PDF backup path")
-    plan = {"source": str(source.resolve()), "destination": destination, "files": files}
-    digest = hashlib.sha256(
-        json.dumps(plan, sort_keys=True, separators=(",", ":")).encode()
-    ).hexdigest()
-    return {**plan, "plan_hash": "sha256:" + digest}
-
-
-def apply_paper_backup(source: Path, destination: str, expected_hash: str):
-    raise PingstoreError(
-        "Public PDF uploads are disabled. Keep PDFs local and publish source links instead."
-    )
-
-
-# Campaign payload contracts
-
-CONTRACT_VERSION = "pingstore.campaign/v1"
-MANIFEST_NAMES = frozenset({"run.json", "inventory.json"})
-KINDS = frozenset({"adhoc", "campaign", "legacy"})
-STATUSES = frozenset({"planned", "running", "complete", "failed", "legacy"})
-ROLES = frozenset({"state", "derived", "log"})
-SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
-PREFIXED_SHA256_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
-
-
-class ContractError(ValueError):
-    """Raised when a campaign document or payload violates the contract."""
-
-
-def _require_mapping(value: Any, label: str) -> dict[str, Any]:
-    if not isinstance(value, dict):
-        raise ContractError(f"{label} must be an object")
-    return value
-
-
-def _require_string(value: Any, label: str, *, allow_empty: bool = False) -> str:
-    if not isinstance(value, str) or (not allow_empty and not value):
-        raise ContractError(f"{label} must be a non-empty string")
-    return value
-
-
-def _require_sha256(value: Any, label: str) -> str:
-    if not isinstance(value, str) or not SHA256_RE.fullmatch(value):
-        raise ContractError(f"{label} must be a lowercase SHA-256")
-    return value
-
-
-def _require_utc_timestamp(value: Any, label: str) -> str:
-    text = _require_string(value, label)
-    if not text.endswith("Z"):
-        raise ContractError(f"{label} must be an RFC 3339 UTC timestamp ending in Z")
-    try:
-        datetime.fromisoformat(text[:-1] + "+00:00")
-    except ValueError as exc:
-        raise ContractError(f"{label} is not a valid timestamp: {text!r}") from exc
-    return text
-
-
-def load_campaign_json(path: Path) -> dict[str, Any]:
-    try:
-        value = json.loads(path.read_text())
-    except FileNotFoundError as exc:
-        raise ContractError(f"missing contract file: {path}") from exc
-    except json.JSONDecodeError as exc:
-        raise ContractError(f"invalid JSON in {path}: {exc}") from exc
-    return _require_mapping(value, str(path))
-
-
-def write_campaign_json_atomic(path: Path, value: dict[str, Any]) -> None:
-    """Write one JSON document without exposing a partial destination file."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    descriptor, temporary_name = tempfile.mkstemp(
-        dir=path.parent, prefix=f".{path.name}.", suffix=".tmp"
-    )
-    temporary = Path(temporary_name)
-    try:
-        with os.fdopen(descriptor, "w") as handle:
-            json.dump(value, handle, indent=2)
-            handle.write("\n")
-            handle.flush()
-            os.fsync(handle.fileno())
-        os.replace(temporary, path)
-    finally:
-        temporary.unlink(missing_ok=True)
-
-
-def _validate_manifest_execution(*, value):
-    """Validate execution identity, command and graph provenance."""
-    execution = _require_mapping(value.get("execution"), "run.json execution")
-    experiment = execution.get("experiment")
-    collection = execution.get("collection")
-    for item, label in ((experiment, "experiment"), (collection, "collection")):
-        if item is not None:
-            _require_string(item, f"run.json execution.{label}")
-    if experiment is None and collection is None:
-        raise ContractError("run.json execution needs an experiment or collection")
-    command = execution.get("command")
+    value = json.loads(rclone("cat", control_path(destination), capture=True))
     if (
-        not isinstance(command, list)
-        or not command
-        or not all(isinstance(part, str) and part for part in command)
+        value.get("schema") != CONTROL_SCHEMA
+        or type(value.get("revision")) is not int
+        or value["revision"] < 0
+        or not isinstance(value.get("tombstones"), dict)
     ):
-        raise ContractError(
-            "run.json execution.command must be a non-empty string array"
-        )
-    executor = execution.get("executor")
-    if executor is not None and executor not in {"legacy", "graph"}:
-        raise ContractError("run.json execution.executor must be legacy or graph")
-    graph_digest = execution.get("graph_digest")
-    training_digest = execution.get("training_digest")
-    for digest, label in (
-        (graph_digest, "graph_digest"),
-        (training_digest, "training_digest"),
+        raise PingstoreError("invalid remote coordination document")
+    operation = value.get("operation")
+    if operation is not None and (
+        not isinstance(operation, dict)
+        or operation.get("kind") not in {"backup", "prune"}
+        or not re.fullmatch(r"sha256:[0-9a-f]{64}", str(operation.get("plan_hash")))
+        or not re.fullmatch(r"[0-9a-f]{64}", str(operation.get("token")))
     ):
-        if digest is not None and (
-            not isinstance(digest, str) or not PREFIXED_SHA256_RE.fullmatch(digest)
-        ):
-            raise ContractError(
-                f"run.json execution.{label} must be a prefixed SHA-256 or null"
-            )
-    if executor == "graph" and graph_digest is None:
-        raise ContractError("graph execution requires execution.graph_digest")
-    if executor in {None, "legacy"} and (
-        graph_digest is not None or training_digest is not None
-    ):
-        raise ContractError("legacy execution cannot record graph/training digests")
-
-
-def _validate_manifest_source(*, value):
-    """Validate source revision, lockfile and native tool versions."""
-    source = _require_mapping(value.get("source"), "run.json source")
-    commit = source.get("git_commit")
-    if commit is not None and (
-        not isinstance(commit, str) or not re.fullmatch(r"[0-9a-f]{40}", commit)
-    ):
-        raise ContractError(
-            "run.json source.git_commit must be 40 lowercase hex chars or null"
-        )
-    if source.get("git_clean") is not None and not isinstance(
-        source.get("git_clean"), bool
-    ):
-        raise ContractError("run.json source.git_clean must be boolean or null")
-    lockfile = source.get("lockfile")
-    if lockfile is not None:
-        lock = _require_mapping(lockfile, "run.json source.lockfile")
-        validate_relative_path(lock.get("path"), "run.json source.lockfile.path")
-        _require_sha256(lock.get("sha256"), "run.json source.lockfile.sha256")
-    versions = source.get("tool_versions")
-    if versions is not None:
-        version_map = _require_mapping(versions, "run.json source.tool_versions")
-        if set(version_map) != {"snnlang", "snnsim", "snnviz"}:
-            raise ContractError(
-                "run.json source.tool_versions must identify snnlang, snnsim, and snnviz"
-            )
-        semver = re.compile(
-            r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)"
-            r"(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?"
-            r"(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$"
-        )
-        for name, version in version_map.items():
-            if not isinstance(version, str) or not semver.fullmatch(version):
-                raise ContractError(
-                    f"run.json source.tool_versions.{name} must be SemVer"
-                )
-
-
-def validate_run_manifest(value: dict[str, Any]) -> dict[str, Any]:
-    if value.get("contract_version") != CONTRACT_VERSION:
-        raise ContractError(f"run.json contract_version must be {CONTRACT_VERSION!r}")
-    _require_string(value.get("run_id"), "run.json run_id")
-    if value.get("kind") not in KINDS:
-        raise ContractError(f"run.json kind must be one of {sorted(KINDS)}")
-    if value.get("status") not in STATUSES:
-        raise ContractError(f"run.json status must be one of {sorted(STATUSES)}")
-    _require_utc_timestamp(value.get("created_at_utc"), "run.json created_at_utc")
-
-    _validate_manifest_source(value=value)
-
-    _validate_manifest_execution(value=value)
-
-    if not isinstance(value.get("upstream"), list):
-        raise ContractError("run.json upstream must be an array")
-    archive = value.get("archive")
-    if archive is not None:
-        archive_obj = _require_mapping(archive, "run.json archive")
-        _require_string(archive_obj.get("archive_id"), "run.json archive.archive_id")
-        uri = _require_string(archive_obj.get("uri"), "run.json archive.uri")
-        if not uri.startswith(("r2://", "file://")):
-            raise ContractError("run.json archive.uri must start with r2:// or file://")
-    notes = value.get("provenance_notes")
-    if not isinstance(notes, str):
-        raise ContractError("run.json provenance_notes must be a string")
+        raise PingstoreError("invalid remote operation fence")
+    validate_publications(value.get("publications"))
     return value
 
 
-def validate_relative_path(value: Any, label: str = "path") -> str:
-    text = _require_string(value, label)
-    if "\\" in text:
-        raise ContractError(f"{label} must use POSIX separators")
-    path = PurePosixPath(text)
-    if path.is_absolute() or ".." in path.parts or path.as_posix() != text:
-        raise ContractError(f"{label} must be a normalized relative POSIX path")
-    if text in MANIFEST_NAMES:
-        raise ContractError(f"{label} cannot inventory {text}")
-    return text
+def _s3_client(remote):
+    # Keep credentials in memory; never print the decrypted rclone configuration.
+    import boto3
 
-
-def canonical_payload_digest(files: list[dict[str, Any]]) -> str:
-    encoded = json.dumps(files, sort_keys=True, separators=(",", ":"))
-    return hashlib.sha256(encoded.encode()).hexdigest()
-
-
-def validate_inventory(value: dict[str, Any]) -> dict[str, Any]:
-    if value.get("contract_version") != CONTRACT_VERSION:
-        raise ContractError(
-            f"inventory.json contract_version must be {CONTRACT_VERSION!r}"
-        )
-    _require_string(value.get("run_id"), "inventory.json run_id")
-    _require_utc_timestamp(
-        value.get("generated_at_utc"), "inventory.json generated_at_utc"
+    config = json.loads(rclone("config", "dump", capture=True)).get(remote)
+    if not config or config.get("type") != "s3":
+        raise PingstoreError("conditional maintenance requires an S3/R2 rclone remote")
+    endpoint = config.get("endpoint")
+    if not endpoint or not endpoint.startswith("https://"):
+        raise PingstoreError("conditional maintenance requires an HTTPS S3 endpoint")
+    return boto3.client(
+        "s3",
+        endpoint_url=endpoint,
+        region_name=config.get("region") or "auto",
+        aws_access_key_id=config.get("access_key_id") or None,
+        aws_secret_access_key=config.get("secret_access_key") or None,
     )
-    files = value.get("files")
-    if not isinstance(files, list):
-        raise ContractError("inventory.json files must be an array")
-
-    paths: list[str] = []
-    for index, raw in enumerate(files):
-        row = _require_mapping(raw, f"inventory.json files[{index}]")
-        path = validate_relative_path(row.get("path"), f"files[{index}].path")
-        paths.append(path)
-        size = row.get("size_bytes")
-        if not isinstance(size, int) or isinstance(size, bool) or size < 0:
-            raise ContractError(
-                f"files[{index}].size_bytes must be a non-negative integer"
-            )
-        _require_sha256(row.get("sha256"), f"files[{index}].sha256")
-        if row.get("role") not in ROLES:
-            raise ContractError(f"files[{index}].role must be one of {sorted(ROLES)}")
-        if set(row) != {"path", "size_bytes", "sha256", "role"}:
-            raise ContractError(
-                f"files[{index}] must contain only path, size_bytes, sha256, role"
-            )
-
-    if paths != sorted(paths):
-        raise ContractError("inventory.json files must be sorted by path")
-    if len(paths) != len(set(paths)):
-        raise ContractError("inventory.json contains duplicate paths")
-    if value.get("file_count") != len(files):
-        raise ContractError("inventory.json file_count does not match files")
-    total = sum(row["size_bytes"] for row in files)
-    if value.get("total_size_bytes") != total:
-        raise ContractError("inventory.json total_size_bytes does not match files")
-    _require_sha256(value.get("payload_digest"), "inventory.json payload_digest")
-    if value["payload_digest"] != canonical_payload_digest(files):
-        raise ContractError("inventory.json payload_digest does not match files")
-    return value
 
 
-def _hash_file(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
-
-
-def _role_for(relative: Path) -> str:
-    first = relative.parts[0] if relative.parts else ""
-    if first == "derived":
-        return "derived"
-    if first == "logs" or relative.suffix == ".log":
-        return "log"
-    return "state"
-
-
-def inventory_payload(
-    root: Path, *, run_id: str, generated_at_utc: str | None = None
-) -> dict[str, Any]:
-    root = root.resolve()
-    if not root.is_dir():
-        raise ContractError(f"run root is not a directory: {root}")
-    files: list[dict[str, Any]] = []
-    for item in sorted(
-        root.rglob("*"), key=lambda path: path.relative_to(root).as_posix()
-    ):
-        if item.is_symlink():
-            raise ContractError(f"payload symlinks are not supported in v1: {item}")
-        if not item.is_file() or item.relative_to(root).as_posix() in MANIFEST_NAMES:
-            continue
-        relative = item.relative_to(root)
-        files.append(
-            {
-                "path": relative.as_posix(),
-                "size_bytes": item.stat().st_size,
-                "sha256": _hash_file(item),
-                "role": _role_for(relative),
-            }
+def conditional_document(path, previous, value, *, exists):
+    """Use the S3 SDK's atomic PutObject conditions, not rclone upload headers."""
+    remote, object_path = path.split(":", 1)
+    bucket, key = object_path.split("/", 1)
+    client = _s3_client(remote)
+    condition = {"IfNoneMatch": "*"}
+    if exists:
+        response = client.get_object(Bucket=bucket, Key=key)
+        before = response["Body"].read()
+        if json.loads(before) != previous:
+            raise PingstoreError(f"remote document changed concurrently: {path}")
+        condition = {"IfMatch": response["ETag"]}
+    payload = (json.dumps(value, sort_keys=True, separators=(",", ":")) + "\n").encode()
+    try:
+        client.put_object(
+            Bucket=bucket,
+            Key=key,
+            Body=payload,
+            ContentType="application/json",
+            CacheControl="no-cache",
+            **condition,
         )
-    timestamp = generated_at_utc or datetime.now(timezone.utc).isoformat(
-        timespec="seconds"
-    ).replace("+00:00", "Z")
-    result = {
-        "contract_version": CONTRACT_VERSION,
-        "run_id": run_id,
-        "generated_at_utc": timestamp,
-        "file_count": len(files),
-        "total_size_bytes": sum(row["size_bytes"] for row in files),
-        "payload_digest": canonical_payload_digest(files),
-        "files": files,
-    }
-    return validate_inventory(result)
-
-
-def verify_payload(root: Path, inventory: dict[str, Any]) -> None:
-    expected = validate_inventory(inventory)
-    actual = inventory_payload(
-        root,
-        run_id=expected["run_id"],
-        generated_at_utc=expected["generated_at_utc"],
-    )
-    for field in ("file_count", "total_size_bytes", "payload_digest", "files"):
-        if actual[field] != expected[field]:
-            raise ContractError(
-                f"payload does not match inventory.json: {field} differs"
-            )
-
-
-def provenance_gaps(run: dict[str, Any] | None) -> list[str]:
-    if run is None:
-        return ["missing run.json"]
-    source = run["source"]
-    gaps = []
-    if source.get("git_commit") is None:
-        gaps.append("unknown generating Git commit")
-    if source.get("git_clean") is None:
-        gaps.append("unknown clean-tree state")
-    if source.get("lockfile") is None:
-        gaps.append("unknown lockfile identity")
-    return gaps
-
-
-# Scoped removal of unused remote backups
-
-
-def _remote_prune_graph(repo, catalog):
-    local = validated_run_graph(repo / ".pingstore/runs")
-    records = {identity: entry["record"] for identity, entry in catalog["runs"].items()}
-    for identity, record in local.items():
-        if identity in records and records[identity] != record:
-            raise PingstoreError(f"local and remote records differ: {identity}")
-        records[identity] = record
-    return local, records
-
-
-def _remote_prune_objects(catalog, remote, scope):
-    scoped = {
-        name: size
-        for name, size in remote.items()
-        if name.split("/", 1)[0].split("-", 1)[0] in scope
-    }
-    expected = {
-        f"{identity}/{name}": item["bytes"]
-        for identity, entry in catalog["runs"].items()
-        if entry["record"]["experiment"] in scope
-        for name, item in entry["files"].items()
-    }
-    actual = {
-        name: size for name, size in scoped.items() if not name.endswith("/.protected")
-    }
-    if actual != expected:
-        raise PingstoreError("scoped remote objects differ from the verified catalog")
-    return scoped
-
-
-def remote_prune_plan(repo: Path, destination: str, experiments: list[str]) -> dict:
-    """Plan scoped deletion, retaining report, protected and unfinished ancestry."""
-    repo = repo.resolve()
-    scope = set(experiments)
-    if not scope or any(not EXPERIMENT_RE.fullmatch(value) for value in scope):
-        raise PingstoreError("remote pruning requires explicit valid experiments")
-    catalog = read_catalog(destination)
-    remote = inventory(destination)
-    local, records = _remote_prune_graph(repo, catalog)
-    selections, used_by = report_usage(repo, records)
-    used = set(used_by)
-    selected = {
-        identity for identity in used if records[identity]["experiment"] in scope
-    }
-    if not selected or selected - catalog["runs"].keys():
+    except Exception as exc:
+        # SDK exceptions may contain signed URLs or configuration. Report only
+        # the service's error code, leaving ambiguous outcomes for journal recovery.
+        code = (
+            getattr(exc, "response", {})
+            .get("Error", {})
+            .get("Code", type(exc).__name__)
+        )
         raise PingstoreError(
-            "back up the complete current report runset before remote pruning"
+            f"conditional remote publication failed ({code}): {path}"
+        ) from None
+    if rclone("cat", path, capture=True) != payload:
+        raise PingstoreError(f"remote publication verification failed: {path}")
+
+
+def replace_control(destination, previous, value):
+    if read_control(destination) != previous:
+        raise PingstoreError("remote coordination state changed concurrently")
+    conditional_document(
+        control_path(destination), previous, value, exists=previous["revision"] > 0
+    )
+
+
+def acquire_remote_operation(destination, previous, operation):
+    if previous["operation"] is not None:
+        raise PingstoreError(f"unfinished remote operation: {previous['operation']}")
+    revised = dict(previous, revision=previous["revision"] + 1, operation=operation)
+    replace_control(destination, previous, revised)
+    return revised
+
+
+def assert_remote_operation(destination, operation):
+    current = read_control(destination)
+    if current["operation"] != operation:
+        raise PingstoreError("remote maintenance lease changed; deletion stopped")
+    return current
+
+
+def release_remote_operation(
+    destination, operation, *, tombstones=None, publications=None
+):
+    current = assert_remote_operation(destination, operation)
+    revised = dict(current, operation=None, revision=current["revision"] + 1)
+    if tombstones is not None:
+        revised["tombstones"] = tombstones
+    if publications is not None:
+        validate_publications(publications)
+        revised["publications"] = publications
+    replace_control(destination, current, revised)
+    return revised
+
+
+def validate_evidence_manifest(value, records=None):
+    if (
+        not isinstance(value, dict)
+        or value.get("schema") != "pingstore.evidence/v1"
+        or not isinstance(value.get("build"), dict)
+        or not isinstance(value["build"].get("id"), str)
+        or not re.fullmatch(r"[0-9a-f]{40}", str(value["build"].get("revision", "")))
+        or not isinstance(value.get("runs"), dict)
+        or not isinstance(value.get("selections"), dict)
+    ):
+        raise PingstoreError("invalid deployment evidence manifest")
+    graph = {}
+    for identity, entry in value["runs"].items():
+        if not STAGE_ID_RE.fullmatch(identity) or not isinstance(entry, dict):
+            raise PingstoreError("invalid deployed run identity")
+        _validate_input_references(value=entry, run_id=identity)
+        if not re.fullmatch(
+            r"sha256:[a-f0-9]{64}", str(entry.get("payload_digest", ""))
+        ):
+            raise PingstoreError("invalid deployed payload digest")
+        if records is not None:
+            record = records.get(identity)
+            if record is None or any(
+                record[key] != entry[key] for key in ("payload_digest", "inputs")
+            ):
+                raise PingstoreError(
+                    f"deployed evidence is missing or changed: {identity}"
+                )
+        graph[identity] = entry
+    for identity in graph:
+        _runset(graph, identity)
+    for experiment, identity in value["selections"].items():
+        if (
+            not EXPERIMENT_RE.fullmatch(experiment)
+            or identity not in graph
+            or not identity.startswith(experiment + "-")
+            or not identity.endswith("-present")
+        ):
+            raise PingstoreError("invalid deployed presentation selection")
+    return value
+
+
+def validate_publications(value):
+    if (
+        not isinstance(value, dict)
+        or value.get("schema") != PUBLICATION_SCHEMA
+        or type(value.get("known")) is not bool
+        or not isinstance(value.get("incoming"), dict)
+    ):
+        raise PingstoreError("invalid publication state")
+    manifests = list(value["incoming"].values())
+    if value.get("active") is not None:
+        manifests.append(value["active"])
+    for manifest in manifests:
+        validate_evidence_manifest(manifest)
+    return value
+
+
+def _publication_reasons(publications, records, reasons, *, complete=True):
+    validate_publications(publications)
+    manifests = (
+        [("deployment", publications["active"])] if publications.get("active") else []
+    )
+    manifests += [
+        ("incoming", manifest) for manifest in publications["incoming"].values()
+    ]
+    for label, manifest in manifests:
+        validate_evidence_manifest(manifest, records if complete else None)
+        for identity in manifest["runs"]:
+            if identity not in records:
+                continue
+            if any(
+                records[identity][key] != manifest["runs"][identity][key]
+                for key in ("payload_digest", "inputs")
+            ):
+                raise PingstoreError(f"published evidence differs: {identity}")
+            reasons[identity].add(f"{label}:{manifest['build']['id']}")
+    if not publications["known"]:
+        for identity in records:
+            reasons[identity].add("unresolved-publication")
+
+
+def _maintenance_files(directory):
+    """Inventory only a bounded, real run directory; never follow a link."""
+    if directory.is_symlink() or not directory.is_dir():
+        raise PingstoreError(f"unsafe run directory: {directory}")
+    rows = {}
+    for path in sorted(directory.rglob("*")):
+        if path.is_symlink() or not (path.is_file() or path.is_dir()):
+            raise PingstoreError(f"unsupported run object: {path}")
+        relative = path.relative_to(directory).as_posix()
+        if not _safe_object_path(relative):
+            raise PingstoreError(f"unsafe run object: {path}")
+        if path.is_file():
+            rows[relative] = dict(bytes=path.stat().st_size, sha256=file_sha256(path))
+    return rows
+
+
+def _safe_object_path(name):
+    return (
+        isinstance(name, str)
+        and bool(name)
+        and not any(c in name for c in "\\\r\n\0")
+        and all(part not in {"", ".", ".."} for part in name.split("/"))
+    )
+
+
+def maintenance_local_snapshot(repo):
+    runs = repo / ".pingstore/runs"
+    records, objects, malformed = {}, {}, {}
+    if not runs.exists():
+        return dict(
+            records=records,
+            objects=objects,
+            malformed=malformed,
+            hidden=[],
+            watermarks=allocation_watermarks(repo / ".pingstore"),
         )
-    protected = {
-        identity
-        for identity in records
-        if (repo / ".pingstore/runs" / identity / ".protected").exists()
-        or identity + "/.protected" in remote
+    if runs.is_symlink() or not runs.is_dir():
+        raise PingstoreError(f"unsafe runs root: {runs}")
+    for directory in sorted(runs.iterdir()):
+        if directory.name.startswith("."):
+            continue
+        if not STAGE_ID_RE.fullmatch(directory.name):
+            raise PingstoreError(f"unbounded malformed identity: {directory.name}")
+        marker = directory / ".protected"
+        if marker.is_symlink() or (marker.exists() and not marker.is_file()):
+            raise PingstoreError(f"unsafe protection marker: {marker}")
+        objects[directory.name] = _maintenance_files(directory)
+        try:
+            records[directory.name] = validate_operational_run_directory(directory)
+        except (OSError, ValueError) as exc:
+            malformed[directory.name] = str(exc)
+    # Hidden pins are read after the local/R2 union is assembled by the planner.
+    hidden = []
+    for path in sorted(runs.iterdir()):
+        if path.name.startswith(".") and path.is_dir():
+            if path.is_symlink():
+                raise PingstoreError(f"unsafe unfinished directory: {path}")
+            state = dict(name=path.name, active=_live_writer(path))
+            for name in ("run.json", ".reservation.json"):
+                file = path / name
+                if file.exists():
+                    if file.is_symlink() or not file.is_file():
+                        raise PingstoreError(f"unsafe unfinished document: {file}")
+                    state[name] = dict(sha256=file_sha256(file), value=load_json(file))
+            hidden.append(state)
+    return dict(
+        records=records,
+        objects=objects,
+        malformed=malformed,
+        hidden=hidden,
+        watermarks=allocation_watermarks(repo / ".pingstore"),
+    )
+
+
+def _maintenance_remote_snapshot(destination, repo):
+    # Validate individual records/inventories, then retained ancestry separately.
+    catalog = read_catalog(destination, complete=False, allow_malformed=True)
+    valid, malformed = {}, {}
+    for identity, entry in catalog["runs"].items():
+        if not STAGE_ID_RE.fullmatch(identity):
+            raise PingstoreError(f"unbounded catalog identity: {identity}")
+        try:
+            _check_catalog_entries(value={"runs": {identity: entry}}, complete=False)
+            valid[identity] = entry
+        except (KeyError, TypeError, ValueError) as exc:
+            malformed[identity] = str(exc)
+    objects = inventory(destination)
+    for name, size in objects.items():
+        if not _safe_object_path(name) or type(size) is not int or size < 0:
+            raise PingstoreError(f"unsafe remote object: {name}")
+        if not STAGE_ID_RE.fullmatch(name.split("/", 1)[0]) or "/" not in name:
+            raise PingstoreError(f"unbounded remote object identity: {name}")
+    control = read_control(destination)
+    deployment = (
+        _verify_active_publication(repo, control["publications"])
+        if control["publications"]["known"]
+        else None
+    )
+    return dict(
+        catalog=catalog,
+        objects=objects,
+        control=control,
+        deployment=deployment,
+        valid=valid,
+        malformed=malformed,
+    )
+
+
+def _retained_graph(records, roots, reasons, *, strict):
+    """Unknown out-of-scope ancestry retains candidates with its exact uncertainty."""
+    keep = set()
+    for identity in sorted(roots):
+        try:
+            members = _runset(records, identity)
+        except PingstoreError as exc:
+            if identity in strict:
+                raise PingstoreError(f"retained evidence {identity}: {exc}") from exc
+            keep.add(identity)
+            for candidate in records:
+                reasons[candidate].add(f"unresolved-ancestry:{identity}:{exc}")
+            keep.update(records)
+            continue
+        keep.update(members)
+        for member in members:
+            if member != identity:
+                reasons[member].update(
+                    f"required-by:{identity}:{reason}" for reason in reasons[identity]
+                )
+    return keep
+
+
+def _maintenance_hidden_roots(local, records, reasons, strict):
+    for state in local["hidden"]:
+        record = state.get("run.json", {}).get("value", {})
+        for reference in record.get("inputs", {}).values():
+            identity = reference["run_id"]
+            if records.get(identity, {}).get("payload_digest") != reference.get(
+                "payload_digest"
+            ):
+                raise PingstoreError(
+                    f"unfinished {state['name']}: missing or changed input {identity}"
+                )
+            reasons[identity].add(f"unfinished:{state['name']}")
+            strict.add(identity)
+
+
+def _retain_other_store_inputs(storage, local, remote, records, reasons, strict):
+    if storage == "both":
+        return
+    outside = local if storage == "r2" else remote
+    for identity in outside:
+        try:
+            members = _runset(records, identity)
+        except PingstoreError as exc:
+            for candidate in records:
+                reasons[candidate].add(
+                    f"unresolved-other-storage-ancestry:{identity}:{exc}"
+                )
+            continue
+        for member in set(members) - outside.keys():
+            reasons[member].add(f"required-by:{identity}:other-storage-copy")
+            strict.add(member)
+
+
+def _maintenance_roots(
+    repo, local, remote, records, scope, stages, publications, storage
+):
+    reasons = defaultdict(set)
+    strict = set()
+    selections = {}
+    contexts = [("auto", local["records"], remote), ("remote", {}, remote)]
+    for label, local_records, remote_records in contexts:
+        index = resolve_run_index(local_records, remote_records, source=label)
+        for experiment, error in index["selection_errors"].items():
+            if scope is None or experiment in scope:
+                raise PingstoreError(
+                    f"unresolved {label} current runset {experiment}: {error}"
+                )
+            for identity in records:
+                reasons[identity].add(
+                    f"unresolved-current:{label}:{experiment}:{error}"
+                )
+        selections[label] = index["selections"]
+        for experiment, identity in index["selections"].items():
+            reasons[identity].add(f"current:{label}:{experiment}")
+            strict.add(identity)
+    for identity, record in records.items():
+        if scope is not None and record["experiment"] not in scope:
+            reasons[identity].add("out-of-scope")
+        if stages is not None and record["stage"] not in stages:
+            reasons[identity].add("out-of-stage-scope")
+    for identity, files in local["objects"].items():
+        if ".protected" in files:
+            reasons[identity].add(f"protection:{identity}")
+            strict.add(identity)
+    _maintenance_hidden_roots(local, records, reasons, strict)
+    _retain_other_store_inputs(
+        storage, local["records"], remote, records, reasons, strict
+    )
+    _publication_reasons(publications, records, reasons)
+    for identity, labels in reasons.items():
+        if any(label.startswith(("deployment:", "incoming:")) for label in labels):
+            strict.add(identity)
+    # Report declarations are part of the plan hash; reporting cannot select pins.
+    declarations = {
+        article: metadata["inputs"] for article, metadata in articles(repo).items()
     }
-    pending = defaultdict(set)
-    hidden = _hidden_inputs(repo / ".pingstore/runs", records, pending)
-    outside = {
-        identity
-        for identity, record in records.items()
-        if record["experiment"] not in scope
+    keep = _retained_graph(records, set(reasons), reasons, strict=strict)
+    return reasons, keep, selections, declarations
+
+
+def _prune_objects(
+    *, storage, local, remote, remote_state, records, reasons, keep, opaque_remote
+):
+    if remote_state:
+        for name in remote_state["objects"]:
+            identity = name.split("/", 1)[0]
+            if name.endswith("/.protected"):
+                reasons[identity].add(f"remote-protection:{identity}")
+                members = _runset(records, identity)
+                keep.update(members)
+                for member in members:
+                    reasons[member].add(f"remote-protection:{identity}")
+    objects = dict(local={}, r2={})
+    if storage != "r2":
+        for identity, files in local["objects"].items():
+            if identity not in keep:
+                objects["local"].update(
+                    {f"{identity}/{name}": row for name, row in files.items()}
+                )
+    if storage != "local":
+        for name, size in remote_state["objects"].items():
+            identity = name.split("/", 1)[0]
+            entry = remote.get(identity)
+            if identity in opaque_remote:
+                if identity not in keep:
+                    objects["r2"][name] = dict(bytes=size, sha256=None)
+                continue
+            expected = entry["files"].get(name.split("/", 1)[1])
+            if not name.endswith("/.protected") and (
+                expected is None or expected["bytes"] != size
+            ):
+                raise PingstoreError(f"remote object differs from catalog: {name}")
+            if identity not in keep:
+                objects["r2"][name] = dict(bytes=size, sha256=expected["sha256"])
+        expected_paths = {
+            f"{identity}/{name}"
+            for identity, entry in remote.items()
+            for name in entry["files"]
+        }
+        missing = expected_paths - remote_state["objects"].keys()
+        if missing:
+            raise PingstoreError(f"catalog objects unavailable: {sorted(missing)}")
+    # Remote protections also retain a local copy's ancestry in a both-store plan.
+    objects["local"] = {
+        name: row
+        for name, row in objects["local"].items()
+        if name.split("/")[0] not in keep
     }
-    keep = ancestry(records, used | protected | set(pending) | outside)
-    candidates = {
-        identity
-        for identity, entry in catalog["runs"].items()
-        if entry["record"]["experiment"] in scope and identity not in keep
-    }
-    scoped_objects = _remote_prune_objects(catalog, remote, scope)
-    revised = dict(
-        catalog,
-        runs={
-            identity: entry
-            for identity, entry in catalog["runs"].items()
-            if identity not in candidates
+    return objects
+
+
+def _opaque_holdings(remote_state, remote, local, malformed_runs):
+    opaque_remote = dict(remote_state.get("malformed", {})) if remote_state else {}
+    if remote_state:
+        for name in remote_state["objects"]:
+            identity = name.split("/")[0]
+            if identity not in remote:
+                opaque_remote.setdefault(identity, "uncataloged remote holding")
+    malformed_runs = set(malformed_runs or ())
+    if any(not STAGE_ID_RE.fullmatch(identity) for identity in malformed_runs):
+        raise PingstoreError("malformed cleanup requires bounded v4 run identities")
+    unknown = malformed_runs - (local["malformed"].keys() | opaque_remote.keys())
+    if unknown:
+        raise PingstoreError(
+            f"explicit malformed selection is not malformed: {sorted(unknown)}"
+        )
+    return opaque_remote, malformed_runs
+
+
+def _retain_opaque(
+    *,
+    opaque_remote,
+    local,
+    malformed_runs,
+    publications,
+    keep,
+    reasons,
+    records,
+    scope,
+    stage_scope,
+):
+    opaque = {**opaque_remote, **local["malformed"]}
+    for identity, error in opaque.items():
+        if identity not in malformed_runs or not publications["known"]:
+            keep.add(identity)
+            reasons[identity].add(f"unresolved-holding:{error}")
+            for member in records:
+                reasons[member].add(f"unresolved-ancestry:{identity}")
+                keep.add(member)
+        elif (scope is not None and identity.split("-")[0] not in scope) or (
+            stage_scope is not None
+            and STAGE_ID_RE.fullmatch(identity).group(3) not in stage_scope
+        ):
+            raise PingstoreError(
+                "explicit malformed selection is outside the prune scope"
+            )
+    return opaque
+
+
+def unified_prune_plan(
+    repo: Path,
+    experiments=None,
+    stages=None,
+    *,
+    storage="both",
+    destination="r2:pinglab/pingstore/runs",
+    publications=None,
+    remote_snapshot=None,
+    malformed_runs=None,
+):
+    """One exact plan for both stores; a dry-run writes neither store nor journals."""
+    if storage not in {"local", "r2", "both"}:
+        raise PingstoreError("storage must be local, r2 or both")
+    repo = repo.resolve()
+    local = maintenance_local_snapshot(repo)
+    remote_state = remote_snapshot
+    if remote_state is None:
+        remote_state = (
+            _maintenance_remote_snapshot(destination, repo)
+            if storage != "local"
+            else None
+        )
+    remote = (
+        remote_state.get("valid", remote_state["catalog"]["runs"])
+        if remote_state
+        else {}
+    )
+    opaque_remote, malformed_runs = _opaque_holdings(
+        remote_state, remote, local, malformed_runs
+    )
+    remote_records = {identity: entry["record"] for identity, entry in remote.items()}
+    records = {**remote_records, **local["records"]}
+    for identity in local["records"].keys() & remote_records.keys():
+        if local["records"][identity] != remote_records[identity]:
+            raise PingstoreError(f"local and R2 records differ: {identity}")
+    scope = _experiment_scope(
+        experiments,
+        {
+            **records,
+            **{
+                identity: dict(experiment=identity.split("-")[0])
+                for identity in local["malformed"]
+            },
         },
     )
-    validate_catalog(revised)
-    plan = dict(
-        schema="pingstore.remote-prune-plan/v1",
-        root=str(repo),
-        destination=destination,
-        experiments=sorted(scope),
-        catalog=catalog,
-        report_selections=selections,
-        hidden=hidden,
-        protected=sorted(protected),
-        remote_objects=scoped_objects,
-        local_controls={
-            identity: file_sha256(repo / ".pingstore/runs" / identity / "run.json")
-            for identity in local
-        },
-        keep=sorted(
+    stage_scope = set(stages) if stages is not None else None
+    if stage_scope is not None and (
+        not stage_scope or stage_scope - {"compute", "analyse", "present"}
+    ):
+        raise PingstoreError("invalid or empty stage filter")
+    if publications is None:
+        publications = (
+            remote_state["control"]["publications"]
+            if remote_state
+            else empty_publications()
+        )
+    if remote_state and remote_state["control"]["operation"]:
+        raise PingstoreError(
+            f"unfinished remote operation: {remote_state['control']['operation']}"
+        )
+    reasons, keep, selections, declarations = _maintenance_roots(
+        repo, local, remote_records, records, scope, stage_scope, publications, storage
+    )
+    opaque = _retain_opaque(
+        opaque_remote=opaque_remote,
+        local=local,
+        malformed_runs=malformed_runs,
+        publications=publications,
+        keep=keep,
+        reasons=reasons,
+        records=records,
+        scope=scope,
+        stage_scope=stage_scope,
+    )
+    objects = _prune_objects(
+        storage=storage,
+        local=local,
+        remote=remote,
+        remote_state=remote_state,
+        records=records,
+        reasons=reasons,
+        keep=keep,
+        opaque_remote=opaque_remote,
+    )
+    catalog_removals = (
+        sorted(
             identity
-            for identity in catalog["runs"]
-            if identity in keep and records[identity]["experiment"] in scope
-        ),
-        prune=sorted(candidates),
+            for identity in remote_state["catalog"]["runs"]
+            if identity not in keep
+        )
+        if remote_state and storage != "local"
+        else []
+    )
+    target_ids = {
+        name.split("/")[0]
+        for objects_by_target in objects.values()
+        for name in objects_by_target
+    } | set(catalog_removals)
+    rows = []
+    for identity in sorted(records.keys() | opaque.keys()):
+        if identity not in keep and identity not in target_ids:
+            keep.add(identity)
+            reasons[identity].add("not-in-selected-storage")
+        record = records.get(identity)
+        in_scope = (scope is None or identity.split("-")[0] in scope) and (
+            stage_scope is None or (record and record["stage"] in stage_scope)
+        )
+        if not in_scope:
+            keep.add(identity)
+        rows.append(
+            dict(
+                run_id=identity,
+                payload_digest=record["payload_digest"] if record else None,
+                reasons=sorted(reasons[identity]) if identity in keep else ["unused"],
+            )
+        )
+    # Bind exact snapshots, including all objects outside the selected scope.
+    plan = dict(
+        schema=UNIFIED_PLAN_SCHEMA,
+        root=str(repo),
+        storage=storage,
+        destination=destination,
+        experiments=sorted(scope) if scope is not None else None,
+        stages=sorted(stage_scope) if stage_scope is not None else None,
+        local=local,
+        remote=remote_state,
+        malformed_runs=sorted(malformed_runs),
+        catalog_removals=catalog_removals,
+        publications=publications,
+        report_inputs=declarations,
+        selections=selections,
+        keep=[row for row in rows if row["run_id"] in keep],
+        prune=[row for row in rows if row["run_id"] not in keep],
+        objects=objects,
     )
     return {**plan, "plan_hash": _plan_hash(plan)}
 
 
-def apply_remote_prune(
-    repo: Path, destination: str, experiments: list[str], expected_hash: str
-) -> dict:
-    """Publish a valid surviving index before deleting only the planned objects."""
-    with operation_lock(repo.resolve() / ".pingstore", exclusive=True):
-        plan = remote_prune_plan(repo, destination, experiments)
-        if plan["plan_hash"] != expected_hash:
-            raise PingstoreError("remote prune plan changed; run --dry-run again")
-        if not plan["prune"]:
-            return plan
-        previous = plan["catalog"]
-        removed = set(plan["prune"])
-        revised = dict(
-            previous,
-            updated_at=datetime.now(timezone.utc).isoformat(),
-            runs={
-                identity: entry
-                for identity, entry in previous["runs"].items()
-                if identity not in removed
-            },
+def _prune_journal_path(repo, plan_hash):
+    if not re.fullmatch(r"sha256:[0-9a-f]{64}", str(plan_hash)):
+        raise PingstoreError(
+            "--confirm requires the complete sha256 plan hash from --dry-run"
         )
-        replace_catalog(destination, previous, revised)
-        paths = {
-            f"{identity}/{name}"
-            for identity in removed
-            for name in previous["runs"][identity]["files"]
-        }
-        with tempfile.TemporaryDirectory(prefix="pingstore-remote-prune-") as temporary:
-            names = file_list(Path(temporary), "delete.txt", paths)
-            if read_catalog(destination) != revised:
-                raise PingstoreError("catalog changed before object deletion")
-            rclone("delete", destination, "--files-from-raw", names)
-        after = inventory(destination)
-        if any(name.split("/", 1)[0] in removed for name in after):
-            raise PingstoreError(
-                "remote prune left superseded objects; inspect cleanup plan"
-            )
-        for name, size in plan["remote_objects"].items():
-            if name.split("/", 1)[0] not in removed and after.get(name) != size:
-                raise PingstoreError("retained remote inventory changed during pruning")
-        if read_catalog(destination) != revised:
-            raise PingstoreError("catalog changed during remote pruning")
-    return plan
+    return repo / ".pingstore/operations" / f"prune-{plan_hash[7:]}.json"
 
 
-def render_remote_prune_plan(plan: dict) -> str:
-    size = sum(
-        file["bytes"]
-        for identity in plan["prune"]
-        for file in plan["catalog"]["runs"][identity]["files"].values()
+def _prune_scope(repo, experiments, stages, storage, destination, malformed_runs):
+    return dict(
+        root=str(repo.resolve()),
+        experiments=sorted(set(experiments)) if experiments is not None else None,
+        stages=sorted(set(stages)) if stages is not None else None,
+        storage=storage,
+        destination=destination,
+        malformed_runs=sorted(set(malformed_runs or ())),
     )
-    return "\n".join(
-        [
-            f"Destination: {plan['destination']}",
-            f"Scope: {', '.join(plan['experiments'])}",
-            f"Keep: {len(plan['keep'])} remote runs",
-            f"Prune: {len(plan['prune'])} remote runs ({size / 2**20:.2f} MiB)",
-            *plan["prune"],
-            f"Plan: {plan['plan_hash']}",
-        ]
+
+
+def _journal_save(path, journal):
+    write_json_atomic(path, journal)
+
+
+def _expected_pruned_catalog(plan, updated_at):
+    previous = plan["remote"]["catalog"]
+    removed = set(plan["catalog_removals"])
+    revised = dict(
+        previous,
+        runs={
+            identity: entry
+            for identity, entry in previous["runs"].items()
+            if identity not in removed
+        },
+    )
+    revised["updated_at"] = updated_at
+    surviving_objects = {
+        name: size
+        for name, size in plan["remote"]["objects"].items()
+        if name not in plan["objects"]["r2"]
+    }
+    revised["inventory"] = inventory_projection(surviving_objects, revised["runs"])
+    revised["allocation_watermarks"] = _plan_watermarks(plan)
+    revised["report_index"] = resolve_run_index(
+        {},
+        {identity: entry["record"] for identity, entry in revised["runs"].items()},
+        source="remote",
+        inventory_state=revised["inventory"],
+        publications=plan["publications"],
+        reports={
+            article: {"inputs": inputs}
+            for article, inputs in plan["report_inputs"].items()
+        },
+    )
+    validate_catalog(revised)
+    return revised
+
+
+def _plan_watermarks(plan):
+    counters = dict(plan["local"]["watermarks"])
+    remote = plan["remote"]
+    if remote:
+        for experiment, count in (
+            remote["catalog"].get("allocation_watermarks", {}).items()
+        ):
+            counters[experiment] = max(counters.get(experiment, 0), count)
+    identities = set(plan["local"]["objects"])
+    if remote:
+        identities.update(remote["catalog"]["runs"])
+        identities.update(name.split("/")[0] for name in remote["objects"])
+    for identity in identities:
+        match = STAGE_ID_RE.fullmatch(identity)
+        counters[match.group(1)] = max(
+            counters.get(match.group(1), 0), int(match.group(2))
+        )
+    return counters
+
+
+def _local_plan_controls(plan):
+    repo = Path(plan["root"])
+    current = maintenance_local_snapshot(repo)
+    original = plan["local"]
+    if current["hidden"] != original["hidden"]:
+        raise PingstoreError(
+            "unfinished work changed; original cleanup cannot continue"
+        )
+    if any(state["active"] for state in current["hidden"]):
+        raise PingstoreError("active writer prevents pruning")
+    declarations = {
+        article: metadata["inputs"] for article, metadata in articles(repo).items()
+    }
+    if declarations != plan["report_inputs"]:
+        raise PingstoreError("report inputs changed during cleanup")
+    removed = {name.split("/")[0] for name in plan["objects"]["local"]}
+    expected = {
+        identity: files
+        for identity, files in original["objects"].items()
+        if identity not in removed
+    }
+    actual = {
+        identity: files
+        for identity, files in current["objects"].items()
+        if identity not in removed
+    }
+    if actual != expected or current["records"].keys() - original["records"].keys():
+        raise PingstoreError("retained local inventory or run selections changed")
+    for identity in removed & current["objects"].keys():
+        if current["objects"][identity] != original["objects"][identity]:
+            raise PingstoreError(f"local deletion candidate changed: {identity}")
+    return current
+
+
+def _remote_plan_controls(plan, operation, *, revised):
+    destination = plan["destination"]
+    control = assert_remote_operation(destination, operation)
+    original = plan["remote"]
+    for key in ("publications", "tombstones"):
+        if control[key] != original["control"][key]:
+            raise PingstoreError(f"remote {key} changed during cleanup")
+    if original["control"]["publications"]["known"]:
+        _verify_active_publication(Path(plan["root"]), control["publications"])
+    catalog = read_catalog(destination, complete=False)
+    if catalog not in (original["catalog"], revised):
+        raise PingstoreError("catalog changed during cleanup")
+    actual = inventory(destination)
+    expected = original["objects"]
+    deletions = plan["objects"]["r2"]
+    if actual.keys() - expected.keys():
+        raise PingstoreError("remote objects were added during cleanup")
+    for name, size in expected.items():
+        if name not in deletions and actual.get(name) != size:
+            raise PingstoreError(f"retained remote object changed: {name}")
+        if name in actual and actual[name] != size:
+            raise PingstoreError(f"remote deletion candidate changed: {name}")
+    return catalog, actual
+
+
+def _delete_remote_plan(plan, journal, path):
+    destination = plan["destination"]
+    revised = journal["revised_catalog"]
+    catalog, actual = _remote_plan_controls(plan, journal["operation"], revised=revised)
+    _local_plan_controls(plan)
+    if catalog != revised:
+        replace_catalog(destination, catalog, revised)
+    journal["phase"] = "catalog-published"
+    _journal_save(path, journal)
+    remaining = set(plan["objects"]["r2"]) & actual.keys()
+    try:
+        if remaining:
+            with tempfile.TemporaryDirectory(prefix="pingstore-delete-") as temporary:
+                names = file_list(Path(temporary), "objects.txt", remaining)
+                assert_remote_operation(destination, journal["operation"])
+                rclone("delete", destination, "--files-from-raw", names)
+    finally:
+        after = inventory(destination)
+        journal["deleted"]["r2"] = sorted(set(plan["objects"]["r2"]) - after.keys())
+        _journal_save(path, journal)
+    if set(plan["objects"]["r2"]) & after.keys():
+        raise PingstoreError(
+            "partial R2 cleanup: planned objects remain; resume the original hash"
+        )
+    _remote_plan_controls(plan, journal["operation"], revised=revised)
+    journal["phase"] = "r2-deleted"
+    _journal_save(path, journal)
+
+
+def _delete_local_plan(plan, journal, path):
+    repo = Path(plan["root"])
+    runs = repo / ".pingstore/runs"
+    quarantine = repo / ".pingstore/quarantine" / plan["plan_hash"][7:]
+    if quarantine.is_symlink() or quarantine.parent.is_symlink():
+        raise PingstoreError("cleanup quarantine must not use symlinks")
+    identities = sorted({name.split("/")[0] for name in plan["objects"]["local"]})
+    for identity in identities:
+        _local_plan_controls(plan)
+        source, staged = runs / identity, quarantine / identity
+        expected = plan["local"]["objects"][identity]
+        if source.exists():
+            if staged.exists():
+                raise PingstoreError(f"ambiguous local quarantine: {identity}")
+            quarantine.mkdir(parents=True, exist_ok=True)
+            os.rename(source, staged)
+        if staged.exists():
+            actual = _maintenance_files(staged)
+            if any(expected.get(name) != row for name, row in actual.items()):
+                raise PingstoreError(f"quarantined candidate changed: {identity}")
+            shutil.rmtree(staged)
+        journal["deleted"]["local"] = sorted(
+            set(journal["deleted"]["local"]) | {identity}
+        )
+        journal["phase"] = "local-deleting"
+        _journal_save(path, journal)
+    _local_plan_controls(plan)
+    journal["phase"] = "local-deleted"
+    _journal_save(path, journal)
+
+
+def _complete_prune(plan, journal, path):
+    if plan["storage"] != "local":
+        _remote_plan_controls(
+            plan, journal["operation"], revised=journal["revised_catalog"]
+        )
+        tombstones = dict(plan["remote"]["control"]["tombstones"])
+        removed = set(plan["catalog_removals"]) | {
+            name.split("/")[0] for name in plan["objects"]["r2"]
+        }
+        for identity in removed:
+            entry = plan["remote"]["catalog"]["runs"].get(identity)
+            record = entry.get("record") if isinstance(entry, dict) else None
+            tombstones[identity] = dict(
+                plan_hash=plan["plan_hash"],
+                payload_digest=record.get("payload_digest")
+                if isinstance(record, dict)
+                else None,
+            )
+        release_remote_operation(
+            plan["destination"], journal["operation"], tombstones=tombstones
+        )
+    journal["phase"] = "complete"
+    journal["error"] = None
+    _journal_save(path, journal)
+    return journal
+
+
+def _prune_already_released(plan, control):
+    """Recover an acknowledged-or-not release without taking another writer's lease."""
+    if plan["storage"] == "local" or control["operation"] is not None:
+        return False
+    removed = set(plan["catalog_removals"])
+    if any(
+        control["tombstones"].get(identity, {}).get("plan_hash") != plan["plan_hash"]
+        for identity in removed
+    ):
+        return False
+    actual = inventory(plan["destination"])
+    if set(plan["objects"]["r2"]) & actual.keys():
+        return False
+    root = Path(plan["root"]) / ".pingstore"
+    for identity in {name.split("/")[0] for name in plan["objects"]["local"]}:
+        if (root / "runs" / identity).exists() or (
+            root / "quarantine" / plan["plan_hash"][7:] / identity
+        ).exists():
+            return False
+    validate_catalog(read_catalog(plan["destination"]))
+    _local_plan_controls(plan)
+    return True
+
+
+def _validate_prune_journal(journal, plan):
+    operation = journal.get("operation", {})
+    if (
+        operation.get("kind") != "prune"
+        or operation.get("plan_hash") != plan["plan_hash"]
+        or not re.fullmatch(r"[a-f0-9]{64}", str(operation.get("token", "")))
+    ):
+        raise PingstoreError("cleanup journal operation identity is invalid")
+    if plan["storage"] != "local" and journal.get(
+        "revised_catalog"
+    ) != _expected_pruned_catalog(plan, journal["prepared_at"]):
+        raise PingstoreError(
+            "cleanup journal surviving catalog differs from the verified plan"
+        )
+    if journal.get("phase") == "complete":
+        if plan["storage"] != "local":
+            if not _prune_already_released(plan, read_control(plan["destination"])):
+                raise PingstoreError(
+                    "completed cleanup inventory changed; inspect a fresh plan"
+                )
+        else:
+            root = Path(plan["root"]) / ".pingstore/runs"
+            if any(
+                (root / name.split("/")[0]).exists()
+                for name in plan["objects"]["local"]
+            ):
+                raise PingstoreError(
+                    "completed local cleanup copies have reappeared; inspect a fresh plan"
+                )
+
+
+def apply_unified_prune(
+    repo: Path,
+    expected_hash,
+    experiments=None,
+    stages=None,
+    *,
+    storage="both",
+    destination="r2:pinglab/pingstore/runs",
+    publications=None,
+    remote_snapshot=None,
+    malformed_runs=None,
+):
+    """Confirm or resume the original verified plan, retaining partial progress."""
+    import secrets
+
+    repo = repo.resolve()
+    path = _prune_journal_path(repo, expected_hash)
+    with operation_lock(repo / ".pingstore", exclusive=True):
+        if path.exists():
+            journal = load_json(path)
+            plan = journal["plan"]
+            if (
+                _plan_hash(
+                    {key: value for key, value in plan.items() if key != "plan_hash"}
+                )
+                != expected_hash
+            ):
+                raise PingstoreError("cleanup journal plan checksum mismatch")
+            expected_scope = _prune_scope(
+                repo, experiments, stages, storage, destination, malformed_runs
+            )
+            if any(plan[key] != value for key, value in expected_scope.items()):
+                raise PingstoreError(
+                    "confirmation scope differs from original cleanup journal"
+                )
+            _validate_prune_journal(journal, plan)
+            if journal["phase"] == "complete":
+                return journal
+        else:
+            plan = unified_prune_plan(
+                repo,
+                experiments,
+                stages,
+                storage=storage,
+                destination=destination,
+                publications=publications,
+                remote_snapshot=remote_snapshot,
+                malformed_runs=malformed_runs,
+            )
+            if plan["plan_hash"] != expected_hash:
+                raise PingstoreError(
+                    f"prune plan changed: expected {expected_hash}, now {plan['plan_hash']}"
+                )
+            journal = dict(
+                schema="pingstore.operation/v1",
+                plan=plan,
+                phase="prepared",
+                prepared_at=utc_now(),
+                operation=dict(
+                    kind="prune",
+                    plan_hash=expected_hash,
+                    token=secrets.token_hex(32),
+                    run_ids=sorted(plan["catalog_removals"]),
+                ),
+                deleted=dict(local=[], r2=[]),
+                error=None,
+            )
+            if not any(plan["objects"].values()) and not plan["catalog_removals"]:
+                return dict(journal, phase="complete")
+            if storage != "local":
+                journal["revised_catalog"] = _expected_pruned_catalog(
+                    plan, journal["prepared_at"]
+                )
+            _journal_save(path, journal)
+        try:
+            _local_plan_controls(plan)
+            persist_watermarks(repo / ".pingstore", _plan_watermarks(plan))
+            if storage != "local":
+                current = read_control(destination)
+                if _prune_already_released(plan, current):
+                    journal["phase"] = "complete"
+                    journal["error"] = None
+                    _journal_save(path, journal)
+                    return journal
+                if current["operation"] != journal["operation"]:
+                    if current != plan["remote"]["control"]:
+                        raise PingstoreError(
+                            "remote controls changed before cleanup lease acquisition"
+                        )
+                    acquire_remote_operation(destination, current, journal["operation"])
+                _delete_remote_plan(plan, journal, path)
+            _delete_local_plan(plan, journal, path)
+            return _complete_prune(plan, journal, path)
+        except BaseException as exc:
+            journal["error"] = f"{type(exc).__name__}: {exc}"
+            _journal_save(path, journal)
+            raise PingstoreError(
+                f"cleanup incomplete ({journal['phase']}); journal {path}; resume --confirm {expected_hash}: {exc}"
+            ) from exc
+
+
+def render_unified_prune_plan(plan):
+    lines = [
+        f"Plan: {plan['plan_hash']}",
+        f"Storage: {plan['storage']}",
+        f"Scope: {', '.join(plan['experiments'] or []) or 'all experiments'}",
+        f"Stages: {', '.join(plan['stages'] or []) or 'all stages'}",
+        "",
+        "KEEP",
+    ]
+    lines.extend(
+        f"{row['run_id']}\t{'; '.join(row['reasons'])}" for row in plan["keep"]
+    )
+    lines.extend(["", "PRUNE"])
+    lines.extend(row["run_id"] for row in plan["prune"])
+    for target, objects in plan["objects"].items():
+        size = sum(row["bytes"] for row in objects.values())
+        identities = {name.split("/")[0] for name in objects}
+        lines.append(
+            f"{target}: {len(identities)} runs, {len(objects)} objects, {size} bytes"
+        )
+        lines.extend(
+            f"{target}\t{name}\t{row['bytes']}\t{row['sha256']}"
+            for name, row in sorted(objects.items())
+        )
+    scope = (
+        " ".join(
+            f"--experiment {experiment}" for experiment in plan["experiments"] or []
+        )
+        or "--all"
+    )
+    stages = "".join(f" --stage {stage}" for stage in plan["stages"] or [])
+    stages += "".join(
+        f" --malformed-run {identity}" for identity in plan["malformed_runs"]
+    )
+    command = (
+        f"uv run pingstore prune --root {shlex.quote(plan['root'])} {scope}{stages} "
+        f"--storage {plan['storage']} --destination {shlex.quote(plan['destination'])} --confirm {plan['plan_hash']}"
+    )
+    lines.extend(["", f"Confirm with: {command}"])
+    return "\n".join(lines)
+
+
+def evidence_manifest(index, build_id, revision):
+    if index["selection_errors"]:
+        raise PingstoreError(
+            f"cannot publish unresolved selections: {index['selection_errors']}"
+        )
+    identities = sorted(
+        {identity for members in index["runsets"].values() for identity in members}
+    )
+    value = dict(
+        schema="pingstore.evidence/v1",
+        build=dict(id=build_id, revision=revision),
+        source=index["source"],
+        index_generation=index["generation"],
+        selections=index["selections"],
+        reports=index["report_selections"],
+        unavailable_reports={
+            article: sorted(set(inputs) - index["selections"].keys())
+            for article, inputs in index["report_inputs"].items()
+            if set(inputs) - index["selections"].keys()
+        },
+        runs={
+            identity: {
+                key: index["runs"][identity]["record"][key]
+                for key in ("payload_digest", "inputs")
+            }
+            for identity in identities
+        },
+    )
+    return validate_evidence_manifest(value)
+
+
+def _github_repository(repo):
+    remote = subprocess.check_output(
+        ["git", "-C", str(repo), "remote", "get-url", "origin"], text=True
+    ).strip()
+    match = re.fullmatch(
+        r"(?:https://github.com/|git@github.com:)([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+?)(?:\.git)?",
+        remote,
+    )
+    if not match:
+        raise PingstoreError("publication requires a verifiable GitHub origin")
+    return match.group(1)
+
+
+def _github_json(repository, endpoint):
+    try:
+        data = subprocess.check_output(
+            ["gh", "api", f"repos/{repository}/{endpoint}"], stderr=subprocess.PIPE
+        )
+        return json.loads(data)
+    except (OSError, ValueError, subprocess.CalledProcessError) as exc:
+        raise PingstoreError(
+            f"cannot establish GitHub publication state ({type(exc).__name__})"
+        ) from None
+
+
+def _github_pages(repository, endpoint, key=None):
+    page = 1
+    while True:
+        suffix = f"&page={page}" if page > 1 else ""
+        response = _github_json(repository, endpoint + suffix)
+        rows = response[key] if key else response
+        yield from rows
+        if len(rows) < 100:
+            return
+        page += 1
+
+
+def github_pages_state(repo):
+    repository = _github_repository(repo)
+    deployments = _github_pages(
+        repository, "deployments?environment=github-pages&per_page=100"
+    )
+    active = None
+    for deployment in deployments:
+        statuses = _github_json(
+            repository, f"deployments/{deployment['id']}/statuses?per_page=1"
+        )
+        if statuses and statuses[0]["state"] == "success":
+            status = statuses[0]
+            match = re.search(r"/actions/runs/(\d+)", status.get("log_url", ""))
+            if not match:
+                raise PingstoreError(
+                    "successful Pages deployment has no verifiable workflow identity"
+                )
+            active = dict(
+                deployment_id=deployment["id"],
+                run_id=match.group(1),
+                revision=deployment["sha"],
+                url=status["environment_url"],
+            )
+            break
+    workflows = _github_pages(
+        repository, "actions/workflows/pages.yml/runs?per_page=100", "workflow_runs"
+    )
+    pending = sorted(
+        str(run["id"]) for run in workflows if run["status"] != "completed"
+    )
+    return dict(repository=repository, active=active, pending=pending)
+
+
+def public_json(url):
+    request = Request(
+        url,
+        headers={"User-Agent": "Pinglab-Pingstore/1.0", "Cache-Control": "no-cache"},
+    )
+    with urlopen(request, timeout=30) as response:
+        return json.load(response)
+
+
+def _verify_legacy_artifact(state, manifest):
+    with tempfile.TemporaryDirectory(prefix="pingstore-legacy-proof-") as temporary:
+        subprocess.run(
+            [
+                "gh",
+                "run",
+                "download",
+                state["active"]["run_id"],
+                "--repo",
+                state["repository"],
+                "--name",
+                "github-pages",
+                "--dir",
+                temporary,
+            ],
+            check=True,
+            capture_output=True,
+        )
+        if (
+            file_sha256(Path(temporary) / "artifact.tar")
+            != manifest["bootstrap"]["artifact_sha256"]
+        ):
+            raise PingstoreError(
+                "active legacy artifact changed from the bootstrapped evidence"
+            )
+
+
+def _verify_active_publication(repo, publications):
+    """Never infer successful publication from backup availability or latest recency."""
+    state = github_pages_state(repo)
+    actual = state["active"]
+    active = publications.get("active")
+    if actual is None:
+        if active is not None:
+            raise PingstoreError(
+                "recorded publication has no successful Pages deployment"
+            )
+        return state
+    candidates = ([active] if active else []) + list(publications["incoming"].values())
+    matching = [
+        manifest
+        for manifest in candidates
+        if manifest["build"]["revision"] == actual["revision"]
+        and manifest["build"]["id"].split("/")[0] == actual["run_id"]
+    ]
+    if not matching:
+        raise PingstoreError(
+            f"active deployment {actual['deployment_id']} is not reconciled with Pingstore publication evidence"
+        )
+    active = matching[0]
+    if "bootstrap" in active:
+        _verify_legacy_artifact(state, active)
+    else:
+        deployed = public_json(actual["url"].rstrip("/") + "/pingstore-evidence.json")
+        if deployed not in matching:
+            raise PingstoreError(
+                "deployed manifest differs from recorded protected evidence"
+            )
+    registered = {key.split("/")[0] for key in publications["incoming"]}
+    unmatched = set(state["pending"]) - registered
+    if unmatched:
+        raise PingstoreError(
+            f"unresolved incoming Pages workflows: {sorted(unmatched)}"
+        )
+    return state
+
+
+def update_publications(destination, previous, revised):
+    """Publication metadata races on the same CAS fence as every storage writer."""
+    validate_publications(revised)
+    control = read_control(destination)
+    if control["operation"] is not None:
+        raise PingstoreError(
+            "storage maintenance is active; publication registration must retry"
+        )
+    if control["publications"] != previous:
+        raise PingstoreError("publication state changed concurrently")
+    records = {
+        identity: entry["record"]
+        for identity, entry in read_catalog(destination)["runs"].items()
+    }
+    reasons = defaultdict(set)
+    _publication_reasons(revised, records, reasons)
+    replace_control(
+        destination,
+        control,
+        dict(control, revision=control["revision"] + 1, publications=revised),
+    )
+
+
+def publication_prepare(repo: Path, destination, output: Path, *, build_id, revision):
+    """Freeze a remote-only build and retain its exact inputs before rendering."""
+    catalog = read_catalog(destination)
+    public = public_json(
+        os.environ.get(
+            "PINGLAB_ASSET_BASE_URL", "https://assets.eoinmurray.info"
+        ).rstrip("/")
+        + "/pingstore/catalog.json"
+    )
+    if public != catalog:
+        raise PingstoreError(
+            "public and authenticated catalogs disagree before publication"
+        )
+    control = read_control(destination)
+    index = reporting_index(
+        repo, source="remote", catalog=catalog, publications=control["publications"]
+    )
+    manifest = evidence_manifest(index, build_id, revision)
+    output.mkdir(parents=True, exist_ok=True)
+    write_json_atomic(output / "catalog.json", catalog)
+    write_json_atomic(output / "index.json", index)
+    write_json_atomic(output / "evidence.json", manifest)
+    previous = control["publications"]
+    revised = dict(previous, incoming={**previous["incoming"], build_id: manifest})
+    update_publications(destination, previous, revised)
+    return manifest
+
+
+def publication_activate(repo: Path, destination, manifest):
+    """Release old deployment roots only after GitHub and the deployed bytes agree."""
+    validate_evidence_manifest(manifest)
+    state = github_pages_state(repo)
+    active = state["active"]
+    if (
+        active is None
+        or active["revision"] != manifest["build"]["revision"]
+        or active["run_id"] != manifest["build"]["id"].split("/")[0]
+    ):
+        raise PingstoreError(
+            "the replacement is not the active successful Pages deployment"
+        )
+    deployed = public_json(active["url"].rstrip("/") + "/pingstore-evidence.json")
+    if deployed != manifest:
+        raise PingstoreError("the replacement evidence manifest is not deployed")
+    previous = read_control(destination)["publications"]
+    incoming = dict(previous["incoming"])
+    incoming.pop(manifest["build"]["id"], None)
+    revised = dict(previous, known=True, active=manifest, incoming=incoming)
+    update_publications(destination, previous, revised)
+    return revised
+
+
+def publication_failed(repo: Path, destination, build_id):
+    state = github_pages_state(repo)
+    if state["active"] and state["active"]["run_id"] == build_id.split("/")[0]:
+        raise PingstoreError(
+            "this build is deployed; reconcile activation instead of releasing its evidence"
+        )
+    previous = read_control(destination)["publications"]
+    incoming = dict(previous["incoming"])
+    incoming.pop(build_id, None)
+    revised = dict(previous, incoming=incoming)
+    update_publications(destination, previous, revised)
+    return revised
+
+
+def bootstrap_publication(repo: Path, destination, output: Path):
+    """Recover conservative legacy roots from the active authenticated Pages artifact."""
+    import tarfile
+
+    state = github_pages_state(repo)
+    if state["pending"]:
+        raise PingstoreError(
+            f"legacy publication is unresolved while workflows run: {state['pending']}"
+        )
+    if state["active"] is None:
+        previous = read_control(destination)["publications"]
+        revised = dict(previous, known=True, active=None)
+        update_publications(destination, previous, revised)
+        return revised
+    active = state["active"]
+    catalog = read_catalog(destination)
+    records = {identity: entry["record"] for identity, entry in catalog["runs"].items()}
+    identities = set()
+    with tempfile.TemporaryDirectory(prefix="pingstore-pages-bootstrap-") as temporary:
+        subprocess.run(
+            [
+                "gh",
+                "run",
+                "download",
+                active["run_id"],
+                "--repo",
+                state["repository"],
+                "--name",
+                "github-pages",
+                "--dir",
+                temporary,
+            ],
+            check=True,
+            capture_output=True,
+        )
+        archive = Path(temporary) / "artifact.tar"
+        artifact_digest = file_sha256(archive)
+        with tarfile.open(archive) as artifact:
+            for member in artifact:
+                if not member.isfile() or not member.name.endswith(".html"):
+                    continue
+                if member.size > 32 * 1024**2:
+                    raise PingstoreError(
+                        "legacy HTML exceeds the bounded bootstrap reader"
+                    )
+                data = artifact.extractfile(member).read().decode("utf8")
+                # This authored text archive is explicitly separate from current
+                # exp124 evidence. Its historical Dataset rows are not live roots.
+                if member.name.removeprefix("./") == "recovered/exp124/published.html":
+                    data = re.sub(
+                        r'<tr[^>]*class="[^"]*selected-run[^"]*"[^>]*>.*?</tr>',
+                        "",
+                        data,
+                        flags=re.S,
+                    )
+                for row in re.findall(
+                    r'<tr[^>]*class="[^"]*selected-run[^"]*"[^>]*>(.*?)</tr>',
+                    data,
+                    re.S,
+                ):
+                    identities.update(
+                        match.group(0)
+                        for match in re.finditer(
+                            STAGE_ID_RE.pattern.removeprefix("^").removesuffix("$"), row
+                        )
+                    )
+                identities.update(
+                    re.findall(
+                        r"/pingstore/runs/(exp\d{3}-r\d+-(?:compute(?:-phase-[a-z0-9-]+)?|analyse|present))/",
+                        data,
+                    )
+                )
+    # STAGE_ID_RE has capture groups; identity extraction must use full matches.
+    if any(not isinstance(identity, str) for identity in identities):
+        raise PingstoreError("legacy artifact run identity extraction failed")
+    missing = identities - records.keys()
+    if missing:
+        raise PingstoreError(
+            f"active legacy deployment references unavailable evidence: {sorted(missing)}"
+        )
+    kept = set()
+    for identity in identities:
+        kept.update(_runset(records, identity))
+    manifest = dict(
+        schema="pingstore.evidence/v1",
+        build=dict(id=active["run_id"] + "/legacy", revision=active["revision"]),
+        selections={},
+        runs={
+            identity: {
+                key: records[identity][key] for key in ("payload_digest", "inputs")
+            }
+            for identity in sorted(kept)
+        },
+        bootstrap=dict(
+            deployment_id=active["deployment_id"],
+            source="authenticated-pages-artifact",
+            artifact_sha256=artifact_digest,
+            excluded_text_inventory=["recovered/exp124/published.html"],
+        ),
+    )
+    validate_evidence_manifest(manifest, records)
+    write_json_atomic(output, manifest)
+    previous = read_control(destination)["publications"]
+    revised = dict(previous, known=True, active=manifest)
+    update_publications(destination, previous, revised)
+    return revised
+
+
+def _backup_selection(source, destination, control):
+    local = {
+        path.name: validate_run(load_json(path / "run.json"))
+        for path in sorted(source.iterdir())
+        if not path.name.startswith(".")
+    }
+    remote = {
+        identity: entry["record"]
+        for identity, entry in read_catalog(destination, complete=False)["runs"].items()
+    }
+    records = {**remote, **local}
+    index = resolve_run_index(local, remote)
+    if index["selection_errors"]:
+        raise PingstoreError(
+            f"unresolved current backup inputs: {index['selection_errors']}"
+        )
+    required = {
+        identity for members in index["runsets"].values() for identity in members
+    }
+    reasons = defaultdict(set)
+    if source.is_dir():
+        _hidden_inputs(source, records, reasons)
+    required.update(reasons)
+    required.update(
+        identity for identity in local if (source / identity / ".protected").exists()
+    )
+    selected, excluded = set(), {}
+    tombstones = control["tombstones"]
+    for identity in sorted(local):
+        if identity in tombstones:
+            if identity in required:
+                raise PingstoreError(
+                    f"current or protected evidence was pruned: {identity}; regenerate or explicitly recover its evidence"
+                )
+            excluded[identity] = "pruned history; resurrection refused"
+            continue
+        try:
+            members = _runset(records, identity)
+        except PingstoreError as exc:
+            if identity in required:
+                raise
+            excluded[identity] = f"unused broken history: {exc}"
+            continue
+        deleted_inputs = set(members) & tombstones.keys()
+        if deleted_inputs:
+            raise PingstoreError(
+                f"backup {identity} would resurrect pruned inputs: {sorted(deleted_inputs)}"
+            )
+        selected.update(set(members) & local.keys())
+    return selected, excluded
+
+
+def _coordinated_backup_plan(source, destination):
+    control = read_control(destination)
+    if control["operation"] is not None:
+        raise PingstoreError(f"unfinished remote operation: {control['operation']}")
+    selected, excluded = _backup_selection(source, destination, control)
+    plan = backup_plan(source, destination, selected)
+    plan["excluded"] = excluded
+    tombstoned = {row["run_id"] for row in plan["runs"]} & control["tombstones"].keys()
+    if tombstoned:
+        raise PingstoreError(
+            f"backup would resurrect pruned evidence: {sorted(tombstoned)}"
+        )
+    plan.pop("plan_hash")
+    plan["control"] = control
+    return {**plan, "plan_hash": _plan_hash(plan)}
+
+
+def _backup_work_plan(source, destination, original):
+    selected = {row["run_id"] for row in original["runs"]}
+    work = backup_plan(source, destination, selected)
+    if work["runs"] != original["runs"]:
+        raise PingstoreError("original backup inputs changed; resumption refused")
+    allowed = dict(original["remote_inventory"])
+    for row in original["runs"]:
+        allowed.update(row["files"])
+    actual = work["remote_inventory"]
+    if any(allowed.get(name) != size for name, size in actual.items()):
+        raise PingstoreError("unexpected remote objects during backup resumption")
+    if any(
+        actual.get(name) != size for name, size in original["remote_inventory"].items()
+    ):
+        raise PingstoreError("pre-existing remote objects changed during backup")
+    return work
+
+
+def _backup_already_released(plan, control):
+    if control["operation"] is not None:
+        return False
+    catalog = read_catalog(plan["destination"])
+    for row in plan["runs"]:
+        entry = catalog["runs"].get(row["run_id"])
+        if entry is None or entry["record"]["payload_digest"] != row["payload_digest"]:
+            return False
+        if (
+            entry["files"]["run.json"]["sha256"] != row["run_json_sha256"]
+            or entry["files"]["README.md"]["sha256"] != row["readme_sha256"]
+        ):
+            return False
+        expected = {
+            name.removeprefix(row["run_id"] + "/"): size
+            for name, size in row["files"].items()
+        }
+        if {name: file["bytes"] for name, file in entry["files"].items()} != expected:
+            return False
+    return True
+
+
+def coordinated_backup(source, destination, *, dry_run, confirm):
+    import secrets
+
+    source = source.resolve()
+    store = source.parent
+    with operation_lock(store, exclusive=True):
+        if dry_run:
+            plan = _coordinated_backup_plan(source, destination)
+            print(f"Destination: {destination}")
+            print(
+                f"New runs: {len(plan['new_runs'])}; existing runs: {len(plan['existing_runs'])}"
+            )
+            for row in plan["runs"]:
+                print(
+                    f"{row['run_id']}\t{sum(row['files'].values())} bytes\t{row['payload_digest']}"
+                )
+            for identity, reason in plan["excluded"].items():
+                print(f"Not uploaded: {identity} ({reason})")
+            print(f"Plan: {plan['plan_hash']}")
+            return 0
+        _prune_journal_path(
+            store.parent, confirm
+        )  # Validate the full hash before any remote access.
+        path = store / "operations" / f"backup-{confirm[7:]}.json"
+        if path.exists():
+            journal = load_json(path)
+            plan = journal["plan"]
+            if (
+                plan["source"] != str(source)
+                or plan["destination"] != destination
+                or _plan_hash(
+                    {key: value for key, value in plan.items() if key != "plan_hash"}
+                )
+                != confirm
+            ):
+                raise PingstoreError("backup journal scope or checksum mismatch")
+            if journal["phase"] == "complete":
+                print("Backup already completed and verified.")
+                return 0
+        else:
+            plan = _coordinated_backup_plan(source, destination)
+            if plan["plan_hash"] != confirm:
+                raise PingstoreError("backup plan changed; run --dry-run again")
+            journal = dict(
+                schema="pingstore.operation/v1",
+                plan=plan,
+                phase="prepared",
+                error=None,
+                operation=dict(
+                    kind="backup",
+                    plan_hash=confirm,
+                    token=secrets.token_hex(32),
+                    run_ids=sorted(row["run_id"] for row in plan["runs"]),
+                ),
+            )
+            _journal_save(path, journal)
+        try:
+            current = read_control(destination)
+            if journal["phase"] == "catalog-published" and _backup_already_released(
+                plan, current
+            ):
+                journal["phase"] = "complete"
+                journal["error"] = None
+                _journal_save(path, journal)
+                print(
+                    "Backup completion and release verified from the surviving catalog."
+                )
+                return 0
+            if current["operation"] != journal["operation"]:
+                if current != plan["control"]:
+                    raise PingstoreError(
+                        "remote controls changed before backup lease acquisition"
+                    )
+                acquire_remote_operation(destination, current, journal["operation"])
+            work = _backup_work_plan(source, destination, plan)
+            work["tombstones"] = plan["control"]["tombstones"]
+            work["publications"] = plan["control"]["publications"]
+            assert_remote_operation(destination, journal["operation"])
+            apply_backup(source, destination, work)
+            journal["phase"] = "uploaded"
+            _journal_save(path, journal)
+            assert_remote_operation(destination, journal["operation"])
+            publish_catalog(source, destination, work)
+            journal["phase"] = "catalog-published"
+            _journal_save(path, journal)
+            release_remote_operation(destination, journal["operation"])
+            journal["phase"] = "complete"
+            journal["error"] = None
+            _journal_save(path, journal)
+            return 0
+        except BaseException as exc:
+            journal["error"] = f"{type(exc).__name__}: {exc}"
+            _journal_save(path, journal)
+            raise PingstoreError(
+                f"backup incomplete ({journal['phase']}); journal {path}; resume --confirm {confirm}: {exc}"
+            ) from exc
+
+
+def public_maintenance_snapshot(asset_base):
+    base = asset_base.rstrip("/")
+    catalog = public_json(base + "/pingstore/catalog.json")
+    validate_catalog(catalog, complete=False)
+    try:
+        control = public_json(base + "/pingstore/control.json")
+        validate_publications(control["publications"])
+    except OSError:
+        control = dict(
+            schema=CONTROL_SCHEMA,
+            revision=0,
+            operation=None,
+            publications=empty_publications(),
+            tombstones={},
+        )
+    objects = {
+        f"{identity}/{name}": row["bytes"]
+        for identity, entry in catalog["runs"].items()
+        for name, row in entry["files"].items()
+    }
+    for identity in catalog.get("inventory", {}).get("protected", []):
+        if not STAGE_ID_RE.fullmatch(identity):
+            raise PingstoreError("invalid published protection identity")
+        objects[f"{identity}/.protected"] = 0
+    return dict(
+        catalog=catalog,
+        control=control,
+        objects=objects,
+        authenticated=False,
+        deployment=None,
     )

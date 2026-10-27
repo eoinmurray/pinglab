@@ -10,7 +10,14 @@ export async function reportHasData(report: string, experiment = report): Promis
   return Boolean(await optionalPresentation(experiment));
 }
 
-// Numbers, figures and snapshots share the session's frozen presentation selection.
+// Absence is distinct from malformed selected evidence, which still throws.
+export async function unavailableReportInputs(inputs: string[], requiresEvidence: boolean): Promise<string[]> {
+  if (!requiresEvidence) return [];
+  const available = await Promise.all(inputs.map(async experiment => ({ experiment, run: await optionalPresentation(experiment) })));
+  return available.filter(value => !value.run).map(value => value.experiment);
+}
+
+// Numbers, figures and snapshots share the request or build selection.
 export async function reportData(report: string, { experiment = report, allowUnavailable = false }: Options = {}): Promise<any> {
   const run = (await optionalPresentation(experiment))?.id;
   if (!run) {
@@ -18,7 +25,7 @@ export async function reportData(report: string, { experiment = report, allowUna
     throw new Error(`No presentation data for ${report}/${experiment}`);
   }
   if (!/^exp\d{3}-r\d+-present$/.test(run)) throw new Error(`Invalid presentation ID: ${run}`);
-  if (import.meta.env?.DEV) return runStore.json(run, 'export/numbers.json');
+  if (process.env.NODE_ENV !== 'production') return runStore.json(run, 'export/numbers.json');
   if (!payloads.has(run)) {
     payloads.set(run, runStore.json(run, 'export/numbers.json'));
   }

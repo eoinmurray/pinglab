@@ -62,10 +62,10 @@ export function validateCatalog(value: any): Catalog {
   return value;
 }
 
-export function remoteCatalog(base = assetBase()): Promise<Catalog> {
+export function remoteCatalog(base = assetBase(), refresh = false): Promise<Catalog> {
   if (!base) return Promise.reject(new Error('R2 asset origin is disabled'));
   const cachedValue = cached.get(base);
-  if (cachedValue && cachedValue.expires > Date.now()) return cachedValue.value;
+  if (!refresh && cachedValue && cachedValue.expires > Date.now()) return cachedValue.value;
   const value = retryRead('R2 catalog', async () => {
     const response = await fetch(`${base}/pingstore/catalog.json`, { signal: AbortSignal.timeout(30_000), cache: 'no-store' });
     if (!response.ok) throw Object.assign(new Error(`R2 catalog: HTTP ${response.status}`),
@@ -75,4 +75,21 @@ export function remoteCatalog(base = assetBase()): Promise<Catalog> {
   cached.set(base, { expires: process.env.NODE_ENV === 'production' ? Infinity : Date.now() + 30_000, value });
   value.catch(() => cached.delete(base));
   return value;
+}
+
+
+export async function remoteControl(base = assetBase()) {
+  const unknown = { schema: 'pingstore.control/v1', revision: 0, operation: null, tombstones: {},
+    publications: { schema: 'pingstore.publications/v1', known: false, active: null, incoming: {} } };
+  try {
+    const response = await fetch(`${base}/pingstore/control.json`, { signal: AbortSignal.timeout(30_000), cache: 'no-store' });
+    if (response.status === 404) return unknown;
+    if (!response.ok) throw new Error(`R2 publication state: HTTP ${response.status}`);
+    const control = await response.json();
+    if (control?.schema !== 'pingstore.control/v1') throw new Error('Invalid R2 coordination document');
+    return control;
+  } catch (error) {
+    console.warn('[Pingstore] Publication state unavailable; history remains unresolved.', error);
+    return unknown;
+  }
 }

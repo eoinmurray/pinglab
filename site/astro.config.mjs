@@ -6,6 +6,9 @@ import { unified } from '@astrojs/markdown-remark';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 
+// Keep the resolver and manifest independent of Vite's bundled module location.
+process.env.PINGLAB_REPOSITORY_ROOT = new URL('../', import.meta.url).pathname;
+
 // https://astro.build/config
 export default defineConfig({
   logger: { entrypoint: './src/logger.mjs' },
@@ -48,6 +51,18 @@ export default defineConfig({
         addClientDirective({ name: 'search', entrypoint: './src/scripts/search-hydration.ts' });
       },
       'astro:server:setup': ({ server }) => {
+        server.middlewares.use(async (request, response, next) => {
+          if (!request.headers.accept?.includes('text/html')) return next();
+          try {
+            const context = await server.ssrLoadModule('/src/lib/run-context.ts');
+            // MDX exports execute on import. Invalidate their importing graph so
+            // bindings and components render against the same new request index.
+            for (const module of server.moduleGraph.idToModuleMap.values()) {
+              if (module.file?.endsWith('.mdx')) server.moduleGraph.invalidateModule(module);
+            }
+            context.withRunContext(() => next());
+          } catch (error) { next(error); }
+        });
         server.middlewares.use(async (request, response, next) => {
           const pathname = new URL(request.url, 'http://localhost').pathname;
           if (!pathname.startsWith('/run-images/')) return next();
