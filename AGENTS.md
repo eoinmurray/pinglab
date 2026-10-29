@@ -8,3 +8,5 @@ compute or storage instructions.
 2. [Compute](notes/rules/compute.mdx): Plan, launch or monitor execution; operate remote resources.
 3. [Pingstore](notes/rules/pingstore.md): Produce, consume or manage scientific runs; change storage, selection or publication behavior.
 4. [Writing](notes/rules/writing.md): Edit articles, figures, captions, references, tables or report components.
+
+Time things and report their timings.

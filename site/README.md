@@ -155,8 +155,8 @@ Existing date-only `created_at` values remain supported.
 Notes and slide decks live in `notes/` and its subdirectories as `.md`
 or `.mdx` files, and belong to one Astro content collection. Discovery is recursive,
 excluding `README.md`, `AGENTS.md`, and the `notes/figures/` support directory.
-Standing constraints live in `notes/rules/`; task-specific procedures live in
-`notes/guides/` and are read only when needed. Keep shared components in `site/src/components/`
+Standing constraints and task-specific procedures live in `notes/rules/`;
+read procedures only when needed. Keep shared components in `site/src/components/`
 and authored images in `site/src/assets/`. Shared Python packages and execution
 helpers live in `libraries/`.
 All entries belong to the Notes collection
@@ -164,7 +164,8 @@ at `/collections/notes/`. Each note requires `title`, `author`, `description`,
 `created_at`, `updated_at`, and `collection` frontmatter including `notes`.
 The path relative to `notes/` determines the URL: `notes/rules/compute.mdx`
 opens at `/notes/rules/compute`. The four rules guides' former flat and suffixed URLs
-redirect to their current nested URLs, including in static deployments.
+redirect to their current nested URLs, including in static deployments. Former
+`/notes/guides/` URLs redirect to the corresponding procedures under `/notes/rules/`.
 Notes and experiments both use `Report.astro`, including its byline, contents
 sidebar, article spacing, and annotations. Optional `abstract` frontmatter is
 supported for both; experiment IDs and Dataset footers require experiment metadata.
@@ -212,7 +213,7 @@ contents. Existing `parameters.mdx` files
 remain supported by the shared layout under Parameters immediately above Dataset,
 with a Parameters entry in the table of contents. The canonical scientific-writing
 rules are preserved in [Writing Rules](../notes/rules/writing.md), with the detailed
-parameter layout in [Parameter Tables](../notes/guides/parameter-tables.md).
+parameter layout in [Parameter Tables](../notes/rules/parameter-tables.md).
 Write mathematics directly in MDX as `$...$` for inline expressions and `$$`
 blocks for displayed equations. The existing remark-math and rehype-katex
 plugins render these with KaTeX. Preserve displayed equation numbers with

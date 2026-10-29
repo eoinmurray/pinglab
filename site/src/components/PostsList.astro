@@ -13,9 +13,9 @@ const { posts, sortable = false } = Astro.props;
       <button class="sort-shortcut" type="button" aria-label="S sorting shortcut" aria-pressed="true" title="Press S to change order. Click to disable this shortcut."><kbd>[s]</kbd></button>
     </span>
     <span class="sort-selection">
-      <span class="sort-selection-value" aria-hidden="true">Default order</span>
+      <span class="sort-selection-value" aria-hidden="true">Scientific order</span>
       <select id="article-sort" aria-controls="homepage-articles" aria-keyshortcuts="s">
-        <option value="default" title="Experiments by descending ID, then other articles by latest update">Default order</option>
+        <option value="default" title="Experiments by descending ID, then other articles by latest update">Scientific order</option>
         <option value="updated">Recently updated</option>
       </select>
       <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="m3 4.5 3 3 3-3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" /></svg>

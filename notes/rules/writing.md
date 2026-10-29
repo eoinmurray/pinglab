@@ -61,7 +61,7 @@ Use exp133's compact grouped summary followed immediately by a source-to-target
 matrix, through shared `Table`; no exhaustive or expandable extra tables. Preserve
 Simulation-first ordering, every population/input pool, two significant figures,
 exact identifiers, standard headers and uniform body backgrounds. Read
-[Parameter Tables](/notes/guides/parameter-tables) when creating or changing them.
+[Parameter Tables](/notes/rules/parameter-tables) when creating or changing them.
 
 <a id="style-components-and-maintenance"></a>
 <a id="javascript-animations"></a>

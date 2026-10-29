@@ -4,7 +4,7 @@ author: Eoin Murray
 collection: notes
 description: Current scientific runsets, validated storage, publication and inspected cleanup.
 created_at: "2026-09-11"
-updated_at: "2026-10-29T17:43:19Z"
+updated_at: "2026-10-29T18:00:12Z"
 ---
 
 # Pingstore Rules
@@ -23,9 +23,14 @@ updated_at: "2026-10-29T17:43:19Z"
    temporary work in `run.scratch`. Record configuration and provenance in the run,
    without parallel manifests. Never select “latest” scientific inputs or launch
    upstream stages automatically.
-3. Retain native evidence required by Experiment Rules and data needed for downstream
-   analysis, reproduction or continuation. Keep additional snapshots, recordings
-   and optimizer/RNG state only for those consumers; existing runs remain immutable.
+3. Design runsets for space efficiency and manageable file counts. Retain native
+   evidence required by Experiment Rules and outputs justified by downstream analysis,
+   reproduction or continuation. Keep additional snapshots, recordings and optimizer/RNG
+   state only for those consumers. Avoid redundant copies, unnecessary intermediate
+   outputs and excessive per-step or per-sample files; use compact, consolidated formats
+   where practical. Before substantial runs, estimate retained size and file count,
+   and justify unusually large outputs. Keep disposable intermediates in `run.scratch`;
+   existing runs remain immutable.
 
 <a id="current-reporting-and-status"></a>
 
@@ -57,5 +62,5 @@ updated_at: "2026-10-29T17:43:19Z"
    roots only through verified successful replacement. Finish with retained-graph
    and scoped inventory validation; report partial completion accurately.
 
-Read only the relevant [Pingstore Operations](/notes/guides/pingstore) section
+Read only the relevant [Pingstore Operations](/notes/rules/pingstore-operations) section
 before maintenance, recovery or changes to storage/reporting internals.

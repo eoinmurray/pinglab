@@ -1,74 +1,105 @@
 ---
 import Table from '../../../site/src/components/Table.astro';
 import { reportData, reportSnapshots } from '../../../site/src/lib/report-data';
+import { formatTableNumber } from '../../../site/src/lib/table-number';
 
 const evidence = await reportSnapshots('exp123', {
   snapshots: { selected: 'benchmark--rate-25--batch-0--tau-3/start/snapshot.json' }, allowUnavailable: true,
 });
-const data = await reportData('exp123');
+const data = await reportData('exp123', { allowUnavailable: true });
 const snapshot = evidence?.snapshots.selected;
 const cfg = evidence?.configuration.sweep;
-const value = (item, unit = '') => item == null ? 'Unavailable'
-  : `${typeof item === 'object' ? JSON.stringify(item) : item}${unit ? ` ${unit}` : ''}`;
 const graph = snapshot?.network;
-const populations = graph?.populations ?? [];
-const hidden = populations.filter(pop => ['E', 'I'].includes(pop.id));
-const cells = hidden.length ? hidden : populations;
-const paired = (key, unit = '') => cells.length ? cells.map(pop => value(pop.neuron[key]?.value ?? pop.neuron[key])).join(' / ') + (unit ? ` ${unit}` : '') : 'Unavailable';
-const labels = {input_to_E: 'Input→E', E_to_I: 'E→I', I_to_E: 'I→E', readout_projection: 'E→Output', input_to_output: 'Input→Output'};
+const n = value => {
+  if (typeof value !== 'number' || !Number.isFinite(value)) throw new Error('Invalid saved exp123 numeric parameter');
+  return formatTableNumber(value);
+};
+const identifier = value => {
+  if (!Number.isSafeInteger(value)) throw new Error('Invalid saved exp123 seed');
+  return String(value);
+};
+const quantity = (value, unit) => value == null ? 'Unavailable' : `${n(value)} ${unit}`;
+const math = value => ({ math: value });
+const symbol = id => ({ E: 'E', I: 'I', readout: 'R', image: 'X' }[id] ?? `\\mathrm{${id.replaceAll('_', '\\_')}}`);
+// When native evidence is missing, these are the roles in Figure A1, not a
+// reconstruction of its historical execution graph or its parameter values.
+const populations = graph?.populations ?? [{ id: 'E' }, { id: 'I' }, { id: 'readout' }];
+const inputs = graph?.inputs ?? [{ id: 'image' }];
+const sources = [...populations, ...inputs];
+const pair = key => {
+  if (!graph) return 'Unavailable';
+  return ['E', 'I'].map(id => {
+    const neuron = populations.find(population => population.id === id)?.neuron;
+    return quantity(neuron?.[key]?.value, 'ms');
+  }).join(' / ');
+};
 const groups = [
-  { label: 'Network', rows: [
-    ['Native parameter snapshot', snapshot ? `${snapshot.kind}, ${snapshot.stage}` : 'Unavailable'],
-    ['Input channels', graph ? graph.inputs.map(input => `${input.id} ${input.shape.at(-1)}`).join('; ') : 'Unavailable'],
-    ['Populations', graph ? populations.map(pop => `${pop.id} ${pop.size}`).join('; ') : 'Unavailable'],
-    ['Membrane model', cells.length ? cells.map(pop => pop.neuron.kind).join(' / ') : 'Unavailable'],
+  { label: 'Simulation', rows: [
+    [math('dt'), quantity(cfg?.dt_ms, 'ms')],
+    ['Presentation / analysed duration', quantity(cfg?.duration_ms, 'ms')],
+    ['Burn-in', quantity(cfg?.burn_in_ms, 'ms')],
+    ['Network seed', snapshot?.execution.seed == null ? 'Unavailable' : identifier(snapshot.execution.seed)],
+    ['Image-selection seed', cfg?.image_selection_seed == null ? 'Unavailable' : identifier(cfg.image_selection_seed)],
+    ['Encoding seeds', cfg?.seeds ? cfg.seeds.map(identifier).join(', ') : 'Unavailable'],
   ] },
-  { label: 'Neurons', rows: [
-    ['Membrane capacitance', paired('capacitance_nf', 'nF')],
-    ['Leak conductance', paired('leak_us', 'µS')],
-    ['Resting potential', paired('resting_mv', 'mV')],
-    ['Reset potential', paired('reset_mv', 'mV')],
-    ['Threshold', paired('threshold_mv', 'mV')],
-    ['Refractory period', paired('refractory', 'ms')],
-    ['Membrane time constant', paired('tau_mem', 'ms')],
+  { label: 'Populations', rows: [
+    ...populations.map(population => [math(symbol(population.id)), graph
+      ? `${n(population.size)} ${population.neuron.kind === 'coba_lif' ? 'conductance-LIF' : population.neuron.kind} neurons`
+      : 'Unavailable size and neuron model']),
+    ...inputs.map(input => [math(symbol(input.id)), graph
+      ? `${n(input.shape.at(-1))} input channels` : 'Unavailable channel count']),
   ] },
-  { label: 'Synapses and weights', rows: graph ? [
-    ...graph.projections.flatMap(projection => {
-      const label = labels[projection.id] ?? projection.id.replaceAll('_', ' ');
-      return [
-        [`${label} synapse / decay`, `${projection.synapse.kind} / ${value(projection.synapse.tau?.value, 'ms')}`],
-        [`${label} delay`, value(projection.delay?.value, 'ms')],
-        [`${label} saved matrix shape`, value(snapshot.parameters[projection.parameters[0]]?.shape)],
-      ];
-    }),
-    ['Saved parameter payload SHA-256', value(snapshot.parameter_file_sha256)],
-  ] : [['Native synapse and weight parameters', 'Unavailable']] },
-  { label: 'Input and simulation', rows: [
-      ['Partition', value(cfg?.partition, '')],
-      ['Image selection', value(cfg?.image_selection, '')],
-      ['Selection seed', value(cfg?.image_selection_seed, '')],
-      ['Test images', value(cfg?.image_indices?.length, '')],
-      ['Encoding identifiers', value(cfg?.seeds, '')],
-      ['Inhibitory decay settings', value(cfg?.tau_gaba_ms, 'ms')],
-      ['Input rates', value(cfg?.input_rates_hz, 'Hz')],
-      ['Generator seed rule', value(cfg?.generator_seed_rule, '')],
-      ['Timestep', value(cfg?.dt_ms, 'ms')],
-      ['Duration', value(cfg?.duration_ms, 'ms')],
-      ['Burn-in', value(cfg?.burn_in_ms, 'ms')],
-      ['Checkpoint role', value(cfg?.checkpoint_role, '')],
-      ['Checkpoint SHA-256', value(cfg?.checkpoint_sha256, '')],
+  { label: 'Neuron dynamics', rows: [
+    ['Membrane time constant, E / I', pair('tau_mem')],
+    ['Refractory period, E / I', pair('refractory')],
+    ['Readout time constant', quantity(populations.find(population => population.id === 'readout')?.neuron?.tau?.value, 'ms')],
   ] },
-
-  { label: 'Analysis', rows: Object.entries(data.measurement ?? {}).filter(([key]) => key !== 'script_sha256').map(([key, item]) => [key.replaceAll('_', ' '), value(item)]).length
-    ? Object.entries(data.measurement).filter(([key]) => key !== 'script_sha256').map(([key, item]) => [key.replaceAll('_', ' '), value(item)])
-    : [['Recorded analysis settings', 'Unavailable']] },
+  { label: 'Input and manipulation', rows: [
+    ['Image partition', cfg?.partition ?? 'Unavailable'],
+    ['Test images', cfg?.image_indices ? n(cfg.image_indices.length) : 'Unavailable'],
+    ['Sampling', cfg?.image_selection ?? 'Unavailable'],
+    ['Input encoding rate', cfg?.input_rates_hz ? `${cfg.input_rates_hz.map(n).join(', ')} Hz/channel` : 'Unavailable'],
+    [math('\\tau_{\\mathrm{GABA}}'), cfg?.tau_gaba_ms ? `${cfg.tau_gaba_ms.map(n).join(', ')} ms` : 'Unavailable'],
+    ['Presentations', evidence?.configuration.presentations == null ? 'Unavailable' : n(evidence.configuration.presentations)],
+  ] },
+  { label: 'Measurement', rows: [
+    ['Primary measurement window', cfg ? `${n(0)}–${n(cfg.duration_ms)} ms; full presentation` : 'Unavailable'],
+    ['Class score', data?.measurement?.score ?? 'Unavailable'],
+    ['Softmax temperature', data?.measurement?.softmax_temperature == null ? 'Unavailable' : n(data.measurement.softmax_temperature)],
+  ] },
 ];
+const endpoint = value => value.split('.')[0];
+if (graph && graph.projections.some(projection =>
+  !sources.some(source => source.id === endpoint(projection.source))
+  || !populations.some(target => target.id === endpoint(projection.target)))) {
+  throw new Error('Saved exp123 projection has an unreported endpoint');
+}
+const matrixRows = sources.map(source => [math(symbol(source.id)), ...populations.map(target => {
+  if (!graph) return 'Unavailable';
+  const projections = graph.projections.filter(projection =>
+    endpoint(projection.source) === source.id && endpoint(projection.target) === target.id);
+  if (!projections.length) return 'Absent';
+  // Checkpoint transfer replaces initialization. A zero initializer is not
+  // evidence for either the transferred weight distribution or its density.
+  return 'Unavailable density and nominal transferred weight';
+})]);
 ---
 
-<Table headers={['Parameter', 'Recorded value']} groups={groups} number="A1" id="recorded-parameters">
-  Model parameters follow the selected presentation to its original compute's native
-  snapshot; input and protocol settings come from that compute's recorded configuration.
-  Paired neuron values follow {cells.map(pop => pop.id).join(' / ') || 'E / I'} order.
-  Missing snapshots or fields are unavailable. Historical figures retain their
-  original evidence; current recipe defaults are never substituted.
+<Table headers={['Parameter', 'Recorded value']} groups={groups} number="A1" id="recorded-parameters" label="Simulation, populations and protocol">
+  X denotes image input; E / I denotes excitatory / inhibitory neurons; R denotes the class readout.
+  LIF means leaky integrate-and-fire. Paired dynamics list E then I.
+  Protocol values come from the selected figures' compute configuration; model values require its native snapshot.
+  { !snapshot && <>That historical snapshot is unavailable: population roles follow Figure A1, while sizes, neuron models and dynamics remain unavailable. </> }
+  Quantities use two significant figures; seed identifiers remain exact. Encoding seeds identify repeated draws, not network realizations;
+  the recorded generator seed rule is <code>{cfg?.generator_seed_rule ?? 'Unavailable'}</code>.
+  The same draws are reused at each inhibitory decay. Current recipe defaults and recorded biological defaults do not replace native model evidence.
+</Table>
+
+<Table headers={['Source ↓ / target →', ...populations.map(population => math(symbol(population.id)))]}
+  rows={matrixRows} rowHeaders number="A2" id="connectivity-matrix" label="Source-to-target connectivity matrix">
+  Rows are sources; columns are targets. Each connected cell requires eligible-pair density and nominal weight per connection,
+  with units inline and mean ± standard deviation for random initializers, including saved normalization and execution gains.
+  { !snapshot && <>The selected historical compute has no native network snapshot, so every entry is unavailable; even projection absence and self-connection exclusions cannot be verified. </> }
+  Transferred checkpoint weights cannot be inferred from zero-valued initialization placeholders.
+  Unavailable does not mean absent, zero weight or silent input. No numerical matrix condition can be authenticated for this sweep.
 </Table>

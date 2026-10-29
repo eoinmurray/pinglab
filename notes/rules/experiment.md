@@ -66,7 +66,7 @@ updated_at: "2026-10-29T17:43:19Z"
 
 ## Task-specific references
 
-Read only the relevant section of [Experiment Procedures](/notes/guides/experiment)
+Read only the relevant section of [Experiment Procedures](/notes/rules/experiment-procedures)
 for native calls, migration or parallel workers. Read [Compute](/notes/rules/compute)
 when operating resources and [Pingstore](/notes/rules/pingstore) when producing,
 consuming or managing runs.
