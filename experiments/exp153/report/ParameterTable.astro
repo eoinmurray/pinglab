@@ -4,8 +4,12 @@ import { reportData, reportSnapshots } from '../../../site/src/lib/report-data';
 import { formatTableNumber } from '../../../site/src/lib/table-number';
 
 const data = await reportData('exp153', { allowUnavailable: true });
+// The loader resolves authored paths through the compute run's native-path map.
+const snapshotPath = data?.configuration.network
+  ? 'network-initialization/start/snapshot.json'
+  : 'source-snapshot/start/snapshot.json';
 const evidence = data ? await reportSnapshots('exp153', {
-  snapshots: { source: data.configuration.native_snapshot ?? 'source-snapshot/start/snapshot.json' },
+  snapshots: { source: snapshotPath },
   allowUnavailable: true,
 }) : undefined;
 const cfg = evidence?.configuration;
@@ -115,7 +119,7 @@ if (matrix && projections.some(projection => !sources.some(source => source.id =
 ---
 
 <Table headers={onsetOnly ? ['Parameter', 'Onset calculation'] : ['Parameter', 'Coupling map', 'Onset excerpt']} groups={onsetOnly ? groups.map(group => ({ ...group, rows: group.rows.map(row => [row[0], row[2]]) })) : groups} number="A1" id="saved-model-parameters" label="Mean-field calculation and reference populations">
-  Recorded mean-field settings and saved neuronal-reference populations for Figure 2.
+  Recorded mean-field settings and saved neuronal-reference populations for {onsetOnly ? 'Figure 2' : 'Figures 1 and 2'}.
   {onsetOnly && <span>Figure 1 retains its historical settings and is not represented by this table. </span>} E / I denotes excitatory / inhibitory;
   LIF means leaky integrate-and-fire; X identifies private sensory input. Each neuronal population becomes one
   continuous rate; each retained pathway becomes a conductance filter. The initialization seed identifies the weight draw, not independent repetitions. Sensory rates are deterministic. The onset calculation uses its recorded trajectory.

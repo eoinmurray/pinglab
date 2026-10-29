@@ -21,14 +21,15 @@ import ParameterTable from './ParameterTable.astro';
 
 ## Parameters
 
-The retained native snapshot describes the **neuronal reference for Figure 2**.
+The retained native snapshot describes the **neuronal reference for the selected presentation**.
 When Figure 1 is preserved from an earlier presentation, it retains that
 presentation’s original configuration and provenance. The standalone
 recipe initializes these weights locally without advancing a spiking simulation. Numerical integration settings and closure
 choices come from the selected exp153 compute record. Reference cross-circuit
 sums are multiplied by nominal coupling divided by 0.12 µS; the zero-coupling
-row supplies one uncoupled calibration for each input difference. The current recipe matches exp133’s neuronal reference and applies sensory gain
-once to the initialized input sums during reduction. Earlier standalone runs
+row supplies one uncoupled calibration for each input difference. The current recipe follows exp133’s architecture, with locally selected recurrent strengths,
+rate relaxation and cross-circuit timing. It applies sensory gain once to the
+initialized input sums during reduction. Earlier standalone runs
 embedded that gain in initialization; the selected record determines its application.
 Connectivity is not resampled.
 

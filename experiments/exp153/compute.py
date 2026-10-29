@@ -119,12 +119,35 @@ def condition_inventory(directory, item, worker_index):
 
 
 def compute(
-    *, difference_hz=-4.0, coupling_us=0.09, parallel=1, run_id=None, onset_only=False
+    *,
+    difference_hz=-4.0,
+    coupling_us=0.09,
+    parallel=1,
+    run_id=None,
+    onset_only=False,
+    tau_rate_e_ms=5.0,
+    tau_rate_i_ms=5.0,
+    sensory_gain=9.2,
+    recurrent_ee_us=0.4,
+    recurrent_ii_us=0.8,
+    local_feedback_scale=1.5,
+    cross_delay_ms=2.0,
+    cross_tau_ms=0.5,
 ):
     if not 1 <= parallel <= (os.cpu_count() or 1):
         raise ValueError("parallel workers must fit available logical CPUs")
     cfg = recipe.configuration(
-        difference_hz=difference_hz, coupling_us=coupling_us, onset_only=onset_only
+        difference_hz=difference_hz,
+        coupling_us=coupling_us,
+        onset_only=onset_only,
+        tau_rate_e_ms=tau_rate_e_ms,
+        tau_rate_i_ms=tau_rate_i_ms,
+        sensory_gain=sensory_gain,
+        recurrent_ee_us=recurrent_ee_us,
+        recurrent_ii_us=recurrent_ii_us,
+        local_feedback_scale=local_feedback_scale,
+        cross_delay_ms=cross_delay_ms,
+        cross_tau_ms=cross_tau_ms,
     )
     bundle = recipe.author_network(cfg)
     initialized = build(
@@ -138,6 +161,14 @@ def compute(
         coupling_us=coupling_us,
         incoming_weights_us=mean_incoming_weights(bundle, initialized.parameters),
         onset_only=onset_only,
+        tau_rate_e_ms=tau_rate_e_ms,
+        tau_rate_i_ms=tau_rate_i_ms,
+        sensory_gain=sensory_gain,
+        recurrent_ee_us=recurrent_ee_us,
+        recurrent_ii_us=recurrent_ii_us,
+        local_feedback_scale=local_feedback_scale,
+        cross_delay_ms=cross_delay_ms,
+        cross_tau_ms=cross_tau_ms,
     )
     with stage_run(
         REPO,
@@ -192,4 +223,12 @@ if __name__ == "__main__":
     parser.add_argument("--parallel", type=int, default=1)
     parser.add_argument("--run-id")
     parser.add_argument("--onset-only", action="store_true")
+    parser.add_argument("--tau-rate-e-ms", type=float, default=5.0)
+    parser.add_argument("--tau-rate-i-ms", type=float, default=5.0)
+    parser.add_argument("--sensory-gain", type=float, default=9.2)
+    parser.add_argument("--recurrent-ee-us", type=float, default=0.4)
+    parser.add_argument("--recurrent-ii-us", type=float, default=0.8)
+    parser.add_argument("--local-feedback-scale", type=float, default=1.5)
+    parser.add_argument("--cross-delay-ms", type=float, default=2.0)
+    parser.add_argument("--cross-tau-ms", type=float, default=0.5)
     compute(**vars(parser.parse_args()))

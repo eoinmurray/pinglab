@@ -305,6 +305,41 @@ def presentation_numbers(numbers, cfg, map_source):
     return numbers, preserved
 
 
+def preview_onset(source, output):
+    """Render only Figure 2 from pinned analysis without changing the report runset."""
+    ancestors = ancestry(REPO, source)
+    analysed = ancestors[source]
+    if analysed.record["stage"] != "analyse":
+        raise ValueError("Figure 2 preview requires an exp153 analysis")
+    cfg = analysed.record["execution"]["configuration"]
+    computed = ancestors[analysed.record["inputs"]["compute"]["run_id"]]
+    numbers = load_json(analysed.file("results.json"))
+    if (
+        numbers["configuration"] != cfg
+        or recipe.analysis_configuration(computed.record["execution"]["configuration"])
+        != cfg
+    ):
+        raise ValueError("preview lineage settings differ")
+    output = Path(output).expanduser().resolve()
+    output.mkdir(parents=True, exist_ok=True)
+    theme.apply()
+    with np.load(analysed.file("onset-rates.npz"), allow_pickle=False) as raw:
+        rates = dict(raw)
+    figure = onset_figure(
+        rates, load_json(analysed.file("onset-phase.json")), numbers["onset"], cfg
+    )
+    for suffix in ("png", "svg", "pdf"):
+        figure.savefig(output / f"coupling-onset.{suffix}")
+    plt.close(figure)
+    write_json_atomic(
+        output / "source.json",
+        dict(compute=computed.reference, analyse=analysed.reference),
+    )
+    for item in ancestors.values():
+        item.check_unchanged()
+    return output
+
+
 def present(*, source, run_id=None, map_source=None):
     ancestors = ancestry(REPO, source)
     analysed = ancestors[source]
@@ -399,4 +434,14 @@ if __name__ == "__main__":
     parser.add_argument("--source", required=True)
     parser.add_argument("--run-id")
     parser.add_argument("--map-source")
-    present(**vars(parser.parse_args()))
+    parser.add_argument("--fig2-only", action="store_true")
+    parser.add_argument("--output", type=Path)
+    args = parser.parse_args()
+    if args.fig2_only:
+        if args.output is None or args.run_id or args.map_source:
+            parser.error("--fig2-only requires --output and accepts no run/map ID")
+        preview_onset(args.source, args.output)
+    else:
+        if args.output is not None:
+            parser.error("--output requires --fig2-only")
+        present(source=args.source, run_id=args.run_id, map_source=args.map_source)
