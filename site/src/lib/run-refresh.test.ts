@@ -1,11 +1,34 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, writeFile, rm } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { saveLocalRun } from './run-fixtures.ts';
 import { withRunContext } from './run-context.ts';
 import { resolveRunIndex, validateRunIndex } from './run-index.ts';
+import { parseCatalog } from './remote-catalog.ts';
+
+test('catalog transport preserves large integer seeds and still detects real record conflicts', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'catalog-integers-'));
+  try {
+    const record = await saveLocalRun(root, 'exp001-r001-present', undefined, { configuration: { seed: 'SEED' } });
+    const rawRecord = JSON.stringify(record).replace('"SEED"', '5272556675475122279');
+    await writeFile(join(root, record.run_id, 'run.json'), rawRecord);
+    const files: Record<string, { bytes: number; sha256: string }> = {};
+    for (const path of ['run.json', 'README.md', 'export/result.json']) {
+      const body = await readFile(join(root, record.run_id, path));
+      files[path] = { bytes: body.length, sha256: createHash('sha256').update(body).digest('hex') };
+    }
+    const body = `{"schema":"pingstore.catalog/v1","updated_at":"2026-10-01T00:00:00Z","runs":{"${record.run_id}":{"record":${rawRecord},"files":${JSON.stringify(files)}}}}`;
+    const index = await resolveRunIndex({ root, source: 'auto', catalog: parseCatalog(body) });
+    assert.equal(index.selections.exp001, record.run_id);
+    assert.deepEqual(index.selection_errors, {});
+    const changed = await resolveRunIndex({ root, source: 'auto',
+      catalog: parseCatalog(body.replace('5272556675475122279', '5272556675475122280')) });
+    assert.match(changed.selection_errors.exp001, /local and R2 records differ/);
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
 
 test('a reload refreshes numbers, figures, snapshots and Dataset together; in-flight requests retain their selection', async () => {
   const root = await mkdtemp(join(tmpdir(), 'request-runsets-'));

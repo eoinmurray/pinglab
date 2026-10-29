@@ -165,7 +165,8 @@ d-article li:last-child {
   border-radius: 8px;
   background: var(--code-background);
   color: var(--code-foreground);
-  font-size: inherit;
+  /* Match the apparent size of monospace glyphs to the surrounding prose. */
+  font-size: 0.9em;
   line-height: 1.65;
   tab-size: 4;
   margin-bottom: 20px;

@@ -32,6 +32,9 @@ export default defineConfig({
   devToolbar: { enabled: false },
   // Article scripts live outside site/, but share its Pixi dependency.
   vite: {
+    // Background-server logs change on requests; watching them can feed error
+    // recovery reloads back into another request and another log write.
+    server: { watch: { ignored: ['**/.astro/dev.log', '**/.astro/dev.json'] } },
     resolve: { dedupe: ['pixi.js'] },
     // Transform the common SSR shell ahead of the first navigation. Warmup does
     // not evaluate article bindings or freeze their scientific run selection.

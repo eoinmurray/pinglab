@@ -71,7 +71,7 @@ pre {
 
 code:not(pre code) {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: inherit;
+  font-size: 0.9em;
   line-height: inherit;
   padding: .1em .35em;
   border: 1px solid rgb(var(--ink) / .12);

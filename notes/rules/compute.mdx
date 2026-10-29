@@ -2,104 +2,27 @@
 title: Compute Rules
 author: Eoin Murray
 collection: notes
-description: Our usual compute options and basic operating commands.
+description: Execution authorization, host roles and resource safeguards.
 created_at: '2026-09-11'
-updated_at: '2026-10-20T12:53:22Z'
+updated_at: "2026-10-29T17:43:19Z"
 ---
 
-# Compute
+# Compute Rules
 
-Our usual compute options and the commands needed to operate them. Run local commands from the repository root; remote commands after connecting to the host.
+1. Simulations require the authorization described in
+   [Experiment Rules](/notes/rules/experiment#execution-permission). Paid work
+   requires authorization for its scope and resources; do not ask again within
+   existing authorization. Inspect the recipe and resource request before launch.
+2. Use the local Mac for development, small tests, plotting and analysis, not CUDA
+   training. Hetzner (`ssh hetzner`) is the persistent control host: orchestration
+   and monitoring only, not simulations, training or simulation-backed tests.
+3. Olorin is shared: inspect availability, select an idle GPU explicitly and keep
+   heavy files under `/scratch/em586`. On CSD3/Wilkes3 (`ssh csd3`), run substantial
+   work inside Slurm allocations, never on login nodes. Batch scheduler requests;
+   leave at least 120 seconds between recurring checks.
+4. Use the maintained [HPC deployment](../../libraries/hpc/README.md) and
+   [Modal dispatcher](../../libraries/modal_dispatcher/README.md) workflows.
+   Keep run/job/call IDs and logs. Investigate ambiguous submissions before retrying;
+   collect and validate outputs before cleanup. Keep credentials out of Git and chat.
 
-## Local Mac — development and analysis
-
-Use for editing, small tests, plotting and analysis. Not for CUDA training.
-
-```sh
-cd /Users/eoin/pinglab
-uv sync --dev
-uv run python experiments/exp022/compute.py --help
-```
-
-## Hetzner — persistent control host
-
-`pinglab-codex` is our always-on host for persistent sessions, orchestration and monitoring, not heavy numerical work.
-
-```sh
-ssh hetzner
-tmux list-sessions
-tmux attach -t <session-name>
-
-# Olorin is also accessible from Hetzner.
-ssh olorin
-```
-
-## Olorin — shared, large-memory GPUs
-
-Shared machine with four RTX PRO 6000 Blackwell GPUs, approximately 96 GB VRAM each. No Slurm: check availability and select an idle GPU explicitly. Keep heavy files under `/scratch/em586`.
-
-```sh
-ssh olorin
-nvidia-smi
-cd /scratch/em586/pinglab
-
-# Replace N with an idle GPU index.
-CUDA_VISIBLE_DEVICES=N uv run python experiments/exp022/compute.py
-```
-
-## CSD3 / Wilkes3 — queued A100 jobs
-
-We often refer to CSD3 / Wilkes3 as “hpc”. This is shorthand for this compute option, not a separate provider or SSH alias.
-
-Connect with `ssh csd3`; authentication requires the CSD3 login token. Submit prepared Slurm scripts using the appropriate service level:
-
-| Service | Account | Partition | QOS | Use |
-|---|---|---|---|---|
-| SL2 | `OLEARY-SL2-GPU` | `ampere` | `gpu1` | Planned production |
-| SL3 | `OLEARY-SL3-GPU` | `ampere` | `gpu2` | Lower-priority work that can wait |
-
-```sh
-ssh csd3
-mybalance
-
-# Submit using one of these:
-sbatch --account=OLEARY-SL2-GPU --partition=ampere --qos=gpu1 --gres=gpu:1 job.slurm
-sbatch --account=OLEARY-SL3-GPU --partition=ampere --qos=gpu2 --gres=gpu:1 job.slurm
-
-# Monitor, inspect and cancel.
-squeue -u "$USER"
-scontrol show job <job-id>
-scancel <job-id>
-```
-
-Run substantial work inside Slurm allocations, never on login nodes. Batch status checks and leave at least 120 seconds between recurring Slurm requests; use job arrays for large batches.
-
-## Modal — managed cloud execution
-
-Use the repository-wide [Modal dispatcher](../../libraries/modal_dispatcher/README.md)
-for experiment compute stages. It discovers `experiments/expXXX/compute.py` and
-supplies a reserved Pingstore run ID; there is no per-experiment allowlist.
-The experiment must implement the standard `--run-id` contract and have compatible
-Linux dependencies and explicit source inputs. Choose resources for its recipe.
-
-```sh
-uvx --from 'modal>=1.1,<2' modal setup
-uv run --no-project --python 3.12 --with 'modal>=1.1,<2' --with PyYAML \
-  python -m libraries.modal_dispatcher dispatch --experiment exp141 --gpu H100
-uv run --no-project --python 3.12 --with 'modal>=1.1,<2' --with PyYAML \
-  python -m libraries.modal_dispatcher check --run-id COMPUTE_ID --collect
-```
-
-`dispatch` starts paid work using detached asynchronous invocation. Arguments
-after `--` go to the experiment's own compute CLI. Declare source runs with
-`--input ROLE=RUN_ID`; inputs and their ancestry are validated and transferred.
-Checks and collection do not start workers. Save the printed run/call IDs and
-investigate ambiguous submissions before dispatching again. Analysis and
-presentation remain separate stages.
-
-## Basics
-
-- Inspect the experiment and resource request before launching; confirm approval for paid work.
-- Keep job IDs and logs. Collect and validate completed outputs before cleaning up or stopping resources.
-- Experiment stages and scientific outputs follow [Experiment Rules](/notes/rules/experiment); storage and recovery follow [Pingstore Rules](/notes/rules/pingstore).
-- Keep credentials out of the repository.
+Read [Compute Access](/notes/guides/compute) only for the host being operated.

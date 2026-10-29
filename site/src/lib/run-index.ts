@@ -3,7 +3,7 @@ import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { resolve, join } from 'node:path';
-import { runPattern, type Catalog } from './remote-catalog.ts';
+import { catalogJSON, runPattern, type Catalog } from './remote-catalog.ts';
 
 export interface IndexRun {
   record: any;
@@ -106,6 +106,6 @@ export async function resolveRunIndex(options: { root: string; source: string; c
       try { done(validateRunIndex(JSON.parse(Buffer.concat(stdout).toString()))); }
       catch (error) { reject(error); }
     });
-    child.stdin.end(JSON.stringify({ catalog: options.catalog ?? null, control: options.control ?? null }));
+    child.stdin.end(`{"catalog":${options.catalog ? catalogJSON(options.catalog) : 'null'},"control":${JSON.stringify(options.control ?? null)}}`);
   });
 }

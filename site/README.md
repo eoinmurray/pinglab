@@ -155,7 +155,8 @@ Existing date-only `created_at` values remain supported.
 Notes and slide decks live in `notes/` and its subdirectories as `.md`
 or `.mdx` files, and belong to one Astro content collection. Discovery is recursive,
 excluding `README.md`, `AGENTS.md`, and the `notes/figures/` support directory.
-The operational guides live in `notes/rules/`. Keep shared components in `site/src/components/`
+Standing constraints live in `notes/rules/`; task-specific procedures live in
+`notes/guides/` and are read only when needed. Keep shared components in `site/src/components/`
 and authored images in `site/src/assets/`. Shared Python packages and execution
 helpers live in `libraries/`.
 All entries belong to the Notes collection
@@ -210,7 +211,8 @@ section, and above it on smaller screens. They are included in the table of
 contents. Existing `parameters.mdx` files
 remain supported by the shared layout under Parameters immediately above Dataset,
 with a Parameters entry in the table of contents. The canonical scientific-writing
-rules are preserved in [Writing Rules](../notes/rules/writing.md).
+rules are preserved in [Writing Rules](../notes/rules/writing.md), with the detailed
+parameter layout in [Parameter Tables](../notes/guides/parameter-tables.md).
 Write mathematics directly in MDX as `$...$` for inline expressions and `$$`
 blocks for displayed equations. The existing remark-math and rehype-katex
 plugins render these with KaTeX. Preserve displayed equation numbers with

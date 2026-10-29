@@ -21,6 +21,18 @@ export function pathCompare(a: string, b: string): number {
 }
 type CatalogCache = { expires: number; value: Promise<Catalog>; etag?: string };
 const cached = new Map<string, CatalogCache>();
+const catalogBodies = new WeakMap<Catalog, string>();
+
+export function parseCatalog(body: string): Catalog {
+  const catalog = validateCatalog(JSON.parse(body));
+  catalogBodies.set(catalog, body);
+  return catalog;
+}
+
+/** Preserve integer metadata that JavaScript numbers cannot represent exactly. */
+export function catalogJSON(catalog: Catalog): string {
+  return catalogBodies.get(catalog) ?? JSON.stringify(catalog);
+}
 
 function catalogCachePath(base: string): string | undefined {
   const root = process.env.PINGLAB_REPOSITORY_ROOT;
@@ -37,7 +49,7 @@ async function restoredCatalog(base: string): Promise<CatalogCache | undefined> 
     if (saved.schema !== 'pinglab.catalog-cache/v1' || saved.base !== base || typeof saved.etag !== 'string'
         || !saved.etag || /[\r\n]/.test(saved.etag) || typeof saved.body !== 'string'
         || createHash('sha256').update(saved.body).digest('hex') !== saved.sha256) return undefined;
-    const catalog = validateCatalog(JSON.parse(saved.body));
+    const catalog = parseCatalog(saved.body);
     // Restarted servers must revalidate this snapshot with R2 before using it.
     return { expires: 0, value: Promise.resolve(catalog), etag: saved.etag };
   } catch { return undefined; }
@@ -122,7 +134,7 @@ export async function remoteCatalog(base = assetBase(), refresh = false): Promis
     if (!response.ok) throw Object.assign(new Error(`R2 catalog: HTTP ${response.status}`),
       response.status === 404 ? { code: 'ENOENT' } : {});
     const body = await response.text();
-    const catalog = validateCatalog(JSON.parse(body));
+    const catalog = parseCatalog(body);
     entry.etag = response.headers.get('etag') ?? undefined;
     await persistCatalog(base, entry.etag, body);
     return catalog;

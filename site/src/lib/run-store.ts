@@ -5,7 +5,7 @@ import { requestValue } from './run-context.ts';
 import { retryRead } from './remote-http.ts';
 import { readdir, readFile, stat } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
-import { assetBase, remoteCatalog, remoteControl, validateCatalog, runPattern, safePath, type Catalog } from './remote-catalog.ts';
+import { assetBase, remoteCatalog, remoteControl, parseCatalog, runPattern, safePath, type Catalog } from './remote-catalog.ts';
 
 export interface StoreOptions {
   runsRoot?: string;
@@ -52,7 +52,7 @@ export class RunStore {
     if (!['auto', 'local', 'remote'].includes(source)) throw new Error(`Invalid run source: ${source}`);
     this.source = source as StoreOptions['source'] & string;
     const loadCatalog = options.catalog ?? (async () => process.env.PINGLAB_CATALOG_PATH
-      ? validateCatalog(JSON.parse(await readFile(process.env.PINGLAB_CATALOG_PATH, 'utf8')))
+      ? parseCatalog(await readFile(process.env.PINGLAB_CATALOG_PATH, 'utf8'))
       : remoteCatalog(this.base, process.env.NODE_ENV !== 'production'));
     this.catalog = () => process.env.NODE_ENV === 'production'
       ? this.buildCatalog ??= loadCatalog()

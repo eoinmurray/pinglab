@@ -1,10 +1,42 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, writeFile, rm } from 'node:fs/promises';
+import { mkdtemp, mkdir, realpath, writeFile, rm } from 'node:fs/promises';
+import { once } from 'node:events';
+import { setTimeout as wait } from 'node:timers/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createServer } from 'vite';
 import { coalesceFullReloads, refreshServerMdx } from './dev-refresh.ts';
+import config from '../../astro.config.mjs';
+
+test('background log and lock writes cannot trigger error recovery, while source edits remain watched', { timeout: 5000 }, async () => {
+  const root = await mkdtemp(join(tmpdir(), 'background-watch-'));
+  await mkdir(join(root, '.astro'));
+  const source = join(root, 'source.js');
+  await writeFile(source, 'export const value = 1;');
+  for (const file of ['dev.log', 'dev.json']) await writeFile(join(root, '.astro', file), 'initial');
+  const server = await createServer({
+    root, configFile: false, logLevel: 'silent',
+    server: { ...config.vite.server, middlewareMode: true },
+  });
+  const changes: string[] = [];
+  server.watcher.on('all', (_event, file) => changes.push(file));
+  try {
+    await once(server.watcher, 'ready');
+    for (let index = 0; index < 3; index++) {
+      for (const file of ['dev.log', 'dev.json']) await writeFile(join(root, '.astro', file), `request ${index}`);
+      await wait(100);
+    }
+    assert.deepEqual(changes, [], 'runtime writes must never reach Astro recovery listeners');
+    const observed = once(server.watcher, 'change');
+    await writeFile(source, 'export const value = 2;');
+    await observed;
+    assert.deepEqual(changes, [await realpath(source)]);
+  } finally {
+    await server.close();
+    await rm(root, { recursive: true, force: true });
+  }
+});
 
 test('one editing burst sends one reload, while errors and targeted messages pass immediately', context => {
   context.mock.timers.enable({ apis: ['setTimeout'] });
