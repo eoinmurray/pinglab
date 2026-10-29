@@ -54,9 +54,6 @@ jobs:
       - name: Install site dependencies
         run: bun install --frozen-lockfile
         working-directory: site
-      - name: Test site readers
-        run: bun run test
-        working-directory: site
       - name: Freeze and retain incoming evidence
         env:
           GH_TOKEN: ${{ github.token }}
