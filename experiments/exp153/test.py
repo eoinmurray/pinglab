@@ -224,8 +224,8 @@ def test_initialization_only_capture_and_weight_reproducibility(fixture, tmp_pat
     assert snapshot.execution["completed_steps"] == 0
     sums = compute.mean_incoming_weights(bundle, snapshot.load_parameters())
     for circuit in ("A", "B"):
-        assert sums[f"PING_{circuit}_E_to_E"] == pytest.approx(0.5 * 79 / 80)
-        assert sums[f"PING_{circuit}_I_to_I"] == pytest.approx(1.0 * 19 / 20)
+        assert sums[f"PING_{circuit}_E_to_E"] == pytest.approx(0.4 * 79 / 80)
+        assert sums[f"PING_{circuit}_I_to_I"] == pytest.approx(0.8 * 19 / 20)
         assert sums[f"PING_{circuit}_input_to_E"] == pytest.approx(0.2, rel=0.01)
     assert (
         len(
@@ -363,8 +363,8 @@ def test_matched_grid_and_symmetric_relaxation(fixture):
     bundle, cfg = fixture
     assert cfg["protocol"] == "matched-grid"
     assert cfg["duration_ms"] == 5000
-    assert cfg["closure"]["tau_rate_ms"]["PING_A_E"] == 20
-    assert cfg["closure"]["tau_rate_ms"]["PING_B_E"] == 20
+    assert cfg["closure"]["tau_rate_ms"]["PING_A_E"] == 5
+    assert cfg["closure"]["tau_rate_ms"]["PING_B_E"] == 5
     assert cfg["example"]["difference_hz"] == -4
     assert cfg["example"]["coupling_us"] == 0.09
     rows = recipe.conditions(cfg)
@@ -486,3 +486,118 @@ def test_onset_only_limits_execution_to_selected_figure_two_condition():
     ]
     with pytest.raises(ValueError, match="explicit map source"):
         present.presentation_numbers({}, cfg, None)
+
+
+def test_cross_delay_tuning_retains_onset_and_local_dynamics(fixture):
+    _, base = fixture
+    cfg = recipe.configuration(
+        cross_delay_ms=5,
+        cross_tau_ms=0.8,
+        incoming_weights_us=base["incoming_weights_us"],
+    )
+    assert cfg["network"]["local"] == base["network"]["local"]
+    model = recipe.build_model(recipe.author_network(cfg), cfg, coupling_us=0.09)
+    for path, delay in model.projection_delays.items():
+        if "_K_E" in path:
+            assert delay == 5
+            assert model.defaults[path + ".tau"] == 0.8
+    for control in model.controls.values():
+        assert control(499.99) == 0 and control(500) == 1
+    with pytest.raises(ValueError, match="finite and positive"):
+        recipe.configuration(cross_delay_ms=0)
+
+
+def test_rate_tuning_reaches_native_model_without_changing_reference(fixture):
+    bundle, base = fixture
+    tuned = recipe.configuration(
+        onset_only=True,
+        tau_rate_e_ms=10,
+        tau_rate_i_ms=4,
+        incoming_weights_us=base["incoming_weights_us"],
+    )
+    assert tuned["network"] == base["network"]
+    model = recipe.build_model(bundle, tuned, difference_hz=-4, coupling_us=0.09)
+    for circuit in ("A", "B"):
+        assert model.defaults[f"PING_{circuit}_E.tau_rate"] == 10
+        assert model.defaults[f"PING_{circuit}_I.tau_rate"] == 4
+    for value in (0, -1, float("nan"), float("inf")):
+        with pytest.raises(ValueError, match="relaxation times"):
+            recipe.configuration(tau_rate_e_ms=value)
+
+
+def test_feedback_tuning_is_authored_before_initialization():
+    cfg = recipe.configuration(
+        recurrent_ee_us=0.4,
+        recurrent_ii_us=0.8,
+        local_feedback_scale=1.5,
+    )
+    bundle = recipe.author_network(cfg)
+    local = cfg["network"]["local"]
+    assert local["E_to_I"]["mean_us"] == 0.75
+    assert local["I_to_E"]["mean_us"] == 1.5
+    for path in ("E_to_I", "I_to_E"):
+        assert local[path]["std_us"] / local[path]["mean_us"] == pytest.approx(0.1)
+    assert len(bundle.graph["projections"]) == 14
+    for name in (
+        "recurrent_ee_us",
+        "recurrent_ii_us",
+        "local_feedback_scale",
+        "sensory_gain",
+    ):
+        with pytest.raises(ValueError, match="finite and positive"):
+            recipe.configuration(**{name: 0})
+
+
+def test_figure_two_preview_uses_pinned_rates_without_a_map(monkeypatch, tmp_path):
+    from pingstore.library import write_json_atomic
+
+    cfg = recipe.configuration(onset_only=True, tau_rate_e_ms=10, sensory_gain=4.6)
+    time = np.arange(0, 1500.5, 0.5)
+    state = {
+        f"PING_{c}_{p}.rate": 20 + 4 * np.sin(2 * np.pi * 50 * time / 1000)
+        for c in ("A", "B")
+        for p in ("E", "I")
+    }
+    onset, trace, rates = analyse.diagnostic(time, state, cfg)
+    analysis_cfg = recipe.analysis_configuration(cfg)
+    write_json_atomic(
+        tmp_path / "results.json", dict(configuration=analysis_cfg, onset=onset)
+    )
+    write_json_atomic(tmp_path / "onset-phase.json", trace)
+    np.savez_compressed(tmp_path / "onset-rates.npz", **rates)
+    verified = []
+    computed = SimpleNamespace(
+        record=dict(execution=dict(configuration=cfg)),
+        reference=dict(run_id="exp153-r900-compute", payload_digest="compute-pin"),
+        check_unchanged=lambda: verified.append("compute"),
+    )
+    analysed = SimpleNamespace(
+        record=dict(
+            stage="analyse",
+            execution=dict(configuration=analysis_cfg),
+            inputs=dict(compute=dict(run_id="exp153-r900-compute")),
+        ),
+        reference=dict(run_id="exp153-r901-analyse", payload_digest="analysis-pin"),
+        file=lambda name: tmp_path / name,
+        check_unchanged=lambda: verified.append("analyse"),
+    )
+    monkeypatch.setattr(
+        present,
+        "ancestry",
+        lambda *args: {
+            "exp153-r900-compute": computed,
+            "exp153-r901-analyse": analysed,
+        },
+    )
+    output = present.preview_onset("exp153-r901-analyse", tmp_path / "preview")
+    assert {p.name for p in output.iterdir()} == {
+        "coupling-onset.png",
+        "coupling-onset.svg",
+        "coupling-onset.pdf",
+        "source.json",
+    }
+    assert json.loads((output / "source.json").read_text()) == dict(
+        compute=computed.reference,
+        analyse=analysed.reference,
+    )
+    assert sorted(verified) == ["analyse", "compute"]

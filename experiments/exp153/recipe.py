@@ -19,7 +19,19 @@ SNAPSHOT = "network-initialization/start"
 
 
 def configuration(
-    *, difference_hz=-4.0, coupling_us=0.09, incoming_weights_us=None, onset_only=False
+    *,
+    difference_hz=-4.0,
+    coupling_us=0.09,
+    incoming_weights_us=None,
+    onset_only=False,
+    tau_rate_e_ms=5.0,
+    tau_rate_i_ms=5.0,
+    sensory_gain=9.2,
+    recurrent_ee_us=0.4,
+    recurrent_ii_us=0.8,
+    local_feedback_scale=1.5,
+    cross_delay_ms=2.0,
+    cross_tau_ms=0.5,
 ):
     """Resolve locally authored physics, numerical settings and initialized weights."""
     differences = [float(value) for value in range(-10, 11, 2)]
@@ -33,6 +45,22 @@ def configuration(
     ):
         raise ValueError("onset diagnostic must select a positive grid coupling")
     weights = dict(incoming_weights_us or {})
+    if any(
+        not math.isfinite(v) or v <= 0
+        for v in (
+            tau_rate_e_ms,
+            tau_rate_i_ms,
+            sensory_gain,
+            recurrent_ee_us,
+            recurrent_ii_us,
+            local_feedback_scale,
+            cross_delay_ms,
+            cross_tau_ms,
+        )
+    ):
+        raise ValueError(
+            "rate relaxation times, delays, gains and recurrent weights must be finite and positive"
+        )
     if any(not math.isfinite(value) or value <= 0 for value in weights.values()):
         raise ValueError("mean incoming effective weights must be finite and positive")
     network = dict(
@@ -54,14 +82,26 @@ def configuration(
             E=dict(size=80, capacitance_nf=1.0, leak_us=0.05, refractory_ms=3.0),
             I=dict(size=20, capacitance_nf=0.5, leak_us=0.1, refractory_ms=1.5),
         ),
-        sensory=dict(mean_us=0.2, std_us=0.03, gain=9.2, tau_ms=2.0),
+        sensory=dict(mean_us=0.2, std_us=0.03, gain=float(sensory_gain), tau_ms=2.0),
         local=dict(
-            E_to_I=dict(mean_us=0.5, std_us=0.05, tau_ms=1.0),
-            I_to_E=dict(mean_us=1.0, std_us=0.1, tau_ms=9.0),
-            E_to_E=dict(total_us=0.5, tau_ms=2.0),
-            I_to_I=dict(total_us=1.0, tau_ms=6.0),
+            E_to_I=dict(
+                mean_us=0.5 * local_feedback_scale,
+                std_us=0.05 * local_feedback_scale,
+                tau_ms=1.0,
+            ),
+            I_to_E=dict(
+                mean_us=1.0 * local_feedback_scale,
+                std_us=0.1 * local_feedback_scale,
+                tau_ms=9.0,
+            ),
+            E_to_E=dict(total_us=float(recurrent_ee_us), tau_ms=2.0),
+            I_to_I=dict(total_us=float(recurrent_ii_us), tau_ms=6.0),
         ),
-        cross=dict(tau_ms=2.0, delay_ms=2.0, zero_fraction=0.9),
+        cross=dict(
+            tau_ms=float(cross_tau_ms),
+            delay_ms=float(cross_delay_ms),
+            zero_fraction=0.9,
+        ),
         input_gain_application="applied once to initialized sensory sums during mean-field reduction",
     )
     return dict(
@@ -89,7 +129,9 @@ def configuration(
             name="snnlab.meanfield.closures.RateConductance",
             sigma_mv=4.0,
             tau_rate_ms={
-                f"PING_{circuit}_{population}": (20.0 if population == "E" else 5.0)
+                f"PING_{circuit}_{population}": (
+                    tau_rate_e_ms if population == "E" else tau_rate_i_ms
+                )
                 for circuit in ("A", "B")
                 for population in ("E", "I")
             },

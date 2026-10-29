@@ -3,10 +3,10 @@ id: exp153
 title: "Mean-field Coupling"
 author: "Eoin Murray"
 created_at: "2026-10-25T15:59:00Z"
-updated_at: "2026-10-29T16:03:35Z"
+updated_at: "2026-10-29T17:52:33Z"
 description: "A matched phase-locking map and E/I coupling-onset display for delayed mean-field circuits with a self-contained neuronal reference."
 collection: ["experiments", "ctc-attention"]
-tags: ["data", "v0.29.0"]
+tags: ["data", "v0.31.0"]
 inputs: ["exp153"]
 thumbnail: arnold-tongue.png
 ---
@@ -28,7 +28,7 @@ export const standalone = ['exp153.recipe/v6', 'exp153.recipe/v7'].includes(cfg?
 
 ## Abstract
 
-{partial ? <p>Figure 2 and the network diagram use the revised standalone fourteen-pathway reference matching exp133. Figure 1 is retained unchanged from its recorded historical presentation; its map has not been rerun for the revised network. In the new onset calculation, rates settle without sustained oscillations, leaving phase unavailable.</p> : standalone ? <p>We measured finite-time phase locking in two locally defined delayed mean-field circuits. Across {data.n_conditions} conditions, {data.n_valid} passed rhythm and uncoupled-calibration checks and {data.n_locked} met locking criteria. The onset display reuses a selected map trajectory. These measurements describe one seeded reference and constant initial history; the closure is unfitted and omits finite-population fluctuations.</p> : <p>This experiment now defines its own reciprocal circuits, weights and input/coupling grid. The displayed historical figures predate that standalone recipe, which has not been run. Historical measurements retain their original settings and provenance.</p>}
+{partial ? <p>Figure 2 and the network diagram use a standalone fourteen-pathway reference. Figure 1 retains its historical presentation and original parameter settings. The onset calculation {onset?.coupled?.valid ? 'passes the rhythm checks' : 'has no valid coupled rhythm estimate'}.</p> : standalone ? <p>We measured finite-time phase locking in two locally defined delayed mean-field circuits. Across {data.n_conditions} conditions, {data.n_valid} passed rhythm and uncoupled-calibration checks and {data.n_locked} met locking criteria. Both figures use the same map run. Parameters were selected for qualitative agreement with exp133’s onset and coupling displays. These exploratory measurements describe one seeded reference and constant initial history; the closure omits finite-population fluctuations.</p> : <p>This experiment now defines its own reciprocal circuits, weights and input/coupling grid. The displayed historical figures predate that standalone recipe, which has not been run. Historical measurements retain their original settings and provenance.</p>}
 
 ## Results
 
@@ -42,6 +42,8 @@ export const standalone = ['exp153.recipe/v6', 'exp153.recipe/v7'].includes(cfg?
   Values use common phase-valid samples within 800–5,000 ms. Cell edges delimit
   sampled settings. If detuning is unavailable or duplicated, columns retain
   input spacing and the lower axis explicitly identifies that convention.
+  Nearly matched uncoupled deterministic rhythms can also have high PLV over
+  this finite window; high PLV alone does not establish a coupling effect.
   Figure 1 {standaloneMap ? "uses the locally initialized 14-pathway circuit" : "retains historical results from the earlier 10-projection circuit; the revised 14-pathway map has not been run"}.
 </RunFigure>
 
@@ -65,7 +67,10 @@ export const standalone = ['exp153.recipe/v6', 'exp153.recipe/v7'].includes(cfg?
 1. **Define.** The standalone recipe initializes its own fourteen-pathway
    neuronal reference and reduces incoming weight sums and explicit delays to
    four population rates and fourteen conductance filters. Gain settings are
-   recorded with each native model.
+   recorded with each native model. Local recurrence and rate relaxation were
+   selected to produce sustained oscillatory rates; cross-circuit timing was
+   explored while checking both the onset display and coupling map. This is
+   qualitative parameter selection, not an independent validation against exp133.
 
 2. **Integrate.** Use DOP853 with constant prehistory, initial rates of 1 Hz and
    zero conductances. [Table A1](#parameters) gives the grid, timing and numerical
