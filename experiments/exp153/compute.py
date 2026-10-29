@@ -1,41 +1,44 @@
-"""Integrate an explicit delayed closure from validated exp133 evidence.
+"""Initialize local reference weights and integrate an explicit delayed closure.
 
-One uncoupled control and one coupling-onset trajectory share initial history,
-inputs and closure settings. Each invocation creates an immutable Pingstore run;
-analysis and presentation are invoked separately.
+All 143 grid trajectories share initial history and closure settings; each
+input difference has its own uncoupled calibration. Each invocation creates an
+immutable Pingstore run; analysis and presentation are invoked separately.
 """
 
 import argparse
 import os
-import shutil
 import sys
-import tempfile
 from importlib.metadata import version
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
-sys.path[:0] = [str(REPO), str(REPO / "tools")]
+sys.path[:0] = [str(REPO), str(REPO / "libraries")]
 import numpy as np
 from experiments.exp153 import recipe
+from experiments.exp153.custom.initialization import capture_start
 from hpc.concurrent_compute import run_active_workers
 from pingstore.library import file_sha256, source_run, stage_run, write_json_atomic
 from snnlab import lang
 from snnlab import meanfield as mf
-from snnlab.sim import NetworkSnapshot
+from snnlab.sim import Performance, build
 
 
 def ancestry(repo, identity, *, reference=None):
-    """Validate every explicitly pinned ancestor, including source parameters."""
+    """Validate an explicit chain confined to this experiment's own stages."""
     found, visiting = {}, set()
 
     def visit(name, pin):
+        if not name.startswith(recipe.SLUG + "-"):
+            raise ValueError("stage ancestry must stay within this experiment")
         if name in visiting:
             raise ValueError("cyclic source lineage")
         if name in found:
             if pin is not None and found[name].reference != pin:
                 raise ValueError("conflicting source pins")
             return
-        item = source_run(repo / ".pingstore", name, reference=pin)
+        item = source_run(
+            repo / ".pingstore", name, experiment=recipe.SLUG, reference=pin
+        )
         visiting.add(name)
         for upstream in item.record["inputs"].values():
             visit(upstream["run_id"], upstream)
@@ -46,20 +49,13 @@ def ancestry(repo, identity, *, reference=None):
     return found
 
 
-def imported_weights(source, bundle):
-    """Use native effective matrices: mean incoming sums, never initializers."""
-    snapshot = NetworkSnapshot.read(source.file(recipe.SNAPSHOT, "snapshot.json"))
-    if (
-        snapshot.graph_identity != bundle.manifest["graph_digest"]
-        or snapshot.stage != "start"
-    ):
-        raise ValueError("native parameter snapshot differs from source graph or stage")
-    matrices = snapshot.load_parameters()
+def mean_incoming_weights(bundle, parameters):
+    """Average native initialized source-target matrix sums over target neurons."""
     targets = {p["id"]: p["size"] for p in bundle.graph["populations"]}
     weights = {}
     for projection in bundle.graph["projections"]:
         name = projection["id"]
-        matrix = matrices[name + ".weight"].numpy()
+        matrix = parameters[name + ".weight"].detach().cpu().numpy()
         count = targets[projection["target"].rsplit(".", 1)[0]]
         if (
             matrix.ndim != 2
@@ -123,109 +119,77 @@ def condition_inventory(directory, item, worker_index):
 
 
 def compute(
-    *,
-    source,
-    difference_hz=10.0,
-    coupling_us=0.08,
-    rate_scale_b=0.8,
-    parallel=1,
-    run_id=None,
+    *, difference_hz=-4.0, coupling_us=0.09, parallel=1, run_id=None, onset_only=False
 ):
     if not 1 <= parallel <= (os.cpu_count() or 1):
         raise ValueError("parallel workers must fit available logical CPUs")
-    ancestors = ancestry(REPO, source)
-    spiking = ancestors[source]
-    if spiking.record["experiment"] != "exp133" or spiking.record["stage"] != "compute":
-        raise ValueError("requires an explicit exp133 compute source")
-    net = spiking.record["execution"]["configuration"]
-    with tempfile.TemporaryDirectory(prefix="exp153-source-") as temporary:
-        bundle = lang.load_bundle(
-            spiking.restore_bundle(
-                "paired-ping.bundle", Path(temporary) / "network.bundle"
-            )
+    cfg = recipe.configuration(
+        difference_hz=difference_hz, coupling_us=coupling_us, onset_only=onset_only
+    )
+    bundle = recipe.author_network(cfg)
+    initialized = build(
+        graph=bundle.graph,
+        seed=cfg["network"]["network_seed"],
+        device="cpu",
+        performance=Performance(compile_mode=None),
+    )
+    cfg = recipe.configuration(
+        difference_hz=difference_hz,
+        coupling_us=coupling_us,
+        incoming_weights_us=mean_incoming_weights(bundle, initialized.parameters),
+        onset_only=onset_only,
+    )
+    with stage_run(
+        REPO,
+        recipe.SLUG,
+        "compute",
+        inputs={},
+        configuration=cfg,
+        run_id=run_id,
+    ) as run:
+        bundle.write(run.export / "network.bundle", visualise=False)
+        bundle.visualise(run.export / "circuit.svg", view="circuit")
+        capture_start(bundle, initialized, cfg, run.export / recipe.SNAPSHOT)
+        run.record["scientific_artifacts"] = dict(
+            snapshot_stages={"network-initialization": ["start"]}
         )
-        if bundle.manifest["graph_digest"] != net["bundle_digest"]:
-            raise ValueError("source bundle does not match recorded configuration")
-        cfg = recipe.configuration(
-            net,
-            imported_weights(spiking, bundle),
-            difference_hz=difference_hz,
-            coupling_us=coupling_us,
-            rate_scale_b=rate_scale_b,
+        run.record["execution"].update(
+            backend="snnlab.meanfield method-of-steps DDE",
+            snnlab_version=version("snnlab"),
         )
-        sources = dict(spiking=spiking)
-        with stage_run(
-            REPO,
-            recipe.SLUG,
-            "compute",
-            inputs=sources,
-            configuration=cfg,
-            run_id=run_id,
-        ) as run:
-            bundle.write(run.export / "network.bundle", visualise=False)
-            bundle.visualise(run.export / "circuit.svg", view="circuit")
-            retained = run.export / "source-snapshot" / "start"
-            retained.mkdir(parents=True)
-            for filename in ("snapshot.json", "parameters.npz"):
-                shutil.copyfile(
-                    spiking.file(recipe.SNAPSHOT, filename), retained / filename
-                )
-            run.record["scientific_artifacts"] = dict(
-                snapshot_stages={"source-snapshot": ["start"]}
+        index = recipe.conditions(cfg)
+        write_json_atomic(run.export / "conditions.json", index)
+        count = min(parallel, len(index))
+        items = [
+            dict(
+                id=f"cpu-{worker}",
+                device="cpu",
+                threads=1,
+                conditions=index[worker::count],
             )
-            run.record["execution"].update(
-                backend="snnlab.meanfield method-of-steps DDE",
-                snnlab_version=version("snnlab"),
+            for worker in range(count)
+        ]
+        run.record["execution"]["parallel_workers"] = count
+        if count == 1:
+            run_conditions(run.directory, items[0], 0, cfg)
+        else:
+            for name in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS"):
+                os.environ[name] = "1"
+            run_active_workers(
+                run=run,
+                items=items,
+                worker=run_conditions,
+                arguments=(cfg,),
+                inventory=condition_inventory,
             )
-            conditions = [
-                (cfg["example"]["difference_hz"], k)
-                for k in (0.0, cfg["example"]["coupling_us"])
-            ]
-            index = [
-                dict(label=f"condition-{n:03d}", difference_hz=d, coupling_us=k)
-                for n, (d, k) in enumerate(conditions)
-            ]
-            write_json_atomic(run.export / "conditions.json", index)
-            count = min(parallel, len(index))
-            items = [
-                dict(
-                    id=f"cpu-{worker}",
-                    device="cpu",
-                    threads=1,
-                    conditions=index[worker::count],
-                )
-                for worker in range(count)
-            ]
-            run.record["execution"]["parallel_workers"] = count
-            if count == 1:
-                run_conditions(run.directory, items[0], 0, cfg)
-            else:
-                # Spawned imports see bounded BLAS/OpenMP pools as well as the
-                # per-worker Torch setting. The coordinator owns finalization.
-                for name in (
-                    "OMP_NUM_THREADS",
-                    "OPENBLAS_NUM_THREADS",
-                    "MKL_NUM_THREADS",
-                ):
-                    os.environ[name] = "1"
-                run_active_workers(
-                    run=run,
-                    items=items,
-                    worker=run_conditions,
-                    arguments=(cfg,),
-                    inventory=condition_inventory,
-                )
-            for item in ancestors.values():
-                item.check_unchanged()
     return run.run_id
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--source", required=True)
-    parser.add_argument("--difference-hz", type=float, default=10.0)
-    parser.add_argument("--coupling-us", type=float, default=0.08)
-    parser.add_argument("--rate-scale-b", type=float, default=0.8)
+    parser.add_argument("--difference-hz", type=float, default=-4.0)
+    parser.add_argument("--coupling-us", type=float, default=0.09)
     parser.add_argument("--parallel", type=int, default=1)
     parser.add_argument("--run-id")
+    parser.add_argument("--onset-only", action="store_true")
     compute(**vars(parser.parse_args()))

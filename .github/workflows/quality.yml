@@ -100,12 +100,12 @@ jobs:
         if: github.event_name == 'push'
         run: >-
           uv run pytest -q -m "not slow"
-          tools/pingstore/tests
+          libraries/pingstore/tests
           experiments
 
       - name: Full test suite
         if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
         run: >-
           uv run pytest -q
-          tools/pingstore/tests
+          libraries/pingstore/tests
           experiments

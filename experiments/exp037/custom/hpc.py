@@ -13,7 +13,7 @@ import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
-sys.path[:0] = [str(REPO), str(REPO / "tools")]
+sys.path[:0] = [str(REPO), str(REPO / "libraries")]
 from experiments.exp037 import recipe
 from experiments.exp037.custom import evidence, inputs
 from hpc.slurm_submit import submit_pipeline
@@ -131,7 +131,7 @@ def command(plan, path, stage, dependency=None):
     if dependency:
         args += [f"--dependency=afterok:{dependency}"]
     args += [
-        str(REPO / "tools/hpc/slurm-stage.sbatch"),
+        str(REPO / "libraries/hpc/slurm-stage.sbatch"),
         str(path),
         stage,
         str(REPO),

@@ -17,27 +17,18 @@
 </figure>
 
 <script>
-  import { mountMembrane } from './js/membrane.js';
+  import { deferMount } from '../../../site/src/lib/media-start';
   class NeuronMembrane extends HTMLElement {
     dispose?: () => void;
-    observer?: IntersectionObserver;
     connectedCallback() {
-      this.observer = new IntersectionObserver(async entries => {
-        if (!entries.some(entry => entry.isIntersecting)) return;
-        this.observer?.disconnect();
-        try {
-          const dispose = await mountMembrane(this);
-          if (this.isConnected) this.dispose = dispose;
-          else dispose();
-        } catch (error) {
-          console.error('Membrane animation could not start', error);
-          const status = this.querySelector('.status');
-          if (status) status.textContent = 'The animation could not start. Equations and the caption describe the model.';
-        }
-      }, { rootMargin: '200px' });
-      this.observer.observe(this);
+      this.dispose?.();
+      this.dispose = deferMount(this, async () => (await import('./js/membrane.js')).mountMembrane, error => {
+        console.error('Membrane animation could not start', error);
+        const status = this.querySelector('.status');
+        if (status) status.textContent = 'The animation could not start. Equations and the caption describe the model.';
+      });
     }
-    disconnectedCallback() { this.observer?.disconnect(); this.dispose?.(); }
+    disconnectedCallback() { this.dispose?.(); this.dispose = undefined; }
   }
   if (!customElements.get('pixi-neuron-membrane')) customElements.define('pixi-neuron-membrane', NeuronMembrane);
 </script>

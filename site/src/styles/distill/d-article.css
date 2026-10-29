@@ -165,7 +165,7 @@ d-article li:last-child {
   border-radius: 8px;
   background: var(--code-background);
   color: var(--code-foreground);
-  font-size: 14px;
+  font-size: inherit;
   line-height: 1.65;
   tab-size: 4;
   margin-bottom: 20px;
@@ -187,7 +187,6 @@ d-article li:last-child {
 @media (max-width: 767px) {
   :is(d-article, d-appendix) pre {
     padding: 16px;
-    font-size: 13px;
   }
 }
 

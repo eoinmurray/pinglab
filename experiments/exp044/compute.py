@@ -14,7 +14,7 @@ from pathlib import Path
 from time import perf_counter
 
 REPO = Path(__file__).resolve().parents[2]
-sys.path[:0] = [str(REPO), str(REPO / "tools")]
+sys.path[:0] = [str(REPO), str(REPO / "libraries")]
 
 import numpy as np
 import torch

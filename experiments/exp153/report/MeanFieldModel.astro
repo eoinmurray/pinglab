@@ -1,7 +1,7 @@
 ---
 import Table from "../../../site/src/components/Table.astro";
 import Math from "../../../site/src/components/Math.astro";
-import EquationBox from "../../../md/notes/components/EquationBox.astro";
+import EquationBox from "../../../site/src/components/EquationBox.astro";
 import { optionalPresentation } from "../../../site/src/lib/pingstore";
 import { runStore } from "../../../site/src/lib/run-store";
 
@@ -116,7 +116,8 @@ const symbolRows = symbols
     <p>
       Circuits are superscripts A/B; E/I denote excitatory/inhibitory populations. For a pathway
       such as AE → BI, the first pair identifies its source and the second its target; xA/xB denote
-      external inputs. All 14 dynamical equations and their current definitions are shown below.
+      private sensory inputs. Attention inputs are omitted from the current reduction.
+      All {model.state_order.length} dynamical equations and their current definitions are shown below.
     </p>
     {groups.map((group) => (
       <section>

@@ -6,6 +6,7 @@ import ThemeHead from '../components/ThemeHead.astro';
 import ThemeToggle from '../components/ThemeToggle.astro';
 import FigureLightbox from '../components/FigureLightbox.astro';
 import '../styles/theme.css';
+import '../styles/deferred-media.css';
 import base from '../styles/distill/styles-base.css?raw';
 import layout from '../styles/distill/styles-layout.css?raw';
 import titleStyle from '../styles/distill/d-title.css?raw';
@@ -42,6 +43,7 @@ const frontMatterJson = JSON.stringify(frontMatter ?? null).replaceAll('<', '\\u
     <link rel="canonical" href={canonicalUrl.href} />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>{title} · Pinglab</title>
+    <noscript><style is:inline>[data-deferred-media] { display: none !important; }</style></noscript>
     <style is:inline id="distill-prerendered-styles" set:html={distillStyles} />
     {distill && <script is:inline defer src="/vendor/distill/template.v2.js"></script>}
   </head>
@@ -65,6 +67,7 @@ const frontMatterJson = JSON.stringify(frontMatter ?? null).replaceAll('<', '\\u
     <main><slot /></main>
     <FigureLightbox />
     <script>import '../scripts/citations';</script>
+    <script>import '../scripts/deferred-media';</script>
   </body>
 </html>
 

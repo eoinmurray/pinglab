@@ -25,88 +25,46 @@ def window_steps(dt_ms, timer_ms):
 def configuration(
     *,
     duration=30.0,
-    dt_ms=1.0,
-    timer_ms=1.0,
-    neurons=1,
-    max_lag_ms=20.0,
-    max_spike_age_ms=5.0,
+    max_lag_ms=8000.0,
+    compile_mode="default",
     controller_warmup_ms=1000.0,
-    flexor_bias_ms=20.0,
-    flexor_initial_us=0.5,
-    extensor_initial_us=0.0,
-    compile_mode=None,
-    initial_angle_deg=90.0,
-    tip_mass_kg=0.002,
-    arm_length_m=0.2,
-    gravity_m_s2=9.81,
-    tonic_us=0.04,
-    sensory_drive_us=0.035,
-    peer_inhibition_us=0.2,
-    sensory_tau_ms=10.0,
-    peer_tau_ms=50.0,
-    activation_increment=0.003,
 ):
-    """Resolve numerical, scheduling, mechanical and recording settings."""
+    """Resolve the fixed report model and its acquisition settings.
+
+    The extended lag allowance reproduces the displayed diagnostic recording;
+    it does not relax the 1 ms deadline or the 5 ms spike-delivery verdict.
+    """
     if not math.isfinite(duration) or duration < 2:
         raise ValueError("Use duration >= 2 seconds")
-    if type(neurons) is not int or neurons != 1:
-        raise ValueError("The report protocol requires one neuron per controller")
-    for value in (max_lag_ms, max_spike_age_ms):
-        if not math.isfinite(value) or value <= 0:
-            raise ValueError("Timing budgets must be positive and finite")
+    if not math.isfinite(max_lag_ms) or max_lag_ms <= 0:
+        raise ValueError("Maximum lag must be positive and finite")
     if compile_mode not in (None, "default"):
-        raise ValueError("Choose default compilation or eager execution")
+        raise ValueError("Choose default compilation or eager validation")
     if not math.isfinite(controller_warmup_ms) or controller_warmup_ms <= 0:
         raise ValueError("Controller warmup must be positive and finite")
-    if not math.isfinite(flexor_bias_ms) or flexor_bias_ms < 0:
-        raise ValueError("Startup duration must be finite and nonnegative")
-    if any(
-        not math.isfinite(value) or value < 0
-        for value in (flexor_initial_us, extensor_initial_us)
-    ):
-        raise ValueError("Startup conductance must be finite and nonnegative")
-    if not math.isfinite(initial_angle_deg):
-        raise ValueError("Initial angle must be finite")
-    if any(not math.isfinite(v) or v < 0 for v in (tip_mass_kg, gravity_m_s2)):
-        raise ValueError("Tip mass and gravity must be finite and nonnegative")
-    if not math.isfinite(arm_length_m) or arm_length_m <= 0:
-        raise ValueError("Arm length must be finite and positive")
-    if any(
-        not math.isfinite(v) or v < 0
-        for v in (tonic_us, sensory_drive_us, peer_inhibition_us)
-    ):
-        raise ValueError("Neural conductances must be finite and nonnegative")
-    if any(
-        not math.isfinite(v) or v <= 0
-        for v in (sensory_tau_ms, peer_tau_ms, activation_increment)
-    ):
-        raise ValueError(
-            "Synaptic timescales and muscle increment must be finite and positive"
-        )
-    reference = math.radians(initial_angle_deg)
+    reference = math.pi / 2
     return dict(
         experiment="exp152",
         duration=duration,
-        dt_ms=dt_ms,
-        timer_ms=timer_ms,
-        neurons=neurons,
+        dt_ms=1.0,
+        timer_ms=1.0,
+        neurons=1,
         max_lag_ms=max_lag_ms,
-        max_spike_age_ms=max_spike_age_ms,
+        max_spike_age_ms=5.0,
         controller_warmup_ms=controller_warmup_ms,
-        substeps=window_steps(dt_ms, timer_ms),
+        substeps=1,
         seed=0,
         device="cpu",
         dtype="float64",
         compile_mode=compile_mode,
         spike_transport="logical",
         snnlab_ref=SNNLAB_REF,
-        adaptation="snnlab-ros2 three-process spike-only joint controller",
         joint=dict(
             inertia=0.005,
-            tip_mass_kg=tip_mass_kg,
-            arm_length_m=arm_length_m,
-            gravity_m_s2=gravity_m_s2,
-            total_inertia=0.005 + tip_mass_kg * arm_length_m**2,
+            tip_mass_kg=0.002,
+            arm_length_m=0.2,
+            gravity_m_s2=9.81,
+            total_inertia=0.005 + 0.002 * 0.2**2,
             initial_angle=reference,
             reference_angle=reference,
             spring_rest_angle=reference,
@@ -118,7 +76,7 @@ def configuration(
             sensory_limit=0.25,
             hard_limit=1.0,
             sensory_interval=0.01,
-            activation_increment=activation_increment,
+            activation_increment=0.003,
         ),
         neuron_model="elevate",
         controller_populations=["motor"],
@@ -148,14 +106,12 @@ def configuration(
         neuron_source_sha256=hashlib.sha256(
             (Path(__file__).parent / "custom/elevate.py").read_bytes()
         ).hexdigest(),
-        weights=dict(
-            sensory_drive=sensory_drive_us, peer_inhibition=peer_inhibition_us
-        ),
-        synapse_tau_ms=dict(sensory_drive=sensory_tau_ms, peer_inhibition=peer_tau_ms),
-        tonic_us=tonic_us,
-        flexor_initial_us=flexor_initial_us,
-        extensor_initial_us=extensor_initial_us,
-        flexor_bias_ms=flexor_bias_ms,
+        weights=dict(sensory_drive=0.035, peer_inhibition=0.2),
+        synapse_tau_ms=dict(sensory_drive=10.0, peer_inhibition=50.0),
+        tonic_us=0.04,
+        flexor_initial_us=0.5,
+        extensor_initial_us=0.0,
+        flexor_bias_ms=20.0,
         analysis=dict(
             movement_velocity_threshold_rad_s=0.05,
             minimum_reversals=4,
@@ -164,7 +120,7 @@ def configuration(
             cycle_burn_in_s=5.0,
             cycle_phase_samples=128,
         ),
-        recording="All callback diagnostics, substep population means/counts, topic events and node logs",
+        recording="Per-node callback diagnostics, single-cell voltage/spikes, joint state, topic events and node logs",
         interpretation="Simulated loaded joint; no hard-real-time guarantee",
     )
 
@@ -229,77 +185,3 @@ def author_network(cfg):
     net.output("motor_voltage", motor.voltage)
     net.output("motor_spikes", motor.spikes)
     return lang.compile(net)
-
-
-def controller_settings(cfg):
-    """Flatten recorded settings for the controller adapter without live defaults."""
-    return {
-        **{
-            key: cfg[key]
-            for key in (
-                "duration",
-                "flexor_bias_ms",
-                "flexor_initial_us",
-                "extensor_initial_us",
-                "controller_warmup_ms",
-                "tonic_us",
-            )
-        },
-        "sensory_drive_us": cfg["weights"]["sensory_drive"],
-        "peer_inhibition_us": cfg["weights"]["peer_inhibition"],
-        "sensory_tau_ms": cfg["synapse_tau_ms"]["sensory_drive"],
-        "peer_tau_ms": cfg["synapse_tau_ms"]["peer_inhibition"],
-        "initial_angle_deg": math.degrees(cfg["joint"]["initial_angle"]),
-        **{
-            key: cfg["joint"][key]
-            for key in (
-                "tip_mass_kg",
-                "arm_length_m",
-                "gravity_m_s2",
-                "activation_increment",
-            )
-        },
-    }
-
-
-def adaptation_configuration(
-    *,
-    target_frequency_hz=0.65,
-    target_excursion_deg=60.0,
-    iterations=16,
-    compile_mode="default",
-):
-    """Resolve a small deterministic coordinate-search diagnostic, not ROS tuning."""
-    if any(
-        not math.isfinite(value) or value <= 0
-        for value in (target_frequency_hz, target_excursion_deg)
-    ):
-        raise ValueError("Adaptation targets must be positive and finite")
-    if type(iterations) is not int or iterations < 1:
-        raise ValueError("Adaptation iterations must be a positive integer")
-    cfg = configuration(duration=60.0, compile_mode=compile_mode)
-    cfg.update(
-        protocol="adaptation_check",
-        adaptation=dict(
-            target_frequency_hz=target_frequency_hz,
-            target_excursion_rad=math.radians(target_excursion_deg),
-            iterations=iterations,
-            parameters=["tonic_us", "sensory_drive_us"],
-            bounds_us=dict(tonic_us=[0.01, 0.10], sensory_drive_us=[0.01, 0.10]),
-            initial_relative_step=0.10,
-            minimum_relative_step=0.0125,
-            step_decay=0.5,
-            segment_duration_s=26.0,
-            maximum_segment_duration_s=60.0,
-            measurement_extension_s=5.0,
-            settling_s=15.0,
-            measurement_cycles=5,
-            require_repeatable_cycles=True,
-            validation_duration_s=60.0,
-            target_relative_tolerance=0.05,
-            minimum_loss_improvement=1e-6,
-            loss="sum of squared relative frequency and peak-to-peak excursion errors",
-            state_policy="Continuous neural, synaptic, muscle and transport state during adaptation; final parameters also tested from a fresh reset",
-        ),
-    )
-    return cfg

@@ -5,31 +5,32 @@ and PING (pyramidal–interneuron gamma) dynamics.
 
 Site: [pinglab.eoinmurray.info](https://pinglab.eoinmurray.info).
 
-Main documentation lives in [`md/notes/`](md/notes/):
+Main documentation lives in [`notes/`](notes/):
 
-1. [Experiment Rules](md/notes/experiment-rules.md): experiment structure, stages and scientific inputs.
-2. [Compute Rules](md/notes/compute-rules.mdx): compute providers, access and execution workflows.
-3. [Pingstore Rules](md/notes/pingstore-rules.md): run storage, provenance, validation, backups and pruning.
-4. [Writing Rules](md/notes/writing-rules.md): scientific writing, article metadata and editorial conventions.
-5. [Canonical Parameters](md/notes/canonical-parameters.mdx): reference network and training settings for COBA and PING.
-6. [COBA and PING: Dynamics and Learning](md/notes/coba-ping-dynamics.mdx): model and training derivations (formerly exp113).
-7. [Mean-field E/I dynamics](md/notes/mean-field-model.mdx): exp117/exp148 closures, four recurrent pathways, shared input and private drive.
-8. [EI Weight Lifecycle](md/notes/ei-weight-lifecycle.mdx): proposed model-organism study of evolution, development and experience in E/I synaptic strengths.
+1. [Experiment Rules](notes/rules/experiment.md): experiment structure, stages and scientific inputs.
+2. [Compute Rules](notes/rules/compute.mdx): compute providers, access and execution workflows.
+3. [Pingstore Rules](notes/rules/pingstore.md): run storage, provenance, validation, backups and pruning.
+4. [Writing Rules](notes/rules/writing.md): scientific writing, article metadata and editorial conventions.
+5. [Canonical Parameters](notes/canonical-parameters.mdx): reference network and training settings for COBA and PING.
+6. [COBA and PING: Dynamics and Learning](notes/coba-ping-dynamics.mdx): model and training derivations (formerly exp113).
+7. [Mean-field E/I dynamics](notes/mean-field-model.mdx): exp117/exp148 closures, four recurrent pathways, shared input and private drive.
+8. [CTC and attention](notes/ctc-attention.mdx): communication through coherence and selective routing from two populations into a shared receiver.
+9. [Research workflow](notes/workflow.mdx): repository layout and a blueprint for computational research and publishing.
 
 See [Astro setup and GitHub Pages deployment](site/README.md)
 for site development and deployment. Coding agents must read
 [`AGENTS.md`](AGENTS.md) for task-specific instruction routing.
 
-Use the [Modal dispatcher](tools/modal_dispatcher/README.md) to launch experiment
+Use the [Modal dispatcher](libraries/modal_dispatcher/README.md) to launch experiment
 compute on Modal and collect validated Pingstore results.
 
-Pingstore has three source modules: [`core.py`](tools/pingstore/core.py) owns the
-storage implementation, [`library.py`](tools/pingstore/library.py) exposes the
-experiment API, and [`cli.py`](tools/pingstore/cli.py) provides the commands.
+Pingstore has three source modules: [`core.py`](libraries/pingstore/core.py) owns the
+storage implementation, [`library.py`](libraries/pingstore/library.py) exposes the
+experiment API, and [`cli.py`](libraries/pingstore/cli.py) provides the commands.
 Import experiment helpers from `pingstore.library`; run commands with
 `uv run pingstore` or `uv run python -m pingstore.cli`.
 
-For generic CSD3 / Wilkes3 experiment deployment, see [HPC deployment](tools/hpc/README.md).
+For generic CSD3 / Wilkes3 experiment deployment, see [HPC deployment](libraries/hpc/README.md).
 
 Python formatting uses [Ruff](https://docs.astral.sh/ruff/formatter/) with an
 88-character line length. Function signatures that fit stay on one line; longer
@@ -52,24 +53,3 @@ dependencies:
 uv sync --dev
 uv run pre-commit install
 ```
-
-Each commit checks staged Python files for lint and formatting; either failure
-rejects the commit. Partially staged files are checked using their staged content,
-and excluded generated directories follow the Ruff configuration. The hook checks
-without automatically fixing or staging files. Run `uv run pre-commit run --all-files`
-to check every tracked Python file manually. New clones need the installation
-command too; Git does not copy installed hooks.
-
-Readability checks enable modern Python syntax (`UP`), simpler control flow
-(`SIM`), comprehensions (`C4`), consistent returns (`RET`), common Python pitfalls
-(`B`), redundant constructs (`PIE`), and cyclomatic complexity (`C901`, maximum 15).
-Complexity counts decision
-paths, rather than lines. `C408` is excluded to preserve the `dict(key=value, ...)`
-configuration style required by Experiment Rules. Review findings before applying
-fixes: `zip(strict=True)` can change behavior, and scientific routines need
-numerical validation when refactored. Keep stage orchestration separate from
-input validation, execution and measurement helpers within the owning module.
-Use named arguments for long internal APIs. Pair aligned arrays with
-`zip(..., strict=True)`, use `itertools.pairwise()` for adjacent samples, and spell
-out `strict=False` when a partially filled display grid intentionally leaves
-unused axes. Bind callback inputs when creating them inside a loop.

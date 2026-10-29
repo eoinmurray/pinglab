@@ -11,7 +11,7 @@ import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
-sys.path[:0] = [str(REPO), str(REPO / "tools")]
+sys.path[:0] = [str(REPO), str(REPO / "libraries")]
 
 import numpy as np
 from experiments.exp117.custom import inputs

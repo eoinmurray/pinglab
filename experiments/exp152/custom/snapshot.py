@@ -7,7 +7,7 @@ prepared stream's private executor because its public API has no snapshot option
 from pathlib import Path
 
 
-def capture_start(stream, bundle, directory, cfg, *, diagram=True):
+def capture_start(stream, bundle, directory, cfg):
     from snnlab.sim import SnapshotSpec
     from snnlab.sim.artifacts.snapshots import SnapshotSession
     from snnlab.sim.requests.spec import ExecutionSpec
@@ -16,7 +16,7 @@ def capture_start(stream, bundle, directory, cfg, *, diagram=True):
     directory.mkdir(parents=True, exist_ok=True)
     bundle.write(directory / "network.bundle", visualise=False)
     # Both sides share this architecture; one diagram is sufficient.
-    if diagram and directory.name == "flexor":
+    if directory.name == "flexor":
         bundle.visualise(directory / "circuit.svg", view="circuit")
     spec = ExecutionSpec(
         kind="simulate",

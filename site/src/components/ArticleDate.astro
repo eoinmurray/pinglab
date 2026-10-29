@@ -1,12 +1,12 @@
 ---
-interface Props { date: string; compact?: boolean; }
-const { date, compact = false } = Astro.props;
+interface Props { date: string; compact?: boolean; showTime?: boolean; }
+const { date, compact = false, showTime = true } = Astro.props;
 const dateLabel = new Intl.DateTimeFormat('en-GB', {
   day: 'numeric', month: 'short', year: '2-digit', timeZone: 'UTC',
 }).format(new Date(date));
 ---
 
-<time data-local-date data-compact={compact || undefined} class:list={{ compact }} datetime={date}><span data-date-time></span><span data-date-label>{dateLabel}</span></time>
+<time data-local-date data-compact={compact || undefined} class:list={{ compact }} datetime={date}>{showTime && <span data-date-time></span>}<span data-date-label>{dateLabel}</span></time>
 
 <script>
   function localizeArticleDates() {
@@ -20,7 +20,8 @@ const dateLabel = new Intl.DateTimeFormat('en-GB', {
         : (['th', 'st', 'nd', 'rd'][day % 10] ?? 'th');
       const hours = date.getHours();
       const minutes = String(date.getMinutes()).padStart(2, '0');
-      time.querySelector('[data-date-time]')!.textContent = `${hours % 12 || 12}:${minutes}${hours < 12 ? 'am' : 'pm'}`;
+      const timeLabel = time.querySelector('[data-date-time]');
+      if (timeLabel) timeLabel.textContent = `${hours % 12 || 12}:${minutes}${hours < 12 ? 'am' : 'pm'}`;
       const year = String(date.getFullYear()).slice(-2);
       time.querySelector('[data-date-label]')!.textContent = `${day}${suffix} ${monthLabel.format(date)} ${year}`;
     });
@@ -31,6 +32,7 @@ const dateLabel = new Intl.DateTimeFormat('en-GB', {
 </script>
 
 <style>
+  time { display: inline-flex; flex-wrap: wrap; column-gap: .35em; }
   span { display: block; white-space: nowrap; }
-  .compact { display: inline-flex; gap: .35em; white-space: nowrap; }
+  .compact { flex-wrap: nowrap; white-space: nowrap; }
 </style>

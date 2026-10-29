@@ -13,7 +13,9 @@ from snnlab.sim import NetworkSnapshot
 
 from . import evidence, inputs
 
-SCHEMA = "exp133.sender-receiver/v1"
+SCHEMA = "exp133.sender-receiver/v3"
+HISTORICAL_SCHEMA = "exp133.sender-receiver/v2"
+LEGACY_SCHEMA = "exp133.sender-receiver/v1"
 N_INPUT = 1024
 DURATION_MS = 1500.0
 ONSET_MS = 500.0
@@ -27,8 +29,18 @@ def input_scales():
     return {f"PING_{name}_input_to_E": INPUT_GAIN for name in ("S", "R")}
 
 
-def author_network():
+def author_network(*, legacy=False, historical_attention=False):
     net = snn.Network("exp133_sender_receiver", dt=recipe.DT_MS * snn.ms)
+    attention = (
+        None
+        if not historical_attention or legacy
+        else net.input(
+            "attention_S",
+            shape=("time", "batch", recipe.HISTORICAL_N_ATTENTION),
+            signal_type="spikes",
+            unit="spike",
+        )
+    )
     circuits = {}
     for name in ("S", "R"):
         drive = net.input(
@@ -37,7 +49,13 @@ def author_network():
             signal_type="spikes",
             unit="spike",
         )
-        circuits[name] = recipe.add_ping(net, f"PING_{name}", drive)
+        circuits[name] = recipe.add_ping(
+            net,
+            f"PING_{name}",
+            drive,
+            attention=attention if name == "S" else None,
+            legacy=legacy,
+        )
     for source, target in (("S", "R"), ("R", "S")):
         for pop in ("E", "I"):
             net.connect(
@@ -62,9 +80,16 @@ def author_network():
     return snn.compile(net, target=None)
 
 
-def configuration():
-    return dict(
-        schema=SCHEMA,
+def configuration(*, legacy=False, standalone=False, historical_attention_hz=None):
+    historical_attention = historical_attention_hz is not None
+    if historical_attention:
+        recipe.validate_historical_attention_rate(historical_attention_hz)
+    cfg = dict(
+        schema=LEGACY_SCHEMA
+        if legacy
+        else HISTORICAL_SCHEMA
+        if historical_attention
+        else SCHEMA,
         duration_ms=DURATION_MS,
         onset_ms=ONSET_MS,
         dt_ms=recipe.DT_MS,
@@ -76,21 +101,50 @@ def configuration():
         coupling_us=COUPLING_US,
         direction="reciprocal S_E to R_E/R_I and R_E to S_E/S_I",
         parameter_transfer="A to S, B to R; saved 0.09 uS grid matrices; retain both directions",
-        bundle_digest=author_network().manifest["graph_digest"],
+        bundle_digest=author_network(
+            legacy=legacy, historical_attention=historical_attention
+        ).manifest["graph_digest"],
         coupling_schedule="native StepGain: zero before 500 ms, one from 500 ms; continuous state",
         phase="unwrapped S-minus-R E-volley phase in cycles; full common valid window",
     )
+    if not legacy:
+        cfg.update(
+            architecture=recipe.architecture_configuration(
+                historical_attention=historical_attention
+            ),
+        )
+    if historical_attention and not legacy:
+        cfg["attention"] = recipe.historical_attention_configuration(
+            historical_attention_hz
+        )
+    if standalone:
+        if legacy:
+            raise ValueError("standalone onset requires the revised connectivity")
+        cfg["parameter_transfer"] = (
+            "fresh seeded native initialization; no grid source; S/R label A/B"
+        )
+        cfg["standalone"] = True
+    return cfg
 
 
-def make_inputs():
+def make_inputs(*, historical_attention_hz=None):
     shape = (round(DURATION_MS / recipe.DT_MS), 1, N_INPUT)
-    return {
+    result = {
         f"drive_{name}": (
             np.random.default_rng(seed).random(shape, dtype=np.float32)
             < DRIVE_HZ[name] * recipe.DT_MS / 1000
         ).astype(np.uint8)
         for name, seed in zip(("S", "R"), recipe.INPUT_SEEDS, strict=True)
     }
+    if historical_attention_hz is not None:
+        recipe.validate_historical_attention_rate(historical_attention_hz)
+        uniform = np.random.default_rng(recipe.HISTORICAL_ATTENTION_SEED).random(
+            (*shape[:2], recipe.HISTORICAL_N_ATTENTION), dtype=np.float32
+        )
+        result["attention_S"] = (
+            uniform < historical_attention_hz * recipe.DT_MS / 1000
+        ).astype(np.uint8)
+    return result
 
 
 def recording(source):
@@ -119,7 +173,7 @@ def recording(source):
 
 def transferred_parameters(source):
     """Map the selected reciprocal condition onto the renamed reciprocal network."""
-    evidence.configuration(source)
+    cfg = evidence.configuration(source)
     original = {
         name: tensor.numpy()
         for name, tensor in NetworkSnapshot.read(
@@ -132,7 +186,12 @@ def transferred_parameters(source):
     }
     values = {}
     for target, origin in (("S", "A"), ("R", "B")):
-        for suffix in ("input_to_E", "E_to_I", "I_to_E"):
+        suffixes = ["input_to_E", "E_to_I", "I_to_E"]
+        if cfg["schema"] in {"exp133.recipe/v2", "exp133.recipe/v3"}:
+            suffixes.extend(["E_to_E", "I_to_I"])
+            if target == "S" and cfg["schema"] == "exp133.recipe/v2":
+                suffixes.append("attention_to_E")
+        for suffix in suffixes:
             values[f"PING_{target}_{suffix}.weight"] = original[
                 f"PING_{origin}_{suffix}.weight"
             ]
@@ -155,22 +214,52 @@ def transferred_parameters(source):
 
 
 def compute_contract(source):
-    cfg = configuration()
-    pins = source.record["inputs"]
-    if source.record["execution"].get("configuration") != cfg or set(pins) != {
-        "parameter_reference"
-    }:
-        raise PingstoreError("sender–receiver compute recipe mismatch")
-    pin = pins["parameter_reference"]
-    reference = inputs.source(
-        source.directory.parents[2], pin["run_id"], "compute", reference=pin
+    recorded = source.record["execution"].get("configuration", {})
+    if recorded.get("schema") not in {SCHEMA, HISTORICAL_SCHEMA, LEGACY_SCHEMA}:
+        raise PingstoreError("unsupported sender–receiver configuration")
+    legacy = recorded["schema"] == LEGACY_SCHEMA
+    cfg = configuration(
+        legacy=legacy,
+        historical_attention_hz=recorded["attention"]["rate_hz"]
+        if recorded["schema"] == HISTORICAL_SCHEMA
+        else None,
+        standalone=recorded.get("standalone", False),
     )
-    transferred = transferred_parameters(reference)
+    pins = source.record["inputs"]
+    expected_pins = set() if cfg.get("standalone") else {"parameter_reference"}
+    if (
+        source.record["execution"].get("configuration") != cfg
+        or set(pins) != expected_pins
+    ):
+        raise PingstoreError("sender–receiver compute recipe mismatch")
+    transferred = None
+    if pins:
+        pin = pins["parameter_reference"]
+        reference = inputs.source(
+            source.directory.parents[2], pin["run_id"], "compute", reference=pin
+        )
+        reference_cfg = evidence.configuration(reference)
+        expected_grid = {
+            LEGACY_SCHEMA: "exp133.recipe/v1",
+            HISTORICAL_SCHEMA: "exp133.recipe/v2",
+            SCHEMA: "exp133.recipe/v3",
+        }[cfg["schema"]]
+        if reference_cfg["schema"] != expected_grid or reference_cfg.get(
+            "attention"
+        ) != cfg.get("attention"):
+            raise PingstoreError(
+                "onset topology or attention differs from its source grid"
+            )
+        transferred = transferred_parameters(reference)
     manifest = load_json(source.file("sender-receiver.bundle", "manifest.json"))
     if manifest["graph_digest"] != cfg["bundle_digest"]:
         raise PingstoreError("sender–receiver bundle differs from recipe")
     recording(source)
-    expected_inputs = make_inputs()
+    expected_inputs = make_inputs(
+        historical_attention_hz=recorded["attention"]["rate_hz"]
+        if recorded["schema"] == HISTORICAL_SCHEMA
+        else None
+    )
     with np.load(source.export / "inputs.npz", allow_pickle=False) as raw:
         if set(raw.files) != set(expected_inputs) or any(
             not np.array_equal(raw[key], value)
@@ -207,9 +296,12 @@ def compute_contract(source):
         .load_parameters()
         .items()
     }
-    if set(values) != set(transferred) or any(
-        not np.allclose(values[key], value, rtol=1e-6, atol=1e-9)
-        for key, value in transferred.items()
+    if transferred is not None and (
+        set(values) != set(transferred)
+        or any(
+            not np.allclose(values[key], value, rtol=1e-6, atol=1e-9)
+            for key, value in transferred.items()
+        )
     ):
         raise PingstoreError(
             "sender–receiver parameters differ from selected grid matrices"

@@ -1,9 +1,9 @@
+import schematic1 from './images/ping-network.svg?url';
+import schematic2 from './images/replay-network.svg?url';
 import RunFigure from '../../../site/src/components/RunFigure.astro';
 import Table from '../../../site/src/components/Table.astro';
 import { reportSnapshots, reportData } from '../../../site/src/lib/report-data';
 
-export const nativePresentation = await reportData('exp042', { experiment: 'exp042', allowUnavailable: true });
-export const nativeCircuits = nativePresentation?.circuit_files ?? [];
 
 export const nativeColumns = ["PING"];
 export const nativeEvidence = await reportSnapshots('exp042', { snapshots: {"PING": "eval__ping__off__seed42__jitter_sigma_0--inference/start/snapshot.json"}, allowUnavailable: true });
@@ -68,7 +68,24 @@ export const nativeGroups = [
 
 ## Network diagrams
 
-{nativeCircuits.length ? nativeCircuits.map((file, index) => <RunFigure report="exp042" experiment="exp042" file={file} number={index + 1} alt="Circuit diagram from the compiled execution bundle.">Executed network architecture; parameters and seeds reuse this layout.</RunFigure>) : <p>The selected historical computation does not retain a native compiled circuit figure for this appendix. Its architecture is described in Methods; a new execution is required to supply the executed bundle's diagram.</p>}
+<figure id="fig-schematic-ping" class="model-schematic">
+  <a class="figure-image" href={schematic1} aria-label="Open model schematic at full size"><img src={schematic1} alt="PING classifier; illustrative model schematic." width="1024.0" height="594.8" /></a>
+  <figcaption>Figure A1. PING classifier. Illustrative schematic of the documented model; it is not a recovered historical execution bundle or a measurement. $X$ denotes input spike channels, $E$/$I$ excitatory/inhibitory populations and $R$ the class readout. Every weighted pathway is labelled $W_{XY}$, with target $X$ first and source $Y$ second. Arrowheads show excitatory or feedforward drive; bars show inhibition. Recording and score reductions are omitted.</figcaption>
+</figure>
+
+<figure id="fig-schematic-replay" class="model-schematic">
+  <a class="figure-image" href={schematic2} aria-label="Open model schematic at full size"><img src={schematic2} alt="Externally replayed inhibition; illustrative model schematic." width="1024.25" height="594.8" /></a>
+  <figcaption>Figure A2. Externally replayed inhibition. Illustrative schematic of the documented model; it is not a recovered historical execution bundle or a measurement. $X$ denotes input spikes, $E$ excitatory neurons, $J$ the recorded inhibitory spike input and $R$ the class readout. Every weighted pathway is labelled $W_{XY}$, with target $X$ first and source $Y$ second. Arrowheads show excitatory or feedforward drive; bars show inhibition. Recording and score reductions are omitted. The replay panel replaces endogenous I output with the recorded, perturbed inhibitory spike input $J$; the baseline E→I path is absent during replay.</figcaption>
+</figure>
+
+<style>{`
+  .model-schematic { grid-column: text; margin: 1.5rem 0; }
+  .model-schematic .figure-image { display: block; border-bottom: none; }
+  .model-schematic img { display: block; width: 100%; height: auto; }
+`}</style>
+
+
+
 
 <span id="parameters" />
 

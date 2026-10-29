@@ -21,3 +21,7 @@ The short measurement window limits estimates of irregularity and tiny correlati
    Produces the full raster, its first 200 ms, and the four-panel AI diagnostic plot.
 4. `test.py`: `uv run pytest experiments/exp145/test.py`; small integration
    checks only, without running the full-size scientific configuration.
+
+Regenerate only network diagrams while preserving an explicit presentation's
+scientific figures and data: `uv run python experiments/exp145/present.py
+--redraw-from PRESENT_ID [--run-id ID]`.

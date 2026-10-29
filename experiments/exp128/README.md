@@ -6,3 +6,6 @@ integrate-and-fire neuron, including combined excitatory and inhibitory inputs.
 1. No experiment CLI or external run input is required; the illustrative model
    runs interactively in the browser.
 2. Sources: `report/report.mdx`, `report/SynapseAnimation.astro` and `report/js/`.
+
+3. `uv run python experiments/exp128/present.py`: regenerate the illustrative
+   network SVGs using SNNLab’s diagram layout API; no simulation is executed.

@@ -164,6 +164,11 @@ export const parameterGroups = (() => {
 
 ### Network diagrams
 
+In both diagrams, $X$ denotes pixel input, $E/I$ the hidden populations and $R$
+the spiking readout. Every projection is labelled $W_{XY}$, with target $X$ first
+and source $Y$ second. Arrowheads show excitation; bars show inhibition. Layouts
+come from the saved bundles; recording aliases and spike-count reductions are omitted.
+
 <RunFigure report="exp141" experiment="exp141" allowUnavailable file="coba--circuit.svg" number={5} id="fig-coba-network" alt="Executed COBA circuit: pixel input to excitatory hidden population to spiking digit readout.">
   COBA circuit generated from the executed SNNLab bundle. The input and readout
   projections are learned; all neurons are conductance-based leaky integrate-and-fire.

@@ -6,16 +6,121 @@ launched automatically.
 """
 
 import argparse
+import shutil
 import sys
+from dataclasses import replace
+from importlib.metadata import version
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
-sys.path[:0] = [str(REPO), str(REPO / "tools")]
+sys.path[:0] = [str(REPO), str(REPO / "libraries")]
 
 import numpy as np
 from experiments.exp127.recipe import SLUG
 from pingstore.library import load_json, source_run, stage_run, write_json_atomic
-from snnlab import lang
+from snnlab import lang, viz
+
+
+def circuit_diagram(bundle):
+    """Lay out native weighted projections; omit recording and scoring aliases."""
+    import matplotlib
+
+    native = lang.diagram(bundle, view="circuit")
+    known = {node.id for node in native.nodes if node.kind in ("input", "population")}
+    symbols = dict(inputs="X", outputs="R")
+    positions = dict(inputs=(0, 0), outputs=(420, 0))
+    routes = {}
+    title = "Three-input, two-output spike classifier"
+    diagram = replace(
+        native,
+        title=title,
+        groups=(),
+        nodes=tuple(
+            replace(node, detail=node.detail.splitlines()[0])
+            for node in native.nodes
+            if node.id in known
+        ),
+        edges=tuple(edge for edge in native.edges if edge.id is not None),
+    )
+    ports = dict(
+        upper_left=(0, 0.3),
+        lower_left=(0, 0.7),
+        upper_right=(1, 0.3),
+        lower_right=(1, 0.7),
+        top_left=(0.25, 0),
+        top_right=(0.75, 0),
+        bottom_left=(0.25, 1),
+        bottom_right=(0.75, 1),
+    )
+    layout = viz.DiagramLayout(
+        nodes={
+            identifier: viz.NodeLayout(
+                position=position,
+                label=f"${symbols[identifier]}$",
+                min_size=(240, 160),
+                ports=ports,
+            )
+            for identifier, position in positions.items()
+            if identifier in known
+        },
+        edges={
+            edge.id: replace(
+                routes.get(edge.id, viz.EdgeLayout()),
+                label=viz.DiagramLabel(
+                    rf"$W_{{{symbols[edge.target]},{symbols[edge.source]}}}$"
+                ),
+            )
+            for edge in diagram.edges
+        },
+        defaults=viz.LayoutDefaults(
+            node=viz.NodeLayout(content_align="center", padding=16), gap=30
+        ),
+    )
+    with matplotlib.rc_context({"savefig.bbox": None}):
+        return viz.resolve_diagram(
+            diagram, layout=layout, theme=viz.DiagramTheme(secondary_size=13)
+        )
+
+
+def save_circuit(bundle, path):
+    """Export the resolved native architecture without inheriting plot cropping."""
+    import matplotlib
+
+    circuit = circuit_diagram(bundle)
+    with matplotlib.rc_context({"savefig.bbox": None}):
+        for suffix in ("svg", "png"):
+            viz.render_diagram(circuit, Path(path).with_suffix("." + suffix))
+
+
+def redraw_networks(presentation, *, run_id=None):
+    """Preserve an explicit presentation's evidence and replace only its diagrams."""
+    previous = source_run(
+        REPO / ".pingstore", presentation, experiment="exp127", stage="present"
+    )
+    sources = {
+        role: source_run(REPO / ".pingstore", pin["run_id"], reference=pin)
+        for role, pin in previous.record["inputs"].items()
+    }
+    specs = [(sources["compute"], "classifier.bundle", "circuit")]
+    with stage_run(
+        REPO,
+        previous.record["experiment"],
+        "present",
+        inputs={**sources, "figure_source": previous},
+        configuration=previous.record["execution"]["configuration"],
+        run_id=run_id,
+    ) as run:
+        shutil.copytree(previous.export, run.export, dirs_exist_ok=True)
+        for source, prefix, stem in specs:
+            bundle_path = (
+                source.restore_bundle(prefix, run.scratch / (stem + ".bundle"))
+                if source.record.get("scientific_artifacts", {}).get("native_paths")
+                else source.unit(*prefix.split("/"))
+            )
+            save_circuit(lang.load_bundle(bundle_path), run.export / (stem + ".svg"))
+        run.record["execution"]["snnlab_version"] = version("snnlab")
+        previous.check_unchanged()
+    return run.run_id
 
 
 def events(array, dt):
@@ -145,9 +250,7 @@ def present(identity):
             )
         else:
             bundle_path = compute.unit("classifier.bundle")
-        lang.load_bundle(bundle_path).visualise(
-            run.export / "circuit.svg", view="circuit"
-        )
+        save_circuit(lang.load_bundle(bundle_path), run.export / "circuit.svg")
         write_json_atomic(run.export / "numbers.json", numbers)
         write_json_atomic(run.export / "classifier.json", replay)
         write_json_atomic(run.export / "training.json", teaching)
@@ -156,6 +259,14 @@ def present(identity):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--source", required=True)
-    present(parser.parse_args().source)
+    if any(arg.startswith("--redraw-from") for arg in sys.argv[1:]):
+        parser = argparse.ArgumentParser(
+            description="Refresh only the circuit diagrams of an explicit presentation."
+        )
+        parser.add_argument("--redraw-from", dest="presentation", required=True)
+        parser.add_argument("--run-id")
+        print(redraw_networks(**vars(parser.parse_args())), flush=True)
+    else:
+        parser = argparse.ArgumentParser(description=__doc__)
+        parser.add_argument("--source", required=True)
+        present(parser.parse_args().source)

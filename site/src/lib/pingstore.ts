@@ -1,17 +1,6 @@
 import { runStore } from './run-store.ts';
 import { localAssetUrl, selectAsset } from './run-assets.ts';
-
-async function countCompletedRuns(experiment: string): Promise<number> {
-  const index = await runStore.index();
-  return Object.values(index.runs).filter(row => row.record?.experiment === experiment).length;
-}
-
-const runCounts = new Map<string, Promise<number>>();
-export function completedRunCount(experiment: string): Promise<number> {
-  if (process.env.NODE_ENV !== 'production') return countCompletedRuns(experiment);
-  if (!runCounts.has(experiment)) runCounts.set(experiment, countCompletedRuns(experiment));
-  return runCounts.get(experiment)!;
-}
+import { imageMetadata } from 'astro/assets/utils';
 
 interface Presentation {
   id: string;
@@ -45,14 +34,28 @@ export async function imageUrl(runId: string, filename: string): Promise<string>
   return (await selectAsset(runId, filename)).url;
 }
 
-export async function figureUrl(runId: string, filename: string): Promise<string> {
-  if (!/\.(svg|png)$/.test(filename)) return imageUrl(runId, filename);
+async function figureFile(runId: string, filename: string): Promise<string> {
+  if (!/\.(svg|png)$/.test(filename)) return filename;
   const stem = filename.replace(/\.(svg|png)$/, '');
   for (const extension of ['svg', 'png']) {
     const candidate = `${stem}.${extension}`;
-    if (await runStore.has(runId, `export/${candidate}`)) return imageUrl(runId, candidate);
+    if (await runStore.has(runId, `export/${candidate}`)) return candidate;
   }
   throw new Error(`Missing figure ${filename} in presentation ${runId} (SVG or PNG required)`);
+}
+
+export async function figureUrl(runId: string, filename: string): Promise<string> {
+  return imageUrl(runId, await figureFile(runId, filename));
+}
+
+/** Reserve the selected figure's actual aspect ratio before its URL is activated. */
+export async function figureImage(runId: string, filename: string) {
+  const file = await figureFile(runId, filename);
+  const [src, metadata] = await Promise.all([
+    imageUrl(runId, file),
+    runStore.read(runId, `export/${file}`).then(bytes => imageMetadata(bytes, file)),
+  ]);
+  return { src, width: metadata.width, height: metadata.height };
 }
 
 export async function presentationJson(experiment: string, filename: string) {

@@ -54,6 +54,25 @@ export function controllerPopulations(data) {
   return data.controller_populations;
 }
 
+export function timingSeries(data) {
+  return ["flexor", "extensor", "plant"].map(name => ({
+    name: name === "plant" ? "Plant" : name[0].toUpperCase() + name.slice(1),
+    color: { flexor: 0x176d91, extensor: 0xbc3866, plant: 0x348577 }[name],
+    ...data.nodes[name],
+  }));
+}
+
+// The detail view keeps the 1 ms reference legible; full range includes every peak.
+export function timingPlotRange(series, period, view = "detail") {
+  const detail = 2 * period;
+  if (view !== "full") return detail;
+  const maximum = series.reduce((peak, row) => row.callback_ms.reduce(
+    (value, sample) => Math.max(value, sample), peak), detail);
+  const target = maximum > detail ? maximum * 1.05 : detail;
+  const magnitude = 10 ** Math.floor(Math.log10(target));
+  return [1, 2, 5, 10].find(step => step * magnitude >= target) * magnitude;
+}
+
 export function sensoryExcitationRoutes() {
   return [
     {name: "flexor", pop: 0, sensory: true, inhibitory: false,
@@ -256,34 +275,46 @@ export async function mountReplay(host) {
       circuit.app.render();
     }
 
-    const yMax = period * 1.2;
-    const chartStart = 310, chartWidth = 894, laneY = [48, 118, 188], laneHeight = 45;
+    const timings = timingSeries(data);
+    const chartStart = 310, chartWidth = 894;
+    const laneY = [30, 132, 234], laneHeight = 70;
+    const timingRange = $("timing-range");
+    const axisNumber = value => String(Number(value.toFixed(value < 1 ? 2 : 1)));
     async function chart(id) {
-      const s = await surface(id, 240, 24), graph = new Graphics(), overlay = new Graphics(); s.app.stage.addChild(graph);
-      const labels = [];
-      for (let n = 0; n < 3; n++) {
-        s.label(title(names[n]), 26, laneY[n] + 15, 13, colors[names[n]]);
-        s.label(`${Number(period.toFixed(2))} ms`, chartStart - 10, laneY[n] + laneHeight * (1 - period / yMax) - 5, 10, colors.muted, "right");
-        s.label("0", chartStart - 10, laneY[n] + laneHeight - 7, 10, colors.muted, "right");
+      const s = await surface(id, 340), graph = new Graphics(), overlay = new Graphics(); s.app.stage.addChild(graph);
+      const labels = [], yLabels = [], rangeLabels = [];
+      for (let n = 0; n < timings.length; n++) {
+        s.label(timings[n].name, 26, laneY[n] + 24, 13, timings[n].color);
+        yLabels.push([0, .5, 1].map(fraction => s.label("", chartStart - 10,
+          laneY[n] + laneHeight * (1 - fraction) - 5, 10, colors.muted, "right")));
+        rangeLabels.push(s.label("", chartStart + chartWidth, laneY[n] - 16, 11, colors.muted, "right"));
       }
-      for (let i = 0; i <= 4; i++) labels.push(s.label("", chartStart + chartWidth * i / 4, 232, 11, colors.muted, i === 4 ? "right" : i === 0 ? "left" : "center"));
-      const traces = names.map((_, index) => {
+      for (let i = 0; i <= 4; i++) labels.push(s.label("", chartStart + chartWidth * i / 4, 322, 11, colors.muted, i === 4 ? "right" : i === 0 ? "left" : "center"));
+      const traces = timings.map((_, index) => {
         const trace = new Graphics(), mask = new Graphics();
         mask.rect(chartStart, laneY[index], chartWidth, laneHeight).fill(0xffffff);
         s.app.stage.addChild(trace, mask);
         trace.mask = mask;
         return trace;
       });
+      const outliers = timings.map(() => {
+        const markers = new Graphics(); s.app.stage.addChild(markers); return markers;
+      });
       s.app.stage.addChild(overlay);
-      return { ...s, graph, overlay, traces, tickLabels: labels };
+      return { ...s, graph, overlay, traces, outliers, yLabels, rangeLabels, tickLabels: labels };
     }
     const overview = await chart("overview");
     function drawChart(chart, start, end) {
       const g = chart.graph; g.clear();
+      const yMax = timingPlotRange(timings, period, timingRange.value);
       const x = (t) => chartStart + (t - start) / (end - start) * chartWidth;
-      for (let n = 0; n < 3; n++) {
-        const node = data.nodes[names[n]], y = laneY[n];
-        const trace = chart.traces[n]; trace.clear();
+      for (let n = 0; n < timings.length; n++) {
+        const node = timings[n], y = laneY[n];
+        const trace = chart.traces[n], markers = chart.outliers[n];
+        trace.clear(); markers.clear();
+        chart.yLabels[n].forEach((label, index) => {
+          label.textContent = `${axisNumber(index * yMax / 2)} ms`;
+        });
         const stopped = last(node.time_ms);
         if (stopped < end) g.rect(x(Math.max(start, stopped)), y, x(end) - x(Math.max(start, stopped)), laneHeight).fill({ color: colors.grid, alpha: .27 });
         for (let i = 0; i <= 4; i++) line(g, [chartStart + i * chartWidth / 4, y], [chartStart + i * chartWidth / 4, y + laneHeight], colors.grid, 1, .6);
@@ -291,14 +322,21 @@ export async function mountReplay(host) {
         const budgetY = y + laneHeight * (1 - period / yMax);
         for (let xx = chartStart; xx < chartStart + chartWidth; xx += 10) line(g, [xx, budgetY], [Math.min(xx + 5, chartStart + chartWidth), budgetY], colors.muted, 1, .6);
         const a = Math.max(0, upper(node.time_ms, start) - 1), b = Math.min(node.time_ms.length, upper(node.time_ms, end) + 1);
-        let begun = false;
+        let begun = false, above = 0, maximum = 0;
         for (let i = a; i < b; i++) {
           if (node.time_ms[i] < start || node.time_ms[i] > end) continue;
-          const xx = x(node.time_ms[i]), yy = y + laneHeight * (1 - node.callback_ms[i] / yMax);
+          const value = node.callback_ms[i]; maximum = Math.max(maximum, value);
+          const xx = x(node.time_ms[i]), yy = y + laneHeight * (1 - value / yMax);
+          if (value > yMax) {
+            above++;
+            const mx = clamp(xx, chartStart + 3, chartStart + chartWidth - 3);
+            markers.poly([mx - 3, y + 6, mx, y + 1, mx + 3, y + 6]).fill(node.color);
+          }
           if (!begun) { trace.moveTo(xx, yy); begun = true; } else trace.lineTo(xx, yy);
         }
-        if (begun) trace.stroke({ color: colors[names[n]], width: 1.2, alpha: .8 });
-
+        if (begun) trace.stroke({ color: node.color, width: 1.2, alpha: .8 });
+        chart.rangeLabels[n].textContent = (above ? `${above} above ${axisNumber(yMax)} ms · ` : "")
+          + `max ${fmt(maximum, 2)} ms`;
       }
       chart.tickLabels.forEach((el, i) => el.textContent = `${fmt((start + (end - start) * i / 4) / 1000)} s`);
     }
@@ -375,7 +413,7 @@ export async function mountReplay(host) {
       if (node.voltage.length) trace.stroke({color: colors[side], width: 1.2, alpha: .8});
     });
 
-    function cursor(chart, start, end, top = 33, bottom = 235) {
+    function cursor(chart, start, end, top = 30, bottom = 304) {
       const g = chart.overlay; g.clear();
       const x = (t) => chartStart + (t - start) / (end - start) * chartWidth;
       line(g, [x(time), top], [x(time), bottom], colors.ink, 1.5, .85);
@@ -393,6 +431,7 @@ export async function mountReplay(host) {
     listen($("play"), "click", () => { playing = !playing; render(); });
     listen($("restart"), "click", () => seek(0));
     listen($("scrub"), "input", event => seek(Number(event.target.value)));
+    listen(timingRange, "change", () => { drawChart(overview, 0, endTime); render(); });
     function chartClick(event) {
       const rect = event.currentTarget.getBoundingClientRect(), xx = (event.clientX - rect.left) / rect.width * 1240;
       if (xx < chartStart || xx > chartStart + chartWidth) return;
@@ -401,7 +440,7 @@ export async function mountReplay(host) {
     }
     listen(overview.host, "click", chartClick);
     listen(dynamics.host, "click", chartClick);
-    for (const id of ["play", "restart", "scrub", "speed"]) $(id).disabled = false;
+    for (const id of ["play", "restart", "scrub", "speed", "timing-range"]) $(id).disabled = false;
     render();
     let previousFrame = performance.now();
     function frame(now) {

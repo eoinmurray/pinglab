@@ -1,9 +1,7 @@
 import RunFigure from '../../../site/src/components/RunFigure.astro';
 import Table from '../../../site/src/components/Table.astro';
-import { reportSnapshots, reportData } from '../../../site/src/lib/report-data';
+import { reportSnapshots } from '../../../site/src/lib/report-data';
 
-export const nativePresentation = await reportData('exp023', { experiment: 'exp023', allowUnavailable: true });
-export const nativeCircuits = nativePresentation?.circuit_files ?? [];
 
 export const nativeColumns = ["Loop off", "Loop on"];
 export const nativeEvidence = await reportSnapshots('exp023', { snapshots: {"Loop off": "scope/coba/simulation/start/snapshot.json", "Loop on": "scope/ping/simulation/start/snapshot.json"}, allowUnavailable: true });
@@ -68,7 +66,13 @@ export const nativeGroups = [
 
 ## Network diagrams
 
-{nativeCircuits.length ? nativeCircuits.map((file, index) => <RunFigure report="exp023" experiment="exp023" file={file} number={index + 1} alt="Circuit diagram from the compiled execution bundle.">Executed network architecture; parameters and seeds reuse this layout.</RunFigure>) : <p>The selected historical computation does not retain a native compiled circuit figure for this appendix. Its architecture is described in Methods; a new execution is required to supply the executed bundle's diagram.</p>}
+<RunFigure report="exp023" experiment="exp023" file="coba-network.svg" number="A1" id="fig-network-coba" alt="Executed loop-off circuit; both reciprocal E/I matrices are zero.">
+  Executed loop-off circuit from its retained compiled bundle. $X$ denotes input spike channels and $E$/$I$ the excitatory/inhibitory populations. Both reciprocal matrices are zero; the inactive I population is retained to match the executed definition. Every projection is labelled $W_{XY}$, with target $X$ first and source $Y$ second. Arrowheads show excitation; bars show inhibition. Recording aliases and score reductions are omitted.
+</RunFigure>
+
+<RunFigure report="exp023" experiment="exp023" file="ping-network.svg" number="A2" id="fig-network-ping" alt="Executed PING circuit with input drive and reciprocal E/I feedback.">
+  Executed loop-on circuit from its retained compiled bundle. Symbols follow Figure A1; the reciprocal E→I and I→E matrices are active. Parameter and input-rate sweeps reuse this architecture.
+</RunFigure>
 
 <span id="parameters" />
 

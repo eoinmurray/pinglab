@@ -8,9 +8,15 @@ const collections = [
   },
   {
     id: "gamma-gated-sparsity",
-    label: "Gamma-gated sparsity",
+    label: "Gamma-Gated Sparsity",
     description:
       "Experiments on gamma rhythms, sparse neural activity, and learning in spiking networks.",
+  },
+  {
+    id: "ctc-attention",
+    label: "CTC Attention",
+    description:
+      "Communication through coherence, gamma coupling, and selective attention.",
   },
   {
     id: "neuromodulation",
@@ -50,7 +56,7 @@ const collections = [
   },
   {
     id: "weekly-feed",
-    label: "Weekly feed",
+    label: "Weekly Feed",
     description: "Periodic summaries of research progress and recent work.",
   },
   {
@@ -72,6 +78,16 @@ const collections = [
 
 export function collectionMemberships(value: string | string[]): string[] {
   return typeof value === "string" ? [value] : value;
+}
+
+export function collectionCounts(entries: readonly { collections: readonly string[] }[]): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const entry of entries) {
+    for (const collection of entry.collections) {
+      counts.set(collection, (counts.get(collection) ?? 0) + 1);
+    }
+  }
+  return counts;
 }
 
 export function collectionLabel(id: string): string {

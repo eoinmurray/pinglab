@@ -1,5 +1,26 @@
 import Table from '../../../site/src/components/Table.astro';
 import { DT, DELAY, INTERVAL, CAPACITANCE, LEAK, REST, RESET, THRESHOLD } from './js/synapse.js';
+import singleNetwork from './images/single-network.svg?url';
+import dualNetwork from './images/dual-network.svg?url';
+
+## Network diagrams
+
+<figure class="l-body" id="fig-network-single">
+  <a class="figure-image" href={singleNetwork}><img src={singleNetwork} width="804" height="295" style="display: block; width: 100%; height: auto;" alt="Illustrative single presynaptic spike source P connected to LIF membrane N through weight W_NP." /></a>
+  <figcaption>Figure A1. Illustrative single-input architecture. $P$ is the
+  prescribed spike source and $N$ the receiving LIF membrane. $W_{N,P}$ denotes
+  the event weight $w_{\mathrm{event}}$, in nS, with target first and source
+  second. The reversal slider determines the current's polarity.</figcaption>
+</figure>
+
+<figure class="l-body" id="fig-network-dual">
+  <a class="figure-image" href={dualNetwork}><img src={dualNetwork} width="804" height="595" style="display: block; width: 100%; height: auto;" alt="Illustrative excitatory E and inhibitory I spike inputs connected to one LIF membrane N through separately labelled weights." /></a>
+  <figcaption>Figure A2. $E$ and $I$ are the prescribed input spike sources.
+  $W_{N,E}=w_E$ and $W_{N,I}=w_I$ label their conductance increments, in nS.
+  Arrowheads and bars indicate the default excitatory and inhibitory roles;
+  reversal sliders can change current polarity. Both schematics describe the
+  browser models and are not saved simulation evidence.</figcaption>
+</figure>
 
 ## Parameters
 

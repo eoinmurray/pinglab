@@ -1,9 +1,7 @@
 import RunFigure from '../../../site/src/components/RunFigure.astro';
 import Table from '../../../site/src/components/Table.astro';
-import { reportSnapshots, reportData } from '../../../site/src/lib/report-data';
+import { reportSnapshots } from '../../../site/src/lib/report-data';
 
-export const nativePresentation = await reportData('exp049', { experiment: 'exp049', allowUnavailable: true });
-export const nativeCircuits = nativePresentation?.circuit_files ?? [];
 
 export const nativeColumns = ["Fixed recurrence", "Trained recurrence"];
 export const nativeEvidence = await reportSnapshots('exp049', { computeInput: 'compute', snapshots: {"Fixed recurrence": "infer/frozen_ping__seed42/inference/start/snapshot.json", "Trained recurrence": "infer/trainable_ping_init__seed42/inference/start/snapshot.json"}, allowUnavailable: true });
@@ -68,7 +66,9 @@ export const nativeGroups = [
 
 ## Network diagrams
 
-{nativeCircuits.length ? nativeCircuits.map((file, index) => <RunFigure report="exp049" experiment="exp049" file={file} number={index + 1} alt="Circuit diagram from the compiled execution bundle.">Executed network architecture; parameters and seeds reuse this layout.</RunFigure>) : <p>The selected historical computation does not retain a native compiled circuit figure for this appendix. Its architecture is described in Methods; a new execution is required to supply the executed bundle's diagram.</p>}
+<RunFigure report="exp049" experiment="exp049" file="circuit-e71b4d547d1b.svg" number="A1" id="fig-network" alt="Native PING classifier diagram with every weighted projection annotated.">
+  Executed network architecture from the retained paired-raster bundle; all four initialization conditions share this topology. $X$ denotes input spike channels, $E$/$I$ the excitatory/inhibitory populations and $R$ the readout. Every projection is labelled $W_{XY}$, with target $X$ first and source $Y$ second. Arrowheads show excitation; bars show inhibition. Recording aliases and score reductions are omitted.
+</RunFigure>
 
 <span id="parameters" />
 

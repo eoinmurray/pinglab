@@ -1,8 +1,7 @@
+import schematic1 from './images/coupled-network.svg?url';
 import Table from '../../../site/src/components/Table.astro';
 import { reportSnapshots, reportData } from '../../../site/src/lib/report-data';
 
-export const nativePresentation = await reportData('exp054', { experiment: 'exp054', allowUnavailable: true });
-export const nativeCircuits = nativePresentation?.circuit_files ?? [];
 
 export const nativeColumns = ["Private input", "Shared input"];
 export const nativeEvidence = await reportSnapshots('exp054', { snapshots: {"Private input": "priv_wei0_wie0_r100_T1000--simulation/start/snapshot.json", "Shared input": "shared_wei0_wie0_r100_T1000--simulation/start/snapshot.json"}, allowUnavailable: true });
@@ -80,7 +79,19 @@ A central lobe above chance describes short-lag spike clustering. A later trough
 
 ## Network diagrams
 
-{nativeCircuits.length ? nativeCircuits.map((file, index) => <RunFigure report="exp054" experiment="exp054" file={file} number={index + 1} alt="Circuit diagram from the compiled execution bundle.">Executed network architecture; parameters and seeds reuse this layout.</RunFigure>) : <p>The selected historical computation does not retain a native compiled circuit figure for this appendix. Its architecture is described in Methods; a new execution is required to supply the executed bundle's diagram.</p>}
+<figure id="fig-schematic-coupled" class="model-schematic">
+  <a class="figure-image" href={schematic1} aria-label="Open model schematic at full size"><img src={schematic1} alt="Reciprocal E/I circuit; illustrative model schematic." width="668.125" height="594.8" /></a>
+  <figcaption>Figure A1. Reciprocal E/I circuit. Illustrative schematic of the documented model; it is not a recovered historical execution bundle or a measurement. $X$ denotes private or shared excitatory spike inputs, and $E$/$I$ excitatory/inhibitory neurons. The same pathways cover the coupling sweep and both input controls; input sharing and coupling strengths differ. $W_{XY}$ labels target $X$ first and source $Y$ second. Arrowheads show excitation; bars show inhibition. There is no E→E or I→I pathway.</figcaption>
+</figure>
+
+<style>{`
+  .model-schematic { grid-column: text; margin: 1.5rem 0; }
+  .model-schematic .figure-image { display: block; border-bottom: none; }
+  .model-schematic img { display: block; width: 100%; height: auto; }
+`}</style>
+
+
+
 
 <span id="parameters" />
 

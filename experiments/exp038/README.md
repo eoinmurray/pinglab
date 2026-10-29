@@ -13,3 +13,7 @@ Run each stage independently from the repository root with `uv run python`.
 5. `test.py`: `uv run pytest experiments/exp038/test.py`; optional pytest arguments.
 
 Optional environment: `PINGLAB_SMOKE=1` selects the bounded smoke profile; `SNNLAB_DEVICE` (or the legacy `PINGLAB_DEVICE`) selects the execution device.
+
+Regenerate the documented-model illustrations without running a scientific stage:
+`uv run python experiments/exp038/present.py --draw-schematics`.
+These authored SVGs do not reconstruct missing historical bundles.

@@ -3,7 +3,7 @@ id: exp148
 title: "AI to PING transition"
 author: "Eoin Murray"
 created_at: "2026-10-23T14:51:26Z"
-updated_at: "2026-10-25T08:46:16Z"
+updated_at: "2026-10-28T20:11:34Z"
 description: "Reducing external excitation of inhibitory neurons produces population oscillations in a conductance network derived from exp145 with fixed sparse input connectivity."
 collection: ["gamma-gated-sparsity", "experiments"]
 tags: ["data"]
@@ -58,9 +58,9 @@ using locally detected peaks. The full-window spectrum combines this evolution.
 
 ### Four-variable mean-field prediction
 
-{nativeMeanField
+<p>{nativeMeanField
   ? 'The selected calculation uses SNNLab’s native closure and matched-decay reduction, with its symbolic model saved in the compute run.'
-  : 'The displayed mean-field evidence precedes the SNNLab 0.27 migration. The current native implementation has not regenerated this trajectory; long onset trajectories can differ in phase with numerical tolerances.'}
+  : 'The displayed mean-field evidence precedes the SNNLab 0.27 migration. The current native implementation has not regenerated this trajectory; long onset trajectories can differ in phase with numerical tolerances.'}</p>
 
 <RunFigure report="exp148" experiment="exp148" file="mean-field.png" number={2} id="fig-mean-field" alt="Mean-field equilibrium rates, oscillatory stability crossing, and predicted rates during the same three-window input-weight protocol." allowUnavailable={true}>
   A: equilibrium E/I rates continued along decreasing Input→I weight multiplier.

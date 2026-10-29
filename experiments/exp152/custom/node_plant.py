@@ -4,8 +4,6 @@ Run as a module inside the local experiment container. This adapter applies
 received motor events once per window and buffers mechanical state.
 """
 
-import json
-import os
 import time
 
 import numpy as np
@@ -19,7 +17,7 @@ from std_msgs.msg import Int64MultiArray
 class PlantNode(RuntimeNode):
     def __init__(self):
         super().__init__("plant")
-        self.plant = Joint(json.loads(os.environ["EXP152_CONFIGURATION"])["joint"])
+        self.plant = Joint(self.configuration["joint"])
         self.publishers_ = [
             self.create_publisher(Int64MultiArray, "/sensory/" + s, 1000) for s in SIDES
         ]

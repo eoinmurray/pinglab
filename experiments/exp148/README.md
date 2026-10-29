@@ -1,6 +1,6 @@
 # exp148 — External-I-drive transition
 
-See the [pedagogical mean-field note](../../md/notes/mean-field-model.mdx) for the
+See the [pedagogical mean-field note](../../notes/mean-field-model.mdx) for the
 exp117/exp148 closures and the proposed matrix and shared/private-input extensions.
 
 Test whether reducing only direct external excitation of inhibitory neurons

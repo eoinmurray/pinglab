@@ -17,8 +17,11 @@ const run = (await latestPresentation(experiment)).id;
           <div class="canvas-scroll"><div data-id="dynamics" class="surface dynamics" role="img" aria-label="Recorded dynamics over the full run: joint angle in degrees, then flexor and extensor Elevate neuron voltages in millivolts; click to seek"></div></div>
         </div>
         <div class="timings-area">
-          <div class="timing-title">Callback Timings</div>
-          <div class="canvas-scroll"><div data-id="overview" class="surface timing" role="img" aria-label="Callback duration traces for all three nodes over the full run with a dashed callback-period reference; click to seek"></div></div>
+          <div class="timing-heading">
+            <div class="timing-title">Callback Timings</div>
+            <label>Range <select data-id="timing-range" aria-label="Callback timing range" disabled><option value="detail" selected>0–2 ms</option><option value="full">Full range</option></select></label>
+          </div>
+          <div class="canvas-scroll"><div data-id="overview" class="surface timing" role="img" aria-label="Callback duration traces for all three nodes, with a 0 to 2 ms detail view, marked outliers and an optional full-range view; click to seek"></div></div>
         </div>
       </div>
       <div class="transport">
@@ -29,18 +32,21 @@ const run = (await latestPresentation(experiment)).id;
       </div>
     </section>
   </joint-replay>
-  <figcaption><strong>Figure 1.</strong> Recorded joint control. Blue/pink denote flexor/extensor; green denotes joint timing. Activation bars (%) share a fixed scale: zero to the recording's peak rounded up to a whole percentage point. Arrows show inhibitory, sensory and motor paths. The downward reference is 0°; mass depiction and particle travel times are schematic. Dynamics shows angle (°) and neuron voltage (mV). Timings shows callback duration (ms), excluding input waiting, against elapsed wall time (s); dashed lines mark the 1 ms period. The cursor marks replay time; click either graph to seek.</figcaption>
+  <figcaption><strong>Figure 1.</strong> Recorded joint control. Blue/pink denote flexor/extensor; green denotes joint timing. Activation bars (%) share a fixed scale: zero to the recording's peak rounded up to a whole percentage point. Arrows show inhibitory, sensory and motor paths. The downward reference is 0°; mass depiction and particle travel times are schematic. Dynamics shows angle (°) and neuron voltage (mV). Timings shows callback duration (ms), excluding input waiting, against elapsed wall time (s); dashed lines mark the 1 ms period. The default 0–2 ms view marks larger callbacks with triangles and reports their count and maximum per node; select Full range to show every peak. All three nodes share the same vertical scale. The cursor marks replay time; click either graph to seek.</figcaption>
 </figure>
 <script>
-  import { mountReplay } from './js/replay.js';
+  import { deferMount } from '../../../site/src/lib/media-start';
   class JointReplay extends HTMLElement {
     dispose?: () => void;
-    async connectedCallback() {
-      const dispose = await mountReplay(this);
-      if (this.isConnected) this.dispose = dispose;
-      else dispose();
+    connectedCallback() {
+      this.dispose?.();
+      this.dispose = deferMount(this, async () => (await import('./js/replay.js')).mountReplay, error => {
+        console.error('Joint replay could not start', error);
+        const status = this.querySelector<HTMLElement>('[data-id="error"]');
+        if (status) { status.hidden = false; status.textContent = 'The recorded joint replay is unavailable.'; }
+      });
     }
-    disconnectedCallback() { this.dispose?.(); }
+    disconnectedCallback() { this.dispose?.(); this.dispose = undefined; }
   }
   if (!customElements.get('joint-replay')) customElements.define('joint-replay', JointReplay);
 </script>
@@ -65,7 +71,9 @@ const run = (await latestPresentation(experiment)).id;
   .circuit { aspect-ratio: 1240 / 450; }
   .timing-title { padding: 8px 16px 6px; font-size: 12px; font-weight: 600; line-height: 1.3; color: #263343; }
   .dynamics { aspect-ratio: 1240 / 340; }
-  .timing { aspect-ratio: 1240 / 240; }
+  .timing { aspect-ratio: 1240 / 340; }
+  .timing-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-right: 16px; }
+  .timing-heading select { padding: 3px 6px; font-size: 11px; }
   .canvas-scroll { overflow-x: auto; }
   .labels { position: absolute; inset: 0; pointer-events: none; }
   .scene-label { position: absolute; white-space: nowrap; line-height: 1.2; }

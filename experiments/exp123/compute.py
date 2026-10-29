@@ -14,7 +14,7 @@ from pathlib import Path
 
 sys.path[:0] = [
     str(Path(__file__).resolve().parents[2]),
-    str(Path(__file__).resolve().parents[2] / "tools"),
+    str(Path(__file__).resolve().parents[2] / "libraries"),
 ]
 import numpy as np
 import torch
@@ -161,7 +161,9 @@ def compute(identity, image_identity=None, *, run_id=None):
         cfg = recipe.shared_configuration_for_images(sorted(images))
         inputs["images"] = images_source
     else:
-        dataset = MNIST(str(recipe.REPO / "data"), train=False, download=False)
+        dataset = MNIST(
+            str(recipe.REPO / ".pingstore" / "datasets"), train=False, download=False
+        )
         cfg = recipe.shared_configuration(dataset.targets.numpy())
         images = {
             index: (

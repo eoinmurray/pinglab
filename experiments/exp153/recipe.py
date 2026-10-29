@@ -1,74 +1,100 @@
-"""Delayed rate-conductance counterpart to the saved exp133 paired circuit.
+"""Self-contained delayed rate-conductance circuits with reciprocal coupling.
 
-The source bundle and effective sampled matrices remain authoritative. This
-module defines one unfitted closure and a coupling-onset example;
-it neither selects runs nor executes integration.
+Own the neuronal reference graph, seeded weight-initialization settings, unfitted
+closure and matched grid. Loading, initialization and integration belong to the
+execution stage; no scientific inputs come from another experiment.
 """
 
+import copy
 import math
+from itertools import product
 
+from snnlab import lang
 from snnlab import meanfield as mf
 from snnlab.meanfield import closures
 
 SLUG = "exp153"
-SNAPSHOT = "coupling-120-execution/start"
+SCHEMA = "exp153.recipe/v7"
+SNAPSHOT = "network-initialization/start"
 
 
 def configuration(
-    source_configuration,
-    incoming_weights_us,
-    *,
-    difference_hz=10.0,
-    coupling_us=0.08,
-    rate_scale_b=0.8,
+    *, difference_hz=-4.0, coupling_us=0.09, incoming_weights_us=None, onset_only=False
 ):
-    """Record imported physics separately from unfitted closure choices."""
-    source = source_configuration
-    if source.get("schema") != "exp133.recipe/v1":
-        raise ValueError("requires an exp133 grid compute, not the onset diagnostic")
-    if source["base_coupling_us"] != 0.12 or source["duration_ms"] != 5000:
-        raise ValueError("requires the 0.12 µS reference and 5,000 ms grid protocol")
-    if not incoming_weights_us or any(
-        not math.isfinite(value) or value <= 0 for value in incoming_weights_us.values()
-    ):
-        raise ValueError("mean incoming effective weights must be finite and positive")
-    if (
-        not math.isfinite(difference_hz)
-        or abs(difference_hz) >= 2 * source["mean_input_hz"]
-    ):
-        raise ValueError("input difference must leave both drives positive")
+    """Resolve locally authored physics, numerical settings and initialized weights."""
+    differences = [float(value) for value in range(-10, 11, 2)]
+    couplings = [value / 100 for value in range(13)]
+    if not math.isfinite(difference_hz) or difference_hz not in differences:
+        raise ValueError("onset diagnostic must select an existing input difference")
     if (
         not math.isfinite(coupling_us)
-        or not 0 < coupling_us <= source["base_coupling_us"]
+        or coupling_us not in couplings
+        or coupling_us <= 0
     ):
-        raise ValueError("coupling must be positive and within the reference range")
-    if not math.isfinite(rate_scale_b) or rate_scale_b <= 0:
-        raise ValueError("B rate-relaxation scale must be finite and positive")
+        raise ValueError("onset diagnostic must select a positive grid coupling")
+    weights = dict(incoming_weights_us or {})
+    if any(not math.isfinite(value) or value <= 0 for value in weights.values()):
+        raise ValueError("mean incoming effective weights must be finite and positive")
+    network = dict(
+        dt_ms=0.1,
+        network_seed=85,
+        input_channels=1024,
+        mean_input_hz=25.0,
+        input_rates_hz={
+            "drive_A": [25.0 + value / 2 for value in differences],
+            "drive_B": [25.0 - value / 2 for value in differences],
+        },
+        base_coupling_us=0.12,
+        onset_ms=500.0,
+        settling_ms=300.0,
+        resting_mv=-65.0,
+        threshold_mv=-50.0,
+        reset_mv=-65.0,
+        populations=dict(
+            E=dict(size=80, capacitance_nf=1.0, leak_us=0.05, refractory_ms=3.0),
+            I=dict(size=20, capacitance_nf=0.5, leak_us=0.1, refractory_ms=1.5),
+        ),
+        sensory=dict(mean_us=0.2, std_us=0.03, gain=9.2, tau_ms=2.0),
+        local=dict(
+            E_to_I=dict(mean_us=0.5, std_us=0.05, tau_ms=1.0),
+            I_to_E=dict(mean_us=1.0, std_us=0.1, tau_ms=9.0),
+            E_to_E=dict(total_us=0.5, tau_ms=2.0),
+            I_to_I=dict(total_us=1.0, tau_ms=6.0),
+        ),
+        cross=dict(tau_ms=2.0, delay_ms=2.0, zero_fraction=0.9),
+        input_gain_application="applied once to initialized sensory sums during mean-field reduction",
+    )
     return dict(
-        schema="exp153.recipe/v2",
-        protocol="phase-trace",
-        imported_protocol=source,
-        duration_ms=2500.0,
+        schema=SCHEMA,
+        protocol="onset-only" if onset_only else "matched-grid",
+        network=network,
+        duration_ms=1500.0 if onset_only else 5000.0,
+        sweep=dict(differences_hz=differences, couplings_us=couplings),
         example=dict(
             difference_hz=float(difference_hz),
             coupling_us=float(coupling_us),
-            rate_scale_b=float(rate_scale_b),
-            rationale="B rate relaxation scaled to increase intrinsic frequency mismatch; one uncoupled control and one coupling-onset trajectory",
+            display_window_ms=[0.0, 1500.0],
+            phase_window_ms=[800.0, 1500.0],
+            frequency_windows_ms=dict(first=[0.0, 500.0], last=[1000.0, 1500.0]),
+            rationale="Selected condition from this experiment's own mean-field grid",
         ),
-        incoming_weights_us=dict(incoming_weights_us),
-        imported_snapshot=SNAPSHOT + "/snapshot.json",
-        weight_interpretation="sum(effective W)/N_target, including zero edges; native scales already applied, including input gain; no second scaling",
+        incoming_weights_us=weights,
+        reduction_projection_scales={
+            f"PING_{circuit}_input_to_E": network["sensory"]["gain"]
+            for circuit in ("A", "B")
+        },
+        native_snapshot=SNAPSHOT + "/snapshot.json",
+        weight_interpretation="sum(native initialized W)/N_target, including zero edges and excluded autapses; sensory execution gain applied once during reduction",
         closure=dict(
             name="snnlab.meanfield.closures.RateConductance",
             sigma_mv=4.0,
             tau_rate_ms={
                 f"PING_{circuit}_{population}": (20.0 if population == "E" else 5.0)
-                * (rate_scale_b if circuit == "B" else 1.0)
                 for circuit in ("A", "B")
                 for population in ("E", "I")
             },
             quadrature_nodes=48,
-            provenance="Unfitted rate-conductance closure; B relaxation deliberately scaled to exaggerate detuning, not inferred from exp133 spikes",
+            provenance="Unfitted rate-conductance closure; equal E/I relaxation times across circuits, independently specified for this closure",
             external_filters="dynamic",
             delays="explicit",
             modulation="translate",
@@ -82,50 +108,177 @@ def configuration(
         solver=dict(method="DOP853", rtol=1e-8, atol=1e-10, max_step_ms=0.1),
         sample_interval_ms=0.5,
         gate=dict(
-            windows_ms=[[800.0, 1600.0], [1600.0, 2500.0]],
+            windows_ms=[[800.0, 2900.0], [2900.0, 5000.0]],
             min_amplitude_hz=0.5,
             min_relative_amplitude=0.01,
             min_late_to_early_amplitude=0.5,
-            min_peaks=15,
+            min_peaks=20,
             max_interval_cv=0.2,
             frequency_band_hz=None,
-            interpretation="Check sustained rhythms at the actual example inputs in both trajectories",
+            interpretation="Sustained rhythms at every grid input; no imposed spiking gamma band",
         ),
         phase=dict(
-            start_ms=source["onset_ms"] + source["settling_ms"],
-            min_peak_distance_ms=source["volley_distance_ms"],
-            prominence_fraction=source["volley_prominence_fraction"],
+            start_ms=800.0,
+            min_peak_distance_ms=15.0,
+            prominence_fraction=0.1,
             min_amplitude_hz=0.5,
-            min_peaks=15,
-            max_interval_cv=source["max_iei_cv"],
+            min_peaks=20,
+            max_interval_cv=0.2,
             frequency_band_hz=None,
-            **source["classification"],
+            max_abs_drift_hz=0.25,
+            min_concentration=0.95,
+            max_phase_span_cycles=1.0,
             smoothing="none; deterministic population rates, not binned spikes",
         ),
     )
 
 
-def author_network(bundle):
-    """Retain the authenticated source graph, without sampling new matrices."""
-    populations = {p["id"] for p in bundle.graph["populations"]}
-    expected = {f"PING_{c}_{p}" for c in ("A", "B") for p in ("E", "I")}
-    if populations != expected or len(bundle.graph["projections"]) != 10:
-        raise ValueError("expected exp133's four populations and ten projections")
-    for p in bundle.graph["projections"]:
-        cross = "_K_E" in p["id"]
-        expected_delay = 2 if cross else (0 if "input_to_E" in p["id"] else 0.1)
-        if (p.get("delay") or {}).get("value", 0) != expected_delay:
-            raise ValueError("source graph delays differ from exp133")
-        if cross and p.get("modulation") != dict(
-            kind="step_gain", at_ms=500.0, before=0.0, after=1.0
-        ):
-            raise ValueError("expected reciprocal coupling onset at 500 ms")
-    return bundle
+def analysis_configuration(compute_configuration):
+    """Resolve onset analysis choices alongside the immutable compute settings."""
+    cfg = copy.deepcopy(compute_configuration)
+    start, end = cfg["example"]["phase_window_ms"]
+    cfg["onset_analysis"] = dict(
+        min_peaks=5,
+        gate_windows_ms=[[start, (start + end) / 2], [(start + end) / 2, end]],
+    )
+    return cfg
+
+
+def conditions(cfg):
+    """Stable drive-major grid order, including one zero-coupling calibration per drive."""
+    if cfg["protocol"] == "onset-only":
+        return [
+            dict(
+                label="onset",
+                difference_hz=cfg["example"]["difference_hz"],
+                coupling_us=cfg["example"]["coupling_us"],
+            )
+        ]
+    return [
+        dict(
+            label=f"condition-{index:03d}",
+            difference_hz=difference,
+            coupling_us=coupling,
+        )
+        for index, (difference, coupling) in enumerate(
+            product(cfg["sweep"]["differences_hz"], cfg["sweep"]["couplings_us"])
+        )
+    ]
+
+
+def add_circuit(net, circuit, drive, settings):
+    """Author the complete local E/I reference and its private sensory projection."""
+    cells = {}
+    with net.group(f"PING_{circuit}"):
+        for population, physical in settings["populations"].items():
+            cells[population] = net.population(
+                f"PING_{circuit}_{population}",
+                size=physical["size"],
+                neuron=lang.COBA_LIF(
+                    tau_mem=physical["capacitance_nf"] / physical["leak_us"] * lang.ms,
+                    capacitance_nf=physical["capacitance_nf"],
+                    leak_us=physical["leak_us"],
+                    resting_mv=settings["resting_mv"],
+                    threshold_mv=settings["threshold_mv"],
+                    reset_mv=settings["reset_mv"],
+                    initial_voltage_mv=settings["resting_mv"],
+                    refractory=physical["refractory_ms"] * lang.ms,
+                    voltage_grad_dampen=80.0,
+                ),
+            )
+        sensory = settings["sensory"]
+        net.connect(
+            drive,
+            cells["E"].excitatory,
+            name=f"PING_{circuit}_input_to_E",
+            synapse=lang.AMPA(tau=sensory["tau_ms"] * lang.ms),
+            weight=lang.LowerClampedNormal(
+                sensory["mean_us"],
+                sensory["std_us"],
+            ),
+            constraint=lang.NonNegative(),
+        )
+        for pathway, physical in settings["local"].items():
+            source, target = pathway.split("_to_")
+            inhibitory = source == "I"
+            fixed = "total_us" in physical
+            weight = (
+                lang.Constant(
+                    physical["total_us"] / settings["populations"][source]["size"]
+                )
+                if fixed
+                else lang.LowerClampedNormal(physical["mean_us"], physical["std_us"])
+            )
+            net.connect(
+                cells[source].spikes,
+                getattr(cells[target], "inhibitory" if inhibitory else "excitatory"),
+                name=f"PING_{circuit}_{pathway}",
+                synapse=(lang.GABA if inhibitory else lang.AMPA)(
+                    tau=physical["tau_ms"] * lang.ms
+                ),
+                weight=weight,
+                initialization_scaling="direct" if fixed else "fan_in_normalized",
+                constraint=lang.NonNegative(),
+                connection="recurrent",
+                delay=settings["dt_ms"] * lang.ms,
+            )
+    return cells
+
+
+def author_network(cfg=None):
+    """Compile this experiment's own fourteen-pathway reference circuit."""
+    settings = (configuration() if cfg is None else cfg)["network"]
+    net = lang.Network("exp153_reciprocal_ping", dt=settings["dt_ms"] * lang.ms)
+    drives = {
+        c: net.input(
+            f"drive_{c}",
+            shape=("time", "batch", settings["input_channels"]),
+            signal_type="spikes",
+            unit="spike",
+        )
+        for c in ("A", "B")
+    }
+    circuits = {c: add_circuit(net, c, drives[c], settings) for c in ("A", "B")}
+    cross = settings["cross"]
+    for source, target in (("A", "B"), ("B", "A")):
+        for population in ("E", "I"):
+            net.connect(
+                circuits[source]["E"].spikes,
+                circuits[target][population].excitatory,
+                name=f"PING_{source}_E_to_PING_{target}_{population}_K_E{population}",
+                synapse=lang.AMPA(tau=cross["tau_ms"] * lang.ms),
+                weight=lang.LowerClampedNormal(
+                    settings["base_coupling_us"],
+                    0.0,
+                    initial_zero_fraction=cross["zero_fraction"],
+                    zeroing="exact_k",
+                ),
+                constraint=lang.NonNegative(),
+                connection="feedback",
+                delay=cross["delay_ms"] * lang.ms,
+                modulation=lang.StepGain(
+                    at=settings["onset_ms"] * lang.ms, before=0.0, after=1.0
+                ),
+            )
+    for circuit in ("A", "B"):
+        for population in ("E", "I"):
+            net.expose(
+                circuits[circuit][population].spikes, name=f"{circuit}_{population}"
+            )
+    return lang.compile(net, target=None)
+
+
+def input_rates(source, difference_hz):
+    """Resolve this experiment's two private stationary sensory rates."""
+    return {
+        "drive_A": source["mean_input_hz"] + difference_hz / 2,
+        "drive_B": source["mean_input_hz"] - difference_hz / 2,
+    }
 
 
 def build_model(bundle, cfg, *, difference_hz=0.0, coupling_us=0.0):
-    """Scale only cross-circuit reference sums; keep imported input gain once."""
-    source = cfg["imported_protocol"]
+    """Scale cross-circuit sums from the locally initialized reference exactly once."""
+    source = cfg["network"]
     if (
         not math.isfinite(difference_hz)
         or abs(difference_hz) >= 2 * source["mean_input_hz"]
@@ -136,12 +289,12 @@ def build_model(bundle, cfg, *, difference_hz=0.0, coupling_us=0.0):
     weights = {
         name: value * coupling_us / source["base_coupling_us"]
         if "_K_E" in name
-        else value
+        else value * cfg.get("reduction_projection_scales", {}).get(name, 1.0)
         for name, value in cfg["incoming_weights_us"].items()
     }
     closure = cfg["closure"]
     return mf.reduce(
-        author_network(bundle),
+        bundle,
         closure=closures.RateConductance(
             gain=closures.NoisyLIF(
                 sigma=closure["sigma_mv"],
@@ -153,8 +306,8 @@ def build_model(bundle, cfg, *, difference_hz=0.0, coupling_us=0.0):
             weights, provenance=cfg["weight_interpretation"]
         ),
         inputs={
-            "drive_A": mf.StationaryRate(source["mean_input_hz"] + difference_hz / 2),
-            "drive_B": mf.StationaryRate(source["mean_input_hz"] - difference_hz / 2),
+            name: mf.StationaryRate(rate)
+            for name, rate in input_rates(source, difference_hz).items()
         },
         external_filters=closure["external_filters"],
         delays=closure["delays"],

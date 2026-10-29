@@ -1,13 +1,15 @@
 ---
-import { figureUrl, latestPresentation } from '../lib/pingstore';
+import { figureImage, figureUrl, latestPresentation } from '../lib/pingstore';
 interface Props { experiment: string; file: string; id?: string; alt?: string; }
 const { experiment, file, id, alt = '' } = Astro.props;
-const url = await figureUrl((await latestPresentation(experiment)).id, file);
 const video = /\.(mp4|webm|ogv)$/.test(file);
+const run = await latestPresentation(experiment);
+const image = video ? undefined : await figureImage(run.id, file);
+const url = image?.src ?? await figureUrl(run.id, file);
 ---
 <figure class="l-body" id={id}>
   {video ? <video src={url} controls preload="none" aria-label={alt} /> :
-    <a class="figure-image" href={url} aria-label={`Open figure: ${alt}`}><img src={url} alt={alt} loading="lazy" decoding="async" /></a>}
+    <a class="figure-image" href={url} aria-label={`Open figure: ${alt}`}><img {...image} alt={alt} loading="lazy" decoding="async" /></a>}
   <figcaption><slot /></figcaption>
 </figure>
 <style>

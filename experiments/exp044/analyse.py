@@ -10,7 +10,7 @@ from pathlib import Path
 from statistics import fmean, stdev
 
 REPO = Path(__file__).resolve().parents[2]
-sys.path[:0] = [str(REPO), str(REPO / "tools")]
+sys.path[:0] = [str(REPO), str(REPO / "libraries")]
 
 import numpy as np
 from experiments.exp044 import recipe

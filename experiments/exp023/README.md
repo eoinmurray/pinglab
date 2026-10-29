@@ -12,3 +12,6 @@ Run each stage independently from the repository root with `uv run python`.
 4. `test.py`: `uv run pytest experiments/exp023/test.py`; optional pytest arguments.
 
 Optional environment: `PINGLAB_SMOKE=1` selects the bounded smoke profile.
+
+Regenerate saved-bundle diagrams while preserving an explicit presentation:
+`uv run python experiments/exp023/present.py --redraw-from PRESENT_ID [--run-id ID]`.

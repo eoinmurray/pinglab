@@ -24,27 +24,18 @@ const weights = [0.8, 3.2, 8];
 </figure>
 
 <script>
-  import { mountNeuron } from './js/neuron.js';
+  import { deferMount } from '../../../site/src/lib/media-start';
   class PixiLifNeuron extends HTMLElement {
     dispose?: () => void;
-    observer?: IntersectionObserver;
     connectedCallback() {
-      this.observer = new IntersectionObserver(async entries => {
-        if (!entries.some(entry => entry.isIntersecting)) return;
-        this.observer?.disconnect();
-        try {
-          const dispose = await mountNeuron(this);
-          if (this.isConnected) this.dispose = dispose;
-          else dispose();
-        } catch (error) {
-          console.error('Neuron animation could not start', error);
-          const status = this.querySelector('.status');
-          if (status) status.textContent = 'The animation could not start. The neuron model is explained in the accompanying text.';
-        }
-      }, { rootMargin: '200px' });
-      this.observer.observe(this);
+      this.dispose?.();
+      this.dispose = deferMount(this, async () => (await import('./js/neuron.js')).mountNeuron, error => {
+        console.error('Neuron animation could not start', error);
+        const status = this.querySelector('.status');
+        if (status) status.textContent = 'The animation could not start. The neuron model is explained in the accompanying text.';
+      });
     }
-    disconnectedCallback() { this.observer?.disconnect(); this.dispose?.(); }
+    disconnectedCallback() { this.dispose?.(); this.dispose = undefined; }
   }
   if (!customElements.get('pixi-lif-neuron')) customElements.define('pixi-lif-neuron', PixiLifNeuron);
 </script>

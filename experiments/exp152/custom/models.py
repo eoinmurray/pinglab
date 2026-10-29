@@ -5,9 +5,7 @@ extension. Input buffering and the spike-driven mechanical integrator retain
 the recorded update order.
 """
 
-import json
 import math
-import os
 import time
 
 import numpy as np
@@ -54,33 +52,18 @@ class Controller:
     its peer and the plant; tonic excitation is local.
     """
 
-    def __init__(
-        self,
-        side,
-        dt_ms=1.0,
-        neurons=1,
-        *,
-        warm_steps=1,
-        compile_mode=None,
-        evidence_dir=None,
-        configuration_overrides=None,
-    ):
+    def __init__(self, side, cfg, *, evidence_dir=None):
         import torch
         from snnlab.sim import Performance, prepare_stream
 
-        if side not in SIDES or dt_ms != 1.0 or neurons != 1 or warm_steps != 1:
-            raise ValueError("Invalid side, timestep or population size")
-        torch.set_num_threads(1)
-        self.side, self.dt_ms, self.neurons = side, dt_ms, neurons
+        if side not in SIDES:
+            raise ValueError("Choose flexor or extensor")
+        self.side = side
+        self.dt_ms, self.neurons = cfg["dt_ms"], cfg["neurons"]
         self.torch, self.steps = torch, 0
-        cfg = configuration(
-            dt_ms=dt_ms,
-            neurons=neurons,
-            timer_ms=warm_steps * dt_ms,
-            compile_mode=compile_mode,
-            **(configuration_overrides or {}),
-        )
         self.cfg = cfg
+        warm_steps = cfg["substeps"]
+        dt_ms, compile_mode = cfg["dt_ms"], cfg["compile_mode"]
         bundle = author_network(cfg)
         # Preparation privately owns the model/state and caches fixed graph metadata.
         # Keep float64 CPU dynamics; the tensor Elevate callback integrates each step.
@@ -145,7 +128,7 @@ class Controller:
                 self.stream,
                 bundle,
                 evidence_dir,
-                json.loads(os.environ["EXP152_CONFIGURATION"]),
+                cfg,
             )
 
     def _execute(self, length):
@@ -200,18 +183,17 @@ class Joint:
             -self.tip_mass_kg * self.gravity_m_s2 * self.arm_length_m * math.sin(angle)
         )
 
-    def encode(self, now, feedback=True):
+    def encode(self, now):
         spikes = np.zeros(2, dtype=int)
-        if feedback:
-            for i, active in enumerate(
-                (
-                    self.angle < self.reference_angle - self.sensory_limit,
-                    self.angle > self.reference_angle + self.sensory_limit,
-                )
-            ):
-                if active and now + 1e-12 >= self.next_sensory[i]:
-                    spikes[i] = 1
-                    self.next_sensory[i] = now + self.sensory_interval
+        for i, active in enumerate(
+            (
+                self.angle < self.reference_angle - self.sensory_limit,
+                self.angle > self.reference_angle + self.sensory_limit,
+            )
+        ):
+            if active and now + 1e-12 >= self.next_sensory[i]:
+                spikes[i] = 1
+                self.next_sensory[i] = now + self.sensory_interval
         return spikes
 
     def advance(self, motor_spikes, dt):

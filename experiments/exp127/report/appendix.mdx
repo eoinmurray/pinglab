@@ -4,6 +4,10 @@ import ParameterTable from './ParameterTable.astro';
 ## Network diagrams
 
 <RunFigure report="exp127" experiment="exp127" file="circuit.svg" number="A1" id="fig-classifier-network" alt="Three spike-input channels connect through six nonnegative synapses to two spiking output neurons.">
+  $X$ denotes the three input channels and $R$ the two spiking output neurons.
+  $W_{R,X}$ is the two-by-three matrix of all six synaptic weights, with target
+  first and source second. The diagram comes from the saved classifier bundle;
+  recording aliases and spike-count reduction are omitted.
   Circuit view rendered from the original compute's saved classifier bundle.
   The teaching loop and validation-selected classifier share this architecture;
   their learned weights differ. The presentation reuses the original recordings.

@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Any
 
 REPO = Path(__file__).resolve().parents[2]
-sys.path[:0] = [str(REPO), str(REPO / "experiments"), str(REPO / "tools")]
+sys.path[:0] = [str(REPO), str(REPO / "experiments"), str(REPO / "libraries")]
 
 import numpy as np
 from experiments.exp081 import recipe

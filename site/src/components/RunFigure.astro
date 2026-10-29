@@ -1,5 +1,5 @@
 ---
-import { figureUrl, latestPresentation, optionalPresentation } from '../lib/pingstore';
+import { figureImage, latestPresentation, optionalPresentation } from '../lib/pingstore';
 
 interface Panel {
   file: string;
@@ -23,9 +23,9 @@ if (panels ? file || panels.length < 2 || panels.length > 26 : !file || !alt) {
   throw new Error('RunFigure requires one file and alt text, or 2–26 lettered panels.');
 }
 const run = await (allowUnavailable ? optionalPresentation(experiment) : latestPresentation(experiment));
-const url = run && file ? await figureUrl(run.id, file) : undefined;
+const image = run && file ? await figureImage(run.id, file) : undefined;
 const resolvedPanels = run && panels ? await Promise.all(panels.map(async panel => ({
-  ...panel, url: await figureUrl(run.id, panel.file),
+  ...panel, image: await figureImage(run.id, panel.file),
 }))) : undefined;
 ---
 
@@ -33,14 +33,23 @@ const resolvedPanels = run && panels ? await Promise.all(panels.map(async panel 
   {run ? panels ? <div class="figure-panels" style={`--panel-columns: ${columns}`}>
     {resolvedPanels!.map((panel, index) => {
       const label = String.fromCharCode(65 + index);
-      return <a class="figure-image figure-panel" href={panel.url} aria-label={`Open Figure ${number}${label} at full size`}>
+      return <a class="figure-image figure-panel" href={panel.image.src} aria-label={`Open Figure ${number}${label} at full size`}>
         <span class="panel-label" aria-hidden="true">{label}</span>
-        <img src={panel.url} alt={`${label}. ${panel.alt}`} loading="lazy" decoding="async" />
+        <img {...panel.image} alt={`${label}. ${panel.alt}`} loading="lazy" decoding="async" />
       </a>;
     })}
-  </div> : <a class="figure-image" href={url} aria-label={`Open Figure ${number} at full size`}>
-    <img src={url} alt={alt} loading="lazy" decoding="async" />
-  </a> : <p class="figure-unavailable">Figure unavailable: no presentation data locally or in R2.</p>}
+  </div> : <a class="figure-image" href={image!.src} aria-label={`Open Figure ${number} at full size`}>
+    <img {...image} alt={alt} loading="lazy" decoding="async" />
+  </a> : <div class="figure-unavailable">
+    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+      <rect x="3" y="3" width="18" height="18" rx="2" />
+      <circle cx="8" cy="8" r="1.5" />
+      <path d="m3 17 5-5 4 4 4-6 5 7" />
+      <path d="m3 3 18 18" />
+    </svg>
+    <strong>Figure unavailable</strong>
+    <span>No presentation data available.</span>
+  </div>}
   <figcaption><strong>Figure {number}.</strong> <slot /></figcaption>
 </figure>
 
@@ -50,6 +59,27 @@ const resolvedPanels = run && panels ? await Promise.all(panels.map(async panel 
   .figure-panels { display: grid; grid-template-columns: repeat(var(--panel-columns), minmax(0, 1fr)); gap: 12px; }
   .figure-panel { min-width: 0; }
   .panel-label { display: block; color: rgb(var(--ink)); font-weight: 700; font-size: 14px; line-height: 1.2; margin-bottom: 4px; }
+  .figure-unavailable {
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: .5rem;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    min-height: 160px;
+    padding: 1.5rem;
+    border: 1px dashed rgb(var(--ink) / .2);
+    border-radius: 4px;
+    background: rgb(var(--ink) / .035);
+    color: rgb(var(--ink) / .6);
+    text-align: center;
+    font-size: .8rem;
+    line-height: 1.5;
+  }
+  .figure-unavailable svg { opacity: .7; flex-shrink: 0; }
+  .figure-unavailable strong { font-size: .9rem; font-weight: 600; color: rgb(var(--ink) / .75); }
   @media (max-width: 600px) {
     .figure-panels { grid-template-columns: 1fr; }
   }

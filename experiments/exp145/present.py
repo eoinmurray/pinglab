@@ -6,10 +6,12 @@ Four diagnostic panels summarize the same measurement window.
 """
 
 import sys
+from dataclasses import replace
+from importlib.metadata import version
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
-sys.path[:0] = [str(REPO), str(REPO / "tools")]
+sys.path[:0] = [str(REPO), str(REPO / "libraries")]
 
 import argparse
 import json
@@ -23,32 +25,120 @@ import numpy as np
 from experiments import theme
 from experiments.exp145.custom.recording import read_recording
 from pingstore.library import source_run, stage_run
+from snnlab import lang, viz
 
 
-def style_circuit(source, target):
-    """Restyle the executed bundle's SVG without changing its circuit or layout."""
-    svg = source.read_text().replace(
-        'font-family="Helvetica Neue"',
-        'font-family="JetBrains Mono, IBM Plex Mono, Menlo, Consolas, DejaVu Sans Mono, monospace"',
+def circuit_diagram(bundle):
+    """Lay out native weighted projections; omit recording and scoring aliases."""
+    import matplotlib
+
+    native = lang.diagram(bundle, view="circuit")
+    known = {node.id for node in native.nodes if node.kind in ("input", "population")}
+    symbols = dict(X="X", E="E", I="I")
+    positions = dict(X=(-400, 150), E=(0, 0), I=(0, 300))
+    routes = dict(
+        X_to_E=viz.EdgeLayout(source_port="upper_right", target_port="left"),
+        X_to_I=viz.EdgeLayout(source_port="lower_right", target_port="left"),
+        E_to_I=viz.EdgeLayout(source_port="bottom_left", target_port="top_left"),
+        I_to_E=viz.EdgeLayout(source_port="top_right", target_port="bottom_right"),
+        E_to_E=viz.EdgeLayout(
+            source_port="top_right", target_port="right", waypoints=((180, -130),)
+        ),
+        I_to_I=viz.EdgeLayout(
+            source_port="bottom_right", target_port="right", waypoints=((180, 430),)
+        ),
     )
-    # Native boxes were sized for a narrower font; keep monospace labels inside them.
-    for original, size in (
-        ("11.00", theme.SIZE_LABEL),
-        ("14.00", theme.SIZE_PANEL),
-        ("18.00", theme.SIZE_TITLE),
-    ):
-        svg = svg.replace(f'font-size="{original}"', f'font-size="{size}"')
-    for original, color in {
-        "#24292f": theme.INK_BLACK,
-        "#aa5b63": theme.DEEP_RED,
-        "#536d82": theme.ELECTRIC_CYAN,
-        "#59636e": theme.MUTED,
-        "#756b5b": theme.GREY_MID,
-        "#f3f6f8": theme.PAPER,
-        "#f5f4f1": theme.PAPER,
-    }.items():
-        svg = svg.replace(original, color)
-    target.write_text(svg)
+    title = "Shared input and recurrent E/I pathways"
+    diagram = replace(
+        native,
+        title=title,
+        groups=(),
+        nodes=tuple(
+            replace(node, detail=node.detail.splitlines()[0])
+            for node in native.nodes
+            if node.id in known
+        ),
+        edges=tuple(edge for edge in native.edges if edge.id is not None),
+    )
+    ports = dict(
+        upper_left=(0, 0.3),
+        lower_left=(0, 0.7),
+        upper_right=(1, 0.3),
+        lower_right=(1, 0.7),
+        top_left=(0.25, 0),
+        top_right=(0.75, 0),
+        bottom_left=(0.25, 1),
+        bottom_right=(0.75, 1),
+    )
+    layout = viz.DiagramLayout(
+        nodes={
+            identifier: viz.NodeLayout(
+                position=position,
+                label=f"${symbols[identifier]}$",
+                min_size=(240, 160),
+                ports=ports,
+            )
+            for identifier, position in positions.items()
+            if identifier in known
+        },
+        edges={
+            edge.id: replace(
+                routes.get(edge.id, viz.EdgeLayout()),
+                label=viz.DiagramLabel(
+                    rf"$W_{{{symbols[edge.target]},{symbols[edge.source]}}}$"
+                ),
+            )
+            for edge in diagram.edges
+        },
+        defaults=viz.LayoutDefaults(
+            node=viz.NodeLayout(content_align="center", padding=16), gap=30
+        ),
+    )
+    with matplotlib.rc_context({"savefig.bbox": None}):
+        return viz.resolve_diagram(
+            diagram, layout=layout, theme=viz.DiagramTheme(secondary_size=13)
+        )
+
+
+def save_circuit(bundle, path):
+    """Export the resolved native architecture without inheriting plot cropping."""
+    import matplotlib
+
+    circuit = circuit_diagram(bundle)
+    with matplotlib.rc_context({"savefig.bbox": None}):
+        for suffix in ("svg", "png"):
+            viz.render_diagram(circuit, Path(path).with_suffix("." + suffix))
+
+
+def redraw_networks(presentation, *, run_id=None):
+    """Preserve an explicit presentation's evidence and replace only its diagrams."""
+    previous = source_run(
+        REPO / ".pingstore", presentation, experiment="exp145", stage="present"
+    )
+    sources = {
+        role: source_run(REPO / ".pingstore", pin["run_id"], reference=pin)
+        for role, pin in previous.record["inputs"].items()
+    }
+    specs = [(sources["compute"], "simulation/network.bundle", "circuit")]
+    with stage_run(
+        REPO,
+        previous.record["experiment"],
+        "present",
+        inputs={**sources, "figure_source": previous},
+        configuration=previous.record["execution"]["configuration"],
+        run_id=run_id,
+    ) as run:
+        shutil.copytree(previous.export, run.export, dirs_exist_ok=True)
+        for source, prefix, stem in specs:
+            bundle_path = (
+                source.restore_bundle(prefix, run.scratch / (stem + ".bundle"))
+                if source.record.get("scientific_artifacts", {}).get("native_paths")
+                else source.unit(*prefix.split("/"))
+            )
+            save_circuit(lang.load_bundle(bundle_path), run.export / (stem + ".svg"))
+        run.record["execution"]["snnlab_version"] = version("snnlab")
+        previous.check_unchanged()
+    return run.run_id
 
 
 def present(args):
@@ -79,7 +169,14 @@ def present(args):
         ) as run,
     ):
         recording = read_recording(compute.unit("recording"), run.scratch / "reader")
-        style_circuit(compute.file("circuit.svg"), run.export / "circuit.svg")
+        save_circuit(
+            lang.load_bundle(
+                compute.restore_bundle(
+                    "simulation/network.bundle", run.scratch / "network.bundle"
+                )
+            ),
+            run.export / "circuit.svg",
+        )
         fig, axes = plt.subplots(2, 1, figsize=(11, 7), layout="constrained")
         for population, color, offset in (
             ("E", theme.INK_BLACK, 0),
@@ -299,4 +396,12 @@ def diagnostic_figure(data, summary, cfg):
 
 
 if __name__ == "__main__":
-    main()
+    if any(arg.startswith("--redraw-from") for arg in sys.argv[1:]):
+        parser = argparse.ArgumentParser(
+            description="Refresh only the circuit diagrams of an explicit presentation."
+        )
+        parser.add_argument("--redraw-from", dest="presentation", required=True)
+        parser.add_argument("--run-id")
+        print(redraw_networks(**vars(parser.parse_args())), flush=True)
+    else:
+        main()

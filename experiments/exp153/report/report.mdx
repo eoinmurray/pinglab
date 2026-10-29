@@ -1,14 +1,14 @@
 ---
 id: exp153
-title: "Mean-field Frequency Coupling"
+title: "Mean-field Coupling"
 author: "Eoin Murray"
 created_at: "2026-10-25T15:59:00Z"
-updated_at: "2026-10-25T18:51:50Z"
-description: "Unwrapped relative phase before and after reciprocal coupling in delayed mean-field circuits."
-collection: ["paper-inspired", "experiments"]
-tags: ["data", "v0.28.1"]
-inputs: ["exp153", "exp133"]
-thumbnail: phase-trace.png
+updated_at: "2026-10-29T16:03:35Z"
+description: "A matched phase-locking map and E/I coupling-onset display for delayed mean-field circuits with a self-contained neuronal reference."
+collection: ["experiments", "ctc-attention"]
+tags: ["data", "v0.29.0"]
+inputs: ["exp153"]
+thumbnail: arnold-tongue.png
 ---
 
 import RunFigure from '../../../site/src/components/RunFigure.astro';
@@ -17,41 +17,68 @@ import { reportData } from '../../../site/src/lib/report-data';
 
 export const data = await reportData('exp153', { allowUnavailable: true });
 export const cfg = data?.configuration;
-export const trace = data?.phase_trace;
+export const partial = Boolean(data?.preserved_map);
+export const mapCfg = data?.map_configuration ?? cfg;
+export const standaloneMap = ['exp153.recipe/v6', 'exp153.recipe/v7'].includes(mapCfg?.schema);
+export const onset = data?.onset;
+export const network = cfg?.network ?? cfg?.imported_protocol;
+export const inputA = cfg ? network.mean_input_hz + onset.difference_hz / 2 : undefined;
+export const inputB = cfg ? network.mean_input_hz - onset.difference_hz / 2 : undefined;
+export const standalone = ['exp153.recipe/v6', 'exp153.recipe/v7'].includes(cfg?.schema);
 
 ## Abstract
 
-Reciprocal coupling arrests phase drift between two delayed mean-field circuits
-derived from [exp133](/exp133). Circuit B's rate relaxation is 20% faster,
-creating a visible intrinsic mismatch.
+{partial ? <p>Figure 2 and the network diagram use the revised standalone fourteen-pathway reference matching exp133. Figure 1 is retained unchanged from its recorded historical presentation; its map has not been rerun for the revised network. In the new onset calculation, rates settle without sustained oscillations, leaving phase unavailable.</p> : standalone ? <p>We measured finite-time phase locking in two locally defined delayed mean-field circuits. Across {data.n_conditions} conditions, {data.n_valid} passed rhythm and uncoupled-calibration checks and {data.n_locked} met locking criteria. The onset display reuses a selected map trajectory. These measurements describe one seeded reference and constant initial history; the closure is unfitted and omits finite-population fluctuations.</p> : <p>This experiment now defines its own reciprocal circuits, weights and input/coupling grid. The displayed historical figures predate that standalone recipe, which has not been run. Historical measurements retain their original settings and provenance.</p>}
 
 ## Results
 
-Relative phase falls by 1.7 cycles before coupling at 500 ms, then settles near
-−2 cycles.
-{data && `The uncoupled frequencies are ${data.baseline.rhythms.A.frequency_hz.toFixed(2)}/${data.baseline.rhythms.B.frequency_hz.toFixed(2)} Hz; coupling brings both to about ${data.coupled.rhythms.A.frequency_hz.toFixed(2)} Hz, with residual drift ${data.coupled.drift_hz.toFixed(4)} cycles/s.`}
-This demonstrates entrainment over the measured window for one initial history.
+### Reciprocal coupling and phase locking
 
-<RunFigure report="exp153" experiment="exp153" file="phase-trace.png" number={1} id="fig-phase-trace" alt="Relative phase drifts before coupling at 500 ms, then plateaus." allowUnavailable={true}>
-  Unwrapped A-minus-B E-rate phase, zeroed at the first common observed sample.
-  Red dashed line:{trace && ` ${trace.coupling_us} µS coupling enabled at ${trace.onset_ms} ms.`}
-  Phase is interpolated between peaks on a 0.5 ms grid without smoothing or
-  extrapolation. Frequencies and drift use 800–2,500 ms; the uncoupled control
-  continues drifting.
+<RunFigure report="exp153" experiment="exp153" file="arnold-tongue.svg" number={1} id="fig-tongue" alt="Mean-field PLV across reciprocal coupling and measured uncoupled frequency detuning, with input difference above." allowUnavailable={true}>
+  Each rectangle is one sampled setting. Bottom: uncoupled A-minus-B frequency
+  difference (Hz); top: A-minus-B input difference (Hz per channel). Vertical
+  axis: equal nominal total coupling per pathway (µS). White–red–black indicates
+  increasing PLV; gray marks invalid rhythms or an invalid uncoupled calibration.
+  Values use common phase-valid samples within 800–5,000 ms. Cell edges delimit
+  sampled settings. If detuning is unavailable or duplicated, columns retain
+  input spacing and the lower axis explicitly identifies that convention.
+  Figure 1 {standaloneMap ? "uses the locally initialized 14-pathway circuit" : "retains historical results from the earlier 10-projection circuit; the revised 14-pathway map has not been run"}.
+</RunFigure>
+
+### Switching on reciprocal coupling
+
+<RunFigure report="exp153" experiment="exp153" file="coupling-onset.svg" number={2} id="fig-coupling-onset" alt="Sender A and receiver B excitatory and inhibitory rates over 1,500 ms, with coupling starting at 500 ms and unwrapped relative phase beneath." allowUnavailable={true}>
+  (A) Sender A and (B) receiver B population rates in Hz: excitatory in black,
+  inhibitory in red, with shared rate limits. Input rates are {inputA}/{inputB} Hz per
+  channel for A/B at the selected {onset?.difference_hz} Hz difference. Dashed lines mark coupling
+  onset at 500 ms. Corner values give E-rhythm frequency over 0–500 ms and
+  1,000–1,500 ms; a dash indicates an invalid rhythm estimate.
+  (C) Unwrapped A-minus-B E-rate phase in cycles, interpolated only between
+  observed peaks. Phase starts at zero at each circuit's first detected peak
+  and is never reset at coupling onset. Phase statistics use shared valid times
+  within 800–1,500 ms; unavailable phase is labelled explicitly. Peak times use
+  the 0.5 ms observation grid, which limits phase precision.
 </RunFigure>
 
 ## Methods
 
-SNNLab reduces the imported network to four rates and ten conductance filters,
-with 0.1 ms internal and 2 ms cross-circuit delays.
-{cfg && `E/I relaxation times are ${cfg.closure.tau_rate_ms.PING_A_E}/${cfg.closure.tau_rate_ms.PING_A_I} ms in A and ${cfg.closure.tau_rate_ms.PING_B_E}/${cfg.closure.tau_rate_ms.PING_B_I} ms in B.`}
-The boxes show all native exported dynamical equations with compact display
-notation, followed by the current definitions.
+1. **Define.** The standalone recipe initializes its own fourteen-pathway
+   neuronal reference and reduces incoming weight sums and explicit delays to
+   four population rates and fourteen conductance filters. Gain settings are
+   recorded with each native model.
+
+2. **Integrate.** Use DOP853 with constant prehistory, initial rates of 1 Hz and
+   zero conductances. [Table A1](#parameters) gives the grid, timing and numerical
+   settings; the native exports retain the complete configuration.
+
+3. **Measure.** For a full map, derive phase from E-rate peaks and calculate PLV, drift and span,
+   requiring sustained rhythms and valid uncoupled calibration. Extract the onset
+   display from the selected map trajectory, or from a separately recorded onset-only
+   calculation when only Figure 2 is refreshed.
+
+The equations below describe the saved model used for Figure 2; historical equations
+retain their original architecture. The closure omits input covariance,
+finite-population fluctuations, weight heterogeneity, voltage-dependent driving
+forces and shunting; it is not a delayed stability proof.
 
 <MeanFieldModel />
-
-Both trajectories use constant prehistory, initial rates of 1 Hz and zero
-conductances. Integration uses DOP853 with maximum step 0.1 ms and tolerances
-$10^{-8}$ relative/$10^{-10}$ absolute. Phase statistics require sustained regular
-rhythms; locking thresholds and all parameters are in the appendix. The unfitted
-closure omits input covariance, finite-population fluctuations and shunting.

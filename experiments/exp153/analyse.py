@@ -1,17 +1,18 @@
-"""Measure unwrapped phase during reciprocal coupling onset.
+"""Measure the matched locking map and a selected coupling-onset trajectory.
 
-One control calibrates the intrinsic frequency mismatch at the actual example
-inputs. Sustained-rhythm and finite-window phase tests qualify interpretation;
-no grid or parameter sweep is constructed.
+Each drive has an uncoupled calibration; decaying or irregular rhythms cannot
+qualify as locked. The selected map condition supplies both E/I rate traces
+and continuous observed-peak phase for a 1,500 ms onset display.
 """
 
 import argparse
+import copy
 import json
 import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
-sys.path[:0] = [str(REPO), str(REPO / "tools")]
+sys.path[:0] = [str(REPO), str(REPO / "libraries")]
 import numpy as np
 from experiments.exp153 import recipe
 from experiments.exp153.compute import ancestry
@@ -50,22 +51,19 @@ def read_trajectory(computed, condition, cfg):
     }:
         raise ValueError("trajectory parameters differ from saved model")
     parameters = metadata["parameters"]
-    source = cfg["imported_protocol"]
+    source = cfg["network"]
     for name, incoming in cfg["incoming_weights_us"].items():
         expected_weight = (
             incoming * condition["coupling_us"] / source["base_coupling_us"]
             if "_K_E" in name
-            else incoming
+            else incoming * cfg.get("reduction_projection_scales", {}).get(name, 1.0)
         )
         if not np.isclose(
             parameters[name + ".coupling"], expected_weight, rtol=1e-12, atol=1e-14
         ):
             raise ValueError("trajectory coupling differs from its recorded condition")
-    for circuit, sign in (("A", 1), ("B", -1)):
-        if (
-            parameters[f"drive_{circuit}.rate"]
-            != source["mean_input_hz"] + sign * condition["difference_hz"] / 2
-        ):
+    for name, rate in recipe.input_rates(source, condition["difference_hz"]).items():
+        if parameters[name + ".rate"] != rate:
             raise ValueError("trajectory input differs from its recorded condition")
     if (
         metadata["duration_ms"] != duration
@@ -213,7 +211,7 @@ def pair_metrics(time, state, cfg):
 
 
 def relative_phase_trace(time, state, cfg):
-    """Unwrapped observed-peak phase, shifted by one constant for display."""
+    """Unwrapped observed-peak phase; invalid traces remain explicitly empty."""
     phases = {
         circuit: rhythm(
             time,
@@ -225,18 +223,114 @@ def relative_phase_trace(time, state, cfg):
     }
     difference = (phases["A"] - phases["B"]) / (2 * np.pi)
     selected = np.isfinite(difference) & (time <= cfg["duration_ms"])
-    if selected.sum() < 3:
-        raise ValueError("phase trace needs common observed peaks")
-    offset = float(difference[selected][0])
     return dict(
         time_ms=time[selected].tolist(),
-        relative_phase_cycles=(difference[selected] - offset).tolist(),
+        relative_phase_cycles=difference[selected].tolist(),
     ), dict(
-        reference_time_ms=float(time[selected][0]),
-        removed_offset_cycles=offset,
         display_window_ms=[0, cfg["duration_ms"]],
-        onset_ms=cfg["imported_protocol"]["onset_ms"],
-        definition="Unwrapped E-rate phase A minus B, in cycles, shifted to zero at the first common observed-peak phase; no wrapping, smoothing or extrapolation",
+        onset_ms=cfg["network"]["onset_ms"],
+        definition="Unwrapped E-rate phase A minus B in cycles, with phase zero at each circuit's first detected peak; no wrapping, smoothing, resetting or extrapolation",
+    )
+
+
+def assemble_map(metrics, cfg):
+    """Calibrate columns with valid uncoupled rhythms, preserving invalid cells."""
+    expected = recipe.conditions(cfg)
+    if [
+        (row["label"], row["difference_hz"], row["coupling_us"]) for row in metrics
+    ] != [(row["label"], row["difference_hz"], row["coupling_us"]) for row in expected]:
+        raise ValueError("incomplete or reordered grid coverage")
+    differences = cfg["sweep"]["differences_hz"]
+    couplings = cfg["sweep"]["couplings_us"]
+    shape = (len(couplings), len(differences))
+    arrays = dict(
+        concentration=np.full(shape, np.nan),
+        valid=np.zeros(shape, dtype=bool),
+        locked=np.zeros(shape, dtype=bool),
+        detuning_hz=np.full(len(differences), np.nan),
+        input_difference_hz=np.asarray(differences),
+        coupling_us=np.asarray(couplings),
+    )
+    baselines = {
+        row["difference_hz"]: row for row in metrics if row["coupling_us"] == 0
+    }
+    cells = []
+    for column, difference in enumerate(differences):
+        baseline = baselines[difference]
+        if baseline["valid"]:
+            arrays["detuning_hz"][column] = (
+                baseline["rhythms"]["A"]["frequency_hz"]
+                - baseline["rhythms"]["B"]["frequency_hz"]
+            )
+    for metric in metrics:
+        row = couplings.index(metric["coupling_us"])
+        column = differences.index(metric["difference_hz"])
+        calibrated = bool(np.isfinite(arrays["detuning_hz"][column]))
+        valid = bool(metric["valid"] and calibrated)
+        locked = bool(metric["locked"] and valid)
+        arrays["valid"][row, column] = valid
+        arrays["locked"][row, column] = locked
+        if valid:
+            arrays["concentration"][row, column] = metric["concentration"]
+        cells.append(
+            dict(
+                **{
+                    key: value
+                    for key, value in metric.items()
+                    if key not in ("valid", "locked")
+                },
+                rhythm_valid=metric["valid"],
+                baseline_valid=calibrated,
+                valid=valid,
+                locked=locked,
+                uncoupled_detuning_hz=float(arrays["detuning_hz"][column])
+                if calibrated
+                else None,
+            )
+        )
+    return arrays, cells
+
+
+def diagnostic(time, state, cfg):
+    """Use the recorded display and measurement windows on the selected map trace."""
+    example = cfg["example"]
+    settings = recipe.analysis_configuration(cfg)["onset_analysis"]
+    short = copy.deepcopy(cfg)
+    short["duration_ms"] = example["display_window_ms"][1]
+    short["phase"]["start_ms"] = example["phase_window_ms"][0]
+    short["phase"]["min_peaks"] = settings["min_peaks"]
+    short["gate"]["windows_ms"] = settings["gate_windows_ms"]
+    short["gate"]["min_peaks"] = settings["min_peaks"]
+    trace, details = relative_phase_trace(time, state, short)
+    frequencies = {
+        circuit: {
+            label: rhythm(
+                time, state[f"PING_{circuit}_E.rate"], window, short["phase"]
+            )[0]
+            for label, window in example["frequency_windows_ms"].items()
+        }
+        for circuit in ("A", "B")
+    }
+    visible = (time >= example["display_window_ms"][0]) & (time <= short["duration_ms"])
+    rates = dict(time_ms=time[visible])
+    rates.update(
+        {
+            f"{circuit}_{population}": state[f"PING_{circuit}_{population}.rate"][
+                visible
+            ]
+            for circuit in ("A", "B")
+            for population in ("E", "I")
+        }
+    )
+    return (
+        dict(
+            **example,
+            phase_trace=details,
+            frequencies=frequencies,
+            coupled=pair_metrics(time, state, short),
+        ),
+        trace,
+        rates,
     )
 
 
@@ -249,38 +343,39 @@ def analyse(*, source, run_id=None):
     ):
         raise ValueError("requires an exp153 compute source")
     cfg = computed.record["execution"]["configuration"]
-    if cfg["protocol"] != "phase-trace":
-        raise ValueError("requires the two-trajectory phase-trace protocol")
+    if cfg["schema"] != recipe.SCHEMA or cfg["protocol"] not in (
+        "matched-grid",
+        "onset-only",
+    ):
+        raise ValueError("requires the matched 143-condition grid protocol")
+    cfg = recipe.analysis_configuration(cfg)
     conditions = json.loads(computed.file("conditions.json").read_text())
-    expected = [
-        (cfg["example"]["difference_hz"], k) for k in (0, cfg["example"]["coupling_us"])
-    ]
-    if [(r["difference_hz"], r["coupling_us"]) for r in conditions] != expected:
-        raise ValueError("incomplete or reordered example coverage")
-    metrics, traces = [], []
+    if conditions != recipe.conditions(cfg):
+        raise ValueError("incomplete or reordered grid coverage")
+    metrics = []
     for condition in conditions:
         time, state = read_trajectory(computed, condition, cfg)
-        metrics.append(dict(**condition, **pair_metrics(time, state, cfg)))
-        trace, details = relative_phase_trace(time, state, cfg)
-        traces.append(trace)
-    baseline, coupled = metrics
-    detuning = (
-        baseline["rhythms"]["A"]["frequency_hz"]
-        - baseline["rhythms"]["B"]["frequency_hz"]
-        if baseline["valid"]
-        else None
-    )
+        if cfg["protocol"] == "matched-grid":
+            metrics.append(dict(**condition, **pair_metrics(time, state, cfg)))
+        if (condition["difference_hz"], condition["coupling_us"]) == (
+            cfg["example"]["difference_hz"],
+            cfg["example"]["coupling_us"],
+        ):
+            onset, trace, rates = diagnostic(time, state, cfg)
+            onset["label"] = condition["label"]
+    arrays, cells = assemble_map(metrics, cfg) if metrics else ({}, [])
+    values = arrays["concentration"][arrays["valid"]] if metrics else []
     numbers = dict(
+        schema="exp153.analysis/v3"
+        if cfg["protocol"] == "onset-only"
+        else "exp153.analysis/v2",
         configuration=cfg,
-        baseline=baseline,
-        coupled=coupled,
-        uncoupled_detuning_hz=detuning,
-        phase_trace=dict(**details, **conditions[1]),
-        summary=(
-            "Coupled phase passes the finite-window locking criteria."
-            if coupled["locked"] and baseline["valid"]
-            else "This example does not establish finite-window locking with a valid uncoupled calibration."
-        ),
+        cells=cells,
+        n_conditions=len(cells),
+        n_valid=int(arrays["valid"].sum()) if metrics else 0,
+        n_locked=int(arrays["locked"].sum()) if metrics else 0,
+        max_plv=float(values.max()) if len(values) else None,
+        onset=onset,
     )
     with stage_run(
         REPO,
@@ -291,8 +386,10 @@ def analyse(*, source, run_id=None):
         run_id=run_id,
     ) as run:
         write_json_atomic(run.export / "results.json", numbers)
-        write_json_atomic(run.export / "phase-trace.json", traces[1])
-        write_json_atomic(run.export / "control-trace.json", traces[0])
+        write_json_atomic(run.export / "onset-phase.json", trace)
+        if metrics:
+            np.savez_compressed(run.export / "metrics.npz", **arrays)
+        np.savez_compressed(run.export / "onset-rates.npz", **rates)
         for item in ancestors.values():
             item.check_unchanged()
     return run.run_id

@@ -1,83 +1,38 @@
 import RunFigure from '../../../site/src/components/RunFigure.astro';
-import Table from '../../../site/src/components/Table.astro';
-import { reportData, reportSnapshots } from '../../../site/src/lib/report-data';
-
-export const data = await reportData('exp153', { allowUnavailable: true });
-export const evidence = await reportSnapshots('exp153', {
-  snapshots: { source: 'source-snapshot/start/snapshot.json' },
-  allowUnavailable: true,
-});
-export const cfg = evidence?.configuration;
-export const analysis = data?.configuration;
-export const snapshot = evidence?.snapshots.source;
-export const groups = (() => {
-  if (!cfg || !snapshot || !analysis) return [{ label: 'Evidence', rows: [['Parameters', 'Unavailable']] }];
-  const net = snapshot.network;
-  const closure = cfg.closure;
-  return [
-    { label: 'Network and imported neurons', rows: net.populations.flatMap(population => [
-      [`${population.id} neurons`, population.size],
-      [`${population.id} capacitance / leak (nF / µS)`, `${population.neuron.capacitance_nf} / ${population.neuron.leak_us}`],
-      [`${population.id} rest / reset / threshold (mV)`, `${population.neuron.resting_mv} / ${population.neuron.reset_mv} / ${population.neuron.threshold_mv}`],
-      [`${population.id} refractory (ms)`, population.neuron.refractory.value],
-    ]) },
-    { label: 'Synapses and derived weights', rows: net.projections.flatMap(projection => [
-      [`${projection.id} decay / delay (ms)`, `${projection.synapse.tau.value} / ${projection.delay?.value ?? 0}`],
-      [`${projection.id} reference mean incoming weight (µS)`, cfg.incoming_weights_us[projection.id].toPrecision(7)],
-    ]) },
-    { label: 'Closure choices and numerical calculation', rows: [
-      ['Source network seed', cfg.imported_protocol.network_seed],
-      ['Voltage-noise scale (mV)', closure.sigma_mv],
-      ['A E / I rate relaxation (ms)', `${closure.tau_rate_ms.PING_A_E} / ${closure.tau_rate_ms.PING_A_I}`],
-      ['B E / I rate relaxation (ms)', `${closure.tau_rate_ms.PING_B_E} / ${closure.tau_rate_ms.PING_B_I}`],
-      ['B relaxation multiplier', cfg.example.rate_scale_b],
-      ['Gain quadrature nodes', closure.quadrature_nodes],
-      ['Driving force / external filtering', 'Fixed resting / dynamic'],
-      ['Transmission delays', closure.delays],
-      ['Initial rates / conductances (Hz / µS)', `${cfg.initial.rate_hz} / ${cfg.initial.conductance_us}`],
-      ['Prehistory', cfg.initial.history],
-      ['Duration / observation interval (ms)', `${cfg.duration_ms} / ${cfg.sample_interval_ms}`],
-      ['Integrator / maximum step (ms)', `${cfg.solver.method} / ${cfg.solver.max_step_ms}`],
-      ['Relative / absolute tolerance', `${cfg.solver.rtol} / ${cfg.solver.atol}`],
-      ['Input mean (Hz/source)', cfg.imported_protocol.mean_input_hz],
-      ['Input difference (Hz/source)', cfg.example.difference_hz],
-      ['Uncoupled / onset coupling (µS)', `0 / ${cfg.example.coupling_us}`],
-      ['Condition count', 2],
-      ['Coupling-onset time (ms)', cfg.imported_protocol.onset_ms],
-    ] },
-    { label: 'Analysis', rows: [
-      ['Sustained-rhythm windows (ms)', analysis.gate.windows_ms.map(window => window.join('–')).join('; ')],
-      ['Absolute / relative amplitude floor (Hz / fraction)', `${analysis.gate.min_amplitude_hz} / ${analysis.gate.min_relative_amplitude}`],
-      ['Minimum late / early amplitude ratio', analysis.gate.min_late_to_early_amplitude],
-      ['Minimum peaks / maximum interval CV', `${analysis.gate.min_peaks} / ${analysis.gate.max_interval_cv}`],
-      ['Frequency matching requirement', analysis?.gate.frequency_band_hz ? analysis.gate.frequency_band_hz.join('–') + ' Hz' : 'None; measured rhythm frequency'],
-      ['Settled phase-window start (ms)', analysis.phase.start_ms],
-      ['Maximum drift (cycles/s)', analysis.phase.max_abs_drift_hz],
-      ['Minimum concentration / maximum span (cycles)', `${analysis.phase.min_concentration} / ${analysis.phase.max_phase_span_cycles}`],
-    ] },
-  ];
-})();
+import ParameterTable from './ParameterTable.astro';
 
 ## Network
 
-<RunFigure report="exp153" experiment="exp153" file="circuit.svg" number={2} id="fig-network" alt="Saved exp133 paired PING circuits, with reciprocal excitation from each E population to the other circuit's E and I populations." allowUnavailable={true}>
-  Circuit diagram generated from the authenticated source bundle used in the
+<RunFigure report="exp153" experiment="exp153" file="circuit.svg" number="A1" id="fig-network" alt="Saved paired PING circuits, with reciprocal excitation from each E population to the other circuit's E and I populations." allowUnavailable={true}>
+  Circuit diagram generated from the saved native bundle used in the
   reduction. Two 80-E/20-I circuits retain their separate external source pools.
   The mean-field model replaces each population by one rate and each incoming
-  pathway by a conductance filter; neuron counts define imported weight sums,
+  pathway by a conductance filter; neuron counts define incoming weight sums,
   rather than the number of dynamical rate variables.
+  $E_A$, $I_A$, $E_B$ and $I_B$ identify the circuit populations; $X_A$ and $X_B$
+  are their input pools. Every connection is labelled $W_{XY}$, with target $X$
+  first and source $Y$ second. Dashed paths connect circuits; solid paths are
+  local. Arrowheads denote excitation; bars denote inhibition.
+  For the revised circuit, both circuits include local E→E and I→I
+  recurrence without self-connections. Attention inputs are omitted from the
+  current reduction. Node positions, self-loops, routing and weight-label
+  styling align the E/I pairs in columns.
 </RunFigure>
 
 ## Parameters
 
-The retained native snapshot describes the imported **spiking reference**, not a
-spiking simulation performed by exp153. Numerical integration settings and closure
+The retained native snapshot describes the **neuronal reference for Figure 2**.
+When Figure 1 is preserved from an earlier presentation, it retains that
+presentation’s original configuration and provenance. The standalone
+recipe initializes these weights locally without advancing a spiking simulation. Numerical integration settings and closure
 choices come from the selected exp153 compute record. Reference cross-circuit
-sums are multiplied by nominal coupling divided by 0.12 µS; the uncoupled control sets them to
-zero. Input gain is already present in the effective native input matrices.
-There is no additional factor of 9.2 and no resampling of connectivity.
+sums are multiplied by nominal coupling divided by 0.12 µS; the zero-coupling
+row supplies one uncoupled calibration for each input difference. The current recipe matches exp133’s neuronal reference and applies sensory gain
+once to the initialized input sums during reduction. Earlier standalone runs
+embedded that gain in initialization; the selected record determines its application.
+Connectivity is not resampled.
 
-<Table headers={["Parameter", "Value"]} groups={groups} id="parameters" />
+<ParameterTable />
 
 The native mean-field model document records symbolic equations and delayed
 dependencies. Each trajectory retains its constant history, actual parameters,

@@ -8,10 +8,11 @@ and their native metadata. A native circuit diagram accompanies the report.
 import argparse
 import sys
 from dataclasses import replace
+from importlib.metadata import version
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
-sys.path[:0] = [str(REPO), str(REPO / "tools")]
+sys.path[:0] = [str(REPO), str(REPO / "libraries")]
 
 import matplotlib
 
@@ -24,8 +25,78 @@ from experiments import theme
 from experiments.exp148.analyse import validate_events, window_spectra
 from experiments.exp148.recipe import drive_gain, windows
 from pingstore.library import load_json, source_run, stage_run, write_json_atomic
-from snnlab import lang
-from snnlab.viz import render_diagram
+from snnlab import lang, viz
+
+
+def network_diagram(bundle):
+    """Resolve the saved circuit with explicit routes and target-first weight labels."""
+    native = lang.diagram(bundle, view="circuit")
+    symbols = {"X": "X", "E": "E", "I": "I"}
+    diagram = replace(
+        native,
+        title="Shared drive and recurrent E/I pathways",
+        nodes=tuple(
+            replace(
+                node,
+                detail=node.detail.splitlines()[0].replace("1 neurons", "1 neuron"),
+            )
+            for node in native.nodes
+            if node.id in symbols
+        ),
+        edges=tuple(edge for edge in native.edges if edge.role != "output"),
+        groups=(),
+    )
+    positions = {"X": (-400, 150), "E": (0, 0), "I": (0, 300)}
+    routes = dict(
+        X_to_E=viz.EdgeLayout(source_port="upper_right", target_port="left"),
+        X_to_I=viz.EdgeLayout(source_port="lower_right", target_port="left"),
+        E_to_I=viz.EdgeLayout(source_port="bottom_left", target_port="top_left"),
+        I_to_E=viz.EdgeLayout(source_port="top_right", target_port="bottom_right"),
+        E_to_E=viz.EdgeLayout(
+            source_port="top_right", target_port="right", waypoints=((180, -130),)
+        ),
+        I_to_I=viz.EdgeLayout(
+            source_port="bottom_right", target_port="right", waypoints=((180, 430),)
+        ),
+    )
+    ports = dict(
+        upper_left=(0, 0.3),
+        lower_left=(0, 0.7),
+        upper_right=(1, 0.3),
+        lower_right=(1, 0.7),
+        top_left=(0.25, 0),
+        top_right=(0.75, 0),
+        bottom_left=(0.25, 1),
+        bottom_right=(0.75, 1),
+    )
+    layout = viz.DiagramLayout(
+        nodes={
+            identifier: viz.NodeLayout(
+                position=position,
+                label=f"${symbols[identifier]}$",
+                min_size=(240, 160),
+                ports=ports,
+            )
+            for identifier, position in positions.items()
+        },
+        edges={
+            edge.id: replace(
+                routes[edge.id],
+                label=viz.DiagramLabel(
+                    rf"$W_{{{symbols[edge.target]} , {symbols[edge.source]}}}$"
+                ),
+            )
+            for edge in diagram.edges
+        },
+        defaults=viz.LayoutDefaults(
+            node=viz.NodeLayout(content_align="center", padding=16), gap=30
+        ),
+    )
+    # Embedded math must keep its measured size independently of plot cropping.
+    with matplotlib.rc_context({"savefig.bbox": None}):
+        return viz.resolve_diagram(
+            diagram, layout=layout, theme=viz.DiagramTheme(secondary_size=13)
+        )
 
 
 def transition_figure(events, cfg, spectra):
@@ -286,22 +357,16 @@ def present(*, source, run_id=None):
             for suffix in ("png", "svg", "pdf"):
                 fig.savefig(run.export / f"mean-field.{suffix}")
             plt.close(fig)
-        circuit = lang.diagram(
-            lang.load_bundle(computed.file("simulation/network.bundle")), view="circuit"
+        bundle = lang.load_bundle(
+            computed.restore_bundle(
+                "simulation/network.bundle", run.scratch / "diagram.bundle"
+            )
         )
-        # Rename only the presentation diagram; the executed graph stays intact.
-        circuit = replace(
-            circuit,
-            nodes=tuple(
-                replace(node, id="Input", title="Input") if node.id == "X" else node
-                for node in circuit.nodes
-            ),
-            edges=tuple(
-                replace(edge, source="Input") if edge.source == "X" else edge
-                for edge in circuit.edges
-            ),
-        )
-        render_diagram(circuit, run.export / "circuit.svg")
+        circuit = network_diagram(bundle)
+        with matplotlib.rc_context({"savefig.bbox": None}):
+            for extension in ("svg", "png"):
+                viz.render_diagram(circuit, run.export / f"circuit.{extension}")
+        run.record["execution"]["snnlab_version"] = version("snnlab")
         write_json_atomic(run.export / "numbers.json", numbers)
     print(run.run_id, flush=True)
     return run.run_id

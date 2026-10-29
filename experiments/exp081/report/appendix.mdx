@@ -1,3 +1,4 @@
+import schematic1 from './images/membrane-network.svg?url';
 
 import Table from '../../../site/src/components/Table.astro';
 import { reportSnapshots } from '../../../site/src/lib/report-data';
@@ -372,12 +373,25 @@ $$
 Substituting [Equation A14](#exp081-equation-a14) gives [Equation A15](#exp081-equation-a15). This result is exact for the simplified model with steady input and small linear fluctuations. It is only an approximation to the simulated system, which is nonlinear, begins each presentation from rest and contains a finite random number of events.
 
 
+## Network diagrams
+
+<figure id="fig-schematic-membrane" class="model-schematic">
+  <a class="figure-image" href={schematic1} aria-label="Open model schematic at full size"><img src={schematic1} alt="Nonspiking membrane filter; illustrative model schematic." width="751.5" height="294.8" /></a>
+  <figcaption>Figure A1. Nonspiking membrane filter. Illustrative schematic of the documented model; it is not a recovered historical execution bundle or a measurement. $X$ denotes pixel spike events and $M$ the nonspiking membrane. $W_{M,X}=w_{\mathrm{event}}$ is the conductance increment per event in µS. AMPA decay, leak and voltage integration occur within $M$; the diagram does not introduce a firing threshold or a spiking population.</figcaption>
+</figure>
+
+<style>{`
+  .model-schematic { grid-column: text; margin: 1.5rem 0; }
+  .model-schematic .figure-image { display: block; border-bottom: none; }
+  .model-schematic img { display: block; width: 100%; height: auto; }
+`}</style>
+
 <span id="parameters" />
 
 ## Parameters
 
 This experiment uses an independent nonspiking membrane model. SNNLab
-spiking-network snapshots and circuit diagrams do not apply. The table reads
+spiking-network snapshots do not apply; the schematic above illustrates the independent model. The table reads
 the selected computation's recorded configuration; absent evidence stays unavailable.
 
 <Table headers={['Parameter', 'Recorded value']} groups={settingsGroups} />

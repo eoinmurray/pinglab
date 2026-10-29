@@ -14,3 +14,7 @@ Run each stage independently from the repository root with `uv run python`.
 6. `test.py`: `uv run pytest experiments/exp082/test.py`; optional pytest arguments.
 
 Optional environment: `PINGLAB_SMOKE=1` selects the bounded smoke profile; `SNNLAB_DEVICE` (or the legacy `PINGLAB_DEVICE`) selects the execution device; `PINGLAB_EXP082_STREAMS_PER_CELL`, `PINGLAB_EXP082_DIGITS_PER_STREAM` and `PINGLAB_EXP082_STREAM_BATCH_SIZE` override the stream profile through `recipe.configuration(...)`.
+
+Regenerate the documented-model illustrations without running a scientific stage:
+`uv run python experiments/exp082/present.py --draw-schematics`.
+These authored SVGs do not reconstruct missing historical bundles.

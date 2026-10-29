@@ -10,7 +10,7 @@ from pathlib import Path
 sys.path[:0] = [
     str(Path(__file__).resolve().parents[2]),
     str(Path(__file__).resolve().parents[1]),
-    str(Path(__file__).resolve().parents[2] / "tools"),
+    str(Path(__file__).resolve().parents[2] / "libraries"),
 ]
 from experiments.exp022.recipe import (
     BASE_CELLS,

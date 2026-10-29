@@ -1,0 +1,137 @@
+---
+title: "Workflow"
+author: Eoin Murray
+collection: notes
+description: "An example research repository organised around experiments, evidence, literature and a research blog."
+created_at: "2026-10-29T10:31:51Z"
+updated_at: "2026-10-29T14:35:19Z"
+---
+
+## Overview
+
+```text
+research-project/ # Example research layout
+├── README.md     # Documentation map
+├── AGENTS.md     # Agent rules and routing
+├── experiments/  # Studies and reports
+├── notes/        # Theory and rules
+├── papers/       # Citations and PDFs
+├── site/         # Research blog
+├── libraries/    # Shared tools
+├── .store/       # Runs; outside Git
+├── .scratch/     # Local work; outside Git
+└── .github/      # Checks and deployment
+```
+
+## Readme.md
+
+```text
+README.md                   # Repo guide
+├── Project overview        # Scope / site
+├── Documentation map       # Rules / notes
+├── Tool entry points       # Tool guides
+└── Development conventions # Setup
+```
+
+## Agents.md
+
+```text
+AGENTS.md                     # Agent rules
+├── Entry point               # Read README
+├── Guide routing             # Load rules
+├── Scope examples            # Guide scope
+└── Verification expectations # Checks
+```
+
+## Experiments
+
+```text
+experiments/             # Studies / styles
+├── theme.py             # Plot styles
+├── ruff.toml            # Lint rules
+└── expXXX/              # One study
+    ├── README.md        # Goals / commands
+    ├── compute.py       # Sim / training
+    ├── analyse.py       # Validation
+    ├── present.py       # Figures / export
+    ├── custom/          # Extensions
+    └── report/          # Article / code
+        ├── report.mdx   # Main article
+        ├── appendix.mdx # Methods / params
+```
+
+## Notes
+
+```text
+notes/                # Articles and guides
+├── *.md / *.mdx      # Theory and notes
+├── rules/            # Working conventions
+│   ├── experiment.md # Layout and inputs
+│   ├── compute.mdx   # Compute procedures
+│   ├── storage.md    # Storage rules
+│   └── writing.md    # Writing conventions
+└── figures/          # Supporting assets
+    └── <topic>/      # Figures by topic
+```
+
+## Papers
+
+```text
+papers/             # Literature library
+├── README.md       # Library policy
+├── index.yaml      # IDs and citations
+└── author-year.pdf # PDF; outside Git
+```
+
+## Site
+
+```text
+site/         # Research blog
+├── README.md # Setup and publishing
+├── AGENTS.md # Site agent guidance
+├── ...       # Blog code
+```
+
+## Libraries
+
+```text
+libraries/        # Shared helpers
+├── storage/      # Run archive tools
+│   ├── README.md # Run format
+│   ├── cli.py    # Archive commands
+└── execution/    # Local / remote compute
+    ├── README.md # Execution guide
+    ├── cloud.py  # Cloud adapter
+```
+
+## Store
+
+```text
+.store/               # Backed up; non-Git
+├── datasets/         # Cached inputs
+└── runs/             # Stages and outputs
+    └── <run-id>/     # One stage
+        ├── run.json  # Run provenance
+        ├── README.md # Run history
+        └── export/   # Outputs / checksums
+```
+
+## Scratch
+
+```text
+.scratch/           # Local workspace
+├── README.md       # Scratch policy
+├── .gitignore      # Ignore work
+└── <study-name>/   # One research question
+    ├── <script>.py # One-off code
+    └── <output>/   # Temporary results
+```
+
+## Github
+
+```text
+.github/            # Repository automation
+└── workflows/      # GitHub Actions
+    ├── quality.yml # Lint and tests
+    └── publish.yml # Checks and publishing
+```

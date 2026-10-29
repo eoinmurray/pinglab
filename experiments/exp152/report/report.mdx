@@ -3,7 +3,7 @@ id: exp152
 title: "Streaming Control of a Rotary Joint"
 author: "Eoin Murray"
 created_at: "2026-10-24T06:35:43Z"
-updated_at: "2026-10-27T17:12:28Z"
+updated_at: "2026-10-28T20:11:34Z"
 description: "Joint control with one Elevate neuron per controller, reciprocal inhibition and excitatory sensory feedback in ROS2 Humble."
 collection: ["experiments", "animations"]
 tags: ["data"]
@@ -25,6 +25,10 @@ export const timingSnapshot = currentModel ? await reportSnapshots('exp152', {
 }) : undefined;
 export const internalStepMs = timingSnapshot?.snapshots.controller?.network?.populations?.find(row => row.id === 'motor')?.neuron?.config?.max_step_ms;
 export const callbacks = evidence?.full_callback_ms;
+export const cycles = evidence?.cycles;
+export const wallCycles = evidence?.wall_cycles;
+export const frequency = cycles?.mean_period_s ? (1 / cycles.mean_period_s).toFixed(3) : undefined;
+export const excursion = cycles?.upper_angle_deg ? (cycles.upper_angle_deg.reduce((sum, upper, i) => sum + upper - cycles.lower_angle_deg[i], 0) / cycles.upper_angle_deg.length).toFixed(2) : undefined;
 export const timingAvailable = currentModel && ['flexor', 'extensor', 'plant'].every(node => callbacks?.[node]?.n > 0);
 export const count = value => value.toLocaleString('en-GB');
 export const controllerStat = field => {
@@ -48,24 +52,11 @@ peer; angle feedback excites each controller. Three ROS2 Humble nodes exchange
 
 {currentModel && <Replay experiment="exp152" />}
 
-{currentModel && <p>The recording covers <strong>{evidence.duration_seconds} s of model time</strong> over <strong>{evidence.observed_wall_seconds.toFixed(2)} s of wall time</strong>. All three nodes completed {count(callbacks.plant.n)} updates each; mechanical stop hits: <strong>{evidence.mechanical_stop_hits}</strong>. Timing verdict: <strong>{evidence.timing_passed ? 'pass' : 'fail'}</strong>. {evidence.cycles.complete_cycles < cfg.analysis.cycle_count && <>This short recording contains {evidence.cycles.complete_cycles} complete cycle(s) after the {cfg.analysis.cycle_burn_in_s} s burn-in, insufficient for the existing {cfg.analysis.cycle_count}-cycle repeatability check. Its failed behaviour verdict does not establish loss of oscillation.</>}</p>}
-
 ## Control Approach
 
-The current tuning came from an empirical parameter scan: we varied the neurons’
-background excitation, sensory feedback strength and muscle response per spike,
-then selected a combination that produced stable, repeatable oscillation without
-hitting the joint limits. The retired recordings were reported at about
-**0.57 Hz with a 63° peak-to-peak excursion**; those measurements are no longer
-available for inspection here.
-
-To formalise this, we could add an online adaptive controller that measures each
-cycle’s frequency and amplitude, compares them with the desired values, and
-gradually adjusts the parameters to reduce both errors. Small parameter
-perturbations could reveal their effects during operation, allowing adaptation
-to account for their coupling. Updates would need bounds and a slower timescale
-than the oscillation to preserve stability; achievable targets and convergence
-would require validation.
+The parameters were selected empirically by varying background excitation,
+sensory feedback strength and muscle response per spike. They remain fixed
+throughout the displayed recording.
 
 ## Timings Summary
 

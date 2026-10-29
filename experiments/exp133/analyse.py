@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
-sys.path[:0] = [str(REPO), str(REPO / "tools")]
+sys.path[:0] = [str(REPO), str(REPO / "libraries")]
 import numpy as np
 from experiments.exp133 import recipe
 from experiments.exp133.custom import evidence, inputs, sender_receiver
@@ -171,19 +171,20 @@ def raster_frequency_windows(spikes):
     return result
 
 
-def analyse_sender_receiver(compute, *, run_id=None):
-    cfg = sender_receiver.compute_contract(compute)
-    spikes = sender_receiver.recording(compute)
+def measure_sender_receiver(spikes, cfg):
+    baseline_start = cfg.get("baseline_start_ms", sender_receiver.BASELINE_START_MS)
+    onset_ms = cfg["onset_ms"]
+    settling_ms = cfg.get("settling_ms", recipe.SETTLING_MS)
     time = np.arange(len(spikes["S_E"])) * recipe.DT_MS
     phases = {name: rhythm(spikes[f"{name}_E"][:, 0])[0] for name in ("S", "R")}
     relative = (phases["S"] - phases["R"]) / (2 * np.pi)
     windows = {}
     for name, start, end in (
-        ("uncoupled", sender_receiver.BASELINE_START_MS, sender_receiver.ONSET_MS),
+        ("uncoupled", baseline_start, onset_ms),
         (
             "coupled",
-            sender_receiver.ONSET_MS + recipe.SETTLING_MS,
-            sender_receiver.DURATION_MS,
+            onset_ms + settling_ms,
+            cfg["duration_ms"],
         ),
     ):
         selected = np.isfinite(relative) & (time >= start) & (time < end)
@@ -200,8 +201,8 @@ def analyse_sender_receiver(compute, *, run_id=None):
         )
     baseline = {
         name: rhythm(
-            spikes[f"{name}_E"][: round(sender_receiver.ONSET_MS / recipe.DT_MS), 0],
-            settling_ms=sender_receiver.BASELINE_START_MS,
+            spikes[f"{name}_E"][: round(onset_ms / recipe.DT_MS), 0],
+            settling_ms=baseline_start,
         )[1]
         for name in ("S", "R")
     }
@@ -217,34 +218,50 @@ def analyse_sender_receiver(compute, *, run_id=None):
         windows=windows,
         interpretation="one finite sender–receiver trajectory; no seed robustness or asymptotic locking inferred",
     )
+    return result, dict(time_ms=time, phase_cycles=relative)
+
+
+def analyse_sender_receiver(compute, *, run_id=None):
+    cfg = sender_receiver.compute_contract(compute)
+    result, phase = measure_sender_receiver(sender_receiver.recording(compute), cfg)
     with inputs.execution(
         REPO, "analyse", sources={"compute": compute}, run_id=run_id, configuration=cfg
     ) as run:
-        np.savez_compressed(
-            run.export / "relative-phase.npz", time_ms=time, phase_cycles=relative
-        )
+        np.savez_compressed(run.export / "relative-phase.npz", **phase)
         write_json_atomic(run.export / "results.json", result)
     return run.run_id
 
 
 def analyse(identity, *, run_id=None):
     compute = inputs.source(REPO, identity, "compute")
-    if (
-        compute.record["execution"]["configuration"].get("schema")
-        == sender_receiver.SCHEMA
-    ):
+    if compute.record["execution"]["configuration"].get("schema") in {
+        sender_receiver.SCHEMA,
+        sender_receiver.HISTORICAL_SCHEMA,
+        sender_receiver.LEGACY_SCHEMA,
+    }:
         return analyse_sender_receiver(compute, run_id=run_id)
     cfg = evidence.compute_contract(compute)
+    analysis_cfg = recipe.analysis_configuration(cfg)
     with inputs.execution(
-        REPO, "analyse", sources={"compute": compute}, run_id=run_id
+        REPO,
+        "analyse",
+        sources={"compute": compute},
+        run_id=run_id,
+        configuration=analysis_cfg,
     ) as run:
         arrays, summaries = measure(compute)
+        onset, phase = measure_sender_receiver(
+            evidence.onset_recording(compute, analysis_cfg["onset"]),
+            analysis_cfg["onset"],
+        )
         np.savez_compressed(run.export / "metrics.npz", **arrays)
+        np.savez_compressed(run.export / "relative-phase.npz", **phase)
         write_json_atomic(
             run.export / "results.json",
             dict(
-                schema="exp133.analysis/v1",
+                schema="exp133.analysis/v2",
                 configuration=cfg,
+                sender_receiver=onset,
                 cells=summaries,
                 n_conditions=len(summaries),
                 n_valid=int(arrays["valid"].sum()),

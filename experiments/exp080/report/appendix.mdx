@@ -1,3 +1,4 @@
+import schematic1 from './images/decoder-network.svg?url';
 
 import Table from '../../../site/src/components/Table.astro';
 import { reportSnapshots } from '../../../site/src/lib/report-data';
@@ -30,12 +31,25 @@ At low input rates, a finite presentation may contain no events, one event, or a
 Neural decoding measures information accessible to a specified readout, not absolute information content or the mechanism by which a biological population uses it\[[2](#ref-2)\]. The criterion therefore selects a practical interval for this representation and decoder. Transfer to a PING network requires a separate evaluation; decoding accuracy here does not establish gamma timing benefits.
 
 
+## Network diagrams
+
+<figure id="fig-schematic-decoder" class="model-schematic">
+  <a class="figure-image" href={schematic1} aria-label="Open model schematic at full size"><img src={schematic1} alt="Membrane features and learned decoder; illustrative model schematic." width="1288.8125" height="594.8" /></a>
+  <figcaption>Figure A1. Membrane features and learned decoder. Illustrative schematic of the documented model; it is not a recovered historical execution bundle or a measurement. $X$ denotes pixel spike events, $M$ the independent nonspiking membranes, $F$ their time-averaged voltage features, $H$ the ReLU decoder and $R$ its class logits. $W_{M,X}$ is the fixed event-conductance increment in µS; $W_{H,F}$ and $W_{R,H}$ are learned decoder matrices with the numerical input/output conventions of the decoder. The $M\to F$ arrow is time averaging, not a weight matrix; $V$ is membrane voltage, $E_L$ the leak reversal and $\langle\cdot\rangle_t$ the presentation-time average. Decoder biases are omitted.</figcaption>
+</figure>
+
+<style>{`
+  .model-schematic { grid-column: text; margin: 1.5rem 0; }
+  .model-schematic .figure-image { display: block; border-bottom: none; }
+  .model-schematic img { display: block; width: 100%; height: auto; }
+`}</style>
+
 <span id="parameters" />
 
 ## Parameters
 
 This experiment uses an independent nonspiking membrane model. SNNLab
-spiking-network snapshots and circuit diagrams do not apply. The table reads
+spiking-network snapshots do not apply; the schematic above illustrates the independent model. The table reads
 the selected computation's recorded configuration; absent evidence stays unavailable.
 
 <Table headers={['Parameter', 'Recorded value']} groups={settingsGroups} />

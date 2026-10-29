@@ -30,6 +30,15 @@ export interface RunIndex {
   publication: 'known' | 'unresolved';
   runs: Record<string, IndexRun>;
 }
+
+/** Project core's global membership into the experiment being displayed. */
+export function evidenceForExperiment(row: IndexRun, experiment: string): IndexRun {
+  if (row.status === 'Current' && !row.current.includes(experiment)) {
+    return { ...row, status: 'Required' };
+  }
+  return row;
+}
+
 export function validateRunIndex(value: any): RunIndex {
   const mapping = (item: any) => item && typeof item === 'object' && !Array.isArray(item);
   const strings = (item: any) => Array.isArray(item) && item.every(value => typeof value === 'string');
@@ -84,7 +93,7 @@ export async function resolveRunIndex(options: { root: string; source: string; c
     '--source', options.source, '--catalog-stdin', '--json'];
   return new Promise((done, reject) => {
     const child = spawn(python, args, { cwd: repo, env: { ...process.env,
-      PYTHONPATH: [join(repo, 'tools'), process.env.PYTHONPATH].filter(Boolean).join(':') }, stdio: ['pipe', 'pipe', 'pipe'] });
+      PYTHONPATH: [join(repo, 'libraries'), process.env.PYTHONPATH].filter(Boolean).join(':') }, stdio: ['pipe', 'pipe', 'pipe'] });
     const stdout: Buffer[] = [], stderr: Buffer[] = [];
     const timeout = setTimeout(() => { child.kill(); reject(new Error('Pingstore index generation timed out')); }, 120_000);
     child.stdout.on('data', chunk => stdout.push(chunk));

@@ -3,10 +3,15 @@ import { unified } from '@astrojs/markdown-remark';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import { renderToString } from 'katex';
+import { formatTableNumber } from '../lib/table-number.ts';
 
+// Always display numeric quantities to two significant figures. For numbers inside
+// authored strings, Markdown or math, use formatTableNumber before composing the cell.
+// Identifiers such as seeds and run IDs stay exact and should be passed as strings.
 type Cell = string | number | { math: string } | { markdown: string };
 interface TableProps {
   headers: Cell[];
+  rowHeaders?: boolean;
   caption?: string;
   number?: number | string;
   id?: string;
@@ -17,7 +22,7 @@ type Props = TableProps & (
   | { rows: Cell[][]; groups?: never }
   | { groups: Group[]; rows?: never }
 );
-const { headers, rows, groups, caption, number, id, label = 'Report table' } = Astro.props;
+const { headers, rows, groups, rowHeaders = false, caption, number, id, label = 'Report table' } = Astro.props;
 const hasCaption = Astro.slots.has('default') || Boolean(caption);
 const Container = hasCaption ? 'figure' : 'div';
 const validCell = (cell: unknown) => typeof cell === 'string'
@@ -40,7 +45,8 @@ const processor = unified({
   remarkPlugins: [remarkMath], rehypePlugins: [[rehypeKatex, { throwOnError: true }]], smartypants: false,
 }).createRenderer({ syntaxHighlight: false });
 // Rich cells are authored Markdown, rendered with the same mathematics plugins as the articles.
-const renderCell = async (cell: Cell) => typeof cell !== 'object' ? cell
+const renderCell = async (cell: Cell) => typeof cell === 'number' ? formatTableNumber(cell)
+  : typeof cell === 'string' ? cell
   : 'math' in cell ? { html: renderToString(cell.math, { throwOnError: true }) }
   : { html: (await (await processor).render(cell.markdown)).code.replace(/^<p>([\s\S]*)<\/p>\s*$/, '$1') };
 const headings = await Promise.all(headers.map(renderCell));
@@ -60,7 +66,9 @@ const sections = await Promise.all((groups ?? [{ rows: rows! }]).map(async group
         </th>
       </tr>}
       {section.rows.map(row => <tr>
-        {row.map(cell => <td>{typeof cell === 'object' ? <Fragment set:html={cell.html} /> : cell}</td>)}
+        {row.map((cell, index) => rowHeaders && index === 0
+          ? <th scope="row">{typeof cell === 'object' ? <Fragment set:html={cell.html} /> : cell}</th>
+          : <td>{typeof cell === 'object' ? <Fragment set:html={cell.html} /> : cell}</td>)}
       </tr>)}
     </tbody>)}
   </table>
@@ -72,11 +80,26 @@ const sections = await Promise.all((groups ?? [{ rows: rows! }]).map(async group
   .report-table > figcaption > :global(:first-child) { margin-top: 0; }
   .report-table > figcaption > :global(:last-child) { margin-bottom: 0; }
   .source-table { min-width: 0; overflow-x: auto; }
-  .source-table :global(table) { width: 100%; border-collapse: collapse; font-size: inherit; }
-  .source-table :global(th), .source-table :global(td) { padding: .5em; border-bottom: 1px solid rgb(var(--ink) / .1); text-align: left; vertical-align: top; }
+  .source-table:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+  .source-table :global(table) {
+    width: 100%;
+    margin: 0;
+    border-collapse: collapse;
+    border: 1px solid rgb(var(--ink) / .22);
+    font-size: .875em;
+    line-height: 1.5;
+    font-variant-numeric: tabular-nums;
+  }
+  .source-table :global(th), .source-table :global(td) {
+    padding: .65em .85em;
+    border: 1px solid rgb(var(--ink) / .22);
+    font-size: inherit;
+    text-align: left;
+    vertical-align: top;
+  }
+  .source-table :global(thead th),
+  .source-table :global(th[scope="row"]),
+  .group-heading > th { background: rgb(var(--ink) / .045); font-weight: 600; }
   .source-table :global(tr > th:not(:first-child)), .source-table :global(tr > td:not(:first-child)) { text-align: right; }
-  .table-group:not(:last-child) > tr:last-child > td { border-bottom: 0; }
-  .table-group + .table-group > .group-heading > th { padding-top: 2em; }
   .group-heading { break-after: avoid; }
-  .group-heading > th { padding-top: .85em; }
 </style>

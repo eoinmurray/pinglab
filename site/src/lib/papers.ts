@@ -27,7 +27,7 @@ export interface Paper {
 export function paperCollectionLabel(collection: string) {
   if (collection === 'ping') return 'PING';
   const words = collection.replaceAll('-', ' ');
-  return words.charAt(0).toUpperCase() + words.slice(1);
+  return words.replace(/\b\w/g, letter => letter.toUpperCase());
 }
 
 export function paperCollectionUrl(collection: string) {

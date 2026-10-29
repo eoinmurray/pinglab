@@ -28,27 +28,18 @@ const { dual = false } = Astro.props;
 </figure>
 
 <script>
-  import { mountSynapse } from './js/synapse.js';
+  import { deferMount } from '../../../site/src/lib/media-start';
   class ConductanceSynapse extends HTMLElement {
     dispose?: () => void;
-    observer?: IntersectionObserver;
     connectedCallback() {
-      this.observer = new IntersectionObserver(async entries => {
-        if (!entries.some(entry => entry.isIntersecting)) return;
-        this.observer?.disconnect();
-        try {
-          const dispose = await mountSynapse(this);
-          if (this.isConnected) this.dispose = dispose;
-          else dispose();
-        } catch (error) {
-          console.error('Synapse animation could not start', error);
-          const status = this.querySelector('.status');
-          if (status) status.textContent = 'The animation could not start. Equations and the figure caption describe the model.';
-        }
-      }, { rootMargin: '200px' });
-      this.observer.observe(this);
+      this.dispose?.();
+      this.dispose = deferMount(this, async () => (await import('./js/synapse.js')).mountSynapse, error => {
+        console.error('Synapse animation could not start', error);
+        const status = this.querySelector('.status');
+        if (status) status.textContent = 'The animation could not start. Equations and the figure caption describe the model.';
+      });
     }
-    disconnectedCallback() { this.observer?.disconnect(); this.dispose?.(); }
+    disconnectedCallback() { this.dispose?.(); this.dispose = undefined; }
   }
   if (!customElements.get('pixi-conductance-synapse')) customElements.define('pixi-conductance-synapse', ConductanceSynapse);
 </script>

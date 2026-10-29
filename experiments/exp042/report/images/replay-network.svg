@@ -1,0 +1,237 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:ns2="http://creativecommons.org/ns#" xmlns:ns4="http://www.w3.org/1999/xlink" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" width="1024.25" height="594.8" viewBox="-512.25 -182.8 1024.25 594.8"><rect x="-512.25" y="-182.8" width="1024.25" height="594.8" fill="#FFFFFF" /><text id="label_01f3a4f7388cc50818983173" data-snnlab-id="" x="-480.25" y="-114.80000000000001" fill="#24292F" font-size="36" font-family="Helvetica Neue">Externally replayed inhibition</text><path id="edge_927dae9b506a4d45d3250c02" data-snnlab-id="X_to_E" d="M -239.75 0.0 L -124.125 0.0" fill="none" stroke="#24292F" stroke-width="2.2" stroke-linejoin="round" /><path d="M -138.125 7.0 L -124.125 0.0 L -138.125 -7.0" fill="none" stroke="#24292F" stroke-width="2.2" stroke-linecap="round" /><path id="edge_f96910244fa1377320562d0e" data-snnlab-id="J_to_E" d="M 0.0 220.0 L 0.0 80.0" fill="none" stroke="#AA5B63" stroke-width="2.2" stroke-linejoin="round" /><path d="M 8.0 80.0 L -8.0 80.0" fill="none" stroke="#AA5B63" stroke-width="2.2" stroke-linecap="round" /><path id="edge_51846bf2fefec74f1ee9a554" data-snnlab-id="E_to_R" d="M 124.125 0.0 L 240.0 0.0" fill="none" stroke="#7A8690" stroke-width="2.2" stroke-linejoin="round" /><path d="M 226.0 7.0 L 240.0 0.0 L 226.0 -7.0" fill="none" stroke="#7A8690" stroke-width="2.2" stroke-linecap="round" /><rect id="node_4b68ab3847feda7d6c62c1fb" data-snnlab-id="X" x="-480.25" y="-80.0" width="240.5" height="160.0" fill="#F3F6F8" stroke="#536D82" stroke-width="1" /><rect id="node_a9f51566bd6705f7ea6ad54b" data-snnlab-id="E" x="-124.125" y="-80.0" width="248.25" height="160.0" fill="#F5F4F1" stroke="#756B5B" stroke-width="1" /><rect id="node_6da43b944e494e885e69af02" data-snnlab-id="J" x="-120.6875" y="220.0" width="241.375" height="160.0" fill="#F3F6F8" stroke="#536D82" stroke-width="1" /><rect id="node_8c2574892063f995fdf756bc" data-snnlab-id="R" x="240.0" y="-80.0" width="240.0" height="160.0" fill="#F5F4F1" stroke="#756B5B" stroke-width="1" /><text id="label_180edb2360a05d011442d5bb" data-snnlab-id="X" x="-389.25" y="-44.0" fill="#536D82" font-size="20" font-family="Helvetica Neue">INPUT</text><svg width="20.0" height="21.0" viewBox="0 0 20 21" version="1.1" id="label_e1534736f4bf2d27a99efcfe" data-snnlab-id="X" x="-370.0" y="-28.0">
+ <metadata>
+  <rdf:RDF>
+   <ns2:Work>
+    <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+    <dc:format>image/svg+xml</dc:format>
+    <dc:creator>
+     <ns2:Agent>
+      <dc:title>Matplotlib v3.10.8, https://matplotlib.org/</dc:title>
+     </ns2:Agent>
+    </dc:creator>
+   </ns2:Work>
+  </rdf:RDF>
+ </metadata>
+ <defs>
+  <style type="text/css">*{stroke-linejoin: round; stroke-linecap: butt}</style>
+ </defs>
+ <g id="label_e1534736f4bf2d27a99efcfe_figure_1">
+  <g id="label_e1534736f4bf2d27a99efcfe_patch_1">
+   <path d="M 0 21  L 20 21  L 20 0  L 0 0  L 0 21  z " style="fill: none" />
+  </g>
+  <g id="label_e1534736f4bf2d27a99efcfe_text_1">
+   
+   <g style="fill: #24292f" transform="translate(0 21) scale(0.28 -0.28)">
+    <defs>
+     <path id="label_e1534736f4bf2d27a99efcfe_DejaVuSans-Oblique-58" d="M 878 4666  L 1516 4666  L 2316 2981  L 3763 4666  L 4500 4666  L 2578 2438  L 3738 0  L 3103 0  L 2163 1966  L 459 0  L -275 0  L 1906 2509  L 878 4666  z " transform="scale(0.015625)" />
+    </defs>
+    <use ns4:href="#label_e1534736f4bf2d27a99efcfe_DejaVuSans-Oblique-58" transform="translate(0 0.09375)" />
+   </g>
+  </g>
+ </g>
+</svg><text id="label_93c49639e70bd3a5be1f29c3" data-snnlab-id="X" x="-464.25" y="29.0" fill="#59636E" font-size="26" font-family="Helvetica Neue">Pixel spike events</text><text id="label_0bf1dce5a13bf4e856330a9f" data-snnlab-id="E" x="-61.875" y="-44.0" fill="#756B5B" font-size="20" font-family="Helvetica Neue">POPULATION</text><svg width="18.0" height="21.0" viewBox="0 0 18 21" version="1.1" id="label_2120ba8b5007956c05a893ee" data-snnlab-id="E" x="-9.0" y="-28.0">
+ <metadata>
+  <rdf:RDF>
+   <ns2:Work>
+    <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+    <dc:format>image/svg+xml</dc:format>
+    <dc:creator>
+     <ns2:Agent>
+      <dc:title>Matplotlib v3.10.8, https://matplotlib.org/</dc:title>
+     </ns2:Agent>
+    </dc:creator>
+   </ns2:Work>
+  </rdf:RDF>
+ </metadata>
+ <defs>
+  <style type="text/css">*{stroke-linejoin: round; stroke-linecap: butt}</style>
+ </defs>
+ <g id="label_2120ba8b5007956c05a893ee_figure_1">
+  <g id="label_2120ba8b5007956c05a893ee_patch_1">
+   <path d="M 0 21  L 18 21  L 18 0  L 0 0  L 0 21  z " style="fill: none" />
+  </g>
+  <g id="label_2120ba8b5007956c05a893ee_text_1">
+   
+   <g style="fill: #24292f" transform="translate(0 21) scale(0.28 -0.28)">
+    <defs>
+     <path id="label_2120ba8b5007956c05a893ee_DejaVuSans-Oblique-45" d="M 1081 4666  L 4031 4666  L 3928 4134  L 1606 4134  L 1338 2753  L 3566 2753  L 3463 2222  L 1234 2222  L 909 531  L 3284 531  L 3181 0  L 172 0  L 1081 4666  z " transform="scale(0.015625)" />
+    </defs>
+    <use ns4:href="#label_2120ba8b5007956c05a893ee_DejaVuSans-Oblique-45" transform="translate(0 0.09375)" />
+   </g>
+  </g>
+ </g>
+</svg><text id="label_a0d71e7b757124ee9ff45216" data-snnlab-id="E" x="-108.125" y="29.0" fill="#59636E" font-size="26" font-family="Helvetica Neue">Excitatory neurons</text><text id="label_9d1dc80d3b2c5b646ad780a6" data-snnlab-id="J" x="-29.25" y="256.0" fill="#536D82" font-size="20" font-family="Helvetica Neue">INPUT</text><svg width="9.0" height="27.0" viewBox="0 0 9 27" version="1.1" id="label_49ae1d4f2fe7442f726dc895" data-snnlab-id="J" x="-4.5" y="272.0">
+ <metadata>
+  <rdf:RDF>
+   <ns2:Work>
+    <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+    <dc:format>image/svg+xml</dc:format>
+    <dc:creator>
+     <ns2:Agent>
+      <dc:title>Matplotlib v3.10.8, https://matplotlib.org/</dc:title>
+     </ns2:Agent>
+    </dc:creator>
+   </ns2:Work>
+  </rdf:RDF>
+ </metadata>
+ <defs>
+  <style type="text/css">*{stroke-linejoin: round; stroke-linecap: butt}</style>
+ </defs>
+ <g id="label_49ae1d4f2fe7442f726dc895_figure_1">
+  <g id="label_49ae1d4f2fe7442f726dc895_patch_1">
+   <path d="M 0 27  L 9 27  L 9 0  L 0 0  L 0 27  z " style="fill: none" />
+  </g>
+  <g id="label_49ae1d4f2fe7442f726dc895_text_1">
+   
+   <g style="fill: #24292f" transform="translate(0 21) scale(0.28 -0.28)">
+    <defs>
+     <path id="label_49ae1d4f2fe7442f726dc895_DejaVuSans-Oblique-4a" d="M 1069 4666  L 1703 4666  L 856 325  Q 691 -522 298 -901  Q -94 -1281 -800 -1281  L -1050 -1281  L -947 -750  L -750 -750  Q -328 -750 -109 -509  Q 109 -269 225 325  L 1069 4666  z " transform="scale(0.015625)" />
+    </defs>
+    <use ns4:href="#label_49ae1d4f2fe7442f726dc895_DejaVuSans-Oblique-4a" transform="translate(0 0.09375)" />
+   </g>
+  </g>
+ </g>
+</svg><text id="label_f809b199d5a5534f71988f83" data-snnlab-id="J" x="-104.6875" y="335.0" fill="#59636E" font-size="26" font-family="Helvetica Neue">Recorded I spikes</text><text id="label_e5f4bb59c6cfa02245ae20e8" data-snnlab-id="R" x="298.125" y="-44.0" fill="#756B5B" font-size="20" font-family="Helvetica Neue">POPULATION</text><svg width="20.0" height="21.0" viewBox="0 0 20 21" version="1.1" id="label_cb81aeecf9c7dfcaf65dfb39" data-snnlab-id="R" x="350.0" y="-28.0">
+ <metadata>
+  <rdf:RDF>
+   <ns2:Work>
+    <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+    <dc:format>image/svg+xml</dc:format>
+    <dc:creator>
+     <ns2:Agent>
+      <dc:title>Matplotlib v3.10.8, https://matplotlib.org/</dc:title>
+     </ns2:Agent>
+    </dc:creator>
+   </ns2:Work>
+  </rdf:RDF>
+ </metadata>
+ <defs>
+  <style type="text/css">*{stroke-linejoin: round; stroke-linecap: butt}</style>
+ </defs>
+ <g id="label_cb81aeecf9c7dfcaf65dfb39_figure_1">
+  <g id="label_cb81aeecf9c7dfcaf65dfb39_patch_1">
+   <path d="M 0 21  L 20 21  L 20 0  L 0 0  L 0 21  z " style="fill: none" />
+  </g>
+  <g id="label_cb81aeecf9c7dfcaf65dfb39_text_1">
+   
+   <g style="fill: #24292f" transform="translate(0 21) scale(0.28 -0.28)">
+    <defs>
+     <path id="label_cb81aeecf9c7dfcaf65dfb39_DejaVuSans-Oblique-52" d="M 1613 4147  L 1294 2491  L 2106 2491  Q 2584 2491 2879 2755  Q 3175 3019 3175 3444  Q 3175 3784 2976 3965  Q 2778 4147 2406 4147  L 1613 4147  z M 2772 2241  Q 2972 2194 3105 2009  Q 3238 1825 3413 1275  L 3809 0  L 3144 0  L 2778 1197  Q 2638 1659 2453 1815  Q 2269 1972 1888 1972  L 1191 1972  L 806 0  L 172 0  L 1081 4666  L 2503 4666  Q 3150 4666 3495 4373  Q 3841 4081 3841 3531  Q 3841 3044 3547 2687  Q 3253 2331 2772 2241  z " transform="scale(0.015625)" />
+    </defs>
+    <use ns4:href="#label_cb81aeecf9c7dfcaf65dfb39_DejaVuSans-Oblique-52" transform="translate(0 0.09375)" />
+   </g>
+  </g>
+ </g>
+</svg><text id="label_c2cf40d8078ce3185030df10" data-snnlab-id="R" x="279.75" y="29.0" fill="#59636E" font-size="26" font-family="Helvetica Neue">Class readout</text><svg width="56.0" height="24.0" viewBox="0 0 56 24" version="1.1" id="label_1e01583554dc47fd47fa4476" data-snnlab-id="X_to_E" x="-209.9375" y="-38.0">
+ <metadata>
+  <rdf:RDF>
+   <ns2:Work>
+    <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+    <dc:format>image/svg+xml</dc:format>
+    <dc:creator>
+     <ns2:Agent>
+      <dc:title>Matplotlib v3.10.8, https://matplotlib.org/</dc:title>
+     </ns2:Agent>
+    </dc:creator>
+   </ns2:Work>
+  </rdf:RDF>
+ </metadata>
+ <defs>
+  <style type="text/css">*{stroke-linejoin: round; stroke-linecap: butt}</style>
+ </defs>
+ <g id="label_1e01583554dc47fd47fa4476_figure_1">
+  <g id="label_1e01583554dc47fd47fa4476_patch_1">
+   <path d="M 0 24  L 56 24  L 56 0  L 0 0  L 0 24  z " style="fill: none" />
+  </g>
+  <g id="label_1e01583554dc47fd47fa4476_text_1">
+   
+   <g style="fill: #59636e" transform="translate(0 18) scale(0.24 -0.24)">
+    <defs>
+     <path id="label_1e01583554dc47fd47fa4476_DejaVuSans-Oblique-57" d="M 616 4666  L 1228 4666  L 1453 697  L 3213 4666  L 3916 4666  L 4147 697  L 5888 4666  L 6528 4666  L 4453 0  L 3659 0  L 3444 3891  L 1697 0  L 903 0  L 616 4666  z " transform="scale(0.015625)" />
+     <path id="label_1e01583554dc47fd47fa4476_DejaVuSans-Oblique-45" d="M 1081 4666  L 4031 4666  L 3928 4134  L 1606 4134  L 1338 2753  L 3566 2753  L 3463 2222  L 1234 2222  L 909 531  L 3284 531  L 3181 0  L 172 0  L 1081 4666  z " transform="scale(0.015625)" />
+     <path id="label_1e01583554dc47fd47fa4476_DejaVuSans-2c" d="M 750 794  L 1409 794  L 1409 256  L 897 -744  L 494 -744  L 750 256  L 750 794  z " transform="scale(0.015625)" />
+     <path id="label_1e01583554dc47fd47fa4476_DejaVuSans-Oblique-58" d="M 878 4666  L 1516 4666  L 2316 2981  L 3763 4666  L 4500 4666  L 2578 2438  L 3738 0  L 3103 0  L 2163 1966  L 459 0  L -275 0  L 1906 2509  L 878 4666  z " transform="scale(0.015625)" />
+    </defs>
+    <use ns4:href="#label_1e01583554dc47fd47fa4476_DejaVuSans-Oblique-57" transform="translate(0 0.09375)" />
+    <use ns4:href="#label_1e01583554dc47fd47fa4476_DejaVuSans-Oblique-45" transform="translate(98.876953 -16.3125) scale(0.7)" />
+    <use ns4:href="#label_1e01583554dc47fd47fa4476_DejaVuSans-2c" transform="translate(143.105469 -16.3125) scale(0.7)" />
+    <use ns4:href="#label_1e01583554dc47fd47fa4476_DejaVuSans-Oblique-58" transform="translate(178.994141 -16.3125) scale(0.7)" />
+   </g>
+  </g>
+ </g>
+</svg><svg width="49.0" height="26.0" viewBox="0 0 49 26" version="1.1" id="label_ab62922d59e0cce569f97e36" data-snnlab-id="J_to_E" x="-61.0" y="137.0">
+ <metadata>
+  <rdf:RDF>
+   <ns2:Work>
+    <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+    <dc:format>image/svg+xml</dc:format>
+    <dc:creator>
+     <ns2:Agent>
+      <dc:title>Matplotlib v3.10.8, https://matplotlib.org/</dc:title>
+     </ns2:Agent>
+    </dc:creator>
+   </ns2:Work>
+  </rdf:RDF>
+ </metadata>
+ <defs>
+  <style type="text/css">*{stroke-linejoin: round; stroke-linecap: butt}</style>
+ </defs>
+ <g id="label_ab62922d59e0cce569f97e36_figure_1">
+  <g id="label_ab62922d59e0cce569f97e36_patch_1">
+   <path d="M 0 26  L 49 26  L 49 0  L 0 0  L 0 26  z " style="fill: none" />
+  </g>
+  <g id="label_ab62922d59e0cce569f97e36_text_1">
+   
+   <g style="fill: #59636e" transform="translate(0 18) scale(0.24 -0.24)">
+    <defs>
+     <path id="label_ab62922d59e0cce569f97e36_DejaVuSans-Oblique-57" d="M 616 4666  L 1228 4666  L 1453 697  L 3213 4666  L 3916 4666  L 4147 697  L 5888 4666  L 6528 4666  L 4453 0  L 3659 0  L 3444 3891  L 1697 0  L 903 0  L 616 4666  z " transform="scale(0.015625)" />
+     <path id="label_ab62922d59e0cce569f97e36_DejaVuSans-Oblique-45" d="M 1081 4666  L 4031 4666  L 3928 4134  L 1606 4134  L 1338 2753  L 3566 2753  L 3463 2222  L 1234 2222  L 909 531  L 3284 531  L 3181 0  L 172 0  L 1081 4666  z " transform="scale(0.015625)" />
+     <path id="label_ab62922d59e0cce569f97e36_DejaVuSans-2c" d="M 750 794  L 1409 794  L 1409 256  L 897 -744  L 494 -744  L 750 256  L 750 794  z " transform="scale(0.015625)" />
+     <path id="label_ab62922d59e0cce569f97e36_DejaVuSans-Oblique-4a" d="M 1069 4666  L 1703 4666  L 856 325  Q 691 -522 298 -901  Q -94 -1281 -800 -1281  L -1050 -1281  L -947 -750  L -750 -750  Q -328 -750 -109 -509  Q 109 -269 225 325  L 1069 4666  z " transform="scale(0.015625)" />
+    </defs>
+    <use ns4:href="#label_ab62922d59e0cce569f97e36_DejaVuSans-Oblique-57" transform="translate(0 0.09375)" />
+    <use ns4:href="#label_ab62922d59e0cce569f97e36_DejaVuSans-Oblique-45" transform="translate(98.876953 -16.3125) scale(0.7)" />
+    <use ns4:href="#label_ab62922d59e0cce569f97e36_DejaVuSans-2c" transform="translate(143.105469 -16.3125) scale(0.7)" />
+    <use ns4:href="#label_ab62922d59e0cce569f97e36_DejaVuSans-Oblique-4a" transform="translate(178.994141 -16.3125) scale(0.7)" />
+   </g>
+  </g>
+ </g>
+</svg><svg width="56.0" height="24.0" viewBox="0 0 56 24" version="1.1" id="label_93092f4ad610557311343591" data-snnlab-id="E_to_R" x="154.0625" y="-38.0">
+ <metadata>
+  <rdf:RDF>
+   <ns2:Work>
+    <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+    <dc:format>image/svg+xml</dc:format>
+    <dc:creator>
+     <ns2:Agent>
+      <dc:title>Matplotlib v3.10.8, https://matplotlib.org/</dc:title>
+     </ns2:Agent>
+    </dc:creator>
+   </ns2:Work>
+  </rdf:RDF>
+ </metadata>
+ <defs>
+  <style type="text/css">*{stroke-linejoin: round; stroke-linecap: butt}</style>
+ </defs>
+ <g id="label_93092f4ad610557311343591_figure_1">
+  <g id="label_93092f4ad610557311343591_patch_1">
+   <path d="M 0 24  L 56 24  L 56 0  L 0 0  L 0 24  z " style="fill: none" />
+  </g>
+  <g id="label_93092f4ad610557311343591_text_1">
+   
+   <g style="fill: #59636e" transform="translate(0 18) scale(0.24 -0.24)">
+    <defs>
+     <path id="label_93092f4ad610557311343591_DejaVuSans-Oblique-57" d="M 616 4666  L 1228 4666  L 1453 697  L 3213 4666  L 3916 4666  L 4147 697  L 5888 4666  L 6528 4666  L 4453 0  L 3659 0  L 3444 3891  L 1697 0  L 903 0  L 616 4666  z " transform="scale(0.015625)" />
+     <path id="label_93092f4ad610557311343591_DejaVuSans-Oblique-52" d="M 1613 4147  L 1294 2491  L 2106 2491  Q 2584 2491 2879 2755  Q 3175 3019 3175 3444  Q 3175 3784 2976 3965  Q 2778 4147 2406 4147  L 1613 4147  z M 2772 2241  Q 2972 2194 3105 2009  Q 3238 1825 3413 1275  L 3809 0  L 3144 0  L 2778 1197  Q 2638 1659 2453 1815  Q 2269 1972 1888 1972  L 1191 1972  L 806 0  L 172 0  L 1081 4666  L 2503 4666  Q 3150 4666 3495 4373  Q 3841 4081 3841 3531  Q 3841 3044 3547 2687  Q 3253 2331 2772 2241  z " transform="scale(0.015625)" />
+     <path id="label_93092f4ad610557311343591_DejaVuSans-2c" d="M 750 794  L 1409 794  L 1409 256  L 897 -744  L 494 -744  L 750 256  L 750 794  z " transform="scale(0.015625)" />
+     <path id="label_93092f4ad610557311343591_DejaVuSans-Oblique-45" d="M 1081 4666  L 4031 4666  L 3928 4134  L 1606 4134  L 1338 2753  L 3566 2753  L 3463 2222  L 1234 2222  L 909 531  L 3284 531  L 3181 0  L 172 0  L 1081 4666  z " transform="scale(0.015625)" />
+    </defs>
+    <use ns4:href="#label_93092f4ad610557311343591_DejaVuSans-Oblique-57" transform="translate(0 0.09375)" />
+    <use ns4:href="#label_93092f4ad610557311343591_DejaVuSans-Oblique-52" transform="translate(98.876953 -16.3125) scale(0.7)" />
+    <use ns4:href="#label_93092f4ad610557311343591_DejaVuSans-2c" transform="translate(147.514648 -16.3125) scale(0.7)" />
+    <use ns4:href="#label_93092f4ad610557311343591_DejaVuSans-Oblique-45" transform="translate(183.40332 -16.3125) scale(0.7)" />
+   </g>
+  </g>
+ </g>
+</svg></svg>

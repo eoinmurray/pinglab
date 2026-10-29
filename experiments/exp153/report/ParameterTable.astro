@@ -1,0 +1,134 @@
+---
+import Table from '../../../site/src/components/Table.astro';
+import { reportData, reportSnapshots } from '../../../site/src/lib/report-data';
+import { formatTableNumber } from '../../../site/src/lib/table-number';
+
+const data = await reportData('exp153', { allowUnavailable: true });
+const evidence = data ? await reportSnapshots('exp153', {
+  snapshots: { source: data.configuration.native_snapshot ?? 'source-snapshot/start/snapshot.json' },
+  allowUnavailable: true,
+}) : undefined;
+const cfg = evidence?.configuration;
+// Historical exports retain their original settings; new runs own their network.
+const network = cfg?.network ?? cfg?.imported_protocol;
+const analysis = data?.configuration;
+const onsetOnly = analysis?.protocol === 'onset-only';
+const snapshot = evidence?.snapshots.source;
+const n = formatTableNumber;
+const math = value => ({ math: value });
+const identifier = value => {
+  if (!Number.isSafeInteger(value)) throw new Error('Invalid saved exp153 seed');
+  return String(value);
+};
+const symbol = id => {
+  const population = id.match(/^PING_([AB])_([EI])$/);
+  if (population) return `${population[2]}_${population[1]}`;
+  if (/^drive_[AB]$/.test(id)) return `X_${id.at(-1)}`;
+  throw new Error(`Unlabelled exp153 population or input: ${id}`);
+};
+const interval = values => `${values.map(n).join('–')} ms`;
+const sweep = values => `${n(values[0])} to ${n(values.at(-1))} (step ${n(values[1] - values[0])})`;
+const pair = read => {
+  const values = ['A', 'B'].map(c => ['E', 'I'].map(p => read(`PING_${c}_${p}`)));
+  const text = values.map(row => row.map(n).join(' / '));
+  return (JSON.stringify(values[0]) === JSON.stringify(values[1]) ? text[0] : `A ${text[0]}; B ${text[1]}`) + ' ms';
+};
+const net = snapshot?.network;
+const populations = net?.populations ?? [];
+const inputs = net?.inputs ?? [];
+const projections = net?.projections ?? [];
+const synapticDynamics = [...new Set(projections.map(projection => {
+  const source = projection.source.split('.')[0].match(/^PING_([AB])_([EI])$/);
+  const target = projection.target.split('.')[0].match(/^PING_([AB])_([EI])$/);
+  const path = !source ? 'Sensory input' : source[1] !== target[1]
+    ? 'Cross-circuit excitation' : `${source[2]}→${target[2]}`;
+  return JSON.stringify([path, projection.synapse.kind, projection.synapse.tau.value, projection.delay?.value ?? 0]);
+}))].map(signature => {
+  const [path, kind, decay, delay] = JSON.parse(signature);
+  return `${path} ${kind.toUpperCase()} ${n(decay)} / ${n(delay)} ms`;
+}).join('; ');
+const order = ['PING_A_E', 'PING_A_I', 'PING_B_E', 'PING_B_I', 'drive_A', 'drive_B'];
+const sources = [
+  ...populations.map(population => ({ id: population.id, size: population.size, description: 'conductance-LIF reference neurons' })),
+  ...inputs.map(input => ({ id: input.id, size: input.shape.at(-1), description: 'input channels' })),
+].sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
+const targets = sources.filter(source => populations.some(population => population.id === source.id));
+const shared = (label, value) => [label, value, value];
+const groups = cfg && net && analysis ? [
+  { label: 'Simulation', rows: [
+    shared({ markdown: 'Integrator / timestep, $dt$' }, `${cfg.solver.method}; adaptive, dt inapplicable`),
+    shared('Maximum step / observation interval', `${n(cfg.solver.max_step_ms)} / ${n(cfg.sample_interval_ms)} ms`),
+    ['Analysed duration', `${n(cfg.duration_ms)} ms`, interval(cfg.example.display_window_ms)],
+    shared('Coupling onset', `${n(network.onset_ms)} ms; continuous state`),
+    shared('Weight-initialization seed', identifier(network.network_seed)),
+  ] },
+  { label: 'Populations', rows: sources.map(source => shared(math(symbol(source.id)), `${n(source.size)} ${source.description}`)) },
+  { label: 'Neuron dynamics', rows: [
+    shared('Rate relaxation, E / I', pair(id => cfg.closure.tau_rate_ms[id])),
+    shared('Reference membrane time constant, E / I', pair(id => populations.find(population => population.id === id).neuron.tau_mem.value)),
+    shared('Reference refractory period, E / I', pair(id => populations.find(population => population.id === id).neuron.refractory.value)),
+  ] },
+  { label: 'Input and manipulation', rows: [
+    ['Private input rate, A / B (Hz/channel)', `${sweep(network.input_rates_hz.drive_A)} / ${sweep(network.input_rates_hz.drive_B)}`,
+      `${n(network.mean_input_hz + cfg.example.difference_hz / 2)} / ${n(network.mean_input_hz - cfg.example.difference_hz / 2)}`],
+    ['A-minus-B input difference (Hz/channel)', sweep(cfg.sweep.differences_hz), n(cfg.example.difference_hz)],
+    ['Coupling per cross-circuit pathway (µS)', sweep(cfg.sweep.couplings_us), n(cfg.example.coupling_us)],
+  ] },
+  { label: 'Measurement', rows: [
+    ['Phase measurement window', interval([analysis.phase.start_ms, cfg.duration_ms]), interval(cfg.example.phase_window_ms)],
+  ] },
+] : [{ label: 'Evidence', rows: [['Saved parameters', 'Unavailable', 'Unavailable']] }];
+
+// Nominal spiking-reference weights explain the local reference connectivity. The
+// mean-field solver instead consumes measured mean incoming matrix sums.
+const endpoint = value => value.split('.')[0];
+const matrix = snapshot && cfg ? sources.map(source => [math(symbol(source.id)), ...targets.map(target => {
+  const paths = projections.filter(projection => endpoint(projection.source) === source.id && endpoint(projection.target) === target.id);
+  if (!paths.length) return 'Absent';
+  if (paths.length !== 1) throw new Error('Multiple saved exp153 projections for one connectivity cell');
+  const projection = paths[0];
+  const parameter = net.parameters.find(item => item.id === projection.parameters[0]);
+  if (!parameter || parameter.unit !== 'uS') throw new Error('Missing saved exp153 conductance parameter');
+  const initializer = parameter.initializer;
+  const constant = initializer.kind === 'constant';
+  if (!constant && initializer.kind !== 'lower_clamped_normal') throw new Error('Unsupported saved exp153 initializer');
+  const fraction = constant ? 1 : 1 - initializer.initial_zero_fraction;
+  const autapses = snapshot.execution.initialization?.[parameter.id]?.autapses?.[projection.id];
+  const eligible = autapses?.eligible_fan_in
+    ?? source.size - (source.id === target.id && projection.allow_autapses === false ? 1 : 0);
+  const fanIn = initializer.zeroing === 'exact_k' ? Math.round(eligible * fraction) : eligible * fraction;
+  const divisor = parameter.initialization_scaling === 'direct' ? 1
+    : parameter.initialization_scaling === 'fan_in_normalized' ? fanIn : undefined;
+  if (!(divisor > 0)) throw new Error('Unsupported saved exp153 weight normalization');
+  const scale = (snapshot.execution.inference_overrides?.projection_scales?.[projection.id] ?? 1)
+    * (cfg.reduction_projection_scales?.[projection.id] ?? 1);
+  if (projection.modulation && projection.modulation.kind !== 'step_gain') throw new Error('Unsupported saved exp153 scheduled gain');
+  const cross = projection.id.includes('_K_E');
+  const gain = (projection.modulation?.after ?? 1) * (cross ? cfg.example.coupling_us / network.base_coupling_us : 1);
+  const mean = (constant ? initializer.value : initializer.mean) * scale * gain * 1000 / divisor;
+  const sd = constant ? 0 : initializer.std * scale * gain * 1000 / divisor;
+  return `${n(100 * fanIn / eligible)}%; ${sd ? `${n(mean)} ± ${n(sd)}` : n(mean)}`;
+})]) : undefined;
+if (matrix && projections.some(projection => !sources.some(source => source.id === endpoint(projection.source)) || !targets.some(target => target.id === endpoint(projection.target)))) {
+  throw new Error('Saved exp153 projection has an unreported endpoint');
+}
+---
+
+<Table headers={onsetOnly ? ['Parameter', 'Onset calculation'] : ['Parameter', 'Coupling map', 'Onset excerpt']} groups={onsetOnly ? groups.map(group => ({ ...group, rows: group.rows.map(row => [row[0], row[2]]) })) : groups} number="A1" id="saved-model-parameters" label="Mean-field calculation and reference populations">
+  Recorded mean-field settings and saved neuronal-reference populations for Figure 2.
+  {onsetOnly && <span>Figure 1 retains its historical settings and is not represented by this table. </span>} E / I denotes excitatory / inhibitory;
+  LIF means leaky integrate-and-fire; X identifies private sensory input. Each neuronal population becomes one
+  continuous rate; each retained pathway becomes a conductance filter. The initialization seed identifies the weight draw, not independent repetitions. Sensory rates are deterministic. The onset calculation uses its recorded trajectory.
+  Quantities use two significant figures; seed identifiers remain exact.
+</Table>
+
+{matrix ? <Table headers={['Source ↓ / target →', ...targets.map(target => math(symbol(target.id)))]}
+  rows={matrix} rowHeaders number="A2" id="connectivity-matrix" label="Source-to-target connectivity">
+  Connectivity of the saved Figure 2 reference, illustrated at {n(cfg.example.difference_hz)} Hz input difference
+  and {n(cfg.example.coupling_us)} µS coupling after onset. Rows are sources; columns are targets. Each cell gives
+  eligible-pair density and nominal spiking-reference weight in nS per connection (mean ± SD for random initializers).
+  Weights include saved execution scaling and post-onset gain; they are not measured matrix statistics or total incoming conductances.
+  Self-connections are excluded on the diagonal; cross-circuit paths use exact fan-in. Absent means no retained projection.
+  The reduction uses measured matrix sums divided by target count, with recorded sensory gain and cross-circuit sums scaled to this condition.
+  Synaptic decay / delay: {synapticDynamics}.
+</Table> : <p>Connectivity unavailable: no saved native snapshot selected.</p>}

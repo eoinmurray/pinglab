@@ -1,5 +1,18 @@
 import Table from '../../../site/src/components/Table.astro';
 import { DT, REVERSALS, SYNAPTIC_DECAY, SPIKE_DELAY, SPIKE_INTERVAL } from './js/membrane.js';
+import membraneNetwork from './images/membrane-network.svg?url';
+
+## Network diagram
+
+<figure class="l-body" id="fig-network">
+  <a class="figure-image" href={membraneNetwork}><img src={membraneNetwork} width="804" height="295" style="display: block; width: 100%; height: auto;" alt="Illustrative presynaptic source P drives Hodgkin–Huxley membrane N through one excitatory synaptic weight W_NP." /></a>
+  <figcaption>Figure A1. $P$ denotes the prescribed presynaptic spike source and
+  $N$ the Hodgkin–Huxley membrane. $W_{N,P}$ is the synaptic conductance-density
+  increment, in mS/cm², with target first and source second. Sodium, potassium
+  and leak dynamics remain inside the membrane. This schematic describes the
+  browser illustration; it is not a saved simulation. The separate capacitor
+  demonstration has electrical components rather than synaptic weights.</figcaption>
+</figure>
 
 ## Parameters
 

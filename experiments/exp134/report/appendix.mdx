@@ -107,6 +107,10 @@ export const parameterGroups = (() => {
 ### Network diagrams
 
 <RunFigure report="exp134" experiment="exp134" allowUnavailable file="network.svg" number="A1" id="fig-network" alt="Shared PING circuit: image input excites E, E excites I and output neurons, and I inhibits E.">
+  $X$ denotes image input, $E/I$ the hidden populations and $R$ the readout.
+  Every projection is labelled $W_{XY}$, with target $X$ first and source $Y$
+  second. Arrowheads show excitation; bars show inhibition. The layout uses the
+  saved baseline bundle and omits recording aliases.
   Native circuit view from the selected compute bundle. Both sweeps share this
   topology and frozen checkpoint weights; only E/I membrane parameters vary.
 </RunFigure>

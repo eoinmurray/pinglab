@@ -1,7 +1,8 @@
 """Measure behaviour, model progress, delivery ages and absolute deadline misses.
 
-This stage consumes one explicit raw acquisition and preserves every original
-trace field in traces.npz. A short callback can still miss an absolute deadline.
+This stage consumes one explicit ROS acquisition. It exports the replay traces
+and the measurements needed to validate the report. A short callback can still
+miss an absolute deadline.
 """
 
 from __future__ import annotations
@@ -13,7 +14,7 @@ from pathlib import Path
 import numpy as np
 
 REPO = Path(__file__).resolve().parents[2]
-sys.path[:0] = [str(REPO), str(REPO / "tools")]
+sys.path[:0] = [str(REPO), str(REPO / "libraries")]
 from experiments.exp152.recipe import SIDES
 from pingstore.library import load_json, source_run, stage_run, write_json_atomic
 
@@ -88,34 +89,24 @@ def collect(records, spikes, start_ns, args, ready, error):
             [r["deadline_lateness_ms"] for r in rows]
         )
         values[name + "_model_time_s"] = np.array([r["model_time_s"] for r in rows])
-        values[name + "_lag_ms"] = np.array([r["wall_lag_ms"] for r in rows])
         if name in SIDES:
             values[name + "_voltage"] = np.array([r["voltage"] for r in rows]).reshape(
                 -1, channels
             )
-            values[name + "_substep_voltage"] = np.array(
-                [r["substep_voltage"] for r in rows]
-            ).reshape(-1, args.substeps, channels)
-            values[name + "_substep_spikes"] = np.array(
-                [r["substep_spikes"] for r in rows]
-            ).reshape(-1, args.substeps, channels)
             values[name + "_spikes"] = np.array([r["spikes"] for r in rows]).reshape(
                 -1, channels
             )
         rows = deliveries[name]
-        values[name + "_delivery_time_s"] = np.array(
-            [relative(r["stamp_ns"]) for r in rows]
-        )
         values[name + "_delivery_ms"] = np.array([r["age_ms"] for r in rows])
     plant = ticks["plant"]
-    for key in ("angle", "velocity", "torque", "gravity_torque"):
+    for key in ("angle", "velocity", "gravity_torque"):
         values[key] = np.array([r[key] for r in plant])
     values["activation"] = np.array([r["activation"] for r in plant]).reshape(-1, 2)
-    for topic, rows in spikes.items():
-        key = topic.strip("/").replace("/", "_")
+    for side in SIDES:
+        rows = spikes["/sensory/" + side]
+        key = "sensory_" + side
         values[key + "_time_s"] = np.array([relative(r[1]) for r in rows])
         values[key + "_model_time_s"] = np.array([r[3] / 1e9 for r in rows])
-        values[key + "_neuron"] = np.array([r[2] for r in rows], dtype=int)
     velocity = values["velocity"]
     moving = np.sign(
         velocity[np.abs(velocity) > args.analysis["movement_velocity_threshold_rad_s"]]
@@ -190,7 +181,7 @@ def collect(records, spikes, start_ns, args, ready, error):
         no_safety_stop=all(reason == "completed" for reason in stop_reasons.values()),
         all_nodes_recorded=all(ticks.values()),
         finite_neural_traces=all(
-            np.isfinite(values[name + "_substep_voltage"]).all() for name in SIDES
+            np.isfinite(values[name + "_voltage"]).all() for name in SIDES
         ),
         finite_joint_state=bool(
             np.isfinite(values["angle"]).all() and np.isfinite(velocity).all()
@@ -224,7 +215,6 @@ def collect(records, spikes, start_ns, args, ready, error):
     return values, dict(
         mode="ros2",
         observed_wall_seconds=wall_seconds,
-        timing_profile=dict(enabled=False),
         passed=all(checks.values()),
         checks=checks,
         error=error,
@@ -384,250 +374,7 @@ def cycle_metrics(
         upper_angle_deg=np.rad2deg(upper).tolist(),
         lower_angle_deg=np.rad2deg(lower).tolist(),
         minimum_excursion_rad=float((upper - lower).min()),
-        phase=phases.tolist(),
-        median_waveform=reference.tolist(),
-        waveform=waves.tolist(),
     )
-
-
-def analyse_cycles(upstream, cfg, run_id):
-    rows = []
-    for index, condition in enumerate(cfg["conditions"]):
-        with np.load(upstream.file(f"condition-{index}.npz")) as data:
-            trace = data["trace"]
-        metadata = load_json(upstream.file(f"condition-{index}.json"))
-        metrics = cycle_metrics(
-            trace[:, 0],
-            trace[:, 1],
-            reference_angle=metadata["joint"]["reference_angle"],
-            settings=cfg["analysis"],
-        )
-        metrics.update(
-            condition=condition,
-            limit_hits=metadata["limit_hits"],
-            late_sensory_counts=trace[len(trace) // 2 :, 6:8]
-            .sum(0)
-            .astype(int)
-            .tolist(),
-            motor_counts=trace[:, 4:6].sum(0).astype(int).tolist(),
-        )
-        centre, threshold = (
-            metadata["joint"]["reference_angle"],
-            metadata["joint"]["sensory_limit"],
-        )
-        metrics["passed"] = bool(
-            metrics["passed"]
-            and metadata["limit_hits"] == 0
-            and all(metrics["late_sensory_counts"])
-            and min(metrics["upper_angle_deg"]) > np.rad2deg(centre + threshold)
-            and max(metrics["lower_angle_deg"]) < np.rad2deg(centre - threshold)
-        )
-        rows.append(metrics)
-    with stage_run(
-        REPO,
-        "exp152",
-        "analyse",
-        inputs={"compute": upstream},
-        run_id=run_id,
-        configuration=cfg,
-    ) as run:
-        write_json_atomic(
-            run.export / "cycles.json",
-            dict(
-                conditions=rows,
-                definition="Final ten complete upward reference crossings after 5 s; maximum period and turning-point errors and normalized angle/velocity RMS waveform errors below 1%; both late sensory channels; no stops.",
-            ),
-        )
-    keys = (
-        "period_relative_error",
-        "turning_angle_relative_error",
-        "angle_waveform_relative_error",
-        "velocity_waveform_relative_error",
-    )
-    for index, row in enumerate(rows):
-        print(
-            index,
-            row["condition"],
-            "PASS" if row["passed"] else "FAIL",
-            {key: row[key] for key in keys},
-            flush=True,
-        )
-    return run.run_id
-
-
-def adaptation_measure(trace, cfg, *, validation=False, limit_hits=0):
-    """Measure complete cycles and the feedback loss, including invalid probes."""
-    settings = {
-        **cfg["analysis"],
-        "cycle_count": (
-            cfg["analysis"]["cycle_count"]
-            if validation
-            else cfg["adaptation"]["measurement_cycles"]
-        ),
-        "cycle_burn_in_s": cfg["adaptation"]["settling_s"],
-    }
-    cycles = cycle_metrics(
-        trace[:, 0],
-        trace[:, 1],
-        reference_angle=cfg["joint"]["reference_angle"],
-        settings=settings,
-    )
-    result = dict(
-        valid=False,
-        eligible=False,
-        loss=None,
-        frequency_hz=None,
-        excursion_rad=None,
-        frequency_relative_error=None,
-        excursion_relative_error=None,
-        limit_hits=int(limit_hits),
-        cycles=cycles,
-    )
-    if limit_hits or cycles["mean_period_s"] is None:
-        return result
-    frequency = 1.0 / cycles["mean_period_s"]
-    excursion = float(
-        np.mean(
-            np.deg2rad(np.array(cycles["upper_angle_deg"]) - cycles["lower_angle_deg"])
-        )
-    )
-    frequency_error = frequency / cfg["adaptation"]["target_frequency_hz"] - 1
-    excursion_error = excursion / cfg["adaptation"]["target_excursion_rad"] - 1
-    result.update(
-        valid=True,
-        eligible=bool(
-            cycles["passed"]
-            or not cfg["adaptation"].get("require_repeatable_cycles", False)
-        ),
-        loss=float(frequency_error**2 + excursion_error**2),
-        frequency_hz=float(frequency),
-        excursion_rad=excursion,
-        frequency_relative_error=float(frequency_error),
-        excursion_relative_error=float(excursion_error),
-    )
-    return result
-
-
-def analyse_adaptation(upstream, cfg, run_id):
-    """Independently remeasure all saved probes and fresh/frozen validations."""
-    history = load_json(upstream.file("adaptation.json"))
-    rows = []
-    for row in history["segments"]:
-        with np.load(upstream.file(row["trace_file"]), allow_pickle=False) as data:
-            trace = data["trace"]
-        measured = adaptation_measure(
-            trace, cfg, validation=row["validation"], limit_hits=row["limit_hits"]
-        )
-        online = row["online_measurement"]
-        if measured["valid"] != online["valid"]:
-            raise ValueError("Saved trace does not reproduce online feedback")
-        if measured["eligible"] != online.get("eligible", online["valid"]):
-            raise ValueError("Saved trace does not reproduce online eligibility")
-        if measured["valid"]:
-            fields = (
-                "loss",
-                "frequency_hz",
-                "excursion_rad",
-                "frequency_relative_error",
-                "excursion_relative_error",
-            )
-            np.testing.assert_allclose(
-                [measured[key] for key in fields],
-                [online[key] for key in fields],
-                rtol=1e-12,
-                atol=1e-12,
-                err_msg="Saved trace does not reproduce online feedback",
-            )
-        rows.append({**row, "measurement": measured})
-    if cfg["adaptation"].get("require_repeatable_cycles", False):
-        for decision in history["decisions"]:
-            evaluated = [
-                row for row in rows if row.get("iteration") == decision["iteration"]
-            ]
-            if not evaluated or evaluated[0]["parameters"] != decision["before"]:
-                raise ValueError("Adaptation decision has no matching baseline")
-            if decision["accepted"]:
-                selected = next(
-                    row for row in evaluated if row["parameters"] == decision["after"]
-                )
-                if not (
-                    evaluated[0]["measurement"]["eligible"]
-                    and selected["measurement"]["eligible"]
-                ):
-                    raise ValueError("Unsettled feedback was used for an update")
-                if (
-                    evaluated[0]["measurement"]["loss"]
-                    - selected["measurement"]["loss"]
-                    <= cfg["adaptation"]["minimum_loss_improvement"]
-                ):
-                    raise ValueError("Accepted feedback does not reduce settled loss")
-    baseline, final, restarted = (
-        next(row for row in rows if row["kind"] == name)["measurement"]
-        for name in ("initial_validation", "frozen_validation", "reset_validation")
-    )
-    tolerance = cfg["adaptation"]["target_relative_tolerance"]
-
-    def reaches_target(measurement):
-        return bool(
-            measurement["eligible"]
-            and max(
-                abs(measurement["frequency_relative_error"]),
-                abs(measurement["excursion_relative_error"]),
-            )
-            <= tolerance
-        )
-
-    summary = dict(
-        configuration=cfg,
-        baseline=baseline,
-        final=final,
-        restarted=restarted,
-        final_parameters=history["final_parameters"],
-        snapshot_paths=dict(
-            initial="segment-000/flexor/start/snapshot.json",
-            final=f"segment-{len(rows) - 1:03d}/flexor/start/snapshot.json",
-        ),
-        decisions=history["decisions"],
-        accepted_updates=sum(decision["accepted"] for decision in history["decisions"]),
-        segments=rows,
-        loss_reduction_fraction=(
-            1 - restarted["loss"] / baseline["loss"]
-            if baseline["valid"] and restarted["valid"] and baseline["loss"] > 0
-            else None
-        ),
-        reached_target=reaches_target(final) and reaches_target(restarted),
-        total_limit_hits=sum(row["limit_hits"] for row in rows),
-        invalid_segments=sum(not row["measurement"]["valid"] for row in rows),
-        unsettled_segments=sum(
-            not row["validation"]
-            and row["measurement"]["valid"]
-            and not row["measurement"]["eligible"]
-            for row in rows
-        ),
-        scope="One deterministic native start; no ROS timing or cross-condition robustness claim",
-    )
-    with stage_run(
-        REPO,
-        "exp152",
-        "analyse",
-        inputs={"compute": upstream},
-        run_id=run_id,
-        configuration=cfg,
-    ) as run:
-        write_json_atomic(run.export / "adaptation.json", summary)
-    print(
-        {
-            key: summary[key]
-            for key in (
-                "loss_reduction_fraction",
-                "reached_target",
-                "total_limit_hits",
-                "final_parameters",
-            )
-        },
-        flush=True,
-    )
-    return run.run_id
 
 
 def analyse(source, *, run_id=None):
@@ -635,10 +382,6 @@ def analyse(source, *, run_id=None):
         REPO / ".pingstore", source, stage="compute", experiment="exp152"
     )
     cfg = upstream.record["execution"]["configuration"]
-    if cfg.get("protocol") == "adaptation_check":
-        return analyse_adaptation(upstream, cfg, run_id)
-    if cfg.get("protocol") == "cycle_check":
-        return analyse_cycles(upstream, cfg, run_id)
     raw = load_json(upstream.file("diagnostics.json"))
     args = argparse.Namespace(
         **cfg,
@@ -678,75 +421,27 @@ def analyse(source, *, run_id=None):
             and max(troughs) < np.rad2deg(centre - threshold)
         )
         summary["passed"] = all(summary["checks"].values())
-    inputs = {"compute": upstream}
-    if "cycle_validation" in upstream.record["inputs"]:
-        reference = upstream.record["inputs"]["cycle_validation"]
-        validation = source_run(
-            REPO / ".pingstore",
-            reference["run_id"],
-            stage="analyse",
-            experiment="exp152",
-            reference=reference,
-        )
-        summary["deterministic_cycles"] = load_json(validation.file("cycles.json"))[
-            "conditions"
-        ][0]
-        summary["deterministic_validation_run"] = reference["run_id"]
-        summary["deterministic_duration_seconds"] = validation.record["execution"][
-            "configuration"
-        ]["duration"]
-        native_reference = validation.record["inputs"]["compute"]
-        native = source_run(
-            REPO / ".pingstore",
-            native_reference["run_id"],
-            stage="compute",
-            experiment="exp152",
-            reference=native_reference,
-        )
-        with np.load(native.file("condition-0.npz")) as data:
-            expected_trace = data["trace"]
-        compared = min(
-            len(expected_trace),
-            len(values["angle"]),
-            *(len(values[name + "_spikes"]) for name in SIDES),
-        )
-        actual_joint = np.column_stack(
-            (
-                values["angle"][:compared],
-                values["velocity"][:compared],
-                values["activation"][:compared],
-            )
-        )
-        actual_motor = np.column_stack(
-            [values[name + "_spikes"][:compared, 0] for name in SIDES]
-        )
-        summary["native_trace_comparison"] = dict(
-            steps=compared,
-            source_run=native_reference["run_id"],
-            exact_joint_state=bool(
-                compared and np.array_equal(actual_joint, expected_trace[:compared, :4])
-            ),
-            exact_motor_spikes=bool(
-                compared
-                and np.array_equal(actual_motor, expected_trace[:compared, 4:6])
-            ),
-            maximum_joint_absolute_error=float(
-                np.max(np.abs(actual_joint - expected_trace[:compared, :4]))
-            )
-            if compared
-            else None,
-        )
-        inputs["deterministic_compute"] = native
-        inputs["cycle_validation"] = validation
     with stage_run(
         REPO,
         "exp152",
         "analyse",
-        inputs=inputs,
+        inputs={"compute": upstream},
         run_id=run_id,
         configuration=cfg,
     ) as run:
-        np.savez_compressed(run.export / "traces.npz", **values)
+        fields = (
+            [
+                name + "_" + field
+                for name in NODES
+                for field in ("time_s", "callback_ms")
+            ]
+            + [side + "_" + field for side in SIDES for field in ("voltage", "spikes")]
+            + ["angle", "velocity", "activation"]
+            + ["sensory_" + side + "_time_s" for side in SIDES]
+        )
+        np.savez_compressed(
+            run.export / "traces.npz", **{name: values[name] for name in fields}
+        )
         write_json_atomic(
             run.export / "numbers.json", dict(configuration=cfg, **summary)
         )

@@ -60,7 +60,7 @@ jobs:
       - name: Freeze and retain incoming evidence
         env:
           GH_TOKEN: ${{ github.token }}
-          PYTHONPATH: tools
+          PYTHONPATH: libraries
         run: |
           python - <<'PY'
           import os
@@ -92,7 +92,7 @@ jobs:
         if: failure()
         env:
           GH_TOKEN: ${{ github.token }}
-          PYTHONPATH: tools
+          PYTHONPATH: libraries
         run: |
           python - <<'PY'
           import os
@@ -138,7 +138,7 @@ jobs:
           path: evidence
       - name: Retain frozen evidence before deployment or retry
         env:
-          PYTHONPATH: tools
+          PYTHONPATH: libraries
         run: |
           python - <<'PY'
           import os
@@ -188,7 +188,7 @@ jobs:
       - name: Confirm active deployed evidence
         env:
           GH_TOKEN: ${{ github.token }}
-          PYTHONPATH: tools
+          PYTHONPATH: libraries
         run: |
           python - <<'PY'
           import os

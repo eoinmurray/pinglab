@@ -1,0 +1,265 @@
+{
+  "assets": [],
+  "compiler": {
+    "name": "snnlang",
+    "version": "0.2.0"
+  },
+  "files": [
+    {
+      "digest": "sha256:e4a44481a5e442b3b778fab6b4e2b70f57fdc5fdbd8d8fca4ee178490f973844",
+      "path": "graph.json"
+    }
+  ],
+  "graph_digest": "sha256:e4a44481a5e442b3b778fab6b4e2b70f57fdc5fdbd8d8fca4ee178490f973844",
+  "required_capabilities": {
+    "elements": [
+      {
+        "element": "A_E",
+        "features": [
+          "neuron:coba_lif"
+        ]
+      },
+      {
+        "element": "A_E_to_A_E",
+        "features": [
+          "synapse:ampa",
+          "connection:recurrent",
+          "delay:explicit"
+        ]
+      },
+      {
+        "element": "A_E_to_A_I",
+        "features": [
+          "synapse:ampa",
+          "connection:recurrent",
+          "delay:explicit"
+        ]
+      },
+      {
+        "element": "A_E_to_C_E",
+        "features": [
+          "synapse:ampa",
+          "connection:feedforward",
+          "delay:none"
+        ]
+      },
+      {
+        "element": "A_E_to_C_I",
+        "features": [
+          "synapse:ampa",
+          "connection:feedforward",
+          "delay:none"
+        ]
+      },
+      {
+        "element": "A_I",
+        "features": [
+          "neuron:coba_lif"
+        ]
+      },
+      {
+        "element": "A_I_to_A_E",
+        "features": [
+          "synapse:gaba",
+          "connection:recurrent",
+          "delay:explicit"
+        ]
+      },
+      {
+        "element": "A_I_to_A_I",
+        "features": [
+          "synapse:gaba",
+          "connection:recurrent",
+          "delay:explicit"
+        ]
+      },
+      {
+        "element": "B_E",
+        "features": [
+          "neuron:coba_lif"
+        ]
+      },
+      {
+        "element": "B_E_to_B_E",
+        "features": [
+          "synapse:ampa",
+          "connection:recurrent",
+          "delay:explicit"
+        ]
+      },
+      {
+        "element": "B_E_to_B_I",
+        "features": [
+          "synapse:ampa",
+          "connection:recurrent",
+          "delay:explicit"
+        ]
+      },
+      {
+        "element": "B_E_to_C_E",
+        "features": [
+          "synapse:ampa",
+          "connection:feedforward",
+          "delay:none"
+        ]
+      },
+      {
+        "element": "B_E_to_C_I",
+        "features": [
+          "synapse:ampa",
+          "connection:feedforward",
+          "delay:none"
+        ]
+      },
+      {
+        "element": "B_I",
+        "features": [
+          "neuron:coba_lif"
+        ]
+      },
+      {
+        "element": "B_I_to_B_E",
+        "features": [
+          "synapse:gaba",
+          "connection:recurrent",
+          "delay:explicit"
+        ]
+      },
+      {
+        "element": "B_I_to_B_I",
+        "features": [
+          "synapse:gaba",
+          "connection:recurrent",
+          "delay:explicit"
+        ]
+      },
+      {
+        "element": "C_E",
+        "features": [
+          "neuron:coba_lif"
+        ]
+      },
+      {
+        "element": "C_E_to_A_E",
+        "features": [
+          "synapse:ampa",
+          "connection:recurrent",
+          "delay:explicit"
+        ]
+      },
+      {
+        "element": "C_E_to_A_I",
+        "features": [
+          "synapse:ampa",
+          "connection:recurrent",
+          "delay:explicit"
+        ]
+      },
+      {
+        "element": "C_E_to_B_E",
+        "features": [
+          "synapse:ampa",
+          "connection:recurrent",
+          "delay:explicit"
+        ]
+      },
+      {
+        "element": "C_E_to_B_I",
+        "features": [
+          "synapse:ampa",
+          "connection:recurrent",
+          "delay:explicit"
+        ]
+      },
+      {
+        "element": "C_E_to_C_E",
+        "features": [
+          "synapse:ampa",
+          "connection:recurrent",
+          "delay:explicit"
+        ]
+      },
+      {
+        "element": "C_E_to_C_I",
+        "features": [
+          "synapse:ampa",
+          "connection:recurrent",
+          "delay:explicit"
+        ]
+      },
+      {
+        "element": "C_I",
+        "features": [
+          "neuron:coba_lif"
+        ]
+      },
+      {
+        "element": "C_I_to_C_E",
+        "features": [
+          "synapse:gaba",
+          "connection:recurrent",
+          "delay:explicit"
+        ]
+      },
+      {
+        "element": "C_I_to_C_I",
+        "features": [
+          "synapse:gaba",
+          "connection:recurrent",
+          "delay:explicit"
+        ]
+      },
+      {
+        "element": "attention_A_to_A_E",
+        "features": [
+          "synapse:ampa",
+          "connection:feedforward",
+          "delay:none"
+        ]
+      },
+      {
+        "element": "attention_B_to_B_E",
+        "features": [
+          "synapse:ampa",
+          "connection:feedforward",
+          "delay:none"
+        ]
+      },
+      {
+        "element": "background_C_to_C_E",
+        "features": [
+          "synapse:ampa",
+          "connection:feedforward",
+          "delay:none"
+        ]
+      },
+      {
+        "element": "background_C_to_C_I",
+        "features": [
+          "synapse:ampa",
+          "connection:feedforward",
+          "delay:none"
+        ]
+      },
+      {
+        "element": "sensory_A_to_A_E",
+        "features": [
+          "synapse:ampa",
+          "connection:feedforward",
+          "delay:none"
+        ]
+      },
+      {
+        "element": "sensory_B_to_B_E",
+        "features": [
+          "synapse:ampa",
+          "connection:feedforward",
+          "delay:none"
+        ]
+      }
+    ],
+    "schema": "snnlang.capabilities/v1"
+  },
+  "schema": "snnlang.bundle/v1",
+  "target": null
+}

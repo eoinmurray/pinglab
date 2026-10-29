@@ -10,3 +10,7 @@ contrast while reusing the same images and encoded spike trains.
 2. `analyse.py`: required `--source COMPUTE_RUN`; optional `--workers N` (default 4).
 3. `present.py`: required `--source ANALYSIS_RUN`; no optional arguments.
 4. `test.py`: run with `uv run pytest experiments/exp134/test.py`; optional pytest arguments.
+
+Regenerate only network diagrams while preserving an explicit presentation's
+scientific figures and data: `uv run python experiments/exp134/present.py
+--redraw-from PRESENT_ID [--run-id ID]`.

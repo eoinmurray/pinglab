@@ -10,10 +10,13 @@ import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
-sys.path[:0] = [str(REPO), str(REPO / "tools")]
+sys.path[:0] = [str(REPO), str(REPO / "libraries")]
 
 import argparse
+import shutil
 import time
+from dataclasses import replace
+from importlib.metadata import version
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -23,9 +26,144 @@ from experiments.exp049.analyse import MEASUREMENT
 from experiments.exp049.custom import inputs
 from experiments.exp049.custom.network_artifacts import copy_circuits
 from experiments.exp049.recipe import COND_ORDER, CONDITIONS, F_GAMMA_BAND_HZ
-from pingstore.library import PingstoreError, load_json, write_json_atomic
+from pingstore.library import (
+    PingstoreError,
+    load_json,
+    source_run,
+    stage_run,
+    write_json_atomic,
+)
+from snnlab import lang, viz
 
 DEFAULT_FORMATS = ("svg", "pdf")
+
+
+def circuit_diagram(bundle):
+    """Lay out native weighted projections; omit recording and scoring aliases."""
+    import matplotlib
+
+    native = lang.diagram(bundle, view="circuit")
+    known = {node.id for node in native.nodes if node.kind in ("input", "population")}
+    symbols = dict(drive="X", image="X", E="E", I="I", readout="R")
+    positions = dict(
+        drive=(-360, 0), image=(-360, 0), E=(0, 0), I=(0, 300), readout=(360, 0)
+    )
+    routes = dict(
+        E_to_I=viz.EdgeLayout(source_port="bottom_left", target_port="top_left"),
+        I_to_E=viz.EdgeLayout(source_port="top_right", target_port="bottom_right"),
+    )
+    title = "PING classifier" if "I" in known else "COBA classifier"
+    diagram = replace(
+        native,
+        title=title,
+        groups=(),
+        nodes=tuple(
+            replace(node, detail=node.detail.splitlines()[0])
+            for node in native.nodes
+            if node.id in known
+        ),
+        edges=tuple(edge for edge in native.edges if edge.id is not None),
+    )
+    ports = dict(
+        upper_left=(0, 0.3),
+        lower_left=(0, 0.7),
+        upper_right=(1, 0.3),
+        lower_right=(1, 0.7),
+        top_left=(0.25, 0),
+        top_right=(0.75, 0),
+        bottom_left=(0.25, 1),
+        bottom_right=(0.75, 1),
+    )
+    layout = viz.DiagramLayout(
+        nodes={
+            identifier: viz.NodeLayout(
+                position=position,
+                label=f"${symbols[identifier]}$",
+                min_size=(240, 160),
+                ports=ports,
+            )
+            for identifier, position in positions.items()
+            if identifier in known
+        },
+        edges={
+            edge.id: replace(
+                routes.get(edge.id, viz.EdgeLayout()),
+                label=viz.DiagramLabel(
+                    rf"$W_{{{symbols[edge.target]},{symbols[edge.source]}}}$"
+                ),
+            )
+            for edge in diagram.edges
+        },
+        defaults=viz.LayoutDefaults(
+            node=viz.NodeLayout(content_align="center", padding=16), gap=30
+        ),
+    )
+    with matplotlib.rc_context({"savefig.bbox": None}):
+        return viz.resolve_diagram(
+            diagram, layout=layout, theme=viz.DiagramTheme(secondary_size=13)
+        )
+
+
+def save_circuit(bundle, path):
+    """Export the resolved native architecture without inheriting plot cropping."""
+    import matplotlib
+
+    circuit = circuit_diagram(bundle)
+    with matplotlib.rc_context({"savefig.bbox": None}):
+        for suffix in ("svg", "png"):
+            viz.render_diagram(circuit, Path(path).with_suffix("." + suffix))
+
+
+def render_networks(sources, export, scratch):
+    """Render the shared replay architecture from pinned paired-raster evidence."""
+    analysis = sources["analysis"]
+    pin = analysis.record["inputs"].get("paired")
+    if pin is None:
+        # Older endpoint analyses have no retained native bundle.
+        return []
+    compute = source_run(
+        REPO / ".pingstore",
+        pin["run_id"],
+        reference=pin,
+        stage="compute",
+        experiment="exp049",
+    )
+    prefix = "after/frozen_ping__seed42/inference/network.bundle"
+    bundle = (
+        compute.restore_bundle(prefix, scratch / "network.bundle")
+        if compute.record.get("scientific_artifacts", {}).get("native_paths")
+        else compute.unit(*prefix.split("/"))
+    )
+    if not bundle.exists():
+        # Historical recordings can retain paired rasters without a compiled bundle.
+        return []
+    save_circuit(lang.load_bundle(bundle), export / "circuit-e71b4d547d1b.svg")
+    return ["circuit-e71b4d547d1b.svg"]
+
+
+def redraw_networks(presentation, *, run_id=None):
+    """Copy an explicit presentation, replacing only its saved-bundle diagrams."""
+    previous = source_run(
+        REPO / ".pingstore", presentation, experiment="exp049", stage="present"
+    )
+    sources = {
+        role: source_run(REPO / ".pingstore", pin["run_id"], reference=pin)
+        for role, pin in previous.record["inputs"].items()
+    }
+    with stage_run(
+        REPO,
+        "exp049",
+        "present",
+        inputs={**sources, "figure_source": previous},
+        configuration=previous.record["execution"]["configuration"],
+        run_id=run_id,
+    ) as run:
+        shutil.copytree(previous.export, run.export, dirs_exist_ok=True)
+        if not render_networks(sources, run.export, run.scratch):
+            raise PingstoreError("presentation has no retained paired-raster bundle")
+        run.record["execution"]["snnlab_version"] = version("snnlab")
+        previous.check_unchanged()
+    return run.run_id
 
 
 def save_figure(fig, stem, formats=DEFAULT_FORMATS) -> list[Path]:
@@ -161,7 +299,10 @@ def present(identity, *, run_id=None):
                 "duration_s": duration,
                 "duration": format_duration(duration),
                 "git_sha": run.record["provenance"]["git_commit"],
-                "circuit_files": copy_circuits(run),
+                "circuit_files": render_networks(
+                    {"analysis": source}, run.export, run.scratch
+                )
+                or copy_circuits(run),
             },
         )
     return run.run_id
@@ -1255,4 +1396,12 @@ def fig_training_summary(data, out_path: Path, run_id: str) -> None:
 
 
 if __name__ == "__main__":
-    main()
+    if any(arg.startswith("--redraw-from") for arg in sys.argv[1:]):
+        parser = argparse.ArgumentParser(
+            description="Refresh only diagrams of an explicit presentation."
+        )
+        parser.add_argument("--redraw-from", dest="presentation", required=True)
+        parser.add_argument("--run-id")
+        print(redraw_networks(**vars(parser.parse_args())))
+    else:
+        main()

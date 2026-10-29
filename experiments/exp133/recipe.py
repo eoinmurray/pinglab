@@ -1,9 +1,10 @@
-"""Committed Arnold-tongue grid and native SNNLab authoring; no execution.
+"""Reciprocal A/B coupling with complete local recurrence and private inputs.
 
 The configuration resolves scientific settings and the authoring functions compile
 the network. Data loading, simulation and run storage belong to the execution stages.
 """
 
+import copy
 from dataclasses import dataclass
 
 import numpy as np
@@ -16,6 +17,13 @@ COUPLING_ONSET_MS = 500.0
 SETTLING_MS = 300.0
 NETWORK_SEED = 85
 INPUT_SEEDS = (8501, 8502)
+# Only reconstruct already-recorded v2 evidence; current networks omit this port.
+HISTORICAL_ATTENTION_SEED = 8503
+HISTORICAL_N_ATTENTION = 64
+# Illustrative total incoming conductances from the CTC note, not calibrated.
+E_SELF_US = 0.5
+I_SELF_US = 1.0
+HISTORICAL_ATTENTION_US = 0.1
 N_INPUT, N_E, N_I = 1024, 80, 20
 MEAN_INPUT_HZ = 25.0
 INPUT_DIFFERENCES_HZ = np.arange(-10.0, 10.1, 2.0)
@@ -33,8 +41,8 @@ class Circuit:
     I: snn.Population
 
 
-def add_ping(net, name, drive):
-    """Retain the working 80-E/20-I conductance-LIF operating point."""
+def add_ping(net, name, drive, *, attention=None, legacy=False):
+    """Retain 80-E/20-I cells; add the note's optional local paths for new runs."""
     with net.group(name):
         cells = {}
         for pop, count, cap, leak, refractory in (
@@ -84,6 +92,35 @@ def add_ping(net, name, drive):
             connection="recurrent",
             delay=DT_MS * snn.ms,
         )
+        if not legacy:
+            for pop, incoming, synapse, target in (
+                ("E", E_SELF_US, snn.AMPA(tau=2 * snn.ms), cells["E"].excitatory),
+                ("I", I_SELF_US, snn.GABA(tau=6 * snn.ms), cells["I"].inhibitory),
+            ):
+                count = N_E if pop == "E" else N_I
+                net.connect(
+                    cells[pop].spikes,
+                    target,
+                    name=f"{name}_{pop}_to_{pop}",
+                    synapse=synapse,
+                    weight=snn.Constant(incoming / count),
+                    initialization_scaling="direct",
+                    constraint=snn.NonNegative(),
+                    connection="recurrent",
+                    delay=DT_MS * snn.ms,
+                )
+            if attention is not None:
+                net.connect(
+                    attention,
+                    cells["E"].excitatory,
+                    name=f"{name}_attention_to_E",
+                    synapse=snn.AMPA(tau=2 * snn.ms),
+                    weight=snn.Constant(
+                        HISTORICAL_ATTENTION_US / HISTORICAL_N_ATTENTION
+                    ),
+                    initialization_scaling="direct",
+                    constraint=snn.NonNegative(),
+                )
     return Circuit(**cells)
 
 
@@ -95,7 +132,7 @@ def cross_ids():
     )
 
 
-def author_network():
+def author_network(*, legacy=False, historical_attention=False):
     """One portable bundle; native request scales set the coupling strengths."""
     net = snn.Network("exp133_arnold_tongue", dt=DT_MS * snn.ms)
     drives = {
@@ -107,8 +144,25 @@ def author_network():
         )
         for name in ("A", "B")
     }
+    attention = (
+        None
+        if not historical_attention or legacy
+        else net.input(
+            "attention_A",
+            shape=("time", "batch", HISTORICAL_N_ATTENTION),
+            signal_type="spikes",
+            unit="spike",
+        )
+    )
     circuits = {
-        name: add_ping(net, f"PING_{name}", drives[name]) for name in ("A", "B")
+        name: add_ping(
+            net,
+            f"PING_{name}",
+            drives[name],
+            attention=attention if name == "A" else None,
+            legacy=legacy,
+        )
+        for name in ("A", "B")
     }
     for source, target in (("A", "B"), ("B", "A")):
         for pop in ("E", "I"):
@@ -165,10 +219,73 @@ def make_inputs(steps=None):
     return result
 
 
-def configuration():
-    bundle = author_network()
+def validate_historical_attention_rate(attention_hz):
+    if not np.isfinite(attention_hz) or not 0 <= attention_hz <= 1000 / DT_MS:
+        raise ValueError("attention rate must give a spike probability between 0 and 1")
+
+
+def architecture_configuration(*, historical_attention=False):
     return dict(
-        schema="exp133.recipe/v1",
+        local_recurrence=["E_to_E", "E_to_I", "I_to_E", "I_to_I"],
+        e_self_total_us=E_SELF_US,
+        i_self_total_us=I_SELF_US,
+        private_receiver_input="drive_B to B_E",
+        feedback="B_E to A_E and A_I; retained alongside A_E to B_E and B_I",
+        projection_count=15 if historical_attention else 14,
+        new_weights="illustrative CTC-note totals; gamma operating point untested",
+    )
+
+
+def historical_attention_configuration(attention_hz):
+    validate_historical_attention_rate(attention_hz)
+    return dict(
+        channels=HISTORICAL_N_ATTENTION,
+        rate_hz=float(attention_hz),
+        seed=HISTORICAL_ATTENTION_SEED,
+        total_incoming_us=HISTORICAL_ATTENTION_US,
+        baseline="zero-rate attention; no cue bias in the default coupling map",
+    )
+
+
+def analysis_configuration(source_configuration):
+    """Measure the map and its selected onset from one recorded compute run."""
+    source = copy.deepcopy(source_configuration)
+    difference_hz, coupling_us, duration_ms = -4.0, 0.09, 1500.0
+    if difference_hz not in source["input_differences_hz"]:
+        raise ValueError("the onset example requires the -4 Hz map condition")
+    if coupling_us not in source["coupling_us"] or source["duration_ms"] < duration_ms:
+        raise ValueError("the onset example requires 0.09 uS and at least 1,500 ms")
+    column = source["input_differences_hz"].index(difference_hz)
+    onset = dict(
+        source,
+        schema="exp133.grid-onset/v1",
+        duration_ms=duration_ms,
+        coupling_us=coupling_us,
+        input_difference_hz=difference_hz,
+        input_rates_hz={
+            "S": source["input_rates_hz"]["drive_A"][column],
+            "R": source["input_rates_hz"]["drive_B"][column],
+        },
+        baseline_start_ms=100.0,
+        min_volleys=5,
+        extraction="selected column of the saved prefix and coupled suffix; A/B labelled S/R internally",
+    )
+    return dict(schema="exp133.analysis/v2", grid=source, onset=onset)
+
+
+def configuration(*, legacy=False, historical_attention_hz=None):
+    historical_attention = historical_attention_hz is not None
+    if historical_attention:
+        validate_historical_attention_rate(historical_attention_hz)
+    bundle = author_network(legacy=legacy, historical_attention=historical_attention)
+    cfg = dict(
+        schema=(
+            "exp133.recipe/v1"
+            if legacy
+            else "exp133.recipe/v2"
+            if historical_attention
+            else "exp133.recipe/v3"
+        ),
         dt_ms=DT_MS,
         duration_ms=T_MS,
         onset_ms=COUPLING_ONSET_MS,
@@ -199,3 +316,12 @@ def configuration():
         gamma_band_hz=[30.0, 80.0],
         analysis="entire suffix after settling; common phase-valid window per pair",
     )
+    if not legacy:
+        cfg.update(
+            architecture=architecture_configuration(
+                historical_attention=historical_attention
+            ),
+        )
+    if historical_attention and not legacy:
+        cfg["attention"] = historical_attention_configuration(historical_attention_hz)
+    return cfg

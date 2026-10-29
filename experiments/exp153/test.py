@@ -12,79 +12,20 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 import torch
-from experiments.exp153 import analyse, compute, recipe
+from experiments.exp153 import analyse, compute, present, recipe
 from snnlab import lang
 from snnlab import meanfield as mf
 
 
 @pytest.fixture
 def fixture():
-    net = lang.Network("exp153_test", dt=0.1 * lang.ms)
-    populations, drives = {}, {}
-    for circuit in ("A", "B"):
-        drives[circuit] = net.input(
-            f"drive_{circuit}",
-            shape=("time", "batch", 3),
-            signal_type="spikes",
-            unit="spike",
-        )
-        for population in ("E", "I"):
-            name = f"PING_{circuit}_{population}"
-            populations[name] = net.population(
-                name, size=2, neuron=lang.COBA_LIF(refractory=2 * lang.ms)
-            )
-    weights = {}
-
-    def connect(source, target, name, inhibitory=False, delay=0, cross=False):
-        weights[name] = 0.12 if cross else 0.4
-        net.connect(
-            source,
-            target,
-            name=name,
-            synapse=(lang.GABA if inhibitory else lang.AMPA)(tau=2 * lang.ms),
-            weight=lang.Constant(0.1),
-            delay=delay * lang.ms,
-            connection="feedback" if delay else "feedforward",
-            modulation=lang.StepGain(at=500 * lang.ms, before=0, after=1)
-            if cross
-            else None,
-        )
-
-    for c in ("A", "B"):
-        e, i = populations[f"PING_{c}_E"], populations[f"PING_{c}_I"]
-        connect(drives[c], e.excitatory, f"PING_{c}_input_to_E")
-        connect(e.spikes, i.excitatory, f"PING_{c}_E_to_I", delay=0.1)
-        connect(i.spikes, e.inhibitory, f"PING_{c}_I_to_E", inhibitory=True, delay=0.1)
-        other = "B" if c == "A" else "A"
-        for pop in ("E", "I"):
-            connect(
-                e.spikes,
-                populations[f"PING_{other}_{pop}"].excitatory,
-                f"PING_{c}_E_to_PING_{other}_{pop}_K_E{pop}",
-                delay=2,
-                cross=True,
-            )
-    bundle = lang.compile(net)
-    source = dict(
-        schema="exp133.recipe/v1",
-        base_coupling_us=0.12,
-        duration_ms=5000,
-        mean_input_hz=25,
-        onset_ms=500,
-        settling_ms=300,
-        input_differences_hz=list(range(-10, 11, 2)),
-        coupling_us=np.arange(13).tolist(),
-        volley_distance_ms=15,
-        volley_prominence_fraction=0.1,
-        min_volleys=20,
-        max_iei_cv=0.2,
-        gamma_band_hz=[30, 80],
-        classification=dict(
-            max_abs_drift_hz=0.25, min_concentration=0.95, max_phase_span_cycles=1
-        ),
-    )
-    source["coupling_us"] = (np.arange(13) / 100).tolist()
-    return bundle, recipe.configuration(source, weights)
+    cfg = recipe.configuration()
+    bundle = recipe.author_network(cfg)
+    weights = {
+        projection["id"]: 0.12 if "_K_E" in projection["id"] else 0.4
+        for projection in bundle.graph["projections"]
+    }
+    return bundle, recipe.configuration(incoming_weights_us=weights)
 
 
 def waveform(frequency=50, amplitude=4, phase=0, decay=None):
@@ -154,29 +95,41 @@ def test_phase_trace_preserves_accumulated_cycles_and_observed_support(fixture):
     )
     t, phase = np.asarray(trace["time_ms"]), np.asarray(trace["relative_phase_cycles"])
     assert t[0] > 0 and cfg["duration_ms"] - 25 < t[-1] <= cfg["duration_ms"]
-    assert phase[0] == 0 and phase[-1] < -1
+    expected = (
+        analyse.rhythm(time, a, [0, cfg["duration_ms"]], cfg["phase"])[1]
+        - analyse.rhythm(time, b, [0, cfg["duration_ms"]], cfg["phase"])[1]
+    ) / (2 * np.pi)
+    np.testing.assert_allclose(phase, expected[np.isfinite(expected)])
+    assert phase[-1] < -1
     assert np.polyfit(t / 1000, phase, 1)[0] == pytest.approx(-1, abs=0.01)
-    assert details["reference_time_ms"] == t[0]
     assert details["onset_ms"] == 500
 
 
-def test_phase_trace_rejects_a_tonic_signal(fixture):
+def test_tonic_diagnostic_keeps_rates_without_fabricating_phase(fixture):
     _, cfg = fixture
     time, rate = waveform(amplitude=0)
-    with pytest.raises(ValueError, match="common observed peaks"):
-        analyse.relative_phase_trace(
-            time, {"PING_A_E.rate": rate, "PING_B_E.rate": rate}, cfg
-        )
+    state = {f"PING_{c}_{p}.rate": rate for c in ("A", "B") for p in ("E", "I")}
+    onset, trace, rates = analyse.diagnostic(time, state, cfg)
+    assert not onset["coupled"]["valid"] and not onset["coupled"]["locked"]
+    assert trace == dict(time_ms=[], relative_phase_cycles=[])
+    assert rates["time_ms"][-1] == 1500
+    np.testing.assert_array_equal(rates["A_E"], np.full(3001, 20))
 
 
-def test_imported_sums_scaled_once_and_delays_and_onset_retained(fixture):
+def test_initialized_sums_scaled_once_and_delays_and_onset_retained(fixture):
     bundle, cfg = fixture
     original = copy.deepcopy(bundle.graph)
     model = recipe.build_model(bundle, cfg, difference_hz=-4, coupling_us=0.06)
-    assert len(model.states) == 14
+    assert len(model.states) == 18
     assert model.defaults["drive_A.rate"] == 23
     assert model.defaults["drive_B.rate"] == 27
-    assert model.defaults["PING_A_input_to_E.coupling"] == 0.4
+    assert not any("attention" in name for name in model.defaults)
+    for circuit in ("A", "B"):
+        for population in ("E", "I"):
+            name = f"PING_{circuit}_{population}_to_{population}"
+            assert model.defaults[name + ".coupling"] == 0.4
+            assert model.projection_delays[name] == 0.1
+    assert model.defaults["PING_A_input_to_E.coupling"] == pytest.approx(0.4 * 9.2)
     assert model.defaults["PING_A_E_to_PING_B_I_K_EI.coupling"] == 0.06
     assert model.projection_delays["PING_A_E_to_I"] == 0.1
     assert model.projection_delays["PING_A_E_to_PING_B_I_K_EI"] == 2
@@ -188,23 +141,16 @@ def test_imported_sums_scaled_once_and_delays_and_onset_retained(fixture):
         mf.jacobian(model)
 
 
-def test_native_matrix_orientation_and_zero_edges(fixture, monkeypatch):
+def test_native_matrix_orientation_and_zero_edges(fixture):
     bundle, _ = fixture
+    graph = copy.deepcopy(bundle.graph)
+    for population in graph["populations"]:
+        population["size"] = 2
     arrays = {
         p["id"] + ".weight": torch.tensor([[0.0, 1.0], [2.0, 0.0], [3.0, 4.0]])
-        for p in bundle.graph["projections"]
+        for p in graph["projections"]
     }
-    monkeypatch.setattr(
-        compute.NetworkSnapshot,
-        "read",
-        lambda path: SimpleNamespace(
-            load_parameters=lambda: arrays,
-            graph_identity=bundle.manifest["graph_digest"],
-            stage="start",
-        ),
-    )
-    source = SimpleNamespace(file=lambda *args: "unused")
-    sums = compute.imported_weights(source, bundle)
+    sums = compute.mean_incoming_weights(SimpleNamespace(graph=graph), arrays)
     assert set(sums.values()) == {5.0}
 
 
@@ -219,7 +165,7 @@ def test_short_native_dde_trajectory_and_tamper_rejection(fixture, tmp_path):
     time, state = analyse.read_trajectory(
         source, {"label": "condition-000", "difference_hz": 0, "coupling_us": 0}, cfg
     )
-    assert time[-1] == 3 and len(state) == 14
+    assert time[-1] == 3 and len(state) == 18
     path = tmp_path / "condition-000-trajectory.json"
     data = json.loads(path.read_text())
     data["integration"]["delay_mode"] = "omit"
@@ -232,19 +178,133 @@ def test_short_native_dde_trajectory_and_tamper_rejection(fixture, tmp_path):
         )
 
 
-def test_no_cross_experiment_code_or_scratch_imports():
+def test_standalone_graph_contains_all_local_and_reciprocal_paths(fixture, tmp_path):
+    from snnlab import viz
+
+    bundle, cfg = fixture
+    assert cfg["schema"] == recipe.SCHEMA
+    assert {row["id"] for row in bundle.graph["inputs"]} == {
+        "drive_A",
+        "drive_B",
+    }
+    assert {row["id"]: row["size"] for row in bundle.graph["populations"]} == {
+        f"PING_{c}_{p}": size for c in ("A", "B") for p, size in (("E", 80), ("I", 20))
+    }
+    assert len(bundle.graph["projections"]) == 14
+    assert not any("attention" in row["id"] for row in bundle.graph["projections"])
+    bundle.write(tmp_path / "network.bundle", visualise=False)
+    assert lang.load_bundle(tmp_path / "network.bundle").graph == bundle.graph
+    viz.render_diagram(present.network_diagram(bundle), tmp_path / "circuit.svg")
+    assert (tmp_path / "circuit.svg").is_file()
+
+
+def test_initialization_only_capture_and_weight_reproducibility(fixture, tmp_path):
+    from experiments.exp153.custom.initialization import capture_start
+    from snnlab.sim import NetworkSnapshot, Performance, build
+
+    bundle, cfg = fixture
+    built = build(
+        graph=bundle.graph,
+        seed=cfg["network"]["network_seed"],
+        device="cpu",
+        performance=Performance(compile_mode=None),
+    )
+    repeated = build(
+        graph=bundle.graph,
+        seed=cfg["network"]["network_seed"],
+        device="cpu",
+        performance=Performance(compile_mode=None),
+    )
+    for key, value in built.parameters.items():
+        torch.testing.assert_close(value, repeated.parameters[key], rtol=0, atol=0)
+    capture_start(bundle, built, cfg, tmp_path / "start")
+    snapshot = NetworkSnapshot.read(tmp_path / "start", parameters=True)
+    assert snapshot.graph_identity == bundle.manifest["graph_digest"]
+    assert snapshot.execution["initialization_only"]
+    assert snapshot.execution["completed_steps"] == 0
+    sums = compute.mean_incoming_weights(bundle, snapshot.load_parameters())
+    for circuit in ("A", "B"):
+        assert sums[f"PING_{circuit}_E_to_E"] == pytest.approx(0.5 * 79 / 80)
+        assert sums[f"PING_{circuit}_I_to_I"] == pytest.approx(1.0 * 19 / 20)
+        assert sums[f"PING_{circuit}_input_to_E"] == pytest.approx(0.2, rel=0.01)
+    assert (
+        len(
+            recipe.build_model(
+                bundle, recipe.configuration(incoming_weights_us=sums)
+            ).states
+        )
+        == 18
+    )
+
+
+def test_compute_preparation_needs_no_upstream_runs(monkeypatch, tmp_path):
+    from contextlib import contextmanager
+
+    export = tmp_path / "export"
+    export.mkdir()
+    seen = {}
+
+    @contextmanager
+    def stage(*args, **kwargs):
+        seen.update(kwargs)
+        yield SimpleNamespace(
+            export=export,
+            directory=tmp_path,
+            run_id="exp153-r999-compute",
+            record={"execution": {}},
+        )
+
+    def no_source(*args, **kwargs):
+        raise AssertionError("standalone compute read an upstream run")
+
+    monkeypatch.setattr(compute, "source_run", no_source)
+    monkeypatch.setattr(compute, "stage_run", stage)
+    monkeypatch.setattr(compute, "run_conditions", lambda *args: 143)
+    assert compute.compute() == "exp153-r999-compute"
+    assert seen["inputs"] == {}
+    assert seen["configuration"]["schema"] == recipe.SCHEMA
+    assert len(seen["configuration"]["incoming_weights_us"]) == 14
+    assert (export / recipe.SNAPSHOT / "snapshot.json").is_file()
+
+
+def test_no_cross_experiment_or_scratch_imports():
+    import ast
     from pathlib import Path
 
-    for path in Path(__file__).parent.glob("*.py"):
-        if path.name == "test.py":
-            continue
-        text = path.read_text()
-        assert "from experiments.exp133" not in text
-        assert "from experiments.exp148" not in text
-        assert ".scratch/" not in text
+    for path in Path(__file__).parent.rglob("*.py"):
+        for node in ast.walk(ast.parse(path.read_text())):
+            modules = (
+                [node.module or ""]
+                if isinstance(node, ast.ImportFrom)
+                else (
+                    [alias.name for alias in node.names]
+                    if isinstance(node, ast.Import)
+                    else []
+                )
+            )
+            for module in modules:
+                if module.startswith("experiments.exp"):
+                    assert module.split(".")[1] == "exp153", (path, module)
+        assert ".scratch/" not in path.read_text() if path.name != "test.py" else True
 
 
-def test_qualitative_rhythms_need_not_match_exp133_gamma(fixture):
+def test_stage_ancestry_rejects_foreign_runs_before_reading(monkeypatch, tmp_path):
+    seen = []
+
+    def source(store, identity, **kwargs):
+        seen.append(identity)
+        assert kwargs["experiment"] == recipe.SLUG
+        return SimpleNamespace(
+            record={"inputs": {"foreign": {"run_id": "exp000-r001-compute"}}}
+        )
+
+    monkeypatch.setattr(compute, "source_run", source)
+    with pytest.raises(ValueError, match="within this experiment"):
+        compute.ancestry(tmp_path, "exp153-r999-compute")
+    assert seen == ["exp153-r999-compute"]
+
+
+def test_qualitative_rhythms_need_not_be_gamma(fixture):
     _, cfg = fixture
     time, rate = waveform(frequency=25.3)
     state = {f"PING_{c}_E.rate": rate for c in ("A", "B")}
@@ -299,16 +359,130 @@ def test_parallel_conditions_match_serial_native_integration(fixture, tmp_path):
             )
 
 
-def test_example_has_one_control_and_explicit_relaxation_asymmetry(fixture):
+def test_matched_grid_and_symmetric_relaxation(fixture):
     bundle, cfg = fixture
-    assert cfg["protocol"] == "phase-trace" and "sweep" not in cfg
+    assert cfg["protocol"] == "matched-grid"
+    assert cfg["duration_ms"] == 5000
     assert cfg["closure"]["tau_rate_ms"]["PING_A_E"] == 20
-    assert cfg["closure"]["tau_rate_ms"]["PING_B_E"] == 16
-    model = recipe.build_model(bundle, cfg, difference_hz=40, coupling_us=0.08)
-    assert model.defaults["drive_A.rate"] == 45
-    assert model.defaults["drive_B.rate"] == 5
-    for kwargs in (dict(difference_hz=50), dict(rate_scale_b=0), dict(coupling_us=0)):
+    assert cfg["closure"]["tau_rate_ms"]["PING_B_E"] == 20
+    assert cfg["example"]["difference_hz"] == -4
+    assert cfg["example"]["coupling_us"] == 0.09
+    rows = recipe.conditions(cfg)
+    assert len(rows) == 143
+    assert len({row["label"] for row in rows}) == 143
+    assert sum(row["coupling_us"] == 0 for row in rows) == 11
+    assert (
+        sum(row["difference_hz"] == -4 and row["coupling_us"] == 0.09 for row in rows)
+        == 1
+    )
+    model = recipe.build_model(bundle, cfg, difference_hz=-4, coupling_us=0.09)
+    assert model.defaults["drive_A.rate"] == 23
+    assert model.defaults["drive_B.rate"] == 27
+    for kwargs in (dict(difference_hz=50), dict(difference_hz=1), dict(coupling_us=0)):
         with pytest.raises(ValueError):
             recipe.configuration(
-                cfg["imported_protocol"], cfg["incoming_weights_us"], **kwargs
+                incoming_weights_us=cfg["incoming_weights_us"], **kwargs
             )
+
+
+def grid_metrics(cfg):
+    return [
+        dict(
+            **condition,
+            valid=True,
+            locked=True,
+            concentration=1.0,
+            rhythms=dict(
+                A=dict(frequency_hz=50 + condition["difference_hz"] / 10),
+                B=dict(frequency_hz=50 - condition["difference_hz"] / 10),
+            ),
+        )
+        for condition in recipe.conditions(cfg)
+    ]
+
+
+def test_invalid_uncoupled_calibration_masks_entire_column(fixture):
+    _, cfg = fixture
+    metrics = grid_metrics(cfg)
+    metrics[0]["valid"] = False
+    arrays, cells = analyse.assemble_map(metrics, cfg)
+    assert arrays["valid"].shape == (13, 11)
+    assert not arrays["valid"][:, 0].any()
+    assert not arrays["locked"][:, 0].any()
+    assert np.isnan(arrays["detuning_hz"][0])
+    assert np.isnan(arrays["concentration"][:, 0]).all()
+    assert all(
+        not row["valid"] and row["uncoupled_detuning_hz"] is None for row in cells[:13]
+    )
+    assert arrays["valid"][:, 1:].all()
+    with pytest.raises(ValueError, match="grid coverage"):
+        analyse.assemble_map(metrics[::-1], cfg)
+    with pytest.raises(ValueError, match="grid coverage"):
+        analyse.assemble_map(metrics[:-1], cfg)
+
+
+def test_invalid_coupled_cell_does_not_mask_other_conditions(fixture):
+    _, cfg = fixture
+    metrics = grid_metrics(cfg)
+    metrics[1]["valid"] = False
+    arrays, _ = analyse.assemble_map(metrics, cfg)
+    assert arrays["valid"].sum() == 142
+    assert arrays["valid"][0, 0] and not arrays["valid"][1, 0]
+    assert arrays["detuning_hz"][0] == pytest.approx(-2)
+
+
+def test_onset_uses_exact_display_and_frequency_windows(fixture):
+    _, cfg = fixture
+    time, rate = waveform()
+    state = {f"PING_{c}_{p}.rate": rate for c in ("A", "B") for p in ("E", "I")}
+    onset, trace, rates = analyse.diagnostic(time, state, cfg)
+    assert onset["coupled"]["locked"]
+    assert onset["coupled"]["rhythms"]["A"]["window_ms"] == [800, 1500]
+    for circuit in ("A", "B"):
+        assert onset["frequencies"][circuit]["first"]["window_ms"] == [0, 500]
+        assert onset["frequencies"][circuit]["last"]["window_ms"] == [1000, 1500]
+    assert rates["time_ms"][0] == 0 and rates["time_ms"][-1] == 1500
+    assert trace["time_ms"][-1] < 1500
+    np.testing.assert_array_equal(rates["A_E"], rate[:3001])
+
+
+def test_figures_match_layout_and_mask_invalid_cells(fixture, tmp_path):
+    import matplotlib.pyplot as plt
+    from experiments import theme
+
+    _, cfg = fixture
+    theme.apply()
+    arrays, _ = analyse.assemble_map(grid_metrics(cfg), cfg)
+    for invalid in (False, True):
+        if invalid:
+            arrays["detuning_hz"][0] = np.nan
+            arrays["valid"][:, 0] = False
+        fig = present.map_figure(arrays)
+        fig.savefig(tmp_path / f"map-{invalid}.svg")
+        assert np.ma.getmaskarray(fig.axes[0].collections[0].get_array()).sum() == (
+            13 if invalid else 0
+        )
+        assert fig.axes[0].get_ylim() == (0, 0.12)
+        plt.close(fig)
+    time, rate = waveform()
+    state = {f"PING_{c}_{p}.rate": rate for c in ("A", "B") for p in ("E", "I")}
+    onset, trace, rates = analyse.diagnostic(time, state, cfg)
+    fig = present.onset_figure(rates, trace, onset, cfg)
+    assert len(fig.axes) == 3
+    for axis in fig.axes:
+        assert axis.get_xlim() == (0, 1500)
+        assert np.array_equal(axis.lines[-1].get_xdata(), [500, 500])
+    assert len(fig.axes[0].lines) == len(fig.axes[1].lines) == 3
+    fig.savefig(tmp_path / "onset.svg")
+    plt.close(fig)
+
+
+def test_onset_only_limits_execution_to_selected_figure_two_condition():
+    cfg = recipe.configuration(onset_only=True)
+    assert cfg["duration_ms"] == cfg["example"]["display_window_ms"][1] == 1500
+    assert cfg["protocol"] == "onset-only"
+    assert recipe.conditions(cfg) == [
+        dict(label="onset", difference_hz=-4.0, coupling_us=0.09)
+    ]
+    with pytest.raises(ValueError, match="explicit map source"):
+        present.presentation_numbers({}, cfg, None)

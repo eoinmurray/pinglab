@@ -5,6 +5,8 @@ import react from '@astrojs/react';
 import { unified } from '@astrojs/markdown-remark';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
+import { coalesceFullReloads, refreshServerMdx } from './src/lib/dev-refresh.ts';
+import { installRefreshDiagnostics } from './src/lib/dev-refresh-diagnostics.ts';
 
 // Keep the resolver and manifest independent of Vite's bundled module location.
 process.env.PINGLAB_REPOSITORY_ROOT = new URL('../', import.meta.url).pathname;
@@ -14,13 +16,31 @@ export default defineConfig({
   logger: { entrypoint: './src/logger.mjs' },
   site: 'https://pinglab.eoinmurray.info',
   trailingSlash: 'never',
-  redirects: { '/exp113': '/notes/coba-ping-dynamics' },
+  redirects: {
+    '/exp113': '/notes/coba-ping-dynamics',
+    '/notes/pingstore-rules': '/notes/rules/pingstore',
+    '/notes/writing-rules': '/notes/rules/writing',
+    '/notes/experiment-rules': '/notes/rules/experiment',
+    '/notes/compute-rules': '/notes/rules/compute',
+    '/notes/rules/pingstore-rules': '/notes/rules/pingstore',
+    '/notes/rules/writing-rules': '/notes/rules/writing',
+    '/notes/rules/experiment-rules': '/notes/rules/experiment',
+    '/notes/rules/compute-rules': '/notes/rules/compute',
+  },
   build: { format: 'file' },
   server: { port: 3000 },
   devToolbar: { enabled: false },
   // Article scripts live outside site/, but share its Pixi dependency.
   vite: {
     resolve: { dedupe: ['pixi.js'] },
+    // Transform the common SSR shell ahead of the first navigation. Warmup does
+    // not evaluate article bindings or freeze their scientific run selection.
+    environments: Object.fromEntries(['ssr', 'prerender'].map(name => [name, {
+      dev: {
+        warmup: ['./src/pages/**/*.astro', './src/layouts/**/*.astro'],
+        preTransformRequests: true,
+      },
+    }])),
     // Discovering these only when the search island loads can invalidate its imports.
     optimizeDeps: { include: ['pixi.js', 'cmdk', '@radix-ui/react-dialog'] },
     plugins: [{
@@ -28,38 +48,28 @@ export default defineConfig({
       config: (_, { command }) => ({
         cacheDir: `node_modules/.vite/${command === 'build' || process.env.NODE_ENV === 'production' ? 'build' : 'dev'}`,
       }),
-    }, {
-      name: 'pinglab:invalidate-article-metrics',
-      configureServer(server) {
-        const metrics = new URL('./src/lib/article-metrics.ts', import.meta.url).pathname;
-        const roots = ['../experiments/', '../md/', './src/'].map(path => new URL(path, import.meta.url).pathname);
-        const invalidate = (_event, path) => {
-          if (!roots.some(root => path.startsWith(root))) return;
-          for (const module of server.moduleGraph.getModulesByFile(metrics) ?? []) {
-            server.moduleGraph.invalidateModule(module);
-          }
-        };
-        server.watcher.on('all', invalidate);
-        server.httpServer?.once('close', () => server.watcher.off('all', invalidate));
-      },
     }],
   },
   integrations: [mdx(), react(), {
     name: 'pinglab:dev-run-images',
     hooks: {
-      'astro:config:setup': ({ addClientDirective }) => {
+      'astro:config:setup': ({ addClientDirective, injectScript, command }) => {
         addClientDirective({ name: 'search', entrypoint: './src/scripts/search-hydration.ts' });
+        if (command === 'dev') injectScript('page', 'import "/src/scripts/refresh-diagnostics.ts";');
       },
       'astro:server:setup': ({ server }) => {
+        // A multi-file save can reach HMR through several Astro/Vite paths.
+        const reloads = coalesceFullReloads(server.environments.client.hot.send.bind(server.environments.client.hot));
+        server.environments.client.hot.send = reloads.send;
+        server.httpServer?.once('close', reloads.cancel);
+        installRefreshDiagnostics(server);
         server.middlewares.use(async (request, response, next) => {
           if (!request.headers.accept?.includes('text/html')) return next();
           try {
-            const context = await server.ssrLoadModule('/src/lib/run-context.ts');
-            // MDX exports execute on import. Invalidate their importing graph so
-            // bindings and components render against the same new request index.
-            for (const module of server.moduleGraph.idToModuleMap.values()) {
-              if (module.file?.endsWith('.mdx')) server.moduleGraph.invalidateModule(module);
-            }
+            const context = await server.environments.ssr.runner.import('/src/lib/run-context.ts');
+            // MDX exports execute on import. Refresh server evaluations so their
+            // bindings share the new request index without recompiling modules.
+            refreshServerMdx(server);
             context.withRunContext(() => next());
           } catch (error) { next(error); }
         });
@@ -67,7 +77,7 @@ export default defineConfig({
           const pathname = new URL(request.url, 'http://localhost').pathname;
           if (!pathname.startsWith('/run-images/')) return next();
           try {
-            const module = await server.ssrLoadModule('/src/pages/run-images/[run]/[file].ts');
+            const module = await server.environments.ssr.runner.import('/src/pages/run-images/[run]/[file].ts');
             const result = await module.serveRunAsset(pathname, `http://${request.headers.host ?? 'localhost:3000'}`);
             response.statusCode = result.status;
             result.headers.forEach((value, key) => response.setHeader(key, value));

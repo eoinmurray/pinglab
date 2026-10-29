@@ -14,7 +14,7 @@ from pathlib import Path
 import numpy as np
 import rclpy
 from experiments.exp152.custom.models import Controller, SpikeWindowInbox
-from experiments.exp152.recipe import SIDES, controller_settings, window_steps
+from experiments.exp152.recipe import SIDES, window_steps
 from rclpy.executors import SingleThreadedExecutor
 from rclpy.node import Node
 from rclpy.qos import HistoryPolicy, QoSProfile, ReliabilityPolicy
@@ -26,15 +26,13 @@ class RuntimeNode(Node):
 
     def __init__(self, name):
         super().__init__(name)
-        self.dt_ms = float(self.declare_parameter("dt_ms", 1.0).value)
-        self.timer_ms = float(self.declare_parameter("timer_ms", 1.0).value)
+        self.configuration = json.loads(os.environ["EXP152_CONFIGURATION"])
+        cfg = self.configuration
+        self.dt_ms, self.timer_ms = cfg["dt_ms"], cfg["timer_ms"]
         self.substeps = window_steps(self.dt_ms, self.timer_ms)
-        self.duration = float(self.declare_parameter("duration", 30.0).value)
-        self.neurons = int(self.declare_parameter("neurons", 1).value)
-        self.max_lag_ms = float(self.declare_parameter("max_lag_ms", 20.0).value)
+        self.duration, self.neurons = cfg["duration"], cfg["neurons"]
+        self.max_lag_ms = cfg["max_lag_ms"]
         self.declare_parameter("start_ns", 0)
-        if self.duration <= 0 or self.neurons != 1 or self.max_lag_ms <= 0:
-            raise ValueError("Invalid duration, population size or maximum lag")
         self.cpu_affinity = sorted(os.sched_getaffinity(0))
         self.steps = 0
         self.updates = 0
@@ -276,15 +274,10 @@ class ControllerNode(RuntimeNode):
     def __init__(self, side):
         super().__init__(side)
         self.side = side
-        cfg = json.loads(os.environ["EXP152_CONFIGURATION"])
         self.model = Controller(
             side,
-            self.dt_ms,
-            self.neurons,
-            warm_steps=self.substeps,
-            compile_mode=cfg["compile_mode"],
+            self.configuration,
             evidence_dir=Path(os.environ["EXP152_EXPORT"]) / side,
-            configuration_overrides=controller_settings(cfg),
         )
         self.voltage = np.zeros((self.capacity, self.substeps, 1))
         self.spikes = np.zeros((self.capacity, self.substeps, 1), dtype=int)
@@ -326,8 +319,6 @@ class ControllerNode(RuntimeNode):
         return dict(
             voltage=self.voltage[index, -1].tolist(),
             spikes=self.spikes[index].sum(axis=0).tolist(),
-            substep_voltage=self.voltage[index].tolist(),
-            substep_spikes=self.spikes[index].tolist(),
             **({"model_info": self.model.info} if index == 0 else {}),
         )
 

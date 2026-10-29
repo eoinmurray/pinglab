@@ -21,10 +21,10 @@ const run = (await latestPresentation(experiment)).id;
 </figure>
 
 <script>
-  import { mountCircuit } from './js/panel-a.js';
+  import { whenVisibleAfterLoad } from '../../../site/src/lib/media-start';
   class ThetaPingCircuit extends HTMLElement {
     dispose?: () => void;
-    observer?: IntersectionObserver;
+    cancelStart?: () => void;
     revision = 0;
     onChange = () => { void this.load(); };
     async load() {
@@ -41,6 +41,8 @@ const run = (await latestPresentation(experiment)).id;
       this.querySelectorAll<HTMLInputElement | HTMLButtonElement>('[data-pause], [data-speed], [data-scrub]').forEach(control => { control.disabled = true; });
       this.querySelector<HTMLButtonElement>('[data-pause]')!.textContent = 'Pause';
       try {
+        const { mountCircuit } = await import('./js/panel-a.js');
+        if (!this.isConnected || revision !== this.revision) return;
         const dispose = await mountCircuit(this);
         if (this.isConnected && revision === this.revision) this.dispose = dispose;
         else dispose();
@@ -50,15 +52,13 @@ const run = (await latestPresentation(experiment)).id;
       } finally { select.disabled = false; }
     }
     connectedCallback() {
-      this.querySelector('[data-condition]')?.addEventListener('change', this.onChange);
-      this.observer = new IntersectionObserver(entries => {
-        if (!entries.some(entry => entry.isIntersecting)) return;
-        this.observer?.disconnect(); void this.load();
-      }, { rootMargin: '200px' });
-      this.observer.observe(this);
+      this.cancelStart = whenVisibleAfterLoad(this, () => {
+        this.querySelector('[data-condition]')?.addEventListener('change', this.onChange);
+        void this.load();
+      });
     }
     disconnectedCallback() {
-      this.revision++; this.observer?.disconnect(); this.dispose?.();
+      this.revision++; this.cancelStart?.(); this.dispose?.();
       this.querySelector('[data-condition]')?.removeEventListener('change', this.onChange);
     }
   }

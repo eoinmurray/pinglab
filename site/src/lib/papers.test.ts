@@ -40,7 +40,7 @@ test('supports multiple collections, derives navigation, and rejects invalid mem
     assert.deepEqual(papers[0].collections, ['gamma', 'sampling']);
     assert.deepEqual(getPaperCollections(papers), ['gamma', 'sampling', 'uncategorized']);
     assert.equal(papers.filter(paper => paper.collections.includes('gamma')).length, 2);
-    assert.equal(paperCollectionLabel('probabilistic-coding'), 'Probabilistic coding');
+    assert.equal(paperCollectionLabel('probabilistic-coding'), 'Probabilistic Coding');
     assert.equal(paperCollectionLabel('ping'), 'PING');
     assert.equal(paperCollectionUrl('gamma'), '/papers/collections/gamma');
     for (const invalid of ['[]', '[gamma, gamma]', '"Bad slug"', '42', 'null']) {

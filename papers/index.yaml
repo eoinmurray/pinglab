@@ -1,6 +1,15 @@
 # Keys are PDF paths relative to this directory.
 # Citation details describe the saved version, including preprints.
 
+akam-kullmann-2010.pdf:
+  id: P26
+  title: Oscillations and Filtering Networks Support Flexible Routing of Information
+  authors: [Thomas Akam, Dimitri M. Kullmann]
+  year: 2010
+  collection: [gamma-synchronisation]
+  venue: Neuron
+  doi: 10.1016/j.neuron.2010.06.019
+
 aitchison-lengyel-2016.pdf:
   id: P09
   title: "The Hamiltonian Brain: Efficient Probabilistic Inference with Excitatory-Inhibitory Neural Circuit Dynamics"
@@ -24,8 +33,8 @@ bosman-et-al-2012.pdf:
   title: Attentional Stimulus Selection through Selective Synchronization between Monkey Visual Areas
   authors: [Conrado A. Bosman, Jan-Mathijs Schoffelen, Nicolas Brunet, Robert Oostenveld, Andre M. Bastos, Thilo Womelsdorf, Birthe Rubehn, Thomas Stieglitz, Peter De Weerd, Pascal Fries]
   year: 2012
-  collection: [uncategorized, gamma-synchronisation]
-  venue: Neuron
+  collection: [gamma-synchronisation]
+  venue: "Neuron (author manuscript)"
   doi: 10.1016/j.neuron.2012.06.037
 
 brunel-2000.pdf:
@@ -80,6 +89,15 @@ fiser-et-al-2010.pdf:
   collection: [probabilistic-coding]
   venue: Trends in Cognitive Sciences
   doi: 10.1016/j.tics.2010.01.003
+
+fries-2015.pdf:
+  id: P28
+  title: "Rhythms for Cognition: Communication through Coherence"
+  authors: [Pascal Fries]
+  year: 2015
+  collection: [ping, spiking, gamma-synchronisation]
+  venue: "Neuron (author manuscript)"
+  doi: 10.1016/j.neuron.2015.09.034
 
 kania-et-al-2026.pdf:
   id: P18
@@ -144,15 +162,6 @@ padamsey-et-al-2022.pdf:
   venue: Neuron
   doi: 10.1016/j.neuron.2021.10.024
 
-pfeifer-scheier-1999-chapter-8.pdf:
-  id: P01
-  title: Artificial Evolution and Artificial Life
-  authors: [Rolf Pfeifer, Christian Scheier]
-  year: 1999
-  collection: [uncategorized]
-  venue: "Understanding Intelligence, chapter 8 · MIT Press"
-  doi: 10.7551/mitpress/6979.001.0001
-
 pouget-et-al-2003.pdf:
   id: P02
   title: Inference and Computation with Population Codes
@@ -180,6 +189,24 @@ renart-et-al-2010.pdf:
   venue: Science
   doi: 10.1126/science.1179850
 
+shu-et-al-2003.pdf:
+  id: P25
+  title: Turning on and off recurrent balanced cortical activity
+  authors: [Yousheng Shu, Andrea Hasenstaub, David A. McCormick]
+  year: 2003
+  collection: [spiking]
+  venue: Nature
+  doi: 10.1038/nature01616
+
+soltoggio-et-al-2018.pdf:
+  id: P24
+  title: "Born to learn: The inspiration, progress, and future of evolved plastic artificial neural networks"
+  authors: [Andrea Soltoggio, Kenneth O. Stanley, Sebastian Risi]
+  year: 2018
+  collection: [neuroevolution]
+  venue: "Neural Networks (author manuscript)"
+  doi: 10.1016/j.neunet.2018.07.013
+
 susin-destexhe-2021.pdf:
   id: P13
   title: Integration, coincidence detection and resonance in networks of spiking neurons expressing Gamma oscillations and asynchronous states
@@ -197,6 +224,15 @@ ter-wal-tiesinga-2017.pdf:
   collection: [ping, spiking, gamma-synchronisation]
   venue: Frontiers in Computational Neuroscience
   doi: 10.3389/fncom.2017.00006
+
+wildie-shanahan-2012.pdf:
+  id: P27
+  title: Establishing communication between neuronal populations through competitive entrainment
+  authors: [Mark Wildie, Murray Shanahan]
+  year: 2012
+  collection: [ping, spiking, gamma-synchronisation]
+  venue: Frontiers in Computational Neuroscience
+  doi: 10.3389/fncom.2011.00062
 
 yan-lin-2026.pdf:
   id: P16

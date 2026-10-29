@@ -18,12 +18,63 @@ Pixi is prebundled when development starts, including animation scripts outside
 `site/`. Development and builds use separate Vite caches under
 `node_modules/.vite/dev` and `node_modules/.vite/build`, so production SSR optimization also stays out of the development cache and cannot replace
 the dependency URLs used by a running preview.
+Vite pre-transforms shared page and layout modules, including their static imports,
+in both server environments at startup. Article MDX remains on demand; startup
+does not evaluate scientific bindings or freeze evidence selection.
+
+Development coalesces full-page reload notifications over a 200 ms quiet period,
+so one multi-file save does not repeatedly reload every open preview. Errors,
+targeted HTML reloads and other hot updates still pass through immediately.
+Each HTML request refreshes MDX bindings and their importers only in the SSR and
+prerender evaluated-module caches. Compiled server and browser modules stay cached;
+source edits still use normal Vite invalidation and HMR.
+
+Disposable catalog snapshots live under
+`node_modules/.cache/pinglab/catalogs/`, outside Astro's watched directories.
+They are validated and revalidated with the remote origin after a restart.
+Writing them under `.astro/` can create a feedback loop after a rendering or
+CSS-loading error: the cache write triggers error-recovery reloads, which render
+and write the cache again. Moving the cache breaks that loop while keeping
+ordinary source-edit recovery active.
+
+Development also records refresh diagnostics automatically. After an unexpected
+reload, run `bun run debug:refresh` from `site/` to print the latest 200 events,
+or open `/__pinglab/dev-refresh` on the local server. The log records document
+requests, file watcher activity, reload-request call stacks, WebSocket connections,
+browser reload notifications, navigation, visibility, online/offline events and
+timer gaps longer than 45 seconds. Timer gaps indicate suspension or throttling;
+they do not establish that the laptop slept. Browser events include tab and document IDs
+to distinguish navigation from repeated reloads and retain their original times
+when uploaded after reconnection. Up to 100 unsent events survive reloads in
+per-tab session storage; blocked storage falls back to memory.
+
+Logs live at `site/node_modules/.cache/pinglab/dev-refresh.jsonl`, outside the
+watched source/content directories, and rotate at 512 KiB with one previous file
+(`.jsonl.1`). They persist across server restarts and are local, ignored files.
+No diagnostic script or endpoint is added to production. Diagnostics observe the
+existing reload behavior; they do not suppress reloads or claim to fix the loop.
 
 Distill's runtime is already self-hosted at `/vendor/distill/template.v2.js`.
 Only report and note pages load it, with `defer` so it does not block HTML
 parsing. Listing pages use the same prerendered styles without the runtime.
 Search renders its button on the server and downloads React, cmdk and Radix only
 on the first click or Cmd/Ctrl+K activation; that first activation opens the dialog.
+
+Images and videos wait until after the window load event and until they are within
+200 px of the viewport. The shared HTML middleware also covers Markdown images,
+responsive pictures and cropped SVG slide images. Authored dimensions, captions
+and full-size figure links are preserved; JavaScript-disabled browsers receive
+the original media through `noscript` fallbacks. Printing restores all media URLs.
+Images show a neutral skeleton until loading finishes. Run figures reserve their
+actual SVG/PNG dimensions on the server; other images use authored dimensions or
+a 16:9 placeholder when dimensions are absent. Skeleton motion respects reduced
+motion preferences, and failed downloads stop animating while retaining space.
+Figures with no available presentation show a static, dashed placeholder labelled
+“Figure unavailable”, with their captions retained below it.
+Animation implementation modules, Pixi and recording JSON use the same post-load
+visibility gate, including the joint replay. Removing an animation cancels pending
+startup and disposes a completed mount. Report evidence selection and bound text
+still resolve on the server; lazy media loading does not defer those reads.
 
 Page rendering errors are isolated by `src/middleware.ts`. The affected URL
 shows “An error occurred.” and the error message with a link back to the articles;
@@ -32,6 +83,11 @@ leave a partially rendered page. Development returns HTTP 500; static builds
 fail on rendering errors so incomplete evidence cannot be deployed as a success
 page. Compiler, import-resolution,
 and content-schema errors can still prevent a build before rendering begins.
+The same middleware rejects unwrapped text directly inside Distill's article
+and appendix grids, including the `display: contents` report-appendix wrapper.
+Standalone MDX prose expressions must return a `<p>`; ordinary Markdown prose
+and bindings inside paragraphs already supply that wrapper. This prevents raw
+text from becoming an anonymous grid item squeezed into a spare column.
 Development report routes read current collection metadata on each request so
 edited evidence metadata reaches the layout and Dataset footer even when Astro retains
 older static-path props.
@@ -96,10 +152,18 @@ For experiment reports and notes, set `created_at` once at creation and refresh
 `updated_at` when prose or figures change. Use quoted UTC datetimes with seconds
 (`YYYY-MM-DDTHH:mm:ssZ`); see Writing Rules' “Editing and dates”.
 Existing date-only `created_at` values remain supported.
-Notes live in `md/notes/` as MDX and belong to the Notes collection
+Notes and slide decks live in `notes/` and its subdirectories as `.md`
+or `.mdx` files, and belong to one Astro content collection. Discovery is recursive,
+excluding `README.md`, `AGENTS.md`, and the `notes/figures/` support directory.
+The operational guides live in `notes/rules/`. Keep shared components in `site/src/components/`
+and authored images in `site/src/assets/`. Shared Python packages and execution
+helpers live in `libraries/`.
+All entries belong to the Notes collection
 at `/collections/notes/`. Each note requires `title`, `author`, `description`,
 `created_at`, `updated_at`, and `collection` frontmatter including `notes`.
-The filename determines the URL, for example `/notes/compute-options/`.
+The path relative to `notes/` determines the URL: `notes/rules/compute.mdx`
+opens at `/notes/rules/compute`. The four rules guides' former flat and suffixed URLs
+redirect to their current nested URLs, including in static deployments.
 Notes and experiments both use `Report.astro`, including its byline, contents
 sidebar, article spacing, and annotations. Optional `abstract` frontmatter is
 supported for both; experiment IDs and Dataset footers require experiment metadata.
@@ -114,21 +178,11 @@ compatible with the new file layout.
 Hypothes.is uses this identity to share article annotations between production
 and localhost. Local annotations therefore belong to the production article too.
 The homepage lists reports, notes, and slides with the same article previews.
-Report and note bylines include a final Report column, stacking word, figure,
-and (for experiments) run counts. Listings show the same counts beside collection
-badges; slide previews retain their presentation metadata. Counts are computed
-from rendered main content, including the abstract and resolved data bindings.
-Words exclude headings, captions, tables, code, mathematics, editorial Meta,
-references, and appendices. Figures count main-content figure elements once,
-including multipanel and unavailable figures, but exclude tables. Run counts
-include completed v4 compute/analyse/present records owned by the experiment in
-the local/R2 union in development and the R2 catalog in production, including historical runs, without upstream or hidden runs.
-These are available-run inventory counts, not a claim that every run informed the report.
-Static builds freeze counts; development caches rendered word/figure counts until
-an experiment, note, slide or shared site source changes, while refreshing run counts
-on every request. Presentation selections refresh with each HTML request. A report that
-cannot render shows unavailable word/figure counts in listings rather than taking
-the listing offline. No authored count fields or article date changes are needed.
+Report and note bylines show authored dates, collection links and (for experiments)
+the experiment ID. Listings show authored update dates beneath article titles;
+slide previews retain their presentation metadata. Word, figure and run statistics
+are not calculated or displayed on listings or article pages, so opening a listing
+does not render every article or resolve its run inventory.
 All article lists, including every collection, show experiments first, sorted by
 descending numeric experiment ID, then other articles by decreasing authored
 `updated_at`, with article ID and URL ascending to break ties. This order applies
@@ -156,7 +210,7 @@ section, and above it on smaller screens. They are included in the table of
 contents. Existing `parameters.mdx` files
 remain supported by the shared layout under Parameters immediately above Dataset,
 with a Parameters entry in the table of contents. The canonical scientific-writing
-rules are preserved in [Writing Rules](../md/notes/writing-rules.md).
+rules are preserved in [Writing Rules](../notes/rules/writing.md).
 Write mathematics directly in MDX as `$...$` for inline expressions and `$$`
 blocks for displayed equations. The existing remark-math and rehype-katex
 plugins render these with KaTeX. Preserve displayed equation numbers with
@@ -180,6 +234,22 @@ presentation; missing or invalid selected JSON still fails. Guard calculations
 with `run ? ... : 'unavailable'` in those articles. `display`, `round`, `mean`,
 `percent`, `nullableRound`, and `joinLast` provide small shared helpers;
 calculations and named bindings remain ordinary JavaScript in the article.
+
+Use `ExperimentCard` for compact links to other experiments inside reports or
+notes. It uses the report collection's current title and authored update date;
+the entire card links to the experiment. It fits the article text column and
+supports keyboard focus, narrow screens, dark mode and print without loading run
+artifacts. From an experiment's `report/report.mdx`:
+
+```mdx
+import ExperimentCard from '../../../site/src/components/ExperimentCard.astro';
+
+<ExperimentCard experiment="exp133" />
+```
+
+Set `showDate={false}` for a single-line card when the title fits. Unknown
+experiment IDs fail rendering with an explicit error. Notes can import it using
+the appropriate relative path to `site/src/components/ExperimentCard.astro`.
 
 All article tables use `Table` with explicit `headers` and `rows` arrays:
 
@@ -209,6 +279,11 @@ accessible row-group heading; group labels support the same rich cells as data.
 
 Cells accept strings, finite numbers, `{ math: "..." }` for KaTeX, or
 `{ markdown: "..." }` for authored rich text and mixed text/mathematics.
+Numeric cells display two significant figures. Use `formatTableNumber` from
+`src/lib/table-number.ts` for quantities embedded in authored strings or rich
+cells; pass identifiers such as seeds and run IDs as exact strings. Set
+`rowHeaders` for matrices whose first column identifies each source; these cells
+use the same header styling as the column headings.
 Optional `caption`, `id`, and `label` props supply a plain caption, anchor,
 and accessible region name. For Markdown captions, put the caption in the default
 slot instead of the `caption` prop. Captioned tables use the same `figcaption`
@@ -230,11 +305,20 @@ slug or a nonempty list of unique slugs in frontmatter:
 collection: [neuromodulation, literature]
 ```
 
-An article appears in every listed collection, and previews and article bylines
+An article appears in every listed collection, and article bylines
 link to each membership in the authored order. Existing scalar values remain
 valid. Notes must include `notes`; slides default to `slides` when the field is
 omitted. For experiment runs, the first collection supplies Pingstore's single
 provenance value; completed runs remain unchanged.
+
+The Articles and Literature navigation lists show membership counts in parentheses,
+including totals for All articles and All papers. Counts use the complete listing
+metadata before filtering the current page and require no additional browser requests.
+Both lists sort by descending membership count, preserving their existing order
+for ties. Each initially shows its five largest collections plus its All link. A native
+Show more / Show less caret expands each list independently without JavaScript.
+The lightly bolded control stays below the collection links in either state.
+If the current collection is beyond the first five, its list opens automatically.
 
 The collections index shows the description
 configured in `src/lib/collections.ts`, a count of distinct article URLs, and
@@ -278,8 +362,9 @@ reuse an assigned ID, including after removing a paper. IDs use at least two
 digits (`P01` through `P99`, then `P100` onwards). The page still sorts newest
 publication years first.
 
-Paper collections use the same sidebar layout and collection badges as article
-lists, with separate pages at `/papers/collections/<slug>`. Set `collection` on
+Paper collections use the same sidebar layout as article lists, with separate
+pages at `/papers/collections/<slug>`. Article and paper listings omit collection
+badges. Set `collection` on
 each index entry to a lowercase hyphenated slug or a nonempty list of unique
 slugs, for example `collection: [probabilistic-coding, gamma-oscillations]`.
 Labels are derived from the slugs. New collections appear automatically on
@@ -290,29 +375,30 @@ collections include `probabilistic-coding`, `ping` (displayed as PING), and
 
 ## Slides
 
-Each deck has a folder under `md/slides/`, containing `slides.mdx` and an
-`images/` folder for its images. For example,
-`md/slides/hello-slides/slides.mdx` opens at `/slides/hello-slides`.
-Flat `.md` and `.mdx` decks also remain supported, using the file stem as their
-URL. Every deck gets the normal homepage entry. Required frontmatter is `title`,
-`author`, `description`, `created_at`, and `updated_at`; dates are quoted
-`YYYY-MM-DD` strings. Do not put supporting Markdown files in this folder:
-every Markdown/MDX file is a deck.
+Each deck is one file alongside articles anywhere under `notes/`, for example
+`notes/hello-slides.mdx` opens at `/notes/hello-slides`. Set `format: slides`
+to use the slide viewer; omitting it uses the normal article layout.
+Every deck gets the normal homepage, Notes, and search entries. Required
+frontmatter is `title`, `author`, `description`, `collection`, `created_at`,
+and `updated_at`. Include `notes` in `collection`; add `slides` for a separate
+Slides topic listing. Dates follow the same rules as articles: `updated_at`
+is a quoted UTC datetime with seconds, and `created_at` also accepts a date.
 
-Start from `../md/slides/hello-slides/slides.mdx`. MDX uses our native Astro components,
-with no presentation library:
+For example, create `notes/hello-slides.mdx` using our native Astro components:
 
 ```mdx
 ---
 title: "My talk"
 author: "Eoin Murray"
 description: "A short description for the homepage."
+format: slides
+collection: [notes, slides]
 created_at: "2026-10-13"
-updated_at: "2026-10-13"
+updated_at: "2026-10-13T00:00:00Z"
 ---
 
-import Slide from '../../../site/src/components/slides/Slide.astro';
-import SlideColumns from '../../../site/src/components/slides/SlideColumns.astro';
+import Slide from '../site/src/components/slides/Slide.astro';
+import SlideColumns from '../site/src/components/slides/SlideColumns.astro';
 
 <Slide title="A clear opening" variant="title" eyebrow="Pinglab">
 
@@ -328,7 +414,7 @@ Write Markdown here, leaving blank lines inside the component.
 </Slide>
 ```
 
-Adjust relative imports for nested source folders. `Slide` accepts an optional
+`Slide` accepts an optional
 `title`, `eyebrow`, and `variant` (`default`, `title`, or `contrast`).
 Use `density="compact"` for existing decks with longer text or figure legends.
 `SlideColumns` accepts `equal`, `wide-left`, or `wide-right` for `ratio`, with
@@ -374,13 +460,12 @@ this only for an intentional crop. Source files remain intact. Figure-and-text
 slides stack on mobile; long explanations can scroll on desktop.
 
 ```mdx
-import FigureSlide from '../../../site/src/components/slides/FigureSlide.astro';
-import figure from './images/figure.png';
+import FigureSlide from '../site/src/components/slides/FigureSlide.astro';
+import figure from '../site/src/assets/figure.png';
 
 <FigureSlide title="A result" image={figure} alt="Describe what the figure shows." />
 ```
 
-`md/slides/journal-club-oct-5th/slides.mdx` includes text, hero-text, and figure slides.
 Keep slides at the top level; put deck content inside them.
 Plain Markdown or MDX without slide components starts a new slide at
 each `##` heading; introductory content becomes its own slide. This grouping
@@ -442,6 +527,15 @@ reload refreshes MDX module bindings, numbers, figures, snapshots and inventory
 together, without restarting the server. An existing but broken local run
 fails rather than being silently replaced by R2.
 
+Development reloads revalidate the catalog with HTTP ETags, so unchanged catalogs
+do not download another 7 MB. A disposable checksummed catalog cache in
+`site/.astro/` survives server restarts, but must receive an R2 revalidation before
+use; changed responses still pass full catalog validation. Catalog and publication
+metadata requests run concurrently. Local reporting checks every entry's filesystem
+fingerprint on each request and reuses layout validation only when its version,
+record and complete fingerprint match. Changes still invalidate cached evidence;
+this does not relax ancestry, byte-verification or publication checks.
+
 Production builds use R2 exclusively and freeze catalog/selection reads for the
 build. Set `PINGLAB_RUN_SOURCE=remote` to test without local evidence, `auto` for
 the development union, or `local` for an offline local build. Set
@@ -473,6 +567,9 @@ is available. Authored literal numbers and interpretations remain authored;
 changing the dataset does not automatically rewrite scientific conclusions.
 
 Dataset footers and `/pingstore` use core's shared evidence classifications.
+The main Dataset table shows only the displayed experiment's current runset.
+Other stored runs remain available in an expandable section with their retention
+reasons; inputs current only in another experiment are labelled Required here.
 Current identifies each current runset's presentation and exact ancestry; Required
 names report/protection/unfinished-work consumers. Historical holdings remain
 Unresolved while active and incoming deployment evidence is unknown. Storage is
@@ -498,7 +595,7 @@ cross-experiment dependencies. Unified `prune --storage` defaults to both stores
 and retains current runsets, manual protection, unfinished work, shared inputs and
 active/incoming deployment evidence. Status does not authorize deletion; each
 cleanup requires its inspected, unchanged plan hash.
-See [Pingstore Rules](../md/notes/pingstore-rules.md) for the hash-bound dry-run
+See [Pingstore Rules](../notes/rules/pingstore.md) for the hash-bound dry-run
 and confirmation workflow. Neither operation depends on historical `writings/`.
 
 ## Publication
@@ -558,5 +655,5 @@ archive does not promote its historical Dataset labels into live run roots.
 A data report with no completed runset shows “Evidence unavailable” and skips its
 MDX results, parameter tables and appendices. Its missing inputs are explicit in
 the build manifest. Invalid selected evidence still fails rendering; it is never
-hidden by this absence handling. Listings show unavailable metrics until evidence
-is available. No scientific results are invented or replaced with recipe defaults.
+hidden by this absence handling. No scientific results are invented or replaced
+with recipe defaults.

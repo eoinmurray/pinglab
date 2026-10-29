@@ -16,7 +16,13 @@ from . import inputs
 def parameter_reference(source):
     """Read the fixed 128-channel comparison's full-strength native parameters."""
     cfg = source.record["execution"].get("configuration", {})
-    expected = recipe.configuration()
+    legacy = cfg.get("schema") == "exp133.recipe/v1"
+    expected = recipe.configuration(
+        legacy=legacy,
+        historical_attention_hz=cfg["attention"]["rate_hz"]
+        if cfg.get("schema") == "exp133.recipe/v2"
+        else None,
+    )
     excluded = {"input_channels", "bundle_digest"}
     if {k: v for k, v in cfg.items() if k not in excluded} != {
         k: v for k, v in expected.items() if k not in excluded
@@ -42,7 +48,18 @@ def parameter_reference(source):
 
 def configuration(source):
     cfg = source.record["execution"].get("configuration")
-    if cfg != recipe.configuration():
+    if not isinstance(cfg, dict) or cfg.get("schema") not in {
+        "exp133.recipe/v1",
+        "exp133.recipe/v2",
+        "exp133.recipe/v3",
+    }:
+        raise PingstoreError("unsupported exp133 grid configuration")
+    if cfg != recipe.configuration(
+        legacy=cfg["schema"] == "exp133.recipe/v1",
+        historical_attention_hz=cfg["attention"]["rate_hz"]
+        if cfg["schema"] == "exp133.recipe/v2"
+        else None,
+    ):
         raise PingstoreError("run does not match the committed Arnold-tongue recipe")
     return cfg
 
@@ -66,6 +83,29 @@ def recording(source, name, steps):
         ):
             raise PingstoreError(f"invalid spike array {name}/{key}")
     return values
+
+
+def onset_recording(source, cfg):
+    """Extract the complete onset trajectory from the selected grid column."""
+    grid = configuration(source)
+    column = grid["input_differences_hz"].index(cfg["input_difference_hz"])
+    prefix_steps = round(grid["onset_ms"] / grid["dt_ms"])
+    total_steps = round(cfg["duration_ms"] / grid["dt_ms"])
+    suffix_steps = round((grid["duration_ms"] - grid["onset_ms"]) / grid["dt_ms"])
+    prefix = recording(source, "prefix", prefix_steps)
+    suffix = recording(source, recipe.label(cfg["coupling_us"]), suffix_steps)
+    return {
+        f"{target}_{population}": np.concatenate(
+            [
+                prefix[f"{origin}_{population}"][:, column : column + 1],
+                suffix[f"{origin}_{population}"][
+                    : total_steps - prefix_steps, column : column + 1
+                ],
+            ]
+        )
+        for origin, target in (("A", "S"), ("B", "R"))
+        for population in ("E", "I")
+    }
 
 
 def _check_reference_parameters(*, preserved, cross_names, k, values):
@@ -93,18 +133,22 @@ def _check_reference_parameters(*, preserved, cross_names, k, values):
 def _retained_input_descriptors(*, source, onset):
     """Authenticate retained input trains and describe their prefix and suffix."""
     input_descriptors = {"prefix": {}, "suffix": {}}
+    cfg = configuration(source)
+    channels = dict.fromkeys(recipe.rates(), recipe.N_INPUT)
+    if cfg["schema"] == "exp133.recipe/v2":
+        channels["attention_A"] = cfg["attention"]["channels"]
+    shape = (
+        round(recipe.T_MS / recipe.DT_MS),
+        len(recipe.INPUT_DIFFERENCES_HZ),
+        recipe.N_INPUT,
+    )
     with np.load(source.export / "inputs.npz", allow_pickle=False) as raw:
-        if set(raw.files) != set(recipe.rates()):
+        if set(raw.files) != set(channels):
             raise PingstoreError("missing input trains")
-        shape = (
-            round(recipe.T_MS / recipe.DT_MS),
-            len(recipe.INPUT_DIFFERENCES_HZ),
-            recipe.N_INPUT,
-        )
         for key in raw.files:
             value = raw[key]
             if (
-                value.shape != shape
+                value.shape != (*shape[:2], channels[key])
                 or value.dtype != np.uint8
                 or not ((value == 0) | (value == 1)).all()
             ):

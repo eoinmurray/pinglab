@@ -17,7 +17,7 @@ import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
-sys.path[:0] = [str(REPO), str(REPO / "tools")]
+sys.path[:0] = [str(REPO), str(REPO / "libraries")]
 import numpy as np
 from experiments.exp124 import recipe
 from pingstore.library import load_json, source_run, stage_run, write_json_atomic

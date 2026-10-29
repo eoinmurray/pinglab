@@ -1,5 +1,5 @@
 ---
-import { paperCollectionLabel, paperCollectionUrl, type Paper } from '../lib/papers';
+import type { Paper } from '../lib/papers';
 interface Props { papers: Paper[]; }
 const { papers } = Astro.props;
 const surname = (author: string) => {
@@ -32,7 +32,6 @@ const surname = (author: string) => {
               {paper.metadata.doi && <> <a href={`https://doi.org/${paper.metadata.doi}`}>DOI</a></>}
             </p>
           </>}
-          <div class="collection">{paper.collections.map(collection => <a class="collection-badge" href={paperCollectionUrl(collection)}>{paperCollectionLabel(collection)}</a>)}</div>
         </div>
       </li>)}
     </ol>
@@ -47,12 +46,9 @@ const surname = (author: string) => {
   .metadata { font-size: calc(12px * var(--listing-scale)); line-height: 1.4; margin-bottom: calc(18px * var(--listing-scale)); }
   .paper-year { display: inline-block; margin-right: 1em; color: var(--listing-label); font-size: calc(18px * var(--listing-scale)); font-weight: 600; text-decoration: none; }
   .paper-year:hover { text-decoration: underline; }
-  .paper-id { display: inline-block; margin-right: 1em; }
-  .paper-citation { margin: .5rem 0 .75rem; font-size: calc(13px * var(--listing-scale)); line-height: 1.5; color: var(--listing-muted); }
+  .paper-id { display: inline-block; margin-right: 1em; font-size: calc(14px * var(--listing-scale)); }
+  .paper-citation { margin: .5rem 0 .75rem; font-size: calc(15px * var(--listing-scale)); line-height: 1.5; color: var(--listing-muted); }
   .paper-citation a { color: inherit; }
-  .collection { display: flex; align-items: center; flex-wrap: wrap; gap: .5em 1em; margin-top: calc(12px * var(--listing-scale)); font-size: calc(12px * var(--listing-scale)); line-height: 1.4; }
-  .collection-badge { color: var(--listing-muted); padding: .3em .5em; border: 1px solid var(--listing-border); border-radius: 3px; text-transform: uppercase; font-size: 80%; font-weight: 500; text-decoration: none; }
-  .collection-badge:hover { color: rgb(var(--ink)); border-color: rgb(var(--ink)); }
   @media (min-width: 768px) {
     .metadata { margin-top: calc(8px * var(--listing-scale)); margin-bottom: 0; }
     .paper-year { display: block; margin: 0 0 calc(12px * var(--listing-scale)); }

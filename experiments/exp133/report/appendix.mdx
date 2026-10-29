@@ -1,16 +1,25 @@
 import RunFigure from '../../../site/src/components/RunFigure.astro';
 import ParameterTable from './ParameterTable.astro';
 
-## Network diagrams
+## Network diagram
 
-<RunFigure report="exp133" experiment="exp133" allowUnavailable panels={[
-  { file: 'network-circuit.svg', alt: 'Reciprocal PING configuration used for the detuning–coupling map' },
-  { file: 'sender-receiver-circuit.svg', alt: 'Reciprocal sender–receiver PING configuration used for coupling onset' },
-]} columns={2} number="A1" id="fig-network">
-  Saved circuit diagrams for (A) the coupling map and (B) the sender–receiver run. E and I denote excitatory and inhibitory populations. Arrows show local and reciprocal pathways. Labels show base input strengths before the request gain in Table A1.
+<RunFigure report="exp133" experiment="exp133" allowUnavailable file="network-circuit.svg" number="A1" id="fig-network" alt="Reciprocally coupled PING architecture shared by the coupling map and coupling-onset diagnostic">
+  Shared architecture for the coupling map and coupling-onset diagnostic.
+  Circuit A corresponds to sender S, and circuit B to receiver R.
+  $E_A/I_A$ and $E_B/I_B$ identify the excitatory and inhibitory populations;
+  $X$ denotes each circuit's private input pool. There is no attention input.
+  Local E→E and I→I recurrence is included in both circuits, without self-connections.
+  Every projection
+  is labelled $W_{XY}$, with target $X$ first and source $Y$ second. Dashed paths
+  connect circuits; solid paths are local. Arrowheads show excitation; bars show
+  inhibition. Connectivity is summarised in Table A2.
 </RunFigure>
 
 
 ## Parameters
+
+Table A1 summarises the simulation, every population and the experimental protocol.
+Table A2 gives connectivity from source rows to target columns, including local
+recurrence, connections between circuits and external inputs.
 
 <ParameterTable />

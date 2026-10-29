@@ -78,11 +78,108 @@ def test_input_pairing_and_signed_grid():
     )
     for name in first:
         np.testing.assert_array_equal(first[name], second[name])
-        assert first[name].shape == (100, 11, 1024)
+        assert first[name].shape == (100, 11, recipe.N_INPUT)
+    assert set(first) == {"drive_A", "drive_B"}
     assert np.all(np.diff(first["drive_A"].astype(int), axis=1) >= 0)
     assert np.all(np.diff(first["drive_B"].astype(int), axis=1) <= 0)
     with pytest.raises(ValueError):
         recipe.coupling_scales(-0.01)
+
+
+def test_complete_connectivity_keeps_private_inputs_without_attention():
+    bundle = recipe.author_network()
+    projections = {item["id"]: item for item in bundle.graph["projections"]}
+    assert len(projections) == 14
+    for circuit in ("A", "B"):
+        for source, target in (("E", "E"), ("E", "I"), ("I", "E"), ("I", "I")):
+            projection = projections[f"PING_{circuit}_{source}_to_{target}"]
+            polarity = "inhibitory" if source == "I" else "excitatory"
+            assert projection["source"] == f"PING_{circuit}_{source}.spikes"
+            assert projection["target"] == f"PING_{circuit}_{target}.{polarity}"
+        assert (
+            projections[f"PING_{circuit}_input_to_E"]["source"]
+            == f"drive_{circuit}.value"
+        )
+    assert not any("attention" in name for name in projections)
+    assert {item["id"] for item in bundle.graph["inputs"]} == {"drive_A", "drive_B"}
+    assert set(recipe.cross_ids()) <= set(projections)
+    assert len(recipe.author_network(legacy=True).graph["projections"]) == 10
+    assert recipe.configuration(legacy=True)["schema"] == "exp133.recipe/v1"
+
+
+def test_current_protocols_omit_attention_while_historical_evidence_stays_distinct():
+    from experiments.exp133.custom import sender_receiver
+
+    current = recipe.configuration()
+    assert current["schema"] == "exp133.recipe/v3"
+    assert current["architecture"]["projection_count"] == 14
+    assert "attention" not in current
+    assert "attention" not in sender_receiver.configuration()
+    assert set(sender_receiver.make_inputs()) == {"drive_S", "drive_R"}
+    assert len(sender_receiver.author_network().graph["projections"]) == 14
+    historical = recipe.configuration(historical_attention_hz=0.0)
+    assert historical["schema"] == "exp133.recipe/v2"
+    assert historical["architecture"]["projection_count"] == 15
+    assert historical["attention"]["rate_hz"] == 0
+    assert historical["bundle_digest"] != current["bundle_digest"]
+
+
+def test_onset_view_uses_the_selected_column_and_continuous_grid_prefix(monkeypatch):
+    from experiments.exp133.custom import evidence
+
+    cfg = recipe.configuration()
+    onset = recipe.analysis_configuration(cfg)["onset"]
+    column = cfg["input_differences_hz"].index(-4.0)
+    monkeypatch.setattr(evidence, "configuration", lambda source: cfg)
+
+    def recording(source, name, steps):
+        arrays = {}
+        for circuit in ("A", "B"):
+            for population, count in (("E", 2), ("I", 1)):
+                values = np.zeros((steps, 11, count), dtype=np.uint8)
+                if (circuit == "A") == (name == "prefix"):
+                    values[:, column] = 1
+                arrays[f"{circuit}_{population}"] = values
+        return arrays
+
+    monkeypatch.setattr(evidence, "recording", recording)
+    spikes = evidence.onset_recording(object(), onset)
+    for population, count in (("E", 2), ("I", 1)):
+        assert spikes[f"S_{population}"].shape == (15000, 1, count)
+        assert spikes[f"S_{population}"][:5000].all()
+        assert not spikes[f"S_{population}"][5000:].any()
+        assert not spikes[f"R_{population}"][:5000].any()
+        assert spikes[f"R_{population}"][5000:].all()
+
+
+def test_diagram_refresh_uses_analysis_instead_of_retaining_a_presentation(monkeypatch):
+    from types import SimpleNamespace
+
+    from experiments.exp133 import present
+
+    previous = SimpleNamespace(
+        record={"inputs": {"analysis": {"run_id": "analysis"}}},
+        check_unchanged=lambda: None,
+    )
+    analysis = SimpleNamespace(
+        record={
+            "run_id": "analysis",
+            "execution": {"configuration": {"schema": "exp133.analysis/v2"}},
+        }
+    )
+    monkeypatch.setattr(
+        present,
+        "source_run",
+        lambda root, identity, **kwargs: previous if identity == "old" else analysis,
+    )
+    calls = []
+    monkeypatch.setattr(
+        present,
+        "present",
+        lambda identity, **kwargs: calls.append((identity, kwargs)) or "new",
+    )
+    assert present.redraw_networks("old", run_id="new") == "new"
+    assert calls == [("analysis", {"run_id": "new"})]
 
 
 def pulse_train(period):
@@ -329,4 +426,4 @@ def test_input_expansion_preserves_recurrent_weights_and_summed_drive(
     for key in expected:
         np.testing.assert_allclose(actual[key], expected[key], rtol=1e-6, atol=1e-9)
     assert sr.record["execution"]["configuration"]["onset_ms"] == 500.0
-    assert len(actual) == 10
+    assert len(actual) == 14

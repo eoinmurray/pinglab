@@ -1,0 +1,24 @@
+/* The skeleton stays visible during both deferred activation and the download. */
+img:is([data-media-loading], [data-media-error]) {
+  aspect-ratio: var(--media-aspect, 16 / 9);
+  height: auto;
+  background-color: rgb(var(--ink, 0 0 0) / .06);
+  border-radius: 4px;
+}
+img:is([data-media-loading], [data-media-error]):not([width]) { width: 100%; }
+img[data-media-loading] {
+  color: transparent;
+  background-image: linear-gradient(100deg, transparent 25%, rgb(var(--ink, 0 0 0) / .04) 50%, transparent 75%);
+  background-size: 200% 100%;
+  animation: media-skeleton 1.8s ease-in-out infinite;
+}
+@keyframes media-skeleton {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  img[data-media-loading] { animation: none; }
+}
+@media print {
+  img[data-media-loading] { animation: none; background: none; }
+}

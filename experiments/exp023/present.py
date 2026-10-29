@@ -10,12 +10,17 @@ import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
-sys.path[:0] = [str(REPO), str(REPO / "tools")]
+sys.path[:0] = [str(REPO), str(REPO / "libraries")]
 
 import argparse
+import shutil
 import time
+from dataclasses import replace
+from importlib.metadata import version
+from tempfile import TemporaryDirectory
 
 import matplotlib
+from snnlab import lang, viz
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
@@ -23,11 +28,149 @@ import numpy as np
 from experiments import theme
 from experiments.exp023 import recipe
 from experiments.exp023.custom import inputs
-from experiments.exp023.custom.network_artifacts import copy_circuits
-from matplotlib.patches import FancyArrowPatch, Rectangle
-from pingstore.library import PingstoreError, load_json, stage_run, write_json_atomic
+from pingstore.library import (
+    PingstoreError,
+    load_json,
+    source_run,
+    stage_run,
+    write_json_atomic,
+)
 
 DEFAULT_FORMATS = ("svg", "pdf")
+
+
+def circuit_diagram(bundle):
+    """Lay out native weighted projections; omit recording and scoring aliases."""
+    import matplotlib
+
+    native = lang.diagram(bundle, view="circuit")
+    known = {node.id for node in native.nodes if node.kind in ("input", "population")}
+    symbols = dict(drive="X", image="X", E="E", I="I", readout="R")
+    positions = dict(
+        drive=(-360, 0), image=(-360, 0), E=(0, 0), I=(0, 300), readout=(360, 0)
+    )
+    routes = dict(
+        E_to_I=viz.EdgeLayout(source_port="bottom_left", target_port="top_left"),
+        I_to_E=viz.EdgeLayout(source_port="top_right", target_port="bottom_right"),
+    )
+    zero_feedback = all(
+        row["initializer"].get("mean") == 0 and row["initializer"].get("std") == 0
+        for row in bundle.graph["parameters"]
+        if row["id"] in ("E_to_I.weight", "I_to_E.weight")
+    )
+    title = (
+        "COBA: reciprocal loop disabled"
+        if zero_feedback
+        else "PING: reciprocal loop active"
+    )
+    diagram = replace(
+        native,
+        title=title,
+        groups=(),
+        nodes=tuple(
+            replace(node, detail=node.detail.splitlines()[0])
+            for node in native.nodes
+            if node.id in known
+        ),
+        edges=tuple(edge for edge in native.edges if edge.id is not None),
+    )
+    ports = dict(
+        upper_left=(0, 0.3),
+        lower_left=(0, 0.7),
+        upper_right=(1, 0.3),
+        lower_right=(1, 0.7),
+        top_left=(0.25, 0),
+        top_right=(0.75, 0),
+        bottom_left=(0.25, 1),
+        bottom_right=(0.75, 1),
+    )
+    layout = viz.DiagramLayout(
+        nodes={
+            identifier: viz.NodeLayout(
+                position=position,
+                label=f"${symbols[identifier]}$",
+                min_size=(240, 160),
+                ports=ports,
+            )
+            for identifier, position in positions.items()
+            if identifier in known
+        },
+        edges={
+            edge.id: replace(
+                routes.get(edge.id, viz.EdgeLayout()),
+                label=viz.DiagramLabel(
+                    rf"$W_{{{symbols[edge.target]},{symbols[edge.source]}}}"
+                    + (
+                        "=0$"
+                        if zero_feedback and edge.id in ("E_to_I", "I_to_E")
+                        else "$"
+                    )
+                ),
+            )
+            for edge in diagram.edges
+        },
+        defaults=viz.LayoutDefaults(
+            node=viz.NodeLayout(content_align="center", padding=16), gap=30
+        ),
+    )
+    with matplotlib.rc_context({"savefig.bbox": None}):
+        return viz.resolve_diagram(
+            diagram, layout=layout, theme=viz.DiagramTheme(secondary_size=13)
+        )
+
+
+def save_circuit(bundle, path):
+    """Export the resolved native architecture without inheriting plot cropping."""
+    import matplotlib
+
+    circuit = circuit_diagram(bundle)
+    with matplotlib.rc_context({"savefig.bbox": None}):
+        for suffix in ("svg", "png"):
+            viz.render_diagram(circuit, Path(path).with_suffix("." + suffix))
+
+
+def render_networks(sources, export, scratch):
+    """Render both executed loop conditions, including zero feedback in COBA."""
+    compute = sources["compute"]
+    files = []
+    for mode in ("coba", "ping"):
+        prefix = mode + "-network"
+        bundle = (
+            compute.restore_bundle(prefix, scratch / prefix)
+            if compute.record.get("scientific_artifacts", {}).get("native_paths")
+            else compute.unit(prefix)
+        )
+        diagram = circuit_diagram(lang.load_bundle(bundle))
+        with matplotlib.rc_context({"savefig.bbox": None}):
+            for suffix in ("svg", "png"):
+                viz.render_diagram(diagram, export / (prefix + "." + suffix))
+        files.append(prefix + ".svg")
+    return files
+
+
+def redraw_networks(presentation, *, run_id=None):
+    """Copy an explicit presentation, replacing only its saved-bundle diagrams."""
+    previous = source_run(
+        REPO / ".pingstore", presentation, experiment="exp023", stage="present"
+    )
+    sources = {
+        role: source_run(REPO / ".pingstore", pin["run_id"], reference=pin)
+        for role, pin in previous.record["inputs"].items()
+    }
+    with stage_run(
+        REPO,
+        "exp023",
+        "present",
+        inputs={**sources, "figure_source": previous},
+        configuration=previous.record["execution"]["configuration"],
+        run_id=run_id,
+    ) as run:
+        shutil.copytree(previous.export, run.export, dirs_exist_ok=True)
+        render_networks(sources, run.export, run.scratch)
+        redraw_overview(sources["analysis"], sources["compute"], run.export)
+        run.record["execution"]["snnlab_version"] = version("snnlab")
+        previous.check_unchanged()
+    return run.run_id
 
 
 def save_figure(fig, stem, formats=DEFAULT_FORMATS) -> list[Path]:
@@ -137,7 +280,9 @@ def present(identity: str, *, run_id: str | None = None) -> str:
                 "run_id": run.run_id,
                 "duration_s": time.monotonic() - started,
                 "git_sha": run.record["provenance"]["git_commit"],
-                "circuit_files": copy_circuits(run),
+                "circuit_files": render_networks(
+                    {"compute": compute}, run.export, run.scratch
+                ),
             },
         )
     return run.run_id
@@ -237,7 +382,12 @@ def plot_raster_compound(
             ax_arch = fig.add_subplot(arch_gs[0, c0 : c0 + 2])
             arch_axes.append(ax_arch)
             _draw_schematic(ax_arch, cell)
-            ax_arch.set_title(titles[cell], loc="left", fontweight="semibold")
+            ax_arch.set_title(
+                "COBA — loop off" if cell == "coba" else "PING — loop on",
+                loc="left",
+                fontweight="semibold",
+                fontsize=theme.SIZE_LABEL,
+            )
 
         ax_r = fig.add_subplot(plot_gs[0, c0 : c0 + 2])  # one raster, I above E
         ax_psd = fig.add_subplot(
@@ -361,7 +511,9 @@ def plot_raster_compound(
 
     # Label every row from left to right.
     theme.label_panels((*arch_axes, *raster_axes, *lower_axes))
-    save_figure(fig, out_path, formats=("svg", "pdf"))
+    save_figure(
+        fig, out_path, formats=("svg", "pdf", "png") if include_arch else ("svg", "pdf")
+    )
     plt.close(fig)
 
 
@@ -459,128 +611,128 @@ def plot_traces(
             plt.close(fig)
 
 
-def _arch_box(ax, cx, cy, w, h, label, fontsize=15):
-    """A black-edged population box with a centred monospace label."""
-    ax.add_patch(
-        Rectangle(
-            (cx - w / 2, cy - h / 2),
-            w,
-            h,
-            fill=False,
-            edgecolor=theme.INK_BLACK,
-            lw=0.9,
-            zorder=3,
+def overview_diagram(kind):
+    """Illustrate the loop condition without claiming sampled historical weights."""
+    nodes = (
+        viz.DiagramNode("X", "X", "", "", kind="input"),
+        viz.DiagramNode("E", "E", "", "", kind="population"),
+        viz.DiagramNode("I", "I", "", "", kind="population"),
+    )
+    edges = (
+        viz.DiagramEdge("X", "E", id="X_to_E", role="excitatory"),
+        viz.DiagramEdge("E", "I", id="E_to_I", role="excitatory"),
+        viz.DiagramEdge("I", "E", id="I_to_E", role="inhibitory"),
+    )
+    diagram = viz.Diagram(
+        name="exp023_" + kind,
+        title=" ",
+        nodes=nodes,
+        edges=edges,
+        metadata=dict(view="illustrative loop conditions"),
+    )
+    layout = viz.DiagramLayout(
+        nodes={
+            n.id: viz.NodeLayout(
+                position=dict(X=(-360, 0), E=(0, 0), I=(360, 0))[n.id],
+                label=f"${n.id}$",
+                min_size=(180, 110),
+                ports=dict(a=(0, 0.25), b=(0, 0.75), c=(1, 0.25), d=(1, 0.75)),
+            )
+            for n in nodes
+        },
+        edges={
+            e.id: viz.EdgeLayout(
+                label=viz.DiagramLabel(
+                    rf"$W_{{{e.target},{e.source}}}"
+                    + ("=0$" if kind == "coba" and e.source != "X" else "$")
+                ),
+                **(
+                    dict(source_port="c", target_port="a")
+                    if e.id == "E_to_I"
+                    else dict(source_port="b", target_port="d")
+                    if e.id == "I_to_E"
+                    else dict(source_port="right", target_port="left")
+                ),
+            )
+            for e in edges
+        },
+        defaults=viz.LayoutDefaults(
+            node=viz.NodeLayout(content_align="center", padding=16), gap=30
+        ),
+    )
+    with matplotlib.rc_context({"savefig.bbox": None}):
+        return viz.resolve_diagram(
+            diagram, layout=layout, theme=viz.DiagramTheme(secondary_size=13)
         )
-    )
-    # va="center" leaves the font's descender gap below the glyph, so a
-    # capital (E/I, no descender) sits high and hugs the box top — exaggerated
-    # when the panel isn't equal-aspect. Nudge down a few points (aspect-
-    # independent) to optically centre the letter.
-    ax.annotate(
-        label,
-        (cx, cy),
-        textcoords="offset points",
-        xytext=(0, -0.18 * fontsize),
-        ha="center",
-        va="center",
-        fontsize=fontsize,
-        color=theme.INK_BLACK,
-        zorder=4,
-    )
 
 
-def _arch_arrow(ax, x0, y0, x1, y1):
-    """A solid black arrow from (x0, y0) to (x1, y1)."""
-    ax.add_patch(
-        FancyArrowPatch(
-            (x0, y0),
-            (x1, y1),
-            arrowstyle="-|>",
-            mutation_scale=9,
-            lw=0.9,
-            color=theme.INK_BLACK,
-            shrinkA=0,
-            shrinkB=0,
-            zorder=3,
-        )
-    )
-
-
-def _arch_label(ax, x, y, text, fontsize=12):
-    ax.text(
-        x,
-        y,
-        text,
-        ha="center",
-        va="center",
-        fontsize=fontsize,
-        color=theme.INK_BLACK,
-        zorder=4,
-    )
-
-
-def _draw_schematic(ax, kind: str) -> None:
-    """Draw one architecture schematic (kind = 'coba' or 'ping') into ax.
-
-    The frame fills the axes (16 × 9, no forced square) so the schematic is
-    large; both kinds share the frame and box sizes so the COBA and PING
-    panels read at the same scale. Weight labels sit clear of the boxes.
-    """
-    ax.set_xlim(0, 16)
-    ax.set_ylim(0, 9)
-    ax.axis("off")
-    bw, bh = 3.0, 2.6  # shared box size (taller: give E/I room off the top edge)
-    bf, lf = 10, 8  # box-label / weight-label font sizes
-    if kind == "coba":
-        _arch_box(ax, 8.0, 4.5, bw, bh, "E", fontsize=bf)
-        _arch_arrow(ax, 2.4, 4.5, 6.4, 4.5)  # input → E
-        _arch_label(ax, 4.2, 5.7, "$W_\\mathrm{in}$", fontsize=lf)
-    else:  # ping
-        _arch_box(ax, 8.0, 6.4, bw, bh, "E", fontsize=bf)
-        _arch_box(ax, 8.0, 2.0, bw, bh, "I", fontsize=bf)
-        _arch_arrow(ax, 2.4, 6.4, 6.4, 6.4)  # input → E
-        _arch_label(ax, 4.2, 7.6, "$W_\\mathrm{in}$", fontsize=lf)
-        _arch_arrow(ax, 6.9, 5.1, 6.9, 3.3)  # E → I (down, left)
-        _arch_label(ax, 5.0, 4.2, "$W_{EI}$", fontsize=lf)
-        _arch_arrow(ax, 9.1, 3.3, 9.1, 5.1)  # I → E (up, right)
-        _arch_label(ax, 11.0, 4.2, "$W_{IE}$", fontsize=lf)
-
-
-def plot_architecture(out_path: Path) -> None:
-    """Draw the COBA (left) and PING (right) schematics on one 16:9 figure."""
-    theme.apply()
-    plt.rcParams["savefig.bbox"] = "standard"  # keep the saved 16:9 exact
-
-    fig, ax = plt.subplots(figsize=(6.9, 3.88))
-    ax.set_xlim(0, 16)
-    ax.set_ylim(0, 9)
-    ax.set_aspect("equal")  # 16:9 data range in a 16:9 frame, undistorted
+def _draw_schematic(ax, kind):
+    """Place SNNLab's annotated illustration above the unchanged scientific panels."""
+    with TemporaryDirectory(prefix="exp023-diagram-") as temporary:
+        path = Path(temporary) / "circuit.png"
+        with matplotlib.rc_context({"savefig.bbox": None}):
+            viz.render_diagram(overview_diagram(kind), path, scale=2)
+        ax.imshow(plt.imread(path))
     ax.axis("off")
 
-    # ── COBA (left), centred on x = 4 ──────────────────────────────
-    ax.text(
-        4.0, 7.6, "COBA", ha="center", va="center", fontsize=14, color=theme.INK_BLACK
-    )
-    _arch_box(ax, 4.0, 5.0, 2.4, 1.7, "E")
-    _arch_arrow(ax, 0.7, 5.0, 2.75, 5.0)  # input → E
-    _arch_label(ax, 1.7, 5.5, "$W_\\mathrm{in}$")
 
-    # ── PING (right), centred on x = 12 ────────────────────────────
-    ax.text(
-        12.0, 7.6, "PING", ha="center", va="center", fontsize=14, color=theme.INK_BLACK
-    )
-    _arch_box(ax, 12.0, 5.5, 2.6, 1.7, "E")
-    _arch_box(ax, 12.0, 2.5, 2.6, 1.7, "I")
-    _arch_arrow(ax, 8.5, 5.5, 10.65, 5.5)  # input → E
-    _arch_label(ax, 9.55, 6.0, "$W_\\mathrm{in}$")
-    _arch_arrow(ax, 11.3, 4.65, 11.3, 3.35)  # E → I (down, left side)
-    _arch_label(ax, 10.25, 4.0, "$W_{EI}$")
-    _arch_arrow(ax, 12.7, 3.35, 12.7, 4.65)  # I → E (up, right side)
-    _arch_label(ax, 13.75, 4.0, "$W_{IE}$")
+def plot_architecture(out_path):
+    """Render both illustrative loop-condition diagrams with SNNLab."""
+    figure, axes = plt.subplots(1, 2, figsize=(10, 4), layout="constrained")
+    for kind, axis in zip(("coba", "ping"), axes, strict=True):
+        _draw_schematic(axis, kind)
+        axis.set_title(
+            "COBA: loop off" if kind == "coba" else "PING: loop on", loc="left"
+        )
+    save_figure(figure, out_path)
+    plt.close(figure)
 
-    save_figure(fig, out_path)  # schematic line art: SVG + PDF
-    plt.close(fig)
+
+def redraw_overview(analysis, compute, export):
+    """Reuse recorded spikes and saved measurements while replacing diagram panels."""
+    cfg = inputs.configuration(compute)
+    results = load_json(analysis.file("results.json"))
+    with np.load(analysis.file("spectra.npz"), allow_pickle=False) as arrays:
+        spectra = {
+            cell: {
+                key: np.array(arrays[f"{cell}__{key}"])
+                for key in ("frequency_hz", "density")
+            }
+            for cell in cfg["cells"]
+        }
+    recordings = {}
+    for cell in cfg["cells"]:
+        with np.load(
+            compute.file("scope", cell, "recording.npz"), allow_pickle=False
+        ) as arrays:
+            recordings[cell] = {
+                key: np.array(arrays[key]) for key in ("spk_e", "spk_i", "dt")
+            }
+    titles = {
+        "coba": "COBA — recurrent loop off",
+        "ping": "PING — recurrent loop active",
+    }
+    theme.set_paper_mode(True)
+    plot_raster_compound(
+        recordings,
+        results["fi_curves"],
+        export / "overview_compound",
+        titles,
+        spectra,
+        results["f_gamma_hz"],
+        results["measurement"]["frequency_band_hz"],
+        include_arch=True,
+    )
+    plot_architecture(export / "architecture")
 
 
 if __name__ == "__main__":
-    main()
+    if any(arg.startswith("--redraw-from") for arg in sys.argv[1:]):
+        parser = argparse.ArgumentParser(
+            description="Refresh only diagrams of an explicit presentation."
+        )
+        parser.add_argument("--redraw-from", dest="presentation", required=True)
+        parser.add_argument("--run-id")
+        print(redraw_networks(**vars(parser.parse_args())))
+    else:
+        main()

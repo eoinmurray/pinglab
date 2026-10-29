@@ -1,7 +1,7 @@
 import nodeLogger from 'astro/logger/node';
 
 // Astro reports empty configured collections as missing, but they are valid here.
-const emptyCollectionWarnings = new Set(['reports', 'notes', 'slides'].map(collection =>
+const emptyCollectionWarnings = new Set(['reports', 'notes'].map(collection =>
   `The collection ${JSON.stringify(collection)} does not exist or is empty. Please check your content config file for errors.`,
 ));
 

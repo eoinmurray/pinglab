@@ -1,14 +1,14 @@
 ---
 id: "exp133"
-title: "Lowet (2015): Coupled Rhythms"
+title: "Lowet (2015): Spiking Coupling"
 author: "Eoin Murray"
 description: "A gamma phase-locking map and coupling-onset demonstration inspired by Lowet et al. (2015)."
 created_at: "2026-10-15"
-updated_at: "2026-10-20T13:42:58Z"
-collection: ["paper-inspired", "experiments"]
-tags: ["data", "v37.0.0"]
+updated_at: "2026-10-29T15:03:09Z"
+collection: ["paper-inspired", "experiments", "ctc-attention"]
+tags: ["data", "v0.31.0"]
 inputs: ["exp133"]
-abstract: "We tested whether reciprocal excitation synchronizes two conductance-based gamma circuits across 143 combinations of input imbalance and coupling strength, with 1,024 input channels per circuit and mean input 25 Hz per channel. Thirteen settings met finite-time locking criteria; maximum valid phase-locking value (PLV) was 0.990. A selected coupling-onset diagnostic also reached PLV 0.990 over 800–1,500 ms. These results describe one network initialization and paired input realization, without testing repeatability across seeds or lasting locking."
+abstract: "We tested whether reciprocal excitation synchronizes two conductance-based gamma circuits across 143 combinations of input imbalance and coupling strength, with 1,024 input channels per circuit and mean input 25 Hz per channel. All 143 settings passed rhythm checks and six met finite-time locking criteria; maximum phase-locking value (PLV) was 0.984. The circuits include all four local recurrent pathways and independent private inputs, with no attention input. A selected coupling-onset diagnostic reached PLV 0.977 over 800–1,500 ms. These results describe one network initialization and paired input realization, without testing repeatability across seeds or lasting locking."
 ---
 
 import RunFigure from '../../../site/src/components/RunFigure.astro';
@@ -19,6 +19,10 @@ export const sr = result.sender_receiver;
 export const maxPLV = Math.max(...result.cells.filter(row => row.valid).map(row => row.concentration));
 
 ## Results
+
+The paired circuits include all four local E/I pathways, reciprocal excitatory
+projections to E and I and separate private input to each circuit. The network
+has 14 projections and no attention input.
 
 ### Reciprocal coupling and phase locking
 
@@ -36,18 +40,18 @@ Lowet et al.'s published map provides a qualitative comparison ([Fig. 2](#fig-lo
 
 ### Switching on reciprocal coupling
 
-We used the map's −4 Hz input difference and 0.09 μS coupling, keeping its saved weights and connections in both directions. At 500 ms, we switched coupling on. S/R frequencies changed from {round(sr.raster_frequencies.S.first.frequency_hz, 1)}/{round(sr.raster_frequencies.R.first.frequency_hz, 1)} Hz to {round(sr.raster_frequencies.S.last.frequency_hz, 1)}/{round(sr.raster_frequencies.R.last.frequency_hz, 1)} Hz. Relative phase became nearly steady ([Fig. 3](#fig-sender-receiver)); PLV was {round(sr.windows.coupled.concentration, 3)}, fitted drift was {round(sr.windows.coupled.drift_hz, 4)} cycles/s and phase span was {round(sr.windows.coupled.phase_span_cycles, 3)} cycles over 800–1,500 ms.
+We used the map's −4 Hz input difference and 0.09 μS coupling, keeping its saved weights and connections in both directions. At 500 ms, we switched coupling on. A/B frequencies changed from {round(sr.raster_frequencies.S.first.frequency_hz, 1)}/{round(sr.raster_frequencies.R.first.frequency_hz, 1)} Hz to {round(sr.raster_frequencies.S.last.frequency_hz, 1)}/{round(sr.raster_frequencies.R.last.frequency_hz, 1)} Hz. Relative phase became nearly steady ([Fig. 3](#fig-sender-receiver)); PLV was {round(sr.windows.coupled.concentration, 3)}, fitted drift was {round(sr.windows.coupled.drift_hz, 4)} cycles/s and phase span was {round(sr.windows.coupled.phase_span_cycles, 3)} cycles over 800–1,500 ms.
 
-This diagnostic reuses the selected map matrices and input realization; its spikes match that map trajectory over the displayed interval. It illustrates the onset of finite-time locking and is not an independent evaluation or evidence of lasting locking.
+This diagnostic is extracted directly from the selected map trajectory, including its uncoupled prefix. The map and onset view share one compute run and one analysis run. It illustrates the onset of finite-time locking and is not an independent evaluation or evidence of lasting locking.
 
 <RunFigure report="exp133" experiment="exp133" allowUnavailable file="sender-receiver.svg" number={3} id="fig-sender-receiver" alt="Full sender and receiver spike rasters over 1,500 ms with reciprocal coupling starting at 500 ms and relative phase beneath.">
-  (A) Sender S and (B) receiver R spikes: excitatory neurons in black, inhibitory neurons in red. Input rates are 23/27 Hz per channel for S/R. Dashed lines mark coupling onset at 500 ms. Corner values give frequency over 0–500 ms and 1,000–1,500 ms. (C) Unwrapped S-minus-R phase difference in cycles, shown between detected excitatory volleys. Phase metrics use shared valid times within 800–1,500 ms.
+  (A) Sender A and (B) receiver B spikes: excitatory neurons in black, inhibitory neurons in red. Input rates are 23/27 Hz per channel for A/B. Dashed lines mark coupling onset at 500 ms. Corner values give frequency over 0–500 ms and 1,000–1,500 ms. (C) Unwrapped A-minus-B phase difference in cycles, shown between detected excitatory volleys. Phase metrics use shared valid times within 800–1,500 ms.
 </RunFigure>
 
 
 ## Methods
 
-1. **Construct the paired circuits.** Use the saved conductance-based leaky integrate-and-fire (conductance-LIF) networks in [Fig. A1](#fig-network), with parameters in [Table A1](#parameters). Binary input spikes are drawn independently per channel and timestep, with probability equal to input rate times timestep in seconds. Split each original input afferent into eight channels with one-eighth weight, preserving summed input strength and recurrent matrices. No weights are trained.
+1. **Construct the paired circuits.** Use the saved conductance-based leaky integrate-and-fire (conductance-LIF) networks in [Fig. A1](#fig-network), with parameters in [Table A1](#parameters). Each circuit has 80 E and 20 I neurons and all four local recurrent pathways. The added E→E and I→I pathways have constant weights of 0.00625 and 0.05 μS per connection. Self-connections are excluded, giving incoming totals of 0.49375 and 0.95 μS. Both circuits have 1,024 independent private input channels. No attention input or attention projection is present. Binary input spikes are drawn independently per channel and timestep, with probability equal to input rate times timestep in seconds. Initialize native weights with seed 85 and apply the private-input gain of 9.2 once. No weights are trained.
 
 2. **Sweep reciprocal coupling (Fig. 1).** Cross 11 input differences (−10 to +10 Hz per channel, step 2 Hz) with 13 coupling strengths (0–0.12 μS, step 0.01 μS). Mean input stays 25 Hz per channel. Copy a shared 500 ms uncoupled prefix into each coupling condition, then simulate to 5,000 ms without resetting state. Reuse inputs across coupling strengths and underlying random draws across input differences. Exclude 300 ms after coupling onset. The zero-coupling condition supplies measured frequency detuning. Batched settings are conditions, not replicates.
 
@@ -57,6 +61,6 @@ This diagnostic reuses the selected map matrices and input realization; its spik
    \mathrm{PLV} = \left|\frac{1}{N}\sum_{n=1}^{N} e^{i[\phi_A(n)-\phi_B(n)]}\right|. \tag{1}
    $$
 
-   Here $\phi_A(n)$ and $\phi_B(n)$ are circuit phases in radians at shared valid sample $n$, $N$ is the number of those samples, $i$ is the imaginary unit, and bars denote complex magnitude. Use S/R in place of A/B for Fig. 3. Estimate frequency as the reciprocal mean inter-volley interval, drift as the least-squares slope of unwrapped relative phase in cycles against seconds, and span as its maximum minus minimum. For the map, each rhythm needs at least 20 volleys, frequency 30–80 Hz and interval coefficient of variation (standard deviation divided by mean) ≤0.2; its uncoupled calibration must also pass. Valid pairs meet the diagnostic locking criteria when absolute drift &lt;0.25 cycles/s, PLV >0.95 and span &lt;1 cycle. These thresholds describe finite windows.
+   Here $\phi_A(n)$ and $\phi_B(n)$ are circuit phases in radians at shared valid sample $n$, $N$ is the number of those samples, $i$ is the imaginary unit, and bars denote complex magnitude. Estimate frequency as the reciprocal mean inter-volley interval, drift as the least-squares slope of unwrapped relative phase in cycles against seconds, and span as its maximum minus minimum. For the map, each rhythm needs at least 20 volleys, frequency 30–80 Hz and interval coefficient of variation (standard deviation divided by mean) ≤0.2; its uncoupled calibration must also pass. Valid pairs meet the diagnostic locking criteria when absolute drift &lt;0.25 cycles/s, PLV >0.95 and span &lt;1 cycle. These thresholds describe finite windows.
 
-4. **Inspect coupling onset (Fig. 3).** Transfer the selected map's input, local and both cross-network matrices with A→S and B→R, retaining the same inputs. Apply native step gain, zero before 500 ms and one thereafter, for a continuous 1,500 ms trajectory. Phase metrics use 100–500 ms before coupling and 800–1,500 ms after coupling. Raster frequencies use the first and last 500 ms; each window requires at least five volleys and the same frequency and interval-regularity checks. Retained-evidence checks compare transferred matrices, eight-afferent masks, scheduled gains and unchanged parameters; exact spike agreement with the map checks transfer consistency, not independent reproducibility.
+4. **Inspect coupling onset (Fig. 3).** Extract the selected −4 Hz, 0.09 μS map condition over 0–1,500 ms, concatenating its saved uncoupled prefix and coupled suffix without resetting state. Native step gain is zero before 500 ms and one thereafter. Phase metrics use 100–500 ms before coupling and 800–1,500 ms after coupling. Raster frequencies use the first and last 500 ms; each window requires at least five volleys and the same frequency and interval-regularity checks. The onset view uses the map's native matrices and inputs; it is not an independently simulated replicate.

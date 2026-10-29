@@ -1,0 +1,1249 @@
+{
+  "assets": [],
+  "constants": [],
+  "groups": [
+    {
+      "id": "A",
+      "members": [
+        "A_E",
+        "A_I"
+      ],
+      "parent": null
+    },
+    {
+      "id": "B",
+      "members": [
+        "B_E",
+        "B_I"
+      ],
+      "parent": null
+    },
+    {
+      "id": "C",
+      "members": [
+        "C_E",
+        "C_I"
+      ],
+      "parent": null
+    }
+  ],
+  "inputs": [
+    {
+      "id": "attention_A",
+      "shape": [
+        "time",
+        "batch",
+        64
+      ],
+      "signal_type": "spikes",
+      "unit": "spike"
+    },
+    {
+      "id": "attention_B",
+      "shape": [
+        "time",
+        "batch",
+        64
+      ],
+      "signal_type": "spikes",
+      "unit": "spike"
+    },
+    {
+      "id": "background_C",
+      "shape": [
+        "time",
+        "batch",
+        64
+      ],
+      "signal_type": "spikes",
+      "unit": "spike"
+    },
+    {
+      "id": "sensory_A",
+      "shape": [
+        "time",
+        "batch",
+        64
+      ],
+      "signal_type": "spikes",
+      "unit": "spike"
+    },
+    {
+      "id": "sensory_B",
+      "shape": [
+        "time",
+        "batch",
+        64
+      ],
+      "signal_type": "spikes",
+      "unit": "spike"
+    }
+  ],
+  "name": "CTC attention: A and B converge on C",
+  "observables": [],
+  "operations": [],
+  "outputs": [],
+  "parameters": [
+    {
+      "constraint": {
+        "kind": "non_negative"
+      },
+      "group": null,
+      "id": "A_E_to_A_E.weight",
+      "initialization_scaling": "direct",
+      "initializer": {
+        "kind": "constant",
+        "value": 0.00390625
+      },
+      "shape": [
+        128,
+        128
+      ],
+      "unit": "uS"
+    },
+    {
+      "constraint": {
+        "kind": "non_negative"
+      },
+      "group": null,
+      "id": "A_E_to_A_I.weight",
+      "initialization_scaling": "direct",
+      "initializer": {
+        "kind": "constant",
+        "value": 0.0078125
+      },
+      "shape": [
+        32,
+        128
+      ],
+      "unit": "uS"
+    },
+    {
+      "constraint": {
+        "kind": "non_negative"
+      },
+      "group": null,
+      "id": "A_E_to_C_E.weight",
+      "initialization_scaling": "direct",
+      "initializer": {
+        "kind": "constant",
+        "value": 0.00390625
+      },
+      "shape": [
+        128,
+        128
+      ],
+      "unit": "uS"
+    },
+    {
+      "constraint": {
+        "kind": "non_negative"
+      },
+      "group": null,
+      "id": "A_E_to_C_I.weight",
+      "initialization_scaling": "direct",
+      "initializer": {
+        "kind": "constant",
+        "value": 0.00390625
+      },
+      "shape": [
+        32,
+        128
+      ],
+      "unit": "uS"
+    },
+    {
+      "constraint": {
+        "kind": "non_negative"
+      },
+      "group": null,
+      "id": "A_I_to_A_E.weight",
+      "initialization_scaling": "direct",
+      "initializer": {
+        "kind": "constant",
+        "value": 0.0625
+      },
+      "shape": [
+        128,
+        32
+      ],
+      "unit": "uS"
+    },
+    {
+      "constraint": {
+        "kind": "non_negative"
+      },
+      "group": null,
+      "id": "A_I_to_A_I.weight",
+      "initialization_scaling": "direct",
+      "initializer": {
+        "kind": "constant",
+        "value": 0.03125
+      },
+      "shape": [
+        32,
+        32
+      ],
+      "unit": "uS"
+    },
+    {
+      "constraint": {
+        "kind": "non_negative"
+      },
+      "group": null,
+      "id": "B_E_to_B_E.weight",
+      "initialization_scaling": "direct",
+      "initializer": {
+        "kind": "constant",
+        "value": 0.00390625
+      },
+      "shape": [
+        128,
+        128
+      ],
+      "unit": "uS"
+    },
+    {
+      "constraint": {
+        "kind": "non_negative"
+      },
+      "group": null,
+      "id": "B_E_to_B_I.weight",
+      "initialization_scaling": "direct",
+      "initializer": {
+        "kind": "constant",
+        "value": 0.0078125
+      },
+      "shape": [
+        32,
+        128
+      ],
+      "unit": "uS"
+    },
+    {
+      "constraint": {
+        "kind": "non_negative"
+      },
+      "group": null,
+      "id": "B_E_to_C_E.weight",
+      "initialization_scaling": "direct",
+      "initializer": {
+        "kind": "constant",
+        "value": 0.00390625
+      },
+      "shape": [
+        128,
+        128
+      ],
+      "unit": "uS"
+    },
+    {
+      "constraint": {
+        "kind": "non_negative"
+      },
+      "group": null,
+      "id": "B_E_to_C_I.weight",
+      "initialization_scaling": "direct",
+      "initializer": {
+        "kind": "constant",
+        "value": 0.00390625
+      },
+      "shape": [
+        32,
+        128
+      ],
+      "unit": "uS"
+    },
+    {
+      "constraint": {
+        "kind": "non_negative"
+      },
+      "group": null,
+      "id": "B_I_to_B_E.weight",
+      "initialization_scaling": "direct",
+      "initializer": {
+        "kind": "constant",
+        "value": 0.0625
+      },
+      "shape": [
+        128,
+        32
+      ],
+      "unit": "uS"
+    },
+    {
+      "constraint": {
+        "kind": "non_negative"
+      },
+      "group": null,
+      "id": "B_I_to_B_I.weight",
+      "initialization_scaling": "direct",
+      "initializer": {
+        "kind": "constant",
+        "value": 0.03125
+      },
+      "shape": [
+        32,
+        32
+      ],
+      "unit": "uS"
+    },
+    {
+      "constraint": {
+        "kind": "non_negative"
+      },
+      "group": null,
+      "id": "C_E_to_A_E.weight",
+      "initialization_scaling": "direct",
+      "initializer": {
+        "kind": "constant",
+        "value": 0.00078125
+      },
+      "shape": [
+        128,
+        128
+      ],
+      "unit": "uS"
+    },
+    {
+      "constraint": {
+        "kind": "non_negative"
+      },
+      "group": null,
+      "id": "C_E_to_A_I.weight",
+      "initialization_scaling": "direct",
+      "initializer": {
+        "kind": "constant",
+        "value": 0.00078125
+      },
+      "shape": [
+        32,
+        128
+      ],
+      "unit": "uS"
+    },
+    {
+      "constraint": {
+        "kind": "non_negative"
+      },
+      "group": null,
+      "id": "C_E_to_B_E.weight",
+      "initialization_scaling": "direct",
+      "initializer": {
+        "kind": "constant",
+        "value": 0.00078125
+      },
+      "shape": [
+        128,
+        128
+      ],
+      "unit": "uS"
+    },
+    {
+      "constraint": {
+        "kind": "non_negative"
+      },
+      "group": null,
+      "id": "C_E_to_B_I.weight",
+      "initialization_scaling": "direct",
+      "initializer": {
+        "kind": "constant",
+        "value": 0.00078125
+      },
+      "shape": [
+        32,
+        128
+      ],
+      "unit": "uS"
+    },
+    {
+      "constraint": {
+        "kind": "non_negative"
+      },
+      "group": null,
+      "id": "C_E_to_C_E.weight",
+      "initialization_scaling": "direct",
+      "initializer": {
+        "kind": "constant",
+        "value": 0.00390625
+      },
+      "shape": [
+        128,
+        128
+      ],
+      "unit": "uS"
+    },
+    {
+      "constraint": {
+        "kind": "non_negative"
+      },
+      "group": null,
+      "id": "C_E_to_C_I.weight",
+      "initialization_scaling": "direct",
+      "initializer": {
+        "kind": "constant",
+        "value": 0.0078125
+      },
+      "shape": [
+        32,
+        128
+      ],
+      "unit": "uS"
+    },
+    {
+      "constraint": {
+        "kind": "non_negative"
+      },
+      "group": null,
+      "id": "C_I_to_C_E.weight",
+      "initialization_scaling": "direct",
+      "initializer": {
+        "kind": "constant",
+        "value": 0.0625
+      },
+      "shape": [
+        128,
+        32
+      ],
+      "unit": "uS"
+    },
+    {
+      "constraint": {
+        "kind": "non_negative"
+      },
+      "group": null,
+      "id": "C_I_to_C_I.weight",
+      "initialization_scaling": "direct",
+      "initializer": {
+        "kind": "constant",
+        "value": 0.03125
+      },
+      "shape": [
+        32,
+        32
+      ],
+      "unit": "uS"
+    },
+    {
+      "constraint": {
+        "kind": "non_negative"
+      },
+      "group": null,
+      "id": "attention_A_to_A_E.weight",
+      "initialization_scaling": "direct",
+      "initializer": {
+        "kind": "constant",
+        "value": 0.0015625
+      },
+      "shape": [
+        128,
+        64
+      ],
+      "unit": "uS"
+    },
+    {
+      "constraint": {
+        "kind": "non_negative"
+      },
+      "group": null,
+      "id": "attention_B_to_B_E.weight",
+      "initialization_scaling": "direct",
+      "initializer": {
+        "kind": "constant",
+        "value": 0.0015625
+      },
+      "shape": [
+        128,
+        64
+      ],
+      "unit": "uS"
+    },
+    {
+      "constraint": {
+        "kind": "non_negative"
+      },
+      "group": null,
+      "id": "background_C_to_C_E.weight",
+      "initialization_scaling": "direct",
+      "initializer": {
+        "kind": "constant",
+        "value": 0.0015625
+      },
+      "shape": [
+        128,
+        64
+      ],
+      "unit": "uS"
+    },
+    {
+      "constraint": {
+        "kind": "non_negative"
+      },
+      "group": null,
+      "id": "background_C_to_C_I.weight",
+      "initialization_scaling": "direct",
+      "initializer": {
+        "kind": "constant",
+        "value": 0.0015625
+      },
+      "shape": [
+        32,
+        64
+      ],
+      "unit": "uS"
+    },
+    {
+      "constraint": {
+        "kind": "non_negative"
+      },
+      "group": null,
+      "id": "sensory_A_to_A_E.weight",
+      "initialization_scaling": "direct",
+      "initializer": {
+        "kind": "constant",
+        "value": 0.0140625
+      },
+      "shape": [
+        128,
+        64
+      ],
+      "unit": "uS"
+    },
+    {
+      "constraint": {
+        "kind": "non_negative"
+      },
+      "group": null,
+      "id": "sensory_B_to_B_E.weight",
+      "initialization_scaling": "direct",
+      "initializer": {
+        "kind": "constant",
+        "value": 0.0140625
+      },
+      "shape": [
+        128,
+        64
+      ],
+      "unit": "uS"
+    }
+  ],
+  "populations": [
+    {
+      "group": "A",
+      "id": "A_E",
+      "neuron": {
+        "capacitance_nf": 1.0,
+        "initial_voltage_mv": -65.0,
+        "kind": "coba_lif",
+        "leak_us": 0.05,
+        "refractory": {
+          "unit": "ms",
+          "value": 1.2
+        },
+        "reset_mv": -65.0,
+        "resting_mv": -65.0,
+        "tau_mem": {
+          "unit": "ms",
+          "value": 20.0
+        },
+        "threshold_mv": -50.0
+      },
+      "size": 128,
+      "spiking": true
+    },
+    {
+      "group": "A",
+      "id": "A_I",
+      "neuron": {
+        "capacitance_nf": 0.5,
+        "initial_voltage_mv": -65.0,
+        "kind": "coba_lif",
+        "leak_us": 0.1,
+        "refractory": {
+          "unit": "ms",
+          "value": 0.6
+        },
+        "reset_mv": -65.0,
+        "resting_mv": -65.0,
+        "tau_mem": {
+          "unit": "ms",
+          "value": 5.0
+        },
+        "threshold_mv": -50.0
+      },
+      "size": 32,
+      "spiking": true
+    },
+    {
+      "group": "B",
+      "id": "B_E",
+      "neuron": {
+        "capacitance_nf": 1.0,
+        "initial_voltage_mv": -65.0,
+        "kind": "coba_lif",
+        "leak_us": 0.05,
+        "refractory": {
+          "unit": "ms",
+          "value": 1.2
+        },
+        "reset_mv": -65.0,
+        "resting_mv": -65.0,
+        "tau_mem": {
+          "unit": "ms",
+          "value": 20.0
+        },
+        "threshold_mv": -50.0
+      },
+      "size": 128,
+      "spiking": true
+    },
+    {
+      "group": "B",
+      "id": "B_I",
+      "neuron": {
+        "capacitance_nf": 0.5,
+        "initial_voltage_mv": -65.0,
+        "kind": "coba_lif",
+        "leak_us": 0.1,
+        "refractory": {
+          "unit": "ms",
+          "value": 0.6
+        },
+        "reset_mv": -65.0,
+        "resting_mv": -65.0,
+        "tau_mem": {
+          "unit": "ms",
+          "value": 5.0
+        },
+        "threshold_mv": -50.0
+      },
+      "size": 32,
+      "spiking": true
+    },
+    {
+      "group": "C",
+      "id": "C_E",
+      "neuron": {
+        "capacitance_nf": 1.0,
+        "initial_voltage_mv": -65.0,
+        "kind": "coba_lif",
+        "leak_us": 0.05,
+        "refractory": {
+          "unit": "ms",
+          "value": 1.2
+        },
+        "reset_mv": -65.0,
+        "resting_mv": -65.0,
+        "tau_mem": {
+          "unit": "ms",
+          "value": 20.0
+        },
+        "threshold_mv": -50.0
+      },
+      "size": 128,
+      "spiking": true
+    },
+    {
+      "group": "C",
+      "id": "C_I",
+      "neuron": {
+        "capacitance_nf": 0.5,
+        "initial_voltage_mv": -65.0,
+        "kind": "coba_lif",
+        "leak_us": 0.1,
+        "refractory": {
+          "unit": "ms",
+          "value": 0.6
+        },
+        "reset_mv": -65.0,
+        "resting_mv": -65.0,
+        "tau_mem": {
+          "unit": "ms",
+          "value": 5.0
+        },
+        "threshold_mv": -50.0
+      },
+      "size": 32,
+      "spiking": true
+    }
+  ],
+  "projections": [
+    {
+      "allow_autapses": false,
+      "connection": "recurrent",
+      "delay": {
+        "unit": "ms",
+        "value": 0.1
+      },
+      "group": null,
+      "id": "A_E_to_A_E",
+      "parameters": [
+        "A_E_to_A_E.weight"
+      ],
+      "polarity": "excitatory",
+      "source": "A_E.spikes",
+      "synapse": {
+        "kind": "ampa",
+        "tau": {
+          "unit": "ms",
+          "value": 2.0
+        }
+      },
+      "target": "A_E.excitatory"
+    },
+    {
+      "allow_autapses": false,
+      "connection": "recurrent",
+      "delay": {
+        "unit": "ms",
+        "value": 0.1
+      },
+      "group": null,
+      "id": "A_E_to_A_I",
+      "parameters": [
+        "A_E_to_A_I.weight"
+      ],
+      "polarity": "excitatory",
+      "source": "A_E.spikes",
+      "synapse": {
+        "kind": "ampa",
+        "tau": {
+          "unit": "ms",
+          "value": 2.0
+        }
+      },
+      "target": "A_I.excitatory"
+    },
+    {
+      "allow_autapses": false,
+      "connection": "feedforward",
+      "delay": null,
+      "group": null,
+      "id": "A_E_to_C_E",
+      "parameters": [
+        "A_E_to_C_E.weight"
+      ],
+      "polarity": "excitatory",
+      "source": "A_E.spikes",
+      "synapse": {
+        "kind": "ampa",
+        "tau": {
+          "unit": "ms",
+          "value": 2.0
+        }
+      },
+      "target": "C_E.excitatory"
+    },
+    {
+      "allow_autapses": false,
+      "connection": "feedforward",
+      "delay": null,
+      "group": null,
+      "id": "A_E_to_C_I",
+      "parameters": [
+        "A_E_to_C_I.weight"
+      ],
+      "polarity": "excitatory",
+      "source": "A_E.spikes",
+      "synapse": {
+        "kind": "ampa",
+        "tau": {
+          "unit": "ms",
+          "value": 2.0
+        }
+      },
+      "target": "C_I.excitatory"
+    },
+    {
+      "allow_autapses": false,
+      "connection": "recurrent",
+      "delay": {
+        "unit": "ms",
+        "value": 0.1
+      },
+      "group": null,
+      "id": "A_I_to_A_E",
+      "parameters": [
+        "A_I_to_A_E.weight"
+      ],
+      "polarity": "inhibitory",
+      "source": "A_I.spikes",
+      "synapse": {
+        "kind": "gaba",
+        "tau": {
+          "unit": "ms",
+          "value": 6.0
+        }
+      },
+      "target": "A_E.inhibitory"
+    },
+    {
+      "allow_autapses": false,
+      "connection": "recurrent",
+      "delay": {
+        "unit": "ms",
+        "value": 0.1
+      },
+      "group": null,
+      "id": "A_I_to_A_I",
+      "parameters": [
+        "A_I_to_A_I.weight"
+      ],
+      "polarity": "inhibitory",
+      "source": "A_I.spikes",
+      "synapse": {
+        "kind": "gaba",
+        "tau": {
+          "unit": "ms",
+          "value": 6.0
+        }
+      },
+      "target": "A_I.inhibitory"
+    },
+    {
+      "allow_autapses": false,
+      "connection": "recurrent",
+      "delay": {
+        "unit": "ms",
+        "value": 0.1
+      },
+      "group": null,
+      "id": "B_E_to_B_E",
+      "parameters": [
+        "B_E_to_B_E.weight"
+      ],
+      "polarity": "excitatory",
+      "source": "B_E.spikes",
+      "synapse": {
+        "kind": "ampa",
+        "tau": {
+          "unit": "ms",
+          "value": 2.0
+        }
+      },
+      "target": "B_E.excitatory"
+    },
+    {
+      "allow_autapses": false,
+      "connection": "recurrent",
+      "delay": {
+        "unit": "ms",
+        "value": 0.1
+      },
+      "group": null,
+      "id": "B_E_to_B_I",
+      "parameters": [
+        "B_E_to_B_I.weight"
+      ],
+      "polarity": "excitatory",
+      "source": "B_E.spikes",
+      "synapse": {
+        "kind": "ampa",
+        "tau": {
+          "unit": "ms",
+          "value": 2.0
+        }
+      },
+      "target": "B_I.excitatory"
+    },
+    {
+      "allow_autapses": false,
+      "connection": "feedforward",
+      "delay": null,
+      "group": null,
+      "id": "B_E_to_C_E",
+      "parameters": [
+        "B_E_to_C_E.weight"
+      ],
+      "polarity": "excitatory",
+      "source": "B_E.spikes",
+      "synapse": {
+        "kind": "ampa",
+        "tau": {
+          "unit": "ms",
+          "value": 2.0
+        }
+      },
+      "target": "C_E.excitatory"
+    },
+    {
+      "allow_autapses": false,
+      "connection": "feedforward",
+      "delay": null,
+      "group": null,
+      "id": "B_E_to_C_I",
+      "parameters": [
+        "B_E_to_C_I.weight"
+      ],
+      "polarity": "excitatory",
+      "source": "B_E.spikes",
+      "synapse": {
+        "kind": "ampa",
+        "tau": {
+          "unit": "ms",
+          "value": 2.0
+        }
+      },
+      "target": "C_I.excitatory"
+    },
+    {
+      "allow_autapses": false,
+      "connection": "recurrent",
+      "delay": {
+        "unit": "ms",
+        "value": 0.1
+      },
+      "group": null,
+      "id": "B_I_to_B_E",
+      "parameters": [
+        "B_I_to_B_E.weight"
+      ],
+      "polarity": "inhibitory",
+      "source": "B_I.spikes",
+      "synapse": {
+        "kind": "gaba",
+        "tau": {
+          "unit": "ms",
+          "value": 6.0
+        }
+      },
+      "target": "B_E.inhibitory"
+    },
+    {
+      "allow_autapses": false,
+      "connection": "recurrent",
+      "delay": {
+        "unit": "ms",
+        "value": 0.1
+      },
+      "group": null,
+      "id": "B_I_to_B_I",
+      "parameters": [
+        "B_I_to_B_I.weight"
+      ],
+      "polarity": "inhibitory",
+      "source": "B_I.spikes",
+      "synapse": {
+        "kind": "gaba",
+        "tau": {
+          "unit": "ms",
+          "value": 6.0
+        }
+      },
+      "target": "B_I.inhibitory"
+    },
+    {
+      "allow_autapses": false,
+      "connection": "recurrent",
+      "delay": {
+        "unit": "ms",
+        "value": 0.1
+      },
+      "group": null,
+      "id": "C_E_to_A_E",
+      "parameters": [
+        "C_E_to_A_E.weight"
+      ],
+      "polarity": "excitatory",
+      "source": "C_E.spikes",
+      "synapse": {
+        "kind": "ampa",
+        "tau": {
+          "unit": "ms",
+          "value": 2.0
+        }
+      },
+      "target": "A_E.excitatory"
+    },
+    {
+      "allow_autapses": false,
+      "connection": "recurrent",
+      "delay": {
+        "unit": "ms",
+        "value": 0.1
+      },
+      "group": null,
+      "id": "C_E_to_A_I",
+      "parameters": [
+        "C_E_to_A_I.weight"
+      ],
+      "polarity": "excitatory",
+      "source": "C_E.spikes",
+      "synapse": {
+        "kind": "ampa",
+        "tau": {
+          "unit": "ms",
+          "value": 2.0
+        }
+      },
+      "target": "A_I.excitatory"
+    },
+    {
+      "allow_autapses": false,
+      "connection": "recurrent",
+      "delay": {
+        "unit": "ms",
+        "value": 0.1
+      },
+      "group": null,
+      "id": "C_E_to_B_E",
+      "parameters": [
+        "C_E_to_B_E.weight"
+      ],
+      "polarity": "excitatory",
+      "source": "C_E.spikes",
+      "synapse": {
+        "kind": "ampa",
+        "tau": {
+          "unit": "ms",
+          "value": 2.0
+        }
+      },
+      "target": "B_E.excitatory"
+    },
+    {
+      "allow_autapses": false,
+      "connection": "recurrent",
+      "delay": {
+        "unit": "ms",
+        "value": 0.1
+      },
+      "group": null,
+      "id": "C_E_to_B_I",
+      "parameters": [
+        "C_E_to_B_I.weight"
+      ],
+      "polarity": "excitatory",
+      "source": "C_E.spikes",
+      "synapse": {
+        "kind": "ampa",
+        "tau": {
+          "unit": "ms",
+          "value": 2.0
+        }
+      },
+      "target": "B_I.excitatory"
+    },
+    {
+      "allow_autapses": false,
+      "connection": "recurrent",
+      "delay": {
+        "unit": "ms",
+        "value": 0.1
+      },
+      "group": null,
+      "id": "C_E_to_C_E",
+      "parameters": [
+        "C_E_to_C_E.weight"
+      ],
+      "polarity": "excitatory",
+      "source": "C_E.spikes",
+      "synapse": {
+        "kind": "ampa",
+        "tau": {
+          "unit": "ms",
+          "value": 2.0
+        }
+      },
+      "target": "C_E.excitatory"
+    },
+    {
+      "allow_autapses": false,
+      "connection": "recurrent",
+      "delay": {
+        "unit": "ms",
+        "value": 0.1
+      },
+      "group": null,
+      "id": "C_E_to_C_I",
+      "parameters": [
+        "C_E_to_C_I.weight"
+      ],
+      "polarity": "excitatory",
+      "source": "C_E.spikes",
+      "synapse": {
+        "kind": "ampa",
+        "tau": {
+          "unit": "ms",
+          "value": 2.0
+        }
+      },
+      "target": "C_I.excitatory"
+    },
+    {
+      "allow_autapses": false,
+      "connection": "recurrent",
+      "delay": {
+        "unit": "ms",
+        "value": 0.1
+      },
+      "group": null,
+      "id": "C_I_to_C_E",
+      "parameters": [
+        "C_I_to_C_E.weight"
+      ],
+      "polarity": "inhibitory",
+      "source": "C_I.spikes",
+      "synapse": {
+        "kind": "gaba",
+        "tau": {
+          "unit": "ms",
+          "value": 6.0
+        }
+      },
+      "target": "C_E.inhibitory"
+    },
+    {
+      "allow_autapses": false,
+      "connection": "recurrent",
+      "delay": {
+        "unit": "ms",
+        "value": 0.1
+      },
+      "group": null,
+      "id": "C_I_to_C_I",
+      "parameters": [
+        "C_I_to_C_I.weight"
+      ],
+      "polarity": "inhibitory",
+      "source": "C_I.spikes",
+      "synapse": {
+        "kind": "gaba",
+        "tau": {
+          "unit": "ms",
+          "value": 6.0
+        }
+      },
+      "target": "C_I.inhibitory"
+    },
+    {
+      "allow_autapses": false,
+      "connection": "feedforward",
+      "delay": null,
+      "group": null,
+      "id": "attention_A_to_A_E",
+      "parameters": [
+        "attention_A_to_A_E.weight"
+      ],
+      "polarity": "excitatory",
+      "source": "attention_A.value",
+      "synapse": {
+        "kind": "ampa",
+        "tau": {
+          "unit": "ms",
+          "value": 2.0
+        }
+      },
+      "target": "A_E.excitatory"
+    },
+    {
+      "allow_autapses": false,
+      "connection": "feedforward",
+      "delay": null,
+      "group": null,
+      "id": "attention_B_to_B_E",
+      "parameters": [
+        "attention_B_to_B_E.weight"
+      ],
+      "polarity": "excitatory",
+      "source": "attention_B.value",
+      "synapse": {
+        "kind": "ampa",
+        "tau": {
+          "unit": "ms",
+          "value": 2.0
+        }
+      },
+      "target": "B_E.excitatory"
+    },
+    {
+      "allow_autapses": false,
+      "connection": "feedforward",
+      "delay": null,
+      "group": null,
+      "id": "background_C_to_C_E",
+      "parameters": [
+        "background_C_to_C_E.weight"
+      ],
+      "polarity": "excitatory",
+      "source": "background_C.value",
+      "synapse": {
+        "kind": "ampa",
+        "tau": {
+          "unit": "ms",
+          "value": 2.0
+        }
+      },
+      "target": "C_E.excitatory"
+    },
+    {
+      "allow_autapses": false,
+      "connection": "feedforward",
+      "delay": null,
+      "group": null,
+      "id": "background_C_to_C_I",
+      "parameters": [
+        "background_C_to_C_I.weight"
+      ],
+      "polarity": "excitatory",
+      "source": "background_C.value",
+      "synapse": {
+        "kind": "ampa",
+        "tau": {
+          "unit": "ms",
+          "value": 2.0
+        }
+      },
+      "target": "C_I.excitatory"
+    },
+    {
+      "allow_autapses": false,
+      "connection": "feedforward",
+      "delay": null,
+      "group": null,
+      "id": "sensory_A_to_A_E",
+      "parameters": [
+        "sensory_A_to_A_E.weight"
+      ],
+      "polarity": "excitatory",
+      "source": "sensory_A.value",
+      "synapse": {
+        "kind": "ampa",
+        "tau": {
+          "unit": "ms",
+          "value": 2.0
+        }
+      },
+      "target": "A_E.excitatory"
+    },
+    {
+      "allow_autapses": false,
+      "connection": "feedforward",
+      "delay": null,
+      "group": null,
+      "id": "sensory_B_to_B_E",
+      "parameters": [
+        "sensory_B_to_B_E.weight"
+      ],
+      "polarity": "excitatory",
+      "source": "sensory_B.value",
+      "synapse": {
+        "kind": "ampa",
+        "tau": {
+          "unit": "ms",
+          "value": 2.0
+        }
+      },
+      "target": "B_E.excitatory"
+    }
+  ],
+  "refractory_timing": "following_steps",
+  "schema": "snnlang.graph/v1",
+  "timebase": {
+    "dt": {
+      "unit": "ms",
+      "value": 0.1
+    }
+  },
+  "voltage_sampling": "explicit"
+}

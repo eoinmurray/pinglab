@@ -1,6 +1,7 @@
 ---
 import { getCollection, render, type CollectionEntry } from 'astro:content';
 import Report from '../../layouts/Report.astro';
+import SlideDeck from '../../layouts/SlideDeck.astro';
 
 export async function getStaticPaths() {
   return (await getCollection('notes')).map(note => ({
@@ -14,4 +15,10 @@ const { note } = Astro.props;
 const { Content, headings } = await render(note);
 ---
 
-<Report report={note} headings={headings}><Content /></Report>
+{note.data.format === 'slides' ? (
+  <SlideDeck title={note.data.title} author={note.data.author} description={note.data.description}>
+    <Content />
+  </SlideDeck>
+) : (
+  <Report report={note} headings={headings}><Content /></Report>
+)}

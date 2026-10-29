@@ -11,7 +11,7 @@ import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
-sys.path[:0] = [str(REPO), str(REPO / "tools")]
+sys.path[:0] = [str(REPO), str(REPO / "libraries")]
 from experiments.exp082.custom import evidence, inputs
 from pingstore.library import PingstoreError, file_sha256, load_json, write_json_atomic
 

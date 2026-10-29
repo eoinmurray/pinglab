@@ -7,3 +7,6 @@ membrane driven by an added excitatory synapse.
    run interactively in the browser.
 2. Sources: `report/report.mdx`, `report/CapacitorAnimation.astro`,
    `report/NeuronMembraneAnimation.astro` and `report/js/`.
+
+3. `uv run python experiments/exp129/present.py`: regenerate the illustrative
+   network SVGs using SNNLab’s diagram layout API; no simulation is executed.

@@ -23,26 +23,18 @@ const run = (await latestPresentation(experiment)).id;
 </figure>
 
 <script>
-  import { mountClassifier } from './js/classifier.js';
+  import { deferMount } from '../../../site/src/lib/media-start';
   class PixiLearningClassifier extends HTMLElement {
     dispose?: () => void;
-    observer?: IntersectionObserver;
     connectedCallback() {
-      this.observer = new IntersectionObserver(async entries => {
-        if (!entries.some(entry => entry.isIntersecting)) return;
-        this.observer?.disconnect();
-        try {
-          const dispose = await mountClassifier(this);
-          if (this.isConnected) this.dispose = dispose; else dispose();
-        } catch (error) {
-          console.error('Classifier replay could not start', error);
-          const status = this.querySelector('.status');
-          if (status) status.textContent = 'The recorded classifier replay is unavailable.';
-        }
-      }, { rootMargin: '200px' });
-      this.observer.observe(this);
+      this.dispose?.();
+      this.dispose = deferMount(this, async () => (await import('./js/classifier.js')).mountClassifier, error => {
+        console.error('Classifier replay could not start', error);
+        const status = this.querySelector('.status');
+        if (status) status.textContent = 'The recorded classifier replay is unavailable.';
+      });
     }
-    disconnectedCallback() { this.observer?.disconnect(); this.dispose?.(); }
+    disconnectedCallback() { this.dispose?.(); this.dispose = undefined; }
   }
   if (!customElements.get('pixi-learning-classifier')) customElements.define('pixi-learning-classifier', PixiLearningClassifier);
 </script>

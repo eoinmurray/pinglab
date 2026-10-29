@@ -1,0 +1,109 @@
+---
+import Math from '../../../site/src/components/Math.astro';
+import EquationBox from '../../../site/src/components/EquationBox.astro';
+import { reportSnapshots } from '../../../site/src/lib/report-data';
+import { runStore } from '../../../site/src/lib/run-store';
+
+const evidence = await reportSnapshots('exp157', { snapshots: {}, allowUnavailable: true });
+const model = evidence ? await runStore.json(evidence.compute.run_id, 'export/model.json') : undefined;
+if (model && model.schema !== 'snnlab.meanfield.model/v1')
+  throw new Error('Invalid native mean-field model');
+
+// Substitute complete native labels once; aliases change display notation only.
+const aliases = new Map<string, string>();
+const add = (name: string, label: string) => {
+  const native = model?.symbols[name]?.latex;
+  if (model && !native) throw new Error(`Missing native mean-field symbol ${name}`);
+  if (native) aliases.set(native, label);
+};
+for (const circuit of ['A', 'B', 'C']) {
+  for (const population of ['E', 'I']) {
+    const name = `${circuit}_${population}`;
+    add(`${name}.rate`, `r_{${population}}^{${circuit}}`);
+    add(`${name}.tau_rate`, `\\tau_{r,${population}}^{${circuit}}`);
+    add(`${name}.effective_current`, `I_{${population}}^{${circuit}}`);
+    add(`${name}.applied_current`, `I_{\\mathrm{ext},${population}}^{${circuit}}`);
+    add(`${name}.driving_force_exc`, `\\Delta V_{e,${population}}^{${circuit}}`);
+    add(`${name}.driving_force_inh`, `\\Delta V_{i,${population}}^{${circuit}}`);
+    aliases.set(`\\Phi_{${circuit} ${population}}`, `\\Phi_{${population}}^{${circuit}}`);
+  }
+  add(`X_${circuit}.rate`, `\\nu^{${circuit}}`);
+}
+const pathways = Object.keys(model?.parameters ?? {}).filter(name => name.endsWith('.coupling'))
+  .map(name => name.slice(0, -'.coupling'.length));
+for (const pathway of pathways) {
+  const match = pathway.match(/^(X_[ABC]|[ABC]_[EI])_to_([ABC]_[EI])$/);
+  if (!match) throw new Error(`Unknown native mean-field pathway ${pathway}`);
+  const [, source, target] = match;
+  const compact = (name: string) => name.startsWith('X_') ? `x${name[2]}` : name.replace('_', '');
+  const path = `${compact(source)}\\to ${compact(target)}`;
+  for (const [field, symbol] of [
+    ['conductance', 'g'], ['tau', '\\tau'], ['coupling', 'C'], ['gain', 'a'],
+  ]) add(`${pathway}.${field}`, `${symbol}_{${path}}`);
+}
+const labels = [...aliases.keys()].sort((a, b) => b.length - a.length);
+const tex = (value: string) => {
+  let result = '';
+  for (let i = 0; i < value.length;) {
+    const label = labels.find(label => value.startsWith(label, i));
+    result += label ? aliases.get(label)! : value[i];
+    i += label ? label.length : 1;
+  }
+  return result;
+};
+const equations = model?.equation_order.map((name: string) => ({ name, ...model.equations[name] })) ?? [];
+const rates = equations.filter((row: any) => row.kind === 'differential' && row.name.endsWith('.rate'));
+const filters = equations.filter((row: any) => row.kind === 'differential' && row.name.endsWith('.conductance'));
+const currents = equations.filter((row: any) => row.kind === 'definition' && row.name.endsWith('.effective_current'));
+if (model && rates.length + filters.length !== model.state_order.length)
+  throw new Error('Native mean-field display does not cover every dynamical state');
+const groups = [
+  { title: '1.1. Population rates', rows: rates },
+  { title: '1.2. Local conductance filters', rows: filters.filter((row: any) => /^([ABC])_[EI]_to_\1_[EI]\./.test(row.name)) },
+  { title: '1.3. Feedforward conductance filters', rows: filters.filter((row: any) => /^[AB]_E_to_C_E\./.test(row.name)) },
+  { title: '1.4. External conductance filters', rows: filters.filter((row: any) => row.name.startsWith('X_')) },
+  { title: '1.5. Effective currents', rows: currents },
+];
+if (model && groups.reduce((count, group) => count + group.rows.length, 0) !== rates.length + filters.length + currents.length)
+  throw new Error('Native mean-field display contains an unclassified pathway');
+---
+
+{model ? (
+  <>
+    <p>
+      The saved SNNLab model supplies all {rates.length + filters.length} dynamical equations
+      below: {rates.length} population rates and {filters.length} conductance filters,
+      followed by {currents.length} current definitions. Only display labels are shortened.
+      Superscripts A/B/C identify circuits; E/I identify excitatory/inhibitory populations.
+      For a pathway such as AE → CE, the first pair is the source and the second is the
+      target; xA/xB/xC denote external source pools.
+    </p>
+    {groups.map(group => (
+      <section>
+        <h4>{group.title}</h4>
+        <EquationBox label={group.title}>
+          <Math latex={'\\begin{aligned}' + group.rows.map((row: any) =>
+            tex(row.lhs_latex) + ' &= ' + tex(row.rhs_latex)
+          ).join(' \\\\ ') + '\\end{aligned}'} />
+        </EquationBox>
+      </section>
+    ))}
+    <p>
+      Time is in ms; dots denote time derivatives. Symbols: <var>r</var>, population rate
+      (Hz); <var>g</var>, pathway conductance (µS); <var>I</var>, effective current (nA);
+      <var>τ</var>, rate relaxation or synaptic decay time (ms); <var>C</var>, mean incoming
+      conductance jump (µS); <var>a</var>, dimensionless pathway gain; ν, mean input rate
+      per source channel (Hz); Φ, stationary noisy-LIF current-to-rate function (Hz).
+      Subscript ext denotes applied current. Δ<var>V</var> is a fixed driving force (mV):
+      e denotes excitatory reversal minus resting voltage; i denotes resting minus inhibitory
+      reversal voltage. The inhibitory contribution is subtracted. The factor 1/1000
+      converts Hz to events per ms. The parameter table gives native gain settings and
+      time constants.
+    </p>
+    <p>
+      In Figure 1 all pathway gains are one and applied currents are zero; only ν varies.
+      The uncoupled C control sets the AE → CE and BE → CE gains to zero. External
+      conductances remain dynamical, and transmission delays are omitted.
+    </p>
+  </>
+) : <p>Native mean-field equations unavailable: no presentation selected.</p>}

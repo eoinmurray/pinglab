@@ -1,93 +1,174 @@
 ---
 import Table from '../../../site/src/components/Table.astro';
-import { reportSnapshots } from '../../../site/src/lib/report-data';
+import { reportData, reportSnapshots } from '../../../site/src/lib/report-data';
+import { formatTableNumber } from '../../../site/src/lib/table-number';
 
+const results = await reportData('exp133', { allowUnavailable: true });
+const combined = results?.schema === 'exp133.analysis/v2';
 const protocols = [
-  { branch: 'analysis', path: 'coupling-090-execution/start/snapshot.json', names: ['A', 'B'] },
-  { branch: 'sender_receiver_analysis', path: 'sender-receiver-execution/start/snapshot.json', names: ['S', 'R'] },
+  { label: 'Coupling map', branch: 'analysis', path: 'coupling-090-execution/start/snapshot.json', names: ['A', 'B'] },
+  combined
+    ? { label: 'Onset diagnostic', branch: 'analysis', path: 'coupling-090-execution/start/snapshot.json', names: ['A', 'B'] }
+    : { label: 'Onset diagnostic', branch: 'sender_receiver_analysis', path: 'sender-receiver-execution/start/snapshot.json', names: ['S', 'R'] },
 ];
 const evidence = await Promise.all(protocols.map(protocol => reportSnapshots('exp133', {
-  analysisInput: protocol.branch, snapshots: { selected: protocol.path }, allowUnavailable: true,
-})));
+    analysisInput: protocol.branch, snapshots: { selected: protocol.path }, allowUnavailable: true,
+  })));
 const n = value => {
   if (typeof value !== 'number' || !Number.isFinite(value)) throw new Error('Missing saved exp133 numeric parameter');
-  return Number(value.toPrecision(6)).toString();
+  return formatTableNumber(value);
 };
-const text = value => {
-  if (value === undefined || value === null) throw new Error('Missing saved exp133 parameter');
+const identifier = value => {
+  if (!Number.isSafeInteger(value)) throw new Error('Invalid saved exp133 seed');
   return String(value);
 };
+const math = value => ({ math: value });
 const snapshot = index => evidence[index]?.snapshots.selected;
 const graph = index => snapshot(index).network;
-const pop = (index, kind) => graph(index).populations.find(item => item.id === `PING_${protocols[index].names[0]}_${kind}`);
-const proj = (index, suffix) => graph(index).projections.find(item => item.id === `PING_${protocols[index].names[0]}_${suffix}`);
-const cross = index => graph(index).projections.find(item => item.source === `PING_${protocols[index].names[0]}_E.spikes`
-  && item.target === `PING_${protocols[index].names[1]}_E.excitatory`);
-const init = (index, projection) => graph(index).parameters.find(item => item.id === projection.parameters[0]).initializer;
-const pair = (index, read, unit) => ['E', 'I'].map(kind => n(read(pop(index, kind).neuron))).join(' / ') + ` ${unit}`;
+const canonical = (index, id) => id.replace(/^PING_/, '').replace(
+  new RegExp(`(^|_)(${protocols[index].names.join('|')})(?=_|$)`),
+  (_, prefix, name) => prefix + ['A', 'B'][protocols[index].names.indexOf(name)],
+);
+const symbol = id => {
+  const population = id.match(/^([AB])_([EI])$/);
+  if (population) return `${population[2]}_${population[1]}`;
+  if (/^drive_[AB]$/.test(id)) return `X_${id.at(-1)}`;
+  if (/^attention_[AB]$/.test(id)) return `U_${id.at(-1)}`;
+  throw new Error(`Unlabelled exp133 population or input: ${id}`);
+};
+const nodes = index => [
+  ...graph(index).populations.map(population => ({
+    id: population.id, key: canonical(index, population.id), size: population.size,
+    description: population.neuron.kind === 'coba_lif' ? 'conductance-LIF neurons' : population.neuron.kind,
+  })),
+  ...graph(index).inputs.map(input => ({
+    id: input.id, key: canonical(index, input.id), size: input.shape.at(-1), description: 'input channels',
+  })),
+].sort((a, b) => {
+  const order = ['A_E', 'A_I', 'B_E', 'B_I', 'drive_A', 'drive_B', 'attention_A'];
+  return order.indexOf(a.key) - order.indexOf(b.key);
+});
+const populationKeys = [...new Set(protocols.flatMap((_, index) => snapshot(index) ? nodes(index).map(node => node.key) : []))];
 const row = (label, read) => [label, ...protocols.map((_, index) => snapshot(index) ? read(index) : 'Unavailable')];
-const setting = (label, read) => [label, ...evidence.map((item, index) => item ? read(item.configuration, index) : 'Unavailable')];
-const stats = (index, suffix, gain = 1) => {
-  const original = init(index, proj(index, suffix));
-  return `${n(original.mean * gain)} / ${n(original.std * gain)} µS`;
+const configurations = evidence.map((item, index) => index === 1 && combined ? results.sender_receiver.configuration : item?.configuration);
+const setting = (label, read) => [label, ...configurations.map((cfg, index) => cfg ? read(cfg, index) : 'Unavailable')];
+const sweep = values => {
+  if (!Array.isArray(values)) return n(values);
+  if (!values.length) throw new Error('Empty saved exp133 sweep');
+  const step = values[1] - values[0];
+  if (values.length > 2 && values.every((value, index) => Math.abs(value - values[0] - index * step) < 1e-9)) {
+    return `${n(values[0])} to ${n(values.at(-1))} (step ${n(step)})`;
+  }
+  return values.map(n).join(', ');
+};
+const neuronPair = (index, read) => {
+  const pairs = protocols[index].names.map(name => ['E', 'I'].map(kind => {
+    const population = graph(index).populations.find(item => item.id === `PING_${name}_${kind}`);
+    if (!population) throw new Error('Missing saved exp133 neuronal population');
+    return n(read(population.neuron));
+  }).join(' / '));
+  return (pairs[0] === pairs[1] ? pairs[0] : `A: ${pairs[0]}; B: ${pairs[1]}`) + ' ms';
 };
 const groups = [
-  { label: 'Network', rows: [
-    row('Neurons per circuit, E / I', index => ['E', 'I'].map(kind => n(pop(index, kind).size)).join(' / ')),
-    row('Input channels per circuit', index => n(graph(index).inputs[0].shape.at(-1))),
-    row('Neuron model', index => pop(index, 'E').neuron.kind === 'coba_lif' ? 'Conductance-LIF' : text(pop(index, 'E').neuron.kind)),
-    setting('Reciprocal pathways', (_, index) => index === 0 ? 'A E→B E/I and B E→A E/I' : 'S E→R E/I and R E→S E/I'),
-  ] },
-  { label: 'Neurons', rows: [
-    row('Capacitance, E / I', index => pair(index, neuron => neuron.capacitance_nf, 'nF')),
-    row('Leak conductance, E / I', index => pair(index, neuron => neuron.leak_us, 'µS')),
-    row('Passive time constant, E / I (derived)', index => pair(index, neuron => neuron.capacitance_nf / neuron.leak_us, 'ms')),
-    ...[['Resting voltage', 'resting_mv'], ['Reset voltage', 'reset_mv'], ['Initial voltage', 'initial_voltage_mv'], ['Spike threshold', 'threshold_mv']]
-      .map(([label, key]) => row(`${label}, E / I`, index => pair(index, neuron => neuron[key], 'mV'))),
-    row('Refractory period, E / I', index => pair(index, neuron => neuron.refractory.value, 'ms')),
-  ] },
-  { label: 'Synapses and weights', rows: [
-    row('Input→E base initializer mean / SD', index => stats(index, 'input_to_E')),
-    setting('Input→E request gain', cfg => n(cfg.input_projection_gain)),
-    row('Input→E nominal mean / SD after gain (derived)', index => stats(index, 'input_to_E', evidence[index].configuration.input_projection_gain)),
-    row('E→I initializer mean / SD', index => stats(index, 'E_to_I')),
-    row('I→E initializer mean / SD', index => stats(index, 'I_to_E')),
-    ...[['Input→E', 'input_to_E'], ['E→I', 'E_to_I'], ['I→E', 'I_to_E']].map(([label, suffix]) =>
-      row(`${label} synapse / decay`, index => `${text(proj(index, suffix).synapse.kind).toUpperCase()} / ${n(proj(index, suffix).synapse.tau.value)} ms`)),
-    row('Local E→I / I→E delay', index => `${n(proj(index, 'E_to_I').delay.value)} / ${n(proj(index, 'I_to_E').delay.value)} ms`),
-    setting('Cross-network nominal total per pathway', (cfg, index) => index === 0 ? `${cfg.coupling_us.map(n).join(', ')} µS` : `${n(cfg.coupling_us)} µS`),
-    row('Cross-network fan-in (derived) / zero fraction', index => `${n(pop(index, 'E').size * (1 - init(index, cross(index)).initial_zero_fraction))} / ${n(init(index, cross(index)).initial_zero_fraction)}`),
-    row('Cross-network zeroing / initializer SD', index => `${init(index, cross(index)).zeroing === 'exact_k' ? 'Exact fan-in' : text(init(index, cross(index)).zeroing)} / ${n(init(index, cross(index)).std)} µS`),
-    row('Cross-network synapse / decay / delay', index => `${text(cross(index).synapse.kind).toUpperCase()} / ${n(cross(index).synapse.tau.value)} / ${n(cross(index).delay.value)} ms`),
-    row('Cross-network gain before / after onset', index => `${n(cross(index).modulation.before)} / ${n(cross(index).modulation.after)}`),
-  ] },
-  { label: 'Input and simulation', rows: [
-    setting('Timestep / total duration', cfg => `${n(cfg.dt_ms)} / ${n(cfg.duration_ms)} ms`),
+  { label: 'Simulation', rows: [
+    setting({ markdown: 'Integration timestep, $dt$' }, cfg => `${n(cfg.dt_ms)} ms`),
+    setting('Analysed duration', cfg => `${n(cfg.duration_ms)} ms`),
     setting('Coupling onset', cfg => `${n(cfg.onset_ms)} ms; continuous state`),
-    setting('Input rates per channel', (cfg, index) => index === 0
-      ? `A: ${cfg.input_rates_hz.drive_A.map(n).join(', ')}; B: ${cfg.input_rates_hz.drive_B.map(n).join(', ')} Hz`
-      : `S / R: ${n(cfg.input_rates_hz.S)} / ${n(cfg.input_rates_hz.R)} Hz`),
-    setting('Signed input difference', (cfg, index) => index === 0 ? `${cfg.input_differences_hz.map(n).join(', ')} Hz` : `${n(cfg.input_rates_hz.S - cfg.input_rates_hz.R)} Hz`),
-    setting('Network seed / input seeds', cfg => `${n(cfg.network_seed)} / ${cfg.input_seeds.map(n).join(', ')}`),
-    setting('Input pairing', (cfg, index) => index === 0 ? text(cfg.input_pairing) : 'Same input realization as selected map point'),
+    setting('Network seed / private-input seeds', cfg => `${identifier(cfg.network_seed)} / ${cfg.input_seeds.map(identifier).join(', ')}`),
   ] },
-  { label: 'Analysis', rows: [
-    setting('Rate smoothing SD / minimum volley spacing', cfg => cfg.rate_smoothing_ms === undefined ? 'Unavailable in recorded configuration' : `${n(cfg.rate_smoothing_ms)} / ${n(cfg.volley_distance_ms)} ms`),
-    setting('Peak prominence fraction', cfg => cfg.volley_prominence_fraction === undefined ? 'Unavailable in recorded configuration' : n(cfg.volley_prominence_fraction)),
-    setting('Settling after onset', cfg => cfg.settling_ms === undefined ? 'Unavailable in recorded configuration' : `${n(cfg.settling_ms)} ms`),
-    setting('Minimum volleys / gamma band / maximum interval CV', cfg => cfg.min_volleys === undefined ? 'Unavailable in recorded configuration' : `${n(cfg.min_volleys)} / ${cfg.gamma_band_hz.map(n).join('–')} Hz / ${n(cfg.max_iei_cv)}`),
-    setting('Strict finite-time locking thresholds', cfg => cfg.classification === undefined ? 'Not classified for this diagnostic' : `|drift| < ${n(cfg.classification.max_abs_drift_hz)} cycles/s; PLV > ${n(cfg.classification.min_concentration)}; span < ${n(cfg.classification.max_phase_span_cycles)} cycle`),
+  ...(populationKeys.length ? [{ label: 'Populations', rows: populationKeys.map(key => row(math(symbol(key)), index => {
+    const node = nodes(index).find(item => item.key === key);
+    return node ? `${n(node.size)} ${node.description}` : 'Absent';
+  })) }] : []),
+  { label: 'Neuron dynamics', rows: [
+    row('Membrane time constant, E / I', index => neuronPair(index, neuron => neuron.tau_mem.value)),
+    row('Refractory period, E / I', index => neuronPair(index, neuron => neuron.refractory.value)),
+  ] },
+  { label: 'Input and manipulation', rows: [
+    setting('Private input rate, A / B (Hz/channel)', (cfg, index) => index === 0
+      ? `${sweep(cfg.input_rates_hz.drive_A)} / ${sweep(cfg.input_rates_hz.drive_B)}`
+      : `${n(cfg.input_rates_hz.S)} / ${n(cfg.input_rates_hz.R)}`),
+    setting('A-minus-B input difference (Hz/channel)', (cfg, index) => index === 0
+      ? sweep(cfg.input_differences_hz) : n(cfg.input_rates_hz.S - cfg.input_rates_hz.R)),
+    setting('Coupling per cross-circuit pathway (µS)', cfg => sweep(cfg.coupling_us)),
+    ...(configurations.some(cfg => cfg?.attention) ? [setting('Historical attention rate / seed', cfg => cfg.attention
+      ? `${n(cfg.attention.rate_hz)} Hz/channel / ${identifier(cfg.attention.seed)}` : 'Absent')] : []),
+  ] },
+  { label: 'Measurement', rows: [
+    setting('Phase measurement window', (_, index) => {
+      const window = index === 0 ? results?.analysis_window_ms
+        : results?.sender_receiver?.windows?.coupled
+          ? [results.sender_receiver.windows.coupled.start_ms, results.sender_receiver.windows.coupled.end_ms] : undefined;
+      return window ? `${window.map(n).join('–')} ms; common phase-valid samples` : 'Unavailable';
+    }),
   ] },
 ];
+
+// Describe nominal per-connection weights from native initialization and execution gains.
+// These are distribution parameters, not measured statistics of transferred matrices.
+const matrices = protocols.flatMap((protocol, index) => {
+  if (!snapshot(index)) return [];
+  const sources = nodes(index);
+  const targets = sources.filter(node => graph(index).populations.some(population => population.id === node.id));
+  const endpoint = value => value.split('.')[0];
+  const knownSources = new Set(sources.map(node => node.id));
+  const knownTargets = new Set(targets.map(node => node.id));
+  if (graph(index).projections.some(projection => !knownSources.has(endpoint(projection.source)) || !knownTargets.has(endpoint(projection.target)))) {
+    throw new Error('Saved exp133 projection has an unreported endpoint');
+  }
+  const signatures = [];
+  let couplingUs;
+  const rows = sources.map(source => [math(symbol(source.key)), ...targets.map(target => {
+    const projections = graph(index).projections.filter(projection => endpoint(projection.source) === source.id && endpoint(projection.target) === target.id);
+    if (!projections.length) return 'Absent';
+    if (projections.length !== 1) throw new Error('Multiple saved exp133 projections for one matrix entry');
+    const projection = projections[0];
+    const parameter = graph(index).parameters.find(item => item.id === projection.parameters[0]);
+    if (!parameter || parameter.unit !== 'uS') throw new Error('Missing saved exp133 conductance parameter');
+    const initializer = parameter.initializer;
+    const constant = initializer.kind === 'constant';
+    if (!constant && initializer.kind !== 'lower_clamped_normal') throw new Error('Unsupported saved exp133 initializer');
+    const fraction = constant ? 1 : 1 - initializer.initial_zero_fraction;
+    const autapses = snapshot(index).execution.initialization?.[parameter.id]?.autapses?.[projection.id];
+    const eligible = autapses?.eligible_fan_in
+      ?? source.size - (source.id === target.id && projection.allow_autapses === false ? 1 : 0);
+    const fanIn = initializer.zeroing === 'exact_k' ? Math.round(eligible * fraction) : eligible * fraction;
+    const divisor = parameter.initialization_scaling === 'direct' ? 1
+      : parameter.initialization_scaling === 'fan_in_normalized' ? fanIn : undefined;
+    if (!(divisor > 0)) throw new Error('Unsupported saved exp133 weight scaling');
+    const scale = snapshot(index).execution.inference_overrides?.projection_scales?.[projection.id] ?? 1;
+    const gain = projection.modulation ? projection.modulation.after : 1;
+    if (projection.modulation && projection.modulation.kind !== 'step_gain') throw new Error('Unsupported saved exp133 modulation');
+    const mean = (constant ? initializer.value : initializer.mean) * scale * gain * 1000 / divisor;
+    const sd = constant ? 0 : initializer.std * scale * gain * 1000 / divisor;
+    if (source.key === 'A_E' && target.key === 'B_E') couplingUs = mean * fanIn / 1000;
+    const weight = sd ? `${n(mean)} ± ${n(sd)}` : n(mean);
+    const density = `${n(100 * fraction)}%`;
+    const decay = `${projection.synapse.kind.toUpperCase()} / ${n(projection.synapse.tau.value)} ms`;
+    const delay = `${n(projection.delay === null ? 0 : projection.delay.value)} ms`;
+    signatures.push([fraction.toPrecision(12), mean.toPrecision(12), sd.toPrecision(12), decay, delay, eligible, fanIn, initializer.kind, parameter.initialization_scaling,
+      projection.modulation ? [projection.modulation.kind, projection.modulation.at_ms, projection.modulation.before, projection.modulation.after] : null]);
+    return `${density}; ${weight}`;
+  })]);
+  return [{ label: protocol.label, index, couplingUs, headers: ['Source ↓ / target →', ...targets.map(target => math(symbol(target.key)))], rows, signatures }];
+});
+const sharedMatrix = matrices.length === 2 && JSON.stringify(matrices[0].rows) === JSON.stringify(matrices[1].rows)
+  && JSON.stringify(matrices[0].signatures) === JSON.stringify(matrices[1].signatures);
+const displayedMatrices = sharedMatrix ? [matrices[0]] : matrices;
 ---
 
-<Table headers={['Parameter', 'Coupling map', 'Onset diagnostic']} groups={groups} number="A1" id="saved-model-parameters" label="Saved model and execution parameters">
-  Values follow the article's selected presentation to its separate map and onset compute runs:
-  {evidence.map((item, index) => <span>{index ? '; ' : ''}{item ? item.compute.run_id : 'Unavailable'}</span>)}.
-  Native start snapshots describe the selected 0.09 µS map condition and the transferred diagnostic; sweep and input settings come from each compute configuration.
-  E / I means excitatory / inhibitory; SD is standard deviation and CV is interval standard deviation divided by its mean. AMPA and GABA denote excitatory and inhibitory conductance kernels.
-  Passive time constants are capacitance divided by leak conductance. Initializer statistics are nominal totals before fan-in normalization, not measured matrix statistics.
-  Input weights were transferred by splitting each of 128 original afferents into eight channels of one-eighth weight, then applying the recorded gain once.
-  Fan-in is the excitatory population size times one minus the exact zero fraction.
-  Missing recorded fields are unavailable; analysis conventions verified in source are described in Methods.
+<Table headers={['Parameter', 'Coupling map', 'Onset diagnostic']} groups={groups} number="A1" id="saved-model-parameters" label="Simulation, populations and protocol">
+  Simulation, populations and protocol. E / I denotes excitatory / inhibitory; LIF means leaky integrate-and-fire.
+  Circuit A is sender S in the diagnostic; B is receiver R. X denotes private input.
+  Two private-input seeds identify the A/B streams, not independent repetitions. The diagnostic reuses the selected map realization.
+  Quantities use two significant figures; seed identifiers remain exact.
 </Table>
+
+{displayedMatrices.map((matrix, position) => <Table headers={matrix.headers} rows={matrix.rows} rowHeaders number={`A${position + 2}`}
+  id={position === 0 ? 'connectivity-matrix' : 'diagnostic-connectivity-matrix'} label={`${sharedMatrix ? 'Shared' : matrix.label} connectivity matrix`}>
+  {sharedMatrix ? 'Shared connectivity for the saved map condition and onset diagnostic.' : `${matrix.label} connectivity.`}
+  {' '}Rows are sources; columns are targets. Each cell gives eligible-pair connection density; nominal weight in nS per connection (mean ± SD for random weights).
+  Self-connections are excluded on the diagonal. Cross-circuit pathways use exact fan-in; weights shown include execution scaling and the post-onset gain.
+  Absent means no projection, not a zero firing rate or a temporarily disabled pathway.
+  Weights describe the saved {n(matrix.couplingUs)} µS coupling; Table A1 lists the full map sweep.
+</Table>)}

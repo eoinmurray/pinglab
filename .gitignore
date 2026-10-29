@@ -35,9 +35,6 @@ dist/
 .ipynb_checkpoints/
 .ruff_cache/
 
-# Cached datasets (MNIST, etc.) pulled into a run's data dir
-**/data/MNIST/
-
 node_modules
 .coverage
 
@@ -45,10 +42,11 @@ node_modules
 temp/
 tmp/
 runs/
+# Scientific runs and local dataset caches (.pingstore/datasets/MNIST/).
 .pingstore/
 .r2/
 # CLI scratch if the default artifact root is ever hit (normally writes to temp/)
-tools/artifacts/
+libraries/artifacts/
 
 # demolab engine staging (materialised by the demolab CLI; regenerated on engine updates)
 .demolab/

@@ -10,3 +10,7 @@ Run stages independently from the repository root with `uv run python`.
 2. `analyse.py`: required `--source COMPUTE_RUN`; no optional arguments.
 3. `present.py`: required `--source ANALYSIS_RUN`; no optional arguments.
 4. `test.py`: `uv run pytest experiments/exp127/test.py`; optional pytest arguments.
+
+Regenerate only network diagrams while preserving an explicit presentation's
+scientific figures and data: `uv run python experiments/exp127/present.py
+--redraw-from PRESENT_ID [--run-id ID]`.

@@ -1,13 +1,9 @@
 ---
 import type { Post } from '../lib/posts';
-import { collectionUrl, collectionLabel } from '../lib/collections';
-import ArticleMetrics from './ArticleMetrics.astro';
 import ArticleDate from './ArticleDate.astro';
-import { articleMetrics } from '../lib/article-metrics';
 
 interface Props { posts: Post[]; sortable?: boolean; }
 const { posts, sortable = false } = Astro.props;
-const previews = await Promise.all(posts.map(async report => ({ report, counts: report.article ? await articleMetrics(report.article) : undefined })));
 ---
 
 <div class="base-grid">
@@ -27,17 +23,16 @@ const previews = await Promise.all(posts.map(async report => ({ report, counts: 
     <span class="sort-status" role="status"></span>
   </div>}
   <ol id={sortable ? 'homepage-articles' : undefined} class="posts-list article-list listing-width l-page" role="list">
-    {previews.map(({ report, counts }) => (
+    {posts.map(report => (
       <li class="post-preview article-list-row" data-updated-at={sortable ? Date.parse(report.data.updated_at) : undefined}>
         <div class="metadata">
           <span class="experiment-id">{report.label}</span>
-          <div class="publishedDate"><ArticleDate date={report.data.updated_at} compact /></div>
         </div>
         <div class="article-list-content">
           <a class="post-link" href={report.href}>
             <h2 class="title article-list-title">{report.data.title}</h2>
           </a>
-          <div class="collection">{report.collections.map(collection => <a class="collection-badge" href={collectionUrl(collection)}>{collectionLabel(collection)}</a>)}{counts && <ArticleMetrics counts={counts} />}</div>
+          <div class="publishedDate"><ArticleDate date={report.data.updated_at} compact /></div>
         </div>
       </li>
     ))}
@@ -122,14 +117,10 @@ const previews = await Promise.all(posts.map(async report => ({ report, counts: 
   .post-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 6px; }
   .metadata { font-size: calc(12px * var(--listing-scale)); line-height: 1.4; margin-bottom: calc(18px * var(--listing-scale)); }
   .experiment-id { display: inline-block; margin-right: 1em; color: var(--listing-label); font-size: calc(18px * var(--listing-scale)); font-weight: 600; text-decoration: none; }
-  .publishedDate { display: inline-block; margin-right: 1em; }
-  .collection { display: flex; align-items: center; flex-wrap: wrap; gap: .5em 1em; margin-top: calc(12px * var(--listing-scale)); font-size: calc(12px * var(--listing-scale)); line-height: 1.4; }
-  .collection-badge { color: var(--listing-muted); padding: .3em .5em; border: 1px solid var(--listing-border); border-radius: 3px; text-transform: uppercase; font-size: 80%; font-weight: 500; text-decoration: none; }
-  .collection-badge:hover { color: rgb(var(--ink)); border-color: rgb(var(--ink)); }
+  .publishedDate { font-size: calc(15px * var(--listing-scale)); line-height: 1.4; color: var(--listing-muted); }
   @media (min-width: 768px) {
     .metadata { margin-top: calc(8px * var(--listing-scale)); margin-bottom: 0; }
-    .experiment-id { display: block; margin: 0 0 calc(12px * var(--listing-scale)); }
-    .publishedDate { display: block; }
+    .experiment-id { display: block; margin: 0; }
   }
   @media print { .posts-list-sort:not([hidden]) { display: none; } }
 </style>

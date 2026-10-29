@@ -1,7 +1,7 @@
 """Validate protocol resolution, continuation, clock scheduling and replay alignment.
 
 ROS clock tests run in the experiment container and skip on hosts without ROS.
-Portable tests exercise native controller state and lossless replay exports.
+Portable tests exercise native controller state and report replay exports.
 """
 
 import json
@@ -14,7 +14,10 @@ import pytest
 from experiments.exp152.analyse import collect
 from experiments.exp152.custom.models import Controller, Joint
 from experiments.exp152.present import NODES, recording
-from experiments.exp152.recipe import author_network, configuration
+from experiments.exp152.recipe import (
+    author_network,
+    configuration,
+)
 
 
 class ReplayTests(unittest.TestCase):
@@ -24,9 +27,6 @@ class ReplayTests(unittest.TestCase):
             for field, array in dict(
                 time_s=[0.0011, 0.0032],
                 callback_ms=[0.2, 0.3],
-                lag_ms=[0.9, 0.9],
-                lateness_ms=[0.1, 0.2],
-                model_time_s=[0.001, 0.002],
                 voltage=[[-65], [-63]],
                 spikes=[[1], [0]],
             ).items():
@@ -35,7 +35,6 @@ class ReplayTests(unittest.TestCase):
             angle=np.asarray([0.1, 0.2]),
             velocity=np.asarray([0.2, 0.3]),
             activation=np.asarray([[0.1, 0.2], [0.3, 0.4]]),
-            gravity_torque=np.asarray([-0.003, -0.004]),
             sensory_flexor_time_s=np.asarray([]),
             sensory_extensor_time_s=np.asarray([]),
         )
@@ -54,7 +53,7 @@ class ReplayTests(unittest.TestCase):
         )
         return values, summary
 
-    def test_completion_times_and_short_but_late_callbacks_are_preserved(self):
+    def test_replay_preserves_measured_completion_times_and_callback_durations(self):
         values, summary = self.fixture()
         values["sensory_flexor_time_s"] = np.asarray([0.0015])
         values["sensory_extensor_time_s"] = np.asarray([0.0025, 0.0035, 0.0045])
@@ -65,9 +64,7 @@ class ReplayTests(unittest.TestCase):
         for name in NODES:
             node = payload["nodes"][name]
             np.testing.assert_allclose(node["time_ms"], [1.1, 3.2])
-            self.assertEqual(sum(v > 0 for v in node["lateness_ms"]), 2)
             self.assertTrue(all(v < payload["period_ms"] for v in node["callback_ms"]))
-            self.assertEqual(node["model_s"][-1], 0.002)
         self.assertEqual(payload["duration_ms"], 8000)
         self.assertEqual(payload["controller_populations"], ["motor"])
         self.assertEqual(payload["schema"], "pinglab.exp152.replay/v2")
@@ -79,6 +76,107 @@ class ReplayTests(unittest.TestCase):
         values["flexor_time_s"] = np.asarray([0.003, 0.001])
         with self.assertRaisesRegex(ValueError, "Invalid callback timeline"):
             recording(values, summary)
+
+
+def test_three_node_replay_mount_and_seek_with_stubbed_renderer(tmp_path):
+    """Exercise replay setup and controls; this does not validate browser pixels."""
+    import shutil
+    import subprocess
+    from pathlib import Path
+
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("Node.js is required for the replay runtime regression")
+    payload = tmp_path / "replay.json"
+    payload.write_text(json.dumps(recording(*ReplayTests().fixture())))
+    script = r"""
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+class Element {
+  constructor() { this.style = {setProperty(){}}; this.children = []; this.events = {}; this.value = '1'; this.disabled = true; this.hidden = true; this.textContent = ''; this.clientWidth = 1240; }
+  appendChild(child) { this.children.push(child); }
+  addEventListener(name, listener) { this.events[name] = listener; }
+  removeEventListener(name) { delete this.events[name]; }
+  setAttribute() {}
+  remove() {}
+  getBoundingClientRect() { return {left:0, width:1240}; }
+}
+class Graphics {
+  constructor() {
+    const proxy = new Proxy(this, {get(target, key) {
+      return key in target ? target[key] : () => proxy;
+    }});
+    return proxy;
+  }
+}
+class Application {
+  constructor() {
+    this.canvas = new Element();
+    this.stage = {position:{}, children:[],
+      addChild(...items) { this.children.push(...items); },
+      addChildAt(item, index) { this.children.splice(index, 0, item); }};
+  }
+  async init() {}
+  render() {}
+  destroy() {}
+}
+globalThis.pixi = {Application, Graphics};
+globalThis.document = Object.assign(new Element(), {createElement:() => new Element(), hidden:false});
+globalThis.ResizeObserver = class { observe() {} disconnect() {} };
+globalThis.matchMedia = () => ({matches:true});
+globalThis.devicePixelRatio = 1;
+globalThis.requestAnimationFrame = () => 1;
+globalThis.cancelAnimationFrame = () => {};
+const payload = JSON.parse(readFileSync(process.argv[2], 'utf8'));
+payload.nodes.flexor.callback_ms = [.2, 80];
+payload.nodes.extensor.callback_ms = [.2, 40];
+globalThis.fetch = async () => ({ok:true, json:async () => payload});
+const source = readFileSync(process.argv[1], 'utf8').replace("import('pixi.js')", 'Promise.resolve(globalThis.pixi)');
+const {mountReplay} = await import('data:text/javascript;base64,' + Buffer.from(source).toString('base64'));
+const elements = Object.fromEntries(['error','play','restart','scrub','speed','timing-range','circuit','dynamics','overview'].map(id => [id, new Element()]));
+const host = Object.assign(new Element(), {dataset:{source:'fixture'},
+  querySelector:selector => elements[selector.match(/data-id="([^"]+)"/)[1]],
+  querySelectorAll:() => []});
+const errors = [];
+console.error = error => errors.push(String(error));
+const dispose = await mountReplay(host);
+assert.deepEqual(errors, []);
+assert.equal(elements.error.hidden, true);
+assert.equal(elements.play.disabled, false);
+assert.equal(elements.scrub.max, String(payload.duration_ms));
+const labels = elements.overview.children.flatMap(child => child.children);
+for (const name of ['Flexor', 'Extensor', 'Plant']) {
+  assert.equal(labels.filter(label => label.textContent === name).length, 1);
+}
+assert.equal(labels.filter(label => label.textContent === '2 ms').length, 3);
+assert.equal(labels.filter(label => label.textContent.includes('above 2 ms')).length, 2);
+elements['timing-range'].value = 'full';
+elements['timing-range'].events.change();
+assert.equal(labels.filter(label => label.textContent === '100 ms').length, 3);
+assert.equal(labels.filter(label => label.textContent.includes('above')).length, 0);
+elements['timing-range'].value = 'detail';
+elements['timing-range'].events.change();
+assert.equal(labels.filter(label => label.textContent === '1 ms').length, 3);
+elements.scrub.events.input({target:{value:'1000'}});
+assert.equal(elements.scrub.value, '1000');
+elements.restart.events.click();
+assert.equal(elements.scrub.value, '0');
+dispose();
+"""
+    subprocess.run(
+        [
+            node,
+            "--input-type=module",
+            "-e",
+            script,
+            str(Path(__file__).parent / "report/js/replay.js"),
+            str(payload),
+        ],
+        check=True,
+        timeout=30,
+        capture_output=True,
+        text=True,
+    )
 
 
 class ClockTests(unittest.TestCase):
@@ -190,8 +288,36 @@ class ClockTests(unittest.TestCase):
     ],
 )
 def test_invalid_protocol(settings):
-    with pytest.raises(ValueError):
+    with pytest.raises((ValueError, TypeError)):
         configuration(**settings)
+
+
+def test_report_command_and_cli_defaults_resolve_the_same_configuration(monkeypatch):
+    import re
+    import shlex
+    from pathlib import Path
+
+    from experiments.exp152 import compute
+
+    report = (Path(__file__).parent / "report/report.mdx").read_text()
+    command = re.search(
+        r"^bash experiments/exp152/custom/run[.]sh (.+)$", report, re.MULTILINE
+    )
+    assert command is not None
+    observed = []
+
+    def acquire(**arguments):
+        arguments.pop("run_id")
+        observed.append(configuration(**arguments))
+        return "test-compute"
+
+    monkeypatch.setattr(compute, "compute", acquire)
+    compute.main(shlex.split(command.group(1)))
+    compute.main([])
+    assert observed == [configuration(), configuration()]
+    assert observed[0]["duration"] == 30.0
+    assert observed[0]["max_lag_ms"] == 8000.0
+    assert observed[0]["compile_mode"] == "default"
 
 
 def test_fresh_configuration():
@@ -201,7 +327,7 @@ def test_fresh_configuration():
 
 
 def test_native_continuation_and_reset():
-    controller = Controller("flexor", compile_mode=None)
+    controller = Controller("flexor", configuration(compile_mode=None))
     controller.window(1, sensory=1)
     state = controller.stream.export_state()
     step = controller.steps
@@ -218,7 +344,7 @@ def test_long_warmup_resets_state_inputs_and_simulation_clock():
     controllers = [
         Controller(
             "flexor",
-            configuration_overrides={"controller_warmup_ms": duration},
+            configuration(controller_warmup_ms=duration, compile_mode=None),
         )
         for duration in (2.0, 1000.0)
     ]
@@ -240,42 +366,31 @@ def test_long_warmup_resets_state_inputs_and_simulation_clock():
             controller.stream.close()
 
 
-@pytest.mark.parametrize(
-    "neurons,length,firing",
-    [(1, 1, False), (1, 1, True)],
-)
-def test_output_extraction_preserves_values_events_and_array_ownership(
-    neurons, length, firing
-):
+@pytest.mark.parametrize("firing", [False, True])
+def test_output_extraction_preserves_values_events_and_array_ownership(firing):
     """Compare the fast path with the former reduction and reused native outputs."""
     import torch
 
-    voltage = np.arange(length * neurons, dtype=float).reshape(length, neurons) - 65
-    spikes = (
-        (np.arange(length * neurons).reshape(length, neurons) % 3 == 0) & firing
-    ).astype(float)
-    expected_voltage = np.column_stack(
-        [voltage[:, 0] if neurons == 1 else voltage.mean(axis=1)]
-    )
-    expected_spikes = np.column_stack(
-        [spikes[:, 0] if neurons == 1 else spikes.sum(axis=1)]
-    ).astype(int)
+    voltage = np.array([[-65.0]])
+    spikes = np.array([[float(firing)]])
+    expected_voltage = voltage.copy()
+    expected_spikes = spikes.astype(int)
     expected_events = np.argwhere(spikes != 0).tolist()
     outputs = dict(
         motor_voltage=torch.tensor(voltage[:, None]),
         motor_spikes=torch.tensor(spikes[:, None]),
     )
     controller = object.__new__(Controller)
-    controller.torch, controller.steps, controller.neurons = torch, 0, neurons
+    controller.torch, controller.steps, controller.neurons = torch, 0, 1
     controller.inputs = {}
     controller.stream = SimpleNamespace(
         advance=lambda _inputs: SimpleNamespace(outputs=outputs)
     )
-    actual_voltage, actual_spikes, actual_events = controller._execute(length)
+    actual_voltage, actual_spikes, actual_events = controller._execute(1)
     np.testing.assert_array_equal(actual_voltage, expected_voltage)
     np.testing.assert_array_equal(actual_spikes, expected_spikes)
     assert actual_events == expected_events
-    assert controller.steps == length
+    assert controller.steps == 1
     # Simulate streaming reusing its output tensors on a subsequent advance.
     outputs["motor_voltage"].fill_(999)
     outputs["motor_spikes"].fill_(0)
@@ -340,7 +455,7 @@ def test_empty_failed_acquisition_retains_verdicts():
     assert summary["total_neurons"] == 2
     assert not summary["passed"]
     assert not summary["timing_passed"]
-    assert values["flexor_substep_spikes"].shape == (0, cfg["substeps"], 1)
+    assert values["flexor_spikes"].shape == (0, 1)
     assert (
         recording(values, dict(configuration=cfg, **summary))["nodes"]["plant"][
             "time_ms"
@@ -363,11 +478,19 @@ def test_browser_pulses_reach_targets_without_reset_and_playback_loops():
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 const code = readFileSync(process.argv[1], 'utf8');
-const {pulseSamples, routePoint, loopTime, toDegrees, voltageFraction, peerInhibitionRoutes, sensoryExcitationRoutes, controllerPopulations, arrowHead} = await import(
+const {pulseSamples, routePoint, loopTime, toDegrees, voltageFraction, peerInhibitionRoutes, sensoryExcitationRoutes, controllerPopulations, timingSeries, arrowHead} = await import(
   'data:text/javascript;base64,' + Buffer.from(code).toString('base64'));
 assert.deepEqual(controllerPopulations({schema:'pinglab.exp152.replay/v2', controller_populations:['motor'], neuron_model:'elevate', neurons_per_population:1, mechanics:{angle_convention:'zero_downward_positive_right'}}), ['motor']);
 assert.throws(() => controllerPopulations({schema:'pinglab.exp152.replay/v1'}));
 assert.throws(() => controllerPopulations({schema:'pinglab.exp152.replay/v2'}));
+const nodes = Object.fromEntries(['flexor', 'extensor', 'plant'].map((name, index) =>
+  [name, {time_ms:[1, 2], callback_ms:[index + .1, index + .2]}]));
+const timings = timingSeries({nodes});
+assert.deepEqual(timings.map(row => row.name), ['Flexor', 'Extensor', 'Plant']);
+for (const [index, name] of ['flexor', 'extensor', 'plant'].entries()) {
+  assert.deepEqual(timings[index].callback_ms, nodes[name].callback_ms);
+}
+assert.throws(() => controllerPopulations({schema:'pinglab.exp152.replay/v3'}));
 assert.equal(sensoryExcitationRoutes().length, 2);
 for (const route of sensoryExcitationRoutes()) {
   assert.equal(route.inhibitory, false);
@@ -491,8 +614,8 @@ def test_elevate_definition_has_conductance_ports_and_gate_state():
 
 def test_elevate_compiled_controller_matches_eager_with_spike_inputs():
     """Compilation must preserve voltage, spikes and their within-window offsets."""
-    eager = Controller("flexor", dt_ms=1.0, warm_steps=1, compile_mode=None)
-    compiled = Controller("flexor", dt_ms=1.0, warm_steps=1, compile_mode="default")
+    eager = Controller("flexor", configuration(compile_mode=None))
+    compiled = Controller("flexor", configuration())
     try:
         for tick in range(500):
             inputs = dict(sensory=int(tick % 17 == 0), peer=int(tick % 29 == 0))
@@ -510,11 +633,8 @@ def test_elevate_compiled_controller_matches_eager_with_spike_inputs():
 
 def test_elevate_closed_loop_reaches_both_sensors_without_joint_stops():
     """A deterministic one-window transport delay isolates the neural controller."""
-    cfg = configuration(duration=30)
-    controllers = [
-        Controller(side, dt_ms=cfg["dt_ms"], warm_steps=cfg["substeps"])
-        for side in ("flexor", "extensor")
-    ]
+    cfg = configuration(duration=30, compile_mode=None)
+    controllers = [Controller(side, cfg) for side in ("flexor", "extensor")]
     joint = Joint()
     motor, sensory = np.zeros(2), np.zeros(2, dtype=int)
     sensory_counts = np.zeros(2, dtype=int)
@@ -567,163 +687,10 @@ def test_one_ms_protocol_has_no_neuron_clock_scaling():
         assert "time_scale" not in population["neuron"]["config"]
 
 
-def test_adaptation_measurement_uses_relative_errors_and_rejects_missing_cycles():
-    from experiments.exp152.analyse import adaptation_measure
-    from experiments.exp152.recipe import adaptation_configuration
-
-    cfg = adaptation_configuration(target_frequency_hz=1.0, target_excursion_deg=60)
-    time = np.arange(1, 30001) / 1000
-    centre = cfg["joint"]["reference_angle"]
-    amplitude = np.deg2rad(30)
-    trace = np.zeros((len(time), 8))
-    trace[:, 0] = centre + amplitude * np.sin(2 * np.pi * time)
-    trace[:, 1] = amplitude * 2 * np.pi * np.cos(2 * np.pi * time)
-    measured = adaptation_measure(trace, cfg)
-    assert measured["valid"]
-    assert measured["eligible"]
-    assert measured["frequency_hz"] == pytest.approx(1.0, abs=1e-12)
-    assert measured["excursion_rad"] == pytest.approx(2 * amplitude, abs=1e-12)
-    assert measured["loss"] < 1e-20
-    assert not adaptation_measure(trace, cfg, limit_hits=1)["valid"]
-    trace[:, 0] = centre + amplitude * (1 + 0.015 * time) * np.sin(2 * np.pi * time)
-    trace[:, 1] = np.gradient(trace[:, 0], 0.001)
-    drifting = adaptation_measure(trace, cfg)
-    assert drifting["valid"]
-    assert not drifting["eligible"]
-    legacy = {**cfg, "adaptation": dict(cfg["adaptation"])}
-    legacy["adaptation"].pop("require_repeatable_cycles")
-    assert adaptation_measure(trace, legacy)["eligible"]
-    trace[:, 0] = centre
-    trace[:, 1] = 0
-    assert not adaptation_measure(trace, cfg)["valid"]
-
-
-def test_adaptation_does_not_accept_lower_error_from_unsettled_probe():
-    from experiments.exp152.compute import _adaptation_round
-    from experiments.exp152.recipe import adaptation_configuration
-
-    cfg = adaptation_configuration()
-    parameters = dict(tonic_us=0.04, sensory_drive_us=0.035)
-    steps = dict.fromkeys(parameters, 0.1)
-    candidates = [
-        parameters,
-        {**parameters, "tonic_us": 0.036},
-        {**parameters, "tonic_us": 0.044},
-    ]
-    rows = [
-        dict(
-            parameters=p,
-            online_measurement=dict(valid=True, eligible=eligible, loss=loss),
-        )
-        for p, eligible, loss in zip(
-            candidates, [True, False, True], [0.2, 0.0, 0.1], strict=True
-        )
-    ]
-    with patch("experiments.exp152.compute._adaptation_segment", side_effect=rows):
-        updated, _, decision = _adaptation_round(None, parameters, steps, 0, None, cfg)
-    assert updated == candidates[2]
-    assert decision["accepted"]
-    with patch(
-        "experiments.exp152.compute._adaptation_segment", return_value=rows[1]
-    ) as segment:
-        updated, _, decision = _adaptation_round(None, parameters, steps, 1, None, cfg)
-    assert updated == parameters
-    assert not decision["accepted"]
-    assert segment.call_count == 1
-    assert steps == dict.fromkeys(parameters, 0.1)
-
-
-def test_adaptation_waits_for_repeatability_without_resetting_state(tmp_path):
-    from experiments.exp152.compute import _adaptation_segment
-    from experiments.exp152.recipe import adaptation_configuration
-
-    cfg = adaptation_configuration(target_frequency_hz=1.0)
-    time = np.arange(1, 60001) / 1000
-    trace = np.zeros((len(time), 8))
-    trace[:, 0] = cfg["joint"]["reference_angle"] + 0.3 * (
-        1 + 0.03 * np.minimum(time, 28)
-    ) * np.sin(2 * np.pi * time)
-    trace[:, 1] = np.gradient(trace[:, 0], 0.001)
-
-    class Simulation:
-        segment_index = 0
-        tick = 0
-        joint = SimpleNamespace(limit_hits=0)
-
-        def configure(self, _parameters, directory):
-            directory.mkdir()
-
-        def advance(self, seconds):
-            start = self.tick
-            self.tick += round(seconds * 1000)
-            return trace[start : self.tick]
-
-    simulation = Simulation()
-    row = _adaptation_segment(
-        simulation, {}, "probe", SimpleNamespace(export=tmp_path), cfg
-    )
-    assert row["duration_s"] > cfg["adaptation"]["segment_duration_s"]
-    assert row["online_measurement"]["eligible"]
-    assert not row["measurement_checks"][0]["measurement"]["eligible"]
-    assert simulation.tick == round(row["duration_s"] * 1000)
-    with np.load(tmp_path / row["trace_file"]) as saved:
-        np.testing.assert_array_equal(saved["trace"], trace[: simulation.tick])
-    trace[:, 0] = cfg["joint"]["reference_angle"] + 0.3 * (1 + 0.03 * time) * np.sin(
-        2 * np.pi * time
-    )
-    trace[:, 1] = np.gradient(trace[:, 0], 0.001)
-    unsettled = Simulation()
-    unsettled.segment_index = 1
-    row = _adaptation_segment(
-        unsettled, {}, "probe", SimpleNamespace(export=tmp_path), cfg
-    )
-    assert row["duration_s"] == cfg["adaptation"]["maximum_segment_duration_s"]
-    assert row["measurement_status"] == "timeout"
-    assert not row["online_measurement"]["eligible"]
-
-
-def test_native_adaptation_session_replacement_preserves_complete_trajectory(tmp_path):
-    from experiments.exp152.compute import AdaptiveJointSimulation
-
-    cfg = configuration(controller_warmup_ms=2.0)
-    parameters = dict(
-        tonic_us=cfg["tonic_us"], sensory_drive_us=cfg["weights"]["sensory_drive"]
-    )
-    uninterrupted, continued = (
-        AdaptiveJointSimulation(cfg),
-        AdaptiveJointSimulation(cfg),
-    )
-    try:
-        uninterrupted.configure(parameters, tmp_path / "uninterrupted")
-        continued.configure(parameters, tmp_path / "continued")
-        expected = uninterrupted.advance(0.15)
-        first = continued.advance(0.075)
-        continued.configure(parameters, tmp_path / "replacement")
-        second = continued.advance(0.075)
-        np.testing.assert_array_equal(np.concatenate([first, second]), expected)
-        assert continued.tick == 150
-        assert all(c.steps == 150 for c in continued.controllers)
-        updated = {
-            **parameters,
-            "sensory_drive_us": parameters["sensory_drive_us"] * 0.9,
-        }
-        continued.configure(updated, tmp_path / "changed-weight")
-        assert continued.tick == 150
-        assert all(c.steps == 150 for c in continued.controllers)
-        assert all(
-            c.cfg["weights"]["sensory_drive"] == updated["sensory_drive_us"]
-            for c in continued.controllers
-        )
-        assert np.isfinite(continued.advance(0.025)).all()
-    finally:
-        uninterrupted.close()
-        continued.close()
-
-
 @pytest.mark.parametrize("side", ["flexor", "extensor"])
 def test_starting_pulse_replaces_tonic_then_restores_it(side):
     options = dict(flexor_bias_ms=20, flexor_initial_us=0.5, extensor_initial_us=0)
-    controller = Controller(side, compile_mode=None, configuration_overrides=options)
+    controller = Controller(side, configuration(compile_mode=None))
     joint = Joint()
     assert joint.angle == np.pi / 2
     assert joint.velocity == 0
@@ -778,19 +745,15 @@ def test_loaded_joint_physics_against_independent_ode():
 
 
 def test_joint_configuration_and_relative_sensors():
-    cfg = configuration(initial_angle_deg=70, tip_mass_kg=0.1, arm_length_m=0.3)
+    cfg = configuration()
     joint = Joint(cfg["joint"])
-    assert joint.angle == pytest.approx(np.deg2rad(70))
-    assert joint.total_inertia == pytest.approx(0.014)
+    assert joint.angle == pytest.approx(np.pi / 2)
+    assert joint.total_inertia == pytest.approx(0.00508)
     np.testing.assert_array_equal(joint.encode(0), [0, 0])
     joint.angle -= 0.26
     np.testing.assert_array_equal(joint.encode(0), [1, 0])
     joint.angle += 0.52
     np.testing.assert_array_equal(joint.encode(0.01), [0, 1])
-    with pytest.raises(ValueError):
-        configuration(tip_mass_kg=-1)
-    with pytest.raises(ValueError):
-        configuration(arm_length_m=0)
     with pytest.raises(ValueError):
         Joint(dict(cfg["joint"], initial_angle=10))
 
@@ -798,11 +761,9 @@ def test_joint_configuration_and_relative_sensors():
 def test_replay_preserves_loaded_mechanics_and_rejects_other_models():
     values, summary = ReplayTests().fixture()
     settings = summary["configuration"]["joint"]
-    values["gravity_torque"] = np.array([-0.003, -0.004])
     payload = recording(values, summary)
     assert payload["mechanics"] == settings
     assert payload["mechanics"]["initial_angle"] == np.pi / 2
-    assert payload["nodes"]["plant"]["gravity_torque"] == [-0.003, -0.004]
     summary["configuration"]["neuron_model"] = "unsupported"
     with pytest.raises(ValueError, match="single-cell Elevate"):
         recording(values, summary)
@@ -828,22 +789,6 @@ def test_cycle_metrics_accepts_periodic_asymmetry_and_rejects_drift():
     assert not cycle_metrics(angle[:6000], velocity[:6000], reference_angle=reference)[
         "passed"
     ]
-
-
-def test_recorded_controller_settings_survive_runtime_adapter():
-    from experiments.exp152.recipe import controller_settings
-
-    cfg = configuration(
-        duration=40,
-        tonic_us=0.06,
-        sensory_drive_us=0.075,
-        peer_inhibition_us=0.3,
-        peer_tau_ms=150,
-        activation_increment=0.004,
-    )
-    restored = configuration(**controller_settings(cfg))
-    for key in ("duration", "tonic_us", "weights", "synapse_tau_ms", "joint"):
-        assert restored[key] == cfg[key]
 
 
 def test_spike_windows_wait_for_silence_and_apply_only_the_requested_step():

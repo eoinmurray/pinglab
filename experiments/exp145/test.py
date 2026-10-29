@@ -136,31 +136,30 @@ def test_stage_pipeline_in_isolated_store(tmp_path, monkeypatch):
     )
     assert output.file("onset.png").is_file()
     assert output.file("ai-diagnostics.png").is_file()
-    # Presentation changes native diagram appearance, preserving its circuit geometry.
+    # New geometry must retain every executed projection and its math annotation.
     import xml.etree.ElementTree as ET
 
-    original = ET.parse(
-        core.source_run(
-            tmp_path / ".pingstore", compute_id, experiment="exp145", stage="compute"
-        ).file("circuit.svg")
+    computed = core.source_run(
+        tmp_path / ".pingstore", compute_id, experiment="exp145", stage="compute"
     )
+    graph = core.load_json(computed.file("simulation", "start", "snapshot.json"))[
+        "network"
+    ]
+    expected = {row["id"] for row in graph["projections"]}
     styled = ET.parse(output.file("circuit.svg"))
-
-    def geometry(tree):
-        return [
-            (
-                e.tag,
-                {
-                    k: v
-                    for k, v in e.attrib.items()
-                    if k not in {"fill", "stroke", "font-family", "font-size"}
-                },
-                e.text,
-            )
-            for e in tree.iter()
-        ]
-
-    assert geometry(original) == geometry(styled)
+    labels = {
+        element.get("data-snnlab-id")
+        for element in styled.iter()
+        if element.tag.endswith("}svg")
+    }
+    assert expected <= labels
+    refreshed_id = present.redraw_networks(present_id)
+    refreshed = core.source_run(tmp_path / ".pingstore", refreshed_id, stage="present")
+    assert refreshed.record["inputs"]["figure_source"] == output.reference
+    assert refreshed.record["inputs"]["analyse"] == output.record["inputs"]["analyse"]
+    for name in ("onset.png", "ai-diagnostics.png", "numbers.json"):
+        assert refreshed.file(name).read_bytes() == output.file(name).read_bytes()
+    output.check_unchanged()
     assert output.record["inputs"]["compute"]["run_id"] == compute_id
 
 

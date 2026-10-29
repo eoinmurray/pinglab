@@ -7,6 +7,7 @@ training, replay, snapshot retention and downstream validation still execute.
 
 import copy
 import subprocess
+import xml.etree.ElementTree as ET
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -381,10 +382,15 @@ await writeFile(join(temporary, 'snapshot-parameters.html'), html);
     assert checked.returncode == 0, checked.stdout + checked.stderr
     for model in cfg["models"]:
         assert output.file(f"{model}_sample_raster.svg").exists()
-        assert (
-            output.file(f"{model}_network.svg").read_bytes()
-            == source.file(model, "circuit.svg").read_bytes()
-        )
+        graph = analyse.network_definition(source, model, "graph.json")
+        expected = {projection["id"] for projection in graph["projections"]}
+        rendered = ET.parse(output.file(f"{model}_network.svg"))
+        labels = {
+            element.get("data-snnlab-id")
+            for element in rendered.iter()
+            if element.tag.endswith("}svg")
+        }
+        assert expected <= labels
     assert {path.name for path in output.export.iterdir()} == {
         "numbers.json",
         "full_coba_training_curves.svg",
@@ -393,6 +399,8 @@ await writeFile(join(temporary, 'snapshot-parameters.html'), html);
         "ping_sample_raster.svg",
         "coba_network.svg",
         "ping_network.svg",
+        "coba_network.png",
+        "ping_network.png",
     }
     source.check_unchanged()
 

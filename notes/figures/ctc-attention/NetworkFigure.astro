@@ -1,0 +1,20 @@
+---
+import circuitUrl from './network.svg?url';
+---
+
+<figure class="l-body" id="ctc-circuit">
+  <a class="figure-image" href={circuitUrl} aria-label="Enlarge the circuit diagram">
+    <img src={circuitUrl} width="1920" height="1080" alt="Sensory and attention inputs drive A and B, whose excitatory populations target E and I in C. Background C independently drives C's E and I cells without digit or cue information. Darker paths emphasise inter-area projections; lighter paths show local recurrence. Optional feedback from C to A and B appears in a separate inset with repeated population symbols." />
+  </a>
+  <figcaption><slot /></figcaption>
+</figure>
+
+<style>
+  .figure-image { display: block; border-bottom: none; }
+  img { display: block; width: 100%; height: auto; }
+  @media (min-width: 1180px) {
+    figure { grid-column: text-start / page-end; display: grid; grid-template-columns: subgrid; }
+    .figure-image { grid-column: 1 / -1; }
+    figcaption { grid-column: text; }
+  }
+</style>

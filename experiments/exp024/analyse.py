@@ -13,7 +13,7 @@ from pathlib import Path
 from statistics import fmean, stdev
 
 REPO = Path(__file__).resolve().parents[2]
-sys.path[:0] = [str(REPO), str(REPO / "experiments"), str(REPO / "tools")]
+sys.path[:0] = [str(REPO), str(REPO / "experiments"), str(REPO / "libraries")]
 
 from experiments.exp024 import recipe
 from pingstore.library import (

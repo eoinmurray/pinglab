@@ -404,6 +404,10 @@ of the paper.
 ## Network diagram
 
 <RunFigure report="exp145" experiment="exp145" file="circuit.svg" number={3} id="fig-circuit" alt="Compiled conductance-network circuit: shared external X input to E and I, E→E and I→I recurrence, and reciprocal E/I connections.">
+  $X$ is the shared external pool; $E$ and $I$ are the excitatory and inhibitory
+  populations. Every projection is labelled $W_{XY}$, with target $X$ first and
+  source $Y$ second. Arrowheads show excitation; bars show inhibition. The layout
+  comes from the saved executed bundle and omits recording aliases.
   Circuit exported from the compiled bundle used for the displayed simulation.
   Excitatory (E) and inhibitory (I) populations receive the same external (X)
   spike raster through separate projections. All four recurrent E/I projections

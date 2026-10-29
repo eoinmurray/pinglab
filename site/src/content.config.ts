@@ -33,23 +33,14 @@ const reports = defineCollection({
 });
 
 const notes = defineCollection({
-  loader: glob({ base: '../md/notes', pattern: '**/*.{md,mdx}' }),
+  loader: glob({
+    base: '../notes',
+    pattern: ['**/*.{md,mdx}', '!**/README.md', '!**/AGENTS.md', '!figures/**'],
+  }),
   schema: articleSchema.extend({
+    format: z.enum(['article', 'slides']).default('article'),
     collection: collectionSchema.refine(value => typeof value === 'string' ? value === 'notes' : value.includes('notes'), 'Notes must include the notes collection'),
   }),
 });
 
-const slides = defineCollection({
-  loader: glob({
-    base: '../md/slides',
-    pattern: '**/*.{md,mdx}',
-    generateId: ({ entry }) => entry.replace(/\.mdx?$/, '').replace(/\/slides$/, ''),
-  }),
-  schema: z.object({
-    title: z.string(), author: z.string(), description: z.string(),
-    collection: collectionSchema.default(['slides']),
-    created_at: z.string().date(), updated_at: z.string().date(),
-  }),
-});
-
-export const collections = { reports, notes, slides };
+export const collections = { reports, notes };

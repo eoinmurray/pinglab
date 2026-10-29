@@ -10,7 +10,7 @@ from pathlib import Path
 from time import perf_counter
 
 REPO = Path(__file__).resolve().parents[2]
-sys.path[:0] = [str(REPO), str(REPO / "tools")]
+sys.path[:0] = [str(REPO), str(REPO / "libraries")]
 import numpy as np
 import torch
 from experiments.exp133 import recipe
@@ -153,7 +153,9 @@ def acquire_sender_receiver(run, reference):
         run.export / "sender-receiver.bundle" / "reports" / "circuit.svg",
         view="circuit",
     )
-    checkpoint = sender_receiver_checkpoint(run, bundle, reference)
+    checkpoint = (
+        sender_receiver_checkpoint(run, bundle, reference) if reference else None
+    )
     drives = sender_receiver.make_inputs()
     np.savez_compressed(run.export / "inputs.npz", **drives)
     run.record["scientific_artifacts"] = {
@@ -187,24 +189,33 @@ def acquire_sender_receiver(run, reference):
     run.record["execution"]["simulation_seconds"] = perf_counter() - started
 
 
-def compute(*, run_id=None, protocol="grid", parameter_source=None):
+def compute(
+    *,
+    run_id=None,
+    protocol="grid",
+    parameter_source=None,
+):
     torch.set_num_threads(1)
     if protocol not in ("grid", "sender-receiver"):
         raise ValueError("unknown protocol")
     cfg = (
         recipe.configuration()
         if protocol == "grid"
-        else sender_receiver.configuration()
+        else sender_receiver.configuration(standalone=parameter_source is None)
     )
     reference = None
     if parameter_source:
         reference = inputs.source(REPO, parameter_source, "compute")
+        source_cfg = reference.record["execution"].get("configuration", {})
+        if source_cfg.get("schema") != "exp133.recipe/v3":
+            raise ValueError(
+                "current connectivity requires a v3 grid parameter source "
+                "without an attention projection"
+            )
         if protocol == "grid":
             evidence.parameter_reference(reference)
         else:
             sender_receiver.transferred_parameters(reference)
-    elif protocol == "sender-receiver":
-        raise ValueError("sender–receiver requires an explicit grid --parameter-source")
     sources = {"parameter_reference": reference} if reference else {}
     with inputs.execution(
         REPO, "compute", run_id=run_id, configuration=cfg, sources=sources

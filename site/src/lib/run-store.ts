@@ -179,16 +179,16 @@ export class RunStore {
         if (this.source !== 'remote' || index.source !== 'remote') throw new Error('Frozen publication indexes require remote-only rendering');
         return index;
       }
-      let catalog: Catalog | undefined;
-      if (this.source !== 'local') {
-        try { catalog = await this.catalog(); }
-        catch (error) {
+      // Independent public metadata reads can share the same network round trip.
+      const [catalog, control] = await Promise.all([
+        this.source === 'local' ? undefined : this.catalog().catch(error => {
           if (this.source === 'remote') throw error;
           if (!this.warned) console.warn('[Pingstore] R2 inventory unavailable; showing local runs only.', error);
           this.warned = true;
-        }
-      }
-      const control = this.source === 'local' ? undefined : await this.control();
+          return undefined;
+        }),
+        this.source === 'local' ? undefined : this.control(),
+      ]);
       return resolveRunIndex({ root: this.root, source: this.source, catalog, control });
     };
     if (process.env.NODE_ENV === 'production') return this.buildIndex ??= load();

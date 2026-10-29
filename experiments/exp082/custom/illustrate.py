@@ -13,7 +13,7 @@ import numpy as np
 import torch
 
 REPO = Path(__file__).resolve().parents[3]
-sys.path[:0] = [str(REPO), str(REPO / "tools")]
+sys.path[:0] = [str(REPO), str(REPO / "libraries")]
 from experiments.exp082 import recipe
 from experiments.exp082.compute import Inference, encode_stream, pick_digits
 from experiments.exp082.custom import evidence, inputs

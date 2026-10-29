@@ -102,6 +102,9 @@ export const parameterGroups = (() => {
   native gain schedule scales only new Input→I drive. Input→E and all four
   recurrent pathways retain their reference weights from initialization. The same input pool, sampled weight matrices and
   connection masks are used throughout.
+  $X$ denotes the shared external input pool. Every connection is labelled
+  $W_{XY}$, with target $X$ first and source $Y$ second. Arrowheads denote
+  excitation; bars denote inhibition. Recording aliases are omitted.
 </RunFigure>
 
 ## B. Parameters

@@ -1,0 +1,65 @@
+---
+import type { dataset } from '../lib/pingstore';
+
+interface Props {
+  runs: Awaited<ReturnType<typeof dataset>>['runs'];
+  label: string;
+}
+const { runs, label } = Astro.props;
+const date = new Intl.DateTimeFormat('en-GB', {
+  day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'UTC',
+});
+function size(bytes: number) {
+  for (const [scale, unit] of [[1e12, 'TB'], [1e9, 'GB'], [1e6, 'MB'], [1e3, 'KB']] as const) {
+    if (bytes >= scale) return `${Number((bytes / scale).toFixed(1))} ${unit}`;
+  }
+  return `${bytes} ${bytes === 1 ? 'byte' : 'bytes'}`;
+}
+function duration(start: string, end: string) {
+  let seconds = Math.round((Date.parse(end) - Date.parse(start)) / 1000);
+  if (seconds < 1) return '<1s';
+  const parts: string[] = [];
+  for (const [scale, unit] of [[86400, 'd'], [3600, 'h'], [60, 'm'], [1, 's']] as const) {
+    const count = Math.floor(seconds / scale);
+    if (count) parts.push(`${count}${unit}`);
+    seconds %= scale;
+  }
+  return parts.join(' ');
+}
+function origin(value: string) {
+  if (value === 'hpc' || value.startsWith('slurm')) return 'HPC';
+  return ({ local: 'Local', mixed: 'Mixed', modal: 'Modal' } as Record<string, string>)[value] ?? 'Unknown';
+}
+const displayRuns = runs.map(run => ({
+  ...run,
+  timing: run.record.scientific_execution ?? run.record.completed_hpc_import?.source_execution
+    ?? (run.record.execution.operation?.includes('import') ? undefined : run.record.execution),
+  executionOrigin: run.record.scientific_execution?.origin ?? run.record.completed_hpc_import?.source_origin
+    ?? (run.record.execution.operation?.includes('import') ? 'unknown' : run.record.origin),
+}));
+---
+
+<div class="table-scroll" tabindex="0" role="region" aria-label={label}>
+  <table>
+    <thead><tr><th scope="col">Run</th><th scope="col">Date</th><th scope="col">Duration</th><th scope="col">Size</th><th scope="col">Evidence</th><th scope="col">Storage</th><th scope="col">Ran on</th><th scope="col">Verification</th></tr></thead>
+    <tbody>{displayRuns.map(({ id, record, bytes, selected, used, evidence, timing, executionOrigin }) => <tr class:list={{ 'selected-run': evidence.status === 'Current' }}>
+      <td><span class:list={{ selected: used }} title={selected ? 'Presentation used by this report' : used ? 'Input run used to generate this report' : record.stage}>{id}</span></td>
+      <td><time datetime={record.created_at}>{date.format(new Date(record.created_at))}</time></td>
+      <td title="Recorded producing execution time for this stage; excludes upstream runs and import time">{timing ? duration(timing.started_at, timing.completed_at) : '—'}</td>
+      <td title={`${bytes} bytes`}>{size(bytes)}</td>
+      <td title={[...evidence.reasons, ...evidence.unresolved].join('; ')}>{evidence.status}{evidence.status === 'Required' && ` by ${evidence.reasons.join(', ')}`}</td>
+      <td title={evidence.verification.r2 === 'unknown' ? 'R2 inventory unresolved' : undefined}>{evidence.storage}{evidence.verification.r2 === 'unknown' && ' (R2 unresolved)'}</td>
+      <td>{origin(executionOrigin)}</td>
+      <td title={evidence.unresolved.join('; ')}>{`Local: ${evidence.verification.local}; R2: ${evidence.verification.r2}`}</td>
+    </tr>)}</tbody>
+  </table>
+</div>
+
+<style>
+  .table-scroll { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: inherit; line-height: inherit; }
+  th, td { text-align: left; padding: .6em .65em; border-bottom: 1px solid rgb(var(--ink) / .1); white-space: nowrap; }
+  th:last-child, td:last-child { padding-right: 0; }
+  th, .selected { font-weight: 600; }
+  .selected-run { background: rgb(var(--ink) / .05); }
+</style>

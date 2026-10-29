@@ -22,7 +22,7 @@ from pathlib import Path
 
 # Support direct script execution while resolving repository-local helpers.
 REPO = Path(__file__).resolve().parents[2]
-sys.path[:0] = [str(REPO), str(REPO / "tools")]
+sys.path[:0] = [str(REPO), str(REPO / "libraries")]
 
 import numpy as np
 from experiments.exp141 import dataset, recipe

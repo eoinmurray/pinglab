@@ -139,6 +139,10 @@ samples; they are not full-waveform errors.
 
 The diagrams come from the actual matched 0.1 ms SNNLab bundles. Delay changes
 reuse each architecture's diagram; the readout is a COBA-LIF population in both.
+Here $X$ denotes pixel input, $E/I$ the hidden populations and $R$ the readout.
+Every projection is labelled $W_{XY}$, with target $X$ first and source $Y$
+second. Arrowheads show excitation; bars show inhibition. Recording aliases and
+spike-count reductions are omitted.
 
 <RunFigure report="exp142" experiment="exp142" allowUnavailable columns={1} number={5} id="fig-network" panels={[
   { file: 'coba-circuit.svg', alt: 'Frozen COBA circuit: 64 pixel inputs, 128 excitatory hidden neurons and ten COBA-LIF output neurons.' },

@@ -1,5 +1,6 @@
 import Table from '../../../site/src/components/Table.astro';
-import { imageUrl, optionalPresentation } from '../../../site/src/lib/pingstore';
+import RunFigure from '../../../site/src/components/RunFigure.astro';
+import { optionalPresentation } from '../../../site/src/lib/pingstore';
 import { reportSnapshots } from '../../../site/src/lib/report-data';
 
 export const selected = await optionalPresentation('exp152');
@@ -225,116 +226,137 @@ $\theta<\theta_r-\theta_s$ and extensor for $\theta>\theta_r+\theta_s$.
 The sensory centre is $\theta_r$, threshold $\theta_s=0.25$ rad, and minimum
 interspike interval 10 ms. Each channel repeats while beyond threshold.
 
-## Learning rule
-
-The separate native adaptation protocol uses bounded coordinate search to adjust
-tonic excitation $g_{\mathrm{tonic}}$ and sensory synaptic strength $w_{\mathrm s}$,
-symmetrically across flexor and extensor. Reciprocal inhibition and mechanics
-remain fixed. This is a model-specific application of
-[derivative-free direct search](https://doi.org/10.1137/S003614450242889), using
-global movement errors:
-
-$$
-\mathcal L=
-\left(\frac{f-f_\star}{f_\star}\right)^2+
-\left(\frac{A-A_\star}{A_\star}\right)^2.
-$$
-
-$\mathcal L$ is dimensionless loss. Frequency $f$ (Hz) is the reciprocal of mean
-cycle period; excursion $A$ (rad) is the mean peak-to-peak angle across measured
-cycles. Positive targets $f_\star,A_\star$ default to 0.65 Hz and $\pi/3$ rad
-(60° peak-to-peak).
-The two relative errors receive equal weight.
-
-Alternate between the two conductances. For the selected coordinate $j$, test
-both proposals
-
-$$
-p'_j=\operatorname{clip}\!\left((1+d\rho_j)p_j,\;0.01,\;0.10\right),
-\qquad d\in\{-1,+1\}.
-$$
-
-$p_j$ is the current conductance and $p'_j$ a proposal, both in µS; $d$ chooses
-decrease or increase, $\rho_j$ is that coordinate's fractional probe size, and
-$\operatorname{clip}$ bounds conductance to 0.01–0.10 µS. Keep the baseline unless
-an eligible proposal lowers $\mathcal L$ by more than $10^{-6}$; choose the better
-eligible proposal. Probe sizes start at 10% and halve after an unsuccessful
-comparison, down to 1.25%.
-
-Each baseline or probe lasts at least 26 s of model time. Discard the first 15 s
-and measure the final five complete cycles, delimited by upward crossings of
-$\theta_r$. Eligibility requires no stop hits and all cycle-repeatability errors
-below 1%: maximum relative period and turning-point errors, and worst-cycle
-normalized root-mean-square errors for angle and velocity. Period errors use
-the median period; turning-point and angle errors use median excursion, and
-velocity errors use the median waveform's velocity range. Unsettled segments
-extend in 5 s increments up to 60 s. Unsettled probes
-are excluded; an unsettled baseline skips its update without shrinking the
-probe size.
-
-Neural, synaptic, muscle and pending spike states continue between probes.
-After 16 coordinate attempts, freeze the parameters and validate for 60 s both
-continuously and from a fresh reset, assessing the final ten complete cycles
-after settling. Local repeatability alone does not guarantee target acquisition
-or repeatability after reset.
-
 ## Architecture Pseudocode
 
-Each node retains state. These Python-like helpers summarize execution.
+### 1. Overall
 
-### Setup
+ROS2 Humble runs flexor, extensor and plant as separate processes on separate
+CPUs. All three receive the same resolved recipe configuration. Each controller
+owns an independent SNNLab stream containing one Elevate neuron; the plant integrates joint mechanics without a neural network.
+These Python-like blocks omit boilerplate. ROS2 scheduling and message helpers
+are schematic; `prepare_stream` and `stream.advance` denote SNNLab's streaming
+interface.
 
 ```python
-dt = 1 * ms
-controllers = paired_controllers(neuron="Elevate")
-joint = loaded_joint(initial_angle=90 * degrees)
+from snnlab.sim import prepare_stream
+from torch import float64
 
-warm_up_then_reset(controllers)
-start_together(*controllers, joint)
+cfg = recorded_configuration
+dt = cfg["dt_ms"] * ms
+nodes = launch_ros2_processes("flexor", "extensor", "plant")
+wait_for_ros2_discovery_and_controller_warmup(nodes)
+arm_shared_start(nodes, future_ros_time())
+
+
+def prepare_controller():
+    bundle = author_network(cfg)
+    stream = prepare_stream(
+        bundle,
+        window_steps=1,
+        batch_size=1,
+        device="cpu",
+        dtype=float64,
+        performance=recorded_performance,
+    )
+    warm_up_then_reset(stream)
+    return stream
+
+
+def windows(node):
+    for n in range(total_windows):
+        release = node.monotonic_origin + n * dt
+        spin_ros2_until(node, release)
+        frames = wait_for_ros2_frames(node, index=n - 1)
+        enforce_lag_limit(release)
+        with measure_callback(node, deadline=release + dt):
+            yield n, frames
+            publish_ros2_frame(node, n, node.output_events)
 ```
 
-Warm-up resets controller states, inputs and model clocks before execution.
+Each node consumes both other nodes' complete preceding windows from
+`/frames/flexor`, `/frames/extensor` or `/frames/plant`. The initial inputs are
+empty; every completed window is published, including silence. Late nodes catch
+up without dropping windows or shifting deadlines. Callback timing includes
+model execution, spike publication and diagnostic buffering, but excludes input
+waiting. Buffered diagnostics are exported after control finishes.
 
-### Each control window
+### 2. Flexor node
 
-Each node waits for its release and both preceding input windows, servicing
-messages and enforcing its lag limit. Startup inputs are empty; silence is
-published explicitly.
+The flexor receives excitatory sensory spikes from the plant and inhibitory
+motor spikes from the extensor. Its local excitation is 0.5 µS for the first
+20 ms, then 0.04 µS. SNNLab retains membrane and synaptic state between steps.
 
 ```python
-def run(node):
-    for window in fixed_schedule(period=dt):
-        inputs = receive_previous_window(window)
-        outputs = node.update(inputs)
-        publish_window(window, outputs)  # Include windows with no spikes.
-        record_timing(deadline=window.release + dt)
+node = create_ros2_node("flexor")
+stream = prepare_controller()
+
+for n, frames in windows(node):
+    drive = cfg["flexor_initial_us"] if n * dt < 20 * ms else cfg["tonic_us"]
+    inputs = snnlab_inputs(
+        tonic=drive,
+        sensory=count_sensory_spikes(frames["plant"], channel="flexor"),
+        peer=count_spikes(frames["extensor"]),
+    )
+    result = stream.advance(inputs)
+    node.output_events = motor_spike_events(result)
+    publish_ros2_spikes("/motor/flexor", node.output_events)
+    buffer_voltage_and_spikes(node, result)
 ```
 
-Late nodes catch up without dropping windows or shifting deadlines.
+### 3. Extensor node
 
-### Controller and joint updates
-
-Controllers share this update but receive different starting excitation.
+The extensor receives excitatory sensory spikes from the plant and inhibitory
+motor spikes from the flexor. Its SNNLab stream is separate from the flexor's.
+Local excitation starts at 0 µS for 20 ms, then switches to the same 0.04 µS
+tonic drive.
 
 ```python
-def update_controller(controller, sensory_spikes, peer_spikes, time):
-    drive = starting_drive(controller) if time < 20 * ms else tonic_drive
-    controller.excite(local_drive=drive, sensory_spikes=sensory_spikes)
-    controller.inhibit(peer_spikes)
-    return controller.advance(dt).spikes
+node = create_ros2_node("extensor")
+stream = prepare_controller()
 
+for n, frames in windows(node):
+    drive = cfg["extensor_initial_us"] if n * dt < 20 * ms else cfg["tonic_us"]
+    inputs = snnlab_inputs(
+        tonic=drive,
+        sensory=count_sensory_spikes(frames["plant"], channel="extensor"),
+        peer=count_spikes(frames["flexor"]),
+    )
+    result = stream.advance(inputs)
+    node.output_events = motor_spike_events(result)
+    publish_ros2_spikes("/motor/extensor", node.output_events)
+    buffer_voltage_and_spikes(node, result)
+```
 
-def update_joint(joint, motor_spikes, time):
-    sensory_spikes = sense_angle(joint, time)
-    activation = decay_then_activate(joint.muscles, motor_spikes)
-    torque = opposing_muscle_torque(activation)
-    advance_mechanics(joint, torque, dt)
-    return sensory_spikes
+### 4. Plant/Joint node
+
+The plant receives both controllers' motor windows. Before advancing mechanics,
+it encodes the current angle as sensory spikes; motor spikes then update muscle
+activation and joint motion. Sensory output returns through ROS2 and enters the
+controllers in the next logical window. This node does not execute SNNLab.
+
+```python
+node = create_ros2_node("plant")
+joint = Joint(cfg["joint"])
+
+for n, frames in windows(node):
+    sensory = joint.encode(n * dt / second)
+    motor = [count_spikes(frames["flexor"]), count_spikes(frames["extensor"])]
+    joint.advance(motor, dt / second)
+    node.output_events = sensory_spike_events(sensory)
+    publish_ros2_spikes("/sensory/flexor", sensory[0])
+    publish_ros2_spikes("/sensory/extensor", sensory[1])
+    buffer_angle_velocity_and_activation(node, joint)
 ```
 
 ## Network diagram
 
-{native && <div style="min-width: 0; align-self: start; margin-bottom: 24px;"><img style="display: block; width: 100%; height: auto;" src={await imageUrl(selected.id, 'circuit.svg')} alt="Native recorded controller circuit" /></div>}
+<RunFigure report="exp152" experiment="exp152" file="circuit.svg" number={2} id="fig-circuit" alt="Saved single-cell controller graph with peer inhibition, sensory excitation and tonic conductance input." allowUnavailable={true}>
+  Controller circuit from the saved flexor bundle; both sides use this
+  architecture. $M$ is the motor cell, $P$ peer spikes, $S$ sensory spikes and
+  $T$ tonic conductance. Each connection is labelled $W_{XY}$, with target $X$
+  first and source $Y$ second. Arrowheads denote excitation; bars denote
+  inhibition. Recording aliases are omitted.
+</RunFigure>
 
 ## Parameters
 

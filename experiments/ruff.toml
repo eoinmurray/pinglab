@@ -6,5 +6,5 @@ extend = "../ruff.toml"
 extend-select = ["TID"]
 
 [lint.flake8-tidy-imports.banned-api]
-"tools".msg = "use installed snnlab APIs or its module CLI instead of Pinglab tool implementations"
+"libraries".msg = "use installed snnlab APIs or its module CLI instead of Pinglab tool implementations"
 "models".msg = "use snnlab.sim APIs or python -m snnlab.sim, not a bare models import"

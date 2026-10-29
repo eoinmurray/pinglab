@@ -1,0 +1,36 @@
+import RunFigure from '../../../site/src/components/RunFigure.astro';
+import Parameters from './Parameters.astro';
+
+## Network
+
+<RunFigure report="exp157" experiment="exp157" file="circuit.svg" number={2} id="fig-network" alt="Actual compiled network with X_A/X_B/X_C connected to E only, local E/I recurrence, and equal A_E/B_E feedforward projections to C_E." allowUnavailable={true}>
+  Circuit diagram from the saved bundle used for Figure 1. Each connection is
+  labelled $W_{XY}$, with target population $X$ first and source population $Y$
+  second; subscripts A, B and C identify circuits. Arrowheads denote excitation;
+  bars denote inhibition. Recording output aliases are omitted. There are no X→I
+  connections, no A↔B connections and no receiver feedback. I populations receive
+  excitation only from their local E populations. Reference neuron counts define
+  mean incoming weight sums, rather than the number of dynamical rate states.
+</RunFigure>
+
+## Parameters
+
+The table reads the saved native mean-field model along the selected presentation's
+compute ancestry. E/I pairs are ordered excitatory/inhibitory. Coupling is the
+sum of effective conductance jumps over sources, averaged over target neurons,
+including absent self-edges. All weights and time constants stay fixed during
+Figure 1; only the three external rates change.
+
+<Parameters />
+
+The native noisy-LIF closure uses fixed resting driving forces and omits shunting,
+input covariance and finite-population fluctuations. Rate-relaxation times are
+phenomenological closure parameters, separate from membrane and synaptic decay
+times. E times remain 24/16/20 ms for A/B/C; I times are calibrated to the closer
+autonomous frequency targets using uncoupled constant inputs at the inherited hold
+values, measured over 1500–2500 ms. These are finite-window estimates, not fixed
+frequencies across the ramps. E→E and I→I sums remain at half their original values;
+all weights and input schedules are inherited without firing-rate recalibration.
+The autonomous control does not initialize Figure 1. Native trajectories retain
+initial states, controls and solver settings; no spiking simulation or spiking
+snapshot is claimed.

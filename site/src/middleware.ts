@@ -1,17 +1,25 @@
 import { defineMiddleware } from 'astro:middleware';
+import { withRunContext } from './lib/run-context';
+import { deferMedia } from './lib/deferred-media';
+import { validateArticleMarkup } from './lib/article-markup';
 
 const escapeHtml = (value: string) => value.replace(/[&<>"']/g, character => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
 }[character]!));
 
-export const onRequest = defineMiddleware(async (context, next) => {
+export const onRequest = defineMiddleware((context, next) => withRunContext(async () => {
   try {
     const response = await next();
     if (!response.headers.get('Content-Type')?.includes('text/html') || !response.body) return response;
     // Complete rendering before sending HTML so a deferred component failure
     // can replace this page, rather than leaving a partially rendered response.
-    return new Response(await response.text(), {
-      status: response.status, statusText: response.statusText, headers: response.headers,
+    const rendered = await response.text();
+    validateArticleMarkup(rendered, context.url.pathname);
+    const html = deferMedia(rendered);
+    const headers = new Headers(response.headers);
+    headers.delete('Content-Length');
+    return new Response(html, {
+      status: response.status, statusText: response.statusText, headers,
     });
   } catch (error) {
     if (import.meta.env.PROD) throw error;
@@ -27,4 +35,4 @@ export const onRequest = defineMiddleware(async (context, next) => {
       status: 500, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' },
     });
   }
-});
+}));

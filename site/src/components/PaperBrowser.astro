@@ -3,19 +3,22 @@ import CollectionBrowser from './CollectionBrowser.astro';
 import PapersList from './PapersList.astro';
 import { getPaperCollections, paperCollectionLabel, paperCollectionUrl, type Paper } from '../lib/papers';
 import { getPosts } from '../lib/posts';
-import { collectionLabel, collectionUrl, compareCollections } from '../lib/collections';
+import { collectionCounts, collectionLabel, collectionUrl, compareCollections } from '../lib/collections';
 
 interface Props { papers: Paper[]; collection?: string; }
 const { papers, collection } = Astro.props;
 const collections = getPaperCollections(papers);
 const posts = await getPosts();
+const articleCounts = collectionCounts(posts);
+const paperCounts = collectionCounts(papers);
 const articleCollections = [...new Set(posts.flatMap(post => post.collections))].sort(compareCollections);
 const visiblePapers = collection ? papers.filter(paper => paper.collections.includes(collection)) : papers;
 ---
 <CollectionBrowser title={collection ? paperCollectionLabel(collection) : 'Papers'} allHref="/" allLabel="All articles"
+  allCount={posts.length} allPapersCount={papers.length}
   heading="Articles" filtered={true}
-  collections={articleCollections.map(name => ({ href: collectionUrl(name), label: collectionLabel(name), active: false }))}
-  literature={collections.map(name => ({ href: paperCollectionUrl(name), label: paperCollectionLabel(name), active: name === collection }))}
+  collections={articleCollections.map(name => ({ href: collectionUrl(name), label: collectionLabel(name), count: articleCounts.get(name) ?? 0, active: false }))}
+  literature={collections.map(name => ({ href: paperCollectionUrl(name), label: paperCollectionLabel(name), count: paperCounts.get(name) ?? 0, active: name === collection }))}
   allPapersActive={!collection}>
   <PapersList papers={visiblePapers} />
 </CollectionBrowser>

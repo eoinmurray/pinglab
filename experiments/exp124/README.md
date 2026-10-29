@@ -20,3 +20,7 @@ rasters, autocorrelograms and circuit diagrams. The official test set is unused.
 3. `present.py`: required `--source <analyse-run-id>`. Writes the report's six
    SVGs and `numbers.json`, retaining the explicit compute ancestry. The report
    reads parameters directly from that compute run's native snapshots.
+
+Regenerate only network diagrams while preserving an explicit presentation's
+scientific figures and data: `uv run python experiments/exp124/present.py
+--redraw-from PRESENT_ID [--run-id ID]`.

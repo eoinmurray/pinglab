@@ -15,7 +15,7 @@ RUN uv venv --python /usr/bin/python3 /opt/venv \
     && uv pip install --python /opt/venv/bin/python -r requirements.txt
 RUN apt-get update && apt-get install -y --no-install-recommends g++ ninja-build util-linux \
     && rm -rf /var/lib/apt/lists/*
-ENV TORCHINDUCTOR_COMPILE_THREADS=1 PYTHONPATH=/workspace:/workspace/tools
+ENV TORCHINDUCTOR_COMPILE_THREADS=1 PYTHONPATH=/workspace:/workspace/libraries
 WORKDIR /workspace
 # Mount the checkout at execution so Pingstore captures Git provenance and owns outputs.
 ENTRYPOINT ["/bin/bash", "-c", "source /opt/ros/humble/setup.bash && exec /opt/venv/bin/python experiments/exp152/compute.py \"$@\"", "--"]

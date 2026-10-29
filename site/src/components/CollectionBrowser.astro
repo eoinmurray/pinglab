@@ -3,13 +3,20 @@ interface Props {
   title: string;
   allHref: string;
   allLabel: string;
-  collections: { href: string; label: string; active: boolean }[];
+  allCount: number;
+  allPapersCount: number;
+  collections: { href: string; label: string; count: number; active: boolean }[];
   filtered?: boolean;
   heading?: string;
-  literature?: { href: string; label: string; active?: boolean }[];
+  literature?: { href: string; label: string; count: number; active?: boolean }[];
   allPapersActive?: boolean;
 }
-const { title, allHref, allLabel, collections, filtered = false, heading = 'Collections', literature, allPapersActive = false } = Astro.props;
+const { title, allHref, allLabel, allCount, allPapersCount, collections: collectionLinks, filtered = false, heading = 'Collections', literature: literatureLinks, allPapersActive = false } = Astro.props;
+const collections = [...collectionLinks].sort((a, b) => b.count - a.count);
+const literature = literatureLinks && [...literatureLinks].sort((a, b) => b.count - a.count);
+const visibleCollectionLimit = 5;
+const remainingCollections = collections.slice(visibleCollectionLimit);
+const remainingLiterature = literature?.slice(visibleCollectionLimit) ?? [];
 ---
 <h1 class="visually-hidden">{title}</h1>
 <div class="base-grid">
@@ -19,16 +26,36 @@ const { title, allHref, allLabel, collections, filtered = false, heading = 'Coll
       <nav aria-labelledby="collections-heading">
         <h2 id="collections-heading">{heading}</h2>
         <ol role="list">
-          <li><a href={allHref} aria-current={!filtered ? 'page' : undefined}>{allLabel}</a></li>
-          {collections.map(collection => <li><a href={collection.href} aria-current={collection.active ? 'page' : undefined}>{collection.label}</a></li>)}
+          <li><a href={allHref} aria-current={!filtered ? 'page' : undefined}>{allLabel} ({allCount})</a></li>
+          {collections.slice(0, visibleCollectionLimit).map(collection => <li><a href={collection.href} aria-current={collection.active ? 'page' : undefined}>{collection.label} ({collection.count})</a></li>)}
         </ol>
+        {remainingCollections.length > 0 && <details open={remainingCollections.some(collection => collection.active)}>
+          <summary>
+            <span class="show-more">Show more<span class="visually-hidden"> article collections</span></span>
+            <span class="show-less">Show less<span class="visually-hidden"> article collections</span></span>
+            <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m4 6 4 4 4-4" /></svg>
+          </summary>
+          <ol role="list">
+            {remainingCollections.map(collection => <li><a href={collection.href} aria-current={collection.active ? 'page' : undefined}>{collection.label} ({collection.count})</a></li>)}
+          </ol>
+        </details>}
       </nav>
       {literature && <nav aria-labelledby="literature-heading">
         <h2 id="literature-heading">Literature</h2>
         <ol role="list">
-          <li><a href="/papers" aria-current={allPapersActive ? 'page' : undefined}>All papers</a></li>
-          {literature.map(collection => <li><a href={collection.href} aria-current={collection.active ? 'page' : undefined}>{collection.label}</a></li>)}
+          <li><a href="/papers" aria-current={allPapersActive ? 'page' : undefined}>All papers ({allPapersCount})</a></li>
+          {literature.slice(0, visibleCollectionLimit).map(collection => <li><a href={collection.href} aria-current={collection.active ? 'page' : undefined}>{collection.label} ({collection.count})</a></li>)}
         </ol>
+        {remainingLiterature.length > 0 && <details open={remainingLiterature.some(collection => collection.active)}>
+          <summary>
+            <span class="show-more">Show more<span class="visually-hidden"> literature collections</span></span>
+            <span class="show-less">Show less<span class="visually-hidden"> literature collections</span></span>
+            <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m4 6 4 4 4-4" /></svg>
+          </summary>
+          <ol role="list">
+            {remainingLiterature.map(collection => <li><a href={collection.href} aria-current={collection.active ? 'page' : undefined}>{collection.label} ({collection.count})</a></li>)}
+          </ol>
+        </details>}
       </nav>}
       </div>
     </aside>
@@ -48,6 +75,15 @@ const { title, allHref, allLabel, collections, filtered = false, heading = 'Coll
   .browser-collections a[aria-current="page"] { color: rgb(var(--ink)); font-weight: 600; }
   .browser-collections a:hover { color: rgb(var(--ink)); }
   .browser-collections a:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+  .browser-collections details { display: flex; flex-direction: column; }
+  .browser-collections details::details-content { order: -1; }
+  .browser-collections summary { display: flex; align-items: center; gap: 5px; width: fit-content; list-style: none; cursor: pointer; color: rgb(var(--ink) / .6); font-size: 12px; font-weight: 500; line-height: 1.5; }
+  .browser-collections summary::-webkit-details-marker { display: none; }
+  .browser-collections summary:hover { color: rgb(var(--ink)); }
+  .browser-collections summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+  .browser-collections .show-less, .browser-collections details[open] .show-more { display: none; }
+  .browser-collections details[open] .show-less { display: inline; }
+  .browser-collections details[open] summary svg { transform: rotate(180deg); }
   .browser-articles { min-width: 0; }
   .browser-articles :global(.base-grid) { display: block; }
   @media (min-width: 1180px) {

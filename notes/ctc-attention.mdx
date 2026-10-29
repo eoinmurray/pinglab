@@ -1,0 +1,183 @@
+---
+title: "CTC and Attention"
+author: Eoin Murray
+collection: [notes, ctc-attention]
+description: "Communication through coherence and a three-population example of selective attention."
+created_at: "2026-10-29T08:18:38Z"
+updated_at: "2026-10-29T12:00:51Z"
+---
+
+import Table from '../site/src/components/Table.astro';
+import ExperimentCard from '../site/src/components/ExperimentCard.astro';
+import NetworkFigure from './figures/ctc-attention/NetworkFigure.astro';
+
+## Abstract
+
+## Background
+
+Communication through coherence (CTC) proposes that rhythmic synchronisation
+regulates communication between neuronal populations without changing their
+anatomical connections. In Fries's account, gamma rhythms create brief excitatory
+windows followed by longer inhibition; entrainment aligns incoming volleys with
+these windows despite transmission delays, without requiring zero phase
+difference. Representations may remain encoded in spatial firing-rate patterns,
+while synchronisation determines their downstream influence. Attention is
+proposed to bias this competition through gamma strength and frequency, with
+alpha–beta feedback providing control and theta rhythms periodically reopening
+selection \[[1](#ref-1)\].
+
+### Mechanism
+
+Let **A and B** represent competing stimuli and both send excitatory projections
+to **C**. Each population contains excitatory and inhibitory neurons capable of
+gamma dynamics. A and B have no direct connections to each other.
+
+1. **Attention biases A upstream.** A control signal strengthens A's gamma
+   synchronisation and/or makes its rhythm slightly faster. B remains active
+   and continues sending input to C.
+2. **A gains an arrival-time advantage.** Following a shared phase reset, A's
+   faster rhythm can produce a synchronised volley that reaches C before B's.
+   This advantage depends on the projection delays and circuit dynamics.
+3. **A activates C, then recruits C's inhibition.** A's volley excites C's
+   excitatory neurons, which recruit local inhibitory neurons. Fries describes
+   excitation preceding inhibition by roughly 3 milliseconds. B's later volley
+   encounters inhibition and therefore has less influence.
+4. **C becomes entrained to A.** Subsequent A volleys arrive as C's inhibition
+   decays, repeatedly finding an excitable window. C's output preferentially
+   reflects A's representation, while B's input is suppressed.
+5. **Selection can be reopened.** A theta-related reset may terminate the
+   existing timing relationship and allow renewed competition. Selection can
+   therefore persist across several gamma cycles without becoming permanent.\[[1](#ref-1)\]
+
+## Proposed Experiment
+
+We propose training the A/B → C network to classify one of two simultaneous
+digits according to an attention cue. This adapts Bosman's competing-input task
+to supervised classification; it is a proposed experiment, not a replication or
+completed result \[[2](#ref-2)\].
+
+1. **Sensory inputs.** Independently sample two 8×8 scikit-learn digits and encode
+   each through 64 spike-input channels, one image into A and the other into B.
+   Both images remain present during classification.
+2. **Cue and target.** Cued control spikes favour A or B through the corresponding
+   Attention input. The target is the cued image's digit class; changing the cue
+   leaves both sensory inputs unchanged.
+3. **Classification.** A ten-class readout receives activity only from C. Neither
+   the images, A/B activity nor the cue bypass C to reach the readout. Train
+   against the attended digit's label.
+4. **Evaluation.** Split source images into training, validation and test sets
+   before constructing pairs. Balance cue choices and digit classes. Test each
+   held-out pair with both cues and identical sensory spike trains; for
+   different-class pairs, the predicted class should switch with the cue.
+5. **CTC tests.** After training, freeze the weights and apply the three tests
+   below to held-out image pairs across training seeds.
+
+### Circuit
+
+<NetworkFigure>
+Figure 1. Illustrative A/B → C circuit. E and I denote excitatory and inhibitory
+neurons; subscripts identify the circuit. A/B represent separate V1 sites and C
+a shared V4 receiver. Black/grey arrows denote excitation and red bars inhibition.
+Inter-area projections are darker and heavier than local recurrence; this visual
+emphasis does not encode synaptic strength. Solid connections are kept and dashed
+connections are optional. The feedback inset repeats the same populations, not
+additional neurons. X_A/X_B denote sensory inputs, X_C task-independent background
+input to C's E and I cells, and U attention inputs. W labels weights with the
+receiving population first and the source second.
+Select the diagram to enlarge it.
+</NetworkFigure>
+
+This circuit implements Bosman's competing-input motif \[[2](#ref-2)\]. The
+statuses below describe our model design; the recordings do not establish
+individual E/I synapses. All optional connections are included in the diagram
+and illustrative bundle. Omitted pathways are absent.
+
+### Modelling choices
+
+<Table
+  headers={["Circuit choice", "Why"]}
+  groups={[
+    { label: "Keep", rows: [
+      ["Excitatory input from A/B to C", "Matches V1 inputs converging on a shared V4 receiver."],
+      ["A/B recruit C's inhibitory cells", "Implements inhibition invoked in Bosman's timing account."],
+      ["Local excitation–inhibition loops", "Our mechanism for gamma; not specified by Bosman."],
+      ["Separate sensory and cue inputs", "Provide two stimuli and a controllable attention bias."],
+      ["Background input to C", "Sets baseline excitability; independence, strength and E/I targets are modelling choices."],
+    ] },
+    { label: "Optional", rows: [
+      ["Recurrence within E and I populations", "Compatible with the paper, but not required by it."],
+      ["Excitatory feedback from C to A/B", "Bosman discusses feedback; its E/I targets remain our choice."],
+    ] },
+    { label: "Omission", rows: [
+      ["Inhibitory projections between areas", "Not required by the paper; omitted for simplicity."],
+      ["Direct A–B connections", "Keeps competition in C; does not imply V1 populations are isolated."],
+      ["Separate cortical layers", "Combines layers for simplicity, including Bosman's proposed deep-layer feedback source."],
+    ] },
+  ]}
+  id="circuit-assumptions"
+  label="Circuit choices and their justification"
+  number={1}
+>
+  Circuit choices relative to Bosman et al. \[[2](#ref-2)\]. Parameters are
+  illustrative. Background C carries no digit or cue information; keep its
+  statistics fixed across cue conditions. Disable optional feedback for the
+  A→C baseline tasks.
+</Table>
+
+
+### Testing CTC
+
+Test whether gamma timing contributes to selective routing:
+
+1. **Cue-dependent coupling.** With identical sensory inputs, changing the cue
+   should switch both C's preferred gamma coupling and its classification.
+   Compare with trial-shuffled controls, matching firing rates and gamma power.
+2. **Phase-dependent transmission.** Identical weak probes should evoke different
+   responses at different phases of C's gamma cycle. The cued sender's volleys
+   should arrive preferentially at high-gain phases.
+3. **Timing disruption and rescue.** Disrupt attended-input timing while preserving
+   spike counts and within-volley synchrony, then restore it. Selection should
+   deteriorate and recover beyond effects seen with sham, distractor and
+   rate-matched nonoscillatory controls.
+
+### Limitations
+
+Classification or coherence alone cannot establish CTC.
+Rate-based solutions, shared inputs and perturbation side effects require
+controls. Positive results would support CTC in this model, not establish the
+brain's attention mechanism.
+
+### Plan
+
+Proceed through six tasks, using mean-field models that retain E/I gamma
+oscillations before testing the corresponding spiking circuits.
+
+1. **Mean-field coupling.** Map stable gamma activity and entrainment across
+   coupling strengths and measured uncoupled frequency differences, using A→C
+   only with feedback disabled. Entrainment means C locks to A's frequency with
+   a stable phase difference; their peaks need not coincide.
+
+   <ExperimentCard experiment="exp153" />
+
+2. **Spiking coupling.** Repeat the same analysis using a spiking model.
+
+   <ExperimentCard experiment="exp133" />
+
+3. **Mean-field competition.** Keep sensory drives fixed and vary the
+   cue-related drive. Map selective locking, cue-driven switching, persistent
+   selection and regimes where neither sender dominates. Apply matched weak
+   probes to each sender and compare C's responses, accounting for firing-rate
+   differences, to test effective transmission as well as synchronisation.
+4. **Spiking competition.** Verify selective coupling, preferential
+   transmission and reliable cue-driven switching in the corresponding circuits.
+5. **Spiking digit classification.** Establish classification through either
+   pathway alone, then train with simultaneous digits and balanced cues. Evaluate
+   held-out image pairs under both cues using a readout receiving only C's activity.
+6. **CTC validation.** Freeze the trained weights and apply the three
+   tests in [Testing CTC](#testing-ctc) across training seeds, controlling for
+   firing rates, gamma power and perturbation effects.
+
+## References
+
+1. <span id="ref-1" /> P. Fries. “Rhythms for Cognition: Communication through Coherence.” *Neuron* 88(1), 220–235 (2015). [doi:10.1016/j.neuron.2015.09.034](https://doi.org/10.1016/j.neuron.2015.09.034)
+2. <span id="ref-2" /> C. A. Bosman et al. “Attentional Stimulus Selection through Selective Synchronization between Monkey Visual Areas.” *Neuron* 75(5), 875–888 (2012). [doi:10.1016/j.neuron.2012.06.037](https://doi.org/10.1016/j.neuron.2012.06.037)

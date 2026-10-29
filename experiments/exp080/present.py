@@ -8,18 +8,128 @@ import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
-sys.path[:0] = [str(REPO), str(REPO / "tools")]
+sys.path[:0] = [str(REPO), str(REPO / "libraries")]
 
 import argparse
 import shutil
 from typing import Any
 
+import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 from experiments import theme
 from experiments.exp080 import recipe
 from experiments.exp080.custom import evidence, inputs
 from pingstore.library import PingstoreError, load_json, write_json_atomic
+from snnlab import viz
+
+
+def schematic_diagrams():
+    """Lay out the documented model; these are illustrations, not execution evidence."""
+    specifications = [
+        {
+            "name": "decoder",
+            "title": "Membrane features and learned decoder",
+            "nodes": [
+                ("X", "Pixel spike events", "input", (-360, 0)),
+                ("M", "Nonspiking membranes", "population", (0, 0)),
+                ("F", "Mean voltage features", "operation", (600, 0)),
+                ("H", "ReLU decoder", "population", (600, 300)),
+                ("R", "Class logits", "population", (0, 300)),
+            ],
+            "edges": [
+                ("X", "M", "excitatory"),
+                ("M", "F", "average"),
+                ("F", "H", "signal"),
+                ("H", "R", "signal"),
+            ],
+        }
+    ]
+    diagrams = {}
+    ports = dict(
+        top_left=(0.25, 0),
+        top_right=(0.75, 0),
+        bottom_left=(0.25, 1),
+        bottom_right=(0.75, 1),
+    )
+    for spec in specifications:
+        visual = viz.Diagram(
+            name="exp080_" + spec["name"],
+            title=spec["title"],
+            nodes=tuple(
+                viz.DiagramNode(identifier, identifier, detail, "", kind=kind)
+                for identifier, detail, kind, _ in spec["nodes"]
+            ),
+            edges=tuple(
+                viz.DiagramEdge(
+                    source,
+                    target,
+                    id=source + "_to_" + target,
+                    role="signal" if role == "average" else role,
+                )
+                for source, target, role in spec["edges"]
+            ),
+            metadata=dict(
+                view="illustrative documented model; no historical bundle reconstructed"
+            ),
+        )
+        positions = {
+            identifier: position for identifier, _, _, position in spec["nodes"]
+        }
+        routes = {}
+        for source, target, role in spec["edges"]:
+            label = (
+                r"$\langle V-E_L\rangle_t$"
+                if role == "average"
+                else rf"$W_{{{target},{source}}}$"
+            )
+            if (source, target) == ("E", "I"):
+                route = dict(source_port="bottom_left", target_port="top_left")
+            elif (source, target) == ("I", "E"):
+                route = dict(source_port="top_right", target_port="bottom_right")
+            elif source == "J":
+                route = dict(source_port="top", target_port="bottom")
+            elif positions[source][0] == positions[target][0]:
+                route = dict(source_port="bottom", target_port="top")
+            elif positions[source][0] > positions[target][0]:
+                route = dict(source_port="left", target_port="right")
+            else:
+                route = dict(source_port="right", target_port="left")
+            routes[source + "_to_" + target] = viz.EdgeLayout(
+                label=viz.DiagramLabel(
+                    label, offset=(0, -65) if role == "average" else (0, 0)
+                ),
+                **route,
+            )
+        layout = viz.DiagramLayout(
+            nodes={
+                identifier: viz.NodeLayout(
+                    position=position,
+                    label=f"${identifier}$",
+                    min_size=(240, 160),
+                    ports=ports,
+                )
+                for identifier, position in positions.items()
+            },
+            edges=routes,
+            defaults=viz.LayoutDefaults(
+                node=viz.NodeLayout(content_align="center", padding=16), gap=30
+            ),
+        )
+        with matplotlib.rc_context({"savefig.bbox": None}):
+            diagrams[spec["name"]] = viz.resolve_diagram(
+                visual, layout=layout, theme=viz.DiagramTheme(secondary_size=13)
+            )
+    return diagrams
+
+
+def draw_schematics():
+    """Regenerate report-local SVG illustrations without executing scientific stages."""
+    destination = Path(__file__).parent / "report" / "images"
+    destination.mkdir(exist_ok=True)
+    with matplotlib.rc_context({"savefig.bbox": None}):
+        for name, diagram in schematic_diagrams().items():
+            viz.render_diagram(diagram, destination / (name + "-network.svg"))
 
 
 def present(identity: str, *, run_id: str | None = None) -> str:
@@ -167,4 +277,12 @@ def plot_feature_images(
 
 
 if __name__ == "__main__":
-    main()
+    if "--draw-schematics" in sys.argv[1:]:
+        parser = argparse.ArgumentParser(
+            description="Render illustrative model diagrams only."
+        )
+        parser.add_argument("--draw-schematics", action="store_true", required=True)
+        parser.parse_args()
+        draw_schematics()
+    else:
+        main()

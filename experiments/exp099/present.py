@@ -11,25 +11,152 @@ import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
-sys.path[:0] = [str(REPO), str(REPO / "tools")]
+sys.path[:0] = [str(REPO), str(REPO / "libraries")]
 
 import argparse
 import hashlib
+import shutil
 import subprocess
+from dataclasses import replace
 from importlib.metadata import version
 
 import matplotlib
+from snnlab import lang, viz
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 from experiments.exp099 import dataset, recipe
 from experiments.exp099.custom import inputs
-from pingstore.library import PingstoreError, load_json, stage_run, write_json_atomic
+from pingstore.library import (
+    PingstoreError,
+    load_json,
+    source_run,
+    stage_run,
+    write_json_atomic,
+)
 from snnlab import lang as snn
 from snnlab.viz import FigureGrid, Recording, Theme
 
 REFERENCE_PDF = REPO / "papers/Susin-Destexhe-2021.pdf"
+
+
+def circuit_diagram(bundle):
+    """Lay out native weighted projections; omit recording and scoring aliases."""
+    import matplotlib
+
+    native = lang.diagram(bundle, view="circuit")
+    known = {node.id for node in native.nodes if node.kind in ("input", "population")}
+    symbols = dict(private_e="X_E", private_i="X_I", E="E", I="I")
+    positions = dict(private_e=(-360, 0), private_i=(-360, 300), E=(0, 0), I=(0, 300))
+    routes = dict(
+        private_e_to_E=viz.EdgeLayout(source_port="right", target_port="left"),
+        private_i_to_I=viz.EdgeLayout(source_port="right", target_port="left"),
+        E_to_I=viz.EdgeLayout(source_port="bottom_left", target_port="top_left"),
+        I_to_E=viz.EdgeLayout(source_port="top_right", target_port="bottom_right"),
+        E_to_E=viz.EdgeLayout(
+            source_port="top_right", target_port="right", waypoints=((180, -130),)
+        ),
+        I_to_I=viz.EdgeLayout(
+            source_port="bottom_right", target_port="right", waypoints=((180, 430),)
+        ),
+    )
+    title = "Private drive and recurrent E/I pathways"
+    diagram = replace(
+        native,
+        title=title,
+        groups=(),
+        nodes=tuple(
+            replace(node, detail=node.detail.splitlines()[0])
+            for node in native.nodes
+            if node.id in known
+        ),
+        edges=tuple(edge for edge in native.edges if edge.id is not None),
+    )
+    ports = dict(
+        upper_left=(0, 0.3),
+        lower_left=(0, 0.7),
+        upper_right=(1, 0.3),
+        lower_right=(1, 0.7),
+        top_left=(0.25, 0),
+        top_right=(0.75, 0),
+        bottom_left=(0.25, 1),
+        bottom_right=(0.75, 1),
+    )
+    layout = viz.DiagramLayout(
+        nodes={
+            identifier: viz.NodeLayout(
+                position=position,
+                label=f"${symbols[identifier]}$",
+                min_size=(240, 160),
+                ports=ports,
+            )
+            for identifier, position in positions.items()
+            if identifier in known
+        },
+        edges={
+            edge.id: replace(
+                routes.get(edge.id, viz.EdgeLayout()),
+                label=viz.DiagramLabel(
+                    rf"$W_{{{symbols[edge.target]},{symbols[edge.source]}}}$"
+                ),
+            )
+            for edge in diagram.edges
+        },
+        defaults=viz.LayoutDefaults(
+            node=viz.NodeLayout(content_align="center", padding=16), gap=30
+        ),
+    )
+    with matplotlib.rc_context({"savefig.bbox": None}):
+        return viz.resolve_diagram(
+            diagram, layout=layout, theme=viz.DiagramTheme(secondary_size=13)
+        )
+
+
+def save_circuit(bundle, path):
+    """Export the resolved native architecture without inheriting plot cropping."""
+    import matplotlib
+
+    circuit = circuit_diagram(bundle)
+    with matplotlib.rc_context({"savefig.bbox": None}):
+        for suffix in ("svg", "png"):
+            viz.render_diagram(circuit, Path(path).with_suffix("." + suffix))
+
+
+def render_networks(sources, export, scratch):
+    """Render the private-afferent circuit from its explicit compute bundle."""
+    compute = sources["compute"]
+    bundle = (
+        compute.restore_bundle("network.bundle", scratch / "network.bundle")
+        if compute.record.get("scientific_artifacts", {}).get("native_paths")
+        else compute.unit("network.bundle")
+    )
+    save_circuit(lang.load_bundle(bundle), export / "network.svg")
+    return ["network.svg"]
+
+
+def redraw_networks(presentation, *, run_id=None):
+    """Copy an explicit presentation, replacing only its saved-bundle diagrams."""
+    previous = source_run(
+        REPO / ".pingstore", presentation, experiment="exp099", stage="present"
+    )
+    sources = {
+        role: source_run(REPO / ".pingstore", pin["run_id"], reference=pin)
+        for role, pin in previous.record["inputs"].items()
+    }
+    with stage_run(
+        REPO,
+        "exp099",
+        "present",
+        inputs={**sources, "figure_source": previous},
+        configuration=previous.record["execution"]["configuration"],
+        run_id=run_id,
+    ) as run:
+        shutil.copytree(previous.export, run.export, dirs_exist_ok=True)
+        render_networks(sources, run.export, run.scratch)
+        run.record["execution"]["snnlab_version"] = version("snnlab")
+        previous.check_unchanged()
+    return run.run_id
 
 
 def render_reference(source: Path, destination: Path) -> dict:
@@ -258,16 +385,16 @@ def circuit_data(recording, weights, cfg, view, *, measurements):
 
 
 def network_diagram(path, *, bundle):
-    """Render the unmodified expanded bundle diagram with SNNLab defaults."""
-    bundle.visualise(path, view="circuit")
+    """Render native projections with explicit routes and weight annotations."""
+    save_circuit(bundle, path)
     return {
         "library": "snnlab",
         "version": version("snnlab"),
-        "construction": "snnlab.lang.Bundle.visualise",
-        "renderer": "snnlab.lang.Bundle.visualise",
+        "construction": "snnlab.lang.diagram / snnlab.viz.render_diagram",
+        "renderer": "snnlab.lang.diagram / snnlab.viz.render_diagram",
         "view": "circuit",
-        "annotations": "library defaults",
-        "layout": "library defaults",
+        "annotations": "W_XY, target first and source second",
+        "layout": "explicit native DiagramLayout",
     }
 
 
@@ -377,4 +504,12 @@ def render_raster(recording, cfg, path):
 
 
 if __name__ == "__main__":
-    main()
+    if any(arg.startswith("--redraw-from") for arg in sys.argv[1:]):
+        parser = argparse.ArgumentParser(
+            description="Refresh only diagrams of an explicit presentation."
+        )
+        parser.add_argument("--redraw-from", dest="presentation", required=True)
+        parser.add_argument("--run-id")
+        print(redraw_networks(**vars(parser.parse_args())))
+    else:
+        main()

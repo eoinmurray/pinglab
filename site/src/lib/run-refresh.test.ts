@@ -15,21 +15,27 @@ test('a reload refreshes numbers, figures, snapshots and Dataset together; in-fl
   try {
     const compute = await saveLocalRun(root, 'exp001-r001-compute');
     const analysis = await saveLocalRun(root, 'exp001-r002-analyse', undefined, { parent: compute });
-    const old = await saveLocalRun(root, 'exp001-r003-present', { 'numbers.json': '{"score":3}', 'figure.svg': '<svg/>' }, { parent: analysis });
-    const { optionalPresentation, dataset, figureUrl } = await import('./pingstore.ts');
+    const old = await saveLocalRun(root, 'exp001-r003-present', { 'numbers.json': '{"score":3}', 'figure.svg': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 400"/>' }, { parent: analysis });
+    const { optionalPresentation, dataset, figureUrl, figureImage } = await import('./pingstore.ts');
     const { reportData, reportSnapshots } = await import('./report-data.ts');
     await withRunContext(async () => {
       assert.equal((await optionalPresentation('exp001'))?.id, old.run_id);
-      const newest = await saveLocalRun(root, 'exp001-r004-present', { 'numbers.json': '{"score":4}', 'figure.svg': '<svg/>' }, { parent: analysis, day: '02' });
+      const newest = await saveLocalRun(root, 'exp001-r004-present', { 'numbers.json': '{"score":4}', 'figure.svg': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 300"/>' }, { parent: analysis, day: '02' });
       // Even an overlapping request gets a fresh index without changing this one.
       await withRunContext(async () => {
         assert.equal((await optionalPresentation('exp001'))?.id, newest.run_id);
         assert.equal((await reportData('exp001')).score, 4);
         assert.match(await figureUrl(newest.run_id, 'figure.png'), /exp001-r004-present/);
+        assert.deepEqual(await figureImage(newest.run_id, 'figure.png'), {
+          src: '/run-images/exp001-r004-present/figure.svg', width: 800, height: 300,
+        });
         assert.equal((await reportSnapshots('exp001', { snapshots: {} }))?.compute.run_id, compute.run_id);
         assert.equal((await dataset('exp001')).runs.find(row => row.selected)?.id, newest.run_id);
       });
       assert.equal((await reportData('exp001')).score, 3);
+      assert.deepEqual(await figureImage(old.run_id, 'figure.png'), {
+        src: '/run-images/exp001-r003-present/figure.svg', width: 600, height: 400,
+      });
       assert.equal((await dataset('exp001')).runs.find(row => row.selected)?.id, old.run_id);
     });
     await withRunContext(async () => {
@@ -93,4 +99,27 @@ test('production reads one catalog snapshot throughout the build', async () => {
     if (previous === undefined) delete process.env.NODE_ENV;
     else process.env.NODE_ENV = previous;
   }
+});
+
+test('catalog and publication refreshes start together without sharing snapshots across requests', { timeout: 5000 }, async () => {
+  const { RunStore } = await import('./run-store.ts');
+  const root = await mkdtemp(join(tmpdir(), 'parallel-metadata-'));
+  let finish!: (value: any) => void;
+  let catalogs = 0, controls = 0;
+  const store = new RunStore({ runsRoot: root, source: 'auto',
+    catalog: () => { catalogs++; return new Promise(done => { finish = done; }); },
+    control: async () => {
+      controls++;
+      finish({ schema: 'pingstore.catalog/v1', updated_at: '2026-10-01T00:00:00Z', runs: {} });
+      return {};
+    },
+  });
+  try {
+    await withRunContext(async () => {
+      await store.index(); await store.index();
+      assert.equal(catalogs, 1); assert.equal(controls, 1);
+    });
+    await withRunContext(async () => { await store.index(); });
+    assert.equal(catalogs, 2); assert.equal(controls, 2);
+  } finally { await rm(root, { recursive: true, force: true }); }
 });

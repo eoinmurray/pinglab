@@ -14,7 +14,7 @@ from pathlib import Path
 import numpy as np
 
 REPO = Path(__file__).resolve().parents[2]
-sys.path[:0] = [str(REPO), str(REPO / "experiments"), str(REPO / "tools")]
+sys.path[:0] = [str(REPO), str(REPO / "experiments"), str(REPO / "libraries")]
 
 from experiments.exp022 import recipe
 from experiments.exp022.custom import bank as bank_io
