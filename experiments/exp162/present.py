@@ -21,72 +21,68 @@ from snnlab import lang, viz
 
 
 def network_diagram(bundle):
-    """Place competing sender pairs above the shared receiver, preserving native edges."""
+    """Align A, C and B E/I pairs with compact, mirrored feedforward routes."""
     native = lang.diagram(bundle, view="circuit")
     positions = {
-        "A_E": (-700, 0),
-        "A_I": (-700, 360),
-        "B_E": (700, 0),
-        "B_I": (700, 360),
-        "C_E": (0, 900),
-        "C_I": (0, 1260),
-        "X_A": (-1100, 0),
-        "U_A": (-1100, -420),
-        "X_B": (1100, 0),
-        "U_B": (1100, -420),
-        "X_C": (-450, 900),
+        "A_E": (-650, 0),
+        "A_I": (-650, 360),
+        "C_E": (0, 0),
+        "C_I": (0, 360),
+        "B_E": (650, 0),
+        "B_I": (650, 360),
+        "X_A": (-1010, 0),
+        "U_A": (-1010, -400),
+        "X_B": (1010, 0),
+        "U_B": (1010, -400),
+        "X_C": (0, -400),
     }
     symbols = {c + "_" + p: p + "_" + c for c in "ABC" for p in "EI"}
     symbols.update({key: key for key in positions if key.startswith(("X_", "U_"))})
     routes = {
         "sensory_A": viz.EdgeLayout(source_port="right", target_port="left"),
         "sensory_B": viz.EdgeLayout(source_port="left", target_port="right"),
-        "sensory_C": viz.EdgeLayout(source_port="right", target_port="left"),
+        # The offset vertical feed clears C's recurrent loop.
+        "sensory_C": viz.EdgeLayout(source_port="feed_bottom", target_port="feed_top"),
         "cue_A": viz.EdgeLayout(
             source_port="right",
             target_port="upper_left",
             routing="polyline",
-            waypoints=((-900, -200),),
+            waypoints=((-830, -200),),
         ),
         "cue_B": viz.EdgeLayout(
             source_port="left",
             target_port="upper_right",
             routing="polyline",
-            waypoints=((900, -200),),
+            waypoints=((830, -200),),
         ),
         "A_E_to_C_E": viz.EdgeLayout(
-            source_port="lower_right",
-            target_port="upper_left",
-            routing="polyline",
-            waypoints=((-400, 500), (-250, 760)),
+            source_port="upper_right", target_port="upper_left"
         ),
         "B_E_to_C_E": viz.EdgeLayout(
-            source_port="lower_left",
-            target_port="upper_right",
-            routing="polyline",
-            waypoints=((400, 500), (250, 760)),
+            source_port="upper_left", target_port="upper_right"
         ),
         "A_E_to_C_I": viz.EdgeLayout(
-            source_port="lower_left",
-            target_port="left",
+            source_port="cross_right",
+            target_port="upper_left",
             routing="polyline",
-            waypoints=((-980, 200), (-980, 1260)),
+            waypoints=((-325, 180),),
         ),
         "B_E_to_C_I": viz.EdgeLayout(
-            source_port="lower_right",
-            target_port="right",
+            source_port="cross_left",
+            target_port="upper_right",
             routing="polyline",
-            waypoints=((980, 200), (980, 1260)),
+            waypoints=((325, 180),),
         ),
     }
     for c in "ABC":
         x, y = positions[c + "_E"]
         iy = positions[c + "_I"][1]
+        outer, inner = ("right", "left") if c == "B" else ("left", "right")
         routes[c + "_E_to_I"] = viz.EdgeLayout(
-            source_port="bottom_left", target_port="top_left"
+            source_port="bottom_" + outer, target_port="top_" + outer
         )
         routes[c + "_I_to_E"] = viz.EdgeLayout(
-            source_port="top_right", target_port="bottom_right"
+            source_port="top_" + inner, target_port="bottom_" + inner
         )
         angles = np.linspace(0, np.pi, 33)
         routes[c + "_E_to_E"] = viz.EdgeLayout(
@@ -119,6 +115,10 @@ def network_diagram(bundle):
         ),
     )
     ports = dict(
+        cross_left=(0, 0.9),
+        cross_right=(1, 0.9),
+        feed_bottom=(0.95, 1),
+        feed_top=(0.95, 0),
         upper_left=(0, 0.3),
         lower_left=(0, 0.7),
         upper_right=(1, 0.3),

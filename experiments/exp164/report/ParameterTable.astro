@@ -73,7 +73,7 @@ const rows=cfg&&net?sources.map(source=>[
 <Table headers={['Parameter','Cue A excerpt','Cue B excerpt']} groups={groups} number="A1" id="parameters" label="Recorded settings and native reference">
   E / I means excitatory / inhibitory. X_A/X_B encode the images, X_C supplies
   background and U_A/U_B deliver the cue. Both protocols share the same anatomy
-  and corresponding native weights. All source settings come from the imported
+  and corresponding native weights. All source settings come from the recorded
   compute configuration and native start snapshot; observation settings come from
   the selected analysis. Source generator offsets are zero, one hundred and two
   hundred for X_A/X_B/X_C, and three hundred for the shared cue draw. Seed
@@ -90,8 +90,8 @@ const rows=cfg&&net?sources.map(source=>[
   of source j and target i pixel distance, normalized over j. Its nominal density
   is full; distant tails may round to zero in float32. Other entries use the
   native constant initializers directly. These formulas describe the recorded
-  transformations, not measured matrix statistics; imported native parameter
-  arrays are authoritative and byte-preserved. Local E→E / E→I / I→E / I→I decay
+  transformations, not measured matrix statistics; saved native parameter
+  arrays are authoritative. Local E→E / E→I / I→E / I→I decay
   is {cfg ? [cfg.network.local.E_to_E.tau_ms,cfg.network.local.E_to_I.tau_ms,cfg.network.local.I_to_E.tau_ms,cfg.network.local.I_to_I.tau_ms].map(n).join(' / ') : 'unavailable'} ms.
   Sensory/cue decay is {cfg ? n(cfg.network.sensory.tau_ms) : 'unavailable'} ms.
   Cross decay / delay is {cfg ? [cfg.network.cross.tau_ms,cfg.network.cross.delay_ms].map(n).join(' / ') : 'unavailable'} ms;

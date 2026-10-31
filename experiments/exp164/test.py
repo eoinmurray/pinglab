@@ -8,9 +8,9 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-from scipy.signal import lfilter
 from experiments.exp164 import recipe
 from experiments.exp164.analyse import reconstruct
+from scipy.signal import lfilter
 
 REPO = Path(__file__).resolve().parents[2]
 
@@ -98,3 +98,73 @@ def test_imports_have_no_execution_effects(tmp_path):
     )
     assert result.returncode == 0, result.stderr
     assert not list(tmp_path.iterdir())
+
+
+def test_standalone_inputs_match_sensory_and_gate_opposite_cues():
+    cfg = recipe.simulation_configuration()
+    cfg["duration_ms"] = 4.0
+    cfg["switch_ms"] = 2.0
+    cfg["cue_hz"] = 1000.0
+    images = recipe.digit_images(cfg)
+    first = recipe.make_inputs(cfg, images)
+    second = recipe.make_inputs(cfg, images)
+    for name in first:
+        np.testing.assert_array_equal(first[name], second[name])
+    for name in ["X_A", "X_B", "X_C"]:
+        np.testing.assert_array_equal(first[name][:, 0], first[name][:, 1])
+    switch = round(cfg["switch_ms"] / cfg["dt_ms"])
+    for j, c in enumerate("AB"):
+        other = "B" if c == "A" else "A"
+        assert first["U_" + c][:switch, j].any()
+        assert not first["U_" + other][:switch, j].any()
+        assert not first["U_" + c][switch:, j].any()
+        np.testing.assert_array_equal(first["U_A"][:, 0], first["U_B"][:, 1])
+    fresh = recipe.simulation_configuration()
+    cfg["network"]["populations"]["E"]["size"] = 1
+    assert fresh["network"]["populations"]["E"]["size"] == 64
+
+
+def test_standalone_weights_preserve_totals_and_pixel_mapping():
+    import torch
+    from snnlab.sim import Performance, build
+
+    cfg = recipe.simulation_configuration()
+    bundle, _ = recipe.author_network(cfg)
+    model = build(
+        graph=bundle.graph,
+        seed=cfg["network_seed"],
+        device="cpu",
+        performance=Performance(compile_mode=None),
+    ).model
+    params = model.parameter_map()
+    with torch.no_grad():
+        recipe.spatial_parameters(params, cfg)
+    for c in "AB":
+        cross = params[c + "_E_to_C_E.weight"].detach().numpy()
+        np.testing.assert_allclose(cross.sum(0), cfg["coupling_us"], rtol=1e-6)
+        assert cross[0, 0] > cross[63, 0]
+        sensory = params["sensory_" + c + ".weight"].detach().numpy()
+        np.testing.assert_allclose(
+            sensory.sum(0),
+            cfg["incoming_weights_us"]["PING_B_input_to_E"]
+            * cfg["network"]["sensory"]["gain"],
+            rtol=1e-6,
+        )
+        assert (sensory > 0).sum() == 1024
+        assert not sensory[:16, 1:].any()
+    for c in "ABC":
+        for population in "EI":
+            matrix = (
+                params[c + "_" + population + "_to_" + population + ".weight"]
+                .detach()
+                .numpy()
+            )
+            assert not np.diag(matrix).any()
+            np.testing.assert_allclose(
+                matrix.sum(0),
+                cfg["incoming_weights_us"][
+                    "PING_B_" + population + "_to_" + population
+                ],
+                rtol=1e-6,
+            )
+    assert "source_run" not in (Path(__file__).parent / "compute.py").read_text()

@@ -1,47 +1,64 @@
 # exp164 — Untrained digit routing
 
-Two constant-cue views of a saved fixed A/B → C spiking circuit. Rates, phase,
-reconstructed conductances and raw 8×8 A/B/C activity maps are retained. There
-is no classifier, trained decoder, sweep or probe stage in this experiment.
-
-- `compute.py --source PHASE_ID` imports an explicit authenticated historical
-  `exp163` digit-routing phase, preserving native start arrays, bundle, diagram,
-  inputs, spikes, images and original configuration. It does not simulate.
-  `--preserve-scratch DIRECTORY` optionally preserves migration history after
-  authenticating recovered run copies against canonical Pingstore evidence.
-- `recipe.py` owns observation settings and validates the fixed rate encoder.
-- `analyse.py --source COMPUTE_ID` selects both pre-switch cue conditions,
-  verifies unchanged sensory/background trains, and calculates plotted traces.
-- `present.py --source ANALYSE_ID` renders the two figures and native diagram.
-- `test.py` contains non-simulation checks. Every stage accepts `--run-id`.
+Standalone CPU simulation of a fixed A/B → C spiking circuit driven by two
+8×8 scikit-learn digit images. No other experiment or saved run is required.
+No classifier, decoder or synaptic weight is trained.
 
 ```sh
-uv run python experiments/exp164/compute.py --source exp163-r007-compute-phase-scratch-digit-routing
+uv run python experiments/exp164/compute.py
 uv run python experiments/exp164/analyse.py --source COMPUTE_ID
 uv run python experiments/exp164/present.py --source ANALYSE_ID
 uv run pytest experiments/exp164/test.py -q
 ```
 
-The source trajectories last 2,400 ms and switch at 1,200 ms. Figures display
-only 0–1,100 ms, with phase/spatial measurements at 650–1,100 ms and conductance
-close-ups at 900–1,050 ms. The cue stays fixed throughout each displayed excerpt.
-Rates/phase use 1 ms SD temporal smoothing; maps are raw E-cell rates at fixed
-pixel locations. Both figures share corresponding scales.
+`recipe.py` owns the circuit, fixed parameters, image selection, rate encoder,
+input seeds and observation settings. `compute.py` accepts `--seed` (input seed, default 101); the native network seed is 85.
+Every stage accepts `--run-id`; analysis and presentation require explicit input
+IDs. Compute retains generated inputs, spikes, source images, a compiled bundle,
+circuit diagram and native simulation-start snapshot. Two conditions share their
+sensory/background draws and cue draw, with opposite cue orders. Nominal graph
+initializers are transformed into pixel-block sensory weights and normalized 2D
+Gaussian A/B → C E weights before the native snapshot and simulation.
 
-Native conductance recordings were not retained. Conductances are explicitly
-labelled analytical reconstructions from saved spikes and native weights,
-planner delays and decay, with zero initial conductance. Float64 population
-means can differ from native float32 traces by rounding. Low inhibition is a
-proxy rather than measured transmission gain. These views use one tuned image
-pair and input realization, without a timing intervention or general decoding
-claim. Original simulation provenance remains pinned through the import input.
+Trials last 2,400 ms and switch cue at 1,200 ms. Figures display 0–1,100 ms;
+phase/spatial measurements use 650–1,100 ms and conductance close-ups use
+900–1,050 ms. Rates/phase use 1 ms SD temporal smoothing; maps are raw E-cell
+rates at fixed pixel locations. Corresponding axes share scales.
 
-Migration evidence: `exp164-r001-compute` imports the original trial and retains
-`history.zip`, a byte-verified archive of the unique scratch source, notes,
-configuration and launch history. Recovered run copies and transfer archives
-were authenticated against their canonical Pingstore runs before the migrated
-scratch directory was removed. Existing scientific runs were not rewritten.
-`exp164-r002-analyse` and `exp164-r003-present` reproduce both original PNGs
-byte-for-byte. Import, analysis and presentation took 2.094, 6.222 and 2.770
-seconds respectively. The report rendered successfully with native-bound
-parameter tables. No new simulations, backup or publication were performed.
+Conductances are analytical reconstructions from saved spikes, native weights,
+planner delays and decay, with zero initial conductance, rather than native
+recordings. Float64 population means can differ from native float32 traces.
+Low inhibition is a proxy, not measured transmission gain. This is one fixed
+image pair and input realization, not a timing intervention or decoding benchmark.
+
+The standalone recipe replaces the import-only workflow using the recovered
+original specification: first digit-0/digit-1 samples, 28 Hz C background,
+0.45-pixel kernel, input seed 101, native seed 85 and recorded incoming-weight
+constants. Within-population connections explicitly exclude self-connections.
+These are versioned recipe constants; no historical run is loaded at execution.
+
+The corrected fresh two-condition run reproduced the historical trial's images,
+all input arrays, every native parameter array and all six populations' spikes
+exactly over the full 2,400 ms. Historical evidence and ancestry were recovered
+from Hetzner into a separate directory and validated for this comparison. C's
+pre-switch image correlations were 0.878/0.475 (A/B, A cued) and 0.358/0.952
+(A/B, B cued); cued sender–C PLVs were 0.959 and 0.980. These are one-pair,
+one-seed results. Analysis records image correlations and cued-minus-uncued
+correlation margins alongside phase metrics.
+
+The first local reconstruction changed the image pair, background, kernel, seeds
+and weight constants and omitted recurrent topology; it failed to reproduce the
+routing effect. Those runs remain unchanged as failed-attempt provenance.
+Corrected outputs are exp164-r006-compute → exp164-r007-analyse (or a later
+analysis/presentation of that same compute). Arrays and native artifacts occupy
+tens of files, with expected retained size below 20 MB per pipeline.
+
+### Compact circuit diagram
+
+The diagram follows exp160's mathematical labels, compact E/I pairs and recurrent
+loops, with mirrored A/B pathways converging on C in the centre. Redraw only the
+network from a validated presentation, preserving its result figures and numbers:
+
+```bash
+uv run python experiments/exp164/present.py --redraw-from PRESENT_ID
+```

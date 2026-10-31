@@ -65,14 +65,17 @@ cannot establish reliable switching across seeds, asymptotic locking, heterogene
 network performance or preferential information transmission. No probes, classifier
 or rate-matched controls were run.
 
-The current presentation `exp162-r024-present` styles the native network diagram
-with symmetric sender columns above C, mathematical population/input and weight
-labels, red inhibition bars and routed recurrence/outer projection paths. Its
-scientific figure files and `numbers.json` are byte-identical to the original
-`exp162-r003-present`. No simulation was run for this change; the final diagram
-render took 0.584 seconds. Future full presentations use the same style. To redraw
-only the network while preserving scientific outputs:
+The earlier `exp162-r024-present` placed symmetric sender columns above C. Its
+scientific figures and `numbers.json` were byte-identical to `exp162-r003-present`;
+the diagram-only render took 0.584 seconds without simulation. The compact layout
+below supersedes that arrangement.
 
-```sh
+### Compact circuit diagram
+
+The diagram follows exp160's mathematical labels, compact E/I pairs and recurrent
+loops, with mirrored A/B pathways converging on C in the centre. Redraw only the
+network from a validated presentation, preserving its result figures and numbers:
+
+```bash
 uv run python experiments/exp162/present.py --redraw-from PRESENT_ID
 ```

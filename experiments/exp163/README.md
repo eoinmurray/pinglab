@@ -70,3 +70,13 @@ The report is in the CTC attention collection and linked from plan 4 of
 cue-dependent spatial output selection, not a causal separation of gamma timing
 from rate effects or robustness across seeds. No timing interventions, probes,
 classifier or arbitrary-pattern decoding were added.
+
+### Compact circuit diagram
+
+The diagram follows exp160's mathematical labels, compact E/I pairs and recurrent
+loops, with mirrored A/B pathways converging on C in the centre. Redraw only the
+network from a validated presentation, preserving its result figures and numbers:
+
+```bash
+uv run python experiments/exp163/present.py --redraw-from PRESENT_ID
+```

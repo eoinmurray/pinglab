@@ -14,11 +14,11 @@ import ParameterTable from './ParameterTable.astro';
   Native conductance-LIF cells generate the spikes; retained recordings measure
   conductance at each C E recipient. All within-population weight matrices are
   homogeneous, and every cell begins at the same voltage.
-  A and B occupy symmetric upper columns and C sits below them. Mathematical
-  labels identify each population and input; weight labels place the recipient
-  first. Excitation uses arrowheads, inhibition uses red bars, and routed loops
-  show recurrence. Outer routes carry sender excitation to C I without crossing
-  the local E/I pairs.
+
+  The layout places C between the mirrored A and B sender pairs. Horizontal
+  arrows converge on C E; diagonal arrows converge on C I. Each E population
+  sits above its local I population, with compact recurrent loops. Weight labels
+  give the recipient first; excitation uses arrowheads and inhibition red bars.
 </RunFigure>
 
 ## Parameters

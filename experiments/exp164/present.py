@@ -3,12 +3,14 @@
 import argparse
 import json
 import sys
+from dataclasses import replace
 from pathlib import Path
 from time import perf_counter
 
 REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "libraries")]
 import shutil
+
 import matplotlib
 
 matplotlib.use("Agg")
@@ -16,6 +18,155 @@ import matplotlib.pyplot as plt
 import numpy as np
 from experiments.exp164 import recipe
 from pingstore.library import source_run, stage_run, write_json_atomic
+from snnlab import lang, viz
+
+
+def network_diagram(bundle):
+    """Align A, C and B E/I pairs with compact, mirrored feedforward routes."""
+    native = lang.diagram(bundle, view="circuit")
+    positions = {
+        "A_E": (-650, 0),
+        "A_I": (-650, 360),
+        "C_E": (0, 0),
+        "C_I": (0, 360),
+        "B_E": (650, 0),
+        "B_I": (650, 360),
+        "X_A": (-1010, 0),
+        "U_A": (-1010, -400),
+        "X_B": (1010, 0),
+        "U_B": (1010, -400),
+        "X_C": (0, -400),
+    }
+    symbols = {c + "_" + p: p + "_" + c for c in "ABC" for p in "EI"}
+    symbols.update({key: key for key in positions if key.startswith(("X_", "U_"))})
+    routes = {
+        "sensory_A": viz.EdgeLayout(source_port="right", target_port="left"),
+        "sensory_B": viz.EdgeLayout(source_port="left", target_port="right"),
+        # The offset vertical feed clears C's recurrent loop.
+        "sensory_C": viz.EdgeLayout(source_port="feed_bottom", target_port="feed_top"),
+        "cue_A": viz.EdgeLayout(
+            source_port="right",
+            target_port="upper_left",
+            routing="polyline",
+            waypoints=((-830, -200),),
+        ),
+        "cue_B": viz.EdgeLayout(
+            source_port="left",
+            target_port="upper_right",
+            routing="polyline",
+            waypoints=((830, -200),),
+        ),
+        "A_E_to_C_E": viz.EdgeLayout(
+            source_port="upper_right", target_port="upper_left"
+        ),
+        "B_E_to_C_E": viz.EdgeLayout(
+            source_port="upper_left", target_port="upper_right"
+        ),
+        "A_E_to_C_I": viz.EdgeLayout(
+            source_port="cross_right",
+            target_port="upper_left",
+            routing="polyline",
+            waypoints=((-325, 180),),
+        ),
+        "B_E_to_C_I": viz.EdgeLayout(
+            source_port="cross_left",
+            target_port="upper_right",
+            routing="polyline",
+            waypoints=((325, 180),),
+        ),
+    }
+    for c in "ABC":
+        x, y = positions[c + "_E"]
+        iy = positions[c + "_I"][1]
+        outer, inner = ("right", "left") if c == "B" else ("left", "right")
+        routes[c + "_E_to_I"] = viz.EdgeLayout(
+            source_port="bottom_" + outer, target_port="top_" + outer
+        )
+        routes[c + "_I_to_E"] = viz.EdgeLayout(
+            source_port="top_" + inner, target_port="bottom_" + inner
+        )
+        angles = np.linspace(0, np.pi, 33)
+        routes[c + "_E_to_E"] = viz.EdgeLayout(
+            source_port="top_right",
+            target_port="top_left",
+            routing="polyline",
+            waypoints=tuple(
+                (x + 60 * np.cos(a), y - 92 - 88 * np.sin(a)) for a in angles
+            ),
+        )
+        routes[c + "_I_to_I"] = viz.EdgeLayout(
+            source_port="bottom_left",
+            target_port="bottom_right",
+            routing="polyline",
+            waypoints=tuple(
+                (x - 60 * np.cos(a), iy + 92 + 88 * np.sin(a)) for a in angles
+            ),
+        )
+    known = {node.id for node in native.nodes if node.kind in ("input", "population")}
+    if known != set(positions) or {e.id for e in native.edges} != set(routes):
+        raise ValueError("saved architecture differs from the authored diagram layout")
+    diagram = replace(
+        native,
+        title="Competing PING senders and a shared receiver",
+        groups=(),
+        nodes=tuple(
+            replace(node, detail=node.detail.splitlines()[0])
+            for node in native.nodes
+            if node.id in known
+        ),
+    )
+    ports = dict(
+        cross_left=(0, 0.9),
+        cross_right=(1, 0.9),
+        feed_bottom=(0.95, 1),
+        feed_top=(0.95, 0),
+        upper_left=(0, 0.3),
+        lower_left=(0, 0.7),
+        upper_right=(1, 0.3),
+        lower_right=(1, 0.7),
+        top_left=(0.25, 0),
+        top_right=(0.75, 0),
+        bottom_left=(0.25, 1),
+        bottom_right=(0.75, 1),
+    )
+    layout = viz.DiagramLayout(
+        nodes={
+            key: viz.NodeLayout(
+                position=value,
+                label=f"${symbols[key]}$",
+                min_size=(240, 160),
+                ports=ports,
+            )
+            for key, value in positions.items()
+        },
+        edges={
+            edge.id: replace(
+                routes[edge.id],
+                label=viz.DiagramLabel(
+                    rf"$W_{{{symbols[edge.target]},{symbols[edge.source]}}}$"
+                ),
+            )
+            for edge in diagram.edges
+        },
+        defaults=viz.LayoutDefaults(
+            node=viz.NodeLayout(content_align="center", padding=16), gap=30
+        ),
+    )
+    with matplotlib.rc_context({"savefig.bbox": None}):
+        return viz.resolve_diagram(
+            diagram, layout=layout, theme=viz.DiagramTheme(secondary_size=13)
+        )
+
+
+def render_network(computed, run):
+    bundle = lang.load_bundle(
+        computed.restore_bundle("network.bundle", run.scratch / "diagram.bundle")
+    )
+    diagram = network_diagram(bundle)
+    with matplotlib.rc_context({"savefig.bbox": None}):
+        for ext in ("svg", "png"):
+            viz.render_diagram(diagram, run.export / ("circuit." + ext))
+
 
 COLORS = {"A": "#168047", "B": "#5367c4", "C": "#222222"}
 PATHS = recipe.PATHS
@@ -186,7 +337,7 @@ def present(*, source, run_id=None):
             for ext in ["png", "svg"]:
                 fig.savefig(run.export / f"cue-{c}.{ext}", dpi=170)
             plt.close(fig)
-        shutil.copyfile(computed.file("circuit.svg"), run.export / "circuit.svg")
+        render_network(computed, run)
         write_json_atomic(run.export / "numbers.json", numbers)
         run.record["execution"].update(
             elapsed_seconds=perf_counter() - started, no_simulation=True
@@ -195,8 +346,46 @@ def present(*, source, run_id=None):
     return run.run_id
 
 
+def redraw_network(*, presentation, run_id=None):
+    started = perf_counter()
+    previous = source_run(
+        REPO / ".pingstore", presentation, experiment=recipe.SLUG, stage="present"
+    )
+    sources = {
+        role: source_run(
+            REPO / ".pingstore",
+            previous.record["inputs"][role]["run_id"],
+            reference=previous.record["inputs"][role],
+            experiment=recipe.SLUG,
+        )
+        for role in ("analyse", "compute")
+    }
+    with stage_run(
+        REPO,
+        recipe.SLUG,
+        "present",
+        inputs=dict(sources, figure_source=previous),
+        configuration=previous.record["execution"]["configuration"],
+        run_id=run_id,
+    ) as run:
+        for path in previous.presentation.iterdir():
+            shutil.copyfile(path, run.export / path.name)
+        render_network(sources["compute"], run)
+        run.record["execution"]["elapsed_seconds"] = perf_counter() - started
+        for item in [previous, *sources.values()]:
+            item.check_unchanged()
+    print(run.run_id, flush=True)
+    return run.run_id
+
+
 if __name__ == "__main__":
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("--source", required=True)
+    selection = p.add_mutually_exclusive_group(required=True)
+    selection.add_argument("--source")
+    selection.add_argument("--redraw-from", dest="presentation")
     p.add_argument("--run-id")
-    present(**vars(p.parse_args()))
+    args = p.parse_args()
+    if args.presentation:
+        redraw_network(presentation=args.presentation, run_id=args.run_id)
+    else:
+        present(source=args.source, run_id=args.run_id)

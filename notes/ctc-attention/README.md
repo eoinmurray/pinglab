@@ -4,7 +4,7 @@ Illustrative Bosman-style convergence, generated from a real `snnlab.lang`
 bundle. Run from the repository root:
 
 ```sh
-.venv/bin/python notes/ctc-attention/figures/draw.py
+.venv/bin/python notes/ctc-attention/code/draw.py
 ```
 
 1. A and B each contain 128 excitatory and 32 inhibitory COBA-LIF neurons,
@@ -39,7 +39,8 @@ bundle. Run from the repository root:
    strength and targets are modelling choices; no spike generator or rate is
    fixed by this diagram.
 
-The script saves `network.bundle/`, `network.svg` and `network.png`.
+`code/` holds the generator; `index.mdx` embeds the figure directly.
+The script saves `network.bundle/`, `network.svg` and `network.png` in `figures/`.
 The SVG and PNG use a 1920×1080 (16:9) canvas, with horizontal local E/I pairs.
 The graph, topology and neuron dynamics are inspectable in the native bundle.
 Input and population cards share the same size, fill, borders and mathematical

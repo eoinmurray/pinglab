@@ -3,7 +3,7 @@ id: exp164
 title: "Untrained Digit Routing"
 author: "Eoin Murray"
 created_at: "2026-10-31T17:15:01Z"
-updated_at: "2026-10-31T17:15:01Z"
+updated_at: "2026-10-31T17:49:43Z"
 description: "Constant-cue views of two competing digit patterns in a fixed spiking A/B → C circuit."
 collection: ["experiments", "ctc-attention"]
 tags: ["data", "v0.31.0"]
@@ -17,7 +17,7 @@ export const data = await reportData('exp164', { allowUnavailable: true });
 
 ## Abstract
 
-{data ? <p>We examined whether a fixed spiking circuit could select between two simultaneous digit patterns without a trained decoder. Two saved trajectories contain identical sensory spike trains but different attention cues. We analyse their first {data.configuration.display_end_ms} ms, before either cue switches. C's spatial output resembles the cued digit, while the cued sender–C phase-locking values are {round(data.plvs.A.A, 3)} with A cued and {round(data.plvs.B.B, 3)} with B cued. This is a tuned image-pair demonstration of selective output and coupling, not a causal test of gamma timing or a classification benchmark.</p> : <p>No completed evidence is selected.</p>}
+{data ? <p>We examined whether a fixed spiking circuit could select between two simultaneous digit patterns without a trained decoder. Two freshly simulated trajectories contain identical sensory spike trains but different attention cues. We analyse their first {data.configuration.display_end_ms} ms, before either cue switches. C’s spatial output resembles the cued digit for this image pair. The cued sender–C phase-locking values are {round(data.plvs.A.A, 3)} with A cued and {round(data.plvs.B.B, 3)} with B cued. This fixed image-pair trial measures spatial output and coupling; it is not a causal test of gamma timing or a classification benchmark.</p> : <p>No completed evidence is selected.</p>}
 
 ## Introduction
 
@@ -47,19 +47,24 @@ No readout is trained.
   B is cued throughout the displayed interval. Panels, windows, normalization and
   corresponding population colour scales match Figure 1. Complete sensory and
   background input trains are identical across these two trajectories; the
-  unattended cue port is silent. Both figures use pre-switch prefixes of saved
-  2,400 ms trajectories, not newly simulated indefinitely constant-cue trials.
+  unattended cue port is silent. Both figures use pre-switch prefixes of newly simulated
+  2,400 ms trajectories with opposite cue orders.
   Native conductance recordings were not retained: panel c is a linear-synapse
   reconstruction using float64 population means, with possible rounding
   differences from native float32 traces.
 </RunFigure>
 
+{data?.routing ? <p>With A cued, C’s image correlations with digits A and B are {round(data.routing.A.image_correlations.A, 3)} and {round(data.routing.A.image_correlations.B, 3)}. With B cued, they are {round(data.routing.B.image_correlations.A, 3)} and {round(data.routing.B.image_correlations.B, 3)}. These Pearson correlations compare the raw C firing-rate map with the source pixels over the measurement window.</p> : null}
+
 ## Discussion
 
-The fixed topographic circuit preserves digit-like spatial patterns and changes
-which pattern dominates C when the cue changes. Parameters were selected during
-exploration; these two views use one image pair and one input realization.
-Changes in sender firing rate accompany changes in timing. The figures therefore
-support selective spatial output and cue-dependent gamma coupling without
-isolating timing as the cause. The imported source trajectories, native start
-arrays and original provenance are retained unchanged.
+The standalone recipe constructs the network, selects the first digit-0 and
+digit-1 samples from scikit-learn, and generates matched sensory and background
+spike trains for the two cue conditions. It requires no historical run. These
+new trials use one fixed image pair and input realization; they do not establish
+general digit selection. Changes in sender firing rate accompany changes in
+timing, so phase coupling alone does not isolate timing as the cause of spatial
+output. The corrected standalone trial reproduces the original two cue
+conditions exactly at the level of generated inputs, native parameter arrays
+and full population spike trains. Generated inputs, spikes, native start arrays
+and configuration are retained.

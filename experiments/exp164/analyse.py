@@ -9,11 +9,12 @@ from time import perf_counter
 REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "libraries")]
 from importlib.metadata import version
+
 import numpy as np
-from scipy.ndimage import gaussian_filter1d
-from scipy.signal import find_peaks, lfilter
 from experiments.exp164 import recipe
 from pingstore.library import source_run, stage_run, write_json_atomic
+from scipy.ndimage import gaussian_filter1d
+from scipy.signal import find_peaks, lfilter
 from snnlab.sim import NetworkSnapshot, plan_graph
 
 PATHS = recipe.PATHS
@@ -27,7 +28,7 @@ def reconstruct(spikes, weights, *, decay, delay_steps):
     weights = np.asarray(weights, dtype=np.float64)
     if spikes.shape[1] != weights.shape[0]:
         raise ValueError("presynaptic cells do not match native weights")
-    impulse = spikes @ weights.mean(axis=1)
+    impulse = np.einsum("ti,i->t", spikes, weights.mean(axis=1), optimize=False)
     delayed = np.zeros_like(impulse)
     if delay_steps == 0:
         delayed[:] = impulse
@@ -184,7 +185,23 @@ def analyse(*, source, run_id=None):
         source_configuration=computed.record["execution"]["configuration"]
     )
     cfg, time, results, scales = prepare(computed, settings)
+    with np.load(computed.file("images.npz")) as images:
+        source_images = (
+            [images[c] for c in "AB"] if "A" in images else list(images["images"])
+        )
+        routing = {}
+        for cue, result in results.items():
+            correlations = {
+                c: float(np.corrcoef(result["maps"]["C"].ravel(), image.ravel())[0, 1])
+                for c, image in zip("AB", source_images, strict=True)
+            }
+            other = "B" if cue == "A" else "A"
+            routing[cue] = dict(
+                image_correlations=correlations,
+                cued_minus_uncued=correlations[cue] - correlations[other],
+            )
     numbers = dict(
+        routing=routing,
         schema=recipe.SCHEMA,
         configuration=settings,
         labels=cfg["labels"],

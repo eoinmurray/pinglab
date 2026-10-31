@@ -47,3 +47,13 @@ remains in Pingstore as well as in the archive. Reproduction does not require
 scratch files. The migrated simulation took 16.408 seconds; analysis took about
 0.1 seconds and presentation about 1 second. The exploratory nine simulations
 (including the initial writer failure and selected repeat) took 147.046 seconds.
+
+### Compact circuit diagram
+
+The diagram follows exp160's mathematical labels, compact E/I pairs and recurrent
+loops, with mirrored A/B pathways converging on C in the centre. Redraw only the
+network from a validated presentation, preserving its result figures and numbers:
+
+```bash
+uv run python experiments/exp161/present.py --redraw-from PRESENT_ID
+```

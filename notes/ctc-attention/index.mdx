@@ -8,7 +8,7 @@ updated_at: "2026-10-31T11:01:38Z"
 ---
 
 import ExperimentCard from '../../site/src/components/ExperimentCard.astro';
-import NetworkFigure from './figures/NetworkFigure.astro';
+import circuitUrl from './figures/network.svg?url';
 
 ## Abstract
 
@@ -73,7 +73,11 @@ completed result \[[2](#ref-2)\].
 
 ### Circuit
 
-<NetworkFigure>
+<figure class="l-body" id="ctc-circuit">
+  <a class="figure-image" href={circuitUrl} aria-label="Enlarge the circuit diagram">
+    <img src={circuitUrl} width="1920" height="1080" alt="Sensory and attention inputs drive A and B, whose excitatory populations target E and I in C. Background C independently drives C's E and I cells without digit or cue information. Darker paths emphasise inter-area projections; lighter paths show local recurrence. Optional feedback from C to A and B appears in a separate inset with repeated population symbols." />
+  </a>
+  <figcaption>
 Figure 1. Illustrative A/B → C circuit. E and I denote excitatory and inhibitory
 neurons; subscripts identify the circuit. A/B represent separate V1 sites and C
 a shared V4 receiver. Black/grey arrows denote excitation and red bars inhibition.
@@ -84,7 +88,8 @@ additional neurons. X_A/X_B denote sensory inputs, X_C task-independent backgrou
 input to C's E and I cells, and U attention inputs. W labels weights with the
 receiving population first and the source second.
 Select the diagram to enlarge it.
-</NetworkFigure>
+  </figcaption>
+</figure>
 
 This circuit implements Bosman's competing-input motif \[[2](#ref-2)\]. The
 statuses below describe our model design; the recordings do not establish

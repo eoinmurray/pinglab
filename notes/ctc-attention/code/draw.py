@@ -6,8 +6,8 @@ An independent background spike-input port also drives the receiver's E/I cells.
 Sizes and weights are illustrative; this script does not simulate activity.
 
 Run from the repository root with `.venv/bin/python
-notes/ctc-attention/figures/draw.py`. The native bundle and SVG/PNG diagram
-are written beside this script, using SNNLab's circuit renderer.
+notes/ctc-attention/code/draw.py`. The native bundle and SVG/PNG diagram
+are written to `../figures/`, using SNNLab's circuit renderer.
 """
 
 import sys
@@ -24,7 +24,7 @@ sys.path.insert(0, str(REPO))
 from experiments import theme  # noqa: E402 - resolve the shared repository palette.
 
 SIZES = dict(E=128, I=32, input=64)
-DIRECTORY = Path(__file__).resolve().parent
+DIRECTORY = Path(__file__).resolve().parents[1] / "figures"
 
 
 def author_network():
@@ -378,6 +378,7 @@ def embed_font_outlines(path):
 
 
 def main():
+    DIRECTORY.mkdir(exist_ok=True)
     bundle = author_network()
     bundle.write(DIRECTORY / "network.bundle", visualise=False)
     graph = drawing_graph(bundle)
