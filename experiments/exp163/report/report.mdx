@@ -1,0 +1,84 @@
+---
+id: exp163
+title: "Spatial Pattern Selection"
+author: "Eoin Murray"
+created_at: "2026-10-31T10:58:00Z"
+updated_at: "2026-10-31T10:58:00Z"
+description: "Cue-dependent selection of spatial Gaussian patterns through a spiking A/B → C circuit."
+collection: ["experiments", "ctc-attention"]
+tags: ["data", "v0.31.0"]
+inputs: ["exp163"]
+thumbnail: competition.png
+---
+
+import RunFigure from '../../../site/src/components/RunFigure.astro';
+import { reportData, round } from '../../../site/src/lib/report-data';
+export const data = await reportData('exp163', { allowUnavailable: true });
+export const cfg = data?.configuration;
+export const epochs = data?.metrics.epochs;
+
+## Abstract
+
+{data ? <p>We simulated two spatially structured senders converging on a shared spiking receiver. Fixed Gaussian sensory-drive profiles occupied different positions in A and B; equal topographic projections preserved position into C. A constant-rate cue changed target from A to B at {cfg.switch_ms} ms. C's spatial rate contrast changed from {round(epochs[0].spatial.C_contrast, 3)} to {round(epochs[1].spatial.C_contrast, 3)}, while cued sender–C phase-locking values were {round(epochs[0].senders.A.plv, 3)} and {round(epochs[1].senders.B.plv, 3)}. This demonstrates cue-dependent spatial output selection in one tuned input realization. It does not isolate timing from rate effects or establish decoding performance.</p> : <p>No completed evidence is selected.</p>}
+
+## Introduction
+
+Communication through coherence proposes that rhythmic timing regulates influence
+between neuronal populations ([Fries, 2015](https://doi.org/10.1016/j.neuron.2015.09.034)).
+Here the competing inputs carry distinct spatial patterns rather than only
+oscillatory activity. The sensory strength across sender E cells follows a
+Gaussian plus a uniform pedestal. Both patterns remain present and fixed while a
+separate cue changes which sender is favoured. Receiver output is measured directly
+as a spatial firing-rate profile, without a trained readout.
+
+## Results
+
+<RunFigure report="exp163" experiment="exp163" file="competition.svg" number={1} id="fig-spatial-selection" alt="Five panels showing population rates, gamma phase differences, native conductance timing, and measured A/B/C spatial output profiles before and after cue switching." allowUnavailable={true}>
+  One {cfg ? cfg.duration_ms : 'unavailable'} ms spiking trajectory with equal total
+  Gaussian sensory drive to A and B. Sensory sources remain at
+  {cfg ? cfg.sensory_hz : 'unavailable'} Hz/channel; fixed target gains distribute
+  that drive spatially with centres {cfg ? cfg.spatial.centers.A : 'unavailable'}
+  and {cfg ? cfg.spatial.centers.B : 'unavailable'} and Gaussian width
+  {cfg ? cfg.spatial.width : 'unavailable'}. Both sender→C pathways have equal
+  incoming weights of {cfg ? cfg.coupling_us : 'unavailable'} µS per recipient;
+  E→C E is topographic, E→C I remains pooled. C background stays at
+  {cfg ? cfg.background_hz : 'unavailable'} Hz/channel. A shared constant
+  {cfg ? cfg.cue_hz : 'unavailable'} Hz/channel spike-input cue targets A E before
+  {cfg ? cfg.switch_ms : 'unavailable'} ms and B E afterward, without resetting state.
+  (A) E population spike rates smoothed with
+  {cfg ? cfg.rate_smoothing_ms : 'unavailable'} ms SD. (B) Unwrapped sender-minus-C
+  phase from E-rate peaks; grey bands mark the predeclared
+  {cfg ? cfg.windows_ms[0].join('–') : 'unavailable'} and
+  {cfg ? cfg.windows_ms[1].join('–') : 'unavailable'} ms measurement windows. Phase
+  origins are not reset at the switch. (C) Native incoming conductances averaged
+  over C E recipients: both excitation traces share one peak normalization;
+  inhibition uses its own peak. Heights do not imply equal absolute conductance.
+  Amber shading marks inhibition in the bottom quarter of its observed range
+  after 500 ms, a conductance proxy rather than measured response gain.
+  (D, E) Measured A/B/C mean E-cell firing rates versus position in the two analysis
+  windows, using identical axes. These are raw per-cell rates, without spatial
+  smoothing or Gaussian fitting. Flat-topped profiles reflect nonlinear neuronal
+  responses to Gaussian input. Dotted lines mark stimulus centres. C contrast is
+  the difference of mean rates in regions within
+  {cfg ? cfg.spatial.roi_half_width : 'unavailable'} of the A/B centres, divided by
+  their sum. Positive values favour A's region; negative values favour B's.
+  Parameters were selected through retained exploratory tuning, not independent
+  validation. The selected cue is stronger than the earlier spatial baseline;
+  sensory fields and receiver weights are unchanged from that baseline.
+</RunFigure>
+
+{data?.mirror_control?.validated ? <p>The retained centre-swap control exactly mirrors every E-cell spike train and all three spatial output profiles, while keeping complete input trains and I-cell spikes identical. Selection follows source identity rather than a fixed side of C.</p> : <p>No centre-swap control is selected.</p>}
+
+## Discussion
+
+C expresses both source patterns, with the cued pattern stronger. The selected
+cue increases contrast largely through lower distractor-region output while the
+selected-region response remains near its previous level. Source rate, frequency
+and timing can all change under the cue, so the experiment demonstrates spatial
+output selection without establishing timing as its cause. The centre-swap
+control excludes a fixed spatial preference within this symmetric model but does
+not establish robustness across input seeds. Cells retain homogeneous dynamics,
+weights are structured deterministically, and synchronous spike counts produce
+stepped spatial rate profiles. There is no classifier, arbitrary-pattern test,
+rate-preserving timing intervention or claim of sustained locking beyond the
+measured windows.

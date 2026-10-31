@@ -1,0 +1,21 @@
+import RunFigure from '../../../site/src/components/RunFigure.astro';
+import ParameterTable from './ParameterTable.astro';
+
+## Network
+
+<RunFigure report="exp159" experiment="exp159" file="circuit.svg" number="A1" id="fig-network" alt="Two local E/I circuits with separate sensory inputs and one-way A E to B E/I excitation; no B to A feedback." allowUnavailable={true}>
+  Saved native twelve-pathway reference. Each circuit contains E→E, E→I, I→E and
+  I→I pathways, with private input to E. A E projects to B E and B I; B→A pathways
+  are absent. The same authored connectivity is retained in the zero-coupling
+  control. The mean-field reduction uses four population rates and twelve
+  conductance filters; neuronal counts define incoming weight sums. Each E/I pair
+  occupies one circuit column; private inputs are placed outside the pair.
+  Excitation uses arrowheads and inhibition uses red bars. Dashed arrows identify
+  A→B projections; local paths are solid. Routed self-loops show
+  E→E and I→I recurrence. Weight labels place target first and source second;
+  X denotes private sensory input. Layout changes do not add feedback pathways.
+</RunFigure>
+
+## Parameters
+
+<ParameterTable />

@@ -42,3 +42,20 @@ during mean-field reduction. Parameter tuning is qualitative and uses one seed.
 Compute has no scientific input runs. Analysis and presentation consume only
 explicitly identified runs from this experiment. Stages execute independently;
 completed historical evidence retains its original immutable provenance.
+
+## Figure 3 only: instantaneous susceptibility over time
+
+1. `uv run python experiments/exp153/analyse.py --susceptibility-only --source COMPUTE_ID`
+   reads the selected condition's saved native trajectory and evaluates the analytic
+   derivative of receiver B E's noisy-LIF transfer function at its effective current.
+   The native model is reconstructed from pinned configuration and validated against
+   the saved model before evaluating its derivative. No integration is performed.
+2. `uv run python experiments/exp153/present.py --fig3-only --source ANALYSE_ID --preserve-source PRESENT_ID`
+   writes `susceptibility.svg`, PNG and PDF as Figure 3, preserving Figures 1 and 2
+   with their original provenance. Both analyses must use the same compute source.
+
+The plot shows 1,200–1,400 ms of the selected trial. Sender A E-rate peaks are
+shifted by the saved cross-pathway delay and marked as vertical arrival lines.
+Susceptibility has units Hz/nA and describes the instantaneous target-rate slope;
+it does not measure the subsequent response including relaxation and feedback.
+The earlier probe-based Figure 3 is replaced; historical runs remain immutable.

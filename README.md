@@ -14,8 +14,9 @@ Main documentation lives in [`notes/`](notes/):
 5. [Canonical Parameters](notes/canonical-parameters.mdx): reference network and training settings for COBA and PING.
 6. [COBA and PING: Dynamics and Learning](notes/coba-ping-dynamics.mdx): model and training derivations (formerly exp113).
 7. [Mean-field E/I dynamics](notes/mean-field-model.mdx): exp117/exp148 closures, four recurrent pathways, shared input and private drive.
-8. [CTC and attention](notes/ctc-attention.mdx): communication through coherence and selective routing from two populations into a shared receiver.
+8. [CTC and attention](notes/ctc-attention/index.mdx): communication through coherence and selective routing from two populations into a shared receiver.
 9. [Research workflow](notes/workflow.mdx): repository layout and a blueprint for computational research and publishing.
+10. [Manuscript](notes/manuscript/index.mdx): synthesis of PING experiments, formerly exp110.
 
 See [Astro setup and GitHub Pages deployment](site/README.md)
 for site development and deployment. Coding agents must read

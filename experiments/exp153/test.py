@@ -601,3 +601,43 @@ def test_figure_two_preview_uses_pinned_rates_without_a_map(monkeypatch, tmp_pat
         analyse=analysed.reference,
     )
     assert sorted(verified) == ["analyse", "compute"]
+
+
+def test_susceptibility_uses_native_current_slope_and_delayed_arrivals(fixture):
+    bundle, original = fixture
+    cfg = recipe.susceptibility_configuration(original)
+    model = recipe.build_model(bundle, original, coupling_us=0.09)
+    time = np.arange(0, 1500.5, 0.5)
+    state = {name: np.zeros_like(time) for name in model.states}
+    state["PING_B_input_to_E.conductance"][:] = 0.02
+    state["PING_B_I_to_E.conductance"] = 0.01 * (1 + np.cos(2 * np.pi * time / 20))
+    state["PING_A_E.rate"] = 20 + 10 * np.cos(2 * np.pi * time / 20)
+    result = analyse.susceptibility_trace(model, time, state, cfg)
+    selected = (time >= 1200) & (time <= 1400)
+    expected = 1.3 - 15 * state["PING_B_I_to_E.conductance"][selected]
+    np.testing.assert_allclose(result["effective_current_na"], expected)
+    phi = model.functions["Phi_PING_B_E"]
+    delta = 1e-5
+    finite_difference = [
+        (phi(i + delta) - phi(i - delta)) / (2 * delta) for i in expected
+    ]
+    np.testing.assert_allclose(
+        result["susceptibility_hz_per_na"], finite_difference, rtol=1e-7
+    )
+    np.testing.assert_allclose(result["arrival_times_ms"], np.arange(1202, 1400, 20))
+    assert result["time_ms"][[0, -1]].tolist() == [1200, 1400]
+
+
+def test_susceptibility_plot_marks_absolute_arrival_times(tmp_path):
+    import matplotlib.pyplot as plt
+
+    trace = dict(
+        time_ms=np.array([1200, 1201, 1202]),
+        susceptibility_hz_per_na=np.array([10, 20, 10]),
+        arrival_times_ms=np.array([1201.5]),
+    )
+    figure = present.susceptibility_figure(trace)
+    assert figure.axes[0].get_xlim() == (1200, 1202)
+    np.testing.assert_array_equal(figure.axes[0].lines[1].get_xdata(), [1201.5, 1201.5])
+    figure.savefig(tmp_path / "susceptibility.svg")
+    plt.close(figure)

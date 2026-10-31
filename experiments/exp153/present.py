@@ -305,6 +305,102 @@ def presentation_numbers(numbers, cfg, map_source):
     return numbers, preserved
 
 
+def susceptibility_figure(trace):
+    """Local current susceptibility over time, with delayed sender arrivals."""
+    fig, axis = plt.subplots(figsize=(7.1, 3.8), layout="constrained")
+    time = trace["time_ms"]
+    susceptibility = trace["susceptibility_hz_per_na"]
+    axis.plot(
+        time,
+        susceptibility,
+        color=theme.INK_BLACK,
+        lw=1.25,
+        label="Receiver B susceptibility",
+    )
+    for index, arrival in enumerate(trace["arrival_times_ms"]):
+        axis.axvline(
+            arrival,
+            color=theme.DEEP_RED,
+            lw=1,
+            alpha=0.65,
+            label="A volley arrival (+ transmission delay)" if index == 0 else None,
+        )
+    axis.set(
+        xlim=(time[0], time[-1]),
+        ylim=(0, max(susceptibility) * 1.25),
+        xlabel="time (ms)",
+        ylabel="Instantaneous susceptibility (Hz/nA)",
+    )
+    axis.legend(
+        loc="upper left",
+        frameon=True,
+        facecolor=theme.PAPER,
+        edgecolor="none",
+        framealpha=0.95,
+        fontsize=8,
+    )
+    axis.set_title("Receiver excitability and incoming volleys")
+    return fig
+
+
+def present_susceptibility(*, source, preserve_source, run_id=None):
+    analysed = source_run(
+        REPO / ".pingstore", source, experiment=recipe.SLUG, stage="analyse"
+    )
+    cfg = analysed.record["execution"]["configuration"]
+    if "susceptibility" not in cfg:
+        raise ValueError("Figure 3 requires susceptibility analysis")
+    previous = source_run(
+        REPO / ".pingstore", preserve_source, experiment=recipe.SLUG, stage="present"
+    )
+    numbers = load_json(previous.file("numbers.json"))
+    pin = analysed.record["inputs"]["compute"]
+    if pin != previous.record["inputs"]["compute"]:
+        raise ValueError("susceptibility must use the preserved presentation's compute")
+    inputs = dict(previous=previous, susceptibility_analyse=analysed)
+    for role in ("compute", "analyse"):
+        pin = previous.record["inputs"][role]
+        inputs[role] = source_run(REPO / ".pingstore", pin["run_id"], reference=pin)
+    result = load_json(analysed.file("susceptibility-results.json"))
+    theme.apply()
+    with stage_run(
+        REPO,
+        recipe.SLUG,
+        "present",
+        inputs=inputs,
+        configuration=numbers["configuration"],
+        run_id=run_id,
+    ) as run:
+        for path in previous.presentation.iterdir():
+            if path.name.startswith(
+                ("response-gain.", "gain-results.", "susceptibility.")
+            ):
+                continue
+            shutil.copyfile(path, run.export / path.name)
+        with np.load(analysed.file("susceptibility.npz"), allow_pickle=False) as trace:
+            figure = susceptibility_figure(trace)
+        for suffix in ("png", "svg", "pdf"):
+            figure.savefig(run.export / f"susceptibility.{suffix}")
+        plt.close(figure)
+        numbers = {
+            key: value
+            for key, value in numbers.items()
+            if key not in ("response_gain", "response_gain_configuration")
+        }
+        write_json_atomic(
+            run.export / "numbers.json",
+            dict(
+                numbers,
+                susceptibility=result,
+                susceptibility_configuration=cfg,
+                preserved_figures=previous.reference,
+            ),
+        )
+        for item in inputs.values():
+            item.check_unchanged()
+    return run.run_id
+
+
 def preview_onset(source, output):
     """Render only Figure 2 from pinned analysis without changing the report runset."""
     ancestors = ancestry(REPO, source)
@@ -435,9 +531,21 @@ if __name__ == "__main__":
     parser.add_argument("--run-id")
     parser.add_argument("--map-source")
     parser.add_argument("--fig2-only", action="store_true")
+    parser.add_argument("--fig3-only", action="store_true")
+    parser.add_argument("--preserve-source")
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
-    if args.fig2_only:
+    if args.fig3_only:
+        if not args.preserve_source or args.fig2_only or args.output or args.map_source:
+            parser.error(
+                "--fig3-only requires --preserve-source; accepts --source and --run-id"
+            )
+        present_susceptibility(
+            source=args.source, preserve_source=args.preserve_source, run_id=args.run_id
+        )
+    elif args.preserve_source:
+        parser.error("--preserve-source requires --fig3-only")
+    elif args.fig2_only:
         if args.output is None or args.run_id or args.map_source:
             parser.error("--fig2-only requires --output and accepts no run/map ID")
         preview_onset(args.source, args.output)

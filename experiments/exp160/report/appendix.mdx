@@ -1,0 +1,19 @@
+import RunFigure from '../../../site/src/components/RunFigure.astro';
+import ParameterTable from './ParameterTable.astro';
+
+## Network
+
+<RunFigure report="exp160" experiment="exp160" file="circuit.svg" number="A1" id="fig-network" alt="Spiking A and B E/I circuits, separate sensory spike inputs and one-way A E to B E/I projections; B to A feedback is absent." allowUnavailable={true}>
+  Native twelve-pathway network used by both simulations. Four local recurrent
+  paths per circuit, two private sensory projections and A E→B E/I excitation.
+  E and I denote excitatory and inhibitory neurons; X denotes sensory inputs.
+  Arrowheads identify excitation and red bars inhibition. Dashed paths cross
+  circuits; loops indicate E→E and I→I recurrence. Weight labels put target first
+  and source second. The control keeps the same projections at zero cross strength.
+  Initialization weights are imported from the pinned exp159 native reference;
+  no experiment code or trajectories are imported into the spiking execution.
+</RunFigure>
+
+## Parameters
+
+<ParameterTable />

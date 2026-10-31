@@ -1,0 +1,86 @@
+---
+import Table from '../../../site/src/components/Table.astro';
+import { reportSnapshots } from '../../../site/src/lib/report-data';
+import { formatTableNumber as n } from '../../../site/src/lib/table-number';
+const evidence = await reportSnapshots('exp161', {
+  snapshots: { start: 'network-initialization/start/snapshot.json' }, allowUnavailable: true,
+});
+const cfg = evidence?.configuration;
+const snapshot = evidence?.snapshots.start;
+const net = snapshot?.network;
+const math = value => ({ math:value });
+const symbol = id => {
+  const pop=id.match(/^([ABC])_([EI])$/);
+  if(pop) return `${pop[2]}_${pop[1]}`;
+  if(/^[XU]_[ABC]$/.test(id)) return id;
+  throw new Error('Unknown saved population or input: '+id);
+};
+const sources=net ? [
+  ...net.populations.map(p=>({id:p.id,size:p.size,description:'conductance-LIF reference neurons'})),
+  ...net.inputs.map(p=>({id:p.id,size:p.shape.at(-1),description:'stationary spike-input channels'})),
+] : [];
+const targets=net ? sources.filter(p=>net.populations.some(q=>q.id===p.id)) : [];
+const shared=(label,value)=>[label,value,value];
+const groups=cfg && net ? [
+  {label:'Simulation',rows:[
+    shared({markdown:'Integrator / timestep, $dt$'},`${cfg.solver.method}; adaptive, dt inapplicable`),
+    shared('Maximum integration step / observation interval',`${n(cfg.solver.max_step)} / ${n(cfg.dt_ms)} ms`),
+    shared('Duration',`${n(cfg.duration_ms)} ms`),
+    shared('Cue-switch time',`${n(cfg.switch_ms)} ms; continuous state`),
+    shared('Native initialization seed',String(cfg.seed)),
+  ]},
+  {label:'Populations',rows:sources.map(p=>shared(math(symbol(p.id)),`${n(p.size)} ${p.description}`))},
+  {label:'Neuron dynamics',rows:[
+    shared('Rate relaxation, E / I',`${n(cfg.closure.tau_rate_ms)} / ${n(cfg.closure.tau_rate_ms)} ms`),
+    shared('Reference membrane time constant, E / I',net.populations.filter(p=>['A_E','A_I'].includes(p.id)).map(p=>n(p.neuron.tau_mem.value)).join(' / ')+' ms'),
+    shared('Reference refractory period, E / I',net.populations.filter(p=>['A_E','A_I'].includes(p.id)).map(p=>n(p.neuron.refractory.value)).join(' / ')+' ms'),
+  ]},
+  {label:'Input and manipulation',rows:[
+    shared('Sensory input, A / B',`${n(cfg.input_rates_hz.X_A)} / ${n(cfg.input_rates_hz.X_B)} Hz/channel`),
+    shared('Background input, C',`${n(cfg.input_rates_hz.X_C)} Hz/channel`),
+    shared('Cue source rate, A / B',`${n(cfg.input_rates_hz.U_A)} / ${n(cfg.input_rates_hz.U_B)} Hz/channel`),
+    ['Cue delivery target',math('E_A'),math('E_B')],
+    shared('Each sender→C pathway incoming weight',`${n(cfg.coupling_us)} µS`),
+    shared('Cross-pathway decay / delay',`${n(cfg.network.cross.tau_ms)} / ${n(cfg.network.cross.delay_ms)} ms`),
+    shared('A–B connections / C feedback','Absent / Absent'),
+  ]},
+  {label:'Measurement',rows:[
+    ['Phase measurement window',...cfg.windows_ms.map(w=>w.map(n).join('–')+' ms')],
+    shared('Low-inhibition fraction of observed range',`${n(100*cfg.low_inhibition_fraction)}%`),
+  ]},
+] : [{label:'Evidence',rows:[['Saved parameters','Unavailable','Unavailable']]}];
+const endpoint=value=>value.split('.')[0];
+const matrices=cfg && snapshot ? ['before','after'].map(epoch=>sources.map(source=>[
+  math(symbol(source.id)),...targets.map(target=>{
+    const paths=net.projections.filter(p=>endpoint(p.source)===source.id && endpoint(p.target)===target.id);
+    if(!paths.length) return 'Absent';
+    if(paths.length!==1) throw new Error('Ambiguous connectivity cell');
+    const projection=paths[0];
+    const parameter=net.parameters.find(p=>p.id===projection.parameters[0]);
+    if(!parameter || parameter.unit!=='uS' || parameter.initializer.kind!=='constant' || parameter.initialization_scaling!=='direct') throw new Error('Expected a native direct constant conductance initializer');
+    const gain=projection.modulation?.[epoch] ?? 1;
+    const scale=snapshot.execution.inference_overrides?.projection_scales?.[projection.id] ?? 1;
+    return `${n(100)}%; ${n(1000*parameter.initializer.value*gain*scale)} nS`;
+  })
+])) : [];
+---
+<Table headers={['Parameter','Cue A epoch','Cue B epoch']} groups={groups} number="A1" id="parameters" label="Recorded prototype settings and native reference">
+  E / I denotes excitatory / inhibitory; X_A and X_B are sensory inputs, X_C is
+  receiver background, and U_A/U_B are the separately routed cue inputs. All
+  circuits share E/I dynamics; each population reduces to one rate. Source rates
+  are constant: only cue-delivery gains change. Input seeds are inapplicable to
+  stationary mean-field drives. The native seed is an exact identifier; matrices
+  are deterministic. Numeric quantities use two significant figures.
+</Table>
+{matrices.map((rows,index)=><Table headers={['Source ↓ / target →',...targets.map(p=>math(symbol(p.id)))]}
+  rows={rows} rowHeaders number={index===0?'A2':'A3'} label={index===0?'Connectivity with cue A':'Connectivity with cue B'}>
+  Each cell gives eligible-pair density and nominal weight per connection, including
+  the selected cue-delivery gain. A zero gain retains its projection and density;
+  Absent means no projection exists. Self-connections are excluded on the diagonal.
+  Constant weights implement symmetric mean incoming sums, not the heterogeneous
+  matrices of the imported reference. Sensory gain is already included in native
+  initializers and is not applied again. Local decay: E→E {n(cfg.network.local.E_to_E.tau_ms)} ms,
+  E→I {n(cfg.network.local.E_to_I.tau_ms)} ms, I→E {n(cfg.network.local.I_to_E.tau_ms)} ms,
+  I→I {n(cfg.network.local.I_to_I.tau_ms)} ms; local delay {n(cfg.network.dt_ms)} ms.
+  Sensory and cue decay {n(cfg.network.sensory.tau_ms)} ms; delay {n(cfg.network.sensory.delay_ms)} ms.
+</Table>)}

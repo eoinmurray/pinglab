@@ -9,6 +9,7 @@ const snapshotPath = data?.configuration.network
   ? 'network-initialization/start/snapshot.json'
   : 'source-snapshot/start/snapshot.json';
 const evidence = data ? await reportSnapshots('exp153', {
+  analysisInput: 'analyse',
   snapshots: { source: snapshotPath },
   allowUnavailable: true,
 }) : undefined;

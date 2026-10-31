@@ -1,0 +1,65 @@
+---
+id: exp159
+title: "Mean-field Entrainment"
+author: "Eoin Murray"
+created_at: "2026-10-30T12:33:55Z"
+updated_at: "2026-10-30T12:49:00Z"
+description: "A matched mean-field pair demonstrating finite-time one-way entrainment and excitation–inhibition timing."
+collection: ["experiments", "ctc-attention"]
+tags: ["data", "v0.31.0"]
+inputs: ["exp159"]
+thumbnail: entrainment.png
+---
+
+import RunFigure from '../../../site/src/components/RunFigure.astro';
+import { reportData, round } from '../../../site/src/lib/report-data';
+export const data = await reportData('exp159', { allowUnavailable: true });
+export const cfg = data?.configuration;
+export const control = data?.metrics.control;
+export const coupled = data?.metrics.coupled;
+
+## Abstract
+
+{data ? <p>We compared one matched uncoupled and one unidirectionally coupled mean-field trajectory. A→B excitation was enabled at {cfg.network.onset_ms} ms; feedback was absent. Over 800–1,500 ms, coupled PLV was {round(coupled.plv, 4)} and phase drift was {round(coupled.drift_hz, 4)} cycles/s, compared with {round(control.drift_hz, 4)} cycles/s in the control. This is one initialization at settings selected during exploratory iteration. It illustrates finite-time entrainment and excitation–inhibition timing without establishing selective attention or seed robustness.</p> : <p>No completed evidence is selected.</p>}
+
+## Introduction
+
+Communication through coherence proposes that rhythmic timing regulates the
+influence of one population on another ([Fries, 2015](https://doi.org/10.1016/j.neuron.2015.09.034)).
+This mean-field example isolates A→B excitation and compares its timing with a
+matched uncoupled control. Local E/I circuits generate gamma; there is no shared
+oscillatory drive, feedback, competing sender or attention cue.
+
+## Results
+
+<RunFigure report="exp159" experiment="exp159" file="entrainment.svg" number={1} id="fig-entrainment" alt="Two-column comparison of uncoupled and coupled population activity, relative phase, and the timing of incoming excitation, receiver inhibition and output." allowUnavailable={true}>
+  Left: uncoupled control. Right: A→B coupling, enabled at 500 ms without resetting
+  state. The two trajectories share initialized weights, stationary input drives
+  and constant initial history. (A, B) A E, B E and B I rates; the dotted line marks
+  the manipulation time, including its reference position in the control.
+  (C, D) Unwrapped A-minus-B phase from E-rate peaks; phase zero is assigned at
+  each circuit's first observed peak and never reset at coupling onset. PLV and
+  drift use common phase-valid samples over 800–1,500 ms. (E, F) The same absolute
+  time interval spanning the final four coupled receiver cycles. Green: incoming
+  A excitation onto B E; red: B inhibitory conductance onto E; black: B E output.
+  Each conductance is divided by its respective coupled peak, using the same scale
+  in both columns; their plotted heights do not imply equal conductance. Output
+  uses the right-hand axis in Hz. Pale green lines in F mark A E-rate peaks plus
+  transmission delay; no A excitation is delivered in E. All axes match across
+  columns. Amber shading in F marks inhibition in the bottom
+  {cfg ? 100 * cfg.timing.low_inhibition_fraction : 'unavailable'}% of its observed
+  min–max range over {cfg ? cfg.timing.window_ms.join('–') : 'unavailable'} ms.
+  These low-inhibition windows are an excitability proxy, not a direct response-gain
+  measurement. This is one deterministic pair; weights and timing were selected
+  exploratorily, rather than evaluated as an independent validation set.
+</RunFigure>
+
+## Discussion
+
+The control distinguishes coupling-induced phase capture from the pre-existing
+frequency difference. The timing close-up shows how incoming excitation relates
+to receiver inhibition and output. These observations support a CTC-like example
+within this model; they do not establish preferential information transmission,
+selective attention, lasting locking or repeatability across seeds. The closure
+uses a stationary noisy-LIF transfer function, fixed driving forces and population
+rates; it omits voltage-dependent shunting and finite-population fluctuations.

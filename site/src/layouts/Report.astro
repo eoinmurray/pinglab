@@ -7,8 +7,8 @@ import ArticleDate from '../components/ArticleDate.astro';
 import { collectionUrl, collectionLabel, collectionMemberships } from '../lib/collections';
 
 const parameterTables = import.meta.glob('../../../experiments/exp*/report/parameters.mdx', { import: 'default' });
-const appendices = import.meta.glob<import('astro').MDXInstance<Record<string, unknown>>>('../../../experiments/exp*/report/appendix.mdx');
-const referenceLists = import.meta.glob('../../../experiments/exp*/report/references.mdx', { import: 'default' });
+const appendices = import.meta.glob<import('astro').MDXInstance<Record<string, unknown>>>(['../../../experiments/exp*/report/appendix.mdx', '../../../notes/**/appendix.mdx']);
+const referenceLists = import.meta.glob(['../../../experiments/exp*/report/references.mdx', '../../../notes/**/references.mdx'], { import: 'default' });
 const networkDiagrams = import.meta.glob('../../../experiments/exp*/report/network.mdx', { import: 'default' });
 
 interface Props {
@@ -21,7 +21,12 @@ const unavailable = evidenceUnavailable.length > 0;
 const data = unavailable ? { ...report.data, abstract: undefined } : report.data;
 const collections = collectionMemberships(data.collection);
 const experiment = report.collection === 'reports' ? report : undefined;
-const articleDirectory = experiment ? `../../../experiments/${experiment.data.id}/report` : undefined;
+const presentation = report.collection === 'notes' ? report.data.presentation : experiment?.data.id;
+const articleDirectory = experiment
+  ? `../../../experiments/${experiment.data.id}/report`
+  : report.filePath?.replace(/\\/g, '/').endsWith('/index.mdx')
+    ? `../../../notes/${report.id}`
+    : undefined;
 const Parameters = unavailable ? undefined : await parameterTables[`${articleDirectory}/parameters.mdx`]?.() as import('astro').MarkdownInstance<Record<string, unknown>>['Content'] | undefined;
 const References = unavailable ? undefined : await referenceLists[`${articleDirectory}/references.mdx`]?.() as import('astro').MarkdownInstance<Record<string, unknown>>['Content'] | undefined;
 const appendix = unavailable ? undefined : await appendices[`${articleDirectory}/appendix.mdx`]?.();
@@ -29,7 +34,7 @@ const Appendix = appendix?.default;
 const appendixHeadings = (await appendix?.getHeadings() ?? []).filter(heading => heading.depth === 2 || heading.depth === 3);
 const appendixDepth = Math.min(3, ...appendixHeadings.map(heading => heading.depth));
 const Network = unavailable ? undefined : await networkDiagrams[`${articleDirectory}/network.mdx`]?.() as import('astro').MarkdownInstance<Record<string, unknown>>['Content'] | undefined;
-const hasDataset = experiment && (unavailable || experiment.data.tags.includes('data') || (dependencies[experiment.data.id]?.length ?? 0) > 0 || downstream(experiment.data.id).length > 0);
+const hasDataset = presentation && (report.collection === 'notes' || unavailable || experiment?.data.tags.includes('data') || (dependencies[presentation]?.length ?? 0) > 0 || downstream(presentation).length > 0);
 const contents = [
   ...(data.abstract ? [{ slug: 'abstract', text: 'Abstract' }] : []),
   ...headings.filter(heading => heading.depth === 2 || heading.depth === 3),
@@ -92,7 +97,7 @@ const frontMatter = {
       <h3 id="network">Network</h3>
       <section class="network" aria-labelledby="network"><Network /></section>
     </>}
-    {hasDataset && experiment && <Dataset experiment={experiment.data.id} includeEvidence={experiment.data.tags.includes('data')} />}
+    {hasDataset && presentation && <Dataset experiment={presentation} inputs={report.data.inputs} includeEvidence={report.collection === 'notes' || experiment?.data.tags.includes('data')} />}
     {References && <>
       <h3 id="references">References</h3>
       <section class="references" aria-labelledby="references"><References /></section>

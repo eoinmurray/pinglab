@@ -1,14 +1,16 @@
 ---
 import { getReports } from '../lib/reports';
+import { getCollection } from 'astro:content';
 import { dependencies, downstream } from '../lib/dependencies';
 import { dataset } from '../lib/pingstore';
 import { evidenceForExperiment } from '../lib/run-index';
 import DatasetRuns from './DatasetRuns.astro';
 
-interface Props { experiment: string; includeEvidence?: boolean; headingId?: string; datasets?: Awaited<ReturnType<typeof dataset>>[]; }
+interface Props { experiment: string; inputs?: string[]; includeEvidence?: boolean; headingId?: string; datasets?: Awaited<ReturnType<typeof dataset>>[]; }
 const { experiment, includeEvidence = true, headingId = 'dataset' } = Astro.props;
 const entries = await getReports();
-const sourceExperiments = [...new Set([experiment, ...(entries.find(entry => entry.id === experiment)?.data.inputs ?? [])])];
+const notes = (await getCollection('notes')).filter(note => note.data.inputs.length > 0);
+const sourceExperiments = [...new Set([experiment, ...(Astro.props.inputs ?? entries.find(entry => entry.id === experiment)?.data.inputs ?? [])])];
 const datasets = Astro.props.datasets ?? (includeEvidence ? await Promise.all(sourceExperiments.map(id => dataset(id))) : []);
 const runMap = new Map<string, (typeof datasets)[number]['runs'][number]>();
 for (const run of datasets.flatMap(data => data.runs)) {
@@ -21,10 +23,15 @@ const upstream = [...new Set([...(dependencies[experiment] ?? []), ...datasets.f
 const displayRuns = runs.map(run => ({ ...run, evidence: evidenceForExperiment(run.evidence, experiment) }));
 const currentRuns = displayRuns.filter(run => run.evidence.current.includes(experiment));
 const otherRuns = displayRuns.filter(run => !run.evidence.current.includes(experiment));
-const dependents = [...new Set([...downstream(experiment), ...entries.filter(entry => entry.id !== experiment && entry.data.inputs.includes(experiment)).map(entry => entry.id)])].sort();
+const dependents = [...new Set([
+  ...downstream(experiment),
+  ...entries.filter(entry => entry.id !== experiment && entry.data.inputs.includes(experiment)).map(entry => entry.id),
+  ...notes.filter(note => note.data.presentation !== experiment && note.data.inputs.includes(experiment)).map(note => `notes/${note.id}`),
+].map(id => notes.find(note => note.data.presentation === id) ? `notes/${notes.find(note => note.data.presentation === id)!.id}` : id))].sort();
 const reports = new Set(entries.map(report => report.id));
 const titles = new Map(entries.map(report => [report.id, report.data.title]));
-const experimentUrl = (id: string) => reports.has(id) ? `/${id}` : `https://pl.eoinmurray.info/${id}/`;
+for (const note of notes) titles.set(`notes/${note.id}`, note.data.title);
+const experimentUrl = (id: string) => reports.has(id) || titles.has(id) ? `/${id}` : `https://pl.eoinmurray.info/${id}/`;
 ---
 
   <h3 id={headingId}>Dataset</h3>

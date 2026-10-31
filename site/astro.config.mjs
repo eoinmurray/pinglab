@@ -17,6 +17,7 @@ export default defineConfig({
   site: 'https://pinglab.eoinmurray.info',
   trailingSlash: 'never',
   redirects: {
+    '/exp110': '/notes/manuscript',
     '/exp113': '/notes/coba-ping-dynamics',
     '/notes/pingstore-rules': '/notes/rules/pingstore',
     '/notes/writing-rules': '/notes/rules/writing',

@@ -2,6 +2,7 @@
 import { getCollection, render, type CollectionEntry } from 'astro:content';
 import Report from '../../layouts/Report.astro';
 import SlideDeck from '../../layouts/SlideDeck.astro';
+import { unavailableReportInputs } from '../../lib/report-data';
 
 export async function getStaticPaths() {
   return (await getCollection('notes')).map(note => ({
@@ -12,13 +13,21 @@ export async function getStaticPaths() {
 
 interface Props { note: CollectionEntry<'notes'>; }
 const { note } = Astro.props;
-const { Content, headings } = await render(note);
+const missing = await unavailableReportInputs(note.data.inputs, note.data.inputs.length > 0);
+const rendered = missing.length ? undefined : await render(note);
+const Content = rendered?.Content;
+const headings = rendered?.headings ?? [];
 ---
 
 {note.data.format === 'slides' ? (
   <SlideDeck title={note.data.title} author={note.data.author} description={note.data.description}>
-    <Content />
+    {Content && <Content />}
   </SlideDeck>
 ) : (
-  <Report report={note} headings={headings}><Content /></Report>
+  <Report report={note} headings={headings} evidenceUnavailable={missing}>
+    {Content ? <Content /> : <section role="status" aria-labelledby="evidence-unavailable">
+      <h2 id="evidence-unavailable">Evidence unavailable</h2>
+      <p>No completed runset is available for {missing.join(', ')} in this view. Results and model parameters will appear when validated evidence is available.</p>
+    </section>}
+  </Report>
 )}

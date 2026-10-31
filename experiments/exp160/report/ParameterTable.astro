@@ -1,0 +1,90 @@
+---
+import Table from '../../../site/src/components/Table.astro';
+import { reportSnapshots } from '../../../site/src/lib/report-data';
+import { formatTableNumber as n } from '../../../site/src/lib/table-number';
+const evidence = await Promise.all(['control','coupled'].map(name => reportSnapshots('exp160', {
+  snapshots: { start: `${name}-execution/start/snapshot.json` }, allowUnavailable: true,
+})));
+const cfg = evidence[0]?.configuration;
+const snapshot = evidence[0]?.snapshots.start;
+const net = snapshot?.network;
+const math = value => ({ math: value });
+const symbol = id => {
+  const pop = id.match(/^PING_([AB])_([EI])$/);
+  if (pop) return `${pop[2]}_${pop[1]}`;
+  if (/^drive_[AB]$/.test(id)) return `X_${id.at(-1)}`;
+  throw new Error('Unknown saved population or input: ' + id);
+};
+const sources = net ? [
+  ...net.populations.map(p => ({id:p.id,size:p.size,description:'conductance-LIF neurons'})),
+  ...net.inputs.map(p => ({id:p.id,size:p.shape.at(-1),description:'private spike-input channels'})),
+] : [];
+const targets = sources.filter(p => net.populations.some(q => q.id === p.id));
+const shared = (label, value) => [label,value,value];
+const groups = cfg && net ? [
+  { label: 'Simulation', rows: [
+    shared({markdown:'Integrator / timestep, $dt$'}, `${n(cfg.network.dt_ms)} ms`),
+    shared('Rate smoothing',`${n(cfg.rate_smoothing_ms)} ms Gaussian SD`),
+    shared('Duration',`${n(cfg.duration_ms)} ms`),
+    ['Coupling onset', 'Disabled throughout', `${n(cfg.network.onset_ms)} ms; continuous state`],
+    shared('Network seed / A input seed / B input seed',`${cfg.network.network_seed} / ${cfg.input_seeds.drive_A} / ${cfg.input_seeds.drive_B}`),
+  ]},
+  { label:'Populations',rows:sources.map(p => shared(math(symbol(p.id)),`${n(p.size)} ${p.description}`))},
+  { label:'Neuron dynamics',rows:[
+    shared('Membrane time constant, E / I',net.populations.filter(p => ['PING_A_E','PING_A_I'].includes(p.id)).map(p => n(p.neuron.tau_mem.value)).join(' / ')+' ms'),
+    shared('Refractory period, E / I',net.populations.filter(p => ['PING_A_E','PING_A_I'].includes(p.id)).map(p => n(p.neuron.refractory.value)).join(' / ')+' ms'),
+  ]},
+  { label:'Input and manipulation',rows:[
+    shared('Private input rate, A / B',`${n(cfg.network.input_rates_hz.drive_A)} / ${n(cfg.network.input_rates_hz.drive_B)} Hz/channel`),
+    ['A→B coupling per pathway',`${n(0)} µS`,`${n(cfg.coupling_us)} µS`],
+    shared('Cross-pathway decay / delay',`${n(cfg.network.cross.tau_ms)} / ${n(cfg.network.cross.delay_ms)} ms`),
+    shared('Feedback B→A','Absent'),
+  ]},
+  { label:'Measurement',rows:[
+    shared('Phase measurement window',`${cfg.phase.window_ms.map(n).join('–')} ms`),
+    shared('Timing measurement window',`${cfg.timing.window_ms.map(n).join('–')} ms`),
+  ]},
+] : [{label:'Evidence',rows:[['Saved parameters','Unavailable','Unavailable']]}];
+const endpoint = value => value.split('.')[0];
+const matrices = cfg && snapshot ? [0,cfg.coupling_us].map((coupling,index) => sources.map(source => [math(symbol(source.id)),...targets.map(target => {
+  const paths = net.projections.filter(p => endpoint(p.source) === source.id && endpoint(p.target) === target.id);
+  if (!paths.length) return 'Absent';
+  if (paths.length !== 1) throw new Error('Ambiguous connectivity cell');
+  const projection = paths[0];
+  const parameter = net.parameters.find(p => p.id === projection.parameters[0]);
+  if (!parameter || parameter.unit !== 'uS') throw new Error('Missing native conductance parameter');
+  const init = parameter.initializer;
+  const constant = init.kind === 'constant';
+  if (!constant && init.kind !== 'lower_clamped_normal') throw new Error('Unsupported initializer');
+  const eligible = snapshot.execution.initialization?.[parameter.id]?.autapses?.[projection.id]?.eligible_fan_in
+    ?? source.size - (source.id === target.id && projection.allow_autapses === false ? 1 : 0);
+  const density = constant ? 1 : 1-init.initial_zero_fraction;
+  const fanIn = init.zeroing === 'exact_k' ? Math.round(eligible*density) : eligible*density;
+  const divisor = parameter.initialization_scaling === 'direct' ? 1
+    : parameter.initialization_scaling === 'fan_in_normalized' ? fanIn : undefined;
+  if (!(divisor > 0)) throw new Error('Unknown native normalization');
+  const scale = (evidence[index].snapshots.start.execution.inference_overrides?.projection_scales?.[projection.id] ?? 1)
+    * (projection.modulation?.after ?? 1);
+  const mean = (constant ? init.value : init.mean)*scale*1000/divisor;
+  const sd = constant ? 0 : init.std*scale*1000/divisor;
+  return `${n(100*fanIn/eligible)}%; ${sd ? `${n(mean)} ± ${n(sd)}` : n(mean)} nS`;
+})])) : [];
+---
+<Table headers={['Parameter','Uncoupled','Coupled']} groups={groups} number="A1" id="parameters" label="Recorded pair settings and neuronal reference">
+  Saved spiking populations and recorded simulation settings. E / I denotes
+  excitatory / inhibitory; X identifies private sensory inputs. Both circuits share E/I dynamics. The seeds identify one weight initialization
+  and one private input realization per circuit, reused across the pair. Numeric quantities use two significant figures.
+</Table>
+{matrices.map((rows,index) => <Table headers={['Source ↓ / target →',...targets.map(p => math(symbol(p.id)))]}
+  rows={rows} rowHeaders number={index === 0 ? 'A2' : 'A3'} label={index === 0 ? 'Uncoupled connectivity' : 'Coupled connectivity'}>
+  {index === 0 ? 'Uncoupled control' : 'Coupled trial after onset'}. Each cell gives
+  eligible-pair density and nominal reference weight per connection, including
+  native execution scaling. Values describe initialization distributions,
+  not measured matrix statistics or total incoming conductance. Self-connections
+  are excluded on the diagonal; cross-circuit paths use exact fan-in. Zero weights
+  retain a projection; Absent means no projection exists. Sensory gain is applied
+  once through native execution scaling. Local synaptic decay: E→E {n(cfg.network.local.E_to_E.tau_ms)} ms,
+  E→I {n(cfg.network.local.E_to_I.tau_ms)} ms, I→E {n(cfg.network.local.I_to_E.tau_ms)} ms,
+  I→I {n(cfg.network.local.I_to_I.tau_ms)} ms; their delay is {n(cfg.network.dt_ms)} ms.
+  Sensory decay is {n(cfg.network.sensory.tau_ms)} ms with no additional delay.
+</Table>)}

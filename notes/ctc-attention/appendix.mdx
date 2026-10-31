@@ -1,0 +1,33 @@
+import Table from '../../site/src/components/Table.astro';
+
+## Appendix A: Modelling choices
+
+<Table
+  headers={["Circuit choice", "Why"]}
+  groups={[
+    { label: "Keep", rows: [
+      ["Excitatory input from A/B to C", "Matches V1 inputs converging on a shared V4 receiver."],
+      ["A/B recruit C's inhibitory cells", "Implements inhibition invoked in Bosman's timing account."],
+      ["Local excitation–inhibition loops", "Our mechanism for gamma; not specified by Bosman."],
+      ["Separate sensory and cue inputs", "Provide two stimuli and a controllable attention bias."],
+      ["Background input to C", "Sets baseline excitability; independence, strength and E/I targets are modelling choices."],
+    ] },
+    { label: "Optional", rows: [
+      ["Recurrence within E and I populations", "Compatible with the paper, but not required by it."],
+      ["Excitatory feedback from C to A/B", "Bosman discusses feedback; its E/I targets remain our choice."],
+    ] },
+    { label: "Omission", rows: [
+      ["Inhibitory projections between areas", "Not required by the paper; omitted for simplicity."],
+      ["Direct A–B connections", "Keeps competition in C; does not imply V1 populations are isolated."],
+      ["Separate cortical layers", "Combines layers for simplicity, including Bosman's proposed deep-layer feedback source."],
+    ] },
+  ]}
+  id="circuit-assumptions"
+  label="Circuit choices and their justification"
+  number={1}
+>
+  Circuit choices relative to Bosman et al. \[[2](#ref-2)\]. Parameters are
+  illustrative. Background C carries no digit or cue information; keep its
+  statistics fixed across cue conditions. Disable optional feedback for the
+  A→C baseline tasks.
+</Table>

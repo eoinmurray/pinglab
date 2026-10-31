@@ -35,10 +35,13 @@ const reports = defineCollection({
 const notes = defineCollection({
   loader: glob({
     base: '../notes',
-    pattern: ['**/*.{md,mdx}', '!**/README.md', '!**/AGENTS.md', '!figures/**'],
+    pattern: ['**/*.{md,mdx}', '!**/README.md', '!**/AGENTS.md', '!**/figures/**', '!**/appendix.mdx', '!**/references.mdx'],
+    generateId: ({ entry }) => entry.replace(/\.(md|mdx)$/, '').replace(/\/index$/, ''),
   }),
   schema: articleSchema.extend({
     format: z.enum(['article', 'slides']).default('article'),
+    inputs: z.array(z.string().regex(/^exp\d{3}$/)).default([]),
+    presentation: z.string().regex(/^exp\d{3}$/).optional(),
     collection: collectionSchema.refine(value => typeof value === 'string' ? value === 'notes' : value.includes('notes'), 'Notes must include the notes collection'),
   }),
 });

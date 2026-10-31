@@ -658,17 +658,33 @@ class _ReportLoader(yaml.SafeLoader):
 
 def articles(repo: Path) -> dict[str, dict[str, Any]]:
     result = {}
-    for path in sorted(
+    reports = sorted(
         (repo / "experiments").glob("exp[0-9][0-9][0-9]/report/report.mdx")
-    ):
+    )
+    notes = sorted(
+        path
+        for path in (repo / "notes").rglob("*")
+        if path.suffix in {".md", ".mdx"}
+        and path.name
+        not in {"README.md", "AGENTS.md", "appendix.mdx", "references.mdx"}
+        and "figures" not in path.relative_to(repo / "notes").parts
+    )
+    for path in [*reports, *notes]:
+        is_note = path in notes
         match = re.match(r"\A---\r?\n(.*?)\r?\n---(?:\r?\n|\Z)", path.read_text(), re.S)
         if match is None:
+            if is_note:
+                continue
             raise PingstoreError(f"report requires YAML frontmatter: {path}")
         try:
             value = yaml.load(match[1], Loader=_ReportLoader)
         except yaml.YAMLError as exc:
             raise PingstoreError(f"invalid report frontmatter: {path}") from exc
-        if not isinstance(value, dict) or value.get("id") != path.parent.parent.name:
+        if not isinstance(value, dict):
+            raise PingstoreError(f"invalid article frontmatter: {path}")
+        if is_note and "inputs" not in value and "presentation" not in value:
+            continue
+        if not is_note and value.get("id") != path.parent.parent.name:
             raise PingstoreError(f"report ID must match its experiment: {path}")
         inputs = value.get("inputs", [])
         if (
@@ -692,7 +708,25 @@ def articles(repo: Path) -> dict[str, dict[str, Any]]:
             raise PingstoreError(f"invalid report presentation pins: {path}")
         value["inputs"] = inputs
         value["runs"] = pins
-        result[path.parent.parent.name] = value
+        if is_note:
+            presentation = value.get("presentation")
+            if presentation is not None and (
+                not isinstance(presentation, str)
+                or not EXPERIMENT_RE.fullmatch(presentation)
+                or presentation not in inputs
+            ):
+                raise PingstoreError(
+                    f"note presentation must name a declared input: {path}"
+                )
+            relative = path.relative_to(repo / "notes").with_suffix("")
+            if relative.name == "index":
+                relative = relative.parent
+            identity = f"notes/{relative.as_posix()}"
+        else:
+            identity = path.parent.parent.name
+        if identity in result:
+            raise PingstoreError(f"duplicate article identity: {identity}")
+        result[identity] = value
     return result
 
 
@@ -702,9 +736,13 @@ COLLECTION_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 
 
 def memberships(repo: Path) -> dict[str, str]:
-    """Return each report's primary collection for new run provenance."""
+    """Return experiment and migrated presentation owners for run provenance."""
     result: dict[str, str] = {}
     for experiment, metadata in articles(repo).items():
+        if experiment.startswith("notes/"):
+            experiment = metadata.get("presentation")
+            if experiment is None:
+                continue
         collection = metadata.get("collection")
         collections = [collection] if isinstance(collection, str) else collection
         if (
@@ -717,6 +755,8 @@ def memberships(repo: Path) -> dict[str, str]:
             or len(set(collections)) != len(collections)
         ):
             raise PingstoreError(f"invalid collection for {experiment}: {collection}")
+        if experiment in result:
+            raise PingstoreError(f"duplicate presentation owner: {experiment}")
         result[experiment] = collections[0]
     return result
 

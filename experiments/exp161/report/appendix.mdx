@@ -1,0 +1,19 @@
+import RunFigure from '../../../site/src/components/RunFigure.astro';
+import ParameterTable from './ParameterTable.astro';
+
+## Network
+
+<RunFigure report="exp161" experiment="exp161" file="circuit.svg" number="A1" id="fig-network" alt="Three E/I circuits: A and B independently project to C E/I; separate sensory, background and cue inputs; no feedback or A–B connection." allowUnavailable={true}>
+  Saved native architecture with three local E/I circuits and five input pools.
+  Each circuit contains all four local pathways. X_A/X_B deliver sensory drive
+  to A/B E; X_C delivers fixed background to C E. U_A/U_B are constant-rate cue
+  sources with complementary delivery gains. A E and B E each project to C E and
+  C I, with equal weights and delays. There is no feedback or A–B connection.
+  Constant native matrices preserve the imported B circuit's local incoming sums
+  identically in all three circuits, including exclusion of self-connections.
+  The reduction has six population rates and twenty-one conductance filters.
+</RunFigure>
+
+## Parameters
+
+<ParameterTable />

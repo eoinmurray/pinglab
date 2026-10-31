@@ -14,10 +14,125 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "libraries")]
 import numpy as np
+import sympy as sp
 from experiments.exp153 import recipe
 from experiments.exp153.compute import ancestry
-from pingstore.library import load_json, stage_run, write_json_atomic
+from pingstore.library import load_json, source_run, stage_run, write_json_atomic
 from scipy.signal import find_peaks
+from snnlab import lang
+
+
+def susceptibility_trace(model, time, state, cfg):
+    """Evaluate the native analytic transfer-function slope; no integrations."""
+    settings = cfg["susceptibility"]
+    target = f"PING_{settings['receiver']}_E"
+    expression = next(
+        value
+        for symbol, value in model.definitions.items()
+        if str(symbol) == target + ".effective_current"
+    )
+    expression = expression.xreplace(dict(model.definitions)).subs(
+        {symbol: model.defaults[name] for name, symbol in model.parameters.items()}
+    )
+    current = np.asarray(
+        sp.lambdify(tuple(model.states.values()), expression, "numpy")(
+            *(state[name] for name in model.states)
+        ),
+        dtype=float,
+    )
+    current = np.broadcast_to(current, time.shape)
+    slope = model.functions[f"Phi_{target}_slope"]
+    low, high = settings["window_ms"]
+    visible = (time >= low) & (time <= high)
+    if visible.sum() < 3:
+        raise ValueError("susceptibility window outside trajectory")
+    susceptibility = np.asarray([slope(value) for value in current[visible]])
+    if not np.isfinite(susceptibility).all() or np.any(susceptibility < 0):
+        raise ValueError("nonfinite or negative native susceptibility")
+    sender = settings["sender"]
+    rate = state[f"PING_{sender}_E.rate"]
+    selected_rate = rate[visible]
+    peaks, _ = find_peaks(
+        rate,
+        distance=round(cfg["phase"]["min_peak_distance_ms"] / (time[1] - time[0])),
+        prominence=cfg["phase"]["prominence_fraction"] * np.ptp(selected_rate),
+    )
+    if np.ptp(selected_rate) < cfg["phase"]["min_amplitude_hz"]:
+        raise ValueError("sender has no resolved volleys")
+    path = f"PING_{sender}_E_to_{target}_K_EE"
+    arrivals = time[peaks] + model.projection_delays[path]
+    arrivals = arrivals[(arrivals >= low) & (arrivals <= high)]
+    if not len(arrivals):
+        raise ValueError("no sender arrivals within display window")
+    return dict(
+        time_ms=time[visible],
+        effective_current_na=current[visible],
+        susceptibility_hz_per_na=susceptibility,
+        arrival_times_ms=arrivals,
+    )
+
+
+def analyse_susceptibility(*, source, run_id=None):
+    computed = source_run(
+        REPO / ".pingstore", source, experiment=recipe.SLUG, stage="compute"
+    )
+    original = computed.record["execution"]["configuration"]
+    if original["schema"] != recipe.SCHEMA or original["protocol"] not in (
+        "matched-grid",
+        "onset-only",
+    ):
+        raise ValueError("requires the standalone exp153 trajectory")
+    cfg = recipe.susceptibility_configuration(original)
+    condition = next(
+        item
+        for item in recipe.conditions(original)
+        if item["difference_hz"] == original["example"]["difference_hz"]
+        and item["coupling_us"] == original["example"]["coupling_us"]
+    )
+    time, state = read_trajectory(computed, condition, original)
+    with stage_run(
+        REPO,
+        recipe.SLUG,
+        "analyse",
+        inputs=dict(compute=computed),
+        configuration=cfg,
+        run_id=run_id,
+    ) as run:
+        bundle = lang.load_bundle(
+            computed.restore_bundle("network.bundle", run.scratch / "network.bundle")
+        )
+        model = recipe.build_model(
+            bundle,
+            original,
+            difference_hz=condition["difference_hz"],
+            coupling_us=condition["coupling_us"],
+        )
+        model.write(run.scratch / "regenerated-model.json")
+        regenerated = load_json(run.scratch / "regenerated-model.json")
+        saved = load_json(computed.file(condition["label"] + "-model.json"))
+        if (
+            regenerated["model_definition"] != saved["model_definition"]
+            or regenerated["parameters"] != saved["parameters"]
+        ):
+            raise ValueError(
+                "native model no longer matches the saved trajectory model"
+            )
+        trace = susceptibility_trace(model, time, state, cfg)
+        np.savez_compressed(run.export / "susceptibility.npz", **trace)
+        write_json_atomic(
+            run.export / "susceptibility-results.json",
+            dict(
+                schema="exp153.susceptibility/v1",
+                condition=condition,
+                window_ms=cfg["susceptibility"]["window_ms"],
+                arrival_count=len(trace["arrival_times_ms"]),
+                min_hz_per_na=float(trace["susceptibility_hz_per_na"].min()),
+                max_hz_per_na=float(trace["susceptibility_hz_per_na"].max()),
+                simulations_run=0,
+            ),
+        )
+        computed.check_unchanged()
+    return run.run_id
 
 
 def read_trajectory(computed, condition, cfg):
@@ -399,4 +514,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source", required=True)
     parser.add_argument("--run-id")
-    analyse(**vars(parser.parse_args()))
+    parser.add_argument("--susceptibility-only", action="store_true")
+    args = vars(parser.parse_args())
+    if args.pop("susceptibility_only"):
+        analyse_susceptibility(**args)
+    else:
+        analyse(**args)

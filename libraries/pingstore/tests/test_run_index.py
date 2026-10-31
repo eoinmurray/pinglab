@@ -12,6 +12,36 @@ def record(path):
     return json.loads((path / "run.json").read_text())
 
 
+def test_note_inputs_retain_selected_presentation_and_ancestry(tmp_path):
+    compute = make_run(
+        tmp_path,
+        "exp110-r001-compute",
+        stage="compute",
+        created_at="2026-01-01T00:00:00Z",
+    )
+    present = make_run(
+        tmp_path,
+        "exp110-r002-present",
+        stage="present",
+        created_at="2026-01-02T00:00:00Z",
+        inputs={"compute": reference(compute)},
+    )
+    note = tmp_path / "notes" / "manuscript" / "index.mdx"
+    note.parent.mkdir(parents=True)
+    note.write_text(
+        "---\ncollection: [demo, notes]\npresentation: exp110\ninputs: [exp110]\n---\n"
+    )
+    result = core.resolve_run_index(
+        {path.name: record(path) for path in [compute, present]},
+        {},
+        reports=core.articles(tmp_path),
+    )
+    assert result["report_inputs"] == {"notes/manuscript": ["exp110"]}
+    assert result["report_selections"] == {"notes/manuscript": {"exp110": present.name}}
+    for path in [compute, present]:
+        assert "report:notes/manuscript" in result["runs"][path.name]["reasons"]
+
+
 def test_recency_ties_local_preference_and_source_modes(tmp_path):
     paths = fixture_store(tmp_path)
     local = {

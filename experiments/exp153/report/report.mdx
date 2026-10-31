@@ -1,9 +1,9 @@
 ---
 id: exp153
-title: "Mean-field Coupling"
+title: "Mean-field Arnold Tongue"
 author: "Eoin Murray"
 created_at: "2026-10-25T15:59:00Z"
-updated_at: "2026-10-29T17:52:33Z"
+updated_at: "2026-10-30T07:29:08Z"
 description: "A matched phase-locking map and E/I coupling-onset display for delayed mean-field circuits with a self-contained neuronal reference."
 collection: ["experiments", "ctc-attention"]
 tags: ["data", "v0.31.0"]
@@ -25,6 +25,8 @@ export const network = cfg?.network ?? cfg?.imported_protocol;
 export const inputA = cfg ? network.mean_input_hz + onset.difference_hz / 2 : undefined;
 export const inputB = cfg ? network.mean_input_hz - onset.difference_hz / 2 : undefined;
 export const standalone = ['exp153.recipe/v6', 'exp153.recipe/v7'].includes(cfg?.schema);
+export const susceptibility = data?.susceptibility;
+export const susceptibilityCfg = data?.susceptibility_configuration;
 
 ## Abstract
 
@@ -61,6 +63,24 @@ export const standalone = ['exp153.recipe/v6', 'exp153.recipe/v7'].includes(cfg?
   within 800–1,500 ms; unavailable phase is labelled explicitly. Peak times use
   the 0.5 ms observation grid, which limits phase precision.
 </RunFigure>
+
+{susceptibility && <section>
+  <h3>Receiver excitability over time</h3>
+  <RunFigure report="exp153" experiment="exp153" file="susceptibility.svg" number={3} id="fig-susceptibility" alt="Receiver B instantaneous current susceptibility versus time, with incoming sender A volleys marked by red vertical lines.">
+    Black: instantaneous local susceptibility of receiver B's excitatory population,
+    evaluated as the native transfer-function derivative dΦ/dI at its saved effective
+    input current, in Hz/nA. The current includes the recorded excitatory and inhibitory
+    conductances and the closure's fixed driving forces. Red lines mark sender A E-rate
+    peaks plus the saved {susceptibilityCfg.network.cross.delay_ms} ms transmission delay;
+    these are presynaptic arrival times, rather than peaks of the filtered postsynaptic
+    conductance. The {susceptibility.window_ms.join('–')} ms excerpt uses one selected
+    saved trial, with {susceptibility.arrival_count} arrivals. No probes, branching
+    continuations or new simulations are used. Samples are spaced by
+    {susceptibilityCfg.sample_interval_ms} ms. Susceptibility measures the sensitivity
+    of the instantaneous target rate; it does not include subsequent rate relaxation,
+    recruited inhibition or feedback responses. Figures 1 and 2 retain their original evidence.
+  </RunFigure>
+</section>}
 
 ## Methods
 

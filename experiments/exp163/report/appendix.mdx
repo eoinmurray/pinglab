@@ -1,0 +1,21 @@
+import RunFigure from '../../../site/src/components/RunFigure.astro';
+import ParameterTable from './ParameterTable.astro';
+
+## Network
+
+<RunFigure report="exp163" experiment="exp163" file="circuit.svg" number="A1" id="fig-network" alt="Three E/I populations with separate sensory, background and cue inputs; two topographic excitatory sender pathways converge on C with pooled inhibition and no feedback." allowUnavailable={true}>
+  Native compiled architecture with three local E/I circuits and five input ports.
+  X_A/X_B provide constant-rate sensory spike inputs with fixed Gaussian target
+  gains across A/B E cells. X_C gives uniform background to C E. U_A/U_B share one
+  sampled cue train and have complementary delivery gains. A E and B E project
+  topographically to C E and uniformly to C I; total incoming strengths match.
+  All four local recurrent pathways remain spatially pooled. A–B connections and
+  C feedback are absent. Spatial structure lives in the executed checkpoint
+  matrices; this population diagram shows pathways, not their within-matrix layout.
+  Native start parameter arrays retain those matrices exactly. Uniform initializers
+  in the graph describe the base reference before the recorded transformations.
+</RunFigure>
+
+## Parameters
+
+<ParameterTable />

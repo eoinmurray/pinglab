@@ -186,6 +186,19 @@ def analysis_configuration(compute_configuration):
     return cfg
 
 
+def susceptibility_configuration(compute_configuration):
+    cfg = copy.deepcopy(compute_configuration)
+    cfg["susceptibility"] = dict(
+        sender="A",
+        receiver="B",
+        window_ms=[1200.0, 1400.0],
+        definition="analytic dPhi_B_E/dI evaluated at saved effective current; Hz/nA",
+        arrivals="sender E-rate peak plus saved cross-pathway transmission delay",
+        interpretation="instantaneous local susceptibility, not a finite-window response",
+    )
+    return cfg
+
+
 def conditions(cfg):
     """Stable drive-major grid order, including one zero-coupling calibration per drive."""
     if cfg["protocol"] == "onset-only":

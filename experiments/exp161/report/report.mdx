@@ -1,0 +1,68 @@
+---
+id: exp161
+title: "Competitive Entrainment"
+author: "Eoin Murray"
+created_at: "2026-10-31T09:46:22Z"
+updated_at: "2026-10-31T09:46:22Z"
+description: "A minimal mean-field A/B → C prototype with cue-controlled switching of preferred phase locking."
+collection: ["experiments", "ctc-attention"]
+tags: ["data", "v0.31.0"]
+inputs: ["exp161"]
+thumbnail: competition.png
+---
+
+import RunFigure from '../../../site/src/components/RunFigure.astro';
+import { reportData, round } from '../../../site/src/lib/report-data';
+export const data = await reportData('exp161', { allowUnavailable: true });
+export const cfg = data?.configuration;
+export const epochs = data?.metrics.epochs;
+
+## Abstract
+
+{data ? <p>We simulated one symmetric mean-field A/B → C circuit while redirecting a constant-rate cue from A to B at {cfg.switch_ms} ms. Sensory drives, C's background and both sender→C projection strengths remained fixed. Cued sender–C phase-locking values were {round(epochs[0].senders.A.plv, 3)} before the switch and {round(epochs[1].senders.B.plv, 3)} afterward; uncued values were {round(epochs[0].senders.B.plv, 3)} and {round(epochs[1].senders.A.plv, 3)}. This exploratory, deterministic prototype demonstrates finite-time switching of preferred locking, without establishing preferential information transmission or robustness across initial conditions.</p> : <p>No completed evidence is selected.</p>}
+
+## Introduction
+
+Communication through coherence proposes that rhythmic timing regulates influence
+between neuronal populations ([Fries, 2015](https://doi.org/10.1016/j.neuron.2015.09.034)).
+This minimal extension of the one-sender entrainment examples introduces two
+independent senders converging on a shared receiver. Equal sensory drives and
+symmetric projections leave the cue as the changing bias. The cue is a separate
+spike-input pool represented by its constant mean rate and synaptic filter;
+this experiment does not sample individual spikes.
+
+## Results
+
+<RunFigure report="exp161" experiment="exp161" file="competition.svg" number={1} id="fig-competition" alt="Three-panel cue-switch trajectory: sender and receiver rates, unwrapped sender–receiver phase differences, and arriving excitation against receiver inhibition." allowUnavailable={true}>
+  One {cfg ? cfg.duration_ms : 'unavailable'} ms mean-field trajectory. A/B sensory
+  inputs remain at {cfg ? cfg.sensory_hz : 'unavailable'} Hz/channel, C background
+  at {cfg ? cfg.background_hz : 'unavailable'} Hz/channel and equal sender→C coupling
+  at {cfg ? cfg.coupling_us : 'unavailable'} µS per pathway. A separate constant
+  {cfg ? cfg.cue_hz : 'unavailable'} Hz/channel cue targets A E before
+  {cfg ? cfg.switch_ms : 'unavailable'} ms and B E afterward.
+  Its delivery gain changes target without resetting the circuit state; total cue
+  conductance is conserved after settling. (A) A, B and C excitatory population
+  rates. (B) Unwrapped sender-minus-C phase, interpolated between E-rate peaks;
+  near-flat traces indicate bounded relative phase and drifting traces indicate
+  phase slips. Phase origins are assigned at first peaks and are not reset at the
+  cue switch. Grey bands mark the predeclared measurement windows 650–1,100 and
+  1,850–2,300 ms. (C) A switch-centred close-up of incoming A/B conductances onto
+  C E, divided by one shared excitation peak, and C I→E conductance divided by its
+  own peak. Heights do not imply equal absolute excitation and inhibition. Amber
+  shading marks the bottom quarter of C's inhibitory conductance min–max range
+  after 500 ms: a low-inhibition proxy, not measured excitability or response gain.
+  The dashed line marks the cue switch. Parameters were selected through retained
+  exploratory iterations; this is not an independent validation trial.
+</RunFigure>
+
+## Discussion
+
+C follows the cued sender more closely in both measured epochs, while the
+uncued sender's relative phase slips. Tuning C's fixed background was decisive
+for this example. Residual phase modulation remains, and the finite observation
+windows do not establish asymptotic locking. The cue changes sender firing rate,
+frequency and oscillation amplitude together. No weak probes, rate-matched controls,
+transmission tests, cue-strength map or classifier were run. This completes a
+minimal competitive-entrainment prototype for plan 3, rather than the full plan.
+The mean-field closure omits finite-population fluctuations and voltage-dependent
+shunting.
