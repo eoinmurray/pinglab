@@ -1,0 +1,99 @@
+---
+import Table from '../../../site/src/components/Table.astro';
+import { reportData, reportSnapshots } from '../../../site/src/lib/report-data';
+import { formatTableNumber as n } from '../../../site/src/lib/table-number';
+const evidence=await reportSnapshots('exp164',{snapshots:{start:'execution/start/snapshot.json'},allowUnavailable:true});
+const data=await reportData('exp164',{allowUnavailable:true});
+const cfg=evidence?.configuration;
+const snapshot=evidence?.snapshots.start;
+const net=snapshot?.network;
+const settings=data?.configuration;
+const math=value=>({math:value});
+const symbol=id=>{
+  const match=id.match(/^([ABC])_([EI])$/);
+  if(match)return `${match[2]}_${match[1]}`;
+  if(/^[XU]_[ABC]$/.test(id))return id;
+  throw new Error('Unknown native population or input '+id);
+};
+const shared=(name,value)=>[name,value,value];
+const sources=net?[
+  ...net.populations.map(p=>({id:p.id,size:p.size,description:'conductance-LIF neurons'})),
+  ...net.inputs.map(p=>({id:p.id,size:p.shape.at(-1),description:'spike-input channels'})),
+]:[];
+const targets=net?sources.filter(s=>net.populations.some(p=>p.id===s.id)):[];
+const groups=cfg&&net&&settings?[
+  {label:'Simulation',rows:[
+    shared({markdown:'Native integration timestep, $dt$'},`${n(snapshot.execution.timestep_ms)} ms`),
+    shared('Original simulated duration',`${n(cfg.duration_ms)} ms`),
+    shared('Displayed excerpt',`0–${n(settings.display_end_ms)} ms`),
+    shared('Original cue switch, outside excerpt',`${n(cfg.switch_ms)} ms`),
+    shared('Native execution seed',String(snapshot.execution.seed)),
+    shared('Sensory/cue generator seed',String(cfg.seed)),
+  ]},
+  {label:'Populations',rows:sources.map(p=>shared(math(symbol(p.id)),`${n(p.size)} ${p.description}`))},
+  {label:'Neuron dynamics',rows:[
+    shared('Membrane time constant, E / I',net.populations.filter(p=>['A_E','A_I'].includes(p.id)).map(p=>n(p.neuron.tau_mem.value)).join(' / ')+' ms'),
+    shared('Refractory period, E / I',net.populations.filter(p=>['A_E','A_I'].includes(p.id)).map(p=>n(p.neuron.refractory.value)).join(' / ')+' ms'),
+  ]},
+  {label:'Input and manipulation',rows:[
+    shared('Sensory base rate',`${n(cfg.sensory_hz)} Hz/channel; pixel-dependent`),
+    shared('C background rate',`${n(cfg.background_hz)} Hz/channel`),
+    ['Active cue port',math('U_A'),math('U_B')],
+    shared('Active cue rate',`${n(cfg.cue_hz)} Hz/channel`),
+    shared('Unattended cue port rate',`${n(0)} Hz/channel`),
+    shared('Sensory contrast',n(cfg.contrast)),
+    shared('Topographic kernel SD',`${n(cfg.kernel_pixels)} pixels`),
+    shared('Sender→C incoming weight per pathway',`${n(cfg.coupling_us)} µS`),
+  ]},
+  {label:'Measurement',rows:[
+    shared('Phase and spatial-rate window',settings.window_ms.map(n).join('–')+' ms'),
+    shared('Conductance close-up',settings.closeup_ms.map(n).join('–')+' ms'),
+    shared('Temporal rate smoothing SD',`${n(settings.rate_smoothing_sd_ms)} ms`),
+    shared('Low-inhibition fraction',`${n(100*settings.low_inhibition_fraction)}%`),
+  ]},
+]:[{label:'Evidence',rows:[['Saved parameters','Unavailable','Unavailable']]}];
+const endpoint=value=>value.split('.')[0];
+const rows=cfg&&net?sources.map(source=>[
+  math(symbol(source.id)),...targets.map(target=>{
+    const paths=net.projections.filter(p=>endpoint(p.source)===source.id&&endpoint(p.target)===target.id);
+    if(!paths.length)return 'Absent';
+    if(paths.length!==1)throw new Error('Ambiguous native pathway');
+    const p=paths[0];const parameter=net.parameters.find(x=>x.id===p.parameters[0]);
+    if(parameter?.initializer.kind!=='constant'||parameter.initialization_scaling!=='direct'||parameter.unit!=='uS')throw new Error('Expected native direct constant initializer');
+    const base=1000*parameter.initializer.value;
+    if(/^sensory_[AB]$/.test(p.id)){
+      const pixels=target.size;
+      return `${n(100/pixels)}%; ${n(base*pixels)} nS`;
+    }
+    if(/^[AB]_E_to_C_E$/.test(p.id))return {math:`${n(100)}\\%;\\quad ${n(base*source.size)}K_{ji}\\,\\mathrm{nS}`};
+    return `${n(100)}%; ${n(base)} nS`;
+  })
+]):[];
+---
+<Table headers={['Parameter','Cue A excerpt','Cue B excerpt']} groups={groups} number="A1" id="parameters" label="Recorded settings and native reference">
+  E / I means excitatory / inhibitory. X_A/X_B encode the images, X_C supplies
+  background and U_A/U_B deliver the cue. Both protocols share the same anatomy
+  and corresponding native weights. All source settings come from the imported
+  compute configuration and native start snapshot; observation settings come from
+  the selected analysis. Source generator offsets are zero, one hundred and two
+  hundred for X_A/X_B/X_C, and three hundred for the shared cue draw. Seed
+  identifiers are exact; dimensional quantities use two significant figures.
+</Table>
+<Table headers={['Source ↓ / target →',...targets.map(p=>math(symbol(p.id)))]} rows={rows}
+  rowHeaders number="A2" label="Connectivity shared by both cue conditions">
+  Cells give nominal eligible-pair density and conductance per connection.
+  Self-connections are excluded on within-population diagonals. Silent cue ports
+  retain their anatomical projections. Sensory A/B weights connect each pixel's
+  channel block to its corresponding E cell; the density is the reciprocal pixel
+  count, and the native uniform base initializer is rescaled by that count to
+  preserve incoming strength. For sender→C E, K_ji is the two-dimensional Gaussian
+  of source j and target i pixel distance, normalized over j. Its nominal density
+  is full; distant tails may round to zero in float32. Other entries use the
+  native constant initializers directly. These formulas describe the recorded
+  transformations, not measured matrix statistics; imported native parameter
+  arrays are authoritative and byte-preserved. Local E→E / E→I / I→E / I→I decay
+  is {cfg ? [cfg.network.local.E_to_E.tau_ms,cfg.network.local.E_to_I.tau_ms,cfg.network.local.I_to_E.tau_ms,cfg.network.local.I_to_I.tau_ms].map(n).join(' / ') : 'unavailable'} ms.
+  Sensory/cue decay is {cfg ? n(cfg.network.sensory.tau_ms) : 'unavailable'} ms.
+  Cross decay / delay is {cfg ? [cfg.network.cross.tau_ms,cfg.network.cross.delay_ms].map(n).join(' / ') : 'unavailable'} ms;
+  other projection delays equal the native timestep.
+</Table>

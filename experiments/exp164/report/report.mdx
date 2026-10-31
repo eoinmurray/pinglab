@@ -1,0 +1,65 @@
+---
+id: exp164
+title: "Untrained Digit Routing"
+author: "Eoin Murray"
+created_at: "2026-10-31T17:15:01Z"
+updated_at: "2026-10-31T17:15:01Z"
+description: "Constant-cue views of two competing digit patterns in a fixed spiking A/B → C circuit."
+collection: ["experiments", "ctc-attention"]
+tags: ["data", "v0.31.0"]
+inputs: ["exp164"]
+thumbnail: cue-A.png
+---
+
+import RunFigure from '../../../site/src/components/RunFigure.astro';
+import { reportData, round } from '../../../site/src/lib/report-data';
+export const data = await reportData('exp164', { allowUnavailable: true });
+
+## Abstract
+
+{data ? <p>We examined whether a fixed spiking circuit could select between two simultaneous digit patterns without a trained decoder. Two saved trajectories contain identical sensory spike trains but different attention cues. We analyse their first {data.configuration.display_end_ms} ms, before either cue switches. C's spatial output resembles the cued digit, while the cued sender–C phase-locking values are {round(data.plvs.A.A, 3)} with A cued and {round(data.plvs.B.B, 3)} with B cued. This is a tuned image-pair demonstration of selective output and coupling, not a causal test of gamma timing or a classification benchmark.</p> : <p>No completed evidence is selected.</p>}
+
+## Introduction
+
+Two sensory populations, A and B, send excitatory projections to a shared
+receiver C. Each circuit has local excitatory and inhibitory populations.
+The sensory inputs encode two 8×8 scikit-learn digits through fixed pixel
+connections. A separate cue excites one sender. The receiver's image is its
+measured spatial firing-rate map, using a predefined neuron-to-pixel mapping.
+No readout is trained.
+
+## Results
+
+<RunFigure report="exp164" experiment="exp164" file="cue-A.svg" number={1} id="fig-cue-a" alt="A-cued digit competition: population rates, phase differences, reconstructed conductances and measured A/B/C spatial firing-rate maps." allowUnavailable={true}>
+  A is cued throughout the displayed 0–1,100 ms interval. Both sensory inputs
+  remain present. (a) E population rates, smoothed with a 1 ms SD Gaussian.
+  (b) Unwrapped sender-minus-C phase in cycles; phase is interpolated between
+  detected population-rate peaks. (c) A 900–1,050 ms close-up of mean incoming
+  conductances at C E, reconstructed from saved spikes and native start weights,
+  delays and decay coefficients. Excitation shares one peak normalization;
+  inhibition uses its own. Amber shading marks the bottom quarter of the observed
+  inhibition range, a proxy rather than measured gain. (d–f) Raw per-cell E rates
+  over 650–1,100 ms, arranged as 8×8 images without spatial smoothing. Grey bands
+  mark this measurement window. Source images are digits {data ? data.labels.join(' / ') : 'unavailable'}.
+</RunFigure>
+
+<RunFigure report="exp164" experiment="exp164" file="cue-B.svg" number={2} id="fig-cue-b" alt="B-cued digit competition with the same sensory spike trains and matching axes and color scales." allowUnavailable={true}>
+  B is cued throughout the displayed interval. Panels, windows, normalization and
+  corresponding population colour scales match Figure 1. Complete sensory and
+  background input trains are identical across these two trajectories; the
+  unattended cue port is silent. Both figures use pre-switch prefixes of saved
+  2,400 ms trajectories, not newly simulated indefinitely constant-cue trials.
+  Native conductance recordings were not retained: panel c is a linear-synapse
+  reconstruction using float64 population means, with possible rounding
+  differences from native float32 traces.
+</RunFigure>
+
+## Discussion
+
+The fixed topographic circuit preserves digit-like spatial patterns and changes
+which pattern dominates C when the cue changes. Parameters were selected during
+exploration; these two views use one image pair and one input realization.
+Changes in sender firing rate accompany changes in timing. The figures therefore
+support selective spatial output and cue-dependent gamma coupling without
+isolating timing as the cause. The imported source trajectories, native start
+arrays and original provenance are retained unchanged.

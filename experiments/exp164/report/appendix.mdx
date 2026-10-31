@@ -1,0 +1,23 @@
+import RunFigure from '../../../site/src/components/RunFigure.astro';
+import ParameterTable from './ParameterTable.astro';
+
+## Network
+
+<RunFigure report="exp164" experiment="exp164" file="circuit.svg" number="A1" id="fig-network" alt="Native A/B to C circuit with six E/I populations, separate sensory/background/cue inputs, topographic excitation into C E and pooled excitation into C I." allowUnavailable={true}>
+  Native compiled architecture copied from the authenticated source trajectory.
+  Each sender has 1,024 sensory channels, arranged as 16 channels for each of
+  64 image pixels. The corresponding E neuron receives that pixel's channels.
+  Pixel rates equal the sensory base rate multiplied by a uniform pedestal plus
+  mean-normalized image intensity, with the recorded contrast as the mixing
+  coefficient. A/B → C E weights follow a two-dimensional Gaussian kernel in
+  pixel coordinates, normalized over presynaptic cells for each recipient.
+  A/B → C I and local recurrence are spatially pooled. X_C is uniform background;
+  U_A/U_B are separate cue ports. There is no A–B connection, C feedback or
+  trained readout. The diagram shows population pathways; the native start arrays
+  retain the within-matrix spatial structure. Its nominal uniform graph
+  initializers precede the recorded spatial transformations.
+</RunFigure>
+
+## Parameters
+
+<ParameterTable />
