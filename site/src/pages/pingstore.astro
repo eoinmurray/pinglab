@@ -35,6 +35,7 @@ const inventories = await Promise.all(experiments.map(async experiment => {
 }));
 const completedRuns = Object.keys(index.runs);
 const currentRuns = completedRuns.filter(id => index.runs[id].status === 'Current').length;
+const inUseRuns = completedRuns.filter(id => index.runs[id].usage.local.length > 0 || index.runs[id].usage.ghpages.length > 0).length;
 const requiredRuns = completedRuns.filter(id => index.runs[id].status === 'Required').length;
 const unusedRuns = completedRuns.filter(id => index.runs[id].status === 'Unused').length;
 const unresolvedRuns = completedRuns.filter(id => index.runs[id].status === 'Unresolved').length;
@@ -50,9 +51,9 @@ uv run pingstore evict --all --confirm PLAN_HASH`;
     <h1>Pingstore</h1>
   </d-title>
   <d-article role="article" aria-label="Pingstore">
-    <p>The appendix lists the available local and R2 run inventory for each experiment, newest experiment first. “Current” marks the current presentation and its exact input ancestry. Storage is separate from the machine where a run executed. Historical holdings remain unresolved until active publication evidence has been established; unused identifies history with no retention root in the resolved context.</p>
-    <Table headers={['Total holdings', 'Current', 'Required', 'Unused', 'Unresolved']}
-      rows={[[completedRuns.length, currentRuns, requiredRuns, unusedRuns, unresolvedRuns]]} label="Run totals" />
+    <p>The appendix lists the available local and R2 run inventory for each experiment, newest experiment first. Shaded rows belong to runsets used by local reports or the recorded active GitHub Pages deployment. Each runset contains one presentation and its same-experiment analysis and compute stages; references to other runsets remain provenance. Retention is separate from report use. Storage is separate from the machine where a run executed. Historical holdings remain unresolved until active publication evidence has been established; unused identifies history with no retention root in the resolved context.</p>
+    <Table headers={['Total holdings', 'In use', 'Current', 'Required', 'Unused', 'Unresolved']}
+      rows={[[completedRuns.length, inUseRuns, currentRuns, requiredRuns, unusedRuns, unresolvedRuns]]} label="Run totals" />
     {index.operation && <p role="status">An unfinished {index.operation.kind} operation retains evidence: {index.operation.plan_hash}. Resume its original verified plan before starting another cleanup.</p>}
     {(index.publication_unavailable?.length ?? 0) > 0 && <p role="status">Availability of {index.publication_unavailable!.length} published runs is unresolved in this source context.</p>}
     <p>Counts include each holding once. Unresolved holdings are not classified as unused.

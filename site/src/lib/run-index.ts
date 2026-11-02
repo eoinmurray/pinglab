@@ -8,6 +8,7 @@ import { catalogJSON, runPattern, type Catalog } from './remote-catalog.ts';
 export interface IndexRun {
   record: any;
   current: string[];
+  usage: { local: string[]; ghpages: string[] };
   status: 'Current' | 'Required' | 'Unused' | 'Unresolved';
   storage: 'Local' | 'R2' | 'Both' | 'Unknown' | 'Unavailable';
   verification: { local: string; r2: string };
@@ -52,7 +53,8 @@ export function validateRunIndex(value: any): RunIndex {
     // Unresolved malformed holdings have no trustworthy scientific record.
     if (!mapping(row) || !['Current', 'Required', 'Unused', 'Unresolved'].includes(row.status)
         || !['Local', 'R2', 'Both', 'Unknown', 'Unavailable'].includes(row.storage) || !strings(row.reasons) || !strings(row.unresolved)
-        || !strings(row.current) || !mapping(row.verification)) throw new Error(`Invalid index row: ${id}`);
+        || !strings(row.current) || !mapping(row.verification)
+        || !mapping(row.usage) || !strings(row.usage.local) || !strings(row.usage.ghpages)) throw new Error(`Invalid index row: ${id}`);
     if (row.record && (!runPattern.test(id) || row.record.run_id !== id || row.record.schema !== 'pingstore.run/v4')) {
       throw new Error(`Invalid index identity: ${id}`);
     }
@@ -71,7 +73,9 @@ export function validateRunIndex(value: any): RunIndex {
       visiting.add(member);
       const record = value.runs[member]?.record;
       if (!record || !members.includes(member)) throw new Error(`Incomplete indexed runset: ${member}`);
-      for (const ref of Object.values(record.inputs) as any[]) {
+      if (!mapping(record.runset_inputs)) throw new Error(`Missing runset links: ${member}`);
+      for (const [role, ref] of Object.entries(record.runset_inputs) as [string, any][]) {
+        if (!runPattern.test(ref.run_id) || !/^sha256:[a-f0-9]{64}$/.test(ref.payload_digest)) throw new Error(`Invalid runset pin: ${member}`);
         if (value.runs[ref.run_id]?.record?.payload_digest !== ref.payload_digest) throw new Error(`Changed indexed pin: ${member}`);
         visit(ref.run_id);
       }

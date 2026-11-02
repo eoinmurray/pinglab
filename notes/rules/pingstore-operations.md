@@ -4,7 +4,7 @@ author: Eoin Murray
 collection: notes
 description: Status, backup, cleanup, publication retention and recovery procedures.
 created_at: "2026-10-29T17:42:34Z"
-updated_at: "2026-10-29T17:42:34Z"
+updated_at: "2026-11-02T13:42:25Z"
 ---
 
 # Pingstore operations
@@ -27,7 +27,12 @@ with stage_run(repo, "exp141", "analyse", inputs={"compute": source}) as run:
 
 ## Current reporting and status
 
-Core owns selection, runset membership and retention policy. A valid completed
+Core owns selection, runset membership and retention policy. Explicit
+`runset_inputs` define dependency links inside one experiment, advancing from
+compute through analysis to presentation. Original `inputs` preserve scientific
+source pins as provenance; they do not link corrected runsets for retention.
+Reanalysis without a direct compute pin retains its original compute pin directly.
+A valid completed
 presentation becomes current automatically, ordered by completion time and then
 run ID. Development prefers the latest local presentation, otherwise verified
 R2 evidence. Explicit local-only and remote-only modes remain available. Broken
@@ -59,7 +64,8 @@ Dataset rows separate evidence from storage:
 
 | Field | Meaning |
 | --- | --- |
-| Current | A member of the current runset in this source context. |
+| Report use | Local reports and/or the recorded active GitHub Pages deployment use this runset. Only these rows are shaded. |
+| Current | A member of a runset selected by a current local report declaration. |
 | Required by … | Retained by a report, shared input, protection, deployment or unfinished operation. |
 | Unused | No retention root requires the run in the resolved inventory; inspect a prune plan before removing it. |
 | Unresolved | Inventory, provenance, availability or retention cannot be established. It is not unused. |
@@ -80,6 +86,16 @@ Use the installed `pingstore` entry point or `python -m pingstore.cli` with the
 same arguments. `discover` preserves validated Demolab discovery output.
 The package has exactly three implementation files: core, library and CLI;
 tests live under `libraries/pingstore/tests/`. Experiments import only the library.
+
+Only with explicit authorization to edit old records, `detach-runsets` corrects
+their dependency metadata while preserving original input pins and scientific
+payloads. Inspect `uv run pingstore detach-runsets --destination
+r2:pinglab/pingstore/runs --dry-run`, then apply the same scope with
+`--confirm PLAN_HASH`. The journal preserves original metadata and resumes
+interrupted corrections; README history records each change. Local and R2
+metadata and catalog fingerprints are updated under the maintenance fence.
+Previously deployed manifests remain unchanged and retain their declared evidence
+until a verified replacement is published.
 
 ```sh
 uv run pingstore backup --dry-run

@@ -23,6 +23,17 @@ def _parser() -> argparse.ArgumentParser:
         description="Validate immutable Pingstore runs, back them up and prune unused, unprotected runs.",
     )
     commands = parser.add_subparsers(dest="command", required=True)
+    detach = commands.add_parser(
+        "detach-runsets", help="correct old metadata to retain independent runsets"
+    )
+    detach.add_argument("--root", type=Path, default=Path("."))
+    detach.add_argument(
+        "--destination", help="also correct the matching R2 metadata and catalog"
+    )
+    detach_action = detach.add_mutually_exclusive_group(required=True)
+    detach_action.add_argument("--dry-run", action="store_true")
+    detach_action.add_argument("--confirm", metavar="PLAN_HASH")
+    detach.set_defaults(handler=_detach_runsets)
     status = commands.add_parser("status", help="explain current runsets and storage")
     status.add_argument("--root", type=Path, default=Path("."))
     status.add_argument("--runs-root", type=Path)
@@ -157,6 +168,23 @@ def _discover(args) -> int:
     records = core.discover_runs(source)
     # A single JSON document, only after all candidates passed. No partial output.
     print(json.dumps(records, ensure_ascii=False))
+    return 0
+
+
+def _detach_runsets(args):
+    if args.dry_run:
+        plan = core.detach_runsets_plan(args.root, args.destination)
+        print(f"Metadata corrections: {len(plan['changes'])}")
+        for identity, change in sorted(plan["changes"].items()):
+            print(
+                f"{identity}: detach {', '.join(change['detached_roles']) or 'no historical links'}"
+            )
+        print(f"Plan: {plan['plan_hash']}")
+    else:
+        result = core.apply_detach_runsets(args.root, args.confirm, args.destination)
+        print(
+            f"Metadata correction {result['phase']}: {len(result['plan']['changes'])} runs"
+        )
     return 0
 
 

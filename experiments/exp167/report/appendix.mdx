@@ -1,0 +1,13 @@
+import RunFigure from '../../../site/src/components/RunFigure.astro';
+import ParameterTable from './ParameterTable.astro';
+import { reportData } from '../../../site/src/lib/report-data';
+export const saved = await reportData('exp167', { allowUnavailable: true });
+export const native = saved && saved.evidence.kind === 'native';
+
+## A. Network evidence
+
+{native ? <RunFigure report="exp167" experiment="exp167" file="AI--circuit.svg" number="A1" id="fig-circuit" alt="Compiled shared-input E/I circuit.">The executed AI circuit contains Input→E, Input→I and all four recurrent E/I pathways.</RunFigure> : <p>The executed native network diagram is unavailable. The original scratch script did not retain its bundle or a simulation-start snapshot. Its retained source and the source dependencies used to reconstruct the standalone recipe are archived in the imported run. Recompiling today's recipe would not recover the executed historical network.</p>}
+
+## B. Parameters
+
+<ParameterTable />

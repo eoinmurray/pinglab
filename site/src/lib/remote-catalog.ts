@@ -91,7 +91,7 @@ export function validateCatalog(value: any): Catalog {
     if (`sha256:${createHash('sha256').update(encoded).digest('hex')}` !== record.payload_digest) {
       throw new Error(`Catalog payload inventory mismatch: ${id}`);
     }
-    for (const reference of Object.values(record.inputs) as any[]) {
+    for (const reference of Object.values(record.runset_inputs ?? record.inputs) as any[]) {
       if (!value.runs[reference.run_id] || value.runs[reference.run_id].record.payload_digest !== reference.payload_digest) {
         throw new Error(`Missing or changed catalog ancestor: ${id}/${reference.run_id}`);
       }
@@ -103,7 +103,7 @@ export function validateCatalog(value: any): Catalog {
     if (visiting.has(id)) throw new Error('Catalog inputs contain a cycle');
     if (visited.has(id)) return;
     visiting.add(id);
-    for (const reference of Object.values(value.runs[id].record.inputs) as any[]) visit(reference.run_id);
+    for (const reference of Object.values(value.runs[id].record.runset_inputs ?? value.runs[id].record.inputs) as any[]) visit(reference.run_id);
     visiting.delete(id);
     visited.add(id);
   };

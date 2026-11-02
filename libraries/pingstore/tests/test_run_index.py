@@ -77,7 +77,7 @@ def test_recency_ties_local_preference_and_source_modes(tmp_path):
     )
 
 
-def test_exact_cross_experiment_graph_and_visible_reasons(tmp_path):
+def test_cross_experiment_provenance_is_not_runset_membership(tmp_path):
     parent = make_run(
         tmp_path,
         "exp141-r001-compute",
@@ -100,14 +100,14 @@ def test_exact_cross_experiment_graph_and_visible_reasons(tmp_path):
         protections={parent.name: "control"},
         unfinished={parent.name: ".pending"},
     )
-    assert result["runsets"]["exp142"] == sorted(records)
+    assert result["runsets"]["exp142"] == [present.name]
     row = result["runs"][parent.name]
-    assert row["status"] == "Current"
+    assert row["status"] == "Required"
+    assert row["usage"] == {"local": [], "ghpages": []}
     assert row["storage"] == "Local"
     assert row["reasons"] == [
-        "current:exp142",
         "protection:control",
-        "report:exp142",
+        "provenance:exp142",
         "unfinished:.pending",
         "unresolved-publication",
     ]
@@ -367,3 +367,109 @@ def test_inventory_uncertainty_and_remote_operations_never_mark_history_unused(
     )
     assert uncertain["runs"][paths["old_present"].name]["status"] == "Unresolved"
     assert len({clear["generation"], busy["generation"], uncertain["generation"]}) == 3
+
+
+def test_runset_stops_at_compute_and_previous_presentations(tmp_path):
+    def create(identity, stage, inputs=None):
+        return make_run(
+            tmp_path,
+            identity,
+            stage=stage,
+            created_at="2026-01-01T00:00:00Z",
+            inputs=inputs or {},
+        )
+
+    historical = create("exp110-r001-compute", "compute")
+    compute = create(
+        "exp110-r002-compute", "compute", {"previous_attempt": reference(historical)}
+    )
+    mirror = create("exp110-r003-compute", "compute")
+    analyse = create(
+        "exp110-r004-analyse",
+        "analyse",
+        {"compute": reference(compute), "mirror": reference(mirror)},
+    )
+    previous = create("exp110-r005-present", "present", {"analyse": reference(analyse)})
+    current = create(
+        "exp110-r006-present",
+        "present",
+        {"analyse": reference(analyse), "figure_source": reference(previous)},
+    )
+    paths = [historical, compute, mirror, analyse, previous, current]
+    records = {p.name: record(p) for p in paths}
+    before = {p.name: (p / "run.json").read_bytes() for p in paths}
+    index = core.resolve_run_index(
+        records, {}, reports={"exp110": {"inputs": ["exp110"]}}
+    )
+    assert index["runsets"]["exp110"] == sorted(
+        p.name for p in [compute, mirror, analyse, current]
+    )
+    assert index["runs"][historical.name]["usage"] == {"local": [], "ghpages": []}
+    assert index["runs"][previous.name]["usage"] == {"local": [], "ghpages": []}
+    assert index["runs"][current.name]["usage"]["local"] == ["exp110"]
+    assert before == {p.name: (p / "run.json").read_bytes() for p in paths}
+
+
+def test_only_reports_and_active_pages_count_as_in_use(tmp_path):
+    from .test_maintenance import manifest_for
+
+    old = make_run(
+        tmp_path,
+        "exp110-r001-present",
+        stage="present",
+        created_at="2026-01-01T00:00:00Z",
+    )
+    current = make_run(
+        tmp_path,
+        "exp110-r002-present",
+        stage="present",
+        created_at="2026-01-02T00:00:00Z",
+    )
+    orphan = make_run(
+        tmp_path,
+        "exp111-r001-present",
+        stage="present",
+        created_at="2026-01-01T00:00:00Z",
+    )
+    records = {p.name: record(p) for p in [old, current, orphan]}
+    active = manifest_for(records, [old.name], "active/1")
+    active["selections"] = {"exp110": old.name}
+    incoming = manifest_for(records, [orphan.name], "pending/1")
+    publications = dict(
+        core.empty_publications(),
+        known=True,
+        active=active,
+        incoming={"pending/1": incoming},
+    )
+    index = core.resolve_run_index(
+        records,
+        {},
+        reports={"notes/report": {"inputs": ["exp110"]}},
+        publications=publications,
+    )
+    assert index["runs"][current.name]["usage"] == {
+        "local": ["notes/report"],
+        "ghpages": [],
+    }
+    assert index["runs"][old.name]["usage"] == {"local": [], "ghpages": ["active/1"]}
+    assert index["runs"][orphan.name]["usage"] == {"local": [], "ghpages": []}
+    assert index["runs"][orphan.name]["status"] == "Required"
+    manifest = core.evidence_manifest(index, "next/1", "a" * 40)
+    assert manifest["selections"] == {"exp110": current.name}
+    assert set(manifest["runs"]) == {current.name}
+
+
+def test_narrative_report_does_not_claim_runset_use(tmp_path):
+    present = make_run(
+        tmp_path,
+        "exp110-r001-present",
+        stage="present",
+        created_at="2026-01-01T00:00:00Z",
+    )
+    index = core.resolve_run_index(
+        {present.name: record(present)},
+        {},
+        reports={"exp110": {"inputs": ["exp110"], "tags": ["narrative"]}},
+    )
+    assert index["runs"][present.name]["usage"] == {"local": [], "ghpages": []}
+    assert index["runs"][present.name]["status"] != "Current"

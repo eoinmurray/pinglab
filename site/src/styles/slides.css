@@ -46,7 +46,7 @@ button:disabled { opacity: .35; cursor: default; }
 .deck-noscript { text-align: center; }
 /* Without scripting, the complete deck remains readable and printable. */
 .deck-ready { height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
-.deck-ready .deck { flex: 1; min-height: 0; overflow: auto; margin: 0 auto; }
+.deck-ready .deck { flex: 1; min-height: 0; overflow: auto; margin: 0 auto 1rem; }
 .deck-ready .slide { display: none; min-height: 100%; margin-bottom: 0; }
 .deck-ready .slide.is-active { display: block; }
 .deck-ready .slide--title.is-active { display: flex; }

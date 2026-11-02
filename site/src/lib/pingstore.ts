@@ -88,18 +88,13 @@ async function findDataset(experiment: string, runId?: string) {
   const upstream = new Set<string>();
   const runs: { id: string; record: RunRecord; bytes: number; selected: boolean; used: boolean; evidence: import('./run-index.ts').IndexRun }[] = [];
 
-  async function visit(id: string) {
-    if (seen.has(id)) return;
+  // Core supplies the bounded runset; full input pins also contain provenance.
+  for (const id of selected ? index.runsets[experiment] ?? [] : []) {
     seen.add(id);
     const record: RunRecord = await runStore.json(id);
-    if (record.experiment !== experiment) {
-      upstream.add(record.experiment);
-    }
-    runs.push({ id, record, bytes: await exportSize(id), selected: id === selected?.id, used: true, evidence: index.runs[id] });
-    for (const input of Object.values(record.inputs)) await visit(input.run_id);
+    runs.push({ id, record, bytes: await exportSize(id), selected: id === selected?.id,
+      used: true, evidence: index.runs[id] });
   }
-
-  if (selected) await visit(selected.id);
   // Keep the selected lineage, plus this experiment's completed stage history.
   for (const id of Object.keys(index.runs).filter(id => id.startsWith(`${experiment}-`))) {
     if (seen.has(id)) continue;

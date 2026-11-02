@@ -41,12 +41,13 @@ const displayRuns = runs.map(run => ({
 
 <div class="table-scroll" tabindex="0" role="region" aria-label={label}>
   <table>
-    <thead><tr><th scope="col">Run</th><th scope="col">Date</th><th scope="col">Duration</th><th scope="col">Size</th><th scope="col">Evidence</th><th scope="col">Storage</th><th scope="col">Ran on</th><th scope="col">Verification</th></tr></thead>
-    <tbody>{displayRuns.map(({ id, record, bytes, selected, used, evidence, timing, executionOrigin }) => <tr class:list={{ 'selected-run': evidence.status === 'Current' }}>
-      <td><span class:list={{ selected: used }} title={selected ? 'Presentation used by this report' : used ? 'Input run used to generate this report' : record.stage}>{id}</span></td>
+    <thead><tr><th scope="col">Run</th><th scope="col">Date</th><th scope="col">Duration</th><th scope="col">Size</th><th scope="col">Report use</th><th scope="col">Retention</th><th scope="col">Storage</th><th scope="col">Ran on</th><th scope="col">Verification</th></tr></thead>
+    <tbody>{displayRuns.map(({ id, record, bytes, selected, used, evidence, timing, executionOrigin }) => <tr class:list={{ 'selected-run': evidence.usage.local.length > 0 || evidence.usage.ghpages.length > 0 }}>
+      <td><span class:list={{ selected: evidence.usage.local.length > 0 || evidence.usage.ghpages.length > 0 }} title={selected ? 'Selected presentation' : record.stage}>{id}</span></td>
       <td><time datetime={record.created_at}>{date.format(new Date(record.created_at))}</time></td>
       <td title="Recorded producing execution time for this stage; excludes upstream runs and import time">{timing ? duration(timing.started_at, timing.completed_at) : '—'}</td>
       <td title={`${bytes} bytes`}>{size(bytes)}</td>
+      <td title={[...evidence.usage.local.map(report => `Local: ${report}`), ...evidence.usage.ghpages.map(build => `GitHub Pages: ${build}`)].join('; ')}>{[evidence.usage.local.length > 0 && 'Local', evidence.usage.ghpages.length > 0 && 'GitHub Pages'].filter(Boolean).join(', ') || '—'}</td>
       <td title={[...evidence.reasons, ...evidence.unresolved].join('; ')}>{evidence.status}{evidence.status === 'Required' && ` by ${evidence.reasons.join(', ')}`}</td>
       <td title={evidence.verification.r2 === 'unknown' ? 'R2 inventory unresolved' : undefined}>{evidence.storage}{evidence.verification.r2 === 'unknown' && ' (R2 unresolved)'}</td>
       <td>{origin(executionOrigin)}</td>

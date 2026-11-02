@@ -586,8 +586,13 @@ Dataset footers and `/pingstore` use core's shared evidence classifications.
 The main Dataset table shows only the displayed experiment's current runset.
 Other stored runs remain available in an expandable section with their retention
 reasons; inputs current only in another experiment are labelled Required here.
-Current identifies each current runset's presentation and exact ancestry; Required
-names report/protection/unfinished-work consumers. Historical holdings remain
+Runsets contain the presentation and its same-experiment analysis and compute
+branches. Links to previous presentations, parameter sources and earlier attempts
+are provenance rather than runset dependencies. Shading and the Report use column
+identify local report use and the recorded active GitHub Pages deployment;
+pending deployments and storage protections do not imply report use.
+Current identifies runsets selected by local report declarations; Required
+names other retention consumers. Historical holdings remain
 Unresolved while active and incoming deployment evidence is unknown. Storage is
 Local, R2 or Both, independently of Ran on. Verification distinguishes cached
 local byte validation, metadata-only local validation, and verified R2 catalog evidence. An R2 outage stays

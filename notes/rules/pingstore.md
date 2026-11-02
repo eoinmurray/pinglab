@@ -4,7 +4,7 @@ author: Eoin Murray
 collection: notes
 description: Current scientific runsets, validated storage, publication and inspected cleanup.
 created_at: "2026-09-11"
-updated_at: "2026-10-29T18:00:12Z"
+updated_at: "2026-11-02T13:42:25Z"
 ---
 
 # Pingstore Rules
@@ -36,12 +36,17 @@ updated_at: "2026-10-29T18:00:12Z"
 
 ## Selection
 
-1. Core resolves the current presentation and exact digest-matched ancestry for
-   reporting. Reuse its selection per page request/build; never substitute current
+1. Core resolves the current presentation and exact digest-matched runset for
+   reporting. Runset dependency links stay within one experiment and advance from
+   compute through analysis to presentation. Historical input pins remain
+   provenance, independently of runset membership and retention. Reuse core's
+   selection per page request/build; never substitute current
    recipe defaults for recorded evidence. Report broken or unavailable evidence.
 2. Use `uv run pingstore status` for evidence and retention reasons. Unknown or
-   unresolved does not mean unused. Current ancestry may include several runs and
-   experiments; there is no fixed three-run retention rule.
+   unresolved does not mean unused. Only runsets selected by local reports or
+   recorded active GitHub Pages evidence are marked in use. Protections, pending
+   deployments and other retention reasons do not imply report use. A runset may
+   contain several compute or analysis branches; there is no fixed three-run rule.
 
 <a id="commands-and-backup"></a>
 <a id="one-inspected-cleanup-across-both-stores"></a>

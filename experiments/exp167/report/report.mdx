@@ -1,0 +1,91 @@
+---
+id: exp167
+title: "AI and PING state metrics"
+author: "Eoin Murray"
+created_at: "2026-11-02T16:27:00Z"
+updated_at: "2026-11-02T16:30:00Z"
+description: "Saved AI-target and PING-target rasters and descriptive state metrics from a single-seed scratch comparison."
+collection: ["gamma-gated-sparsity", "experiments"]
+tags: ["data"]
+inputs: ["exp167"]
+thumbnail: state-rasters.png
+---
+
+import RunFigure from '../../../site/src/components/RunFigure.astro';
+import Table from '../../../site/src/components/Table.astro';
+import { formatTableNumber as n } from '../../../site/src/lib/table-number';
+import { reportData } from '../../../site/src/lib/report-data';
+export const data = await reportData('exp167', { allowUnavailable: true });
+export const metric = (condition, key) => data ? n(data.metrics[condition][key]) : 'Unavailable';
+export const metricSpecs = [
+  ['E mean rate (Hz)', 'E_rate_hz'], ['I mean rate (Hz)', 'I_rate_hz'],
+  ['E median ISI CV', 'E_median_cv'], ['I median ISI CV', 'I_median_cv'],
+  ['E cells qualifying for CV', 'E_cv_cells'], ['I cells qualifying for CV', 'I_cv_cells'],
+  ['E spectral peak (Hz)', 'E_peak_hz'], ['I spectral peak (Hz)', 'I_peak_hz'],
+  ['E spectral peak contrast', 'E_peak_contrast'], ['I spectral peak contrast', 'I_peak_contrast'],
+  ['E maximum bin fraction', 'E_max_bin_fraction'], ['I maximum bin fraction', 'I_max_bin_fraction'],
+  ['E rhythmicity', 'E_rhythmicity'], ['I rhythmicity', 'I_rhythmicity'],
+  ['Mean pairwise correlation', 'mean_correlation'], ['Pairwise correlation SD', 'correlation_sd'],
+];
+export const metricRows = metricSpecs.map(([label,key]) => [label, ...['AI','PING'].map(condition => {
+  if (!data) return 'Unavailable';
+  const row = data.metrics[condition];
+  if (!(key in row)) throw new Error('Missing metric: '+key);
+  return row[key] === null ? 'Undefined (no qualifying cells)' : row[key];
+})]);
+
+## Abstract
+
+Two single-seed shared-input conductance-LIF conditions differ only in scheduled
+external excitation of inhibitory neurons. The saved AI-target and PING-target
+conditions have E rates of {metric('AI', 'E_rate_hz')} and {metric('PING', 'E_rate_hz')} Hz and spectral peaks of {metric('AI', 'E_peak_hz')} and {metric('PING', 'E_peak_hz')} Hz,
+respectively. These are historical scratch outputs: raw spikes, executed native
+bundles and start snapshots were not retained. Metrics are transcribed from the
+saved JSON, not independently recomputed; the condition names do not establish
+an asynchronous-irregular state or a PING mechanism.
+
+## Introduction
+
+This comparison asks how the saved activity and descriptive state metrics differ
+when external Input→I excitation is retained or removed. The source protocol uses
+4,000 E neurons, 1,000 I neurons and a shared pool of 4,000 external sources, each
+at 2.5 Hz, with the same seed (42) for both conditions.
+
+## Results
+
+<RunFigure report="exp167" experiment="exp167" file="state-rasters.svg" number={1} id="fig-state-rasters" alt="Two-panel figure showing the saved AI and PING population rasters." allowUnavailable={true}>
+  A: AI target. B: PING target. Black marks are E spikes (indices 0–3999), red
+  marks are I spikes (indices 4000–4999). Both panels show 50–1050 ms after
+  simulation start. The PING source protocol reduces Input→I gain from one to
+  zero over 50–50.05 ms; AI retains gain one. The first timestep of that change
+  lies inside the measurement window. The historical panels embed the original
+  raster pixels with replacement axis labels, without inferring spike events from pixels. No new simulation was
+  run, and missing raw evidence prevents independent verification of the marks.
+</RunFigure>
+
+<Table headers={['Metric','AI','PING']} rows={metricRows} number={1} label="Saved state metrics">
+  Values are descriptive, from one seed over the half-open 50–1050 ms window.
+  ISI CV is the standard deviation divided by the mean interspike interval,
+  calculated for cells with at least 20 spikes, then summarised by the median.
+  Qualifying-cell counts expose the limited AI coverage. Spectral peaks use
+  0.5 ms population-count bins, a Hann FFT periodogram and a 5–150 Hz search;
+  contrast is peak power divided by median power at 100–300 Hz. Maximum bin
+  fraction is the largest 0.5 ms spike count divided by population size.
+  Rhythmicity uses a pooled, uncentred autocorrelogram in 1 ms bins, overlap
+  correction, three-bin smoothing and the first local trough after lag 1 ms;
+  it is the difference between the preceding maximum and trough divided by
+  their sum. Correlations pool the first 200 E and first 200 I cells, after
+  binary occupancy in 1 ms bins, into the native 20 ms spike-count correlation
+  calculation. SD describes finite upper-triangle pair correlations, not
+  uncertainty over seeds. Numeric entries display two significant figures.
+</Table>
+
+## Discussion
+
+The PING-target output has larger volleys and greater pooled correlation than
+the AI target. AI E-cell CV is undefined because no E cell met the spike-count
+threshold; AI I-cell CV describes only {metric('AI', 'I_cv_cells')} qualifying cells. A weakly correlated
+pooled sample and low firing rate alone do not establish microscopic AI activity.
+The missing raw events and native execution evidence limit this report to a
+preserved historical comparison. The standalone code supports fresh native
+execution, but those results have not been generated or substituted here.

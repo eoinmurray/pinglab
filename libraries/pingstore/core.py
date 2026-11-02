@@ -123,6 +123,11 @@ def _validate_input_references(*, value, run_id):
             raise PingstoreError("input requires a payload checksum")
 
 
+def _dependency_inputs(record):
+    """Retention edges; original scientific input pins remain readable provenance."""
+    return record.get("runset_inputs", record["inputs"])
+
+
 def validate_run(value: dict[str, Any]) -> dict[str, Any]:
     if value.get("schema") != RUN_SCHEMA:
         raise PingstoreError(f"operational run schema must be {RUN_SCHEMA}")
@@ -142,6 +147,14 @@ def validate_run(value: dict[str, Any]) -> dict[str, Any]:
         raise PingstoreError("run_id must encode experiment, counter and stage")
     validate_compute_scope(value)
     _validate_input_references(value=value, run_id=run_id)
+    if "runset_inputs" in value:
+        _validate_input_references(
+            value={"inputs": value["runset_inputs"]}, run_id=run_id
+        )
+        if value["runset_inputs"] != _bounded_inputs(value, value["runset_inputs"]):
+            raise PingstoreError(
+                "runset links must stay within an experiment and advance stages"
+            )
     for key in ("collection", "origin", "created_at"):
         if not isinstance(value.get(key), str) or not value[key]:
             raise PingstoreError(f"{key} must be a non-empty string")
@@ -1213,6 +1226,9 @@ def _stage_run(
         },
         "provenance": capture_code(repo, directory),
     }
+    record["runset_inputs"] = _detached_inputs(
+        record, {source.record["run_id"]: source.record for source in inputs.values()}
+    )
     if stage == "compute":
         record["scope"] = "phase" if phase is not None else "full"
         if phase is not None:
@@ -1329,9 +1345,9 @@ def validated_run_graph(
             raise PingstoreError(f"{identity}: {exc}") from exc
         records[identity] = record
         if selected_ids is not None:
-            pending.extend(ref["run_id"] for ref in record["inputs"].values())
+            pending.extend(ref["run_id"] for ref in _dependency_inputs(record).values())
     for child, record in records.items():
-        for reference in record["inputs"].values():
+        for reference in _dependency_inputs(record).values():
             parent = records.get(reference["run_id"])
             if (
                 parent is None
@@ -1399,7 +1415,9 @@ def ancestry(records: dict[str, dict], roots: set[str]) -> set[str]:
         if identity not in records:
             raise PingstoreError(f"missing report or protected input: {identity}")
         seen.add(identity)
-        pending.extend(ref["run_id"] for ref in records[identity]["inputs"].values())
+        pending.extend(
+            ref["run_id"] for ref in _dependency_inputs(records[identity]).values()
+        )
     return seen
 
 
@@ -1435,7 +1453,7 @@ def _runset(records, identity):
         if record is None:
             raise PingstoreError(f"missing input {run_id}")
         visiting.add(run_id)
-        for reference in record["inputs"].values():
+        for reference in _dependency_inputs(record).values():
             parent = records.get(reference["run_id"])
             if (
                 parent is None
@@ -1450,6 +1468,108 @@ def _runset(records, identity):
 
     visit(identity)
     return sorted(visited)
+
+
+def _bounded_inputs(record, inputs):
+    """Stage links within one runset; other pins remain historical provenance.
+
+    A runset flows compute -> analyse -> present within one experiment. Compute
+    references and links to an earlier presentation describe other runsets.
+    """
+    order = {"compute": 0, "analyse": 1, "present": 2}
+    identity = STAGE_ID_RE.fullmatch(record["run_id"])
+    return {
+        role: reference
+        for role, reference in inputs.items()
+        if (parent := STAGE_ID_RE.fullmatch(reference["run_id"]))
+        and parent.group(1) == identity.group(1)
+        and order[parent.group(3)] < order[identity.group(3)]
+    }
+
+
+def _runset_inputs(record):
+    return record.get("runset_inputs", _bounded_inputs(record, record["inputs"]))
+
+
+def _detached_inputs(record, records):
+    inputs = _runset_inputs(record)
+    if record["stage"] != "analyse" or inputs:
+        return inputs
+    # A reanalysis can delegate its original compute pin to an older analysis.
+    # Promote those exact pins rather than retain a chain of old analyses.
+    computes = {}
+    visited = set()
+
+    def visit(source):
+        if source["run_id"] in visited:
+            return
+        visited.add(source["run_id"])
+        for ref in _dependency_inputs(source).values():
+            match = STAGE_ID_RE.fullmatch(ref["run_id"])
+            if match.group(1) != record["experiment"]:
+                continue
+            parent = records.get(ref["run_id"])
+            if parent is not None and parent["payload_digest"] != ref["payload_digest"]:
+                raise PingstoreError("changed reanalysis provenance")
+            if match.group(3) == "compute":
+                computes[ref["run_id"]] = ref
+            elif match.group(3) == "analyse":
+                if parent is None:
+                    raise PingstoreError("missing reanalysis provenance")
+                visit(parent)
+
+    visit(record)
+    return {
+        "compute" if len(computes) == 1 else f"compute_{i:02d}": ref
+        for i, ref in enumerate(computes.values())
+    }
+
+
+def _report_runset(records, identity):
+    """Resolve report membership without following links between runsets."""
+    graph = {
+        run_id: dict(
+            record,
+            inputs=_runset_inputs(dict(record, run_id=run_id)),
+            runset_inputs=_runset_inputs(dict(record, run_id=run_id)),
+        )
+        for run_id, record in records.items()
+    }
+    return _runset(graph, identity)
+
+
+def _report_usage(runsets, report_selections, publications):
+    usage = defaultdict(lambda: {"local": set(), "ghpages": set()})
+    for article, selections in report_selections.items():
+        for experiment in selections:
+            for identity in runsets[experiment]:
+                usage[identity]["local"].add(article)
+    active = publications.get("active") if publications["known"] else None
+    if active:
+        # Older manifests include full provenance and sometimes unreported
+        # selections. Only selected report runsets are actually displayed.
+        selections = active["selections"]
+        if "reports" in active:
+            selections = {
+                experiment: identity
+                for selected in active["reports"].values()
+                for experiment, identity in selected.items()
+            }
+        roots = set(selections.values())
+        if not roots and "reports" not in active:
+            referenced = {
+                ref["run_id"]
+                for entry in active["runs"].values()
+                for ref in entry["inputs"].values()
+            }
+            roots = set(active["runs"]) - referenced
+        for identity in roots:
+            for member in _report_runset(active["runs"], identity):
+                usage[member]["ghpages"].add(active["build"]["id"])
+    return {
+        identity: {context: sorted(roots) for context, roots in contexts.items()}
+        for identity, contexts in usage.items()
+    }
 
 
 def _select_runsets(*, records, local, errors, completed):
@@ -1480,7 +1600,8 @@ def _select_runsets(*, records, local, errors, completed):
             continue
         identity = max(candidates, key=lambda run_id: (completed[run_id], run_id))
         try:
-            members = _runset(records, identity)
+            _runset(records, identity)  # Validate persisted dependency pins separately.
+            members = _report_runset(records, identity)
             invalid = set(members) & errors.keys()
             if invalid:
                 raise PingstoreError(
@@ -1512,6 +1633,8 @@ def _report_record(record):
             "payload_digest",
         )
     }
+    result["runset_inputs"] = _runset_inputs(record)
+    result["dependencies"] = _dependency_inputs(record)
     result["execution"] = {
         key: value
         for key, value in record["execution"].items()
@@ -1733,11 +1856,14 @@ def resolve_run_index(
         records=records, local=local, errors=errors, completed=completed
     )
     reasons = defaultdict(set)
-    for experiment, members in runsets.items():
-        for member in members:
-            reasons[member].add(f"current:{experiment}")
     report_selections = {}
     for article, metadata in sorted(reports.items()):
+        if (
+            article.startswith("exp")
+            and "tags" in metadata
+            and "data" not in metadata["tags"]
+        ):
+            continue
         # Current reporting never follows historical manual pins. Existing pins
         # remain visible for migration without selecting historical evidence.
         selected = {
@@ -1747,7 +1873,12 @@ def resolve_run_index(
         }
         report_selections[article] = selected
         for experiment in selected:
+            for member in set(_runset(records, selected[experiment])) - set(
+                runsets[experiment]
+            ):
+                reasons[member].add(f"provenance:{experiment}")
             for member in runsets[experiment]:
+                reasons[member].add(f"current:{experiment}")
                 reasons[member].add(f"report:{article}")
     for label, roots in (("protection", protections), ("unfinished", unfinished)):
         for identity, detail in sorted(roots.items()):
@@ -1760,6 +1891,7 @@ def resolve_run_index(
                 reasons[member].add(f"{label}:{detail}")
     publications = publications or empty_publications()
     _publication_reasons(publications, records, reasons, complete=False)
+    usage = _report_usage(runsets, report_selections, publications)
     inventory_state, remote_errors = _index_inventory_roots(
         inventory_state=inventory_state,
         operation=operation,
@@ -1786,6 +1918,8 @@ def resolve_run_index(
         remote_known=remote_known,
         source=source,
     )
+    for identity, row in rows.items():
+        row["usage"] = usage.get(identity, {"local": [], "ghpages": []})
     value = dict(
         schema=INDEX_SCHEMA,
         source=source,
@@ -2132,7 +2266,9 @@ def manifest_levels(records, new_ids):
         ready = sorted(
             identity
             for identity in remaining
-            if not {ref["run_id"] for ref in records[identity]["inputs"].values()}
+            if not {
+                ref["run_id"] for ref in _dependency_inputs(records[identity]).values()
+            }
             & remaining
         )
         if not ready:
@@ -2152,7 +2288,7 @@ def records_for_backup(source, destination, selected_ids=None):
     missing_inputs = {
         reference["run_id"]
         for record in records.values()
-        for reference in record["inputs"].values()
+        for reference in _dependency_inputs(record).values()
     } - records.keys()
     if not missing_inputs:
         for identity in records:
@@ -2163,7 +2299,7 @@ def records_for_backup(source, destination, selected_ids=None):
     combined = {identity: entry["record"] for identity, entry in remote["runs"].items()}
     combined.update(records)
     for identity, record in records.items():
-        for reference in record["inputs"].values():
+        for reference in _dependency_inputs(record).values():
             parent = combined.get(reference["run_id"])
             if (
                 parent is None
@@ -2439,7 +2575,7 @@ def _check_catalog_entries(*, value, complete=True):
         ).hexdigest()
         if record["payload_digest"] != "sha256:" + digest:
             raise PingstoreError(f"catalog payload inventory mismatch: {identity}")
-        for reference in record["inputs"].values() if complete else ():
+        for reference in _dependency_inputs(record).values() if complete else ():
             parent = value["runs"].get(reference["run_id"])
             if (
                 parent is None
@@ -2463,7 +2599,7 @@ def validate_catalog(value, *, complete=True):
         if identity in visited:
             return
         visiting.add(identity)
-        for reference in value["runs"][identity]["record"]["inputs"].values():
+        for reference in _dependency_inputs(value["runs"][identity]["record"]).values():
             visit(reference["run_id"])
         visiting.remove(identity)
         visited.add(identity)
@@ -2957,6 +3093,14 @@ def validate_evidence_manifest(value, records=None):
         if not STAGE_ID_RE.fullmatch(identity) or not isinstance(entry, dict):
             raise PingstoreError("invalid deployed run identity")
         _validate_input_references(value=entry, run_id=identity)
+        if "runset_inputs" in entry:
+            _validate_input_references(
+                value={"inputs": entry["runset_inputs"]}, run_id=identity
+            )
+            if entry["runset_inputs"] != _bounded_inputs(
+                dict(entry, run_id=identity), entry["runset_inputs"]
+            ):
+                raise PingstoreError("invalid deployed runset links")
         if not re.fullmatch(
             r"sha256:[a-f0-9]{64}", str(entry.get("payload_digest", ""))
         ):
@@ -3947,15 +4091,33 @@ def evidence_manifest(index, build_id, revision):
         raise PingstoreError(
             f"cannot publish unresolved selections: {index['selection_errors']}"
         )
+    selections = {
+        experiment: identity
+        for selected in index["report_selections"].values()
+        for experiment, identity in selected.items()
+    }
+    records = {
+        identity: row["record"]
+        for identity, row in index["runs"].items()
+        if row["record"] is not None
+    }
+    records = {
+        identity: dict(record, runset_inputs=record["dependencies"])
+        for identity, record in records.items()
+    }
     identities = sorted(
-        {identity for members in index["runsets"].values() for identity in members}
+        {
+            member
+            for identity in selections.values()
+            for member in _runset(records, identity)
+        }
     )
     value = dict(
         schema="pingstore.evidence/v1",
         build=dict(id=build_id, revision=revision),
         source=index["source"],
         index_generation=index["generation"],
-        selections=index["selections"],
+        selections=selections,
         reports=index["report_selections"],
         unavailable_reports={
             article: sorted(set(inputs) - index["selections"].keys())
@@ -3970,6 +4132,10 @@ def evidence_manifest(index, build_id, revision):
             for identity in identities
         },
     )
+    for identity, entry in value["runs"].items():
+        record = index["runs"][identity]["record"]
+        if record["dependencies"] != record["inputs"]:
+            entry["runset_inputs"] = record["dependencies"]
     return validate_evidence_manifest(value)
 
 
@@ -4572,3 +4738,332 @@ def public_maintenance_snapshot(asset_base):
         authenticated=False,
         deployment=None,
     )
+
+
+# Explicit metadata correction: old records keep scientific pins as provenance,
+# while runset_inputs is the independently retainable dependency graph.
+
+
+def detach_runsets_plan(repo: Path, destination=None):
+    repo = repo.resolve()
+    local = {}
+    runs = repo / ".pingstore/runs"
+    for path in sorted(runs.glob("*/run.json")):
+        if not STAGE_ID_RE.fullmatch(path.parent.name):
+            continue
+        validate_layout(path.parent)
+        local[path.parent.name] = load_json(path)
+    catalog = read_catalog(destination) if destination else None
+    control = read_control(destination) if destination else None
+    if control and control["operation"] is not None:
+        raise PingstoreError("unfinished remote maintenance blocks metadata correction")
+    remote = {
+        identity: entry["record"]
+        for identity, entry in (catalog or {}).get("runs", {}).items()
+    }
+    for identity in local.keys() & remote.keys():
+        if local[identity] != remote[identity]:
+            raise PingstoreError(
+                f"local and R2 records differ before correction: {identity}"
+            )
+    records = {**remote, **local}
+    changes = {}
+    for identity, record in records.items():
+        if "runset_inputs" in record:
+            continue
+        changes[identity] = dict(
+            before=record,
+            after=dict(record, runset_inputs=_detached_inputs(record, records)),
+            detached_roles=sorted(set(record["inputs"]) - set(_runset_inputs(record))),
+            local=identity in local,
+            remote=identity in remote,
+            local_metadata={
+                name: file_sha256(runs / identity / name)
+                for name in ("run.json", "README.md")
+            }
+            if identity in local
+            else None,
+        )
+    revised = {
+        identity: changes.get(identity, {}).get("after", record)
+        for identity, record in records.items()
+    }
+    for identity in revised:
+        validate_run(revised[identity])
+        _runset(revised, identity)
+    plan = dict(
+        schema="pingstore.detach-runsets/v1",
+        root=str(repo),
+        destination=destination,
+        catalog=catalog,
+        control=control,
+        remote_objects=inventory(destination) if destination else None,
+        changes=changes,
+    )
+    return dict(plan, plan_hash=_plan_hash(plan))
+
+
+def _detach_originals(repo, plan, journal, journal_path):
+    destination = plan["destination"]
+    with tempfile.TemporaryDirectory(prefix="pingstore-detach-") as temporary:
+        scratch = Path(temporary)
+        if destination and journal["phase"] == "prepared":
+            # Only small metadata files; no scientific arrays are transferred.
+            rclone(
+                "copy",
+                destination,
+                scratch,
+                "--include",
+                "/*/run.json",
+                "--include",
+                "/*/README.md",
+                "--transfers",
+                "16",
+                "--checkers",
+                "16",
+            )
+        for identity, change in plan["changes"].items():
+            if identity in journal["originals"]:
+                continue
+            texts = {}
+            if change["remote"]:
+                for name in ("run.json", "README.md"):
+                    path = scratch / identity / name
+                    fingerprint = plan["catalog"]["runs"][identity]["files"][name]
+                    if (
+                        path.stat().st_size != fingerprint["bytes"]
+                        or file_sha256(path) != fingerprint["sha256"]
+                    ):
+                        raise PingstoreError(
+                            f"remote metadata changed: {identity}/{name}"
+                        )
+                    texts[name] = path.read_text()
+            if change["local"]:
+                for name in ("run.json", "README.md"):
+                    path = repo / ".pingstore/runs" / identity / name
+                    if file_sha256(path) != change["local_metadata"][name]:
+                        raise PingstoreError(
+                            f"local metadata changed: {identity}/{name}"
+                        )
+                    if name in texts and path.read_text() != texts[name]:
+                        raise PingstoreError(
+                            f"local and remote metadata differ: {identity}/{name}"
+                        )
+                    texts[name] = path.read_text()
+            journal["originals"][identity] = texts
+        _journal_save(journal_path, journal)
+
+
+def _detach_documents(plan, journal, journal_path):
+    destination = plan["destination"]
+    if "documents" not in journal:
+        documents = {}
+        for identity, change in plan["changes"].items():
+            roles = ", ".join(change["detached_roles"]) or "none"
+            history = f"\n- {journal['timestamp']}: authorized metadata correction: independent runset dependency links recorded in runset_inputs; original input pins preserved as provenance. Detached roles: {roles}. Scientific payload unchanged.\n"
+            documents[identity] = {
+                "run.json": json.dumps(change["after"], indent=2, sort_keys=True)
+                + "\n",
+                "README.md": journal["originals"][identity]["README.md"] + history,
+            }
+        journal["documents"] = documents
+        if destination:
+            catalog = json.loads(json.dumps(plan["catalog"]))
+            for identity, change in plan["changes"].items():
+                if not change["remote"]:
+                    continue
+                entry = catalog["runs"][identity]
+                entry["record"] = change["after"]
+                for name, value in documents[identity].items():
+                    data = value.encode()
+                    entry["files"][name] = dict(
+                        bytes=len(data), sha256=hashlib.sha256(data).hexdigest()
+                    )
+            catalog["updated_at"] = journal["timestamp"]
+            catalog.pop("report_index", None)
+            # Preserve authenticated presence and unknown holdings, updating only
+            # metadata objects whose bytes are corrected by this operation.
+            objects = dict(plan["remote_objects"])
+            for identity, change in plan["changes"].items():
+                if change["remote"]:
+                    for name in ("run.json", "README.md"):
+                        objects[f"{identity}/{name}"] = catalog["runs"][identity][
+                            "files"
+                        ][name]["bytes"]
+            catalog["inventory"] = inventory_projection(objects, catalog["runs"])
+            validate_catalog(catalog)
+            journal["catalog_after"] = catalog
+        _journal_save(journal_path, journal)
+
+
+def _detach_remote_record(client, bucket, prefix, identity, journal):
+    for name, value in journal["documents"][identity].items():
+        key = f"{prefix}/{identity}/{name}"
+        current = client.get_object(Bucket=bucket, Key=key)
+        body = current["Body"].read()
+        target = value.encode()
+        if body == target:
+            continue
+        if body != journal["originals"][identity][name].encode():
+            raise PingstoreError(
+                f"remote metadata changed during correction: {identity}/{name}"
+            )
+        client.put_object(
+            Bucket=bucket,
+            Key=key,
+            Body=target,
+            IfMatch=current["ETag"],
+            ContentType="application/json" if name == "run.json" else "text/markdown",
+            CacheControl="no-cache",
+        )
+        if client.get_object(Bucket=bucket, Key=key)["Body"].read() != target:
+            raise PingstoreError(
+                f"remote metadata write failed verification: {identity}/{name}"
+            )
+    return identity
+
+
+def _detach_remote(plan, journal, journal_path):
+    destination = plan["destination"]
+    operation = journal["operation"]
+    if destination and journal["phase"] == "prepared":
+        remote, location = destination.split(":", 1)
+        bucket, prefix = location.split("/", 1)
+        client = _s3_client(remote)
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+
+        pending = [
+            identity
+            for identity, change in plan["changes"].items()
+            if change["remote"] and identity not in journal["completed"]
+        ]
+        with ThreadPoolExecutor(max_workers=8) as pool:
+            futures = [
+                pool.submit(
+                    _detach_remote_record, client, bucket, prefix, identity, journal
+                )
+                for identity in pending
+            ]
+            for future in as_completed(futures):
+                journal["completed"].append(future.result())
+                if len(journal["completed"]) % 10 == 0:
+                    _journal_save(journal_path, journal)
+                    print(
+                        f"Corrected and verified {len(journal['completed'])} remote run records",
+                        flush=True,
+                    )
+        _journal_save(journal_path, journal)
+        assert_remote_operation(destination, operation)
+        actual = inventory_projection(
+            inventory(destination), journal["catalog_after"]["runs"]
+        )
+        if actual != journal["catalog_after"]["inventory"]:
+            raise PingstoreError("remote inventory changed during metadata correction")
+        current = read_catalog(destination, complete=False)
+        if current != journal["catalog_after"]:
+            if current != plan["catalog"]:
+                raise PingstoreError("remote catalog changed during correction")
+            replace_catalog(destination, current, journal["catalog_after"])
+        journal["phase"] = "remote-updated"
+        _journal_save(journal_path, journal)
+
+
+def _detach_local(repo, plan, journal):
+    for identity, change in plan["changes"].items():
+        if not change["local"]:
+            continue
+        directory = repo / ".pingstore/runs" / identity
+        for name, value in journal["documents"][identity].items():
+            current = (directory / name).read_text()
+            if current not in {value, journal["originals"][identity][name]}:
+                raise PingstoreError(
+                    f"local metadata changed during correction: {identity}/{name}"
+                )
+            if name == "run.json":
+                write_json_atomic(directory / name, change["after"])
+            else:
+                (directory / name).write_text(value)
+        validate_layout(directory)
+
+
+def _detach_journal(repo, expected_hash, destination, journal_path):
+    import secrets
+
+    if journal_path.exists():
+        journal = load_json(journal_path)
+        plan = journal["plan"]
+        if plan["root"] != str(repo) or plan["destination"] != destination:
+            raise PingstoreError("metadata journal scope differs")
+        if (
+            _plan_hash(
+                {key: value for key, value in plan.items() if key != "plan_hash"}
+            )
+            != expected_hash
+        ):
+            raise PingstoreError("metadata journal plan changed")
+        return journal
+    plan = detach_runsets_plan(repo, destination)
+    if plan["plan_hash"] != expected_hash:
+        raise PingstoreError("metadata correction plan changed; inspect a new dry-run")
+    journal = dict(
+        plan=plan,
+        phase="prepared",
+        timestamp=utc_now(),
+        originals={},
+        completed=[],
+        operation=dict(
+            kind="backup",
+            plan_hash=expected_hash,
+            token=secrets.token_hex(32),
+            run_ids=sorted(plan["changes"]),
+        ),
+    )
+    _journal_save(journal_path, journal)
+    return journal
+
+
+def _detach_fence(plan, journal, journal_path):
+    destination = plan["destination"]
+    if not destination:
+        return
+    control = read_control(destination)
+    if control["operation"] == journal["operation"]:
+        return
+    if journal["phase"] == "local-updated" and control["operation"] is None:
+        if read_catalog(destination) != journal["catalog_after"]:
+            raise PingstoreError("released metadata catalog differs")
+        journal["phase"] = "complete"
+        _journal_save(journal_path, journal)
+        return
+    if control != plan["control"]:
+        raise PingstoreError("remote controls changed before metadata correction")
+    acquire_remote_operation(destination, control, journal["operation"])
+
+
+def apply_detach_runsets(repo: Path, expected_hash, destination=None):
+    """Journal and coordinate an explicitly authorized metadata-only correction."""
+    repo = repo.resolve()
+    _prune_journal_path(repo, expected_hash)
+    journal_path = repo / ".pingstore/operations" / f"detach-{expected_hash[7:]}.json"
+    with operation_lock(repo / ".pingstore", exclusive=True):
+        journal = _detach_journal(repo, expected_hash, destination, journal_path)
+        plan = journal["plan"]
+        if journal["phase"] == "complete":
+            return journal
+        _detach_fence(plan, journal, journal_path)
+        if journal["phase"] == "complete":
+            return journal
+        _detach_originals(repo, plan, journal, journal_path)
+        _detach_documents(plan, journal, journal_path)
+        _detach_remote(plan, journal, journal_path)
+        _detach_local(repo, plan, journal)
+        # Authorized metadata changes invalidate the normal read-only cache.
+        # Authenticate payloads before refreshing it rather than bypassing it.
+        reporting_index(repo, source="local", verify=True)
+        journal["phase"] = "local-updated"
+        _journal_save(journal_path, journal)
+        if destination:
+            release_remote_operation(destination, journal["operation"])
+        journal["phase"] = "complete"
+        _journal_save(journal_path, journal)
+        return journal

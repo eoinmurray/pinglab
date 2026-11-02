@@ -7,6 +7,7 @@ interface RunRecord extends Reference {
   experiment: string;
   stage: 'compute' | 'analyse' | 'present';
   inputs: Record<string, Reference>;
+  runset_inputs?: Record<string, Reference>;
   execution: { completed_at: string; configuration: Record<string, any>; dataset?: Record<string, any> };
   scientific_artifacts?: { native_paths?: Record<string, string> };
 }
@@ -63,7 +64,8 @@ export async function readSnapshotEvidence(presentation: string, options: Snapsh
     return record;
   };
   const readInput = async (record: RunRecord, stage: RunRecord['stage'], input?: string) => {
-    const candidates = input === undefined ? Object.values(record.inputs) : [record.inputs[input]].filter(Boolean);
+    const links = record.runset_inputs ?? record.inputs;
+    const candidates = input === undefined ? Object.values(links) : [links[input]].filter(Boolean);
     const references = candidates.filter(reference =>
       new RegExp(`^${experiment}-r\\d+-${stage}$`).test(reference.run_id));
     if (references.length !== 1) throw new Error(`Expected one ${stage} input in ${record.run_id}`);
@@ -76,7 +78,7 @@ export async function readSnapshotEvidence(presentation: string, options: Snapsh
   // Reanalysis may retain an earlier analysis rather than directly pin compute.
   // Follow only a unique recorded branch, authenticating each reference.
   const visited = new Set([selected.run_id]);
-  while (!Object.values(analysis.inputs).some(reference =>
+  while (!Object.values(analysis.runset_inputs ?? analysis.inputs).some(reference =>
     new RegExp(`^${experiment}-r\\d+-compute$`).test(reference.run_id))) {
     if (visited.has(analysis.run_id)) throw new Error(`Cyclic analysis lineage: ${analysis.run_id}`);
     visited.add(analysis.run_id);

@@ -5,7 +5,7 @@ collection: [notes, slides, ctc-attention]
 format: slides
 description: "Communication through coherence and a three-population example of selective attention."
 created_at: "2026-10-29T08:18:38Z"
-updated_at: "2026-11-02T11:24:08Z"
+updated_at: "2026-11-02T12:12:12Z"
 ---
 
 import ExperimentCard from '../../site/src/components/ExperimentCard.astro';
@@ -60,6 +60,10 @@ This adapts Bosman's competing-input motif \[[2](#ref-2)\]. Classification or co
 </div>
 </Slide>
 
+<Slide title="Modelling choices" eyebrow="Appendix A" density="compact">
+  <Appendix />
+</Slide>
+
 <TextSlide title="Three tests of CTC">
 
 <span id="testing-ctc" />
@@ -88,26 +92,36 @@ brain's attention mechanism.
 </TextSlide>
 
 
-<TextSlide title="Mean-field coupling" eyebrow="Task 1 of 7">
+<TextSlide title="Mean-field coupling" eyebrow="Task 1 of 8">
+
+<ExperimentCard experiment="exp159" figures={[
+  { file: 'entrainment.svg', alt: 'Figure 1: mean-field entrainment, comparing uncoupled and coupled population activity, relative phase and excitation–inhibition timing.' },
+]} />
+
 
 Map stable gamma activity and entrainment across
 coupling strengths and measured uncoupled frequency differences, using A→C
 only with feedback disabled. Entrainment means C locks to A's frequency with
 a stable phase difference; their peaks need not coincide.
 
-<ExperimentCard experiment="exp159" />
 
 </TextSlide>
 
-<TextSlide title="Spiking coupling" eyebrow="Task 2 of 7">
+<TextSlide title="Spiking coupling" eyebrow="Task 2 of 8">
+
+<ExperimentCard experiment="exp160" figures={[
+  { file: 'entrainment.svg', alt: 'Figure 1: spiking entrainment, comparing uncoupled and coupled spike rates, phase drift and native conductances.' },
+]} />
 
 Repeat the same analysis using a spiking model.
 
-<ExperimentCard experiment="exp160" />
-
 </TextSlide>
 
-<TextSlide title="Mean-field competition" eyebrow="Task 3 of 7">
+<TextSlide title="Mean-field competition" eyebrow="Task 3 of 8">
+
+<ExperimentCard experiment="exp161" figures={[
+  { file: 'competition.svg', alt: 'Figure 1: mean-field cue-switch trajectory showing population rates, sender–receiver phase differences and excitation–inhibition timing.' },
+]} />
 
 Keep sensory drives fixed and vary the
 cue-related drive. Map selective locking, cue-driven switching, persistent
@@ -115,26 +129,32 @@ selection and regimes where neither sender dominates. Apply matched weak
 probes to each sender and compare C's responses, accounting for firing-rate
 differences, to test effective transmission as well as synchronisation.
 
-<ExperimentCard experiment="exp161" />
-
 The minimal prototype demonstrates cue-driven switching of preferred locking
 in one mean-field trajectory. Cue-strength maps and weak-probe transmission
 tests remain to be done.
 
 </TextSlide>
 
-<TextSlide title="Spiking competition" eyebrow="Task 4 of 7">
+<TextSlide title="Spiking competition" eyebrow="Task 4 of 8">
+
+<ExperimentCard experiment="exp162" figures={[
+  { file: 'competition.svg', alt: 'Figure 1: spiking cue-switch trial showing population rates, sender–receiver phase differences and incoming conductances against receiver inhibition.' },
+]} />
 
 Verify selective coupling, preferential
 transmission and reliable cue-driven switching in the corresponding circuits.
-
-<ExperimentCard experiment="exp162" />
 
 The minimal spiking prototype demonstrates cue-driven switching of preferred
 locking in one homogeneous network and one input realization. Preferential
 transmission and reliability across input realizations remain untested.
 
-<ExperimentCard experiment="exp163" />
+</TextSlide>
+
+<TextSlide title="Spiking pattern selection" eyebrow="Task 5 of 8">
+
+<ExperimentCard experiment="exp163" figures={[
+  { file: 'competition.svg', alt: 'Figure 1: spatial pattern selection showing population rates, phase differences, conductance timing and spatial output profiles before and after cue switching.' },
+]} />
 
 The spatial extension routes fixed Gaussian sensory patterns through
 topographic projections and measures C's output profile before and after the
@@ -143,12 +163,14 @@ timing from rate effects.
 
 </TextSlide>
 
-<TextSlide title="Spiking digit competition" eyebrow="Task 5 of 7">
+<TextSlide title="Spiking digit competition" eyebrow="Task 6 of 8">
+
+<ExperimentCard experiment="exp164" figures={[
+  { file: 'cue-A.svg', alt: 'Figure 1: A-cued digit competition showing population rates, phase differences, reconstructed conductances and measured A/B/C spatial firing-rate maps.' },
+]} />
 
 Extend spatial selection to simultaneous digit
 patterns in the fixed spiking circuit.
-
-<ExperimentCard experiment="exp164" />
 
 The untrained circuit routes the cued digit to C for one fixed image pair and
 input realization. This supports proceeding to classification, but does not
@@ -156,25 +178,12 @@ establish general digit selection or isolate timing from rate effects.
 
 </TextSlide>
 
-<TextSlide title="Spiking digit classification" eyebrow="Task 6 of 7">
+<TextSlide title="Spiking digit classification" eyebrow="Task 7 of 8">
 
-Establish classification through either
-pathway alone, then train with simultaneous digits and balanced cues. Evaluate
+Establish classification through either pathway alone, then train with simultaneous digits and balanced cues. Evaluate
 held-out image pairs under both cues using a readout receiving only C's activity.
 
 </TextSlide>
-
-<TextSlide title="CTC validation" eyebrow="Task 7 of 7">
-
-Freeze the trained weights and apply the three
-tests in [Testing CTC](#testing-ctc) across training seeds, controlling for
-firing rates, gamma power and perturbation effects.
-
-</TextSlide>
-
-<Slide title="Modelling choices" eyebrow="Appendix A" density="compact">
-  <Appendix />
-</Slide>
 
 <TextSlide title="References">
   <References />
