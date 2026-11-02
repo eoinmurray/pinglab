@@ -14,6 +14,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
+from experiments import theme
 from experiments.exp162 import recipe
 from experiments.exp162.analyse import read_trial
 from pingstore.library import load_json, source_run, stage_run, write_json_atomic
@@ -240,6 +241,68 @@ def competition_figure(sol, cfg, metrics, diag):
     return fig
 
 
+def render_rasters(computed, run):
+    """Plot every saved neuron at its recorded bin time, without jitter or smoothing."""
+    with matplotlib.rc_context():
+        theme.apply()
+        cfg = computed.record["execution"]["configuration"]
+        dt = cfg["dt_ms"]
+        end_ms = cfg["duration_ms"]
+        populations = [c + "_" + p for c in "ABC" for p in "EI"]
+        with np.load(computed.file("spikes.npz"), allow_pickle=False) as data:
+            cases = [("Cue A → B", {key: data[key][:, 0, :] for key in populations})]
+        boundary = cfg["switch_ms"]
+        fig, axes = plt.subplots(
+            len(populations),
+            len(cases),
+            squeeze=False,
+            sharex=True,
+            sharey="row",
+            figsize=(13 if len(cases) == 2 else 11, 1.7 * len(populations) + 1),
+            layout="constrained",
+        )
+        for column, (title, spikes) in enumerate(cases):
+            if set(spikes) != set(populations):
+                raise ValueError("missing raster populations")
+            for row, key in enumerate(populations):
+                values = spikes[key]
+                if values.ndim != 2 or not np.isin(values, (0, 1)).all():
+                    raise ValueError("invalid saved raster spikes")
+                times, neurons = np.nonzero(values)
+                times = times * dt
+                shown = times <= end_ms
+                ax = axes[row, column]
+                ax.scatter(
+                    times[shown],
+                    neurons[shown] + 1,
+                    marker="|",
+                    s=2.0,
+                    color=theme.INK_BLACK if key.endswith("E") else theme.DEEP_RED,
+                    linewidths=0.4,
+                )
+                ax.set(
+                    xlim=(0, end_ms),
+                    ylim=(0.5, values.shape[1] + 0.5),
+                    yticks=[1, values.shape[1]],
+                    ylabel=f"{key[0]} {key[-1]} neuron",
+                )
+                if boundary is not None:
+                    ax.axvline(boundary, color=theme.MUTED, ls="--", lw=1.0)
+                if row == 0:
+                    ax.set_title(title)
+                if row == len(populations) - 1:
+                    ax.set_xlabel("Time (ms)")
+        theme.label_panels(axes.flat)
+        fig.suptitle(
+            "Full-population spike rasters · every E and I neuron",
+            fontsize=theme.SIZE_PANEL,
+            fontweight="bold",
+        )
+        for extension in ("svg", "png"):
+            fig.savefig(run.export / ("rasters." + extension))
+        plt.close(fig)
+
+
 def present(*, source, run_id=None):
     started = perf_counter()
     analysed = source_run(
@@ -274,6 +337,7 @@ def present(*, source, run_id=None):
             fig.savefig(run.export / ("competition." + ext), dpi=170)
         plt.close(fig)
         render_network(computed, run)
+        render_rasters(computed, run)
         write_json_atomic(run.export / "numbers.json", dict(results, configuration=cfg))
         run.record["execution"]["elapsed_seconds"] = perf_counter() - started
         analysed.check_unchanged()
@@ -307,6 +371,7 @@ def redraw_network(*, presentation, run_id=None):
         for path in previous.presentation.iterdir():
             shutil.copyfile(path, run.export / path.name)
         render_network(sources["compute"], run)
+        render_rasters(sources["compute"], run)
         run.record["execution"]["elapsed_seconds"] = perf_counter() - started
         for item in [previous, *sources.values()]:
             item.check_unchanged()

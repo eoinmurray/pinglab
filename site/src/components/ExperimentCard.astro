@@ -1,18 +1,27 @@
 ---
 import { getEntry } from 'astro:content';
 import ArticleDate from './ArticleDate.astro';
+import { figureImage, latestPresentation } from '../lib/pingstore';
 
 interface Props {
   experiment: string;
   showDate?: boolean;
+  figures?: { file: string; alt: string }[];
 }
 
-const { experiment, showDate = true } = Astro.props;
+const { experiment, showDate = true, figures = [] } = Astro.props;
 const report = await getEntry('reports', experiment);
 if (!report) throw new Error(`ExperimentCard: unknown experiment "${experiment}"`);
+const run = figures.length ? await latestPresentation(experiment) : undefined;
+const images = run ? await Promise.all(figures.map(async figure => ({
+  ...await figureImage(run.id, figure.file), alt: figure.alt,
+}))) : [];
 ---
 
 <a class="experiment-card" href={`/${report.id}`}>
+  {images.length > 0 && <span class="experiment-card-figures">
+    {images.map(image => <img {...image} loading="lazy" decoding="async" />)}
+  </span>}
   <span class="experiment-card-id">{report.id}</span>
   <span class="experiment-card-content">
     <span class="experiment-card-title">{report.data.title}</span>
@@ -48,6 +57,17 @@ if (!report) throw new Error(`ExperimentCard: unknown experiment "${experiment}"
   .experiment-card:focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: 3px;
+  }
+  .experiment-card-figures {
+    grid-column: 1 / -1;
+    display: grid;
+    gap: .75rem;
+    min-width: 0;
+  }
+  .experiment-card-figures img {
+    display: block;
+    width: 100%;
+    height: auto;
   }
   .experiment-card-id {
     padding: .25rem .4rem;

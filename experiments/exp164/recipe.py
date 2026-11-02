@@ -1,5 +1,6 @@
 """Settings for the two constant-cue digit-routing excerpts."""
 
+import hashlib
 import math
 
 import numpy as np
@@ -31,6 +32,17 @@ def configuration(
         prominence_fraction=0.1,
         reference_start_ms=500.0,
         low_inhibition_fraction=0.25,
+        criteria=dict(
+            min_cued_plv=0.95,
+            max_abs_drift_cycles_s=0.25,
+            max_phase_span_cycles=0.3,
+            min_cued_image_correlation=0.7,
+            min_correlation_margin=0.15,
+            min_volleys=12,
+            frequency_band_hz=[30.0, 80.0],
+            max_interval_cv=0.2,
+            description="exploratory phase and routing checks; not a biological realism criterion",
+        ),
         conductance_method="analytical linear filter of saved spikes; native snapshot weights and planner delays/decay; zero initial state; float64 means, not native conductance recordings",
     )
     times = [cfg["display_end_ms"], *cfg["window_ms"], *cfg["closeup_ms"]]
@@ -51,7 +63,7 @@ def configuration(
         )
     if (
         source_configuration["encoding"] != "rates"
-        or source_configuration["network"]["populations"]["E"]["size"] != 64
+        or source_configuration["network"]["populations"]["E"]["size"] % 64 != 0
     ):
         raise ValueError("expected the fixed 8×8 rate encoder")
     return cfg
@@ -62,19 +74,30 @@ def simulation_configuration(*, seed=101):
     if isinstance(seed, bool) or not isinstance(seed, int) or seed < 0:
         raise ValueError("seed must be a nonnegative integer")
     return dict(
-        schema="exp164.recipe/v3",
+        schema="exp164.recipe/v4",
+        heterogeneity=dict(
+            target_gain_cv=0.03,
+            receiver_gain_cv=0.0,
+            inhibitory_gain_cv=0.2,
+            sensory_fanin=128,
+            ei_fanin=80,
+            ei_gain=0.8,
+            ii_gain=0.1,
+            cross_i_ratio=0.2,
+            seed=303,
+        ),
         encoding="rates",
         seed=seed,
         network_seed=85,
-        specification_origin="Recovered digit-routing recipe and recorded settings; fixed scalar defaults, no saved run required",
+        specification_origin="Adapted digit-routing design with private inputs and fixed target heterogeneity; no saved run required",
         protocol="two matched digit trials with opposite cue orders",
         duration_ms=2400.0,
         switch_ms=1200.0,
         dt_ms=0.1,
         sensory_hz=24.0,
-        background_hz=28.0,
+        background_hz=20.0,
         cue_hz=8.0,
-        contrast=0.4,
+        contrast=0.075,
         kernel_pixels=0.45,
         coupling_us=0.6,
         labels=[0, 1],
@@ -99,13 +122,13 @@ def simulation_configuration(*, seed=101):
         ),
         network=dict(
             dt_ms=0.1,
-            input_channels=1024,
+            input_channels=8192,
             resting_mv=-65.0,
             threshold_mv=-50.0,
             reset_mv=-65.0,
             populations=dict(
-                E=dict(size=64, capacitance_nf=1.0, leak_us=0.05, refractory_ms=3.0),
-                I=dict(size=16, capacitance_nf=0.5, leak_us=0.1, refractory_ms=1.5),
+                E=dict(size=320, capacitance_nf=1.0, leak_us=0.05, refractory_ms=3.0),
+                I=dict(size=80, capacitance_nf=0.5, leak_us=0.1, refractory_ms=1.5),
             ),
             sensory=dict(gain=9.2, tau_ms=2.0, delay_ms=0.1),
             local=dict(
@@ -178,17 +201,77 @@ def spatial_parameters(parameters, cfg):
         target = parameters["sensory_" + c + ".weight"]
         block = target.shape[0] // 64
         mask = (
-            torch.arange(target.shape[0])[:, None] // block == torch.arange(64)[None, :]
+            torch.arange(target.shape[0])[:, None] // block
+            == (torch.arange(target.shape[1]) // (target.shape[1] // 64))[None, :]
         )
         target.mul_(mask.to(target.dtype) * 64)
         y, x = np.indices((8, 8))
-        xy = np.stack([y.ravel(), x.ravel()], axis=1)
+        xy = np.repeat(
+            np.stack([y.ravel(), x.ravel()], axis=1), target.shape[1] // 64, axis=0
+        )
         distance = ((xy[:, None] - xy[None, :]) ** 2).sum(axis=2)
         kernel = np.exp(-0.5 * distance / cfg["kernel_pixels"] ** 2)
         kernel /= kernel.sum(axis=0, keepdims=True)
         parameters[c + "_E_to_C_E.weight"].copy_(
             torch.as_tensor(kernel * cfg["coupling_us"], dtype=torch.float32)
         )
+
+
+def heterogeneous_parameters(parameters, cfg):
+    """Break cell symmetry while preserving the pixel encoder and spatial kernel."""
+    if "heterogeneity" not in cfg:
+        return
+    variant = cfg["heterogeneity"]
+    rng = np.random.default_rng(variant["seed"])
+    gains = {}
+    for c in "ABC":
+        for p in "EI":
+            cv = (
+                variant["inhibitory_gain_cv"] if p == "I" else variant["target_gain_cv"]
+            )
+            if c == "C" and p == "E":
+                cv = variant.get("receiver_gain_cv", cv)
+            sigma = math.sqrt(math.log1p(cv * cv))
+            gains[c, p] = rng.lognormal(
+                -sigma * sigma / 2, sigma, cfg["network"]["populations"][p]["size"]
+            )
+    for key, weights in parameters.items():
+        external = key.startswith(("sensory_", "cue_", "background_I_"))
+        if key.endswith("_I_to_I.weight"):
+            weights *= variant["ii_gain"]
+        if key.endswith("_E_to_I.weight"):
+            weights *= variant["ei_gain"]
+        if key.endswith("_to_C_I.weight"):
+            weights *= variant["cross_i_ratio"]
+        fanin = (
+            variant["i_fanin"]
+            if key.startswith("background_I_")
+            else variant["sensory_fanin"]
+            if (key.startswith("cue_") or key == "sensory_C.weight")
+            else (variant["ei_fanin"] if key.endswith("_E_to_I.weight") else None)
+        )
+        if fanin is not None:
+            key_seed = int.from_bytes(
+                hashlib.sha256(key.encode()).digest()[:4], "little"
+            )
+            mask_rng = np.random.default_rng([variant["seed"], key_seed])
+            mask = np.zeros(tuple(weights.shape), dtype=np.float32)
+            for column in mask.T:
+                column[mask_rng.choice(len(column), fanin, replace=False)] = (
+                    len(column) / fanin
+                )
+            weights *= torch.from_numpy(mask)
+        if external or "_E_to_" in key:
+            target = (
+                (key.removesuffix(".weight")[-1], "I")
+                if key.startswith("background_I_")
+                else (key.split("_")[1][0], "E")
+                if external
+                else ("C", key.removesuffix(".weight")[-1])
+                if "_to_C_" in key
+                else (key[0], key.removesuffix(".weight")[-1])
+            )
+            weights *= torch.as_tensor(gains[target], dtype=weights.dtype)[None, :]
 
 
 def author_network(cfg):
@@ -203,7 +286,7 @@ def author_network(cfg):
         # Native direct matrices have the requested incoming sum at every cell.
         source_size = (
             n["input_channels"]
-            if name.startswith(("sensory_", "cue_"))
+            if name.startswith(("sensory_", "cue_", "background_I_"))
             else n["populations"]["E" if "_E_to_" in name else "I"]["size"]
         )
         recurrent = name.endswith(("_E_to_E", "_I_to_I"))
@@ -254,6 +337,14 @@ def author_network(cfg):
             source_weights["PING_B_input_to_E"] * n["sensory"]["gain"],
             n["sensory"]["tau_ms"],
         )
+        if "i_background_us" in cfg.get("heterogeneity", {}):
+            connect(
+                inputs[c],
+                cells[c]["I"].excitatory,
+                "background_I_" + c,
+                cfg["heterogeneity"]["i_background_us"],
+                n["sensory"]["tau_ms"],
+            )
         for path, phys in n["local"].items():
             s, t = path.split("_to_")
             connect(

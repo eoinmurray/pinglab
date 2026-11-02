@@ -5,8 +5,11 @@ import ParameterTable from './ParameterTable.astro';
 
 <RunFigure report="exp164" experiment="exp164" file="circuit.svg" number="A1" id="fig-network" alt="Native A/B to C circuit with six E/I populations, separate sensory/background/cue inputs, topographic excitation into C E and pooled excitation into C I." allowUnavailable={true}>
   Native architecture compiled by the standalone recipe.
-  Each sender has 1,024 sensory channels, arranged as 16 channels for each of
-  64 image pixels. The corresponding E neuron receives that pixel's channels.
+  Each sender has 8,192 sensory channels, arranged as 128 channels for each of
+  64 image pixels. Five E cells receive each pixel's channels; maps average their
+  raw rates. C background and cue inputs use independent 128-source masks.
+  Local E→I inputs use 80-source masks. Fixed excitatory target gains break cell
+  symmetry; actual start weights retain these masks and gain interventions.
   Pixel rates equal the sensory base rate multiplied by a uniform pedestal plus
   mean-normalized image intensity, with the recorded contrast as the mixing
   coefficient. A/B → C E weights follow a two-dimensional Gaussian kernel in

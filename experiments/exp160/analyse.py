@@ -254,7 +254,7 @@ def read_trial(computed, name, cfg):
     return spikes, Trajectory(np.arange(steps) * dt, state)
 
 
-def analyse(*, source, run_id=None, selection_sources=()):
+def analyse(*, source, run_id=None):
     started = perf_counter()
     computed = source_run(
         REPO / ".pingstore", source, experiment=recipe.SLUG, stage="compute"
@@ -290,6 +290,7 @@ def analyse(*, source, run_id=None, selection_sources=()):
     base = NetworkSnapshot.read(
         reference.file(recipe.REFERENCE_SNAPSHOT)
     ).load_parameters()
+    base = recipe.reference_parameters(base, cfg)
     for name, k in [("control", 0), ("coupled", cfg["coupling_us"])]:
         initial = NetworkSnapshot.read(
             computed.file(f"{name}-execution/start/snapshot.json")
@@ -301,17 +302,11 @@ def analyse(*, source, run_id=None, selection_sources=()):
             )
     reference.check_unchanged()
     arrival_alignment = alignment(solutions["coupled"], spikes["coupled"], cfg)
-    selection = {
-        f"selection_{index:02d}": source_run(
-            REPO / ".pingstore", identity, experiment=recipe.SLUG, stage="analyse"
-        )
-        for index, identity in enumerate(selection_sources)
-    }
     with stage_run(
         REPO,
         recipe.SLUG,
         "analyse",
-        inputs=dict(compute=computed, **selection),
+        inputs=dict(compute=computed),
         configuration=cfg,
         run_id=run_id,
     ) as run:
@@ -333,8 +328,6 @@ def analyse(*, source, run_id=None, selection_sources=()):
         np.savez_compressed(run.export / "traces.npz", **arrays)
         run.record["execution"]["elapsed_seconds"] = perf_counter() - started
         computed.check_unchanged()
-        for item in selection.values():
-            item.check_unchanged()
     print(metrics)
     return run.run_id
 
@@ -343,7 +336,4 @@ if __name__ == "__main__":
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--source", required=True)
     p.add_argument("--run-id")
-    p.add_argument(
-        "--selection-source", dest="selection_sources", action="append", default=[]
-    )
     analyse(**vars(p.parse_args()))

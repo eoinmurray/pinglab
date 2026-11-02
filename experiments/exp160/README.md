@@ -1,62 +1,49 @@
 # exp160 — Spiking one-way entrainment
 
-One matched pair of conductance-LIF simulations, with the neuronal-reference
-weights pinned to an explicit exp159 compute. Both trials receive the same full
-private input spike trains; A→B is disabled in the control and enabled at 500 ms
-in the coupled trial. No B→A feedback, probes, training or competition task.
+Generate Figure 1 (matched population rates, phase and conductance timing) and
+Figure 2 (all-neuron spike rasters) for the accepted condition. Settings live in
+`recipe.configuration`: 400 E / 100 I cells per circuit, private sensory fan-in
+128, local E→I fan-in 80, target gain CVs 0.1 / 0.2, E→I / I→I weight multipliers
+0.8 / 0.1, A/B inputs 26 / 24 Hz/channel, and 0.3 µS nominal A→B E strength.
+The retained A→B I projection has zero gain. Coupling starts at 500 ms in a
+1,500 ms trial. Control and coupled trials share weights and complete inputs.
 
-## CLI
+## Stages
 
-1. `compute.py`: required `--parameter-source COMPUTE_ID` (exp159 native reference);
-   optional `--coupling-us` (0.28 µS), `--difference-hz` (6.5 Hz/channel), `--run-id`.
-   Runs only the 1,500 ms pair on CPU. Saves actual execution-start snapshots,
-   binary inputs/spikes and native per-cell conductance recordings with units and
-   sample coordinates. Control/coupled local weights, prefix spikes and all sender
-   spikes are checked; cross strengths deliberately differ.
-2. `analyse.py`: required `--source COMPUTE_ID`; optional `--run-id`. Validates
-   binary arrays, native conductance metadata and scaled native initial weights.
-   Rates use 1 ms Gaussian smoothing; phase metrics use 800–1,500 ms.
-3. `present.py`: required `--source ANALYSE_ID`; optional `--run-id`. Creates the
-   two-column SVG/PNG/PDF and styled native network diagram. `--redraw-from PRESENT_ID`
-   redraws only the network while preserving scientific figures/numbers.
-4. `test.py`: `uv run pytest experiments/exp160/test.py -q`.
+1. `uv run python experiments/exp160/compute.py --parameter-source exp159-r001-compute`
+   runs the fixed pair on CPU. It expands the pinned native reference weights,
+   normalizes incoming totals, and applies the recorded sparse masks and
+   unit-mean lognormal target gains. It retains native bundles, execution-start
+   snapshots, inputs, spikes and conductance recordings. It prints its compute ID.
+2. `uv run python experiments/exp160/analyse.py --source COMPUTE_ID` validates
+   the selected inputs and transformed execution weights, then measures rates,
+   phase locking and conductance/output timing. It prints its analysis ID.
+3. `uv run python experiments/exp160/present.py --source ANALYSE_ID` renders
+   Figures 1–2 and the required appendix network diagram. Scientific figures
+   use saved spikes and conductances; no smoothing or jitter is applied to rasters.
+   All stages accept optional `--run-id`; no stage launches an upstream stage.
 
-The original 0.06 µS pair failed to lock. A 0.24 µS pair locked but did not
-reliably place input peaks before receiver output. Subsequent paired iterations
-changed one parameter at a time (or returned to an already tested setting before
-changing another). The selected pair uses A/B 28.25/21.75 Hz/channel and 0.28 µS.
-It passes the unchanged phase-locking criteria and the explicit illustrative
-alignment criterion: at least 80% of input-conductance peaks inside the existing
-low-inhibition windows, and at least 80% followed by a raw B E population-spike
-peak 0.2–10 ms later. Selected fractions are 19/19 and 16/19 respectively.
-This is an exploratory selection rule, not an established CTC test or a causal
-transmission assay. Peak timing uses native conductance and unsmoothed spikes.
+To regenerate the accepted figures without simulations, use
+`present.py --source exp160-r077-analyse`, or run analysis on
+`exp160-r068-compute` and pass the resulting analysis ID to presentation.
 
-`analyse.py --selection-source ANALYSE_ID` may be repeated to retain the explicit
-pre-selection analyses as scientific provenance. Those references are not used
-to run or alter the selected pair. The final analysis pins the complete set of
-prior paired conditions. All original runs remain immutable. Seed robustness,
-preferential information transmission and attention remain untested.
+## Evidence
 
-## Iteration record
+The accepted condition is `exp160-r068-compute`. Coupled PLV is 0.9849 and
+phase drift 0.0434 cycles/s over 800–1,500 ms; control drift is 1.9219 cycles/s.
+E participation averages 59.8% / 73.8% per complete population cycle; I remains
+strongly cycle-locked. These are one exploratory realization, not seed validation
+or evidence of biological realism. The earlier illustrative timing criterion
+fails: 90% of input peaks fall in low inhibition, but only 75% precede raw B E
+output by the required 0.2–10 ms. The threshold remains 80% for both fractions.
 
-| Coupling (µS) | A-minus-B drive (Hz/channel) | Locking | Timing fraction | Analysis |
-| --- | --- | --- | --- | --- |
-| 0.06 | 2 | No | Not measured initially | r002 |
-| 0.24 | 2 | Yes | Not measured initially | r006 |
-| 0.16 | 2 | Yes | 4/18 | r009 |
-| 0.16 | 4 | No | 10/18 | r011 |
-| 0.24 | 4 | Yes | 11/18 | r013 |
-| 0.24 | 6 | No | 10/18 | r015 |
-| 0.30 | 6 | Yes | 13/18 | r017 |
-| 0.28 | 6 | Yes | 14/18 | r019 |
-| 0.27 | 6 | Yes | 14/18 | r021 |
-| 0.26 | 6 | No | 14/18 | r023 |
-| 0.30 | 6.5 | Yes | 15/19 | r025 |
-| 0.28 | 6.5 | Yes | 16/19 | r027 |
+Historical exploratory runs and their selection provenance remain immutable in
+Pingstore. Sweep controls, later unselected conditions, network-only redraw mode
+and the third raster close-up are not part of the maintained generation code.
 
-Analysis suffixes identify immutable `exp160-rNNN-analyse` runs. Timing fraction
-counts peaks followed by raw receiver output 0.2–10 ms later, not the separate
-low-inhibition fraction; both timing fractions must reach 80%. The first two
-analyses predate this timing rule. Failed and near-passing cases were retained
-rather than changing the 80% threshold, lag range, shading threshold or windows.
+## Checks
+
+`uv run pytest experiments/exp160/test.py -q -k 'not native_pair'` checks phase,
+timing, imports, matched inputs and exact agreement with the accepted native
+configuration and execution weights without simulations. The `native_pair` test
+also simulates a short pair and requires execution authorization.

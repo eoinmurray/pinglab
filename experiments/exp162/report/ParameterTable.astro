@@ -6,6 +6,7 @@ const evidence = await reportSnapshots('exp162', {
   snapshots: { start: 'execution/start/snapshot.json' }, allowUnavailable: true,
 });
 const cfg = evidence?.configuration;
+const variant = cfg?.heterogeneity;
 const snapshot = evidence?.snapshots.start;
 const net = snapshot?.network;
 const math = value => ({ math:value });
@@ -40,7 +41,10 @@ const groups=cfg && net ? [
     shared('Background input, C',`${n(cfg.input_rates_hz.X_C)} Hz/channel`),
     shared('Cue source rate, A / B',`${n(cfg.input_rates_hz.U_A)} / ${n(cfg.input_rates_hz.U_B)} Hz/channel`),
     ['Cue delivery target',math('E_A'),math('E_B')],
-    shared('Each sender→C pathway incoming weight',`${n(cfg.coupling_us)} µS`),
+    shared('Each sender→C E / I nominal incoming weight',`${n(cfg.coupling_us)} / ${n(cfg.coupling_us*(variant?.cross_i_ratio ?? 1))} µS`),
+    ...(variant ? [shared('Sensory / E→I / cross fan-in',`${n(variant.sensory_fanin)} / ${n(variant.ei_fanin)} / ${n(variant.cross_fanin)}`),
+      shared('Excitatory target gain CV, E / I',`${n(variant.target_gain_cv)} / ${n(variant.inhibitory_gain_cv)}`),
+      shared('Weight intervention seed',String(variant.seed))] : []),
     shared('Cross-pathway decay / delay',`${n(cfg.network.cross.tau_ms)} / ${n(cfg.network.cross.delay_ms)} ms`),
     shared('A–B connections / C feedback','Absent / Absent'),
   ]},
@@ -61,7 +65,26 @@ const matrices=cfg && snapshot ? ['before','after'].map(epoch=>sources.map(sourc
     if(!parameter || parameter.unit!=='uS' || parameter.initializer.kind!=='constant' || parameter.initialization_scaling!=='direct') throw new Error('Expected a native direct constant conductance initializer');
     const gain=projection.modulation?.[epoch] ?? 1;
     const scale=snapshot.execution.inference_overrides?.projection_scales?.[projection.id] ?? 1;
-    return `${n(100)}%; ${n(1000*parameter.initializer.value*gain*scale)} nS`;
+    let density = 1;
+    let weight = parameter.initializer.value*gain*scale;
+    let cv = 0;
+    if (variant) {
+      const external = /^[XU]_/.test(source.id);
+      const localEI = source.id.endsWith('_E') && target.id === source.id.replace(/_E$/, '_I');
+      const localII = source.id.endsWith('_I') && source.id === target.id;
+      const cross = /^[AB]_E$/.test(source.id) && target.id.startsWith('C_');
+      const fanIn = external ? variant.sensory_fanin : localEI ? variant.ei_fanin : cross ? variant.cross_fanin : null;
+      if (fanIn) { density = fanIn/source.size; weight /= density; }
+      if (source.id === target.id) {
+        const eligible = source.size-1;
+        const retained = source.size-variant.population_scale;
+        density = retained/eligible;
+        weight *= eligible/retained;
+      }
+      weight *= localEI ? variant.ei_gain : localII ? variant.ii_gain : 1;
+      if (external || source.id.endsWith('_E')) cv = target.id.endsWith('_I') ? variant.inhibitory_gain_cv : variant.target_gain_cv;
+    }
+    return `${n(100*density)}%; ${n(1000*weight)}${cv && weight ? ` ± ${n(1000*weight*cv)}` : ''} nS`;
   })
 ])) : [];
 ---
@@ -71,7 +94,7 @@ const matrices=cfg && snapshot ? ['before','after'].map(epoch=>sources.map(sourc
   circuits share E/I dynamics. Per-channel/bin Bernoulli spike inputs approximate
   independent Poisson sources; both cue ports use the same U train. Source rate
   parameters stay constant while cue-delivery gains change. Seeds are exact
-  identifiers; weight matrices are deterministic. Numeric quantities use two
+  identifiers; weight masks and target gains are fixed after initialization. Numeric quantities use two
   significant figures.
 </Table>
 {matrices.map((rows,index)=><Table headers={['Source ↓ / target →',...targets.map(p=>math(symbol(p.id)))]}
@@ -79,8 +102,11 @@ const matrices=cfg && snapshot ? ['before','after'].map(epoch=>sources.map(sourc
   Each cell gives eligible-pair density and nominal weight per connection, including
   native execution scaling and the selected cue-delivery gain. A zero gain retains its projection and density;
   Absent means no projection exists. Self-connections are excluded on the diagonal.
-  Constant weights retain the symmetric incoming sums of the imported
-  mean-field reference; execution scaling changes sender→C strength. Sensory gain is already included in native
+  Values include recorded sparse-mask normalization, local weight multipliers
+  and lognormal target gains. Nominal mean ± SD describe the initialization law,
+  not measured matrix statistics. Expanded diagonal blocks inherit reference
+  self-connection exclusions. The snapshot arrays retain actual physical weights.
+  Execution scaling changes sender→C strength. Sensory gain is already included in native
   initializers and is not applied again. Local decay: E→E {n(cfg.network.local.E_to_E.tau_ms)} ms,
   E→I {n(cfg.network.local.E_to_I.tau_ms)} ms, I→E {n(cfg.network.local.I_to_E.tau_ms)} ms,
   I→I {n(cfg.network.local.I_to_I.tau_ms)} ms; local delay {n(cfg.network.dt_ms)} ms.

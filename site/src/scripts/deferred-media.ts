@@ -35,7 +35,18 @@ function reveal(root: Element) {
   if (root instanceof HTMLVideoElement) root.load();
 }
 
-for (const media of document.querySelectorAll('[data-deferred-media]')) {
+function loadImages() {
+  // Start downloads in a new task after the page's load handlers finish.
+  window.setTimeout(() => {
+    for (const media of document.querySelectorAll('[data-deferred-media]')) {
+      if (!(media instanceof HTMLVideoElement)) reveal(media);
+    }
+  }, 0);
+}
+if (document.readyState === 'complete') loadImages();
+else window.addEventListener('load', loadImages, { once: true });
+
+for (const media of document.querySelectorAll('video[data-deferred-media]')) {
   whenVisibleAfterLoad(media, () => reveal(media));
 }
 // Printing needs figures on hidden slides and below the viewport as well.

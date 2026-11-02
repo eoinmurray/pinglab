@@ -1,6 +1,7 @@
 """Spatial Gaussian drives and topographic excitation in a spiking A/B → C circuit."""
 
 import copy
+import hashlib
 import math
 
 import numpy as np
@@ -17,8 +18,8 @@ def configuration(
     reference_configuration,
     coupling_us=0.6,
     cue_hz=8.0,
-    background_hz=22.0,
-    contrast=0.4,
+    background_hz=28.0,
+    contrast=0.08,
     width=0.1,
     kernel=0.06,
     swap=False,
@@ -32,10 +33,29 @@ def configuration(
         or not 0 < contrast <= 1
     ):
         raise ValueError("positive finite parameters and contrast in (0,1] required")
+    network = copy.deepcopy(reference_configuration["network"])
+    variant = dict(
+        population_scale=5,
+        sensory_fanin=128,
+        ei_fanin=80,
+        cross_fanin=40,
+        target_gain_cv=0.1,
+        receiver_gain_cv=0.0,
+        reflect_with_centers=False,
+        inhibitory_gain_cv=0.2,
+        ei_gain=0.8,
+        ii_gain=0.1,
+        cross_i_ratio=0.65,
+        seed=303,
+    )
+    for physical in network["populations"].values():
+        physical["size"] *= variant["population_scale"]
+    network["local"]["E_to_I"]["tau_ms"] = 1.0
     return dict(
         schema=SCHEMA,
+        heterogeneity=variant,
         protocol="one spiking cue-switch trial with spatial Gaussian sender drive",
-        network=copy.deepcopy(reference_configuration["network"]),
+        network=network,
         incoming_weights_us=copy.deepcopy(
             reference_configuration["incoming_weights_us"]
         ),
@@ -98,13 +118,103 @@ def configuration(
     )
 
 
+def heterogeneous_parameters(original, cfg):
+    """Fixed input masks and excitatory target gains; saved native arrays are authoritative."""
+    import torch
+
+    if "heterogeneity" not in cfg:
+        return {key: value.clone() for key, value in original.items()}
+    variant = cfg["heterogeneity"]
+    factor = variant["population_scale"]
+    rng = np.random.default_rng(variant["seed"])
+    gains = {}
+    for c in "ABC":
+        for p in "EI":
+            cv = (
+                variant["inhibitory_gain_cv"] if p == "I" else variant["target_gain_cv"]
+            )
+            if c == "C" and p == "E":
+                cv = variant.get("receiver_gain_cv", cv)
+            sigma = math.sqrt(math.log1p(cv * cv))
+            gains[c, p] = rng.lognormal(
+                -sigma * sigma / 2, sigma, cfg["network"]["populations"][p]["size"]
+            )
+    if "i_background_us" in variant:
+        original = dict(original)
+        for c in "ABC":
+            original["background_I_" + c + ".weight"] = torch.full(
+                (
+                    cfg["network"]["input_channels"],
+                    cfg["network"]["populations"]["I"]["size"] // factor,
+                ),
+                variant["i_background_us"] / cfg["network"]["input_channels"],
+            )
+    result = {}
+    for key, value in original.items():
+        weights = value.clone().repeat_interleave(factor, dim=1)
+        external = key.startswith(("sensory_", "cue_", "background_I_"))
+        if not external:
+            weights = weights.repeat_interleave(factor, dim=0) / factor
+        if key.endswith("_I_to_I.weight"):
+            weights *= variant["ii_gain"]
+        if key.endswith("_E_to_I.weight"):
+            weights *= variant["ei_gain"]
+        fanin = (
+            variant["i_fanin"]
+            if key.startswith("background_I_")
+            else variant["sensory_fanin"]
+            if external
+            else (
+                variant["ei_fanin"]
+                if key.endswith("_E_to_I.weight")
+                else variant["cross_fanin"]
+                if "_to_C_" in key
+                else None
+            )
+        )
+        if fanin is not None:
+            key_seed = int.from_bytes(
+                hashlib.sha256(key.encode()).digest()[:4], "little"
+            )
+            mask_rng = np.random.default_rng([variant["seed"], key_seed])
+            mask = np.zeros(tuple(weights.shape), dtype=np.float32)
+            for column in mask.T:
+                column[mask_rng.choice(len(column), fanin, replace=False)] = (
+                    len(column) / fanin
+                )
+            weights *= torch.from_numpy(mask)
+        if external or "_E_to_" in key:
+            target = excitatory_target(key)
+            weights *= torch.as_tensor(gains[target], dtype=weights.dtype)[None, :]
+        result[key] = weights
+    if variant.get("bilateral_symmetry", False):
+        make_bilateral(result)
+    return result
+
+
+def make_bilateral(parameters):
+    """Keep exact fan-ins while tying quenched weights across the midline."""
+    for key, weights in parameters.items():
+        half = weights.shape[1] // 2
+        axes = (1,) if key.startswith(("sensory_", "cue_", "background_I_")) else (0, 1)
+        weights[:, half:] = weights[:, :half].flip(axes)
+
+
+def excitatory_target(key):
+    if key.startswith("background_I_"):
+        return key.removesuffix(".weight")[-1], "I"
+    if key.startswith(("sensory_", "cue_")):
+        return key.split("_")[1][0], "E"
+    return ("C" if "_to_C_" in key else key[0]), key.removesuffix(".weight")[-1]
+
+
 def coordinates(cfg):
     n = cfg["network"]["populations"]["E"]["size"]
     return (np.arange(n) + 0.5) / n
 
 
 def spatial_weights(original, cfg, reference_cfg):
-    weights = {k: v.clone() for k, v in original.items()}
+    weights = heterogeneous_parameters(original, cfg)
     x = coordinates(cfg)
     for c, center in cfg["spatial"]["centers"].items():
         g = np.exp(-0.5 * ((x - center) / cfg["spatial"]["width"]) ** 2)
@@ -113,8 +223,17 @@ def spatial_weights(original, cfg, reference_cfg):
         weights["sensory_" + c + ".weight"] *= torch.as_tensor(
             gain, dtype=torch.float32
         )[None, :]
+        if "heterogeneity" in cfg:
+            target_total = (
+                cfg["incoming_weights_us"]["PING_B_input_to_E"]
+                * cfg["network"]["sensory"]["gain"]
+                * len(x)
+            )
+            weights["sensory_" + c + ".weight"] *= (
+                target_total / weights["sensory_" + c + ".weight"].sum()
+            )
         key = c + "_E_to_C_E.weight"
-        base = original[key].numpy()
+        base = weights[key].numpy()
         kernel = np.exp(
             -0.5 * ((x[:, None] - x[None, :]) / cfg["spatial"]["kernel_width"]) ** 2
         )
@@ -127,6 +246,25 @@ def spatial_weights(original, cfg, reference_cfg):
             weights[c + "_E_to_C_" + p + ".weight"] *= (
                 cfg["coupling_us"] / reference_cfg["coupling_us"]
             )
+    if "heterogeneity" in cfg:
+        for c in "AB":
+            weights[c + "_E_to_C_I.weight"] *= cfg["heterogeneity"]["cross_i_ratio"]
+        if (
+            cfg["heterogeneity"].get("reflect_with_centers", True)
+            and cfg["spatial"]["centers"]["A"] > cfg["spatial"]["centers"]["B"]
+        ):
+            # Reflect the complete heterogeneous circuit, not only its Gaussian field.
+            unswapped = copy.deepcopy(cfg)
+            unswapped["spatial"]["centers"] = {
+                c: 1 - v for c, v in cfg["spatial"]["centers"].items()
+            }
+            baseline = spatial_weights(original, unswapped, reference_cfg)
+            return {
+                key: value.flip((1,))
+                if key.startswith(("sensory_", "cue_", "background_I_"))
+                else value.flip((0, 1))
+                for key, value in baseline.items()
+            }
     # Both senders have equal total sensory drive and equal incoming sums at every C target.
     np.testing.assert_allclose(
         weights["sensory_A.weight"].numpy().sum(),
@@ -170,7 +308,7 @@ def author_network(cfg):
         # Native direct matrices have the requested incoming sum at every cell.
         source_size = (
             n["input_channels"]
-            if name.startswith(("sensory_", "cue_"))
+            if name.startswith(("sensory_", "cue_", "background_I_"))
             else n["populations"]["E" if "_E_to_" in name else "I"]["size"]
         )
         if name.endswith(("_E_to_E", "_I_to_I")):
@@ -219,6 +357,14 @@ def author_network(cfg):
             source_weights["PING_B_input_to_E"] * n["sensory"]["gain"],
             n["sensory"]["tau_ms"],
         )
+        if "i_background_us" in cfg.get("heterogeneity", {}):
+            connect(
+                inputs[c],
+                cells[c]["I"].excitatory,
+                "background_I_" + c,
+                cfg["heterogeneity"]["i_background_us"],
+                n["sensory"]["tau_ms"],
+            )
         for path, phys in n["local"].items():
             s, t = path.split("_to_")
             connect(

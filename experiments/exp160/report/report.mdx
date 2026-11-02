@@ -3,7 +3,7 @@ id: exp160
 title: "Spiking Entrainment"
 author: "Eoin Murray"
 created_at: "2026-10-30T12:55:39Z"
-updated_at: "2026-10-30T13:27:36Z"
+updated_at: "2026-11-02T11:31:20Z"
 description: "Matched spiking trials with one-way excitation and private Poisson inputs."
 collection: ["experiments", "ctc-attention"]
 tags: ["data", "v0.31.0"]
@@ -20,22 +20,13 @@ export const coupled = data?.metrics.coupled;
 
 ## Abstract
 
-{data ? <p>We compared matched uncoupled and one-way coupled conductance-LIF networks using the same initialized weights and private sensory spike trains. A→B excitation starts at {cfg.network.onset_ms} ms; feedback is absent. At {cfg.coupling_us} µS nominal coupling per pathway, coupled PLV was {round(coupled.plv,4)} and phase drift was {round(coupled.drift_hz,4)} cycles/s over 800–1,500 ms, compared with {round(control.drift_hz,4)} cycles/s in the control. The neuronal reference is pinned to exp159. Coupling and drive imbalance were selected through exploratory iteration; this one matched realization does not establish seed robustness or selective attention.</p> : <p>No completed evidence is selected.</p>}
-
-## Introduction
-
-This experiment implements the one-way [mean-field example](/exp159) with
-conductance-based leaky integrate-and-fire neurons and private stochastic sensory
-inputs. Communication through coherence motivates inspecting incoming excitation
-relative to receiver inhibition and output
-([Fries, 2015](https://doi.org/10.1016/j.neuron.2015.09.034)). The experiment tests
-finite-time entrainment; it has no competing sender, attention cue or readout.
+{data ? <p>We compared matched uncoupled and one-way coupled conductance-LIF networks using the same initialized weights and private sensory spike trains. A→B excitation starts at {cfg.network.onset_ms} ms; feedback is absent. With {cfg.network.populations.E.size} E and {cfg.network.populations.I.size} I cells per circuit and {cfg.coupling_us} µS nominal A→B E pathway strength, coupled PLV was {round(coupled.plv,4)} and phase drift was {round(coupled.drift_hz,4)} cycles/s over 800–1,500 ms, compared with {round(control.drift_hz,4)} cycles/s in the control. The exp159 reference weights are expanded and modified using the recorded sparse-connectivity and target-gain interventions. The condition was selected through exploratory iteration; this one matched realization does not establish seed robustness or selective attention.</p> : <p>No completed evidence is selected.</p>}
 
 ## Results
 
 <RunFigure report="exp160" experiment="exp160" file="entrainment.svg" number={1} id="fig-entrainment" alt="Matched spiking networks: uncoupled left and one-way coupled right, showing population spike rates, phase drift and native conductances with low-inhibition shading." allowUnavailable={true}>
-  Left: uncoupled control. Right: A E→B E/I coupling, enabled at 500 ms without
-  resetting state. Both runs share base weights, initial voltages and complete
+  Left: uncoupled control. Right: A E→B E coupling, enabled at 500 ms without
+  resetting state; the retained A E→B I projection has zero execution gain. Both runs share transformed weights, initial voltages and complete
   private input trains; the control applies zero cross-pathway strength. Binary
   input bins independently approximate Poisson processes with probability rate ×
   timestep; the recorded input seeds select the matched realization.
@@ -63,19 +54,16 @@ finite-time entrainment; it has no competing sender, attention cue or readout.
   of input peaks fall in the shaded windows, and
   {(100*data.alignment.fraction_output_peaks_following_input).toFixed(1)}% are followed by
   B output within {data.alignment.criteria.min_output_lag_ms}–{data.alignment.criteria.max_output_lag_ms} ms.
-  The illustrative selection rule requires at least {100*data.alignment.criteria.min_fraction}%
-  for each timing fraction, as well as the locking criteria; it is not an established
-  CTC test. </span>}
+  The earlier illustrative timing rule requires at least {100*data.alignment.criteria.min_fraction}%
+  for each timing fraction. This selected raster variant {data.alignment.timing_passed ? 'passes' : 'fails'} that rule,
+  separately from its phase-locking result; it is not an established CTC test. </span>}
   All axes match across columns. This is one selected matched pair, with no
   evaluation across seeds or claim of preferential information transmission.
 </RunFigure>
 
-## Discussion
-
-The uncoupled rhythms drift apart; the selected one-way coupling brings receiver
-frequency close to the sender's and stabilises relative phase over the measured
-window. This is compatible with CTC-like entrainment in this network. It does not
-establish selective attention, an optimal excitability phase, causal transmission
-of an encoded signal, or lasting phase locking. Unlike the mean-field closure,
-the simulation retains heterogeneous connections, finite-population spike timing,
-membrane voltage, refractoriness and voltage-dependent synaptic driving forces.
+<RunFigure report="exp160" experiment="exp160" file="rasters.svg" number={2} id="fig-rasters" alt="Full-population spike rasters with a separate row for every excitatory and inhibitory population." allowUnavailable={true}>
+  Left: uncoupled control; right: one-way coupled trial. Rows show every A and B E/I neuron over the same full trial as Figure 1. Dashed lines mark coupling onset.
+  Black marks are E spikes; red marks are I spikes. Each mark is one saved binary
+  spike event at its recorded time and neuron index, without smoothing, jitter
+  or neuron subsampling. These are the selected modified-network trials, not extra replicates.
+</RunFigure>

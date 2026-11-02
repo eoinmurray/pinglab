@@ -16,6 +16,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
+from experiments import theme
 from experiments.exp164 import recipe
 from pingstore.library import source_run, stage_run, write_json_atomic
 from snnlab import lang, viz
@@ -275,7 +276,7 @@ def figure(cfg, time, result, scales, *, cued, end_ms, window_ms, closeup_ms):
     )
     caption = (
         f"Both sensory inputs stay present. Grey bands and heatmaps: {window_ms[0]:g}–{window_ms[1]:g} ms. "
-        "Rates/phase use 1 ms SD temporal smoothing; heatmaps are raw E-cell rates, with no spatial smoothing.\n"
+        f"Rates/phase use 1 ms SD temporal smoothing; heatmaps average {cfg['network']['populations']['E']['size'] // 64} raw E-cell rates/pixel; no spatial smoothing.\n"
         "Excitation shares one peak scale; inhibition has its own. Scales are shared between cue figures for each quantity/population. "
         "Shading is an inhibition proxy, not measured gain.\n"
         "Conductances are linear-synapse reconstructions using native weights, decay and delays; native conductance recordings were not retained. "
@@ -283,6 +284,82 @@ def figure(cfg, time, result, scales, *, cued, end_ms, window_ms, closeup_ms):
     )
     fig.text(0.09, 0.025, caption, fontsize=7.3, va="bottom", linespacing=1.7)
     return fig
+
+
+def render_rasters(computed, run):
+    """Plot every saved neuron at its recorded bin time, without jitter or smoothing."""
+    with matplotlib.rc_context():
+        theme.apply()
+        cfg = computed.record["execution"]["configuration"]
+        dt = cfg["dt_ms"]
+        end_ms = run.record["execution"]["configuration"]["display_end_ms"]
+        populations = [c + "_" + p for c in "ABC" for p in "EI"]
+        cases = []
+        with np.load(computed.file("spikes.npz"), allow_pickle=False) as data:
+            for cued in "AB":
+                index = next(
+                    i
+                    for i, condition in enumerate(cfg["conditions"])
+                    if condition["present"] == "AB"
+                    and condition["order"][0] == cued
+                    and not condition["probe"]
+                )
+                cases.append(
+                    (
+                        cued + " cued",
+                        {key: data[key][:, index, :] for key in populations},
+                    )
+                )
+        boundary = None
+        fig, axes = plt.subplots(
+            len(populations),
+            len(cases),
+            squeeze=False,
+            sharex=True,
+            sharey="row",
+            figsize=(13 if len(cases) == 2 else 11, 1.7 * len(populations) + 1),
+            layout="constrained",
+        )
+        for column, (title, spikes) in enumerate(cases):
+            if set(spikes) != set(populations):
+                raise ValueError("missing raster populations")
+            for row, key in enumerate(populations):
+                values = spikes[key]
+                if values.ndim != 2 or not np.isin(values, (0, 1)).all():
+                    raise ValueError("invalid saved raster spikes")
+                times, neurons = np.nonzero(values)
+                times = times * dt
+                shown = times <= end_ms
+                ax = axes[row, column]
+                ax.scatter(
+                    times[shown],
+                    neurons[shown] + 1,
+                    marker="|",
+                    s=2.0,
+                    color=theme.INK_BLACK if key.endswith("E") else theme.DEEP_RED,
+                    linewidths=0.4,
+                )
+                ax.set(
+                    xlim=(0, end_ms),
+                    ylim=(0.5, values.shape[1] + 0.5),
+                    yticks=[1, values.shape[1]],
+                    ylabel=f"{key[0]} {key[-1]} neuron",
+                )
+                if boundary is not None:
+                    ax.axvline(boundary, color=theme.MUTED, ls="--", lw=1.0)
+                if row == 0:
+                    ax.set_title(title)
+                if row == len(populations) - 1:
+                    ax.set_xlabel("Time (ms)")
+        theme.label_panels(axes.flat)
+        fig.suptitle(
+            "Full-population spike rasters · every E and I neuron",
+            fontsize=theme.SIZE_PANEL,
+            fontweight="bold",
+        )
+        for extension in ("svg", "png"):
+            fig.savefig(run.export / ("rasters." + extension))
+        plt.close(fig)
 
 
 def present(*, source, run_id=None):
@@ -338,6 +415,7 @@ def present(*, source, run_id=None):
                 fig.savefig(run.export / f"cue-{c}.{ext}", dpi=170)
             plt.close(fig)
         render_network(computed, run)
+        render_rasters(computed, run)
         write_json_atomic(run.export / "numbers.json", numbers)
         run.record["execution"].update(
             elapsed_seconds=perf_counter() - started, no_simulation=True
@@ -371,6 +449,7 @@ def redraw_network(*, presentation, run_id=None):
         for path in previous.presentation.iterdir():
             shutil.copyfile(path, run.export / path.name)
         render_network(sources["compute"], run)
+        render_rasters(sources["compute"], run)
         run.record["execution"]["elapsed_seconds"] = perf_counter() - started
         for item in [previous, *sources.values()]:
             item.check_unchanged()

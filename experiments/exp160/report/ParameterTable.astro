@@ -7,6 +7,7 @@ const evidence = await Promise.all(['control','coupled'].map(name => reportSnaps
 })));
 const cfg = evidence[0]?.configuration;
 const snapshot = evidence[0]?.snapshots.start;
+const variant = cfg?.weight_variant ?? {};
 const net = snapshot?.network;
 const math = value => ({ math: value });
 const symbol = id => {
@@ -36,7 +37,10 @@ const groups = cfg && net ? [
   ]},
   { label:'Input and manipulation',rows:[
     shared('Private input rate, A / B',`${n(cfg.network.input_rates_hz.drive_A)} / ${n(cfg.network.input_rates_hz.drive_B)} Hz/channel`),
-    ['A→B coupling per pathway',`${n(0)} µS`,`${n(cfg.coupling_us)} µS`],
+    ['A→B nominal E / I pathway totals',`${n(0)} / ${n(0)} µS`,`${n(cfg.coupling_us)} / ${n(cfg.coupling_us*(cfg.cross_i_ratio ?? 1))} µS`],
+    shared('Sensory / local E→I fan-in',`${n(variant.sensory_fanin ?? cfg.network.input_channels)} / ${n(variant.ei_fanin ?? cfg.network.populations.E.size)}`),
+    shared('Excitatory target gain CV, E / I',`${n(variant.target_gain_cv ?? 0)} / ${n(variant.inhibitory_gain_cv ?? variant.target_gain_cv ?? 0)}`),
+    shared('Weight intervention seed',String(variant.seed ?? 'Inapplicable')),
     shared('Cross-pathway decay / delay',`${n(cfg.network.cross.tau_ms)} / ${n(cfg.network.cross.delay_ms)} ms`),
     shared('Feedback B→A','Absent'),
   ]},
@@ -58,15 +62,27 @@ const matrices = cfg && snapshot ? [0,cfg.coupling_us].map((coupling,index) => s
   if (!constant && init.kind !== 'lower_clamped_normal') throw new Error('Unsupported initializer');
   const eligible = snapshot.execution.initialization?.[parameter.id]?.autapses?.[projection.id]?.eligible_fan_in
     ?? source.size - (source.id === target.id && projection.allow_autapses === false ? 1 : 0);
+  const sensory = source.id.startsWith('drive_');
+  const localEI = /_E$/.test(source.id) && target.id === source.id.replace(/_E$/, '_I');
+  const localEE = /_E$/.test(source.id) && target.id === source.id;
+  const localII = /_I$/.test(source.id) && target.id === source.id;
   const density = constant ? 1 : 1-init.initial_zero_fraction;
-  const fanIn = init.zeroing === 'exact_k' ? Math.round(eligible*density) : eligible*density;
+  const nativeFanIn = init.zeroing === 'exact_k' ? Math.round(eligible*density) : eligible*density;
+  const tiledDiagonal = source.id === target.id && (variant.population_scale ?? 1) > 1;
+  const fanIn = sensory ? (variant.sensory_fanin ?? nativeFanIn)
+    : localEI ? (variant.ei_fanin ?? nativeFanIn)
+    : tiledDiagonal ? source.size - variant.population_scale : nativeFanIn;
   const divisor = parameter.initialization_scaling === 'direct' ? 1
     : parameter.initialization_scaling === 'fan_in_normalized' ? fanIn : undefined;
   if (!(divisor > 0)) throw new Error('Unknown native normalization');
   const scale = (evidence[index].snapshots.start.execution.inference_overrides?.projection_scales?.[projection.id] ?? 1)
-    * (projection.modulation?.after ?? 1);
+    * (projection.modulation?.after ?? 1)
+    * (localEI ? variant.ei_gain ?? 1 : localEE ? variant.ee_gain ?? 1 : localII ? variant.ii_gain ?? 1 : 1);
   const mean = (constant ? init.value : init.mean)*scale*1000/divisor;
-  const sd = constant ? 0 : init.std*scale*1000/divisor;
+  const baseSD = constant ? 0 : init.std*scale*1000/divisor;
+  const cv = sensory || /_E$/.test(source.id)
+    ? (/_I$/.test(target.id) ? variant.inhibitory_gain_cv ?? variant.target_gain_cv ?? 0 : variant.target_gain_cv ?? 0) : 0;
+  const sd = Math.sqrt(baseSD*baseSD*(1+cv*cv) + mean*mean*cv*cv);
   return `${n(100*fanIn/eligible)}%; ${sd ? `${n(mean)} ± ${n(sd)}` : n(mean)} nS`;
 })])) : [];
 ---
@@ -79,9 +95,9 @@ const matrices = cfg && snapshot ? [0,cfg.coupling_us].map((coupling,index) => s
   rows={rows} rowHeaders number={index === 0 ? 'A2' : 'A3'} label={index === 0 ? 'Uncoupled connectivity' : 'Coupled connectivity'}>
   {index === 0 ? 'Uncoupled control' : 'Coupled trial after onset'}. Each cell gives
   eligible-pair density and nominal reference weight per connection, including
-  native execution scaling. Values describe initialization distributions,
+  native execution scaling and recorded weight interventions. Values describe nominal distributions,
   not measured matrix statistics or total incoming conductance. Self-connections
-  are excluded on the diagonal; cross-circuit paths use exact fan-in. Zero weights
+  and inherited clone-block connections are excluded on the diagonal; cross-circuit paths use exact fan-in. Target gains have unit expected mean; the SD combines reference variation and lognormal gain variation. Expanded weights inherit the reference blocks and divide by the source expansion factor. Zero weights
   retain a projection; Absent means no projection exists. Sensory gain is applied
   once through native execution scaling. Local synaptic decay: E→E {n(cfg.network.local.E_to_E.tau_ms)} ms,
   E→I {n(cfg.network.local.E_to_I.tau_ms)} ms, I→E {n(cfg.network.local.I_to_E.tau_ms)} ms,

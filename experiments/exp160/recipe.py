@@ -1,5 +1,6 @@
 """Spiking one-way pair: conductance-LIF neurons and matched private Poisson input."""
 
+import hashlib
 import math
 
 import numpy as np
@@ -19,24 +20,34 @@ def alignment_configuration():
     )
 
 
-def configuration(*, network, coupling_us=0.28, difference_hz=6.5):
+def configuration(*, network):
+    """Resolve the single accepted Figure 1–2 condition from the exp159 reference."""
     import copy
 
-    if not math.isfinite(coupling_us) or not 0 < coupling_us <= 1.0:
-        raise ValueError("coupling must be finite, positive and at most 1 uS")
-    if not math.isfinite(difference_hz) or abs(difference_hz) >= 50:
-        raise ValueError("input difference must leave positive drives")
     n = copy.deepcopy(network)
-    n["input_rates_hz"] = dict(
-        drive_A=25 + difference_hz / 2, drive_B=25 - difference_hz / 2
-    )
+    for physical in n["populations"].values():
+        physical["size"] *= 5
+    n["input_rates_hz"] = dict(drive_A=26.0, drive_B=24.0)
     return dict(
         schema=SCHEMA,
         protocol="oneway-spiking-pair",
         network=n,
+        weight_variant=dict(
+            transformation_version=2,
+            population_scale=5,
+            sensory_fanin=128,
+            ei_fanin=80,
+            ii_gain=0.1,
+            ei_gain=0.8,
+            target_gain_cv=0.1,
+            inhibitory_gain_cv=0.2,
+            seed=303,
+            description="fixed per-target lognormal excitatory gain; exact random sensory fan-in with expectation-preserving scaling",
+        ),
         duration_ms=1500.0,
-        difference_hz=float(difference_hz),
-        coupling_us=float(coupling_us),
+        difference_hz=2.0,
+        coupling_us=0.3,
+        cross_i_ratio=0.0,
         input_seeds=dict(drive_A=101, drive_B=202),
         input_encoding="independent per-channel Bernoulli(p=rate*dt/1000); matched complete trains across pair",
         phase=dict(
@@ -61,6 +72,65 @@ def configuration(*, network, coupling_us=0.28, difference_hz=6.5):
     )
 
 
+def reference_parameters(original, cfg):
+    """Deterministic physical weight intervention, shared by both paired trials.
+
+    SNNLab matrices have source rows and target columns. Masking sensory rows
+    reduces shared averaging; positive target gains break identical-cell drive.
+    Neither intervention changes or jitters recorded spike times.
+    """
+    import torch
+
+    variant = cfg["weight_variant"]
+    rng = np.random.default_rng(variant["seed"])
+    cv = variant["target_gain_cv"]
+    gains = {}
+    for c in ("A", "B"):
+        for p in ("E", "I"):
+            pop_cv = variant["inhibitory_gain_cv"] if p == "I" else cv
+            sigma = math.sqrt(math.log1p(pop_cv * pop_cv))
+            gains[c, p] = rng.lognormal(
+                -sigma * sigma / 2, sigma, cfg["network"]["populations"][p]["size"]
+            )
+    result = {}
+    for key, value in original.items():
+        weights = value.clone()
+        factor = variant.get("population_scale", 1)
+        if factor != 1:
+            weights = weights.repeat_interleave(factor, dim=1)
+            if "input_to_E" not in key:
+                weights = weights.repeat_interleave(factor, dim=0) / factor
+        if "I_to_I" in key:
+            weights *= variant.get("ii_gain", 1)
+        if "E_to_I.weight" in key:
+            weights *= variant.get("ei_gain", 1)
+        key_seed = int.from_bytes(hashlib.sha256(key.encode()).digest()[:4], "little")
+        mask_rng = np.random.default_rng([variant["seed"], key_seed])
+        if "input_to_E" in key or "E_to_I.weight" in key:
+            fanin = variant.get("sensory_fanin" if "input_to_E" in key else "ei_fanin")
+            if fanin is not None:
+                mask = np.zeros(tuple(weights.shape), dtype=np.float32)
+                for row in mask.T:
+                    row[mask_rng.choice(len(row), fanin, replace=False)] = (
+                        len(row) / fanin
+                    )
+                weights *= torch.from_numpy(mask).to(weights)
+        if "input_to_E" in key or "E_to_" in key:
+            target = excitatory_target(key)
+            weights *= torch.as_tensor(gains[target], dtype=weights.dtype)[None, :]
+        result[key] = weights
+    return result
+
+
+def excitatory_target(key):
+    if "input_to_E" in key:
+        return key.split("_")[1], "E"
+    target = key.split("_to_")[1]
+    if target.startswith("PING_"):
+        return target.split("_")[1], target.split("_")[2]
+    return key.split("_")[1], target[0]
+
+
 def make_inputs(cfg):
     n = cfg["network"]
     shape = (round(cfg["duration_ms"] / n["dt_ms"]), 1, n["input_channels"])
@@ -80,7 +150,9 @@ def scales(cfg, k):
             for c in ("A", "B")
         },
         **{
-            f"PING_A_E_to_PING_B_{p}_K_E{p}": k / cfg["network"]["base_coupling_us"]
+            f"PING_A_E_to_PING_B_{p}_K_E{p}": k
+            / cfg["network"]["base_coupling_us"]
+            * (cfg["cross_i_ratio"] if p == "I" else 1)
             for p in ("E", "I")
         },
     }

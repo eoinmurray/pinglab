@@ -1,6 +1,7 @@
 """Spiking A/B → C competition with a redirected constant-rate cue."""
 
 import copy
+import hashlib
 import math
 
 import numpy as np
@@ -12,16 +13,32 @@ SNAPSHOT = "execution/start"
 
 
 def configuration(
-    *, reference_configuration, coupling_us=0.12, cue_hz=6.0, background_hz=28.0
+    *, reference_configuration, coupling_us=0.25, cue_hz=6.0, background_hz=28.0
 ):
     if not all(
         math.isfinite(x) and x > 0 for x in (coupling_us, cue_hz, background_hz)
     ):
         raise ValueError("coupling, cue and background must be finite and positive")
+    network = copy.deepcopy(reference_configuration["network"])
+    variant = dict(
+        population_scale=5,
+        sensory_fanin=128,
+        ei_fanin=80,
+        cross_fanin=40,
+        target_gain_cv=0.1,
+        inhibitory_gain_cv=0.2,
+        ei_gain=0.8,
+        ii_gain=0.1,
+        cross_i_ratio=0.0,
+        seed=303,
+    )
+    for physical in network["populations"].values():
+        physical["size"] *= variant["population_scale"]
     return dict(
         schema=SCHEMA,
+        heterogeneity=variant,
         protocol="one spiking trial; constant-rate cue redirected A to B",
-        network=copy.deepcopy(reference_configuration["network"]),
+        network=network,
         incoming_weights_us=copy.deepcopy(
             reference_configuration["incoming_weights_us"]
         ),
@@ -74,10 +91,75 @@ def configuration(
 
 def scales(cfg):
     return {
-        c + "_E_to_C_" + p: cfg["coupling_us"] / cfg["reference_coupling_us"]
+        c + "_E_to_C_" + p: cfg["coupling_us"]
+        / cfg["reference_coupling_us"]
+        * (cfg.get("heterogeneity", {}).get("cross_i_ratio", 1) if p == "I" else 1)
         for c in "AB"
         for p in "EI"
     }
+
+
+def heterogeneous_parameters(original, cfg):
+    """Fixed input masks and excitatory target gains; saved native arrays are authoritative."""
+    import torch
+
+    if "heterogeneity" not in cfg:
+        return {key: value.clone() for key, value in original.items()}
+    variant = cfg["heterogeneity"]
+    factor = variant["population_scale"]
+    rng = np.random.default_rng(variant["seed"])
+    gains = {}
+    for c in "ABC":
+        for p in "EI":
+            cv = (
+                variant["inhibitory_gain_cv"] if p == "I" else variant["target_gain_cv"]
+            )
+            sigma = math.sqrt(math.log1p(cv * cv))
+            gains[c, p] = rng.lognormal(
+                -sigma * sigma / 2, sigma, cfg["network"]["populations"][p]["size"]
+            )
+    result = {}
+    for key, value in original.items():
+        weights = value.clone().repeat_interleave(factor, dim=1)
+        external = key.startswith(("sensory_", "cue_"))
+        if not external:
+            weights = weights.repeat_interleave(factor, dim=0) / factor
+        if key.endswith("_I_to_I.weight"):
+            weights *= variant["ii_gain"]
+        if key.endswith("_E_to_I.weight"):
+            weights *= variant["ei_gain"]
+        fanin = (
+            variant["sensory_fanin"]
+            if external
+            else (
+                variant["ei_fanin"]
+                if key.endswith("_E_to_I.weight")
+                else variant["cross_fanin"]
+                if "_to_C_" in key
+                else None
+            )
+        )
+        if fanin is not None:
+            key_seed = int.from_bytes(
+                hashlib.sha256(key.encode()).digest()[:4], "little"
+            )
+            mask_rng = np.random.default_rng([variant["seed"], key_seed])
+            mask = np.zeros(tuple(weights.shape), dtype=np.float32)
+            for column in mask.T:
+                column[mask_rng.choice(len(column), fanin, replace=False)] = (
+                    len(column) / fanin
+                )
+            weights *= torch.from_numpy(mask)
+        if external or "_E_to_" in key:
+            if external:
+                target = (key.split("_")[1][0], "E")
+            elif "_to_C_" in key:
+                target = ("C", key.removesuffix(".weight")[-1])
+            else:
+                target = (key[0], key.removesuffix(".weight")[-1])
+            weights *= torch.as_tensor(gains[target], dtype=weights.dtype)[None, :]
+        result[key] = weights
+    return result
 
 
 def make_inputs(cfg):

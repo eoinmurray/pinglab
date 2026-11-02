@@ -135,6 +135,71 @@ def measure(sol, cfg):
     )
 
 
+def raster_summary(spikes, cfg, windows):
+    """Raw-spike diversity and recruitment in complete E-defined population cycles."""
+    dt = cfg["dt_ms"]
+    rows = []
+    for batch in range(next(iter(spikes.values())).shape[1]):
+        for start, end in windows:
+            row = dict(batch=batch, window_ms=[start, end], populations={})
+            for c in "ABC":
+                e = spikes[c + "_E"][:, batch, :]
+                rate = gaussian_filter1d(e.mean(1) * 1000 / dt, 1 / dt)
+                peaks, _ = find_peaks(
+                    rate,
+                    distance=round(15 / dt),
+                    prominence=max(
+                        0.05, 0.1 * np.ptp(rate[round(start / dt) : round(end / dt)])
+                    ),
+                )
+                boundaries = (peaks[1:] + peaks[:-1]) / 2
+                boundaries = boundaries[
+                    (boundaries * dt >= start) & (boundaries * dt <= end)
+                ]
+                for p in "EI":
+                    x = spikes[c + "_" + p][:, batch, :]
+                    late = x[round(start / dt) : round(end / dt)]
+                    counts = np.array(
+                        [
+                            x[round(a) : round(b)].sum(0)
+                            for a, b in zip(
+                                boundaries[:-1], boundaries[1:], strict=True
+                            )
+                        ]
+                    ).reshape(-1, x.shape[1])
+                    active = late.sum(0) > 0
+                    participation = (counts > 0).mean(1)
+                    isi_cvs = []
+                    for train in late.T:
+                        intervals = np.diff(np.flatnonzero(train)) * dt
+                        if len(intervals) >= 2:
+                            isi_cvs.append(float(intervals.std() / intervals.mean()))
+                    row["populations"][c + "_" + p] = dict(
+                        mean_hz=float(late.mean() * 1000 / dt),
+                        active_fraction=float(active.mean()),
+                        distinct_train_fraction=float(
+                            len(np.unique(np.packbits(late.T, axis=1), axis=0))
+                            / x.shape[1]
+                        ),
+                        max_same_bin_fraction=float(late.mean(1).max()),
+                        complete_cycles=len(counts),
+                        mean_cycle_participation=float(participation.mean())
+                        if len(counts)
+                        else None,
+                        fully_recruited_cycle_fraction=float(
+                            (participation == 1).mean()
+                        )
+                        if len(counts)
+                        else None,
+                        cycle_skipping_cell_fraction=float(
+                            ((counts == 0).any(0) & active).mean()
+                        ),
+                        median_isi_cv=float(np.median(isi_cvs)) if isi_cvs else None,
+                    )
+            rows.append(row)
+    return rows
+
+
 def analyse(*, source, run_id=None):
     started = perf_counter()
     computed = source_run(
@@ -155,6 +220,7 @@ def analyse(*, source, run_id=None):
     original = NetworkSnapshot.read(
         reference.file("network-initialization/start/snapshot.json")
     ).load_parameters()
+    original = recipe.heterogeneous_parameters(original, cfg)
     actual = NetworkSnapshot.read(
         computed.file(recipe.SNAPSHOT + "/snapshot.json")
     ).load_parameters()
@@ -182,7 +248,11 @@ def analyse(*, source, run_id=None):
     ) as run:
         write_json_atomic(
             run.export / "results.json",
-            dict(schema="exp162.analysis/v1", metrics=metrics),
+            dict(
+                schema="exp162.analysis/v1",
+                metrics=metrics,
+                rasters=raster_summary(spikes, cfg, cfg["windows_ms"]),
+            ),
         )
         np.savez_compressed(
             run.export / "phase.npz",

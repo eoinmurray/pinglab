@@ -242,7 +242,7 @@ Use `ExperimentCard` for compact links to other experiments inside reports or
 notes. It uses the report collection's current title and authored update date;
 the entire card links to the experiment. It fits the article text column and
 supports keyboard focus, narrow screens, dark mode and print without loading run
-artifacts. From an experiment's `report/report.mdx`:
+artifacts unless figures are requested. From an experiment's `report/report.mdx`:
 
 ```mdx
 import ExperimentCard from '../../../site/src/components/ExperimentCard.astro';
@@ -253,6 +253,19 @@ import ExperimentCard from '../../../site/src/components/ExperimentCard.astro';
 Set `showDate={false}` for a single-line card when the title fits. Unknown
 experiment IDs fail rendering with an explicit error. Notes can import it using
 the appropriate relative path to `site/src/components/ExperimentCard.astro`.
+
+Pass `figures` to stack images above the card's existing ID, title and date row:
+
+```mdx
+<ExperimentCard experiment="exp133" figures={[
+  { file: 'overview.svg', alt: 'Overview of the experiment results' },
+]} />
+```
+
+Filenames refer to exports from the experiment's current presentation, using the
+same selection and image sizing as report figures. Each entry requires alt text.
+Missing presentations or figures fail explicitly; omit `figures` (or pass `[]`)
+to keep the compact card without reading run artifacts.
 
 All article tables use `Table` with explicit `headers` and `rows` arrays:
 

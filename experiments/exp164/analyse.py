@@ -89,6 +89,7 @@ def prepare(source, settings):
             for c in "ABC"
         }
         phases = {}
+        rhythms = {}
         for c, y in rates.items():
             peaks, _ = find_peaks(
                 y,
@@ -101,6 +102,16 @@ def prepare(source, settings):
             )
             if len(peaks) < 2:
                 raise ValueError("insufficient gamma peaks")
+            pt = time[peaks]
+            pt = pt[(pt >= window_ms[0]) & (pt < window_ms[1])]
+            intervals = np.diff(pt)
+            rhythms[c] = dict(
+                volleys=len(pt),
+                frequency_hz=float(1000 / intervals.mean()) if len(intervals) else None,
+                interval_cv=float(intervals.std() / intervals.mean())
+                if len(intervals) > 1
+                else None,
+            )
             phases[c] = np.interp(
                 time, time[peaks], np.arange(len(peaks)), left=np.nan, right=np.nan
             )
@@ -121,7 +132,13 @@ def prepare(source, settings):
                 delay_steps=p.delay_steps,
             )
         maps = {
-            c: spikes[c + "_E"][measured, j].mean(0).reshape(8, 8) * 1000 / dt
+            c: spikes[c + "_E"][measured, j]
+            .mean(0)
+            .reshape(64, -1)
+            .mean(1)
+            .reshape(8, 8)
+            * 1000
+            / dt
             for c in "ABC"
         }
         differences = {c: phases[c] - phases["C"] for c in "AB"}
@@ -131,6 +148,7 @@ def prepare(source, settings):
             plvs[c] = float(abs(np.exp(2j * np.pi * differences[c][valid]).mean()))
         results[cued] = dict(
             rates=rates,
+            rhythms=rhythms,
             differences=differences,
             conductances=conductances,
             maps=maps,
@@ -176,6 +194,71 @@ def prepare(source, settings):
     return cfg, time, results, scales
 
 
+def raster_summary(spikes, cfg, windows):
+    """Raw-spike diversity and recruitment in complete E-defined population cycles."""
+    dt = cfg["dt_ms"]
+    rows = []
+    for batch in range(next(iter(spikes.values())).shape[1]):
+        for start, end in windows:
+            row = dict(batch=batch, window_ms=[start, end], populations={})
+            for c in "ABC":
+                e = spikes[c + "_E"][:, batch, :]
+                rate = gaussian_filter1d(e.mean(1) * 1000 / dt, 1 / dt)
+                peaks, _ = find_peaks(
+                    rate,
+                    distance=round(15 / dt),
+                    prominence=max(
+                        0.05, 0.1 * np.ptp(rate[round(start / dt) : round(end / dt)])
+                    ),
+                )
+                boundaries = (peaks[1:] + peaks[:-1]) / 2
+                boundaries = boundaries[
+                    (boundaries * dt >= start) & (boundaries * dt <= end)
+                ]
+                for p in "EI":
+                    x = spikes[c + "_" + p][:, batch, :]
+                    late = x[round(start / dt) : round(end / dt)]
+                    counts = np.array(
+                        [
+                            x[round(a) : round(b)].sum(0)
+                            for a, b in zip(
+                                boundaries[:-1], boundaries[1:], strict=True
+                            )
+                        ]
+                    ).reshape(-1, x.shape[1])
+                    active = late.sum(0) > 0
+                    participation = (counts > 0).mean(1)
+                    isi_cvs = []
+                    for train in late.T:
+                        intervals = np.diff(np.flatnonzero(train)) * dt
+                        if len(intervals) >= 2:
+                            isi_cvs.append(float(intervals.std() / intervals.mean()))
+                    row["populations"][c + "_" + p] = dict(
+                        mean_hz=float(late.mean() * 1000 / dt),
+                        active_fraction=float(active.mean()),
+                        distinct_train_fraction=float(
+                            len(np.unique(np.packbits(late.T, axis=1), axis=0))
+                            / x.shape[1]
+                        ),
+                        max_same_bin_fraction=float(late.mean(1).max()),
+                        complete_cycles=len(counts),
+                        mean_cycle_participation=float(participation.mean())
+                        if len(counts)
+                        else None,
+                        fully_recruited_cycle_fraction=float(
+                            (participation == 1).mean()
+                        )
+                        if len(counts)
+                        else None,
+                        cycle_skipping_cell_fraction=float(
+                            ((counts == 0).any(0) & active).mean()
+                        ),
+                        median_isi_cv=float(np.median(isi_cvs)) if isi_cvs else None,
+                    )
+            rows.append(row)
+    return rows
+
+
 def analyse(*, source, run_id=None):
     started = perf_counter()
     computed = source_run(
@@ -196,12 +279,51 @@ def analyse(*, source, run_id=None):
                 for c, image in zip("AB", source_images, strict=True)
             }
             other = "B" if cue == "A" else "A"
+            valid = (
+                (time >= settings["window_ms"][0])
+                & (time < settings["window_ms"][1])
+                & np.isfinite(result["differences"][cue])
+            )
+            delta = result["differences"][cue][valid]
+            drift = float(np.polyfit(time[valid] / 1000, delta, 1)[0])
+            span = float(np.ptp(delta))
+            criteria = settings["criteria"]
+            rhythm_passed = all(
+                r["volleys"] >= criteria["min_volleys"]
+                and r["frequency_hz"] is not None
+                and criteria["frequency_band_hz"][0]
+                <= r["frequency_hz"]
+                <= criteria["frequency_band_hz"][1]
+                and r["interval_cv"] is not None
+                and r["interval_cv"] <= criteria["max_interval_cv"]
+                for r in result["rhythms"].values()
+            )
             routing[cue] = dict(
                 image_correlations=correlations,
                 cued_minus_uncued=correlations[cue] - correlations[other],
+                cued_drift_cycles_s=drift,
+                cued_phase_span_cycles=span,
+                rhythms=result["rhythms"],
+                phase_passed=bool(
+                    result["plvs"][cue] > criteria["min_cued_plv"]
+                    and abs(drift) < criteria["max_abs_drift_cycles_s"]
+                    and span < criteria["max_phase_span_cycles"]
+                    and rhythm_passed
+                ),
+                image_passed=bool(
+                    correlations[cue] >= criteria["min_cued_image_correlation"]
+                    and correlations[cue] - correlations[other]
+                    >= criteria["min_correlation_margin"]
+                ),
             )
+    with np.load(computed.file("spikes.npz")) as data:
+        raster_metrics = raster_summary(dict(data), cfg, [settings["window_ms"]])
     numbers = dict(
+        rasters=raster_metrics,
         routing=routing,
+        prototype_passed=all(
+            r["phase_passed"] and r["image_passed"] for r in routing.values()
+        ),
         schema=recipe.SCHEMA,
         configuration=settings,
         labels=cfg["labels"],

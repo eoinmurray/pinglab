@@ -121,7 +121,7 @@ def test_standalone_inputs_match_sensory_and_gate_opposite_cues():
         np.testing.assert_array_equal(first["U_A"][:, 0], first["U_B"][:, 1])
     fresh = recipe.simulation_configuration()
     cfg["network"]["populations"]["E"]["size"] = 1
-    assert fresh["network"]["populations"]["E"]["size"] == 64
+    assert fresh["network"]["populations"]["E"]["size"] == 320
 
 
 def test_standalone_weights_preserve_totals_and_pixel_mapping():
@@ -141,7 +141,9 @@ def test_standalone_weights_preserve_totals_and_pixel_mapping():
         recipe.spatial_parameters(params, cfg)
     for c in "AB":
         cross = params[c + "_E_to_C_E.weight"].detach().numpy()
-        np.testing.assert_allclose(cross.sum(0), cfg["coupling_us"], rtol=1e-6)
+        np.testing.assert_allclose(
+            cross.sum(0, dtype=np.float64), cfg["coupling_us"], rtol=1e-6
+        )
         assert cross[0, 0] > cross[63, 0]
         sensory = params["sensory_" + c + ".weight"].detach().numpy()
         np.testing.assert_allclose(
@@ -150,8 +152,9 @@ def test_standalone_weights_preserve_totals_and_pixel_mapping():
             * cfg["network"]["sensory"]["gain"],
             rtol=1e-6,
         )
-        assert (sensory > 0).sum() == 1024
-        assert not sensory[:16, 1:].any()
+        replicas = cfg["network"]["populations"]["E"]["size"] // 64
+        assert (sensory > 0).sum() == cfg["network"]["input_channels"] * replicas
+        assert not sensory[: cfg["network"]["input_channels"] // 64, replicas:].any()
     for c in "ABC":
         for population in "EI":
             matrix = (
@@ -161,10 +164,63 @@ def test_standalone_weights_preserve_totals_and_pixel_mapping():
             )
             assert not np.diag(matrix).any()
             np.testing.assert_allclose(
-                matrix.sum(0),
+                matrix.sum(0, dtype=np.float64),
                 cfg["incoming_weights_us"][
                     "PING_B_" + population + "_to_" + population
                 ],
                 rtol=1e-6,
             )
     assert "source_run" not in (Path(__file__).parent / "compute.py").read_text()
+
+
+def test_selected_native_arrays_and_count_pooled_maps():
+    import json
+
+    import torch
+    from pingstore.library import source_run
+    from snnlab.sim import NetworkSnapshot, Performance, build
+
+    computed = source_run(
+        REPO / ".pingstore", "exp164-r052-compute", experiment="exp164", stage="compute"
+    )
+    cfg = recipe.simulation_configuration()
+    assert cfg == computed.record["execution"]["configuration"]
+    bundle, _ = recipe.author_network(cfg)
+    model = build(
+        graph=bundle.graph,
+        seed=cfg["network_seed"],
+        device="cpu",
+        performance=Performance(compile_mode=None),
+    ).model
+    expected = model.parameter_map()
+    with torch.no_grad():
+        recipe.spatial_parameters(expected, cfg)
+        recipe.heterogeneous_parameters(expected, cfg)
+    actual = NetworkSnapshot.read(
+        computed.file("execution/start/snapshot.json")
+    ).load_parameters()
+    assert actual.keys() == expected.keys()
+    for key in expected:
+        torch.testing.assert_close(expected[key], actual[key], rtol=0, atol=0)
+    assert ((actual["sensory_C.weight"] > 0).sum(0) == 128).all()
+    assert ((actual["A_E_to_I.weight"] > 0).sum(0) == 80).all()
+    analysed = source_run(
+        REPO / ".pingstore", "exp164-r053-analyse", experiment="exp164", stage="analyse"
+    )
+    result = json.loads(analysed.file("numbers.json").read_text())
+    assert result["prototype_passed"]
+    with (
+        np.load(computed.file("spikes.npz")) as spikes,
+        np.load(analysed.file("traces.npz")) as traces,
+    ):
+        for j, cue in enumerate("AB"):
+            for c in "ABC":
+                counts = spikes[c + "_E"][6500:11000, j].sum(0).reshape(8, 8, 5).sum(-1)
+                np.testing.assert_allclose(
+                    traces[f"{cue}_maps_{c}"],
+                    counts / (5 * 0.45),
+                    rtol=1e-12,
+                    atol=1e-12,
+                )
+    computed.check_unchanged()
+    analysed.check_unchanged()

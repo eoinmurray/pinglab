@@ -23,19 +23,18 @@ from snnlab.sim import (
 )
 
 
-def compute(*, parameter_source, coupling_us=0.28, difference_hz=6.5, run_id=None):
+def compute(*, parameter_source, run_id=None):
     started = perf_counter()
     torch.set_num_threads(1)
     reference = source_run(
         REPO / ".pingstore", parameter_source, experiment="exp159", stage="compute"
     )
     network = reference.record["execution"]["configuration"]["network"]
-    cfg = recipe.configuration(
-        network=network, coupling_us=coupling_us, difference_hz=difference_hz
-    )
+    cfg = recipe.configuration(network=network)
     original = NetworkSnapshot.read(
         reference.file(recipe.REFERENCE_SNAPSHOT)
     ).load_parameters()
+    original = recipe.reference_parameters(original, cfg)
     bundle = recipe.author_network(cfg)
     initialized = build(
         graph=bundle.graph,
@@ -67,7 +66,7 @@ def compute(*, parameter_source, coupling_us=0.28, difference_hz=6.5, run_id=Non
         np.savez_compressed(run.export / "inputs.npz", **drives)
         pair = {}
         timings = {}
-        for name, k in [("control", 0), ("coupled", coupling_us)]:
+        for name, k in [("control", 0), ("coupled", cfg["coupling_us"])]:
             tick = perf_counter()
             result = simulate(
                 graph=bundle.graph,
@@ -139,6 +138,4 @@ if __name__ == "__main__":
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--parameter-source", required=True)
     p.add_argument("--run-id")
-    p.add_argument("--coupling-us", type=float, default=0.28)
-    p.add_argument("--difference-hz", type=float, default=6.5)
     compute(**vars(p.parse_args()))

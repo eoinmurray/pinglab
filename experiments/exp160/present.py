@@ -1,7 +1,6 @@
 """Render the matched pair in two columns using one pinned analysis."""
 
 import argparse
-import shutil
 import sys
 from dataclasses import replace
 from pathlib import Path
@@ -16,6 +15,7 @@ from types import SimpleNamespace
 
 import matplotlib.pyplot as plt
 import numpy as np
+from experiments import theme
 from experiments.exp160 import recipe
 from pingstore.library import load_json, source_run, stage_run, write_json_atomic
 from scipy.signal import find_peaks
@@ -306,6 +306,72 @@ def entrainment_figure(solutions, diagnostics, metrics, cfg):
     return fig
 
 
+def render_rasters(computed, run):
+    """Plot every saved neuron at its recorded bin time, without jitter or smoothing."""
+    with matplotlib.rc_context():
+        theme.apply()
+        cfg = computed.record["execution"]["configuration"]
+        dt = cfg["network"]["dt_ms"]
+        end_ms = cfg["duration_ms"]
+        populations = [c + "_" + p for c in "AB" for p in "EI"]
+        cases = []
+        for name, title in (("control", "Uncoupled"), ("coupled", "Coupled")):
+            with np.load(
+                computed.file(name + "-spikes.npz"), allow_pickle=False
+            ) as data:
+                cases.append((title, {key: data[key][:, 0, :] for key in populations}))
+        boundary = cfg["network"]["onset_ms"]
+        fig, axes = plt.subplots(
+            len(populations),
+            len(cases),
+            squeeze=False,
+            sharex=True,
+            sharey="row",
+            figsize=(13 if len(cases) == 2 else 11, 1.7 * len(populations) + 1),
+            layout="constrained",
+        )
+        for column, (title, spikes) in enumerate(cases):
+            if set(spikes) != set(populations):
+                raise ValueError("missing raster populations")
+            for row, key in enumerate(populations):
+                values = spikes[key]
+                if values.ndim != 2 or not np.isin(values, (0, 1)).all():
+                    raise ValueError("invalid saved raster spikes")
+                times, neurons = np.nonzero(values)
+                times = times * dt
+                shown = times <= end_ms
+                ax = axes[row, column]
+                ax.scatter(
+                    times[shown],
+                    neurons[shown] + 1,
+                    marker="|",
+                    s=2.0,
+                    color=theme.INK_BLACK if key.endswith("E") else theme.DEEP_RED,
+                    linewidths=0.4,
+                )
+                ax.set(
+                    xlim=(0, end_ms),
+                    ylim=(0.5, values.shape[1] + 0.5),
+                    yticks=[1, values.shape[1]],
+                    ylabel=f"{key[0]} {key[-1]} neuron",
+                )
+                if boundary is not None:
+                    ax.axvline(boundary, color=theme.MUTED, ls="--", lw=1.0)
+                if row == 0:
+                    ax.set_title(title)
+                if row == len(populations) - 1:
+                    ax.set_xlabel("Time (ms)")
+        theme.label_panels(axes.flat)
+        fig.suptitle(
+            "Full-population spike rasters · every E and I neuron",
+            fontsize=theme.SIZE_PANEL,
+            fontweight="bold",
+        )
+        for extension in ("svg", "png"):
+            fig.savefig(run.export / ("rasters." + extension))
+        plt.close(fig)
+
+
 def present(*, source, run_id=None):
     started = perf_counter()
     analysed = source_run(
@@ -356,6 +422,7 @@ def present(*, source, run_id=None):
             figure.savefig(run.export / f"entrainment.{extension}", dpi=180)
         plt.close(figure)
         render_network(computed, run)
+        render_rasters(computed, run)
         write_json_atomic(run.export / "numbers.json", dict(results, configuration=cfg))
         run.record["execution"]["elapsed_seconds"] = perf_counter() - started
         analysed.check_unchanged()
@@ -373,45 +440,8 @@ def render_network(computed, run):
             viz.render_diagram(circuit, run.export / f"circuit.{suffix}")
 
 
-def redraw_network(*, presentation, run_id=None):
-    started = perf_counter()
-    previous = source_run(
-        REPO / ".pingstore", presentation, experiment=recipe.SLUG, stage="present"
-    )
-    sources = {
-        role: source_run(
-            REPO / ".pingstore",
-            previous.record["inputs"][role]["run_id"],
-            reference=previous.record["inputs"][role],
-            experiment=recipe.SLUG,
-        )
-        for role in ("compute", "analyse")
-    }
-    with stage_run(
-        REPO,
-        recipe.SLUG,
-        "present",
-        inputs=dict(sources, figure_source=previous),
-        configuration=previous.record["execution"]["configuration"],
-        run_id=run_id,
-    ) as run:
-        for path in previous.presentation.iterdir():
-            shutil.copyfile(path, run.export / path.name)
-        render_network(sources["compute"], run)
-        run.record["execution"]["elapsed_seconds"] = perf_counter() - started
-        for item in (*sources.values(), previous):
-            item.check_unchanged()
-    return run.run_id
-
-
 if __name__ == "__main__":
     p = argparse.ArgumentParser(description=__doc__)
-    source = p.add_mutually_exclusive_group(required=True)
-    source.add_argument("--source")
-    source.add_argument("--redraw-from", dest="presentation")
+    p.add_argument("--source", required=True)
     p.add_argument("--run-id")
-    args = p.parse_args()
-    if args.presentation:
-        redraw_network(presentation=args.presentation, run_id=args.run_id)
-    else:
-        present(source=args.source, run_id=args.run_id)
+    present(**vars(p.parse_args()))

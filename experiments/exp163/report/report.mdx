@@ -1,9 +1,9 @@
 ---
 id: exp163
-title: "Spatial Pattern Selection"
+title: "Spiking Spatial Pattern Selection"
 author: "Eoin Murray"
 created_at: "2026-10-31T10:58:00Z"
-updated_at: "2026-10-31T17:49:43Z"
+updated_at: "2026-11-02T11:31:20Z"
 description: "Cue-dependent selection of spatial Gaussian patterns through a spiking A/B → C circuit."
 collection: ["experiments", "ctc-attention"]
 tags: ["data", "v0.31.0"]
@@ -40,8 +40,9 @@ as a spatial firing-rate profile, without a trained readout.
   that drive spatially with centres {cfg ? cfg.spatial.centers.A : 'unavailable'}
   and {cfg ? cfg.spatial.centers.B : 'unavailable'} and Gaussian width
   {cfg ? cfg.spatial.width : 'unavailable'}. Both sender→C pathways have equal
-  incoming weights of {cfg ? cfg.coupling_us : 'unavailable'} µS per recipient;
-  E→C E is topographic, E→C I remains pooled. C background stays at
+  nominal incoming weights of {cfg ? cfg.coupling_us : 'unavailable'} µS onto C E
+  and {cfg ? round(cfg.coupling_us*(cfg.heterogeneity?.cross_i_ratio ?? 1),3) : 'unavailable'} µS onto C I;
+  E→C E is topographic, E→C I is pooled with recorded sparse masks and target gains. C background stays at
   {cfg ? cfg.background_hz : 'unavailable'} Hz/channel. A shared constant
   {cfg ? cfg.cue_hz : 'unavailable'} Hz/channel spike-input cue targets A E before
   {cfg ? cfg.switch_ms : 'unavailable'} ms and B E afterward, without resetting state.
@@ -57,28 +58,40 @@ as a spatial firing-rate profile, without a trained readout.
   after 500 ms, a conductance proxy rather than measured response gain.
   (D, E) Measured A/B/C mean E-cell firing rates versus position in the two analysis
   windows, using identical axes. These are raw per-cell rates, without spatial
-  smoothing or Gaussian fitting. Flat-topped profiles reflect nonlinear neuronal
-  responses to Gaussian input. Dotted lines mark stimulus centres. C contrast is
+  smoothing or Gaussian fitting. Profile shape includes neuronal thresholds, finite spike counts and fixed input heterogeneity. Dotted lines mark stimulus centres. C contrast is
   the difference of mean rates in regions within
   {cfg ? cfg.spatial.roi_half_width : 'unavailable'} of the A/B centres, divided by
   their sum. Positive values favour A's region; negative values favour B's.
   Parameters were selected through retained exploratory tuning, not independent
-  validation. The selected cue is stronger than the earlier spatial baseline;
-  sensory fields and receiver weights are unchanged from that baseline.
+  validation. Population size, input averaging, gain variation, local and receiver strengths, and sensory contrast differ from the older homogeneous condition.
 </RunFigure>
 
-{data?.mirror_control?.validated ? <p>The retained centre-swap control exactly mirrors every E-cell spike train and all three spatial output profiles, while keeping complete input trains and I-cell spikes identical. Selection follows source identity rather than a fixed side of C.</p> : <p>No centre-swap control is selected.</p>}
+<RunFigure report="exp163" experiment="exp163" file="rasters.svg" number={2} id="fig-rasters" alt="Full-population spike rasters with a separate row for every excitatory and inhibitory population." allowUnavailable={true}>
+  Every A, B and C E/I neuron over the full spatial-selection trial in Figure 1. The dashed line marks the cue changing from A to B. E-cell indices retain their original spatial ordering.
+  Black marks are E spikes; red marks are I spikes. Each mark is one saved binary
+  spike event at its recorded time and neuron index, without smoothing, jitter
+  or neuron subsampling. These are the selected heterogeneous-network trials, not extra replicates.
+</RunFigure>
+
+{data?.mirror_control?.validated ? <p>The additional centre-swap control {data.mirror_control.passed ? 'passes' : 'fails'} the original task criteria. Complete inputs stay identical and non-sensory weights, masks and target gains stay fixed. The main cue-switch result remains a demonstration for its selected centre assignment; the failed control limits generalization to other spatial assignments.</p> : <p>No fixed-heterogeneity centre-swap control is selected.</p>}
 
 ## Discussion
 
-C expresses both source patterns, with the cued pattern stronger. The selected
-cue increases contrast largely through lower distractor-region output while the
-selected-region response remains near its previous level. Source rate, frequency
-and timing can all change under the cue, so the experiment demonstrates spatial
-output selection without establishing timing as its cause. The centre-swap
-control excludes a fixed spatial preference within this symmetric model but does
-not establish robustness across input seeds. Cells retain homogeneous dynamics,
-weights are structured deterministically, and synchronous spike counts produce
-stepped spatial rate profiles. There is no classifier, arbitrary-pattern test,
-rate-preserving timing intervention or claim of sustained locking beyond the
-measured windows.
+C expresses both source patterns, with the cued pattern stronger in each epoch.
+The original phase and spatial criteria are unchanged. The modified condition
+uses 400 E / 100 I cells per circuit, independent 128-source sensory/cue masks,
+local E→I fan-in 80 and pooled sender→C I fan-in 40. E target gain CV is 0.1
+in A/B and zero in C; I gain CV is 0.2. Private stochastic input still distinguishes
+C E cells. Local E→I and I→I strengths are multiplied by 0.8 and 0.1.
+Sensory contrast is 0.08; C background is 28 Hz/channel. Each sender supplies
+0.6 µS nominal incoming excitation to C E and 0.39 µS to C I.
+
+{data?.rasters && <p>Mean E participation per complete cycle ranges from {round(100*Math.min(...data.rasters.flatMap(r => ['A_E','B_E','C_E'].map(k => r.populations[k].mean_cycle_participation))),1)}% to {round(100*Math.max(...data.rasters.flatMap(r => ['A_E','B_E','C_E'].map(k => r.populations[k].mean_cycle_participation))),1)}% across the measured circuits and epochs. I recruitment remains high, although its spike trains are distinct. This is partial recruitment in a rhythmic network, not evidence of biological realism.</p>}
+
+Changes were selected jointly through exploratory iteration. Spatial selection is
+weaker than in the older homogeneous condition; no independent seed validation
+or causal attribution to individual changes was performed. Source rate, frequency
+and timing all change under the cue, so timing has not been isolated as the cause
+of spatial output. There is no classifier, arbitrary-pattern test or
+rate-preserving timing intervention. Finite measurement windows do not establish
+asymptotic locking.

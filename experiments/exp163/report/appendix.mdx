@@ -8,8 +8,10 @@ import ParameterTable from './ParameterTable.astro';
   X_A/X_B provide constant-rate sensory spike inputs with fixed Gaussian target
   gains across A/B E cells. X_C gives uniform background to C E. U_A/U_B share one
   sampled cue train and have complementary delivery gains. A E and B E project
-  topographically to C E and uniformly to C I; total incoming strengths match.
-  All four local recurrent pathways remain spatially pooled. A–B connections and
+  topographically to C E and through pooled sparse masks to C I. The two senders have equal nominal incoming totals onto each recipient population; E and I totals differ.
+  Local recurrence is spatially pooled; E→I uses independent fan-in masks.
+  Expanded reference blocks, local strength multipliers and fixed lognormal
+  excitatory target gains are recorded in the execution-start arrays. A–B connections and
   C feedback are absent. Spatial structure lives in the executed checkpoint
   matrices; this population diagram shows pathways, not their within-matrix layout.
   Native start parameter arrays retain those matrices exactly. Uniform initializers

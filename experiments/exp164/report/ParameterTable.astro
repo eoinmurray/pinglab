@@ -5,6 +5,7 @@ import { formatTableNumber as n } from '../../../site/src/lib/table-number';
 const evidence=await reportSnapshots('exp164',{snapshots:{start:'execution/start/snapshot.json'},allowUnavailable:true});
 const data=await reportData('exp164',{allowUnavailable:true});
 const cfg=evidence?.configuration;
+const variant=cfg?.heterogeneity;
 const snapshot=evidence?.snapshots.start;
 const net=snapshot?.network;
 const settings=data?.configuration;
@@ -43,7 +44,10 @@ const groups=cfg&&net&&settings?[
     shared('Unattended cue port rate',`${n(0)} Hz/channel`),
     shared('Sensory contrast',n(cfg.contrast)),
     shared('Topographic kernel SD',`${n(cfg.kernel_pixels)} pixels`),
-    shared('Sender→C incoming weight per pathway',`${n(cfg.coupling_us)} µS`),
+    shared('Sender→C E / I nominal incoming weights',`${n(cfg.coupling_us)} / ${n(cfg.coupling_us*(variant?.cross_i_ratio ?? 1))} µS`),
+    ...(variant ? [shared('Private C/cue fan-in / local E→I fan-in',`${n(variant.sensory_fanin)} / ${n(variant.ei_fanin)}`),
+      shared('Excitatory target gain CV, A/B E / C E / I',`${n(variant.target_gain_cv)} / ${n(variant.receiver_gain_cv ?? variant.target_gain_cv)} / ${n(variant.inhibitory_gain_cv)}`),
+      shared('Weight intervention seed',String(variant.seed))] : []),
   ]},
   {label:'Measurement',rows:[
     shared('Phase and spatial-rate window',settings.window_ms.map(n).join('–')+' ms'),
@@ -60,13 +64,31 @@ const rows=cfg&&net?sources.map(source=>[
     if(paths.length!==1)throw new Error('Ambiguous native pathway');
     const p=paths[0];const parameter=net.parameters.find(x=>x.id===p.parameters[0]);
     if(parameter?.initializer.kind!=='constant'||parameter.initialization_scaling!=='direct'||parameter.unit!=='uS')throw new Error('Expected native direct constant initializer');
-    const base=1000*parameter.initializer.value;
+    let base=1000*parameter.initializer.value;
+    let density=1;
+    const external=source.id.startsWith('X_')||source.id.startsWith('U_');
+    const localEI=source.id.endsWith('_E')&&target.id===source.id.replace(/_E$/,'_I');
+    const localII=source.id.endsWith('_I')&&source.id===target.id;
+    const crossI=/^[AB]_E_to_C_I$/.test(p.id);
+    let cv=variant && (external || source.id.endsWith('_E'))
+      ? target.id.endsWith('_I') ? variant.inhibitory_gain_cv
+        : target.id==='C_E' ? variant.receiver_gain_cv ?? variant.target_gain_cv : variant.target_gain_cv : 0;
     if(/^sensory_[AB]$/.test(p.id)){
-      const pixels=target.size;
-      return `${n(100/pixels)}%; ${n(base*pixels)} nS`;
+      density=1/64;
+      base*=64;
+    } else if(variant && (p.id.startsWith('cue_')||p.id==='sensory_C')){
+      density=variant.sensory_fanin/source.size;
+      base/=density;
+    } else if(variant && localEI){
+      density=variant.ei_fanin/source.size;
+      base*=variant.ei_gain/density;
+    } else if(variant && localII){
+      base*=variant.ii_gain;
+    } else if(variant && crossI){
+      base*=variant.cross_i_ratio;
     }
-    if(/^[AB]_E_to_C_E$/.test(p.id))return {math:`${n(100)}\\%;\\quad ${n(base*source.size)}K_{ji}\\,\\mathrm{nS}`};
-    return `${n(100)}%; ${n(base)} nS`;
+    if(/^[AB]_E_to_C_E$/.test(p.id))return {math:`${n(100)}\%;\quad ${n(base*source.size)}K_{ji}\,\mathrm{nS}`};
+    return `${n(100*density)}%; ${n(base)}${cv && base ? ` ± ${n(base*cv)}` : ''} nS`;
   })
 ]):[];
 ---
@@ -84,12 +106,15 @@ const rows=cfg&&net?sources.map(source=>[
   Cells give nominal eligible-pair density and conductance per connection.
   Self-connections are excluded on within-population diagonals. Silent cue ports
   retain their anatomical projections. Sensory A/B weights connect each pixel's
-  channel block to its corresponding E cell; the density is the reciprocal pixel
+  channel block to its corresponding E-cell group; the density is the reciprocal pixel
   count, and the native uniform base initializer is rescaled by that count to
   preserve incoming strength. For sender→C E, K_ji is the two-dimensional Gaussian
-  of source j and target i pixel distance, normalized over j. Its nominal density
+  of source j and target i pixel distance, normalized over all presynaptic cells,
+  including the five source replicas at each pixel. Its nominal density
   is full; distant tails may round to zero in float32. Other entries use the
-  native constant initializers directly. These formulas describe the recorded
+  nominal initializer together with recorded masks, local multipliers and target
+  gains. For heterogeneous entries, mean ± SD include lognormal target gain
+  variation, not measured weight statistics. These formulas describe the recorded
   transformations, not measured matrix statistics; saved native parameter
   arrays are authoritative. Local E→E / E→I / I→E / I→I decay
   is {cfg ? [cfg.network.local.E_to_E.tau_ms,cfg.network.local.E_to_I.tau_ms,cfg.network.local.I_to_E.tau_ms,cfg.network.local.I_to_I.tau_ms].map(n).join(' / ') : 'unavailable'} ms.

@@ -3,9 +3,10 @@ import Table from '../../../site/src/components/Table.astro';
 import { reportSnapshots } from '../../../site/src/lib/report-data';
 import { formatTableNumber as n } from '../../../site/src/lib/table-number';
 const evidence = await reportSnapshots('exp163', {
-  snapshots: { start: 'execution/start/snapshot.json' }, allowUnavailable: true,
+  snapshots: { start: 'execution/start/snapshot.json' }, computeInput: 'compute', allowUnavailable: true,
 });
 const cfg = evidence?.configuration;
+const variant=cfg?.heterogeneity;
 const snapshot = evidence?.snapshots.start;
 const net = snapshot?.network;
 const math = value => ({ math:value });
@@ -40,7 +41,10 @@ const groups=cfg && net ? [
     shared('Background input, C',`${n(cfg.input_rates_hz.X_C)} Hz/channel`),
     shared('Cue source rate, A / B',`${n(cfg.input_rates_hz.U_A)} / ${n(cfg.input_rates_hz.U_B)} Hz/channel`),
     ['Cue delivery target',math('E_A'),math('E_B')],
-    shared('Each sender→C pathway incoming weight',`${n(cfg.coupling_us)} µS`),
+    shared('Nominal sender→C E / I incoming weights',`${n(cfg.coupling_us)} / ${n(cfg.coupling_us*(variant?.cross_i_ratio ?? 1))} µS`),
+    ...(variant ? [shared('Sensory / E→I / pooled cross fan-in',`${n(variant.sensory_fanin)} / ${n(variant.ei_fanin)} / ${n(variant.cross_fanin)}`),
+      shared('Excitatory target gain CV, A/B E / C E / I',`${n(variant.target_gain_cv)} / ${n(variant.receiver_gain_cv ?? variant.target_gain_cv)} / ${n(variant.inhibitory_gain_cv)}`),
+      shared('Weight intervention seed',String(variant.seed))] : []),
     shared('Cross-pathway decay / delay',`${n(cfg.network.cross.tau_ms)} / ${n(cfg.network.cross.delay_ms)} ms`),
     shared('Gaussian centres, A / B',`${n(cfg.spatial.centers.A)} / ${n(cfg.spatial.centers.B)}`),
     shared('Sensory Gaussian width / contrast',`${n(cfg.spatial.width)} / ${n(cfg.spatial.contrast)}`),
@@ -64,16 +68,35 @@ const matrices=cfg && snapshot ? ['before','after'].map(epoch=>sources.map(sourc
     const parameter=net.parameters.find(p=>p.id===projection.parameters[0]);
     if(!parameter || parameter.unit!=='uS' || parameter.initializer.kind!=='constant' || parameter.initialization_scaling!=='direct') throw new Error('Expected a native direct constant conductance initializer');
     const gain=projection.modulation?.[epoch] ?? 1;
-    const nominal=parameter.initializer.value*1000;
+    let nominal=parameter.initializer.value*1000;
+    let density=1;
+    const external=/^[XU]_/.test(source.id);
+    const localEI=source.id.endsWith('_E')&&target.id===source.id.replace(/_E$/,'_I');
+    const localII=source.id.endsWith('_I')&&target.id===source.id;
+    const crossI=/^[AB]_E_to_C_I$/.test(projection.id);
+    if(variant){
+      const fanIn=external?variant.sensory_fanin:localEI?variant.ei_fanin:crossI?variant.cross_fanin:null;
+      if(fanIn){density=fanIn/source.size;nominal/=density;}
+      if(source.id===target.id){
+        density=(source.size-variant.population_scale)/(source.size-1);
+        nominal/=density;
+      }
+      nominal*=localEI?variant.ei_gain:localII?variant.ii_gain:1;
+    }
     if(/^sensory_[AB]$/.test(projection.id)) {
-      return {math:`${n(100)}\\%;\\quad ${n(nominal)}\\,g_${projection.id.at(-1)}(i)\\,\\mathrm{nS}`};
+      const field=projection.id.at(-1);
+      return {math:`${n(100*density)}\%;\quad ${n(nominal)}\,a_${field}g_${field}(i)h_${field}(i)\,\mathrm{nS}`};
     }
     if(/^[AB]_E_to_C_E$/.test(projection.id)) {
       const incoming=nominal*source.size*cfg.coupling_us/cfg.reference_coupling_us;
-      return {math:`${n(100)}\\%;\\quad ${n(incoming)}\\,K_{ji}\\,\\mathrm{nS}`};
+      return {math:`${n(100)}\%;\quad ${n(incoming)}\,K_{ji}\,\mathrm{nS}`};
     }
-    const cross=/^[AB]_E_to_C_I$/.test(projection.id) ? cfg.coupling_us/cfg.reference_coupling_us : 1;
-    return `${n(100)}%; ${n(nominal*gain*cross)} nS`;
+    const cross=crossI ? cfg.coupling_us/cfg.reference_coupling_us*(variant?.cross_i_ratio ?? 1) : 1;
+    const mean=nominal*gain*cross;
+    const cv=variant&&(external||source.id.endsWith('_E'))
+      ? target.id.endsWith('_I')?variant.inhibitory_gain_cv
+        : target.id==='C_E'?variant.receiver_gain_cv ?? variant.target_gain_cv:variant.target_gain_cv : 0;
+    return `${n(100*density)}%; ${n(mean)}${cv&&mean?` ± ${n(mean*cv)}`:''} nS`;
   })
 ])) : [];
 ---
@@ -83,7 +106,7 @@ const matrices=cfg && snapshot ? ['before','after'].map(epoch=>sources.map(sourc
   circuits share E/I dynamics. Per-channel/bin Bernoulli spike inputs approximate
   independent Poisson sources; both cue ports use the same U train. Source rate
   parameters stay constant while cue-delivery gains change. Seeds are exact
-  identifiers; weight matrices are deterministic. Numeric quantities use two
+  identifiers; masks and realized target gains are fixed after initialization. Numeric quantities use two
   significant figures.
 </Table>
 {matrices.map((rows,index)=><Table headers={['Source ↓ / target →',...targets.map(p=>math(symbol(p.id)))]}
@@ -92,11 +115,15 @@ const matrices=cfg && snapshot ? ['before','after'].map(epoch=>sources.map(sourc
   The base constants come from this run's native pre-transform initializers; spatial
   rules and coupling scaling come from its recorded configuration. Start parameter
   arrays are authoritative and are checked exactly against those transformations.
-  These deterministic formulas describe nominal weights, not random distributions
-  or measured matrix statistics. Here i is recipient E-cell index and j is source
+  Formulas and mean ± SD describe nominal initialization rules, not measured
+  matrix statistics. For heterogeneous entries, SD includes the recorded target
+  gain variation. Expanded diagonal blocks inherit reference autapse exclusions. Here i is recipient E-cell index and j is source
   E-cell index. Positions are cell-centre coordinates on the unit interval, with N_E cells. The sensory multiplier
   g_A(i) or g_B(i) is a Gaussian of the recorded centre and width, normalized to mean
-  one, mixed with a uniform pedestal using the recorded contrast. K_ji is the
+  one, mixed with a uniform pedestal using the recorded contrast. The fixed
+  lognormal target multiplier h has the recorded mean-one gain law. Scalar a
+  normalizes each full sensory matrix back to its pre-field total; with N_E
+  target cells it equals N_E divided by the sum over i of g(i)h(i). K_ji is the
   Gaussian of source–target distance with the recorded kernel width, normalized
   over j separately for each i. Thus both senders have equal total input strength
   at every recipient. Nominal kernel density is full; tiny far-distance tails may

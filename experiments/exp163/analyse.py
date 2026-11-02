@@ -9,6 +9,7 @@ from time import perf_counter
 REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "libraries")]
 import numpy as np
+import torch
 from experiments.exp163 import recipe
 from pingstore.library import source_run, stage_run, write_json_atomic
 from scipy.ndimage import gaussian_filter1d
@@ -177,8 +178,146 @@ def spatial_measure(spikes, t, cfg, metrics):
     return rows
 
 
-def analyse(*, source, run_id=None):
+def raster_summary(spikes, cfg, windows):
+    """Raw-spike diversity and recruitment in complete E-defined population cycles."""
+    dt = cfg["dt_ms"]
+    rows = []
+    for batch in range(next(iter(spikes.values())).shape[1]):
+        for start, end in windows:
+            row = dict(batch=batch, window_ms=[start, end], populations={})
+            for c in "ABC":
+                e = spikes[c + "_E"][:, batch, :]
+                rate = gaussian_filter1d(e.mean(1) * 1000 / dt, 1 / dt)
+                peaks, _ = find_peaks(
+                    rate,
+                    distance=round(15 / dt),
+                    prominence=max(
+                        0.05, 0.1 * np.ptp(rate[round(start / dt) : round(end / dt)])
+                    ),
+                )
+                boundaries = (peaks[1:] + peaks[:-1]) / 2
+                boundaries = boundaries[
+                    (boundaries * dt >= start) & (boundaries * dt <= end)
+                ]
+                for p in "EI":
+                    x = spikes[c + "_" + p][:, batch, :]
+                    late = x[round(start / dt) : round(end / dt)]
+                    counts = np.array(
+                        [
+                            x[round(a) : round(b)].sum(0)
+                            for a, b in zip(
+                                boundaries[:-1], boundaries[1:], strict=True
+                            )
+                        ]
+                    ).reshape(-1, x.shape[1])
+                    active = late.sum(0) > 0
+                    participation = (counts > 0).mean(1)
+                    isi_cvs = []
+                    for train in late.T:
+                        intervals = np.diff(np.flatnonzero(train)) * dt
+                        if len(intervals) >= 2:
+                            isi_cvs.append(float(intervals.std() / intervals.mean()))
+                    row["populations"][c + "_" + p] = dict(
+                        mean_hz=float(late.mean() * 1000 / dt),
+                        active_fraction=float(active.mean()),
+                        distinct_train_fraction=float(
+                            len(np.unique(np.packbits(late.T, axis=1), axis=0))
+                            / x.shape[1]
+                        ),
+                        max_same_bin_fraction=float(late.mean(1).max()),
+                        complete_cycles=len(counts),
+                        mean_cycle_participation=float(participation.mean())
+                        if len(counts)
+                        else None,
+                        fully_recruited_cycle_fraction=float(
+                            (participation == 1).mean()
+                        )
+                        if len(counts)
+                        else None,
+                        cycle_skipping_cell_fraction=float(
+                            ((counts == 0).any(0) & active).mean()
+                        ),
+                        median_isi_cv=float(np.median(isi_cvs)) if isi_cvs else None,
+                    )
+            rows.append(row)
+    return rows
+
+
+def validate_mirror(computed, mirror, original, reference_cfg, cfg, spikes, profiles):
+    mirror_cfg = mirror.record["execution"]["configuration"]
+    swapped = copy.deepcopy(cfg)
+    swapped["spatial"]["centers"] = {
+        c: 1 - v for c, v in cfg["spatial"]["centers"].items()
+    }
+    if swapped != mirror_cfg:
+        raise ValueError("mirror control differs beyond spatial reflection")
+    mspikes, msol = read_trial(mirror, mirror_cfg)
+    with (
+        np.load(computed.file("inputs.npz")) as a,
+        np.load(mirror.file("inputs.npz")) as b,
+    ):
+        for key in a:
+            np.testing.assert_array_equal(a[key], b[key])
+    expected = recipe.spatial_weights(original, mirror_cfg, reference_cfg)
+    actual = NetworkSnapshot.read(
+        mirror.file("execution/start/snapshot.json")
+    ).load_parameters()
+    for key in expected:
+        np.testing.assert_array_equal(actual[key], expected[key])
+    metrics, _ = measure(msol, mirror_cfg)
+    mprofiles = spatial_measure(mspikes, msol.time_ms, mirror_cfg, metrics)
+    exact_spikes = all(
+        np.array_equal(spikes[key][:, :, ::-1], value) for key, value in mspikes.items()
+    )
+    exact_profiles = all(
+        np.array_equal(a[c][::-1], b[c])
+        for a, b in zip(profiles, mprofiles, strict=True)
+        for c in "ABC"
+    )
+    correlations = [
+        {c: float(np.corrcoef(a[c][::-1], b[c])[0, 1]) for c in "ABC"}
+        for a, b in zip(profiles, mprofiles, strict=True)
+    ]
+    fixed_heterogeneity = "heterogeneity" in cfg and not cfg["heterogeneity"].get(
+        "reflect_with_centers", True
+    )
+    if fixed_heterogeneity:
+        forward_arrays = NetworkSnapshot.read(
+            computed.file("execution/start/snapshot.json")
+        ).load_parameters()
+        for key in actual:
+            if key not in ("sensory_A.weight", "sensory_B.weight"):
+                np.testing.assert_array_equal(actual[key], forward_arrays[key])
+    elif "heterogeneity" not in cfg:
+        if not exact_spikes or not exact_profiles:
+            raise ValueError(
+                "homogeneous mirror did not reproduce exact spikes/profiles"
+            )
+    elif not metrics["prototype_passed"] or not all(
+        v >= 0.95 for row in correlations for v in row.values()
+    ):
+        raise ValueError(
+            "heterogeneous mirror failed task criteria or reflected-profile agreement"
+        )
+    mirror.check_unchanged()
+    return dict(
+        validated=True,
+        passed=bool(metrics["prototype_passed"]),
+        control_type="centres swapped with fixed heterogeneity"
+        if fixed_heterogeneity
+        else "complete network reflection",
+        nonsensory_weights_held_fixed=fixed_heterogeneity,
+        source_run=mirror.directory.name,
+        metrics=metrics,
+        spikes_and_profiles_exactly_mirrored=exact_spikes and exact_profiles,
+        reflected_profile_correlations=correlations,
+        interpretation="task outcomes checked with identical inputs; full reflection also checks numerical permutation symmetry",
+    )
+
+
+def analyse(*, source, run_id=None, mirror_source=None):
     started = perf_counter()
+    torch.set_num_threads(1)
     computed = source_run(
         REPO / ".pingstore", source, experiment=recipe.SLUG, stage="compute"
     )
@@ -209,8 +348,12 @@ def analyse(*, source, run_id=None):
         np.testing.assert_array_equal(actual[key].numpy(), expected[key].numpy())
     metrics, diag = measure(sol, cfg)
     profiles = spatial_measure(spikes, sol.time_ms, cfg, metrics)
-    mirror_result = None
-    if "mirror_reference" in computed.record["inputs"]:
+    mirror = None
+    if mirror_source:
+        mirror = source_run(
+            REPO / ".pingstore", mirror_source, experiment=recipe.SLUG, stage="compute"
+        )
+    elif "mirror_reference" in computed.record["inputs"]:
         pin = computed.record["inputs"]["mirror_reference"]
         mirror = source_run(
             REPO / ".pingstore",
@@ -219,59 +362,24 @@ def analyse(*, source, run_id=None):
             experiment="exp162",
             phase="scratch-spatial-competition",
         )
-        mirror_cfg = mirror.record["execution"]["configuration"]
-        swapped = copy.deepcopy(cfg)
-        swapped["spatial"]["centers"] = {
-            c: 1 - v for c, v in cfg["spatial"]["centers"].items()
-        }
-        for key in (
-            "coupling_us",
-            "cue_hz",
-            "background_hz",
-            "input_rates_hz",
-            "input_seeds",
-            "windows_ms",
-            "spatial",
-        ):
-            if swapped[key] != mirror_cfg[key]:
-                raise ValueError("mirror control differs beyond centres: " + key)
-        mspikes, msol = read_trial(mirror, mirror_cfg)
-        with (
-            np.load(computed.file("inputs.npz")) as a,
-            np.load(mirror.file("inputs.npz")) as b,
-        ):
-            for key in a:
-                np.testing.assert_array_equal(a[key], b[key])
-        for c in "ABC":
-            np.testing.assert_array_equal(
-                spikes[c + "_E"][:, :, ::-1], mspikes[c + "_E"]
-            )
-            np.testing.assert_array_equal(spikes[c + "_I"], mspikes[c + "_I"])
-        mp = recipe.spatial_weights(
-            original, mirror_cfg, reference.record["execution"]["configuration"]
+    mirror_result = (
+        validate_mirror(
+            computed,
+            mirror,
+            original,
+            reference.record["execution"]["configuration"],
+            cfg,
+            spikes,
+            profiles,
         )
-        actual_m = NetworkSnapshot.read(
-            mirror.file("execution/start/snapshot.json")
-        ).load_parameters()
-        for key in mp:
-            np.testing.assert_array_equal(actual_m[key].numpy(), mp[key].numpy())
-        mm, md = measure(msol, mirror_cfg)
-        mprofiles = spatial_measure(mspikes, msol.time_ms, mirror_cfg, mm)
-        for a, b in zip(profiles, mprofiles, strict=True):
-            for c in "ABC":
-                np.testing.assert_array_equal(a[c][::-1], b[c])
-        mirror_result = dict(
-            validated=True,
-            source_run=mirror.directory.name,
-            metrics=mm,
-            spikes_and_profiles_exactly_mirrored=True,
-        )
-        mirror.check_unchanged()
+        if mirror
+        else None
+    )
     with stage_run(
         REPO,
         recipe.SLUG,
         "analyse",
-        inputs=dict(compute=computed),
+        inputs=dict(compute=computed, **({"mirror": mirror} if mirror else {})),
         configuration=cfg,
         run_id=run_id,
     ) as run:
@@ -281,6 +389,7 @@ def analyse(*, source, run_id=None):
                 schema="exp163.analysis/v1",
                 metrics=metrics,
                 mirror_control=mirror_result,
+                rasters=raster_summary(spikes, cfg, cfg["windows_ms"]),
             ),
         )
         np.savez_compressed(
@@ -308,4 +417,5 @@ if __name__ == "__main__":
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--source", required=True)
     p.add_argument("--run-id")
+    p.add_argument("--mirror-source")
     analyse(**vars(p.parse_args()))

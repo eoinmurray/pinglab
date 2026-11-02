@@ -59,7 +59,7 @@ def test_invalid_numeric_overrides_fail(reference_cfg, value):
 
 def test_configuration_is_fresh_and_defaults_match_selected(reference_cfg):
     cfg = recipe.configuration(reference_configuration=reference_cfg)
-    assert cfg["coupling_us"] == 0.12
+    assert cfg["coupling_us"] == 0.25
     cfg["network"]["populations"]["E"]["size"] = 4
     cfg["incoming_weights_us"]["PING_B_E_to_E"] = 100
     assert reference_cfg["network"]["populations"]["E"]["size"] == 8
@@ -82,7 +82,9 @@ def test_native_architecture_retains_symmetry_and_applies_cross_scale_once(
         for p in "EI":
             key = c + "_E_to_C_" + p
             assert weights[key] == 0.04
-            assert weights[key] * recipe.scales(cfg)[key] == 0.12
+            assert weights[key] * recipe.scales(cfg)[key] == (
+                cfg["coupling_us"] if p == "E" else 0
+            )
         assert not any(
             p["source"].startswith("C_") and p["target"].startswith(c + "_")
             for p in paths.values()
@@ -165,3 +167,58 @@ def test_imports_are_standalone_and_side_effect_free(tmp_path):
     )
     assert result.returncode == 0, result.stderr
     assert not list(tmp_path.iterdir())
+
+
+def test_selected_native_weights_and_matched_sender_controls():
+    from pingstore.library import source_run
+    from snnlab.sim import NetworkSnapshot
+
+    root = Path(__file__).resolve().parents[2]
+    reference = source_run(
+        root / ".pingstore", "exp161-r002-compute", experiment="exp161", stage="compute"
+    )
+    selected = source_run(
+        root / ".pingstore", "exp162-r031-compute", experiment="exp162", stage="compute"
+    )
+    cfg = selected.record["execution"]["configuration"]
+    assert (
+        recipe.configuration(
+            reference_configuration=reference.record["execution"]["configuration"]
+        )
+        == cfg
+    )
+    original = NetworkSnapshot.read(
+        reference.file("network-initialization/start/snapshot.json")
+    ).load_parameters()
+    expected = recipe.heterogeneous_parameters(original, cfg)
+    actual = NetworkSnapshot.read(
+        selected.file("execution/start/snapshot.json")
+    ).load_parameters()
+    for key in expected:
+        np.testing.assert_allclose(
+            actual[key],
+            expected[key] * recipe.scales(cfg).get(key.removesuffix(".weight"), 1),
+            rtol=1e-6,
+            atol=1e-10,
+        )
+    for identity in ("exp162-r027-compute", "exp162-r029-compute"):
+        prior = source_run(
+            root / ".pingstore", identity, experiment="exp162", stage="compute"
+        )
+        with (
+            np.load(prior.file("inputs.npz")) as a,
+            np.load(selected.file("inputs.npz")) as b,
+        ):
+            for key in ("X_A", "X_B", "U"):
+                np.testing.assert_array_equal(a[key], b[key])
+            if identity == "exp162-r029-compute":
+                np.testing.assert_array_equal(a["X_C"], b["X_C"])
+        with (
+            np.load(prior.file("spikes.npz")) as a,
+            np.load(selected.file("spikes.npz")) as b,
+        ):
+            for key in ("A_E", "A_I", "B_E", "B_I"):
+                np.testing.assert_array_equal(a[key], b[key])
+        prior.check_unchanged()
+    reference.check_unchanged()
+    selected.check_unchanged()

@@ -1,0 +1,115 @@
+---
+presentation: "exp110"
+title: "Manuscript Figures"
+author: "Eoin Murray"
+collection: [notes, slides, gamma-gated-sparsity]
+format: slides
+description: "The manuscript's ten figures and captions, one figure per slide."
+created_at: "2026-11-02T11:19:43Z"
+updated_at: "2026-11-02T11:28:18Z"
+inputs: ["exp023", "exp025", "exp037", "exp038", "exp042", "exp044", "exp049", "exp110", "exp082"]
+---
+
+import PublishedFigure from '../../site/src/components/PublishedFigure.astro';
+import Slide from '../../site/src/components/slides/Slide.astro';
+import './slides.css';
+
+<Slide title="Loop-off and loop-on circuit architecture and activity." density="compact" layout="figure">
+<div class="slide-figure manuscript-figure">
+
+<PublishedFigure experiment="exp023" file="overview_compound.png" id="loc-5" alt="Loop-off and loop-on networks shown through wiring diagrams, illustrative spike rasters collected under different Poisson drives, power spectra and matched firing-rate–input sweeps." >
+  Figure 1: **Loop-off and loop-on circuit architecture and activity.** **(A–B)** Loop-off control and reciprocal E→I/I→E loop-on. **(C–D)** Illustrative 400-ms rasters: 1,024 E neurons (black), 256 I (red), and 1,024 Poisson channels at 5 Hz (loop-off) or 45 Hz (loop-on). **(E, G)** Mean-subtracted E-population Welch spectra on the same vertical scale; G’s dashed line marks the interpolated peak. **(F, H)** Mean per-neuron E/I rates over matched 2–100-Hz drive sweeps using the same 1,024-channel networks as the rasters and spectra. Each point is one single-seed trial, without uncertainty estimates; F/H vertical scales differ. Source experiment: [exp023](/exp023) — [*Turning the PING Loop On.*](/exp023)
+</PublishedFigure>
+
+</div>
+</Slide>
+
+<Slide title="Reciprocal-coupling sweep and mean-field onset." density="compact" layout="figure">
+<div class="slide-figure manuscript-figure">
+
+<PublishedFigure experiment="exp110" file="onset_super_compound.png" id="loc-6" alt="Coupling-plane maps, representative spike rasters and mean-field analyses of oscillatory onset in the recurrent excitatory-inhibitory circuit." >
+  Figure 2: **Reciprocal-coupling sweep and mean-field onset.** **(A–C)** Mean E rate, I rate and the rhythmicity metric across an 11×11 grid of E→I ($W_{E I}$) and I→E ($W_{I E}$) Gaussian parent means on the fan-in-normalized summed-conductance scale ([Appendix A4](/notes/manuscript#appendix-a4)). Each point represents one untrained network and seed; B’s grayscale is clipped at its 92nd percentile. **(D–F)** Illustrative 200-ms rasters at $( W_{E I} , W_{I E} ) = ( 0 , 0 )$, $( 0.6 , 1.2 )$ and $( 3 , 6 )$ µS; black/red marks show 160 E/48 I neurons. A–F have no uncertainty estimates. **(G–H)** Separate four-variable mean-field model. G shows fixed-point eigenvalues across $I_{\text{ext}} = 0$–4 nA (colour), with the leading pair at $I_{\text{ext}}^{\ast} = 0.594$ nA circled in cyan. H shows upward/downward peak-to-peak E-rate amplitudes; the dotted line marks onset. **(I)** Mean-field onset frequencies (black circles, solid) and median finite-drive spectral peaks from three classifiers per inhibitory decay time in training group TR03 (red squares, dashed), without uncertainty intervals. TR01–TR06 label groups of training regimes ([Table 1](/notes/manuscript#training-groups)); TR03 varies inhibitory decay in loop-on classifiers. Methods define measurements and protocols. Source experiments: [exp054](/exp054) — [*Pinglab Rythmicity Metric*](/exp054), [exp117](/exp117) — [*Mean-Field Analysis of PING Bifurcations*](/exp117), and [exp041](/exp041) — [*Firing Rate Tracks Gamma Frequency.*](/exp041)
+</PublishedFigure>
+
+</div>
+</Slide>
+
+<Slide title="Accuracy and excitatory firing in loop-off and loop-on classifiers." density="compact" layout="figure">
+<div class="slide-figure manuscript-figure">
+
+<PublishedFigure experiment="exp025" file="results_compound.png" id="loc-8" alt="Full-MNIST loop-off and loop-on single-trial activity and validation learning curves, alongside a separate reduced-training-pool accuracy–rate frontier." >
+  Figure 3: **Accuracy and excitatory firing in loop-off and loop-on classifiers.** **(A–B)** Illustrative 200-ms responses to digit-0 sample 0 from final unpenalised TR01 full-MNIST checkpoints, seed 42; E spikes are black, I red. **(C–D)** Loop-off: red squares; Loop-on: black diamonds. Means use three independent training replicates. C shows TR01 full-MNIST validation accuracy without uncertainty intervals. A–C use 54,000 optimization and 6,000 validation images. D uses the separate TR02 classifiers trained on 6,300 optimization and 700 validation images and shows final-checkpoint test accuracy versus mean per-neuron E rate under the common post-training evaluation protocol; bars show the standard error of the mean (SEM) on both axes. Ceilings were 1, 2.5, 5, 10 and 25 Hz; stars denote unpenalised conditions. The loop-on 25 Hz ceiling marker nearly coincides with its unpenalised star. Source experiment: [exp025](/exp025) — [*Inhibition, Accuracy and Firing.*](/exp025)
+</PublishedFigure>
+
+</div>
+</Slide>
+
+<Slide title="Post-training insertion of reciprocal inhibition." density="compact" layout="figure">
+<div class="slide-figure manuscript-figure">
+
+<PublishedFigure experiment="exp038" file="loop_transfer_compound.png" id="loc-9" alt="Loop-off and loop-on rasters followed by population firing rates and test accuracy across reciprocal loop strength." >
+  Figure 4: **Post-training insertion of reciprocal inhibition.** **(A–B)** Illustrative 200-ms responses to the same digit-7 image from one unpenalised, validation-selected TR02 loop-off classifier (seed 42), at $s = 0$ and $s = 1$; fixed pseudorandom subsets show 200 E neurons (black) and 64 I (red). Learned weights remained frozen; recurrent matrices were newly initialized at each strength without retraining (Methods). **(C–D)** Mean ± sample standard deviation (SD) across three independent classifiers, evaluated using the common post-training evaluation protocol at $s = 0$–1 in 0.1 steps. C shows per-neuron E/I rates (black circles/red squares); D shows accuracy (grey squares), with the dashed line marking mean accuracy at $s = 0$. Source experiment: [exp038](/exp038) — [*Switching On the Inhibitory Loop.*](/exp038)
+</PublishedFigure>
+
+</div>
+</Slide>
+
+<Slide title="Epoch-50 activity, probe responses and recurrent weights." density="compact" layout="figure">
+<div class="slide-figure manuscript-figure">
+
+<PublishedFigure experiment="exp049" file="training_summary.svg" id="loc-10" alt="Final accuracy, E/I rates and the reference-image rhythmicity metric across four conditions, with initial and final recurrent nonzero fractions and mean weights." >
+  Figure 5: **Epoch-50 activity, probe responses and recurrent weights.** TR05 input/readout weights were trained in four conditions: fixed recurrence (Frozen), or recurrence trained from standard (Std.), one-tenth-standard (10%) or zero (Zero) initialization. **(A–B)** Test accuracy and mean per-neuron E/I rates (black/red) under the common post-training evaluation protocol. **(C)** Final, non-epoch-smoothed rhythmicity metric from the same fixed digit-0, sample-0 encoding; this probe does not estimate trial-to-trial variability. A–C show means ± SEM across three independent training replicates. **(D–E)** Pooled positive-weight fractions for E→I/I→E. **(F–G)** Pooled arithmetic means including zeros, in $10^{- 3}$ µS. For each direction, condition and time point, the pool contains 786,432 entries from three equal-sized complete matrices, giving each network equal weight. Wide grey/narrow red bars denote initialization/epoch 50. Error bars show ±1 SEM across the three per-network statistics (sample SD divided by $\sqrt{3}$), calculated separately before and after training; they do not describe uncertainty in the paired change. Individual weights are not independent training replicates. Arrows mark pooled relative changes ≥5%, not statistical significance. Source experiment: [exp049](/exp049) — [*Recurrent Learning Weakens Rhythmicity.*](/exp049)
+</PublishedFigure>
+
+</div>
+</Slide>
+
+<Slide title="Excitatory firing and spike counts per cycle across inhibitory decay times." density="compact" layout="figure">
+<div class="slide-figure manuscript-figure">
+
+<PublishedFigure experiment="exp110" file="cycle_participation_compound.png" id="loc-12" alt="Post-training excitatory firing rate and accuracy across population spectral-peak frequencies, followed by six black bar charts of equal-network mean fractions of excitatory spikes per neuron and inferred inhibitory-burst cycle." >
+  Figure 6: **Excitatory firing and spike counts per cycle across inhibitory decay times.** The eighteen TR03 epoch-50 classifiers comprise three independent replicates per decay time, evaluated with the common post-training evaluation protocol. **(A–B)** Mean per-neuron E rate $r_{E}$ and test accuracy versus spectral-peak frequency $f_{\text{peak}}$, estimated from the largest interpolated 5–150-Hz peak of each network’s trial-averaged Welch spectrum. Points and both-axis bars show means ± SEM across replicates. Labels give decay times; A’s red dashed line is the equal-weight affine fit to six condition means. B’s dotted line marks 10% chance accuracy. **(C–H)** Equal-network mean fractions of E neuron–cycle pairs with 0, 1, 2 or ≥3 spikes at decay times 4.5, 6, 9, 12, 18 and 27 ms. Black bars show arithmetic means of the three networks’ separately normalized distributions, giving each network equal weight regardless of its detected cycle total; no uncertainty intervals are shown. Cycles span midpoints between detected inhibitory bursts, with edge intervals extending to presentation boundaries (Methods). Presentations without bursts are excluded. These distributions reuse the same classifiers’ recorded spikes without new inference or training. Source experiments: [exp041](/exp041) — [*Firing Rate Tracks Gamma Frequency*](/exp041) and [exp046](/exp046) — [*One Spike per Gamma Cycle.*](/exp046)
+</PublishedFigure>
+
+</div>
+</Slide>
+
+<Slide title="Spike perturbations in trained classifiers." density="compact" layout="figure">
+<div class="slide-figure manuscript-figure">
+
+<PublishedFigure experiment="exp037" file="perturbation_curves.svg" id="loc-14" alt="Loop-off and loop-on test accuracy under spike deletion and baseline-relative spike insertion." >
+  Figure 7: **Spike perturbations in trained classifiers.** **(A–B)** Inference-time perturbations of validation-selected unpenalised TR02 loop-off (red squares) and loop-on (black diamonds), without retraining, using the common post-training evaluation protocol. Lines and shading show mean ± sample SD across three independent training replicates; dashed lines mark 10% chance accuracy. **(A)** Independent deletion of transmitted E/I spikes, preserving neuronal resets. **(B)** Independent insertion into both populations at 0–200% of each network’s unperturbed E firing rate; aggregation matches relative doses, not hertz. The same nominal per-neuron insertion rate applies to E and I. Collisions add no event; inserted events cause no reset or refractory period. Both interventions affect readout and recurrent transmission. Exact dose grids and operations are given in Methods. Source experiment: [exp037](/exp037) — [*Dropped Spikes vs Added Noise.*](/exp037)
+</PublishedFigure>
+
+</div>
+</Slide>
+
+<Slide title="Count-preserving inhibitory replay perturbations." density="compact" layout="figure">
+<div class="slide-figure manuscript-figure">
+
+<PublishedFigure experiment="exp042" file="rhythm_compound.png" id="loc-15" alt="Excitatory and inhibitory rasters, excitatory rate, accuracy and realised inhibitory rate under two inhibitory replay-jitter manipulations." >
+  Figure 8: **Count-preserving inhibitory replay perturbations.** Recorded inhibitory spikes replace naturally generated outputs; excitatory activity and readout responses are recomputed with unchanged weights and inputs. **(A–B)** Illustrative digit-7 responses (test sample 0, seed 42) at proposed Gaussian-shift SD $\sigma = 14$ ms, showing the same 200 E neurons (black) and 64 replayed I neurons (red). **(A, C)** Independent-spike jitter. **(B, D)** Shared shifts within fixed 22.8-ms clock windows, defined independently of detected bursts. Grid rounding, reflection and collision handling preserve each neuron’s count ([Appendix D](/notes/manuscript#appendix-d)). **(C–D)** Per-neuron E/I rates (black circles/red squares, left axes) and test accuracy (grey squares, right axes), averaged across three unpenalised TR02 loop-on final-checkpoint classifiers using the common post-training evaluation protocol; no uncertainty intervals. Displayed jitter values are 0, 0.5, 1, 2, 5, 9, 14 ms (C) and 0, 1, 3, 7, 14 ms (D); both share the zero-jitter replay control. Source experiment: [exp042](/exp042) — [*Inhibitory Replay and E Firing.*](/exp042)
+</PublishedFigure>
+
+</div>
+</Slide>
+
+<Slide title="Timestep dependence after separate training." density="compact" layout="figure">
+<div class="slide-figure manuscript-figure">
+
+<PublishedFigure experiment="exp044" file="dt_sweep.svg" id="loc-30" alt="Hidden excitatory firing rate and test accuracy across five integration timesteps, with SEM across independently trained classifiers." >
+  Figure 9: **Timestep dependence after separate training.** TR04 classifiers were trained separately at each timestep. Mean per-neuron excitatory firing rate (black diamonds, left axis) and test accuracy (red squares, right axis) versus integration timestep on a logarithmic horizontal axis. Points show means across three independently trained loop-on classifiers per timestep (seeds 42–44); error bars indicate ±1 SEM. Epoch-50 checkpoints were evaluated at their training timestep on the same 1,000 MNIST test images. Firing rates use realised presentation durations: 199.8 ms at 0.3 and 0.6 ms, and 200 ms otherwise. Source experiment: [exp044](/exp044) — [*Firing Rate Across the Timestep Sweep.*](/exp044)
+</PublishedFigure>
+
+</div>
+</Slide>
+
+<Slide title="Spike-count classification in continuous MNIST streams." density="compact" layout="figure">
+<div class="slide-figure manuscript-figure">
+
+<PublishedFigure experiment="exp082" file="continuous_stream_compound.png" id="loc-17" alt="A correctly classified five-digit continuous stream with per-digit durations and input rates labelled, alongside accuracy across presentation duration and input rate." >
+  Figure 10: **Spike-count classification in continuous MNIST streams.** The three validation-selected TR06 loop-on classifiers used variable-rate training (0.5–25 Hz). During inference, hidden E/I state continued between digits; output voltage/counts reset at supplied boundaries. **(A–C)** Reused illustrative seed-42 stream selected by a predefined five-correct criterion: digits 1, 7, 9, 5, 2 at duration–rate pairs (100 ms, 5 Hz), (200 ms, 7.5 Hz), (50 ms, 25 Hz), (100 ms, 15 Hz), (200 ms, 10 Hz). A shows images, labels and conditions; B/C show the first 200 E/64 I neurons (black/red). Dotted lines mark supplied boundaries. **(D)** Softmax-normalized cumulative output-spike counts: true class red, others grey. Shares are not calibrated probabilities; the dashed 0.5 line is not a decision threshold. Classification uses the largest final count (Methods). **(E–F)** Repeated quantitative evaluation on the same 40 ordered five-image streams for every network, duration and rate, with separate spike-encoding draws. Accuracy across 40 five-digit test streams per network/condition (200 decisions), with duration/rate fixed within each stream. E shows replicate-mean percentage accuracy at four durations and eleven rates, without uncertainty intervals. F reuses the 200-ms evaluations: mean ± SEM across three replicates on a logarithmic rate axis. The illustrative recording was selected separately from this grid. Source experiment: [exp082](/exp082) — [*Spike-Count Stream Classification.*](/exp082)
+</PublishedFigure>
+
+</div>
+</Slide>

@@ -34,7 +34,7 @@ def test_selected_defaults_preserve_original_success_threshold(reference):
         cfg["cue_hz"],
         cfg["background_hz"],
         cfg["spatial"]["contrast"],
-    ) == (0.6, 8.0, 22.0, 0.4)
+    ) == (0.6, 8.0, 28.0, 0.08)
     assert cfg["spatial"]["min_receiver_contrast"] == 0.15
     assert cfg["phase"]["min_plv"] == 0.95
     for value in [0, -1, float("nan"), float("inf")]:
@@ -60,26 +60,33 @@ def test_spatial_matrices_preserve_equal_sensory_totals_and_cross_incoming_sums(
     for c in "AB":
         np.testing.assert_allclose(
             actual["sensory_" + c + ".weight"].numpy().sum(),
-            original["sensory_" + c + ".weight"].numpy().sum(),
+            original["sensory_" + c + ".weight"].numpy().sum()
+            * cfg["heterogeneity"]["population_scale"],
             rtol=1e-6,
         )
         np.testing.assert_allclose(
             actual[c + "_E_to_C_E.weight"].numpy().sum(axis=0, dtype=np.float64),
-            0.6,
+            recipe.heterogeneous_parameters(original, cfg)[c + "_E_to_C_E.weight"]
+            .numpy()
+            .sum(axis=0, dtype=np.float64)
+            * cfg["coupling_us"]
+            / cfg["reference_coupling_us"],
             rtol=1e-6,
         )
     np.testing.assert_allclose(
-        actual["sensory_A.weight"].numpy(),
-        actual["sensory_B.weight"].numpy()[:, ::-1],
-        rtol=1e-6,
+        actual["sensory_A.weight"].sum(), actual["sensory_B.weight"].sum(), rtol=1e-6
     )
     assert np.argmax(actual["A_E_to_C_E.weight"].numpy()[:, 40]) == 40
     np.testing.assert_array_equal(
-        actual["C_I_to_E.weight"], original["C_I_to_E.weight"]
+        actual["C_I_to_E.weight"],
+        original["C_I_to_E.weight"]
+        .repeat_interleave(5, dim=0)
+        .repeat_interleave(5, dim=1)
+        / 5,
     )
 
 
-def test_centre_swap_mirrors_weights_without_changing_any_input_spikes(reference):
+def test_centre_swap_holds_heterogeneity_and_inputs_fixed(reference):
     a = recipe.configuration(
         reference_configuration=reference.record["execution"]["configuration"]
     )
@@ -96,12 +103,28 @@ def test_centre_swap_mirrors_weights_without_changing_any_input_spikes(reference
     y = recipe.spatial_weights(
         original, b, reference.record["execution"]["configuration"]
     )
+    position = recipe.coordinates(a)
     for c in "AB":
-        np.testing.assert_allclose(
-            x["sensory_" + c + ".weight"].numpy()[:, ::-1],
-            y["sensory_" + c + ".weight"].numpy(),
-            rtol=1e-6,
-        )
+        fields = []
+        for cfg in (a, b):
+            g = np.exp(
+                -0.5
+                * ((position - cfg["spatial"]["centers"][c]) / cfg["spatial"]["width"])
+                ** 2
+            )
+            fields.append(
+                (1 - cfg["spatial"]["contrast"])
+                + cfg["spatial"]["contrast"] * g / g.mean()
+            )
+        actual_ratio = x["sensory_" + c + ".weight"].numpy().sum(
+            0, dtype=np.float64
+        ) / y["sensory_" + c + ".weight"].numpy().sum(0, dtype=np.float64)
+        corrected = actual_ratio / (fields[0] / fields[1])
+        np.testing.assert_allclose(corrected / corrected.mean(), 1, rtol=1e-6)
+    assert not a["heterogeneity"]["reflect_with_centers"]
+    for key in x:
+        if key not in ("sensory_A.weight", "sensory_B.weight"):
+            np.testing.assert_array_equal(x[key], y[key])
     for cfg in [a, b]:
         cfg["duration_ms"] = 20
     dx = recipe.make_inputs(a)
@@ -216,3 +239,47 @@ def test_imports_are_standalone_and_side_effect_free(tmp_path):
     )
     assert result.returncode == 0, result.stderr
     assert not list(tmp_path.iterdir())
+
+
+def test_selected_native_recipe_and_preserved_primary_result(reference):
+    import json
+
+    import torch
+
+    torch.set_num_threads(1)
+    root = Path(__file__).resolve().parents[2]
+    selected = source_run(
+        root / ".pingstore", "exp163-r050-compute", experiment="exp163", stage="compute"
+    )
+    cfg = recipe.configuration(
+        reference_configuration=reference.record["execution"]["configuration"]
+    )
+    assert cfg == selected.record["execution"]["configuration"]
+    original = NetworkSnapshot.read(
+        reference.file("execution/start/snapshot.json")
+    ).load_parameters()
+    expected = recipe.spatial_weights(
+        original, cfg, reference.record["execution"]["configuration"]
+    )
+    actual = NetworkSnapshot.read(
+        selected.file("execution/start/snapshot.json")
+    ).load_parameters()
+    for key in expected:
+        np.testing.assert_array_equal(expected[key], actual[key])
+    prior = source_run(
+        root / ".pingstore", "exp163-r044-compute", experiment="exp163", stage="compute"
+    )
+    for name in ("inputs.npz", "spikes.npz"):
+        with np.load(selected.file(name)) as a, np.load(prior.file(name)) as b:
+            for key in a:
+                np.testing.assert_array_equal(a[key], b[key])
+    analysed = source_run(
+        root / ".pingstore", "exp163-r064-analyse", experiment="exp163", stage="analyse"
+    )
+    result = json.loads(analysed.file("results.json").read_text())
+    assert result["metrics"]["prototype_passed"]
+    assert result["mirror_control"]["validated"]
+    assert not result["mirror_control"]["passed"]
+    assert result["mirror_control"]["nonsensory_weights_held_fixed"]
+    for item in (selected, prior, analysed):
+        item.check_unchanged()

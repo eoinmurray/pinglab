@@ -31,6 +31,7 @@ def compute(*, seed=101, run_id=None):
     )
     with torch.no_grad():
         recipe.spatial_parameters(initialized.model.parameter_map(), cfg)
+        recipe.heterogeneous_parameters(initialized.model.parameter_map(), cfg)
     with stage_run(
         REPO, recipe.SLUG, "compute", inputs={}, configuration=cfg, run_id=run_id
     ) as run:

@@ -2,6 +2,7 @@
 import 'katex/dist/katex.min.css';
 import '../styles/slides.css';
 import '../styles/slide-templates.css';
+import '../styles/deferred-media.css';
 
 interface Props { title: string; author: string; description: string; }
 const { title, author, description } = Astro.props;
@@ -15,6 +16,7 @@ const { title, author, description } = Astro.props;
     <meta name="author" content={author} />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>{title} · Pinglab slides</title>
+    <noscript><style is:inline>[data-deferred-media] { display: none !important; }</style></noscript>
   </head>
   <body class="deck-page">
     <header class="deck-header">
@@ -34,5 +36,6 @@ const { title, author, description } = Astro.props;
     </footer>
     <noscript><p class="deck-noscript">All slides are shown. Enable JavaScript for presentation controls.</p></noscript>
     <script>import '../scripts/slides';</script>
+    <script>import '../scripts/deferred-media';</script>
   </body>
 </html>

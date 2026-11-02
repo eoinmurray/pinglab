@@ -1,81 +1,38 @@
 # exp162 — Spiking competitive entrainment
 
-One spiking A/B → C cue-switch trial. Equal sensory drives and symmetric
-sender→C projections stay fixed while a constant-rate cue spike train changes its
-delivery target at 1,200 ms. Default settings: sensory 24 Hz/channel, cue
-6 Hz/channel, C background 28 Hz/channel, sender→C incoming weight 0.12 µS per
-pathway. This is a homogeneous-network prototype with perfectly synchronous
-within-population volleys, not a complete test of preferential transmission.
+One A/B → C trial with a constant-rate cue redirected at 1,200 ms. The selected
+heterogeneous condition has 400 E / 100 I neurons per circuit, sensory and cue
+fan-in 128, local E→I fan-in 80, sender→C fan-in 40, and fixed lognormal
+excitatory target gain CVs 0.1 / 0.2 for E / I. Expanded reference matrices
+preserve nominal incoming totals before masks, gains and the recorded E→I / I→I
+multipliers 0.8 / 0.1. A/B→C I projections remain at zero execution gain.
 
-1. `recipe.py` owns resolved settings, input generation, native graph and cross
-   execution scaling. Cell and synaptic settings come from an explicit saved
-   mean-field reference; no mean-field dynamics run here.
-2. `compute.py --parameter-source COMPUTE_ID` runs one native conductance-LIF
-   simulation on CPU. The reference is `exp161-r002-compute`. Optional tuning:
-   `--coupling-us`, `--cue-hz`, `--background-hz`. Optional migration checks:
-   `--exploration-source PHASE_ID`, `--preserve-exploration DIRECTORY`.
-3. `analyse.py --source COMPUTE_ID` authenticates the execution-scaled native
-   start matrices, validates spike/recording coordinates and cue routing, and
-   measures phase switching in the two predeclared epochs.
-4. `present.py --source ANALYSE_ID` renders the three-panel figure, saved native
-   network diagram and bound report numbers. Each stage accepts `--run-id`.
-5. `uv run pytest experiments/exp162/test.py -q` runs nine focused non-simulation
-   checks covering inputs, cue topology, once-only coupling scaling, phase
-   discrimination, settings isolation and side-effect-free standalone imports.
+1. `uv run python experiments/exp162/compute.py --parameter-source exp161-r002-compute`
+   runs the fixed 2,400 ms CPU trial. Default sensory / cue / C background rates
+   are 24 / 6 / 28 Hz/channel; nominal sender→C E strength is 0.25 µS. Optional
+   `--coupling-us`, `--cue-hz`, `--background-hz` support explicit comparisons.
+2. `uv run python experiments/exp162/analyse.py --source COMPUTE_ID` authenticates
+   transformed native start weights, cue routing and recording coordinates, then
+   measures switching with the unchanged phase/rhythm criteria and raw-spike
+   recruitment/diversity diagnostics.
+3. `uv run python experiments/exp162/present.py --source ANALYSE_ID` renders the
+   experiment, all-neuron raster, and native network diagram. All stages accept
+   `--run-id`; inputs are explicit and no stage launches another stage.
+4. `uv run pytest experiments/exp162/test.py -q` runs non-simulation checks.
 
-```sh
-uv run python experiments/exp162/compute.py --parameter-source exp161-r002-compute
-uv run python experiments/exp162/analyse.py --source COMPUTE_ID
-uv run python experiments/exp162/present.py --source ANALYSE_ID
-```
+Selected compute `exp162-r031-compute` passes both epochs: cued PLVs 0.991 / 0.973,
+uncued PLVs 0.119 / 0.178. E participation averages 59–78% per complete cycle
+across the measured populations and epochs; I participation remains high, but
+99–100% of I trains are distinct and maximum same-bin coincidence is 49%.
+No spikes are moved, removed, smoothed or subsampled in the rasters.
 
-Native matrices are restored from the reference checkpoint. Its 0.04 µS cross
-weights are multiplied by the recorded execution scale of three, giving the
-selected 0.12 µS incoming weight. Sensory gain is already present and is not applied
-again. Each cue port receives the same sampled U train; complementary delivery
-gains redirect it without resetting state. Input generation uses per-channel/bin
-Bernoulli probability `rate*dt/1000`, approximating Poisson spikes. The native
-0.1 ms timestep, input seeds, six population spike arrays and five native per-cell
-conductance recordings are retained. Symmetric 1 ms SD Gaussian smoothing is used
-only for rate plotting and peak-phase estimation; native conductances are unsmoothed.
+The earlier r027 and r029 heterogeneous conditions failed switching. Sender and cue input trains, and sender spikes, remain identical across all three.
+The r029/r031 coupling comparison also has identical C inputs; changing
+background between r027 and r029 changes only X_C input bins. Every condition is immutable in Pingstore.
+These are exploratory selections, not independent seed validation. The cue changes
+sender rate and frequency together; low inhibition is only a conductance proxy.
+No preferential-transmission, rate-matched, probe or classifier claim is made.
 
-The first compute is `exp162-r001-compute`, analysis `exp162-r002-analyse`,
-presentation `exp162-r003-present`. All input spikes, all six neuronal spike arrays
-and every recorded conductance sample exactly reproduce the selected scratch run
-`exp161-r006-compute-phase-scratch-spiking-competition`. Cued PLVs are 0.982167 and
-0.982046; uncued PLVs are 0.191683 and 0.082880. Simulation took 16.148 seconds,
-analysis 0.163 seconds and presentation 0.552 seconds. Nine focused tests, Ruff,
-formatting and diff checks pass. Report, figures, note link and collection entry
-were checked locally.
-
-The formal compute pins the selected scratch run and its retained failed
-0.04 µS attempt. Its byte-verified `export/exploration.zip` preserves the scratch
-source, tests, README, settings, iteration history and recorded validation notes.
-The scratch directory was removed after migration verification; reproduction has
-no scratch dependency. No completed Pingstore runs were removed or rewritten.
-Both exploratory simulations took 31.239 seconds in total. The report is in the
-CTC attention collection, and plan 4 of `notes/ctc-attention/index.mdx` links to it.
-
-The original phase gates are exploratory: cued PLV >0.95, absolute drift <0.25
-cycles/s, cued phase span <0.3 cycles, uncued span >0.5 cycles and C rate amplitude
->0.5 Hz in both 650–1,100 and 1,850–2,300 ms. All circuits additionally require at
-least 12 volleys, 30–80 Hz frequency and interval CV ≤0.2 per epoch. Low-inhibition
-shading is a conductance proxy, not measured response gain. One tuned realization
-cannot establish reliable switching across seeds, asymptotic locking, heterogeneous
-network performance or preferential information transmission. No probes, classifier
-or rate-matched controls were run.
-
-The earlier `exp162-r024-present` placed symmetric sender columns above C. Its
-scientific figures and `numbers.json` were byte-identical to `exp162-r003-present`;
-the diagram-only render took 0.584 seconds without simulation. The compact layout
-below supersedes that arrangement.
-
-### Compact circuit diagram
-
-The diagram follows exp160's mathematical labels, compact E/I pairs and recurrent
-loops, with mirrored A/B pathways converging on C in the centre. Redraw only the
-network from a validated presentation, preserving its result figures and numbers:
-
-```bash
-uv run python experiments/exp162/present.py --redraw-from PRESENT_ID
-```
+The original homogeneous runs and migration archives remain historical evidence.
+Native execution-start arrays are authoritative; nominal constant graph
+initializers precede the documented sparse and gain interventions.

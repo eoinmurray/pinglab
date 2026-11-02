@@ -113,6 +113,7 @@ def compute(
     original = NetworkSnapshot.read(
         reference.file("network-initialization/start/snapshot.json")
     ).load_parameters()
+    original = recipe.heterogeneous_parameters(original, cfg)
     parameters = initialized.model.parameter_map()
     if set(parameters) != set(original):
         raise ValueError("native parameter identities differ")

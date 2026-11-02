@@ -1,64 +1,45 @@
-# exp164 — Untrained digit routing
+# exp164 — Untrained digit routing with partial recruitment
 
-Standalone CPU simulation of a fixed A/B → C spiking circuit driven by two
-8×8 scikit-learn digit images. No other experiment or saved run is required.
-No classifier, decoder or synaptic weight is trained.
+Two fixed 8×8 digits drive a standalone A/B → C spiking circuit. Opposite cue
+orders share complete sensory/background input draws. No classifier, readout or
+synaptic weight is trained. The first 1,100 ms are shown; measurement uses
+650–1,100 ms and conductance close-ups use 900–1,050 ms.
 
-```sh
-uv run python experiments/exp164/compute.py
-uv run python experiments/exp164/analyse.py --source COMPUTE_ID
-uv run python experiments/exp164/present.py --source ANALYSE_ID
-uv run pytest experiments/exp164/test.py -q
-```
+1. `uv run python experiments/exp164/compute.py` runs the two-condition CPU batch
+   for 2,400 ms. `--seed` sets input generation (default 101); native seed is 85.
+2. `uv run python experiments/exp164/analyse.py --source COMPUTE_ID` validates
+   matched inputs, reconstructs conductances using native weights/planner timing,
+   pools raw E counts within known pixel groups, and records phase/routing checks
+   plus raw-spike recruitment and diversity.
+3. `uv run python experiments/exp164/present.py --source ANALYSE_ID` renders the
+   two cue figures, all-neuron rasters and native network diagram. All stages
+   accept `--run-id`; analysis and presentation never run upstream stages.
+4. `uv run pytest experiments/exp164/test.py -q` runs focused non-simulation checks.
 
-`recipe.py` owns the circuit, fixed parameters, image selection, rate encoder,
-input seeds and observation settings. `compute.py` accepts `--seed` (input seed, default 101); the native network seed is 85.
-Every stage accepts `--run-id`; analysis and presentation require explicit input
-IDs. Compute retains generated inputs, spikes, source images, a compiled bundle,
-circuit diagram and native simulation-start snapshot. Two conditions share their
-sensory/background draws and cue draw, with opposite cue orders. Nominal graph
-initializers are transformed into pixel-block sensory weights and normalized 2D
-Gaussian A/B → C E weights before the native snapshot and simulation.
+The accepted heterogeneous compute is `exp164-r052-compute`, analysed as r053.
+Each circuit has 320 E / 80 I cells, with five E cells per pixel. Sensory inputs
+have 8,192 channels, 128 per pixel. Cue and C background projections have fixed
+128-source masks; local E→I fan-in is 80. Excitatory target gain CVs are 0.03 for
+A/B E, zero for C E and 0.2 for I. Local E→I / I→I multipliers are 0.8 / 0.1.
+Sender→C E/I nominal incoming strengths are 0.6 / 0.12 µS; C background is
+20 Hz/channel, sensory base 24 and cue 8. Image contrast is 0.075 and the Gaussian
+cross-kernel SD remains 0.45 pixels. Pixel-map values are mean raw cell rates,
+with no spatial smoothing. Every individual E/I spike remains in the rasters.
 
-Trials last 2,400 ms and switch cue at 1,200 ms. Figures display 0–1,100 ms;
-phase/spatial measurements use 650–1,100 ms and conductance close-ups use
-900–1,050 ms. Rates/phase use 1 ms SD temporal smoothing; maps are raw E-cell
-rates at fixed pixel locations. Corresponding axes share scales.
+Cued PLVs are 0.992 / 0.980; cued image correlations are 0.779 / 0.887 and
+cued-minus-uncued margins 0.345 / 0.500. Mean E cycle participation is 57–66%
+across circuits and cues; all measured I trains are distinct, but I remains
+strongly rhythmic. The recorded exploratory gates require PLV >0.95, drift
+<0.25 cycles/s, phase span <0.3 cycles, regular 30–80 Hz rhythms, image correlation
+≥0.7 and correlation margin ≥0.15. This is not a biological normality test.
 
-Conductances are analytical reconstructions from saved spikes, native weights,
-planner delays and decay, with zero initial conductance, rather than native
-recordings. Float64 population means can differ from native float32 traces.
-Low inhibition is a proxy, not measured transmission gain. This is one fixed
-image pair and input realization, not a timing intervention or decoding benchmark.
+These settings were selected on one fixed image pair and realization; no held-out
+or cross-seed robustness is established. The older homogeneous condition and all
+failed heterogeneous attempts remain immutable. This condition changes population
+size, encoder averaging, gain variation, local strengths, image contrast and
+receiver balance; it does not isolate their individual causal contributions.
 
-The standalone recipe replaces the import-only workflow using the recovered
-original specification: first digit-0/digit-1 samples, 28 Hz C background,
-0.45-pixel kernel, input seed 101, native seed 85 and recorded incoming-weight
-constants. Within-population connections explicitly exclude self-connections.
-These are versioned recipe constants; no historical run is loaded at execution.
-
-The corrected fresh two-condition run reproduced the historical trial's images,
-all input arrays, every native parameter array and all six populations' spikes
-exactly over the full 2,400 ms. Historical evidence and ancestry were recovered
-from Hetzner into a separate directory and validated for this comparison. C's
-pre-switch image correlations were 0.878/0.475 (A/B, A cued) and 0.358/0.952
-(A/B, B cued); cued sender–C PLVs were 0.959 and 0.980. These are one-pair,
-one-seed results. Analysis records image correlations and cued-minus-uncued
-correlation margins alongside phase metrics.
-
-The first local reconstruction changed the image pair, background, kernel, seeds
-and weight constants and omitted recurrent topology; it failed to reproduce the
-routing effect. Those runs remain unchanged as failed-attempt provenance.
-Corrected outputs are exp164-r006-compute → exp164-r007-analyse (or a later
-analysis/presentation of that same compute). Arrays and native artifacts occupy
-tens of files, with expected retained size below 20 MB per pipeline.
-
-### Compact circuit diagram
-
-The diagram follows exp160's mathematical labels, compact E/I pairs and recurrent
-loops, with mirrored A/B pathways converging on C in the centre. Redraw only the
-network from a validated presentation, preserving its result figures and numbers:
-
-```bash
-uv run python experiments/exp164/present.py --redraw-from PRESENT_ID
-```
+Compute retains source images, inputs, native start snapshot, bundle and spikes.
+Conductances are float64 reconstructions of linear synapses, not retained native
+conductance recordings. The accepted simulation took about 49 seconds. The larger
+encoder uses roughly 10 GB transient memory and compressed outputs of tens of MB.

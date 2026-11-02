@@ -25,7 +25,7 @@ def cfg():
     network = dict(
         dt_ms=0.1,
         network_seed=85,
-        input_channels=32,
+        input_channels=1024,
         mean_input_hz=25.0,
         base_coupling_us=0.12,
         onset_ms=1.0,
@@ -33,8 +33,8 @@ def cfg():
         threshold_mv=-50.0,
         reset_mv=-65.0,
         populations=dict(
-            E=dict(size=8, capacitance_nf=1.0, leak_us=0.05, refractory_ms=3.0),
-            I=dict(size=2, capacitance_nf=0.5, leak_us=0.1, refractory_ms=1.5),
+            E=dict(size=80, capacitance_nf=1.0, leak_us=0.05, refractory_ms=3.0),
+            I=dict(size=20, capacitance_nf=0.5, leak_us=0.1, refractory_ms=1.5),
         ),
         sensory=dict(mean_us=0.2, std_us=0.03, gain=9.2, tau_ms=2.0),
         local=dict(
@@ -46,15 +46,6 @@ def cfg():
         cross=dict(tau_ms=0.5, delay_ms=2.0, zero_fraction=0.9),
     )
     return recipe.configuration(network=network)
-
-
-@pytest.mark.parametrize(
-    "values",
-    [dict(coupling_us=0), dict(coupling_us=float("nan")), dict(difference_hz=50)],
-)
-def test_invalid_overrides_fail(cfg, values):
-    with pytest.raises(ValueError):
-        recipe.configuration(network=cfg["network"], **values)
 
 
 def test_inputs_are_reproducible_private_and_unchanged_by_coupling(cfg):
@@ -77,7 +68,10 @@ def test_native_pair_retains_delayed_conductance_and_preserves_sender(cfg):
         for p in bundle.graph["projections"]
     )
     bindings = tuple(
-        DenseArrayBinding(f"drive_{c}", torch.ones(80, 1, 32)) for c in ("A", "B")
+        DenseArrayBinding(
+            f"drive_{c}", torch.ones(80, 1, cfg["network"]["input_channels"])
+        )
+        for c in ("A", "B")
     )
     results = []
     for k in (0, 0.24):
@@ -97,7 +91,11 @@ def test_native_pair_retains_delayed_conductance_and_preserves_sender(cfg):
         results[0].diagnostics["A_E"], results[1].diagnostics["A_E"]
     )
     gx = results[1].recorded_signals[cfg["recording_signals"][0]].numpy()
-    assert gx.shape == (80, 1, 8) and np.isfinite(gx).all() and np.min(gx) >= 0
+    assert (
+        gx.shape == (80, 1, cfg["network"]["populations"]["E"]["size"])
+        and np.isfinite(gx).all()
+        and np.min(gx) >= 0
+    )
     source = results[1].diagnostics["A_E"].numpy().sum(axis=(1, 2))
     first_source = np.flatnonzero(source)[0]
     first_arrival = np.flatnonzero(gx.sum(axis=(1, 2)))[0]
@@ -178,3 +176,41 @@ def test_alignment_rejects_coincident_or_previous_cycle_output(cfg):
         np.testing.assert_allclose(
             [r["output_lag_ms"] for r in result["per_volley"]], lag, atol=1e-10
         )
+
+
+def test_selected_configuration_and_weights_match_recorded_execution():
+    """Authenticate the trimmed recipe without running another simulation."""
+    from pingstore.library import source_run
+    from snnlab.sim import NetworkSnapshot
+
+    root = Path(__file__).resolve().parents[2]
+    reference = source_run(
+        root / ".pingstore", "exp159-r001-compute", experiment="exp159", stage="compute"
+    )
+    selected = source_run(
+        root / ".pingstore", "exp160-r068-compute", experiment="exp160", stage="compute"
+    )
+    cfg = recipe.configuration(
+        network=reference.record["execution"]["configuration"]["network"]
+    )
+    assert cfg == selected.record["execution"]["configuration"]
+    original = NetworkSnapshot.read(
+        reference.file(recipe.REFERENCE_SNAPSHOT)
+    ).load_parameters()
+    before = {key: value.clone() for key, value in original.items()}
+    base = recipe.reference_parameters(original, cfg)
+    for name, strength in (("control", 0), ("coupled", cfg["coupling_us"])):
+        recorded = NetworkSnapshot.read(
+            selected.file(f"{name}-execution/start/snapshot.json")
+        ).load_parameters()
+        scales = recipe.scales(cfg, strength)
+        for key, value in base.items():
+            scale = scales.get(key.removesuffix(".weight"), 1)
+            torch.testing.assert_close(
+                value * scale, recorded[key], rtol=1e-6, atol=1e-9
+            )
+            torch.testing.assert_close(original[key], before[key], rtol=0, atol=0)
+    assert ((base["PING_A_input_to_E.weight"] > 0).sum(0) == 128).all()
+    assert ((base["PING_A_E_to_I.weight"] > 0).sum(0) == 80).all()
+    reference.check_unchanged()
+    selected.check_unchanged()
