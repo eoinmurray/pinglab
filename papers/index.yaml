@@ -19,6 +19,15 @@ aitchison-lengyel-2016.pdf:
   venue: PLOS Computational Biology
   doi: 10.1371/journal.pcbi.1005186
 
+benchenane-et-al-2011.pdf:
+  id: P30
+  title: "Oscillations in the prefrontal cortex: a gateway to memory and attention"
+  authors: [Karim Benchenane, Paul H. Tiesinga, Francesco P. Battaglia]
+  year: 2011
+  collection: [gamma-synchronisation, ping, spiking]
+  venue: Current Opinion in Neurobiology
+  doi: 10.1016/j.conb.2011.01.004
+
 borgers-kopell-2003.pdf:
   id: P03
   title: "Synchronization in Networks of Excitatory and Inhibitory Neurons with Sparse, Random Connectivity"
@@ -225,6 +234,15 @@ ter-wal-tiesinga-2017.pdf:
   venue: Frontiers in Computational Neuroscience
   doi: 10.3389/fncom.2017.00006
 
+tiesinga-sejnowski-2009.pdf:
+  id: P29
+  title: "Cortical Enlightenment: Are Attentional Gamma Oscillations Driven by ING or PING?"
+  authors: [Paul Tiesinga, Terrence J. Sejnowski]
+  year: 2009
+  collection: [ping, spiking, gamma-synchronisation]
+  venue: Neuron
+  doi: 10.1016/j.neuron.2009.09.009
+
 wildie-shanahan-2012.pdf:
   id: P27
   title: Establishing communication between neuronal populations through competitive entrainment
@@ -233,6 +251,15 @@ wildie-shanahan-2012.pdf:
   collection: [ping, spiking, gamma-synchronisation]
   venue: Frontiers in Computational Neuroscience
   doi: 10.3389/fncom.2011.00062
+
+womelsdorf-et-al-2014.pdf:
+  id: P31
+  title: Dynamic circuit motifs underlying rhythmic gain control, gating and integration
+  authors: [Thilo Womelsdorf, Taufik A. Valiante, Ned T. Sahin, Kai J. Miller, Paul Tiesinga]
+  year: 2014
+  collection: [ping, spiking, gamma-synchronisation]
+  venue: Nature Neuroscience
+  doi: 10.1038/nn.3764
 
 yan-lin-2026.pdf:
   id: P16

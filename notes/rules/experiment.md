@@ -4,7 +4,7 @@ author: Eoin Murray
 collection: notes
 description: Experiment scope, layout, configuration and native evidence.
 created_at: "2026-10-14"
-updated_at: "2026-10-29T17:43:19Z"
+updated_at: "2026-11-03T12:02:30Z"
 ---
 
 # Experiment Rules
@@ -58,7 +58,9 @@ updated_at: "2026-10-29T17:43:19Z"
 1. Prefer installed SNNLab features over custom scientific machinery. Save the
    native bundle, one compiled circuit diagram per architecture, and native
    snapshots: simulation-start for simulation/inference; final-training and
-   best-validation for training. Additional evidence retention follows Pingstore.
+   best-validation for training. Make each diagram visually clear, with readable
+   layout, unambiguous populations and connections, and LaTeX/KaTeX labels for
+   weights. Additional evidence retention follows Pingstore.
 
 <a id="saving-and-consuming-results"></a>
 <a id="migrating-scratch-work-to-an-experiment"></a>

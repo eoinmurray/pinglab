@@ -20,6 +20,7 @@ from experiments import theme
 from experiments.exp164 import recipe
 from pingstore.library import source_run, stage_run, write_json_atomic
 from snnlab import lang, viz
+from snnlab.sim import NetworkSnapshot
 
 
 def network_diagram(bundle):
@@ -362,6 +363,51 @@ def render_rasters(computed, run):
         plt.close(fig)
 
 
+def render_weight_heatmaps(computed, run):
+    """Show the saved physical matrices in their original source/target order."""
+    started = perf_counter()
+    parameters = NetworkSnapshot.read(
+        computed.file("execution/start/snapshot.json")
+    ).load_parameters()
+    with matplotlib.rc_context():
+        theme.apply()
+        fig, axes = plt.subplots(1, 2, figsize=(12, 5.4), layout="constrained")
+        for ax, target, topology in zip(
+            axes, ("E", "I"), ("2D pixel Gaussian", "dense pooled"), strict=True
+        ):
+            weights = parameters[f"A_E_to_C_{target}.weight"].detach().cpu().numpy()
+            if (
+                weights.ndim != 2
+                or not np.isfinite(weights).all()
+                or (weights < 0).any()
+            ):
+                raise ValueError("invalid saved sender-to-receiver weights")
+            image = ax.imshow(
+                weights.T,
+                origin="lower",
+                aspect="auto",
+                interpolation="nearest",
+                cmap="magma",
+                vmin=0,
+            )
+            ax.set(
+                title=rf"$A_E \to C_{target}$: {topology}"
+                + f"\n{weights.shape[0]} sources × {weights.shape[1]} targets",
+                xlabel=r"Source $A_E$ neuron index",
+                ylabel=rf"Target $C_{target}$ neuron index",
+            )
+            fig.colorbar(image, ax=ax, label="Synaptic weight (µS)", shrink=0.84)
+        fig.suptitle("Saved execution-start sender-to-receiver weights")
+        fig.supxlabel(
+            "Separate linear colour scales; original neuron order; no smoothing",
+            fontsize=theme.SIZE_ANNOTATION,
+        )
+        for extension in ("svg", "png"):
+            fig.savefig(run.export / ("weight-heatmaps." + extension), dpi=190)
+        plt.close(fig)
+    run.record["execution"]["weight_heatmaps_seconds"] = perf_counter() - started
+
+
 def present(*, source, run_id=None):
     started = perf_counter()
     analysed = source_run(
@@ -416,6 +462,7 @@ def present(*, source, run_id=None):
             plt.close(fig)
         render_network(computed, run)
         render_rasters(computed, run)
+        render_weight_heatmaps(computed, run)
         write_json_atomic(run.export / "numbers.json", numbers)
         run.record["execution"].update(
             elapsed_seconds=perf_counter() - started, no_simulation=True
@@ -450,6 +497,7 @@ def redraw_network(*, presentation, run_id=None):
             shutil.copyfile(path, run.export / path.name)
         render_network(sources["compute"], run)
         render_rasters(sources["compute"], run)
+        render_weight_heatmaps(sources["compute"], run)
         run.record["execution"]["elapsed_seconds"] = perf_counter() - started
         for item in [previous, *sources.values()]:
             item.check_unchanged()

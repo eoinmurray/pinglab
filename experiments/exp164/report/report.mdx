@@ -3,7 +3,7 @@ id: exp164
 title: "Spiking Untrained Digit Routing"
 author: "Eoin Murray"
 created_at: "2026-10-31T17:15:01Z"
-updated_at: "2026-11-02T11:31:20Z"
+updated_at: "2026-11-02T18:33:35Z"
 description: "Constant-cue views of two competing digit patterns in a fixed spiking A/B → C circuit."
 collection: ["experiments", "ctc-attention"]
 tags: ["data", "v0.31.0"]
@@ -17,74 +17,35 @@ export const data = await reportData('exp164', { allowUnavailable: true });
 
 ## Abstract
 
-{data ? <p>We examined whether a fixed spiking circuit could select between two simultaneous digit patterns without a trained decoder. Two freshly simulated trajectories contain identical sensory spike trains but different attention cues. We analyse their first {data.configuration.display_end_ms} ms, before either cue switches. C’s spatial output resembles the cued digit for this image pair. The cued sender–C phase-locking values are {round(data.plvs.A.A, 3)} with A cued and {round(data.plvs.B.B, 3)} with B cued. This fixed image-pair trial measures spatial output and coupling; it is not a causal test of gamma timing or a classification benchmark.</p> : <p>No completed evidence is selected.</p>}
-
-## Introduction
-
-Two sensory populations, A and B, send excitatory projections to a shared
-receiver C. Each circuit has local excitatory and inhibitory populations.
-The sensory inputs encode two 8×8 scikit-learn digits through fixed pixel
-connections. A separate cue excites one sender. The receiver's image is its
-measured spatial firing-rate map, using a predefined neuron-to-pixel mapping.
-No readout is trained.
+{data ? <p>A fixed spiking circuit favoured the cued digit in C’s spatial output for one image pair with identical sensory inputs across cues. Cued sender–C phase-locking values were {round(data.plvs.A.A, 3)} and {round(data.plvs.B.B, 3)}. No decoder was trained; this demonstration neither isolates gamma timing nor establishes classification performance.</p> : <p>No completed evidence is selected.</p>}
 
 ## Results
 
 <RunFigure report="exp164" experiment="exp164" file="cue-A.svg" number={1} id="fig-cue-a" alt="A-cued digit competition: population rates, phase differences, reconstructed conductances and measured A/B/C spatial firing-rate maps." allowUnavailable={true}>
-  A is cued throughout the displayed 0–1,100 ms interval. Both sensory inputs
-  remain present. (a) E population rates, smoothed with a 1 ms SD Gaussian.
-  (b) Unwrapped sender-minus-C phase in cycles; phase is interpolated between
-  detected population-rate peaks. (c) A 900–1,050 ms close-up of mean incoming
-  conductances at C E, reconstructed from saved spikes and native start weights,
-  delays and decay coefficients. Excitation shares one peak normalization;
-  inhibition uses its own. Amber shading marks the bottom quarter of the observed
-  inhibition range, a proxy rather than measured gain. (d–f) Raw E-cell rates over 650–1,100 ms, averaged over the five cells assigned to
-  each pixel and arranged as 8×8 images without spatial smoothing. Grey bands
-  mark this measurement window. Source images are digits {data ? data.labels.join(' / ') : 'unavailable'}.
+  A cued over 0–1,100 ms; both digits remain present.
+  (a) E rates, smoothed with 1 ms SD. (b) Unwrapped sender-minus-C phase (cycles).
+  (c) Mean C E conductances over 900–1,050 ms, reconstructed from saved spikes
+  and native weights, delays and decay. Excitation shares one peak scale;
+  inhibition uses its own. Amber marks low inhibition, not measured gain.
+  (d–f) 8×8 rate maps over 650–1,100 ms (grey bands), averaging five E cells
+  per pixel without spatial smoothing. Digits: {data ? data.labels.join(' / ') : 'unavailable'}.
 </RunFigure>
 
 <RunFigure report="exp164" experiment="exp164" file="cue-B.svg" number={2} id="fig-cue-b" alt="B-cued digit competition with the same sensory spike trains and matching axes and color scales." allowUnavailable={true}>
-  B is cued throughout the displayed interval. Panels, windows, normalization and
-  corresponding population colour scales match Figure 1. Complete sensory and
-  background input trains are identical across these two trajectories; the
-  unattended cue port is silent. Both figures use pre-switch prefixes of newly simulated
-  2,400 ms trajectories with opposite cue orders.
-  Native conductance recordings were not retained: panel c is a linear-synapse
-  reconstruction using float64 population means, with possible rounding
-  differences from native float32 traces.
+  B cued, with identical sensory/background spike trains and matching panels,
+  windows and scales to Figure 1. Both views precede the cue switch.
+  Conductances are reconstructions, not retained native traces.
 </RunFigure>
 
 <RunFigure report="exp164" experiment="exp164" file="rasters.svg" number={3} id="fig-rasters" alt="Full-population spike rasters with a separate row for every excitatory and inhibitory population." allowUnavailable={true}>
-  Left: A cued; right: B cued, using the same conditions and pre-switch display window as Figures 1 and 2. Rows show every A, B and C E/I neuron. Consecutive groups of five E cells belong to each pixel. I cells remain tightly rhythmic but have distinct saved spike trains.
-  Black marks are E spikes; red marks are I spikes. Each mark is one saved binary
-  spike event at its recorded time and neuron index, without smoothing, jitter
-  or neuron subsampling. These are the selected heterogeneous trials, not extra replicates.
+  All A/B/C neurons: A cued (left), B cued (right), over the Figures 1–2 window.
+  Black marks E spikes; red marks I spikes. Five consecutive E cells share a pixel.
+  Saved spike times and neuron order; no jitter, smoothing or subsampling.
 </RunFigure>
 
-{data?.routing ? <p>With A cued, C’s image correlations with digits A and B are {round(data.routing.A.image_correlations.A, 3)} and {round(data.routing.A.image_correlations.B, 3)}. With B cued, they are {round(data.routing.B.image_correlations.A, 3)} and {round(data.routing.B.image_correlations.B, 3)}. These Pearson correlations compare the raw C firing-rate map with the source pixels over the measurement window.</p> : null}
-
-## Discussion
-
-The selected standalone recipe uses 320 E and 80 I cells per circuit, with five
-E cells per image pixel. Each sender pixel has 128 independent sensory channels;
-C background and each cue projection use independent fixed fan-in masks of 128.
-Local E→I fan-in is 80. Fixed excitatory target gain CV is 0.03 in A/B E,
-zero in C E and 0.2 in I cells. C E retains private stochastic input despite
-having no fixed gain bias. Local E→I and I→I strengths are multiplied by 0.8
-and 0.1. Each sender supplies nominal 0.6 µS incoming excitation to C E and
-0.12 µS to C I. The source image contrast is 0.075 and C background is 20 Hz/channel.
-These changes were selected jointly through exploration; their separate causal
-contributions were not established.
-
-{data?.prototype_passed !== undefined && <p>The selected pair {data.prototype_passed ? 'passes' : 'fails'} the recorded exploratory checks: cued PLV above {data.configuration.criteria.min_cued_plv}, absolute drift below {data.configuration.criteria.max_abs_drift_cycles_s} cycles/s, phase span below {data.configuration.criteria.max_phase_span_cycles} cycles, regular gamma rhythms, cued image correlation at least {data.configuration.criteria.min_cued_image_correlation}, and a cued-minus-uncued correlation margin of at least {data.configuration.criteria.min_correlation_margin}. These checks describe this demonstration, not biological normality or classifier accuracy.</p>}
-
-{data?.rasters && <p>Across both cues and all three circuits, mean E participation per complete population cycle ranges from {round(100*Math.min(...data.rasters.flatMap(r => ['A_E','B_E','C_E'].map(k => r.populations[k].mean_cycle_participation))),1)}% to {round(100*Math.max(...data.rasters.flatMap(r => ['A_E','B_E','C_E'].map(k => r.populations[k].mean_cycle_participation))),1)}%. All measured I cells have distinct trains, although most still fire on most cycles.</p>}
-
-The code constructs the network and selects the first digit-0 and digit-1 samples
-from scikit-learn without loading historical runs. The paired inputs and native
-start arrays are retained. This modified condition does not reproduce the older
-homogeneous trial. Historical successful and failed conditions remain immutable.
-This is one fixed image pair and input realization, not evidence of general digit
-selection or biological realism. Sender firing rate changes with timing, so phase
-coupling does not isolate gamma timing as the cause of spatial output. No decoder,
-classifier or synaptic weight is trained.
+<RunFigure report="exp164" experiment="exp164" file="weight-heatmaps.svg" number={4} id="fig-weight-heatmaps" alt="Saved A E to C E weights show pixel-based Gaussian blocks; A E to C I weights are dense with target-dependent strength." allowUnavailable={true}>
+  Saved initial weights in µS, with separate linear scales; sources horizontal,
+  targets vertical. Left: imposed 2D pixel Gaussian, flattened into five-cell
+  blocks with normalized incoming totals. Right: dense pooled connectivity with
+  inhibitory-target gain variation. Original neuron order; no smoothing.
+</RunFigure>

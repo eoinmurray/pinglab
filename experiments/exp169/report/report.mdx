@@ -1,0 +1,100 @@
+---
+id: exp169
+title: "COBA with Artificial Inhibition"
+author: "Eoin Murray"
+created_at: "2026-11-03T13:36:19Z"
+updated_at: "2026-11-03T14:42:32Z"
+description: "A single-image TR02 control matching PING conductance moments with private inhibitory event streams."
+collection: ["experiments"]
+tags: ["data", "v0.31.0"]
+inputs: ["exp169"]
+thumbnail: rasters.png
+---
+
+import RunFigure from '../../../site/src/components/RunFigure.astro';
+import { reportData, round } from '../../../site/src/lib/report-data';
+export const data = await reportData('exp169', { allowUnavailable: true });
+
+## Abstract
+
+{data ? <p>We inherited trained COBA and PING classifiers and kept their weights fixed. We measured the strength and variability of the inhibition received by excitatory (E) neurons in PING, then built artificial GABA inputs matching those properties and delivered them asynchronously to COBA. For the same digit image, mean E firing fell from {round(data.conditions[0].rate_e_hz, 1)} to {round(data.conditions[2].rate_e_hz, 1)} Hz—about {round(100*(1-data.conditions[2].rate_e_hz/data.conditions[0].rate_e_hz), 0)}% suppression. This single-image result shows that matched asynchronous inhibition can almost eliminate COBA's excitatory activity, although the artificial event rate differed from PING's.</p> : <p>No completed evidence is selected.</p>}
+
+## Results
+
+<RunFigure report="exp169" experiment="exp169" file="rasters.svg" number={1} id="fig-rasters" alt="COBA, PING and frozen COBA receiving private GABA inputs, with every excitatory neuron shown." allowUnavailable={true}>
+  COBA, PING and COBA with private GABA inputs (top to bottom), for identical
+  200-ms digit-0 input (unpenalised TR02, seed 42). Black: E spikes; red: I spikes
+  or artificial events. Private 6-ms GABA inputs match per-cell PING conductance
+  mean and SD; COBA weights remain fixed. One illustrative realization;
+  synchrony is not isolated. Input construction: Methods.
+</RunFigure>
+
+## Methods
+
+These equations summarize the implemented discrete-time procedure for Figure 1's
+third panel. Index $j$ labels an E neuron and its private input; $n$ labels one of
+$T$ time bins. Bars and $\operatorname{sd}$ denote the temporal mean and standard
+deviation over the displayed trial, using divisor $T$.
+
+1. **Measure the PING target.** For its recorded GABA conductance $g^{P}_{j,n}$, set
+
+   <a id="eq-inhibition-targets"></a>
+
+   $$
+   \mu_j=\overline{g^{P}_j},\qquad
+   \sigma_j=\operatorname{sd}(g^{P}_j). \tag{1}
+   $$
+
+   Here $\mu_j$ and $\sigma_j$ are the target conductance mean and SD, in µS.
+
+2. **Generate calibrated Bernoulli event streams.** Draw a separate uniform random stream for every E neuron:
+
+   <a id="eq-inhibition-events"></a>
+
+   $$
+   u_{j,n}\sim\mathcal U(0,1),\qquad
+   s_{j,n}=\mathbf 1[u_{j,n}<p_j]. \tag{2}
+   $$
+
+   The draws $u_{j,n}$ are initially independent; $p_j$ is the per-bin event
+   probability (fitted in step 4), $s_{j,n}$ is a binary event, and $\mathbf 1$ is the indicator.
+
+3. **Apply the GABA filter.** Form the unit-amplitude conductance trace $h_{j,n}$:
+
+   <a id="eq-inhibition-filter"></a>
+
+   $$
+   h_{j,n}=e^{-\Delta t/\tau_{GABA}}h_{j,n-1}+s_{j,n-1}. \tag{3}
+   $$
+
+   Here $\Delta t$ is the simulation timestep and $\tau_{GABA}$ the reference GABA
+   decay time taken from the PING simulation. Set $h_{j,-1}=s_{j,-1}=0$; the event index implements one timestep
+   of delay.
+
+4. **Match both moments.** Adjust $p_j$ to match the coefficient of variation, then scale:
+
+   <a id="eq-inhibition-calibration"></a>
+
+   $$
+   \frac{\operatorname{sd}(h_j)}{\overline h_j}
+   \approx\frac{\sigma_j}{\mu_j},\qquad
+   q_j=\frac{\mu_j}{\overline h_j},\qquad
+   g^{A}_{j,n}=q_jh_{j,n}. \tag{4}
+   $$
+
+   The positive increment $q_j$ is in µS; $g^A$ is artificial conductance. Resample
+   a private stream when necessary to reach 1% SD error. No E response is used.
+
+5. **Deliver inhibition to frozen COBA.** Each stream reaches only its paired E neuron:
+
+   <a id="eq-inhibition-current"></a>
+
+   $$
+   I^{\mathrm{inh}}_{j,n}=g^{A}_{j,n}
+   \bigl(E_{\mathrm{GABA}}-V_{j,n}\bigr). \tag{5}
+   $$
+
+   Here $I^{\mathrm{inh}}$ is the inward-positive inhibitory current, $V$ the E
+   membrane voltage and $E_{\mathrm{GABA}}$ the GABA reversal potential. With
+   conductance in µS and voltage in mV, current is in nA. Sensory spikes and
+   original COBA weights remain unchanged; E activity cannot alter these inputs.

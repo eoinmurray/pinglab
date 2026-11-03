@@ -1,0 +1,32 @@
+import RunFigure from '../../../site/src/components/RunFigure.astro';
+import ParameterTable from './ParameterTable.astro';
+
+## A. Networks
+
+<RunFigure report="exp170" experiment="exp170" file="circuit.svg" number="A1" id="fig-control-network" alt="Frozen COBA network with an additional private GABA input channel for each E neuron." allowUnavailable={true}>
+  Compiled control architecture from the retained native bundle. E→I and I→E
+  projections remain present at zero checkpoint weights; they are not a live
+  feedback loop. Each artificial input reaches exactly one E neuron through a
+  GABA synapse. Original input and readout matrices remain frozen. The reference COBA topology is the same after removing the unused artificial port.
+  Weight symbols denote loaded execution parameters, not the zero placeholders
+  used to compile the graph. Superscript C identifies the COBA checkpoint;
+  W with subscripts EX and RE denotes sensory-to-E and E-to-readout weights.
+  In $q_j\delta_{jk}$, $q_j$ is the calibrated conductance increment for private
+  source $j$, $k$ indexes E recipients, and $\delta_{jk}$ equals one when $j=k$
+  and zero otherwise.
+</RunFigure>
+
+<RunFigure report="exp170" experiment="exp170" file="reference-circuit.svg" number="A2" id="fig-reference-network" alt="TR02 reference topology with sensory input to E, reciprocal E/I connections and E readout." allowUnavailable={true}>
+  Reference topology reconstructed from the retained control bundle by removing
+  only the artificial input and its projection. COBA and PING share this topology;
+  their separately trained checkpoint matrices differ. Superscripts C/P denote
+  the respective COBA/PING checkpoint; weight subscripts list recipient then source,
+  with R denoting readout and X sensory input. COBA's reciprocal weights
+  are zero and PING's are nonzero. This is a compiled architecture diagram, not
+  evidence of a newly executed PING simulation. Original reference recordings and
+  checkpoint provenance are pinned through the imported training bank.
+</RunFigure>
+
+## B. Parameters
+
+<ParameterTable />

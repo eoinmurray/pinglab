@@ -1,85 +1,69 @@
 ---
 id: exp168
-title: "AI-like and PING states without EE or II recurrence"
+title: "AI and PING"
 author: "Eoin Murray"
 created_at: "2026-11-02T21:15:30Z"
-updated_at: "2026-11-02T21:30:18Z"
-description: "Native evidence for two saved conductance-LIF states with EE and II disabled."
+updated_at: "2026-11-03T12:20:00Z"
+description: "Native AI/PING rasters compare restored EE/II recurrence with absent EE/II projections."
 collection: ["gamma-gated-sparsity", "experiments"]
 tags: ["data"]
 inputs: ["exp168"]
-thumbnail: state-rasters.png
+thumbnail: recurrence-on-rasters.png
 ---
 
 import RunFigure from '../../../site/src/components/RunFigure.astro';
-import Table from '../../../site/src/components/Table.astro';
 import ParameterTable from './ParameterTable.astro';
+import Table from '../../../site/src/components/Table.astro';
 import { reportData } from '../../../site/src/lib/report-data';
 import { formatTableNumber as n } from '../../../site/src/lib/table-number';
 export const data = await reportData('exp168', { allowUnavailable: true });
-export const metricRows = [
-  ['E rhythmicity contrast','E_rhythmicity'], ['I rhythmicity contrast','I_rhythmicity'],
-  ['E firing rate (Hz)','E_rate_hz'], ['I firing rate (Hz)','I_rate_hz'],
-  ['E spectral peak (Hz)','E_peak_hz'], ['I spectral peak (Hz)','I_peak_hz'],
-  ['E median ISI CV','E_median_cv'], ['I median ISI CV','I_median_cv'],
-  ['E cells qualifying for CV','E_cv_cells'], ['I cells qualifying for CV','I_cv_cells'],
+export const conditions = ['AI','PING'];
+export const metricRows = recurrence => [
+  ['E rhythmicity contrast','E_rhythmicity'],
+  ['I rhythmicity contrast','I_rhythmicity'],
+  ['E firing rate (Hz)','E_rate_hz'],
+  ['I firing rate (Hz)','I_rate_hz'],
+  ['E median ISI CV','E_median_cv'],
+  ['I median ISI CV','I_median_cv'],
+  ['E cells qualifying for CV','E_cv_cells'],
+  ['I cells qualifying for CV','I_cv_cells'],
   ['Mean pairwise correlation','mean_correlation'],
-].map(([label,key])=>[label,...['AI','PING'].map(condition=>data ? (data.metrics[condition][key] ?? 'Undefined (insufficient spikes)') : 'Unavailable')]);
+].map(([label,key])=>[label,...conditions.map(condition=>data ? (data.metrics[recurrence][condition][key] ?? 'Undefined (insufficient spikes)') : 'Unavailable')]);
 
 ## Abstract
 
-Two saved conductance-LIF states share a network without EE or II recurrence.
-One is AI-like; the other shows strong E/I rhythmicity. This migration retains
-native spike events, compiled bundles and simulation-start snapshots, with no
-new simulation. The states differ in external source rate, input connectivity
-and input-to-I gain. Evidence is limited to one selected seed and a two-second
-measurement per condition.
-
-## Introduction
-
-The comparison asks whether asynchronous, irregular activity and PING-like
-oscillations can occur without within-population recurrence. Both states use
-4,000 E neurons, 1,000 I neurons and 4,000 external Poisson sources. The selected
-network seed is {data ? String(data.configurations.AI.seed) : 'Unavailable'} in both conditions. These are selected endpoints of a scratch
-search, rather than a controlled single-parameter transition.
+We compared spiking E/I networks with EE/II recurrence enabled or absent. Both used the same timestep, duration, seed, populations, and neuron parameters. In each case, changing three external-drive settings produced a low-correlation AI-like state and a strongly rhythmic PING state. Thus both regimes can appear with or without EE/II recurrence.
 
 ## Results
 
-<RunFigure report="exp168" experiment="exp168" file="state-rasters.svg" number={1} id="fig-state-rasters" alt="AI-like activity and strongly rhythmic PING activity with EE and II disabled." allowUnavailable={true}>
-  A: AI-like state. B: strongly rhythmic PING state. Black points are E spikes;
-  red points are I spikes. Both panels show the complete two-second measurement
-  after the initial 50 ms, with the time origin shifted to the end of burn-in.
-  Native spike events are plotted directly. EE and II are absent from both
-  executed graphs. The saved seed and recurrent matrices are shared; external
-  connection masks and source rates differ. No simulation was run for migration.
+### With EE/II recurrence
+
+<RunFigure report="exp168" experiment="exp168" file="recurrence-on-rasters.svg" number={1} id="fig-recurrence-on" alt="AI-like activity and strongly rhythmic PING activity with EE and II recurrence enabled." allowUnavailable={true}>
+  A: AI-like state. B: PING state. Black points are E spikes; red points are I
+  spikes. Both panels show the complete two-second measurement after the
+  initial 50 ms. EE and II projections are present and active.
 </RunFigure>
 
-<ParameterTable differencesOnly />
+<ParameterTable data={data?.configurations.on} number={1} caption="EE/II-on parameter differences between AI and PING" />
 
-<Table headers={['Metric','AI-like','PING']} rows={metricRows} number={2} label="Recomputed state metrics">
+<Table headers={['Metric','AI-like','PING']} rows={metricRows('on')} number={2} label="EE/II-on state metrics">
   SNNLab rhythmicity contrast is (central-lobe height minus first-trough depth)
-  divided by their sum, using the native population autocorrelogram with 1 ms
-  bins and maximum lag 100 ms. It approaches zero for flat activity and one for
-  a silent trough. ISI CV uses the native per-cell function with at least 20
-  spikes and population-median aggregation. Qualifying-cell counts make coverage
-  explicit. Correlations use native spike-count correlations in 20 ms bins,
-  sampling the first 200 E and 200 I cells. Values are descriptive single-seed
-  estimates, not uncertainty across independent repetitions.
+  divided by their sum, using 1 ms bins and a 100 ms maximum lag. ISI CV uses
+  at least 20 spikes per cell and a population median. Correlations use 200 E
+  and 200 I cells in 20 ms bins. Values describe one selected native run.
 </Table>
 
-## Discussion
+### Without EE/II recurrence
 
-The selected PING state has a much larger E rhythmicity contrast and a deeply
-modulated I population. The recomputed E and I spectral peaks characterise
-the shared gamma rhythm. The AI-like
-state has low population correlation and near-unit median ISI CVs. Its label
-remains descriptive, rather than proof of AI activity across realizations.
+<RunFigure report="exp168" experiment="exp168" file="recurrence-off-rasters.svg" number={2} id="fig-recurrence-off" alt="AI-like activity and strongly rhythmic PING activity with EE and II absent." allowUnavailable={true}>
+  A: AI-like state. B: strongly rhythmic PING state. The compiled graphs omit
+  EE and II projections. Both panels use the same timestep and integration
+  duration as the recurrence-on case.
+</RunFigure>
 
-{data?.evidence.kind === 'authenticated-native-import' ? <p>The selected AI-like state narrowly failed its original conservative maximum-I-bin screen: its maximum fraction was {n(data.metrics.AI.I_max_bin_fraction)}, against the archived cutoff {n(data.configurations.AI.search.criteria.max_bin_fraction_max)}. The report retains this limitation rather than changing the cutoff after selection.</p> : <p>AI-like and PING are descriptive condition labels; the selected metrics and raw events determine the evidence.</p>}
+<ParameterTable data={data?.configurations.off} number={3} caption="EE/II-off parameter differences between AI and PING" />
 
-Three external-drive settings differ between the selected endpoints; the table
-does not isolate their individual causal contributions. A later test setting
-input-to-I gain to 0.3 in the strong-PING configuration retained appreciable
-rhythmicity and is not substituted for the selected AI-like state. The retained
-native data permit further analysis; these selected, short, single-seed states
-do not establish robustness across seeds or a phase boundary.
+<Table headers={['Metric','AI-like','PING']} rows={metricRows('off')} number={4} label="EE/II-off state metrics">
+  Metrics use the same definitions as Table 2. The recurrence-off evidence is
+  the retained `exp168-r002-compute` native run.
+</Table>

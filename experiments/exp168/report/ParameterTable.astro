@@ -1,88 +1,20 @@
 ---
 import Table from '../../../site/src/components/Table.astro';
-import { reportData, reportSnapshots } from '../../../site/src/lib/report-data';
 import { formatTableNumber as n } from '../../../site/src/lib/table-number';
-interface Props { differencesOnly?: boolean; }
-const { differencesOnly = false } = Astro.props;
-const saved = await reportData('exp168', { allowUnavailable: true });
-const evidence = await reportSnapshots('exp168', {
-  snapshots: { AI: 'AI/start/snapshot.json', PING: 'PING/start/snapshot.json' }, allowUnavailable: true,
-});
-const labels = ['AI', 'PING'];
-const snap = label => evidence?.snapshots[label];
-const cfg = label => saved?.configurations[label];
-const graph = label => snap(label).network;
-const math = value => ({math:value});
-const row = (label, read) => [label,...labels.map(key => snap(key) && cfg(key) ? read(key) : 'Unavailable')];
-const population = (label,id) => graph(label).populations.find(item => item.id===id);
-const projection = (label,id) => graph(label).projections.find(item => item.id===id);
-const gain = (label,id) => {
-  const modulation = projection(label,id)?.modulation;
-  if (!modulation) return 1;
-  if (modulation.kind!=='ramp_gain' || modulation.before!==modulation.after) throw new Error('Expected saved constant projection gain');
-  return modulation.after;
-};
-const connection = (label,source,target) => {
-  const p = projection(label,`${source}_to_${target}`);
-  if (!p) return undefined;
-  const parameter = graph(label).parameters.find(item=>item.id===p.parameters[0]);
-  const init = snap(label).execution.initialization[parameter.id].initializer;
-  if (parameter.unit!=='uS' || parameter.initialization_scaling!=='direct' || init.kind!=='lower_clamped_normal' || init.zeroing!=='bernoulli') throw new Error('Unsupported saved conductance initializer');
-  const density=1-init.initial_zero_fraction;
-  const scale=snap(label).execution.inference_overrides?.projection_scales?.[p.id]??1;
-  const factor=1000*scale*gain(label,p.id)/density;
-  return {density,mean:init.mean*factor,sd:init.std*factor};
-};
-const differences = [
-  row('External→I constant gain',key=>gain(key,'X_to_I')),
-  row('External source rate (Hz/source)',key=>cfg(key).external_rate_hz),
-  row('External connection probability',key=>`${n(100*connection(key,'X','E').density)}%`),
-  row('External→E nominal jump (nS)',key=>connection(key,'X','E').mean),
-  row('External→I effective nominal jump (nS)',key=>connection(key,'X','I').mean),
+interface Props { data?: any; number?: number | string; caption?: string; }
+const { data, number, caption } = Astro.props;
+const conditions = ['AI','PING'];
+const cfg = condition => data?.[condition];
+const value = (label, read) => [label, ...conditions.map(condition => cfg(condition) ? read(condition) : 'Unavailable')];
+const rows = [
+  value('External rate', condition => `${n(cfg(condition).external_rate_hz)} Hz/source`),
+  value('External connection probability', condition => `${n(100 * cfg(condition).input_connection_probability)}%`),
+  value('External→I gain', condition => n(cfg(condition).input_i_gain)),
 ];
-const pair = (label,read) => ['E','I'].map(id=>n(read(population(label,id).neuron))).join(' / ')+' ms';
-const measurement = (label,read) => [label,...labels.map(()=>saved?.analysis ? read(saved.analysis) : 'Unavailable')];
-const groups = [
-  {label:'Simulation',rows:[
-    row(math('\\text{Timestep }dt'),key=>`${n(snap(key).execution.timestep_ms)} ms`),
-    row('Analysed duration',key=>`${n((cfg(key).measurement_ms[1]-cfg(key).measurement_ms[0])/1000)} s`),
-    row('Excluded initial interval',key=>`${n(cfg(key).measurement_ms[0])} ms`),
-    row('Network / input seed',key=>`${String(snap(key).execution.seed)} / ${String(cfg(key).seed+cfg(key).external_seed_offset)}`),
-  ]},
-  {label:'Populations',rows:[
-    ...['E','I'].map(id=>row(math(id),key=>`${n(population(key,id).size)} conductance-LIF neurons`)),
-    row(math('X'),key=>`${n(graph(key).inputs.find(item=>item.id==='X').shape.at(-1))} independent Poisson sources`),
-  ]},
-  {label:'Neuron dynamics',rows:[
-    row('Membrane time constant, E / I',key=>pair(key,neuron=>neuron.tau_mem.value)),
-    row('Refractory period, E / I',key=>pair(key,neuron=>neuron.refractory.value)),
-  ]},
-  {label:'Input and manipulation',rows:[
-    row('External source rate',key=>`${n(cfg(key).external_rate_hz)} Hz/source`),
-    row('External→I constant gain',key=>gain(key,'X_to_I')),
-    row('AMPA / GABA decay',key=>`${n(projection(key,'E_to_I').synapse.tau.value)} / ${n(projection(key,'I_to_E').synapse.tau.value)} ms`),
-    row('Excitatory / inhibitory delay',key=>`${n(projection(key,'E_to_I').delay.value)} / ${n(projection(key,'I_to_E').delay.value)} ms`),
-  ]},
-  {label:'Measurement',rows:[
-    measurement('Rhythmicity count bin / maximum lag',a=>`${n(a.bin_ms)} / ${n(a.max_lag_ms)} ms`),
-    measurement('Minimum spikes per cell for ISI CV',a=>a.min_spikes_for_cv),
-    measurement('Correlation sample, E / I',a=>`${n(a.correlation_cells_per_population)} / ${n(a.correlation_cells_per_population)} cells`),
-    measurement('Correlation count bin',a=>`${n(a.correlation_bin_ms)} ms`),
-  ]},
-];
-const matrices=labels.map(label=>({label,rows:['E','I','X'].map(source=>[math(source),...['E','I'].map(target=>{
-  if (!snap(label)) return 'Unavailable';
-  const c=connection(label,source,target);
-  return c ? `${n(100*c.density)}%; ${n(c.mean)} ± ${n(c.sd)} nS` : 'Absent';
-})])}));
 ---
-{differencesOnly ? <Table headers={['Changed setting','AI-like','PING']} rows={differences} number={1} id="parameter-differences" label="Parameter differences between the selected states">
-  The first three rows are independent changes. The two nominal jump rows are derived consequences of the recorded sparsification and input gain. Native snapshots supply densities, initializers and gains; source rates come from the executed configurations. Both states have EE and II disabled. Values display two significant figures; native evidence retains full precision.
-</Table> : <>
-  <Table headers={['Parameter','AI-like','PING']} groups={groups} number="A1" label="Executed simulation and measurement settings">
-    Native snapshots define neuron dynamics, populations, timing and network seeds; recorded configurations define source generation. E / I follows excitatory / inhibitory order; X is the shared input pool. Each full simulation comprises the excluded interval and analysed duration. Seed identifiers remain exact. Rhythmicity uses SNNLab contrast; ISI CV uses population medians over qualifying cells. Correlations use the first cells in each population with binary occupancy in one-millisecond bins before native aggregation.
-  </Table>
-  {matrices.map((matrix,index)=><Table headers={['Source ↓ / target →',math('E'),math('I')]} rows={matrix.rows} rowHeaders number={`A${index+2}`} label={`${matrix.label==='AI'?'AI-like':matrix.label} native connectivity`}>
-    Each cell gives eligible-pair connection density and nominal connected conductance jump, mean ± SD before lower clamping. Native Bernoulli sparsification divides retained weights by the eligible-pair probability; the displayed jumps include this compensation and the constant execution gain. EE and II are absent from the executed graphs, giving exact zero effect. External→I remains a present projection in PING with zero gain; its density is retained even though its effective jump is zero. Nominal jumps are not measured matrix means or total incoming conductance.
-  </Table>)}
-</>}
+<Table headers={['Parameter','AI-like','PING']} rows={rows} number={number} id={`parameter-differences-${number}`} label={caption ?? 'Parameter differences between AI and PING'}>
+  These are the only independent recorded settings that differ between the two
+  conditions. All other settings, including timestep, integration duration,
+  seed, populations, recurrent weights and neuron dynamics, are shared.
+  {number === 3 ? ' The values match Table 1 because the same three external-drive parameters distinguish AI and PING in both recurrence implementations.' : ''}
+</Table>

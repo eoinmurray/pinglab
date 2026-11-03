@@ -1,41 +1,51 @@
-"""Resolved two-state COBA-LIF recipe; EE and II projections are absent."""
+"""Resolved configuration, source pins and native EE/II-on authoring."""
+
+import math
 
 from snnlab import lang
 
 SLUG = "exp168"
 CONDITIONS = ("AI", "PING")
-IMPORTS = {
-    "AI": dict(
-        run_id="exp167-r008-compute",
-        payload_digest="sha256:5f128a2be1c311fbfb75f2215a3f77e01289cf4264da57454be37e9eaf0fd6f8",
-        prefix="confirm-00-EE_and_II_zero",
-        numbers="search.json",
-        trial="confirm-00-EE_and_II_zero",
-        diagram_prefix="trial-00-EE_and_II_zero",
-    ),
-    "PING": dict(
-        run_id="exp167-r015-compute",
-        payload_digest="sha256:e88961f94c6d81cde1ef9b959bf2231811baee99980c9883ed8f29b0e103d958",
-        prefix="smooth-drive",
-        numbers="rhythmicity.json",
-        diagram_prefix="smooth-drive",
+RECURRENT_CASES = ("on", "off")
+
+SOURCES = {
+    "off": dict(
+        run_id="exp168-r002-compute",
+        payload_digest="sha256:b9d00b62553a82b0d86241c9607c0b8a65e11e75b39ba9d64942f7c034588218",
+        label="AI and PING with EE and II absent",
     ),
 }
 
 
-def configuration(condition, *, seed=43, device="cpu"):
+def _validate_positive_int(name, value):
+    if type(value) is not int or value < 1:
+        raise ValueError(f"{name} must be a positive integer")
+
+
+def configuration(
+    condition,
+    *,
+    recurrence="on",
+    device="cpu",
+    seed=43,
+    external_rate_hz=None,
+    input_connection_probability=None,
+    input_i_gain=None,
+):
     if condition not in CONDITIONS:
         raise ValueError("condition must be AI or PING")
-    if type(seed) is not int or seed < 0:
-        raise ValueError("seed must be a nonnegative integer")
+    if recurrence not in RECURRENT_CASES:
+        raise ValueError("recurrence must be on or off")
     if device not in {"cpu", "cuda"}:
         raise ValueError("device must be cpu or cuda")
+    _validate_positive_int("seed", seed)
     ai = condition == "AI"
     cfg = dict(
         experiment=SLUG,
         condition=condition,
-        seed=seed,
+        recurrence=recurrence,
         device=device,
+        seed=seed,
         n_e=4000,
         n_i=1000,
         n_external=4000,
@@ -63,23 +73,60 @@ def configuration(condition, *, seed=43, device="cpu"):
         inhibitory_delay_ms=0.5,
         recording_block_steps=1000,
         performance=dict(compile_mode=None, precision="highest", cuda_graphs="off"),
-        analysis=dict(
-            rhythmicity_bin_ms=1.0,
-            max_lag_ms=100.0,
-            cv_min_spikes=20,
-            correlation_cells_per_population=200,
-            correlation_bin_ms=20.0,
-        ),
     )
-    # Units are µS. Native Bernoulli zeroing divides retained weights by p.
-    cfg["initializer_parent_means_us"] = dict(
-        E_to_E=0.0,
-        E_to_I=0.000012,
-        I_to_E=0.0002,
-        I_to_I=0.0,
-        X_to_E=0.00021600000000000002,
-        X_to_I=0.00021600000000000002,
+    # Exp167 reference coefficients, converted from 1-ms kernel area to jumps.
+    reference_coefficients_ns = dict(
+        E_to_E=2.4,
+        E_to_I=4.8,
+        I_to_E=40.0,
+        I_to_I=40.0,
+        X_to_E=5.4,
+        X_to_I=5.4,
     )
+    jump_means_us = {
+        name: value * 1e-3 * 1.0 / cfg["tau_synapse_ms"]
+        for name, value in reference_coefficients_ns.items()
+    }
+    # Exp168's absent-projection case scales input jumps to compensate sparsity.
+    for name in ("X_to_E", "X_to_I"):
+        jump_means_us[name] *= (
+            cfg["connection_probability"] / cfg["input_connection_probability"]
+        )
+    # Exp168's off case uses weaker E→I and I→E recurrent jumps.
+    if recurrence == "off":
+        jump_means_us["E_to_I"] = 0.000012
+        jump_means_us["I_to_E"] = 0.0002
+    cfg["initializer_parent_means_us"] = {
+        name: jump
+        * (
+            cfg["input_connection_probability"]
+            if name.startswith("X_")
+            else cfg["connection_probability"]
+        )
+        for name, jump in jump_means_us.items()
+    }
+    if recurrence == "off":
+        cfg["initializer_parent_means_us"]["E_to_E"] = 0.0
+        cfg["initializer_parent_means_us"]["I_to_I"] = 0.0
+    for key, value in (
+        ("external_rate_hz", external_rate_hz),
+        ("input_connection_probability", input_connection_probability),
+        ("input_i_gain", input_i_gain),
+    ):
+        if value is not None:
+            cfg[key] = value
+    if (
+        not math.isfinite(cfg["external_rate_hz"])
+        or not 0 < cfg["external_rate_hz"] < 20000
+    ):
+        raise ValueError("external_rate_hz must be between 0 and 20000 Hz")
+    if (
+        not math.isfinite(cfg["input_connection_probability"])
+        or not 0 < cfg["input_connection_probability"] <= 1
+    ):
+        raise ValueError("input_connection_probability must be in (0, 1]")
+    if not math.isfinite(cfg["input_i_gain"]) or cfg["input_i_gain"] < 0:
+        raise ValueError("input_i_gain must be finite and nonnegative")
     return cfg
 
 
@@ -91,9 +138,9 @@ def author_network(cfg):
         signal_type="spikes",
         unit="spike",
     )
-    pops = {}
+    populations = {}
     for name in ("E", "I"):
-        pops[name] = net.population(
+        populations[name] = net.population(
             name,
             size=cfg["n_" + name.lower()],
             neuron=lang.COBA_LIF(
@@ -114,17 +161,20 @@ def author_network(cfg):
             continue
         source, target = name.split("_to_")
         inhibitory = source == "I"
-        synapse = lang.GABA if inhibitory else lang.AMPA
         probability = (
             cfg["input_connection_probability"]
             if source == "X"
             else cfg["connection_probability"]
         )
         net.connect(
-            external if source == "X" else pops[source].spikes,
-            pops[target].inhibitory if inhibitory else pops[target].excitatory,
+            external if source == "X" else populations[source].spikes,
+            populations[target].inhibitory
+            if inhibitory
+            else populations[target].excitatory,
             name=name,
-            synapse=synapse(tau=cfg["tau_synapse_ms"] * lang.ms),
+            synapse=(lang.GABA if inhibitory else lang.AMPA)(
+                tau=cfg["tau_synapse_ms"] * lang.ms
+            ),
             weight=lang.LowerClampedNormal(
                 mean,
                 mean * cfg["weight_relative_sd"],
@@ -133,9 +183,9 @@ def author_network(cfg):
             constraint=lang.NonNegative(),
             initialization_scaling="direct",
             connection="feedforward" if source == "X" else "recurrent",
-            allow_autapses=False,
             delay=cfg["inhibitory_delay_ms" if inhibitory else "excitatory_delay_ms"]
             * lang.ms,
+            allow_autapses=False,
             modulation=lang.RampGain(
                 start=50.0 * lang.ms,
                 end=50.05 * lang.ms,
@@ -146,5 +196,5 @@ def author_network(cfg):
             else None,
         )
     for name in ("E", "I"):
-        net.output(name + "_spikes", pops[name].spikes)
+        net.output(name + "_spikes", populations[name].spikes)
     return lang.compile(net)

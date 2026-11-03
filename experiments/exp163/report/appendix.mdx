@@ -4,22 +4,11 @@ import ParameterTable from './ParameterTable.astro';
 ## Network
 
 <RunFigure report="exp163" experiment="exp163" file="circuit.svg" number="A1" id="fig-network" alt="Three E/I populations with separate sensory, background and cue inputs; two topographic excitatory sender pathways converge on C with pooled inhibition and no feedback." allowUnavailable={true}>
-  Native compiled architecture with three local E/I circuits and five input ports.
-  X_A/X_B provide constant-rate sensory spike inputs with fixed Gaussian target
-  gains across A/B E cells. X_C gives uniform background to C E. U_A/U_B share one
-  sampled cue train and have complementary delivery gains. A E and B E project
-  topographically to C E and through pooled sparse masks to C I. The two senders have equal nominal incoming totals onto each recipient population; E and I totals differ.
-  Local recurrence is spatially pooled; E→I uses independent fan-in masks.
-  Expanded reference blocks, local strength multipliers and fixed lognormal
-  excitatory target gains are recorded in the execution-start arrays. A–B connections and
-  C feedback are absent. Spatial structure lives in the executed checkpoint
-  matrices; this population diagram shows pathways, not their within-matrix layout.
-  Native start parameter arrays retain those matrices exactly. Uniform initializers
-  in the graph describe the base reference before the recorded transformations.
-  The layout places C between the mirrored A and B sender pairs. Horizontal
-  arrows converge on C E; diagonal arrows converge on C I. Each E population
-  sits above its local I population, with compact recurrent loops. Weight labels
-  give the recipient first; excitation uses arrowheads and inhibition red bars.
+  Three local E/I circuits. X_A/X_B supply Gaussian sensory drive; X_C supplies
+  uniform background. Shared cue inputs U_A/U_B switch delivery from A to B.
+  A/B E project topographically to C E and sparsely to C I, with no A–B links or
+  C feedback. Arrows denote excitation; red bars, inhibition. Weight subscripts
+  list recipient first. Figure 3 shows the saved within-matrix structure.
 </RunFigure>
 
 ## Parameters

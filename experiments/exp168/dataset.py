@@ -1,4 +1,4 @@
-"""Reproducible shared independent Poisson sources; same encoder as the saved runs."""
+"""Reproducible shared independent Poisson sources."""
 
 import numpy as np
 import torch

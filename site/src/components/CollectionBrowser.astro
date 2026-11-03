@@ -22,7 +22,11 @@ const remainingLiterature = literature?.slice(visibleCollectionLimit) ?? [];
 <div class="base-grid">
   <div class="article-browser l-page">
     <aside class="browser-collections">
-      <div class="browser-navigation">
+      <button class="collections-toggle" type="button" aria-expanded="false" aria-controls="collection-navigation">
+        <span>Collections</span>
+        <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m4 6 4 4 4-4" /></svg>
+      </button>
+      <div class="browser-navigation" id="collection-navigation">
       <nav aria-labelledby="collections-heading">
         <h2 id="collections-heading">{heading}</h2>
         <ol role="list">
@@ -63,10 +67,28 @@ const remainingLiterature = literature?.slice(visibleCollectionLimit) ?? [];
   </div>
 </div>
 
+<script>
+  function setupCollectionToggle() {
+    const toggle = document.querySelector<HTMLButtonElement>('.collections-toggle');
+    if (!toggle || toggle.dataset.initialized) return;
+    toggle.dataset.initialized = 'true';
+    toggle.addEventListener('click', () => {
+      toggle.setAttribute('aria-expanded', String(toggle.getAttribute('aria-expanded') !== 'true'));
+    });
+  }
+  setupCollectionToggle();
+  document.addEventListener('astro:page-load', setupCollectionToggle);
+</script>
+
 <style>
   .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   .article-browser, :global(body:has(.article-browser) .site-header nav) { width: min(100%, var(--listing-width)); justify-self: center; min-width: 0; }
   .browser-collections { min-width: 0; padding-top: 32px; }
+  .collections-toggle { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; padding: 10px 0; border: 0; border-bottom: 1px solid rgb(var(--ink) / .15); background: transparent; color: rgb(var(--ink)); font: inherit; font-size: 13px; font-weight: 600; text-align: left; cursor: pointer; }
+  .collections-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+  .collections-toggle[aria-expanded="true"] svg { transform: rotate(180deg); }
+  .browser-navigation { display: none; }
+  .collections-toggle[aria-expanded="true"] + .browser-navigation { display: block; margin-top: 20px; }
   .browser-collections nav + nav { margin-top: 28px; }
   .browser-collections h2 { font-size: 13px; line-height: 1.5; font-weight: 600; margin: 0 0 12px; }
   .browser-collections ol { list-style: none; margin: 0; padding: 0; columns: 2; column-gap: 24px; }
@@ -91,7 +113,8 @@ const remainingLiterature = literature?.slice(visibleCollectionLimit) ?? [];
     .article-browser { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 40px; }
     .browser-collections { grid-column: 1; grid-row: 1; padding-top: calc(84px * var(--listing-scale)); }
     .browser-articles { grid-column: 2; grid-row: 1; }
-    .browser-navigation { position: sticky; top: 24px; max-height: calc(100vh - 48px); overflow-y: auto; }
+    .collections-toggle { display: none; }
+    .browser-navigation, .collections-toggle[aria-expanded="true"] + .browser-navigation { display: block; margin-top: 0; position: sticky; top: 24px; max-height: calc(100vh - 48px); overflow-y: auto; }
     .browser-collections ol { columns: auto; }
   }
 </style>

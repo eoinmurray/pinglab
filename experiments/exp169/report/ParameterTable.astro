@@ -1,0 +1,82 @@
+---
+import Table from '../../../site/src/components/Table.astro';
+import { reportData, reportSnapshots } from '../../../site/src/lib/report-data';
+import { formatTableNumber as n } from '../../../site/src/lib/table-number';
+const data = await reportData('exp169', { allowUnavailable: true });
+const evidence = await reportSnapshots('exp169', {
+  snapshots: { artificial: 'artificial/start/snapshot.json' }, computeInput: 'compute', allowUnavailable: true,
+});
+const net = evidence?.snapshots.artificial?.network;
+const cfg = evidence?.configuration;
+const pop = id => net.populations.find(p => p.id === id);
+const symbols = { E: 'E', I: 'I', readout: 'R', drive: 'X', artificial: 'U' };
+const math = id => ({ math: symbols[id] });
+const shared = (label, value) => [label, value, value];
+const sources = net ? [
+  ...net.populations.map(p => ({ id: p.id, size: p.size, description: p.neuron.kind })),
+  ...net.inputs.map(p => ({ id: p.id, size: p.shape.at(-1), description: 'external spike channels' })),
+] : [];
+const targets = sources.filter(p => net.populations.some(q => q.id === p.id));
+const groups = net && cfg && data ? [
+  { label: 'Simulation', rows: [
+    shared('Integration timestep', `${n(net.timebase.dt.value)} ms`),
+    shared('Analysed duration', `${n(cfg.duration_ms)} ms`),
+    shared('Checkpoint seed / epoch', `${String(cfg.seed)} / ${String(cfg.checkpoint.epoch)}`),
+    ['Private event seed', 'Silent', String(cfg.artificial_seed)],
+  ] },
+  { label: 'Populations', rows: sources.map(p => shared(math(p.id), `${n(p.size)} ${p.description}`)) },
+  { label: 'Neuron dynamics', rows: [
+    shared('E / I membrane time constant', `${n(pop('E').neuron.tau_mem.value)} / ${n(pop('I').neuron.tau_mem.value)} ms`),
+    shared('E / I refractory period', `${n(pop('E').neuron.refractory.value)} / ${n(pop('I').neuron.refractory.value)} ms`),
+    shared('Readout time constant', `${n(pop('readout').neuron.tau.value)} ms`),
+  ] },
+  { label: 'Input and manipulation', rows: [
+    shared('Sensory encoding peak rate', `${n(data.reference_input_rate_hz)} Hz/channel; identical saved encoding`),
+    ['Private inhibitory events', 'Silent', `${n(data.conditions[2].rate_i_or_input_hz)} Hz/channel, realised`],
+    shared('Private GABA decay / delivery delay', `${n(net.projections.find(p => p.id === 'artificial_to_E').synapse.tau.value)} / ${n(net.projections.find(p => p.id === 'artificial_to_E').delay.value)} ms`),
+    shared('Checkpoint input and readout weights', 'Frozen COBA checkpoint'),
+    shared('E→I and I→E weights', 'Zero; projections retained'),
+    ['Conductance moment targets', 'No artificial inhibition', 'Per-E-cell PING temporal mean and SD'],
+  ] },
+  { label: 'Measurement', rows: [
+    shared('Moment and firing-rate window', `${n(0)}–${n(cfg.duration_ms)} ms`),
+    shared('Independent images / artificial realizations', `${n(1)} / ${n(1)}`),
+  ] },
+] : [{ label: 'Evidence', rows: [['Saved parameters', 'Unavailable', 'Unavailable']] }];
+const endpoint = value => value.split('.')[0];
+const nominal = projection => {
+  if (projection.id === 'artificial_to_E') return { math: '\\frac{1}{N_E};\\quad q_j\\,\\mathrm{\\mu S}' };
+  if (['E_to_I', 'I_to_E'].includes(projection.id)) return `${n(100)}% eligible; ${n(0)} µS`;
+  const symbol = projection.id === 'input_to_E' ? 'W^{C}_{EX,ji}' : 'W^{C}_{RE,ji}';
+  return { math: `${n(100)}\\%;\\quad ${symbol}\\,\\mathrm{\\mu S}` };
+};
+const matrix = net ? sources.map(source => [math(source.id), ...targets.map(target => {
+  const paths = net.projections.filter(p => endpoint(p.source) === source.id && endpoint(p.target) === target.id);
+  if (!paths.length) return 'Absent';
+  if (paths.length !== 1) throw new Error('Ambiguous exp169 projection');
+  return nominal(paths[0]);
+})]) : [];
+---
+<Table headers={['Parameter','Native COBA replay','COBA + private GABA']} groups={groups} number="B1" id="parameters" label="Recorded control parameters">
+  E and I are the original excitatory and inhibitory populations; R is the
+  readout. X is the sensory input; U is the private artificial input. The I
+  population remains present but silent in both native conditions. The first
+  two reference rasters come from the pinned legacy bank; PING's I population
+  remains active there. Native neuron settings come from the selected start
+  snapshot, other settings from recorded configuration and analysis. The
+  artificial event rate is a realised finite-window rate, not a prescribed
+  PING-matched rate. Seeds and epoch are exact identifiers.
+</Table>
+<Table headers={['Source ↓ / target →',...targets.map(p => math(p.id))]} rows={matrix} rowHeaders number="B2" label="Native COBA control connectivity">
+  Rows are sources and columns targets. Entries give eligible-pair density and
+  per-connection weight in µS. N_E is the saved E population size. W with superscript
+  C denotes the corresponding frozen COBA checkpoint entry, loaded over the
+  compiler's zero placeholder; these are learned matrices, not fresh random
+  initializers. Eligible density does not assert that every learned entry is
+  nonzero. Each U channel j reaches only E neuron j, with calibrated positive
+  increment q_j; all other U→E entries are zero. The private projection has the
+  same positive weights in both native conditions, but U is silent in the
+  baseline. Absent means no projection exists; zero-weight projections are
+  explicitly retained. This matrix describes the COBA control, not PING's
+  separately trained recurrent weights.
+</Table>

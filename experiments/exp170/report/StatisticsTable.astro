@@ -1,0 +1,22 @@
+---
+import Table from '../../../site/src/components/Table.astro';
+import { reportData } from '../../../site/src/lib/report-data';
+const data = await reportData('exp170', { allowUnavailable: true });
+const rate = s => `${s.source_rate_mean_hz.toFixed(0)} ± ${s.source_rate_sd_hz.toFixed(0)} Hz`;
+const rows = data ? [
+  ['Event rate across sources', rate(data.ping), rate(data.artificial)],
+  ['Mean E inhibitory conductance', `${data.ping.conductance_mean_us.toFixed(5)} µS`, `${data.artificial.conductance_mean_us.toFixed(5)} µS`],
+  ['Mean per-E temporal conductance SD', `${data.ping.mean_per_cell_temporal_sd_us.toFixed(5)} µS`, `${data.artificial.mean_per_cell_temporal_sd_us.toFixed(5)} µS`],
+  ['Mean pairwise conductance correlation', data.ping.pairwise_conductance_correlation.toFixed(7), data.artificial.pairwise_conductance_correlation.toFixed(4)],
+  ['E firing rate', `${data.conditions[1].rate_e_hz.toFixed(2)} Hz`, `${data.conditions[2].rate_e_hz.toFixed(2)} Hz`],
+] : [['Saved statistics','Unavailable','Unavailable']];
+---
+<Table headers={['Statistic','PING','Count-matched artificial inhibition']} rows={rows} number={1} id="inhibition-statistics" label="Measured inhibition and E firing in Figure 1">
+  The same full trial and selected evidence as Figure 1. Event-rate ± SD is across
+  sources, not uncertainty across replicates. PING has 256 I neurons; artificial
+  inhibition has 1,024 private event streams. Conductance statistics refer to E
+  recipients: SD is measured over time separately for each E neuron, then
+  averaged across neurons. Correlation is averaged over all distinct E-cell pairs.
+  These are count-constrained, timing-calibrated inputs; source counts and
+  connectivity remain different.
+</Table>

@@ -22,8 +22,7 @@ or scope justify it. Simulation-backed checks require execution authorization.
 
 ## Reports
 
-1. Keep findings in `report/report.mdx`: a short Abstract and Results, with
-   Introduction, Methods or Discussion when useful. Abstract: question, comparison,
+1. Keep findings in `report/report.mdx`: a short Abstract and Results, with Methods when useful. Abstract: question, comparison,
    essential conditions, main numerical finding and scope. Explain each result
    before its figure; captions define panels, symbols, units and measurement windows.
 2. Every report needs `appendix.mdx` with each distinct network diagram and the
@@ -32,8 +31,9 @@ or scope justify it. Simulation-backed checks require execution authorization.
    substantial appendices and give referenced equations stable numbered anchors.
    Include enough procedure to reproduce results; distinguish exact algebra,
    approximations and closure assumptions. Adapt structure when science needs it.
-3. <a id="report-first-drafts"></a>First drafts include Abstract, Introduction,
-   Results, Discussion and appendix diagrams/tables. Omit Methods and supporting methods text. Results contain
+3. <a id="report-first-drafts"></a>First drafts include Abstract, Results and
+   appendix diagrams/tables. Omit Discussion and
+   supporting methods text. Results contain
    figures, captions and optional subsection headings; defer explanatory prose.
    Put essential context and limitations in captions.
 

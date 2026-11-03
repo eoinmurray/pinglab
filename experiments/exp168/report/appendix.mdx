@@ -1,18 +1,16 @@
 import RunFigure from '../../../site/src/components/RunFigure.astro';
-import ParameterTable from './ParameterTable.astro';
 
-## A. Executed network
+## A. Executed networks
 
-<RunFigure report="exp168" experiment="exp168" file="circuit.svg" number="A1" id="fig-circuit" alt="Native shared-input E/I circuit without EE or II projections." allowUnavailable={true}>
-  Circuit diagram retained from the actual compiled AI-like network. Its graph
-  matches the selected AI-like bundle, including initializer distributions and
-  constant gain. The PING state shares this topology and retains its own bundle
-  and snapshot; its external-to-I gain is zero. X supplies a shared pool of
-  independent external spike sources. E excites I, and I inhibits E. Neither
-  graph contains EE or II projections. The original executed bundle name is
-  preserved rather than relabelled as a new execution.
+<RunFigure report="exp168" experiment="exp168" file="recurrence-on-circuit.svg" number="A1" id="fig-circuit-on" alt="Native shared-input E/I circuit with EE and II projections enabled." allowUnavailable={true}>
+  The recurrence-on architecture contains all six recurrent/input projections.
+  X supplies a shared pool of independent external spike sources. E excites E
+  and I; I inhibits E and I. Every weighted connection is labelled
+  $W_{\mathrm{target},\mathrm{source}}$.
 </RunFigure>
 
-## B. Parameters
-
-<ParameterTable />
+<RunFigure report="exp168" experiment="exp168" file="recurrence-off-circuit.svg" number="A2" id="fig-circuit-off" alt="Native shared-input E/I circuit without EE or II projections." allowUnavailable={true}>
+  The recurrence-off architecture omits EE and II. It retains E→I, I→E,
+  X→E and X→I. X supplies the same shared external spike-source pool. Every
+  weighted connection is labelled $W_{\mathrm{target},\mathrm{source}}$.
+</RunFigure>

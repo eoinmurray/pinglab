@@ -1,175 +1,15 @@
-"""Import authenticated native evidence, or explicitly simulate the two-state recipe."""
+"""Simulate the EE/II-on comparison, or run a short explicit diagnostic."""
 
 import argparse
-from copy import deepcopy
-from pathlib import Path
-import shutil
 import sys
+from pathlib import Path
 from time import perf_counter
-from zipfile import ZipFile, ZIP_DEFLATED
 
 REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "libraries")]
 import numpy as np
-from experiments.exp168 import recipe, dataset
-from pingstore.library import source_run, stage_run, load_json, file_sha256
-
-
-def recorded_configuration(source, label):
-    spec = recipe.IMPORTS[label]
-    numbers = load_json(source.file(spec["numbers"]))
-    original = (
-        next(r for r in numbers["trials"] if r["trial"] == spec["trial"])[
-            "configuration"
-        ]
-        if label == "AI"
-        else numbers["configuration"]
-    )
-    expected = recipe.configuration(label)
-    for key in (
-        "seed",
-        "n_e",
-        "n_i",
-        "n_external",
-        "dt_ms",
-        "duration_ms",
-        "measurement_ms",
-        "external_rate_hz",
-        "external_seed_offset",
-        "connection_probability",
-        "input_connection_probability",
-        "initializer_parent_means_us",
-        "weight_relative_sd",
-        "capacitance_nf",
-        "leak_us",
-        "resting_mv",
-        "threshold_mv",
-        "reset_mv",
-        "excitatory_reversal_mv",
-        "inhibitory_reversal_mv",
-        "refractory_e_ms",
-        "refractory_i_ms",
-        "tau_synapse_ms",
-        "excitatory_delay_ms",
-        "inhibitory_delay_ms",
-    ):
-        if original[key] != expected[key]:
-            raise ValueError(
-                f"{label}: source setting differs from preserved recipe: {key}"
-            )
-    gain = original["control"]["final_gain"]
-    if original["control"]["baseline_gain"] != gain or gain != expected["input_i_gain"]:
-        raise ValueError("source input-to-I gain is not the expected constant")
-    cfg = deepcopy(original)
-    cfg["input_i_gain"] = gain  # Explicit alias derived from the executed modulation.
-    return cfg
-
-
-def import_native(store, *, run_id=None):
-    started = perf_counter()
-    sources = {
-        label: source_run(
-            Path(store),
-            spec["run_id"],
-            stage="compute",
-            reference={
-                "run_id": spec["run_id"],
-                "payload_digest": spec["payload_digest"],
-            },
-        )
-        for label, spec in recipe.IMPORTS.items()
-    }
-    configs = {
-        label: recorded_configuration(source, label)
-        for label, source in sources.items()
-    }
-    with stage_run(
-        REPO,
-        recipe.SLUG,
-        "compute",
-        operation="import",
-        configuration={"conditions": configs},
-        run_id=run_id,
-    ) as run:
-        # Isolated source IDs are scoped to their original store. Preserve the
-        # authenticated records in an archive rather than colliding with global IDs.
-        evidence = {
-            "kind": "authenticated-native-import",
-            "source_store": str(Path(store).resolve()),
-            "sources": {},
-        }
-        with ZipFile(
-            run.export / "source-provenance.zip", "w", compression=ZIP_DEFLATED
-        ) as archive:
-            visited = set()
-
-            def archive_ancestry(source):
-                if source.record["run_id"] in visited:
-                    return
-                visited.add(source.record["run_id"])
-                archive.write(
-                    source.directory / "run.json",
-                    "records/" + source.record["run_id"] + "/run.json",
-                )
-                for pin in source.record["inputs"].values():
-                    archive_ancestry(
-                        source_run(Path(store), pin["run_id"], reference=pin)
-                    )
-
-            for label, source in sources.items():
-                spec = recipe.IMPORTS[label]
-                archive_ancestry(source)
-                target = run.export / label
-                target.mkdir()
-                source.restore_bundle(
-                    spec["prefix"] + "/network.bundle", target / "network.bundle"
-                )
-                (target / "start").mkdir()
-                copied = {}
-                for origin, name in (
-                    (source.file(spec["prefix"], "events.npz"), "events.npz"),
-                    (
-                        source.file(spec["prefix"], "start", "snapshot.json"),
-                        "start/snapshot.json",
-                    ),
-                    (
-                        source.file(spec["prefix"], "start", "parameters.npz"),
-                        "start/parameters.npz",
-                    ),
-                ):
-                    shutil.copyfile(origin, target / name)
-                    digest = file_sha256(origin)
-                    assert digest == file_sha256(target / name)
-                    copied[name] = digest
-                graph = source.file(spec["prefix"], "network.bundle", "graph.json")
-                diagram_graph = source.file(
-                    spec["diagram_prefix"], "network.bundle", "graph.json"
-                )
-                if file_sha256(graph) != file_sha256(diagram_graph):
-                    raise ValueError("diagram is not from the selected compiled graph")
-                if label == "AI":
-                    shutil.copyfile(
-                        source.file(spec["diagram_prefix"], "circuit.svg"),
-                        run.export / "circuit.svg",
-                    )
-                for file in source.export.iterdir():
-                    if file.is_file() and file.suffix == ".py":
-                        archive.write(file, label + "/" + file.name)
-                evidence["sources"][label] = {
-                    **source.reference,
-                    "prefix": spec["prefix"],
-                    "original_execution": source.record["execution"],
-                    "copied_sha256": copied,
-                }
-        run.record["execution"].update(
-            evidence=evidence, elapsed_s=perf_counter() - started
-        )
-        run.record["scientific_artifacts"] = {
-            "snapshot_stages": {label: ["start"] for label in recipe.CONDITIONS}
-        }
-        for source in sources.values():
-            source.check_unchanged()
-    return run.run_id
+from experiments.exp168 import dataset, recipe
+from pingstore.library import stage_run
 
 
 def execute(cfg, directory, diagram):
@@ -185,8 +25,8 @@ def execute(cfg, directory, diagram):
     directory.mkdir(parents=True)
     bundle = recipe.author_network(cfg)
     bundle.write(directory / "network.bundle", visualise=False)
-    if not diagram.exists():
-        bundle.visualise(diagram, view="circuit")
+    if diagram:
+        bundle.visualise(directory.parent / "circuit.svg", view="circuit")
     drive = dataset.encode_drive(cfg).to(cfg["device"])
     events = {"E": [], "I": []}
 
@@ -206,7 +46,7 @@ def execute(cfg, directory, diagram):
                 SignalRecording(p + ".spikes", kind="spike_events") for p in ("E", "I")
             ),
             sink=collect,
-            sink_id="exp168.sparse-spikes/v1",
+            sink_id="exp168.sparse-spikes/v2",
             block_steps=cfg["recording_block_steps"],
         ),
         snapshot=SnapshotSpec(directory / "start", stage="start", parameters=True),
@@ -216,53 +56,145 @@ def execute(cfg, directory, diagram):
         retain_runtime_state=False,
     )
     arrays = {}
-    for pop, blocks in events.items():
+    for population, blocks in events.items():
         rows = np.concatenate(blocks) if blocks else np.empty((0, 3))
-        arrays[pop + "_time_ms"] = rows[:, 0] * cfg["dt_ms"]
-        arrays[pop + "_cell"] = rows[:, 2]
+        arrays[population + "_time_ms"] = rows[:, 0] * cfg["dt_ms"]
+        arrays[population + "_cell"] = rows[:, 2]
     np.savez_compressed(directory / "events.npz", **arrays)
 
 
-def simulate_conditions(*, seed=43, device="cpu", run_id=None):
-    import torch
+def simulate_conditions(
+    *,
+    device="cpu",
+    duration_ms=2050.0,
+    seed=43,
+    ai_rate_hz=None,
+    ai_probability=None,
+    ai_gain=None,
+    ping_rate_hz=None,
+    ping_probability=None,
+    ping_gain=None,
+    run_id=None,
+):
     from importlib.metadata import version
 
+    import torch
+
+    if duration_ms != 2050.0:
+        raise ValueError("retained compute requires the requested 2050 ms duration")
     started = perf_counter()
     configs = {
-        label: recipe.configuration(label, seed=seed, device=device)
-        for label in recipe.CONDITIONS
+        state: recipe.configuration(
+            state,
+            recurrence="on",
+            device=device,
+            seed=seed,
+            external_rate_hz=ai_rate_hz if state == "AI" else ping_rate_hz,
+            input_connection_probability=(
+                ai_probability if state == "AI" else ping_probability
+            ),
+            input_i_gain=ai_gain if state == "AI" else ping_gain,
+        )
+        for state in recipe.CONDITIONS
     }
     torch.set_num_threads(configs["AI"]["torch_threads"])
     with stage_run(
         REPO,
         recipe.SLUG,
         "compute",
-        configuration={"conditions": configs},
+        configuration={"recurrence": "on", "conditions": configs},
         run_id=run_id,
     ) as run:
-        for label, cfg in configs.items():
-            execute(cfg, run.export / label, run.export / "circuit.svg")
         run.record["scientific_artifacts"] = {
-            "snapshot_stages": {label: ["start"] for label in recipe.CONDITIONS}
+            "snapshot_stages": {state: ["start"] for state in recipe.CONDITIONS}
         }
+        for index, (state, cfg) in enumerate(configs.items()):
+            execute(cfg, run.export / state, index == 0)
         run.record["execution"].update(
-            elapsed_s=perf_counter() - started, snnlab_version=version("snnlab")
+            elapsed_s=perf_counter() - started,
+            snnlab_version=version("snnlab"),
         )
     return run.run_id
 
 
+def diagnostic(args):
+    import tempfile
+
+    import torch
+
+    torch.set_num_threads(4)
+    started = perf_counter()
+    cfg = recipe.configuration(
+        args.condition,
+        recurrence="on",
+        device=args.device,
+        seed=args.seed,
+        external_rate_hz=args.rate_hz,
+        input_connection_probability=args.probability,
+        input_i_gain=args.gain,
+    )
+    cfg["duration_ms"] = args.duration_ms
+    cfg["measurement_ms"] = [50.0, args.duration_ms]
+    with tempfile.TemporaryDirectory() as temporary:
+        execute(cfg, Path(temporary) / "run", False)
+        with np.load(
+            Path(temporary) / "run" / "events.npz", allow_pickle=False
+        ) as events:
+            summary = {}
+            for population in ("E", "I"):
+                times = events[population + "_time_ms"]
+                mask = (times >= 50.0) & (times < args.duration_ms)
+                summary[population + "_rate_hz"] = float(
+                    mask.sum()
+                    / cfg["n_" + population.lower()]
+                    / ((args.duration_ms - 50.0) / 1000)
+                )
+                summary[population + "_events"] = int(mask.sum())
+    print(
+        {
+            "condition": args.condition,
+            "rate_hz": args.rate_hz,
+            "probability": args.probability,
+            "gain": args.gain,
+            "summary": summary,
+            "elapsed_s": perf_counter() - started,
+        }
+    )
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    mode = parser.add_mutually_exclusive_group(required=True)
-    mode.add_argument("--import-store", type=Path)
-    mode.add_argument("--simulate", action="store_true")
-    parser.add_argument("--seed", type=int, default=43)
-    parser.add_argument("--device", default="cpu")
-    parser.add_argument("--run-id")
+    commands = parser.add_subparsers(dest="command", required=True)
+    simulate_parser = commands.add_parser("simulate")
+    simulate_parser.add_argument("--device", choices=("cpu", "cuda"), default="cpu")
+    simulate_parser.add_argument("--seed", type=int, default=43)
+    simulate_parser.add_argument("--ai-rate-hz", type=float)
+    simulate_parser.add_argument("--ai-probability", type=float)
+    simulate_parser.add_argument("--ai-gain", type=float)
+    simulate_parser.add_argument("--ping-rate-hz", type=float)
+    simulate_parser.add_argument("--ping-probability", type=float)
+    simulate_parser.add_argument("--ping-gain", type=float)
+    simulate_parser.add_argument("--run-id")
+    diagnostic_parser = commands.add_parser("diagnostic")
+    diagnostic_parser.add_argument("condition", choices=recipe.CONDITIONS)
+    diagnostic_parser.add_argument("--device", choices=("cpu", "cuda"), default="cpu")
+    diagnostic_parser.add_argument("--seed", type=int, default=43)
+    diagnostic_parser.add_argument("--duration-ms", type=float, default=205.0)
+    diagnostic_parser.add_argument("--rate-hz", type=float)
+    diagnostic_parser.add_argument("--probability", type=float)
+    diagnostic_parser.add_argument("--gain", type=float)
     args = parser.parse_args()
-    if args.import_store:
-        if args.seed != 43 or args.device != "cpu":
-            parser.error("import preserves executed seed and device")
-        import_native(args.import_store, run_id=args.run_id)
+    if args.command == "simulate":
+        simulate_conditions(
+            device=args.device,
+            seed=args.seed,
+            ai_rate_hz=args.ai_rate_hz,
+            ai_probability=args.ai_probability,
+            ai_gain=args.ai_gain,
+            ping_rate_hz=args.ping_rate_hz,
+            ping_probability=args.ping_probability,
+            ping_gain=args.ping_gain,
+            run_id=args.run_id,
+        )
     else:
-        simulate_conditions(seed=args.seed, device=args.device, run_id=args.run_id)
+        diagnostic(args)
