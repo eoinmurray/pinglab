@@ -2,7 +2,7 @@
 import { createHash } from 'node:crypto';
 import { resolveRunIndex, validateRunIndex, type RunIndex } from './run-index.ts';
 import { requestValue } from './run-context.ts';
-import { retryRead } from './remote-http.ts';
+import { limitedRemoteRead, remoteReadTimeoutMs, retryRead } from './remote-http.ts';
 import { readdir, readFile, stat } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { assetBase, remoteCatalog, remoteControl, parseCatalog, runPattern, safePath, type Catalog } from './remote-catalog.ts';
@@ -18,19 +18,6 @@ export const absent = (error: unknown) => (error as NodeJS.ErrnoException).code 
 function missing(path: string): Error {
   return Object.assign(new Error(`Run file unavailable: ${path}`), { code: 'ENOENT' });
 }
-let active = 0;
-const waiting: (() => void)[] = [];
-async function limited<T>(operation: () => Promise<T>): Promise<T> {
-  if (active >= 6) await new Promise<void>(done => waiting.push(done));
-  else active++;
-  try { return await operation(); }
-  finally {
-    const next = waiting.shift();
-    if (next) next();
-    else active--;
-  }
-}
-
 export class RunStore {
   readonly root: string;
   readonly base: string;
@@ -126,8 +113,8 @@ export class RunStore {
     const key = `${run}/${file}/${fingerprint.sha256}`;
     const cached = this.reads.get(key);
     if (cached && cached.expires > Date.now()) return cached.value;
-    const value = limited(() => retryRead(`R2 ${run}/${file}`, async () => {
-      const response = await fetch(this.url(run, file), { signal: AbortSignal.timeout(30_000), redirect: 'error' });
+    const value = retryRead(`R2 ${run}/${file}`, () => limitedRemoteRead(async () => {
+      const response = await fetch(this.url(run, file), { signal: AbortSignal.timeout(remoteReadTimeoutMs), redirect: 'error' });
       if (response.status !== 200) throw new Error(`R2 ${run}/${file}: HTTP ${response.status}`);
       const bytes = Buffer.from(await response.arrayBuffer());
       if (bytes.length !== fingerprint.bytes || createHash('sha256').update(bytes).digest('hex') !== fingerprint.sha256) {

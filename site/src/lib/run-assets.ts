@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { retryRead } from './remote-http.ts';
+import { limitedRemoteRead, remoteReadTimeoutMs, retryRead } from './remote-http.ts';
 import { runStore, RunStore } from './run-store.ts';
 
 export const assetTypes: Record<string, string> = {
@@ -29,9 +29,9 @@ export async function selectAsset(run: string, file: string, options: Options = 
   // Check actual bytes at build/request time against the verified backup catalog.
   await store.read(run, `export/${file}`);
   const origin = options.origin ?? 'https://pinglab.eoinmurray.info';
-  await retryRead(`R2 asset headers ${run}/${file}`, async () => {
+  await retryRead(`R2 asset headers ${run}/${file}`, () => limitedRemoteRead(async () => {
     const response = await fetch(store.url(run, `export/${file}`), {
-      method: 'HEAD', headers: { Origin: origin }, signal: AbortSignal.timeout(30_000), redirect: 'error',
+      method: 'HEAD', headers: { Origin: origin }, signal: AbortSignal.timeout(remoteReadTimeoutMs), redirect: 'error',
     });
     if (response.status !== 200 || response.headers.get('content-type')?.split(';')[0].trim() !== assetTypes[file.split('.').at(-1)!]) {
       throw new Error(`R2 asset response is unsuitable: ${run}/${file}`);
@@ -39,6 +39,6 @@ export async function selectAsset(run: string, file: string, options: Options = 
     if (file.endsWith('.json') && !options.development && !['*', origin].includes(response.headers.get('access-control-allow-origin') ?? '')) {
       throw new Error(`R2 animation CORS unavailable: ${run}/${file}`);
     }
-  });
+  }));
   return { run, file, source: 'r2' as const, url: store.url(run, `export/${file}`), ...fingerprint };
 }

@@ -54,6 +54,9 @@ jobs:
       - name: Install site dependencies
         run: bun install --frozen-lockfile
         working-directory: site
+      - name: Test remote evidence reads
+        run: bun test src/lib/remote-http.test.ts
+        working-directory: site
       - name: Freeze and retain incoming evidence
         env:
           GH_TOKEN: ${{ github.token }}
