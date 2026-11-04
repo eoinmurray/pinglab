@@ -3,7 +3,7 @@ id: exp169
 title: "COBA with Artificial Inhibition"
 author: "Eoin Murray"
 created_at: "2026-11-03T13:36:19Z"
-updated_at: "2026-11-03T14:42:32Z"
+updated_at: "2026-11-04T10:25:43Z"
 description: "A single-image TR02 control matching PING conductance moments with private inhibitory event streams."
 collection: ["experiments"]
 tags: ["data", "v0.31.0"]
@@ -12,12 +12,13 @@ thumbnail: rasters.png
 ---
 
 import RunFigure from '../../../site/src/components/RunFigure.astro';
+import ClassificationTable from './ClassificationTable.astro';
 import { reportData, round } from '../../../site/src/lib/report-data';
 export const data = await reportData('exp169', { allowUnavailable: true });
 
 ## Abstract
 
-{data ? <p>We inherited trained COBA and PING classifiers and kept their weights fixed. We measured the strength and variability of the inhibition received by excitatory (E) neurons in PING, then built artificial GABA inputs matching those properties and delivered them asynchronously to COBA. For the same digit image, mean E firing fell from {round(data.conditions[0].rate_e_hz, 1)} to {round(data.conditions[2].rate_e_hz, 1)} Hz—about {round(100*(1-data.conditions[2].rate_e_hz/data.conditions[0].rate_e_hz), 0)}% suppression. This single-image result shows that matched asynchronous inhibition can almost eliminate COBA's excitatory activity, although the artificial event rate differed from PING's.</p> : <p>No completed evidence is selected.</p>}
+{data ? <p>We inherited trained COBA and PING classifiers and kept their weights fixed. We measured the strength and variability of the inhibition received by excitatory (E) neurons in PING, then built artificial GABA inputs matching those properties and delivered them asynchronously to COBA. For the same digit image, mean E firing fell from {round(data.conditions[0].rate_e_hz, 1)} to {round(data.conditions[2].rate_e_hz, 1)} Hz—about {round(100*(1-data.conditions[2].rate_e_hz/data.conditions[0].rate_e_hz), 0)}% suppression. This single-image result shows that matched asynchronous inhibition can almost eliminate COBA's excitatory activity, although the artificial event rate differed from PING's. A separate small classification test is reported below.</p> : <p>No completed evidence is selected.</p>}
 
 ## Results
 
@@ -28,6 +29,10 @@ export const data = await reportData('exp169', { allowUnavailable: true });
   mean and SD; COBA weights remain fixed. One illustrative realization;
   synchrony is not isolated. Input construction: Methods.
 </RunFigure>
+
+{data?.classification ? <p>In a small balanced MNIST test, the original COBA and PING classifiers correctly labelled {data.classification.conditions[0].correct} and {data.classification.conditions[1].correct} of {data.classification.sample_count} images; adding image-conditioned artificial inhibition to frozen COBA reduced this to {data.classification.conditions[2].correct}. Table 1 reports the paired comparison.</p> : <p>Classification evidence is unavailable.</p>}
+
+<ClassificationTable />
 
 ## Methods
 
@@ -98,3 +103,22 @@ deviation over the displayed trial, using divisor $T$.
    membrane voltage and $E_{\mathrm{GABA}}$ the GABA reversal potential. With
    conductance in µS and voltage in mV, current is in nA. Sensory spikes and
    original COBA weights remain unchanged; E activity cannot alter these inputs.
+
+
+6. **Check classification on 100 test images.** Select 10 images per digit from
+   the official MNIST test partition using selection seed 42. Encode pixels at a
+   maximum rate of 25 Hz/channel, using seed 402211 plus the original test index;
+   reuse exactly the same sensory spikes for all three conditions. Reset network
+   state before each 200-ms trial, retaining zero initial conductance and no
+   burn-in. Use each original network's frozen final-epoch checkpoint and readout;
+   the artificial-input condition uses the same COBA weights as the baseline.
+   For each image, first run PING and fit private inputs to its per-E conductance
+   mean and SD using steps 1–4, with artificial seed 302211 plus the test index.
+   Apply those inputs to COBA. Choose the digit with the largest full-trial mean
+   pre-reset readout voltage; labels are used for balanced sampling and scoring,
+   never for conductance calibration or parameter fitting. Verify frozen weights,
+   native replay, and realised conductance matching. No retraining or test-based
+   selection is performed. Because calibration needs PING's response to the same
+   image, this is an image-conditioned intervention rather than a standalone
+   artificial-inhibition classifier; one seed and one encoder draw per image do
+   not establish broad generalisation or isolate synchrony.

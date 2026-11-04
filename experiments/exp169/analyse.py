@@ -1,6 +1,7 @@
 """Validate the frozen control and measure the three retained raster conditions."""
 
 import argparse
+import csv
 import json
 import sys
 from pathlib import Path
@@ -13,7 +14,7 @@ import torch
 from experiments.exp169 import recipe
 from pingstore.library import file_sha256, source_run, stage_run
 from scipy.signal import lfilter
-from snnlab.sim import NetworkSnapshot
+from snnlab.sim import NetworkSnapshot, load_dataset
 
 
 def metrics(g, target):
@@ -155,17 +156,223 @@ def validate(computed):
     )
 
 
-def analyse(identity, *, run_id=None):
+def classification_summary(rows, selection):
+    """Recompute decisions and paired accuracy from retained scores."""
+    conditions = ["COBA", "PING", "COBA + artificial inhibition"]
+    if not selection or len({item["index"] for item in selection}) != len(selection):
+        raise ValueError("Duplicate or missing selected images")
+    matrices = {name: np.zeros((10, 10), dtype=int) for name in conditions}
+    decisions = {}
+    for row in rows:
+        index, label = int(row["index"]), int(row["label"])
+        condition = row["condition"]
+        scores = np.array([float(row[f"score_{i}"]) for i in range(10)])
+        if not np.isfinite(scores).all():
+            raise ValueError("Non-finite classifier scores")
+        prediction = int(scores.argmax())
+        tied = int(np.count_nonzero(scores == scores.max()) > 1)
+        if (
+            prediction != int(row["prediction"])
+            or int(row["correct"]) != int(prediction == label)
+            or tied != int(row["top_score_tied"])
+        ):
+            raise ValueError("Saved decision disagrees with scores")
+        key = (index, condition)
+        if key in decisions or condition not in matrices:
+            raise ValueError("Duplicate or unknown image-condition row")
+        decisions[key] = row
+        matrices[condition][label, prediction] += 1
+    if len(rows) != 3 * len(selection):
+        raise ValueError("Incomplete paired classification")
+    for item in selection:
+        group = [decisions[(item["index"], name)] for name in conditions]
+        if any(int(row["label"]) != item["label"] for row in group):
+            raise ValueError("Image labels disagree")
+        if len({row["input_sha256"] for row in group}) != 1:
+            raise ValueError("Sensory encodings differ")
+    baseline = [
+        int(decisions[(s["index"], conditions[0])]["correct"]) for s in selection
+    ]
+    artificial = [
+        int(decisions[(s["index"], conditions[2])]["correct"]) for s in selection
+    ]
+    return dict(
+        sample_count=len(selection),
+        conditions=[
+            dict(
+                name=name,
+                correct=int(matrix.trace()),
+                total=len(selection),
+                accuracy=float(matrix.trace() / len(selection)),
+                per_digit_correct=matrix.diagonal().tolist(),
+                confusion_matrix=matrix.tolist(),
+            )
+            for name, matrix in matrices.items()
+        ],
+        artificial_fixes_vs_coba=sum(
+            not a and c for a, c in zip(baseline, artificial, strict=True)
+        ),
+        artificial_breaks_vs_coba=sum(
+            a and not c for a, c in zip(baseline, artificial, strict=True)
+        ),
+        tied_scores=sum(int(row["top_score_tied"]) for row in rows),
+    )
+
+
+def validate_classification(computed):
+    """Check all paired predictions, calibration moments and native start weights."""
+    cfg = computed.record["execution"]["configuration"]
+    pin = computed.record["inputs"]["bank"]
+    bank = source_run(
+        ROOT / ".pingstore",
+        pin["run_id"],
+        stage="compute",
+        experiment="exp022",
+        reference=pin,
+    )
+    selection = json.loads(computed.file("selection.json").read_text())
+    with computed.file("predictions.csv").open() as handle:
+        rows = list(csv.DictReader(handle))
+    results = classification_summary(rows, selection)
+    if (
+        np.bincount([s["label"] for s in selection], minlength=10).tolist()
+        != [cfg["classification_images_per_digit"]] * 10
+    ):
+        raise ValueError("Classification sample is not balanced")
+    _, _, _, test_labels = load_dataset(
+        "mnist", split=True, evaluation_only=True, evaluation_split="test"
+    )
+    rng = np.random.default_rng(cfg["classification_selection_seed"])
+    expected_indices = np.concatenate(
+        [
+            rng.choice(
+                np.flatnonzero(test_labels == digit),
+                cfg["classification_images_per_digit"],
+                replace=False,
+            )
+            for digit in range(10)
+        ]
+    )
+    if expected_indices.tolist() != [s["index"] for s in selection]:
+        raise ValueError("Selection does not match recorded sampling protocol")
+    for item in selection:
+        if (
+            int(test_labels[item["index"]]) != item["label"]
+            or item["encoding_seed"]
+            != cfg["classification_encoding_seed"] + item["index"]
+            or item["artificial_seed"] != cfg["artificial_seed"] + item["index"]
+        ):
+            raise ValueError("Selected label or seed differs from protocol")
+    with np.load(computed.file("calibration-moments.npz")) as z:
+        moments = z["moments"].copy()
+    if (
+        moments.shape != (len(selection), 6, cfg["n_e"])
+        or not np.isfinite(moments).all()
+        or not (moments > 0).all()
+    ):
+        raise ValueError("Invalid calibration moments")
+    mean_errors = np.max(np.abs(moments[:, 2] / moments[:, 0] - 1), axis=1)
+    sd_errors = np.max(np.abs(moments[:, 3] / moments[:, 1] - 1), axis=1)
+    if (mean_errors >= cfg["mean_relative_tolerance"]).any() or (
+        sd_errors >= cfg["std_relative_tolerance"]
+    ).any():
+        raise ValueError("Classification conductance moments do not match")
+    checks = json.loads(computed.file("calibration.json").read_text())
+    if len(checks) != len(selection) or not all(check["passed"] for check in checks):
+        raise ValueError("Calibration checks incomplete or failed")
+    np.testing.assert_allclose(
+        [c["max_mean_relative_error"] for c in checks], mean_errors
+    )
+    np.testing.assert_allclose([c["max_sd_relative_error"] for c in checks], sd_errors)
+    originals = {}
+    for kind, checkpoint in cfg["checkpoint_pins"].items():
+        path = bank.file(cfg[kind + "_cell"], checkpoint["filename"])
+        if (
+            checkpoint["role"] != cfg["checkpoint_role"]
+            or file_sha256(path) != checkpoint["sha256"]
+        ):
+            raise ValueError("Classification checkpoint mismatch")
+        originals[kind] = torch.load(path, map_location="cpu", weights_only=True)
+    mapping = {
+        "input_to_E.weight": "W_ff.0",
+        "E_to_I.weight": "W_ei.1",
+        "I_to_E.weight": "W_ie.1",
+        "readout_projection.weight": "W_ff.1",
+    }
+    for number in range(len(selection)):
+        for suffix in ("coba", "ping", "artificial"):
+            snapshot = NetworkSnapshot.read(
+                computed.unit("snapshots", f"{number:03d}-{suffix}", "start"),
+                parameters=True,
+            )
+            weights = snapshot.load_parameters()
+            original = originals["ping" if suffix == "ping" else "coba"]
+            for name, key in mapping.items():
+                np.testing.assert_array_equal(
+                    np.asarray(weights[name]), original[key].clamp(min=0).numpy()
+                )
+            expected = (
+                np.diag(moments[number, 4].astype(np.float32))
+                if suffix == "artificial"
+                else np.zeros((cfg["n_e"], cfg["n_e"]))
+            )
+            np.testing.assert_array_equal(
+                np.asarray(weights["artificial_to_E.weight"]), expected
+            )
+    if not all(
+        r["per_neuron_counts_exact"] and r["spike_bin_agreement"] > 0.9999
+        for r in cfg["replay"].values()
+    ):
+        raise ValueError("Native classification replay failed")
+    results.update(
+        configuration=cfg,
+        checks=dict(
+            frozen_checkpoint_parameters_exact=True,
+            paired_sensory_input_identical=True,
+            calibration_passes=len(checks),
+            snapshots_checked=3 * len(selection),
+            max_mean_relative_error=float(mean_errors.max()),
+            max_sd_relative_error=float(sd_errors.max()),
+        ),
+        timing={
+            key: computed.record["execution"][key]
+            for key in (
+                "elapsed_seconds",
+                "simulation_seconds",
+                "calibration_seconds",
+                "inference_seconds",
+            )
+        },
+        limitations="One seed and one encoder draw per image; no burn-in or retraining. Artificial inhibition uses same-image PING conductance targets, not a fixed standalone generator. This comparison does not isolate synchrony.",
+    )
+    bank.check_unchanged()
+    return results
+
+
+def analyse(identity, *, classification_source=None, run_id=None):
     started = perf_counter()
     computed = source_run(
         ROOT / ".pingstore", identity, experiment=recipe.SLUG, stage="compute"
     )
     results = validate(computed)
+    inputs = {"compute": computed}
+    if classification_source:
+        classified = source_run(
+            ROOT / ".pingstore",
+            classification_source,
+            experiment=recipe.SLUG,
+            stage="compute",
+            phase="classification",
+        )
+        if classified.record["inputs"]["bank"] != computed.record["inputs"]["bank"]:
+            raise ValueError("Raster and classification bank pins differ")
+        results["classification"] = validate_classification(classified)
+        inputs["classification"] = classified
     with stage_run(
         ROOT,
         recipe.SLUG,
         "analyse",
-        inputs={"compute": computed},
+        inputs=inputs,
         configuration={
             "measurement": "full 200-ms per-cell moments and raw spike events"
         },
@@ -175,7 +382,8 @@ def analyse(identity, *, run_id=None):
         run.record["execution"].update(
             no_simulation=True, elapsed_seconds=perf_counter() - started
         )
-        computed.check_unchanged()
+        for source in inputs.values():
+            source.check_unchanged()
     print(run.run_id, flush=True)
     return run.run_id
 
@@ -183,6 +391,14 @@ def analyse(identity, *, run_id=None):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source", required=True)
+    parser.add_argument(
+        "--classification-source",
+        help="Explicit classification compute run to combine with the raster evidence",
+    )
     parser.add_argument("--run-id")
     args = parser.parse_args()
-    analyse(args.source, run_id=args.run_id)
+    analyse(
+        args.source,
+        classification_source=args.classification_source,
+        run_id=args.run_id,
+    )

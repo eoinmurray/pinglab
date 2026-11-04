@@ -1,0 +1,20 @@
+---
+import Table from '../../../site/src/components/Table.astro';
+import { reportData, round } from '../../../site/src/lib/report-data';
+const data = await reportData('exp169', { allowUnavailable: true });
+const result = data?.classification;
+const rows = result ? result.conditions.map(condition => [
+  condition.name,
+  `${condition.correct}/${condition.total}`,
+  `${round(100 * condition.accuracy, 1)}%`,
+]) : [['Classification evidence', 'Unavailable', 'Unavailable']];
+---
+<Table headers={['Condition', 'Correct / tested', 'Accuracy']} rows={rows} number={1} id="classification-accuracy" label="Small MNIST classification test">
+  The same balanced set of 100 official MNIST test images (10 per digit) and
+  identical sensory spikes across conditions. Each trial lasts 200 ms, with no
+  burn-in; original network and readout weights remain frozen. Decisions use the
+  largest full-trial mean pre-reset readout voltage. Artificial inhibition is
+  calibrated separately against PING's conductance for each test image, without
+  labels or classifier responses. One network seed and one encoder draw per image;
+  this is an image-conditioned diagnostic, not a fixed standalone inhibition generator.
+</Table>

@@ -30,3 +30,26 @@ moments does not match voltage-dependent inhibitory current or isolate synchrony
 The native baseline preserves every original E spike count; 20 spike timings
 shift relative to the legacy recording. Original failed calibration/replay
 attempts remain historical scratch provenance and are not passed results.
+
+
+## Small classification test
+
+1. `uv run python experiments/exp169/compute.py --classification` explicitly
+   evaluates 100 official MNIST test images (10 per digit) under COBA, PING and
+   image-conditioned artificial inhibition. The same sensory encoding is used
+   across all three, with frozen original readouts, 200-ms trials and no burn-in.
+   This is a separate `classification` compute phase; expect about five minutes
+   on one local CPU thread and less than 1 GB of retained evidence.
+2. `uv run python experiments/exp169/analyse.py --source RASTER_COMPUTE_ID --classification-source CLASSIFICATION_COMPUTE_ID`
+   validates the raster and all 300 classification decisions/start snapshots,
+   checks conductance calibration, and combines both evidence branches.
+3. `uv run python experiments/exp169/present.py --source COMBINED_ANALYSIS_ID`
+   renders the existing figures and exposes classification accuracy through the
+   same report runset. Reports never hard-code run IDs or accuracy values.
+
+Classification selects the largest mean pre-reset readout voltage. Artificial
+inputs are calibrated separately against PING on the same test image, without
+labels or classifier scores. This diagnoses the intervention rather than a
+standalone classifier with a fixed inhibition generator. Full conductance traces
+are transient; predictions, per-cell calibration moments and native start
+snapshots are retained. No scratch imports are used.

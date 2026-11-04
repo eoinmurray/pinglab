@@ -18,6 +18,12 @@ def configuration():
         artificial_seed=302211,
         seed=42,
         checkpoint_role="final_epoch",
+        classification_images_per_digit=10,
+        classification_selection_seed=42,
+        classification_encoding_seed=402211,
+        classification_burn_in_ms=0.0,
+        classification_input_rate_hz=25.0,
+        classification_retention="Expected <1 GB and <650 files: 302 native start snapshots, one bundle/diagram, compact predictions and calibration moments; full trial traces are transient",
         mean_relative_tolerance=0.001,
         std_relative_tolerance=0.03,
         calibration_probability_bounds=[0.001, 0.15],
@@ -48,7 +54,7 @@ def configuration():
     )
 
 
-def author_network(cfg, *, include_private=True):
+def author_network(cfg, *, include_private=True, record_ping=False):
     net = lang.Network("TR02_artificial_inhibition", dt=cfg["dt_ms"] * lang.ms)
     drive = net.input(
         "drive",
@@ -119,7 +125,7 @@ def author_network(cfg, *, include_private=True):
         recurrent=True,
         delay=cfg["dt_ms"],
     )
-    connect(
+    inhibitory = connect(
         pops["I"].spikes,
         pops["E"].inhibitory,
         "I_to_E",
@@ -128,6 +134,8 @@ def author_network(cfg, *, include_private=True):
         True,
         cfg["dt_ms"],
     )
+    if record_ping:
+        net.output("g_ping", inhibitory.conductance)
     if include_private:
         private = connect(
             artificial,
