@@ -4,7 +4,7 @@ author: Eoin Murray
 collection: notes
 description: Experiment scope, layout, configuration and native evidence.
 created_at: "2026-10-14"
-updated_at: "2026-11-03T15:07:33Z"
+updated_at: "2026-11-04T12:29:22Z"
 ---
 
 # Experiment Rules
@@ -44,6 +44,22 @@ updated_at: "2026-11-03T15:07:33Z"
    `.scratch/<project>/data/`. Each run overwrites its previous generated data;
    do not accumulate dated or numbered run directories. This disposable scratch
    workflow is exempt from Pingstore run storage requirements.
+
+## Plotting
+
+1. Use `experiments/theme.py` for all scientific plots. Call `theme.apply()` before
+   plotting. Reuse its colour and typography tokens and panel-label helpers; do
+   not duplicate house-style definitions.
+2. Use `INK_BLACK` for the first/control series and `DEEP_RED` for the
+   second/contrast series. Use additional theme colours only when more series
+   require them.
+3. For spike rasters, place inhibitory populations (**I**, `DEEP_RED`) above
+   excitatory populations (**E**, `INK_BLACK`). Draw individual spikes as dots,
+   not ticks.
+4. Label axes with quantities and units; identify populations and comparison
+   conditions unambiguously. Use the shared helpers for panel letters.
+5. For manuscript figures, call `theme.set_paper_mode(True)` before `theme.apply()`
+   and figure creation.
 
 ## Identity and dependencies
 

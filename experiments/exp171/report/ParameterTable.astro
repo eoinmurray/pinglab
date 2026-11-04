@@ -1,0 +1,90 @@
+---
+import Table from '../../../site/src/components/Table.astro';
+import { reportSnapshots } from '../../../site/src/lib/report-data';
+import { formatTableNumber as n } from '../../../site/src/lib/table-number';
+const evidence = await reportSnapshots('exp171', { snapshots: {
+  coba: 'initial/start/snapshot.json', teacher: 'teacher/start/snapshot.json',
+}, computeInput: 'compute', allowUnavailable: true });
+const cfg = evidence?.configuration;
+const coba = evidence?.snapshots.coba?.network;
+const teacher = evidence?.snapshots.teacher?.network;
+const symbols = { E: 'E', I: 'I', readout: 'R', drive: 'X', artificial: 'U' };
+const math = id => ({ math: symbols[id] });
+const sources = net => [...net.populations.map(p => ({ id: p.id, size: p.size, description: p.neuron.kind })),
+  ...net.inputs.map(p => ({ id: p.id, size: p.shape.at(-1), description: 'external input channels' }))];
+const populations = coba ? sources(coba) : [];
+const pop = id => coba.populations.find(p => p.id === id);
+const groups = coba && teacher && cfg ? [
+  { label: 'Simulation', rows: [
+    ['Integration timestep', `${n(coba.timebase.dt.value)} ms`],
+    ['Execution device', String(evidence.snapshots.coba.execution.device_resolved)],
+    ['Float32 matmul precision', cfg.precision === undefined ? 'Not recorded' : String(cfg.precision)],
+    ['Presentation / measurement window', `${n(cfg.duration_ms)} ms; no burn-in`],
+    ['Source checkpoint / selection seeds', `${String(cfg.seed)} / ${String(cfg.selection_seed)}`],
+    ['Sensory / calibration seeds', `${String(cfg.sensory_seed)} / ${String(cfg.calibration_seed)}`],
+    ['Shuffle / training / validation seeds', `${String(cfg.shuffle_seed)} / ${String(cfg.training_seed)} / ${String(cfg.validation_seed)}`],
+  ] },
+  { label: 'Populations', rows: populations.map(p => [math(p.id), `${n(p.size)} ${p.description}`]) },
+  { label: 'Neuron dynamics', rows: [
+    ['E / I membrane time constant', `${n(pop('E').neuron.tau_mem.value)} / ${n(pop('I').neuron.tau_mem.value)} ms`],
+    ['E / I refractory period', `${n(pop('E').neuron.refractory.value)} / ${n(pop('I').neuron.refractory.value)} ms`],
+    ['Readout time constant', `${n(pop('readout').neuron.tau.value)} ms`],
+  ] },
+  { label: 'Input and manipulation', rows: [
+    ['Sensory peak event rate', `${n(cfg.input_rate_hz)} Hz/channel`],
+    ['Artificial input', 'Per-image fixed probabilities and amplitudes; independent fresh training draws'],
+    ['GABA decay / delivery delay', `${n(cfg.tau_gaba_ms)} / ${n(cfg.dt_ms)} ms`],
+    ['Inhibition-only prehistory', `${n(cfg.inhibition_prehistory_ms ?? 0)} ms`],
+  ] },
+  { label: 'Training and readout', rows: [
+    ['Training / validation images', `${n(10*cfg.train_per_digit)} / ${n(10*cfg.validation_per_digit)}`],
+    ['Epochs / batch size / validation draws', `${n(cfg.epochs)} / ${n(cfg.batch_size)} / ${n(cfg.validation_draws)}`],
+    ['AdamW learning rate / weight decay', `${n(cfg.lr)} / ${n(cfg.weight_decay)}`],
+    ['Gradient norm ceiling / rate penalty', `${n(cfg.grad_clip)} / ${n(cfg.rate_penalty)}`],
+    ['Decision', 'Largest trial-mean pre-reset readout voltage'],
+  ] },
+] : [];
+const matrices = [coba, teacher].filter(Boolean).map((net, index) => {
+  const all = sources(net); const targets = net.populations;
+  const endpoint = value => value.split('.')[0];
+  const nominal = p => {
+    if (p.id === 'artificial_to_E') return { math: `${n(1/cfg.n_e)};\\quad ${n(1)}\\,\\mathrm{\\mu S}` };
+    if (!index && ['E_to_I','I_to_E'].includes(p.id)) return `${n(100)}% eligible; ${n(0)} µS`;
+    const sub = { input_to_E: 'EX', readout_projection: 'RE', E_to_I: 'IE', I_to_E: 'EI' }[p.id];
+    return { math: `${n(100)}\\%;\\quad W^{${index ? 'P' : 'C'}}_{${sub},ji}\\,\\mathrm{\\mu S}` };
+  };
+  return { headers: ['Source ↓ / target →', ...targets.map(p => math(p.id))],
+    rows: all.map(source => [math(source.id), ...targets.map(target => {
+      const projection = net.projections.find(p => endpoint(p.source) === source.id && endpoint(p.target) === target.id);
+      return projection ? nominal(projection) : 'Absent';
+    })]), label: index ? 'Frozen PING teacher connectivity' : 'Initial COBA connectivity' };
+});
+---
+{coba && teacher && cfg ? <>
+<Table headers={['Parameter','Recorded pilot setting']} groups={groups} number="B1" id="parameters" label="Native dynamics and recorded protocol">
+  E and I are excitatory and inhibitory neurons, R the readout, X sensory input,
+  and U private artificial input. Both networks share E, I, R and X sizes and
+  dynamics; only COBA has U. I is present but silent in COBA. Settings come from
+  selected native snapshots and recorded compute configuration. Seeds are exact
+  identifiers. Numeric quantities use two significant figures.
+  {cfg.inhibition_prehistory_steps > 0 ? <>Only private inhibitory conductance and
+  pending events carry over from the recorded prehistory. Neurons and readout
+  start fresh; the entire presentation remains scored.</> : <>This displayed run
+  used zero initial artificial conductance and predates the recipe's correction
+  to establish private inhibition before image onset. The corrected protocol has
+  not been evaluated by these results.</>}
+</Table>
+{matrices.map((matrix, index) => <Table headers={matrix.headers} rows={matrix.rows} rowHeaders number={`B${index+2}`} label={matrix.label}>
+  Rows are sources and columns targets. Cells give eligible-pair density and
+  nominal per-connection weight in µS. W denotes the saved learned checkpoint
+  entry, not a new random initializer; C and P identify COBA and PING. Subscripts
+  list recipient then source; j and i index recipients and sources. Eligible
+  density does not imply every learned entry is nonzero. The private U→E matrix
+  has one nonzero entry per recipient, with density 1/N_E; N_E is the native E
+  size. Its fixed weight is 1 µS, and input events carry each image's calibrated
+  amplitude divided by 1 µS. Thus effective increments remain the calibrated
+  q_j in µS. COBA sensory and readout weights subsequently train; feedback and
+  private projection stay frozen. Zero-weight pathways remain present.
+</Table>)}
+
+</> : <p>Native parameter evidence is unavailable.</p>}

@@ -1,0 +1,5 @@
+---
+import { reportData, round } from '../../../site/src/lib/report-data';
+const data = await reportData('exp171', { allowUnavailable: true });
+---
+{data ? <p>We fine-tuned a trained, unpenalised TR02 COBA classifier while supplying private artificial GABA input calibrated against frozen PING. After {data.update_count} updates on {data.train_images} images, validation accuracy changed from {round(data.history[0].accuracy_pct, 1)}% to {round(data.history.at(-1).accuracy_pct, 1)}%, and cross-entropy from {round(data.history[0].cross_entropy, 3)} to {round(data.history.at(-1).cross_entropy, 3)}. The lowest validation loss occurred at epoch {data.best_epoch}. The prespecified pilot criterion was {data.promising ? 'met' : 'not met'}. This single-seed adaptation pilot uses image-conditioned inhibition and the original validation partition; it does not establish training from scratch or independent test performance.</p> : <p>No completed evidence is selected.</p>}

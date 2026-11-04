@@ -3,7 +3,7 @@ id: exp169
 title: "COBA with Artificial Inhibition"
 author: "Eoin Murray"
 created_at: "2026-11-03T13:36:19Z"
-updated_at: "2026-11-04T10:25:43Z"
+updated_at: "2026-11-04T15:52:30Z"
 description: "A single-image TR02 control matching PING conductance moments with private inhibitory event streams."
 collection: ["experiments"]
 tags: ["data", "v0.31.0"]
@@ -12,33 +12,32 @@ thumbnail: rasters.png
 ---
 
 import RunFigure from '../../../site/src/components/RunFigure.astro';
-import ClassificationTable from './ClassificationTable.astro';
-import { reportData, round } from '../../../site/src/lib/report-data';
-export const data = await reportData('exp169', { allowUnavailable: true });
+import EvidenceSummary from './EvidenceSummary.astro';
 
 ## Abstract
 
-{data ? <p>We inherited trained COBA and PING classifiers and kept their weights fixed. We measured the strength and variability of the inhibition received by excitatory (E) neurons in PING, then built artificial GABA inputs matching those properties and delivered them asynchronously to COBA. For the same digit image, mean E firing fell from {round(data.conditions[0].rate_e_hz, 1)} to {round(data.conditions[2].rate_e_hz, 1)} Hz—about {round(100*(1-data.conditions[2].rate_e_hz/data.conditions[0].rate_e_hz), 0)}% suppression. This single-image result shows that matched asynchronous inhibition can almost eliminate COBA's excitatory activity, although the artificial event rate differed from PING's. A separate small classification test is reported below.</p> : <p>No completed evidence is selected.</p>}
+<EvidenceSummary section="abstract" />
 
 ## Results
+
+<EvidenceSummary section="onset" />
 
 <RunFigure report="exp169" experiment="exp169" file="rasters.svg" number={1} id="fig-rasters" alt="COBA, PING and frozen COBA receiving private GABA inputs, with every excitatory neuron shown." allowUnavailable={true}>
   COBA, PING and COBA with private GABA inputs (top to bottom), for identical
   200-ms digit-0 input (unpenalised TR02, seed 42). Black: E spikes; red: I spikes
   or artificial events. Private 6-ms GABA inputs match per-cell PING conductance
-  mean and SD; COBA weights remain fixed. One illustrative realization;
+  mean and SD over the full displayed trial. A 60-ms inhibition-only prehistory
+  supplies initial private conductance and pending events; neurons, sensory
+  synapses and readout start fresh at 0 ms. No scored interval is discarded.
+  COBA weights remain fixed. One illustrative realization;
   synchrony is not isolated. Input construction: Methods.
 </RunFigure>
-
-{data?.classification ? <p>In a small balanced MNIST test, the original COBA and PING classifiers correctly labelled {data.classification.conditions[0].correct} and {data.classification.conditions[1].correct} of {data.classification.sample_count} images; adding image-conditioned artificial inhibition to frozen COBA reduced this to {data.classification.conditions[2].correct}. Table 1 reports the paired comparison.</p> : <p>Classification evidence is unavailable.</p>}
-
-<ClassificationTable />
 
 ## Methods
 
 These equations summarize the implemented discrete-time procedure for Figure 1's
 third panel. Index $j$ labels an E neuron and its private input; $n$ labels one of
-$T$ time bins. Bars and $\operatorname{sd}$ denote the temporal mean and standard
+$T$ scored time bins. Private events also have $H=600$ prehistory bins (60 ms), indexed $-H$ through $-1$. Bars and $\operatorname{sd}$ denote the temporal mean and standard
 deviation over the displayed trial, using divisor $T$.
 
 1. **Measure the PING target.** For its recorded GABA conductance $g^{P}_{j,n}$, set
@@ -61,7 +60,7 @@ deviation over the displayed trial, using divisor $T$.
    s_{j,n}=\mathbf 1[u_{j,n}<p_j]. \tag{2}
    $$
 
-   The draws $u_{j,n}$ are initially independent; $p_j$ is the per-bin event
+   Generate these events from $n=-H$ through $T-1$. The draws $u_{j,n}$ are initially independent; $p_j$ is the per-bin event
    probability (fitted in step 4), $s_{j,n}$ is a binary event, and $\mathbf 1$ is the indicator.
 
 3. **Apply the GABA filter.** Form the unit-amplitude conductance trace $h_{j,n}$:
@@ -73,8 +72,12 @@ deviation over the displayed trial, using divisor $T$.
    $$
 
    Here $\Delta t$ is the simulation timestep and $\tau_{GABA}$ the reference GABA
-   decay time taken from the PING simulation. Set $h_{j,-1}=s_{j,-1}=0$; the event index implements one timestep
-   of delay.
+   decay time taken from the PING simulation. Set $h_{j,-H-1}=s_{j,-H-1}=0$ and filter the inhibitory prehistory;
+   the event index implements one timestep of delay. At image onset, carry
+   only $q_jh_{j,-1}$ and the pending event $s_{j,-1}$ into the native runtime.
+   Initialise neuronal voltages, refractory state, sensory conductance and
+   readout afresh. No neuron evolves during the prehistory, and the score
+   reduction starts at zero. Thus all 200 ms remain scored.
 
 4. **Match both moments.** Adjust $p_j$ to match the coefficient of variation, then scale:
 
@@ -87,7 +90,7 @@ deviation over the displayed trial, using divisor $T$.
    g^{A}_{j,n}=q_jh_{j,n}. \tag{4}
    $$
 
-   The positive increment $q_j$ is in µS; $g^A$ is artificial conductance. Resample
+   Compute both moments over $n=0,\ldots,T-1$, excluding inhibitory prehistory. The positive increment $q_j$ is in µS; $g^A$ is artificial conductance. Resample
    a private stream when necessary to reach 1% SD error. No E response is used.
 
 5. **Deliver inhibition to frozen COBA.** Each stream reaches only its paired E neuron:
@@ -103,22 +106,3 @@ deviation over the displayed trial, using divisor $T$.
    membrane voltage and $E_{\mathrm{GABA}}$ the GABA reversal potential. With
    conductance in µS and voltage in mV, current is in nA. Sensory spikes and
    original COBA weights remain unchanged; E activity cannot alter these inputs.
-
-
-6. **Check classification on 100 test images.** Select 10 images per digit from
-   the official MNIST test partition using selection seed 42. Encode pixels at a
-   maximum rate of 25 Hz/channel, using seed 402211 plus the original test index;
-   reuse exactly the same sensory spikes for all three conditions. Reset network
-   state before each 200-ms trial, retaining zero initial conductance and no
-   burn-in. Use each original network's frozen final-epoch checkpoint and readout;
-   the artificial-input condition uses the same COBA weights as the baseline.
-   For each image, first run PING and fit private inputs to its per-E conductance
-   mean and SD using steps 1–4, with artificial seed 302211 plus the test index.
-   Apply those inputs to COBA. Choose the digit with the largest full-trial mean
-   pre-reset readout voltage; labels are used for balanced sampling and scoring,
-   never for conductance calibration or parameter fitting. Verify frozen weights,
-   native replay, and realised conductance matching. No retraining or test-based
-   selection is performed. Because calibration needs PING's response to the same
-   image, this is an image-conditioned intervention rather than a standalone
-   artificial-inhibition classifier; one seed and one encoder draw per image do
-   not establish broad generalisation or isolate synchrony.

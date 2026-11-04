@@ -1,12 +1,23 @@
 """Frozen TR02 COBA with private, moment-matched GABA event streams."""
 
+import math
+
 from snnlab import lang
 
 SLUG = "exp169"
 
 
-def configuration():
+def configuration(*, prehistory_ms=60.0):
+    if (
+        not math.isfinite(prehistory_ms)
+        or prehistory_ms < 0
+        or not math.isclose(
+            round(prehistory_ms / 0.1), prehistory_ms / 0.1, abs_tol=1e-9
+        )
+    ):
+        raise ValueError("Prehistory must be a nonnegative multiple of 0.1 ms")
     return dict(
+        prehistory_ms=float(prehistory_ms),
         source_run="exp022-r015-compute",
         source_digest="sha256:a542a714021fd7bb69c5d08ccf006763f19ce83b01d8ecdca86dba150118491d",
         coba_cell="coba__off__seed42",
@@ -18,12 +29,6 @@ def configuration():
         artificial_seed=302211,
         seed=42,
         checkpoint_role="final_epoch",
-        classification_images_per_digit=10,
-        classification_selection_seed=42,
-        classification_encoding_seed=402211,
-        classification_burn_in_ms=0.0,
-        classification_input_rate_hz=25.0,
-        classification_retention="Expected <1 GB and <650 files: 302 native start snapshots, one bundle/diagram, compact predictions and calibration moments; full trial traces are transient",
         mean_relative_tolerance=0.001,
         std_relative_tolerance=0.03,
         calibration_probability_bounds=[0.001, 0.15],
@@ -48,7 +53,7 @@ def configuration():
         readout_tau_ms=2.0,
         readout_threshold=1.0,
         surrogate_slope=1.0,
-        calibration="Independent Bernoulli-discretized Poisson streams; per-cell event probability and positive weight calibrated; independent stream draws resampled when needed to reach 1% temporal-SD error; fitted to full 200-ms PING temporal moments; zero initial conductance; one-step delivery delay",
+        calibration="Independent Bernoulli-discretized Poisson streams; per-cell event probability and positive weight calibrated over scored 200 ms after inhibition-only prehistory; independent stream draws resampled when needed to reach 1% temporal-SD error; carry only private GABA conductance and pending events into fresh neuronal state; one-step delivery delay",
         training="none; all original checkpoint parameters frozen",
         retention="native bundle, diagram, start snapshots, 200-ms recordings and calibration; expected <80 MB",
     )

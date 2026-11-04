@@ -38,8 +38,8 @@ def raster_figure(rows, cfg):
             ax.scatter(
                 t * cfg["dt_ms"],
                 c + offset,
-                marker="|",
-                s=9,
+                marker=".",
+                s=3,
                 color=colour,
                 linewidths=0.8,
                 rasterized=True,
@@ -155,6 +155,7 @@ def present(identity, *, run_id=None):
         run_id=run_id,
     ) as run:
         with matplotlib.rc_context():
+            theme.set_paper_mode(True)
             theme.apply()
             fig = raster_figure(rows, cfg)
             for ext in ("png", "svg"):

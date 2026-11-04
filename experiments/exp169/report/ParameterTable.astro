@@ -23,6 +23,7 @@ const groups = net && cfg && data ? [
     shared('Analysed duration', `${n(cfg.duration_ms)} ms`),
     shared('Checkpoint seed / epoch', `${String(cfg.seed)} / ${String(cfg.checkpoint.epoch)}`),
     ['Private event seed', 'Silent', String(cfg.artificial_seed)],
+    ['Inhibition-only prehistory', 'Silent', cfg.prehistory_ms == null ? '0 ms (historical)' : `${n(cfg.prehistory_ms)} ms`],
   ] },
   { label: 'Populations', rows: sources.map(p => shared(math(p.id), `${n(p.size)} ${p.description}`)) },
   { label: 'Neuron dynamics', rows: [

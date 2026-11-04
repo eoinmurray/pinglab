@@ -167,7 +167,7 @@ opens at `/notes/rules/compute`. The four rules guides' former flat and suffixed
 redirect to their current nested URLs, including in static deployments. Former
 `/notes/guides/` URLs redirect to the corresponding procedures under `/notes/rules/`.
 Notes and experiments both use `Report.astro`, including its byline, contents
-sidebar, article spacing, and annotations. Optional `abstract` frontmatter is
+sidebar and article spacing. Optional `abstract` frontmatter is
 supported for both; experiment IDs and Dataset footers require experiment metadata.
 The shared page layout declares each page's canonical URL on
 `https://pinglab.eoinmurray.info`, without a trailing slash (except the root),
@@ -177,8 +177,6 @@ GitHub Pages resolves these extensionless URLs. Use Astro preview for local
 static previews; Python's basic HTTP server does not resolve `/exp130` to
 `exp130.html`. Existing bookmarks ending in `/` need host redirects to remain
 compatible with the new file layout.
-Hypothes.is uses this identity to share article annotations between production
-and localhost. Local annotations therefore belong to the production article too.
 The homepage lists reports, notes, and slides with the same article previews.
 Report and note bylines show authored dates, collection links and (for experiments)
 the experiment ID. Listings show authored update dates beneath article titles;
@@ -343,10 +341,7 @@ count once in each; latest activity describes article edits, not experiment exec
 
 Source tags remain internal metadata for data availability
 and author-assigned review status. Citation previews appear on hover or keyboard focus; clicks still
-navigate to references. Report and note pages embed Hypothes.is with highlights visible
-and the sidebar closed by default. Readers can open it from the Hypothesis
-toolbar or by clicking a highlight. The homepage and collection pages do not
-load the annotation client. Interactive run selectors are absent.
+navigate to references. Interactive run selectors are absent.
 
 ## Papers
 

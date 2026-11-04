@@ -1,0 +1,63 @@
+---
+import Table from '../../../site/src/components/Table.astro';
+import { reportData, reportSnapshots } from '../../../site/src/lib/report-data';
+import { formatTableNumber as n } from '../../../site/src/lib/table-number';
+const data = await reportData('exp172', { allowUnavailable: true });
+const evidence = data ? await reportSnapshots('exp172', {
+  snapshots: { trial: `${data.selection.trial_id}/start/snapshot.json` },
+  computeInput: 'compute', allowUnavailable: true,
+}) : undefined;
+const net = evidence?.snapshots.trial?.network;
+const cfg = evidence?.configuration;
+const pop = id => net.populations.find(p => p.id === id);
+const symbols = Object.fromEntries(['A','B','C'].flatMap(c => ['E','I'].map(p => [`${c}_${p}`,`${p}_{${c}}`])));
+for (const c of ['A','B','C']) symbols[`X_${c}`] = `X_{${c}}`;
+for (const c of ['A','B']) symbols[`U_${c}`] = `U_{${c}}`;
+const math = id => ({ math: symbols[id] ?? id });
+const sources = net ? [...net.populations.map(p => ({ id:p.id,size:p.size,description:p.neuron.kind })),
+  ...net.inputs.map(p => ({ id:p.id,size:p.shape.at(-1),description:'external spike channels' }))] : [];
+const targets = sources.filter(p => net.populations.some(q => q.id === p.id));
+const groups = net && cfg && data ? [
+  { label:'Simulation',rows:[
+    ['Timestep / duration',`${n(net.timebase.dt.value)} / ${n(cfg.duration_ms)} ms`],
+    ['Cue switch',`${n(cfg.switch_ms)} ms`],
+    ['Input seed',String(data.selection.seed)],
+    ['Measurement windows',cfg.windows_ms.map(w => `${n(w[0])}–${n(w[1])} ms`).join('; ')],
+  ]},
+  { label:'Populations and inputs',rows:sources.map(p => [math(p.id),`${n(p.size)} ${p.description}`]) },
+  { label:'Neuron dynamics',rows:[
+    ['E / I membrane time constant',`${n(pop('A_E').neuron.tau_mem.value)} / ${n(pop('A_I').neuron.tau_mem.value)} ms`],
+    ['E / I refractory period',`${n(pop('A_E').neuron.refractory.value)} / ${n(pop('A_I').neuron.refractory.value)} ms`],
+    ['Rest / threshold / reset',`${n(cfg.network.resting_mv)} / ${n(cfg.network.threshold_mv)} / ${n(cfg.network.reset_mv)} mV`],
+  ]},
+  { label:'Inputs and intervention',rows:[
+    ['A/B sensory baseline / spatial mean',`${n(cfg.spatial_baseline_hz)} / ${n(cfg.spatial_mean_hz)} Hz/channel`],
+    ['C background',`${n(cfg.background_hz)} Hz/channel`],
+    ['Selected cue',`${n(data.selection.cue_hz)} Hz/channel; A then B`],
+    ['Sensory pattern centres / width',`${cfg.centres.map(value => n(value)).join(' / ')}; SD ${n(cfg.spatial_sigma)} (unit circle)`],
+    ['Sensory topographic mixture / width',`${n(100*cfg.sensory_topographic_fraction)}%; SD ${n(cfg.sensory_kernel_sigma)}`],
+    ['Feedforward width / incoming sum',`${n(cfg.cross_kernel_sigma*pop('C_E').size)} neurons; ${n(data.matrix_stats['A_E_to_C_E.weight'].incoming_mean_us)} µS per sender`],
+    ['Feedforward decay / delay',`${n(net.projections.find(p => p.id==='A_E_to_C_E').synapse.tau.value)} / ${n(net.projections.find(p => p.id==='A_E_to_C_E').delay.value)} ms`],
+    ['C recurrent / sender→C I mean incoming sum',`${n(data.matrix_stats['C_E_to_E.weight'].incoming_mean_us)} / ${n(data.matrix_stats['A_E_to_C_I.weight'].incoming_mean_us)} µS`],
+    ['C recurrent spatial width',cfg.c_ee_kernel_sigma === null ? 'No spatial recurrence' : `${n(cfg.c_ee_kernel_sigma*pop('C_E').size)} neurons (SD)`],
+    ['Spatial fitting window / step',`${n(data.selection.spatial_window_ms)} / ${n(data.selection.spatial_hop_ms)} ms`],
+  ]},
+] : [{ label:'Evidence',rows:[['Saved parameters','Unavailable']] }];
+const endpoint = value => value.split('.')[0];
+const matrix = net && data ? sources.map(source => [math(source.id), ...targets.map(target => {
+  const paths=net.projections.filter(p => endpoint(p.source)===source.id && endpoint(p.target)===target.id);
+  if (!paths.length) return 'Absent';
+  if (paths.length!==1) throw new Error('Ambiguous exp172 projection');
+  const projection=paths[0];
+  const stats=data.matrix_stats[`${projection.id}.weight`];
+  if (!stats) throw new Error('Missing executed weight evidence');
+  return stats.weight_max_us===0 ? `${n(100)}% eligible; ${n(0)} µS` :
+    {math:`${n(100)}\\%\\;\\mathrm{eligible};\\quad W^{\\mathrm{saved}}_{${symbols[target.id]},${symbols[source.id]}}\\,\\mathrm{\\mu S}`};
+})]) : [];
+---
+<Table headers={['Parameter','Spatial relay']} groups={groups} number="B1" id="parameters" label="Recorded spatial relay parameters">
+  E/I paired values apply to every circuit. Input and population identifiers remain exact. Settings and native evidence follow the same selected runset as Figures 1–4.
+</Table>
+<Table headers={['Source ↓ / target →',...targets.map(p => math(p.id))]} rows={matrix} rowHeaders number="B2" label="Executed source-to-target connectivity">
+  W saved denotes the corresponding retained conductance array, loaded over the compiled initializer, with source rows and target columns. All eligible pairs exist in the compiled dense projections, excluding intrapopulation self-connections where the native graph disallows autapses; zeros in these saved arrays implement the inherited masks and disabled pathways. Eligibility is not nonzero density. A/B cue projection gains are complementary, switching at the recorded cue-switch time. Absent means no projection exists. These frozen imported arrays have no newly sampled nominal initializer distribution; their masks and target heterogeneity are part of the pinned evidence. No new exclusion or random connectivity draw is imposed during migration.
+</Table>

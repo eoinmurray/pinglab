@@ -1,0 +1,44 @@
+---
+id: exp172
+title: "Spatial Gaussian Selective Relay"
+author: "Eoin Murray"
+created_at: "2026-11-04T17:24:22Z"
+updated_at: "2026-11-04T17:59:46Z"
+description: "A rate cue selects between competing spatial Gaussian patterns in an A/B → C spiking circuit."
+collection: ["experiments", "ctc-attention"]
+tags: ["data", "v0.31.0"]
+inputs: ["exp172"]
+thumbnail: rasters.png
+---
+
+import RunFigure from '../../../site/src/components/RunFigure.astro';
+import { reportData, round } from '../../../site/src/lib/report-data';
+export const data = await reportData('exp172', { allowUnavailable: true });
+export const cfg = data?.configuration;
+export const epochs = data?.metrics.epochs;
+
+## Abstract
+
+{data ? <p>Can a uniform rate cue select which of two spatial patterns a receiving spiking circuit represents? A and B receive different Gaussian sensory patterns and project through identical spatial weight matrices to C. Extra drive switches from A to B at {cfg.switch_ms} ms. At the selected cue of {data.selection.cue_hz} Hz/channel, the attended Gaussian fractions are {round(epochs[0].er, 3)} and {round(epochs[1].er, 3)}; direct source-to-C profile scores are {round(epochs[0].fidelity.copy_r_squared, 3)} and {round(epochs[1].fidelity.copy_r_squared, 3)}. Brief competing-pattern excursions remain. This tuned single-seed demonstration uses a cue and feedback setting selected on the displayed seed; it does not establish generalisation or isolate a causal communication-through-coherence mechanism.</p> : <p>No completed evidence is selected.</p>}
+
+## Results
+
+<RunFigure report="exp172" experiment="exp172" file="rasters.svg" number={1} id="fig-rasters" alt="A, B and C E/I spike rasters in one row." allowUnavailable={true}>
+  (A–C) All neurons in sender A, sender B and receiver C. Individual E spikes are black; I spikes are red above E. Dashed vertical lines mark the cue switch at {cfg ? cfg.switch_ms : 'unavailable'} ms; dotted lines bound the measurement windows. All figures use the same seed {data ? data.selection.seed : 'unavailable'}, spatial assignment and selected cue of {data ? data.selection.cue_hz : 'unavailable'} Hz/channel. No seed averaging or uncertainty intervals are shown.
+</RunFigure>
+
+<RunFigure report="exp172" experiment="exp172" file="profiles.svg" number={2} id="fig-profiles" alt="Excitatory and inhibitory spatial profiles for A, B and C, arranged in three rows and two columns." allowUnavailable={true}>
+  Rows show A, B and C; the left column shows E and the right I. Black is attend A and red attend B. Faint lines are raw rates; solid lines use two-neuron Gaussian smoothing. Dashed E curves are Gaussian fits; C's dotted and dash-dot curves show fitted A and B components plus background. Rates use the recorded {cfg ? cfg.windows_ms[0].join('–') : 'unavailable'} and {cfg ? cfg.windows_ms[1].join('–') : 'unavailable'} ms measurement windows. ER is the attended fitted Gaussian amplitude divided by the sum of both amplitudes; totals below 1 Hz are unresolved. Direct-copy R² compares eight-neuron source and C rate bins without fitting a gain, offset or shift.
+</RunFigure>
+
+<RunFigure report="exp172" experiment="exp172" file="selection.svg" number={3} id="fig-selection" alt="Gaussian templates, unwrapped phase differences and time-resolved C spatial amplitudes in one row." allowUnavailable={true}>
+  (A) Unit-peak sensory Gaussians and broadened fitting templates.
+  (B) Continuous sender-minus-C E-population phase differences in cycles: black A−C, red B−C. One cycle is one complete relative rotation. Phase is interpolated between E population-rate peaks after 1 ms Gaussian smoothing, with at least 15 ms peak spacing. No transmission-delay correction is applied.
+  (C) Nonnegative A-like and B-like Gaussian amplitudes fitted jointly with a uniform background in overlapping {data ? data.selection.spatial_window_ms : 'unavailable'} ms windows, stepped every {data ? data.selection.spatial_hop_ms : 'unavailable'} ms. Spatial resemblance does not identify causal input origin; temporal averaging blurs brief excursions. Dashed lines mark the cue switch; grey bands mark measurement windows. Overlapping fits are not independent observations.
+  {data?.stability_selection ? <span>The selected local-recurrence and inhibition setting reduces the worst-window competing-or-unresolved fraction from {round(100*data.stability_selection.baseline.worst_window_wrong_fraction, 1)}% to {round(100*data.metrics.stability.worst_window_wrong_fraction, 1)}%, assessed with separate 40 ms fits in the broader 250–1100 and 1450–2300 ms windows. Sustained-switch latency is {data.metrics.stability.switch_latency_ms} ms, using only wholly post-switch fits followed by 100 ms of B dominance. Selection considered 21 tested conditions and required ER ≥ 0.90 and direct-copy R² ≥ 0.85 in both original measurement windows. This is a selected single-seed comparison, not held-out validation; excursions remain.</span> : null}
+
+</RunFigure>
+
+<RunFigure report="exp172" experiment="exp172" file="weights.svg" number={4} id="fig-weights" alt="Executed A E to C E and B E to C E weight matrices in one row." allowUnavailable={true}>
+  (A–B) Executed A_E→C_E and B_E→C_E weights from the selected trial's native start snapshot. Rows are sources, columns targets; both share a linear µS colour scale. The Gaussian bands wrap around the circular spatial boundary. Snapshot arrays, rather than bundle initializers, define the executed weights.
+</RunFigure>

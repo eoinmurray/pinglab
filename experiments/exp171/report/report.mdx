@@ -1,0 +1,45 @@
+---
+id: exp171
+title: "Learning with Artificial Inhibition"
+author: "Eoin Murray"
+created_at: "2026-11-04T11:28:06Z"
+updated_at: "2026-11-04T17:19:08Z"
+description: "A small TR02 COBA fine-tuning pilot under private image-conditioned GABA input."
+collection: ["experiments"]
+tags: ["data", "v0.31.0"]
+inputs: ["exp171"]
+thumbnail: learning-curves.png
+---
+
+import RunFigure from '../../../site/src/components/RunFigure.astro';
+import EvidenceSummary from './EvidenceSummary.astro';
+
+## Abstract
+
+<EvidenceSummary />
+
+## Results
+
+<RunFigure report="exp171" experiment="exp171" file="learning-curves.svg" number={1} id="fig-learning" alt="Training and validation loss, validation accuracy and excitatory firing across fine-tuning epochs." allowUnavailable={true}>
+  Left: training and validation cross-entropy. Centre: validation accuracy. Right:
+  mean E firing. Epoch zero is the inhibited original checkpoint; each training
+  epoch contains ten updates; the final epoch follows the recorded configuration. Validation averages three fixed inhibitory draws
+  for each of 100 images. Sensory encodings are fixed per image; training inhibitory
+  events are redrawn each epoch from frozen fitted probabilities and amplitudes.
+  Trials last 200 ms with no burn-in. The final epoch is the primary comparison;
+  best-validation selection does not replace it. Curves show one seed without
+  independent-replication uncertainty. A negative short pilot is inconclusive.
+</RunFigure>
+
+<RunFigure report="exp171" experiment="exp171" file="raster.svg" number={2} id="fig-raster" alt="Private inhibitory input events above excitatory spikes for one validation digit at the best-validation checkpoint." allowUnavailable={true}>
+  Raster from the retained checkpoint with the lowest validation cross-entropy.
+  The first validation image is shown without selection by activity or correctness,
+  using the first of three fixed inhibitory draws. The full original validation
+  batch is replayed to preserve numerical agreement with saved scores and rates.
+  Red dots above: private artificial inhibitory events; black dots below: E spikes.
+  The biological I population is disabled and silent. Each trial scores all 200 ms;
+  only private conductance and pending events carry over from inhibitory
+  prehistory (recorded duration in Appendix B); neurons and readout start fresh. The title gives the checkpoint
+  epoch, true digit, prediction and E rate. One illustrative trial, not an
+  independent test-set result.
+</RunFigure>
