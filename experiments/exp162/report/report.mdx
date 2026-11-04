@@ -3,7 +3,7 @@ id: exp162
 title: "Spiking Competitive Entrainment"
 author: "Eoin Murray"
 created_at: "2026-10-31T09:58:16Z"
-updated_at: "2026-11-02T11:31:20Z"
+updated_at: "2026-11-03T16:03:39Z"
 description: "A spiking A/B → C prototype with cue-controlled switching of preferred phase locking."
 collection: ["experiments", "ctc-attention"]
 tags: ["data", "v0.31.0"]
@@ -19,63 +19,20 @@ export const epochs = data?.metrics.epochs;
 
 ## Abstract
 
-{data ? <p>We simulated one spiking A/B → C circuit with equal nominal sender strengths while redirecting a constant-rate spike-input cue from A to B at {cfg.switch_ms} ms. Sensory drives, receiver background and equal sender→C projection strengths remained fixed. Cued sender–C phase-locking values were {round(epochs[0].senders.A.plv, 3)} and {round(epochs[1].senders.B.plv, 3)} in the two epochs; uncued values were {round(epochs[0].senders.B.plv, 3)} and {round(epochs[1].senders.A.plv, 3)}. Fixed target-gain heterogeneity and sparse inputs replace the original homogeneous volleys; each circuit contains {cfg.network.populations.E.size} E and {cfg.network.populations.I.size} I cells. This is one tuned stochastic input realization. It demonstrates finite-time switching of preferred locking, without establishing preferential information transmission or robustness.</p> : <p>No completed evidence is selected.</p>}
-
-## Introduction
-
-Communication through coherence proposes that rhythmic timing regulates influence
-between neuronal populations ([Fries, 2015](https://doi.org/10.1016/j.neuron.2015.09.034)).
-This experiment implements the minimal mean-field competition prototype as a
-conductance-LIF spiking network. Independent sensory inputs drive two senders,
-which converge symmetrically on one receiver. A separate constant-rate cue spike
-train changes its delivery target; neither sensory drive nor anatomical connection
-strength changes at the switch.
+{data ? <p>Can an extra input change which of two sending circuits a receiving circuit follows? We simulated two senders, A and B, connected equally to receiver C. An extra input switched from A to B at {cfg.switch_ms} ms, while their sensory inputs and connections stayed fixed. C's rhythm followed the cued sender more closely: timing consistency on a scale from 0 to 1 was {round(epochs[0].senders.A.plv, 3)} before the switch and {round(epochs[1].senders.B.plv, 3)} afterward. This single tuned simulation shows a switch in rhythmic alignment; it does not show better information transfer or reliability across repeated trials.</p> : <p>No completed evidence is selected.</p>}
 
 ## Results
 
 <RunFigure report="exp162" experiment="exp162" file="competition.svg" number={1} id="fig-competition" alt="Spiking cue-switch trial showing population rates, sender–receiver phase differences, and incoming conductances against receiver inhibition." allowUnavailable={true}>
-  One {cfg ? cfg.duration_ms : 'unavailable'} ms spiking trajectory. A/B sensory
-  inputs stay at {cfg ? cfg.sensory_hz : 'unavailable'} Hz/channel, C background at
-  {cfg ? cfg.background_hz : 'unavailable'} Hz/channel and equal sender→C coupling
-  at {cfg ? cfg.coupling_us : 'unavailable'} µS onto C E; sender→C I execution gain is zero. One sampled constant-rate
-  {cfg ? cfg.cue_hz : 'unavailable'} Hz/channel cue train is shared identically at
-  both cue ports. Complementary delivery gains target A E before
-  {cfg ? cfg.switch_ms : 'unavailable'} ms and B E afterward, without resetting state.
-  (A) Population E spike rates, smoothed with a symmetric Gaussian of
-  {cfg ? cfg.rate_smoothing_ms : 'unavailable'} ms SD. Population volleys have incomplete E recruitment; instantaneous peak rates are not gamma
-  cycle frequencies. (B) Unwrapped sender-minus-C phase interpolated between E-rate
-  peaks, without resetting phase origins at the cue switch. Grey bands mark the
-  predeclared {cfg ? cfg.windows_ms[0].join('–') : 'unavailable'} and
-  {cfg ? cfg.windows_ms[1].join('–') : 'unavailable'} ms measurement windows.
-  The cued sender has bounded relative phase while the uncued sender's phase slips.
-  (C) A switch-centred close-up of native incoming A/B conductances onto C E and
-  C I→E conductance, averaged over recipient cells. Both excitatory traces share
-  one peak normalization; inhibition uses its own peak, so heights do not imply
-  equal absolute conductances. Amber shading marks the bottom quarter of C's
-  inhibitory conductance min–max range after 500 ms, a low-inhibition proxy rather
-  than measured response gain. The dashed line marks the cue switch. The selected coupling and background were chosen through exploratory iteration rather than independent validation trials. At fixed background, coupling comparisons share complete input trains; background changes alter X_C bins. Sender inputs and spikes stay unchanged.
+  (A) Excitatory firing rates, smoothed with a Gaussian of {cfg ? cfg.rate_smoothing_ms : 'unavailable'} ms standard deviation.
+  (B) Sender–receiver phase differences in cycles; flat traces indicate rhythmic alignment.
+  Grey bands mark the {cfg ? cfg.windows_ms[0].join('–') : 'unavailable'} and {cfg ? cfg.windows_ms[1].join('–') : 'unavailable'} ms measurement windows.
+  (C) Incoming excitation and inhibition onto C's excitatory cells. Excitatory traces share a peak scale; inhibition has its own.
+  Amber marks low inhibition, not measured responsiveness. Dashed lines mark the cue switch at {cfg ? cfg.switch_ms : 'unavailable'} ms.
 </RunFigure>
 
-<RunFigure report="exp162" experiment="exp162" file="rasters.svg" number={2} id="fig-rasters" alt="Full-population spike rasters with a separate row for every excitatory and inhibitory population." allowUnavailable={true}>
-  Every A, B and C E/I neuron over the full cue-switch trial in Figure 1. The dashed line marks the cue changing from A to B. Fixed input masks and target gains produce distinct spike trains; I cells remain tightly rhythmic.
-  Black marks are E spikes; red marks are I spikes. Each mark is one saved binary
-  spike event at its recorded time and neuron index, without smoothing, jitter
-  or neuron subsampling. These are the selected heterogeneous-network spikes, not extra replicates.
+<RunFigure report="exp162" experiment="exp162" file="rasters.svg" number={2} id="fig-rasters" alt="Full-population spike rasters with one panel per circuit, inhibitory neurons above excitatory neurons." allowUnavailable={true}>
+  All neurons in circuits A, B and C: excitatory spikes in black, inhibitory spikes in red above them.
+  Each mark is a recorded spike, with no smoothing, jitter or neuron subsampling.
+  The dashed line marks the cue switching from A to B.
 </RunFigure>
-
-## Discussion
-
-C follows the cued sender in both measured epochs while the uncued sender remains
-active and its relative phase slips. The original switching and rhythm criteria
-are unchanged. Sparse inputs, local E→I fan-in, lognormal excitatory target gains,
-weaker local E→I/I→I weights and a larger network change the recruitment pattern;
-this exploration does not isolate their individual causal contributions. Sender→C
-I projections remain present at zero execution gain. The native snapshots retain
-actual transformed matrices, authenticated against the pinned reference.
-
-{data?.rasters && <p>Across the measured epochs and three circuits, mean E participation per complete E-defined cycle ranges from {round(100*Math.min(...data.rasters.flatMap(r => ['A_E','B_E','C_E'].map(k => r.populations[k].mean_cycle_participation))),1)}% to {round(100*Math.max(...data.rasters.flatMap(r => ['A_E','B_E','C_E'].map(k => r.populations[k].mean_cycle_participation))),1)}%. I participation remains high; diverse trains do not imply an asynchronous state or biological realism.</p>}
-
-One selected realization does not establish robustness across input seeds or
-initial states. The cue changes sender rate and frequency together. No weak
-probes, preferential-transmission tests, rate-matched controls or classifier were
-run; finite windows do not establish asymptotic locking.

@@ -250,52 +250,45 @@ def render_rasters(computed, run):
         end_ms = cfg["duration_ms"]
         populations = [c + "_" + p for c in "ABC" for p in "EI"]
         with np.load(computed.file("spikes.npz"), allow_pickle=False) as data:
-            cases = [("Cue A → B", {key: data[key][:, 0, :] for key in populations})]
-        boundary = cfg["switch_ms"]
+            spikes = {key: data[key][:, 0, :] for key in populations}
         fig, axes = plt.subplots(
-            len(populations),
-            len(cases),
-            squeeze=False,
-            sharex=True,
-            sharey="row",
-            figsize=(13 if len(cases) == 2 else 11, 1.7 * len(populations) + 1),
-            layout="constrained",
+            3, 1, sharex=True, figsize=(11, 7), layout="constrained"
         )
-        for column, (title, spikes) in enumerate(cases):
-            if set(spikes) != set(populations):
-                raise ValueError("missing raster populations")
-            for row, key in enumerate(populations):
-                values = spikes[key]
+        for ax, circuit in zip(axes, "ABC", strict=True):
+            n_e = spikes[circuit + "_E"].shape[1]
+            n_i = spikes[circuit + "_I"].shape[1]
+            for population, offset, color in (
+                ("E", 0, theme.INK_BLACK),
+                ("I", n_e, theme.DEEP_RED),
+            ):
+                values = spikes[circuit + "_" + population]
                 if values.ndim != 2 or not np.isin(values, (0, 1)).all():
                     raise ValueError("invalid saved raster spikes")
                 times, neurons = np.nonzero(values)
                 times = times * dt
                 shown = times <= end_ms
-                ax = axes[row, column]
                 ax.scatter(
                     times[shown],
-                    neurons[shown] + 1,
+                    neurons[shown] + offset + 1,
                     marker="|",
-                    s=2.0,
-                    color=theme.INK_BLACK if key.endswith("E") else theme.DEEP_RED,
-                    linewidths=0.4,
+                    s=4,
+                    color=color,
+                    linewidths=0.45,
+                    rasterized=True,
                 )
-                ax.set(
-                    xlim=(0, end_ms),
-                    ylim=(0.5, values.shape[1] + 0.5),
-                    yticks=[1, values.shape[1]],
-                    ylabel=f"{key[0]} {key[-1]} neuron",
-                )
-                if boundary is not None:
-                    ax.axvline(boundary, color=theme.MUTED, ls="--", lw=1.0)
-                if row == 0:
-                    ax.set_title(title)
-                if row == len(populations) - 1:
-                    ax.set_xlabel("Time (ms)")
-        theme.label_panels(axes.flat)
+            ax.set(
+                xlim=(0, end_ms),
+                ylim=(0.5, n_e + n_i + 0.5),
+                yticks=[1, n_e, n_e + n_i],
+                ylabel=f"{circuit} neuron",
+            )
+            ax.axhline(n_e + 0.5, color=theme.GREY_LIGHT, lw=0.5)
+            ax.axvline(cfg["switch_ms"], color=theme.MUTED, ls="--", lw=1.0)
+        axes[-1].set_xlabel("Time (ms)")
+        theme.label_panels(axes)
         fig.suptitle(
-            "Full-population spike rasters · every E and I neuron",
-            fontsize=theme.SIZE_PANEL,
+            "Full-population spike rasters · E (black), I (red) above E",
+            fontsize=theme.SIZE_TITLE,
             fontweight="bold",
         )
         for extension in ("svg", "png"):
@@ -346,7 +339,7 @@ def present(*, source, run_id=None):
     return run.run_id
 
 
-def redraw_network(*, presentation, run_id=None):
+def redraw_network(*, presentation, run_id=None, rasters_only=False):
     started = perf_counter()
     previous = source_run(
         REPO / ".pingstore", presentation, experiment=recipe.SLUG, stage="present"
@@ -370,7 +363,8 @@ def redraw_network(*, presentation, run_id=None):
     ) as run:
         for path in previous.presentation.iterdir():
             shutil.copyfile(path, run.export / path.name)
-        render_network(sources["compute"], run)
+        if not rasters_only:
+            render_network(sources["compute"], run)
         render_rasters(sources["compute"], run)
         run.record["execution"]["elapsed_seconds"] = perf_counter() - started
         for item in [previous, *sources.values()]:
@@ -385,8 +379,19 @@ if __name__ == "__main__":
     selection.add_argument("--source")
     selection.add_argument("--redraw-from", dest="presentation")
     p.add_argument("--run-id")
+    p.add_argument(
+        "--rasters-only",
+        action="store_true",
+        help="Redraw only rasters with --redraw-from",
+    )
     args = p.parse_args()
+    if args.rasters_only and not args.presentation:
+        p.error("--rasters-only requires --redraw-from")
     if args.presentation:
-        redraw_network(presentation=args.presentation, run_id=args.run_id)
+        redraw_network(
+            presentation=args.presentation,
+            run_id=args.run_id,
+            rasters_only=args.rasters_only,
+        )
     else:
         present(source=args.source, run_id=args.run_id)

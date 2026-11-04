@@ -4,7 +4,7 @@ author: Eoin Murray
 collection: notes
 description: Current scientific runsets, validated storage, publication and inspected cleanup.
 created_at: "2026-09-11"
-updated_at: "2026-11-02T13:42:25Z"
+updated_at: "2026-11-03T15:07:33Z"
 ---
 
 # Pingstore Rules
@@ -12,6 +12,11 @@ updated_at: "2026-11-02T13:42:25Z"
 <a id="scientific-evidence"></a>
 
 ## Evidence
+
+Scratch projects under `.scratch/<project>/` use their own `data/` folder,
+overwritten on each run, instead of Pingstore. See
+[Experiment Rules](/notes/rules/experiment#file-layout). The requirements below
+apply to Pingstore runs; existing runs remain immutable.
 
 1. Code lives in Git; scientific runs live in `.pingstore/runs/` with verified R2
    backups at `r2:pinglab/pingstore/runs`. Completed run identities, payloads,

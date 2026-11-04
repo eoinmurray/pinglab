@@ -4,7 +4,7 @@ author: Eoin Murray
 collection: notes
 description: Experiment scope, layout, configuration and native evidence.
 created_at: "2026-10-14"
-updated_at: "2026-11-03T12:02:30Z"
+updated_at: "2026-11-03T15:07:33Z"
 ---
 
 # Experiment Rules
@@ -40,6 +40,10 @@ updated_at: "2026-11-03T12:02:30Z"
    in `dict(...)`. Validate explicit overrides before deriving dependent values;
    route CLI settings through it and record what execution actually uses. Explain
    scientific meaning, units and assumptions. `author_network(...)` compiles the bundle.
+4. Scratch projects in `.scratch/<project>/` save all generated data in
+   `.scratch/<project>/data/`. Each run overwrites its previous generated data;
+   do not accumulate dated or numbered run directories. This disposable scratch
+   workflow is exempt from Pingstore run storage requirements.
 
 ## Identity and dependencies
 
