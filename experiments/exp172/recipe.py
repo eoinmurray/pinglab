@@ -72,35 +72,21 @@ def configuration(**overrides):
         spatial_mean_hz=26.0,
         centres=[0.25, 0.75],
         minimum_total_amplitude_hz=1.0,
-        coupling_scale=1.0,
         sensory_topographic_fraction=0.5,
         cross_mapping="gaussian",
-        identity_gain_us=1.0,
         spatial_assignments=[False],
-        sender_gain_scale=1.0,
         c_gain_scale=0.25,
         c_ie_scale=1.31,
         c_ee_scale=0.05,
-        c_ei_scale=1.0,
         cross_total_us=0.7333333333333334,
         c_ee_kernel_sigma=0.025,
-        c_background_mixing="inherited",
         cross_tau_ms=0.75,
-        cross_e_to_i_us=0.0,
-        cross_i_delay_ms=2.0,
         fidelity_bin_neurons=8,
         representative_cue_hz=3.0,
         stability_search=dict(
-            recurrence_scales=[0.0, 0.1, 0.25, 0.5],
-            inhibition_scales=[1.25, 1.375, 1.5],
-            local_kernel_sigma=0.025,
-            cue_hz=3.0,
-            seeds=[185],
             windows_ms=[[250.0, 1100.0], [1450.0, 2300.0]],
             fit_window_ms=40.0,
             fit_hop_ms=5.0,
-            minimum_copy_R2=0.85,
-            minimum_ER=0.9,
             sustained_dominance_ms=100.0,
         ),
         input_encoding=(
@@ -116,6 +102,10 @@ def configuration(**overrides):
         source_run="exp162-r031-compute",
         source_digest="sha256:d81ac08e4c7aa2ec1ad923e36ec1f575714369d4a136b32abd284774b5a29035",
         source_snapshot_sha256="afcfcdd6b1773f06a8d429dd21600fa83afaa2085db32999cc0b3113bb8224fa",
+        selection_reference=dict(
+            run_id="exp172-r012-compute",
+            payload_digest="sha256:cb3c9be5f6d8c62fc28c242a21bdb2d7057f01be602de12a87b54bf1f361126d",
+        ),
     )
     unknown = set(overrides) - set(cfg)
     if unknown:
@@ -147,22 +137,20 @@ def validate_inputs(cfg):
         raise ValueError("Invalid timebase or cue switch")
     if not 0 <= cfg["spatial_baseline_hz"] < cfg["spatial_mean_hz"]:
         raise ValueError("Invalid spatial rates")
-    for key in ["sensory_topographic_fraction", "c_gain_scale", "sender_gain_scale"]:
+    for key in ["sensory_topographic_fraction", "c_gain_scale"]:
         if not 0 <= cfg[key] <= 1:
             raise ValueError(key)
 
 
 def validate_weights(cfg):
-    if cfg["cross_mapping"] not in ["gaussian", "identity"]:
+    if cfg["cross_mapping"] != "gaussian":
         raise ValueError("Unknown cross mapping")
     for key in ["sensory_kernel_sigma", "spatial_sigma", "cross_tau_ms", "c_ie_scale"]:
         if not np.isfinite(cfg[key]) or cfg[key] <= 0:
             raise ValueError(key)
-    if cfg["coupling_scale"] < 0 or cfg["cross_e_to_i_us"] < 0 or cfg["c_ee_scale"] < 0:
+    if cfg["c_ee_scale"] < 0:
         raise ValueError("Negative conductance scale")
-    if cfg["cross_mapping"] == "identity":
-        cfg["cross_kernel_sigma"] = 0.0
-    elif cfg["cross_kernel_sigma"] <= 0:
+    if cfg["cross_kernel_sigma"] <= 0:
         raise ValueError("Positive Gaussian width required")
     if cfg["cross_total_us"] is not None and cfg["cross_total_us"] <= 0:
         raise ValueError("Positive incoming sum required")
@@ -189,13 +177,6 @@ def topographic(original, cfg):
         "B_E_to_C_E.weight",
     ]:
         rows, cols = params[key].shape
-        if "to_C" in key and cfg.get("cross_mapping") == "identity":
-            if rows != cols:
-                raise ValueError("Identity mapping requires equal E population sizes")
-            params[key] = (
-                torch.eye(rows, dtype=params[key].dtype) * cfg["identity_gain_us"]
-            )
-            continue
         x = np.arange(rows) / rows
         y = np.arange(cols) / cols
         sigma = (
@@ -224,8 +205,6 @@ def apply_gain_interventions(params, original, cfg):
         for c in "AB":
             key = "sensory_" + c + ".weight"
             params[key] = fraction * params[key] + (1 - fraction) * original[key]
-    for c in "AB":
-        params[c + "_E_to_C_E.weight"] *= cfg.get("coupling_scale", 1.0)
     params["C_I_to_E.weight"] *= cfg.get("c_ie_scale", 1.0)
     if cfg.get("c_ee_scale", 1.0) != 1:
         params["C_E_to_E.weight"] *= cfg["c_ee_scale"]
@@ -239,63 +218,24 @@ def apply_gain_interventions(params, original, cfg):
         params[key] = (
             torch.tensor(kernel, dtype=params[key].dtype) * params[key].sum(0)[None, :]
         )
-    if cfg.get("c_ei_scale", 1.0) != 1:
-        params["C_E_to_I.weight"] *= cfg["c_ei_scale"]
     compress_target_gains(params, cfg)
-    # Literal identity gain is independent of Gaussian coupling/gain interventions.
-    if cfg.get("cross_mapping") == "identity":
-        for c in "AB":
-            key = c + "_E_to_C_E.weight"
-            params[key] = (
-                torch.eye(params[key].shape[0], dtype=params[key].dtype)
-                * cfg["identity_gain_us"]
-            )
-    if cfg.get("cross_e_to_i_us", 0.0) > 0:
-        for c in "AB":
-            key = c + "_E_to_C_I.weight"
-            params[key] = torch.full_like(
-                params[key], cfg["cross_e_to_i_us"] / params[key].shape[0]
-            )
-    if cfg.get("c_background_mixing") == "dense":
-        key = "sensory_C.weight"
-        totals = params[key].sum(0)
-        params[key] = (
-            torch.ones_like(params[key]) * totals[None, :] / params[key].shape[0]
-        )
 
 
 def compress_target_gains(params, cfg):
-    for scale, keys in [
-        (
-            cfg.get("c_gain_scale", 1.0),
-            [
-                "sensory_C.weight",
-                "C_E_to_E.weight",
-                "A_E_to_C_E.weight",
-                "B_E_to_C_E.weight",
-            ],
-        ),
-        (
-            cfg.get("sender_gain_scale", 1.0),
-            [
-                key
-                for c in "AB"
-                for key in [
-                    "sensory_" + c + ".weight",
-                    "cue_" + c + ".weight",
-                    c + "_E_to_E.weight",
-                ]
-            ],
-        ),
+    scale = cfg.get("c_gain_scale", 1.0)
+    if scale == 1:
+        return
+    for key in [
+        "sensory_C.weight",
+        "C_E_to_E.weight",
+        "A_E_to_C_E.weight",
+        "B_E_to_C_E.weight",
     ]:
-        if scale == 1:
+        totals = params[key].sum(0)
+        if not torch.any(totals):
             continue
-        for key in keys:
-            totals = params[key].sum(0)
-            if not torch.any(totals):
-                continue
-            desired = totals.mean() + (totals - totals.mean()) * scale
-            params[key] *= (desired / totals)[None, :]
+        desired = totals.mean() + (totals - totals.mean()) * scale
+        params[key] *= (desired / totals)[None, :]
 
 
 def inputs(cfg, seed, cue, swap, active="AB"):
@@ -422,8 +362,6 @@ def author_network(cfg):
                 c + "_E_to_C_" + p,
                 cfg["reference_coupling_us"],
                 n["cross"]["tau_ms"],
-                delay=cfg.get("cross_i_delay_ms", n["cross"]["delay_ms"])
-                if p == "I"
-                else n["cross"]["delay_ms"],
+                delay=n["cross"]["delay_ms"],
             )
     return lang.compile(net, target=None), weights

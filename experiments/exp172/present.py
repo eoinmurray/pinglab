@@ -2,8 +2,8 @@
 
 import argparse
 import json
-import shutil
 import sys
+from dataclasses import replace
 from pathlib import Path
 from time import perf_counter
 
@@ -14,6 +14,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.ndimage import gaussian_filter1d
 from scipy.signal import find_peaks
+from snnlab import lang, viz
 from snnlab.sim import NetworkSnapshot
 
 REPO = Path(__file__).resolve().parents[2]
@@ -28,6 +29,140 @@ from pingstore.library import source_run, stage_run
 
 sys.path.insert(0, str(REPO))
 from experiments import theme
+
+
+def circuit_diagram(bundle, parameters):
+    """Style the saved native architecture; recording aliases are not circuit nodes."""
+    native = lang.diagram(bundle, view="circuit")
+    symbols = {f"{c}_{p}": f"{p}_{c}" for c in "ABC" for p in "EI"}
+    symbols.update({f"X_{c}": f"X_{c}" for c in "ABC"})
+    symbols.update({f"U_{c}": f"U_{c}" for c in "AB"})
+    input_sizes = {p["id"]: p["shape"][-1] for p in bundle.graph["inputs"]}
+    nodes = tuple(
+        replace(
+            n,
+            detail=f"{input_sizes[n.id]:,} channels"
+            if n.id in input_sizes
+            else n.detail.splitlines()[0],
+            badge="",
+        )
+        for n in native.nodes
+        if n.id in symbols
+    )
+    edges = tuple(
+        replace(e, role="signal", pen_width=0.7)
+        if not parameters[e.id + ".weight"].count_nonzero()
+        else e
+        for e in native.edges
+        if e.id is not None
+    )
+    diagram = replace(
+        native, title="Spatial relay", nodes=nodes, edges=edges, groups=()
+    )
+    positions = {
+        "A_E": (0, 0),
+        "A_I": (0, -240),
+        "B_E": (0, 720),
+        "B_I": (0, 480),
+        "C_E": (800, 360),
+        "C_I": (800, 120),
+        "X_A": (-420, 0),
+        "U_A": (-420, 200),
+        "X_B": (-420, 720),
+        "U_B": (-420, 920),
+        "X_C": (800, 820),
+    }
+    ports = dict(
+        upper_left=(0, 0.3),
+        lower_left=(0, 0.7),
+        upper_right=(1, 0.3),
+        lower_right=(1, 0.7),
+        top_left=(0.25, 0),
+        top_right=(0.75, 0),
+        bottom_left=(0.25, 1),
+        bottom_right=(0.75, 1),
+    )
+    routes = {}
+    for edge in edges:
+        label = rf"W_{{{symbols[edge.target]},{symbols[edge.source]}}}"
+        if edge.id.startswith("cue_"):
+            label = rf"g_{edge.target[0]}(t)\,{label}"
+        if not parameters[edge.id + ".weight"].count_nonzero():
+            label += "=0"
+        route = viz.EdgeLayout(label=viz.DiagramLabel(f"${label}$"))
+        if edge.id.endswith("E_to_I") and edge.source[0] == edge.target[0]:
+            route = replace(route, source_port="top_right", target_port="bottom_right")
+        elif edge.id.endswith("I_to_E"):
+            route = replace(route, source_port="bottom_left", target_port="top_left")
+        elif edge.source == "X_C":
+            route = replace(route, source_port="top", target_port="bottom")
+        elif edge.id == "A_E_to_C_E":
+            route = replace(
+                route,
+                source_port="lower_right",
+                target_port="upper_left",
+                waypoints=((300, 20), (300, 340), (650, 340)),
+            )
+        elif edge.id == "B_E_to_C_E":
+            route = replace(
+                route,
+                source_port="lower_right",
+                target_port="lower_left",
+                waypoints=((360, 740), (360, 380), (650, 380)),
+            )
+        elif edge.id == "A_E_to_C_I":
+            route = replace(
+                route,
+                source_port="upper_right",
+                target_port="upper_left",
+                waypoints=((500, -20), (500, 100), (650, 100)),
+            )
+        elif edge.id == "B_E_to_C_I":
+            route = replace(
+                route,
+                source_port="upper_right",
+                target_port="lower_left",
+                waypoints=((440, 700), (440, 140), (650, 140)),
+            )
+        routes[edge.id] = route
+    layout = viz.DiagramLayout(
+        nodes={
+            identifier: viz.NodeLayout(
+                position=position,
+                label=f"${symbols[identifier]}$",
+                min_size=(180, 100),
+                ports=ports,
+            )
+            for identifier, position in positions.items()
+        },
+        edges=routes,
+        defaults=viz.LayoutDefaults(
+            node=viz.NodeLayout(content_align="center", padding=14), gap=36
+        ),
+    )
+    style = viz.DiagramTheme(
+        ink=theme.INK_BLACK,
+        inhibitory=theme.DEEP_RED,
+        muted=theme.MUTED,
+        line=theme.RULE,
+        signal=theme.GREY_MID,
+        background=theme.PAPER,
+        population_fill=theme.PAPER,
+        population_border=theme.INK_BLACK,
+        input_fill=theme.PAPER_TINT,
+        input_border=theme.GREY_MID,
+        label_size=18,
+        secondary_size=13,
+    )
+    with matplotlib.rc_context({"savefig.bbox": None}):
+        return viz.resolve_diagram(diagram, layout=layout, theme=style)
+
+
+def save_circuit(bundle, parameters, output):
+    circuit = circuit_diagram(bundle, parameters)
+    with matplotlib.rc_context({"savefig.bbox": None}):
+        for suffix in ("svg", "png"):
+            viz.render_diagram(circuit, output / f"circuit.{suffix}")
 
 
 def phase_evidence(spikes, cfg):
@@ -89,63 +224,16 @@ def amplitude_panel(ax, course, cfg):
     ax.legend(loc="upper right", fontsize=theme.SIZE_ANNOTATION)
 
 
-def grade_trial(record, ers):
-    phase_pass = True
-    for e in record["epochs"]:
-        c = e["attended"]
-        other = "B" if c == "A" else "A"
-        plv = e["phase"]["plv"]
-        phase_pass &= (
-            plv.get(c, 0) >= 0.9
-            and plv.get(c, 0) - plv.get(other, 1) >= 0.4
-            and len(e["phase"].get("rhythms", {})) == 3
-            and all(v["valid"] for v in e["phase"]["rhythms"].values())
-        )
-    copies = [e.get("fidelity", {}).get("copy_r_squared") for e in record["epochs"]]
-    score = (
-        min(copies) + 2 * (min(ers) - 0.5)
-        if all(v is not None for v in copies)
-        else min(ers)
-    )
-    great = bool(
-        phase_pass
-        and all(v is not None and v >= 0.85 for v in copies)
-        and min(ers) >= 0.9
-    )
-    return great, score, bool(phase_pass), -record["cue_hz"], record
-
-
 def select_trial(data, cfg, args):
     representative_seed = args.seed if args.seed is not None else cfg["seeds"][0]
-    candidates = []
-    for path in sorted(data.glob("seed*/metrics.json")):
-        record = json.loads(path.read_text())
-        if (
-            record["seed"] != representative_seed
-            or record["swap"] != args.swap
-            or record["cue_hz"] <= 0
-        ):
-            continue
-        ers = [e["er"] for e in record["epochs"]]
-        if any(e is None for e in ers):
-            continue
-        candidates.append(grade_trial(record, ers))
-    if args.cue is None:
-        if not candidates:
-            raise ValueError(
-                "No measurable cued trials for the requested seed / assignment"
-            )
-        best = max(candidates, key=lambda v: v[:4])
-        metrics = best[-1]
-        args.cue = metrics["cue_hz"]
-    else:
-        metrics = json.loads(
-            (
-                data
-                / f"seed{representative_seed}-swap{int(args.swap)}-cue{args.cue:g}"
-                / "metrics.json"
-            ).read_text()
-        )
+    args.cue = cfg["representative_cue_hz"] if args.cue is None else args.cue
+    metrics = json.loads(
+        (
+            data
+            / f"seed{representative_seed}-swap{int(args.swap)}-cue{args.cue:g}"
+            / "metrics.json"
+        ).read_text()
+    )
     selection_metadata = dict(
         seed=representative_seed,
         swap=args.swap,
@@ -153,22 +241,12 @@ def select_trial(data, cfg, args):
         trial_id=metrics["id"],
         spatial_window_ms=100.0,
         spatial_hop_ms=5.0,
-        criterion="Prefer copy R2 >= .85 and ER >= .9 with phase criteria in both windows; otherwise maximise worst-window copy R2 + 2*(worst-window ER - .5). No fitted rate gain/offset.",
-        selection="best saved cue"
-        if any(v[-1]["id"] == metrics["id"] for v in candidates)
-        and max(candidates, key=lambda v: v[:4])[-1]["id"] == metrics["id"]
+        criterion="Recorded representative cue and seed; originally selected on the displayed seed.",
+        selection="recorded representative"
+        if args.cue == cfg["representative_cue_hz"]
         else "explicit override",
         post_selection=True,
         averaging="none; one seed and one spatial assignment",
-    )
-    selection_metadata["phase_criteria_pass"] = next(
-        (v[2] for v in candidates if v[-1]["id"] == metrics["id"]), None
-    )
-    selection_metadata["great_criteria_pass"] = next(
-        (v[0] for v in candidates if v[-1]["id"] == metrics["id"]), None
-    )
-    (data / "presentation.json").write_text(
-        json.dumps(selection_metadata, indent=2) + "\n"
     )
     return metrics, selection_metadata, representative_seed
 
@@ -293,7 +371,9 @@ def plot_populations(
 def render(data, output, argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "--cue", type=float, help="Override automatic best-cue selection (Hz/channel)"
+        "--cue",
+        type=float,
+        help="Override the recorded representative cue (Hz/channel)",
     )
     parser.add_argument(
         "--seed", type=int, help="One input seed; default is the first saved seed"
@@ -302,42 +382,9 @@ def render(data, output, argv=None):
         "--swap", action="store_true", help="Use swapped spatial assignments throughout"
     )
     args = parser.parse_args(argv)
-    perf_counter()
     cfg = json.loads((data / "configuration.json").read_text())
     metrics, selection_metadata, representative_seed = select_trial(data, cfg, args)
     directory = data / metrics["id"]
-    points = json.loads((data / "sweep_points.json").read_text())
-    phase_lookup = {}
-    for path in sorted(data.glob("*/metrics.json")):
-        record = json.loads(path.read_text())
-        if record["active"] != "AB":
-            continue
-        for epoch in record["epochs"]:
-            phase_lookup[
-                (record["seed"], record["swap"], record["cue_hz"], epoch["attended"])
-            ] = epoch["phase"]["plv"]
-    for point in points:
-        plv = phase_lookup[
-            (point["seed"], point["swap"], point["cue_hz"], point["attended"])
-        ]
-        point["plv_CA"] = plv.get("A")
-        point["plv_CB"] = plv.get("B")
-        point["differential_plv"] = (
-            float(plv["A"] - plv["B"])
-            if plv.get("A") is not None and plv.get("B") is not None
-            else None
-        )
-        if point["differential_plv"] is not None:
-            assert -1 <= point["differential_plv"] <= 1
-    (data / "phase_sweep_points.json").write_text(
-        json.dumps(points, indent=2, allow_nan=False) + "\n"
-    )
-    points = [
-        p for p in points if p["seed"] == representative_seed and p["swap"] == args.swap
-    ]
-    (data / "presentation_points.json").write_text(
-        json.dumps(points, indent=2, allow_nan=False) + "\n"
-    )
     with np.load(directory / "spikes.npz") as f:
         spikes = dict(f)
     with np.load(directory / "profiles.npz") as f:
@@ -345,9 +392,6 @@ def render(data, output, argv=None):
     theme.apply()
     colors = [theme.INK_BLACK, theme.DEEP_RED]
     course = spatial_timecourse(spikes, cfg, args.swap)
-    (data / "spatial-timecourse.json").write_text(
-        json.dumps(course, indent=2, allow_nan=False) + "\n"
-    )
     raster_fig = plt.figure(figsize=(17, 5), layout="constrained")
     raster_grid = raster_fig.add_gridspec(1, 3)
     profile_fig = plt.figure(figsize=(11, 10), layout="constrained")
@@ -437,6 +481,7 @@ def render(data, output, argv=None):
     parameters = NetworkSnapshot.read(
         directory / "start/snapshot.json"
     ).load_parameters()
+    save_circuit(lang.load_bundle(directory / "network.bundle"), parameters, output)
     matrices = [parameters[c + "_E_to_C_E.weight"].detach().cpu().numpy() for c in "AB"]
     vmax = max(float(matrix.max()) for matrix in matrices)
     matrix_axes = []
@@ -474,14 +519,6 @@ def render(data, output, argv=None):
         figure.savefig(output / f"{name}.png", dpi=240)
         figure.savefig(output / f"{name}.svg")
         plt.close(figure)
-    for name in [
-        "presentation.json",
-        "presentation_points.json",
-        "phase_sweep_points.json",
-        "spatial-timecourse.json",
-    ]:
-        shutil.copy2(data / name, output / name)
-    shutil.copy2(data / "circuit.svg", output / "circuit.svg")
     return selection_metadata
 
 
@@ -509,7 +546,6 @@ def present(source, run_id=None, cue=None, seed=None):
     ) as run:
         work = run.scratch / "evidence"
         materialise_compute(computed, work)
-        shutil.copy2(analysed.file("sweep_points.json"), work / "sweep_points.json")
         args = []
         if cue is not None:
             args += ["--cue", str(cue)]

@@ -54,12 +54,13 @@ def test_disconnected_receiver_gain_compression_stays_finite():
         "C_E_to_E.weight": torch.ones(4, 4),
         "C_I_to_E.weight": torch.ones(2, 4),
     }
+    original["A_E_to_C_E.weight"].zero_()
+    original["B_E_to_C_E.weight"].zero_()
     result = topographic(
         original,
         dict(
             sensory_kernel_sigma=0.08,
             cross_kernel_sigma=0.08,
-            coupling_scale=0.0,
             c_gain_scale=0.25,
         ),
     )

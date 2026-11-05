@@ -183,43 +183,6 @@ def analyse(spikes, cfg, swap):
     return epochs, profiles
 
 
-def write_sweep_points(records, cfg, data):
-    baseline = {
-        (r["seed"], r["swap"]): r
-        for r in records
-        if r["cue_hz"] == 0 and r["active"] == "AB"
-    }
-    rows = []
-    for r in records:
-        if r["active"] != "AB":
-            continue
-        base = baseline.get((r["seed"], r["swap"]))
-        if base is None:
-            continue
-        for i, e in enumerate(r["epochs"]):
-            c = e["attended"]
-            delta = (
-                e["mean_rates_hz"][c + "_E"]
-                - base["epochs"][i]["mean_rates_hz"][c + "_E"]
-            )
-            rows.append(
-                dict(
-                    seed=r["seed"],
-                    swap=r["swap"],
-                    cue_hz=r["cue_hz"],
-                    attended=c,
-                    delta_rate_hz=delta,
-                    er=e["er"],
-                    total_amplitude_hz=e["fits"]["C"]["total_amplitude_hz"],
-                    copy_R2=e.get("fidelity", {}).get("copy_r_squared"),
-                    copy_rmse_hz=e.get("fidelity", {}).get("rmse_hz"),
-                    copy_correlation=e.get("fidelity", {}).get("correlation"),
-                    amplitudes_hz=e["fits"]["C"]["amplitudes_hz"],
-                )
-            )
-    dump(data / "sweep_points.json", rows)
-
-
 def spatial_timecourse(spikes, cfg, swap, window_ms=100.0, hop_ms=5.0):
     """Fit nonnegative background + fixed A/B templates in overlapping windows."""
     dt = cfg["dt_ms"]
@@ -460,7 +423,6 @@ def main(source, run_id=None):
     ) as run:
         work = materialise_compute(computed, run.scratch / "evidence")
         cfg, summary = validate(work)
-        write_sweep_points(summary["trials"], cfg, run.export)
         dump(
             run.export / "results.json",
             dict(
@@ -476,91 +438,8 @@ def main(source, run_id=None):
     return run.run_id
 
 
-def analyse_stability(source, run_id=None):
-    started = perf_counter()
-    computed = source_run(
-        REPO / ".pingstore",
-        source,
-        experiment="exp172",
-        stage="compute",
-        phase="stability-search",
-    )
-    with stage_run(
-        REPO,
-        "exp172",
-        "analyse",
-        inputs={"compute": computed},
-        run_id=run_id,
-        configuration=dict(
-            method="paired recurrence/inhibition spatial stability search"
-        ),
-    ) as run:
-        work = materialise_compute(computed, run.scratch / "evidence")
-        summary = json.loads((work / "summary.json").read_text())
-        rows = []
-        sender_spikes = {}
-        for record in summary["trials"]:
-            directory = work / record["id"]
-            local = json.loads((directory / "configuration.json").read_text())
-            with np.load(directory / "spikes.npz") as z:
-                spikes = dict(z)
-            if any(not np.isin(v, [0, 1]).all() for v in spikes.values()):
-                raise ValueError("Invalid spikes")
-            for sender in "AB":
-                for population in "EI":
-                    key = (record["seed"], sender + "_" + population)
-                    if key in sender_spikes:
-                        np.testing.assert_array_equal(
-                            spikes[key[1]], sender_spikes[key]
-                        )
-                    else:
-                        sender_spikes[key] = spikes[key[1]]
-            measured, _ = analyse(spikes, local, record["swap"])
-            compare_metrics(measured, record["epochs"])
-            stability = stability_metrics(spikes, local, record["swap"])
-            compare_metrics(stability, record["stability"])
-            params = NetworkSnapshot.read(
-                directory / "start/snapshot.json"
-            ).load_parameters()
-            np.testing.assert_array_equal(
-                params["A_E_to_C_E.weight"], params["B_E_to_C_E.weight"]
-            )
-            ee = params["C_E_to_E.weight"]
-            if ee.diag().count_nonzero():
-                raise ValueError("Recurrent self-connections")
-            rows.append(
-                dict(
-                    id=record["id"],
-                    seed=record["seed"],
-                    recurrence_scale=local["c_ee_scale"],
-                    inhibition_scale=local["c_ie_scale"],
-                    recurrence_kernel_sigma=local["c_ee_kernel_sigma"],
-                    copy_R2=[e["fidelity"]["copy_r_squared"] for e in measured],
-                    ER=[e["er"] for e in measured],
-                    cued_PLV=[e["phase"]["plv"][e["attended"]] for e in measured],
-                    **stability,
-                )
-            )
-        dump(
-            run.export / "stability-results.json",
-            dict(conditions=rows, elapsed_seconds=perf_counter() - started),
-        )
-        run.record["execution"]["elapsed_seconds"] = perf_counter() - started
-    for row in rows:
-        print(
-            json.dumps({k: v for k, v in row.items() if k not in ["epochs", "caveat"]})
-        )
-    return run.run_id
-
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument("--source")
-    group.add_argument("--stability-source")
+    parser.add_argument("--source", required=True)
     parser.add_argument("--run-id")
-    args = parser.parse_args()
-    if args.stability_source:
-        analyse_stability(args.stability_source, args.run_id)
-    else:
-        main(args.source, args.run_id)
+    main(**vars(parser.parse_args()))

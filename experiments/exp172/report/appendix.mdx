@@ -4,7 +4,7 @@ import ParameterTable from './ParameterTable.astro';
 ## A. Network and measurements
 
 <RunFigure report="exp172" experiment="exp172" file="circuit.svg" number="A1" id="fig-circuit" alt="Native compiled A/B/C excitatory and inhibitory network with sensory and cue inputs." allowUnavailable={true}>
-  Native compiled architecture of the spatial relay. A and B have separate sensory inputs and complementary cue gates. Both project to C. The diagram describes the compiled graph's initializers; executed parameter arrays are retained in each native start snapshot. C E→E uses the recorded local Gaussian weights; sender E→C I projections retain zero effective weights. The original demonstration was imported with its settings, raw spikes, native snapshots, execution timing and exploratory history; subsequent feedback-search and follow-up simulations are retained as separate runs. Import timestamps do not describe the original simulation execution. The original parameter source is independently pinned by run digest and snapshot hash.
+  Native compiled architecture from the selected trial's saved bundle. E populations are black; I populations are red and placed above E. Each circuit contains 400 E and 100 I neurons; each input has 1024 channels. Sensory inputs are X; cue inputs are U. The label W with subscripts target, source denotes the corresponding executed weight matrix in the native start snapshot. Complementary gates g_A(t) and g_B(t) route the shared cue train before and after the switch. Grey sender E→C I pathways have zero executed weights. C E→E uses local Gaussian weights. Recording aliases are omitted.
 </RunFigure>
 
 ## B. Parameters
