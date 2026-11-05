@@ -239,3 +239,83 @@ def test_history_configuration_and_legacy_draws():
     cfg.pop("inhibition_prehistory_steps")
     ev = artificial(np.full((1, 2), 0.5), np.ones((1, 2)), np.array([17]), cfg, draw=0)
     assert ev.shape == (10, 1, 2)
+
+
+def test_native_coordinated_binding(tmp_path):
+    from experiments.exp171.compute import encode_native
+    from snnlab import extensions, sim
+
+    cfg = recipe.configuration(scaled=True)
+    bundle = recipe.author_network(cfg)
+    dense = recipe.author_network(cfg, dense_private=True)
+    for authored, fan_in in ((bundle, 1), (dense, cfg["n_e"])):
+        private = next(
+            row for row in authored.graph["inputs"] if row["id"] == "artificial"
+        )
+        assert private["signal_type"] == "continuous"
+        weight = next(
+            row
+            for row in authored.graph["parameters"]
+            if row["id"] == "artificial_to_E.weight"
+        )
+        assert weight["shape"] == [cfg["n_e"], fan_in]
+    extensions.register_encoder("tests.exp171/v1", encode_native)
+    path = tmp_path / "dataset.npz"
+    ids = [17, 42, 66]
+    np.savez(
+        path,
+        ids=ids,
+        features=np.full((3, 784), 200, dtype=np.uint8),
+        labels=[1, 2, 3],
+        probability=np.full((3, 1024), 0.05, dtype=np.float32),
+        amplitude=np.full((3, 1024), 0.02, dtype=np.float32),
+    )
+    encoder = sim.DatasetEncoder(
+        "custom",
+        duration_ms=cfg["duration_ms"],
+        definition="tests.exp171/v1",
+        rng_policy="sample_v1",
+        config={
+            "recipe": cfg,
+            "signature": sim.runtime_state_signature(plan_graph(bundle.graph)),
+        },
+    )
+    binding = sim.DatasetSnapshotBinding(
+        path,
+        "drive",
+        "test",
+        "validation",
+        encoder,
+        target_id="digit",
+        sample_ids_key="ids",
+        sample_indices=(2, 0),
+    )
+    resolved, (target,) = sim.resolve_dataset_snapshot_binding(bundle.graph, binding)
+    torch.testing.assert_close(target.value, torch.tensor([3, 1]))
+    np.testing.assert_array_equal(
+        resolved.tensors["drive"][:, 0],
+        sensory(np.full(784, 200 / 255), 66, cfg),
+    )
+    with np.load(path) as dataset:
+        events = artificial(
+            dataset["probability"][[2, 0]],
+            dataset["amplitude"][[2, 0]],
+            [66, 17],
+            cfg,
+            draw=0,
+        )
+    history = cfg["inhibition_prehistory_steps"]
+    state = resolved.tensors.initial_state
+    np.testing.assert_array_equal(resolved.tensors["artificial"], events[history:])
+    np.testing.assert_allclose(
+        state.conductances["artificial_to_E"],
+        filtered(events[:history], cfg)[-1],
+        rtol=1e-6,
+    )
+    np.testing.assert_array_equal(
+        state.input_histories["artificial"], events[history - 1 : history]
+    )
+    assert not state.currents
+    assert sim.Batching(microbatch_size=16).sizes(6300, cfg["batch_size"]) == [
+        256
+    ] * 24 + [156]

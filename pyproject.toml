@@ -7,7 +7,7 @@ requires-python = ">=3.10"
 license = { text = "MIT" }
 authors = [{ name = "Eoin Murray" }]
 dependencies = [
-    "snnlab>=0.31.0",
+    "snnlab>=0.32.0",
     "demolab-cli>=5.5.1",
     "PyYAML>=6.0.3",
     "boto3>=1.40.0",
@@ -49,7 +49,7 @@ url = "https://download.pytorch.org/whl/cu128"
 explicit = true
 
 [tool.uv.sources]
-snnlab = { git = "https://github.com/eoinmurray/snnlab.git", rev = "719372b556433940c6757338d0eada56b94bc671" }
+snnlab = { git = "https://github.com/eoinmurray/snnlab.git", rev = "fe643657f6b4b1b4c5e7c61b83fa50842aae9cdd" }
 torch = [{ index = "pytorch-cu128", marker = "sys_platform == 'linux'" }]
 torchvision = [{ index = "pytorch-cu128", marker = "sys_platform == 'linux'" }]
 

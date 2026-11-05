@@ -76,7 +76,9 @@ HEAD normally must be fetchable from the public repository. An explicit
 `PINGLAB_MODAL_GIT_BUNDLE` containing the exact checkout HEAD can supply local
 commits over `PINGLAB_MODAL_BASE_COMMIT`, a public full commit hash. Optional
 `PINGLAB_MODAL_IMAGE_ID` reuses a chosen built image; the worker still checks the
-installed SNNLab version against the submitted lock. Do not edit mounted sources
+installed SNNLab version against the submitted lock. Set
+`PINGLAB_MODAL_CUDA_DEVEL=1` to build with the CUDA 12.8 development toolkit
+when the worker needs to compile CUDA code. Do not edit mounted sources
 during upload.
 
 ## Durability and collection

@@ -6,7 +6,11 @@ import json
 import os
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor
+from dataclasses import asdict, replace
+from importlib.metadata import version
 from pathlib import Path
+from shutil import copyfile
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(ROOT), str(ROOT / "libraries")]
@@ -19,6 +23,7 @@ from experiments.exp171.custom.native import capture
 from pingstore.library import file_sha256, source_run, stage_run
 from scipy.signal import lfilter
 from sklearn.model_selection import train_test_split
+from snnlab import extensions, sim
 from snnlab.sim import GraphExecutor, NetworkSnapshot, plan_graph, save_runtime_state
 from torchvision.datasets import MNIST
 
@@ -37,11 +42,13 @@ def digest(array):
     return hashlib.sha256(np.ascontiguousarray(array).tobytes()).hexdigest()
 
 
-def select_indices(labels, cfg):
+def source_indices(labels):
     pool = np.random.RandomState(42).choice(len(labels), 7000, replace=False)
-    train, validation = train_test_split(
-        pool, test_size=700, random_state=42, stratify=labels[pool]
-    )
+    return train_test_split(pool, test_size=700, random_state=42, stratify=labels[pool])
+
+
+def select_indices(labels, cfg):
+    train, validation = source_indices(labels)
     selection = rng(cfg, "selection")
     selected = []
     for partition, count in [
@@ -87,6 +94,9 @@ def calibrate(target, cfg, original_index):
     def fit(indices):
         history = cfg.get("inhibition_prehistory_steps", 0)
         u = gen.random((history + cfg["steps"], len(indices)))
+        if cfg.get("scaled"):
+            # Each GABA filter walks one channel over time.
+            u = np.asfortranarray(u)
         low = np.full(len(indices), cfg["probability_bounds"][0])
         high = np.full(len(indices), cfg["probability_bounds"][1])
         error, p = np.full(len(indices), np.inf), low.copy()
@@ -158,10 +168,14 @@ def artificial(probabilities, amplitudes, indices, cfg, *, epoch=None, draw=None
 
 
 def make_model(bundle, parameters, cfg, *, trainable=False):
-    if "artificial_to_E.weight" in parameters and not torch.equal(
-        parameters["artificial_to_E.weight"].cpu(), torch.eye(cfg["n_e"])
-    ):
-        raise ValueError("Private prehistory requires the frozen identity projection")
+    if "artificial_to_E.weight" in parameters:
+        expected = (
+            torch.ones(1, cfg["n_e"]) if cfg.get("scaled") else torch.eye(cfg["n_e"])
+        )
+        if not torch.equal(parameters["artificial_to_E.weight"].cpu(), expected):
+            raise ValueError(
+                "Private prehistory requires the frozen identity projection"
+            )
     model = GraphExecutor(
         plan_graph(bundle.graph),
         seed=cfg["seed"],
@@ -231,7 +245,11 @@ def load_source(cfg):
             raise ValueError("Source settings do not match this pilot")
         pin = bank.record["bank_reuse"]["diagnostic_provenance"][cell]["checkpoint"]
         path = bank.file(cell, pin["filename"])
-        if pin["role"] != cfg["checkpoint_role"] or file_sha256(path) != pin["sha256"]:
+        if (
+            pin["role"] != cfg["checkpoint_role"]
+            or pin["epoch"] != 50
+            or file_sha256(path) != pin["sha256"]
+        ):
             raise ValueError("Invalid final-epoch checkpoint")
         weights = torch.load(path, map_location="cpu", weights_only=True)
         params[kind] = {
@@ -802,9 +820,564 @@ def raster(source_id, *, run_id=None):
     return run.run_id
 
 
+def encode_native(arrays, selected, *, dt_ms, channels, config, seed, context):
+    cfg = config["recipe"]
+    indices = np.asarray(context.sample_ids)
+    drive = np.stack(
+        [
+            sensory(arrays["features"][row] / np.float32(255), index, cfg)
+            for row, index in zip(selected, indices, strict=True)
+        ],
+        axis=1,
+    )
+    coordinate = (
+        {"epoch": context.epoch + 1}
+        if context.phase == "train"
+        else {"draw": context.draw_seed}
+    )
+    events = artificial(
+        arrays["probability"][selected],
+        arrays["amplitude"][selected],
+        indices,
+        cfg,
+        **coordinate,
+    )
+    history = cfg["inhibition_prehistory_steps"]
+    conductance = filtered(events[:history], cfg)[-1].astype(np.float32)
+    return sim.PreparedBatch(
+        {
+            "drive": torch.from_numpy(drive),
+            "artificial": torch.from_numpy(events[history:]),
+        },
+        sim.PresentationState(
+            signature=config["signature"],
+            conductances={"artificial_to_E": torch.from_numpy(conductance)},
+            input_histories={
+                "artificial": torch.from_numpy(events[history - 1 : history])
+            },
+            provenance={"policy": "private_gaba_only", "history_steps": history},
+        ),
+    )
+
+
+def calibrate_native(teacher, pixels, indices, cfg):
+    rows = []
+    batch = cfg["calibration_batch_size"]
+    with ThreadPoolExecutor(max_workers=cfg["threads"]) as pool, torch.no_grad():
+        for start in range(0, len(indices), batch):
+            ids = indices[start : start + batch]
+            drives = np.stack(
+                [sensory(pixels[index] / np.float32(255), index, cfg) for index in ids],
+                axis=1,
+            )
+            g = forward(teacher, drives)["g_ping"].cpu().numpy()
+            rows.extend(
+                pool.map(
+                    lambda pair: calibrate(pair[1].astype(np.float64), cfg, pair[0]),
+                    zip(ids, np.moveaxis(g, 1, 0), strict=True),
+                )
+            )
+            print(f"calibration {len(rows)}/{len(indices)}", flush=True)
+    return [np.stack(column) for column in zip(*rows, strict=True)]
+
+
+def native_parity(bundle, binding, params, cfg, performance):
+    """Compare one native update with unequal microbatches against an eager update."""
+    binding = replace(binding, sample_indices=(0, 1, 2, 3, 4))
+    prepared, targets = sim.resolve_dataset_snapshot_binding(bundle.graph, binding)
+    tensors = {key: value.to(cfg["device"]) for key, value in prepared.tensors.items()}
+    state = prepared.tensors.initial_state.to(cfg["device"])
+    recorded = recipe.author_network(cfg, record_spikes=True)
+    dense_cfg = {**cfg, "scaled": False}
+    dense = recipe.author_network(cfg, record_spikes=True, dense_private=True)
+    dense_model = make_model(
+        dense,
+        {**params, "artificial_to_E.weight": torch.eye(cfg["n_e"])},
+        dense_cfg,
+    )
+    compact_model = make_model(recorded, params, cfg)
+    with torch.no_grad():
+        expected = dense_model(
+            tensors,
+            initial_state=replace(
+                state, signature=sim.runtime_state_signature(dense_model.plan)
+            ),
+        ).outputs
+        actual = compact_model(
+            tensors,
+            initial_state=replace(
+                state, signature=sim.runtime_state_signature(compact_model.plan)
+            ),
+        ).outputs
+    (target,) = targets
+    labels = target.value.to(cfg["device"])
+    common = dict(
+        bundle=bundle,
+        input_bindings=[binding],
+        epochs=1,
+        batch_size=5,
+        weights=sim.WeightInitialization(params),
+        device=cfg["device"],
+        seed=cfg["shuffle_seed"],
+        metrics=sim.TrainingMetrics(initial=()),
+        checkpoint_selection=sim.CheckpointSelection.disabled(),
+        retain_final_state=False,
+        retain_runtime_state=False,
+        diagnostics=False,
+    )
+    reference = sim.train(
+        **common,
+        performance=sim.Performance(
+            compile_mode=None,
+            precision=cfg["precision"],
+            fused_optimizer="off",
+        ),
+    )
+    preflight = {
+        **common,
+        "metrics": sim.TrainingMetrics(train="evaluate"),
+        "validation": sim.ValidationSpec(
+            input_bindings=[
+                replace(binding, split="validation", sample_indices=(5, 6))
+            ],
+            encoding_seeds=(0, 1, 2),
+        ),
+        "observations": sim.EpochObservations(population_rates=("E",)),
+    }
+    accumulated = sim.train(
+        **preflight,
+        batching=sim.Batching(microbatch_size=3),
+        performance=performance,
+    )
+    errors = {}
+
+    def compare(label, actual, expected):
+        actual = torch.as_tensor(actual).detach().cpu()
+        expected = torch.as_tensor(expected).detach().cpu()
+        torch.testing.assert_close(actual, expected, rtol=3e-3, atol=2e-5)
+        errors[label] = float((actual - expected).abs().max())
+
+    compare("conductance", actual["g_artificial"], expected["g_artificial"])
+    compare("scores", actual["scores"], expected["scores"])
+    compare(
+        "loss",
+        F.cross_entropy(actual["scores"], labels),
+        F.cross_entropy(expected["scores"], labels),
+    )
+    for name in recipe.TRAINABLE:
+        compare(
+            f"gradient:{name}", accumulated.gradients[name], reference.gradients[name]
+        )
+        compare(
+            f"update:{name}",
+            accumulated.parameters[name] - params[name].to(cfg["device"]),
+            reference.parameters[name] - params[name].to(cfg["device"]),
+        )
+        for key, value in reference.optimizer_state[name].items():
+            compare(
+                f"adamw:{name}:{key}", accumulated.optimizer_state[name][key], value
+            )
+    verify_changes(accumulated.model, params)
+    return errors
+
+
+def scaled_compute(
+    mode,
+    *,
+    run_id=None,
+    benchmark_id=None,
+    benchmark_digest=None,
+    compile_mode=None,
+    microbatch_size=16,
+    calibration_id=None,
+    calibration_digest=None,
+):
+    started = time.perf_counter()
+    if os.environ.get("SNNLAB_DEVICE") != "cuda" or torch.cuda.device_count() != 1:
+        raise RuntimeError("Scaled exp171 requires exactly one CUDA GPU")
+    cfg = recipe.configuration(
+        scaled=True,
+        device="cuda",
+        threads=int(os.environ.get("OMP_NUM_THREADS", "4")),
+        compile_mode=compile_mode,
+        microbatch_size=microbatch_size,
+    )
+    torch.set_num_threads(cfg["threads"])
+    bank, parameters = load_source(cfg)
+    compatibility = dict(
+        bank=bank.reference,
+        configuration=cfg,
+        snnlab=version("snnlab"),
+        torch=str(torch.__version__),
+        cuda=torch.version.cuda,
+        gpu=torch.cuda.get_device_name(),
+        files={
+            str(path.relative_to(ROOT)): file_sha256(path)
+            for path in sorted(Path(__file__).parent.rglob("*.py"))
+            if path.name not in {"analyse.py", "present.py", "test.py"}
+        },
+        lock=file_sha256(ROOT / "uv.lock"),
+    )
+    performance = sim.Performance(
+        compile_mode=cfg["compile_mode"],
+        compile_block_steps="auto",
+        precision=cfg["precision"],
+        cuda_graphs="auto",
+        fused_optimizer="auto",
+    )
+    compatibility["performance"] = asdict(performance)
+    inputs = {"bank": bank}
+    if mode == "full":
+        benchmark = source_run(
+            ROOT / ".pingstore",
+            benchmark_id,
+            experiment=recipe.SLUG,
+            stage="compute",
+            reference={"run_id": benchmark_id, "payload_digest": benchmark_digest},
+        )
+        report = json.loads(benchmark.file("benchmark.json").read_text())
+        if report["status"] != "passed" or report["compatibility"] != compatibility:
+            raise ValueError(
+                "Full mode requires a reviewed, compatible passing benchmark"
+            )
+        inputs["benchmark"] = benchmark
+
+    cfg = {
+        **cfg,
+        "mode": mode,
+        "compatibility": compatibility,
+        "retention_estimate": "Up to 40 MB benchmark or 350 MB full; compact dataset and calibration arrays, native bundles, snapshots and two checkpoints.",
+    }
+    dataset = MNIST(
+        root=os.environ.get("PINGLAB_DATASET_CACHE", "/tmp/mnist"),
+        train=True,
+        download=True,
+    )
+    labels = dataset.targets.numpy().astype(np.int64)
+    pixels = dataset.data.numpy().reshape(-1, cfg["n_input"])
+    train, val = source_indices(labels)
+    if mode == "benchmark":
+        train = train[: cfg["benchmark_train_size"]]
+        val = val[: cfg["benchmark_validation_size"]]
+    ids = np.concatenate([train, val])
+    cfg["dataset_sha256"] = {"pixels": digest(pixels), "labels": digest(labels)}
+    calibration_source = None
+    if calibration_id:
+        calibration_source = source_run(
+            ROOT / ".pingstore",
+            calibration_id,
+            experiment=recipe.SLUG,
+            stage="compute",
+            reference={"run_id": calibration_id, "payload_digest": calibration_digest},
+        )
+        source_cfg = calibration_source.record["execution"]["configuration"]
+        if (
+            source_cfg.get("mode") != "benchmark"
+            or calibration_source.record["inputs"].get("bank") != bank.reference
+            or source_cfg.get("dataset_sha256") != cfg["dataset_sha256"]
+            or any(
+                source_cfg.get(key) != cfg[key]
+                for key in (
+                    "dt_ms",
+                    "steps",
+                    "n_input",
+                    "n_e",
+                    "tau_gaba_ms",
+                    "tau_ampa_ms",
+                    "inhibition_prehistory_steps",
+                    "input_rate_hz",
+                    "sensory_seed",
+                    "calibration_seed",
+                    "probability_bounds",
+                    "calibration_bisections",
+                    "calibration_retries",
+                    "calibration_sd_target",
+                    "calibration_std_tolerance",
+                    "refractory_timing",
+                    "precision",
+                )
+            )
+        ):
+            raise ValueError("Incompatible retained benchmark calibration")
+        inputs["calibration"] = calibration_source
+
+    print(
+        f"{mode}: {len(train)} train, {len(val)} validation, {compatibility['gpu']}",
+        flush=True,
+    )
+    with stage_run(
+        ROOT,
+        recipe.SLUG,
+        "compute",
+        inputs=inputs,
+        configuration=cfg,
+        run_id=run_id,
+        operation=mode,
+    ) as run:
+        teacher_bundle = recipe.author_network(cfg, teacher=True)
+        bundle = recipe.author_network(cfg)
+        for name, authored in [("teacher", teacher_bundle), ("network", bundle)]:
+            authored.write(run.export / f"{name}.bundle", visualise=False)
+            authored.visualise(run.export / f"{name}-circuit.svg", view="circuit")
+        teacher = make_model(teacher_bundle, parameters["ping"], cfg)
+        capture(
+            teacher,
+            teacher_bundle,
+            run.export / "teacher",
+            cfg,
+            kind="simulate",
+            stage="start",
+        )
+        params = {
+            **parameters["coba"],
+            "artificial_to_E.weight": torch.ones(1, cfg["n_e"]),
+        }
+        encoder_cfg = {
+            key: cfg[key]
+            for key in (
+                "steps",
+                "n_input",
+                "n_e",
+                "dt_ms",
+                "tau_gaba_ms",
+                "input_rate_hz",
+                "inhibition_prehistory_steps",
+                "sensory_seed",
+                "training_seed",
+                "validation_seed",
+            )
+        }
+        extensions.register_encoder("pinglab.exp171/v1", encode_native)
+        encoder = sim.DatasetEncoder(
+            "custom",
+            definition="pinglab.exp171/v1",
+            rng_policy="sample_v1",
+            duration_ms=cfg["duration_ms"],
+            config={
+                "recipe": encoder_cfg,
+                "signature": sim.runtime_state_signature(sim.plan_graph(bundle.graph)),
+            },
+        )
+
+        def binding(path, split, positions):
+            return sim.DatasetSnapshotBinding(
+                path,
+                "drive",
+                "exp171-mnist",
+                split,
+                encoder,
+                target_id="digit",
+                sample_ids_key="ids",
+                sample_indices=tuple(positions),
+            )
+
+        def write_dataset(path, ids, probability, amplitude):
+            np.savez_compressed(
+                path,
+                ids=ids,
+                features=pixels[ids],
+                labels=labels[ids],
+                probability=probability,
+                amplitude=amplitude,
+            )
+
+        parity_start = None
+        if calibration_source is not None:
+            path = run.export / "dataset.npz"
+            cached_dataset = calibration_source.file("dataset.npz")
+            cached_calibration = calibration_source.file("calibration.npz")
+            with (
+                np.load(cached_dataset) as retained,
+                np.load(cached_calibration) as moments,
+            ):
+                np.testing.assert_array_equal(retained["ids"], ids)
+                np.testing.assert_array_equal(moments["ids"], ids)
+                np.testing.assert_array_equal(retained["features"], pixels[ids])
+                np.testing.assert_array_equal(retained["labels"], labels[ids])
+            copyfile(cached_dataset, path)
+            copyfile(cached_calibration, run.export / "calibration.npz")
+            calibration_s = 0.0
+            calibration_estimate_s = json.loads(
+                calibration_source.file("benchmark.json").read_text()
+            )["calibration_seconds"]
+            parity_start = time.perf_counter()
+            parity = native_parity(
+                bundle, binding(path, "train", range(5)), params, cfg, performance
+            )
+            print(
+                f"retained calibration verified; numerical parity passed: {parity}",
+                flush=True,
+            )
+        else:
+            parity = {}
+            calibration_s = 0.0
+            if mode == "benchmark":
+                first_batch = cfg["calibration_batch_size"]
+                tick = time.perf_counter()
+                first = calibrate_native(teacher, pixels, ids[:first_batch], cfg)
+                calibration_s += time.perf_counter() - tick
+                parity_path = run.scratch / "parity.npz"
+                write_dataset(parity_path, ids[:first_batch], *first[:2])
+                parity = native_parity(
+                    bundle,
+                    binding(parity_path, "train", range(5)),
+                    params,
+                    cfg,
+                    performance,
+                )
+                print(f"numerical parity passed: {parity}", flush=True)
+            else:
+                first_batch = 0
+            tick = time.perf_counter()
+            calibration = calibrate_native(teacher, pixels, ids[first_batch:], cfg)
+            calibration_s += time.perf_counter() - tick
+            if first_batch:
+                calibration = [
+                    np.concatenate((start, rest))
+                    for start, rest in zip(first, calibration, strict=True)
+                ]
+            probability, amplitude, mu, sd, fitted_mu, fitted_sd, error = calibration
+            del teacher
+            print(f"calibration completed in {calibration_s:.2f}s", flush=True)
+            np.savez_compressed(
+                run.export / "calibration.npz",
+                ids=ids,
+                target_mean=mu,
+                target_sd=sd,
+                fitted_mean=fitted_mu,
+                fitted_sd=fitted_sd,
+                max_relative_sd_error=error,
+            )
+            path = run.export / "dataset.npz"
+            write_dataset(path, ids, probability, amplitude)
+            calibration_estimate_s = calibration_s
+        parity_s = None if parity_start is None else time.perf_counter() - parity_start
+        training = binding(path, "train", range(len(train)))
+        print("starting measured native training", flush=True)
+        epochs = cfg["benchmark_epochs"] if mode == "benchmark" else cfg["epochs"]
+        result = sim.train(
+            bundle=bundle,
+            weights=sim.WeightInitialization(params),
+            input_bindings=[training],
+            validation=sim.ValidationSpec(
+                input_bindings=[
+                    binding(path, "validation", range(len(train), len(ids)))
+                ],
+                encoding_seeds=tuple(range(cfg["validation_draws"])),
+            ),
+            epochs=epochs,
+            batch_size=cfg["batch_size"],
+            batching=sim.Batching(
+                order="shuffle", microbatch_size=cfg["microbatch_size"]
+            ),
+            seed=cfg["shuffle_seed"],
+            device=cfg["device"],
+            performance=performance,
+            training_timing=True,
+            diagnostics=False,
+            metrics=sim.TrainingMetrics(train="evaluate"),
+            observations=sim.EpochObservations(population_rates=("E",)),
+            checkpoint_selection=sim.CheckpointSelection(
+                tie_break=(sim.SelectionMetric("accuracy", direction="max"),),
+                include_initial=True,
+            ),
+            save_final_checkpoint=run.export / "final.checkpoint",
+            save_selected_checkpoint=run.export / "best.checkpoint",
+            snapshot=sim.SnapshotSpec(run.export / "training", stage="both"),
+            retain_final_state=False,
+            retain_runtime_state=False,
+            on_epoch_end=lambda row: print(
+                f"epoch {row.epoch}, updates {row.updates}", flush=True
+            ),
+        )
+        changes = verify_changes(result.model, params)
+        best = result.selected_checkpoint
+        best_model = make_model(bundle, best.parameters, cfg)
+        capture(
+            best_model,
+            bundle,
+            run.export / "best-validation",
+            cfg,
+            kind="train",
+            stage="end",
+            epoch=best.completed_updates
+            // ((len(train) + cfg["batch_size"] - 1) // cfg["batch_size"]),
+        )
+        counts = result.metrics["batch_counts"]
+        expected_updates = epochs * (
+            (len(train) + cfg["batch_size"] - 1) // cfg["batch_size"]
+        )
+        if counts["optimizer_updates"] != expected_updates or counts[
+            "examples"
+        ] != epochs * len(train):
+            raise ValueError(
+                "Native trainer did not complete the expected presentations and updates"
+            )
+        metrics = {
+            key: result.metrics[key]
+            for key in (
+                "epochs",
+                "batch_counts",
+                "training_timing",
+                "performance",
+                "selection_record",
+            )
+        }
+        metrics["parameter_changes"] = changes
+        write_json(run.export / "native-metrics.json", metrics)
+        run.record["scientific_artifacts"] = {
+            "snapshot_stages": {
+                "teacher": ["start"],
+                "training": ["start", "end"],
+                "best-validation": ["end"],
+            }
+        }
+        elapsed = time.perf_counter() - started
+        run.record["execution"].update(
+            elapsed_seconds=elapsed, calibration_seconds=calibration_s
+        )
+        if mode == "benchmark":
+            timing = metrics["training_timing"]
+            warmed = timing["epochs"][-1]
+            estimate = (
+                calibration_estimate_s * 7000 / len(ids)
+                + timing["setup_s"]
+                + (warmed["training_s"] + warmed["train_evaluation_s"])
+                * 20
+                * 6300
+                / len(train)
+                + warmed["validation_s"] * 21 * 700 / len(val)
+            )
+            write_json(
+                run.export / "benchmark.json",
+                dict(
+                    status="passed",
+                    compatibility=compatibility,
+                    parity=parity,
+                    parity_seconds=parity_s,
+                    calibration_estimate_seconds=calibration_estimate_s,
+                    calibration_seconds=calibration_s,
+                    elapsed_seconds=elapsed,
+                    full_estimate_seconds=estimate,
+                    gpu_usd_per_second=cfg["benchmark_gpu_usd_per_second"],
+                    full_estimate_gpu_usd=estimate
+                    * cfg["benchmark_gpu_usd_per_second"],
+                ),
+            )
+    print(run.run_id, flush=True)
+    return run.run_id
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--run-id")
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--benchmark", action="store_true")
+    mode.add_argument("--full", action="store_true")
+    parser.add_argument(
+        "--benchmark-id", help="Explicitly reviewed passing benchmark run"
+    )
+    parser.add_argument("--benchmark-digest", help="Reviewed benchmark payload digest")
     parser.add_argument(
         "--raster-source",
         help="Replay a retained training run's best-validation checkpoint",
@@ -812,8 +1385,41 @@ if __name__ == "__main__":
     parser.add_argument(
         "--epochs", type=int, help="Total fine-tuning epochs; default from recipe"
     )
+    parser.add_argument("--compile-mode", choices=("eager", "default"), default="eager")
+    parser.add_argument("--microbatch-size", choices=(16, 32, 64), type=int, default=16)
+    parser.add_argument(
+        "--calibration-id", help="Benchmark run with the identical calibrated subset"
+    )
+    parser.add_argument("--calibration-digest")
     args = parser.parse_args()
-    if args.raster_source:
+    if bool(args.calibration_id) != bool(args.calibration_digest) or (
+        args.calibration_id and not args.benchmark
+    ):
+        parser.error("Calibration reuse requires --benchmark and both calibration pins")
+    if not (args.benchmark or args.full) and (
+        args.compile_mode != "eager" or args.microbatch_size != 16
+    ):
+        parser.error("Execution policy overrides require --benchmark or --full")
+    if args.full != bool(args.benchmark_id and args.benchmark_digest) or (
+        not args.full and (args.benchmark_id or args.benchmark_digest)
+    ):
+        parser.error("--full requires --benchmark-id and --benchmark-digest")
+    if args.benchmark or args.full:
+        if args.epochs is not None or args.raster_source:
+            parser.error(
+                "Scaled modes cannot be combined with pilot or raster arguments"
+            )
+        scaled_compute(
+            "full" if args.full else "benchmark",
+            run_id=args.run_id,
+            benchmark_id=args.benchmark_id,
+            benchmark_digest=args.benchmark_digest,
+            compile_mode=None if args.compile_mode == "eager" else args.compile_mode,
+            microbatch_size=args.microbatch_size,
+            calibration_id=args.calibration_id,
+            calibration_digest=args.calibration_digest,
+        )
+    elif args.raster_source:
         if args.epochs is not None:
             parser.error("--epochs cannot be combined with --raster-source")
         raster(args.raster_source, run_id=args.run_id)

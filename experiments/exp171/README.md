@@ -55,37 +55,47 @@ checkpoint selection. No official test images are used here. Negative short-pilo
 results are inconclusive. Timings are retained per compute/analysis/presentation
 stage; runtime is measured during execution. Expected retained size is <250 MB.
 
-## Modal execution
+## Native benchmark and full mode
 
-Run a fresh 20-epoch job from the original checkpoint (not a continuation of the
-three-epoch run), with one A10G GPU, four CPUs, 32 GiB RAM and a two-hour timeout:
+Both modes start from the pinned original epoch-50 COBA weights and use
+`snnlab.sim.train()` with streamed sensory and inhibitory inputs. The effective
+batch is 256, including the 156-image final batch. Each effective batch has one
+AdamW update. The benchmark uses 412 source-training images and 32 source
+validation images for two epochs, so it measures both effective batch shapes
+and captures cold and warmed timings. The native trainer measures E rates with
+fixed-weight split evaluation. Benchmark estimates include that evaluation. It
+retains numerical parity checks,
+native execution paths, peak device memory and a full-run cost projection.
+
+Dispatch the benchmark with one A100 80 GB and a 20-minute timeout:
 
 ```sh
 uv run --no-project --python 3.12 --with 'modal>=1.1,<2' --with PyYAML \
   python -m libraries.modal_dispatcher dispatch --experiment exp171 \
-  --gpu A10G --cpu 4 --memory 32768 --timeout 7200 \
-  --input bank=exp022-r015-compute -- --epochs 20
+  --gpu A100-80GB --cpu 8 --memory 32768 --timeout 1200 \
+  --input bank=exp022-r015-compute -- --benchmark
 ```
 
-Use the exact returned compute ID with the dispatcher's `check --collect`, then
-run analysis and presentation separately. MNIST is downloaded into
-`PINGLAB_DATASET_CACHE` on a fresh worker and checked by torchvision; actual
-array hashes are retained. Source roles and source digest remain unchanged.
-The original three-epoch evidence stays immutable; report values and figures
-follow the currently selected completed runset.
+Use the dispatcher’s `check --collect` with the exact returned compute ID.
+If the source was restored into a separate store, pass the same `--root` to
+both dispatch and collection. Review `benchmark.json` and `native-metrics.json`
+before authorizing a full run.
 
-The CUDA executor uses highest float32 matmul precision and batches ten independent
-PING presentations during calibration. CPU calibration retains single-image
-batches. Generator fitting remains on CPU, and per-image RNG streams are unchanged.
-Snapshots record the actual resolved device. Accelerator arithmetic may differ
-slightly from the original CPU pilot; primary comparisons remain paired within
-each run. The initial Modal CPU attempt was cancelled after timings showed it
-could not complete the requested run within its resource timeout.
+Execution comparisons accept `--compile-mode eager|default` and
+`--microbatch-size 16|32|64`. For `default`, dispatch with
+`PINGLAB_MODAL_CUDA_DEVEL=1`. To time the same already calibrated inputs, pass
+`--input calibration=RUN_ID` to the dispatcher and
+`--calibration-id RUN_ID --calibration-digest sha256:DIGEST` to compute.
+The full-run estimate still includes calibration. Full mode must use the
+execution settings recorded by the reviewed benchmark.
 
-The completed 20-epoch run uses local CPU. Both Modal attempts were cancelled;
-measured throughput for this eager executor was better locally. The Modal command
-above remains an execution option, while the first compute command is the local
-route used for the completed evidence.
+Full mode uses all 6,300/700 source-partition images for 20 epochs, with
+epoch-zero and per-epoch validation on three fixed draws. Its compute
+arguments are `--full --benchmark-id RUN_ID --benchmark-digest sha256:DIGEST`.
+A Modal dispatch must explicitly supply both the `bank` and `benchmark` input
+roles. The worker checks the reviewed benchmark against the checkpoint pin,
+scientific settings, source hashes, lock, device and execution policy. Benchmark
+completion and collection are independent of full-mode submission.
 
 ## Best-checkpoint digit raster
 

@@ -21,6 +21,13 @@ def configuration(**overrides):
         coba_cell="coba__off__seed42",
         ping_cell="ping__off__seed42",
         seed=42,
+        scaled=False,
+        microbatch_size=16,
+        benchmark_train_size=412,
+        benchmark_validation_size=32,
+        benchmark_epochs=2,
+        benchmark_gpu="A100-SXM4-80GB",
+        benchmark_gpu_usd_per_second=0.000694,
         selection_seed=42,
         sensory_seed=171001,
         calibration_seed=171002,
@@ -82,7 +89,9 @@ def configuration(**overrides):
         raise ValueError("Device must be cpu or cuda")
     if "calibration_batch_size" not in overrides:
         cfg["calibration_batch_size"] = 10 if cfg["device"] == "cuda" else 1
-    if cfg["batch_size"] > 10 * cfg["train_per_digit"]:
+    if cfg["scaled"]:
+        cfg["batch_size"] = 256
+    if not cfg["scaled"] and cfg["batch_size"] > 10 * cfg["train_per_digit"]:
         raise ValueError("Batch exceeds training pool")
     history = cfg["inhibition_prehistory_ms"] / cfg["dt_ms"]
     if (
@@ -98,7 +107,7 @@ def configuration(**overrides):
     return cfg
 
 
-def author_network(cfg, *, teacher=False, record_spikes=False):
+def author_network(cfg, *, teacher=False, record_spikes=False, dense_private=False):
     net = lang.Network(
         "PING_teacher" if teacher else "COBA_adaptation", dt=cfg["dt_ms"] * lang.ms
     )
@@ -133,13 +142,24 @@ def author_network(cfg, *, teacher=False, record_spikes=False):
         for name, population in pops.items():
             net.output(name + "_spikes", population.spikes)
 
-    def projection(src, dst, name, tau, inhibitory=False, recurrent=False, delay=0.0):
+    def projection(
+        src,
+        dst,
+        name,
+        tau,
+        inhibitory=False,
+        recurrent=False,
+        delay=0.0,
+        *,
+        private=False,
+    ):
         return net.connect(
             src,
             dst,
             name=name,
             synapse=(lang.GABA if inhibitory else lang.AMPA)(tau=tau * lang.ms),
-            weight=lang.Constant(0.0),
+            weight=lang.Constant(1.0 if private else 0.0),
+            connectivity=lang.OneToOne() if private else None,
             initialization_scaling="direct",
             constraint=lang.NonNegative(),
             delay=delay * lang.ms,
@@ -172,8 +192,8 @@ def author_network(cfg, *, teacher=False, record_spikes=False):
         private = net.input(
             "artificial",
             shape=("time", "batch", cfg["n_e"]),
-            signal_type="spikes",
-            unit="spike",
+            signal_type="continuous" if cfg.get("scaled") else "spikes",
+            unit="1" if cfg.get("scaled") else "spike",
         )
         gaba = projection(
             private,
@@ -182,8 +202,10 @@ def author_network(cfg, *, teacher=False, record_spikes=False):
             cfg["tau_gaba_ms"],
             True,
             delay=cfg["dt_ms"],
+            private=cfg.get("scaled", False) and not dense_private,
         )
-        net.output("g_artificial", gaba.conductance)
+        if not cfg.get("scaled", False) or record_spikes:
+            net.output("g_artificial", gaba.conductance)
     out = net.population(
         "readout",
         size=cfg["n_output"],

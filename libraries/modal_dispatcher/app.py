@@ -50,22 +50,29 @@ if modal.is_local():
                 )
         elif baseline != commit:
             raise ValueError("an alternate baseline requires an explicit source bundle")
-        image = (
-            modal.Image.debian_slim(python_version="3.12")
-            .apt_install(
-                "git",
-                "pkg-config",
-                "libcairo2-dev",
-                "libpango1.0-dev",
-                "ffmpeg",
-                "graphviz",
+        cuda_devel = os.environ.get("PINGLAB_MODAL_CUDA_DEVEL") == "1"
+        if cuda_devel:
+            image = (
+                modal.Image.from_registry(
+                    "nvidia/cuda:12.8.1-devel-ubuntu24.04", add_python="3.12"
+                )
+                .entrypoint([])
+                .env({"CUDA_HOME": "/usr/local/cuda"})
             )
-            .run_commands(
-                f"git init {REMOTE}",
-                f"git -C {REMOTE} remote add origin https://github.com/eoinmurray/pinglab",
-                f"git -C {REMOTE} fetch --depth 1 origin {baseline}",
-                f"git -C {REMOTE} reset --hard FETCH_HEAD",
-            )
+        else:
+            image = modal.Image.debian_slim(python_version="3.12")
+        image = image.apt_install(
+            "git",
+            "pkg-config",
+            "libcairo2-dev",
+            "libpango1.0-dev",
+            "ffmpeg",
+            "graphviz",
+        ).run_commands(
+            f"git init {REMOTE}",
+            f"git -C {REMOTE} remote add origin https://github.com/eoinmurray/pinglab",
+            f"git -C {REMOTE} fetch --depth 1 origin {baseline}",
+            f"git -C {REMOTE} reset --hard FETCH_HEAD",
         )
         if source_bundle:
             image = image.add_local_file(
@@ -74,6 +81,10 @@ if modal.is_local():
                 f"git -C {REMOTE} fetch /tmp/pinglab-source.bundle HEAD",
                 f"git -C {REMOTE} reset --hard FETCH_HEAD",
                 "rm /tmp/pinglab-source.bundle",
+            )
+        if cuda_devel:
+            image = image.apt_install("g++", "python3.12-dev").env(
+                {"CC": "gcc", "CXX": "g++", "CPATH": "/usr/include/python3.12"}
             )
         image = (
             image.uv_sync(str(REPO), extra_options="--no-dev")
