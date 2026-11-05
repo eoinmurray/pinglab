@@ -59,7 +59,9 @@ def configuration(*, prehistory_ms=60.0):
     )
 
 
-def author_network(cfg, *, include_private=True, record_ping=False):
+def author_network(
+    cfg, *, include_private=True, record_ping=False, record_traces=False
+):
     net = lang.Network("TR02_artificial_inhibition", dt=cfg["dt_ms"] * lang.ms)
     drive = net.input(
         "drive",
@@ -121,7 +123,7 @@ def author_network(cfg, *, include_private=True, record_ping=False):
             **({"connection": "recurrent"} if recurrent else {}),
         )
 
-    connect(drive, pops["E"].excitatory, "input_to_E", cfg["tau_ampa_ms"])
+    excitatory = connect(drive, pops["E"].excitatory, "input_to_E", cfg["tau_ampa_ms"])
     connect(
         pops["E"].spikes,
         pops["I"].excitatory,
@@ -141,6 +143,10 @@ def author_network(cfg, *, include_private=True, record_ping=False):
     )
     if record_ping:
         net.output("g_ping", inhibitory.conductance)
+    if record_traces:
+        net.output("E_voltage", pops["E"].voltage)
+        net.output("g_excitatory", excitatory.conductance)
+        net.output("g_recurrent_inhibitory", inhibitory.conductance)
     if include_private:
         private = connect(
             artificial,

@@ -24,7 +24,6 @@ from experiments.exp172.analyse import (
     materialise_compute,
     spatial_timecourse,
 )
-from experiments.exp172.recipe import gaussian
 from pingstore.library import source_run, stage_run
 
 sys.path.insert(0, str(REPO))
@@ -396,8 +395,8 @@ def render(data, output, argv=None):
     raster_grid = raster_fig.add_gridspec(1, 3)
     profile_fig = plt.figure(figsize=(11, 10), layout="constrained")
     profile_grid = profile_fig.add_gridspec(3, 2)
-    signal_fig = plt.figure(figsize=(17, 5), layout="constrained")
-    signal_grid = signal_fig.add_gridspec(1, 3)
+    signal_fig = plt.figure(figsize=(11, 5), layout="constrained")
+    signal_grid = signal_fig.add_gridspec(1, 2)
     weight_fig = plt.figure(figsize=(11, 5), layout="constrained")
     weight_grid = weight_fig.add_gridspec(1, 2)
     raster_axes = []
@@ -416,48 +415,7 @@ def render(data, output, argv=None):
         profile_grid,
         profile_axes,
     )
-    reference = signal_fig.add_subplot(signal_grid[0, 0])
-    signal_axes.append(reference)
-    x = (
-        np.arange(cfg["network"]["populations"]["E"]["size"])
-        / cfg["network"]["populations"]["E"]["size"]
-    )
-    for j, c in enumerate("AB"):
-        reference.plot(
-            x * len(x) + 1,
-            gaussian(
-                x,
-                (cfg["centres"][::-1] if args.swap else cfg["centres"])[j],
-                cfg["spatial_sigma"],
-            ),
-            color=colors[j],
-            lw=1.8,
-            label=f"{c} input reference",
-        )
-        broadened = np.sqrt(
-            cfg["spatial_sigma"] ** 2
-            + cfg["sensory_kernel_sigma"] ** 2
-            + cfg["cross_kernel_sigma"] ** 2
-        )
-        reference.plot(
-            x * len(x) + 1,
-            gaussian(
-                x, (cfg["centres"][::-1] if args.swap else cfg["centres"])[j], broadened
-            ),
-            color=colors[j],
-            ls="--",
-            lw=1,
-            label=f"{c} C-fit template",
-        )
-    reference.set(
-        title="Gaussian references / fit templates",
-        xlabel="Equivalent E neuron index",
-        ylabel="Normalised shape (unit peak)",
-        xlim=(1, len(x)),
-        ylim=(0, 1.3),
-    )
-    reference.legend(loc="upper center", ncol=2, fontsize=theme.SIZE_ANNOTATION)
-    relative_ax = signal_fig.add_subplot(signal_grid[0, 1])
+    relative_ax = signal_fig.add_subplot(signal_grid[0, 0])
     signal_axes.append(relative_ax)
     t, relative = relative_phases(spikes, cfg)
     for c, color in zip("AB", colors, strict=False):
@@ -475,7 +433,7 @@ def render(data, output, argv=None):
         xlim=(0, cfg["duration_ms"]),
     )
     relative_ax.legend(loc="upper right", fontsize=theme.SIZE_ANNOTATION)
-    amplitude_ax = signal_fig.add_subplot(signal_grid[0, 2])
+    amplitude_ax = signal_fig.add_subplot(signal_grid[0, 1])
     signal_axes.append(amplitude_ax)
     amplitude_panel(amplitude_ax, course, cfg)
     parameters = NetworkSnapshot.read(

@@ -3,12 +3,12 @@ id: exp169
 title: "COBA with Artificial Inhibition"
 author: "Eoin Murray"
 created_at: "2026-11-03T13:36:19Z"
-updated_at: "2026-11-04T15:52:30Z"
+updated_at: "2026-11-05T10:28:27Z"
 description: "A single-image TR02 control matching PING conductance moments with private inhibitory event streams."
 collection: ["experiments"]
 tags: ["data", "v0.31.0"]
 inputs: ["exp169"]
-thumbnail: rasters.png
+thumbnail: coba.png
 ---
 
 import RunFigure from '../../../site/src/components/RunFigure.astro';
@@ -22,21 +22,39 @@ import EvidenceSummary from './EvidenceSummary.astro';
 
 <EvidenceSummary section="onset" />
 
-<RunFigure report="exp169" experiment="exp169" file="rasters.svg" number={1} id="fig-rasters" alt="COBA, PING and frozen COBA receiving private GABA inputs, with every excitatory neuron shown." allowUnavailable={true}>
-  COBA, PING and COBA with private GABA inputs (top to bottom), for identical
-  200-ms digit-0 input (unpenalised TR02, seed 42). Black: E spikes; red: I spikes
-  or artificial events. Private 6-ms GABA inputs match per-cell PING conductance
-  mean and SD over the full displayed trial. A 60-ms inhibition-only prehistory
-  supplies initial private conductance and pending events; neurons, sensory
-  synapses and readout start fresh at 0 ms. No scored interval is discarded.
-  COBA weights remain fixed. One illustrative realization;
-  synchrony is not isolated. Input construction: Methods.
+<RunFigure report="exp169" experiment="exp169" file="coba.svg" number={1} id="fig-coba" alt="COBA: spike raster, E neuron 512 membrane potential and its excitatory and inhibitory conductances." allowUnavailable={true}>
+  Frozen, unpenalised COBA for the 200-ms digit-0 input (TR02, seed 42).
+  (a) All E spikes (black), with I spikes above (red).
+  (b) Membrane potential of E neuron 512 (zero-based index); dashed line: firing threshold.
+  (c) Its excitatory AMPA (black) and total inhibitory GABA conductance (red).
+  The same fixed neuron and axis limits are used across all three conditions;
+  this neuron was not selected to represent the population. Voltage is recorded
+  after reset; spike peaks are not drawn. One image and realization; synchrony is not isolated.
+</RunFigure>
+
+<RunFigure report="exp169" experiment="exp169" file="ping.svg" number={2} id="fig-ping" alt="PING: spike raster, E neuron 512 membrane potential and its excitatory and inhibitory conductances." allowUnavailable={true}>
+  PING for the same 200-ms digit-0 input (TR02, seed 42). COBA and PING have different learned weights.
+  (a) All E spikes (black), with I spikes above (red).
+  (b) Membrane potential of E neuron 512 (zero-based index); dashed line: firing threshold.
+  (c) Its excitatory AMPA (black) and total inhibitory GABA conductance (red).
+  The same fixed neuron and axis limits are used across all three conditions;
+  this neuron was not selected to represent the population. Voltage is recorded
+  after reset; spike peaks are not drawn. One image and realization; synchrony is not isolated.
+</RunFigure>
+
+<RunFigure report="exp169" experiment="exp169" file="artificial.svg" number={3} id="fig-artificial" alt="COBA + artificial inhibition: spike raster, E neuron 512 membrane potential and its excitatory and inhibitory conductances." allowUnavailable={true}>
+  Frozen COBA with private 6-ms GABA inputs, matching each E neuron’s PING conductance mean and SD. A 60-ms inhibition-only prehistory establishes conductance and pending events; neurons, sensory synapses and readout start fresh at 0 ms. All 200 ms are scored.
+  (a) All E spikes (black), with private inhibitory events above (red).
+  (b) Membrane potential of E neuron 512 (zero-based index); dashed line: firing threshold.
+  (c) Its excitatory AMPA (black) and total inhibitory GABA conductance (red).
+  The same fixed neuron and axis limits are used across all three conditions;
+  this neuron was not selected to represent the population. Voltage is recorded
+  after reset; spike peaks are not drawn. The artificial traces come from an exact frozen replay of the retained trial, without retraining or recalibration. One image and realization; synchrony is not isolated.
 </RunFigure>
 
 ## Methods
 
-These equations summarize the implemented discrete-time procedure for Figure 1's
-third panel. Index $j$ labels an E neuron and its private input; $n$ labels one of
+These equations summarize the implemented discrete-time procedure for Figure 3. Index $j$ labels an E neuron and its private input; $n$ labels one of
 $T$ scored time bins. Private events also have $H=600$ prehistory bins (60 ms), indexed $-H$ through $-1$. Bars and $\operatorname{sd}$ denote the temporal mean and standard
 deviation over the displayed trial, using divisor $T$.
 

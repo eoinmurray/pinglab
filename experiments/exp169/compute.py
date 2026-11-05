@@ -15,6 +15,7 @@ from experiments.exp169 import recipe
 from experiments.exp169.custom.prehistory import initial_state
 from pingstore.library import file_sha256, source_run, stage_run
 from scipy.signal import lfilter
+from snnlab import lang
 from snnlab.sim import (
     DenseArrayBinding,
     Performance,
@@ -345,15 +346,159 @@ def import_retained(identity, *, run_id=None):
     return run.run_id
 
 
+def record_traces(identity, *, run_id=None):
+    """Replay exactly the retained artificial trial, recording one fixed E cell.
+
+    Retain one trace archive (<100 kB), native bundle, diagram and start snapshot
+    (approximately 8 MB), not another copy of the source recordings.
+    """
+    from snnlab.sim import NetworkSnapshot
+
+    started = time.perf_counter()
+    torch.set_num_threads(1)
+    computed = source_run(
+        ROOT / ".pingstore", identity, experiment=recipe.SLUG, stage="compute"
+    )
+    pin = computed.record["inputs"]["bank"]
+    bank = source_run(
+        ROOT / ".pingstore",
+        pin["run_id"],
+        experiment="exp022",
+        stage="compute",
+        reference=pin,
+    )
+    cfg = dict(computed.record["execution"]["configuration"])
+    neuron = 512
+    cfg.update(
+        trace_neuron_index=neuron, trace_selection="fixed index, not output-selected"
+    )
+    bundle = recipe.author_network(cfg, record_traces=True)
+    original = recipe.author_network(cfg)
+    with stage_run(
+        ROOT,
+        recipe.SLUG,
+        "compute",
+        phase="membrane-traces",
+        inputs={"compute": computed, "bank": bank},
+        configuration=cfg,
+        run_id=run_id,
+    ) as run:
+        retained = lang.load_bundle(
+            computed.restore_bundle("network.bundle", run.scratch / "source.bundle")
+        )
+        if original.graph != retained.graph:
+            raise ValueError("Recipe differs from retained trial")
+        bundle.write(run.export / "network.bundle", visualise=False)
+        bundle.visualise(run.export / "circuit.svg", view="circuit")
+        built = build(
+            graph=bundle.graph,
+            seed=cfg["seed"],
+            device="cpu",
+            performance=Performance(compile_mode=None),
+        )
+        parameters = NetworkSnapshot.read(
+            computed.unit("artificial", "start"),
+            parameters=True,
+        ).load_parameters()
+        with torch.no_grad():
+            for name, parameter in built.model.parameter_map().items():
+                parameter.copy_(torch.as_tensor(parameters[name]))
+                parameter.requires_grad_(False)
+        checkpoint = run.scratch / "parameters.pt"
+        torch.save(built.model.state_dict(), checkpoint)
+        with np.load(bank.file("snapshots", "coba__off__seed42", "recording.npz")) as z:
+            drive = torch.from_numpy(z["input_spikes"][:, None, :].copy()).float()
+        with np.load(computed.file("calibration.npz")) as z:
+            events = z["events"].copy()
+            established = (
+                initial_state(
+                    built.model,
+                    z["prehistory_events"].copy(),
+                    z["amplitudes_us"].copy(),
+                    cfg,
+                )
+                if cfg.get("prehistory_ms", 0)
+                else None
+            )
+        t = time.perf_counter()
+        result = simulate(
+            graph=bundle.graph,
+            seed=cfg["seed"],
+            device="cpu",
+            checkpoint=checkpoint,
+            runtime_state=established,
+            input_bindings=(
+                DenseArrayBinding("drive", drive),
+                DenseArrayBinding(
+                    "artificial", torch.from_numpy(events[:, None, :]).float()
+                ),
+            ),
+            snapshot=SnapshotSpec(
+                run.export / "execution/start", stage="start", parameters=True
+            ),
+            performance=Performance(compile_mode=None),
+            diagnostics=False,
+            retain_parameters=True,
+            retain_runtime_state=False,
+            retain_final_state=False,
+        )
+        simulation_seconds = time.perf_counter() - t
+        arrays = {k: v.detach().cpu().numpy() for k, v in result.outputs.items()}
+        with np.load(computed.file("artificial.npz")) as z:
+            for key in z.files:
+                np.testing.assert_array_equal(arrays[key], z[key], err_msg=key)
+        for name, parameter in result.parameters.items():
+            np.testing.assert_array_equal(parameter.numpy(), parameters[name])
+        traces = {
+            "voltage_mv": arrays["E_voltage"][:, 0, neuron],
+            "g_excitatory_us": arrays["g_excitatory"][:, 0, neuron],
+            "g_inhibitory_us": (
+                arrays["g_recurrent_inhibitory"] + arrays["g_artificial"]
+            )[:, 0, neuron],
+        }
+        if not all(np.isfinite(value).all() for value in traces.values()):
+            raise ValueError("Nonfinite diagnostic recording")
+        np.savez_compressed(run.export / "traces.npz", **traces)
+        (run.export / "summary.json").write_text(
+            json.dumps(
+                dict(
+                    neuron_index=neuron,
+                    original_outputs_exact=True,
+                    frozen_parameters_exact=True,
+                    simulation_seconds=simulation_seconds,
+                ),
+                indent=2,
+            )
+            + "\n"
+        )
+        run.record["scientific_artifacts"] = {
+            "snapshot_stages": {"execution": ["start"]}
+        }
+        run.record["execution"].update(
+            no_simulation=False,
+            simulation_seconds=simulation_seconds,
+            elapsed_seconds=time.perf_counter() - started,
+        )
+        computed.check_unchanged()
+        bank.check_unchanged()
+    print(run.run_id, flush=True)
+    return run.run_id
+
+
 if __name__ == "__main__":
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument(
         "--import-source",
         help="Explicit retained scratch compute ID; copies evidence without simulation",
     )
+    p.add_argument(
+        "--record-traces", help="Replay a retained compute trial without recalibration"
+    )
     p.add_argument("--run-id")
     args = p.parse_args()
-    if args.import_source:
+    if args.record_traces:
+        record_traces(args.record_traces, run_id=args.run_id)
+    elif args.import_source:
         import_retained(args.import_source, run_id=args.run_id)
     else:
         compute(run_id=args.run_id)

@@ -24,7 +24,7 @@ Pingstore IDs; stages never launch one another. `recipe.py` owns configuration,
 input generation and network authoring. No scratch or other experiment code is
 required. Existing runs remain immutable.
 
-The figures retain E/I spikes, spatial profiles, Gaussian templates, unwrapped
+The figures retain E/I spikes, spatial profiles, unwrapped
 relative phase, 100 ms moving-window spatial amplitudes (5 ms step), and both
 executed sender→C weight matrices. Overlapping fits blur brief excursions and
 are not independent samples. The diagram uses the saved compiled architecture;

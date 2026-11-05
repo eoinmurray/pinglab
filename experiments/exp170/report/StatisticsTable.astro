@@ -11,8 +11,8 @@ const rows = data ? [
   ['E firing rate', `${data.conditions[1].rate_e_hz.toFixed(2)} Hz`, `${data.conditions[2].rate_e_hz.toFixed(2)} Hz`],
 ] : [['Saved statistics','Unavailable','Unavailable']];
 ---
-<Table headers={['Statistic','PING','Count-matched artificial inhibition']} rows={rows} number={1} id="inhibition-statistics" label="Measured inhibition and E firing in Figure 1">
-  The same full trial and selected evidence as Figure 1. Event-rate ± SD is across
+<Table headers={['Statistic','PING','Count-matched artificial inhibition']} rows={rows} number={1} id="inhibition-statistics" label="Measured inhibition and E firing in Figures 2 and 3">
+  The same full trial and selected evidence as Figures 2 and 3. Event-rate ± SD is across
   sources, not uncertainty across replicates. PING has 256 I neurons; artificial
   inhibition has 1,024 private event streams. Conductance statistics refer to E
   recipients: SD is measured over time separately for each E neuron, then

@@ -45,7 +45,42 @@ def configuration():
     )
 
 
-def author_network(cfg, *, include_private=True):
+def recorded_configuration(cfg, graph):
+    """Recover omitted historical settings from the retained native graph."""
+    cfg = dict(cfg)
+    pops = {p["id"]: p for p in graph["populations"]}
+    projections = {p["id"]: p for p in graph["projections"]}
+    cfg.update(
+        n_input=next(p["shape"][-1] for p in graph["inputs"] if p["id"] == "drive"),
+        n_e=pops["E"]["size"],
+        n_i=pops["I"]["size"],
+        n_output=pops["readout"]["size"],
+        tau_ampa_ms=projections["input_to_E"]["synapse"]["tau"]["value"],
+        tau_gaba_ms=projections["I_to_E"]["synapse"]["tau"]["value"],
+    )
+    for name in ("E", "I"):
+        neuron = pops[name]["neuron"]
+        cfg[f"capacitance_{name.lower()}_nf"] = neuron["capacitance_nf"]
+        cfg[f"leak_{name.lower()}_us"] = neuron["leak_us"]
+        cfg[f"refractory_{name.lower()}_ms"] = neuron["refractory"]["value"]
+    for key in (
+        "resting_mv",
+        "threshold_mv",
+        "reset_mv",
+        "initial_voltage_mv",
+        "voltage_grad_dampen",
+    ):
+        cfg[key] = pops["E"]["neuron"][key]
+    readout = pops["readout"]["neuron"]
+    cfg.update(
+        readout_tau_ms=readout["tau"]["value"],
+        readout_threshold=readout["soft_reset_threshold"],
+        surrogate_slope=readout["surrogate_slope"],
+    )
+    return cfg
+
+
+def author_network(cfg, *, include_private=True, record_traces=False):
     net = lang.Network("TR02_artificial_inhibition", dt=cfg["dt_ms"] * lang.ms)
     drive = net.input(
         "drive",
@@ -107,7 +142,7 @@ def author_network(cfg, *, include_private=True):
             **({"connection": "recurrent"} if recurrent else {}),
         )
 
-    connect(drive, pops["E"].excitatory, "input_to_E", cfg["tau_ampa_ms"])
+    excitatory = connect(drive, pops["E"].excitatory, "input_to_E", cfg["tau_ampa_ms"])
     connect(
         pops["E"].spikes,
         pops["I"].excitatory,
@@ -116,7 +151,7 @@ def author_network(cfg, *, include_private=True):
         recurrent=True,
         delay=cfg["dt_ms"],
     )
-    connect(
+    inhibitory = connect(
         pops["I"].spikes,
         pops["E"].inhibitory,
         "I_to_E",
@@ -125,6 +160,10 @@ def author_network(cfg, *, include_private=True):
         True,
         cfg["dt_ms"],
     )
+    if record_traces:
+        net.output("E_voltage", pops["E"].voltage)
+        net.output("g_excitatory", excitatory.conductance)
+        net.output("g_recurrent_inhibitory", inhibitory.conductance)
     if include_private:
         private = connect(
             artificial,

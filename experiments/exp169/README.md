@@ -18,7 +18,7 @@ is retrained.
 3. `analyse.py --source COMPUTE_ID [--run-id ID]` verifies source inputs, checkpoint
    parameters, native snapshots, the delayed GABA filter, moments and baseline
    per-neuron counts; records measurements without simulation.
-4. `present.py --source ANALYSE_ID [--run-id ID]` renders three rasters and native
+4. `present.py --source ANALYSE_ID --traces TRACE_COMPUTE_ID [--run-id ID]` renders three raster/voltage/conductance figures and native
    architecture diagrams, with evidence-bound report numbers.
 5. `uv run pytest experiments/exp169/test.py` runs non-simulation checks.
 
@@ -40,3 +40,10 @@ The paired zero-start probe uses the same scored inhibitory events and amplitude
 as the pre-established condition. Only the inhibitory initial state differs.
 Its full-window moments therefore need not match PING. The analysis checks the
 saved native runtime state, exact delayed filter and onset measurements.
+
+`compute.py --record-traces COMPUTE_ID` replays only the retained artificial
+trial, without training or recalibration, and requires simulation authorization.
+It retains E neuron 512’s voltage and excitatory/inhibitory conductances in a
+new `membrane-traces` compute phase, verifying all original outputs exactly.
+Pass that phase ID to `present.py --traces`. The COBA and PING panels use their
+original saved traces; each condition gets its own three-panel figure.
