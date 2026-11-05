@@ -10,6 +10,7 @@ interface Props {
   heading?: string;
   literature?: { href: string; label: string; count: number; active?: boolean }[];
   allPapersActive?: boolean;
+  searchKind?: 'articles' | 'papers';
 }
 const { title, allHref, allLabel, allCount, allPapersCount, collections: collectionLinks, filtered = false, heading = 'Collections', literature: literatureLinks, allPapersActive = false } = Astro.props;
 const collections = [...collectionLinks].sort((a, b) => b.count - a.count);
@@ -17,6 +18,7 @@ const literature = literatureLinks && [...literatureLinks].sort((a, b) => b.coun
 const visibleCollectionLimit = 5;
 const remainingCollections = collections.slice(visibleCollectionLimit);
 const remainingLiterature = literature?.slice(visibleCollectionLimit) ?? [];
+const searchKind = Astro.props.searchKind ?? 'articles';
 ---
 <h1 class="visually-hidden">{title}</h1>
 <div class="base-grid">
@@ -63,12 +65,51 @@ const remainingLiterature = literature?.slice(visibleCollectionLimit) ?? [];
       </nav>}
       </div>
     </aside>
-    <div class="browser-articles"><slot /></div>
+    <div class="browser-articles">
+      <div class="browser-search" role="search">
+        <svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.5" /><path d="m13 13 4 4" /></svg>
+        <input type="search" placeholder={`Search ${searchKind}…`} aria-label={`Search ${searchKind}`} />
+        <button class="browser-search-clear" type="button" aria-label={`Clear ${searchKind} search`} hidden>
+          <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m4 4 8 8m0-8-8 8" /></svg>
+        </button>
+      </div>
+      <slot />
+      <p class="browser-search-status visually-hidden" role="status" aria-live="polite"></p>
+    </div>
   </div>
 </div>
 
 <script>
   function setupCollectionToggle() {
+    const search = document.querySelector<HTMLInputElement>('.browser-search input');
+    if (search && !search.dataset.initialized) {
+      search.dataset.initialized = 'true';
+      const browser = search.closest('.browser-articles')!;
+      const rows = [...browser.querySelectorAll<HTMLElement>('.article-list > li')];
+      const status = browser.querySelector<HTMLElement>('.browser-search-status')!;
+      const clear = browser.querySelector<HTMLButtonElement>('.browser-search-clear')!;
+      const normalize = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+      const entries = rows.map(row => ({ row, text: normalize(row.dataset.search ?? row.textContent ?? '') }));
+      function filter() {
+        clear.hidden = search!.value.length === 0;
+        const words = normalize(search!.value).trim().split(/\s+/).filter(Boolean);
+        let matches = 0;
+        for (const { row, text } of entries) {
+          row.hidden = !words.every(word => text.includes(word));
+          if (!row.hidden) matches++;
+        }
+        status.textContent = words.length ? (matches ? `${matches} ${matches === 1 ? 'result' : 'results'}` : 'No matches found. Try another search.') : '';
+        status.classList.toggle('visually-hidden', matches > 0 || words.length === 0);
+      }
+      search.addEventListener('input', filter);
+      search.addEventListener('search', filter);
+      clear.addEventListener('click', () => {
+        search!.value = '';
+        filter();
+        search!.focus();
+      });
+      filter();
+    }
     const toggle = document.querySelector<HTMLButtonElement>('.collections-toggle');
     if (!toggle || toggle.dataset.initialized) return;
     toggle.dataset.initialized = 'true';
@@ -106,12 +147,41 @@ const remainingLiterature = literature?.slice(visibleCollectionLimit) ?? [];
   .browser-collections .show-less, .browser-collections details[open] .show-more { display: none; }
   .browser-collections details[open] .show-less { display: inline; }
   .browser-collections details[open] summary svg { transform: rotate(180deg); }
-  .browser-articles { min-width: 0; }
+  .browser-articles { min-width: 0; align-self: start; }
+  .browser-search { display: block; position: relative; box-sizing: border-box; width: 100%; height: 48px; margin-top: 24px; padding: 0; border: 1px solid rgb(var(--ink) / .2); border-radius: 6px; background: transparent; color: rgb(var(--ink) / .6); font: inherit; font-size: 14px; line-height: 20px; text-align: left; cursor: text; }
+  .browser-search > svg { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); pointer-events: none; }
+  .browser-search input { display: block; box-sizing: border-box; min-width: 0; width: 100%; height: 100%; padding: 12px 44px 12px 42px; border: 0; outline: none; background: transparent; color: rgb(var(--ink)); font: inherit; }
+  .browser-search input::-webkit-search-cancel-button { -webkit-appearance: none; }
+  .browser-search-clear { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 4px; background: transparent; color: rgb(var(--ink) / .6); cursor: pointer; }
+  .browser-search-clear[hidden] { display: none; }
+  .browser-search-clear:hover { color: rgb(var(--ink)); background: rgb(var(--ink) / .06); }
+  .browser-search-clear:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .browser-search input::placeholder { color: rgb(var(--ink) / .6); opacity: 1; }
+  .browser-search:hover { border-color: rgb(var(--ink) / .4); color: rgb(var(--ink)); }
+  .browser-search:focus-within { border-color: rgb(var(--ink) / .4); }
+  .browser-articles :global(.article-list > li[hidden]) { display: none; }
+  .browser-articles :global(.article-list > li:nth-last-child(1 of :not([hidden]))) { border-bottom: none; }
+  .browser-search-status { grid-column: 1 / -1; margin: 24px 0; color: var(--listing-muted); font-size: 14px; }
   .browser-articles :global(.base-grid) { display: block; }
+  .browser-articles :global(.article-list) { margin-top: 4px; }
+  .browser-articles :global(.posts-list-sort:not([hidden])) { box-sizing: border-box; height: 48px; padding: 0 14px; gap: 8px; border: 1px solid rgb(var(--ink) / .2); border-radius: 6px; font-size: 14px; line-height: 20px; }
+  .browser-articles :global(.posts-list-sort label), .browser-articles :global(.sort-selection) { font-size: 14px; }
+  .browser-articles :global(.posts-list-sort select) { border-bottom: 0; }
+  .browser-articles :global(.posts-list-sort:hover) { border-color: rgb(var(--ink) / .4); }
+  .browser-articles :global(.posts-list-sort:focus-within) { border-color: rgb(var(--ink) / .4); }
+  .browser-articles :global(.posts-list-sort select:focus-visible) { outline: none; }
+  @media (min-width: 600px) {
+    .browser-articles:has(:global(.posts-list-sort:not([hidden]))) { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 12px; align-items: center; }
+    .browser-articles:has(:global(.posts-list-sort:not([hidden]))) .browser-search { grid-column: 1; grid-row: 1; min-width: 0; }
+    .browser-articles:has(:global(.posts-list-sort:not([hidden]))) :global(.base-grid) { display: contents; }
+    .browser-articles :global(.posts-list-sort:not([hidden])) { grid-column: 2; grid-row: 1; width: auto; }
+    .browser-articles:has(:global(.posts-list-sort:not([hidden]))) :global(.posts-list) { grid-column: 1 / -1; grid-row: 2; width: 100%; }
+  }
+  @media print { .browser-search { display: none; } }
   @media (min-width: 1180px) {
     .article-browser, :global(body:has(.article-browser) .site-header nav) { width: min(100%, calc(var(--listing-width) + 240px)); }
     .article-browser { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 40px; }
-    .browser-collections { grid-column: 1; grid-row: 1; padding-top: calc(84px * var(--listing-scale)); }
+    .browser-collections { grid-column: 1; grid-row: 1; padding-top: 24px; }
     .browser-articles { grid-column: 2; grid-row: 1; }
     .collections-toggle { display: none; }
     .browser-navigation, .collections-toggle[aria-expanded="true"] + .browser-navigation { display: block; margin-top: 0; position: sticky; top: 24px; max-height: calc(100vh - 48px); overflow-y: auto; }

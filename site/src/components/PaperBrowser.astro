@@ -19,6 +19,6 @@ const visiblePapers = collection ? papers.filter(paper => paper.collections.incl
   heading="Articles" filtered={true}
   collections={articleCollections.map(name => ({ href: collectionUrl(name), label: collectionLabel(name), count: articleCounts.get(name) ?? 0, active: false }))}
   literature={collections.map(name => ({ href: paperCollectionUrl(name), label: paperCollectionLabel(name), count: paperCounts.get(name) ?? 0, active: name === collection }))}
-  allPapersActive={!collection}>
+  allPapersActive={!collection} searchKind="papers">
   <PapersList papers={visiblePapers} />
 </CollectionBrowser>

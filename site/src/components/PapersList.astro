@@ -1,5 +1,6 @@
 ---
 import type { Paper } from '../lib/papers';
+import { paperCollectionLabel } from '../lib/papers';
 interface Props { papers: Paper[]; }
 const { papers } = Astro.props;
 const surname = (author: string) => {
@@ -12,7 +13,7 @@ const surname = (author: string) => {
 ---
   <div class="base-grid">
     <ol class="papers-list article-list listing-width l-page" role="list" aria-label="Papers">
-      {papers.map(paper => <li class="article-list-row">
+      {papers.map(paper => <li class="article-list-row" data-search={[paper.file, paper.metadata?.id, paper.metadata?.title, ...(paper.metadata?.authors ?? []), paper.metadata?.year, paper.metadata?.venue, paper.metadata?.doi, ...(paper.metadata?.tags ?? []).map(paperCollectionLabel), ...paper.collections.map(paperCollectionLabel)].join(' ')}>
         <div class="metadata">
           {paper.metadata && <>
             {paper.href ? <a class="paper-year" href={paper.href} aria-label={`Open ${paper.metadata.id}: ${paper.metadata.title}`}>{paper.metadata.year}</a>
