@@ -3,6 +3,7 @@
 import argparse
 import json
 import sys
+import tempfile
 import time
 from pathlib import Path
 
@@ -12,9 +13,24 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from experiments.exp171 import recipe
-from experiments.exp171.compute import artificial, filtered, write_json
+from experiments.exp171.compute import (
+    artificial,
+    check_calibration_configuration,
+    dataset_event_counts,
+    event_counts,
+    filtered,
+    first_correct_position,
+    generator_key,
+    moment_keys,
+    poisson_expected_moments,
+    relative_moment_error,
+    teacher_event_counts,
+    validate_poisson_parameters,
+    validate_source_configuration,
+    write_json,
+)
 from pingstore.library import file_sha256, source_run, stage_run
-from snnlab.sim import NetworkSnapshot, load_runtime_state
+from snnlab.sim import NetworkSnapshot, load_runtime_state, load_training_checkpoint
 
 
 def summarise(scores, labels, rates):
@@ -122,7 +138,7 @@ def validate_inhibition_history(computed, cfg, indices, metrics):
         raise ValueError("Inhibitory initialization replay metadata mismatch")
     with np.load(computed.file("calibration.npz")) as z:
         ev = artificial(
-            z["probability"][:1], z["amplitude_us"][:1], indices[:1], cfg, draw=0
+            z[generator_key(cfg)][:1], z["amplitude_us"][:1], indices[:1], cfg, draw=0
         )
     state = load_runtime_state(computed.unit("initial-inhibition-state"))
     if (
@@ -156,7 +172,489 @@ def validate_inhibition_history(computed, cfg, indices, metrics):
     )
 
 
+def validate_generator(z, cfg, indices):
+    parameter = z[generator_key(cfg)]
+    upper = 2 if cfg.get("inhibition_method") == "count_matched_timing_v2" else 1
+    valid = (
+        (parameter >= 0) & (parameter <= upper)
+        if generator_key(cfg) == "timing_interpolation"
+        else (parameter > 0) & (parameter < 1)
+    )
+    if (
+        not np.all(valid)
+        or not np.all(z["amplitude_us"] > 0)
+        or not np.isfinite(z["amplitude_us"]).all()
+    ):
+        raise ValueError("Invalid frozen generator")
+    if generator_key(cfg) == "timing_interpolation":
+        for coordinate in (
+            {"epoch": 1},
+            *({"draw": d} for d in range(cfg["validation_draws"])),
+        ):
+            for start in range(0, len(indices), cfg["batch_size"]):
+                stop = start + cfg["batch_size"]
+                events = artificial(
+                    parameter[start:stop],
+                    z["amplitude_us"][start:stop],
+                    indices[start:stop],
+                    cfg,
+                    **coordinate,
+                )
+                if (
+                    not np.all(
+                        (events[cfg.get("inhibition_prehistory_steps", 0) :] > 0).sum(0)
+                        == cfg["target_events_per_source"]
+                    )
+                    or events[-1].any()
+                ):
+                    raise ValueError("Invalid private event counts or delivery bins")
+
+
+def native_history(metrics, *, penalised=False):
+    """Use the trainer's fixed-weight split measurements, without re-evaluation."""
+    history = []
+    for row in metrics["epochs"]:
+        components = row.get("validation_cross_entropies", {})
+        if penalised and "objective[0]" not in components:
+            raise ValueError(
+                "Penalised validation requires separate cross-entropy evidence"
+            )
+        history.append(
+            dict(
+                epoch=row["epoch"],
+                training_loss=row.get("train_loss"),
+                cross_entropy=components.get("objective[0]", row["validation_loss"]),
+                accuracy_pct=100 * row["validation_accuracy"],
+                e_rate_hz=row["observations"]["validation"]["population_rates_hz"]["E"],
+            )
+        )
+    if not all(
+        np.isfinite(row[key])
+        for row in history
+        for key in ("cross_entropy", "accuracy_pct", "e_rate_hz")
+    ):
+        raise ValueError("Nonfinite native validation metrics")
+    return history
+
+
+def validate_teacher_activity(calibration, cfg):
+    counts = calibration["teacher_i_spike_count"]
+    rates = calibration["teacher_i_rate_hz"]
+    expected = (cfg["train_images"] + cfg["validation_images"], cfg["n_i"])
+    if (
+        counts.shape != expected
+        or rates.shape != expected
+        or not np.issubdtype(counts.dtype, np.integer)
+        or np.any(counts < 0)
+        or np.any(counts > cfg["steps"])
+        or not np.isfinite(rates).all()
+    ):
+        raise ValueError("Invalid teacher inhibitory activity")
+    np.testing.assert_allclose(
+        rates,
+        counts.astype(np.float32) / (cfg["duration_ms"] / 1000),
+        rtol=1e-6,
+        atol=0,
+    )
+
+
+def event_count_summary(computed, cfg):
+    if cfg.get("inhibition_method") != recipe.TEACHER_COUNT_METHOD:
+        return None
+    with np.load(computed.file("calibration.npz")) as cal:
+        counts = cal["event_count"]
+        teacher_rate = cal["teacher_i_rate_hz"].mean(axis=1, dtype=np.float64)
+        duration_s = cfg["duration_ms"] / 1000
+        splits = {
+            "train": slice(None, cfg["train_images"]),
+            "validation": slice(cfg["train_images"], None),
+        }
+        return {
+            name: dict(
+                min=int(counts[part].min()),
+                max=int(counts[part].max()),
+                mean=float(counts[part].mean()),
+                teacher_mean_i_rate_hz=float(teacher_rate[part].mean()),
+                max_rate_rounding_error_hz=float(
+                    np.max(np.abs(counts[part] / duration_s - teacher_rate[part]))
+                ),
+            )
+            for name, part in splits.items()
+        }
+
+
+def poisson_rate_summary(computed, cfg):
+    if cfg.get("inhibition_method") != recipe.POISSON_METHOD:
+        return None
+    with np.load(computed.file("dataset.npz")) as z:
+        rates = z["poisson_rate_hz"]
+        return {
+            name: dict(
+                mean=float(rates[part].mean()),
+                min=float(rates[part].min()),
+                max=float(rates[part].max()),
+            )
+            for name, part in {
+                "train": slice(None, cfg["train_images"]),
+                "validation": slice(cfg["train_images"], None),
+            }.items()
+        }
+
+
+def validate_poisson_calibration(data, calibration, cfg):
+    rates, amplitude = data["poisson_rate_hz"], data["amplitude"]
+    validate_poisson_parameters(rates, amplitude)
+    mean, sd = poisson_expected_moments(rates, amplitude, cfg)
+    for actual, expected in (
+        (mean, calibration["target_mean"]),
+        (sd, calibration["target_sd"]),
+        (mean, calibration["expected_mean"]),
+        (sd, calibration["expected_sd"]),
+    ):
+        np.testing.assert_allclose(actual, expected, rtol=1e-6, atol=0)
+
+
+def validate_native_dataset(computed, cfg):
+    with (
+        np.load(computed.file("dataset.npz")) as z,
+        np.load(computed.file("calibration.npz")) as cal,
+    ):
+        ids = z["ids"]
+        nt = cfg["train_images"]
+        if len(ids) != nt + cfg["validation_images"] or len(np.unique(ids)) != len(ids):
+            raise ValueError("Invalid native dataset identities")
+        if (
+            np.intersect1d(z["source_train"], z["source_validation"]).size
+            or not np.isin(ids[:nt], z["source_train"]).all()
+            or not np.isin(ids[nt:], z["source_validation"]).all()
+        ):
+            raise ValueError("Native dataset partition mismatch")
+        np.testing.assert_array_equal(ids, cal["ids"])
+        if cfg.get("teacher_statistics") == "per_image_conductance_and_i_rate_v1":
+            validate_teacher_activity(cal, cfg)
+        poisson = cfg.get("inhibition_method") == recipe.POISSON_METHOD
+        if poisson:
+            validate_poisson_calibration(z, cal, cfg)
+        if cfg.get("inhibition_method") == recipe.TEACHER_COUNT_METHOD:
+            expected_counts = teacher_event_counts(cal["teacher_i_spike_count"], cfg)
+            event_counts(cfg, len(ids), z["event_count"])
+            np.testing.assert_array_equal(z["event_count"], expected_counts)
+            np.testing.assert_array_equal(cal["event_count"], expected_counts)
+            if np.any((z["amplitude"] == 0) != (expected_counts[:, None] == 0)):
+                raise ValueError(
+                    "Zero-count images must have zero artificial amplitude"
+                )
+            if np.any(cal["target_mean"][expected_counts == 0] != 0) or np.any(
+                cal["target_sd"][expected_counts == 0] != 0
+            ):
+                raise ValueError(
+                    "Zero-count images cannot match nonzero teacher conductance"
+                )
+        alpha, amplitude = z[generator_key(cfg)], z["amplitude"]
+        if (
+            alpha.shape != (len(ids), cfg["n_e"])
+            or amplitude.shape != alpha.shape
+            or not np.isfinite(amplitude).all()
+            or not np.all(amplitude >= 0)
+            or (not poisson and not np.all((alpha >= 0) & (alpha <= 2)))
+        ):
+            raise ValueError("Invalid calibrated native generator")
+        if cfg.get("inhibition_method") not in (
+            recipe.TEACHER_COUNT_METHOD,
+            recipe.POISSON_METHOD,
+        ) and np.any(amplitude == 0):
+            raise ValueError("Fixed-count calibration requires positive amplitudes")
+        mean_error = float(
+            np.max(relative_moment_error(cal[moment_keys(cfg)[0]], cal["target_mean"]))
+        )
+        sd_error = float(
+            np.max(relative_moment_error(cal[moment_keys(cfg)[1]], cal["target_sd"]))
+        )
+        if (
+            not np.isfinite([mean_error, sd_error]).all()
+            or mean_error > 1e-6
+            or sd_error >= cfg["calibration_std_tolerance"]
+            or np.any(cal["target_mean"] < 0)
+            or np.any(cal["target_sd"] < 0)
+        ):
+            raise ValueError("Native calibration outside tolerance")
+    return mean_error, sd_error
+
+
+def native_replay_events(data, raster, cfg, start, stop):
+    """Decode retained device draws without requiring an accelerator for analysis."""
+    history = cfg["inhibition_prehistory_steps"]
+    ids = data["ids"][start:stop]
+    if cfg.get("inhibition_method") == recipe.POISSON_METHOD:
+        counts = raster["batch_artificial_counts"]
+        if (
+            counts.shape != (history + cfg["steps"], len(ids), cfg["n_e"])
+            or not np.issubdtype(counts.dtype, np.integer)
+            or np.any(counts < 0)
+        ):
+            raise ValueError("Invalid retained Poisson event counts")
+        if np.any(counts[:, data["poisson_rate_hz"][start:stop] == 0] != 0):
+            raise ValueError("Silent Poisson channels contain events")
+        return (counts.astype(np.float32) * data["amplitude"][None, start:stop]).astype(
+            np.float32
+        )
+    if cfg.get("encoding_method") == "torch_device_v1":
+        packed = raster["batch_artificial_packed"]
+        expected = ((history + cfg["steps"] + 7) // 8, len(ids), cfg["n_e"])
+        if packed.shape != expected or packed.dtype != np.uint8:
+            raise ValueError("Invalid retained device-generated events")
+        flags = np.unpackbits(packed, axis=0, count=history + cfg["steps"])
+        if (
+            not np.all(
+                flags[history:].sum(0)
+                == event_counts(
+                    cfg, len(ids), dataset_event_counts(data, cfg, slice(start, stop))
+                )[:, None]
+            )
+            or flags[-1].any()
+        ):
+            raise ValueError("Invalid device-generated event counts or delivery bins")
+        events = flags * data["amplitude"][None, start:stop]
+    else:
+        events = artificial(
+            data[generator_key(cfg)][start:stop],
+            data["amplitude"][start:stop],
+            ids,
+            cfg,
+            draw=0,
+            counts=dataset_event_counts(data, cfg, slice(start, stop)),
+        )
+    return events
+
+
+def validate_native_raster(computed, cfg, parameters, *, dataset_source=None):
+    summary = json.loads(computed.file("raster.json").read_text())
+    if (
+        "precision_policy" in summary
+        and summary["precision_policy"] != cfg["precision"]
+    ):
+        raise ValueError("Selected replay precision differs from validation")
+    position = summary.get("batch_position", 0)
+    dataset_source = dataset_source or computed
+    start = cfg["train_images"]
+    stop = start + min(
+        cfg.get("replay_batch_size") or cfg["microbatch_size"], cfg["validation_images"]
+    )
+    history = cfg["inhibition_prehistory_steps"]
+    with (
+        np.load(dataset_source.file("dataset.npz")) as data,
+        np.load(computed.file("raster.npz")) as z,
+    ):
+        ids, labels = data["ids"][start:stop], data["labels"][start:stop]
+        np.testing.assert_array_equal(z["batch_indices"], ids)
+        np.testing.assert_array_equal(z["batch_labels"], labels)
+        if type(position) is not int or not 0 <= position < len(ids):
+            raise ValueError("Invalid raster batch position")
+        events = native_replay_events(data, z, cfg, start, stop)
+        flags = (
+            z["batch_artificial_counts"][:, position]
+            if cfg.get("inhibition_method") == recipe.POISSON_METHOD
+            else events[:, position] > 0
+        )
+        np.testing.assert_array_equal(z["artificial_events"], flags[history:])
+        np.testing.assert_array_equal(z["prehistory_events"], flags[:history])
+        np.testing.assert_allclose(
+            z["g_artificial"],
+            filtered(events[:, position : position + 1], cfg)[history:, 0],
+            rtol=1e-5,
+            atol=2e-5,
+        )
+        if (
+            not np.isin(z["E_spikes"], [0, 1]).all()
+            or z["I_spikes"].any()
+            or not np.isfinite(z["batch_scores"]).all()
+        ):
+            raise ValueError("Invalid selected replay")
+        rate = float(z["E_spikes"].sum() / cfg["n_e"] / (cfg["duration_ms"] / 1000))
+        np.testing.assert_allclose(rate, summary["e_rate_hz"], rtol=1e-6)
+        if (summary["original_index"], summary["label"], summary["predicted"]) != (
+            int(ids[position]),
+            int(labels[position]),
+            int(z["batch_scores"][position].argmax()),
+        ):
+            raise ValueError("Selected replay digit mismatch")
+    saved = NetworkSnapshot.read(
+        computed.unit("best-validation", "end"), parameters=True
+    ).load_parameters()
+    for name, value in parameters.items():
+        np.testing.assert_array_equal(saved[name], np.asarray(value))
+    return summary
+
+
+def validate_cached_calibration(computed, cfg):
+    if "calibration" in computed.record["inputs"]:
+        cached_pin = computed.record["inputs"]["calibration"]
+        cached = source_run(
+            ROOT / ".pingstore",
+            cached_pin["run_id"],
+            experiment=recipe.SLUG,
+            stage="compute",
+            reference=cached_pin,
+        )
+        check_calibration_configuration(
+            cached.record["execution"]["configuration"], cfg
+        )
+        # The retained scientific calibration must be exactly the pinned one.
+        for filename in ("dataset.npz", "calibration.npz"):
+            with (
+                np.load(computed.file(filename)) as actual,
+                np.load(cached.file(filename)) as expected,
+            ):
+                if set(actual.files) != set(expected.files):
+                    raise ValueError("Cached calibration arrays differ")
+                for key in actual.files:
+                    np.testing.assert_array_equal(actual[key], expected[key])
+        cached.check_unchanged()
+
+
+def validate_final_training_metrics(metrics, cfg):
+    if cfg.get("evaluation_schedule") == "validation_each_epoch_train_final_only":
+        measured = metrics["final_training"]
+        if (
+            measured["checkpoint"] != "final.checkpoint"
+            or measured["epoch"] != cfg["epochs"]
+            or measured["examples"] != cfg["train_images"]
+            or measured["draw"] != cfg["final_training_draw"]
+            or not np.isfinite(
+                [
+                    measured[key]
+                    for key in ("cross_entropy", "accuracy_pct", "e_rate_hz", "seconds")
+                ]
+            ).all()
+            or any(row.get("train_loss") is not None for row in metrics["epochs"])
+        ):
+            raise ValueError("Invalid final-only training evaluation")
+
+
+def validate_native(computed):
+    cfg = computed.record["execution"]["configuration"]
+    pin = computed.record["inputs"]["bank"]
+    if (
+        set(computed.record["inputs"]) not in ({"bank"}, {"bank", "calibration"})
+        or pin["run_id"] != cfg["source_run"]
+        or pin["payload_digest"] != cfg["source_digest"]
+    ):
+        raise ValueError("Scientific dependency boundary violated")
+    bank = source_run(
+        ROOT / ".pingstore",
+        pin["run_id"],
+        experiment="exp022",
+        stage="compute",
+        reference=pin,
+    )
+    actual_spec = json.loads(
+        computed.file("network.bundle", "training.json").read_text()
+    )
+    expected_spec = recipe.author_network(cfg).training
+    if actual_spec["regularizers"] != expected_spec["regularizers"]:
+        raise ValueError("Native activity penalty differs from the recorded protocol")
+    validate_cached_calibration(computed, cfg)
+    metrics = json.loads(computed.file("native-metrics.json").read_text())
+    history = native_history(metrics, penalised=bool(cfg["rate_penalty"]))
+    if [row["epoch"] for row in history] != list(range(cfg["epochs"] + 1)):
+        raise ValueError("Incomplete native epoch history")
+    expected_updates = cfg["epochs"] * int(
+        np.ceil(cfg["train_images"] / cfg["batch_size"])
+    )
+    if (
+        metrics["batch_counts"]["optimizer_updates"] != expected_updates
+        or metrics["batch_counts"]["examples"] != cfg["epochs"] * cfg["train_images"]
+    ):
+        raise ValueError("Incomplete native training schedule")
+    validate_final_training_metrics(metrics, cfg)
+    mean_error, sd_error = validate_native_dataset(computed, cfg)
+    initial = NetworkSnapshot.read(
+        computed.unit("training", "start"), parameters=True
+    ).load_parameters()
+    teacher = NetworkSnapshot.read(
+        computed.unit("teacher", "start"), parameters=True
+    ).load_parameters()
+    for kind, values in (("coba", initial), ("ping", teacher)):
+        validate_source_configuration(
+            json.loads(bank.file(cfg[kind + "_cell"], "config.json").read_text()), cfg
+        )
+        cp = cfg["source_checkpoints"][kind]
+        path = bank.file(cfg[kind + "_cell"], cp["filename"])
+        if file_sha256(path) != cp["sha256"]:
+            raise ValueError("Source checkpoint digest mismatch")
+        raw = torch.load(path, map_location="cpu", weights_only=True)
+        for name, key in recipe.MAPPING.items():
+            np.testing.assert_array_equal(values[name], raw[key].clamp(min=0).numpy())
+    with tempfile.TemporaryDirectory() as temporary:
+        final = load_training_checkpoint(
+            computed.restore_bundle("final.checkpoint", Path(temporary) / "final")
+        )
+        selected = load_training_checkpoint(
+            computed.restore_bundle("best.checkpoint", Path(temporary) / "best")
+        )
+    if final.completed_updates != expected_updates or final.data_state != {
+        "epoch": cfg["epochs"],
+        "batch": 0,
+    }:
+        raise ValueError("Final native checkpoint has incorrect coordinates")
+    changes = {}
+    for name, before in initial.items():
+        after = final.parameters[name].numpy()
+        if not np.isfinite(after).all() or np.any(after < 0):
+            raise ValueError("Invalid trained weights")
+        changes[name] = float(np.max(np.abs(after - np.asarray(before))))
+        np.testing.assert_allclose(changes[name], metrics["parameter_changes"][name])
+        if name not in recipe.TRAINABLE:
+            np.testing.assert_array_equal(before, after)
+            np.testing.assert_array_equal(before, selected.parameters[name].numpy())
+    np.testing.assert_array_equal(
+        initial["artificial_to_E.weight"], np.ones((1, cfg["n_e"]))
+    )
+    best_epoch = min(
+        range(len(history)),
+        key=lambda ep: (history[ep]["cross_entropy"], -history[ep]["accuracy_pct"], ep),
+    )
+    if selected.data_state["epoch"] != best_epoch:
+        raise ValueError("Native selected checkpoint disagrees with validation history")
+    replay = validate_native_raster(computed, cfg, selected.parameters)
+    if replay["epoch"] != best_epoch:
+        raise ValueError("Selected replay has the wrong epoch")
+    bank.check_unchanged()
+    first, last = history[0], history[-1]
+    return dict(
+        execution_backend="snnlab.sim.train",
+        event_count_summary=event_count_summary(computed, cfg),
+        poisson_rate_summary=poisson_rate_summary(computed, cfg),
+        final_training=metrics.get("final_training"),
+        history=history,
+        best_epoch=best_epoch,
+        update_count=expected_updates,
+        train_images=cfg["train_images"],
+        validation_images=cfg["validation_images"],
+        validation_draws=cfg["validation_draws"],
+        accuracy_change_pp=last["accuracy_pct"] - first["accuracy_pct"],
+        cross_entropy_change=last["cross_entropy"] - first["cross_entropy"],
+        promising=last["cross_entropy"] < first["cross_entropy"]
+        and last["accuracy_pct"] > first["accuracy_pct"],
+        calibration_mean_error_max=mean_error,
+        calibration_sd_error_max=sd_error,
+        parameter_changes=changes,
+        timings=json.loads(computed.file("timings.json").read_text()),
+        raster=replay,
+        limitations=[
+            cfg["validation_limitation"],
+            "Single seed; image-conditioned PING teacher; no synchrony isolation",
+            "Fresh event draws need not match calibration moments exactly",
+        ],
+    )
+
+
 def validate(computed):
+    if (
+        computed.record["execution"]["configuration"].get("execution_backend")
+        == "snnlab.sim.train"
+    ):
+        return validate_native(computed)
     cfg = computed.record["execution"]["configuration"]
     pin = computed.record["inputs"]["bank"]
     if (
@@ -206,10 +704,7 @@ def validate(computed):
             z["training_conductance_moments"],
         )
     with np.load(computed.file("calibration.npz")) as z:
-        if not np.all((z["probability"] > 0) & (z["probability"] < 1)) or not np.all(
-            z["amplitude_us"] > 0
-        ):
-            raise ValueError("Invalid frozen generator")
+        validate_generator(z, cfg, indices)
         mean_error = float(
             np.max(np.abs(z["fitted_mean_us"] / z["target_mean_us"] - 1))
         )
@@ -323,7 +818,7 @@ def validate_raster(recorded, training):
             z["sensory_packed"], data["sensory_packed"][:, begin]
         )
         ev = artificial(
-            cal["probability"][begin:end],
+            cal[generator_key(cfg)][begin:end],
             cal["amplitude_us"][begin:end],
             indices,
             cfg,
@@ -371,13 +866,153 @@ def validate_raster(recorded, training):
     return summary
 
 
+def validate_correct_native_raster(recorded, training):
+    if recorded.record["inputs"] != {"training": training.reference}:
+        raise ValueError("Raster and training evidence pins differ")
+    cfg = recorded.record["execution"]["configuration"]
+    original = training.record["execution"]["configuration"]
+    for key in original:
+        if key not in {"device", "threads"} and cfg.get(key) != original[key]:
+            raise ValueError("Raster changed its training configuration")
+    summary = json.loads(recorded.file("raster.json").read_text())
+    with (
+        np.load(training.file("raster.npz")) as saved,
+        np.load(recorded.file("raster.npz")) as replay,
+    ):
+        position = first_correct_position(saved["batch_labels"], saved["batch_scores"])
+        if (
+            summary.get("selection_policy")
+            != "first_correct_in_retained_validation_batch"
+            or summary.get("batch_position") != position
+        ):
+            raise ValueError("Raster does not use the first correct retained image")
+        for key in ["batch_indices", "batch_labels"]:
+            np.testing.assert_array_equal(replay[key], saved[key])
+        np.testing.assert_array_equal(
+            replay["batch_scores"].argmax(axis=1), saved["batch_scores"].argmax(axis=1)
+        )
+        if int(replay["batch_scores"][position].argmax()) != int(
+            replay["batch_labels"][position]
+        ):
+            raise ValueError("Raster image is not correctly classified")
+    original_summary = json.loads(training.file("raster.json").read_text())
+    if summary["epoch"] != original_summary["epoch"]:
+        raise ValueError("Raster checkpoint selection mismatch")
+    parameters = NetworkSnapshot.read(
+        training.unit("best-validation", "end"), parameters=True
+    ).load_parameters()
+    result = validate_native_raster(recorded, cfg, parameters, dataset_source=training)
+    recorded.check_unchanged()
+    return result
+
+
+def validate_sweep_configurations(configurations):
+    targets = [cfg.get("rate_target_hz") for cfg in configurations]
+    if len(targets) != len(recipe.RATE_TARGETS_HZ) or set(targets) != set(
+        recipe.RATE_TARGETS_HZ
+    ):
+        raise ValueError(
+            "Sweep requires exactly one completed run for each of the six ceilings"
+        )
+    first = configurations[0]
+    varying = {"rate_target_hz", "rate_penalty", "coba_cell", "ping_cell"}
+    keys = set(recipe.configuration()) - varying
+    for cfg in configurations:
+        if any(cfg.get(key) != first.get(key) for key in keys):
+            raise ValueError(
+                "Sweep conditions differ outside the matched ceiling intervention"
+            )
+        expected = recipe.configuration(
+            seed=cfg["seed"], rate_target_hz=cfg.get("rate_target_hz")
+        )
+        if any(cfg[key] != expected[key] for key in varying - {"rate_target_hz"}):
+            raise ValueError("Sweep source cells and penalty do not match the ceiling")
+
+
+def source_controls(computed):
+    cfg = computed.record["execution"]["configuration"]
+    pin = computed.record["inputs"]["bank"]
+    bank = source_run(
+        ROOT / ".pingstore",
+        pin["run_id"],
+        experiment="exp022",
+        stage="compute",
+        reference=pin,
+    )
+    controls = {}
+    for kind in ("coba", "ping"):
+        metrics = json.loads(bank.file(cfg[kind + "_cell"], "metrics.json").read_text())
+        conf, final = metrics["config"], metrics["epochs"][-1]
+        validate_source_configuration(conf, cfg)
+        if (
+            metrics["training_run_id"] != "TR-02"
+            or final["ep"] != cfg["source_checkpoints"][kind]["epoch"]
+            or final["ep"] != conf["epochs"]
+            or conf["dataset_split"]["validation_samples"] != cfg["validation_images"]
+            or conf["validation_encoder_draws"]["count"] != cfg["validation_draws"]
+        ):
+            raise ValueError("Incompatible TR02 final-epoch control")
+        controls[kind] = dict(
+            epoch=final["ep"],
+            accuracy_pct=final["acc"],
+            e_rate_hz=final["test_rate_e"],
+            i_rate_hz=final["test_rate_i"],
+        )
+        if not all(np.isfinite(v) for v in controls[kind].values()):
+            raise ValueError("Nonfinite TR02 control")
+    bank.check_unchanged()
+    return controls
+
+
 def analyse(identity, run_id=None, *, raster_source=None):
     start = time.perf_counter()
-    computed = source_run(
-        ROOT / ".pingstore", identity, experiment=recipe.SLUG, stage="compute"
-    )
+    identities = [identity] if isinstance(identity, str) else list(identity)
+    computations = [
+        source_run(ROOT / ".pingstore", value, experiment=recipe.SLUG, stage="compute")
+        for value in identities
+    ]
+    if len(computations) > 1:
+        validate_sweep_configurations(
+            [c.record["execution"]["configuration"] for c in computations]
+        )
+        computations.sort(
+            key=lambda c: recipe.RATE_TARGETS_HZ.index(
+                c.record["execution"]["configuration"].get("rate_target_hz")
+            )
+        )
+    computed = computations[0]
     results = validate(computed)
     inputs = {"compute": computed}
+    if len(computations) > 1:
+        cases = []
+        with np.load(computed.file("dataset.npz")) as primary:
+            for index, cell in enumerate(computations):
+                cfg = cell.record["execution"]["configuration"]
+                measured = results if index == 0 else validate(cell)
+                role = (
+                    "compute"
+                    if index == 0
+                    else "cell_" + recipe.target_label(cfg["rate_target_hz"])
+                )
+                inputs[role] = cell
+                with np.load(cell.file("dataset.npz")) as data:
+                    for key in (
+                        "ids",
+                        "features",
+                        "labels",
+                        "source_train",
+                        "source_validation",
+                    ):
+                        np.testing.assert_array_equal(data[key], primary[key])
+                cases.append(
+                    dict(
+                        **measured,
+                        target_hz=cfg.get("rate_target_hz"),
+                        compute_role=role,
+                        controls=source_controls(cell),
+                    )
+                )
+        results["sweep"] = cases
     if raster_source:
         recorded = source_run(
             ROOT / ".pingstore",
@@ -386,7 +1021,11 @@ def analyse(identity, run_id=None, *, raster_source=None):
             stage="compute",
             phase="raster",
         )
-        results["raster"] = validate_raster(recorded, computed)
+        results["raster"] = (
+            validate_correct_native_raster(recorded, computed)
+            if results.get("execution_backend") == "snnlab.sim.train"
+            else validate_raster(recorded, computed)
+        )
         inputs["raster"] = recorded
     with stage_run(
         ROOT,
@@ -401,14 +1040,20 @@ def analyse(identity, run_id=None, *, raster_source=None):
         run.record["execution"].update(
             no_simulation=True, elapsed_seconds=time.perf_counter() - start
         )
-        computed.check_unchanged()
+        for cell in computations:
+            cell.check_unchanged()
     print(run.run_id, flush=True)
     return run.run_id
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--source", required=True)
+    parser.add_argument(
+        "--source",
+        required=True,
+        action="append",
+        help="Compute input; repeat for all six ceilings to analyse a sweep",
+    )
     parser.add_argument("--run-id")
     parser.add_argument("--raster-source")
     args = parser.parse_args()

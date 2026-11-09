@@ -2,6 +2,7 @@
 import Table from '../../../site/src/components/Table.astro';
 import { reportData } from '../../../site/src/lib/report-data';
 const data = await reportData('exp170', { allowUnavailable: true });
+const poisson = data?.configuration?.inhibition_method === 'poisson_moment_matched_v1';
 const rate = s => `${s.source_rate_mean_hz.toFixed(0)} ± ${s.source_rate_sd_hz.toFixed(0)} Hz`;
 const rows = data ? [
   ['Event rate across sources', rate(data.ping), rate(data.artificial)],
@@ -11,12 +12,14 @@ const rows = data ? [
   ['E firing rate', `${data.conditions[1].rate_e_hz.toFixed(2)} Hz`, `${data.conditions[2].rate_e_hz.toFixed(2)} Hz`],
 ] : [['Saved statistics','Unavailable','Unavailable']];
 ---
-<Table headers={['Statistic','PING','Count-matched artificial inhibition']} rows={rows} number={1} id="inhibition-statistics" label="Measured inhibition and E firing in Figures 2 and 3">
+<Table headers={['Statistic','PING',poisson ? 'Poisson artificial inhibition' : 'Count-matched artificial inhibition']} rows={rows} number={1} id="inhibition-statistics" label="Measured inhibition and E firing in Figures 2 and 3">
   The same full trial and selected evidence as Figures 2 and 3. Event-rate ± SD is across
   sources, not uncertainty across replicates. PING has 256 I neurons; artificial
   inhibition has 1,024 private event streams. Conductance statistics refer to E
   recipients: SD is measured over time separately for each E neuron, then
   averaged across neurons. Correlation is averaged over all distinct E-cell pairs.
-  These are count-constrained, timing-calibrated inputs; source counts and
-  connectivity remain different.
+  {poisson ? <>Poisson inputs match stationary expectations; these measured
+  trial statistics fluctuate. Artificial event rates are fitted independently.</>
+  : <>Historical inputs use count-constrained timing calibration.</>}
+  Connectivity differs from PING.
 </Table>

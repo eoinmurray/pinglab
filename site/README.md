@@ -356,7 +356,8 @@ excluded. Listings sort by newest publication year, then title. The left column
 shows publication year and permanent paper ID. Development reads the directory
 on refresh; no public PDF archive is needed.
 
-`papers/index.yaml` holds citation metadata keyed by relative PDF filename.
+`papers/index.yaml` holds collection labels, descriptions and display order in
+`collections`, and citation metadata keyed by relative PDF filename in `papers`.
 Each entry requires a unique `id` such as `P01`, `title`, a nonempty `authors`
 list, and integer `year`; `venue`, `doi`, and an HTTPS source `url` are optional.
 The page displays this metadata with the PDF link, falling back to the filename

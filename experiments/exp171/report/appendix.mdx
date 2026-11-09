@@ -4,24 +4,15 @@ import ParameterTable from './ParameterTable.astro';
 ## A. Networks
 
 <RunFigure report="exp171" experiment="exp171" file="network-circuit.svg" number="A1" id="fig-coba" alt="COBA with trainable sensory and readout matrices and frozen private inhibitory input." allowUnavailable={true}>
-  Native COBA architecture. E and I denote excitatory and inhibitory neurons,
-  X sensory input, R readout and U amplitude-scaled private events. Only X→E and
-  E→R matrices train; E→I and I→E remain zero. Each U channel reaches its paired
-  E neuron through a frozen 1-µS identity projection and 6-ms GABA filter with
-  one-timestep delivery delay. Its event amplitude equals the per-image calibrated
-  conductance increment divided by 1 µS. In the identity label, j and k index
-  channels and recipients, and the Kronecker delta is one only when j equals k.
-  W lists recipient then source; C identifies COBA. Labels describe loaded
-  execution parameters, not compiler zero placeholders.
+  COBA with sensory input X, excitatory E, silent inhibitory I, readout R and
+  private artificial input U. Only X→E and E→R train. U→E uses a frozen 1-µS
+  identity projection. W subscripts name recipient then source; C denotes COBA.
 </RunFigure>
 
 <RunFigure report="exp171" experiment="exp171" file="teacher-circuit.svg" number="A2" id="fig-teacher" alt="Frozen source PING network used to construct image-conditioned conductance targets." allowUnavailable={true}>
-  Native frozen PING calibration architecture. W with superscript P identifies
-  its separately learned matrices; subscripts list recipient then source. For each
-  fixed sensory encoding, PING inhibitory-conductance temporal moments determine
-  the artificial generator. Teacher weights never train. COBA and PING checkpoints
-  and configurations come exclusively from the same authenticated source run;
-  no experiment code is imported from that source.
+  Frozen PING teacher. Each image supplies I activity and inhibitory-conductance
+  targets for artificial input. P denotes PING weights; subscripts name recipient
+  then source. COBA and PING use matched source checkpoints.
 </RunFigure>
 
 ## B. Parameters

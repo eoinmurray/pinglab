@@ -1,16 +1,39 @@
 # exp134 — Leak and capacitance modulation of PING dynamics
 
-Compare paired leak-conductance and membrane-capacitance interventions in one
-frozen trained PING circuit, measuring frequency, firing, participation and rhythm
-contrast while reusing the same images and encoded spike trains.
+Compare paired leak-conductance and membrane-capacitance interventions in one frozen
+trained PING circuit, measuring frequency, firing, participation and rhythm contrast
+while reusing the same images and encoded spike trains.
 
-1. `compute.py`: required `--source TRAINING_RUN` (exp022 checkpoint) and
-   `--image-source IMAGE_RUN` (exp123 image bank); optional `--run-id RUN_ID`,
-   `--images-per-digit N` (default 50, range 1–50), `--batch-images N` (default 5).
-2. `analyse.py`: required `--source COMPUTE_RUN`; optional `--workers N` (default 4).
-3. `present.py`: required `--source ANALYSIS_RUN`; no optional arguments.
-4. `test.py`: run with `uv run pytest experiments/exp134/test.py`; optional pytest arguments.
+## Run
 
-Regenerate only network diagrams while preserving an explicit presentation's
-scientific figures and data: `uv run python experiments/exp134/present.py
---redraw-from PRESENT_ID [--run-id ID]`.
+From the repository root, run these stages in order.
+Compute runs simulations and requires explicit authorisation.
+
+```sh
+uv run python experiments/exp134/compute.py --source TRAINING_RUN --image-source IMAGE_RUN
+uv run python experiments/exp134/analyse.py --source COMPUTE_ID
+uv run python experiments/exp134/present.py --source ANALYSE_ID
+```
+
+Replace `COMPUTE_ID` and `ANALYSE_ID` with the completed run IDs
+from the preceding stages.
+
+`TRAINING_RUN` is a completed exp022 training-bank compute run.
+
+`IMAGE_RUN` is a completed exp123 image-bank compute run.
+
+To run automated checks:
+
+```sh
+uv run pytest experiments/exp134/test.py -q
+```
+
+## Folder guide
+
+1. `recipe.py` — configuration and model definition.
+2. `compute.py` — run simulations and save evidence.
+3. `analyse.py` — calculate measurements from saved evidence.
+4. `present.py` — generate figures and report assets.
+5. `custom/` — experiment-specific models, helpers and execution tools.
+6. `report/` — report, appendix and supporting components.
+7. `test.py` — automated checks.

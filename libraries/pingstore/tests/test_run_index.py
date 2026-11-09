@@ -190,6 +190,41 @@ def test_local_byte_validation_cached_and_invalidated(tmp_path, monkeypatch):
     assert revised["runs"][paths["latest"].name]["verification"]["local"] == "invalid"
 
 
+@pytest.mark.parametrize("kind", ["missing", "changed"])
+def test_broken_unfinished_pin_is_reported_without_blocking_current(tmp_path, kind):
+    paths = fixture_store(tmp_path)
+    hidden = tmp_path / ".pingstore/runs/.exp005-r003-analyse.tmp"
+    pin = reference(paths["old_compute"])
+    if kind == "missing":
+        pin["run_id"] = "exp999-r999-compute"
+    else:
+        pin["payload_digest"] = "sha256:" + "0" * 64
+    (hidden / "run.json").write_text(
+        json.dumps(
+            {"inputs": {"broken": pin, "valid": reference(paths["hidden_source"])}}
+        )
+    )
+
+    index = core.reporting_index(tmp_path, source="local")
+    assert index["selections"]["exp001"] == paths["latest"].name
+    assert not index["selection_errors"]
+    row = index["runs"][hidden.name]
+    assert row["record"] is None
+    assert row["status"] == "Unresolved"
+    assert any("missing or changed input" in error for error in row["unresolved"])
+    assert any(
+        reason.startswith("unfinished:")
+        for reason in index["runs"][paths["hidden_source"].name]["reasons"]
+    )
+    records = {
+        path.name: record(path)
+        for path in paths.values()
+        if core.STAGE_ID_RE.fullmatch(path.name) and (path / "run.json").is_file()
+    }
+    with pytest.raises(core.PingstoreError, match="missing or changed input"):
+        core._hidden_inputs(hidden.parent, records, core.defaultdict(set))
+
+
 def test_unchanged_layout_reuses_validation_but_new_entries_are_checked(
     tmp_path, monkeypatch
 ):
@@ -473,3 +508,54 @@ def test_narrative_report_does_not_claim_runset_use(tmp_path):
     )
     assert index["runs"][present.name]["usage"] == {"local": [], "ghpages": []}
     assert index["runs"][present.name]["status"] != "Current"
+
+
+@pytest.mark.parametrize("corrupt", [False, True])
+def test_scoped_verification_refreshes_only_requested_run(
+    tmp_path, monkeypatch, capsys, corrupt
+):
+    import os
+
+    paths = fixture_store(tmp_path)
+    core.reporting_index(tmp_path, source="local")
+    for key in ["latest", "exp2_latest"]:
+        payload = paths[key] / "export/result.json"
+        stat = payload.stat()
+        os.utime(payload, ns=(stat.st_atime_ns, stat.st_mtime_ns + 1_000_000))
+    if corrupt:
+        (paths["latest"] / "export/result.json").write_text("{}")
+    invalid = core.reporting_index(tmp_path, source="local")
+    assert {"exp001", "exp002"} <= invalid["selection_errors"].keys()
+    actual = core.validate_operational_run_directory
+    checked = []
+
+    def validate(path):
+        checked.append(path.name)
+        return actual(path)
+
+    monkeypatch.setattr(core, "validate_operational_run_directory", validate)
+    assert (
+        cli.main(
+            [
+                "status",
+                "--root",
+                str(tmp_path),
+                "--source",
+                "local",
+                "--verify-run",
+                paths["latest"].name,
+                "--json",
+            ]
+        )
+        == 0
+    )
+    result = json.loads(capsys.readouterr().out)
+    assert checked == [paths["latest"].name]
+    assert "exp002" in result["selection_errors"]
+    assert ("exp001" in result["selection_errors"]) == corrupt
+    if not corrupt:
+        assert result["selections"]["exp001"] == paths["latest"].name
+        assert (
+            core.reporting_index(tmp_path, source="local")["selections"]["exp001"]
+            == paths["latest"].name
+        )

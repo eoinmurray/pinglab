@@ -1,0 +1,87 @@
+---
+import Table from '../../../site/src/components/Table.astro';
+import { optionalPresentation } from '../../../site/src/lib/pingstore.ts';
+import { readSnapshotEvidence } from '../../../site/src/lib/snapshot-data.ts';
+import { runStore } from '../../../site/src/lib/run-store.ts';
+
+const selected = await optionalPresentation('exp171');
+const data = selected ? await runStore.json(selected.id, 'export/numbers.json') : undefined;
+const evidence = selected && data?.execution_backend === 'snnlab.sim.train'
+  ? await readSnapshotEvidence(selected.id, { experiment: 'exp171', snapshots: {}, computeInput: 'compute' })
+  : undefined;
+const cfg = evidence?.configuration;
+const supported = cfg && ['count_matched_timing_v1', 'count_matched_timing_v2', 'teacher_rate_count_timing_v3', 'poisson_moment_matched_v1'].includes(cfg.inhibition_method);
+const number = (value: unknown) => {
+  if (typeof value !== 'number' || !Number.isFinite(value)) throw new Error('Missing finite final-epoch metric');
+  return value;
+};
+const fixed = (value: unknown) => number(value).toFixed(2);
+let rows: string[][] | undefined;
+let sourceEpoch: number | undefined;
+if (supported && evidence) {
+  const presentation = await runStore.json(selected.id);
+  rows = [];
+  for (const cell of data.sweep ?? [{ ...data, compute_role: 'compute' }]) {
+    const computePin = presentation.inputs[cell.compute_role];
+    const compute = await runStore.json(computePin.run_id);
+    if (compute.payload_digest !== computePin.payload_digest) throw new Error('Comparison compute pin differs');
+    const cfg = compute.execution.configuration;
+    const pin = compute.inputs.bank;
+    const bank = await runStore.json(pin.run_id);
+    if (bank.payload_digest !== pin.payload_digest) throw new Error('Comparison source bank pin differs');
+    const target = cfg.rate_target_hz ?? null;
+    const strength = target === null ? 0 : 0.041;
+    if (cfg.rate_penalty !== strength) throw new Error('Comparison penalty differs from TR02');
+    const prefix = data.sweep ? [target === null ? 'Off' : `${target} Hz`] : [];
+    const sourceRows = await Promise.all(['coba', 'ping'].map(async kind => {
+      const metrics = await runStore.json(pin.run_id, `export/${cfg[`${kind}_cell`]}/metrics.json`);
+      const final = metrics.epochs.at(-1);
+      const checkpoint = cfg.source_checkpoints[kind];
+      if (metrics.training_run_id !== 'TR-02' || metrics.config.seed !== cfg.seed
+        || metrics.config.fr_reg_upper_strength !== strength
+        || metrics.config.fr_reg_upper_target_hz !== (target ?? 0)
+        || checkpoint.role !== 'final_epoch' || final.ep !== checkpoint.epoch
+        || final.ep !== metrics.config.epochs
+        || metrics.config.dataset_split.validation_samples !== cell.validation_images
+        || metrics.config.validation_encoder_draws.count !== cfg.validation_draws) {
+        throw new Error(`Incompatible final-epoch ${kind} comparison evidence`);
+      }
+      return { kind, final };
+    }));
+    const coba = sourceRows[0].final;
+    sourceEpoch = number(coba.ep);
+    const final = cell.history.at(-1);
+    if (final.epoch !== cfg.epochs || cfg.source_configurations.coba.ei_strength !== 0
+      || coba.test_rate_i !== 0 || cell.parameter_changes['E_to_I.weight'] !== 0
+      || cell.parameter_changes['I_to_E.weight'] !== 0) {
+      throw new Error('Artificial-inhibition comparison lacks final or disabled-I evidence');
+    }
+    const artificialRate = cfg.inhibition_method === 'poisson_moment_matched_v1'
+      ? number(cell.poisson_rate_summary?.validation.mean) : (cfg.inhibition_method === 'teacher_rate_count_timing_v3'
+      ? number(cell.event_count_summary?.validation.mean) : number(cfg.target_events_per_source))
+      / (number(cfg.duration_ms) / 1000);
+    rows.push(...sourceRows.map(({ kind, final }) => [
+      ...prefix,
+      kind === 'coba' ? 'TR02 COBA' : 'TR02 PING', String(final.ep),
+      fixed(final.acc), fixed(final.test_rate_e), fixed(final.test_rate_i), '—',
+    ]));
+    rows.push([
+      ...prefix, 'COBA + artificial I (exp171)', `${final.epoch} fine-tuning`,
+      fixed(final.accuracy_pct), fixed(final.e_rate_hz), '0 (disabled)', fixed(artificialRate),
+    ]);
+  }
+}
+---
+{rows ? <Table
+  headers={[...(data.sweep ? ['E ceiling'] : []), 'Case', 'Final epoch', 'Accuracy (%)', 'E rate (Hz)', 'Biological I rate (Hz)', 'Artificial I events (Hz/channel)']}
+  rows={rows} rowHeaders number={1} id="final-epoch-comparison" label="Final epoch accuracy and firing rates"
+>
+  Seed {String(cfg.seed)}; {String(data.validation_images)} validation images ×
+  {String(cfg.validation_draws)} draws. Students start at COBA epoch {String(sourceEpoch)}
+  and receive extra training. Encoder draws differ; no independent test set.
+  {cfg.inhibition_method === 'poisson_moment_matched_v1'
+    ? <>Artificial rates are fitted expectations averaged across validation images and channels; counts fluctuate.</>
+    : cfg.inhibition_method === 'teacher_rate_count_timing_v3'
+    ? <>Artificial rates average each image's rounded PING mean I count over {String(cfg.duration_ms)} ms.</>
+    : <>Artificial input uses {String(cfg.target_events_per_source)} events/channel per {String(cfg.duration_ms)} ms.</>}
+</Table> : <p>The final-epoch comparison is unavailable for the selected evidence.</p>}

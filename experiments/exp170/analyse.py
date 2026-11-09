@@ -1,4 +1,4 @@
-"""Authenticate retained count-matched inhibition and derive report measurements."""
+"""Authenticate retained inhibition and derive report measurements."""
 
 import argparse
 import json
@@ -13,7 +13,7 @@ import torch
 from experiments.exp170 import recipe
 from pingstore.library import file_sha256, source_run, stage_run
 from scipy.signal import lfilter
-from snnlab.sim import NetworkSnapshot
+from snnlab.sim import NetworkSnapshot, load_runtime_state
 
 
 def measure(events, g):
@@ -59,18 +59,36 @@ def read_evidence(computed):
     with np.load(computed.file("calibration.npz")) as z:
         events = z["events"].copy()
         amp = z["amplitude_us"].copy()
-    rows.append(dict(name="COBA + count-matched GABA", e=e, i=events))
+    label = (
+        "COBA + Poisson GABA"
+        if cfg.get("inhibition_method") == recipe.POISSON_METHOD
+        else "COBA + count-matched GABA"
+    )
+    rows.append(dict(name=label, e=e, i=events))
     return cfg, bank, rows, target, g, amp
+
+
+def validate_event_counts(computed, cfg, rows, target, events, amp):
+    poisson = cfg.get("inhibition_method") == recipe.POISSON_METHOD
+    if poisson:
+        if not np.issubdtype(events.dtype, np.integer) or np.any(events < 0):
+            raise ValueError("Invalid Poisson event counts")
+        validate_poisson_draw(computed, cfg, target, events, amp)
+    else:
+        count = cfg["target_events_per_source"]
+        if not np.all(events.sum(0) == count) or not np.all(
+            rows[1]["i"].sum(0) == count
+        ):
+            raise ValueError("Source counts differ")
+        if not np.isin(events, [0, 1]).all():
+            raise ValueError("Nonbinary events")
 
 
 def validate(computed):
     cfg, bank, rows, target, g, amp = read_evidence(computed)
-    count = cfg["target_events_per_source"]
+    poisson = cfg.get("inhibition_method") == recipe.POISSON_METHOD
     events = rows[-1]["i"]
-    if not np.all(events.sum(0) == count) or not np.all(rows[1]["i"].sum(0) == count):
-        raise ValueError("Source counts differ")
-    if not np.isin(events, [0, 1]).all():
-        raise ValueError("Nonbinary events")
+    validate_event_counts(computed, cfg, rows, target, events, amp)
     cp = cfg["checkpoint"]
     checkpoint = bank.file("coba__off__seed42", cp["filename"])
     if file_sha256(checkpoint) != cp["sha256"]:
@@ -87,22 +105,70 @@ def validate(computed):
     }.items():
         np.testing.assert_array_equal(saved[name], weights[key].clamp(min=0).numpy())
     np.testing.assert_array_equal(saved["artificial_to_E.weight"], np.diag(amp))
-    predicted = (
+    history_steps = round(cfg.get("prehistory_ms", 0) / cfg["dt_ms"])
+    with np.load(computed.file("calibration.npz")) as z:
+        history = (
+            z["prehistory_events"].copy()
+            if history_steps
+            else np.empty((0, events.shape[1]))
+        )
+    if (
+        history.shape != (history_steps, events.shape[1])
+        or not (
+            np.isfinite(history).all()
+            and np.all(history >= 0)
+            and np.all(history == np.floor(history))
+        )
+        or (not poisson and not np.isin(history, [0, 1]).all())
+    ):
+        raise ValueError("Invalid inhibitory prehistory")
+    full = np.concatenate((history, events))
+    filtered = (
         lfilter(
             [1.0],
             [1.0, -np.exp(-cfg["dt_ms"] / cfg["tau_gaba_ms"])],
-            np.vstack([np.zeros((1, 1024)), events[:-1]]),
+            np.vstack([np.zeros((1, events.shape[1])), full[:-1]]),
             axis=0,
         )
         * amp
     )
+    predicted = filtered[history_steps:]
+    if history_steps:
+        state = load_runtime_state(computed.unit("artificial-initial-state"))
+        np.testing.assert_allclose(
+            state.conductances["artificial_to_E"],
+            filtered[history_steps - 1 : history_steps],
+            rtol=1e-6,
+            atol=1e-7,
+        )
+        np.testing.assert_array_equal(
+            state.input_histories["artificial"], history[-1:, None, :]
+        )
+        if state.completed_steps or state.reduction_state or state.reduction_tensors:
+            raise ValueError("Prehistory advanced the scored trajectory")
+        for name, value in state.voltages.items():
+            np.testing.assert_array_equal(
+                value,
+                np.full(
+                    value.shape, 0 if name == "readout" else cfg["initial_voltage_mv"]
+                ),
+            )
+        for group in (state.refractory, state.population_histories):
+            if any(torch.count_nonzero(value) for value in group.values()):
+                raise ValueError("Prehistory evolved neurons")
+        if any(
+            torch.count_nonzero(value)
+            for name, value in state.conductances.items()
+            if name != "artificial_to_E"
+        ):
+            raise ValueError("Prehistory leaked into other conductances")
     filter_error = float(np.max(np.abs(predicted - g)))
     mean_error = float(np.max(np.abs(g.mean(0) / target.mean(0) - 1)))
     sd_error = float(np.max(np.abs(g.std(0) / target.std(0) - 1)))
     if (
         filter_error > 1e-5
-        or mean_error > cfg["mean_tolerance"]
-        or sd_error > cfg["sd_tolerance"]
+        or (not poisson and mean_error > cfg["mean_tolerance"])
+        or (not poisson and sd_error > cfg["sd_tolerance"])
     ):
         raise ValueError("GABA matching failed")
     artificial = measure(events, g)
@@ -116,6 +182,7 @@ def validate(computed):
         configuration=cfg,
         ping=ping,
         artificial=artificial,
+        stationary_expected=raw.get("stationary_expected"),
         conditions=[
             dict(
                 name=r["name"],
@@ -125,7 +192,8 @@ def validate(computed):
             for r in rows
         ],
         checks=dict(
-            exact_source_counts=True,
+            exact_source_counts=not poisson,
+            poisson_counts_unconditioned=poisson,
             frozen_checkpoint_exact=True,
             private_diagonal_exact=True,
             mean_relative_error_max=mean_error,
@@ -135,6 +203,30 @@ def validate(computed):
         reference_input_rate_hz=config["input_rate"],
         original_simulation_seconds=raw["simulation_seconds"],
     )
+
+
+def validate_poisson_draw(computed, cfg, target, events, amp):
+    from experiments.exp170.compute import (
+        fit_events,
+        poisson_expected_moments,
+        poisson_parameters,
+    )
+
+    rates, fitted_amp = poisson_parameters(target, cfg)
+    history_steps = round(cfg["prehistory_ms"] / cfg["dt_ms"])
+    with np.load(computed.file("calibration.npz")) as z:
+        np.testing.assert_array_equal(z["poisson_rate_hz"], rates)
+        np.testing.assert_array_equal(amp, fitted_amp)
+        np.testing.assert_array_equal(z["target_mean_us"], target.mean(0))
+        np.testing.assert_array_equal(z["target_sd_us"], target.std(0))
+        sampled = fit_events(target, cfg)[0]
+        np.testing.assert_array_equal(z["prehistory_events"], sampled[:history_steps])
+        np.testing.assert_array_equal(events, sampled[history_steps:])
+        mean, sd = poisson_expected_moments(rates, amp, cfg)
+        np.testing.assert_array_equal(z["expected_mean_us"], mean)
+        np.testing.assert_array_equal(z["expected_sd_us"], sd)
+        np.testing.assert_allclose(mean, target.mean(0), rtol=1e-6, atol=0)
+        np.testing.assert_allclose(sd, target.std(0), rtol=1e-6, atol=0)
 
 
 def analyse(identity, *, run_id=None):

@@ -1,21 +1,34 @@
-# exp117
+# exp117 — Mean-Field Analysis of PING Bifurcations
 
-Locate and numerically characterize oscillatory onset in a four-variable SNNLab mean-field closure, including an inhibitory-decay sweep. SNNLab owns the gain, symbolic equations,
-equilibrium search, stability crossings and integration. Native model documents
-and the authored circuit are exported; article payloads retain spikes/ms rates.
+Locate oscillatory onset in a four-variable SNNLab mean-field model of PING, including a
+sweep of inhibitory decay times.
 
-See the [pedagogical mean-field note](../../notes/mean-field-model.mdx) for the
-derivation, exp148 extension, and general shared/private-input formulation.
+## Run
 
-## CLI
+From the repository root, run these stages in order.
+Compute runs numerical integration and requires explicit authorisation.
 
-Run each stage independently from the repository root with `uv run python`.
+```sh
+uv run python experiments/exp117/compute.py
+uv run python experiments/exp117/analyse.py --source COMPUTE_ID
+uv run python experiments/exp117/present.py --source ANALYSE_ID
+```
 
-1. `compute.py`: `--run-id` (optional).
-2. `analyse.py`: `--source` (required), `--run-id` (optional).
-3. `present.py`: `--source` (required), `--run-id` (optional).
-4. `test.py`: `uv run pytest experiments/exp117/test.py`; optional pytest arguments.
+Replace `COMPUTE_ID` and `ANALYSE_ID` with the completed run IDs
+from the preceding stages.
 
-Regenerate the documented-model illustrations without running a scientific stage:
-`uv run python experiments/exp117/present.py --draw-schematics`.
-These authored SVGs do not reconstruct missing historical bundles.
+To run automated checks:
+
+```sh
+uv run pytest experiments/exp117/test.py -q
+```
+
+## Folder guide
+
+1. `recipe.py` — configuration and model definition.
+2. `compute.py` — run computations and save evidence.
+3. `analyse.py` — calculate measurements from saved evidence.
+4. `present.py` — generate figures and report assets.
+5. `custom/` — experiment-specific models, helpers and execution tools.
+6. `report/` — report, appendix and supporting components.
+7. `test.py` — automated checks.

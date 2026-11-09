@@ -1,5 +1,5 @@
 # ruff: noqa: E402
-"""Fit 24 private events per E cell, then execute one frozen native COBA trial."""
+"""Fit Poisson rates/amplitudes, then execute one frozen native COBA trial."""
 
 import argparse
 import json
@@ -15,13 +15,73 @@ import numpy as np
 import torch
 from experiments.exp170 import recipe
 from experiments.exp170.analyse import measure
+from experiments.exp170.custom.prehistory import filtered_events, initial_state
 from pingstore.library import file_sha256, source_run, stage_run
 from scipy.signal import lfilter
 from snnlab import lang
-from snnlab.sim import DenseArrayBinding, Performance, SnapshotSpec, build, simulate
+from snnlab.sim import (
+    DenseArrayBinding,
+    Performance,
+    SnapshotSpec,
+    build,
+    save_runtime_state,
+    simulate,
+)
+
+
+def poisson_parameters(target, cfg):
+    """Match stationary moments of the actual discrete filter, not a sampled draw."""
+    if target.ndim != 2 or not np.isfinite(target).all() or np.any(target < 0):
+        raise ValueError("Invalid PING conductance target")
+    mu, variance = target.mean(0), target.var(0)
+    active = mu > 0
+    if np.any(active & (variance == 0)):
+        raise ValueError(
+            "Constant positive conductance cannot be represented by finite-rate Poisson input"
+        )
+    dt_s = cfg["dt_ms"] / 1000
+    decay = np.exp(-cfg["dt_ms"] / cfg["tau_gaba_ms"])
+    amplitude = np.zeros_like(mu, dtype=np.float32)
+    rates = np.zeros_like(mu, dtype=np.float64)
+    amplitude[active] = ((1 + decay) * variance[active] / mu[active]).astype(np.float32)
+    rates[active] = (
+        mu[active] ** 2 * (1 - decay) / (dt_s * (1 + decay) * variance[active])
+    )
+    if (
+        not np.isfinite(rates).all()
+        or not np.isfinite(amplitude).all()
+        or np.any(amplitude[active] <= 0)
+    ):
+        raise ValueError("Unrepresentable Poisson calibration")
+    return rates, amplitude
+
+
+def poisson_expected_moments(rates, amplitude, cfg):
+    decay = np.exp(-cfg["dt_ms"] / cfg["tau_gaba_ms"])
+    increments = rates * cfg["dt_ms"] / 1000
+    return (
+        increments * amplitude / (1 - decay),
+        np.sqrt(increments * amplitude.astype(np.float64) ** 2 / (1 - decay**2)),
+    )
 
 
 def fit_events(target, cfg):
+    if cfg.get("inhibition_method") != recipe.POISSON_METHOD:
+        return fit_count_matched_events(target, cfg)
+    rates, amplitude = poisson_parameters(target, cfg)
+    history = round(cfg["prehistory_ms"] / cfg["dt_ms"])
+    events = (
+        np.random.default_rng(cfg["artificial_seed"])
+        .poisson(
+            rates * cfg["dt_ms"] / 1000, size=(len(target) + history, target.shape[1])
+        )
+        .astype(np.int32)
+    )
+    predicted = filtered_events(events, cfg)[history:] * amplitude
+    return events, amplitude, predicted, rates, 0
+
+
+def fit_count_matched_events(target, cfg):
     steps, channels = target.shape
     k = cfg["target_events_per_source"]
     decay = np.exp(-cfg["dt_ms"] / cfg["tau_gaba_ms"])
@@ -33,20 +93,38 @@ def fit_events(target, cfg):
     random = np.empty((k, channels))
     bracketed = np.zeros(channels, dtype=bool)
 
-    def traces(times):
-        times = np.rint(times).astype(int)
-        assert np.all(np.diff(times, axis=0) > 0)
-        events = np.zeros((steps, times.shape[1]), dtype=np.uint8)
-        events[times, np.arange(times.shape[1])[None, :]] = 1
+    history = round(cfg.get("prehistory_ms", 0) / cfg["dt_ms"])
+    history_regular = (
+        (np.arange(k)[:, None] + rng.random(channels)[None, :]) * (steps - 1) / k
+        if history
+        else None
+    )
+    history_random = np.empty((k, channels)) if history else None
+
+    def traces(times, past_times=None):
+        def binary(values, *, pending=False):
+            bins = np.minimum(
+                np.rint(values).astype(int), steps - 1 if pending else steps - 2
+            )
+            if np.any(np.diff(bins, axis=0) <= 0):
+                raise ValueError("Timing interpolation lost distinct event bins")
+            events = np.zeros((steps, values.shape[1]), dtype=np.uint8)
+            events[bins, np.arange(values.shape[1])[None, :]] = 1
+            return events
+
+        events = binary(times)
+        if history:
+            past = binary(past_times, pending=True)[-history:]
+            events = np.concatenate((past, events))
         delayed = np.vstack([np.zeros((1, times.shape[1])), events[:-1]])
-        h = lfilter([1.0], [1.0, -decay], delayed, axis=0)
+        h = lfilter([1.0], [1.0, -decay], delayed, axis=0)[history:]
         return events, h, h.std(0) / h.mean(0)
 
-    _, _, regular_cv = traces(regular)
-    assert np.all(regular_cv < cv), (
-        "regular endpoint exceeds target",
-        float(np.max(regular_cv - cv)),
-    )
+    _, _, regular_cv = traces(regular, history_regular)
+    if not np.all(regular_cv < cv):
+        raise ValueError(
+            ("regular endpoint exceeds target", float(np.max(regular_cv - cv)))
+        )
     bracket_draws = 0
     for _ in range(cfg["bracket_attempts"]):
         indices = np.flatnonzero(~bracketed)
@@ -55,7 +133,13 @@ def fit_events(target, cfg):
         sampled = np.column_stack(
             [np.sort(rng.choice(steps - 1, k, replace=False)) for j in indices]
         )
-        _, _, sample_cv = traces(sampled)
+        if history:
+            history_random[:, indices] = np.column_stack(
+                [np.sort(rng.choice(steps - 1, k, replace=False)) for _ in indices]
+            )
+        _, _, sample_cv = traces(
+            sampled, history_random[:, indices] if history else None
+        )
         random[:, indices] = sampled
         bracketed[indices] = sample_cv >= cv[indices]
         bracket_draws += len(indices)
@@ -66,16 +150,24 @@ def fit_events(target, cfg):
     bestalpha = np.zeros(channels)
     for _ in range(cfg["timing_bisections"]):
         alpha = (lo + hi) / 2
-        _, _, candidate_cv = traces(regular * (1 - alpha) + random * alpha)
+        _, _, candidate_cv = traces(
+            regular * (1 - alpha) + random * alpha,
+            history_regular * (1 - alpha) + history_random * alpha if history else None,
+        )
         error = np.abs(candidate_cv / cv - 1)
         improved = error < besterr
         besterr[improved] = error[improved]
         bestalpha[improved] = alpha[improved]
         lo = np.where(candidate_cv < cv, alpha, lo)
         hi = np.where(candidate_cv >= cv, alpha, hi)
-    events, h, _ = traces(regular * (1 - bestalpha) + random * bestalpha)
+    events, h, _ = traces(
+        regular * (1 - bestalpha) + random * bestalpha,
+        history_regular * (1 - bestalpha) + history_random * bestalpha
+        if history
+        else None,
+    )
     amplitude = (mu / h.mean(0)).astype(np.float32)
-    assert np.all(events.sum(0) == k)
+    assert np.all(events[history:].sum(0) == k)
     assert besterr.max() < cfg["sd_tolerance"], float(besterr.max())
     return events, amplitude, h * amplitude, bestalpha, bracket_draws
 
@@ -108,17 +200,19 @@ def compute(*, run_id=None):
                 k: z[k].copy() for k in ("spk_e", "spk_i", "gi_e_1", "input_spikes")
             }
     assert np.array_equal(data["coba"]["input_spikes"], data["ping"]["input_spikes"])
-    assert np.all(data["ping"]["spk_i"].sum(0) == cfg["target_events_per_source"])
     target = data["ping"]["gi_e_1"].astype(float)
     t = time.perf_counter()
-    events, amplitude, predicted, alpha, draws = fit_events(target, cfg)
+    events, amplitude, predicted, rates, _ = fit_events(target, cfg)
+    expected_mu, expected_sd = poisson_expected_moments(rates, amplitude, cfg)
+    np.testing.assert_allclose(expected_mu, target.mean(0), rtol=1e-6, atol=0)
+    np.testing.assert_allclose(expected_sd, target.std(0), rtol=1e-6, atol=0)
     cfg["calibration_seconds"] = time.perf_counter() - t
-    cfg["bracketing_draws"] = draws
     print(
         "CALIBRATED",
         cfg["calibration_seconds"],
-        "max relative SD error",
-        np.max(np.abs(predicted.std(0) / target.std(0) - 1)),
+        "Poisson rate range (Hz)",
+        float(rates.min()),
+        float(rates.max()),
         flush=True,
     )
     cp = oldcfg["checkpoint"]
@@ -126,7 +220,9 @@ def compute(*, run_id=None):
     assert cp["sha256"] == file_sha256(checkpoint)
     weights = torch.load(checkpoint, map_location="cpu", weights_only=True)
     cfg["checkpoint"] = cp
-    cfg["scripts"] = {p.name: file_sha256(p) for p in HERE.glob("*.py")}
+    cfg["scripts"] = {
+        str(p.relative_to(HERE)): file_sha256(p) for p in HERE.rglob("*.py")
+    }
     with stage_run(
         ROOT,
         recipe.SLUG,
@@ -138,8 +234,10 @@ def compute(*, run_id=None):
         bundle = recipe.author_network(cfg)
         bundle.write(run.export / "network.bundle", visualise=False)
         bundle.visualise(run.export / "circuit.svg", view="circuit")
-        for p in HERE.glob("*.py"):
-            (run.export / p.name).write_bytes(p.read_bytes())
+        for p in HERE.rglob("*.py"):
+            destination = run.export / p.relative_to(HERE)
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_bytes(p.read_bytes())
         built = build(
             graph=bundle.graph,
             seed=cfg["seed"],
@@ -164,12 +262,22 @@ def compute(*, run_id=None):
         state = run.scratch / "parameters.pt"
         torch.save(built.model.state_dict(), state)
         drive = torch.from_numpy(data["coba"]["input_spikes"][:, None, :]).float()
+        history_steps = round(cfg["prehistory_ms"] / cfg["dt_ms"])
+        prehistory, events = events[:history_steps], events[history_steps:]
+        established = (
+            initial_state(built.model, prehistory, amplitude, cfg)
+            if history_steps
+            else None
+        )
+        if established is not None:
+            save_runtime_state(run.export / "artificial-initial-state", established)
         t = time.perf_counter()
         result = simulate(
             graph=bundle.graph,
             seed=cfg["seed"],
             device="cpu",
             checkpoint=state,
+            runtime_state=established,
             input_bindings=(
                 DenseArrayBinding("drive", drive),
                 DenseArrayBinding(
@@ -195,24 +303,20 @@ def compute(*, run_id=None):
         filter_error = float(np.max(np.abs(g - predicted)))
         mean_error = float(np.max(np.abs(g.mean(0) / target.mean(0) - 1)))
         sd_error = float(np.max(np.abs(g.std(0) / target.std(0) - 1)))
-        assert (
-            filter_error < 1e-5
-            and mean_error < cfg["mean_tolerance"]
-            and sd_error < cfg["sd_tolerance"]
-        )
+        assert filter_error < 1e-5
+        assert not arrays["I_spikes"].any()
         matched = measure(events, g)
         reference = measure(data["ping"]["spk_i"], target)
-        assert (
-            matched["source_rate_mean_hz"] == reference["source_rate_mean_hz"] == 120.0
-        )
-        assert matched["source_rate_sd_hz"] == reference["source_rate_sd_hz"] == 0.0
         assert abs(matched["pairwise_conductance_correlation"]) < 0.1, matched
         np.savez_compressed(run.export / "recording.npz", **arrays)
         np.savez_compressed(
             run.export / "calibration.npz",
             events=events,
+            prehistory_events=prehistory,
             amplitude_us=amplitude,
-            timing_interpolation=alpha,
+            poisson_rate_hz=rates,
+            expected_mean_us=expected_mu,
+            expected_sd_us=expected_sd,
             target_mean_us=target.mean(0),
             target_sd_us=target.std(0),
         )
@@ -220,9 +324,16 @@ def compute(*, run_id=None):
             configuration=cfg,
             ping=reference,
             artificial=matched,
+            stationary_expected=dict(
+                conductance_mean_us=float(expected_mu.mean()),
+                mean_per_cell_temporal_sd_us=float(expected_sd.mean()),
+                source_rate_mean_hz=float(rates.mean()),
+                source_rate_min_hz=float(rates.min()),
+                source_rate_max_hz=float(rates.max()),
+            ),
             E_rate_hz=float(arrays["E_spikes"].sum() / 1024 / 0.2),
             checks=dict(
-                exact_24_events_per_stream=True,
+                poisson_counts_unconditioned=True,
                 frozen_parameters_exact=True,
                 same_sensory_input=True,
                 mean_relative_error_max=mean_error,
@@ -374,7 +485,16 @@ def record_traces(identity, *, run_id=None):
             drive = torch.from_numpy(z["input_spikes"][:, None, :].copy()).float()
         with np.load(computed.file("calibration.npz")) as z:
             events = z["events"].copy()
-            established = None
+            established = (
+                initial_state(
+                    built.model,
+                    z["prehistory_events"].copy(),
+                    z["amplitude_us"].copy(),
+                    cfg,
+                )
+                if cfg.get("prehistory_ms", 0)
+                else None
+            )
         t = time.perf_counter()
         result = simulate(
             graph=bundle.graph,

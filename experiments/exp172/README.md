@@ -1,31 +1,39 @@
 # exp172 — Spatial Gaussian Selective Relay
 
-A uniform rate cue selects between two spatial Gaussian patterns in an A/B → C
-network with 400 E and 100 I neurons per circuit. The report shows seed 185 at
-3 Hz/channel, with C recurrence scale 0.05 and inhibition scale 1.31. These
-settings were selected on the displayed seed; this is a tuned demonstration,
-not held-out validation or an isolated causal CTC test.
+Test how a uniform rate cue selects between two spatial Gaussian input patterns in an
+A/B → C spiking network.
 
-1. `uv run python experiments/exp172/compute.py` executes the fixed seven-cue
-   protocol and two single-sender controls. It validates the pinned native
-   parameter source and retains spikes, settings, bundles and start snapshots.
-   Historical selection evidence is pinned separately; this stage does not
-   repeat the search. Simulation requires explicit authorisation.
-2. `uv run python experiments/exp172/analyse.py --source COMPUTE_ID` validates
-   the saved trial grid and recomputes measurements from recorded spikes.
-3. `uv run python experiments/exp172/present.py --source ANALYSE_ID` renders
-   the report's four figures and native network diagram without simulation.
-   The default cue is the recorded representative cue; `--cue` and `--seed`
-   select another recorded trial.
-4. `uv run pytest experiments/exp172/test.py -q` runs non-simulation checks.
+## Run
 
-Every stage accepts `--run-id`. Downstream sources must be explicit completed
-Pingstore IDs; stages never launch one another. `recipe.py` owns configuration,
-input generation and network authoring. No scratch or other experiment code is
-required. Existing runs remain immutable.
+From the repository root, run these stages in order.
+Compute runs simulations and requires explicit authorisation.
 
-The figures retain E/I spikes, spatial profiles, unwrapped
-relative phase, 100 ms moving-window spatial amplitudes (5 ms step), and both
-executed sender→C weight matrices. Overlapping fits blur brief excursions and
-are not independent samples. The diagram uses the saved compiled architecture;
-weight labels refer to native start-snapshot arrays, with zero pathways marked.
+```sh
+uv run python experiments/exp172/compute.py
+uv run python experiments/exp172/analyse.py --source COMPUTE_ID
+uv run python experiments/exp172/present.py --source ANALYSE_ID
+```
+
+Replace `COMPUTE_ID` and `ANALYSE_ID` with the completed run IDs
+from the preceding stages.
+
+To run automated checks:
+
+```sh
+uv run pytest experiments/exp172/test.py -q
+```
+
+## Folder guide
+
+1. `recipe.py` — configuration and model definition.
+2. `compute.py` — run simulations and save evidence.
+3. `analyse.py` — calculate measurements from saved evidence.
+4. `present.py` — generate figures and report assets.
+5. `report/` — report, appendix and supporting components.
+6. `test.py` — automated checks.
+
+## Cycle decoder
+
+C selection uses one spatial fit per trough-to-trough cycle, containing a whole excitatory volley. Population-rate minima between detected peaks define the boundaries; flat minima use the point nearest the peak midpoint. This avoids artificial changes from combining the unequal spatial halves of adjacent volleys. Peak detection, spatial templates, strength threshold and three-cycle latency rule are unchanged.
+
+Analysis validates the nine trials declared by the current recipe. Additional historical trials stay in their immutable source run and are explicitly listed as excluded in the new analysis. Regenerate analysis and presentation from the pinned compute run to update report metrics without simulation.

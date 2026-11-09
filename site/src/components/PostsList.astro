@@ -2,8 +2,8 @@
 import type { Post } from '../lib/posts';
 import ArticleDate from './ArticleDate.astro';
 
-interface Props { posts: Post[]; sortable?: boolean; }
-const { posts, sortable = false } = Astro.props;
+interface Props { posts: Post[]; sortable?: boolean; collection?: string; }
+const { posts, sortable = false, collection } = Astro.props;
 ---
 
 <div class="base-grid">
@@ -22,7 +22,7 @@ const { posts, sortable = false } = Astro.props;
   </div>}
   <ol id={sortable ? 'homepage-articles' : undefined} class="posts-list article-list listing-width l-page" role="list">
     {posts.map(report => (
-      <li class="post-preview article-list-row" data-search={[report.id, report.label, report.data.title, report.data.description, report.data.author, ...report.collections].join(' ')} data-updated-at={sortable ? Date.parse(report.data.updated_at) : undefined}>
+      <li hidden={collection ? !report.collections.includes(collection) : undefined} data-collections={JSON.stringify(report.collections)} class="post-preview article-list-row" data-search={[report.id, report.label, report.data.title, report.data.description, report.data.author, ...report.collections].join(' ')} data-updated-at={sortable ? Date.parse(report.data.updated_at) : undefined}>
         <div class="metadata">
           <span class="experiment-id">{report.label}</span>
         </div>

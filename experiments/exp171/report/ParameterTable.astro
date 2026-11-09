@@ -1,11 +1,19 @@
 ---
 import Table from '../../../site/src/components/Table.astro';
-import { reportSnapshots } from '../../../site/src/lib/report-data';
+import { reportData, reportSnapshots } from '../../../site/src/lib/report-data';
 import { formatTableNumber as n } from '../../../site/src/lib/table-number';
+const data = await reportData('exp171', { allowUnavailable: true });
+const native = data?.execution_backend === 'snnlab.sim.train';
 const evidence = await reportSnapshots('exp171', { snapshots: {
-  coba: 'initial/start/snapshot.json', teacher: 'teacher/start/snapshot.json',
+  coba: native ? 'training/start/snapshot.json' : 'initial/start/snapshot.json', teacher: 'teacher/start/snapshot.json',
 }, computeInput: 'compute', allowUnavailable: true });
 const cfg = evidence?.configuration;
+const poisson = cfg?.inhibition_method === 'poisson_moment_matched_v1';
+const rateStats = data?.poisson_rate_summary?.validation;
+if (poisson && !rateStats) throw new Error('Missing Poisson-rate evidence');
+const teacherCount = cfg?.inhibition_method === 'teacher_rate_count_timing_v3';
+const countStats = data?.event_count_summary?.validation;
+if (teacherCount && !countStats) throw new Error('Missing teacher-derived count evidence');
 const coba = evidence?.snapshots.coba?.network;
 const teacher = evidence?.snapshots.teacher?.network;
 const symbols = { E: 'E', I: 'I', readout: 'R', drive: 'X', artificial: 'U' };
@@ -20,7 +28,7 @@ const groups = coba && teacher && cfg ? [
     ['Execution device', String(evidence.snapshots.coba.execution.device_resolved)],
     ['Float32 matmul precision', cfg.precision === undefined ? 'Not recorded' : String(cfg.precision)],
     ['Presentation / measurement window', `${n(cfg.duration_ms)} ms; no burn-in`],
-    ['Source checkpoint / selection seeds', `${String(cfg.seed)} / ${String(cfg.selection_seed)}`],
+    native ? ['Source checkpoint seed', String(cfg.seed)] : ['Source checkpoint / selection seeds', `${String(cfg.seed)} / ${String(cfg.selection_seed)}`],
     ['Sensory / calibration seeds', `${String(cfg.sensory_seed)} / ${String(cfg.calibration_seed)}`],
     ['Shuffle / training / validation seeds', `${String(cfg.shuffle_seed)} / ${String(cfg.training_seed)} / ${String(cfg.validation_seed)}`],
   ] },
@@ -32,15 +40,16 @@ const groups = coba && teacher && cfg ? [
   ] },
   { label: 'Input and manipulation', rows: [
     ['Sensory peak event rate', `${n(cfg.input_rate_hz)} Hz/channel`],
-    ['Artificial input', 'Per-image fixed probabilities and amplitudes; independent fresh training draws'],
+    ['Artificial input', poisson ? `Poisson counts; fitted mean ${n(rateStats.mean)} Hz/channel (range ${n(rateStats.min)}–${n(rateStats.max)}); frozen amplitudes` : teacherCount ? `Per-image PING mean I count, rounded; validation mean ${n(countStats.mean)} events/channel (range ${n(countStats.min)}–${n(countStats.max)})` : ['count_matched_timing_v1', 'count_matched_timing_v2'].includes(cfg.inhibition_method) ? `${n(cfg.target_events_per_source)} events/channel; frozen per-image timing interpolation and amplitude; fresh training draws` : 'Per-image fixed probabilities and amplitudes; independent fresh training draws'],
     ['GABA decay / delivery delay', `${n(cfg.tau_gaba_ms)} / ${n(cfg.dt_ms)} ms`],
     ['Inhibition-only prehistory', `${n(cfg.inhibition_prehistory_ms ?? 0)} ms`],
   ] },
   { label: 'Training and readout', rows: [
-    ['Training / validation images', `${n(10*cfg.train_per_digit)} / ${n(10*cfg.validation_per_digit)}`],
+    ['Training / validation images', native ? `${n(cfg.train_images)} / ${n(cfg.validation_images)}` : `${n(10*cfg.train_per_digit)} / ${n(10*cfg.validation_per_digit)}`],
     ['Epochs / batch size / validation draws', `${n(cfg.epochs)} / ${n(cfg.batch_size)} / ${n(cfg.validation_draws)}`],
     ['AdamW learning rate / weight decay', `${n(cfg.lr)} / ${n(cfg.weight_decay)}`],
     ['Gradient norm ceiling / rate penalty', `${n(cfg.grad_clip)} / ${n(cfg.rate_penalty)}`],
+    ['Hidden-E activity ceiling', cfg.rate_penalty ? `${n(cfg.rate_target_hz)} Hz` : 'Penalty off'],
     ['Decision', 'Largest trial-mean pre-reset readout voltage'],
   ] },
 ] : [];
@@ -61,30 +70,20 @@ const matrices = [coba, teacher].filter(Boolean).map((net, index) => {
 });
 ---
 {coba && teacher && cfg ? <>
-<Table headers={['Parameter','Recorded pilot setting']} groups={groups} number="B1" id="parameters" label="Native dynamics and recorded protocol">
-  E and I are excitatory and inhibitory neurons, R the readout, X sensory input,
-  and U private artificial input. Both networks share E, I, R and X sizes and
-  dynamics; only COBA has U. I is present but silent in COBA. Settings come from
-  selected native snapshots and recorded compute configuration. Seeds are exact
-  identifiers. Numeric quantities use two significant figures.
-  {cfg.inhibition_prehistory_steps > 0 ? <>Only private inhibitory conductance and
-  pending events carry over from the recorded prehistory. Neurons and readout
-  start fresh; the entire presentation remains scored.</> : <>This displayed run
-  used zero initial artificial conductance and predates the recipe's correction
-  to establish private inhibition before image onset. The corrected protocol has
-  not been evaluated by these results.</>}
+<Table headers={['Parameter','Recorded setting']} groups={groups} number="B1" id="parameters" label="Native dynamics and recorded protocol">
+  E/I: excitatory/inhibitory; R: readout; X: sensory input; U: private artificial input.
+  Recorded snapshots and configuration; seeds are exact, quantities use two significant figures.
+  {poisson ? <>Rates and amplitudes match stationary moments; sampled trial moments fluctuate.</> : null}
+  {teacherCount ? <>Counts are rounded per-image PING population means.</> : null}
+  {data.sweep ? <>Snapshots represent the unpenalised condition.</> : null}
+  {cfg.inhibition_prehistory_steps > 0 ? <>Prehistory carries private conductance
+  and pending events only; neurons start fresh.</> : <>No inhibitory prehistory in this run.</>}
 </Table>
 {matrices.map((matrix, index) => <Table headers={matrix.headers} rows={matrix.rows} rowHeaders number={`B${index+2}`} label={matrix.label}>
-  Rows are sources and columns targets. Cells give eligible-pair density and
-  nominal per-connection weight in µS. W denotes the saved learned checkpoint
-  entry, not a new random initializer; C and P identify COBA and PING. Subscripts
-  list recipient then source; j and i index recipients and sources. Eligible
-  density does not imply every learned entry is nonzero. The private U→E matrix
-  has one nonzero entry per recipient, with density 1/N_E; N_E is the native E
-  size. Its fixed weight is 1 µS, and input events carry each image's calibrated
-  amplitude divided by 1 µS. Thus effective increments remain the calibrated
-  q_j in µS. COBA sensory and readout weights subsequently train; feedback and
-  private projection stay frozen. Zero-weight pathways remain present.
+  Rows: sources; columns: targets. Cells show eligible-pair density and weight in µS.
+  C/P: COBA/PING; W subscripts name recipient then source.
+  U→E has density 1/N_E and weight 1 µS; N_E is E population size.
+  Events carry fitted amplitudes. Only COBA sensory/readout weights train.
 </Table>)}
 
 </> : <p>Native parameter evidence is unavailable.</p>}

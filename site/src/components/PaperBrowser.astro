@@ -1,24 +1,19 @@
 ---
 import CollectionBrowser from './CollectionBrowser.astro';
 import PapersList from './PapersList.astro';
-import { getPaperCollections, paperCollectionLabel, paperCollectionUrl, type Paper } from '../lib/papers';
+import { getPaperCollections, paperCollectionLabel, paperCollectionDescription, type Paper } from '../lib/papers';
 import { getPosts } from '../lib/posts';
-import { collectionCounts, collectionLabel, collectionUrl, compareCollections } from '../lib/collections';
+import { collectionCounts } from '../lib/collections';
 
 interface Props { papers: Paper[]; collection?: string; }
 const { papers, collection } = Astro.props;
 const collections = getPaperCollections(papers);
 const posts = await getPosts();
-const articleCounts = collectionCounts(posts);
 const paperCounts = collectionCounts(papers);
-const articleCollections = [...new Set(posts.flatMap(post => post.collections))].sort(compareCollections);
-const visiblePapers = collection ? papers.filter(paper => paper.collections.includes(collection)) : papers;
 ---
-<CollectionBrowser title={collection ? paperCollectionLabel(collection) : 'Papers'} allHref="/" allLabel="All articles"
-  allCount={posts.length} allPapersCount={papers.length}
-  heading="Articles" filtered={true}
-  collections={articleCollections.map(name => ({ href: collectionUrl(name), label: collectionLabel(name), count: articleCounts.get(name) ?? 0, active: false }))}
-  literature={collections.map(name => ({ href: paperCollectionUrl(name), label: paperCollectionLabel(name), count: paperCounts.get(name) ?? 0, active: name === collection }))}
-  allPapersActive={!collection} searchKind="papers">
-  <PapersList papers={visiblePapers} />
+<CollectionBrowser title={collection ? paperCollectionLabel(collection) : 'Papers'}
+  defaultCollection={{ label: paperCollectionLabel('default'), description: paperCollectionDescription('default') }}
+  allCount={posts.length} allPapersCount={papers.length} searchKind="papers"
+  collections={collections.map(name => ({ id: name, label: paperCollectionLabel(name), description: paperCollectionDescription(name), count: paperCounts.get(name) ?? 0, active: name === collection }))}>
+  <PapersList papers={papers} collection={collection} />
 </CollectionBrowser>

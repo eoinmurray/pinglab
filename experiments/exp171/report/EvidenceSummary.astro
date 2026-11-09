@@ -1,5 +1,11 @@
 ---
-import { reportData, round } from '../../../site/src/lib/report-data';
+import { reportData, reportSnapshots, round } from '../../../site/src/lib/report-data';
 const data = await reportData('exp171', { allowUnavailable: true });
+const evidence = await reportSnapshots('exp171', { snapshots: {
+  coba: data?.execution_backend === 'snnlab.sim.train' ? 'training/start/snapshot.json' : 'initial/start/snapshot.json',
+}, computeInput: 'compute', allowUnavailable: true });
+const method = evidence?.configuration?.inhibition_method;
 ---
-{data ? <p>We fine-tuned a trained, unpenalised TR02 COBA classifier while supplying private artificial GABA input calibrated against frozen PING. After {data.update_count} updates on {data.train_images} images, validation accuracy changed from {round(data.history[0].accuracy_pct, 1)}% to {round(data.history.at(-1).accuracy_pct, 1)}%, and cross-entropy from {round(data.history[0].cross_entropy, 3)} to {round(data.history.at(-1).cross_entropy, 3)}. The lowest validation loss occurred at epoch {data.best_epoch}. The prespecified pilot criterion was {data.promising ? 'met' : 'not met'}. This single-seed adaptation pilot uses image-conditioned inhibition and the original validation partition; it does not establish training from scratch or independent test performance.</p> : <p>No completed evidence is selected.</p>}
+{data?.sweep ? <p>We compare {data.sweep.length} matched TR02 activity ceilings after {evidence.configuration.epochs} epochs of COBA fine-tuning with PING-calibrated private inhibition. Results show validation accuracy and E firing for one seed.</p> : data ? <p>PING-calibrated private inhibition accompanies COBA fine-tuning. Validation accuracy changed from {round(data.history[0].accuracy_pct, 1)}% to {round(data.history.at(-1).accuracy_pct, 1)}%. One seed; the source validation split is reused.</p> : <p>No completed evidence is selected.</p>}
+
+{data && method !== 'poisson_moment_matched_v1' ? <p>Selected results predate the Poisson control. Fitted rates and fixed amplitudes now match stationary PING conductance moments; all six conditions require fresh runs.</p> : null}

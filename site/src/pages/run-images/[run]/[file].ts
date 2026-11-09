@@ -1,5 +1,6 @@
 import type { APIRoute } from 'astro';
 import { getReports } from '../../../lib/reports';
+import { withRunContext } from '../../../lib/run-context';
 import { runStore } from '../../../lib/run-store';
 import { latestPresentation } from '../../../lib/pingstore';
 import { assetTypes, isRunAsset, selectAsset } from '../../../lib/run-assets';
@@ -48,7 +49,11 @@ async function serveFile(run: string, file: string): Promise<Response> {
 export const GET: APIRoute = async ({ props }) => serveFile(props.run, props.file);
 
 // Development serves one requested asset without enumerating unrelated reports.
-export async function serveRunAsset(pathname: string, origin = 'http://localhost:3000'): Promise<Response> {
+export function serveRunAsset(pathname: string, origin = 'http://localhost:3000'): Promise<Response> {
+  return withRunContext(() => serveRequestedAsset(pathname, origin));
+}
+
+async function serveRequestedAsset(pathname: string, origin: string): Promise<Response> {
   const match = /^\/run-images\/(exp\d{3}-r\d+-present)\/([^/]+)$/.exec(pathname);
   if (!match) return new Response('Asset not found', { status: 404 });
   let file: string;
@@ -58,6 +63,8 @@ export async function serveRunAsset(pathname: string, origin = 'http://localhost
     return new Response('Asset not found', { status: 404 });
   }
   try {
+    // Read and verify local bytes once; remote selection additionally checks headers.
+    if (await runStore.local(match[1]) || runStore.source === 'local') return await serveFile(match[1], file);
     const selection = await selectAsset(match[1], file, { development: true, origin });
     if (selection.source === 'r2' && !file.endsWith('.json')) return new Response(null, { status: 302, headers: {
       Location: selection.url, 'Cache-Control': 'no-store',

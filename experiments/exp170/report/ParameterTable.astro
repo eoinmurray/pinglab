@@ -8,6 +8,7 @@ const evidence = await reportSnapshots('exp170', {
 });
 const net = evidence?.snapshots.artificial?.network;
 const cfg = evidence?.configuration;
+const poisson = cfg?.inhibition_method === 'poisson_moment_matched_v1';
 const pop = id => net.populations.find(p => p.id === id);
 const symbols = { E: 'E', I: 'I', readout: 'R', drive: 'X', artificial: 'U' };
 const math = id => ({ math: symbols[id] });
@@ -21,6 +22,7 @@ const groups = net && cfg && data ? [
   { label: 'Simulation', rows: [
     shared('Integration timestep', `${n(net.timebase.dt.value)} ms`),
     shared('Analysed duration', `${n(cfg.duration_ms)} ms`),
+    shared('Inhibition-only prehistory', `${n(cfg.prehistory_ms ?? 0)} ms`),
     shared('Checkpoint seed / epoch', `${String(cfg.seed)} / ${String(cfg.checkpoint.epoch)}`),
     ['Private event seed', String(cfg.artificial_seed)],
   ] },
@@ -32,7 +34,7 @@ const groups = net && cfg && data ? [
   ] },
   { label: 'Input and manipulation', rows: [
     shared('Sensory encoding peak rate', `${n(data.reference_input_rate_hz)} Hz/channel; identical saved encoding`),
-    ['Private inhibitory events', `${n(data.conditions[2].rate_i_or_input_hz)} Hz/channel; ${n(cfg.target_events_per_source)} events per stream`],
+    ['Private inhibitory events', poisson ? `${n(data.stationary_expected.source_rate_mean_hz)} Hz/channel expected; Poisson counts` : `${n(data.conditions[2].rate_i_or_input_hz)} Hz/channel; ${n(cfg.target_events_per_source)} events per stream`],
     shared('Private GABA decay / delivery delay', `${n(net.projections.find(p => p.id === 'artificial_to_E').synapse.tau.value)} / ${n(net.projections.find(p => p.id === 'artificial_to_E').delay.value)} ms`),
     shared('Checkpoint input and readout weights', 'Frozen COBA checkpoint'),
     shared('E→I and I→E weights', 'Zero; projections retained'),
@@ -57,13 +59,16 @@ const matrix = net ? sources.map(source => [math(source.id), ...targets.map(targ
   return nominal(paths[0]);
 })]) : [];
 ---
-<Table headers={['Parameter','Count-matched COBA']} groups={groups} number="B1" id="parameters" label="Recorded control parameters">
+<Table headers={['Parameter',poisson ? 'Poisson COBA' : 'Count-matched COBA']} groups={groups} number="B1" id="parameters" label="Recorded control parameters">
   E and I are the original excitatory and inhibitory populations; R is the
   readout, X the sensory input and U the private artificial input. I remains
   present but silent in the COBA control. Native neuron settings come from the
   selected start snapshot, other settings from recorded configuration and
-  analysis. Every private stream has the same recorded event count as each
-  reference PING I neuron. Seeds and epoch are exact identifiers.
+  analysis. {poisson ? <>Rates and fixed amplitudes match stationary PING
+  conductance moments; trial counts fluctuate.</> : <>Historical streams match
+  the reference PING event count.</>} Additional prehistory events
+  establish private conductance before t=0; only that conductance and pending
+  events carry into fresh neurons and readout. Seeds and epoch are exact identifiers.
 </Table>
 <Table headers={['Source ↓ / target →',...targets.map(p => math(p.id))]} rows={matrix} rowHeaders number="B2" label="Native COBA control connectivity">
   Rows are sources and columns targets. Entries give eligible-pair density and

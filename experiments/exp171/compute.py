@@ -1,30 +1,26 @@
-"""Calibrate a frozen PING teacher and fine-tune COBA for the configured epoch count."""
+"""Calibrate private inhibition, then fine-tune through SNNLab's native trainer."""
 
 import argparse
 import hashlib
 import json
+import math
 import os
+import subprocess
 import sys
 import time
+from collections import deque
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import asdict, replace
-from importlib.metadata import version
 from pathlib import Path
-from shutil import copyfile
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(ROOT), str(ROOT / "libraries")]
 import numpy as np
 import torch
-import torch.nn.functional as F
 from experiments.exp171 import recipe
-from experiments.exp171.custom.inhibition import history_state
-from experiments.exp171.custom.native import capture
 from pingstore.library import file_sha256, source_run, stage_run
 from scipy.signal import lfilter
 from sklearn.model_selection import train_test_split
 from snnlab import extensions, sim
-from snnlab.sim import GraphExecutor, NetworkSnapshot, plan_graph, save_runtime_state
 from torchvision.datasets import MNIST
 
 
@@ -47,27 +43,6 @@ def source_indices(labels):
     return train_test_split(pool, test_size=700, random_state=42, stratify=labels[pool])
 
 
-def select_indices(labels, cfg):
-    train, validation = source_indices(labels)
-    selection = rng(cfg, "selection")
-    selected = []
-    for partition, count in [
-        (train, cfg["train_per_digit"]),
-        (validation, cfg["validation_per_digit"]),
-    ]:
-        selected.append(
-            np.concatenate(
-                [
-                    selection.choice(
-                        partition[labels[partition] == digit], count, replace=False
-                    )
-                    for digit in range(10)
-                ]
-            )
-        )
-    return *selected, train, validation
-
-
 def sensory(pixels, original_index, cfg):
     return (
         rng(cfg, "sensory", original_index).random(
@@ -84,70 +59,401 @@ def filtered(events, cfg):
     )
 
 
-def calibrate(target, cfg, original_index):
-    mu, sd = target.mean(0), target.std(0)
-    if np.any(mu <= 0) or np.any(sd <= 0):
-        raise ValueError("Nonpositive teacher conductance moments")
-    cv = sd / mu
-    gen = rng(cfg, "calibration", original_index)
-
-    def fit(indices):
-        history = cfg.get("inhibition_prehistory_steps", 0)
-        u = gen.random((history + cfg["steps"], len(indices)))
-        if cfg.get("scaled"):
-            # Each GABA filter walks one channel over time.
-            u = np.asfortranarray(u)
-        low = np.full(len(indices), cfg["probability_bounds"][0])
-        high = np.full(len(indices), cfg["probability_bounds"][1])
-        error, p = np.full(len(indices), np.inf), low.copy()
-        for _ in range(cfg["calibration_bisections"]):
-            mid = (low + high) / 2
-            h = filtered(u < mid, cfg)[history:]
-            realised = h.std(0) / np.maximum(h.mean(0), 1e-20)
-            e = np.abs(realised / cv[indices] - 1)
-            better = e < error
-            error[better], p[better] = e[better], mid[better]
-            low, high = (
-                np.where(realised > cv[indices], mid, low),
-                np.where(realised <= cv[indices], mid, high),
-            )
-        h = filtered(u < p, cfg)[history:]
-        q = mu[indices] / h.mean(0)
-        return p, q, error, h * q
-
-    p, q, error, g = fit(np.arange(cfg["n_e"]))
-    for _ in range(cfg["calibration_retries"]):
-        indices = np.flatnonzero(error > cfg["calibration_sd_target"])
-        if not len(indices):
-            break
-        pp, qq, ee, gg = fit(indices)
-        good = ee < error[indices]
-        chosen = indices[good]
-        p[chosen], q[chosen], error[chosen], g[:, chosen] = (
-            pp[good],
-            qq[good],
-            ee[good],
-            gg[:, good],
-        )
-    if not np.isfinite(q).all() or error.max() >= cfg["calibration_std_tolerance"]:
-        raise ValueError(
-            f"Calibration failed for image {original_index}: {error.max()}"
-        )
+def generator_key(cfg):
+    """Archived runs retain their recorded Bernoulli generator semantics."""
+    if cfg.get("inhibition_method") == recipe.POISSON_METHOD:
+        return "poisson_rate_hz"
     return (
-        p.astype(np.float32),
-        q.astype(np.float32),
-        mu,
-        sd,
-        g.mean(0),
-        g.std(0),
-        float(error.max()),
+        "timing_interpolation"
+        if cfg.get("inhibition_method") in recipe.COUNT_METHODS
+        else "probability"
     )
 
 
-def artificial(probabilities, amplitudes, indices, cfg, *, epoch=None, draw=None):
+def moment_keys(cfg):
+    return (
+        ("expected_mean", "expected_sd")
+        if cfg.get("inhibition_method") == recipe.POISSON_METHOD
+        else ("fitted_mean", "fitted_sd")
+    )
+
+
+def poisson_parameters(target, cfg):
+    """Exp170's discrete Poisson moment fit, independent of any sampled draw."""
+    if target.ndim != 2 or not np.isfinite(target).all() or np.any(target < 0):
+        raise ValueError("Invalid PING conductance target")
+    mu, variance = target.mean(0), target.var(0)
+    active = mu > 0
+    if np.any(active & (variance == 0)):
+        raise ValueError(
+            "Constant positive conductance cannot be represented by finite-rate Poisson input"
+        )
+    decay = np.exp(-cfg["dt_ms"] / cfg["tau_gaba_ms"])
+    amplitude = np.zeros_like(mu, dtype=np.float32)
+    rates = np.zeros_like(mu, dtype=np.float64)
+    amplitude[active] = ((1 + decay) * variance[active] / mu[active]).astype(np.float32)
+    rates[active] = (
+        mu[active] ** 2
+        * (1 - decay)
+        / ((cfg["dt_ms"] / 1000) * (1 + decay) * variance[active])
+    )
+    validate_poisson_parameters(rates, amplitude)
+    if np.any(amplitude[active] <= 0):
+        raise ValueError("Unrepresentable Poisson calibration")
+    return rates, amplitude
+
+
+def validate_poisson_parameters(rates, amplitudes):
+    if (
+        rates.shape != amplitudes.shape
+        or not np.isfinite(rates).all()
+        or not np.isfinite(amplitudes).all()
+        or np.any(rates < 0)
+        or np.any(amplitudes < 0)
+        or np.any((rates == 0) != (amplitudes == 0))
+    ):
+        raise ValueError("Invalid Poisson rates or amplitudes")
+
+
+def poisson_expected_moments(rates, amplitude, cfg):
+    decay = np.exp(-cfg["dt_ms"] / cfg["tau_gaba_ms"])
+    increments = rates * cfg["dt_ms"] / 1000
+    return (
+        increments * amplitude / (1 - decay),
+        np.sqrt(increments * amplitude.astype(np.float64) ** 2 / (1 - decay**2)),
+    )
+
+
+def teacher_event_counts(counts, cfg):
+    """One half-up rounded population-mean I count per image, never a floor of one."""
+    counts = np.asarray(counts)
+    if (
+        counts.ndim != 2
+        or counts.shape[1] != cfg["n_i"]
+        or not np.isfinite(counts).all()
+        or np.any(counts < 0)
+        or np.any(counts > cfg["steps"])
+        or not np.equal(counts, np.rint(counts)).all()
+    ):
+        raise ValueError("Invalid teacher spike counts for event-count extraction")
+    result = np.floor(counts.mean(axis=1, dtype=np.float64) + 0.5).astype(np.int32)
+    if np.any(result >= cfg["steps"]):
+        raise ValueError(
+            "Teacher-derived count exceeds distinct deliverable event bins"
+        )
+    return result
+
+
+def event_counts(cfg, size, values=None):
+    """Validate compact CPU metadata before generating any device tensors."""
+    if cfg.get("inhibition_method") == recipe.TEACHER_COUNT_METHOD:
+        if values is None:
+            raise ValueError(
+                "Teacher-rate inhibition requires saved per-image event_count"
+            )
+        counts = np.asarray(values)
+        if (
+            counts.shape != (size,)
+            or not np.issubdtype(counts.dtype, np.integer)
+            or np.any(counts < 0)
+            or np.any(counts >= cfg["steps"])
+        ):
+            raise ValueError("Invalid per-image event counts")
+        return counts
+    return np.full(size, cfg["target_events_per_source"], dtype=np.int32)
+
+
+def dataset_event_counts(data, cfg, selected):
+    return (
+        data["event_count"][selected]
+        if cfg.get("inhibition_method") == recipe.TEACHER_COUNT_METHOD
+        else None
+    )
+
+
+def relative_moment_error(actual, target):
+    """Exact silence is valid; nonzero output against a zero target is not."""
+    actual, target = np.asarray(actual), np.asarray(target)
+    relative = np.full_like(actual, np.inf, dtype=np.float64)
+    np.divide(actual, target, out=relative, where=target != 0)
+    relative = np.abs(relative - 1)
+    return np.where((target == 0) & (actual == 0), 0.0, relative)
+
+
+def timing_endpoints(gen, steps, channels, count):
+    regular = (
+        (np.arange(count)[:, None] + gen.random(channels)[None, :])
+        * (steps - 1)
+        / count
+    )
+    random = np.column_stack(
+        [np.sort(gen.choice(steps - 1, count, replace=False)) for _ in range(channels)]
+    )
+    return regular, random
+
+
+def timing_events(times, steps, *, pending=False, half_up=False):
+    last = steps - 1 if pending else steps - 2
+    rounded = np.floor(times + 0.5 + 1e-9) if half_up else np.rint(times)
+    bins = np.minimum(rounded.astype(int), last)
+    if np.any(np.diff(bins, axis=0) <= 0) or bins.min() < 0 or bins.max() > last:
+        raise ValueError("Timing interpolation lost distinct deliverable events")
+    events = np.zeros((steps, bins.shape[1]), dtype=np.float32)
+    events[bins, np.arange(bins.shape[1])[None, :]] = 1
+    return events
+
+
+def clustered_endpoint(gen, steps, channels, count):
+    """A private random-phase burst of K distinct consecutive bins."""
+    start = gen.integers(0, steps - count, size=channels)
+    return start[None, :] + np.arange(count)[:, None]
+
+
+def timing_positions(regular, random, alpha, clustered=None):
+    upper = 1 if clustered is None else 2
+    if not np.isfinite(alpha).all() or np.any(alpha < 0) or np.any(alpha > upper):
+        raise ValueError("Invalid timing interpolation")
+    first = np.minimum(alpha, 1)
+    second = np.maximum(alpha - 1, 0)
+    times = regular * (1 - first) + random * (first - second)
+    return times if clustered is None else times + clustered * second
+
+
+def timing_trial(regular, random, alpha, cfg, history_endpoints=None, clusters=None):
+    """Exactly K scored events plus the tail of an independent preceding draw."""
+    events = timing_events(
+        timing_positions(
+            regular, random, alpha, None if clusters is None else clusters[0]
+        ),
+        cfg["steps"],
+        half_up=clusters is not None,
+    )
+    history = cfg.get("inhibition_prehistory_steps", 0)
+    if history:
+        hr, hc = history_endpoints
+        past = timing_events(
+            timing_positions(hr, hc, alpha, None if clusters is None else clusters[1]),
+            cfg["steps"],
+            pending=True,
+            half_up=clusters is not None,
+        )
+        events = np.concatenate((past[-history:], events))
+    return events
+
+
+def calibrate_count_matched(target, cfg, original_index):
+    """Exp170 timing fit, independently implemented for per-image generators."""
+    steps, channels = target.shape
+    mu, sd = target.mean(0), target.std(0)
+    if np.any(mu <= 0) or np.any(sd <= 0) or not np.isfinite(target).all():
+        raise ValueError("Invalid teacher conductance moments")
+    cv = sd / mu
+    gen = rng(cfg, "calibration", original_index)
+    regular, random = timing_endpoints(
+        gen, steps, channels, cfg["target_events_per_source"]
+    )
+
+    history = cfg.get("inhibition_prehistory_steps", 0)
+    history_endpoints = (
+        timing_endpoints(gen, steps, channels, cfg["target_events_per_source"])
+        if history
+        else None
+    )
+
+    extended = cfg.get("inhibition_method") in recipe.EXTENDED_METHODS
+    clusters = (
+        tuple(
+            clustered_endpoint(gen, steps, channels, cfg["target_events_per_source"])
+            for _ in range(2)
+        )
+        if extended
+        else None
+    )
+
+    def moments(alpha, indices=None):
+        selected = np.arange(channels) if indices is None else indices
+        past = tuple(a[:, selected] for a in history_endpoints) if history else None
+        events = timing_trial(
+            regular[:, selected],
+            random[:, selected],
+            alpha,
+            cfg,
+            past,
+            tuple(a[:, selected] for a in clusters) if extended else None,
+        )
+        h = filtered(events, cfg)[history:]
+        return h, h.std(0) / h.mean(0)
+
+    _, regular_cv = moments(np.zeros(channels))
+    if np.any(regular_cv >= cv):
+        raise ValueError(
+            f"Regular timing endpoint exceeds teacher CV for image {original_index}"
+        )
+    bracketed = np.zeros(channels, dtype=bool)
+    # Equivalent endpoint moments may differ at float64 roundoff after scaling.
+    upper_target = (
+        cv * (1 - 1e-12)
+        if cfg.get("inhibition_method") == recipe.TEACHER_COUNT_METHOD
+        else cv
+    )
+    attempts = 1 if extended else cfg["bracket_attempts"]
+    for attempt in range(attempts):
+        indices = np.flatnonzero(~bracketed)
+        if not len(indices):
+            break
+        if attempt:
+            random[:, indices] = np.column_stack(
+                [
+                    np.sort(
+                        gen.choice(
+                            steps - 1, cfg["target_events_per_source"], replace=False
+                        )
+                    )
+                    for _ in indices
+                ]
+            )
+            if history:
+                history_endpoints[1][:, indices] = np.column_stack(
+                    [
+                        np.sort(
+                            gen.choice(
+                                steps - 1,
+                                cfg["target_events_per_source"],
+                                replace=False,
+                            )
+                        )
+                        for _ in indices
+                    ]
+                )
+        _, candidate_cv = moments(np.ones(len(indices)), indices)
+        bracketed[indices] = candidate_cv >= upper_target[indices]
+    upper = np.ones(channels)
+    if extended:
+        indices = np.flatnonzero(~bracketed)
+        if len(indices):
+            _, clustered_cv = moments(np.full(len(indices), 2.0), indices)
+            bracketed[indices] = clustered_cv >= upper_target[indices]
+            upper[indices] = 2
+    if not bracketed.all():
+        missing = np.flatnonzero(~bracketed)
+        raise ValueError(
+            f"Could not bracket teacher CV for image {original_index}: "
+            f"{len(missing)}/{channels} channels after {attempts} random draws"
+            f"{' plus clustered endpoint' if extended else ''}; "
+            f"unbracketed target CV range {cv[missing].min():.6g}..{cv[missing].max():.6g}; "
+            f"first channel IDs {missing[:8].tolist()}"
+        )
+    lo, hi = np.zeros(channels), upper
+    error, alpha = np.full(channels, np.inf), np.zeros(channels)
+    for _ in range(cfg["timing_bisections"]):
+        mid = (lo + hi) / 2
+        _, candidate_cv = moments(mid)
+        candidate_error = np.abs(candidate_cv / cv - 1)
+        improved = candidate_error < error
+        error[improved], alpha[improved] = candidate_error[improved], mid[improved]
+        lo = np.where(candidate_cv < cv, mid, lo)
+        hi = np.where(candidate_cv >= cv, mid, hi)
+    # Certify the values that are actually persisted, including timing quantization.
+    alpha = alpha.astype(np.float32)
+    h, _ = moments(alpha)
+    q = (mu / h.mean(0)).astype(np.float32)
+    g = h * q
+    fitted_mean, fitted_sd = g.mean(0), g.std(0)
+    error = np.abs(fitted_sd / sd - 1)
+    mean_error = np.max(np.abs(fitted_mean / mu - 1))
+    if (
+        not np.isfinite(q).all()
+        or np.any(q <= 0)
+        or not np.isfinite(error).all()
+        or not np.isfinite(mean_error)
+        or error.max() >= cfg["calibration_std_tolerance"]
+        or mean_error > 1e-6
+    ):
+        raise ValueError(
+            f"Saved-parameter calibration failed for image {original_index}: "
+            f"mean error {mean_error}, SD error {error.max()}"
+        )
+    return alpha, q, mu, sd, fitted_mean, fitted_sd, float(error.max())
+
+
+def calibrate(target, cfg, original_index, *, event_count=None):
+    if cfg.get("inhibition_method") == recipe.POISSON_METHOD:
+        rates, amplitude = poisson_parameters(target, cfg)
+        mean, sd = poisson_expected_moments(rates, amplitude, cfg)
+        mu, target_sd = target.mean(0), target.std(0)
+        mean_error = relative_moment_error(mean, mu).max()
+        sd_error = relative_moment_error(sd, target_sd).max()
+        if max(mean_error, sd_error) > 1e-6:
+            raise ValueError(f"Poisson expectation mismatch for image {original_index}")
+        return rates, amplitude, mu, target_sd, mean, sd, float(sd_error)
+    if cfg.get("inhibition_method") == recipe.TEACHER_COUNT_METHOD:
+        count = int(event_counts(cfg, 1, np.asarray([event_count]))[0])
+        if count == 0:
+            if not np.isfinite(target).all() or np.any(target != 0):
+                raise ValueError(
+                    f"Image {original_index}: teacher I count rounds to zero but conductance is nonzero; cannot match with zero artificial events"
+                )
+            zero = np.zeros(target.shape[1], dtype=np.float32)
+            return tuple(zero.copy() for _ in range(7))
+        cfg = dict(cfg, target_events_per_source=count)
+    return calibrate_count_matched(target, cfg, original_index)
+
+
+def artificial(
+    parameters, amplitudes, indices, cfg, *, epoch=None, draw=None, counts=None
+):
     domain, key = ("training", epoch) if epoch is not None else ("validation", draw)
     if key is None:
         raise ValueError("Explicit epoch or draw required")
+    if cfg.get("inhibition_method") == recipe.POISSON_METHOD:
+        validate_poisson_parameters(parameters, amplitudes)
+        return np.stack(
+            [
+                rng(cfg, domain, key, index)
+                .poisson(
+                    rate * cfg["dt_ms"] / 1000,
+                    size=(
+                        cfg["steps"] + cfg["inhibition_prehistory_steps"],
+                        cfg["n_e"],
+                    ),
+                )
+                .astype(np.float32)
+                * q
+                for rate, q, index in zip(parameters, amplitudes, indices, strict=True)
+            ],
+            axis=1,
+        )
+    if generator_key(cfg) == "timing_interpolation":
+        draws = []
+        resolved = event_counts(cfg, len(indices), counts)
+        for alpha, q, index, count in zip(
+            parameters, amplitudes, indices, resolved, strict=True
+        ):
+            if count == 0:
+                draws.append(
+                    np.zeros(
+                        (cfg["steps"] + cfg["inhibition_prehistory_steps"], cfg["n_e"]),
+                        dtype=np.float32,
+                    )
+                )
+                continue
+            gen = rng(cfg, domain, key, index)
+            regular, random = timing_endpoints(gen, cfg["steps"], cfg["n_e"], count)
+            past = (
+                timing_endpoints(gen, cfg["steps"], cfg["n_e"], count)
+                if cfg.get("inhibition_prehistory_steps", 0)
+                else None
+            )
+            clusters = (
+                tuple(
+                    clustered_endpoint(gen, cfg["steps"], cfg["n_e"], count)
+                    for _ in range(2)
+                )
+                if cfg.get("inhibition_method") in recipe.EXTENDED_METHODS
+                else None
+            )
+            draws.append(timing_trial(regular, random, alpha, cfg, past, clusters) * q)
+        return np.stack(draws, axis=1)
     return np.stack(
         [
             (
@@ -161,56 +467,238 @@ def artificial(probabilities, amplitudes, indices, cfg, *, epoch=None, draw=None
                 < p[None, :]
             ).astype(np.float32)
             * q[None, :]
-            for p, q, index in zip(probabilities, amplitudes, indices, strict=True)
+            for p, q, index in zip(parameters, amplitudes, indices, strict=True)
         ],
         axis=1,
     )
 
 
-def make_model(bundle, parameters, cfg, *, trainable=False):
-    if "artificial_to_E.weight" in parameters:
-        expected = (
-            torch.ones(1, cfg["n_e"]) if cfg.get("scaled") else torch.eye(cfg["n_e"])
-        )
-        if not torch.equal(parameters["artificial_to_E.weight"].cpu(), expected):
-            raise ValueError(
-                "Private prehistory requires the frozen identity projection"
-            )
-    model = GraphExecutor(
-        plan_graph(bundle.graph),
-        seed=cfg["seed"],
-        trainable_parameters=recipe.TRAINABLE if trainable else (),
-        surrogate_slope=cfg["surrogate_slope"],
-        compile_mode=None,
-        precision=cfg["precision"],
+def device_generator(cfg, domain, *keys, device):
+    """Versioned per-image streams; never consume the process-global RNG."""
+    seed = np.random.SeedSequence([cfg[domain + "_seed"], *map(int, keys)])
+    value = int(seed.generate_state(1, dtype=np.uint64)[0]) % (2**63 - 1)
+    return torch.Generator(device=device).manual_seed(value)
+
+
+def sensory_device(pixels, indices, cfg, device):
+    peak, dt = cfg["input_rate_hz"], cfg["dt_ms"]
+    if (
+        not math.isfinite(peak)
+        or peak < 0
+        or not math.isfinite(dt)
+        or dt <= 0
+        or peak * dt / 1000 > 1
+    ):
+        raise ValueError("Invalid sensory rate or timestep")
+    pixels = (torch.as_tensor(pixels, device=device, dtype=torch.float32) / 255).clamp(
+        0, 1
     )
-    if set(model.parameter_map()) != set(parameters):
-        raise ValueError("Unexpected native parameter membership")
-    with torch.no_grad():
-        for name, value in model.parameter_map().items():
-            value.copy_(parameters[name])
-    return model.to(cfg["device"])
+    # Match the native encoder's arithmetic and draw shape without per-image
+    # CUDA tensor-to-Python validation; scalar settings are checked above.
+    probability = pixels * (
+        torch.as_tensor(peak, device=device, dtype=pixels.dtype) * dt / 1000
+    )
+    drive = torch.empty(
+        (cfg["steps"], len(indices), cfg["n_input"]), device=device, dtype=torch.float32
+    )
+    for row, index in enumerate(indices):
+        gen = device_generator(cfg, "sensory", index, device=device)
+        values = torch.rand(
+            (cfg["steps"], 1, cfg["n_input"]), generator=gen, device=device
+        )
+        drive[:, row] = (values < probability[row : row + 1].unsqueeze(0)).float()[:, 0]
+    return drive
 
 
-def forward(model, drive, inhibition=None):
-    device = next(iter(model.parameter_map().values())).device
-    inputs = {"drive": torch.from_numpy(drive).to(device)}
-    state = None
-    if inhibition is not None:
-        history = len(inhibition) - len(drive)
-        if history < 0 or inhibition.shape[1] != drive.shape[1]:
-            raise ValueError("Inhibitory input does not cover the scored sensory trial")
+def timing_endpoints_device(gen, cfg, device):
+    count, channels, steps = cfg["target_events_per_source"], cfg["n_e"], cfg["steps"]
+    regular = (
+        torch.arange(count, device=device, dtype=torch.float64)[:, None]
+        + torch.rand(channels, generator=gen, device=device, dtype=torch.float64)[None]
+    ) * ((steps - 1) / count)
+    random = (
+        torch.multinomial(
+            torch.ones((channels, steps - 1), device=device),
+            count,
+            replacement=False,
+            generator=gen,
+        )
+        .sort(dim=1)
+        .values.T
+    )
+    return regular, random
+
+
+def timing_bins_device(endpoints, alpha, cluster, cfg, *, pending=False):
+    first, second = alpha.clamp(max=1), alpha.clamp(min=1) - 1
+    times = endpoints[0] * (1 - first) + endpoints[1] * (first - second)
+    if cluster is not None:
+        times = times + cluster * second
+    rounded = torch.floor(times + 0.5 + 1e-9) if cluster is not None else times.round()
+    return rounded.long().clamp(max=cfg["steps"] - (1 if pending else 2))
+
+
+def poisson_device(
+    parameters,
+    amplitudes,
+    indices,
+    cfg,
+    device,
+    *,
+    epoch=None,
+    draw=None,
+    retain_history=False,
+):
+    """Exact Poisson bin counts; GPU preparation stays outside native graph replay."""
+    domain, key = ("training", epoch) if epoch is not None else ("validation", draw)
+    if key is None:
+        raise ValueError("Explicit epoch or draw required")
+    validate_poisson_parameters(parameters, amplitudes)
+    steps, history, channels = (
+        cfg["steps"],
+        cfg["inhibition_prehistory_steps"],
+        cfg["n_e"],
+    )
+    if parameters.shape != (len(indices), channels):
+        raise ValueError("Poisson parameters do not match the image/channel batch")
+    rates = torch.as_tensor(parameters, device=device, dtype=torch.float64)
+    amplitude = torch.as_tensor(amplitudes, device=device, dtype=torch.float32)
+    offset = history if retain_history else 0
+    events = torch.zeros(
+        (steps + offset, len(indices), channels), device=device, dtype=torch.float32
+    )
+    conductance = torch.zeros(
+        (len(indices), channels), device=device, dtype=torch.float32
+    )
+    pending = torch.zeros(
+        (1, len(indices), channels), device=device, dtype=torch.float32
+    )
+    ages = torch.arange(
+        max(0, history - 1) - 1, -1, -1, device=device, dtype=torch.float64
+    )
+    decay_weights = torch.exp(-ages * cfg["dt_ms"] / cfg["tau_gaba_ms"])
+    for row, index in enumerate(indices):
+        gen = device_generator(cfg, domain, key, index, device=device)
+        raw = torch.poisson(
+            (rates[row] * cfg["dt_ms"] / 1000).expand(steps + history, -1),
+            generator=gen,
+        )
+        events[offset:, row] = raw[history:].float() * amplitude[row]
         if history:
-            state = history_state(model, inhibition[:history])
-        inputs["artificial"] = torch.from_numpy(inhibition[history:]).to(device)
-    return model(
-        inputs,
-        runtime_state=state,
-        diagnostics=False,
-        retain_parameters=False,
-        retain_final_state=False,
-        retain_runtime_state=False,
-    ).outputs
+            conductance[row] = (
+                (raw[: history - 1] * decay_weights[:, None]).sum(0)
+                * amplitude[row].double()
+            ).float()
+            pending[0, row] = raw[history - 1].float() * amplitude[row]
+            if retain_history:
+                events[:history, row] = raw[:history].float() * amplitude[row]
+    return events, conductance, pending
+
+
+def artificial_device(
+    parameters,
+    amplitudes,
+    indices,
+    cfg,
+    device,
+    *,
+    epoch=None,
+    draw=None,
+    retain_history=False,
+    counts=None,
+):
+    """Generate dense events and sparse-history initial state on the target device."""
+    if cfg.get("inhibition_method") == recipe.POISSON_METHOD:
+        return poisson_device(
+            parameters,
+            amplitudes,
+            indices,
+            cfg,
+            device,
+            epoch=epoch,
+            draw=draw,
+            retain_history=retain_history,
+        )
+    domain, key = ("training", epoch) if epoch is not None else ("validation", draw)
+    if key is None:
+        raise ValueError("Explicit epoch or draw required")
+    steps, history, channels = (
+        cfg["steps"],
+        cfg["inhibition_prehistory_steps"],
+        cfg["n_e"],
+    )
+    alpha = torch.as_tensor(parameters, device=device, dtype=torch.float64)
+    amplitude = torch.as_tensor(amplitudes, device=device, dtype=torch.float32)
+    offset = history if retain_history else 0
+    events = torch.zeros(
+        (steps + offset, len(indices), channels), device=device, dtype=torch.float32
+    )
+    conductance = torch.zeros(
+        (len(indices), channels), device=device, dtype=torch.float32
+    )
+    pending = torch.zeros(
+        (1, len(indices), channels), device=device, dtype=torch.float32
+    )
+    resolved = event_counts(cfg, len(indices), counts)
+    for row, (index, count) in enumerate(zip(indices, resolved, strict=True)):
+        count = int(count)
+        if count == 0:
+            continue
+        local_cfg = dict(cfg, target_events_per_source=count)
+        gen = device_generator(cfg, domain, key, index, device=device)
+        scored = timing_endpoints_device(gen, local_cfg, device)
+        past = timing_endpoints_device(gen, local_cfg, device) if history else None
+        clusters = [None, None]
+        if cfg["inhibition_method"] in recipe.EXTENDED_METHODS:
+            clusters = [
+                torch.randint(steps - count, (channels,), generator=gen, device=device)[
+                    None
+                ]
+                + torch.arange(count, device=device)[:, None]
+                for _ in range(2)
+            ]
+        bins = timing_bins_device(scored, alpha[row], clusters[0], cfg)
+        events[offset:, row].scatter_(0, bins, amplitude[row].expand(count, -1))
+        if past is not None:
+            bins = timing_bins_device(past, alpha[row], clusters[1], cfg, pending=True)
+            age = steps - 2 - bins
+            active = (bins >= steps - history) & (age >= 0)
+            weights = torch.exp(
+                -age.clamp(min=0).double() * cfg["dt_ms"] / cfg["tau_gaba_ms"]
+            )
+            conductance[row] = (weights * active * amplitude[row].double()).sum(dim=0)
+            pending[0, row] = (bins == steps - 1).any(dim=0) * amplitude[row]
+            if retain_history:
+                # The extra discarded row receives events preceding the history window.
+                tail = torch.zeros(
+                    (history + 1, channels), device=device, dtype=torch.float32
+                )
+                positions = (bins - (steps - history)).clamp(min=-1) + 1
+                tail.scatter_(0, positions, amplitude[row].expand(count, -1))
+                events[:history, row] = tail[1:]
+    return events, conductance, pending
+
+
+def validate_source_configuration(conf, cfg):
+    expected = {
+        "dt": 0.1,
+        "t_ms": 200.0,
+        "max_samples": 7000,
+        "input_rate": 25.0,
+        "fr_reg_upper_strength": cfg["rate_penalty"],
+        "fr_reg_upper_target_hz": cfg.get("rate_target_hz") or 0.0,
+        "readout_mode": "mem-mean",
+        "seed": cfg["seed"],
+        "n_in": 784,
+        "n_hidden": 1024,
+        "n_inh": 256,
+        "n_out": 10,
+        "tau_gaba_ms": 6.0,
+        "tau_ampa_ms": 2.0,
+        "v_grad_dampen": 1000.0,
+    }
+    if any(conf[k] != v for k, v in expected.items()):
+        raise ValueError("Source settings do not match the ceiling and seed")
 
 
 def load_source(cfg):
@@ -225,24 +713,7 @@ def load_source(cfg):
     for kind in ("coba", "ping"):
         cell = cfg[kind + "_cell"]
         conf = json.loads(bank.file(cell, "config.json").read_text())
-        expected = {
-            "dt": 0.1,
-            "t_ms": 200.0,
-            "max_samples": 7000,
-            "input_rate": 25.0,
-            "fr_reg_upper_strength": 0.0,
-            "readout_mode": "mem-mean",
-            "seed": 42,
-            "n_in": 784,
-            "n_hidden": 1024,
-            "n_inh": 256,
-            "n_out": 10,
-            "tau_gaba_ms": 6.0,
-            "tau_ampa_ms": 2.0,
-            "v_grad_dampen": 1000.0,
-        }
-        if any(conf[k] != v for k, v in expected.items()):
-            raise ValueError("Source settings do not match this pilot")
+        validate_source_configuration(conf, cfg)
         pin = bank.record["bank_reuse"]["diagnostic_provenance"][cell]["checkpoint"]
         path = bank.file(cell, pin["filename"])
         if (
@@ -264,105 +735,124 @@ def load_source(cfg):
     return bank, params
 
 
-def evaluate(model, drives, p, q, indices, labels, cfg):
-    score_draws, rate_draws, hashes, moments = [], [], [], []
-    model.eval()
-    with torch.no_grad():
-        for draw in range(cfg["validation_draws"]):
-            ss, rr = [], []
-            for start in range(0, len(indices), cfg["batch_size"]):
-                take = np.arange(start, min(start + cfg["batch_size"], len(indices)))
-                ev = artificial(p[take], q[take], indices[take], cfg, draw=draw)
-                hashes.append(digest(ev))
-                g = filtered(ev, cfg)[cfg.get("inhibition_prehistory_steps", 0) :]
-                moments.append(np.stack([g.mean(0), g.std(0)], axis=1))
-                out = forward(model, drives[:, take], ev)
-                ss.append(out["scores"].detach().cpu().numpy())
-                rr.append(
-                    out["e_count"].detach().cpu().numpy().mean(1)
-                    / (cfg["duration_ms"] / 1000)
-                )
-            score_draws.append(np.concatenate(ss))
-            rate_draws.append(np.concatenate(rr))
-    scores, rates = np.stack(score_draws), np.stack(rate_draws)
-    if not np.isfinite(scores).all():
-        raise ValueError("Nonfinite validation score")
-    losses = (
-        F.cross_entropy(
-            torch.from_numpy(scores.reshape(-1, cfg["n_output"])),
-            torch.from_numpy(np.tile(labels, cfg["validation_draws"])),
-            reduction="none",
-        )
-        .numpy()
-        .reshape(scores.shape[:2])
-    )
-    return (
-        dict(
-            cross_entropy=float(losses.mean()),
-            accuracy_pct=float(100 * (scores.argmax(-1) == labels).mean()),
-            e_rate_hz=float(rates.mean()),
-        ),
-        scores,
-        rates,
-        losses,
-        hashes,
-        np.concatenate(moments),
-    )
+CALIBRATION_KEYS = (
+    "source_run",
+    "source_digest",
+    "ping_cell",
+    "seed",
+    "checkpoint_role",
+    "source_checkpoints",
+    "dataset_sha256",
+    "encoding_method",
+    "sensory_seed",
+    "calibration_seed",
+    "teacher_statistics",
+    "train_images",
+    "validation_images",
+    "dt_ms",
+    "duration_ms",
+    "steps",
+    "input_rate_hz",
+    "tau_gaba_ms",
+    "tau_ampa_ms",
+    "n_input",
+    "n_e",
+    "n_i",
+    "n_output",
+    "voltage_grad_dampen",
+    "surrogate_slope",
+    "refractory_timing",
+    "inhibition_method",
+    "target_events_per_source",
+    "timing_bisections",
+    "bracket_attempts",
+    "calibration_std_tolerance",
+    "inhibition_prehistory_steps",
+    "device",
+)
 
 
-def train_one_epoch(model, optimizer, drives, p, q, indices, labels, cfg, epoch):
-    nt = cfg["train_per_digit"] * 10
-    training_records, training_hashes, training_moments = [], [], []
-    norms = []
-    tick = time.perf_counter()
-    model.train()
-    order = rng(cfg, "shuffle", epoch).permutation(nt)
-    batch_losses = []
-    for start in range(0, nt, cfg["batch_size"]):
-        take = order[start : start + cfg["batch_size"]]
-        ev = artificial(p[take], q[take], indices[take], cfg, epoch=epoch)
-        training_hashes.append(digest(ev))
-        g = filtered(ev, cfg)[cfg.get("inhibition_prehistory_steps", 0) :]
-        training_moments.append(np.stack([g.mean(0), g.std(0)], axis=1))
-        out = forward(model, drives[:, take], ev)
-        loss = F.cross_entropy(
-            out["scores"],
-            torch.from_numpy(labels[indices[take]]).to(out["scores"].device),
-        )
-        if not torch.isfinite(loss):
-            raise ValueError("Nonfinite training loss; no skipped updates allowed")
-        optimizer.zero_grad(set_to_none=True)
-        loss.backward()
-        norm = float(
-            torch.nn.utils.clip_grad_norm_(model.parameters(), cfg["grad_clip"])
-        )
-        if not np.isfinite(norm):
-            raise ValueError("Nonfinite gradient; no skipped updates allowed")
-        optimizer.step()
-        model.enforce_constraints()
-        norms.append(norm)
-        batch_losses.append(float(loss.detach()))
-        training_records.append(
-            dict(
-                epoch=epoch,
-                original_indices=indices[take].tolist(),
-                loss=batch_losses[-1],
-                grad_norm=norm,
+def check_calibration_configuration(previous, cfg):
+    for key in CALIBRATION_KEYS:
+        if key not in previous or previous[key] != cfg[key]:
+            raise ValueError(f"Calibration reuse mismatch: {key}")
+
+
+def reuse_calibration(source, cfg, ids, pixels, labels, snapshot):
+    """Reuse only an explicit, authenticated and scientifically compatible input."""
+    check_calibration_configuration(source.record["execution"]["configuration"], cfg)
+    with np.load(source.file("dataset.npz")) as data:
+        for key, expected in (
+            ("ids", ids),
+            ("features", pixels[ids]),
+            ("labels", labels[ids]),
+        ):
+            np.testing.assert_array_equal(data[key], expected)
+        alpha = data[generator_key(cfg)].copy()
+        amplitude = data["amplitude"].copy()
+        saved_counts = dataset_event_counts(data, cfg, slice(None))
+    with np.load(source.file("calibration.npz")) as cal:
+        np.testing.assert_array_equal(cal["ids"], ids)
+        arrays = [
+            cal[key].copy()
+            for key in (
+                "target_mean",
+                "target_sd",
+                *moment_keys(cfg),
+                "max_relative_sd_error",
+                "teacher_i_spike_count",
+                "teacher_i_rate_hz",
             )
+        ]
+        if cfg["inhibition_method"] == recipe.TEACHER_COUNT_METHOD:
+            expected_counts = teacher_event_counts(arrays[-2], cfg)
+            np.testing.assert_array_equal(saved_counts, expected_counts)
+            np.testing.assert_array_equal(cal["event_count"], expected_counts)
+    if cfg["inhibition_method"] == recipe.POISSON_METHOD:
+        validate_poisson_parameters(alpha, amplitude)
+        expected_mu, expected_sd = poisson_expected_moments(alpha, amplitude, cfg)
+        np.testing.assert_allclose(expected_mu, arrays[0], rtol=1e-6, atol=0)
+        np.testing.assert_allclose(expected_sd, arrays[1], rtol=1e-6, atol=0)
+        np.testing.assert_allclose(expected_mu, arrays[2], rtol=1e-6, atol=0)
+        np.testing.assert_allclose(expected_sd, arrays[3], rtol=1e-6, atol=0)
+    shape = (len(ids), cfg["n_e"])
+    if (
+        any(
+            a.shape != shape or not np.isfinite(a).all()
+            for a in [alpha, amplitude, *arrays[:4]]
         )
-        print(
-            f"epoch {epoch} update {len(batch_losses)}/10 loss={batch_losses[-1]:.6f} norm={norm:.6f}",
-            flush=True,
+        or (
+            cfg["inhibition_method"] != recipe.POISSON_METHOD
+            and np.any((alpha < 0) | (alpha > 2))
         )
-    training_loss = float(np.mean(batch_losses))
-    return (
-        training_loss,
-        norms,
-        time.perf_counter() - tick,
-        training_records,
-        training_hashes,
-        training_moments,
-    )
+        or np.any(amplitude < 0)
+        or any(np.any(a < 0) for a in arrays[:4])
+        or np.max(relative_moment_error(arrays[2], arrays[0])) > 1e-6
+        or np.max(relative_moment_error(arrays[3], arrays[1]))
+        >= cfg["calibration_std_tolerance"]
+    ):
+        raise ValueError("Invalid cached calibration")
+    if cfg["inhibition_method"] == recipe.TEACHER_COUNT_METHOD:
+        if np.any((amplitude == 0) != (saved_counts[:, None] == 0)):
+            raise ValueError("Cached amplitudes disagree with per-image silence")
+        silent = saved_counts == 0
+        if any(np.any(a[silent] != 0) for a in arrays[:4]):
+            raise ValueError("Zero-count cached calibration has nonzero moments")
+    elif cfg["inhibition_method"] != recipe.POISSON_METHOD and np.any(amplitude == 0):
+        raise ValueError("Invalid zero cached amplitude")
+    counts, rates = arrays[-2:]
+    if (
+        counts.shape != (len(ids), cfg["n_i"])
+        or rates.shape != counts.shape
+        or not np.issubdtype(counts.dtype, np.integer)
+        or np.any(counts < 0)
+        or np.any(counts > cfg["steps"])
+    ):
+        raise ValueError("Invalid cached teacher activity")
+    np.testing.assert_allclose(rates, counts / (cfg["duration_ms"] / 1000), rtol=1e-6)
+    source.restore_bundle("teacher/start", snapshot)
+    source.check_unchanged()
+    return [alpha, amplitude, *arrays]
 
 
 def verify_changes(model, initial):
@@ -378,451 +868,48 @@ def verify_changes(model, initial):
     return changes
 
 
-def cuda_preflight(model, teacher, drives, labels, cfg):
-    """Check full-batch accelerator forward/backward without an optimizer step."""
-    if cfg["device"] != "cuda":
-        return None
-    started = time.perf_counter()
-    batch = cfg["batch_size"]
-    with torch.no_grad():
-        reference = forward(teacher, drives[:, : cfg["calibration_batch_size"]])
-        if not torch.isfinite(reference["g_ping"]).all():
-            raise ValueError("Nonfinite accelerator teacher output")
-    result = forward(
-        model,
-        drives[:, :batch],
-        np.zeros(
-            (cfg["inhibition_prehistory_steps"] + cfg["steps"], batch, cfg["n_e"]),
-            dtype=np.float32,
-        ),
-    )
-    loss = F.cross_entropy(
-        result["scores"], torch.from_numpy(labels[:batch]).to(cfg["device"])
-    )
-    loss.backward()
-    for name in recipe.TRAINABLE:
-        gradient = model.parameter_map()[name].grad
-        if gradient is None or not torch.isfinite(gradient).all():
-            raise ValueError("Invalid accelerator backward pass")
-    model.zero_grad(set_to_none=True)
-    torch.cuda.synchronize()
-    result = dict(
-        seconds=time.perf_counter() - started,
-        loss=float(loss.detach()),
-        device=torch.cuda.get_device_name(),
-        peak_memory_bytes=torch.cuda.max_memory_allocated(),
-        optimizer_steps=0,
-    )
-    print("CUDA_PREFLIGHT", json.dumps(result), flush=True)
-    return result
-
-
-def compute(run_id=None, *, epochs=None):
-    started = time.perf_counter()
-    cfg = recipe.configuration(
-        device=os.environ.get("SNNLAB_DEVICE", "cpu"),
-        **({} if epochs is None else {"epochs": epochs}),
-    )
-    if cfg["device"] == "cuda" and not torch.cuda.is_available():
-        raise RuntimeError("Requested CUDA device is unavailable")
-    torch.set_num_threads(cfg["threads"])
-    torch.manual_seed(cfg["seed"])
-    bank, params = load_source(cfg)
-    dataset = MNIST(
-        root=os.environ.get("PINGLAB_DATASET_CACHE", "/tmp/mnist"),
-        train=True,
-        download=True,
-    )
-    labels = dataset.targets.numpy().astype(np.int64)
-    pixels = dataset.data.numpy().reshape(-1, cfg["n_input"]).astype(np.float32) / 255
-    train_idx, val_idx, source_train, source_val = select_indices(labels, cfg)
-    indices = np.concatenate([train_idx, val_idx])
-    cfg["dataset_sha256"] = {
-        "pixels": digest(dataset.data.numpy()),
-        "labels": digest(labels),
-    }
-    cfg["source_code_sha256"] = {
-        str(p.relative_to(Path(__file__).parent)): file_sha256(p)
-        for p in Path(__file__).parent.rglob("*.py")
-    }
-    with stage_run(
-        ROOT,
-        recipe.SLUG,
-        "compute",
-        inputs={"bank": bank},
-        configuration=cfg,
-        run_id=run_id,
-    ) as run:
-        teacher_bundle, bundle = (
-            recipe.author_network(cfg, teacher=True),
-            recipe.author_network(cfg),
-        )
-        for name, authored in [("teacher", teacher_bundle), ("network", bundle)]:
-            authored.write(run.export / (name + ".bundle"), visualise=False)
-            authored.visualise(run.export / (name + "-circuit.svg"), view="circuit")
-        teacher = make_model(teacher_bundle, params["ping"], cfg)
-        capture(
-            teacher,
-            teacher_bundle,
-            run.export / "teacher",
-            cfg,
-            kind="simulate",
-            stage="start",
-        )
-        params["coba"]["artificial_to_E.weight"] = torch.eye(cfg["n_e"])
-        model = make_model(bundle, params["coba"], cfg, trainable=True)
-        capture(
-            model,
-            bundle,
-            run.export / "initial",
-            cfg,
-            kind="simulate",
-            stage="start",
-            epoch=0,
-        )
-        # Sensory inputs are compact on disk; the full tensor stays in scratch RAM.
-        drives = np.stack(
-            [sensory(pixels[index], index, cfg) for index in indices], axis=1
-        )
-        np.savez_compressed(
-            run.export / "dataset.npz",
-            indices=indices,
-            labels=labels[indices],
-            source_train=source_train,
-            source_validation=source_val,
-            sensory_packed=np.packbits(drives.astype(bool), axis=0),
-        )
-        run.record["execution"]["cuda_preflight"] = cuda_preflight(
-            model, teacher, drives, labels[indices], cfg
-        )
-        cal_start = time.perf_counter()
-        calibration = []
-        with torch.no_grad():
-            for start in range(0, len(indices), cfg["calibration_batch_size"]):
-                stop = min(start + cfg["calibration_batch_size"], len(indices))
-                out = forward(teacher, drives[:, start:stop])
-                conductance = out["g_ping"].detach().cpu().numpy()
-                for position in range(start, stop):
-                    g = conductance[:, position - start].astype(np.float64)
-                    calibration.append(calibrate(g, cfg, indices[position]))
-                if stop % 10 == 0:
-                    print(
-                        f"calibration {stop}/{len(indices)}; {time.perf_counter() - cal_start:.1f}s",
-                        flush=True,
-                    )
-        p, q, mu, sd, fitted_mu, fitted_sd = [
-            np.stack([row[k] for row in calibration]) for k in range(6)
-        ]
-        np.savez_compressed(
-            run.export / "calibration.npz",
-            probability=p,
-            amplitude_us=q,
-            target_mean_us=mu,
-            target_sd_us=sd,
-            fitted_mean_us=fitted_mu,
-            fitted_sd_us=fitted_sd,
-            max_sd_error=np.array([row[6] for row in calibration]),
-        )
-        timings = {
-            "calibration_seconds": time.perf_counter() - cal_start,
-            "training_seconds": 0.0,
-            "evaluation_seconds": 0.0,
-        }
-        # Verify native weighted-event filtering and deterministic state resets once.
-        replay_start = time.perf_counter()
-        ev = artificial(p[:1], q[:1], indices[:1], cfg, draw=0)
-        history_steps = cfg["inhibition_prehistory_steps"]
-        if history_steps:
-            save_runtime_state(
-                run.export / "initial-inhibition-state",
-                history_state(model, ev[:history_steps]),
-            )
-        with torch.no_grad():
-            first = forward(model, drives[:, :1], ev)
-            second = forward(model, drives[:, :1], ev)
-            torch.testing.assert_close(
-                first["scores"], second["scores"], rtol=0, atol=0
-            )
-        filter_error = float(
-            np.max(
-                np.abs(
-                    first["g_artificial"].detach().cpu().numpy()
-                    - filtered(ev, cfg)[history_steps:]
-                )
-            )
-        )
-        if filter_error > 2e-5:
-            raise ValueError(f"Native GABA filtering mismatch: {filter_error}")
-        timings["epoch_zero_replay_seconds"] = time.perf_counter() - replay_start
-        nt = len(train_idx)
-        history, all_scores, all_rates, all_losses = [], [], [], []
-        expected_hashes, validation_moments = None, None
-        best, best_state, best_epoch = (float("inf"), float("inf")), None, None
-        optimizer = torch.optim.AdamW(
-            [v for v in model.parameters() if v.requires_grad],
-            lr=cfg["lr"],
-            weight_decay=cfg["weight_decay"],
-        )
-        training_records, training_hashes, training_moments = [], [], []
-        for epoch in range(cfg["epochs"] + 1):
-            training_loss, norms = None, []
-            if epoch:
-                training_loss, norms, elapsed, records, hashes, moments = (
-                    train_one_epoch(
-                        model, optimizer, drives, p, q, indices, labels, cfg, epoch
-                    )
-                )
-                timings["training_seconds"] += elapsed
-                training_records.extend(records)
-                training_hashes.extend(hashes)
-                training_moments.extend(moments)
-            tick = time.perf_counter()
-            measured, scores, rates, losses, hashes, moments = evaluate(
-                model, drives[:, nt:], p[nt:], q[nt:], val_idx, labels[val_idx], cfg
-            )
-            timings["evaluation_seconds"] += time.perf_counter() - tick
-            if expected_hashes is not None and hashes != expected_hashes:
-                raise ValueError("Validation inputs changed across epochs")
-            expected_hashes, validation_moments = hashes, moments
-            row = dict(
-                epoch=epoch,
-                training_loss=training_loss,
-                grad_norm_mean=float(np.mean(norms)) if norms else None,
-                grad_norm_max=max(norms) if norms else None,
-                invalid_updates=0,
-                **measured,
-            )
-            history.append(row)
-            all_scores.append(scores)
-            all_rates.append(rates)
-            all_losses.append(losses)
-            rank = (measured["cross_entropy"], -measured["accuracy_pct"])
-            if rank < best:
-                best, best_epoch = rank, epoch
-                best_state = {
-                    name: value.detach().clone()
-                    for name, value in model.parameter_map().items()
-                }
-            write_json(
-                run.scratch / "progress.json", dict(history=history, timings=timings)
-            )
-            print(json.dumps(row), flush=True)
-        changes = verify_changes(model, params["coba"])
-        capture(
-            model,
-            bundle,
-            run.export / "final-training",
-            cfg,
-            kind="train",
-            stage="end",
-            epoch=cfg["epochs"],
-        )
-        with torch.no_grad():
-            for name, value in model.parameter_map().items():
-                value.copy_(best_state[name])
-        capture(
-            model,
-            bundle,
-            run.export / "best-validation",
-            cfg,
-            kind="train",
-            stage="end",
-            epoch=best_epoch,
-        )
-        np.savez_compressed(
-            run.export / "validation.npz",
-            scores=np.stack(all_scores),
-            e_rates=np.stack(all_rates),
-            losses=np.stack(all_losses),
-            validation_conductance_moments=validation_moments,
-            training_conductance_moments=np.concatenate(training_moments),
-        )
-        write_json(
-            run.export / "metrics.json",
-            dict(
-                history=history,
-                updates=training_records,
-                best_epoch=best_epoch,
-                parameter_changes=changes,
-                native_filter_max_abs_error_us=filter_error,
-                epoch_zero_replay_exact=True,
-                validation_input_hashes=expected_hashes,
-                training_input_hashes=training_hashes,
-                inhibition_replay=dict(
-                    original_index=int(indices[0]),
-                    domain="validation",
-                    draw=0,
-                    prehistory_steps=history_steps,
-                    scored_steps=cfg["steps"],
-                ),
-            ),
-        )
-        timings["compute_seconds"] = time.perf_counter() - started
-        write_json(run.export / "timings.json", timings)
-        run.record["scientific_artifacts"] = {
-            "snapshot_stages": {
-                "teacher": ["start"],
-                "initial": ["start"],
-                "final-training": ["end"],
-                "best-validation": ["end"],
-            }
-        }
-        run.record["execution"].update(
-            elapsed_seconds=timings["compute_seconds"], timings=timings
-        )
-        bank.check_unchanged()
-    print(run.run_id, flush=True)
-    return run.run_id
-
-
-def raster(source_id, *, run_id=None):
-    """Replay the first validation batch at the retained lowest-CE checkpoint."""
-    started = time.perf_counter()
-    source = source_run(
-        ROOT / ".pingstore", source_id, experiment=recipe.SLUG, stage="compute"
-    )
-    cfg = dict(source.record["execution"]["configuration"])
-    cfg["training_code_sha256"] = cfg.pop("source_code_sha256")
-    cfg["source_code_sha256"] = {
-        str(p.relative_to(Path(__file__).parent)): file_sha256(p)
-        for p in Path(__file__).parent.rglob("*.py")
-    }
-    cfg.update(
-        device="cpu",
-        threads=1,
-        raster_validation_draw=0,
-        raster_selection="First validation image, without activity or correctness selection",
-        raster_retention="<25 MB; one trial recording, batch scores, native bundle/start snapshot and initial inhibitory state",
-    )
-    torch.set_num_threads(1)
-    metrics = json.loads(source.file("metrics.json").read_text())
-    epoch = metrics["best_epoch"]
-    if epoch != min(
-        range(len(metrics["history"])),
-        key=lambda e: (
-            metrics["history"][e]["cross_entropy"],
-            -metrics["history"][e]["accuracy_pct"],
-            e,
-        ),
-    ):
-        raise ValueError("Retained checkpoint is not the best validation checkpoint")
-    cfg["raster_checkpoint_epoch"] = epoch
-    start = cfg["train_per_digit"] * 10
-    stop = start + min(cfg["batch_size"], cfg["validation_per_digit"] * 10)
-    with np.load(source.file("dataset.npz")) as z:
-        indices, labels = (
-            z["indices"][start:stop].copy(),
-            z["labels"][start:stop].copy(),
-        )
-        drive = np.unpackbits(
-            z["sensory_packed"][:, start:stop], axis=0, count=cfg["steps"]
-        ).astype(np.float32)
-    with np.load(source.file("calibration.npz")) as z:
-        p, q = z["probability"][start:stop].copy(), z["amplitude_us"][start:stop].copy()
-    events = artificial(p, q, indices, cfg, draw=cfg["raster_validation_draw"])
-    weights = NetworkSnapshot.read(
-        source.unit("best-validation", "end"), parameters=True
-    ).load_parameters()
-    bundle = recipe.author_network(cfg, record_spikes=True)
-    model = make_model(bundle, weights, cfg)
-    model.eval()
-    with stage_run(
-        ROOT,
-        recipe.SLUG,
-        "compute",
-        phase="raster",
-        inputs={"training": source},
-        configuration=cfg,
-        run_id=run_id,
-    ) as run:
-        bundle.write(run.export / "network.bundle", visualise=False)
-        bundle.visualise(run.export / "circuit.svg", view="circuit")
-        capture(
-            model,
-            bundle,
-            run.export / "execution",
-            cfg,
-            kind="simulate",
-            stage="start",
-            epoch=epoch,
-        )
-        history = cfg.get("inhibition_prehistory_steps", 0)
-        if history:
-            save_runtime_state(
-                run.export / "initial-inhibition-state",
-                history_state(model, events[:history]),
-            )
-        tick = time.perf_counter()
-        with torch.no_grad():
-            out = forward(model, drive, events)
-        simulation_seconds = time.perf_counter() - tick
-        scores = out["scores"].cpu().numpy()
-        with np.load(source.file("validation.npz")) as z:
-            expected = z["scores"][epoch, cfg["raster_validation_draw"], : stop - start]
-            expected_rates = z["e_rates"][
-                epoch, cfg["raster_validation_draw"], : stop - start
-            ]
-        np.testing.assert_allclose(scores, expected, rtol=1e-6, atol=1e-6)
-        rates = out["e_count"].cpu().numpy().mean(1) / (cfg["duration_ms"] / 1000)
-        np.testing.assert_allclose(rates, expected_rates, rtol=1e-6, atol=1e-5)
-        for name, parameter in model.parameter_map().items():
-            np.testing.assert_array_equal(
-                parameter.detach().cpu().numpy(), np.asarray(weights[name])
-            )
-        e, i = out["E_spikes"][:, 0].cpu().numpy(), out["I_spikes"][:, 0].cpu().numpy()
-        if i.any():
-            raise ValueError("Disabled biological I population spiked")
-        g = out["g_artificial"][:, 0].cpu().numpy()
-        error = float(np.max(np.abs(g - filtered(events[:, :1], cfg)[history:, 0])))
-        if error > 2e-5:
-            raise ValueError("Raster inhibition does not match the prehistory filter")
-        np.savez_compressed(
-            run.export / "raster.npz",
-            E_spikes=e.astype(bool),
-            I_spikes=i.astype(bool),
-            artificial_events=events[history:, 0] > 0,
-            prehistory_events=events[:history, 0] > 0,
-            g_artificial=g,
-            amplitude_us=q[0],
-            probability=p[0],
-            batch_scores=scores,
-            batch_indices=indices,
-            batch_labels=labels,
-            batch_rates_hz=rates,
-            sensory_packed=np.packbits(drive[:, 0].astype(bool), axis=0),
-        )
-        summary = dict(
-            epoch=epoch,
-            checkpoint_selection="Lowest validation cross-entropy; accuracy then earliest epoch break ties",
-            original_index=int(indices[0]),
-            label=int(labels[0]),
-            predicted=int(scores[0].argmax()),
-            validation_draw=cfg["raster_validation_draw"],
-            replayed_batch_size=len(indices),
-            e_rate_hz=float(rates[0]),
-            actual_I_spikes=int(i.sum()),
-            replay_max_score_error=float(np.abs(scores - expected).max()),
-            native_filter_max_abs_error_us=error,
-            simulation_seconds=simulation_seconds,
-            elapsed_seconds=time.perf_counter() - started,
-        )
-        write_json(run.export / "raster.json", summary)
-        run.record["scientific_artifacts"] = {
-            "snapshot_stages": {"execution": ["start"]}
-        }
-        run.record["execution"].update(
-            no_simulation=False,
-            simulation_seconds=simulation_seconds,
-            elapsed_seconds=time.perf_counter() - started,
-        )
-        source.check_unchanged()
-    print(run.run_id, flush=True)
-    return run.run_id
-
-
-def encode_native(arrays, selected, *, dt_ms, channels, config, seed, context):
+def encode_native(
+    arrays, selected, *, dt_ms, channels, config, seed, context, device="cpu"
+):
     cfg = config["recipe"]
     indices = np.asarray(context.sample_ids)
+    if cfg.get("encoding_method") == "torch_device_v1":
+        coordinate = (
+            {"epoch": context.epoch + 1}
+            if context.phase == "train"
+            else {
+                "draw": cfg.get("final_training_draw", 0)
+                if context.phase == "inference"
+                else context.draw_seed
+            }
+        )
+        events, conductance, pending = artificial_device(
+            arrays[generator_key(cfg)][selected],
+            arrays["amplitude"][selected],
+            indices,
+            cfg,
+            device,
+            counts=dataset_event_counts(arrays, cfg, selected),
+            **coordinate,
+        )
+        return sim.PreparedBatch(
+            {
+                "drive": sensory_device(
+                    arrays["features"][selected], indices, cfg, device
+                ),
+                "artificial": events,
+            },
+            sim.PresentationState(
+                signature=config["signature"],
+                conductances={"artificial_to_E": conductance},
+                input_histories={"artificial": pending},
+                provenance={
+                    "policy": "private_gaba_only",
+                    "history_steps": cfg["inhibition_prehistory_steps"],
+                    "encoding_method": "torch_device_v1",
+                },
+            ),
+        )
     drive = np.stack(
         [
             sensory(arrays["features"][row] / np.float32(255), index, cfg)
@@ -833,17 +920,26 @@ def encode_native(arrays, selected, *, dt_ms, channels, config, seed, context):
     coordinate = (
         {"epoch": context.epoch + 1}
         if context.phase == "train"
-        else {"draw": context.draw_seed}
+        else {
+            "draw": cfg.get("final_training_draw", 0)
+            if context.phase == "inference"
+            else context.draw_seed
+        }
     )
     events = artificial(
-        arrays["probability"][selected],
+        arrays[generator_key(cfg)][selected],
         arrays["amplitude"][selected],
         indices,
         cfg,
+        counts=dataset_event_counts(arrays, cfg, selected),
         **coordinate,
     )
     history = cfg["inhibition_prehistory_steps"]
-    conductance = filtered(events[:history], cfg)[-1].astype(np.float32)
+    conductance = (
+        filtered(events[:history], cfg)[-1].astype(np.float32)
+        if history
+        else np.zeros((len(indices), cfg["n_e"]), dtype=np.float32)
+    )
     return sim.PreparedBatch(
         {
             "drive": torch.from_numpy(drive),
@@ -853,201 +949,446 @@ def encode_native(arrays, selected, *, dt_ms, channels, config, seed, context):
             signature=config["signature"],
             conductances={"artificial_to_E": torch.from_numpy(conductance)},
             input_histories={
-                "artificial": torch.from_numpy(events[history - 1 : history])
+                "artificial": torch.from_numpy(
+                    events[history - 1 : history]
+                    if history
+                    else np.zeros_like(events[:1])
+                )
             },
             provenance={"policy": "private_gaba_only", "history_steps": history},
         ),
     )
 
 
-def calibrate_native(teacher, pixels, indices, cfg):
-    rows = []
+def performance(cfg, *, calibration=False):
+    return sim.Performance(
+        compile_mode=cfg["compile_mode"],
+        precision="highest" if calibration else cfg["precision"],
+    )
+
+
+def parameter_file(bundle, parameters, cfg, destination):
+    """Adapt the pinned legacy weight names to a native inference checkpoint."""
+    built = sim.build(
+        bundle=bundle,
+        seed=cfg["seed"],
+        device=cfg["device"],
+        performance=performance(cfg),
+    )
+    if set(built.model.parameter_map()) != set(parameters):
+        raise ValueError("Unexpected native parameter membership")
+    with torch.no_grad():
+        for name, value in built.model.parameter_map().items():
+            value.copy_(torch.as_tensor(parameters[name], device=value.device))
+    torch.save(built.model.state_dict(), destination)
+
+
+def dataset_encoder(bundle, cfg):
+    name = "pinglab.exp171/v1"
+    registered = next(
+        (row for row in extensions.definitions("encoder") if row.name == name), None
+    )
+    if registered is None:
+        extensions.register_encoder(name, encode_native)
+    elif registered.function is not encode_native:
+        raise ValueError(
+            f"Encoder definition already belongs to another function: {name}"
+        )
+    keys = (
+        "inhibition_method",
+        "encoding_method",
+        "target_events_per_source",
+        "steps",
+        "n_input",
+        "n_e",
+        "dt_ms",
+        "tau_gaba_ms",
+        "input_rate_hz",
+        "inhibition_prehistory_steps",
+        "sensory_seed",
+        "training_seed",
+        "validation_seed",
+        "final_training_draw",
+    )
+    return sim.DatasetEncoder(
+        "custom",
+        definition=name,
+        rng_policy="sample_v1",
+        duration_ms=cfg["duration_ms"],
+        config={
+            "recipe": {key: cfg[key] for key in keys},
+            "signature": sim.runtime_state_signature(sim.plan_graph(bundle.graph)),
+        },
+    )
+
+
+def dataset_binding(path, encoder, split, positions):
+    return sim.DatasetSnapshotBinding(
+        path,
+        "drive",
+        "exp171-mnist",
+        split,
+        encoder,
+        target_id="digit",
+        sample_ids_key="ids",
+        sample_indices=tuple(positions),
+    )
+
+
+def calibrate_dataset(bundle, checkpoint, pixels, indices, cfg, snapshot, timing=None):
+    rows, i_counts = [], []
+    model = None
+    pending = deque()
     batch = cfg["calibration_batch_size"]
-    with ThreadPoolExecutor(max_workers=cfg["threads"]) as pool, torch.no_grad():
+    timing = timing if timing is not None else {}
+    timing.update(teacher_batches=[], fit_seconds=[], pipeline_wait_seconds=0.0)
+
+    def fit_image(index, trace, count):
+        tick = time.perf_counter()
+        kwargs = (
+            {"event_count": int(count)}
+            if cfg["inhibition_method"] == recipe.TEACHER_COUNT_METHOD
+            else {}
+        )
+        values = calibrate(trace.astype(np.float64), cfg, index, **kwargs)
+        return values, time.perf_counter() - tick
+
+    def collect():
+        tick = time.perf_counter()
+        for future in pending.popleft():
+            values, seconds = future.result()
+            rows.append(values)
+            timing["fit_seconds"].append(seconds)
+        timing["pipeline_wait_seconds"] += time.perf_counter() - tick
+        print(f"calibration {len(rows)}/{len(indices)}", flush=True)
+
+    with ThreadPoolExecutor(max_workers=cfg["threads"]) as pool:
         for start in range(0, len(indices), batch):
+            if len(pending) >= cfg["calibration_inflight_batches"]:
+                collect()
+            tick = time.perf_counter()
             ids = indices[start : start + batch]
-            drives = np.stack(
-                [sensory(pixels[index] / np.float32(255), index, cfg) for index in ids],
-                axis=1,
-            )
-            g = forward(teacher, drives)["g_ping"].cpu().numpy()
-            rows.extend(
-                pool.map(
-                    lambda pair: calibrate(pair[1].astype(np.float64), cfg, pair[0]),
-                    zip(ids, np.moveaxis(g, 1, 0), strict=True),
+            drive = (
+                sensory_device(pixels[ids], ids, cfg, cfg["device"])
+                if cfg.get("encoding_method") == "torch_device_v1"
+                else torch.from_numpy(
+                    np.stack(
+                        [
+                            sensory(pixels[index] / np.float32(255), index, cfg)
+                            for index in ids
+                        ],
+                        axis=1,
+                    )
                 )
             )
-            print(f"calibration {len(rows)}/{len(indices)}", flush=True)
-    return [np.stack(column) for column in zip(*rows, strict=True)]
+            if model is None:
+                result = sim.simulate(
+                    bundle=bundle,
+                    checkpoint=checkpoint,
+                    input_bindings=[sim.DenseArrayBinding("drive", drive)],
+                    seed=cfg["seed"],
+                    device=cfg["device"],
+                    performance=performance(cfg, calibration=True),
+                    snapshot=sim.SnapshotSpec(snapshot, stage="start"),
+                    diagnostics=False,
+                    retain_parameters=False,
+                    retain_final_state=False,
+                    retain_runtime_state=False,
+                )
+                model = result.model
+            else:
+                result = model(
+                    {"drive": drive},
+                    diagnostics=False,
+                    retain_parameters=False,
+                    retain_final_state=False,
+                    retain_runtime_state=False,
+                    batch_offset=start,
+                )
+            conductance = result.outputs["g_ping"].detach().cpu().numpy()
+            counts = result.outputs["i_count"].detach().cpu().numpy()
+            timing["teacher_batches"].append(
+                dict(
+                    images=len(ids),
+                    first_image=start,
+                    seconds=time.perf_counter() - tick,
+                    scope="encoding, teacher execution and output transfer; first batch includes load/snapshot",
+                )
+            )
+            if (
+                counts.shape != (len(ids), cfg["n_i"])
+                or not np.isfinite(counts).all()
+                or np.any(counts < 0)
+                or np.any(counts > cfg["steps"])
+                or not np.equal(counts, np.rint(counts)).all()
+            ):
+                raise ValueError("Invalid teacher inhibitory spike counts")
+            i_counts.append(counts.astype(np.int32))
+            per_image_count = (
+                teacher_event_counts(counts, cfg)
+                if cfg["inhibition_method"] == recipe.TEACHER_COUNT_METHOD
+                else np.zeros(len(ids), dtype=np.int32)
+            )
+            pending.append(
+                [
+                    pool.submit(fit_image, index, trace, count)
+                    for index, trace, count in zip(
+                        ids,
+                        np.moveaxis(conductance, 1, 0),
+                        per_image_count,
+                        strict=True,
+                    )
+                ]
+            )
+        while pending:
+            collect()
+    counts = np.concatenate(i_counts)
+    return [np.stack(column) for column in zip(*rows, strict=True)] + [
+        counts,
+        counts.astype(np.float32) / (cfg["duration_ms"] / 1000),
+    ]
 
 
-def native_parity(bundle, binding, params, cfg, performance):
-    """Compare one native update with unequal microbatches against an eager update."""
-    binding = replace(binding, sample_indices=(0, 1, 2, 3, 4))
-    prepared, targets = sim.resolve_dataset_snapshot_binding(bundle.graph, binding)
-    tensors = {key: value.to(cfg["device"]) for key, value in prepared.tensors.items()}
-    state = prepared.tensors.initial_state.to(cfg["device"])
-    recorded = recipe.author_network(cfg, record_spikes=True)
-    dense_cfg = {**cfg, "scaled": False}
-    dense = recipe.author_network(cfg, record_spikes=True, dense_private=True)
-    dense_model = make_model(
-        dense,
-        {**params, "artificial_to_E.weight": torch.eye(cfg["n_e"])},
-        dense_cfg,
-    )
-    compact_model = make_model(recorded, params, cfg)
-    with torch.no_grad():
-        expected = dense_model(
-            tensors,
-            initial_state=replace(
-                state, signature=sim.runtime_state_signature(dense_model.plan)
-            ),
-        ).outputs
-        actual = compact_model(
-            tensors,
-            initial_state=replace(
-                state, signature=sim.runtime_state_signature(compact_model.plan)
-            ),
-        ).outputs
-    (target,) = targets
-    labels = target.value.to(cfg["device"])
-    common = dict(
-        bundle=bundle,
+def record_selected(
+    run, parameters, dataset, cfg, epoch, *, position=0, selection_policy=None
+):
+    """Native selected-weight snapshot and one fixed illustrative validation trial."""
+    observed = recipe.author_network(cfg, record_spikes=True)
+    standalone = getattr(run, "record", {}).get("phase") == "raster"
+    if standalone:
+        observed.write(run.export / "network.bundle", visualise=False)
+        observed.visualise(run.export / "network-circuit.svg", view="circuit")
+    start = cfg["train_images"]
+    stop = start + min(cfg["replay_batch_size"], cfg["validation_images"])
+    with np.load(dataset) as z:
+        indices, labels = z["ids"][start:stop], z["labels"][start:stop]
+        if type(position) is not int or not 0 <= position < len(indices):
+            raise ValueError("Raster position is outside the retained batch")
+        if cfg.get("encoding_method") == "torch_device_v1":
+            drive = (
+                sensory_device(z["features"][start:stop], indices, cfg, cfg["device"])
+                .cpu()
+                .numpy()
+            )
+            events = (
+                artificial_device(
+                    z[generator_key(cfg)][start:stop],
+                    z["amplitude"][start:stop],
+                    indices,
+                    cfg,
+                    cfg["device"],
+                    draw=0,
+                    retain_history=True,
+                    counts=dataset_event_counts(z, cfg, slice(start, stop)),
+                )[0]
+                .cpu()
+                .numpy()
+            )
+        else:
+            drive = np.stack(
+                [
+                    sensory(row / np.float32(255), index, cfg)
+                    for row, index in zip(
+                        z["features"][start:stop], indices, strict=True
+                    )
+                ],
+                axis=1,
+            )
+            events = artificial(
+                z[generator_key(cfg)][start:stop],
+                z["amplitude"][start:stop],
+                indices,
+                cfg,
+                draw=0,
+                counts=dataset_event_counts(z, cfg, slice(start, stop)),
+            )
+        if cfg.get("inhibition_method") == recipe.POISSON_METHOD:
+            q = z["amplitude"][None, start:stop]
+            unscaled = np.rint(
+                np.divide(events, q, out=np.zeros_like(events), where=q > 0)
+            )
+            if (
+                not np.isfinite(unscaled).all()
+                or np.any(unscaled < 0)
+                or np.any(unscaled > np.iinfo(np.uint32).max)
+            ):
+                raise ValueError("Unrepresentable retained Poisson counts")
+            retained_events = unscaled.astype(np.uint32)
+        else:
+            retained_events = events > 0
+    checkpoint = run.scratch / "selected.pt"
+    parameter_file(observed, parameters, cfg, checkpoint)
+    history = cfg["inhibition_prehistory_steps"]
+    encoder = dataset_encoder(observed, {**cfg, "final_training_draw": 0})
+    binding = dataset_binding(dataset, encoder, "validation", range(start, stop))
+    tick = time.perf_counter()
+    result = sim.simulate(
+        bundle=observed,
+        checkpoint=checkpoint,
         input_bindings=[binding],
-        epochs=1,
-        batch_size=5,
-        weights=sim.WeightInitialization(params),
+        batch_size=stop - start,
+        seed=cfg["seed"],
         device=cfg["device"],
-        seed=cfg["shuffle_seed"],
-        metrics=sim.TrainingMetrics(initial=()),
-        checkpoint_selection=sim.CheckpointSelection.disabled(),
+        performance=performance(cfg),
+        snapshot=sim.SnapshotSpec(
+            run.export / "best-validation"
+            if standalone
+            else run.export / "best-validation" / "end",
+            stage="both" if standalone else "end",
+        ),
+        diagnostics=False,
+        retain_parameters=False,
         retain_final_state=False,
         retain_runtime_state=False,
-        diagnostics=False,
     )
-    reference = sim.train(
-        **common,
-        performance=sim.Performance(
-            compile_mode=None,
-            precision=cfg["precision"],
-            fused_optimizer="off",
-        ),
-    )
-    preflight = {
-        **common,
-        "metrics": sim.TrainingMetrics(train="evaluate"),
-        "validation": sim.ValidationSpec(
-            input_bindings=[
-                replace(binding, split="validation", sample_indices=(5, 6))
-            ],
-            encoding_seeds=(0, 1, 2),
-        ),
-        "observations": sim.EpochObservations(population_rates=("E",)),
-    }
-    accumulated = sim.train(
-        **preflight,
-        batching=sim.Batching(microbatch_size=3),
-        performance=performance,
-    )
-    errors = {}
-
-    def compare(label, actual, expected):
-        actual = torch.as_tensor(actual).detach().cpu()
-        expected = torch.as_tensor(expected).detach().cpu()
-        torch.testing.assert_close(actual, expected, rtol=3e-3, atol=2e-5)
-        errors[label] = float((actual - expected).abs().max())
-
-    compare("conductance", actual["g_artificial"], expected["g_artificial"])
-    compare("scores", actual["scores"], expected["scores"])
-    compare(
-        "loss",
-        F.cross_entropy(actual["scores"], labels),
-        F.cross_entropy(expected["scores"], labels),
-    )
-    for name in recipe.TRAINABLE:
-        compare(
-            f"gradient:{name}", accumulated.gradients[name], reference.gradients[name]
-        )
-        compare(
-            f"update:{name}",
-            accumulated.parameters[name] - params[name].to(cfg["device"]),
-            reference.parameters[name] - params[name].to(cfg["device"]),
-        )
-        for key, value in reference.optimizer_state[name].items():
-            compare(
-                f"adamw:{name}:{key}", accumulated.optimizer_state[name][key], value
+    out = {key: value.detach().cpu().numpy() for key, value in result.outputs.items()}
+    if out["I_spikes"].any():
+        raise ValueError("Disabled biological I population spiked")
+    error = float(
+        np.max(
+            np.abs(
+                out["g_artificial"][:, position]
+                - filtered(events[:, position : position + 1], cfg)[history:, 0]
             )
-    verify_changes(accumulated.model, params)
-    return errors
+        )
+    )
+    if error > 2e-5:
+        raise ValueError("Native selected replay disagrees with the inhibitory filter")
+    if selection_policy == "first_correct_in_retained_validation_batch" and (
+        int(out["scores"][position].argmax()) != int(labels[position])
+    ):
+        raise ValueError("Selected replay is not correctly classified")
+    rate = out["e_count"].mean(1) / (cfg["duration_ms"] / 1000)
+    np.savez_compressed(
+        run.export / "raster.npz",
+        E_spikes=out["E_spikes"][:, position].astype(bool),
+        I_spikes=out["I_spikes"][:, position].astype(bool),
+        artificial_events=retained_events[history:, position],
+        prehistory_events=retained_events[:history, position],
+        g_artificial=out["g_artificial"][:, position],
+        batch_indices=indices,
+        batch_labels=labels,
+        batch_scores=out["scores"],
+        batch_rates_hz=rate,
+        sensory_packed=np.packbits(drive[:, position].astype(bool), axis=0),
+        **(
+            {"batch_artificial_counts": retained_events}
+            if cfg.get("inhibition_method") == recipe.POISSON_METHOD
+            else {"batch_artificial_packed": np.packbits(retained_events, axis=0)}
+        ),
+    )
+    summary = dict(
+        epoch=epoch,
+        batch_position=position,
+        selection_policy=selection_policy
+        or (
+            "first_validation_image"
+            if position == 0
+            else "fixed_validation_batch_position"
+        ),
+        original_index=int(indices[position]),
+        label=int(labels[position]),
+        predicted=int(out["scores"][position].argmax()),
+        validation_draw=0,
+        precision_policy=cfg["precision"],
+        replayed_batch_size=len(indices),
+        e_rate_hz=float(rate[position]),
+        native_filter_max_abs_error_us=error,
+        simulation_seconds=time.perf_counter() - tick,
+        checkpoint_selection="Lowest validation cross-entropy; accuracy then earliest epoch break ties",
+        replay_scope="Fixed first validation batch; illustrative replay, not a new validation measurement",
+    )
+    if cfg["inhibition_method"] == recipe.TEACHER_COUNT_METHOD:
+        with np.load(dataset) as z:
+            count = int(z["event_count"][start + position])
+        summary.update(
+            event_count=count, artificial_rate_hz=count / (cfg["duration_ms"] / 1000)
+        )
+    if cfg.get("inhibition_method") == recipe.POISSON_METHOD:
+        with np.load(dataset) as z:
+            rates = z["poisson_rate_hz"][start + position]
+        summary.update(
+            artificial_rate_hz=float(rates.mean()),
+            realized_artificial_rate_hz=float(
+                retained_events[history:, position].sum()
+                / cfg["n_e"]
+                / (cfg["duration_ms"] / 1000)
+            ),
+            realized_conductance_mean_us=float(out["g_artificial"][:, position].mean()),
+            realized_mean_temporal_sd_us=float(
+                out["g_artificial"][:, position].std(axis=0).mean()
+            ),
+        )
+    write_json(run.export / "raster.json", summary)
+    return summary
 
 
-def scaled_compute(
-    mode,
-    *,
+def evaluate_final_training(bundle, checkpoint, dataset, encoder, cfg):
+    """One fixed draw over the full training split at final-epoch weights."""
+    tick = time.perf_counter()
+    binding = dataset_binding(dataset, encoder, "train", range(cfg["train_images"]))
+    with torch.no_grad():
+        result = sim.simulate(
+            bundle=bundle,
+            checkpoint=checkpoint,
+            input_bindings=[binding],
+            batch_size=cfg["microbatch_size"] or cfg["batch_size"],
+            seed=cfg["shuffle_seed"],
+            device=cfg["device"],
+            performance=performance(cfg),
+            diagnostics=False,
+            retain_parameters=False,
+            retain_final_state=False,
+            retain_runtime_state=False,
+        )
+    scores = result.outputs["scores"].detach().cpu().float()
+    counts = result.outputs["e_count"].detach().cpu().float()
+    with np.load(dataset) as data:
+        labels = torch.from_numpy(data["labels"][: cfg["train_images"]])
+    if not torch.isfinite(scores).all() or not torch.isfinite(counts).all():
+        raise ValueError("Nonfinite final training evaluation")
+    return dict(
+        checkpoint="final.checkpoint",
+        epoch=cfg["epochs"],
+        examples=len(labels),
+        draw=cfg["final_training_draw"],
+        cross_entropy=float(torch.nn.functional.cross_entropy(scores, labels)),
+        accuracy_pct=float(100 * (scores.argmax(-1) == labels).float().mean()),
+        e_rate_hz=float(counts.mean() / (cfg["duration_ms"] / 1000)),
+        seconds=time.perf_counter() - tick,
+        performance=result.metrics["performance"],
+    )
+
+
+def compute(
     run_id=None,
-    benchmark_id=None,
-    benchmark_digest=None,
-    compile_mode=None,
-    microbatch_size=16,
-    calibration_id=None,
-    calibration_digest=None,
+    *,
+    epochs=None,
+    train_images=None,
+    compile_mode="auto",
+    microbatch_size=None,
+    rate_target_hz=None,
+    seed=42,
+    calibration_source=None,
 ):
     started = time.perf_counter()
-    if os.environ.get("SNNLAB_DEVICE") != "cuda" or torch.cuda.device_count() != 1:
-        raise RuntimeError("Scaled exp171 requires exactly one CUDA GPU")
+    overrides = {
+        key: value
+        for key, value in dict(
+            epochs=epochs, train_images=train_images, microbatch_size=microbatch_size
+        ).items()
+        if value is not None
+    }
     cfg = recipe.configuration(
-        scaled=True,
-        device="cuda",
-        threads=int(os.environ.get("OMP_NUM_THREADS", "4")),
+        device=os.environ.get("SNNLAB_DEVICE", "cpu"),
+        threads=int(os.environ.get("OMP_NUM_THREADS", "1")),
         compile_mode=compile_mode,
-        microbatch_size=microbatch_size,
+        rate_target_hz=rate_target_hz,
+        seed=seed,
+        **overrides,
     )
     torch.set_num_threads(cfg["threads"])
     bank, parameters = load_source(cfg)
-    compatibility = dict(
-        bank=bank.reference,
-        configuration=cfg,
-        snnlab=version("snnlab"),
-        torch=str(torch.__version__),
-        cuda=torch.version.cuda,
-        gpu=torch.cuda.get_device_name(),
-        files={
-            str(path.relative_to(ROOT)): file_sha256(path)
-            for path in sorted(Path(__file__).parent.rglob("*.py"))
-            if path.name not in {"analyse.py", "present.py", "test.py"}
-        },
-        lock=file_sha256(ROOT / "uv.lock"),
-    )
-    performance = sim.Performance(
-        compile_mode=cfg["compile_mode"],
-        compile_block_steps="auto",
-        precision=cfg["precision"],
-        cuda_graphs="auto",
-        fused_optimizer="auto",
-    )
-    compatibility["performance"] = asdict(performance)
-    inputs = {"bank": bank}
-    if mode == "full":
-        benchmark = source_run(
-            ROOT / ".pingstore",
-            benchmark_id,
-            experiment=recipe.SLUG,
-            stage="compute",
-            reference={"run_id": benchmark_id, "payload_digest": benchmark_digest},
-        )
-        report = json.loads(benchmark.file("benchmark.json").read_text())
-        if report["status"] != "passed" or report["compatibility"] != compatibility:
-            raise ValueError(
-                "Full mode requires a reviewed, compatible passing benchmark"
-            )
-        inputs["benchmark"] = benchmark
-
-    cfg = {
-        **cfg,
-        "mode": mode,
-        "compatibility": compatibility,
-        "retention_estimate": "Up to 40 MB benchmark or 350 MB full; compact dataset and calibration arrays, native bundles, snapshots and two checkpoints.",
-    }
     dataset = MNIST(
         root=os.environ.get("PINGLAB_DATASET_CACHE", "/tmp/mnist"),
         train=True,
@@ -1055,56 +1396,30 @@ def scaled_compute(
     )
     labels = dataset.targets.numpy().astype(np.int64)
     pixels = dataset.data.numpy().reshape(-1, cfg["n_input"])
-    train, val = source_indices(labels)
-    if mode == "benchmark":
-        train = train[: cfg["benchmark_train_size"]]
-        val = val[: cfg["benchmark_validation_size"]]
-    ids = np.concatenate([train, val])
+    source_train, source_validation = source_indices(labels)
+    train, validation = (
+        source_train[: cfg["train_images"]],
+        source_validation[: cfg["validation_images"]],
+    )
+    ids = np.concatenate((train, validation))
     cfg["dataset_sha256"] = {"pixels": digest(pixels), "labels": digest(labels)}
-    calibration_source = None
-    if calibration_id:
-        calibration_source = source_run(
+    cfg["source_code_sha256"] = {
+        str(p.relative_to(Path(__file__).parent)): file_sha256(p)
+        for p in Path(__file__).parent.rglob("*.py")
+    }
+    inputs = {"bank": bank}
+    cached = None
+    if calibration_source:
+        cached = source_run(
             ROOT / ".pingstore",
-            calibration_id,
+            calibration_source,
             experiment=recipe.SLUG,
             stage="compute",
-            reference={"run_id": calibration_id, "payload_digest": calibration_digest},
         )
-        source_cfg = calibration_source.record["execution"]["configuration"]
-        if (
-            source_cfg.get("mode") != "benchmark"
-            or calibration_source.record["inputs"].get("bank") != bank.reference
-            or source_cfg.get("dataset_sha256") != cfg["dataset_sha256"]
-            or any(
-                source_cfg.get(key) != cfg[key]
-                for key in (
-                    "dt_ms",
-                    "steps",
-                    "n_input",
-                    "n_e",
-                    "tau_gaba_ms",
-                    "tau_ampa_ms",
-                    "inhibition_prehistory_steps",
-                    "input_rate_hz",
-                    "sensory_seed",
-                    "calibration_seed",
-                    "probability_bounds",
-                    "calibration_bisections",
-                    "calibration_retries",
-                    "calibration_sd_target",
-                    "calibration_std_tolerance",
-                    "refractory_timing",
-                    "precision",
-                )
-            )
-        ):
-            raise ValueError("Incompatible retained benchmark calibration")
-        inputs["calibration"] = calibration_source
-
-    print(
-        f"{mode}: {len(train)} train, {len(val)} validation, {compatibility['gpu']}",
-        flush=True,
-    )
+        check_calibration_configuration(
+            cached.record["execution"]["configuration"], cfg
+        )
+        inputs["calibration"] = cached
     with stage_run(
         ROOT,
         recipe.SLUG,
@@ -1112,170 +1427,93 @@ def scaled_compute(
         inputs=inputs,
         configuration=cfg,
         run_id=run_id,
-        operation=mode,
     ) as run:
-        teacher_bundle = recipe.author_network(cfg, teacher=True)
-        bundle = recipe.author_network(cfg)
-        for name, authored in [("teacher", teacher_bundle), ("network", bundle)]:
+        bundle, teacher = (
+            recipe.author_network(cfg),
+            recipe.author_network(cfg, teacher=True),
+        )
+        for name, authored in (("network", bundle), ("teacher", teacher)):
             authored.write(run.export / f"{name}.bundle", visualise=False)
             authored.visualise(run.export / f"{name}-circuit.svg", view="circuit")
-        teacher = make_model(teacher_bundle, parameters["ping"], cfg)
-        capture(
-            teacher,
-            teacher_bundle,
-            run.export / "teacher",
-            cfg,
-            kind="simulate",
-            stage="start",
+        teacher_weights = run.scratch / "teacher.pt"
+        parameter_file(teacher, parameters["ping"], cfg, teacher_weights)
+        tick = time.perf_counter()
+        calibration_timing = {}
+        alpha, amplitude, mu, sd, fitted_mu, fitted_sd, error, i_count, i_rate = (
+            reuse_calibration(
+                cached, cfg, ids, pixels, labels, run.export / "teacher" / "start"
+            )
+            if cached
+            else calibrate_dataset(
+                teacher,
+                teacher_weights,
+                pixels,
+                ids,
+                cfg,
+                run.export / "teacher" / "start",
+                calibration_timing,
+            )
+        )
+        calibration_seconds = time.perf_counter() - tick
+        calibration_timing["total_seconds"] = calibration_seconds
+        calibration_timing["reused"] = cached is not None
+        write_json(run.export / "calibration-timing.json", calibration_timing)
+        count_arrays = (
+            {"event_count": teacher_event_counts(i_count, cfg)}
+            if cfg["inhibition_method"] == recipe.TEACHER_COUNT_METHOD
+            else {}
+        )
+        path = run.export / "dataset.npz"
+        np.savez_compressed(
+            path,
+            ids=ids,
+            features=pixels[ids],
+            labels=labels[ids],
+            source_train=source_train,
+            source_validation=source_validation,
+            **{generator_key(cfg): alpha},
+            amplitude=amplitude,
+            **count_arrays,
+        )
+        np.savez_compressed(
+            run.export / "calibration.npz",
+            ids=ids,
+            teacher_i_spike_count=i_count,
+            teacher_i_rate_hz=i_rate,
+            target_mean=mu,
+            target_sd=sd,
+            **dict(zip(moment_keys(cfg), (fitted_mu, fitted_sd), strict=True)),
+            max_relative_sd_error=error,
+            **count_arrays,
         )
         params = {
             **parameters["coba"],
             "artificial_to_E.weight": torch.ones(1, cfg["n_e"]),
         }
-        encoder_cfg = {
-            key: cfg[key]
-            for key in (
-                "steps",
-                "n_input",
-                "n_e",
-                "dt_ms",
-                "tau_gaba_ms",
-                "input_rate_hz",
-                "inhibition_prehistory_steps",
-                "sensory_seed",
-                "training_seed",
-                "validation_seed",
-            )
-        }
-        extensions.register_encoder("pinglab.exp171/v1", encode_native)
-        encoder = sim.DatasetEncoder(
-            "custom",
-            definition="pinglab.exp171/v1",
-            rng_policy="sample_v1",
-            duration_ms=cfg["duration_ms"],
-            config={
-                "recipe": encoder_cfg,
-                "signature": sim.runtime_state_signature(sim.plan_graph(bundle.graph)),
-            },
+        encoder = dataset_encoder(bundle, cfg)
+        training = dataset_binding(path, encoder, "train", range(len(train)))
+        validation_binding = dataset_binding(
+            path, encoder, "validation", range(len(train), len(ids))
         )
-
-        def binding(path, split, positions):
-            return sim.DatasetSnapshotBinding(
-                path,
-                "drive",
-                "exp171-mnist",
-                split,
-                encoder,
-                target_id="digit",
-                sample_ids_key="ids",
-                sample_indices=tuple(positions),
-            )
-
-        def write_dataset(path, ids, probability, amplitude):
-            np.savez_compressed(
-                path,
-                ids=ids,
-                features=pixels[ids],
-                labels=labels[ids],
-                probability=probability,
-                amplitude=amplitude,
-            )
-
-        parity_start = None
-        if calibration_source is not None:
-            path = run.export / "dataset.npz"
-            cached_dataset = calibration_source.file("dataset.npz")
-            cached_calibration = calibration_source.file("calibration.npz")
-            with (
-                np.load(cached_dataset) as retained,
-                np.load(cached_calibration) as moments,
-            ):
-                np.testing.assert_array_equal(retained["ids"], ids)
-                np.testing.assert_array_equal(moments["ids"], ids)
-                np.testing.assert_array_equal(retained["features"], pixels[ids])
-                np.testing.assert_array_equal(retained["labels"], labels[ids])
-            copyfile(cached_dataset, path)
-            copyfile(cached_calibration, run.export / "calibration.npz")
-            calibration_s = 0.0
-            calibration_estimate_s = json.loads(
-                calibration_source.file("benchmark.json").read_text()
-            )["calibration_seconds"]
-            parity_start = time.perf_counter()
-            parity = native_parity(
-                bundle, binding(path, "train", range(5)), params, cfg, performance
-            )
-            print(
-                f"retained calibration verified; numerical parity passed: {parity}",
-                flush=True,
-            )
-        else:
-            parity = {}
-            calibration_s = 0.0
-            if mode == "benchmark":
-                first_batch = cfg["calibration_batch_size"]
-                tick = time.perf_counter()
-                first = calibrate_native(teacher, pixels, ids[:first_batch], cfg)
-                calibration_s += time.perf_counter() - tick
-                parity_path = run.scratch / "parity.npz"
-                write_dataset(parity_path, ids[:first_batch], *first[:2])
-                parity = native_parity(
-                    bundle,
-                    binding(parity_path, "train", range(5)),
-                    params,
-                    cfg,
-                    performance,
-                )
-                print(f"numerical parity passed: {parity}", flush=True)
-            else:
-                first_batch = 0
-            tick = time.perf_counter()
-            calibration = calibrate_native(teacher, pixels, ids[first_batch:], cfg)
-            calibration_s += time.perf_counter() - tick
-            if first_batch:
-                calibration = [
-                    np.concatenate((start, rest))
-                    for start, rest in zip(first, calibration, strict=True)
-                ]
-            probability, amplitude, mu, sd, fitted_mu, fitted_sd, error = calibration
-            del teacher
-            print(f"calibration completed in {calibration_s:.2f}s", flush=True)
-            np.savez_compressed(
-                run.export / "calibration.npz",
-                ids=ids,
-                target_mean=mu,
-                target_sd=sd,
-                fitted_mean=fitted_mu,
-                fitted_sd=fitted_sd,
-                max_relative_sd_error=error,
-            )
-            path = run.export / "dataset.npz"
-            write_dataset(path, ids, probability, amplitude)
-            calibration_estimate_s = calibration_s
-        parity_s = None if parity_start is None else time.perf_counter() - parity_start
-        training = binding(path, "train", range(len(train)))
-        print("starting measured native training", flush=True)
-        epochs = cfg["benchmark_epochs"] if mode == "benchmark" else cfg["epochs"]
         result = sim.train(
             bundle=bundle,
             weights=sim.WeightInitialization(params),
             input_bindings=[training],
             validation=sim.ValidationSpec(
-                input_bindings=[
-                    binding(path, "validation", range(len(train), len(ids)))
-                ],
+                input_bindings=[validation_binding],
                 encoding_seeds=tuple(range(cfg["validation_draws"])),
             ),
-            epochs=epochs,
+            epochs=cfg["epochs"],
             batch_size=cfg["batch_size"],
             batching=sim.Batching(
                 order="shuffle", microbatch_size=cfg["microbatch_size"]
             ),
             seed=cfg["shuffle_seed"],
             device=cfg["device"],
-            performance=performance,
+            performance=performance(cfg),
             training_timing=True,
             diagnostics=False,
-            metrics=sim.TrainingMetrics(train="evaluate"),
+            metrics=sim.TrainingMetrics(train="none"),
             observations=sim.EpochObservations(population_rates=("E",)),
             checkpoint_selection=sim.CheckpointSelection(
                 tie_break=(sim.SelectionMetric("accuracy", direction="max"),),
@@ -1291,28 +1529,11 @@ def scaled_compute(
             ),
         )
         changes = verify_changes(result.model, params)
-        best = result.selected_checkpoint
-        best_model = make_model(bundle, best.parameters, cfg)
-        capture(
-            best_model,
-            bundle,
-            run.export / "best-validation",
-            cfg,
-            kind="train",
-            stage="end",
-            epoch=best.completed_updates
-            // ((len(train) + cfg["batch_size"] - 1) // cfg["batch_size"]),
-        )
         counts = result.metrics["batch_counts"]
-        expected_updates = epochs * (
-            (len(train) + cfg["batch_size"] - 1) // cfg["batch_size"]
-        )
-        if counts["optimizer_updates"] != expected_updates or counts[
-            "examples"
-        ] != epochs * len(train):
-            raise ValueError(
-                "Native trainer did not complete the expected presentations and updates"
-            )
+        if counts["optimizer_updates"] != cfg["epochs"] * int(
+            np.ceil(len(train) / cfg["batch_size"])
+        ) or counts["examples"] != cfg["epochs"] * len(train):
+            raise ValueError("Native training did not complete the requested schedule")
         metrics = {
             key: result.metrics[key]
             for key in (
@@ -1323,47 +1544,113 @@ def scaled_compute(
                 "selection_record",
             )
         }
+        metrics["final_training"] = evaluate_final_training(
+            bundle, run.export / "final.checkpoint", path, encoder, cfg
+        )
         metrics["parameter_changes"] = changes
         write_json(run.export / "native-metrics.json", metrics)
+        best_epoch = int(result.selected_checkpoint.data_state["epoch"])
+        replay = record_selected(
+            run, result.selected_checkpoint.parameters, path, cfg, best_epoch
+        )
+        timings = dict(
+            calibration_seconds=calibration_seconds,
+            training_seconds=result.metrics["training_timing"]["total_s"],
+            final_training_evaluation_seconds=metrics["final_training"]["seconds"],
+            selected_replay_seconds=replay["simulation_seconds"],
+            compute_seconds=time.perf_counter() - started,
+        )
+        write_json(run.export / "timings.json", timings)
         run.record["scientific_artifacts"] = {
             "snapshot_stages": {
-                "teacher": ["start"],
                 "training": ["start", "end"],
+                "teacher": ["start"],
                 "best-validation": ["end"],
             }
         }
-        elapsed = time.perf_counter() - started
         run.record["execution"].update(
-            elapsed_seconds=elapsed, calibration_seconds=calibration_s
+            no_simulation=False,
+            elapsed_seconds=timings["compute_seconds"],
+            timings=timings,
         )
-        if mode == "benchmark":
-            timing = metrics["training_timing"]
-            warmed = timing["epochs"][-1]
-            estimate = (
-                calibration_estimate_s * 7000 / len(ids)
-                + timing["setup_s"]
-                + (warmed["training_s"] + warmed["train_evaluation_s"])
-                * 20
-                * 6300
-                / len(train)
-                + warmed["validation_s"] * 21 * 700 / len(val)
+        bank.check_unchanged()
+        if cached:
+            cached.check_unchanged()
+    print(run.run_id, flush=True)
+    return run.run_id
+
+
+def first_correct_position(labels, scores):
+    labels, scores = np.asarray(labels), np.asarray(scores)
+    if (
+        labels.ndim != 1
+        or scores.ndim != 2
+        or len(scores) != len(labels)
+        or not np.isfinite(scores).all()
+    ):
+        raise ValueError("Invalid retained classification scores")
+    correct = np.flatnonzero(scores.argmax(axis=1) == labels)
+    if not len(correct):
+        raise ValueError(
+            "No correctly classified image in the retained validation batch"
+        )
+    return int(correct[0])
+
+
+def replay_correct(identity, run_id=None):
+    """Record the first previously correct validation image at selected weights."""
+    started = time.perf_counter()
+    training = source_run(
+        ROOT / ".pingstore", identity, experiment=recipe.SLUG, stage="compute"
+    )
+    cfg = dict(training.record["execution"]["configuration"])
+    if cfg.get("execution_backend") != "snnlab.sim.train":
+        raise ValueError("Correct-image replay requires native training evidence")
+    cfg.update(
+        device=os.environ.get("SNNLAB_DEVICE", cfg["device"]),
+        threads=int(os.environ.get("OMP_NUM_THREADS", cfg["threads"])),
+    )
+    torch.set_num_threads(cfg["threads"])
+    with np.load(training.file("raster.npz")) as saved:
+        position = first_correct_position(saved["batch_labels"], saved["batch_scores"])
+        expected_predictions = saved["batch_scores"].argmax(axis=1)
+    cfg["raster_selection"] = "first_correct_in_retained_validation_batch"
+    cfg["raster_batch_position"] = position
+    cfg["raster_source_code_sha256"] = {
+        p.name: file_sha256(p) for p in Path(__file__).parent.glob("*.py")
+    }
+    with stage_run(
+        ROOT,
+        recipe.SLUG,
+        "compute",
+        inputs={"training": training},
+        configuration=cfg,
+        run_id=run_id,
+        phase="raster",
+    ) as run:
+        checkpoint = sim.load_training_checkpoint(
+            training.restore_bundle("best.checkpoint", run.scratch / "best.checkpoint")
+        )
+        record_selected(
+            run,
+            checkpoint.parameters,
+            training.file("dataset.npz"),
+            cfg,
+            int(checkpoint.data_state["epoch"]),
+            position=position,
+            selection_policy=cfg["raster_selection"],
+        )
+        with np.load(run.export / "raster.npz") as replay:
+            np.testing.assert_array_equal(
+                replay["batch_scores"].argmax(axis=1), expected_predictions
             )
-            write_json(
-                run.export / "benchmark.json",
-                dict(
-                    status="passed",
-                    compatibility=compatibility,
-                    parity=parity,
-                    parity_seconds=parity_s,
-                    calibration_estimate_seconds=calibration_estimate_s,
-                    calibration_seconds=calibration_s,
-                    elapsed_seconds=elapsed,
-                    full_estimate_seconds=estimate,
-                    gpu_usd_per_second=cfg["benchmark_gpu_usd_per_second"],
-                    full_estimate_gpu_usd=estimate
-                    * cfg["benchmark_gpu_usd_per_second"],
-                ),
-            )
+        run.record["scientific_artifacts"] = {
+            "snapshot_stages": {"best-validation": ["start", "end"]}
+        }
+        run.record["execution"].update(
+            no_simulation=False, elapsed_seconds=time.perf_counter() - started
+        )
+        training.check_unchanged()
     print(run.run_id, flush=True)
     return run.run_id
 
@@ -1371,57 +1658,92 @@ def scaled_compute(
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--run-id")
-    mode = parser.add_mutually_exclusive_group()
-    mode.add_argument("--benchmark", action="store_true")
-    mode.add_argument("--full", action="store_true")
+    parser.add_argument("--seed", type=int, choices=recipe.SOURCE_SEEDS)
     parser.add_argument(
-        "--benchmark-id", help="Explicitly reviewed passing benchmark run"
+        "--rate-target-hz", choices=["off", "25", "10", "5", "2.5", "1"]
     )
-    parser.add_argument("--benchmark-digest", help="Reviewed benchmark payload digest")
+    parser.add_argument(
+        "--sweep",
+        action="store_true",
+        help="Run all six ceilings in isolated sequential processes",
+    )
+    parser.add_argument(
+        "--calibration-source",
+        help="Reuse calibration from an explicit compatible compute run",
+    )
     parser.add_argument(
         "--raster-source",
-        help="Replay a retained training run's best-validation checkpoint",
+        help="Replay the first correct retained validation image from this training run",
+    )
+    parser.add_argument("--epochs", type=int, help="Training epochs; default 10")
+    parser.add_argument(
+        "--train-images", type=int, help="Source-training images; default 6300"
     )
     parser.add_argument(
-        "--epochs", type=int, help="Total fine-tuning epochs; default from recipe"
+        "--compile-mode", choices=("auto", "eager", "default"), default="auto"
     )
-    parser.add_argument("--compile-mode", choices=("eager", "default"), default="eager")
-    parser.add_argument("--microbatch-size", choices=(16, 32, 64), type=int, default=16)
     parser.add_argument(
-        "--calibration-id", help="Benchmark run with the identical calibrated subset"
+        "--microbatch-size",
+        type=int,
+        help="Optional physical batch cap; default uses full batches",
     )
-    parser.add_argument("--calibration-digest")
     args = parser.parse_args()
-    if bool(args.calibration_id) != bool(args.calibration_digest) or (
-        args.calibration_id and not args.benchmark
-    ):
-        parser.error("Calibration reuse requires --benchmark and both calibration pins")
-    if not (args.benchmark or args.full) and (
-        args.compile_mode != "eager" or args.microbatch_size != 16
-    ):
-        parser.error("Execution policy overrides require --benchmark or --full")
-    if args.full != bool(args.benchmark_id and args.benchmark_digest) or (
-        not args.full and (args.benchmark_id or args.benchmark_digest)
-    ):
-        parser.error("--full requires --benchmark-id and --benchmark-digest")
-    if args.benchmark or args.full:
-        if args.epochs is not None or args.raster_source:
+    if args.sweep:
+        if (
+            args.run_id
+            or args.raster_source
+            or args.calibration_source
+            or args.rate_target_hz
+        ):
             parser.error(
-                "Scaled modes cannot be combined with pilot or raster arguments"
+                "Sweep allocates one run per ceiling; single-run inputs are not allowed"
             )
-        scaled_compute(
-            "full" if args.full else "benchmark",
-            run_id=args.run_id,
-            benchmark_id=args.benchmark_id,
-            benchmark_digest=args.benchmark_digest,
+        # Check all source pairs before launching any scientific execution.
+        for cfg in recipe.sweep_configurations(seed=args.seed or 42):
+            bank, _ = load_source(cfg)
+            bank.check_unchanged()
+        for target in recipe.RATE_TARGETS_HZ:
+            command = [
+                sys.executable,
+                str(Path(__file__).resolve()),
+                "--rate-target-hz",
+                "off" if target is None else f"{target:g}",
+                "--seed",
+                str(args.seed or 42),
+                "--compile-mode",
+                args.compile_mode,
+            ]
+            for option, value in (
+                ("--epochs", args.epochs),
+                ("--train-images", args.train_images),
+                ("--microbatch-size", args.microbatch_size),
+            ):
+                if value is not None:
+                    command.extend([option, str(value)])
+            subprocess.run(command, check=True)
+        sys.exit(0)
+    if args.raster_source:
+        if (
+            args.epochs is not None
+            or args.train_images is not None
+            or args.microbatch_size is not None
+            or args.compile_mode != "auto"
+            or args.rate_target_hz is not None
+            or args.seed is not None
+            or args.calibration_source is not None
+        ):
+            parser.error("Raster replay uses the source execution configuration")
+        replay_correct(args.raster_source, args.run_id)
+    else:
+        compute(
+            args.run_id,
+            epochs=args.epochs,
+            train_images=args.train_images,
             compile_mode=None if args.compile_mode == "eager" else args.compile_mode,
             microbatch_size=args.microbatch_size,
-            calibration_id=args.calibration_id,
-            calibration_digest=args.calibration_digest,
+            rate_target_hz=None
+            if args.rate_target_hz in (None, "off")
+            else float(args.rate_target_hz),
+            seed=args.seed or 42,
+            calibration_source=args.calibration_source,
         )
-    elif args.raster_source:
-        if args.epochs is not None:
-            parser.error("--epochs cannot be combined with --raster-source")
-        raster(args.raster_source, run_id=args.run_id)
-    else:
-        compute(args.run_id, epochs=args.epochs)

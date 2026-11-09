@@ -1,19 +1,36 @@
-# exp038
+# exp038 — Switching On the Inhibitory Loop
 
-Enable reciprocal inhibition in frozen feedforward classifiers and measure the resulting changes in firing rate and held-out accuracy.
+Enable reciprocal inhibition in frozen feedforward classifiers and measure the resulting
+changes in firing rate and held-out accuracy.
 
-## CLI
+## Run
 
-Run each stage independently from the repository root with `uv run python`.
+From the repository root, run these stages in order.
+Compute runs simulations and requires explicit authorisation.
 
-1. `compute.py`: `--source` (required), `--run-id` (optional).
-2. `analyse.py`: `--source` (required), `--run-id` (optional).
-3. `present.py`: `--source` (required), `--run-id` (optional).
-4. `custom/hpc.py`: `--source` (required), `--plan` (required), `--account` (required), `--cpu-account` (required), `--mnist-cache` (required), `--profile` (optional; default production), `--walltime` (optional; default 02:00:00), `plan` (required), `--live` (optional), `--test-only` (optional), `stage` (required).
-5. `test.py`: `uv run pytest experiments/exp038/test.py`; optional pytest arguments.
+```sh
+uv run python experiments/exp038/compute.py --source TRAINING_RUN
+uv run python experiments/exp038/analyse.py --source COMPUTE_ID
+uv run python experiments/exp038/present.py --source ANALYSE_ID
+```
 
-Optional environment: `PINGLAB_SMOKE=1` selects the bounded smoke profile; `SNNLAB_DEVICE` (or the legacy `PINGLAB_DEVICE`) selects the execution device.
+Replace `COMPUTE_ID` and `ANALYSE_ID` with the completed run IDs
+from the preceding stages.
 
-Regenerate the documented-model illustrations without running a scientific stage:
-`uv run python experiments/exp038/present.py --draw-schematics`.
-These authored SVGs do not reconstruct missing historical bundles.
+`TRAINING_RUN` is a completed exp022 training-bank compute run.
+
+To run automated checks:
+
+```sh
+uv run pytest experiments/exp038/test.py -q
+```
+
+## Folder guide
+
+1. `recipe.py` — configuration and model definition.
+2. `compute.py` — run simulations and save evidence.
+3. `analyse.py` — calculate measurements from saved evidence.
+4. `present.py` — generate figures and report assets.
+5. `custom/` — experiment-specific models, helpers and execution tools.
+6. `report/` — report, appendix and supporting components.
+7. `test.py` — automated checks.

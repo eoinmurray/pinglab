@@ -122,10 +122,126 @@ def raster_figure(recording, summary, cfg):
         ax.spines[["top", "right"]].set_visible(False)
     axes[-1].set_xlabel("Time (ms)")
     theme.label_panels(axes)
+    selection = (
+        "First correct image in fixed validation batch"
+        if summary.get("selection_policy")
+        == "first_correct_in_retained_validation_batch"
+        else "First validation image"
+    )
     fig.suptitle(
         f"Best-validation checkpoint: epoch {summary['epoch']} | digit {summary['label']} | predicted {summary['predicted']}\n"
-        f"First validation image; draw {summary['validation_draw'] + 1} of {cfg['validation_draws']}; E {summary['e_rate_hz']:.1f} Hz"
+        f"{selection}; draw {summary['validation_draw'] + 1} of {cfg['validation_draws']}; E {summary['e_rate_hz']:.1f} Hz"
+        + (
+            f"; {summary['event_count']} artificial events/channel"
+            if "event_count" in summary
+            else ""
+        )
     )
+    return fig
+
+
+def ceiling_label(target):
+    return "Off" if target is None else f"{target:g} Hz"
+
+
+def frontier_figure(cases):
+    fig, ax = plt.subplots(figsize=(6.5, 4.5), layout="constrained")
+    for name, label, colour, marker in (
+        ("coba", "TR02 COBA (epoch 50)", theme.INK_BLACK, "o"),
+        ("ping", "TR02 PING (epoch 50)", theme.DEEP_RED, "s"),
+        (
+            "artificial",
+            "COBA + artificial I (final fine-tuning epoch)",
+            theme.ELECTRIC_CYAN,
+            "^",
+        ),
+    ):
+        points = [
+            c["history"][-1] if name == "artificial" else c["controls"][name]
+            for c in cases
+        ]
+        ax.plot(
+            [p["e_rate_hz"] for p in points],
+            [p["accuracy_pct"] for p in points],
+            marker=marker,
+            color=colour,
+            label=label,
+        )
+        for case, point in zip(cases, points, strict=True):
+            ax.annotate(
+                ceiling_label(case["target_hz"]),
+                (point["e_rate_hz"], point["accuracy_pct"]),
+                xytext=(4, 5),
+                textcoords="offset points",
+                fontsize=8,
+                color=colour,
+            )
+    ax.set(
+        xlabel="Achieved validation E firing rate (Hz)",
+        ylabel="Validation accuracy (%)",
+    )
+    ax.spines[["top", "right"]].set_visible(False)
+    ax.legend(frameon=False, fontsize=8)
+    return fig
+
+
+def learning_figure(results):
+    fig, axes = plt.subplots(1, 3, figsize=(12, 3.7), layout="constrained")
+    history = results["history"]
+    epochs = [row["epoch"] for row in history]
+    for ax, key, label in zip(
+        axes,
+        ["cross_entropy", "accuracy_pct", "e_rate_hz"],
+        [
+            "Cross-entropy",
+            "Validation accuracy (%)",
+            "E firing rate (Hz)",
+        ],
+        strict=True,
+    ):
+        for index, case in enumerate(results.get("sweep", [results])):
+            rows = case["history"]
+            ax.plot(
+                [r["epoch"] for r in rows],
+                [r[key] for r in rows],
+                "o-",
+                color=theme.CYCLE[index],
+                label=ceiling_label(case["target_hz"])
+                if "sweep" in results
+                else "Validation",
+            )
+        ax.set(
+            xlabel="Fine-tuning epoch",
+            ylabel=label,
+            xticks=epochs
+            if len(epochs) <= 6
+            else epochs[:: max(1, (len(epochs) - 1) // 4)],
+        )
+        ax.spines[["top", "right"]].set_visible(False)
+    training_rows = [row for row in history if row.get("training_loss") is not None]
+    if training_rows:
+        axes[0].plot(
+            [row["epoch"] for row in training_rows],
+            [row["training_loss"] for row in training_rows],
+            "s--",
+            color=theme.DEEP_RED,
+            label="Training",
+        )
+    for index, case in enumerate(results.get("sweep", [results])):
+        measured = case.get("final_training")
+        if not measured:
+            continue
+        axes[0].plot(
+            [measured["epoch"]],
+            [measured["cross_entropy"]],
+            "s",
+            color=theme.CYCLE[index] if "sweep" in results else theme.DEEP_RED,
+            label=None if "sweep" in results else "Training (final)",
+        )
+    if "sweep" in results:
+        axes[1].legend(frameon=False, fontsize=8, title="E ceiling")
+    axes[0].legend(frameon=False)
+    theme.label_panels(axes)
     return fig
 
 
@@ -145,6 +261,15 @@ def present(identity, run_id=None):
     cfg = computed.record["execution"]["configuration"]
     results = json.loads(analysis.file("results.json").read_text())
     inputs = {"analyse": analysis, "compute": computed}
+    for role, pin in analysis.record["inputs"].items():
+        if role.startswith("cell_"):
+            inputs[role] = source_run(
+                ROOT / ".pingstore",
+                pin["run_id"],
+                experiment=recipe.SLUG,
+                stage="compute",
+                reference=pin,
+            )
     recorded = None
     if "raster" in analysis.record["inputs"]:
         pin = analysis.record["inputs"]["raster"]
@@ -168,45 +293,20 @@ def present(identity, run_id=None):
         with matplotlib.rc_context():
             theme.set_paper_mode(True)
             theme.apply()
-            fig, axes = plt.subplots(1, 3, figsize=(12, 3.7), layout="constrained")
-            history = results["history"]
-            epochs = [row["epoch"] for row in history]
-            for ax, key, label in zip(
-                axes,
-                ["cross_entropy", "accuracy_pct", "e_rate_hz"],
-                [
-                    "Cross-entropy",
-                    "Validation accuracy (%)",
-                    "E firing rate (Hz)",
-                ],
-                strict=True,
-            ):
-                ax.plot(
-                    epochs, [row[key] for row in history], "o-", color=theme.INK_BLACK
-                )
-                ax.set(
-                    xlabel="Fine-tuning epoch",
-                    ylabel=label,
-                    xticks=epochs
-                    if len(epochs) <= 6
-                    else epochs[:: max(1, (len(epochs) - 1) // 4)],
-                )
-                ax.spines[["top", "right"]].set_visible(False)
-            axes[0].plot(
-                epochs[1:],
-                [row["training_loss"] for row in history[1:]],
-                "s--",
-                color=theme.DEEP_RED,
-                label="Training",
-            )
-            axes[0].lines[0].set_label("Validation")
-            axes[0].legend(frameon=False)
-            theme.label_panels(axes)
+            fig = learning_figure(results)
             for ext in ("svg", "png"):
                 fig.savefig(run.export / ("learning-curves." + ext), dpi=180)
             plt.close(fig)
-            if recorded:
-                with np.load(recorded.file("raster.npz")) as z:
+            if "sweep" in results:
+                fig = frontier_figure(results["sweep"])
+                for ext in ("svg", "png"):
+                    fig.savefig(run.export / ("activity-frontier." + ext), dpi=180)
+                plt.close(fig)
+            raster_source = recorded or (
+                computed if cfg.get("execution_backend") == "snnlab.sim.train" else None
+            )
+            if raster_source:
+                with np.load(raster_source.file("raster.npz")) as z:
                     fig = raster_figure(z, results["raster"], cfg)
                     for ext in ("svg", "png"):
                         fig.savefig(run.export / ("raster." + ext), dpi=190)
@@ -226,6 +326,14 @@ def present(identity, run_id=None):
             results["timings"][key]
             for key in ("compute_seconds", "analysis_seconds", "presentation_seconds")
         )
+        if "sweep" in results:
+            results["timings"]["sweep_compute_seconds"] = sum(
+                cell["timings"]["compute_seconds"] for cell in results["sweep"]
+            )
+            results["timings"]["stages_total_seconds"] += (
+                results["timings"]["sweep_compute_seconds"]
+                - results["timings"]["compute_seconds"]
+            )
         write_json(run.export / "numbers.json", results)
         run.record["execution"].update(
             no_simulation=True, elapsed_seconds=time.perf_counter() - started
@@ -234,6 +342,9 @@ def present(identity, run_id=None):
         computed.check_unchanged()
         if recorded:
             recorded.check_unchanged()
+        for role, cell in inputs.items():
+            if role.startswith("cell_"):
+                cell.check_unchanged()
     print(run.run_id, flush=True)
     return run.run_id
 

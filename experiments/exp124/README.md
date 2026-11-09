@@ -1,26 +1,40 @@
-# SHD: paired COBA and PING training
+# exp124 — SHD: paired COBA and PING training
 
-Compare two-layer COBA and PING classifiers on SHD, using a stratified validation
-holdout and one matched held-out response. Generate the report's training curves,
-rasters, autocorrelograms and circuit diagrams. The official test set is unused.
+Compare two-layer COBA and PING classifiers on the Spiking Heidelberg Digits dataset.
+Measure validation learning curves and matched spike responses; the official test set is
+unused.
 
-1. `compute.py`: optional `--run-id`; optional `--parallel` (one spawned process
-   per model, requiring two visible CUDA GPUs and at least two CPU threads);
-   optional `--protocol {full,local-check}`
-   (default `full`: 50 epochs on all official training utterances; `local-check`:
-   one epoch with one training and validation utterance per class).
-   Runs COBA then PING by default, or both concurrently with `--parallel`,
-   saving native bundles, circuits, training snapshots,
-   best-validation snapshots, replay-start snapshots, metrics and recordings.
-   `SNNLAB_DEVICE` overrides device selection; `SHD_CACHE` selects the verified
-   archive cache; `PINGLAB_CPU_THREADS` sets the positive CPU thread count
-   (default 4). Local checks are diagnostics, not performance evidence.
-2. `analyse.py`: required `--source <compute-run-id>`. Validates the explicit
-   run and saves training measurements and population autocorrelograms.
-3. `present.py`: required `--source <analyse-run-id>`. Writes the report's six
-   SVGs and `numbers.json`, retaining the explicit compute ancestry. The report
-   reads parameters directly from that compute run's native snapshots.
+## Run
 
-Regenerate only network diagrams while preserving an explicit presentation's
-scientific figures and data: `uv run python experiments/exp124/present.py
---redraw-from PRESENT_ID [--run-id ID]`.
+From the repository root, run these stages in order.
+Compute trains models and requires explicit authorisation.
+
+```sh
+uv run python experiments/exp124/compute.py
+uv run python experiments/exp124/analyse.py --source COMPUTE_ID
+uv run python experiments/exp124/present.py --source ANALYSE_ID
+```
+
+Replace `COMPUTE_ID` and `ANALYSE_ID` with the completed run IDs
+from the preceding stages.
+
+The default protocol trains each model for 50 epochs. Add `--protocol local-check` for a
+small diagnostic run. `SHD_CACHE` selects the dataset archive cache; `SNNLAB_DEVICE`
+selects the device.
+
+To run automated checks:
+
+```sh
+uv run pytest experiments/exp124/test.py -q
+```
+
+## Folder guide
+
+1. `recipe.py` — configuration and model definition.
+2. `dataset.py` — input preparation and encoding.
+3. `compute.py` — train models and save evidence.
+4. `analyse.py` — calculate measurements from saved evidence.
+5. `present.py` — generate figures and report assets.
+6. `custom/` — experiment-specific models, helpers and execution tools.
+7. `report/` — report, appendix and supporting components.
+8. `test.py` — automated checks.

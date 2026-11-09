@@ -10,7 +10,12 @@ from time import perf_counter
 REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO), str(REPO / "libraries")]
 import numpy as np
-from experiments.exp172.recipe import gaussian
+from experiments.exp172.recipe import (
+    cycle_analysis_configuration,
+    gaussian,
+    selected_parameters,
+    trial_plan,
+)
 from pingstore.library import source_run, stage_run
 from scipy.ndimage import gaussian_filter1d
 from scipy.optimize import least_squares, nnls
@@ -230,6 +235,142 @@ def spatial_timecourse(spikes, cfg, swap, window_ms=100.0, hop_ms=5.0):
     )
 
 
+def cycle_selection_scores(epochs):
+    """Balanced cue accuracy and dominant-pattern transitions per eligible pair."""
+    successes, transitions, pairs = [], 0, 0
+    for epoch in epochs:
+        states = [cycle["dominant"] for cycle in epoch["cycles"]]
+        successes.append(
+            sum(state == epoch["attended"] for state in states) / len(states)
+            if states
+            else None
+        )
+        for before, after in zip(states, states[1:], strict=False):
+            if before is not None and after is not None:
+                pairs += 1
+                transitions += before != after
+    return dict(
+        switching_success=float(np.mean(successes))
+        if all(s is not None for s in successes) and successes
+        else None,
+        flicker_fraction=transitions / pairs if pairs else None,
+        transitions=int(transitions),
+        eligible_pairs=pairs,
+        cycle_counts=[len(epoch["cycles"]) for epoch in epochs],
+        resolved_counts=[
+            sum(c["dominant"] is not None for c in epoch["cycles"]) for epoch in epochs
+        ],
+    )
+
+
+def cycle_switch_latency(
+    cycles, switch_ms, sustained_cycles, attended="B", end_ms=float("inf")
+):
+    """First post-cue cycle in a sustained attended run, numbered from one."""
+    if sustained_cycles < 2:
+        raise ValueError("Sustained switching requires at least two cycles")
+    post = [c for c in cycles if c["start_ms"] >= switch_ms and c["end_ms"] <= end_ms]
+    for i in range(len(post) - sustained_cycles + 1):
+        run = post[i : i + sustained_cycles]
+        if all(c["dominant"] == attended for c in run):
+            return dict(
+                cycles=i + 1,
+                sustained_cycles=sustained_cycles,
+                onset_ms=post[i]["start_ms"] - switch_ms,
+                confirmation_ms=run[-1]["end_ms"] - switch_ms,
+            )
+    return dict(
+        cycles=None,
+        sustained_cycles=sustained_cycles,
+        onset_ms=None,
+        confirmation_ms=None,
+    )
+
+
+def cycle_selection_metrics(spikes, cfg, swap=False, *, sustained_cycles):
+    """Decode whole C volleys in trough-to-trough receiver PING cycles."""
+    dt = cfg["dt_ms"]
+    s = spikes["C_E"]
+    t = np.arange(len(s)) * dt
+    rate = gaussian_filter1d(s.mean(1) * 1000 / dt, 1 / dt)
+    peaks, _ = find_peaks(
+        rate,
+        distance=round(15 / dt),
+        prominence=max(0.05, 0.1 * np.ptp(rate[t > 500])),
+    )
+    centres = cfg["centres"][::-1] if swap else cfg["centres"]
+    sigma = np.sqrt(
+        cfg["spatial_sigma"] ** 2
+        + cfg["sensory_kernel_sigma"] ** 2
+        + cfg["cross_kernel_sigma"] ** 2
+    )
+    x = np.arange(s.shape[1]) / s.shape[1]
+    design = np.column_stack(
+        [np.ones(len(x)), *[gaussian(x, c, sigma) for c in centres]]
+    )
+    # Cut between volleys, rather than through each volley's spatially
+    # unequal rising/falling halves. Centre ties in flat minima deterministically.
+    boundaries = []
+    for left, right in zip(peaks, peaks[1:], strict=False):
+        valley = rate[left + 1 : right]
+        minima = np.flatnonzero(valley == valley.min()) + left + 1
+        boundary = minima[np.argmin(abs(minima - (left + right) / 2))]
+        boundaries.append(int(boundary))
+    all_cycles = []
+    for start, end, peak in zip(boundaries, boundaries[1:], peaks[1:-1], strict=False):
+        y = s[start:end].mean(0) * 1000 / dt
+        coefficients, _ = nnls(design, y)
+        a, b = map(float, coefficients[1:])
+        dominant = (
+            None
+            if a + b < cfg["minimum_total_amplitude_hz"] or a == b
+            else ("A" if a > b else "B")
+        )
+        all_cycles.append(
+            dict(
+                start_ms=float(start * dt),
+                end_ms=float(end * dt),
+                peak_ms=float(peak * dt),
+                A_amplitude_hz=a,
+                B_amplitude_hz=b,
+                dominant=dominant,
+            )
+        )
+    epochs = []
+    for attended, window in zip(
+        "AB", cfg["stability_search"]["windows_ms"], strict=True
+    ):
+        cycles = [
+            c
+            for c in all_cycles
+            if c["start_ms"] >= window[0] and c["end_ms"] <= window[1]
+        ]
+        epoch = dict(attended=attended, window_ms=window, cycles=cycles)
+        scores = cycle_selection_scores([epoch])
+        epoch.update(
+            switching_success=scores["switching_success"],
+            flicker_fraction=scores["flicker_fraction"],
+            switching_latency=cycle_switch_latency(
+                all_cycles,
+                0.0 if attended == "A" else cfg["switch_ms"],
+                sustained_cycles,
+                attended=attended,
+                end_ms=cfg["switch_ms"] if attended == "A" else cfg["duration_ms"],
+            ),
+        )
+        epochs.append(epoch)
+    return dict(
+        **cycle_selection_scores(epochs),
+        epochs=epochs,
+        switching_latency=cycle_switch_latency(
+            all_cycles, cfg["switch_ms"], sustained_cycles
+        ),
+        minimum_total_amplitude_hz=cfg["minimum_total_amplitude_hz"],
+        method="One NNLS spatial fit per complete C E trough-to-trough cycle containing one detected peak; troughs are population-rate minima between successive peaks, with flat-minimum ties nearest the peak midpoint; existing 1 ms peak smoothing and 15 ms minimum peak spacing; no multi-cycle averaging",
+        decoder_version="trough-to-trough/v1",
+    )
+
+
 def stability_metrics(spikes, cfg, swap=False):
     """Quantify spatial competition without hiding excursions behind long smoothing."""
     settings = cfg["stability_search"]
@@ -337,8 +478,12 @@ def compare_metrics(actual, expected):
         raise ValueError(f"Metric mismatch: {actual!r} != {expected!r}")
 
 
-def validate_parameters(directory, cfg):
+def validate_parameters(directory, cfg, expected):
     params = NetworkSnapshot.read(directory / "start/snapshot.json").load_parameters()
+    if params.keys() != expected.keys():
+        raise ValueError("Executed parameter keys differ from the pinned source")
+    for key in expected:
+        np.testing.assert_array_equal(params[key].numpy(), expected[key].numpy())
     for value in params.values():
         if not np.isfinite(value.numpy()).all() or (value < 0).any():
             raise ValueError("Invalid weights")
@@ -353,36 +498,30 @@ def validate_parameters(directory, cfg):
         raise ValueError("C recurrence enabled")
 
 
-def validate(data):
+def report_trial_scope(trials, cfg):
+    """Select the declared report trials from possibly larger historical runs."""
+    recorded = {trial["id"]: trial for trial in trials}
+    if len(recorded) != len(trials):
+        raise ValueError("Duplicate trial")
+    planned = [item["id"] for item in trial_plan(cfg)]
+    if not set(planned).issubset(recorded):
+        raise ValueError("Incomplete trial grid")
+    return [recorded[key] for key in planned], sorted(set(recorded) - set(planned))
+
+
+def validate(data, original_parameters, source_configuration):
     cfg = json.loads((data / "configuration.json").read_text())
     summary = json.loads((data / "summary.json").read_text())
-    trials = summary["trials"]
-    if len({r["id"] for r in trials}) != len(trials):
-        raise ValueError("Duplicate trial")
-    expected = {
-        (seed, swap, cue, "AB")
-        for seed in cfg["seeds"]
-        for swap in cfg["spatial_assignments"]
-        for cue in cfg["cue_strengths_hz"]
-    }
-    expected |= {
-        (cfg["seeds"][0], swap, 0.0, c)
-        for swap in cfg["spatial_assignments"]
-        for c in "AB"
-    }
-    actual = {(r["seed"], r["swap"], r["cue_hz"], r["active"]) for r in trials}
-    if actual != expected:
-        raise ValueError("Incomplete trial grid")
+    trials, excluded = report_trial_scope(summary["trials"], cfg)
+    summary = dict(summary, trials=trials, excluded_trial_ids=excluded)
+    expected = {item["id"]: item for item in trial_plan(cfg)}
     for trial in trials:
         directory = data / trial["id"]
         local = json.loads((directory / "configuration.json").read_text())
-        if local["trial"] != {
-            k: trial[k] for k in ["id", "seed", "swap", "cue_hz", "active"]
-        }:
-            raise ValueError("Trial configuration disagrees")
-        for key in cfg:
-            if key in local:
-                compare_metrics(local[key], cfg[key])
+        compare_metrics(local["trial"], expected[trial["id"]])
+        resolved = cfg
+        for key in resolved:
+            compare_metrics(local[key], resolved[key])
         with np.load(directory / "spikes.npz") as z:
             spikes = dict(z)
         if set(spikes) != {c + "_" + p for c in "ABC" for p in "EI"}:
@@ -394,24 +533,47 @@ def validate(data):
             )
             if value.shape != shape or not np.isin(value, [0, 1]).all():
                 raise ValueError("Invalid spikes")
-        epochs, profiles = analyse(spikes, cfg, trial["swap"])
+        epochs, profiles = analyse(spikes, resolved, trial["swap"])
         compare_metrics(epochs, trial["epochs"])
         if "stability" in trial:
             compare_metrics(
-                stability_metrics(spikes, cfg, trial["swap"]), trial["stability"]
+                stability_metrics(spikes, resolved, trial["swap"]), trial["stability"]
             )
         compare_metrics(json.loads((directory / "metrics.json").read_text()), trial)
         with np.load(directory / "profiles.npz") as z:
             for key, value in profiles.items():
                 np.testing.assert_array_equal(value, z[key])
-        validate_parameters(directory, cfg)
+        validate_parameters(
+            directory,
+            resolved,
+            selected_parameters(original_parameters, resolved, source_configuration),
+        )
     return cfg, summary
 
 
 def main(source, run_id=None):
     started = perf_counter()
+    settings = cycle_analysis_configuration()
     computed = source_run(
-        REPO / ".pingstore", source, experiment="exp172", stage="compute"
+        REPO / ".pingstore",
+        source,
+        experiment="exp172",
+        stage="compute",
+    )
+    cfg = computed.record["execution"]["configuration"]
+    reference = computed.record["inputs"]["parameter_reference"]
+    parameter_source = source_run(
+        REPO / ".pingstore",
+        reference["run_id"],
+        experiment="exp172",
+        stage="compute",
+        reference=reference,
+    )
+    original_parameters = NetworkSnapshot.read(
+        parameter_source.file(cfg["source_snapshot"])
+    ).load_parameters()
+    source_configuration = json.loads(
+        parameter_source.file("configuration.json").read_text()
     )
     with stage_run(
         REPO,
@@ -419,15 +581,25 @@ def main(source, run_id=None):
         "analyse",
         inputs={"compute": computed},
         run_id=run_id,
-        configuration=dict(method="recompute all saved-spike spatial/phase metrics"),
+        configuration=dict(
+            method="recompute all saved-spike spatial/phase metrics", **settings
+        ),
     ) as run:
         work = materialise_compute(computed, run.scratch / "evidence")
-        cfg, summary = validate(work)
+        cfg, summary = validate(work, original_parameters, source_configuration)
+        cycle_selection = {}
+        for trial in summary["trials"]:
+            with np.load(work / trial["id"] / "spikes.npz") as z:
+                cycle_selection[trial["id"]] = cycle_selection_metrics(
+                    dict(z), cfg, trial["swap"], **settings
+                )
         dump(
             run.export / "results.json",
             dict(
                 validated_trials=len(summary["trials"]),
+                excluded_historical_trial_ids=summary["excluded_trial_ids"],
                 trials=summary["trials"],
+                cycle_selection=cycle_selection,
                 single_seed=len(cfg["seeds"]) == 1,
                 limitation="Tuned single-seed selected-cue demonstration; no held-out test or isolated CTC mechanism",
                 elapsed_seconds=perf_counter() - started,

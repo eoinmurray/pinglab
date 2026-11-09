@@ -12,6 +12,62 @@ from experiments.exp172.present import spatial_timecourse
 from experiments.exp172.recipe import configuration, gaussian, topographic
 
 
+def test_cycle_selection_success_and_flicker_are_independent():
+    from experiments.exp172.analyse import cycle_selection_scores
+
+    def scores(a, b):
+        return cycle_selection_scores(
+            [
+                dict(attended="A", cycles=[dict(dominant=s) for s in a]),
+                dict(attended="B", cycles=[dict(dominant=s) for s in b]),
+            ]
+        )
+
+    perfect = scores(["A"] * 3, ["B"] * 7)
+    assert perfect["switching_success"] == 1
+    assert perfect["flicker_fraction"] == 0
+    stuck = scores(["A"] * 3, ["A"] * 7)
+    assert stuck["switching_success"] == 0.5
+    assert stuck["flicker_fraction"] == 0
+    wrong = scores(["B"] * 3, ["A"] * 7)
+    assert wrong["switching_success"] == 0
+    assert wrong["flicker_fraction"] == 0
+    alternating = scores(["A", "B", "A", "B"], ["B", "A", "B", "A"])
+    assert alternating["switching_success"] == 0.5
+    assert alternating["flicker_fraction"] == 1
+    interrupted = scores(["A", None, "B"], ["B", "B"])
+    assert interrupted["eligible_pairs"] == 1
+    assert interrupted["flicker_fraction"] == 0
+    assert interrupted["switching_success"] == pytest.approx(2 / 3)
+    assert scores([None], [None])["switching_success"] == 0
+    assert scores([None], [None])["flicker_fraction"] is None
+    assert scores([], ["B"])["switching_success"] is None
+
+
+def test_cycle_latency_reports_run_onset_and_resets_after_unresolved_cycles():
+    from experiments.exp172.analyse import cycle_switch_latency
+
+    def latency(states):
+        cycles = [
+            dict(start_ms=i * 20, end_ms=(i + 1) * 20, dominant=s)
+            for i, s in enumerate(states)
+        ]
+        return cycle_switch_latency(cycles, 10, 3)
+
+    immediate = latency(["A", "B", "B", "B"])
+    assert immediate["cycles"] == 1
+    assert immediate["onset_ms"] == 10
+    assert immediate["confirmation_ms"] == 70
+    assert latency(["B", "B", "B"])["cycles"] is None
+    assert latency(["A", "B", None, "B", "B", "B"])["cycles"] == 3
+    assert latency(["A", "B", "A", "B", "B"])["cycles"] is None
+    cycles = [
+        dict(start_ms=i * 20, end_ms=(i + 1) * 20, dominant="A") for i in range(4)
+    ]
+    assert cycle_switch_latency(cycles, 0, 3, attended="A", end_ms=60)["cycles"] == 1
+    assert cycle_switch_latency(cycles, 0, 3, attended="A", end_ms=50)["cycles"] is None
+
+
 def test_known_mixture_and_silent_response():
     x = np.arange(400) / 400
     centres = [0.25, 0.75]
@@ -107,7 +163,9 @@ with patch('snnlab.sim.simulate',side_effect=AssertionError('simulation on impor
     for name in ["recipe.py", "compute.py", "analyse.py", "present.py"]:
         text = (root / "experiments/exp172" / name).read_text()
         assert "from run import" not in text
-        assert ".scratch/gaussian-selection" not in text
+        assert ".scratch/" not in text
+        assert '".scratch"' not in text
+        assert "'.scratch'" not in text
 
 
 def test_spatial_timecourse_recovers_known_components():
@@ -157,3 +215,94 @@ def test_stability_distinguishes_correct_switch_from_wrong_spatial_assignment():
     wrong = stability_metrics({"C_E": rates / 1000}, cfg, swap=True)
     assert wrong["worst_window_wrong_fraction"] == 1
     assert wrong["switch_latency_ms"] is None
+
+
+def test_whole_volley_decoder_rejects_split_half_artifact_and_keeps_real_excursion():
+    from experiments.exp172.analyse import cycle_selection_metrics
+    from experiments.exp172.present import phase_evidence
+    from scipy.optimize import nnls
+
+    cfg = configuration(dt_ms=0.1, duration_ms=800.0, switch_ms=400.0)
+    cfg["stability_search"]["windows_ms"] = [[100.0, 350.0], [450.0, 750.0]]
+    t = np.arange(8000) * cfg["dt_ms"]
+    x = np.arange(400) / 400
+    sigma = np.sqrt(
+        sum(
+            cfg[k] ** 2
+            for k in ["spatial_sigma", "sensory_kernel_sigma", "cross_kernel_sigma"]
+        )
+    )
+    patterns = [gaussian(x, c, sigma) for c in cfg["centres"]]
+    design = np.column_stack([np.ones(400), *patterns])
+    for real_excursion in [False, True]:
+        rates = np.zeros((len(t), 400))
+        for i, centre in enumerate(np.arange(50.0, 780.0, 22.0)):
+            attended = 0 if centre < cfg["switch_ms"] else 1
+            other = 1 - attended
+            lead = -1.0 if i % 2 == 0 else 1.0
+            correct, competitor = (
+                (25.0, 30.0) if real_excursion and centre == 248.0 else (30.0, 25.0)
+            )
+            rates += (
+                correct
+                * np.exp(-0.5 * ((t - centre - lead) / 0.45) ** 2)[:, None]
+                * patterns[attended]
+            )
+            rates += (
+                competitor
+                * np.exp(-0.5 * ((t - centre + lead) / 0.45) ** 2)[:, None]
+                * patterns[other]
+            )
+        # Analytic rate profiles test only decoding; no neural simulation.
+        values = rates * cfg["dt_ms"] / 1000
+        measured = cycle_selection_metrics({"C_E": values}, cfg, sustained_cycles=3)
+        a, b = measured["epochs"]
+        if real_excursion:
+            assert a["switching_success"] < 1
+            assert a["flicker_fraction"] > 0
+        else:
+            assert a["switching_success"] == b["switching_success"] == 1
+            assert a["flicker_fraction"] == b["flicker_fraction"] == 0
+        for epoch in measured["epochs"]:
+            for cycle in epoch["cycles"]:
+                assert cycle["start_ms"] < cycle["peak_ms"] < cycle["end_ms"]
+        # Demonstrate that peak-to-peak bins mislabel these same complete,
+        # attended-dominant volleys when their spatial halves differ in timing.
+        _, _, _, detected = phase_evidence(
+            {"A_E": values, "B_E": values, "C_E": values}, cfg
+        )
+        wrong = 0
+        for lo, hi in zip(detected["C"], detected["C"][1:], strict=False):
+            if lo * cfg["dt_ms"] >= 100 and hi * cfg["dt_ms"] <= 350:
+                _, aa, bb = nnls(design, values[lo:hi].mean(0) * 1000 / cfg["dt_ms"])[0]
+                wrong += bb > aa
+        assert wrong > 0
+
+
+def test_whole_volley_decoder_handles_no_detected_cycles():
+    from experiments.exp172.analyse import cycle_selection_metrics
+
+    cfg = configuration(dt_ms=1.0, duration_ms=800.0, switch_ms=400.0)
+    cfg["stability_search"]["windows_ms"] = [[100, 350], [450, 750]]
+    measured = cycle_selection_metrics(
+        {"C_E": np.zeros((800, 400))}, cfg, sustained_cycles=3
+    )
+    assert measured["cycle_counts"] == [0, 0]
+    assert measured["switching_success"] is None
+    assert measured["flicker_fraction"] is None
+    assert measured["switching_latency"]["cycles"] is None
+
+
+def test_report_scope_requires_every_planned_trial_and_records_historical_extras():
+    from experiments.exp172.analyse import report_trial_scope
+    from experiments.exp172.recipe import trial_plan
+
+    cfg = configuration()
+    trials = [dict(id=item["id"]) for item in trial_plan(cfg)]
+    selected, excluded = report_trial_scope([*trials, dict(id="historical-extra")], cfg)
+    assert selected == trials
+    assert excluded == ["historical-extra"]
+    with pytest.raises(ValueError, match="Incomplete trial grid"):
+        report_trial_scope(trials[1:], cfg)
+    with pytest.raises(ValueError, match="Duplicate trial"):
+        report_trial_scope([*trials, trials[0]], cfg)

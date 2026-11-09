@@ -1989,7 +1989,7 @@ def _local_index_signature(directory):
     return signature
 
 
-def _local_index_records(runs, cache, *, verify):
+def _local_index_records(runs, cache, *, verify, verify_runs=()):
     """Index metadata without reading arrays; explicit verification authenticates bytes."""
     records, errors, revised = {}, {}, {}
     if not runs.exists():
@@ -2008,6 +2008,7 @@ def _local_index_records(runs, cache, *, verify):
                 raise PingstoreError(f"run must be a real directory: {directory}")
             signature = _local_index_signature(directory)
             previous = cache.get(identity, {})
+            verify_selected = verify or identity in verify_runs
             manifest = directory / "run.json"
             if manifest.is_symlink() or not manifest.is_file():
                 raise PingstoreError(f"run.json must be a regular file: {manifest}")
@@ -2029,12 +2030,12 @@ def _local_index_records(runs, cache, *, verify):
                 raise PingstoreError(
                     f"invalid operational run identity/layout: {identity}"
                 )
-            if previous and not unchanged and not verify:
+            if previous and not unchanged and not verify_selected:
                 raise PingstoreError(
                     "local files changed since indexing; inspect with status --verify"
                 )
             verified = unchanged and previous.get("verified", False)
-            if verify and not verified:
+            if verify_selected and not verified:
                 record = validate_operational_run_directory(directory)
                 verified = True
             records[identity] = record
@@ -2056,6 +2057,7 @@ def reporting_index(
     source="auto",
     remote_known=True,
     verify=False,
+    verify_runs=(),
     publications=None,
     operation=None,
     inventory_state=None,
@@ -2074,7 +2076,9 @@ def reporting_index(
     local, errors, revised = (
         ({}, {}, {})
         if source == "remote"
-        else _local_index_records(runs, cache, verify=verify)
+        else _local_index_records(
+            runs, cache, verify=verify, verify_runs=set(verify_runs)
+        )
     )
     if source != "remote" and revised != cache:
         write_json_atomic(cache_path, revised)
@@ -2091,7 +2095,7 @@ def reporting_index(
             protections[identity] = identity
     pending = defaultdict(set)
     if source != "remote" and runs.is_dir():
-        _hidden_inputs(runs, {**remote, **local}, pending)
+        _hidden_inputs(runs, {**remote, **local}, pending, errors=errors)
     return resolve_run_index(
         local,
         remote,
@@ -2139,7 +2143,7 @@ def render_status(index):
 
 
 def _hidden_inputs(
-    runs: Path, records: dict[str, dict], reasons: dict[str, set[str]]
+    runs: Path, records: dict[str, dict], reasons: dict[str, set[str]], *, errors=None
 ) -> list[dict]:
     hidden = []
     for directory in sorted(
@@ -2168,9 +2172,13 @@ def _hidden_inputs(
                 if parent is None or parent["payload_digest"] != reference.get(
                     "payload_digest"
                 ):
-                    raise PingstoreError(
-                        f"{directory.name}: missing or changed input {run_id}"
-                    )
+                    message = f"{directory.name}: missing or changed input {run_id}"
+                    if errors is None:
+                        raise PingstoreError(message)
+                    # Reporting exposes broken unfinished work without blocking
+                    # unrelated completed evidence; maintenance remains strict.
+                    errors[directory.name] = message
+                    continue
                 reasons[run_id].add(f"incomplete-input:{directory.name}")
         if reservation.is_file() and not reservation.is_symlink():
             state["reservation_sha256"] = file_sha256(reservation)

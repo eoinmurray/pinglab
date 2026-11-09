@@ -1,34 +1,40 @@
 # exp148 — External-I-drive transition
 
-See the [pedagogical mean-field note](../../notes/mean-field-model.mdx) for the
-exp117/exp148 closures and the proposed matrix and shared/private-input extensions.
+Test whether reducing external excitation of inhibitory neurons produces population
+oscillations in a shared-input conductance network. Compare the spiking trajectory with
+an optional matched mean-field model.
 
-Test whether reducing only direct external excitation of inhibitory neurons
-produces population oscillations in a shared-input COBA network derived from
-exp145. The 4,000 E / 1,000 I network has full recurrence and full Input→E/I
-strength from initialization. After 50 ms burn-in, measure three 750 ms windows:
-AI target, AI-to-PING transition, and PING target. Only Input→I gain falls,
-linearly from one to zero during the middle window. Input→E and all recurrent
-weights stay at reference strength; source rate stays at 2.5 Hz/source.
-One 4,000-source pool feeds fixed 5% input masks; recurrent connectivity is 20%.
-State is continuous throughout the 2,300 ms simulation. AI and PING are protocol
-targets; state classification and the oscillation mechanism remain unestablished.
+## Run
 
-## CLI
+From the repository root, run these stages in order.
+Compute runs simulations and requires explicit authorisation.
 
-1. `compute.py`: run the three-window trajectory. Optional `--seed` (42),
-   `--device` (cpu), `--compile-mode` (`off` or `default`; default `off`),
-   `--n-e` / `--n-i` (4000 / 1000), `--record-state`, and `--run-id`.
-   `SNNLAB_DEVICE` overrides `--device`. `--record-state` additionally saves
-   native population mean voltage and mean conductance for each pathway.
-   Alternatively, `--mean-field-source SPIKING_COMPUTE_ID` runs the four-state
-   SNNLab rate–conductance reduction using that run's authenticated graph, recorded protocol and sampled matrices;
-   it reuses the immutable spiking evidence without rerunning the network.
-   SNNLab exports the symbolic model and performs continuation, crossing
-   refinement and controlled integration in the matched-decay four-state basis.
-2. `analyse.py`: `--source COMPUTE_ID` (required), `--run-id` (optional).
-   Add `--mean-field MODEL_COMPUTE_ID` to include a model tied to the same source.
-   Validate the trajectory and measure all three windows plus local hold timing.
-3. `present.py`: `--source ANALYSE_ID` (required), `--run-id` (optional).
-   Render the raster, full-width Input→I weight schedule and three window spectra.
-4. `test.py`: `uv run pytest experiments/exp148/test.py -q`.
+```sh
+uv run python experiments/exp148/compute.py
+uv run python experiments/exp148/analyse.py --source COMPUTE_ID
+uv run python experiments/exp148/present.py --source ANALYSE_ID
+```
+
+Replace `COMPUTE_ID` and `ANALYSE_ID` with the completed run IDs
+from the preceding stages.
+
+To include the matched mean-field model, run compute again with
+`--mean-field-source COMPUTE_ID`, then add `--mean-field MODEL_COMPUTE_ID`
+to analysis using the new model run ID.
+
+To run automated checks:
+
+```sh
+uv run pytest experiments/exp148/test.py -q
+```
+
+## Folder guide
+
+1. `recipe.py` — configuration and model definition.
+2. `dataset.py` — input preparation and encoding.
+3. `compute.py` — run simulations and save evidence.
+4. `analyse.py` — calculate measurements from saved evidence.
+5. `present.py` — generate figures and report assets.
+6. `custom/` — experiment-specific models, helpers and execution tools.
+7. `report/` — report, appendix and supporting components.
+8. `test.py` — automated checks.

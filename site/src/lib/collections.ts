@@ -33,6 +33,7 @@ const collections = [
   {
     id: "neuromorphic-toolbox",
     label: "Neuromorphic Toolbox",
+    description: "Tools for building, simulating, and analysing spiking neural networks.",
   },
   {
     id: "guides",

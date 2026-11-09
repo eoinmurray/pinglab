@@ -90,7 +90,7 @@ def execute(cfg, parameters, item, data, diagram=False):
         spikes[k.removesuffix("_spikes")] = raw.astype(np.uint8)
     np.savez_compressed(trial / "spikes.npz", **spikes)
     checkpoint.unlink()
-    epochs, profiles = analyse(spikes, cfg, item["swap"])
+    epochs, profiles = analyse(spikes, local, item["swap"])
     np.savez_compressed(trial / "profiles.npz", **profiles)
     record = dict(
         **item,
@@ -98,7 +98,7 @@ def execute(cfg, parameters, item, data, diagram=False):
         simulation_seconds=simulation_seconds,
         total_seconds=perf_counter() - tick,
     )
-    record["stability"] = stability_metrics(spikes, cfg, item["swap"])
+    record["stability"] = stability_metrics(spikes, local, item["swap"])
     dump(trial / "metrics.json", record)
     print(
         json.dumps(
@@ -119,7 +119,7 @@ def parameter_reference():
     return source_run(
         REPO / ".pingstore",
         cfg["source_run"],
-        experiment="exp162",
+        experiment="exp172",
         stage="compute",
         reference=dict(run_id=cfg["source_run"], payload_digest=cfg["source_digest"]),
     )
@@ -130,60 +130,29 @@ def compute(run_id=None):
     torch.set_num_threads(1)
     cfg = recipe.configuration()
     reference = parameter_reference()
-    snapshot = reference.file("execution/start/snapshot.json")
+    snapshot = reference.file(cfg["source_snapshot"])
     if file_sha256(snapshot) != cfg["source_snapshot_sha256"]:
         raise ValueError("Snapshot hash mismatch")
-    parameters = recipe.topographic(
-        NetworkSnapshot.read(snapshot).load_parameters(), cfg
-    )
-    items = [
-        dict(
-            id=f"seed{seed}-swap{int(swap)}-cue{cue:g}",
-            seed=seed,
-            swap=swap,
-            cue_hz=cue,
-            active="AB",
-        )
-        for seed in cfg["seeds"]
-        for swap in cfg["spatial_assignments"]
-        for cue in cfg["cue_strengths_hz"]
-    ]
-    items += [
-        dict(
-            id=f"single{c}-swap{int(swap)}",
-            seed=cfg["seeds"][0],
-            swap=swap,
-            cue_hz=0.0,
-            active=c,
-        )
-        for swap in cfg["spatial_assignments"]
-        for c in "AB"
-    ]
-    selection = source_run(
-        REPO / ".pingstore",
-        cfg["selection_reference"]["run_id"],
-        experiment="exp172",
-        stage="compute",
-        reference=cfg["selection_reference"],
-    )
+    original = NetworkSnapshot.read(snapshot).load_parameters()
+    baseline = json.loads(reference.file("configuration.json").read_text())
+    items = recipe.trial_plan(cfg)
     with stage_run(
         REPO,
         "exp172",
         "compute",
-        inputs={"parameter_reference": reference, "selection_reference": selection},
+        inputs={"parameter_reference": reference},
         run_id=run_id,
         configuration=cfg,
     ) as run:
         dump(run.export / "configuration.json", cfg)
-        selected = json.loads(selection.file("stability-selection.json").read_text())
-        if (
-            selected["selected"]["recurrence_scale"] != cfg["c_ee_scale"]
-            or selected["selected"]["inhibition_scale"] != cfg["c_ie_scale"]
-        ):
-            raise ValueError("Recipe differs from the recorded report selection")
-        dump(run.export / "stability-selection.json", selected)
         records = [
-            execute(cfg, parameters, item, run.export, diagram=i == 0)
+            execute(
+                cfg,
+                recipe.selected_parameters(original, cfg, baseline),
+                item,
+                run.export,
+                diagram=i == 0,
+            )
             for i, item in enumerate(items)
         ]
         dump(

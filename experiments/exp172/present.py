@@ -1,4 +1,4 @@
-"""Render four spatial-relay figures from explicitly pinned analysis; no simulation."""
+"""Render four spatial-relay figures from pinned analysis; no simulation."""
 
 import argparse
 import json
@@ -14,6 +14,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.ndimage import gaussian_filter1d
 from scipy.signal import find_peaks
+from scipy.special import softmax
 from snnlab import lang, viz
 from snnlab.sim import NetworkSnapshot
 
@@ -200,25 +201,36 @@ def relative_phases(spikes, cfg):
     return t, {c: phases[c] - phases["C"] for c in "AB"}
 
 
-def amplitude_panel(ax, course, cfg):
+def amplitude_panel(ax, course, cfg, *, softmax_scale_hz=None):
     rows = course["points"]
-    for c, color in zip("AB", [theme.INK_BLACK, theme.DEEP_RED], strict=False):
+    amplitudes = np.array([[r[c + "_amplitude_hz"] for c in "AB"] for r in rows])
+    normalised = softmax_scale_hz is not None
+    values = (
+        softmax(amplitudes / softmax_scale_hz, axis=1) if normalised else amplitudes
+    )
+    for j, (c, color) in enumerate(
+        zip("AB", [theme.INK_BLACK, theme.DEEP_RED], strict=False)
+    ):
         ax.plot(
             [r["time_ms"] for r in rows],
-            [r[c + "_amplitude_hz"] for r in rows],
+            values[:, j],
             color=color,
             lw=1.2,
-            label=f"{c}-like amplitude",
+            label=f"{c}-like" if normalised else f"{c}-like amplitude",
         )
     ax.axvline(cfg["switch_ms"], color=theme.MUTED, ls="--", lw=1)
     for start, end in cfg["windows_ms"]:
         ax.axvspan(start, end, color=theme.GREY_LIGHT, alpha=0.25)
     ax.set(
-        title=f"C spatial components · {course['window_ms']:g} ms windows, {course['hop_ms']:g} ms step",
+        title=(
+            f"Spatial-amplitude softmax · scale {softmax_scale_hz:g} Hz"
+            if normalised
+            else f"C spatial components · {course['window_ms']:g} ms windows, {course['hop_ms']:g} ms step"
+        ),
         xlabel="Time (ms)",
-        ylabel="Fitted Gaussian amplitude (Hz)",
+        ylabel="Softmax weight" if normalised else "Fitted Gaussian amplitude (Hz)",
         xlim=(0, cfg["duration_ms"]),
-        ylim=(0, None),
+        ylim=(-0.1, 1.1) if normalised else (0, None),
     )
     ax.legend(loc="upper right", fontsize=theme.SIZE_ANNOTATION)
 
@@ -240,6 +252,7 @@ def select_trial(data, cfg, args):
         trial_id=metrics["id"],
         spatial_window_ms=100.0,
         spatial_hop_ms=5.0,
+        softmax_scale_hz=1.0,
         criterion="Recorded representative cue and seed; originally selected on the displayed seed.",
         selection="recorded representative"
         if args.cue == cfg["representative_cue_hz"]
@@ -248,6 +261,56 @@ def select_trial(data, cfg, args):
         averaging="none; one seed and one spatial assignment",
     )
     return metrics, selection_metadata, representative_seed
+
+
+def raster_panel(raster, spikes, c, cfg):
+    """Draw one population raster with the shared E/I layout and cue markers."""
+    ne = spikes[c + "_E"].shape[1]
+    ni = spikes[c + "_I"].shape[1]
+    for p, offset, color in [("E", 0, theme.INK_BLACK), ("I", ne, theme.DEEP_RED)]:
+        t, n = np.nonzero(spikes[c + "_" + p])
+        raster.scatter(
+            t * cfg["dt_ms"],
+            n + offset + 1,
+            marker=".",
+            s=2.5,
+            linewidths=0,
+            color=color,
+            rasterized=True,
+        )
+    raster.axhline(ne + 0.5, color=theme.GREY_LIGHT, lw=0.5)
+    raster.axvline(cfg["switch_ms"], color=theme.MUTED, ls="--", lw=1)
+    for start, end in cfg["windows_ms"]:
+        raster.axvline(start, color=theme.GREY_MID, ls=":", lw=0.65)
+        raster.axvline(end, color=theme.GREY_MID, ls=":", lw=0.65)
+    raster.set(
+        title=f"{c} · E/I raster",
+        xlim=(0, cfg["duration_ms"]),
+        ylim=(0.5, ne + ni + 0.5),
+        yticks=[1, ne, ne + ni],
+        ylabel="Neuron index",
+        xlabel="Time (ms)",
+    )
+    raster.text(
+        0.98,
+        0.96,
+        "I",
+        color=theme.DEEP_RED,
+        ha="right",
+        va="top",
+        transform=raster.transAxes,
+        fontweight="bold",
+    )
+    raster.text(
+        0.98,
+        0.72,
+        "E",
+        color=theme.INK_BLACK,
+        ha="right",
+        va="top",
+        transform=raster.transAxes,
+        fontweight="bold",
+    )
 
 
 def plot_populations(
@@ -268,52 +331,7 @@ def plot_populations(
     for row, c in enumerate("ABC"):
         raster = raster_fig.add_subplot(raster_grid[0, row])
         raster_axes.append(raster)
-        ne = spikes[c + "_E"].shape[1]
-        ni = spikes[c + "_I"].shape[1]
-        for p, offset, color in [("E", 0, theme.INK_BLACK), ("I", ne, theme.DEEP_RED)]:
-            t, n = np.nonzero(spikes[c + "_" + p])
-            raster.scatter(
-                t * cfg["dt_ms"],
-                n + offset + 1,
-                marker=".",
-                s=2.5,
-                linewidths=0,
-                color=color,
-                rasterized=True,
-            )
-        raster.axhline(ne + 0.5, color=theme.GREY_LIGHT, lw=0.5)
-        raster.axvline(cfg["switch_ms"], color=theme.MUTED, ls="--", lw=1)
-        for start, end in cfg["windows_ms"]:
-            raster.axvline(start, color=theme.GREY_MID, ls=":", lw=0.65)
-            raster.axvline(end, color=theme.GREY_MID, ls=":", lw=0.65)
-        raster.set(
-            title=f"{c} · E/I raster",
-            xlim=(0, cfg["duration_ms"]),
-            ylim=(0.5, ne + ni + 0.5),
-            yticks=[1, ne, ne + ni],
-            ylabel="Neuron index",
-            xlabel="Time (ms)",
-        )
-        raster.text(
-            0.98,
-            0.96,
-            "I",
-            color=theme.DEEP_RED,
-            ha="right",
-            va="top",
-            transform=raster.transAxes,
-            fontweight="bold",
-        )
-        raster.text(
-            0.98,
-            0.72,
-            "E",
-            color=theme.INK_BLACK,
-            ha="right",
-            va="top",
-            transform=raster.transAxes,
-            fontweight="bold",
-        )
+        raster_panel(raster, spikes, c, cfg)
         for col, p in [(1, "E"), (2, "I")]:
             ax = profile_fig.add_subplot(profile_grid[row, col - 1])
             profile_axes.append(ax)
@@ -395,8 +413,8 @@ def render(data, output, argv=None):
     raster_grid = raster_fig.add_gridspec(1, 3)
     profile_fig = plt.figure(figsize=(11, 10), layout="constrained")
     profile_grid = profile_fig.add_gridspec(3, 2)
-    signal_fig = plt.figure(figsize=(11, 5), layout="constrained")
-    signal_grid = signal_fig.add_gridspec(1, 2)
+    signal_fig = plt.figure(figsize=(16.5, 5), layout="constrained")
+    signal_grid = signal_fig.add_gridspec(1, 3)
     weight_fig = plt.figure(figsize=(11, 5), layout="constrained")
     weight_grid = weight_fig.add_gridspec(1, 2)
     raster_axes = []
@@ -436,6 +454,11 @@ def render(data, output, argv=None):
     amplitude_ax = signal_fig.add_subplot(signal_grid[0, 1])
     signal_axes.append(amplitude_ax)
     amplitude_panel(amplitude_ax, course, cfg)
+    softmax_ax = signal_fig.add_subplot(signal_grid[0, 2])
+    signal_axes.append(softmax_ax)
+    amplitude_panel(
+        softmax_ax, course, cfg, softmax_scale_hz=selection_metadata["softmax_scale_hz"]
+    )
     parameters = NetworkSnapshot.read(
         directory / "start/snapshot.json"
     ).load_parameters()
@@ -492,11 +515,12 @@ def present(source, run_id=None, cue=None, seed=None):
         stage="compute",
         reference=analysed.record["inputs"]["compute"],
     )
+    inputs = {"analyse": analysed, "compute": computed}
     with stage_run(
         REPO,
         "exp172",
         "present",
-        inputs={"analyse": analysed, "compute": computed},
+        inputs=inputs,
         run_id=run_id,
         configuration=dict(
             cue=cue, seed=seed, spatial_window_ms=100.0, spatial_hop_ms=5.0
@@ -532,6 +556,7 @@ def present(source, run_id=None, cue=None, seed=None):
             if computed.file("stability-selection.json").exists()
             else None
         )
+        analysis = json.loads(analysed.file("results.json").read_text())
         (run.export / "numbers.json").write_text(
             json.dumps(
                 dict(
@@ -539,7 +564,10 @@ def present(source, run_id=None, cue=None, seed=None):
                     selection=selected,
                     stability_selection=stability_selection,
                     metrics=trial,
-                    analysis=json.loads(analysed.file("results.json").read_text()),
+                    analysis=analysis,
+                    cycle_selection=analysis.get("cycle_selection", {}).get(
+                        trial["id"]
+                    ),
                     matrix_stats=matrix_stats,
                     elapsed_seconds=perf_counter() - started,
                 ),

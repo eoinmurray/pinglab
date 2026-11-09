@@ -2077,7 +2077,7 @@ requires-dist = [
     { name = "scikit-learn", specifier = ">=1.7.2" },
     { name = "scipy", specifier = ">=1.15.3" },
     { name = "sh", specifier = ">=2.0.0" },
-    { name = "snnlab", git = "https://github.com/eoinmurray/snnlab.git?rev=fe643657f6b4b1b4c5e7c61b83fa50842aae9cdd" },
+    { name = "snnlab", git = "https://github.com/eoinmurray/snnlab.git?rev=a57142f6cbf959daf63e77575f59c60032e1171b" },
     { name = "snntorch", specifier = ">=0.9.4" },
     { name = "torch", marker = "sys_platform != 'linux'", specifier = ">=2.10.0" },
     { name = "torch", marker = "sys_platform == 'linux'", specifier = ">=2.10.0", index = "https://download.pytorch.org/whl/cu128" },
@@ -2874,8 +2874,8 @@ wheels = [
 
 [[package]]
 name = "snnlab"
-version = "0.32.0"
-source = { git = "https://github.com/eoinmurray/snnlab.git?rev=fe643657f6b4b1b4c5e7c61b83fa50842aae9cdd#fe643657f6b4b1b4c5e7c61b83fa50842aae9cdd" }
+version = "0.32.3"
+source = { git = "https://github.com/eoinmurray/snnlab.git?rev=a57142f6cbf959daf63e77575f59c60032e1171b#a57142f6cbf959daf63e77575f59c60032e1171b" }
 dependencies = [
     { name = "h5py" },
     { name = "matplotlib" },

@@ -7,7 +7,7 @@ import '../../../../papers/index.yaml?raw';
 export async function getStaticPaths() {
   // Local PDFs are available in development only, never in published output.
   if (import.meta.env.PROD) return [];
-  return (await getPapers()).map(paper => ({
+  return (await getPapers()).flatMap(paper => [paper, ...(paper.supplements ?? [])]).filter(paper => paper.path).map(paper => ({
     params: { file: paper.file }, props: { path: paper.path },
   }));
 }

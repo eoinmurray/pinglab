@@ -1,8 +1,8 @@
 ---
 import type { Paper } from '../lib/papers';
 import { paperCollectionLabel } from '../lib/papers';
-interface Props { papers: Paper[]; }
-const { papers } = Astro.props;
+interface Props { papers: Paper[]; collection?: string; }
+const { papers, collection } = Astro.props;
 const surname = (author: string) => {
   const parts = author.trim().split(/\s+/);
   let start = parts.length - 1;
@@ -13,7 +13,7 @@ const surname = (author: string) => {
 ---
   <div class="base-grid">
     <ol class="papers-list article-list listing-width l-page" role="list" aria-label="Papers">
-      {papers.map(paper => <li class="article-list-row" data-search={[paper.file, paper.metadata?.id, paper.metadata?.title, ...(paper.metadata?.authors ?? []), paper.metadata?.year, paper.metadata?.venue, paper.metadata?.doi, ...(paper.metadata?.tags ?? []).map(paperCollectionLabel), ...paper.collections.map(paperCollectionLabel)].join(' ')}>
+      {papers.map(paper => <li hidden={collection ? !paper.collections.includes(collection) : undefined} data-collections={JSON.stringify(paper.collections)} class="article-list-row" data-search={[paper.file, paper.metadata?.id, paper.metadata?.title, ...(paper.metadata?.authors ?? []), paper.metadata?.year, paper.metadata?.venue, paper.metadata?.doi, ...(paper.metadata?.tags ?? []).map(paperCollectionLabel), ...paper.collections.map(paperCollectionLabel)].join(' ')}>
         <div class="metadata">
           {paper.metadata && <>
             {paper.href ? <a class="paper-year" href={paper.href} aria-label={`Open ${paper.metadata.id}: ${paper.metadata.title}`}>{paper.metadata.year}</a>
@@ -33,6 +33,11 @@ const surname = (author: string) => {
               {paper.metadata.doi && <> <a href={`https://doi.org/${paper.metadata.doi}`}>DOI</a></>}
             </p>
           </>}
+          {paper.metadata?.tags && <p class="paper-citation">Tags: {paper.metadata.tags.map(paperCollectionLabel).join(' · ')}</p>}
+          {paper.supplements?.map(supplement => <p class="paper-citation">
+            {supplement.href ? <a href={supplement.href}>Supporting material ({supplement.metadata?.id})</a>
+              : <span>Supporting material ({supplement.metadata?.id}) — no public source link available.</span>}
+          </p>)}
         </div>
       </li>)}
     </ol>

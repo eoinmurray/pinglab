@@ -2,15 +2,14 @@
 import PostsList from './PostsList.astro';
 import CollectionBrowser from './CollectionBrowser.astro';
 import type { Post } from '../lib/posts';
-import { collectionCounts, collectionLabel, collectionUrl, compareCollections } from '../lib/collections';
-import { getPapers, getPaperCollections, paperCollectionLabel, paperCollectionUrl, type Paper } from '../lib/papers';
+import { collectionCounts, collectionLabel, collectionDescription, compareCollections } from '../lib/collections';
+import { getPapers, type Paper } from '../lib/papers';
 
 interface Props { posts: Post[]; collection?: string; papers?: Paper[]; sortable?: boolean; }
 const { posts, collection, papers = await getPapers(), sortable = false } = Astro.props;
 const articleCounts = collectionCounts(posts);
-const paperCounts = collectionCounts(papers);
 const collections = [...new Set(posts.flatMap(post => post.collections))].sort(compareCollections);
-const visiblePosts = collection ? posts.filter(post => post.collections.includes(collection)) : [...posts];
+const visiblePosts = [...posts];
 visiblePosts.sort((a, b) => {
   const aExperiment = a.collections.includes('experiments');
   const bExperiment = b.collections.includes('experiments');
@@ -18,10 +17,9 @@ visiblePosts.sort((a, b) => {
     || (aExperiment && bExperiment ? b.id.localeCompare(a.id, 'en', { numeric: true }) : 0);
 });
 ---
-<CollectionBrowser title={collection ? collectionLabel(collection) : 'Articles'} allHref="/" allLabel="All articles"
+<CollectionBrowser title={collection ? collectionLabel(collection) : 'Articles'}
+  defaultCollection={{ label: 'Articles', description: 'Scientific reports, notes, and slide decks from Pinglab.' }}
   allCount={posts.length} allPapersCount={papers.length}
-  heading="Articles"
-  literature={getPaperCollections(papers).map(name => ({ href: paperCollectionUrl(name), label: paperCollectionLabel(name), count: paperCounts.get(name) ?? 0 }))}
-  filtered={!!collection} collections={collections.map(name => ({ href: collectionUrl(name), label: collectionLabel(name), count: articleCounts.get(name) ?? 0, active: name === collection }))}>
-  <PostsList posts={visiblePosts} sortable={sortable} />
+  collections={collections.map(name => ({ id: name, label: collectionLabel(name), description: collectionDescription(name), count: articleCounts.get(name) ?? 0, active: name === collection }))}>
+  <PostsList posts={visiblePosts} sortable={sortable} collection={collection} />
 </CollectionBrowser>

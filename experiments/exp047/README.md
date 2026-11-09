@@ -1,18 +1,34 @@
-# exp047
+# exp047 — Pool Size and Synaptic Scaling
 
-Separate inhibitory-pool-size effects under fixed summed coupling and fixed expected per-synapse strength, using paired untrained-network controls.
+Separate inhibitory-pool-size effects under fixed summed coupling and fixed expected
+per-synapse strength, using paired untrained-network controls.
 
-## CLI
+## Run
 
-Run each stage independently from the repository root with `uv run python`.
+From the repository root, run these stages in order.
+Compute runs simulations and requires explicit authorisation.
 
-1. `compute.py`: `--run-id` (optional).
-2. `analyse.py`: `--source` (required), `--run-id` (optional).
-3. `present.py`: `--source` (required), `--run-id` (optional).
-4. `test.py`: `uv run pytest experiments/exp047/test.py`; optional pytest arguments.
+```sh
+uv run python experiments/exp047/compute.py
+uv run python experiments/exp047/analyse.py --source COMPUTE_ID
+uv run python experiments/exp047/present.py --source ANALYSE_ID
+```
 
-Optional environment: `PINGLAB_SMOKE=1` selects the bounded smoke profile; `SNNLAB_DEVICE` (or the legacy `PINGLAB_DEVICE`) selects the execution device.
+Replace `COMPUTE_ID` and `ANALYSE_ID` with the completed run IDs
+from the preceding stages.
 
-Regenerate the documented-model illustrations without running a scientific stage:
-`uv run python experiments/exp047/present.py --draw-schematics`.
-These authored SVGs do not reconstruct missing historical bundles.
+To run automated checks:
+
+```sh
+uv run pytest experiments/exp047/test.py -q
+```
+
+## Folder guide
+
+1. `recipe.py` — configuration and model definition.
+2. `compute.py` — run simulations and save evidence.
+3. `analyse.py` — calculate measurements from saved evidence.
+4. `present.py` — generate figures and report assets.
+5. `custom/` — experiment-specific models, helpers and execution tools.
+6. `report/` — report, appendix and supporting components.
+7. `test.py` — automated checks.

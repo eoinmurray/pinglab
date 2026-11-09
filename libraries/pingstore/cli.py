@@ -58,6 +58,13 @@ def _parser() -> argparse.ArgumentParser:
         help="validate local payload bytes before indexing",
     )
     status.add_argument(
+        "--verify-run",
+        action="append",
+        default=[],
+        metavar="RUN_ID",
+        help="validate only these local runs before refreshing their index entries; repeatable",
+    )
+    status.add_argument(
         "--index-path", type=Path, help="save a rebuildable versioned JSON index"
     )
     status.add_argument("--catalog-stdin", action="store_true", help=argparse.SUPPRESS)
@@ -245,6 +252,7 @@ def _status(args) -> int:
         source=args.source,
         remote_known=remote_known,
         verify=args.verify,
+        verify_runs=getattr(args, "verify_run", ()),
         publications=publications,
         operation=operation,
         inventory_state=inventory_state,

@@ -22,7 +22,7 @@ export class RunStore {
   readonly root: string;
   readonly base: string;
   readonly source: 'auto' | 'local' | 'remote';
-  readonly catalog: () => Promise<Catalog>;
+  readonly catalog: (refresh?: boolean) => Promise<Catalog>;
   readonly control: () => Promise<any>;
   private warned = false;
   private buildIndex?: Promise<RunIndex>;
@@ -38,12 +38,12 @@ export class RunStore {
       ?? (process.env.NODE_ENV === 'production' ? 'remote' : 'auto'));
     if (!['auto', 'local', 'remote'].includes(source)) throw new Error(`Invalid run source: ${source}`);
     this.source = source as StoreOptions['source'] & string;
-    const loadCatalog = options.catalog ?? (async () => process.env.PINGLAB_CATALOG_PATH
+    const loadCatalog = options.catalog ?? (async (refresh = false) => process.env.PINGLAB_CATALOG_PATH
       ? parseCatalog(await readFile(process.env.PINGLAB_CATALOG_PATH, 'utf8'))
-      : remoteCatalog(this.base, process.env.NODE_ENV !== 'production'));
-    this.catalog = () => process.env.NODE_ENV === 'production'
+      : remoteCatalog(this.base, refresh));
+    this.catalog = (refresh = false) => process.env.NODE_ENV === 'production'
       ? this.buildCatalog ??= loadCatalog()
-      : requestValue(this.catalogKey, loadCatalog);
+      : requestValue(this.catalogKey, () => loadCatalog(refresh));
     this.control = () => requestValue(this.controlKey, options.control ?? (() => remoteControl(this.base)));
   }
   path(run: string, file: string) {
@@ -168,7 +168,8 @@ export class RunStore {
       }
       // Independent public metadata reads can share the same network round trip.
       const [catalog, control] = await Promise.all([
-        this.source === 'local' ? undefined : this.catalog().catch(error => {
+        // Pages refresh selection metadata; immutable asset requests reuse the validated catalog.
+        this.source === 'local' ? undefined : this.catalog(true).catch(error => {
           if (this.source === 'remote') throw error;
           if (!this.warned) console.warn('[Pingstore] R2 inventory unavailable; showing local runs only.', error);
           this.warned = true;

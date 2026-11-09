@@ -1,10 +1,10 @@
 ---
 id: exp170
-title: "COBA with Rate-Matched Artificial Inhibition"
+title: "COBA with Poisson Artificial Inhibition"
 author: "Eoin Murray"
 created_at: "2026-11-03T14:32:24Z"
-updated_at: "2026-11-05T10:28:27Z"
-description: "A TR02 control matching PING source event rates and per-E inhibitory conductance moments with private inputs."
+updated_at: "2026-11-09T12:23:50Z"
+description: "Frozen COBA with independent Poisson inhibition fitted to PING conductance moments."
 collection: ["experiments"]
 tags: ["data", "v0.31.0"]
 inputs: ["exp170"]
@@ -15,10 +15,11 @@ import RunFigure from '../../../site/src/components/RunFigure.astro';
 import StatisticsTable from './StatisticsTable.astro';
 import { reportData, round } from '../../../site/src/lib/report-data';
 export const data = await reportData('exp170', { allowUnavailable: true });
+export const poisson = data?.configuration?.inhibition_method === 'poisson_moment_matched_v1';
 
 ## Abstract
 
-{data ? <p>We inherited the same trained networks and constructed asynchronous GABA inputs for frozen COBA, this time matching PING's inhibitory event rate as well as conductance strength and variability. Each private input delivered {data.configuration.target_events_per_source} events over {data.configuration.duration_ms} ms, with timings and amplitudes calibrated separately. Mean E firing fell from {round(data.conditions[0].rate_e_hz, 1)} to {round(data.conditions[2].rate_e_hz, 1)} Hz—about {round(100*(1-data.conditions[2].rate_e_hz/data.conditions[0].rate_e_hz), 0)}% suppression. Thus, near-total suppression persisted after matching event rates, although this single-image comparison does not isolate synchrony from other differences between the networks.</p> : <p>No completed evidence is selected.</p>}
+{data ? <p>Private artificial inhibition changes frozen COBA E firing from {round(data.conditions[0].rate_e_hz, 1)} to {round(data.conditions[2].rate_e_hz, 1)} Hz on one image. {poisson ? 'Poisson rates and fixed amplitudes match stationary PING conductance moments; individual trials fluctuate.' : 'The selected figures use historical fixed-count timing; they do not show the new Poisson method.'} Different learned COBA/PING weights and private inputs prevent a gamma-only interpretation.</p> : <p>No completed evidence is selected.</p>}
 
 ## Results
 
@@ -43,99 +44,64 @@ export const data = await reportData('exp170', { allowUnavailable: true });
 </RunFigure>
 
 <RunFigure report="exp170" experiment="exp170" file="artificial.svg" number={3} id="fig-artificial" alt="COBA + artificial inhibition: spike raster, E neuron 512 membrane potential and its excitatory and inhibitory conductances." allowUnavailable={true}>
-  Frozen COBA with 24 events per private stream over 200 ms (120 Hz/channel) and 6-ms GABA decay. Conductance mean and SD match PING per E neuron. Inhibitory conductance starts at zero.
-  (a) All E spikes (black), with private inhibitory events above (red).
-  (b) Membrane potential of E neuron 512 (zero-based index); dashed line: firing threshold.
-  (c) Its excitatory AMPA (black) and total inhibitory GABA conductance (red).
-  The same fixed neuron and axis limits are used across all three conditions;
-  this neuron was not selected to represent the population. Voltage is recorded
-  after reset; spike peaks are not drawn. The artificial traces come from an exact frozen replay of the retained trial, without retraining or recalibration. One image and realization; synchrony is not isolated.
+  Frozen COBA with private 6-ms GABA input.
+  {poisson ? <>Independent Poisson counts use fitted rates and frozen amplitudes;
+  stationary conductance moments match PING, while finite-trial moments fluctuate.</>
+  : <>Historical streams use 24 timing-conditioned events per channel.</>}
+  Red: private input events; black: E spikes. Traces show fixed E neuron 512.
+  One image and realization; synchrony is not isolated.
 </RunFigure>
 
 <StatisticsTable />
 
 ## Methods
 
-These equations summarize the implemented discrete-time procedure for Figure 3. Index $j$ labels an E neuron and its private input, $n=0,\ldots,N-1$
-indexes the $N$ time bins, and $\Delta t$ is the timestep. Bars and
-$\operatorname{sd}$ denote temporal mean and SD over the trial, using divisor $N$.
+Current Poisson protocol; figures follow their selected recorded method.
 
-1. **Measure the PING targets and fix the event count.** For recorded inhibitory
-   conductance $g^P_{j,n}$, define
+1. Measure PING's per-E conductance mean $\mu_j$ and variance $\sigma_j^2$ over
+   the saved 200-ms trial. Index $j$ identifies an E neuron and its private input.
+2. For timestep $\Delta t=0.1$ ms and GABA decay $\tau_G=6$ ms, define:
 
-   <a id="eq-inhibition-targets"></a>
-
-   $$
-   \mu_j=\overline{g^P_j},\qquad
-   \sigma_j=\operatorname{sd}(g^P_j),\qquad K=24. \tag{1}
-   $$
-
-   Here $\mu_j$ and $\sigma_j$ are conductance targets in µS; $K$ is the observed
-   number of spikes from each PING I neuron in the displayed 200-ms trial.
-
-2. **Generate exactly $K$ private events.** For event index $k=0,\ldots,K-1$, interpolate:
-
-   <a id="eq-inhibition-events"></a>
+   <a id="eq-poisson-decay"></a>
 
    $$
-   \begin{aligned}
-   r_{j,k}&=(k+\phi_j)\frac{N-1}{K},\\
-   b_{j,k}&=\operatorname{round}\!\left[(1-\alpha_j)r_{j,k}+\alpha_j c_{j,k}\right],\\
-   s_{j,n}&=\mathbf1[n\in\{b_{j,k}\}_k].
-   \end{aligned}\tag{2}
+   a=e^{-\Delta t/\tau_G}. \tag{1}
    $$
 
-   $\phi_j$ is a random phase sampled independently for each neuron from the uniform distribution on $[0,1)$, $r_{j,k}$ is a regular
-   event-bin position, and $c_{j,k}$ is the sorted sequence of $K$ bins sampled
-   uniformly without replacement from $0,\ldots,N-2$. The fitted interpolation
-   $\alpha_j\in[0,1]$ controls timing irregularity. Rounded bins $b_{j,k}$ remain
-   distinct; $s$ is the binary event sequence and $\mathbf1$ the indicator.
-   Excluding the last input bin keeps every delayed event inside the trial.
+3. Fit the fixed event increment $q_j$ (µS):
 
-3. **Apply the GABA filter.** Form the unit-amplitude trace $h$:
-
-   <a id="eq-inhibition-filter"></a>
+   <a id="eq-poisson-amplitude"></a>
 
    $$
-   h_{j,n}=e^{-\Delta t/\tau_{\mathrm{GABA}}}h_{j,n-1}+s_{j,n-1}. \tag{3}
+   q_j=(1+a)\frac{\sigma_j^2}{\mu_j}. \tag{2}
    $$
 
-   $\tau_{\mathrm{GABA}}$ is PING's GABA decay time. Set
-   $h_{j,-1}=s_{j,-1}=0$; delivery takes one timestep.
+4. Fit the event rate $\lambda_j$ (Hz), expressing $\Delta t$ in seconds:
 
-4. **Fit timing irregularity and event strength.** Choose $\alpha_j$ and scale:
-
-   <a id="eq-inhibition-calibration"></a>
+   <a id="eq-poisson-rate"></a>
 
    $$
-   \frac{\operatorname{sd}(h_j)}{\overline h_j}\approx\frac{\sigma_j}{\mu_j},\qquad
-   q_j=\frac{\mu_j}{\overline h_j},\qquad g^A_{j,n}=q_jh_{j,n}. \tag{4}
+   \lambda_j=\frac{\mu_j^2(1-a)}{\Delta t(1+a)\sigma_j^2}. \tag{3}
    $$
 
-   $q_j$ is the positive conductance increment in µS and $g^A$ the artificial
-   conductance. Resample random timing endpoints when needed to bracket the
-   target variability, then bisect $\alpha_j$ and retain its closest match.
-   The SD-error tolerance is 1%. Calibration uses no E response and preserves $K$.
+5. Draw independent event counts $C_{j,n}$ for each input and bin $n$:
 
-5. **Deliver inhibition to frozen COBA.** Each stream reaches only its paired E neuron:
-
-   <a id="eq-inhibition-current"></a>
+   <a id="eq-poisson-counts"></a>
 
    $$
-   I^{\mathrm{inh}}_{j,n}=g^A_{j,n}\bigl(E_{\mathrm{GABA}}-V_{j,n}\bigr),\qquad
-   \lambda_j=\frac{K}{N\Delta t}. \tag{5}
+   C_{j,n}\sim\operatorname{Poisson}(\lambda_j\Delta t). \tag{4}
    $$
 
-   $I^{\mathrm{inh}}$ is inward-positive current, $V$ membrane voltage, and
-   $E_{\mathrm{GABA}}$ the inhibitory reversal potential. With conductance in µS
-   and voltage in mV, current is in nA. $\lambda_j$ is the realised event rate
-   (use $\Delta t$ in seconds for hertz). Sensory spikes and learned COBA weights
-   remain unchanged; E activity cannot alter these inputs.
+6. Deliver those counts through the one-step-delayed filter:
 
-These count-constrained, timing-calibrated streams are not Poisson inputs.
-There are 1,024 private channels rather than 256 I neurons, and no inhibitory
-feedback. The shared zero-conductance onset leaves residual correlation.
-Matching source rates and conductance moments does not match voltage-dependent
-current, autocorrelation or higher-order timing. COBA and PING have different
-learned weights; no retraining, accuracy evaluation or independent replication
-was performed.
+   <a id="eq-poisson-filter"></a>
+
+   $$
+   g_{j,n+1}=a g_{j,n}+q_jC_{j,n}. \tag{5}
+   $$
+
+   Here $g$ is inhibitory conductance (µS). The fitted parameters match its
+   stationary expected mean and variance; sampled trials are not rescaled.
+7. Generate 60 ms of inhibitory prehistory, then start neurons fresh. Keep all
+   weights frozen. Report achieved conductance statistics and E firing for the
+   scored 200 ms. Artificial rates differ from PING's biological I rates.

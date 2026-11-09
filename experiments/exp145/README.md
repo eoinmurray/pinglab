@@ -1,27 +1,36 @@
 # exp145 — Shared-input conductance AI probe
 
-Renart-inspired 4,000 E + 1,000 I recurrent neurons with 4,000 shared external
-Poisson sources. Simulate 1.05 seconds from rest: exclude 50 ms burn-in and measure the following
-1 second, without training.
-Use direct area-matched exponential conductances, fixed mean delays and
-nonnegative weights; these approximate the reference kinetics and delays.
-Initializer means and standard deviations compensate native sparse rescaling,
-so connected jumps retain the intended physical strengths.
-The short measurement window limits estimates of irregularity and tiny correlations.
+Measure irregular firing and population synchrony in a Renart-inspired conductance
+network with shared external input. The default run measures one second after a 50 ms
+burn-in.
 
-1. `compute.py`: `--seed` (optional, 42), `--device` (optional, cpu),
-   `--measurement-ms` (optional, 1000; use 30000 for a 30-second window),
-   `--run-id` (optional). Saves shared inputs, native bundle, start snapshot,
-   complete spikes, and sampled voltages and projection conductances.
-2. `analyse.py`: `--source <compute-run-id>` (required), `--run-id` (optional).
-   Excludes burn-in; measures CV, EE/II/EI correlations, population-fluctuation
-   scaling and signed-current cancellation. Count correlations use sliding
-   5, 20 and 50 ms windows, advanced by 1 ms.
-3. `present.py`: `--source <analyse-run-id>` (required), `--run-id` (optional).
-   Produces the full raster, its first 200 ms, and the four-panel AI diagnostic plot.
-4. `test.py`: `uv run pytest experiments/exp145/test.py`; small integration
-   checks only, without running the full-size scientific configuration.
+## Run
 
-Regenerate only network diagrams while preserving an explicit presentation's
-scientific figures and data: `uv run python experiments/exp145/present.py
---redraw-from PRESENT_ID [--run-id ID]`.
+From the repository root, run these stages in order.
+Compute runs simulations and requires explicit authorisation.
+
+```sh
+uv run python experiments/exp145/compute.py
+uv run python experiments/exp145/analyse.py --source COMPUTE_ID
+uv run python experiments/exp145/present.py --source ANALYSE_ID
+```
+
+Replace `COMPUTE_ID` and `ANALYSE_ID` with the completed run IDs
+from the preceding stages.
+
+To run automated checks:
+
+```sh
+uv run pytest experiments/exp145/test.py -q
+```
+
+## Folder guide
+
+1. `recipe.py` — configuration and model definition.
+2. `dataset.py` — input preparation and encoding.
+3. `compute.py` — run simulations and save evidence.
+4. `analyse.py` — calculate measurements from saved evidence.
+5. `present.py` — generate figures and report assets.
+6. `custom/` — experiment-specific models, helpers and execution tools.
+7. `report/` — report, appendix and supporting components.
+8. `test.py` — automated checks.

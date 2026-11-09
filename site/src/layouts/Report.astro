@@ -14,11 +14,9 @@ const networkDiagrams = import.meta.glob('../../../experiments/exp*/report/netwo
 interface Props {
   report: CollectionEntry<'reports'> | CollectionEntry<'notes'>;
   headings: { depth: number; slug: string; text: string }[];
-  evidenceUnavailable?: string[];
 }
-const { report, headings, evidenceUnavailable = [] } = Astro.props;
-const unavailable = evidenceUnavailable.length > 0;
-const data = unavailable ? { ...report.data, abstract: undefined } : report.data;
+const { report, headings } = Astro.props;
+const data = report.data;
 const collections = collectionMemberships(data.collection);
 const experiment = report.collection === 'reports' ? report : undefined;
 const presentation = report.collection === 'notes' ? report.data.presentation : experiment?.data.id;
@@ -27,14 +25,14 @@ const articleDirectory = experiment
   : report.filePath?.replace(/\\/g, '/').endsWith('/index.mdx')
     ? `../../../notes/${report.id}`
     : undefined;
-const Parameters = unavailable ? undefined : await parameterTables[`${articleDirectory}/parameters.mdx`]?.() as import('astro').MarkdownInstance<Record<string, unknown>>['Content'] | undefined;
-const References = unavailable ? undefined : await referenceLists[`${articleDirectory}/references.mdx`]?.() as import('astro').MarkdownInstance<Record<string, unknown>>['Content'] | undefined;
-const appendix = unavailable ? undefined : await appendices[`${articleDirectory}/appendix.mdx`]?.();
+const Parameters = await parameterTables[`${articleDirectory}/parameters.mdx`]?.() as import('astro').MarkdownInstance<Record<string, unknown>>['Content'] | undefined;
+const References = await referenceLists[`${articleDirectory}/references.mdx`]?.() as import('astro').MarkdownInstance<Record<string, unknown>>['Content'] | undefined;
+const appendix = await appendices[`${articleDirectory}/appendix.mdx`]?.();
 const Appendix = appendix?.default;
 const appendixHeadings = (await appendix?.getHeadings() ?? []).filter(heading => heading.depth === 2 || heading.depth === 3);
 const appendixDepth = Math.min(3, ...appendixHeadings.map(heading => heading.depth));
-const Network = unavailable ? undefined : await networkDiagrams[`${articleDirectory}/network.mdx`]?.() as import('astro').MarkdownInstance<Record<string, unknown>>['Content'] | undefined;
-const hasDataset = presentation && (report.collection === 'notes' || unavailable || experiment?.data.tags.includes('data') || (dependencies[presentation]?.length ?? 0) > 0 || downstream(presentation).length > 0);
+const Network = await networkDiagrams[`${articleDirectory}/network.mdx`]?.() as import('astro').MarkdownInstance<Record<string, unknown>>['Content'] | undefined;
+const hasDataset = presentation && (report.collection === 'notes' || experiment?.data.tags.includes('data') || (dependencies[presentation]?.length ?? 0) > 0 || downstream(presentation).length > 0);
 const contents = [
   ...(data.abstract ? [{ slug: 'abstract', text: 'Abstract' }] : []),
   ...headings.filter(heading => heading.depth === 2 || heading.depth === 3),
@@ -44,6 +42,16 @@ const contents = [
   ...(hasDataset ? [{ slug: 'dataset', text: 'Dataset' }] : []),
   ...(References ? [{ slug: 'references', text: 'References' }] : []),
 ];
+type TocEntry = { slug: string; text: string; depth?: number };
+const tocGroups: { heading: TocEntry; children: TocEntry[] }[] = [];
+for (const heading of contents) {
+  const parent = tocGroups.at(-1);
+  if ('depth' in heading && heading.depth === 3 && parent) {
+    parent.children.push(heading);
+  } else {
+    tocGroups.push({ heading, children: [] });
+  }
+}
 const frontMatter = {
   title: data.title,
   description: data.description,
@@ -75,7 +83,12 @@ const frontMatter = {
       <d-toc prerendered="true">
         <nav aria-label="Table of contents">
           <h2>Contents</h2>
-          <ol>{contents.map(heading => <li class:list={{ subsection: 'depth' in heading && heading.depth === 3 }}><a href={`#${heading.slug}`}>{heading.text}</a></li>)}</ol>
+          <ol class="toc-sections">{tocGroups.map(({ heading, children }) => <li>
+            <a class="toc-section" href={`#${heading.slug}`}>{heading.text}</a>
+            {children.length > 0 && <ol class="toc-subsections">{children.map(child => <li>
+              <a href={`#${child.slug}`}>{child.text}</a>
+            </li>)}</ol>}
+          </li>)}</ol>
         </nav>
       </d-toc>
     </aside>
@@ -132,24 +145,28 @@ const frontMatter = {
   .report-body { position: relative; --report-content-top: 4rem; }
   .report-body > d-article { grid-column: screen; grid-row: 1; min-width: 0; padding-top: var(--report-content-top); }
   .report-body > d-article > :first-child { margin-top: 0; }
-  .report-toc { position: relative; z-index: 1; grid-column: screen-start / text-start; grid-row: 1; justify-self: end; box-sizing: border-box; width: min(304px, 100%); min-width: 0; padding: calc(var(--report-content-top) + 1px) 24px 0; }
-  .report-toc d-toc { display: block; position: sticky; top: 24px; max-height: calc(100vh - 48px); overflow-y: auto; }
-  .report-toc h2 { font-size: 13px; line-height: 1.5; font-weight: 600; margin: 0 0 12px; }
+  .report-toc { position: relative; z-index: 1; grid-column: screen-start / text-start; grid-row: 1; justify-self: end; box-sizing: border-box; width: min(400px, 100%); min-width: 0; padding: calc(var(--report-content-top) + 1px) 0 0 16px; }
+  .report-toc d-toc { display: block; padding-right: 64px; }
+  .report-toc h2 { font-size: 18px; line-height: 1.4; font-weight: 600; color: rgb(var(--ink) / .65); margin: 0 0 20px; }
   .report-toc ol { list-style: none; margin: 0; padding: 0; }
-  .report-toc li { margin-bottom: 10px; font-size: 12px; line-height: 1.5; }
-  .report-toc .subsection { padding-left: 12px; }
-  .report-toc a { color: rgb(var(--ink) / .6); text-decoration: none; border-bottom: none; }
-  .report-toc a:hover { color: rgb(var(--ink)); }
+  .report-toc li { margin: 0; font-size: 13px; line-height: 1.45; }
+  .report-toc .toc-sections > li + li { margin-top: 8px; }
+  .report-toc .toc-section { font-weight: 600; color: rgb(var(--ink) / .85); }
+  .report-toc .toc-subsections { margin-top: 4px; padding-left: 12px; }
+  .report-toc .toc-subsections > li + li { margin-top: 3px; }
+  .report-toc a { display: block; color: rgb(var(--ink) / .6); text-decoration: none; border-bottom: none; }
+  .report-toc a:hover, .report-toc a:focus-visible { color: rgb(var(--ink)); text-decoration: underline; text-underline-offset: 3px; }
   .report-abstract { grid-column: text; }
   .report-abstract h2 { margin-top: 0; }
   :is(d-article, d-appendix) [id] { scroll-margin-top: 24px; }
-  @media (max-width: 1179px) {
+  @media (max-width: 1399px) {
     .report-toc { grid-column: text; grid-row: 1; justify-self: stretch; width: auto; padding: 32px 0 24px; }
-    .report-toc d-toc { position: static; max-height: none; }
+    .report-toc d-toc { padding-right: 0; }
     .report-body > d-article { grid-row: 2; }
-    .report-toc ol { columns: 2; column-gap: 24px; }
-    .report-toc li { break-inside: avoid; }
+    .report-toc .toc-sections { columns: 2; column-gap: 32px; }
+    .report-toc .toc-sections > li { break-inside: avoid; }
   }
+  @media (max-width: 599px) { .report-toc .toc-sections { columns: 1; } }
   @media print { .report-toc { display: none; } }
   d-appendix .parameters { min-width: 0; margin-bottom: 2rem; }
   d-appendix .parameters table { width: 100%; border-collapse: collapse; font-size: inherit; line-height: inherit; margin-top: 0; }

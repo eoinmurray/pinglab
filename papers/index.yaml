@@ -1,271 +1,1215 @@
-# Keys are PDF paths relative to this directory.
-# Citation details describe the saved version, including preprints.
+# Collection order controls the library navigation. Paper keys are relative PDF paths.
+collections:
+  default:
+    label: Pinglab Paper Archive
+    description: >-
+      This library examines how circuits generate gamma and whether it contributes to brain computation, including criticism and competing explanations. It prioritises work that helps simulations distinguish gamma’s effects from firing rate, inhibition, connectivity, and shared input.
+  generation-dynamics:
+    label: Generation & Dynamics
+    description: >-
+      How circuits generate gamma: PING, ING, interneuron physiology, synaptic
+      kinetics, heterogeneity, delays, and transitions between rhythmic and asynchronous states.
+  proposed-functions:
+    label: Proposed Functions
+    description: >-
+      Proposed roles for gamma in communication, routing, attention, sensory coding,
+      inference, memory, learning, and plasticity.
+  experimental-tests:
+    label: Experimental Tests
+    description: >-
+      Recordings, perturbations, and behavioural studies that support or challenge
+      gamma's proposed functions, including null results and failures to replicate.
+  criticism-competing-explanations:
+    label: Criticism & Competing Explanations
+    description: >-
+      Objections to functional theories, gamma as a by-product or correlate, limits
+      of phase-based communication, and explanations based on rates, excitability, or common drive.
+  modelling-measurement:
+    label: Modelling & Measurement
+    description: >-
+      Spiking and population models, relationships between spikes and field signals,
+      synchrony measures, analytical artefacts, and criticisms of model assumptions.
+  biological-constraints:
+    label: Biological Constraints
+    description: >-
+      Circuit architecture, realistic inputs, variability, behavioural timescales,
+      and energetic costs that constrain proposed gamma mechanisms.
 
-akam-kullmann-2010.pdf:
-  id: P26
-  title: Oscillations and Filtering Networks Support Flexible Routing of Information
-  authors: [Thomas Akam, Dimitri M. Kullmann]
-  year: 2010
-  collection: [gamma-synchronisation]
-  venue: Neuron
-  doi: 10.1016/j.neuron.2010.06.019
+  history-of-gamma:
+    label: History of Gamma
+    description: >-
+      Landmark discoveries and historical reviews tracing gamma research from
+      early olfactory recordings to cortical synchrony, binding debates, inhibitory
+      mechanisms, attention, and causal tests.
 
-aitchison-lengyel-2016.pdf:
-  id: P09
-  title: "The Hamiltonian Brain: Efficient Probabilistic Inference with Excitatory-Inhibitory Neural Circuit Dynamics"
-  authors: [Laurence Aitchison, Máté Lengyel]
-  year: 2016
-  collection: [probabilistic-coding]
-  venue: PLOS Computational Biology
-  doi: 10.1371/journal.pcbi.1005186
+papers:
+  # Keys are local PDF paths relative to this directory; an indexed PDF may not yet be held.
+  # Existing citation details describe the saved version, including preprints.
+  # Additions P32-P78 cite published articles; indexing does not imply PDF acquisition.
+  # Retrieval details and saved versions: metadata/ and download-report-2026-11-05.md.
+  # Relevance comments are editorial screening notes, not claims of established function.
 
-benchenane-et-al-2011.pdf:
-  id: P30
-  title: "Oscillations in the prefrontal cortex: a gateway to memory and attention"
-  authors: [Karim Benchenane, Paul H. Tiesinga, Francesco P. Battaglia]
-  year: 2011
-  collection: [gamma-synchronisation, ping, spiking]
-  venue: Current Opinion in Neurobiology
-  doi: 10.1016/j.conb.2011.01.004
+  aitchison-lengyel-2016.pdf:
+    id: P09
+    title: "The Hamiltonian Brain: Efficient Probabilistic Inference with Excitatory-Inhibitory Neural Circuit Dynamics"
+    authors: [Laurence Aitchison, Máté Lengyel]
+    year: 2016
+    collection: proposed-functions
+    venue: PLOS Computational Biology
+    doi: 10.1371/journal.pcbi.1005186
 
-borgers-kopell-2003.pdf:
-  id: P03
-  title: "Synchronization in Networks of Excitatory and Inhibitory Neurons with Sparse, Random Connectivity"
-  authors: [Christoph Börgers, Nancy Kopell]
-  year: 2003
-  collection: [ping, spiking]
-  venue: Neural Computation
-  doi: 10.1162/089976603321192059
+  akam-kullmann-2010.pdf:
+    id: P26
+    title: Oscillations and Filtering Networks Support Flexible Routing of Information
+    authors: [Thomas Akam, Dimitri M. Kullmann]
+    year: 2010
+    collection: proposed-functions
+    venue: Neuron
+    doi: 10.1016/j.neuron.2010.06.019
 
-bosman-et-al-2012.pdf:
-  id: P06
-  title: Attentional Stimulus Selection through Selective Synchronization between Monkey Visual Areas
-  authors: [Conrado A. Bosman, Jan-Mathijs Schoffelen, Nicolas Brunet, Robert Oostenveld, Andre M. Bastos, Thilo Womelsdorf, Birthe Rubehn, Thomas Stieglitz, Peter De Weerd, Pascal Fries]
-  year: 2012
-  collection: [gamma-synchronisation]
-  venue: "Neuron (author manuscript)"
-  doi: 10.1016/j.neuron.2012.06.037
+  akam-kullmann-2012.pdf:
+    id: P52
+    title: "Efficient “Communication through Coherence” Requires Oscillations Structured to Minimize Interference between Signals"
+    authors: ["Thomas E. Akam", "Dimitri M. Kullmann"]
+    year: 2012
+    collection: criticism-competing-explanations
+    tags: [criticism, mathematical-model]
+    venue: "PLoS Computational Biology"
+    doi: 10.1371/journal.pcbi.1002760
+    # Relevance: Tests when coherent gain modulation selects signals and when distractor interference
+    # defeats it.
+    # Citation verified 2026-11-05: https://pubmed.ncbi.nlm.nih.gov/23144603/
 
-brunel-2000.pdf:
-  id: P19
-  title: Dynamics of Sparsely Connected Networks of Excitatory and Inhibitory Spiking Neurons
-  authors: [Nicolas Brunel]
-  year: 2000
-  collection: [spiking]
-  venue: Journal of Computational Neuroscience
-  doi: 10.1023/A:1008925309027
+  aru-et-al-2015.pdf:
+    id: P68
+    title: "Untangling cross-frequency coupling in neuroscience"
+    authors:
+      [
+        "Juhan Aru",
+        "Jaan Aru",
+        "Viola Priesemann",
+        "Michael Wibral",
+        "Luiz Lana",
+        "Gordon Pipa",
+        "Wolf Singer",
+        "Raul Vicente",
+      ]
+    year: 2015
+    collection: modelling-measurement
+    tags: [review, measurement]
+    venue: "Current Opinion in Neurobiology (preprint: arXiv:1405.7965v2)"
+    doi: 10.1016/j.conb.2014.08.002
+    # Relevance: Assesses confounds and interpretational limits in gamma cross-frequency coupling.
+    # Citation verified 2026-11-05: https://pubmed.ncbi.nlm.nih.gov/25212583/
+    # Saved PDF: arXiv v2 dated 2014-08-25; the journal publication year is 2015.
 
-confavreux-et-al-2025.pdf:
-  id: P17
-  title: "Memory by a thousand rules: Automated discovery of multi-type plasticity rules reveals variety & degeneracy at the heart of learning"
-  authors: [Basile Confavreux, Zoe P. M. Harrington, Maciej Kania, Poornima Ramesh, Anastasia N. Krouglova, Panos A. Bozelos, Jakob H. Macke, Andrew M. Saxe, Pedro J. Gonçalves, Tim P. Vogels]
-  year: 2025
-  collection: [spiking]
-  venue: "bioRxiv:2025.05.28.656584v2"
-  doi: 10.1101/2025.05.28.656584
+  atallah-scanziani-2009.pdf:
+    id: P39
+    title: "Instantaneous Modulation of Gamma Oscillation Frequency by Balancing Excitation with Inhibition"
+    authors: ["Bassam V. Atallah", "Massimo Scanziani"]
+    year: 2009
+    collection: generation-dynamics
+    tags: [cellular-experiment]
+    venue: "Neuron"
+    doi: 10.1016/j.neuron.2009.04.027
+    # Relevance: Constrains cycle-by-cycle excitation-inhibition and gamma frequency mechanisms.
+    # Citation verified 2026-11-05: https://pubmed.ncbi.nlm.nih.gov/19477157/
 
-diegobro-2026.pdf:
-  id: P23
-  title: "Proposal: Simulating Neuromorphic Toolbox nodes with snnlab"
-  authors: [Diegobro]
-  year: 2026
-  collection: [spiking]
-  venue: Proposal
+  bartos-et-al-2002.pdf:
+    id: P36
+    title: "Fast synaptic inhibition promotes synchronized gamma oscillations in hippocampal interneuron networks"
+    authors:
+      [
+        "Marlene Bartos",
+        "Imre Vida",
+        "Michael Frotscher",
+        "Axel Meyer",
+        "Hannah Monyer",
+        "Jörg R. P. Geiger",
+        "Peter Jonas",
+      ]
+    year: 2002
+    collection: generation-dynamics
+    tags: [ing, cellular-experiment, spiking-networks]
+    venue: "Proceedings of the National Academy of Sciences"
+    doi: 10.1073/pnas.192233099
+    # Relevance: Tests inhibitory synaptic kinetics and network gamma, grounding ING model parameters.
+    # Citation verified 2026-11-05: https://pubmed.ncbi.nlm.nih.gov/12235359/
 
-echeveste-et-al-2020.pdf:
-  id: P12
-  title: Cortical-like dynamics in recurrent circuits optimized for sampling-based probabilistic inference
-  authors: [Rodrigo Echeveste, Laurence Aitchison, Guillaume Hennequin, Máté Lengyel]
-  year: 2020
-  collection: [probabilistic-coding, ping]
-  venue: Nature Neuroscience
-  doi: 10.1038/s41593-020-0671-1
+  bartos-et-al-2007.pdf:
+    id: P33
+    title: "Synaptic mechanisms of synchronized gamma oscillations in inhibitory interneuron networks"
+    authors: ["Marlene Bartos", "Imre Vida", "Peter Jonas"]
+    year: 2007
+    collection: generation-dynamics
+    tags: [review, ing]
+    venue: "Nature Reviews Neuroscience"
+    doi: 10.1038/nrn2044
+    # Relevance: Reviews inhibitory-network mechanisms and synaptic constraints relevant to ING/PING
+    # comparisons.
+    # Citation verified 2026-11-05: https://pubmed.ncbi.nlm.nih.gov/17180162/
 
-eshraghian-et-al-2023.pdf:
-  id: P15
-  title: Training Spiking Neural Networks Using Lessons From Deep Learning
-  authors: [Jason K. Eshraghian, Max Ward, Emre Neftci, Xinxin Wang, Gregor Lenz, Girish Dwivedi, Mohammed Bennamoun, Doo Seok Jeong, Wei D. Lu]
-  year: 2023
-  collection: [spiking]
-  venue: "arXiv:2109.12894v6"
-  url: https://arxiv.org/abs/2109.12894v6
+  bastos-et-al-2015.pdf:
+    id: P51
+    title: "Communication through coherence with inter-areal delays"
+    authors: ["Andre M Bastos", "Julien Vezoli", "Pascal Fries"]
+    year: 2015
+    collection: proposed-functions
+    tags: [review, delays]
+    venue: "Current Opinion in Neurobiology"
+    doi: 10.1016/j.conb.2014.11.001
+    # Relevance: Reviews how non-zero transmission delays motivate a revised directional CTC account; not a
+    # new causal experiment.
+    # Citation verified 2026-11-05: https://pubmed.ncbi.nlm.nih.gov/25460074/
 
-fiser-et-al-2010.pdf:
-  id: P05
-  title: "Statistically optimal perception and learning: from behavior to neural representations"
-  authors: [József Fiser, Pietro Berkes, Gergő Orbán, Máté Lengyel]
-  year: 2010
-  collection: [probabilistic-coding]
-  venue: Trends in Cognitive Sciences
-  doi: 10.1016/j.tics.2010.01.003
+  bastos-schoffelen-2016.pdf:
+    id: P66
+    title: "A Tutorial Review of Functional Connectivity Analysis Methods and Their Interpretational Pitfalls"
+    authors: ["André M. Bastos", "Jan-Mathijs Schoffelen"]
+    year: 2016
+    collection: modelling-measurement
+    tags: [review, measurement]
+    venue: "Frontiers in Systems Neuroscience"
+    doi: 10.3389/fnsys.2015.00175
+    # Relevance: Defines confounds in coherence and directed connectivity relevant to gamma-function
+    # inference.
+    # Citation verified 2026-11-05: https://pubmed.ncbi.nlm.nih.gov/26778976/
 
-fries-2015.pdf:
-  id: P28
-  title: "Rhythms for Cognition: Communication through Coherence"
-  authors: [Pascal Fries]
-  year: 2015
-  collection: [ping, spiking, gamma-synchronisation]
-  venue: "Neuron (author manuscript)"
-  doi: 10.1016/j.neuron.2015.09.034
+  benchenane-et-al-2011.pdf:
+    id: P30
+    title: "Oscillations in the prefrontal cortex: a gateway to memory and attention"
+    authors: [Karim Benchenane, Paul H. Tiesinga, Francesco P. Battaglia]
+    year: 2011
+    collection: proposed-functions
+    tags: [ping, spiking-networks]
+    venue: Current Opinion in Neurobiology
+    doi: 10.1016/j.conb.2011.01.004
 
-kania-et-al-2026.pdf:
-  id: P18
-  title: "Learning to play with spikes: characterizing, predicting, and engineering unsupervised plasticity rules for spiking reservoir computing"
-  authors: [Maciej Kania, Basile Confavreux, Tim P. Vogels]
-  year: 2026
-  collection: [spiking]
-  venue: "bioRxiv:2026.09.15.751573v1"
-  doi: 10.64898/2026.09.15.751573
+  borgers-kopell-2003.pdf:
+    id: P03
+    title: "Synchronization in Networks of Excitatory and Inhibitory Neurons with Sparse, Random Connectivity"
+    authors: [Christoph Börgers, Nancy Kopell]
+    year: 2003
+    collection: generation-dynamics
+    tags: [ping, spiking-networks]
+    venue: Neural Computation
+    doi: 10.1162/089976603321192059
 
-lowet-et-al-2015.pdf:
-  id: P07
-  title: Input-Dependent Frequency Modulation of Cortical Gamma Oscillations Shapes Spatial Synchronization and Enables Phase Coding
-  authors: [Eric Lowet, Mark Roberts, Avgis Hadjipapas, Alina Peter, Jan van der Eerden, Peter De Weerd]
-  year: 2015
-  collection: [ping, spiking, gamma-synchronisation]
-  venue: PLOS Computational Biology
-  doi: 10.1371/journal.pcbi.1004072
+  borgers-kopell-2008.pdf:
+    id: P43
+    title: "Gamma Oscillations and Stimulus Selection"
+    authors: ["Christoph Börgers", "Nancy J. Kopell"]
+    year: 2008
+    collection: proposed-functions
+    tags: [ping, spiking-networks]
+    venue: "Neural Computation"
+    doi: 10.1162/neco.2007.07-06-289
+    # Relevance: Tests selection mechanisms in gamma-generating circuit models.
+    # Citation verified 2026-11-05: https://pubmed.ncbi.nlm.nih.gov/18047409/
 
-lowet-et-al-2017.pdf:
-  id: P10
-  title: A quantitative theory of gamma synchronization in macaque V1
-  authors: [Eric Lowet, Mark J. Roberts, Alina Peter, Bart Gips, Peter De Weerd]
-  year: 2017
-  collection: [ping, spiking, gamma-synchronisation]
-  venue: eLife
-  doi: 10.7554/eLife.26642
+  bosman-et-al-2012.pdf:
+    id: P06
+    title: Attentional Stimulus Selection through Selective Synchronization between Monkey Visual Areas
+    authors:
+      [
+        Conrado A. Bosman,
+        Jan-Mathijs Schoffelen,
+        Nicolas Brunet,
+        Robert Oostenveld,
+        Andre M. Bastos,
+        Thilo Womelsdorf,
+        Birthe Rubehn,
+        Thomas Stieglitz,
+        Peter De Weerd,
+        Pascal Fries,
+      ]
+    year: 2012
+    collection: experimental-tests
+    venue: "Neuron (author manuscript)"
+    doi: 10.1016/j.neuron.2012.06.037
 
-ma-et-al-2006.pdf:
-  id: P04
-  title: Bayesian inference with probabilistic population codes
-  authors: [Wei Ji Ma, Jeffrey M. Beck, Peter E. Latham, Alexandre Pouget]
-  year: 2006
-  collection: [probabilistic-coding, spiking]
-  venue: Nature Neuroscience
-  doi: 10.1038/nn1790
+  brunel-2000.pdf:
+    id: P19
+    title: Dynamics of Sparsely Connected Networks of Excitatory and Inhibitory Spiking Neurons
+    authors: [Nicolas Brunel]
+    year: 2000
+    collection: generation-dynamics
+    tags: [spiking-networks]
+    venue: Journal of Computational Neuroscience
+    doi: 10.1023/A:1008925309027
 
-nandi-et-al-2024.pdf:
-  id: P21
-  title: Bursting gamma oscillations in neural mass models
-  authors: [Manoj Kumar Nandi, Michele Valla, Matteo di Volo]
-  year: 2024
-  collection: [ping, spiking, gamma-synchronisation]
-  venue: Frontiers in Computational Neuroscience
-  doi: 10.3389/fncom.2024.1422159
+  buzsaki-et-al-2012.pdf:
+    id: P70
+    title: "The origin of extracellular fields and currents — EEG, ECoG, LFP and spikes"
+    authors: ["György Buzsáki", "Costas A. Anastassiou", "Christof Koch"]
+    year: 2012
+    collection: modelling-measurement
+    tags: [review, measurement]
+    venue: "Nature Reviews Neuroscience"
+    doi: 10.1038/nrn3241
+    # Relevance: Provides biophysical grounding for linking simulated spikes/currents to measured fields.
+    # Citation verified 2026-11-05: https://pubmed.ncbi.nlm.nih.gov/22595786/
 
-orban-et-al-2016.pdf:
-  id: P08
-  title: Neural Variability and Sampling-Based Probabilistic Representations in the Visual Cortex
-  authors: [Gergő Orbán, Pietro Berkes, József Fiser, Máté Lengyel]
-  year: 2016
-  collection: [probabilistic-coding]
-  venue: Neuron
-  doi: 10.1016/j.neuron.2016.09.038
+  buzsaki-wang-2012.pdf:
+    id: P32
+    title: "Mechanisms of Gamma Oscillations"
+    authors: ["György Buzsáki", "Xiao-Jing Wang"]
+    year: 2012
+    collection: generation-dynamics
+    tags: [review]
+    venue: "Annual Review of Neuroscience"
+    doi: 10.1146/annurev-neuro-062111-150444
+    # Relevance: Integrates cellular, circuit and population mechanisms; a foundation for distinguishing
+    # gamma generators.
+    # Citation verified 2026-11-05: https://pubmed.ncbi.nlm.nih.gov/22443509/
 
-padamsey-et-al-2022.pdf:
-  id: P14
-  title: Neocortex saves energy by reducing coding precision during food scarcity
-  authors: [Zahid Padamsey, Danai Katsanevaki, Nathalie Dupuy, Nathalie L. Rochefort]
-  year: 2022
-  collection: [spiking]
-  venue: Neuron
-  doi: 10.1016/j.neuron.2021.10.024
+  cardin-et-al-2009.pdf:
+    id: P37
+    title: "Driving fast-spiking cells induces gamma rhythm and controls sensory responses"
+    authors:
+      [
+        "Jessica A. Cardin",
+        "Marie Carlén",
+        "Konstantinos Meletis",
+        "Ulf Knoblich",
+        "Feng Zhang",
+        "Karl Deisseroth",
+        "Li-Huei Tsai",
+        "Christopher I. Moore",
+      ]
+    year: 2009
+    collection: [experimental-tests, history-of-gamma]
+    # History: Optogenetic intervention connecting fast-spiking interneurons, gamma generation, and sensory responses.
+    tags: [causal-experiment]
+    venue: "Nature"
+    doi: 10.1038/nature08002
+    # Relevance: Cell-type-specific perturbation links gamma generation with sensory response timing.
+    # Citation verified 2026-11-05: https://pubmed.ncbi.nlm.nih.gov/19396156/
 
-pouget-et-al-2003.pdf:
-  id: P02
-  title: Inference and Computation with Population Codes
-  authors: [Alexandre Pouget, Peter Dayan, Richard S. Zemel]
-  year: 2003
-  collection: [probabilistic-coding]
-  venue: Annual Review of Neuroscience
-  doi: 10.1146/annurev.neuro.26.041002.131112
+  chen-et-al-2017.pdf:
+    id: P41
+    title: "Distinct Inhibitory Circuits Orchestrate Cortical beta and gamma Band Oscillations"
+    authors:
+      [
+        "Guang Chen",
+        "Yuan Zhang",
+        "Xiang Li",
+        "Xiaochen Zhao",
+        "Qian Ye",
+        "Yingxi Lin",
+        "Huizhong W. Tao",
+        "Malte J. Rasch",
+        "Xiaohui Zhang",
+      ]
+    year: 2017
+    collection: generation-dynamics
+    tags: [causal-experiment]
+    venue: "Neuron"
+    doi: 10.1016/j.neuron.2017.11.033
+    # Relevance: Dissociates inhibitory cell contributions across rhythms and constrains simplified circuit
+    # models.
+    # Citation verified 2026-11-05: https://pubmed.ncbi.nlm.nih.gov/29268099/
 
-renart-et-al-2010-supplemental.pdf:
-  id: P22
-  title: "The Asynchronous State in Cortical Circuits: Supporting Online Material"
-  authors: [Alfonso Renart, Jaime de la Rocha, Peter Bartho, Liad Hollender, Néstor Parga, Alex Reyes, Kenneth D. Harris]
-  year: 2010
-  collection: [spiking]
-  venue: Science
-  doi: 10.1126/science.1179850
+  colgin-et-al-2009.pdf:
+    id: P73
+    title: "Frequency of gamma oscillations routes flow of information in the hippocampus"
+    authors:
+      [
+        "Laura Lee Colgin",
+        "Tobias Denninger",
+        "Marianne Fyhn",
+        "Torkel Hafting",
+        "Tora Bonnevie",
+        "Ole Jensen",
+        "May-Britt Moser",
+        "Edvard I. Moser",
+      ]
+    year: 2009
+    collection: experimental-tests
+    tags: [memory, experimental-recording]
+    venue: "Nature"
+    doi: 10.1038/nature08573
+    # Relevance: Tests distinct gamma frequencies as a routing mechanism in hippocampal memory circuitry.
+    # Citation verified 2026-11-05: https://pubmed.ncbi.nlm.nih.gov/19924214/
 
-renart-et-al-2010.pdf:
-  id: P20
-  title: The Asynchronous State in Cortical Circuits
-  authors: [Alfonso Renart, Jaime de la Rocha, Peter Bartho, Liad Hollender, Néstor Parga, Alex Reyes, Kenneth D. Harris]
-  year: 2010
-  collection: [spiking]
-  venue: Science
-  doi: 10.1126/science.1179850
+  confavreux-et-al-2025.pdf:
+    id: P17
+    title: "Memory by a thousand rules: Automated discovery of multi-type plasticity rules reveals variety & degeneracy at the heart of learning"
+    authors:
+      [
+        Basile Confavreux,
+        Zoe P. M. Harrington,
+        Maciej Kania,
+        Poornima Ramesh,
+        Anastasia N. Krouglova,
+        Panos A. Bozelos,
+        Jakob H. Macke,
+        Andrew M. Saxe,
+        Pedro J. Gonçalves,
+        Tim P. Vogels,
+      ]
+    year: 2025
+    collection: modelling-measurement
+    tags: [spiking-networks]
+    venue: "bioRxiv:2025.05.28.656584v2"
+    doi: 10.1101/2025.05.28.656584
 
-shu-et-al-2003.pdf:
-  id: P25
-  title: Turning on and off recurrent balanced cortical activity
-  authors: [Yousheng Shu, Andrea Hasenstaub, David A. McCormick]
-  year: 2003
-  collection: [spiking]
-  venue: Nature
-  doi: 10.1038/nature01616
+  csicsvari-et-al-2003.pdf:
+    id: P42
+    title: "Mechanisms of Gamma Oscillations in the Hippocampus of the Behaving Rat"
+    authors: ["Jozsef Csicsvari", "Brian Jamieson", "Kensall D. Wise", "György Buzsáki"]
+    year: 2003
+    collection: generation-dynamics
+    tags: [experimental-recording]
+    venue: "Neuron"
+    doi: 10.1016/s0896-6273(02)01169-8
+    # Relevance: Constrains cellular participation and gamma mechanisms in behaving animals.
+    # Citation verified 2026-11-05: https://pubmed.ncbi.nlm.nih.gov/12546825/
 
-soltoggio-et-al-2018.pdf:
-  id: P24
-  title: "Born to learn: The inspiration, progress, and future of evolved plastic artificial neural networks"
-  authors: [Andrea Soltoggio, Kenneth O. Stanley, Sebastian Risi]
-  year: 2018
-  collection: [neuroevolution]
-  venue: "Neural Networks (author manuscript)"
-  doi: 10.1016/j.neunet.2018.07.013
+  donoghue-et-al-2020.pdf:
+    id: P69
+    title: "Parameterizing neural power spectra into periodic and aperiodic components"
+    authors:
+      [
+        "Thomas Donoghue",
+        "Matar Haller",
+        "Erik J. Peterson",
+        "Paroma Varma",
+        "Priyadarshini Sebastian",
+        "Richard Gao",
+        "Torben Noto",
+        "Antonio H. Lara",
+        "Joni D. Wallis",
+        "Robert T. Knight",
+        "Avgusta Shestyuk",
+        "Bradley Voytek",
+      ]
+    year: 2020
+    collection: modelling-measurement
+    tags: [measurement]
+    venue: "Nature Neuroscience"
+    doi: 10.1038/s41593-020-00744-x
+    # Relevance: Separates oscillatory peaks from aperiodic spectral changes.
+    # Citation verified 2026-11-05: https://pubmed.ncbi.nlm.nih.gov/33230329/
 
-susin-destexhe-2021.pdf:
-  id: P13
-  title: Integration, coincidence detection and resonance in networks of spiking neurons expressing Gamma oscillations and asynchronous states
-  authors: [Eduarda Susin, Alain Destexhe]
-  year: 2021
-  collection: [ping, spiking]
-  venue: PLOS Computational Biology
-  doi: 10.1371/journal.pcbi.1009416
+  dowdall-et-al-2023.pdf:
+    id: P53
+    title: "Attentional modulation of inter-areal coherence explained by frequency shifts"
+    authors: ["Jarrod Robert Dowdall", "Marius Schneider", "Martin Vinck"]
+    year: 2023
+    collection: criticism-competing-explanations
+    tags: [criticism, mathematical-model]
+    venue: "NeuroImage (author manuscript)"
+    doi: 10.1016/j.neuroimage.2023.120256
+    # Relevance: Evaluates frequency shifts as an explanation for attentional coherence changes.
+    # Citation verified 2026-11-05: https://pubmed.ncbi.nlm.nih.gov/37392809/
+    # Saved PDF: accepted author manuscript from PMC; journal citation retained.
 
-ter-wal-tiesinga-2017.pdf:
-  id: P11
-  title: Phase Difference between Model Cortical Areas Determines Level of Information Transfer
-  authors: [Marije ter Wal, Paul H. Tiesinga]
-  year: 2017
-  collection: [ping, spiking, gamma-synchronisation]
-  venue: Frontiers in Computational Neuroscience
-  doi: 10.3389/fncom.2017.00006
+  drebitz-et-al-2025.pdf:
+    id: P77
+    title: "Gamma-band synchronization between neurons in the visual cortex is causal for effective information processing and behavior"
+    authors: ["Eric Drebitz", "Lukas-Paul Rausch", "Andreas K. Kreiter"]
+    year: 2025
+    collection: experimental-tests
+    tags: [causal-experiment]
+    venue: "Nature Communications"
+    doi: 10.1038/s41467-025-62732-8
+    # Relevance: Recent causal test connecting gamma phase, neuronal input efficacy and behaviour.
+    # Citation verified 2026-11-05: https://pubmed.ncbi.nlm.nih.gov/40790293/
 
-tiesinga-sejnowski-2009.pdf:
-  id: P29
-  title: "Cortical Enlightenment: Are Attentional Gamma Oscillations Driven by ING or PING?"
-  authors: [Paul Tiesinga, Terrence J. Sejnowski]
-  year: 2009
-  collection: [ping, spiking, gamma-synchronisation]
-  venue: Neuron
-  doi: 10.1016/j.neuron.2009.09.009
+  echeveste-et-al-2020.pdf:
+    id: P12
+    title: Cortical-like dynamics in recurrent circuits optimized for sampling-based probabilistic inference
+    authors: [Rodrigo Echeveste, Laurence Aitchison, Guillaume Hennequin, Máté Lengyel]
+    year: 2020
+    collection: proposed-functions
+    tags: [ping]
+    venue: Nature Neuroscience
+    doi: 10.1038/s41593-020-0671-1
 
-wildie-shanahan-2012.pdf:
-  id: P27
-  title: Establishing communication between neuronal populations through competitive entrainment
-  authors: [Mark Wildie, Murray Shanahan]
-  year: 2012
-  collection: [ping, spiking, gamma-synchronisation]
-  venue: Frontiers in Computational Neuroscience
-  doi: 10.3389/fncom.2011.00062
+  eshraghian-et-al-2023.pdf:
+    id: P15
+    title: Training Spiking Neural Networks Using Lessons From Deep Learning
+    authors:
+      [
+        Jason K. Eshraghian,
+        Max Ward,
+        Emre Neftci,
+        Xinxin Wang,
+        Gregor Lenz,
+        Girish Dwivedi,
+        Mohammed Bennamoun,
+        Doo Seok Jeong,
+        Wei D. Lu,
+      ]
+    year: 2023
+    collection: modelling-measurement
+    tags: [spiking-networks]
+    venue: "arXiv:2109.12894v6"
+    url: https://arxiv.org/abs/2109.12894v6
 
-womelsdorf-et-al-2014.pdf:
-  id: P31
-  title: Dynamic circuit motifs underlying rhythmic gain control, gating and integration
-  authors: [Thilo Womelsdorf, Taufik A. Valiante, Ned T. Sahin, Kai J. Miller, Paul Tiesinga]
-  year: 2014
-  collection: [ping, spiking, gamma-synchronisation]
-  venue: Nature Neuroscience
-  doi: 10.1038/nn.3764
+  fiser-et-al-2010.pdf:
+    id: P05
+    title: "Statistically optimal perception and learning: from behavior to neural representations"
+    authors: [József Fiser, Pietro Berkes, Gergő Orbán, Máté Lengyel]
+    year: 2010
+    collection: proposed-functions
+    venue: Trends in Cognitive Sciences
+    doi: 10.1016/j.tics.2010.01.003
 
-yan-lin-2026.pdf:
-  id: P16
-  title: Neural basis of social hierarchy across species
-  authors: [Rongzhen Yan, Dayu Lin]
-  year: 2026
-  collection: [journal-club]
-  venue: Nature Reviews Neuroscience
-  doi: 10.1038/s41583-026-01047-z
+  fries-2015.pdf:
+    id: P28
+    title: "Rhythms for Cognition: Communication through Coherence"
+    authors: [Pascal Fries]
+    year: 2015
+    collection: proposed-functions
+    tags: [ping, spiking-networks]
+    venue: "Neuron (author manuscript)"
+    doi: 10.1016/j.neuron.2015.09.034
+
+  fries-et-al-2001.pdf:
+    id: P47
+    title: "Modulation of Oscillatory Neuronal Synchronization by Selective Visual Attention"
+    authors: ["Pascal Fries", "John H. Reynolds", "Alan E. Rorie", "Robert Desimone"]
+    year: 2001
+    collection: [experimental-tests, history-of-gamma]
+    # History: Landmark link between selective attention and gamma synchronization.
+    tags: [experimental-recording]
+    venue: "Science"
+    doi: 10.1126/science.1055465
+    # Relevance: Foundational primate attention evidence for gamma synchronisation.
+    # Citation verified 2026-11-05: https://pubmed.ncbi.nlm.nih.gov/11222864/
+
+  galuske-et-al-2019.pdf:
+    id: P75
+    title: "Relation between gamma oscillations and neuronal plasticity in the visual cortex"
+    authors: ["Ralf A. W. Galuske", "Matthias H. J. Munk", "Wolf Singer"]
+    year: 2019
+    collection: experimental-tests
+    tags: [plasticity, experimental-recording]
+    venue: "Proceedings of the National Academy of Sciences"
+    doi: 10.1073/pnas.1901277116
+    # Relevance: Tests gamma-associated visual cortical plasticity and distinguishes the association from
+    # discharge-rate differences; not selective gamma-only manipulation.
+    # Citation verified 2026-11-05: https://pubmed.ncbi.nlm.nih.gov/31659040/
+
+  greenwood-ward-2024.pdf:
+    id: P57
+    title: "Attentional selection and communication through coherence: Scope and limitations"
+    authors: ["Priscilla E. Greenwood", "Lawrence M. Ward"]
+    year: 2024
+    collection: criticism-competing-explanations
+    tags: [criticism, mathematical-model]
+    venue: "PLOS Computational Biology"
+    doi: 10.1371/journal.pcbi.1011431
+    # Relevance: Tests the parameter dependence and limits of a CTC-based attentional-selection mechanism.
+    # Citation verified 2026-11-05: https://pubmed.ncbi.nlm.nih.gov/39102437/
+
+  gregoriou-et-al-2009.pdf:
+    id: P48
+    title: "High-Frequency, Long-Range Coupling Between Prefrontal and Visual Cortex During Attention"
+    authors: ["Georgia G. Gregoriou", "Stephen J. Gotts", "Huihui Zhou", "Robert Desimone"]
+    year: 2009
+    collection: experimental-tests
+    tags: [experimental-recording]
+    venue: "Science"
+    doi: 10.1126/science.1171402
+    # Relevance: Extends attentional gamma evidence to long-range prefrontal-visual interactions.
+    # Citation verified 2026-11-05: https://pubmed.ncbi.nlm.nih.gov/19478185/
+
+  grothe-et-al-2012.pdf:
+    id: P49
+    title: "Switching Neuronal Inputs by Differential Modulations of Gamma-Band Phase-Coherence"
+    authors: ["Iris Grothe", "Simon D. Neitzel", "Sunita Mandon", "Andreas K. Kreiter"]
+    year: 2012
+    collection: experimental-tests
+    tags: [experimental-recording]
+    venue: "The Journal of Neuroscience"
+    doi: 10.1523/jneurosci.0890-12.2012
+    # Relevance: Tests selective coupling among converging visual inputs.
+    # Citation verified 2026-11-05: https://pubmed.ncbi.nlm.nih.gov/23152601/
+
+  hermes-et-al-2015-stimulus-matters.pdf:
+    id: P55
+    title: "Gamma oscillations in visual cortex: the stimulus matters"
+    authors: ["Dora Hermes", "Kai J. Miller", "Brian A. Wandell", "Jonathan Winawer"]
+    year: 2015
+    collection: criticism-competing-explanations
+    tags: [criticism, commentary]
+    venue: "Trends in Cognitive Sciences"
+    doi: 10.1016/j.tics.2014.12.009
+    # Relevance: Examines stimulus dependence as a constraint on interpretations of visual gamma.
+    # Citation verified 2026-11-05: https://pubmed.ncbi.nlm.nih.gov/25575448/
+
+  hermes-et-al-2015.pdf:
+    id: P63
+    title: "Stimulus Dependence of Gamma Oscillations in Human Visual Cortex"
+    authors: ["Dora Hermes", "Kai J. Miller", "Brian A. Wandell", "Jonathan Winawer"]
+    year: 2015
+    collection: experimental-tests
+    tags: [criticism, experimental-recording]
+    venue: "Cerebral Cortex"
+    doi: 10.1093/cercor/bhu091
+    # Relevance: Tests the generality of gamma across visual stimuli rather than assuming ubiquitous
+    # stimulus encoding.
+    # Citation verified 2026-11-05: https://pubmed.ncbi.nlm.nih.gov/24855114/
+
+  ichim-et-al-2024.pdf:
+    id: P78
+    title: "The gamma rhythm as a guardian of brain health"
+    authors:
+      [
+        "Ana Maria Ichim",
+        "Harald Barzan",
+        "Vasile Vlad Moca",
+        "Adriana Nagy-Dabacan",
+        "Andrei Ciuparu",
+        "Adela Hapca",
+        "Koen Vervaeke",
+        "Raul Cristian Muresan",
+      ]
+    year: 2024
+    collection: biological-constraints
+    tags: [review]
+    venue: "eLife"
+    doi: 10.7554/elife.100238
+    # Relevance: Reviews gamma mechanisms, functional claims and criticism, and proposes a circuit-
+    # maintenance hypothesis; the proposal is not established fact.
+    # Citation verified 2026-11-05: https://pubmed.ncbi.nlm.nih.gov/39565646/
+
+  jia-et-al-2013.pdf:
+    id: P50
+    title: "Gamma and the Coordination of Spiking Activity in Early Visual Cortex"
+    authors: ["Xiaoxuan Jia", "Seiji Tanabe", "Adam Kohn"]
+    year: 2013
+    collection: experimental-tests
+    tags: [experimental-recording]
+    venue: "Neuron"
+    doi: 10.1016/j.neuron.2012.12.036
+    # Relevance: Tests how gamma relates to coordinated spiking within V1 and between V1 and V2;
+    # distinguishes sender firing modulation from the downstream rhythm.
+    # Citation verified 2026-11-05: https://pubmed.ncbi.nlm.nih.gov/23439127/
+
+  kania-et-al-2026.pdf:
+    id: P18
+    title: "Learning to play with spikes: characterizing, predicting, and engineering unsupervised plasticity rules for spiking reservoir computing"
+    authors: [Maciej Kania, Basile Confavreux, Tim P. Vogels]
+    year: 2026
+    collection: modelling-measurement
+    tags: [spiking-networks]
+    venue: "bioRxiv:2026.09.15.751573v1"
+    doi: 10.64898/2026.09.15.751573
+
+  kann-et-al-2011.pdf:
+    id: P76
+    title: "Gamma oscillations in the hippocampus require high complex I gene expression and strong functional performance of mitochondria"
+    authors:
+      [
+        "Oliver Kann",
+        "Christine Huchzermeyer",
+        "Richard Kovács",
+        "Stefanie Wirtz",
+        "Markus Schuelke",
+      ]
+    year: 2011
+    collection: biological-constraints
+    tags: [energetics, cellular-experiment]
+    venue: "Brain"
+    doi: 10.1093/brain/awq333
+    # Relevance: Connects gamma-generating circuits to metabolic constraints.
+    # Citation verified 2026-11-05: https://pubmed.ncbi.nlm.nih.gov/21183487/
+
+  lisman-jensen-2013.pdf:
+    id: P72
+    title: "The Theta-Gamma Neural Code"
+    authors: ["John E. Lisman", "Ole Jensen"]
+    year: 2013
+    collection: proposed-functions
+    tags: [review, memory]
+    venue: "Neuron"
+    doi: 10.1016/j.neuron.2013.03.007
+    # Relevance: Develops a memory-related gamma function and evidence for theta-gamma organisation.
+    # Citation verified 2026-11-05: https://pubmed.ncbi.nlm.nih.gov/23522038/
+
+  lowet-et-al-2015.pdf:
+    id: P07
+    title: Input-Dependent Frequency Modulation of Cortical Gamma Oscillations Shapes Spatial Synchronization and Enables Phase Coding
+    authors:
+      [Eric Lowet, Mark Roberts, Avgis Hadjipapas, Alina Peter, Jan van der Eerden, Peter De Weerd]
+    year: 2015
+    collection: generation-dynamics
+    tags: [ping, spiking-networks]
+    venue: PLOS Computational Biology
+    doi: 10.1371/journal.pcbi.1004072
+
+  lowet-et-al-2017.pdf:
+    id: P10
+    title: A quantitative theory of gamma synchronization in macaque V1
+    authors: [Eric Lowet, Mark J. Roberts, Alina Peter, Bart Gips, Peter De Weerd]
+    year: 2017
+    collection: modelling-measurement
+    tags: [ping, spiking-networks]
+    venue: eLife
+    doi: 10.7554/eLife.26642
+
+  lundqvist-et-al-2016.pdf:
+    id: P74
+    title: "Gamma and Beta Bursts Underlie Working Memory"
+    authors:
+      [
+        "Mikael Lundqvist",
+        "Jonas Rose",
+        "Pawel Herman",
+        "Scott L. Brincat",
+        "Timothy J. Buschman",
+        "Earl K. Miller",
+      ]
+    year: 2016
+    collection: experimental-tests
+    tags: [memory, gamma-bursts]
+    venue: "Neuron"
+    doi: 10.1016/j.neuron.2016.02.028
+    # Relevance: Tests transient bursts rather than sustained gamma as a working-memory signature.
+    # Citation verified 2026-11-05: https://pubmed.ncbi.nlm.nih.gov/26996084/
+
+  ma-et-al-2006.pdf:
+    id: P04
+    title: Bayesian inference with probabilistic population codes
+    authors: [Wei Ji Ma, Jeffrey M. Beck, Peter E. Latham, Alexandre Pouget]
+    year: 2006
+    collection: proposed-functions
+    tags: [spiking-networks]
+    venue: Nature Neuroscience
+    doi: 10.1038/nn1790
+
+  nandi-et-al-2024.pdf:
+    id: P21
+    title: Bursting gamma oscillations in neural mass models
+    authors: [Manoj Kumar Nandi, Michele Valla, Matteo di Volo]
+    year: 2024
+    collection: generation-dynamics
+    tags: [ping, neural-mass-models]
+    venue: Frontiers in Computational Neuroscience
+    doi: 10.3389/fncom.2024.1422159
+
+  ni-et-al-2016.pdf:
+    id: P45
+    title: "Gamma-Rhythmic Gain Modulation"
+    authors:
+      [
+        "Jianguang Ni",
+        "Thomas Wunderle",
+        "Christopher Murphy Lewis",
+        "Robert Desimone",
+        "Ilka Diester",
+        "Pascal Fries",
+      ]
+    year: 2016
+    collection: experimental-tests
+    tags: [causal-experiment]
+    venue: "Neuron"
+    doi: 10.1016/j.neuron.2016.09.003
+    # Relevance: Tests gamma-phase-dependent gain using visual and optogenetic stimulation and behavioural
+    # measurements.
+    # Citation verified 2026-11-05: https://pubmed.ncbi.nlm.nih.gov/27667008/
+
+  orban-et-al-2016.pdf:
+    id: P08
+    title: Neural Variability and Sampling-Based Probabilistic Representations in the Visual Cortex
+    authors: [Gergő Orbán, Pietro Berkes, József Fiser, Máté Lengyel]
+    year: 2016
+    collection: experimental-tests
+    venue: Neuron
+    doi: 10.1016/j.neuron.2016.09.038
+
+  padamsey-et-al-2022.pdf:
+    id: P14
+    title: Neocortex saves energy by reducing coding precision during food scarcity
+    authors: [Zahid Padamsey, Danai Katsanevaki, Nathalie Dupuy, Nathalie L. Rochefort]
+    year: 2022
+    collection: biological-constraints
+    tags: [spiking-networks]
+    venue: Neuron
+    doi: 10.1016/j.neuron.2021.10.024
+
+  perrenoud-et-al-2025.pdf:
+    id: P58
+    title: "Flexible perceptual encoding by discrete gamma events"
+    authors:
+      [
+        "Quentin Perrenoud",
+        "Antonio H. de O. Fonseca",
+        "Austin Airhart",
+        "James Bonanno",
+        "Rong Mao",
+        "Jessica A. Cardin",
+      ]
+    year: 2025
+    collection: experimental-tests
+    tags: [causal-experiment, gamma-bursts]
+    venue: "Nature"
+    doi: 10.1038/s41586-025-09604-9
+    # Relevance: Tests transient gamma events with cellular recordings and perturbations linking visual
+    # encoding and detection behaviour.
+    # Citation verified 2026-11-05: https://pubmed.ncbi.nlm.nih.gov/41062693/
+
+  pouget-et-al-2003.pdf:
+    id: P02
+    title: Inference and Computation with Population Codes
+    authors: [Alexandre Pouget, Peter Dayan, Richard S. Zemel]
+    year: 2003
+    collection: proposed-functions
+    venue: Annual Review of Neuroscience
+    doi: 10.1146/annurev.neuro.26.041002.131112
+
+  ray-maunsell-2011.pdf:
+    id: P62
+    title: "Different Origins of Gamma Rhythm and High-Gamma Activity in Macaque Visual Cortex"
+    authors: ["Supratim Ray", "John H. R. Maunsell"]
+    year: 2011
+    collection: modelling-measurement
+    tags: [measurement, experimental-recording]
+    venue: "PLoS Biology"
+    doi: 10.1371/journal.pbio.1000610
+    # Relevance: Separates narrowband gamma from high-frequency activity when comparing model signals to
+    # recordings.
+    # Citation verified 2026-11-05: https://pubmed.ncbi.nlm.nih.gov/21532743/
+
+  ray-maunsell-2015.pdf:
+    id: P44
+    title: "Do gamma oscillations play a role in cerebral cortex?"
+    authors: ["Supratim Ray", "John H.R. Maunsell"]
+    year: 2015
+    collection: criticism-competing-explanations
+    tags: [review, criticism]
+    venue: "Trends in Cognitive Sciences"
+    doi: 10.1016/j.tics.2014.12.002
+    # Relevance: Direct critique of gamma functional claims, stimulus dependence, delays and spike
+    # contamination.
+    # Citation verified 2026-11-05: https://pubmed.ncbi.nlm.nih.gov/25555444/
+
+  renart-et-al-2010-supplemental.pdf:
+    id: P22
+    supplement_of: P20
+    title: "The Asynchronous State in Cortical Circuits: Supporting Online Material"
+    authors:
+      [
+        Alfonso Renart,
+        Jaime de la Rocha,
+        Peter Bartho,
+        Liad Hollender,
+        Néstor Parga,
+        Alex Reyes,
+        Kenneth D. Harris,
+      ]
+    year: 2010
+    collection: generation-dynamics
+    tags: [spiking-networks]
+    venue: Science
+    doi: 10.1126/science.1179850
+
+  renart-et-al-2010.pdf:
+    id: P20
+    title: The Asynchronous State in Cortical Circuits
+    authors:
+      [
+        Alfonso Renart,
+        Jaime de la Rocha,
+        Peter Bartho,
+        Liad Hollender,
+        Néstor Parga,
+        Alex Reyes,
+        Kenneth D. Harris,
+      ]
+    year: 2010
+    collection: generation-dynamics
+    tags: [spiking-networks]
+    venue: Science
+    doi: 10.1126/science.1179850
+
+  rolls-et-al-2012.pdf:
+    id: P67
+    title: "Communication before coherence"
+    authors: ["Edmund T. Rolls", "Tristan J. Webb", "Gustavo Deco"]
+    year: 2012
+    collection: criticism-competing-explanations
+    tags: [criticism, spiking-networks]
+    venue: "European Journal of Neuroscience"
+    doi: 10.1111/j.1460-9568.2012.08188.x
+    # Relevance: Simulation counterexample in which stimulus information transfers without coherence and
+    # remains effective without oscillations.
+    # Citation verified 2026-11-05: https://pubmed.ncbi.nlm.nih.gov/22779805/
+
+  schneider-et-al-2021.pdf:
+    id: P46
+    title: "A mechanism for inter-areal coherence through communication based on connectivity and oscillatory power"
+    authors:
+      [
+        "Marius Schneider",
+        "Ana Clara Broggini",
+        "Benjamin Dann",
+        "Athanasia Tzanou",
+        "Cem Uran",
+        "Swathi Sheshadri",
+        "Hansjörg Scherberger",
+        "Martin Vinck",
+      ]
+    year: 2021
+    collection: criticism-competing-explanations
+    tags: [criticism]
+    venue: "Neuron"
+    doi: 10.1016/j.neuron.2021.09.037
+    # Relevance: Tests coherence as a consequence of connectivity and communication rather than its cause.
+    # Citation verified 2026-11-05: https://pubmed.ncbi.nlm.nih.gov/34637706/
+
+  sedley-cunningham-2013.pdf:
+    id: P56
+    title: "Do cortical gamma oscillations promote or suppress perception? An under-asked question with an over-assumed answer"
+    authors: ["William Sedley", "Mark O. Cunningham"]
+    year: 2013
+    collection: criticism-competing-explanations
+    tags: [review, criticism]
+    venue: "Frontiers in Human Neuroscience"
+    doi: 10.3389/fnhum.2013.00595
+    # Relevance: Directly examines the assumption that stronger cortical gamma improves perception.
+    # Citation verified 2026-11-05: https://pubmed.ncbi.nlm.nih.gov/24065913/
+
+  shadlen-movshon-1999.pdf:
+    id: P60
+    title: "Synchrony Unbound: A Critical Evaluation of the Temporal Binding Hypothesis"
+    authors: ["Michael N. Shadlen", "J. Anthony Movshon"]
+    year: 1999
+    collection: [criticism-competing-explanations, history-of-gamma]
+    # History: Critical evaluation of temporal binding, preserving the historical debate rather than a progress-only narrative.
+    tags: [review, criticism, binding]
+    venue: "Neuron"
+    doi: 10.1016/s0896-6273(00)80822-3
+    # Relevance: Independent review criticising the plausibility, readout and experimental evidence for
+    # synchrony-based binding.
+    # Citation verified 2026-11-05: https://pubmed.ncbi.nlm.nih.gov/10677027/
+
+  shu-et-al-2003.pdf:
+    id: P25
+    title: Turning on and off recurrent balanced cortical activity
+    authors: [Yousheng Shu, Andrea Hasenstaub, David A. McCormick]
+    year: 2003
+    collection: generation-dynamics
+    tags: [spiking-networks]
+    venue: Nature
+    doi: 10.1038/nature01616
+
+  singer-1999.pdf:
+    id: P59
+    title: "Neuronal Synchrony: A Versatile Code for the Definition of Relations?"
+    authors: ["Wolf Singer"]
+    year: 1999
+    collection: proposed-functions
+    tags: [review, binding]
+    venue: "Neuron"
+    doi: 10.1016/s0896-6273(00)80821-1
+    # Relevance: Foundational review of synchrony-based relational coding and binding, paired here with
+    # independent criticism.
+    # Citation verified 2026-11-05: https://pubmed.ncbi.nlm.nih.gov/10677026/
+
+  sohal-et-al-2009.pdf:
+    id: P38
+    title: "Parvalbumin neurons and gamma rhythms enhance cortical circuit performance"
+    authors: ["Vikaas S. Sohal", "Feng Zhang", "Ofer Yizhar", "Karl Deisseroth"]
+    year: 2009
+    collection: experimental-tests
+    tags: [causal-experiment]
+    venue: "Nature"
+    doi: 10.1038/nature07991
+    # Relevance: Perturbs PV cells to test gamma-related circuit function; assess timing versus other
+    # intervention effects.
+    # Citation verified 2026-11-05: https://pubmed.ncbi.nlm.nih.gov/19396159/
+
+  soltoggio-et-al-2018.pdf:
+    id: P24
+    title: "Born to learn: The inspiration, progress, and future of evolved plastic artificial neural networks"
+    authors: [Andrea Soltoggio, Kenneth O. Stanley, Sebastian Risi]
+    year: 2018
+    collection: modelling-measurement
+    tags: [neuroevolution]
+    venue: "Neural Networks (author manuscript)"
+    doi: 10.1016/j.neunet.2018.07.013
+
+  susin-destexhe-2021.pdf:
+    id: P13
+    title: Integration, coincidence detection and resonance in networks of spiking neurons expressing Gamma oscillations and asynchronous states
+    authors: [Eduarda Susin, Alain Destexhe]
+    year: 2021
+    collection: modelling-measurement
+    tags: [ping, spiking-networks]
+    venue: PLOS Computational Biology
+    doi: 10.1371/journal.pcbi.1009416
+
+  ter-wal-tiesinga-2017.pdf:
+    id: P11
+    title: Phase Difference between Model Cortical Areas Determines Level of Information Transfer
+    authors: [Marije ter Wal, Paul H. Tiesinga]
+    year: 2017
+    collection: proposed-functions
+    tags: [ping, spiking-networks]
+    venue: Frontiers in Computational Neuroscience
+    doi: 10.3389/fncom.2017.00006
+
+  tiesinga-sejnowski-2009.pdf:
+    id: P29
+    title: "Cortical Enlightenment: Are Attentional Gamma Oscillations Driven by ING or PING?"
+    authors: [Paul Tiesinga, Terrence J. Sejnowski]
+    year: 2009
+    collection: generation-dynamics
+    tags: [ping, spiking-networks]
+    venue: Neuron
+    doi: 10.1016/j.neuron.2009.09.009
+
+  veit-et-al-2017.pdf:
+    id: P40
+    title: "Cortical gamma band synchronization through somatostatin interneurons"
+    authors:
+      ["Julia Veit", "Richard Hakim", "Monika P Jadi", "Terrence J Sejnowski", "Hillel Adesnik"]
+    year: 2017
+    collection: generation-dynamics
+    tags: [causal-experiment, somatostatin]
+    venue: "Nature Neuroscience"
+    doi: 10.1038/nn.4562
+    # Relevance: Tests an interneuron mechanism beyond a PV-only account of cortical gamma.
+    # Citation verified 2026-11-05: https://pubmed.ncbi.nlm.nih.gov/28481348/
+
+  vinck-et-al-2010.pdf:
+    id: P61
+    title: "Gamma-Phase Shifting in Awake Monkey Visual Cortex"
+    authors:
+      [
+        "Martin Vinck",
+        "Bruss Lima",
+        "Thilo Womelsdorf",
+        "Robert Oostenveld",
+        "Wolf Singer",
+        "Sergio Neuenschwander",
+        "Pascal Fries",
+      ]
+    year: 2010
+    collection: experimental-tests
+    tags: [experimental-recording, phase-coding]
+    venue: "The Journal of Neuroscience"
+    doi: 10.1523/jneurosci.1623-09.2010
+    # Relevance: Tests whether neuronal activation strength systematically shifts spike timing within the
+    # gamma cycle.
+    # Citation verified 2026-11-05: https://pubmed.ncbi.nlm.nih.gov/20107053/
+
+  vinck-et-al-2011.pdf:
+    id: P71
+    title: "An improved index of phase-synchronization for electrophysiological data in the presence of volume-conduction, noise and sample-size bias"
+    authors:
+      [
+        "Martin Vinck",
+        "Robert Oostenveld",
+        "Marijn van Wingerden",
+        "Francesco Battaglia",
+        "Cyriel M.A. Pennartz",
+      ]
+    year: 2011
+    collection: modelling-measurement
+    tags: [measurement]
+    venue: "NeuroImage"
+    doi: 10.1016/j.neuroimage.2011.01.055
+    # Relevance: Addresses volume conduction and estimator bias in phase synchronisation measurements.
+    # Citation verified 2026-11-05: https://pubmed.ncbi.nlm.nih.gov/21276857/
+
+  vinck-et-al-2025.pdf:
+    id: P65
+    title: "Large-scale interactions in predictive processing: oscillatory versus transient dynamics"
+    authors:
+      ["Martin Vinck", "Cem Uran", "Jarrod R. Dowdall", "Brian Rummell", "Andres Canales-Johnson"]
+    year: 2025
+    collection: criticism-competing-explanations
+    tags: [review, criticism, predictive-processing]
+    venue: "Trends in Cognitive Sciences"
+    doi: 10.1016/j.tics.2024.09.013
+    # Relevance: Critically compares oscillatory and transient accounts of predictive processing.
+    # Citation verified 2026-11-05: https://pubmed.ncbi.nlm.nih.gov/39424521/
+
+  wang-buzsaki-1996.pdf:
+    id: P34
+    title: "Gamma Oscillation by Synaptic Inhibition in a Hippocampal Interneuronal Network Model"
+    authors: ["Xiao-Jing Wang", "György Buzsáki"]
+    year: 1996
+    collection: generation-dynamics
+    tags: [ing, spiking-networks]
+    venue: "The Journal of Neuroscience"
+    doi: 10.1523/jneurosci.16-20-06402.1996
+    # Relevance: Foundational inhibitory-network model for a mechanistic alternative to PING.
+    # Citation verified 2026-11-05: https://pubmed.ncbi.nlm.nih.gov/8815919/
+
+  whittington-et-al-1995.pdf:
+    id: P35
+    title: "Synchronized oscillations in interneuron networks driven by metabotropic glutamate receptor activation"
+    authors: ["Miles A. Whittington", "Roger D. Traub", "John G. R. Jefferys"]
+    year: 1995
+    collection: [generation-dynamics, history-of-gamma]
+    # History: Landmark inhibitory-network experiment establishing a mechanism for synchronized gamma.
+    tags: [ing, cellular-experiment]
+    venue: "Nature"
+    doi: 10.1038/373612a0
+    # Relevance: Primary experimental foundation for inhibitory-network gamma.
+    # Citation verified 2026-11-05: https://pubmed.ncbi.nlm.nih.gov/7854418/
+
+  wildie-shanahan-2012.pdf:
+    id: P27
+    title: Establishing communication between neuronal populations through competitive entrainment
+    authors: [Mark Wildie, Murray Shanahan]
+    year: 2012
+    collection: proposed-functions
+    tags: [ping, spiking-networks]
+    venue: Frontiers in Computational Neuroscience
+    doi: 10.3389/fncom.2011.00062
+
+  womelsdorf-et-al-2006.pdf:
+    id: P54
+    title: "Gamma-band synchronization in visual cortex predicts speed of change detection"
+    authors: ["Thilo Womelsdorf", "Pascal Fries", "Partha P. Mitra", "Robert Desimone"]
+    year: 2006
+    collection: experimental-tests
+    tags: [experimental-recording]
+    venue: "Nature"
+    doi: 10.1038/nature04258
+    # Relevance: Relates visual gamma synchronisation to behavioural performance without assuming causality.
+    # Citation verified 2026-11-05: https://pubmed.ncbi.nlm.nih.gov/16372022/
+
+  womelsdorf-et-al-2014.pdf:
+    id: P31
+    title: Dynamic circuit motifs underlying rhythmic gain control, gating and integration
+    authors: [Thilo Womelsdorf, Taufik A. Valiante, Ned T. Sahin, Kai J. Miller, Paul Tiesinga]
+    year: 2014
+    collection: proposed-functions
+    tags: [ping, spiking-networks]
+    venue: Nature Neuroscience
+    doi: 10.1038/nn.3764
+
+  yan-lin-2026.pdf:
+    id: P16
+    title: Neural basis of social hierarchy across species
+    authors: [Rongzhen Yan, Dayu Lin]
+    year: 2026
+    collection: biological-constraints
+    tags: [journal-club]
+    venue: Nature Reviews Neuroscience
+    doi: 10.1038/s41583-026-01047-z
+
+  yuval-greenberg-et-al-2008.pdf:
+    id: P64
+    title: "Transient Induced Gamma-Band Response in EEG as a Manifestation of Miniature Saccades"
+    authors:
+      ["Shlomit Yuval-Greenberg", "Orr Tomer", "Alon S. Keren", "Israel Nelken", "Leon Y. Deouell"]
+    year: 2008
+    collection: modelling-measurement
+    tags: [measurement]
+    venue: "Neuron"
+    doi: 10.1016/j.neuron.2008.03.027
+    # Relevance: Tests an ocular explanation for transient EEG gamma, constraining measurement
+    # interpretation.
+    # Citation verified 2026-11-05: https://pubmed.ncbi.nlm.nih.gov/18466752/
+
+  adrian-1942.pdf:
+    id: P79
+    title: Olfactory reactions in the brain of the hedgehog
+    authors:
+      - E D Adrian
+    year: 1942
+    collection: history-of-gamma
+    tags:
+      - historical-landmark
+      - experimental-recording
+    venue: The Journal of Physiology
+    doi: 10.1113/jphysiol.1942.sp003955
+    # History: Early odor-evoked fast oscillations in the hedgehog, retrospectively identified as gamma in historical reviews.
+    # Citation verified 2026-11-05: https://pubmed.ncbi.nlm.nih.gov/16991539/
+
+  bressler-freeman-1980.pdf:
+    id: P80
+    title: Frequency analysis of olfactory system EEG in cat, rabbit, and rat
+    authors:
+      - S L Bressler
+      - W J Freeman
+    year: 1980
+    collection: history-of-gamma
+    tags:
+      - historical-landmark
+      - experimental-recording
+    venue: Electroencephalography and Clinical Neurophysiology
+    doi: 10.1016/0013-4694(80)90319-3
+    # History: Comparative olfactory EEG study associated with establishing the gamma-rhythm terminology.
+    # Citation verified 2026-11-05: https://pubmed.ncbi.nlm.nih.gov/6159187/
+
+  eckhorn-et-al-1988.pdf:
+    id: P81
+    title: "Coherent oscillations: a mechanism of feature linking in the visual cortex? Multiple electrode and correlation analyses in the cat"
+    authors:
+      - R Eckhorn
+      - R Bauer
+      - W Jordan
+      - M Brosch
+      - W Kruse
+      - M Munk
+      - H J Reitboeck
+    year: 1988
+    collection: history-of-gamma
+    tags:
+      - historical-landmark
+      - experimental-recording
+    venue: Biological Cybernetics
+    doi: 10.1007/bf00202899
+    # History: Early visual-cortical coherence experiments proposing oscillatory feature linking; the interpretation is a hypothesis.
+    # Citation verified 2026-11-05: https://pubmed.ncbi.nlm.nih.gov/3228555/
+
+  gray-et-al-1989.pdf:
+    id: P82
+    title: Oscillatory responses in cat visual cortex exhibit inter-columnar synchronization which reflects global stimulus properties
+    authors:
+      - C M Gray
+      - P König
+      - A K Engel
+      - W Singer
+    year: 1989
+    collection: history-of-gamma
+    tags:
+      - historical-landmark
+      - experimental-recording
+    venue: Nature
+    doi: 10.1038/338334a0
+    # History: Landmark inter-columnar synchronization result behind the visual binding hypothesis, not proof of binding.
+    # Citation verified 2026-11-05: https://pubmed.ncbi.nlm.nih.gov/2922061/
+
+  rojas-libano-kay-2008.pdf:
+    id: P83
+    title: "Olfactory system gamma oscillations: the physiological dissection of a cognitive neural system"
+    authors:
+      - Daniel Rojas-Líbano
+      - Leslie M Kay
+    year: 2008
+    collection: history-of-gamma
+    tags:
+      - review
+      - history
+    venue: Cognitive Neurodynamics
+    doi: 10.1007/s11571-008-9053-1
+    # History: Historical and mechanistic review of olfactory gamma, including an explicit short historical review.
+    # Citation verified 2026-11-05: https://pubmed.ncbi.nlm.nih.gov/19003484/
+
+  ahmed-cash-2013.pdf:
+    id: P84
+    title: "Finding synchrony in the desynchronized EEG: the history and interpretation of gamma rhythms"
+    authors:
+      - Omar J Ahmed
+      - Sydney S Cash
+    year: 2013
+    collection: history-of-gamma
+    tags:
+      - review
+      - history
+    venue: Frontiers in Integrative Neuroscience
+    doi: 10.3389/fnint.2013.00058
+    # History: Dedicated historical review of gamma and the interpretation of the activated or desynchronized EEG.
+    # Citation verified 2026-11-05: https://pubmed.ncbi.nlm.nih.gov/23964210/

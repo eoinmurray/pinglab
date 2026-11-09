@@ -1,7 +1,7 @@
 """Fixed A/B → C spatial relay: configuration and native network authoring.
 
 Spatial widths use a circular unit interval; weights are conductances in µS.
-Defaults use the selected weak-recurrence stability setting; this is single-seed tuning, not held-out validation.
+Defaults use the selected combined inhibition/coupling setting; this is single-seed tuning, not held-out validation.
 """
 
 import copy
@@ -76,9 +76,10 @@ def configuration(**overrides):
         cross_mapping="gaussian",
         spatial_assignments=[False],
         c_gain_scale=0.25,
-        c_ie_scale=1.31,
+        c_ie_scale=1.40,
         c_ee_scale=0.05,
-        cross_total_us=0.7333333333333334,
+        feedforward_multiplier=0.8,
+        cross_total_us=0.7333333333333334 * 0.8,
         c_ee_kernel_sigma=0.025,
         cross_tau_ms=0.75,
         fidelity_bin_neurons=8,
@@ -94,18 +95,16 @@ def configuration(**overrides):
             "complementary StepGain gates deliver a shared uniform cue train"
         ),
         input_seed_rule="numpy.default_rng([trial_seed, offset]); offsets X_A=700, X_B=701, X_C=702, U=703",
-        effective_weights="Pinned native source arrays with spatial mappings, local recurrence, inhibition scaling and recorded target-gain compression; executed arrays retained natively",
+        effective_weights="Pinned exp172 baseline arrays; C inhibition and recurrence scaled relative to recorded baseline; both sender-to-C E matrices scaled equally; all other arrays unchanged",
         windows_ms=[[650.0, 1100.0], [1850.0, 2300.0]],
         protocol="constant simultaneous spatial Gaussians; uniform cue A then B",
         backend="native SNNLab CPU, one thread, no compilation",
         experiment="exp172",
-        source_run="exp162-r031-compute",
-        source_digest="sha256:d81ac08e4c7aa2ec1ad923e36ec1f575714369d4a136b32abd284774b5a29035",
-        source_snapshot_sha256="afcfcdd6b1773f06a8d429dd21600fa83afaa2085db32999cc0b3113bb8224fa",
-        selection_reference=dict(
-            run_id="exp172-r012-compute",
-            payload_digest="sha256:cb3c9be5f6d8c62fc28c242a21bdb2d7057f01be602de12a87b54bf1f361126d",
-        ),
+        source_run="exp172-r012-compute",
+        source_digest="sha256:cb3c9be5f6d8c62fc28c242a21bdb2d7057f01be602de12a87b54bf1f361126d",
+        source_snapshot="seed185-swap0-cue3/start/snapshot.json",
+        source_snapshot_sha256="0171b5a83f89709035ffada15d7d6d62c33ba169e527a1a78418d7d51a351b76",
+        parameter_selection="Cue 3 Hz/channel, sensory 1x, inhibition 1.40, recurrence 0.05 and feedforward multiplier 0.8 selected from single-seed scratch sweeps; no held-out validation",
     )
     unknown = set(overrides) - set(cfg)
     if unknown:
@@ -158,6 +157,49 @@ def validate_weights(cfg):
         not np.isfinite(cfg["c_ee_kernel_sigma"]) or cfg["c_ee_kernel_sigma"] <= 0
     ):
         raise ValueError("Positive local recurrent width required")
+
+
+def trial_plan(cfg):
+    """Declare the report cue protocol and single-sender controls."""
+    items = [
+        dict(
+            id=f"seed{seed}-swap{int(swap)}-cue{cue:g}",
+            seed=seed,
+            swap=swap,
+            cue_hz=cue,
+            active="AB",
+        )
+        for seed in cfg["seeds"]
+        for swap in cfg["spatial_assignments"]
+        for cue in cfg["cue_strengths_hz"]
+    ]
+    items += [
+        dict(
+            id=f"single{c}-swap{int(swap)}",
+            seed=cfg["seeds"][0],
+            swap=swap,
+            cue_hz=0.0,
+            active=c,
+        )
+        for swap in cfg["spatial_assignments"]
+        for c in "AB"
+    ]
+    return items
+
+
+def selected_parameters(original, cfg, baseline):
+    """Apply the selected interventions to the exact saved exp172 arrays."""
+    params = {key: value.clone() for key, value in original.items()}
+    params["C_I_to_E.weight"] *= cfg["c_ie_scale"] / baseline["c_ie_scale"]
+    params["C_E_to_E.weight"] *= cfg["c_ee_scale"] / baseline["c_ee_scale"]
+    for key in ["A_E_to_C_E.weight", "B_E_to_C_E.weight"]:
+        params[key] *= cfg["feedforward_multiplier"]
+    expected = baseline["cross_total_us"] * cfg["feedforward_multiplier"]
+    if not np.isclose(cfg["cross_total_us"], expected, rtol=1e-12, atol=0):
+        raise ValueError(
+            "Recorded incoming conductance disagrees with coupling multiplier"
+        )
+    return params
 
 
 def distance(x, centre):
@@ -236,6 +278,11 @@ def compress_target_gains(params, cfg):
             continue
         desired = totals.mean() + (totals - totals.mean()) * scale
         params[key] *= (desired / totals)[None, :]
+
+
+def cycle_analysis_configuration():
+    """A switch must persist for three consecutive receiver cycles."""
+    return dict(sustained_cycles=3)
 
 
 def inputs(cfg, seed, cue, swap, active="AB"):

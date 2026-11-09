@@ -1,38 +1,52 @@
-# exp170 — COBA with count-matched asynchronous inhibition
+# exp170 — COBA with conductance-matched Poisson inhibition
 
-Compare one frozen, unpenalised TR02 COBA response with PING and COBA receiving
-private GABA inputs. Match exactly 24 events per source over 200 ms, plus each
-E neuron's PING inhibitory-conductance mean and approximately its temporal SD.
-The report follows exp169: Abstract, Results with three diagnostic figures then the measured
-statistics table, five-step Methods, and appendix diagrams/parameters.
+Run one frozen COBA trial with independent private Poisson input to each E neuron.
+Rates and constant event amplitudes are fitted once to PING's per-E conductance
+mean and variance. Original sensory/readout weights and the fitted private
+weights stay frozen. There is no training.
 
-1. `uv run python experiments/exp170/compute.py --import-source RETAINED_ID`
-   imports authenticated existing evidence without simulation. The migration
-   source is `exp169-r014-compute-phase-scratch-count-matched-inhibition`.
-2. `uv run python experiments/exp170/compute.py` explicitly calibrates private
-   timing and strength and simulates one native frozen CPU trial. Requires
-   simulation authorization. No upstream training or simulation is launched.
-3. `uv run python experiments/exp170/analyse.py --source COMPUTE_ID` validates
-   exact counts, checkpoint/snapshot parameters, GABA filtering and moment errors,
-   then measures source rates, correlations and E firing without simulation.
-4. `uv run python experiments/exp170/present.py --source ANALYSE_ID --traces TRACE_COMPUTE_ID` renders house
-   style raster/voltage/conductance figures, diagrams and the shared evidence payload for the report/table.
-5. `uv run pytest experiments/exp170/test.py` runs focused non-simulation checks.
+The versioned `poisson_moment_matched_v1` method draws independent Poisson counts
+per 0.1-ms bin, including coincident events. It uses the exact stationary moments
+of the discrete 6-ms GABA filter with one-step delay. For decay factor
+`a = exp(-dt/tau)`, amplitude is `(1+a)*variance/mean`; rate in Hz is
+`mean**2*(1-a)/(dt_seconds*(1+a)*variance)`.
 
-Stage commands accept optional `--run-id ID`. Imports do not execute stages.
-Code and rendering have no dependency on `.scratch` or another experiment's code.
-The imported payload, original configuration, native snapshots and original
-execution timing remain unchanged and explicitly pinned in Pingstore.
+Keep 60 ms of inhibition-only prehistory; carry only private conductance and
+pending events into fresh neurons at t=0. Match stationary expectations, not
+individual random trials: save and report achieved trial mean/SD errors without
+conditioning counts, rejecting draws, or rescaling sampled traces. Artificial
+rates need not equal PING I rates. Private streams also remove shared
+fluctuations, so this single-image COBA/PING comparison does not isolate gamma.
+Expected retention remains below 40 MB. Historical fixed-count runs retain their
+original generator and validation semantics.
 
-There are 1024 private channels, not 256 I neurons. Timing and amplitudes are
-calibrated independently per recipient without examining E output. These are
-count-constrained inputs, not Poisson events; feedback and higher-order timing
-remain different, and COBA/PING have different trained weights. This is one
-image and artificial seed, without retraining or accuracy evaluation.
+## Run
 
-`compute.py --record-traces COMPUTE_ID` replays only the retained artificial
-trial, without training or recalibration, and requires simulation authorization.
-It retains E neuron 512’s voltage and excitatory/inhibitory conductances in a
-new `membrane-traces` compute phase, verifying all original outputs exactly.
-Pass that phase ID to `present.py --traces`. The COBA and PING panels use their
-original saved traces; each condition gets its own three-panel figure.
+From the repository root, run these stages in order.
+Compute runs simulations and requires explicit authorisation.
+
+```sh
+uv run python experiments/exp170/compute.py
+uv run python experiments/exp170/compute.py --record-traces COMPUTE_ID
+uv run python experiments/exp170/analyse.py --source COMPUTE_ID
+uv run python experiments/exp170/present.py --source ANALYSE_ID --traces TRACE_COMPUTE_ID
+```
+
+Replace `COMPUTE_ID` with the first compute run ID, `TRACE_COMPUTE_ID` with
+the trace replay run ID, and `ANALYSE_ID` with the analysis run ID.
+
+To run automated checks:
+
+```sh
+uv run pytest experiments/exp170/test.py -q
+```
+
+## Folder guide
+
+1. `recipe.py` — configuration and model definition.
+2. `compute.py` — run simulations and save evidence.
+3. `analyse.py` — calculate measurements from saved evidence.
+4. `present.py` — generate figures and report assets.
+5. `custom/` — experiment-specific models, helpers and execution tools.
+6. `report/` — report, appendix and supporting components.
+7. `test.py` — automated checks.

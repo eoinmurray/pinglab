@@ -1,61 +1,45 @@
 # exp153 — Mean-field coupling
 
-Define two reciprocal E/I circuits locally and measure a 143-condition locking
-map with a delayed rate-conductance closure. Both circuits include all
-four local pathways and private sensory input; no attention input is present.
-The model has 14 conductance filters and four population-rate variables. Local
-seeded initialization supplies weights without advancing the spiking reference.
-The neuronal reference follows exp133’s network and projection order, with
-locally tuned recurrence and rate relaxation; sensory gain is applied once
-during mean-field reduction. Parameter tuning is qualitative and uses one seed.
+Map phase locking between two coupled excitatory–inhibitory circuits using a delayed
+rate–conductance model, then inspect coupling onset and receiver susceptibility.
 
-## CLI
+## Run
 
-1. `compute.py`: optional `--difference-hz` (−4), `--coupling-us` (0.09),
-   `--parallel` (1), `--onset-only` and `--run-id`. No upstream source is required. Runs the full
-   143-condition grid for 5,000 ms; difference and coupling select the onset
-   excerpt, without changing sweep coverage. Saves its own native initialization,
-   graph, models and trajectories. `--onset-only` runs just the selected
-   1,500 ms condition for Figure 2, without computing the map.
-   Optional `--tau-rate-e-ms` (5), `--tau-rate-i-ms` (5) and
-   `--sensory-gain` (9.2) tune the closure response times and sensory drive;
-   every trial records its resolved settings.
-   `--recurrent-ee-us` (0.4), `--recurrent-ii-us` (0.8) set nominal self-pathway
-   totals; `--local-feedback-scale` (1.5) scales both E→I and I→E weight
-   distributions before native initialization.
-   `--cross-delay-ms` (2) sets the delay of all four cross-circuit pathways.
-   `--cross-tau-ms` (0.5) sets their synaptic conductance decay time.
-2. `analyse.py`: required `--source COMPUTE_ID`; optional `--run-id`.
-   Accepts this experiment's standalone compute, validates coverage and native
-   trajectories, calibrates detuning from each zero-coupling condition and
-   measures locking over 800–5,000 ms. Extracts the selected first 1,500 ms.
-3. `present.py`: required `--source ANALYSE_ID`; optional `--run-id` and
-   `--map-source PRESENT_ID`. Onset-only analysis requires an explicit map
-   presentation to preserve Figure 1 byte-for-byte with its original provenance.
-   Exports the map and onset figures in SVG, PNG and PDF, the native model,
-   numerical results and circuit diagram with routed self-loops and weight labels.
-   Use `--fig2-only --output PATH` with an explicit analysis source to render
-   only a Figure 2 preview (PNG/SVG/PDF and source pins), without a map source
-   or a new full-report presentation.
-4. `test.py`: `uv run pytest experiments/exp153/test.py -q`.
+From the repository root, run these stages in order.
+Compute runs numerical integration and requires explicit authorisation.
 
-Compute has no scientific input runs. Analysis and presentation consume only
-explicitly identified runs from this experiment. Stages execute independently;
-completed historical evidence retains its original immutable provenance.
+```sh
+uv run python experiments/exp153/compute.py
+uv run python experiments/exp153/analyse.py --source COMPUTE_ID
+uv run python experiments/exp153/present.py --source ANALYSE_ID
+```
 
-## Figure 3 only: instantaneous susceptibility over time
+Replace `COMPUTE_ID` and `ANALYSE_ID` with the completed run IDs
+from the preceding stages.
 
-1. `uv run python experiments/exp153/analyse.py --susceptibility-only --source COMPUTE_ID`
-   reads the selected condition's saved native trajectory and evaluates the analytic
-   derivative of receiver B E's noisy-LIF transfer function at its effective current.
-   The native model is reconstructed from pinned configuration and validated against
-   the saved model before evaluating its derivative. No integration is performed.
-2. `uv run python experiments/exp153/present.py --fig3-only --source ANALYSE_ID --preserve-source PRESENT_ID`
-   writes `susceptibility.svg`, PNG and PDF as Figure 3, preserving Figures 1 and 2
-   with their original provenance. Both analyses must use the same compute source.
+To add the susceptibility figure, use the same compute run and the presentation
+ID returned above:
 
-The plot shows 1,200–1,400 ms of the selected trial. Sender A E-rate peaks are
-shifted by the saved cross-pathway delay and marked as vertical arrival lines.
-Susceptibility has units Hz/nA and describes the instantaneous target-rate slope;
-it does not measure the subsequent response including relaxation and feedback.
-The earlier probe-based Figure 3 is replaced; historical runs remain immutable.
+```sh
+uv run python experiments/exp153/analyse.py --susceptibility-only --source COMPUTE_ID
+uv run python experiments/exp153/present.py --fig3-only --source SUSCEPTIBILITY_ANALYSE_ID --preserve-source PRESENT_ID
+```
+
+Replace `SUSCEPTIBILITY_ANALYSE_ID` with the new susceptibility analysis run ID
+and `PRESENT_ID` with the preceding presentation run ID.
+
+To run automated checks:
+
+```sh
+uv run pytest experiments/exp153/test.py -q
+```
+
+## Folder guide
+
+1. `recipe.py` — configuration and model definition.
+2. `compute.py` — run computations and save evidence.
+3. `analyse.py` — calculate measurements from saved evidence.
+4. `present.py` — generate figures and report assets.
+5. `custom/` — experiment-specific models, helpers and execution tools.
+6. `report/` — report, appendix and supporting components.
+7. `test.py` — automated checks.

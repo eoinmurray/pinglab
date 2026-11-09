@@ -19,7 +19,7 @@ export function pathCompare(a: string, b: string): number {
   }
   return left.length - right.length;
 }
-type CatalogCache = { expires: number; value: Promise<Catalog>; etag?: string };
+type CatalogCache = { expires: number; value: Promise<Catalog>; etag?: string; pending?: boolean };
 const cached = new Map<string, CatalogCache>();
 const catalogBodies = new WeakMap<Catalog, string>();
 
@@ -118,9 +118,9 @@ export async function remoteCatalog(base = assetBase(), refresh = false): Promis
     const restored = await restoredCatalog(base);
     cachedValue = cached.get(base) ?? restored;
   }
-  if (!refresh && cachedValue && cachedValue.expires > Date.now()) return cachedValue.value;
+  if (cachedValue && (cachedValue.pending || (!refresh && cachedValue.expires > Date.now()))) return cachedValue.value;
   const entry = { expires: process.env.NODE_ENV === 'production' ? Infinity : Date.now() + 30_000,
-    value: undefined as unknown as Promise<Catalog>, etag: undefined as string | undefined };
+    value: undefined as unknown as Promise<Catalog>, etag: undefined as string | undefined, pending: true };
   const value = retryRead('R2 catalog', async () => {
     const response = await fetch(`${base}/pingstore/catalog.json`, {
       signal: AbortSignal.timeout(30_000), cache: 'no-store',
@@ -141,7 +141,9 @@ export async function remoteCatalog(base = assetBase(), refresh = false): Promis
   });
   entry.value = value;
   cached.set(base, entry);
-  value.catch(() => { if (cached.get(base) === entry) cached.delete(base); });
+  value.then(() => { entry.pending = false; }, () => {
+    if (cached.get(base) === entry) cached.delete(base);
+  });
   return value;
 }
 

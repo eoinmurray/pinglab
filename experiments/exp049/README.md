@@ -1,17 +1,36 @@
-# exp049
+# exp049 — Recurrent Learning Weakens Rhythmicity
 
-Compare fixed and trainable recurrent PING weights, their initialization dependence, activity, accuracy and reference-image rhythmicity.
+Compare fixed and trainable recurrent PING weights, their initialization dependence,
+activity, accuracy and reference-image rhythmicity.
 
-## CLI
+## Run
 
-Run each stage independently from the repository root with `uv run python`.
+From the repository root, run these stages in order.
+Compute trains models and requires explicit authorisation.
 
-1. `compute.py`: `--source` (required exp022 training-bank run), `--run-id` (optional). With `--rasters-only`, `--source` instead identifies an existing exp049 endpoint compute run; replay the first test digit before and after training on identical input spikes.
-2. `analyse.py`: `--source` (required endpoint compute run), `--run-id` (optional), `--raster-source` (optional paired-raster compute run).
-3. `present.py`: `--source` (required), `--run-id` (optional).
-4. `test.py`: `uv run pytest experiments/exp049/test.py`; optional pytest arguments.
+```sh
+uv run python experiments/exp049/compute.py --source TRAINING_RUN
+uv run python experiments/exp049/analyse.py --source COMPUTE_ID
+uv run python experiments/exp049/present.py --source ANALYSE_ID
+```
 
-Optional environment: `PINGLAB_SMOKE=1` selects the bounded smoke profile; `SNNLAB_DEVICE` (or the legacy `PINGLAB_DEVICE`) selects the execution device.
+Replace `COMPUTE_ID` and `ANALYSE_ID` with the completed run IDs
+from the preceding stages.
 
-Regenerate saved-bundle diagrams while preserving an explicit presentation:
-`uv run python experiments/exp049/present.py --redraw-from PRESENT_ID [--run-id ID]`.
+`TRAINING_RUN` is a completed exp022 training-bank compute run.
+
+To run automated checks:
+
+```sh
+uv run pytest experiments/exp049/test.py -q
+```
+
+## Folder guide
+
+1. `recipe.py` — configuration and model definition.
+2. `compute.py` — train models and save evidence.
+3. `analyse.py` — calculate measurements from saved evidence.
+4. `present.py` — generate figures and report assets.
+5. `custom/` — experiment-specific models, helpers and execution tools.
+6. `report/` — report, appendix and supporting components.
+7. `test.py` — automated checks.

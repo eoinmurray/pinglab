@@ -1,12 +1,25 @@
 """Frozen TR02 COBA with private, moment-matched GABA event streams."""
 
+import math
+
 from snnlab import lang
 
 SLUG = "exp170"
+POISSON_METHOD = "poisson_moment_matched_v1"
 
 
-def configuration():
+def configuration(*, prehistory_ms=60.0):
+    if (
+        not math.isfinite(prehistory_ms)
+        or prehistory_ms < 0
+        or prehistory_ms > 200
+        or not math.isclose(
+            prehistory_ms / 0.1, round(prehistory_ms / 0.1), abs_tol=1e-9
+        )
+    ):
+        raise ValueError("Prehistory must be a multiple of 0.1 ms between 0 and 200 ms")
     return dict(
+        prehistory_ms=float(prehistory_ms),
         source_run="exp169-r003-compute",
         source_digest="sha256:97744ffb754a43493efcaab563dc07d3698b918c3119a8c542d99a4abfcac6ca",
         seed=42,
@@ -14,14 +27,13 @@ def configuration():
         dt_ms=0.1,
         duration_ms=200.0,
         tau_gaba_ms=6.0,
-        target_events_per_source=24,
+        inhibition_method=POISSON_METHOD,
+        target_events_per_source=None,
         n_private=1024,
-        timing_bisections=24,
-        bracket_attempts=100,
         mean_tolerance=1e-5,
         sd_tolerance=0.01,
-        method="24 events per private stream; interpolate between random-phase regular times and sorted independent uniform times, quantize to bins, then fit the interpolation to per-E PING conductance CV and scale positive amplitude to its mean; zero initial conductance and one-step delay",
-        limitation="One image and private seed. Count-constrained timing-conditioned streams, not Poisson inputs. Source count remains 1024 rather than PING 256; no feedback. Matching these moments and source rates does not match current or higher-order timing.",
+        method="Independent Poisson event counts per timestep and private E channel; fit rate and constant amplitude analytically to PING per-E conductance mean and variance using the exact discrete exponential filter; 60-ms inhibition-only prehistory; fresh neurons and one-step input delay; no timing conditioning or rescaling of sampled trials",
+        limitation="One image and private seed. Stationary expected conductance moments are matched; finite-trial moments fluctuate. Artificial rates are fitted, not constrained to PING I rates. Private inputs remove shared fluctuations as well as gamma timing; this does not isolate gamma alone.",
         n_input=784,
         n_e=1024,
         n_i=256,
@@ -92,8 +104,10 @@ def author_network(cfg, *, include_private=True, record_traces=False):
         artificial = net.input(
             "artificial",
             shape=("time", "batch", cfg["n_e"]),
-            signal_type="spikes",
-            unit="spike",
+            signal_type="continuous"
+            if cfg.get("inhibition_method") == POISSON_METHOD
+            else "spikes",
+            unit="1" if cfg.get("inhibition_method") == POISSON_METHOD else "spike",
         )
     pops = {}
     for name, n, c, g, ref in [

@@ -1,77 +1,63 @@
 ---
 interface Props {
   title: string;
-  allHref: string;
-  allLabel: string;
   allCount: number;
   allPapersCount: number;
-  collections: { href: string; label: string; count: number; active: boolean }[];
-  filtered?: boolean;
-  heading?: string;
-  literature?: { href: string; label: string; count: number; active?: boolean }[];
-  allPapersActive?: boolean;
+  collections: { id: string; label: string; description?: string; count: number; active: boolean }[];
   searchKind?: 'articles' | 'papers';
+  defaultCollection?: { label: string; description: string };
 }
-const { title, allHref, allLabel, allCount, allPapersCount, collections: collectionLinks, filtered = false, heading = 'Collections', literature: literatureLinks, allPapersActive = false } = Astro.props;
-const collections = [...collectionLinks].sort((a, b) => b.count - a.count);
-const literature = literatureLinks && [...literatureLinks].sort((a, b) => b.count - a.count);
-const visibleCollectionLimit = 5;
-const remainingCollections = collections.slice(visibleCollectionLimit);
-const remainingLiterature = literature?.slice(visibleCollectionLimit) ?? [];
-const searchKind = Astro.props.searchKind ?? 'articles';
+const { title, allCount, allPapersCount, searchKind = 'articles' } = Astro.props;
+const collections = searchKind === 'papers' ? Astro.props.collections : [...Astro.props.collections].sort((a, b) => b.count - a.count);
+const selectedCollections = collections.filter(item => item.active);
+const showDefault = selectedCollections.length === 0;
+const heading = showDefault ? Astro.props.defaultCollection?.label : selectedCollections.map(item => item.label).join(' · ');
+const description = showDefault ? Astro.props.defaultCollection?.description : selectedCollections.map(item => item.description).filter(Boolean).join(' ');
 ---
-<h1 class="visually-hidden">{title}</h1>
 <div class="base-grid">
   <div class="article-browser l-page">
-    <aside class="browser-collections">
-      <button class="collections-toggle" type="button" aria-expanded="false" aria-controls="collection-navigation">
-        <span>Collections</span>
-        <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m4 6 4 4 4-4" /></svg>
-      </button>
-      <div class="browser-navigation" id="collection-navigation">
-      <nav aria-labelledby="collections-heading">
-        <h2 id="collections-heading">{heading}</h2>
-        <ol role="list">
-          <li><a href={allHref} aria-current={!filtered ? 'page' : undefined}>{allLabel} ({allCount})</a></li>
-          {collections.slice(0, visibleCollectionLimit).map(collection => <li><a href={collection.href} aria-current={collection.active ? 'page' : undefined}>{collection.label} ({collection.count})</a></li>)}
-        </ol>
-        {remainingCollections.length > 0 && <details open={remainingCollections.some(collection => collection.active)}>
-          <summary>
-            <span class="show-more">Show more<span class="visually-hidden"> article collections</span></span>
-            <span class="show-less">Show less<span class="visually-hidden"> article collections</span></span>
-            <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m4 6 4 4 4-4" /></svg>
-          </summary>
-          <ol role="list">
-            {remainingCollections.map(collection => <li><a href={collection.href} aria-current={collection.active ? 'page' : undefined}>{collection.label} ({collection.count})</a></li>)}
-          </ol>
-        </details>}
-      </nav>
-      {literature && <nav aria-labelledby="literature-heading">
-        <h2 id="literature-heading">Literature</h2>
-        <ol role="list">
-          <li><a href="/papers" aria-current={allPapersActive ? 'page' : undefined}>All papers ({allPapersCount})</a></li>
-          {literature.slice(0, visibleCollectionLimit).map(collection => <li><a href={collection.href} aria-current={collection.active ? 'page' : undefined}>{collection.label} ({collection.count})</a></li>)}
-        </ol>
-        {remainingLiterature.length > 0 && <details open={remainingLiterature.some(collection => collection.active)}>
-          <summary>
-            <span class="show-more">Show more<span class="visually-hidden"> literature collections</span></span>
-            <span class="show-less">Show less<span class="visually-hidden"> literature collections</span></span>
-            <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m4 6 4 4 4-4" /></svg>
-          </summary>
-          <ol role="list">
-            {remainingLiterature.map(collection => <li><a href={collection.href} aria-current={collection.active ? 'page' : undefined}>{collection.label} ({collection.count})</a></li>)}
-          </ol>
-        </details>}
-      </nav>}
-      </div>
-    </aside>
     <div class="browser-articles">
+      <nav class="browser-tabs" aria-label="Browse">
+        <a href="/" aria-current={searchKind === 'articles' ? 'page' : undefined}>Articles ({allCount})</a>
+        <a href="/papers" aria-current={searchKind === 'papers' ? 'page' : undefined}>Papers ({allPapersCount})</a>
+      </nav>
+      <header class="collection-heading" data-default-label={Astro.props.defaultCollection?.label ?? title} data-default-description={Astro.props.defaultCollection?.description ?? ''}>
+        <div class="heading-content">
+          <h1 data-collection-title>{heading ?? title}</h1>
+          <p data-collection-description>{description}</p>
+        </div>
+        {[Astro.props.defaultCollection, ...collections].filter(Boolean).map(item => <div class="heading-size" aria-hidden="true">
+          <strong>{item!.label}</strong>
+          <p>{item!.description}</p>
+        </div>)}
+      </header>
       <div class="browser-search" role="search">
         <svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.5" /><path d="m13 13 4 4" /></svg>
         <input type="search" placeholder={`Search ${searchKind}…`} aria-label={`Search ${searchKind}`} />
         <button class="browser-search-clear" type="button" aria-label={`Clear ${searchKind} search`} hidden>
           <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m4 4 8 8m0-8-8 8" /></svg>
         </button>
+      </div>
+      <div class="browser-collection-control">
+      <details class="browser-collections">
+        <summary>
+          <span class="collection-selection">{collections.some(collection => collection.active) ? collections.find(collection => collection.active)?.label : 'All collections'}</span>
+          <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m4 6 4 4 4-4" /></svg>
+        </summary>
+        <div class="collection-options">
+          <button class="collections-clear" type="button">All collections</button>
+          <fieldset>
+            <legend class="visually-hidden">Filter by collection</legend>
+            {collections.map(collection => <label>
+              <input type="radio" name={`collection-${searchKind}`} value={collection.id} data-label={collection.label} data-description={collection.description} checked={collection.active} />
+              <span>{collection.label} <span class="collection-count">({collection.count})</span></span>
+            </label>)}
+          </fieldset>
+        </div>
+      </details>
+      <button class="collections-reset" type="button" aria-label="Clear selected collection" hidden={!collections.some(collection => collection.active)}>
+        <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m4 4 8 8m0-8-8 8" /></svg>
+      </button>
       </div>
       <slot />
       <p class="browser-search-status visually-hidden" role="status" aria-live="polite"></p>
@@ -80,111 +66,144 @@ const searchKind = Astro.props.searchKind ?? 'articles';
 </div>
 
 <script>
-  function setupCollectionToggle() {
-    const search = document.querySelector<HTMLInputElement>('.browser-search input');
-    if (search && !search.dataset.initialized) {
-      search.dataset.initialized = 'true';
-      const browser = search.closest('.browser-articles')!;
-      const rows = [...browser.querySelectorAll<HTMLElement>('.article-list > li')];
+  function setupCollectionBrowser() {
+    document.querySelectorAll<HTMLElement>('.browser-articles').forEach(browser => {
+      if (browser.dataset.initialized) return;
+      browser.dataset.initialized = 'true';
+      const search = browser.querySelector<HTMLInputElement>('.browser-search input')!;
       const status = browser.querySelector<HTMLElement>('.browser-search-status')!;
       const clear = browser.querySelector<HTMLButtonElement>('.browser-search-clear')!;
+      const dropdown = browser.querySelector<HTMLDetailsElement>('.browser-collections')!;
+      const summary = dropdown.querySelector('summary')!;
+      const selection = dropdown.querySelector<HTMLElement>('.collection-selection')!;
+      const resetCollections = browser.querySelector<HTMLButtonElement>('.collections-reset')!;
+      const choices = [...dropdown.querySelectorAll<HTMLInputElement>('input[type="radio"]')];
       const normalize = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-      const entries = rows.map(row => ({ row, text: normalize(row.dataset.search ?? row.textContent ?? '') }));
+      const entries = [...browser.querySelectorAll<HTMLElement>('.article-list > li')].map(row => ({
+        row, text: normalize(row.dataset.search ?? row.textContent ?? ''), collections: JSON.parse(row.dataset.collections ?? '[]') as string[],
+      }));
       function filter() {
-        clear.hidden = search!.value.length === 0;
-        const words = normalize(search!.value).trim().split(/\s+/).filter(Boolean);
+        clear.hidden = search.value.length === 0;
+        const words = normalize(search.value).trim().split(/\s+/).filter(Boolean);
+        const selected = choices.filter(choice => choice.checked);
+        resetCollections.hidden = selected.length === 0;
+        selection.textContent = selected[0]?.dataset.label ?? 'All collections';
+        const heading = browser.querySelector<HTMLElement>('.collection-heading');
+        if (heading) {
+          const showDefault = selected.length === 0;
+          heading.querySelector<HTMLElement>('[data-collection-title]')!.textContent = showDefault
+            ? heading.dataset.defaultLabel! : selected[0].dataset.label!;
+          heading.querySelector<HTMLElement>('[data-collection-description]')!.textContent = showDefault
+            ? heading.dataset.defaultDescription! : selected[0].dataset.description ?? '';
+        }
         let matches = 0;
-        for (const { row, text } of entries) {
-          row.hidden = !words.every(word => text.includes(word));
+        for (const { row, text, collections } of entries) {
+          row.hidden = !words.every(word => text.includes(word))
+            || (selected.length > 0 && !selected.some(choice => collections.includes(choice.value)));
           if (!row.hidden) matches++;
         }
-        status.textContent = words.length ? (matches ? `${matches} ${matches === 1 ? 'result' : 'results'}` : 'No matches found. Try another search.') : '';
-        status.classList.toggle('visually-hidden', matches > 0 || words.length === 0);
+        const filtered = words.length > 0 || selected.length > 0;
+        status.textContent = filtered ? (matches ? `${matches} ${matches === 1 ? 'result' : 'results'}` : 'No matches found. Try another search or collection.') : '';
+        status.classList.toggle('visually-hidden', matches > 0 || !filtered);
       }
       search.addEventListener('input', filter);
       search.addEventListener('search', filter);
       clear.addEventListener('click', () => {
-        search!.value = '';
+        search.value = '';
         filter();
-        search!.focus();
+        search.focus();
+      });
+      choices.forEach(choice => choice.addEventListener('change', filter));
+      function clearCollections() {
+        choices.forEach(choice => { choice.checked = false; });
+        filter();
+      }
+      dropdown.querySelector('.collections-clear')!.addEventListener('click', clearCollections);
+      resetCollections.addEventListener('click', () => {
+        clearCollections();
+        dropdown.open = false;
+        summary.focus();
+      });
+      dropdown.addEventListener('keydown', event => {
+        if (event.key === 'Escape') { dropdown.open = false; summary.focus(); }
+      });
+      document.addEventListener('click', event => {
+        if (event.target instanceof Node && !dropdown.contains(event.target)) dropdown.open = false;
       });
       filter();
-    }
-    const toggle = document.querySelector<HTMLButtonElement>('.collections-toggle');
-    if (!toggle || toggle.dataset.initialized) return;
-    toggle.dataset.initialized = 'true';
-    toggle.addEventListener('click', () => {
-      toggle.setAttribute('aria-expanded', String(toggle.getAttribute('aria-expanded') !== 'true'));
     });
   }
-  setupCollectionToggle();
-  document.addEventListener('astro:page-load', setupCollectionToggle);
+  setupCollectionBrowser();
+  document.addEventListener('astro:page-load', setupCollectionBrowser);
 </script>
 
 <style>
+  :global(html:has(.article-browser)) { scrollbar-gutter: stable; }
   .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   .article-browser, :global(body:has(.article-browser) .site-header nav) { width: min(100%, var(--listing-width)); justify-self: center; min-width: 0; }
-  .browser-collections { min-width: 0; padding-top: 32px; }
-  .collections-toggle { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; padding: 10px 0; border: 0; border-bottom: 1px solid rgb(var(--ink) / .15); background: transparent; color: rgb(var(--ink)); font: inherit; font-size: 13px; font-weight: 600; text-align: left; cursor: pointer; }
-  .collections-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
-  .collections-toggle[aria-expanded="true"] svg { transform: rotate(180deg); }
-  .browser-navigation { display: none; }
-  .collections-toggle[aria-expanded="true"] + .browser-navigation { display: block; margin-top: 20px; }
-  .browser-collections nav + nav { margin-top: 28px; }
-  .browser-collections h2 { font-size: 13px; line-height: 1.5; font-weight: 600; margin: 0 0 12px; }
-  .browser-collections ol { list-style: none; margin: 0; padding: 0; columns: 2; column-gap: 24px; }
-  .browser-collections li { margin-bottom: 10px; font-size: 12px; line-height: 1.5; break-inside: avoid; }
-  .browser-collections a { color: rgb(var(--ink) / .6); text-decoration: none; border-bottom: none; }
-  .browser-collections a[aria-current="page"] { color: rgb(var(--ink)); font-weight: 600; }
-  .browser-collections a:hover { color: rgb(var(--ink)); }
-  .browser-collections a:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
-  .browser-collections details { display: flex; flex-direction: column; }
-  .browser-collections details::details-content { order: -1; }
-  .browser-collections summary { display: flex; align-items: center; gap: 5px; width: fit-content; list-style: none; cursor: pointer; color: rgb(var(--ink) / .6); font-size: 12px; font-weight: 500; line-height: 1.5; }
-  .browser-collections summary::-webkit-details-marker { display: none; }
-  .browser-collections summary:hover { color: rgb(var(--ink)); }
-  .browser-collections summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
-  .browser-collections .show-less, .browser-collections details[open] .show-more { display: none; }
-  .browser-collections details[open] .show-less { display: inline; }
-  .browser-collections details[open] summary svg { transform: rotate(180deg); }
-  .browser-articles { min-width: 0; align-self: start; }
-  .browser-search { display: block; position: relative; box-sizing: border-box; width: 100%; height: 48px; margin-top: 24px; padding: 0; border: 1px solid rgb(var(--ink) / .2); border-radius: 6px; background: transparent; color: rgb(var(--ink) / .6); font: inherit; font-size: 14px; line-height: 20px; text-align: left; cursor: text; }
+  .browser-articles { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: start; }
+  .browser-tabs { grid-column: 1 / -1; display: flex; gap: 20px; margin: 16px 0 4px; }
+  .browser-tabs a { color: var(--listing-muted); font-size: 13px; text-decoration: none; }
+  .browser-tabs a[aria-current="page"] { color: rgb(var(--ink)); font-weight: 600; }
+  .browser-tabs a:hover { color: rgb(var(--ink)); }
+  .browser-search,
+  .browser-collections summary,
+  .browser-articles :global(.posts-list-sort:not([hidden])) { background: var(--popup); }
+  .browser-search { grid-column: 1 / -1; position: relative; box-sizing: border-box; width: 100%; height: 48px; border: 1px solid rgb(var(--ink) / .2); border-radius: 6px; color: rgb(var(--ink) / .6); font-size: 14px; line-height: 20px; }
   .browser-search > svg { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); pointer-events: none; }
   .browser-search input { display: block; box-sizing: border-box; min-width: 0; width: 100%; height: 100%; padding: 12px 44px 12px 42px; border: 0; outline: none; background: transparent; color: rgb(var(--ink)); font: inherit; }
   .browser-search input::-webkit-search-cancel-button { -webkit-appearance: none; }
   .browser-search-clear { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 4px; background: transparent; color: rgb(var(--ink) / .6); cursor: pointer; }
   .browser-search-clear[hidden] { display: none; }
   .browser-search-clear:hover { color: rgb(var(--ink)); background: rgb(var(--ink) / .06); }
-  .browser-search-clear:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .browser-search-clear:focus-visible { outline: 1px solid rgb(var(--ink) / .6); outline-offset: -2px; }
   .browser-search input::placeholder { color: rgb(var(--ink) / .6); opacity: 1; }
-  .browser-search:hover { border-color: rgb(var(--ink) / .4); color: rgb(var(--ink)); }
-  .browser-search:focus-within { border-color: rgb(var(--ink) / .4); }
+  .browser-search:hover, .browser-search:focus-within { border-color: rgb(var(--ink) / .4); }
+  .browser-collection-control { grid-column: 1; position: relative; min-width: 0; }
+  .browser-collections { position: relative; min-width: 0; font-size: 14px; }
+  .browser-collection-control:has(.collections-reset:not([hidden])) .collection-selection { padding-right: 28px; }
+  .collections-reset { position: absolute; right: 32px; top: 8px; display: flex; align-items: center; justify-content: center; width: 28px; height: 32px; padding: 0; border: 0; border-radius: 4px; background: transparent; color: rgb(var(--ink) / .6); cursor: pointer; }
+  .collections-reset[hidden] { display: none; }
+  .collections-reset:hover { color: rgb(var(--ink)); background: rgb(var(--ink) / .06); }
+  .collections-reset:focus-visible { outline: 1px solid rgb(var(--ink) / .6); outline-offset: -2px; }
+  .browser-collections summary { display: flex; align-items: center; justify-content: space-between; gap: 10px; box-sizing: border-box; height: 48px; padding: 0 14px; border: 1px solid rgb(var(--ink) / .2); border-radius: 6px; list-style: none; color: rgb(var(--ink) / .85); cursor: pointer; }
+  .browser-collections summary::-webkit-details-marker { display: none; }
+  .browser-collections summary:hover, .browser-collections summary:focus-visible { border-color: rgb(var(--ink) / .4); outline: none; }
+  .collection-selection { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .collection-heading { grid-column: 1 / -1; display: grid; margin: 8px 0 12px; }
+  .heading-content, .heading-size { grid-area: 1 / 1; min-width: 0; }
+  .heading-size { visibility: hidden; pointer-events: none; }
+  .collection-heading h1, .heading-size strong { display: block; font-weight: 700; margin: 0 0 10px; font-size: 28px; line-height: 1.25; }
+  .collection-heading p { margin: 0; color: var(--listing-muted); font-size: 14px; line-height: 1.6; }
+  .browser-collections summary svg { flex-shrink: 0; }
+  .browser-collections[open] summary svg { transform: rotate(180deg); }
+  .collection-options { position: absolute; top: calc(100% + 6px); left: 0; z-index: 20; width: min(320px, calc(100vw - 48px)); box-sizing: border-box; max-height: min(440px, 60dvh); overflow-y: auto; padding: 8px; border: 1px solid rgb(var(--ink) / .2); border-radius: 6px; background: var(--page); box-shadow: 0 6px 20px rgb(var(--ink) / .1); }
+  .collection-options fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+  .collection-options label, .collections-clear { display: flex; align-items: center; gap: 10px; width: 100%; box-sizing: border-box; padding: 9px 8px; border: 0; border-radius: 4px; background: transparent; color: rgb(var(--ink) / .85); font: inherit; font-size: 13px; line-height: 1.5; text-align: left; cursor: pointer; }
+  .collection-options label:hover, .collections-clear:hover { background: rgb(var(--ink) / .06); }
+  .collection-options input { flex-shrink: 0; width: 16px; height: 16px; margin: 0; accent-color: rgb(var(--ink)); }
+  .collection-count { color: var(--listing-muted); }
+  .collections-clear { font-weight: 600; margin-bottom: 4px; }
   .browser-articles :global(.article-list > li[hidden]) { display: none; }
   .browser-articles :global(.article-list > li:nth-last-child(1 of :not([hidden]))) { border-bottom: none; }
-  .browser-search-status { grid-column: 1 / -1; margin: 24px 0; color: var(--listing-muted); font-size: 14px; }
-  .browser-articles :global(.base-grid) { display: block; }
-  .browser-articles :global(.article-list) { margin-top: 4px; }
-  .browser-articles :global(.posts-list-sort:not([hidden])) { box-sizing: border-box; height: 48px; padding: 0 14px; gap: 8px; border: 1px solid rgb(var(--ink) / .2); border-radius: 6px; font-size: 14px; line-height: 20px; }
+  .browser-search-status { grid-column: 1 / -1; margin: 12px 0; color: var(--listing-muted); font-size: 14px; }
+  .browser-articles :global(.base-grid) { display: contents; }
+  .browser-articles :global(.article-list) { grid-column: 1 / -1; width: 100%; margin-top: 0; }
+  .browser-articles :global(.posts-list-sort:not([hidden])) { grid-column: 2; box-sizing: border-box; width: auto; height: 48px; margin-top: 0; padding: 0 14px; gap: 8px; border: 1px solid rgb(var(--ink) / .2); border-radius: 6px; font-size: 14px; line-height: 20px; }
   .browser-articles :global(.posts-list-sort label), .browser-articles :global(.sort-selection) { font-size: 14px; }
   .browser-articles :global(.posts-list-sort select) { border-bottom: 0; }
-  .browser-articles :global(.posts-list-sort:hover) { border-color: rgb(var(--ink) / .4); }
-  .browser-articles :global(.posts-list-sort:focus-within) { border-color: rgb(var(--ink) / .4); }
+  .browser-articles :global(.posts-list-sort:hover), .browser-articles :global(.posts-list-sort:focus-within) { border-color: rgb(var(--ink) / .4); }
   .browser-articles :global(.posts-list-sort select:focus-visible) { outline: none; }
-  @media (min-width: 600px) {
-    .browser-articles:has(:global(.posts-list-sort:not([hidden]))) { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 12px; align-items: center; }
-    .browser-articles:has(:global(.posts-list-sort:not([hidden]))) .browser-search { grid-column: 1; grid-row: 1; min-width: 0; }
-    .browser-articles:has(:global(.posts-list-sort:not([hidden]))) :global(.base-grid) { display: contents; }
-    .browser-articles :global(.posts-list-sort:not([hidden])) { grid-column: 2; grid-row: 1; width: auto; }
-    .browser-articles:has(:global(.posts-list-sort:not([hidden]))) :global(.posts-list) { grid-column: 1 / -1; grid-row: 2; width: 100%; }
+  @media (min-width: 768px) {
+    .browser-articles { grid-template-columns: minmax(0, 1fr) minmax(160px, 220px); }
+    .browser-articles:has(:global(.posts-list-sort:not([hidden]))) { grid-template-columns: minmax(0, 1fr) minmax(160px, 200px) auto; }
+    .collection-options { left: auto; right: 0; }
+    .browser-search { grid-column: 1; grid-row: 2; }
+    .browser-collection-control { grid-column: 2; grid-row: 2; }
+    .browser-articles :global(.posts-list-sort:not([hidden])) { grid-column: 3; grid-row: 2; }
+    .browser-articles:has(.collection-heading) .browser-search,
+    .browser-articles:has(.collection-heading) .browser-collection-control,
+    .browser-articles:has(.collection-heading) :global(.posts-list-sort:not([hidden])) { grid-row: 3; }
   }
-  @media print { .browser-search { display: none; } }
-  @media (min-width: 1180px) {
-    .article-browser, :global(body:has(.article-browser) .site-header nav) { width: min(100%, calc(var(--listing-width) + 240px)); }
-    .article-browser { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 40px; }
-    .browser-collections { grid-column: 1; grid-row: 1; padding-top: 24px; }
-    .browser-articles { grid-column: 2; grid-row: 1; }
-    .collections-toggle { display: none; }
-    .browser-navigation, .collections-toggle[aria-expanded="true"] + .browser-navigation { display: block; margin-top: 0; position: sticky; top: 24px; max-height: calc(100vh - 48px); overflow-y: auto; }
-    .browser-collections ol { columns: auto; }
-  }
+  @media print { .browser-search, .browser-collection-control, .browser-tabs { display: none; } }
 </style>

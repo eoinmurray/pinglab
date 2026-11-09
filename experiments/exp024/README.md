@@ -1,15 +1,33 @@
-# exp024
+# exp024 — Accuracy Plateaus While Firing Rate Rises
 
-Audit whether validation accuracy and population firing rates settle together in the six unregularised COBA and PING learning histories.
+Audit whether validation accuracy and population firing rates settle together in the six
+unregularised COBA and PING learning histories.
 
-## CLI
+## Run
 
-Run each stage independently from the repository root with `uv run python`.
+From the repository root, run these stages in order.
+This experiment analyses saved evidence without running a compute stage.
 
-1. `analyse.py`: `--source` (required), `--run-id` (optional).
-2. `present.py`: `--source` (required), `--run-id` (optional).
-3. `test.py`: `uv run pytest experiments/exp024/test.py`; optional pytest arguments.
+```sh
+uv run python experiments/exp024/analyse.py --source TRAINING_RUN
+uv run python experiments/exp024/present.py --source ANALYSE_ID
+```
 
-Regenerate the documented-model illustrations without running a scientific stage:
-`uv run python experiments/exp024/present.py --draw-schematics`.
-These authored SVGs do not reconstruct missing historical bundles.
+Replace `ANALYSE_ID` with the completed analysis run ID.
+
+`TRAINING_RUN` is a completed exp022 training-bank compute run.
+
+To run automated checks:
+
+```sh
+uv run pytest experiments/exp024/test.py -q
+```
+
+## Folder guide
+
+1. `recipe.py` — configuration and model definition.
+2. `analyse.py` — calculate measurements from saved evidence.
+3. `present.py` — generate figures and report assets.
+4. `custom/` — experiment-specific models, helpers and execution tools.
+5. `report/` — report, appendix and supporting components.
+6. `test.py` — automated checks.

@@ -3,12 +3,33 @@
 Test how a private excitatory afferent pulse changes bursting in a modified
 Susin–Destexhe conductance-LIF circuit. The report describes one selected seed.
 
-Run each stage independently from the repository root with `uv run python`.
+## Run
 
-1. `compute.py`: optional `--run-id ID`; no required arguments.
-2. `analyse.py`: required `--source COMPUTE_RUN`; optional `--run-id ID`.
-3. `present.py`: required `--source ANALYSIS_RUN`; optional `--run-id ID`.
-4. `test.py`: `uv run pytest experiments/exp099/test.py`; optional pytest arguments.
+From the repository root, run these stages in order.
+Compute runs simulations and requires explicit authorisation.
 
-Regenerate saved-bundle diagrams while preserving an explicit presentation:
-`uv run python experiments/exp099/present.py --redraw-from PRESENT_ID [--run-id ID]`.
+```sh
+uv run python experiments/exp099/compute.py
+uv run python experiments/exp099/analyse.py --source COMPUTE_ID
+uv run python experiments/exp099/present.py --source ANALYSE_ID
+```
+
+Replace `COMPUTE_ID` and `ANALYSE_ID` with the completed run IDs
+from the preceding stages.
+
+To run automated checks:
+
+```sh
+uv run pytest experiments/exp099/test.py -q
+```
+
+## Folder guide
+
+1. `recipe.py` — configuration and model definition.
+2. `dataset.py` — input preparation and encoding.
+3. `compute.py` — run simulations and save evidence.
+4. `analyse.py` — calculate measurements from saved evidence.
+5. `present.py` — generate figures and report assets.
+6. `custom/` — experiment-specific models, helpers and execution tools.
+7. `report/` — report, appendix and supporting components.
+8. `test.py` — automated checks.
