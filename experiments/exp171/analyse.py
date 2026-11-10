@@ -34,6 +34,7 @@ from experiments.exp171.compute import (
 from pingstore.library import file_sha256, source_run, stage_run
 from snnlab import sim
 from snnlab.sim import NetworkSnapshot, load_runtime_state, load_training_checkpoint
+from torchvision.datasets import MNIST
 
 
 def summarise(scores, labels, rates):
@@ -1063,6 +1064,35 @@ def prepare_test_inputs(identities, baseline_id, run_id=None):
     return run.run_id
 
 
+def validate_test_weights(evaluated, package, label):
+    """Authenticate the actual inference starts against the retained endpoints."""
+    with tempfile.TemporaryDirectory() as temporary:
+        root = Path(temporary)
+        final = load_training_checkpoint(
+            package.restore_bundle(label + "/final.checkpoint", root / "final")
+        )
+        student = NetworkSnapshot.read(
+            evaluated.restore_bundle(label + "/student/start", root / "student"),
+            parameters=True,
+        ).load_parameters()
+        teacher = NetworkSnapshot.read(
+            evaluated.restore_bundle(label + "/teacher/start", root / "teacher"),
+            parameters=True,
+        ).load_parameters()
+        expected_teacher = NetworkSnapshot.read(
+            package.restore_bundle(label + "/teacher/start", root / "expected-teacher"),
+            parameters=True,
+        ).load_parameters()
+        if set(student) != set(final.parameters) or set(teacher) != set(
+            expected_teacher
+        ):
+            raise ValueError("Test model parameter membership changed")
+        for name, value in student.items():
+            np.testing.assert_array_equal(value, final.parameters[name].numpy())
+        for name, value in teacher.items():
+            np.testing.assert_array_equal(value, expected_teacher[name])
+
+
 def validate_test_evaluation(evaluated, computations):
     if evaluated.record["execution"]["operation"] != "test-final-checkpoints":
         raise ValueError("Expected final-checkpoint test evaluation")
@@ -1095,6 +1125,15 @@ def validate_test_evaluation(evaluated, computations):
         )
         if labels.shape != (1000,) or features.shape != (1000, 784):
             raise ValueError("Invalid test dataset")
+    official = MNIST(root="/tmp/mnist", train=False, download=True)
+    official_pixels = official.data.numpy().reshape(10000, 784)
+    official_labels = official.targets.numpy().astype(np.int64)
+    np.testing.assert_array_equal(features, official_pixels[ids])
+    np.testing.assert_array_equal(labels, official_labels[ids])
+    if evaluated.record["execution"]["configuration"]["dataset_sha256"] != dict(
+        pixels=digest(official_pixels), labels=digest(official_labels)
+    ):
+        raise ValueError("Official test dataset fingerprint differs")
     packages = {c["label"]: c for c in spec["cases"]}
     cases = []
     reference_hashes = None
@@ -1103,6 +1142,7 @@ def validate_test_evaluation(evaluated, computations):
         training = expected[label]
         cfg = training.record["execution"]["configuration"]
         entry = packages[label]
+        validate_test_weights(evaluated, package, label)
         if (
             row["training"] != training.reference
             or entry["training"] != training.reference
