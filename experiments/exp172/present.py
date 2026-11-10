@@ -991,6 +991,38 @@ def render_phase_example(
     )
 
 
+def render_representative(computed, results, output, used_window):
+    """Figures 2/3 from one explicitly pinned longer trial."""
+    record = results["representative"]
+    trial = record["id"]
+    cfg = json.loads(computed.file(trial, "configuration.json").read_text())
+    if used_window is None:
+        raise ValueError(
+            "A new representative trial requires its own used-transmission measurement"
+        )
+    assert used_window["reference_trial"] == trial
+    assert used_window["reference_trial_compute"] == computed.reference
+    with np.load(computed.file(trial, "spikes.npz")) as z:
+        spikes = dict(z)
+    for name, fig, axes in attention_figures(spikes, cfg, used_window=used_window):
+        theme.label_panels(axes)
+        for suffix in ("png", "svg"):
+            fig.savefig(output / f"{name}.{suffix}", dpi=240)
+        plt.close(fig)
+    return dict(
+        seed=record["seed"],
+        cue_hz=record["cue_hz"],
+        trial_id=trial,
+        background_hz=cfg["background_hz"],
+        source_role="representative_compute",
+        duration_ms=cfg["duration_ms"],
+        switch_ms=cfg["switch_ms"],
+        spatial_window_ms=100.0,
+        spatial_hop_ms=5.0,
+        selection="Previously selected seed 186; five-second trial with switch at 2.5 seconds",
+    )
+
+
 def load_cue_comparisons(
     inputs, analysis, cue_source, background_source, contrast_source
 ):
@@ -1059,6 +1091,7 @@ def load_phase_comparisons(
     phase_inhibition_source,
     probe_source,
     used_window_source,
+    representative_compute=None,
 ):
     background_analysis = inputs.get("background_analyse")
     phase_inhibition = None
@@ -1146,14 +1179,110 @@ def load_phase_comparisons(
         used_window = json.loads(used_analysis.file("results.json").read_text())[
             "used_window"
         ]
-        assert (
-            used_window["reference_background"]
-            == background_analysis.record["inputs"]["compute"]
-        )
+        if representative_compute is not None:
+            assert (
+                used_window["reference_trial_compute"]
+                == representative_compute.reference
+            )
+        else:
+            assert (
+                used_window["reference_background"]
+                == background_analysis.record["inputs"]["compute"]
+            )
         inputs.update(
             used_window_analyse=used_analysis, used_window_compute=used_compute
         )
     return phase_inhibition, probe_window, probe_compute, used_window, used_compute
+
+
+def load_representative(inputs, representative_source):
+    representative_compute = None
+    representative_results = None
+    if representative_source is not None:
+        representative_analysis = source_run(
+            REPO / ".pingstore",
+            representative_source,
+            experiment="exp172",
+            stage="analyse",
+        )
+        ref = representative_analysis.record["inputs"]["compute"]
+        representative_compute = source_run(
+            REPO / ".pingstore",
+            ref["run_id"],
+            experiment="exp172",
+            stage="compute",
+            reference=ref,
+        )
+        assert (
+            representative_compute.record["execution"]["configuration"]["stage_mode"]
+            == "representative_trial"
+        )
+        representative_results = json.loads(
+            representative_analysis.file("results.json").read_text()
+        )
+        inputs.update(
+            representative_analyse=representative_analysis,
+            representative_compute=representative_compute,
+        )
+    return representative_compute, representative_results
+
+
+def render_selected_trial(
+    selected,
+    computed,
+    inputs,
+    output,
+    figure2_seed,
+    representative_compute,
+    representative_results,
+    phase_inhibition,
+    probe_window,
+    used_window,
+):
+    figure2_selection = dict(
+        selected,
+        background_hz=computed.record["execution"]["configuration"]["background_hz"],
+    )
+    if representative_compute is not None:
+        figure2_selection = render_representative(
+            representative_compute, representative_results, output, used_window
+        )
+    elif figure2_seed is not None:
+        figure2_selection = render_phase_example(
+            inputs.get("background_compute"),
+            output,
+            figure2_seed,
+            computed.record["execution"]["configuration"],
+            phase_inhibition=phase_inhibition,
+            probe_window=probe_window,
+            used_window=used_window,
+        )
+    return figure2_selection
+
+
+def selected_trial_evidence(
+    trial, cfg, selected, work, representative_compute, representative_results
+):
+    if representative_compute is not None:
+        trial = representative_results["representative"]
+        cfg = json.loads(
+            representative_compute.file(trial["id"], "configuration.json").read_text()
+        )
+        selected = dict(
+            selected,
+            trial_id=trial["id"],
+            seed=trial["seed"],
+            cue_hz=trial["cue_hz"],
+            source_role="representative_compute",
+        )
+        parameters = NetworkSnapshot.read(
+            representative_compute.file(trial["id"], "start/snapshot.json")
+        ).load_parameters()
+    else:
+        parameters = NetworkSnapshot.read(
+            work / trial["id"] / "start/snapshot.json"
+        ).load_parameters()
+    return trial, cfg, selected, parameters
 
 
 def present(
@@ -1171,6 +1300,7 @@ def present(
     phase_inhibition_source=None,
     probe_source=None,
     used_window_source=None,
+    representative_source=None,
 ):
     started = perf_counter()
     analysed = source_run(
@@ -1283,6 +1413,9 @@ def present(
     cue_sweep, contrast_sweep, contrast_compute = load_cue_comparisons(
         inputs, analysis, cue_source, background_source, contrast_source
     )
+    representative_compute, representative_results = load_representative(
+        inputs, representative_source
+    )
     phase_inhibition, probe_window, probe_compute, used_window, used_compute = (
         load_phase_comparisons(
             inputs,
@@ -1291,6 +1424,7 @@ def present(
             phase_inhibition_source,
             probe_source,
             used_window_source,
+            representative_compute=representative_compute,
         )
     )
     with stage_run(
@@ -1316,22 +1450,18 @@ def present(
         if seed is not None:
             args += ["--seed", str(seed)]
         selected = render(work, run.export, args)
-        figure2_selection = dict(
+        figure2_selection = render_selected_trial(
             selected,
-            background_hz=computed.record["execution"]["configuration"][
-                "background_hz"
-            ],
+            computed,
+            inputs,
+            run.export,
+            figure2_seed,
+            representative_compute,
+            representative_results,
+            phase_inhibition,
+            probe_window,
+            used_window,
         )
-        if figure2_seed is not None:
-            figure2_selection = render_phase_example(
-                inputs.get("background_compute"),
-                run.export,
-                figure2_seed,
-                computed.record["execution"]["configuration"],
-                phase_inhibition=phase_inhibition,
-                probe_window=probe_window,
-                used_window=used_window,
-            )
         if used_compute is not None:
             (run.export / "used-window-circuit.svg").write_bytes(
                 used_compute.file("used-window-circuit.svg").read_bytes()
@@ -1380,9 +1510,10 @@ def present(
         trials = json.loads((work / "summary.json").read_text())["trials"]
         trial = next(r for r in trials if r["id"] == selected["trial_id"])
         cfg = computed.record["execution"]["configuration"]
-        parameters = NetworkSnapshot.read(
-            work / trial["id"] / "start/snapshot.json"
-        ).load_parameters()
+        baseline_configuration = cfg
+        trial, cfg, selected, parameters = selected_trial_evidence(
+            trial, cfg, selected, work, representative_compute, representative_results
+        )
         matrix_stats = {
             k: dict(
                 shape=list(v.shape),
@@ -1400,10 +1531,14 @@ def present(
             else None
         )
         analysis = json.loads(analysed.file("results.json").read_text())
+        if representative_results is not None:
+            analysis = representative_results
+            stability_selection = None
         (run.export / "numbers.json").write_text(
             json.dumps(
                 dict(
                     configuration=cfg,
+                    baseline_configuration=baseline_configuration,
                     selection=selected,
                     figure2_selection=figure2_selection,
                     stability_selection=stability_selection,
@@ -1449,4 +1584,5 @@ if __name__ == "__main__":
     parser.add_argument("--phase-inhibition-source")
     parser.add_argument("--probe-source")
     parser.add_argument("--used-window-source")
+    parser.add_argument("--representative-source")
     present(**vars(parser.parse_args()))

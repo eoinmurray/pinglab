@@ -90,6 +90,20 @@ def test_probe_adds_only_one_uniform_excitatory_projection():
     assert settings["response_ms"] == 5
 
 
+def test_long_representative_protocol_keeps_reference_and_circuit_settings():
+    from experiments.exp172.recipe import representative_configuration
+
+    reference = configuration()
+    cfg = representative_configuration(reference)
+    assert (cfg["duration_ms"], cfg["switch_ms"]) == (5000, 2500)
+    assert cfg["stability_search"]["windows_ms"] == [[250, 2400], [2750, 4900]]
+    assert cfg["windows_ms"] == [[1950, 2400], [4450, 4900]]
+    assert cfg["network"] == reference["network"]
+    assert cfg["background_hz"] == reference["background_hz"]
+    assert reference["duration_ms"] == 2400 and reference["switch_ms"] == 1200
+    assert reference["stability_search"]["windows_ms"] == [[250, 1100], [1450, 2300]]
+
+
 def test_natural_volley_plan_uses_observed_packets_and_the_plotted_phase_reference():
     from experiments.exp172.analyse import natural_volley_plan
 
