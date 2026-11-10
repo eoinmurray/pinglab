@@ -16,7 +16,14 @@ import tarfile
 import tempfile
 from pathlib import Path, PurePosixPath
 
-from pingstore.library import PingstoreError, load_json, source_run, write_json_atomic
+from pingstore.library import (
+    PingstoreError,
+    initialize_layout,
+    load_json,
+    source_run,
+    stage_reservation,
+    write_json_atomic,
+)
 
 REPO = Path(__file__).resolve().parents[2]
 
@@ -65,6 +72,19 @@ def plan(args, repo=REPO):
     if not re.fullmatch(r"(?:[0-9]+-)?[0-9]+:[0-5][0-9]:[0-5][0-9]", args.walltime):
         raise ValueError("walltime must be [days-]hours:minutes:seconds")
     arguments = args.arguments[1:] if args.arguments[:1] == ["--"] else args.arguments
+    reservation = None
+    if identity := getattr(args, "reserved_run", None):
+        reservation = stage_reservation(
+            repo / ".pingstore" / "runs" / f".{identity}.tmp"
+        )
+        if (
+            reservation["run_id"] != identity
+            or reservation["experiment"] != args.experiment
+            or reservation["stage"] != args.stage
+            or arguments.count("--run-id") != 1
+            or arguments[arguments.index("--run-id") + 1 :][:1] != [identity]
+        ):
+            raise ValueError("reserved run must match the stage and explicit --run-id")
     commit = run(
         ["git", "rev-parse", "HEAD"], cwd=repo, capture_output=True, text=True
     ).stdout.strip()
@@ -101,6 +121,7 @@ def plan(args, repo=REPO):
         stage=args.stage,
         entrypoint=entrypoint,
         arguments=arguments,
+        reservation=reservation,
         cpus=args.cpus,
         gpus=args.gpus,
         inputs=args.input,
@@ -240,6 +261,15 @@ def worker(path):
         raise ValueError("deployed checkout has uncommitted changes")
     for reference in payload["input_refs"]:
         source_run(Path(".pingstore"), reference["run_id"], reference=reference)
+    if reservation := payload.get("reservation"):
+        directory = Path(".pingstore/runs") / f".{reservation['run_id']}.tmp"
+        if directory.exists():
+            if stage_reservation(directory) != reservation:
+                raise ValueError("worker reservation differs from submission")
+        else:
+            directory.mkdir(parents=True)
+            initialize_layout(directory, reservation["experiment"])
+            write_json_atomic(directory / ".reservation.json", reservation)
     run([sys.executable, payload["entrypoint"], *payload["arguments"]])
 
 
@@ -276,6 +306,9 @@ def main(argv=None):
         "--direct-inputs-only",
         action="store_true",
         help="transfer complete named runs without copying their provenance ancestors",
+    )
+    launch.add_argument(
+        "--reserved-run", help="transfer an existing local stage reservation"
     )
     launch.add_argument("--live", action="store_true")
     launch.add_argument(

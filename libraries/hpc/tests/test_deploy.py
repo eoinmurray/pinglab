@@ -262,3 +262,26 @@ def test_corrupt_input_blocks_upload_before_receipt(deployment, monkeypatch):
         hpc.deploy(args, repo)
     assert not args.receipt.exists()
     assert not Path(args.remote_dir).exists()
+
+
+def test_worker_restores_reserved_identity_before_compute(deployment, monkeypatch):
+    from pingstore import core
+
+    repo, args = deployment
+    monkeypatch.setattr(core, "memberships", lambda _: {"exp999": "fixture"})
+    identity = core.reserve_stage(repo / ".pingstore", "exp999", "compute")
+    args.reserved_run = identity
+    args.arguments = ["--", "--run-id", identity]
+    args.live = True
+    local_ssh(monkeypatch, args)
+    hpc.deploy(args, repo)
+    checkout = Path(args.remote_dir) / "repo"
+    monkeypatch.chdir(checkout)
+    monkeypatch.setenv("SLURM_JOB_ID", "12345")
+    hpc.worker(Path(args.remote_dir) / "deployment.json")
+    assert core.stage_reservation(
+        checkout / ".pingstore/runs" / f".{identity}.tmp"
+    ) == core.stage_reservation(repo / ".pingstore/runs" / f".{identity}.tmp")
+    args.arguments[-1] = "exp999-r999-compute"
+    with pytest.raises(ValueError, match="reserved run"):
+        hpc.plan(args, repo)

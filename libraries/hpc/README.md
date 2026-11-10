@@ -28,6 +28,8 @@ uv run python -m libraries.hpc deploy \
    `--` are passed unchanged to that entrypoint. Scientific configuration remains
    in each experiment; there is no experiment adapter or mandatory run-ID flag.
    One deployment submits one stage. Stages are never inferred or chained.
+   For an explicit reserved `--run-id`, add `--reserved-run RUN_ID` before the
+   argument separator; the worker restores that exact reservation before compute.
 5. For source data, repeat `--input RUN_ID` for the explicit local completed runs.
    The tool validates and uploads their full ancestry, preserves manifests and
    checksums, then validates the pins again on the worker. Pass the corresponding
