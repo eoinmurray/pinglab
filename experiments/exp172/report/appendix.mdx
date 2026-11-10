@@ -7,6 +7,10 @@ import ParameterTable from './ParameterTable.astro';
   Native compiled architecture from the selected trial's saved bundle. E populations are black; I populations are red and placed above E. Each circuit contains 400 E and 100 I neurons; each input has 1024 channels. Sensory inputs are X; cue inputs are U. The label W with subscripts target, source denotes the corresponding executed weight matrix in the native start snapshot. Complementary gates g_A(t) and g_B(t) route the shared cue train before and after the switch. Grey sender E→C I pathways have zero executed weights. C E→E uses local Gaussian weights. Recording aliases are omitted.
 </RunFigure>
 
+<RunFigure report="exp172" experiment="exp172" file="flicker-circuit.svg" number="A2" id="fig-replay-circuit" alt="Native compiled replay architecture for the timing intervention." allowUnavailable={true}>
+  Native replay architecture used for Figure 5. The virtual replay_B input has 400 spike channels corresponding exactly to B E neurons and replaces only the source of the existing B_E→C_E projection. The unshifted and delayed cases use this same architecture; all weight arrays remain identical to those in Figure A1 and the parameter table. The original B population and every other pathway continue running normally. Replay timing and its fixed packet window are reported in Figure 5.
+</RunFigure>
+
 ## B. Parameters
 
 <ParameterTable />

@@ -1,7 +1,8 @@
-"""Render four spatial-relay figures from pinned analysis; no simulation."""
+"""Render spatial-relay and timing-mechanism figures from pinned analysis."""
 
 import argparse
 import json
+import shutil
 import sys
 from dataclasses import replace
 from pathlib import Path
@@ -503,7 +504,266 @@ def render(data, output, argv=None):
     return selection_metadata
 
 
-def present(source, run_id=None, cue=None, seed=None):
+def render_mechanism(path, measured, output):
+    """Original and packet-delayed inputs, receiver rasters and native inhibition."""
+    colors = dict(A=theme.DEEP_RED, B="#2457c5", C="#23844f")
+    with np.load(path) as z:
+        arrays = dict(z)
+    theme.apply()
+    cfg = measured["configuration"]
+    reference = measured["attended_arrival_peak_ms"]
+    t = arrays["time_ms"] - reference
+    fig, axes = plt.subplots(
+        3,
+        2,
+        figsize=(12, 9),
+        sharex=True,
+        sharey="row",
+        layout="constrained",
+        gridspec_kw={"height_ratios": [1, 1.8, 1]},
+    )
+    for col, (case, title) in enumerate(
+        [
+            ("original", "Original: competitor arrives first"),
+            (
+                "delayed",
+                f"Same competitor packet delayed {measured['settings']['delay_ms']:g} ms",
+            ),
+        ]
+    ):
+        for sender in "AB":
+            axes[0, col].plot(
+                t,
+                arrays[case + "_arrival_" + sender],
+                color=colors[sender],
+                label=f"{sender} · {'attended' if sender == measured['settings']['attended'] else 'competitor'}",
+            )
+        axes[0, col].set_title(title, loc="left")
+        axes[0, col].legend(loc="upper left", fontsize=theme.SIZE_ANNOTATION)
+        ne = arrays[case + "_C_E"].shape[1]
+        ni = arrays[case + "_C_I"].shape[1]
+        for pool, offset in [("E", 0), ("I", ne)]:
+            ii, jj = np.nonzero(arrays[case + "_C_" + pool])
+            axes[1, col].scatter(
+                t[ii],
+                jj + offset + 1,
+                s=3,
+                marker=".",
+                linewidths=0,
+                color=colors["C"],
+                rasterized=True,
+            )
+        axes[1, col].axhline(ne + 0.5, color=theme.GREY_MID, lw=0.7)
+        axes[1, col].text(
+            0.98,
+            ne + ni / 2,
+            "C I",
+            ha="right",
+            va="center",
+            color=colors["C"],
+            transform=axes[1, col].get_yaxis_transform(),
+            fontsize=theme.SIZE_ANNOTATION,
+        )
+        for sender, centre in zip("AB", cfg["centres"], strict=True):
+            y = centre * ne + 1
+            axes[1, col].axhline(y, color=theme.GREY_LIGHT, ls=":", lw=0.7)
+            axes[1, col].text(
+                0.98,
+                y,
+                f"{sender} pattern",
+                ha="right",
+                va="bottom",
+                color=colors[sender],
+                transform=axes[1, col].get_yaxis_transform(),
+                fontsize=theme.SIZE_ANNOTATION,
+            )
+        axes[1, col].set(ylim=(0.5, ne + ni + 0.5), yticks=[1, ne / 2, ne, ne + ni])
+        axes[2, col].plot(t, arrays[case + "_inhibition_us"], color=colors["C"])
+        axes[2, col].set(
+            xlabel="Time relative to attended input arrival peak (ms)", ylim=(0, None)
+        )
+        for ax in axes[:, col]:
+            ax.axvline(0, color=theme.GREY_MID, ls=":", lw=0.8)
+            ax.set_xlim(t[0], t[-1])
+    axes[0, 0].set_ylabel("Sender arrival rate (Hz)")
+    axes[1, 0].set_ylabel("C neuron index")
+    axes[2, 0].set_ylabel("Mean C inhibition (µS)")
+    axes[2, 0].set_ylim(
+        0,
+        1.05
+        * max(
+            arrays["original_inhibition_us"].max(),
+            arrays["delayed_inhibition_us"].max(),
+        ),
+    )
+    theme.label_panels(list(axes.flat))
+    for suffix in ["png", "svg"]:
+        fig.savefig(output / ("flicker-mechanism." + suffix), dpi=240)
+    plt.close(fig)
+
+
+def render_candidate(computed, measured, output):
+    """Match Figure 1 exactly using the same raster renderer and geometry."""
+    with np.load(computed.file(measured["trial_id"], "spikes.npz")) as z:
+        spikes = dict(z)
+    theme.apply()
+    fig, axes = plt.subplots(1, 3, figsize=(17, 5), layout="constrained")
+    for ax, population in zip(axes, "ABC", strict=True):
+        raster_panel(ax, spikes, population, measured["configuration"])
+    theme.label_panels(list(axes))
+    for suffix in ["png", "svg"]:
+        fig.savefig(output / ("candidate-rasters." + suffix), dpi=240)
+    plt.close(fig)
+
+
+def render_background_sweep(measured, output):
+    """Five input-seed means with seed SD; no pooling of cycle denominators."""
+    colors = dict(A=theme.DEEP_RED, B="#2457c5", C="#23844f")
+    theme.apply()
+    fig, axes = plt.subplots(2, 2, figsize=(12, 8), sharex="col", layout="constrained")
+
+    def series(rows, key, field):
+        return np.array(
+            [np.nan if r[key][field] is None else r[key][field] for r in rows],
+            dtype=float,
+        )
+
+    for col, att in enumerate("AB"):
+        rows = [r for r in measured["summary"] if r["attended"] == att]
+        x = np.array([r["background_hz"] for r in rows])
+        ax = axes[0, col]
+        speed = ax.twinx()
+        speed.grid(False)
+        for key, style, marker, label, alpha in [
+            ("S", "-", "o", "Mean S (solid)", 0.14),
+            ("F", (0, (6, 3)), "^", "Mean F (dashed)", 0.06),
+        ]:
+            mean = series(rows, key, "mean")
+            sd = series(rows, key, "sd")
+            ax.plot(
+                x,
+                mean,
+                color=colors[att],
+                ls=style,
+                marker=marker,
+                markersize=4,
+                label=label,
+            )
+            ax.fill_between(
+                x, mean - sd, mean + sd, color=colors[att], alpha=alpha, linewidth=0
+            )
+            for xx, yy, r in zip(x, mean, rows, strict=True):
+                if r[key]["n"] < r[key]["total"]:
+                    ax.annotate(
+                        f"{key}: {r[key]['n']}/{r[key]['total']}",
+                        (xx, yy),
+                        xytext=(2, 5),
+                        textcoords="offset points",
+                        fontsize=theme.SIZE_ANNOTATION,
+                    )
+        mean = series(rows, "latency_cycles", "mean")
+        sd = series(rows, "latency_cycles", "sd")
+        speed.errorbar(
+            x,
+            mean,
+            yerr=sd,
+            color=colors["C"],
+            ls=":",
+            marker="s",
+            markersize=4,
+            capsize=2,
+            label="Latency (dotted)",
+        )
+        top = (
+            max(
+                [
+                    2.0,
+                    *[
+                        float(m + (0 if np.isnan(d) else d))
+                        for m, d in zip(mean, sd, strict=True)
+                        if np.isfinite(m)
+                    ],
+                ]
+            )
+            * 1.15
+        )
+        speed.set(ylim=(0, top), ylabel="Latency (PING cycles)")
+        speed.tick_params(axis="y", labelcolor=colors["C"])
+        speed.yaxis.label.set_color(colors["C"])
+        for xx, yy, r in zip(x, mean, rows, strict=True):
+            metric = r["latency_cycles"]
+            if metric["n"] < metric["total"]:
+                speed.annotate(
+                    f"{metric['n']}/{metric['total']}",
+                    (xx, yy if np.isfinite(yy) else top * 0.04),
+                    xytext=(2, 5),
+                    textcoords="offset points",
+                    fontsize=theme.SIZE_ANNOTATION,
+                    color=colors["C"],
+                )
+        ax.set(title=f"Attend {att}", ylabel="S / F", ylim=(-0.05, 1.05))
+        handles, labels = ax.get_legend_handles_labels()
+        more, extra = speed.get_legend_handles_labels()
+        ax.legend(
+            handles + more,
+            labels + extra,
+            loc="lower left",
+            bbox_to_anchor=(0, 1.08),
+            ncol=3,
+            handlelength=3.6,
+            numpoints=2,
+            columnspacing=1.0,
+            fontsize=theme.SIZE_ANNOTATION,
+        )
+        rates = axes[1, col]
+        for key, style, marker, label in [
+            ("C_E_hz", "-", "o", "C E (solid)"),
+            ("C_I_hz", (0, (6, 3)), "^", "C I (dashed)"),
+        ]:
+            mean = series(rows, key, "mean")
+            sd = series(rows, key, "sd")
+            rates.plot(
+                x,
+                mean,
+                color=colors["C"],
+                ls=style,
+                marker=marker,
+                markersize=4,
+                label=label,
+            )
+            rates.fill_between(
+                x, mean - sd, mean + sd, color=colors["C"], alpha=0.12, linewidth=0
+            )
+        rates.set(
+            xlabel="C independent background rate (Hz/channel)",
+            ylabel="C firing rate (Hz)",
+            ylim=(0, None),
+        )
+        rates.legend(
+            loc="best", handlelength=3.6, numpoints=2, fontsize=theme.SIZE_ANNOTATION
+        )
+        for panel in axes[:, col]:
+            panel.axvline(
+                measured["configuration"]["background_hz"],
+                color=theme.GREY_MID,
+                ls=":",
+                lw=0.8,
+            )
+    theme.label_panels(list(axes.flat))
+    for suffix in ["png", "svg"]:
+        fig.savefig(output / ("background-sweep." + suffix), dpi=240)
+    plt.close(fig)
+
+
+def present(
+    source,
+    run_id=None,
+    cue=None,
+    seed=None,
+    mechanism_source=None,
+    candidate_source=None,
+    background_source=None,
+):
     started = perf_counter()
     analysed = source_run(
         REPO / ".pingstore", source, experiment="exp172", stage="analyse"
@@ -516,6 +776,78 @@ def present(source, run_id=None, cue=None, seed=None):
         reference=analysed.record["inputs"]["compute"],
     )
     inputs = {"analyse": analysed, "compute": computed}
+    analysis = json.loads(analysed.file("results.json").read_text())
+    mechanism_compute = computed
+    mechanism = analysis.get("mechanism")
+    mechanism_path = analysed.file("mechanism.npz") if mechanism else None
+    if mechanism_source is not None:
+        diagnostic = source_run(
+            REPO / ".pingstore", mechanism_source, experiment="exp172", stage="analyse"
+        )
+        diagnostic_ref = diagnostic.record["inputs"]["compute"]
+        diagnostic_compute = source_run(
+            REPO / ".pingstore",
+            diagnostic_ref["run_id"],
+            experiment="exp172",
+            stage="compute",
+            reference=diagnostic_ref,
+        )
+        baseline_ref = diagnostic_compute.record["inputs"]["reference_compute"]
+        assert baseline_ref == analysed.record["inputs"]["compute"]
+        mechanism_compute = diagnostic_compute
+        mechanism = json.loads(diagnostic.file("results.json").read_text())["mechanism"]
+        mechanism_path = diagnostic.file("mechanism.npz")
+        inputs.update(
+            mechanism_analyse=diagnostic, mechanism_compute=diagnostic_compute
+        )
+    candidate = analysis.get("candidate")
+    candidate_compute = computed
+    if candidate_source is not None:
+        candidate_analysis = source_run(
+            REPO / ".pingstore", candidate_source, experiment="exp172", stage="analyse"
+        )
+        ref = candidate_analysis.record["inputs"]["compute"]
+        candidate_compute = source_run(
+            REPO / ".pingstore",
+            ref["run_id"],
+            experiment="exp172",
+            stage="compute",
+            reference=ref,
+        )
+        assert (
+            candidate_compute.record["inputs"]["reference_compute"]
+            == analysed.record["inputs"]["compute"]
+        )
+        candidate = json.loads(candidate_analysis.file("results.json").read_text())[
+            "candidate"
+        ]
+        inputs.update(
+            candidate_analyse=candidate_analysis, candidate_compute=candidate_compute
+        )
+    background_sweep = analysis.get("background_sweep")
+    if background_source is not None:
+        background_analysis = source_run(
+            REPO / ".pingstore", background_source, experiment="exp172", stage="analyse"
+        )
+        ref = background_analysis.record["inputs"]["compute"]
+        background_compute = source_run(
+            REPO / ".pingstore",
+            ref["run_id"],
+            experiment="exp172",
+            stage="compute",
+            reference=ref,
+        )
+        assert (
+            background_compute.record["inputs"]["reference_compute"]
+            == analysed.record["inputs"]["compute"]
+        )
+        background_sweep = json.loads(
+            background_analysis.file("results.json").read_text()
+        )["background_sweep"]
+        inputs.update(
+            background_analyse=background_analysis,
+            background_compute=background_compute,
+        )
     with stage_run(
         REPO,
         "exp172",
@@ -534,6 +866,18 @@ def present(source, run_id=None, cue=None, seed=None):
         if seed is not None:
             args += ["--seed", str(seed)]
         selected = render(work, run.export, args)
+        if mechanism is not None:
+            assert selected["seed"] == mechanism["settings"]["source_seed"]
+            assert selected["cue_hz"] == mechanism["settings"]["cue_hz"]
+            render_mechanism(mechanism_path, mechanism, run.export)
+            shutil.copyfile(
+                mechanism_compute.file("circuit.svg"),
+                run.export / "flicker-circuit.svg",
+            )
+        if candidate is not None:
+            render_candidate(candidate_compute, candidate, run.export)
+        if background_sweep is not None:
+            render_background_sweep(background_sweep, run.export)
         trials = json.loads((work / "summary.json").read_text())["trials"]
         trial = next(r for r in trials if r["id"] == selected["trial_id"])
         cfg = computed.record["execution"]["configuration"]
@@ -569,6 +913,9 @@ def present(source, run_id=None, cue=None, seed=None):
                         trial["id"]
                     ),
                     matrix_stats=matrix_stats,
+                    mechanism=mechanism,
+                    candidate=candidate,
+                    background_sweep=background_sweep,
                     elapsed_seconds=perf_counter() - started,
                 ),
                 indent=2,
@@ -586,4 +933,7 @@ if __name__ == "__main__":
     parser.add_argument("--run-id")
     parser.add_argument("--cue", type=float)
     parser.add_argument("--seed", type=int)
+    parser.add_argument("--mechanism-source")
+    parser.add_argument("--candidate-source")
+    parser.add_argument("--background-source")
     present(**vars(parser.parse_args()))

@@ -1,4 +1,0 @@
-# Track only the scratch-area policy. Scratch work belongs in named subdirectories.
-*
-!.gitignore
-!README.md

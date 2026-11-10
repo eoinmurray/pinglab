@@ -1,0 +1,2238 @@
+{
+  "execution": {
+    "checkpoint": {
+      "format": "graph_torch_state_dict",
+      "path": "/Users/eoin/pinglab/.scratch/exp172-contrast-background-sweeps/data/trials/background-0/checkpoint.pt"
+    },
+    "compile_block_steps": 1,
+    "compile_mode": null,
+    "device_requested": "cpu",
+    "device_resolved": "cpu",
+    "duration_ms": 2400.0,
+    "effective_poisson_bindings": [],
+    "inference_overrides": {},
+    "initialization": {
+      "A_E_to_C_E.weight": {
+        "autapses": {
+          "A_E_to_C_E": {
+            "allow_autapses": false,
+            "effective": "not_applicable",
+            "eligible_fan_in": 400,
+            "origin": "explicit",
+            "requested": false
+          }
+        },
+        "constraint": {
+          "kind": "non_negative"
+        },
+        "initializer": {
+          "kind": "constant",
+          "value": 0.0001
+        },
+        "runtime_shape": [
+          400,
+          400
+        ],
+        "scaling": "direct",
+        "statistics": {
+          "count": 160000,
+          "max": 9.999999747378752e-05,
+          "mean": 9.999995381804183e-05,
+          "min": 9.999999747378752e-05,
+          "std": 4.3655745685100555e-11,
+          "zero_fraction": 0.0
+        },
+        "unit": "uS"
+      },
+      "A_E_to_C_I.weight": {
+        "autapses": {
+          "A_E_to_C_I": {
+            "allow_autapses": false,
+            "effective": "not_applicable",
+            "eligible_fan_in": 400,
+            "origin": "explicit",
+            "requested": false
+          }
+        },
+        "constraint": {
+          "kind": "non_negative"
+        },
+        "initializer": {
+          "kind": "constant",
+          "value": 0.0001
+        },
+        "runtime_shape": [
+          400,
+          100
+        ],
+        "scaling": "direct",
+        "statistics": {
+          "count": 40000,
+          "max": 9.999999747378752e-05,
+          "mean": 9.999995381804183e-05,
+          "min": 9.999999747378752e-05,
+          "std": 4.3655745685100555e-11,
+          "zero_fraction": 0.0
+        },
+        "unit": "uS"
+      },
+      "A_E_to_E.weight": {
+        "autapses": {
+          "A_E_to_E": {
+            "allow_autapses": false,
+            "effective": "excluded",
+            "eligible_fan_in": 399,
+            "origin": "explicit",
+            "requested": false
+          }
+        },
+        "constraint": {
+          "kind": "non_negative"
+        },
+        "initializer": {
+          "kind": "constant",
+          "value": 0.0009899749152156943
+        },
+        "runtime_shape": [
+          400,
+          400
+        ],
+        "scaling": "direct",
+        "statistics": {
+          "count": 160000,
+          "max": 0.0009899749420583248,
+          "mean": 0.0009875004179775715,
+          "min": 0.0,
+          "std": 4.9436835979577154e-05,
+          "zero_fraction": 0.0024999999441206455
+        },
+        "unit": "uS"
+      },
+      "A_E_to_I.weight": {
+        "autapses": {
+          "A_E_to_I": {
+            "allow_autapses": false,
+            "effective": "not_applicable",
+            "eligible_fan_in": 400,
+            "origin": "explicit",
+            "requested": false
+          }
+        },
+        "constraint": {
+          "kind": "non_negative"
+        },
+        "initializer": {
+          "kind": "constant",
+          "value": 0.0018732575993053615
+        },
+        "runtime_shape": [
+          400,
+          100
+        ],
+        "scaling": "direct",
+        "statistics": {
+          "count": 40000,
+          "max": 0.0018732575699687004,
+          "mean": 0.0018732581520453095,
+          "min": 0.0018732575699687004,
+          "std": 5.820766091346741e-10,
+          "zero_fraction": 0.0
+        },
+        "unit": "uS"
+      },
+      "A_I_to_E.weight": {
+        "autapses": {
+          "A_I_to_E": {
+            "allow_autapses": false,
+            "effective": "not_applicable",
+            "eligible_fan_in": 100,
+            "origin": "explicit",
+            "requested": false
+          }
+        },
+        "constraint": {
+          "kind": "non_negative"
+        },
+        "initializer": {
+          "kind": "constant",
+          "value": 0.015004359916318209
+        },
+        "runtime_shape": [
+          100,
+          400
+        ],
+        "scaling": "direct",
+        "statistics": {
+          "count": 40000,
+          "max": 0.015004360117018223,
+          "mean": 0.01500436570495367,
+          "min": 0.015004360117018223,
+          "std": 5.587935447692871e-09,
+          "zero_fraction": 0.0
+        },
+        "unit": "uS"
+      },
+      "A_I_to_I.weight": {
+        "autapses": {
+          "A_I_to_I": {
+            "allow_autapses": false,
+            "effective": "excluded",
+            "eligible_fan_in": 99,
+            "origin": "explicit",
+            "requested": false
+          }
+        },
+        "constraint": {
+          "kind": "non_negative"
+        },
+        "initializer": {
+          "kind": "constant",
+          "value": 0.007676767505178548
+        },
+        "runtime_shape": [
+          100,
+          100
+        ],
+        "scaling": "direct",
+        "statistics": {
+          "count": 10000,
+          "max": 0.007676767650991678,
+          "mean": 0.007599998265504837,
+          "min": 0.0,
+          "std": 0.000763828749768436,
+          "zero_fraction": 0.009999999776482582
+        },
+        "unit": "uS"
+      },
+      "B_E_to_C_E.weight": {
+        "autapses": {
+          "B_E_to_C_E": {
+            "allow_autapses": false,
+            "effective": "not_applicable",
+            "eligible_fan_in": 400,
+            "origin": "explicit",
+            "requested": false
+          }
+        },
+        "constraint": {
+          "kind": "non_negative"
+        },
+        "initializer": {
+          "kind": "constant",
+          "value": 0.0001
+        },
+        "runtime_shape": [
+          400,
+          400
+        ],
+        "scaling": "direct",
+        "statistics": {
+          "count": 160000,
+          "max": 9.999999747378752e-05,
+          "mean": 9.999995381804183e-05,
+          "min": 9.999999747378752e-05,
+          "std": 4.3655745685100555e-11,
+          "zero_fraction": 0.0
+        },
+        "unit": "uS"
+      },
+      "B_E_to_C_I.weight": {
+        "autapses": {
+          "B_E_to_C_I": {
+            "allow_autapses": false,
+            "effective": "not_applicable",
+            "eligible_fan_in": 400,
+            "origin": "explicit",
+            "requested": false
+          }
+        },
+        "constraint": {
+          "kind": "non_negative"
+        },
+        "initializer": {
+          "kind": "constant",
+          "value": 0.0001
+        },
+        "runtime_shape": [
+          400,
+          100
+        ],
+        "scaling": "direct",
+        "statistics": {
+          "count": 40000,
+          "max": 9.999999747378752e-05,
+          "mean": 9.999995381804183e-05,
+          "min": 9.999999747378752e-05,
+          "std": 4.3655745685100555e-11,
+          "zero_fraction": 0.0
+        },
+        "unit": "uS"
+      },
+      "B_E_to_E.weight": {
+        "autapses": {
+          "B_E_to_E": {
+            "allow_autapses": false,
+            "effective": "excluded",
+            "eligible_fan_in": 399,
+            "origin": "explicit",
+            "requested": false
+          }
+        },
+        "constraint": {
+          "kind": "non_negative"
+        },
+        "initializer": {
+          "kind": "constant",
+          "value": 0.0009899749152156943
+        },
+        "runtime_shape": [
+          400,
+          400
+        ],
+        "scaling": "direct",
+        "statistics": {
+          "count": 160000,
+          "max": 0.0009899749420583248,
+          "mean": 0.0009875004179775715,
+          "min": 0.0,
+          "std": 4.9436835979577154e-05,
+          "zero_fraction": 0.0024999999441206455
+        },
+        "unit": "uS"
+      },
+      "B_E_to_I.weight": {
+        "autapses": {
+          "B_E_to_I": {
+            "allow_autapses": false,
+            "effective": "not_applicable",
+            "eligible_fan_in": 400,
+            "origin": "explicit",
+            "requested": false
+          }
+        },
+        "constraint": {
+          "kind": "non_negative"
+        },
+        "initializer": {
+          "kind": "constant",
+          "value": 0.0018732575993053615
+        },
+        "runtime_shape": [
+          400,
+          100
+        ],
+        "scaling": "direct",
+        "statistics": {
+          "count": 40000,
+          "max": 0.0018732575699687004,
+          "mean": 0.0018732581520453095,
+          "min": 0.0018732575699687004,
+          "std": 5.820766091346741e-10,
+          "zero_fraction": 0.0
+        },
+        "unit": "uS"
+      },
+      "B_I_to_E.weight": {
+        "autapses": {
+          "B_I_to_E": {
+            "allow_autapses": false,
+            "effective": "not_applicable",
+            "eligible_fan_in": 100,
+            "origin": "explicit",
+            "requested": false
+          }
+        },
+        "constraint": {
+          "kind": "non_negative"
+        },
+        "initializer": {
+          "kind": "constant",
+          "value": 0.015004359916318209
+        },
+        "runtime_shape": [
+          100,
+          400
+        ],
+        "scaling": "direct",
+        "statistics": {
+          "count": 40000,
+          "max": 0.015004360117018223,
+          "mean": 0.01500436570495367,
+          "min": 0.015004360117018223,
+          "std": 5.587935447692871e-09,
+          "zero_fraction": 0.0
+        },
+        "unit": "uS"
+      },
+      "B_I_to_I.weight": {
+        "autapses": {
+          "B_I_to_I": {
+            "allow_autapses": false,
+            "effective": "excluded",
+            "eligible_fan_in": 99,
+            "origin": "explicit",
+            "requested": false
+          }
+        },
+        "constraint": {
+          "kind": "non_negative"
+        },
+        "initializer": {
+          "kind": "constant",
+          "value": 0.007676767505178548
+        },
+        "runtime_shape": [
+          100,
+          100
+        ],
+        "scaling": "direct",
+        "statistics": {
+          "count": 10000,
+          "max": 0.007676767650991678,
+          "mean": 0.007599998265504837,
+          "min": 0.0,
+          "std": 0.000763828749768436,
+          "zero_fraction": 0.009999999776482582
+        },
+        "unit": "uS"
+      },
+      "C_E_to_E.weight": {
+        "autapses": {
+          "C_E_to_E": {
+            "allow_autapses": false,
+            "effective": "excluded",
+            "eligible_fan_in": 399,
+            "origin": "explicit",
+            "requested": false
+          }
+        },
+        "constraint": {
+          "kind": "non_negative"
+        },
+        "initializer": {
+          "kind": "constant",
+          "value": 0.0009899749152156943
+        },
+        "runtime_shape": [
+          400,
+          400
+        ],
+        "scaling": "direct",
+        "statistics": {
+          "count": 160000,
+          "max": 0.0009899749420583248,
+          "mean": 0.0009875004179775715,
+          "min": 0.0,
+          "std": 4.9436835979577154e-05,
+          "zero_fraction": 0.0024999999441206455
+        },
+        "unit": "uS"
+      },
+      "C_E_to_I.weight": {
+        "autapses": {
+          "C_E_to_I": {
+            "allow_autapses": false,
+            "effective": "not_applicable",
+            "eligible_fan_in": 400,
+            "origin": "explicit",
+            "requested": false
+          }
+        },
+        "constraint": {
+          "kind": "non_negative"
+        },
+        "initializer": {
+          "kind": "constant",
+          "value": 0.0018732575993053615
+        },
+        "runtime_shape": [
+          400,
+          100
+        ],
+        "scaling": "direct",
+        "statistics": {
+          "count": 40000,
+          "max": 0.0018732575699687004,
+          "mean": 0.0018732581520453095,
+          "min": 0.0018732575699687004,
+          "std": 5.820766091346741e-10,
+          "zero_fraction": 0.0
+        },
+        "unit": "uS"
+      },
+      "C_I_to_E.weight": {
+        "autapses": {
+          "C_I_to_E": {
+            "allow_autapses": false,
+            "effective": "not_applicable",
+            "eligible_fan_in": 100,
+            "origin": "explicit",
+            "requested": false
+          }
+        },
+        "constraint": {
+          "kind": "non_negative"
+        },
+        "initializer": {
+          "kind": "constant",
+          "value": 0.015004359916318209
+        },
+        "runtime_shape": [
+          100,
+          400
+        ],
+        "scaling": "direct",
+        "statistics": {
+          "count": 40000,
+          "max": 0.015004360117018223,
+          "mean": 0.01500436570495367,
+          "min": 0.015004360117018223,
+          "std": 5.587935447692871e-09,
+          "zero_fraction": 0.0
+        },
+        "unit": "uS"
+      },
+      "C_I_to_I.weight": {
+        "autapses": {
+          "C_I_to_I": {
+            "allow_autapses": false,
+            "effective": "excluded",
+            "eligible_fan_in": 99,
+            "origin": "explicit",
+            "requested": false
+          }
+        },
+        "constraint": {
+          "kind": "non_negative"
+        },
+        "initializer": {
+          "kind": "constant",
+          "value": 0.007676767505178548
+        },
+        "runtime_shape": [
+          100,
+          100
+        ],
+        "scaling": "direct",
+        "statistics": {
+          "count": 10000,
+          "max": 0.007676767650991678,
+          "mean": 0.007599998265504837,
+          "min": 0.0,
+          "std": 0.000763828749768436,
+          "zero_fraction": 0.009999999776482582
+        },
+        "unit": "uS"
+      },
+      "cue_A.weight": {
+        "autapses": {
+          "cue_A": {
+            "allow_autapses": false,
+            "effective": "not_applicable",
+            "eligible_fan_in": 1024,
+            "origin": "explicit",
+            "requested": false
+          }
+        },
+        "constraint": {
+          "kind": "non_negative"
+        },
+        "initializer": {
+          "kind": "constant",
+          "value": 0.0017965028843873298
+        },
+        "runtime_shape": [
+          1024,
+          400
+        ],
+        "scaling": "direct",
+        "statistics": {
+          "count": 409600,
+          "max": 0.0017965028528124094,
+          "mean": 0.0017965027363970876,
+          "min": 0.0017965028528124094,
+          "std": 1.1641532182693481e-10,
+          "zero_fraction": 0.0
+        },
+        "unit": "uS"
+      },
+      "cue_B.weight": {
+        "autapses": {
+          "cue_B": {
+            "allow_autapses": false,
+            "effective": "not_applicable",
+            "eligible_fan_in": 1024,
+            "origin": "explicit",
+            "requested": false
+          }
+        },
+        "constraint": {
+          "kind": "non_negative"
+        },
+        "initializer": {
+          "kind": "constant",
+          "value": 0.0017965028843873298
+        },
+        "runtime_shape": [
+          1024,
+          400
+        ],
+        "scaling": "direct",
+        "statistics": {
+          "count": 409600,
+          "max": 0.0017965028528124094,
+          "mean": 0.0017965027363970876,
+          "min": 0.0017965028528124094,
+          "std": 1.1641532182693481e-10,
+          "zero_fraction": 0.0
+        },
+        "unit": "uS"
+      },
+      "sensory_A.weight": {
+        "autapses": {
+          "sensory_A": {
+            "allow_autapses": false,
+            "effective": "not_applicable",
+            "eligible_fan_in": 1024,
+            "origin": "explicit",
+            "requested": false
+          }
+        },
+        "constraint": {
+          "kind": "non_negative"
+        },
+        "initializer": {
+          "kind": "constant",
+          "value": 0.0017965028843873298
+        },
+        "runtime_shape": [
+          1024,
+          400
+        ],
+        "scaling": "direct",
+        "statistics": {
+          "count": 409600,
+          "max": 0.0017965028528124094,
+          "mean": 0.0017965027363970876,
+          "min": 0.0017965028528124094,
+          "std": 1.1641532182693481e-10,
+          "zero_fraction": 0.0
+        },
+        "unit": "uS"
+      },
+      "sensory_B.weight": {
+        "autapses": {
+          "sensory_B": {
+            "allow_autapses": false,
+            "effective": "not_applicable",
+            "eligible_fan_in": 1024,
+            "origin": "explicit",
+            "requested": false
+          }
+        },
+        "constraint": {
+          "kind": "non_negative"
+        },
+        "initializer": {
+          "kind": "constant",
+          "value": 0.0017965028843873298
+        },
+        "runtime_shape": [
+          1024,
+          400
+        ],
+        "scaling": "direct",
+        "statistics": {
+          "count": 409600,
+          "max": 0.0017965028528124094,
+          "mean": 0.0017965027363970876,
+          "min": 0.0017965028528124094,
+          "std": 1.1641532182693481e-10,
+          "zero_fraction": 0.0
+        },
+        "unit": "uS"
+      },
+      "sensory_C.weight": {
+        "autapses": {
+          "sensory_C": {
+            "allow_autapses": false,
+            "effective": "not_applicable",
+            "eligible_fan_in": 1024,
+            "origin": "explicit",
+            "requested": false
+          }
+        },
+        "constraint": {
+          "kind": "non_negative"
+        },
+        "initializer": {
+          "kind": "constant",
+          "value": 0.0017965028843873298
+        },
+        "runtime_shape": [
+          1024,
+          400
+        ],
+        "scaling": "direct",
+        "statistics": {
+          "count": 409600,
+          "max": 0.0017965028528124094,
+          "mean": 0.0017965027363970876,
+          "min": 0.0017965028528124094,
+          "std": 1.1641532182693481e-10,
+          "zero_fraction": 0.0
+        },
+        "unit": "uS"
+      }
+    },
+    "parameter_membership": {
+      "frozen": [
+        "A_E_to_C_E.weight",
+        "A_E_to_C_I.weight",
+        "A_E_to_E.weight",
+        "A_E_to_I.weight",
+        "A_I_to_E.weight",
+        "A_I_to_I.weight",
+        "B_E_to_C_E.weight",
+        "B_E_to_C_I.weight",
+        "B_E_to_E.weight",
+        "B_E_to_I.weight",
+        "B_I_to_E.weight",
+        "B_I_to_I.weight",
+        "C_E_to_E.weight",
+        "C_E_to_I.weight",
+        "C_I_to_E.weight",
+        "C_I_to_I.weight",
+        "cue_A.weight",
+        "cue_B.weight",
+        "sensory_A.weight",
+        "sensory_B.weight",
+        "sensory_C.weight"
+      ],
+      "trainable": []
+    },
+    "projection_mode": "fast",
+    "protocol": {
+      "binding_schema": "tools/snnsim.dense-array-binding/v1",
+      "dataset": {
+        "batch_size": 1,
+        "identity": null,
+        "sample_cap": 1,
+        "shuffle": null,
+        "split": null
+      },
+      "inputs": [
+        {
+          "dtype": "float32",
+          "input_id": "U_A",
+          "representation": "dense_array",
+          "shape": [
+            24000,
+            1,
+            1024
+          ],
+          "signal_type": "spikes",
+          "source": {},
+          "unit": "spike"
+        },
+        {
+          "dtype": "float32",
+          "input_id": "U_B",
+          "representation": "dense_array",
+          "shape": [
+            24000,
+            1,
+            1024
+          ],
+          "signal_type": "spikes",
+          "source": {},
+          "unit": "spike"
+        },
+        {
+          "dtype": "float32",
+          "input_id": "X_A",
+          "representation": "dense_array",
+          "shape": [
+            24000,
+            1,
+            1024
+          ],
+          "signal_type": "spikes",
+          "source": {},
+          "unit": "spike"
+        },
+        {
+          "dtype": "float32",
+          "input_id": "X_B",
+          "representation": "dense_array",
+          "shape": [
+            24000,
+            1,
+            1024
+          ],
+          "signal_type": "spikes",
+          "source": {},
+          "unit": "spike"
+        },
+        {
+          "dtype": "float32",
+          "input_id": "X_C",
+          "representation": "dense_array",
+          "shape": [
+            24000,
+            1,
+            1024
+          ],
+          "signal_type": "spikes",
+          "source": {},
+          "unit": "spike"
+        }
+      ],
+      "masks": [],
+      "projection_mode": "fast",
+      "representation": "dense_array",
+      "schema": "tools/snnsim.execution-protocol/v1",
+      "seeds": {
+        "execution": 185
+      },
+      "timing": {
+        "dt_ms": 0.1,
+        "duration_ms": 2400.0,
+        "steps": 24000
+      }
+    },
+    "runtime_state_completed_steps": null,
+    "runtime_state_signature": null,
+    "seed": 185,
+    "timestep_ms": 0.1
+  },
+  "graph_digest": "sha256:346f536366435148f4a5a491b8825762bd22e61775875b325de88227d01f40f9",
+  "kind": "simulate",
+  "network": {
+    "assets": [],
+    "constants": [],
+    "groups": [],
+    "inputs": [
+      {
+        "id": "U_A",
+        "shape": [
+          "time",
+          "batch",
+          1024
+        ],
+        "signal_type": "spikes",
+        "unit": "spike"
+      },
+      {
+        "id": "U_B",
+        "shape": [
+          "time",
+          "batch",
+          1024
+        ],
+        "signal_type": "spikes",
+        "unit": "spike"
+      },
+      {
+        "id": "X_A",
+        "shape": [
+          "time",
+          "batch",
+          1024
+        ],
+        "signal_type": "spikes",
+        "unit": "spike"
+      },
+      {
+        "id": "X_B",
+        "shape": [
+          "time",
+          "batch",
+          1024
+        ],
+        "signal_type": "spikes",
+        "unit": "spike"
+      },
+      {
+        "id": "X_C",
+        "shape": [
+          "time",
+          "batch",
+          1024
+        ],
+        "signal_type": "spikes",
+        "unit": "spike"
+      }
+    ],
+    "name": "spatial_gaussian_relay",
+    "observables": [
+      {
+        "id": "A_E_spikes",
+        "signal": "A_E.spikes"
+      },
+      {
+        "id": "A_I_spikes",
+        "signal": "A_I.spikes"
+      },
+      {
+        "id": "B_E_spikes",
+        "signal": "B_E.spikes"
+      },
+      {
+        "id": "B_I_spikes",
+        "signal": "B_I.spikes"
+      },
+      {
+        "id": "C_E_spikes",
+        "signal": "C_E.spikes"
+      },
+      {
+        "id": "C_I_spikes",
+        "signal": "C_I.spikes"
+      }
+    ],
+    "operations": [],
+    "outputs": [],
+    "parameters": [
+      {
+        "constraint": {
+          "kind": "non_negative"
+        },
+        "group": null,
+        "id": "A_E_to_C_E.weight",
+        "initialization_scaling": "direct",
+        "initializer": {
+          "kind": "constant",
+          "value": 0.0001
+        },
+        "shape": [
+          400,
+          400
+        ],
+        "unit": "uS"
+      },
+      {
+        "constraint": {
+          "kind": "non_negative"
+        },
+        "group": null,
+        "id": "A_E_to_C_I.weight",
+        "initialization_scaling": "direct",
+        "initializer": {
+          "kind": "constant",
+          "value": 0.0001
+        },
+        "shape": [
+          100,
+          400
+        ],
+        "unit": "uS"
+      },
+      {
+        "constraint": {
+          "kind": "non_negative"
+        },
+        "group": null,
+        "id": "A_E_to_E.weight",
+        "initialization_scaling": "direct",
+        "initializer": {
+          "kind": "constant",
+          "value": 0.0009899749152156943
+        },
+        "shape": [
+          400,
+          400
+        ],
+        "unit": "uS"
+      },
+      {
+        "constraint": {
+          "kind": "non_negative"
+        },
+        "group": null,
+        "id": "A_E_to_I.weight",
+        "initialization_scaling": "direct",
+        "initializer": {
+          "kind": "constant",
+          "value": 0.0018732575993053615
+        },
+        "shape": [
+          100,
+          400
+        ],
+        "unit": "uS"
+      },
+      {
+        "constraint": {
+          "kind": "non_negative"
+        },
+        "group": null,
+        "id": "A_I_to_E.weight",
+        "initialization_scaling": "direct",
+        "initializer": {
+          "kind": "constant",
+          "value": 0.015004359916318209
+        },
+        "shape": [
+          400,
+          100
+        ],
+        "unit": "uS"
+      },
+      {
+        "constraint": {
+          "kind": "non_negative"
+        },
+        "group": null,
+        "id": "A_I_to_I.weight",
+        "initialization_scaling": "direct",
+        "initializer": {
+          "kind": "constant",
+          "value": 0.007676767505178548
+        },
+        "shape": [
+          100,
+          100
+        ],
+        "unit": "uS"
+      },
+      {
+        "constraint": {
+          "kind": "non_negative"
+        },
+        "group": null,
+        "id": "B_E_to_C_E.weight",
+        "initialization_scaling": "direct",
+        "initializer": {
+          "kind": "constant",
+          "value": 0.0001
+        },
+        "shape": [
+          400,
+          400
+        ],
+        "unit": "uS"
+      },
+      {
+        "constraint": {
+          "kind": "non_negative"
+        },
+        "group": null,
+        "id": "B_E_to_C_I.weight",
+        "initialization_scaling": "direct",
+        "initializer": {
+          "kind": "constant",
+          "value": 0.0001
+        },
+        "shape": [
+          100,
+          400
+        ],
+        "unit": "uS"
+      },
+      {
+        "constraint": {
+          "kind": "non_negative"
+        },
+        "group": null,
+        "id": "B_E_to_E.weight",
+        "initialization_scaling": "direct",
+        "initializer": {
+          "kind": "constant",
+          "value": 0.0009899749152156943
+        },
+        "shape": [
+          400,
+          400
+        ],
+        "unit": "uS"
+      },
+      {
+        "constraint": {
+          "kind": "non_negative"
+        },
+        "group": null,
+        "id": "B_E_to_I.weight",
+        "initialization_scaling": "direct",
+        "initializer": {
+          "kind": "constant",
+          "value": 0.0018732575993053615
+        },
+        "shape": [
+          100,
+          400
+        ],
+        "unit": "uS"
+      },
+      {
+        "constraint": {
+          "kind": "non_negative"
+        },
+        "group": null,
+        "id": "B_I_to_E.weight",
+        "initialization_scaling": "direct",
+        "initializer": {
+          "kind": "constant",
+          "value": 0.015004359916318209
+        },
+        "shape": [
+          400,
+          100
+        ],
+        "unit": "uS"
+      },
+      {
+        "constraint": {
+          "kind": "non_negative"
+        },
+        "group": null,
+        "id": "B_I_to_I.weight",
+        "initialization_scaling": "direct",
+        "initializer": {
+          "kind": "constant",
+          "value": 0.007676767505178548
+        },
+        "shape": [
+          100,
+          100
+        ],
+        "unit": "uS"
+      },
+      {
+        "constraint": {
+          "kind": "non_negative"
+        },
+        "group": null,
+        "id": "C_E_to_E.weight",
+        "initialization_scaling": "direct",
+        "initializer": {
+          "kind": "constant",
+          "value": 0.0009899749152156943
+        },
+        "shape": [
+          400,
+          400
+        ],
+        "unit": "uS"
+      },
+      {
+        "constraint": {
+          "kind": "non_negative"
+        },
+        "group": null,
+        "id": "C_E_to_I.weight",
+        "initialization_scaling": "direct",
+        "initializer": {
+          "kind": "constant",
+          "value": 0.0018732575993053615
+        },
+        "shape": [
+          100,
+          400
+        ],
+        "unit": "uS"
+      },
+      {
+        "constraint": {
+          "kind": "non_negative"
+        },
+        "group": null,
+        "id": "C_I_to_E.weight",
+        "initialization_scaling": "direct",
+        "initializer": {
+          "kind": "constant",
+          "value": 0.015004359916318209
+        },
+        "shape": [
+          400,
+          100
+        ],
+        "unit": "uS"
+      },
+      {
+        "constraint": {
+          "kind": "non_negative"
+        },
+        "group": null,
+        "id": "C_I_to_I.weight",
+        "initialization_scaling": "direct",
+        "initializer": {
+          "kind": "constant",
+          "value": 0.007676767505178548
+        },
+        "shape": [
+          100,
+          100
+        ],
+        "unit": "uS"
+      },
+      {
+        "constraint": {
+          "kind": "non_negative"
+        },
+        "group": null,
+        "id": "cue_A.weight",
+        "initialization_scaling": "direct",
+        "initializer": {
+          "kind": "constant",
+          "value": 0.0017965028843873298
+        },
+        "shape": [
+          400,
+          1024
+        ],
+        "unit": "uS"
+      },
+      {
+        "constraint": {
+          "kind": "non_negative"
+        },
+        "group": null,
+        "id": "cue_B.weight",
+        "initialization_scaling": "direct",
+        "initializer": {
+          "kind": "constant",
+          "value": 0.0017965028843873298
+        },
+        "shape": [
+          400,
+          1024
+        ],
+        "unit": "uS"
+      },
+      {
+        "constraint": {
+          "kind": "non_negative"
+        },
+        "group": null,
+        "id": "sensory_A.weight",
+        "initialization_scaling": "direct",
+        "initializer": {
+          "kind": "constant",
+          "value": 0.0017965028843873298
+        },
+        "shape": [
+          400,
+          1024
+        ],
+        "unit": "uS"
+      },
+      {
+        "constraint": {
+          "kind": "non_negative"
+        },
+        "group": null,
+        "id": "sensory_B.weight",
+        "initialization_scaling": "direct",
+        "initializer": {
+          "kind": "constant",
+          "value": 0.0017965028843873298
+        },
+        "shape": [
+          400,
+          1024
+        ],
+        "unit": "uS"
+      },
+      {
+        "constraint": {
+          "kind": "non_negative"
+        },
+        "group": null,
+        "id": "sensory_C.weight",
+        "initialization_scaling": "direct",
+        "initializer": {
+          "kind": "constant",
+          "value": 0.0017965028843873298
+        },
+        "shape": [
+          400,
+          1024
+        ],
+        "unit": "uS"
+      }
+    ],
+    "populations": [
+      {
+        "group": null,
+        "id": "A_E",
+        "neuron": {
+          "capacitance_nf": 1.0,
+          "initial_voltage_mv": -65.0,
+          "kind": "coba_lif",
+          "leak_us": 0.05,
+          "refractory": {
+            "unit": "ms",
+            "value": 3.0
+          },
+          "reset_mv": -65.0,
+          "resting_mv": -65.0,
+          "tau_mem": {
+            "unit": "ms",
+            "value": 20.0
+          },
+          "threshold_mv": -50.0,
+          "voltage_grad_dampen": 80.0
+        },
+        "size": 400,
+        "spiking": true
+      },
+      {
+        "group": null,
+        "id": "A_I",
+        "neuron": {
+          "capacitance_nf": 0.5,
+          "initial_voltage_mv": -65.0,
+          "kind": "coba_lif",
+          "leak_us": 0.1,
+          "refractory": {
+            "unit": "ms",
+            "value": 1.5
+          },
+          "reset_mv": -65.0,
+          "resting_mv": -65.0,
+          "tau_mem": {
+            "unit": "ms",
+            "value": 5.0
+          },
+          "threshold_mv": -50.0,
+          "voltage_grad_dampen": 80.0
+        },
+        "size": 100,
+        "spiking": true
+      },
+      {
+        "group": null,
+        "id": "B_E",
+        "neuron": {
+          "capacitance_nf": 1.0,
+          "initial_voltage_mv": -65.0,
+          "kind": "coba_lif",
+          "leak_us": 0.05,
+          "refractory": {
+            "unit": "ms",
+            "value": 3.0
+          },
+          "reset_mv": -65.0,
+          "resting_mv": -65.0,
+          "tau_mem": {
+            "unit": "ms",
+            "value": 20.0
+          },
+          "threshold_mv": -50.0,
+          "voltage_grad_dampen": 80.0
+        },
+        "size": 400,
+        "spiking": true
+      },
+      {
+        "group": null,
+        "id": "B_I",
+        "neuron": {
+          "capacitance_nf": 0.5,
+          "initial_voltage_mv": -65.0,
+          "kind": "coba_lif",
+          "leak_us": 0.1,
+          "refractory": {
+            "unit": "ms",
+            "value": 1.5
+          },
+          "reset_mv": -65.0,
+          "resting_mv": -65.0,
+          "tau_mem": {
+            "unit": "ms",
+            "value": 5.0
+          },
+          "threshold_mv": -50.0,
+          "voltage_grad_dampen": 80.0
+        },
+        "size": 100,
+        "spiking": true
+      },
+      {
+        "group": null,
+        "id": "C_E",
+        "neuron": {
+          "capacitance_nf": 1.0,
+          "initial_voltage_mv": -65.0,
+          "kind": "coba_lif",
+          "leak_us": 0.05,
+          "refractory": {
+            "unit": "ms",
+            "value": 3.0
+          },
+          "reset_mv": -65.0,
+          "resting_mv": -65.0,
+          "tau_mem": {
+            "unit": "ms",
+            "value": 20.0
+          },
+          "threshold_mv": -50.0,
+          "voltage_grad_dampen": 80.0
+        },
+        "size": 400,
+        "spiking": true
+      },
+      {
+        "group": null,
+        "id": "C_I",
+        "neuron": {
+          "capacitance_nf": 0.5,
+          "initial_voltage_mv": -65.0,
+          "kind": "coba_lif",
+          "leak_us": 0.1,
+          "refractory": {
+            "unit": "ms",
+            "value": 1.5
+          },
+          "reset_mv": -65.0,
+          "resting_mv": -65.0,
+          "tau_mem": {
+            "unit": "ms",
+            "value": 5.0
+          },
+          "threshold_mv": -50.0,
+          "voltage_grad_dampen": 80.0
+        },
+        "size": 100,
+        "spiking": true
+      }
+    ],
+    "projections": [
+      {
+        "allow_autapses": false,
+        "connection": "feedforward",
+        "delay": {
+          "unit": "ms",
+          "value": 2.0
+        },
+        "group": null,
+        "id": "A_E_to_C_E",
+        "parameters": [
+          "A_E_to_C_E.weight"
+        ],
+        "polarity": "excitatory",
+        "source": "A_E.spikes",
+        "synapse": {
+          "kind": "ampa",
+          "tau": {
+            "unit": "ms",
+            "value": 0.75
+          }
+        },
+        "target": "C_E.excitatory"
+      },
+      {
+        "allow_autapses": false,
+        "connection": "feedforward",
+        "delay": {
+          "unit": "ms",
+          "value": 2.0
+        },
+        "group": null,
+        "id": "A_E_to_C_I",
+        "parameters": [
+          "A_E_to_C_I.weight"
+        ],
+        "polarity": "excitatory",
+        "source": "A_E.spikes",
+        "synapse": {
+          "kind": "ampa",
+          "tau": {
+            "unit": "ms",
+            "value": 0.75
+          }
+        },
+        "target": "C_I.excitatory"
+      },
+      {
+        "allow_autapses": false,
+        "connection": "feedforward",
+        "delay": {
+          "unit": "ms",
+          "value": 0.1
+        },
+        "group": null,
+        "id": "A_E_to_E",
+        "parameters": [
+          "A_E_to_E.weight"
+        ],
+        "polarity": "excitatory",
+        "source": "A_E.spikes",
+        "synapse": {
+          "kind": "ampa",
+          "tau": {
+            "unit": "ms",
+            "value": 2.0
+          }
+        },
+        "target": "A_E.excitatory"
+      },
+      {
+        "allow_autapses": false,
+        "connection": "feedforward",
+        "delay": {
+          "unit": "ms",
+          "value": 0.1
+        },
+        "group": null,
+        "id": "A_E_to_I",
+        "parameters": [
+          "A_E_to_I.weight"
+        ],
+        "polarity": "excitatory",
+        "source": "A_E.spikes",
+        "synapse": {
+          "kind": "ampa",
+          "tau": {
+            "unit": "ms",
+            "value": 1.0
+          }
+        },
+        "target": "A_I.excitatory"
+      },
+      {
+        "allow_autapses": false,
+        "connection": "feedforward",
+        "delay": {
+          "unit": "ms",
+          "value": 0.1
+        },
+        "group": null,
+        "id": "A_I_to_E",
+        "parameters": [
+          "A_I_to_E.weight"
+        ],
+        "polarity": "inhibitory",
+        "source": "A_I.spikes",
+        "synapse": {
+          "kind": "gaba",
+          "tau": {
+            "unit": "ms",
+            "value": 9.0
+          }
+        },
+        "target": "A_E.inhibitory"
+      },
+      {
+        "allow_autapses": false,
+        "connection": "feedforward",
+        "delay": {
+          "unit": "ms",
+          "value": 0.1
+        },
+        "group": null,
+        "id": "A_I_to_I",
+        "parameters": [
+          "A_I_to_I.weight"
+        ],
+        "polarity": "inhibitory",
+        "source": "A_I.spikes",
+        "synapse": {
+          "kind": "gaba",
+          "tau": {
+            "unit": "ms",
+            "value": 6.0
+          }
+        },
+        "target": "A_I.inhibitory"
+      },
+      {
+        "allow_autapses": false,
+        "connection": "feedforward",
+        "delay": {
+          "unit": "ms",
+          "value": 2.0
+        },
+        "group": null,
+        "id": "B_E_to_C_E",
+        "parameters": [
+          "B_E_to_C_E.weight"
+        ],
+        "polarity": "excitatory",
+        "source": "B_E.spikes",
+        "synapse": {
+          "kind": "ampa",
+          "tau": {
+            "unit": "ms",
+            "value": 0.75
+          }
+        },
+        "target": "C_E.excitatory"
+      },
+      {
+        "allow_autapses": false,
+        "connection": "feedforward",
+        "delay": {
+          "unit": "ms",
+          "value": 2.0
+        },
+        "group": null,
+        "id": "B_E_to_C_I",
+        "parameters": [
+          "B_E_to_C_I.weight"
+        ],
+        "polarity": "excitatory",
+        "source": "B_E.spikes",
+        "synapse": {
+          "kind": "ampa",
+          "tau": {
+            "unit": "ms",
+            "value": 0.75
+          }
+        },
+        "target": "C_I.excitatory"
+      },
+      {
+        "allow_autapses": false,
+        "connection": "feedforward",
+        "delay": {
+          "unit": "ms",
+          "value": 0.1
+        },
+        "group": null,
+        "id": "B_E_to_E",
+        "parameters": [
+          "B_E_to_E.weight"
+        ],
+        "polarity": "excitatory",
+        "source": "B_E.spikes",
+        "synapse": {
+          "kind": "ampa",
+          "tau": {
+            "unit": "ms",
+            "value": 2.0
+          }
+        },
+        "target": "B_E.excitatory"
+      },
+      {
+        "allow_autapses": false,
+        "connection": "feedforward",
+        "delay": {
+          "unit": "ms",
+          "value": 0.1
+        },
+        "group": null,
+        "id": "B_E_to_I",
+        "parameters": [
+          "B_E_to_I.weight"
+        ],
+        "polarity": "excitatory",
+        "source": "B_E.spikes",
+        "synapse": {
+          "kind": "ampa",
+          "tau": {
+            "unit": "ms",
+            "value": 1.0
+          }
+        },
+        "target": "B_I.excitatory"
+      },
+      {
+        "allow_autapses": false,
+        "connection": "feedforward",
+        "delay": {
+          "unit": "ms",
+          "value": 0.1
+        },
+        "group": null,
+        "id": "B_I_to_E",
+        "parameters": [
+          "B_I_to_E.weight"
+        ],
+        "polarity": "inhibitory",
+        "source": "B_I.spikes",
+        "synapse": {
+          "kind": "gaba",
+          "tau": {
+            "unit": "ms",
+            "value": 9.0
+          }
+        },
+        "target": "B_E.inhibitory"
+      },
+      {
+        "allow_autapses": false,
+        "connection": "feedforward",
+        "delay": {
+          "unit": "ms",
+          "value": 0.1
+        },
+        "group": null,
+        "id": "B_I_to_I",
+        "parameters": [
+          "B_I_to_I.weight"
+        ],
+        "polarity": "inhibitory",
+        "source": "B_I.spikes",
+        "synapse": {
+          "kind": "gaba",
+          "tau": {
+            "unit": "ms",
+            "value": 6.0
+          }
+        },
+        "target": "B_I.inhibitory"
+      },
+      {
+        "allow_autapses": false,
+        "connection": "feedforward",
+        "delay": {
+          "unit": "ms",
+          "value": 0.1
+        },
+        "group": null,
+        "id": "C_E_to_E",
+        "parameters": [
+          "C_E_to_E.weight"
+        ],
+        "polarity": "excitatory",
+        "source": "C_E.spikes",
+        "synapse": {
+          "kind": "ampa",
+          "tau": {
+            "unit": "ms",
+            "value": 2.0
+          }
+        },
+        "target": "C_E.excitatory"
+      },
+      {
+        "allow_autapses": false,
+        "connection": "feedforward",
+        "delay": {
+          "unit": "ms",
+          "value": 0.1
+        },
+        "group": null,
+        "id": "C_E_to_I",
+        "parameters": [
+          "C_E_to_I.weight"
+        ],
+        "polarity": "excitatory",
+        "source": "C_E.spikes",
+        "synapse": {
+          "kind": "ampa",
+          "tau": {
+            "unit": "ms",
+            "value": 1.0
+          }
+        },
+        "target": "C_I.excitatory"
+      },
+      {
+        "allow_autapses": false,
+        "connection": "feedforward",
+        "delay": {
+          "unit": "ms",
+          "value": 0.1
+        },
+        "group": null,
+        "id": "C_I_to_E",
+        "parameters": [
+          "C_I_to_E.weight"
+        ],
+        "polarity": "inhibitory",
+        "source": "C_I.spikes",
+        "synapse": {
+          "kind": "gaba",
+          "tau": {
+            "unit": "ms",
+            "value": 9.0
+          }
+        },
+        "target": "C_E.inhibitory"
+      },
+      {
+        "allow_autapses": false,
+        "connection": "feedforward",
+        "delay": {
+          "unit": "ms",
+          "value": 0.1
+        },
+        "group": null,
+        "id": "C_I_to_I",
+        "parameters": [
+          "C_I_to_I.weight"
+        ],
+        "polarity": "inhibitory",
+        "source": "C_I.spikes",
+        "synapse": {
+          "kind": "gaba",
+          "tau": {
+            "unit": "ms",
+            "value": 6.0
+          }
+        },
+        "target": "C_I.inhibitory"
+      },
+      {
+        "allow_autapses": false,
+        "connection": "feedforward",
+        "delay": {
+          "unit": "ms",
+          "value": 0.1
+        },
+        "group": null,
+        "id": "cue_A",
+        "modulation": {
+          "after": 0,
+          "at_ms": 1200.0,
+          "before": 1,
+          "kind": "step_gain"
+        },
+        "parameters": [
+          "cue_A.weight"
+        ],
+        "polarity": "excitatory",
+        "source": "U_A.value",
+        "synapse": {
+          "kind": "ampa",
+          "tau": {
+            "unit": "ms",
+            "value": 2.0
+          }
+        },
+        "target": "A_E.excitatory"
+      },
+      {
+        "allow_autapses": false,
+        "connection": "feedforward",
+        "delay": {
+          "unit": "ms",
+          "value": 0.1
+        },
+        "group": null,
+        "id": "cue_B",
+        "modulation": {
+          "after": 1,
+          "at_ms": 1200.0,
+          "before": 0,
+          "kind": "step_gain"
+        },
+        "parameters": [
+          "cue_B.weight"
+        ],
+        "polarity": "excitatory",
+        "source": "U_B.value",
+        "synapse": {
+          "kind": "ampa",
+          "tau": {
+            "unit": "ms",
+            "value": 2.0
+          }
+        },
+        "target": "B_E.excitatory"
+      },
+      {
+        "allow_autapses": false,
+        "connection": "feedforward",
+        "delay": {
+          "unit": "ms",
+          "value": 0.1
+        },
+        "group": null,
+        "id": "sensory_A",
+        "parameters": [
+          "sensory_A.weight"
+        ],
+        "polarity": "excitatory",
+        "source": "X_A.value",
+        "synapse": {
+          "kind": "ampa",
+          "tau": {
+            "unit": "ms",
+            "value": 2.0
+          }
+        },
+        "target": "A_E.excitatory"
+      },
+      {
+        "allow_autapses": false,
+        "connection": "feedforward",
+        "delay": {
+          "unit": "ms",
+          "value": 0.1
+        },
+        "group": null,
+        "id": "sensory_B",
+        "parameters": [
+          "sensory_B.weight"
+        ],
+        "polarity": "excitatory",
+        "source": "X_B.value",
+        "synapse": {
+          "kind": "ampa",
+          "tau": {
+            "unit": "ms",
+            "value": 2.0
+          }
+        },
+        "target": "B_E.excitatory"
+      },
+      {
+        "allow_autapses": false,
+        "connection": "feedforward",
+        "delay": {
+          "unit": "ms",
+          "value": 0.1
+        },
+        "group": null,
+        "id": "sensory_C",
+        "parameters": [
+          "sensory_C.weight"
+        ],
+        "polarity": "excitatory",
+        "source": "X_C.value",
+        "synapse": {
+          "kind": "ampa",
+          "tau": {
+            "unit": "ms",
+            "value": 2.0
+          }
+        },
+        "target": "C_E.excitatory"
+      }
+    ],
+    "refractory_timing": "following_steps",
+    "schema": "snnlang.graph/v1",
+    "timebase": {
+      "dt": {
+        "unit": "ms",
+        "value": 0.1
+      }
+    },
+    "voltage_sampling": "explicit"
+  },
+  "parameter_file_sha256": "c508e7bd2776c68ac8269bf2e323d71c423ff416aff5f57c2a83c999ea45d6a7",
+  "parameters": {
+    "A_E_to_C_E.weight": {
+      "dtype": "float32",
+      "file": "parameters.npz",
+      "key": "parameter_0000",
+      "shape": [
+        400,
+        400
+      ],
+      "storage_dtype": "float32"
+    },
+    "A_E_to_C_I.weight": {
+      "dtype": "float32",
+      "file": "parameters.npz",
+      "key": "parameter_0001",
+      "shape": [
+        400,
+        100
+      ],
+      "storage_dtype": "float32"
+    },
+    "A_E_to_E.weight": {
+      "dtype": "float32",
+      "file": "parameters.npz",
+      "key": "parameter_0002",
+      "shape": [
+        400,
+        400
+      ],
+      "storage_dtype": "float32"
+    },
+    "A_E_to_I.weight": {
+      "dtype": "float32",
+      "file": "parameters.npz",
+      "key": "parameter_0003",
+      "shape": [
+        400,
+        100
+      ],
+      "storage_dtype": "float32"
+    },
+    "A_I_to_E.weight": {
+      "dtype": "float32",
+      "file": "parameters.npz",
+      "key": "parameter_0004",
+      "shape": [
+        100,
+        400
+      ],
+      "storage_dtype": "float32"
+    },
+    "A_I_to_I.weight": {
+      "dtype": "float32",
+      "file": "parameters.npz",
+      "key": "parameter_0005",
+      "shape": [
+        100,
+        100
+      ],
+      "storage_dtype": "float32"
+    },
+    "B_E_to_C_E.weight": {
+      "dtype": "float32",
+      "file": "parameters.npz",
+      "key": "parameter_0006",
+      "shape": [
+        400,
+        400
+      ],
+      "storage_dtype": "float32"
+    },
+    "B_E_to_C_I.weight": {
+      "dtype": "float32",
+      "file": "parameters.npz",
+      "key": "parameter_0007",
+      "shape": [
+        400,
+        100
+      ],
+      "storage_dtype": "float32"
+    },
+    "B_E_to_E.weight": {
+      "dtype": "float32",
+      "file": "parameters.npz",
+      "key": "parameter_0008",
+      "shape": [
+        400,
+        400
+      ],
+      "storage_dtype": "float32"
+    },
+    "B_E_to_I.weight": {
+      "dtype": "float32",
+      "file": "parameters.npz",
+      "key": "parameter_0009",
+      "shape": [
+        400,
+        100
+      ],
+      "storage_dtype": "float32"
+    },
+    "B_I_to_E.weight": {
+      "dtype": "float32",
+      "file": "parameters.npz",
+      "key": "parameter_0010",
+      "shape": [
+        100,
+        400
+      ],
+      "storage_dtype": "float32"
+    },
+    "B_I_to_I.weight": {
+      "dtype": "float32",
+      "file": "parameters.npz",
+      "key": "parameter_0011",
+      "shape": [
+        100,
+        100
+      ],
+      "storage_dtype": "float32"
+    },
+    "C_E_to_E.weight": {
+      "dtype": "float32",
+      "file": "parameters.npz",
+      "key": "parameter_0012",
+      "shape": [
+        400,
+        400
+      ],
+      "storage_dtype": "float32"
+    },
+    "C_E_to_I.weight": {
+      "dtype": "float32",
+      "file": "parameters.npz",
+      "key": "parameter_0013",
+      "shape": [
+        400,
+        100
+      ],
+      "storage_dtype": "float32"
+    },
+    "C_I_to_E.weight": {
+      "dtype": "float32",
+      "file": "parameters.npz",
+      "key": "parameter_0014",
+      "shape": [
+        100,
+        400
+      ],
+      "storage_dtype": "float32"
+    },
+    "C_I_to_I.weight": {
+      "dtype": "float32",
+      "file": "parameters.npz",
+      "key": "parameter_0015",
+      "shape": [
+        100,
+        100
+      ],
+      "storage_dtype": "float32"
+    },
+    "cue_A.weight": {
+      "dtype": "float32",
+      "file": "parameters.npz",
+      "key": "parameter_0016",
+      "shape": [
+        1024,
+        400
+      ],
+      "storage_dtype": "float32"
+    },
+    "cue_B.weight": {
+      "dtype": "float32",
+      "file": "parameters.npz",
+      "key": "parameter_0017",
+      "shape": [
+        1024,
+        400
+      ],
+      "storage_dtype": "float32"
+    },
+    "sensory_A.weight": {
+      "dtype": "float32",
+      "file": "parameters.npz",
+      "key": "parameter_0018",
+      "shape": [
+        1024,
+        400
+      ],
+      "storage_dtype": "float32"
+    },
+    "sensory_B.weight": {
+      "dtype": "float32",
+      "file": "parameters.npz",
+      "key": "parameter_0019",
+      "shape": [
+        1024,
+        400
+      ],
+      "storage_dtype": "float32"
+    },
+    "sensory_C.weight": {
+      "dtype": "float32",
+      "file": "parameters.npz",
+      "key": "parameter_0020",
+      "shape": [
+        1024,
+        400
+      ],
+      "storage_dtype": "float32"
+    }
+  },
+  "parameters_included": true,
+  "request": {
+    "batch_size": null,
+    "batching": null,
+    "bundle": null,
+    "checkpoint": "/Users/eoin/pinglab/.scratch/exp172-contrast-background-sweeps/data/trials/background-0/checkpoint.pt",
+    "checkpoint_selection": null,
+    "compile_block_steps": "auto",
+    "compile_mode": null,
+    "cuda_graphs": "auto",
+    "dataset_prefetch": 1,
+    "decisions": null,
+    "device": "cpu",
+    "diagnostics": true,
+    "epochs": 0,
+    "executor": "graph",
+    "extension_validation": "structural",
+    "fused_optimizer": "auto",
+    "input_bindings": [
+      {
+        "input_id": "X_A",
+        "source": {},
+        "value": {
+          "dtype": "float32",
+          "sha256": "249c0429c0dac85179f214a94a1c59e804744fa8ca203ce36339b11af908b90b",
+          "shape": [
+            24000,
+            1,
+            1024
+          ]
+        }
+      },
+      {
+        "input_id": "X_B",
+        "source": {},
+        "value": {
+          "dtype": "float32",
+          "sha256": "6f58868d47fb8174f006c3b37ff01444b8f92941ee7d2867e52d2fa762926632",
+          "shape": [
+            24000,
+            1,
+            1024
+          ]
+        }
+      },
+      {
+        "input_id": "X_C",
+        "source": {},
+        "value": {
+          "dtype": "float32",
+          "sha256": "1ddb62dca82feef250dc763ac731427b7c3677a2e7d318c338207ce2b7394211",
+          "shape": [
+            24000,
+            1,
+            1024
+          ]
+        }
+      },
+      {
+        "input_id": "U_A",
+        "source": {},
+        "value": {
+          "dtype": "float32",
+          "sha256": "0a79ce397c9b23d23405354bd778ad0de170a386bb6815cc9458df12641bf7d5",
+          "shape": [
+            24000,
+            1,
+            1024
+          ]
+        }
+      },
+      {
+        "input_id": "U_B",
+        "source": {},
+        "value": {
+          "dtype": "float32",
+          "sha256": "0a79ce397c9b23d23405354bd778ad0de170a386bb6815cc9458df12641bf7d5",
+          "shape": [
+            24000,
+            1,
+            1024
+          ]
+        }
+      }
+    ],
+    "interventions": [],
+    "kind": "simulate",
+    "measurement": null,
+    "metrics": null,
+    "observations": null,
+    "options": {},
+    "precision": "auto",
+    "projection_mode": "fast",
+    "protocol": {},
+    "recording": null,
+    "resets": [],
+    "retain_final_state": false,
+    "retain_outputs": true,
+    "retain_parameters": false,
+    "retain_runtime_state": false,
+    "save_final_checkpoint": null,
+    "save_selected_checkpoint": null,
+    "seed": 185,
+    "shuffle": false,
+    "target_bindings": [],
+    "targets": {},
+    "test": null,
+    "timing_mode": "synchronized",
+    "training_timing": false,
+    "updates": null,
+    "validation": null,
+    "weights": null
+  },
+  "schema": "snnlab.run-snapshot/v1",
+  "snnlab_version": "0.32.3",
+  "stage": "start",
+  "training": null
+}

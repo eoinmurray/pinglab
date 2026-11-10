@@ -1,0 +1,273 @@
+{
+  "active": "AB",
+  "cue_hz": 3.0,
+  "id": "background-8",
+  "seed": 185,
+  "swap": false,
+  "epochs": [
+    {
+      "attended": "A",
+      "window_ms": [
+        650.0,
+        1100.0
+      ],
+      "er": 0.42956158942382894,
+      "fits": {
+        "A": {
+          "background_hz": 22.589022327734536,
+          "amplitudes_hz": [
+            26.178156233080248,
+            0.0
+          ],
+          "total_amplitude_hz": 26.178156233080248,
+          "fraction_A": 1.0,
+          "r_squared": 0.32090341141204126,
+          "rmse_hz": 12.305750557035271,
+          "recovered_centres": [
+            0.2486927426872497,
+            0.7784516830185978
+          ],
+          "recovered_sigmas": [
+            0.11249709859182914,
+            0.10427674167170393
+          ],
+          "shape_fit_success": true
+        },
+        "B": {
+          "background_hz": 21.67786128763034,
+          "amplitudes_hz": [
+            0.0,
+            27.73854407703153
+          ],
+          "total_amplitude_hz": 27.73854407703153,
+          "fraction_A": 0.0,
+          "r_squared": 0.3671736891709745,
+          "rmse_hz": 11.767402112714572,
+          "recovered_centres": [
+            0.3212310908284518,
+            0.7439163197968892
+          ],
+          "recovered_sigmas": [
+            0.03500000000000001,
+            0.09938862717805039
+          ],
+          "shape_fit_success": true
+        },
+        "C": {
+          "background_hz": 9.458323745603758,
+          "amplitudes_hz": [
+            16.435661219172978,
+            21.825816584785546
+          ],
+          "total_amplitude_hz": 38.26147780395853,
+          "fraction_A": 0.42956158942382894,
+          "r_squared": 0.6465005385259526,
+          "rmse_hz": 5.03037037820693,
+          "recovered_centres": [
+            0.2630366024435748,
+            0.7590759425682618
+          ],
+          "recovered_sigmas": [
+            0.12353840582698038,
+            0.13188978647001653
+          ],
+          "shape_fit_success": true
+        }
+      },
+      "fidelity": {
+        "bin_neurons": 8,
+        "copy_r_squared": -1.4541343582538766,
+        "rmse_hz": 14.25289660835281,
+        "correlation": 0.3572581172126144,
+        "mean_rate_ratio": 0.6234177215189872
+      },
+      "mean_rates_hz": {
+        "A_E": 28.08888888888889,
+        "A_I": 41.31111111111111,
+        "B_E": 27.505555555555556,
+        "B_I": 40.62222222222222,
+        "C_E": 17.51111111111111,
+        "C_I": 24.622222222222227
+      },
+      "phase": {
+        "frequencies_hz": {
+          "A": 47.8697941598851,
+          "B": 45.382346267302026,
+          "C": 39.72890862351016
+        },
+        "rhythms": {
+          "A": {
+            "volleys": 21,
+            "interval_cv": 0.05886038433411918,
+            "valid": true
+          },
+          "B": {
+            "volleys": 21,
+            "interval_cv": 0.05803397840901361,
+            "valid": true
+          },
+          "C": {
+            "volleys": 18,
+            "interval_cv": 0.22043496622419279,
+            "valid": false
+          }
+        },
+        "plv": {
+          "A": 0.2242248400261486,
+          "B": 0.4808793229502162
+        },
+        "caveat": "diagnostic peak-based phase; no CTC mechanism claim"
+      }
+    },
+    {
+      "attended": "B",
+      "window_ms": [
+        1850.0,
+        2300.0
+      ],
+      "er": 0.48184272493915825,
+      "fits": {
+        "A": {
+          "background_hz": 20.972436415995954,
+          "amplitudes_hz": [
+            27.27362285412922,
+            1.548471364114169
+          ],
+          "total_amplitude_hz": 28.822094218243386,
+          "fraction_A": 0.9462748489964328,
+          "r_squared": 0.31964121309563687,
+          "rmse_hz": 12.567056467254938,
+          "recovered_centres": [
+            0.2675726619273833,
+            0.8270832752900389
+          ],
+          "recovered_sigmas": [
+            0.1108374108595271,
+            0.057215991301920864
+          ],
+          "shape_fit_success": true
+        },
+        "B": {
+          "background_hz": 24.706719078360663,
+          "amplitudes_hz": [
+            0.0,
+            23.052952873962017
+          ],
+          "total_amplitude_hz": 23.052952873962017,
+          "fraction_A": 0.0,
+          "r_squared": 0.2760378743996015,
+          "rmse_hz": 12.06397957523227,
+          "recovered_centres": [
+            0.17,
+            0.7488545147974637
+          ],
+          "recovered_sigmas": [
+            0.1781249461758186,
+            0.11122916796328958
+          ],
+          "shape_fit_success": true
+        },
+        "C": {
+          "background_hz": 11.603128910717865,
+          "amplitudes_hz": [
+            16.473603864178312,
+            15.319067313205025
+          ],
+          "total_amplitude_hz": 31.792671177383337,
+          "fraction_A": 0.5181572750608417,
+          "r_squared": 0.48428123404319645,
+          "rmse_hz": 5.7047016526865875,
+          "recovered_centres": [
+            0.26169211536237874,
+            0.783286665038997
+          ],
+          "recovered_sigmas": [
+            0.11210746016466223,
+            0.09993193418966356
+          ],
+          "shape_fit_success": true
+        }
+      },
+      "fidelity": {
+        "bin_neurons": 8,
+        "copy_r_squared": -1.7993671861661271,
+        "rmse_hz": 14.066420921146365,
+        "correlation": 0.4116126845202311,
+        "mean_rate_ratio": 0.6191013348373755
+      },
+      "mean_rates_hz": {
+        "A_E": 27.02777777777778,
+        "A_I": 40.733333333333334,
+        "B_E": 29.55,
+        "B_I": 42.26666666666667,
+        "C_E": 18.294444444444444,
+        "C_I": 26.4
+      },
+      "phase": {
+        "frequencies_hz": {
+          "A": 45.39264639128462,
+          "B": 47.42708086317287,
+          "C": 35.394053798961764
+        },
+        "rhythms": {
+          "A": {
+            "volleys": 21,
+            "interval_cv": 0.055596263982761275,
+            "valid": true
+          },
+          "B": {
+            "volleys": 21,
+            "interval_cv": 0.05963896487983643,
+            "valid": true
+          },
+          "C": {
+            "volleys": 16,
+            "interval_cv": 0.20501221277588078,
+            "valid": false
+          }
+        },
+        "plv": {
+          "A": 0.28017500863271383,
+          "B": 0.29094419861216203
+        },
+        "caveat": "diagnostic peak-based phase; no CTC mechanism claim"
+      }
+    }
+  ],
+  "simulation_seconds": 13.57532029110007,
+  "total_seconds": 13.951044958084822,
+  "stability": {
+    "window_ms": 40.0,
+    "hop_ms": 5.0,
+    "epochs": [
+      {
+        "attended": "A",
+        "window_ms": [
+          250.0,
+          1100.0
+        ],
+        "wrong_or_unresolved_fraction": 0.5647058823529412,
+        "leakage_fraction": 0.5218927111270498,
+        "maximum_excursion_centres_ms": 85.0,
+        "unresolved_fraction": 0.0,
+        "mean_attended_amplitude_hz": 17.980745223345664
+      },
+      {
+        "attended": "B",
+        "window_ms": [
+          1450.0,
+          2300.0
+        ],
+        "wrong_or_unresolved_fraction": 0.6176470588235294,
+        "leakage_fraction": 0.5526191780034486,
+        "maximum_excursion_centres_ms": 80.0,
+        "unresolved_fraction": 0.0,
+        "mean_attended_amplitude_hz": 15.541423230930246
+      }
+    ],
+    "worst_window_wrong_fraction": 0.6176470588235294,
+    "mean_wrong_fraction": 0.5911764705882353,
+    "switch_latency_ms": null,
+    "caveat": "Overlapping fits are correlated; fitted spatial identity does not establish input origin. Latency is the end of the first exclusively post-switch fit beginning a 100 ms run of B dominance."
+  }
+}

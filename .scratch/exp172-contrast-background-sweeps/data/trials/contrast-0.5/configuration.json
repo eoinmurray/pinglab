@@ -1,0 +1,246 @@
+{
+  "backend": "native SNNLab CPU, one thread, no compilation",
+  "background_hz": 28.0,
+  "c_ee_kernel_sigma": 0.025,
+  "c_ee_scale": 0.05,
+  "c_gain_scale": 0.25,
+  "c_ie_scale": 1.4,
+  "centres": [
+    0.25,
+    0.75
+  ],
+  "cross_kernel_sigma": 0.005,
+  "cross_mapping": "gaussian",
+  "cross_tau_ms": 0.75,
+  "cross_total_us": 0.5866666666666668,
+  "cue_hz": 3.0,
+  "cue_strengths_hz": [
+    0.0,
+    2.5,
+    2.8,
+    3.0,
+    3.2,
+    4.5,
+    6.0
+  ],
+  "dt_ms": 0.1,
+  "duration_ms": 2400.0,
+  "effective_weights": "Pinned exp172 baseline arrays; C inhibition and recurrence scaled relative to recorded baseline; both sender-to-C E matrices scaled equally; all other arrays unchanged",
+  "experiment": "exp172",
+  "feedforward_multiplier": 0.8,
+  "fidelity_bin_neurons": 8,
+  "incoming_weights_us": {
+    "PING_A_E_to_E": 0.394999991171062,
+    "PING_A_E_to_I": 0.7509690917562694,
+    "PING_A_E_to_PING_B_E_K_EE": 0.11999998986721039,
+    "PING_A_E_to_PING_B_I_K_EI": 0.11999998986721039,
+    "PING_A_I_to_E": 1.4914241866208613,
+    "PING_A_I_to_I": 0.7599999830126762,
+    "PING_A_input_to_E": 0.19989175639675522,
+    "PING_B_E_to_E": 0.394999991171062,
+    "PING_B_E_to_I": 0.7493030397221446,
+    "PING_B_I_to_E": 1.5004359916318208,
+    "PING_B_I_to_I": 0.7599999830126762,
+    "PING_B_input_to_E": 0.19995858191441584
+  },
+  "input_encoding": "Independent per-channel Bernoulli(rate*dt/1000); spatial sensory rates; complementary StepGain gates deliver a shared uniform cue train",
+  "input_seed_rule": "numpy.default_rng([trial_seed, offset]); offsets X_A=700, X_B=701, X_C=702, U=703",
+  "minimum_total_amplitude_hz": 1.0,
+  "network": {
+    "cross": {
+      "delay_ms": 2.0,
+      "tau_ms": 0.75
+    },
+    "dt_ms": 0.1,
+    "input_channels": 1024,
+    "local": {
+      "E_to_E": {
+        "tau_ms": 2.0
+      },
+      "E_to_I": {
+        "tau_ms": 1.0
+      },
+      "I_to_E": {
+        "tau_ms": 9.0
+      },
+      "I_to_I": {
+        "tau_ms": 6.0
+      }
+    },
+    "populations": {
+      "E": {
+        "capacitance_nf": 1.0,
+        "leak_us": 0.05,
+        "refractory_ms": 3.0,
+        "size": 400
+      },
+      "I": {
+        "capacitance_nf": 0.5,
+        "leak_us": 0.1,
+        "refractory_ms": 1.5,
+        "size": 100
+      }
+    },
+    "reset_mv": -65.0,
+    "resting_mv": -65.0,
+    "sensory": {
+      "delay_ms": 0.1,
+      "gain": 9.2,
+      "tau_ms": 2.0
+    },
+    "threshold_mv": -50.0
+  },
+  "parameter_selection": "Cue 3 Hz/channel, sensory 1x, inhibition 1.40, recurrence 0.05 and feedforward multiplier 0.8 selected from single-seed scratch sweeps; no held-out validation",
+  "protocol": "constant simultaneous spatial Gaussians; uniform cue A then B",
+  "reference_coupling_us": 0.04,
+  "representative_cue_hz": 3.0,
+  "schema": "exp172.recipe/v1",
+  "seeds": [
+    185
+  ],
+  "sensory_kernel_sigma": 0.025,
+  "sensory_topographic_fraction": 0.5,
+  "source_digest": "sha256:cb3c9be5f6d8c62fc28c242a21bdb2d7057f01be602de12a87b54bf1f361126d",
+  "source_run": "exp172-r012-compute",
+  "source_snapshot": "seed185-swap0-cue3--start/snapshot.json",
+  "source_snapshot_sha256": "0171b5a83f89709035ffada15d7d6d62c33ba169e527a1a78418d7d51a351b76",
+  "spatial_assignments": [
+    false
+  ],
+  "spatial_baseline_hz": 24.0,
+  "spatial_mean_hz": 26.0,
+  "spatial_sigma": 0.08,
+  "stability_search": {
+    "fit_hop_ms": 5.0,
+    "fit_window_ms": 40.0,
+    "sustained_dominance_ms": 100.0,
+    "windows_ms": [
+      [
+        250.0,
+        1100.0
+      ],
+      [
+        1450.0,
+        2300.0
+      ]
+    ]
+  },
+  "sweep_reference": {
+    "c_ee_scale": 0.05,
+    "c_ie_scale": 1.31,
+    "cross_total_us": 0.7333333333333334,
+    "cue_hz": 3.0,
+    "feedforward_multiplier": 1.0,
+    "spatial_mean_hz": 26.0
+  },
+  "sweeps": [
+    {
+      "id": "cue-strength",
+      "key": "cue_hz",
+      "reference": 3,
+      "title": "Test 1 \u00b7 Cue strength",
+      "values": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "xlabel": "Cue strength (Hz/channel)"
+    },
+    {
+      "id": "sensory-strength",
+      "key": "sensory_multiplier",
+      "reference": 1,
+      "title": "Test 2 \u00b7 Sensory-pattern strength",
+      "values": [
+        0.75,
+        1,
+        1.25,
+        1.5
+      ],
+      "xlabel": "Sensory-pattern multiplier"
+    },
+    {
+      "id": "inhibition",
+      "key": "c_ie_scale",
+      "reference": 1.31,
+      "title": "Test 3 \u00b7 C inhibition",
+      "values": [
+        1.2,
+        1.25,
+        1.31,
+        1.35,
+        1.4
+      ],
+      "xlabel": "C I\u2192E weight scale"
+    },
+    {
+      "id": "recurrence",
+      "key": "c_ee_scale",
+      "reference": 0.05,
+      "title": "Test 3 \u00b7 C recurrence",
+      "values": [
+        0,
+        0.025,
+        0.05,
+        0.075,
+        0.1
+      ],
+      "xlabel": "C E\u2192E weight scale"
+    },
+    {
+      "id": "coupling",
+      "key": "feedforward_multiplier",
+      "reference": 1,
+      "title": "Test 4 \u00b7 Feedforward coupling",
+      "values": [
+        0.4,
+        0.5,
+        0.6,
+        0.7,
+        0.8,
+        0.9,
+        1
+      ],
+      "xlabel": "A/B E\u2192C E coupling multiplier"
+    }
+  ],
+  "switch_ms": 1200.0,
+  "windows_ms": [
+    [
+      650.0,
+      1100.0
+    ],
+    [
+      1850.0,
+      2300.0
+    ]
+  ],
+  "trial": {
+    "active": "AB",
+    "cue_hz": 3.0,
+    "id": "contrast-0.5",
+    "seed": 185,
+    "swap": false
+  },
+  "input_seed_sequences": {
+    "X_A": [
+      185,
+      700
+    ],
+    "X_B": [
+      185,
+      701
+    ],
+    "X_C": [
+      185,
+      702
+    ],
+    "U": [
+      185,
+      703
+    ]
+  }
+}

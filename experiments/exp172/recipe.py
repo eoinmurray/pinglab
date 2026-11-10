@@ -98,6 +98,8 @@ def configuration(**overrides):
         effective_weights="Pinned exp172 baseline arrays; C inhibition and recurrence scaled relative to recorded baseline; both sender-to-C E matrices scaled equally; all other arrays unchanged",
         windows_ms=[[650.0, 1100.0], [1850.0, 2300.0]],
         protocol="constant simultaneous spatial Gaussians; uniform cue A then B",
+        mechanism=mechanism_configuration(),
+        candidate=candidate_configuration(),
         backend="native SNNLab CPU, one thread, no compilation",
         experiment="exp172",
         source_run="exp172-r012-compute",
@@ -311,7 +313,75 @@ def inputs(cfg, seed, cue, swap, active="AB"):
     return arrays, rates
 
 
-def author_network(cfg):
+def background_sweep_configuration():
+    """Paired input-seed screen at fixed circuit weights and sensory contrast."""
+    return dict(
+        seeds=[185, 186, 187, 188, 189],
+        rates_hz=[float(v) for v in range(0, 33, 4)],
+        cue_hz=3.0,
+        contrast_multiplier=1.0,
+        weights="identical pinned baseline arrays",
+        spread="sample standard deviation across input seeds",
+    )
+
+
+def background_sweep_plan(settings):
+    return [
+        dict(
+            id=f"background-seed{seed}-rate{rate:g}",
+            seed=seed,
+            cue_hz=settings["cue_hz"],
+            swap=False,
+            active="AB",
+            background_hz=rate,
+        )
+        for seed in settings["seeds"]
+        for rate in settings["rates_hz"]
+    ]
+
+
+def candidate_configuration():
+    """Best joint-selection point in the separate one-seed screens."""
+    return dict(
+        background_hz=32.0,
+        source_seed=185,
+        cue_hz=3.0,
+        contrast_multiplier=1.0,
+        selection="Highest S in both attention periods among the tested contrast/background points; not a validated optimum",
+    )
+
+
+def mechanism_configuration():
+    """Post hoc illustrative timing test; fixed before the native rerun."""
+    return dict(
+        sender="B",
+        attended="A",
+        packet_window_ms=[470.0, 490.0],
+        delay_ms=6.0,
+        display_window_ms=[470.0, 497.0],
+        outcome_window_ms=[470.0, 497.0],
+        source_seed=185,
+        cue_hz=3.0,
+    )
+
+
+def shifted_packet(spikes, dt_ms, settings):
+    """Delay a whole packet without losing, adding or wrapping any spikes."""
+    lo, hi = [round(v / dt_ms) for v in settings["packet_window_ms"]]
+    shift = round(settings["delay_ms"] / dt_ms)
+    if not (0 <= lo < hi <= len(spikes) and 0 < shift < hi - lo):
+        raise ValueError("Invalid packet timing window")
+    if shift * dt_ms != settings["delay_ms"]:
+        raise ValueError("Packet delay must be an integer number of timesteps")
+    if spikes[hi - shift : hi].any():
+        raise ValueError("Packet window would wrap nonzero spikes")
+    result = spikes.copy()
+    result[lo:hi] = np.roll(spikes[lo:hi], shift, axis=0)
+    np.testing.assert_array_equal(result.sum(0), spikes.sum(0))
+    return result
+
+
+def author_network(cfg, *, replay_sender=None):
     n = cfg["network"]
     net = lang.Network("spatial_gaussian_relay", dt=n["dt_ms"] * lang.ms)
     source_weights = cfg["incoming_weights_us"]
@@ -383,6 +453,18 @@ def author_network(cfg):
             )
         for p in "EI":
             net.expose(cells[c][p].spikes, name=c + "_" + p + "_spikes")
+    if replay_sender is not None and replay_sender not in "AB":
+        raise ValueError("Replay sender must be A or B")
+    replay = (
+        None
+        if replay_sender is None
+        else net.input(
+            "replay_" + replay_sender,
+            shape=("time", "batch", n["populations"]["E"]["size"]),
+            signal_type="spikes",
+            unit="spike",
+        )
+    )
     for c in "AB":
         cue = net.input(
             "U_" + c,
@@ -404,7 +486,7 @@ def author_network(cfg):
         )
         for p in "EI":
             connect(
-                cells[c]["E"].spikes,
+                replay if replay_sender == c and p == "E" else cells[c]["E"].spikes,
                 cells["C"][p].excitatory,
                 c + "_E_to_C_" + p,
                 cfg["reference_coupling_us"],

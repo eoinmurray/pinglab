@@ -306,3 +306,98 @@ def test_report_scope_requires_every_planned_trial_and_records_historical_extras
         report_trial_scope(trials[1:], cfg)
     with pytest.raises(ValueError, match="Duplicate trial"):
         report_trial_scope([*trials, trials[0]], cfg)
+
+
+def test_packet_delay_conserves_each_channel_and_rejects_wrapped_spikes():
+    from experiments.exp172.recipe import shifted_packet
+
+    source = np.zeros((30, 2), dtype=np.uint8)
+    source[6, 0] = 1
+    source[9, 1] = 1
+    settings = dict(packet_window_ms=[4, 20], delay_ms=4)
+    delayed = shifted_packet(source, 1, settings)
+    assert np.flatnonzero(delayed[:, 0]).tolist() == [10]
+    assert np.flatnonzero(delayed[:, 1]).tolist() == [13]
+    np.testing.assert_array_equal(delayed.sum(0), source.sum(0))
+    np.testing.assert_array_equal(delayed[:4], source[:4])
+    np.testing.assert_array_equal(delayed[20:], source[20:])
+    source[18, 0] = 1
+    with pytest.raises(ValueError, match="wrap"):
+        shifted_packet(source, 1, settings)
+
+
+def test_replay_architecture_changes_only_one_projection_source():
+    from experiments.exp172.recipe import author_network
+
+    cfg = configuration()
+    ordinary, _ = author_network(cfg)
+    replayed, _ = author_network(cfg, replay_sender="B")
+    graph = replayed.graph
+    port = next(i for i in graph["inputs"] if i["id"] == "replay_B")
+    assert port["shape"][-1] == cfg["network"]["populations"]["E"]["size"]
+    graph["inputs"].remove(port)
+    pathway = next(p for p in graph["projections"] if p["id"] == "B_E_to_C_E")
+    assert pathway["source"] == "replay_B.value"
+    pathway["source"] = "B_E.spikes"
+    assert graph == ordinary.graph
+
+
+def test_background_aggregation_equal_weights_seeds_and_preserves_missing_latency():
+    from experiments.exp172.analyse import aggregate_background
+
+    settings = dict(seeds=[1, 2, 3, 4, 5], rates_hz=[28.0])
+    rows = []
+    for i, seed in enumerate(settings["seeds"]):
+        for att in "AB":
+            rows.append(
+                dict(
+                    seed=seed,
+                    background_hz=28.0,
+                    attended=att,
+                    S=[0.0, 1.0, 1.0, 1.0, 1.0][i],
+                    F=i / 4,
+                    latency_cycles=[None, 1, 3, 5, None][i],
+                    C_E_hz=10 + i,
+                    C_I_hz=20 + i,
+                    cycles=100 if i == 0 else 1,
+                )
+            )
+    aggregated = aggregate_background(rows, settings)
+    for result in aggregated:
+        assert result["S"]["mean"] == pytest.approx(0.8)
+        assert result["F"]["mean"] == pytest.approx(0.5)
+        assert result["F"]["sd"] == pytest.approx(
+            np.std([0, 0.25, 0.5, 0.75, 1], ddof=1)
+        )
+        assert result["latency_cycles"] == dict(n=3, total=5, mean=3.0, sd=2.0)
+    with pytest.raises(ValueError, match="Missing or duplicate"):
+        aggregate_background(rows[:-1], settings)
+    with pytest.raises(ValueError, match="Missing or duplicate"):
+        aggregate_background([*rows, rows[0]], settings)
+
+
+def test_seed_summary_does_not_turn_unobserved_results_into_zeroes():
+    from experiments.exp172.analyse import seed_summary
+
+    assert seed_summary([None] * 5) == dict(n=0, total=5, mean=None, sd=None)
+    assert seed_summary([None, 2]) == dict(n=1, total=2, mean=2.0, sd=None)
+    with pytest.raises(ValueError, match="Non-finite"):
+        seed_summary([np.nan])
+
+
+def test_five_seed_background_plan_is_complete_and_paired():
+    from experiments.exp172.recipe import (
+        background_sweep_configuration,
+        background_sweep_plan,
+    )
+
+    settings = background_sweep_configuration()
+    plan = background_sweep_plan(settings)
+    assert len(plan) == len({item["id"] for item in plan}) == 45
+    assert {item["seed"] for item in plan} == {185, 186, 187, 188, 189}
+    for seed in settings["seeds"]:
+        assert (
+            sorted(i["background_hz"] for i in plan if i["seed"] == seed)
+            == settings["rates_hz"]
+        )
+    assert all(i["cue_hz"] == 3 and i["active"] == "AB" and not i["swap"] for i in plan)
