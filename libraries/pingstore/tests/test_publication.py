@@ -154,6 +154,69 @@ def test_failed_incoming_build_never_releases_previous_successful_deployment(
     assert not core.unified_prune_plan(repo, ["exp001"])["prune"]
 
 
+def test_missing_old_catalog_entries_allow_a_verified_replacement_not_pruning(
+    stores, monkeypatch
+):
+    repo, paths, state = stores
+    records = {
+        identity: entry["record"]
+        for identity, entry in state["catalog"]["runs"].items()
+    }
+    old = manifest_for(records, [paths["old_present"].name], "123/1")
+    state["control"]["publications"]["active"] = copy.deepcopy(old)
+    for identity in old["runs"]:
+        state["catalog"]["runs"].pop(identity)
+    surviving = {
+        identity: entry["record"]
+        for identity, entry in state["catalog"]["runs"].items()
+    }
+
+    new = prepare(stores, monkeypatch)
+    publications = state["control"]["publications"]
+    assert publications["active"] == old
+    assert publications["incoming"] == {"456/1": new}
+    with pytest.raises(core.PingstoreError, match="deployed evidence is missing"):
+        core._publication_reasons(publications, surviving, {})
+    with pytest.raises(core.PingstoreError, match="deployed evidence is missing"):
+        core.publication_retain(DESTINATION, old)
+
+    monkeypatch.setattr(
+        core,
+        "github_pages_state",
+        lambda _: dict(
+            active=dict(run_id="456", revision="a" * 40, url="https://site.test"),
+            pending=[],
+        ),
+    )
+    monkeypatch.setattr(core, "public_json", lambda _: old)
+    with pytest.raises(core.PingstoreError, match="not deployed"):
+        core.publication_activate(repo, DESTINATION, new)
+    assert state["control"]["publications"]["active"] == old
+    monkeypatch.setattr(core, "public_json", lambda _: new)
+    core.publication_activate(repo, DESTINATION, new)
+    assert state["control"]["publications"]["active"] == new
+    assert not state["control"]["publications"]["incoming"]
+
+
+def test_unchanged_active_manifest_still_rejects_changed_catalog_identity(
+    stores, monkeypatch
+):
+    _, paths, state = stores
+    records = {
+        identity: entry["record"]
+        for identity, entry in state["catalog"]["runs"].items()
+    }
+    old = manifest_for(records, [paths["old_present"].name], "123/1")
+    old["runs"][paths["old_present"].name]["payload_digest"] = "sha256:" + "0" * 64
+    state["control"]["publications"]["active"] = old
+    previous = copy.deepcopy(state["control"])
+    with pytest.raises(core.PingstoreError, match="published evidence differs"):
+        core.update_publications(
+            DESTINATION, previous["publications"], previous["publications"]
+        )
+    assert state["control"] == previous
+
+
 def test_deploy_only_retry_registers_frozen_evidence_again(stores, monkeypatch):
     repo, paths, state = stores
     records = {

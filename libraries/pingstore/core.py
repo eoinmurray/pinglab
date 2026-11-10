@@ -4308,7 +4308,18 @@ def update_publications(destination, previous, revised):
         for identity, entry in read_catalog(destination)["runs"].items()
     }
     reasons = defaultdict(set)
-    _publication_reasons(revised, records, reasons)
+    if revised.get("active") is not None and revised["active"] == previous.get(
+        "active"
+    ):
+        # Preserve an unchanged deployment even if its old catalog entries have
+        # disappeared. New incoming evidence remains strict, and pruning still
+        # requires complete deployment evidence before it can remove anything.
+        _publication_reasons(
+            dict(revised, incoming={}), records, reasons, complete=False
+        )
+        _publication_reasons(dict(revised, active=None), records, reasons)
+    else:
+        _publication_reasons(revised, records, reasons)
     replace_control(
         destination,
         control,

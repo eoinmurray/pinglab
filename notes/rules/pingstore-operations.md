@@ -4,7 +4,7 @@ author: Eoin Murray
 collection: notes
 description: Status, backup, cleanup, publication retention and recovery procedures.
 created_at: "2026-10-29T17:42:34Z"
-updated_at: "2026-11-02T13:42:25Z"
+updated_at: "2026-11-10T12:10:57Z"
 ---
 
 # Pingstore operations
@@ -186,6 +186,11 @@ successful deployment and the deployed manifest bytes match. A failed build or
 deployment cannot release the previous active evidence. Pruning independently
 rechecks the deployment proof. Missing or unreconciled publication state retains
 potentially referenced data and names the unresolved state.
+
+If old catalog entries are already missing, publication may register complete new
+evidence while preserving the unchanged active manifest. Existing catalog entries
+must still match their declared digests. Pruning remains blocked by incomplete
+active evidence until a verified replacement supersedes that deployment.
 
 Each deployment attempt registers its frozen evidence again, including a retry
 of only the deploy job. Activation runs in a following job, after the Pages
