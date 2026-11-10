@@ -32,6 +32,11 @@ def main(argv=None):
         "--timeout", type=int, default=86400, help="worker timeout in seconds"
     )
     launch.add_argument("--root", type=Path, default=REPO / ".pingstore")
+    launch.add_argument(
+        "--direct-inputs-only",
+        action="store_true",
+        help="copy named complete inputs without their ancestor payloads",
+    )
     launch.add_argument("--input", action="append", default=[], metavar="ROLE=RUN_ID")
     launch.add_argument(
         "--smoke",
@@ -101,6 +106,7 @@ def main(argv=None):
             json.dumps(arguments),
             "--inputs",
             json.dumps(inputs),
+            *(["--direct-inputs-only"] if args.direct_inputs_only else []),
             "--environment",
             json.dumps(environment),
         ],

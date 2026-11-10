@@ -98,6 +98,7 @@ def configuration(**overrides):
         rate_target_hz=None,
         device="cpu",
         threads=1,
+        profile_encoding=False,
         compile_mode="auto",
         precision="auto",
         evaluation_schedule="validation_each_epoch_train_final_only",

@@ -231,6 +231,7 @@ def main(
     memory: int = 16384,
     timeout: int = 86400,
     store: str = "",
+    direct_inputs_only: bool = False,
 ):
     import json
 
@@ -252,6 +253,7 @@ def main(
         memory=memory,
         timeout=timeout,
         store=Path(store) if store else None,
+        direct_inputs_only=direct_inputs_only,
     )
     print(json.dumps(receipt), flush=True)
     print(

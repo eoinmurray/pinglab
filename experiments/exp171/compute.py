@@ -5,6 +5,7 @@ import hashlib
 import json
 import math
 import os
+import resource
 import subprocess
 import sys
 import time
@@ -892,6 +893,31 @@ def verify_changes(model, initial):
     return changes
 
 
+ENCODING_PROFILE = []
+
+
+def profile_preparation(cfg, context, name, device, prepare):
+    """Opt-in synchronized encoding measurements outside native graph replay."""
+    if not cfg.get("profile_encoding", False):
+        return prepare()
+    if str(device).startswith("cuda"):
+        torch.cuda.synchronize(device)
+    tick = time.perf_counter()
+    result = prepare()
+    if str(device).startswith("cuda"):
+        torch.cuda.synchronize(device)
+    ENCODING_PROFILE.append(
+        dict(
+            phase=context.phase,
+            epoch=context.epoch,
+            component=name,
+            images=len(context.sample_ids),
+            seconds=time.perf_counter() - tick,
+        )
+    )
+    return result
+
+
 def encode_native(
     arrays, selected, *, dt_ms, channels, config, seed, context, device="cpu"
 ):
@@ -907,19 +933,31 @@ def encode_native(
                 else context.draw_seed
             }
         )
-        events, conductance, pending = artificial_device(
-            arrays[generator_key(cfg)][selected],
-            arrays["amplitude"][selected],
-            indices,
+        events, conductance, pending = profile_preparation(
             cfg,
+            context,
+            "artificial",
             device,
-            counts=dataset_event_counts(arrays, cfg, selected),
-            **coordinate,
+            lambda: artificial_device(
+                arrays[generator_key(cfg)][selected],
+                arrays["amplitude"][selected],
+                indices,
+                cfg,
+                device,
+                counts=dataset_event_counts(arrays, cfg, selected),
+                **coordinate,
+            ),
         )
         return sim.PreparedBatch(
             {
-                "drive": sensory_device(
-                    arrays["features"][selected], indices, cfg, device
+                "drive": profile_preparation(
+                    cfg,
+                    context,
+                    "sensory",
+                    device,
+                    lambda: sensory_device(
+                        arrays["features"][selected], indices, cfg, device
+                    ),
                 ),
                 "artificial": events,
             },
@@ -1033,6 +1071,7 @@ def dataset_encoder(bundle, cfg):
         "training_seed",
         "validation_seed",
         "final_training_draw",
+        "profile_encoding",
     )
     return sim.DatasetEncoder(
         "custom",
@@ -1040,7 +1079,10 @@ def dataset_encoder(bundle, cfg):
         rng_policy="sample_v1",
         duration_ms=cfg["duration_ms"],
         config={
-            "recipe": {key: cfg[key] for key in keys},
+            "recipe": {
+                key: cfg.get(key, False) if key == "profile_encoding" else cfg[key]
+                for key in keys
+            },
             "signature": sim.runtime_state_signature(sim.plan_graph(bundle.graph)),
         },
     )
@@ -1396,6 +1438,7 @@ def compute(
     calibration_source=None,
     source=None,
     source_digest=None,
+    profile=False,
 ):
     started = time.perf_counter()
     overrides = {
@@ -1417,6 +1460,8 @@ def compute(
         seed=seed,
         **overrides,
     )
+    cfg["profile_encoding"] = profile
+    ENCODING_PROFILE.clear()
     torch.set_num_threads(cfg["threads"])
     bank, parameters = load_source(cfg)
     dataset = MNIST(
@@ -1591,6 +1636,18 @@ def compute(
             compute_seconds=time.perf_counter() - started,
         )
         write_json(run.export / "timings.json", timings)
+        if profile:
+            write_json(
+                run.export / "encoding-profile.json",
+                {
+                    "scope": "synchronized CUDA encoding; includes allocation, transfers and RNG; profiling changes overlap",
+                    "batches": ENCODING_PROFILE,
+                    "host_peak_rss_bytes": resource.getrusage(
+                        resource.RUSAGE_SELF
+                    ).ru_maxrss
+                    * (1 if sys.platform == "darwin" else 1024),
+                },
+            )
         run.record["scientific_artifacts"] = {
             "snapshot_stages": {
                 "training": ["start", "end"],
@@ -1687,6 +1744,9 @@ def replay_correct(identity, run_id=None):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--profile", action="store_true", help="record synchronized encoding timings"
+    )
     parser.add_argument("--run-id")
     parser.add_argument("--source", help="explicit compact exp022 input run")
     parser.add_argument("--source-digest", help="pinned payload digest of --source")
@@ -1725,6 +1785,7 @@ if __name__ == "__main__":
             args.run_id
             or args.source
             or args.source_digest
+            or args.profile
             or args.raster_source
             or args.calibration_source
             or args.rate_target_hz
@@ -1767,6 +1828,7 @@ if __name__ == "__main__":
             or args.calibration_source is not None
             or args.source is not None
             or args.source_digest is not None
+            or args.profile
         ):
             parser.error("Raster replay uses the source execution configuration")
         replay_correct(args.raster_source, args.run_id)
@@ -1784,4 +1846,5 @@ if __name__ == "__main__":
             calibration_source=args.calibration_source,
             source=args.source,
             source_digest=args.source_digest,
+            profile=args.profile,
         )

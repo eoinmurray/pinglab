@@ -45,15 +45,20 @@ def fixture_source(root, identity="exp998-r001-compute", inputs=None):
     return source_run(root, identity)
 
 
-def test_prepare_and_restore_complete_pinned_ancestry(tmp_path):
+@pytest.mark.parametrize("include_ancestry", [True, False])
+def test_prepare_and_restore_complete_pinned_ancestry(tmp_path, include_ancestry):
     root = tmp_path / "local"
     parent = fixture_source(root)
     child = fixture_source(root, "exp997-r001-compute", {"training": parent.reference})
     inputs, sources = modal_inputs.prepare_inputs(
-        root, {"images": child.record["run_id"]}
+        root, {"images": child.record["run_id"]}, include_ancestry=include_ancestry
     )
     assert inputs == {"images": child.reference}
-    assert list(sources) == [parent.record["run_id"], child.record["run_id"]]
+    assert list(sources) == (
+        [parent.record["run_id"], child.record["run_id"]]
+        if include_ancestry
+        else [child.record["run_id"]]
+    )
     volume = tmp_path / "volume"
     for source in sources.values():
         shutil.copytree(

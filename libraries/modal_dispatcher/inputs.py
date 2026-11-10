@@ -17,7 +17,7 @@ def input_path(reference):
     return f"inputs/{identity}/{checksum}"
 
 
-def prepare_inputs(root, identities):
+def prepare_inputs(root, identities, *, include_ancestry=True):
     """Resolve explicit roles and authenticate their complete source ancestry."""
     sources, active = {}, set()
 
@@ -30,7 +30,7 @@ def prepare_inputs(root, identities):
             return sources[identity]
         active.add(identity)
         source = source_run(root, identity, reference=reference)
-        for pin in source.record["inputs"].values():
+        for pin in source.record["inputs"].values() if include_ancestry else ():
             visit(pin["run_id"], pin)
         active.remove(identity)
         sources[identity] = source

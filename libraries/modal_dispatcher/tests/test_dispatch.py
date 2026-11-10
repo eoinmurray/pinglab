@@ -56,6 +56,7 @@ def test_unlisted_experiment_freezes_command_resources_and_device(experiment):
         "arguments": ["--protocol", "fixture"],
         "environment": environment,
         "resources": dict(gpu=None, cpu=3, memory=2048, timeout=60),
+        "include_input_ancestry": True,
     }
     assert environment["SNNLAB_DEVICE"] == "cpu"
     assert environment["OMP_NUM_THREADS"] == "3"

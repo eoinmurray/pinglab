@@ -51,6 +51,10 @@ supported. On CSD3, deploy the compact run with `--input ANALYSE_ID
 --direct-inputs-only`; ancestor references are preserved without copying their
 payloads.
 
+`--profile` records synchronized sensory and artificial-input encoding timings
+in `encoding-profile.json`, plus peak host memory. This diagnostic changes CUDA
+overlap; native phase timings and GPU memory remain in `native-metrics.json`.
+
 To run automated checks:
 
 ```sh

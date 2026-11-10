@@ -93,6 +93,7 @@ def dispatch(
     memory=16384,
     timeout=86400,
     store=None,
+    direct_inputs_only=False,
 ):
     validate_dispatch(
         repo, experiment, arguments, inputs, environment, cpu, memory, timeout
@@ -109,9 +110,12 @@ def dispatch(
         "arguments": arguments,
         "environment": environment,
         "resources": options,
+        "include_input_ancestry": not direct_inputs_only,
     }
     with operation_lock(root, exclusive=False):
-        pins, sources = source_inputs.prepare_inputs(root, inputs)
+        pins, sources = source_inputs.prepare_inputs(
+            root, inputs, include_ancestry=not direct_inputs_only
+        )
         source_inputs.upload_inputs(volume, sources)
         return jobs.submit(
             root,

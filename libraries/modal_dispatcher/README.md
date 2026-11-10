@@ -52,7 +52,9 @@ uv run --no-project --python 3.12 --with 'modal>=1.1,<2' --with PyYAML \
 
 Explicit inputs and their complete ancestry are validated, transferred using
 checksum-addressed volume paths, and restored before compute. Pending input pins
-protect local source runs from pruning. Collection rejects changed local inputs
+protect local source runs from pruning. Use `--direct-inputs-only` for complete
+compact input exports whose parent payloads the experiment does not read; parent
+references remain recorded without transferring their payloads. Collection rejects changed local inputs
 or a worker result with different roles or checksums. `--root PATH` selects a
 local Pingstore for both commands; the worker uses its isolated `.pingstore`.
 
