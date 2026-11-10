@@ -165,7 +165,9 @@ def frontier_figure(cases, *, partition="validation"):
         "artificial": {
             1.0: ((-7, 5), "right", "bottom"),
             2.5: ((-7, 6), "right", "bottom"),
-            5.0: ((18, 0), "left", "center"),
+            5.0: ((8, -8), "left", "top")
+            if partition == "test"
+            else ((18, 0), "left", "center"),
             10.0: ((5, 6), "left", "bottom"),
             25.0: ((5, -8), "left", "top"),
         },
