@@ -24,6 +24,7 @@ from experiments.exp171.compute import (
     moment_keys,
     poisson_expected_moments,
     relative_moment_error,
+    source_bank,
     teacher_event_counts,
     validate_poisson_parameters,
     validate_source_configuration,
@@ -540,13 +541,9 @@ def validate_native(computed):
         or pin["payload_digest"] != cfg["source_digest"]
     ):
         raise ValueError("Scientific dependency boundary violated")
-    bank = source_run(
-        ROOT / ".pingstore",
-        pin["run_id"],
-        experiment="exp022",
-        stage="compute",
-        reference=pin,
-    )
+    if pin != {"run_id": cfg["source_run"], "payload_digest": cfg["source_digest"]}:
+        raise ValueError("Scientific dependency boundary violated")
+    bank, _ = source_bank(cfg, root=ROOT)
     actual_spec = json.loads(
         computed.file("network.bundle", "training.json").read_text()
     )
@@ -916,7 +913,17 @@ def validate_sweep_configurations(configurations):
         )
     first = configurations[0]
     varying = {"rate_target_hz", "rate_penalty", "coba_cell", "ping_cell"}
-    keys = set(recipe.configuration()) - varying
+    source_keys = {"source_run", "source_digest"}
+    distinct_sources = {
+        (cfg["source_run"], cfg["source_digest"]) for cfg in configurations
+    }
+    if len(distinct_sources) > 1:
+        original_banks = [source_bank(cfg, root=ROOT)[1] for cfg in configurations]
+        if any(pin != original_banks[0] for pin in original_banks):
+            raise ValueError(
+                "Sweep compact sources do not share the same original bank"
+            )
+    keys = set(recipe.configuration()) - varying - source_keys
     for cfg in configurations:
         if any(cfg.get(key) != first.get(key) for key in keys):
             raise ValueError(
@@ -932,13 +939,9 @@ def validate_sweep_configurations(configurations):
 def source_controls(computed):
     cfg = computed.record["execution"]["configuration"]
     pin = computed.record["inputs"]["bank"]
-    bank = source_run(
-        ROOT / ".pingstore",
-        pin["run_id"],
-        experiment="exp022",
-        stage="compute",
-        reference=pin,
-    )
+    if pin != {"run_id": cfg["source_run"], "payload_digest": cfg["source_digest"]}:
+        raise ValueError("Scientific dependency boundary violated")
+    bank, _ = source_bank(cfg, root=ROOT)
     controls = {}
     for kind in ("coba", "ping"):
         metrics = json.loads(bank.file(cfg[kind + "_cell"], "metrics.json").read_text())

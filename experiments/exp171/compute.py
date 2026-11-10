@@ -701,9 +701,10 @@ def validate_source_configuration(conf, cfg):
         raise ValueError("Source settings do not match the ceiling and seed")
 
 
-def load_source(cfg):
+def source_bank(cfg, *, root=None):
+    """Resolve a full bank or compact export and its original bank reference."""
     bank = source_run(
-        ROOT / ".pingstore",
+        (ROOT if root is None else root) / ".pingstore",
         cfg["source_run"],
         experiment="exp022",
         reference={"run_id": cfg["source_run"], "payload_digest": cfg["source_digest"]},
@@ -711,11 +712,27 @@ def load_source(cfg):
     if bank.record["stage"] == "analyse":
         if bank.record["execution"]["operation"] != "export-finetuning-inputs":
             raise ValueError("Source must be a fine-tuning input export")
-        provenance = bank.record["execution"]["configuration"]["diagnostic_provenance"]
+        if set(bank.record["inputs"]) != {"bank"}:
+            raise ValueError("Compact source must pin exactly one original bank")
+        original = bank.record["inputs"]["bank"]
+        if not original["run_id"].startswith("exp022-") or not original[
+            "run_id"
+        ].endswith("-compute"):
+            raise ValueError("Compact source must pin an exp022 compute bank")
     elif bank.record["stage"] == "compute":
-        provenance = bank.record["bank_reuse"]["diagnostic_provenance"]
+        original = bank.reference
     else:
         raise ValueError("Unsupported source stage")
+    return bank, original
+
+
+def load_source(cfg):
+    bank, _ = source_bank(cfg)
+    provenance = (
+        bank.record["execution"]["configuration"]["diagnostic_provenance"]
+        if bank.record["stage"] == "analyse"
+        else bank.record["bank_reuse"]["diagnostic_provenance"]
+    )
     params, configurations, pins = {}, {}, {}
     for kind in ("coba", "ping"):
         cell = cfg[kind + "_cell"]

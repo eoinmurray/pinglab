@@ -1677,13 +1677,16 @@ def test_correct_raster_selection_uses_first_correct_and_rejects_empty_selection
         first_correct_position(1 - scores.argmax(axis=1), scores)
 
 
+@pytest.mark.parametrize("target", recipe.RATE_TARGETS_HZ)
 def test_compact_source_export_preserves_weights_and_detects_corruption(
-    tmp_path, monkeypatch
+    tmp_path, monkeypatch, target
 ):
     import json
     import subprocess
+    from types import SimpleNamespace
 
     from experiments.exp022 import analyse as source_analysis
+    from experiments.exp171 import analyse as analysis
     from experiments.exp171 import compute as training
     from pingstore import core
     from pingstore.library import file_sha256, source_run, stage_run
@@ -1691,6 +1694,7 @@ def test_compact_source_export_preserves_weights_and_detects_corruption(
     monkeypatch.setattr(core, "memberships", lambda _: {"exp022": "fixture"})
     monkeypatch.setattr(source_analysis, "REPO", tmp_path)
     monkeypatch.setattr(training, "ROOT", tmp_path)
+    monkeypatch.setattr(analysis, "ROOT", tmp_path)
     subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
     subprocess.run(
         [
@@ -1707,14 +1711,14 @@ def test_compact_source_export_preserves_weights_and_detects_corruption(
         cwd=tmp_path,
         check=True,
     )
-    cfg = recipe.configuration()
+    cfg = recipe.configuration(rate_target_hz=target)
     conf = dict(
         dt=0.1,
         t_ms=200.0,
         max_samples=7000,
         input_rate=25.0,
-        fr_reg_upper_strength=0.0,
-        fr_reg_upper_target_hz=0.0,
+        fr_reg_upper_strength=cfg["rate_penalty"],
+        fr_reg_upper_target_hz=target or 0.0,
         readout_mode="mem-mean",
         seed=42,
         n_in=784,
@@ -1724,6 +1728,9 @@ def test_compact_source_export_preserves_weights_and_detects_corruption(
         tau_gaba_ms=6.0,
         tau_ampa_ms=2.0,
         v_grad_dampen=1000.0,
+        epochs=50,
+        dataset_split={"validation_samples": 700},
+        validation_encoder_draws={"count": 3},
     )
     cells = [cfg[kind + "_cell"] for kind in ("coba", "ping")]
     with stage_run(tmp_path, "exp022", "compute") as bank:
@@ -1732,6 +1739,17 @@ def test_compact_source_export_preserves_weights_and_detects_corruption(
             directory = bank.export / cell
             directory.mkdir()
             (directory / "config.json").write_text(json.dumps(conf))
+            (directory / "metrics.json").write_text(
+                json.dumps(
+                    dict(
+                        config=conf,
+                        training_run_id="TR-02",
+                        epochs=[
+                            dict(ep=50, acc=85.0, test_rate_e=12.0, test_rate_i=30.0)
+                        ],
+                    )
+                )
+            )
             weights = {key: torch.zeros(1, 1) for key in recipe.MAPPING.values()}
             weights["W_ff.0"] = torch.ones(1, 1)
             torch.save(weights, directory / "weights_final.pth")
@@ -1750,15 +1768,60 @@ def test_compact_source_export_preserves_weights_and_detects_corruption(
         source_run=bank.run_id, source_digest=original.reference["payload_digest"]
     )
     _, expected = training.load_source(cfg)
+
+    def computed(pin):
+        return SimpleNamespace(
+            record={
+                "inputs": {"bank": pin},
+                "execution": {"configuration": cfg},
+            }
+        )
+
+    expected_controls = analysis.source_controls(computed(original.reference))
     identity = source_analysis.export_finetuning(bank.run_id, cells)
     compact = source_run(tmp_path / ".pingstore", identity)
     assert compact.record["inputs"]["bank"] == original.reference
     assert not (compact.export / "unused-recording.npz").exists()
     cfg.update(source_run=identity, source_digest=compact.reference["payload_digest"])
     _, actual = training.load_source(cfg)
+    assert analysis.source_controls(computed(compact.reference)) == expected_controls
+    assert analysis.source_bank(cfg, root=tmp_path)[1] == original.reference
+
+    class ReachedNativeArtifacts(Exception):
+        pass
+
+    def stop_at_artifacts(*parts):
+        assert parts == ("network.bundle", "training.json")
+        raise ReachedNativeArtifacts
+
+    evidence = computed(compact.reference)
+    evidence.file = stop_at_artifacts
+    with pytest.raises(ReachedNativeArtifacts):
+        analysis.validate_native(evidence)
     for kind in expected:
         for name in expected[kind]:
             torch.testing.assert_close(actual[kind][name], expected[kind][name])
     (compact.export / cells[0] / "config.json").write_text("{}")
     with pytest.raises(core.PingstoreError, match="checksum"):
         training.load_source(cfg)
+
+
+def test_compact_sweep_requires_common_original_bank(monkeypatch):
+    from experiments.exp171 import analyse as analysis
+
+    configs = recipe.sweep_configurations()
+    for index, cfg in enumerate(configs):
+        cfg.update(
+            source_run=f"exp022-r{100 + index:03d}-analyse",
+            source_digest="sha256:" + f"{index:064x}",
+        )
+    parent = {"run_id": "exp022-r015-compute", "payload_digest": "sha256:" + "a" * 64}
+    monkeypatch.setattr(analysis, "source_bank", lambda cfg, **kwargs: (None, parent))
+    analysis.validate_sweep_configurations(configs)
+
+    def changed_parent(cfg, **kwargs):
+        return None, dict(parent, payload_digest=cfg["source_digest"])
+
+    monkeypatch.setattr(analysis, "source_bank", changed_parent)
+    with pytest.raises(ValueError, match="same original bank"):
+        analysis.validate_sweep_configurations(configs)

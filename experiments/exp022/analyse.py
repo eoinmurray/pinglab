@@ -328,6 +328,7 @@ def export_finetuning(source_id, cells, *, run_id=None):
         if pin["role"] != "final_epoch" or pin["epoch"] != 50:
             raise ValueError("Expected final epoch-50 checkpoint")
         bank.file(cell, "config.json")
+        bank.file(cell, "metrics.json")
         checkpoint = bank.file(cell, pin["filename"])
         from pingstore.library import file_sha256
 
@@ -346,7 +347,11 @@ def export_finetuning(source_id, cells, *, run_id=None):
         for cell in cells:
             destination = run.export / cell
             destination.mkdir()
-            for filename in ("config.json", pins[cell]["checkpoint"]["filename"]):
+            for filename in (
+                "config.json",
+                "metrics.json",
+                pins[cell]["checkpoint"]["filename"],
+            ):
                 shutil.copyfile(bank.file(cell, filename), destination / filename)
         run.record["execution"].update(
             no_simulation=True, elapsed_seconds=time.perf_counter() - started
