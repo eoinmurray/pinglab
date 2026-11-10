@@ -215,7 +215,8 @@ def test_worker_refuses_login_node(tmp_path, monkeypatch):
         hpc.worker(path)
 
 
-def test_live_transfers_validated_input_ancestry(deployment, monkeypatch):
+@pytest.mark.parametrize("direct_only", [False, True])
+def test_live_transfers_validated_input_ancestry(deployment, monkeypatch, direct_only):
     from pingstore import core
 
     repo, args = deployment
@@ -228,11 +229,16 @@ def test_live_transfers_validated_input_ancestry(deployment, monkeypatch):
     ) as analyse:
         (analyse.export / "numbers.json").write_text('{"value": 2}\n')
     args.input = [analyse.run_id]
+    args.direct_inputs_only = direct_only
     args.live = True
     local_ssh(monkeypatch, args)
     hpc.deploy(args, repo)
     remote_store = Path(args.remote_dir) / "repo/.pingstore"
-    for identity in (compute.run_id, analyse.run_id):
+    if direct_only:
+        assert not (remote_store / "runs" / compute.run_id).exists()
+    for identity in (
+        [analyse.run_id] if direct_only else [compute.run_id, analyse.run_id]
+    ):
         original = core.source_run(repo / ".pingstore", identity)
         restored = core.source_run(remote_store, identity, reference=original.reference)
         assert restored.reference == original.reference

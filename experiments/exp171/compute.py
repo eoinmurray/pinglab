@@ -706,15 +706,22 @@ def load_source(cfg):
         ROOT / ".pingstore",
         cfg["source_run"],
         experiment="exp022",
-        stage="compute",
         reference={"run_id": cfg["source_run"], "payload_digest": cfg["source_digest"]},
     )
+    if bank.record["stage"] == "analyse":
+        if bank.record["execution"]["operation"] != "export-finetuning-inputs":
+            raise ValueError("Source must be a fine-tuning input export")
+        provenance = bank.record["execution"]["configuration"]["diagnostic_provenance"]
+    elif bank.record["stage"] == "compute":
+        provenance = bank.record["bank_reuse"]["diagnostic_provenance"]
+    else:
+        raise ValueError("Unsupported source stage")
     params, configurations, pins = {}, {}, {}
     for kind in ("coba", "ping"):
         cell = cfg[kind + "_cell"]
         conf = json.loads(bank.file(cell, "config.json").read_text())
         validate_source_configuration(conf, cfg)
-        pin = bank.record["bank_reuse"]["diagnostic_provenance"][cell]["checkpoint"]
+        pin = provenance[cell]["checkpoint"]
         path = bank.file(cell, pin["filename"])
         if (
             pin["role"] != cfg["checkpoint_role"]
@@ -1370,6 +1377,8 @@ def compute(
     rate_target_hz=None,
     seed=42,
     calibration_source=None,
+    source=None,
+    source_digest=None,
 ):
     started = time.perf_counter()
     overrides = {
@@ -1379,6 +1388,10 @@ def compute(
         ).items()
         if value is not None
     }
+    if (source is None) != (source_digest is None):
+        raise ValueError("Source identity and digest must be supplied together")
+    if source is not None:
+        overrides.update(source_run=source, source_digest=source_digest)
     cfg = recipe.configuration(
         device=os.environ.get("SNNLAB_DEVICE", "cpu"),
         threads=int(os.environ.get("OMP_NUM_THREADS", "1")),
@@ -1658,6 +1671,8 @@ def replay_correct(identity, run_id=None):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--run-id")
+    parser.add_argument("--source", help="explicit compact exp022 input run")
+    parser.add_argument("--source-digest", help="pinned payload digest of --source")
     parser.add_argument("--seed", type=int, choices=recipe.SOURCE_SEEDS)
     parser.add_argument(
         "--rate-target-hz", choices=["off", "25", "10", "5", "2.5", "1"]
@@ -1691,6 +1706,8 @@ if __name__ == "__main__":
     if args.sweep:
         if (
             args.run_id
+            or args.source
+            or args.source_digest
             or args.raster_source
             or args.calibration_source
             or args.rate_target_hz
@@ -1731,6 +1748,8 @@ if __name__ == "__main__":
             or args.rate_target_hz is not None
             or args.seed is not None
             or args.calibration_source is not None
+            or args.source is not None
+            or args.source_digest is not None
         ):
             parser.error("Raster replay uses the source execution configuration")
         replay_correct(args.raster_source, args.run_id)
@@ -1746,4 +1765,6 @@ if __name__ == "__main__":
             else float(args.rate_target_hz),
             seed=args.seed or 42,
             calibration_source=args.calibration_source,
+            source=args.source,
+            source_digest=args.source_digest,
         )

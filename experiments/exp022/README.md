@@ -26,6 +26,11 @@ To run automated checks:
 uv run pytest experiments/exp022/test.py -q
 ```
 
+To prepare compact fine-tuning inputs without simulation, run analysis with
+`--source COMPUTE_ID --export-cell CELL`, repeating `--export-cell` for each
+required cell. This creates a new analysis run containing only each cell’s
+configuration and verified epoch-50 final checkpoint, linked to the source bank.
+
 ## Folder guide
 
 1. `recipe.py` — configuration and model definition.

@@ -36,6 +36,10 @@ uv run python -m libraries.hpc deploy \
    uploaded; provision them explicitly and pass the experiment's supported cache
    arguments, or use `--dataset-cache /shared/cache` to export
    `PINGLAB_DATASET_CACHE` inside the allocation. MNIST is not assumed for generic deployments.
+   For a compact, independently complete input export, add `--direct-inputs-only`
+   to transfer only the named runs. Their parent references remain intact; parent
+   payloads are not needed by the worker unless the experiment reads them. Never
+   use this to omit an input the stage actually consumes.
 6. The receipt is created before any remote mutation and records the acknowledged
    job ID. Never retry a receipt after a failed or ambiguous response: inspect
    its status, destination and Slurm first. Use a fresh destination and receipt

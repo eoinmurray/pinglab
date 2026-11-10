@@ -7,6 +7,7 @@ and input provenance belong to its independently completed Pingstore run.
 from __future__ import annotations
 
 import argparse
+import shutil
 import sys
 import time
 from pathlib import Path
@@ -312,14 +313,63 @@ def analyse(identity: str, *, run_id: str | None = None) -> str:
     return run.run_id
 
 
+def export_finetuning(source_id, cells, *, run_id=None):
+    """Copy selected final checkpoints into a new, provenance-linked input run."""
+    started = time.perf_counter()
+    bank = source_run(
+        REPO / ".pingstore", source_id, experiment="exp022", stage="compute"
+    )
+    cells = sorted(set(cells))
+    if not cells:
+        raise ValueError("At least one cell is required")
+    pins = {}
+    for cell in cells:
+        pin = bank.record["bank_reuse"]["diagnostic_provenance"][cell]["checkpoint"]
+        if pin["role"] != "final_epoch" or pin["epoch"] != 50:
+            raise ValueError("Expected final epoch-50 checkpoint")
+        bank.file(cell, "config.json")
+        checkpoint = bank.file(cell, pin["filename"])
+        from pingstore.library import file_sha256
+
+        if file_sha256(checkpoint) != pin["sha256"]:
+            raise ValueError("Checkpoint checksum mismatch")
+        pins[cell] = {"checkpoint": pin}
+    with stage_run(
+        REPO,
+        "exp022",
+        "analyse",
+        inputs={"bank": bank},
+        run_id=run_id,
+        operation="export-finetuning-inputs",
+        configuration={"diagnostic_provenance": pins, "cells": cells},
+    ) as run:
+        for cell in cells:
+            destination = run.export / cell
+            destination.mkdir()
+            for filename in ("config.json", pins[cell]["checkpoint"]["filename"]):
+                shutil.copyfile(bank.file(cell, filename), destination / filename)
+        run.record["execution"].update(
+            no_simulation=True, elapsed_seconds=time.perf_counter() - started
+        )
+    return run.run_id
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--source", required=True, help="completed exp022 compute run ID"
     )
     parser.add_argument("--run-id", help="already reserved analyse identity")
+    parser.add_argument(
+        "--export-cell",
+        action="append",
+        help="export only this cell configuration and final checkpoint; repeatable",
+    )
     args = parser.parse_args()
-    analyse(args.source, run_id=args.run_id)
+    if args.export_cell:
+        export_finetuning(args.source, args.export_cell, run_id=args.run_id)
+    else:
+        analyse(args.source, run_id=args.run_id)
 
 
 if __name__ == "__main__":

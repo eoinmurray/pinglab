@@ -43,6 +43,13 @@ For all six activity ceilings, add `--sweep` to compute. Analyse the six run IDs
 together by repeating `--source COMPUTE_ID` once per condition, then present that
 combined analysis. `SNNLAB_DEVICE=cuda` selects CUDA.
 
+For compact exp022 input exports, pass both `--source ANALYSE_ID` and
+`--source-digest sha256:DIGEST` to a single-condition compute command. The export
+must contain the matching COBA and PING cells. Original full-bank defaults remain
+supported. On CSD3, deploy the compact run with `--input ANALYSE_ID
+--direct-inputs-only`; ancestor references are preserved without copying their
+payloads.
+
 To run automated checks:
 
 ```sh

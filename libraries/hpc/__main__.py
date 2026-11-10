@@ -25,7 +25,7 @@ def run(command, **kwargs):
     return subprocess.run(command, check=True, **kwargs)
 
 
-def source_inputs(root, identities):
+def source_inputs(root, identities, *, include_ancestry=True):
     """Authenticate selected inputs and their complete, explicit ancestry."""
     sources, active = {}, set()
 
@@ -38,7 +38,7 @@ def source_inputs(root, identities):
                 raise PingstoreError("conflicting input references")
             return
         active.add(identity)
-        for pin in source.record["inputs"].values():
+        for pin in source.record["inputs"].values() if include_ancestry else ():
             visit(pin["run_id"], pin)
         active.remove(identity)
         sources[identity] = source
@@ -104,6 +104,7 @@ def plan(args, repo=REPO):
         cpus=args.cpus,
         gpus=args.gpus,
         inputs=args.input,
+        include_input_ancestry=not getattr(args, "direct_inputs_only", False),
         dataset_cache=getattr(args, "dataset_cache", None),
         command=command,
     )
@@ -159,7 +160,11 @@ def deploy(args, repo=REPO):
         raise ValueError(
             "deployment already attempted; inspect receipt and Slurm before recovery"
         )
-    sources = source_inputs(repo / ".pingstore", args.input)
+    sources = source_inputs(
+        repo / ".pingstore",
+        args.input,
+        include_ancestry=payload["include_input_ancestry"],
+    )
     payload["input_refs"] = [source.reference for source in sources.values()]
     with tempfile.TemporaryDirectory(prefix="pinglab-hpc-") as temporary:
         staging = Path(temporary)
@@ -266,6 +271,11 @@ def main(argv=None):
     )
     launch.add_argument(
         "--receipt", type=Path, default=REPO / ".pingstore/hpc-deployment.json"
+    )
+    launch.add_argument(
+        "--direct-inputs-only",
+        action="store_true",
+        help="transfer complete named runs without copying their provenance ancestors",
     )
     launch.add_argument("--live", action="store_true")
     launch.add_argument(
